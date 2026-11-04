@@ -117,6 +117,7 @@ export function checkpoint(position = 'E3', passages: readonly Passage[] = []): 
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
+    voided: [],
   }
 }
 
@@ -159,16 +160,9 @@ export function invokeAcceptance(
   id: AgentExecutionId,
   op: AgentOperationId,
   initial: AcceptedInput,
-  initialCheckpoint: AgentCheckpoint = checkpoint(),
   runtime: InvokeRuntimeContext = runtimeContext(),
 ): OriginalInputAcceptance {
-  const entry = {
-    kind: 'invoke' as const,
-    operation: op,
-    execution: id,
-    initial,
-    checkpoint: initialCheckpoint,
-  }
+  const entry = { kind: 'invoke' as const, operation: op, execution: id, initial }
   const handoff = { kind: 'input' as const, execution: id, entry: op, input: initial.id }
   return {
     entry,
@@ -225,7 +219,7 @@ export function withLineage(input: PlainSubmit): SubmitInput {
 }
 
 type OpenInput = Parameters<Journal['open']>[0]
-type PlainOpen = Omit<OpenInput, 'original' | 'runtime'> &
+type PlainOpen = Omit<OpenInput, 'original' | 'runtime' | 'checkpoint'> &
   Readonly<{
     instance?: AgentInstanceId
     grant?: DurableEvidence | null
@@ -243,10 +237,10 @@ export function openInput(input: PlainOpen): OpenInput {
       rest.execution,
       rest.operation,
       initial ?? acceptedInput('input-1'),
-      initialCheckpoint ?? checkpoint(),
       runtime,
     ),
     runtime,
+    checkpoint: initialCheckpoint ?? checkpoint(),
   }
 }
 
@@ -564,7 +558,7 @@ export async function takeInputs(journal: Journal, opened: Opened) {
   )
   return journal.commit(
     commitAt(snapshot, opened.authority, `take-inputs-${snapshot.revision}`, {
-      checkpoint: { ...snapshot.checkpoint, inputBatch: taken.batch.id },
+      checkpoint: { ...snapshot.checkpoint, inputBatch: taken.batch },
     }),
   )
 }

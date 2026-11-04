@@ -1930,7 +1930,7 @@ export function createJournal<P>(
 
   function inputBoundary(execution: Execution): Range {
     const taken = execution.checkpoint.inputBatch
-    const range = taken === null ? undefined : cache(execution).batches.get(taken)
+    const range = taken === null ? undefined : cache(execution).batches.get(taken.id)
     if (taken !== null && range === undefined)
       throw new Error('original input batch range is unavailable')
     const from = range?.to ?? 0
@@ -3062,7 +3062,7 @@ export function createJournal<P>(
           tenant: input.tenant,
           revision: 1,
           state: { kind: 'advancing' },
-          checkpoint: copy(entry.checkpoint),
+          checkpoint: copy(input.checkpoint),
           attachments: [],
           inputs: [copy(initial)],
           inputRevisions: new Map([[initial.id, 1]]),

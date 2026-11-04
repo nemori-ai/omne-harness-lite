@@ -229,7 +229,7 @@ describe('NA-E0-1: invoke reserves the slot, then open saves the input and the i
           async open(input) {
             const entry = input.original.entry
             if (entry.kind !== 'invoke') throw new Error('an invoke entry was expected')
-            seen.push({ initial: entry.initial, position: entry.checkpoint.position })
+            seen.push({ initial: entry.initial, position: input.checkpoint.position })
             await opening.opened
             return wrapped.journal.open(input)
           },

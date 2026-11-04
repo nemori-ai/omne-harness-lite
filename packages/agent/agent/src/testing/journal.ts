@@ -1292,7 +1292,7 @@ export function createMemoryAgentJournal<P>(
 
   function inputBoundary(execution: Execution): Range {
     const taken = execution.checkpoint.inputBatch
-    const from = taken === null ? 0 : (execution.batches.get(taken)?.to ?? 0)
+    const from = taken === null ? 0 : (execution.batches.get(taken.id)?.to ?? 0)
     return { from, to: execution.inputs.length }
   }
 
@@ -2457,7 +2457,7 @@ export function createMemoryAgentJournal<P>(
           tenant: input.tenant,
           revision: 1,
           state: { kind: 'advancing' },
-          checkpoint: copy(entry.checkpoint),
+          checkpoint: copy(input.checkpoint),
           attachments: [],
           inputs: [copy(initial)],
           inputRevisions: new Map([[initial.id, 1]]),

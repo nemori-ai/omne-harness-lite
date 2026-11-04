@@ -25,7 +25,12 @@ import type {
 } from './identity.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { HandoffReference, MessageSource, Passage } from './passages.ts'
-import type { CompactionProgress, CompactionState, Preparation } from './request.ts'
+import type {
+  CompactionProgress,
+  CompactionState,
+  Preparation,
+  SavedPreparation,
+} from './request.ts'
 
 export type ProducedResult = Readonly<{
   producer:
@@ -276,6 +281,18 @@ export type AdoptedRequest = Readonly<{
   schema: Adoption
   record: JsonValue
 }>
+/**
+ * A main Model intent that the Model answered with an authoritative not-accepted (SPEC "身份、范围与
+ * 归属", Model 未知行; R2-D292). The call was never admitted and never sent: the intent is closed
+ * by `basis`, and the step prepares its request again under the next attempt. `reference` is the
+ * invocation of the voided intent; `action` is the action of its effect.
+ */
+export type VoidedIntent = Readonly<{
+  step: StepId
+  action: ActionId
+  reference: M.ModelInvocationRef
+  basis: DurableEvidence
+}>
 export type AgentCheckpoint = Readonly<{
   schema: Adoption
   definition: Adoption
@@ -284,8 +301,16 @@ export type AgentCheckpoint = Readonly<{
   calls: readonly PendingCall[]
   passages: readonly Passage[]
   batch: ActionBatch | null
-  inputBatch: InputBatchId | null
-  requestPreparation: Preparation | null
+  /**
+   * The input batch the current step took: its identity, watermark and ordered inputs. A restart
+   * before the final request record prepares again from it (R2-D292).
+   */
+  inputBatch: InputBatch | null
+  /**
+   * The saved preparation of the current step: only `needs-compaction` and `cannot-fit` are kept
+   * (R2-D292). `assembled` and `ready` stay in the memory of the coordinator.
+   */
+  requestPreparation: SavedPreparation | null
   compaction: CompactionState | null
   adoptedContext: DurableEvidence | null
   /**
@@ -301,6 +326,12 @@ export type AgentCheckpoint = Readonly<{
   currentHandoff: HandoffReference | null
   /** The verified read position of the reply admission facts; written only by an ordinary commit. */
   replyAdmissionRead: ReplyAdmissionRead
+  /**
+   * The voided main Model intents of this execution, in the order they were voided. The attempt of
+   * the main call of a step is the number of its voided intents. Only the voiding commit appends
+   * to it; nothing removes an item.
+   */
+  voided: readonly VoidedIntent[]
 }>
 export type RuntimeConditions = Readonly<{
   source: DurableEvidence

@@ -25,6 +25,8 @@
 - [loop-wait.spec.ts](loop-wait.spec.ts)：W0 对 query 的 rejected 视为已定、unknown 保持等待
 - [loop-dependency-wait.spec.ts](loop-dependency-wait.spec.ts)：公开驱动在 I1 依赖持续不可用时，每个检查时刻只走一遍，两个检查时刻之间不空转；依赖恢复后下一个检查时刻接续到 ended
 - [loop-model-wait.spec.ts](loop-model-wait.spec.ts)：AG-03 先等待再收到回复的一次模型请求：节点提交次数、#1011 读取位置、每次进入等待最多一次 `load`、自身 waiting 事件不唤醒、重读失败不算进度与等待期间的重复 invoke
+- [loop-model-void.spec.ts](loop-model-void.spec.ts)：Model 受理窗口的故障注入（R2-D292）：M0 与 admit 之间停止、inspect 答 not-accepted 或 unavailable、admit 答 conflict；作废原意图后以 attempt+1 重新准备，原身份不发重新准备的请求
+- [checkpoint-bytes.spec.ts](checkpoint-bytes.spec.ts)：20 轮工具往返下 M0 的 checkpoint 字节与轮数无关（R2-D292）
 - [loop-recovery.spec.ts](loop-recovery.spec.ts)：E1/E2 只读认回与挂接撤销、E4 恢复路由、R0 原提交切点的 committed/excluded 接续与 W0 保存等待
 - [loop-coordinator.spec.ts](loop-coordinator.spec.ts)：E1 found-existing 正常结束协调
 - [canonical.spec.ts](canonical.spec.ts)：输入等价性、元素边界与字节视图

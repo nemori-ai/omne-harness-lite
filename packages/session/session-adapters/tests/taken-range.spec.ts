@@ -32,7 +32,8 @@ function renamed(output: JsonValue, id: string): JsonValue {
       const batch = event.body['batch'] as { id: string; ordered: unknown[] } | undefined
       if (event.body['kind'] === 'input-taken' && batch?.ordered.length === 0) batch.id = id
     }
-    execution.checkpoint['inputBatch'] = id
+    const taken = execution.checkpoint['inputBatch'] as Json | null
+    if (taken !== null) execution.checkpoint['inputBatch'] = { ...taken, id }
   }
   return copy as unknown as JsonValue
 }
@@ -65,7 +66,7 @@ async function afterEmptyTake(name: string) {
             operation: operation(label),
             authority,
             expected: loaded.revision,
-            checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+            checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
             state: { kind: 'advancing' },
             events: [{ kind: 'input-taken', batch: page.batch }],
             effects: [],

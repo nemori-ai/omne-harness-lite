@@ -71,6 +71,8 @@ import type {
   CompactionAdvance,
   CompactionProgress,
   CompactionState,
+  SavedPreparation,
+  VoidedIntent,
   ConsumerRef,
   ConsumptionId,
   ContextContent,
@@ -336,10 +338,12 @@ type Landed = {
   ReplyAdmissionSequence: ReplyAdmissionSequence
   RequestPreparation: RequestPreparation<string>
   RuntimeConditions: RuntimeConditions
+  SavedPreparation: SavedPreparation
   SelectedModel: SelectedModel
   StepId: StepId
   StructureFailure: StructureFailure
   Subject: Subject
+  VoidedIntent: VoidedIntent
   Waiting: Waiting
   AcceptedInput: AcceptedInput
   AgentAccessCheck: AgentAccessCheck<string>
@@ -767,6 +771,14 @@ describe('the discriminants of the request chapter', () => {
     >()
     expectTypeOf<ContextContent>().toEqualTypeOf<'full' | 'incremental'>()
     expectTypeOf<CompactionState['ended']>().toEqualTypeOf<'committed' | 'failed' | null>()
+    // R2-D292: the step request is derived again, never kept.
+    expectTypeOf<CompactionState>().not.toHaveProperty('stepRequest')
+  })
+
+  it('a checkpoint keeps only the preparations that cannot be computed again', () => {
+    expectTypeOf<AgentCheckpoint['requestPreparation']>().toEqualTypeOf<SavedPreparation | null>()
+    expectTypeOf<KindOf<SavedPreparation>>().toEqualTypeOf<'needs-compaction' | 'cannot-fit'>()
+    expectTypeOf<AgentCheckpoint['voided']>().toEqualTypeOf<readonly VoidedIntent[]>()
   })
 
   it('prepare excludes the compaction purpose', () => {
@@ -1042,9 +1054,8 @@ describe('the discriminants of the passage ledger', () => {
     expectTypeOf<KindOf<SubmitDelivery>>().toEqualTypeOf<'runtime-view' | 'durable-view'>()
     expectTypeOf<KindOf<InputEntry>>().toEqualTypeOf<'invoke' | 'submit'>()
     expectTypeOf<Extract<InputEntry, { kind: 'submit' }>>().not.toHaveProperty('checkpoint')
-    expectTypeOf<
-      Extract<InputEntry, { kind: 'invoke' }>['checkpoint']
-    >().toEqualTypeOf<AgentCheckpoint>()
+    // R2-D292: the initial checkpoint is an input of `open`, never a part of the entry.
+    expectTypeOf<Extract<InputEntry, { kind: 'invoke' }>>().not.toHaveProperty('checkpoint')
     expectTypeOf<PendingHandoff['source']>().toEqualTypeOf<
       Exclude<MessageSource, { kind: 'external-input' }>
     >()
@@ -1303,7 +1314,11 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<ActionSlot['handoff']>().toEqualTypeOf<HandoffReference | null>()
     expectTypeOf<Parameters<AgentJournalAttachment<string>['open']>[0]>().toEqualTypeOf<
       ExecutionMutation<string> &
-        Readonly<{ original: OriginalInputAcceptance; runtime: InvokeRuntimeContext }>
+        Readonly<{
+          original: OriginalInputAcceptance
+          runtime: InvokeRuntimeContext
+          checkpoint: AgentCheckpoint
+        }>
     >()
     expectTypeOf<KindOf<JournalSubmitLineage>>().toEqualTypeOf<'new-input' | 'recognize-input'>()
     expectTypeOf<

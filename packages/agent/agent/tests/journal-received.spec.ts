@@ -68,7 +68,7 @@ function fixture() {
           operation: operation(`take-${execution}`),
           authority,
           expected: snapshot.revision,
-          checkpoint: { ...snapshot.checkpoint, inputBatch: inputs.batch.id },
+          checkpoint: { ...snapshot.checkpoint, inputBatch: inputs.batch },
           state: { kind: 'advancing' },
           handoff: null,
           events: [],

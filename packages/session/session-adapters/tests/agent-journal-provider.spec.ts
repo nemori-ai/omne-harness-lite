@@ -505,7 +505,7 @@ describe('routing by tenant and execution', () => {
         operation: operation('route-a-take'),
         authority: openedA.authority,
         expected: loaded.revision,
-        checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+        checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
         state: { kind: 'advancing' },
         events: [{ kind: 'input-taken', batch: page.batch }],
         effects: [],
