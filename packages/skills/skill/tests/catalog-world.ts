@@ -215,7 +215,7 @@ export function catalogFixture(
     reader: { access: alice, scope },
     nobody: { access: mallory, scope },
     granted: reviewEntry,
-    refused: secret,
+    refused: { capability: secret, name: secretDeclared.name, description: 'Keeps a secret.' },
     standIn: retiredEntry,
     missing,
     world: world.controls,

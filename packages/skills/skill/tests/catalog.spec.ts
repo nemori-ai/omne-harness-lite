@@ -1,10 +1,12 @@
 // The `SkillCatalog` conformance suite of `skill-contract/testing` runs on `createSkillCatalog`
 // over the memory doubles, each case on a fresh fixture. A not-applicable case counts as a
 // failure here: the fixture offers everything. The same suite runs in process on two violating
-// implementations: one that lists a refused identity too, which fails exactly the non-disclosure
-// and filter cases, and one that presses `unknown` into an empty list, which fails exactly the
-// whole-unknown cases. The order tests hold the read check answers and release them first to
-// last and last to first: the answer is the same.
+// implementations: one that lists a refused identity too, which fails exactly the four cases
+// that look for the refused identity in the answer (SC3 refused, SC5 filter, the two SC7
+// cases), and one that presses `unknown` into an empty list, which fails exactly the two
+// whole-unknown cases (SC2 lawful set, SC3 read check). The shape of the suite is checked in
+// `skill-contract/tests/catalog-suite.spec.ts`, not here. The order tests hold the read check
+// answers and release them first to last and last to first: the answer is the same.
 import { AssertionError } from 'node:assert/strict'
 import { setImmediate } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
@@ -27,14 +29,6 @@ import {
 } from './catalog-world.ts'
 
 const cases = skillCatalogConformance<Principal, Scope>()
-
-describe('the suite', () => {
-  it('has at least 12 cases over the clauses SC2 to SC7', () => {
-    expect(cases.length).toBeGreaterThanOrEqual(12)
-    const clauses = new Set(cases.map(item => item.clause))
-    for (const item of [2, 3, 4, 5, 6, 7]) expect(clauses).toContain(`SC${item}`)
-  })
-})
 
 describe('SkillCatalog conformance: createSkillCatalog over the memory doubles', () => {
   for (const conformance of cases)
@@ -84,7 +78,7 @@ function pressingUnknown(world: CatalogWorld): SkillCatalog<Principal, Scope> {
 }
 
 describe('the suite goes red on a violating implementation', () => {
-  it('fails exactly the non-disclosure and filter cases on a catalog that lists a refused identity', async () => {
+  it('fails exactly the four cases that look for the refused identity in the answer, on a catalog that lists it', async () => {
     expect(await failing(() => catalogFixture(listingRefused))).toStrictEqual([
       'lists a granted identity and not a refused one',
       'filters to the identities of the request that are lawful and granted',
