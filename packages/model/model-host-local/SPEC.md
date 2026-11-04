@@ -41,6 +41,7 @@
 - 租户未经铸造（例如复制出的对象）时，`put`、`rotate`、`revoke`、`markUnreadable` 都先抛出异常，不取锁、不读盘也不写盘。`put` 若放行，磁盘记录读回时会按文本重新铸造，复制出的租户会变成真实租户的绑定；其余三个操作对这样的租户匹配不到任何行，放行只会空跑一次取锁与发布，并让调用者以为已经生效。
 - `put` 把该持有者写成 `active`，可以盖过已撤销或读不出的行。
 - `rotate` 只换秘密，不改寿命；已撤销的行轮换后 `resolve` 仍是 `denied`。
+- `replaceFactorySecret(secret)` 只换工厂秘密。绑定、它们的秘密与寿命都不变。它不带租户，所以没有铸造检查。运行中的句柄与插件在下一次解析时读到新值，因为每次解析都从磁盘刷新。
 - `revoke` 把该持有者标成 `revoked`。
 - `markUnreadable` 只把 `active` 改成 `unreadable`。
 - 其他租户持有同一身份时，对它的 `put`、`rotate` 不替换也不改动本租户的行。
@@ -57,6 +58,19 @@
 ### 保管库初始化命令
 
 `src/vault-init.ts` 的核心 `initVault(path, deps)` 与 `src/vault-init-cli.ts` 的命令行外壳，让人在宿主上从终端把一个密钥写成保管库的工厂秘密。命令不是插件，不属于 `LocalCredentialPlugin`，不从根入口导出。它只经 `createLocalCustodian` 建库，所以沿用文件锁与原子发布；只建工厂秘密，不写任何租户绑定，也不在别处另存密钥。保管库记录格式与 `store.ts` 的行为不变。
+
+主机配置命令（例如 harness-server 的 `setup`）经子路径 `@omne-harness/model-host-local/vault` 复用同一组操作：`initVault`、`replaceVaultSecret`、终端读取器 `readSecretFromTerminal`（可选参数 `prompt` 换提示文字）与权限护栏。这个子路径不是插件，根入口不导出它。
+
+`replaceVaultSecret(path, deps)` 替换已有保管库的工厂秘密，次序如下，任一步失败即停止：
+
+1. 路径为空或含 NUL 时返回 `path-invalid`。
+2. 路径上必须有可读的保管库，否则返回 `vault-unavailable`，不调用读密钥函数，也不建文件。
+3. 调用读密钥函数一次。输入规则与 `initVault` 第 4 步相同：`secret-empty`、`secret-malformed`、`input-not-terminal`、`input-cancelled`、`input-failed`。
+4. 在权限护栏内持文件锁写入（`replaceFactorySecret`）。锁等待超时返回 `lock-timeout`。写入抛出而读回不是新密钥时返回 `write-failed`，文件保持旧值。写入抛出而读回已是新密钥时（发布后确认失败），按成功继续。
+5. 读回文件，工厂秘密不是新密钥时返回 `write-unconfirmed`。
+6. 收窄并读回文件权限。失败时返回 `permission-failed`。这时文件已经是新密钥，命令不回滚。
+
+结果只有原因代码与路径，不含密钥。
 
 运行责任在人：密钥由 PanQiWei 或该宿主的操作人在自己的终端输入，每台要发真实请求的宿主运行一次。Reduce、写者与其他 agent 不取密钥值，也不代为运行。
 
@@ -113,7 +127,7 @@
 - 第 2 步校验之后，路径上的目录若被换成指向目录外的符号链接，命令不再发现。同样是本机单人运行下接受的窗口。
 - Windows 的访问控制只靠继承（见上），不读回。
 - 命令自己刚建的文件在第 6 步读回时若碰上瞬时 I/O 故障（例如 Windows 上杀毒软件临时占用文件，读回抛 `EBUSY`），`openLocalCustodian` 返回读不出，命令报告 `write-unconfirmed` 并保留那份带密钥的文件。原因代码分不出「采用了别人的文件」与「自己的文件暂时读不了」，两者的处置都落在文件内容上：操作者先打开该文件检查它的工厂秘密是不是自己刚输入的密钥，再决定保留还是手工删除后重跑。命令自身此时不删文件，因为删掉可能是别人的库。
-- 命令只建新库，不提供轮换、撤销与租户绑定。
+- `initVault` 只建新库。换工厂秘密用 `replaceVaultSecret`。命令行外壳不提供轮换、撤销与租户绑定。
 
 ### 关闭
 
@@ -279,9 +293,10 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 
 ### 插件
 
-`LocalCredentialPlugin` 继承 model-cordis-contract 的 `ModelCredentialService`，不另写键。配置是 `path`（非空字符串）、`factorySecret`（字符串，空字符串合法），以及可选的 `lock`（`waitMs`、`backoffMs`）与 `diagnosticsCapacity`；三个数值的取值规则与保管库相同。配置不合格时插件加载失败：缺项、类型不对与取值不合格都是不合格，不会被静默丢弃后按默认值加载。回调和已打开的存储对象不进配置。
+`LocalCredentialPlugin` 继承 model-cordis-contract 的 `ModelCredentialService`，不另写键。配置是 `path`（非空字符串）、可选的 `factorySecret`（给出时必须是字符串，空字符串合法），以及可选的 `lock`（`waitMs`、`backoffMs`）与 `diagnosticsCapacity`；三个数值的取值规则与保管库相同。配置不合格时插件加载失败：缺项、类型不对与取值不合格都是不合格，不会被静默丢弃后按默认值加载。回调和已打开的存储对象不进配置。
 
-- 路径上没有文件：用配置里的工厂秘密新建保管库。新建等待文件锁，超过 `lock.waitMs` 时插件加载失败。
+- 路径上没有文件、配置给出 `factorySecret`：用它新建保管库。新建等待文件锁，超过 `lock.waitMs` 时插件加载失败。
+- 路径上没有文件、配置没有 `factorySecret`：不建文件。插件照常注册 `modelCredential`，四个方法都返回 `unavailable`，与文件读不出时相同。这让由配置命令建好保管库的宿主不在可序列化配置里放秘密（[可序列化配置与秘密材料分开](../../../docs/architecture/cross-cutting-concepts.md)）。
 - 路径上已有文件：打开并使用文件里的工厂秘密，不用本次配置里的值。
 - 文件损坏或读不出：插件仍然注册 `modelCredential`，`present` 和 `resolve` 返回 `unavailable`，不改文件；撤除时没有可关闭的保管库。打开失败的原因不经插件报告：服务面只有 `present` 与 `resolve`，诊断不转发（见[读取与刷新](#读取与刷新)），本包也没有采用别的观测通道；运维在同一路径上调用 `openLocalCustodian` 即得到 `missing`、`corrupt` 或 `io`。
 - 保管库只存在于构造时创建的闭包里，不是实例属性，经 `ctx.modelCredential` 取不到保管库及其管理操作。
@@ -326,6 +341,7 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 - [profiles-plugin.spec.ts](tests/profiles-plugin.spec.ts)：在真实 Cordis 4.0.4 下，`ModelProfilesLocalPlugin` 发布 `modelProfiles`，每条路由的档案定义与 `officialOpenAiProfiles` 逐字段相同，`list` 与 `resolve` 的答案，撤除后旧句柄返回 `unavailable`，非法配置使加载失败，并与档案替身对拍。
 - [deliver-injected.spec.ts](tests/deliver-injected.spec.ts)：在真实 Cordis 4.0.4 下，注入发送的模块边界、提供者缺席、恢复、重装后结果不变、更替与非服务对象。
 - [vault-init.spec.ts](tests/vault-init.spec.ts)：保管库初始化命令：新建与读回、五种已有对象的拒绝、密钥不外泄的各失败点、输入规则、用户目录规则、POSIX 权限与失败时清理、终端回显关闭与还原、命令行参数与退出码。
+- [vault-replace.spec.ts](tests/vault-replace.spec.ts)：替换工厂秘密：绑定不变、读回、没有保管库或保管库损坏时不读密钥、输入规则、权限护栏的次序与读回失败，以及插件配置不带工厂秘密时的两种情形（有保管库照常服务、没有保管库答 `unavailable` 且不建文件）。
 - [send-resources.spec.ts](tests/send-resources.spec.ts)：用观察凭据槽的传输工厂核对，槽只在 `start` 期间有值，正常返回与抛出后都为空，两个资源互不见对方的值，异物与释放后的物化传输被拒绝且不填槽，`release` 与 `close` 幂等。它还用真实 pi 传输核对异物物化传输被拒绝，以及传输拒绝的配置在构造时抛出。
 - [assembly.spec.ts](tests/assembly.spec.ts)：装配对路由、网络、尝试容量与准备配置的拒绝。`preparation` 的租约经配置的家族取得绑定，并调用配置的 `supplierOf`。`close` 开始后的取得返回具名为 `model-host-local`、`assembly-closed` 的不可用，且不调用 `supplierOf`。关闭前取得的租约在关闭后计量结果不变并能释放。`close` 幂等。
 - [plugins-instances.spec.ts](tests/plugins-instances.spec.ts)：真实 Cordis 4.0.4 下两个目录插件的等待、发布、登记与释放、非解析器租户、授权方拒绝、后继目录、失去权威与转换目录的独立。

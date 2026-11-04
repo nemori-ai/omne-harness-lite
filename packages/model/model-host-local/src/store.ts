@@ -117,6 +117,8 @@ export type LocalCustodian = CredentialPort & {
   diagnostics(): readonly Diagnostic[]
   put(reference: CredentialReference, secret: string): void
   rotate(reference: CredentialReference, secret: string): void
+  /** Replaces the factory secret. Bindings, their secrets and their lives stay as they are. */
+  replaceFactorySecret(secret: string): void
   revoke(reference: CredentialReference): void
   markUnreadable(reference: CredentialReference): void
   close(): void
@@ -293,6 +295,9 @@ function live(settings: Settings, initial: CustodianState): LocalCustodian {
           sameCredentialHolder(item, reference) ? { ...item, secret } : item,
         ),
       }))
+    },
+    replaceFactorySecret(secret: string) {
+      mutate(settings, holder, refreshed => ({ ...refreshed, factorySecret: secret }))
     },
     revoke(reference: CredentialReference) {
       requireMintedTenant(reference)

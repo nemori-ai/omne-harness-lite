@@ -25,8 +25,10 @@ import {
   createLocalCustodian,
   openLocalCustodian,
   type CreateOptions,
+  type CustodianOptions,
   type LocalCustodian,
   type LockOptions,
+  type OpenResult,
 } from './store.ts'
 
 /** Why a reader gave up: it is not a terminal, the person cancelled, or the read itself failed. */
@@ -353,4 +355,97 @@ function narrowAndVerify(guard: PermissionGuard, path: string, kind: EntryKind):
   } catch {
     throw new PermissionRefused('permission refused')
   }
+}
+
+export type VaultReplaceFailure =
+  | SecretInputFailure
+  /** The path is empty or holds a NUL character. */
+  | 'path-invalid'
+  /** No readable vault is on the path: it is missing, damaged or cannot be read. */
+  | 'vault-unavailable'
+  /** The key is empty once the whitespace around it is removed. */
+  | 'secret-empty'
+  /** The key holds a control character. */
+  | 'secret-malformed'
+  /** The file lock was not free within the lock wait. */
+  | 'lock-timeout'
+  /** The store could not be written. The file still holds the previous factory secret. */
+  | 'write-failed'
+  /** The store returned, but the file does not hold this key as its factory secret. */
+  | 'write-unconfirmed'
+  /** The file holds the new key, but its mode could not be narrowed or read back. */
+  | 'permission-failed'
+
+export type VaultReplaceResult =
+  | Readonly<{ ok: true; path: string }>
+  | Readonly<{ ok: false; reason: VaultReplaceFailure }>
+
+export type VaultReplaceDeps = Readonly<{
+  /** Supplies the new key. It is called once, only after the vault is known to be readable. */
+  readSecret: () => string | Promise<string>
+  /** Opens the store. Default: `openLocalCustodian`, so the file lock and the atomic publish apply. */
+  openStore?: (options: CustodianOptions) => OpenResult
+  /** Default: mode bits on POSIX, the inherited access control of the user directory on Windows. */
+  guard?: PermissionGuard
+  /** The lock wait of the store. Default: the library default. */
+  lock?: LockOptions
+}>
+
+/**
+ * Replaces the factory secret of the vault at `path`. Order: path rule, a readable vault on the path,
+ * read the key, write it under the file lock and the guard, confirm the key in the file, and narrow
+ * the file mode. Bindings stay as they are. A store that runs on the same file reads the new key on
+ * its next resolution, because every resolution reads the file again.
+ *
+ * The result carries a reason code and nothing else, as `initVault` does.
+ */
+export async function replaceVaultSecret(
+  path: string,
+  deps: VaultReplaceDeps,
+): Promise<VaultReplaceResult> {
+  if (typeof path !== 'string' || path === '' || path.includes('\0')) {
+    return { ok: false, reason: 'path-invalid' }
+  }
+  const options: CustodianOptions = deps.lock === undefined ? { path } : { path, lock: deps.lock }
+  const opened = (deps.openStore ?? openLocalCustodian)(options)
+  if (opened.kind !== 'open') return { ok: false, reason: 'vault-unavailable' }
+  const store = opened.custodian
+  try {
+    const typed = await typedSecret(deps.readSecret)
+    if (!typed.ok) return { ok: false, reason: replaceInputFailure(typed.reason) }
+    return replaceTyped(store, path, typed.secret, deps.guard ?? defaultGuard())
+  } finally {
+    store.close()
+  }
+}
+
+function replaceInputFailure(reason: VaultInitFailure): VaultReplaceFailure {
+  return reason === 'secret-empty' ||
+    reason === 'secret-malformed' ||
+    reason === 'input-not-terminal' ||
+    reason === 'input-cancelled'
+    ? reason
+    : 'input-failed'
+}
+
+function replaceTyped(
+  store: LocalCustodian,
+  path: string,
+  secret: string,
+  guard: PermissionGuard,
+): VaultReplaceResult {
+  try {
+    guard.confine(() => store.replaceFactorySecret(secret))
+  } catch (error: unknown) {
+    if (errorCode(error) === 'ELOCKED') return { ok: false, reason: 'lock-timeout' }
+    // A publish whose confirmation failed may still have landed: the read-back decides.
+    if (!holdsSecret(path, secret)) return { ok: false, reason: 'write-failed' }
+  }
+  if (!holdsSecret(path, secret)) return { ok: false, reason: 'write-unconfirmed' }
+  try {
+    narrowAndVerify(guard, path, 'file')
+  } catch {
+    return { ok: false, reason: 'permission-failed' }
+  }
+  return { ok: true, path }
 }
