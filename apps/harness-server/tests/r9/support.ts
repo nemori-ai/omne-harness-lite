@@ -164,6 +164,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       },
       transportLimits: {
         connectTimeoutMs: 5000,
+        connectRetry: { backoffMs: [500, 1000] },
         maxErrorBodyBytes: 4096,
         maxEventBytes: 1_048_576,
         json: {

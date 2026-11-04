@@ -45,6 +45,23 @@ export function givenServer(values: Option, environment: CommandEnvironment): st
   return values.get(serverOption) ?? (fromEnvironment === '' ? undefined : fromEnvironment)
 }
 
+/**
+ * The server of a command that has no login yet: the command line, the environment, the address
+ * that `harness-server setup` configured on this host, then the default.
+ */
+export function serverOf(
+  values: Option,
+  environment: CommandEnvironment,
+):
+  | { readonly kind: 'server'; readonly origin: string }
+  | { readonly kind: 'invalid'; readonly message: string } {
+  const given = givenServer(values, environment)
+  if (given !== undefined) return { kind: 'server', origin: given }
+  const local = environment.localServer?.() ?? { kind: 'none' }
+  if (local.kind === 'invalid') return local
+  return { kind: 'server', origin: local.kind === 'address' ? local.origin : defaultServer }
+}
+
 export type Transport =
   | { readonly kind: 'transport'; readonly origin: string; readonly transport: GovernanceTransport }
   | { readonly kind: 'refused' }

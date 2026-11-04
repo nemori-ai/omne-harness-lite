@@ -34,6 +34,27 @@ describe('isolating the diagnostic observer', () => {
     expect(sink.counters()).toEqual({ failed: 0, pending: 0, dropped: 0 })
   })
 
+  it('delivers the counted members of a retry event and nothing else', () => {
+    const received: unknown[] = []
+    const sink = createDiagnosticSink(event => received.push(event), { maxPending: 1 })
+    sink.emit(
+      Object.assign(
+        {
+          kind: 'connect-retry',
+          level: 'info',
+          attempt: 1,
+          delayMs: 500,
+          reason: 'connect-timeout',
+        } satisfies TransportDiagnostic,
+        { url: 'https://secret' },
+      ),
+    )
+    expect(received).toEqual([
+      { kind: 'connect-retry', level: 'info', attempt: 1, delayMs: 500, reason: 'connect-timeout' },
+    ])
+    expect(Object.isFrozen(received[0])).toBe(true)
+  })
+
   it('a synchronous throw is counted as failed and later events are still delivered', () => {
     const received: string[] = []
     const sink = createDiagnosticSink(

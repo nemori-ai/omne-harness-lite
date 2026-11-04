@@ -2,10 +2,23 @@
  * A transport diagnostic carries its kind and level only: never a URL, a header or a body.
  * The event vocabulary and its query belong to a later owner; this is the current closed set.
  */
-export type TransportDiagnostic = Readonly<{
-  kind: 'exchange-started' | 'connect-failed' | 'error-body-too-large' | 'exchange-stopped'
-  level: 'info' | 'error'
-}>
+export type TransportDiagnostic =
+  | Readonly<{
+      kind: 'exchange-started' | 'connect-failed' | 'error-body-too-large' | 'exchange-stopped'
+      level: 'info' | 'error'
+    }>
+  /**
+   * A send is about to start its `attempt`-th retry (1 for the first) after the previous attempt
+   * failed with `reason` before its request was written. `delayMs` is the backoff before it. Only
+   * counts and closed words: still no URL, header or body.
+   */
+  | Readonly<{
+      kind: 'connect-retry'
+      level: 'info'
+      attempt: number
+      delayMs: number
+      reason: 'connect-failed' | 'connect-timeout'
+    }>
 
 /** A caller-owned observer. It may return a thenable; nothing it does reaches the emitter. */
 export type DiagnosticObserver = (event: TransportDiagnostic) => unknown
@@ -71,7 +84,7 @@ export function createDiagnosticSink(
       }
       let completion: unknown
       try {
-        completion = observer(Object.freeze({ kind: event.kind, level: event.level }))
+        completion = observer(copyOf(event))
       } catch {
         failed += 1
         return
@@ -84,6 +97,15 @@ export function createDiagnosticSink(
   }
 }
 
+/** Only the named members cross to the observer: a stray property of the emitter never does. */
+function copyOf(event: TransportDiagnostic): TransportDiagnostic {
+  if (event.kind === 'connect-retry') {
+    const { kind, level, attempt, delayMs, reason } = event
+    return Object.freeze({ kind, level, attempt, delayMs, reason })
+  }
+  return Object.freeze({ kind: event.kind, level: event.level })
+}
+
 function isThenable(value: unknown): value is PromiseLike<unknown> {
   return (
     (typeof value === 'object' || typeof value === 'function') &&
@@ -92,3 +114,6 @@ function isThenable(value: unknown): value is PromiseLike<unknown> {
     typeof value.then === 'function'
   )
 }
+
+/** The event of one retry, as the observer of a transport (`onConnectRetry`) gets it. */
+export type ConnectRetryDiagnostic = Extract<TransportDiagnostic, { kind: 'connect-retry' }>

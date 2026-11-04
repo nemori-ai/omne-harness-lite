@@ -6,14 +6,19 @@ import { fieldOf, isIntegerAtLeast, isRecord, rejected, type Parsed } from './fi
 import {
   createLocalCustodian,
   openLocalCustodian,
-  type CreateOptions,
+  type CustodianOptions,
   type LocalCustodian,
   type LockOptions,
 } from './store.ts'
 
 export { deliverInjected } from './deliver-injected.ts'
 
-type PluginConfig = CreateOptions
+/**
+ * The vault path and the store options. `factorySecret` builds a vault when the path holds no file.
+ * It is optional, so that a host whose vault a setup command built keeps no secret in its
+ * serializable configuration. On an existing vault it is never used.
+ */
+type PluginConfig = CustodianOptions & Readonly<{ factorySecret?: string }>
 
 function parseCount(value: unknown, name: string, minimum: number): Parsed<number | undefined> {
   if (value === undefined) return { value: undefined }
@@ -41,7 +46,8 @@ function parseConfig(value: unknown): Parsed<PluginConfig> {
   const path = fieldOf(value, 'path')
   if (typeof path !== 'string' || path === '') return rejected('path must be a non-empty string')
   const factorySecret = fieldOf(value, 'factorySecret')
-  if (typeof factorySecret !== 'string') return rejected('factorySecret must be a string')
+  if (factorySecret !== undefined && typeof factorySecret !== 'string')
+    return rejected('factorySecret must be a string when it is given')
   const lock = parseLock(fieldOf(value, 'lock'))
   if ('issues' in lock) return lock
   const capacity = parseCount(fieldOf(value, 'diagnosticsCapacity'), 'diagnosticsCapacity', 1)
@@ -49,7 +55,7 @@ function parseConfig(value: unknown): Parsed<PluginConfig> {
   return {
     value: {
       path,
-      factorySecret,
+      ...(factorySecret !== undefined && { factorySecret }),
       ...(lock.value !== undefined && { lock: lock.value }),
       ...(capacity.value !== undefined && { diagnosticsCapacity: capacity.value }),
     },
@@ -84,7 +90,9 @@ function openPort(config: PluginConfig): {
   readonly custodian?: LocalCustodian
 } {
   if (!existsSync(config.path)) {
-    const custodian = createLocalCustodian(config)
+    // Without a factory secret there is nothing to build: the port answers as for a missing file.
+    if (config.factorySecret === undefined) return { port: unavailablePort }
+    const custodian = createLocalCustodian({ ...config, factorySecret: config.factorySecret })
     return { port: custodian, custodian }
   }
   const opened = openLocalCustodian(config)

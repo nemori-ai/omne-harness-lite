@@ -54,6 +54,7 @@
 所有限额都由调用方给出，本包不设默认值：
 
 - 网络资源：`maxConnections`（容量，即同时在途的交换数；连接池本身不设套接字上限）、`idleConnectionTimeoutMs`（池中空闲连接的关闭时限）、可选的 `tls.ca`、可选的 `proxy`（`url` 与 `bypass`），以及可选的诊断观察者与 `maxPending`。本包不读取 `HTTPS_PROXY` 或 `NO_PROXY`，由调用方在边界把环境映射为 `proxy`。
+- 连接重试：`limits.connectRetry.backoffMs`（至多 8 项；列表长度是最多的重试次数；缺省或空列表表示不重试）只在失败发生于请求字节可能发出之前时重发一次发送（连接超时、被拒绝、DNS、TLS 握手）。请求可能已在线上之后不重试。停止、取消与关闭立即结束退避。最后一次尝试的 `upstream-unavailable` fault 保持原来的形状，每次重试以 `connect-retry` 事件进入诊断观察者。见 [SPEC“请求发出之前的重试”](SPEC.md#请求发出之前的重试)。
 - 每次交换：`connectTimeoutMs`（从发起到取得已连接的套接字，复用的连接在下一个 tick 结束，`null` 表示不设）、`maxErrorBodyBytes` 与可选的 `streamStallTimeoutMs`。`streamStallTimeoutMs` 是两次收到响应字节的最长间隔：从发起开始计时，每收到任意响应字节（含 SSE 注释行）重新计时，缺省表示不设。到期时发送以 `failed` 收场：响应头之前是 `upstream-unavailable`，之后是 `stream-lost`，诊断名都是 `stream-stall`。见 [SPEC“流停顿上界”](SPEC.md#流停顿上界)。
 - SSE 分帧：`maxEventBytes`。协议帧：`endMarker` 与 JSON 限额。
 - 三段传输：`network`（装配创建并关闭的网络资源）、`families`、`routes`（每个接收方的 `url` 与 `endMarker`）、`credential`（凭据槽），以及 `limits`（`connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes`、`json` 与可选的 `streamStallTimeoutMs`）。配置不合规时 `createPiTransport` 同步抛出 `RangeError`。

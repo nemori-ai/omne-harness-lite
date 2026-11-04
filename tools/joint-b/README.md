@@ -41,10 +41,10 @@ pnpm --filter @omne-harness/harness-server... run build
 pnpm --filter @omne-harness/cli... run build
 ```
 
-- [operator.mjs](operator.mjs) 是联调 B 的运维者层：在联调 A 那份之上补模型、Context、工具、Session 适配行的
-  数值（抄自 `apps/harness-server/tests/r9/support.ts`）。联调 A 那份缺这些行，`serve` 装载时
-  model-records、request-context、session-ad03、session-ad04 会 FAILED，树起不来，注册、登录、建会话全部
-  退出 5。新行要运维层数值时在这里补。
+- [operator.mjs](operator.mjs) 是联调 B 的运维者层。它不自己写数值，而是从 harness-server 的构建产物
+  `dist/local/` 取「本机单用户」档的默认值（见 [SPEC](../../apps/harness-server/SPEC.md#本机单用户档)）。
+  它只改三件事：路径放在本次的临时目录下；保管库由插件用测试工厂秘密新建；调用方可以替换 `historyKinds`。
+  新行要运维层数值时，改 harness-server 的默认值，不改这里。
 - 入口开头调用联调 A 的 `holdTestSlot`，先取机器运行名额。公共件从 `../joint-a/support.mjs` 复用，
   `support.mjs` 只加联调 B 自己的部分。
 - `--model-source`：树上模型侧已全是真件时，发消息会触到真实模型或回放，要有授权。不给这个参数，

@@ -17,6 +17,11 @@
       "source": "./src/cordis.ts",
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
+    },
+    "./vault": {
+      "source": "./src/vault.ts",
+      "types": "./dist/vault.d.ts",
+      "import": "./dist/vault.js"
     }
   },
   "files": [

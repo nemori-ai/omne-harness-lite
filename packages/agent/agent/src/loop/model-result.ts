@@ -59,3 +59,20 @@ export function consumeModelResult(
     reply: { id: replyMessageId(...input), role: 'assistant', blocks: [first, ...rest] },
   })
 }
+
+/** The longest model diagnostic a cause record carries; a longer one is cut there. */
+const DIAGNOSTIC_LIMIT = 120
+
+/**
+ * The last segment of the cause record of a call that ended without a valid reply (SPEC「以失败终结」).
+ * The failure candidate is `no-reply` either way (SC-AG-153), but its cause keeps why: a call that
+ * Model settled as failed gives `model-failed/<fault cause>/<diagnostic>`, so the conclusion carries
+ * the real cause and not only the absence of a reply. `no-reply` stays for a call that completed or
+ * was interrupted without content. The diagnostic is URI-encoded, so it never adds a segment.
+ */
+export function noReplyReason(settlement: M.Settlement): string {
+  const terminal = settlement.termination
+  if (terminal.kind !== 'failed') return 'no-reply'
+  const diagnostic = encodeURIComponent(terminal.fault.diagnostic.slice(0, DIAGNOSTIC_LIMIT))
+  return `model-failed/${terminal.fault.cause}/${diagnostic === '' ? '-' : diagnostic}`
+}

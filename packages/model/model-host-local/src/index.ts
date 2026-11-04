@@ -21,6 +21,7 @@ export type {
 export {
   createPiSendResources,
   SendResourceDefect,
+  type ConnectRetryReport,
   type PiSendResources,
   type PiSendResourcesConfig,
   type SendResourceDefectReason,
