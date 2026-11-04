@@ -100,7 +100,13 @@ describe('a delivery whose consumer owner has no registered receiver', () => {
     await f.drive(worker)
     await f.drive(worker)
     expect(lookup).toHaveBeenCalledTimes(2)
-    expect(warnings).toEqual([])
+    // A definite failure is not paced, and it is not silent either (R2-D327): one warning per look.
+    expect(warnings).toHaveLength(2)
+    for (const warning of warnings) {
+      expect(warning).toContain('failed definitively')
+      expect(warning).toContain('the lookup answered denied')
+      expect(warning).not.toContain('the next push is in')
+    }
   })
 
   it('refuses a pacing whose cap is below its first wait', async () => {

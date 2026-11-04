@@ -8,6 +8,8 @@
 //   Q3 the delivery stays owed until the receiver saved it,
 //   Q4 the first wait after an answer without unavailable is initialMs again,
 //   Q5 every push that the receiver answered unavailable writes exactly one named warning,
+//   Q6 every push that failed definitively (denied) writes exactly one named failure warning, and
+//      leaves the delivery owed (R2-D327),
 //   L  a drive after the wait is over pushes (the backoff never stops the delivery).
 // The negative control runs the same driver and judge against toy workers with one rule removed;
 // the judge must report that rule.
@@ -81,12 +83,18 @@ async function judge(subject: Subject, seed: number, steps: number): Promise<str
       }
       until = now + last
     } else {
-      if (seen.warnings.length !== 0) say('Q5: a warning for a push that was not paced')
       last = null
       if (mode === 'saved') {
+        if (seen.warnings.length !== 0) say('Q5: a warning for a push that was not paced')
         if (seen.pending !== 0) say('Q3: a saved delivery is still owed')
         saved = true
-      } else if (seen.pending !== 1) say('Q3: a denied push ended the delivery')
+      } else {
+        if (seen.warnings.length !== 1)
+          say(`Q6: ${String(seen.warnings.length)} warnings for one definite failure`)
+        else if (waitOf(seen.warnings[0] as string) !== null)
+          say('Q5: a definite failure was written as a paced push')
+        if (seen.pending !== 1) say('Q3: a denied push ended the delivery')
+      }
     }
   }
   return violations
@@ -135,7 +143,7 @@ describe('the push backoff keeps the DeliveryBackoff properties under random clo
 // Negative control: a toy worker with one rule removed must be caught by the same judge.
 // ---------------------------------------------------------------------------------------------
 
-type Fault = 'hot-loop' | 'no-cap' | 'no-reset' | 'drop' | 'silent' | 'stuck'
+type Fault = 'hot-loop' | 'no-cap' | 'no-reset' | 'drop' | 'silent' | 'silent-failure' | 'stuck'
 
 /** The pacing of the worker in a few lines, with one rule removed. */
 function toy(fault: Fault): Subject {
@@ -158,7 +166,9 @@ function toy(fault: Fault): Subject {
       }
       if (fault !== 'no-reset') last = null
       if (mode === 'saved') pending = 0
-      return { pushed: true, pending, warnings: [] }
+      const warnings =
+        mode === 'saved' || fault === 'silent-failure' ? [] : ['y; failed definitively']
+      return { pushed: true, pending, warnings }
     },
   }
 }
@@ -170,6 +180,7 @@ describe('negative control: the judge reports a worker with one pacing rule remo
     ['no-reset', 'Q4'],
     ['drop', 'Q3'],
     ['silent', 'Q5'],
+    ['silent-failure', 'Q6'],
     ['stuck', 'L'],
   ])('%s is reported as %s', async (fault, property) => {
     const found: string[] = []
