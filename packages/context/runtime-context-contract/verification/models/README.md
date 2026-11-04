@@ -18,7 +18,7 @@
 
 | 模型 | 检查什么 |
 | --- | --- |
-| [RcCommit.tla](RcCommit.tla) | RC-02 的先提交后应用与完整输入认回，以及成功表是否有界 |
+| [RcCommit.tla](RcCommit.tla) | RC-02 的先提交后应用、按 `after` 链定序、完整输入认回，以及成功去重表有界与已释放提交的拒绝（R2-D319） |
 | [RcRead.tla](RcRead.tla) | RC-01、RC-03、RC-08、RC-09 的读取隔离、缓存一致与有界，以及持有者记住的作用域归属 |
 
 配置名的前缀表示用途：`rc-` 是正控，`bad-` 是负控（只检查点名的一条性质），`probe-` 是按实现建模的探针。性质与源码对应见 [formal-mapping.md](../formal-mapping.md)，运行记录见 [formal-runs.md](../formal-runs.md)。

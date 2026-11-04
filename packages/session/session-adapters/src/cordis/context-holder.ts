@@ -7,7 +7,10 @@
 //   translate each to the Runtime Context commit input it records. A scope it has not recovered in
 //   this generation, and an `out-of-order` answer, start a recovery session (1a): `beginReplay`
 //   at the scope's last commit, the complete material, `finishReplay`. Afterwards each new record
-//   goes to `applyCommit` with its original commit and full input, in log order.
+//   goes to `applyCommit` with its original commit and full input, in log order, naming the commit
+//   of the scope's record before it as `after` (RC-02 提交链, R2-D319). Within one session the work
+//   is serial, and only the first record not yet answered `applied` is sent again, so a recovered
+//   instance keeps one success entry per scope.
 // - The holder plugin `session-ad03` injects the holder face and `session` with the `coordinator`
 //   caller class, and provides `runtimeContextReaderEligibility` (K-RC). Its policy: answer the
 //   eligibility it issued for the same principal, consumer class and scope while the scope's
@@ -232,6 +235,17 @@ function targetOf(input: CommitInput): Readonly<{ scope: ScopeRef; tenant: Tenan
       return exhaustive
     }
   }
+}
+
+/**
+ * The input sent for the record at `index` of a scope's records: an ordinary commit names the commit
+ * of the record before it, `null` for the first (RC-02 提交链, R2-D319). The order is the log's.
+ */
+function chained(records: readonly ContextRecord[], index: number): CommitInput {
+  const input = records[index]?.input
+  if (input === undefined) throw new RangeError(`no record at ${index}`)
+  if (input.kind === 'scope') return input
+  return { ...input, after: records[index - 1]?.input.commit ?? null }
 }
 
 function endsScope(input: CommitInput): boolean {
@@ -664,13 +678,13 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
     scope: ScopeRef,
     records: readonly ContextRecord[],
   ): Promise<void> {
-    for (const record of records) {
+    for (const [index, record] of records.entries()) {
       const state = states.get(scope.ref)
       if (state === undefined || state.phase !== 'open') return
       if (state.covered.has(record.input.commit.commit)) continue
       let answer: Awaited<ReturnType<typeof holder.applyCommit>>
       try {
-        answer = await holder.applyCommit(principal, record.input)
+        answer = await holder.applyCommit(principal, chained(records, index))
       } catch (cause) {
         logger.warn(`applyCommit of ${record.input.commit.commit} threw: ${describe(cause)}`)
         return

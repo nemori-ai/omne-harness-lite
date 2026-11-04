@@ -480,6 +480,7 @@ async function outOfOrderRecoveredByReplay<P>(fixture: RuntimeContextFixture<P>)
   const late = await subject.applyCommit(fixture.principal, {
     kind: 'registration',
     commit: { commit: 'c2' },
+    after: { commit: 'c1' },
     change: c2,
   })
   assert.ok(late.kind === 'invalid')
@@ -503,6 +504,7 @@ async function outOfOrderRecoveredByReplay<P>(fixture: RuntimeContextFixture<P>)
   const retried = await subject.applyCommit(fixture.principal, {
     kind: 'registration',
     commit: { commit: 'c2' },
+    after: { commit: 'c1' },
     change: c2,
   })
   assert.ok(retried.kind === 'applied')

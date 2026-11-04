@@ -18,7 +18,7 @@ sha256sum "$jar" *.tla *.cfg > "$out/sha256.txt"
 for cfg in *.cfg; do
   name=${cfg%.cfg}
   case $name in
-    rc-commit | bad-apply-* | bad-ignore-* | bad-id-* | probe-seen-*) spec=RcCommit ;;
+    rc-commit* | bad-apply-* | bad-id-* | bad-no-*) spec=RcCommit ;;
     *) spec=RcRead ;;
   esac
   start=$(date +%s)

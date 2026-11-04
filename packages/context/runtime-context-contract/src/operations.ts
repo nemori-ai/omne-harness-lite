@@ -83,6 +83,11 @@ export type CommitInput =
   | Readonly<{
       kind: 'registration'
       commit: CommitRef
+      /**
+       * The commit of the scope's previous context record in the holder log; `null` for the first
+       * (RC-02 提交链, R2-D319). Omitted reads as `null`.
+       */
+      after?: CommitRef | null
       change: RegistrationChange
       /** The same confirmed commit also ends the scope; applied atomically or not at all (RC-09). */
       scopeEnded?: true
@@ -90,6 +95,8 @@ export type CommitInput =
   | Readonly<{
       kind: 'step'
       commit: CommitRef
+      /** As for a registration decision (RC-02 提交链, R2-D319). Omitted reads as `null`. */
+      after?: CommitRef | null
       tenant: TenantId
       stepCommit: StepCommit
       /** The execution has ended: `untracked` stateful blocks of the scope become invalid (RC-05). */
@@ -114,7 +121,7 @@ export type ApplyCommitResult =
   | Readonly<{
       kind: 'invalid'
       reason:
-        | 'out-of-order' // 依据的注册修订不等于当前且提交身份未见过（带当前修订）
+        | 'out-of-order' // after 不等于链头，或注册决定依据的注册修订不等于当前（带当前修订）
         | 'commit-conflict' // 同一提交身份配上不同完整输入
         | 'tenant-mismatch' // 本实例记下的租户与可信绑定冲突（内部一致性异常）
         | 'registration' // judgeRegistration 的拒绝（带逐项）

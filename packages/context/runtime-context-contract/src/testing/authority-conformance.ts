@@ -141,6 +141,7 @@ async function authorityUnavailableAndUnknown<P>(fixture: RuntimeContextFixture<
     await s.subject.applyCommit(s.principal, {
       kind: 'registration',
       commit: { commit: 'u' },
+      after: { commit: 'registration' },
       change,
     }),
     {
@@ -153,6 +154,7 @@ async function authorityUnavailableAndUnknown<P>(fixture: RuntimeContextFixture<
     await s.subject.applyCommit(s.principal, {
       kind: 'registration',
       commit: { commit: 'x' },
+      after: { commit: 'registration' },
       change,
     }),
     {
@@ -166,6 +168,7 @@ async function authorityUnavailableAndUnknown<P>(fixture: RuntimeContextFixture<
     await s.subject.applyCommit(s.principal, {
       kind: 'registration',
       commit: { commit: 'b' },
+      after: { commit: 'registration' },
       change,
     }),
     {
@@ -181,6 +184,7 @@ async function authorityUnavailableAndUnknown<P>(fixture: RuntimeContextFixture<
   const applied = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'ok' },
+    after: { commit: 'registration' },
     change,
   })
   assert.equal(applied.kind, 'applied')

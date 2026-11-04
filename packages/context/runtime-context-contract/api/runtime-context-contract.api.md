@@ -480,11 +480,13 @@ export type RevokeEligibilityResult = Readonly<{
 export type CommitInput = Readonly<{
     kind: 'registration';
     commit: CommitRef;
+    after?: CommitRef | null;
     change: RegistrationChange;
     scopeEnded?: true;
 }> | Readonly<{
     kind: 'step';
     commit: CommitRef;
+    after?: CommitRef | null;
     tenant: TenantId;
     stepCommit: StepCommit;
     executionEnded: boolean;
@@ -1343,6 +1345,8 @@ export type ScopeState = {
     needsSupply: Map<ContextBlockKey, number>;
     supplySeq: Map<ContextBlockKey, number>;
     commitsVersion: number;
+    head: CommitRef | null;
+    successes: Map<string, AppliedEntry>;
 };
 export type Producer<P> = {
     key: ContextBlockKey;
@@ -1397,7 +1401,6 @@ export interface World<P> {
     readonly producers: Map<string, Producer<P>>;
     readonly generations: Map<string, number>;
     readonly eligibilities: Map<string, Eligibility<P>>;
-    readonly commits: Map<string, AppliedEntry>;
     readonly sessions: Map<string, ReplaySession>;
     readonly listeners: Set<(scope: ScopeRef, revision: number) => void>;
     readonly catalog: {

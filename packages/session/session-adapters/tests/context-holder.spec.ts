@@ -743,10 +743,27 @@ describe('the replay sub-plugin is the only caller of applyCommit', () => {
     f.append(A, REGISTRATION, later)
     await f.committed(A, [REGISTRATION])
     expect(f.methods()).toEqual(['beginReplay', 'finishReplay', 'applyCommit'])
-    expect(lastInput(f, 'applyCommit')).toEqual(later)
+    // The input names the scope's record before it in the log (RC-02 提交链, R2-D319).
+    expect(lastInput(f, 'applyCommit')).toEqual({ ...later, after: { commit: 's3' } })
     // A notice that repeats does not apply the same commit again.
     await f.committed(A, [REGISTRATION])
     expect(f.methods().filter(method => method === 'applyCommit')).toHaveLength(1)
+  })
+
+  it('chains each later record after the record before it, a step after a registration too', async () => {
+    const f = await assembled()
+    seedA(f)
+    await f.committed(A, [REGISTRATION, STEP])
+    const later = add(atA, 'r4', 'test.later', 3, 'checkpointed')
+    const next = step(atA, 's4', NOTES, 4)
+    f.append(A, REGISTRATION, later)
+    f.append(A, STEP, next)
+    await f.committed(A, [REGISTRATION, STEP])
+    const applied = f.rcCalls.filter(call => call.method === 'applyCommit').map(call => call.input)
+    expect(applied).toEqual([
+      { ...later, after: { commit: 's3' } },
+      { ...next, after: { commit: 'r4' } },
+    ])
   })
 
   it('ignores a notice whose kinds hold no context record', async () => {

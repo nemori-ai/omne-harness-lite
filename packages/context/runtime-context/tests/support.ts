@@ -118,6 +118,9 @@ export async function open(h: Harness, target: ScopeRef, tenant: TenantId): Prom
   if (ready.kind !== 'ready') throw new Error(`finishReplay: ${ready.kind}`)
 }
 
+/** The last commit `register` applied in each scope of a harness: the next one chains after it (RC-02). */
+const heads = new WeakMap<Harness, Map<string, string>>()
+
 export async function register(
   h: Harness,
   target: ScopeRef,
@@ -126,9 +129,14 @@ export async function register(
   basedOn = 0,
   extra: { parameters?: unknown; required?: boolean } = {},
 ): Promise<void> {
+  const scopes = heads.get(h) ?? new Map<string, string>()
+  heads.set(h, scopes)
+  const commit = `${target.ref}:${key}:${basedOn}`
+  const previous = scopes.get(target.ref)
   const applied = await h.rc.applyCommit('holder', {
     kind: 'registration',
-    commit: { commit: `${target.ref}:${key}:${basedOn}` },
+    commit: { commit },
+    after: previous === undefined ? null : { commit: previous },
     change: {
       kind: 'add',
       creating: basedOn === 0,
@@ -142,6 +150,7 @@ export async function register(
     },
   })
   if (applied.kind !== 'applied') throw new Error(`applyCommit: ${JSON.stringify(applied)}`)
+  scopes.set(target.ref, commit)
 }
 
 /** The declaration object passes through unchanged, so a test controls when the catalog entry changes. */
