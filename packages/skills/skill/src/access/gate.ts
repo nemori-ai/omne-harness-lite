@@ -34,21 +34,8 @@ type Unknown = Extract<SkillFailure, { kind: 'unknown' }>
 const NOT_AVAILABLE = Object.freeze({ kind: 'not-available-to-you' } as const)
 const UNKNOWN = Object.freeze({ kind: 'unknown' } as const)
 const ABORTED = Object.freeze({ kind: 'aborted' } as const)
+/** The answer of a resolution that rejected or answered nothing: `unknown`. */
 const UNKNOWN_RESOLUTION: Resolution = Object.freeze({ kind: 'unknown' } as const)
-const RESOLUTION_KINDS: ReadonlySet<string> = new Set([
-  'adopted',
-  'known-unavailable',
-  'basis-not-lawful',
-  'none',
-  'unknown',
-])
-
-/** The resolution answer inside its closed set: a reject or a `kind` outside the set is `unknown`. */
-function resolutionOf(answer: Resolution | undefined): Resolution {
-  return RESOLUTION_KINDS.has(kindOf(answer) ?? '') && answer !== undefined
-    ? answer
-    : UNKNOWN_RESOLUTION
-}
 
 /** A resolution answer outside the closed set: the compiler proves the set, the runtime does not. */
 function unexpected(_answer: never): Unknown {
@@ -115,5 +102,6 @@ export async function gate<P, S>(
     ),
   )
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
-  return gatedOf(resolutionOf(answer), basis)
+  // A `kind` outside the closed set falls to the default arm of `gatedOf`: `unknown` too.
+  return gatedOf(answer ?? UNKNOWN_RESOLUTION, basis)
 }
