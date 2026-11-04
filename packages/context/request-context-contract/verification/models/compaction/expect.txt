@@ -1,0 +1,16 @@
+design.cfg pass
+design-wide.cfg pass
+aligned.cfg pass
+finding-keeps-work.cfg CompactionKeepsWork
+finding-trigger-gap.cfg CompactionKeepsWork
+bad-truncate.cfg NoSilentTruncation
+bad-replan.cfg AtMostOnePlan
+bad-rewrite.cfg AppendOnly
+bad-ignore-open.cfg OpenVisible
+bad-split-pairs.cfg NoOrphanResult
+bad-retain-budget.cfg RetainBounded
+bad-retain-view.cfg ViewBounded
+bad-strategy-rep.cfg RepresentationAdopted
+bad-skip-resume.cfg FixableFits
+bad-retry-veto.cfg Terminates
+limit-mixed-fallback.cfg NoRepRefusal
