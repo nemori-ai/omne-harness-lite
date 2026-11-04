@@ -3,8 +3,8 @@
 // and how a lost one is settled: requests refused, the entry torn down, the catalog marked. A
 // port that throws within the bound is torn down like a failure, then the error goes on to the
 // caller. A build under way when the table shuts goes no further than the step it is in and is
-// wrapped up without a mark. The builder writes the entry's resources; the table decides when
-// the entry exists.
+// wrapped up without a mark. The builder writes the entry's resources and drives its
+// `Connection` (`attempt`, `ready`, `lose`); the table decides when the entry exists.
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -27,12 +27,12 @@ import type {
 import { answerOf, untilAborted } from './abort.ts'
 import {
   CONNECTION_UNAVAILABLE,
+  handOverToLanding,
   type CatalogMark,
   type CredentialHandle,
   type Ensured,
   type EnsureFailure,
   type Entry,
-  type Landing,
   type UnavailableMark,
 } from './entry.ts'
 import { closeLate, landLate, releaseLate } from './late.ts'
@@ -220,11 +220,7 @@ export function createBuilder<P, S>(
       // The process may still land, with the handle in its environment: the handle goes with the
       // landing, released after that process's stop (S9) or at the shutdown (decision 6). The
       // entry holds the landing until it answers (decision 20).
-      const landing: Landing = {
-        credential: credential?.purpose === 'process-env' ? credential : undefined,
-      }
-      entry.credential = undefined
-      entry.landings = [...entry.landings, landing]
+      const landing = handOverToLanding(entry)
       void landLate(entry, landing, started.late).then(() => deps.afterLanding(entry))
       // A landing that outlives its bound after the shutdown began keeps no handle (decision 6).
       if (deps.shut()) void releaseLanding(landing)

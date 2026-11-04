@@ -3,8 +3,9 @@
 // critical section of the holding), `settle` and `lose` (what a request on an established
 // connection found), `close` (the close order, single flight per key) and `closeAll` (the same
 // for every entry, after which nothing connects). The table only orchestrates: the entry is
-// `entry.ts`, the build `build.ts`, the close order `teardown.ts`, the turns `turns.ts`. Nothing
-// outside the table writes the aggregate, and an entry leaves the table in one place, `forget`.
+// `entry.ts`, the build `build.ts`, the close order `teardown.ts`, the turns `turns.ts`. The
+// `Connection` aggregate is written by the table and by the build it starts; the services report
+// to the table through `settle` and `lose`. An entry leaves the table in one place, `forget`.
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -21,13 +22,14 @@ import {
   type Millis,
   type ReleaseReport,
 } from '@omne-harness/mcp-contract'
-import { answerOf, untilAborted } from './abort.ts'
+import { untilAborted } from './abort.ts'
 import { createBuilder } from './build.ts'
 import { Connection, type GenerationPolicy } from './connection.ts'
 import {
   CONNECTION_UNAVAILABLE,
+  adoptLingering,
   ensuredOf,
-  holdsNothing,
+  forgettable,
   isSettled,
   isUsable,
   residualOf,
@@ -41,7 +43,7 @@ import {
   type Scope,
   type UnavailableMark,
 } from './entry.ts'
-import { assertAdmitted, type AdmittedEndpoint } from './gate.ts'
+import { admitWithoutEligibility, assertAdmitted, type AdmittedEndpoint } from './gate.ts'
 import { prepareSettings, type PreparedSettings } from './settings.ts'
 import { abandonLandings, narrowest, teardown } from './teardown.ts'
 import { connectionKeyTextOf, tenantTextOf } from './text.ts'
@@ -96,7 +98,6 @@ export interface ConnectionTable<P> {
 type Started = Readonly<{ outcome: Promise<Outcome<Ensured, EnsureFailure>> }>
 
 const UNKNOWN: EnsureRefusal = { kind: 'unknown' }
-const NOT_AVAILABLE: EnsureRefusal = { kind: 'not-available-to-you' }
 
 function policyOf(prepared: PreparedSettings): GenerationPolicy {
   return prepared.transport.kind === 'stdio' ? 'on-attempt' : 'on-negotiation'
@@ -131,12 +132,12 @@ export function createConnectionTable<P, S>(
     )
 
   /**
-   * The one place an entry leaves the table: when it refuses requests and holds nothing
-   * (`holdsNothing`, decision 20). Its generation stays, for the next connection of the key.
+   * The one place an entry leaves the table: when `forgettable` says so (decision 20). Called
+   * after every change of what the entry holds or of its state. Its generation stays, for the
+   * next connection of the key.
    */
   function forget(entry: Entry): void {
-    if (entries.get(entry.keyText) !== entry || entry.connection.state.kind !== 'closed') return
-    if (!holdsNothing(entry)) return
+    if (entries.get(entry.keyText) !== entry || !forgettable(entry)) return
     lastGeneration.set(
       entry.keyText,
       later(entry.connection.generation, lastGeneration.get(entry.keyText)),
@@ -201,30 +202,20 @@ export function createConnectionTable<P, S>(
   }
 
   /**
-   * The critical section of a holding: the adoption read again under what is left of the
-   * caller's bound (decision 22), the connections of other revisions closed (invariant 6), the
-   * key's close or teardown in flight waited for, then the connection reused, joined or built.
-   * The build itself runs outside the section. A table that is shut refuses here.
-   */
-  /**
    * The adoption read again before a build (SPEC MC-5): the token is not trusted for the
-   * revision, so a token of another revision cannot build a connection or close one. A port
-   * that rejects is read as `unknown`; one that does not answer within `bound` does not hold
-   * the critical section (decision 22).
+   * revision, so a token of another revision cannot build a connection or close one. The read
+   * is the gate's adoption-only read; one that does not answer within `bound` does not hold the
+   * critical section (decision 22).
    */
   async function readAgain(
     admitted: AdmittedEndpoint,
     access: Access<P>,
     bound: AbortSignal,
   ): Promise<EnsureRefusal | 'current'> {
-    const adoption = await untilAborted(
-      answerOf(ports.adoption.endpoint(access, admitted.ref), fail<'unknown'>('unknown')),
-      bound,
-    )
-    if (adoption.kind === 'aborted') return CONNECTION_UNAVAILABLE
-    if ('failure' in adoption.value) return UNKNOWN
-    if (adoption.value.ok === 'not-adopted') return NOT_AVAILABLE
-    return adoption.value.ok.revision === admitted.revision ? 'current' : UNKNOWN
+    const read = await untilAborted(admitWithoutEligibility(ports, access, admitted.ref), bound)
+    if (read.kind === 'aborted') return CONNECTION_UNAVAILABLE
+    if ('failure' in read.value) return read.value.failure
+    return read.value.ok.revision === admitted.revision ? 'current' : UNKNOWN
   }
 
   /**
@@ -233,8 +224,7 @@ export function createConnectionTable<P, S>(
    */
   function inheritLingering(entry: Entry, settled: readonly Entry[]): void {
     for (const other of settled) {
-      entry.lingering = [...entry.lingering, ...other.lingering]
-      other.lingering = []
+      adoptLingering(entry, other)
       forget(other)
     }
   }
@@ -257,6 +247,13 @@ export function createConnectionTable<P, S>(
     return existing?.closing ?? existing?.tearing
   }
 
+  /**
+   * The critical section of a holding: the adoption read again under what is left of the
+   * caller's bound (decision 22), the connections of other revisions closed (invariant 6), the
+   * key's close or teardown in flight waited for under the same bound, then the connection
+   * reused, joined or built. The build itself runs outside the section. A table that is shut
+   * refuses here.
+   */
   async function begin(
     admitted: AdmittedEndpoint,
     access: Access<P>,

@@ -11,7 +11,7 @@
 import type { StopScope } from '@omne-harness/mcp-contract'
 import type { ProcessHandle } from '@omne-harness/mcp-contract/provider'
 import { answerOf } from './abort.ts'
-import { kept, type Entry, type Landing, type Scope } from './entry.ts'
+import { recordStop, type Entry, type Landing, type Scope } from './entry.ts'
 
 const STOP_ORDER: readonly StopScope[] = ['unconfirmed', 'root-only', 'tree-confirmed']
 
@@ -78,8 +78,7 @@ async function stopProcesses(entry: Entry): Promise<Scope> {
  */
 export async function stopOne(entry: Entry, handle: ProcessHandle): Promise<StopScope> {
   const confirmed = await answerOf(handle.stop(), 'unconfirmed')
-  if (entry.process === handle) entry.process = undefined
-  entry.lingering = kept(entry.lingering, handle, confirmed)
+  recordStop(entry, handle, confirmed)
   return confirmed
 }
 

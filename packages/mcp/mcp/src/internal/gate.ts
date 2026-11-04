@@ -184,7 +184,10 @@ export function refusalOf(decision: GateRefused): GateRefusal {
   }
 }
 
-/** The refusal of adoption alone, for the task operations that reuse a connection (SPEC S2). */
+/**
+ * Adoption alone, with its refusal: for the re-read before a build (MC-5) and for the task
+ * operations that reuse a connection (SPEC S2).
+ */
 export async function admitWithoutEligibility<P, S>(
   ports: Readonly<{ adoption: AdoptionView<P, S> }>,
   access: Access<P>,

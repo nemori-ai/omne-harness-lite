@@ -9,7 +9,7 @@ import type {
   TransportFailure,
 } from '@omne-harness/mcp-contract/provider'
 import { afterwards, answerOf } from './abort.ts'
-import type { CredentialHandle, Entry, Landing } from './entry.ts'
+import { landingAnswered, type CredentialHandle, type Entry, type Landing } from './entry.ts'
 import { releaseLanding, stopOne } from './teardown.ts'
 
 type LandingFailure = 'landing-invalid' | 'facility-missing' | 'unknown'
@@ -45,6 +45,6 @@ export function landLate(
   return afterwards(late, async started => {
     if (started !== undefined && 'ok' in started) await stopOne(entry, started.ok)
     await releaseLanding(landing)
-    entry.landings = entry.landings.filter(pending => pending !== landing)
+    landingAnswered(entry, landing)
   })
 }

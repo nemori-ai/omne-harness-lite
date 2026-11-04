@@ -1,8 +1,8 @@
 // One entry of the connection table: the `Connection` aggregate of a key, the resources behind
-// it, the views the table hands out, and the predicates the table decides on. No I/O here: the
-// close order is `teardown.ts`, the arrivals after the bound are `late.ts`, the build is
-// `build.ts`, and only `table.ts` puts an entry in or takes it out. An entry is taken out only
-// when `holdsNothing` says so (SPEC decision 20).
+// it, the views the table hands out, the predicates the table decides on, and the moves that
+// keep a resource in one place. No I/O here: the close order is `teardown.ts`, the arrivals
+// after the bound are `late.ts`, the build is `build.ts`, and only `table.ts` puts an entry in or
+// takes it out, when `forgettable` says so (SPEC decision 20).
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   AdoptionRevision,
@@ -113,8 +113,7 @@ export type Entry = Resources & {
 
 /**
  * True when the entry holds nothing: no transport, no process handle, no credential handle, no
- * process whose stop was not confirmed, no landing in flight. The one condition an entry is
- * forgotten on (decision 20): a pure function of what is held, nothing else.
+ * process whose stop was not confirmed, no landing in flight. A pure function of what is held.
  */
 export function holdsNothing(held: Resources): boolean {
   return (
@@ -126,14 +125,49 @@ export function holdsNothing(held: Resources): boolean {
   )
 }
 
-/** `lingering` with the latest stop of `handle` recorded: kept when it confirmed less than the tree. */
-export function kept(
-  lingering: readonly Lingering[],
-  handle: ProcessHandle,
-  confirmed: StopScope,
-): readonly Lingering[] {
-  const others = lingering.filter(item => item.handle !== handle)
-  return confirmed === 'tree-confirmed' ? others : [...others, { handle, confirmed }]
+/**
+ * The one condition an entry leaves the table on (decision 20): it refuses requests (`closed`)
+ * and `holdsNothing`.
+ */
+export function forgettable(entry: Resources & Readonly<{ connection: Connection }>): boolean {
+  return entry.connection.state.kind === 'closed' && holdsNothing(entry)
+}
+
+/**
+ * Records what a stop of `handle` confirmed. A process handle is in `process` or in `lingering`,
+ * never in both: it leaves `process`, and stays in `lingering` while its stop confirmed less than
+ * the whole tree.
+ */
+export function recordStop(held: Resources, handle: ProcessHandle, confirmed: StopScope): void {
+  if (held.process === handle) held.process = undefined
+  const others = held.lingering.filter(item => item.handle !== handle)
+  held.lingering = confirmed === 'tree-confirmed' ? others : [...others, { handle, confirmed }]
+}
+
+/** What `from` still lingers with moves to `held`, which stops it at its next teardown. */
+export function adoptLingering(held: Resources, from: Resources): void {
+  held.lingering = [...held.lingering, ...from.lingering]
+  from.lingering = []
+}
+
+/**
+ * A landing outlived its bound: a new landing in flight goes on the entry, and the process
+ * credential handle goes with it, because the process that may land carries it in its
+ * environment. The handle is in the entry or in one landing, never in both (S9).
+ */
+export function handOverToLanding(held: Resources): Landing {
+  const { credential } = held
+  const landing: Landing = {
+    credential: credential?.purpose === 'process-env' ? credential : undefined,
+  }
+  if (landing.credential !== undefined) held.credential = undefined
+  held.landings = [...held.landings, landing]
+  return landing
+}
+
+/** The landing answered: it leaves the entry. */
+export function landingAnswered(held: Resources, landing: Landing): void {
+  held.landings = held.landings.filter(pending => pending !== landing)
 }
 
 export function viewOf(connection: Connection): ConnectionView {

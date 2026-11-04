@@ -1,8 +1,10 @@
 // The forget predicate of the connection table (SPEC decision 20): an entry leaves the table only
-// when it holds nothing, and each of the five resources counts as holding.
+// when it refuses requests and holds nothing, and each of the five resources counts as holding.
 import { describe, expect, it } from 'vitest'
-import { holdsNothing, type Resources } from '../src/internal/entry.ts'
-import { alice, generation, ref } from './doubles/values.ts'
+import type { ConnectionKey } from '@omne-harness/mcp-contract'
+import { Connection } from '../src/internal/connection.ts'
+import { forgettable, holdsNothing, type Resources } from '../src/internal/entry.ts'
+import { adoptionRevision, alice, generation, home, ref } from './doubles/values.ts'
 import { MAIN, TARGET, world } from './doubles/world.ts'
 
 const files = ref('files')
@@ -70,5 +72,33 @@ describe('holdsNothing: the one condition an entry is forgotten on', () => {
 
   it('is false while a landing is still in flight, even without a handle', () => {
     expect(holdsNothing({ ...nothing(), landings: [{ credential: undefined }] })).toBe(false)
+  })
+})
+
+describe('forgettable: closed, and holding nothing', () => {
+  const key: ConnectionKey = {
+    tenant: home,
+    holding: files.holding,
+    adoptionRevision: adoptionRevision('r1'),
+    account: { kind: 'anonymous' },
+  }
+
+  function connection(closed: boolean): Connection {
+    const made = new Connection(key, 'on-attempt')
+    if (closed) made.close()
+    return made
+  }
+
+  it('is false for an entry that holds nothing but still takes requests', () => {
+    expect(forgettable({ ...nothing(), connection: connection(false) })).toBe(false)
+  })
+
+  it('is true for a closed entry that holds nothing', () => {
+    expect(forgettable({ ...nothing(), connection: connection(true) })).toBe(true)
+  })
+
+  it('is false for a closed entry that still waits on a landing', () => {
+    const landings = [{ credential: undefined }]
+    expect(forgettable({ ...nothing(), landings, connection: connection(true) })).toBe(false)
   })
 })
