@@ -2,6 +2,8 @@
 
 [EnvironmentPreparation.tla](EnvironmentPreparation.tla) 检查宿主预占、原请求、查询、首次采用和释放的有限安全性质。行为依据为 [Tool P03](../../../tool-contract/SPEC.md#p03-环境准备和释放) 和宿主的 [环境准备租户调度](../../SPEC.md#环境准备的租户调度)。[EnvironmentDriver.tla](EnvironmentDriver.tla) 单独检查 driver 一次 step 的追加 prepare 上限及 prepared 缓存条件。
 
+本目录还有 [StartFence.tla](StartFence.tla) 与 [DeliveryBackoff.tla](DeliveryBackoff.tla)。它们的性质、映射和守卫见 [formal-mapping.md](../formal-mapping.md)，运行入口是 WSL 里的 [run-tlc.sh](run-tlc.sh)，不是下文的 `check-models.mjs`。
+
 模型检查不证明源码精化。带完整守卫的规格配置与撤掉转发前守卫的负控配置分开；后者曾对应 `await check(...)` 恢复后缺少原采用再核的源码缺口，该缺口已由源码的同步 `adoptionGuard` 关闭（见[转发前的最终原采用守卫与源码的对应](#转发前的最终原采用守卫与源码的对应)）。规格配置完整通过仍不证明源码符合。
 
 ## 状态、有限边界与原子步骤
