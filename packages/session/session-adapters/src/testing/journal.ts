@@ -128,6 +128,7 @@ import {
   type ParticipationKind,
   type ProducerCall,
   type PublishedBatch,
+  type ResultStage,
 } from '../journal/index.ts'
 import {
   beforeTerminalOpen,
@@ -1635,12 +1636,14 @@ export function createJournal<P>(
     const execution = state().executions.get(executionKey(input.tenant, input.execution))
     if (execution === undefined) return undefined
     const revision = execution.revision + 1
-    // A commit appends a batch: its receipt is minted from the batch it would append now.
-    const evidence =
-      method === 'commit'
-        ? ownEvidence(execution.id, key, revision)
-        : nextEvidence(execution, 'result', revision)
-    return receiptOf(execution, input.operation, revision, evidence, 'applied')
+    // The write appends a batch: its receipt is minted from the batch it would append now.
+    return receiptOf(
+      execution,
+      input.operation,
+      revision,
+      ownEvidence(execution.id, key, revision),
+      'applied',
+    )
   }
 
   function receiptOf(
@@ -2069,11 +2072,13 @@ export function createJournal<P>(
     }
   }
 
-  /** The operation of the last `ack.through` of an execution in the log, if the log holds one. */
-  function acknowledgedBy(execution: AgentExecutionId): AgentOperationId | undefined {
+  /**
+   * The operation whose batch reached `revision` of an execution, if the log of this process holds
+   * it: one batch advances an execution to each revision, so the revision names the batch.
+   */
+  function reachedBy(execution: AgentExecutionId, revision: number): AgentOperationId | undefined {
     return state().log.findLast(
-      batch =>
-        batch.execution === execution && batch.facts.some(fact => fact.kind === 'ack.through'),
+      batch => batch.execution === execution && batch.envelope.rev === revision && advances(batch),
     )?.envelope.op
   }
 
@@ -4053,7 +4058,7 @@ export function createJournal<P>(
           return recognitionBatch(
             execution,
             input.operation,
-            acknowledgedBy(execution.id),
+            reachedBy(execution.id, execution.acknowledgedAt),
             execution.acknowledgedAt,
             'applied',
           )
@@ -4145,22 +4150,45 @@ export function createJournal<P>(
           semanticKey('responsibility', known) === semanticKey('responsibility', responsibility)
         ) {
           const at = execution.resultRevisions.get(resultKey) ?? execution.revision
-          const receipt = recognition(execution, input.operation, at, 'applied')
-          return recognize(receipt, receipt)
+          return recognitionBatch(
+            execution,
+            input.operation,
+            reachedBy(execution.id, at),
+            at,
+            'applied',
+          )
         }
-        const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'result', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+        // Each stage the responsibility newly reaches is one `result.handled`; a responsibility
+        // recorded before any transfer is its `recorded` stage.
+        const evidence = ownEvidence(execution.id, key, execution.revision + 1)
+        const call = producerCallOf(input.result)
+        const handled = (stage: ResultStage, basis: DurableEvidence): FactBody => ({
+          kind: 'result.handled',
+          consumption: input.consumption,
+          result: call,
+          stage,
+          evidence: copy(basis),
+        })
+        const facts: FactBody[] = []
+        if (known === undefined) facts.push(handled('recorded', evidence))
+        if (custody !== null && (known?.custody ?? null) === null)
+          facts.push(handled('custody', custody))
+        if (completion !== null && (known?.completion ?? null) === null)
+          facts.push(handled('processed', completion))
+        if (input.release.kind === 'confirmed' && previous.kind !== 'confirmed')
+          facts.push(handled('released', input.release.receipt))
         return {
-          kind: 'write',
-          value: receipt,
-          receipt,
-          apply: () => {
+          kind: 'batch',
+          facts,
+          blobs: [],
+          kinds: transfer.kind === 'none' ? [] : [transfer.kind],
+          derive: receiptIn,
+          project: (_batch, view) => {
             const index = execution.results.indexOf(known ?? responsibility)
             if (index === -1) execution.results.push(responsibility)
             else execution.results[index] = responsibility
-            execution.resultRevisions.set(resultKey, revision)
-            execution.revision = revision
+            execution.resultRevisions.set(resultKey, view.revision)
+            execution.revision = view.revision
           },
         }
       }

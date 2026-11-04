@@ -136,8 +136,11 @@ export type CursorMembers = Readonly<{
 }>
 export type CursorMember = keyof CursorMembers
 
-/** The stage of one `result.handled`: custody taken, processed, or released by the producer. */
-export type ResultStage = 'custody' | 'processed' | 'released'
+/**
+ * The stage of one `result.handled`: the responsibility recorded before any transfer, custody
+ * taken, processed, or released by the producer.
+ */
+export type ResultStage = 'recorded' | 'custody' | 'processed' | 'released'
 
 /**
  * Every fact kind, with the key of each kind in its first members. One fact is one irreducible
