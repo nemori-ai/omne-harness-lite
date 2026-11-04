@@ -29,7 +29,10 @@ it('declares all Shell commands and explains platform, background and terminal s
   expect(author.facts.implements.commands.every(item => item.parameters.kind === 'declared')).toBe(
     true,
   )
-  const help = await run(author, 'help', { command: 'execute' }, fixture.environment)
+  // The declaration says which shell runs a script, so the model need not probe for it.
+  expect(author.facts.description).toContain('"<script>"')
+  const help = await run(author, 'help', { name: 'execute' }, fixture.environment)
+  expect(help).toContain('Usage: Shell {"command": "execute", "params": {script, terminal?')
   expect(help).toContain('JSON Schema')
   expect(help).toContain('unsupported')
   expect(await run(author, 'info', {}, fixture.environment)).toContain('fixtureOS')

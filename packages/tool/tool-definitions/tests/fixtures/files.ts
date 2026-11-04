@@ -14,6 +14,7 @@ export function filesFixture(initial: Record<string, string> = {}) {
     ]),
   )
   const writes: { path: string; expectedVersion?: string }[] = []
+  const mkdirs: { path: string; parents: boolean }[] = []
   const batches: unknown[] = []
   let batchUnknown = false
   const done = <T>(value: T): FacilityResult<T> => ({ kind: 'done', requestId: 'fixture', value })
@@ -94,7 +95,11 @@ export function filesFixture(initial: Record<string, string> = {}) {
           truncated: true,
           nextOffset: 2,
         }),
-      mkdir: async ({ path }) => done(identity(path)),
+      mkdir: async ({ path, parents }) => {
+        mkdirs.push({ path, parents: parents === true })
+        // A directory named "exists" is there already, as `mkdir` with parents reports it.
+        return path.endsWith('exists') ? rejected('conflict') : done(identity(path))
+      },
       remove: async () => done({ removed: { token: 'removed' } }),
       move: async ({ path, target }) =>
         done({ source: { token: path }, target: identity(target.path) }),
@@ -107,6 +112,7 @@ export function filesFixture(initial: Record<string, string> = {}) {
   return {
     environment,
     writes,
+    mkdirs,
     batches,
     config: {
       kind: 'object',

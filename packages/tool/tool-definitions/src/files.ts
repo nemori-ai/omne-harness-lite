@@ -47,7 +47,7 @@ export function createFilesAuthor(
   return succeed(
     createAuthor<FilesAuthorEnvironment>(
       'Files',
-      'Read, search, and modify files in the authorized execution environment. Relative paths, including ".", resolve against the workspace root.',
+      `Read, search, and modify files in the authorized execution environment. Relative paths, including ".", resolve against the workspace root${cwd === undefined ? '' : ` ${JSON.stringify(cwd)}`}.`,
       filesCommands,
       ['files'],
       maximum,
@@ -63,8 +63,9 @@ export const filesToolModule: ToolImplementationModule<
   executor: describedAdoption({
     owner: '@omne-harness/tool-definitions',
     name: 'Files',
-    revision: '1',
-    changes: 'Bound files facade, exact UTF-8 edits and one preflighted batch submission.',
+    revision: '2',
+    changes:
+      'One declaration with the command in the call, the workspace root in the description, write with parents and help by command name.',
     commands: filesCommands,
   }),
   createAuthor: createFilesAuthor,
@@ -134,8 +135,15 @@ async function executeCommand(
         return `rejected reason=unsupported ${header} invalid UTF-8 page; use UTF-8 byte boundaries`
       }
     },
-    write: async () =>
-      confirmation(
+    write: async () => {
+      const parent = args.flag('parents') ? parentOf(path) : undefined
+      if (parent !== undefined) {
+        const made = await files.mkdir({ path: parent, parents: true })
+        // `conflict` means the directory is there already; the write itself reports any other.
+        if (made.kind !== 'done' && !(made.kind === 'rejected' && made.reason === 'conflict'))
+          return confirmation(made, () => '')
+      }
+      return confirmation(
         await files.write({
           path,
           bytes: new TextEncoder().encode(args.text('text')),
@@ -143,7 +151,8 @@ async function executeCommand(
           ...expected(args),
         }),
         value => `${header} ${identityText(value)} write_effect=${writeEffectOf(value)}`,
-      ),
+      )
+    },
     edit: () =>
       editFiles(
         files,
@@ -218,7 +227,16 @@ async function executeCommand(
         `${header} target=${JSON.stringify(args.text('target'))} source=${JSON.stringify(value.source)} ${identityText(value.target)}`,
     )
   }
-  return operations[command]?.() ?? 'rejected reason=unknown-command'
+  const operation = operations[command]
+  // The command table and this table name the same commands, so a miss is a defect, not a result.
+  if (operation === undefined) throw new Error(`Files has no operation for command ${command}`)
+  return operation()
+}
+/** The directory part of a request path, or undefined when it names no directory to create. */
+function parentOf(path: string): string | undefined {
+  const cut = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+  const parent = path.slice(0, cut)
+  return cut <= 0 || parent.endsWith(':') ? undefined : parent
 }
 async function fileInfo(
   files: FilesAuthorEnvironment['files'],

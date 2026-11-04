@@ -38,10 +38,42 @@ it('publishes declared commands and the same complete help table', async () => {
   expect(author.facts.implements.commands.every(item => item.parameters.kind === 'declared')).toBe(
     true,
   )
-  const help = await run(author, 'help', {}, filesFixture().environment)
-  for (const command of commands) expect(help).toContain(command)
-  expect(help).toContain('unsupported')
-  expect(help).toContain('JSON Schema')
+  // The menu is not repeated in the description: the declaration adds it where it declares Files.
+  expect(author.facts.description).not.toContain('mkdir')
+  const menu = await run(author, 'help', {}, filesFixture().environment)
+  for (const command of commands) expect(menu).toContain(`\n${command} {`)
+  expect(menu).toContain('unsupported')
+  const write = await run(author, 'help', { name: 'write' }, filesFixture().environment)
+  expect(write).toContain(
+    'Usage: Files {"command": "write", "params": {path, text, mode=create|replace, parents?, expected_version?}}',
+  )
+  expect(write).toContain('JSON Schema')
+  // A help topic that is not a command is a failed call with the usage, never a done answer.
+  await expect(run(author, 'help', { name: 'nope' }, filesFixture().environment)).rejects.toThrow(
+    /"kind":"invalid","reason":"invalid-field:name\. Usage: Files .*name\?=read\|open\|/,
+  )
+})
+
+it('creates missing parents before a write only when asked', async () => {
+  const fixture = filesFixture()
+  const author = value(createFilesAuthor(fixture.config))
+  const write = (path: string, parents: boolean) =>
+    run(author, 'write', { path, text: 'x', mode: 'create', parents }, fixture.environment)
+  expect(await write('/src/lib/a.ts', true)).toContain('done')
+  expect(await write('/exists/b.ts', true)).toContain('done')
+  expect(await write('/plain/c.ts', false)).toContain('done')
+  expect(await write('/d.ts', true)).toContain('done')
+  // An existing parent answers conflict and the write still goes ahead; no parent means no mkdir.
+  expect(fixture.mkdirs).toEqual([
+    { path: '/src/lib', parents: true },
+    { path: '/exists', parents: true },
+  ])
+  expect(fixture.writes.map(item => item.path)).toEqual([
+    '/src/lib/a.ts',
+    '/exists/b.ts',
+    '/plain/c.ts',
+    '/d.ts',
+  ])
 })
 
 it('edits exactly one match without changing Chinese, CRLF or missing final newline', async () => {

@@ -1,5 +1,6 @@
 import { createIndependentToolScope, executeTool } from '@omne-harness/tool'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
+import { ENCODING } from '../src/author.ts'
 import type {
   ToolImplementation,
   ToolMessageContentBlock,
@@ -16,7 +17,7 @@ export async function run<E>(
   if (registration?.kind !== 'commands') throw new Error('Expected commands')
   const operation = registration.operations.find(([name]) => name === command)?.[1]
   if (operation === undefined) throw new Error('Missing command')
-  const text = JSON.stringify(args)
+  const text = callText(command, args)
   const parsed = operation.author.parameters.parse({
     original: text,
     effective: text,
@@ -39,6 +40,13 @@ export async function run<E>(
   if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
   if (typeof answer.ok !== 'string') throw new Error('Expected readable text')
   return answer.ok
+}
+
+/** The arguments text a model sends: the whole call, from which the command codec cuts the parameters. */
+export function callText(command: string, args: unknown): string {
+  return JSON.stringify(
+    ENCODING === 'flat' ? { command, ...(args as object) } : { command, params: args },
+  )
 }
 
 export function value<T>(answer: { ok: T } | { failure: unknown }): T {

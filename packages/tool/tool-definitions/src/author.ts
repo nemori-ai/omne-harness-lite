@@ -5,6 +5,12 @@ import {
   type FacilityKey,
 } from '@omne-harness/execution-environment-contract'
 import {
+  commandMenu,
+  type CommandCallEncoding,
+  type CommandTable,
+} from '@omne-harness/tool-contract'
+import {
+  commandExample,
   defineCommandTool,
   defineToolOperation,
   type ToolExecutionContext,
@@ -24,6 +30,10 @@ import {
 } from './protocol.ts'
 import { bounded } from './text.ts'
 
+/** How the model calls Files and Shell through their one declaration (D-94, R2-D396). */
+export const ENCODING: CommandCallEncoding = 'wrapped'
+const returns = { kind: 'ordinary', program: { kind: 'none' } } as const
+
 export function createAuthor<E>(
   name: string,
   purpose: string,
@@ -38,6 +48,16 @@ export function createAuthor<E>(
     execution: ToolExecutionContext,
   ) => Promise<string>,
 ): ToolImplementation<E, ToolMessageContentBlock> {
+  const menu: CommandTable = {
+    name,
+    encoding: ENCODING,
+    commands: commands.map(command => ({
+      name: command.name,
+      summary: command.summary,
+      parameters: { kind: 'declared', value: contract(command) },
+      returns,
+    })),
+  }
   const table: Record<
     string,
     { summary: string; operation: ToolOperation<E, ToolMessageContentBlock> }
@@ -51,16 +71,16 @@ export function createAuthor<E>(
       Extract<ToolOperationParameters, { kind: 'declared' }>
     >({
       parameters: { kind: 'declared', value: contract(command) },
-      returns: { kind: 'ordinary', program: { kind: 'none' } },
+      returns,
       author: {
         kind: 'ordinary',
-        parameters: parameterCodec(command),
+        parameters: parameterCodec(command, commandExample(menu, command.name)),
         waits: [],
         executor: {
           execute: async (args: Arguments, environment: E, execution: ToolExecutionContext) =>
             bounded(
               command.name === 'help'
-                ? help(name, commands, args, rules)
+                ? help(menu, commands, args, rules)
                 : await execute(command.name, args, environment, execution),
               maximum,
             ),
@@ -95,11 +115,8 @@ export function createAuthor<E>(
   }
   const result = defineCommandTool({
     implementation: {
-      description: [
-        purpose,
-        '',
-        ...commands.map(command => `${command.name}: ${command.summary}`),
-      ].join('\n'),
+      // The command menu joins the description where the tool is declared to a model.
+      description: purpose,
       backgroundAllowed: false,
       declarations: {
         adoption,
@@ -113,26 +130,30 @@ export function createAuthor<E>(
         settings: null,
       },
     },
+    encoding: ENCODING,
     commands: table,
   })
   if ('failure' in result) throw new TypeError(JSON.stringify(result.failure))
   return result.ok
 }
-function help(name: string, commands: readonly Command[], args: Arguments, rules: string): string {
-  const command = args.optionalText('command')
-  const selected = commands.filter(item => command === undefined || item.name === command)
-  if (selected.length === 0) return 'rejected reason=unknown-command'
+/**
+ * Help answers one command in full, or the menu and the rules. The codec already checked that a
+ * given name is a command, so an unknown name never reaches here.
+ */
+function help(
+  menu: CommandTable,
+  commands: readonly Command[],
+  args: Arguments,
+  rules: string,
+): string {
+  const selected = commands.find(item => item.name === args.optionalText('name'))
+  if (selected === undefined) return [`done ${menu.name} help`, commandMenu(menu), rules].join('\n')
   return [
-    `done ${name} help`,
-    ...commands.map(item => `${item.name}  ${item.summary}`),
-    ...selected.map(item =>
-      [
-        `Usage: ${name} ${item.name} <JSON object>`,
-        item.summary,
-        `JSON Schema: ${schemaText(item)}`,
-        ...item.fields.map(field => `${field.name}: ${field.description}`),
-      ].join('\n'),
-    ),
+    `done ${menu.name} help ${selected.name}`,
+    `Usage: ${commandExample(menu, selected.name)}`,
+    selected.summary,
+    `JSON Schema: ${schemaText(selected)}`,
+    ...selected.fields.map(field => `${field.name}: ${field.description}`),
     rules,
   ].join('\n')
 }

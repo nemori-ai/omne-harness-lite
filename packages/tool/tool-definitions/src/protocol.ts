@@ -10,9 +10,9 @@ import {
 export const adoption = describedAdoption({
   owner: '@omne-harness/tool-definitions',
   name: 'files-shell-protocol',
-  revision: '1',
+  revision: '2',
   changes:
-    'Declared commands, exact UTF-8 edits, preflight batches, explicit shell placement and byte-bounded head/tail results.',
+    'One declaration per tool with the command named in the call, usage on invalid input, help by command name and Files write with parents.',
 })
 const limits = {
   maxBytes: 1048576,
@@ -187,14 +187,18 @@ export function parseConstruction(value: JsonValue, fields: readonly Field[]) {
     ? fail({ kind: 'invalid', reason: `construction-json:${checked.rejected}` } as const)
     : parseFields(checked.ok, fields)
 }
-export function parameterCodec(command: Command): ParameterCodec<Arguments> {
+/** The codec of one command. An invalid value is answered with the reason and the usage line. */
+export function parameterCodec(command: Command, usage: string): ParameterCodec<Arguments> {
   const base = createDefaultParameterCodec(limits)
   if ('failure' in base) throw new TypeError(base.failure.reason)
   return {
     adoption,
     parse: input => {
       const parsed = base.ok.parse(input)
-      return 'failure' in parsed ? parsed : parseFields(parsed.ok, command.fields)
+      const fields = 'failure' in parsed ? parsed : parseFields(parsed.ok, command.fields)
+      return 'failure' in fields && fields.failure.kind === 'invalid'
+        ? fail({ kind: 'invalid', reason: `${fields.failure.reason}. Usage: ${usage}` })
+        : fields
     },
   }
 }

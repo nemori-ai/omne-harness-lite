@@ -53,7 +53,7 @@ export function createShellAuthor(
   return succeed(
     createAuthor<ShellAuthorEnvironment>(
       'Shell',
-      'Run shell commands and manage persistent terminals in the authorized execution environment.',
+      `Run shell commands and manage persistent terminals in the authorized execution environment. A one-shot script runs as ${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix'), '<script>'])} and starts in ${JSON.stringify(config.text('cwd'))}.`,
       shellCommands,
       ['command', 'terminal'],
       maximum,
@@ -70,9 +70,9 @@ export const shellToolModule: ToolImplementationModule<
   executor: describedAdoption({
     owner: '@omne-harness/tool-definitions',
     name: 'Shell',
-    revision: '1',
+    revision: '2',
     changes:
-      'Explicit placement, exact terminal routing, current-handle cancellation, drained byte-bounded UTF-8 output.',
+      'One declaration with the command in the call, the shell and start directory in the description and help by command name.',
     commands: shellCommands,
   }),
   createAuthor: createShellAuthor,
@@ -120,7 +120,8 @@ async function executeShell(
     case 'execute':
       return executeScript(args, environment, execution, config)
     default:
-      return 'rejected reason=unknown-command'
+      // The command table names exactly these commands, so a miss is a defect, not a result.
+      throw new Error(`Shell has no operation for command ${command}`)
   }
 }
 

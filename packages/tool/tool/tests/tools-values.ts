@@ -102,8 +102,12 @@ export async function authorRun(
   const entry = registered.operations.find(([name]) => name === command)
   if (entry === undefined) return fail({ kind: 'invalid', reason: 'unknown-command' } as const)
   const author = entry[1].author
+  // A text is the parameters, which the call wraps as a model sends it. Arguments are taken as
+  // they are: the whole call of a request, or an incomplete block.
+  const call =
+    typeof args === 'string' ? `{"command":${JSON.stringify(command)},"params":${args}}` : ''
   const parsed = author.parameters.parse(
-    typeof args === 'string' ? { original: args, effective: args, complete: true } : args,
+    typeof args === 'string' ? { original: call, effective: call, complete: true } : args,
   )
   if ('failure' in parsed) return parsed
   const execution = scope()
@@ -264,8 +268,8 @@ export function registeredFixture(tools: Tools<Principal>, replyOptions: ToolsOp
         },
         command,
         arguments: {
-          original: JSON.stringify(argumentsValue),
-          effective: JSON.stringify(argumentsValue),
+          original: JSON.stringify({ command, params: argumentsValue }),
+          effective: JSON.stringify({ command, params: argumentsValue }),
           complete: true,
         },
         consumer: { ...request().consumer, position: `reply-${count}` },
