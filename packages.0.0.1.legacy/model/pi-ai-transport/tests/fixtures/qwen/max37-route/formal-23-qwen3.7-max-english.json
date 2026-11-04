@@ -1,1 +1,0 @@
-{"model":"qwen/qwen3.7-max","provider":{"order":["alibaba"],"allow_fallbacks":false,"require_parameters":true},"stream":true,"store":false,"messages":[{"role":"user","content":[{"type":"text","text":"Reply with the single word OK."}]}],"max_tokens":16}
