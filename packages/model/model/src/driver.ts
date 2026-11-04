@@ -442,6 +442,19 @@ export function createModelDriver<P>(
     refreshProjection(input)
     return { ok: undefined }
   }
+  /** The failed terminal recorded on this not-sent dispatch, or null when there is none to read. */
+  async function notSentTerminal(demand: SendDemand<P>): Promise<Termination | null> {
+    try {
+      const records = await commands.dispatches(demand)
+      if ('failure' in records) return null
+      const record = records.ok.find(item => item.dispatch === demand.dispatch)
+      return record?.send === 'not-sent' && record.terminal?.kind === 'failed'
+        ? record.terminal
+        : null
+    } catch {
+      return null
+    }
+  }
   async function sendDispatch(
     active: Activity<P>,
     demand: SendDemand<P>,
@@ -454,6 +467,21 @@ export function createModelDriver<P>(
       return blocked(sent.diagnostic)
     }
     if (sent.kind === 'not-started') {
+      // A refusal that the boundary made final carries a terminal on the not-sent dispatch (for
+      // example a missing credential). The call then settles with it instead of waiting.
+      const terminal = await notSentTerminal(demand)
+      if (terminal !== null) {
+        active.stage = {
+          kind: 'finish',
+          execution: demand.execution,
+          receiver: null,
+          termination: terminal,
+          receiveFailure: null,
+          settlement: { kind: 'ready' },
+        }
+        refreshProjection(input)
+        return { ok: undefined }
+      }
       active.stage = { kind: 'failed', failure: sent.failure }
       refreshProjection(input)
       return { failure: sent.failure }

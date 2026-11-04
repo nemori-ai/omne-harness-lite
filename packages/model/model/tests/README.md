@@ -56,6 +56,8 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 [send.spec.ts](send.spec.ts) 通过真实 runtime 和 driver 建立 prepared dispatch，经公开产品 sender 验证凭据五结果、scope 与禁止回退、显式 factory 来源、回执提交、物化/开窗/send 写的 applied 与 not-applied 原参数认回、当前撤权/取消/代次排序，以及两个 sender 共用后端的一次 start。查询拒绝、异常或仍未知时保留原尝试和容量；已确认提交但回执暂不可取时仍保留资源。产品闭包在同步重入和重复调用时最多解析并 start 一次，保留原事实流。后端认领另在 recordSend 尚未提交时核实，不能用本地 map 替代。单 iterator、原流未预取、abort 中断事实、done/return/throw/读取异常、逆序幂等释放及释放失败均有行为断言。
 
+凭据 absent 与 unreadable 在 not-sent 发送记录上留下 `credential` 失败终止。终止写未确认时，重试重放同一 operation。[send-credential-terminal.spec.ts](send-credential-terminal.spec.ts) 经 acceptance 夹具的真实 driver 验证调用以该失败结算，且上游 start 为 0。
+
 [send-fixture.ts](send-fixture.ts) 只提供真实内存 Commands、资格安排、脚本外部传输、资源及故障。它不编排发送。未知流始终由产品 sender 保留和交接。公开类型由 [send.spec-d.ts](send.spec-d.ts) 核对，安装场景运行已安装根入口的产品工厂，确认提交真实回执、一次 start 与资源关闭。
 
 完整符合性报告继续保留53项，增加脚本 transport 的六项真实检查，其中 materialization-receipt-matches-request 必须通过。该项只证明传输形状，本页产品 sender 测试另证明实际发送链的提交和使用。driver 已通过真实产品 sender 消费原 facts；最小观察与四项目录行为有独立断言，已支持[有限的原终局收场](../SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现。所有证据均为受控内存与脚本，不覆盖真实厂商、耐久后端、生产宿主或跨进程恢复。

@@ -105,8 +105,8 @@ quiesce 返回十进制字符串 `{ pending, running }`。`running` 是本 provi
 | 结果          | 含义                                             | 发送端行为                                                   |
 | ------------- | ------------------------------------------------ | ------------------------------------------------------------ |
 | `value`       | 当前资格允许                                     | 发出，并记下本次采用的值。`scope` 为 `tenant` 或 `factory`。 |
-| `absent`      | 没有这份凭据                                     | 不发送。                                                     |
-| `unreadable`  | 引用在，值暂时读不出                             | 不发送。                                                     |
+| `absent`      | 没有这份凭据                                     | 不发送。产品发送边界把本次调用终结为失败，见下文。           |
+| `unreadable`  | 引用在，值暂时读不出                             | 不发送。产品发送边界把本次调用终结为失败，见下文。           |
 | `denied`      | 跨租户、用途不符、无发送资格、已撤销或保管已关闭 | 不发送。                                                     |
 | `unavailable` | 保管或存储暂时不能判断                           | 不发送，也不得报成 `absent`。                                |
 
@@ -421,7 +421,16 @@ factory 的精确采用、官方身份、当前无 tenant 绑定及查询 ID 来
 
 `official` 取自已登记的 `ModelSendSource.credential`。登记来源的 `kind` 为 `factory` 时，显式选择 tenant 凭据也保留该来源的 `official`；登记来源的 `kind` 为 `tenant` 时才取 false。tenant 选择只解析原 ID，且要求返回 tenant 范围的值，不接受 factory 范围的结果。旧 `resolve` 与 `SendFace` 路径的行为保留，不参与产品发送边界。
 
-absent、unreadable、unavailable 保留不同的 model-credential 安全诊断；denied 保持拒绝。解析、start、事实读取及释放的异常正文不进入业务诊断。秘密只交给原资源的同步私有槽。资源提供者须核物化对象归属，清除临时秘密，并发送回执对应内容。
+absent、unreadable、unavailable 保留不同的 model-credential 安全诊断；denied 保持拒绝。
+
+凭据缺失与读不出不会自己恢复，所以产品发送边界把它们当作本次调用的确定失败，不让调用方等待：
+
+1. 边界记下 not-sent 发送记录。
+2. 边界在本尝试开的接收窗口里写一条终止事实：`{ kind: 'failed', fault: { cause: 'credential', diagnostic, upstreamStatus: null } }`。absent 的 `diagnostic` 是 `credential-missing`，unreadable 的是 `credential-unreadable`。没有字节发往上游，所以 `upstreamStatus` 为 null。
+3. 边界释放资源，返回 not-started，`failure` 仍是 `unavailable`，依赖为 `model-credential`，诊断同上。
+4. driver 读到这条 not-sent 发送记录带有失败终止，就用它结算本次调用。调用进入 settled，终止为上述失败。
+
+终止写未确认时，边界返回 unknown，诊断为 `credential-terminal-unconfirmed`，并保留原写。重试先查询原 operation，再重放同一写，不生成新的 operation。denied 与 unavailable 不写终止：denied 保持本地拒绝且不结算，unavailable 仍可由调用方重试。解析、start、事实读取及释放的异常正文不进入业务诊断。秘密只交给原资源的同步私有槽。资源提供者须核物化对象归属，清除临时秘密，并发送回执对应内容。
 
 每个原写在首次提交前固定完整参数，operation 使用具有128位熵的随机值生成。未确认写先 query 原 operation，确定后重放原方法和参数，不改 expected、dispatch 或 payload。查询拒绝、异常或仍未知不证明原写未提交，原尝试、资源和容量继续保留。已确认 committed 但原方法暂不能返回回执时，同样保留原责任；只有权威未提交且原写明确拒绝才可按未提交结束。物化或窗口未知保留资源但零 start。已明确未发的资格拒绝不会因原 not-sent 写的已知冲突改称未知发送；未确认记录仍保留原责任。已经可能 start 的异常或记录冲突始终 unknown，不改报未发。
 

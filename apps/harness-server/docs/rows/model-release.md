@@ -88,15 +88,16 @@
 
 **解析。** `model-request-preparation` 行的供应商补全按调用现取 `modelCredential`，对该租户的身份调用 `presentFor`：
 
-- 绑定存在时给租户引用。绑定读不出时也给租户引用，发送在围栏内得到 `unreadable` 并拒绝，不退回工厂。
+- 绑定存在时给租户引用。绑定读不出时也给租户引用，发送在围栏内得到 `unreadable`，不退回工厂。
 - 没有绑定时给工厂引用。
 - `presentFor` 答 `denied` 或 `unavailable`，或凭据服务不在树里时，准备失败，不给工厂引用。
 
-`model-records` 行发送子插件自带的准备租约用同一个补全，读子 fiber 注入的 `modelCredential`。工厂秘密是空字符串时，保管库把工厂解析答成 `absent`，没有绑定的租户得到明确的缺凭据结局。
+`model-records` 行发送子插件自带的准备租约用同一个补全，读子 fiber 注入的 `modelCredential`。工厂秘密是空字符串时，保管库把工厂解析答成 `absent`。
+
+**缺凭据的结局。** 发送在围栏内得到 `absent` 或 `unreadable` 时，不向上游发字节。Model 的产品发送边界把本次调用终结为失败，`cause` 为 `credential`，`diagnostic` 为 `credential-missing` 或 `credential-unreadable`，`upstreamStatus` 为 null（[Model SPEC「产品发送边界」](../../../../packages/model/model/SPEC.md#产品发送边界)）。调用随即 settled，Agent 的这一轮以失败结束，不等待。租户之后再绑定，下一轮照常发送。
 
 ## 已知限制
 
-- **保管库明文保存秘密**：租户秘密与工厂秘密都以明文写在保管库文件里，文件权限归宿主。本应用不加密它（Model SPEC「成本、隐私与安全」沿系统安全架构，首版不宣称抵御主机管理员直接读取）。
 - **`revoked` 绑定在查看里显示为 `unreadable`**：公开操作不产生 `revoked`，只有保管库自己的 `revoke` 会写它。两者对发送都不可用。
 - **实时撤权（#677）**：M 的登记项只随宿主 fiber 退役失效；W 只在每次调用时重读 standing。撤权确认与下一次调用之间没有同步来源。
 - **直接经 `modelCommands` 服务的 W 调用没有受理点**，一律 `unavailable`（`principal-not-qualified`）。M2 树里这样的消费者只有 `model-request-preparation` 的世系读取，首次调用没有世系。

@@ -4,6 +4,7 @@ import {
   decodeModelOperationId,
   type MaterializationReceipt,
   type ModelFailure,
+  type ModelFault,
   type ModelOperationId,
 } from '@omne-harness/model-contract'
 import {
@@ -36,6 +37,7 @@ type MaterializationResult = Extract<
 >['ok']
 type Window = Parameters<Commands['openReceiveWindow']>[0]
 type RecordSend = Parameters<Commands['recordSend']>[0]
+type Preserve = Parameters<Commands['preserve']>[0]
 type Stage =
   | { kind: 'acquire' }
   | {
@@ -45,6 +47,7 @@ type Stage =
   | { kind: 'window'; write: Write<Window, Window['expected']> }
   | { kind: 'start'; revision: Window['expected'] }
   | { kind: 'record'; write: Write<RecordSend, RecordSend['expected']>; result: SendStart }
+  | { kind: 'terminal'; write: Write<Preserve, unknown>; failure: ModelFailure }
   | { kind: 'handed' }
   | { kind: 'unknown'; diagnostic: string }
 export type SendAttempt<P> = {
@@ -62,6 +65,15 @@ export const unavailable = (dependency: string, diagnostic: string): ModelFailur
   diagnostic,
 })
 export const refused = (failure: ModelFailure): SendResult => ({ kind: 'not-started', failure })
+/**
+ * A credential that is missing or cannot be read does not come back by itself: the call ends as a
+ * failure with cause `credential`, not as an unavailable that a caller waits on. No byte was sent,
+ * so there is no upstream status.
+ */
+function credentialFault(diagnostic: 'credential-missing' | 'credential-unreadable'): ModelFault {
+  return { cause: 'credential', diagnostic, upstreamStatus: null }
+}
+type CredentialRefusal = Readonly<{ failure: ModelFailure; fault?: ModelFault }>
 function operation(): ModelOperationId {
   const decoded = decodeModelOperationId(`mop_${randomBytes(16).toString('hex')}`)
   if ('ok' in decoded) return decoded.ok
@@ -126,7 +138,7 @@ export function createAttemptRunner<P>(
   function resolveCredential(
     attempt: SendAttempt<P>,
     selection: CredentialSelection,
-  ): Outcome<string, ModelFailure> {
+  ): Readonly<{ ok: string }> | CredentialRefusal {
     if (!credentials.resolveFor || typeof selection.official !== 'boolean')
       return { failure: unavailable('model-credential', 'qualified-path-missing') }
     const resolved = credentials.resolveFor({
@@ -137,6 +149,13 @@ export function createAttemptRunner<P>(
     })
     if (resolved.kind === 'denied')
       return { failure: { kind: 'denied', action: 'model-credential' } }
+    if (resolved.kind === 'absent' || resolved.kind === 'unreadable') {
+      const diagnostic = resolved.kind === 'absent' ? 'credential-missing' : 'credential-unreadable'
+      return {
+        failure: unavailable('model-credential', diagnostic),
+        fault: credentialFault(diagnostic),
+      }
+    }
     if (resolved.kind !== 'value')
       return { failure: unavailable('model-credential', `credential-${resolved.kind}`) }
     if (resolved.scope !== selection.scope)
@@ -155,7 +174,7 @@ export function createAttemptRunner<P>(
           failure: { kind: 'invalid', field: 'receipt', reason: 'changed-after-commit' },
         }
       const credential = resolveCredential(attempt, selection)
-      if ('failure' in credential) return { kind: 'refused', failure: credential.failure }
+      if ('failure' in credential) return { kind: 'refused', ...credential }
       try {
         return {
           kind: 'started',
@@ -360,6 +379,10 @@ export function createAttemptRunner<P>(
       }
       return { kind: 'complete', result: unknown(attempt, 'send-record-unconfirmed') }
     }
+    if (decision.kind === 'refused' && decision.fault !== undefined) {
+      attempt.stage = terminalStage(attempt, recorded.value, decision.failure, decision.fault)
+      return recordTerminal(id, attempt, attempt.stage)
+    }
     if (decision.kind === 'refused')
       return { kind: 'complete', result: stop(id, attempt, decision.failure) }
     if (decision.kind === 'unknown') {
@@ -383,6 +406,46 @@ export function createAttemptRunner<P>(
       },
     }
   }
+  /**
+   * Prepares the write that records a final refusal as the terminal of the not-sent dispatch, in
+   * the receive window this attempt opened. Nothing was started, so the window holds this one fact.
+   * The stage keeps the write, so a retry after an unconfirmed result uses the same operation.
+   */
+  function terminalStage(
+    attempt: SendAttempt<P>,
+    revision: RecordSend['expected'],
+    failure: ModelFailure,
+    fault: ModelFault,
+  ): Extract<Stage, { kind: 'terminal' }> {
+    const input = attempt.input
+    return {
+      kind: 'terminal',
+      failure,
+      write: {
+        input: {
+          ...input.execution,
+          operation: operation(),
+          expected: revision,
+          dispatch: input.dispatch,
+          window: attempt.window,
+          facts: [{ kind: 'ended', termination: { kind: 'failed', fault } }],
+        },
+        confirmation: 'new',
+        run: entry => commands.preserve(entry),
+      },
+    }
+  }
+  /** Writes the terminal so the driver can settle the call with it. Unconfirmed stays unknown. */
+  async function recordTerminal(
+    id: string,
+    attempt: SendAttempt<P>,
+    entry: Extract<Stage, { kind: 'terminal' }>,
+  ): Promise<Completion> {
+    const written = await write(attempt, entry.write)
+    if (written.kind === 'unconfirmed')
+      return { kind: 'complete', result: unknown(attempt, 'credential-terminal-unconfirmed') }
+    return { kind: 'complete', result: stop(id, attempt, entry.failure) }
+  }
   async function failed(id: string, attempt: SendAttempt<P>): Promise<Completion> {
     // A coordinator exception can occur after calling start. Never retry that stage.
     if (attempt.stage.kind === 'start') {
@@ -396,6 +459,8 @@ export function createAttemptRunner<P>(
     }
     if (attempt.stage.kind === 'record')
       return { kind: 'complete', result: unknown(attempt, 'send-record-unconfirmed') }
+    if (attempt.stage.kind === 'terminal')
+      return { kind: 'complete', result: unknown(attempt, 'credential-terminal-unconfirmed') }
     return {
       kind: 'complete',
       result: stop(id, attempt, unavailable('model-send', 'transport-prepare-failed')),
@@ -416,6 +481,8 @@ export function createAttemptRunner<P>(
       if (attempt.stage.kind === 'start') startAndBuildRecord(attempt, attempt.stage)
       if (attempt.stage.kind === 'record')
         return (await recordStarted(id, attempt, attempt.stage)).result
+      if (attempt.stage.kind === 'terminal')
+        return (await recordTerminal(id, attempt, attempt.stage)).result
       return unknown(
         attempt,
         attempt.stage.kind === 'unknown'

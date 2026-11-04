@@ -451,8 +451,21 @@ for (const kind of ['value', 'absent', 'unreadable', 'denied', 'unavailable'] as
       },
     ])
     expect(f.counts().starts).toBe(kind === 'value' ? 1 : 0)
-    expect(unbox(await f.dependencies.commands.dispatches(f.admit))[0]?.send).toBe(
-      kind === 'value' ? 'started' : 'not-sent',
+    const recorded = unbox(await f.dependencies.commands.dispatches(f.admit))[0]
+    expect(recorded?.send).toBe(kind === 'value' ? 'started' : 'not-sent')
+    // Only a missing or unreadable credential is final for the call: the not-sent dispatch then
+    // carries the failed terminal. A denial or an unavailable dependency leaves no terminal.
+    expect(recorded?.terminal ?? null).toEqual(
+      kind === 'absent' || kind === 'unreadable'
+        ? {
+            kind: 'failed',
+            fault: {
+              cause: 'credential',
+              diagnostic: kind === 'absent' ? 'credential-missing' : 'credential-unreadable',
+              upstreamStatus: null,
+            },
+          }
+        : null,
     )
     if (result.kind === 'started') {
       expect(f.counts().valueMatches).toBe(true)
@@ -466,7 +479,7 @@ for (const kind of ['value', 'absent', 'unreadable', 'denied', 'unavailable'] as
               failure: {
                 kind: 'unavailable',
                 dependency: 'model-credential',
-                diagnostic: `credential-${kind}`,
+                diagnostic: kind === 'absent' ? 'credential-missing' : `credential-${kind}`,
               },
             },
       )
@@ -474,6 +487,38 @@ for (const kind of ['value', 'absent', 'unreadable', 'denied', 'unavailable'] as
     }
   })
 }
+it('retries an unconfirmed credential terminal with the same operation', async () => {
+  const f = await sendFixture({ tenant: true, credentials: credentialPort({ kind: 'absent' }) })
+  const inputs: Parameters<typeof f.dependencies.commands.preserve>[0][] = []
+  const sender = f.makeSender({
+    commands: {
+      ...f.dependencies.commands,
+      async preserve(input) {
+        inputs.push(input)
+        const applied = await f.dependencies.commands.preserve(input)
+        // The first write commits, but its confirmation is lost.
+        return inputs.length === 1 && 'ok' in applied
+          ? { failure: { kind: 'commit-unknown', operation: input.operation } }
+          : applied
+      },
+    },
+  })
+  expect(await sender.send(f.demand, signal())).toMatchObject({
+    kind: 'unknown',
+    diagnostic: 'credential-terminal-unconfirmed',
+  })
+  expect(await sender.send(f.demand, signal())).toMatchObject({
+    kind: 'not-started',
+    failure: { dependency: 'model-credential', diagnostic: 'credential-missing' },
+  })
+  expect(inputs).toHaveLength(2)
+  expect(inputs[1]).toEqual(inputs[0])
+  expect(unbox(await f.dependencies.commands.dispatches(f.admit))[0]).toMatchObject({
+    send: 'not-sent',
+    terminal: { kind: 'failed', fault: { cause: 'credential' } },
+  })
+  expect(f.counts().starts).toBe(0)
+})
 for (const tenant of [false, true])
   it(`rejects a credential scope mismatch for ${tenant ? 'tenant' : 'factory'} without fallback`, async () => {
     let resolves = 0
@@ -1180,7 +1225,7 @@ it('recognizes an unknown not-sent record without resolving credentials a second
   fault.reveal()
   expect(await sender.send(f.demand, signal())).toMatchObject({
     kind: 'not-started',
-    failure: { dependency: 'model-credential', diagnostic: 'credential-absent' },
+    failure: { dependency: 'model-credential', diagnostic: 'credential-missing' },
   })
   expect(resolutions).toBe(1)
   expect(f.counts().starts).toBe(0)
@@ -1264,8 +1309,9 @@ for (const record of ['confirmed', 'rejected'] as const)
       reachedRelease = resolve
     })
     let writes = 0
+    // A refusal that is not final. A missing credential writes a terminal instead.
     const sender = f.makeSender({
-      credentials: credentialPort({ kind: 'absent' }),
+      credentials: credentialPort({ kind: 'unavailable' }),
       commands: {
         ...f.dependencies.commands,
         recordSend(input) {
@@ -1304,7 +1350,7 @@ for (const record of ['confirmed', 'rejected'] as const)
       finishRelease()
       expect(await first).toMatchObject({
         kind: 'not-started',
-        failure: { dependency: 'model-credential', diagnostic: 'credential-absent' },
+        failure: { dependency: 'model-credential', diagnostic: 'credential-unavailable' },
       })
       await repeat
       if (record === 'rejected') {
