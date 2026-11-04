@@ -1,6 +1,9 @@
 export {
   createLocalCustodian,
   openLocalCustodian,
+  type BindingRemoval,
+  type BindingView,
+  type BindingWrite,
   type CreateOptions,
   type CustodianOptions,
   type Diagnostic,

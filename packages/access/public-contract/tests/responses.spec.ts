@@ -99,6 +99,9 @@ const successes = {
   'judge-admission': { admitted: true },
   'submit-authorization-expression': { expressionId: 'e', persistentSettingsUpdated: false },
   'withdraw-authorization-expression': {},
+  'bind-model-credential': { configuredAt: at },
+  'unbind-model-credential': {},
+  'describe-model-credential': { state: 'unbound' },
 } satisfies Record<GovernanceProvidedOperation, object>
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
 function response(operation: GovernanceProvidedOperation, outcome: string, body: unknown = {}) {
@@ -192,6 +195,9 @@ const allowed = {
   'judge-admission': ['denied', 'not-visible', 'basis-unavailable'],
   'submit-authorization-expression': ['denied', 'basis-unavailable', 'unknown'],
   'withdraw-authorization-expression': ['denied', 'basis-unavailable', 'unknown'],
+  'bind-model-credential': ['denied', 'basis-unavailable', 'unknown'],
+  'unbind-model-credential': ['denied', 'basis-unavailable', 'unknown'],
+  'describe-model-credential': ['denied', 'basis-unavailable'],
 } satisfies Record<GovernanceProvidedOperation, readonly string[]>
 it.each(Object.entries(allowed))(
   '%s permits exactly its empty-body refusal outcomes',

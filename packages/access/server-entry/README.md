@@ -15,6 +15,7 @@ Implemented:
 - `createServerEntry({ config, dependencies })`, which returns `start()` and `stop()`.
 - The `register-and-activate` and `issue-login` operations of the governance location. A succeeded `issue-login` carries the `loginId` of the new login.
 - The eighteen governed operations of the governance location: organizations, member invitations, memberships, the current tenant, and the logins of an account. They go to identity's governance port.
+- The three model credential operations of the governance location: bind, unbind and describe the model credential of the acting tenant. They go to the `modelCredentials` port. Without the port they answer `stage-not-provided`.
 - The report of a successful business access, and the end of an observation when its login is no longer valid.
 - The seven session operations and the two observation operations of the session location. An observation stream carries the confirmation, heartbeats, and the `ended` frame only.
 - The deterministic derivation of the session operation identity `SessionOperationId`.
@@ -69,6 +70,7 @@ The two locations have fixed paths: `/governance-public/1` and `/session-public/
 | `governance` | identity's `IdentityGovernance` | The eighteen governed operations, and the report of a successful business access. It must work over the same records as `identity`, so a revocation or a switch is what login recognition reads. An assembly that reads the provider per call answers `basis-unavailable` from the port while the provider is absent |
 | `issuer` | identity's `PrincipalIssuer` | Issues the system principal of this package (`component` is `server-entry`), and the acting principal of each session request |
 | `session` | `SessionIngressFaces`, the Session faces this package declares | The seven session operations and the read eligibility check when an observation opens. A real `SessionService` satisfies it structurally |
+| `modelCredentials` | `ModelCredentialCustody`, the port this package declares, optional | The three model credential operations. The entry gives it the acting principal of the login and the acting tenant. Without it the three operations answer `stage-not-provided` |
 | `resolveDefinition` | `DefinitionResolver` | `create-session` resolves a definition name into the fields the creation adopts. A returned `undefined` answers `invalid` |
 | `diagnostics` | `DiagnosticSink`, optional | Structured diagnostic events. An event holds no body, login proof, credential, principal, or dependency error text |
 

@@ -28,13 +28,27 @@
 
 ### 治理位置
 
-接入按公开契约的[判断次序](../public-contract/SPEC.md#判断次序)处理治理消息。治理位置的操作分三组：
+接入按公开契约的[判断次序](../public-contract/SPEC.md#判断次序)处理治理消息。治理位置的操作分四组：
 
 - `register-and-activate` 和 `issue-login`：接入把消息交给 identity 的公开入口，不核验登录证明。`issue-login` 成功时，响应带新登录的 `loginId`。
 - 18 个治理操作：`create-organization`、`query-create-organization`、`issue-member-invitation`、`accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`query-received-invitations`、`query-issued-invitations`、`query-own-memberships`、`query-organization-members`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-current-tenant`、`revoke-login`、`query-own-valid-logins`。接入把它们交给 identity 的治理端口（identity ID-18）。
+- 3 个模型凭据操作：`bind-model-credential`、`unbind-model-credential`、`describe-model-credential`。接入把它们交给装配给的 `modelCredentials` 端口，规则见[模型凭据](#模型凭据)。
 - 部署声明不提供的 14 个操作：`public-health`、`replace-credential`、`query-organization`、隶属的 8 个操作、`judge-admission`、`submit-authorization-expression` 与 `withdraw-authorization-expression`。声明是成员常量 `NOT_PROVIDED_GOVERNANCE_OPERATIONS`（`src/governance.ts`）。规则见公开契约的[部署声明不提供的操作](../public-contract/SPEC.md#部署声明不提供的操作)：请求通过第 3 步的封闭字段检查之后，接入答 `stage-not-provided`，`body` 为空，不识别登录，也不读取账号库。
 
 识别登录不是公开操作。它是两个位置判断次序里的内部步骤。
+
+#### 模型凭据
+
+本节兑现公开契约的[模型凭据](../public-contract/SPEC.md#模型凭据)。接入只做登录与行事租户的步骤，资格与保管归端口。
+
+1. 装配没有给 `modelCredentials` 端口时，这 3 个操作按[部署声明不提供的操作](../public-contract/SPEC.md#部署声明不提供的操作)处理：通过第 3 步之后答 `stage-not-provided`，不识别登录。
+2. 第 4 步：把 `loginProof` 交给 identity 的登录识别，`denied` 与 `basis-unavailable` 原样对外。
+3. 第 6 步：`actingTenant` 不等于识别出的当前选择时答 `denied`，不调用端口。这一份 `denied` 与其他原因的 `denied` 除 `messageId` 外逐字节相同，不披露对方租户有没有凭据。
+4. 用签发者为行事租户签发代租户行事主体，`work.owner` 是 `identity-login`，规则同会话位置的第 4 步。账号不等答 `denied`，签发失败答 `basis-unavailable`。
+5. 把主体与行事租户交给端口。端口的结果按公开契约对外表示。端口拒绝（Promise 被拒绝）时，`bind-model-credential` 与 `unbind-model-credential` 答 `unknown`，因为写入可能已经发生。`describe-model-credential` 答 `basis-unavailable`。接入记诊断 `model-credential.fault`。
+
+秘密只在 `bind-model-credential` 的请求里。接入把它原样交给端口，不写进响应、诊断或错误文本。这 3 个操作不报告成功业务访问。
+
 
 接入对 18 个治理操作的职责如下。
 

@@ -11,7 +11,7 @@
 | src/index.ts | 治理与会话两组共八个纯函数、身份文本八个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
 | src/messages.ts | 治理的正常/阶段操作、请求、按操作/结果关联响应、本地proof与codec结果类型 |
 | src/session-messages.ts | 会话的7个操作、请求、按操作/结果关联响应、历史页、中断成功正文与codec结果类型 |
-| src/operation-rules.ts | 规则种类、协议族描述，以及完整34正常/4阶段封闭规则、信封/body字段和outcome映射 |
+| src/operation-rules.ts | 规则种类、协议族描述，以及完整37正常/4阶段封闭规则、信封/body字段和outcome映射 |
 | src/session-rules.ts | 会话协议族：7个操作的封闭规则、信封/body字段和outcome映射；中断成功正文用`kind`字面量区分互斥分支 |
 | src/identity-text.ts | 租户、组织、账号、登录状态的文本读写：直接委托legal-identity的铸造与输出函数，租户另加严格JSON与小预算门 |
 | src/codec.ts | 按协议族参数化的核心与治理四函数：公开参数防护、模型与wire转换、响应验证后匹配 |
@@ -42,7 +42,7 @@ recoverCorrelation使用jsonc-parser扫描token与显式对象/数组frame栈，
 
 两个pass使用同一冻结预算。补扫再次检查完整输入，不因第一处duplicate提前停止而遗漏后缀错误。maxMembers按出现次数可比严格读取更早发现拒绝，不能将补扫更宽松地变成允许。整输入字节上限限制token分配，但不是进程RSS保证。没有隐藏第七深度上限，不捕获RangeError后把有效输入悄悄降成无关联。意外内部编程故障不转换成成功、可信关联或预期拒绝。
 
-响应读取从不补扫被拒绝的响应。它按原operation完整验证版本、outcome/body和关联字段，之后才比较expectedMessageId。治理一组的共同拒绝重载在没有operation时只允许两种共同outcome，带operation的重载仍受38项映射约束。会话一组的共同拒绝重载只允许 `protocol-rejected`，带operation的重载受7项映射约束。
+响应读取从不补扫被拒绝的响应。它按原operation完整验证版本、outcome/body和关联字段，之后才比较expectedMessageId。治理一组的共同拒绝重载在没有operation时只允许两种共同outcome，带operation的重载仍受41项映射约束。会话一组的共同拒绝重载只允许 `protocol-rejected`，带operation的重载受7项映射约束。
 
 ## 字段和对象检查
 

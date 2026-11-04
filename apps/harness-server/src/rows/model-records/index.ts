@@ -20,7 +20,11 @@
 import type { Context, Fiber, Plugin } from '@deepseek-ai/cordis'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
-import { decodeCredentialId, type ModelClock } from '@omne-harness/model-contract/provider'
+import {
+  decodeCredentialId,
+  type CredentialPort,
+  type ModelClock,
+} from '@omne-harness/model-contract/provider'
 import {
   modelClockKey,
   modelCommandsKey,
@@ -46,7 +50,7 @@ import { modelRecordsPortOf } from '../../model/ports.ts'
 import { createModelQualification } from '../../model/qualification.ts'
 import { officialSendSources } from '../../model/sources.ts'
 import { defineRow } from '../../row.ts'
-import { factorySupplier } from '../model-request-preparation/supplier.ts'
+import { tenantCredentialSupplier } from '../../model/tenant-credential.ts'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { modelRecordsConfig, type ModelRecordsConfig } from './config.ts'
@@ -121,6 +125,9 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
     checkOriginRead: target => port.checkOriginRead(target),
   })
   const { sendStage } = config.app
+  // The credential port the send child injects. The stage's own preparation leases complete a
+  // supplier through it, like the preparation row; outside the child's life there is none.
+  const sendCredential: { port: CredentialPort | undefined } = { port: undefined }
   const Records = createSqlModelRecordsPlugin<unknown, ModelSendStageSettings>({
     inject: [...INJECT],
     resolve: () => ({
@@ -181,7 +188,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         },
         preparation: {
           maxCitedCalls: sendStage.preparation.maxCitedCalls,
-          supplierOf: factorySupplier,
+          supplierOf: tenantCredentialSupplier(() => sendCredential.port),
         },
         executionChannel: () => handle.executionChannel(),
         installMaterialization: reader => {
@@ -198,6 +205,11 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         Config: Stage.Config,
         apply(child: Context, settings: ModelSendStageSettings) {
           handle.captureSendChild(child.fiber as Fiber)
+          const port: CredentialPort | undefined = child.modelCredential
+          sendCredential.port = port
+          child.effect(() => () => {
+            if (sendCredential.port === port) sendCredential.port = undefined
+          })
           new Stage(child, settings)
         },
       }

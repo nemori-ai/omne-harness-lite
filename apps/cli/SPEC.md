@@ -34,7 +34,7 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 
 候选的命令面由下面的责任组成。
 
-- 七个会话与账号命令，以及 18 个治理命令，见[命令](#命令)。
+- 七个会话与账号命令、18 个治理命令和模型凭据命令 `credential`，见[命令](#命令)。
 - 凭据读取与登录状态文件，见[凭据与登录状态](#凭据与登录状态)。
 - 命令结果的输出与退出码，见[命令结果与退出码](#命令结果与退出码)。
 
@@ -90,7 +90,7 @@ The default state directory is $HOME/.omne.
 --help and --version do not open or create a state directory.
 ```
 
-登记[命令](#命令)的 25 个命令（七个会话与账号命令，后接 18 个治理命令）之后，生成结果是下面的原文。第三行改为 `Show help or version, or run a command.`，`This build has no other commands.` 不再出现。目录另登记 `--server` 与 `OMNE_SERVER` 两个选项。帮助文本只列每个命令的必需选项，可选选项见[命令](#命令)的命令表。每个选项在帮助里的取值名按取值的内容定：标识写 `<id>`，租户文本写 `<tenant>`，角色写 `<role>`，其余写 `<name>`。最后一行之后有一个换行：
+登记[命令](#命令)的 26 个命令（七个会话与账号命令，后接 18 个治理命令，最后是 `credential`）之后，生成结果是下面的原文。第三行改为 `Show help or version, or run a command.`，`This build has no other commands.` 不再出现。目录另登记 `--server` 与 `OMNE_SERVER` 两个选项。帮助文本只列每个命令的必需选项，可选选项见[命令](#命令)的命令表。每个选项在帮助里的取值名按取值的内容定：标识写 `<id>`，租户文本写 `<tenant>`，角色写 `<role>`，其余写 `<name>`。最后一行之后有一个换行：
 
 ```text
 omne
@@ -127,6 +127,7 @@ Commands
   omne query-current-tenant                                                                                       Read the current tenant of this login.
   omne revoke-login                                                                                               Revoke a login. Without --target-login, log out of this one.
   omne query-own-valid-logins                                                                                     List the valid logins of this account.
+  omne credential set|show|unset                                                                                  Set, show or unset the model credential of the acting tenant.
 
   --home <directory>    State directory. Overrides OMNE_HOME.
   OMNE_HOME             State directory when --home is absent.
@@ -255,6 +256,28 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 - 命令在读登录状态之前先检查选项。选项缺失、重复、不属于该命令，或值不是对应的标识、租户文本或 `true`／`false`，是用法错误，退出 `2`，不发送请求。组织、账号和登录的标识文本，以及租户文本，由 SDK 读成身份值。
 - 服务端声明本部署不提供某个操作时，答 `stage-not-provided`。命令按[命令结果与退出码](#命令结果与退出码)输出该结果，退出 `3`，不当作错误。
 - 命令不提供观察、历史、隶属请求、授权表达与准入判断的入口。组织隶属、更换密码、阶段操作和这些操作都晚于本阶段。M2 部署的治理范围见服务端接入规格的[治理位置](../../packages/access/server-entry/SPEC.md#治理位置)。
+
+### 模型凭据命令
+
+`credential` 管理行事租户自己的模型凭据。它有三个子命令，各对应公开契约的一个治理操作，见公开契约的[模型凭据](../../packages/access/public-contract/SPEC.md#模型凭据)。
+
+| 子命令 | 操作 | 选项 | 输出 |
+| --- | --- | --- | --- |
+| `credential set` | `bind-model-credential` | `--server` | 结果对象，见[命令结果与退出码](#命令结果与退出码) |
+| `credential show` | `describe-model-credential` | `--server`、`--json` | 缺省是给人读的摘要。加 `--json` 时是结果对象 |
+| `credential unset` | `unbind-model-credential` | `--server` | 结果对象 |
+
+- 三个子命令都需要一份登录。证明取登录状态文件里的 `loginProof`，`actingTenant` 取同一文件里的 `tenantId`。命令不接受别的租户。
+- 子命令缺失或不是这三个之一，是用法错误，消息用 `credential` 作命令名。子命令的选项错误用 `credential set` 这样的两词命令名。`--json` 只属于 `show`。
+- `set` 不接受命令行上的秘密，因为命令行会进入进程列表和 shell 历史。命令先读登录状态，再按[凭据读取](#凭据读取)的规则读秘密：TTY 上不回显，管道上读到第一个换行。没有登录时命令退出 `1`，不读秘密。秘密为空串时命令退出 `2`，不发送请求。
+- 秘密只进入 `bind-model-credential` 的请求。命令不把它写进标准输出、标准错误、状态目录或错误文本。`set` 的结果对象只带 `configuredAt`。
+- `show` 的摘要按结果写下面的行，每行以换行结尾：
+  - 没有绑定：`Model credential: not set`。
+  - 绑定可用：`Model credential: set`，再写 `Tenant: <租户文本>` 与 `Configured at: <时刻>`。
+  - 绑定读不出：第一行是 `Model credential: set, but it cannot be read`，后两行同上。
+  - 没有记录配置时刻时，时刻写 `not recorded`。
+  - 其他 `outcome` 只写 `Result: <outcome>`。没有可信答复时写 `Result: uncertain`，标准错误另写 `omne credential show: result uncertain`。
+- 退出码按[命令结果与退出码](#命令结果与退出码)的映射，摘要输出也一样。`unset` 在没有绑定时答 `no-change`，退出 `0`。
 
 ### 服务地址
 
