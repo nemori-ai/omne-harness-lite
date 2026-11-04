@@ -295,8 +295,8 @@ export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin 
 }
 
 /** The `agent-host` plugin with the Agent factory. */
-export const agentHostPlugin: AgentHostPlugin = createAgentHostPlugin((dependencies, options) =>
-  createAgentRuntime(dependencies, options),
+export const agentHostPlugin: AgentHostPlugin = createAgentHostPlugin(
+  (dependencies, options, extras) => createAgentRuntime(dependencies, options, extras),
 )
 
 /** What the assembly entry hands to `createAgentHostLocalPlugin`. */
@@ -324,11 +324,11 @@ export type AgentHostLocalPluginInput = Readonly<{
  */
 export function createAgentHostLocalPlugin(input: AgentHostLocalPluginInput = {}): AgentHostPlugin {
   const { measure, toolRequests } = input
-  return createAgentHostPlugin((dependencies, options) =>
+  return createAgentHostPlugin((dependencies, options, extras) =>
     createAgentRuntime(
       toolRequests === undefined ? dependencies : { ...dependencies, toolRequests },
       options,
-      measure === undefined ? {} : { measure },
+      measure === undefined ? extras : { ...extras, measure },
     ),
   )
 }

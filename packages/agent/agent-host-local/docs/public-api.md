@@ -10,7 +10,7 @@ Tool 对应入口为 `createLocalToolReceiver(dependencies, state)` 和 `createT
 
 三个插件对象（类型 `AgentHostPlugin`）都带有序停止 `quiesceAll({ signal })`，结果类型是 `AgentHostStopResult`：`settled`，或 `incomplete` 加 `detail` 与 `instances`（类型 `AgentHostUnsettled`）。语义见 SPEC [有序停止](../SPEC.md#有序停止)。
 
-`@omne-harness/agent-host-local/testing` 导出 `createAgentHostPluginOver(factory)` 与类型 `AgentHostRuntimeFactory`。它返回与 `agentHostPlugin` 同名、同 inject、同配置、带同一有序停止的插件，runtime 由调用方给的工厂建立。测试用它替代生产工厂尚未兑现的 runtime 停用义务，只证明宿主一侧。生产代码不导入它。
+`@omne-harness/agent-host-local/testing` 导出 `createAgentHostPluginOver(factory)` 与类型 `AgentHostRuntimeFactory`。它返回与 `agentHostPlugin` 同名、同 inject、同配置、带同一有序停止的插件，runtime 由调用方给的工厂建立。宿主调用工厂时传入第三个参数，内含宿主的 `failed` 接收者，见 SPEC 的[运行失败](../SPEC.md#运行失败)。工厂把它交给 `createAgentRuntime` 时，宿主才写运行失败的 warn。测试用它替代生产工厂尚未兑现的 runtime 停用义务，只证明宿主一侧。生产代码不导入它。
 
 接收工厂返回 `Outcome`：联合接收能力存在时为 `ok` 句柄；`received=null` 时为 `failure: { kind: 'unsupported' }`，不创建接收能力。
 

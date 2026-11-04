@@ -22,6 +22,9 @@
 //   live runtime and keep the Journal's answer, unknown included. A control that the Journal
 //   accepted is advanced like the handle does it when a runtime this host still runs holds the
 //   active attachment of the execution; otherwise it stays accepted for the recovery path.
+// - A run that stopped on a failure: the runtime reports it once through the factory's `failed`
+//   receiver, and the host writes one warn record that names tenant, instance, execution, node,
+//   failure kind and diagnostic (SPEC「运行失败」, R2-D282). The host decides nothing from it.
 // The runtime's own duties (quiesce drains, detaches and withdraws through the handle) belong to
 // the factory. The host never takes the end of a fiber for a detach or for a stopped execution.
 import { randomUUID } from 'node:crypto'
@@ -31,6 +34,8 @@ import {
   type AgentConfiguration,
   type AgentDependencies,
   type AgentProvider,
+  type AgentRunFailed,
+  type AgentRuntimeExtras,
   type AgentRuntimeOptions,
 } from '@omne-harness/agent'
 import {
@@ -82,11 +87,18 @@ import { toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { AgentHostConfig } from './host-config.ts'
 import { stagePort } from './stage-ports.ts'
 
-/** The factory the host calls for each instance: `createAgentRuntime` in production. */
+/**
+ * The factory the host calls for each instance: `createAgentRuntime` in production. `extras` carries
+ * the host's own `failed` receiver; a factory hands it on to `createAgentRuntime`.
+ */
 export type RuntimeFactory = (
   dependencies: AgentDependencies<unknown, ContentBlock>,
   options: AgentRuntimeOptions,
+  extras: HostRuntimeExtras,
 ) => Reply<AgentProvider<unknown>>
+
+/** What the host gives every runtime it builds besides dependencies and options. */
+export type HostRuntimeExtras = Required<Pick<AgentRuntimeExtras, 'failed'>>
 
 /** The statically injected services that the factory takes as they are. */
 export type HostStatics = Readonly<{
@@ -260,6 +272,33 @@ function notDrained(result: Quiesced): string | undefined {
     : `quiesce failed with ${failure.kind}`
 }
 
+/** The text of a failure beside its kind: identities and states only, as the Failure carries them. */
+function failureText(failure: Failure): string {
+  switch (failure.kind) {
+    case 'unavailable':
+      return `${failure.owner}: ${failure.diagnostic}`
+    case 'denied':
+      return `action ${failure.action}`
+    case 'invalid':
+      return `field ${failure.field}: ${failure.reason}`
+    case 'commit-unknown':
+    case 'conflict':
+      return `operation ${failure.operation}`
+    default:
+      return failure.kind
+  }
+}
+
+/** The warn record of a run that stopped on a failure (SPEC「运行失败」). */
+function runFailedRecord(event: AgentRunFailed): string {
+  const tenant = tenantTextOf(event.tenant) ?? 'unknown'
+  return (
+    `agent run stopped on a failure: tenant=${tenant} instance=${event.instance} ` +
+    `execution=${event.execution} node=${event.node ?? 'none'} failure=${event.failure.kind} ` +
+    `diagnostic=${failureText(event.failure)}`
+  )
+}
+
 /** The factory configuration: the plugin configuration without the host's own items. */
 function factoryConfiguration(config: AgentHostConfig): AgentConfiguration {
   const { instanceIdleMs: _host, reception: _reception, ...configuration } = config
@@ -277,7 +316,7 @@ export function createHost(input: HostInput): Host {
   /** The ordered stop began: no instance is reserved, built or reclaimed from now on. */
   let closing = false
 
-  function record(level: 'error' | 'info', message: string): void {
+  function record(level: 'error' | 'warn' | 'info', message: string): void {
     try {
       ctx.logger(OWNER)[level](message)
     } catch {
@@ -786,10 +825,19 @@ export function createHost(input: HostInput): Host {
       if ('failure' in reserved) return reserved
       const entry = reserved.ok
       const { instance } = entry
-      const created = await factory(dependenciesOf(entry), {
-        binding: { instance, tenant: slot.tenant, scope: slot.scope, definition: slot.definition },
-        configuration: factoryConfiguration(config),
-      })
+      const created = await factory(
+        dependenciesOf(entry),
+        {
+          binding: {
+            instance,
+            tenant: slot.tenant,
+            scope: slot.scope,
+            definition: slot.definition,
+          },
+          configuration: factoryConfiguration(config),
+        },
+        { failed: event => record('warn', runFailedRecord(event)) },
+      )
       if ('failure' in created) {
         await cancel(entry)
         return created
