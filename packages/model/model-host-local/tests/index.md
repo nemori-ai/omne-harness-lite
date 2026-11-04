@@ -14,7 +14,7 @@
 - [local-model.spec.ts](local-model.spec.ts)：慢层，经本地 HTTPS 服务驱动两个家族的调用（含推理状态），核对凭据、终止、收场与账目
 - [continuation.spec.ts](continuation.spec.ts)：慢层，调用 X 收场并清理后，经装配的准备租约计量延续它的请求：锚点、余量、方法名与跨租户
 - [send-stage.spec.ts](send-stage.spec.ts)：发送阶段插件在真实 Cordis 4.0.4 下的装载、卸载、凭据槽与退出时的发送；慢层用例把四份回放件经插件回放并与装配路径对比
-- [runtime-push.spec.ts](runtime-push.spec.ts)：运行门面的结果推送、saved 之后才 ACK、重投与认回、清理、晚到账目及其上界、接收方登记与交给后继
+- [runtime-push.spec.ts](runtime-push.spec.ts)：运行门面的结果推送、saved 之后才 ACK、重投与认回、清理、晚到账目及其上界、接收方登记与交给后继，以及重启后的启动扫描
 - [line-e2e.spec.ts](line-e2e.spec.ts)：慢层，线内贯通：一个进程、一个真实 Cordis 4.0.4 根 Context 装出保管库、官方档案、请求准备、发送阶段、运行门面与推送，耐久 ModelCommands 用 model-storage-sql 的 `createSqlModelCommands`（共核的命令与发送协调器）；走完 准备 → 发送（回放）→ 持久（关掉并重开 SQLite 文件）→ 推送给替身接收方（saved 之后才 ACK）→ 取消另一个在途调用；设 `OMNE_EVIDENCE_OUT` 时写脱敏 `line-e2e.json`
 - [runtime-cancel.spec.ts](runtime-cancel.spec.ts)：慢层，`calls.cancel` 在本地 HTTPS 流进行中中断供应商流：终止在传输的物理停止之后，已交付内容保留、费用不写零；同租户另一调用照常完成；取消与自然完成同时到达时终止唯一
 - [runtime-host.spec.ts](runtime-host.spec.ts)：慢层，真实 Cordis 4.0.4 上的整装配（运行时插件、发送阶段插件、真实 model 运行时、model-storage-sql 的耐久 `ModelCommands`）跑 model-contract 的 53 项提供者义务，已知失败表与允许的 not-applicable 表均为空；设 `OMNE_EVIDENCE_OUT` 时写 `conformance.json`、`assembly.json` 与 `hooks.json`

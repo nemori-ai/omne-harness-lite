@@ -148,6 +148,7 @@ export type {
   ResultPushLimits,
   ResultPushOptions,
   ResultPushRecord,
+  ResultPushRecovery,
   RuntimeEvent,
 } from './plugins/runtime.ts'
 export { ModelProfilesLocalPlugin } from './plugins/profiles.ts'

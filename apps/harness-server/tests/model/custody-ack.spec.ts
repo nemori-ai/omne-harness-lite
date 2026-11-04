@@ -89,3 +89,70 @@ it('refuses a forged ACK as handoff-invalid and keeps the result and its share',
     ok: { custody: { kind: 'acknowledged' } },
   })
 }, 30_000)
+
+// R2-D260: the push ledger is in memory, so a restart loses it. The durable custody of the Model
+// records is the fact of what is owed: the push scans it when it starts, pushes the saved result
+// again, the Agent receiver recognises the same key and content and answers with its first receipt,
+// and the Model acknowledges with it and gives the share back. Red when the push does not scan at
+// its start (the call stays with the producer and the second call is refused for capacity), or
+// when a pushed-again result is not recognised as the one already saved.
+it('pushes again after a restart that lost the push ledger, acknowledges, and gives the share back', async () => {
+  const w = await custodyWorld(['first', 'second'], false)
+  worlds.push(w)
+  expect(await w.admit('first')).toHaveProperty('ok')
+  await until(
+    () => pushRecord(w.records, w.access, 'first')?.result?.standing.status === 'saved',
+    'the saved result',
+  )
+  await until(() => w.records.handoffs.length > 0, 'the ACK attempt')
+  const before = pushRecord(w.records, w.access, 'first')?.result?.standing
+  expect(await custodyOf(w.records, w.access, 'first')).toEqual({ kind: 'producer' })
+  expect(await w.admit('second')).toMatchObject({ failure: { kind: 'capacity' } })
+
+  await w.restart(true)
+  await until(
+    () => pushRecord(w.records, w.access, 'first')?.cleanup === 'released',
+    'the push, ACK and cleanup after the restart',
+  )
+  const after = pushRecord(w.records, w.access, 'first')?.result?.standing
+  expect(after).toEqual(before)
+  expect(await custodyOf(w.records, w.access, 'first')).toMatchObject({
+    kind: 'acknowledged',
+    cleanup: 'released',
+  })
+  expect(await w.admit('second')).toHaveProperty('ok')
+}, 30_000)
+
+// Pushing again is idempotent: two restarts push the same result twice more, the receiver answers
+// with the same receipt each time, and one ACK with it settles the call. Red when a second push
+// again is refused (conflict) or answered with another receipt.
+it('pushes the same result again on every restart and settles it once', async () => {
+  const w = await custodyWorld(['first', 'second'], false)
+  worlds.push(w)
+  expect(await w.admit('first')).toHaveProperty('ok')
+  await until(
+    () => pushRecord(w.records, w.access, 'first')?.result?.standing.status === 'saved',
+    'the saved result',
+  )
+  const first = pushRecord(w.records, w.access, 'first')?.result?.standing
+
+  await w.restart(false)
+  await until(
+    () => pushRecord(w.records, w.access, 'first')?.result?.standing.status === 'saved',
+    'the result saved again after the first restart',
+  )
+  expect(pushRecord(w.records, w.access, 'first')?.result?.standing).toEqual(first)
+  expect(await custodyOf(w.records, w.access, 'first')).toEqual({ kind: 'producer' })
+
+  await w.restart(true)
+  await until(
+    () => pushRecord(w.records, w.access, 'first')?.cleanup === 'released',
+    'the ACK and cleanup after the second restart',
+  )
+  expect(pushRecord(w.records, w.access, 'first')?.result?.standing).toEqual(first)
+  const custody = await custodyOf(w.records, w.access, 'first')
+  expect(custody).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
+  if (custody.kind !== 'acknowledged' || first?.status !== 'saved') throw new Error('unreachable')
+  expect(custody.receipt).toEqual(first.receipt.evidence)
+  expect(await w.admit('second')).toHaveProperty('ok')
+}, 30_000)

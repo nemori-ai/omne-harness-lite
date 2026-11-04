@@ -11,6 +11,10 @@
 // (they stand for the SQL records, which keep the same share rule: a call's share comes back with
 // its cleanup) and outlive a reload of the tree, as the durable records do; the transport is the
 // scripted transport; the Agent's access check and account outlet allow and receive everything.
+// The host authority answers every call, and the start scan of the push gets the fixture principal
+// for the one tenant: the release has neither for a call admitted before a restart (model-release.md).
+// A restart is simulated in one process: the Model records and the Journal's storage stay, and the
+// tree, the host, the Agent receiver state and the push ledger are made new.
 // The evidence adapter of the in-memory commands is the fixture's for continuity, materialization
 // and receive, and the release one for `handoff`.
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
@@ -526,14 +530,21 @@ function modelRecords(custody: { open: boolean; view?: Context }) {
       return raw.handoff(ack)
     },
   }
-  return { memory, raw, commands, handoffs, ledger: createMemoryResultPushLedger() }
+  return {
+    memory,
+    raw,
+    commands,
+    handoffs,
+    /** The push ledger is in memory: a restart replaces it, a reload keeps it. */
+    ledger: createMemoryResultPushLedger(),
+  }
 }
 
 type Records = ReturnType<typeof modelRecords>
 type Provider = ModelReceiverDependencies<unknown>['provider']
 
 /** The Model host on `root` over `records`, with the Agent receiver registered for its owner. */
-async function modelHost(root: Context, t: JournalTree, records: Records) {
+async function modelHost(root: Context, t: JournalTree, records: Records, tenant: TenantId) {
   const resources: SendResources<unknown> = {
     async acquire(demand) {
       const script = createScriptedTransport({
@@ -623,7 +634,11 @@ async function modelHost(root: Context, t: JournalTree, records: Records) {
         CONFIGURATION,
       ),
     qualifyObservation: async () => ({ ok: undefined }),
-    results: { ledger: records.ledger, limits: LIMITS },
+    results: {
+      ledger: records.ledger,
+      limits: LIMITS,
+      recovery: { scopes: async () => ({ ok: [{ principal: PRINCIPAL, tenant }] }) },
+    },
   })
   const fibers: Fiber[] = [root.plugin(Authority), root.plugin(Clock), root.plugin(Commands)]
   for (const fiber of fibers) await fiber
@@ -718,7 +733,7 @@ export async function custodyWorld(names: readonly string[], open = true) {
   custody.view = t.view
   const execution = await openRun(t, access)
   await waitOn(t, access, execution, names)
-  let host = await modelHost(t.tree.root, t, records)
+  let host = await modelHost(t.tree.root, t, records, access.tenant)
   return {
     access,
     execution,
@@ -753,7 +768,17 @@ export async function custodyWorld(names: readonly string[], open = true) {
       custody.open = openAfter
       t = await journalTree(base)
       custody.view = t.view
-      host = await modelHost(t.tree.root, t, records)
+      host = await modelHost(t.tree.root, t, records, access.tenant)
+    },
+    /** As `reload`, and the push ledger of the process is lost: only the durable records stay. */
+    async restart(openAfter: boolean) {
+      await host.stop()
+      await t.tree.dispose()
+      records.ledger = createMemoryResultPushLedger()
+      custody.open = openAfter
+      t = await journalTree(base)
+      custody.view = t.view
+      host = await modelHost(t.tree.root, t, records, access.tenant)
     },
     async dispose() {
       await host.stop()
