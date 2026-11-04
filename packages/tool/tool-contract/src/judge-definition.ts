@@ -7,11 +7,13 @@ import type { ToolDeclarations, ToolSettingsDeclaration } from './authoring.ts'
 import type { ToolImplementationDeclaration } from './authoring.ts'
 import type {
   ParameterContract,
+  ToolCommandDeclaration,
   ToolDefinition,
   ToolImplementationFacts,
   ToolProgramDeclaration,
   ToolReturnDeclaration,
 } from './definitions.ts'
+import { COMMAND_CALL_ENCODINGS, flatConflict } from './command-call.ts'
 import { jsonObject, jsonValue } from './json-tree.ts'
 import {
   bool,
@@ -208,13 +210,27 @@ const functionShapeFields = {
 }
 const commandsShapeFields = {
   kind: literal('commands'),
+  encoding: literal(...COMMAND_CALL_ENCODINGS),
   commands: unique(nonEmpty(list(command)), entry => entry.name, 'name'),
+}
+
+/** A flat call shares its object with the fields, so no command may declare `command` itself. */
+function flatCallable<T extends Readonly<{ encoding: string; commands: readonly ToolCommandDeclaration[] }>>(
+  check: Check<T>,
+): Check<T> {
+  return refine(check, (value, at) => {
+    if (value.encoding !== 'flat') return undefined
+    const conflict = flatConflict(value.commands)
+    return conflict === undefined
+      ? undefined
+      : { field: `${at}.commands`, reason: `flat-conflict:${conflict}` }
+  })
 }
 
 /** The closed shape of a complete definition, shared with the fixed-request judgment. */
 export const toolDefinition: Check<ToolDefinition> = variant('kind', {
   function: record({ ...metadataFields, ...functionShapeFields }, metadataOptional),
-  commands: record({ ...metadataFields, ...commandsShapeFields }, metadataOptional),
+  commands: flatCallable(record({ ...metadataFields, ...commandsShapeFields }, metadataOptional)),
 })
 
 /** The closed shape of the implementation facts: the declaration and the projected shape. */
@@ -222,7 +238,7 @@ const implementationFacts: Check<ToolImplementationFacts> = record({
   ...declarationFields,
   implements: variant('kind', {
     function: record(functionShapeFields),
-    commands: record(commandsShapeFields),
+    commands: flatCallable(record(commandsShapeFields)),
   }),
 })
 

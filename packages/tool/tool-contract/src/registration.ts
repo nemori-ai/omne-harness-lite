@@ -38,6 +38,7 @@ import {
   type Checked,
   type ShapeRejection,
 } from './shape.ts'
+import { COMMAND_CALL_ENCODINGS, type CommandCallEncoding } from './command-call.ts'
 import { adoption, sameAdoption, sameSchemaIdentity } from './value-shapes.ts'
 import { isToolWaitContract, valueSchema } from './wait-contract.ts'
 
@@ -310,22 +311,29 @@ const commandTable: Check<readonly CommandEntry[]> = (value, at) => {
 export function defineCommandTool<E, B extends ContentBlock>(
   input: Readonly<{
     implementation: ToolImplementationDeclaration
+    /** How the model names a command inside the tool's one declaration (D-94). */
+    encoding: CommandCallEncoding
     commands: Readonly<
       Record<string, Readonly<{ summary: string; operation: ToolOperation<E, B> }>>
     >
   }>,
 ): Outcome<ToolImplementation<E, B>, Rejection> {
   const checked = judgeUnknown(
-    record({ implementation: implementationDeclaration, commands: commandTable }),
+    record({
+      implementation: implementationDeclaration,
+      encoding: literal(...COMMAND_CALL_ENCODINGS),
+      commands: commandTable,
+    }),
     input,
     'input',
   )
   if ('failure' in checked) return checked
-  const { implementation, commands } = checked.ok
+  const { implementation, encoding, commands } = checked.ok
   return implement(
     implementation,
     {
       kind: 'commands',
+      encoding,
       commands: commands.map(([name, { summary, operation }]) => ({
         name,
         summary,

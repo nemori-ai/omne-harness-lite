@@ -106,7 +106,7 @@ describe('author registration', () => {
   })
 
   it('author registration: a command tool keeps each command with its own return mode', () => {
-    const implemented = defineCommandTool({
+    const implemented = defineCommandTool({ encoding: 'wrapped',
       implementation: declaration(),
       commands: {
         read: { summary: 'Read a file.', operation: readOperation() },
@@ -137,7 +137,7 @@ describe('author registration', () => {
     const table = Object.assign(Object.create(inherited) as Record<string, unknown>, {
       read: { summary: 'Read a file.', operation: readOperation() },
     })
-    const implemented = defineCommandTool({
+    const implemented = defineCommandTool({ encoding: 'wrapped',
       implementation: declaration(),
       commands: table as Record<string, { summary: string; operation: Operation }>,
     })
@@ -148,14 +148,14 @@ describe('author registration', () => {
   })
 
   it('author registration: rejects an empty command table at construction', () => {
-    expect(defineCommandTool({ implementation: declaration(), commands: {} })).toEqual({
+    expect(defineCommandTool({ encoding: 'wrapped', implementation: declaration(), commands: {} })).toEqual({
       failure: { field: 'commands', reason: 'empty' },
     })
   })
 
   it('author registration: rejects an illegal command name and an asset-side field at construction', () => {
     expect(
-      defineCommandTool({
+      defineCommandTool({ encoding: 'wrapped',
         implementation: declaration(),
         commands: { '': { summary: 'Nameless.', operation: readOperation() } },
       }),
@@ -288,7 +288,7 @@ describe('author registration', () => {
         },
       },
     )
-    expect(defineCommandTool({ implementation: declaration(), commands: hostile })).toEqual({
+    expect(defineCommandTool({ encoding: 'wrapped', implementation: declaration(), commands: hostile })).toEqual({
       failure: { field: 'input', reason: 'unreadable' },
     })
   })
@@ -360,7 +360,7 @@ describe('wait contract', () => {
     const slot = readToolOperation(defined.ok)
     expect(slot?.author.executor).toBe(author.executor)
     expect(slot?.returns).toEqual(ordinaryReturns)
-    const implemented = defineCommandTool({
+    const implemented = defineCommandTool({ encoding: 'wrapped',
       implementation: declaration(),
       commands: { read: { summary: 'Read a file.', operation: defined.ok } },
     })

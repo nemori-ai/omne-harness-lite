@@ -205,3 +205,12 @@ export type {
   ToolBackgroundCallSource,
   ToolBackgroundCallsSource,
 } from './background-calls-projection.ts'
+
+export {
+  COMMAND_CALL_ENCODINGS,
+  commandArguments,
+  commandExample,
+  commandSignature,
+  decodeCommandCall,
+  encodeCommandCall,
+} from './command-call.ts'
