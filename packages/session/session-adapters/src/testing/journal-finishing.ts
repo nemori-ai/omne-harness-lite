@@ -495,6 +495,12 @@ export function buildObligations(
               settlesCall(item.failure) &&
               item.failure.call === call,
           )?.failure ?? undefined)
+    // R2-D292: a Model intent the Model answered authoritatively not-accepted was never admitted
+    // or sent; its voided record settles the call on the basis of that answer.
+    const voided =
+      effect.pending.kind === 'model'
+        ? source.checkpoint.voided.find(item => item.reference === effect.pending.reference)
+        : undefined
     const custodian =
       association?.obligation.kind === 'call' ? association.obligation.custodian : null
     const retain = (saved: ToolAssociationRecord): RecoveryContinuation => ({
@@ -521,16 +527,18 @@ export function buildObligations(
             ? settled(received.material)
             : finalFailure !== undefined
               ? settled(finalFailure.source)
-              : association?.association.kind === 'accepted'
-                ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
-                : association !== undefined
-                  ? callUnknown(effect.action, association.source, retain(association))
-                  : callUnknown(effect.action, effect.pending.fixed, {
-                      kind: 'producer-query',
-                      request: ofParameters({ pending: effect.pending }),
-                      ...BY_JOURNAL,
-                      purpose: 'query',
-                    }),
+              : voided !== undefined
+                ? settled(voided.basis)
+                : association?.association.kind === 'accepted'
+                  ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
+                  : association !== undefined
+                    ? callUnknown(effect.action, association.source, retain(association))
+                    : callUnknown(effect.action, effect.pending.fixed, {
+                        kind: 'producer-query',
+                        request: ofParameters({ pending: effect.pending }),
+                        ...BY_JOURNAL,
+                        purpose: 'query',
+                      }),
       action: effect.action,
       intent: recorded(
         source.finishing.effectOperations.get(effect.action),

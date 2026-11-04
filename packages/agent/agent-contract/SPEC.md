@@ -662,7 +662,7 @@ Agent 经 ModelContextReader.read 取得模型可读的 Runtime Context。读取
 3. 模型可读块与工具、扩展的私有块分开读取。ModelContextReader 在装配时绑定到模型这一个消费者，调用方不能用参数改成其他消费者。它只返回标为模型可读、且当前资格允许的块。
 4. 私有块包括权限输入。它们只经工具与扩展各自的注入能力读取，例如动作准入和扩展的 needs 能力，每次读取都核验当前资格。私有块不进入模型请求、事件、失败诊断和遥测。RuntimeConditions 的 context 只是条件依据的引用，不含块内容，也不是模型可读的读取结果。
 5. full 还是 incremental 由 Context 决定，Agent 不要求某一种。Agent 向读取端口传入历史依据、本 execution 已采用的覆盖依据（checkpoint 的 adoptedContext，新 execution 为空）和压缩转换依据（压缩提交之后的读取才有）。Context 按 [Runtime Context 的 RC-04](../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料) 返回 full 或 incremental 与覆盖证据。Agent 只记录 Context 返回的种类与覆盖，不改变它们。
-6. 读到不等于采用。ModelContextRead 只说明读到了什么。覆盖在最终请求记录时才成为已采用覆盖，并保存在 checkpoint。记录之前，未采用的读取被新的读取、选择变化或压缩提交取代，直接丢弃，不影响已采用覆盖。主用途的最终请求记录在同一次提交中还写 checkpoint 的 adoptedRequest：这次调用的引用、固定依据，以及准备方在 ready 中交来的 state 与 schema。Agent 原样保存 state，不解释它。调用收场、calls 清空、工具往返和下一步的请求准备都不改 adoptedRequest，只有下一次主用途的最终请求记录替换它。压缩用途的最终请求记录不写它，新 execution 中它为空。
+6. 读到不等于采用。ModelContextRead 只说明读到了什么。覆盖在最终请求记录时才成为已采用覆盖，并保存在 checkpoint。记录之前，未采用的读取被新的读取、选择变化或压缩提交取代，直接丢弃，不影响已采用覆盖。主用途的最终请求记录在同一次提交中还写 checkpoint 的 adoptedRequest：这次调用的引用、固定依据，以及准备方在 ready 中交来的 state 与 schema。Agent 原样保存 state，不解释它。调用收场、calls 清空、工具往返和下一步的请求准备都不改 adoptedRequest，只有下一次主用途的最终请求记录替换它。压缩用途的最终请求记录不写它，新 execution 中它为空。作废意图的提交不改 adoptedRequest，但被作废的请求从未发出，不算“上一次已采用”：读取方取 `reference` 不在 `voided` 中的最近一次（R2-D292）。
 7. 空闲期间的变化由新 execution 开始和建立挂接时的拉取承接，不依赖逐条推送。同一 execution 长时间等待后继续推进时，下一次主请求准备前的读取传入 checkpoint 的 adoptedContext，Context 沿提醒链返回 incremental 或 full；Agent 不因等待时长改为要求某一种。
 8. 每次读取都核验当前资格，不用旧日志恢复已撤回的访问权。读取不可用时请求不准备，Agent 不用旧快照冒充当前。
 
