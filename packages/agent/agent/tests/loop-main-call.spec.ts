@@ -146,7 +146,9 @@ describe('received Model result adoption', () => {
             dispatches: forbidden,
             async admit(input) {
               const saved = await load(assembly)
-              expect(saved.checkpoint.requestPreparation?.kind).toBe('ready')
+              // R2-D292: the intent and the adopted request are saved; the preparation is not.
+              expect(saved.checkpoint.requestPreparation).toBeNull()
+              expect(saved.checkpoint.adoptedRequest).not.toBeNull()
               expect(saved.effects[0]?.pending).toEqual(saved.checkpoint.calls[0])
               return d.models.calls.admit(input)
             },

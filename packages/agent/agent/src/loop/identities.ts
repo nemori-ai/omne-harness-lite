@@ -128,8 +128,19 @@ export function handoffStage(
   return minted(decodeAgentOperationId(text), text)
 }
 
-export function mainAction(step: StepId): ActionId {
-  const text = `${step}/main`
+/**
+ * The suffix of attempt `attempt` of the main call of a step (SPEC "身份、范围与归属", Model 未知行;
+ * R2-D292). Attempt 0 has none, so the identities of a step that was never voided stay as they
+ * were. A later attempt follows the voided intents of its step; it is never a retry counter.
+ */
+function attemptSuffix(attempt: number, separator: string): string {
+  if (!Number.isSafeInteger(attempt) || attempt < 0)
+    throw new Error(`attempt ${attempt} is not a count of voided intents`)
+  return attempt === 0 ? '' : `${separator}a${attempt}`
+}
+
+export function mainAction(step: StepId, attempt = 0): ActionId {
+  const text = `${step}/main${attemptSuffix(attempt, '-')}`
   return minted(decodeActionId(text), text)
 }
 
@@ -149,8 +160,12 @@ function consumptionScope(execution: AgentExecutionId): string {
   return digest(execution).slice(0, 40)
 }
 
-export function mainConsumption(execution: AgentExecutionId, step: StepId): ConsumptionId {
-  const text = `${consumptionScope(execution)}/${step}/main/reply`
+export function mainConsumption(
+  execution: AgentExecutionId,
+  step: StepId,
+  attempt = 0,
+): ConsumptionId {
+  const text = `${consumptionScope(execution)}/${step}/main${attemptSuffix(attempt, '-')}/reply`
   return minted(decodeConsumptionId(text), text)
 }
 
@@ -160,13 +175,16 @@ export function toolConsumption(execution: AgentExecutionId, action: ActionId): 
   return minted(decodeConsumptionId(text), text)
 }
 
-/** The prefix-free body that stands for one execution and step in a Model identity. */
-function modelBody(execution: AgentExecutionId, step: StepId): string {
-  return `${digest(execution).slice(0, 40)}_${ordinalOf(step)}`
+/**
+ * The prefix-free body that stands for one execution, step and attempt in a Model identity. The
+ * attempt part `_a<n>` starts with a letter, so it never reads as the ordinal or as `what`.
+ */
+function modelBody(execution: AgentExecutionId, step: StepId, attempt = 0): string {
+  return `${digest(execution).slice(0, 40)}_${ordinalOf(step)}${attemptSuffix(attempt, '_')}`
 }
 
-export function mainCall(execution: AgentExecutionId, step: StepId): ModelCallId {
-  const text = `mcall_${modelBody(execution, step)}`
+export function mainCall(execution: AgentExecutionId, step: StepId, attempt = 0): ModelCallId {
+  const text = `mcall_${modelBody(execution, step, attempt)}`
   return minted(decodeModelCallId(text), text)
 }
 
@@ -174,8 +192,9 @@ export function modelOperation(
   execution: AgentExecutionId,
   step: StepId,
   what: 'admit' | 'read' | 'ack' | `read_${number}`,
+  attempt = 0,
 ): ModelOperationId {
-  const text = `mop_${modelBody(execution, step)}_${what}`
+  const text = `mop_${modelBody(execution, step, attempt)}_${what}`
   return minted(decodeModelOperationId(text), text)
 }
 
@@ -185,17 +204,20 @@ export type Message = LoopFacts['inputs'][number]
 /**
  * The saved locator of the main call of one step (model-contract SPEC "可保存调用引用"): the tenant,
  * the call and its admission operation, encoded by the contract before the first admit, so the
- * PendingCall that holds it can be committed before the Model is asked.
+ * PendingCall that holds it can be committed before the Model is asked. The call and the admission
+ * are minted here (model-contract: the caller mints `ModelCallId`); `attempt` is the number of
+ * voided intents of the step, so a voided intent is never admitted again under its identity.
  */
 export function mainInvocation(
   tenant: TenantId,
   execution: AgentExecutionId,
   step: StepId,
+  attempt = 0,
 ): ModelInvocationRef {
   const parts = {
     tenant,
-    call: mainCall(execution, step),
-    admission: modelOperation(execution, step, 'admit'),
+    call: mainCall(execution, step, attempt),
+    admission: modelOperation(execution, step, 'admit', attempt),
   }
   return minted(encodeModelInvocationRef(parts), `${parts.call}/${parts.admission}`)
 }

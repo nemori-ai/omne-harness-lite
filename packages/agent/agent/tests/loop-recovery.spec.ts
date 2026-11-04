@@ -18,6 +18,7 @@ import {
 } from '../src/loop/coordinator.ts'
 import {
   acceptedInput,
+  adoption,
   afterTerminalPassage,
   checkpoint,
   commitAt,
@@ -87,9 +88,10 @@ describe('E4 recovery routing', () => {
   it.each([
     ['E3', 'E3'],
     ['I1', 'I1'],
-    ['P0', 'P0'],
-    ['P1', 'P1'],
-    ['I2', 'I2'],
+    // R2-D292: the positions before the final request record prepare again at I1.
+    ['P0', 'I1'],
+    ['P1', 'I1'],
+    ['I2', 'I1'],
     ['M0', 'M0'],
     ['M6', 'M6'],
     ['M1', 'M1'],
@@ -116,7 +118,7 @@ describe('E4 recovery routing', () => {
     },
   )
 
-  it('NA-E4-2: the input batch and preparation determine the recovery point', async () => {
+  it('NA-E4-2: the input batch and the saved preparation determine the recovery point', async () => {
     const preparationsSaved: AgentCheckpoint[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -134,13 +136,27 @@ describe('E4 recovery routing', () => {
     ok(await c.runExecution())
     const preparations = assembly.controls.requests.prepare.calls
     expect(preparations).toHaveLength(2)
-    expect(preparationsSaved[0]?.requestPreparation?.kind).toBe('assembled')
-    expect(ok(route(preparationsSaved[0]!))).toBe('P0')
-    // Read real preparations from the Journal writes, not a second request builder.
+    // R2-D292: an assembled or ready preparation is never written; the route prepares again.
+    expect(preparationsSaved).toEqual([])
     const at = (await load(assembly)).checkpoint
-    expect(at.requestPreparation?.kind).toBe('ready')
-    expect(ok(route({ ...at, position: 'I2', calls: [] }))).toBe('P1')
-    expect(ok(route({ ...checkpoint('I0'), inputBatch: inputBatch(1).id }))).toBe('I1')
+    expect(at.requestPreparation).toBeNull()
+    expect(ok(route({ ...at, position: 'I2', calls: [] }))).toBe('I1')
+    expect(ok(route({ ...checkpoint('I0'), inputBatch: inputBatch(1) }))).toBe('I1')
+    // The saved kinds still decide: cannot-fit goes to F1.
+    const cannotFit = {
+      id: preparations[0]!.action,
+      purpose: 'main',
+      position: preparations[0]!.position,
+      source: evidence('cannot-fit'),
+      state: { kind: 'null' },
+      schema: adoption('state'),
+      kind: 'cannot-fit',
+      reason: 'fixed',
+      diagnostic: 'too large',
+    } as const
+    expect(ok(route({ ...at, position: 'I1', calls: [], requestPreparation: cannotFit }))).toBe(
+      'F1',
+    )
     expect(ok(route({ ...at, position: 'I8', calls: [] }))).toBe('I8')
   })
 
@@ -1063,10 +1079,11 @@ describe('checkpoint positions saved by the current assembly', () => {
     }))
     const expected: Record<string, string> = {
       E4: 'evaluate',
+      // R2-D292: before the final request record nothing of the preparation is saved.
       I1: 'I1',
-      P0: 'P0',
-      P1: 'P0',
-      I2: 'P1',
+      P0: 'I1',
+      P1: 'I1',
+      I2: 'I1',
       M6: 'M6',
       M4: 'M4',
       Q2: 'Q2',

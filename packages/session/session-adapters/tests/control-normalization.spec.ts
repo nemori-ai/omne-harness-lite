@@ -20,7 +20,7 @@ it('accepted alone cannot reconcile cancellation and the original independent st
       operation: operation('take'),
       authority: opened.authority,
       expected: loaded.revision,
-      checkpoint: { ...checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...checkpoint, inputBatch: page.batch },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: page.batch }],
       effects: [],

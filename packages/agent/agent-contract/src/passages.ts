@@ -8,7 +8,6 @@ import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
 import type {
   Action,
-  AgentCheckpoint,
   AgentConclusion,
   GuardFact,
   PendingCall,
@@ -265,8 +264,8 @@ export type MessageSource =
 /**
  * The complete content of one external command, as the admission provider and the Journal keep
  * it (SPEC "输入内容与水位线"): the original entry operation O, the execution and the accepted
- * input, without instance or grant. An invoke entry also keeps the complete initial checkpoint
- * that the first prepare was given; a submit entry has none.
+ * input, without instance or grant. It holds no checkpoint: the initial checkpoint is the pure
+ * `AgentEvaluator.initial` of the definition and the first step, which `open` receives (R2-D292).
  */
 export type InputEntry =
   | Readonly<{
@@ -274,7 +273,6 @@ export type InputEntry =
       operation: AgentOperationId
       execution: AgentExecutionId
       initial: AcceptedInput
-      checkpoint: AgentCheckpoint
     }>
   | Readonly<{
       kind: 'submit'

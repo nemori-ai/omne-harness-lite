@@ -53,7 +53,6 @@ const ENTRY = {
   operation: 'invoke-1',
   execution: 'exec-1',
   initial: { id: 'input-1', content: MESSAGE, source: null, priority: 'ordinary' },
-  checkpoint: { position: 'E3' },
 }
 const INPUT = {
   kind: 'input',
@@ -197,14 +196,13 @@ describe('judgeHandoffPrepare', () => {
       field: 'request.source.input',
       reason: 'identity',
     })
-    // A submit entry has no checkpoint; an invoke entry needs one.
     expect(
       mismatched({ ...INPUT, entry: { ...ENTRY, kind: 'submit', value: ENTRY.initial } }),
     ).toEqual({ field: 'request.entry.initial', reason: 'unknown-field' })
-    const { checkpoint: _checkpoint, ...withoutCheckpoint } = ENTRY
-    expect(mismatched({ ...INPUT, entry: withoutCheckpoint })).toEqual({
+    // R2-D292: no entry holds a checkpoint; `open` receives the initial one.
+    expect(mismatched({ ...INPUT, entry: { ...ENTRY, checkpoint: { position: 'E3' } } })).toEqual({
       field: 'request.entry.checkpoint',
-      reason: 'missing',
+      reason: 'unknown-field',
     })
   })
 
@@ -249,10 +247,9 @@ describe('judgeHandoffPrepare', () => {
       field: 'request.source.result.self',
       reason: 'type',
     })
-    const checkpoint = { ...INPUT, entry: { ...ENTRY, checkpoint: { position: 'E3', f: fn } } }
-    expect(failureOf(judgeHandoffPrepare({ ...INVOKE_PREPARE, request: checkpoint }))).toEqual({
-      field: 'request.entry.checkpoint.f',
-      reason: 'type',
+    const initial = { ...INPUT, entry: { ...ENTRY, initial: { ...ENTRY.initial, f: fn } } }
+    expect(failureOf(judgeHandoffPrepare({ ...INVOKE_PREPARE, request: initial }))).toMatchObject({
+      field: expect.stringMatching(/^request\.entry\.initial/u),
     })
   })
 

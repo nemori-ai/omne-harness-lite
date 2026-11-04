@@ -129,6 +129,8 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ['Q5', 'disposed', 'Q4'],
       ['M6', 'wait', 'W0'],
       ['M6', 'try-finish', 'F1'],
+      // R2-D292: an authoritative not-accepted voids the intent and prepares the next attempt.
+      ['M6', 'voided', 'I1'],
       ['M1', 'wait', 'W0'],
       ['E1', 'cancel', 'F0'],
       ['E4', 'cancel', 'F0'],
