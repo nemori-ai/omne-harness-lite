@@ -12,7 +12,7 @@
 | 领域设计裁定 | 2026-11-03 | 入口与各入口的内容；内容摘要算法；`SafeReason` 的形状；读取内容是文本或字节；正文起点；每页 65536 字节；中止为 `aborted`；`.omne/skill.json` 的形状与格式版本；四个设置类别；声明项编码；声明的 JSON 预算；YAML 头部的解析；`skillBodyContract` 只做可加扩展；`SkillResolution.adopted` 只交两种答复；快照只能经 `sealSnapshot` 构造。评审之后的裁定见[与组页的差异](#group-differences) |
 | 资产公开类型 `@omne-harness/assets` | `21175c9f9` | `BodyContract`、`CapabilityId`、`Declarations` |
 | [官方 Agent Skills 规格](https://agentskills.io/specification) | 2026-11-03 读取 | `SKILL.md` 的头部字段与目录结构 |
-| W3 Skill 线实施规格（reduce 裁定）与第 2 轮裁定 R1–R9 | 2026-11-04 | 可加改动：公开根导出 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`sameCapability` 与 `isSkillDescription`；`./provider` 导出 `isSealedSnapshot`；[目录的匹配规则](#catalog-search)；[端口答复的统一处置](#port-answer-closed)；`open` 答 `entry-unreadable` 的映射；`skillCatalogConformance` |
+| W3 Skill 线实施规格（reduce 裁定）、第 2 轮裁定 R1–R9 与第 3 轮裁定 S1–S3 | 2026-11-04 | 可加改动：公开根导出 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DECLARATION_LIMITS`、`sameCapability` 与 `isSkillDescription`；`./provider` 导出 `isSealedSnapshot`；[目录的匹配规则](#catalog-search)；[端口答复的统一处置](#port-answer-closed)；`open` 答 `entry-unreadable` 的映射；`skillCatalogConformance` |
 
 各裁定的内容写在下文对应的条款里。裁定编号（例如 G3、C19）只是过程标签，决定的内容已经写全在本页。
 
@@ -24,7 +24,7 @@
 
 | 入口 | 给谁 | 内容 |
 | --- | --- | --- |
-| `@omne-harness/skill-contract` | 调用方；端口实现方另读 `./provider` | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract`、常量 `MANIFEST_PATH`、`DECLARATION_PATH` 与 `PAGE_LIMIT`，以及能力标识的判同 `sameCapability` |
+| `@omne-harness/skill-contract` | 调用方；端口实现方另读 `./provider` | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract`、常量 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT` 与 `DECLARATION_LIMITS`，以及能力标识的判同 `sameCapability` |
 | `@omne-harness/skill-contract/provider` | 来源、资产登记与端口的实现方；核对来源答复的服务实现方 | 三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot`、`isSealedSnapshot`、`SnapshotDefect` |
 | `@omne-harness/skill-contract/testing` | 端口实现方的测试；`SkillAccess` 与 `SkillCatalog` 实现方的测试 | 三个端口的符合性套件、内存替身、`SkillAccess` 的符合性套件 `skillAccessConformance` 与它的夹具类型 `AccessFixture`、`SkillCatalog` 的符合性套件 `skillCatalogConformance` 与它的夹具类型 `CatalogFixture`、`ConformanceCase`、`NotApplicable`、`runConformanceCase`、`isNotApplicable` |
 
@@ -76,7 +76,7 @@
 | 本成员不依赖 `@omne-harness/content-block`：读取交出文本或字节 | [读取的形状规则](#read-shape) | 领域设计裁定，读取内容（2026-11-03） |
 | `unsupported` 本版本只有 `no-readable-package` 一种：文本与字节都能表示，检查没有方言 | [读取的形状规则](#read-shape) | 领域设计裁定 S2-6（2026-11-03） |
 | `SkillCatalog` 先按 `capabilities` 过滤、按 `search` 的查询匹配，只对留下的身份调用读取判定。组页写的是对集合中的每个身份先核验。所以请求外或不匹配的身份的读取判定答 `unknown` 时，本页的答复不是 `unknown`。空的 `capabilities` 不调用任何端口，合法集合此刻无法判定时也答空列表 | [目录的匹配规则](#catalog-search) | W3 Skill 线实施规格已定事项 5、6；第 2 轮裁定 R2（2026-11-04） |
-| `SkillPackageSource.open` 也可能答 `entry-unreadable`，本页给出它的映射。组页只给 `snapshot` 写了这一种 | [需求端口](#ports) | W3 Skill 线实施规格已定事项 9（2026-11-04） |
+| `open` 答 `entry-unreadable` 时，本页给出防御性映射。端口的要求只为 `snapshot` 定义这一种，组页也只写了 `snapshot` | [需求端口](#ports) | W3 Skill 线实施规格已定事项 9（2026-11-04） |
 
 ## 结果与不变量
 
@@ -258,7 +258,7 @@ malformed
 形状的机读描述是 [schema/skill-declaration.schema.json](schema/skill-declaration.schema.json)，类型是 `SkillDeclaration`。本节是行为的唯一正文。
 
 - 字节经 `@omne-harness/json-text` 的 `readJsonBytes` 严格读取。读取失败（非 UTF-8、BOM、空输入、语法错误、注释、尾逗号、重名键、超出预算）为 `malformed`。
-- 默认预算是 `maxBytes` 65536、`maxDepth` 16、`maxItems` 4096、`maxMembers` 256、`maxStringLength` 4096、`maxNumberLength` 32。调用方可以给出另一份预算。
+- 默认预算是 `maxBytes` 65536、`maxDepth` 16、`maxItems` 4096、`maxMembers` 256、`maxStringLength` 4096、`maxNumberLength` 32，公开根以 `DECLARATION_LIMITS` 导出。调用方可以给出另一份预算。
 - 根不是对象为 `malformed`。
 - `formatVersion` 缺席，或者不是词形为 `1` 的数（例如 `"1"`、`1.0`、`1e0`、`2`），为 `declaration-format-unsupported`。
 - 根与每个声明项都不允许其他字段。多出的字段为 `malformed`。校验不填缺省值，也不删字段。
@@ -360,10 +360,10 @@ no-readable-package
 
 - `summaries` 给出空的 `capabilities` 时，答空列表，不调用任何端口。这一条先于「合法集合答 `unknown` 时整次答 `unknown`」：空请求不涉及任何身份，所以不问合法集合。
 - `summaries` 给出非空的 `capabilities` 时，只交其中属于当前合法集合且读取判定答 `granted` 的身份。不在集合里的身份不交，也不说明原因。请求里的重复项按 `sameCapability` 去重。过滤先于核验：不在请求里的身份不核验。
-- `search` 按 name 与说明匹配。查询文本、name 与说明都先做 Unicode NFKC 规范化，再转小写（`toLowerCase()`，与区域设置无关）。查询按空白切成词。name 与说明拼接成一个文本，中间加一个换行。每个词都是这个文本的子串时，该身份匹配。没有词（空串或只有空白）时匹配全部，等同 `summaries` 不带 `capabilities`。匹配先于核验：不匹配的身份不核验。`search` 不排序，不打分。
+- `search` 按 name 与说明匹配。查询文本、name 与说明都先做 Unicode NFKC 规范化，再转小写（`toLowerCase()`，与区域设置无关）。查询按空白切成词。name 与说明拼接成一个文本，中间加一个换行。每个词都是这个文本的子串时，该身份匹配。没有词（空串或只有空白）时匹配全部，等同 `summaries` 不带 `capabilities`。匹配先于核验：不匹配的身份不核验。`search` 不按相关度排序，不打分；条目次序见下一条。
+- 对同一输入，实现给出同一输出，便于比较。条目次序不承载含义，次序本身不是承诺。
 - 合法集合里同一能力标识出现多次时（按 `sameCapability` 判同），目录保留端口答复中的第一条，只核验一次，只出一条。
 - 读取判定可以并发发出。答复不随读取判定的完成次序变化。
-- 对同一输入，实现给出同一输出，便于比较。条目次序不承载含义，次序本身不是承诺。
 - 无披露（SC7）：对同一主体，被拒的身份在合法集合里与不在合法集合里，`summaries` 与 `search` 的答复深度相等。`capabilities` 点名一个被拒的身份与点名一个不存在的身份，答复深度相等。
 
 <a id="category-port"></a>
@@ -448,9 +448,9 @@ no-readable-package
 
 - 能力标识：`category` 与 `name` 都是文本，并经资产的 `capabilityId` 重新构造。`capabilityId` 拒绝时不合。`declared.tools` 的每一项同样核对。
 - `ref`：能力标识；`layer` 是四个来源层之一；`locator` 是 `directory`（`root` 是文本）或 `content-store`（`digest` 合 `isPackageDigest`）；可带 `assetVersion`（合 `isAssetVersion`）与 `digest`（合 `isPackageDigest`）。
-- `declared`：`name` 合 `isSkillName`；可带 `description`（合 `isSkillDescription`）；`tools`、`scripts`、`settings` 都是数组。脚本的 `entry` 合 `isPackagePath`，`runKind` 是文本，`facilities` 是文本的数组，可带的 `parameters` 是逐个节点都合 `JsonValue` 的 JSON 树。设置的 `name` 是文本，`category` 是四个设置类别之一。
+- `declared`：`name` 合 `isSkillName`；可带 `description`（合 `isSkillDescription`）；`tools`、`scripts`、`settings` 都是数组。脚本的 `entry` 合 `isPackagePath`，`runKind` 是文本，`facilities` 是文本的数组，可带的 `parameters` 是 `JsonValue` 的 JSON 树：逐个节点核对并重新构造、冻结，每个节点只取它那一种的字段（`kind` 加 `value`、`lexeme`、`items` 或 `entries`），对象的条目只取 `key` 与 `value`；`number` 的 `lexeme` 合 RFC 8259 的数字词法；容器的嵌套不超过 `DECLARATION_LIMITS.maxDepth`（16）层，超出即不合，成环的树也因此不合。设置的 `name` 是文本，`category` 是四个设置类别之一。
 - `known-unavailable`：`name` 合 `isSkillName`，`reason` 合 `isSafeReason`，可带的 `description` 合 `isSkillDescription`。
-- 字段缺省与字段值为 `undefined` 同样处理。上面没有列出的字段不核对，服务也不交出它们。
+- 判别字段（`kind`，以及 `Outcome` 的 `ok` 与 `failure`）看答复对象自己有没有这个属性：原型链上的不算；`ok` 在场时只按 `ok` 核对，值为 `undefined` 也算在场。载荷字段同样只认自有属性；可缺省的载荷字段缺省与值为 `undefined` 同等。上面没有列出的字段不核对，服务也不交出它们。
 
 端口没有作答时，服务不抛出：`SkillReadCheck` 与 `SkillResolution` 当作 `unknown`；`SkillPackageSource` 按映射表的 `unavailable` 一行处置，`inspect`、`read`、`list` 与 `export` 都答 `source-unavailable`。代价：来源的缺陷（例如交出伪造的快照，违反 PS1）对调用方表现为「来源此刻不可用」，调用方从答复里分不出缺陷与暂时不可达。
 
@@ -521,7 +521,7 @@ prefix-conflict
 
 `skillAccessConformance()` 核对 `SkillAccess` 的实现，不核对端口。A1–A3 只有在夹具的对应端口对无权主体作答（不自己隐藏身份）时，才能看出读取判定被跳过；对应端口自己隐藏身份的夹具上，漏掉读取判定的实现仍能通过 A1–A3。夹具由实现方的工厂给出，套件自己不构造服务。用例按条款编号：A1–A3 无披露（无权主体对已采用与不存在的身份同答；另一身份的依据、对应端口不认识的身份，都与被拒绝的读取同答）；A4、A5 `basis-unavailable` 与 `adopted-material-changed` 的分野；A6 `version-changed` 不交内容；A7 `aborted` 不交内容，已中止时四个端口都不被调用，快照后中止时不再 `open`；A8 `unsupported`；A9–A11 字节范围的页上限（在 `large` 上）、字符边界与按实际范围分页；A12a `export` 交出全部条目、A12b 任一条目不符时不交任何条目；A13 `describe` 不读字节也不取快照；A14 替换件带安全原因，`describe`、`read`、`list` 同答。夹具没有 `noPackage` 时 A8 不适用，没有 `large` 时 A9 的页上限部分不适用，没有 `standIn` 时 A14 不适用，`adopted` 的包没有含 ASCII 之外字符的文本资源时 A10 不适用。套件通过不证明真实端口的行为。
 
-`skillCatalogConformance()` 核对 `SkillCatalog` 的实现，不核对端口。夹具须满足下列约束，比较前都先做 NFKC 与小写：
+`skillCatalogConformance()` 核对 `SkillCatalog` 的实现，不核对端口。夹具须满足下列约束，比较前都先做 NFKC 与小写。夹具不满足约束时，依赖它的用例失败，不答 `NotApplicable`：约束是夹具的义务，不是可选项。
 
 - `refused` 与 `standIn` 的 name 与说明都不含 `granted` 的 name。
 - `granted` 的说明里至少有一个词（按空白切分）既不是 `granted` 的 name 的子串，也不是 `standIn` 的 name 与说明的子串。套件取第一个这样的词检索。这个词在说明里带大写字母或全角字母时，套件还能查出只规范化查询一侧的实现。

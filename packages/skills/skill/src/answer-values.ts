@@ -157,8 +157,8 @@ function jsonTreeOf(value: unknown, above: number): JsonValue | undefined {
       return content === undefined ? undefined : Object.freeze({ kind: 'string', value: content })
     }
     case 'number': {
-      const lexeme = text(fieldOf(value, 'lexeme'))
-      return lexeme !== undefined && JSON_NUMBER.test(lexeme)
+      const lexeme = fieldOf(value, 'lexeme')
+      return typeof lexeme === 'string' && JSON_NUMBER.test(lexeme)
         ? Object.freeze({ kind: 'number', lexeme })
         : undefined
     }

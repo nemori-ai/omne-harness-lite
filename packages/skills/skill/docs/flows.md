@@ -38,7 +38,7 @@
 调用方 ──summaries(access, scope, capabilities?) | search(access, scope, {text})──► catalog
   catalog: capabilities 为空数组                                   → 答空列表，不调端口
   catalog ──resolution.adopted(access, scope)──► parseLawfulSet    unknown 或没有作答 → unknown
-  catalog: 条目组装，按 sameCapability 去重（留第一条），按 <category>:<name> 排序
+  catalog: 条目组装，按 sameCapability 去重（留第一条），先按类别再按名字排序
   catalog: 按 capabilities 过滤，或按 matches(text, name, description) 匹配
   catalog ──readCheck.check × 留下的身份（一起发出）──► parseVerdict   任一 unknown 或没有作答 → unknown
   调用方 ◄── granted 的条目（refused 的不出现，不说明原因）

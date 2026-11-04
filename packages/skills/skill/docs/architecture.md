@@ -23,7 +23,7 @@ source-answer.ts ──► port-answer.ts ──► answer-values.ts
 | --- | --- | --- |
 | `index.ts` | 公开根：三个工厂与 `SkillPorts` | `inspection.ts`、`catalog.ts`、`access/service.ts`、`ports.ts` |
 | `ports.ts` | `SkillPorts`：三个端口的一个对象 | 契约 `./provider` 的端口类型 |
-| `answer-values.ts` | 端口答复里的载荷字段（能力标识、`ref`、`declared`、替换件的字段）的解析，交出重新构造的值 | 资产的 `capabilityId`、契约的守卫 |
+| `answer-values.ts` | 端口答复里的载荷字段（能力标识、`ref`、`declared`、脚本参数的 JSON 树、替换件的字段）的解析，只认自有属性，交出重新构造并冻结的值 | 资产的 `capabilityId`、契约的守卫 |
 | `port-answer.ts` | `answered(call, parse)`；`check`、`resolve`、`adopted` 三个解析函数 | `answer-values.ts` |
 | `source-answer.ts` | `sourceAnswer(call, isOk)`：来源答复的解析；`isBytes` | `port-answer.ts`、`mapping.ts` 的 `isSourceFailure` |
 | `mapping.ts` | 来源答复到服务失败的唯一一张表，三列 `inspect`、`snapshot`、`open`；表的键就是来源失败的集合 | 契约的失败类型 |
@@ -62,7 +62,7 @@ source-answer.ts ──► port-answer.ts ──► answer-values.ts
 | 每个阶段只答它那几步的失败；`export` 不答 `adopted-material-changed` | `tests/types.spec-d.ts`；`tests/gate.spec.ts`、`pin.spec.ts`、`bytes.spec.ts` 每个分支一例 |
 | 映射表三列 | `tests/mapping.spec.ts`、`tests/inspection.spec.ts` |
 | 无披露、集合外答复 | `tests/gate.spec.ts`；`tests/conformance.spec.ts` 在两个世界跑套件，跳过第 2 步的服务在「对所有人作答」的世界恰好 A1–A3 变红 |
-| 端口答复的解析与统一处置 | `tests/port-answers.spec.ts` |
+| 端口答复的解析与统一处置 | `tests/answer-parse.spec.ts`（逐字段）、`tests/port-answers.spec.ts`（经服务） |
 | 目录：套件、违约实现、完成次序、空请求、重复保留第一条；匹配规则 | `tests/catalog.spec.ts`、`tests/catalog-world.ts`；`tests/match.spec.ts` |
 | 检查点、不交部分内容、不缓存、次序 | `tests/read.spec.ts`、`tests/export.spec.ts`、`tests/gate.spec.ts` |
 | 字节范围 | `tests/range.spec.ts` |

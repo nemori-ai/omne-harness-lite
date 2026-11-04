@@ -1,11 +1,11 @@
 // `SkillCatalog` over two ports: the current lawful set from `SkillResolution.adopted`, one
 // entry per identity, then `SkillReadCheck.check` for each identity that the request or the
-// query keeps. An empty request calls no port. Only `granted` identities are listed; a `refused` one is left out without a
-// trace; one `unknown` makes the whole answer `unknown`. The checks go out together and the
-// answer is read in the order of the entries, so the completion order cannot change it. The
-// entries are sorted by the canonical text of the capability identity so that one input gives
-// one output; the order is not a promise. No bytes are read: the catalog takes no source.
-import type { CapabilityId } from '@omne-harness/assets'
+// query keeps. An empty request calls no port. Only `granted` identities are listed; a
+// `refused` one is left out without a trace; one `unknown` makes the whole answer `unknown`.
+// The checks go out together and the answer is read in the order of the entries, so the
+// completion order cannot change it. The entries are sorted by the category and then the name
+// of the capability identity, so that one input gives one output; the order is not a promise.
+// No bytes are read: the catalog takes no source.
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { sameCapability, type CatalogEntry, type SkillCatalog } from '@omne-harness/skill-contract'
@@ -18,15 +18,17 @@ type Listing = Outcome<readonly CatalogEntry[], 'unknown'>
 
 const UNKNOWN = Object.freeze({ failure: 'unknown' } as const)
 
-/** The canonical text of a capability identity: the sort key of the entries. */
-function textOf(capability: CapabilityId): string {
-  return `${capability.category}:${capability.name}`
-}
-
-function byText(left: CatalogEntry, right: CatalogEntry): number {
-  const a = textOf(left.capability)
-  const b = textOf(right.capability)
-  return a < b ? -1 : a > b ? 1 : 0
+/**
+ * The order of the entries: by category, then by name, each in UTF-16 code unit order. The
+ * entries are deduplicated by `sameCapability` before they are sorted, so two entries never
+ * share both the category and the name.
+ */
+function byIdentity(left: CatalogEntry, right: CatalogEntry): number {
+  const a = left.capability
+  const b = right.capability
+  if (a.category !== b.category) return a.category < b.category ? -1 : 1
+  if (a.name !== b.name) return a.name < b.name ? -1 : 1
+  return 0
 }
 
 /** The entry of one parsed answer of the lawful set, by the group page "检查与发现". */
@@ -74,7 +76,7 @@ async function lawfulEntries<P, S>(
     if (!entries.some(item => sameCapability(item.capability, entry.capability)))
       entries.push(entry)
   }
-  return succeed(entries.sort(byText))
+  return succeed(entries.sort(byIdentity))
 }
 
 /** The entries that the read check grants, in the given order; `unknown` when one check is unknown. */

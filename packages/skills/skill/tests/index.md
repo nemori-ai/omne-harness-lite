@@ -20,5 +20,6 @@
 - [conformance.spec.ts](conformance.spec.ts)：`skillAccessConformance()` 与进程内的变红证明
 - [catalog.spec.ts](catalog.spec.ts)：`skillCatalogConformance()`、两个违约目录的变红证明、核验完成次序、空请求不调用端口、重复身份保留第一条
 - [match.spec.ts](match.spec.ts)：`matches` 的穷举
+- [answer-parse.spec.ts](answer-parse.spec.ts)：三个解析函数逐字段的畸形答复表，JSON 树的重新构造、深度上限与数字词法
 - [port-answers.spec.ts](port-answers.spec.ts)：三类端口的集合外答复、残缺载荷、reject、同步抛出与读取时抛出的统一处置
 - [fixtures/](fixtures/index.md)：测试固定输入（本包没有文件夹具）

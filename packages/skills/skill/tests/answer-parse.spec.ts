@@ -88,6 +88,14 @@ function nested(depth: number): unknown {
   return node
 }
 
+/** A JSON tree of `depth` nested objects, each with one entry, around a null node. */
+function nestedObjects(depth: number): unknown {
+  let node: unknown = { kind: 'null' }
+  for (let level = 0; level < depth; level += 1)
+    node = { kind: 'object', entries: [{ key: 'inner', value: node }] }
+  return node
+}
+
 type Row = readonly [label: string, path: readonly (string | number)[], field: unknown]
 type Case = readonly [label: string, answer: unknown]
 
@@ -333,6 +341,7 @@ describe('parseResolution: the JSON tree of script parameters', () => {
 
   it.each([
     ['an integer', '0'],
+    ['a fraction with several digits', '3.14159'],
     ['a negative fraction with an exponent', '-0.5e-10'],
     ['an exponent with a capital E and a plus sign', '12E+3'],
   ])('takes a number lexeme that is %s', (_case, lexeme) => {
@@ -368,9 +377,12 @@ describe('parseResolution: the JSON tree of script parameters', () => {
     ).toBeUndefined()
   })
 
-  it('takes a tree of 16 nested containers and refuses one of 17', () => {
-    expect(parametersOf(nested(16))).toStrictEqual(nested(16))
-    expect(parametersOf(nested(17))).toBeUndefined()
+  it.each([
+    ['arrays', nested],
+    ['objects', nestedObjects],
+  ])('takes a tree of 16 nested %s and refuses one of 17', (_case, tree) => {
+    expect(parametersOf(tree(16))).toStrictEqual(tree(16))
+    expect(parametersOf(tree(17))).toBeUndefined()
   })
 
   it('gives no answer for a tree of 5000 nested containers, without a stack overflow', () => {
@@ -382,6 +394,10 @@ describe('parseResolution: the JSON tree of script parameters', () => {
     const cyclic: { kind: string; items: unknown[] } = { kind: 'array', items: [] }
     cyclic.items.push(cyclic)
     expect(parametersOf(cyclic)).toBeUndefined()
+    const entries: unknown[] = []
+    const cyclicObject = { kind: 'object', entries }
+    entries.push({ key: 'self', value: cyclicObject })
+    expect(parametersOf(cyclicObject)).toBeUndefined()
   })
 })
 

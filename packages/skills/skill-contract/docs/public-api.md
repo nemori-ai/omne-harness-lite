@@ -21,6 +21,7 @@
 | `isSkillDescription` | [src/parse/shape.ts](../src/parse/shape.ts) | [值与守卫](../SPEC.md#values) |
 | `sameCapability` | [src/capability.ts](../src/capability.ts) | [值与守卫](../SPEC.md#values) |
 | `PAGE_LIMIT` | [src/page-limit.ts](../src/page-limit.ts) | [读取的形状规则](../SPEC.md#read-shape) |
+| `DECLARATION_LIMITS` | [src/parse/declaration.ts](../src/parse/declaration.ts) | [`.omne/skill.json`](../SPEC.md#declaration)、[端口答复的统一处置](../SPEC.md#port-answer-closed) |
 | `computeDigest`、`isPackageDigest` | [src/digest.ts](../src/digest.ts) | [内容摘要](../SPEC.md#内容摘要) |
 | `inferMediaType` | [src/media.ts](../src/media.ts) | [媒体类型](../SPEC.md#媒体类型) |
 | `sealSnapshot`、`isSealedSnapshot`、`SnapshotDefect`（在 `./provider`） | [src/snapshot.ts](../src/snapshot.ts) | [快照](../SPEC.md#快照)、[端口答复的统一处置](../SPEC.md#port-answer-closed) |
