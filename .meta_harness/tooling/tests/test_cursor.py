@@ -185,23 +185,33 @@ def test_ambiguous_roots_fail_without_selecting_first(installed, tmp_path):
     assert invoke(installed, {"workspace_roots": roots, "cwd": str(installed[1])})[0].get("followup_message")
 
 
+# Only the hang case may rely on the timeout. The others must reach their own failure code, so they run
+# under the configured limit: a one-second limit would also fire on a slow process spawn under load and
+# report `measurement-failed` instead of the fault under test.
+HANG = "setInterval(()=>{}, 1000)"
+
+
 @pytest.mark.parametrize("script,code", [
     ("process.stdout.write('not JSON')", "adapter-failed"),
+    ("setTimeout(()=>process.stdout.write('not JSON'), 1500)", "adapter-failed"),
     ("process.stderr.write('failure')", "measurement-stderr"),
     ("throw new Error('failure')", "measurement-failed"),
     ("process.stdout.write(JSON.stringify({systemMessage:'warning'}))", "measurement-warning"),
     ("process.stdout.write('{}')", "invalid-measurement-output"),
-    ("setInterval(()=>{}, 1000)", "measurement-failed"),
+    (HANG, "measurement-failed"),
 ])
 def test_measurement_faults_are_observable_without_followup(installed, script, code):
     package, workspace = installed
-    path = package / "runtime/loop-stop-facts.json"
-    config = json.loads(path.read_text(encoding="utf-8"))
-    config["timeout"] = 1
-    path.write_text(json.dumps(config), encoding="utf-8")
+    if script == HANG:
+        path = package / "runtime/loop-stop-facts.json"
+        config = json.loads(path.read_text(encoding="utf-8"))
+        config["timeout"] = 1
+        path.write_text(json.dumps(config), encoding="utf-8")
     (workspace / "tools/repo-toolchain/src/loop/stop-hook.ts").write_text(script, encoding="utf-8")
     output, stderr = invoke(installed)
     assert output == {} and code in stderr
+    if script == HANG:
+        assert "ETIMEDOUT" in stderr
 
 
 def test_missing_tooling_and_invalid_input_are_diagnostic(installed):
