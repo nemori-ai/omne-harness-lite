@@ -175,25 +175,48 @@ export type ControlView = Readonly<{
 export type CandidateView = Readonly<{
   candidate: AgentOperationId
   claim: FactOf<'finish.candidate'>['claim']
-  checkpoint: Ref
+  /** The cursor reference of the candidate's checkpoint (R2-D297); never a checkpoint copy. */
+  cursor: Ref
   route: DurableEvidence
+  /** The block of the route the candidate was established on. */
+  path: Ref
   supersedes: AgentOperationId | null
   beforeTerminal: DurableEvidence | null
-  obligations: Readonly<{
-    items: readonly Readonly<{
-      index: number
-      category: string
-      item: Ref
-      disposition: Ref | null
-    }>[]
-    issued: Readonly<{ count: number; evidence: DurableEvidence; pub: number }> | null
-  }>
   pub: number
   revision: number
 }>
 
+/**
+ * One issued obligation list of a candidate (R2-D297): the items as the `finish.obligation` facts
+ * appended them, one by one, and the close of the issue. A list is its own ledger entry, keyed by
+ * candidate and ordinal; it is never rewritten, a later issue is a new list.
+ */
+export type ObligationListView = Readonly<{
+  candidate: AgentOperationId
+  list: number
+  items: readonly Readonly<{
+    index: number
+    category: string
+    item: Ref
+    disposition: Ref | null
+  }>[]
+  issued: Readonly<{
+    count: number
+    evidence: DurableEvidence
+    coverage: Ref
+    op: AgentOperationId
+    pub: number
+    revision: number
+  }> | null
+}>
+
+/** The key of an obligation list in `FinishView.lists`. */
+export const listKey = (candidate: AgentOperationId, list: number): string => `${candidate}/${list}`
+
 export type FinishView = Readonly<{
   candidates: readonly CandidateView[]
+  /** The issued obligation lists, by `listKey`, in the order they were issued. */
+  lists: ReadonlyMap<string, ObligationListView>
   current: AgentOperationId | null
   ended: Readonly<{
     candidate: AgentOperationId | null
@@ -341,7 +364,7 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     passages: new Map(),
     controls: new Map(),
     waits: null,
-    finish: { candidates: [], current: null, ended: null },
+    finish: { candidates: [], lists: new Map(), current: null, ended: null },
     settlements: [],
     observations: [],
     acknowledged: 0,
@@ -413,6 +436,19 @@ function candidateAt(
   const candidates = [...draft.finish.candidates]
   candidates[index] = change(candidates[index]!)
   draft.finish = { ...draft.finish, candidates }
+}
+
+/** Changes one obligation list, opening it on its first fact. */
+function listAt(
+  draft: Draft,
+  candidate: AgentOperationId,
+  list: number,
+  change: (view: ObligationListView) => ObligationListView,
+): void {
+  const key = listKey(candidate, list)
+  const lists = new Map(draft.finish.lists)
+  lists.set(key, change(lists.get(key) ?? { candidate, list, items: [], issued: null }))
+  draft.finish = { ...draft.finish, lists }
 }
 
 function active(draft: Draft): Authority | null {
@@ -721,11 +757,11 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
             {
               candidate: fact.candidate,
               claim: fact.claim,
-              checkpoint: fact.checkpoint,
+              cursor: fact.cursor,
               route: fact.route,
+              path: fact.path,
               supersedes: fact.supersedes,
               beforeTerminal: null,
-              obligations: { items: [], issued: null },
               pub,
               revision,
             },
@@ -745,50 +781,41 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       break
     }
     case 'finish.obligation':
-      candidateAt(draft, fact.candidate, item =>
-        item.obligations.items.some(existing => existing.index === fact.index)
-          ? item
+      listAt(draft, fact.candidate, fact.list, list =>
+        list.items.some(existing => existing.index === fact.index)
+          ? list
           : {
-              ...item,
-              obligations: {
-                ...item.obligations,
-                items: [
-                  ...item.obligations.items,
-                  {
-                    index: fact.index,
-                    category: fact.category,
-                    item: fact.item,
-                    disposition: null,
-                  },
-                ],
-              },
+              ...list,
+              items: [
+                ...list.items,
+                { index: fact.index, category: fact.category, item: fact.item, disposition: null },
+              ],
             },
       )
       break
     case 'finish.obligations':
-      candidateAt(draft, fact.candidate, item =>
-        item.obligations.issued === null
+      listAt(draft, fact.candidate, fact.list, list =>
+        list.issued === null
           ? {
-              ...item,
-              obligations: {
-                ...item.obligations,
-                issued: { count: fact.count, evidence: fact.evidence, pub },
+              ...list,
+              issued: {
+                count: fact.count,
+                evidence: fact.evidence,
+                coverage: fact.coverage,
+                op: [...draft.ops.keys()].at(-1) as AgentOperationId,
+                pub,
+                revision,
               },
             }
-          : item,
+          : list,
       )
       break
     case 'finish.disposed':
-      candidateAt(draft, fact.candidate, item => ({
-        ...item,
-        obligations: {
-          ...item.obligations,
-          items: item.obligations.items.map(existing =>
-            existing.index === fact.index
-              ? { ...existing, disposition: fact.disposition }
-              : existing,
-          ),
-        },
+      listAt(draft, fact.candidate, fact.list, list => ({
+        ...list,
+        items: list.items.map(existing =>
+          existing.index === fact.index ? { ...existing, disposition: fact.disposition } : existing,
+        ),
       }))
       break
     case 'finish.ended':

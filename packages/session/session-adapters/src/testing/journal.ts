@@ -60,7 +60,6 @@ import type {
   FinishAuthorization,
   FinishCandidate,
   FinishObligation,
-  FinishObligations,
   FinishRoute,
   JournalCommitState,
   LegacyF2Entry,
@@ -109,6 +108,7 @@ import {
 import {
   advances,
   answer as answerOf,
+  batchEvidence,
   batchOf as buildBatch,
   blobOf,
   blobsOf,
@@ -117,6 +117,7 @@ import {
   emptyExecutionView,
   fold,
   receiptOf as batchReceiptOf,
+  refOf,
   type Answer,
   type Blob,
   type ExecutionView,
@@ -124,6 +125,7 @@ import {
   type ParticipationKind,
   type PublishedBatch,
 } from '../journal/index.ts'
+import { listKey } from '../journal/fold.ts'
 import {
   beforeTerminalOpen,
   buildObligations,
@@ -139,6 +141,18 @@ import {
   sameContent,
   settlementOf,
   type FinishingRecords,
+  applyCandidate,
+  applySettlement,
+  candidateFact,
+  candidateOfView,
+  listOfView,
+  listsIssued,
+  obligationFacts,
+  routeOfView,
+  settlementBlock,
+  settlementOfFact,
+  supersessionOf,
+  type RecordedSettlement,
 } from './journal-finishing.ts'
 
 export type JointCommitKind = Exclude<CallerCommit['kind'], 'none'>
@@ -1848,8 +1862,11 @@ export function createJournal<P>(
         const { value, receipt } = appended.ok
         const captured = cell.committed(input, method, receipt)
         if (captured) return { kind: 'answered', value: fail(captured) }
-        const participation = cell.participate(input, method, receipt, decision)
-        if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
+        // tryFinish asked the participant before preparing its batch (see the port).
+        if (method !== 'tryFinish') {
+          const participation = cell.participate(input, method, receipt, decision)
+          if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
+        }
         cell.touch()
         state().operations.set(at, { kind: 'committed', key, value: copy(value), receipt })
         return { kind: 'wrote', value }
@@ -1991,6 +2008,45 @@ export function createJournal<P>(
   ): DurableEvidence {
     return cell.issueEvidence(
       journalEvidence(`${cell.namespace}/${execution}/${what}/${ordinal}`, revision),
+    )
+  }
+
+  /**
+   * The receipt the batch of a write will derive, before the batch exists: the next publication,
+   * the next revision (the same one when the batch is a pure recognition) and the semantic key as
+   * its digest. A finishing record that names its own receipt (a list, a judgment, a disposition)
+   * is built with it; `derive` checks the derived receipt against it, so a drift is a defect.
+   */
+  function plannedReceipt(
+    execution: Execution,
+    operation: AgentOperationId,
+    key: string,
+  ): CommandReceipt {
+    const pub = state().log.length + 1
+    const revision = execution.revision + 1
+    const coordinates = { execution: execution.id, pub, envelope: { digest: key } }
+    const evidence = cell.issueEvidence(
+      batchEvidence(mint, coordinates as PublishedBatch, revision),
+    )
+    return receiptOf(execution, operation, revision, evidence, 'applied')
+  }
+
+  /** The derived receipt of a finishing batch; one that is not the planned receipt is a defect. */
+  function plannedOf(derived: Answer, planned: CommandReceipt): CommandReceipt {
+    if (!('receipt' in derived) || !sameValue(derived.receipt, planned))
+      throw new TypeError('the finishing batch derived another receipt than the planned one')
+    return derived.receipt
+  }
+
+  /** The evidence a list names its candidate's checkpoint by. */
+  function candidateCheckpoint(
+    execution: AgentExecutionId,
+    candidate: AgentOperationId,
+    revision: number,
+  ): DurableEvidence {
+    return journalEvidence(
+      `${cell.namespace}/${execution}/candidate/${candidate}/checkpoint`,
+      revision,
     )
   }
 
@@ -2586,6 +2642,51 @@ export function createJournal<P>(
   type CancellationRoute = Extract<FinishRoute, { kind: 'cancellation' }>
 
   /**
+   * The batch of a settlement record (R2-D297): one `settlement.recorded` with the record as a block
+   * without its receipt. The answer and the reader records are read back from the block with the
+   * receipt the batch derives, so nothing but the fact and the block makes them.
+   */
+  function recordedBatch(
+    execution: Execution,
+    planned: CommandReceipt,
+    result: RecordedSettlement,
+  ): Attempt<SettlementResult> {
+    const finishing = execution.finishing
+    const stored = blobOf(settlementBlock(result))
+    return {
+      kind: 'batch',
+      facts: [
+        {
+          kind: 'settlement.recorded',
+          variant: result.kind,
+          record: refOf(stored[1]),
+          evidence: planned.evidence,
+        },
+      ],
+      blobs: [stored],
+      kinds: [],
+      derive: derived => {
+        if (derived.kind !== 'settlement') throw new TypeError('a settlement answers its record')
+        return settlementOfFact(
+          derived.record,
+          plannedOf(derived, planned),
+          finishing,
+          state().blobs,
+        )
+      },
+      project: (batch, view) => {
+        const recorded = view.settlements.find(item => item.pub === batch.pub)
+        if (recorded === undefined) throw new TypeError('the settlement record did not fold')
+        applySettlement(
+          finishing,
+          settlementOfFact(recorded.record, planned, finishing, state().blobs),
+        )
+        execution.revision = view.revision
+      },
+    }
+  }
+
+  /**
    * The candidate, migration and judgment variants in the order of Agent SPEC "commitSettlement
    * 的变体": no installation is unavailable; ended is terminal; the cancel must be effective
    * (`denied`) with the source of its saved control (`invalid`); another installation is invalid; a
@@ -2595,6 +2696,7 @@ export function createJournal<P>(
   function settleCandidate(
     execution: Execution,
     input: CandidateVariant,
+    key: string,
   ): Attempt<SettlementResult> {
     const installed = options.cancellation
     if (installed === undefined)
@@ -2617,14 +2719,15 @@ export function createJournal<P>(
     const current = currentCandidate(finishing)
     const route = currentRoute(finishing)
     const revision = execution.revision + 1
-    const evidence = nextEvidence(execution, input.kind, revision)
-    const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+    // Every record of the variant names the receipt of its batch, as its own evidence too.
+    const receipt = plannedReceipt(execution, input.operation, key)
+    const evidence = receipt.evidence
     const cancellationRoute = (
       candidate: AgentOperationId,
       origin: CancellationRoute['origin'],
     ): CancellationRoute => ({
       kind: 'cancellation',
-      record: nextEvidence(execution, 'route', revision),
+      record: journalEvidence(`${cell.namespace}/${execution.id}/route/r${revision}`, revision),
       candidate,
       control: control.operation,
       policy: copy(installation.policy),
@@ -2658,36 +2761,55 @@ export function createJournal<P>(
           kind: 'native',
           operation: input.operation,
         })
-        const supersession =
-          current !== undefined && route !== undefined
-            ? {
-                from: current.candidate,
-                to: candidate.candidate,
-                control: control.operation,
-                revision: revisionOf(revision),
-                route: copy(route),
-              }
-            : null
+        const supersession = supersessionOf(finishing, candidate.candidate, established, revision)
+        // R2-D297: the candidate enters with a cursor reference, never a checkpoint copy.
+        const settling = { kind: 'settling' } as const
+        const establishedFact = candidateFact(
+          candidate,
+          established,
+          supersession?.from ?? null,
+          settling,
+        )
+        const facts: FactBody[] = [establishedFact.fact]
+        if (viewOf(execution.id).cursor.state !== 'settling')
+          facts.push({
+            kind: 'cursor.moved',
+            step: execution.checkpoint.step,
+            members: { state: 'settling' },
+          })
+        /** The candidate and route the folded fact names, read back from the blocks. */
+        const folded = () => {
+          const view = viewOf(execution.id).finish.candidates.find(
+            item => item.candidate === candidate.candidate,
+          )
+          if (view === undefined) throw new TypeError('the established candidate did not fold')
+          return {
+            candidate: candidateOfView(view, state().blobs),
+            route: routeOfView(view, state().blobs),
+          }
+        }
         return {
-          kind: 'write',
-          value: {
-            kind: 'establish-cancellation',
-            receipt,
-            candidate,
-            route: established,
-            supersession,
+          kind: 'batch',
+          facts,
+          blobs: establishedFact.blobs,
+          kinds: [],
+          derive: derived => {
+            const read = folded()
+            if (read.route.kind !== 'cancellation')
+              throw new TypeError('an establish folds a cancellation route')
+            return {
+              kind: 'establish-cancellation',
+              receipt: plannedOf(derived, receipt),
+              candidate: read.candidate,
+              route: read.route,
+              supersession,
+            }
           },
-          receipt,
-          apply: () => {
-            if (supersession !== null) finishing.supersessions.push(supersession)
-            finishing.candidates.push(candidate)
-            finishing.routes.push(established)
-            finishing.current = candidate.candidate
-            finishing.route = established.record.record
-            finishing.currentJudgment = null
-            finishing.obligations = null
+          project: (_batch, view) => {
+            const read = folded()
+            applyCandidate(finishing, read.candidate, read.route, supersession)
             execution.state = { kind: 'settling' }
-            execution.revision = revision
+            execution.revision = view.revision
           },
         }
       }
@@ -2755,18 +2877,12 @@ export function createJournal<P>(
           supersession: { from: copy(from.record), to: copy(switched.record), candidate: null },
           priorExcluded: copy(input.priorExcluded),
         }
-        return {
-          kind: 'write',
-          value: { kind: 'migrate-cancellation', receipt, migration, route: switched },
+        return recordedBatch(execution, receipt, {
+          kind: 'migrate-cancellation',
           receipt,
-          apply: () => {
-            finishing.migrations.push(migration)
-            finishing.routes.push(switched)
-            finishing.route = switched.record.record
-            finishing.currentJudgment = null
-            execution.revision = revision
-          },
-        }
+          migration,
+          route: switched,
+        })
       }
       case 'judge-cancellation': {
         const candidate = candidateOf(finishing, input.candidate)
@@ -2821,16 +2937,7 @@ export function createJournal<P>(
           revision: revisionOf(revision),
           supersedes: finishing.currentJudgment,
         }
-        return {
-          kind: 'write',
-          value: { kind: 'judge-cancellation', receipt, judgment },
-          receipt,
-          apply: () => {
-            finishing.judgments.push(judgment)
-            finishing.currentJudgment = judgment.operation
-            execution.revision = revision
-          },
-        }
+        return recordedBatch(execution, receipt, { kind: 'judge-cancellation', receipt, judgment })
       }
       default: {
         const _exhaustive: never = input
@@ -2898,7 +3005,11 @@ export function createJournal<P>(
    * (`invalid` otherwise) and of the named passage, round or intent (`invalid` otherwise). None
    * changes the candidate, the route or a passage.
    */
-  function settleCustody(execution: Execution, input: CustodyVariant): Attempt<SettlementResult> {
+  function settleCustody(
+    execution: Execution,
+    input: CustodyVariant,
+    key: string,
+  ): Attempt<SettlementResult> {
     const finishing = execution.finishing
     const target = custodyTargetFailure(execution, input)
     if (target !== undefined) return answer(fail(target))
@@ -2927,8 +3038,9 @@ export function createJournal<P>(
         )
     }
     const revision = execution.revision + 1
-    const evidence = nextEvidence(execution, input.kind, revision)
-    const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+    // Every record of the variant names the receipt of its batch, as its own evidence too.
+    const receipt = plannedReceipt(execution, input.operation, key)
+    const evidence = receipt.evidence
     switch (input.kind) {
       case 'record-card-reconciliation': {
         const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
@@ -3002,15 +3114,11 @@ export function createJournal<P>(
           },
           revision: revisionOf(revision),
         }
-        return {
-          kind: 'write',
-          value: { kind: 'record-card-reconciliation', receipt, reconciliation },
+        return recordedBatch(execution, receipt, {
+          kind: 'record-card-reconciliation',
           receipt,
-          apply: () => {
-            finishing.cardReconciliations.push(reconciliation)
-            execution.revision = revision
-          },
-        }
+          reconciliation,
+        })
       }
       case 'record-legacy-return': {
         if (
@@ -3034,15 +3142,11 @@ export function createJournal<P>(
           custody: copy(record.custody),
           revision: revisionOf(revision),
         }
-        return {
-          kind: 'write',
-          value: { kind: 'record-legacy-return', receipt, legacyReturn },
+        return recordedBatch(execution, receipt, {
+          kind: 'record-legacy-return',
           receipt,
-          apply: () => {
-            finishing.legacyReturns.push(legacyReturn)
-            execution.revision = revision
-          },
-        }
+          legacyReturn,
+        })
       }
       case 'record-tool-association': {
         const effect = execution.effects.find(item => item.action === input.intent.action)
@@ -3137,15 +3241,11 @@ export function createJournal<P>(
           priorExcluded: copy(input.priorExcluded),
           revision: revisionOf(revision),
         }
-        return {
-          kind: 'write',
-          value: { kind: 'record-tool-association', receipt, association },
+        return recordedBatch(execution, receipt, {
+          kind: 'record-tool-association',
           receipt,
-          apply: () => {
-            finishing.toolAssociations.push(association)
-            execution.revision = revision
-          },
-        }
+          association,
+        })
       }
       default: {
         const _exhaustive: never = input
@@ -4189,35 +4289,43 @@ export function createJournal<P>(
           if (candidate === undefined)
             return answer(fail(invalid('candidate', 'not a candidate of this execution')))
           if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
-          const revision = execution.revision + 1
-          const evidence = nextEvidence(execution, 'obligations', revision)
-          const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+          // The list evidence is the receipt evidence of its batch: one list per batch.
+          const planned = plannedReceipt(execution, input.operation, key)
+          const evidence = planned.evidence
           const built = obligationsOf(execution, candidate, input.operation)
-          const list: FinishObligations = {
-            operation: input.operation,
-            revision: revisionOf(revision),
+          // R2-D297: one `finish.obligation` per item, then the close; nothing of an earlier list
+          // is written again, a re-issue is a new list of the same candidate.
+          const ordinal = listsIssued(finishing, candidate.candidate) + 1
+          const issued = obligationFacts(
+            candidate.candidate,
+            ordinal,
+            built.items,
+            built.coverage,
             evidence,
-            candidate: candidate.candidate,
-            conclusion: candidate.conclusion,
-            failure: candidate.failure,
-            inputWatermark: candidate.inputWatermark,
-            checkpoint: journalEvidence(
-              `${cell.namespace}/${execution.id}/candidate/${candidate.candidate}/checkpoint`,
-              revision,
-            ),
-            conditions: candidate.conditions,
-            items: built.items,
-            coverage: built.coverage,
-          }
+          )
           // One new revision, no event, the checkpoint and the candidate as they were.
           return {
-            kind: 'write',
-            value: { receipt, obligations: evidence },
-            receipt,
-            apply: () => {
-              finishing.issued.set(evidence.record, copy(list))
-              finishing.obligations = evidence.record
-              execution.revision = revision
+            kind: 'batch',
+            facts: issued.facts,
+            blobs: issued.blobs,
+            kinds: [],
+            derive: derived => {
+              if (derived.kind !== 'obligations')
+                throw new TypeError('a prepareFinish answers its obligations')
+              return { receipt: plannedOf(derived, planned), obligations: derived.obligations }
+            },
+            project: (_batch, view) => {
+              const folded = view.finish.lists.get(listKey(candidate.candidate, ordinal))
+              if (folded === undefined) throw new TypeError('the issued list did not fold')
+              const list = listOfView(
+                folded,
+                candidate,
+                candidateCheckpoint(execution.id, candidate.candidate, view.revision),
+                state().blobs,
+              )
+              finishing.issued.set(list.evidence.record, list)
+              finishing.obligations = list.evidence.record
+              execution.revision = view.revision
             },
           }
         },
@@ -4297,42 +4405,60 @@ export function createJournal<P>(
           if (check.kind === 'changed') return changed
           if (check.kind === 'blocked') return answer(succeed(copy(check.value)))
           if (check.kind === 'unknown') return answer(fail(damaged(check.diagnostic)))
-          const revision = execution.revision + 1
-          const evidence = nextEvidence(execution, 'finish', revision)
-          const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+          // The terminal disposition is the receipt evidence of the batch that ends.
+          const receipt = plannedReceipt(execution, input.operation, key)
           // The Session participant is read-only, so it is asked before the write: its conflict is
           // FinishResult.changed, not a failure (Agent SPEC "条件终结", PA-02).
           const participation = cell.participate(input, 'tryFinish', receipt, null)
           if (participation !== undefined) {
             return participation.kind === 'changed' ? changed : answer(fail(participation))
           }
-          const conclusion = copy(candidate.conclusion)
-          const observations: TerminalObservation[] = execution.checkpoint.passages
-            .filter(passage => passage.position === 'after_terminal')
-            .map(passage => ({
-              terminal: evidence,
-              passage: passage.id,
-              implementation: copy(passage.implementation),
-              observed: null,
-            }))
+          // R2-D297: the end is one constant fact; the pending observations and the retained
+          // handoffs are what it implies for the passages and the handoffs, not facts of their own.
           return {
-            kind: 'write',
-            value: { kind: 'ended', receipt },
-            receipt,
-            apply: () => {
-              execution.state = { kind: 'ended', conclusion, disposition: evidence }
-              execution.observations = observations
+            kind: 'batch',
+            facts: [
+              {
+                kind: 'finish.ended',
+                candidate: candidate.candidate,
+                conclusion: candidate.conclusion,
+                disposition: receipt.evidence,
+              },
+            ],
+            blobs: [],
+            kinds: [],
+            derive: derived => {
+              if (derived.kind !== 'ended') throw new TypeError('a tryFinish answers its end')
+              return { kind: 'ended', receipt: plannedOf(derived, receipt) }
+            },
+            project: (_batch, view) => {
+              const ended = view.finish.ended
+              if (ended === null) throw new TypeError('the end did not fold')
+              const disposition = ended.disposition
+              execution.state = {
+                kind: 'ended',
+                conclusion: copy(ended.conclusion),
+                disposition,
+              }
+              execution.observations = execution.checkpoint.passages
+                .filter(passage => passage.position === 'after_terminal')
+                .map(passage => ({
+                  terminal: disposition,
+                  passage: passage.id,
+                  implementation: copy(passage.implementation),
+                  observed: null,
+                }))
               // A prepared message that no Ja published is retained by the terminal disposition
               // (Agent SPEC "准入结果保管"); nothing publishes it after the end.
               for (const record of execution.handoffs) {
                 if (record.history.kind === 'pending')
-                  record.history = { kind: 'retained', disposition: evidence }
+                  record.history = { kind: 'retained', disposition }
               }
-              execution.revision = revision
+              execution.revision = view.revision
               appendEvents(
                 execution,
-                [{ kind: 'ended', conclusion, disposition: evidence }],
-                evidence,
+                [{ kind: 'ended', conclusion: copy(ended.conclusion), disposition }],
+                disposition,
               )
             },
           }
@@ -4353,11 +4479,11 @@ export function createJournal<P>(
           case 'establish-cancellation':
           case 'migrate-cancellation':
           case 'judge-cancellation':
-            return settleCandidate(execution, input)
+            return settleCandidate(execution, input, key)
           case 'record-card-reconciliation':
           case 'record-legacy-return':
           case 'record-tool-association':
-            return settleCustody(execution, input)
+            return settleCustody(execution, input, key)
           default: {
             const _exhaustive: never = input
             return _exhaustive
@@ -4389,9 +4515,25 @@ export function createJournal<P>(
         if (item.observed !== null) {
           if (!sameEvidence(item.observed, input.observed))
             return answer(fail(conflict(input.operation)))
-          // The same value is recognized by the new operation at the revision of the registration.
+          // The same value is recognized by the new operation at the revision of the registration:
+          // an `op.recognized` batch, which advances no revision and answers the registration's.
           const first = execution.observed.get(input.passage)
           if (first !== undefined) {
+            if (viewOf(execution.id).ops.has(first.operation))
+              return {
+                kind: 'batch',
+                facts: [{ kind: 'op.recognized', target: first.operation }],
+                blobs: [],
+                kinds: [],
+                derive: derived => {
+                  if (derived.kind !== 'receipt')
+                    throw new TypeError('a recognition answers its receipt')
+                  return derived.receipt
+                },
+                project: () => {},
+              }
+            // The registration was written before this process folded it (a provider that rebuilt
+            // its copy from the reader records): the reader keeps its revision until JO-4.
             const receipt = recognition(
               execution,
               input.operation,
@@ -4401,17 +4543,28 @@ export function createJournal<P>(
             return recognize(receipt, receipt)
           }
         }
-        const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'observation', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+        const planned = plannedReceipt(execution, input.operation, key)
+        const observed = input.observed
         return {
-          kind: 'write',
-          value: receipt,
-          receipt,
-          apply: () => {
-            execution.observations[index] = { ...item, observed: copy(input.observed) }
-            execution.observed.set(input.passage, receipt)
-            execution.revision = revision
+          kind: 'batch',
+          facts: [
+            {
+              kind: 'observation.recorded',
+              terminal: item.terminal,
+              passage: item.passage,
+              implementation: item.implementation,
+              observed,
+            },
+          ],
+          blobs: [],
+          kinds: [],
+          derive: derived => plannedOf(derived, planned),
+          project: (batch, view) => {
+            const fact = view.observations.find(entry => entry.pub === batch.pub)
+            if (fact === undefined) throw new TypeError('the observation did not fold')
+            execution.observations[index] = { ...item, observed: copy(fact.observed) }
+            execution.observed.set(input.passage, planned)
+            execution.revision = view.revision
           },
         }
       }
