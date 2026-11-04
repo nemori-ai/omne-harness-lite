@@ -4514,9 +4514,25 @@ export function createJournal<P>(
         if (item.observed !== null) {
           if (!sameEvidence(item.observed, input.observed))
             return answer(fail(conflict(input.operation)))
-          // The same value is recognized by the new operation at the revision of the registration.
+          // The same value is recognized by the new operation at the revision of the registration:
+          // an `op.recognized` batch, which advances no revision and answers the registration's.
           const first = execution.observed.get(input.passage)
           if (first !== undefined) {
+            if (viewOf(execution.id).ops.has(first.operation))
+              return {
+                kind: 'batch',
+                facts: [{ kind: 'op.recognized', target: first.operation }],
+                blobs: [],
+                kinds: [],
+                derive: derived => {
+                  if (derived.kind !== 'receipt')
+                    throw new TypeError('a recognition answers its receipt')
+                  return derived.receipt
+                },
+                project: () => {},
+              }
+            // The registration was written before this process folded it (a provider that rebuilt
+            // its copy from the reader records): the reader keeps its revision until JO-4.
             const receipt = recognition(
               execution,
               input.operation,
@@ -4526,17 +4542,28 @@ export function createJournal<P>(
             return recognize(receipt, receipt)
           }
         }
-        const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'observation', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+        const planned = plannedReceipt(execution, input.operation, key)
+        const observed = input.observed
         return {
-          kind: 'write',
-          value: receipt,
-          receipt,
-          apply: () => {
-            execution.observations[index] = { ...item, observed: copy(input.observed) }
-            execution.observed.set(input.passage, receipt)
-            execution.revision = revision
+          kind: 'batch',
+          facts: [
+            {
+              kind: 'observation.recorded',
+              terminal: item.terminal,
+              passage: item.passage,
+              implementation: item.implementation,
+              observed,
+            },
+          ],
+          blobs: [],
+          kinds: [],
+          derive: derived => plannedOf(derived, planned),
+          project: (batch, view) => {
+            const fact = view.observations.find(entry => entry.pub === batch.pub)
+            if (fact === undefined) throw new TypeError('the observation did not fold')
+            execution.observations[index] = { ...item, observed: copy(fact.observed) }
+            execution.observed.set(input.passage, planned)
+            execution.revision = view.revision
           },
         }
       }
