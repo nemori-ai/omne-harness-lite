@@ -16,4 +16,17 @@
 
 ## 本包事实
 
-现在为空，本成员没有形式模型。本成员没有运行实现，SPEC 也没有要求哪条义务必须用模型验证。以后为某条 SPEC 条款建立模型时，在这里写明条款、前提与运行命令。
+| 模型 | 检查什么 |
+| --- | --- |
+| [RcCommit.tla](RcCommit.tla) | RC-02 的先提交后应用与完整输入认回，以及成功表是否有界 |
+| [RcRead.tla](RcRead.tla) | RC-01、RC-03、RC-08、RC-09 的读取隔离、缓存一致与有界，以及持有者记住的作用域归属 |
+
+配置名的前缀表示用途：`rc-` 是正控，`bad-` 是负控（只检查点名的一条性质），`probe-` 是按实现建模的探针。性质与源码对应见 [formal-mapping.md](../formal-mapping.md)，运行记录见 [formal-runs.md](../formal-runs.md)。
+
+运行入口是 [run-tlc.sh](run-tlc.sh)。先把本目录复制到 WSL 自己的文件系统，再在登录 shell 里运行：
+
+```sh
+wsl.exe -d Ubuntu-24.04 --exec bash -l <WSL 里的副本>/run-tlc.sh <WSL 里的副本> <输出目录>
+```
+
+判读看每份日志的结论行，不看退出码本身。
