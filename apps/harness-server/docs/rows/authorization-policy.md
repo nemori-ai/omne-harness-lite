@@ -37,7 +37,7 @@
 5. 核对租户。L 和 W 的主体租户必须等于访问的租户。S 不做这一步。
 6. 核对工作绑定。W 的目标是 Session 时，`work.work` 必须等于目标的会话。目标是租户（`pending`）时，只核租户。Agent 的 `scope` 目标要求 `scope.owner` 为 `session`，并且 `scope.record` 等于 `work.work`。
 7. 取格。`accept` 按输入种类取分支，`receive` 按事实种类取分支。请求不在分支内就拒绝。
-8. 按格调用依赖。`拒绝`和`默认拒绝`的格不调用依赖。
+8. 按格调用依赖。`拒绝`的格不调用依赖。等待产品规则的格也写成拒绝格，拒绝依据写明缺少的规则（R2-D204 第 4 条：需要批准的动作一律拒绝）。
 
 ### 两种放行
 
@@ -488,14 +488,6 @@
 <!-- /policy:agent-notes -->
 
 `receive-result` 的 W 格放行，只核租户。推送用原受理主体，也就是会话 coordinator 的 W。Model 在推送前经 `ModelHostAuthority.resolve` 取这个主体。这是 L-RUN 与 L-MODEL 对 DP-4 的 Q-1 的对齐结果。L 列和 S 列仍然拒绝。
-
-## D 项
-
-目前没有未决的 D 项。D-1（`configureAutoArchive` × L）和 D-2（`setRelation` × L）由 R2-D204 关闭：租户设置和会话管理只有本人可以做。租户是（组织，账号），只有这个账号的登录能取得代表该租户行事的主体，所以「只有本人」由主体的签发保证，成员格的 `requires` 为空，不新增具名资格。
-
-<!-- policy:d-items -->
-没有未决项。
-<!-- /policy:d-items -->
 
 ## 已知限制
 

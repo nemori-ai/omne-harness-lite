@@ -8,11 +8,9 @@ export {
   type Branch,
   type BranchInput,
   type Citation,
-  type DecisionItemId,
   type DenyCell,
   type MatrixCell,
   type MemberCell,
-  type PendingCell,
   type PolicyCell,
   type PolicyRow,
   type PrincipalColumn,
@@ -23,7 +21,6 @@ export {
 } from './cells.ts'
 export { SESSION_POLICY } from './session-policy.ts'
 export { AGENT_POLICY } from './agent-policy.ts'
-export { DECISION_ITEMS, PENDING_LABEL, type DecisionItem } from './decision-items.ts'
 export {
   AGENT_HOST_COMPONENT,
   MAINTENANCE_GRANTS,

@@ -41,7 +41,6 @@ import { sessionId } from '@omne-harness/session-contract/testing'
 import {
   AGENT_HOST_COMPONENT,
   AGENT_POLICY,
-  DECISION_ITEMS,
   MAINTENANCE_GRANTS,
   SESSION_MAINTAINER_COMPONENT,
   SESSION_POLICY,
@@ -1264,20 +1263,16 @@ function labelOf(cell: PolicyCell): string {
       return `放行（矩阵 ${cell.purpose}）${branch}`
     case 'deny':
       return '拒绝'
-    case 'deny-pending':
-      return `默认拒绝（${cell.item}）`
   }
 }
 
-function textOf(cell: PolicyCell): string | null {
+function textOf(cell: PolicyCell): string {
   switch (cell.verdict) {
     case 'member':
     case 'matrix':
       return cell.source
     case 'deny':
       return cell.basis
-    case 'deny-pending':
-      return null
   }
 }
 
@@ -1323,7 +1318,7 @@ describe('the row specification agrees with the tables', () => {
       expect(notes, operation).toContain(`- \`${operation}\``)
       for (const cell of [row.login, row.work, row.system]) {
         const text = textOf(cell)
-        if (text !== null) expect(notes, `${operation}: ${text}`).toContain(text)
+        expect(notes, `${operation}: ${text}`).toContain(text)
       }
     }
   })
@@ -1348,10 +1343,5 @@ describe('the row specification agrees with the tables', () => {
         expect(line, holder).toContain(named)
       }
     }
-  })
-
-  it('writes that no D item is open', () => {
-    expect(Object.keys(DECISION_ITEMS)).toEqual([])
-    expect(region('d-items')).toContain('没有未决项')
   })
 })

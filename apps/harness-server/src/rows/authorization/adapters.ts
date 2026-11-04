@@ -78,7 +78,6 @@ function planCell(
 ): Plan {
   switch (cell.verdict) {
     case 'deny':
-    case 'deny-pending':
       return DENIED
     case 'member': {
       if (who.column === 'system') return DENIED

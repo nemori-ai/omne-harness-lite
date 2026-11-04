@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest'
 import { SYSTEM_ACTION_MATRIX } from '@omne-harness/authorization'
 import {
   AGENT_POLICY,
-  DECISION_ITEMS,
   SESSION_POLICY,
   auditPolicy,
   cite,
@@ -137,17 +136,8 @@ describe('system column and the matrix', () => {
   })
 })
 
-describe('D items', () => {
-  it('has no pending cell and no open D item since R2-D204 closed D-1 and D-2', () => {
-    const pending = [...cells(SESSION_POLICY), ...cells(AGENT_POLICY)].filter(
-      ({ cell }) => cell.verdict === 'deny-pending',
-    )
-    expect(pending).toEqual([])
-    expect(auditPolicy().session.pendingCells).toEqual([])
-    expect(DECISION_ITEMS).toEqual({})
-  })
-
-  it('makes the login cells of the two closed items member cells that cite R2-D204', () => {
+describe('the cells R2-D204 decided', () => {
+  it('makes the login cells of setRelation and configureAutoArchive member cells that cite R2-D204', () => {
     for (const operation of ['setRelation', 'configureAutoArchive'] as const) {
       const cell = SESSION_POLICY[operation].login
       expect(cell.verdict).toBe('member')
@@ -155,13 +145,15 @@ describe('D items', () => {
     }
   })
 
-  it('reports a pending cell that cites an item nobody wrote', () => {
+  it('reports a cell whose verdict is none of member, matrix and deny', () => {
     const mutated = {
       ...SESSION_POLICY,
       interrupt: { ...SESSION_POLICY.interrupt, login: { verdict: 'deny-pending', item: 'D-1' } },
     }
     const audit = auditPolicy({ session: mutated as unknown as typeof SESSION_POLICY })
-    expect(audit.findings.some(text => text.includes('interrupt'))).toBe(true)
+    expect(audit.findings).toEqual([
+      expect.stringMatching(/^session `interrupt` × login has an unknown verdict/u),
+    ])
   })
 })
 
