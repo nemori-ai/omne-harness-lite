@@ -76,6 +76,8 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 21. 取消与关闭按传输与修订分写。见 T5。
 22. 任务提示 `pollIntervalMs` 与 `ttlMs` 只收非负安全整数。见 O2。
 23. 传输夹具的 `protocolVersions` 只列现代修订。见[组合与验证](#composition)。
+24. 线上事件归入应答类别的纯全函数 `classifyWireEvent`，进程退出的时间窗 `PROCESS_EXIT_WINDOW_MS`，请求离开之前的失败。见 T2、T8。
+25. 传输不再可用时连接的状态，以及 `cancelTask` 的建连条件。见 S1、S2、S5、S7。
 
 <a id="entries"></a>
 
@@ -83,7 +85,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 | 入口         | 给谁                   | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.`          | 调用方与实现方         | 值、品牌守卫、结局、失败、五个服务接口与结果值、纯函数、`mcpEndpointBodyContract()`、`isActionArgs`、`canonical`、`sameJson`、`McpClock`、`LEGACY_PROTOCOL_VERSIONS`、`FIRST_MODERN_PROTOCOL_VERSION`                                                                                                                                                                                                                                             |
+| `.`          | 调用方与实现方         | 值、品牌守卫、结局、失败、五个服务接口与结果值、纯函数、`mcpEndpointBodyContract()`、`isActionArgs`、`canonical`、`sameJson`、`McpClock`、`LEGACY_PROTOCOL_VERSIONS`、`FIRST_MODERN_PROTOCOL_VERSION`、`classifyWireEvent` 与 `PROCESS_EXIT_WINDOW_MS`                                                                                                                                                                                            |
 | `./provider` | 端口的实现方           | 五个需求端口、`McpTransport`、`McpTransportFactory` 及其答复类型。只有类型，不重复根入口已导出的类型                                                                                                                                                                                                                                                                                                                                              |
 | `./testing`  | 端口的实现方，用于自测 | 五个需求端口与传输的符合性套件、各自的内存替身（传输的是 `createScriptedTransportFactory`）、`classifyOutcomeCases`、`mergeListingCases`、样本构造器（`jsonOf`、`jsonTextOf`、`generationOf`、`revisionOf`、`actionNameOf`、`protocolVersionOf`、`requestStateOf`、`taskIdOf`），传输决策表 `TRANSPORT_TABLE` 与它的输入域（`transportCells`、`rowsOf`、`cellsOf`），以及 `runConformanceCase`、`isNotApplicable`、`NotApplicable`、`CaseVerdict` |
 
@@ -192,7 +194,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   4. `action-limit-exceeded`：动作总数超过 `maxActions`。
   5. `action-invalid`：某一项不是对象，`name` 不是非空文本，`inputSchema` 不是对象，或 `outputSchema`、`annotations` 存在但不是对象。
   6. `duplicate-action-name`：动作名重复，跨页也算。
-- **C2** 完整清单带上调用方给出的 `basedOn`：取得前经 `CatalogStore.read` 读到的修订，从未写入时是 `absent`。新鲜度的取得时刻由调用方给出，`ttlMs` 取各页给出值中的最小值，`changedNotified` 为假。2026-07-28 的 `list_changed` 只经 `subscriptions/listen` 到达；本组不订阅（T3），所以 `changedNotified` 保持为假。订阅归 W4 之后。清单、它的动作列表与每个动作都冻结。
+- **C2** 完整清单带上调用方给出的 `basedOn`：取得前经 `CatalogStore.read` 读到的修订，从未写入时是 `absent`。新鲜度的取得时刻由调用方给出，`ttlMs` 取各页给出值中的最小值，`changedNotified` 为假。2026-07-28 的 `list_changed` 只经 `subscriptions/listen` 到达；本组不订阅（T3），所以 `changedNotified` 保持为假。清单、它的动作列表与每个动作都冻结。
 - **C3** 动作定义原样保存，不改写。`definition` 是对端对象去掉 `annotations` 后的原样内容，annotations 另存为不可信值。`digestDefinition` 对对端原对象（含 annotations）的规范化文本算 SHA-256。规范化文本的规则：对象成员按名字的 UTF-16 码元排序；字符串按 RFC 8785 转义；数字保留原样的词形；没有空白；文本按 UTF-8 编码。成员次序不改变摘要，任何内容或数字词形的变化都改变摘要。
 - **C4** `mergeListing(current, listing)` 只接受 `completeListing` 在同一模块实例里构造的清单。其他对象，包括复制出来的清单，使它抛出 `TypeError`。这项登记是进程内的凭证：清单不能序列化后传给另一个进程再合并；同一进程加载本成员两份时，两份互不承认对方构造的清单。
 - **C5** `mergeListing` 只按清单修订做条件判断。当前修订（未取得时是 `absent`）不等于清单的 `basedOn` 时答 `stale-revision`，不产出记录。它不比较连接代际：产出清单的那一代连接是否仍是当前连接，在发布边界由服务实现核对。
@@ -273,7 +275,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - `issuers`：元数据的 `authorization_servers` 里的文本项。元数据没取到时为空。
   - `scopes`：对端 `WWW-Authenticate` 头的 `scope`，按空白拆开。头里没有 `scope` 或拆开后为空时，取元数据的 `scopes_supported` 里的文本项。都没有时为空。
 
-  对端答 401，或答 403 且 `WWW-Authenticate` 带 `error="insufficient_scope"` 时，才有授权发现。其余 403（例如 `Origin` 不被接受）不是授权失败：答 `connection-unavailable`，见 T4。MCP 不做授权流程：OAuth 授权流程归凭据保管的提供者，MCP 交出完整的授权发现，提供者可以直接复用官方 SDK 的授权模块完成流程。
+  对端答 401，或答 403 且 `WWW-Authenticate` 带 `error="insufficient_scope"` 时，才有授权发现。其余 403（例如 `Origin` 不被接受）不是授权失败：答 `connection-unavailable`，见 T8 S06。MCP 不做授权流程：OAuth 授权流程归凭据保管的提供者，MCP 交出完整的授权发现，提供者可以直接复用官方 SDK 的授权模块完成流程。
 
 - **R5** `CallOutcome` 只描述已发出的调用。`InvokeResult` 用 `not-sent` 与 `sent` 两种分开它们。
 - **R6** `ConnectionFailure` 在需要连接、而连接条件不成立时给出：
@@ -284,7 +286,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **R7** `OperationFailure` 是读口、状态口与任务操作的失败，由 `Refusal`、`ConnectionFailure` 与下面三项组成。`current` 与 `peer` 不发请求，它们的失败 `ReadFailure` 不含这三项：
   - `effect-unknown`：请求已发出而没有应答，带 `NoAnswerCause` 的子因；或任务操作既没有现有连接、也没有可重建连接的采用材料，子因是 `no-connection`。效果未知，不压成失败，不重发。
   - `error-answer`：请求已发出，对端答 JSON-RPC 错误，带错误码、消息与 `data`（如有），原样交出。
-  - `answer-malformed`：请求已发出，应答不是 T6、T7 为这个请求点名的形状，带 `what`，见 T7。
+  - `answer-malformed`：请求已发出，应答不是 T2、T6 为这个请求点名的形状，带 `what`（见 T7）。
 
 <a id="services"></a>
 
@@ -292,13 +294,13 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 本成员只写接口与结果值。下列条款约束接口的实现方。
 
-- **S1** 除 `ActionInvoker.cancel`、`ActionInvoker.cancelTask` 与 `Connections.closeAll` 以外，每个操作先经 `AdoptionView.endpoint` 核采用，再经 `UseEligibility.check` 核资格。`queryTask`、`taskResult` 与 `provideTaskInput` 例外：它们核采用，但只在要新建连接时核资格，复用现有连接时不核（S2）。未采用时答 `not-available-to-you`，不再问资格。`AdoptionView` 不可读时答 `unknown`。资格答 `not-eligible` 时答 `not-available-to-you`，答被设置挡下时给出该原因，答 `unknown` 时答 `unknown`。`EndpointStatus.list` 经 `AdoptionView.endpoints` 取列表，再逐项核资格，只列出有资格的接入点；任一项资格答 `unknown`，整次答 `unknown`。接入点被撤采用或被禁用后，`Connections` 在下一次使用边界之前自行关闭它的连接，stdio 时一并停止进程。所以 `release` 对被禁用的接入点答 `blocked` 是可接受的：连接不靠 `release` 释放。
+- **S1** 除 `ActionInvoker.cancel` 与 `Connections.closeAll` 以外，每个操作先经 `AdoptionView.endpoint` 核采用，再经 `UseEligibility.check` 核资格。四个任务操作例外，按 S2 的建连规则核。未采用时答 `not-available-to-you`，不再问资格。`AdoptionView` 不可读时答 `unknown`。资格答 `not-eligible` 时答 `not-available-to-you`，答被设置挡下时给出该原因，答 `unknown` 时答 `unknown`。`EndpointStatus.list` 经 `AdoptionView.endpoints` 取列表，再逐项核资格，只列出有资格的接入点；任一项资格答 `unknown`，整次答 `unknown`。接入点被撤采用或被禁用后，`Connections` 在下一次使用边界之前自行关闭它的连接，stdio 时一并停止进程。所以 `release` 对被禁用的接入点答 `blocked` 是可接受的：连接不靠 `release` 释放。
 - **S2** 调用与任务的控制：
   - `cancel` 只按（租户、主体、关联键）在本次运行的在途表里定位，不核采用与资格。在途时答 `signalled`；关联键已结束时答 `no-call-in-flight`；表里没有时答 `unknown`。占位后、发出前收到的 `cancel` 使原调用答「未发出：`cancelled`」。
   - 连接换代之后，`continueWithInput` 在旧代际上的在途状态无法证明时答「未发出：`unknown`」，不在新代际上重发。它发出的 `CallRequest` 带 `continuation`：`requestState` 与 `inputResponses` 各自可选，只带 `requestState` 的重试合法。
   - 服务在本次运行内保存已发出的任务表，键是（租户、主体、持有、任务号）。表项在本次运行内不删除；任务的终态交出之后再查询，仍转发给对端。任务表不跨重启，这是已知限制。
-  - `queryTask`、`taskResult`、`provideTaskInput`、`cancelTask` 只对发起者开放：非发起者、重启之后和表里没有的任务一律答 `unknown`，不随任务是否存在而变。`cancelTask` 不核采用与资格。
-  - 任务操作可以复用现有连接，复用时不核资格。要新建连接时，`UseEligibility` 必须答 `granted`；否则不建连接，答 `effect-unknown`（`no-connection`）。没有现有连接、也没有可以重建连接的采用材料时，同样答 `effect-unknown`（`no-connection`）。`cancelTask` 只减少效果，不为取消启动新进程。`AdoptionView` 答 `unknown` 时，任务操作答 `Refusal` 的 `unknown`。
+  - `queryTask`、`taskResult`、`provideTaskInput`、`cancelTask` 只对发起者开放：非发起者、重启之后和表里没有的任务一律答 `unknown`，不随任务是否存在而变。
+  - 四个任务操作的建连规则，`cancelTask` 也一样：复用现有连接时不核采用与资格。要新建连接时，经 `AdoptionView.endpoint` 核采用并取得建连材料，`UseEligibility` 必须答 `granted`；`AdoptionView` 答 `unknown` 时答 `Refusal` 的 `unknown`；未采用、资格不是 `granted` 或没有可以建连的材料时，不建连接，答 `effect-unknown`（`no-connection`）。
   - 传输答 `no-answer` 时，四个任务操作答 `effect-unknown`，带同一子因。传输答 `error-answer` 或 `answer-malformed` 时原样交出。
   - `taskResult` 对已取消、没有结果的任务答 `cancelled`。`provideTaskInput` 把答复交给 `input_required` 的任务，对端确认后答 `accepted`。`cancelTask` 在对端确认取消请求后答 `requested`；任务是否已到终态，经 `queryTask` 得知。
 - **S3** `McpConfig` 的四个字段都必填，没有缺省值：
@@ -331,16 +333,17 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - `kept`，原因是 `superseded`：`CatalogStore` 写入时答修订冲突，`mergeListing` 答 `stale-revision`，或产出清单的那一代连接在发布前已不是当前连接。原采用不变。
   - `kept`，原因是 `cancelled`：本次刷新已被取消。请求的 `signal` 只属于这一次刷新。实现在等待建连、取每一页与发布边界各自核对它；它已触发时答 `cancelled`，不发布。原采用不变。`signal` 触发只结束本次刷新对建连的等待，不中止同一连接键上共享的建连：那次建连照常完成或失败，结果留给其他等待者。
   - `kept`，原因是 `listing-incomplete`：`completeListing` 答了缺陷，带这个缺陷。某页的传输答 `no-answer`、`error-answer` 或 `answer-malformed` 时，这一页算失败，缺陷是 `page-failed`，连接转为 `degraded`（`list-failed`）。原采用不变。
-  - 失败：某页或 `discover` 的传输答 `not-sent`（`authorization-required` 或 `connection-unavailable`）时，答对应的 `ConnectionFailure`，连接按 S7 转为 `lost`，并用对应原因调用 `markUnavailable`。写入这份记录时 `CatalogStore` 答修订冲突，`refresh` 答 `kept`（`superseded`）；答不可用时答 `unknown`。`discover` 答 `no-answer` 时答 `effect-unknown`；答 `error-answer` 或 `answer-malformed` 时答 `connection-unavailable`，连接转为 `lost`（`discover-failed`）。发布边界核对当前授权失败时，答对应的 `Refusal`，不发布。`CatalogStore` 读取或写入不可用时答 `unknown`，不报告新修订。
+  - 总规则：某个请求的 T8 结论带「传输不再可用」时，连接转为 `lost`，原因取结论的子因（`stream-broken`、`process-exited`、`session-ended`），并以 `connection-unavailable` 调用 `markUnavailable`；`refresh` 答 `connection-unavailable`。下面各条只用于没有这个标记的结论。
+  - 失败：某页或 `discover` 的传输答 `not-sent`（`authorization-required` 或 `connection-unavailable`）时，答对应的 `ConnectionFailure`，连接按 S7 转为 `lost`，并用对应原因调用 `markUnavailable`。写入这份记录时 `CatalogStore` 答修订冲突，`refresh` 答 `kept`（`superseded`）；答不可用时答 `unknown`。`discover` 答 `no-answer` 时答 `effect-unknown`，连接转为 `degraded`（`discover-failed`）；答 `error-answer` 或 `answer-malformed` 时答 `connection-unavailable`，连接转为 `lost`（`discover-failed`）。发布边界核对当前授权失败时，答对应的 `Refusal`，不发布。`CatalogStore` 读取或写入不可用时答 `unknown`，不报告新修订。
 - **S6** 进度与日志通知经调用方给出的观察函数交出，标为不可信，不代替结局。观察函数抛出不影响调用的结局。本组不把通知写进自己的日志：对端日志不经过 `ProcessLanding`，MCP 无法按值遮盖其中的秘密。
 - **S7** `EndpointStatusView` 的连接状态：
   - `none`：本次运行没有这个接入点的连接。`preparing`：正在准备。`ready`：`discover` 已成立。2026-07-28 没有握手与会话：「协商」只指旧对端的 `initialize`，「会话」只对旧对端成立。
   - `degraded`：最近一次非调用请求暂时失败，原因 `discover-failed`（`discover`，含旧一路的 `initialize`）或 `list-failed`（`tools/list`）。
-  - `lost`：连接不再成立，原因如下：`preparation-failed`，准备失败且不属于其他几种；`discover-failed`，`discover` 已发出而最终报出的失败是 `error-answer` 或 `answer-malformed`，按 T8 它可能来自现代一路的 `server/discover`，也可能来自走旧一路后的 `initialize`；`close-unconfirmed`，`release`、`closeAll` 或自动关闭时进程的 `stop()` 答 `root-only` 或 `unconfirmed`；`authorization-required`，对端答需要授权；`process-exited`，stdio 进程退出；`stream-broken`，管道或流断开；`negotiation-invalid`，已记录的 `discover` 或旧对端 `initialize` 的结果不再成立；`session-ended`，传输对旧对端会话上的请求答 `not-sent`（`session-ended`）（T8 S07）。
+  - `lost`：连接不再成立，原因如下：`preparation-failed`，准备失败且不属于其他几种；`discover-failed`，`discover` 已发出而最终报出的失败是 `error-answer` 或 `answer-malformed`，按 T8 它可能来自现代一路的 `server/discover`，也可能来自走旧一路后的 `initialize`；`close-unconfirmed`，`release`、`closeAll` 或自动关闭时进程的 `stop()` 答 `root-only` 或 `unconfirmed`；`authorization-required`，对端答需要授权；`process-exited`，stdio 进程退出；`stream-broken`，管道或流断开且传输不再可用（T8 S01、S03）；`negotiation-invalid`，已记录的 `discover` 或旧对端 `initialize` 的结果不再成立；`session-ended`，传输对旧对端会话上的请求答 `not-sent`（`session-ended`）（T8 S07）。
 
   「确认停止」指 `stop()` 答 `tree-confirmed`。准备失败或关闭后留下的进程与它确认的停止范围只记在 `lost` 状态的 `residual` 上，视图原样反映状态。关闭时确认停止，状态回到 `none`；否则状态是 `lost`（`close-unconfirmed`）并带 `residual`。重建成功或之后确认停止时，`residual` 清除。凭据在视图里报告为：`not-required`，`auth` 是 `none`；`absent`，配值缺失；`invalid`，配值被守卫拒绝；`present`，配值存在。视图不报告凭据值。
 
-- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「要新建连接而不能」相同，因为它们的失败没有「未发出」。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
+- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「不建连接」相同。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
 - **S9** 凭据句柄的取得与释放：每条连接按凭据配值调用一次 `CredentialUse.acquire`，所有 `credential` 来源变量共用这一个进程凭据句柄。进程凭据句柄在进程的 `stop()` 返回之后释放，不论它答哪种范围；准备失败时立即释放。HTTP 凭据句柄随连接关闭释放。关停例外：`closeAll` 时落点仍在途的连接，进程凭据句柄立即释放。之后迟到的进程照样停止一次，句柄不再释放第二次。
 
 ## 所有权、失败与生命周期
@@ -420,33 +423,38 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### `McpTransport` 与 `McpTransportFactory`（T）
 
-传输对一个请求得到什么、交出什么，由 T8 的决策表决定。T1–T7 定义表里用到的词与表外的组成规则，T9 是端口失败的处置。表外不另立结局规则。
+传输对一个请求得到什么、交出什么，由两步决定：`classifyWireEvent` 把读到的线上事件归入 T8 的应答类别，T8 的决策表给出这一类的结论。T1–T7 定义两步用到的词与请求的组成，T5 是取消与关闭的时序，T9 是端口失败的处置。表外不另立结局规则。
 
-- **T1** 传输失败按对端效果分四种：`not-sent`，请求没有对端效果；`no-answer`，请求已离开而没有应答，效果未知；`error-answer`，请求已离开，对端答 JSON-RPC 错误，带错误码、消息与 `data`（如有）；`answer-malformed`，请求已离开，应答读不懂，见 T7。`not-sent` 的原因有三个：`connection-unavailable`；`authorization-required`，带授权发现（R4）；`session-ended`，Streamable HTTP 旧修订上对端结束了会话。`call` 的失败只会是 `not-sent`；调用已发出后，结局经 `answer` 交出。「传输不再可用」指之后的每个请求答 `not-sent`（`connection-unavailable`）。
-- **T2** 「读得懂」的定义。对 `call`、`tasks/update` 与 `tasks/cancel`，任何 JSON-RPC 结果都读得懂；`call` 原样交出结果，不分类，分类由 `classifyOutcome` 完成。对其他请求：
-  - `server/discover`：结果是对象，带 `supportedVersions`（列表，其中的文本项是版本）与 `capabilities`（对象）。读得懂时，有双方共有的版本才算「有共有版本」。
+- **T1** 传输失败按对端效果分四种：`not-sent`，请求没有对端效果；`no-answer`，请求已离开而没有应答，效果未知；`error-answer`，请求已离开，对端答 JSON-RPC 错误，带错误码、消息与 `data`（如有）；`answer-malformed`，请求已离开，应答读不懂，见 T7。`not-sent` 的原因有三个：`connection-unavailable`；`authorization-required`，带授权发现（R4）；`session-ended`，Streamable HTTP 旧修订上对端结束了会话。`call` 的失败只会是 `not-sent`；调用已发出后，结局经 `answer` 交出。「传输不再可用」指之后的每个请求答 `not-sent`（`connection-unavailable`）；T8 中没有写「传输不再可用」的行，传输照常可用。
+- **T2** 应答的判据。这些判据由 `classifyWireEvent` 实现，传输用它归类：
+  - 对本请求的 JSON-RPC 应答：一条 stdio 行或 2xx 正文里的一条消息，是 JSON 对象，`id` 等于本请求的 id，不带 `method`。它的信封合格指 `jsonrpc` 是 `"2.0"`，且恰好带 `result` 与 `error` 之一；信封不合格的应答算读不懂的错误对象。T8 里写「直接」的应答就是这样的应答。
+  - stdio 上不是 JSON 的一行使流断开。是 JSON 但不是对本请求的应答的行：对端的请求按 T3 作答，对端的通知按 T3 处理，其余丢弃。
+  - HTTP 错误状态的正文：是 JSON 对象、信封合格且带 `error` 时，按 `error` 归类，不核 `id`；其余正文记为「纯」。
+  - 错误对象读得懂：是对象，带整数错误码（词形按 O4）与文本 `message`。
+  - 对 `call`、`tasks/update` 与 `tasks/cancel`，任何 JSON-RPC 结果都读得懂；`call` 原样交出结果，不分类，分类由 `classifyOutcome` 完成。`call` 收到读不懂的错误对象时原样交出：信封不合格时交出整条消息。对其他请求：
+  - `server/discover`：结果是对象，带 `supportedVersions`（列表，其中的文本项是版本）与 `capabilities`（对象）。读得懂时，其中有传输会说的现代版本才算「有共有的现代版本」。
   - `initialize`：结果是对象，`protocolVersion` 是 `LEGACY_PROTOCOL_VERSIONS` 里的一项，`capabilities` 是对象。
-  - `tools/list`：结果是对象，带 `tools` 列表；`nextCursor` 缺省或是文本。交出的页：`tools` 是对端的列表，`nextCursor` 与 `ttlMs`（数值）原样。Streamable HTTP 上，`x-mcp-header` 声明不合法的工具（SEP-2243：声明只能出现在经 `properties` 链可静态到达的属性上，值是非空的 RFC 9110 token，属性类型是 `string`、`integer`、`boolean` 或 `number`，名字不区分大小写地唯一）由传输从 `tools` 剔除，列在 `withheld`，每项带工具名（不可信值）与原因 `header-invalid`。stdio 上不核 `x-mcp-header`。C1 不变：交出的页里一项非法，整份仍拒绝。
+  - `tools/list`：结果是对象，带 `tools` 列表；`nextCursor` 缺省或是文本。交出的页：`tools` 是对端的列表，`nextCursor` 原样；`ttlMs` 是非负安全整数时原样交出（词形规则同 O2），否则省略。Streamable HTTP 上，`x-mcp-header` 声明不合法的工具（SEP-2243：声明只能出现在经 `properties` 链可静态到达的属性上，值是非空的 RFC 9110 token，属性类型是 `string`、`integer`、`boolean` 或 `number`，名字不区分大小写地唯一）由传输从 `tools` 剔除，列在 `withheld`，每项带工具名（不可信值）与原因 `header-invalid`。stdio 上不核 `x-mcp-header`。C1 不变：交出的页里一项非法，整份仍拒绝。
   - `tasks/get`：见 T6。
   - 错误对象读得懂：是对象，带整数错误码（词形按 O4）与文本消息。
 - **T3** 请求的组成：
   - 每个请求与通知的 `params._meta` 带 `io.modelcontextprotocol/protocolVersion`、`io.modelcontextprotocol/clientCapabilities` 与 `io.modelcontextprotocol/clientInfo`。`_meta` 的版本是现代修订时，`clientCapabilities` 声明任务扩展 `extensions["io.modelcontextprotocol/tasks"]` 与 `elicitation.form`，不声明 `elicitation.url`、`sampling`、`roots`。版本是旧修订时，`clientCapabilities` 是空对象。现代修订是日期不早于 `FIRST_MODERN_PROTOCOL_VERSION`（`2026-07-28`）的修订。不设 `io.modelcontextprotocol/logLevel`，不发 `logging/setLevel`，不发 `subscriptions/listen`。
   - `_meta` 的协议版本：第一次 `server/discover` 带传输会说的最高现代版本；T8 D04 的再次探测带选出的版本；`initialize` 带它提出的旧版本。协商之后，每个请求与通知带协商出的版本。
-  - Streamable HTTP 上每个请求带 MCP 请求头：`MCP-Protocol-Version` 等于该请求 `_meta` 的协议版本；`Mcp-Method` 是方法名；`Mcp-Name` 只在 `tools/call`（工具名）与 `tasks/get`、`tasks/update`、`tasks/cancel`（`params.taskId`，SEP-2663「Streamable HTTP: Routing Headers」）上带。`initialize` 的应答带 `Mcp-Session-Id` 时，之后的每个请求带同一个 `Mcp-Session-Id`；`initialize` 自己不带。通知不要求带这些头。stdio 上没有请求头。
+  - Streamable HTTP 上每个请求与通知带 MCP 头：`MCP-Protocol-Version` 等于它 `_meta` 的协议版本；`Mcp-Method` 是方法名（[SEP-2243「Standard Headers」](https://modelcontextprotocol.io/seps/2243-http-standardization#standard-headers)，2026-07-28 修订）；`Mcp-Name` 只在 `tools/call`（工具名）与 `tasks/get`、`tasks/update`、`tasks/cancel`（`params.taskId`，SEP-2663「Streamable HTTP: Routing Headers」）上带。`initialize` 的应答带 `Mcp-Session-Id` 时，之后的每个请求与通知带同一个 `Mcp-Session-Id`；`initialize` 自己不带。stdio 上没有这些头。
   - 旧一路的 `initialize`：`protocolVersion` 是 `LEGACY_PROTOCOL_VERSIONS` 的第一项；`capabilities` 是空对象；带 `clientInfo`。读得懂之后发 `notifications/initialized`。
-  - 再次探测的版本：`-32022` 的 `data.supported` 里，双方共有的现代版本中最高的一个。
+  - 再次探测的版本：`-32022` 的 `data.supported` 里，双方共有的现代版本中最高的一个。再次探测是 `discover-retry` 类请求。
   - 探测时限：stdio 上第一次与再次探测各有一个时限，取值由传输的配置给出，不来自打开材料。时限只在传输等待这个探测的应答时计时，应答先到时结束。时限到了以后迟到的应答丢弃。Streamable HTTP 上没有探测时限。
-  - 现代一路读得懂的结果给出对端身份：协议版本取双方共有的最高版本；`serverInfo` 取 `_meta["io.modelcontextprotocol/serverInfo"]`（如有，不可信值）。旧一路的对端身份取自 `initialize` 的结果（`serverInfo` 如有，不可信值）。两条路的 `instructions` 都按打开材料里的 `instructionsByteLimit` 经 `boundInstructions` 处理（S3），带本连接的代际。
+  - 现代一路读得懂的结果给出对端身份：协议版本取双方共有的现代版本中最高的一个；`serverInfo` 取 `_meta["io.modelcontextprotocol/serverInfo"]`（如有，不可信值）。旧一路的对端身份取自 `initialize` 的结果（`serverInfo` 如有，不可信值）。两条路的 `instructions` 都按打开材料里的 `instructionsByteLimit` 经 `boundInstructions` 处理（S3），带本连接的代际。
   - 「走旧一路」指发 `initialize`。T8 的结论写明旧一路也失败时 `discover` 报哪一个失败。S5、S7 的「`discover` 失败 → `lost`（`discover-failed`）」按 `discover` 最终报出的失败成立。
   - 对端发来的请求：`ping` 答空结果，其余请求一律答 JSON-RPC 错误 `-32601`。不分修订，也不分 `notifications/initialized` 之前或之后。
   - `call` 的 `_meta` 另带 `progressToken`，每请求唯一。对端的 `notifications/progress` 带着在途调用的 `progressToken` 时，传输把这条通知的 `params` 原样放进 `untrusted`，经该调用的 `observe` 交出（S6）；`progressToken` 对不上在途调用的通知丢弃。其他通知丢弃。
 - **T4** T8 S05 的授权失败：失败是 `not-sent`（`authorization-required`），带授权发现（R4）。这个请求曾用凭据句柄授权时，传输先调用该句柄的 `reportRejection()` 恰好一次，再报这个失败。T8 S06 的 403 不调用 `reportRejection()`。
-- **T5** 取消与关闭（时序，不在表里）：
-  - `cancelRequest` 不证明对端已停止。stdio 上，以及 Streamable HTTP 旧修订上，它发 `notifications/cancelled`，带 `requestId` 与每请求 `_meta`。Streamable HTTP 现代修订上，它中止该请求的应答流，不另发通知。
+- **T5** 取消与关闭。这些事件与 T8 的应答事件落在同一个请求上时，先发生的那个决定结论，后来的丢弃：
+  - `cancelRequest` 不证明对端已停止。stdio 上，以及 Streamable HTTP 旧修订上，它发 `notifications/cancelled`，带 `requestId` 与每请求 `_meta`，`answer` 继续等应答。Streamable HTTP 现代修订上，它中止该请求的应答流，不另发通知，`answer` 以 `no-answer`（`abandoned`）兑现。
   - `call` 的 `signal` 在调用前已触发时，`call` 答 `not-sent`（`connection-unavailable`）。在发出后触发时，传输不再等待：`answer` 以 `no-answer`（`abandoned`）兑现。取消由调用方经 `cancelRequest` 发出。
   - `close()` 只关闭传输，不停止进程。进程由进程句柄的持有者停止。stdio 的关闭次序：先关 stdin 写端，再取消 stdout 读取。关闭时在途的请求答 `no-answer`（`abandoned`），调用的 `answer` 同样兑现。关闭后的请求答 `not-sent`（`connection-unavailable`）。`close()` 可以重复调用。
 - **T6** 任务操作：
-  - `getTask` 与 `getTaskResult` 都发 `tasks/get`。结果读得懂：是对象，`status` 是 `TaskStatus` 的五个值之一；`input_required` 带 `inputRequests` 对象；`completed` 带 `result`；`failed` 带 `error` 对象（形状不核，原样交出）。任务形状按 SEP-2663 2026-07-28：结果在顶层带 `taskId`、`status`；`tasks/update` 的参数是 `taskId` 与 `inputResponses`；`tasks/cancel` 的参数是 `taskId`；没有 `tasks/list`。
+  - `getTask` 与 `getTaskResult` 都发 `tasks/get`。结果读得懂：是对象，`taskId` 是非空文本，`status` 是 `TaskStatus` 的五个值之一；`input_required` 带 `inputRequests` 对象；`completed` 带 `result`；`failed` 带 `error` 对象（形状不核，原样交出）。任务形状按 SEP-2663 2026-07-28：结果在顶层带 `taskId`、`status`；`tasks/update` 的参数是 `taskId` 与 `inputResponses`；`tasks/cancel` 的参数是 `taskId`；没有 `tasks/list`。
   - `getTask` 交出 `status`、`input_required` 时的 `inputRequests`（不可信值），以及提示 `pollIntervalMs`、`ttlMs`、`statusMessage`（各自如有，规则同 O2）。它不交出任务的结果。
   - `getTaskResult`：`completed` 的 `result` 与 `failed` 的 `error` 作为 `finished` 的原样应答交出；`cancelled` 答 `cancelled`；其他状态答 `not-finished`。
   - `updateTask` 对端确认后答 `accepted`，`cancelTask` 对端确认后答 `requested`。两者都只是确认，终态经 `getTask` 得知。
@@ -454,7 +462,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **T7** `answer-malformed` 的 `what`，每个值只在 T8 的对应行出现：
   - `discover-shape`：D03、D05、I02。
   - `tools-missing`：L02。`cursor-invalid`：L03。
-  - `status-unknown`：G02。`input-requests-missing`：G03。`result-missing`：G04。`error-missing`：G05，`failed` 的 `error` 缺失或不是对象，传输不编造错误。
+  - `status-unknown`：G02，结果不是对象、`taskId` 缺失或不是非空文本，或 `status` 不在五个值里。`input-requests-missing`：G03。`result-missing`：G04。`error-missing`：G05，`failed` 的 `error` 缺失或不是对象，传输不编造错误。
   - `error-shape`：D11、I04、O03，JSON-RPC 错误对象读不懂（T2）。`call` 收到的错误对象不在这里判断，原样交出（C02）。
 
 <a id="t8"></a>
@@ -462,13 +470,22 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **T8** 决策表。输入域是「材料 × 请求类别 × 应答类别」的全部组合，每个组合恰好落在下表一行，每行一个结论。
   - 材料：stdio；HTTP（Streamable HTTP）。
   - 请求类别：`discover`（连接的第一次 `server/discover`）；`discover-retry`（D04 之后的再次探测）；`initialize`；`tools/list`；`tools/call`；`tasks/get`（`getTask` 与 `getTaskResult`）；`tasks/update`；`tasks/cancel`；通知（客户端发出的 `notifications/initialized`、`notifications/cancelled`）。
-  - 应答类别：JSON-RPC 结果，按 T2、T6 分为读得懂与各种读不懂；JSON-RPC 错误，按码分为 `-32020`、`-32021`、`-32022`（按 `data.supported` 再分三种，见 D04–D06）、`-32601`、`-32602`、其他码，以及读不懂的错误对象；流断开（stdio 上管道断开或出现非 JSON 行，HTTP 上应答流断开）；没有应答；进程退出（只在 stdio）；HTTP 上另有 401、403 带 `error="insufficient_scope"`、其他 403、2xx 而没有对这个请求的 JSON-RPC 应答、带旧会话的 404，以及 400、404、405、406、415、429、其他 4xx、5xx 各自按正文再分（正文是哪一码的 JSON-RPC 错误、读不懂的错误对象，或不是 JSON-RPC 错误，记为「纯」）。通知没有 JSON-RPC 应答。
-  - 记号：`E(码)` 指该码的 JSON-RPC 错误；「4xx」指 400、404、405、406、415、429 与其他 4xx；「5xx」指 500 及以上；「4xx+码」「5xx+码」指正文是该码的 JSON-RPC 错误；「+纯」指正文不是 JSON-RPC 错误。「旧一路，报旧」指走旧一路，旧一路也失败时报旧一路的失败；「旧一路，报本行」指旧一路也失败时报本行写的失败。
+  - 应答类别是根导出的 `classifyWireEvent(event, context)` 的值域：它是纯全函数，把一个线上事件（`WireEvent`）对一个请求（`WireContext`）归入下列一类，或答 `other`（stdio 上与本请求无关的行）、`waiting`（2xx 的流还开着而没有本请求的应答，还不是任何一类）。各类：
+    - 请求离开之前失败：HTTP 上连接失败（DNS、连接被拒、TLS 握手失败）；stdio 上写请求时管道已断或进程已退出。
+    - JSON-RPC 结果，按 T2、T6 分为读得懂与各种读不懂。JSON-RPC 错误，按码分为 `-32020`、`-32021`、`-32022`（按 `data.supported` 再分三种，见 D04–D06）、`-32601`、`-32602`、其他码，以及读不懂的错误对象（含信封不合格的应答）。
+    - 流断开：stdio 上 stdout 结束（见进程退出）或出现非 JSON 行；HTTP 上请求开始发出之后、收到应答头之前失败（连接被重置、超时），以及 2xx 的应答流中断。
+    - 没有应答：传输停止等待时，本请求什么也没收到（stdio 的探测时限到、`close()`、`signal`）。
+    - 进程退出（只在 stdio）：根进程退出。stdout 结束与根进程退出都发生时，退出不晚于 stdout 结束之后 `PROCESS_EXIT_WINDOW_MS`（100 毫秒）的记为进程退出，否则记为流断开。
+    - HTTP 上另有：401；403 带 `error="insufficient_scope"`；其他 403；2xx 而应答体已结束、没有本请求的应答；404 而请求带着旧会话的 `Mcp-Session-Id`；以及 400、404、405、406、415、429、「4xx」（其余 3xx 与 4xx）、「5xx」（500 及以上）各自按正文再分（正文按 T2 归为哪一码的错误、读不懂的错误对象，或「纯」）。传输不跟随重定向；3xx 归入「4xx」。1xx 观察不到，不在域里。
+    - 通知没有 JSON-RPC 应答。
+  - 记号：「直接」指 T2 的对本请求的应答；`E(码)` 指该码的 JSON-RPC 错误；「4xx」指 400、404、405、406、415、429 与其余 3xx、4xx，不含 401、403 与带旧会话的 404；「5xx」指 500 及以上；「4xx+码」「5xx+码」指正文是该码的 JSON-RPC 错误；「+纯」指正文按 T2 是「纯」。「旧一路，报旧」指走旧一路，旧一路也失败时报旧一路的失败；「旧一路，报本行」指旧一路也失败时报本行写的失败。
+  - 走旧一路时，`initialize` 按 I 行与 S、X 行得出结论；那一行写的 `reportRejection()` 与「传输不再可用」照样生效，以那一行为准。
+  - D15、O05 再发的请求保持原来的请求类别，它的应答重新归类；再发的请求不再适用 D15、O05，再断开时是 `no-answer`（`stream-broken`）。
 
 | 行  | 材料  | 请求                                         | 应答                                                                           | 结论                                                                                   |
 | --- | ----- | -------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| D01 | 两者  | `discover`、`discover-retry`                 | 结果读得懂，有共有版本                                                         | 对端身份（T3）                                                                         |
-| D02 | 两者  | `discover`、`discover-retry`                 | 结果读得懂，没有共有版本                                                       | 旧一路，报旧                                                                           |
+| D01 | 两者  | `discover`、`discover-retry`                 | 结果读得懂，有共有的现代版本                                                   | 对端身份（T3）                                                                         |
+| D02 | 两者  | `discover`、`discover-retry`                 | 结果读得懂，没有共有的现代版本                                                 | 旧一路，报旧                                                                           |
 | D03 | 两者  | `discover`、`discover-retry`                 | 结果读不懂                                                                     | 旧一路，报本行：`answer-malformed`（`discover-shape`）                                 |
 | D04 | 两者  | `discover`                                   | `E(-32022)`，`supported` 有双方共有的现代版本；直接或 4xx+码                   | 以 T3 选出的版本再探测一次（`discover-retry`）                                         |
 | D05 | 两者  | `discover`                                   | `E(-32022)`，`supported` 有现代版本而没有共有的；直接或 4xx+码                 | `answer-malformed`（`discover-shape`）                                                 |
@@ -520,12 +537,14 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 | S05 | HTTP  | 除通知外的各类                               | 401；403 带 `error="insufficient_scope"`                                       | `not-sent`（`authorization-required`），带授权发现；`reportRejection()` 恰好一次（T4） |
 | S06 | HTTP  | 除通知外的各类                               | 其他 403                                                                       | `not-sent`（`connection-unavailable`）；不调用 `reportRejection()`                     |
 | S07 | HTTP  | `tools/list`、`tools/call`、三个任务请求     | 404，请求带着旧会话的 `Mcp-Session-Id`（任何正文）                             | `not-sent`（`session-ended`）；传输不再可用                                            |
+| X01 | HTTP  | 除通知外的各类                               | 请求离开之前失败                                                               | `not-sent`（`connection-unavailable`）                                                 |
+| X02 | stdio | 除通知外的各类                               | 请求离开之前失败                                                               | `not-sent`（`connection-unavailable`）；传输不再可用                                   |
 | N01 | 两者  | 通知                                         | 任何应答                                                                       | 没有结局；发出通知的操作照常继续                                                       |
 
 <a id="t8-end"></a>
 
 - **T9** 端口失败。传输的方法应以 `Outcome` 答复；以 reject 失败或同步抛出都违反契约，两者按同一规则处置：
-  - 服务的处置：`open` 失败当作 `not-sent`（`connection-unavailable`）；`discover`、`listActions`、任务操作、`call` 与 `SentCall.answer` 失败当作该请求效果未知，`no-answer`（`abandoned`）；`cancelRequest` 失败忽略；`close` 失败当作已关闭，见 S9。
+  - 服务的处置：`open` 失败当作 `not-sent`（`connection-unavailable`）；`discover`、`listActions`、任务操作、`call` 与 `SentCall.answer` 失败当作该请求效果未知，`no-answer`（`abandoned`）；`cancelRequest` 失败忽略；`close` 失败当作已关闭，继续拆除，见[端口 reject 的处置](#ownership-rejects)。
   - 传输对凭据句柄的处置：`authorize` 失败时请求不发出，答 `not-sent`（`connection-unavailable`）；`reportRejection` 失败时忽略，仍报 `authorization-required`。
 
 <a id="sdk-2-4-0"></a>
@@ -534,18 +553,19 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 T3 与 T8 引用的 SDK 行为，按仓库采用的 `@modelcontextprotocol/client` 与 `@modelcontextprotocol/core` 2.4.0 的发布产物逐处核对。路径相对于包根。
 
-| SDK 行为                    | 位置（2.4.0）                                                                                                  | 本页                                | 关系                                                                                                                                                                                        |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 现代修订的下界与判断        | client `dist/src-CeKsbNLO.mjs:474` `FIRST_MODERN_PROTOCOL_VERSION`，`:483` `isModernProtocolVersion`           | T3、`FIRST_MODERN_PROTOCOL_VERSION` | 相同                                                                                                                                                                                        |
-| 旧修订列表                  | core `dist/schemas-DscsoNZN.mjs:6` `SUPPORTED_PROTOCOL_VERSIONS`                                               | `LEGACY_PROTOCOL_VERSIONS`          | 相同                                                                                                                                                                                        |
-| 探测结果的分类              | client `dist/public-CvV4ZHkX.mjs:2059` `classifyResult`                                                        | D01–D03                             | 回退的决定相同；读不懂时 SDK 不区分报哪一路，本页报 `discover-shape`                                                                                                                        |
-| `-32022` 与其他错误码的分类 | client `dist/public-CvV4ZHkX.mjs:2078` `classifyRpcError`，`:2143` `parseSupportedList`                        | D04–D10                             | 相同，`-32020`、`-32021` 除外：SDK 判旧对端，本页 D08 答 `error-answer`                                                                                                                     |
-| HTTP 状态的分类             | client `dist/public-CvV4ZHkX.mjs:2106` `classifyHttpError`，`:2154` `parseJsonRpcErrorBody`                    | D12、D16、S05、S06                  | 相同                                                                                                                                                                                        |
-| 探测时连接关闭、超时        | client `dist/public-CvV4ZHkX.mjs:2048`、`:2051`（`classifyProbeOutcome`，`:2034`）                             | S01、S02、D13、D14、D15             | stdio 超时相同（D13）。stdio 连接关闭：SDK 为旧一路另起子进程并回退，本页 S01、S02 失败，因为传输不拥有进程。HTTP 网络错误与超时：SDK 失败，本页先按 D15 再发一次，再失败；不回退这一点相同 |
-| 旧一路的版本检查            | client `dist/public-CvV4ZHkX.mjs:2975` `Client._legacyHandshake`（`:2989`）                                    | I02                                 | 相同                                                                                                                                                                                        |
-| 现代请求的 400 正文当作应答 | client `dist/index.mjs:1767`（`StreamableHTTPClientTransport._send`），`:1467` `_isModernEnvelopedRequest`     | I03、O01、O02、G06、C02             | 本页对 4xx 与 5xx 的 JSON-RPC 错误正文都当作应答，不核正文的 `id`；SDK 只读 400，且要求 `id` 相同                                                                                           |
-| MCP 请求头                  | client `dist/index.mjs:1452` `_applyBodyDerivedHeaders`；`dist/src-CeKsbNLO.mjs:4710` `MCP_NAME_HEADER_SOURCE` | T3                                  | 相同。SDK 只在带 `_meta` 版本的请求上发这些头；本页每个请求都带 `_meta`，所以每个 HTTP 请求都带                                                                                             |
-| 会话头                      | client `dist/index.mjs:1440`、`:1703`、`:1725`                                                                 | T3、S07                             | 回带相同；SDK 不读 404 会话失效，本页 S07                                                                                                                                                   |
+| SDK 行为                    | 位置（2.4.0）                                                                                                  | 本页                                | 关系                                                                                                                                                          |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 现代修订的下界与判断        | client `dist/src-CeKsbNLO.mjs:474` `FIRST_MODERN_PROTOCOL_VERSION`，`:483` `isModernProtocolVersion`           | T3、`FIRST_MODERN_PROTOCOL_VERSION` | 相同                                                                                                                                                          |
+| 旧修订列表                  | core `dist/schemas-DscsoNZN.mjs:6` `SUPPORTED_PROTOCOL_VERSIONS`                                               | `LEGACY_PROTOCOL_VERSIONS`          | 相同                                                                                                                                                          |
+| 探测结果的分类              | client `dist/public-CvV4ZHkX.mjs:2059` `classifyResult`                                                        | D01–D03                             | 回退的决定相同；读不懂时 SDK 不区分报哪一路，本页报 `discover-shape`                                                                                          |
+| `-32022` 与其他错误码的分类 | client `dist/public-CvV4ZHkX.mjs:2078` `classifyRpcError`，`:2143` `parseSupportedList`                        | D04–D10                             | 相同，`-32020`、`-32021` 除外：SDK 判旧对端，本页 D08 答 `error-answer`                                                                                       |
+| HTTP 状态的分类             | client `dist/public-CvV4ZHkX.mjs:2106` `classifyHttpError`，`:2154` `parseJsonRpcErrorBody`                    | D12、D16、S05、S06                  | 状态的分法相同。正文的读法不同：SDK 不要求 `jsonrpc`，码是数就按码分类，缺 `message` 也按码分类；本页按 T2 的信封与错误对象判据，不合格的正文是「纯」或读不懂 |
+| 探测时连接关闭、超时        | client `dist/public-CvV4ZHkX.mjs:2048`、`:2051`（`classifyProbeOutcome`，`:2034`）                             | S01、S02、D13、D15                  | stdio 超时相同（D13）。stdio 连接关闭：SDK 为旧一路另起子进程并回退，本页 S01、S02 不回退。HTTP 应答流断开：SDK 失败，本页按 D15 再发一次；两者都不回退       |
+| 探测时的网络错误            | client `dist/public-CvV4ZHkX.mjs:2130` `classifyNetworkError`                                                  | X01、D15                            | 都不回退。SDK 不区分请求离开前后；本页离开前失败是 X01，离开后失败是流断开（D15）                                                                             |
+| 旧一路的版本检查            | client `dist/public-CvV4ZHkX.mjs:2975` `Client._legacyHandshake`（`:2989`）                                    | I02                                 | 相同                                                                                                                                                          |
+| 现代请求的 400 正文当作应答 | client `dist/index.mjs:1767`（`StreamableHTTPClientTransport._send`），`:1467` `_isModernEnvelopedRequest`     | T2、I03、O01、O02、G06、C02         | 不同：SDK 只读 400 的正文，且要求 `id` 相同；本页读 4xx 与 5xx 的正文，不核 `id`（T2）                                                                        |
+| MCP 请求头                  | client `dist/index.mjs:1452` `_applyBodyDerivedHeaders`；`dist/src-CeKsbNLO.mjs:4710` `MCP_NAME_HEADER_SOURCE` | T3                                  | `Mcp-Name` 的来源相同。SDK 只在带 `_meta` 版本的请求上发这些头，通知不发；本页每个请求与通知都发（T3）                                                        |
+| 会话头                      | client `dist/index.mjs:1440`、`:1703`、`:1725`                                                                 | T3、S07                             | 回带相同。SDK 不把 404 读成会话失效                                                                                                                           |
 
 <a id="protocol-deviations"></a>
 
@@ -568,6 +588,11 @@ T3 与 T8 引用的 SDK 行为，按仓库采用的 `@modelcontextprotocol/clien
 - 会话失效答 `not-sent`（`session-ended`）：对端不认识这个会话，请求没有被处理。服务据此报 `lost`（`session-ended`），见 S7。
 - 旧一路不声明能力：旧修订的能力会让对端向客户端发请求，而本组拒绝这类请求（T3），声明了也不会兑现。
 - 旧修订 HTTP 上的取消发通知：2025 修订里断开应答流不是取消。
+- `closeAll` 之后任务操作答 `effect-unknown`（`no-connection`）：任务操作的失败类型里没有「未发出」。
+- 进程退出的时间窗：进程崩溃时 stdout 结束与进程退出几乎同时发生，取能如实报出原因的一方；100 毫秒覆盖常见的调度延迟，又短于人能察觉的等待。
+- 请求离开之前的失败答 `not-sent`：请求没有到达对端。stdio 上写不进去说明管道已断，传输不再可用；HTTP 上下一个请求可以再连。
+- 3xx 归入「4xx」：传输不跟随重定向，重定向的目标不在本组核过的连接目标之内。
+- `cancelTask` 复用连接时不核：取消只减少效果。
 
 <a id="failure-codes"></a>
 
@@ -640,4 +665,4 @@ T3 与 T8 引用的 SDK 行为，按仓库采用的 `@modelcontextprotocol/clien
 ### 未封闭项
 
 - 组页第 601 行：资产的 `deriveDeclarations(body, context)` 拿不到 MCP 动作清单，逐动作权限项不能经类别端口派生。本成员只提供 `actionPermissionItems`。拥有者：资产 SPEC 的拥有者与本成员的维护者。
-- C1 对 `inputSchema` 的容错：本组不比协议与官方 SDK 更严，「`inputSchema` 必须是 `type` 为 `"object"` 的对象」不作为 C1 的拒绝条件；不符的工具怎样处置还没有决定。拥有者：`@omne-harness/mcp` 的调用口实现（`w3-mcp-call`）。
+- C1 对 `inputSchema` 的容错：本组不比协议与官方 SDK 更严，「`inputSchema` 必须是 `type` 为 `"object"` 的对象」不作为 C1 的拒绝条件；不符的工具怎样处置还没有决定。拥有者：`@omne-harness/mcp` 的调用口实现。

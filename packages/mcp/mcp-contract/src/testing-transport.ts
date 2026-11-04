@@ -9,15 +9,19 @@ import { boundInstructions } from './instructions.ts'
 import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
 import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
 import {
-  ERROR_CLASSES,
   TRANSPORT_TABLE,
   cellsOf,
-  type ErrorClass,
   type ExpectedFailure,
-  type RequestClass,
   type TableCell,
   type TableConclusion,
 } from './testing-transport-table.ts'
+import {
+  ERROR_CLASSES,
+  classifyWireEvent,
+  type ErrorClass,
+  type RequestClass,
+  type WireEvent,
+} from './wire.ts'
 import { NotApplicable, conformanceCase, type ConformanceCase } from './testing-case.ts'
 import { actionNameOf, jsonOf } from './testing-values.ts'
 import type {
@@ -50,7 +54,8 @@ export type PeerNotificationScript = Readonly<{ method: string; params?: PlainJs
  * `initialize`. `silent` never answers. `stream-breaks` breaks the answer stream (on stdio: the
  * pipe) before an answer. `process-exits` ends the stdio process before an answer. `http` answers
  * at the HTTP level, on Streamable HTTP only: a 2xx without a JSON-RPC answer, or an error status
- * with its headers and body.
+ * with its headers and body. `unsent` fails the request before it leaves: the connection fails on
+ * Streamable HTTP, the pipe is broken on stdio; the peer does not see the request.
  */
 export type PeerReply =
   | Readonly<{
@@ -60,6 +65,7 @@ export type PeerReply =
       headers?: Readonly<{ [name: string]: string }>
     }>
   | Readonly<{ kind: 'error'; error: PlainJson }>
+  | Readonly<{ kind: 'unsent' }>
   | Readonly<{ kind: 'silent' }>
   | Readonly<{ kind: 'stream-breaks' }>
   | Readonly<{ kind: 'process-exits' }>
@@ -128,7 +134,12 @@ export type PeerReceived =
       params?: PlainJson
       headers?: PeerRequestHeaders
     }>
-  | Readonly<{ kind: 'notification'; method: string; params?: PlainJson }>
+  | Readonly<{
+      kind: 'notification'
+      method: string
+      params?: PlainJson
+      headers?: PeerRequestHeaders
+    }>
   /** The client's answer to a request the peer sent. */
   | Readonly<{ kind: 'response'; id: string; result?: PlainJson; error?: PlainJson }>
   /** Streamable HTTP: the client ended the answer stream of request `id`. */
@@ -387,7 +398,7 @@ function assertEnvelopes(peer: ScriptedPeer, received: readonly PeerReceived[]):
         `${entry.method}: a capability is declared on a legacy revision`,
       )
     assert.strictEqual(meta[LOG_LEVEL_KEY], undefined, `${entry.method}: logLevel set`)
-    if (entry.kind === 'request' && peer.material.kind === 'streamable-http')
+    if (peer.material.kind === 'streamable-http')
       assert.deepStrictEqual(
         {
           'mcp-protocol-version': entry.headers?.['mcp-protocol-version'],
@@ -397,9 +408,9 @@ function assertEnvelopes(peer: ScriptedPeer, received: readonly PeerReceived[]):
         {
           'mcp-protocol-version': version,
           'mcp-method': entry.method,
-          'mcp-name': mcpNameOf(entry),
+          'mcp-name': entry.kind === 'request' ? mcpNameOf(entry) : undefined,
         },
-        `${entry.method}: the MCP request headers`,
+        `${entry.method}: the MCP headers`,
       )
   }
   assert.deepStrictEqual(requests(received, 'logging/setLevel'), [], 'logging/setLevel was sent')
@@ -528,7 +539,13 @@ function errorObjects(code: ErrorClass, fixture: TransportFixture): readonly Pla
         { code: -32001, message: 'Session not found' },
       ]
     case 'unreadable':
-      return [{ message: 'no code' }, { code: 1.5, message: 'fraction' }, { code: -32603 }]
+      return [
+        { message: 'no code' },
+        { code: 1.5, message: 'fraction' },
+        { code: -32603 },
+        { code: -32603, message: 7 },
+        'not an object',
+      ]
     default: {
       const exhaustive: never = code
       return exhaustive
@@ -586,20 +603,32 @@ function resultValues(
       ]
     case 'tasks/get|result':
       return [
-        { status: 'working' },
-        { status: 'input_required', inputRequests: {} },
-        { status: 'completed', result: DONE },
-        { status: 'failed', error: { code: -32603, message: 'failed' } },
-        { status: 'cancelled' },
+        { taskId: 't1', status: 'working' },
+        { taskId: 't1', status: 'input_required', inputRequests: {} },
+        { taskId: 't1', status: 'completed', result: DONE },
+        { taskId: 't1', status: 'failed', error: { code: -32603, message: 'failed' } },
+        { taskId: 't1', status: 'cancelled' },
       ]
     case 'tasks/get|result:status-unknown':
-      return [{ status: 'paused' }, {}, [1]]
+      return [
+        { taskId: 't1', status: 'paused' },
+        { taskId: 't1' },
+        { status: 'working' },
+        { taskId: '', status: 'working' },
+        [1],
+      ]
     case 'tasks/get|result:input-requests-missing':
-      return [{ status: 'input_required' }, { status: 'input_required', inputRequests: 'x' }]
+      return [
+        { taskId: 't1', status: 'input_required' },
+        { taskId: 't1', status: 'input_required', inputRequests: 'x' },
+      ]
     case 'tasks/get|result:result-missing':
-      return [{ status: 'completed' }]
+      return [{ taskId: 't1', status: 'completed' }]
     case 'tasks/get|result:error-missing':
-      return [{ status: 'failed' }, { status: 'failed', error: 'not an object' }]
+      return [
+        { taskId: 't1', status: 'failed' },
+        { taskId: 't1', status: 'failed', error: 'not an object' },
+      ]
     case 'tasks/update|result':
     case 'tasks/cancel|result':
       return [{}, { resultType: 'complete' }]
@@ -608,7 +637,13 @@ function resultValues(
   }
 }
 
-const HTTP_ANSWER = /^http:(\d+)\+(.+)$/u
+const HTTP_ANSWER = /^http:(\w+)\+(.+)$/u
+
+/** The statuses that stand for an HTTP status class in the samples. */
+const STATUSES_OF: Readonly<{ [statusClass: string]: readonly number[] }> = {
+  '4xx': [418, 302],
+  '5xx': [500, 503],
+}
 
 function isErrorClass(text: string): text is ErrorClass {
   return ERROR_CLASSES.some(code => code === text)
@@ -617,6 +652,7 @@ function isErrorClass(text: string): text is ErrorClass {
 /** The replies of a peer for one cell of the table. */
 function repliesOf(cell: TableCell, fixture: TransportFixture): readonly PeerReply[] {
   const { request, answer } = cell
+  if (answer === 'unsent') return [{ kind: 'unsent' }]
   if (answer === 'stream-broken') return [STREAM_BREAKS]
   if (answer === 'silent') return [SILENT]
   if (answer === 'process-exited') return [PROCESS_EXITS]
@@ -644,15 +680,28 @@ function repliesOf(cell: TableCell, fixture: TransportFixture): readonly PeerRep
     return [httpError(404, -32001, 'Session not found'), { kind: 'http', status: 404 }]
   const http = HTTP_ANSWER.exec(answer)
   if (http !== null) {
-    const status = Number(http[1])
+    const statusClass = http[1] ?? ''
+    const statuses = STATUSES_OF[statusClass] ?? [Number(statusClass)]
     const body = http[2] ?? ''
-    if (body === 'plain') return [{ kind: 'http', status, body: `HTTP ${status}` }]
+    if (body === 'plain')
+      return statuses.flatMap((status): readonly PeerReply[] => [
+        { kind: 'http', status, body: `HTTP ${status}` },
+        // Not an envelope (T2): no "jsonrpc", or both result and error.
+        { kind: 'http', status, body: '{"error":{"code":-32602,"message":"x"}}' },
+        {
+          kind: 'http',
+          status,
+          body: '{"jsonrpc":"2.0","id":null,"result":{},"error":{"code":-32602,"message":"x"}}',
+        },
+      ])
     assert.ok(isErrorClass(body), `unknown body class ${body}`)
-    return errorObjects(body, fixture).map(object => ({
-      kind: 'http',
-      status,
-      body: JSON.stringify({ jsonrpc: '2.0', id: null, error: object }),
-    }))
+    return statuses.flatMap(status =>
+      errorObjects(body, fixture).map((object): PeerReply => ({
+        kind: 'http',
+        status,
+        body: JSON.stringify({ jsonrpc: '2.0', id: null, error: object }),
+      })),
+    )
   }
   if (answer.startsWith('error:')) {
     const code = answer.slice('error:'.length)
@@ -660,6 +709,45 @@ function repliesOf(cell: TableCell, fixture: TransportFixture): readonly PeerRep
     return errorObjects(code, fixture).map(object => ({ kind: 'error', error: object }))
   }
   return resultValues(request, answer, fixture).map(value => result(value))
+}
+
+/** The wire event a reply makes for request `x` (T8): a line, a stream, a status, an end. */
+function eventOf(reply: PeerReply, cell: TableCell): WireEvent {
+  const stdio = cell.kind === 'stdio'
+  const message = (member: Readonly<{ [key: string]: PlainJson }>): WireEvent => {
+    const text = JSON.stringify({ jsonrpc: '2.0', id: 'x', ...member })
+    return stdio ? { kind: 'line', text } : { kind: 'http-stream', messages: [text], ended: true }
+  }
+  switch (reply.kind) {
+    case 'result':
+      return message({ result: reply.result })
+    case 'error':
+      return message({ error: reply.error })
+    case 'unsent':
+      return { kind: 'unsent' }
+    case 'silent':
+      return { kind: 'nothing' }
+    case 'stream-breaks':
+      return stdio ? { kind: 'stdio-ended', stdoutEndedAt: 0 } : { kind: 'http-aborted' }
+    case 'process-exits':
+      return { kind: 'stdio-ended', stdoutEndedAt: 0, exitedAt: 20 }
+    case 'http': {
+      if (reply.status >= 200 && reply.status < 300)
+        return {
+          kind: 'http-stream',
+          messages: reply.body === undefined ? [] : [reply.body],
+          ended: true,
+        }
+      const headers = Object.fromEntries(
+        Object.entries(reply.headers ?? {}).map(([name, value]) => [name.toLowerCase(), value]),
+      )
+      return { kind: 'http-status', status: reply.status, headers, body: reply.body ?? '' }
+    }
+    default: {
+      const exhaustive: never = reply
+      return exhaustive
+    }
+  }
 }
 
 /** The JSON-RPC error a reply carries, directly or as the body of an HTTP answer. */
@@ -760,7 +848,7 @@ function driveOf(request: RequestClass, fixture: TransportFixture): Drive {
         method: 'tasks/get',
         script: replies => ({ tasks: { t1: { get: replies } } }),
         run: transport => transport.getTask(taskId('t1')),
-        ok: result({ status: 'working' }),
+        ok: result({ taskId: 't1', status: 'working' }),
       }
     case 'tasks/update':
       return {
@@ -884,7 +972,7 @@ async function checkProbe(
   const [common] = errorObjects('-32022+common', fixture)
   const before: readonly PeerReply[] =
     cell.request === 'discover-retry' ? [{ kind: 'error', error: common ?? null }] : []
-  const sent = before.length + 1
+  const sent = before.length + (reply.kind === 'unsent' ? 0 : 1)
   const discovers = async (peer: ScriptedPeer) => requests(await peer.received(), 'server/discover')
   const initializes = async (peer: ScriptedPeer) => requests(await peer.received(), 'initialize')
   switch (conclusion.kind) {
@@ -1017,7 +1105,8 @@ async function checkCall(
         else assert.deepStrictEqual(answer, { kind: 'no-answer', cause: conclusion.answer })
       }
       const received = await peer.received()
-      assert.strictEqual(requests(received, 'tools/call').length, 1, 'tools/call was sent again')
+      const left = reply.kind === 'unsent' ? 0 : 1
+      assert.strictEqual(requests(received, 'tools/call').length, left, 'tools/call was sent again')
       if (session) assertSession(received, 'tools/call')
       await afterwards(transport)
     },
@@ -1085,7 +1174,8 @@ async function checkOperation(
           await transport.close()
         }
         assertFailure(failure(await pending, drive.method), conclusion.failure, reply)
-        assert.strictEqual(await count(peer), 1, `${drive.method} was sent again`)
+        const left = reply.kind === 'unsent' ? 0 : 1
+        assert.strictEqual(await count(peer), left, `${drive.method} was sent again`)
         const again =
           reply.kind !== 'silent' && conclusion.unusable !== true && conclusion.rejection !== true
         if (cell.request === 'tasks/get' && again)
@@ -1143,6 +1233,16 @@ function tableCases(): readonly Case[] {
         for (const cell of cells)
           for (const reply of repliesOf(cell, fixture))
             try {
+              assert.deepStrictEqual(
+                classifyWireEvent(eventOf(reply, cell), {
+                  id: 'x',
+                  request: cell.request,
+                  session: cell.answer === 'http:404+session',
+                  versions: fixture.protocolVersions,
+                }),
+                { kind: 'answer', answer: cell.answer },
+                'classifyWireEvent puts the sample into another class',
+              )
               await checkCell(fixture, cell, reply, row.conclusion)
             } catch (error) {
               if (error instanceof assert.AssertionError)
@@ -1216,7 +1316,7 @@ const t2Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T2',
-    'listActions: the page carries the tools, the next cursor and the ttl as written',
+    'listActions: the page carries the tools, the next cursor and the ttl as written; a ttl that is not a non-negative safe integer is left out',
     async fixture =>
       withPeer(
         fixture,
@@ -1224,6 +1324,8 @@ const t2Cases = (): readonly Case[] => [
           listing: {
             '': result({ tools: [TOOL], nextCursor: 'p2', ttlMs: 30 }),
             p2: result({ tools: [{ name: 'other', inputSchema: { type: 'object' } }] }),
+            p3: result({ tools: [], ttlMs: -1 }),
+            p4: result({ tools: [], ttlMs: 1.5 }),
           },
         },
         {},
@@ -1235,6 +1337,11 @@ const t2Cases = (): readonly Case[] => [
           const second = ok(await transport.listActions('p2'), 'listActions')
           assert.strictEqual(second.nextCursor, undefined)
           assert.strictEqual(second.ttlMs, undefined)
+          for (const cursor of ['p3', 'p4'])
+            assert.strictEqual(
+              ok(await transport.listActions(cursor), 'listActions').ttlMs,
+              undefined,
+            )
           const [, next] = requests(await peer.received(), 'tools/list')
           assert.strictEqual(at(next?.params, 'cursor'), 'p2')
         },
@@ -1301,7 +1408,7 @@ const t3Cases = (): readonly Case[] => [
         {
           calls: { echo: result(DONE) },
           listing: { '': result({ tools: [] }) },
-          tasks: { t1: { get: result({ status: 'working' }) } },
+          tasks: { t1: { get: result({ taskId: 't1', status: 'working' }) } },
         },
         {},
         async (peer, transport) => {
@@ -1329,7 +1436,7 @@ const t3Cases = (): readonly Case[] => [
         {
           calls: { echo: result(DONE) },
           listing: { '': result({ tools: [] }) },
-          tasks: { t1: { get: result({ status: 'working' }) } },
+          tasks: { t1: { get: result({ taskId: 't1', status: 'working' }) } },
         },
         { kind: 'streamable-http' },
         async (peer, transport) => {
@@ -1451,7 +1558,7 @@ const t3Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T3',
-    'streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)',
+    'streamable-http: on the legacy path each later request and notification carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)',
     async fixture => {
       const negotiated = LEGACY_PROTOCOL_VERSIONS[1]
       await withPeer(
@@ -1486,6 +1593,8 @@ const t3Cases = (): readonly Case[] => [
           ])
           const [initialize] = requests(received, 'initialize')
           assert.strictEqual(initialize?.headers?.['mcp-session-id'], undefined)
+          const [initialized] = notifications(received, 'notifications/initialized')
+          assert.strictEqual(initialized?.headers?.['mcp-session-id'], 'session-1')
         },
       )
     },
@@ -1506,7 +1615,7 @@ const t3Cases = (): readonly Case[] => [
           initialize: LEGACY,
           listing: { '': result({ tools: [] }) },
           calls: { echo: result(DONE) },
-          tasks: { t1: { get: result({ status: 'working' }) } },
+          tasks: { t1: { get: result({ taskId: 't1', status: 'working' }) } },
         },
         {},
         async (peer, transport) => {
@@ -1972,7 +2081,7 @@ const t5Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T5',
-    'streamable-http: cancelRequest ends the answer stream and sends no notification (item 9)',
+    'streamable-http: cancelRequest ends the answer stream, answer settles no-answer (abandoned), and no notification is sent (item 9)',
     async fixture =>
       withPeer(
         fixture,
@@ -1981,6 +2090,7 @@ const t5Cases = (): readonly Case[] => [
         async (peer, transport) => {
           const sent = ok(await transport.call(echo, never), 'call')
           await transport.cancelRequest(sent.requestId)
+          assert.deepStrictEqual(await sent.answer, { kind: 'no-answer', cause: 'abandoned' })
           const received = await peer.received()
           assert.deepStrictEqual(
             received.filter(entry => entry.kind === 'stream-aborted'),

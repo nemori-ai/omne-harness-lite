@@ -62,7 +62,7 @@ for (const conformance of mcpCatalogStoreConformance())
 
 ## 设计
 
-模块：`brands`、`values`、`args`、`json`、`endpoint`、`listing`、`catalog`、`classify`、`content`、`instructions`、`revisions`、`keys`、`outcomes`、`ports`、`transport`、`services`，以及 `./testing` 入口的 `testing-*` 模块。`testing-transport` 放传输套件与夹具类型（`TransportFixture`、`PeerScript`），`testing-transport-table` 放 SPEC T8 决策表的数据形式，套件按表的每一行生成一个用例；`testing-scripted-transport` 放通过它的内存脚本化传输。见 [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md) 与 [docs/object-model.md](docs/object-model.md)。
+模块：`brands`、`values`、`args`、`json`、`endpoint`、`listing`、`catalog`、`classify`、`content`、`instructions`、`revisions`、`wire`、`keys`、`outcomes`、`ports`、`transport`、`services`，以及 `./testing` 入口的 `testing-*` 模块。`testing-transport` 放传输套件与夹具类型（`TransportFixture`、`PeerScript`），`testing-transport-table` 放 SPEC T8 决策表的数据形式，套件按表的每一行生成一个用例；`testing-scripted-transport` 放通过它的内存脚本化传输。见 [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md) 与 [docs/object-model.md](docs/object-model.md)。
 
 ## 配置与运行
 

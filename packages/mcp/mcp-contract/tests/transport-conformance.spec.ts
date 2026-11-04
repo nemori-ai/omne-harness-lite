@@ -244,7 +244,7 @@ describe('the suite fails a transport that breaks the contract', () => {
 
   it('a transport that re-sends tools/call after a broken stream', async () => {
     expect(await failing(() => fixtureOf(['streamable-http', 'stdio'], resendingCalls))).toEqual([
-      '[C04] tools/call × stream-broken, http:2xx, http:500+plain → sent, answer stream-broken',
+      '[C04] tools/call × stream-broken, http:2xx, http:5xx+plain → sent, answer stream-broken',
     ])
   })
 

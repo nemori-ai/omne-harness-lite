@@ -64,7 +64,7 @@ function inputRequired(result: JsonObject, issuedAt: Generation): CallOutcome {
 const COUNT = /^\d+$/u
 
 /** The non-negative safe integer a node holds, or undefined for any other node. */
-function countOf(value: JsonValue | undefined): number | undefined {
+export function countOf(value: JsonValue | undefined): number | undefined {
   if (value?.kind !== 'number' || !COUNT.test(value.lexeme)) return undefined
   const count = Number(value.lexeme)
   return Number.isSafeInteger(count) ? count : undefined

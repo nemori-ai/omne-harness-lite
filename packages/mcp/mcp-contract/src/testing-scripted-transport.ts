@@ -5,7 +5,7 @@
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import { isProtocolVersion, type Generation, type TaskId } from './brands.ts'
-import { taskHintsOf } from './classify.ts'
+import { countOf, taskHintsOf } from './classify.ts'
 import { boundInstructions } from './instructions.ts'
 import { isObject, itemsOf, member, textOf } from './json.ts'
 import type {
@@ -316,7 +316,9 @@ function readTask(result: JsonValue): Outcome<TaskReport | 'expired', TransportF
   if (!isObject(result)) return { failure: malformed('status-unknown') }
   const written = textOf(member(result, 'status'))
   const status = TASK_STATUSES.find(known => known === written)
-  if (status === undefined) return { failure: malformed('status-unknown') }
+  const taskId = textOf(member(result, 'taskId'))
+  if (status === undefined || taskId === undefined || taskId === '')
+    return { failure: malformed('status-unknown') }
   const inputRequests = member(result, 'inputRequests')
   if (status === 'input_required' && !isObject(inputRequests))
     return { failure: malformed('input-requests-missing') }
@@ -469,8 +471,11 @@ function jsonRpcErrorOf(body: string | undefined): JsonValue | undefined {
     return undefined
   }
   if (!isPlainJson(parsed) || !isPlainRecord(parsed)) return undefined
+  // The envelope of T2: `jsonrpc` is "2.0" and exactly one of `result` and `error`, here `error`.
   const error = parsed['error']
-  return isPlainRecord(error) ? jsonOf(error) : undefined
+  if (parsed['jsonrpc'] !== '2.0' || error === undefined || parsed['result'] !== undefined)
+    return undefined
+  return jsonOf(error)
 }
 
 /** HTTP 401, or 403 with `error="insufficient_scope"` (T4). */
@@ -642,10 +647,16 @@ class ScriptedTransport implements McpTransport {
       entry.settle({ kind: 'not-sent', failure: notSent })
       return { reply: undefined, wire: deferred.promise }
     }
-    this.pending.set(id, entry)
-    this.peer.log.push(request)
     const reply = this.peer.reply(method, params)
     this.validate(reply, method)
+    if (reply.kind === 'unsent') {
+      // The request fails before it leaves; a broken stdio pipe ends the transport (T8 X01, X02).
+      entry.settle({ kind: 'not-sent', failure: notSent })
+      if (this.material.kind === 'stdio') this.die('stream-broken')
+      return { reply, wire: deferred.promise }
+    }
+    this.pending.set(id, entry)
+    this.peer.log.push(request)
     void this.deliver(request, reply, entry, how.probeTimeoutMs)
     return { reply, wire: deferred.promise }
   }
@@ -694,6 +705,8 @@ class ScriptedTransport implements McpTransport {
         return this.die('process-exited')
       case 'http':
         return entry.settle(await this.httpAnswer(request, reply))
+      case 'unsent':
+        return undefined
       default: {
         const exhaustive: never = reply
         return exhaustive
@@ -732,8 +745,8 @@ class ScriptedTransport implements McpTransport {
     request: Request,
     reply: Extract<PeerReply, { kind: 'http' }>,
   ): Promise<Wire> {
-    if (reply.status < 200 || (reply.status >= 300 && reply.status < 400))
-      throw new TypeError(`script: an http ${reply.status} reply is not supported`)
+    if (reply.status < 200)
+      throw new TypeError(`script: an http ${reply.status} reply is not observable`)
     if (reply.status < 300) return { kind: 'no-answer', cause: 'stream-broken' }
     const challenge = challengeOf(new Headers(reply.headers ?? {}).get('www-authenticate'))
     if (refusesAuthorization(reply.status, challenge))
@@ -838,10 +851,20 @@ class ScriptedTransport implements McpTransport {
 
   /** Sends a notification. Whatever the peer answers to it does not change any outcome (T8 N01). */
   private sendNotification(method: string, params: PlainRecord): void {
+    const version = this.version ?? this.highest
     this.peer.log.push({
       kind: 'notification',
       method,
       params: { ...params, _meta: this.envelope() },
+      ...(this.material.kind === 'streamable-http'
+        ? {
+            headers: {
+              'mcp-protocol-version': version,
+              'mcp-method': method,
+              ...(this.session === undefined ? {} : { 'mcp-session-id': this.session }),
+            },
+          }
+        : {}),
     })
     const reply = this.peer.notificationReply(method)
     if (reply === undefined || this.material.kind !== 'stdio') return
@@ -1027,13 +1050,13 @@ class ScriptedTransport implements McpTransport {
       const nextCursor = textOf(cursor)
       if (cursor !== undefined && nextCursor === undefined)
         return { failure: malformed('cursor-invalid') }
-      const ttl = member(result, 'ttlMs')
+      const ttlMs = countOf(member(result, 'ttlMs'))
       const page = this.material.kind === 'streamable-http' ? withheldOf(tools) : { tools }
       return {
         ok: {
           ...page,
           ...(nextCursor === undefined ? {} : { nextCursor }),
-          ...(ttl?.kind === 'number' ? { ttlMs: Number(ttl.lexeme) } : {}),
+          ...(ttlMs === undefined ? {} : { ttlMs }),
         },
       }
     })
@@ -1061,7 +1084,7 @@ class ScriptedTransport implements McpTransport {
     const sent = this.dispatch(id, 'tools/call', params, observe === undefined ? {} : { observe })
     // An HTTP-level answer settles before the call returns: a refusal is a failure of the call
     // itself (T4), a 400 with a JSON-RPC error is the answer of the peer.
-    if (sent.reply === undefined || sent.reply.kind === 'http') {
+    if (sent.reply === undefined || sent.reply.kind === 'http' || sent.reply.kind === 'unsent') {
       const wire = await sent.wire
       if (wire.kind === 'not-sent') return { failure: wire.failure }
       return { ok: { requestId: id, answer: Promise.resolve(answerOf(wire)) } }

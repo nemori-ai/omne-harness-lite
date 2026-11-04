@@ -12,6 +12,7 @@
 - [index.ts](index.ts)：根入口与公开定义
 - [provider.ts](provider.ts)：`./provider` 入口，端口与传输的类型
 - [revisions.ts](revisions.ts)：旧一路接受的协议修订 `LEGACY_PROTOCOL_VERSIONS`（T3）
+- [wire.ts](wire.ts)：应答类别与线上事件的归类函数 `classifyWireEvent`（T2、T8）
 - [testing.ts](testing.ts)：`./testing` 入口，套件、替身与样本构造器
 - [testing-transport.ts](testing-transport.ts)：传输符合性套件与夹具接口（`TransportFixture`、`PeerScript`）
 - [testing-transport-table.ts](testing-transport-table.ts)：传输决策表 T8 的数据形式与输入域

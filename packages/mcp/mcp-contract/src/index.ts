@@ -84,6 +84,15 @@ export { canonical, sameJson } from './json.ts'
 export { toContentBlocks } from './content.ts'
 export { boundInstructions } from './instructions.ts'
 export { FIRST_MODERN_PROTOCOL_VERSION, LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
+export {
+  PROCESS_EXIT_WINDOW_MS,
+  classifyWireEvent,
+  type AnswerClass,
+  type RequestClass,
+  type WireClassification,
+  type WireContext,
+  type WireEvent,
+} from './wire.ts'
 export { catalogKeyOf, connectionKeyOf, peerAccountOf } from './keys.ts'
 export type {
   AuthorizationDiscovery,

@@ -4,90 +4,21 @@
 // from this data, and a structural test checks the partition and the coverage.
 import type { NoAnswerCause } from './outcomes.ts'
 import type { TransportMaterial } from './transport.ts'
+import {
+  ERROR_CLASSES,
+  HTTP_STATUS_CLASSES,
+  REQUEST_CLASSES,
+  RESULT_CLASSES,
+  type AnswerClass,
+  type BodyClass,
+  type ErrorClass,
+  type HttpStatusClass,
+  type RequestClass,
+} from './wire.ts'
+
+export type { AnswerClass, RequestClass } from './wire.ts'
 
 export type TableKind = TransportMaterial['kind']
-
-/**
- * The request classes. `discover` is the first `server/discover` of a connection; `discover-retry`
- * is the one sent after a `-32022` that named a version in common. `notification` is a
- * notification of the client (`notifications/initialized`, `notifications/cancelled`).
- */
-export const REQUEST_CLASSES = [
-  'discover',
-  'discover-retry',
-  'initialize',
-  'tools/list',
-  'tools/call',
-  'tasks/get',
-  'tasks/update',
-  'tasks/cancel',
-  'notification',
-] as const
-
-export type RequestClass = (typeof REQUEST_CLASSES)[number]
-
-/** The JSON-RPC error classes, by code. `-32022` is split by its `data.supported`. */
-export const ERROR_CLASSES = [
-  '-32020',
-  '-32021',
-  '-32022+common',
-  '-32022+modern',
-  '-32022+legacy',
-  '-32601',
-  '-32602',
-  'other',
-  'unreadable',
-] as const
-
-export type ErrorClass = (typeof ERROR_CLASSES)[number]
-
-/** The HTTP statuses of the domain other than 2xx, 401 and 403. */
-export const HTTP_STATUSES = [400, 404, 405, 406, 415, 429, 418, 500] as const
-
-export type HttpStatus = (typeof HTTP_STATUSES)[number]
-
-/** The body of an HTTP error answer: a JSON-RPC error of a class, or anything else (`plain`). */
-export type BodyClass = ErrorClass | 'plain'
-
-/** The results that a request can read, by request class. */
-export const RESULT_CLASSES = {
-  discover: ['result', 'result:no-common', 'result:unreadable'],
-  'discover-retry': ['result', 'result:no-common', 'result:unreadable'],
-  initialize: ['result', 'result:unreadable'],
-  'tools/list': ['result', 'result:tools-missing', 'result:cursor-invalid'],
-  'tools/call': ['result'],
-  'tasks/get': [
-    'result',
-    'result:status-unknown',
-    'result:input-requests-missing',
-    'result:result-missing',
-    'result:error-missing',
-  ],
-  'tasks/update': ['result'],
-  'tasks/cancel': ['result'],
-  notification: [],
-} as const satisfies Readonly<Record<RequestClass, readonly string[]>>
-
-export type ResultClass = (typeof RESULT_CLASSES)[RequestClass][number]
-
-/**
- * One answer class. `stream-broken`: the answer stream (on stdio: the pipe) ends with no answer.
- * `silent`: no answer comes. `process-exited`: the stdio process ends. `http:2xx`: a 2xx answer
- * without a JSON-RPC answer to the request. `http:404+session`: a 404 to a request that carried a
- * legacy session id. `http:<status>+<body>`: an HTTP error status with the body class.
- */
-export type AnswerClass =
-  | ResultClass
-  | `error:${ErrorClass}`
-  | 'stream-broken'
-  | 'silent'
-  | 'process-exited'
-  | 'http:401'
-  | 'http:403+scope'
-  | 'http:403'
-  | 'http:2xx'
-  | 'http:404+session'
-  | `http:${HttpStatus}+${BodyClass}`
 
 export type ExpectedFailure =
   | Readonly<{ kind: 'error-answer' }>
@@ -144,8 +75,8 @@ export type TableCell = Readonly<{ kind: TableKind; request: RequestClass; answe
 const BOTH: readonly TableKind[] = ['stdio', 'streamable-http']
 const STDIO: readonly TableKind[] = ['stdio']
 const HTTP: readonly TableKind[] = ['streamable-http']
-const STATUS_4XX: readonly HttpStatus[] = [400, 404, 405, 406, 415, 429, 418]
-const STATUS_5XX: readonly HttpStatus[] = [500]
+const STATUS_4XX: readonly HttpStatusClass[] = ['400', '404', '405', '406', '415', '429', '4xx']
+const STATUS_5XX: readonly HttpStatusClass[] = ['5xx']
 const CODES: readonly ErrorClass[] = ERROR_CLASSES.filter(code => code !== 'unreadable')
 const MINUS_32022: readonly ErrorClass[] = ['-32022+common', '-32022+modern', '-32022+legacy']
 
@@ -153,7 +84,7 @@ const errors = (codes: readonly ErrorClass[]): readonly AnswerClass[] =>
   codes.map(code => `error:${code}` as const)
 
 const bodies = (
-  statuses: readonly HttpStatus[],
+  statuses: readonly HttpStatusClass[],
   classes: readonly BodyClass[],
 ): readonly AnswerClass[] =>
   statuses.flatMap(status => classes.map(body => `http:${status}+${body}` as const))
@@ -553,12 +484,27 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     answers: ['http:404+session'],
     conclusion: SESSION_ENDED,
   },
+  {
+    id: 'X01',
+    kinds: HTTP,
+    requests: [...PROBES, 'initialize', ...OPERATIONS, 'tools/call'],
+    answers: ['unsent'],
+    conclusion: NOT_SENT,
+  },
+  {
+    id: 'X02',
+    kinds: STDIO,
+    requests: [...PROBES, 'initialize', ...OPERATIONS, 'tools/call'],
+    answers: ['unsent'],
+    conclusion: { ...NOT_SENT, unusable: true },
+  },
   // notifications of the client
   {
     id: 'N01',
     kinds: BOTH,
     requests: ['notification'],
     answers: [
+      'unsent',
       'silent',
       'stream-broken',
       'process-exited',
@@ -567,7 +513,7 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
       'http:403+scope',
       'http:403',
       'http:404+session',
-      ...bodies([...STATUS_4XX, ...STATUS_5XX], [...ERROR_CLASSES, 'plain']),
+      ...bodies(HTTP_STATUS_CLASSES, [...ERROR_CLASSES, 'plain']),
     ],
     conclusion: { kind: 'ignored' },
   },
@@ -577,8 +523,8 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
 export function answersOf(kind: TableKind, request: RequestClass): readonly AnswerClass[] {
   const http = kind === 'streamable-http'
   const transport: readonly AnswerClass[] = http
-    ? ['stream-broken', 'silent']
-    : ['stream-broken', 'silent', 'process-exited']
+    ? ['unsent', 'stream-broken', 'silent']
+    : ['unsent', 'stream-broken', 'silent', 'process-exited']
   if (request === 'notification')
     return http
       ? [
@@ -588,7 +534,7 @@ export function answersOf(kind: TableKind, request: RequestClass): readonly Answ
           'http:403+scope',
           'http:403',
           'http:404+session',
-          ...bodies(HTTP_STATUSES, [...ERROR_CLASSES, 'plain']),
+          ...bodies(HTTP_STATUS_CLASSES, [...ERROR_CLASSES, 'plain']),
         ]
       : transport
   const answers: AnswerClass[] = [
@@ -599,7 +545,7 @@ export function answersOf(kind: TableKind, request: RequestClass): readonly Answ
   if (!http) return answers
   answers.push('http:2xx', 'http:401', 'http:403+scope', 'http:403')
   if (AFTER_SESSION.includes(request)) answers.push('http:404+session')
-  answers.push(...bodies(HTTP_STATUSES, [...ERROR_CLASSES, 'plain']))
+  answers.push(...bodies(HTTP_STATUS_CLASSES, [...ERROR_CLASSES, 'plain']))
   return answers
 }
 

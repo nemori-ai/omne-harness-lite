@@ -62,7 +62,7 @@ Which failures each function returns, and the preconditions whose violation thro
 
 ## Design
 
-Modules: `brands`, `values`, `args`, `json`, `endpoint`, `listing`, `catalog`, `classify`, `content`, `instructions`, `revisions`, `keys`, `outcomes`, `ports`, `transport`, `services`, and the `testing-*` modules of the `./testing` entry. `testing-transport` holds the transport suite and its fixture types (`TransportFixture`, `PeerScript`); `testing-transport-table` holds the decision table of SPEC T8 as data, from which the suite generates one case per row; `testing-scripted-transport` holds the in-memory scripted transport that passes it. See [docs/architecture.md](docs/architecture.md), [docs/flows.md](docs/flows.md) and [docs/object-model.md](docs/object-model.md).
+Modules: `brands`, `values`, `args`, `json`, `endpoint`, `listing`, `catalog`, `classify`, `content`, `instructions`, `revisions`, `wire`, `keys`, `outcomes`, `ports`, `transport`, `services`, and the `testing-*` modules of the `./testing` entry. `testing-transport` holds the transport suite and its fixture types (`TransportFixture`, `PeerScript`); `testing-transport-table` holds the decision table of SPEC T8 as data, from which the suite generates one case per row; `testing-scripted-transport` holds the in-memory scripted transport that passes it. See [docs/architecture.md](docs/architecture.md), [docs/flows.md](docs/flows.md) and [docs/object-model.md](docs/object-model.md).
 
 ## Configuration and operation
 

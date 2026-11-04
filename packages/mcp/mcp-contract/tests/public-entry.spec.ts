@@ -23,6 +23,8 @@ const ROOT = [
   ...BRAND_GUARDS,
   'FIRST_MODERN_PROTOCOL_VERSION',
   'LEGACY_PROTOCOL_VERSIONS',
+  'PROCESS_EXIT_WINDOW_MS',
+  'classifyWireEvent',
   'actionPermissionItems',
   'boundInstructions',
   'canonical',
