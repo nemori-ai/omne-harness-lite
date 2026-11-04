@@ -12,6 +12,7 @@
 | 领域设计裁定 | 2026-11-03 | 入口与各入口的内容；内容摘要算法；`SafeReason` 的形状；读取内容是文本或字节；正文起点；每页 65536 字节；中止为 `aborted`；`.omne/skill.json` 的形状与格式版本；四个设置类别；声明项编码；声明的 JSON 预算；YAML 头部的解析；`skillBodyContract` 只做可加扩展；`SkillResolution.adopted` 只交两种答复；快照只能经 `sealSnapshot` 构造。评审之后的裁定见[与组页的差异](#group-differences) |
 | 资产公开类型 `@omne-harness/assets` | `21175c9f9` | `BodyContract`、`CapabilityId`、`Declarations` |
 | [官方 Agent Skills 规格](https://agentskills.io/specification) | 2026-11-03 读取 | `SKILL.md` 的头部字段与目录结构 |
+| W3 Skill 线实施规格（reduce 裁定） | 2026-11-04 | 可加改动：公开根导出 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT` 与 `sameCapability`；[目录的匹配规则](#catalog-search)；[端口答复的统一处置](#port-answer-closed)；`open` 答 `entry-unreadable` 的映射；`skillCatalogConformance` |
 
 各裁定的内容写在下文对应的条款里。裁定编号（例如 G3、C19）只是过程标签，决定的内容已经写全在本页。
 
@@ -23,9 +24,9 @@
 
 | 入口 | 给谁 | 内容 |
 | --- | --- | --- |
-| `@omne-harness/skill-contract` | 调用方；端口实现方另读 `./provider` | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract` |
+| `@omne-harness/skill-contract` | 调用方；端口实现方另读 `./provider` | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract`、常量 `MANIFEST_PATH`、`DECLARATION_PATH` 与 `PAGE_LIMIT`，以及能力标识的判同 `sameCapability` |
 | `@omne-harness/skill-contract/provider` | 来源、资产登记与端口的实现方 | 三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot`、`SnapshotDefect` |
-| `@omne-harness/skill-contract/testing` | 端口实现方的测试；`SkillAccess` 实现方的测试 | 三个端口的符合性套件、内存替身、`SkillAccess` 的符合性套件 `skillAccessConformance` 与它的夹具类型 `AccessFixture`、`ConformanceCase`、`NotApplicable`、`runConformanceCase`、`isNotApplicable` |
+| `@omne-harness/skill-contract/testing` | 端口实现方的测试；`SkillAccess` 与 `SkillCatalog` 实现方的测试 | 三个端口的符合性套件、内存替身、`SkillAccess` 的符合性套件 `skillAccessConformance` 与它的夹具类型 `AccessFixture`、`SkillCatalog` 的符合性套件 `skillCatalogConformance` 与它的夹具类型 `CatalogFixture`、`ConformanceCase`、`NotApplicable`、`runConformanceCase`、`isNotApplicable` |
 
 - 公开根与 `./provider` 都不导入 `./testing`。三个入口都不导入测试框架。
 - 公开根不导出 `SkillRef`、`PackageLocator`、`PackageInspection` 与 `sealSnapshot`。调用方拿不到包定位。
@@ -338,6 +339,18 @@ unknown
 no-readable-package
 ```
 
+<a id="catalog-search"></a>
+
+### 目录的匹配规则
+
+`SkillCatalog` 由 `@omne-harness/skill` 实现。它只在当前合法集合里取、每个身份先经读取判定、任一 `unknown` 整次 `unknown`，这些归[组工程设计「检查与发现」](../docs/architecture.md#检查与发现)。本节封闭组设计留给本成员的匹配规则。
+
+- `summaries` 带 `capabilities` 时，只交其中属于当前合法集合且读取判定答 `granted` 的身份；不在集合里的身份不交，也不说明原因。请求里的重复项按 `sameCapability` 去重。给出空数组时答空列表，不调用读取判定。过滤先于核验：不在请求里的身份不核验。
+- `search` 按 name 与说明匹配。查询文本、name 与说明都先做 Unicode NFKC 规范化，再转小写（`toLowerCase()`，与区域设置无关）。查询按空白切成词。每个词都是 name 或说明的子串时，该身份匹配；比较时 name 与说明拼接，中间加一个换行。没有词（空串或只有空白）时匹配全部，等同 `summaries` 不带过滤。匹配先于核验：不匹配的身份不核验。`search` 不排序打分。
+- 合法集合里同一能力标识出现多次时（按 `sameCapability` 判同），只核验一次、只出一条。
+- 条目次序不承载含义。实现对同一输入给出同一输出，便于比较；次序本身不是承诺。
+- 对同一主体，「身份被拒」与「身份不在集合里」两种世界下 `summaries` 与 `search` 的答复相同；`capabilities` 点名一个被拒的身份与点名一个不存在的身份，答复相同（SC7）。
+
 <a id="category-port"></a>
 
 ### `skill` 类别端口
@@ -400,6 +413,10 @@ no-readable-package
 
 两个判定端口共有：对无权主体，`SkillResolution` 与 `SkillReadCheck` 的答复不随该身份是否存在而变（PR5、PC3）。
 
+<a id="port-answer-closed"></a>
+
+端口答复的统一处置：需求端口的答复不在它的封闭集合内（例如 `kind` 不在集合内、不是对象、`adopted` 不是 `Outcome`），或端口以 reject 失败时，服务的实现不抛出。`SkillReadCheck` 与 `SkillResolution` 的这种答复当作 `unknown`；`SkillPackageSource` 的这种答复按映射表的 `unavailable` 一行处置（`inspect` 答 `source-unavailable`，`read`、`list` 与 `export` 答 `source-unavailable`）。调用方自己的前提违反（字节范围非法、不是 `sealSnapshot` 造出的快照）仍抛 `TypeError`。
+
 来源失败、读取判定与快照缺陷的集合：
 
 <a id="set-source-failures"></a>
@@ -433,6 +450,7 @@ prefix-conflict
 
 - `snapshot` 答 `entry-unreadable`：检查（`inspect`）映射为拒绝 `malformed`；`read`、`list` 与 `export` 映射为 `source-unavailable`。
 - `snapshot` 答 `outside-package`：检查映射为拒绝 `outside-package`；`read`、`list` 与 `export` 映射为 `outside-package`。
+- `open` 答 `entry-unreadable`：检查映射为拒绝 `malformed`（与 `snapshot` 一格，检查不分调用点）；`read`、`list` 与 `export` 映射为 `source-unavailable`。
 
 ### 不在本成员
 
@@ -445,7 +463,7 @@ prefix-conflict
 
 ### 符合性套件
 
-三个套件是 `skillPackageSourceConformance()`、`skillResolutionConformance()` 与 `skillReadCheckConformance()`。每个套件交出一组用例，每个用例有名字、条款编号与 `run(fixture)`。
+端口的三个套件是 `skillPackageSourceConformance()`、`skillResolutionConformance()` 与 `skillReadCheckConformance()`；服务的两个套件是 `skillAccessConformance()` 与 `skillCatalogConformance()`。每个套件交出一组用例，每个用例有名字、条款编号与 `run(fixture)`。
 
 - 实现方为每个用例新建一份夹具，在自己的测试框架里逐个登记并运行 `run(fixture)`。`runConformanceCase` 运行一个用例并答结果。
 - 用例失败时抛出 `node:assert` 的 `AssertionError`。
@@ -457,9 +475,12 @@ prefix-conflict
 | `skillPackageSourceConformance` | `source`；`present`：来源持有、用例运行期间不变的包；`absent`：不对应任何包的定位；`addressing`：是否按内容摘要存放；`escaping`：可选，有一个链接解析后落在根外的包 | PS1–PS8 |
 | `skillResolutionConformance` | `resolution`；`permitted`、`refused` 两个主体与作用域；`adopted`：对 `permitted` 已采用的身份；`missing`：对谁都不存在的身份；`standIn`：可选，对 `permitted` 合法已知、此刻不可用的身份；`earlier`：可选，`adopted` 的一个早先合法版本的依据；`unlawfulLayer`：可选，`adopted` 对 `permitted` 不合法的来源层 | PR1–PR7 |
 | `skillReadCheckConformance` | `readCheck`；`permitted`、`refused`；`readable`：`permitted` 能读的身份；`missing` | PC1–PC3 |
+| `skillCatalogConformance` | `catalog`；`reader`：合法集合恰好是 `granted`、`refused` 与 `standIn` 的主体；`nobody`：合法集合为空的主体；`granted`：`reader` 能读的已采用身份，写成目录必须交出的 `adopted` 条目；`refused`：在集合里、读取判定对 `reader` 答 `refused` 的身份；`standIn`：`reader` 能读、此刻不可用的身份，写成目录必须交出的 `stand-in` 条目，它的 name 与说明不含 `granted` 的 name；`missing`：对谁都不存在的身份；`world`：`lawfulSetUnknown`、`verdictUnknown(capability)`、`repeatGranted`、`removeRefused` 改变端口背后的世界并对之后的调用生效，`checks()` 交出读取判定被调用的次数 | SC2–SC7 |
 | `skillAccessConformance` | `access`；`principals`：`reader`（能读 `adopted`）与 `stranger`（对夹具里的身份都无权）；`capability`：`adopted`（对 `reader` 已采用、有可读的包）、`missing`、`checkedOnly`（读取判定准许、对应端口不认识），可选的 `standIn`、`noPackage`（已采用、资产正文无 `package.digest`）、`large`（正文长于 65536 字节）；`world`：`replaceAdopted`、`changeEntry`、`breakOpen`、`abortAfterSnapshot` 改变端口背后的世界并对之后的调用生效，`calls()` 交出四个端口各被调用的次数 | A1–A11、A12a、A12b、A13、A14 |
 
 `skillAccessConformance()` 核对 `SkillAccess` 的实现，不核对端口。A1–A3 只有在夹具的对应端口对无权主体作答（不自己隐藏身份）时，才能看出读取判定被跳过；对应端口自己隐藏身份的夹具上，漏掉读取判定的实现仍能通过 A1–A3。夹具由实现方的工厂给出，套件自己不构造服务。用例按条款编号：A1–A3 无披露（无权主体对已采用与不存在的身份同答；另一身份的依据、对应端口不认识的身份，都与被拒绝的读取同答）；A4、A5 `basis-unavailable` 与 `adopted-material-changed` 的分野；A6 `version-changed` 不交内容；A7 `aborted` 不交内容，已中止时四个端口都不被调用，快照后中止时不再 `open`；A8 `unsupported`；A9–A11 字节范围的页上限（在 `large` 上）、字符边界与按实际范围分页；A12a `export` 交出全部条目、A12b 任一条目不符时不交任何条目；A13 `describe` 不读字节也不取快照；A14 替换件带安全原因，`describe`、`read`、`list` 同答。夹具没有 `noPackage` 时 A8 不适用，没有 `large` 时 A9 的页上限部分不适用，没有 `standIn` 时 A14 不适用，`adopted` 的包没有含 ASCII 之外字符的文本资源时 A10 不适用。套件通过不证明真实端口的行为。
+
+`skillCatalogConformance()` 核对 `SkillCatalog` 的实现，不核对端口。条款编号 `SCn` 指 W3 Skill 线实施规格的已定事项 n：SC2 空集合答空列表、集合 `unknown` 整次 `unknown`；SC3 `refused` 不出现、任一核验 `unknown` 整次 `unknown`、集合里的重复身份只核验一次只出一条；SC4 `adopted` 条目带依赖、`stand-in` 条目带原因、同一输入同一输出；SC5 `capabilities` 过滤、去重、空数组不调用读取判定、请求外的身份不核验；SC6 NFKC 与小写、多词全部命中、无词匹配全部、不匹配的身份不核验；SC7 两组无披露，见[目录的匹配规则](#catalog-search)。套件不核对核验的完成次序：实现方自己证明结果不随次序变化。
 
 无披露用例 PR5 与 PC3 的名字都是 `answers a principal without the right the same for an existing and a missing identity`。它们比较 `refused` 问已存在的身份与问 `missing` 的答复，两者必须完全相同。PR5 同时比较带依据的答复，并要求 `refused` 的当前合法集合不含 `adopted` 与 `standIn`。
 
@@ -477,6 +498,7 @@ prefix-conflict
 | 检查 Skill 包与拒绝次序，每个拒绝原因一个包样本 | `tests/parse-*.spec.ts`、`tests/fixtures/packages/` |
 | 快照构造 | `tests/snapshot.spec.ts` |
 | 端口套件、内存替身，以及套件对泄露身份的替身在进程内变红 | `tests/conformance.spec.ts` |
+| `skillCatalogConformance()` 的形状：至少 12 条，条款覆盖 SC2–SC7，两条无披露用例在场 | `tests/catalog-suite.spec.ts` |
 | `skill` 类别端口 | `tests/contract.spec.ts`、`tests/contract-extension.spec.ts` |
 | Schema 与解析一致 | `tests/declaration-schema.spec.ts` |
 

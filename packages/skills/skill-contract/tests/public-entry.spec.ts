@@ -6,6 +6,9 @@ import * as skill from '@omne-harness/skill-contract'
 
 it('exports the skill body port', () => {
   expect(Object.keys(skill).sort()).toEqual([
+    'DECLARATION_PATH',
+    'MANIFEST_PATH',
+    'PAGE_LIMIT',
     'bodyOffsetOf',
     'computeDigest',
     'inferMediaType',
@@ -17,6 +20,7 @@ it('exports the skill body port', () => {
     'isSkillName',
     'parseSkillPackage',
     'projectAssetBody',
+    'sameCapability',
     'skillBodyContract',
     'toPackagePath',
   ])
@@ -28,7 +32,7 @@ it('exports the snapshot constructor on the provider entry only', async () => {
   expect(Object.keys(skill)).not.toContain('sealSnapshot')
 })
 
-it('exports the four suites and the three memory doubles on the testing entry', async () => {
+it('exports the five suites and the three memory doubles on the testing entry', async () => {
   const testing = await import('@omne-harness/skill-contract/testing')
   expect(Object.keys(testing).sort()).toEqual([
     'NotApplicable',
@@ -38,6 +42,7 @@ it('exports the four suites and the three memory doubles on the testing entry', 
     'isNotApplicable',
     'runConformanceCase',
     'skillAccessConformance',
+    'skillCatalogConformance',
     'skillPackageSourceConformance',
     'skillReadCheckConformance',
     'skillResolutionConformance',

@@ -2,9 +2,10 @@
 import assert from 'node:assert/strict'
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
+import { sameCapability } from './capability.ts'
 import type { SkillReadCheck } from './ports.ts'
 import { conformanceCase, type ConformanceCase } from './testing-case.ts'
-import { sameCapability, type PrincipalSample } from './testing-resolution.ts'
+import type { PrincipalSample } from './testing-resolution.ts'
 
 export type MemoryReadGrant<P, S> = Readonly<{
   capability: CapabilityId

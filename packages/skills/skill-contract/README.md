@@ -14,9 +14,9 @@ Status: the shapes and the rules are candidates. They do not have technical acce
 
 There are three entries:
 
-- `@omne-harness/skill-contract`: for callers. Values, failures, service interfaces, pure functions and `skillBodyContract`.
+- `@omne-harness/skill-contract`: for callers. Values, failures, service interfaces, pure functions, `skillBodyContract`, the constants `MANIFEST_PATH`, `DECLARATION_PATH` and `PAGE_LIMIT`, and `sameCapability`.
 - `@omne-harness/skill-contract/provider`: for port implementations. The ports, the `PackageInspection` interface, `SkillRef`, `PackageLocator` and `sealSnapshot`.
-- `@omne-harness/skill-contract/testing`: for the tests of port implementations. The suites are lists of cases that fail by `node:assert`, so the consumer registers them in its own test framework.
+- `@omne-harness/skill-contract/testing`: for the tests of port implementations and of the `SkillAccess` and `SkillCatalog` implementations. The suites are lists of cases that fail by `node:assert`, so the consumer registers them in its own test framework.
 
 A source gives a snapshot only through `sealSnapshot`. A check of a package then looks like this:
 
