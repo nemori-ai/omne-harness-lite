@@ -370,7 +370,9 @@ export function projectExecution(
   } catch (error) {
     // An execution whose cursor was never moved whole (no checkpoint yet): the field stays absent.
     // Any other failure is a defect of the records, not a missing checkpoint.
-    if (!(error instanceof TypeError && error.message.startsWith('the folded cursor has no member')))
+    if (
+      !(error instanceof TypeError && error.message.startsWith('the folded cursor has no member'))
+    )
       throw error
   }
   const revisionAt = (pub: number): number | undefined => byPub.get(pub)?.[1].revision
