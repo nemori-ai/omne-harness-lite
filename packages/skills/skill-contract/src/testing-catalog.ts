@@ -181,6 +181,14 @@ export function skillCatalogConformance<P, S>(): ConformanceCase<CatalogFixture<
         assert.equal(f.world.checks(), before, 'the read check was called')
       },
     ),
+    conformanceCase(
+      'SC5',
+      'answers an empty list for an empty request even when the lawful set is unknown',
+      async f => {
+        f.world.lawfulSetUnknown()
+        assert.deepStrictEqual(ok(await summariesOf(f, f.reader, []), 'summaries'), [])
+      },
+    ),
     conformanceCase('SC5', 'does not check an identity that the request leaves out', async f => {
       const before = f.world.checks()
       ok(await summariesOf(f, f.reader, [f.granted.capability]), 'summaries')

@@ -105,6 +105,30 @@ describe('the suite goes red on a violating implementation', () => {
   })
 })
 
+describe('an empty request', () => {
+  it('calls neither the lawful set nor the read check', async () => {
+    const world = createCatalogWorld()
+    const calls = { adopted: 0, check: 0 }
+    const counted = createSkillCatalog<Principal, Scope>({
+      readCheck: {
+        check(...args) {
+          calls.check += 1
+          return world.ports.readCheck.check(...args)
+        },
+      },
+      resolution: {
+        ...world.ports.resolution,
+        adopted(...args) {
+          calls.adopted += 1
+          return world.ports.resolution.adopted(...args)
+        },
+      },
+    })
+    expect(await counted.summaries(alice, scope, [])).toStrictEqual({ ok: [] })
+    expect(calls).toStrictEqual({ adopted: 0, check: 0 })
+  })
+})
+
 describe('the answer does not depend on the order in which the read checks complete', () => {
   it('lists the same entries whether the checks complete first to last or last to first', async () => {
     const forward = createCatalogWorld()

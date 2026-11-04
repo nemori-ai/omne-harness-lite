@@ -1,6 +1,6 @@
 // `SkillCatalog` over two ports: the current lawful set from `SkillResolution.adopted`, one
 // entry per identity, then `SkillReadCheck.check` for each identity that the request or the
-// query keeps. Only `granted` identities are listed; a `refused` one is left out without a
+// query keeps. An empty request calls no port. Only `granted` identities are listed; a `refused` one is left out without a
 // trace; one `unknown` makes the whole answer `unknown`. The checks go out together and the
 // answer is read in the order of the entries, so the completion order cannot change it. The
 // entries are sorted by the canonical text of the capability identity so that one input gives
@@ -112,7 +112,10 @@ export function createSkillCatalog<P, S>(
     return grantedOf(ports, access, scope, lawful.ok.filter(keep))
   }
   return {
-    summaries(access, scope, capabilities) {
+    async summaries(access, scope, capabilities) {
+      // An empty request asks about no identity, so no port is asked either: the answer is the
+      // empty list even when the lawful set would be unknown now.
+      if (capabilities?.length === 0) return succeed([])
       return listing(access, scope, entry =>
         capabilities === undefined
           ? true
