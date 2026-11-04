@@ -410,35 +410,10 @@ it('checks the complete saved payload before returning the provider receipt', as
   ).toHaveLength(1)
 })
 
-it('rejects foreign references before querying an association', async () => {
-  const s = await setup()
-  let lookups = 0
-  const receiver = ok(
-    createAgentToolReceiver(
-      {
-        ...s.dependencies,
-        targets: {
-          ...s.dependencies.targets,
-          async resolve(input) {
-            lookups++
-            return s.dependencies.targets.resolve(input)
-          },
-        },
-      },
-      s.state,
-    ),
-  )
-  expect(
-    await receiver.push({
-      access,
-      delivery: {
-        ...s.delivery,
-        key: { ...s.delivery.key, reference: reference(otherTenant, 'call-1') },
-      },
-      signal: signal(),
-    }),
-  ).toEqual({ failure: { kind: 'denied' } })
-  expect(lookups).toBe(0)
+it('cannot name another tenant in a delivery reference (R2-D357)', () => {
+  // The text carries no tenant: a reference encoded for another tenant is the caller's own one,
+  // located in the caller's tenant.
+  expect(reference(otherTenant, 'call-1')).toBe(reference(access, 'call-1'))
 })
 
 it('checks current receive-result authorization even when the binding provider returned a target', async () => {

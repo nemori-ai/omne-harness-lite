@@ -588,14 +588,14 @@ describe('the commit cases of the suite fail a provider that breaks a rule', () 
 })
 
 describe('the outlet suite fails a provider that breaks a rule', () => {
-  it('fails the tenant case when a call of another tenant is received', async () => {
+  it('fails the tenant case when a handoff reaches another tenant', async () => {
     const fixture = memoryAgentAccountOutletFixture(access, otherAccess)
-    const lenient: AgentAccountOutlet<string> = {
-      deliver: async () => ({ kind: 'received' }),
+    const leaking: AgentAccountOutlet<string> = {
+      deliver: async ({ handoff }) => fixture.outlet.deliver({ access: otherAccess, handoff }),
     }
-    const cases = agentAccountOutletConformance({ ...fixture, outlet: lenient })
+    const cases = agentAccountOutletConformance({ ...fixture, outlet: leaking })
     await expect(caseNamed(cases, 'another tenant').run()).rejects.toThrow(
-      /call of another tenant should be denied/u,
+      /another tenant should not see the handoff/u,
     )
   })
 

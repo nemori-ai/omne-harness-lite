@@ -207,16 +207,18 @@ async function keptOwnCopy<P>(fixture: Fixture<P>): Promise<void> {
 async function foreignReference<P>(fixture: Fixture<P>): Promise<void> {
   const own = scene(fixture)
   const other = scene(fixture, otherAccessOf(fixture))
-  // The push names a reference of the other tenant under the own access: the tenant comes from the
-  // reference, never from the destination, so the push is denied and saves nothing.
-  const foreign = other.result('call-1', 'result-1', 'one')
-  const denied = failureOf(await own.push(foreign), 'push of a reference of another tenant')
-  assert.equal(denied.kind, 'denied')
-  // Had the denied push saved anything under that key, other content would now be a conflict.
-  await other.saved(
-    other.result('call-1', 'result-1', 'two'),
-    'push of other content under the same key by its tenant',
+  // The reference carries no tenant (R2-D357): the tenant comes from the access. A key that the
+  // other tenant saved is unknown to the pusher, so other content under it is not a conflict and
+  // the receipt of the other tenant is not recalled: the answer does not tell that it exists.
+  const theirs = await other.saved(
+    other.result('call-1', 'result-1', 'one'),
+    'push of the other tenant',
   )
+  const mine = await own.saved(
+    own.result('call-1', 'result-1', 'two'),
+    'push of other content under the same key by the own tenant',
+  )
+  assert.notDeepEqual(mine, theirs, 'the pusher recalled the receipt of another tenant')
 }
 
 async function tenantInKey<P>(fixture: Fixture<P>): Promise<void> {
@@ -349,7 +351,7 @@ export function toolResultReceiverConformance<P>(): readonly ConformanceCase<Fix
       sameKeyConflicts,
     ),
     named('the receiver keeps its own copy of the payload', keptOwnCopy),
-    named('a reference of another tenant is denied and saves nothing', foreignReference),
+    named('a key saved by another tenant is unknown to the pusher', foreignReference),
     named('the tenant of the reference is part of the key', tenantInKey),
     named('a malformed reference is invalid', malformedReference),
     named('the relation table rejects another revision and another call', relationTable),

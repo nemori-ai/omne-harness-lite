@@ -742,13 +742,10 @@ it.each(['same', 'different'] as const)(
     )
     expect(foreignTarget.pending.reference).toBe(foreignReference)
     expect(foreignTarget.pending.consumption).toBe(later.consumption)
-    expect(
-      await s.dependencies.targets.resolve({
-        access: foreign,
-        reference: s.pending.reference,
-        consumer: s.pending.position,
-      }),
-    ).toHaveProperty('failure.kind', 'denied')
+    // R2-D357: the reference carries no tenant, so the foreign tenant's text is alice's text, and
+    // it resolves to the foreign tenant's own target only, never to alice's.
+    expect(foreignReference).toBe(s.pending.reference)
+    expect(foreignTarget.pending.consumption).not.toBe(s.pending.consumption)
     expect(
       await s.receiver.push({
         access: alice,

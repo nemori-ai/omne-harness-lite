@@ -33,9 +33,9 @@ export function createMemoryAgentAccountOutlet<P>(): MemoryAgentAccountOutlet<P>
     async deliver({ access, handoff }): Promise<AgentAccountOutcome> {
       const call = resolveModelInvocationRef(handoff.call, access.tenant)
       if (!('ok' in call)) {
-        return call.failure.kind === 'foreign-tenant'
-          ? { kind: 'denied' }
-          : { kind: 'invalid', field: 'handoff.call', reason: 'reference-malformed' }
+        return call.failure.kind === 'malformed'
+          ? { kind: 'invalid', field: 'handoff.call', reason: 'reference-malformed' }
+          : { kind: 'denied' }
       }
       const judged = judgeCallAccount(handoff.account)
       if ('rejected' in judged) {
@@ -195,15 +195,17 @@ export function agentAccountOutletConformance<P>(
       },
     },
     {
-      name: 'denies a handoff whose call names another tenant and keeps nothing',
+      // The call reference carries no tenant (R2-D357): a handoff is the deliverer's own, and it
+      // never reaches the outlet state of another tenant.
+      name: 'keeps a handoff in the tenant that delivers it and nothing for another tenant',
       async run() {
         const handoff = sampleAccountHandoff(otherAccess.tenant, 'foreign')
-        assert.deepEqual(
-          await deliver(access, handoff),
-          { kind: 'denied' },
-          'a call of another tenant should be denied',
+        assert.deepEqual(await deliver(access, handoff), { kind: 'received' })
+        assert.equal(
+          await fixture.current(otherAccess, handoff),
+          null,
+          'another tenant should not see the handoff',
         )
-        assert.equal(await fixture.current(otherAccess, handoff), null)
       },
     },
     {

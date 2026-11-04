@@ -42,7 +42,7 @@ const tenant = mintedTenant(tenantText)
 const otherTenant = mintedTenant(
   tenantText.replace('acc_00000000000000000000000000', 'acc_00000000000000000000000001'),
 )
-const call = JSON.stringify(['model-invocation', 1, tenantText, 'mcall_a', 'mop_a'])
+const call = JSON.stringify(['model-invocation', 2, 'mcall_a', 'mop_a'])
 const refText = JSON.stringify(['stream-ref', 1, 'model', call, 'str_a'])
 const c0 = JSON.stringify(['stream-cursor', 1, refText, '0'])
 const c10 = JSON.stringify(['stream-cursor', 1, refText, '10'])

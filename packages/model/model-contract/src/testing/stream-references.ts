@@ -1,7 +1,7 @@
 // The `current` double: a `ModelStreamReferences` that answers from confirmation records the
 // test gives it. The test control plane, the source state and a held response are scripted
 // separately, so each failure of the `current` protocol can be driven on its own.
-import { tenantCodec, type Access, type TenantId } from '@omne-harness/legal-identity'
+import type { Access, TenantId } from '@omne-harness/legal-identity'
 import { judgeStreamRef, readStreamRef } from '@omne-harness/stream-arrival'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
@@ -28,14 +28,23 @@ export type ScriptedEvent = Readonly<{ sequence: number; action: 'owner-read'; k
 
 export type ScriptedStreamReferences<P> = Readonly<{
   references: ModelStreamReferences<P>
-  /** The confirmation record of the invocation: its state and its current target, together. */
+  /**
+   * The confirmation record of the invocation in `tenant`: its state and its current target,
+   * together. The reference carries no tenant (R2-D357), so the script names it.
+   */
   confirmSelection(
-    input: Readonly<{ reference: ModelInvocationRef; selection: ModelStreamSelection }>,
+    input: Readonly<{
+      tenant: TenantId
+      reference: ModelInvocationRef
+      selection: ModelStreamSelection
+    }>,
   ): void
   /** The invocation is confirmed without a published target: `current` is null. */
-  establishWithoutTarget(input: Readonly<{ reference: ModelInvocationRef; state: CallState }>): void
+  establishWithoutTarget(
+    input: Readonly<{ tenant: TenantId; reference: ModelInvocationRef; state: CallState }>,
+  ): void
   /** The published target retires without a successor; the state stays. */
-  withdrawTarget(reference: ModelInvocationRef): void
+  withdrawTarget(input: Readonly<{ tenant: TenantId; reference: ModelInvocationRef }>): void
   /** The control plane for `current`; an access that was never set is denied. */
   setAccess(access: Access<P>, decision: ScriptedAccessDecision): void
   /** The confirmation source: `unavailable` answers every read with `unavailable`. */
@@ -50,22 +59,18 @@ export type ScriptedStreamReferences<P> = Readonly<{
 }>
 
 type Confirmed = Readonly<{ reference: ModelInvocationRef; selection: ModelStreamSelection }>
+type Scripted = Confirmed & Readonly<{ tenant: TenantId }>
 type Barrier = Readonly<{
   arrived: PromiseWithResolvers<void>
   released: PromiseWithResolvers<void>
 }>
 
-/** The parts of a canonical reference; the tenant is read back from the reference text. */
-function original(reference: ModelInvocationRef) {
+/** The parts of a canonical reference in the tenant the script names. */
+function original(tenant: TenantId, reference: ModelInvocationRef) {
   const decoded = decodeModelInvocationRef(reference)
   if ('failure' in decoded || decoded.ok !== reference)
     throw misuse('the invocation reference must be canonical')
-  const tuple: unknown = JSON.parse(decoded.ok)
-  if (!Array.isArray(tuple) || typeof tuple[2] !== 'string')
-    throw misuse('the invocation reference has no tenant')
-  const tenant = tenantCodec.parse(tuple[2])
-  if (!tenant.ok) throw misuse('the invocation reference has no tenant')
-  const resolved = resolveModelInvocationRef(decoded.ok, tenant.value)
+  const resolved = resolveModelInvocationRef(decoded.ok, tenant)
   if ('failure' in resolved) throw misuse('the invocation reference does not resolve')
   return resolved.ok
 }
@@ -82,9 +87,9 @@ function unavailable(): ModelFailure {
 function referenceFailure(failure: ModelReferenceFailure): ModelFailure {
   switch (failure.kind) {
     case 'invalid-tenant':
-      return { kind: 'denied', action: 'tenant' }
+    // Retired by reference version 2; never returned.
     case 'foreign-tenant':
-      return { kind: 'denied', action: 'current' }
+      return { kind: 'denied', action: 'tenant' }
     case 'malformed':
       return {
         kind: 'invalid',
@@ -108,8 +113,8 @@ export function createScriptedStreamReferences<P>(): ScriptedStreamReferences<P>
     return decision === 'deny' ? { kind: 'denied', action: 'current' } : unavailable()
   }
 
-  function confirmSelection(input: Confirmed): void {
-    const parts = original(input.reference)
+  function confirmSelection(input: Scripted): void {
+    const parts = original(input.tenant, input.reference)
     if (input.selection.state.call !== parts.call) throw misuse('the state belongs to another call')
     const target = input.selection.current
     if (target !== null) {
@@ -125,7 +130,7 @@ export function createScriptedStreamReferences<P>(): ScriptedStreamReferences<P>
     const prior = records.get(identity)
     if (prior !== undefined && prior.reference !== input.reference)
       throw misuse('the original admission cannot change')
-    records.set(identity, frozenCopy(input))
+    records.set(identity, frozenCopy({ reference: input.reference, selection: input.selection }))
   }
 
   function barrierFor(id: number): Barrier {
@@ -185,15 +190,16 @@ export function createScriptedStreamReferences<P>(): ScriptedStreamReferences<P>
   return {
     references,
     confirmSelection,
-    establishWithoutTarget({ reference, state }) {
-      confirmSelection({ reference, selection: { state, current: null } })
+    establishWithoutTarget({ tenant, reference, state }) {
+      confirmSelection({ tenant, reference, selection: { state, current: null } })
     },
-    withdrawTarget(reference) {
-      const parts = original(reference)
+    withdrawTarget({ tenant, reference }) {
+      const parts = original(tenant, reference)
       const confirmed = records.get(key(parts.tenant, parts.call))
       if (confirmed === undefined || confirmed.reference !== reference)
         throw misuse('the original invocation is unknown')
       confirmSelection({
+        tenant,
         reference,
         selection: { state: confirmed.selection.state, current: null },
       })

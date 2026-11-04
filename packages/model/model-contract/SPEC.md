@@ -256,19 +256,19 @@ judgeFixedModelRequest 接收 unknown；judgeAdmit 接收 typed Access 加 call�
 
 ### 可保存调用引用
 
-本节由 [#549 技术采用](https://github.com/nemori-ai/omne-harness-lite/issues/549#issuecomment-6293911043)采用。公开声明和六个纯函数归 [reference.ts](src/reference.ts)。`ModelInvocationRef` 与 `ModelOperationRef` 是独立品牌字符串，只负责定位，不证明存在或授予资格。
+本节由 [#549 技术采用](https://github.com/nemori-ai/omne-harness-lite/issues/549#issuecomment-6293911043)采用，引用文本的租户部分由 R2-D357 改写。公开声明和六个纯函数归 [reference.ts](src/reference.ts)。`ModelInvocationRef` 与 `ModelOperationRef` 是独立品牌字符串，只负责定位，不证明存在或授予资格。
 
-规范文本分别是 `JSON.stringify(['model-invocation',1,tenantCodecText,call,admission])` 和 `JSON.stringify(['model-operation',1,tenantCodecText,call,admission,operation])`。调用方在首次受理前固定身份并编码。operation 可以等于 admission，也可以标识读取、控制或 ACK。引用不保存动作种类、结果或证据。
+规范文本是版本 2：`JSON.stringify(['model-invocation',2,call,admission])` 和 `JSON.stringify(['model-operation',2,call,admission,operation])`。文本不含租户。租户来自调用方的 Access。每个租户的存储有自己的分区，主键以租户开头，所以文本里的租户是冗余的（R2-D357）。版本 1 的文本返回 malformed，rejection.reason 为 version。没有版本 1 的兼容读取。调用方在首次受理前固定身份并编码。operation 可以等于 admission，也可以标识读取、控制或 ACK。引用不保存动作种类、结果或证据。
 
-文本先核类型与 1024 个 UTF-16 码元上限，再解析 JSON。非数组返回 shape，数组依次核 domain、version、精确元组长度、tenant、call、admission 和 operation。身份复用现行解码规则，admission 与 operation 另拒绝 `mop_--` 保留身份。1024 内的非规范空白可以解析，成功返回规范文本。身份不裁剪、不折叠，不忽略多余元素。
+文本先核类型与 1024 个 UTF-16 码元上限，再解析 JSON。非数组返回 shape，数组依次核 domain、version、精确元组长度、call、admission 和 operation。身份复用现行解码规则，admission 与 operation 另拒绝 `mop_--` 保留身份。1024 内的非规范空白可以解析，成功返回规范文本。身份不裁剪、不折叠，不忽略多余元素。
 
-encode 只接受 Object.prototype 或 null 原型的封闭 own enumerable string data fields。访问器、symbol、非枚举、未知和缺字段返回 shape。反射抛错返回 unreadable，不执行 getter 或 toJSON。Proxy 的反射 trap 仍可执行，此协议不承诺限制其副作用。
+encode 的输入仍含 tenant。tenant 必须是 legal-identity 铸造的租户，否则返回 identity；它不写入文本。encode 只接受 Object.prototype 或 null 原型的封闭 own enumerable string data fields。访问器、symbol、非枚举、未知和缺字段返回 shape。反射抛错返回 unreadable，不执行 getter 或 toJSON。Proxy 的反射 trap 仍可执行，此协议不承诺限制其副作用。
 
-resolve 先用 tenantCodec.encode 核当前 tenant 的铸造关系，再解析引用并比较租户。未铸造返回 invalid-tenant，异租户返回 foreign-tenant，其余拒绝为 malformed。成功返回冻结 parts，其中 tenant 是本次传入的同一对象。引用不替换当前资格。
+resolve 先用 tenantCodec.encode 核当前 tenant 的铸造关系，再解析引用。未铸造返回 invalid-tenant，其余拒绝为 malformed。成功返回冻结 parts，其中 tenant 是本次传入的同一对象。引用不替换当前资格。resolve 不再返回 foreign-tenant。另一租户的引用在本租户解析成功，并在本租户的分区里定位。该分区没有这个调用，所以有存储的入口按不存在的调用回复。回复与该调用从未存在时逐字节相同，不披露另一租户的调用是否存在。foreign-tenant 成员暂留在 `ModelReferenceFailure` 中，标为 deprecated，等 Session Journal 替身删除对应的死分支后删除。
 
 Admission 保留 call、revision、recovered 并增加 reference。首次 reference 来自实际提交的原身份，认回返回原账本回执中的 reference。同 call 换 operation 仍 conflict。`inspect`、普通 `connect` 和 `beginRead` 只接受 Access 加 invocation reference，beginRead 另带原读取 operation 和 result。没有旧形态重载。
 
-三个入口先解析，再分别委托原 recall、低层 directory.connect 和 acquireRead。malformed 映射 invalid(field='reference', reason='reference-'+rejection.reason)，invalid-tenant 映射 denied/tenant，foreign-tenant 映射 denied/本次入口名。失败不查询对象。正常路径仍分别核当前 facts、observe 与 read 资格。
+三个入口先解析，再分别委托原 recall、低层 directory.connect 和 acquireRead。malformed 映射 invalid(field='reference', reason='reference-'+rejection.reason)，invalid-tenant 映射 denied/tenant。失败不查询对象。正常路径仍分别核当前 facts、observe 与 read 资格。另一租户的引用走正常路径，在调用方租户的分区里查不到，回复与不存在的调用相同。
 
 合法引用中的错误 admission 不能由 codec 判定。已有调用的 inspect 继续返回 invalid(admission,not-original)。connect 与 beginRead 只按 call 定位，当前对应资格成立时继续原协议，不增加受理事实查询。低层 `ModelInstanceDirectory` 仍接 CallAccess，由实际宿主兑现当前观察资格。raw Cordis 目录仅负责路由，不单独证明这个资格承诺。
 
@@ -559,11 +559,10 @@ stateDiagram-v2
 | --- | --- | --- | --- |
 | 1 | tenant 未铸造 | tenant | identity |
 | 2 | invocation 文本非法 | key.reference | reference-malformed |
-| 3 | invocation 属于其他 tenant | key.reference | foreign-tenant |
-| 4 | result key 与 settlement.version 不同 | key.result | version-mismatch |
-| 4 | account key 与 account.revision 不同 | key.revision | revision-mismatch |
-| 5 | account.subject 不是 model_call 与原 call | account.subject | call-mismatch |
-| 6 | result accounts 有重复 dispatch | accounts | duplicate-dispatch |
+| 3 | result key 与 settlement.version 不同 | key.result | version-mismatch |
+| 3 | account key 与 account.revision 不同 | key.revision | revision-mismatch |
+| 4 | account.subject 不是 model_call 与原 call | account.subject | call-mismatch |
+| 5 | result accounts 有重复 dispatch | accounts | duplicate-dispatch |
 | 7 | result accounts 中非 null subject 不是 model_call 与原 call | accounts | call-mismatch |
 
 第4项按交付分支执行。第5项仅用于 account。第6、7项仅用于 result，第6项先检查整个数组，再按原数组顺序检查第7项。`ModelDeliveryRejection` 是表中 field/reason 对的有限联合。静态 kind 对应仍由 ModelDelivery 联合类型保证。
@@ -636,7 +635,7 @@ push、重投、证据核验、handoff 与 dispatches 分别核当前资格，�
 
 接收方按以下顺序处理。同一 key 曾可能提交时，下面任何新响应都不能清除原未知记录。
 
-1. 核 tenant 铸造与 invocation 租户。未铸造或跨租户返回 denied，不查 key、consumer 或原调用。文本非法返回 invalid(key.reference, reference-malformed)。
+1. 核 tenant 铸造。未铸造返回 denied，不查 key、consumer 或原调用。文本非法返回 invalid(key.reference, reference-malformed)。引用不含租户（R2-D357），所以接收方在本租户的分区里定位原调用。另一租户的调用在这里不存在，按第 3 步的未受理处理，回复与不存在的调用相同。
 2. 核本主体当前接收资格。拒绝返回 denied，资格依赖故障返回 unavailable。此时不披露原 key 是否保存、冲突或 admission 是否真实。
 3. 核原调用及原 admission、完整冻结 consumer，再按纯关系表核版本和 subject。原调用权威未受理返回 invalid(key.reference, not-accepted)，admission 非原值返回 invalid(key.reference, not-original)，consumer 不同返回 invalid(consumer, not-original)。其余关系失败沿纯关系表的 field/reason。完整 dispatch 集合只能由持有原调用记录的拥有者核验，纯 judge 不声称完成该核验。
 4. 以原调用权威记录核 dispatch 关系。result 的完整集合缺项或多项返回 invalid(accounts, dispatch-set-mismatch)；account.key.dispatch 不在原集合中返回 invalid(key.dispatch, not-original)。集合来源不可读返回 unavailable，dependency 为 dispatches，保持先前 unknown；不可读不是集合不等或不属于。重复项仍由先行 typed 表返回 duplicate-dispatch。此检查在原 key 认回之前，纯 judge 不承担成员关系查询。
@@ -786,7 +785,7 @@ null 不表示调用不存在、未执行、终局或永久没有目标。定位
 
 current 使用原 Reply，保持原宽 ModelFailure 联合兼容。该只读方法仅产生 denied、invalid、unavailable，不新造 operation、实例租约、容量预留或 handoff。其他旧失败成员仍由旧消费者完整处理。
 
-1. 使用原 Model invocation codec 核 tenant 与 reference。未铸造 tenant 返回 denied(action=tenant)。跨租户返回 denied(action=current)。malformed 返回 invalid(field=reference, reason=reference- 加原 codec rejection.reason)。这些检查不查目标。
+1. 使用原 Model invocation codec 核 tenant 与 reference。未铸造 tenant 返回 denied(action=tenant)。引用不含租户（R2-D357），另一租户的引用在第 3 步按未受理回复，与不存在的调用相同。malformed 返回 invalid(field=reference, reason=reference- 加原 codec rejection.reason)。这些检查不查目标。
 2. 核本主体当前 facts/read 资格。失权返回 denied(action=current)，资格依赖不可用返回 unavailable(dependency=stream-references, diagnostic 为安全诊断标识)。不据此推断对象存在或不存在。
 3. 在同一权威边界读取原 call/admission、CallState、发布目标和有效代次。权威未受理返回 invalid(reference, not-accepted)。已有 call 的错误 admission 返回 invalid(admission, not-original)。不能确认受理或来源不可用返回 unavailable，dependency 为 stream-references。
 4. 准备发生等待时，在实际受保护输出前重核当前资格，并重读同边界 state 与目标。旧 allowed 不是持续许可。

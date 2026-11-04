@@ -174,14 +174,25 @@ function currentChecks<P>(): Check<P>[] {
       async run(scene) {
         const { subject, wait } = scene
         await publish(scene)
-        failure(
-          await wait(
-            subject.references.current({
-              access: subject.otherAccess,
-              reference: subject.reference,
-            }),
-          ),
-          { kind: 'denied' },
+        // The reference carries no tenant (R2-D357): another tenant's partition has no such call,
+        // so it gets the answer for a call that was never accepted, byte for byte.
+        const foreign = await wait(
+          subject.references.current({
+            access: subject.otherAccess,
+            reference: subject.reference,
+          }),
+        )
+        const unaccepted = await wait(
+          subject.references.current({
+            access: subject.otherAccess,
+            reference: subject.unknownReference,
+          }),
+        )
+        failure(foreign, { kind: 'invalid', field: 'reference', reason: 'not-accepted' })
+        same(
+          JSON.stringify(foreign),
+          JSON.stringify(unaccepted),
+          'Another tenant learned that the call exists.',
         )
         failure(
           await wait(
@@ -332,7 +343,8 @@ function observationChecks<P>(): Check<P>[] {
       obligation: 'observation-reference-failures',
       async run(scene) {
         await publish(scene)
-        await terminal(scene.watch(undefined, scene.subject.otherAccess), 'denied')
+        // Another tenant's partition has no such stream: the end of an unpublished stream.
+        await terminal(scene.watch(undefined, scene.subject.otherAccess), 'stale-stream')
         await terminal(scene.watch(scene.subject.wrongProducer), 'stale-stream')
         await terminal(scene.watch(scene.subject.snapshots.successor.ref), 'stale-stream')
         // @ts-expect-error Exercise unreadable reference syntax at the public boundary.

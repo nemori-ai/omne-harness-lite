@@ -76,6 +76,7 @@
 - `ToolInvocation` · `definitions.d.ts`
 - `ToolInvocationCommands` · `operations.d.ts`
 - `ToolInvocationContentReader` · `operations.d.ts`
+- `ToolInvocationLocation` · `reference.d.ts`
 - `ToolInvocationParts` · `reference.d.ts`
 - `ToolInvocationQueries` · `operations.d.ts`
 - `ToolInvocationRef` · `reference.d.ts`
@@ -83,6 +84,7 @@
 - `ToolInvokeRequest` · `operations.d.ts`
 - `ToolLookup` · `results.d.ts`
 - `ToolOperationId` · `identity.d.ts`
+- `ToolOperationLocation` · `reference.d.ts`
 - `ToolOperationParts` · `reference.d.ts`
 - `ToolOperationRef` · `reference.d.ts`
 - `ToolProgramDeclaration` · `definitions.d.ts`
@@ -1649,7 +1651,7 @@ export declare function decodeToolRevision(text: unknown): Outcome<ToolRevision,
 export { decodeToolCallId, decodeToolOperationId } from './identity.ts';
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
-export type { ToolInvocationParts, ToolInvocationRef, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
+export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
 export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolCommandDeclaration, ToolDefinition, ToolEnvironmentDeclaration, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
 export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
@@ -2908,13 +2910,15 @@ export type ToolInvocationParts = Readonly<{
 export type ToolOperationParts = ToolInvocationParts & Readonly<{
     operation: ToolOperationId;
 }>;
-export declare const TOOL_REFERENCE_MAX_LENGTH = 1668;
+export type ToolInvocationLocation = Omit<ToolInvocationParts, 'tenant'>;
+export type ToolOperationLocation = Omit<ToolOperationParts, 'tenant'>;
+export declare const TOOL_REFERENCE_MAX_LENGTH = 1565;
 export declare function encodeToolInvocationRef(parts: ToolInvocationParts): Outcome<ToolInvocationRef, ToolReferenceRejection>;
 export declare function encodeToolOperationRef(parts: ToolOperationParts): Outcome<ToolOperationRef, ToolReferenceRejection>;
 export declare function decodeToolInvocationRef(text: unknown): Outcome<ToolInvocationRef, ToolReferenceRejection>;
 export declare function decodeToolOperationRef(text: unknown): Outcome<ToolOperationRef, ToolReferenceRejection>;
-export declare function readToolInvocationRef(reference: ToolInvocationRef): ToolInvocationParts;
-export declare function readToolOperationRef(reference: ToolOperationRef): ToolOperationParts;
+export declare function readToolInvocationRef(reference: ToolInvocationRef): ToolInvocationLocation;
+export declare function readToolOperationRef(reference: ToolOperationRef): ToolOperationLocation;
 export declare function resolveToolInvocationRef(reference: unknown, tenant: TenantId): Outcome<ToolInvocationParts, ToolReferenceFailure>;
 export declare function resolveToolOperationRef(reference: unknown, tenant: TenantId): Outcome<ToolOperationParts, ToolReferenceFailure>;
 export declare const toolStreamCallCodec: StreamCallCodec;
@@ -3083,7 +3087,7 @@ export type ToolDeliveryRejection = Readonly<{
     reason: 'identity';
 }> | Readonly<{
     field: 'key.reference';
-    reason: 'reference-malformed' | 'foreign-tenant';
+    reason: 'reference-malformed';
 }> | Readonly<{
     field: 'key.revision';
     reason: 'revision-mismatch';

@@ -27,8 +27,10 @@ export {
   resolveToolOperationRef,
 } from './reference.ts'
 export type {
+  ToolInvocationLocation,
   ToolInvocationParts,
   ToolInvocationRef,
+  ToolOperationLocation,
   ToolOperationParts,
   ToolOperationRef,
   ToolReferenceFailure,

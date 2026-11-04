@@ -152,9 +152,9 @@ it('keeps the invocation and operation reference brands apart, and both from pla
   // @ts-expect-error TS2322: 'ToolInvocationRef' is not assignable to type 'ToolOperationRef'.
   const wrongOperation: ToolOperationRef = invocationRef
   // @ts-expect-error TS2322: Type 'string' is not assignable to type 'ToolInvocationRef'.
-  const rawInvocation: ToolInvocationRef = '["tool-invocation",1]'
+  const rawInvocation: ToolInvocationRef = '["tool-invocation",2]'
   // @ts-expect-error TS2322: Type 'string' is not assignable to type 'ToolOperationRef'.
-  const rawOperation: ToolOperationRef = '["tool-operation",1]'
+  const rawOperation: ToolOperationRef = '["tool-operation",2]'
   void wrongInvocation
   void wrongOperation
   void rawInvocation

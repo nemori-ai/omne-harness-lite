@@ -144,7 +144,7 @@ These generation expressions define canonical text, without randomness or enviro
 
 ```js
 const tenantText = '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000000"}'
-const call = JSON.stringify(['model-invocation', 1, tenantText, 'mcall_a', 'mop_a'])
+const call = JSON.stringify(['model-invocation', 2, 'mcall_a', 'mop_a'])
 const ref = JSON.stringify(['stream-ref', 1, 'model', call, 'str_a'])
 const c0 = JSON.stringify(['stream-cursor', 1, ref, '0'])
 const c10 = JSON.stringify(['stream-cursor', 1, ref, '10'])

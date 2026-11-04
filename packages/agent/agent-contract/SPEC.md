@@ -92,6 +92,8 @@ Model 的受理前引用、not-accepted 判定、原固定输入与 ACK result/e
 
 公共 `ExecutionControl` 保持原 call 和原因输入，不增加 ToolOperationRef。Tool control 接受先核对当前所有权与访问资格，再按原 control operation 认回或返回 conflict，之后才为新的 control operation 扫描当前 pending。checkpoint 前进不阻止原 control operation 的接受认回。Tool 中断或后台控制受理时，Journal 在该 execution 的 associated Tool pending 中定位原调用。先按 producer kind 区分，再比较 call。Model 控制同样先区分 kind，允许 Model 与 Tool 使用相同文本 ID。Tool 匹配通过当前租户的公开 `resolveToolInvocationRef` 校验。新的 control operation 遇到匹配 producer kind 的畸形引用返回 invalid，field 为 command.call，reason 为 invalid-tool-invocation-reference；外租户引用返回 denied，action 为 control。无匹配或存在多个不同当前租户调用引用时返回 invalid，field 为 command.call，reason 分别为 no-associated-tool-call 或 ambiguous-associated-tool-call。重复相同引用不算多个不同关联。
 
+R2-D357 起，Model 与 Tool 引用的文本不含租户，Journal 在调用方的租户里解析引用。所以本节和引用边界失败表里「外租户引用」「外租户附件」「保留引用属于外租户」的分支不再能由已铸造的租户触发。Tool 的 resolve 只在所给租户未铸造时返回 foreign-tenant，这时仍按上述 denied 处理。跨租户的隔离由 Access 的租户与存储分区保证。
+
 Tool control 的 `ControlRecord` 保存原 command、`toolInvocation: ToolInvocationRef` 和 `toolOperation: ToolOperationRef | null`，与 accepted 阶段及原接受结果同次保存。toolInvocation 是受理时的原关联快照。非 Tool control 不允许这两个字段。toolOperation 初始 null 只表示尚无已记录操作引用，不证明操作未提交。checkpoint 改变之后，迟到记录仍用 ControlRecord 的 toolInvocation 校验，不重查当前 pending。
 
 `recordControl` 仅增加可选 `toolOperation` 附件。记录者以 `resolveToolOperationRef` 和 `resolveToolInvocationRef` 校验当前租户及原 call、admission 一致。非 Tool target 不接受附件。同一引用可认回，另一引用返回 conflict，省略附件保留旧值。引用只定位，不授予当前资格，不证明 Tool 内部存在或控制完成。source 仍须由有权记录者提供真实阶段依据。

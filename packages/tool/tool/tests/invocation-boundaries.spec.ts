@@ -9,7 +9,6 @@ import {
   referenceFor,
   request,
   tenantA,
-  tenantB,
 } from './runtime-values.ts'
 
 type Runtime = ReturnType<typeof createRuntime>
@@ -160,15 +159,9 @@ const boundaryCases = [
     input: { ...access, reference: '[]', operation: '[]' },
     invalid: true,
   },
-  {
-    name: 'foreign tenant',
-    input: {
-      ...access,
-      reference: referenceFor('call', 'admission', tenantB),
-      operation: operationRefFor('call', 'admission', 'operation', tenantB),
-    },
-    invalid: false,
-  },
+  // A reference of another tenant is not a boundary case since R2-D357: the text carries no
+  // tenant, so it resolves in the caller's tenant and the store answers as for a missing call
+  // (invocation-runtime.spec.ts, the cross-tenant negative control).
   { name: 'null input', input: null, invalid: false },
   { name: 'primitive input', input: 1, invalid: false },
   { name: 'missing principal', input: withoutPrincipal, invalid: false },

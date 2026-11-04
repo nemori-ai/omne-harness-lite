@@ -930,19 +930,11 @@ describe('control goes to the long-term control entry, without a handle', () => 
     expect(f.errors()).toHaveLength(1)
   })
 
-  it.each<[string, Parameters<AgentDrivePort['control']>[0]['intent']]>([
-    [
-      'a Model reference of another tenant',
-      { kind: 'stop-call', producer: { kind: 'model', call: modelReference(B.tenant) } },
-    ],
-    [
-      'a Tool reference of another tenant',
-      { kind: 'stop-call', producer: { kind: 'tool', call: toolReference(B.tenant) } },
-    ],
-  ])('%s is denied without calling the Agent', async (_name, intent) => {
-    const f = await assembled()
-    expect(await f.drive().control(controlInput(intent))).toEqual({ failure: { kind: 'denied' } })
-    expect(f.calls).toHaveLength(0)
+  it('cannot name another tenant in a Model or Tool reference (R2-D357)', () => {
+    // The text carries no tenant: a reference encoded for tenant B is the caller's own reference,
+    // located in the caller's tenant.
+    expect(modelReference(B.tenant)).toBe(modelReference(A.tenant))
+    expect(toolReference(B.tenant)).toBe(toolReference(A.tenant))
   })
 })
 

@@ -727,28 +727,6 @@ describe('another tenant', () => {
     expect(f.commits).toHaveLength(0)
   })
 
-  it('an entry whose call names another tenant is denied, not committed', async () => {
-    const s = await modelScene('foreign-call')
-    await receive(s, s.result, 'result')
-    const foreign = sampleReceivedModelResult(memoryOtherAccess('x', 'y').tenant, s.name)
-    const f = await assembled(s, {
-      entries: async input => {
-        const read = await s.view.entries.read(input)
-        if ('failure' in read) return read
-        return succeed({
-          ...read.ok,
-          items: read.ok.items.map(({ sequence, entry }) => ({
-            sequence,
-            entry: entry.kind === 'received' ? { ...entry, delivery: foreign.delivery } : entry,
-          })),
-        })
-      },
-    })
-
-    expect(await f.consume()).toMatchObject({ failure: { kind: 'denied' } })
-    expect(f.commits).toHaveLength(0)
-  })
-
   it('a material kept for another tenant is denied', async () => {
     const s = await modelScene('foreign-material')
     await receive(s, s.result, 'result')
