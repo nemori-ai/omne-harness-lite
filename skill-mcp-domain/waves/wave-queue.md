@@ -1,10 +1,10 @@
 # 当前波队列（Skill 与 MCP）
 
-格式沿 `.meta_harness/human/map-reduce-delivery/templates/wave-queue.md`，按[范式 r1](operating-model.md) 变通：没有收口卡，F 是父分支头。
+格式沿 `.meta_harness/human/map-reduce-delivery/templates/wave-queue.md`，按[范式 r2](operating-model.md) 变通：没有收口卡，F 是父分支头。
 
-- 当前波：W2 通用实现与本地来源，已收波（父分支 78e978ab6，交接 [w2/handoff.md](w2/handoff.md)）；F = b0f2ec7fb15a3f8572a36ef71af2fd30bf90ca01；计划修订 r3；2026-11-03 派发。三个实现闭包已合入（478e56381、0956ccf01、ff17f7701），写回闭包已合入（3248c271a、78e978ab6）。W1 已收波（父分支 c5a49fd46，交接 [w1/handoff.md](w1/handoff.md)）
-- active 线：Skill 线（闭包 `w2-skill`、`w2-skill-host`）、MCP 线（闭包 `w2-mcp-core`）；reduce 的 `w2-spike`。波包 [w2/wave-pack.md](w2/wave-pack.md)
-- 下一波预案：W3 调用、传输与目录（`w3-mcp-call`、`w3-mcp-host`、`w3-skill-catalog`），见[波段计划](rolling-plan.html)；W3 的契约可加调整清单在 [w2/schema-check.md](w2/schema-check.md)。预案不授权开工
+- 当前波：W3 调用、传输与目录，进行中；卡 [#1119](https://github.com/nemori-ai/omne-harness-lite/issues/1119)；F0 = 05f281394c9179ecb9427fb1d5b97cc2f808a789（A 段与 Skill 线）；F1、F2 在段开始时写进[波包](w3/wave-pack.md)；计划修订 r4；2026-11-04 派发。W2 已收波（父分支 78e978ab6，交接 [w2/handoff.md](w2/handoff.md)），W1 已收波（c5a49fd46）
+- active 线：Skill 线（`w3-skill-catalog`）、MCP 线（A 段 `w3-mcp-contract`、`w3-mcp-table`；B 段 `w3-mcp-call`、`w3-mcp-host`；C 段 `w3-mcp-e2e`）。波包 [w3/wave-pack.md](w3/wave-pack.md)
+- 下一波预案：W4 Cordis 服务键与加固（`skill-cordis-contract`、`mcp-cordis-contract`、两个 host-local 的插件部分、profiling、组页剩余「归 SPEC」项），见[波段计划](rolling-plan.html)。预案不授权开工
 - 待负责人决定：无
 
 ## 修订表
@@ -12,6 +12,7 @@
 | 修订 | 时刻（UTC） | 变化 | 原因 |
 | --- | --- | --- | --- |
 | r1 | 2026-11-03 | 首版 | — |
+| r4 | 2026-11-04 | W3 开波：契约可加回写从 reduce prep 改为 A 段闭包（MCP `w3-mcp-contract`；Skill 并进 `w3-skill-catalog`）；`w3-mcp-call` 首项拆成 A 段 `w3-mcp-table`；MCP 线分 A/B/C 三段，各段有自己的冻结输入；加 C 段 `w3-mcp-e2e` | 调整项 23 条含新套件，reduce 串行写慢且绕过评审；连接表收口与契约回写写集不相交，可并行 |
 | r3 | 2026-11-03 | W2 开波：`SkillAccess.export` 从 W3 提前到 W2（与 read 共用三段）；`createMcp` 推后到 W3，W2 交 `createMcpCore`（invoker 不能用桩）；w2-prep/prep2 由 reduce 提交（依赖、两处 SPEC 裁定、组页四处写回、`serverInfo` 可选） | 开波前检查与 2026-07-28 核对 |
 | r2 | 2026-11-03 | 波末加两个写回闭包（组页、领域页、README），写集按组分开，由子代理写、reduce 合入 | 写回项约 40 处，reduce 串行写比两写者并行慢；波内「共享文件只由 reduce 写」在波末无在途闭包时不再约束 |
 
