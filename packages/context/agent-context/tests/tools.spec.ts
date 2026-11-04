@@ -70,6 +70,7 @@ function commandTool(
       settings: null,
     },
     kind: 'commands',
+    encoding: 'wrapped',
     commands: commands.map(command => ({
       name: command.name,
       summary: command.summary,

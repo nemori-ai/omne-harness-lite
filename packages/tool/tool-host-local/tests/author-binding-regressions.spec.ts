@@ -258,6 +258,7 @@ function commandModule(events: string[]): ToolImplementationModule<unknown, Cont
     executor: adoption('commands'),
     createAuthor: () =>
       defineCommandTool({
+        encoding: 'wrapped',
         implementation: {
           description: 'Two distinct commands',
           backgroundAllowed: false,
