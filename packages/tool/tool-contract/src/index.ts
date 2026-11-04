@@ -144,6 +144,7 @@ export {
   commandMenu,
   decodeCommandCallText,
   describeCommandCallRejection,
+  selectCommandText,
 } from './command-call.ts'
 export type {
   CommandCall,

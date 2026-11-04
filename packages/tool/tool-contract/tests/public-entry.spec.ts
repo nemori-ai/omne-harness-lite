@@ -35,6 +35,7 @@ it('exports on the root only the names members outside the Tool group import, an
     'residentToolFacts',
     'resolveToolInvocationRef',
     'resolveToolOperationRef',
+    'selectCommandText',
   ])
 })
 

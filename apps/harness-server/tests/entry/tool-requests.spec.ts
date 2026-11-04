@@ -31,7 +31,6 @@ import { governanceOf } from '../../src/entry/tool-release-manifest.ts'
 import {
   createReleaseToolRequests,
   releaseToolRequestsOf,
-  routeOf,
   type ReleaseToolRequests,
   type ToolRequestPorts,
 } from '../../src/entry/tool-requests.ts'
@@ -112,8 +111,9 @@ async function world() {
   return { fixture, ports, principalA, principalB, snapshot, definitions }
 }
 
-function actionInput(principal: unknown, tenant = TENANT_A, name = 'Shell.execute') {
-  const args = '{"script":"echo tool-b"}'
+const EXECUTE = '{"command":"execute","params":{"script":"echo tool-b"}}'
+
+function actionInput(principal: unknown, tenant = TENANT_A, name = 'Shell', args = EXECUTE) {
   return {
     principal,
     tenant,
@@ -153,9 +153,36 @@ async function preparedBy(source: ReleaseToolRequests, principal: unknown, tenan
 }
 
 describe('the trusted Tool request source', () => {
-  it('routes a declared name: <tool>.<command> or the bare tool name', () => {
-    expect(routeOf('Files.read')).toEqual({ name: 'Files', command: 'read' })
-    expect(routeOf('Shell')).toEqual({ name: 'Shell', command: null })
+  it('selects the command from the call: a known command routes there, any other call is unavailable with the menu', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests(ports)
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const request = async (args: string) => {
+      const input = actionInput(principalA, TENANT_A, 'Shell', args)
+      const described = await source.describe(input)
+      if ('failure' in described) return described
+      return source.prepare({ ...input, definition: described.ok, admission })
+    }
+    // The command codec judges the rest of the call when the tool runs, so a bad call still routes.
+    expect(await request('{"command":"info","params":{}}')).toMatchObject({
+      ok: { command: 'info' },
+    })
+    expect(await request('{"command":"info","params":[]}')).toMatchObject({
+      ok: { command: 'info' },
+    })
+    const unknown = await request('{"command":"nope"}')
+    expect(unknown).toMatchObject({ failure: { kind: 'unavailable' } })
+    const diagnostic =
+      'failure' in unknown && 'diagnostic' in unknown.failure ? unknown.failure.diagnostic : ''
+    expect(diagnostic).toContain('Shell: there is no command "nope".')
+    expect(diagnostic).toContain('\nexecute {script, terminal?')
+    expect(await request('{"script":"echo"}')).toMatchObject({ failure: { kind: 'unavailable' } })
+    // A command is never read from the declared name.
+    expect(await source.describe(actionInput(principalA, TENANT_A, 'Shell.execute'))).toMatchObject(
+      {
+        failure: { kind: 'unavailable' },
+      },
+    )
   })
 
   it('prepares the complete request of the admitted action, and it passes the public Tool judgement', async () => {
@@ -166,8 +193,8 @@ describe('the trusted Tool request source', () => {
     expect(request).toMatchObject({
       command: 'execute',
       arguments: {
-        original: '{"script":"echo tool-b"}',
-        effective: '{"script":"echo tool-b"}',
+        original: EXECUTE,
+        effective: EXECUTE,
         complete: true,
       },
       requesterScope: SCOPE,
@@ -278,7 +305,7 @@ describe('the trusted Tool request source', () => {
   it('answers unavailable for a name outside the release, and when the definition changed since describe', async () => {
     const { ports, principalA, definitions } = await world()
     const source = createReleaseToolRequests(ports)
-    expect(await source.describe(actionInput(principalA, TENANT_A, 'Other.run'))).toMatchObject({
+    expect(await source.describe(actionInput(principalA, TENANT_A, 'Other'))).toMatchObject({
       failure: { kind: 'unavailable' },
     })
     const input = actionInput(principalA)

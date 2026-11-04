@@ -47,7 +47,7 @@ export function createFilesAuthor(
   return succeed(
     createAuthor<FilesAuthorEnvironment>(
       'Files',
-      `Read, search, and modify files in the authorized execution environment. Relative paths, including ".", resolve against the workspace root${cwd === undefined ? '' : ` ${JSON.stringify(cwd)}`}.`,
+      'Read, search, and modify files in the authorized execution environment. Relative paths, including ".", resolve against the workspace root.',
       filesCommands,
       ['files'],
       maximum,

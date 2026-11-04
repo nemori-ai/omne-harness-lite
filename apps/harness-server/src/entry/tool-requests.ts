@@ -39,11 +39,13 @@ import type {
 } from '@omne-harness/session-contract'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
-import type {
-  ToolAvailability,
-  ToolCatalog,
-  ToolConsumerProfile,
-  ToolInvokeRequest,
+import {
+  describeCommandCallRejection,
+  selectCommandText,
+  type ToolAvailability,
+  type ToolCatalog,
+  type ToolConsumerProfile,
+  type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
@@ -77,12 +79,22 @@ const denied = (action: string) => fail<Failure>({ kind: 'denied', action })
 
 type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
 
-/** 按 request-context 的声明规则拆模型看到的名字：`<工具>.<命令>` 或工具名。 */
-export function routeOf(declared: string): Readonly<{ name: string; command: string | null }> {
-  const dot = declared.indexOf('.')
-  return dot < 0
-    ? { name: declared, command: null }
-    : { name: declared.slice(0, dot), command: declared.slice(dot + 1) }
+/**
+ * 模型看到的声明名就是工具名（D-94）。多命令工具从生效参数里选命令：点名已知命令的调用都送到该命令，
+ * 由它的编解码器判整次调用并答出原因与用法；没点名已知命令的调用答 unavailable，诊断附命令菜单。
+ */
+function commandOf(
+  definition: ToolAvailability['definition'],
+  effectiveArguments: string,
+): Outcome<string | null, Failure> {
+  if (definition.kind === 'function') return succeed(null)
+  const selected = selectCommandText(
+    definition.commands.map(command => command.name),
+    effectiveArguments,
+  )
+  return 'failure' in selected
+    ? unavailable(describeCommandCallRejection(definition, selected.failure))
+    : selected
 }
 
 /** 主体经核验是这个租户的会话工作主体时给出会话 id（判定只有 `session-work.ts` 一份）。 */
@@ -118,7 +130,7 @@ async function availabilityOf(
 > {
   const catalog = ports.catalog()
   if (catalog === undefined) return unavailable('tool catalog absent')
-  const { name, command } = routeOf(input.original.name)
+  const name = input.original.name
   if (!release.manifest.entries.some(entry => entry.asset.name === name))
     return unavailable(`${name} is not a release tool`)
   let answer: Awaited<ReturnType<ToolCatalog<unknown>['inspect']>>
@@ -127,7 +139,7 @@ async function availabilityOf(
       principal: input.principal,
       tenant: input.tenant,
       name,
-      command,
+      command: null,
       consumer: consumerOf(release),
     })
   } catch {
@@ -140,7 +152,8 @@ async function availabilityOf(
   const availability = answer.ok
   if (availability.kind !== 'available' || availability.layer.kind !== 'official')
     return unavailable(`${name} is not available`)
-  return succeed({ ...availability, command })
+  const command = commandOf(availability.definition, input.effectiveArguments)
+  return 'failure' in command ? command : succeed({ ...availability, command: command.ok })
 }
 
 /** 会话快照里当前（最后一个、未结束的）Context 作用域。 */

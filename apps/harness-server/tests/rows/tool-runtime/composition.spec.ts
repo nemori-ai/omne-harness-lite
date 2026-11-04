@@ -316,7 +316,10 @@ function requestSource(ctx: Context) {
 }
 
 let positions = 0
-async function requestFor(ctx: Context, principal: unknown, name: string, args: string) {
+/** `command` is `<tool>.<command>`; the model calls the tool and names the command in the call. */
+async function requestFor(ctx: Context, principal: unknown, command: string, params: string) {
+  const [name = command, selected] = command.split('.')
+  const args = `{"command":${JSON.stringify(selected)},"params":${params}}`
   const source = requestSource(ctx)
   const position = `step-${++positions}/tool/0`
   const input = {

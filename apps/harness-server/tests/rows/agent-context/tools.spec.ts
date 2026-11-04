@@ -9,7 +9,7 @@ import type { Adoption, RuntimeConditions } from '@omne-harness/agent-contract'
 import { toolsSourceOf } from '@omne-harness/agent-context'
 import { fail } from '@omne-harness/operation-result'
 import { declareTools } from '@omne-harness/request-context-contract'
-import type { ToolDefinition } from '@omne-harness/tool-contract'
+import { commandCallSchema, commandMenu, type ToolDefinition } from '@omne-harness/tool-contract'
 import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import {
   ToolCatalogService,
@@ -120,19 +120,25 @@ describe('agent-context row: the sixth group over the release Catalog', () => {
       [true, bindings[0], files],
       [true, bindings[1], shell],
     ])
+    // One declaration per tool (D-94): the description ends with the command menu, the
+    // arguments schema enumerates the commands.
     const declared = declareTools(read.value).direct
-    const expected = [files, shell].flatMap(definition =>
-      definition.kind === 'commands'
-        ? definition.commands.map(command => ({
-            name: `${definition.name}.${command.name}`,
-            description: command.summary,
-            argumentsSchema:
-              command.parameters.kind === 'declared' ? command.parameters.value.schema : 'owned',
-          }))
-        : [],
+    expect(declared).toEqual(
+      [files, shell].map(definition => {
+        if (definition.kind !== 'commands') throw new Error('commands')
+        return {
+          name: definition.name,
+          description: `${definition.description}\n\n${commandMenu(definition)}`,
+          argumentsSchema: commandCallSchema(definition),
+        }
+      }),
     )
-    expect(expected.length).toBeGreaterThan(2)
-    expect(declared).toEqual(expected)
+    for (const definition of [files, shell])
+      if (definition.kind === 'commands')
+        for (const command of definition.commands)
+          expect(declared.find(item => item.name === definition.name)?.description).toContain(
+            `\n${command.name} {`,
+          )
   })
 
   it('gives no tool for an empty set of bindings', async () => {

@@ -63,11 +63,10 @@ export function decodeCommandCall(
   commands: readonly string[],
   value: JsonValue,
 ): Outcome<CommandCall, CommandCallRejection> {
+  const selected = selectCommand(commands, value)
+  if ('failure' in selected) return selected
+  const command = selected.ok
   if (value.kind !== 'object') return fail({ kind: 'not-object' })
-  const named = value.entries.find(entry => entry.key === COMMAND_FIELD)
-  if (named === undefined || named.value.kind !== 'string') return fail({ kind: 'command-missing' })
-  const command = named.value.value
-  if (!commands.includes(command)) return fail({ kind: 'command-unknown', command })
   const rest = value.entries.filter(entry => entry.key !== COMMAND_FIELD)
   if (encoding === 'flat') return succeed({ command, params: { kind: 'object', entries: rest } })
   const extra = rest.find(entry => entry.key !== PARAMS_FIELD)
@@ -76,6 +75,31 @@ export function decodeCommandCall(
   return params.kind === 'object'
     ? succeed({ command, params })
     : fail({ kind: 'params-not-object' })
+}
+
+/**
+ * The command a call names, read from its `command` member only. A route uses it to reach the
+ * command, whose codec then judges the whole call and answers any other fault with its reason.
+ */
+export function selectCommand(
+  commands: readonly string[],
+  value: JsonValue,
+): Outcome<string, CommandCallRejection> {
+  if (value.kind !== 'object') return fail({ kind: 'not-object' })
+  const named = value.entries.find(entry => entry.key === COMMAND_FIELD)
+  if (named === undefined || named.value.kind !== 'string') return fail({ kind: 'command-missing' })
+  const command = named.value.value
+  return commands.includes(command) ? succeed(command) : fail({ kind: 'command-unknown', command })
+}
+
+/** Reads a call text and selects its command; an unreadable text is a rejection. */
+export function selectCommandText(
+  commands: readonly string[],
+  text: string,
+): Outcome<string, CommandCallRejection> {
+  const read = readJsonText(text, CALL_LIMITS)
+  if (read.kind !== 'ok') return fail({ kind: 'unreadable', reason: read.kind })
+  return selectCommand(commands, read.value)
 }
 
 /** The call value of one command. `decodeCommandCall` gives back the same call. */

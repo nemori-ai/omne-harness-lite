@@ -7,6 +7,7 @@ import {
   commandMenu,
   decodeCommandCallText,
   describeCommandCallRejection,
+  selectCommandText,
   type CommandCallEncoding,
   type ToolArguments,
   type ToolDefinition,
@@ -102,6 +103,26 @@ describe('command call encodings', () => {
           ok: { command: names[0], params: json('{"path":"a"}') },
         })
       }
+    })
+
+    it(`${encoding}: a route selects any call that names a known command, and only those`, () => {
+      const select = (text: string) => selectCommandText(names, text)
+      // The rest of the call is the command codec's to judge, so a bad call still reaches it.
+      expect(select(`{"command":"${names[0]}","params":[]}`)).toEqual({ ok: names[0] })
+      expect(select(`{"command":"${names[0]}","x":1}`)).toEqual({ ok: names[0] })
+      expect(select('{"command":"nope"}')).toEqual({
+        failure: { kind: 'command-unknown', command: 'nope' },
+      })
+      expect(select('{"params":{}}')).toEqual({ failure: { kind: 'command-missing' } })
+      expect(select('"read"')).toEqual({ failure: { kind: 'not-object' } })
+      expect(select('{')).toMatchObject({ failure: { kind: 'unreadable' } })
+      // Every decodable call selects the command it decodes to.
+      for (const command of names)
+        expect(
+          select(
+            writeJsonText(encodeCommandCall(encoding, { command, params: json('{}') as never })),
+          ),
+        ).toEqual({ ok: command })
     })
 
     it(`${encoding}: the one declaration enumerates exactly the commands (I1, U1)`, () => {

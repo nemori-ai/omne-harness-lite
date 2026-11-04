@@ -53,7 +53,7 @@ export function createShellAuthor(
   return succeed(
     createAuthor<ShellAuthorEnvironment>(
       'Shell',
-      `Run shell commands and manage persistent terminals in the authorized execution environment. A one-shot script runs as ${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix'), '<script>'])} and starts in ${JSON.stringify(config.text('cwd'))}.`,
+      'Run shell commands and manage persistent terminals in the authorized execution environment. The info command names the platform and shell.',
       shellCommands,
       ['command', 'terminal'],
       maximum,
@@ -89,7 +89,7 @@ async function executeShell(
   const terminal = args.terminal()
   switch (command) {
     case 'info':
-      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\n${confirmation(await environment.terminal.list({}), value => value.map(item => `terminal=${JSON.stringify(item.terminal)} state=${item.state} observed_cwd=${JSON.stringify(item.observedCwd)}`).join('\n'))}`
+      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${JSON.stringify(config.text('cwd'))}\n${confirmation(await environment.terminal.list({}), value => value.map(item => `terminal=${JSON.stringify(item.terminal)} state=${item.state} observed_cwd=${JSON.stringify(item.observedCwd)}`).join('\n'))}`
     case 'create_session': {
       if (environment.terminal.retention === undefined)
         return 'rejected reason=unavailable session retention unavailable zero starts'
