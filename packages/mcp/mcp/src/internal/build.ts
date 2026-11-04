@@ -17,9 +17,11 @@ import {
   type McpConfig,
   type McpPorts,
   type NoAnswerCause,
+  type PeerIdentity,
 } from '@omne-harness/mcp-contract'
 import type {
   CredentialFailure,
+  McpTransport,
   ProcessEnvironment,
   TransportFailure,
   TransportMaterial,
@@ -236,6 +238,26 @@ export function createBuilder<P, S>(
     return succeed({ kind: 'stdio', process: started.value.ok, generation, instructionsByteLimit })
   }
 
+  /** Opens the transport from `material` and negotiates on it, under the connection bound. */
+  async function negotiate(
+    entry: Entry,
+    material: TransportMaterial,
+    bound: AbortSignal,
+  ): Promise<Outcome<Readonly<{ transport: McpTransport; peer: PeerIdentity }>, Failed>> {
+    const opened = await untilAborted(ports.transports.open(material, bound), bound)
+    if (opened.kind === 'aborted') {
+      void closeLate(opened.late)
+      return fail(PREPARATION_FAILED)
+    }
+    if ('failure' in opened.value) return fail(failedOf(opened.value.failure))
+    const transport = opened.value.ok
+    entry.transport = transport
+    const discovered = await untilAborted(transport.discover(), bound)
+    if (discovered.kind === 'aborted') return fail(PREPARATION_FAILED)
+    if ('failure' in discovered.value) return fail(failedOf(discovered.value.failure))
+    return succeed({ transport, peer: discovered.value.ok })
+  }
+
   async function build(
     entry: Entry,
     access: Access<P>,
@@ -255,24 +277,15 @@ export function createBuilder<P, S>(
       const material = await materialOf(entry, access, prepared, generation, bound)
       if ('failure' in material) return await failed(entry, material.failure)
       if (deps.shut()) return await shutDown(entry)
-      const opened = await untilAborted(ports.transports.open(material.ok, bound), bound)
-      if (opened.kind === 'aborted') {
-        void closeLate(opened.late)
-        return await failed(entry, PREPARATION_FAILED)
-      }
-      if ('failure' in opened.value) return await failed(entry, failedOf(opened.value.failure))
-      const transport = opened.value.ok
-      entry.transport = transport
-      const discovered = await untilAborted(transport.discover(), bound)
-      if (discovered.kind === 'aborted') return await failed(entry, PREPARATION_FAILED)
-      if ('failure' in discovered.value)
-        return await failed(entry, failedOf(discovered.value.failure))
-      entry.connection.ready(discovered.value.ok)
+      const negotiated = await negotiate(entry, material.ok, bound)
+      if ('failure' in negotiated) return await failed(entry, negotiated.failure)
+      const { transport, peer } = negotiated.ok
+      entry.connection.ready(peer)
       return succeed({
         transport,
         generation: entry.connection.generation,
         connection: entry.view,
-        peer: discovered.value.ok,
+        peer,
         catalogKey: entry.catalogKey,
         adoptionRevision: entry.adoptionRevision,
         bound: entry.bound,

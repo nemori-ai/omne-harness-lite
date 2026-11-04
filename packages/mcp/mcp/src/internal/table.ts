@@ -97,6 +97,18 @@ export interface ConnectionTable<P> {
 /** What the critical section of a holding started: an answer, or the build it joined or began. */
 type Started = Readonly<{ outcome: Promise<Outcome<Ensured, EnsureFailure>> }>
 
+function answered(outcome: Outcome<Ensured, EnsureFailure>): Started {
+  return { outcome: Promise.resolve(outcome) }
+}
+
+/** The existing entry's build in flight, joined, or its usable connection, reused. */
+function reuseOf(existing: Entry): Started | undefined {
+  if (existing.pending !== undefined) return { outcome: existing.pending }
+  if (!isUsable(existing)) return undefined
+  const usable = ensuredOf(existing)
+  return usable === undefined ? undefined : answered(succeed(usable))
+}
+
 const UNKNOWN: EnsureRefusal = { kind: 'unknown' }
 
 function policyOf(prepared: PreparedSettings): GenerationPolicy {
@@ -263,10 +275,8 @@ export function createConnectionTable<P, S>(
     tenantText: string,
     bound: AbortSignal,
   ): Promise<Started> {
-    const answer = (outcome: Outcome<Ensured, EnsureFailure>): Started => ({
-      outcome: Promise.resolve(outcome),
-    })
-    const refused = (reason: EnsureRefusal): Started => answer(fail({ stage: 'settings', reason }))
+    const refused = (reason: EnsureRefusal): Started =>
+      answered(fail({ stage: 'settings', reason }))
     if (shut) return refused(CONNECTION_UNAVAILABLE)
     const read = await readAgain(admitted, access, bound)
     if (read !== 'current') return refused(read)
@@ -283,11 +293,8 @@ export function createConnectionTable<P, S>(
         continue
       }
       const existing = entries.get(keyText)
-      if (existing?.pending !== undefined) return { outcome: existing.pending }
-      if (existing !== undefined && isUsable(existing)) {
-        const usable = ensuredOf(existing)
-        if (usable !== undefined) return answer(succeed(usable))
-      }
+      const reused = existing === undefined ? undefined : reuseOf(existing)
+      if (reused !== undefined) return reused
       // From here to the start of the build nothing yields: the entry of the holding is this one.
       const entry = entryOf(existing, admitted, access, prepared, key, keyText)
       inheritLingering(entry, entriesOf(tenantText, holding).filter(ofOtherRevision))
