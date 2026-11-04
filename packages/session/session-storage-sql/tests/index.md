@@ -28,6 +28,9 @@
 - [work-fold.spec.ts](work-fold.spec.ts)：本进程提交折叠进工作缓存（RT-04，T-F1～T-F6）。
 - [work-index-refresh.spec.ts](work-index-refresh.spec.ts)：本进程发布 Agent 记录而没有 Session 参加时，换掉持有快照的索引（RT-04，C-TOPOLOGY §2.9.2）。
 - [work-fold-real.spec.ts](work-fold-real.spec.ts)：真实提供者上 `basis` 的界（T-F6，慢层）。
+- [entry-codec.spec.ts](entry-codec.spec.ts)：`sl_entry.entry` 文本的编解码、拒绝旧编码与重复键、存储字节比。
+- [stored-entry-rows.spec.ts](stored-entry-rows.spec.ts)：经端口的条目行、`bytes` 列与旧编码行的诊断。
+- [entry-codec-bench.spec.ts](entry-codec-bench.spec.ts)：编解码的速度对照（慢层）。
 - [history-index-incremental.spec.ts](history-index-incremental.spec.ts)：历史索引的 Session 行在 Worker 内按游标增量保留（SPEC「Worker 内的两处保留」，T-A3-1 至 T-A3-4）：保留的索引与整读的答案相等；没有新行的第二次读不读五种行，一次提交只增它写的行；游标之后有空洞时本次调用失败，下一次重建；范围外的已路由输入不列出；没有 SE13 的 SE15 行不进索引，之后的 SE13 把它带入；未提交事务的行不保留，别的日志整读，行数与会话数有上界
 - [participant-snapshot-cache.spec.ts](participant-snapshot-cache.spec.ts)：参加者的解析快照（SPEC「Worker 内的两处保留」，T-A2-1 至 T-A2-4）：两次提交读到同一快照只解析一次；提交写出的快照被保留，失败的提交留下的保留项不被使用；保留的快照深冻结；键含租户；按头文本而不只按修订核对，同修订不同文本重新解析；会话数与文本总长有上界
 - [state-rows.spec.ts](state-rows.spec.ts)：快照的存储形态：读回相等、追加只写尾部、大对象成员行、200 步每次提交的写入不随步数增长

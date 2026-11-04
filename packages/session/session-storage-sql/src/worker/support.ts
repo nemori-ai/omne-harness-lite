@@ -3,16 +3,23 @@ import type { HistoryEntry } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type {
   HandlerOutcome,
+  ParticipantModule,
   ReadHandlerModule,
   ReadPort,
   SqlCell,
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
+import { StoredEntryMalformed } from '../entry-codec.ts'
 import { PROTOCOL } from './schema.ts'
 
 /** The upper bound of rows of one page. Every handler statement carries its own LIMIT. */
 export const PAGE_ROWS = 200
 
+/**
+ * A read handler. A stored `entry` text that does not read answers `{ kind: 'malformed',
+ * diagnostic }`, which the port answers as `unavailable` with the diagnostic (`readHandler`): a
+ * throw would reach the port as `read_failed` without it.
+ */
 export function handler(
   name: string,
   read: (input: JsonValue, port: ReadPort) => JsonValue,
@@ -21,7 +28,31 @@ export function handler(
     handler: name,
     protocol: PROTOCOL,
     read(input, port): HandlerOutcome {
-      return { kind: 'read', output: read(input, port) }
+      try {
+        return { kind: 'read', output: read(input, port) }
+      } catch (error) {
+        if (!(error instanceof StoredEntryMalformed)) throw error
+        return { kind: 'read', output: { kind: 'malformed', diagnostic: error.message } }
+      }
+    },
+  }
+}
+
+/**
+ * A participant whose commit fails, with the diagnostic, on a stored `entry` text that does not
+ * read: the reply `failed` stops the transaction, where a throw would lose the diagnostic.
+ */
+export function refusingMalformedEntries(module: ParticipantModule): ParticipantModule {
+  return {
+    participant: module.participant,
+    protocol: module.protocol,
+    execute(facts, port) {
+      try {
+        return module.execute(facts, port)
+      } catch (error) {
+        if (!(error instanceof StoredEntryMalformed)) throw error
+        return { kind: 'failed', diagnostic: error.message }
+      }
     },
   }
 }

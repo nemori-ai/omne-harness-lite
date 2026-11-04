@@ -43,6 +43,7 @@ import {
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { SqlCell, SqlValue } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, plainOf, sha256 } from '../codec.ts'
+import { readEntryText } from '../entry-codec.ts'
 import { logRoot } from './log-root.ts'
 import { big, oneRow, rowsOf, text, type Executor, type Row } from './support.ts'
 
@@ -202,7 +203,7 @@ const rowEvidence = (scope: Scope, row: Planted): DurableEvidence =>
   entryEvidence(scope.tenant, scope.session, row.entry)
 
 function plant(row: Row): Planted {
-  const entry = decodeValue(JSON.parse(text(row['entry'])) as JsonValue) as HistoryEntry
+  const entry = readEntryText(text(row['entry']), `sl_entry ${text(row['position'])}`)
   return {
     id: text(row['position']),
     revision: text(row['revision']),

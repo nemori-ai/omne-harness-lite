@@ -17,6 +17,7 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort, ParticipantReply } from '@omne-harness/sql-contract/worker'
 import type { SessionAdmittedInput, SessionCheck } from '../participants.ts'
 import { canonicalText, decodeValue, encodeValue, isCount, plainOf, sha256 } from '../codec.ts'
+import { readEntryText } from '../entry-codec.ts'
 import { readState } from './state-rows.ts'
 import { big, oneRow, rowsOf, text, type Row } from './support.ts'
 
@@ -62,7 +63,7 @@ function planted(
 }
 
 function plantedRow(row: Row): Planted {
-  const entry = decodeValue(JSON.parse(text(row['entry'])) as JsonValue) as HistoryEntry
+  const entry = readEntryText(text(row['entry']), `sl_entry ${text(row['position'])}`)
   return {
     position: text(row['position']),
     revision: text(row['revision']),

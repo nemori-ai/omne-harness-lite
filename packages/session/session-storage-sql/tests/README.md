@@ -46,6 +46,9 @@
 - [read-output-limit.spec.ts](read-output-limit.spec.ts)：真实 sqlite-provider 上读 handler 的 20 MiB 输出上限落在内容块上（慢层，session-storage-sql SPEC K-1）：写入上限放大后，经真实提交写入 2 MiB 与离上限一 KiB 的块，`execution-record.blob` 整块读回；输出超过 20 MiB 时答 `read_limit`，不带任何输出。上限在用例里是字面值，经 `readOutputLimitBytes` 参数传入，参数被忽略、改小、改大一 KiB 或改小两 KiB 都使用例变红。
 - [preadmission.spec.ts](preadmission.spec.ts)：准入记录的两阶段写入、Ki 唯一、结果只固定一次、跨租户读不到，以及真实提供者上杀进程后按原 H 读回（慢层）。
 - [same-domain-tenant.spec.ts](same-domain-tenant.spec.ts)：同一事务域里租户 A 的行，以租户 B 读不到：准入记录按 H 与按 Ki 的点查（`findPreadmission`），以及 `commitLog` 对 `sl_journal` 的读（答 `denied`）。其他规格的夹具把每个租户放在各自的事务域里，语句丢了 `tenant = ?` 也读不到别家的行，所以这里在同一个库里写、再换租户读，并各带一个以租户 A 读的对照。
+- [entry-codec.spec.ts](entry-codec.spec.ts)：`sl_entry.entry` 文本的编解码（SPEC 已知限制第 23 条）：载荷存为普通 JSON，读回的条目与写入的相等，数字原文与键顺序不变，条目对象的摘要与旧编码读出的相等；重复键不写也不读；旧编码的行答 `StoredEntryMalformed` 并带专门诊断；固定会话的存储字节不超过普通 JSON 的 1.15 倍，并打印旧编码、新编码与普通 JSON 的字节数。
+- [stored-entry-rows.spec.ts](stored-entry-rows.spec.ts)：经端口的条目行：提交的行存编解码文本，`bytes` 是它的 UTF-8 字节数，历史页读回同样的条目；一行旧编码使历史读、读它的提交与归属读答 `unavailable` 并带诊断，提交不写行。
+- [entry-codec-bench.spec.ts](entry-codec-bench.spec.ts)：慢层。固定会话（541 条）上测四项耗时：每条的文本与 INSERT、每条的解码、历史索引从空重建、`session.history` 按 256 KiB 分页读完，打印均值、中位数与 p95。不设时间断言；对照另一棵树时只换 `fixtures/entry-text.ts`。
 - [history-index-incremental.spec.ts](history-index-incremental.spec.ts)：历史索引的 Session 行在 Worker 内增量保留（SPEC「Worker 内的两处保留」）：保留的索引与整读的答案相等，没有新行的读不读五种行，游标之后有空洞时本次调用失败、下一次重建，未提交事务的行不保留，会话数与行数有上界。
 - [participant-snapshot-cache.spec.ts](participant-snapshot-cache.spec.ts)：参加者的解析快照（SPEC「Worker 内的两处保留」）：同一快照只解析一次，按头文本核对；提交写出的快照被保留，下一次提交不读分块；失败的提交留下的保留项与存储的头不等，下一次提交重读分块；保留的快照深冻结，会话数与文本总长有上界。
 - [state-rows.spec.ts](state-rows.spec.ts)：快照的存储形态（SPEC「快照的存储形态」，R2-D292）：固定种子的随机追加、改动、移出与移动后读回相等；追加只写头与尾部分块；大对象成员单独成行，不变时不重写；没有布局的快照整写并删除旧分块；真实参加者跑 200 步，每次提交写入的快照文本不随步数增长。负控：去掉按布局比较、去掉文本相等的保留、去掉成员行，各自对应的用例变红。

@@ -30,6 +30,7 @@ import type {
   ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
+import { writeEntryText } from '../entry-codec.ts'
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { NO_FOCUS, readHistory, type HistoryBasis, type SessionHistory } from './history-index.ts'
@@ -37,7 +38,16 @@ import { judgeLog, readCoveringHead, type CoveringSnapshot, type LogBatch } from
 import type { SessionWorkReply } from '../participants.ts'
 import { PROTOCOL } from './schema.ts'
 import { assemble, deepFreeze, writeState, type StoredState } from './state-rows.ts'
-import { assignPositions, big, oneRow, readVersion, rowsOf, text, type Row } from './support.ts'
+import {
+  assignPositions,
+  big,
+  oneRow,
+  readVersion,
+  refusingMalformedEntries,
+  rowsOf,
+  text,
+  type Row,
+} from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_INITIALIZATION_RECEIPTS = 1000
@@ -567,7 +577,7 @@ function writeEntries(
   entries: readonly HistoryEntry[],
 ): ParticipantReply | null {
   for (const entry of entries) {
-    const body = JSON.stringify(encodeValue(entry))
+    const body = writeEntryText(entry)
     port.execute(
       'INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [
@@ -1360,4 +1370,4 @@ const participant: ParticipantModule = {
     }
   },
 }
-export default participant
+export default refusingMalformedEntries(participant)

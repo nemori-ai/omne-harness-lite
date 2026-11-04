@@ -43,7 +43,7 @@ flowchart LR
 4. 根入口不导入 `@deepseek-ai/cordis`（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。本包没有 Cordis 入口，会话存储组合由应用承担，见[装配边界](cordis.md)。
 5. 本成员不导入 `session`、`session-cordis`、`session-adapters` 或任何邻域契约。领域判断只来自 `session-contract` 与 message 包的纯函数，本成员不另写允许或拒绝的规则。
 
-`package.json` 的依赖是 legal-identity、operation-result、session-contract、session-cordis-contract 与 sql-contract。
+`package.json` 的依赖是 json-text、legal-identity、operation-result、session-contract、session-cordis-contract 与 sql-contract。json-text 只用于 `sl_entry.entry` 文本的无损读写（`src/entry-codec.ts`）。
 
 ## 关键机制与理由
 
