@@ -128,7 +128,7 @@ describe('omne commands as a process', () => {
   })
 
   it('exits 2 for a name no command has', async () => {
-    const result = await runCliAsync(sandbox, ['read-history'])
+    const result = await runCliAsync(sandbox, ['observe-session'])
     expect(result).toEqual({ status: 2, stdout: '', stderr: unrecognizedArguments })
   })
 })

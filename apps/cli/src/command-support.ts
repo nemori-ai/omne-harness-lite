@@ -7,6 +7,7 @@ import {
 } from '@omne-harness/sdk'
 import type { CliOutput, CommandEnvironment, ExitCode } from './cli-types.ts'
 import { readLoginState, type LoginState } from './login-state.ts'
+import { readSessionOwners } from './session-owners.ts'
 import { ensureStateDirectory, resolveStateDirectory } from './state-directory.ts'
 
 export const defaultServer = 'http://127.0.0.1:8787'
@@ -71,6 +72,52 @@ export async function attempt(
     if (error instanceof RequestInvalidError) return undefined
     throw error
   }
+}
+
+/** `--tenant`: `undefined` when absent, `null` when present but not a tenant text. */
+export function tenantOption(values: Option): TenantId | undefined | null {
+  const given = values.get('--tenant')
+  if (given === undefined) return undefined
+  return parseTenantText(given) ?? null
+}
+
+export function proofOf(state: LoginState) {
+  return { kind: 'present', value: state.loginProof } as const
+}
+
+export type OwnerResolution =
+  | { readonly kind: 'owner'; readonly owner: TenantId }
+  | { readonly kind: 'exit'; readonly code: ExitCode }
+
+/**
+ * The tenant that owns an existing session: the `--tenant` value, else the record of the state
+ * directory. No record is a usage error, so a request never falls back to the selected tenant.
+ */
+export function resolveOwner(
+  command: string,
+  session: string,
+  given: TenantId | undefined,
+  directory: string,
+  output: CliOutput,
+): OwnerResolution {
+  let owner = given
+  if (owner === undefined) {
+    const records = readSessionOwners(directory)
+    if (records.kind === 'failure')
+      return { kind: 'exit', code: localFailure(output, records.message) }
+    owner = parseTenantText(records.owners.get(session) ?? '')
+  }
+  if (owner === undefined)
+    return {
+      kind: 'exit',
+      code: usageError(
+        output,
+        `omne ${command}: the owner tenant of this session is unknown
+Add --tenant <tenant>.
+`,
+      ),
+    }
+  return { kind: 'owner', owner }
 }
 
 export function withoutProof(body: unknown): unknown {

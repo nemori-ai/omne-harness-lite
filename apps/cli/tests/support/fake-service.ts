@@ -42,6 +42,7 @@ const statusOf: Record<string, number> = {
   invalid: 422,
   'uniform-auth-failure': 401,
   denied: 403,
+  'protocol-rejected': 400,
   'not-visible': 404,
   'stage-not-provided': 501,
   'not-loginable': 403,

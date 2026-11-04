@@ -17,7 +17,7 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 - 「[安装闭包](#安装闭包)」中命令面实现后的一段。
 - 「[适用平台](#适用平台)」中登录状态文件的一句。
 
-「[治理命令](#治理命令)」、登录状态文件的 `loginId` 键、`switch-current-tenant` 与 `revoke-login` 对登录状态文件的改写和删除，以及帮助文本里的 24 个命令，属于 M2 身份租户收口（波 2）的候选，依据是 R2-D203 至 R2-D206 与规格 4.7 节 G 组。
+「[治理命令](#治理命令)」、登录状态文件的 `loginId` 键、`switch-current-tenant` 与 `revoke-login` 对登录状态文件的改写和删除，以及帮助文本里的 18 个治理命令，属于 M2 身份租户收口（波 2）的候选，依据是 R2-D203 至 R2-D206 与规格 4.7 节 G 组。`read-history` 命令是波 3 的候选，依据是 R2-D279：端到端用例发现 CLI 没有读历史的入口。
 
 本页其余条款保持上面的接受状态。批复后，需要的话本页再改采用状态。候选依据是包组织页「最小 CLI 的接入边界」：CLI 通过 SDK 使用系统能力，不导入 server-entry。本卡验证环境接受本机 Node v26.0.0。`package.json` 的 engines 是 `>=24`。Node 24 没有另跑。
 
@@ -34,7 +34,7 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 
 候选的命令面由下面的责任组成。
 
-- 六个会话与账号命令，以及 18 个治理命令，见[命令](#命令)。
+- 七个会话与账号命令，以及 18 个治理命令，见[命令](#命令)。
 - 凭据读取与登录状态文件，见[凭据与登录状态](#凭据与登录状态)。
 - 命令结果的输出与退出码，见[命令结果与退出码](#命令结果与退出码)。
 
@@ -90,7 +90,7 @@ The default state directory is $HOME/.omne.
 --help and --version do not open or create a state directory.
 ```
 
-登记[命令](#命令)的 24 个命令（六个会话与账号命令，后接 18 个治理命令）之后，生成结果是下面的原文。第三行改为 `Show help or version, or run a command.`，`This build has no other commands.` 不再出现。目录另登记 `--server` 与 `OMNE_SERVER` 两个选项。帮助文本只列每个命令的必需选项，可选选项见[命令](#命令)的命令表。每个选项在帮助里的取值名按取值的内容定：标识写 `<id>`，租户文本写 `<tenant>`，角色写 `<role>`，其余写 `<name>`。最后一行之后有一个换行：
+登记[命令](#命令)的 25 个命令（七个会话与账号命令，后接 18 个治理命令）之后，生成结果是下面的原文。第三行改为 `Show help or version, or run a command.`，`This build has no other commands.` 不再出现。目录另登记 `--server` 与 `OMNE_SERVER` 两个选项。帮助文本只列每个命令的必需选项，可选选项见[命令](#命令)的命令表。每个选项在帮助里的取值名按取值的内容定：标识写 `<id>`，租户文本写 `<tenant>`，角色写 `<role>`，其余写 `<name>`。最后一行之后有一个换行：
 
 ```text
 omne
@@ -106,6 +106,7 @@ Commands
   omne login --login-identifier <id>                                                                              Issue a login and save it in the state directory.
   omne create-session --definition <name>                                                                         Create a session.
   omne send-input --session <id> --text <text>                                                                    Send a user message to a session.
+  omne read-history --session <id>                                                                                Read the whole history of a session.
   omne cancel-run --session <id> --run <id>                                                                       Cancel a run.
   omne stop-call --session <id> --producer-kind <kind> --call <id>                                                Stop a model or tool call.
   omne create-organization --name <name> --governance-model-id <id>                                               Create an organization.
@@ -191,7 +192,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 ## 命令
 
-下列六个命令和[治理命令](#治理命令)是候选。每个命令对应公开契约的一个操作。命令名与操作名一致。操作的字段、`outcome` 和判断次序归[公开契约](../../packages/access/public-contract/SPEC.md)。路径、方法和状态码归[承载绑定表](../../packages/access/public-contract/docs/http-binding.md#承载绑定表)。CLI 经 SDK 发出请求。
+下列七个命令和[治理命令](#治理命令)是候选。每个命令对应公开契约的一个操作。命令名与操作名一致。操作的字段、`outcome` 和判断次序归[公开契约](../../packages/access/public-contract/SPEC.md)。路径、方法和状态码归[承载绑定表](../../packages/access/public-contract/docs/http-binding.md#承载绑定表)。CLI 经 SDK 发出请求。
 
 所有选项都写成 `--名字 值`。不支持 `--名字=值`。选项可以出现在命令名之后的任意位置。`--home` 的规则同[参数解析](#参数解析)。
 
@@ -201,12 +202,13 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 | `login`          | `issue-login`           | `--login-identifier`                     | `--server`                                          | 凭据按[凭据读取](#凭据读取)读取。成功后写登录状态文件                                        |
 | `create-session` | `create-session`        | `--definition`                           | `--purpose`、`--create-call-id`、`--server`         | `actingTenant` 取登录状态里的租户。成功后记下会话的归属租户，见[会话归属记录](#会话归属记录) |
 | `send-input`     | `send-input`            | `--session`、`--text`                    | `--tenant`、`--accept-id`、`--input-id`、`--server` | `--text` 包成一条用户消息，形状归 message 包                                                 |
+| `read-history`   | `read-history`          | `--session`                              | `--tenant`、`--page-bytes`、`--json`、`--server`    | 读完整个历史，见[读历史](#读历史)                                                            |
 | `cancel-run`     | `cancel-run`            | `--session`、`--run`                     | `--urgency`、`--tenant`、`--control-id`、`--server` | `--urgency` 取 `graceful` 或 `force`，默认 `graceful`                                        |
 | `stop-call`      | `stop-call`             | `--session`、`--producer-kind`、`--call` | `--tenant`、`--control-id`、`--server`              | `--producer-kind` 取 `model` 或 `tool`                                                       |
 
 补充规则如下。
 
-- 当前选择的租户（登录状态里的租户）只用于新建会话：`create-session` 的 `actingTenant`。对已有会话的 `send-input`、`cancel-run`、`stop-call`，body 的 `tenant` 取会话的归属租户，不取当前选择。会话的归属在创建时定下，之后不变。`tenant` 的来源按下列次序，没有可用来源时不回落到当前选择：
+- 当前选择的租户（登录状态里的租户）只用于新建会话：`create-session` 的 `actingTenant`。对已有会话的 `send-input`、`read-history`、`cancel-run`、`stop-call`，body 的 `tenant` 取会话的归属租户，不取当前选择。会话的归属在创建时定下，之后不变。`tenant` 的来源按下列次序，没有可用来源时不回落到当前选择：
   1. `--tenant` 的值。
   2. [会话归属记录](#会话归属记录)里该会话的租户。
   3. 两者都没有：用法错误，退出 `2`，不发送请求。消息为 `omne <command>: the owner tenant of this session is unknown\nAdd --tenant <tenant>.\n`。
@@ -214,7 +216,22 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
   给了 `--tenant` 时不读取归属记录。这是客户端填充：线上的 `tenant` 仍是必填字段，服务端仍核对它的账号。结果对象的 `request.tenant` 回显实际发送的租户文本，见[命令结果与退出码](#命令结果与退出码)。
 
 - 命令生成缺省的标识。每次执行命令生成新的 `messageId`。SDK 的零字节再送沿用同一个 `messageId`。`--create-call-id`、`--accept-id`、`--input-id` 和 `--control-id` 缺省时也各生成一个新值。生成值用 `crypto.randomUUID()`。调用者要重试同一次操作时，必须用这些选项传入原来的值。
-- 命令不提供 `query-create-session`、`query-send-input`、`read-history`、`observe-session` 和 `cancel-observation` 的入口。读历史与观察命令在后续波。
+- 命令不提供 `query-create-session`、`query-send-input`、`observe-session` 和 `cancel-observation` 的入口。观察命令在后续波。
+- `--json` 是开关，不带值，只属于 `read-history`。它可以出现在命令名之后的任意位置，重复出现是用法错误。
+
+### 读历史
+
+`read-history` 读一个会话的全部历史，按页读到服务端报告读完为止。请求的 `tenant` 取会话的归属租户，来源次序同上一节。
+
+- 第一页的请求带 `cursor` 为 null、`direction` 为 `forward` 和 `pageBytes`。`pageBytes` 取 `--page-bytes`，缺省 `65536`，必须是不带前导零的正整数文本。超出部署上界时服务端答 `invalid`。
+- 后续每页的请求只带上一页回复的 `next` 原文作 `cursor`，不带 `direction` 和 `pageBytes`。公开契约规定这两个字段只在 `cursor` 为 null 时出现，带上它们的请求是 `protocol-rejected`。每页用新的 `messageId`。
+- 页的 `exhausted` 为真时读完。空页不表示读完。
+- 读不完整时，命令仍输出已经读到的条目，标准错误写 `omne read-history: history incomplete after <n> entries: <原因>
+`，退出码非零。原因是下列之一：`page <k> was answered <outcome>`（第 k 页的 `outcome` 不是 `succeeded`）、`page <k> had no trusted answer`（没有可信答复）、`page <k> is not a history page`（成功的回复不是历史页）、`page <k> has no cursor but is not the last`（未读完却没有 `next`）、`page <k> did not advance the cursor`（`next` 与本页请求的 `cursor` 相同）、`more than 10000 pages`。
+- 退出码：读完为 `0`。停在某页的 `outcome` 时，按[命令结果与退出码](#命令结果与退出码)的映射：`denied` 等为 `3`，`basis-unavailable` 为 `4`；没有可信答复为 `5`，另写 `omne read-history: result uncertain
+`。成功的页不可读成历史页、缺游标或游标不前进为 `1`。标准输出写入失败为 `1`。
+- 人读输出（缺省）每个条目一段，首行为 `#<entryId> <kind>: <正文>`。消息条目的正文是各块的文本，块之间换行，续行缩进四个空格：`text` 块显示文本，`tool_call` 块显示 `[tool call <名> <callId>] <参数>`，`tool_result` 块显示 `[tool result <callId>]`，随后的文本块显示结果内容。`run.started` 显示 `Run <run> started (entry <entry>)`，`run.terminal` 显示 `Run <run> ended: <outcome>`。其余种类和块显示种类名与截断的载荷。参数与载荷最多显示 500 个字符，超出处写 `...`。人读输出不是 JSON 对象。
+- `--json` 输出一个 JSON 对象加换行，键同[命令结果与退出码](#命令结果与退出码)。`body` 是 `{ entries, complete }`：`entries` 是各页的条目原样拼接（`entryId`、`revision`、`kind`、`payload`），`complete` 说明是否读完。停在某页时 `outcome` 是该页的 `outcome`，`result` 为 `uncertain` 时没有 `outcome`。`request` 有 `messageId`（首页）和 `tenant`。
 
 ### 治理命令
 
@@ -303,7 +320,7 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 | `register`                                                | 不解析，不创建，也不读 `OMNE_HOME`。带 `--home` 是用法错误，使用[命令的用法错误](#命令的用法错误)中「选项不属于该命令」那一条消息   |
 | `login`                                                   | 在发送任何请求之前解析并创建。创建失败则退出 `1`，不发送凭据。凭据错误等非成功结果不删除已创建的空目录                              |
 | 治理命令 | 只读取目录。不存在时不创建，退出 `1`。`switch-current-tenant` 改写 `login.json`，`revoke-login` 可能删除它，两者都不创建目录 |
-| `create-session`、`send-input`、`cancel-run`、`stop-call` | 只读取目录。不存在时不创建，退出 `1`。`create-session` 成功后在其中写 `sessions.json`，`send-input`、`cancel-run`、`stop-call` 读它 |
+| `create-session`、`send-input`、`read-history`、`cancel-run`、`stop-call` | 只读取目录。不存在时不创建，退出 `1`。`create-session` 成功后在其中写 `sessions.json`，其余四个读它 |
 
 `login` 先创建目录再发送请求。这样可以降低签发成功后写不下登录证明的可能，但不能排除它。
 
@@ -311,7 +328,7 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 
 ## 命令结果与退出码
 
-命令的结果写一个 JSON 对象到标准输出，后接一个换行。TTY 与非 TTY 的输出相同。本成员不加载终端界面。标准错误只在本地失败、凭据提示、用法错误和结果不确定时有内容。
+命令的结果写一个 JSON 对象到标准输出，后接一个换行。`read-history` 缺省的人读输出除外，见[读历史](#读历史)。TTY 与非 TTY 的输出相同。本成员不加载终端界面。标准错误只在本地失败、凭据提示、用法错误和结果不确定时有内容。
 
 对象的键如下。
 
@@ -329,6 +346,7 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 | `register`、`login`       | `messageId`                                                |
 | `create-session`          | `messageId`、`createCallId`、`tenant`（取 `actingTenant`） |
 | `send-input`              | `messageId`、`acceptId`、`inputId`、`tenant`               |
+| `read-history`            | `messageId`（首页）、`tenant`                              |
 | `cancel-run`、`stop-call` | `messageId`、`controlId`、`tenant`                         |
 | 有行事租户的治理命令 | `messageId`、`tenant`（取 `actingTenant`）。`create-organization` 另有 `createCallId` |
 | 无行事租户的治理命令 | `messageId`。`revoke-login` 另有 `targetLoginId` |
