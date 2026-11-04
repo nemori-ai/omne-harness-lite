@@ -60,7 +60,6 @@ import type {
   FinishAuthorization,
   FinishCandidate,
   FinishObligation,
-  FinishObligations,
   FinishRoute,
   JournalCommitState,
   LegacyF2Entry,
@@ -109,6 +108,7 @@ import {
 import {
   advances,
   answer as answerOf,
+  batchEvidence,
   batchOf as buildBatch,
   blobOf,
   blobsOf,
@@ -124,6 +124,7 @@ import {
   type ParticipationKind,
   type PublishedBatch,
 } from '../journal/index.ts'
+import { listKey } from '../journal/fold.ts'
 import {
   beforeTerminalOpen,
   buildObligations,
@@ -139,6 +140,9 @@ import {
   sameContent,
   settlementOf,
   type FinishingRecords,
+  listOfView,
+  listsIssued,
+  obligationFacts,
 } from './journal-finishing.ts'
 
 export type JointCommitKind = Exclude<CallerCommit['kind'], 'none'>
@@ -1991,6 +1995,45 @@ export function createJournal<P>(
   ): DurableEvidence {
     return cell.issueEvidence(
       journalEvidence(`${cell.namespace}/${execution}/${what}/${ordinal}`, revision),
+    )
+  }
+
+  /**
+   * The receipt the batch of a write will derive, before the batch exists: the next publication,
+   * the next revision (the same one when the batch is a pure recognition) and the semantic key as
+   * its digest. A finishing record that names its own receipt (a list, a judgment, a disposition)
+   * is built with it; `derive` checks the derived receipt against it, so a drift is a defect.
+   */
+  function plannedReceipt(
+    execution: Execution,
+    operation: AgentOperationId,
+    key: string,
+  ): CommandReceipt {
+    const pub = state().log.length + 1
+    const revision = execution.revision + 1
+    const coordinates = { execution: execution.id, pub, envelope: { digest: key } }
+    const evidence = cell.issueEvidence(
+      batchEvidence(mint, coordinates as PublishedBatch, revision),
+    )
+    return receiptOf(execution, operation, revision, evidence, 'applied')
+  }
+
+  /** The derived receipt of a finishing batch; one that is not the planned receipt is a defect. */
+  function plannedOf(derived: Answer, planned: CommandReceipt): CommandReceipt {
+    if (!('receipt' in derived) || !sameValue(derived.receipt, planned))
+      throw new TypeError('the finishing batch derived another receipt than the planned one')
+    return derived.receipt
+  }
+
+  /** The evidence a list names its candidate's checkpoint by. */
+  function candidateCheckpoint(
+    execution: AgentExecutionId,
+    candidate: AgentOperationId,
+    revision: number,
+  ): DurableEvidence {
+    return journalEvidence(
+      `${cell.namespace}/${execution}/candidate/${candidate}/checkpoint`,
+      revision,
     )
   }
 
@@ -4188,35 +4231,43 @@ export function createJournal<P>(
           if (candidate === undefined)
             return answer(fail(invalid('candidate', 'not a candidate of this execution')))
           if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
-          const revision = execution.revision + 1
-          const evidence = nextEvidence(execution, 'obligations', revision)
-          const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+          // The list evidence is the receipt evidence of its batch: one list per batch.
+          const planned = plannedReceipt(execution, input.operation, key)
+          const evidence = planned.evidence
           const built = obligationsOf(execution, candidate, input.operation)
-          const list: FinishObligations = {
-            operation: input.operation,
-            revision: revisionOf(revision),
+          // R2-D297: one `finish.obligation` per item, then the close; nothing of an earlier list
+          // is written again, a re-issue is a new list of the same candidate.
+          const ordinal = listsIssued(finishing, candidate.candidate) + 1
+          const issued = obligationFacts(
+            candidate.candidate,
+            ordinal,
+            built.items,
+            built.coverage,
             evidence,
-            candidate: candidate.candidate,
-            conclusion: candidate.conclusion,
-            failure: candidate.failure,
-            inputWatermark: candidate.inputWatermark,
-            checkpoint: journalEvidence(
-              `${cell.namespace}/${execution.id}/candidate/${candidate.candidate}/checkpoint`,
-              revision,
-            ),
-            conditions: candidate.conditions,
-            items: built.items,
-            coverage: built.coverage,
-          }
+          )
           // One new revision, no event, the checkpoint and the candidate as they were.
           return {
-            kind: 'write',
-            value: { receipt, obligations: evidence },
-            receipt,
-            apply: () => {
-              finishing.issued.set(evidence.record, copy(list))
-              finishing.obligations = evidence.record
-              execution.revision = revision
+            kind: 'batch',
+            facts: issued.facts,
+            blobs: issued.blobs,
+            kinds: [],
+            derive: derived => {
+              if (derived.kind !== 'obligations')
+                throw new TypeError('a prepareFinish answers its obligations')
+              return { receipt: plannedOf(derived, planned), obligations: derived.obligations }
+            },
+            project: (_batch, view) => {
+              const folded = view.finish.lists.get(listKey(candidate.candidate, ordinal))
+              if (folded === undefined) throw new TypeError('the issued list did not fold')
+              const list = listOfView(
+                folded,
+                candidate,
+                candidateCheckpoint(execution.id, candidate.candidate, view.revision),
+                state().blobs,
+              )
+              finishing.issued.set(list.evidence.record, list)
+              finishing.obligations = list.evidence.record
+              execution.revision = view.revision
             },
           }
         },

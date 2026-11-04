@@ -22,6 +22,7 @@ import type {
   ExecutionAttachmentId,
   ExecutionControl,
   FinishCandidateContent,
+  FinishRoute,
   HandoffReference,
   InputBatch,
   InputId,
@@ -305,33 +306,47 @@ export type FactBody =
       /** The candidate content with its failure as a reference: a failure names a produced result. */
       claim: Omit<FinishCandidateContent, 'failure'> &
         Readonly<{ failure: Readonly<{ kind: string; detail: Ref }> | null }>
-      checkpoint: Ref
+      /**
+       * The checkpoint of the candidate as a cursor reference (R2-D297): the block holds the cursor
+       * members, which are themselves small values and references to the blocks `cursor.moved`
+       * refers to. The candidate never carries a copy of the checkpoint.
+       */
+      cursor: Ref<CursorMembers>
+      /** The record of the route the candidate is established on. */
       route: DurableEvidence
+      /** The route itself, as a block: the author or cancellation route of the candidate. */
+      path: Ref<FinishRoute>
       supersedes: AgentOperationId | null
     }>
   | Readonly<{ kind: 'finish.proved'; route: DurableEvidence; beforeTerminal: DurableEvidence }>
   /**
    * One issued obligation of a candidate (R2-D297): the item is a reference, so the fact stays
-   * small whatever the item holds; the list is folded from the items, never written whole.
+   * small whatever the item holds; the list is folded from the items, never written whole. `list`
+   * is the ordinal of the issue for the candidate: a later prepareFinish issues a new list.
    */
   | Readonly<{
       kind: 'finish.obligation'
       candidate: AgentOperationId
+      list: number
       index: number
+      /** The kind of the obligation item. */
       category: string
       item: Ref
     }>
-  /** The close of one issue of obligations: how many items and the evidence of the list. */
+  /** The close of one issue of obligations: how many items, the list evidence and its coverage. */
   | Readonly<{
       kind: 'finish.obligations'
       candidate: AgentOperationId
+      list: number
       count: number
       evidence: DurableEvidence
+      coverage: Ref
     }>
   /** The disposition of one issued obligation; a state transition, not a rewrite of the list. */
   | Readonly<{
       kind: 'finish.disposed'
       candidate: AgentOperationId
+      list: number
       index: number
       disposition: Ref
     }>
@@ -588,11 +603,11 @@ export function factKey(fact: FactBody): string {
     case 'finish.proved':
       return `proved/${fact.route.record}`
     case 'finish.obligation':
-      return `obligation/${fact.candidate}/${fact.index}`
+      return `obligation/${fact.candidate}/${fact.list}/${fact.index}`
     case 'finish.obligations':
-      return `obligations/${fact.candidate}`
+      return `obligations/${fact.candidate}/${fact.list}`
     case 'finish.disposed':
-      return `disposed/${fact.candidate}/${fact.index}/${fact.disposition.digest}`
+      return `disposed/${fact.candidate}/${fact.list}/${fact.index}/${fact.disposition.digest}`
     case 'finish.ended':
       return 'ended'
     case 'settlement.recorded':

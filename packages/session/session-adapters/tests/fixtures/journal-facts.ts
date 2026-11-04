@@ -559,8 +559,9 @@ function finishBatches(builder: Builder, rng: Random): void {
         inputWatermark: evidence(`${builder.execution}/watermark/${builder.step}`),
         conditions: evidence(`${builder.execution}/conditions`),
       },
-      checkpoint: blob({ position: 'F1', step }),
+      cursor: blob({ position: 'F1', step }),
       route: evidence(`${builder.execution}/route/${candidate}`),
+      path: blob({ kind: 'author', candidate }),
       supersedes: null,
     },
     { kind: 'cursor.moved', step, members: { state: 'settling', position: 'F1' } },
@@ -572,6 +573,7 @@ function finishBatches(builder: Builder, rng: Random): void {
     items.push({
       kind: 'finish.obligation',
       candidate,
+      list: 1,
       index,
       category: rng.pick(['result', 'control', 'handoff']),
       item: blob({ obligation: index, detail: 'd'.repeat(6000) }),
@@ -579,8 +581,10 @@ function finishBatches(builder: Builder, rng: Random): void {
   items.push({
     kind: 'finish.obligations',
     candidate,
+    list: 1,
     count,
     evidence: evidence(`${builder.execution}/obligations/${candidate}`),
+    coverage: blob({ coverage: candidate }),
   })
   const obligations = batch(builder, 'obligations', items)
   const ended = batch(builder, 'ended', [
