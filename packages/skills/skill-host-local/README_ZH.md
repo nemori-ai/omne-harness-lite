@@ -26,7 +26,7 @@ if ('ok' in snapshot)
   }
 ```
 
-示例 [examples/inspect-directory.ts](examples/inspect-directory.ts) 对 [examples/sample-skill/](examples/sample-skill/) 取快照，读两个控制文件，再交给 `parseSkillPackage`。测试可以给出自己的文件系统接缝：`createDirectorySource({ fs })`。本成员没有 Cordis 入口，需要 Node.js 24 或更高版本。
+示例 [examples/inspect-directory.ts](examples/inspect-directory.ts) 对 [examples/sample-skill/](examples/sample-skill/) 取快照，读两个控制文件，再交给 `parseSkillPackage`。示例 [examples/directory-journey.ts](examples/directory-journey.ts) 检查一个目录下的每个包，再经 `@omne-harness/skill` 在读取判定与对应端口的替身上列出、检索与读取；它作为测试 `tests/examples.spec.ts` 运行，不是产品装配。测试可以给出自己的文件系统接缝：`createDirectorySource({ fs })`。本成员没有 Cordis 入口，需要 Node.js 24 或更高版本。
 
 ## 行为
 

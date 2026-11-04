@@ -16,6 +16,7 @@
 - [budget.spec.ts](budget.spec.ts)：一次遍历的访问预算，内存中的目录树
 - [types.spec-d.ts](types.spec-d.ts)：失败类型封闭与运行时导出
 - [public-entry.spec.ts](public-entry.spec.ts)：公开入口的运行时导出
+- [examples.spec.ts](examples.spec.ts)：真实目录示例 `examples/directory-journey.ts` 在临时目录上运行
 - [scratch.ts](scratch.ts)：临时目录与目录树的测试辅助
 - [fs-double.ts](fs-double.ts)：包装默认接缝、可注入拒绝的文件系统接缝
 - [fixtures/](fixtures/index.md)：测试固定输入（不适用）

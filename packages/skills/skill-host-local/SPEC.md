@@ -114,6 +114,7 @@
 | 不带 `code` 的错误原样抛出                                                                 | 把它收束成一个 code：对应用例变红                                                              | `tests/permissions.spec.ts`                                                                        |
 | 读管道不等待写者                                                                           | 去掉 `O_NONBLOCK`：`open` 读管道一例超时                                                       | `tests/open.spec.ts`                                                                               |
 | 失败类型封闭在六种来源失败；入口的运行时导出                                               | 类型或导出改变时类型用例失败                                                                   | `tests/types.spec-d.ts`、`tests/public-entry.spec.ts`                                              |
+| 真实目录示例 `examples/directory-journey.ts`：两个合法包与一个非法包，`inspect` 两过一拒；`summaries` 只列被授予的；`search` 按说明找到它；`read` 正文第一页与 `SKILL.md` 正文一致。读取判定与对应是 `skill-contract/testing` 的替身，示例不是产品装配 | 示例把拒绝的包当作空包，或读取不带 `describe` 钉下的依据：对应断言变红 | `tests/examples.spec.ts` |
 
 未覆盖：
 
