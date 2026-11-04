@@ -18,7 +18,7 @@
 | --- | --- | --- |
 | 值：`SkillName`、`PackagePath`、`EntryDigest`、`PackageDigest`、`AssetVersion`、`SafeReason`、`MediaType`、`PackageEntry`、`SkillPackageSnapshot`、`PackageLocator`、`SkillManifest`、`ManifestValue`、`ScriptDeclaration`、`SettingDeclaration`、`SettingCategory`、`SkillDeclaration`、`SkillDefinition`、`DeclaredProjection`、`ScriptIdentity`、`SkillMaterialBasis`、`SkillRef`、`StandIn`、`SourceLayer`、`Bytes` | [src/values.ts](../src/values.ts) | [值与守卫](../SPEC.md#values) |
 | 守卫与规范化：`isSkillName`、`isPackagePath`、`toPackagePath`、`isSafeReason`、`isAssetVersion`、`isControlFile`；常量 `MANIFEST_PATH`、`DECLARATION_PATH` | [src/names.ts](../src/names.ts) | [值与守卫](../SPEC.md#values) |
-| `isSkillDescription` | [src/parse/shape.ts](../src/parse/shape.ts) | [值与守卫](../SPEC.md#values) |
+| `isSkillDescription`、`DESCRIPTION_LIMIT` | [src/parse/shape.ts](../src/parse/shape.ts) | [值与守卫](../SPEC.md#values) |
 | `sameCapability` | [src/capability.ts](../src/capability.ts) | [值与守卫](../SPEC.md#values) |
 | `PAGE_LIMIT` | [src/page-limit.ts](../src/page-limit.ts) | [读取的形状规则](../SPEC.md#read-shape) |
 | `DECLARATION_LIMITS` | [src/parse/declaration.ts](../src/parse/declaration.ts) | [`.omne/skill.json`](../SPEC.md#declaration)、[端口答复的统一处置](../SPEC.md#port-answer-closed) |

@@ -13,7 +13,8 @@
 | 资产公开类型 `@omne-harness/assets` | `21175c9f9` | `BodyContract`、`CapabilityId`、`Declarations` |
 | [官方 Agent Skills 规格](https://agentskills.io/specification) | 2026-11-03 读取 | `SKILL.md` 的头部字段与目录结构 |
 | W3 Skill 线实施规格（reduce 裁定）、第 2 轮裁定 R1–R9 与第 3 轮裁定 S1–S3 | 2026-11-04 | 可加改动：公开根导出 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DECLARATION_LIMITS`、`sameCapability` 与 `isSkillDescription`；`./provider` 导出 `isSealedSnapshot`；[目录的匹配规则](#catalog-search)；[端口答复的统一处置](#port-answer-closed)；`open` 答 `entry-unreadable` 的映射；`skillCatalogConformance` |
-| W3 闭包 w3-skill-fix 的 reduce 裁定（卡 #1119 r1） | 2026-11-04 | 引用身份一致（GS-06，性质 S7）：统一处置核对表的 `resolve` 一行与 PR3 的内容摘要；`inspect` 的映射按调用点分格（GS-02）；中止活性的前提（GS-05）；生态兼容的放宽与兼容提示，name 与包根目录名不同的放宽除外（见[兼容提示](#compatibility-hints)） |
+| W3 闭包 w3-skill-fix 的 reduce 裁定（卡 #1119 r1） | 2026-11-04 | 引用身份一致（GS-06，性质 S7）：统一处置核对表的 `resolve` 一行与 PR3 的内容摘要；`inspect` 的映射按调用点分格（GS-02）；中止活性的前提（GS-05）；生态兼容的放宽与兼容提示（见[兼容提示](#compatibility-hints)） |
+| w3-skill-fix 第 2 轮 reduce 裁定 N1、N2（2026-11-04T15:05Z） | 2026-11-04 | name 与包根目录名不同时接受并带提示，只有期望名字拒绝；说明的上限统一为公开根导出的 `DESCRIPTION_LIMIT`（16384） |
 
 各裁定的内容写在下文对应的条款里。裁定编号（例如 G3、C19）只是过程标签，决定的内容已经写全在本页。
 
@@ -25,7 +26,7 @@
 
 | 入口 | 给谁 | 内容 |
 | --- | --- | --- |
-| `@omne-harness/skill-contract` | 调用方；端口实现方另读 `./provider` | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract`、常量 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT` 与 `DECLARATION_LIMITS`，以及能力标识的判同 `sameCapability` |
+| `@omne-harness/skill-contract` | 调用方；端口实现方另读 `./provider` | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract`、常量 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DECLARATION_LIMITS` 与 `DESCRIPTION_LIMIT`，以及能力标识的判同 `sameCapability` |
 | `@omne-harness/skill-contract/provider` | 来源、资产登记与端口的实现方；核对来源答复的服务实现方 | 三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot`、`isSealedSnapshot`、`SnapshotDefect` |
 | `@omne-harness/skill-contract/testing` | 端口实现方的测试；`SkillAccess` 与 `SkillCatalog` 实现方的测试 | 三个端口的符合性套件、内存替身、`SkillAccess` 的符合性套件 `skillAccessConformance` 与它的夹具类型 `AccessFixture`、`SkillCatalog` 的符合性套件 `skillCatalogConformance` 与它的夹具类型 `CatalogFixture`、`ConformanceCase`、`NotApplicable`、`runConformanceCase`、`isNotApplicable` |
 
@@ -80,7 +81,8 @@
 | `open` 答 `entry-unreadable` 时，本页给出防御性映射。端口的要求只为 `snapshot` 定义这一种，组页也只写了 `snapshot` | [需求端口](#ports) | W3 Skill 线实施规格已定事项 9（2026-11-04） |
 | `resolve` 答 `adopted` 时，引用必须指向所请求的身份；带依据时，引用的来源层、资产版本（依据带资产版本时）与内容摘要必须等于依据的。`known-unavailable` 的能力标识必须是所请求的身份。不合即没有作答。组页只写了「包定位只取自 `SkillRef`」 | [端口答复的统一处置](#port-answer-closed) | w3-skill-fix 裁定 1（GS-06） |
 | 来源在快照阶段答 `bytes-mismatch` 时，检查也答 `source-unavailable`。组页的映射表让检查答 `version-changed`，检查不分调用点 | [需求端口](#ports) | w3-skill-fix 裁定 2（GS-02） |
-| 头部 YAML 读不出、但能逐行读出 name 与说明时接受；说明超过 1024 个字符时接受；`metadata` 不是文本映射时接受。三种都带兼容提示。组页的包格式规则拒绝这三种 | [`SKILL.md`](#manifest)、[兼容提示](#compatibility-hints) | w3-skill-fix 裁定 5（生态兼容） |
+| 头部 YAML 读不出、但能逐行读出 name 与说明时接受；说明超过 1024 个字符时接受；`metadata` 不是文本映射时接受；name 与包根目录名不同时接受。四种都带兼容提示。组页的包格式规则拒绝这四种 | [`SKILL.md`](#manifest)、[兼容提示](#compatibility-hints) | w3-skill-fix 裁定 5（生态兼容）与第 2 轮裁定 N1 |
+| 说明的上限是 16384 个字符，在检查、资产正文、声明投影、替换件与读取的边界解析中都一样。组页与 Agent Skills 规格写 1024 | [值与守卫](#values) | w3-skill-fix 第 2 轮裁定 N2 |
 
 ## 结果与不变量
 
@@ -98,13 +100,14 @@
 | `PackageDigest` | `isPackageDigest` | 逐字符合 `^sha256:[0-9a-f]{64}$`。`sealSnapshot` 经同一守卫得到快照的内容摘要 |
 | `SafeReason` | `isSafeReason` | 长 1 到 256 个字符（按码点计）。不含 C0 控制字符、DEL 与 C1 控制字符，不含孤立代理项 |
 | `AssetVersion` | `isAssetVersion` | 规则同 `SafeReason`。Skill 不解释资产版本 |
-| 说明（资产正文、端口答复中的声明投影与替换件的 `description`） | `isSkillDescription` | 长 1 到 1024 个字符（按码点计）。它只判长度，不判控制字符。它是守卫，不授予品牌：说明的类型是 `string`。清单的说明可以更长，见[`SKILL.md`](#manifest) |
+| 说明（清单、资产正文、端口答复中的声明投影与替换件的 `description`） | `isSkillDescription` | 长 1 到 `DESCRIPTION_LIMIT`（16384）个字符（按码点计）。它只判长度，不判控制字符。它是守卫，不授予品牌：说明的类型是 `string` |
 | `MediaType` | `inferMediaType` | 见[媒体类型](#media-type) |
 | 控制文件 | `isControlFile` | 包内路径逐字等于 `MANIFEST_PATH`（`SKILL.md`）或 `DECLARATION_PATH`（`.omne/skill.json`）。控制文件不是资源 |
 | `SkillPackageSnapshot` | `sealSnapshot` | 见[快照](#snapshot) |
 
 - `isSafeReason` 只判词形。它不判断原因是否向该主体披露了无权知道的内容。这一义务归 `SkillResolution` 的实现，见[需求端口](#ports)。
 - `sameCapability(left, right)` 是 Skill 唯一的能力标识判同：两者的 `category` 相等且 `name` 相等时为同一身份。它不比较对象引用，也不只比较 name。
+- 说明的上限 `DESCRIPTION_LIMIT` 是 16384，公开根导出。这有意偏离 Agent Skills 规格的 1024：主流宿主接受更长的说明，社区 Skill 也在用（例如 `anthropics/skills` 的 `claude-api` 有 1077 个字符）。Skill 加载的包必须能用，所以检查、资产正文、声明投影、替换件与读取的边界解析共用这一个上限。上限仍然有限，防止滥用。清单的说明超过 1024 个字符时，检查带兼容提示 `description-over-limit`。
 - 常量：`MANIFEST_PATH` 为 `SKILL.md`，`DECLARATION_PATH` 为 `.omne/skill.json`，`PAGE_LIMIT` 为 65536（每页的最多字节数，见[读取的形状规则](#read-shape)）。
 - `SkillMaterialBasis` 只指明一份材料，不授予访问，不含包定位。
 - `SkillRef` 只在 Skill 与 `SkillResolution` 之间传递。`SkillRef` 没有内容摘要表示资产正文没有 `package.digest`，也就是没有可读的包。
@@ -218,7 +221,7 @@ malformed
 各原因何时出现：
 
 1. `manifest-missing`：快照没有 `SKILL.md`。
-2. `name-mismatch`：头部能读出 name，且 name 不逐字等于包根目录名。带期望名字时，name 不逐字等于它也是这一种。
+2. `name-mismatch`：带期望名字，头部能读出 name，且 name 不逐字等于期望名字。name 与包根目录名不同不是拒绝原因：包以头部的 name 为准，带兼容提示 `name-differs-from-root`。
 3. `declaration-format-unsupported`：`.omne/skill.json` 是 JSON 对象，但 `formatVersion` 不是词形为 `1` 的数。这时不做声明的其余判断。
 4. `outside-package`：脚本入口是绝对路径；或者来源在快照阶段答 `outside-package`（由调用方映射）。
 5. `tool-ref-invalid`：依赖声明的类别不是 `tool`，或名字为空。
@@ -229,7 +232,7 @@ malformed
 - 「头部能读出 name」指下面两种情形之一。否则不判 `name-mismatch`，头部的问题判为 `malformed`。
   - 头部的 YAML 解析没有错误与警告，内容是映射，且 `name` 的值是文本。
   - YAML 解析有错误或警告，逐行读取（见[`SKILL.md`](#manifest)）读出了 `name`。
-- name 等于包根目录名、但不合 `SkillName` 的词法时，判为 `malformed`。
+- name 不合 `SkillName` 的词法、又不判 `name-mismatch` 时，判为 `malformed`。
 - 同一个包违反几条规则时，`parseSkillPackage` 先读完全部可读的部分，再取次序最前的一条。
 
 <a id="manifest"></a>
@@ -255,7 +258,7 @@ malformed
   | 字段 | 规则 |
   | --- | --- |
   | `name` | 必需。文本，合 `SkillName` 的词法 |
-  | `description` | 必需。文本，至少 1 个字符。超过 1024 个字符（按码点计）时全文保留，带兼容提示 `description-over-limit` |
+  | `description` | 必需。文本，长 1 到 `DESCRIPTION_LIMIT`（16384）个字符（按码点计）。超过 1024 个字符时全文保留，带兼容提示 `description-over-limit`。超过 16384 个字符为 `malformed` |
   | `license` | 可选。文本 |
   | `compatibility` | 可选。文本，长 1 到 500 个字符（按码点计） |
   | `metadata` | 可选。键与值都是文本的映射。是映射但有不是文本的值时，只保留文本值；不是映射时不保留。这两种都带兼容提示 `metadata-not-text-map` |
@@ -316,23 +319,24 @@ governance
 <a id="set-compatibility-hints"></a>
 
 ```text
+name-differs-from-root
 frontmatter-read-by-line
 description-over-limit
 metadata-not-text-map
 ```
 
+- `name-differs-from-root`：头部的 name 不逐字等于包根目录名。定义的 name 是头部的 name。
 - `frontmatter-read-by-line`：头部 YAML 读不出，name 与说明是逐行读出的，见[`SKILL.md`](#manifest)。
-- `description-over-limit`：说明超过 1024 个字符，全文保留。
+- `description-over-limit`：说明超过 Agent Skills 规格的 1024 个字符，全文保留。它不超过 `DESCRIPTION_LIMIT`，所以资产正文、声明投影与读取照常可用。
 - `metadata-not-text-map`：`metadata` 不是文本映射，只保留了文本值。
 
-真正读不了的包仍然拒绝：缺 `SKILL.md`（`manifest-missing`）；没有闭合的头部，或头部既不是 YAML 映射、逐行也读不出 name 或说明（`malformed`）；路径或链接落在包根之外（`outside-package`）。
+真正读不了的包仍然拒绝：缺 `SKILL.md`（`manifest-missing`）；没有闭合的头部，或头部既不是 YAML 映射、逐行也读不出 name 或说明，或说明超过 `DESCRIPTION_LIMIT`（`malformed`）；路径或链接落在包根之外（`outside-package`）。
 
 放宽没有让任何拒绝原因不再产生，[拒绝原因的集合](#set-inspect-rejections)不变。各原因在放宽后的情形：
 
 - `malformed` 不再因下列情形产生：说明超长；`metadata` 不是文本映射；头部 YAML 读不出、但逐行能读出 name 与说明。
-- `name-mismatch` 不变。name 与包根目录名不同时，本版本仍然拒绝。这一项放宽没有实施：它让 `@omne-harness/skill-host-local` 的目录示例用例变红，示例期望这种包被拒绝。放宽由负责人裁定之后实施。
-
-清单的说明超过 1024 个字符时，资产正文与声明投影仍按 `isSkillDescription` 限长。这样的包能通过检查，但它的投影不能经类别端口与对应端口原样流转。
+- `name-mismatch` 不再因 name 与包根目录名不同而产生，只在调用方给出期望名字、而 name 不等于它时产生。
+- `malformed` 仍因说明超过 `DESCRIPTION_LIMIT` 产生。
 
 <a id="read-shape"></a>
 
@@ -420,7 +424,7 @@ no-readable-package
 - 原有规则不变：正文必须经 `readBodyText` 读取；名字为空、工具引用不是 Tool 身份时拒绝为 `incomplete-reference`；名字不等于能力名时拒绝为 `name-mismatch`。
 - 名字必须合 `SkillName` 的词法，否则拒绝为 `name-invalid`。这收紧了资产规格中 `skill` 一段：那一段只要求名字非空。判断次序是：正文与名字为空（`incomplete-reference`）、`name-mismatch`、`name-invalid`、工具引用（`incomplete-reference`），然后是扩展字段。
 - 扩展字段 `description`、`scripts`、`settings` 与 `package` 都可以缺省，所以没有它们的旧正文仍然合法。这四个字段名从此是 `skill` 资产正文的保留字段：它们在场时必须合下列规则，否则拒绝。
-- `description` 是长 1 到 1024 个字符（按码点计）的文本。
+- `description` 是长 1 到 `DESCRIPTION_LIMIT`（16384）个字符（按码点计）的文本。读取资产正文的一方要给 JSON 读取器足够的字符串预算。
 - `scripts` 与 `settings` 的每一项与 `.omne/skill.json` 的规则相同，跨项规则也相同：重复为 `malformed`。脚本入口不核对是否在包中，但必须已经规范化，也不得是控制文件：`./run.sh` 这类未规范化的写法与 `SKILL.md` 都为 `malformed`。
 - `package` 是只有 `digest` 一个字段的对象，`digest` 合 `PackageDigest` 的形式。
 - 扩展字段的拒绝原因是 `outside-package`、`setting-category-unknown` 与 `malformed`，按此次序取第一个。

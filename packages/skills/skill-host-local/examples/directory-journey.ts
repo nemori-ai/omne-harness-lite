@@ -99,7 +99,8 @@ export async function runDirectoryJourney<P, S>(
   const source = createDirectorySource()
   const inspection = createPackageInspection(source)
 
-  // Step 1: inspect every directory under the root. An illegal package is a rejection, not a gap.
+  // Step 1: inspect every directory under the root. A package that cannot be read is a rejection,
+  // not a gap.
   const names = (await readdir(root, { withFileTypes: true }))
     .filter(item => item.isDirectory())
     .map(item => item.name)

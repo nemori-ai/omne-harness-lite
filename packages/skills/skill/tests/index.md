@@ -22,6 +22,7 @@
 - [match.spec.ts](match.spec.ts)：`matches` 的穷举
 - [answer-parse.spec.ts](answer-parse.spec.ts)：三个解析函数逐字段的畸形答复表，JSON 树的重新构造、深度上限与数字词法
 - [port-answers.spec.ts](port-answers.spec.ts)：三类端口的集合外答复、残缺载荷、reject、同步抛出与读取时抛出的统一处置
+- [compat.spec.ts](compat.spec.ts)：说明超过 1024 个字符的包能检查、描述、读正文、进目录；超过 `DESCRIPTION_LIMIT` 拒绝
 - [ref-identity.spec.ts](ref-identity.spec.ts)：引用身份一致（S7）：指向别的身份或别的材料的答复答 `unknown`，GS-06 的复现
 - [model/](model/index.md)：性质 S1–S7 对真实服务的有界穷举探索器（慢层）
 - [fixtures/](fixtures/index.md)：测试固定输入（本包没有文件夹具）

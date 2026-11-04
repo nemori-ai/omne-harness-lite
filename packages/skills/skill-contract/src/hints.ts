@@ -4,6 +4,7 @@
 
 /** The closed set of compatibility hints, in the order in which a result lists them. */
 export const COMPATIBILITY_HINTS = [
+  'name-differs-from-root',
   'frontmatter-read-by-line',
   'description-over-limit',
   'metadata-not-text-map',
