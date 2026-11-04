@@ -8,9 +8,9 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| [models/JournalOught.tla](models/JournalOught.tla) | 行为模型：一个 execution，每步三批，外加认回、重试、崩溃、恢复与存储拒绝 |
+| [models/JournalOught.tla](models/JournalOught.tla) | 行为模型：一个 execution，每步三批，外加认回、材料保存、重试、崩溃、恢复与存储拒绝 |
 | `models/journal.cfg`、`models/journal-wide.cfg` | 正控。两份检查同一组性质，`journal-wide` 放大步数、崩溃与重试 |
-| `models/bad-*.cfg` | 九个负控。每份打开一个故意的错误，只检查它应命中的性质 |
+| `models/bad-*.cfg` | 十一个负控。每份打开一个故意的错误，只检查它应命中的性质 |
 | [models/run-tlc.sh](models/run-tlc.sh) | 运行全部配置并判读，见[运行](#运行) |
 | [formal-runs.md](formal-runs.md) | 运行记录：版本、参数、预算、结论与判读 |
 | [proofs/README.md](proofs/README.md) | 手写证明：前提 A1 到 A5，命题 1 到 7 的无界推广 |
@@ -21,6 +21,7 @@
 | 性质 | 含义 | 模型中的名字 | 负控 |
 | --- | --- | --- | --- |
 | P1 唯一事实源 | 进程内视图等于已提交日志的折叠 | `P1_ViewIsFold`、`P1_HeadIsTail` | `bad-cache-only-p1`：判定批只进视图，不追加 |
+| P1 位置唯一来源 | 核心给下一批的位置等于发布计数加一；每个完成步的判定事实都到达日志 | `P1_OnePosition`、`P1_FactsPublished` | `bad-second-position-p1`、`bad-second-position-facts`：核心另持位置，提供者单独发布的 `preserve` 让它落后，下一批在存储越过的位置追加，提供者只存信封，事实丢失 |
 | P2 只追加 | 已提交的批不改写、不删除 | `P2_AppendOnly`（动作性质） | `bad-upsert-p2`：判定批原地改写上一批 |
 | P3 每步提交有界 | 一批只带本步新增事实，权重有与步数无关的常数上界 | `P3_NoFactRepeated`、`P3_BatchBounded` | `bad-whole-rewrite-p3`、`bad-whole-rewrite-p3-repeat`：每批带上全部游标与历史事实 |
 | P4 自有部分线性于步数 | 自有权重 ≤ 显式系数 × 步数 + 常数，及其对日志内容的比值形式 | `P4_LinearInSteps`、`P4_RatioBound` | `bad-whole-rewrite-p4`、`bad-whole-rewrite-p4-ratio` |
@@ -45,6 +46,7 @@ P4 对应 R2-D294 的第 3 条。那一条是传感器指标，不是不变式�
 | 批的 `intents`、`results`、`judged` | `call.intended`、`result.received`、`reply.judged` 事实 | 同上，待车道确认 |
 | `view`、`Apply`、`FoldN` | 进程内会话视图 `SessionJournalView` 与纯折叠函数 `fold` | session-adapters 的 `src/journal/fold.ts`，待车道确认 |
 | `head` | 视图已折叠到的 `pub`，即 `er_root.published` 的读数 | 同上，待车道确认 |
+| `corePub` | 核心给下一批的位置：`append` 的 `pub = view.head + 1` | session-adapters 的 `src/testing/journal.ts`（`append`）与 `src/cordis/agent-journal.ts`（`restore`、`settleCommitted` 把 `view` 设为耐久折叠、清空 `log`） |
 | `answers`、`DeriveAt` | 实现不存答复。答复由 `answer` 从批与视图的操作索引推导。模型只为检查记下首次返回值 | session-adapters 的 `src/journal/answer.ts`，待车道确认。推导规则与缺口见 [answer-derivation.md](answer-derivation.md) |
 | `writerGen` | Authority 的代次 | Agent 契约的 `Authority.generation` |
 | `slot`、`lastCommit` | 执行槽状态与最近一次提交结论 | `packages/agent/agent/src/provider.ts` 与 `run-failure.ts`（R2-D282，已合入） |
@@ -59,6 +61,7 @@ P4 对应 R2-D294 的第 3 条。那一条是传感器指标，不是不变式�
 | `CommitReceive` | 结果接收方的接收共同提交：`result.received` 加保管块 | 一次存储事务 |
 | `CommitJudge` | 回复准入的 commit（Ja）：`reply.judged` 加同事务的历史消息 | 一次存储事务，Session 参加者同事务写条目 |
 | `Recognize` | 新操作认回已有事实：`op.recognized` 批，不推进 revision，`target` 指被认回的批 | 一次存储事务 |
+| `Preserve` | 材料 `preserve`：核心的批，信封加材料块，没有事实、不动游标、不推进 revision | 一次存储事务 |
 | `RetrySame`、`RetryConflict` | Agent SPEC「判定次序与失败映射」第 2 条：同语义输入认回原结果，异语义输入 `conflict` | 无写入 |
 | `Crash`、`Recover` | 进程重启；继任者冷启动折叠，再 `attach`，追加 `exec.attached` | `attach` 一次存储事务 |
 | `Refuse` | 存储在受理前拒绝（例如单命令上限），没有写入；驱动重发或把槽位改为 `failed` | 无写入 |

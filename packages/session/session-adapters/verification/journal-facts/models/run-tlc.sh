@@ -31,6 +31,8 @@ bad-cache-only-p5 P5_Recovery
 bad-upsert-p2 P2_AppendOnly
 bad-retry-reexecute-p6 P6_OneBatchPerOp
 bad-silent-stop RejectVisible
+bad-second-position-p1 P1_OnePosition
+bad-second-position-facts P1_FactsPublished
 "
 
 WORK=$(mktemp -d "$HOME/journal-facts.XXXXXX") || exit 2

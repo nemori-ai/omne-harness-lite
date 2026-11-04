@@ -216,7 +216,7 @@ describe('a commit that brings no new fact (R2-D307)', () => {
   // The revision rule of R2-D307 (an envelope-only batch moves no revision) is the core's to keep:
   // until `commit` is written as facts by the core (session-adapters SPEC K-23), the reader
   // projection the core still advances names one more revision than the fold. Enable with K-23.
-  it.skip('moves no revision (enable when the core writes commit as facts, K-23)', async () => {
+  it('moves no revision', async () => {
     const { s, authority } = await opened('scan-envelope-rev')
     const revision = ok(await s.view.journal.load({ ...s.access, execution: s.execution })).revision
     ok(await commitStep(s, authority, 'same', c => c)(s.view.journal))

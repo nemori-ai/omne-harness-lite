@@ -12,6 +12,10 @@
 (* The in-memory view is the fold of the log. Answers are never stored:    *)
 (* a retry derives the original answer from the batch of its operation.    *)
 (*                                                                         *)
+(* The position of the next batch has one source: the publication count    *)
+(* the view has folded (head). The core appends at head + 1. A material    *)
+(* preserve is a batch with no fact and no cursor change.                  *)
+(*                                                                         *)
 (* Bytes are abstracted as weights: C0 per batch, WMember per changed      *)
 (* cursor member, WFact per added fact. The session log's content bytes    *)
 (* are abstracted as logContent, growing by LogMin or LogBig per step.     *)
@@ -25,8 +29,12 @@ CONSTANTS
   Members,           \* the top-level members of the cursor (checkpoint)
   C0, WMember, WFact,\* weights: per batch, per changed member, per fact
   LogMin, LogBig,    \* content bytes one step adds to the session log
-  MaxCrashes, MaxRejects, MaxRetries,
+  MaxCrashes, MaxRejects, MaxRetries, MaxPreserves,
   WholeRewrite,      \* bug: a commit carries the whole cursor and all facts so far
+  SecondPosition,    \* bug: the core keeps a position of its own; a preserve the provider
+                     \*      publishes alone leaves it behind, and the next batch the core
+                     \*      appends sits at a position the store has passed: the provider
+                     \*      finds no batch after its head and stores the envelope alone
   CacheOnlyWrite,    \* bug: the provider folds a judge into the view without appending
   UpsertCursor,      \* bug: the cursor of the last batch is rewritten in place
   RetryReexecutes,   \* bug: a same-input retry appends a second batch
@@ -46,16 +54,19 @@ VARIABLES
   answers,           \* op -> the answer returned when the op first succeeded
   logContent,        \* abstract content bytes of the session log
   crashed, crashes, rejects, retries,
+  corePub,           \* the position the core gives its next batch
+  preserves,         \* material preserves made
   writerGen,         \* authority generation of the live writer
   lastCommittedView, \* the view right after the last successful commit
   retryMismatch      \* TRUE once a same-input retry derived a different answer
 
 vars == <<log, view, head, step, phase, slot, lastCommit, answers, logContent,
-          crashed, crashes, rejects, retries, writerGen, lastCommittedView,
-          retryMismatch>>
+          crashed, crashes, rejects, retries, corePub, preserves, writerGen,
+          lastCommittedView, retryMismatch>>
 
 Phases == {"intend", "receive", "judge"}
-Kinds  == {"intend", "receive", "judge", "attach", "recognize"}
+Kinds  == {"intend", "receive", "judge", "attach", "recognize", "preserve"}
+NoRevision == {"recognize", "preserve"}
 
 EmptyFn == [x \in {} |-> 0]
 
@@ -64,7 +75,7 @@ EmptyView == [rev |-> 0, cursor |-> [m \in Members |-> 0], intents |-> {},
 
 (* fold : (View, index, Batch) -> View. Pure, total, no clock, no I/O.  *)
 Apply(v, i, b) ==
-  [rev     |-> IF b.kind = "recognize" THEN v.rev ELSE v.rev + 1,
+  [rev     |-> IF b.kind \in NoRevision THEN v.rev ELSE v.rev + 1,
    cursor  |-> [m \in Members |-> IF m \in b.changed THEN i ELSE v.cursor[m]],
    intents |-> v.intents \cup b.intents,
    results |-> v.results \cup b.results,
@@ -106,8 +117,18 @@ NewBatch(kind, op, changed, intents, results, judged, target) ==
    results |-> IF WholeRewrite THEN view.results \cup results ELSE results,
    judged  |-> IF WholeRewrite THEN view.judged \cup judged ELSE judged]
 
-(* The storage accepted the batch: append, fold, answer from the fold. *)
-Accept(b) ==
+(* What the storage receives of a batch the core appended at corePub: the batch, unless the
+   store has passed that position (the second-position bug), when the provider finds no batch
+   after its head and stores the envelope alone: the facts and the cursor move are lost. *)
+Stored(b) ==
+  IF SecondPosition /\ corePub <= head
+    THEN [b EXCEPT !.changed = {}, !.intents = {}, !.results = {}, !.judged = {}]
+    ELSE b
+
+(* The storage accepted the batch: append, fold, answer from the fold. The core's next
+   position follows the publication count. *)
+Accept(b0) ==
+  LET b == Stored(b0) IN
   /\ IF CacheOnlyWrite /\ b.kind = "judge"
        THEN /\ log' = log
             /\ view' = Apply(view, Len(log) + 1, b)
@@ -121,11 +142,12 @@ Accept(b) ==
      ELSE /\ log' = Append(log, b)
           /\ view' = Apply(view, Len(log) + 1, b)
           /\ head' = Len(log) + 1
+  /\ corePub' = head' + 1
   /\ answers' = IF b.op \in DOMAIN answers THEN answers
                 ELSE answers @@ (b.op :> [op |-> b.op, rev |-> view'.rev])
   /\ lastCommittedView' = view'
   /\ lastCommit' = "ok"
-  /\ UNCHANGED <<slot, rejects, retryMismatch>>
+  /\ UNCHANGED <<slot, rejects, retryMismatch, preserves>>
 
 (* The storage refused the batch before accepting it (command_limit, ...).
    Nothing was written. The driver either retries or marks the slot failed.
@@ -133,7 +155,8 @@ Accept(b) ==
 Refuse ==
   /\ rejects < MaxRejects
   /\ rejects' = rejects + 1
-  /\ UNCHANGED <<log, view, head, answers, lastCommittedView, retryMismatch>>
+  /\ UNCHANGED <<log, view, head, answers, lastCommittedView, retryMismatch, corePub,
+                 preserves>>
   /\ IF DriverMarksFailed
        THEN \/ (lastCommit' = "retry" /\ slot' = slot)
             \/ (lastCommit' = "rejected" /\ slot' = "failed")
@@ -177,7 +200,28 @@ Recognize ==
      IN /\ log' = Append(log, b)
         /\ view' = Apply(view, Len(log) + 1, b)
         /\ head' = Len(log) + 1
+        /\ corePub' = head' + 1
         /\ answers' = answers @@ (b.op :> DeriveAt(log', Len(log')))
+        /\ lastCommittedView' = view'
+        /\ lastCommit' = "ok"
+  /\ UNCHANGED <<step, phase, slot, logContent, crashed, crashes, rejects, retries,
+                 preserves, writerGen, retryMismatch>>
+
+(* A material preserve: a batch with no fact and no cursor change, one publication. The
+   design appends it as a batch of the core, so the core's next position follows. The bug
+   lets the provider publish it alone: the publication count moves, the core's own position
+   does not, and the next batch of the core is stored without its facts (see Stored). *)
+Preserve ==
+  /\ Ready /\ preserves < MaxPreserves
+  /\ preserves' = preserves + 1
+  /\ LET op == [step |-> step, kind |-> "preserve", n |-> preserves]
+         b == [kind |-> "preserve", op |-> op, digest |-> DigestOf(op, 0), gen |-> writerGen,
+               target |-> 0, changed |-> {}, intents |-> {}, results |-> {}, judged |-> {}]
+     IN /\ log' = Append(log, b)
+        /\ view' = Apply(view, Len(log) + 1, b)
+        /\ head' = Len(log) + 1
+        /\ corePub' = IF SecondPosition THEN corePub ELSE head' + 1
+        /\ answers' = answers @@ (b.op :> [op |-> b.op, rev |-> view'.rev])
         /\ lastCommittedView' = view'
         /\ lastCommit' = "ok"
   /\ UNCHANGED <<step, phase, slot, logContent, crashed, crashes, rejects, retries,
@@ -195,27 +239,29 @@ RetrySame ==
                     IN /\ log' = Append(log, b)
                        /\ view' = Apply(view, Len(log) + 1, b)
                        /\ head' = Len(log) + 1
+                       /\ corePub' = head' + 1
                        /\ lastCommittedView' = view'
                  /\ UNCHANGED retryMismatch
             ELSE /\ retryMismatch' = (retryMismatch \/ (DeriveAt(log, view.ops[op]) /= answers[op]))
-                 /\ UNCHANGED <<log, view, head, lastCommittedView>>
+                 /\ UNCHANGED <<log, view, head, corePub, lastCommittedView>>
   /\ UNCHANGED <<step, phase, slot, lastCommit, answers, logContent, crashed, crashes,
-                 rejects, writerGen>>
+                 rejects, preserves, writerGen>>
 
 (* The same operation with a different semantic input: conflict, no write. *)
 RetryConflict ==
   /\ Ready /\ retries < MaxRetries
   /\ \E op \in DOMAIN answers : retries' = retries + 1
   /\ UNCHANGED <<log, view, head, step, phase, slot, lastCommit, answers, logContent,
-                 crashed, crashes, rejects, writerGen, lastCommittedView, retryMismatch>>
+                 crashed, crashes, rejects, corePub, preserves, writerGen, lastCommittedView,
+                 retryMismatch>>
 
 Crash ==
   /\ ~crashed /\ crashes < MaxCrashes
   /\ crashed' = TRUE /\ crashes' = crashes + 1
   /\ view' = EmptyView /\ head' = 0
   /\ lastCommit' = "none"
-  /\ UNCHANGED <<log, step, phase, slot, answers, logContent, rejects, retries,
-                 writerGen, lastCommittedView, retryMismatch>>
+  /\ UNCHANGED <<log, step, phase, slot, answers, logContent, rejects, retries, corePub,
+                 preserves, writerGen, lastCommittedView, retryMismatch>>
 
 (* A successor process folds the log and takes over with a new authority. *)
 Recover ==
@@ -230,22 +276,25 @@ Recover ==
      IN /\ log' = Append(log, b)
         /\ view' = Apply(folded, Len(log) + 1, b)
         /\ head' = Len(log) + 1
+        /\ corePub' = head' + 1
         /\ writerGen' = g
         /\ answers' = answers @@ (b.op :> [op |-> b.op, rev |-> view'.rev])
         /\ lastCommittedView' = view'
   /\ lastCommit' = "ok"
-  /\ UNCHANGED <<step, phase, slot, logContent, crashes, rejects, retries, retryMismatch>>
+  /\ UNCHANGED <<step, phase, slot, logContent, crashes, rejects, retries, preserves,
+                 retryMismatch>>
 
 Init ==
   /\ log = <<>> /\ view = EmptyView /\ head = 0
   /\ step = 1 /\ phase = "intend" /\ slot = "running" /\ lastCommit = "none"
   /\ answers = EmptyFn /\ logContent = 0
   /\ crashed = FALSE /\ crashes = 0 /\ rejects = 0 /\ retries = 0
+  /\ corePub = 1 /\ preserves = 0
   /\ writerGen = 1 /\ lastCommittedView = EmptyView /\ retryMismatch = FALSE
 
 Next ==
   \/ CommitIntend \/ CommitReceive \/ CommitJudge
-  \/ Recognize \/ RetrySame \/ RetryConflict
+  \/ Recognize \/ Preserve \/ RetrySame \/ RetryConflict
   \/ Crash \/ Recover
 
 Spec == Init /\ [][Next]_vars
@@ -265,6 +314,13 @@ P1_ViewIsFold == ~crashed => view = FoldN(log, head)
 (* P1b: the view folds the whole committed log once no commit is in flight. *)
 P1_HeadIsTail == ~crashed => head = Len(log)
 
+(* P1c one position: the core's next position is the publication count plus one. *)
+P1_OnePosition == ~crashed => corePub = head + 1
+
+(* P1d: the judge fact of every completed step reached the log (a batch the provider stored
+   as its envelope alone would have lost it). *)
+P1_FactsPublished == \A s \in 1..(step - 1) : <<"j", s>> \in FactsBefore(log, Len(log))
+
 (* P2 only-append: no committed batch is ever changed or removed. *)
 IsPrefix(s, t) == Len(s) <= Len(t) /\ \A i \in 1..Len(s) : s[i] = t[i]
 P2_AppendOnly == [][IsPrefix(log, log')]_log
@@ -282,10 +338,10 @@ P3_BatchBounded == \A i \in 1..Len(log) : Weight(log[i]) <= BatchBound
    ratio own/log is at most WStep/LogMin once the log is non-empty. *)
 BatchesPerStep == 4      \* intend, receive, judge, one recognition
 WStep == BatchesPerStep * BatchBound
-J0 == (MaxCrashes + 1) * BatchBound   \* attach batches
+J0 == (MaxCrashes + 1 + MaxPreserves) * BatchBound   \* attach and preserve batches
 (* completed steps contribute at most WStep each; the current step at most 3 batches *)
 P4_LinearInSteps ==
-  OwnWeight <= (BatchesPerStep * (step - 1) + 3 + MaxCrashes + 1) * BatchBound
+  OwnWeight <= (BatchesPerStep * (step - 1) + 3 + MaxCrashes + 1 + MaxPreserves) * BatchBound
 (* logContent >= (step - 1) * LogMin, so the same bound reads against the log *)
 P4_RatioBound == OwnWeight <= J0 + WStep + (logContent \div LogMin) * WStep
 

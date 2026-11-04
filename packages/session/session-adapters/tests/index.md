@@ -20,7 +20,7 @@
 - [session-log-journal-replay.spec.ts](session-log-journal-replay.spec.ts)：AG-23 轨迹回放对生产 Journal 提供者，保留副本与每次重建两种
 - [session-log-journal-complexity.spec.ts](session-log-journal-complexity.spec.ts)：读进度标记之后一页的读次数不随 N 增长，从头读的负控随 N 增长
 - [journal-core-bridge.spec.ts](journal-core-bridge.spec.ts)：K-23 过渡桥跨提供者副本：超过一条事实上限的 checkpoint 变化整份溢出到块后，冷副本读到的 checkpoint 与写者相同；冷副本再动一个小成员，落后一次发布的写者读到新成员且溢出的成员完好；连续两次溢出都保留。负控：修复前冷副本读到溢出之前的位置（w2 J2 的停摆根因）
-- [journal-crash-scan.spec.ts](journal-crash-scan.spec.ts)：崩溃点扫描（R2-D294 不变量 5）：带两次 Tool 效果意图与一次 M0 的脚本，每个发布点各丢一次回复、换冷提供者重试同一操作并跑完剩余脚本，事实行与无故障运行逐行相同（没有二次发布效果、没有丢决定），`query` 认回；R2-D307 没有新事实的 commit 只落信封行、字节为小常数、冷提供者认回。不推进修订一项等核心把 `commit` 写成事实（K-23）后启用
+- [journal-crash-scan.spec.ts](journal-crash-scan.spec.ts)：崩溃点扫描（R2-D294 不变量 5）：带两次 Tool 效果意图与一次 M0 的脚本，每个发布点各丢一次回复、换冷提供者重试同一操作并跑完剩余脚本，事实行与无故障运行逐行相同（没有二次发布效果、没有丢决定），`query` 认回；R2-D307 没有新事实的 commit 只落信封行、字节为小常数、冷提供者认回、不推进修订
 - [journal-position.spec.ts](journal-position.spec.ts)：位置的唯一来源（R2-D294 不变量 1）：六个种子各 40 步的混合写入（commit、新材料与重复材料的 `preserve`、冷提供者接管、丢回复后冷提供者重试同一操作），每步之后发布数等于改了记录的写入数、每批带它种类的事实、冷提供者的 `load` 与写者相同；200 步后批的字节不超过前 50 步的最大值加 64；负控：多出一次发布与丢掉事实的发布都被判据拒绝
 - [journal-head.spec.ts](journal-head.spec.ts)：材料 `preserve` 之后的下一次 commit 仍带核心的 `cursor.moved` 与核心信封（第二位置来源缺陷的直接反例）
 - [journal-adopted-request.spec.ts](journal-adopted-request.spec.ts)：`request.adopted` 事实（FIXED-FACTS F4）：主用途 M0 的请求与其余事实同一批，块写入失败两者都不可见；不变的发布不追加；跨 execution 的 `order` 递增且不是执行修订；冷启动与竞争输方读到的一致；200 轮里事实的字节数与每轮行数不变
