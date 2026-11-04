@@ -25,14 +25,14 @@ export type ToolReferenceRejection = Readonly<{
 }>
 
 /**
- * A malformed reference, or `foreign-tenant`: the presented tenant is not a tenant legal-identity
- * minted. Version 2 carries no tenant (R2-D357), so a minted tenant never gets `foreign-tenant`: a
- * reference of another tenant locates nothing in the caller's tenant partition, and the
- * store-backed entry answers it as it answers a call that does not exist.
+ * A malformed reference, or `invalid-tenant`: the presented tenant is not a tenant legal-identity
+ * minted. Version 2 carries no tenant (R2-D357), so no failure names another tenant: a reference
+ * of another tenant resolves to the caller's tenant and locates nothing in its partition, and the
+ * store-backed entry answers it as it answers a call that does not exist (R2-D370).
  */
 export type ToolReferenceFailure =
   | Readonly<{ kind: 'malformed'; rejection: ToolReferenceRejection }>
-  | Readonly<{ kind: 'foreign-tenant' }>
+  | Readonly<{ kind: 'invalid-tenant' }>
 
 export type ToolInvocationParts = Readonly<{
   tenant: TenantId
@@ -219,7 +219,7 @@ export function readToolOperationRef(reference: ToolOperationRef): ToolOperation
 
 /**
  * Resolves an untrusted invocation reference for the presented tenant: the tenant must be minted
- * by legal-identity (else `foreign-tenant`), then the text decodes. The text has no tenant of its
+ * by legal-identity (else `invalid-tenant`), then the text decodes. The text has no tenant of its
  * own (R2-D357), so a reference of another tenant resolves here to parts of the caller's tenant,
  * and the store-backed entry finds no such call: the same answer as for a call that never existed.
  * Success does not say the call exists in that tenant.
@@ -228,7 +228,7 @@ export function resolveToolInvocationRef(
   reference: unknown,
   tenant: TenantId,
 ): Outcome<ToolInvocationParts, ToolReferenceFailure> {
-  if (!tenantCodec.encode(tenant).ok) return fail({ kind: 'foreign-tenant' })
+  if (!tenantCodec.encode(tenant).ok) return fail({ kind: 'invalid-tenant' })
   const decoded = decodeElements('ToolInvocationRef', 'tool-invocation', 4, reference)
   if ('failure' in decoded) return fail({ kind: 'malformed', rejection: decoded.failure })
   const { call, admission } = decoded.ok
@@ -240,7 +240,7 @@ export function resolveToolOperationRef(
   reference: unknown,
   tenant: TenantId,
 ): Outcome<ToolOperationParts, ToolReferenceFailure> {
-  if (!tenantCodec.encode(tenant).ok) return fail({ kind: 'foreign-tenant' })
+  if (!tenantCodec.encode(tenant).ok) return fail({ kind: 'invalid-tenant' })
   const decoded = decodeElements('ToolOperationRef', 'tool-operation', 5, reference)
   if ('failure' in decoded) return fail({ kind: 'malformed', rejection: decoded.failure })
   const { call, admission, operation } = decoded.ok
@@ -252,10 +252,10 @@ export function resolveToolOperationRef(
 /**
  * The producer `tool` adapter of the public stream reference (SPEC「公共流协议上的观察」): the
  * original call text of a Tool stream reference is a canonical invocation reference. The detailed
- * rejection of a malformed reference becomes the public `malformed`; `foreign-tenant` (an unminted
- * tenant) keeps its kind. The public layer checks the minted tenant before this adapter runs, so it
- * does not reach here. A reference of another tenant resolves (the text has no tenant) and the
- * observation finds no such call.
+ * rejection of a malformed reference becomes the public `malformed`; `invalid-tenant` keeps its
+ * kind. The public layer checks the minted tenant before this adapter runs, so it does not reach
+ * here. A reference of another tenant resolves (the text has no tenant) and the observation finds
+ * no such call.
  */
 export const toolStreamCallCodec: StreamCallCodec = Object.freeze({
   producer: 'tool',
@@ -263,7 +263,7 @@ export const toolStreamCallCodec: StreamCallCodec = Object.freeze({
     const resolved = resolveToolInvocationRef(text, tenant)
     if ('failure' in resolved)
       return fail(
-        resolved.failure.kind === 'malformed' ? { kind: 'malformed' } : { kind: 'foreign-tenant' },
+        resolved.failure.kind === 'malformed' ? { kind: 'malformed' } : { kind: 'invalid-tenant' },
       )
     const canonical = encodeToolInvocationRef(resolved.ok)
     return 'failure' in canonical ? fail({ kind: 'malformed' }) : succeed(canonical.ok)

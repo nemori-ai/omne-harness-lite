@@ -119,7 +119,7 @@ export function createConsumption<P>(core: Core<P>): ModelConsumption<P> {
       Readonly<{ operation: import('../root.ts').ModelOperationId; result: ResultVersion }>,
   ): Reply<ReadStart> {
     const resolved = resolveModelInvocationRef(original.reference, original.tenant)
-    if ('failure' in resolved) return referenceRejected(resolved.failure, 'beginRead')
+    if ('failure' in resolved) return referenceRejected(resolved.failure)
     const input = { ...original, ...resolved.ok }
     if (isReserved(input.operation)) return reservedOperation('operation')
     const target = resolve(core, input, 'read')

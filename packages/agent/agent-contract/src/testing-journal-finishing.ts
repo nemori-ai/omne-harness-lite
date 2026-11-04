@@ -3622,7 +3622,7 @@ function askedPassage(name: string): Readonly<{ passage: Passage; round: CardRou
  * The cases where another tenant reaches the Journal (SPEC "判定次序与失败映射" 1 and
  * "commitSettlement 的变体" step 1): another tenant's recordHandoff, prepareFinish, tryFinish and
  * commitSettlement are denied with the action of the operation, before the qualification, the same
- * for an existing and a missing execution; and a host record or a returned reference of another
+ * for an existing and a missing execution; and a host record of another
  * tenant is denied to the owner's custody variants, before the record is compared.
  */
 function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[] {

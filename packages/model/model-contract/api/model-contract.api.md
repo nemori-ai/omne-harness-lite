@@ -2271,8 +2271,6 @@ export type ModelReferenceFailure = Readonly<{
     rejection: ModelReferenceRejection;
 }> | Readonly<{
     kind: 'invalid-tenant';
-}> | Readonly<{
-    kind: 'foreign-tenant';
 }>;
 export declare function encodeModelInvocationRef(parts: ModelInvocationParts): Outcome<ModelInvocationRef, ModelReferenceRejection>;
 export declare function encodeModelOperationRef(parts: ModelOperationParts): Outcome<ModelOperationRef, ModelReferenceRejection>;
@@ -3230,7 +3228,7 @@ export declare function reservedReference<T extends ModelInvocationParts>(parts:
 import { type Outcome } from '@omne-harness/operation-result';
 import type { ModelFailure } from '../result.ts';
 import type { ModelReferenceFailure } from '../reference.ts';
-export declare function referenceRejected(failure: ModelReferenceFailure, action: string): Outcome<never, ModelFailure>;
+export declare function referenceRejected(failure: ModelReferenceFailure): Outcome<never, ModelFailure>;
 ```
 
 ## 声明文件 `testing/result-pages.d.ts`

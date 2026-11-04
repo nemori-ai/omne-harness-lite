@@ -268,8 +268,7 @@ function observedCall(
 ): Outcome<ModelInvocationParts, 'denied' | 'stale-stream' | 'unresolved'> {
   const judged = judgeStreamRef({ value: ref, tenant }, streamCodec)
   if ('failure' in judged) {
-    if (['foreign-tenant', 'invalid-tenant'].includes(judged.failure.kind))
-      return { failure: 'denied' }
+    if (judged.failure.kind === 'invalid-tenant') return { failure: 'denied' }
     if (judged.failure.kind === 'invalid-envelope') return { failure: 'stale-stream' }
     return { failure: 'unresolved' }
   }
@@ -279,7 +278,6 @@ function observedCall(
 /** A reference that does not resolve: tenant faults deny, a malformed reference is invalid. */
 function referenceFailure(failure: ModelReferenceFailure): ModelFailure {
   if (failure.kind === 'invalid-tenant') return { kind: 'denied', action: 'tenant' }
-  if (failure.kind === 'foreign-tenant') return { kind: 'denied', action: 'current' }
   return { kind: 'invalid', field: 'reference', reason: `reference-${failure.rejection.reason}` }
 }
 /** The storage bridge alone calls confirm; public readers cannot register call facts. */

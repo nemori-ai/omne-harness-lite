@@ -87,8 +87,6 @@ function unavailable(): ModelFailure {
 function referenceFailure(failure: ModelReferenceFailure): ModelFailure {
   switch (failure.kind) {
     case 'invalid-tenant':
-    // Retired by reference version 2; never returned.
-    case 'foreign-tenant':
       return { kind: 'denied', action: 'tenant' }
     case 'malformed':
       return {

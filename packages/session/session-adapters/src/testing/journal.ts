@@ -320,10 +320,7 @@ export type MemoryAgentJournal<P> = Readonly<{
       tenant: TenantId
       execution: AgentExecutionId
       control: AgentOperationId
-      fault:
-        | Readonly<{ kind: 'malformed' }>
-        | Readonly<{ kind: 'foreign-tenant'; reference: ToolInvocationRef }>
-        | null
+      fault: Readonly<{ kind: 'malformed' }> | null
     }>,
   ):
     | Readonly<{ kind: 'applied' }>
@@ -653,13 +650,8 @@ function controlTarget(
   for (const pending of calls) {
     if (pending.kind !== 'tool' || pending.association !== 'associated') continue
     const parts = resolveToolInvocationRef(pending.reference, tenant)
-    if ('failure' in parts) {
-      return fail(
-        parts.failure.kind === 'foreign-tenant'
-          ? denied('control')
-          : invalid('command.call', 'invalid-tool-invocation-reference'),
-      )
-    }
+    if ('failure' in parts)
+      return fail(invalid('command.call', 'invalid-tool-invocation-reference'))
     if (parts.ok.call !== command.call) continue
     if (matched !== undefined && admission !== parts.ok.admission) ambiguous = true
     matched = pending
@@ -741,17 +733,7 @@ function retainedFaultKey(input: RetainedFaultInput): string | undefined {
   const key = operationText(tenant.value, input.execution, input.control)
   const fault = input.fault
   if (fault === null) return key
-  if (exactDataFields(fault, ['kind']) && fault.kind === 'malformed') return key
-  if (!exactDataFields(fault, ['kind', 'reference']) || fault.kind !== 'foreign-tenant')
-    return undefined
-  const resolved = resolveToolInvocationRef(fault.reference, input.tenant)
-  return 'failure' in resolved && resolved.failure.kind === 'foreign-tenant' ? key : undefined
-}
-
-/** Whether a Tool reference names a tenant other than the given one. */
-function foreignReference(reference: ToolInvocationRef, tenant: TenantId): boolean {
-  const resolved = resolveToolInvocationRef(reference, tenant)
-  return 'failure' in resolved && resolved.failure.kind === 'foreign-tenant'
+  return exactDataFields(fault, ['kind']) && fault.kind === 'malformed' ? key : undefined
 }
 
 type LocalAttachment = Readonly<{
@@ -762,7 +744,6 @@ type LocalAttachment = Readonly<{
 type SuppliedAttachment =
   | LocalAttachment
   | Readonly<{ kind: 'malformed'; reference: ToolOperationRef }>
-  | Readonly<{ kind: 'foreign' }>
 
 function suppliedAttachment(
   request: Readonly<{ tenant: TenantId; toolOperation?: ToolOperationRef }>,
@@ -770,9 +751,8 @@ function suppliedAttachment(
   const reference = request.toolOperation
   if (reference === undefined) return undefined
   const resolved = resolveToolOperationRef(reference, request.tenant)
-  if ('ok' in resolved) return { kind: 'local', reference, parts: resolved.ok }
-  return resolved.failure.kind === 'foreign-tenant'
-    ? { kind: 'foreign' }
+  return 'ok' in resolved
+    ? { kind: 'local', reference, parts: resolved.ok }
     : { kind: 'malformed', reference }
 }
 
@@ -786,13 +766,6 @@ const damaged = (diagnostic: string): Failure => ({
   diagnostic,
 })
 
-function retainedFailure(
-  failure: Readonly<{ kind: 'malformed' | 'foreign-tenant' }>,
-  diagnostic: string,
-): Failure {
-  return failure.kind === 'foreign-tenant' ? denied('recordControl') : damaged(diagnostic)
-}
-
 function retainedOperation(
   record: ToolControlRecord,
   invocation: ToolInvocationParts,
@@ -801,7 +774,7 @@ function retainedOperation(
   if (record.toolOperation === null) return succeed(null)
   const diagnostic = 'invalid-retained-tool-operation'
   const retained = resolveToolOperationRef(record.toolOperation, tenant)
-  if ('failure' in retained) return fail(retainedFailure(retained.failure, diagnostic))
+  if ('failure' in retained) return fail(damaged(diagnostic))
   return retained.ok.call === invocation.call && retained.ok.admission === invocation.admission
     ? succeed(retained.ok)
     : fail(damaged(diagnostic))
@@ -819,9 +792,7 @@ function attachToolOperation(
       : fail(invalid('toolOperation', 'not-applicable-to-control'))
   }
   const invocation = resolveToolInvocationRef(record.toolInvocation, tenant)
-  if ('failure' in invocation) {
-    return fail(retainedFailure(invocation.failure, 'invalid-retained-tool-invocation'))
-  }
+  if ('failure' in invocation) return fail(damaged('invalid-retained-tool-invocation'))
   const retained = retainedOperation(record, invocation.ok, tenant)
   if ('failure' in retained) return retained
   if (attachment === undefined) return succeed({ kind: 'unchanged' })
@@ -3302,13 +3273,8 @@ export function createJournal<P>(
     const record = options.hostRecords?.get(source.record)
     if (record === undefined)
       return answer(fail(damaged(`the host answers no record for ${source.record}`)))
-    // A tool-return record carries no tenant: its tenant is the one of its returned reference. A
-    // foreign one is denied here too, so no variant tells what kind of record a foreign source is.
-    if (
-      record.kind === 'tool-return' &&
-      foreignReference(record.returned.reference, execution.tenant)
-    )
-      return answer(fail(denied('commitSettlement')))
+    // A tool-return record carries no tenant, and its returned reference names none either
+    // (R2-D357): its tenant isolation is not a check of this stub (R2-D372).
     if (record.kind !== 'tool-return') {
       if (!tenantEquals(record.tenant, execution.tenant))
         return answer(fail(denied('commitSettlement')))
@@ -3439,8 +3405,6 @@ export function createJournal<P>(
           throw new Error('session Journal defect: the Tool intent was checked before the source')
         if (record.kind !== 'tool-return')
           return answer(fail(invalid('source', 'not the return of this intent')))
-        // A foreign return was denied before the switch, before the intent and the request are
-        // compared, so the answer does not tell whether it is the return of the requested intent.
         const reference = resolveToolInvocationRef(record.returned.reference, execution.tenant)
         if ('failure' in reference)
           return answer(fail(invalid('source', 'the returned reference is malformed')))
@@ -4563,7 +4527,6 @@ export function createJournal<P>(
       const entered = enter(method, request)
       if ('failure' in entered) return entered
       const attachment = suppliedAttachment(request)
-      if (attachment?.kind === 'foreign') return fail(denied(method))
       const input = {
         principal: request.principal,
         tenant: request.tenant,
@@ -5319,12 +5282,11 @@ export function createJournal<P>(
           }
           return { kind: 'cleared' }
         }
-        const reference =
-          input.fault.kind === 'malformed'
-            ? MALFORMED_RETAINED_TOOL_INVOCATION
-            : input.fault.reference
         if (original === undefined) retainedToolInvocationBaselines.set(key, record.toolInvocation)
-        execution.controls[index] = { ...record, toolInvocation: reference }
+        execution.controls[index] = {
+          ...record,
+          toolInvocation: MALFORMED_RETAINED_TOOL_INVOCATION,
+        }
         return { kind: 'applied' }
       })
     },

@@ -61,9 +61,7 @@ function codecStub() {
       text: unknown
       tenant: TenantId
     }): Outcome<string, StreamCallFailure> => {
-      const encoded = tenantCodec.encode(target)
-      if (!encoded.ok) return { failure: { kind: 'invalid-tenant' } }
-      if (encoded.value !== tenantText) return { failure: { kind: 'foreign-tenant' } }
+      if (!tenantCodec.encode(target).ok) return { failure: { kind: 'invalid-tenant' } }
       if (text !== call && text !== 'alias') return { failure: { kind: 'malformed' } }
       return { ok: call }
     },
@@ -247,24 +245,22 @@ describe('reference parsing and failure precedence', () => {
     expect(codec.resolve).not.toHaveBeenCalled()
   })
 
-  it('preserves foreign tenant and malformed call failures from the injected codec', () => {
+  it('judges another minted tenant to the same reference and preserves a malformed call failure', () => {
+    // The call text carries no tenant (R2-D357), so the reference names no tenant either.
     expect(judgeStreamRef({ value: refText, tenant: otherTenant }, codecStub())).toEqual({
-      failure: { kind: 'foreign-tenant' },
+      ok: refText,
     })
     expect(
       judgeStreamRef({ value: refTuple('model', 'tool invocation stub'), tenant }, codecStub()),
     ).toEqual({ failure: { kind: 'malformed' } })
   })
 
-  it.each(['malformed', 'invalid-tenant', 'foreign-tenant'] as const)(
-    'preserves the codec failure %s',
-    kind => {
-      const failure = { kind }
-      const codec: StreamCallCodec = { producer: 'model', resolve: () => ({ failure }) }
-      expect(judgeStreamRef({ value: refText, tenant }, codec)).toEqual({ failure })
-      expect(encodeStreamRef(envelope(), codec)).toEqual({ failure })
-    },
-  )
+  it.each(['malformed', 'invalid-tenant'] as const)('preserves the codec failure %s', kind => {
+    const failure = { kind }
+    const codec: StreamCallCodec = { producer: 'model', resolve: () => ({ failure }) }
+    expect(judgeStreamRef({ value: refText, tenant }, codec)).toEqual({ failure })
+    expect(encodeStreamRef(envelope(), codec)).toEqual({ failure })
+  })
 
   it('propagates codec exceptions as implementation errors', () => {
     const fault = new Error('codec fault')

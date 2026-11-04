@@ -2,7 +2,7 @@
 // "两种实现必须同形的事实". Each `describe` names one fact by its number, so the suite can move to a
 // durable provider unchanged. Tests read only what the port returns. Fact 10 fixes the five
 // blocked categories of `tryFinish` in their order and the cancellation route of SPEC "取消判断与路线".
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { createMemoryAgentJournal, createTestAgentDependencies } from '@omne-harness/agent/testing'
 import {
   decodeActionId,
@@ -2773,12 +2773,6 @@ describe('retained invocation fault controls', () => {
     const input = { ...store.first.selector, fault: { kind: 'malformed' } } as const
     expect(store.control.setRetainedToolInvocationFault(input)).toEqual({ kind: 'applied' })
     const s1 = await observeAll(store)
-    const foreign = ok(
-      toolReferences.encodeToolInvocationRef({
-        ...store.first.first.parts,
-        tenant: otherTenant.tenant,
-      }),
-    )
     const invalidInputs: readonly unknown[] = [
       null,
       undefined,
@@ -2798,12 +2792,7 @@ describe('retained invocation fault controls', () => {
       { ...input, fault: [] },
       { ...input, fault: {} },
       { ...input, fault: { kind: 'other' } },
-      { ...input, fault: { kind: 'malformed', reference: foreign } },
-      { ...input, fault: { kind: 'foreign-tenant' } },
-      { ...input, fault: { kind: 'foreign-tenant', reference: 'invalid' } },
-      { ...input, fault: { kind: 'foreign-tenant', reference: 1 } },
-      { ...input, fault: { kind: 'foreign-tenant', reference: store.first.first.reference } },
-      { ...input, fault: { kind: 'foreign-tenant', reference: foreign, raw: foreign } },
+      { ...input, fault: { kind: 'malformed', reference: store.first.first.reference } },
       {
         ...input,
         get fault() {
@@ -2821,7 +2810,7 @@ describe('retained invocation fault controls', () => {
       {
         ...input,
         execution: execution('missing'),
-        fault: { kind: 'foreign-tenant', reference: store.first.first.reference },
+        fault: { kind: 'other' },
       },
     ]
     for (const invalidInput of invalidInputs) {
@@ -2841,7 +2830,6 @@ describe('retained invocation fault controls', () => {
     async level => {
       const store = await fixture()
       const s0 = await observeAll(store)
-      // A foreign-tenant fault cannot be written since R2-D357 (the text carries no tenant).
       const input = { ...store.first.selector, fault: { kind: 'malformed' } }
       function withPrototype(prototype: object | null) {
         const request = { ...input, fault: { ...input.fault } }
@@ -2884,39 +2872,27 @@ describe('retained invocation fault controls', () => {
   )
 
   it.each(['request', 'fault'] as const)(
-    'rejects an equal-key-count %s with a substituted required field before resolution',
+    'rejects an equal-key-count %s with a substituted required field',
     async level => {
       const store = await fixture()
       const s0 = await observeAll(store)
       const input = { ...store.first.selector, fault: { kind: 'malformed' } } as const
       expect(store.control.setRetainedToolInvocationFault(input)).toEqual({ kind: 'applied' })
       const s1 = await observeAll(store)
-      const foreign = ok(
-        toolReferences.encodeToolInvocationRef({
-          ...store.first.first.parts,
-          tenant: otherTenant.tenant,
-        }),
-      )
       const substituted =
         level === 'request'
           ? {
               execution: input.execution,
               control: input.control,
-              fault: { kind: 'foreign-tenant', reference: foreign },
+              fault: { kind: 'malformed' },
               unrelated: input.tenant,
             }
-          : { ...input, fault: { kind: 'foreign-tenant', unrelated: foreign } }
+          : { ...input, fault: { unrelated: 'malformed' } }
       expect(Reflect.ownKeys(substituted)).toHaveLength(Reflect.ownKeys(input).length)
-      if (level === 'fault') expect(Reflect.ownKeys(substituted.fault)).toHaveLength(2)
-      const resolve = vi.spyOn(toolReferences, 'resolveToolInvocationRef')
-      try {
-        expect(
-          Reflect.apply(store.control.setRetainedToolInvocationFault, store.control, [substituted]),
-        ).toEqual({ kind: 'rejected', reason: 'invalid-input' })
-        expect(resolve).not.toHaveBeenCalled()
-      } finally {
-        resolve.mockRestore()
-      }
+      if (level === 'fault') expect(Reflect.ownKeys(substituted.fault)).toHaveLength(1)
+      expect(
+        Reflect.apply(store.control.setRetainedToolInvocationFault, store.control, [substituted]),
+      ).toEqual({ kind: 'rejected', reason: 'invalid-input' })
       expect(await observeAll(store)).toEqual(s1)
       expect(store.control.setRetainedToolInvocationFault({ ...input, fault: null })).toEqual({
         kind: 'cleared',
@@ -2975,7 +2951,6 @@ describe('retained invocation fault controls', () => {
     const store = await fixture('spaced', true)
     const s0 = await observeAll(store)
     const selector = store.first.selector
-    // A foreign-tenant fault cannot be written since R2-D357 (the text carries no tenant).
     for (const fault of [{ kind: 'malformed' }, { kind: 'malformed' }]) {
       expect(
         Reflect.apply(store.control.setRetainedToolInvocationFault, store.control, [

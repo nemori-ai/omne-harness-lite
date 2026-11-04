@@ -120,7 +120,7 @@ export function createCalls<P>(core: Core<P>): ModelCalls<P> {
 
   async function inspect(original: ModelReferenceAccess<P>): Reply<Lookup> {
     const resolved = resolveModelInvocationRef(original.reference, original.tenant)
-    if ('failure' in resolved) return referenceRejected(resolved.failure, 'inspect')
+    if ('failure' in resolved) return referenceRejected(resolved.failure)
     const input = { principal: original.principal, ...resolved.ok }
     if (isReserved(input.admission)) return reservedOperation('admission')
     const target = resolve(core, input, 'inspect')

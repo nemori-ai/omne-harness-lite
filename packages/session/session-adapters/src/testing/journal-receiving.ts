@@ -197,10 +197,7 @@ function shape<P>(input: Input<P>): Failure | undefined {
     delivery.producer === 'model'
       ? resolveModelInvocationRef(delivery.key.reference, input.tenant)
       : resolveToolInvocationRef(delivery.key.reference, input.tenant)
-  if ('failure' in resolved)
-    return resolved.failure.kind === 'foreign-tenant'
-      ? denied()
-      : invalid('entry.delivery.key.reference')
+  if ('failure' in resolved) return invalid('entry.delivery.key.reference')
   if (!object(input.material)) return invalid('material')
   if (input.material.kind === 'facts') {
     if (!object(input.material.schema)) return invalid('material.schema')

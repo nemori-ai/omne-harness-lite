@@ -2900,7 +2900,7 @@ export type ToolReferenceFailure = Readonly<{
     kind: 'malformed';
     rejection: ToolReferenceRejection;
 }> | Readonly<{
-    kind: 'foreign-tenant';
+    kind: 'invalid-tenant';
 }>;
 export type ToolInvocationParts = Readonly<{
     tenant: TenantId;

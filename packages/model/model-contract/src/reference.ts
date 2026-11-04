@@ -30,15 +30,13 @@ export type ModelReferenceRejection = Readonly<{
 }>
 /**
  * Why a reference does not resolve for the presented tenant. Version 2 carries no tenant (R2-D357),
- * so `resolve` never returns `foreign-tenant`: a reference of another tenant locates nothing in the
- * caller's tenant partition, and the store-backed entry answers it as it answers a call that does
- * not exist. The member stays only until the Session Journal stubs drop their dead branches.
+ * so no failure names another tenant: a reference of another tenant resolves to the caller's tenant
+ * and locates nothing in its partition, and the store-backed entry answers it as it answers a call
+ * that does not exist (R2-D370).
  */
 export type ModelReferenceFailure =
   | Readonly<{ kind: 'malformed'; rejection: ModelReferenceRejection }>
   | Readonly<{ kind: 'invalid-tenant' }>
-  /** @deprecated Retired by reference version 2; never returned. */
-  | Readonly<{ kind: 'foreign-tenant' }>
 
 /** The only reference version this codec reads or writes. Version 1 texts are refused. */
 const VERSION = 2

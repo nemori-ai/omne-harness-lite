@@ -101,7 +101,6 @@ function ended(reason: EndReason): Ended {
 function endBeforeControl(failure: StreamReferenceFailure): Ended | null {
   switch (failure.kind) {
     case 'invalid-tenant':
-    case 'foreign-tenant':
       return ended('denied')
     case 'invalid-envelope':
       return ended('stale-stream')

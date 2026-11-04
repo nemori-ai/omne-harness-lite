@@ -264,7 +264,7 @@ judgeFixedModelRequest 接收 unknown；judgeAdmit 接收 typed Access 加 call�
 
 encode 的输入仍含 tenant。tenant 必须是 legal-identity 铸造的租户，否则返回 identity；它不写入文本。encode 只接受 Object.prototype 或 null 原型的封闭 own enumerable string data fields。访问器、symbol、非枚举、未知和缺字段返回 shape。反射抛错返回 unreadable，不执行 getter 或 toJSON。Proxy 的反射 trap 仍可执行，此协议不承诺限制其副作用。
 
-resolve 先用 tenantCodec.encode 核当前 tenant 的铸造关系，再解析引用。未铸造返回 invalid-tenant，其余拒绝为 malformed。成功返回冻结 parts，其中 tenant 是本次传入的同一对象。引用不替换当前资格。resolve 不再返回 foreign-tenant。另一租户的引用在本租户解析成功，并在本租户的分区里定位。该分区没有这个调用，所以有存储的入口按不存在的调用回复。回复与该调用从未存在时逐字节相同，不披露另一租户的调用是否存在。foreign-tenant 成员暂留在 `ModelReferenceFailure` 中，标为 deprecated，等 Session Journal 替身删除对应的死分支后删除。
+resolve 先用 tenantCodec.encode 核当前 tenant 的铸造关系，再解析引用。未铸造返回 invalid-tenant，其余拒绝为 malformed。成功返回冻结 parts，其中 tenant 是本次传入的同一对象。引用不替换当前资格。`ModelReferenceFailure` 只有 malformed 与 invalid-tenant 两种，没有表示「引用属于另一租户」的结局（R2-D370）。另一租户的引用在本租户解析成功，并在本租户的分区里定位。该分区没有这个调用，所以有存储的入口按不存在的调用回复。回复与该调用从未存在时逐字节相同，不披露另一租户的调用是否存在。
 
 Admission 保留 call、revision、recovered 并增加 reference。首次 reference 来自实际提交的原身份，认回返回原账本回执中的 reference。同 call 换 operation 仍 conflict。`inspect`、普通 `connect` 和 `beginRead` 只接受 Access 加 invocation reference，beginRead 另带原读取 operation 和 result。没有旧形态重载。
 

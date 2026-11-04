@@ -159,10 +159,10 @@ describe('reference resolution against the presented tenant', () => {
       account: { name: 'AccountId', text: `acc_${'1'.repeat(26)}` },
     } as TenantId
     expect(resolveToolInvocationRef(invocationRef, presented)).toEqual({
-      failure: { kind: 'foreign-tenant' },
+      failure: { kind: 'invalid-tenant' },
     })
     expect(resolveToolOperationRef(operationRef, presented)).toEqual({
-      failure: { kind: 'foreign-tenant' },
+      failure: { kind: 'invalid-tenant' },
     })
   })
 
