@@ -47,6 +47,7 @@
 - [preadmission.spec.ts](preadmission.spec.ts)：准入记录的两阶段写入、Ki 唯一、结果只固定一次、跨租户读不到，以及真实提供者上杀进程后按原 H 读回（慢层）。
 - [same-domain-tenant.spec.ts](same-domain-tenant.spec.ts)：同一事务域里租户 A 的行，以租户 B 读不到：准入记录按 H 与按 Ki 的点查（`findPreadmission`），以及 `commitLog` 对 `sl_journal` 的读（答 `denied`）。其他规格的夹具把每个租户放在各自的事务域里，语句丢了 `tenant = ?` 也读不到别家的行，所以这里在同一个库里写、再换租户读，并各带一个以租户 A 读的对照。
 - [entry-codec.spec.ts](entry-codec.spec.ts)：`sl_entry.entry` 文本的编解码（SPEC 已知限制第 23 条）：载荷存为普通 JSON，读回的条目与写入的相等，数字原文与键顺序不变，条目对象的摘要与旧编码读出的相等；重复键不写也不读；旧编码的行答 `StoredEntryMalformed` 并带专门诊断；固定会话的存储字节不超过普通 JSON 的 1.15 倍，并打印旧编码、新编码与普通 JSON 的字节数。
+- [entry-codec-roundtrip.spec.ts](entry-codec-roundtrip.spec.ts)：编解码的边界往返，读回的值树与写入的深相等，含键顺序：整数样式的键（6 个键的全部排列）、数字原文（`1.0`、`1e2`、`-0`、超过 2^53 的整数等）、转义与控制字符、非 BMP 字符、孤立代理项、空字符串、空容器、1000 层嵌套。另跑 session-contract 的两套符合性用例与一条 `message.tool` 输入，所有落库行读回后再写得到同一文本，`bytes` 等于字节数，证据摘要与旧编码读出的条目相同。
 - [stored-entry-rows.spec.ts](stored-entry-rows.spec.ts)：经端口的条目行：提交的行存编解码文本，`bytes` 是它的 UTF-8 字节数，历史页读回同样的条目；一行旧编码使历史读、读它的提交与归属读答 `unavailable` 并带诊断，提交不写行。
 - [entry-codec-bench.spec.ts](entry-codec-bench.spec.ts)：慢层。固定会话（541 条）上测四项耗时：每条的文本与 INSERT、每条的解码、历史索引从空重建、`session.history` 按 256 KiB 分页读完，打印均值、中位数与 p95。不设时间断言；对照另一棵树时只换 `fixtures/entry-text.ts`。
 - [history-index-incremental.spec.ts](history-index-incremental.spec.ts)：历史索引的 Session 行在 Worker 内增量保留（SPEC「Worker 内的两处保留」）：保留的索引与整读的答案相等，没有新行的读不读五种行，游标之后有空洞时本次调用失败、下一次重建，未提交事务的行不保留，会话数与行数有上界。
