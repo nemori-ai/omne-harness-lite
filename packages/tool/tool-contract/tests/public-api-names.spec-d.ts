@@ -289,6 +289,8 @@ import type {
   ToolReferenceFailure,
   ToolInvocationParts,
   ToolOperationParts,
+  ToolInvocationLocation,
+  ToolOperationLocation,
 } from '@omne-harness/tool-contract'
 import type {
   ToolMessageContentBlock,
@@ -351,10 +353,10 @@ it('resolves every implemented contract function from the package root with its 
     (text: unknown) => Outcome<ToolOperationRef, ToolReferenceRejection>
   >()
   expectTypeOf(readToolInvocationRef).toEqualTypeOf<
-    (reference: ToolInvocationRef) => ToolInvocationParts
+    (reference: ToolInvocationRef) => ToolInvocationLocation
   >()
   expectTypeOf(readToolOperationRef).toEqualTypeOf<
-    (reference: ToolOperationRef) => ToolOperationParts
+    (reference: ToolOperationRef) => ToolOperationLocation
   >()
   expectTypeOf(resolveToolInvocationRef).toEqualTypeOf<
     (reference: unknown, tenant: TenantId) => Outcome<ToolInvocationParts, ToolReferenceFailure>

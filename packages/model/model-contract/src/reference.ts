@@ -1,5 +1,5 @@
 import { mintInvocationReference, mintOperationReference } from './mint.ts'
-import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { decodeModelCallId, decodeModelOperationId } from './identity-values.ts'
 import type { ModelCallId, ModelOperationId } from './root.ts'
@@ -28,13 +28,27 @@ export type ModelReferenceRejection = Readonly<{
     | 'reserved'
     | 'unreadable'
 }>
+/**
+ * Why a reference does not resolve for the presented tenant. Version 2 carries no tenant (R2-D357),
+ * so `resolve` never returns `foreign-tenant`: a reference of another tenant locates nothing in the
+ * caller's tenant partition, and the store-backed entry answers it as it answers a call that does
+ * not exist. The member stays only until the Session Journal stubs drop their dead branches.
+ */
 export type ModelReferenceFailure =
   | Readonly<{ kind: 'malformed'; rejection: ModelReferenceRejection }>
   | Readonly<{ kind: 'invalid-tenant' }>
+  /** @deprecated Retired by reference version 2; never returned. */
   | Readonly<{ kind: 'foreign-tenant' }>
 
+/** The only reference version this codec reads or writes. Version 1 texts are refused. */
+const VERSION = 2
+
 type Field = ModelReferenceRejection['field']
-type Parsed = ModelInvocationParts & Readonly<{ operation: ModelOperationId | null }>
+type Parsed = Readonly<{
+  call: ModelCallId
+  admission: ModelOperationId
+  operation: ModelOperationId | null
+}>
 function reject(field: Field, reason: ModelReferenceRejection['reason']) {
   return fail<ModelReferenceRejection>({ field, reason })
 }
@@ -47,34 +61,20 @@ function operation(
   return decoded.ok.startsWith('mop_--') ? reject(field, 'reserved') : decoded
 }
 function partsOf(
-  tenantText: unknown,
   callText: unknown,
   admissionText: unknown,
   operationText: unknown,
   field: Field,
 ): Outcome<Parsed, ModelReferenceRejection> {
-  if (typeof tenantText !== 'string') return reject(field, 'identity')
-  const tenant = tenantCodec.parse(tenantText)
-  if (!tenant.ok) return reject(field, 'identity')
   const call = decodeModelCallId(callText)
   if ('failure' in call) return reject(field, 'identity')
   const admission = operation(admissionText, field)
   if ('failure' in admission) return admission
   if (field === 'ModelInvocationRef')
-    return succeed({
-      tenant: tenant.value,
-      call: call.ok,
-      admission: admission.ok,
-      operation: null,
-    })
+    return succeed({ call: call.ok, admission: admission.ok, operation: null })
   const action = operation(operationText, field)
   if ('failure' in action) return action
-  return succeed({
-    tenant: tenant.value,
-    call: call.ok,
-    admission: admission.ok,
-    operation: action.ok,
-  })
+  return succeed({ call: call.ok, admission: admission.ok, operation: action.ok })
 }
 function parse(text: unknown, field: Field): Outcome<Parsed, ModelReferenceRejection> {
   if (typeof text !== 'string') return reject(field, 'type')
@@ -88,9 +88,9 @@ function parse(text: unknown, field: Field): Outcome<Parsed, ModelReferenceRejec
   if (!Array.isArray(tuple)) return reject(field, 'shape')
   const domain = field === 'ModelInvocationRef' ? 'model-invocation' : 'model-operation'
   if (tuple[0] !== domain) return reject(field, 'domain')
-  if (tuple[1] !== 1) return reject(field, 'version')
-  if (tuple.length !== (field === 'ModelInvocationRef' ? 5 : 6)) return reject(field, 'shape')
-  return partsOf(tuple[2], tuple[3], tuple[4], tuple[5], field)
+  if (tuple[1] !== VERSION) return reject(field, 'version')
+  if (tuple.length !== (field === 'ModelInvocationRef' ? 4 : 5)) return reject(field, 'shape')
+  return partsOf(tuple[2], tuple[3], tuple[4], field)
 }
 function captureDescriptors(
   value: object,
@@ -125,24 +125,21 @@ function capture(value: unknown, field: Field): Outcome<Parsed, ModelReferenceRe
   const descriptors = captured.ok
   if (keys.some(key => !descriptors[key]?.enumerable || !('value' in descriptors[key]!)))
     return reject(field, 'shape')
-  const tenant = tenantCodec.encode(descriptors.tenant!.value)
-  if (!tenant.ok) return reject(field, 'identity')
+  // The tenant is not part of the text, but a reference is encoded only for a minted tenant.
+  if (!tenantCodec.encode(descriptors.tenant!.value).ok) return reject(field, 'identity')
   return partsOf(
-    tenant.value,
     descriptors.call!.value,
     descriptors.admission!.value,
     descriptors.operation?.value,
     field,
   )
 }
+/** The text carries no tenant: the caller's Access and its storage partition locate the tenant. */
 function canonical(parts: Parsed): string {
-  const tenant = tenantCodec.encode(parts.tenant)
-  // Parsed tenants are minted by legal-identity. An encoding failure is an internal defect.
-  if (!tenant.ok) throw new TypeError('parsed Model reference tenant is not minted')
   return JSON.stringify(
     parts.operation === null
-      ? ['model-invocation', 1, tenant.value, parts.call, parts.admission]
-      : ['model-operation', 1, tenant.value, parts.call, parts.admission, parts.operation],
+      ? ['model-invocation', VERSION, parts.call, parts.admission]
+      : ['model-operation', VERSION, parts.call, parts.admission, parts.operation],
   )
 }
 /** Available before admit. The reference locates an invocation and grants no access. */
@@ -170,6 +167,11 @@ export function decodeModelOperationRef(
   const parsed = parse(text, 'ModelOperationRef')
   return 'failure' in parsed ? parsed : succeed(mintOperationReference(canonical(parsed.ok)))
 }
+/**
+ * Locate the reference in the presented tenant. The reference has no tenant of its own, so a
+ * reference of another tenant resolves here to parts of the caller's tenant and the store-backed
+ * entry finds no such call: the same answer as for a call that never existed.
+ */
 function resolve(
   reference: unknown,
   tenant: TenantId,
@@ -177,9 +179,7 @@ function resolve(
 ): Outcome<Parsed, ModelReferenceFailure> {
   if (!tenantCodec.encode(tenant).ok) return fail({ kind: 'invalid-tenant' })
   const parsed = parse(reference, field)
-  if ('failure' in parsed) return fail({ kind: 'malformed', rejection: parsed.failure })
-  if (!tenantEquals(parsed.ok.tenant, tenant)) return fail({ kind: 'foreign-tenant' })
-  return succeed({ ...parsed.ok, tenant })
+  return 'failure' in parsed ? fail({ kind: 'malformed', rejection: parsed.failure }) : parsed
 }
 /** Return the current minted tenant object, never a reconstructed credential. */
 export function resolveModelInvocationRef(

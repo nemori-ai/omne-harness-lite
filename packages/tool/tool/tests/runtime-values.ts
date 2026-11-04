@@ -679,7 +679,8 @@ export function harness(options: HarnessOptions = {}): Harness {
     referenceOf,
     operationRefOf: (call, operation) => {
       const encoded = encodeToolOperationRef({
-        tenant: readToolInvocationRef(referenceOf(call)).tenant,
+        // The text carries no tenant (R2-D357); any minted tenant encodes the same reference.
+        tenant: tenantA,
         call: callId(call),
         admission: readToolInvocationRef(referenceOf(call)).admission,
         operation: operationId(operation),

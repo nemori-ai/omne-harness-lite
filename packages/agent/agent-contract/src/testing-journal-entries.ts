@@ -666,26 +666,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
       },
     },
     {
-      name: 'denies a received delivery whose call reference names another tenant',
-      async run() {
-        const execution = executionId('wrong-call')
-        await fixture.open(access, execution)
-        const before = await eventsOf(execution)
-        await refused(
-          receiving(
-            access,
-            execution,
-            operationId('wrong-call'),
-            sampleReceivedModelResult(otherAccess.tenant, 'wrong-call'),
-          ),
-          'denied',
-          'received with a call of another tenant',
-        )
-        assert.deepEqual(await fixture.read(access, execution), [])
-        await unchangedEvents(execution, before, 'a denied received record')
-      },
-    },
-    {
       name: 'advances the revision on each new entry',
       async run() {
         const execution = executionId('revision')
@@ -749,16 +729,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
           ),
           'conflict',
           'the same Tool account key with another account',
-        )
-        await refused(
-          receiving(
-            access,
-            execution,
-            operationId('at4'),
-            sampleReceivedToolAccount(otherAccess.tenant, 'acc-foreign'),
-          ),
-          'denied',
-          'a Tool account with a call of another tenant',
         )
         assert.deepEqual(await fixture.read(access, execution), [model, tool])
       },

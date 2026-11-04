@@ -7,7 +7,7 @@ import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { succeed } from '@omne-harness/operation-result'
 import { accepted, fixture, unbox } from './fixture.ts'
 
-it('C05 requires a declared durable store and refuses foreign tenant reads', async () => {
+it('C05 requires a declared durable store and keeps foreign tenant reads in their own partition', async () => {
   const world = await fixture()
   try {
     expect(() =>
@@ -18,8 +18,10 @@ it('C05 requires a declared durable store and refuses foreign tenant reads', asy
     ).toThrow('durable')
     const reference = accepted(await world.api.invoke(world.invocation('isolation')))
     await world.settled(reference)
+    // R2-D357: the reference carries no tenant. Tenant B's partition has no such call, so it gets
+    // the answer of a call that was never accepted, never tenant A's state.
     expect(await world.api.queries.lookup(world.query(reference, world.tenantB))).toMatchObject({
-      failure: { kind: 'denied' },
+      ok: { kind: 'not-accepted' },
     })
   } finally {
     await world.close()

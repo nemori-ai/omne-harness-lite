@@ -1,4 +1,4 @@
-import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
 import type { SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract'
 import {
@@ -98,8 +98,8 @@ const callShape: Check<ToolBackgroundCallsValue['calls'][number]> = record({
 })
 const valueShape = refine(record({ tenant, calls: list(callShape) }), value => {
   for (const [index, call] of value.calls.entries()) {
-    const reference = readToolInvocationRef(call.reference)
-    if (!tenantEquals(reference.tenant, value.tenant) || reference.call !== call.call)
+    // The reference carries no tenant (R2-D357): the value's tenant is the tenant of every call.
+    if (readToolInvocationRef(call.reference).call !== call.call)
       return { field: `calls[${index}].reference`, reason: 'call-mismatch' }
   }
   return undefined

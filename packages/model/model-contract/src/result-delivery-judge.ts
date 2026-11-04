@@ -6,7 +6,7 @@ import type { ModelCallId } from './root.ts'
 
 export type ModelDeliveryRejection =
   | Readonly<{ field: 'tenant'; reason: 'identity' }>
-  | Readonly<{ field: 'key.reference'; reason: 'reference-malformed' | 'foreign-tenant' }>
+  | Readonly<{ field: 'key.reference'; reason: 'reference-malformed' }>
   | Readonly<{ field: 'key.result'; reason: 'version-mismatch' }>
   | Readonly<{ field: 'key.revision'; reason: 'revision-mismatch' }>
   | Readonly<{ field: 'account.subject'; reason: 'call-mismatch' }>
@@ -20,16 +20,12 @@ export function judgeModelDelivery(
 ): Outcome<ModelDelivery, ModelDeliveryRejection> {
   const { delivery } = input
   const reference = resolveModelInvocationRef(delivery.key.reference, input.tenant)
-  if ('failure' in reference) {
-    switch (reference.failure.kind) {
-      case 'invalid-tenant':
-        return fail({ field: 'tenant', reason: 'identity' })
-      case 'malformed':
-        return fail({ field: 'key.reference', reason: 'reference-malformed' })
-      case 'foreign-tenant':
-        return fail({ field: 'key.reference', reason: 'foreign-tenant' })
-    }
-  }
+  // The reference carries no tenant (R2-D357): it resolves in the presented tenant, and the
+  // receiver's own partition answers whether that tenant has the call.
+  if ('failure' in reference)
+    return reference.failure.kind === 'malformed'
+      ? fail({ field: 'key.reference', reason: 'reference-malformed' })
+      : fail({ field: 'tenant', reason: 'identity' })
   return delivery.kind === 'account'
     ? judgeAccount(delivery, reference.ok.call)
     : judgeResult(delivery, reference.ok.call)

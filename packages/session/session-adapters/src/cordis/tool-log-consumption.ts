@@ -329,10 +329,9 @@ function materialRefusal(
   } catch {
     return invalid(field, 'the material holds a delivery that does not decode')
   }
+  // The reference carries no tenant (R2-D357): it is read in the caller's tenant.
   if ('failure' in judged)
-    return judged.failure.reason === 'foreign-tenant'
-      ? denied()
-      : invalid(field, `the material fails the delivery check: ${judged.failure.reason}`)
+    return invalid(field, `the material fails the delivery check: ${judged.failure.reason}`)
   return null
 }
 

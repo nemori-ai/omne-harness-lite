@@ -65,7 +65,6 @@ describe('Tool background value schema', () => {
     assert.equal(checked.issues, undefined)
     expect(checked.value).toEqual(value())
     expect(readToolInvocationRef(entry().reference)).toEqual({
-      tenant: input.tenant,
       call: callId(),
       admission: operation(),
     })
@@ -94,10 +93,17 @@ describe('Tool background value schema', () => {
     ['illegal execution', () => ({ ...value(), calls: [{ ...entry(), execution: 'finished' }] })],
     ['illegal task', () => ({ ...value(), calls: [{ ...entry(), pending: ['done'] }] })],
     ['illegal delivery', () => ({ ...value(), calls: [{ ...entry(), delivery: 'done' }] })],
-    ['wrong tenant', () => ({ ...value(), tenant: tenant('b') })],
     ['wrong call', () => ({ ...value(), calls: [{ ...entry(), call: callId('other-call') }] })],
   ])('rejects %s', async (_name, bad) => {
     expect((await backgroundCallsSchema['~standard'].validate(bad())).issues).toBeDefined()
+  })
+  it('takes the tenant of every call from the value, not from the reference', async () => {
+    // R2-D357: a reference carries no tenant, so the same calls under another tenant are the
+    // same reference texts; the value's tenant is the tenant of each call.
+    const moved = { ...value(), tenant: tenant('b') }
+    const checked = await backgroundCallsSchema['~standard'].validate(moved)
+    assert.equal(checked.issues, undefined)
+    expect(checked.value).toEqual(moved)
   })
   it('does not mistake a shaped reference for proof of original admission', async () => {
     const other = encodeToolInvocationRef({

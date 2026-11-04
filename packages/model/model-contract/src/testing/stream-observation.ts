@@ -19,7 +19,7 @@ import { diffModelStream } from '../model-stream-values.ts'
 import { createAccessRules, type ScriptedAccessDecision } from './access.ts'
 import { misuse } from './error.ts'
 import { modelStreamCodec } from './stream-codec.ts'
-import { frozenCopy } from './values.ts'
+import { frozenCopy, tenantText } from './values.ts'
 
 export type ScriptedStreamObservationOptions = Readonly<{
   /**
@@ -35,12 +35,21 @@ export type ScriptedStreamObservation<P> = Readonly<{
   publish(input: Readonly<{ tenant: TenantId; snapshot: ModelStreamSnapshot }>): StreamCursor
   /** The next confirmed snapshot of the stream named by `snapshot.ref`; open observers get a delta. */
   advance(input: Readonly<{ tenant: TenantId; snapshot: ModelStreamSnapshot }>): StreamCursor
-  /** The stream ends: open observers end with `reason`, and a later observe ends the same way. */
-  end(input: Readonly<{ ref: StreamRef; reason: 'source-closed' | 'stale-stream' }>): void
+  /**
+   * The stream of `tenant` ends: open observers end with `reason`, and a later observe ends the
+   * same way. A reference carries no tenant (R2-D357), so the script names it.
+   */
+  end(
+    input: Readonly<{
+      tenant: TenantId
+      ref: StreamRef
+      reason: 'source-closed' | 'stale-stream'
+    }>,
+  ): void
   /** The control plane for `observe`; an access that was never set is denied. */
   setAccess(access: Access<P>, decision: ScriptedAccessDecision): void
-  /** How many observations of the stream are open: begun and neither ended nor closed. */
-  openObservations(ref: StreamRef): number
+  /** How many observations of the stream of `tenant` are open: begun and neither ended nor closed. */
+  openObservations(ref: StreamRef, tenant: TenantId): number
 }>
 
 type Frame = StreamFrame<ModelStreamSnapshot, ModelStreamDelta>
@@ -84,8 +93,9 @@ function ended(reason: EndReason): Ended {
 }
 
 /**
- * The end that a reference failure gives before the control plane is asked: an unminted or
- * foreign tenant is denied, an unreadable envelope is stale. The other kinds wait for the control
+ * The end that a reference failure gives before the control plane is asked: an unminted tenant
+ * is denied, an unreadable envelope is stale. A reference of another tenant does not fail here; its
+ * stream is not published in the observer's tenant. The other kinds wait for the control
  * plane, so they do not tell a denied observer anything.
  */
 function endBeforeControl(failure: StreamReferenceFailure): Ended | null {
@@ -99,6 +109,11 @@ function endBeforeControl(failure: StreamReferenceFailure): Ended | null {
     case 'malformed':
       return null
   }
+}
+
+/** Streams are kept per tenant: the reference text carries no tenant (R2-D357). */
+function streamKey(tenant: TenantId, ref: StreamRef): string {
+  return JSON.stringify([tenantText(tenant), ref])
 }
 
 function cursorOf(ref: StreamRef, position: number): StreamCursor {
@@ -160,9 +175,12 @@ export function createScriptedStreamObservation<P>(
     return terminal
   }
 
-  /** The last check: the stream the reference names must be published and not ended. */
+  /**
+   * The last check: the stream the reference names must be published in the observer's tenant and
+   * not ended. A stream of another tenant is not there: the same answer as an unpublished one.
+   */
   function endOfStream(observer: Observer<P>, ref: StreamRef): Ended | null {
-    const stream = streams.get(ref)
+    const stream = streams.get(streamKey(observer.request.access.tenant, ref))
     if (stream === undefined) return ended('stale-stream')
     if (stream.ended !== null) return ended(stream.ended)
     observer.stream = stream
@@ -292,7 +310,7 @@ export function createScriptedStreamObservation<P>(
     observation,
     publish({ tenant, snapshot }) {
       const ref = confirmedRef(tenant, snapshot)
-      if (streams.has(ref)) throw misuse('the stream is already published')
+      if (streams.has(streamKey(tenant, ref))) throw misuse('the stream is already published')
       const checked = diffModelStream({ tenant, before: snapshot, after: snapshot })
       if ('failure' in checked)
         throw misuse(`the snapshot is not a valid projection: ${JSON.stringify(checked.failure)}`)
@@ -305,12 +323,12 @@ export function createScriptedStreamObservation<P>(
         ended: null,
         observers: new Set(),
       }
-      streams.set(ref, stream)
+      streams.set(streamKey(tenant, ref), stream)
       return stream.cursor
     },
     advance({ tenant, snapshot }) {
       const ref = confirmedRef(tenant, snapshot)
-      const stream = streams.get(ref)
+      const stream = streams.get(streamKey(tenant, ref))
       if (stream === undefined) throw misuse('the stream is not published')
       if (stream.ended !== null) throw misuse('the stream has ended')
       const delta = diffModelStream({ tenant, before: stream.snapshot, after: snapshot })
@@ -326,8 +344,8 @@ export function createScriptedStreamObservation<P>(
       }
       return stream.cursor
     },
-    end({ ref, reason }) {
-      const stream = streams.get(ref)
+    end({ tenant, ref, reason }) {
+      const stream = streams.get(streamKey(tenant, ref))
       if (stream === undefined) throw misuse('the stream is not published')
       if (stream.ended !== null) throw misuse('the stream has ended')
       stream.ended = reason
@@ -340,8 +358,8 @@ export function createScriptedStreamObservation<P>(
       rules.set(access, decision)
       refresh()
     },
-    openObservations(ref) {
-      return streams.get(ref)?.observers.size ?? 0
+    openObservations(ref, tenant) {
+      return streams.get(streamKey(tenant, ref))?.observers.size ?? 0
     },
   }
 }

@@ -225,7 +225,7 @@ describe('an observation of a published Model stream', () => {
     early.abort()
     expect(await early.next()).toEqual({ kind: 'ended', reason: 'observer-closed' })
     expect(await early.next()).toBe('finished')
-    expect(source.openObservations(stream())).toBe(0)
+    expect(source.openObservations(stream(), tenant())).toBe(0)
     const c3 = source.advance({ tenant: tenant(), snapshot: third() })
     const back = watch(source)
     expect(await back.next()).toEqual({ kind: 'snapshot', cursor: c3, value: third() })
@@ -241,7 +241,7 @@ describe('an observation of a published Model stream', () => {
       cursor: c4,
       value: { blocks: [growing('0', 'abcd')] },
     })
-    expect(source.openObservations(stream())).toBe(1)
+    expect(source.openObservations(stream(), tenant())).toBe(1)
   })
 
   it('takes the snapshot and registers the subscription together, so an advance right after the request is a delta', async () => {
@@ -261,11 +261,11 @@ describe('an observation of a published Model stream', () => {
     const { source } = opened()
     const reader = watch(source)
     await reader.next()
-    source.end({ ref: stream(), reason: 'source-closed' })
+    source.end({ tenant: tenant(), ref: stream(), reason: 'source-closed' })
     expect(await reader.next()).toEqual({ kind: 'ended', reason: 'source-closed' })
     expect(await reader.next()).toBe('finished')
     expect(await watch(source).next()).toEqual({ kind: 'ended', reason: 'source-closed' })
-    expect(source.openObservations(stream())).toBe(0)
+    expect(source.openObservations(stream(), tenant())).toBe(0)
   })
 
   it('ends a slow observer with a buffer gap after the last frame it took once its untaken frames exceed the limit', async () => {
@@ -274,7 +274,7 @@ describe('an observation of a published Model stream', () => {
     await reader.next()
     source.advance({ tenant: tenant(), snapshot: second() })
     source.advance({ tenant: tenant(), snapshot: third() })
-    expect(source.openObservations(stream())).toBe(1)
+    expect(source.openObservations(stream(), tenant())).toBe(1)
     source.advance({
       tenant: tenant(),
       snapshot: snapshot({
@@ -283,7 +283,7 @@ describe('an observation of a published Model stream', () => {
         blocks: [growing('0', 'abcd'), growing('1', 'x')],
       }),
     })
-    expect(source.openObservations(stream())).toBe(0)
+    expect(source.openObservations(stream(), tenant())).toBe(0)
     expect(await reader.next()).toEqual({ kind: 'gap', reason: 'buffer', after: published })
     expect(await reader.next()).toBe('finished')
   })
@@ -303,7 +303,7 @@ describe('an observation of a published Model stream', () => {
         blocks: [growing('0', 'abcd'), growing('1', 'x')],
       }),
     })
-    source.end({ ref: stream(), reason: 'source-closed' })
+    source.end({ tenant: tenant(), ref: stream(), reason: 'source-closed' })
     expect(await reader.next()).toEqual({ kind: 'gap', reason: 'buffer', after: c2 })
     expect(await reader.next()).toBe('finished')
   })
@@ -324,7 +324,7 @@ describe('an observation of a published Model stream', () => {
     expect(await within(waiting, 'waiting')).toEqual({ done: true, value: undefined })
     source.advance({ tenant: tenant(), snapshot: second() })
     expect(await within(iterator.next(), 'next')).toEqual({ done: true, value: undefined })
-    expect(source.openObservations(stream())).toBe(0)
+    expect(source.openObservations(stream(), tenant())).toBe(0)
   })
 
   it('gives a waiting reader the delta as soon as the source advances', async () => {
@@ -341,9 +341,9 @@ describe('an observation of a published Model stream', () => {
     const reader = watch(source)
     await reader.next()
     const waiting = reader.next()
-    source.end({ ref: stream(), reason: 'source-closed' })
+    source.end({ tenant: tenant(), ref: stream(), reason: 'source-closed' })
     expect(await waiting).toEqual({ kind: 'ended', reason: 'source-closed' })
-    expect(source.openObservations(stream())).toBe(0)
+    expect(source.openObservations(stream(), tenant())).toBe(0)
   })
 
   it('ends at once as observer-closed when the signal was aborted before the first read', async () => {
@@ -358,14 +358,14 @@ describe('an observation of a published Model stream', () => {
       value: { kind: 'ended', reason: 'observer-closed' },
     })
     expect(await within(iterator.next(), 'next')).toEqual({ done: true, value: undefined })
-    expect(source.openObservations(stream())).toBe(0)
+    expect(source.openObservations(stream(), tenant())).toBe(0)
   })
 
   it('ends as observer-closed when the reader aborts after the source ended but before it took the end', async () => {
     const { source } = opened()
     const reader = watch(source)
     await reader.next()
-    source.end({ ref: stream(), reason: 'source-closed' })
+    source.end({ tenant: tenant(), ref: stream(), reason: 'source-closed' })
     reader.abort()
     expect(await reader.next()).toEqual({ kind: 'ended', reason: 'observer-closed' })
     expect(await reader.next()).toBe('finished')
@@ -392,7 +392,7 @@ describe('an observation of a published Model stream', () => {
     const waiting = reader.next()
     reader.abort()
     expect(await waiting).toEqual({ kind: 'ended', reason: 'observer-closed' })
-    expect(source.openObservations(stream())).toBe(0)
+    expect(source.openObservations(stream(), tenant())).toBe(0)
   })
 
   it('gives a waiting reader denied as soon as the access is withdrawn', async () => {
@@ -409,7 +409,7 @@ describe('an observation of a published Model stream', () => {
     const reader = watch(source)
     await reader.next()
     source.setAccess({ tenant: tenant(), principal: { subject: 'other' } }, 'allow')
-    expect(source.openObservations(stream())).toBe(1)
+    expect(source.openObservations(stream(), tenant())).toBe(1)
     const c2 = source.advance({ tenant: tenant(), snapshot: second() })
     expect(await reader.next()).toMatchObject({ kind: 'delta', from: published, cursor: c2 })
   })
@@ -443,7 +443,7 @@ describe('what an observation request is refused with', () => {
         source.advance({ tenant: tenant(), snapshot: second() })
         source.advance({ tenant: tenant(), snapshot: third() })
       } else reader.abort()
-      source.end({ ref: stream(), reason: 'stale-stream' })
+      source.end({ tenant: tenant(), ref: stream(), reason: 'stale-stream' })
       expect(await reader.next()).toEqual({ kind: 'ended', reason: 'stale-stream' })
       expect(await reader.next()).toBe('finished')
     },
@@ -459,19 +459,22 @@ describe('what an observation request is refused with', () => {
     expect(await watch(source).next()).toEqual({ kind: 'ended', reason: 'unavailable' })
     source.setAccess(access(), 'deny')
     expect(await watch(source).next()).toEqual({ kind: 'ended', reason: 'denied' })
-    expect(source.openObservations(stream())).toBe(0)
+    expect(source.openObservations(stream(), tenant())).toBe(0)
   })
 
-  it('denies a foreign tenant and an unminted tenant without telling whether the stream exists', async () => {
+  it('answers another tenant as for a stream that does not exist, and denies an unminted tenant', async () => {
     const { source } = opened()
+    // R2-D357: the reference carries no tenant. The stream of tenant A is not published in B's
+    // partition, so B gets exactly the end of an unpublished stream, byte for byte.
     source.setAccess({ tenant: foreign(), principal: viewer }, 'allow')
-    expect(await watch(source, stream(), { tenant: foreign(), principal: viewer }).next()).toEqual({
-      kind: 'ended',
-      reason: 'denied',
-    })
-    expect(
-      await watch(source, stream('str_missing'), { tenant: foreign(), principal: viewer }).next(),
-    ).toEqual({ kind: 'ended', reason: 'denied' })
+    const theirs = await watch(source, stream(), { tenant: foreign(), principal: viewer }).next()
+    const missing = await watch(source, stream('str_missing'), {
+      tenant: foreign(),
+      principal: viewer,
+    }).next()
+    expect(theirs).toEqual({ kind: 'ended', reason: 'stale-stream' })
+    expect(JSON.stringify(theirs)).toBe(JSON.stringify(missing))
+    expect(source.openObservations(stream(), foreign())).toBe(0)
     // @ts-expect-error an unminted tenant exercises the runtime identity guard
     expect(await watch(source, stream(), { tenant: {}, principal: viewer }).next()).toEqual({
       kind: 'ended',
@@ -500,14 +503,14 @@ describe('what an observation request is refused with', () => {
     source.setAccess(access(), 'deny')
     expect(await reader.next()).toEqual({ kind: 'ended', reason: 'denied' })
     expect(await reader.next()).toBe('finished')
-    expect(source.openObservations(stream())).toBe(0)
+    expect(source.openObservations(stream(), tenant())).toBe(0)
   })
 
   it('ends as denied when the access is withdrawn after the source ended but before the reader took the end', async () => {
     const { source } = opened()
     const reader = watch(source)
     await reader.next()
-    source.end({ ref: stream(), reason: 'source-closed' })
+    source.end({ tenant: tenant(), ref: stream(), reason: 'source-closed' })
     source.setAccess(access(), 'deny')
     expect(await reader.next()).toEqual({ kind: 'ended', reason: 'denied' })
     expect(await reader.next()).toBe('finished')
@@ -517,7 +520,7 @@ describe('what an observation request is refused with', () => {
     const { source } = opened()
     const reader = watch(source)
     await reader.next()
-    source.end({ ref: stream(), reason: 'source-closed' })
+    source.end({ tenant: tenant(), ref: stream(), reason: 'source-closed' })
     source.setAccess(access(), 'unavailable')
     expect(await reader.next()).toEqual({ kind: 'ended', reason: 'unavailable' })
   })
@@ -560,14 +563,14 @@ describe('what the script may not do', () => {
         snapshot: snapshot({ revision: '1', outputCursor: '1', blocks: [] }),
       }),
     ).toThrow('revision-regression')
-    expect(() => source.end({ ref: stream('str_other'), reason: 'source-closed' })).toThrow(
-      ScriptedModelError,
-    )
+    expect(() =>
+      source.end({ tenant: tenant(), ref: stream('str_other'), reason: 'source-closed' }),
+    ).toThrow(ScriptedModelError)
   })
 
   it('refuses a snapshot of another tenant and a snapshot that is not a valid projection', () => {
     const source = createScriptedStreamObservation<Principal>()
-    expect(() => source.publish({ tenant: foreign(), snapshot: first() })).toThrow(
+    expect(() => source.publish({ tenant: {} as TenantId, snapshot: first() })).toThrow(
       ScriptedModelError,
     )
     expect(() =>

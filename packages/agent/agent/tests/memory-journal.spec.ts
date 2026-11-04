@@ -2841,16 +2841,8 @@ describe('retained invocation fault controls', () => {
     async level => {
       const store = await fixture()
       const s0 = await observeAll(store)
-      const foreign = ok(
-        toolReferences.encodeToolInvocationRef({
-          ...store.first.first.parts,
-          tenant: otherTenant.tenant,
-        }),
-      )
-      const input = {
-        ...store.first.selector,
-        fault: { kind: 'foreign-tenant', reference: foreign },
-      }
+      // A foreign-tenant fault cannot be written since R2-D357 (the text carries no tenant).
+      const input = { ...store.first.selector, fault: { kind: 'malformed' } }
       function withPrototype(prototype: object | null) {
         const request = { ...input, fault: { ...input.fault } }
         Object.setPrototypeOf(level === 'request' ? request : request.fault, prototype)
@@ -2863,7 +2855,9 @@ describe('retained invocation fault controls', () => {
           ]),
         ).toEqual({ kind: 'applied' })
         const changed = await observeAll(store)
-        expect(changed[0]?.snapshot.controls[0]).toMatchObject({ toolInvocation: foreign })
+        expect(changed[0]?.snapshot.controls[0]).toMatchObject({
+          toolInvocation: 'memory-journal:malformed-retained-tool-invocation',
+        })
         expect(store.control.setRetainedToolInvocationFault({ ...input, fault: null })).toEqual({
           kind: 'cleared',
         })
@@ -2981,13 +2975,8 @@ describe('retained invocation fault controls', () => {
     const store = await fixture('spaced', true)
     const s0 = await observeAll(store)
     const selector = store.first.selector
-    const foreign = ` \n${ok(toolReferences.encodeToolInvocationRef({ ...store.first.first.parts, tenant: otherTenant.tenant }))} `
-    for (const fault of [
-      { kind: 'malformed' },
-      { kind: 'malformed' },
-      { kind: 'foreign-tenant', reference: foreign },
-      { kind: 'foreign-tenant', reference: foreign },
-    ]) {
+    // A foreign-tenant fault cannot be written since R2-D357 (the text carries no tenant).
+    for (const fault of [{ kind: 'malformed' }, { kind: 'malformed' }]) {
       expect(
         Reflect.apply(store.control.setRetainedToolInvocationFault, store.control, [
           { ...selector, fault },
@@ -2995,7 +2984,7 @@ describe('retained invocation fault controls', () => {
       ).toEqual({ kind: 'applied' })
     }
     expect((await load(store.journal, selector.execution)).controls[0]?.toolInvocation).toBe(
-      foreign,
+      'memory-journal:malformed-retained-tool-invocation',
     )
     expect(
       store.control.setRetainedToolInvocationFault({

@@ -1,6 +1,6 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { StreamCallCodec } from '@omne-harness/stream-arrival'
-import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -15,16 +15,21 @@ export type ToolOperationRef = string & { readonly [toolOperationRef]: true }
 
 /**
  * Why a text is not a reference. `type`: not a string, not JSON, not an array, or a marker of
- * another kind. `version`: a version other than 1. `shape`: the wrong element count, or an
- * element that is not the tenant text or the identity it must be. `length`: the text is longer
- * than the longest encodable reference.
+ * another kind. `version`: a version other than 2 (a version 1 text is refused, not read).
+ * `shape`: the wrong element count, or an element that is not the identity it must be. `length`:
+ * the text is longer than the longest encodable reference.
  */
 export type ToolReferenceRejection = Readonly<{
   field: 'ToolInvocationRef' | 'ToolOperationRef'
   reason: 'type' | 'version' | 'shape' | 'length'
 }>
 
-/** A malformed reference, or a valid reference whose tenant differs from the access tenant. */
+/**
+ * A malformed reference, or `foreign-tenant`: the presented tenant is not a tenant legal-identity
+ * minted. Version 2 carries no tenant (R2-D357), so a minted tenant never gets `foreign-tenant`: a
+ * reference of another tenant locates nothing in the caller's tenant partition, and the
+ * store-backed entry answers it as it answers a call that does not exist.
+ */
 export type ToolReferenceFailure =
   | Readonly<{ kind: 'malformed'; rejection: ToolReferenceRejection }>
   | Readonly<{ kind: 'foreign-tenant' }>
@@ -35,19 +40,21 @@ export type ToolInvocationParts = Readonly<{
   admission: ToolOperationId
 }>
 export type ToolOperationParts = ToolInvocationParts & Readonly<{ operation: ToolOperationId }>
+/** The identities a reference text carries. The tenant of a use comes from the caller's Access. */
+export type ToolInvocationLocation = Omit<ToolInvocationParts, 'tenant'>
+export type ToolOperationLocation = Omit<ToolOperationParts, 'tenant'>
 
 /**
- * The longest reference text, in UTF-16 code units. A legal-identity atomic text is 30 characters
- * (4 prefix, 26 body), so the canonical tenantCodec text is 92. As an array element it is quoted
- * and its eight quotes are escaped: 102. A Tool identity takes up to 256 characters, and the worst
- * JSON escaping doubles each: 514 with quotes. The operation form is then
- * `["tool-operation",1,` (20) + tenant (102) + three identities with their separators (3 × 515)
- * + `]`: 1668. The invocation form replaces the operation part: 1154. This limit does not borrow
- * the 256 of one Tool identity text.
+ * The longest reference text, in UTF-16 code units. A Tool identity takes up to 256 characters,
+ * and the worst JSON escaping doubles each: 514 with quotes. The operation form is then
+ * `["tool-operation",2,` (20) + three identities with the two separators between them
+ * (514 + 2 × 515) + `]`: 1565. The invocation form (marker one longer, no operation) is 1051. This limit does
+ * not borrow the 256 of one Tool identity text. The text carries no tenant (R2-D357).
  */
-export const TOOL_REFERENCE_MAX_LENGTH = 1668
+export const TOOL_REFERENCE_MAX_LENGTH = 1565
 
-const VERSION = 1
+/** The only reference version this codec reads or writes. Version 1 texts are refused. */
+const VERSION = 2
 
 type RefKind = ToolReferenceRejection['field']
 
@@ -58,12 +65,9 @@ function rejected<K extends RefKind>(
   return fail({ field, reason })
 }
 
-function canonicalTenant(
-  field: RefKind,
-  tenant: TenantId,
-): Outcome<string, ToolReferenceRejection> {
-  const encoded = tenantCodec.encode(tenant)
-  return encoded.ok ? succeed(encoded.value) : rejected(field, 'type')
+/** The tenant is not part of the text, but a reference is encoded only for a minted tenant. */
+function mintedTenant(field: RefKind, tenant: TenantId): Outcome<true, ToolReferenceRejection> {
+  return tenantCodec.encode(tenant).ok ? succeed(true) : rejected(field, 'type')
 }
 
 function identityText(
@@ -74,23 +78,45 @@ function identityText(
   return 'ok' in decode(text) ? succeed(text) : rejected(field, 'type')
 }
 
+/** The canonical text of identities the decoders admitted. */
+function invocationText(parts: ToolInvocationLocation): ToolInvocationRef {
+  return JSON.stringify([
+    'tool-invocation',
+    VERSION,
+    parts.call,
+    parts.admission,
+  ]) as ToolInvocationRef
+}
+
+function operationText(parts: ToolOperationLocation): ToolOperationRef {
+  return JSON.stringify([
+    'tool-operation',
+    VERSION,
+    parts.call,
+    parts.admission,
+    parts.operation,
+  ]) as ToolOperationRef
+}
+
 /**
  * Encodes the invocation reference. It fails only when a part is not what its brand claims: the
- * tenant must be a legal-identity tenant and the identities must decode. The codec reads no
- * store and mints no identity.
+ * tenant must be a legal-identity tenant and the identities must decode. The tenant is checked
+ * but not written: the text carries the call and the admission only. The codec reads no store and
+ * mints no identity.
  */
 export function encodeToolInvocationRef(
   parts: ToolInvocationParts,
 ): Outcome<ToolInvocationRef, ToolReferenceRejection> {
   const field = 'ToolInvocationRef' as const
-  const tenant = canonicalTenant(field, parts.tenant)
+  const tenant = mintedTenant(field, parts.tenant)
   if ('failure' in tenant) return tenant
   const call = identityText(field, decodeToolCallId, parts.call)
   if ('failure' in call) return call
   const admission = identityText(field, decodeToolOperationId, parts.admission)
   if ('failure' in admission) return admission
-  const text = JSON.stringify(['tool-invocation', VERSION, tenant.ok, call.ok, admission.ok])
-  return succeed(text as ToolInvocationRef)
+  return succeed(
+    invocationText({ call: call.ok as ToolCallId, admission: admission.ok as ToolOperationId }),
+  )
 }
 
 /** Encodes the operation reference of an admitted invocation. */
@@ -98,7 +124,7 @@ export function encodeToolOperationRef(
   parts: ToolOperationParts,
 ): Outcome<ToolOperationRef, ToolReferenceRejection> {
   const field = 'ToolOperationRef' as const
-  const tenant = canonicalTenant(field, parts.tenant)
+  const tenant = mintedTenant(field, parts.tenant)
   if ('failure' in tenant) return tenant
   const call = identityText(field, decodeToolCallId, parts.call)
   if ('failure' in call) return call
@@ -106,30 +132,23 @@ export function encodeToolOperationRef(
   if ('failure' in admission) return admission
   const operation = identityText(field, decodeToolOperationId, parts.operation)
   if ('failure' in operation) return operation
-  const text = JSON.stringify([
-    'tool-operation',
-    VERSION,
-    tenant.ok,
-    call.ok,
-    admission.ok,
-    operation.ok,
-  ])
-  return succeed(text as ToolOperationRef)
+  return succeed(
+    operationText({
+      call: call.ok as ToolCallId,
+      admission: admission.ok as ToolOperationId,
+      operation: operation.ok as ToolOperationId,
+    }),
+  )
 }
 
 type Decoded =
-  | Readonly<{ operation: null; tenant: TenantId; call: ToolCallId; admission: ToolOperationId }>
-  | Readonly<{
-      operation: ToolOperationId
-      tenant: TenantId
-      call: ToolCallId
-      admission: ToolOperationId
-    }>
+  | Readonly<{ operation: null; call: ToolCallId; admission: ToolOperationId }>
+  | Readonly<{ operation: ToolOperationId; call: ToolCallId; admission: ToolOperationId }>
 
 function decodeElements(
   field: RefKind,
   marker: 'tool-invocation' | 'tool-operation',
-  count: 5 | 6,
+  count: 4 | 5,
   text: unknown,
 ): Outcome<Decoded, ToolReferenceRejection> {
   if (typeof text !== 'string') return rejected(field, 'type')
@@ -144,27 +163,14 @@ function decodeElements(
   if (value[0] !== marker) return rejected(field, 'type')
   if (value[1] !== VERSION) return rejected(field, 'version')
   if (value.length !== count) return rejected(field, 'shape')
-  const tenant = tenantCodec.parse(value[2])
-  if (!tenant.ok) return rejected(field, 'shape')
-  const call = decodeToolCallId(value[3])
+  const call = decodeToolCallId(value[2])
   if ('failure' in call) return rejected(field, 'shape')
-  const admission = decodeToolOperationId(value[4])
+  const admission = decodeToolOperationId(value[3])
   if ('failure' in admission) return rejected(field, 'shape')
-  if (count === 5)
-    return succeed({
-      operation: null,
-      tenant: tenant.value,
-      call: call.ok,
-      admission: admission.ok,
-    })
-  const operation = decodeToolOperationId(value[5])
+  if (count === 4) return succeed({ operation: null, call: call.ok, admission: admission.ok })
+  const operation = decodeToolOperationId(value[4])
   if ('failure' in operation) return rejected(field, 'shape')
-  return succeed({
-    operation: operation.ok,
-    tenant: tenant.value,
-    call: call.ok,
-    admission: admission.ok,
-  })
+  return succeed({ operation: operation.ok, call: call.ok, admission: admission.ok })
 }
 
 /**
@@ -175,77 +181,81 @@ function decodeElements(
 export function decodeToolInvocationRef(
   text: unknown,
 ): Outcome<ToolInvocationRef, ToolReferenceRejection> {
-  const decoded = decodeElements('ToolInvocationRef', 'tool-invocation', 5, text)
-  if ('failure' in decoded) return decoded
-  return encodeToolInvocationRef(decoded.ok)
+  const decoded = decodeElements('ToolInvocationRef', 'tool-invocation', 4, text)
+  return 'failure' in decoded ? decoded : succeed(invocationText(decoded.ok))
 }
 
 /** Decodes a saved operation reference text. */
 export function decodeToolOperationRef(
   text: unknown,
 ): Outcome<ToolOperationRef, ToolReferenceRejection> {
-  const decoded = decodeElements('ToolOperationRef', 'tool-operation', 6, text)
+  const decoded = decodeElements('ToolOperationRef', 'tool-operation', 5, text)
   if ('failure' in decoded) return decoded
-  if (decoded.ok.operation === null) return rejected('ToolOperationRef', 'shape')
-  const { tenant, call, admission, operation } = decoded.ok
-  return encodeToolOperationRef({ tenant, call, admission, operation })
-}
-
-/** The parts a branded invocation reference carries. Only the codec can mint the brand. */
-export function readToolInvocationRef(reference: ToolInvocationRef): ToolInvocationParts {
-  const decoded = decodeElements('ToolInvocationRef', 'tool-invocation', 5, reference)
-  if ('failure' in decoded)
-    throw new TypeError(`a branded invocation reference does not decode: ${reference}`)
-  const { tenant, call, admission } = decoded.ok
-  return { tenant, call, admission }
-}
-
-/** The parts a branded operation reference carries. */
-export function readToolOperationRef(reference: ToolOperationRef): ToolOperationParts {
-  const decoded = decodeElements('ToolOperationRef', 'tool-operation', 6, reference)
-  if ('failure' in decoded || decoded.ok.operation === null)
-    throw new TypeError(`a branded operation reference does not decode: ${reference}`)
-  const { tenant, call, admission, operation } = decoded.ok
-  return { tenant, call, admission, operation }
-}
-
-function resolve<R, P extends ToolInvocationParts>(
-  reference: unknown,
-  tenant: TenantId,
-  decode: (text: unknown) => Outcome<R, ToolReferenceRejection>,
-  read: (encoded: R) => P,
-): Outcome<P, ToolReferenceFailure> {
-  const decoded = decode(reference)
-  if ('failure' in decoded) return fail({ kind: 'malformed', rejection: decoded.failure })
-  const parts = read(decoded.ok)
-  return tenantEquals(parts.tenant, tenant) ? succeed(parts) : fail({ kind: 'foreign-tenant' })
+  const { call, admission, operation } = decoded.ok
+  if (operation === null) return rejected('ToolOperationRef', 'shape')
+  return succeed(operationText({ call, admission, operation }))
 }
 
 /**
- * Resolves an untrusted invocation reference against the presented tenant: the decode, and then
- * the tenant comparison of legal-identity. `foreign-tenant` is a well-formed reference of another
- * tenant; it says nothing about whether the call exists.
+ * The identities a branded invocation reference carries. Only the codec can mint the brand. The
+ * text has no tenant: the tenant of a use is the caller's (resolveToolInvocationRef).
+ */
+export function readToolInvocationRef(reference: ToolInvocationRef): ToolInvocationLocation {
+  const decoded = decodeElements('ToolInvocationRef', 'tool-invocation', 4, reference)
+  if ('failure' in decoded)
+    throw new TypeError(`a branded invocation reference does not decode: ${reference}`)
+  const { call, admission } = decoded.ok
+  return { call, admission }
+}
+
+/** The identities a branded operation reference carries. */
+export function readToolOperationRef(reference: ToolOperationRef): ToolOperationLocation {
+  const decoded = decodeElements('ToolOperationRef', 'tool-operation', 5, reference)
+  if ('failure' in decoded || decoded.ok.operation === null)
+    throw new TypeError(`a branded operation reference does not decode: ${reference}`)
+  const { call, admission, operation } = decoded.ok
+  return { call, admission, operation }
+}
+
+/**
+ * Resolves an untrusted invocation reference for the presented tenant: the tenant must be minted
+ * by legal-identity (else `foreign-tenant`), then the text decodes. The text has no tenant of its
+ * own (R2-D357), so a reference of another tenant resolves here to parts of the caller's tenant,
+ * and the store-backed entry finds no such call: the same answer as for a call that never existed.
+ * Success does not say the call exists in that tenant.
  */
 export function resolveToolInvocationRef(
   reference: unknown,
   tenant: TenantId,
 ): Outcome<ToolInvocationParts, ToolReferenceFailure> {
-  return resolve(reference, tenant, decodeToolInvocationRef, readToolInvocationRef)
+  if (!tenantCodec.encode(tenant).ok) return fail({ kind: 'foreign-tenant' })
+  const decoded = decodeElements('ToolInvocationRef', 'tool-invocation', 4, reference)
+  if ('failure' in decoded) return fail({ kind: 'malformed', rejection: decoded.failure })
+  const { call, admission } = decoded.ok
+  return succeed({ tenant, call, admission })
 }
 
-/** Resolves an untrusted operation reference against the presented tenant. */
+/** Resolves an untrusted operation reference for the presented tenant. */
 export function resolveToolOperationRef(
   reference: unknown,
   tenant: TenantId,
 ): Outcome<ToolOperationParts, ToolReferenceFailure> {
-  return resolve(reference, tenant, decodeToolOperationRef, readToolOperationRef)
+  if (!tenantCodec.encode(tenant).ok) return fail({ kind: 'foreign-tenant' })
+  const decoded = decodeElements('ToolOperationRef', 'tool-operation', 5, reference)
+  if ('failure' in decoded) return fail({ kind: 'malformed', rejection: decoded.failure })
+  const { call, admission, operation } = decoded.ok
+  if (operation === null)
+    return fail({ kind: 'malformed', rejection: { field: 'ToolOperationRef', reason: 'shape' } })
+  return succeed({ tenant, call, admission, operation })
 }
 
 /**
  * The producer `tool` adapter of the public stream reference (SPEC「公共流协议上的观察」): the
  * original call text of a Tool stream reference is a canonical invocation reference. The detailed
- * rejection of a malformed reference becomes the public `malformed`; `foreign-tenant` keeps its
- * kind. The public layer checks the minted tenant before this adapter runs.
+ * rejection of a malformed reference becomes the public `malformed`; `foreign-tenant` (an unminted
+ * tenant) keeps its kind. The public layer checks the minted tenant before this adapter runs, so it
+ * does not reach here. A reference of another tenant resolves (the text has no tenant) and the
+ * observation finds no such call.
  */
 export const toolStreamCallCodec: StreamCallCodec = Object.freeze({
   producer: 'tool',
