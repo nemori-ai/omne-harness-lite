@@ -164,7 +164,6 @@ flowchart LR
   session-ad11 -.-> session-provider
   session-ad15 -.-> session-provider
   identity -.-> server-entry
-  authorization -.-> server-entry
   authorization --> session-handoff
   storage --> agent-journal
   session-storage --> agent-journal

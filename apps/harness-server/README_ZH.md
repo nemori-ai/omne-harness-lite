@@ -44,6 +44,8 @@ usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-
 usage: serve --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n> --state-root <abs dir> [--stop-on-stdin-close]
 ```
 
+只带发行文件时，`serve` 不能装载。发行层不写 `execution-host` 与 `agent-host` 的工厂数值，也不写 `agent-host` 的 `loopGuardPolicy`。进程以 `invalid-config` 退出，不进入服务（R2-D229）。运维者层必须给出这些值，用 `replace` 整行替换。`replace` 不合并：`agent-host` 要把发行层的 `jointCommits` 与 `coordination` 逐字重抄。示例见 [tools/joint-b/operator.mjs](../../tools/joint-b/operator.mjs)。其中的数值是测试值，没有测量依据；`loopGuardPolicy` 目前只有测试采用，还没有生产采用来源。已知限制见 [SPEC.md](SPEC.md#已知限制)。
+
 其他程序可以调用 `runS0` 并导入记录类型：
 
 ```ts
