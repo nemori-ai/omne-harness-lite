@@ -27,7 +27,7 @@ Session 的纯契约成员，不依赖 Cordis。
 
 组内 session、session-cordis-contract、session-cordis、session-adapters 四个成员声明依赖本成员。`session` 与 `session-cordis` 的生产入口仍为空；session-cordis-contract 在服务定义中使用契约类型，session-adapters 的测试实现使用这些类型。组外 m2-contract-skeleton 消费契约与 testing 入口，authorization 测试已实现公开 `SessionAccessCheck`。这些依赖不证明生产接入，授权测试的限定范围见[访问检查](docs/access-check.md#授权参考范围)。
 
-初始化已支持可选注册、工作区加载及执行准备来源，严格初始采用守卫、同批结果事实和原回执认回。当前解释器支持当前精确 revision 3 采用。接线、摘要及验证导航见[初始化实现](docs/initialization.md)。真实采用提供者、加载器及 Context replay 尚未由内存证据证明。
+初始化已支持可选注册、工作区加载及执行准备来源，严格初始采用守卫、同批结果事实和原回执认回。当前解释器支持当前精确 revision 4 采用，条目中重复的值只存一份。接线、摘要及验证导航见[初始化实现](docs/initialization.md)。真实采用提供者、加载器及 Context replay 尚未由内存证据证明。
 
 ## 使用
 

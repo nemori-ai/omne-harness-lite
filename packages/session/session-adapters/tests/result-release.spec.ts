@@ -9,7 +9,7 @@ import {
 } from '@omne-harness/agent-contract'
 import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
-import { deriveDriveOperation } from '@omne-harness/session-contract'
+import { deriveDriveOperation, expandHistoryEntries } from '@omne-harness/session-contract'
 import { memoryAccess, memoryOtherAccess } from '@omne-harness/session-contract/testing'
 import { toolCall } from './fixtures/tool-call.ts'
 import { accept, end, start, take } from './fixtures/progression.ts'
@@ -23,7 +23,14 @@ const confirmation = (request: ResultRequest, name: string): ResultRequest => ({
   release: { kind: 'confirmed', receipt: evidence(name) },
 })
 function releaseRows(s: ResultScene) {
-  return s.backend.controls.entriesOf(s.access.tenant, s.access.session).flatMap(row => {
+  // The controls page the stored form of session-log revision 4; a reader sees the full form.
+  const stored = s.backend.controls.entriesOf(s.access.tenant, s.access.session)
+  const expanded = expandHistoryEntries(
+    stored.filter(row => row.kind === 'call.execution-fact'),
+    null,
+  )
+  if (!('ok' in expanded)) throw new Error(`unreadable fact rows: ${JSON.stringify(expanded)}`)
+  return expanded.ok.flatMap(row => {
     if (row.kind !== 'call.execution-fact') return []
     const value: unknown = JSON.parse(writeJsonText(row.payload))
     if (typeof value !== 'object' || value === null || !('fact' in value))

@@ -80,7 +80,7 @@
 
 #### CP-03 读操作
 
-`readWork`、`loadRecovery`、`readInput`、`queryOperation`、`inspectIdle`、`pending`、`references`、`releasedScopes` 与四个历史读操作（`begin`、`next`、`since`、`readModelView`）只做核权与读取。单会话的读操作在面操作开头调用一次 `check`，读取经委派视图。`pending`、`references` 与 `releasedScopes` 不属于单会话的面操作，委派视图对它们答 `denied`：面操作不另行调用 `check`，直接调用公开 `SessionTransactionPort` 的同名方法，由端口在实际执行处调用一次 `check`。历史页的 `annotations` 由存储提供者的读路径随页给出（[SessionHistory](../session-contract/SPEC.md#sessionhistory)），本成员不另行拼接。它们不派生操作身份，不写条目，不发通知。`readWork` 与 `loadRecovery` 不走 CA-3 快照槽，经视图读权威快照；SQL 存储的端口在这次读里先点查版本，再决定从它的工作缓存回答还是整读（session-storage-sql [RT-04](../session-storage-sql/SPEC.md#rt-04)），所以回答仍是存储在当前版本上的权威快照。`queryOperation` 不走缓存。
+`readWork`、`loadRecovery`、`readInput`、`queryOperation`、`inspectIdle`、`pending`、`references`、`releasedScopes` 与四个历史读操作（`begin`、`next`、`since`、`readModelView`）只做核权与读取。单会话的读操作在面操作开头调用一次 `check`，读取经委派视图。`pending`、`references` 与 `releasedScopes` 不属于单会话的面操作，委派视图对它们答 `denied`：面操作不另行调用 `check`，直接调用公开 `SessionTransactionPort` 的同名方法，由端口在实际执行处调用一次 `check`。历史页的 `annotations` 由存储提供者的读路径随页给出（[SessionHistory](../session-contract/SPEC.md#sessionhistory)），本成员不另行拼接。存储视图按 session-log revision 4 的存储形式分页，本成员用 `expandHistoryEntries` 把 `begin`、`next`、`since` 页中 `entries` 与 `annotations` 的引用换回所指的值，读者看到完整形式的载荷（[条目的存储形式](../session-contract/SPEC.md#条目的存储形式)）。只有含带常驻工具的 SE01 或初始 SE08 的页需要会话的初始采用：该会话第一次遇到这样的页时，经同一视图读一次快照；SE01 写后不变，本成员按租户与会话保留该值，最多 256 个会话，之后的页不再读。保留值只在该页自己的核权之后使用。引用解不开时答 `unavailable`，`owner` 为 `session`。页的字节上限按存储形式计，展开后的页可以超过 `pageBytes`。它们不派生操作身份，不写条目，不发通知。`readWork` 与 `loadRecovery` 不走 CA-3 快照槽，经视图读权威快照；SQL 存储的端口在这次读里先点查版本，再决定从它的工作缓存回答还是整读（session-storage-sql [RT-04](../session-storage-sql/SPEC.md#rt-04)），所以回答仍是存储在当前版本上的权威快照。`queryOperation` 不走缓存。
 
 ### EX 受理流水线的拓展点编排
 
