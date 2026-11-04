@@ -1,7 +1,7 @@
 // Journal 测量设施的快层测试：WAL 读取器对真实 SQLite 的 WAL 文件；增长判据对合成曲线和现状实测曲线（负控）；
 // `scripts/check-journal-facts.mjs` 对构造的违规库判红。世界里的测量与增长用例在 `journal-bytes.spec.ts`（慢层）。
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -29,7 +29,7 @@ afterEach(() => {
   while (scratch.length > 0) rmSync(scratch.pop()!, { recursive: true, force: true })
 })
 const tempDir = (): string => {
-  const dir = mkdtempSync(join(tmpdir(), 'journal-bytes-spec-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'journal-bytes-spec-')))
   scratch.push(dir)
   return dir
 }
