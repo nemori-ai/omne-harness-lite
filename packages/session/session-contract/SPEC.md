@@ -864,12 +864,12 @@ revision 4 的条目载荷是存储形式（R2-D357）。日志已经保存过�
 
 规则：
 
-- 引用只指向同一会话中只追加、不删除的条目。SE08 指向更早的 SE01。SE01 指向同批的 SE36；同批条目一起提交，一起可见。
-- SE01 的常驻工具与 SE36 按 capability 对上，`version` 与 `admitted`（资产证据及其 digest）必须相同。对不上、缺少 SE36、缺少 SE01 或标记未知，都是畸形历史：解码答 malformed，归约隔离会话，不猜值。
+- 引用只能指向同批或更早的条目（R2-D364）。日志只追加，不删除条目。同批条目一起原子提交，一起可见。跨批的引用只指向更早的批：SE08 指向 SE01。SE01 指向同批稍后的 SE36。
+- SE01 的常驻工具与 SE36 按 capability 对上，`version` 与 `admitted`（资产证据及其 digest）必须相同（R2-D364）。shape 是工具定义与资产的纯函数，资产 digest 已唯一确定它，所以不另存 shape 摘要。另算 shape 摘要每个 shape 要 11 至 35 µs，会使 SE01 与 SE36 的单条编解码慢于 revision 3，违反 R2-D353。对不上、缺少 SE36、缺少 SE01 或标记未知，都是畸形历史：解码答 malformed，归约隔离会话，不猜值。
 - 建立证据 `batchEvidence` 对存储形式取摘要。初始化批次的一致性核对重新判定并比较存储形式。
 - 历史读取由 `expandHistoryEntries` 换回完整形式。只有含带常驻工具的 SE01 或初始 SE08 的页需要会话快照的 `initialization.initialAdoption`；其他页只用本条目的 origin。
 - 消息条目（SE10）的 `source` 不使用标记，公开历史读取按原样给出它。
-- 同一 capability 的第二条 SE36 仍按「resident admitted twice」隔离。新版本与首次 shape 的比较读快照中由 SE36 归约的 `residents`。
+- 同一 capability 的第二条 SE36 仍按「resident admitted twice」隔离。新版本与首次 shape 的比较读快照中由 SE36 归约的 `residents`。同一 capability 换代后写新 SE36 需要冻结裁定，归 APP-5（AS-06 冻结后重装与选版），不在本节。
 
 重建只使用原 SE01、SE02 和关联 SE07、SE08、SE36，重建原计划、未完成项、已完成结果索引、注册修订与采用。检查点全部失效也不重新选默认、不重新求值或改换原协议；原证据、材料或解释器不可用时报告不可恢复或 unavailable，保留责任。Session 提交与 Context applyCommit 是不同事实，本节不证明真实 Context 首次 finishReplay、生产加载器、采用提供者、Model ACK、耐久或跨进程运行已经闭合。
 
