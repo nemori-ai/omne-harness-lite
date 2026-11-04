@@ -207,6 +207,39 @@ export function createConnectionTable<P, S>(
    * key's close or teardown in flight waited for, then the connection reused, joined or built.
    * The build itself runs outside the section. A table that is shut refuses here.
    */
+  /**
+   * The adoption read again before a build (SPEC MC-5): the token is not trusted for the
+   * revision, so a token of another revision cannot build a connection or close one. A port
+   * that rejects is read as `unknown`; one that does not answer within `bound` does not hold
+   * the critical section (decision 22).
+   */
+  async function readAgain(
+    admitted: AdmittedEndpoint,
+    access: Access<P>,
+    bound: AbortSignal,
+  ): Promise<EnsureRefusal | 'current'> {
+    const adoption = await untilAborted(
+      answerOf(ports.adoption.endpoint(access, admitted.ref), fail<'unknown'>('unknown')),
+      bound,
+    )
+    if (adoption.kind === 'aborted') return CONNECTION_UNAVAILABLE
+    if ('failure' in adoption.value) return UNKNOWN
+    if (adoption.value.ok === 'not-adopted') return NOT_AVAILABLE
+    return adoption.value.ok.revision === admitted.revision ? 'current' : UNKNOWN
+  }
+
+  /**
+   * The settled entries of the holding's other revisions hand what still lingers to `entry`,
+   * which stops it at its next teardown, and leave the table when they hold nothing else.
+   */
+  function inheritLingering(entry: Entry, settled: readonly Entry[]): void {
+    for (const other of settled) {
+      entry.lingering = [...entry.lingering, ...other.lingering]
+      other.lingering = []
+      forget(other)
+    }
+  }
+
   async function begin(
     admitted: AdmittedEndpoint,
     access: Access<P>,
@@ -221,17 +254,8 @@ export function createConnectionTable<P, S>(
     })
     const refused = (reason: EnsureRefusal): Started => answer(fail({ stage: 'settings', reason }))
     if (shut) return refused(CONNECTION_UNAVAILABLE)
-    // The token is not trusted for the revision: the adoption is read again, and a token of
-    // another revision cannot build a connection or close one (SPEC MC-5). A port that rejects
-    // is read as `unknown`; one that does not answer within the bound does not hold the section.
-    const adoption = await untilAborted(
-      answerOf(ports.adoption.endpoint(access, admitted.ref), fail<'unknown'>('unknown')),
-      bound,
-    )
-    if (adoption.kind === 'aborted') return refused(CONNECTION_UNAVAILABLE)
-    if ('failure' in adoption.value) return refused(UNKNOWN)
-    if (adoption.value.ok === 'not-adopted') return refused(NOT_AVAILABLE)
-    if (adoption.value.ok.revision !== admitted.revision) return refused(UNKNOWN)
+    const read = await readAgain(admitted, access, bound)
+    if (read !== 'current') return refused(read)
     const { holding } = admitted.ref
     const ofOtherRevision = (entry: Entry) => entry.adoptionRevision !== admitted.revision
     for (;;) {
@@ -256,11 +280,7 @@ export function createConnectionTable<P, S>(
       }
       // From here to the start of the build nothing yields: the entry of the holding is this one.
       const entry = entryOf(existing, admitted, access, prepared, key, keyText)
-      for (const settled of entriesOf(tenantText, holding).filter(ofOtherRevision)) {
-        entry.lingering = [...entry.lingering, ...settled.lingering]
-        settled.lingering = []
-        forget(settled)
-      }
+      inheritLingering(entry, entriesOf(tenantText, holding).filter(ofOtherRevision))
       entries.set(keyText, entry)
       byView.set(entry.view, entry)
       const pending = builder.build(entry, access, prepared)
