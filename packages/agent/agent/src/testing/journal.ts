@@ -862,7 +862,7 @@ function openInput(execution: Execution, input: InputId): boolean {
   const index = execution.inputs.findIndex(accepted => accepted.id === input)
   if (index < 0) return true
   const taken = execution.checkpoint.inputBatch
-  const from = taken === null ? 0 : (execution.batches.get(taken)?.from ?? 0)
+  const from = taken === null ? 0 : (execution.batches.get(taken.id)?.from ?? 0)
   return index >= from
 }
 
