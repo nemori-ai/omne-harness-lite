@@ -279,6 +279,10 @@ export type StepSummary = Readonly<{
   step: number
   /** 存储提交次数，含被拒的。 */
   commits: number
+  /** 其中存储没有接受（未提交）的次数；被拒的提交不写字节、不写页，下面各列都不含它们。 */
+  rejected: number
+  /** 被拒的发布里 Journal command 的字节和：写者想写而没写成的量。 */
+  rejectedOwnBytes: number
   /** 含 Journal 参加者 command 的提交次数。 */
   publications: number
   /** Journal 自有字节：本步所有 `execution-record` command 的字节和。 */
@@ -290,6 +294,8 @@ export type StepSummary = Readonly<{
   sessionBytes: number
   /** `sl_state` 重写的字节：Session 参加者参加的每次提交后那一行的大小之和。 */
   stateBytes: number
+  /** 本步末了 `sl_state` 那一行的大小（该步最后一次有 Session 参加的提交之后）。 */
+  stateRowBytes: number
   requestBytes: number
   pages: number
   fsyncs: number
@@ -303,7 +309,8 @@ const sum = (values: readonly number[]): number => values.reduce((total, value) 
 export function summarizeSteps(readings: readonly CommitReading[]): StepSummary[] {
   const steps = [...new Set(readings.map(reading => reading.step))].sort((a, b) => a - b)
   return steps.map(step => {
-    const own = readings.filter(reading => reading.step === step)
+    const all = readings.filter(reading => reading.step === step)
+    const own = all.filter(reading => reading.outcome === 'committed')
     const journalBytes = (reading: CommitReading): number =>
       sum(
         reading.commands
@@ -319,7 +326,11 @@ export function summarizeSteps(readings: readonly CommitReading[]): StepSummary[
         tablePages[table] = (tablePages[table] ?? 0) + pages
     return {
       step,
-      commits: own.length,
+      commits: all.length,
+      rejected: all.length - own.length,
+      rejectedOwnBytes: sum(
+        all.filter(reading => reading.outcome !== 'committed').map(journalBytes),
+      ),
       publications: own.filter(reading => journalBytes(reading) > 0).length,
       ownBytes: sum(own.map(journalBytes)),
       maxPublicationBytes: Math.max(0, ...own.map(journalBytes)),
@@ -332,6 +343,7 @@ export function summarizeSteps(readings: readonly CommitReading[]): StepSummary[
         ),
       ),
       stateBytes: sum(sessionJoined.map(reading => reading.stateBytes)),
+      stateRowBytes: sessionJoined.at(-1)?.stateBytes ?? 0,
       requestBytes: sum(own.map(reading => reading.requestBytes)),
       pages: sum(own.map(reading => reading.pages)),
       fsyncs: sum(own.map(reading => reading.fsyncs)),
@@ -343,10 +355,11 @@ export function summarizeSteps(readings: readonly CommitReading[]): StepSummary[
 
 /** Journal 自有字节对 `sl_entry` 字节的比值；`sl_entry` 为空时是 null。 */
 export function ownToEntryRatio(readings: readonly CommitReading[]): number | null {
-  const entryBytes = Math.max(0, ...readings.map(reading => reading.entryBytes))
+  const accepted = readings.filter(reading => reading.outcome === 'committed')
+  const entryBytes = Math.max(0, ...accepted.map(reading => reading.entryBytes))
   if (entryBytes === 0) return null
   const own = sum(
-    readings.flatMap(reading =>
+    accepted.flatMap(reading =>
       reading.commands
         .filter(command => command.participant === JOURNAL_PARTICIPANT)
         .map(command => command.bytes),
@@ -410,18 +423,19 @@ export function stepTable(steps: readonly StepSummary[]): string {
     [
       item.step,
       item.commits,
+      item.rejected,
       item.publications,
       kib(item.ownBytes),
       kib(item.maxPublicationBytes),
       kib(item.sessionBytes),
-      kib(item.stateBytes),
+      kib(item.stateRowBytes),
       item.pages,
       item.fsyncs,
     ].join(' | '),
   )
   return [
-    '| 步 | 提交 | 发布 | 自有 KiB | 最大发布 KiB | Session KiB | sl_state KiB | 页 | fsync |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| 步 | 提交 | 被拒 | 发布 | 自有 KiB | 最大发布 KiB | Session KiB | sl_state 行 KiB | 页 | fsync |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ...rows.map(row => `| ${row} |`),
   ].join('\n')
 }
