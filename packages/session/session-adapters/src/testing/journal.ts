@@ -117,6 +117,7 @@ import {
   emptyExecutionView,
   fold,
   receiptOf as batchReceiptOf,
+  refOf,
   type Answer,
   type Blob,
   type ExecutionView,
@@ -140,9 +141,18 @@ import {
   sameContent,
   settlementOf,
   type FinishingRecords,
+  applyCandidate,
+  applySettlement,
+  candidateFact,
+  candidateOfView,
   listOfView,
   listsIssued,
   obligationFacts,
+  routeOfView,
+  settlementBlock,
+  settlementOfFact,
+  supersessionOf,
+  type RecordedSettlement,
 } from './journal-finishing.ts'
 
 export type JointCommitKind = Exclude<CallerCommit['kind'], 'none'>
@@ -2632,6 +2642,51 @@ export function createJournal<P>(
   type CancellationRoute = Extract<FinishRoute, { kind: 'cancellation' }>
 
   /**
+   * The batch of a settlement record (R2-D297): one `settlement.recorded` with the record as a block
+   * without its receipt. The answer and the reader records are read back from the block with the
+   * receipt the batch derives, so nothing but the fact and the block makes them.
+   */
+  function recordedBatch(
+    execution: Execution,
+    planned: CommandReceipt,
+    result: RecordedSettlement,
+  ): Attempt<SettlementResult> {
+    const finishing = execution.finishing
+    const stored = blobOf(settlementBlock(result))
+    return {
+      kind: 'batch',
+      facts: [
+        {
+          kind: 'settlement.recorded',
+          variant: result.kind,
+          record: refOf(stored[1]),
+          evidence: planned.evidence,
+        },
+      ],
+      blobs: [stored],
+      kinds: [],
+      derive: derived => {
+        if (derived.kind !== 'settlement') throw new TypeError('a settlement answers its record')
+        return settlementOfFact(
+          derived.record,
+          plannedOf(derived, planned),
+          finishing,
+          state().blobs,
+        )
+      },
+      project: (batch, view) => {
+        const recorded = view.settlements.find(item => item.pub === batch.pub)
+        if (recorded === undefined) throw new TypeError('the settlement record did not fold')
+        applySettlement(
+          finishing,
+          settlementOfFact(recorded.record, planned, finishing, state().blobs),
+        )
+        execution.revision = view.revision
+      },
+    }
+  }
+
+  /**
    * The candidate, migration and judgment variants in the order of Agent SPEC "commitSettlement
    * 的变体": no installation is unavailable; ended is terminal; the cancel must be effective
    * (`denied`) with the source of its saved control (`invalid`); another installation is invalid; a
@@ -2641,6 +2696,7 @@ export function createJournal<P>(
   function settleCandidate(
     execution: Execution,
     input: CandidateVariant,
+    key: string,
   ): Attempt<SettlementResult> {
     const installed = options.cancellation
     if (installed === undefined)
@@ -2663,14 +2719,15 @@ export function createJournal<P>(
     const current = currentCandidate(finishing)
     const route = currentRoute(finishing)
     const revision = execution.revision + 1
-    const evidence = nextEvidence(execution, input.kind, revision)
-    const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+    // Every record of the variant names the receipt of its batch, as its own evidence too.
+    const receipt = plannedReceipt(execution, input.operation, key)
+    const evidence = receipt.evidence
     const cancellationRoute = (
       candidate: AgentOperationId,
       origin: CancellationRoute['origin'],
     ): CancellationRoute => ({
       kind: 'cancellation',
-      record: nextEvidence(execution, 'route', revision),
+      record: journalEvidence(`${cell.namespace}/${execution.id}/route/r${revision}`, revision),
       candidate,
       control: control.operation,
       policy: copy(installation.policy),
@@ -2704,36 +2761,55 @@ export function createJournal<P>(
           kind: 'native',
           operation: input.operation,
         })
-        const supersession =
-          current !== undefined && route !== undefined
-            ? {
-                from: current.candidate,
-                to: candidate.candidate,
-                control: control.operation,
-                revision: revisionOf(revision),
-                route: copy(route),
-              }
-            : null
+        const supersession = supersessionOf(finishing, candidate.candidate, established, revision)
+        // R2-D297: the candidate enters with a cursor reference, never a checkpoint copy.
+        const settling = { kind: 'settling' } as const
+        const establishedFact = candidateFact(
+          candidate,
+          established,
+          supersession?.from ?? null,
+          settling,
+        )
+        const facts: FactBody[] = [establishedFact.fact]
+        if (viewOf(execution.id).cursor.state !== 'settling')
+          facts.push({
+            kind: 'cursor.moved',
+            step: execution.checkpoint.step,
+            members: { state: 'settling' },
+          })
+        /** The candidate and route the folded fact names, read back from the blocks. */
+        const folded = () => {
+          const view = viewOf(execution.id).finish.candidates.find(
+            item => item.candidate === candidate.candidate,
+          )
+          if (view === undefined) throw new TypeError('the established candidate did not fold')
+          return {
+            candidate: candidateOfView(view, state().blobs),
+            route: routeOfView(view, state().blobs),
+          }
+        }
         return {
-          kind: 'write',
-          value: {
-            kind: 'establish-cancellation',
-            receipt,
-            candidate,
-            route: established,
-            supersession,
+          kind: 'batch',
+          facts,
+          blobs: [...establishedFact.blobs, ...blobsOf(execution.checkpoint)],
+          kinds: [],
+          derive: derived => {
+            const read = folded()
+            if (read.route.kind !== 'cancellation')
+              throw new TypeError('an establish folds a cancellation route')
+            return {
+              kind: 'establish-cancellation',
+              receipt: plannedOf(derived, receipt),
+              candidate: read.candidate,
+              route: read.route,
+              supersession,
+            }
           },
-          receipt,
-          apply: () => {
-            if (supersession !== null) finishing.supersessions.push(supersession)
-            finishing.candidates.push(candidate)
-            finishing.routes.push(established)
-            finishing.current = candidate.candidate
-            finishing.route = established.record.record
-            finishing.currentJudgment = null
-            finishing.obligations = null
+          project: (_batch, view) => {
+            const read = folded()
+            applyCandidate(finishing, read.candidate, read.route, supersession)
             execution.state = { kind: 'settling' }
-            execution.revision = revision
+            execution.revision = view.revision
           },
         }
       }
@@ -2801,18 +2877,12 @@ export function createJournal<P>(
           supersession: { from: copy(from.record), to: copy(switched.record), candidate: null },
           priorExcluded: copy(input.priorExcluded),
         }
-        return {
-          kind: 'write',
-          value: { kind: 'migrate-cancellation', receipt, migration, route: switched },
+        return recordedBatch(execution, receipt, {
+          kind: 'migrate-cancellation',
           receipt,
-          apply: () => {
-            finishing.migrations.push(migration)
-            finishing.routes.push(switched)
-            finishing.route = switched.record.record
-            finishing.currentJudgment = null
-            execution.revision = revision
-          },
-        }
+          migration,
+          route: switched,
+        })
       }
       case 'judge-cancellation': {
         const candidate = candidateOf(finishing, input.candidate)
@@ -2867,16 +2937,7 @@ export function createJournal<P>(
           revision: revisionOf(revision),
           supersedes: finishing.currentJudgment,
         }
-        return {
-          kind: 'write',
-          value: { kind: 'judge-cancellation', receipt, judgment },
-          receipt,
-          apply: () => {
-            finishing.judgments.push(judgment)
-            finishing.currentJudgment = judgment.operation
-            execution.revision = revision
-          },
-        }
+        return recordedBatch(execution, receipt, { kind: 'judge-cancellation', receipt, judgment })
       }
       default: {
         const _exhaustive: never = input
@@ -2944,7 +3005,11 @@ export function createJournal<P>(
    * (`invalid` otherwise) and of the named passage, round or intent (`invalid` otherwise). None
    * changes the candidate, the route or a passage.
    */
-  function settleCustody(execution: Execution, input: CustodyVariant): Attempt<SettlementResult> {
+  function settleCustody(
+    execution: Execution,
+    input: CustodyVariant,
+    key: string,
+  ): Attempt<SettlementResult> {
     const finishing = execution.finishing
     const target = custodyTargetFailure(execution, input)
     if (target !== undefined) return answer(fail(target))
@@ -2973,8 +3038,9 @@ export function createJournal<P>(
         )
     }
     const revision = execution.revision + 1
-    const evidence = nextEvidence(execution, input.kind, revision)
-    const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+    // Every record of the variant names the receipt of its batch, as its own evidence too.
+    const receipt = plannedReceipt(execution, input.operation, key)
+    const evidence = receipt.evidence
     switch (input.kind) {
       case 'record-card-reconciliation': {
         const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
@@ -3048,15 +3114,11 @@ export function createJournal<P>(
           },
           revision: revisionOf(revision),
         }
-        return {
-          kind: 'write',
-          value: { kind: 'record-card-reconciliation', receipt, reconciliation },
+        return recordedBatch(execution, receipt, {
+          kind: 'record-card-reconciliation',
           receipt,
-          apply: () => {
-            finishing.cardReconciliations.push(reconciliation)
-            execution.revision = revision
-          },
-        }
+          reconciliation,
+        })
       }
       case 'record-legacy-return': {
         if (
@@ -3080,15 +3142,11 @@ export function createJournal<P>(
           custody: copy(record.custody),
           revision: revisionOf(revision),
         }
-        return {
-          kind: 'write',
-          value: { kind: 'record-legacy-return', receipt, legacyReturn },
+        return recordedBatch(execution, receipt, {
+          kind: 'record-legacy-return',
           receipt,
-          apply: () => {
-            finishing.legacyReturns.push(legacyReturn)
-            execution.revision = revision
-          },
-        }
+          legacyReturn,
+        })
       }
       case 'record-tool-association': {
         const effect = execution.effects.find(item => item.action === input.intent.action)
@@ -3183,15 +3241,11 @@ export function createJournal<P>(
           priorExcluded: copy(input.priorExcluded),
           revision: revisionOf(revision),
         }
-        return {
-          kind: 'write',
-          value: { kind: 'record-tool-association', receipt, association },
+        return recordedBatch(execution, receipt, {
+          kind: 'record-tool-association',
           receipt,
-          apply: () => {
-            finishing.toolAssociations.push(association)
-            execution.revision = revision
-          },
-        }
+          association,
+        })
       }
       default: {
         const _exhaustive: never = input
@@ -4424,11 +4478,11 @@ export function createJournal<P>(
           case 'establish-cancellation':
           case 'migrate-cancellation':
           case 'judge-cancellation':
-            return settleCandidate(execution, input)
+            return settleCandidate(execution, input, key)
           case 'record-card-reconciliation':
           case 'record-legacy-return':
           case 'record-tool-association':
-            return settleCustody(execution, input)
+            return settleCustody(execution, input, key)
           default: {
             const _exhaustive: never = input
             return _exhaustive
