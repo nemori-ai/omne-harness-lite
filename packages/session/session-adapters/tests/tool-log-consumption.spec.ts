@@ -317,7 +317,8 @@ async function assembled(s: ToolScene, options: Options = {}) {
   }
   const services = { Session, Journal, Materials, Transactions } as const
   for (const name of mountOnly) await mount(ctx, services[name])
-  if (mountOnly.includes('Journal')) await mount(ctx, Entries)
+  // The entries port is always present: the cases of an absent dependency name the four above.
+  await mount(ctx, Entries)
   const consumption = createSessionToolLogConsumptionPlugin({
     toolDeliveries: options.reader === undefined ? reader : options.reader,
     ...(options.coordinator === undefined ? {} : { coordinator: options.coordinator }),

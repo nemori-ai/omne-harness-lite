@@ -255,7 +255,8 @@ async function assembled(
   }
   const services = { Session, Journal, Materials, Transactions } as const
   for (const name of mountOnly) await mount(ctx, services[name])
-  if (mountOnly.includes('Journal')) await mount(ctx, Entries)
+  // The entries port is always present: the cases of an absent dependency name the four above.
+  await mount(ctx, Entries)
   const consumption = createSessionModelLogConsumptionPlugin<string>({
     // The assembly issues the coordinator principal of a session; the scene has one principal.
     coordinator: async () => succeed(s.access.principal),
@@ -609,10 +610,10 @@ describe('failures stay failures and commit nothing', () => {
     await receive(s, s.result, 'result')
     let strip = false
     const f = await assembled(s, {
-      load: async input => {
-        const loaded = await s.view.journal.load(input)
-        if (!strip || 'failure' in loaded) return loaded
-        return succeed({ ...loaded.ok, entries: [] })
+      entries: async input => {
+        const read = await s.view.entries.read(input)
+        if (!strip || 'failure' in read) return read
+        return succeed({ ...read.ok, items: [] })
       },
     })
     ok(await f.consume())

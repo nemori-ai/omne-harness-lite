@@ -186,6 +186,9 @@ export type ReceivingState = {
   /** The original binding of each associated Tool call, by tenant and call reference (R2-D273). */
   toolTargets: Map<string, ToolReceptionTarget>
 }
+/** The evidence a material key names: the key is the canonical text of the evidence, plain JSON. */
+const materialSourceOf = (key: string): DurableEvidence => JSON.parse(key) as DurableEvidence
+
 export function emptyReceivingState(): ReceivingState {
   return {
     materials: new Map(),
@@ -578,6 +581,17 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           if ('failure' in permission) return permission
         }
         if (old) return succeed(source)
+        // Addressed by content (agent-contract SPEC "扩展、卡片与材料"): the same content of the same
+        // execution is the material already kept, under whatever identity it was first preserved.
+        // This bridge finds it by a scan; the content-addressed store is the provider's obligation.
+        const content = canonical(input.value)
+        for (const [key, kept] of hooks.state().materials)
+          if (
+            kept.tenant === tenantText(input.tenant) &&
+            kept.execution === execution &&
+            canonical(kept.value) === content
+          )
+            return succeed(materialSourceOf(key))
         hooks.state().materials.set(canonical(source), {
           tenant: tenantText(input.tenant),
           execution,
