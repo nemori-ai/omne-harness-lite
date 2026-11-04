@@ -282,11 +282,14 @@ function versionOf(entry: Extract<PeerReceived, { kind: 'request' }>): PlainJson
 }
 
 /** A credential handle that counts rejections and authorizes with a fixed header. */
-function countingCredential(): HttpCredentialHandle & Readonly<{ rejections(): number }> {
+function countingCredential(
+  gate: Promise<void> = Promise.resolve(),
+): HttpCredentialHandle & Readonly<{ rejections(): number }> {
   let rejections = 0
   return {
     purpose: 'http-authorization',
     async authorize(headers) {
+      await gate
       headers.set('authorization', 'Bearer suite-token')
       return { ok: true }
     },
@@ -1150,6 +1153,32 @@ const t5Cases = (): readonly Case[] => [
           failure: { kind: 'not-sent', cause: 'connection-unavailable' },
         })
       }),
+  ),
+  conformanceCase(
+    'T5',
+    'a call still being authorized when close() ran is not-sent and never reaches the peer',
+    async fixture => {
+      let open = (): void => undefined
+      const credential = countingCredential(
+        new Promise<void>(resolve => {
+          open = resolve
+        }),
+      )
+      await withPeer(
+        fixture,
+        { calls: { echo: result(DONE) } },
+        { kind: 'streamable-http', credential },
+        async (peer, transport) => {
+          const pending = transport.call(echo, never)
+          await transport.close()
+          open()
+          assert.deepStrictEqual(await pending, {
+            failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+          })
+          assert.deepStrictEqual(requests(peer, 'tools/call'), [])
+        },
+      )
+    },
   ),
 ]
 
