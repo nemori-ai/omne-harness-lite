@@ -27,6 +27,11 @@
 | 2026-11-04 | 同上 | Microsoft Learn `https://learn.microsoft.com/api/mcp` | 2025-06-18（旧修订） | 3 | 通 |
 | 2026-11-04 | — | GitHub `https://api.githubcopilot.com/mcp/` | — | — | 401，要 OAuth（归凭据提供者） |
 
-本地 stdio 服务端（`@modelcontextprotocol/server-everything`、`server-filesystem` 2.1.0 经 npx，Python `mcp-server-fetch` 经 uvx）：会话的自动模式不允许下载并执行第三方代码，未跑；需负责人放行或换成仓库内钉版本的依赖。
+| 2026-11-04 | 官方 SDK 2.4.0（对照，`mcp-stdio-baseline.mjs`） | `@modelcontextprotocol/server-everything` 2.1.0（stdio，锁文件安装） | 2026-07-28 | 22 | 通 |
+| 2026-11-04 | 同上 | `@modelcontextprotocol/server-filesystem` 2.1.0（stdio，锁文件安装） | 2026-07-28 | 14 | 通 |
+| 2026-11-04 | 同上 | `mcp-server-fetch` 2026.10.28（stdio，Python，uv 组 `mcp-fixtures`） | 2026-07-28 | 1 | 通 |
+| 2026-11-04 | 官方 SDK 2.4.0（对照） | 上面三个 HTTP 目标重跑 | 同上 | 同上 | 通 |
+
+参考服务端是仓库的测试依赖（978624857，负责人 2026-11-04 决定）：npm 两个在 `mcp-host-local` 的 devDependencies，Python 一个在根 `pyproject.toml` 的非默认组 `mcp-fixtures`（`uv sync --group mcp-fixtures`）。SDK 同时从 2.3.1 钉到 2.4.0（参考服务端的依赖要求）；W2 探路结论在 2.3.1 上得出，`w3-mcp-host` 在 2.4.0 上用测试重新确认。
 
 出口判据（`w3-mcp-e2e`）：我们的 `createMcp` + 本地传输在上表每个可达目标上完成「发现 → 列工具 → 调用一个只读工具」，结论与对照客户端一致；新旧两种修订都覆盖。

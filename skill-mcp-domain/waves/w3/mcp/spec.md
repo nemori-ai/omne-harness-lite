@@ -25,7 +25,7 @@ W2 之后 MCP 能连接、发现并整份发布清单，但不能调用：没有
 
 首轮事实（reduce 2026-11-04 探针，`anthropics/skills` @ ca45fc4，20 个包）：18 个通过；2 个被拒——`claude-api` 的说明 1077 字符超过规范上限 1024；`template` 的 name `template-skill` 与目录名不同。两条都是规范写了、主流宿主不强制的规则。
 
-MCP 侧的调整见[波包「生态兼容」](../wave-pack.md#生态兼容负责人-2026-11-04-要求优先于本页其余条目)。本页冲突处：已定事项 16 的 `inputSchema` 加严撤回；已定事项 36 的「只用 Transport 层」改为「优先复用 SDK，按硬承诺例外自写」；已定事项 40 的「SSE 旧传输不做」撤回；判据 MC3-12 加兼容矩阵。B 段闭包规格按此写。
+MCP 侧的调整见[波包「生态兼容」](../wave-pack.md#生态兼容负责人-2026-11-04-要求优先于本页其余条目)。本页冲突处：已定事项 16 的 `inputSchema` 加严撤回；已定事项 36 的「只用 Transport 层」改为「优先复用 SDK，按硬承诺例外自写」；已定事项 40 的「SSE 旧传输不做」撤回；判据 MC3-12 加兼容矩阵。B 段闭包规格按此写。参考服务端已是测试依赖（978624857）：`server-everything`、`server-filesystem` 2.1.0 与 Python `mcp-server-fetch`（uv 组 `mcp-fixtures`）；SDK 钉在 2.4.0，W2 探路结论（2.3.1）由 `w3-mcp-host` 的测试在 2.4.0 上重新确认。SDK 另有 `./ext/skills` 子入口（经 MCP 分发 Skill），本波不用，记作 M2 之后的跨域议题。
 
 ## 依据与已定事项
 
