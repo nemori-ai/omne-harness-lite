@@ -128,6 +128,18 @@ describe('McpTransport conformance on the scripted transport', () => {
   })
 })
 
+describe('the suite refuses a fixture that lists a legacy version', () => {
+  it('fails each case before it opens a transport', async () => {
+    const [first] = mcpTransportConformance()
+    if (first === undefined) throw new Error('the suite is empty')
+    const fixture: TransportFixture = {
+      ...fixtureOf(['stdio', 'streamable-http']),
+      protocolVersions: ['2026-07-28', '2025-11-25'],
+    }
+    await expect(runConformanceCase(first, fixture)).rejects.toThrow(AssertionError)
+  })
+})
+
 describe('the suite covers the transport clauses and the decided items', () => {
   it('names T1 to T7, the deviation, and items 7 to 12 and 14', () => {
     const cases = mcpTransportConformance()
