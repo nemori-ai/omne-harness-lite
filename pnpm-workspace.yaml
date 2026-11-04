@@ -45,6 +45,9 @@ catalog:
   turbo: 2.11.7
   '@vitest/coverage-v8': 4.1.11
   zod: 4.6.5
+  # 官方 MCP TypeScript SDK：只给 mcp-host-local 用 Transport 层（client）与测试里的真实服务端夹具（server）。
+  '@modelcontextprotocol/client': 2.3.1
+  '@modelcontextprotocol/server': 2.3.1
   '@standard-schema/spec': 1.1.0
   yaml: 2.9.1
   jsonc-parser: 3.3.1

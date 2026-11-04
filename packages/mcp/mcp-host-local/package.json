@@ -24,10 +24,17 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@modelcontextprotocol/client": "catalog:",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/mcp-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
+  },
   "devDependencies": {
+    "@modelcontextprotocol/server": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zod": "catalog:"
   }
 }
