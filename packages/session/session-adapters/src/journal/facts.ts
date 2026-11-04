@@ -651,9 +651,10 @@ export function factKey(fact: FactBody): string {
     case 'input.accepted':
       return `input/${fact.input}`
     case 'step.begun':
-      // A step may take more than one input batch (an empty take, then a new input): the batch
-      // is the key.
-      return `step/${fact.batch.id}`
+      // One per input-taken event: a step may take more than one batch (an empty take, then a
+      // new input), and consecutive steps may take the same empty batch (one identity names
+      // the empty range), so the step and the batch together are the key.
+      return `step/${fact.step}#${fact.batch.id}`
     case 'request.adopted':
       return `request/${fact.step}/${fact.attempt}`
     case 'intent.voided':

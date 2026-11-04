@@ -3958,10 +3958,15 @@ export function createJournal<P>(
         const facts: FactBody[] = []
         const blobs: Blob[] = []
         const view = viewOf(execution.id)
-        // The input batch of the step is the `step.begun` the cursor names: the first commit
-        // that holds it writes it whole (R2-D292).
+        // Every input-taken event is one `step.begun`, written in the loop below in the order of
+        // the events (the fold numbers the events by the facts). A commit whose cursor names a
+        // batch no event took (R2-D292) writes it whole here, so `checkpointOf` finds it.
         const taken = input.checkpoint.inputBatch
-        if (taken !== null && !view.steps.some(item => item.batch.id === taken.id))
+        if (
+          taken !== null &&
+          !view.steps.some(item => item.batch.id === taken.id) &&
+          !input.events.some(body => body.kind === 'input-taken')
+        )
           facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(taken) })
         // A main-purpose M0 adopts its final request; the attempt of the step is the number of
         // its voided intents.
@@ -3995,6 +4000,8 @@ export function createJournal<P>(
           })
         }
         for (const body of input.events) {
+          if (body.kind === 'input-taken')
+            facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(body.batch) })
           if (body.kind === 'waiting')
             facts.push({
               kind: 'wait.entered',

@@ -237,7 +237,7 @@ export function keyKnown(view: ExecutionView, key: string): boolean {
     case 'input':
       return view.inputs.some(item => item.input === name)
     case 'step':
-      return view.steps.some(item => item.batch.id === name)
+      return view.steps.some(item => `${item.step}#${item.batch.id}` === name)
     case 'call':
       return view.intents.has(name as never)
     case 'associated':

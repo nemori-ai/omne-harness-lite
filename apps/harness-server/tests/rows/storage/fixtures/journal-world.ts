@@ -12,6 +12,7 @@
 import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import {
   createRecorder,
   summarizeSteps,
@@ -136,6 +137,11 @@ export async function measureToolRun(options: RunOptions): Promise<RunMeasuremen
     await world.close()
     recorder.finish()
     active = null
+    // A run that did not complete names its reason from the records: the Agent's ended
+    // conclusion (its cause evidence) and the finishing facts before it. A failed run is never
+    // silent in a measurement; a run with no ended fact says so.
+    if (outcome !== 'completed')
+      errors.push(...endedReasons(new Set(recorder.readings.map(reading => reading.file))))
     if (options.keepDatabasesIn !== undefined) {
       mkdirSync(options.keepDatabasesIn, { recursive: true })
       for (const file of new Set(recorder.readings.map(reading => reading.file))) {
@@ -169,3 +175,36 @@ export async function measureToolRun(options: RunOptions): Promise<RunMeasuremen
 
 let lastWarnings: readonly string[] = []
 let lastErrors: readonly string[] = []
+
+/**
+ * The reasons the records give for a run that did not complete: the `finish.ended` facts with
+ * their conclusion, and the last finishing facts before them, per database file.
+ */
+function endedReasons(files: ReadonlySet<string>): string[] {
+  const reasons: string[] = []
+  for (const file of files) {
+    if (file === '') continue
+    let db: DatabaseSync | null = null
+    try {
+      db = new DatabaseSync(file, { readOnly: true })
+      const rows = db
+        .prepare(
+          `SELECT pub, kind, body FROM er_fact
+           WHERE kind IN ('finish.ended', 'finish.candidate', 'settlement.recorded', 'control.stage')
+           ORDER BY pub DESC LIMIT 8`,
+        )
+        .all() as unknown as readonly { pub: number; kind: string; body: string }[]
+      if (rows.length === 0) {
+        reasons.push(`${file}: no finishing fact recorded (the run did not reach an ended)`)
+        continue
+      }
+      for (const row of rows)
+        reasons.push(`${file}: pub ${String(row.pub)} ${row.kind} ${row.body.slice(0, 600)}`)
+    } catch (error) {
+      reasons.push(`${file}: the records are not readable: ${String(error)}`)
+    } finally {
+      db?.close()
+    }
+  }
+  return reasons
+}

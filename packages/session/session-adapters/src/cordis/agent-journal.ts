@@ -1684,12 +1684,16 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           continue
         }
         const event = own?.events[folded.eseq - 1]
-        if (own === undefined || event === undefined || event.body.kind !== folded.kind)
+        if (own === undefined || event === undefined || event.body.kind !== folded.kind) {
+          const first = [...events.values()][0]?.eseq ?? folded.eseq
+          const appended = (own?.events ?? []).slice(first - 1).map(item => item.body.kind)
+          const projected = [...events.values()].map(item => item.kind)
           return fail(
             unavailable(
-              `the facts of ${written.method} do not name the events it appended (fact ${fact.kind} at ${String(folded.eseq)})`,
+              `the facts of ${written.method} do not name the events it appended (fact ${fact.kind} at ${String(folded.eseq)}; the facts project [${projected.join(', ')}], the write appended [${appended.join(', ')}])`,
             ),
           )
+        }
         derived.push({ fact, event: projectionOf(after, own, event, options.fault) })
       }
     for (const [index, item] of derived.entries()) {
