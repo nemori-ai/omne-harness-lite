@@ -2041,10 +2041,18 @@ export function createJournal<P>(
    * recognition never answers another revision than the fact it recognizes.
    */
   function recognitionBatch(
-    target: AgentOperationId,
+    execution: Execution,
+    operation: AgentOperationId,
+    target: AgentOperationId | undefined,
     revision: number,
     receiptState: CommandReceipt['state'],
   ): Attempt<CommandReceipt> {
+    // A fact the log of this process does not hold (a copy rebuilt from the durable records,
+    // until the provider keeps the log) is recognized by the reader records, as before the facts.
+    if (target === undefined || !state().view.ops.has(target)) {
+      const receipt = recognition(execution, operation, revision, receiptState)
+      return recognize(receipt, receipt)
+    }
     return {
       kind: 'batch',
       facts: [{ kind: 'op.recognized', target }],
@@ -2059,6 +2067,14 @@ export function createJournal<P>(
       project: () => {},
       receiptState,
     }
+  }
+
+  /** The operation of the last `ack.through` of an execution in the log, if the log holds one. */
+  function acknowledgedBy(execution: AgentExecutionId): AgentOperationId | undefined {
+    return state().log.findLast(
+      batch =>
+        batch.execution === execution && batch.facts.some(fact => fact.kind === 'ack.through'),
+    )?.envelope.op
   }
 
   /** The receipt an answer carries: every command but a detach answers one. */
@@ -3923,7 +3939,7 @@ export function createJournal<P>(
             throw new Error('session Journal defect: an accepted input has no revision')
           // A recognition appends `op.recognized` of the accepting operation: it advances no
           // revision and answers with the revision of the batch it recognizes.
-          return recognitionBatch(entry.operation, at, 'accepted')
+          return recognitionBatch(execution, input.operation, entry.operation, at, 'accepted')
         }
         // A new input under an identity the execution already accepted is another entry for the
         // same InputId: it conflicts, it does not recognize (Agent SPEC "输入内容与水位线").
@@ -4033,26 +4049,24 @@ export function createJournal<P>(
           return answer(fail(invalid('through', 'beyond the emitted events')))
         }
         // A `through` within the acknowledged prefix recognizes that prefix and never moves it back.
-        if (through <= execution.acknowledged) {
-          const receipt = recognition(
+        if (through <= execution.acknowledged)
+          return recognitionBatch(
             execution,
             input.operation,
+            acknowledgedBy(execution.id),
             execution.acknowledgedAt,
             'applied',
           )
-          return recognize(receipt, receipt)
-        }
-        const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'acknowledge', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         return {
-          kind: 'write',
-          value: receipt,
-          receipt,
-          apply: () => {
+          kind: 'batch',
+          facts: [{ kind: 'ack.through', sequence: through }],
+          blobs: [],
+          kinds: [],
+          derive: receiptIn,
+          project: (_batch, view) => {
             execution.acknowledged = through
-            execution.acknowledgedAt = revision
-            execution.revision = revision
+            execution.acknowledgedAt = view.revision
+            execution.revision = view.revision
           },
         }
       })
