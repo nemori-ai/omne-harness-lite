@@ -1,0 +1,21 @@
+M125 (r1 M04) D10: a non-modern error on discover is final exit 1 red 3
+M126 (r1 M05) D13: the stdio probe time is final, not a fallback exit 1 red 3
+M127 (r1 M08) D01: the version is the peer first one, not the highest in common exit 0 red 0
+M128 (r1 M09) D01: serverInfo not read exit 1 red 3
+M129 (r1 M23) D11/O03: an error with a non-integer code is read exit 1 red 5
+M130 (r1 M24) L02: a result without tools is an empty page exit 1 red 3
+M131 (r1 M25) G02: an unknown status is working exit 1 red 3
+M132 (r1 M26) G03: input_required without inputRequests is read exit 1 red 3
+M133 (r1 M27) G04: completed without result is read exit 1 red 3
+M134 (r1 M29) G01: hints dropped from the task report exit 1 red 4
+M135 (r1 M41) C01/L01: a result is not handed over as written exit 1 red 50
+M136 (r1 M45) W01: tasks/update sends the responses under another name exit 1 red 3
+M137 (r1 M46) W01: cancelTask sends tasks/get exit 1 red 16
+M138 (r1 M49) L01: nextCursor dropped from the page exit 1 red 3
+M139 (r1 M20) O04/I05/D14/C03: close does not settle the requests in flight exit 1 red 7
+M140 (r1 M19) C03: the signal after sending does not settle the answer exit 1 red 3
+M141 (r1 M22) S02/S04: a process exit is reported as a broken stream exit 1 red 4
+M142 D03: an unreadable discover result reports the legacy failure exit 1 red 3
+M143 I01: notifications/initialized is not sent exit 1 red 6
+M144 W01: cancelTask reads only an empty result exit 1 red 3
+done 20

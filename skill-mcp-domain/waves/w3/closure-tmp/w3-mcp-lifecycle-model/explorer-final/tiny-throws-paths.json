@@ -1,0 +1,287 @@
+{
+ "scenario": {
+  "name": "tiny-throws-paths",
+  "keys": [
+   "A"
+  ],
+  "ensures": 1,
+  "releases": 0,
+  "closeAll": true,
+  "loses": 0,
+  "deviations": [
+   "throw"
+  ],
+  "budget": 1,
+  "exhaustivePaths": true
+ },
+ "states": 5669,
+ "runs": 5669,
+ "depth": 13,
+ "frontier": 0,
+ "elapsedMs": 7237,
+ "violations": [
+  {
+   "property": "P8",
+   "signature": "N1",
+   "detail": "eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "fire T(bA1)"
+   ],
+   "depth": 4,
+   "seen": 394
+  },
+  {
+   "property": "P1",
+   "signature": "P1-released-twice",
+   "detail": "hA1 release() called 2 times",
+   "cause": "N3",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "closeAll",
+    "answer credentials.acquire:A ok",
+    "  credential.release hA1 throws when called (at releaseHeld@teardown.ts < closeOrder@teardown.ts < shutDown@build.ts < Object.build@build.ts)"
+   ],
+   "depth": 4,
+   "seen": 125
+  },
+  {
+   "property": "P8",
+   "signature": "P2",
+   "detail": "eA1 waiting after every bound fired; pending: credential.release hA1",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "closeAll",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "fire T(bA1)"
+   ],
+   "depth": 6,
+   "seen": 324
+  },
+  {
+   "property": "P7",
+   "signature": "N2",
+   "detail": "unhandled rejection: credential.release hA1 threw (at <anonymous>@late.ts)",
+   "cause": "N2",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "fire T(bA1)",
+    "answer credentials.acquire:A ok",
+    "  credential.release hA1 throws when called (at <anonymous>@late.ts)"
+   ],
+   "depth": 5,
+   "seen": 109
+  },
+  {
+   "property": "P8",
+   "signature": "N1",
+   "detail": "eA1 waiting after every bound fired; pending: store.read A",
+   "cause": "N2",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "fire T(bA1)",
+    "answer credentials.acquire:A ok",
+    "  credential.release hA1 throws when called (at <anonymous>@late.ts)"
+   ],
+   "depth": 5,
+   "seen": 82
+  },
+  {
+   "property": "P8",
+   "signature": "P2",
+   "detail": "eA1 waiting after every bound fired; pending: credential.release hA1",
+   "cause": "throw at materialOf@build.ts < Object.build@build.ts",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "  landing.start A throws when called (at materialOf@build.ts < Object.build@build.ts)",
+    "fire T(bA1)"
+   ],
+   "depth": 5,
+   "seen": 5
+  },
+  {
+   "property": "P8",
+   "signature": "P2",
+   "detail": "eA1 waiting after every bound fired; pending: credential.release hA1",
+   "cause": "N3",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "closeAll",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "  credential.release hA1 throws when called (at releaseHeld@teardown.ts < closeOrder@teardown.ts < shutDown@build.ts < Object.build@build.ts)",
+    "fire T(bA1)"
+   ],
+   "depth": 6,
+   "seen": 679
+  },
+  {
+   "property": "P7",
+   "signature": "B1",
+   "detail": "unhandled rejection: credential.release hA1 threw (at releaseLanding@teardown.ts < abandonLandings@teardown.ts < Object.closeAll@table.ts)",
+   "cause": "B1",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "fire T(bA1)",
+    "closeAll",
+    "  credential.release hA1 throws when called (at releaseLanding@teardown.ts < abandonLandings@teardown.ts < Object.closeAll@table.ts)"
+   ],
+   "depth": 6,
+   "seen": 4
+  },
+  {
+   "property": "P8",
+   "signature": "P2",
+   "detail": "eA1 waiting after every bound fired; pending: process.stop pA1",
+   "cause": "throw at negotiate@build.ts < Object.build@build.ts",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "answer landing.start:A ok",
+    "  transports.open pA1 throws when called (at negotiate@build.ts < Object.build@build.ts)",
+    "fire T(bA1)"
+   ],
+   "depth": 6,
+   "seen": 170
+  },
+  {
+   "property": "P8",
+   "signature": "N1",
+   "detail": "eA1 waiting after every bound fired; pending: store.read A, process.stop pA1",
+   "cause": "B1",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "fire T(bA1)",
+    "closeAll",
+    "  credential.release hA1 throws when called (at releaseLanding@teardown.ts < abandonLandings@teardown.ts < Object.closeAll@table.ts)",
+    "answer landing.start:A ok"
+   ],
+   "depth": 7,
+   "seen": 6
+  },
+  {
+   "property": "P8",
+   "signature": "P2",
+   "detail": "eA1 waiting after every bound fired; pending: process.stop pA1",
+   "cause": "N2",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "answer landing.start:A ok",
+    "fire T(bA1)",
+    "answer transports.open:pA1 ok",
+    "  transport.close tA1 throws when called (at <anonymous>@late.ts)"
+   ],
+   "depth": 7,
+   "seen": 36
+  },
+  {
+   "property": "P2",
+   "signature": "P2-held-without-entry",
+   "detail": "key A reports none and still holds hA1, pA1",
+   "cause": "N3",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "answer credentials.acquire:A ok",
+    "answer landing.start:A ok",
+    "closeAll",
+    "answer transports.open:pA1 ok",
+    "answer transport.discover:tA1 ok",
+    "  transport.close tA1 throws when called (at closeTransport@teardown.ts < closeOrder@teardown.ts < teardown@teardown.ts < <anonymous>@table.ts < <anonymous>@table.ts < Object.closeAll@table.ts)"
+   ],
+   "depth": 7,
+   "seen": 67
+  },
+  {
+   "property": "P2",
+   "signature": "P2-held-without-entry",
+   "detail": "key A reports none and still holds pA1",
+   "cause": "N2",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "closeAll",
+    "fire T(bA1)",
+    "answer landing.start:A ok",
+    "  process.stop pA1 throws when called (at stopOne@teardown.ts < <anonymous>@late.ts)",
+    "answer credential.release:hA1 ok",
+    "answer store.read:A ok"
+   ],
+   "depth": 9,
+   "seen": 42
+  },
+  {
+   "property": "P1",
+   "signature": "P1-never-released",
+   "detail": "hA1 never released after the shutdown",
+   "cause": "N3",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "answer landing.start:A ok",
+    "closeAll",
+    "answer transports.open:pA1 ok",
+    "answer transport.discover:tA1 ok",
+    "  transport.close tA1 throws when called (at closeTransport@teardown.ts < closeOrder@teardown.ts < teardown@teardown.ts < <anonymous>@table.ts < <anonymous>@table.ts < Object.closeAll@table.ts)",
+    "fire T(bA1)"
+   ],
+   "depth": 9,
+   "seen": 67
+  },
+  {
+   "property": "P3",
+   "signature": "P3-not-asked",
+   "detail": "pA1 never asked to stop after the shutdown",
+   "cause": "N3",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "answer landing.start:A ok",
+    "closeAll",
+    "answer transports.open:pA1 ok",
+    "answer transport.discover:tA1 ok",
+    "  transport.close tA1 throws when called (at closeTransport@teardown.ts < closeOrder@teardown.ts < teardown@teardown.ts < <anonymous>@table.ts < <anonymous>@table.ts < Object.closeAll@table.ts)",
+    "fire T(bA1)"
+   ],
+   "depth": 9,
+   "seen": 23
+  }
+ ],
+ "closeWaits": [
+  "ensure A",
+  "answer adoption.endpoint:A ok",
+  "closeAll",
+  "fire T(eA1)",
+  "fire T(bA1)"
+ ]
+}

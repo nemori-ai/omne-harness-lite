@@ -1,0 +1,9 @@
+commit: 3ecafb718fd0
+started: 2026-11-04T14:54:37Z
+command: pnpm run lint:oxlint
+
+> omne-harness-lite-workspace@ lint:oxlint /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model
+> oxlint -c .oxlintrc.json --report-unused-disable-directives tools scripts packages apps
+
+finished: 2026-11-04T14:54:40Z
+exit: 0

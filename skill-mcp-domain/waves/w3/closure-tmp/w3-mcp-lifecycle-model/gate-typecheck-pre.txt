@@ -1,0 +1,4 @@
+
+> @omne-harness/mcp@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+> tsc -p tsconfig.test.json
+

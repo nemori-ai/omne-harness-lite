@@ -1,0 +1,31 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+
+stdout | tests/model/probe.spec.ts > core-1
+{"name":"core-1","states":30000,"runs":71806,"depth":12,"ms":89683,"truncated":true}
+P8 N1 depth=2 seen=3914: eA1 still waiting after every bound fired; pending: credentials.acquire A, store.read A
+    ensure A
+    answer adoption.endpoint:A ok
+    -- hang closure: every bound fires, no port answers
+    fire T(eA1)
+    fire T(bA1)
+P8 P2 depth=4 seen=12041: eA1 still waiting after every bound fired; pending: credential.release hA1
+    ensure A
+    answer adoption.endpoint:A ok
+    closeAll
+    answer credentials.acquire:A ok
+    -- hang closure: every bound fires, no port answers
+    fire T(eA1)
+    fire T(bA1)
+
+ ✓ tests/model/probe.spec.ts (1 test) 89696ms
+   ✓ core-1  89693ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+Type Errors  no errors
+   Start at  11:38:58
+   Duration  90.56s (transform 583ms, setup 0ms, import 684ms, tests 89.70s, environment 0ms)
+

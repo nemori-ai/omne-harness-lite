@@ -1,0 +1,122 @@
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+
+ ❯ tests/transport-conformance.spec.ts (111 tests | 6 failed) 79ms
+       ✓ T1 call: a sent call hands over the request id and the raw result 5ms
+       ✓ T1 call: a JSON-RPC error comes through answer as error, as written 1ms
+       ✓ T1 call: after close() a call is not-sent and has no peer effect 0ms
+       ✓ T1 listActions: a JSON-RPC error is error-answer with code, message and data 1ms
+       ✓ T1 stdio: a broken stream leaves a sent call with no-answer (stream-broken) 1ms
+       ✓ T1 stdio: a process that exits leaves a sent call with no-answer (process-exited) 1ms
+       ✓ T2 call: input_required, task and an unknown resultType come through unclassified 1ms
+       ✓ T2 discover: the modern answer is read to the peer identity 1ms
+       ✓ T2 listActions: the page carries the tools, the next cursor and the ttl as written 1ms
+       ✓ T2 streamable-http: a tool with an invalid x-mcp-header declaration is withheld (item 8) 1ms
+       ✓ T2 stdio: x-mcp-header is not checked and the page is handed over as written (item 8) 1ms
+       × T3 every request and notification carries the three _meta keys and the fixed capabilities (item 7) 7ms
+       × T3 a legacy peer: discover falls back to initialize and initialized (item 7) 1ms
+       ✓ T3 stdio: a peer silent on discover within the probe time is a legacy peer (item 7) 2ms
+       ✓ T3 streamable-http: a 400 answer to discover is a legacy peer (item 7) 1ms
+       ✓ T3 discover fails only when both paths fail, and reports the modern path (item 7) 0ms
+       ✓ T3, T7 an unreadable discover result is discover-shape when initialize fails too 0ms
+       ✓ T3, T7 no protocol version in common is discover-shape, with no legacy fallback 0ms
+       ✓ T3 -32022 with supported versions: one retry with the highest version in common (item 7) 0ms
+       ✓ T3, T7 -32022 without a version in common is discover-shape (item 7) 0ms
+       ✓ T3 -32022 after the retry is error-answer: the retry happens once (item 7) 0ms
+       ✓ T3 legacy: a request from the peer is refused with a JSON-RPC error (item 7) 0ms
+       ✓ T3 instructions are cut to the byte limit of the material, the digest over the whole text 1ms
+       ✓ T3 a call carries a progress token unique per request; progress reaches observe untrusted (item 14) 1ms
+       ✓ T4 401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11) 1ms
+       ✓ T4 401 without resource_metadata: the well-known URL with the path is tried before the root (item 11) 1ms
+       ✓ T4 401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header (item 11) 1ms
+       ✓ T4 403 insufficient_scope: authorization-required with the scope of the header; reportRejection once (item 11) 0ms
+       ✓ T4 another 403: not-sent connection-unavailable and reportRejection is not called (item 11) 0ms
+       ✓ T4 401 on a request that no handle authorized is still authorization-required 0ms
+       ✓ T5 stdio: cancelRequest sends notifications/cancelled with the request id and the envelope (item 9) 0ms
+       ✓ T5 streamable-http: cancelRequest ends the answer stream and sends no notification (item 9) 0ms
+       ✓ T5 stdio: close() closes stdin, then cancels stdout, and does not stop the process (item 9) 0ms
+       ✓ T5 a call whose signal fires after it was sent answers no-answer (abandoned) 1ms
+       ✓ T5 close() with a call in flight answers it no-answer (abandoned); later requests are not-sent 0ms
+       ✓ T6 getTask reads the status, the input requests as untrusted and the hints (item 12) 1ms
+       ✓ T6 getTask on a completed task reports the status without the result 0ms
+       ✓ T6 getTaskResult: completed is the result, failed is the error, cancelled is cancelled, working is not-finished 1ms
+       ✓ T6 -32602 on tasks/get is expired for getTask and getTaskResult 0ms
+       ✓ T6 updateTask sends tasks/update with the task id and the input responses; the ack is accepted 1ms
+       ✓ T6 cancelTask sends tasks/cancel; the ack is requested; no notifications/cancelled 0ms
+       ✓ T6 updateTask and cancelTask on an expired task are error-answer -32602 as written 0ms
+       ✓ T6 -32021 on a task operation is error-answer as written: a missing client capability (item 12) 0ms
+       ✓ T6 a ttl of null is unlimited and left out; a hint of another type is left out (item 12) 0ms
+       ✓ T7 status-unknown: a tasks/get status outside the five values 0ms
+       ✓ T7 input-requests-missing: input_required without inputRequests 0ms
+       ✓ T7 result-missing: completed without result, for getTask and getTaskResult 0ms
+       ✓ T7 error-shape: an error without an integer code or without a message is not an error-answer 0ms
+       ✓ T7 tools-missing: a tools/list result without a tools list 0ms
+       ✓ 偏离 streamable-http: a read request whose answer stream broke is sent once more with a new id (item 10) 0ms
+       ✓ 偏离 streamable-http: a call, tasks/update and tasks/cancel are not re-sent: no-answer (stream-broken) (item 10) 0ms
+       ✓ 偏离 streamable-http: a second broken stream on a read is no-answer (stream-broken) (item 10) 0ms
+       ✓ T1 call: a sent call hands over the request id and the raw result 0ms
+       ✓ T1 call: a JSON-RPC error comes through answer as error, as written 0ms
+       ✓ T1 call: after close() a call is not-sent and has no peer effect 0ms
+       ✓ T1 listActions: a JSON-RPC error is error-answer with code, message and data 0ms
+       ✓ T1 stdio: a broken stream leaves a sent call with no-answer (stream-broken) 0ms
+       ✓ T1 stdio: a process that exits leaves a sent call with no-answer (process-exited) 0ms
+       ✓ T2 call: input_required, task and an unknown resultType come through unclassified 0ms
+       ✓ T2 discover: the modern answer is read to the peer identity 0ms
+       ✓ T2 listActions: the page carries the tools, the next cursor and the ttl as written 0ms
+       ✓ T2 streamable-http: a tool with an invalid x-mcp-header declaration is withheld (item 8) 0ms
+       ✓ T2 stdio: x-mcp-header is not checked and the page is handed over as written (item 8) 0ms
+       × T3 every request and notification carries the three _meta keys and the fixed capabilities (item 7) 1ms
+       × T3 a legacy peer: discover falls back to initialize and initialized (item 7) 1ms
+       ✓ T3 stdio: a peer silent on discover within the probe time is a legacy peer (item 7) 3ms
+       ✓ T3 streamable-http: a 400 answer to discover is a legacy peer (item 7) 0ms
+       ✓ T3 discover fails only when both paths fail, and reports the modern path (item 7) 0ms
+       ✓ T3, T7 an unreadable discover result is discover-shape when initialize fails too 0ms
+       ✓ T3, T7 no protocol version in common is discover-shape, with no legacy fallback 0ms
+       ✓ T3 -32022 with supported versions: one retry with the highest version in common (item 7) 0ms
+       ✓ T3, T7 -32022 without a version in common is discover-shape (item 7) 0ms
+       ✓ T3 -32022 after the retry is error-answer: the retry happens once (item 7) 0ms
+       ✓ T3 legacy: a request from the peer is refused with a JSON-RPC error (item 7) 0ms
+       ✓ T3 instructions are cut to the byte limit of the material, the digest over the whole text 0ms
+       ✓ T3 a call carries a progress token unique per request; progress reaches observe untrusted (item 14) 0ms
+       ✓ T4 401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11) 0ms
+       ✓ T4 401 without resource_metadata: the well-known URL with the path is tried before the root (item 11) 0ms
+       ✓ T4 401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header (item 11) 0ms
+       ✓ T4 403 insufficient_scope: authorization-required with the scope of the header; reportRejection once (item 11) 0ms
+       ✓ T4 another 403: not-sent connection-unavailable and reportRejection is not called (item 11) 0ms
+       ✓ T4 401 on a request that no handle authorized is still authorization-required 0ms
+       ✓ T5 stdio: cancelRequest sends notifications/cancelled with the request id and the envelope (item 9) 0ms
+       ✓ T5 streamable-http: cancelRequest ends the answer stream and sends no notification (item 9) 0ms
+       ✓ T5 stdio: close() closes stdin, then cancels stdout, and does not stop the process (item 9) 0ms
+       ✓ T5 a call whose signal fires after it was sent answers no-answer (abandoned) 0ms
+       ✓ T5 close() with a call in flight answers it no-answer (abandoned); later requests are not-sent 2ms
+       ✓ T6 getTask reads the status, the input requests as untrusted and the hints (item 12) 0ms
+       ✓ T6 getTask on a completed task reports the status without the result 0ms
+       ✓ T6 getTaskResult: completed is the result, failed is the error, cancelled is cancelled, working is not-finished 0ms
+       ✓ T6 -32602 on tasks/get is expired for getTask and getTaskResult 0ms
+       ✓ T6 updateTask sends tasks/update with the task id and the input responses; the ack is accepted 0ms
+       ✓ T6 cancelTask sends tasks/cancel; the ack is requested; no notifications/cancelled 0ms
+       ✓ T6 updateTask and cancelTask on an expired task are error-answer -32602 as written 0ms
+       ✓ T6 -32021 on a task operation is error-answer as written: a missing client capability (item 12) 0ms
+       ✓ T6 a ttl of null is unlimited and left out; a hint of another type is left out (item 12) 0ms
+       ✓ T7 status-unknown: a tasks/get status outside the five values 0ms
+       ✓ T7 input-requests-missing: input_required without inputRequests 0ms
+       ✓ T7 result-missing: completed without result, for getTask and getTaskResult 0ms
+       ✓ T7 error-shape: an error without an integer code or without a message is not an error-answer 0ms
+       ✓ T7 tools-missing: a tools/list result without a tools list 0ms
+       ✓ 偏离 streamable-http: a read request whose answer stream broke is sent once more with a new id (item 10) 0ms
+       ✓ 偏离 streamable-http: a call, tasks/update and tasks/cancel are not re-sent: no-answer (stream-broken) (item 10) 0ms
+       ✓ 偏离 streamable-http: a second broken stream on a read is no-answer (stream-broken) (item 10) 0ms
+     ✓ names T1 to T7, the deviation, and items 7 to 12 and 14 1ms
+     × a transport that re-sends tools/call after a broken stream 12ms
+     × a transport that does not report a refused authorization to the handle 6ms
+     ✓ records each request with its method, params, _meta and progress token, and the cancel 2ms
+     ✓ holds the answer until the pace hook lets the peer answer 0ms
+     ✓ refuses to open on an aborted signal 0ms
+     ✓ throws for a script that gives an http reply on stdio material 1ms
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 105 passed (111)
+Type Errors  no errors
+   Start at  05:55:03
+   Duration  670ms (transform 342ms, setup 0ms, import 422ms, tests 79ms, environment 0ms)
+

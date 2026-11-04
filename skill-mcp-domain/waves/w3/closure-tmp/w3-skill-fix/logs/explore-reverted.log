@@ -1,0 +1,15 @@
+S1 no disclosure: cases 194880, violations 20+, 17122 ms
+   e.g. {"op":"read","name":"beta","part":"body"} [{"site":{"port":"resolve","name":"beta"},"fault":"misdirect","to":"alpha"}] refused-hides: {"outcome":{"ok":{"basis":{"capability":{"category":"skill","name":"alpha"},"layer":"tenant","assetVersion":"v0","digest":"sha256:e4f019bf6d6855061f501f4fc4cdf7880bab6a3531a3acc51891deb
+   e.g. {"op":"read","name":"beta","part":"guide"} [{"site":{"port":"resolve","name":"beta"},"fault":"misdirect","to":"alpha"}] refused-hides: {"outcome":{"ok":{"basis":{"capability":{"category":"skill","name":"alpha"},"layer":"tenant","assetVersion":"v0","digest":"sha256:e4f019bf6d6855061f501f4fc4cdf7880bab6a3531a3acc51891deb
+S2 whole unknown: cases 26606, violations 20+, 1649 ms
+   e.g. {"op":"describe","name":"alpha"} [{"site":{"port":"resolve","name":"alpha"},"fault":"misdirect"}] undecided resolve answered {"outcome":{"ok":{"capability":{"category":"skill","name":"beta"},"layer":"tenant","material":{"kind":"pinned","basis":{"capability":{"category":"skill","name":"beta"},"laye
+   e.g. {"op":"read","name":"alpha","part":"body"} [{"site":{"port":"resolve","name":"alpha"},"fault":"misdirect"}] undecided resolve answered {"outcome":{"ok":{"basis":{"capability":{"category":"skill","name":"beta"},"layer":"tenant","assetVersion":"v0","digest":"sha256:01aa295217a85a0732572bd7556a63068417b2720666
+S3 no mixed versions: cases 14664, violations 20+, 1149 ms
+   e.g. {"op":"read","name":"alpha","part":"body"} [{"site":{"port":"resolve","name":"alpha"},"fault":"misdirect","to":"beta"}] the result names {"capability":{"category":"skill","name":"beta"},"layer":"tenant","assetVersion":"v0","digest":"sha256:01aa295217a85a0732572bd7556a63068417b2720666468d67c1ae0d6672d67a"}, pinned is {"
+   e.g. {"op":"read","name":"alpha","part":"guide"} [{"site":{"port":"resolve","name":"alpha"},"fault":"misdirect","to":"beta"}] the result names {"capability":{"category":"skill","name":"beta"},"layer":"tenant","assetVersion":"v0","digest":"sha256:01aa295217a85a0732572bd7556a63068417b2720666468d67c1ae0d6672d67a"}, pinned is {"
+S4 byte range: cases 55795, violations 0, 1196 ms
+S5 order independence: cases 4396, violations 0, 643 ms
+S6 abort gives nothing partial: cases 4508, violations 0, 155 ms
+S7 own material only: cases 1392, violations 20+, 103 ms
+   e.g. {"op":"describe","name":"alpha"} [{"site":{"port":"resolve","name":"alpha"},"fault":"misdirect","to":"beta"}] describe names {"category":"skill","name":"beta"}
+   e.g. {"op":"read","name":"alpha","part":"body"} [{"site":{"port":"resolve","name":"alpha"},"fault":"misdirect","to":"beta"}] the result basis names {"category":"skill","name":"beta"}

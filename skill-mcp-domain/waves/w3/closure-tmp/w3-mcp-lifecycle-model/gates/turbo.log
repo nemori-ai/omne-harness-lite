@@ -1,0 +1,142 @@
+commit: 3ecafb718fd0
+started: 2026-11-04T14:50:03Z
+command: pnpm turbo run build typecheck test --filter=@omne-harness/mcp
+
+   • turbo 2.11.7
+   • Packages in scope: @omne-harness/mcp
+   • Running build, typecheck, test in 1 package
+   • Remote caching disabled, using shared worktree cache
+
+@omne-harness/operation-result:build: cache hit, replaying logs 8cf24eafbf742096
+@omne-harness/legal-identity:build: cache hit, replaying logs 4567dcf3754432ea
+@omne-harness/operation-result:build: 
+@omne-harness/operation-result:build: > @omne-harness/operation-result@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/operation-result
+@omne-harness/operation-result:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/operation-result:build: 
+@omne-harness/legal-identity:build: 
+@omne-harness/legal-identity:build: > @omne-harness/legal-identity@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/legal-identity
+@omne-harness/legal-identity:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/legal-identity:build: 
+@omne-harness/content-block:build: cache hit, replaying logs d269540550fdbd5f
+@omne-harness/content-block:build: 
+@omne-harness/content-block:build: > @omne-harness/content-block@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/content-block
+@omne-harness/content-block:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/content-block:build: 
+@omne-harness/json-text:build: cache hit, replaying logs 1fa44d812a5ce620
+@omne-harness/json-text:build: 
+@omne-harness/json-text:build: > @omne-harness/json-text@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/json-text
+@omne-harness/json-text:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/json-text:build: 
+@omne-harness/content-block:typecheck: cache hit, replaying logs 284579c57afc9be2
+@omne-harness/content-block:typecheck: 
+@omne-harness/content-block:typecheck: > @omne-harness/content-block@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/content-block
+@omne-harness/content-block:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/content-block:typecheck: 
+@omne-harness/operation-result:typecheck: cache hit, replaying logs 6e12e49f2f01a817
+@omne-harness/operation-result:typecheck: 
+@omne-harness/operation-result:typecheck: > @omne-harness/operation-result@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/operation-result
+@omne-harness/operation-result:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/operation-result:typecheck: 
+@omne-harness/legal-identity:typecheck: cache hit, replaying logs 730245a65b8be264
+@omne-harness/legal-identity:typecheck: 
+@omne-harness/legal-identity:typecheck: > @omne-harness/legal-identity@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/legal-identity
+@omne-harness/legal-identity:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/legal-identity:typecheck: 
+@omne-harness/assets:build: cache hit, replaying logs 7c5d184769911653
+@omne-harness/assets:build: 
+@omne-harness/assets:build: > @omne-harness/assets@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/assets/assets
+@omne-harness/assets:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/assets:build: 
+@omne-harness/mcp-contract:build: cache hit, replaying logs 60c0056e40e78f9b
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp-contract:build: > @omne-harness/mcp-contract@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp-contract:build: 
+@omne-harness/json-text:typecheck: cache hit, replaying logs c12e208e6b81f93a
+@omne-harness/json-text:typecheck: 
+@omne-harness/json-text:typecheck: > @omne-harness/json-text@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/json-text
+@omne-harness/json-text:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/json-text:typecheck: 
+@omne-harness/mcp:build: cache miss, executing fe3c1c7bd9e0e056
+@omne-harness/assets:typecheck: cache hit, replaying logs 965f0d6c9001beee
+@omne-harness/assets:typecheck: 
+@omne-harness/assets:typecheck: > @omne-harness/assets@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/assets/assets
+@omne-harness/assets:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/assets:typecheck: 
+@omne-harness/mcp-contract:typecheck: cache hit, replaying logs 3085b3751f45aff8
+@omne-harness/mcp-contract:typecheck: 
+@omne-harness/mcp-contract:typecheck: > @omne-harness/mcp-contract@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/mcp-contract:typecheck: 
+@omne-harness/mcp:typecheck: cache miss, executing 4471f4ac779200e9
+@omne-harness/mcp:build: 
+@omne-harness/mcp:build: > @omne-harness/mcp@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+@omne-harness/mcp:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp:build: 
+@omne-harness/mcp:typecheck: 
+@omne-harness/mcp:typecheck: > @omne-harness/mcp@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+@omne-harness/mcp:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/mcp:typecheck: 
+@omne-harness/mcp:test: cache bypass, force executing 0ecf522859db6812
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: > @omne-harness/mcp@0.0.0 test /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+@omne-harness/mcp:test: > vitest run
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: [33mTesting types with tsc and vue-tsc is an experimental feature.
+@omne-harness/mcp:test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.[39m
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: [1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp[39m
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  [32m✓[39m tests/refresh.spec.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 100[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/ensure.spec.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 111[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/gate.spec.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/races.spec.ts [2m([22m[2m24 tests[22m[2m)[22m[33m 663[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/teardown.spec.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 274[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/connection.spec.ts [2m([22m[2m74 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/status.spec.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/release.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/shutdown.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 133[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/in-flight.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/port-breach.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/core.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/entry.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/memory-store.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/turns.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/config.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m tests/public-entry.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 144[2mms[22m[39m
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1357)
+@omne-harness/mcp:test: (Use `node --trace-warnings ...` to show where the warning was created)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1456)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1579)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1583)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1606)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1797)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1801)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1824)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2121)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2123)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2125)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2154)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2156)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2464)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2466)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2468)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2497)
+@omne-harness/mcp:test: (node:12054) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2499)
+@omne-harness/mcp:test:  [32m✓[39m tests/model/lifecycle.spec.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 242136[2mms[22m[39m
+@omne-harness/mcp:test:      [33m[2m✓[22m[39m finds on throws what every schedule of throws shows [33m 7704[2mms[22m[39m
+@omne-harness/mcp:test:  [32m✓[39m [44m[1m TS [22m[49m tests/types.spec-d.ts [2m([22m[2m4 tests[22m[2m)[22m
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: [2m Test Files [22m [1m[32m19 passed[39m[22m[90m (19)[39m
+@omne-harness/mcp:test: [2m      Tests [22m [1m[32m310 passed[39m[22m[2m | [22m[36m5 expected fail[39m[90m (315)[39m
+@omne-harness/mcp:test: [2mType Errors [22m [2mno errors[22m
+@omne-harness/mcp:test: [2m   Start at [22m 14:50:06
+@omne-harness/mcp:test: [2m   Duration [22m 245.44s[2m (transform 2.22s, setup 0ms, import 4.45s, tests 243.85s, environment 2ms, typecheck 732ms)[22m
+@omne-harness/mcp:test: 
+
+ Tasks:    15 successful, 15 total
+Cached:    12 cached, 15 total
+  Time:    4m7.779s 
+
+finished: 2026-11-04T14:54:11Z
+exit: 0

@@ -1,0 +1,13 @@
+diff --git a/packages/mcp/mcp/src/internal/entry.ts b/packages/mcp/mcp/src/internal/entry.ts
+index f475b1034..a3b97bac3 100644
+--- a/packages/mcp/mcp/src/internal/entry.ts
++++ b/packages/mcp/mcp/src/internal/entry.ts
+@@ -130,7 +130,7 @@ export function holdsNothing(held: Resources): boolean {
+  * and `holdsNothing`.
+  */
+ export function forgettable(entry: Resources & Readonly<{ connection: Connection }>): boolean {
+-  return entry.connection.state.kind === 'closed' && holdsNothing(entry)
++  return holdsNothing(entry)
+ }
+ 
+ /**

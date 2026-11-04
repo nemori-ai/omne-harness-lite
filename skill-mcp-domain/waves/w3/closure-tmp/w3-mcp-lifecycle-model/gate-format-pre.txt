@@ -1,0 +1,11 @@
+
+> omne-harness-lite-workspace@ format:check /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model
+> ./scripts/format.sh check
+
+Checking formatting...
+
+packages/mcp/mcp/tests/model/evidence.spec.ts (0ms)
+
+Format issues found in above 1 files. Run without `--check` to fix.
+Finished in 2211ms on 3722 files using 4 threads.
+ ELIFECYCLE  Command failed with exit code 1.

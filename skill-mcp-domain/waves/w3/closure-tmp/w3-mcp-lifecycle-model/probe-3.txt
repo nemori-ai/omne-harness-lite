@@ -1,0 +1,193 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+
+stdout | tests/model/probe.spec.ts > s1
+{"name":"s1","states":128,"runs":238,"depth":12,"frontier":0,"ms":833}
+P8 N1 depth=4 seen=14: eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+P8 P2 depth=5 seen=36: eA1 waiting after every bound fired; pending: store.read A, credential.release hA1
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+
+stdout | tests/model/probe.spec.ts > s1-throw
+{"name":"s1-throw","states":297,"runs":590,"depth":12,"frontier":0,"ms":1336}
+P8 N1 depth=4 seen=23: eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+P1 P1-released-twice depth=4 seen=11: hA1 release() called 2 times
+    ensure A
+    answer adoption.endpoint:A ok
+    closeAll
+    answer credentials.acquire:A ok
+      credential.release hA1 throws when called (at )
+P8 P2 depth=5 seen=80: eA1 waiting after every bound fired; pending: store.read A, credential.release hA1
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+P7 P7-credential.release depth=5 seen=5: unhandled rejection: credential.release hA1 threw (at )
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+      credential.release hA1 throws when called (at )
+P7 P7-process.stop depth=6 seen=3: unhandled rejection: process.stop pA1 threw (at )
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    answer credentials.acquire:A ok
+    fire T(bA1)
+    answer landing.start:A ok
+      process.stop pA1 throws when called (at )
+P7 P7-transport.close depth=7 seen=2: unhandled rejection: transport.close tA1 threw (at )
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    answer credentials.acquire:A ok
+    answer landing.start:A ok
+    fire T(bA1)
+    answer transports.open:pA1 ok
+      transport.close tA1 throws when called (at )
+P2 P2-held-without-entry depth=7 seen=6: key A reports none and still holds hA1, pA1
+    ensure A
+    answer adoption.endpoint:A ok
+    answer credentials.acquire:A ok
+    answer landing.start:A ok
+    closeAll
+    answer transports.open:pA1 ok
+    answer transport.discover:tA1 ok
+      transport.close tA1 throws when called (at )
+P1 P1-never-released depth=9 seen=2: hA1 never released after the shutdown
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    answer credentials.acquire:A ok
+    answer landing.start:A ok
+    closeAll
+    answer transports.open:pA1 ok
+    answer transport.discover:tA1 ok
+      transport.close tA1 throws when called (at )
+    fire T(bA1)
+P3 P3-not-asked depth=9 seen=1: pA1 never asked to stop after the shutdown
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    answer credentials.acquire:A ok
+    answer landing.start:A ok
+    closeAll
+    answer transports.open:pA1 ok
+    answer transport.discover:tA1 ok
+      transport.close tA1 throws when called (at )
+    fire T(bA1)
+
+stdout | tests/model/probe.spec.ts > s1-dev
+{"name":"s1-dev","states":390,"runs":959,"depth":12,"frontier":0,"ms":1292}
+P8 N1 depth=4 seen=45: eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+P8 P2 depth=5 seen=92: eA1 waiting after every bound fired; pending: store.read A, credential.release hA1
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+P2 P2-entry-left depth=10 seen=4: key A reports {"kind":"lost","reason":"close-unconfirmed","residual":[{"kind":"process","confirmed":"unconfirmed"}]} at rest after the shutdown
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    answer credentials.acquire:A ok
+    closeAll
+    fire T(bA1)
+    answer landing.start:A ok
+    answer credential.release:hA1 ok
+    answer store.read:A ok
+    answer process.stop:pA1 unconfirmed
+
+stdout | tests/model/probe.spec.ts > s2
+{"name":"s2","states":3115,"runs":8286,"depth":23,"frontier":0,"ms":10936}
+P8 N1 depth=4 seen=188: eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+P8 P2 depth=5 seen=986: eA1 waiting after every bound fired; pending: store.read A, credential.release hA1
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+
+stdout | tests/model/probe.spec.ts > s1-rel
+{"name":"s1-rel","states":567,"runs":1186,"depth":13,"frontier":0,"ms":707}
+P8 N1 depth=4 seen=63: eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+P8 P2 depth=5 seen=165: eA1 waiting after every bound fired; pending: store.read A, credential.release hA1
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+
+stdout | tests/model/probe.spec.ts > s2-rel-lose
+progress states=5000 runs=10963 depth=11 t=25497
+
+stdout | tests/model/probe.spec.ts > s2-rel-lose
+progress states=10000 runs=24294 depth=14 t=37585
+
+stdout | tests/model/probe.spec.ts > s2-rel-lose
+progress states=15000 runs=37772 depth=16 t=52227
+
+stdout | tests/model/probe.spec.ts > s2-rel-lose
+progress states=20000 runs=51792 depth=18 t=69260
+
+stdout | tests/model/probe.spec.ts > s2-rel-lose
+progress states=25000 runs=67207 depth=20 t=89571
+
+stdout | tests/model/probe.spec.ts > s2-rel-lose
+progress states=30000 runs=83765 depth=22 t=118364
+
+stdout | tests/model/probe.spec.ts > s2-rel-lose
+{"name":"s2-rel-lose","states":31484,"runs":89455,"depth":26,"frontier":0,"ms":112091}
+P8 N1 depth=4 seen=1457: eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+P8 P2 depth=5 seen=6649: eA1 waiting after every bound fired; pending: store.read A, credential.release hA1
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+
+ ✓ tests/model/probe.spec.ts (6 tests) 127220ms
+   ✓ s1  844ms
+   ✓ s1-throw  1340ms
+   ✓ s1-dev  1294ms
+   ✓ s2  10937ms
+   ✓ s1-rel  708ms
+   ✓ s2-rel-lose  112092ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+Type Errors  no errors
+   Start at  11:43:48
+   Duration  128.68s (transform 885ms, setup 0ms, import 1.04s, tests 127.22s, environment 0ms)
+

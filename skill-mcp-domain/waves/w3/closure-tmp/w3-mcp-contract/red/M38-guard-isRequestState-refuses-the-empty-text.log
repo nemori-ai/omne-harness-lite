@@ -1,0 +1,58 @@
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+
+ ❯ tests/values.spec.ts (46 tests | 1 failed) 18ms
+     ✓ accepts https://mcp.example.test/v1 1ms
+     ✓ accepts http://127.0.0.1:8080/ 0ms
+     ✓ accepts http://localhost:3000/mcp 0ms
+     ✓ accepts http://[::1]:9000/mcp 0ms
+     ✓ accepts https://[::1]:9000/mcp?tenant=a 0ms
+     ✓ accepts https://mcp.example.test/~tilde 0ms
+     ✓ refuses "HTTPS://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "http://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "http://10.0.0.1/" without repairing it 0ms
+     ✓ refuses "http://127.0.0.2/" without repairing it 0ms
+     ✓ refuses "http://localhost.example.test/" without repairing it 0ms
+     ✓ refuses "ftp://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "/mcp" without repairing it 0ms
+     ✓ refuses "mcp.example.test/mcp" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/#part" without repairing it 0ms
+     ✓ refuses "https://user:secret@mcp.example.test/" without repairing it 0ms
+     ✓ refuses "https://user@mcp.example.test/" without repairing it 0ms
+     ✓ refuses "https://:secret@mcp.example.test/" without repairing it 0ms
+     ✓ refuses "xhttps://mcp.example.test/" without repairing it 0ms
+     ✓ refuses " https://mcp.example.test/x" without repairing it 0ms
+     ✓ refuses "https:///mcp.example.test" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/\u001f" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/a b" without repairing it 0ms
+     ✓ refuses " https://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/\u0007" without repairing it 0ms
+     ✓ refuses "http:///mcp" without repairing it 0ms
+     ✓ refuses "https://" without repairing it 0ms
+     ✓ refuses "" without repairing it 0ms
+     ✓ refuses a value that is not text 0ms
+     ✓ takes a time span only as a positive safe integer of milliseconds 1ms
+     ✓ starts a connection generation at zero 0ms
+     ✓ starts a catalog revision at one 0ms
+     ✓ names an endpoint with the lexicon of a capability name 0ms
+     ✓ isDefinitionDigest takes only a lower-case SHA-256 text 0ms
+     ✓ isInstructionsDigest takes only a lower-case SHA-256 text 0ms
+     ✓ isActionName takes any non-empty text as written and nothing else 0ms
+     ✓ isAdoptionRevision takes any non-empty text as written and nothing else 0ms
+     ✓ isCorrelationKey takes any non-empty text as written and nothing else 0ms
+     ✓ isCredentialBinding takes any non-empty text as written and nothing else 0ms
+     ✓ isEndpointHolding takes any non-empty text as written and nothing else 0ms
+     ✓ isProtocolVersion takes any non-empty text as written and nothing else 0ms
+     ✓ isTaskId takes any non-empty text as written and nothing else 0ms
+     × isRequestState takes any text as written, the empty text included, and nothing else 7ms
+     ✓ takes a JSON object and refuses every other JSON tree 1ms
+ ❯ tests/classify.spec.ts (0 test)
+
+ Test Files  2 failed (2)
+      Tests  1 failed | 45 passed (46)
+Type Errors  no errors
+   Start at  05:57:45
+   Duration  548ms (transform 478ms, setup 0ms, import 248ms, tests 18ms, environment 0ms)
+

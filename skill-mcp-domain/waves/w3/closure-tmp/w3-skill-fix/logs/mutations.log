@@ -1,0 +1,29 @@
+F1a | packages/skills/skill/src/port-answer.ts | skill: tests/ref-identity.spec.ts tests/answer-parse.spec.ts | exit 1 | red 6: ['× gives no answer for a ref of another name, with or without a basis 12ms', '× gives no answer for a ref of another category, with or without a basis 4ms', '× answers unknown for a reference of another Skill, with its locator and digest 29ms']
+F1b | packages/skills/skill/src/port-answer.ts | skill: tests/ref-identity.spec.ts tests/answer-parse.spec.ts | exit 1 | red 2: ['× with a basis, gives no answer for another source layer 23ms', '× answers unknown for another source layer 15ms']
+F1c | packages/skills/skill/src/port-answer.ts | skill: tests/ref-identity.spec.ts tests/answer-parse.spec.ts | exit 1 | red 4: ['× with a basis, gives no answer for another asset version 30ms', '× with a basis, gives no answer for no asset version 2ms', '× answers unknown for another asset version 17ms']
+F1d | packages/skills/skill/src/port-answer.ts | skill: tests/ref-identity.spec.ts tests/answer-parse.spec.ts | exit 1 | red 2: ['× with a basis, gives no answer for another digest 42ms', '× answers unknown for another digest 18ms']
+F1e | packages/skills/skill/src/port-answer.ts | skill: tests/ref-identity.spec.ts tests/answer-parse.spec.ts | exit 1 | red 2: ['× gives no answer for a stand-in of another identity 20ms', '× answers unknown, not the name and reason of the other identity 15ms']
+F2 | packages/skills/skill-contract/src/testing-resolution.ts | skill-contract: tests/conformance.spec.ts | exit 1 | red 4: ['× PR3 gives back the digest of the basis without comparing it 21ms', '× fails only the non-disclosure case of the resolution suite 9ms', '× passes every case on the memory doubles, so the two failures above come from the leak 3ms']
+F2 | packages/skills/skill-contract/src/testing-resolution.ts | skill: tests/describe.spec.ts tests/conformance.spec.ts | exit 1 | red 1: ['× gives back the basis whose digest the source no longer holds: describe reads no bytes 14ms']
+F3 | packages/skills/skill/src/mapping.ts | skill: tests/mapping.spec.ts tests/inspection.spec.ts | exit 1 | red 2: ['× bytes-mismatch → {"kind":"source-unavailable"} at snapshot, {"kind":"version-changed"} at open 93ms', '× bytes-mismatch maps to {"kind":"source-unavailable"} 11ms']
+F4 | packages/skills/skill/src/access/service.ts | skill: tests/read.spec.ts | exit 1 | red 2: ['× answers source-unavailable without content for no frontmatter at all 17ms', '× answers source-unavailable without content for an opening delimiter without a closing one 4ms']
+C1 | packages/skills/skill-contract/src/parse/manifest.ts | skill-contract: tests/parse-compat.spec.ts | exit 1 | red 2: ['× is kept whole, with the hint description-over-limit 7ms', '× gives every hint that applies, in the order of the set 1ms']
+C2 | packages/skills/skill-contract/src/parse/manifest.ts | skill-contract: tests/parse-compat.spec.ts | exit 1 | red 2: ['× is kept whole, with the hint description-over-limit 21ms', '× gives every hint that applies, in the order of the set 4ms']
+Traceback (most recent call last):
+  File "/home/user/omne-harness-lite/.worktrees/w3-skill-fix/tmp/closures/w3-skill-fix/mut/run.py", line 35, in <module>
+    build(builds)
+    ~~~~~^^^^^^^^
+  File "/home/user/omne-harness-lite/.worktrees/w3-skill-fix/tmp/closures/w3-skill-fix/mut/run.py", line 27, in build
+    subprocess.run(['pnpm', 'run', 'build'], cwd=p, capture_output=True, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['pnpm', 'run', 'build']' returned non-zero exit status 1.
+C3 | packages/skills/skill-contract/src/parse/manifest.ts | skill-contract: tests/parse-compat.spec.ts | exit 1 | red 2: ['× keeps only the text values of a nested map, with the hint metadata-not-text-map 20ms', '× keeps only the text values of a value that is a number, with the hint metadata-not-text-map 3ms']
+C4 | packages/skills/skill-contract/src/parse/manifest.ts | skill-contract: tests/parse-compat.spec.ts | exit 1 | red 4: ['× keeps only the text values of a nested map, with the hint metadata-not-text-map 24ms', '× keeps only the text values of a value that is a number, with the hint metadata-not-text-map 8ms', '× keeps only the text values of a map without text values, with the hint metadata-not-text-map 8ms']
+C5 | packages/skills/skill-contract/src/parse/manifest.ts | skill-contract: tests/parse-compat.spec.ts | exit 1 | red 12: ['× is name-mismatch for a name read line by line too 8ms', '× reads name and description line by line for an unquoted ": " in the description 1ms', '× reads name and description line by line for a YAML syntax error in another field 1ms']
+C6 | packages/skills/skill-contract/src/parse/by-line.ts | skill-contract: tests/parse-manifest.spec.ts tests/parse-package.spec.ts | exit 1 | red 2: ['× malformed-duplicate-key gives malformed 36ms', '× rejects a duplicate top-level key 25ms']
+C7 | packages/skills/skill-contract/src/parse/by-line.ts | skill-contract: tests/parse-manifest.spec.ts | exit 1 | red 1: ['× rejects a YAML error and a block description 13ms']
+C8 | packages/skills/skill-contract/src/parse/by-line.ts | skill-contract: tests/parse-manifest.spec.ts | exit 1 | red 1: ['× rejects a YAML error and text after a closing quote 8ms']
+restored

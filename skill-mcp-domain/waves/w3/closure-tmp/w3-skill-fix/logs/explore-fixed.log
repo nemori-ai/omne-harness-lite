@@ -1,0 +1,7 @@
+S1 no disclosure: cases 194880, violations 0, 20360 ms
+S2 whole unknown: cases 26606, violations 0, 1599 ms
+S3 no mixed versions: cases 14664, violations 0, 1272 ms
+S4 byte range: cases 55795, violations 0, 1692 ms
+S5 order independence: cases 4396, violations 0, 547 ms
+S6 abort gives nothing partial: cases 4508, violations 0, 244 ms
+S7 own material only: cases 1392, violations 0, 100 ms

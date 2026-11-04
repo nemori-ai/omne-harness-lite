@@ -1,0 +1,517 @@
+2026-11-04T12:05:56Z
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+
+(node:3083) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 177)
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3083) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 296)
+(node:3083) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 300)
+(node:3083) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 472)
+ ❯ tests/model/lifecycle.spec.ts (16 tests | 6 failed | 4 skipped) 40008ms
+     × explains every violation 31ms
+     × P1–P7 hold 9ms
+     ✓ A1: closeAll still waits once every bound fired, behind a port that hangs (known limitation) 0ms
+     ✓ P8 T2 holds — expected failure P2: P8 T2: a teardown port that hangs holds the ensure whose build it belongs to, past every bound 1ms
+     ✓ P8 T2 holds — expected failure N1: P8 T2: the store hanging while a failed build marks the catalog holds the ensure past every bound 1ms
+     × explains every violation 11ms
+     × P1–P7 hold 6ms
+     × explains every violation 1ms
+     × P4–P6 hold 1ms
+     ✓ P7 holds — expected failure B1: P7: closeAll leaves `abandoned` without a handler while it waits for the closes; a release() that throws is an unhandled rejection 1ms
+     ✓ P7 holds — expected failure N2: P7: a port that throws on a late path (the four chains nobody awaits) is an unhandled rejection 2ms
+     ✓ P1–P3 hold — expected failure N3: P1–P3: a teardown port that throws ends the teardown: the steps after it are skipped, a retry releases a handle twice 2ms
+     ↓ explains every violation
+     ↓ P1–P7 hold
+     ↓ explains every violation
+     ↓ P5 and P1–P7 hold
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > rebuild: one key, two ensure, closeAll, lawful ports that may hang or answer late > explains every violation
+AssertionError: expected [ …(5) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "P4 P4-connect-after-closeAll: landing.start for A after closeAll (at materialOf@build.ts < Object.build@build.ts)
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   answer credentials.acquire:A ok",
++   "P2 P2-entry-left: key A reports {\"kind\":\"lost\",\"reason\":\"preparation-failed\"} at rest after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   fire T(bA1)
++   answer credentials.acquire:A ok
++   answer store.read:A ok
++   answer credential.release:hA1 ok",
++   "P1 P1-never-released: hA1 never released after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   fire T(bA1)",
++   "P3 P3-not-asked: pA1 never asked to stop after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   fire T(bA1)",
++   "P2 P2-transport-left: tA1 never closed after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   fire T(bA1)",
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:49:33
+     47|
+     48|   it('explains every violation', () => {
+     49|     expect(unexplained(result)).toEqual([])
+       |                                 ^
+     50|   })
+     51|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > rebuild: one key, two ensure, closeAll, lawful ports that may hang or answer late > P1–P7 hold
+AssertionError: expected [ { property: 'P4', …(6) }, …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "cause": undefined,
++     "depth": 4,
++     "detail": "landing.start for A after closeAll (at materialOf@build.ts < Object.build@build.ts)",
++     "property": "P4",
++     "seen": 266,
++     "signature": "P4-connect-after-closeAll",
++     "trace": [
++       "ensure A",
++       "closeAll",
++       "answer adoption.endpoint:A ok",
++       "answer credentials.acquire:A ok",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 8,
++     "detail": "key A reports {\"kind\":\"lost\",\"reason\":\"preparation-failed\"} at rest after the shutdown",
++     "property": "P2",
++     "seen": 70,
++     "signature": "P2-entry-left",
++     "trace": [
++       "ensure A",
++       "closeAll",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA1)",
++       "fire T(bA1)",
++       "answer credentials.acquire:A ok",
++       "answer store.read:A ok",
++       "answer credential.release:hA1 ok",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 9,
++     "detail": "hA1 never released after the shutdown",
++     "property": "P1",
++     "seen": 31,
++     "signature": "P1-never-released",
++     "trace": [
++       "ensure A",
++       "closeAll",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "answer transports.open:pA1 ok",
++       "answer transport.discover:tA1 ok",
++       "fire T(bA1)",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 9,
++     "detail": "pA1 never asked to stop after the shutdown",
++     "property": "P3",
++     "seen": 31,
++     "signature": "P3-not-asked",
++     "trace": [
++       "ensure A",
++       "closeAll",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "answer transports.open:pA1 ok",
++       "answer transport.discover:tA1 ok",
++       "fire T(bA1)",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 9,
++     "detail": "tA1 never closed after the shutdown",
++     "property": "P2",
++     "seen": 31,
++     "signature": "P2-transport-left",
++     "trace": [
++       "ensure A",
++       "closeAll",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "answer transports.open:pA1 ok",
++       "answer transport.discover:tA1 ok",
++       "fire T(bA1)",
++     ],
++   },
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:53:72
+     51|
+     52|   it('P1–P7 hold', () => {
+     53|     expect(violated(result, 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7'))…
+       |                                                                        ^
+     54|   })
+     55|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > faults: one key, ensure, release, lose, closeAll, one port failing, rejecting or unconfirmed > explains every violation
+AssertionError: expected [ …(5) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "P4 P4-connect-after-closeAll: landing.start for A after closeAll (at materialOf@build.ts < Object.build@build.ts)
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   answer credentials.acquire:A ok",
++   "P2 P2-entry-left: key A reports {\"kind\":\"lost\",\"reason\":\"preparation-failed\"} at rest after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A reject
++   fire T(bA1)",
++   "P1 P1-never-released: hA1 never released after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   fire T(bA1)",
++   "P3 P3-not-asked: pA1 never asked to stop after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   fire T(bA1)",
++   "P2 P2-transport-left: tA1 never closed after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   fire T(bA1)",
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:76:33
+     74|
+     75|   it('explains every violation', () => {
+     76|     expect(unexplained(result)).toEqual([])
+       |                                 ^
+     77|   })
+     78|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > faults: one key, ensure, release, lose, closeAll, one port failing, rejecting or unconfirmed > P1–P7 hold
+AssertionError: expected [ { property: 'P4', …(6) }, …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "cause": undefined,
++     "depth": 4,
++     "detail": "landing.start for A after closeAll (at materialOf@build.ts < Object.build@build.ts)",
++     "property": "P4",
++     "seen": 60,
++     "signature": "P4-connect-after-closeAll",
++     "trace": [
++       "ensure A",
++       "closeAll",
++       "answer adoption.endpoint:A ok",
++       "answer credentials.acquire:A ok",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 6,
++     "detail": "key A reports {\"kind\":\"lost\",\"reason\":\"preparation-failed\"} at rest after the shutdown",
++     "property": "P2",
++     "seen": 168,
++     "signature": "P2-entry-left",
++     "trace": [
++       "ensure A",
++       "closeAll",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA1)",
++       "answer credentials.acquire:A reject",
++       "fire T(bA1)",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 9,
++     "detail": "hA1 never released after the shutdown",
++     "property": "P1",
++     "seen": 8,
++     "signature": "P1-never-released",
++     "trace": [
++       "ensure A",
++       "closeAll",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "answer transports.open:pA1 ok",
++       "answer transport.discover:tA1 ok",
++       "fire T(bA1)",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 9,
++     "detail": "pA1 never asked to stop after the shutdown",
++     "property": "P3",
++     "seen": 8,
++     "signature": "P3-not-asked",
++     "trace": [
++       "ensure A",
++       "closeAll",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "answer transports.open:pA1 ok",
++       "answer transport.discover:tA1 ok",
++       "fire T(bA1)",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 9,
++     "detail": "tA1 never closed after the shutdown",
++     "property": "P2",
++     "seen": 8,
++     "signature": "P2-transport-left",
++     "trace": [
++       "ensure A",
++       "closeAll",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "answer transports.open:pA1 ok",
++       "answer transport.discover:tA1 ok",
++       "fire T(bA1)",
++     ],
++   },
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:80:72
+     78|
+     79|   it('P1–P7 hold', () => {
+     80|     expect(violated(result, 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7'))…
+       |                                                                        ^
+     81|   })
+     82| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > throws: one key, ensure, closeAll, one port throwing when it is called > explains every violation
+AssertionError: expected [ …(9) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "P4 P4-connect-after-closeAll: landing.start for A after closeAll (at materialOf@build.ts < Object.build@build.ts)
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   answer credentials.acquire:A ok",
++   "P2 P2-entry-left: key A reports {\"kind\":\"lost\",\"reason\":\"preparation-failed\"} at rest after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++     credentials.acquire A throws when called (at acquireCredential@build.ts < Object.build@build.ts)
++   fire T(eA1)
++   fire T(bA1)",
++   "P2 P2-entry-left: key A reports {\"kind\":\"lost\",\"reason\":\"preparation-failed\"} at rest after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   fire T(bA1)
++     store.read A throws when called (at markCatalog@build.ts < markLost@build.ts < failed@build.ts < Object.build@build.ts)
++   answer credentials.acquire:A ok
++   answer credential.release:hA1 ok",
++   "P2 P2-entry-left: key A reports {\"kind\":\"lost\",\"reason\":\"preparation-failed\"} at rest after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   fire T(bA1)
++   answer credentials.acquire:A ok
++   answer store.read:A ok
++   answer credential.release:hA1 ok",
++   "P2 P2-entry-left: key A reports {\"kind\":\"lost\",\"reason\":\"preparation-failed\"} at rest after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++     landing.start A throws when called (at materialOf@build.ts < Object.build@build.ts)
++   fire T(bA1)
++   answer credential.release:hA1 ok",
++   "P1 P1-never-released: hA1 never released after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   fire T(bA1)",
++   "P3 P3-not-asked: pA1 never asked to stop after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   fire T(bA1)",
++   "P2 P2-transport-left: tA1 never closed after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   fire T(bA1)",
++   "P2 P2-entry-left: key A reports {\"kind\":\"lost\",\"reason\":\"preparation-failed\"} at rest after the shutdown
++   ensure A
++   closeAll
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++     transports.open pA1 throws when called (at negotiate@build.ts < Object.build@build.ts)
++   fire T(bA1)
++   answer process.stop:pA1 ok
++   answer credential.release:hA1 ok",
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:91:33
+     89|
+     90|   it('explains every violation', () => {
+     91|     expect(unexplained(result)).toEqual([])
+       |                                 ^
+     92|   })
+     93|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > throws: one key, ensure, closeAll, one port throwing when it is called > P4–P6 hold
+AssertionError: expected [ { property: 'P4', …(6) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "cause": undefined,
++     "depth": 4,
++     "detail": "landing.start for A after closeAll (at materialOf@build.ts < Object.build@build.ts)",
++     "property": "P4",
++     "seen": 24,
++     "signature": "P4-connect-after-closeAll",
++     "trace": [
++       "ensure A",
++       "closeAll",
++       "answer adoption.endpoint:A ok",
++       "answer credentials.acquire:A ok",
++     ],
++   },
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:95:48
+     93|
+     94|   it('P4–P6 hold', () => {
+     95|     expect(violated(result, 'P4', 'P5', 'P6')).toEqual([])
+       |                                                ^
+     96|   })
+     97|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 1 passed | 5 expected fail | 4 skipped (16)
+Type Errors  no errors
+   Start at  12:05:57
+   Duration  40.67s (transform 331ms, setup 0ms, import 460ms, tests 40.01s, environment 0ms)
+
+exit=1
+restored
+dist rebuilt

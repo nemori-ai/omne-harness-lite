@@ -1,0 +1,335 @@
+2026-11-04T12:27:56Z
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1371)
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1470)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1593)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1597)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1620)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1811)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1815)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1838)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2135)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2137)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2139)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2168)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2170)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2478)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2480)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2482)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2511)
+(node:24348) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2513)
+ ❯ tests/model/lifecycle.spec.ts (17 tests | 4 failed | 4 skipped) 57038ms
+     × explains every violation 9ms
+     × P1–P7 hold 3ms
+     ✓ A1: closeAll still waits once every bound fired, behind a port that hangs (known limitation) 0ms
+     ✓ P8 T2 holds — expected failure P2: P8 T2: a teardown port that hangs holds the ensure whose build it belongs to, past every bound 1ms
+     ✓ P8 T2 holds — expected failure N1: P8 T2: the store hanging while a failed build marks the catalog holds the ensure past every bound 1ms
+     × explains every violation 8ms
+     × P1–P7 hold 1ms
+     ✓ explains every violation 0ms
+     ✓ P4–P6 hold 0ms
+     ✓ P7 holds — expected failure B1: P7: closeAll leaves `abandoned` without a handler while it waits for the closes; a release() that throws is an unhandled rejection 1ms
+     ✓ P7 holds — expected failure N2: P7: a port that throws on a late path (the four chains nobody awaits) is an unhandled rejection 8ms
+     ✓ P1–P3 hold — expected failure N3: P1–P3: a teardown port that throws ends the teardown: the steps after it are skipped, a retry releases a handle twice 1ms
+     ✓ finds on throws what every schedule of throws shows  12873ms
+     ↓ explains every violation
+     ↓ P1–P7 hold
+     ↓ explains every violation
+     ↓ P5 and P1–P7 hold
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > rebuild: one key, two ensure, closeAll, lawful ports that may hang or answer late > explains every violation
+AssertionError: expected [ …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "P3 P3-not-asked: c1 answered while pA2 was never asked to stop
++   ensure A
++   answer adoption.endpoint:A ok
++   ensure A
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   fire T(bA1)
++   answer landing.start:A ok
++   answer store.read:A ok
++   answer adoption.endpoint:A ok
++   answer process.stop:pA1 ok
++   answer credential.release:hA1 ok
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   closeAll",
++   "P2 P2-held-without-entry: key A reports none and still holds hA2, tA1, pA2
++   ensure A
++   answer adoption.endpoint:A ok
++   ensure A
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   fire T(bA1)
++   answer landing.start:A ok
++   answer store.read:A ok
++   answer adoption.endpoint:A ok
++   answer process.stop:pA1 ok
++   answer credential.release:hA1 ok
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   answer transports.open:pA2 ok
++   answer transport.discover:tA1 ok",
++   "P1 P1-never-released: hA2 never released after the shutdown
++   ensure A
++   answer adoption.endpoint:A ok
++   ensure A
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   fire T(bA1)
++   answer landing.start:A ok
++   answer store.read:A ok
++   answer adoption.endpoint:A ok
++   fire T(eA2)
++   answer process.stop:pA1 ok
++   answer credential.release:hA1 ok
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   closeAll
++   answer transports.open:pA2 ok
++   answer transport.discover:tA1 ok
++   fire T(bA2)",
++   "P2 P2-transport-left: tA1 never closed after the shutdown
++   ensure A
++   answer adoption.endpoint:A ok
++   ensure A
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   fire T(bA1)
++   answer landing.start:A ok
++   answer store.read:A ok
++   answer adoption.endpoint:A ok
++   fire T(eA2)
++   answer process.stop:pA1 ok
++   answer credential.release:hA1 ok
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   closeAll
++   answer transports.open:pA2 ok
++   answer transport.discover:tA1 ok
++   fire T(bA2)",
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:62:33
+     60|
+     61|   it('explains every violation', () => {
+     62|     expect(unexplained(result)).toEqual([])
+       |                                 ^
+     63|   })
+     64|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > rebuild: one key, two ensure, closeAll, lawful ports that may hang or answer late > P1–P7 hold
+AssertionError: expected [ { property: 'P3', …(6) }, …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "cause": undefined,
++     "depth": 14,
++     "detail": "c1 answered while pA2 was never asked to stop",
++     "property": "P3",
++     "seen": 3,
++     "signature": "P3-not-asked",
++     "trace": [
++       "ensure A",
++       "answer adoption.endpoint:A ok",
++       "ensure A",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "fire T(bA1)",
++       "answer landing.start:A ok",
++       "answer store.read:A ok",
++       "answer adoption.endpoint:A ok",
++       "answer process.stop:pA1 ok",
++       "answer credential.release:hA1 ok",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "closeAll",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 15,
++     "detail": "key A reports none and still holds hA2, tA1, pA2",
++     "property": "P2",
++     "seen": 4,
++     "signature": "P2-held-without-entry",
++     "trace": [
++       "ensure A",
++       "answer adoption.endpoint:A ok",
++       "ensure A",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "fire T(bA1)",
++       "answer landing.start:A ok",
++       "answer store.read:A ok",
++       "answer adoption.endpoint:A ok",
++       "answer process.stop:pA1 ok",
++       "answer credential.release:hA1 ok",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "answer transports.open:pA2 ok",
++       "answer transport.discover:tA1 ok",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 18,
++     "detail": "hA2 never released after the shutdown",
++     "property": "P1",
++     "seen": 1,
++     "signature": "P1-never-released",
++     "trace": [
++       "ensure A",
++       "answer adoption.endpoint:A ok",
++       "ensure A",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "fire T(bA1)",
++       "answer landing.start:A ok",
++       "answer store.read:A ok",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA2)",
++       "answer process.stop:pA1 ok",
++       "answer credential.release:hA1 ok",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "closeAll",
++       "answer transports.open:pA2 ok",
++       "answer transport.discover:tA1 ok",
++       "fire T(bA2)",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 18,
++     "detail": "tA1 never closed after the shutdown",
++     "property": "P2",
++     "seen": 1,
++     "signature": "P2-transport-left",
++     "trace": [
++       "ensure A",
++       "answer adoption.endpoint:A ok",
++       "ensure A",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "fire T(bA1)",
++       "answer landing.start:A ok",
++       "answer store.read:A ok",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA2)",
++       "answer process.stop:pA1 ok",
++       "answer credential.release:hA1 ok",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "closeAll",
++       "answer transports.open:pA2 ok",
++       "answer transport.discover:tA1 ok",
++       "fire T(bA2)",
++     ],
++   },
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:66:72
+     64|
+     65|   it('P1–P7 hold', () => {
+     66|     expect(violated(result, 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7'))…
+       |                                                                        ^
+     67|   })
+     68|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > faults: one key, ensure, release, lose, closeAll, one port failing, rejecting or unconfirmed > explains every violation
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "P6 P6-late-changed: late answer of landing.start A changed key A to {\"kind\":\"none\"} -
++   ensure A
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   closeAll
++   fire T(bA1)
++   answer landing.start:A fail",
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:89:33
+     87|
+     88|   it('explains every violation', () => {
+     89|     expect(unexplained(result)).toEqual([])
+       |                                 ^
+     90|   })
+     91|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > faults: one key, ensure, release, lose, closeAll, one port failing, rejecting or unconfirmed > P1–P7 hold
+AssertionError: expected [ { property: 'P6', …(6) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "cause": undefined,
++     "depth": 7,
++     "detail": "late answer of landing.start A changed key A to {\"kind\":\"none\"} -",
++     "property": "P6",
++     "seen": 10,
++     "signature": "P6-late-changed",
++     "trace": [
++       "ensure A",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "closeAll",
++       "fire T(bA1)",
++       "answer landing.start:A fail",
++     ],
++   },
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:93:72
+     91|
+     92|   it('P1–P7 hold', () => {
+     93|     expect(violated(result, 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7'))…
+       |                                                                        ^
+     94|   })
+     95| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 4 passed | 5 expected fail | 4 skipped (17)
+Type Errors  no errors
+   Start at  12:27:58
+   Duration  57.86s (transform 512ms, setup 0ms, import 618ms, tests 57.04s, environment 0ms)
+
+exit=1
+restored
+dist rebuilt

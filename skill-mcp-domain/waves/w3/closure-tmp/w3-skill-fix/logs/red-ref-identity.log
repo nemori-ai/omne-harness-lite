@@ -1,0 +1,19 @@
+     × answers unknown for a reference of another Skill, with its locator and digest 21ms
+     × answers unknown for a reference of the same name in another category 5ms
+     × answers unknown when the reference names another identity and the package of the requested one 4ms
+     × answers unknown for another source layer 4ms
+     × answers unknown for another asset version 5ms
+     × answers unknown for no asset version when the basis has one 4ms
+     × answers unknown for another digest 4ms
+     ✓ reads with a basis when the reference carries its layer, asset version and digest 3ms
+     ✓ takes the asset version of the reference when the basis has none 5ms
+     ✓ answers unsupported, not unknown, for a reference without a digest under a basis 2ms
+     × gives alice nothing of beta when the resolution answers alpha with the reference of beta 4ms
+ FAIL  tests/ref-identity.spec.ts > a reference that names another identity is no answer > answers unknown for a reference of another Skill, with its locator and digest
+ FAIL  tests/ref-identity.spec.ts > a reference that names another identity is no answer > answers unknown for a reference of the same name in another category
+ FAIL  tests/ref-identity.spec.ts > a reference that names another identity is no answer > answers unknown when the reference names another identity and the package of the requested one
+ FAIL  tests/ref-identity.spec.ts > with a basis, a reference to other material is no answer > answers unknown for another source layer
+ FAIL  tests/ref-identity.spec.ts > with a basis, a reference to other material is no answer > answers unknown for another asset version
+ FAIL  tests/ref-identity.spec.ts > with a basis, a reference to other material is no answer > answers unknown for no asset version when the basis has one
+ FAIL  tests/ref-identity.spec.ts > with a basis, a reference to other material is no answer > answers unknown for another digest
+ FAIL  tests/ref-identity.spec.ts > the reproduction of GS-06 > gives alice nothing of beta when the resolution answers alpha with the reference of beta

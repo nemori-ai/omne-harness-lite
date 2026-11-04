@@ -1,0 +1,13 @@
+diff --git a/packages/mcp/mcp/src/internal/table.ts b/packages/mcp/mcp/src/internal/table.ts
+index fb1ce6570..80a61dc87 100644
+--- a/packages/mcp/mcp/src/internal/table.ts
++++ b/packages/mcp/mcp/src/internal/table.ts
+@@ -391,7 +391,7 @@ export function createConnectionTable<P, S>(
+    * teardown to end.
+    */
+   async function closeAll(): Promise<readonly ClosedEndpoint[]> {
+-    shut = true
++
+     const all = [...entries.values()]
+     const abandoned = Promise.all(all.map(abandonLandings))
+     const closed = await Promise.all(

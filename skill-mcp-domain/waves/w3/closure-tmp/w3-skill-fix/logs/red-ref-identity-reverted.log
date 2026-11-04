@@ -1,0 +1,14 @@
+     × answers unknown for a reference of another Skill, with its locator and digest 27ms
+     × answers unknown for a reference of the same name in another category 12ms
+     × answers unknown when the reference names another identity and the package of the requested one 8ms
+     × answers unknown, not the name and reason of the other identity 5ms
+     × answers unknown for another source layer 4ms
+     × answers unknown for another asset version 6ms
+     × answers unknown for no asset version when the basis has one 3ms
+     × answers unknown for another digest 3ms
+     ✓ reads with a basis when the reference carries its layer, asset version and digest 4ms
+     ✓ takes the asset version of the reference when the basis has none 2ms
+     ✓ answers unsupported, not unknown, for a reference without a digest under a basis 2ms
+     × gives alice nothing of beta when the resolution answers alpha with the reference of beta 6ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  9 failed | 3 passed (12)

@@ -1,0 +1,591 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+
+ ❯ tests/catalog.spec.ts (39 tests | 2 failed) 95ms
+     ✓ joins the pages in order and keeps the shortest freshness hint 2ms
+     ✓ adopts nothing when any page failed, even when earlier pages were read 0ms
+     ✓ refuses a listing whose last page still names a next page 0ms
+     ✓ refuses a listing that needs more pages than the bound 0ms
+     ✓ refuses a listing with more pages than the bound even when the last page is final 0ms
+     ✓ takes the shortest freshness hint in either page order 0ms
+     ✓ gives no freshness hint when no page gives one 0ms
+     ✓ refuses a listing with more actions than the bound 0ms
+     ✓ refuses a repeated action name across pages 0ms
+     ✓ refuses an action definition with not an object 0ms
+     ✓ refuses an action definition with no name 0ms
+     ✓ refuses an action definition with an empty name 0ms
+     ✓ refuses an action definition with no input schema 0ms
+     ✓ refuses an action definition with an input schema that is not an object 0ms
+     × refuses an action definition with an input schema without a type 13ms
+     × refuses an action definition with an input schema whose type is not object 2ms
+     ✓ refuses an action definition with an output schema that is not an object 0ms
+     ✓ refuses an action definition with annotations that are not an object 0ms
+     ✓ keeps the definition as written and holds the annotations apart as untrusted 1ms
+     ✓ is the digest that the listing carries 1ms
+     ✓ does not depend on member order 0ms
+     ✓ changes when the description, the schema, a number lexeme or the annotations change 1ms
+     ✓ turns the first complete listing into revision 1 with every action available 1ms
+     ✓ sorts a long listing given in reverse order 3ms
+     ✓ records an empty listing as acquired with zero actions 1ms
+     ✓ keeps an action that the peer no longer offers, with its last lawful definition 1ms
+     ✓ replaces the definition of an offered action and makes it available again 1ms
+     ✓ refuses a result based on an older revision and leaves the newer adoption alone 1ms
+     ✓ checks the revision that the listing was read against, not one the caller gives later 0ms
+     ✓ throws for a listing that completeListing did not build, even a copy of one 0ms
+     ✓ keeps a frozen copy of the basis, not the caller object 0ms
+     ✓ freezes the listing, its action list and each action 0ms
+     ✓ keeps every known action through any sequence of listings (seeded walk) 59ms
+     ✓ throws RangeError instead of giving a revision past the safe range 0ms
+     ✓ replaces an earlier connection reason with the new one 0ms
+     ✓ marks every action unavailable with the reason, keeps definitions, and raises the revision 0ms
+     ✓ keeps the reason of an action that the peer no longer offers 0ms
+     ✓ derives nothing before a catalog was acquired 0ms
+     ✓ names one item per known action, available or not, by the action name only 0ms
+ ❯ tests/public-entry.spec.ts (10 tests | 3 failed) 408ms
+   × the root entry exports the values and pure functions of the contract 225ms
+   ✓ the provider entry exports port types only 7ms
+   × the testing entry exports the conformance facilities 155ms
+   ✓ the root and provider entries do not reach the testing modules 3ms
+   ✓ no source file imports an MCP SDK or Cordis 9ms
+   ✓ reads relative imports in either quote style and form 3ms
+   ✓ reads star exports and inline type names as exports 1ms
+   × the provider entry exports exactly the port type names 1ms
+   ✓ the provider entry uses only the export type { … } from form 3ms
+   ✓ reads a module the way a mutation sandbox writes it 0ms
+ ✓ tests/classify.spec.ts (44 tests) 17ms
+ ❯ tests/values.spec.ts (46 tests | 2 failed) 25ms
+     ✓ accepts https://mcp.example.test/v1 2ms
+     ✓ accepts http://127.0.0.1:8080/ 0ms
+     ✓ accepts http://localhost:3000/mcp 0ms
+     ✓ accepts http://[::1]:9000/mcp 0ms
+     ✓ accepts https://[::1]:9000/mcp?tenant=a 0ms
+     ✓ accepts https://mcp.example.test/~tilde 0ms
+     ✓ refuses "HTTPS://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "http://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "http://10.0.0.1/" without repairing it 0ms
+     ✓ refuses "http://127.0.0.2/" without repairing it 0ms
+     ✓ refuses "http://localhost.example.test/" without repairing it 0ms
+     ✓ refuses "ftp://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "/mcp" without repairing it 0ms
+     ✓ refuses "mcp.example.test/mcp" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/#part" without repairing it 0ms
+     ✓ refuses "https://user:secret@mcp.example.test/" without repairing it 0ms
+     ✓ refuses "https://user@mcp.example.test/" without repairing it 0ms
+     ✓ refuses "https://:secret@mcp.example.test/" without repairing it 0ms
+     ✓ refuses "xhttps://mcp.example.test/" without repairing it 0ms
+     ✓ refuses " https://mcp.example.test/x" without repairing it 0ms
+     ✓ refuses "https:///mcp.example.test" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/\u001f" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/a b" without repairing it 0ms
+     ✓ refuses " https://mcp.example.test/" without repairing it 0ms
+     ✓ refuses "https://mcp.example.test/\u0007" without repairing it 0ms
+     ✓ refuses "http:///mcp" without repairing it 0ms
+     ✓ refuses "https://" without repairing it 0ms
+     ✓ refuses "" without repairing it 0ms
+     ✓ refuses a value that is not text 0ms
+     ✓ takes a time span only as a positive safe integer of milliseconds 1ms
+     ✓ starts a connection generation at zero 0ms
+     ✓ starts a catalog revision at one 0ms
+     ✓ names an endpoint with the lexicon of a capability name 0ms
+     ✓ isDefinitionDigest takes only a lower-case SHA-256 text 0ms
+     ✓ isInstructionsDigest takes only a lower-case SHA-256 text 0ms
+     ✓ isActionName takes any non-empty text as written and nothing else 0ms
+     ✓ isAdoptionRevision takes any non-empty text as written and nothing else 0ms
+     ✓ isCorrelationKey takes any non-empty text as written and nothing else 0ms
+     ✓ isCredentialBinding takes any non-empty text as written and nothing else 0ms
+     ✓ isEndpointHolding takes any non-empty text as written and nothing else 0ms
+     ✓ isProtocolVersion takes any non-empty text as written and nothing else 0ms
+     ✓ isTaskId takes any non-empty text as written and nothing else 0ms
+     × isRequestState takes any text as written, the empty text included, and nothing else 10ms
+     × takes a JSON object and refuses every other JSON tree 2ms
+ ❯  TS  tests/additive-shapes.spec-d.ts (5 tests | 5 failed)
+   × a continuation may carry the request state alone (item 15)
+   × the refresh request takes an abort signal of its own (item 1)
+   × the ports take an optional clock that answers the present instant (item 2)
+   × a listing page lists the tools the transport withheld (item 8)
+   × a task report and a task outcome carry the three optional task hints (item 12)
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/catalog.spec.ts > completeListing > refuses an action definition with an input schema without a type
+AssertionError: expected { ok: { actions: [ { …(2) } ], …(3) } } to deeply equal { failure: 'action-invalid' }
+
+- Expected
++ Received
+
+  {
+-   "failure": "action-invalid",
++   "ok": {
++     "actions": [
++       {
++         "definition": {
++           "definition": {
++             "entries": [
++               {
++                 "key": "name",
++                 "value": {
++                   "kind": "string",
++                   "value": "a",
++                 },
++               },
++               {
++                 "key": "inputSchema",
++                 "value": {
++                   "entries": [],
++                   "kind": "object",
++                 },
++               },
++             ],
++             "kind": "object",
++           },
++           "name": "a",
++         },
++         "digest": "sha256:bb2f1d131767ea25a891174b97d7c1c425f016c5d1ed61dbc7c29da6e7a9eb62",
++       },
++     ],
++     "basedOn": "absent",
++     "basis": {
++       "capabilities": {
++         "entries": [
++           {
++             "key": "tools",
++             "value": {
++               "entries": [],
++               "kind": "object",
++             },
++           },
++         ],
++         "kind": "object",
++       },
++       "generation": 1,
++       "protocolVersion": "2026-07-28",
++     },
++     "freshness": {
++       "acquiredAt": "2026-11-03T00:00:00Z",
++       "changedNotified": false,
++     },
++   },
+  }
+
+ ❯ tests/catalog.spec.ts:166:73
+    164|   for (const [name, definition] of invalid)
+    165|     it(`refuses an action definition with ${name}`, () => {
+    166|       expect(completeListing({ ...read, pages: [page([definition])] })…
+       |                                                                         ^
+    167|         failure: 'action-invalid',
+    168|       })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/20]⎯
+
+ FAIL  tests/catalog.spec.ts > completeListing > refuses an action definition with an input schema whose type is not object
+AssertionError: expected { ok: { actions: [ { …(2) } ], …(3) } } to deeply equal { failure: 'action-invalid' }
+
+- Expected
++ Received
+
+  {
+-   "failure": "action-invalid",
++   "ok": {
++     "actions": [
++       {
++         "definition": {
++           "definition": {
++             "entries": [
++               {
++                 "key": "name",
++                 "value": {
++                   "kind": "string",
++                   "value": "a",
++                 },
++               },
++               {
++                 "key": "inputSchema",
++                 "value": {
++                   "entries": [
++                     {
++                       "key": "type",
++                       "value": {
++                         "kind": "string",
++                         "value": "string",
++                       },
++                     },
++                   ],
++                   "kind": "object",
++                 },
++               },
++             ],
++             "kind": "object",
++           },
++           "name": "a",
++         },
++         "digest": "sha256:a495bba3e264dba404ab53d7db2119e7fb4d27565c1f148c6042a5d773d0f005",
++       },
++     ],
++     "basedOn": "absent",
++     "basis": {
++       "capabilities": {
++         "entries": [
++           {
++             "key": "tools",
++             "value": {
++               "entries": [],
++               "kind": "object",
++             },
++           },
++         ],
++         "kind": "object",
++       },
++       "generation": 1,
++       "protocolVersion": "2026-07-28",
++     },
++     "freshness": {
++       "acquiredAt": "2026-11-03T00:00:00Z",
++       "changedNotified": false,
++     },
++   },
+  }
+
+ ❯ tests/catalog.spec.ts:166:73
+    164|   for (const [name, definition] of invalid)
+    165|     it(`refuses an action definition with ${name}`, () => {
+    166|       expect(completeListing({ ...read, pages: [page([definition])] })…
+       |                                                                         ^
+    167|         failure: 'action-invalid',
+    168|       })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/20]⎯
+
+ FAIL  tests/public-entry.spec.ts > the root entry exports the values and pure functions of the contract
+AssertionError: expected [ 'actionPermissionItems', …(28) ] to deeply equal [ 'actionPermissionItems', …(31) ]
+
+- Expected
++ Received
+
+@@ -1,15 +1,13 @@
+  [
+    "actionPermissionItems",
+    "boundInstructions",
+-   "canonical",
+    "catalogKeyOf",
+    "classifyOutcome",
+    "completeListing",
+    "connectionKeyOf",
+    "digestDefinition",
+-   "isActionArgs",
+    "isActionName",
+    "isAdoptionRevision",
+    "isCatalogRevision",
+    "isConnectionTarget",
+    "isCorrelationKey",
+@@ -27,8 +25,7 @@
+    "markUnavailable",
+    "mcpEndpointBodyContract",
+    "mergeListing",
+    "parseEndpointBody",
+    "peerAccountOf",
+-   "sameJson",
+    "toContentBlocks",
+  ]
+
+ ❯ tests/public-entry.spec.ts:101:36
+     99| it('the root entry exports the values and pure functions of the contra…
+    100|   const root = (await import('@omne-harness/mcp-contract')) as Record<…
+    101|   expect(Object.keys(root).sort()).toEqual(ROOT)
+       |                                    ^
+    102| })
+    103|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/20]⎯
+
+ FAIL  tests/public-entry.spec.ts > the testing entry exports the conformance facilities
+AssertionError: expected [ 'NotApplicable', …(14) ] to deeply equal [ 'NotApplicable', …(24) ]
+
+- Expected
++ Received
+
+  [
+    "NotApplicable",
+-   "actionNameOf",
+    "classifyOutcomeCases",
+    "createMemoryAdoptionView",
+    "createMemoryCatalogStore",
+    "createMemoryCredentialUse",
+    "createMemoryProcessLanding",
+    "createMemoryUseEligibility",
+-   "createScriptedTransportFactory",
+-   "generationOf",
+    "isNotApplicable",
+-   "jsonOf",
+-   "jsonTextOf",
+    "mcpAdoptionViewConformance",
+    "mcpCatalogStoreConformance",
+    "mcpCredentialUseConformance",
+    "mcpProcessLandingConformance",
+-   "mcpTransportConformance",
+    "mcpUseEligibilityConformance",
+    "mergeListingCases",
+-   "protocolVersionOf",
+-   "requestStateOf",
+-   "revisionOf",
+    "runConformanceCase",
+-   "taskIdOf",
+  ]
+
+ ❯ tests/public-entry.spec.ts:111:39
+    109| it('the testing entry exports the conformance facilities', async () =>…
+    110|   const testing = (await import('@omne-harness/mcp-contract/testing'))…
+    111|   expect(Object.keys(testing).sort()).toEqual(TESTING)
+       |                                       ^
+    112| })
+    113|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/20]⎯
+
+ FAIL  tests/public-entry.spec.ts > the provider entry exports exactly the port type names
+AssertionError: expected [ 'AdoptedEndpoint', …(23) ] to deeply equal [ 'AdoptedEndpoint', …(24) ]
+
+- Expected
++ Received
+
+@@ -21,7 +21,6 @@
+    "SentCall",
+    "TaskAnswer",
+    "TransportFailure",
+    "TransportMaterial",
+    "UseEligibility",
+-   "WithheldReason",
+  ]
+
+ ❯ tests/public-entry.spec.ts:209:50
+    207|
+    208| it('the provider entry exports exactly the port type names', () => {
+    209|   expect(exportedNames(sourceOf('provider.ts'))).toEqual(PROVIDER_TYPE…
+       |                                                  ^
+    210| })
+    211|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/20]⎯
+
+ FAIL  tests/values.spec.ts > text brands > isRequestState takes any text as written, the empty text included, and nothing else
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/values.spec.ts:132:32
+    130|   it('isRequestState takes any text as written, the empty text include…
+    131|     expect(isRequestState('x')).toBe(true)
+    132|     expect(isRequestState('')).toBe(true)
+       |                                ^
+    133|     expect(isRequestState(7)).toBe(false)
+    134|     expect(isRequestState(undefined)).toBe(false)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/20]⎯
+
+ FAIL  tests/values.spec.ts > isActionArgs > takes a JSON object and refuses every other JSON tree
+TypeError: isActionArgs is not a function
+ ❯ tests/values.spec.ts:140:12
+    138| describe('isActionArgs', () => {
+    139|   it('takes a JSON object and refuses every other JSON tree', () => {
+    140|     expect(isActionArgs(json({}))).toBe(true)
+       |            ^
+    141|     expect(isActionArgs(json({ city: 'Paris' }))).toBe(true)
+    142|     expect(isActionArgs(json([]))).toBe(false)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > a continuation may carry the request state alone (item 15)
+TypeCheckError: Module '"@omne-harness/mcp-contract"' has no exported member 'McpClock'.
+ ❯ tests/additive-shapes.spec-d.ts:10:3
+      8|   CallOutcome,
+      9|   EndpointRef,
+     10|   McpClock,
+       |   ^
+     11|   McpPorts,
+     12|   Millis,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > a continuation may carry the request state alone (item 15)
+TypeCheckError: Module '"@omne-harness/mcp-contract/provider"' has no exported member 'WithheldReason'.
+ ❯ tests/additive-shapes.spec-d.ts:17:41
+     15|   Untrusted,
+     16| } from '@omne-harness/mcp-contract'
+     17| import type { CallRequest, ListingPage, WithheldReason } from '@omne-h…
+       |                                         ^
+     18|
+     19| type Principal = Readonly<{ id: string }>
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > a continuation may carry the request state alone (item 15)
+TypeCheckError: Property 'inputResponses' is missing in type '{ requestState RequestState; }' but required in type 'Readonly<{ requestState? RequestState; inputResponses JsonValue; }>'.
+ ❯ tests/additive-shapes.spec-d.ts:25:9
+     23|     Readonly<{ requestState?: RequestState; inputResponses?: JsonValue…
+     24|   >()
+     25|   const continuation: CallRequest['continuation'] = { requestState: ''…
+       |         ^
+     26|   expectTypeOf(continuation).toMatchTypeOf<CallRequest['continuation']…
+     27| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > the refresh request takes an abort signal of its own (item 1)
+TypeCheckError: Type 'Readonly<{ ref Readonly<{ name EndpointName; holding EndpointHolding; }>; connectBound? Millis; signal? AbortSignal; }>' does not satisfy the constraint '{ connectBound? Millis; ref { holding EndpointHolding; name EndpointName; }; signal? "Expected ..., Actual never" | "Expected undefined, Actual never"; }'.
+  Types of property 'signal' are incompatible.
+    Type 'AbortSignal' is not assignable to type '"Expected ..., Actual never" | "Expected undefined, Actual never"'.
+ ❯ tests/additive-shapes.spec-d.ts:32:5
+     30|   type Request = Parameters<ActionDiscovery<Principal>['refresh']>[1]
+     31|   expectTypeOf<Request>().toEqualTypeOf<
+     32|     Readonly<{ ref: EndpointRef; connectBound?: Millis; signal?: Abort…
+       |     ^
+     33|   >()
+     34|   expectTypeOf<Parameters<ActionDiscovery<Principal>['refresh']>[0]>()…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > the ports take an optional clock that answers the present instant (item 2)
+TypeCheckError: Property 'clock' does not exist on type 'Readonly<{ adoption AdoptionView<Readonly<{ id string; }>, string>; eligibility UseEligibility<Readonly<{ id string; }>>; credentials CredentialUse<...>; landing ProcessLanding<...>; store CatalogStore; transports McpTransportFactory; }>'.
+ ❯ tests/additive-shapes.spec-d.ts:40:44
+     38|
+     39| test('the ports take an optional clock that answers the present instan…
+     40|   expectTypeOf<McpPorts<Principal, string>['clock']>().toEqualTypeOf<M…
+       |                                            ^
+     41|   expectTypeOf<ReturnType<McpClock['now']>>().toEqualTypeOf<Date>()
+     42| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > the ports take an optional clock that answers the present instant (item 2)
+TypeCheckError: Type 'Date' does not satisfy the constraint 'never'.
+ ❯ tests/additive-shapes.spec-d.ts:41:61
+     39| test('the ports take an optional clock that answers the present instan…
+     40|   expectTypeOf<McpPorts<Principal, string>['clock']>().toEqualTypeOf<M…
+     41|   expectTypeOf<ReturnType<McpClock['now']>>().toEqualTypeOf<Date>()
+       |                                                             ^
+     42| })
+     43|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > a listing page lists the tools the transport withheld (item 8)
+TypeCheckError: Property 'withheld' does not exist on type 'Readonly<{ tools readonly JsonValue[]; nextCursor? string; ttlMs? number; }>'.
+ ❯ tests/additive-shapes.spec-d.ts:45:28
+     43|
+     44| test('a listing page lists the tools the transport withheld (item 8)',…
+     45|   expectTypeOf<ListingPage['withheld']>().toEqualTypeOf<
+       |                            ^
+     46|     readonly Readonly<{ name: Untrusted<string>; reason: WithheldReaso…
+     47|   >()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > a task report and a task outcome carry the three optional task hints (item 12)
+TypeCheckError: Property 'pollIntervalMs' does not exist on type 'Readonly<{ status TaskStatus; inputRequests? Readonly<{ untrusted JsonValue; }>; }>'.
+ ❯ tests/additive-shapes.spec-d.ts:52:27
+     50|
+     51| test('a task report and a task outcome carry the three optional task h…
+     52|   expectTypeOf<TaskReport['pollIntervalMs']>().toEqualTypeOf<number | …
+       |                           ^
+     53|   expectTypeOf<TaskReport['ttlMs']>().toEqualTypeOf<number | undefined…
+     54|   expectTypeOf<TaskReport['statusMessage']>().toEqualTypeOf<Untrusted<…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > a task report and a task outcome carry the three optional task hints (item 12)
+TypeCheckError: Property 'ttlMs' does not exist on type 'Readonly<{ status TaskStatus; inputRequests? Readonly<{ untrusted JsonValue; }>; }>'.
+ ❯ tests/additive-shapes.spec-d.ts:53:27
+     51| test('a task report and a task outcome carry the three optional task h…
+     52|   expectTypeOf<TaskReport['pollIntervalMs']>().toEqualTypeOf<number | …
+     53|   expectTypeOf<TaskReport['ttlMs']>().toEqualTypeOf<number | undefined…
+       |                           ^
+     54|   expectTypeOf<TaskReport['statusMessage']>().toEqualTypeOf<Untrusted<…
+     55|   type Task = Extract<CallOutcome, { kind: 'task' }>
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > a task report and a task outcome carry the three optional task hints (item 12)
+TypeCheckError: Property 'statusMessage' does not exist on type 'Readonly<{ status TaskStatus; inputRequests? Readonly<{ untrusted JsonValue; }>; }>'.
+ ❯ tests/additive-shapes.spec-d.ts:54:27
+     52|   expectTypeOf<TaskReport['pollIntervalMs']>().toEqualTypeOf<number | …
+     53|   expectTypeOf<TaskReport['ttlMs']>().toEqualTypeOf<number | undefined…
+     54|   expectTypeOf<TaskReport['statusMessage']>().toEqualTypeOf<Untrusted<…
+       |                           ^
+     55|   type Task = Extract<CallOutcome, { kind: 'task' }>
+     56|   expectTypeOf<Task['pollIntervalMs']>().toEqualTypeOf<number | undefi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > a task report and a task outcome carry the three optional task hints (item 12)
+TypeCheckError: Property 'pollIntervalMs' does not exist on type 'Readonly<{ kind "task"; taskId TaskId; issuedAt Generation; }>'.
+ ❯ tests/additive-shapes.spec-d.ts:56:21
+     54|   expectTypeOf<TaskReport['statusMessage']>().toEqualTypeOf<Untrusted<…
+     55|   type Task = Extract<CallOutcome, { kind: 'task' }>
+     56|   expectTypeOf<Task['pollIntervalMs']>().toEqualTypeOf<number | undefi…
+       |                     ^
+     57|   expectTypeOf<Task['ttlMs']>().toEqualTypeOf<number | undefined>()
+     58|   expectTypeOf<Task['statusMessage']>().toEqualTypeOf<Untrusted<string…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > a task report and a task outcome carry the three optional task hints (item 12)
+TypeCheckError: Property 'ttlMs' does not exist on type 'Readonly<{ kind "task"; taskId TaskId; issuedAt Generation; }>'.
+ ❯ tests/additive-shapes.spec-d.ts:57:21
+     55|   type Task = Extract<CallOutcome, { kind: 'task' }>
+     56|   expectTypeOf<Task['pollIntervalMs']>().toEqualTypeOf<number | undefi…
+     57|   expectTypeOf<Task['ttlMs']>().toEqualTypeOf<number | undefined>()
+       |                     ^
+     58|   expectTypeOf<Task['statusMessage']>().toEqualTypeOf<Untrusted<string…
+     59| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/20]⎯
+
+ FAIL  tests/additive-shapes.spec-d.ts > a task report and a task outcome carry the three optional task hints (item 12)
+TypeCheckError: Property 'statusMessage' does not exist on type 'Readonly<{ kind "task"; taskId TaskId; issuedAt Generation; }>'.
+ ❯ tests/additive-shapes.spec-d.ts:58:21
+     56|   expectTypeOf<Task['pollIntervalMs']>().toEqualTypeOf<number | undefi…
+     57|   expectTypeOf<Task['ttlMs']>().toEqualTypeOf<number | undefined>()
+     58|   expectTypeOf<Task['statusMessage']>().toEqualTypeOf<Untrusted<string…
+       |                     ^
+     59| })
+     60|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/20]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 2 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯ Unhandled Source Error ⎯⎯⎯
+TypeCheckError: Object literal may only specify known properties, and 'pollIntervalMs' does not exist in type 'Readonly<{ kind "task"; taskId TaskId; issuedAt Generation; }>'.
+ ❯ src/testing-outcome-cases.ts:187:7
+
+
+⎯⎯⎯ Unhandled Source Error ⎯⎯⎯
+TypeCheckError: Module '"@omne-harness/mcp-contract"' has no exported member 'isActionArgs'.
+ ❯ tests/values.spec.ts:3:3
+      1| import { describe, expect, it } from 'vitest'
+      2| import {
+      3|   isActionArgs,
+       |   ^
+      4|   isActionName,
+      5|   isAdoptionRevision,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  4 failed | 1 passed (5)
+      Tests  12 failed | 132 passed (144)
+Type Errors  5 failed
+     Errors  2 errors
+   Start at  05:23:28
+   Duration  1.20s (transform 816ms, setup 0ms, import 746ms, tests 545ms, environment 0ms, typecheck 378ms)
+

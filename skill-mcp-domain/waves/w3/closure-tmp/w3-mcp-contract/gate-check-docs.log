@@ -1,0 +1,7 @@
+
+> omne-harness-lite-workspace@ check:docs /home/user/omne-harness-lite/.worktrees/w3-mcp-contract
+> uv run --locked omne-docs-check
+
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+PASS: 2705 Markdown files; local links and skill mirrors.
+NOTE: Navigation and mirror consistency do not establish semantic correctness.

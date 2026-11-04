@@ -1,0 +1,35 @@
+M53 B1: tasks/update and tasks/cancel carry no _meta exit 1 red 5
+M54 B1b: no clientInfo in any _meta exit 1 red 9
+M55 B1c: a notification carries the capabilities only exit 1 red 5
+M56 B2b: legacy initialize declares sampling and roots exit 1 red 3
+M57 ruling 3: legacy initialize declares the tasks extension exit 1 red 3
+M58 B3: reportRejection only for tools/call exit 1 red 3
+M59 B3b: no reportRejection for tools/list exit 1 red 2
+M60 B4: any 403 with a Bearer challenge is authorization-required exit 1 red 3
+M61 B5a: -32022 without a version in common falls back to legacy exit 1 red 3
+M62 B5b: -32021 and -32020 fall back to legacy exit 1 red 4
+M63 B5c: -32022 after the retry falls back to legacy exit 1 red 3
+M64 B6: legacy instructions not bounded exit 1 red 3
+M65 B8: _meta keeps the highest version after legacy negotiation exit 1 red 4
+M66 ruling 2: _meta keeps the highest version after a -32022 retry exit 1 red 3
+M67 ruling 2: initialize carries the modern version in _meta exit 1 red 3
+M68 ruling 1: no Mcp-Name on tasks/* exit 1 red 6
+M69 ruling 1: Mcp-Name on every request exit 1 red 6
+M70 ruling 1: MCP-Protocol-Version header is always the highest version exit 1 red 4
+M71 ruling 4: every 400 on discover is a legacy peer exit 1 red 4
+M72 ruling 4: every JSON-RPC 400 on discover is an error answer exit 1 red 3
+M73 ruling 4: a 400 to a task operation is connection-unavailable exit 1 red 3
+M74 ruling 6: legacy version not checked against the list exit 1 red 3
+M75 T3: -32601 reports the modern failure exit 1 red 3
+M76 C6: probe time starts before the pace hook exit 1 red 1
+M77 C6: probe timer not cleared by the answer exit 1 red 1
+M78 C7: failed without error makes up an error exit 1 red 3
+M79 C7: an error that is not an object is accepted exit 1 red 3
+M80 C9: a negative hint is kept exit 1 red 5
+M81 C9: an unsafe hint is kept exit 1 red 4
+M82 C1: observedProcess does not carry the pipes (round-1 shape) exit 1 red 1
+M83 C1: peer requests answered before notifications/initialized exit 1 red 3
+M84 C2: another 403 with a challenge still reports the rejection exit 1 red 2
+M86 C1: observedProcess forwards the end of stdout exit 1 red 1
+M85 record: headers recorded on stdio too exit 1 red 1
+done 34

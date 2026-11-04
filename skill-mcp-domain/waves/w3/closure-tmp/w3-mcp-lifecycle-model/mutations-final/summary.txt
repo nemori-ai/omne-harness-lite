@@ -1,0 +1,72 @@
+     ✓ explains every violation 2ms
+     ✓ P1–P7 hold 10ms
+     ✓ A1: closeAll still waits once every bound fired, behind a port that hangs (known limitation) 0ms
+     ✓ P8 T2 holds — expected failure P2: P8 T2: a teardown port that hangs holds the ensure whose build it belongs to, past every bound 7ms
+     ✓ P8 T2 holds — expected failure N1: P8 T2: the store hanging while a failed build marks the catalog holds the ensure past every bound 1ms
+     × explains every violation 2ms
+     × P1–P7 hold 2ms
+     ✓ explains every violation 0ms
+     ✓ P4–P6 hold 0ms
+     ✓ P7 holds — expected failure B1: P7: closeAll leaves `abandoned` without a handler while it waits for the closes; a release() that throws is an unhandled rejection 2ms
+     ✓ P7 holds — expected failure N2: P7: a port that throws on a late path (the four chains nobody awaits) is an unhandled rejection 1ms
+     ✓ P1–P3 hold — expected failure N3: P1–P3: a teardown port that throws ends the teardown: the steps after it are skipped, a retry releases a handle twice 1ms
+     ✓ finds on throws what every schedule of throws shows  10469ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 6 passed | 5 expected fail | 4 skipped (17)
+exit=1
+restored
+dist rebuilt
+     × explains every violation 9ms
+     × P1–P7 hold 3ms
+     ✓ A1: closeAll still waits once every bound fired, behind a port that hangs (known limitation) 0ms
+     ✓ P8 T2 holds — expected failure P2: P8 T2: a teardown port that hangs holds the ensure whose build it belongs to, past every bound 1ms
+     ✓ P8 T2 holds — expected failure N1: P8 T2: the store hanging while a failed build marks the catalog holds the ensure past every bound 1ms
+     × explains every violation 8ms
+     × P1–P7 hold 1ms
+     ✓ explains every violation 0ms
+     ✓ P4–P6 hold 0ms
+     ✓ P7 holds — expected failure B1: P7: closeAll leaves `abandoned` without a handler while it waits for the closes; a release() that throws is an unhandled rejection 1ms
+     ✓ P7 holds — expected failure N2: P7: a port that throws on a late path (the four chains nobody awaits) is an unhandled rejection 8ms
+     ✓ P1–P3 hold — expected failure N3: P1–P3: a teardown port that throws ends the teardown: the steps after it are skipped, a retry releases a handle twice 1ms
+     ✓ finds on throws what every schedule of throws shows  12873ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  4 failed | 4 passed | 5 expected fail | 4 skipped (17)
+exit=1
+restored
+dist rebuilt
+     × explains every violation 7ms
+     × P1–P7 hold 5ms
+     ✓ A1: closeAll still waits once every bound fired, behind a port that hangs (known limitation) 0ms
+     ✓ P8 T2 holds — expected failure P2: P8 T2: a teardown port that hangs holds the ensure whose build it belongs to, past every bound 1ms
+     ✓ P8 T2 holds — expected failure N1: P8 T2: the store hanging while a failed build marks the catalog holds the ensure past every bound 1ms
+     × explains every violation 1ms
+     × P1–P7 hold 2ms
+     × explains every violation 1ms
+     × P4–P6 hold 1ms
+     ✓ P7 holds — expected failure B1: P7: closeAll leaves `abandoned` without a handler while it waits for the closes; a release() that throws is an unhandled rejection 1ms
+     ✓ P7 holds — expected failure N2: P7: a port that throws on a late path (the four chains nobody awaits) is an unhandled rejection 1ms
+     ✓ P1–P3 hold — expected failure N3: P1–P3: a teardown port that throws ends the teardown: the steps after it are skipped, a retry releases a handle twice 1ms
+     ✓ finds on throws what every schedule of throws shows  13533ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  6 failed | 2 passed | 5 expected fail | 4 skipped (17)
+exit=1
+restored
+dist rebuilt
+     × explains every violation 10ms
+     × P1–P7 hold 3ms
+     ✓ A1: closeAll still waits once every bound fired, behind a port that hangs (known limitation) 1ms
+     ✓ P8 T2 holds — expected failure P2: P8 T2: a teardown port that hangs holds the ensure whose build it belongs to, past every bound 2ms
+     ✓ P8 T2 holds — expected failure N1: P8 T2: the store hanging while a failed build marks the catalog holds the ensure past every bound 1ms
+     × explains every violation 3ms
+     × P1–P7 hold 2ms
+     × explains every violation 5ms
+     ✓ P4–P6 hold 0ms
+     ✓ P7 holds — expected failure B1: P7: closeAll leaves `abandoned` without a handler while it waits for the closes; a release() that throws is an unhandled rejection 1ms
+     ✓ P7 holds — expected failure N2: P7: a port that throws on a late path (the four chains nobody awaits) is an unhandled rejection 1ms
+     ✓ P1–P3 hold — expected failure N3: P1–P3: a teardown port that throws ends the teardown: the steps after it are skipped, a retry releases a handle twice 1ms
+     ✓ finds on throws what every schedule of throws shows  7214ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  5 failed | 3 passed | 5 expected fail | 4 skipped (17)
+exit=1
+restored
+dist rebuilt

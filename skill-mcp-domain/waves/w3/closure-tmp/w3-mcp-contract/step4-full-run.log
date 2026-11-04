@@ -1,0 +1,45 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+
+ ❯ tests/public-entry.spec.ts (10 tests | 1 failed) 825ms
+   × the testing entry exports the conformance facilities 377ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/public-entry.spec.ts > the testing entry exports the conformance facilities
+AssertionError: expected [ 'NotApplicable', …(25) ] to deeply equal [ 'NotApplicable', …(24) ]
+
+- Expected
++ Received
+
+@@ -1,9 +1,10 @@
+  [
+    "NotApplicable",
+    "actionNameOf",
+    "classifyOutcomeCases",
++   "countingCredential",
+    "createMemoryAdoptionView",
+    "createMemoryCatalogStore",
+    "createMemoryCredentialUse",
+    "createMemoryProcessLanding",
+    "createMemoryUseEligibility",
+
+ ❯ tests/public-entry.spec.ts:111:39
+    109| it('the testing entry exports the conformance facilities', async () =>…
+    110|   const testing = (await import('@omne-harness/mcp-contract/testing'))…
+    111|   expect(Object.keys(testing).sort()).toEqual(TESTING)
+       |                                       ^
+    112| })
+    113|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 14 passed (15)
+      Tests  1 failed | 421 passed (422)
+Type Errors  no errors
+   Start at  05:53:28
+   Duration  4.81s (transform 1.27s, setup 0ms, import 2.39s, tests 1.76s, environment 1ms, typecheck 1.04s)
+

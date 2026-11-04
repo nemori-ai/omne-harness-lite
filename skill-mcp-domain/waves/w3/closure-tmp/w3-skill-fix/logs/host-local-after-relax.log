@@ -1,0 +1,5 @@
+     × inspects two legal packages and rejects one, lists the granted one, finds it by its description and reads its body 86ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/examples.spec.ts > the directory journey > inspects two legal packages and rejects one, lists the granted one, finds it by its description and reads its body
+      Tests  1 failed | 87 passed (88)
+Type Errors  no errors

@@ -1,0 +1,960 @@
+[
+ {
+  "name": "M100 D4: the scripted transport speaks a legacy version on discover",
+  "exit": 1,
+  "red": [
+   "refuses a legacy version among the versions it speaks on server/discover"
+  ]
+ },
+ {
+  "name": "M101 D4: the suite accepts a fixture that lists a legacy version",
+  "exit": 1,
+  "red": [
+   "fails each case before it opens a transport"
+  ]
+ },
+ {
+  "name": "M102 D16: a 5xx to discover is read like a 4xx",
+  "exit": 1,
+  "red": [
+   "T8 [D16] discover, discover-retry × http:500+-32020, http:500+-32021, http:500+-32022+common … (10) → no-answer (stream-broken)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M103 D5: a discover body of another status is ignored",
+  "exit": 1,
+  "red": [
+   "T8 [D04] discover × error:-32022+common, http:400+-32022+common, http:404+-32022+common … (8) → retry",
+   "T8 [D05] discover × error:-32022+modern, http:400+-32022+modern, http:404+-32022+modern … (8) → answer-malformed (discover-shape)",
+   "T8 [D07] discover-retry × error:-32022+common, error:-32022+modern, error:-32022+legacy … (24) → error-answer (as written)",
+   "T8 [D08] discover, discover-retry × error:-32020, error:-32021, http:400+-32020 … (16) → error-answer (as written)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M104 R4-5: legacy initialize declares elicitation.form (round-3 shape)",
+  "exit": 1,
+  "red": [
+   "T3 a legacy peer: discover falls back to initialize and initialized (item 7)",
+   "T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7)",
+   "T3 legacy: initialize offers the highest legacy version and declares no capability (item 7)",
+   "T3 streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)",
+   "T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M105 R4-5: a ping of the peer gets -32601",
+  "exit": 1,
+  "red": [
+   "T3 legacy: a ping of the peer gets an empty result and any other request -32601, before initialize is answered and after initialized (item 7)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M106 R4-5: requests of the peer before initialize is answered get no answer",
+  "exit": 1,
+  "red": [
+   "T3 legacy: a ping of the peer gets an empty result and any other request -32601, before initialize is answered and after initialized (item 7)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M107 R4-5: legacy Streamable HTTP cancel ends the answer stream",
+  "exit": 1,
+  "red": [
+   "T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M108 R4-5: the legacy session id is not carried",
+  "exit": 1,
+  "red": [
+   "T3 streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)",
+   "T8 [S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M109 S07: a 404 to the legacy session is connection-unavailable",
+  "exit": 1,
+  "red": [
+   "T8 [S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M110 S07: the transport stays usable after the session ended",
+  "exit": 1,
+  "red": [
+   "T8 [S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M111 R4-4: progress of another token reaches observe",
+  "exit": 1,
+  "red": [
+   "T3 a call carries a progress token unique per request; its progress params reach observe untrusted as written, other tokens are dropped (item 14)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M112 R4-4: any notification reaches observe as progress",
+  "exit": 1,
+  "red": [
+   "T3 a call carries a progress token unique per request; its progress params reach observe untrusted as written, other tokens are dropped (item 14)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M113 R4-3: a rejecting authorize rejects the operation",
+  "exit": 1,
+  "red": [
+   "T9 a credential handle whose authorize rejects or throws: not-sent (connection-unavailable), nothing reaches the peer",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M114 R4-3: a rejecting reportRejection rejects the operation",
+  "exit": 1,
+  "red": [
+   "T9 a credential handle whose reportRejection rejects: the refusal is still authorization-required",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M115 L03: a nextCursor that is not text is dropped",
+  "exit": 1,
+  "red": [
+   "T8 [L03] tools/list × result:cursor-invalid → answer-malformed (cursor-invalid)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M116 D15/O05: a 2xx without an answer is not-sent",
+  "exit": 1,
+  "red": [
+   "T8 [C04] tools/call × stream-broken, http:2xx, http:500+plain → sent, answer stream-broken",
+   "T8 [D15] discover, discover-retry × stream-broken, http:2xx → resend",
+   "T8 [I06] initialize × stream-broken, http:2xx, http:500+plain → no-answer (stream-broken)",
+   "T8 [O05] tools/list, tasks/get × stream-broken, http:2xx → resend",
+   "T8 [O06] tasks/update, tasks/cancel × stream-broken, http:2xx → no-answer (stream-broken)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M117 O07/C04: a 5xx without a JSON-RPC error is re-sent like a broken stream",
+  "exit": 1,
+  "red": [
+   "T8 [O07] tools/list, tasks/get, tasks/update … (4) × http:500+plain → no-answer (stream-broken)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M118 O08/C05/I07: a 4xx without a JSON-RPC error is no-answer",
+  "exit": 1,
+  "red": [
+   "T8 [C05] tools/call × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable)",
+   "T8 [I07] initialize × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable)",
+   "T8 [O08] tools/list, tasks/get, tasks/update … (4) × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M119 R4: a metadata document that is not an object counts as fetched",
+  "exit": 1,
+  "red": [
+   "T4 401: a named resource_metadata that is not a JSON object counts as unavailable and is still reported (item 11)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M120 D12: a 4xx body -32602 on discover is read as the answer",
+  "exit": 1,
+  "red": [
+   "T8 [D12] discover, discover-retry × http:400+-32601, http:400+-32602, http:400+other … (35) → legacy path, reports its failure",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M121 S01: a broken stdio stream leaves the transport usable",
+  "exit": 1,
+  "red": [
+   "T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable",
+   "T8 [S03] tools/call × stream-broken → sent, answer stream-broken, unusable",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M122 G06: -32602 on tasks/get is error-answer, not expired",
+  "exit": 1,
+  "red": [
+   "T8 [G06] tasks/get × error:-32602, http:400+-32602, http:404+-32602 … (9) → expired",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M123 N01: an HTTP answer to a notification ends the transport",
+  "exit": 1,
+  "red": [
+   "T8 [N01] notification × silent, stream-broken, process-exited … (88) → ignored",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M124 D02: a discover result with no version in common reports discover-shape",
+  "exit": 1,
+  "red": [
+   "T8 [D02] discover, discover-retry × result:no-common → legacy path, reports its failure",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M125 (r1 M04) D10: a non-modern error on discover is final",
+  "exit": 1,
+  "red": [
+   "T8 [D10] discover, discover-retry × error:-32602, error:other → legacy path, reports error-answer",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M126 (r1 M05) D13: the stdio probe time is final, not a fallback",
+  "exit": 1,
+  "red": [
+   "T8 [D13] discover, discover-retry × silent → legacy path, reports its failure",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M127 (r1 M08) D01: the version is the peer first one, not the highest in common",
+  "exit": 1,
+  "red": [
+   "T8 [D01] discover, discover-retry × result → read",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M128 (r1 M09) D01: serverInfo not read",
+  "exit": 1,
+  "red": [
+   "T2 discover: the modern answer is read to the peer identity",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M129 (r1 M23) D11/O03: an error with a non-integer code is read",
+  "exit": 1,
+  "red": [
+   "T8 [D11] discover, discover-retry × error:unreadable → legacy path, reports answer-malformed",
+   "T8 [I04] initialize × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape)",
+   "T8 [O03] tools/list, tasks/get, tasks/update … (4) × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M130 (r1 M24) L02: a result without tools is an empty page",
+  "exit": 1,
+  "red": [
+   "T8 [L02] tools/list × result:tools-missing → answer-malformed (tools-missing)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M131 (r1 M25) G02: an unknown status is working",
+  "exit": 1,
+  "red": [
+   "T8 [G02] tasks/get × result:status-unknown → answer-malformed (status-unknown)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M132 (r1 M26) G03: input_required without inputRequests is read",
+  "exit": 1,
+  "red": [
+   "T8 [G03] tasks/get × result:input-requests-missing → answer-malformed (input-requests-missing)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M133 (r1 M27) G04: completed without result is read",
+  "exit": 1,
+  "red": [
+   "T8 [G04] tasks/get × result:result-missing → answer-malformed (result-missing)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M134 (r1 M29) G01: hints dropped from the task report",
+  "exit": 1,
+  "red": [
+   "T6 a poll interval or ttl that is not a non-negative safe integer is left out (item 12)",
+   "T6 getTask reads the status, the input requests as untrusted and the hints (item 12)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M135 (r1 M41) C01/L01: a result is not handed over as written",
+  "exit": 1,
+  "red": [
+   "T1 call: a sent call hands over the request id and the raw result",
+   "T2 discover: the modern answer is read to the peer identity",
+   "T2 listActions: the page carries the tools, the next cursor and the ttl as written",
+   "T2 stdio: x-mcp-header is not checked and the page is handed over as written (item 8)",
+   "T2 streamable-http: a tool with an invalid x-mcp-header declaration is withheld (item 8)",
+   "T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7)",
+   "T3 a legacy peer: discover falls back to initialize and initialized (item 7)",
+   "T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7)",
+   "T3 every request and notification carries the three _meta keys and the fixed capabilities (item 7)",
+   "T3 instructions are cut to the byte limit of the material, the digest over the whole text",
+   "T3 legacy: a ping of the peer gets an empty result and any other request -32601, before initialize is answered and after initialized (item 7)",
+   "T3 legacy: initialize offers the highest legacy version and declares no capability (item 7)",
+   "T3 legacy: the instructions of initialize are cut to the byte limit of the material too",
+   "T3 streamable-http: each request carries MCP-Protocol-Version, Mcp-Method, and Mcp-Name for tools/call and tasks/* (item 7)",
+   "T3 streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)",
+   "T3, T5 stdio: after a -32022 retry the cancel notification carries the negotiated version (item 7)",
+   "T5 stdio: close() closes stdin, then cancels stdout, and does not stop the process (item 9)",
+   "T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9)",
+   "T6 a poll interval or ttl that is not a non-negative safe integer is left out (item 12)",
+   "T6 a ttl of null is unlimited and left out; a hint of another type is left out (item 12)",
+   "T6 getTask on a completed task reports the status without the result",
+   "T6 getTask reads the status, the input requests as untrusted and the hints (item 12)",
+   "T6 getTaskResult: completed is the result, failed is the error, cancelled is cancelled, working is not-finished",
+   "T8 [C01] tools/call × result → sent, answer result",
+   "T8 [D01] discover, discover-retry × result → read",
+   "T8 [D02] discover, discover-retry × result:no-common → legacy path, reports its failure",
+   "T8 [D03] discover, discover-retry × result:unreadable → legacy path, reports answer-malformed",
+   "T8 [D04] discover × error:-32022+common, http:400+-32022+common, http:404+-32022+common … (8) → retry",
+   "T8 [D06] discover × error:-32022+legacy, http:400+-32022+legacy, http:404+-32022+legacy … (8) → legacy path, reports its failure",
+   "T8 [D09] discover, discover-retry × error:-32601 → legacy path, reports its failure",
+   "T8 [D10] discover, discover-retry × error:-32602, error:other → legacy path, reports error-answer",
+   "T8 [D11] discover, discover-retry × error:unreadable → legacy path, reports answer-malformed",
+   "T8 [D12] discover, discover-retry × http:400+-32601, http:400+-32602, http:400+other … (35) → legacy path, reports its failure",
+   "T8 [D13] discover, discover-retry × silent → legacy path, reports its failure",
+   "T8 [D15] discover, discover-retry × stream-broken, http:2xx → resend",
+   "T8 [G01] tasks/get × result → read",
+   "T8 [G03] tasks/get × result:input-requests-missing → answer-malformed (input-requests-missing)",
+   "T8 [G04] tasks/get × result:result-missing → answer-malformed (result-missing)",
+   "T8 [G05] tasks/get × result:error-missing → answer-malformed (error-missing)",
+   "T8 [I01] initialize × result → read",
+   "T8 [L01] tools/list × result → read",
+   "T8 [L03] tools/list × result:cursor-invalid → answer-malformed (cursor-invalid)",
+   "T8 [N01] notification × silent, stream-broken, process-exited … (88) → ignored",
+   "T8 [O05] tools/list, tasks/get × stream-broken, http:2xx → resend",
+   "T8 [S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream",
+   "clears the stdio probe timer when the modern answer comes first",
+   "counts the stdio probe time from when the pace hook lets the peer answer",
+   "holds the answer until the pace hook lets the peer answer"
+  ]
+ },
+ {
+  "name": "M136 (r1 M45) W01: tasks/update sends the responses under another name",
+  "exit": 1,
+  "red": [
+   "T6 updateTask sends tasks/update with the task id, the input responses and the envelope; the ack is accepted",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M137 (r1 M46) W01: cancelTask sends tasks/get",
+  "exit": 1,
+  "red": [
+   "T3 streamable-http: each request carries MCP-Protocol-Version, Mcp-Method, and Mcp-Name for tools/call and tasks/* (item 7)",
+   "T6 cancelTask sends tasks/cancel with the envelope; the ack is requested; no notifications/cancelled",
+   "T8 [O01] tools/list, tasks/update, tasks/cancel × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written)",
+   "T8 [O03] tools/list, tasks/get, tasks/update … (4) × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape)",
+   "T8 [O04] tools/list, tasks/get, tasks/update … (4) × silent → no-answer (abandoned)",
+   "T8 [O06] tasks/update, tasks/cancel × stream-broken, http:2xx → no-answer (stream-broken)",
+   "T8 [O07] tools/list, tasks/get, tasks/update … (4) × http:500+plain → no-answer (stream-broken)",
+   "T8 [O08] tools/list, tasks/get, tasks/update … (4) × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable)",
+   "T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable",
+   "T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable",
+   "T8 [S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once",
+   "T8 [S06] discover, discover-retry, initialize … (8) × http:403 → not-sent (connection-unavailable)",
+   "T8 [S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable",
+   "T8 [W01] tasks/update, tasks/cancel × result → read",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M138 (r1 M49) L01: nextCursor dropped from the page",
+  "exit": 1,
+  "red": [
+   "T2 listActions: the page carries the tools, the next cursor and the ttl as written",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M139 (r1 M20) O04/I05/D14/C03: close does not settle the requests in flight",
+  "exit": 1,
+  "red": [
+   "T5 close() with a call in flight answers it no-answer (abandoned); later requests are not-sent",
+   "T8 [C03] tools/call × silent → sent, answer abandoned",
+   "T8 [D14] discover, discover-retry × silent → no-answer (abandoned)",
+   "T8 [I05] initialize × silent → no-answer (abandoned)",
+   "T8 [O04] tools/list, tasks/get, tasks/update … (4) × silent → no-answer (abandoned)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M140 (r1 M19) C03: the signal after sending does not settle the answer",
+  "exit": 1,
+  "red": [
+   "T5 a call whose signal fires after it was sent answers no-answer (abandoned)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M141 (r1 M22) S02/S04: a process exit is reported as a broken stream",
+  "exit": 1,
+  "red": [
+   "T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable",
+   "T8 [S04] tools/call × process-exited → sent, answer process-exited, unusable",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M142 D03: an unreadable discover result reports the legacy failure",
+  "exit": 1,
+  "red": [
+   "T8 [D03] discover, discover-retry × result:unreadable → legacy path, reports answer-malformed",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M143 I01: notifications/initialized is not sent",
+  "exit": 1,
+  "red": [
+   "T3 a legacy peer: discover falls back to initialize and initialized (item 7)",
+   "T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7)",
+   "T8 [I01] initialize × result → read",
+   "T8 [N01] notification × silent, stream-broken, process-exited … (88) → ignored",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M144 W01: cancelTask reads only an empty result",
+  "exit": 1,
+  "red": [
+   "T8 [W01] tasks/update, tasks/cancel × result → read",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M53 B1: tasks/update and tasks/cancel carry no _meta",
+  "exit": 1,
+  "red": [
+   "T3 streamable-http: each request carries MCP-Protocol-Version, Mcp-Method, and Mcp-Name for tools/call and tasks/* (item 7)",
+   "T6 cancelTask sends tasks/cancel with the envelope; the ack is requested; no notifications/cancelled",
+   "T6 updateTask sends tasks/update with the task id, the input responses and the envelope; the ack is accepted",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M54 B1b: no clientInfo in any _meta",
+  "exit": 1,
+  "red": [
+   "T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7)",
+   "T3 a legacy peer: discover falls back to initialize and initialized (item 7)",
+   "T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7)",
+   "T3 every request and notification carries the three _meta keys and the fixed capabilities (item 7)",
+   "T3 streamable-http: each request carries MCP-Protocol-Version, Mcp-Method, and Mcp-Name for tools/call and tasks/* (item 7)",
+   "T3 streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)",
+   "T5 stdio: cancelRequest sends notifications/cancelled with the request id and the envelope (item 9)",
+   "T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9)",
+   "T6 cancelTask sends tasks/cancel with the envelope; the ack is requested; no notifications/cancelled",
+   "T6 updateTask sends tasks/update with the task id, the input responses and the envelope; the ack is accepted",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M55 B1c: a notification carries the capabilities only",
+  "exit": 1,
+  "red": [
+   "T3 a legacy peer: discover falls back to initialize and initialized (item 7)",
+   "T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7)",
+   "T3 streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)",
+   "T3, T5 stdio: after a -32022 retry the cancel notification carries the negotiated version (item 7)",
+   "T5 stdio: cancelRequest sends notifications/cancelled with the request id and the envelope (item 9)",
+   "T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M56 B2b: legacy initialize declares sampling and roots",
+  "exit": 1,
+  "red": [
+   "T3 a legacy peer: discover falls back to initialize and initialized (item 7)",
+   "T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7)",
+   "T3 legacy: initialize offers the highest legacy version and declares no capability (item 7)",
+   "T3 streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)",
+   "T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M57 ruling 3: legacy initialize declares the tasks extension",
+  "exit": 1,
+  "red": [
+   "T3 legacy: initialize offers the highest legacy version and declares no capability (item 7)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M58 B3: reportRejection only for tools/call",
+  "exit": 1,
+  "red": [
+   "T4 401 on discover: authorization-required with no legacy fallback; reportRejection once (item 11)",
+   "T4 401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11)",
+   "T8 [S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M59 B3b: no reportRejection for tools/list",
+  "exit": 1,
+  "red": [
+   "T4 401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11)",
+   "T8 [S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M60 B4: any 403 with a Bearer challenge is authorization-required",
+  "exit": 1,
+  "red": [
+   "T8 [S06] discover, discover-retry, initialize … (8) × http:403 → not-sent (connection-unavailable)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M61 B5a: -32022 without a version in common falls back to legacy",
+  "exit": 1,
+  "red": [
+   "T8 [D05] discover × error:-32022+modern, http:400+-32022+modern, http:404+-32022+modern … (8) → answer-malformed (discover-shape)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M62 B5b: -32021 and -32020 fall back to legacy",
+  "exit": 1,
+  "red": [
+   "T8 [D08] discover, discover-retry × error:-32020, error:-32021, http:400+-32020 … (16) → error-answer (as written)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M63 B5c: -32022 after the retry falls back to legacy",
+  "exit": 1,
+  "red": [
+   "T8 [D07] discover-retry × error:-32022+common, error:-32022+modern, error:-32022+legacy … (24) → error-answer (as written)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M64 B6: legacy instructions not bounded",
+  "exit": 1,
+  "red": [
+   "T3 legacy: the instructions of initialize are cut to the byte limit of the material too",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M65 B8: _meta keeps the highest version after legacy negotiation",
+  "exit": 1,
+  "red": [
+   "T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7)",
+   "T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7)",
+   "T3 streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)",
+   "T3, T5 stdio: after a -32022 retry the cancel notification carries the negotiated version (item 7)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M66 ruling 2: _meta keeps the highest version after a -32022 retry",
+  "exit": 1,
+  "red": [
+   "T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7)",
+   "T3, T5 stdio: after a -32022 retry the cancel notification carries the negotiated version (item 7)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M67 ruling 2: initialize carries the modern version in _meta",
+  "exit": 1,
+  "red": [
+   "T3 legacy: initialize offers the highest legacy version and declares no capability (item 7)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M68 ruling 1: no Mcp-Name on tasks/*",
+  "exit": 1,
+  "red": [
+   "T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7)",
+   "T3 every request and notification carries the three _meta keys and the fixed capabilities (item 7)",
+   "T3 streamable-http: each request carries MCP-Protocol-Version, Mcp-Method, and Mcp-Name for tools/call and tasks/* (item 7)",
+   "T6 cancelTask sends tasks/cancel with the envelope; the ack is requested; no notifications/cancelled",
+   "T6 updateTask sends tasks/update with the task id, the input responses and the envelope; the ack is accepted",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M69 ruling 1: Mcp-Name on every request",
+  "exit": 1,
+  "red": [
+   "T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7)",
+   "T3 a legacy peer: discover falls back to initialize and initialized (item 7)",
+   "T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7)",
+   "T3 every request and notification carries the three _meta keys and the fixed capabilities (item 7)",
+   "T3 streamable-http: each request carries MCP-Protocol-Version, Mcp-Method, and Mcp-Name for tools/call and tasks/* (item 7)",
+   "T3 streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)",
+   "T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M70 ruling 1: MCP-Protocol-Version header is always the highest version",
+  "exit": 1,
+  "red": [
+   "T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7)",
+   "T3 a legacy peer: discover falls back to initialize and initialized (item 7)",
+   "T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7)",
+   "T3 streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)",
+   "T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M71 ruling 4: every 400 on discover is a legacy peer",
+  "exit": 1,
+  "red": [
+   "T8 [D04] discover × error:-32022+common, http:400+-32022+common, http:404+-32022+common … (8) → retry",
+   "T8 [D05] discover × error:-32022+modern, http:400+-32022+modern, http:404+-32022+modern … (8) → answer-malformed (discover-shape)",
+   "T8 [D07] discover-retry × error:-32022+common, error:-32022+modern, error:-32022+legacy … (24) → error-answer (as written)",
+   "T8 [D08] discover, discover-retry × error:-32020, error:-32021, http:400+-32020 … (16) → error-answer (as written)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M72 ruling 4: every JSON-RPC 400 on discover is an error answer",
+  "exit": 1,
+  "red": [
+   "T8 [D12] discover, discover-retry × http:400+-32601, http:400+-32602, http:400+other … (35) → legacy path, reports its failure",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M73 ruling 4: a JSON-RPC error body of an HTTP error is not-sent",
+  "exit": 1,
+  "red": [
+   "T8 [C02] tools/call × error:-32020, error:-32021, error:-32022+common … (81) → sent, answer error",
+   "T8 [G06] tasks/get × error:-32602, http:400+-32602, http:404+-32602 … (9) → expired",
+   "T8 [I03] initialize × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written)",
+   "T8 [I04] initialize × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape)",
+   "T8 [O01] tools/list, tasks/update, tasks/cancel × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written)",
+   "T8 [O02] tasks/get × error:-32020, error:-32021, error:-32022+common … (63) → error-answer (as written)",
+   "T8 [O03] tools/list, tasks/get, tasks/update … (4) × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M74 ruling 6: legacy version not checked against the list",
+  "exit": 1,
+  "red": [
+   "T8 [I02] initialize × result:unreadable → answer-malformed (discover-shape)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M75 T3: -32601 reports the modern failure",
+  "exit": 1,
+  "red": [
+   "T8 [D09] discover, discover-retry × error:-32601 → legacy path, reports its failure",
+   "T8 [I02] initialize × result:unreadable → answer-malformed (discover-shape)",
+   "T8 [I03] initialize × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written)",
+   "T8 [I04] initialize × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape)",
+   "T8 [I05] initialize × silent → no-answer (abandoned)",
+   "T8 [I06] initialize × stream-broken, http:2xx, http:500+plain → no-answer (stream-broken)",
+   "T8 [I07] initialize × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable)",
+   "T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable",
+   "T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable",
+   "T8 [S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once",
+   "T8 [S06] discover, discover-retry, initialize … (8) × http:403 → not-sent (connection-unavailable)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M76 C6: probe time starts before the pace hook",
+  "exit": 1,
+  "red": [
+   "counts the stdio probe time from when the pace hook lets the peer answer"
+  ]
+ },
+ {
+  "name": "M77 C6: probe timer not cleared by the answer",
+  "exit": 1,
+  "red": [
+   "clears the stdio probe timer when the modern answer comes first"
+  ]
+ },
+ {
+  "name": "M78 C7: failed without error makes up an error",
+  "exit": 1,
+  "red": [
+   "T8 [G05] tasks/get × result:error-missing → answer-malformed (error-missing)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M79 C7: an error that is not an object is accepted",
+  "exit": 1,
+  "red": [
+   "T8 [G05] tasks/get × result:error-missing → answer-malformed (error-missing)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M80 C9: a negative hint is kept",
+  "exit": 1,
+  "red": [
+   "T6 a poll interval or ttl that is not a non-negative safe integer is left out (item 12)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream",
+   "task: a hint written with an exponent or a sign is left out, as is an unsafe integer",
+   "task: a negative or fractional poll interval or ttl is left out"
+  ]
+ },
+ {
+  "name": "M81 C9: an unsafe hint is kept",
+  "exit": 1,
+  "red": [
+   "T6 a poll interval or ttl that is not a non-negative safe integer is left out (item 12)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream",
+   "task: zero is a hint; an integer past the safe range is left out"
+  ]
+ },
+ {
+  "name": "M82 C1: observedProcess does not carry the pipes (round-1 shape)",
+  "exit": 1,
+  "red": [
+   "T5 stdio: close() closes stdin, then cancels stdout, and does not stop the process (item 9)"
+  ]
+ },
+ {
+  "name": "M84 C2: another 403 with a challenge still reports the rejection",
+  "exit": 1,
+  "red": [
+   "T8 [S06] discover, discover-retry, initialize … (8) × http:403 → not-sent (connection-unavailable)",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M85 record: headers recorded on stdio too",
+  "exit": 1,
+  "red": [
+   "records the MCP request headers of a Streamable HTTP request, and none on stdio"
+  ]
+ },
+ {
+  "name": "M86 C1: observedProcess forwards the end of stdout",
+  "exit": 1,
+  "red": [
+   "T5 stdio: close() closes stdin, then cancels stdout, and does not stop the process (item 9)"
+  ]
+ },
+ {
+  "name": "M87 N2: tools/call keeps the highest version after a modern retry",
+  "exit": 1,
+  "red": [
+   "T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M88 N2b: notifications/cancelled keeps the highest version",
+  "exit": 1,
+  "red": [
+   "T3, T5 stdio: after a -32022 retry the cancel notification carries the negotiated version (item 7)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M89 N2c: tasks/* keep the highest version after a modern retry",
+  "exit": 1,
+  "red": [
+   "T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M90 N1d: MCP-Protocol-Version header is the highest while _meta follows negotiation",
+  "exit": 1,
+  "red": [
+   "T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7)",
+   "T3 a legacy peer: discover falls back to initialize and initialized (item 7)",
+   "T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7)",
+   "T3 streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)",
+   "T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M91 N4c: a 400 JSON-RPC answer to tools/call is not-sent",
+  "exit": 1,
+  "red": [
+   "T8 [C02] tools/call × error:-32020, error:-32021, error:-32022+common … (81) → sent, answer error",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M92 N4d: a 400 JSON-RPC answer to tools/list is connection-unavailable",
+  "exit": 1,
+  "red": [
+   "T8 [O01] tools/list, tasks/update, tasks/cancel × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written)",
+   "T8 [O03] tools/list, tasks/get, tasks/update … (4) × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape)",
+   "T8 [O07] tools/list, tasks/get, tasks/update … (4) × http:500+plain → no-answer (stream-broken)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M93 N5c: getTask accepts an error that is not an object",
+  "exit": 1,
+  "red": [
+   "T8 [G05] tasks/get × result:error-missing → answer-malformed (error-missing)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M94 N6b: legacy initialize accepts a version the transport speaks on discover",
+  "exit": 1,
+  "red": [
+   "T8 [I02] initialize × result:unreadable → answer-malformed (discover-shape)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M95 N6c: legacy version checked by date range",
+  "exit": 1,
+  "red": [
+   "T8 [I02] initialize × result:unreadable → answer-malformed (discover-shape)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M96 D2: the legacy connection _meta declares the tasks extension",
+  "exit": 1,
+  "red": [
+   "T3 a legacy peer: discover falls back to initialize and initialized (item 7)",
+   "T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7)",
+   "T3 streamable-http: on the legacy path each later request carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7)",
+   "T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9)",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M97 D3: -32022 without a modern supported version is discover-shape",
+  "exit": 1,
+  "red": [
+   "T8 [D06] discover × error:-32022+legacy, http:400+-32022+legacy, http:404+-32022+legacy … (8) → legacy path, reports its failure",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M98 D3: -32022 supported versions are not filtered to modern ones",
+  "exit": 1,
+  "red": [
+   "T8 [D06] discover × error:-32022+legacy, http:400+-32022+legacy, http:404+-32022+legacy … (8) → legacy path, reports its failure",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ },
+ {
+  "name": "M99 D3: a discover result with no version in common is discover-shape",
+  "exit": 1,
+  "red": [
+   "T8 [D02] discover, discover-retry × result:no-common → legacy path, reports its failure",
+   "a transport that does not report a refused authorization to the handle",
+   "a transport that re-sends tools/call after a broken stream"
+  ]
+ }
+]

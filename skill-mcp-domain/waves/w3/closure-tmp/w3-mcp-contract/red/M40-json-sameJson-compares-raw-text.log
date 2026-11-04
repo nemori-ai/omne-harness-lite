@@ -1,0 +1,14 @@
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+
+ ❯ tests/json-equality.spec.ts (3 tests | 1 failed) 11ms
+     ✓ sorts object members by name at every depth and keeps number lexemes 2ms
+     × treats trees that differ only in member order as the same 6ms
+     ✓ tells apart a different value, a different member and a different number lexeme 1ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+Type Errors  no errors
+   Start at  05:57:11
+   Duration  379ms (transform 169ms, setup 0ms, import 217ms, tests 11ms, environment 0ms)
+

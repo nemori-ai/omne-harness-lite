@@ -1,0 +1,222 @@
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+
+ ❯ tests/transport-conformance.spec.ts (211 tests | 4 failed) 784ms
+       ✓ T8 [D01] discover, discover-retry × result → read 11ms
+       ✓ T8 [D02] discover, discover-retry × result:no-common → legacy path, reports its failure 3ms
+       ✓ T8 [D03] discover, discover-retry × result:unreadable → legacy path, reports answer-malformed 5ms
+       ✓ T8 [D04] discover × error:-32022+common, http:400+-32022+common, http:404+-32022+common … (8) → retry 4ms
+       ✓ T8 [D05] discover × error:-32022+modern, http:400+-32022+modern, http:404+-32022+modern … (8) → answer-malformed (discover-shape) 4ms
+       ✓ T8 [D06] discover × error:-32022+legacy, http:400+-32022+legacy, http:404+-32022+legacy … (8) → legacy path, reports its failure 5ms
+       ✓ T8 [D07] discover-retry × error:-32022+common, error:-32022+modern, error:-32022+legacy … (24) → error-answer (as written) 12ms
+       ✓ T8 [D08] discover, discover-retry × error:-32020, error:-32021, http:400+-32020 … (16) → error-answer (as written) 4ms
+       ✓ T8 [D09] discover, discover-retry × error:-32601 → legacy path, reports its failure 1ms
+       ✓ T8 [D10] discover, discover-retry × error:-32602, error:other → legacy path, reports error-answer 2ms
+       ✓ T8 [D11] discover, discover-retry × error:unreadable → legacy path, reports answer-malformed 4ms
+       ✓ T8 [D12] discover, discover-retry × http:400+-32601, http:400+-32602, http:400+other … (35) → legacy path, reports its failure 34ms
+       ✓ T8 [D13] discover, discover-retry × silent → legacy path, reports its failure 5ms
+       ✓ T8 [D14] discover, discover-retry × silent → no-answer (abandoned) 4ms
+       ✓ T8 [D15] discover, discover-retry × stream-broken, http:2xx → resend 1ms
+       ✓ T8 [D16] discover, discover-retry × http:5xx+-32020, http:5xx+-32021, http:5xx+-32022+common … (10) → no-answer (stream-broken) 5ms
+       ✓ T8 [I01] initialize × result → read 1ms
+       ✓ T8 [I02] initialize × result:unreadable → answer-malformed (discover-shape) 1ms
+       ✓ T8 [I03] initialize × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written) 18ms
+       ✓ T8 [I04] initialize × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape) 3ms
+       ✓ T8 [I05] initialize × silent → no-answer (abandoned) 4ms
+       ✓ T8 [I06] initialize × stream-broken, http:2xx, http:5xx+plain → no-answer (stream-broken) 1ms
+       ✓ T8 [I07] initialize × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) 1ms
+       ✓ T8 [L01] tools/list × result → read 2ms
+       ✓ T8 [L02] tools/list × result:tools-missing → answer-malformed (tools-missing) 1ms
+       ✓ T8 [L03] tools/list × result:cursor-invalid → answer-malformed (cursor-invalid) 1ms
+       ✓ T8 [G01] tasks/get × result → read 1ms
+       ✓ T8 [G02] tasks/get × result:status-unknown → answer-malformed (status-unknown) 1ms
+       ✓ T8 [G03] tasks/get × result:input-requests-missing → answer-malformed (input-requests-missing) 1ms
+       ✓ T8 [G04] tasks/get × result:result-missing → answer-malformed (result-missing) 0ms
+       ✓ T8 [G05] tasks/get × result:error-missing → answer-malformed (error-missing) 1ms
+       ✓ T8 [G06] tasks/get × error:-32602, http:400+-32602, http:404+-32602 … (9) → expired 1ms
+       ✓ T8 [W01] tasks/update, tasks/cancel × result → read 1ms
+       ✓ T8 [O01] tools/list, tasks/update, tasks/cancel × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written) 19ms
+       ✓ T8 [O02] tasks/get × error:-32020, error:-32021, error:-32022+common … (63) → error-answer (as written) 9ms
+       ✓ T8 [O03] tools/list, tasks/get, tasks/update … (4) × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape) 7ms
+       ✓ T8 [O04] tools/list, tasks/get, tasks/update … (4) × silent → no-answer (abandoned) 17ms
+       ✓ T8 [O05] tools/list, tasks/get × stream-broken, http:2xx → resend 1ms
+       ✓ T8 [O06] tasks/update, tasks/cancel × stream-broken, http:2xx → no-answer (stream-broken) 1ms
+       × T8 [O07] tools/list, tasks/get, tasks/update … (4) × http:5xx+plain → no-answer (stream-broken) 12ms
+       ✓ T8 [O08] tools/list, tasks/get, tasks/update … (4) × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) 3ms
+       ✓ T8 [C01] tools/call × result → sent, answer result 2ms
+       ✓ T8 [C02] tools/call × error:-32020, error:-32021, error:-32022+common … (81) → sent, answer error 11ms
+       ✓ T8 [C03] tools/call × silent → sent, answer abandoned 0ms
+       ✓ T8 [C04] tools/call × stream-broken, http:2xx, http:5xx+plain → sent, answer stream-broken 1ms
+       ✓ T8 [C05] tools/call × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) 1ms
+       ✓ T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable 2ms
+       ✓ T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable 1ms
+       ✓ T8 [S03] tools/call × stream-broken → sent, answer stream-broken, unusable 0ms
+       ✓ T8 [S04] tools/call × process-exited → sent, answer process-exited, unusable 0ms
+       ✓ T8 [S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once 2ms
+       ✓ T8 [S06] discover, discover-retry, initialize … (8) × http:403 → not-sent (connection-unavailable) 1ms
+       ✓ T8 [S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable 2ms
+       ✓ T8 [X01] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable) 1ms
+       ✓ T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable 1ms
+       ✓ T8 [N01] notification × unsent, silent, stream-broken … (89) → ignored 17ms
+       ✓ T1 call: a sent call hands over the request id and the raw result 1ms
+       ✓ T1 call: after close() a call is not-sent and has no peer effect 0ms
+       ✓ T2 discover: the modern answer is read to the peer identity 0ms
+       ✓ T2 listActions: the page carries the tools, the next cursor and the ttl as written; a ttl that is not a non-negative safe integer is left out 1ms
+       ✓ T2 streamable-http: a tool with an invalid x-mcp-header declaration is withheld (item 8) 1ms
+       ✓ T2 stdio: x-mcp-header is not checked and the page is handed over as written (item 8) 0ms
+       ✓ T3 every request and notification carries the three _meta keys and the fixed capabilities (item 7) 1ms
+       ✓ T3 streamable-http: each request carries MCP-Protocol-Version, Mcp-Method, and Mcp-Name for tools/call and tasks/* (item 7) 1ms
+       ✓ T3 a legacy peer: discover falls back to initialize and initialized (item 7) 1ms
+       ✓ T3 legacy: initialize offers the highest legacy version and declares no capability (item 7) 0ms
+       ✓ T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7) 0ms
+       ✓ T3 streamable-http: on the legacy path each later request and notification carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7) 1ms
+       ✓ T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7) 1ms
+       ✓ T3, T5 stdio: after a -32022 retry the cancel notification carries the negotiated version (item 7) 1ms
+       ✓ T3 legacy: a ping of the peer gets an empty result and any other request -32601, before initialize is answered and after initialized (item 7) 0ms
+       ✓ T3 instructions are cut to the byte limit of the material, the digest over the whole text 1ms
+       ✓ T3 legacy: the instructions of initialize are cut to the byte limit of the material too 0ms
+       ✓ T3 a call carries a progress token unique per request; its progress params reach observe untrusted as written, other tokens are dropped (item 14) 1ms
+       ✓ T4 401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11) 1ms
+       ✓ T4 401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11) 0ms
+       ✓ T4 401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header; reportRejection once (item 11) 0ms
+       ✓ T4 401: a named resource_metadata that is not a JSON object counts as unavailable and is still reported (item 11) 0ms
+       ✓ T4 401 on discover: authorization-required with no legacy fallback; reportRejection once (item 11) 0ms
+       ✓ T4 403 insufficient_scope: authorization-required with the scope of the header; reportRejection once (item 11) 0ms
+       ✓ T4 401 on a request that no handle authorized is still authorization-required 0ms
+       ✓ T5 stdio: cancelRequest sends notifications/cancelled with the request id and the envelope (item 9) 0ms
+       ✓ T5 streamable-http: cancelRequest ends the answer stream, answer settles no-answer (abandoned), and no notification is sent (item 9) 0ms
+       ✓ T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9) 0ms
+       ✓ T5 stdio: close() closes stdin, then cancels stdout, and does not stop the process (item 9) 1ms
+       ✓ T5 a call whose signal fires after it was sent answers no-answer (abandoned) 1ms
+       ✓ T5 close() with a call in flight answers it no-answer (abandoned); later requests are not-sent 0ms
+       ✓ T5 a call still being authorized when close() ran is not-sent and never reaches the peer 0ms
+       ✓ T6 getTask reads the status, the input requests as untrusted and the hints (item 12) 0ms
+       ✓ T6 getTask on a completed task reports the status without the result 0ms
+       ✓ T6 getTaskResult: completed is the result, failed is the error, cancelled is cancelled, working is not-finished 0ms
+       ✓ T6 updateTask sends tasks/update with the task id, the input responses and the envelope; the ack is accepted 0ms
+       ✓ T6 cancelTask sends tasks/cancel with the envelope; the ack is requested; no notifications/cancelled 0ms
+       ✓ T6 a ttl of null is unlimited and left out; a hint of another type is left out (item 12) 0ms
+       ✓ T6 a poll interval or ttl that is not a non-negative safe integer is left out (item 12) 0ms
+       ✓ T9 a credential handle whose authorize rejects or throws: not-sent (connection-unavailable), nothing reaches the peer 0ms
+       ✓ T9 a credential handle whose reportRejection rejects: the refusal is still authorization-required 0ms
+       ✓ T8 [D01] discover, discover-retry × result → read 1ms
+       ✓ T8 [D02] discover, discover-retry × result:no-common → legacy path, reports its failure 1ms
+       ✓ T8 [D03] discover, discover-retry × result:unreadable → legacy path, reports answer-malformed 2ms
+       ✓ T8 [D04] discover × error:-32022+common, http:400+-32022+common, http:404+-32022+common … (8) → retry 1ms
+       ✓ T8 [D05] discover × error:-32022+modern, http:400+-32022+modern, http:404+-32022+modern … (8) → answer-malformed (discover-shape) 1ms
+       ✓ T8 [D06] discover × error:-32022+legacy, http:400+-32022+legacy, http:404+-32022+legacy … (8) → legacy path, reports its failure 5ms
+       ✓ T8 [D07] discover-retry × error:-32022+common, error:-32022+modern, error:-32022+legacy … (24) → error-answer (as written) 4ms
+       ✓ T8 [D08] discover, discover-retry × error:-32020, error:-32021, http:400+-32020 … (16) → error-answer (as written) 3ms
+       ✓ T8 [D09] discover, discover-retry × error:-32601 → legacy path, reports its failure 1ms
+       ✓ T8 [D10] discover, discover-retry × error:-32602, error:other → legacy path, reports error-answer 1ms
+       ✓ T8 [D11] discover, discover-retry × error:unreadable → legacy path, reports answer-malformed 2ms
+       ✓ T8 [D12] discover, discover-retry × http:400+-32601, http:400+-32602, http:400+other … (35) → legacy path, reports its failure 22ms
+       ✓ T8 [D13] discover, discover-retry × silent → legacy path, reports its failure 6ms
+       ✓ T8 [D14] discover, discover-retry × silent → no-answer (abandoned) 4ms
+       ✓ T8 [D15] discover, discover-retry × stream-broken, http:2xx → resend 1ms
+       ✓ T8 [D16] discover, discover-retry × http:5xx+-32020, http:5xx+-32021, http:5xx+-32022+common … (10) → no-answer (stream-broken) 3ms
+       ✓ T8 [I01] initialize × result → read 0ms
+       ✓ T8 [I02] initialize × result:unreadable → answer-malformed (discover-shape) 1ms
+       ✓ T8 [I03] initialize × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written) 8ms
+       ✓ T8 [I04] initialize × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape) 2ms
+       ✓ T8 [I05] initialize × silent → no-answer (abandoned) 5ms
+       ✓ T8 [I06] initialize × stream-broken, http:2xx, http:5xx+plain → no-answer (stream-broken) 1ms
+       ✓ T8 [I07] initialize × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) 1ms
+       ✓ T8 [L01] tools/list × result → read 1ms
+       ✓ T8 [L02] tools/list × result:tools-missing → answer-malformed (tools-missing) 0ms
+       ✓ T8 [L03] tools/list × result:cursor-invalid → answer-malformed (cursor-invalid) 0ms
+       ✓ T8 [G01] tasks/get × result → read 1ms
+       ✓ T8 [G02] tasks/get × result:status-unknown → answer-malformed (status-unknown) 1ms
+       ✓ T8 [G03] tasks/get × result:input-requests-missing → answer-malformed (input-requests-missing) 0ms
+       ✓ T8 [G04] tasks/get × result:result-missing → answer-malformed (result-missing) 0ms
+       ✓ T8 [G05] tasks/get × result:error-missing → answer-malformed (error-missing) 0ms
+       ✓ T8 [G06] tasks/get × error:-32602, http:400+-32602, http:404+-32602 … (9) → expired 1ms
+       ✓ T8 [W01] tasks/update, tasks/cancel × result → read 1ms
+       ✓ T8 [O01] tools/list, tasks/update, tasks/cancel × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written) 17ms
+       ✓ T8 [O02] tasks/get × error:-32020, error:-32021, error:-32022+common … (63) → error-answer (as written) 9ms
+       ✓ T8 [O03] tools/list, tasks/get, tasks/update … (4) × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape) 7ms
+       ✓ T8 [O04] tools/list, tasks/get, tasks/update … (4) × silent → no-answer (abandoned) 17ms
+       ✓ T8 [O05] tools/list, tasks/get × stream-broken, http:2xx → resend 1ms
+       ✓ T8 [O06] tasks/update, tasks/cancel × stream-broken, http:2xx → no-answer (stream-broken) 0ms
+       × T8 [O07] tools/list, tasks/get, tasks/update … (4) × http:5xx+plain → no-answer (stream-broken) 1ms
+       ✓ T8 [O08] tools/list, tasks/get, tasks/update … (4) × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) 3ms
+       ✓ T8 [C01] tools/call × result → sent, answer result 1ms
+       ✓ T8 [C02] tools/call × error:-32020, error:-32021, error:-32022+common … (81) → sent, answer error 10ms
+       ✓ T8 [C03] tools/call × silent → sent, answer abandoned 0ms
+       ✓ T8 [C04] tools/call × stream-broken, http:2xx, http:5xx+plain → sent, answer stream-broken 1ms
+       ✓ T8 [C05] tools/call × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) 1ms
+       ✓ T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable 1ms
+       ✓ T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable 0ms
+       ✓ T8 [S03] tools/call × stream-broken → sent, answer stream-broken, unusable 0ms
+       ✓ T8 [S04] tools/call × process-exited → sent, answer process-exited, unusable 0ms
+       ✓ T8 [S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once 1ms
+       ✓ T8 [S06] discover, discover-retry, initialize … (8) × http:403 → not-sent (connection-unavailable) 1ms
+       ✓ T8 [S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable 1ms
+       ✓ T8 [X01] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable) 1ms
+       ✓ T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable 1ms
+       ✓ T8 [N01] notification × unsent, silent, stream-broken … (89) → ignored 13ms
+       ✓ T1 call: a sent call hands over the request id and the raw result 0ms
+       ✓ T1 call: after close() a call is not-sent and has no peer effect 0ms
+       ✓ T2 discover: the modern answer is read to the peer identity 0ms
+       ✓ T2 listActions: the page carries the tools, the next cursor and the ttl as written; a ttl that is not a non-negative safe integer is left out 0ms
+       ✓ T2 streamable-http: a tool with an invalid x-mcp-header declaration is withheld (item 8) 0ms
+       ✓ T2 stdio: x-mcp-header is not checked and the page is handed over as written (item 8) 0ms
+       ✓ T3 every request and notification carries the three _meta keys and the fixed capabilities (item 7) 0ms
+       ✓ T3 streamable-http: each request carries MCP-Protocol-Version, Mcp-Method, and Mcp-Name for tools/call and tasks/* (item 7) 0ms
+       ✓ T3 a legacy peer: discover falls back to initialize and initialized (item 7) 1ms
+       ✓ T3 legacy: initialize offers the highest legacy version and declares no capability (item 7) 0ms
+       ✓ T3 after negotiation every request carries the negotiated version, on the legacy path too (item 7) 0ms
+       ✓ T3 streamable-http: on the legacy path each later request and notification carries the negotiated version in _meta and MCP-Protocol-Version, and the session id (item 7) 0ms
+       ✓ T3 -32022 with supported versions: one retry with the highest version in common, kept by every later request (item 7) 0ms
+       ✓ T3, T5 stdio: after a -32022 retry the cancel notification carries the negotiated version (item 7) 0ms
+       ✓ T3 legacy: a ping of the peer gets an empty result and any other request -32601, before initialize is answered and after initialized (item 7) 0ms
+       ✓ T3 instructions are cut to the byte limit of the material, the digest over the whole text 0ms
+       ✓ T3 legacy: the instructions of initialize are cut to the byte limit of the material too 0ms
+       ✓ T3 a call carries a progress token unique per request; its progress params reach observe untrusted as written, other tokens are dropped (item 14) 0ms
+       ✓ T4 401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11) 0ms
+       ✓ T4 401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11) 0ms
+       ✓ T4 401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header; reportRejection once (item 11) 0ms
+       ✓ T4 401: a named resource_metadata that is not a JSON object counts as unavailable and is still reported (item 11) 0ms
+       ✓ T4 401 on discover: authorization-required with no legacy fallback; reportRejection once (item 11) 0ms
+       ✓ T4 403 insufficient_scope: authorization-required with the scope of the header; reportRejection once (item 11) 0ms
+       ✓ T4 401 on a request that no handle authorized is still authorization-required 0ms
+       ✓ T5 stdio: cancelRequest sends notifications/cancelled with the request id and the envelope (item 9) 0ms
+       ✓ T5 streamable-http: cancelRequest ends the answer stream, answer settles no-answer (abandoned), and no notification is sent (item 9) 0ms
+       ✓ T5 streamable-http on a legacy revision: cancelRequest sends notifications/cancelled and does not end the answer stream (item 9) 0ms
+       ✓ T5 stdio: close() closes stdin, then cancels stdout, and does not stop the process (item 9) 0ms
+       ✓ T5 a call whose signal fires after it was sent answers no-answer (abandoned) 0ms
+       ✓ T5 close() with a call in flight answers it no-answer (abandoned); later requests are not-sent 0ms
+       ✓ T5 a call still being authorized when close() ran is not-sent and never reaches the peer 0ms
+       ✓ T6 getTask reads the status, the input requests as untrusted and the hints (item 12) 0ms
+       ✓ T6 getTask on a completed task reports the status without the result 0ms
+       ✓ T6 getTaskResult: completed is the result, failed is the error, cancelled is cancelled, working is not-finished 0ms
+       ✓ T6 updateTask sends tasks/update with the task id, the input responses and the envelope; the ack is accepted 0ms
+       ✓ T6 cancelTask sends tasks/cancel with the envelope; the ack is requested; no notifications/cancelled 0ms
+       ✓ T6 a ttl of null is unlimited and left out; a hint of another type is left out (item 12) 0ms
+       ✓ T6 a poll interval or ttl that is not a non-negative safe integer is left out (item 12) 0ms
+       ✓ T9 a credential handle whose authorize rejects or throws: not-sent (connection-unavailable), nothing reaches the peer 0ms
+       ✓ T9 a credential handle whose reportRejection rejects: the refusal is still authorization-required 0ms
+     ✓ fails each case before it opens a transport 3ms
+     ✓ names T1 to T6, the table T8, the port failures T9, and items 7 to 9, 11, 12 and 14 1ms
+     ✓ matches every cell of the domain with exactly one row 3ms
+     ✓ gives every row at least one cell and a unique id 11ms
+     ✓ has a case for every row 1ms
+     ✓ writes every row into SPEC T8, and no other row id 1ms
+     × a transport that re-sends tools/call after a broken stream 150ms
+     × a transport that does not report a refused authorization to the handle 145ms
+     ✓ T5 stdio: close() closes stdin, then cancels stdout, and does not stop the process (item 9) 2ms
+     ✓ counts the stdio probe time from when the pace hook lets the peer answer 7ms
+     ✓ clears the stdio probe timer when the modern answer comes first 3ms
+     ✓ records the MCP request headers of a Streamable HTTP request, and none on stdio 1ms
+     ✓ records each request with its method, params, _meta and progress token, and the cancel 2ms
+     ✓ holds the answer until the pace hook lets the peer answer 0ms
+     ✓ refuses a legacy version among the versions it speaks on server/discover 0ms
+     ✓ refuses to open on an aborted signal 0ms
+     ✓ throws for a script that gives an http reply on stdio material 0ms
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 207 passed (211)
+Type Errors  no errors
+   Start at  14:50:16
+   Duration  1.57s (transform 493ms, setup 0ms, import 601ms, tests 784ms, environment 0ms)
+

@@ -1,0 +1,13 @@
+diff --git a/packages/mcp/mcp/src/internal/teardown.ts b/packages/mcp/mcp/src/internal/teardown.ts
+index 85d211a11..a39b30ae7 100644
+--- a/packages/mcp/mcp/src/internal/teardown.ts
++++ b/packages/mcp/mcp/src/internal/teardown.ts
+@@ -55,7 +55,7 @@ async function closeOrder(entry: Entry): Promise<Scope> {
+ async function closeTransport(entry: Entry): Promise<void> {
+   const { transport } = entry
+   if (transport === undefined) return
+-  await answerOf(transport.close(), undefined)
++  await transport.close()
+   entry.transport = undefined
+ }
+ 

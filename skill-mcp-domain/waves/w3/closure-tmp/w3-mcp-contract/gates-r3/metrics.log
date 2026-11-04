@@ -1,0 +1,15 @@
+
+> omne-harness-lite-workspace@ metrics /home/user/omne-harness-lite/.worktrees/w3-mcp-contract
+> ./scripts/metrics.sh --base 1cbee8026 --out /tmp/claude-0/-home-user-omne-harness-lite/f1070bb8-fa26-55f8-8bda-04c4ceeaeb27/scratchpad/r3-metrics
+
+结构度量 c407fab9d · 分支 PanQiWei/skill-mcp-w3-mcp-contract · 基线 1cbee8026（函数变化 merge-base 1cbee802650b0237285d8211dbf88da9ce78aaf5）
+范围：变更 1 个成员、63 个函数；提交 4 个，每提交文件数中位 2、最大 16
+结构：依赖违规 0，环 1，变更触及的跨成员导入 0 条；成员风险 红 1、黄 11、绿 69
+圈复杂度（warn 10／alert 12）：变更函数超 alert 1、超 warn 3；存量超 alert 351、超 warn 216
+覆盖率：未开启，只报圈复杂度
+变更函数里超阈值的前 4 个：
+  packages/mcp/mcp-contract/src/testing-transport.ts:739 t3Cases CC 14
+  packages/mcp/mcp-contract/src/testing-scripted-transport.ts:321 readTaskAnswer CC 12
+  packages/mcp/mcp-contract/src/testing-scripted-transport.ts:632 ScriptedTransport.deliver CC 12
+  packages/mcp/mcp-contract/src/testing-scripted-transport.ts:299 readTask CC 11
+审讯页：/tmp/claude-0/-home-user-omne-harness-lite/f1070bb8-fa26-55f8-8bda-04c4ceeaeb27/scratchpad/r3-metrics/review.html

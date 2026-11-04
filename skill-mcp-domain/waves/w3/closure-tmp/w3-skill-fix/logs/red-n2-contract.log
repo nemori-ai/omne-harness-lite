@@ -1,0 +1,13 @@
+     × rejects a description of 16385 characters 8ms
+     × accepts a description of 1025 characters 7ms
+     × accepts a description of 16384 characters 1ms
+     × accepts a description of 16384 characters outside the basic plane 9ms
+     × has the limit that the public root exports 14ms
+     × accepts 1025 characters, more than the 1024 of the Agent Skills specification 4ms
+     × accepts 16384 characters 1ms
+     × accepts 16384 characters outside the basic plane 2ms
+   × exports the skill body port 11ms
+     × rejects 16385 characters as malformed, by YAML and line by line alike 15ms
+     × projects into an asset body that the category port takes 13ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  11 failed | 432 passed (443)

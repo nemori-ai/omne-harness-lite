@@ -1,0 +1,190 @@
+
+   • turbo 2.11.7
+   • Packages in scope: @omne-harness/skill, @omne-harness/skill-contract, @omne-harness/skill-host-local
+   • Running build, typecheck, test in 3 packages
+   • Remote caching disabled, using shared worktree cache
+
+@omne-harness/json-text:build: cache hit, replaying logs 28dde5bd3162547d
+@omne-harness/operation-result:build: cache hit, replaying logs 53bc3aa71d60520b
+@omne-harness/legal-identity:build: cache hit, replaying logs 9b263cf9b4706563
+@omne-harness/operation-result:build: 
+@omne-harness/operation-result:build: > @omne-harness/operation-result@0.0.0 build /home/user/omne-harness-lite/.worktrees/skill-mcp/packages/common/operation-result
+@omne-harness/operation-result:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/operation-result:build: 
+@omne-harness/legal-identity:build: 
+@omne-harness/legal-identity:build: > @omne-harness/legal-identity@0.0.0 build /home/user/omne-harness-lite/.worktrees/skill-mcp/packages/common/legal-identity
+@omne-harness/legal-identity:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/legal-identity:build: 
+@omne-harness/json-text:build: 
+@omne-harness/json-text:build: > @omne-harness/json-text@0.0.0 build /home/user/omne-harness-lite/.worktrees/skill-mcp/packages/common/json-text
+@omne-harness/json-text:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/json-text:build: 
+@omne-harness/assets:build: cache hit, replaying logs c928b7488a7a79ba
+@omne-harness/assets:build: 
+@omne-harness/assets:build: > @omne-harness/assets@0.0.0 build /home/user/omne-harness-lite/.worktrees/skill-mcp/packages/assets/assets
+@omne-harness/assets:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/assets:build: 
+@omne-harness/skill-contract:build: cache miss, executing 1ef5f65c594b3278
+@omne-harness/legal-identity:typecheck: cache hit, replaying logs e663199fbdbc6111
+@omne-harness/legal-identity:typecheck: 
+@omne-harness/legal-identity:typecheck: > @omne-harness/legal-identity@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/skill-mcp/packages/common/legal-identity
+@omne-harness/legal-identity:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/legal-identity:typecheck: 
+@omne-harness/operation-result:typecheck: cache hit, replaying logs f24fcff759a0f54f
+@omne-harness/operation-result:typecheck: 
+@omne-harness/operation-result:typecheck: > @omne-harness/operation-result@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/skill-mcp/packages/common/operation-result
+@omne-harness/operation-result:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/operation-result:typecheck: 
+@omne-harness/json-text:typecheck: cache hit, replaying logs 57813e21436e19e7
+@omne-harness/json-text:typecheck: 
+@omne-harness/json-text:typecheck: > @omne-harness/json-text@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/skill-mcp/packages/common/json-text
+@omne-harness/json-text:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/json-text:typecheck: 
+@omne-harness/assets:typecheck: cache hit, replaying logs 693e00b75706b191
+@omne-harness/assets:typecheck: 
+@omne-harness/assets:typecheck: > @omne-harness/assets@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/skill-mcp/packages/assets/assets
+@omne-harness/assets:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/assets:typecheck: 
+@omne-harness/skill-contract:typecheck: cache miss, executing e98a48b726ebe3df
+@omne-harness/skill-contract:typecheck: 
+@omne-harness/skill-contract:typecheck: > @omne-harness/skill-contract@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill-contract
+@omne-harness/skill-contract:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/skill-contract:typecheck: 
+@omne-harness/skill-contract:build: 
+@omne-harness/skill-contract:build: > @omne-harness/skill-contract@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill-contract
+@omne-harness/skill-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/skill-contract:build: 
+@omne-harness/skill-contract:test: cache bypass, force executing 3c5e46eb43600e6e
+@omne-harness/skill:build: cache miss, executing 2f434863ab8c3355
+@omne-harness/skill:typecheck: cache miss, executing 31e7a81504b5bfc8
+@omne-harness/skill-contract:test: 
+@omne-harness/skill-contract:test: > @omne-harness/skill-contract@0.0.0 test /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill-contract
+@omne-harness/skill-contract:test: > vitest run
+@omne-harness/skill-contract:test: 
+@omne-harness/skill:build: 
+@omne-harness/skill:build: > @omne-harness/skill@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill
+@omne-harness/skill:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/skill:build: 
+@omne-harness/skill:typecheck: 
+@omne-harness/skill:typecheck: > @omne-harness/skill@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill
+@omne-harness/skill:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/skill:typecheck: 
+@omne-harness/skill:test: cache bypass, force executing 810f6291e5a5c416
+@omne-harness/skill-host-local:build: cache miss, executing 514a4ccbfbdf281a
+@omne-harness/skill-host-local:typecheck: cache miss, executing 4c203ed2ad5127a4
+@omne-harness/skill:test: 
+@omne-harness/skill:test: > @omne-harness/skill@0.0.0 test /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill
+@omne-harness/skill:test: > vitest run
+@omne-harness/skill:test: 
+@omne-harness/skill-host-local:build: 
+@omne-harness/skill-host-local:build: > @omne-harness/skill-host-local@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill-host-local
+@omne-harness/skill-host-local:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/skill-host-local:build: 
+@omne-harness/skill-host-local:typecheck: 
+@omne-harness/skill-host-local:typecheck: > @omne-harness/skill-host-local@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill-host-local
+@omne-harness/skill-host-local:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/skill-host-local:typecheck: 
+@omne-harness/skill-host-local:test: cache bypass, force executing bcb50425247480da
+@omne-harness/skill-host-local:test: 
+@omne-harness/skill-host-local:test: > @omne-harness/skill-host-local@0.0.0 test /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill-host-local
+@omne-harness/skill-host-local:test: > vitest run
+@omne-harness/skill-host-local:test: 
+@omne-harness/skill-host-local:test: [33mTesting types with tsc and vue-tsc is an experimental feature.
+@omne-harness/skill-host-local:test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.[39m
+@omne-harness/skill:test: [33mTesting types with tsc and vue-tsc is an experimental feature.
+@omne-harness/skill:test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.[39m
+@omne-harness/skill-contract:test: [33mTesting types with tsc and vue-tsc is an experimental feature.
+@omne-harness/skill-contract:test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.[39m
+@omne-harness/skill:test: 
+@omne-harness/skill-contract:test: 
+@omne-harness/skill-contract:test: [1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill-contract[39m
+@omne-harness/skill-contract:test: 
+@omne-harness/skill:test: [1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill[39m
+@omne-harness/skill:test: 
+@omne-harness/skill-host-local:test: 
+@omne-harness/skill-host-local:test: [1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill-host-local[39m
+@omne-harness/skill-host-local:test: 
+@omne-harness/skill-host-local:test:  [32m✓[39m tests/open.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 116[2mms[22m[39m
+@omne-harness/skill-host-local:test:  [32m✓[39m tests/conformance.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 161[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/parse-declaration.spec.ts [2m([22m[2m40 tests[22m[2m)[22m[32m 295[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/parse-package.spec.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 294[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/parse-manifest.spec.ts [2m([22m[2m38 tests[22m[2m)[22m[33m 796[2mms[22m[39m
+@omne-harness/skill-contract:test:      [33m[2m✓[22m[39m accepts 4096 nodes and rejects 4097 [33m 329[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/declaration-schema.spec.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+@omne-harness/skill-host-local:test:  [32m✓[39m tests/permissions.spec.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 177[2mms[22m[39m
+@omne-harness/skill-host-local:test:  [32m✓[39m tests/examples.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 191[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/port-answers.spec.ts [2m([22m[2m52 tests[22m[2m)[22m[33m 469[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/contract-extension.spec.ts [2m([22m[2m40 tests[22m[2m)[22m[32m 298[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/conformance.spec.ts [2m([22m[2m33 tests[22m[2m)[22m[33m 639[2mms[22m[39m
+@omne-harness/skill-host-local:test:  [32m✓[39m tests/race.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 294[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/public-entry.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 466[2mms[22m[39m
+@omne-harness/skill-contract:test:    [33m[2m✓[22m[39m exports the five suites and the three memory doubles on the testing entry [33m 338[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/conformance.spec.ts [2m([22m[2m33 tests[22m[2m)[22m[32m 70[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/body-offset.spec.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+@omne-harness/skill-host-local:test:  [32m✓[39m tests/public-entry.spec.ts [2m([22m[2m1 test[22m[2m)[22m[33m 367[2mms[22m[39m
+@omne-harness/skill-host-local:test:    [33m[2m✓[22m[39m the root entry exports createDirectorySource and nothing else at run time [33m 362[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/read.spec.ts [2m([22m[2m33 tests[22m[2m)[22m[32m 208[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/gate.spec.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 141[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/values.spec.ts [2m([22m[2m127 tests[22m[2m)[22m[32m 155[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/parse-compat.spec.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 302[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/contract.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+@omne-harness/skill-host-local:test:  [32m✓[39m tests/snapshot.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 200[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/closed-sets.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/snapshot.spec.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+@omne-harness/skill-host-local:test:  [32m✓[39m tests/links.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 478[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m tests/catalog-suite.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/pin.spec.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/ref-identity.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 190[2mms[22m[39m
+@omne-harness/skill-host-local:test:  [32m✓[39m tests/encoding.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 86[2mms[22m[39m
+@omne-harness/skill-host-local:test:  [32m✓[39m tests/swap.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 242[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/catalog.spec.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 84[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/answer-parse.spec.ts [2m([22m[2m163 tests[22m[2m)[22m[32m 121[2mms[22m[39m
+@omne-harness/skill-contract:test:  [32m✓[39m [44m[1m TS [22m[49m tests/provider-types.spec-d.ts [2m([22m[2m2 tests[22m[2m)[22m
+@omne-harness/skill-contract:test:  [32m✓[39m [44m[1m TS [22m[49m tests/types.spec-d.ts [2m([22m[2m4 tests[22m[2m)[22m
+@omne-harness/skill-contract:test: 
+@omne-harness/skill-contract:test: [2m Test Files [22m [1m[32m16 passed[39m[22m[90m (16)[39m
+@omne-harness/skill-contract:test: [2m      Tests [22m [1m[32m443 passed[39m[22m[90m (443)[39m
+@omne-harness/skill-contract:test: [2mType Errors [22m [2mno errors[22m
+@omne-harness/skill-contract:test: [2m   Start at [22m 14:44:08
+@omne-harness/skill-contract:test: [2m   Duration [22m 11.07s[2m (transform 6.22s, setup 0ms, import 11.55s, tests 2.90s, environment 1ms, typecheck 1.52s)[22m
+@omne-harness/skill-contract:test: 
+@omne-harness/skill:test:  [32m✓[39m tests/inspection.spec.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/range.spec.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+@omne-harness/skill-host-local:test:  [32m✓[39m tests/budget.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 8543[2mms[22m[39m
+@omne-harness/skill-host-local:test:      [33m[2m✓[22m[39m admits exactly 65536 visits [33m 2780[2mms[22m[39m
+@omne-harness/skill-host-local:test:      [33m[2m✓[22m[39m makes snapshot answer entry-unreadable at 65537 visits [33m 1848[2mms[22m[39m
+@omne-harness/skill-host-local:test:      [33m[2m✓[22m[39m counts the visits that links repeat, under and over the budget [33m 2577[2mms[22m[39m
+@omne-harness/skill-host-local:test:      [33m[2m✓[22m[39m stops a fan-out that would visit millions of entries [33m 1326[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/describe.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/bytes.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/mapping.spec.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/export.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+@omne-harness/skill-host-local:test:  [32m✓[39m [44m[1m TS [22m[49m tests/types.spec-d.ts [2m([22m[2m3 tests[22m[2m)[22m
+@omne-harness/skill-host-local:test: 
+@omne-harness/skill-host-local:test: [2m Test Files [22m [1m[32m12 passed[39m[22m[90m (12)[39m
+@omne-harness/skill-host-local:test: [2m      Tests [22m [1m[32m88 passed[39m[22m[90m (88)[39m
+@omne-harness/skill-host-local:test: [2mType Errors [22m [2mno errors[22m
+@omne-harness/skill-host-local:test: [2m   Start at [22m 14:44:08
+@omne-harness/skill-host-local:test: [2m   Duration [22m 12.76s[2m (transform 5.19s, setup 0ms, import 10.27s, tests 10.86s, environment 1ms, typecheck 971ms)[22m
+@omne-harness/skill-host-local:test: 
+@omne-harness/skill:test:  [32m✓[39m tests/match.spec.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/public-entry.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m tests/model/explore.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 26896[2mms[22m[39m
+@omne-harness/skill:test:    [33m[2m✓[22m[39m S1: answers an observer the same in a world and in its twin without the hidden identity [33m 23244[2mms[22m[39m
+@omne-harness/skill:test:    [33m[2m✓[22m[39m S2: an undecided port answer makes the whole answer unknown or source-unavailable [33m 1332[2mms[22m[39m
+@omne-harness/skill:test:    [33m[2m✓[22m[39m S3: a success gives only bytes of the pinned material [33m 745[2mms[22m[39m
+@omne-harness/skill:test:    [33m[2m✓[22m[39m S4: a page starts and ends on character boundaries within the page limit [33m 895[2mms[22m[39m
+@omne-harness/skill:test:    [33m[2m✓[22m[39m S5: the catalog answer does not depend on the completion order of the read checks [33m 420[2mms[22m[39m
+@omne-harness/skill:test:  [32m✓[39m [44m[1m TS [22m[49m tests/types.spec-d.ts [2m([22m[2m5 tests[22m[2m)[22m
+@omne-harness/skill:test: 
+@omne-harness/skill:test: [2m Test Files [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+@omne-harness/skill:test: [2m      Tests [22m [1m[32m478 passed[39m[22m[90m (478)[39m
+@omne-harness/skill:test: [2mType Errors [22m [2mno errors[22m
+@omne-harness/skill:test: [2m   Start at [22m 14:44:08
+@omne-harness/skill:test: [2m   Duration [22m 32.60s[2m (transform 10.40s, setup 0ms, import 17.05s, tests 29.03s, environment 2ms, typecheck 355ms)[22m
+@omne-harness/skill:test: 
+
+ Tasks:    17 successful, 17 total
+Cached:    8 cached, 17 total
+  Time:    48.679s 
+

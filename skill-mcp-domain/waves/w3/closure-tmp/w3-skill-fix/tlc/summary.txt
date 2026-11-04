@@ -1,0 +1,9 @@
+ReadGate_Change exit 0
+ReadGate_Abort exit 0
+ReadGate_Disclosure exit 0
+ReadGate_Order exit 0
+ReadGate_FlawRefusedAsBasis exit 12
+ReadGate_FlawUnknownAsEmpty exit 12
+ReadGate_FlawNoEntryDigest exit 12
+ReadGate_FlawNoCheckAfterSnapshot exit 12
+ReadGate_FlawCompletionOrder exit 12

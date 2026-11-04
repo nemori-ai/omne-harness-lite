@@ -1,0 +1,56 @@
+{
+ "scenario": {
+  "name": "rebuild",
+  "keys": [
+   "A"
+  ],
+  "ensures": 2,
+  "releases": 0,
+  "closeAll": true,
+  "loses": 0,
+  "deviations": [],
+  "budget": 0
+ },
+ "states": 3291,
+ "runs": 8705,
+ "depth": 23,
+ "frontier": 0,
+ "elapsedMs": 10831,
+ "violations": [
+  {
+   "property": "P8",
+   "signature": "N1",
+   "detail": "eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "fire T(bA1)"
+   ],
+   "depth": 4,
+   "seen": 605
+  },
+  {
+   "property": "P8",
+   "signature": "P2",
+   "detail": "eA1 waiting after every bound fired; pending: credential.release hA1",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "closeAll",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "fire T(bA1)"
+   ],
+   "depth": 6,
+   "seen": 583
+  }
+ ],
+ "closeWaits": [
+  "ensure A",
+  "answer adoption.endpoint:A ok",
+  "closeAll",
+  "fire T(eA1)",
+  "fire T(bA1)"
+ ]
+}

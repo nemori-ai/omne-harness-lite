@@ -1,0 +1,20 @@
+     × is kept whole, with the hint description-over-limit 8ms
+     × is the name of the definition, with the hint name-differs-from-root 14ms
+     × keeps only the text values of a nested map, with the hint metadata-not-text-map 5ms
+     × keeps only the text values of a value that is a number, with the hint metadata-not-text-map 12ms
+     × keeps only the text values of a map without text values, with the hint metadata-not-text-map 12ms
+     × leaves out metadata that is no map at all, with the hint 1ms
+     × reads name and description line by line for an unquoted ": " in the description 6ms
+     × reads name and description line by line for a YAML syntax error in another field 1ms
+     × reads name and description line by line for a duplicate key in metadata 0ms
+     × reads name and description line by line for a tag that YAML cannot resolve 12ms
+     × reads name and description line by line for a second document 1ms
+     × reads name and description line by line for quoted values and a comment 1ms
+     × reads name and description line by line for a plain description that goes on in indented lines 1ms
+     × reads name and description line by line for a double-quoted description with an escape 7ms
+     × reads the same with CRLF line ends 1ms
+     × gives every hint that applies, in the order of the set 2ms
+     × compares a name read line by line with the expected name 14ms
+     × accepts a name that differs from the root name when it equals the expected name 29ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 18 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  18 failed | 71 passed (89)

@@ -1,0 +1,8 @@
+
+> omne-harness-lite-workspace@ format:check /home/user/omne-harness-lite/.worktrees/w3-skill-fix
+> ./scripts/format.sh check
+
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 1739ms on 3733 files using 4 threads.

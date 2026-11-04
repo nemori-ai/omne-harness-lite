@@ -1,0 +1,11 @@
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+
+ ✓ tests/transport-conformance.spec.ts (207 tests) 946ms
+
+ Test Files  1 passed (1)
+      Tests  207 passed (207)
+Type Errors  no errors
+   Start at  11:40:49
+   Duration  1.77s (transform 457ms, setup 0ms, import 564ms, tests 946ms, environment 0ms)
+

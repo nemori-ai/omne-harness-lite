@@ -1,0 +1,6 @@
+     × accepts a name that differs from the root name when it equals the expected name 15ms
+     × is the name of the definition, with the hint name-differs-from-root 11ms
+     × is accepted for a name read line by line too, with both hints 1ms
+     × gives every hint that applies, in the order of the set 2ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  4 failed | 441 passed (445)

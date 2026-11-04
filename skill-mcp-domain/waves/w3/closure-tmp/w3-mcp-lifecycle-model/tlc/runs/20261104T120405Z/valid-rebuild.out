@@ -1,0 +1,25 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 0 and seed 146314351906467978 with 4 workers on 4 cores with 3040MB heap and 64MB offheap memory [pid: 32308] (Linux 6.18.44-fc-v233 amd64, Ubuntu 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp/verification/models/ConnectionTable.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module ConnectionTable
+Starting... (2026-11-04 12:04:06)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-04 12:04:06.
+Progress(50) at 2026-11-04 12:04:09: 86,816 states generated (86,816 s/min), 62,806 distinct states found (62,806 ds/min), 4,217 states left on queue.
+Progress(73) at 2026-11-04 12:05:09: 698,145 states generated (611,329 s/min), 523,625 distinct states found (460,819 ds/min), 34,256 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.1E-8
+  based on the actual fingerprints:  val = 2.5E-8
+998517 states generated, 725887 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 88.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 5 and the 95th percentile is 2).
+Finished in 02min 01s at (2026-11-04 12:06:07)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=38247 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=

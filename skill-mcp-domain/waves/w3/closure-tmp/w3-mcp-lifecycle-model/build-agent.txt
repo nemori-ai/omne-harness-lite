@@ -1,0 +1,96 @@
+
+   • turbo 2.11.7
+   • Packages in scope: @omne-harness/agent
+   • Running build in 1 package
+   • Remote caching disabled, using shared worktree cache
+
+@omne-harness/modality:build: cache hit, replaying logs b1f4ea42850e0307
+@omne-harness/modality:build: 
+@omne-harness/modality:build: > @omne-harness/modality@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/common/modality
+@omne-harness/modality:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/modality:build: 
+@omne-harness/content-block:build: cache hit, replaying logs d269540550fdbd5f
+@omne-harness/content-block:build: 
+@omne-harness/content-block:build: > @omne-harness/content-block@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/content-block
+@omne-harness/content-block:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/content-block:build: 
+@omne-harness/utc-instant:build: cache hit, replaying logs 75bab83565a35eff
+@omne-harness/utc-instant:build: 
+@omne-harness/utc-instant:build: > @omne-harness/utc-instant@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/common/utc-instant
+@omne-harness/utc-instant:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/utc-instant:build: 
+@omne-harness/operation-result:build: cache hit, replaying logs 8cf24eafbf742096
+@omne-harness/operation-result:build: 
+@omne-harness/operation-result:build: > @omne-harness/operation-result@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/operation-result
+@omne-harness/operation-result:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/operation-result:build: 
+@omne-harness/call-account:build: cache hit, replaying logs 50e26ad36039fb1c
+@omne-harness/call-account:build: 
+@omne-harness/call-account:build: > @omne-harness/call-account@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/common/call-account
+@omne-harness/call-account:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/call-account:build: 
+@omne-harness/exchange-refs:build: cache hit, replaying logs 11abdd8ee882dc95
+@omne-harness/exchange-refs:build: 
+@omne-harness/exchange-refs:build: > @omne-harness/exchange-refs@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/common/exchange-refs
+@omne-harness/exchange-refs:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/exchange-refs:build: 
+@omne-harness/legal-identity:build: cache hit, replaying logs 4567dcf3754432ea
+@omne-harness/legal-identity:build: 
+@omne-harness/legal-identity:build: > @omne-harness/legal-identity@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/legal-identity
+@omne-harness/legal-identity:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/legal-identity:build: 
+@omne-harness/json-text:build: cache hit, replaying logs 1fa44d812a5ce620
+@omne-harness/json-text:build: 
+@omne-harness/json-text:build: > @omne-harness/json-text@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/json-text
+@omne-harness/json-text:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/json-text:build: 
+@omne-harness/schema-provider:build: cache hit, replaying logs 76b914363d70f706
+@omne-harness/schema-provider:build: 
+@omne-harness/schema-provider:build: > @omne-harness/schema-provider@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/schema/schema-provider
+@omne-harness/schema-provider:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/schema-provider:build: 
+@omne-harness/runtime-context-contract:build: cache hit, replaying logs cedcd8d7e8bf816d
+@omne-harness/runtime-context-contract:build: 
+@omne-harness/runtime-context-contract:build: > @omne-harness/runtime-context-contract@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/context/runtime-context-contract
+@omne-harness/runtime-context-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/runtime-context-contract:build: 
+@omne-harness/message:build: cache hit, replaying logs de62ce8eaa6edb82
+@omne-harness/message:build: 
+@omne-harness/message:build: > @omne-harness/message@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/common/message
+@omne-harness/message:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/message:build: 
+@omne-harness/stream-arrival:build: cache hit, replaying logs a40ab78ce8b77a30
+@omne-harness/stream-arrival:build: 
+@omne-harness/stream-arrival:build: > @omne-harness/stream-arrival@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/common/stream-arrival
+@omne-harness/stream-arrival:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/stream-arrival:build: 
+@omne-harness/assets:build: cache hit, replaying logs 7c5d184769911653
+@omne-harness/assets:build: 
+@omne-harness/assets:build: > @omne-harness/assets@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/assets/assets
+@omne-harness/assets:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/assets:build: 
+@omne-harness/tool-contract:build: cache hit, replaying logs 775a396f6451a84a
+@omne-harness/tool-contract:build: 
+@omne-harness/tool-contract:build: > @omne-harness/tool-contract@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/tool/tool-contract
+@omne-harness/tool-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/tool-contract:build: 
+@omne-harness/model-contract:build: cache hit, replaying logs 2654b83494772a26
+@omne-harness/model-contract:build: 
+@omne-harness/model-contract:build: > @omne-harness/model-contract@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/model/model-contract
+@omne-harness/model-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/model-contract:build: 
+@omne-harness/agent-contract:build: cache hit, replaying logs b1019fd7ab1c13e7
+@omne-harness/agent-contract:build: 
+@omne-harness/agent-contract:build: > @omne-harness/agent-contract@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/agent/agent-contract
+@omne-harness/agent-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/agent-contract:build: 
+@omne-harness/agent:build: cache hit, replaying logs b94e709e45b405d1
+@omne-harness/agent:build: 
+@omne-harness/agent:build: > @omne-harness/agent@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-table/packages/agent/agent
+@omne-harness/agent:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/agent:build: 
+
+ Tasks:    17 successful, 17 total
+Cached:    17 cached, 17 total
+  Time:    832ms >>> FULL TURBO
+

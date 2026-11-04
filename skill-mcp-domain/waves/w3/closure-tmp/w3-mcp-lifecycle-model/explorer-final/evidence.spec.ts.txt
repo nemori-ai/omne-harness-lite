@@ -1,0 +1,79 @@
+// Temporary evidence runner (not committed): runs the scenarios and writes the results to tmp.
+import { writeFileSync } from 'node:fs'
+import { it } from 'vitest'
+import { explore, type Scenario } from './explore.ts'
+import { FAULTS, REBUILD, THROWS, TWO_KEYS, WIDE } from './scenarios.ts'
+
+const OUT =
+  '/home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/tmp/closures/w3-mcp-lifecycle-model/explorer-final'
+const TINY: Scenario = {
+  name: 'tiny-throws',
+  keys: ['A'],
+  ensures: 1,
+  releases: 0,
+  closeAll: true,
+  loses: 0,
+  deviations: ['throw'],
+  budget: 1,
+}
+const pick = (process.env.SCENARIOS ?? 'rebuild,faults,throws').split(',')
+const all: Scenario[] = [
+  REBUILD,
+  FAULTS,
+  THROWS,
+  WIDE,
+  TWO_KEYS,
+  TINY,
+  { ...TINY, name: 'tiny-throws-paths', exhaustivePaths: true },
+  {
+    name: 'wide-faults-d10',
+    keys: ['A'],
+    ensures: 2,
+    releases: 1,
+    closeAll: true,
+    loses: 1,
+    deviations: ['fail', 'reject', 'unconfirmed', 'throw'],
+    budget: 1,
+    maxDepth: 10,
+  },
+  {
+    name: 'two-keys-shutdown-d10',
+    keys: ['A', 'B'],
+    ensures: 1,
+    releases: 0,
+    closeAll: true,
+    loses: 0,
+    deviations: ['throw'],
+    budget: 1,
+    maxDepth: 10,
+  },
+]
+for (const scenario of all.filter(item => pick.includes(item.name)))
+  it(
+    scenario.name,
+    async () => {
+      const result = await explore(scenario, (states, runs, depth) =>
+        console.log(`${scenario.name} progress states=${states} runs=${runs} depth=${depth}`),
+      )
+      const lines = [
+        JSON.stringify({
+          name: scenario.name,
+          states: result.states,
+          runs: result.runs,
+          depth: result.depth,
+          frontier: result.frontier,
+          ms: result.elapsedMs,
+        }),
+      ]
+      for (const v of result.violations)
+        lines.push(
+          `${v.property} ${v.signature} cause=${v.cause} depth=${v.depth} seen=${v.seen}: ${v.detail}\n    ${v.trace.join('\n    ')}`,
+        )
+      if (result.closeWaits)
+        lines.push('A1 witness (closeWaits):\n    ' + result.closeWaits.join('\n    '))
+      writeFileSync(`${OUT}/${scenario.name}.txt`, lines.join('\n') + '\n')
+      writeFileSync(`${OUT}/${scenario.name}.json`, JSON.stringify(result, null, 1))
+      console.log(lines[0])
+    },
+    3_600_000,
+  )

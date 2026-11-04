@@ -1,0 +1,10 @@
+head f06b4e632 start 2026-11-04T10:22:00Z
+turbo exit 0 2026-11-04T10:22:12Z
+format:check exit 0 start 2026-11-04T10:22:21Z end 2026-11-04T10:22:26Z
+lint:oxlint exit 0 start 2026-11-04T10:22:21Z end 2026-11-04T10:22:26Z
+check:docs exit 0 start 2026-11-04T10:22:21Z end 2026-11-04T10:22:58Z
+lint:rules exit 0 start 2026-11-04T10:22:21Z end 2026-11-04T10:23:01Z
+lint:deps exit 0 start 2026-11-04T10:22:21Z end 2026-11-04T10:23:20Z
+crlf 2 2026-11-04T10:23:22Z
+i/crlf  w/crlf  attr/                 	packages.0.0.1.legacy/model/pi-ai-transport/resources/tokenizers/deepseek-v4/LICENSE
+i/crlf  w/crlf  attr/                 	packages.0.0.1.legacy/model/pi-ai-transport/resources/tokenizers/qwen-38-27b/LICENSE

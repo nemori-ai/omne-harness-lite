@@ -1,0 +1,7 @@
+
+> @omne-harness/mcp-contract@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+> rm -rf dist && tsc -p tsconfig.build.json
+
+src/testing-outcome-cases.ts(187,7): error TS2353: Object literal may only specify known properties, and 'pollIntervalMs' does not exist in type 'Readonly<{ kind: "task"; taskId: TaskId; issuedAt: Generation; }>'.
+ ELIFECYCLE  Command failed with exit code 1.
+build exit=1 (red: the task outcome type has no pollIntervalMs yet; dist not produced)

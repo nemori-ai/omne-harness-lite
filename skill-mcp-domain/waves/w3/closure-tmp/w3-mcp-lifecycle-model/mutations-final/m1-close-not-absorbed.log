@@ -1,0 +1,185 @@
+2026-11-04T12:26:57Z
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2338)
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2437)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2560)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2564)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2587)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2778)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2782)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 2805)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3102)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3104)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3106)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3135)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3137)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3445)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3447)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3449)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3478)
+(node:22619) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3480)
+ ❯ tests/model/lifecycle.spec.ts (17 tests | 2 failed | 4 skipped) 52918ms
+     ✓ explains every violation 2ms
+     ✓ P1–P7 hold 10ms
+     ✓ A1: closeAll still waits once every bound fired, behind a port that hangs (known limitation) 0ms
+     ✓ P8 T2 holds — expected failure P2: P8 T2: a teardown port that hangs holds the ensure whose build it belongs to, past every bound 7ms
+     ✓ P8 T2 holds — expected failure N1: P8 T2: the store hanging while a failed build marks the catalog holds the ensure past every bound 1ms
+     × explains every violation 2ms
+     × P1–P7 hold 2ms
+     ✓ explains every violation 0ms
+     ✓ P4–P6 hold 0ms
+     ✓ P7 holds — expected failure B1: P7: closeAll leaves `abandoned` without a handler while it waits for the closes; a release() that throws is an unhandled rejection 2ms
+     ✓ P7 holds — expected failure N2: P7: a port that throws on a late path (the four chains nobody awaits) is an unhandled rejection 1ms
+     ✓ P1–P3 hold — expected failure N3: P1–P3: a teardown port that throws ends the teardown: the steps after it are skipped, a retry releases a handle twice 1ms
+     ✓ finds on throws what every schedule of throws shows  10469ms
+     ↓ explains every violation
+     ↓ P1–P7 hold
+     ↓ explains every violation
+     ↓ P5 and P1–P7 hold
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > faults: one key, ensure, release, lose, closeAll, one port failing, rejecting or unconfirmed > explains every violation
+AssertionError: expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "P2 P2-held-without-entry: key A reports none and still holds hA1, pA1
++   ensure A
++   answer adoption.endpoint:A ok
++   release A
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   answer transport.close:tA1 reject",
++   "P1 P1-never-released: hA1 never released after the shutdown
++   ensure A
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   closeAll
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   fire T(bA1)
++   answer transport.close:tA1 reject",
++   "P3 P3-not-asked: pA1 never asked to stop after the shutdown
++   ensure A
++   answer adoption.endpoint:A ok
++   fire T(eA1)
++   answer credentials.acquire:A ok
++   answer landing.start:A ok
++   closeAll
++   answer transports.open:pA1 ok
++   answer transport.discover:tA1 ok
++   fire T(bA1)
++   answer transport.close:tA1 reject",
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:89:33
+     87|
+     88|   it('explains every violation', () => {
+     89|     expect(unexplained(result)).toEqual([])
+       |                                 ^
+     90|   })
+     91|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/model/lifecycle.spec.ts > faults: one key, ensure, release, lose, closeAll, one port failing, rejecting or unconfirmed > P1–P7 hold
+AssertionError: expected [ { property: 'P2', …(6) }, …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "cause": undefined,
++     "depth": 8,
++     "detail": "key A reports none and still holds hA1, pA1",
++     "property": "P2",
++     "seen": 60,
++     "signature": "P2-held-without-entry",
++     "trace": [
++       "ensure A",
++       "answer adoption.endpoint:A ok",
++       "release A",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "answer transports.open:pA1 ok",
++       "answer transport.discover:tA1 ok",
++       "answer transport.close:tA1 reject",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 10,
++     "detail": "hA1 never released after the shutdown",
++     "property": "P1",
++     "seen": 17,
++     "signature": "P1-never-released",
++     "trace": [
++       "ensure A",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "closeAll",
++       "answer transports.open:pA1 ok",
++       "answer transport.discover:tA1 ok",
++       "fire T(bA1)",
++       "answer transport.close:tA1 reject",
++     ],
++   },
++   {
++     "cause": undefined,
++     "depth": 10,
++     "detail": "pA1 never asked to stop after the shutdown",
++     "property": "P3",
++     "seen": 17,
++     "signature": "P3-not-asked",
++     "trace": [
++       "ensure A",
++       "answer adoption.endpoint:A ok",
++       "fire T(eA1)",
++       "answer credentials.acquire:A ok",
++       "answer landing.start:A ok",
++       "closeAll",
++       "answer transports.open:pA1 ok",
++       "answer transport.discover:tA1 ok",
++       "fire T(bA1)",
++       "answer transport.close:tA1 reject",
++     ],
++   },
++ ]
+
+ ❯ tests/model/lifecycle.spec.ts:93:72
+     91|
+     92|   it('P1–P7 hold', () => {
+     93|     expect(violated(result, 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7'))…
+       |                                                                        ^
+     94|   })
+     95| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 passed | 5 expected fail | 4 skipped (17)
+Type Errors  no errors
+   Start at  12:26:59
+   Duration  54.53s (transform 1.05s, setup 0ms, import 1.16s, tests 52.92s, environment 0ms)
+
+exit=1
+restored
+dist rebuilt

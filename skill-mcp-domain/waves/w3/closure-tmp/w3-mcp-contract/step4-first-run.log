@@ -1,0 +1,13 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+
+ ✓ tests/transport-conformance.spec.ts (111 tests) 113ms
+
+ Test Files  1 passed (1)
+      Tests  111 passed (111)
+Type Errors  no errors
+   Start at  05:42:48
+   Duration  931ms (transform 515ms, setup 0ms, import 608ms, tests 113ms, environment 0ms)
+

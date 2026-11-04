@@ -1,0 +1,121 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=5000 runs=10409 depth=11
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=10000 runs=23116 depth=13
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=15000 runs=36926 depth=15
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=20000 runs=50539 depth=17
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=25000 runs=65124 depth=18
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=30000 runs=80271 depth=20
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=35000 runs=96874 depth=22
+
+stdout | tests/model/evidence.spec.ts > wide
+{"name":"wide","states":37466,"runs":106132,"depth":26,"frontier":0,"ms":151333}
+
+stdout | tests/model/evidence.spec.ts > two-keys
+two-keys progress states=5000 runs=10599 depth=14
+
+stdout | tests/model/evidence.spec.ts > two-keys
+two-keys progress states=10000 runs=24016 depth=17
+
+stdout | tests/model/evidence.spec.ts > two-keys
+{"name":"two-keys","states":13501,"runs":36739,"depth":22,"frontier":0,"ms":59126}
+
+stdout | tests/model/evidence.spec.ts > wide-faults-d10
+wide-faults-d10 progress states=5000 runs=10868 depth=9
+
+stdout | tests/model/evidence.spec.ts > wide-faults-d10
+wide-faults-d10 progress states=10000 runs=23357 depth=10
+
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 9885)
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | tests/model/evidence.spec.ts > wide-faults-d10
+wide-faults-d10 progress states=15000 runs=36152 depth=10
+
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 16140)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 16142)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 16196)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 17285)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 17287)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 17309)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18296)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18298)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18304)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18306)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18308)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18310)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18312)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18382)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18413)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18419)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18421)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18425)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 18444)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 19351)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 19353)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 21924)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 21926)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 21980)
+stdout | tests/model/evidence.spec.ts > wide-faults-d10
+{"name":"wide-faults-d10","states":17852,"runs":42604,"depth":10,"frontier":6939,"ms":36442}
+
+stdout | tests/model/evidence.spec.ts > two-keys-shutdown-d10
+two-keys-shutdown-d10 progress states=5000 runs=8774 depth=9
+
+stdout | tests/model/evidence.spec.ts > two-keys-shutdown-d10
+two-keys-shutdown-d10 progress states=10000 runs=19062 depth=10
+
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 36323)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 37730)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 39252)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 39254)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 39256)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 39262)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 39270)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 39340)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 39358)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 39379)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 39391)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 40155)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 42051)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 43458)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 44980)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 44982)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 44984)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 44990)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 44998)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45068)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45086)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45107)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45119)
+(node:24775) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45883)
+stdout | tests/model/evidence.spec.ts > two-keys-shutdown-d10
+{"name":"two-keys-shutdown-d10","states":13788,"runs":27386,"depth":10,"frontier":5726,"ms":27818}
+
+ ✓ tests/model/evidence.spec.ts (4 tests) 274747ms
+   ✓ wide  151341ms
+   ✓ two-keys  59131ms
+   ✓ wide-faults-d10  36445ms
+   ✓ two-keys-shutdown-d10  27821ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+Type Errors  no errors
+   Start at  11:57:18
+   Duration  275.77s (transform 713ms, setup 0ms, import 819ms, tests 274.75s, environment 0ms)
+

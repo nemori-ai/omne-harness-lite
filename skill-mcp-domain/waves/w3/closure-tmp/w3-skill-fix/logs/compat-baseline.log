@@ -1,0 +1,11 @@
+## claude: 20 包，加载 18，请求 18
+  - claude-api: load rejected/malformed — description is not text of 1 to 1024 characters
+  - template: load rejected/name-mismatch — the name differs from the package root name
+## codex: 44 包，加载 44，请求 44
+## pstack: 67 包，加载 67，请求 67
+## matt: 39 包，加载 37，请求 37
+  - pr: load rejected/malformed — metadata is not a text map
+  - software-factory: load rejected/malformed — the frontmatter is not valid YAML
+## local: 15 包，加载 14，请求 14
+  - session-start-hook: load rejected/name-mismatch — the name differs from the package root name
+## repo: 21 包，加载 21，请求 21

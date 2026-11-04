@@ -1,0 +1,107 @@
+=== valid-faults 11:59:10
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Progress(36) at 2026-11-04 11:59:15: 25,334 states generated (25,334 s/min), 20,586 distinct states found (20,586 ds/min), 3,335 states left on queue.
+Model checking completed. No error has been found.
+103034 states generated, 72743 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 55.
+Finished in 08s at (2026-11-04 11:59:19)
+=== valid-rebuild 11:59:19
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Progress(41) at 2026-11-04 11:59:23: 27,832 states generated (27,832 s/min), 21,872 distinct states found (21,872 ds/min), 3,159 states left on queue.
+Progress(76) at 2026-11-04 12:00:23: 878,678 states generated (850,846 s/min), 632,627 distinct states found (610,755 ds/min), 26,459 states left on queue.
+Model checking completed. No error has been found.
+1039043 states generated, 725887 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 88.
+Finished in 01min 14s at (2026-11-04 12:00:34)
+=== bad-no-absorb-close 12:00:35
+  1 Initial      init
+  2 EnsureCall   ensure A
+  3 TurnNext     ensure A
+  4 Internal     ensure A
+  5 External     answer adoption ok
+  6 Internal     answer adoption ok
+  7 Internal     answer adoption ok
+  8 Internal     answer adoption ok
+  9 Internal     answer adoption ok
+ 10 Internal     answer adoption ok
+ 11 Internal     answer adoption ok
+ 12 Internal     answer adoption ok
+ 13 Internal     answer adoption ok
+ 14 External     answer acquire ok
+ 15 Internal     answer acquire ok
+ 16 External     answer start ok
+ 17 Internal     answer start ok
+ 18 External     answer open ok
+ 19 Internal     answer open ok
+ 20 External     answer discover ok
+ 21 Internal     answer discover ok
+ 22 Internal     answer discover ok
+ 23 Release      release A
+ 24 Internal     release A
+ 25 Internal     release A
+ 26 External     answer close reject
+ 27 Internal     answer close reject
+ 28 Internal     answer close reject
+ 29 Internal     answer close reject
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Error: Invariant P2_NoneHoldsNothing is violated.
+Error: The behavior up to this point is:
+1807 states generated, 1617 distinct states found, 257 states left on queue.
+The depth of the complete state graph search is 31.
+Finished in 01s at (2026-11-04 12:00:36)
+=== bad-forget-open 12:00:37
+  1 Initial      init
+  2 EnsureCall   ensure A
+  3 TurnNext     ensure A
+  4 Internal     ensure A
+  5 External     answer adoption ok
+  6 Internal     answer adoption ok
+  7 Internal     answer adoption ok
+  8 Internal     answer adoption ok
+  9 Internal     answer adoption ok
+ 10 Internal     answer adoption ok
+ 11 Internal     answer adoption ok
+ 12 Internal     answer adoption ok
+ 13 Internal     answer adoption ok
+ 14 Fire         fire
+ 15 EnsureCall   ensure A
+ 16 TurnNext     ensure A
+ 17 Internal     ensure A
+ 18 External     answer acquire ok
+ 19 Internal     answer acquire ok
+ 20 Fire         fire
+ 21 Internal     fire
+ 22 Internal     fire
+ 23 Internal     fire
+ 24 Internal     fire
+ 25 Internal     fire
+ 26 Internal     fire
+ 27 Internal     fire
+ 28 External     answer store ok
+ 29 Internal     answer store ok
+ 30 Internal     answer store ok
+ 31 External     answer adoption ok
+ 32 Internal     answer adoption ok
+ 33 Internal     answer adoption ok
+ 34 Internal     answer adoption ok
+ 35 Internal     answer adoption ok
+ 36 Internal     answer adoption ok
+ 37 Internal     answer adoption ok
+ 38 Internal     answer adoption ok
+ 39 Internal     answer adoption ok
+ 40 CloseAll     closeAll
+ 41 Internal     closeAll
+ 42 External     answer start ok
+ 43 Internal     answer start ok
+ 44 External     answer stop ok
+ 45 Internal     answer stop ok
+ 46 External     answer acquire ok
+ 47 Internal     answer acquire ok
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Progress(48) at 2026-11-04 12:00:41: 62,017 states generated (62,017 s/min), 44,953 distinct states found (44,953 ds/min), 4,031 states left on queue.
+Error: Invariant P2_ForgetHoldsNothing is violated.
+Error: The behavior up to this point is:
+74730 states generated, 53293 distinct states found, 4095 states left on queue.
+The depth of the complete state graph search is 50.
+Finished in 04s at (2026-11-04 12:00:41)
+=== valid-two-keys 12:00:42

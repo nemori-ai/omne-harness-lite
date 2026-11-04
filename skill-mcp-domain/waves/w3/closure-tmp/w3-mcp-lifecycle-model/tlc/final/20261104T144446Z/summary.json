@@ -1,0 +1,384 @@
+{
+ "jar_sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+ "workers": 4,
+ "results": [
+  {
+   "case": "valid-faults",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "afb55161e6bcea65b65a2edf8170cee2c4078103cc5acac5bd0d578cfca620ab",
+   "expected": "no error",
+   "exit": 0,
+   "violated": [],
+   "generated": 90829,
+   "distinct": 68911,
+   "depth": 55,
+   "seconds": 5.4,
+   "passed": true,
+   "trace": []
+  },
+  {
+   "case": "valid-rebuild",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "f7116c8000bdd1d3cc6ee93a1c4feaa02a1579831010a85f02f9456b8b8b7612",
+   "expected": "no error",
+   "exit": 0,
+   "violated": [],
+   "generated": 998517,
+   "distinct": 725887,
+   "depth": 88,
+   "seconds": 88.0,
+   "passed": true,
+   "trace": []
+  },
+  {
+   "case": "valid-two-keys",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "ab6a51c877db3415fdecf7cb07851ae2d013f5b77760e9164a6940fb11a73d23",
+   "expected": "no error",
+   "exit": 0,
+   "violated": [],
+   "generated": 733121,
+   "distinct": 546811,
+   "depth": 76,
+   "seconds": 86.9,
+   "passed": true,
+   "trace": []
+  },
+  {
+   "case": "valid-throws",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "822e37eaad8ef98d56a3d8a8c814df5557e1500193885422c06c44c6afda281b",
+   "expected": "no error",
+   "exit": 0,
+   "violated": [],
+   "generated": 6202,
+   "distinct": 4833,
+   "depth": 54,
+   "seconds": 2.4,
+   "passed": true,
+   "trace": []
+  },
+  {
+   "case": "live",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "463202a0b2aeef18ca7e9f234f76e3c4852b7fa21a8d86984ee443bdda3b24db",
+   "expected": "no error",
+   "exit": 0,
+   "violated": [],
+   "generated": 82794,
+   "distinct": 62569,
+   "depth": 55,
+   "seconds": 14.8,
+   "passed": true,
+   "trace": []
+  },
+  {
+   "case": "bad-no-absorb-close",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "de6b67d9b9e2f98ff4be13a9b9f3580200d0ed5535b1f3b1beb9c38ed007e2f1",
+   "expected": "P2_NoneHoldsNothing",
+   "exit": 12,
+   "violated": [
+    "P2_NoneHoldsNothing"
+   ],
+   "generated": 1677,
+   "distinct": 1496,
+   "depth": 31,
+   "seconds": 2.0,
+   "passed": true,
+   "trace": [
+    "state 2 EnsureCall: ensure A",
+    "state 5 External: answer adoption ok",
+    "state 14 External: answer acquire ok",
+    "state 16 External: answer start ok",
+    "state 18 External: answer open ok",
+    "state 20 External: answer discover ok",
+    "state 23 Release: release A",
+    "state 26 External: answer close reject"
+   ]
+  },
+  {
+   "case": "bad-forget-open",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "75f4cb6ff9314a187796cffd6003506a8a63d1ad3e5bdf2ad54e45a0122f8006",
+   "expected": "P2_ForgetHoldsNothing",
+   "exit": 12,
+   "violated": [
+    "P2_ForgetHoldsNothing"
+   ],
+   "generated": 74734,
+   "distinct": 54776,
+   "depth": 47,
+   "seconds": 6.1,
+   "passed": true,
+   "trace": [
+    "state 2 EnsureCall: ensure A",
+    "state 5 External: answer adoption ok",
+    "state 14 Fire: fire",
+    "state 15 External: answer acquire ok",
+    "state 17 EnsureCall: ensure A",
+    "state 20 Fire: fire",
+    "state 28 External: answer store ok",
+    "state 31 External: answer adoption ok",
+    "state 40 CloseAll: closeAll",
+    "state 42 External: answer start ok",
+    "state 44 External: answer stop ok",
+    "state 46 External: answer acquire ok"
+   ]
+  },
+  {
+   "case": "bad-no-shut",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "e0e2922ebf31b75f4b0a90dfaaab95c86bb4fa9d3882d8f7d16b3ad26b7e9892",
+   "expected": "P4_NoConnectAfterShut",
+   "exit": 12,
+   "violated": [
+    "P4_NoConnectAfterShut"
+   ],
+   "generated": 92,
+   "distinct": 88,
+   "depth": 20,
+   "seconds": 1.4,
+   "passed": true,
+   "trace": [
+    "state 2 EnsureCall: ensure A",
+    "state 5 CloseAll: closeAll",
+    "state 8 External: answer adoption ok",
+    "state 17 External: answer acquire ok"
+   ]
+  },
+  {
+   "case": "cex-b1",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "27ab8ae0a04c870b09ff71e99d06eddbccb7dd344f1ef89a461bf0fbea6cb23f",
+   "expected": "P7_NoB1",
+   "exit": 12,
+   "violated": [
+    "P7_NoB1"
+   ],
+   "generated": 933,
+   "distinct": 824,
+   "depth": 31,
+   "seconds": 1.7,
+   "passed": true,
+   "trace": [
+    "state 2 EnsureCall: ensure A",
+    "state 5 External: answer adoption ok",
+    "state 14 External: answer acquire ok",
+    "state 16 Fire: fire",
+    "state 17 Fire: fire",
+    "state 25 CloseAll: throw release"
+   ]
+  },
+  {
+   "case": "cex-n2",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "f4fa88c2ae1dd9b3fdbf2c7c599cd2f5428d749a693bd8e6c31e0b475663ff90",
+   "expected": "P7_NoN2",
+   "exit": 12,
+   "violated": [
+    "P7_NoN2"
+   ],
+   "generated": 178,
+   "distinct": 168,
+   "depth": 24,
+   "seconds": 1.5,
+   "passed": true,
+   "trace": [
+    "state 2 EnsureCall: ensure A",
+    "state 5 External: answer adoption ok",
+    "state 14 Fire: fire",
+    "state 15 External: answer acquire ok",
+    "state 17 CloseAll: closeAll",
+    "state 19 Fire: fire",
+    "state 20 Internal: throw release"
+   ]
+  },
+  {
+   "case": "cex-n3",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "ef960b8f8d000682e861dbdd058f1c6249c18a81f09a678c20138d8c6fb2f425",
+   "expected": "P1_AtMostOnce",
+   "exit": 12,
+   "violated": [
+    "P1_AtMostOnce"
+   ],
+   "generated": 1027,
+   "distinct": 916,
+   "depth": 31,
+   "seconds": 1.6,
+   "passed": true,
+   "trace": [
+    "state 2 EnsureCall: ensure A",
+    "state 5 External: answer adoption ok",
+    "state 14 CloseAll: closeAll",
+    "state 16 External: answer acquire ok",
+    "state 22 Internal: throw release"
+   ]
+  },
+  {
+   "case": "cex-n3-shutdown",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "b7b0cfe7439984d558edb133307d26d7bb7713f1c66990e88cc704276f627cc3",
+   "expected": "P3_EveryProcessAsked",
+   "exit": 12,
+   "violated": [
+    "P3_EveryProcessAsked"
+   ],
+   "generated": 990,
+   "distinct": 878,
+   "depth": 31,
+   "seconds": 2.9,
+   "passed": true,
+   "trace": [
+    "state 2 EnsureCall: ensure A",
+    "state 5 External: answer adoption ok",
+    "state 14 External: answer acquire ok",
+    "state 16 External: answer start ok",
+    "state 18 External: answer open ok",
+    "state 20 External: answer discover ok",
+    "state 23 CloseAll: closeAll",
+    "state 25 Internal: throw close"
+   ]
+  },
+  {
+   "case": "cex-p2",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "63ef766ea92368b71950e73606547636b157aaaaca632714447e89cbf1d5a0a4",
+   "expected": "P8_NoTeardownStall",
+   "exit": 12,
+   "violated": [
+    "P8_NoTeardownStall"
+   ],
+   "generated": 180,
+   "distinct": 167,
+   "depth": 28,
+   "seconds": 2.1,
+   "passed": true,
+   "trace": [
+    "state 2 EnsureCall: ensure A",
+    "state 5 External: answer adoption ok",
+    "state 14 Fire: fire",
+    "state 15 CloseAll: closeAll",
+    "state 17 External: answer acquire ok",
+    "state 24 Fire: fire"
+   ]
+  },
+  {
+   "case": "cex-n1",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "c100ce651602a64e1ef80b72e49851e7fab41ad72dd0e1410d20e08bf551da8a",
+   "expected": "P8_NoStoreStall",
+   "exit": 12,
+   "violated": [
+    "P8_NoStoreStall"
+   ],
+   "generated": 190,
+   "distinct": 177,
+   "depth": 27,
+   "seconds": 2.0,
+   "passed": true,
+   "trace": [
+    "state 2 EnsureCall: ensure A",
+    "state 5 External: answer adoption ok",
+    "state 14 Fire: fire",
+    "state 15 Fire: fire"
+   ]
+  },
+  {
+   "case": "probe-a1",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "35eed413fe949ea23132195731d72f53cece337bcee387fec9aab41d5506ea18",
+   "expected": "P8_BoundedClose",
+   "exit": 12,
+   "violated": [
+    "P8_BoundedClose"
+   ],
+   "generated": 273,
+   "distinct": 250,
+   "depth": 27,
+   "seconds": 2.4,
+   "passed": true,
+   "trace": [
+    "state 2 EnsureCall: ensure A",
+    "state 5 External: answer adoption ok",
+    "state 14 Release: release A",
+    "state 16 Fire: fire",
+    "state 17 Fire: fire"
+   ]
+  },
+  {
+   "case": "probe-live-hang",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "model_sha256": "e0d9793b36c0f661717045b856c6ae1e85c479c16c810f14431c594d594ba3f6",
+   "config_sha256": "f2901c3c19c66eb1aedcfb73186e007be7af96aa9fd19c18437ed38c4139c649",
+   "expected": "temporal",
+   "exit": 13,
+   "violated": [],
+   "generated": 12298,
+   "distinct": 9361,
+   "depth": null,
+   "seconds": 5.3,
+   "passed": true,
+   "trace": [
+    "state 2 Release: init",
+    "state 3 EnsureCall: init",
+    "state 6 External: init",
+    "state 15 External: init",
+    "state 17 Fire: init",
+    "state 18 Fire: init",
+    "state 26 CloseAll: init",
+    "state 28 External: init",
+    "state 30 External: init",
+    "state 31 External: init"
+   ]
+  }
+ ]
+}

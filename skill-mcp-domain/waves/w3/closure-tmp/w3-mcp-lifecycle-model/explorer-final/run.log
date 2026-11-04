@@ -1,0 +1,159 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+
+stdout | tests/model/evidence.spec.ts > rebuild
+{"name":"rebuild","states":3291,"runs":8705,"depth":23,"frontier":0,"ms":17636}
+
+stdout | tests/model/evidence.spec.ts > faults
+{"name":"faults","states":3028,"runs":7888,"depth":15,"frontier":0,"ms":9684}
+
+stdout | tests/model/evidence.spec.ts > throws
+{"name":"throws","states":307,"runs":608,"depth":12,"frontier":0,"ms":438}
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=5000 runs=10409 depth=11
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=10000 runs=23116 depth=13
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=15000 runs=36926 depth=15
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=20000 runs=50539 depth=17
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=25000 runs=65124 depth=18
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=30000 runs=80271 depth=20
+
+stdout | tests/model/evidence.spec.ts > wide
+wide progress states=35000 runs=96874 depth=22
+
+stdout | tests/model/evidence.spec.ts > wide
+{"name":"wide","states":37466,"runs":106132,"depth":26,"frontier":0,"ms":252022}
+
+stdout | tests/model/evidence.spec.ts > two-keys
+two-keys progress states=5000 runs=10599 depth=14
+
+stdout | tests/model/evidence.spec.ts > two-keys
+two-keys progress states=10000 runs=24016 depth=17
+
+stdout | tests/model/evidence.spec.ts > two-keys
+{"name":"two-keys","states":13501,"runs":36739,"depth":22,"frontier":0,"ms":104436}
+
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 785)
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 884)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1007)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1011)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1034)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1225)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1229)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1252)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1549)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1551)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1553)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1582)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1584)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1892)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1894)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1896)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1925)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1927)
+stdout | tests/model/evidence.spec.ts > tiny-throws-paths
+tiny-throws-paths progress states=5000 runs=5000 depth=12
+
+stdout | tests/model/evidence.spec.ts > tiny-throws-paths
+{"name":"tiny-throws-paths","states":5669,"runs":5669,"depth":13,"frontier":0,"ms":7237}
+
+stdout | tests/model/evidence.spec.ts > wide-faults-d10
+wide-faults-d10 progress states=5000 runs=10868 depth=9
+
+stdout | tests/model/evidence.spec.ts > wide-faults-d10
+wide-faults-d10 progress states=10000 runs=23357 depth=10
+
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 16142)
+stdout | tests/model/evidence.spec.ts > wide-faults-d10
+wide-faults-d10 progress states=15000 runs=36152 depth=10
+
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 22397)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 22399)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 22453)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 23542)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 23544)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 23566)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24553)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24555)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24561)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24563)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24565)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24567)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24569)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24639)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24670)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24676)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24678)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24682)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 24701)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 25608)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 25610)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 28181)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 28183)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 28237)
+stdout | tests/model/evidence.spec.ts > wide-faults-d10
+{"name":"wide-faults-d10","states":17852,"runs":42604,"depth":10,"frontier":6939,"ms":48795}
+
+stdout | tests/model/evidence.spec.ts > two-keys-shutdown-d10
+two-keys-shutdown-d10 progress states=5000 runs=8774 depth=9
+
+stdout | tests/model/evidence.spec.ts > two-keys-shutdown-d10
+two-keys-shutdown-d10 progress states=10000 runs=19062 depth=10
+
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 42580)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 43987)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45509)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45511)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45513)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45519)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45527)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45597)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45615)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45636)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 45648)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 46412)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 48308)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 49715)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 51237)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 51239)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 51241)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 51247)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 51255)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 51325)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 51343)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 51364)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 51376)
+(node:17976) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 52140)
+stdout | tests/model/evidence.spec.ts > two-keys-shutdown-d10
+{"name":"two-keys-shutdown-d10","states":13788,"runs":27386,"depth":10,"frontier":5726,"ms":34037}
+
+ ✓ tests/model/evidence.spec.ts (8 tests) 474323ms
+   ✓ rebuild  17647ms
+   ✓ faults  9690ms
+   ✓ throws  439ms
+   ✓ wide  252024ms
+   ✓ two-keys  104438ms
+   ✓ tiny-throws-paths  7239ms
+   ✓ wide-faults-d10  48797ms
+   ✓ two-keys-shutdown-d10  34040ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+Type Errors  no errors
+   Start at  12:23:14
+   Duration  475.59s (transform 837ms, setup 0ms, import 981ms, tests 474.32s, environment 0ms)
+
+ 12:31:10 up  2:49,  0 user,  load average: 10.34, 12.81, 10.80

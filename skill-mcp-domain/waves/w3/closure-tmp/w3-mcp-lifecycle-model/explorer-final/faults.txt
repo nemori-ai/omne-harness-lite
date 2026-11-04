@@ -1,0 +1,19 @@
+{"name":"faults","states":3028,"runs":7888,"depth":15,"frontier":0,"ms":9684}
+P8 N1 cause=undefined depth=4 seen=337: eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+P8 P2 cause=undefined depth=6 seen=340: eA1 waiting after every bound fired; pending: credential.release hA1
+    ensure A
+    answer adoption.endpoint:A ok
+    closeAll
+    fire T(eA1)
+    answer credentials.acquire:A ok
+    fire T(bA1)
+A1 witness (closeWaits):
+    ensure A
+    answer adoption.endpoint:A ok
+    release A
+    fire T(eA1)
+    fire T(bA1)

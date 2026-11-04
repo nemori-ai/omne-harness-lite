@@ -1,0 +1,56 @@
+{
+ "scenario": {
+  "name": "wide",
+  "keys": [
+   "A"
+  ],
+  "ensures": 2,
+  "releases": 1,
+  "closeAll": true,
+  "loses": 1,
+  "deviations": [],
+  "budget": 0
+ },
+ "states": 37466,
+ "runs": 106132,
+ "depth": 26,
+ "frontier": 0,
+ "elapsedMs": 252022,
+ "violations": [
+  {
+   "property": "P8",
+   "signature": "N1",
+   "detail": "eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "fire T(eA1)",
+    "fire T(bA1)"
+   ],
+   "depth": 4,
+   "seen": 4215
+  },
+  {
+   "property": "P8",
+   "signature": "P2",
+   "detail": "eA1 waiting after every bound fired; pending: credential.release hA1",
+   "trace": [
+    "ensure A",
+    "answer adoption.endpoint:A ok",
+    "closeAll",
+    "fire T(eA1)",
+    "answer credentials.acquire:A ok",
+    "fire T(bA1)"
+   ],
+   "depth": 6,
+   "seen": 3969
+  }
+ ],
+ "closeWaits": [
+  "ensure A",
+  "answer adoption.endpoint:A ok",
+  "release A",
+  "fire T(eA1)",
+  "fire T(bA1)"
+ ]
+}

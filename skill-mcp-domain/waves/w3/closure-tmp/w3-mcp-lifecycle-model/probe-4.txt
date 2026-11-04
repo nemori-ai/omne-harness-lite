@@ -1,0 +1,126 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp
+
+stdout | tests/model/probe.spec.ts > s1-throw
+{"name":"s1-throw","states":307,"runs":608,"depth":12,"frontier":0,"ms":944}
+P8 N1 depth=4 seen=23: eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+P1 P1-released-twice depth=4 seen=11: hA1 release() called 2 times
+    ensure A
+    answer adoption.endpoint:A ok
+    closeAll
+    answer credentials.acquire:A ok
+      credential.release hA1 throws when called (at releaseHeld@teardown.ts < closeOrder@teardown.ts < shutDown@build.ts < Object.build@build.ts)
+P8 P2 depth=5 seen=84: eA1 waiting after every bound fired; pending: store.read A, credential.release hA1
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+P7 N2 depth=5 seen=10: unhandled rejection: credential.release hA1 threw (at <anonymous>@late.ts)
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+      credential.release hA1 throws when called (at <anonymous>@late.ts)
+P7 B1 depth=6 seen=1: unhandled rejection: credential.release hA1 threw (at releaseLanding@teardown.ts < abandonLandings@teardown.ts < Object.closeAll@table.ts)
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    answer credentials.acquire:A ok
+    fire T(bA1)
+    closeAll
+      credential.release hA1 throws when called (at releaseLanding@teardown.ts < abandonLandings@teardown.ts < Object.closeAll@table.ts)
+P2 P2-held-without-entry depth=7 seen=6: key A reports none and still holds hA1, pA1
+    ensure A
+    answer adoption.endpoint:A ok
+    answer credentials.acquire:A ok
+    answer landing.start:A ok
+    closeAll
+    answer transports.open:pA1 ok
+    answer transport.discover:tA1 ok
+      transport.close tA1 throws when called (at closeTransport@teardown.ts < closeOrder@teardown.ts < teardown@teardown.ts < <anonymous>@table.ts < <anonymous>@table.ts < Object.closeAll@table.ts)
+P1 P1-never-released depth=9 seen=2: hA1 never released after the shutdown
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    answer credentials.acquire:A ok
+    answer landing.start:A ok
+    closeAll
+    answer transports.open:pA1 ok
+    answer transport.discover:tA1 ok
+      transport.close tA1 throws when called (at closeTransport@teardown.ts < closeOrder@teardown.ts < teardown@teardown.ts < <anonymous>@table.ts < <anonymous>@table.ts < Object.closeAll@table.ts)
+    fire T(bA1)
+P3 P3-not-asked depth=9 seen=1: pA1 never asked to stop after the shutdown
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    answer credentials.acquire:A ok
+    answer landing.start:A ok
+    closeAll
+    answer transports.open:pA1 ok
+    answer transport.discover:tA1 ok
+      transport.close tA1 throws when called (at closeTransport@teardown.ts < closeOrder@teardown.ts < teardown@teardown.ts < <anonymous>@table.ts < <anonymous>@table.ts < Object.closeAll@table.ts)
+    fire T(bA1)
+closeWaits:
+    ensure A
+    answer adoption.endpoint:A ok
+    closeAll
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+
+stdout | tests/model/probe.spec.ts > s1-dev
+{"name":"s1-dev","states":440,"runs":1051,"depth":12,"frontier":0,"ms":973}
+P8 N1 depth=4 seen=45: eA1 waiting after every bound fired; pending: credentials.acquire A, store.read A
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+P8 P2 depth=5 seen=104: eA1 waiting after every bound fired; pending: store.read A, credential.release hA1
+    ensure A
+    answer adoption.endpoint:A ok
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+closeWaits:
+    ensure A
+    answer adoption.endpoint:A ok
+    closeAll
+    fire T(eA1)
+    fire T(bA1)
+    answer credentials.acquire:A ok
+
+stdout | tests/model/probe.spec.ts > ab
+progress states=5000 runs=9772 depth=11 t=13011
+
+stdout | tests/model/probe.spec.ts > ab
+progress states=10000 runs=21272 depth=13 t=26920
+
+stdout | tests/model/probe.spec.ts > ab
+progress states=15000 runs=33723 depth=14 t=44960
+
+stdout | tests/model/probe.spec.ts > ab
+progress states=20000 runs=46720 depth=14 t=67818
+
+stdout | tests/model/probe.spec.ts > ab
+progress states=25000 runs=61540 depth=15 t=96441
+
+stdout | tests/model/probe.spec.ts > ab
+progress states=30000 runs=76440 depth=16 t=126559
+
+stdout | tests/model/probe.spec.ts > ab
+progress states=35000 runs=92671 depth=16 t=159932
+
+stdout | tests/model/probe.spec.ts > ab
+progress states=40000 runs=110398 depth=17 t=199255
+
+stdout | tests/model/probe.spec.ts > ab
+progress states=45000 runs=128771 depth=18 t=240903
+

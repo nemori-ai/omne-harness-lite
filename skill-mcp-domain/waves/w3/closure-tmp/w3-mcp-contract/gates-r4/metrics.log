@@ -1,0 +1,16 @@
+
+> omne-harness-lite-workspace@ metrics /home/user/omne-harness-lite/.worktrees/w3-mcp-contract
+> ./scripts/metrics.sh --base c407fab9d --out /tmp/claude-0/-home-user-omne-harness-lite/f1070bb8-fa26-55f8-8bda-04c4ceeaeb27/scratchpad/r4-metrics
+
+结构度量 4905f944d · 分支 PanQiWei/skill-mcp-w3-mcp-contract · 基线 c407fab9d（函数变化 merge-base c407fab9da61f2eaaf79556adebc3bf09adc9788）
+范围：变更 1 个成员、83 个函数；提交 5 个，每提交文件数中位 1、最大 14
+结构：依赖违规 0，环 1，变更触及的跨成员导入 0 条；成员风险 红 1、黄 11、绿 69
+圈复杂度（warn 10／alert 12）：变更函数超 alert 2、超 warn 5；存量超 alert 351、超 warn 217
+覆盖率：未开启，只报圈复杂度
+变更函数里超阈值的前 5 个：
+  packages/mcp/mcp-contract/src/testing-transport.ts:540 resultValues CC 21
+  packages/mcp/mcp-contract/src/testing-scripted-transport.ts:666 ScriptedTransport.deliver CC 14
+  packages/mcp/mcp-contract/src/testing-transport.ts:614 repliesOf CC 12
+  packages/mcp/mcp-contract/src/testing-transport.ts:1029 checkOperation CC 12
+  packages/mcp/mcp-contract/src/testing-scripted-transport.ts:874 ScriptedTransport.probeOf CC 11
+审讯页：/tmp/claude-0/-home-user-omne-harness-lite/f1070bb8-fa26-55f8-8bda-04c4ceeaeb27/scratchpad/r4-metrics/review.html

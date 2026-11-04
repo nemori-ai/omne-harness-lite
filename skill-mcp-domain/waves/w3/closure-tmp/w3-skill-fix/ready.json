@@ -1,0 +1,31 @@
+{
+  "base": "49e984dd89bba03af74d1aec3e4772df35ae46b6",
+  "branch": "PanQiWei/skill-mcp-w3-skill-fix",
+  "key": {
+    "base": "49e984dd89bba03af74d1aec3e4772df35ae46b6",
+    "lock": "8f42ebfd157a8d887f075a37f912198a06db3c86f787603f1d3594df9e254df8",
+    "agents": "9622eade3cbec7cc0e0274409922b1bacc15c17d",
+    "agentsChanges": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "builds": [
+      "@omne-harness/skill-host-local..."
+    ]
+  },
+  "steps": [
+    {
+      "name": "install",
+      "ok": true,
+      "ms": 3314
+    },
+    {
+      "name": "projections",
+      "ok": true,
+      "ms": 1753
+    },
+    {
+      "name": "build @omne-harness/skill-host-local...",
+      "ok": true,
+      "ms": 1632
+    }
+  ],
+  "completedAt": "2026-11-04T11:53:15.919Z"
+}

@@ -1,0 +1,347 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=38247 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 25 and seed -6964455560335295000 with 2 workers on 4 cores with 3040MB heap and 64MB offheap memory [pid: 26013] (Linux 6.18.44-fc-v233 amd64, Ubuntu 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill/verification/models/ReadGate.tla
+Parsing file /tmp/Integers.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module ReadGate
+Starting... (2026-11-04 12:29:14)
+Computing initial states...
+Computed 2 initial states...
+Computed 4 initial states...
+Computed 8 initial states...
+Computed 16 initial states...
+Computed 32 initial states...
+Computed 64 initial states...
+Computed 128 initial states...
+Computed 256 initial states...
+Computed 512 initial states...
+Computed 1024 initial states...
+Computed 2048 initial states...
+Finished computing initial states: 2160 distinct states generated at 2026-11-04 12:29:16.
+Progress(5) at 2026-11-04 12:29:19: 36,520 states generated (36,520 s/min), 25,874 distinct states found (25,874 ds/min), 7,702 states left on queue.
+Error: Invariant SameObservation is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>],
+   [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> TRUE ]
+/\ pc = <<"start", "start">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "none", arg |-> ""]
+/\ checked = <<{}, {}>>
+/\ pending = <<{}, {}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x", "h"} ]
+/\ undecided = <<"", "">>
+/\ variant = <<"granted", "granted">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "-", h |-> "-"], [x |-> "-", h |-> "-"]>>
+/\ calls = <<0, 0>>
+/\ order = <<<<>>, <<>>>>
+
+State 2: <Start line 219, col 5 to line 230, col 53 of module ReadGate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>],
+   [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> TRUE ]
+/\ pc = <<"lawful", "start">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "none", arg |-> ""]
+/\ checked = <<{}, {}>>
+/\ pending = <<{}, {}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x", "h"} ]
+/\ undecided = <<"", "">>
+/\ variant = <<"granted", "granted">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "-", h |-> "-"], [x |-> "-", h |-> "-"]>>
+/\ calls = <<0, 0>>
+/\ order = <<<<>>, <<>>>>
+
+State 3: <LawfulSet line 339, col 5 to line 349, col 88 of module ReadGate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>],
+   [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> TRUE ]
+/\ pc = <<"checks", "start">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "none", arg |-> ""]
+/\ checked = <<{}, {}>>
+/\ pending = <<{"x", "h"}, {}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x", "h"} ]
+/\ undecided = <<"", "">>
+/\ variant = <<"granted", "granted">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "-", h |-> "-"], [x |-> "-", h |-> "-"]>>
+/\ calls = <<1, 0>>
+/\ order = <<<<>>, <<>>>>
+
+State 4: <Start line 219, col 5 to line 230, col 53 of module ReadGate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>],
+   [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> TRUE ]
+/\ pc = <<"checks", "lawful">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "none", arg |-> ""]
+/\ checked = <<{}, {}>>
+/\ pending = <<{"x", "h"}, {}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x", "h"} ]
+/\ undecided = <<"", "">>
+/\ variant = <<"granted", "granted">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "-", h |-> "-"], [x |-> "-", h |-> "-"]>>
+/\ calls = <<1, 0>>
+/\ order = <<<<>>, <<>>>>
+
+State 5: <LawfulSet line 339, col 5 to line 349, col 88 of module ReadGate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>],
+   [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> TRUE ]
+/\ pc = <<"checks", "checks">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "none", arg |-> ""]
+/\ checked = <<{}, {}>>
+/\ pending = <<{"x", "h"}, {"x", "h"}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x", "h"} ]
+/\ undecided = <<"", "">>
+/\ variant = <<"granted", "granted">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "-", h |-> "-"], [x |-> "-", h |-> "-"]>>
+/\ calls = <<1, 1>>
+/\ order = <<<<>>, <<>>>>
+
+State 6: <CompleteCheck line 361, col 5 to line 375, col 63 of module ReadGate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>],
+   [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> TRUE ]
+/\ pc = <<"checks", "checks">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "none", arg |-> ""]
+/\ checked = <<{"x"}, {}>>
+/\ pending = <<{"h"}, {"x", "h"}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x", "h"} ]
+/\ undecided = <<"", "">>
+/\ variant = <<"granted", "granted">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "granted", h |-> "-"], [x |-> "-", h |-> "-"]>>
+/\ calls = <<2, 1>>
+/\ order = <<<<"x">>, <<>>>>
+
+State 7: <CompleteCheck line 361, col 5 to line 375, col 63 of module ReadGate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [ id |-> "-",
+     mat |-> -1,
+     kind |-> "ok",
+     content |-> {},
+     entries |-> <<<<"x", "adopted">>, <<"h", "adopted">>>> ],
+   [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> TRUE ]
+/\ pc = <<"done", "checks">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "none", arg |-> ""]
+/\ checked = <<{"x", "h"}, {}>>
+/\ pending = <<{}, {"x", "h"}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x", "h"} ]
+/\ undecided = <<"", "">>
+/\ variant = <<"granted", "granted">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "granted", h |-> "granted"], [x |-> "-", h |-> "-"]>>
+/\ calls = <<3, 1>>
+/\ order = <<<<"x", "h">>, <<>>>>
+
+State 8: <CompleteCheck line 361, col 5 to line 375, col 63 of module ReadGate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [ id |-> "-",
+     mat |-> -1,
+     kind |-> "ok",
+     content |-> {},
+     entries |-> <<<<"x", "adopted">>, <<"h", "adopted">>>> ],
+   [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> TRUE ]
+/\ pc = <<"done", "checks">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "none", arg |-> ""]
+/\ checked = <<{"x", "h"}, {"h"}>>
+/\ pending = <<{}, {"x"}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x", "h"} ]
+/\ undecided = <<"", "">>
+/\ variant = <<"granted", "granted">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "granted", h |-> "granted"], [x |-> "-", h |-> "granted"]>>
+/\ calls = <<3, 2>>
+/\ order = <<<<"x", "h">>, <<"h">>>>
+
+State 9: <CompleteCheck line 361, col 5 to line 375, col 63 of module ReadGate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [ id |-> "-",
+     mat |-> -1,
+     kind |-> "ok",
+     content |-> {},
+     entries |-> <<<<"x", "adopted">>, <<"h", "adopted">>>> ],
+   [ id |-> "-",
+     mat |-> -1,
+     kind |-> "ok",
+     content |-> {},
+     entries |-> <<<<"h", "adopted">>, <<"x", "adopted">>>> ] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> TRUE ]
+/\ pc = <<"done", "done">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "none", arg |-> ""]
+/\ checked = <<{"x", "h"}, {"x", "h"}>>
+/\ pending = <<{}, {}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x", "h"} ]
+/\ undecided = <<"", "">>
+/\ variant = <<"granted", "granted">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "granted", h |-> "granted"], [x |-> "granted", h |-> "granted"]>>
+/\ calls = <<3, 3>>
+/\ order = <<<<"x", "h">>, <<"h", "x">>>>
+
+75461 states generated, 45183 distinct states found, 5144 states left on queue.
+The depth of the complete state graph search is 9.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 4 and the 95th percentile is 3).
+Finished in 10s at (2026-11-04 12:29:23)

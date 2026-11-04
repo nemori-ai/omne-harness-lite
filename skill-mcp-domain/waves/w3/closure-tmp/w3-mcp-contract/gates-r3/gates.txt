@@ -1,0 +1,8 @@
+head c407fab9d start 2026-11-04T10:52:22Z
+turbo exit 0 end 2026-11-04T10:52:30Z
+lint:oxlint exit 0 start 2026-11-04T10:52:30Z end 2026-11-04T10:52:33Z
+format:check exit 0 start 2026-11-04T10:52:30Z end 2026-11-04T10:52:34Z
+check:docs exit 0 start 2026-11-04T10:52:30Z end 2026-11-04T10:53:00Z
+lint:rules exit 0 start 2026-11-04T10:52:30Z end 2026-11-04T10:53:02Z
+lint:deps exit 0 start 2026-11-04T10:52:30Z end 2026-11-04T10:53:19Z
+crlf 2 2026-11-04T10:53:21Z

@@ -1,0 +1,15 @@
+
+ RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill
+
+ ✓ tests/model/explore.spec.ts (7 tests) 23834ms
+   ✓ S1: answers an observer the same in a world and in its twin without the hidden identity  18365ms
+   ✓ S2: an undecided port answer makes the whole answer unknown or source-unavailable  1927ms
+   ✓ S3: a success gives only bytes of the pinned material  1213ms
+   ✓ S4: a page starts and ends on character boundaries within the page limit  1522ms
+   ✓ S5: the catalog answer does not depend on the completion order of the read checks  492ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  14:44:46
+   Duration  24.95s (transform 780ms, setup 0ms, import 939ms, tests 23.83s, environment 0ms)
+

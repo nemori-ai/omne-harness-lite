@@ -1,0 +1,37 @@
+{
+ "model_sha256": "3da31fd01925a9831cd932c5e3eeced77e639bc4da85459bd7cb65ac0c9bb827",
+ "jar_sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+ "workers": 4,
+ "results": [
+  {
+   "case": "probe-live-hang",
+   "tlc": [
+    "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"
+   ],
+   "config_sha256": "f2901c3c19c66eb1aedcfb73186e007be7af96aa9fd19c18437ed38c4139c649",
+   "expected": "temporal",
+   "exit": 13,
+   "violated": [],
+   "generated": 13728,
+   "distinct": 10370,
+   "depth": null,
+   "seconds": 4.6,
+   "passed": true,
+   "trace": [
+    "state 2 EnsureCall: init",
+    "state 5 Release: init",
+    "state 6 External: init",
+    "state 15 Fire: init",
+    "state 16 External: init",
+    "state 18 External: init",
+    "state 20 External: init",
+    "state 22 CloseAll: init",
+    "state 24 Fire: init",
+    "state 28 External: init",
+    "state 29 External: init",
+    "state 33 External: init",
+    "state 37 External: init"
+   ]
+  }
+ ]
+}

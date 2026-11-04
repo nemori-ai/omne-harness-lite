@@ -1,0 +1,144 @@
+
+   • turbo 2.11.7
+   • Packages in scope: @omne-harness/mcp, @omne-harness/mcp-contract
+   • Running build, typecheck, test in 2 packages
+   • Remote caching disabled, using shared worktree cache
+
+@omne-harness/content-block:build: cache hit, replaying logs d269540550fdbd5f
+@omne-harness/content-block:build: 
+@omne-harness/content-block:build: > @omne-harness/content-block@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/content-block
+@omne-harness/content-block:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/content-block:build: 
+@omne-harness/operation-result:typecheck: cache hit, replaying logs 6e12e49f2f01a817
+@omne-harness/operation-result:typecheck: 
+@omne-harness/operation-result:typecheck: > @omne-harness/operation-result@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/operation-result
+@omne-harness/operation-result:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/operation-result:typecheck: 
+@omne-harness/legal-identity:build: cache hit, replaying logs 4567dcf3754432ea
+@omne-harness/legal-identity:build: 
+@omne-harness/legal-identity:build: > @omne-harness/legal-identity@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/legal-identity
+@omne-harness/legal-identity:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/legal-identity:build: 
+@omne-harness/json-text:build: cache hit, replaying logs 1fa44d812a5ce620
+@omne-harness/json-text:build: 
+@omne-harness/json-text:build: > @omne-harness/json-text@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/json-text
+@omne-harness/json-text:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/json-text:build: 
+@omne-harness/content-block:typecheck: cache hit, replaying logs 284579c57afc9be2
+@omne-harness/content-block:typecheck: 
+@omne-harness/content-block:typecheck: > @omne-harness/content-block@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/content-block
+@omne-harness/content-block:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/content-block:typecheck: 
+@omne-harness/legal-identity:typecheck: cache hit, replaying logs 730245a65b8be264
+@omne-harness/legal-identity:typecheck: 
+@omne-harness/legal-identity:typecheck: > @omne-harness/legal-identity@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/legal-identity
+@omne-harness/legal-identity:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/legal-identity:typecheck: 
+@omne-harness/operation-result:build: cache hit, replaying logs 8cf24eafbf742096
+@omne-harness/operation-result:build: 
+@omne-harness/operation-result:build: > @omne-harness/operation-result@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/operation-result
+@omne-harness/operation-result:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/operation-result:build: 
+@omne-harness/assets:build: cache hit, replaying logs 7c5d184769911653
+@omne-harness/assets:build: 
+@omne-harness/assets:build: > @omne-harness/assets@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/assets/assets
+@omne-harness/assets:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/assets:build: 
+@omne-harness/json-text:typecheck: cache hit, replaying logs c12e208e6b81f93a
+@omne-harness/json-text:typecheck: 
+@omne-harness/json-text:typecheck: > @omne-harness/json-text@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/common/json-text
+@omne-harness/json-text:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/json-text:typecheck: 
+@omne-harness/mcp-contract:build: cache miss, executing fa91d803c3c1eacc
+@omne-harness/assets:typecheck: cache hit, replaying logs 965f0d6c9001beee
+@omne-harness/assets:typecheck: 
+@omne-harness/assets:typecheck: > @omne-harness/assets@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/assets/assets
+@omne-harness/assets:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/assets:typecheck: 
+@omne-harness/mcp-contract:typecheck: cache miss, executing 4e7abcf8a04496d3
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp-contract:build: > @omne-harness/mcp-contract@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp-contract:typecheck: 
+@omne-harness/mcp-contract:typecheck: > @omne-harness/mcp-contract@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/mcp-contract:typecheck: 
+@omne-harness/mcp-contract:test: cache bypass, force executing 2d00eb01e9a57567
+@omne-harness/mcp:build: cache miss, executing 24bd85a04c52b6b7
+@omne-harness/mcp:typecheck: cache miss, executing 6bb5d4987a405549
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp-contract:test: > @omne-harness/mcp-contract@0.0.0 test /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:test: > vitest run
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp:typecheck: 
+@omne-harness/mcp:typecheck: > @omne-harness/mcp@0.0.0 typecheck /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp
+@omne-harness/mcp:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/mcp:typecheck: 
+@omne-harness/mcp:build: 
+@omne-harness/mcp:build: > @omne-harness/mcp@0.0.0 build /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp
+@omne-harness/mcp:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp:build: 
+@omne-harness/mcp:test: cache bypass, force executing b1f8ee35f8e7cfad
+@omne-harness/mcp-contract:test: Testing types with tsc and vue-tsc is an experimental feature.
+@omne-harness/mcp-contract:test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp-contract:test:  RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: > @omne-harness/mcp@0.0.0 test /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp
+@omne-harness/mcp:test: > vitest run
+@omne-harness/mcp:test: 
+@omne-harness/mcp-contract:test:  ✓ tests/values.spec.ts (46 tests) 13ms
+@omne-harness/mcp:test: Testing types with tsc and vue-tsc is an experimental feature.
+@omne-harness/mcp:test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  RUN  v4.1.11 /home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp
+@omne-harness/mcp:test: 
+@omne-harness/mcp-contract:test:  ✓ tests/json-equality.spec.ts (3 tests) 14ms
+@omne-harness/mcp-contract:test:  ✓ tests/classify.spec.ts (46 tests) 22ms
+@omne-harness/mcp-contract:test:  ✓ tests/transport-conformance.spec.ts (113 tests) 184ms
+@omne-harness/mcp-contract:test:  ✓ tests/public-entry.spec.ts (10 tests) 215ms
+@omne-harness/mcp-contract:test:  ✓ tests/catalog.spec.ts (37 tests) 93ms
+@omne-harness/mcp-contract:test:  ✓ tests/conformance.spec.ts (46 tests) 114ms
+@omne-harness/mcp-contract:test:  ✓ tests/spec-closed-sets.spec.ts (18 tests) 8ms
+@omne-harness/mcp-contract:test:  ✓ tests/content.spec.ts (27 tests) 17ms
+@omne-harness/mcp-contract:test:  ✓ tests/endpoint.spec.ts (60 tests) 69ms
+@omne-harness/mcp-contract:test:  ✓ tests/keys.spec.ts (7 tests) 13ms
+@omne-harness/mcp:test:  ✓ tests/public-entry.spec.ts (2 tests) 870ms
+@omne-harness/mcp:test:    ✓ exports the two factories from the public root  868ms
+@omne-harness/mcp-contract:test:  ✓ tests/instructions.spec.ts (4 tests) 10ms
+@omne-harness/mcp-contract:test:  ✓  TS  tests/additive-shapes.spec-d.ts (5 tests)
+@omne-harness/mcp-contract:test:  ✓  TS  tests/closed-sets.spec-d.ts (1 test)
+@omne-harness/mcp-contract:test:  ✓  TS  tests/provider-types.spec-d.ts (1 test)
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp-contract:test:  Test Files  15 passed (15)
+@omne-harness/mcp-contract:test:       Tests  424 passed (424)
+@omne-harness/mcp-contract:test: Type Errors  no errors
+@omne-harness/mcp-contract:test:    Start at  06:00:45
+@omne-harness/mcp-contract:test:    Duration  2.64s (transform 1.78s, setup 0ms, import 2.97s, tests 772ms, environment 1ms, typecheck 406ms)
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp:test:  ✓ tests/refresh.spec.ts (34 tests) 107ms
+@omne-harness/mcp:test:  ✓ tests/ensure.spec.ts (34 tests) 63ms
+@omne-harness/mcp:test:  ✓ tests/races.spec.ts (20 tests) 396ms
+@omne-harness/mcp:test:  ✓ tests/release.spec.ts (10 tests) 36ms
+@omne-harness/mcp:test:  ✓ tests/gate.spec.ts (20 tests) 40ms
+@omne-harness/mcp:test:  ✓ tests/connection.spec.ts (74 tests) 20ms
+@omne-harness/mcp:test:  ✓ tests/status.spec.ts (15 tests) 31ms
+@omne-harness/mcp:test:  ✓ tests/core.spec.ts (7 tests) 29ms
+@omne-harness/mcp:test:  ✓ tests/in-flight.spec.ts (13 tests) 8ms
+@omne-harness/mcp:test:  ✓ tests/memory-store.spec.ts (12 tests) 26ms
+@omne-harness/mcp:test:  ✓ tests/config.spec.ts (9 tests) 6ms
+@omne-harness/mcp:test:  ✓  TS  tests/types.spec-d.ts (4 tests)
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  Test Files  13 passed (13)
+@omne-harness/mcp:test:       Tests  254 passed (254)
+@omne-harness/mcp:test: Type Errors  no errors
+@omne-harness/mcp:test:    Start at  06:00:46
+@omne-harness/mcp:test:    Duration  3.15s (transform 3.06s, setup 0ms, import 4.16s, tests 1.63s, environment 2ms, typecheck 348ms)
+@omne-harness/mcp:test: 
+
+ Tasks:    16 successful, 16 total
+Cached:    10 cached, 16 total
+  Time:    6.428s 
+

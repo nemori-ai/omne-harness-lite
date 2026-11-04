@@ -1,0 +1,7 @@
+     ✓ inspects two legal packages and rejects one, lists the granted one, finds it by its description and reads its body 32ms
+     × accepts a package whose name differs from its directory, with a compatibility hint 41ms
+     ✓ reads on the material that describe pinned 251ms
+     ✓ answers basis-unavailable when the package changes between describe and read 224ms
+     ✓ finds nothing for a description that only a refused package has, and reads no page then 15ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 4 passed (5)

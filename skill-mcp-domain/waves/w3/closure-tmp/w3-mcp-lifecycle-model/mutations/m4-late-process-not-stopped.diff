@@ -1,0 +1,13 @@
+diff --git a/packages/mcp/mcp/src/internal/late.ts b/packages/mcp/mcp/src/internal/late.ts
+index cd081cf28..9b48cd053 100644
+--- a/packages/mcp/mcp/src/internal/late.ts
++++ b/packages/mcp/mcp/src/internal/late.ts
+@@ -43,7 +43,7 @@ export function landLate(
+   late: Promise<Outcome<ProcessHandle, LandingFailure>>,
+ ): Promise<void> {
+   return afterwards(late, async started => {
+-    if (started !== undefined && 'ok' in started) await stopOne(entry, started.ok)
++
+     await releaseLanding(landing)
+     landingAnswered(entry, landing)
+   })

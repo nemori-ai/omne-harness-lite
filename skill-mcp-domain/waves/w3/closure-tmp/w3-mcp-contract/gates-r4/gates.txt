@@ -1,0 +1,8 @@
+head 4905f944d start 2026-11-04T11:52:20Z
+turbo exit 0 end 2026-11-04T11:52:29Z
+lint:oxlint exit 0 start 2026-11-04T11:52:29Z end 2026-11-04T11:52:32Z
+format:check exit 0 start 2026-11-04T11:52:29Z end 2026-11-04T11:52:33Z
+check:docs exit 0 start 2026-11-04T11:52:29Z end 2026-11-04T11:53:07Z
+lint:rules exit 0 start 2026-11-04T11:52:29Z end 2026-11-04T11:53:10Z
+lint:deps exit 0 start 2026-11-04T11:52:29Z end 2026-11-04T11:53:34Z
+crlf 2 2026-11-04T11:53:36Z

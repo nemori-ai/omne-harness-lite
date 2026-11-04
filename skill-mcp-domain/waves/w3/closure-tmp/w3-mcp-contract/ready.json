@@ -1,0 +1,37 @@
+{
+  "base": "05f281394c9179ecb9427fb1d5b97cc2f808a789",
+  "branch": "PanQiWei/skill-mcp-w3-mcp-contract",
+  "key": {
+    "base": "05f281394c9179ecb9427fb1d5b97cc2f808a789",
+    "lock": "2422b7421b2ca103f1f6912980116c633249b071d71e971bd8bf8f37f451acc5",
+    "agents": "9622eade3cbec7cc0e0274409922b1bacc15c17d",
+    "agentsChanges": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "builds": [
+      "@omne-harness/mcp...",
+      "@omne-harness/skill-host-local..."
+    ]
+  },
+  "steps": [
+    {
+      "name": "install",
+      "ok": true,
+      "ms": 2222
+    },
+    {
+      "name": "projections",
+      "ok": true,
+      "ms": 1425
+    },
+    {
+      "name": "build @omne-harness/mcp...",
+      "ok": true,
+      "ms": 3231
+    },
+    {
+      "name": "build @omne-harness/skill-host-local...",
+      "ok": true,
+      "ms": 2202
+    }
+  ],
+  "completedAt": "2026-11-04T05:12:15.409Z"
+}

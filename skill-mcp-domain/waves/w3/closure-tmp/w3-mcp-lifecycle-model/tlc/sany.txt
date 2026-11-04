@@ -1,0 +1,14 @@
+2026-11-04T12:28:50Z
+aae1fb95b84b39733b07390b8861344361df5ef66d97d509d670e31e850efa5c  packages/mcp/mcp/verification/models/ConnectionTable.tla
+
+****** SANY2 Version 2.1 created 24 February 2014
+
+Parsing file /home/user/omne-harness-lite/.worktrees/w3-mcp-lifecycle-model/packages/mcp/mcp/verification/models/ConnectionTable.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module ConnectionTable
+exit=0

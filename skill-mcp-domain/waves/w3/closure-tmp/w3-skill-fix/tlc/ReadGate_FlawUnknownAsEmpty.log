@@ -1,0 +1,140 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=38247 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 46 and seed 5853199622252707133 with 2 workers on 4 cores with 3040MB heap and 64MB offheap memory [pid: 17700] (Linux 6.18.44-fc-v233 amd64, Ubuntu 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /home/user/omne-harness-lite/.worktrees/w3-skill-fix/packages/skills/skill/verification/models/ReadGate.tla
+Parsing file /tmp/Integers.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module ReadGate
+Starting... (2026-11-04 12:23:08)
+Computing initial states...
+Computed 2 initial states...
+Computed 4 initial states...
+Computed 8 initial states...
+Computed 16 initial states...
+Computed 32 initial states...
+Computed 64 initial states...
+Computed 128 initial states...
+Computed 256 initial states...
+Computed 512 initial states...
+Computed 1024 initial states...
+Computed 2048 initial states...
+Computed 4096 initial states...
+Computed 8192 initial states...
+Computed 16384 initial states...
+Computed 32768 initial states...
+Computed 65536 initial states...
+Computed 131072 initial states...
+Computed 262144 initial states...
+Finished computing initial states: 456192 distinct states generated at 2026-11-04 12:23:24.
+Progress(2) at 2026-11-04 12:23:27: 523,659 states generated (523,659 s/min), 523,659 distinct states found (523,659 ds/min), 456,190 states left on queue.
+Error: Invariant WholeUnknown is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>],
+   [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> FALSE ]
+/\ pc = <<"start", "done">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "lawful", arg |-> ""]
+/\ checked = <<{}, {}>>
+/\ pending = <<{}, {}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x"} ]
+/\ undecided = <<"", "">>
+/\ variant = <<"refused-shows", "refused-shows">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "-", h |-> "-"], [x |-> "-", h |-> "-"]>>
+/\ calls = <<0, 0>>
+/\ order = <<<<>>, <<>>>>
+
+State 2: <Start line 219, col 5 to line 230, col 53 of module ReadGate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>],
+   [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> FALSE ]
+/\ pc = <<"lawful", "done">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "lawful", arg |-> ""]
+/\ checked = <<{}, {}>>
+/\ pending = <<{}, {}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x"} ]
+/\ undecided = <<"", "">>
+/\ variant = <<"refused-shows", "refused-shows">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "-", h |-> "-"], [x |-> "-", h |-> "-"]>>
+/\ calls = <<0, 0>>
+/\ order = <<<<>>, <<>>>>
+
+State 3: <LawfulSet line 339, col 5 to line 349, col 88 of module ReadGate>
+/\ byBasis = <<FALSE, FALSE>>
+/\ content = <<{}, {}>>
+/\ abortAt = 99
+/\ at = <<"-", "-">>
+/\ changeAt = 99
+/\ afterAbort = <<0, 0>>
+/\ out = << [id |-> "-", mat |-> -1, kind |-> "ok", content |-> {}, entries |-> <<>>],
+   [id |-> "-", mat |-> -1, kind |-> "-", content |-> {}, entries |-> <<>>] >>
+/\ w = [ st |-> [x |-> "adopted", h |-> "adopted"],
+  cur |-> [x |-> 0, h |-> 0],
+  src |-> [x |-> 0, h |-> 0],
+  later |-> [x |-> 0, h |-> 0],
+  grant |-> FALSE ]
+/\ pc = <<"done", "done">>
+/\ pinned = <<[id |-> "-", mat |-> -1], [id |-> "-", mat |-> -1]>>
+/\ fault = [call |-> "lawful", arg |-> ""]
+/\ checked = <<{}, {}>>
+/\ pending = <<{}, {}>>
+/\ req = [ op |-> "catalog",
+  target |-> "x",
+  basis |-> [id |-> "none", mat |-> 0],
+  part |-> "body",
+  all |-> FALSE,
+  keep |-> {"x"} ]
+/\ undecided = <<"lawful", "">>
+/\ variant = <<"refused-shows", "refused-shows">>
+/\ smode = "digest"
+/\ todo = <<<<>>, <<>>>>
+/\ verdict = <<[x |-> "-", h |-> "-"], [x |-> "-", h |-> "-"]>>
+/\ calls = <<1, 0>>
+/\ order = <<<<>>, <<>>>>
+
+1311558 states generated, 1197510 distinct states found, 342142 states left on queue.
+The depth of the complete state graph search is 3.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 1 and the 95th percentile is 1).
+Finished in 38s at (2026-11-04 12:23:45)

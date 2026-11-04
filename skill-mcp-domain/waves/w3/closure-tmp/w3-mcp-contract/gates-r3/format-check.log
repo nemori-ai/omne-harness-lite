@@ -1,0 +1,8 @@
+
+> omne-harness-lite-workspace@ format:check /home/user/omne-harness-lite/.worktrees/w3-mcp-contract
+> ./scripts/format.sh check
+
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 1803ms on 3710 files using 4 threads.

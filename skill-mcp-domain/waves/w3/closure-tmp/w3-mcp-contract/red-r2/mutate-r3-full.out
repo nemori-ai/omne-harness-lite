@@ -1,0 +1,52 @@
+M53 B1: tasks/update and tasks/cancel carry no _meta exit 1 red 5
+M54 B1b: no clientInfo in any _meta exit 1 red 11
+M55 B1c: a notification carries the capabilities only exit 1 red 7
+M56 B2b: legacy initialize declares sampling and roots exit 1 red 6
+M57 ruling 3: legacy initialize declares the tasks extension exit 1 red 3
+M58 B3: reportRejection only for tools/call exit 1 red 3
+M59 B3b: no reportRejection for tools/list exit 1 red 2
+M60 B4: any 403 with a Bearer challenge is authorization-required exit 1 red 3
+M61 B5a: -32022 without a version in common falls back to legacy exit 1 red 3
+M62 B5b: -32021 and -32020 fall back to legacy exit 1 red 5
+M63 B5c: -32022 after the retry falls back to legacy exit 1 red 3
+M64 B6: legacy instructions not bounded exit 1 red 3
+M65 B8: _meta keeps the highest version after legacy negotiation exit 1 red 6
+M66 ruling 2: _meta keeps the highest version after a -32022 retry exit 1 red 4
+M67 ruling 2: initialize carries the modern version in _meta exit 1 red 3
+M68 ruling 1: no Mcp-Name on tasks/* exit 1 red 7
+M69 ruling 1: Mcp-Name on every request exit 1 red 8
+M70 ruling 1: MCP-Protocol-Version header is always the highest version exit 1 red 6
+M71 ruling 4: every 400 on discover is a legacy peer exit 1 red 5
+M72 ruling 4: every JSON-RPC 400 on discover is an error answer exit 1 red 3
+M73 ruling 4: a 400 to a task operation is connection-unavailable exit 1 red 4
+M74 ruling 6: legacy version not checked against the list exit 1 red 3
+M75 T3: -32601 reports the modern failure exit 1 red 3
+M76 C6: probe time starts before the pace hook exit 1 red 1
+M77 C6: probe timer not cleared by the answer exit 1 red 1
+M78 C7: failed without error makes up an error exit 1 red 3
+M79 C7: an error that is not an object is accepted exit 1 red 3
+M80 C9: a negative hint is kept exit 1 red 5
+M81 C9: an unsafe hint is kept exit 1 red 4
+M82 C1: observedProcess does not carry the pipes (round-1 shape) exit 1 red 1
+M83 C1: peer requests answered before notifications/initialized exit 1 red 3
+M84 C2: another 403 with a challenge still reports the rejection exit 1 red 2
+M86 C1: observedProcess forwards the end of stdout exit 1 red 1
+M87 N2: tools/call keeps the highest version after a modern retry exit 1 red 3
+M88 N2b: notifications/cancelled keeps the highest version exit 1 red 3
+M89 N2c: tasks/* keep the highest version after a modern retry exit 1 red 3
+M90 N1d: MCP-Protocol-Version header is the highest while _meta follows negotiation exit 1 red 6
+M91 N4c: a 400 JSON-RPC answer to tools/call is not-sent exit 1 red 3
+M92 N4d: a 400 JSON-RPC answer to tools/list is connection-unavailable exit 1 red 3
+M93 N5c: getTask accepts an error that is not an object exit 1 red 3
+M94 N6b: legacy initialize accepts a version the transport speaks on discover exit 1 red 3
+M95 N6c: legacy version checked by date range exit 1 red 3
+M96 D2: the legacy connection _meta declares the tasks extension exit 1 red 5
+M97 D3: -32022 without a modern supported version is discover-shape exit 1 red 3
+M98 D3: -32022 supported versions are not filtered to modern ones exit 1 red 3
+M99 D3: a discover result with no version in common is discover-shape exit 1 red 3
+M100 D4: the scripted transport speaks a legacy version on discover exit 1 red 1
+M101 D4: the suite accepts a fixture that lists a legacy version exit 1 red 1
+M102 D5: a discover status other than 400 is not read exit 1 red 3
+M103 D5: a discover body of another status is ignored exit 1 red 3
+M85 record: headers recorded on stdio too exit 1 red 1
+done 51

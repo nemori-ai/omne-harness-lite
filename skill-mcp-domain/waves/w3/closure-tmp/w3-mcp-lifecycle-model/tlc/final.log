@@ -1,0 +1,18 @@
+valid-faults: as expected; violated no invariant; 68911 distinct states, depth 55, 5.4 s
+valid-rebuild: as expected; violated no invariant; 725887 distinct states, depth 88, 88.0 s
+valid-two-keys: as expected; violated no invariant; 546811 distinct states, depth 76, 86.9 s
+valid-throws: as expected; violated no invariant; 4833 distinct states, depth 54, 2.4 s
+live: as expected; violated no invariant; 62569 distinct states, depth 55, 14.8 s
+bad-no-absorb-close: as expected; violated ['P2_NoneHoldsNothing']; 1496 distinct states, depth 31, 2.0 s
+bad-forget-open: as expected; violated ['P2_ForgetHoldsNothing']; 54776 distinct states, depth 47, 6.1 s
+bad-no-shut: as expected; violated ['P4_NoConnectAfterShut']; 88 distinct states, depth 20, 1.4 s
+cex-b1: as expected; violated ['P7_NoB1']; 824 distinct states, depth 31, 1.7 s
+cex-n2: as expected; violated ['P7_NoN2']; 168 distinct states, depth 24, 1.5 s
+cex-n3: as expected; violated ['P1_AtMostOnce']; 916 distinct states, depth 31, 1.6 s
+cex-n3-shutdown: as expected; violated ['P3_EveryProcessAsked']; 878 distinct states, depth 31, 2.9 s
+cex-p2: as expected; violated ['P8_NoTeardownStall']; 167 distinct states, depth 28, 2.1 s
+cex-n1: as expected; violated ['P8_NoStoreStall']; 177 distinct states, depth 27, 2.0 s
+probe-a1: as expected; violated ['P8_BoundedClose']; 250 distinct states, depth 27, 2.4 s
+probe-live-hang: as expected; violated no invariant (temporal); 9361 distinct states, depth None, 5.3 s
+evidence: tmp/closures/w3-mcp-lifecycle-model/tlc/final/20261104T144446Z
+exit=0
