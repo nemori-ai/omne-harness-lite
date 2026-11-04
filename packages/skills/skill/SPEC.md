@@ -1,6 +1,6 @@
 # @omne-harness/skill 行为规格
 
-本文件拥有本包在公开类型以外的必要行为。公开形状归 `@omne-harness/skill-contract` 的 `src/`，本包只加一个类型 `SkillPorts`。两个服务的行为条款归契约与组页，本文件不复制它们，只写本包怎样切分、哪些地方由本包决定。公开定义的导航归 [docs/public-api.md](docs/public-api.md)。
+本文件拥有本包在公开类型以外的必要行为。公开形状归 `@omne-harness/skill-contract` 的 `src/`，本包只加一个类型 `SkillPorts`。三个服务的行为条款归契约与组页，本文件不复制它们，只写本包怎样切分、哪些地方由本包决定。公开定义的导航归 [docs/public-api.md](docs/public-api.md)。
 
 ## 范围与依据
 
@@ -8,9 +8,10 @@
 
 | 依据 | 修订 | 本规格采用的范围 |
 | --- | --- | --- |
-| [契约 SPEC](../skill-contract/SPEC.md) | `b0f2ec7fb` 加本波可加改动 | 「检查 Skill 包」全节；「读取的形状规则」全节（含 `bodyOffsetOf` 与请求终点）；「需求端口」的映射补充；「符合性套件」的 `skillAccessConformance` |
+| [契约 SPEC](../skill-contract/SPEC.md) | `b0f2ec7fb` 加 W2、W3 可加改动 | 「检查 Skill 包」全节；「读取的形状规则」全节（含 `bodyOffsetOf` 与请求终点）；「需求端口」的映射补充与「端口答复的统一处置」；「目录的匹配规则」；「符合性套件」的 `skillAccessConformance` 与 `skillCatalogConformance` |
 | [组工程设计](../docs/architecture.md) | `b0f2ec7fb` | 「端口」的映射表；「检查与发现」；「读取」的 11 步与版本语义；「失败种类」 |
 | W2 Skill 线实施规格与第 1 轮评审裁定 | 2026-11-03 | 已定事项 1–10、15、16，其中 3（`gate` 收 `signal`）与 8（`describe` 带依据时依据所指材料）按第 1 轮裁定修正；映射三列；请求终点；读取判定答复在集合外答 `unknown` |
+| W3 Skill 线实施规格（reduce 裁定） | 2026-11-04 | 已定事项 1–5、7、8（实现部分）、10（删除重复定义）、13；端口 reject 与畸形答复的统一处置取代 W2 的「端口抛出的错误原样抛出」 |
 
 ## 结果与不变量
 
@@ -43,7 +44,7 @@
 
 ### 端口答复在运行期也封闭
 
-读取判定的答复不是 `granted`、`refused`、`unknown` 之一（例如 `{ kind: 'denied' }`、`{}`、不是对象）时，`gate` 答 `unknown`，不放行；对应端口的答复 `kind` 不在五种之内时同样答 `unknown`。
+每次端口调用都经 `src/port-answer.ts` 的 `answered` 取答复：端口 reject 或同步抛出时答复为 `undefined`，与集合外的答复同一处置。读取判定的答复不是 `granted`、`refused`、`unknown` 之一（例如 `{ kind: 'denied' }`、`{}`、不是对象、reject）时，`gate` 与目录都答 `unknown`，不放行；对应端口 `resolve` 的答复不是对象或 `kind` 不在五种之内时同样答 `unknown`；`adopted` 的答复不是 `Outcome`、`ok` 不是数组、数组里有 `kind` 不是 `adopted` 或 `known-unavailable` 的项时，目录整次答 `unknown`。来源的三处调用（`inspect` 的 `snapshot` 与 `open`、`pin` 的 `snapshot`、`verifiedBytes` 的 `open`）都经 `src/source-answer.ts` 的 `sourceAnswer`：reject、不是 `Outcome`、`failure` 不在映射表的键里（`isSourceFailure`，以表的键为集合）时当作 `unavailable`，再按映射表的那一行处置。`ok` 答复原样交出，快照与条目的内容摘要仍由各步自己核对。
 
 <a id="no-disclosure"></a>
 
@@ -69,7 +70,20 @@
 
 ### 检查
 
-`createPackageInspection(source)` 的 `inspect`：一次 `snapshot`；只对快照列出的控制文件各调一次 `open`，带快照的内容摘要；把快照、控制字节与 `expectedName` 原样交给 `parseSkillPackage`。控制字节与快照是否对应由 `parseSkillPackage` 核对，本包不重复核对。来源失败按映射表的 `inspect` 列。
+`createPackageInspection(source)` 的 `inspect`：一次 `snapshot`；只对快照列出的控制文件各调一次 `open`，带快照的内容摘要；把快照、控制字节与 `expectedName` 原样交给 `parseSkillPackage`。控制字节与快照是否对应由 `parseSkillPackage` 核对，本包不重复核对。来源失败按映射表的 `inspect` 列，不分调用点。
+
+<a id="catalog"></a>
+
+### 目录
+
+`createSkillCatalog(ports)` 收 `SkillPorts` 的 `readCheck` 与 `resolution` 两项，不收来源：目录不读字节。`summaries` 与 `search` 走同一条路：
+
+1. `SkillResolution.adopted(access, scope)` 给出当前合法集合。它答 `unknown`、reject 或答复畸形时整次答 `unknown`；答空集合时答空列表。
+2. 每个答复按组页「检查与发现」组装成条目：`adopted` 带 `declared.tools` 作为 `dependencies`，`known-unavailable` 带最后合法的 name、说明与原因。`description` 缺省时条目没有这个字段。同一能力标识（`sameCapability`）只保留第一条。条目按能力标识的规范文本 `<category>:<name>` 排序，使同一输入得到同一输出；次序不是承诺。
+3. 过滤先于核验：`summaries` 带 `capabilities` 时只留请求里的身份（请求里的重复不产生重复条目，空数组留下空集合）；`search` 只留 `src/match.ts` 的 `matches(query.text, name, description)` 为真的身份，规则见契约[目录的匹配规则](../skill-contract/SPEC.md#catalog-search)。
+4. 对留下的每个身份调用 `SkillReadCheck.check`。调用一起发出（`Promise.all`），答复按条目次序读取，所以完成次序不改变结果。全部答复都是 `granted` 或 `refused` 时，只交 `granted` 的条目；任一答复不是这两种（`unknown`、集合外、reject）时整次答 `unknown`，不压成空列表。
+
+「身份被拒」与「身份不在集合里」对同一主体给出相同的列表：被拒的身份不出现，也不留下任何痕迹（契约 SC7）。
 
 ## 所有权、失败与生命周期
 
@@ -77,13 +91,14 @@
 
 - 取消：`read`、`list` 与 `export` 在每次调用端口（`check`、`resolve`、`snapshot`、`open`）之前与每次端口返回之后各查一次 `signal`（`src/access/checkpoint.ts`）。已中止时答 `aborted`，不再调用端口，不交部分内容；已中止的 `signal` 使四个端口都不被调用。端口自己收不到 `signal`，一次已经发出的端口调用由端口跑完。`describe` 不收 `signal`。
 - 不交部分内容：`aborted`、`version-changed` 与 `export` 的任一条目失败都只交失败对象，结果里没有内容字段。
-- 抛出：字节范围非法时抛 `TypeError`（调用方的错误，在任何端口之前）。`parseSkillPackage` 收到不是 `sealSnapshot` 造出的快照时抛 `TypeError`，经 `inspect` 原样抛出。端口抛出的错误原样抛出，本包不吞。
+- 抛出：字节范围非法时抛 `TypeError`（调用方的错误，在任何端口之前）。`parseSkillPackage` 收到不是 `sealSnapshot` 造出的快照时抛 `TypeError`，经 `inspect` 原样抛出。端口 reject 时本包不抛出：读取判定与对应端口当作 `unknown`，来源当作 `unavailable`，见[端口答复在运行期也封闭](#closed-sets)与契约[端口答复的统一处置](../skill-contract/SPEC.md#port-answer-closed)。
+- 目录：`createSkillCatalog` 交出普通对象，不收 `signal`，不持有资源。一起发出的读取判定由端口各自跑完。
 
 ## 组合与验证
 
 | 义务 | 测试 | 反例（改了什么会红） |
 | --- | --- | --- |
-| 公开根只导出两个工厂；每个阶段只答它那几步的失败种类；`export` 不会答 `adopted-material-changed` | `tests/public-entry.spec.ts`、`tests/types.spec-d.ts` | 多导出一个名字；把 `pin` 的 `moved` 改成固定联合 |
+| 公开根只导出三个工厂；每个阶段只答它那几步的失败种类；`export` 不会答 `adopted-material-changed` | `tests/public-entry.spec.ts`、`tests/types.spec-d.ts` | 多导出一个名字；把 `pin` 的 `moved` 改成固定联合 |
 | 映射表的每一行、三列 | `tests/mapping.spec.ts` | 任一格改值（M1：检查列 `entry-unreadable` → `outside-package`） |
 | `inspect` 对合法包与每种来源失败，只读快照列出的控制文件 | `tests/inspection.spec.ts` | 不读 `.omne/skill.json`（M11）；open 失败当作文件不在（M15） |
 | 第 1–3 步每个分支；集合外答复；两次端口调用前后的检查点 | `tests/gate.spec.ts` | 第 2 步注释掉（M5）；`none` 答 `unknown`（M12）；集合外答复放行；去掉任一检查点 |
@@ -94,5 +109,8 @@
 | `read` 与 `list` 的次序（第 5 步在第 6 步前、范围校验在端口前）、失败、不缓存 | `tests/read.spec.ts` | 第 6 步提到第 5 步前；忽略正文起点（M10）；不过滤控制文件（M9） |
 | `export` 整包或失败 | `tests/export.spec.ts` | 跳过失败条目（M8） |
 | `skillAccessConformance()` 在本实现上、在两个世界（对应端口对 stranger 隐藏 / 对所有人作答）全绿；跳过第 2 步的服务在后者恰好 A1–A3 变红 | `tests/conformance.spec.ts` | 第 2 步注释掉（M5） |
+| `skillCatalogConformance()` 在本实现上全绿（`NotApplicable` 计为失败）；把 `refused` 也列出的实现恰好无披露与过滤用例变红；把 `unknown` 压成空列表的实现恰好整次 `unknown` 用例变红；核验按两种完成次序释放时答复相同 | `tests/catalog.spec.ts`、`tests/catalog-world.ts` | 过滤 `granted` 改成过滤非 `unknown`（W3-M1）；任一 `unknown` 改答空列表（W3-M2）；去掉排序（W3-M5） |
+| `matches` 的规范化、分词与全词命中 | `tests/match.spec.ts` | 去掉 NFKC（W3-M3） |
+| 三类端口各一个集合外答复与一个 reject，答复按契约统一处置，不抛出 | `tests/port-answers.spec.ts` | 来源调用还原为直接查表、reject 原样上抛（W3-M4） |
 
-M 编号是交付时的手工变异记录（`tmp/closures/w2-skill/mutations/`），不随本文件维护。未覆盖：真实的读取判定、对应与来源；对同一个包的并发写入；内容存储来源；`SkillCatalog`。替身通过不证明真实端口的行为。
+M 编号是交付时的手工变异记录（W2 在 `tmp/closures/w2-skill/mutations/`，W3 在 `tmp/closures/w3-skill-catalog/mutations/`），不随本文件维护。未覆盖：真实的读取判定、对应与来源；对同一个包的并发写入；内容存储来源；大集合下目录的性能。替身通过不证明真实端口的行为。

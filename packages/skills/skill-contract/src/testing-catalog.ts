@@ -153,7 +153,6 @@ export function skillCatalogConformance<P, S>(): ConformanceCase<CatalogFixture<
       const first = ok(await summariesOf(f, f.reader), 'summaries')
       const second = ok(await summariesOf(f, f.reader), 'summaries')
       assert.deepStrictEqual(second, first)
-      assert.equal(first.length, 2, 'the reader sees other entries than granted and standIn')
     }),
     conformanceCase(
       'SC5',

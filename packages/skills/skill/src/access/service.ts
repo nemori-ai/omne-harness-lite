@@ -6,6 +6,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   bodyOffsetOf,
   isControlFile,
+  MANIFEST_PATH,
   toPackagePath,
   type DescribeFailure,
   type ExportedEntry,
@@ -29,7 +30,6 @@ import {
 } from './pin.ts'
 import { assertByteRange, sliceRange } from './range.ts'
 
-const MANIFEST_PATH = 'SKILL.md'
 const BAD_PATH = Object.freeze({ kind: 'bad-path' } as const)
 const RESOURCE_MISSING = Object.freeze({ kind: 'resource-missing' } as const)
 

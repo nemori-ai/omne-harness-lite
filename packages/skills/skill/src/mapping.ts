@@ -83,6 +83,11 @@ const TABLE: Readonly<Record<SourceFailure, Row>> = {
   },
 }
 
+/** Whether `value` names a row of the table: a failure of the closed set of the source. */
+export function isSourceFailure(value: unknown): value is SourceFailure {
+  return typeof value === 'string' && Object.hasOwn(TABLE, value)
+}
+
 export function sourceFailureTo(op: 'inspect', failure: SourceFailure): InspectFailure
 export function sourceFailureTo(
   op: 'snapshot',
