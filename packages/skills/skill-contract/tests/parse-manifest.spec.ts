@@ -5,13 +5,25 @@ import { manifestText } from './package-builder.ts'
 import { codeOf, demo, name, parse } from './parse-support.ts'
 
 describe('name rules', () => {
-  it('rejects a name that differs from the root name even when it equals the expected name', () => {
+  it('rejects a name that differs from the expected name, whatever the root name is', () => {
     expect(codeOf(parse('demo', { 'SKILL.md': demo() }, name('other')))).toBe('name-mismatch')
+    expect(
+      codeOf(
+        parse(
+          'root',
+          { 'SKILL.md': manifestText(['name: demo', 'description: d']) },
+          name('other'),
+        ),
+      ),
+    ).toBe('name-mismatch')
+  })
+
+  it('accepts a name that differs from the root name when it equals the expected name', () => {
     expect(
       codeOf(
         parse('root', { 'SKILL.md': manifestText(['name: demo', 'description: d']) }, name('demo')),
       ),
-    ).toBe('name-mismatch')
+    ).toBe('accepted')
   })
 
   it('rejects a name outside the lexicon as malformed when it equals the root name', () => {

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { capabilityId, readBodyText, type JsonValue } from '@omne-harness/assets'
 import { writeJsonText } from '@omne-harness/json-text'
 import {
+  DESCRIPTION_LIMIT,
   computeDigest,
   inferMediaType,
   isControlFile,
@@ -119,21 +120,26 @@ describe('the control character boundaries of the text guards', () => {
   })
 })
 
-describe('isSkillDescription accepts text of 1 to 1024 characters', () => {
+describe('isSkillDescription accepts text of 1 to DESCRIPTION_LIMIT (16384) characters', () => {
+  it('has the limit that the public root exports', () => {
+    expect(DESCRIPTION_LIMIT).toBe(16384)
+  })
+
   it.each([
-    ['x', 'one character'],
-    ['x'.repeat(1024), '1024 characters'],
-    ['😀'.repeat(1024), '1024 characters outside the basic plane'],
-    ['two\nlines', 'a line feed: the description is not a short text'],
-  ])('accepts %j (%s)', text => {
+    ['one character', 'x'],
+    ['1025 characters, more than the 1024 of the Agent Skills specification', 'x'.repeat(1025)],
+    ['16384 characters', 'x'.repeat(16384)],
+    ['16384 characters outside the basic plane', '😀'.repeat(16384)],
+    ['a line feed: the description is not a short text', 'two\nlines'],
+  ])('accepts %s', (_case, text) => {
     expect(isSkillDescription(text)).toBe(true)
   })
 
   it.each([
-    ['', 'empty'],
-    ['x'.repeat(1025), '1025 characters'],
-    ['😀'.repeat(1025), '1025 characters outside the basic plane'],
-  ])('rejects %j (%s)', text => {
+    ['an empty text', ''],
+    ['16385 characters', 'x'.repeat(16385)],
+    ['16385 characters outside the basic plane', '😀'.repeat(16385)],
+  ])('rejects %s', (_case, text) => {
     expect(isSkillDescription(text)).toBe(false)
   })
 })

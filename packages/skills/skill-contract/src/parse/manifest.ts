@@ -1,14 +1,14 @@
 // Reads SKILL.md: strict UTF-8 without a byte order mark, a `---` frontmatter closed by the first
 // line that is only `---`, and a YAML mapping whose keys are unique in the whole tree. What the
 // community Skills do beyond that and the main hosts accept is accepted too, with a compatibility
-// hint: a description over 1024 characters, metadata that is not a text map, and a frontmatter
+// hint: a description over the 1024 characters of the Agent Skills specification, metadata that is not a text map, and a frontmatter
 // that strict YAML does not read but whose name and description can be read line by line.
 import { isMap, parseDocument } from 'yaml'
 import type { CompatibilityHint } from '../hints.ts'
 import { isBoundedText, isSkillName } from '../names.ts'
 import type { ManifestValue, SkillManifest, SkillName } from '../values.ts'
 import { readByLine } from './by-line.ts'
-import { DESCRIPTION_MAX } from './shape.ts'
+import { isSkillDescription, SPECIFICATION_DESCRIPTION_LIMIT } from './shape.ts'
 import { plainValue } from './yaml-value.ts'
 
 /** What the manifest gives to the package rules. `name` is present when it could be read. */
@@ -125,13 +125,11 @@ export function readManifest(bytes: Uint8Array): ManifestRead {
   return interpret(fields, rawName)
 }
 
-/** A description: text of at least one character. Over 1024 characters it gets a hint. */
-function isDescription(value: unknown): value is string {
-  return isBoundedText(value, Number.POSITIVE_INFINITY)
-}
-
+/** A description over the limit of the Agent Skills specification gets a hint. */
 function descriptionHints(description: string): CompatibilityHint[] {
-  return isBoundedText(description, DESCRIPTION_MAX) ? [] : ['description-over-limit']
+  return isBoundedText(description, SPECIFICATION_DESCRIPTION_LIMIT)
+    ? []
+    : ['description-over-limit']
 }
 
 /** A frontmatter that strict YAML does not read: its name and description, read line by line. */
@@ -140,7 +138,8 @@ function lineRead(yaml: string): ManifestRead {
   const fail = (detail: string) =>
     malformed(`the frontmatter is not valid YAML, and line by line ${detail}`, name)
   if (!isSkillName(name)) return fail('its name is not a Skill name')
-  if (!isDescription(description)) return fail('its description is not text')
+  if (!isSkillDescription(description))
+    return fail('its description is not text of 1 to DESCRIPTION_LIMIT characters')
   return {
     kind: 'ok',
     manifest: Object.freeze({ name, description, extra: Object.freeze({}) }),
@@ -153,7 +152,8 @@ function interpret(fields: FieldMap, rawName: unknown): ManifestRead {
   const fail = (detail: string) => malformed(detail, rawName)
   if (!isSkillName(rawName)) return fail('name is not a Skill name')
   const description = fields['description']
-  if (!isDescription(description)) return fail('description is not text of 1 or more characters')
+  if (!isSkillDescription(description))
+    return fail('description is not text of 1 to DESCRIPTION_LIMIT characters')
   if (!isOptional(fields['license'], value => typeof value === 'string'))
     return fail('license is not text')
   if (!isOptional(fields['compatibility'], value => isBoundedText(value, COMPATIBILITY_MAX)))

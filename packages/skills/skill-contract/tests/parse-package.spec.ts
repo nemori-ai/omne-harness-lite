@@ -43,11 +43,19 @@ describe('fixture packages', () => {
     for (const code of codes) expect(Object.values(EXPECTED)).toContain(code)
   })
 
+  // A host that expects the directory name: a name that differs from the root name alone is
+  // accepted (parse-compat.spec.ts), so `name-mismatch` needs the expected name.
   it.each(Object.entries(EXPECTED))('%s gives %s', (fixture, expected) => {
     const built = buildFixture(fixture)
-    expect(codeOf(parseSkillPackage({ snapshot: built.snapshot, control: built.control }))).toBe(
-      expected,
-    )
+    expect(
+      codeOf(
+        parseSkillPackage({
+          snapshot: built.snapshot,
+          control: built.control,
+          expectedName: name(fixture),
+        }),
+      ),
+    ).toBe(expected)
   })
 })
 

@@ -5,12 +5,14 @@ import { readBodyText, type JsonLimits, type JsonValue } from '@omne-harness/ass
 import { writeJsonText } from '@omne-harness/json-text'
 import { skillBodyContract } from '@omne-harness/skill-contract'
 
+/** A reader budget large enough for a description of DESCRIPTION_LIMIT characters outside the
+ * basic plane (4 bytes and 2 UTF-16 units each). */
 const limits: JsonLimits = {
-  maxBytes: 65_536,
+  maxBytes: 262_144,
   maxDepth: 16,
   maxItems: 4096,
   maxMembers: 256,
-  maxStringLength: 4096,
+  maxStringLength: 65_536,
   maxNumberLength: 32,
 }
 
@@ -50,7 +52,7 @@ describe('the extended skill body', () => {
   it.each([
     ['a description that is not text', { description: 3 }, 'malformed'],
     ['an empty description', { description: '' }, 'malformed'],
-    ['a description of 1025 characters', { description: 'd'.repeat(1025) }, 'malformed'],
+    ['a description of 16385 characters', { description: 'd'.repeat(16385) }, 'malformed'],
     ['scripts that are not a list', { scripts: {} }, 'malformed'],
     ['an absolute script entry', { scripts: [{ ...script, entry: '/x.sh' }] }, 'outside-package'],
     [
@@ -107,8 +109,9 @@ describe('the extended skill body', () => {
 
   it.each([
     ['one character', 'd'],
-    ['1024 characters', 'd'.repeat(1024)],
-    ['1024 characters outside the basic plane', '😀'.repeat(1024)],
+    ['1025 characters', 'd'.repeat(1025)],
+    ['16384 characters', 'd'.repeat(16384)],
+    ['16384 characters outside the basic plane', '😀'.repeat(16384)],
   ])('accepts a description of %s', (_case, description) => {
     expect(port.judge(body({ ...full, description }))).toEqual({ ok: true })
   })

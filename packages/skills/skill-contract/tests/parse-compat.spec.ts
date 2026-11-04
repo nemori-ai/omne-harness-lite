@@ -3,6 +3,9 @@
 // definition, and a package without any carries no such field. A package that cannot be read at
 // all stays rejected: see parse-manifest.spec.ts.
 import { describe, expect, it } from 'vitest'
+import { readBodyText } from '@omne-harness/assets'
+import { writeJsonText } from '@omne-harness/json-text'
+import { projectAssetBody, skillBodyContract } from '@omne-harness/skill-contract'
 import { manifestText } from './package-builder.ts'
 import { demo, name, parse } from './parse-support.ts'
 
@@ -28,6 +31,44 @@ describe('a description longer than 1024 characters', () => {
     expect(definition.compatibilityHints).toStrictEqual(['description-over-limit'])
   })
 
+  it('keeps 16384 characters, the limit, with the hint', () => {
+    const description = 'd'.repeat(16384)
+    const definition = accepted(
+      parse('demo', { 'SKILL.md': manifestText(['name: demo', `description: ${description}`]) }),
+    )
+    expect(definition.manifest.description).toBe(description)
+    expect(definition.compatibilityHints).toStrictEqual(['description-over-limit'])
+  })
+
+  it('rejects 16385 characters as malformed, by YAML and line by line alike', () => {
+    const over = 'd'.repeat(16385)
+    for (const lines of [
+      ['name: demo', `description: ${over}`],
+      ['name: demo', `description: ${over}`, 'x: a: b'],
+    ])
+      expect(parse('demo', { 'SKILL.md': manifestText(lines) })).toMatchObject({
+        failure: { kind: 'rejected', code: 'malformed' },
+      })
+  })
+
+  it('projects into an asset body that the category port takes', () => {
+    const description = 'd'.repeat(1077)
+    const definition = accepted(
+      parse('demo', { 'SKILL.md': manifestText(['name: demo', `description: ${description}`]) }),
+    )
+    const body = projectAssetBody(definition)
+    const read = readBodyText(writeJsonText(body), {
+      maxBytes: 65536,
+      maxDepth: 16,
+      maxItems: 4096,
+      maxMembers: 256,
+      maxStringLength: 16384,
+      maxNumberLength: 32,
+    })
+    if (read.kind !== 'ok') throw new Error(JSON.stringify(read))
+    expect(skillBodyContract().judge(read.value, { capabilityName: 'demo' })).toEqual({ ok: true })
+  })
+
   it('gives no hint at 1024 characters', () => {
     const definition = accepted(
       parse('demo', {
@@ -39,19 +80,31 @@ describe('a description longer than 1024 characters', () => {
 })
 
 describe('a name that differs from the package root name', () => {
-  // Not relaxed: the relaxation turns an existing use case of @omne-harness/skill-host-local red
-  // (its directory journey expects `name-mismatch` for such a package), a stop condition of the
-  // closure. The patch waits in the closure tmp for the owner's decision.
-  it('is still rejected as name-mismatch', () => {
-    const result = parse('template', {
-      'SKILL.md': manifestText(['name: template-skill', 'description: d']),
-    })
+  it('is the name of the definition, with the hint name-differs-from-root', () => {
+    const definition = accepted(
+      parse('template', { 'SKILL.md': manifestText(['name: template-skill', 'description: d']) }),
+    )
+    expect(definition.manifest.name).toBe('template-skill')
+    expect(definition.compatibilityHints).toStrictEqual(['name-differs-from-root'])
+  })
+
+  it('is still rejected when the expected name is another one', () => {
+    const result = parse(
+      'template',
+      { 'SKILL.md': manifestText(['name: template-skill', 'description: d']) },
+      name('template'),
+    )
     expect(result).toMatchObject({ failure: { kind: 'rejected', code: 'name-mismatch' } })
   })
 
-  it('is name-mismatch for a name read line by line too', () => {
-    const result = parse('root', { 'SKILL.md': manifestText(['name: demo', 'description: a: b']) })
-    expect(result).toMatchObject({ failure: { kind: 'rejected', code: 'name-mismatch' } })
+  it('is accepted for a name read line by line too, with both hints', () => {
+    const definition = accepted(
+      parse('root', { 'SKILL.md': manifestText(['name: demo', 'description: a: b']) }),
+    )
+    expect(definition.compatibilityHints).toStrictEqual([
+      'name-differs-from-root',
+      'frontmatter-read-by-line',
+    ])
   })
 })
 
@@ -148,11 +201,12 @@ describe('a frontmatter that strict YAML does not read', () => {
 
   it('gives every hint that applies, in the order of the set', () => {
     const definition = accepted(
-      parse('demo', {
+      parse('root', {
         'SKILL.md': manifestText(['name: demo', `description: ${'d'.repeat(1025)}: x`]),
       }),
     )
     expect(definition.compatibilityHints).toStrictEqual([
+      'name-differs-from-root',
       'frontmatter-read-by-line',
       'description-over-limit',
     ])

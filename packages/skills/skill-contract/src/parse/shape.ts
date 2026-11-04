@@ -31,13 +31,21 @@ function rank(code: InspectRejectionCode): number {
 
 const malformed = (detail: string): Finding => ({ code: 'malformed', detail })
 
-/** The longest description, in code points, of a manifest and of an asset body. */
-export const DESCRIPTION_MAX = 1024
+/**
+ * The longest description, in code points, of a manifest, an asset body, a declared projection
+ * and a stand-in: one limit for the whole contract. It is larger than the 1024 of the Agent
+ * Skills specification on purpose: the main hosts accept longer descriptions, and a Skill that
+ * they load must be usable here too. The limit stays finite against abuse.
+ */
+export const DESCRIPTION_LIMIT = 16384
 
-/** A description of a manifest, of an asset body or of a stand-in: text of 1 to 1024 characters,
- * counted in code points. */
+/** The limit of the Agent Skills specification. A longer manifest description gets a hint. */
+export const SPECIFICATION_DESCRIPTION_LIMIT = 1024
+
+/** A description of a manifest, of an asset body or of a stand-in: text of 1 to
+ * `DESCRIPTION_LIMIT` characters, counted in code points. */
 export function isSkillDescription(value: unknown): value is string {
-  return isBoundedText(value, DESCRIPTION_MAX)
+  return isBoundedText(value, DESCRIPTION_LIMIT)
 }
 
 /** The fields of an object, or `undefined` when the value is not an object. */
