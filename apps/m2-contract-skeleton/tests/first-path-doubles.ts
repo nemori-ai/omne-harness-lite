@@ -435,6 +435,8 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
         {
           ...dependencies,
           journal: journal?.journal ?? dependencies.journal,
+          // The Loop reads its received entries from the Journal it commits to.
+          entries: journal?.entries ?? dependencies.entries,
           materials: journal?.materials ?? dependencies.materials,
           models,
           tools,
@@ -447,6 +449,7 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
     return {
       provider,
       journal: journal?.journal ?? dependencies.journal,
+      entries: journal?.entries ?? dependencies.entries,
       materials: journal?.materials ?? dependencies.materials,
       instance,
       releaseModel: scenario === 'held' ? () => held.splice(0).forEach(settle => settle()) : null,
@@ -574,7 +577,7 @@ export function sessionAssembly(
       evidence,
       agentJournal: access => {
         const view = backend.forSession(access)
-        return { journal: view.journal, materials: view.materials }
+        return { journal: view.journal, entries: view.entries, materials: view.materials }
       },
     }
   }

@@ -21,6 +21,8 @@ import {
   type AgentExecutionHandle,
   type InputId as AgentInputId,
   type AgentJournal,
+  type AgentJournalEntries,
+  type AgentJournalEntry,
   type AgentMaterials,
   type AgentOperationId,
   type Access,
@@ -149,6 +151,8 @@ function withEvidence(observation: ConnectedObservation, more: readonly string[]
 /** The Agent Journal and materials of one session on the Session log (#756). */
 export type SessionLogAgentJournal = Readonly<{
   journal: AgentJournal<PathPrincipal>
+  /** The receiving entries of the same Journal; the snapshot carries none. */
+  entries: AgentJournalEntries<PathPrincipal>
   materials: AgentMaterials<PathPrincipal, ContentBlock>
 }>
 
@@ -175,6 +179,8 @@ export type AgentScenario = 'reply' | 'tool-call' | 'reasoning' | 'held'
 export type PathAgent = Readonly<{
   provider: AgentProvider<PathPrincipal>
   journal: AgentJournal<PathPrincipal>
+  /** The receiving entries of the same Journal; the snapshot carries none. */
+  entries: AgentJournalEntries<PathPrincipal>
   materials: AgentMaterials<PathPrincipal, ContentBlock>
   /** The Agent instance that Session's `startRun` names. */
   instance: string
@@ -1470,8 +1476,7 @@ type AgentSnapshot = Extract<
   Awaited<ReturnType<AgentJournal<PathPrincipal>['load']>>,
   { ok: unknown }
 >['ok']
-type JournalEntry = NonNullable<AgentSnapshot['entries']>[number]
-type ReceivedModelResult = Extract<JournalEntry, { kind: 'received' }>
+type ReceivedModelResult = Extract<AgentJournalEntry, { kind: 'received' }>
 
 async function loadSnapshot(
   agent: Pick<PathAgent, 'journal'>,
@@ -1482,9 +1487,33 @@ async function loadSnapshot(
   return 'ok' in loaded ? loaded.ok : null
 }
 
-/** The received Model result entry of a snapshot, if the journal holds one. */
-function receivedModelResult(snapshot: AgentSnapshot | null): ReceivedModelResult | null {
-  const entries = snapshot?.entries ?? []
+/**
+ * Every committed receiving entry of an execution, read page by page through the entries port in
+ * commit order. Null when a read fails: a failed read is not an empty journal.
+ */
+async function journalEntries(
+  agent: Pick<PathAgent, 'entries'>,
+  access: Access<PathPrincipal>,
+  execution: AgentExecutionId,
+): Promise<readonly AgentJournalEntry[] | null> {
+  const found: AgentJournalEntry[] = []
+  let after: string | null = null
+  for (;;) {
+    const page = await agent.entries.read({ ...access, execution, after, limit: 100 })
+    if ('failure' in page) return null
+    found.push(...page.ok.items.map(item => item.entry))
+    if (page.ok.caughtUp || page.ok.next === null) return found
+    after = page.ok.next
+  }
+}
+
+/** The received Model result entry of an execution, if the journal holds one. */
+async function receivedModelResult(
+  agent: Pick<PathAgent, 'entries'>,
+  access: Access<PathPrincipal>,
+  execution: AgentExecutionId,
+): Promise<ReceivedModelResult | null> {
+  const entries = (await journalEntries(agent, access, execution)) ?? []
   for (const entry of entries)
     if (
       entry.kind === 'received' &&
@@ -1507,13 +1536,13 @@ type AgentFacts = Readonly<{
 }>
 
 async function agentFacts(
-  agent: Pick<PathAgent, 'journal' | 'materials' | 'admitted'>,
+  agent: Pick<PathAgent, 'journal' | 'entries' | 'materials' | 'admitted'>,
   access: Access<PathPrincipal>,
   execution: AgentExecutionId,
   log: BridgeLog,
 ): Promise<AgentFacts> {
   const snapshot = await loadSnapshot(agent, access, execution)
-  const modelResult = receivedModelResult(snapshot)
+  const modelResult = await receivedModelResult(agent, access, execution)
   const facts = { snapshot, log, admitted: agent.admitted(), modelResult }
   if (modelResult === null || modelResult.delivery.producer !== 'model')
     return { ...facts, materialReadable: false, originalCall: null }
@@ -1691,6 +1720,7 @@ async function readSessionLogRecords(
       'agent-journal:this store keeps the Agent Journal outside the Session log, so it does not probe H13 (GAP-SESSION-LOG-TARGETS)',
     )
   const snapshot = await loadSnapshot(journal, scene.access, drive.execution)
+  const entries = await journalEntries(journal, scene.access, drive.execution)
   const work = await assembly.transactions.readWork(scene.access)
   const sameExecution = 'ok' in work && runOfDrive(work.ok.run, drive)
   const page = await scene.history()
@@ -1698,7 +1728,7 @@ async function readSessionLogRecords(
   return observed(snapshot !== null && sameExecution && handedOver, [
     snapshot === null
       ? 'session-adapters:journal.load on the Session log has no execution'
-      : `session-adapters:journal.load on the Session log returns the execution opened under the Run grant, at ${snapshot.checkpoint.position} with ${snapshot.entries?.length ?? 0} received entr(ies)`,
+      : `session-adapters:journal.load on the Session log returns the execution opened under the Run grant, at ${snapshot.checkpoint.position} with ${entries?.length ?? 0} received entr(ies)`,
     sameExecution
       ? 'session-contract:readWork binds the Run to the same execution'
       : 'session-contract:readWork binds the Run to another execution',
@@ -2108,7 +2138,8 @@ async function probeReasoningReplay(context: PathContext): Promise<ConnectedObse
   const { session, drive } = probe.opened
   const waited = drive.log.waited
   const snapshot = await loadSnapshot(drive.agent, session.scene.access, drive.execution)
-  const received = receivedModelResult(snapshot) !== null
+  const received =
+    (await receivedModelResult(drive.agent, session.scene.access, drive.execution)) !== null
   const head = [
     received
       ? 'model-contract:the public pusher delivered the reasoning result to the host receiver'

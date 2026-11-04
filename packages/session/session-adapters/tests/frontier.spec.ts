@@ -16,7 +16,7 @@ it('frozen cancellation first interprets the complete captured suffix, including
       operation: operation('taken-and-wait'),
       authority: opened.authority,
       expected: loaded.revision,
-      checkpoint: { ...checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...checkpoint, inputBatch: page.batch },
       state: {
         kind: 'waiting',
         waits: [{ kind: 'dependency', owner: 'test', position: 'before_model' }],

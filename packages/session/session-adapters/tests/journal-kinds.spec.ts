@@ -94,7 +94,7 @@ async function started(s: SqlScene) {
     }),
   )
   await committed(s, 'take', () => ({
-    checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+    checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
     events: [{ kind: 'input-taken', batch: page.batch }],
   }))
 }

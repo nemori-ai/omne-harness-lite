@@ -21,6 +21,7 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { decodeValue, plainOf } from '../codec.ts'
 import type { JournalRow } from './entries.ts'
+import { readState } from './state-rows.ts'
 import {
   entryEvidence,
   readHistory,
@@ -156,8 +157,8 @@ export type CoveringSnapshot = (
   tail: bigint,
 ) => WorkSnapshot | 'behind'
 
-/** The snapshot text of the `sl_state` row of the session when it covers `tail`, else `behind`. */
-export function readCoveringText(
+/** The head text of the `sl_state` row of the session when it covers `tail`, else `behind`. */
+export function readCoveringHead(
   port: ParticipantPort,
   tenant: string,
   session: string,
@@ -173,12 +174,13 @@ export function readCoveringText(
 }
 
 /**
- * Reads and parses the `sl_state` row each time. The participant passes its parsed-snapshot cache
- * instead (`ParsedSnapshots.covering`), which reads the same row and parses only a new text.
+ * Reads the head row and the chunk rows each time. The participant passes its parsed-snapshot
+ * cache instead (`ParsedSnapshots.covering`), which reads the same head row and reads the chunks
+ * only for a new head text.
  */
 export const readCoveringSnapshot: CoveringSnapshot = (port, tenant, session, tail) => {
-  const read = readCoveringText(port, tenant, session, tail)
-  return read === 'behind' ? read : (decodeValue(JSON.parse(read) as JsonValue) as WorkSnapshot)
+  const read = readState(port, tenant, session, tail)
+  return read === 'behind' ? read : read.snapshot
 }
 
 type Read = Readonly<{

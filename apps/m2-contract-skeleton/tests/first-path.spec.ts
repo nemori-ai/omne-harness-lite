@@ -2,6 +2,7 @@
 // failure stops at the hop that owns it without faking the later ones, and every probe of CS v2
 // records the public refusal it meets instead of building the missing behavior.
 import { describe, expect, it } from 'vitest'
+import type { AgentJournalEntry } from '@omne-harness/agent-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
   HistoryPage,
@@ -22,6 +23,7 @@ import {
   wireSessionOf,
   type FirstPathHop,
   type FirstPathObservation,
+  type PathAgent,
   type PathDependencies,
   type PathPrincipal,
   type SessionAssembly,
@@ -819,6 +821,36 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
   })
 })
 
+/**
+ * The entries port of `agent` with the committed entries passed through `rewrite` and served as one
+ * caught-up page. `rewrite` answers null for an unreadable journal: the read then fails.
+ */
+function rewrittenEntries(
+  agent: PathAgent,
+  rewrite: (entries: readonly AgentJournalEntry[]) => readonly AgentJournalEntry[] | null,
+): PathAgent['entries'] {
+  return {
+    ...agent.entries,
+    async read(request) {
+      const found: AgentJournalEntry[] = []
+      let after: string | null = null
+      for (;;) {
+        const page = await agent.entries.read({ ...request, after })
+        if ('failure' in page) return page
+        found.push(...page.ok.items.map(item => item.entry))
+        if (page.ok.caughtUp || page.ok.next === null) break
+        after = page.ok.next
+      }
+      const entries = rewrite(found)
+      if (entries === null)
+        return { failure: { kind: 'unavailable', owner: 'test', diagnostic: 'no entries' } }
+      if (request.after !== null) return { ok: { items: [], next: request.after, caughtUp: true } }
+      const items = entries.map((entry, index) => ({ sequence: String(index + 1), entry }))
+      return { ok: { items, next: items.at(-1)?.sequence ?? null, caughtUp: true } }
+    },
+  }
+}
+
 it.each([
   'missing-snapshot',
   'missing-entries',
@@ -834,32 +866,35 @@ it.each([
     pathDependencies({
       agent: async input => {
         const agent = await original(input)
-        return {
-          ...agent,
-          journal: {
-            ...agent.journal,
-            async load(request) {
-              const snapshot = await agent.journal.load(request)
-              if ('failure' in snapshot) return snapshot
-              if (variant === 'missing-snapshot')
+        // The journal is unreadable: neither the snapshot nor the entries can be read.
+        if (variant === 'missing-snapshot')
+          return {
+            ...agent,
+            journal: {
+              ...agent.journal,
+              async load(request) {
+                const snapshot = await agent.journal.load(request)
+                if ('failure' in snapshot) return snapshot
                 return {
                   failure: { kind: 'unavailable', owner: 'test', diagnostic: 'no snapshot' },
                 }
-              if (variant === 'missing-entries') {
-                const { entries: _, ...rest } = snapshot.ok
-                return { ok: rest }
-              }
-              const entries =
-                variant === 'empty'
-                  ? []
-                  : variant === 'start-fence'
-                    ? [sampleStartFence('wrong')]
-                    : variant === 'tool-account'
-                      ? [sampleReceivedToolAccount(input.tenant, 'wrong')]
-                      : [sampleReceivedModelAccount(input.tenant, 'wrong')]
-              return { ok: { ...snapshot.ok, entries } }
+              },
             },
-          },
+            entries: rewrittenEntries(agent, () => null),
+          }
+        if (variant === 'missing-entries')
+          return { ...agent, entries: rewrittenEntries(agent, () => null) }
+        return {
+          ...agent,
+          entries: rewrittenEntries(agent, () =>
+            variant === 'empty'
+              ? []
+              : variant === 'start-fence'
+                ? [sampleStartFence('wrong')]
+                : variant === 'tool-account'
+                  ? [sampleReceivedToolAccount(input.tenant, 'wrong')]
+                  : [sampleReceivedModelAccount(input.tenant, 'wrong')],
+          ),
         }
       },
     }),
@@ -917,24 +952,12 @@ it('selects the result after unrelated entries rather than adopting the first en
         const agent = await original(input)
         return {
           ...agent,
-          journal: {
-            ...agent.journal,
-            async load(request) {
-              const snapshot = await agent.journal.load(request)
-              if ('failure' in snapshot) return snapshot
-              return {
-                ok: {
-                  ...snapshot.ok,
-                  entries: [
-                    sampleStartFence('other'),
-                    sampleReceivedToolAccount(input.tenant, 'other'),
-                    sampleReceivedModelAccount(input.tenant, 'other'),
-                    ...(snapshot.ok.entries ?? []),
-                  ],
-                },
-              }
-            },
-          },
+          entries: rewrittenEntries(agent, entries => [
+            sampleStartFence('other'),
+            sampleReceivedToolAccount(input.tenant, 'other'),
+            sampleReceivedModelAccount(input.tenant, 'other'),
+            ...entries,
+          ]),
         }
       },
     }),
@@ -953,41 +976,35 @@ it('does not claim H06 when readable received material names another original ca
         let replacement: { from: string; to: string } | null = null
         return {
           ...agent,
-          journal: {
-            ...agent.journal,
-            async load(request) {
-              const snapshot = await agent.journal.load(request)
-              if ('failure' in snapshot) return snapshot
-              const entries = snapshot.ok.entries?.map(entry => {
-                if (
-                  entry.kind !== 'received' ||
-                  entry.delivery.producer !== 'model' ||
-                  entry.delivery.key.kind !== 'result' ||
-                  !('accounts' in entry.delivery)
-                )
-                  return entry
-                const ref = resolveModelInvocationRef(entry.delivery.key.reference, input.tenant)
-                const call = decodeModelCallId('mcall_other-original')
-                if ('failure' in ref || 'failure' in call)
-                  throw new Error('valid original reference required')
-                const changed = encodeModelInvocationRef({
-                  ...ref.ok,
-                  tenant: input.tenant,
-                  call: call.ok,
-                })
-                if ('failure' in changed) throw new Error('valid replacement required')
-                replacement = { from: entry.delivery.key.reference, to: changed.ok }
-                return {
-                  ...entry,
-                  delivery: {
-                    ...entry.delivery,
-                    key: { ...entry.delivery.key, reference: changed.ok },
-                  },
-                }
+          entries: rewrittenEntries(agent, entries =>
+            entries.map(entry => {
+              if (
+                entry.kind !== 'received' ||
+                entry.delivery.producer !== 'model' ||
+                entry.delivery.key.kind !== 'result' ||
+                !('accounts' in entry.delivery)
+              )
+                return entry
+              const ref = resolveModelInvocationRef(entry.delivery.key.reference, input.tenant)
+              const call = decodeModelCallId('mcall_other-original')
+              if ('failure' in ref || 'failure' in call)
+                throw new Error('valid original reference required')
+              const changed = encodeModelInvocationRef({
+                ...ref.ok,
+                tenant: input.tenant,
+                call: call.ok,
               })
-              return { ok: { ...snapshot.ok, ...(entries === undefined ? {} : { entries }) } }
-            },
-          },
+              if ('failure' in changed) throw new Error('valid replacement required')
+              replacement = { from: entry.delivery.key.reference, to: changed.ok }
+              return {
+                ...entry,
+                delivery: {
+                  ...entry.delivery,
+                  key: { ...entry.delivery.key, reference: changed.ok },
+                },
+              }
+            }),
+          ),
           materials: {
             ...agent.materials,
             async read(request) {
@@ -1029,41 +1046,35 @@ it('rejects a received reference encoded for another tenant', async () => {
         const agent = await original(input)
         return {
           ...agent,
-          journal: {
-            ...agent.journal,
-            async load(request) {
-              const snapshot = await agent.journal.load(request)
-              if ('failure' in snapshot) return snapshot
-              const entries = snapshot.ok.entries?.map(entry => {
-                if (entry.kind !== 'received' || entry.delivery.producer !== 'model') return entry
-                const ref = resolveModelInvocationRef(entry.delivery.key.reference, input.tenant)
-                if ('failure' in ref) throw new Error('original reference required')
-                const foreign = encodeModelInvocationRef({
-                  ...ref.ok,
-                  tenant: memoryOtherAccess<PathPrincipal>('foreign').tenant,
-                })
-                if ('failure' in foreign) throw new Error('foreign reference required')
-                if ('accounts' in entry.delivery)
-                  return {
-                    ...entry,
-                    delivery: {
-                      producer: 'model' as const,
-                      key: { ...entry.delivery.key, reference: foreign.ok },
-                      accounts: entry.delivery.accounts,
-                    },
-                  }
+          entries: rewrittenEntries(agent, entries =>
+            entries.map(entry => {
+              if (entry.kind !== 'received' || entry.delivery.producer !== 'model') return entry
+              const ref = resolveModelInvocationRef(entry.delivery.key.reference, input.tenant)
+              if ('failure' in ref) throw new Error('original reference required')
+              const foreign = encodeModelInvocationRef({
+                ...ref.ok,
+                tenant: memoryOtherAccess<PathPrincipal>('foreign').tenant,
+              })
+              if ('failure' in foreign) throw new Error('foreign reference required')
+              if ('accounts' in entry.delivery)
                 return {
                   ...entry,
                   delivery: {
                     producer: 'model' as const,
                     key: { ...entry.delivery.key, reference: foreign.ok },
-                    account: entry.delivery.account,
+                    accounts: entry.delivery.accounts,
                   },
                 }
-              })
-              return { ok: { ...snapshot.ok, ...(entries === undefined ? {} : { entries }) } }
-            },
-          },
+              return {
+                ...entry,
+                delivery: {
+                  producer: 'model' as const,
+                  key: { ...entry.delivery.key, reference: foreign.ok },
+                  account: entry.delivery.account,
+                },
+              }
+            }),
+          ),
         }
       },
     }),

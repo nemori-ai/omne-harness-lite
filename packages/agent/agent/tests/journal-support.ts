@@ -16,6 +16,8 @@ import {
   type AgentExecutionId,
   type AgentInstanceId,
   type AgentJournal,
+  type AgentJournalEntries,
+  type AgentJournalEntry,
   type AgentOperationId,
   type FinishAuthorization,
   type FinishCandidateContent,
@@ -117,6 +119,7 @@ export function checkpoint(position = 'E3', passages: readonly Passage[] = []): 
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
+    voided: [],
   }
 }
 
@@ -159,16 +162,9 @@ export function invokeAcceptance(
   id: AgentExecutionId,
   op: AgentOperationId,
   initial: AcceptedInput,
-  initialCheckpoint: AgentCheckpoint = checkpoint(),
   runtime: InvokeRuntimeContext = runtimeContext(),
 ): OriginalInputAcceptance {
-  const entry = {
-    kind: 'invoke' as const,
-    operation: op,
-    execution: id,
-    initial,
-    checkpoint: initialCheckpoint,
-  }
+  const entry = { kind: 'invoke' as const, operation: op, execution: id, initial }
   const handoff = { kind: 'input' as const, execution: id, entry: op, input: initial.id }
   return {
     entry,
@@ -225,7 +221,7 @@ export function withLineage(input: PlainSubmit): SubmitInput {
 }
 
 type OpenInput = Parameters<Journal['open']>[0]
-type PlainOpen = Omit<OpenInput, 'original' | 'runtime'> &
+type PlainOpen = Omit<OpenInput, 'original' | 'runtime' | 'checkpoint'> &
   Readonly<{
     instance?: AgentInstanceId
     grant?: DurableEvidence | null
@@ -243,10 +239,10 @@ export function openInput(input: PlainOpen): OpenInput {
       rest.execution,
       rest.operation,
       initial ?? acceptedInput('input-1'),
-      initialCheckpoint ?? checkpoint(),
       runtime,
     ),
     runtime,
+    checkpoint: initialCheckpoint ?? checkpoint(),
   }
 }
 
@@ -564,7 +560,7 @@ export async function takeInputs(journal: Journal, opened: Opened) {
   )
   return journal.commit(
     commitAt(snapshot, opened.authority, `take-inputs-${snapshot.revision}`, {
-      checkpoint: { ...snapshot.checkpoint, inputBatch: taken.batch.id },
+      checkpoint: { ...snapshot.checkpoint, inputBatch: taken.batch },
     }),
   )
 }
@@ -573,4 +569,42 @@ export async function takeInputs(journal: Journal, opened: Opened) {
 export async function finish(journal: Journal, opened: Opened, name = 'finish') {
   ok(await takeInputs(journal, opened))
   return journal.tryFinish(await finishInput(journal, opened, name))
+}
+
+/**
+ * Every committed receiving entry of an execution in commit order, read page by page through the
+ * entries port: the snapshot carries none (agent-contract SPEC "日志条目" 6). A read that fails
+ * throws; it is never an empty list.
+ */
+export async function entriesOf<P>(
+  entries: AgentJournalEntries<P>,
+  input: Readonly<{
+    principal: P
+    tenant: Parameters<AgentJournalEntries<P>['read']>[0]['tenant']
+  }> &
+    Readonly<{ execution: AgentExecutionId }>,
+): Promise<readonly AgentJournalEntry[]> {
+  const found: AgentJournalEntry[] = []
+  let after: string | null = null
+  for (;;) {
+    const page = await entries.read({ ...input, after, limit: 50 })
+    if ('failure' in page) throw new Error(`entries read failed: ${JSON.stringify(page.failure)}`)
+    found.push(...page.ok.items.map(item => item.entry))
+    if (page.ok.caughtUp) return found
+    after = page.ok.next
+  }
+}
+
+/** A loaded snapshot with the committed entries of its execution beside it, for assertions. */
+export type LoadedWithEntries = ExecutionSnapshot &
+  Readonly<{ entries: readonly AgentJournalEntry[] }>
+
+/** The snapshot of `input` and, read right after it, the committed entries of the execution. */
+export async function loadWithEntries<P>(
+  ports: Readonly<{ journal: AgentJournal<P>; entries: AgentJournalEntries<P> }>,
+  input: Parameters<AgentJournal<P>['load']>[0],
+): Promise<LoadedWithEntries> {
+  const snapshot = await ports.journal.load(input)
+  if ('failure' in snapshot) throw new Error(`load failed: ${JSON.stringify(snapshot.failure)}`)
+  return { ...snapshot.ok, entries: await entriesOf(ports.entries, input) }
 }

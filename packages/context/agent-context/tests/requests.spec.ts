@@ -603,6 +603,34 @@ describe('derive and resume', () => {
     expect(result.kind === 'cannot-fit' ? 'cannot-fit' : result.progress.completed).toBe('1')
   })
 
+  // R2-D292: the Agent keeps no step request; with the same action and progress and a null result
+  // it derives the request of the current step again. The content is the same: the same fixed
+  // request and the same digests. The evidence records are minted anew, so a caller recognizes the
+  // step by its content digests, never by the records.
+  it('derives a step request of the same content again for the same action and progress', async () => {
+    const { derive } = await stepped(real => real)
+    const content = (step: Extract<Awaited<ReturnType<typeof derive>>, { ok: unknown }>['ok']) => {
+      if (step.kind !== 'continue') throw new Error(`expected continue, got ${step.kind}`)
+      const { request, coverage, source, budget, purpose, id } = step.stepRequest as Extract<
+        typeof step.stepRequest,
+        { kind: 'ready' }
+      >
+      return {
+        progress: step.progress,
+        request,
+        purpose,
+        id,
+        digests: [coverage.digest, source.digest, budget.digest],
+      }
+    }
+    const first = okOf(await derive())
+    const again = okOf(await derive())
+    expect(content(again)).toEqual(content(first))
+    // Negative control of the comparison: the evidence records themselves are not the same.
+    if (first.kind === 'continue' && again.kind === 'continue')
+      expect(again.stepRequest.source.record).not.toBe(first.stepRequest.source.record)
+  })
+
   for (const completed of ['2', '0'])
     it(`refuses a step result that Request Context counts as ${completed} steps done`, async () => {
       const { derive } = await stepped(real =>

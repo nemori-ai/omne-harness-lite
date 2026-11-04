@@ -2196,7 +2196,7 @@ export function createJournal<P>(
 
   function inputBoundary(execution: Execution): Range {
     const taken = execution.checkpoint.inputBatch
-    const range = taken === null ? undefined : cache(execution).batches.get(taken)
+    const range = taken === null ? undefined : cache(execution).batches.get(taken.id)
     if (taken !== null && range === undefined)
       throw new Error('original input batch range is unavailable')
     const from = range?.to ?? 0
@@ -3330,7 +3330,8 @@ export function createJournal<P>(
           generation: '1',
           source: attachmentEvidence(input.execution, 'attach', 1, 1),
         }
-        const checkpoint = entry.checkpoint
+        // The initial checkpoint comes from the caller, not from the invoke entry (R2-D292).
+        const checkpoint = input.checkpoint
         const outcome = acceptance.outcome
         const facts: FactBody[] = [
           {
@@ -3387,7 +3388,7 @@ export function createJournal<P>(
               tenant: input.tenant,
               revision: view.revision,
               state: { kind: 'advancing' },
-              checkpoint: checkpointOf(view.cursor, state().blobs),
+              checkpoint: checkpointOf(view, state().blobs),
               attachments: [{ authority, status: 'active', handoff: null, handoffRevision: 0 }],
               inputs: [copy(initial)],
               inputRevisions: new Map([[initial.id, view.revision]]),
@@ -3708,12 +3709,43 @@ export function createJournal<P>(
         const facts: FactBody[] = []
         const blobs: Blob[] = []
         const view = viewOf(execution.id)
-        const steps = new Set(view.steps.map(item => item.step))
+        // The input batch of the step is the `step.begun` the cursor names: the first commit
+        // that holds it writes it whole (R2-D292).
+        const taken = input.checkpoint.inputBatch
+        if (taken !== null && !view.steps.some(item => item.batch.id === taken.id))
+          facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(taken) })
+        // A main-purpose M0 adopts its final request; the attempt of the step is the number of
+        // its voided intents.
+        const adopted = input.checkpoint.adoptedRequest ?? null
+        const adoptedBefore = execution.checkpoint.adoptedRequest ?? null
+        if (adopted !== null && canonical(adopted) !== canonical(adoptedBefore)) {
+          blobs.push(blobOf(adopted.record))
+          facts.push({
+            kind: 'request.adopted',
+            step: input.checkpoint.step,
+            attempt: input.checkpoint.voided.filter(item => item.step === input.checkpoint.step)
+              .length,
+            reference: adopted.reference,
+            fixed: copy(adopted.fixed),
+            schema: copy(adopted.schema),
+            record: refOf(adopted.record),
+            coverage: null,
+          })
+        }
+        // Each newly voided intent closes the adopted request it names (R2-D292); `voided` is
+        // never a cursor member, so it is not rewritten with each voiding.
+        for (const item of input.checkpoint.voided.slice(execution.checkpoint.voided.length)) {
+          const request = view.requests.findLast(request => request.reference === item.reference)
+          if (request === undefined)
+            return answer(fail(invalid('checkpoint.voided', 'the voided request was not adopted')))
+          facts.push({
+            kind: 'intent.voided',
+            step: request.step,
+            attempt: request.attempt,
+            basis: copy(item.basis),
+          })
+        }
         for (const body of input.events) {
-          if (body.kind === 'input-taken' && !steps.has(input.checkpoint.step)) {
-            steps.add(input.checkpoint.step)
-            facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(body.batch) })
-          }
           if (body.kind === 'waiting')
             facts.push({
               kind: 'wait.entered',
@@ -3835,7 +3867,15 @@ export function createJournal<P>(
             if (folded.revision !== revision)
               throw new TypeError('the commit batch reached another revision than it judged')
             handoffChange.ok(revision, evidence)
-            execution.checkpoint = checkpointOf(folded.cursor, state().blobs)
+            // The checkpoint is the one the folded facts name; a commit whose facts do not name
+            // its checkpoint is a defect of this writer, never a silent difference.
+            const checkpoint = checkpointOf(folded, state().blobs)
+            if (
+              semanticKey('checkpoint', sameShape(checkpoint)) !==
+              semanticKey('checkpoint', sameShape(input.checkpoint))
+            )
+              throw new TypeError('the folded facts name another checkpoint than the commit')
+            execution.checkpoint = checkpoint
             receiving.remember(execution, input.authority.instance)
             execution.state = copy(input.state)
             for (const effect of input.effects) {

@@ -213,6 +213,9 @@ export type ReceivingState = {
   /** The original binding of each associated Tool call, by tenant and call reference (R2-D273). */
   toolTargets: Map<string, ToolReceptionTarget>
 }
+/** The evidence a material key names: the key is the canonical text of the evidence, plain JSON. */
+const materialSourceOf = (key: string): DurableEvidence => JSON.parse(key) as DurableEvidence
+
 export function emptyReceivingState(): ReceivingState {
   return {
     materials: new Map(),
@@ -564,6 +567,39 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         ? fail({ kind: 'commit-unknown', operation: input.operation })
         : outcome
     },
+    read: async input => {
+      const found = qualified(input, false)
+      if ('failure' in found) return found
+      const list = found.ok.entries
+      const from = input.after === null ? 0 : Number(input.after)
+      if (
+        !Number.isSafeInteger(input.limit) ||
+        input.limit < 1 ||
+        (input.after !== null && (!/^(0|[1-9][0-9]*)$/.test(input.after) || from > list.length))
+      )
+        return fail({ kind: 'invalid', field: 'after', reason: 'not a position of the entries' })
+      const items = list.slice(from, from + input.limit).map((entry, index) => ({
+        sequence: String(from + index + 1),
+        entry: structuredClone(entry),
+      }))
+      return succeed({
+        items,
+        next: items.at(-1)?.sequence ?? input.after,
+        caughtUp: from + items.length >= list.length,
+      })
+    },
+    receivedOf: async input => {
+      const found = qualified(input, false)
+      if ('failure' in found) return found
+      return succeed(
+        found.ok.entries
+          .filter(
+            (entry): entry is ReceivedEntry =>
+              entry.kind === 'received' && entry.consumption === input.consumption,
+          )
+          .map(entry => structuredClone(entry)),
+      )
+    },
   }
   const materialPort: AgentMaterials<P, ContentBlock> = {
     async preserve(input) {
@@ -593,6 +629,17 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           if ('failure' in permission) return permission
         }
         if (old) return succeed(source)
+        // Addressed by content (agent-contract SPEC "扩展、卡片与材料"): the same content of the same
+        // execution is the material already kept, under whatever identity it was first preserved.
+        // This bridge finds it by a scan; the content-addressed store is the provider's obligation.
+        const content = canonical(input.value)
+        for (const [key, kept] of hooks.state().materials)
+          if (
+            kept.tenant === tenantText(input.tenant) &&
+            kept.execution === execution &&
+            canonical(kept.value) === content
+          )
+            return succeed(materialSourceOf(key))
         hooks.state().materials.set(canonical(source), {
           tenant: tenantText(input.tenant),
           execution,
@@ -604,6 +651,19 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     },
     async read(input) {
       return readMaterial(input, input.source)
+    },
+    // The bridge of the content description (agent-contract SPEC "扩展、卡片与材料"): the digest of
+    // the canonical content, its size in bytes and its kind. Addressing the store by content is
+    // the obligation of the provider's own store; this bridge only describes what it keeps.
+    async describe(input) {
+      const material = readMaterial(input, input.source)
+      if ('failure' in material) return material
+      const text = canonical(material.ok)
+      return succeed({
+        digest: `sha256:${createHash('sha256').update(text).digest('hex')}`,
+        size: Buffer.byteLength(text, 'utf8'),
+        kind: material.ok.kind,
+      })
     },
   }
   const controls = {

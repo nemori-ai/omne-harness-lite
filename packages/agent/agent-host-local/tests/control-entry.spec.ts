@@ -32,7 +32,15 @@ import {
   resolveModelInvocationRef,
 } from '@omne-harness/model-contract'
 import { afterEach, describe, expect, it } from 'vitest'
-import { caller, definitions, ok, openWorld, slotOf, type World } from './host-support.ts'
+import {
+  caller,
+  definitions,
+  entriesOf,
+  ok,
+  openWorld,
+  slotOf,
+  type World,
+} from './host-support.ts'
 
 const opened: World[] = []
 afterEach(async () => {
@@ -232,7 +240,11 @@ describe('the control entry on an execution that a runtime of this host runs', (
     expect(host.admits.length - sent).toBe(0)
 
     // What was already produced stays readable: the received result and the account of its call.
-    const received = ended.entries?.find(
+    const entries = await entriesOf(host.controls.journal.provider.entries, {
+      ...caller('a'),
+      execution: EXECUTION,
+    })
+    const received = entries.find(
       entry => entry.kind === 'received' && entry.delivery.key.kind === 'result',
     )
     if (received?.kind !== 'received') throw new Error('the in-flight result was not kept')

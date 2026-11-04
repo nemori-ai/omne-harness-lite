@@ -17,6 +17,7 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort, ParticipantReply } from '@omne-harness/sql-contract/worker'
 import type { SessionAdmittedInput, SessionCheck } from '../participants.ts'
 import { canonicalText, decodeValue, encodeValue, isCount, plainOf, sha256 } from '../codec.ts'
+import { readState } from './state-rows.ts'
 import { big, oneRow, rowsOf, text, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
@@ -292,9 +293,10 @@ function runCheck(port: ParticipantPort, check: SessionCheck): ParticipantReply 
     [tenant, session],
   )
   if (state === undefined) return stopped({ kind: 'denied', action: check.kind })
-  if (state['snapshot'] === null || big(state['covered']) !== big(state['tail']))
-    return { kind: 'failed', diagnostic: 'sl_state does not cover the tail' }
-  const snapshot = decodeValue(JSON.parse(text(state['snapshot'])) as JsonValue) as WorkSnapshot
+  const stored =
+    state['snapshot'] === null ? 'behind' : readState(port, tenant, session, big(state['tail']))
+  if (stored === 'behind') return { kind: 'failed', diagnostic: 'sl_state does not cover the tail' }
+  const snapshot = stored.snapshot
   const scope = { tenant, session, execution }
   switch (check.kind) {
     case 'open': {
