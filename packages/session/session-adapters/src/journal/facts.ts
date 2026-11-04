@@ -224,6 +224,16 @@ export type FactBody =
       message: Ref<Message> | null
       history: DurableEvidence | null
     }>
+  /**
+   * A message the step published without a handoff or a reply admission to project it: the
+   * message is kept by the Session history and the event stream, the fact only refers to it.
+   */
+  | Readonly<{
+      kind: 'message.published'
+      step: StepId
+      message: Ref<Message>
+      source: DurableEvidence
+    }>
   | Readonly<{
       kind: 'handoff.prepared'
       handoff: HandoffReference
@@ -399,6 +409,7 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'result.received',
   'result.handled',
   'reply.judged',
+  'message.published',
   'handoff.prepared',
   'handoff.resolved',
   'handoff.retired',
@@ -434,6 +445,7 @@ export const EVENT_OF: Readonly<Partial<Record<FactKind, string>>> = Object.free
   'fence.started': 'entry',
   'result.handled': 'producer',
   'reply.judged': 'message',
+  'message.published': 'message',
   'control.stage': 'control',
   'wait.entered': 'waiting',
   'finish.ended': 'ended',
@@ -560,6 +572,8 @@ export function factKey(fact: FactBody): string {
       return `handled/${fact.consumption}/${fact.stage}`
     case 'reply.judged':
       return `reply/${fact.sequence}`
+    case 'message.published':
+      return `message/${fact.step}/${fact.message.digest}/${fact.source.record}`
     case 'handoff.prepared':
     case 'handoff.resolved':
     case 'handoff.retired':

@@ -5,6 +5,7 @@ import type { JournalCell, TransactionAnswer } from './root.ts'
 import type {
   AcceptedInput,
   AgentCheckpoint,
+  ProducedResult,
   AgentEvent,
   AgentEventBody,
   AgentExecutionId,
@@ -109,19 +110,23 @@ import {
 import {
   advances,
   answer as answerOf,
+  batchEvidence,
   batchOf as buildBatch,
   blobOf,
   blobsOf,
   checkpointOf,
+  cursorMoved,
   cursorOf as cursorMembersOf,
   emptyExecutionView,
   fold,
   receiptOf as batchReceiptOf,
+  refOf,
   type Answer,
   type Blob,
   type ExecutionView,
   type FactBody,
   type ParticipationKind,
+  type ProducerCall,
   type PublishedBatch,
 } from '../journal/index.ts'
 import {
@@ -1356,6 +1361,25 @@ function sameEvidence(left: DurableEvidence | null, right: DurableEvidence | nul
 }
 
 /** Whether two data values are the same content, by their canonical text. */
+/**
+ * A checkpoint with its optional `adoptedRequest` spelled out: the cursor folds an absent one as
+ * null (`checkpointOf`), so two checkpoints are compared in this one shape.
+ */
+function sameShape(checkpoint: AgentCheckpoint): AgentCheckpoint {
+  return { ...checkpoint, adoptedRequest: checkpoint.adoptedRequest ?? null }
+}
+
+/** The producer call of a produced result: the identities a result fact refers to it by. */
+function producerCallOf(result: ProducedResult): ProducerCall {
+  return {
+    producer: result.producer.kind,
+    call: String(result.producer.call),
+    version: result.version,
+    delivery: result.delivery,
+    source: copy(result.source),
+  }
+}
+
 function sameValue(left: unknown, right: unknown): boolean {
   return canonical(left) === canonical(right)
 }
@@ -1609,14 +1633,12 @@ export function createJournal<P>(
     const execution = state().executions.get(executionKey(input.tenant, input.execution))
     if (execution === undefined) return undefined
     const revision = execution.revision + 1
-    const what = method === 'commit' ? 'commit' : 'result'
-    return receiptOf(
-      execution,
-      input.operation,
-      revision,
-      nextEvidence(execution, what, revision),
-      'applied',
-    )
+    // A commit appends a batch: its receipt is minted from the batch it would append now.
+    const evidence =
+      method === 'commit'
+        ? ownEvidence(execution.id, key, revision)
+        : nextEvidence(execution, 'result', revision)
+    return receiptOf(execution, input.operation, revision, evidence, 'applied')
   }
 
   function receiptOf(
@@ -1845,11 +1867,15 @@ export function createJournal<P>(
       if (prepared.kind === 'batch') {
         const appended = append(input, key, prepared)
         if ('failure' in appended) return { kind: 'answered', value: appended }
-        const { value, receipt } = appended.ok
-        const captured = cell.committed(input, method, receipt)
-        if (captured) return { kind: 'answered', value: fail(captured) }
-        const participation = cell.participate(input, method, receipt, decision)
-        if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
+        const { value, receipt, advanced } = appended.ok
+        // A batch that advances no revision (a recognition, or the envelope alone) changes no
+        // reader record and carries no participation: it is saved as the operation's answer only.
+        if (advanced) {
+          const captured = cell.committed(input, method, receipt)
+          if (captured) return { kind: 'answered', value: fail(captured) }
+          const participation = cell.participate(input, method, receipt, decision)
+          if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
+        }
         cell.touch()
         state().operations.set(at, { kind: 'committed', key, value: copy(value), receipt })
         return { kind: 'wrote', value }
@@ -1942,7 +1968,7 @@ export function createJournal<P>(
     input: ExecutionMutation<P>,
     key: string,
     prepared: Extract<Attempt<R>, { kind: 'batch' }>,
-  ): Outcome<Readonly<{ value: R; receipt: CommandReceipt }>, Failure> {
+  ): Outcome<Readonly<{ value: R; receipt: CommandReceipt; advanced: boolean }>, Failure> {
     const before = viewOf(input.execution)
     const attached = prepared.facts.find(fact => fact.kind === 'exec.attached')
     const gen =
@@ -1962,7 +1988,8 @@ export function createJournal<P>(
     // is where the commands not yet migrated advance the revision; the batch continues from it.
     const current =
       agent.executions.get(executionKey(input.tenant, input.execution))?.revision ?? before.revision
-    const rev = advances({ ...built, pub }) ? current + 1 : current
+    const advanced = advances({ ...built, pub })
+    const rev = advanced ? current + 1 : current
     const batch: PublishedBatch = { ...built, envelope: { ...envelope, rev }, pub }
     for (const [digest, value] of prepared.blobs)
       if (!agent.blobs.has(digest)) agent.blobs.set(digest, copy(value))
@@ -1979,7 +2006,48 @@ export function createJournal<P>(
       'receipt' in derived ? ({ ...derived, receipt } as Answer) : derived,
     )
     prepared.project(batch, folded)
-    return succeed({ value, receipt })
+    return succeed({ value, receipt, advanced })
+  }
+
+  /** One stage of a control as the fact that records it, with the control's target. */
+  function controlStageOf(
+    record: ControlRecord,
+    stage: ControlStage,
+    state: 'reached' | 'unresolved',
+    source: DurableEvidence,
+  ): FactBody {
+    return {
+      kind: 'control.stage',
+      control: record.operation,
+      command: copy(record.command),
+      toolInvocation: record.toolInvocation === undefined ? null : copy(record.toolInvocation),
+      toolOperation: record.toolOperation === undefined ? null : copy(record.toolOperation),
+      stage,
+      state,
+      source,
+    }
+  }
+
+  /** The receipt an answer carries: every command but a detach answers one. */
+  function receiptIn(derived: Answer): CommandReceipt {
+    if (!('receipt' in derived)) throw new TypeError(`a ${derived.kind} answer carries no receipt`)
+    return derived.receipt
+  }
+
+  /**
+   * The evidence of the batch the running write is about to append, minted from the coordinates
+   * that batch will have (the next pub of the log, the semantic key, the revision it reaches): the
+   * evidence `append` answers the receipt with. A fact or a reader record that names its own batch
+   * (an accepted control stage, the publication of a reply admission) carries it. Outside a
+   * transaction it only reads, so it also reserves the receipt of a participation decision.
+   */
+  function ownEvidence(
+    execution: AgentExecutionId,
+    key: string,
+    revision: number,
+  ): DurableEvidence {
+    const coordinates = { execution, pub: state().log.length + 1, envelope: { digest: key } }
+    return cell.issueEvidence(batchEvidence(mint, coordinates as PublishedBatch, revision))
   }
 
   /** The evidence of an attachment or a detach: from stable elements, never from a counter. */
@@ -3547,8 +3615,8 @@ export function createJournal<P>(
         // A commit that establishes no new fact does not advance the revision and writes no event:
         // its receipt names the current revision (Agent SPEC "执行修订").
         const unchanged =
-          semanticKey('checkpoint', execution.checkpoint) ===
-            semanticKey('checkpoint', input.checkpoint) &&
+          semanticKey('checkpoint', sameShape(execution.checkpoint)) ===
+            semanticKey('checkpoint', sameShape(input.checkpoint)) &&
           semanticKey('state', execution.state) === semanticKey('state', input.state) &&
           input.events.length === 0 &&
           !newEffect &&
@@ -3557,27 +3625,152 @@ export function createJournal<P>(
           admission === null &&
           input.caller.kind === 'none' &&
           input.handoff === null
-        if (unchanged) {
-          const receipt = receiptOf(
-            execution,
-            input.operation,
-            execution.revision,
-            nextEvidence(execution, 'commit', execution.revision),
-            'applied',
-          )
-          return recognize(receipt, receipt)
-        }
+        // A commit that establishes no new fact does not advance the revision and writes no event:
+        // it appends the envelope alone, whose receipt names the current revision (Agent SPEC
+        // "执行修订"; SPEC "事实族与折叠核").
+        if (unchanged)
+          return {
+            kind: 'batch',
+            facts: [],
+            blobs: [],
+            kinds: [],
+            derive: receiptIn,
+            project: () => {},
+          }
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'commit', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+        const evidence = ownEvidence(execution.id, key, revision)
         const caller = input.caller
+        const facts: FactBody[] = []
+        const blobs: Blob[] = []
+        const view = viewOf(execution.id)
+        const steps = new Set(view.steps.map(item => item.step))
+        for (const body of input.events) {
+          if (body.kind === 'input-taken' && !steps.has(input.checkpoint.step)) {
+            steps.add(input.checkpoint.step)
+            facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(body.batch) })
+          }
+          if (body.kind === 'waiting')
+            facts.push({
+              kind: 'wait.entered',
+              step: input.checkpoint.step,
+              waits: copy(body.waits),
+            })
+          // A reply admission projects its message (`reply.judged`); any other message is
+          // referred to by its own fact.
+          if (body.kind === 'message' && admission === null)
+            facts.push({
+              kind: 'message.published',
+              step: input.checkpoint.step,
+              message: refOf(body.message),
+              source: copy(body.source),
+            })
+          // The Agent applied a produced result: the processed stage of its consumption.
+          if (body.kind === 'producer')
+            facts.push({
+              kind: 'result.handled',
+              consumption: body.consumption,
+              result: producerCallOf(body.result),
+              stage: 'processed',
+              evidence,
+            })
+          if (body.kind === 'control') {
+            const record = execution.controls.find(item => item.operation === body.operation)
+            if (record !== undefined)
+              facts.push(controlStageOf(record, body.stage, body.state, copy(body.source)))
+          }
+        }
+        for (const effect of input.effects)
+          if (!execution.effects.some(existing => existing.action === effect.action))
+            facts.push({
+              kind: 'call.intended',
+              action: effect.action,
+              step: input.checkpoint.step,
+              pending: copy(effect.pending),
+              authority: copy(effect.authority),
+              request: null,
+            })
+        const admitted =
+          admission === null
+            ? null
+            : admit(scope, execution.admissionLedger, admission, revision, evidence)
+        if (admitted !== null) {
+          // `admit` mints the basis of the new prefix; only a test that removes it leaves null.
+          if (admitted.record.basis === null)
+            throw new TypeError('a new reply admission has no prefix basis')
+          facts.push({
+            kind: 'reply.judged',
+            sequence: execution.admissionLedger.projection.sequence + 1,
+            fact: copy(admitted.record.fact),
+            basis: admitted.record.basis,
+            publication: evidence,
+            message: null,
+            history: input.handoff?.kind === 'resolve' ? copy(input.handoff.outcome.record) : null,
+          })
+        }
+        const handoff = input.handoff
+        if (handoff?.kind === 'prepare') {
+          blobs.push(blobOf(handoff.request))
+          facts.push({
+            kind: 'handoff.prepared',
+            handoff: copy(handoff.request.reference),
+            request: refOf(handoff.request),
+            prepared: evidence,
+          })
+        } else if (handoff?.kind === 'resolve' && handoff.outcome.request.kind === 'execution') {
+          blobs.push(blobOf(handoff.outcome))
+          facts.push({
+            kind: 'handoff.resolved',
+            handoff: copy(handoff.outcome.request.reference),
+            resolution: 'recorded',
+            outcome: refOf(handoff.outcome),
+            history: handoff.outcome.decision.kind === 'prepared' ? evidence : null,
+          })
+        } else if (handoff?.kind === 'retire' && handoff.excluded.request.kind === 'execution') {
+          facts.push({
+            kind: 'handoff.retired',
+            handoff: copy(handoff.excluded.request.reference),
+            reason: copy(handoff.reason),
+          })
+        }
+        // The author route of a new candidate is named by the candidate, never by a counter.
+        const routeRecord = journalEvidence(
+          `${cell.namespace}/${execution.id}/route/${input.operation}`,
+          revision,
+        )
+        if (establishes && input.finish !== null) {
+          const { failure, ...claim } = input.finish
+          if (failure !== null) blobs.push(blobOf(failure))
+          blobs.push(blobOf(input.checkpoint))
+          facts.push({
+            kind: 'finish.candidate',
+            candidate: input.operation,
+            claim: copy({
+              ...claim,
+              failure: failure === null ? null : { kind: failure.kind, detail: refOf(failure) },
+            }),
+            checkpoint: refOf(input.checkpoint),
+            route: routeRecord,
+            supersedes: current === undefined ? null : current.candidate,
+          })
+        }
+        if (proves && route?.kind === 'author')
+          facts.push({ kind: 'finish.proved', route: copy(route.record), beforeTerminal: evidence })
+        const moved = cursorMoved(view, input.checkpoint, input.state)
+        if (moved !== null) {
+          blobs.push(...blobsOf(input.checkpoint))
+          facts.push(moved)
+        }
         return {
-          kind: 'write',
-          value: receipt,
-          receipt,
-          apply: () => {
+          kind: 'batch',
+          facts,
+          blobs,
+          kinds: caller.kind === 'none' ? [] : [caller.kind],
+          derive: receiptIn,
+          project: (_batch, folded) => {
+            if (folded.revision !== revision)
+              throw new TypeError('the commit batch reached another revision than it judged')
             handoffChange.ok(revision, evidence)
-            execution.checkpoint = copy(input.checkpoint)
+            execution.checkpoint = checkpointOf(folded.cursor, state().blobs)
             receiving.remember(execution, input.authority.instance)
             execution.state = copy(input.state)
             for (const effect of input.effects) {
@@ -3594,7 +3787,7 @@ export function createJournal<P>(
               }
               const authorRoute: FinishRoute = {
                 kind: 'author',
-                record: nextEvidence(execution, 'route', revision),
+                record: routeRecord,
                 candidate: input.operation,
                 policy: copy(input.checkpoint.definition),
                 plan: [],
@@ -3620,16 +3813,9 @@ export function createJournal<P>(
                 ...route,
                 beforeTerminal: evidence,
               }
-            if (admission !== null) {
+            if (admitted !== null) {
               // The fact, its sequence, basis, publication and the projection step are written in
               // this same write as the Ja (Agent SPEC D5 第 4 节).
-              const admitted = admit(
-                scope,
-                execution.admissionLedger,
-                admission,
-                revision,
-                evidence,
-              )
               execution.admissions = [...execution.admissions, admitted.record]
               execution.admissionLedger = admitted.ledger
             }
