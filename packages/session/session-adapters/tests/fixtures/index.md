@@ -17,3 +17,5 @@
 - [main-reply.ts](main-reply.ts)：在 `sqlScene` 上写一次 H 的 P 与 Ja（主回复或 Tool 结果），与协调器的写法相同
 - [sql-scene.ts](sql-scene.ts)：生产 Journal 提供者的场景：node:sqlite 替身（加载材料里的真实模块）或真实 sqlite-provider 上的会话存储与 Journal，一个已开 Run 的会话，以及故障注入（按语句文本或按语句与参数）与提交计数；`nextRun` 取消当前 Run 并开下一个
 - [sql-real-config.ts](sql-real-config.ts)：真实 sqlite-provider 的配置
+- [property.ts](property.ts)：折叠定律的种子属性工具：xorshift32 生成器与 `forAll`，失败报种子；仓库没有 fast-check
+- [journal-facts.ts](journal-facts.ts)：随机事实日志的生成器 `scene`：一或两个 execution，打开、挂接、若干生产者轮（intend、receive、judge，可选认回、控制、等待、扩展、作废重备、崩溃恢复）与终结，批带 `pub` 与到达的修订
