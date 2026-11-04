@@ -31,7 +31,7 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 - **执行槽**：仍由这个 execution 持有的 `running` 槽改为 `failed`，带停止的节点与失败。E9 已释放的槽、已由另一个 execution 持有的槽都不改。`failed` 只是内部状态。`observe` 仍显示 occupied，因为 execution 没有终结。新的 invoke 照常答 busy。同一操作、同一输入的 invoke 重试仍取回原句柄。
 - **报告**：执行槽改为 `failed` 之后，runtime 调用一次 `createAgentRuntime` 第三个参数里的 `failed` 接收者。事件是 `{ kind: 'run-failed', tenant, instance, execution, node, failure }`。`failure` 原样取自节点的答复，它的诊断文本只写身份与状态。接收者被同步调用，不得回调本 runtime。接收者抛出不改变任何答复，也不留痕。没有接收者时，执行槽照样改为 `failed`。
 - **停用**：quiesce 把 `failed` 的 execution 算作剩余，答 unresolved，见“[停用](#停用)”。remaining 的契约形状只有 execution 身份，不带节点与失败。调用方要说明原因，就按 execution 对上这次报告。
-- **已知限制**：execution 不终结。Journal 里没有 `ended`，会话历史里也没有 `run.terminal`。它的执行挂接仍是 active，本实现不 detach。因为没有交接，quiesce 对它如实答 unresolved，有序停止对这个实例答 incomplete。以失败终结 Run 并解除挂接是 D-31，要改契约，并要 Session 参加，留在波 3。D-31 落地后，这类 execution 才能收口。
+- **已知限制**：execution 不终结。Journal 里没有 `ended`，会话历史里也没有 `run.terminal`。它的执行挂接仍是 active，本实现不 detach。因为没有交接，quiesce 对它如实答 unresolved，有序停止对这个实例答 incomplete。节点失败时以失败终结 Run、解除挂接，尚未实现。它要改契约，并要 Session 参加，计划在波 3。实现后，这类 execution 才能收口。
 
 ## 测量事件
 
