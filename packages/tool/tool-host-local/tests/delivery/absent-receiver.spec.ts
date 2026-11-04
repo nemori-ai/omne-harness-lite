@@ -1,5 +1,5 @@
 // No receiver is registered for the frozen consumer owner (R2-D273): the delivery stays owed, each
-// look that finds none writes one named warning, and the next look waits a backoff that doubles up
+// look that finds none, or an unavailable one, writes one named warning, and the next look waits a backoff that doubles up
 // to its cap. The worker runs on the memory ledger and a scripted position; the clock of the pacing
 // is a test reading. Nothing here proves the Cordis registration; tool-cordis-contract tests it.
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -24,7 +24,7 @@ describe('a delivery whose consumer owner has no registered receiver', () => {
     const worker = createLocalToolResultDelivery({
       ...f.input,
       position: { ...f.input.position, receiver: lookup },
-      absentReceiver: { initialMs: 1000, maxMs: 3000 },
+      pacing: { initialMs: 1000, maxMs: 3000 },
       warn: message => warnings.push(message),
       now: () => now,
     })
@@ -63,12 +63,34 @@ describe('a delivery whose consumer owner has no registered receiver', () => {
     expect(warnings).toHaveLength(4)
   })
 
-  it('another failure of the position is not paced as an absent receiver', async () => {
+  it('paces any other unavailable answer of the lookup the same way', async () => {
     const f = await fixture()
+    let now = 0
     const warnings: string[] = []
     const lookup = vi.fn(async () =>
       fail({ kind: 'unavailable', dependency: 'toolRuntime', diagnostic: 'retired' } as const),
     )
+    const worker = createLocalToolResultDelivery({
+      ...f.input,
+      position: { ...f.input.position, receiver: lookup },
+      warn: message => warnings.push(message),
+      now: () => now,
+    })
+    await f.drive(worker)
+    await f.drive(worker)
+    expect(lookup).toHaveBeenCalledTimes(1)
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('toolRuntime: retired')
+    now = 1000
+    await f.drive(worker)
+    expect(lookup).toHaveBeenCalledTimes(2)
+    expect(warnings[1]).toContain('in 2000 ms')
+  })
+
+  it('does not pace a denied lookup', async () => {
+    const f = await fixture()
+    const warnings: string[] = []
+    const lookup = vi.fn(async () => fail({ kind: 'denied', action: 'recover' } as const))
     const worker = createLocalToolResultDelivery({
       ...f.input,
       position: { ...f.input.position, receiver: lookup },
@@ -84,7 +106,7 @@ describe('a delivery whose consumer owner has no registered receiver', () => {
   it('refuses a pacing whose cap is below its first wait', async () => {
     const f = await fixture()
     expect(() =>
-      createLocalToolResultDelivery({ ...f.input, absentReceiver: { initialMs: 10, maxMs: 5 } }),
+      createLocalToolResultDelivery({ ...f.input, pacing: { initialMs: 10, maxMs: 5 } }),
     ).toThrow(TypeError)
   })
 })

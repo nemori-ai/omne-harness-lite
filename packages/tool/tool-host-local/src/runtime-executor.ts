@@ -65,8 +65,8 @@ export function createRuntimeExecutor(
     access: settings.access.guard,
     position: { access: settings.resolveAccess, receiver: input.receiver },
     capacity: settings.capacity,
-    // No receiver for the owner: the delivery stays owed, paced and named (R2-D273).
-    absentReceiver: {
+    // No receiver, or one that answers unavailable: the delivery stays owed, paced and named (R2-D273, R2-D282).
+    pacing: {
       initialMs: settings.configuration.driverRetryDelayMs ?? 1000,
       maxMs: Math.max(settings.configuration.driverRetryDelayMs ?? 1000, 60_000),
     },

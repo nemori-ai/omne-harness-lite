@@ -49,12 +49,12 @@ export type LocalDeliveryInput<P, B extends ContentBlock> = Readonly<{
   ): Reply<Extract<ToolDelivery<B>, { kind: 'result' }>['account']>
   capacity: number
   /**
-   * The pacing of a push whose consumer owner has no registered receiver (R2-D273): the delivery
-   * stays owed, the first wait is `initialMs` and every later one doubles up to `maxMs`. Absent:
-   * 1000 and 60000.
+   * The pacing of a push whose receiver answers `unavailable`, or has none registered for the
+   * consumer owner (R2-D273, R2-D282): the delivery stays owed, the first wait is `initialMs` and
+   * every later one doubles up to `maxMs`. Absent: 1000 and 60000.
    */
-  absentReceiver?: Readonly<{ initialMs: number; maxMs: number }>
-  /** Where the named warning of an absent receiver goes. Absent: nowhere. */
+  pacing?: Readonly<{ initialMs: number; maxMs: number }>
+  /** Where the named warning of a paced push goes. Absent: nowhere. */
   warn?: (message: string) => void
   /** A monotonic reading in milliseconds for that pacing. Absent: `performance.now`. */
   now?: () => number
@@ -62,6 +62,8 @@ export type LocalDeliveryInput<P, B extends ContentBlock> = Readonly<{
 
 /** The answer of `DeliveryPosition.receiver` when no receiver is registered for the owner. */
 export const ABSENT_RECEIVER = 'tool-result-receiver'
+
+type Pace = { until: number; delay: number; dependency: string }
 
 /** One tenant's runs in flight: the last one started or queued, and how many wait behind it. */
 type Turn = { last: Promise<unknown> | null; queued: number }
@@ -130,13 +132,13 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
   if (!Number.isSafeInteger(input.capacity) || input.capacity < 1)
     throw new TypeError('delivery capacity must be positive')
   if (
-    input.absentReceiver !== undefined &&
-    (!Number.isSafeInteger(input.absentReceiver.initialMs) ||
-      input.absentReceiver.initialMs < 1 ||
-      !Number.isSafeInteger(input.absentReceiver.maxMs) ||
-      input.absentReceiver.maxMs < input.absentReceiver.initialMs)
+    input.pacing !== undefined &&
+    (!Number.isSafeInteger(input.pacing.initialMs) ||
+      input.pacing.initialMs < 1 ||
+      !Number.isSafeInteger(input.pacing.maxMs) ||
+      input.pacing.maxMs < input.pacing.initialMs)
   )
-    throw new TypeError('absentReceiver: expected 1 <= initialMs <= maxMs, safe integers')
+    throw new TypeError('pacing: expected 1 <= initialMs <= maxMs, safe integers')
   const state = createDeliveryState(input.store)
   const shutdown = new AbortController()
   const active = new Map<string, Reply<Readonly<{ pending: number }>>>()
@@ -146,13 +148,14 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
    * place of another tenant (R2-D186).
    */
   const turns = new Map<string, Turn>()
-  const pacing = input.absentReceiver ?? { initialMs: 1000, maxMs: 60_000 }
+  const pacing = input.pacing ?? { initialMs: 1000, maxMs: 60_000 }
   const now = input.now ?? (() => performance.now())
   /**
-   * The deliveries whose consumer owner had no receiver at the last push: when the next push may
-   * look again, and the wait that set it. A push that finds a receiver removes the entry.
+   * The deliveries whose receiver was absent or answered `unavailable` at the last push: when the
+   * next push may look again, the wait that set it, and the dependency named then. A receiver that
+   * answers without `unavailable` removes the entry, so the next trouble starts at the first wait.
    */
-  const absent = new Map<string, { until: number; delay: number }>()
+  const paced = new Map<string, Pace>()
 
   async function current(access: CallAccess<P>): Reply<CallAccess<P>> {
     const recovered = await input.position.access({ tenant: access.tenant, call: access.call })
@@ -207,17 +210,24 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     signal: AbortSignal,
   ): Reply<DeliveryRecord<B>> {
     if (record.phase.kind !== 'frozen') return succeed(record)
-    if (pacedAway(record)) return deliveryUnavailable(ABSENT_RECEIVER)
+    const waiting = pacedAway(record)
+    if (waiting !== null) return deliveryUnavailable(waiting.dependency)
     const qualified = await current(access)
     if ('failure' in qualified) return qualified
-    const receiver = await receiverOf(record)
+    const receiver = await receiverOf(access, record)
     if ('failure' in receiver) return receiver
     if (signal.aborted) return deliveryUnavailable('delivery-wait')
     const saved = await wait(
       receiver.ok.push({ access: qualified.ok, delivery: structuredClone(record.payload), signal }),
       signal,
     )
-    if (saved === null || 'failure' in saved) return deliveryUnavailable('delivery-receiver')
+    if (saved === null) return deliveryUnavailable('delivery-receiver')
+    if ('failure' in saved) {
+      if (saved.failure.kind === 'unavailable') pace(access, record, saved.failure)
+      else paced.delete(record.digest)
+      return deliveryUnavailable('delivery-receiver')
+    }
+    paced.delete(record.digest)
     const evidence = judgeHandoff({ kind: 'retained', custody: saved.ok.evidence })
     if (
       canonicalDigest(saved.ok.key) !== canonicalDigest(record.payload.key) ||
@@ -233,36 +243,40 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     )
   }
 
-  /** True while the last look found no receiver for `record` and its wait is not over. */
-  function pacedAway(record: DeliveryRecord<B>): boolean {
-    const waiting = absent.get(record.digest)
-    return waiting !== undefined && now() < waiting.until
+  /** The wait of `record` while the last push was paced and the wait is not over; else null. */
+  function pacedAway(record: DeliveryRecord<B>): Pace | null {
+    const waiting = paced.get(record.digest)
+    return waiting !== undefined && now() < waiting.until ? waiting : null
   }
 
-  /** The receiver of the frozen consumer; an absent one paces the next look (R2-D273). */
-  async function receiverOf(record: DeliveryRecord<B>): Reply<ToolResultReceiver<P, B>> {
+  /** The receiver of the frozen consumer; an unavailable answer paces the next look. */
+  async function receiverOf(
+    access: CallAccess<P>,
+    record: DeliveryRecord<B>,
+  ): Reply<ToolResultReceiver<P, B>> {
     const receiver = await input.position.receiver(structuredClone(record.payload.consumer))
-    if (!('failure' in receiver)) absent.delete(record.digest)
-    else if (
-      receiver.failure.kind === 'unavailable' &&
-      receiver.failure.dependency === ABSENT_RECEIVER
-    )
-      receiverAbsent(record, absent.get(record.digest))
+    if ('failure' in receiver && receiver.failure.kind === 'unavailable')
+      pace(access, record, receiver.failure)
     return receiver
   }
 
-  /** Paces the next look for the receiver of `record`, and names the wait in a warning. */
-  function receiverAbsent(
+  /**
+   * Paces the next push of `record` and names the wait in one warning (R2-D273, R2-D282). The
+   * first wait is `initialMs`, every later one doubles up to `maxMs`.
+   */
+  function pace(
+    access: CallAccess<P>,
     record: DeliveryRecord<B>,
-    last: { until: number; delay: number } | undefined,
+    cause: Readonly<{ dependency: string; diagnostic?: string }>,
   ): void {
+    const last = paced.get(record.digest)
     const delay = last === undefined ? pacing.initialMs : Math.min(last.delay * 2, pacing.maxMs)
-    absent.set(record.digest, { until: now() + delay, delay })
+    paced.set(record.digest, { until: now() + delay, delay, dependency: cause.dependency })
     try {
       input.warn?.(
-        `no result receiver is registered for the consumer owner ${record.payload.consumer.owner}: ` +
-          `delivery ${String(record.payload.delivery)} stays owed (${ABSENT_RECEIVER}); ` +
-          `the next push is in ${String(delay)} ms`,
+        `result delivery ${String(record.payload.delivery)} of call ${String(access.call)} stays owed: ` +
+          `the receiver of the consumer owner ${record.payload.consumer.owner} is unavailable ` +
+          `(${cause.dependency}${cause.diagnostic === undefined ? '' : `: ${cause.diagnostic}`}); the next push is in ${String(delay)} ms`,
       )
     } catch {
       // A warning that cannot be written does not change the delivery.

@@ -190,6 +190,17 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 `createLocalToolRuntimePlugins` 组装生产实例宿主和实例身份。宿主在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不接受全局 instance。执行器在每次投递结果之后用一次新鲜恢复判定调用是否完成（已结清、没有 pending 任务、投递 pending 为 0）；完成的调用在没有 run 进行时退役，若有 run 正在进行则在该 run 结束时退役，重试 interval 不再重排它。同一租户的投递 run 按到达顺序轮流，后来的调用等自己的轮次；capacity 按在途的租户数计（每租户同时至多一个 run），一个租户在途加排队的 run 不超过 capacity，排队不占别的租户的名额（R2-D164、R2-D186）。组合测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger、本地启动协调器与实例宿主贯通。该证据不证明真实 SQL/Windows 端到端、claim、换实例接管或重启恢复。精确装配责任见[运行时组合工厂](docs/cordis.md#运行时组合工厂)。
 
+## 结果交付的推送退避
+
+执行器把结果推给冻结 owner 的接收方。接收方可能缺席，也可能在场却答 `unavailable`。后一种情形实测过：Journal 拒收一笔超限提交，同一笔被重推 714 次。两种情形走同一套退避（R2-D273、R2-D282）。
+
+- 触发：查找接收方答 `unavailable`（含缺席，`dependency` 为 `tool-result-receiver`），或接收方对推送答 `unavailable`。`denied`、`invalid` 等确定失败不退避。推送被取消不退避。
+- 交付保持待推，不算失败，也不丢。退避期内再次驱动同一交付，不查找也不推送，答 `unavailable`。
+- 退避按交付记录计：首次等 `driverRetryDelayMs`（缺省 1000 ms），之后每次加倍，封顶 60000 ms。
+- 每次进入退避写一条具名 warn，写到 `tool-executor` 日志。内容有交付、调用、接收方 owner、`dependency` 与 `diagnostic`、下次推送的间隔。退避期内不再写。
+- 接收方答出非 `unavailable` 的结果（推送成功，或确定失败）后，退避清除。下一次故障从首次等待起算。
+- 退避在内存里。进程重启后从首次等待起算。
+
 ## 作者装载与执行绑定
 
 `createLocalToolLoader` 先核来源及登记资格，再读取该来源层的合法设置。它调用实现模块、派生定义并运行 `judgeToolDefinition`，最后等待注入的 schema 检查。任一步失败都不发布装载句柄。合法设置、来源真实性与 schema 提供者由装配给出；本包不推导设置覆盖规则。
