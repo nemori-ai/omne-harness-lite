@@ -181,7 +181,8 @@ describe('system principals against the ten-row matrix with the release grant ta
       clock: null,
     })
     const maintainer = principals.maintainer
-    if (maintainer.kind !== 'system') throw new Error('the session maintainer is a system principal')
+    if (maintainer.kind !== 'system')
+      throw new Error('the session maintainer is a system principal')
     const holders = {
       [TOOL_RESIDENCY_COMPONENT]: systemOf(issuer, TOOL_RESIDENCY_COMPONENT),
       [AGENT_HOST_COMPONENT]: systemOf(issuer, AGENT_HOST_COMPONENT),
