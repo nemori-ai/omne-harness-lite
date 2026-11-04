@@ -507,6 +507,8 @@ export type Attempt<R> =
       kinds: readonly ParticipationKind[]
       derive: (answer: Answer) => R
       project: (batch: PublishedBatch, view: ExecutionView) => void
+      /** The state the receipt names: `applied` unless the command accepts (submit, control). */
+      receiptState?: CommandReceipt['state']
     }>
   /** A new operation that recognizes an existing fact: only its index is saved, at the fact's revision. */
   | Readonly<{ kind: 'recognize'; value: R; receipt: CommandReceipt }>
@@ -2001,7 +2003,11 @@ export function createJournal<P>(
     const derived = answerOf(mint, agent.view, batch)
     const minted = batchReceiptOf(mint, agent.view, batch)
     // A planned evidence (the testing controls' `planEvidence`) names this write's receipt.
-    const receipt = { ...minted, evidence: cell.issueEvidence(minted.evidence) }
+    const receipt: CommandReceipt = {
+      ...minted,
+      evidence: cell.issueEvidence(minted.evidence),
+      state: prepared.receiptState ?? minted.state,
+    }
     const value = prepared.derive(
       'receipt' in derived ? ({ ...derived, receipt } as Answer) : derived,
     )
@@ -2025,6 +2031,33 @@ export function createJournal<P>(
       stage,
       state,
       source,
+    }
+  }
+
+  /**
+   * The batch of a new operation that recognizes the fact `target` established at `revision`: one
+   * `op.recognized`, no new revision. The answer is derived from the batch, whose revision is the
+   * recognized batch's; the revision the reader records name is checked against it, so a
+   * recognition never answers another revision than the fact it recognizes.
+   */
+  function recognitionBatch(
+    target: AgentOperationId,
+    revision: number,
+    receiptState: CommandReceipt['state'],
+  ): Attempt<CommandReceipt> {
+    return {
+      kind: 'batch',
+      facts: [{ kind: 'op.recognized', target }],
+      blobs: [],
+      kinds: [],
+      derive: derived => {
+        const receipt = receiptIn(derived)
+        if (receipt.revision !== revisionOf(revision))
+          throw new TypeError('a recognition answered another revision than the recognized fact')
+        return receipt
+      },
+      project: () => {},
+      receiptState,
     }
   }
 
@@ -3888,27 +3921,47 @@ export function createJournal<P>(
           const at = execution.inputRevisions.get(known.id)
           if (at === undefined)
             throw new Error('session Journal defect: an accepted input has no revision')
-          const receipt = recognition(execution, input.operation, at, 'accepted')
-          return recognize(receipt, receipt)
+          // A recognition appends `op.recognized` of the accepting operation: it advances no
+          // revision and answers with the revision of the batch it recognizes.
+          return recognitionBatch(entry.operation, at, 'accepted')
         }
         // A new input under an identity the execution already accepted is another entry for the
         // same InputId: it conflicts, it does not recognize (Agent SPEC "输入内容与水位线").
         if (known !== undefined) return answer(fail(conflict(input.operation)))
         // The Session source (SE11) is co-checked by the participant; a null source cannot pass it.
         if (input.value.source === null) return answer(fail(denied('submit')))
-        const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'submit', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'accepted')
         const acceptance = lineage.original
+        const outcome = acceptance.outcome
         return {
-          kind: 'write',
-          value: receipt,
-          receipt,
-          apply: () => {
+          kind: 'batch',
+          facts: [
+            {
+              kind: 'input.accepted',
+              input: input.value.id,
+              entry: acceptance.handoff.entry,
+              message: refOf(input.value.content),
+              source: copy(input.value.source),
+              priority: input.value.priority,
+              watermark: copy(outcome.record),
+            },
+            // The external H is published by this acceptance (Agent SPEC "消息准入").
+            {
+              kind: 'handoff.resolved',
+              handoff: copy(acceptance.handoff),
+              resolution: 'recorded',
+              outcome: refOf(outcome),
+              history: copy(outcome.record),
+            },
+          ],
+          blobs: [blobOf(input.value.content), blobOf(outcome)],
+          kinds: [],
+          derive: receiptIn,
+          receiptState: 'accepted',
+          project: (_batch, view) => {
             execution.inputs.push(copy(input.value))
-            execution.inputRevisions.set(input.value.id, revision)
-            execution.handoffs.push(inputHandoff(acceptance, input.operation, revision))
-            execution.revision = revision
+            execution.inputRevisions.set(input.value.id, view.revision)
+            execution.handoffs.push(inputHandoff(acceptance, input.operation, view.revision))
+            execution.revision = view.revision
           },
         }
       })
