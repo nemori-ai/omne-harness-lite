@@ -409,9 +409,7 @@ describe('AD-05 trigger: the event of the Journal plugin wakes the consumption',
     await published(f, s)
     await settle()
     // The same failure on two events: one named line, with the diagnostic.
-    expect(warned()).toEqual([
-      `the consumption of ${s.execution} answered unavailable: down`,
-    ])
+    expect(warned()).toEqual([`the consumption of ${s.execution} answered unavailable: down`])
     // Another failure: another line.
     wraps.entries = async () =>
       fail({ kind: 'unavailable', owner: 'agentJournalEntries', diagnostic: 'gone' })
