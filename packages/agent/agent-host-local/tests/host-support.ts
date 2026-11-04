@@ -33,6 +33,7 @@ import {
   type AgentAccountOutlet,
   type AgentClock,
   type AgentInstanceId,
+  type AgentJournal,
   type AgentRegistrationHandle,
   type AgentState,
   type Failure,
@@ -313,6 +314,8 @@ export type WorldOptions = Readonly<{
   outlet?: AgentAccountOutlet<Principal>
   /** Wraps the manual clock port that the world provides as `agentClock`. */
   clock?: (port: AgentClock) => AgentClock
+  /** Wraps the Journal port that the world provides as `agentJournal`, after its call log. */
+  journal?: (port: AgentJournal<Principal>) => AgentJournal<Principal>
 }>
 
 export function occupied(instance: AgentInstanceId): AgentState {
@@ -412,7 +415,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
   }
   const journalCalls: JournalCall[] = []
   const base = controls.journal.port
-  const journal: typeof base = {
+  const logged: typeof base = {
     ...base,
     load(input) {
       journalCalls.push({ method: 'load', principal: input.principal })
@@ -423,6 +426,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
       return base.recordControl(input)
     },
   }
+  const journal = options.journal?.(logged) ?? logged
   const refusals: { operation: string; principal: Principal | undefined }[] = []
   controls.access.check.always(input => {
     const at = refusals.findIndex(
@@ -480,7 +484,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
   const factory: RuntimeFactory =
     options.factory === 'duties'
       ? withRuntimeDuties({ handles, quiesced, quiesceAnswers })
-      : (deps, opts) => createAgentRuntime(deps, opts)
+      : (deps, opts, extras) => createAgentRuntime(deps, opts, extras)
   const configured = 'config' in options
   const plugin = options.plugin ?? createAgentHostPlugin(factory)
   const host = root.plugin(plugin, (configured ? options.config : hostConfig) as AgentHostConfig)
