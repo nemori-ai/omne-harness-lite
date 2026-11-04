@@ -19,6 +19,7 @@
 - `ActionIdentity` · `extensions.d.ts`
 - `ActionJudgment` · `evaluation.d.ts`
 - `ActionSlot` · `evaluation.d.ts`
+- `ActionToolCall` · `evaluation.d.ts`
 - `AdmissionDecision` · `passages.d.ts`
 - `AdoptedRequest` · `evaluation.d.ts`
 - `Adoption` · 包 `@omne-harness/exchange-refs`
@@ -176,6 +177,8 @@
 - `JournalCapabilities` · `journal.d.ts`
 - `JournalCommit` · `journal.d.ts`
 - `JournalCommitState` · `journal.d.ts`
+- `JournalEntryItem` · `receiving.d.ts`
+- `JournalEntryPage` · `receiving.d.ts`
 - `JournalEntryRecord` · `receiving.d.ts`
 - `JournalSubmitLineage` · `journal.d.ts`
 - `Judgment` · `judgment.d.ts`
@@ -185,6 +188,7 @@
 - `LoopExtensionImplementation` · `extensions.d.ts`
 - `LoopFacts` · `evaluation.d.ts`
 - `Material` · `passages.d.ts`
+- `MaterialDescription` · `passages.d.ts`
 - `MessageHandoff` · `passages.d.ts`
 - `MessageSource` · `passages.d.ts`
 - `MigrationRecord` · `finishing.d.ts`
@@ -331,9 +335,13 @@
 - `createMemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `createMemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `createTestCancellationPolicy` · `testing-cancellation.d.ts`
+- `describeMaterial` · `testing-journal-reads.d.ts`
+- `entryPage` · `testing-journal-reads.d.ts`
+- `materialDigest` · `testing-journal-reads.d.ts`
 - `memoryAgentAccountOutletFixture` · `testing-account-outlet.d.ts`
 - `memoryAgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
 - `memoryReceivedCommitFixture` · `testing-received-memory.d.ts`
+- `receivedEntriesOf` · `testing-journal-reads.d.ts`
 - `replayJournalTrace` · `testing-journal-replay.d.ts`
 - `sampleAccountHandoff` · `testing-account-outlet.d.ts`
 - `sampleReceivedModelAccount` · `testing-journal-samples.d.ts`
@@ -434,7 +442,7 @@ export declare function attributeItem(text: string | undefined): AttributeItem |
 
 ```ts
 import type { Outcome } from '@omne-harness/operation-result';
-import type { Message, ToolPart } from '@omne-harness/message';
+import type { Message, ToolCallPart } from '@omne-harness/message';
 import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
 import type { ControlRecord, ResultResponsibility } from './execution.ts';
@@ -604,12 +612,13 @@ export type ActionJudgment = Readonly<{
 }> | Readonly<{
     kind: 'allowed';
     evidence: DurableEvidence;
-    request: T.ToolInvokeRequest;
+    request: DurableEvidence;
 }>;
+export type ActionToolCall = ToolCallPart;
 export type Action = Readonly<{
     id: ActionId;
-    original: ToolPart & Readonly<{
-        kind: 'tool_call';
+    original: Readonly<{
+        callId: string;
     }>;
     effectiveArguments: string;
     judgment: ActionJudgment;
@@ -637,7 +646,7 @@ export type ActionBarrier = Readonly<{
 export type ActionSlot = Readonly<{
     action: ActionId;
     each: readonly PassageId[] | null;
-    candidate: Message | null;
+    candidateDigest: string | null;
     handoff: HandoffReference | null;
 }> & (Readonly<{
     kind: 'denied';
@@ -941,7 +950,6 @@ export type ExecutionSnapshot = Readonly<{
         emittedThrough: string | null;
         acknowledgedThrough: string | null;
     }>;
-    entries?: readonly AgentJournalEntry[];
 }>;
 export type AgentState = Readonly<{
     kind: 'idle';
@@ -2576,7 +2584,7 @@ import type { JsonValue } from '@omne-harness/json-text';
 import type { CallAccount } from '@omne-harness/call-account';
 import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
-import type { Action, AgentCheckpoint, AgentConclusion, GuardFact, PendingCall, ProducedResult, Reply, PreparedContextTransition } from './evaluation.ts';
+import type { ActionToolCall, AgentCheckpoint, AgentConclusion, GuardFact, PendingCall, ProducedResult, Reply, PreparedContextTransition } from './evaluation.ts';
 import type { AcceptedInput } from './execution.ts';
 import type { Conclusion, DecisionCardDraft, Dimension, ExtensionInvocationMode, ExtensionOutput, LoopExtensionDeclaration, LoopExtensionImplementation, Position } from './extensions.ts';
 import type { Access, Adoption, ActionBatchId, ActionId, AgentExecutionId, AgentInstanceId, AgentOperationId, Authority, CardRoundId, ConsumerRef, DurableEvidence, ExecutionRevision, InputId, PassageId, StepId } from './identity.ts';
@@ -2750,7 +2758,7 @@ export type Subject = Readonly<{
     retry: M.RetryResolution | null;
 }> | Readonly<{
     action: ActionId;
-    original: Action['original'];
+    original: ActionToolCall;
     effectiveArguments: string;
     definition: T.ToolDefinition;
     batch: readonly ActionId[];
@@ -2843,7 +2851,7 @@ export interface ActionAdmission<P> {
         execution: AgentExecutionId;
         passage: PassageId;
         action: ActionId;
-        original: Action['original'];
+        original: ActionToolCall;
         effectiveArguments: string;
         definition: Adoption;
         permissions: readonly NamedCapturedRead[];
@@ -3032,9 +3040,14 @@ export type Material<B extends ContentBlock> = Readonly<{
     schema: Adoption;
     value: JsonValue;
 }>;
+export type MaterialDescription = Readonly<{
+    digest: string;
+    size: number;
+    kind: Material<ContentBlock>['kind'];
+}>;
 export interface AgentMaterials<P, B extends ContentBlock> {
     preserve(input: Access<P> & Readonly<{
-        execution?: AgentExecutionId;
+        execution: AgentExecutionId;
         identity: string;
         consumer: ConsumerRef;
         value: Material<B>;
@@ -3042,6 +3055,9 @@ export interface AgentMaterials<P, B extends ContentBlock> {
     read(input: Access<P> & Readonly<{
         source: DurableEvidence;
     }>): Reply<Material<B>>;
+    describe(input: Access<P> & Readonly<{
+        source: DurableEvidence;
+    }>): Reply<MaterialDescription>;
 }
 export interface RegisteredReads<P> {
     read(input: Access<P> & Readonly<{
@@ -3136,8 +3152,26 @@ export type JournalEntryRecord<P> = ExecutionMutation<P> & (Readonly<{
     authority: null;
     entry: ReceivedEntry;
 }>);
+export type JournalEntryItem = Readonly<{
+    sequence: string;
+    entry: AgentJournalEntry;
+}>;
+export type JournalEntryPage = Readonly<{
+    items: readonly JournalEntryItem[];
+    next: string | null;
+    caughtUp: boolean;
+}>;
 export interface AgentJournalEntries<P> {
     record(input: JournalEntryRecord<P>): Reply<CommandReceipt>;
+    read(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        after: string | null;
+        limit: number;
+    }>): Reply<JournalEntryPage>;
+    receivedOf(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        consumption: ConsumptionId;
+    }>): Reply<readonly ReceivedEntry[]>;
 }
 export type ReceivedCommitInput<P, B extends ContentBlock> = ExecutionMutation<P> & Readonly<{
     entry: Omit<ReceivedEntry, 'material'>;
@@ -3896,6 +3930,19 @@ export declare function replyRequest<P>(opened: AgentJournalCoreOpened<P>, snaps
 export declare function admitReply<P>(opened: AgentJournalCoreOpened<P>, index: number, decision?: 'admitted' | 'rejected', call?: string): Promise<CommandReceipt>;
 ```
 
+## 声明文件 `testing-journal-reads.d.ts`
+
+```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import type { ConsumptionId } from './identity.ts';
+import type { Material, MaterialDescription } from './passages.ts';
+import type { AgentJournalEntry, JournalEntryPage, ReceivedEntry } from './receiving.ts';
+export declare function entryPage(entries: readonly AgentJournalEntry[], after: string | null, limit: number): JournalEntryPage | undefined;
+export declare function receivedEntriesOf(entries: readonly AgentJournalEntry[], consumption: ConsumptionId): readonly ReceivedEntry[];
+export declare function materialDigest<B extends ContentBlock>(value: Material<B>): string;
+export declare function describeMaterial<B extends ContentBlock>(value: Material<B>): MaterialDescription;
+```
+
 ## 声明文件 `testing-journal-replay.d.ts`
 
 ```ts
@@ -4086,4 +4133,5 @@ export { createTestCancellationPolicy, TEST_CANCELLATION_IMPLEMENTATION, TEST_CA
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';
 export { agentJournalReplayConformance, agentJournalReplayTraces, agentJournalViolatingTraces, replayJournalTrace, type JournalReplayState, type JournalReplayStep, type JournalReplayTrace, } from './testing-journal-replay.ts';
+export { describeMaterial, entryPage, materialDigest, receivedEntriesOf, } from './testing-journal-reads.ts';
 ```
