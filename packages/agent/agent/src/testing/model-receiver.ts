@@ -89,29 +89,25 @@ export async function assembleModelReceiverFixture(
     source: null,
     priority: 'ordinary',
   }
-  const invokeEntry = {
-    kind: 'invoke' as const,
-    operation: open,
-    execution,
-    initial,
-    checkpoint: {
-      schema: testAdoption('checkpoint'),
-      definition: testAdoption('definition'),
-      step: value(decodeStepId('receiver-step')),
-      position: 'M1',
-      calls: [pending],
-      passages: [],
-      batch: null,
-      inputBatch: null,
-      requestPreparation: null,
-      compaction: null,
-      adoptedContext: null,
-      guard: null,
-      completedPassages: [],
-      priorConditions: null,
-      currentHandoff: null,
-      replyAdmissionRead: { kind: 'unverified' as const },
-    },
+  const invokeEntry = { kind: 'invoke' as const, operation: open, execution, initial }
+  const checkpoint = {
+    schema: testAdoption('checkpoint'),
+    definition: testAdoption('definition'),
+    step: value(decodeStepId('receiver-step')),
+    position: 'M1',
+    calls: [pending],
+    passages: [],
+    batch: null,
+    inputBatch: null,
+    requestPreparation: null,
+    compaction: null,
+    adoptedContext: null,
+    guard: null,
+    completedPassages: [],
+    priorConditions: null,
+    currentHandoff: null,
+    replyAdmissionRead: { kind: 'unverified' as const },
+    voided: [],
   }
   const handoff = { kind: 'input' as const, execution, entry: open, input: initial.id }
   const runtime = {
@@ -125,6 +121,7 @@ export async function assembleModelReceiverFixture(
       ...access,
       execution,
       operation: open,
+      checkpoint,
       original: {
         entry: invokeEntry,
         handoff,

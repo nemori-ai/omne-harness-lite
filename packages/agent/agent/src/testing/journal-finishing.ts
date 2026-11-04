@@ -439,6 +439,12 @@ export function buildObligations(
               (item.failure?.kind === 'no-reply' || item.failure?.kind === 'model-refused') &&
               item.failure.call === call,
           )?.failure?.source ?? null)
+    // R2-D292: a Model intent the Model answered authoritatively not-accepted was never admitted
+    // or sent; its voided record settles the call on the basis of that answer.
+    const voided =
+      effect.pending.kind === 'model'
+        ? source.checkpoint.voided.find(item => item.reference === effect.pending.reference)
+        : undefined
     const intent =
       source.finishing.effectOperations.get(effect.action) ??
       defect(`the effect ${effect.action} has no establishing operation`)
@@ -455,14 +461,16 @@ export function buildObligations(
             ? settled(received.material)
             : finalFailure !== null
               ? settled(finalFailure)
-              : association !== undefined
-                ? associationDisposition(association, effect)
-                : unknown(key, sourceEvidence, 'original-operation-unknown', {
-                    kind: 'producer-query',
-                    request: ofParameters({ pending: effect.pending }),
-                    ...BY_JOURNAL,
-                    purpose: 'query',
-                  }),
+              : voided !== undefined
+                ? settled(voided.basis)
+                : association !== undefined
+                  ? associationDisposition(association, effect)
+                  : unknown(key, sourceEvidence, 'original-operation-unknown', {
+                      kind: 'producer-query',
+                      request: ofParameters({ pending: effect.pending }),
+                      ...BY_JOURNAL,
+                      purpose: 'query',
+                    }),
       action: effect.action,
       intent,
       pending: effect.pending,

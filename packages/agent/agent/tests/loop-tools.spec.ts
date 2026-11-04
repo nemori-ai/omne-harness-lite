@@ -14,7 +14,13 @@ import {
   type ToolInvokeOutcome,
   type ToolState,
 } from '@omne-harness/tool-contract'
-import { evidence, execution, ok } from './journal-support.ts'
+import {
+  evidence,
+  execution,
+  ok,
+  loadWithEntries,
+  type LoadedWithEntries,
+} from './journal-support.ts'
 import { alice, eventually, invoke } from './loop-support.ts'
 import {
   associatedTools,
@@ -55,8 +61,8 @@ function acceptEach(assembly: Assembly) {
   })
 }
 
-async function snapshot(assembly: Assembly): Promise<ExecutionSnapshot> {
-  return ok(await assembly.dependencies.journal.load(input))
+async function snapshot(assembly: Assembly): Promise<LoadedWithEntries> {
+  return await loadWithEntries(assembly.dependencies, input)
 }
 
 async function events(assembly: Assembly): Promise<readonly AgentEventBody[]> {
@@ -430,8 +436,13 @@ async function toolRound(
 }
 
 /** The handoff records of one source kind, each with the Ja that published its history. */
-function published(read: ExecutionSnapshot, source: 'tool-result' | 'model-reply') {
-  return read.handoffs.flatMap(record =>
+/** The committed H of `source`, closed ones included: the snapshot lists the open records only. */
+function published(assembly: Assembly, source: 'tool-result' | 'model-reply') {
+  const records = assembly.controls.journal.handoffRecords({
+    tenant: alice.tenant,
+    execution: input.execution,
+  })
+  return records.flatMap(record =>
     record.request.kind === 'execution' &&
     record.request.source.kind === source &&
     record.resolution?.kind === 'recorded' &&
@@ -446,7 +457,7 @@ function published(read: ExecutionSnapshot, source: 'tool-result' | 'model-reply
 describe('the caller commit of a source Ja', () => {
   it('hands the tool message to the declared message participant in the same commit', async () => {
     const assembly = await toolRound(['message'], ['message'])
-    const [tool] = published(await snapshot(assembly), 'tool-result')
+    const [tool] = published(assembly, 'tool-result')
     if (tool === undefined) throw new Error('tool message not published')
     const decision = tool.outcome.decision
     if (decision.kind !== 'prepared') throw new Error('tool message not prepared')
@@ -467,7 +478,7 @@ describe('the caller commit of a source Ja', () => {
   it('commits the tool message with caller none when the assembly did not declare message', async () => {
     // The Journal binding offers the participant, but the factory configuration does not use it.
     const assembly = await toolRound([], ['message'])
-    expect(published(await snapshot(assembly), 'tool-result')).toHaveLength(1)
+    expect(published(assembly, 'tool-result')).toHaveLength(1)
     expect(assembly.controls.journal.joint()).toEqual([])
   })
 
@@ -475,7 +486,7 @@ describe('the caller commit of a source Ja', () => {
     const assembly = await toolRound(['message'], ['message'])
     await deliverModelReply(assembly, [textBlock('done', 'blk_done')], 'final')
     await eventually(async () => (await snapshot(assembly)).state.kind === 'ended')
-    const replies = published(await snapshot(assembly), 'model-reply')
+    const replies = published(assembly, 'model-reply')
     expect(replies).toHaveLength(2)
     const operations = assembly.controls.journal.joint().map(fact => fact.operation)
     for (const reply of replies) expect(operations).not.toContain(reply.operation)

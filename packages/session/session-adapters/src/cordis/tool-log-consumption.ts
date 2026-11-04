@@ -33,6 +33,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {
   AgentExecutionId,
   AgentJournal,
+  AgentJournalEntries,
   AgentJournalEntry,
   AgentMaterials,
   ExecutionSnapshot,
@@ -40,7 +41,11 @@ import type {
   Material,
   ReceivedEntry,
 } from '@omne-harness/agent-contract'
-import { agentJournalKey, agentMaterialsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  agentJournalEntriesKey,
+  agentJournalKey,
+  agentMaterialsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -142,6 +147,28 @@ export type ToolLogConsumed = Readonly<{
 }>
 
 type Answer<T> = Outcome<T, SessionFailure>
+/** The most entries one page of the entries read asks for. */
+const ENTRY_PAGE = 256
+
+/**
+ * Every committed receiving entry of the execution, page by page through the entries port of the
+ * same Journal provider: the snapshot carries none (agent-contract SPEC "日志条目" 6).
+ */
+async function committedEntries<P>(
+  read: AgentJournalEntries<P>['read'],
+  input: Readonly<{ principal: P; tenant: TenantId; execution: AgentExecutionId }>,
+): Promise<Outcome<readonly AgentJournalEntry[], Failure>> {
+  const found: AgentJournalEntry[] = []
+  let after: string | null = null
+  for (;;) {
+    const page = await read({ ...input, after, limit: ENTRY_PAGE })
+    if ('failure' in page) return page
+    found.push(...page.ok.items.map(item => item.entry))
+    if (page.ok.caughtUp) return succeed(found)
+    after = page.ok.next
+  }
+}
+
 type ToolEntry = ReceivedEntry &
   Readonly<{ delivery: Extract<ReceivedEntry['delivery'], { producer: 'tool' }> }>
 type Step = Readonly<{ kind: 'item'; item: SessionEntriesItem }> | Readonly<{ kind: 'unbound' }>
@@ -150,6 +177,7 @@ type Step = Readonly<{ kind: 'item'; item: SessionEntriesItem }> | Readonly<{ ki
 type Ports = Readonly<{
   readWork(access: SessionAccess<unknown>): Reply<WorkSnapshot>
   load: AgentJournal<unknown>['load']
+  entries: AgentJournalEntries<unknown>['read']
   read: AgentMaterials<unknown, ContentBlock>['read']
   commitEntries: SessionTransactionPort<unknown>['commitEntries']
   /** True once the generation stopped; checked before every commit. */
@@ -414,9 +442,24 @@ function createToolLogConsumption(
     if ('failure' in loaded) return loaded
     if ('failure' in loaded.ok) return agentFailure('load', loaded.ok.failure)
     const execution: ExecutionSnapshot = loaded.ok.ok
-    if (execution.entries === undefined)
-      return unavailable('the Journal provider serves no entries; absent is not an empty list')
-    const channel = execution.entries.filter(isToolReceived)
+    const reading = {
+      principal: access.principal,
+      tenant: access.tenant,
+      execution: target.execution,
+    }
+    const read = await bounded('agentJournalEntries.read', () =>
+      committedEntries(ports.entries, reading),
+    )
+    if ('failure' in read) return read
+    if ('failure' in read.ok) return agentFailure('load', read.ok.failure)
+    // The entries and the revision come from two reads: a revision that moved between them is
+    // read again on the next publication, not bound to entries of another revision.
+    const again = await bounded('agentJournal.load', () => ports.load(reading))
+    if ('failure' in again) return again
+    if ('failure' in again.ok) return agentFailure('load', again.ok.failure)
+    if (again.ok.ok.revision !== execution.revision)
+      return unavailable('the execution changed while its entries were read')
+    const channel = read.ok.ok.filter(isToolReceived)
     const saved = snapshot.entriesProgress?.find(
       item => item.run === run && item.execution === target.execution && item.channel === CHANNEL,
     )
@@ -550,6 +593,7 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
       inject: {
         [sessionKey]: { caller: 'coordinator' as const },
         [agentJournalKey]: null,
+        [agentJournalEntriesKey]: null,
         [agentMaterialsKey]: null,
         [sessionTransactionsKey]: null,
       },
@@ -560,6 +604,7 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
         // configuration; the plugin names its caller class again so `session` always sees it.
         const session = ctx.intercept(sessionKey, { caller: 'coordinator' })[sessionKey]
         const journal = ctx[agentJournalKey]
+        const entries = ctx[agentJournalEntriesKey]
         const materials = ctx[agentMaterialsKey]
         const transactions = ctx[sessionTransactionsKey]
         const logger = ctx.logger(OWNER)
@@ -568,6 +613,7 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
           {
             readWork: access => session.work.readWork(access),
             load: value => journal.load(value),
+            entries: value => entries.read(value),
             read: value => materials.read(value),
             commitEntries: value => transactions.commitEntries(value),
             stopped: () => stopped,

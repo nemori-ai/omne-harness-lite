@@ -2,7 +2,10 @@
 // "终结责任清单" and "commitSettlement 的变体"): the candidate, route, obligation, judgment and custody
 // records of one execution, the FinishIntent and settlement projections `load` derives from them,
 // the obligations the Journal builds from its own records, and the five blocked categories in
-// their fixed order. Pure over the records it is given; the writes that change them live in
+// their fixed order. The records are a projection of the finishing facts (R2-D297): a candidate
+// from `finish.candidate` and its cursor block, a list from its `finish.obligation` items and the
+// `finish.obligations` close, a settlement record from its `settlement.recorded` block; the last
+// section maps a folded view back to the records. Pure over what it is given; the writes live in
 // journal.ts. The Agent memory Journal keeps its own records; the two are held to the same
 // conformance suite, not to shared code.
 import type {
@@ -41,10 +44,26 @@ import type {
   ResultResponsibility,
   TerminalParticipantFacts,
   ToolAssociationRecord,
+  CancellationJudgmentInput,
+  CommandReceipt,
+  InputBatch,
+  VoidedIntent,
+  JournalCommitState,
+  SettlementResult,
 } from '@omne-harness/agent-contract'
 import { obligationCategoryOf } from '@omne-harness/agent-contract'
 import { canonical } from './canonical.ts'
 import { JOURNAL_OWNER, journalEvidence, revisionOf } from './journal-values.ts'
+import {
+  blobOf,
+  blobsOf,
+  checkpointOf,
+  cursorOf,
+  type Blob,
+  type BlobStore,
+} from '../journal/decide.ts'
+import type { CursorMembers, FactBody, FactOf, Ref } from '../journal/facts.ts'
+import type { CandidateView, ExecutionView, ObligationListView } from '../journal/fold.ts'
 
 /**
  * The finishing records of one execution. Every record is immutable once appended; the one
@@ -468,81 +487,7 @@ export function buildObligations(
       record,
     })
   }
-  for (const effect of source.effects) {
-    const result = source.results.find(item => item.consumption === effect.pending.consumption)
-    // A result saved as a `received` entry of the same consumption settles the call too: the
-    // entry is the result's custody when the receiver wrote it (Agent SPEC "终结责任清单" call row).
-    const received = source.entries.find(
-      entry => entry.kind === 'received' && entry.consumption === effect.pending.consumption,
-    )
-    // A later unknown return does not take an accepted association back to unknown; without an
-    // accepted one the last record counts.
-    const associations = source.finishing.toolAssociations.filter(
-      item => item.intent.action === effect.action,
-    )
-    const association =
-      associations.find(item => item.association.kind === 'accepted') ?? associations.at(-1)
-    // A final failure of the producer settles the call, and so does the Model's definite refusal
-    // of its admission (R2-D237, R2-D241: a refused admission leaves no send). It is read from every
-    // candidate, so a cancelled candidate that replaced that failure does not undo it.
-    const call = source.modelCallOf(effect)
-    const finalFailure =
-      call === null
-        ? undefined
-        : (source.finishing.candidates.find(
-            item =>
-              item.conclusion.kind === 'fail' &&
-              settlesCall(item.failure) &&
-              item.failure.call === call,
-          )?.failure ?? undefined)
-    const custodian =
-      association?.obligation.kind === 'call' ? association.obligation.custodian : null
-    const retain = (saved: ToolAssociationRecord): RecoveryContinuation => ({
-      kind: 'tool-association-retain',
-      request: ofParameters({
-        intent: saved.intent,
-        request: saved.request,
-        source: saved.source,
-        priorExcluded: saved.priorExcluded,
-      }),
-      ...BY_JOURNAL,
-      purpose: 'reconcile',
-    })
-    items.push({
-      kind: 'call',
-      key: effect.action,
-      source: effect.pending.fixed,
-      version: fixed(`call/${effect.action}`),
-      position: effect.pending.position,
-      disposition:
-        result !== undefined
-          ? settled(result.result.source)
-          : received?.kind === 'received'
-            ? settled(received.material)
-            : finalFailure !== undefined
-              ? settled(finalFailure.source)
-              : association?.association.kind === 'accepted'
-                ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
-                : association !== undefined
-                  ? callUnknown(effect.action, association.source, retain(association))
-                  : callUnknown(effect.action, effect.pending.fixed, {
-                      kind: 'producer-query',
-                      request: ofParameters({ pending: effect.pending }),
-                      ...BY_JOURNAL,
-                      purpose: 'query',
-                    }),
-      action: effect.action,
-      intent: recorded(
-        source.finishing.effectOperations.get(effect.action),
-        `the operation that saved the intent ${effect.action}`,
-      ),
-      pending: effect.pending,
-      started: null,
-      outcome: result?.result.source ?? null,
-      interruptions: source.interruptionsOf(effect),
-      custodian,
-    })
-  }
+  items.push(...callObligations(source))
   const supersession = source.finishing.supersessions.find(link => link.to === candidate.candidate)
   // A migrated candidate's passages belong to the author route it left (Agent SPEC "终结责任清单").
   const migration = source.finishing.migrations.find(item => item.candidate === candidate.candidate)
@@ -622,43 +567,7 @@ export function buildObligations(
       })
     }
   }
-  for (const responsibility of source.results) {
-    const key = canonical([
-      responsibility.result.producer,
-      responsibility.result.version,
-      responsibility.consumption,
-    ])
-    const origin = responsibility.result.source
-    const parameters = ofParameters({
-      result: responsibility.result,
-      consumption: responsibility.consumption,
-    })
-    items.push({
-      kind: 'result',
-      key,
-      source: origin,
-      version: fixed(`result/${responsibility.consumption}/${responsibility.result.version}`),
-      position: null,
-      disposition:
-        responsibility.completion !== null
-          ? settled(responsibility.completion)
-          : responsibility.custody !== null
-            ? held(responsibility.custody, {
-                kind: 'producer-release',
-                request: parameters,
-                ...BY_JOURNAL,
-                purpose: 'reconcile',
-              })
-            : pending('result-custody', {
-                kind: 'producer-receive',
-                request: parameters,
-                ...BY_JOURNAL,
-                purpose: 'reconcile',
-              }),
-      responsibility,
-      material: null,
-    })
-  }
+  items.push(...resultObligations(source))
   if (source.emitted > 0) {
     const retention = fixed('output')
     const emittedThrough = String(source.emitted)
@@ -727,6 +636,177 @@ export function buildObligations(
       handoffs: facet('handoffs'),
     },
   }
+}
+
+/** The part of an obligation source the call and result obligations read. */
+export type LedgerSource = Pick<
+  ObligationSource,
+  | 'id'
+  | 'execution'
+  | 'revision'
+  | 'results'
+  | 'entries'
+  | 'effects'
+  | 'interruptionsOf'
+  | 'modelCallOf'
+  | 'finishing'
+  | 'checkpoint'
+>
+
+/** The first item of each key, in a map. */
+function firstBy<T, K>(items: readonly T[], key: (item: T) => K): Map<K, T> {
+  const out = new Map<K, T>()
+  for (const item of items) if (!out.has(key(item))) out.set(key(item), item)
+  return out
+}
+
+/** The evidence fixed for one obligation `what` of the execution at the read revision. */
+function fixedOf(source: Pick<ObligationSource, 'execution' | 'revision'>) {
+  return (what: string): DurableEvidence =>
+    journalEvidence(`${source.execution}/obligation/${what}`, source.revision)
+}
+
+/**
+ * The call obligations of the execution, one per effect intent (Agent SPEC "终结责任清单" call
+ * row). They do not depend on the candidate beyond the failures of all its candidates, so the
+ * Journal keeps them current step by step (R2-D322).
+ */
+export function callObligations(source: LedgerSource): FinishObligation[] {
+  const fixed = fixedOf(source)
+  const items: FinishObligation[] = []
+  // Indexed once: the Journal reads the call obligations after every step (R2-D322).
+  const results = firstBy(source.results, item => item.consumption)
+  const entries = firstBy(
+    source.entries.filter(entry => entry.kind === 'received'),
+    entry => entry.consumption,
+  )
+  const associated = new Map<string, ToolAssociationRecord[]>()
+  for (const item of source.finishing.toolAssociations)
+    associated.set(item.intent.action, [...(associated.get(item.intent.action) ?? []), item])
+  for (const effect of source.effects) {
+    const result = results.get(effect.pending.consumption)
+    // A result saved as a `received` entry of the same consumption settles the call too: the
+    // entry is the result's custody when the receiver wrote it (Agent SPEC "终结责任清单" call row).
+    const received = entries.get(effect.pending.consumption)
+    // A later unknown return does not take an accepted association back to unknown; without an
+    // accepted one the last record counts.
+    const associations = associated.get(effect.action) ?? []
+    const association =
+      associations.find(item => item.association.kind === 'accepted') ?? associations.at(-1)
+    // A final failure of the producer settles the call, and so does the Model's definite refusal
+    // of its admission (R2-D237, R2-D241: a refused admission leaves no send). It is read from every
+    // candidate, so a cancelled candidate that replaced that failure does not undo it.
+    const call = source.modelCallOf(effect)
+    const finalFailure =
+      call === null
+        ? undefined
+        : (source.finishing.candidates.find(
+            item =>
+              item.conclusion.kind === 'fail' &&
+              settlesCall(item.failure) &&
+              item.failure.call === call,
+          )?.failure ?? undefined)
+    // R2-D292: a Model intent the Model answered authoritatively not-accepted was never admitted
+    // or sent; its voided record settles the call on the basis of that answer.
+    const voided =
+      effect.pending.kind === 'model'
+        ? source.checkpoint.voided.find(item => item.reference === effect.pending.reference)
+        : undefined
+    const custodian =
+      association?.obligation.kind === 'call' ? association.obligation.custodian : null
+    const retain = (saved: ToolAssociationRecord): RecoveryContinuation => ({
+      kind: 'tool-association-retain',
+      request: ofParameters({
+        intent: saved.intent,
+        request: saved.request,
+        source: saved.source,
+        priorExcluded: saved.priorExcluded,
+      }),
+      ...BY_JOURNAL,
+      purpose: 'reconcile',
+    })
+    items.push({
+      kind: 'call',
+      key: effect.action,
+      source: effect.pending.fixed,
+      version: fixed(`call/${effect.action}`),
+      position: effect.pending.position,
+      disposition:
+        result !== undefined
+          ? settled(result.result.source)
+          : received?.kind === 'received'
+            ? settled(received.material)
+            : finalFailure !== undefined
+              ? settled(finalFailure.source)
+              : voided !== undefined
+                ? settled(voided.basis)
+                : association?.association.kind === 'accepted'
+                  ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
+                  : association !== undefined
+                    ? callUnknown(effect.action, association.source, retain(association))
+                    : callUnknown(effect.action, effect.pending.fixed, {
+                        kind: 'producer-query',
+                        request: ofParameters({ pending: effect.pending }),
+                        ...BY_JOURNAL,
+                        purpose: 'query',
+                      }),
+      action: effect.action,
+      intent: recorded(
+        source.finishing.effectOperations.get(effect.action),
+        `the operation that saved the intent ${effect.action}`,
+      ),
+      pending: effect.pending,
+      started: null,
+      outcome: result?.result.source ?? null,
+      interruptions: source.interruptionsOf(effect),
+      custodian,
+    })
+  }
+  return items
+}
+
+/** The result obligations of the execution, one per result responsibility. */
+export function resultObligations(source: LedgerSource): FinishObligation[] {
+  const fixed = fixedOf(source)
+  const items: FinishObligation[] = []
+  for (const responsibility of source.results) {
+    const key = canonical([
+      responsibility.result.producer,
+      responsibility.result.version,
+      responsibility.consumption,
+    ])
+    const origin = responsibility.result.source
+    const parameters = ofParameters({
+      result: responsibility.result,
+      consumption: responsibility.consumption,
+    })
+    items.push({
+      kind: 'result',
+      key,
+      source: origin,
+      version: fixed(`result/${responsibility.consumption}/${responsibility.result.version}`),
+      position: null,
+      disposition:
+        responsibility.completion !== null
+          ? settled(responsibility.completion)
+          : responsibility.custody !== null
+            ? held(responsibility.custody, {
+                kind: 'producer-release',
+                request: parameters,
+                ...BY_JOURNAL,
+                purpose: 'reconcile',
+              })
+            : pending('result-custody', {
+                kind: 'producer-receive',
+                request: parameters,
+                ...BY_JOURNAL,
+                purpose: 'reconcile',
+              }),
+      responsibility,
+      material: null,
+    })
+  }
+  return items
 }
 
 /** The evidence of the first presented card of a round, or null while nothing was presented. */
@@ -891,4 +971,604 @@ export function finishCheck(source: FinishCheckSource, candidate: FinishCandidat
     return blocked(first?.category ?? 'passages', judgment.evidence)
   }
   return { kind: 'clear' }
+}
+
+// ------------------------------------------------------------------------------------------
+// The finishing facts and their projection (R2-D297)
+
+/** A block the facts refer to. A missing one is a defect of the writer, never a value to invent. */
+function block<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: string): T {
+  if (!blobs.has(ref.digest))
+    throw new TypeError(`the Journal holds no block for the ${what} a finishing fact refers to`)
+  return structuredClone(blobs.get(ref.digest)) as T
+}
+
+/** The reference of a block: its digest and the bytes of its canonical text. */
+function refOfBlob([digest, value]: Blob): Ref {
+  return { digest, size: Buffer.byteLength(canonical(value), 'utf8') }
+}
+
+/**
+ * The cursor block of a candidate: the cursor members of its checkpoint, and the two members the
+ * cursor keeps in other facts (R2-D292), the whole input batch and the voided intents, as they
+ * stood when the candidate was established. Small values and references only; the member blocks
+ * are the ones `cursor.moved` refers to.
+ */
+export type CandidateCursor = Readonly<{
+  members: CursorMembers
+  inputBatch: InputBatch | null
+  voided: readonly VoidedIntent[]
+}>
+
+/**
+ * The `finish.candidate` fact of a candidate and the blocks it refers to. The checkpoint enters as
+ * a cursor reference: the cursor block, whose members refer to the member blocks; the failure and
+ * the route enter as blocks.
+ */
+export function candidateFact(
+  candidate: FinishCandidate,
+  route: FinishRoute,
+  supersedes: AgentOperationId | null,
+  state: JournalCommitState,
+): Readonly<{ fact: FactOf<'finish.candidate'>; blobs: readonly Blob[] }> {
+  const held: CandidateCursor = {
+    members: cursorOf(candidate.checkpoint, state),
+    inputBatch: candidate.checkpoint.inputBatch,
+    voided: candidate.checkpoint.voided,
+  }
+  const cursor = blobOf(held)
+  const path = blobOf(route)
+  const failure = candidate.failure === null ? null : blobOf(candidate.failure)
+  return {
+    fact: {
+      kind: 'finish.candidate',
+      candidate: candidate.candidate,
+      claim: {
+        origin: candidate.origin,
+        conclusion: candidate.conclusion,
+        failure:
+          candidate.failure === null || failure === null
+            ? null
+            : { kind: candidate.failure.kind, detail: refOfBlob(failure) },
+        inputWatermark: candidate.inputWatermark,
+        conditions: candidate.conditions,
+      },
+      cursor: refOfBlob(cursor) as never,
+      route: route.record,
+      path: refOfBlob(path) as never,
+      supersedes,
+    },
+    blobs: [cursor, ...blobsOf(candidate.checkpoint), path, ...(failure === null ? [] : [failure])],
+  }
+}
+
+/** The candidate a folded `finish.candidate` names: its claim, its failure and its cursor checkpoint. */
+export function candidateOfView(view: CandidateView, blobs: BlobStore): FinishCandidate {
+  const { failure, ...claim } = view.claim
+  return {
+    candidate: view.candidate,
+    origin: claim.origin,
+    conclusion: claim.conclusion,
+    failure: failure === null ? null : block<FailureCandidate>(blobs, failure.detail, 'failure'),
+    inputWatermark: claim.inputWatermark,
+    checkpoint: checkpointOfCursor(block<CandidateCursor>(blobs, view.cursor, 'cursor'), blobs),
+    conditions: claim.conditions,
+  }
+}
+
+/**
+ * The checkpoint a candidate's cursor block names: the members from their blocks, the input batch
+ * and the voided intents as the block holds them. A member block the store lacks throws.
+ */
+function checkpointOfCursor(held: CandidateCursor, blobs: BlobStore): AgentCheckpoint {
+  const base = checkpointOf(
+    { cursor: { ...held.members, inputBatch: null }, steps: [], requests: [], intents: new Map() },
+    blobs,
+  )
+  return { ...base, inputBatch: held.inputBatch, voided: held.voided }
+}
+
+/** The route a folded `finish.candidate` was established on, with the proof `finish.proved` set. */
+export function routeOfView(view: CandidateView, blobs: BlobStore): FinishRoute {
+  const route = block<FinishRoute>(blobs, view.path, 'route')
+  return route.kind === 'author' && view.beforeTerminal !== null
+    ? { ...route, beforeTerminal: view.beforeTerminal }
+    : route
+}
+
+/** The id of one obligation: its kind and key, the same for every form the item takes. */
+export function obligationId(item: FinishObligation): string {
+  return canonical([item.kind, item.key])
+}
+
+/** The revision text a stored obligation holds in place of the revision it was read at. */
+const READ = '$read'
+
+/**
+ * The read-revision-free form of an obligation (R2-D322): every evidence the builder fixed at the
+ * read revision (`<execution>/obligation/...`) holds `$read` instead of the revision. Two reads
+ * of an unchanged obligation at two revisions have one form, so the block is written once.
+ */
+export function storedObligation(
+  item: FinishObligation,
+  execution: string,
+  revision: number,
+): FinishObligation {
+  const prefix = `${execution}/obligation/`
+  const fixed = String(revision)
+  const walk = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(walk)
+    if (value === null || typeof value !== 'object') return value
+    const record = value as Record<string, unknown>
+    if (
+      record['owner'] === JOURNAL_OWNER &&
+      typeof record['record'] === 'string' &&
+      record['record'].startsWith(prefix) &&
+      record['revision'] === fixed &&
+      record['digest'] === `memory:${record['record']}@${fixed}` &&
+      Object.keys(record).length === 4
+    )
+      return { owner: JOURNAL_OWNER, record: record['record'], revision: READ, digest: READ }
+    return Object.fromEntries(Object.entries(record).map(([key, member]) => [key, walk(member)]))
+  }
+  return walk(item) as FinishObligation
+}
+
+/** The obligation a stored form names, read at `revision`: the inverse of `storedObligation`. */
+export function readObligation(stored: FinishObligation, revision: number): FinishObligation {
+  const walk = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(walk)
+    if (value === null || typeof value !== 'object') return value
+    const record = value as Record<string, unknown>
+    if (record['revision'] === READ && typeof record['record'] === 'string')
+      return journalEvidence(record['record'], revision)
+    return Object.fromEntries(Object.entries(record).map(([key, member]) => [key, walk(member)]))
+  }
+  return walk(stored) as FinishObligation
+}
+
+/** The current forms of the obligations of an execution, by id, as the fold keeps them. */
+export type ObligationLedger = ReadonlyMap<string, Readonly<{ category: string; item: Ref | null }>>
+
+/** The kinds the Journal keeps current step by step: their number follows the Model and Tool calls. */
+export const LEDGER_KINDS: ReadonlySet<string> = new Set(['call', 'result'])
+
+/** Facts that may change any call or result obligation: the step compares all of them. */
+const BROAD: ReadonlySet<string> = new Set([
+  'control.stage',
+  'control.rejected',
+  'finish.candidate',
+  'intent.voided',
+  'settlement.recorded',
+  'exec.attached',
+  'op.excluded',
+])
+
+/**
+ * Which call and result obligations a step may have changed, from its facts: the calls and
+ * consumptions its facts name, or all of them after a fact that reaches across calls. A miss only
+ * leaves the ledger behind; the issue compares every obligation and appends what still differs.
+ */
+export function touchedBy(facts: readonly FactBody[]): (item: FinishObligation) => boolean {
+  if (facts.some(fact => BROAD.has(fact.kind))) return () => true
+  const names = new Set<string>()
+  for (const fact of facts) {
+    if ('action' in fact && typeof fact.action === 'string') names.add(fact.action)
+    if ('consumption' in fact && typeof fact.consumption === 'string') names.add(fact.consumption)
+  }
+  return item =>
+    item.kind === 'call'
+      ? names.has(item.action) || names.has(item.pending.consumption)
+      : item.kind === 'result'
+        ? names.has(item.responsibility.consumption)
+        : true
+}
+
+/**
+ * The `finish.obligation` facts that bring the ledger to `items`: one per item whose stored form
+ * differs from its current form, and, when `complete` names the kinds `items` holds all of, one
+ * `item: null` per obligation of those kinds that left. At most `room` facts; the rest waits for a
+ * later step, and an issue appends what still differs.
+ */
+export function obligationChanges(
+  items: readonly FinishObligation[],
+  ledger: ObligationLedger,
+  execution: string,
+  revision: number,
+  complete: ReadonlySet<string> | null,
+  room: number = Number.POSITIVE_INFINITY,
+  /** The items worth comparing; the others are taken as unchanged (an issue compares them all). */
+  consider: (item: FinishObligation) => boolean = () => true,
+): Readonly<{
+  facts: readonly FactOf<'finish.obligation'>[]
+  blobs: readonly Blob[]
+  listed: readonly (readonly [id: string, digest: string])[]
+}> {
+  const facts: FactOf<'finish.obligation'>[] = []
+  const blobs: Blob[] = []
+  const listed: (readonly [string, string])[] = []
+  const present = new Set<string>()
+  for (const item of items) {
+    const id = obligationId(item)
+    present.add(id)
+    if (!consider(item) && ledger.get(id)?.item != null) continue
+    const stored = blobOf(storedObligation(item, execution, revision))
+    listed.push([id, stored[0]])
+    if (ledger.get(id)?.item?.digest === stored[0] || facts.length >= room) continue
+    facts.push({ kind: 'finish.obligation', id, category: item.kind, item: refOfBlob(stored) })
+    blobs.push(stored)
+  }
+  if (complete !== null)
+    for (const [id, known] of ledger)
+      if (
+        complete.has(known.category) &&
+        known.item !== null &&
+        !present.has(id) &&
+        facts.length < room
+      )
+        facts.push({ kind: 'finish.obligation', id, category: known.category, item: null })
+  return { facts, blobs, listed }
+}
+
+/**
+ * The facts of one issue of obligations (R2-D322): the obligations whose stored form is not the
+ * ledger's current one, then the close. The close names the items by id and block digest, in list
+ * order, through a block; it carries no item. An issue after the ledger kept up appends the close
+ * and the few obligations that changed since, whatever the number of calls.
+ */
+export function issueFacts(
+  candidate: AgentOperationId,
+  list: number,
+  items: readonly FinishObligation[],
+  coverage: ResponsibilityCoverage,
+  evidence: DurableEvidence,
+  ledger: ObligationLedger,
+  execution: string,
+  revision: number,
+): Readonly<{
+  facts: readonly (FactOf<'finish.obligation'> | FactOf<'finish.obligations'>)[]
+  blobs: readonly Blob[]
+}> {
+  const changes = obligationChanges(items, ledger, execution, revision, null)
+  const listed = blobOf(changes.listed)
+  const covered = blobOf(coverage)
+  return {
+    facts: [
+      ...changes.facts,
+      {
+        kind: 'finish.obligations',
+        candidate,
+        list,
+        count: items.length,
+        evidence,
+        coverage: refOfBlob(covered),
+        listed: refOfBlob(listed),
+      },
+    ],
+    blobs: [...changes.blobs, listed, covered],
+  }
+}
+
+/**
+ * The issued list a folded close names: the items in list order from the blocks the close lists,
+ * read at the revision of its coverage, and the candidate content the list is bound to. A close
+ * whose listed items do not match its count is a defect of the writer.
+ */
+export function listOfView(
+  view: ObligationListView,
+  candidate: FinishCandidate,
+  checkpoint: DurableEvidence,
+  blobs: BlobStore,
+): FinishObligations {
+  const issued = view.issued
+  const listed = block<readonly (readonly [string, string])[]>(blobs, issued.listed, 'list')
+  if (listed.length !== issued.count)
+    throw new TypeError('the obligation list does not hold the items its close counts')
+  const coverage = block<ResponsibilityCoverage>(blobs, issued.coverage, 'coverage')
+  const read = Number(coverage.readRevision)
+  return {
+    operation: issued.op,
+    revision: revisionOf(issued.revision),
+    evidence: issued.evidence,
+    candidate: candidate.candidate,
+    conclusion: candidate.conclusion,
+    failure: candidate.failure,
+    inputWatermark: candidate.inputWatermark,
+    checkpoint,
+    conditions: candidate.conditions,
+    items: listed.map(([, digest]) =>
+      readObligation(block<FinishObligation>(blobs, { digest }, 'obligation'), read),
+    ),
+    coverage,
+  }
+}
+
+/** The number of lists already issued for `candidate`: the ordinal of the next list less one. */
+export function listsIssued(records: FinishingRecords, candidate: AgentOperationId): number {
+  return [...records.issued.values()].filter(list => list.candidate === candidate).length
+}
+
+/**
+ * The block of one settlement record: the variant's record without its receipt, which is derived
+ * from the batch; a judgment's input names its candidate by identity, so the block holds no copy
+ * of the candidate's checkpoint.
+ */
+export type SettlementBlock =
+  | Readonly<{
+      kind: 'migrate-cancellation'
+      migration: Omit<MigrationRecord, 'receipt'>
+      route: Extract<FinishRoute, { kind: 'cancellation' }>
+    }>
+  | Readonly<{
+      kind: 'judge-cancellation'
+      judgment: Omit<CancellationJudgmentRecord, 'receipt' | 'input'> &
+        Readonly<{
+          input: Omit<CancellationJudgmentInput, 'candidate'> &
+            Readonly<{ candidate: AgentOperationId }>
+        }>
+    }>
+  | Readonly<{
+      kind: 'record-card-reconciliation'
+      reconciliation: Omit<CardReconciliationRecord, 'receipt'>
+    }>
+  | Readonly<{
+      kind: 'record-legacy-return'
+      legacyReturn: Omit<LegacyInvocationReturn, 'receipt'>
+    }>
+  | Readonly<{
+      kind: 'record-tool-association'
+      association: Omit<ToolAssociationRecord, 'receipt'>
+    }>
+
+/** A settlement result that a `settlement.recorded` fact carries. */
+export type RecordedSettlement = Exclude<SettlementResult, { kind: 'establish-cancellation' }>
+
+/** The block of a settlement result: the result without the receipts it carries. */
+export function settlementBlock(result: RecordedSettlement): SettlementBlock {
+  switch (result.kind) {
+    case 'migrate-cancellation': {
+      const { receipt: _receipt, ...migration } = result.migration
+      return { kind: result.kind, migration, route: result.route }
+    }
+    case 'judge-cancellation': {
+      const { receipt: _receipt, input, ...judgment } = result.judgment
+      return {
+        kind: result.kind,
+        judgment: { ...judgment, input: { ...input, candidate: input.candidate.candidate } },
+      }
+    }
+    case 'record-card-reconciliation': {
+      const { receipt: _receipt, ...reconciliation } = result.reconciliation
+      return { kind: result.kind, reconciliation }
+    }
+    case 'record-legacy-return': {
+      const { receipt: _receipt, ...legacyReturn } = result.legacyReturn
+      return { kind: result.kind, legacyReturn }
+    }
+    case 'record-tool-association': {
+      const { receipt: _receipt, ...association } = result.association
+      return { kind: result.kind, association }
+    }
+    default: {
+      const _exhaustive: never = result
+      return _exhaustive
+    }
+  }
+}
+
+/**
+ * The settlement result a block names, with the receipt derived from its batch. A judgment input's
+ * candidate is the candidate record of the same execution; one the records lack is a defect.
+ */
+export function settlementOfBlock(
+  value: SettlementBlock,
+  receipt: CommandReceipt,
+  records: FinishingRecords,
+): RecordedSettlement {
+  switch (value.kind) {
+    case 'migrate-cancellation':
+      return {
+        kind: value.kind,
+        receipt,
+        migration: { ...value.migration, receipt },
+        route: value.route,
+      }
+    case 'judge-cancellation': {
+      const candidate = recorded(
+        candidateOf(records, value.judgment.input.candidate),
+        `the candidate ${value.judgment.input.candidate} of a judgment`,
+      )
+      return {
+        kind: value.kind,
+        receipt,
+        judgment: {
+          ...value.judgment,
+          receipt,
+          input: { ...value.judgment.input, candidate: structuredClone(candidate) },
+        },
+      }
+    }
+    case 'record-card-reconciliation':
+      return {
+        kind: value.kind,
+        receipt,
+        reconciliation: { ...value.reconciliation, receipt },
+      }
+    case 'record-legacy-return':
+      return { kind: value.kind, receipt, legacyReturn: { ...value.legacyReturn, receipt } }
+    case 'record-tool-association':
+      return { kind: value.kind, receipt, association: { ...value.association, receipt } }
+    default: {
+      const _exhaustive: never = value
+      return _exhaustive
+    }
+  }
+}
+
+/** The settlement result a `settlement.recorded` block names, read from the blocks. */
+export function settlementOfFact(
+  record: Ref,
+  receipt: CommandReceipt,
+  records: FinishingRecords,
+  blobs: BlobStore,
+): RecordedSettlement {
+  return settlementOfBlock(block<SettlementBlock>(blobs, record, 'settlement'), receipt, records)
+}
+
+/** Applies one recorded settlement result to the records, as its variant prescribes. */
+export function applySettlement(records: FinishingRecords, result: RecordedSettlement): void {
+  switch (result.kind) {
+    case 'migrate-cancellation':
+      records.migrations.push(result.migration)
+      records.routes.push(result.route)
+      records.route = result.route.record.record
+      records.currentJudgment = null
+      return
+    case 'judge-cancellation':
+      records.judgments.push(result.judgment)
+      records.currentJudgment = result.judgment.operation
+      return
+    case 'record-card-reconciliation':
+      records.cardReconciliations.push(result.reconciliation)
+      return
+    case 'record-legacy-return':
+      records.legacyReturns.push(result.legacyReturn)
+      return
+    case 'record-tool-association':
+      records.toolAssociations.push(result.association)
+      return
+    default: {
+      const _exhaustive: never = result
+      return _exhaustive
+    }
+  }
+}
+
+/**
+ * Applies one established candidate to the records: the supersession of the current candidate on
+ * its current route, the candidate, its route, and the pointers that a new candidate resets.
+ */
+export function applyCandidate(
+  records: FinishingRecords,
+  candidate: FinishCandidate,
+  route: FinishRoute,
+  supersession: CandidateSupersession | null,
+): void {
+  if (supersession !== null) records.supersessions.push(supersession)
+  records.candidates.push(candidate)
+  records.routes.push(route)
+  records.current = candidate.candidate
+  records.route = route.record.record
+  records.currentJudgment = null
+  records.obligations = null
+}
+
+/** The supersession a new candidate makes of the current one, on the current route. */
+export function supersessionOf(
+  records: FinishingRecords,
+  candidate: AgentOperationId,
+  route: FinishRoute,
+  revision: number,
+): CandidateSupersession | null {
+  const current = currentCandidate(records)
+  const prior = currentRoute(records)
+  if (current === undefined || prior === undefined) return null
+  return {
+    from: current.candidate,
+    to: candidate,
+    control: route.kind === 'cancellation' ? route.control : null,
+    revision: revisionOf(revision),
+    route: structuredClone(prior),
+  }
+}
+
+/** What the projection of a whole view needs besides the view and the blocks. */
+export type FinishingMint = Readonly<{
+  /** The receipt of the batch at `pub` that operation `op` appended at `revision`. */
+  receipt: (op: AgentOperationId, pub: number, revision: number) => CommandReceipt
+  /** The evidence an issued list names the candidate's checkpoint by. */
+  checkpoint: (candidate: AgentOperationId, revision: number) => DurableEvidence
+}>
+
+/**
+ * The finishing records of one execution as the projection of its folded view (R2-D297): the
+ * candidates, their routes and supersessions, the issued lists, the settlement records and the
+ * pointers, applied in publication order. The intent operation of each effect is the operation of
+ * the batch that intended the call. The view and the blocks are the whole input.
+ */
+export function finishingOf(
+  view: ExecutionView,
+  blobs: BlobStore,
+  mint: FinishingMint,
+): FinishingRecords {
+  const records = emptyFinishing()
+  const opOf = new Map<number, AgentOperationId>()
+  for (const [op, entry] of view.ops) if (entry.target === null) opOf.set(entry.pub, op)
+  type Step =
+    | Readonly<{ pub: number; kind: 'candidate'; view: CandidateView }>
+    | Readonly<{ pub: number; kind: 'list'; view: ObligationListView }>
+    | Readonly<{ pub: number; kind: 'settlement'; record: Ref }>
+  const steps: Step[] = [
+    ...view.finish.candidates.map(item => ({
+      pub: item.pub,
+      kind: 'candidate' as const,
+      view: item,
+    })),
+    ...[...view.finish.lists.values()].flatMap(item =>
+      item.issued === null ? [] : [{ pub: item.issued.pub, kind: 'list' as const, view: item }],
+    ),
+    ...view.settlements.map(item => ({
+      pub: item.pub,
+      kind: 'settlement' as const,
+      record: item.record,
+    })),
+  ].sort((left, right) => left.pub - right.pub)
+  for (const step of steps) {
+    switch (step.kind) {
+      case 'candidate': {
+        const candidate = candidateOfView(step.view, blobs)
+        const route = routeOfView(step.view, blobs)
+        const supersession =
+          step.view.supersedes === null
+            ? null
+            : supersessionOf(records, candidate.candidate, route, step.view.revision)
+        applyCandidate(records, candidate, route, supersession)
+        break
+      }
+      case 'list': {
+        const issued = step.view.issued!
+        const candidate = recorded(
+          candidateOf(records, step.view.candidate),
+          `the candidate ${step.view.candidate} of a list`,
+        )
+        const list = listOfView(
+          step.view,
+          candidate,
+          mint.checkpoint(candidate.candidate, issued.revision),
+          blobs,
+        )
+        records.issued.set(list.evidence.record, list)
+        records.obligations = list.evidence.record
+        break
+      }
+      case 'settlement': {
+        const op = recorded(opOf.get(step.pub), `the operation of the settlement at ${step.pub}`)
+        const revision = recorded(view.ops.get(op), `the index entry of ${op}`).revision
+        applySettlement(
+          records,
+          settlementOfFact(step.record, mint.receipt(op, step.pub, revision), records, blobs),
+        )
+        break
+      }
+      default: {
+        const _exhaustive: never = step
+        return _exhaustive
+      }
+    }
+  }
+  for (const intent of view.intents.values()) {
+    const op = opOf.get(intent.pub)
+    if (op !== undefined) records.effectOperations.set(intent.action, op)
+  }
+  return records
 }

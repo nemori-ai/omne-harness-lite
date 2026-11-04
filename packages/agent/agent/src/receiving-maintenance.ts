@@ -1,4 +1,4 @@
-import type { Reply } from '@omne-harness/agent-contract'
+import type { ReceivedEntry, Reply } from '@omne-harness/agent-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { AgentModelReceiver } from './receiving.ts'
 import type { ModelReceiverDependencies, ModelReceptionTarget } from './receiving-types.ts'
@@ -93,24 +93,30 @@ export function createReceptionMaintenance<P>(
     input: MaintenanceInput<P>,
     targets: readonly ModelReceptionTarget[],
   ): Reply<void> {
-    let snapshot
-    try {
-      snapshot = await dependencies.provider.journal.load({
-        ...input.access,
-        execution: input.execution,
-      })
-    } catch {
-      return fail(maintenanceUnavailable('journal'))
+    // The received entries of each original consumption, read from the entries port of the same
+    // provider (agent-contract SPEC "日志条目" 6); the snapshot carries none.
+    const consumptions = [...new Set(targets.map(target => target.pending.consumption))]
+    const entries: ReceivedEntry[] = []
+    for (const consumption of consumptions) {
+      let read
+      try {
+        read = await dependencies.provider.entries.receivedOf({
+          ...input.access,
+          execution: input.execution,
+          consumption,
+        })
+      } catch {
+        return fail(maintenanceUnavailable('journal'))
+      }
+      if ('failure' in read)
+        return read.failure.kind === 'denied'
+          ? fail(maintenanceDenied())
+          : fail(maintenanceUnavailable('journal'))
+      entries.push(...read.ok)
     }
-    if ('failure' in snapshot)
-      return snapshot.failure.kind === 'denied'
-        ? fail(maintenanceDenied())
-        : fail(maintenanceUnavailable('journal'))
     if (input.signal.aborted) return cancelledMaintenance()
-    if (snapshot.ok.entries === undefined) return fail(maintenanceUnavailable('journal-entries'))
-    for (const entry of snapshot.ok.entries) {
+    for (const entry of entries) {
       if (input.signal.aborted) return cancelledMaintenance()
-      if (entry.kind !== 'received') continue
       const target = entryTarget(entry, targets)
       if (!target) continue
       const { material: source, ...expected } = entry

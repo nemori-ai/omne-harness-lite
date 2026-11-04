@@ -272,7 +272,7 @@ async function journalPerformer<P>(
           return own(
             journal.commit(
               commitAt(opened, c.view, name, c.authority, {
-                checkpoint: { ...c.view.checkpoint, inputBatch: taken.batch.id },
+                checkpoint: { ...c.view.checkpoint, inputBatch: taken.batch },
                 events: [{ kind: 'input-taken', batch: taken.batch }],
               }),
             ),

@@ -30,7 +30,7 @@
 | `before_model_call`，`purpose: 'compaction'` | `{ purpose: 'compaction'; step: Extract<Preparation, { kind: 'ready' }>; progress: CompactionProgress }`。Model 已固定的压缩步骤请求 | 无 |
 | `after_model_call`，`ending: 'complete_reply'` | `{ purpose: 'main' \| 'compaction'; call: M.ModelCallId; result: ProducedResult; reply: Message; termination: M.Termination; account: CallAccount \| null }` | 无 |
 | `after_model_call`，`ending: 'failure'` | `{ purpose: 'main' \| 'compaction'; call: M.ModelCallId; request: M.FixedModelRequest; fault: M.ModelFault; dispatches: readonly M.DispatchRecord[]; retry: M.RetryResolution \| null }` | 无 |
-| `before_action` | `{ action: ActionId; original: Action['original']; effectiveArguments: string; definition: T.ToolDefinition; batch: readonly ActionId[] }`。`batch` 列出同批全部动作，含本动作 | `effectiveArguments` |
+| `before_action` | `{ action: ActionId; original: ActionToolCall; effectiveArguments: string; definition: T.ToolDefinition; batch: readonly ActionId[] }`。`batch` 列出同批全部动作，含本动作 | `effectiveArguments` |
 | `after_action`，`scope: 'each'` | `{ action: ActionId; outcome: Readonly<{ kind: 'denied'; evidence: DurableEvidence }> \| Readonly<{ kind: 'executed'; result: ProducedResult; terminal: T.ToolTerminal }>; candidate: Message }`。`candidate` 是将交消息准入的候选消息：executed 时是工具结果消息，denied 时是拒绝消息 | `candidate.blocks` |
 | `after_action`，`scope: 'batch'` | `{ batch: ActionBatchId; outcomes: readonly Readonly<{ action: ActionId; outcome: 'denied' \| 'executed'; terminal: T.ToolTerminal \| null }>[] }`。`outcomes` 按原动作顺序列出本批全部动作，含被拒绝的动作；转后台的动作为 executed 且 `terminal` 为 null | 无 |
 | `before_terminal` | `{ proposed: AgentConclusion; basis: DurableEvidence }`。候选终态及其完整依据 | 无 |

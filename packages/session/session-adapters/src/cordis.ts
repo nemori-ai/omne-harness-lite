@@ -5,6 +5,7 @@ export type {
 } from './cordis/agent-drive.ts'
 export {
   createSessionLogJournal,
+  type JournalPublicationReport,
   type SessionLogJournalOptions,
   type SessionLogJournalProvider,
 } from './cordis/agent-journal.ts'

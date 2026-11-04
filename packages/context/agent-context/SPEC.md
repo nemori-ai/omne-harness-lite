@@ -197,7 +197,7 @@
 
 1. 用 `original.progress.plan` 取材料库里的计划。不是本包证据答 `invalid`，租户不符答 `denied`，已丢失答 `unavailable(compaction-plan-lost)`。
 2. 输入进度的计划证据或步数上界与 `original.progress` 不同时，答 `invalid`，`field` 为 `progress`，`reason` 为 `plan-mismatch`。已完成步数与材料库的计划进度不同时，答 `invalid`（`progress.completed`，`progress-mismatch`）。
-3. `result` 为 `null` 时交回计划的当前步：步请求经 Model 请求准备得到 `ready`（用途 `compaction`），进度原样。
+3. `result` 为 `null` 时交回计划的当前步：步请求经 Model 请求准备得到 `ready`（用途 `compaction`），进度原样。Agent 不保存步请求，需要时按同一 action 与当前进度再调用一次（R2-D292）。两次得到的固定请求与各证据的摘要相同，证据记录是新铸造的。
 4. 否则经步骤结果读口读出摘要，再以计划、计划进度、当前步与摘要调用 `deriveStep`。返回的进度必须是同一计划，已完成步数恰好多一。`continue` 时已完成步数还要小于步数上界。不符时答 `invalid`（`progress.plan` 或 `progress.completed`）。
 5. `next` 得 `continue`，计划进度与当前步写回材料库。`transition` 得 `transition`。`cannot-fit` 得 `cannot-fit`（`after-compaction`）。
 

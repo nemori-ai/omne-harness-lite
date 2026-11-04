@@ -31,6 +31,7 @@
   - `w2-rounds.spec.ts`：J1 三轮对话与 J2 工具结果进入下一轮请求；J2 另有一条：Tool 请求来源答 unavailable 时动作被拒，拒绝消息进入下一次请求，Run 以 completed 结束；还有一条（R2-D268）：动作被拒以后，第二步的模型结果带 reasoning_state，Agent 被唤醒、读到结果，回复只含文本块，Run 以 completed 结束。Model 替身的 sealed 校验不支持 reasoning_state，所以这一块由 W2 世界的 `modelDelivery` 在送达真实接收方之前加入
   - `w2-control.spec.ts`：J3 取消 Run 与 J4 只中断一个调用
   - `w2-handoff-restart.spec.ts`：J5 杀进程后按原身份读回准入记录
+  - `w2-publication-bytes.spec.ts`：同一 Run 连做 20 轮 Tool 调用，经 session-adapters 的 `report` 比较第 5 轮与第 20 轮的最大一次发布（不超过加 8 KiB）；现在跳过，等终态 JO-4 后启用（R2-D294）
   - `w2-counts.spec.ts`：J6 固定轮数的读写计数与测量事件；默认 20 轮，`OMNE_J6_ROUNDS=200` 才跑 200 轮与增长判定，何时跑见 [README](README.md#j6-的两种轮数)
   - `growth.ts`、`growth.spec.ts`：增长判定的纯函数与快层单测（含负控），常量与 `tools/e9/metrics.mjs` 逐项相等
 - [fixtures/](fixtures/index.md)：测试固定输入

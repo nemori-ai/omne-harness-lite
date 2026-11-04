@@ -32,6 +32,7 @@ import type {
 } from './journal.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
 import { copyFinishing } from './journal-finishing.ts'
+import { emptySessionView, type PublishedBatch, type SessionJournalView } from '../journal/index.ts'
 
 export type SessionState = Readonly<{
   lastCommit: CommitReceipt | null
@@ -76,6 +77,14 @@ export type CommonRoot = Readonly<{
   session: SessionState | null
   sources: SessionSources
   agent: {
+    /**
+     * The Agent fact family of this session (SPEC "事实族与折叠核"): the appended batches in
+     * publication order, their fold, and the custody blocks the facts refer to by digest. The
+     * executions below are the reader projection of the same log, kept until the readers move.
+     */
+    log: readonly PublishedBatch[]
+    view: SessionJournalView
+    blobs: Map<string, unknown>
     executions: Map<string, MemoryExecution>
     operations: Map<string, OperationRecord>
     jointFacts: JointFact[]
@@ -179,6 +188,7 @@ function cloneRoot(root: CommonRoot): CommonRoot {
     ...root,
     agent: {
       ...root.agent,
+      blobs: new Map(root.agent.blobs),
       executions: new Map(root.agent.executions),
       operations: new Map(root.agent.operations),
       jointFacts: [...root.agent.jointFacts],
@@ -223,6 +233,9 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
     session: null,
     sources: emptySessionSources(),
     agent: {
+      log: [],
+      view: emptySessionView(),
+      blobs: new Map(),
       executions: new Map(),
       operations: new Map(),
       jointFacts: [],

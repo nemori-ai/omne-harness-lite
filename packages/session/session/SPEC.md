@@ -505,7 +505,7 @@
 
 ### 已知限制
 
-<a id="sn-1"></a>SN-1 Session 快照的读上限：一个会话的权威快照（`WorkSnapshot`）在存储里是一行，`readWork` 一次读出整份。快照里随 Run 增长、Run 结束后也不移出的部分有 `consumptions`、`callRegistrations`、`executions`、`entriesProgress` 与读出时附带的 `historyIndex`。session-storage-sql 的读口 `session.work` 的输出上限由装配经 `sessionStorageMaterials({ readOutputLimitBytes })` 传入，推荐值是 20 MiB，发行装配取这个值（R2-D81）。
+<a id="sn-1"></a>SN-1 Session 快照的读上限：一个会话的权威快照（`WorkSnapshot`）在存储里是一个头行加若干分块行，一次提交只写变了的行（[快照的存储形态](../session-storage-sql/SPEC.md#快照的存储形态)，R2-D292）。`readWork` 一次读出整份。快照里随 Run 增长、Run 结束后也不移出的部分有 `consumptions`、`callRegistrations`、`executions`、`entriesProgress` 与读出时附带的 `historyIndex`。session-storage-sql 的读口 `session.work` 的输出上限由装配经 `sessionStorageMaterials({ readOutputLimitBytes })` 传入，推荐值是 20 MiB，发行装配取这个值（R2-D81）。
 
 - 约多少轮：上限为 20 MiB；按下列实测增长率外推，纯文本形状约在第 3,400 轮触达，工具形约在第 1,400 轮触达。增长率取自 1 MiB 上限下的实测，没有在 20 MiB 处实测。计算：纯文本 1 + (20,971,520 − 15,920) / 6,144 ≈ 3,412，工具形 1 + (20,971,520 − 26,101) / 14,904 ≈ 1,406。实测只作量级参考，来自 agent-host-local 的 line-through 测试世界：纯文本形状（每轮一次输入、一次 Model 请求、一次回复，每轮一个新 Run）的快照第 1 轮末 15,920 字节，此后每轮约增 6.1 KB，第 168 轮末 1,041,932 字节，第 169 轮 `session.work` 答 `read_limit`。工具形（每轮两次 Model 请求、一次 Tool 调用）完成 69 轮，第 70 轮不收口（该轮 Tool 结果已由接收方保存，之后 `session.work` 读答 `read_limit`）：快照第 1 轮末 26,101 字节，第 69 轮末单次最大读 1,039,556 字节，第 70 轮 1,045,705 字节，每轮约增 14.9 KB。
 - 触发后的表现：`readWork` 立即答 `unavailable`，诊断为 `read session.work: read_limit`，不挂起，也不交出部分快照（session-storage-sql `tests/work-read-limit.spec.ts`）。此后凡经 `readWork` 读这份快照的操作对这个会话都答 `unavailable`，在 line-through 测试世界里表现为下一轮没有结束（`runRound` 读快照失败）；已写入的会话日志与条目不受影响。

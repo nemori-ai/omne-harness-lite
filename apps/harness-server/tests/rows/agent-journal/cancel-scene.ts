@@ -76,6 +76,7 @@ function checkpoint(): AgentCheckpoint {
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
+    voided: [],
   }
 }
 
@@ -105,7 +106,6 @@ function openInputOf(
     operation: entry,
     execution,
     initial,
-    checkpoint: checkpoint(),
   }
   const handoff = { kind: 'input' as const, execution, entry, input: initial.id }
   return {
@@ -134,6 +134,7 @@ function openInputOf(
       },
     },
     runtime,
+    checkpoint: checkpoint(),
   }
 }
 

@@ -2,10 +2,14 @@
 // (`createSessionModelLogConsumptionPlugin`). It subscribes to `session-adapters/agent-published`,
 // reads the `received` entries and materials of the Journal provider of the same session log, and
 // commits the consumed entries through `commitEntries`. It injects `session` as `coordinator`,
-// `agentJournal`, `agentMaterials` and `sessionTransactions`. The coordinator principal comes from
+// `agentJournal`, `agentJournalEntries` (the entry port), `agentMaterials` and `sessionTransactions`. The coordinator principal comes from
 // the trusted `sessionWorkPrincipals`. No configuration: the plugin takes none.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
-import { agentJournalKey, agentMaterialsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  agentJournalEntriesKey,
+  agentJournalKey,
+  agentMaterialsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
 import { createSessionModelLogConsumptionPlugin } from '@omne-harness/session-adapters/cordis'
 import {
   sessionKey,
@@ -19,6 +23,7 @@ const INJECTS = [
   sessionWorkPrincipalsKey,
   sessionKey,
   agentJournalKey,
+  agentJournalEntriesKey,
   agentMaterialsKey,
   sessionTransactionsKey,
 ]

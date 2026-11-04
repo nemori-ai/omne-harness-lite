@@ -505,7 +505,7 @@ describe('routing by tenant and execution', () => {
         operation: operation('route-a-take'),
         authority: openedA.authority,
         expected: loaded.revision,
-        checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+        checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
         state: { kind: 'advancing' },
         events: [{ kind: 'input-taken', batch: page.batch }],
         effects: [],
@@ -713,7 +713,7 @@ async function waitingOnModel(
 describe('agentReceivedCommits and agentModelReceptionTargets: the result receiver faces', () => {
   it('commits a received delivery routed by its execution, as one fact the Journal reads', async () => {
     const s = await scene('recv-commit')
-    const { plugin, journal, received } = await assembled(s)
+    const { plugin, journal, entries, received } = await assembled(s)
     for (const key of [agentReceivedCommitsKey, agentModelReceptionTargetsKey])
       expect(plugin.store?.[key]?.fiber === plugin, key).toBe(true)
     const draft = await waitingOnModel(s, journal(), 'recv-commit')
@@ -727,7 +727,10 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
     const saved = ok(await received().commit(input))
     if (saved.kind !== 'committed') throw new Error(`received ${saved.kind}`)
     const loaded = ok(await journal().load({ ...s.access, execution: s.execution }))
-    expect(loaded.entries).toContainEqual(saved.value.entry)
+    const read = ok(
+      await entries().read({ ...s.access, execution: s.execution, after: null, limit: 100 }),
+    )
+    expect(read.items.map(item => item.entry)).toContainEqual(saved.value.entry)
     // The same operation is recognized: the original commit, no second fact.
     expect(ok(await received().commit(input))).toEqual(saved)
     expect(ok(await received().query(input))).toEqual(saved)
@@ -1060,7 +1063,13 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     ok(await journal().open(s.openInput))
     const value = factsMaterial('kept')
     const source = ok(
-      await s.view.materials.preserve({ ...s.access, identity: 'kept', consumer: CONSUMER, value }),
+      await s.view.materials.preserve({
+        ...s.access,
+        execution: s.execution,
+        identity: 'kept',
+        consumer: CONSUMER,
+        value,
+      }),
     )
     const held = { entries: entries(), materials: materials() }
     expect(ok(await held.materials.read({ ...s.access, source }))).toEqual(value)
@@ -1082,6 +1091,7 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     expect(
       await held.materials.preserve({
         ...s.access,
+        execution: s.execution,
         identity: 'after-stop',
         consumer: CONSUMER,
         value: factsMaterial('after-stop'),
@@ -1109,7 +1119,10 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     const { entry, receipt } = saved.value
 
     const loaded = ok(await journal().load({ ...s.access, execution: s.execution }))
-    expect(loaded.entries).toContainEqual(entry)
+    const read = ok(
+      await entries().read({ ...s.access, execution: s.execution, after: null, limit: 100 }),
+    )
+    expect(read.items.map(item => item.entry)).toContainEqual(entry)
     expect(ok(await materials().read({ ...s.access, source: entry.material }))).toEqual(material)
     // The entries face recognizes the saved delivery: the original receipt and no second fact.
     expect(
@@ -1167,13 +1180,19 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     expect(s.commits.length).toBe(commits)
   })
 
-  it('reads a material through the session its source names; another tenant and a foreign source are unavailable, and preserve, which names no session, is unavailable without a write', async () => {
+  it('reads a material through the session its source names; another tenant and a foreign source are unavailable', async () => {
     const s = await scene('faces-materials')
     const { journal, materials, wiring } = await assembled(s)
     ok(await journal().open(s.openInput))
     const value = factsMaterial('kept')
     const source = ok(
-      await s.view.materials.preserve({ ...s.access, identity: 'kept', consumer: CONSUMER, value }),
+      await s.view.materials.preserve({
+        ...s.access,
+        execution: s.execution,
+        identity: 'kept',
+        consumer: CONSUMER,
+        value,
+      }),
     )
     expect(ok(await materials().read({ ...s.access, source }))).toEqual(value)
 
@@ -1184,9 +1203,6 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     expect(wiring.reads).toBe(reads)
     expect(
       await materials().read({ ...s.access, source: evidence('not-a-session-log-material') }),
-    ).toMatchObject(unavailableHere)
-    expect(
-      await materials().preserve({ ...s.access, identity: 'new', consumer: CONSUMER, value }),
     ).toMatchObject(unavailableHere)
     expect(s.commits.length).toBe(commits)
   })
@@ -1199,6 +1215,7 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     const source = ok(
       await s.view.materials.preserve({
         ...s.access,
+        execution: s.execution,
         identity: 'ordered',
         consumer: CONSUMER,
         value,
@@ -1730,22 +1747,6 @@ describe('K-9: a material to preserve names an execution, and goes to its sessio
       value: factsMaterial('index'),
     })
     expect(answer).toMatchObject(unavailableHere)
-    expect(s.commits.length).toBe(commits)
-  })
-
-  it('K-9 preserve without an execution stays unavailable and writes nothing, also after the execution was routed', async () => {
-    const s = await scene('k9-legacy')
-    const { journal, materials } = await assembled(s)
-    ok(await journal().open(s.openInput))
-    const commits = s.commits.length
-    expect(
-      await materials().preserve({
-        ...s.access,
-        identity: 'legacy',
-        consumer: CONSUMER,
-        value: factsMaterial('legacy'),
-      }),
-    ).toMatchObject(unavailableHere)
     expect(s.commits.length).toBe(commits)
   })
 

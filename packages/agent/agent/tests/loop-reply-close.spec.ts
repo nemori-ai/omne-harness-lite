@@ -21,6 +21,7 @@ import {
   producedResult,
   type Principal,
   withLineage,
+  loadWithEntries,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
 import {
@@ -47,7 +48,7 @@ function coordinator(assembly: LoopAssembly) {
 }
 
 async function load(assembly: LoopAssembly, id = 'exec-1') {
-  return ok(await assembly.dependencies.journal.load({ ...alice, execution: execution(id) }))
+  return await loadWithEntries(assembly.dependencies, { ...alice, execution: execution(id) })
 }
 
 function recordCommits(commits: JournalCommit<Principal>[]) {

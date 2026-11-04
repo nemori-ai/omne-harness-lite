@@ -62,9 +62,10 @@ describe('only the work cache reads the Session current state from the store', (
       `${PACKAGE}/worker/read-model-selection.ts`,
       // A comment that says the version read does not read the row.
       `${PACKAGE}/worker/read-work-version.ts`,
-      // The whole read of the work cache.
-      `${PACKAGE}/worker/read-work.ts`,
       `${PACKAGE}/worker/schema.ts`,
+      // The stored form of the snapshot: its head row and chunk rows (R2-D292). The commit path and
+      // the whole read of the work cache (`read-work.ts`) read and write the snapshot through it.
+      `${PACKAGE}/worker/state-rows.ts`,
       // A manifest vector of the SQL contract that names the table as data.
       'packages/storage/sql-contract/src/testing/manifest-vector.ts',
     ])

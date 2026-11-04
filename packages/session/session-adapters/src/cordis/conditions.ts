@@ -48,8 +48,7 @@ import {
 import type { DomainRef, SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
-import { readJournalState } from './agent-journal.ts'
-import { recordsPart } from './journal-parts.ts'
+import { readExecutionRecords } from './agent-journal.ts'
 
 const OWNER = 'session-adapters/conditions'
 const LOGGER = 'session-adapters/conditions'
@@ -202,15 +201,13 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
       run.advance === null
     )
       return fail(stale)
-    const records = await readJournalState(
-      ports,
-      { tenant, session },
-      recordsPart(advance.execution),
-    )
+    const records = await readExecutionRecords(ports, {
+      tenant,
+      session,
+      execution: advance.execution,
+    })
     if (records.kind === 'unavailable') return fail(unavailable(records.diagnostic))
-    const attempt = records.state?.authorities.get(
-      `${advance.execution}\0${canonical(advance)}`,
-    )?.attempt
+    const attempt = records.authorities.get(`${advance.execution}\0${canonical(advance)}`)?.attempt
     return attempt !== undefined && attempt === run.advance.attempt ? succeed(run) : fail(stale)
   }
 

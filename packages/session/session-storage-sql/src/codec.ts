@@ -101,3 +101,19 @@ export function plainOf(tree: unknown): unknown {
       return null
   }
 }
+
+/**
+ * The digest of one content block (TB-04): `sha256:` and the hex SHA-256 of the UTF-8 bytes of its
+ * payload text. The `execution-record` participant checks it, so a digest names one payload.
+ */
+export const blobDigest = (payload: string): string => `sha256:${sha256(payload)}`
+
+/** The most facts one batch of the Agent fact family holds (the participant refuses more). */
+export const EXECUTION_BATCH_MAX_FACTS = 256
+
+/**
+ * The most UTF-8 bytes of the body of one Agent fact. A fact holds identities, digests, references
+ * and small values only, so its size has a bound that does not depend on the content it refers to
+ * (the per-step commit bound, R2-D294); the participant refuses a larger body.
+ */
+export const EXECUTION_FACT_MAX_BYTES = 4096

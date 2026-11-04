@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import type {
   Access,
   AgentExecutionId,
+  AgentOperationId,
   AgentInstanceId,
   AgentJournalEntries,
   AgentJournalEntry,
@@ -39,6 +40,7 @@ import { canonical } from './canonical.ts'
 import { jsonTree } from './material-value.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
 import { journalEvidence, semanticKey } from './journal-values.ts'
+import { blobOf, refOf, type FactBody, type ProducerCall } from '../journal/index.ts'
 
 type Input<P> = ReceivedCommitInput<P, ContentBlock>
 export type Kept = { entry: ReceivedEntry; receipt: CommandReceipt; saved: DurableEvidence | null }
@@ -71,6 +73,8 @@ type Hooks<P> = {
   mutate<T>(action: () => T): T
   touch(): void
   namespace: string
+  /** Whether the batch of `operation` is in the folded view, so a new operation can recognize it. */
+  indexed(operation: AgentOperationId): boolean
   operationKey(
     tenant: TenantId,
     execution: AgentExecutionId,
@@ -94,7 +98,8 @@ type Hooks<P> = {
     evidence: DurableEvidence,
     state: CommandReceipt['state'],
   ): CommandReceipt
-  nextEvidence(execution: MemoryExecution, what: string, revision: number): DurableEvidence
+  /** The evidence of the batch the running write appends under `key`, reaching `revision`. */
+  ownEvidence(execution: AgentExecutionId, key: string, revision: number): DurableEvidence
   /**
    * Allocates the `entry` event of a written entry inside the same transaction (SPEC "日志条目"
    * 6): the next sequence under the latest established attachment, `cause` the evidence of the
@@ -129,8 +134,40 @@ const deliveryText = <P>(
     entry.delivery.producer,
     entry.delivery.key,
   ])
+/**
+ * The semantic key of a received commit: the digest of the entry and the material, never their
+ * text. The key is the envelope digest of the batch (one fact row of at most 4 KiB), and a material
+ * is larger than that.
+ */
 const textOf = <P>(input: Input<P>) =>
-  `received:${canonical({ entry: input.entry, material: input.material })}`
+  `received:sha256:${createHash('sha256')
+    .update(canonical({ entry: input.entry, material: input.material }))
+    .digest('hex')}`
+/** The producer call a received entry refers to: the delivery key without the material. */
+function receivedCall(entry: ReceivedEntry): ProducerCall {
+  const key = entry.delivery.key
+  return {
+    producer: entry.delivery.producer,
+    call: String(key.reference),
+    version: key.kind === 'result' ? String(key.result) : refOf(key).digest,
+    delivery: key.kind,
+    source: structuredClone(entry.material),
+  }
+}
+
+/** The `result.received` fact of a saved entry: identities, the custody reference and saved. */
+function receivedFact(entry: ReceivedEntry, saved: DurableEvidence): FactBody {
+  return {
+    kind: 'result.received',
+    consumption: entry.consumption,
+    delivery: saved.record,
+    result: receivedCall(entry),
+    consumer: structuredClone(entry.consumer),
+    custody: refOf(entry),
+    saved: structuredClone(saved),
+  }
+}
+
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -186,6 +223,9 @@ export type ReceivingState = {
   /** The original binding of each associated Tool call, by tenant and call reference (R2-D273). */
   toolTargets: Map<string, ToolReceptionTarget>
 }
+/** The evidence a material key names: the key is the canonical text of the evidence, plain JSON. */
+const materialSourceOf = (key: string): DurableEvidence => JSON.parse(key) as DurableEvidence
+
 export function emptyReceivingState(): ReceivingState {
   return {
     materials: new Map(),
@@ -279,15 +319,30 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       ? undefined
       : conflict(input)
   }
-  const alias = (input: ExecutionMutation<P>, key: string, kept: Kept) => {
-    hooks.touch()
-    hooks.state().aliases.set(operationKey(input), kept)
-    hooks.operations().set(operationKey(input), {
-      kind: 'committed',
-      key,
-      value: { kind: 'committed', value: kept },
-      receipt: kept.receipt,
-    })
+  /**
+   * Another operation for a saved delivery recognizes the operation that saved it (SPEC K-23,
+   * R2-D292 "原操作认回"): one `op.recognized` batch, no new revision, the original value as its
+   * answer, and the new operation an alias of the delivery in the reader records. The saving
+   * operation is in the folded view, which is the fold of the whole published log; one the view
+   * lacks is a defect of the fold, answered as unavailable.
+   */
+  const recognizing = <R>(input: ExecutionMutation<P>, kept: Kept, value: () => R): Attempt<R> => {
+    if (!hooks.indexed(kept.receipt.operation))
+      return {
+        kind: 'answer',
+        value: fail(unavailable('the saved delivery is not in the folded view')),
+      }
+    return {
+      kind: 'batch',
+      facts: [{ kind: 'op.recognized', target: kept.receipt.operation }],
+      blobs: [],
+      kinds: [],
+      derive: value,
+      project: () => {
+        hooks.state().aliases.set(operationKey(input), kept)
+      },
+      recalls: kept.receipt,
+    }
   }
   const sourceOf = (input: Input<P>) =>
     journalEvidence(
@@ -366,11 +421,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               return { kind: 'answer', value: fail(conflict(input)) }
             const value = rich(input, kept)
             if ('failure' in value) return { kind: 'answer', value }
-            alias(input, text, kept)
-            return {
-              kind: 'answer',
-              value: succeed({ kind: 'committed' as const, value: value.ok }),
-            }
+            return recognizing(input, kept, () => ({ kind: 'committed' as const, value: value.ok }))
           }
           if (previous) return { kind: 'answer', value: fail(conflict(input)) }
           const revision = execution.revision + 1
@@ -378,7 +429,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             execution,
             input.operation,
             revision,
-            hooks.nextEvidence(execution, 'received', revision),
+            hooks.ownEvidence(execution.id, text, revision),
             'applied',
           )
           const entry: ReceivedEntry = { ...input.entry, material: sourceOf(input) }
@@ -392,17 +443,23 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           }
           const value = { receipt, entry, saved }
           return {
-            kind: 'write',
-            receipt,
-            value: { kind: 'committed' as const, value: structuredClone(value) },
-            apply() {
+            kind: 'batch',
+            facts: [receivedFact(entry, saved)],
+            blobs: [blobOf(entry)],
+            kinds: [],
+            derive: derived => {
+              if (derived.kind !== 'received' || canonical(derived.receipt) !== canonical(receipt))
+                throw new TypeError('a received batch answered another receipt than it judged')
+              return { kind: 'committed' as const, value: structuredClone(value) }
+            },
+            project: (_batch, view) => {
               hooks.state().materials.set(canonical(entry.material), {
                 tenant: tenantText(input.tenant),
                 execution: input.execution,
                 value: input.material,
               })
               execution.entries.push(entry)
-              execution.revision = revision
+              execution.revision = view.revision
               hooks.state().deliveries.set(deliveryText(input, entry), value)
               hooks.state().aliases.set(operationKey(input), value)
               hooks.projectEntry(execution, entry, receipt.evidence)
@@ -474,8 +531,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               canonical(kept.entry) !== canonical(input.entry)
             )
               return { kind: 'answer', value: fail(conflict(input)) }
-            alias(input, text, kept)
-            return { kind: 'answer', value: succeed(structuredClone(kept.receipt)) }
+            return recognizing(input, kept, () => structuredClone(kept.receipt))
           }
         }
         // The write step: the only place a scripted fault of this execution is consumed.
@@ -485,21 +541,34 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           if (scripted.kind === 'unavailable')
             return { kind: 'answer', value: fail(unavailable('record is scripted unavailable')) }
         }
-        const revision = execution.revision + 1
-        const receipt = hooks.receiptOf(
-          execution,
-          input.operation,
-          revision,
-          hooks.nextEvidence(execution, 'record', revision),
-          'applied',
-        )
+        const evidence = hooks.ownEvidence(execution.id, text, execution.revision + 1)
+        const entry = input.entry
+        const fact: FactBody =
+          entry.kind === 'received'
+            ? receivedFact(entry, evidence)
+            : {
+                kind: 'fence.started',
+                operation: entry.operation,
+                guard: structuredClone(entry.guard),
+                fence: structuredClone(entry.fence),
+              }
+        let written: CommandReceipt | undefined
         return {
-          kind: 'write',
-          receipt,
-          value: structuredClone(receipt),
-          apply() {
+          kind: 'batch',
+          facts: [fact],
+          blobs: entry.kind === 'received' ? [blobOf(entry)] : [],
+          kinds: [],
+          derive: derived => {
+            if (!('receipt' in derived)) throw new TypeError('a record answers its receipt')
+            written = derived.receipt
+            return structuredClone(derived.receipt)
+          },
+          project: (_batch, view) => {
+            if (written === undefined)
+              throw new TypeError('append derives the receipt before it projects the batch')
+            const receipt = written
             execution.entries.push(input.entry)
-            execution.revision = revision
+            execution.revision = view.revision
             if (input.entry.kind === 'received') {
               const kept = { entry: input.entry, receipt, saved: null }
               hooks.state().deliveries.set(deliveryText(input, input.entry), kept)
@@ -516,46 +585,133 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         ? fail({ kind: 'commit-unknown', operation: input.operation })
         : outcome
     },
+    read: async input => {
+      const found = qualified(input, false)
+      if ('failure' in found) return found
+      const list = found.ok.entries
+      const from = input.after === null ? 0 : Number(input.after)
+      if (
+        !Number.isSafeInteger(input.limit) ||
+        input.limit < 1 ||
+        (input.after !== null && (!/^(0|[1-9][0-9]*)$/.test(input.after) || from > list.length))
+      )
+        return fail({ kind: 'invalid', field: 'after', reason: 'not a position of the entries' })
+      const items = list.slice(from, from + input.limit).map((entry, index) => ({
+        sequence: String(from + index + 1),
+        entry: structuredClone(entry),
+      }))
+      return succeed({
+        items,
+        next: items.at(-1)?.sequence ?? input.after,
+        caughtUp: from + items.length >= list.length,
+      })
+    },
+    receivedOf: async input => {
+      const found = qualified(input, false)
+      if ('failure' in found) return found
+      return succeed(
+        found.ok.entries
+          .filter(
+            (entry): entry is ReceivedEntry =>
+              entry.kind === 'received' && entry.consumption === input.consumption,
+          )
+          .map(entry => structuredClone(entry)),
+      )
+    },
   }
   const materialPort: AgentMaterials<P, ContentBlock> = {
+    /**
+     * A preserve is a write of the log like every other (session-adapters SPEC K-23): a new
+     * material appends a batch with no fact, whose block is the material, under an operation
+     * derived from the material's identity, so a retry recognizes it and a material kept already
+     * answers its source without a batch. The position of the publication is the batch's.
+     */
     async preserve(input) {
-      const refusal = hooks.authorize(input, 'materials.preserve')
-      if (refusal) return fail(refusal)
-      if (hooks.gate() !== null) return fail(unavailable('quarantined scope'))
-      return hooks.mutate(() => {
-        if (!tenantCodec.encode(input.tenant).ok) return fail(denied())
-        const source = journalEvidence(
-          canonical([
-            hooks.namespace,
-            'material',
-            tenantText(input.tenant),
-            input.identity,
-            input.consumer,
-          ]),
-          1,
-        )
+      if (!tenantCodec.encode(input.tenant).ok) return fail(denied())
+      const source = journalEvidence(
+        canonical([
+          hooks.namespace,
+          'material',
+          tenantText(input.tenant),
+          input.identity,
+          input.consumer,
+        ]),
+        1,
+      )
+      const operation = `preserve:${createHash('sha256')
+        .update(source.record)
+        .digest('hex')}` as ExecutionMutation<P>['operation']
+      const key = semanticKey('preserve', {
+        execution: input.execution,
+        identity: input.identity,
+        consumer: input.consumer,
+        value: input.value,
+      })
+      const mutation: ExecutionMutation<P> = {
+        principal: input.principal,
+        tenant: input.tenant,
+        execution: input.execution,
+        operation,
+      }
+      return hooks.write('preserve', mutation, key, () => {
+        const answer = (value: Outcome<DurableEvidence, Failure>): Attempt<DurableEvidence> => ({
+          kind: 'answer',
+          value,
+        })
         const old = hooks.state().materials.get(canonical(source))
-        if (old && canonical(old.value) !== canonical(input.value)) return fail(invalid('identity'))
+        if (old && canonical(old.value) !== canonical(input.value))
+          return answer(fail(invalid('identity')))
         const execution =
           hooks
             .state()
             .consumerExecutions.get(canonical([tenantText(input.tenant), input.consumer])) ?? null
         if (execution !== null) {
           const permission = qualified({ ...input, execution })
-          if ('failure' in permission) return permission
+          if ('failure' in permission) return answer(permission)
         }
-        if (old) return succeed(source)
-        hooks.state().materials.set(canonical(source), {
-          tenant: tenantText(input.tenant),
-          execution,
-          value: structuredClone(input.value),
-        })
-        hooks.touch()
-        return succeed(source)
+        if (old) return answer(succeed(source))
+        // Addressed by content (agent-contract SPEC "扩展、卡片与材料"): the same content of the same
+        // execution is the material already kept, under whatever identity it was first preserved.
+        // This bridge finds it by a scan; the content-addressed store is the provider's obligation.
+        const content = canonical(input.value)
+        for (const [kept, record] of hooks.state().materials)
+          if (
+            record.tenant === tenantText(input.tenant) &&
+            record.execution === execution &&
+            canonical(record.value) === content
+          )
+            return answer(succeed(materialSourceOf(kept)))
+        return {
+          kind: 'batch',
+          facts: [],
+          blobs: [blobOf(input.value)],
+          kinds: [],
+          derive: () => source,
+          project: () => {
+            hooks.state().materials.set(canonical(source), {
+              tenant: tenantText(input.tenant),
+              execution,
+              value: structuredClone(input.value),
+            })
+          },
+        }
       })
     },
     async read(input) {
       return readMaterial(input, input.source)
+    },
+    // The bridge of the content description (agent-contract SPEC "扩展、卡片与材料"): the digest of
+    // the canonical content, its size in bytes and its kind. Addressing the store by content is
+    // the obligation of the provider's own store; this bridge only describes what it keeps.
+    async describe(input) {
+      const material = readMaterial(input, input.source)
+      if ('failure' in material) return material
+      const text = canonical(material.ok)
+      return succeed({
+        digest: `sha256:${createHash('sha256').update(text).digest('hex')}`,
+        size: Buffer.byteLength(text, 'utf8'),
+        kind: material.ok.kind,
+      })
     },
   }
   const controls = {

@@ -22,6 +22,7 @@ import {
   operation,
   type Principal,
   withLineage,
+  loadWithEntries,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
 import {
@@ -56,7 +57,10 @@ function coordinator(assembly: LoopAssembly) {
   })
 }
 async function load(assembly: LoopAssembly) {
-  return ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+  return await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
 }
 async function pushed(assembly: LoopAssembly) {
   const pending = (await load(assembly)).effects[0]?.pending
@@ -146,7 +150,9 @@ describe('received Model result adoption', () => {
             dispatches: forbidden,
             async admit(input) {
               const saved = await load(assembly)
-              expect(saved.checkpoint.requestPreparation?.kind).toBe('ready')
+              // R2-D292: the intent and the adopted request are saved; the preparation is not.
+              expect(saved.checkpoint.requestPreparation).toBeNull()
+              expect(saved.checkpoint.adoptedRequest).not.toBeNull()
               expect(saved.effects[0]?.pending).toEqual(saved.checkpoint.calls[0])
               return d.models.calls.admit(input)
             },

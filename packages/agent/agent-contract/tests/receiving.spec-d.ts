@@ -32,6 +32,8 @@ import type {
   Authority,
   CommandReceipt,
   ExecutionSnapshot,
+  JournalEntryItem,
+  JournalEntryPage,
   JournalEntryRecord,
   ReceivedDelivery,
   ReceivedEntry,
@@ -98,13 +100,15 @@ describe('the record input', () => {
 })
 
 describe('the snapshot', () => {
-  it('lists the entries in an optional field', () => {
-    expectTypeOf<ExecutionSnapshot['entries']>().toEqualTypeOf<
-      readonly AgentJournalEntry[] | undefined
+  it('carries no receiving entries: they are read through the paged and per-consumption reads', () => {
+    expectTypeOf<Extract<keyof ExecutionSnapshot, 'entries'>>().toEqualTypeOf<never>()
+    expectTypeOf<AgentJournalEntries<string>['read']>().returns.toEqualTypeOf<
+      Reply<JournalEntryPage>
     >()
-    const snapshot = null as unknown as Omit<ExecutionSnapshot, 'entries'>
-    const withoutEntries: ExecutionSnapshot = snapshot
-    void withoutEntries
+    expectTypeOf<AgentJournalEntries<string>['receivedOf']>().returns.toEqualTypeOf<
+      Reply<readonly ReceivedEntry[]>
+    >()
+    expectTypeOf<JournalEntryPage['items'][number]>().toEqualTypeOf<JournalEntryItem>()
   })
 })
 
@@ -176,7 +180,9 @@ describe('the additive joint receiving port', () => {
       string,
       ContentBlock
     > | null>()
-    expectTypeOf<keyof AgentJournalEntries<string>>().toEqualTypeOf<'record'>()
+    expectTypeOf<keyof AgentJournalEntries<string>>().toEqualTypeOf<
+      'record' | 'read' | 'receivedOf'
+    >()
     expectTypeOf<
       Extract<keyof AgentJournalEntriesFixture<string>, 'joint'>
     >().toEqualTypeOf<never>()

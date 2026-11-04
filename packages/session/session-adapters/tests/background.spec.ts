@@ -1,11 +1,11 @@
 import { it, expect } from 'vitest'
 import { deriveDriveOperation } from '@omne-harness/session-contract'
 import { scene, ok, operation, operationId, evidence } from './fixtures/common-journal.ts'
-import { toolCall } from './fixtures/tool-call.ts'
+import { keptToolCall, toolCall } from './fixtures/tool-call.ts'
 
 it('reconciles a true background slot through a later snapshot, retaining the original slot after checkpoint replacement', async () => {
   const { backend, view, access, execution, opened, checkpoint } = await scene('background'),
-    tool = toolCall(access.tenant)
+    tool = await keptToolCall({ view, access, execution })
   let receipt = ok(
     await view.journal.commit({
       ...access,
@@ -134,7 +134,7 @@ it('reconciles a true background slot through a later snapshot, retaining the or
 })
 it('a real background slot may predate K, but cannot replace its original propagated intent', async () => {
   const s = await scene('background-before-K'),
-    tool = toolCall(s.access.tenant),
+    tool = await keptToolCall(s),
     waits = [{ kind: 'producer' as const, pending: tool.pending }]
   let receipt = ok(
     await s.view.journal.commit({
@@ -230,7 +230,7 @@ for (const variant of [
 ] as const)
   it(`rejects a background-shaped checkpoint with ${variant} at the original publication`, async () => {
     const s = await scene(`background-negative-${variant}`),
-      tool = toolCall(s.access.tenant),
+      tool = await keptToolCall(s),
       other = toolCall(s.access.tenant, 'other'),
       slot = tool.background.slots[0]!
     const batch = {
