@@ -1,7 +1,7 @@
 // What `serve` takes from the local setup when `--operator` or `--state-root` is absent. The host is
 // a temporary server home that `runSetup` prepares, so these cases read what setup really writes.
 import { randomBytes } from 'node:crypto'
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -93,6 +93,30 @@ describe('localServeInputs', () => {
     expect(JSON.stringify(result)).not.toContain(key)
   })
 
+  it('a vault that is not JSON is refused with the fix, not served', async () => {
+    const h = serverHome()
+    await h.setup()
+    const vault = join(h.home, 'state', 'model-vault.json')
+    writeFileSync(vault, '{not json')
+    expect(localServeInputs(h.input())).toEqual({
+      kind: 'refused',
+      message:
+        `the model credential vault ${vault} cannot be read (corrupt)\n` +
+        'Run `harness-server setup --replace-credential` to build a new vault with a new credential.',
+    })
+  })
+
+  it('a directory on the vault path is refused', async () => {
+    const h = serverHome()
+    await h.setup()
+    const vault = join(h.home, 'state', 'model-vault.json')
+    rmSync(vault)
+    mkdirSync(vault)
+    const result = localServeInputs(h.input())
+    expect(result).toMatchObject({ kind: 'refused' })
+    expect(result.kind === 'refused' && result.message).toContain('It is not a file. Remove it')
+  })
+
   it('a missing vault is "not set up", even with settings', async () => {
     const h = serverHome()
     await h.setup()
@@ -126,6 +150,8 @@ describe('localServeInputs', () => {
     writeFileSync(join(h.home, 'config', 'server.json'), '{"version":2}')
     const invalid = localServeInputs(h.input())
     expect(invalid).toMatchObject({ kind: 'refused' })
-    expect(invalid.kind === 'refused' && invalid.message).toContain('--reconfigure')
+    // The hint does not lead to a command that overwrites the settings in silence.
+    expect(invalid.kind === 'refused' && invalid.message).toContain('Edit the file')
+    expect(invalid.kind === 'refused' && invalid.message).not.toContain('--reconfigure')
   })
 })

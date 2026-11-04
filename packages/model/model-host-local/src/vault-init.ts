@@ -358,30 +358,26 @@ function narrowAndVerify(guard: PermissionGuard, path: string, kind: EntryKind):
 }
 
 export type VaultReplaceFailure =
-  | SecretInputFailure
-  /** The path is empty or holds a NUL character. */
-  | 'path-invalid'
-  /** No readable vault is on the path: it is missing, damaged or cannot be read. */
+  | VaultInitFailure
+  /** No readable vault is on the path, and no rebuild was asked for or possible. */
   | 'vault-unavailable'
-  /** The key is empty once the whitespace around it is removed. */
-  | 'secret-empty'
-  /** The key holds a control character. */
-  | 'secret-malformed'
-  /** The file lock was not free within the lock wait. */
-  | 'lock-timeout'
-  /** The store could not be written. The file still holds the previous factory secret. */
-  | 'write-failed'
-  /** The store returned, but the file does not hold this key as its factory secret. */
-  | 'write-unconfirmed'
-  /** The file holds the new key, but its mode could not be narrowed or read back. */
-  | 'permission-failed'
+  /**
+   * The file holds the new key, but its mode could not be narrowed or read back. The old key is
+   * already gone from the file. The caller must not report the key as "not stored".
+   */
+  | 'written-not-private'
 
 export type VaultReplaceResult =
-  | Readonly<{ ok: true; path: string }>
+  | Readonly<{
+      ok: true
+      path: string
+      /** The old file could not be read, so a new vault was built in its place. */
+      rebuilt: boolean
+    }>
   | Readonly<{ ok: false; reason: VaultReplaceFailure }>
 
 export type VaultReplaceDeps = Readonly<{
-  /** Supplies the new key. It is called once, only after the vault is known to be readable. */
+  /** Supplies the new key. It is called once, only after the path is known to hold a vault file. */
   readSecret: () => string | Promise<string>
   /** Opens the store. Default: `openLocalCustodian`, so the file lock and the atomic publish apply. */
   openStore?: (options: CustodianOptions) => OpenResult
@@ -389,6 +385,13 @@ export type VaultReplaceDeps = Readonly<{
   guard?: PermissionGuard
   /** The lock wait of the store. Default: the library default. */
   lock?: LockOptions
+  /**
+   * A regular file on the path that is not a readable vault (damaged, or not a vault at all) is
+   * removed and a new vault is built with the new key. Its old content is not read. Default: false.
+   */
+  rebuildUnreadable?: boolean
+  /** The user directory of a rebuild (the rule of `initVault`). Default: `os.homedir()`. */
+  home?: () => string
 }>
 
 /**
@@ -396,6 +399,10 @@ export type VaultReplaceDeps = Readonly<{
  * read the key, write it under the file lock and the guard, confirm the key in the file, and narrow
  * the file mode. Bindings stay as they are. A store that runs on the same file reads the new key on
  * its next resolution, because every resolution reads the file again.
+ *
+ * With `rebuildUnreadable`, an unreadable regular file on the path is replaced by a new vault: the
+ * key is read and checked first, then the file is removed, then `initVault` builds the vault. A
+ * directory, a link or a missing path is never removed: the answer stays `vault-unavailable`.
  *
  * The result carries a reason code and nothing else, as `initVault` does.
  */
@@ -408,24 +415,45 @@ export async function replaceVaultSecret(
   }
   const options: CustodianOptions = deps.lock === undefined ? { path } : { path, lock: deps.lock }
   const opened = (deps.openStore ?? openLocalCustodian)(options)
-  if (opened.kind !== 'open') return { ok: false, reason: 'vault-unavailable' }
+  if (opened.kind !== 'open') {
+    return deps.rebuildUnreadable === true && opened.cause !== 'missing'
+      ? rebuild(path, deps)
+      : { ok: false, reason: 'vault-unavailable' }
+  }
   const store = opened.custodian
   try {
     const typed = await typedSecret(deps.readSecret)
-    if (!typed.ok) return { ok: false, reason: replaceInputFailure(typed.reason) }
+    if (!typed.ok) return { ok: false, reason: typed.reason }
     return replaceTyped(store, path, typed.secret, deps.guard ?? defaultGuard())
   } finally {
     store.close()
   }
 }
 
-function replaceInputFailure(reason: VaultInitFailure): VaultReplaceFailure {
-  return reason === 'secret-empty' ||
-    reason === 'secret-malformed' ||
-    reason === 'input-not-terminal' ||
-    reason === 'input-cancelled'
-    ? reason
-    : 'input-failed'
+function isRegularFile(path: string): boolean {
+  try {
+    return lstatSync(path).isFile()
+  } catch {
+    return false
+  }
+}
+
+async function rebuild(path: string, deps: VaultReplaceDeps): Promise<VaultReplaceResult> {
+  if (!isRegularFile(path)) return { ok: false, reason: 'vault-unavailable' }
+  const typed = await typedSecret(deps.readSecret)
+  if (!typed.ok) return { ok: false, reason: typed.reason }
+  try {
+    unlinkSync(path)
+  } catch {
+    return { ok: false, reason: 'write-failed' }
+  }
+  const built = await initVault(path, {
+    readSecret: () => typed.secret,
+    ...(deps.guard === undefined ? {} : { guard: deps.guard }),
+    ...(deps.lock === undefined ? {} : { lock: deps.lock }),
+    ...(deps.home === undefined ? {} : { home: deps.home }),
+  })
+  return built.ok ? { ok: true, path: built.path, rebuilt: true } : built
 }
 
 function replaceTyped(
@@ -445,7 +473,7 @@ function replaceTyped(
   try {
     narrowAndVerify(guard, path, 'file')
   } catch {
-    return { ok: false, reason: 'permission-failed' }
+    return { ok: false, reason: 'written-not-private' }
   }
-  return { ok: true, path }
+  return { ok: true, path, rebuilt: false }
 }

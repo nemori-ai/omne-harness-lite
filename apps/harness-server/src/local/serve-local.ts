@@ -3,6 +3,7 @@
 // Without `--state-root` it uses the state directory. A host without `setup` gets one clear
 // sentence and the next command, not a failed row.
 import { mkdirSync, statSync } from 'node:fs'
+import { openLocalCustodian } from '@omne-harness/model-host-local'
 import { LocalProfileError, localOperatorLayer, type OperatorLayer } from './operator-defaults.ts'
 import { resolveLocations, type LocationInput } from './locations.ts'
 import { readSettings, type ServerSettings } from './settings.ts'
@@ -46,6 +47,27 @@ function isFile(path: string): boolean {
   }
 }
 
+/**
+ * The vault is opened, not only found: a file that cannot be read would let every row load and
+ * fail the first model call. A missing vault means "not set up"; an unreadable one is refused.
+ */
+function vaultProblem(path: string): LocalServe | undefined {
+  const opened = openLocalCustodian({ path })
+  if (opened.kind === 'open') {
+    opened.custodian.close()
+    return undefined
+  }
+  if (opened.cause === 'missing')
+    return { kind: 'not-set-up', detail: `no model credential vault at ${path}` }
+  const fix = isFile(path)
+    ? 'Run `harness-server setup --replace-credential` to build a new vault with a new credential.'
+    : 'It is not a file. Remove it, then run `harness-server setup`.'
+  return {
+    kind: 'refused',
+    message: `the model credential vault ${path} cannot be read (${opened.cause})\n${fix}`,
+  }
+}
+
 export function localServeInputs(input: LocalServeInput): LocalServe {
   if (!input.needOperator && !input.needStateRoot) return { kind: 'ready' }
   const located = resolveLocations(input)
@@ -64,11 +86,11 @@ export function localServeInputs(input: LocalServeInput): LocalServe {
       kind: 'refused',
       message:
         `the settings at ${locations.settingsFile} are not valid: ${read.reason}\n` +
-        'Run `harness-server setup --reconfigure` to write new settings.',
+        'Edit the file to fix it. `harness-server setup --reset` replaces it with default values.',
     }
   const { settings } = read
-  if (!isFile(locations.vaultFile))
-    return { kind: 'not-set-up', detail: `no model credential vault at ${locations.vaultFile}` }
+  const vault = vaultProblem(locations.vaultFile)
+  if (vault !== undefined) return vault
   if (!isDirectory(settings.workspace))
     return {
       kind: 'refused',
