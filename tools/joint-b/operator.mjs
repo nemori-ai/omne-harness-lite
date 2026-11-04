@@ -177,7 +177,7 @@ function toolRows(storageRoot) {
   return {
     construction: {
       Shell: shellConstruction(filesRoot, stateDirectory),
-      Files: { resultMaxBytes: 65536 },
+      Files: { resultMaxBytes: 65536, cwd: filesRoot },
     },
     records: {
       filesRoot,

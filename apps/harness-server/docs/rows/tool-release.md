@@ -75,7 +75,7 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
 
 `toolHostRow` 用 `createLocalToolHostPlugin` 提供 `toolGenerations`，与 `tool-residency` 成对装载。
 配置只有运维者层的 `construction`：`Shell` 需要 `resultMaxBytes`、`executable`、`argsPrefix`、`cwd`、`env`，
-`Files` 需要 `resultMaxBytes`。发行层的行配置是空对象。
+`Files` 需要 `resultMaxBytes`，可选 `cwd`（工作区根，与 `Shell` 的 `cwd` 取同一个值；相对路径按它解析，R2-D290）。发行层的行配置是空对象。
 
 - `source.resolve` 只从受信快照取固定模块、配置与上下文。它不按调用参数 import。资产不在快照里答 `denied`。
   运维者层缺这个作者的值、登记者不在、快照不可用，都答 `unavailable`。`context.access` 是登记者，

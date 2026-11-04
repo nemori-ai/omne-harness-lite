@@ -35,7 +35,7 @@ export const RELEASE_TOOLS = Object.freeze([
   Object.freeze({
     name: 'Files',
     export: 'filesToolModule',
-    construction: Object.freeze(['resultMaxBytes']),
+    construction: Object.freeze(['resultMaxBytes', 'cwd']),
   }),
 ] as const)
 
