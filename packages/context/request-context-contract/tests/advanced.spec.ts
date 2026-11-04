@@ -84,6 +84,13 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
       },
     ]).programmatic,
   ).toEqual([])
+  // A function tool is declared as it is, and its route selects no command.
+  expect(declareTools([available])).toMatchObject({
+    direct: [
+      { name: 'lookup', description: 'lookup', argumentsSchema: definition.parameters.schema },
+    ],
+    routes: [{ declared: 'lookup', selection: { kind: 'none' } }],
+  })
   // A multi-command tool is one declaration (D-94): the command is an argument, never a name.
   const files = {
     ...definition,

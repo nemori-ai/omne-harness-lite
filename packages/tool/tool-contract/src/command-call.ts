@@ -62,10 +62,10 @@ export function decodeCommandCall(
   commands: readonly string[],
   value: JsonValue,
 ): Outcome<CommandCall, CommandCallRejection> {
+  if (value.kind !== 'object') return fail({ kind: 'not-object' })
   const selected = selectCommand(commands, value)
   if ('failure' in selected) return selected
   const command = selected.ok
-  if (value.kind !== 'object') return fail({ kind: 'not-object' })
   const rest = value.entries.filter(entry => entry.key !== COMMAND_FIELD)
   if (encoding === 'flat') return succeed({ command, params: { kind: 'object', entries: rest } })
   const extra = rest.find(entry => entry.key !== PARAMS_FIELD)

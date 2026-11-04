@@ -97,8 +97,10 @@ export function filesFixture(initial: Record<string, string> = {}) {
         }),
       mkdir: async ({ path, parents }) => {
         mkdirs.push({ path, parents: parents === true })
-        // A directory named "exists" is there already, as `mkdir` with parents reports it.
-        return path.endsWith('exists') ? rejected('conflict') : done(identity(path))
+        // A directory named "exists" is there already, as `mkdir` with parents reports it; the
+        // facility refuses one named "refused".
+        if (path.endsWith('exists')) return rejected('conflict')
+        return path.endsWith('refused') ? rejected('unsupported') : done(identity(path))
       },
       remove: async () => done({ removed: { token: 'removed' } }),
       move: async ({ path, target }) =>

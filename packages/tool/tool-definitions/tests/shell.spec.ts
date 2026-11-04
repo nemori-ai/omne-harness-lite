@@ -36,7 +36,7 @@ it('declares all Shell commands and explains platform, background and terminal s
   const info = await run(author, 'info', {}, fixture.environment)
   expect(info).toContain('fixtureOS')
   // The shell that runs a script is a placement fact of info, not of the declaration (D-96).
-  expect(info).toContain('shell=["/explicit-shell","-c"]')
+  expect(info).toContain('shell=["/explicit-shell","-c"] cwd="/initial"')
 })
 
 it('routes one-shot commands using explicit construction and per-call cwd/env', async () => {

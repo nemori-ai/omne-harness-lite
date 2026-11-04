@@ -26,6 +26,7 @@ import {
 import {
   commandsDefinition,
   declaration,
+  functionDefinition,
   ordinaryAuthor,
   ordinaryReturns,
   parameters,
@@ -241,8 +242,117 @@ describe('command call encodings', () => {
       ],
     }
     expect(judgeToolDefinition(clash)).toMatchObject({
+      failure: { field: 'commands', reason: `flat-conflict:${first.name}` },
+    })
+    // One clashing field among others is enough.
+    const mixed = {
+      ...clash,
+      commands: [
+        {
+          ...clash.commands[0]!,
+          parameters: {
+            kind: 'declared' as const,
+            value: {
+              ...first.parameters.value,
+              schema: json('{"type":"object","properties":{"path":{},"command":{}}}'),
+            },
+          },
+        },
+      ],
+    }
+    expect(judgeToolDefinition(mixed)).toMatchObject({
       failure: { reason: `flat-conflict:${first.name}` },
     })
+    // An executor-owned command cannot promise that it has no field named command.
+    expect(judgeToolDefinition(definition)).toMatchObject({
+      failure: { reason: 'flat-conflict:shell' },
+    })
     expect(judgeToolDefinition({ ...clash, encoding: 'wrapped' })).toHaveProperty('ok')
+  })
+})
+
+// The texts the model reads are the contract of L0 and L2, so they are pinned exactly.
+describe('the exact texts of a call', () => {
+  const wrapped = withEncoding('wrapped')
+  const flat = withEncoding('flat')
+  const bare = (definition: Commands): Commands => ({
+    ...definition,
+    commands: [
+      {
+        ...definition.commands[0]!,
+        parameters: { kind: 'declared', value: parameters([]) },
+      },
+    ],
+  })
+
+  it('writes each example in the call form of the encoding', () => {
+    expect(commandExample(wrapped, 'read')).toBe('files {"command": "read", "params": {path?}}')
+    expect(commandExample(flat, 'read')).toBe('files {"command": "read", path?}')
+    expect(commandExample(wrapped, 'shell')).toBe('files {"command": "shell", "params": {…}}')
+    expect(commandExample(flat, 'shell')).toBe('files {"command": "shell", …}')
+    expect(commandExample(wrapped, 'nope')).toBe('files {"command": "nope", "params": {…}}')
+    // A command without fields has no dangling comma in the flat form.
+    expect(commandExample(bare(flat), 'read')).toBe('files {"command": "read"}')
+    expect(commandExample(bare(wrapped), 'read')).toBe('files {"command": "read", "params": {}}')
+  })
+
+  it('writes the menu: the call form, then one line per command', () => {
+    const legend = 'In signatures, ? marks an optional field and a|b lists the allowed values.'
+    expect(commandMenu(wrapped)).toBe(
+      `Call with {"command": <name>, "params": {…fields}}. ${legend}\nread {path?} - Read a file.\nshell {…} - Run a command.`,
+    )
+    expect(commandMenu(flat).split('\n')[0]).toBe(
+      `Call with {"command": <name>, …fields}. ${legend}`,
+    )
+  })
+
+  it('writes the call schema of each encoding', () => {
+    expect(writeJsonText(commandCallSchema(wrapped))).toBe(
+      '{"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":["read","shell"]},"params":{"type":"object"}},"additionalProperties":false}',
+    )
+    expect(writeJsonText(commandCallSchema(flat))).toBe(
+      '{"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":["read","shell"]}},"additionalProperties":true}',
+    )
+  })
+
+  it('names every rejection with its fixed reason', () => {
+    const first = (rejection: Parameters<typeof describeCommandCallRejection>[1]) =>
+      describeCommandCallRejection(wrapped, rejection).split('\n')[0]
+    expect(first({ kind: 'unreadable', reason: 'syntax' })).toBe(
+      'files: the arguments are not JSON (syntax).',
+    )
+    expect(first({ kind: 'not-object' })).toBe('files: the arguments are not a JSON object.')
+    expect(first({ kind: 'command-missing' })).toBe('files: the arguments name no command.')
+    expect(first({ kind: 'command-unknown', command: 'x' })).toBe('files: there is no command "x".')
+    expect(first({ kind: 'extra-field', field: 'path' })).toBe(
+      'files: "path" is not a call field; put command fields in "params".',
+    )
+    expect(first({ kind: 'params-not-object' })).toBe('files: "params" is not a JSON object.')
+    expect(first({ kind: 'command-mismatch', command: 'read', admitted: 'shell' })).toBe(
+      'files: the call names "read" but "shell" was admitted.',
+    )
+  })
+
+  it('reads the command member wherever it stands, and only that member', () => {
+    expect(selectCommandText(['read', 'shell'], '{"x":"read","command":"shell"}')).toEqual({
+      ok: 'shell',
+    })
+  })
+
+  it('derives a signature from any schema shape without failing', () => {
+    const signature = (text: string) =>
+      commandSignature({
+        kind: 'declared',
+        value: { vocabulary: wrapped.adoption, descriptions: [], schema: json(text) },
+      })
+    expect(signature('{"type":"object"}')).toBe('{}')
+    expect(signature('{"type":"object","properties":{"flag":true,"kind":{"enum":[1,"a"]}}}')).toBe(
+      '{flag?, kind?=a}',
+    )
+  })
+
+  it('leaves the arguments of a function tool as they are', () => {
+    const args = { original: '{"a":1}', effective: '{"a":1}', complete: true }
+    expect(commandArguments(functionDefinition(), null, args)).toEqual({ ok: args })
   })
 })

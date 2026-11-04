@@ -223,7 +223,7 @@ function flatCallable<
     const conflict = flatConflict(value.commands)
     return conflict === undefined
       ? undefined
-      : { field: `${at}.commands`, reason: `flat-conflict:${conflict}` }
+      : { field: member(at, 'commands'), reason: `flat-conflict:${conflict}` }
   })
 }
 
