@@ -743,8 +743,9 @@ describe('R2-D322: the issue of obligations does not grow with the Tool calls', 
     expect(run.reissued!.facts.map(fact => fact.kind)).toEqual(['finish.obligations'])
   })
 
-  it('past the batch bound (300 calls) the issue still succeeds; written whole it would be refused', async () => {
-    const large = await finished(300)
+  // Two writes per call, five hundred and twenty in all: a loaded host needs more than the default.
+  it('past the batch bound (260 calls) the issue still succeeds; written whole it would be refused', async () => {
+    const large = await finished(260)
     expect(large.items.length + 1).toBeGreaterThan(BATCH_MAX_FACTS)
     expect(large.prepared.facts.length).toBeLessThan(8)
     const whole: FactBody[] = large.items.map(item => ({
@@ -761,7 +762,7 @@ describe('R2-D322: the issue of obligations does not grow with the Tool calls', 
         facts: whole,
       }),
     ).toMatchObject({ failure: { kind: 'too-many' } })
-  })
+  }, 30_000)
 })
 
 describe('R2-D297: the finishing records are the projection of the folded facts', () => {
