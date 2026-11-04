@@ -5,8 +5,9 @@
 ## 内容
 
 - [README.md](README.md)：源码目录的职责与现状
-- [index.ts](index.ts)：根入口，重导出四个函数与类型，以及命令一侧的两个类型
+- [index.ts](index.ts)：根入口，重导出五个函数与类型，以及命令一侧的两个类型
 - [host-files.ts](host-files.ts)：宿主文件设施、对象身份读取与共用文件引擎
+- [root-segments.ts](root-segments.ts)：宿主路径在宿主文件根下的位置，不跟随链接，Windows 文件后端与路径守卫共用
 - [host-paths.ts](host-paths.ts)：路径检查、逐段走、目录描述符路径、平台前提 P2 的探测与宿主文件根的绑定
 - [host-file-tree.ts](host-file-tree.ts)：列表、搜索、建目录、删除、移动、复制
 - [host-file-batch.ts](host-file-batch.ts)：提交批次与恢复批次
