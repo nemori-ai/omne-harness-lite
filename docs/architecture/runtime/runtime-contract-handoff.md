@@ -131,7 +131,7 @@ Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](
 | 承担方 | 责任 | 失败或禁止 |
 | --- | --- | --- |
 | 客户端 | 表达选择或切换的意图，展示结果 | 客户端不填写会话的初始模型选择 |
-| 服务端接入 `server-entry` | `create` 时从部署配置的默认档案路由填入创建材料的初始模型选择（`initialModelSelection`）。合法性来源是采用来源表的 `model` 行 | 该行缺失或不认可这个路由名时，`create` 返回 `unavailable` 或 `invalid`，不用默认名补值 |
+| 服务端接入 `server-entry` | `create` 时从部署配置的默认档案路由填入创建材料的初始模型选择（`initialModelSelection`）。合法性来源是采用来源表的 `model` 行 | 该行缺失或不认可这个路由名时，`create` 返回 `unavailable` 或 `invalid`，不用默认名补值。定义映射条目没有 `initialModelSelection` 时，接入在调用 Session 之前拒绝，对外是 `basis-unavailable`（Session 的 `unavailable`），并记诊断 `session.definition-incomplete`。公开操作没有切换模型的入口，这样的会话永远读不到当前选择，Run 无法启动（R2-D236） |
 | Session | 保存当前选择、来源与切换事实，见 Session 的[模型选择与切换](../../../packages/session/session-contract/SPEC.md#模型选择与切换)。`management.change(model)` 是唯一的正常切换入口。保存选择的窄读口只交出选择与原依据 | 没有初始值也没有合法切换时，读口返回 `not-ready`。它不用当前默认、最近一次实际调用或空名补值，也不返回凭据、有效参数或供应商配置 |
 | 应用的 `agent-model-selection` 行 | 实现 Agent 的[模型选择](../../../packages/agent/agent-contract/SPEC.md#模型选择)。每次尚未固定的请求都读取 Session 保存的选择与来源，再按 `modelProfiles` 解释 | 它不从会话快照的私有字段取值。Session 的选择读口冻结之前，这个适配不交付 |
 | Context 一侧的 `agent-context` 行 | 经 `modelRequestPreparation` 调用 Model 的请求准备 | 无 |
