@@ -7,7 +7,8 @@
 //    现状基线曲线从这里来，数字记在 `docs/engineering/perf-baseline.md`。
 // 2. 增长用例（慢层）：20 步断言第 20 步的最大一次发布 ≤ 第 5 步 + 2 KiB；200 步断言累计自有字节 ≤ J0 + W × 步数。
 //    终态 provider（K-23 删桥）合入后启用（R2-D294、R2-D347）。没有完成的运行把记录里的终结事实写进
-//    `errors`，断言信息带上它，失败不静默。
+//    `errors`，断言信息带上它，失败不静默。200 步的收尾一步现在停住（D-88，R2-D372）：增长按跑完的
+//    200 个工具步判断，停住本身由单独的已知限制用例断言，修好后那条用例变红。
 //
 // 世界：真实 session-adapters 的 Journal 提供者、真实 sqlite-provider、真实 Agent 循环；Model 与 Tool 是脚本
 // 替身。不访问网络。存储经 `vi.mock` 换成被记录器包住的版本（见 fixtures/journal-world.ts）。
@@ -25,6 +26,7 @@ import {
   ownToEntryRatio,
   stepTable,
 } from './fixtures/journal-measure.ts'
+import type { RunMeasurement } from './fixtures/journal-world.ts'
 
 vi.mock('@omne-harness/sqlite-provider', async importOriginal =>
   (await import('./fixtures/journal-world.ts')).measuringProvider(await importOriginal()),
@@ -125,6 +127,33 @@ describe('the measurement entry (OMNE_JOURNAL_BYTES=<case id,...|all>)', () => {
 // --- 3. 增长用例（终态 provider 合入后启用，R2-D294）---------------------------------------------
 
 const TIERS_UNDER_GUARD = ['small', '3k'] as const
+type GuardTier = (typeof TIERS_UNDER_GUARD)[number]
+
+/** One 200-step run per tier, shared by the two cases that judge it (D-88, below). */
+const runs200 = new Map<GuardTier, Promise<RunMeasurement>>()
+function run200(tier: GuardTier): Promise<RunMeasurement> {
+  const known = runs200.get(tier)
+  if (known !== undefined) return known
+  const run = import('./fixtures/journal-world.ts').then(async ({ measureToolRun }) => {
+    const measured = await measureToolRun({
+      steps: 200,
+      tier,
+      label: `guard-200-${tier}`,
+      keepDatabasesIn: factsDir,
+      totalMs: 7_000_000,
+    })
+    console.log(
+      [
+        `JOURNAL-BYTES guard-200-${tier} ended=${measured.ended} admissions=${String(measured.admissions)}`,
+        `errors=${JSON.stringify(measured.errors)}`,
+        stepTable(measured.summary),
+      ].join('\n'),
+    )
+    return measured
+  })
+  runs200.set(tier, run)
+  return run
+}
 
 describe('Journal growth (R2-D294)', () => {
   // 删桥前的红读数（小消息档，release 的 command 上限，WIRE 4d5a7e0bc）：每步最大一次发布
@@ -151,20 +180,25 @@ describe('Journal growth (R2-D294)', () => {
       },
     )
 
-  for (const tier of TIERS_UNDER_GUARD)
+  // D-88 (R2-D372): with the step limit at 202 the 200-step run takes its 200 tool steps, admits
+  // the closing reply and then stops: no finishing fact, and no commit of the closing step is
+  // refused. Wave 3 finds the cause. One run per tier is shared by two cases: the growth that the
+  // 200 tool steps show, judged as before, and the stop itself, asserted as it is now so that it
+  // is never silent.
+  for (const tier of TIERS_UNDER_GUARD) {
     it(
-      `200 steps, ${tier} messages: cumulative own bytes are at most J0 + W × steps (R2-D294)`,
+      `200 steps, ${tier} messages: every publication is bounded and cumulative own bytes are at most J0 + W × steps (R2-D294)`,
       { tags: ['slow'], timeout: 7_200_000 },
       async () => {
-        const { measureToolRun } = await import('./fixtures/journal-world.ts')
-        const measured = await measureToolRun({
-          steps: 200,
-          tier,
-          label: `guard-200-${tier}`,
-          keepDatabasesIn: factsDir,
-          totalMs: 7_000_000,
-        })
-        expect(measured.ended, JSON.stringify(measured.errors)).toBe('completed')
+        const measured = await run200(tier)
+        const tool = measured.summary.filter(item => item.step >= 1 && item.step <= 200)
+        expect(tool.map(item => item.step)).toEqual(Array.from({ length: 200 }, (_, i) => i + 1))
+        const bound = (tool.find(item => item.step === 5)?.maxPublicationBytes ?? 0) + 2 * 1024
+        const over = tool.filter(item => item.step >= 5 && item.maxPublicationBytes > bound)
+        expect(
+          over.map(item => [item.step, item.maxPublicationBytes]),
+          `bound ${String(bound)}`,
+        ).toEqual([])
         const judged = judgeLinearOwnBytes(measured.summary, 200)
         expect(judged, JSON.stringify(judged)).toMatchObject({ ok: true })
         const facts = runCheck(...measured.databases)
@@ -172,4 +206,23 @@ describe('Journal growth (R2-D294)', () => {
         expect(coreRows(...measured.databases)).toBe(0)
       },
     )
+
+    it(
+      `200 steps, ${tier} messages: D-88 known limit (R2-D372), the closing step stops without an ended; once wave 3 fixes it this case turns red: then assert completed in the case above and remove this one`,
+      { tags: ['slow'], timeout: 7_200_000 },
+      async () => {
+        const measured = await run200(tier)
+        // The closing reply is the 201st admission. Its step commits and then stops: no ended, and
+        // no commit of that step is refused (the tool steps before it may see a refused commit).
+        expect(measured.admissions).toBe(201)
+        expect(measured.ended, JSON.stringify(measured.errors)).toBe('stalled')
+        expect(measured.errors).toContainEqual(
+          expect.stringContaining('no finishing fact recorded (the run did not reach an ended)'),
+        )
+        const closing = measured.summary.find(item => item.step === 201)
+        expect(closing?.commits ?? 0).toBeGreaterThan(0)
+        expect(closing?.rejected).toBe(0)
+      },
+    )
+  }
 })
