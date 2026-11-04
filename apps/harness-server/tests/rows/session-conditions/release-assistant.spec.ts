@@ -3,7 +3,8 @@
 // "@omne-harness/cli..."`）。
 // 发行的 `assistant` 映射带初始模型选择（R2-D236）。没有它时，会话没有保存的模型选择，`session-conditions` 对 Agent 的
 // 每次 `read` 都答 `unavailable`，Run 停在 E2。用例在发行树里用 `assistant` 建会话、发一条输入，观察 Agent 对
-// `agentConditions` 的读取答复：发行映射下第一次读取就成功；同一棵树只去掉这个字段时，读取失败。
+// `agentConditions` 的读取答复：发行映射下第一次读取就成功。同一棵树只去掉这个字段时，接入在调用 Session 之前就拒绝
+// `create-session`（`basis-unavailable`，server-entry SPEC 第 5 步，R2-D236），没有会话，也就没有一次读取。
 // 观察的做法：本用例把 `session-conditions` 行换成同一组合（`createSessionConditionsPlugin` 加 `defaultModesOf`）外面
 // 多一层记录答复的服务，行清单与发行行相同。它不证明后续步骤（I1 之后）能走通。
 import { readFileSync } from 'node:fs'
@@ -88,8 +89,17 @@ function withoutInitialSelection(): Distribution {
   return copy
 }
 
-/** Creates an `assistant` session in the tree of `distribution`, sends one input, returns the first read answer. */
-async function firstConditionsRead(distribution: Distribution): Promise<Answer> {
+type Round = Readonly<
+  | { created: true; first: Answer }
+  | { created: false; status: number | null; outcome: unknown; reads: readonly Answer[] }
+>
+
+/**
+ * Creates an `assistant` session in the tree of `distribution`, sends one input, returns the first
+ * read answer. A `create-session` that does not succeed returns its exit status and outcome, and the
+ * reads recorded by then.
+ */
+async function firstConditionsRead(distribution: Distribution): Promise<Round> {
   const dir = newScratch('release-assistant-')
   const port = await freePort()
   const home = join(dir.base, 'home')
@@ -123,12 +133,18 @@ async function firstConditionsRead(distribution: Distribution): Promise<Answer> 
     expect((await cli(['register', '--login-identifier', 'erin'], credential)).status).toBe(0)
     expect((await cli(['login', '--login-identifier', 'erin'], credential)).status).toBe(0)
     const created = await cli(['create-session', '--definition', 'assistant'])
-    expect(created.status, created.stderr).toBe(0)
+    if (created.status !== 0)
+      return {
+        created: false,
+        status: created.status,
+        outcome: created.result?.['outcome'],
+        reads: [...answers],
+      }
     const session = String(bodyOf(created)['session'])
     const sent = await cli(['send-input', '--session', session, '--text', 'hello'])
     expect(sent.status, sent.stderr).toBe(0)
     await until(() => answers.length > 0, 'the first agentConditions read', 30_000)
-    return answers[0] as Answer
+    return { created: true, first: answers[0] as Answer }
   } finally {
     controller.abort('test: stop')
     await finished.catch(() => undefined)
@@ -150,17 +166,20 @@ describe('the release assistant definition has an initial model selection (R2-D2
     'an assistant session of the release tree reads its current conditions at the first try',
     { timeout: 120_000 },
     async () => {
-      expect(await firstConditionsRead(release)).toEqual({ ok: true })
+      expect(await firstConditionsRead(release)).toEqual({ created: true, first: { ok: true } })
     },
   )
 
   it(
-    'without the initial model selection the same tree answers the read unavailable',
+    'without the initial model selection the same tree refuses create-session as basis-unavailable, before Session reads anything',
     { timeout: 120_000 },
     async () => {
+      // Exit 4 is the CLI's code for `basis-unavailable`; no session exists, so no read happened.
       expect(await firstConditionsRead(withoutInitialSelection())).toEqual({
-        ok: false,
-        kind: 'unavailable',
+        created: false,
+        status: 4,
+        outcome: 'basis-unavailable',
+        reads: [],
       })
     },
   )
