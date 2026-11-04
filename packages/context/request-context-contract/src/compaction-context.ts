@@ -12,6 +12,7 @@ import type {
   AssemblyUnknown,
   ProjectedHistory,
   ProjectedMessage,
+  RequestFrame,
   SelectedModel,
   SummaryMaterial,
 } from './values.js'
@@ -63,17 +64,22 @@ export type CompactionCandidate = Readonly<{
   selection: SelectedModel
   source: Adoption
 }>
-/** Measures one compaction candidate: empty system and tools, `auto`, its own lineage (RQ-05). */
+/**
+ * Measures one compaction candidate with `auto` tool choice and its own lineage (RQ-05). The
+ * retention probe and the summary request have an empty system prompt and no tools. The check
+ * after a summary passes the frame of the request, so it measures the whole request.
+ */
 export async function measureCompactionCandidate<P>(
   context: OperationContext<P>,
   candidate: CompactionCandidate,
   projected: readonly ProjectedMessage[],
   messages: readonly Message[],
+  frame: RequestFrame | null = null,
 ): Promise<M.RequestBudget | AssemblyFailure | AssemblyUnknown> {
   const assembled = buildModelInput(candidate.selection, {
-    system: [],
+    system: frame?.system ?? [],
     messages,
-    tools: [],
+    tools: frame?.tools ?? [],
     toolChoice: 'auto',
     source: candidate.source,
   })

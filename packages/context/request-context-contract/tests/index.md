@@ -15,4 +15,6 @@
 - [input-read.spec.ts](input-read.spec.ts)：组读口的计数与来源失败、两次尝试上界、第三组令牌、携带行的复用键、判断窗口的各种答复与 deriveStep 的模型组。
 - [fixtures.ts](fixtures.ts)、[profile.ts](profile.ts)：测试辅助，来源集合适配与模型档案。
 
+- [trigger-fit.spec.ts](trigger-fit.spec.ts)：摘要之后的检查按整请求对照触发界线；计数器例、请求框架与「转换之后装得下」的生成用例。
+- [formal-guards.spec.ts](formal-guards.spec.ts)：形式性质的机读守卫 G1 至 G6，对应 [formal-mapping.md](../verification/formal-mapping.md)。
 - [schema-boundaries.spec.ts](schema-boundaries.spec.ts)：策略与块数值边界、表示偏好、连续消费进度、压缩计划的保留关系。
