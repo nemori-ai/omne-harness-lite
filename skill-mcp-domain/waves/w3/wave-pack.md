@@ -20,6 +20,26 @@
 
 同 [W1 波包 §2](../w1/wave-pack.md#2-两条线在-m2-完结前的目标边界与验收)。卡 #1119 的判据 C4 是本波出口。
 
+## 生态兼容（负责人 2026-11-04 要求，优先于本页其余条目）
+
+> MCP 与 Skill 是 harness 融入现有开发者生态的关键一环：社区开发者自己的 Skill、各厂商提供的 MCP 服务必须能用。不能因为自己造轮子或比规范与主流宿主更严而用不了。
+
+首轮事实（reduce 2026-11-04 探针，`anthropics/skills` @ ca45fc4，20 个包）：18 个通过；2 个被拒——`claude-api` 的说明 1077 字符超过规范上限 1024；`template` 的 name `template-skill` 与目录名不同。两条都是规范写了、主流宿主不强制的规则。
+
+调整：
+
+| 领域 | 调整 | 落点 |
+| --- | --- | --- |
+| MCP | 协议层「优先复用 SDK」：只在 SDK 行为违反硬承诺（结局如实分类、进程归落点、不代调用方重发）时才自写；自写部分的线上解析用 SDK 自带的 schema 与常量，不另写一套形状判断 | `w3-mcp-host` 规格 |
+| MCP | 版本覆盖到官方 SDK 客户端支持的全部修订，不只「现代 + 一个旧版本」；旧的 HTTP+SSE 传输用 SDK 的 `SSEClientTransport` 接入，从「不做」移入本波 | `w3-mcp-host` |
+| MCP | 清单容错：单个不合法工具剔除并报告，其余照常发布；不再一项非法整份拒绝。已撤回「`inputSchema` 必须 `type: object`」的加严 | B 段 `w3-mcp-call` 改 C1 与 `completeListing`（授权写 `mcp-contract` 的这一处） |
+| MCP | 兼容矩阵验收：官方参考服务端与若干厂商服务端（钉版本）在 stdio 与 HTTP 上跑「发现 → 调用」，结论逐个记录 | `w3-mcp-e2e` |
+| MCP | OAuth 授权流程归凭据保管的提供者，不在两个领域内；MCP 交出完整的授权发现信息，SPEC 写明提供者可直接复用 SDK 的授权模块 | `w3-mcp-contract` SPEC 一句 |
+| Skill | 宽进严出：规范的硬约束（缺 `SKILL.md`、头部不可解析、缺 name、路径越界、链接出包）照旧拒绝；软约束（说明超长、name 与目录名不同、未知头部字段）接受并带兼容提示，不拒绝 | 新闭包 `w3-skill-compat`（`w3-skill-catalog` 合入后，写 `skill-contract` 解析） |
+| Skill | 兼容语料：每波 reduce 用探针跑钉版本的社区语料并记通过率；每一种真实偏离在成员测试里有一个合成夹具 | `w3-skill-compat` |
+| Skill | 实测六类语料 197 包，加载 191（[compat/README.md](../../compat/README.md)）。`w3-skill-compat` 逐条放宽：说明超长 → 接受（全文保留）；name 与目录名不同 → 接受，以头部 name 为准；`metadata` 非字符串映射 → 接受，只保留字符串值；严格 YAML 失败 → 退到逐行读顶层 `name`、`description`，读得出就接受。出口：六类语料加载率 100% | `w3-skill-compat` |
+| MCP | 对照基线（官方 SDK）：DeepWiki、Context7（2026-07-28）、Microsoft Learn（2025-06-18）都通；GitHub 要 OAuth。`w3-mcp-e2e` 的出口是我们的实现在同一组目标上结论一致 | `w3-mcp-e2e` |
+
 ## 3. 本波交付边界
 
 ### 3.1 成果与判据
@@ -35,7 +55,7 @@
 
 ### 3.2 明确不做
 
-- OAuth 授权流程、`elicitation.url`、`sampling`、`roots`、`list_changed` 订阅、SSE 旧传输、后台重连。
+- OAuth 授权流程（归凭据保管的提供者）、`elicitation.url`、`sampling`、`roots`、`list_changed` 订阅、后台重连。SSE 旧传输已按「生态兼容」移入本波。
 - 在途表与任务表跨重启。
 - Cordis 契约成员与插件、profiling：W4。
 - 内容存储来源；`SkillCatalog` 的排序、常驻与可用性。

@@ -12,7 +12,7 @@ BRANCH=PanQiWei/skill-mcp-records
 actual=$(git -C "$R" branch --show-current)
 if [ "$actual" != "$BRANCH" ]; then echo "记录工作树的分支是 '$actual'，不是 $BRANCH，停止" >&2; exit 1; fi
 
-for d in waves delegate model techdoc progress; do
+for d in waves delegate model techdoc progress compat; do
   rsync -a --delete --exclude node_modules --exclude .stryker-tmp "$SRC/$d/" "$R/skill-mcp-domain/$d/"
 done
 cp "$SRC/plan.md" "$SRC/records-sync.sh" "$R/skill-mcp-domain/"

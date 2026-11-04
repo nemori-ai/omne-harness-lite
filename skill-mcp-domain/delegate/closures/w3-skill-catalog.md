@@ -96,3 +96,4 @@ developer，implementation_kind product，Claude Fable 5.1（claude-fable-5-1）
 - 同一用例连试三种做法仍红。
 
 ## 追加记录
+- 2026-11-04T06:10Z 第 1 轮停在开工核对（停止条件「已定事项 9 与源码不符」命中，报告 `tmp/closures/w3-skill-catalog/report.md`）。reduce 核实源码后裁定**候选 A**：条款写成「`open` 答 `entry-unreadable` 时，`inspect` 拒绝为 `malformed`（与 `snapshot` 一格），`read`/`list`/`export` 答 `source-unavailable`」，不改行为；spec 已定事项 9 已改。写者报告里「能自己定」的四项照报告做：根导出 `MANIFEST_PATH`/`DECLARATION_PATH`；`skill/SPEC.md`「端口抛出的错误原样抛出」一句按已定事项 8 改；来源答复不在集合内或 reject 统一按 `unavailable` 一行处置（`mapping.ts` 不在表内的键答 `unavailable` 一行，来源调用的 reject 收束为同一行）；SK3-6 的变异改为「还原为直接查表、reject 原样上抛」。同一写者续做，轮次仍记 1。

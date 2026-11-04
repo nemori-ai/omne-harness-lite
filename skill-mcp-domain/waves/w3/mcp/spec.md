@@ -19,6 +19,14 @@ W2 之后 MCP 能连接、发现并整份发布清单，但不能调用：没有
 - **B 段**（从 F1 = A 段两个闭包合入后的父分支头）：`w3-mcp-call` 在 `mcp` 里实现 `ActionInvoker`、任务表与 `createMcp`；`w3-mcp-host` 在 `mcp-host-local` 里实现 stdio 与 Streamable HTTP 的 `McpTransportFactory`，用真实 SDK 服务端夹具跑契约套件。写集不相交。
 - **C 段**（从 F2 = B 段合入后）：`w3-mcp-e2e` 在 `mcp-host-local` 的测试里用 `createMcp` + 本地传输 + 真实服务端跑端到端旅程。
 
+## 生态兼容（负责人 2026-11-04 要求，优先于本页其余条目）
+
+> MCP 与 Skill 是 harness 融入现有开发者生态的关键一环：社区开发者自己的 Skill、各厂商提供的 MCP 服务必须能用。不能因为自己造轮子或比规范与主流宿主更严而用不了。
+
+首轮事实（reduce 2026-11-04 探针，`anthropics/skills` @ ca45fc4，20 个包）：18 个通过；2 个被拒——`claude-api` 的说明 1077 字符超过规范上限 1024；`template` 的 name `template-skill` 与目录名不同。两条都是规范写了、主流宿主不强制的规则。
+
+MCP 侧的调整见[波包「生态兼容」](../wave-pack.md#生态兼容负责人-2026-11-04-要求优先于本页其余条目)。本页冲突处：已定事项 16 的 `inputSchema` 加严撤回；已定事项 36 的「只用 Transport 层」改为「优先复用 SDK，按硬承诺例外自写」；已定事项 40 的「SSE 旧传输不做」撤回；判据 MC3-12 加兼容矩阵。B 段闭包规格按此写。
+
 ## 依据与已定事项
 
 | 依据 | 精确修订 | 本规格采用的范围 |

@@ -98,3 +98,4 @@ developer，implementation_kind product，Claude Fable 5.1（claude-fable-5-1）
 - 同一用例连试三种做法仍红。
 
 ## 追加记录
+- 2026-11-04T06:20Z 负责人提出生态兼容要求（社区 Skill、各厂商 MCP 服务必须能用）。reduce 撤回已定事项 16 的「`inputSchema` 必须 `type: "object"`，不符整份拒绝」：不比协议与官方 SDK 更严；C1 的容错方式在 B 段重定。已用 SendMessage 通知写者。

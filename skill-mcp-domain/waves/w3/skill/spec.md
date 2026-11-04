@@ -19,6 +19,14 @@ W2 之后，知道能力标识的调用方能描述、读取、导出一份 Skil
 - `skill` 公开根加 `createSkillCatalog(ports)`；删除与契约重复的定义，改用契约导出；统一畸形答复的处置。
 - `skill-host-local/examples/` 加一个真实目录示例：`createDirectorySource` + `createPackageInspection` + `createSkillCatalog` + `createSkillAccess`，读取判定与解析用 `./testing` 替身，作为可运行的测试。
 
+## 生态兼容（负责人 2026-11-04 要求，优先于本页其余条目）
+
+> MCP 与 Skill 是 harness 融入现有开发者生态的关键一环：社区开发者自己的 Skill、各厂商提供的 MCP 服务必须能用。不能因为自己造轮子或比规范与主流宿主更严而用不了。
+
+首轮事实（reduce 2026-11-04 探针，`anthropics/skills` @ ca45fc4，20 个包）：18 个通过；2 个被拒——`claude-api` 的说明 1077 字符超过规范上限 1024；`template` 的 name `template-skill` 与目录名不同。两条都是规范写了、主流宿主不强制的规则。
+
+Skill 侧的调整见[波包「生态兼容」](../wave-pack.md#生态兼容负责人-2026-11-04-要求优先于本页其余条目)：解析的宽进严出与兼容语料由新闭包 `w3-skill-compat` 承担，`w3-skill-catalog` 范围不变。
+
 ## 依据与已定事项
 
 | 依据 | 精确修订 | 本规格采用的范围 |
@@ -38,7 +46,7 @@ W2 之后，知道能力标识的调用方能描述、读取、导出一份 Skil
 6. **`search` 的匹配规则**（契约只写「按 name 与说明」，本波定死并写进 skill-contract SPEC）：查询文本与 name、说明都先做 Unicode NFKC 规范化再转小写（`toLowerCase()`，与区域设置无关）。查询按空白切成词；每个词都是 name 或说明（两者拼接时中间加一个换行）的子串时，该身份匹配。没有词（空串或只有空白）时匹配全部，等同 `summaries` 不带过滤。匹配先于核验：不匹配的身份不核验。`search` 不排序打分。
 7. **无披露的证明**：对同一主体，「身份被拒」与「身份不在集合里」两种世界下 `summaries` 与 `search` 的答复深度相等；对 `capabilities` 点名一个被拒的身份与点名一个不存在的身份，答复深度相等。
 8. **端口答复的统一处置**（契约 SPEC 新增一条，`skill` 照做）：需求端口的答复不在它的封闭集合内，或以 reject 失败时，实现不抛出：`SkillReadCheck` 与 `SkillResolution` 的这种答复当作 `unknown`；`SkillPackageSource` 的这种答复按映射表的 `unavailable` 一行处置（检查答 `source-unavailable`，读取答 `source-unavailable`）。改掉 `skill` 现在来源一侧抛 `TypeError` 的分支，并补用例。调用方自己的前提违反（字节范围非法、伪造快照）仍抛 `TypeError`，不变。
-9. **`open` 的 `entry-unreadable`**：契约 SPEC 的映射条款补一行：`open` 答 `entry-unreadable` 时，`inspect` 答 `source-unavailable`，`read`/`list`/`export` 答 `source-unavailable`。这是 `skill` 源码的现行行为（`mapping.ts`），本波只补条款，不改行为。若写者核对发现源码与这一行不同，停下交回。
+9. **`open` 的 `entry-unreadable`**（2026-11-04 修正：原文误把 `inspect` 写成 `source-unavailable`，写者核对源码后停下交回）：契约 SPEC 的映射条款补一行：`open` 答 `entry-unreadable` 时，`inspect` 拒绝为 `malformed`（与 `snapshot` 一格，`inspect` 不分调用点），`read`/`list`/`export` 答 `source-unavailable`。这是 `skill` 源码的现行行为（`mapping.ts`，用例 `mapping.spec.ts`、`inspection.spec.ts`），本波只补条款，不改行为。
 10. **契约导出**：`skill-contract` 公开根导出 `MANIFEST_PATH`、`DECLARATION_PATH`（已在 `names.ts`，核对是否已从根导出）、`PAGE_LIMIT`（新增，65536，SPEC「读取的形状规则」已写此值）与 `sameCapability`（从 `testing-resolution.ts` 移到公开根的非测试模块，`./testing` 继续可用）。`skill` 删除 `inspection.ts`、`access/service.ts` 里的路径常量、`access/range.ts` 的 `PAGE_LIMIT` 定义与 `access/gate.ts` 的 `sameCapability`，改为导入契约。
 11. **`skillCatalogConformance()`**：放在 `skill-contract/src/testing-catalog.ts`，形状同其他套件（`ConformanceCase<CatalogFixture>[]` + `node:assert`）。用例至少覆盖已定事项 2–7：空集合、`refused` 不出现、任一 `unknown` 整次 `unknown`、`stand-in` 条目、`capabilities` 过滤与去重、空 `capabilities`、`search` 的规范化与多词、无披露两组 `deepStrictEqual`。`skill` 的测试用三个内存替身跑它；用一个违约实现（例如把 `refused` 也列出）证明套件会变红。
 12. **真实来源示例**：`packages/skills/skill-host-local/examples/directory-journey.ts`（可运行）与 `examples/README.md`；`tests/examples.spec.ts` 运行它并断言：临时目录里放两个合法包与一个非法包；`inspect` 两个通过一个拒绝；`summaries` 只列被授予的那个；`search` 能按说明找到它；`read` 正文第一页与 `SKILL.md` 正文一致。读取判定与解析用 `skill-contract/testing` 的替身，SPEC 与 README 写明示例不是产品装配。
