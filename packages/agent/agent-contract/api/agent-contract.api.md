@@ -252,6 +252,7 @@
 - `ResponsibilityCoverage` · `finishing.d.ts`
 - `ResultResponsibility` · `execution.d.ts`
 - `RuntimeConditions` · `evaluation.d.ts`
+- `SavedPreparation` · `request.d.ts`
 - `SelectedModel` · `request.d.ts`
 - `SettlementRequest` · `finishing.d.ts`
 - `SettlementResult` · `finishing.d.ts`
@@ -269,6 +270,7 @@
 - `ToolReceptionTargets` · `receiving.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
 - `UtcInstantText` · `identity.d.ts`
+- `VoidedIntent` · `evaluation.d.ts`
 - `Waiting` · `evaluation.d.ts`
 - `agentBodyContract` · `body-contract.d.ts`
 - `decodeActionBatchId` · `identity.d.ts`
@@ -441,7 +443,7 @@ import type { ControlRecord, ResultResponsibility } from './execution.ts';
 import type { Adoption, ActionBatchId, ActionId, AgentInstant, AgentOperationId, CardRoundId, ConsumerRef, ConsumptionId, Continuation, DurableEvidence, InputBatchId, InputId, PassageId, ReplyAdmissionPageCursor, ReplyAdmissionSequence, StepId } from './identity.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { HandoffReference, MessageSource, Passage } from './passages.ts';
-import type { CompactionProgress, CompactionState, Preparation } from './request.ts';
+import type { CompactionProgress, CompactionState, Preparation, SavedPreparation } from './request.ts';
 export type ProducedResult = Readonly<{
     producer: Readonly<{
         kind: 'model';
@@ -733,6 +735,12 @@ export type AdoptedRequest = Readonly<{
     schema: Adoption;
     record: JsonValue;
 }>;
+export type VoidedIntent = Readonly<{
+    step: StepId;
+    action: ActionId;
+    reference: M.ModelInvocationRef;
+    basis: DurableEvidence;
+}>;
 export type AgentCheckpoint = Readonly<{
     schema: Adoption;
     definition: Adoption;
@@ -741,8 +749,8 @@ export type AgentCheckpoint = Readonly<{
     calls: readonly PendingCall[];
     passages: readonly Passage[];
     batch: ActionBatch | null;
-    inputBatch: InputBatchId | null;
-    requestPreparation: Preparation | null;
+    inputBatch: InputBatch | null;
+    requestPreparation: SavedPreparation | null;
     compaction: CompactionState | null;
     adoptedContext: DurableEvidence | null;
     adoptedRequest?: AdoptedRequest | null;
@@ -751,6 +759,7 @@ export type AgentCheckpoint = Readonly<{
     priorConditions: DurableEvidence | null;
     currentHandoff: HandoffReference | null;
     replyAdmissionRead: ReplyAdmissionRead;
+    voided: readonly VoidedIntent[];
 }>;
 export type RuntimeConditions = Readonly<{
     source: DurableEvidence;
@@ -2369,6 +2378,7 @@ export interface AgentJournalAttachment<P> {
     open(input: ExecutionMutation<P> & Readonly<{
         original: OriginalInputAcceptance;
         runtime: InvokeRuntimeContext;
+        checkpoint: AgentCheckpoint;
     }>): Reply<Readonly<{
         receipt: CommandReceipt;
         authority: Authority;
@@ -2576,7 +2586,7 @@ import type { JsonValue } from '@omne-harness/json-text';
 import type { CallAccount } from '@omne-harness/call-account';
 import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
-import type { Action, AgentCheckpoint, AgentConclusion, GuardFact, PendingCall, ProducedResult, Reply, PreparedContextTransition } from './evaluation.ts';
+import type { Action, AgentConclusion, GuardFact, PendingCall, ProducedResult, Reply, PreparedContextTransition } from './evaluation.ts';
 import type { AcceptedInput } from './execution.ts';
 import type { Conclusion, DecisionCardDraft, Dimension, ExtensionInvocationMode, ExtensionOutput, LoopExtensionDeclaration, LoopExtensionImplementation, Position } from './extensions.ts';
 import type { Access, Adoption, ActionBatchId, ActionId, AgentExecutionId, AgentInstanceId, AgentOperationId, Authority, CardRoundId, ConsumerRef, DurableEvidence, ExecutionRevision, InputId, PassageId, StepId } from './identity.ts';
@@ -2883,7 +2893,6 @@ export type InputEntry = Readonly<{
     operation: AgentOperationId;
     execution: AgentExecutionId;
     initial: AcceptedInput;
-    checkpoint: AgentCheckpoint;
 }> | Readonly<{
     kind: 'submit';
     operation: AgentOperationId;
@@ -3329,6 +3338,9 @@ export type Preparation = Readonly<{
     reason: 'fixed' | 'after-compaction';
     diagnostic: string;
 }>);
+export type SavedPreparation = Extract<Preparation, {
+    kind: 'needs-compaction' | 'cannot-fit';
+}>;
 export type CompactionAdvance = Readonly<{
     kind: 'continue';
     progress: CompactionProgress;
@@ -3349,9 +3361,6 @@ export type CompactionState = Readonly<{
     action: ActionId;
     progress: CompactionProgress;
     initiated: string;
-    stepRequest: Extract<Preparation, {
-        kind: 'ready';
-    }> | null;
     ended: 'committed' | 'failed' | null;
 }>;
 export type FinalRequest = Readonly<{
