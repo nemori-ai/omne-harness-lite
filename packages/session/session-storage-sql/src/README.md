@@ -32,6 +32,6 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 | `codec.ts` | 值的 JSON 形式与租户、工作区身份的互转 |
 | `entry-codec.ts` | `sl_entry.entry` 文本的唯一写入与读取：载荷存为普通 JSON，读出时无损还原值树 |
 | `materials.ts` | 参加者、迁移与八个读 handler 的静态材料及文件摘要 |
-| `worker/` | Worker 内模块：`participant.ts`、`entries.ts`（`commitEntries` 的判定）、`migration.ts`、`operation-evidence-migration.ts`（访问证据表的迁移）、`state-item-migration.ts`（快照分块表的迁移）、`state-rows.ts`（快照的头行与分块行，SPEC「快照的存储形态」）、`schema.ts`、`support.ts` 与 `read-*.ts` 的 handler |
+| `worker/` | Worker 内模块：`participant.ts`、`entries.ts`（`commitEntries` 的判定）、`migration.ts`、`operation-evidence-migration.ts`（访问证据表的迁移）、`state-item-migration.ts`（快照分块表的迁移）、`attempt-grant-migration.ts`（attempt 授予表的迁移，R2-D349）、`state-rows.ts`（快照的头行与分块行，SPEC「快照的存储形态」）、`schema.ts`、`support.ts` 与 `read-*.ts` 的 handler |
 
 `worker/` 下的模块在提供者的 Worker 里运行，不导入端口侧的文件。`codec.ts` 与 `entry-codec.ts` 由两侧共用。设计目标里的重建与 PostgreSQL 方言没有进入。`package.json` 的依赖见[公开接口导航](../docs/public-api.md)与[内部架构](../docs/architecture.md#模块与依赖)。

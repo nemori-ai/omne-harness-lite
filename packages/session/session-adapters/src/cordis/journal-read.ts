@@ -5,8 +5,8 @@
 // batches is one snapshot: its pages must read one publication count, else it starts again, and
 // after a fixed number of tries it answers `unavailable`, never a log of two counts.
 //
-// The rows of a batch split into the facts of the fact family (decoded by `decodeRows` of
-// `../journal`) and the `core.*` facts of the K-23 bridge, which follow them in each batch.
+// The rows of a batch are the facts of the fact family, decoded by `decodeRows` of `../journal`;
+// a row of another kind is a batch of an older writer, and the batch does not decode.
 import { randomUUID } from 'node:crypto'
 import type { AgentExecutionId, AgentOperationId } from '@omne-harness/agent-contract'
 import {
@@ -23,7 +23,6 @@ import {
 } from '@omne-harness/session-storage-sql/participants'
 import type { DomainRef, JsonValue, ReadRequest, SqlStorage } from '@omne-harness/sql-contract'
 import { decodeRows, type FactRow, type PublishedBatch } from '../journal/index.ts'
-import { isCoreKind, type CoreFact } from './journal-core-stub.ts'
 
 /**
  * How many times a snapshot read starts again when its pages read different publication counts (a
@@ -55,12 +54,11 @@ export const readerOf =
   (handler, input) =>
     readOutput(storage, { domain, handler, protocol: EXECUTION_RECORD_PROTOCOL, input })
 
-/** One batch as read: the facts of the family, decoded, and the `core.*` facts of the bridge. */
+/** One batch as read: the facts of the family, decoded. */
 export type ReadBatch = Readonly<{
   pub: number
   /** The decoded batch of the family; null when the rows read hold no envelope (a partial read). */
   batch: PublishedBatch | null
-  core: readonly CoreFact[]
   /** The event facts of the batch, by sequence, as the store projects them. */
   events: readonly ExecutionFact[]
 }>
@@ -98,31 +96,27 @@ function rowOf(scope: Scope, pub: number, operation: string | null, fact: Execut
 }
 
 /**
- * Splits one stored batch into the family's batch and the bridge facts. The family's facts are the
- * dense prefix from the envelope; a batch read without its envelope (a read of one execution's
- * facts, whose envelope row belongs to the writing execution) decodes no family batch.
+ * Decodes one stored batch of the family. The family's facts are the dense prefix from the
+ * envelope; a batch read without its envelope (a read of one execution's facts, whose envelope row
+ * belongs to the writing execution) decodes no family batch. A row of a kind the family does not
+ * have (the `core.*` facts of the K-23 bridge of an older writer) does not decode: the records
+ * then read as unavailable, not as a session without them.
  */
 export function splitBatch(scope: Scope, stored: ExecutionBatch): ReadBatch | 'malformed' {
   const pub = Number(stored.published)
   const sorted = [...stored.facts].sort((left, right) => left.ord - right.ord)
   const family: FactRow[] = []
-  const core: CoreFact[] = []
   const events: ExecutionFact[] = []
   for (const fact of sorted) {
     if (fact.sequence !== null) events.push(fact)
-    if (isCoreKind(fact.kind)) {
-      if (fact.body === null || typeof fact.body !== 'object') return 'malformed'
-      core.push({ ...(fact.body as object), execution: fact.execution } as CoreFact)
-      continue
-    }
-    if (core.length > 0) return 'malformed'
+    if (fact.kind.startsWith('core.')) return 'malformed'
     family.push(rowOf(scope, pub, stored.operation, fact))
   }
   const whole = family[0]?.ord === 0 && family.every((row, index) => row.ord === index)
-  if (!whole) return { pub, batch: null, core, events }
+  if (!whole) return { pub, batch: null, events }
   const decoded = decodeRows(family)
   if ('failure' in decoded) return 'malformed'
-  return { pub, batch: decoded.ok[0] ?? null, core, events }
+  return { pub, batch: decoded.ok[0] ?? null, events }
 }
 
 /**
@@ -213,11 +207,11 @@ export async function readOpenExecutions(read: Reader, scope: Scope): Promise<Op
 }
 
 /** The cold start: the facts of every open execution and of the root, in publication order. */
-export async function readColdStart(read: Reader, scope: Scope, rootExecution: string) {
+export async function readColdStart(read: Reader, scope: Scope) {
   const open = await readOpenExecutions(read, scope)
   if (open.kind === 'unavailable') return open
   const batches = new Map<number, ReadBatch>()
-  for (const execution of [...open.executions, rootExecution]) {
+  for (const execution of open.executions) {
     const found = await readBatches(read, scope, 0, execution)
     if (found.kind === 'unavailable') return found
     for (const batch of found.batches) {
@@ -229,7 +223,6 @@ export async function readColdStart(read: Reader, scope: Scope, rootExecution: s
           : {
               pub: batch.pub,
               batch: known.batch ?? batch.batch,
-              core: [...known.core, ...batch.core],
               events: [...known.events, ...batch.events],
             },
       )

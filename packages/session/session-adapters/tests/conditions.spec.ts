@@ -21,7 +21,7 @@ import {
   createSessionConditionsPlugin,
   type SessionConditionsInput,
 } from '../src/cordis/conditions.ts'
-import { ok } from './fixtures/common-journal.ts'
+import { instance, ok, operation } from './fixtures/common-journal.ts'
 import { cordisScene, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 const MODES_BASIS = evidence('tenant-defaults/modes')
@@ -229,5 +229,45 @@ describe('tenant and advance', () => {
     const stale = { ...f.advance, executionAttachment: 'attachment-superseded' as never }
     expect(await f.read(stale, current.source)).toEqual({ failure: { kind: 'stale-advance' } })
     expect(await f.read(stale)).toEqual({ failure: { kind: 'stale-advance' } })
+  })
+
+  it('negative control (R2-D348): after a takeover by the same instance, the Authority of the previous attempt is stale-advance and the current one reads', async () => {
+    const f = await provided('conditions-takeover')
+    ok(await f.read())
+    const before = ok(await f.s.port.readWork(f.s.sessionAccess))
+    if (before.run.kind !== 'active') throw new Error('an active Run is expected')
+    const claimed = ok(
+      await f.s.port.commit({
+        access: f.s.sessionAccess,
+        command: {
+          kind: 'claim',
+          input: {
+            tenant: f.s.access.tenant,
+            session: f.s.access.session,
+            operation: operationId('claim-2'),
+            run: before.run.run,
+            instance: { owner: 'agent', id: 'instance-1' },
+            continuity: evidence('continuity-2'),
+            expected: before.run.revision,
+          },
+        },
+        guards: [],
+      }),
+    )
+    const attached = ok(
+      await f.c.journal().attach({
+        ...f.s.access,
+        execution: f.s.execution,
+        operation: operation('attach-2'),
+        instance: instance(),
+        grant: claimed.receipt.source,
+        recovery: evidence('recovery-2'),
+        takeover: evidence('takeover-2'),
+      }),
+    )
+    expect(attached.authority.instance).toBe(f.advance.instance)
+    expect(await f.read(f.advance)).toEqual({ failure: { kind: 'stale-advance' } })
+    const current = ok(await f.read(attached.authority))
+    expect(current.configuration).toEqual(before.run.adoption)
   })
 })

@@ -1550,6 +1550,7 @@ export type SessionAttemptRecord = Readonly<{
     execution: string;
     ordinal: string;
     started: DurableEvidence;
+    grant?: DurableEvidence;
 }>;
 export type SessionTakenRecord = SessionBatchRecord & Readonly<{
     commit: DurableEvidence;

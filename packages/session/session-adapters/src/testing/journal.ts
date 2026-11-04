@@ -70,6 +70,7 @@ import type {
   SettlementResult,
   ObligationDisposition,
   RecoveryContinuation,
+  StepId,
   TerminalParticipantFact,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
@@ -123,6 +124,7 @@ import {
   refOf,
   type Answer,
   type Blob,
+  type ExclusionReason,
   type ExecutionView,
   type FactBody,
   type ParticipationKind,
@@ -393,6 +395,8 @@ export type SessionReplyAdmissionControls = Readonly<{
 
 type Attachment = {
   authority: Authority
+  /** The grant the Session handed out for this attachment (`exec.attached.grant`), as given. */
+  grant: DurableEvidence | null
   status: 'active' | 'detached' | 'superseded'
   handoff: DurableEvidence | null
   /** The revision at which the handoff was established, for a later detach that recognizes it. */
@@ -425,6 +429,22 @@ function takenRange(
     ? { from, to }
     : undefined
 }
+
+/** The schema the Journal stamps on every event unless the options name one. */
+export const DEFAULT_EVENT_SCHEMA: Adoption = Object.freeze({
+  owner: JOURNAL_OWNER,
+  name: 'agent-event',
+  revision: '1',
+  digest: 'memory:agent-event',
+})
+
+/** The reply admission rule of the Journal unless the options name one. */
+export const DEFAULT_REPLY_ADMISSION_RULE: Adoption = Object.freeze({
+  owner: JOURNAL_OWNER,
+  name: 'reply-admission-projection',
+  revision: '1',
+  digest: 'memory:reply-admission-projection',
+})
 
 export type MemoryExecution = {
   id: AgentExecutionId
@@ -490,7 +510,19 @@ type Committed = Readonly<{
   value: unknown
   receipt: CommandReceipt
 }>
-type Excluded = Readonly<{ kind: 'excluded'; key: string; evidence: DurableEvidence }>
+/**
+ * An excluded operation. The record names its execution, operation and reason so that the next
+ * batch of the execution carries the exclusion as an `op.excluded` fact when the view does not
+ * hold it yet (a held write the storage dropped, a re-run that answered without writing).
+ */
+type Excluded = Readonly<{
+  kind: 'excluded'
+  key: string
+  execution: AgentExecutionId
+  operation: AgentOperationId
+  reason: ExclusionReason
+  evidence: DurableEvidence
+}>
 /** The persistent rejection of a recordControl (Agent SPEC "查询的四种结论与持久拒绝"). */
 type Rejected = Readonly<{
   kind: 'rejected'
@@ -529,11 +561,6 @@ export type Attempt<R> =
       project: (batch: PublishedBatch, view: ExecutionView) => void
       /** The state the receipt names: `applied` unless the command accepts (submit, control). */
       receiptState?: CommandReceipt['state']
-      /**
-       * The receipt the operation record keeps instead of the batch's own: a new operation for a
-       * saved delivery answers the delivery's original receipt (session-adapters SPEC K-23).
-       */
-      recalls?: CommandReceipt
     }>
   /**
    * Contradicting evidence: the audit is a fact of one batch with one new revision, and the
@@ -1430,10 +1457,9 @@ function handoffsOf(
   execution: Execution,
   custody: (handoff: HandoffReference) => ExecutionHandoff['custody'],
 ): readonly ExecutionHandoff[] {
-  return execution.handoffs.map(record => ({
-    ...copy(record),
-    custody: custody(record.handoff),
-  }))
+  // A record's members are replaced, never changed in place: one level of copy keeps a snapshot
+  // apart from the later writes of the record.
+  return execution.handoffs.map(record => ({ ...record, custody: custody(record.handoff) }))
 }
 
 /** The original acceptance that `open` or a new-input `submit` carries, checked against the method. */
@@ -1496,18 +1522,8 @@ export function createJournal<P>(
   const retainedToolInvocationBaselines = new Map<string, ToolInvocationRef>()
   const participants = frozenSet(options.participants ?? [])
   const readLimit = options.readLimit ?? 100
-  const eventSchema: Adoption = options.eventSchema ?? {
-    owner: JOURNAL_OWNER,
-    name: 'agent-event',
-    revision: '1',
-    digest: 'memory:agent-event',
-  }
-  let admissionRule: Adoption = options.replyAdmissionRule ?? {
-    owner: JOURNAL_OWNER,
-    name: 'reply-admission-projection',
-    revision: '1',
-    digest: 'memory:reply-admission-projection',
-  }
+  const eventSchema: Adoption = options.eventSchema ?? DEFAULT_EVENT_SCHEMA
+  let admissionRule: Adoption = options.replyAdmissionRule ?? DEFAULT_REPLY_ADMISSION_RULE
   const state = () => cell.state().agent
   const caches = new WeakMap<
     Execution,
@@ -1838,13 +1854,16 @@ export function createJournal<P>(
       if (rejected !== undefined) return answered(fail(rejected))
       return answered(pending.key === key ? commitUnknown : fail(conflict(input.operation)))
     }
-    const exclude = (reason: string) => {
+    const exclude = (reason: 'dropped' | 'no-write') => {
       const fixed = state().operations.get(at)?.kind
       if (fixed === 'committed' || fixed === 'rejected') return
       cell.touch()
       state().operations.set(at, {
         kind: 'excluded',
         key,
+        execution: input.execution,
+        operation: input.operation,
+        reason,
         evidence: journalEvidence(
           `${cell.namespace}/${input.execution}/excluded/${input.operation}/${reason}`,
           0,
@@ -1899,12 +1918,7 @@ export function createJournal<P>(
           }
         }
         cell.touch()
-        state().operations.set(at, {
-          kind: 'committed',
-          key,
-          value: copy(value),
-          receipt: prepared.recalls ?? receipt,
-        })
+        state().operations.set(at, { kind: 'committed', key, value: copy(value), receipt })
         return { kind: 'wrote', value }
       }
       prepared.apply()
@@ -2002,7 +2016,10 @@ export function createJournal<P>(
         : (before.attachments.findLast(item => item.status === 'active')?.authority.generation ??
           before.gen)
     const envelope = { op: input.operation, digest: key, rev: 0, gen, kinds: prepared.kinds }
-    const built = buildBatch(before, envelope, prepared.facts)
+    // The exclusions this process holds in memory and the view does not: facts of this batch, so
+    // a copy rebuilt from the records holds them too. They move no revision.
+    const facts = [...unpublishedExclusions(input, before, prepared.facts), ...prepared.facts]
+    const built = buildBatch(before, envelope, facts)
     if ('kind' in built) {
       if (built.kind === 'incomplete') return fail(invalid('facts', built.reason))
       return fail(conflict(input.operation))
@@ -2065,6 +2082,7 @@ export function createJournal<P>(
     stage: ControlStage,
     state: 'reached' | 'unresolved',
     source: DurableEvidence,
+    step: StepId | null = null,
   ): FactBody {
     return {
       kind: 'control.stage',
@@ -2075,6 +2093,7 @@ export function createJournal<P>(
       stage,
       state,
       source,
+      step,
     }
   }
 
@@ -2207,6 +2226,40 @@ export function createJournal<P>(
     )
   }
 
+  /**
+   * The `op.excluded` facts of the exclusions recorded in memory for `input.execution` that the
+   * view does not hold, and `facts` do not carry: a held write the storage dropped, a re-run that
+   * answered without writing, a fence whose fact was not written with it.
+   */
+  function unpublishedExclusions(
+    input: Pick<ExecutionMutation<P>, 'tenant' | 'execution'>,
+    before: ExecutionView,
+    facts: readonly FactBody[],
+  ): FactBody[] {
+    const carried = new Set(
+      facts.flatMap(fact => (fact.kind === 'op.excluded' ? [fact.operation] : [])),
+    )
+    const out: FactBody[] = []
+    for (const [at, record] of state().operations) {
+      if (record.kind !== 'excluded' || record.execution !== input.execution) continue
+      if (at !== operationKey(input.tenant, input.execution, record.operation)) continue
+      if (
+        carried.has(record.operation) ||
+        before.excluded.has(record.operation) ||
+        before.ops.has(record.operation)
+      )
+        continue
+      out.push({
+        kind: 'op.excluded',
+        operation: record.operation,
+        reason: record.reason,
+        evidence: copy(record.evidence),
+        predecessor: null,
+      })
+    }
+    return out
+  }
+
   /** The `op.excluded` facts of a takeover: every write of this execution still pending. */
   function fencedOperations(execution: Execution): FactBody[] {
     const out: FactBody[] = []
@@ -2251,6 +2304,9 @@ export function createJournal<P>(
       state().operations.set(key, {
         kind: 'excluded',
         key: record.key,
+        execution: execution.id,
+        operation: record.operation,
+        reason: 'fence',
         evidence: journalEvidence(
           `${cell.namespace}/${execution.id}/excluded/${record.operation}/fenced`,
           0,
@@ -2339,8 +2395,14 @@ export function createJournal<P>(
       }
     }
     const emitted = execution.events.length
-    return succeed<ExecutionSnapshot>(
-      copy({
+    const groups = custodyGroups(execution)
+    // The members that grow with the history (effects, results, controls, observations,
+    // handoffs) are copied one level deep: the core replaces their elements and the members of a
+    // handoff record, it never changes an element in place, so a snapshot keeps what it saw. A
+    // deep copy of them cost every `load` the whole history (a 200-step run spent half its time
+    // in it). The members of one step's size are copied deep as before.
+    return succeed<ExecutionSnapshot>({
+      ...copy({
         execution: execution.id,
         revision: revisionOf(execution.revision),
         state: stateOf(execution),
@@ -2350,12 +2412,6 @@ export function createJournal<P>(
         replyAdmissions: replyAdmissions.ok,
         executionAttachment: activeAttachment(execution)?.authority ?? null,
         unresolved,
-        controls: execution.controls,
-        results: execution.results,
-        entries: execution.entries,
-        effects: execution.effects,
-        terminalObservations: execution.observations,
-        handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff)),
         finishObligations: currentObligations(execution.finishing) ?? null,
         settlement: settlementOf(execution.finishing),
         output: {
@@ -2363,7 +2419,12 @@ export function createJournal<P>(
           acknowledgedThrough: execution.acknowledged === 0 ? null : String(execution.acknowledged),
         },
       }),
-    )
+      controls: [...execution.controls],
+      results: [...execution.results],
+      effects: [...execution.effects],
+      terminalObservations: [...execution.observations],
+      handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff, groups)),
+    })
   }
 
   function readPage(
@@ -2803,13 +2864,33 @@ export function createJournal<P>(
   }
 
   /** The custody projection of one H, rebuilt from the attempts and their operation records. */
+  /** The custody attempts of an execution grouped by the handoff they are attempts of. */
+  function custodyGroups(
+    execution: Execution,
+  ): ReadonlyMap<string, readonly (readonly [AgentOperationId, CustodyAttempt])[]> {
+    const groups = new Map<string, (readonly [AgentOperationId, CustodyAttempt])[]>()
+    for (const entry of execution.custodyAttempts.entries()) {
+      const key = canonical(entry[1].handoff)
+      const group = groups.get(key)
+      if (group === undefined) groups.set(key, [entry])
+      else group.push(entry)
+    }
+    return groups
+  }
+
+  /**
+   * The custody chain of one handoff. A snapshot of an execution with many handoffs passes the
+   * groups built once (`custodyGroups`): one pass over the attempts, not one per handoff.
+   */
   function custodyOf(
     execution: Execution,
     handoff: HandoffReference,
+    groups: ReadonlyMap<
+      string,
+      readonly (readonly [AgentOperationId, CustodyAttempt])[]
+    > = custodyGroups(execution),
   ): Exclude<ExecutionHandoff['custody'], null> | null {
-    const attempts = [...execution.custodyAttempts.entries()].filter(([, attempt]) =>
-      sameValue(attempt.handoff, handoff),
-    )
+    const attempts = groups.get(canonical(handoff)) ?? []
     const root = attempts.find(([, attempt]) => attempt.custody === null)
     if (root === undefined) return null
     const stateOf = (operation: AgentOperationId): 'committed' | 'excluded' | undefined => {
@@ -3504,6 +3585,10 @@ export function createJournal<P>(
         // The initial checkpoint comes from the caller, not from the invoke entry (R2-D292).
         const checkpoint = input.checkpoint
         const outcome = acceptance.outcome
+        const bound = receiving.newBindings(
+          { id: input.execution, tenant: input.tenant, checkpoint, effects: [] },
+          runtime.instance,
+        )
         const facts: FactBody[] = [
           {
             kind: 'exec.opened',
@@ -3523,7 +3608,7 @@ export function createJournal<P>(
             kind: 'input.accepted',
             input: initial.id,
             entry: acceptance.handoff.entry,
-            message: blobOf(initial.content) as unknown as never,
+            message: refOf(initial.content),
             source: initial.source,
             priority: initial.priority,
             watermark: outcome.record,
@@ -3534,7 +3619,7 @@ export function createJournal<P>(
             kind: 'handoff.resolved',
             handoff: acceptance.handoff,
             resolution: 'recorded',
-            outcome: blobOf(outcome) as unknown as never,
+            outcome: refOf(outcome),
             history: outcome.record,
           },
           {
@@ -3542,8 +3627,14 @@ export function createJournal<P>(
             step: checkpoint.step,
             members: cursorMembersOf(checkpoint, { kind: 'advancing' }),
           },
+          ...bound.facts,
         ]
-        const blobs: Blob[] = [blobOf(initial.content), blobOf(outcome), ...blobsOf(checkpoint)]
+        const blobs: Blob[] = [
+          blobOf(initial.content),
+          blobOf(outcome),
+          ...blobsOf(checkpoint),
+          ...bound.blobs,
+        ]
         return {
           kind: 'batch',
           facts,
@@ -3560,7 +3651,15 @@ export function createJournal<P>(
               revision: view.revision,
               state: { kind: 'advancing' },
               checkpoint: checkpointOf(view, state().blobs),
-              attachments: [{ authority, status: 'active', handoff: null, handoffRevision: 0 }],
+              attachments: [
+                {
+                  authority,
+                  grant: runtime.grant,
+                  status: 'active',
+                  handoff: null,
+                  handoffRevision: 0,
+                },
+              ],
               inputs: [copy(initial)],
               inputRevisions: new Map([[initial.id, view.revision]]),
               events: [],
@@ -3587,7 +3686,7 @@ export function createJournal<P>(
               serial: batch.pub,
             }
             state().executions.set(executionKey(input.tenant, input.execution), execution)
-            receiving.remember(execution, runtime.instance)
+            receiving.applyBindings(execution, bound)
           },
         }
       })
@@ -3650,6 +3749,7 @@ export function createJournal<P>(
             if (old !== undefined) old.status = 'superseded'
             execution.attachments.push({
               authority,
+              grant: input.grant,
               status: 'active',
               handoff: null,
               handoffRevision: 0,
@@ -3882,10 +3982,15 @@ export function createJournal<P>(
         const facts: FactBody[] = []
         const blobs: Blob[] = []
         const view = viewOf(execution.id)
-        // The input batch of the step is the `step.begun` the cursor names: the first commit
-        // that holds it writes it whole (R2-D292).
+        // Every input-taken event is one `step.begun`, written in the loop below in the order of
+        // the events (the fold numbers the events by the facts). A commit whose cursor names a
+        // batch no event took (R2-D292) writes it whole here, so `checkpointOf` finds it.
         const taken = input.checkpoint.inputBatch
-        if (taken !== null && !view.steps.some(item => item.batch.id === taken.id))
+        if (
+          taken !== null &&
+          !view.steps.some(item => item.batch.id === taken.id) &&
+          !input.events.some(body => body.kind === 'input-taken')
+        )
           facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(taken) })
         // A main-purpose M0 adopts its final request; the attempt of the step is the number of
         // its voided intents.
@@ -3919,6 +4024,8 @@ export function createJournal<P>(
           })
         }
         for (const body of input.events) {
+          if (body.kind === 'input-taken')
+            facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(body.batch) })
           if (body.kind === 'waiting')
             facts.push({
               kind: 'wait.entered',
@@ -3927,13 +4034,15 @@ export function createJournal<P>(
             })
           // A reply admission projects its message (`reply.judged`); any other message is
           // referred to by its own fact.
-          if (body.kind === 'message' && admission === null)
+          if (body.kind === 'message' && admission === null) {
+            blobs.push(blobOf(body.message))
             facts.push({
               kind: 'message.published',
               step: input.checkpoint.step,
               message: refOf(body.message),
               source: copy(body.source),
             })
+          }
           // The Agent applied a produced result: the processed stage of its consumption.
           if (body.kind === 'producer')
             facts.push({
@@ -3942,11 +4051,20 @@ export function createJournal<P>(
               result: producerCallOf(body.result),
               stage: 'processed',
               evidence,
+              step: input.checkpoint.step,
             })
           if (body.kind === 'control') {
             const record = execution.controls.find(item => item.operation === body.operation)
             if (record !== undefined)
-              facts.push(controlStageOf(record, body.stage, body.state, copy(body.source)))
+              facts.push(
+                controlStageOf(
+                  record,
+                  body.stage,
+                  body.state,
+                  copy(body.source),
+                  input.checkpoint.step,
+                ),
+              )
           }
         }
         for (const effect of input.effects)
@@ -3967,13 +4085,18 @@ export function createJournal<P>(
           // `admit` mints the basis of the new prefix; only a test that removes it leaves null.
           if (admitted.record.basis === null)
             throw new TypeError('a new reply admission has no prefix basis')
+          // The admitted reply is the message event of this commit: the fact refers to it, so the
+          // event is projected from the fact and its block (K-23 item 四).
+          const reply = input.events.find(body => body.kind === 'message')
+          if (reply?.kind === 'message') blobs.push(blobOf(reply.message))
           facts.push({
             kind: 'reply.judged',
             sequence: execution.admissionLedger.projection.sequence + 1,
             fact: copy(admitted.record.fact),
             basis: admitted.record.basis,
             publication: evidence,
-            message: null,
+            message: reply?.kind === 'message' ? refOf(reply.message) : null,
+            source: reply?.kind === 'message' ? copy(reply.source) : null,
             history: input.handoff?.kind === 'resolve' ? copy(input.handoff.outcome.record) : null,
           })
         }
@@ -3996,10 +4119,12 @@ export function createJournal<P>(
             history: handoff.outcome.decision.kind === 'prepared' ? evidence : null,
           })
         } else if (handoff?.kind === 'retire' && handoff.excluded.request.kind === 'execution') {
+          blobs.push(blobOf(handoff.excluded))
           facts.push({
             kind: 'handoff.retired',
             handoff: copy(handoff.excluded.request.reference),
             reason: copy(handoff.reason),
+            excluded: refOf(handoff.excluded),
           })
         }
         // The author route of a new candidate is named by the candidate, never by a counter.
@@ -4050,6 +4175,15 @@ export function createJournal<P>(
           blobs.push(...blobsOf(input.checkpoint))
           facts.push(moved)
         }
+        // The bindings this commit establishes: the pending calls of the checkpoint it commits
+        // and of the effects it already holds (its new effects bind at the next commit, as the
+        // writer always remembered them), under the committing instance.
+        const bound = receiving.newBindings(
+          { ...execution, checkpoint: input.checkpoint, effects: execution.effects },
+          input.authority.instance,
+        )
+        facts.push(...bound.facts)
+        blobs.push(...bound.blobs)
         return {
           kind: 'batch',
           facts,
@@ -4069,7 +4203,7 @@ export function createJournal<P>(
             )
               throw new TypeError('the folded facts name another checkpoint than the commit')
             execution.checkpoint = checkpoint
-            receiving.remember(execution, input.authority.instance)
+            receiving.applyBindings(execution, bound)
             execution.state = copy(input.state)
             for (const effect of input.effects) {
               if (!execution.effects.some(existing => existing.action === effect.action)) {
@@ -4387,6 +4521,7 @@ export function createJournal<P>(
           result: call,
           stage,
           evidence: copy(basis),
+          step: null,
         })
         const facts: FactBody[] = []
         if (known === undefined) facts.push(handled('recorded', evidence))
@@ -4642,11 +4777,13 @@ export function createJournal<P>(
           resolution: input.original.kind,
           outcome: refOf(input.original),
           predecessor: custody === null ? null : custody.predecessor.operation,
+          custody: custody === null ? null : refOf(custody),
         })
         return {
           kind: 'batch',
           facts,
-          blobs: [blobOf(input.original)],
+          blobs:
+            custody === null ? [blobOf(input.original)] : [blobOf(input.original), blobOf(custody)],
           kinds: [],
           derive: receiptIn,
           project: (_batch, view) => {
@@ -5224,6 +5361,9 @@ export function createJournal<P>(
             state().operations.set(key, {
               kind: 'excluded',
               key: record.key,
+              execution,
+              operation,
+              reason: 'dropped',
               evidence: journalEvidence(
                 `${cell.namespace}/${execution}/excluded/${operation}/dropped`,
                 0,

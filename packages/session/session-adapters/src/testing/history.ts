@@ -61,15 +61,20 @@ export function grantAttempt(
     findGrantAttempt(root, execution, grant) ?? unavailable('grant does not identify original SE15')
   )
 }
+/**
+ * The attempt the Authority was granted under (R2-D348): the Agent records the grant of the
+ * attachment the Authority names, and the Session resolves that grant to its attempt.
+ */
 export function authorityAttempt(
   root: CommonRoot,
   execution: string,
   authority: Authority,
 ): SessionAttemptRecord {
-  return (
-    root.agent.authorities.get(`${execution}\0${canonical(authority)}`) ??
-    unavailable('original Authority to grant relationship')
-  )
+  const own = [...root.agent.executions.values()].find(item => item.id === execution)
+  const text = canonical(authority)
+  const attachment = own?.attachments.find(item => canonical(item.authority) === text)
+  if (attachment === undefined) unavailable('original Authority to grant relationship')
+  return grantAttempt(root, execution, attachment.grant)
 }
 export function originalPending(
   root: CommonRoot,

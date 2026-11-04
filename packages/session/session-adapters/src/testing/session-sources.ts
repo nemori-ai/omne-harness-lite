@@ -28,6 +28,11 @@ export type SessionSources = Readonly<{
   attempts: ReadonlyMap<string, SessionAttemptRecord>
   attemptsByExecution: ReadonlyMap<string, readonly SessionAttemptRecord[]>
   runsByRun: ReadonlyMap<string, RunSource>
+  /**
+   * The attempt each grant was issued for, by the canonical grant (R2-D349). A grant is the
+   * receipt source of the commit that wrote the SE15, as the SQL provider records it in
+   * `sl_attempt_grant`; the evidence of the SE15 row (`started`) is not a grant here either.
+   */
   grants: ReadonlyMap<string, SessionAttemptRecord>
   grantByAttempt: ReadonlyMap<string, DurableEvidence>
   takenByExecution: ReadonlyMap<string, readonly SessionTakenRecord[]>
@@ -49,6 +54,34 @@ export const emptySessionSources = (): SessionSources => ({
   cursors: new Map(),
   taken: [],
 })
+/**
+ * The sources with the Session's attempt records of a snapshot in place of the folded ones: what
+ * the SQL provider gives the core before a write (R2-D349). `historyIndex.attempts` of the
+ * snapshot the write reads carries each attempt with the grant the Session issued for it; the
+ * records of the memory double are folded from its own log instead (`indexSession`).
+ */
+export function withAttemptRecords(
+  previous: SessionSources,
+  records: readonly SessionAttemptRecord[],
+): SessionSources {
+  const attempts = new Map<string, SessionAttemptRecord>()
+  const attemptsByExecution = new Map<string, SessionAttemptRecord[]>()
+  const grants = new Map<string, SessionAttemptRecord>()
+  const grantByAttempt = new Map<string, DurableEvidence>()
+  for (const record of records) {
+    attempts.set(record.attempt, record)
+    attemptsByExecution.set(record.execution, [
+      ...(attemptsByExecution.get(record.execution) ?? []),
+      record,
+    ])
+    if (record.grant !== undefined) {
+      grants.set(canonical(record.grant), record)
+      grantByAttempt.set(record.attempt, record.grant)
+    }
+  }
+  return { ...previous, attempts, attemptsByExecution, grants, grantByAttempt }
+}
+
 export function entryEvidence(namespace: string, row: HistoryEntry): DurableEvidence {
   return {
     owner: 'session-memory-journal',
@@ -115,23 +148,30 @@ export function indexSession(
     if (entry.kind === 'run.attempt-started') {
       const run = runsByRun.get(entry.run)
       if (!run) throw new Error('SE15 has no original SE13')
-      const attempt = {
+      // The index of the commit that wrote this row: `lastCommit` is its receipt. A row of an
+      // earlier commit (the double indexes a state it did not see committed) has no grant here;
+      // nothing stands in for the receipt.
+      const grant =
+        state.lastCommit !== null && state.lastCommit.revision === row.revision
+          ? state.lastCommit.source
+          : undefined
+      const attempt: SessionAttemptRecord = {
         run: entry.run,
         execution: run.execution,
         attempt: entry.attempt,
         ordinal: entry.ordinal,
         started: entryEvidence(namespace, row),
+        ...(grant === undefined ? {} : { grant }),
       }
       attempts.set(entry.attempt, attempt)
       attemptsByExecution.set(run.execution, [
         ...(attemptsByExecution.get(run.execution) ?? []),
         attempt,
       ])
-      const grant =
-        state.lastCommit?.revision === row.revision ? state.lastCommit.source : attempt.started
-      grants.set(canonical(attempt.started), attempt)
-      grants.set(canonical(grant), attempt)
-      grantByAttempt.set(entry.attempt, grant)
+      if (grant !== undefined) {
+        grants.set(canonical(grant), attempt)
+        grantByAttempt.set(entry.attempt, grant)
+      }
     }
     if (entry.kind === 'history.annotated' && 'execution' in entry) {
       const commit =

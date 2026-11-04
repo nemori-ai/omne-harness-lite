@@ -1,11 +1,13 @@
-// The K-23 bridge across provider copies (session-adapters SPEC K-23): a checkpoint change too
-// large for one fact is spilled whole into a block; a copy rebuilt from the facts must apply the
-// spilled members and the members set before and after them in the order the facts made them. What
-// is checked, on the node:sqlite double: after a large change, a cold provider loads the checkpoint
-// the writer loads; after the cold one moves one member, the writer (behind by one publication)
-// loads the moved member with the large members intact; two large changes in a row both survive.
-// Found on the line (w2 J2): the receivers' copy restored the position from before the spill and
-// published it as a move, which sent the Agent back to I2 with no pending call.
+// Large checkpoint changes across provider copies (session-adapters SPEC "事实族存储", K-23 end
+// state): a checkpoint member too large for one fact is spilled whole into a block; a copy
+// projected from the facts and the blocks must apply the spilled members and the members set
+// before and after them in the order the facts made them. What is checked, on the node:sqlite
+// double: after a large change, a cold provider loads the checkpoint the writer loads; after the
+// cold one moves one member, the writer (behind by one publication) loads the moved member with
+// the large members intact; two large changes in a row both survive. Found on the line (w2 J2),
+// under the former `core.*` bridge: the receivers' copy restored the position from before the
+// spill and published it as a move, which sent the Agent back to I2 with no pending call. The
+// bridge is gone (R2-D347); the cases stand on the projection.
 import { describe, expect, it } from 'vitest'
 import type { AgentCheckpoint, AgentJournal } from '@omne-harness/agent-contract'
 import { evidence } from '@omne-harness/session-contract/testing'

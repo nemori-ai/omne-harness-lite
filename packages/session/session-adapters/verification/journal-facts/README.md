@@ -10,7 +10,7 @@
 | --- | --- |
 | [models/JournalOught.tla](models/JournalOught.tla) | 行为模型：一个 execution，每步三批，外加认回、材料保存、重试、崩溃、恢复与存储拒绝 |
 | `models/journal.cfg`、`models/journal-wide.cfg` | 正控。两份检查同一组性质，`journal-wide` 放大步数、崩溃与重试 |
-| `models/bad-*.cfg` | 十一个负控。每份打开一个故意的错误，只检查它应命中的性质 |
+| `models/bad-*.cfg` | 十二个负控。每份打开一个故意的错误，只检查它应命中的性质 |
 | [models/run-tlc.sh](models/run-tlc.sh) | 运行全部配置并判读，见[运行](#运行) |
 | [formal-runs.md](formal-runs.md) | 运行记录：版本、参数、预算、结论与判读 |
 | [proofs/README.md](proofs/README.md) | 手写证明：前提 A1 到 A5，命题 1 到 7 的无界推广 |
@@ -28,6 +28,7 @@
 | P5 恢复等价 | 重启后折叠出的视图等于崩溃前最后一次成功提交留下的视图 | `P5_Recovery`（动作性质） | `bad-cache-only-p5` |
 | P6 幂等认回 | 一个操作一批，答复是本批的函数，同输入重试得到原答复 | `P6_OneBatchPerOp`、`P6_AnswerFromBatch`、`P6_RetryAgrees` | `bad-retry-reexecute-p6`：重试再执行一次 |
 | 失败不静默 | 存储拒绝后槽位为 `failed`，或命令待重发 | `RejectVisible` | `bad-silent-stop`：拒绝后槽位仍为 `running` |
+| P7 记录是投影 | 写者的读者记录等于折叠视图的投影；继任者只投影折叠，不存记录副本；记录所编号的事件就是折叠按规则判出的事件事实（K-23 终态，R2-D347） | `P7_RecordsProjected` | `bad-event-without-fact-p7`：写者给一条不带事件事实的命令（材料保存）编了一个事件 |
 | 单推进者 | 每批由日志所记的当前代次写入 | `GenGuard` | 无负控 |
 
 P4 对应 R2-D294 的第 3 条。那一条是传感器指标，不是不变式。模型用权重而不用字节，P4 只说明设计下自有部分的阶是线性的，系数显式。它不给出真实负载的比值。
@@ -49,6 +50,7 @@ P4 对应 R2-D294 的第 3 条。那一条是传感器指标，不是不变式�
 | `corePub` | 核心给下一批的位置：`append` 的 `pub = view.head + 1` | session-adapters 的 `src/testing/journal.ts`（`append`）与 `src/cordis/agent-journal.ts`（`restore`、`settleCommitted` 把 `view` 设为耐久折叠、清空 `log`） |
 | `answers`、`DeriveAt` | 实现不存答复。答复由 `answer` 从批与视图的操作索引推导。模型只为检查记下首次返回值 | session-adapters 的 `src/journal/answer.ts`，待车道确认。推导规则与缺口见 [answer-derivation.md](answer-derivation.md) |
 | `writerGen` | Authority 的代次 | Agent 契约的 `Authority.generation` |
+| `records`、`ProjectOf`、`NewEvents` | 写者的读者记录 `MemoryExecution` 等；继任者由 `projectRecords` 从视图与块投影；事件规则是折叠的 `eventOf` | session-adapters 的 `src/testing/journal-records.ts`、`src/journal/fold.ts`；`tests/journal-records-parity.spec.ts` 逐字段比对写者记录与投影 |
 | `slot`、`lastCommit` | 执行槽状态与最近一次提交结论 | `packages/agent/agent/src/provider.ts` 与 `run-failure.ts`（R2-D282，已合入） |
 | `Weight` | 字节抽象为权重：`C0` 每批，`WMember` 每个变了的成员，`WFact` 每条事实 | 折叠定律测试 `tests/journal-laws.spec.ts` 已在事实车道；批字节守卫与传感器待车道确认 |
 | `logContent` | Session 条目族的内容字节，每步加 `LogMin` 或 `LogBig` | 传感器的日志侧读数，待车道确认 |
@@ -61,7 +63,7 @@ P4 对应 R2-D294 的第 3 条。那一条是传感器指标，不是不变式�
 | `CommitReceive` | 结果接收方的接收共同提交：`result.received` 加保管块 | 一次存储事务 |
 | `CommitJudge` | 回复准入的 commit（Ja）：`reply.judged` 加同事务的历史消息 | 一次存储事务，Session 参加者同事务写条目 |
 | `Recognize` | 新操作认回已有事实：`op.recognized` 批，不推进 revision，`target` 指被认回的批 | 一次存储事务 |
-| `Preserve` | 材料 `preserve`：核心的批，信封加材料块，没有事实、不动游标、不推进 revision | 一次存储事务 |
+| `Preserve` | 材料 `preserve`：核心的批，一条 `material.preserved` 事实（不在模型的三类事实集合里）加材料块，不动游标、不推进 revision | 一次存储事务 |
 | `RetrySame`、`RetryConflict` | Agent SPEC「判定次序与失败映射」第 2 条：同语义输入认回原结果，异语义输入 `conflict` | 无写入 |
 | `Crash`、`Recover` | 进程重启；继任者冷启动折叠，再 `attach`，追加 `exec.attached` | `attach` 一次存储事务 |
 | `Refuse` | 存储在受理前拒绝（例如单命令上限），没有写入；驱动重发或把槽位改为 `failed` | 无写入 |

@@ -6,7 +6,8 @@
 //    字节、页数、fsync、每步提交次数与 Journal 自有字节对 `sl_entry` 字节的比值，写到 `tmp/journal-bytes/`。
 //    现状基线曲线从这里来，数字记在 `docs/engineering/perf-baseline.md`。
 // 2. 增长用例（慢层）：20 步断言第 20 步的最大一次发布 ≤ 第 5 步 + 2 KiB；200 步断言累计自有字节 ≤ J0 + W × 步数。
-//    现状下两条都会红，先 skip，终态 provider 合入后启用（R2-D294）。
+//    终态 provider（K-23 删桥）合入后启用（R2-D294、R2-D347）。没有完成的运行把记录里的终结事实写进
+//    `errors`，断言信息带上它，失败不静默。
 //
 // 世界：真实 session-adapters 的 Journal 提供者、真实 sqlite-provider、真实 Agent 循环；Model 与 Tool 是脚本
 // 替身。不访问网络。存储经 `vi.mock` 换成被记录器包住的版本（见 fixtures/journal-world.ts）。
@@ -15,6 +16,7 @@
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -32,6 +34,26 @@ const repoRoot = fileURLToPath(new URL('../../../../../', import.meta.url))
 const script = join(repoRoot, 'scripts', 'check-journal-facts.mjs')
 const runCheck = (...args: string[]) =>
   spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' })
+
+/**
+ * The rows of the former K-23 bridge (`core.*` kinds) in the measured databases: zero after the
+ * bridge was deleted (R2-D347). A copy of the reader records beside the facts would show up here.
+ */
+function coreRows(...files: string[]): number {
+  let count = 0
+  for (const file of files) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const row = db.prepare("SELECT COUNT(*) AS n FROM er_fact WHERE kind LIKE 'core.%'").get() as
+        | { n: number | bigint }
+        | undefined
+      count += Number(row?.n ?? 0)
+    } finally {
+      db.close()
+    }
+  }
+  return count
+}
 
 // --- 2. 测量入口 -------------------------------------------------------------------------------
 
@@ -104,13 +126,13 @@ describe('the measurement entry (OMNE_JOURNAL_BYTES=<case id,...|all>)', () => {
 
 const TIERS_UNDER_GUARD = ['small', '3k'] as const
 
-describe('Journal growth (enable with the final provider, R2-D294)', () => {
-  // 现状下的红读数（小消息档，release 的 command 上限，WIRE 4d5a7e0bc）：每步最大一次发布
+describe('Journal growth (R2-D294)', () => {
+  // 删桥前的红读数（小消息档，release 的 command 上限，WIRE 4d5a7e0bc）：每步最大一次发布
   // 231,217 / 405,558 / 579,926 / 754,600 / 929,352 字节，第 6 步被存储拒绝（command_limit），运行停止。
-  // 第 20 步没有读数，所以判据判红；负控见 `journal-measure.spec.ts` 的「the growth judgements」。
+  // 负控见 `journal-measure.spec.ts` 的「the growth judgements」。
   for (const tier of TIERS_UNDER_GUARD)
-    it.skip(
-      `20 steps, ${tier} messages: the largest publication of step 20 is at most step 5 plus 2 KiB (enable with the final provider, R2-D294)`,
+    it(
+      `20 steps, ${tier} messages: the largest publication of step 20 is at most step 5 plus 2 KiB (R2-D294)`,
       { tags: ['slow'], timeout: 1_800_000 },
       async () => {
         const { measureToolRun } = await import('./fixtures/journal-world.ts')
@@ -125,12 +147,13 @@ describe('Journal growth (enable with the final provider, R2-D294)', () => {
         expect(judged, JSON.stringify(judged)).toMatchObject({ ok: true })
         const facts = runCheck(...measured.databases)
         expect(facts.status, facts.stdout).toBe(0)
+        expect(coreRows(...measured.databases)).toBe(0)
       },
     )
 
   for (const tier of TIERS_UNDER_GUARD)
-    it.skip(
-      `200 steps, ${tier} messages: cumulative own bytes are at most J0 + W × steps (enable with the final provider, R2-D294)`,
+    it(
+      `200 steps, ${tier} messages: cumulative own bytes are at most J0 + W × steps (R2-D294)`,
       { tags: ['slow'], timeout: 7_200_000 },
       async () => {
         const { measureToolRun } = await import('./fixtures/journal-world.ts')
@@ -146,6 +169,7 @@ describe('Journal growth (enable with the final provider, R2-D294)', () => {
         expect(judged, JSON.stringify(judged)).toMatchObject({ ok: true })
         const facts = runCheck(...measured.databases)
         expect(facts.status, facts.stdout).toBe(0)
+        expect(coreRows(...measured.databases)).toBe(0)
       },
     )
 })

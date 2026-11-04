@@ -487,6 +487,17 @@ function headEvidence(
   }
 }
 
+/** A failure as the log names it: its kind, and the diagnostic or the field it carries. */
+function failureText(failure: Failure | SessionFailure): string {
+  const detail =
+    'diagnostic' in failure
+      ? failure.diagnostic
+      : 'field' in failure
+        ? `${failure.field}: ${failure.reason}`
+        : null
+  return detail === null ? failure.kind : `${failure.kind}: ${detail}`
+}
+
 /**
  * The AD-05 plugin and the call that reaches it. The plugin provides no key: it needs `session`
  * with the `coordinator` caller class, `agentJournal`, `agentMaterials` and `sessionTransactions`,
@@ -535,13 +546,22 @@ export function createSessionModelLogConsumptionPlugin<P>(
         }
         // AD-05 trigger: each successful write of the Journal names its execution; a consume after
         // it commits what was received since the saved progress, and nothing when nothing was.
+        // A failure is logged when it appears and when it changes, not on every event: the events
+        // of one step come faster than the entries settle (the execution changes while its entries
+        // are read, and the next event reads them again), and a failure that stays the same across
+        // events is one failure. A consumption that succeeds clears it, so its return is logged.
+        const failing = new Map<string, string>()
         subscribePublished(
           ctx,
           () => stopped,
           async target => {
             const answer = await guarded(target)
-            if ('failure' in answer)
-              logger.warn(`the consumption of ${target.execution} answered ${answer.failure.kind}`)
+            if ('failure' in answer) {
+              const said = failureText(answer.failure)
+              if (failing.get(target.execution) === said) return
+              failing.set(target.execution, said)
+              logger.warn(`the consumption of ${target.execution} answered ${said}`)
+            } else failing.delete(target.execution)
           },
         )
         ctx.effect(() => {

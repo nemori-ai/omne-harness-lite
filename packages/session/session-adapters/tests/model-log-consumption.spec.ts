@@ -200,6 +200,12 @@ async function assembled(
   mountOnly: readonly (typeof ALL)[number][] = ALL,
 ) {
   const ctx = new Context()
+  const logged: { type: string; text: string }[] = []
+  ctx.logger.exporter({
+    // Level 2 takes warn; the exporter default of 1 takes only error and success.
+    levels: { default: 2 },
+    export: message => logged.push({ type: message.type, text: String(message.args[0]) }),
+  })
   const callers: unknown[] = []
   const commits: Parameters<SessionTransactionPort<string>['commitEntries']>[0][] = []
   const reads = { work: 0, load: 0, material: 0 }
@@ -269,6 +275,7 @@ async function assembled(
     callers,
     commits,
     reads,
+    logged,
     plugin,
     consume: (other: Partial<typeof target> = {}) => consumption.consume({ ...target, ...other }),
   }
@@ -387,6 +394,40 @@ describe('AD-05 trigger: the event of the Journal plugin wakes the consumption',
     await published(f, s)
     await settle()
     expect(f.commits).toHaveLength(1)
+  })
+
+  it('a failure of the triggered consumption is logged when it appears and when it changes, not on every event', async () => {
+    const s = await modelScene('trigger-warn')
+    const wraps: Wraps = {
+      entries: async () =>
+        fail({ kind: 'unavailable', owner: 'agentJournalEntries', diagnostic: 'down' }),
+    }
+    const f = await assembled(s, wraps)
+    const warned = () => f.logged.filter(line => line.type === 'warn').map(line => line.text)
+    await receive(s, s.result, 'trigger-warn')
+    await published(f, s)
+    await published(f, s)
+    await settle()
+    // The same failure on two events: one named line, with the diagnostic.
+    expect(warned()).toEqual([`the consumption of ${s.execution} answered unavailable: down`])
+    // Another failure: another line.
+    wraps.entries = async () =>
+      fail({ kind: 'unavailable', owner: 'agentJournalEntries', diagnostic: 'gone' })
+    await published(f, s)
+    await settle()
+    expect(warned()).toHaveLength(2)
+    expect(warned()[1]).toContain('gone')
+    // A consumption that succeeds clears the failure, so its return is logged again.
+    delete wraps.entries
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(1)
+    wraps.entries = async () =>
+      fail({ kind: 'unavailable', owner: 'agentJournalEntries', diagnostic: 'down' })
+    await published(f, s)
+    await published(f, s)
+    await settle()
+    expect(warned()).toHaveLength(3)
   })
 
   it('a stopped plugin does not consume after the event', async () => {

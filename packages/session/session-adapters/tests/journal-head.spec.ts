@@ -84,7 +84,7 @@ describe('the head of the provider and the log of the core across a material pre
         value: factsMaterial('kept'),
       }),
     )
-    expect(lastFamilyKinds(s)).toEqual([])
+    expect(lastFamilyKinds(s)).toEqual(['material.preserved'])
 
     ok(await commit(s, journal, authority, 'after', c => ({ ...c, position: 'E3' })))
     expect(lastFamilyKinds(s)).toEqual(['cursor.moved'])

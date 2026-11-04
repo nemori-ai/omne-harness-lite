@@ -70,12 +70,34 @@ export function answeredRevision(view: SessionJournalView, batch: PublishedBatch
   return view.ops.get(batch.envelope.op)?.revision ?? batch.envelope.rev
 }
 
-/** The receipt of one batch: applied, at the revision the batch answers. */
+/**
+ * The receipt of one batch: applied, at the revision the batch answers. A recognition that recalls
+ * answers the recognized operation's own receipt, minted from that batch's coordinates in the
+ * index: warm and cold readers derive the same.
+ */
 export function receiptOf(
   mint: Mint,
   view: SessionJournalView,
   batch: PublishedBatch,
 ): CommandReceipt {
+  const recalled = batch.facts.find(fact => fact.kind === 'op.recognized' && fact.recalls === true)
+  const entry = recalled?.kind === 'op.recognized' ? view.ops.get(recalled.target) : undefined
+  if (recalled?.kind === 'op.recognized' && entry !== undefined)
+    return {
+      operation: recalled.target,
+      execution: batch.execution,
+      revision: revisionOf(entry.revision),
+      evidence: batchEvidence(
+        mint,
+        {
+          execution: batch.execution,
+          pub: entry.pub,
+          envelope: { digest: entry.digest },
+        } as PublishedBatch,
+        entry.revision,
+      ),
+      state: 'applied',
+    }
   const revision = answeredRevision(view, batch)
   return {
     operation: batch.envelope.op,

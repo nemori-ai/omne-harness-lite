@@ -15,10 +15,10 @@
 // answer of an operation is derived from its batch. A publication the storage did not commit
 // leaves the copy to be rebuilt from the facts.
 //
-// K-23 bridge: the core still keeps its state as `MemoryExecution` and produces no batch. Until it
-// does (JO-2b), `journal-batch.ts` derives the facts of a write from the core's records, and
-// `journal-core-stub.ts` appends the core's own changed records beside them as `core.*` facts, so
-// the copy can be rebuilt. Both go when the core folds the fact family; nothing else here changes.
+// K-23 end state (R2-D347 to R2-D349): the core appends the batches of the fact family; the
+// reader records of a copy (`MemoryExecution`, the operation records, the event fragments and
+// the receiving state) are projected from the fold and the blocks (`../testing/journal-records`),
+// never stored beside the facts. A row of the former `core.*` bridge does not decode (malformed).
 import { createHash, randomUUID } from 'node:crypto'
 import type {
   AgentExecutionId,
@@ -56,7 +56,6 @@ import {
 } from '@omne-harness/session-contract'
 import {
   EXECUTION_BATCH_MAX_FACTS,
-  EXECUTION_FACT_MAX_BYTES,
   SESSION_HISTORY_ROOT_HANDLER,
   SESSION_PROTOCOL,
   decodeExecutionRecordReply,
@@ -96,6 +95,7 @@ import {
   fold,
   receiptOf as batchReceiptOf,
   type BatchEnvelope,
+  type ExecutionView,
   type ParticipationKind,
   type PublishedBatch,
   type RequestView,
@@ -114,6 +114,8 @@ import {
   normalizedResult,
 } from '../testing/history.ts'
 import {
+  DEFAULT_EVENT_SCHEMA,
+  DEFAULT_REPLY_ADMISSION_RULE,
   createJournal,
   operationText,
   outrunParticipation,
@@ -131,27 +133,18 @@ import {
   type JournalCell,
 } from '../testing/root.ts'
 import {
-  coreBatchFacts,
+  blobRowDigest,
   coreBlobRows,
+  factDigestOf,
   type DerivedFact,
   type EventProjection,
 } from './journal-batch.ts'
 import {
-  ROOT_EXECUTION,
-  blobRowDigest,
-  blobsNamedIn,
-  coreBlobsNamed,
-  coreFacts,
-  coreRecordsOf,
-  decodeCore,
-  emptyCoreFold,
-  factDigestOf,
-  foldCore,
-  restoreCore,
-  type CoreFact,
-  type CoreFold,
-  type CoreRecords,
-} from './journal-core-stub.ts'
+  projectExecution,
+  projectRecords,
+  type ProjectedRecords,
+  type ProjectionContext,
+} from '../testing/journal-records.ts'
 import {
   readBatches,
   readBlob,
@@ -163,6 +156,7 @@ import {
   type ReadBatch,
   type Reader,
 } from './journal-read.ts'
+import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -216,9 +210,8 @@ export type JournalPublicationReport = Readonly<{
   batchBytes: number
   /** The bytes of the content blocks the commit carries. */
   blobBytes: number
-  /** How many facts the batch holds, the envelope included; how many of them the K-23 bridge wrote. */
+  /** How many facts the batch holds, the envelope included. */
   facts: number
-  coreFacts: number
   /**
    * `committed`: this call committed it; `recalled`: an earlier generation did; `rolled-back`: a
    * participant stopped it; `commit-unknown`: its outcome is not known; `unavailable`: the storage
@@ -274,11 +267,6 @@ type Scratch = {
 type Copy<P> = Readonly<{
   cell: JournalCell<P>
   core: ReturnType<typeof createJournal<P>>
-  /**
-   * The records as the facts hold them: what the next publication's `core.*` facts are the
-   * difference from. A held write put back into the copy is not in them until it is written.
-   */
-  durable: CoreRecords
 }>
 
 type CustodyAttempt =
@@ -310,10 +298,14 @@ type Book<P> = {
   readonly session: SessionId
   /** The view folded from the facts up to `published`. */
   view: SessionJournalView
-  /** The K-23 bridge: the core's records as the `core.*` facts left them, up to `published`. */
-  core: CoreFold
-  /** The content blocks read or written, by digest. */
+  /** The content blocks read or written, by row digest: the stored payload text. */
   readonly blobs: Map<string, string>
+  /**
+   * The blocks decoded, by the digest the facts name. A block is immutable under its digest, so
+   * it is decoded once per book, not once per copy built (a copy is rebuilt whenever another
+   * writer published; decoding every block again made each rebuild cost the whole history).
+   */
+  readonly parsed: Map<string, unknown>
   /** The copy of the core over the records at `published`; null when it must be built. */
   copy: Copy<P> | null
   /** The publication the view reflects; null when nothing was read yet (a cold start follows). */
@@ -729,9 +721,8 @@ export async function readExecutionInterpretation(
 }
 
 /**
- * Fetches into `into` every block of `digests` that it does not hold, and every block those name
- * in turn (a block may hold the marker of another). The first digest the tenant does not hold, or
- * null when all are there.
+ * Fetches into `into` every block of `digests` that it does not hold. The first digest the tenant
+ * does not hold, or null when all are there.
  */
 async function fetchBlobClosure(
   read: Reader,
@@ -739,25 +730,18 @@ async function fetchBlobClosure(
   digests: Iterable<string>,
   into: Map<string, string>,
 ): Promise<string | null> {
-  const queue = [...digests]
-  while (queue.length > 0) {
-    const digest = queue.pop()!
+  for (const digest of digests) {
     if (into.has(digest)) continue
     const payload = await readBlob(read, tenant, digest)
     if (typeof payload !== 'string') return digest
     into.set(digest, payload)
-    queue.push(...blobsNamedIn(payload))
   }
   return null
 }
 
-/** The records of one execution a reader outside the provider needs: its handoffs and authorities. */
+/** The records of one execution a reader outside the provider needs: its handoffs and attachments. */
 export type ExecutionRecordsRead =
-  | Readonly<{
-      kind: 'read'
-      execution: MemoryExecution | null
-      authorities: CommonRoot['agent']['authorities']
-    }>
+  | Readonly<{ kind: 'read'; execution: MemoryExecution | null }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 const HEX_DIGEST = /^[0-9a-f]{64}$/
@@ -784,16 +768,56 @@ function refsIn(value: unknown, into = new Set<string>()): Set<string> {
   return into
 }
 
+/** The obligation block digests an issued list names: `[id, digest]` pairs in its list block. */
+function listedDigests(payload: string): string[] {
+  const value = JSON.parse(payload) as unknown
+  if (!Array.isArray(value)) return []
+  return value.flatMap(item =>
+    Array.isArray(item) && typeof item[1] === 'string' && HEX_DIGEST.test(item[1]) ? [item[1]] : [],
+  )
+}
+
 /**
- * The fold one reader outside the provider keeps of a session, up to `head`: the root's facts and
- * the facts of the executions it was asked about. The next read folds only the batches after the
- * head (and, for an execution asked about for the first time, that execution's facts), so a read
- * does not grow with the session.
+ * Fetches the blocks the facts of `executions` name (the cursor members, the custody of results,
+ * the finish records, the materials), then the obligation blocks their issued lists name through
+ * the list block (R2-D322: a close names its items by id and digest in a block, not by reference).
+ * The digest of the first block that is not readable, or null.
+ */
+async function fetchNamed(
+  read: Reader,
+  tenant: string,
+  executions: Iterable<ExecutionView>,
+  into: Map<string, string>,
+): Promise<string | null> {
+  const named = new Set<string>()
+  const lists: string[] = []
+  for (const execution of executions) {
+    for (const ref of refsIn(execution)) named.add(blobRowDigest(ref))
+    for (const list of execution.finish.lists.values()) lists.push(list.issued.listed.digest)
+  }
+  const missing = await fetchBlobClosure(read, tenant, named, into)
+  if (missing !== null) return missing
+  const items = new Set<string>()
+  for (const digest of lists) {
+    const payload = into.get(blobRowDigest(digest))
+    if (payload === undefined) continue
+    for (const item of listedDigests(payload)) items.add(blobRowDigest(item))
+  }
+  return fetchBlobClosure(read, tenant, items, into)
+}
+
+/**
+ * The fold one reader outside the provider keeps of a session, up to `head`: the facts of the
+ * executions it was asked about. The next read folds only the batches after the head (and, for an
+ * execution asked about for the first time, that execution's facts), so a read does not grow with
+ * the session.
  */
 type RecordsFold = {
   head: number
-  fold: CoreFold
+  view: SessionJournalView
   blobs: Map<string, string>
+  /** The blocks decoded, by the digest the facts name (see `Book.parsed`). */
+  parsed: Map<string, unknown>
   executions: Set<string>
 }
 
@@ -814,7 +838,13 @@ function recordsFoldOf(storage: SqlStorage, key: string): RecordsFold {
     folds.set(key, found)
     return found
   }
-  found = { head: 0, fold: emptyCoreFold(), blobs: new Map(), executions: new Set() }
+  found = {
+    head: 0,
+    view: emptySessionView(),
+    blobs: new Map(),
+    parsed: new Map(),
+    executions: new Set(),
+  }
   folds.set(key, found)
   while (folds.size > RECORDS_FOLDS) {
     const oldest = folds.keys().next().value
@@ -826,11 +856,11 @@ function recordsFoldOf(storage: SqlStorage, key: string): RecordsFold {
 
 /**
  * Reads the records of one execution from its facts: what `message-handoff` and the conditions of
- * AD-05 read of a P and the attempt its advance was granted under. The first read of an execution
- * folds its facts and the root's from the first publication; a later read folds only the batches
- * after the publication the kept fold reached (session-storage-sql RT-04 owner list, item 3), so
- * one read is bounded by the step, not by the session. It reads only. K-23 bridge: it folds the
- * `core.*` facts; when the core folds the family, it folds the family.
+ * AD-05 read of a P and the grant of the attachment an Authority names. The first read of an
+ * execution folds its facts from the first publication; a later read folds only the batches after
+ * the publication the kept fold reached (session-storage-sql RT-04 owner list, item 3), so one
+ * read is bounded by the step, not by the session. It reads only: the record is projected from
+ * the fold and the blocks it names, as the provider's own copy is.
  */
 export async function readExecutionRecords(
   options: JournalStateSource,
@@ -840,57 +870,52 @@ export async function readExecutionRecords(
   if ('kind' in resolved) return resolved
   const scope = { tenant: resolved.tenant, session: target.session }
   const kept = recordsFoldOf(options.storage, JSON.stringify([resolved.tenant, target.session]))
-  // The root first: its publication count is the snapshot of this read; the execution's batches
-  // after it stay for the next read, so the fold never holds a later batch before an earlier one.
-  const root = await readBatches(resolved.read, scope, kept.head, ROOT_EXECUTION)
-  if (root.kind === 'unavailable') return root
   const known = kept.executions.has(target.execution)
   const own = await readBatches(resolved.read, scope, known ? kept.head : 0, target.execution)
   if (own.kind === 'unavailable') return own
-  const head = Math.max(kept.head, root.published)
-  const batches = [...root.batches, ...own.batches]
+  const head = Math.max(kept.head, own.published)
+  const batches = [...own.batches]
     .filter(batch => batch.pub <= head)
     .sort((left, right) => left.pub - right.pub)
-  for (const batch of batches) for (const fact of batch.core) foldCore(kept.fold, fact)
+  for (const batch of batches) if (batch.batch !== null) kept.view = fold(kept.view, batch.batch)
+  kept.view = { ...kept.view, head: Math.max(kept.view.head, head) }
   kept.head = head
   kept.executions.add(target.execution)
-  // Only the execution asked about is decoded, with the root's authorities of it: the cost of one
-  // read is that execution's, whatever the session holds.
-  const authorities = new Map<string, [JsonValue, JsonValue]>()
-  for (const [key, entry] of kept.fold.root.maps.get('authorities') ?? [])
-    if (typeof entry[0] === 'string' && entry[0].startsWith(`${target.execution}\0`))
-      authorities.set(key, entry)
-  const found = kept.fold.executions.get(target.execution)
-  const part: CoreFold = {
-    executions: new Map(found === undefined ? [] : [[target.execution, found]]),
-    root: { lists: new Map(), maps: new Map([['authorities', authorities]]) },
-  }
-  const missing = await fetchBlobClosure(
-    resolved.read,
-    resolved.tenant,
-    coreBlobsNamed(part),
-    kept.blobs,
-  )
+  const found = kept.view.executions.get(target.execution as AgentExecutionId)
+  if (found === undefined || found.opened === null) return { kind: 'read', execution: null }
+  const missing = await fetchNamed(resolved.read, resolved.tenant, [found], kept.blobs)
   if (missing !== null)
     return { kind: 'unavailable', diagnostic: `the content block ${missing} is not readable` }
   try {
-    const records = restoreCore(
-      part,
-      digest => {
-        const payload = kept.blobs.get(digest)
-        if (payload === undefined) throw new TypeError(`no content block ${digest}`)
-        return payload
-      },
-      execution => JSON.stringify([resolved.tenant, execution.id]),
-    )
-    return {
-      kind: 'read',
-      execution:
-        [...records.executions.values()].find(item => item.id === target.execution) ?? null,
-      authorities: records.agent.authorities,
-    }
+    const execution = projectExecution(
+      found,
+      projectionContext(target.tenant, resolved.tenant, target.session, kept.blobs, kept.parsed),
+    ) as MemoryExecution
+    return { kind: 'read', execution }
   } catch (error) {
     return { kind: 'unavailable', diagnostic: `the Agent records do not decode: ${String(error)}` }
+  }
+}
+
+/** What a projection reads besides the view: the blocks by the digest the facts name, and the mint. */
+function projectionContext(
+  tenant: TenantId,
+  tenantText: string,
+  session: SessionId,
+  rows: ReadonlyMap<string, string>,
+  parsed: Map<string, unknown>,
+): ProjectionContext {
+  // The blocks not decoded yet join the decoded ones; the rest are kept as they are.
+  for (const [row, payload] of rows) {
+    const digest = factDigestOf(row)
+    if (!parsed.has(digest)) parsed.set(digest, JSON.parse(payload) as unknown)
+  }
+  return {
+    tenant,
+    blobs: parsed,
+    mint: { owner: JOURNAL_OWNER, session: JSON.stringify([tenantText, session]) },
+    eventSchema: DEFAULT_EVENT_SCHEMA,
+    admissionRule: DEFAULT_REPLY_ADMISSION_RULE,
   }
 }
 
@@ -908,8 +933,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         tenantText: text.value,
         session,
         view: emptySessionView(),
-        core: emptyCoreFold(),
         blobs: new Map(),
+        parsed: new Map(),
         copy: null,
         published: null,
         loaded: new Set(),
@@ -938,7 +963,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   const scopeOf = (book: Book<P>) => ({ tenant: book.tenantText, session: book.session })
-  const mintOf = (book: Book<P>) => ({ owner: OWNER, session: book.session })
+  // The mint of the batch evidence is the core's (its owner and the session namespace): what the
+  // provider derives from a stored batch is what the core answered when it wrote it.
+  const mintOf = (book: Book<P>) => ({
+    owner: JOURNAL_OWNER,
+    session: JSON.stringify([book.tenantText, book.session]),
+  })
 
   /**
    * The Session snapshot the `advances` check of this call reads, through the work cache of the
@@ -1085,7 +1115,15 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         try {
           result = normalizedResult(root, execution, caller.consumption, caller.result).result
         } catch (error) {
-          return fail(unavailable(error instanceof Error ? error.message : 'original result'))
+          return fail(
+            unavailable(
+              error instanceof HistoryFailure && error.failure.kind === 'unavailable'
+                ? error.failure.diagnostic
+                : error instanceof Error
+                  ? error.message
+                  : 'original result',
+            ),
+          )
         }
         const consumption = String(caller.consumption) as ConsumptionId
         return succeed(
@@ -1188,37 +1226,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  /**
-   * The open or attach of an ordinary grant: the attempt it names is the advance of the active Run
-   * of this execution, and the check in the same commit verifies it. A cancel wind-down attachment
-   * has none.
-   */
-  function rememberAuthority(book: Book<P>, cell: JournalCell<P>, input: ExecutionMutation<P>) {
-    const snapshot = book.scratch?.snapshot ?? null
-    const root = cell.state()
-    const execution = [...root.agent.executions.values()].find(item => item.id === input.execution)
-    const authority = execution?.attachments.at(-1)?.authority
-    if (
-      authority === undefined ||
-      snapshot === null ||
-      snapshot.run.kind !== 'active' ||
-      snapshot.run.advance === null ||
-      snapshot.run.execution.execution !== input.execution
-    )
-      return
-    const grant =
-      'runtime' in input ? (input as OpenInput<P>).runtime.grant : (input as AttachInput<P>).grant
-    root.agent.authorities.set(`${input.execution}\0${canonical(authority)}`, {
-      run: snapshot.run.run,
-      attempt: snapshot.run.advance.attempt,
-      execution: input.execution,
-      ordinal: snapshot.run.ordinal,
-      started: grant ?? receiptStub(input.execution),
-    })
-  }
-
-  /** Fills a new root with the records of the session. */
-  function restore(book: Book<P>, cell: JournalCell<P>, records: CoreRecords): void {
+  /** Fills a new root with the records of the session, projected from its fold and blocks. */
+  function restore(book: Book<P>, cell: JournalCell<P>, records: ProjectedRecords): void {
     cell.mutate(() => {
       const root = cell.state()
       const into = <K, V>(target: Map<K, V>, source: ReadonlyMap<K, V>) => {
@@ -1226,31 +1235,17 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       }
       // The fact family of the core is the book's: the view at the publication count, the blocks
       // by the digest the facts name. The core appends at `view.head + 1`; its log holds only the
-      // batches it appends from here, which the provider publishes (K-23).
+      // batches it appends from here, which the provider publishes.
       root.agent.view = book.view
       root.agent.log = []
-      const lookup = (digest: string): string => {
-        const payload = book.blobs.get(digest)
-        if (payload === undefined) throw new TypeError(`no content block ${digest}`)
-        return payload
-      }
-      for (const [row, payload] of book.blobs)
-        root.agent.blobs.set(
-          factDigestOf(row),
-          decodeCore(JSON.parse(payload) as JsonValue, lookup),
-        )
+      for (const [digest, value] of book.parsed) root.agent.blobs.set(digest, value)
       into(root.agent.executions, records.executions)
-      into(root.agent.operations, records.agent.operations)
-      root.agent.jointFacts.push(...records.agent.jointFacts)
-      into(root.agent.authorities, records.agent.authorities)
-      into(root.agent.eventReceipts, records.agent.eventReceipts)
-      into(root.agent.pendingEvents, records.agent.pendingEvents)
-      into(root.agent.callOrigins, records.agent.callOrigins)
-      into(root.agent.human, records.agent.human)
-      into(root.agent.indexedEvents, records.agent.indexedEvents)
-      for (const execution of root.agent.executions.values())
-        if (!root.agent.indexedEvents.has(execution.id))
-          root.agent.indexedEvents.set(execution.id, execution.events.length)
+      into(root.agent.operations, records.operations)
+      into(root.agent.eventReceipts, records.fragments.eventReceipts)
+      into(root.agent.pendingEvents, records.fragments.pendingEvents)
+      into(root.agent.callOrigins, records.fragments.callOrigins)
+      into(root.agent.human, records.fragments.human)
+      into(root.agent.indexedEvents, records.fragments.indexedEvents)
       for (const name of Object.keys(records.receiving) as (keyof CommonRoot['receiving'])[])
         into(
           root.receiving[name] as Map<unknown, unknown>,
@@ -1264,35 +1259,36 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   function build(book: Book<P>): Copy<P> {
     const cell: JournalCell<P> = createCell<P>(book.tenant, book.session, {
       authorize: () => undefined,
+      // R2-D348: the Authority's attachment names its grant; the Session's attempt records of
+      // the snapshot name the attempt that grant was issued for (R2-D349); it must be the advance.
       advances(execution, authority): boolean {
         const snapshot = book.scratch?.snapshot ?? null
         if (snapshot === null || snapshot.run.kind !== 'active' || snapshot.run.advance === null)
           return false
         if (snapshot.run.execution.execution !== execution) return false
-        const attempt = cell.state().agent.authorities.get(`${execution}\0${canonical(authority)}`)
+        const own = [...cell.state().agent.executions.values()].find(item => item.id === execution)
+        const attempt = attemptOfAuthority(
+          own?.attachments ?? [],
+          snapshot.historyIndex?.attempts,
+          authority,
+        )
         return attempt?.attempt === snapshot.run.advance.attempt
       },
       participate: (input, method, receipt, decision) =>
         participation(book, cell, input, method, receipt, decision),
       committed(input, method, receipt) {
-        if (method === 'open' || method === 'attach') rememberAuthority(book, cell, input)
         captureFresh(cell.state(), input.execution, receipt, options.fault)
         return undefined
       },
     })
-    const records = restoreCore(
-      book.core,
-      digest => {
-        const payload = book.blobs.get(digest)
-        if (payload === undefined) throw new TypeError(`no content block ${digest}`)
-        return payload
-      },
-      execution => JSON.stringify([book.tenantText, execution.id]),
+    restore(
+      book,
+      cell,
+      projectRecords(
+        book.view,
+        projectionContext(book.tenant, book.tenantText, book.session, book.blobs, book.parsed),
+      ),
     )
-    restore(book, cell, records)
-    // The difference a publication writes is taken from here: a held write put back below is not
-    // in the facts until a publication writes it.
-    const durable = coreRecordsOf(cell.current())
     putBack(book, cell)
     const core = createJournal<P>(cell, {
       participants: PARTICIPANTS,
@@ -1303,7 +1299,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
       ...(options.hostRecords === undefined ? {} : { hostRecords: options.hostRecords }),
     })
-    return { cell, core, durable }
+    return { cell, core }
   }
 
   /** Puts the held writes back into a rebuilt copy, unless the durable records already decided them. */
@@ -1340,6 +1336,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         root.agent.operations.set(at, {
           kind: 'excluded',
           key: held.key,
+          execution: held.execution,
+          operation: held.operation,
+          reason: 'dropped',
           evidence: {
             owner: OWNER,
             record,
@@ -1375,13 +1374,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return changed
   }
 
-  const receiptStub = (execution: string) => ({
-    owner: OWNER,
-    record: `${execution}/grant`,
-    revision: '0',
-    digest: 'none',
-  })
-
   /** The common root of the session in one read, or null when it is not readable. */
   async function readRoot(book: Book<P>, domain: DomainRef) {
     const output = await readOutput(options.storage, {
@@ -1393,12 +1385,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return output === null ? null : decodeSessionHistoryRoot(output)
   }
 
-  /** Folds the batches read into the view and the bridge fold; the copy is then stale. */
+  /** Folds the batches read into the view; the copy is then stale. */
   function foldRead(book: Book<P>, batches: readonly ReadBatch[], published: number): void {
-    for (const batch of batches) {
-      if (batch.batch !== null) book.view = fold(book.view, batch.batch)
-      for (const fact of batch.core) foldCore(book.core, fact)
-    }
+    for (const batch of batches) if (batch.batch !== null) book.view = fold(book.view, batch.batch)
     book.view = { ...book.view, head: Math.max(book.view.head, published) }
     book.published = published
     book.copy = null
@@ -1407,14 +1396,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   /**
    * Folds the facts of one execution read whole, after the view's head moved past them (an ended
    * execution the cold start did not read): they fold into a view of their own, which is then
-   * joined to the book's. The bridge fold takes them as they are.
+   * joined to the book's.
    */
   function foldExecution(book: Book<P>, batches: readonly ReadBatch[]): void {
     let side = emptySessionView()
-    for (const batch of batches) {
-      if (batch.batch !== null) side = fold(side, batch.batch)
-      for (const fact of batch.core) foldCore(book.core, fact)
-    }
+    for (const batch of batches) if (batch.batch !== null) side = fold(side, batch.batch)
     book.view = {
       head: book.view.head,
       executions: new Map([...book.view.executions, ...side.executions]),
@@ -1451,14 +1437,15 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return succeed(book.copy)
   }
 
-  /** Fetches the content blocks the bridge fold names that the book does not hold yet. */
+  /** Fetches the content blocks the facts of the view name that the book does not hold yet. */
   async function fetchBlobs(book: Book<P>, read: Reader): Promise<Failure | null> {
-    // The blocks the bridge names, and the blocks the facts of the view refer to (the cursor
-    // members, the custody of results, the finish records): the core reads them by digest.
-    const named = coreBlobsNamed(book.core)
-    for (const execution of book.view.executions.values())
-      for (const ref of refsIn(execution)) named.add(blobRowDigest(ref))
-    const missing = await fetchBlobClosure(read, book.tenantText, named, book.blobs)
+    // The blocks the facts of the view refer to: the core reads them by digest.
+    const missing = await fetchNamed(
+      read,
+      book.tenantText,
+      book.view.executions.values(),
+      book.blobs,
+    )
     return missing === null
       ? null
       : unavailable(`the content block ${missing} of the Agent records is not readable`)
@@ -1476,7 +1463,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const published = Number(root.published)
     const read = readerOf(options.storage, domain)
     if (book.published === null) {
-      const cold = await readColdStart(read, scopeOf(book), ROOT_EXECUTION)
+      const cold = await readColdStart(read, scopeOf(book))
       if (cold.kind === 'unavailable') return fail(unavailable(cold.diagnostic))
       foldRead(book, cold.batches, cold.published)
       for (const execution of cold.executions) book.loaded.add(execution)
@@ -1607,12 +1594,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
 
   /**
    * The reverse input directory rows of an open or a submit: the accepted input, its original grant
-   * and attachment, and the original attempt of that attachment as the commit hook of the open or
-   * attach recorded it. An attachment without a recorded attempt has none; nothing is guessed from
-   * the current advance.
+   * and attachment, and the original attempt of that attachment: the attempt the Session issued
+   * the attachment's grant for, in the snapshot of this write (R2-D349). An attachment whose grant
+   * names no attempt has none; nothing is guessed from the current advance.
    */
   function admissionsOf(
-    after: CommonRoot,
     written: Written,
     own: MemoryExecution | undefined,
     receipt: CommandReceipt | null,
@@ -1627,9 +1613,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         : check?.kind === 'submit'
           ? check.value.input
           : null
-    const attachment = own.attachments.at(-1)?.authority
+    const attachment = own.attachments.at(-1)
     if (input === null || attachment === undefined) return []
-    const original = after.agent.authorities.get(`${own.id}\0${canonical(attachment)}`)
+    const original = attemptOfGrant(
+      scratch.snapshot?.historyIndex?.attempts,
+      own.id,
+      attachment.grant,
+    )
     return [
       {
         input,
@@ -1637,7 +1627,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         operation: written.operation ?? '',
         accepted: receipt.evidence,
         grant: check?.kind === 'open' ? check.grant : receipt.evidence,
-        attachment: attachment.executionAttachment,
+        attachment: attachment.authority.executionAttachment,
         ...(original === undefined ? {} : { attempt: original.attempt }),
       },
     ]
@@ -1647,7 +1637,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   type Prepared = Readonly<{
     envelope: BatchEnvelope
     derived: readonly DerivedFact[]
-    core: readonly CoreFact[]
     records: readonly ExecutionFactRecord[]
     blobs: readonly ExecutionBlobRecord[]
     /** The bytes of the envelope and the fact bodies, without the blocks. */
@@ -1678,14 +1667,15 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   /**
-   * Prepares the batch of one write: the facts of the family derived from the core's records, the
-   * `core.*` facts of the bridge, the envelope, and the blocks both name. A family fact that
-   * carries content or exceeds `FACT_MAX_BYTES` is refused as `invalid` (the run-time guard of
-   * P3); a batch of more facts than the store takes is `unavailable`.
+   * Prepares the batch of one write: the facts of the family the core appended, each fact that is
+   * an event with the projection of that event (the Session reads it from the row), the envelope,
+   * and the blocks the facts name. A family fact that carries content or exceeds `FACT_MAX_BYTES`
+   * is refused as `invalid` (the run-time guard of P3); a batch of more facts than the store takes
+   * is `unavailable`; facts that do not name the events the write appended, in order, are a defect
+   * of the writer and `unavailable`.
    */
   function prepare(
     book: Book<P>,
-    durable: CoreRecords,
     after: CommonRoot,
     own: MemoryExecution | undefined,
     appended: readonly PublishedBatch[],
@@ -1696,7 +1686,37 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     // The batches the core appended in this write: its facts are the family's facts, its blocks
     // the rows to store.
     coreBlobRows(after.agent.blobs, row => book.blobs.has(row), blobs)
-    const derived: DerivedFact[] = coreBatchFacts(appended)
+    // The event each event fact projects: the fold decides which facts are events and numbers
+    // them (`eventOf`, the one place of the rule); the core's view after the write holds the
+    // fold of the appended batches. The writer numbers its events the same way
+    // (`tests/journal-records-parity.spec.ts` holds the two equal).
+    const execution = appended[0]!.execution
+    const events = new Map(
+      (after.agent.view.executions.get(execution)?.events ?? []).map(
+        event => [`${String(event.pub)}/${String(event.ord)}`, event] as const,
+      ),
+    )
+    const derived: DerivedFact[] = []
+    for (const batch of appended)
+      for (const [index, fact] of batch.facts.entries()) {
+        const folded = events.get(`${String(batch.pub)}/${String(index + 1)}`)
+        if (folded === undefined) {
+          derived.push({ fact, event: null })
+          continue
+        }
+        const event = own?.events[folded.eseq - 1]
+        if (own === undefined || event === undefined || event.body.kind !== folded.kind) {
+          const first = [...events.values()][0]?.eseq ?? folded.eseq
+          const appended = (own?.events ?? []).slice(first - 1).map(item => item.body.kind)
+          const projected = [...events.values()].map(item => item.kind)
+          return fail(
+            unavailable(
+              `the facts of ${written.method} do not name the events it appended (fact ${fact.kind} at ${String(folded.eseq)}; the facts project [${projected.join(', ')}], the write appended [${appended.join(', ')}])`,
+            ),
+          )
+        }
+        derived.push({ fact, event: projectionOf(after, own, event, options.fault) })
+      }
     for (const [index, item] of derived.entries()) {
       const found = contentPath(item.fact)
       if (found !== null)
@@ -1708,15 +1728,10 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       if (Buffer.byteLength(canonical(item.fact), 'utf8') > FACT_MAX_BYTES)
         return fail({ kind: 'invalid', field: `facts[${String(index)}]`, reason: 'oversize' })
     }
-    const bridge = coreFacts(durable, coreRecordsOf(after), EXECUTION_FACT_MAX_BYTES - 256)
-    for (const blob of bridge.blobs) blobs.set(blob.digest, blob)
     // The envelope is the core's: the answer the core derived was minted on it, and a reader
     // derives the same answer from the stored batch. The participation kinds are the provider's:
     // the Session commands this commit carries.
     const envelope: BatchEnvelope = { ...appended.at(-1)!.envelope, kinds: kindsOf(scratch) }
-    // A new event without a family fact carries its projection on the bridge fact of the event.
-    const projectedSequences = new Set(derived.map(item => item.event?.sequence ?? ''))
-    const execution = appended[0]!.execution
     const records: ExecutionFactRecord[] = [
       { execution, kind: 'batch', body: envelope as unknown as JsonValue },
       ...derived.map(item => ({
@@ -1725,23 +1740,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         body: item.fact as unknown as JsonValue,
         ...(item.event === null ? {} : { event: item.event }),
       })),
-      ...bridge.facts.map(fact => {
-        const { execution: at, ...body } = fact
-        const event =
-          fact.kind === 'core.item' && fact.list === 'events' && own !== undefined && at === own.id
-            ? own.events[fact.index]
-            : undefined
-        const projection =
-          event !== undefined && own !== undefined && !projectedSequences.has(event.sequence)
-            ? projectionOf(after, own, event, options.fault)
-            : undefined
-        return {
-          execution: at,
-          kind: fact.kind,
-          body: body as unknown as JsonValue,
-          ...(projection === undefined ? {} : { event: projection }),
-        }
-      }),
     ]
     if (records.length > EXECUTION_BATCH_MAX_FACTS)
       return fail(
@@ -1749,22 +1747,16 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           `the batch of ${written.method} holds ${String(records.length)} facts, more than ${String(EXECUTION_BATCH_MAX_FACTS)}`,
         ),
       )
-    const familyBytes = batchBytes({
-      execution: execution as AgentExecutionId,
-      envelope,
-      facts: derived.map(item => item.fact),
-    })
-    const bridgeBytes = bridge.facts.reduce(
-      (sum, fact) => sum + Buffer.byteLength(JSON.stringify(fact), 'utf8'),
-      0,
-    )
     return succeed({
       envelope,
       derived,
-      core: bridge.facts,
       records,
       blobs: [...blobs.values()],
-      batchBytes: familyBytes + bridgeBytes,
+      batchBytes: batchBytes({
+        execution: execution as AgentExecutionId,
+        envelope,
+        facts: derived.map(item => item.fact),
+      }),
     })
   }
 
@@ -1868,7 +1860,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     )
     let prepared: Prepared
     try {
-      const made = prepare(book, copy.durable, after, own, appended, written, scratch)
+      const made = prepare(book, after, own, appended, written, scratch)
       if ('failure' in made) return { kind: 'answer', value: made }
       prepared = made.ok
     } catch (error) {
@@ -1897,7 +1889,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         facts: prepared.records,
         blobs: blobs.ok,
         boundaries: boundariesOf(changed, receipt),
-        admissions: admissionsOf(after, written, own, receipt, scratch),
+        admissions: admissionsOf(written, own, receipt, scratch),
       }),
       ...scratch.checks.map(check => sessionCheckFacts(check)),
       ...scratch.commands.map(command => sessionCommandFacts(command, [])),
@@ -1979,7 +1971,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           0,
         ),
         facts: prepared.records.length,
-        coreFacts: prepared.core.length,
         diagnostic: null,
         ...known,
       })
@@ -2049,7 +2040,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
     book.view = fold(book.view, batch)
     book.view = { ...book.view, head: Math.max(book.view.head, pub) }
-    for (const fact of prepared.core) foldCore(book.core, fact)
     for (const blob of prepared.blobs) book.blobs.set(blob.digest, blob.payload)
     book.published = pub
     // The published fold is the one source of position: the core's view is set to it, and the
@@ -2061,16 +2051,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       root.agent.log = []
       job.copy.cell.touch()
       for (const blob of prepared.blobs)
-        root.agent.blobs.set(
-          factDigestOf(blob.digest),
-          decodeCore(JSON.parse(blob.payload) as JsonValue, digest => {
-            const payload = book.blobs.get(digest)
-            if (payload === undefined) throw new TypeError(`no content block ${digest}`)
-            return payload
-          }),
-        )
+        root.agent.blobs.set(factDigestOf(blob.digest), JSON.parse(blob.payload) as unknown)
     })
-    book.copy = { ...job.copy, durable: coreRecordsOf(job.copy.cell.current()) }
+    book.copy = job.copy
     // What the copy holds is now durable: an excluded write, and one the Journal core fenced.
     for (const at of book.held.keys()) {
       const record = job.after.agent.operations.get(at)
@@ -2216,6 +2199,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           snapshot: READS.has(method) ? null : await snapshotOf(book, domain.ok),
         }
         book.scratch = scratch
+        // The Session's attempt records of this call's snapshot, with the grant each was issued
+        // for (R2-D349): the core resolves an Authority's attempt through them (`history.ts`).
+        // Adopted before `before` is taken, so adopting alone is not a write.
+        const attempts = scratch.snapshot?.historyIndex?.attempts
+        if (attempts !== undefined) copy.cell.mutate(() => copy.cell.adoptAttemptRecords(attempts))
         const before = copy.cell.current()
         let answer: Outcome<T, Failure>
         try {

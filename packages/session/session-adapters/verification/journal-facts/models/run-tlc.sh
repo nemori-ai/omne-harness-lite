@@ -33,6 +33,7 @@ bad-retry-reexecute-p6 P6_OneBatchPerOp
 bad-silent-stop RejectVisible
 bad-second-position-p1 P1_OnePosition
 bad-second-position-facts P1_FactsPublished
+bad-event-without-fact-p7 P7_RecordsProjected
 "
 
 WORK=$(mktemp -d "$HOME/journal-facts.XXXXXX") || exit 2

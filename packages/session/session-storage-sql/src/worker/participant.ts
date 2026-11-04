@@ -1013,6 +1013,8 @@ function publishCommand(
   })
   if (written.kind !== 'written') return written
   const { epoch, bytes } = written
+  const granted = recordAttemptGrants(port, { tenant, session, entries, receipt })
+  if (granted !== null) return granted
   const admitted = admittedInput(command)
   if (admitted !== null)
     port.execute(
@@ -1172,6 +1174,8 @@ function publishSameLog(
   })
   if (written.kind !== 'written') return written
   const { epoch, bytes } = written
+  const granted = recordAttemptGrants(port, { tenant, session, entries, receipt })
+  if (granted !== null) return granted
   const saved = record(receipt)
   insertOperation(port, {
     tenant,
@@ -1279,6 +1283,35 @@ function evidenceOf(value: JsonValue | undefined): string | null | 'malformed' {
   return [owner, record, revision, digest].every(member => typeof member === 'string')
     ? JSON.stringify({ owner, record, revision, digest })
     : 'malformed'
+}
+
+/**
+ * The grant of each SE15 row of the batch (R2-D349): the source of the batch receipt, which the
+ * Session hands to the Agent as the grant of the attempt, keyed by the attempt and placed at the
+ * row's position. Written in the transaction that writes the rows; an SE15 row without its attempt
+ * fails the commit.
+ */
+function recordAttemptGrants(
+  port: ParticipantPort,
+  input: Readonly<{
+    tenant: string
+    session: string
+    entries: readonly HistoryEntry[]
+    receipt: CommitReceipt
+  }>,
+): ParticipantReply | null {
+  const { tenant, session, entries, receipt } = input
+  for (const entry of entries) {
+    if (entry.kind !== 'run.attempt-started') continue
+    const { attempt } = (plainOf(entry.payload) ?? {}) as Record<string, unknown>
+    if (typeof attempt !== 'string')
+      return { kind: 'failed', diagnostic: 'an SE15 entry without its attempt' }
+    port.execute(
+      'INSERT INTO sl_attempt_grant (tenant, session, attempt, position, grant) VALUES (?, ?, ?, ?, ?)',
+      [tenant, session, attempt, BigInt(entry.id), JSON.stringify(encodeValue(receipt.source))],
+    )
+  }
+  return null
 }
 
 /** The evidence row of an operation record, in the transaction that writes the record. */
