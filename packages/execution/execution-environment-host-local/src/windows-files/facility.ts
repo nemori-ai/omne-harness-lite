@@ -23,6 +23,7 @@ import {
   type Failure,
   type Outcome,
 } from '../host-paths.ts'
+import { windowsSegmentsBelow } from '../root-segments.ts'
 import { nativeSource } from './native-source.ts'
 import { nativeTree } from './native-tree.ts'
 import { nativeWrite } from './native-write.ts'
@@ -340,72 +341,6 @@ async function probeWindowsDirectory(
   }
 }
 
-const splitWindows = (value: string) => value.replaceAll('/', '\\').split('\\').filter(Boolean)
-
-/** Reject special namespaces, alternate streams, ambiguous names, and upward traversal before IO. */
-function windowsParts(path: string): readonly string[] | undefined {
-  if (!/^[a-z]:[\\/]/iu.test(path) || path.includes('\0')) return undefined
-  const parts = splitWindows(path)
-  if (
-    parts.some(
-      (part, index) =>
-        part === '..' ||
-        (index > 0 &&
-          (part.includes(':') ||
-            /[. ]$/u.test(part) ||
-            /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(part))),
-    )
-  )
-    return undefined
-  return parts
-}
-
-/** Two names in one directory name the same entry: same volume and file index, links not followed. */
-async function sameEntry(left: string, right: string): Promise<boolean> {
-  try {
-    const [a, b] = await Promise.all([
-      lstat(left, { bigint: true }),
-      lstat(right, { bigint: true }),
-    ])
-    return a.ino !== 0n && a.dev === b.dev && a.ino === b.ino
-  } catch {
-    return false
-  }
-}
-
-/**
- * The segments of `path` below `root`, or undefined when the path is not below the root or has a
- * form that `windowsParts` refuses. A segment of the root that is spelled the same up to case
- * matches without IO. A segment spelled in another way matches only when it names the same
- * directory entry, for example the 8.3 short name of it (R2-D374). That segment is compared as an
- * entry of the parent that the root's own spelling reached, with links not followed, so a link of
- * another name never counts as a segment of the root. The drive is compared as text. The segments
- * below the root are not normalized: the native bridge still walks them one by one.
- */
-export async function windowsSegmentsBelow(
-  root: string,
-  path: string,
-): Promise<readonly string[] | undefined> {
-  const parts = windowsParts(path)
-  if (parts === undefined) return undefined
-  const base = splitWindows(root)
-  const drive = base[0]
-  if (drive === undefined || parts.length < base.length) return undefined
-  if (drive.toLowerCase() !== parts[0]?.toLowerCase()) return undefined
-  let parent = `${drive}\\`
-  for (let index = 1; index < base.length; index += 1) {
-    const own = base[index] ?? ''
-    const given = parts[index] ?? ''
-    if (
-      own.toLowerCase() !== given.toLowerCase() &&
-      !(await sameEntry(win32.join(parent, own), win32.join(parent, given)))
-    )
-      return undefined
-    parent = win32.join(parent, own)
-  }
-  return parts.slice(base.length)
-}
-
 function snapshot<R extends FileRequest<unknown>>(request: R): R {
   return {
     ...request,
@@ -483,6 +418,14 @@ export function createWindowsFiles(
     const expectedRoot = await rootToken(root)
     return expectedRoot.ok ? ok({ root, expectedRoot: expectedRoot.value, segments }) : expectedRoot
   }
+  /** A root is configured and one of `paths` does not lie below it. */
+  const outsideRoot = async (paths: readonly string[]): Promise<boolean> => {
+    const root = options.root
+    if (root === undefined) return false
+    for (const path of paths)
+      if ((await windowsSegmentsBelow(root, path)) === undefined) return true
+    return false
+  }
   const change = async (
     request: Parameters<FileSystemFacility<unknown>['remove']>[0],
     operation: ChangeInput['operation'],
@@ -498,11 +441,8 @@ export function createWindowsFiles(
       return reject(request.requestId, 'invalidInput')
     if (!request.named?.token || (target !== undefined && !target.named?.token))
       return reject(request.requestId, 'notAuthorized')
-    const root = options.root
-    if (root !== undefined)
-      for (const path of [request.path, ...(target === undefined ? [] : [target.path])])
-        if ((await windowsSegmentsBelow(root, path)) === undefined)
-          return reject(request.requestId, 'notAuthorized')
+    if (await outsideRoot([request.path, ...(target === undefined ? [] : [target.path])]))
+      return reject(request.requestId, 'notAuthorized')
     const source = await endpoint(request.path, operation === 'mkdir' && request.recursive)
     if (!source.ok) return failed(request.requestId, source.failure, 'notFound')
     const destination = target === undefined ? source : await endpoint(target.path)

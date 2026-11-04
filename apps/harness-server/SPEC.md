@@ -146,7 +146,7 @@ Next:
 
 ### serve 怎样用这份配置
 
-省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，用 `openLocalCustodian` 实际打开保管库（不只看文件在不在），确认工作区是目录，必要时重建 `host-files/`，再生成运维者层。
+省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，用 `openLocalCustodian` 实际打开保管库（不只看文件在不在），确认工作区是目录，必要时重建 `host-files/`，再生成运维者层。运维者层里的文件根与 Shell、Files 的 `cwd` 取工作区的真实路径（R2-D376）：工作区经链接或 8.3 短名给出时，用它指的那个目录。真实路径只在内存里用，`server.json` 不变。
 
 - 状态目录、`server.json` 或保管库缺失时，标准错误写 `serve: not set up: <缺什么>` 和一行 ``Run `harness-server setup` first.``，退出 2。stdout 没有记录，不装载任何行。
 - 保管库读不出（原因 `corrupt` 或 `io`）时，标准错误写 `serve: the model credential vault <路径> cannot be read (<原因>)` 与修正办法，退出 2，不装载任何行。路径上是文件时，办法是 `harness-server setup --replace-credential`；不是文件时，办法是删除它后运行 `harness-server setup`。

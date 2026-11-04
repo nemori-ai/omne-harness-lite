@@ -15,11 +15,8 @@ import type {
 import { createHostFileBatch, type HostFileDiagnostic } from './host-file-batch.ts'
 import { createWindowsBatch } from './windows-files/batch.ts'
 import { createHostFileTree, hostFilesLimits, type HostFilesLimits } from './host-file-tree.ts'
-import {
-  createWindowsFiles,
-  createWindowsRootIdentity,
-  windowsSegmentsBelow,
-} from './windows-files/facility.ts'
+import { createWindowsFiles, createWindowsRootIdentity } from './windows-files/facility.ts'
+import { windowsSegmentsBelow } from './root-segments.ts'
 import {
   createCodes,
   createHostPathsCore,

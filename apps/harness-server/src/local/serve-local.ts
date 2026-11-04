@@ -2,7 +2,7 @@
 // it builds the operator layer of the profile from the settings file and the release distribution.
 // Without `--state-root` it uses the state directory. A host without `setup` gets one clear
 // sentence and the next command, not a failed row.
-import { mkdirSync, statSync } from 'node:fs'
+import { mkdirSync, realpathSync, statSync } from 'node:fs'
 import { openLocalCustodian } from '@omne-harness/model-host-local'
 import { LocalProfileError, localOperatorLayer, type OperatorLayer } from './operator-defaults.ts'
 import { resolveLocations, type LocationInput } from './locations.ts'
@@ -36,6 +36,19 @@ function isDirectory(path: string): boolean {
     return statSync(path).isDirectory()
   } catch {
     return false
+  }
+}
+
+/**
+ * The real path of the workspace, the root that the Files and Shell rows get (R2-D376). A workspace
+ * named through a link or by its 8.3 short name is served at the directory that it names. It is
+ * taken once, here; the settings file keeps what `setup` wrote.
+ */
+function realWorkspace(path: string): string | undefined {
+  try {
+    return realpathSync.native(path)
+  } catch {
+    return undefined
   }
 }
 
@@ -91,7 +104,8 @@ export function localServeInputs(input: LocalServeInput): LocalServe {
   const { settings } = read
   const vault = vaultProblem(locations.vaultFile)
   if (vault !== undefined) return vault
-  if (!isDirectory(settings.workspace))
+  const workspace = isDirectory(settings.workspace) ? realWorkspace(settings.workspace) : undefined
+  if (workspace === undefined)
     return {
       kind: 'refused',
       message:
@@ -104,7 +118,7 @@ export function localServeInputs(input: LocalServeInput): LocalServe {
     const operator = localOperatorLayer({
       distribution: input.distribution,
       locations,
-      settings,
+      settings: { ...settings, workspace },
       shutdownDeadlineMs: input.shutdownDeadlineMs,
       platform: input.platform,
     })
