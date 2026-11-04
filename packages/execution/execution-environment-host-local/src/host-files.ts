@@ -18,7 +18,7 @@ import { createHostFileTree, hostFilesLimits, type HostFilesLimits } from './hos
 import {
   createWindowsFiles,
   createWindowsRootIdentity,
-  windowsSegments,
+  windowsSegmentsBelow,
 } from './windows-files/facility.ts'
 import {
   createCodes,
@@ -723,7 +723,7 @@ export function createHostFilesEngine(
         if (paths.rooted) {
           const refusal =
             process.platform === 'win32' && options.root !== undefined
-              ? windowsSegments(options.root, path) === undefined
+              ? (await windowsSegmentsBelow(options.root, path)) === undefined
                 ? reject(requestId, 'notAuthorized')
                 : undefined
               : await gate(paths, requestId, [path])
