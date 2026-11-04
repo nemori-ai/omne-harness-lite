@@ -16,7 +16,7 @@ const timed = () => grantOf(['pending-sessions'], { expiresAt: END })
 const strange = (value: unknown) => value as never
 const foreign = (value: object) => value as unknown as Partial<SystemActionRequest>
 
-describe('an answer of the trusted clock that is not reached or pending', () => {
+describe('an answer of the expiry clock that is not reached or pending', () => {
   it.each([
     ['an empty answer', {}],
     ['an unknown kind', { kind: 'expired' }],

@@ -25,6 +25,7 @@ import {
   SessionInternalPrincipalsService,
   sessionPrincipalsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
+import { SESSION_MAINTAINER_COMPONENT } from '../rows/authorization/grants.ts'
 import { SESSION_WORK_OWNER } from '../rows/authorization/principals.ts'
 import { SESSION_WORK_COMPONENT } from '../rows/tool-runtime/session-work.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
@@ -35,7 +36,7 @@ import type { EntryEnv, EntryObjectModule } from '../types.ts'
  */
 export const ENTRY_COMPONENTS = Object.freeze({
   sessionCoordinator: 'sessionPrincipals.coordinator',
-  sessionMaintainer: 'sessionPrincipals.maintainer',
+  sessionMaintainer: SESSION_MAINTAINER_COMPONENT,
   sessionWork: SESSION_WORK_COMPONENT,
 })
 

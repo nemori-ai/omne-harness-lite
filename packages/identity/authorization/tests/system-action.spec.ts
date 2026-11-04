@@ -235,7 +235,7 @@ describe('step 3: the grant record', () => {
     })
     await expect(authorization.check(requestFor(scanner, PENDING))).resolves.toEqual({
       kind: 'unavailable',
-      diagnostic: 'no trusted clock is installed',
+      diagnostic: 'no expiry clock is installed',
     })
   })
 
@@ -249,7 +249,7 @@ describe('step 3: the grant record', () => {
     })
     await expect(authorization.check(requestFor(scanner, PENDING))).resolves.toEqual({
       kind: 'unavailable',
-      diagnostic: 'the trusted clock threw an exception; its message is not reported',
+      diagnostic: 'the expiry clock threw an exception; its message is not reported',
     })
   })
 

@@ -111,8 +111,6 @@ function describeCell(cell: PolicyCell): string {
   switch (cell.verdict) {
     case 'deny':
       return 'deny'
-    case 'deny-pending':
-      return `pending ${cell.item}`
     case 'member':
     case 'matrix': {
       const head = cell.verdict === 'member' ? 'member' : `matrix ${cell.purpose}`

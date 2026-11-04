@@ -37,7 +37,7 @@
 5. 核对租户。L 和 W 的主体租户必须等于访问的租户。S 不做这一步。
 6. 核对工作绑定。W 的目标是 Session 时，`work.work` 必须等于目标的会话。目标是租户（`pending`）时，只核租户。Agent 的 `scope` 目标要求 `scope.owner` 为 `session`，并且 `scope.record` 等于 `work.work`。
 7. 取格。`accept` 按输入种类取分支，`receive` 按事实种类取分支。请求不在分支内就拒绝。
-8. 按格调用依赖。`拒绝`和`默认拒绝`的格不调用依赖。
+8. 按格调用依赖。`拒绝`的格不调用依赖。等待产品规则的格也写成拒绝格，拒绝依据写明缺少的规则（R2-D204 第 4 条：需要批准的动作一律拒绝）。
 
 ### 两种放行
 
@@ -75,11 +75,12 @@
 
 <!-- policy:grants -->
 
-| 持有者组件名             | 记录                                               | 用途                                                                          |
-| ------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `toolResidencyPrincipal` | `maintenance-grant/toolResidencyPrincipal`，修订 2 | `resident-references`                                                         |
-| `agent-host`             | `maintenance-grant/agent-host`，修订 2             | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
-| `tenant-domain-scanner`  | `maintenance-grant/tenant-domain-scanner`，修订 2  | `enumerate-tenants`                                                           |
+| 持有者组件名                   | 记录                                                     | 用途                                                                          |
+| ------------------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `toolResidencyPrincipal`       | `maintenance-grant/toolResidencyPrincipal`，修订 3       | `resident-references`                                                         |
+| `sessionPrincipals.maintainer` | `maintenance-grant/sessionPrincipals.maintainer`，修订 3 | `pending-sessions`                                                            |
+| `agent-host`                   | `maintenance-grant/agent-host`，修订 3                   | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
+| `tenant-domain-scanner`        | `maintenance-grant/tenant-domain-scanner`，修订 3        | `enumerate-tenants`                                                           |
 
 <!-- /policy:grants -->
 
@@ -117,12 +118,13 @@
 
 <!-- policy:projection -->
 
-| 持有者                   | 能通过的格                                         |
-| ------------------------ | -------------------------------------------------- |
-| `toolResidencyPrincipal` | Session `references`                               |
-| `agent-host`             | Agent `publish`、Agent `withdraw`、Agent `quiesce` |
-| `tenant-domain-scanner`  | 无 Session 或 Agent 格；只经部署枚举端口使用       |
-| 其他系统主体             | 无                                                 |
+| 持有者                         | 能通过的格                                         |
+| ------------------------------ | -------------------------------------------------- |
+| `toolResidencyPrincipal`       | Session `references`                               |
+| `sessionPrincipals.maintainer` | Session `pending`                                  |
+| `agent-host`                   | Agent `publish`、Agent `withdraw`、Agent `quiesce` |
+| `tenant-domain-scanner`        | 无 Session 或 Agent 格；只经部署枚举端口使用       |
+| 其他系统主体                   | 无                                                 |
 
 <!-- /policy:projection -->
 
@@ -487,14 +489,6 @@
 
 `receive-result` 的 W 格放行，只核租户。推送用原受理主体，也就是会话 coordinator 的 W。Model 在推送前经 `ModelHostAuthority.resolve` 取这个主体。这是 L-RUN 与 L-MODEL 对 DP-4 的 Q-1 的对齐结果。L 列和 S 列仍然拒绝。
 
-## D 项
-
-目前没有未决的 D 项。D-1（`configureAutoArchive` × L）和 D-2（`setRelation` × L）由 R2-D204 关闭：租户设置和会话管理只有本人可以做。租户是（组织，账号），只有这个账号的登录能取得代表该租户行事的主体，所以「只有本人」由主体的签发保证，成员格的 `requires` 为空，不新增具名资格。
-
-<!-- policy:d-items -->
-没有未决项。
-<!-- /policy:d-items -->
-
 ## 已知限制
 
 - K-1：W 对 Agent 的 `instance`、`execution` 和 `input-entry` 目标只核租户，不核会话。同一租户内，一个会话的 W 能通过授权层访问另一个会话的执行。Agent 自己的目录和执行守卫仍然核对归属。
@@ -508,7 +502,7 @@
 - K-9：`takeover` 对 W 恒放行。取代存活推进者的限制靠 attach 的条件提交。前提是 M2 单进程，每个会话只有一个驱动者。
 - K-10：维护授予是部署级的。一个持有者覆盖本部署的全部租户分区。跨分区限制交给 Session SQL 的目录查找。
 - K-11：授予表按组件名定位。前提是原始签发者只交给受信持有者。装配把签发者交给普通插件时，该插件能签发任何组件名的主体。
-- `tenant-domain-scanner` 只有枚举租户用途，没有 `pending-sessions`。作用域恢复维护主体没有记录。`pending`、`receive` 和 `releasedScopes` 的系统格仍答 `denied grant-missing`。
+- K-12：S3 恢复扫描用 `sessionPrincipals.maintainer` 读 `pending`，授予表给它 `pending-sessions`（R2-D204 第 2 条）。同一主体也用于作用域释放之后的 `receive(scope-release)`，但它没有 `scope-release-receive`，这一步答 `denied grant-missing`。`releasedScopes` 没有持有者，也答 `denied grant-missing`。
 
 ## 动作准入
 

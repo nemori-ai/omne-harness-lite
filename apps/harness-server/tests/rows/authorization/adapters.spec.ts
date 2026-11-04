@@ -41,9 +41,10 @@ import { sessionId } from '@omne-harness/session-contract/testing'
 import {
   AGENT_HOST_COMPONENT,
   AGENT_POLICY,
-  DECISION_ITEMS,
   MAINTENANCE_GRANTS,
+  SESSION_MAINTAINER_COMPONENT,
   SESSION_POLICY,
+  TENANT_DOMAIN_SCANNER_COMPONENT,
   TOOL_RESIDENCY_COMPONENT,
   holderProjection,
   releaseMaintenanceGrants,
@@ -461,6 +462,39 @@ describe('sessionAccessCheck: system principals and the matrix', () => {
     expect(
       await w.session.check(references({ kind: 'system', component: TOOL_RESIDENCY_COMPONENT })),
     ).toEqual({ kind: 'denied' })
+  })
+
+  it('passes `pending` of any tenant for the session maintainer, the S3 recovery scanner, only', async () => {
+    const w = world()
+    const maintainer = w.system(SESSION_MAINTAINER_COMPONENT)
+    for (const tenant of [A, B]) {
+      const answer = await w.session.check(pending(maintainer, tenant))
+      expect(answer, 'the maintainer reads pending').toMatchObject({
+        kind: 'allowed',
+        evidence: { record: `maintenance-grant/${SESSION_MAINTAINER_COMPONENT}` },
+      })
+    }
+    for (const other of [
+      'sessionPrincipals.coordinator',
+      TENANT_DOMAIN_SCANNER_COMPONENT,
+      TOOL_RESIDENCY_COMPONENT,
+      AGENT_HOST_COMPONENT,
+    ])
+      expect(await w.session.check(pending(w.system(other))), other).toEqual({ kind: 'denied' })
+    expect(
+      await w.session.check(pending({ kind: 'system', component: SESSION_MAINTAINER_COMPONENT })),
+      'a copy of the maintainer shape',
+    ).toEqual({ kind: 'denied' })
+  })
+
+  it('gives the session maintainer no other system cell', async () => {
+    const w = world()
+    const maintainer = w.system(SESSION_MAINTAINER_COMPONENT)
+    expect(await w.session.check(references(maintainer))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(releasedScopes(maintainer))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(mutate(maintainer, 'receive', scopeReleaseFact))).toEqual({
+      kind: 'denied',
+    })
   })
 
   it('denies every login and work principal on the system requests, and reads nothing', async () => {
@@ -1229,20 +1263,16 @@ function labelOf(cell: PolicyCell): string {
       return `放行（矩阵 ${cell.purpose}）${branch}`
     case 'deny':
       return '拒绝'
-    case 'deny-pending':
-      return `默认拒绝（${cell.item}）`
   }
 }
 
-function textOf(cell: PolicyCell): string | null {
+function textOf(cell: PolicyCell): string {
   switch (cell.verdict) {
     case 'member':
     case 'matrix':
       return cell.source
     case 'deny':
       return cell.basis
-    case 'deny-pending':
-      return null
   }
 }
 
@@ -1288,7 +1318,7 @@ describe('the row specification agrees with the tables', () => {
       expect(notes, operation).toContain(`- \`${operation}\``)
       for (const cell of [row.login, row.work, row.system]) {
         const text = textOf(cell)
-        if (text !== null) expect(notes, `${operation}: ${text}`).toContain(text)
+        expect(notes, `${operation}: ${text}`).toContain(text)
       }
     }
   })
@@ -1313,10 +1343,5 @@ describe('the row specification agrees with the tables', () => {
         expect(line, holder).toContain(named)
       }
     }
-  })
-
-  it('writes that no D item is open', () => {
-    expect(Object.keys(DECISION_ITEMS)).toEqual([])
-    expect(region('d-items')).toContain('没有未决项')
   })
 })
