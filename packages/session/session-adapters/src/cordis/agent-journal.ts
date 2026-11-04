@@ -298,8 +298,14 @@ type Book<P> = {
   readonly session: SessionId
   /** The view folded from the facts up to `published`. */
   view: SessionJournalView
-  /** The content blocks read or written, by digest. */
+  /** The content blocks read or written, by row digest: the stored payload text. */
   readonly blobs: Map<string, string>
+  /**
+   * The blocks decoded, by the digest the facts name. A block is immutable under its digest, so
+   * it is decoded once per book, not once per copy built (a copy is rebuilt whenever another
+   * writer published; decoding every block again made each rebuild cost the whole history).
+   */
+  readonly parsed: Map<string, unknown>
   /** The copy of the core over the records at `published`; null when it must be built. */
   copy: Copy<P> | null
   /** The publication the view reflects; null when nothing was read yet (a cold start follows). */
@@ -767,9 +773,7 @@ function listedDigests(payload: string): string[] {
   const value = JSON.parse(payload) as unknown
   if (!Array.isArray(value)) return []
   return value.flatMap(item =>
-    Array.isArray(item) && typeof item[1] === 'string' && HEX_DIGEST.test(item[1])
-      ? [item[1]]
-      : [],
+    Array.isArray(item) && typeof item[1] === 'string' && HEX_DIGEST.test(item[1]) ? [item[1]] : [],
   )
 }
 
@@ -812,6 +816,8 @@ type RecordsFold = {
   head: number
   view: SessionJournalView
   blobs: Map<string, string>
+  /** The blocks decoded, by the digest the facts name (see `Book.parsed`). */
+  parsed: Map<string, unknown>
   executions: Set<string>
 }
 
@@ -832,7 +838,13 @@ function recordsFoldOf(storage: SqlStorage, key: string): RecordsFold {
     folds.set(key, found)
     return found
   }
-  found = { head: 0, view: emptySessionView(), blobs: new Map(), executions: new Set() }
+  found = {
+    head: 0,
+    view: emptySessionView(),
+    blobs: new Map(),
+    parsed: new Map(),
+    executions: new Set(),
+  }
   folds.set(key, found)
   while (folds.size > RECORDS_FOLDS) {
     const oldest = folds.keys().next().value
@@ -877,7 +889,7 @@ export async function readExecutionRecords(
   try {
     const execution = projectExecution(
       found,
-      projectionContext(target.tenant, resolved.tenant, target.session, kept.blobs),
+      projectionContext(target.tenant, resolved.tenant, target.session, kept.blobs, kept.parsed),
     ) as MemoryExecution
     return { kind: 'read', execution }
   } catch (error) {
@@ -891,12 +903,16 @@ function projectionContext(
   tenantText: string,
   session: SessionId,
   rows: ReadonlyMap<string, string>,
+  parsed: Map<string, unknown>,
 ): ProjectionContext {
-  const blobs = new Map<string, unknown>()
-  for (const [row, payload] of rows) blobs.set(factDigestOf(row), JSON.parse(payload) as unknown)
+  // The blocks not decoded yet join the decoded ones; the rest are kept as they are.
+  for (const [row, payload] of rows) {
+    const digest = factDigestOf(row)
+    if (!parsed.has(digest)) parsed.set(digest, JSON.parse(payload) as unknown)
+  }
   return {
     tenant,
-    blobs,
+    blobs: parsed,
     mint: { owner: JOURNAL_OWNER, session: JSON.stringify([tenantText, session]) },
     eventSchema: DEFAULT_EVENT_SCHEMA,
     admissionRule: DEFAULT_REPLY_ADMISSION_RULE,
@@ -918,6 +934,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         session,
         view: emptySessionView(),
         blobs: new Map(),
+        parsed: new Map(),
         copy: null,
         published: null,
         loaded: new Set(),
@@ -1221,8 +1238,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       // batches it appends from here, which the provider publishes.
       root.agent.view = book.view
       root.agent.log = []
-      for (const [row, payload] of book.blobs)
-        root.agent.blobs.set(factDigestOf(row), JSON.parse(payload) as unknown)
+      for (const [digest, value] of book.parsed) root.agent.blobs.set(digest, value)
       into(root.agent.executions, records.executions)
       into(root.agent.operations, records.operations)
       into(root.agent.eventReceipts, records.fragments.eventReceipts)
@@ -1270,7 +1286,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       cell,
       projectRecords(
         book.view,
-        projectionContext(book.tenant, book.tenantText, book.session, book.blobs),
+        projectionContext(book.tenant, book.tenantText, book.session, book.blobs, book.parsed),
       ),
     )
     putBack(book, cell)
@@ -1424,7 +1440,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   /** Fetches the content blocks the facts of the view name that the book does not hold yet. */
   async function fetchBlobs(book: Book<P>, read: Reader): Promise<Failure | null> {
     // The blocks the facts of the view refer to: the core reads them by digest.
-    const missing = await fetchNamed(read, book.tenantText, book.view.executions.values(), book.blobs)
+    const missing = await fetchNamed(
+      read,
+      book.tenantText,
+      book.view.executions.values(),
+      book.blobs,
+    )
     return missing === null
       ? null
       : unavailable(`the content block ${missing} of the Agent records is not readable`)

@@ -103,6 +103,9 @@ export async function measureToolRun(options: RunOptions): Promise<RunMeasuremen
     defaultDelayMs: 20,
     root,
     storageLimits: { maxCommandBytes: RELEASE_COMMAND_LIMIT, ...options.storageLimits },
+    // The run takes N tool steps and one closing reply: the step limit is named here, not left
+    // to the Agent's default (50), which ended the 200-step run as `failed` at its guard.
+    maxRunSteps: options.steps + 2,
   })
   let ended: RunMeasurement['ended'] = 'completed'
   let outcome: string | null = null

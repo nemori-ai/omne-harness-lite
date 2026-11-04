@@ -1457,10 +1457,9 @@ function handoffsOf(
   execution: Execution,
   custody: (handoff: HandoffReference) => ExecutionHandoff['custody'],
 ): readonly ExecutionHandoff[] {
-  return execution.handoffs.map(record => ({
-    ...copy(record),
-    custody: custody(record.handoff),
-  }))
+  // A record's members are replaced, never changed in place: one level of copy keeps a snapshot
+  // apart from the later writes of the record.
+  return execution.handoffs.map(record => ({ ...record, custody: custody(record.handoff) }))
 }
 
 /** The original acceptance that `open` or a new-input `submit` carries, checked against the method. */
@@ -2396,8 +2395,14 @@ export function createJournal<P>(
       }
     }
     const emitted = execution.events.length
-    return succeed<ExecutionSnapshot>(
-      copy({
+    const groups = custodyGroups(execution)
+    // The members that grow with the history (effects, results, controls, observations,
+    // handoffs) are copied one level deep: the core replaces their elements and the members of a
+    // handoff record, it never changes an element in place, so a snapshot keeps what it saw. A
+    // deep copy of them cost every `load` the whole history (a 200-step run spent half its time
+    // in it). The members of one step's size are copied deep as before.
+    return succeed<ExecutionSnapshot>({
+      ...copy({
         execution: execution.id,
         revision: revisionOf(execution.revision),
         state: stateOf(execution),
@@ -2407,12 +2412,6 @@ export function createJournal<P>(
         replyAdmissions: replyAdmissions.ok,
         executionAttachment: activeAttachment(execution)?.authority ?? null,
         unresolved,
-        controls: execution.controls,
-        results: execution.results,
-        entries: execution.entries,
-        effects: execution.effects,
-        terminalObservations: execution.observations,
-        handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff)),
         finishObligations: currentObligations(execution.finishing) ?? null,
         settlement: settlementOf(execution.finishing),
         output: {
@@ -2420,7 +2419,12 @@ export function createJournal<P>(
           acknowledgedThrough: execution.acknowledged === 0 ? null : String(execution.acknowledged),
         },
       }),
-    )
+      controls: [...execution.controls],
+      results: [...execution.results],
+      effects: [...execution.effects],
+      terminalObservations: [...execution.observations],
+      handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff, groups)),
+    })
   }
 
   function readPage(
@@ -2860,13 +2864,33 @@ export function createJournal<P>(
   }
 
   /** The custody projection of one H, rebuilt from the attempts and their operation records. */
+  /** The custody attempts of an execution grouped by the handoff they are attempts of. */
+  function custodyGroups(
+    execution: Execution,
+  ): ReadonlyMap<string, readonly (readonly [AgentOperationId, CustodyAttempt])[]> {
+    const groups = new Map<string, (readonly [AgentOperationId, CustodyAttempt])[]>()
+    for (const entry of execution.custodyAttempts.entries()) {
+      const key = canonical(entry[1].handoff)
+      const group = groups.get(key)
+      if (group === undefined) groups.set(key, [entry])
+      else group.push(entry)
+    }
+    return groups
+  }
+
+  /**
+   * The custody chain of one handoff. A snapshot of an execution with many handoffs passes the
+   * groups built once (`custodyGroups`): one pass over the attempts, not one per handoff.
+   */
   function custodyOf(
     execution: Execution,
     handoff: HandoffReference,
+    groups: ReadonlyMap<
+      string,
+      readonly (readonly [AgentOperationId, CustodyAttempt])[]
+    > = custodyGroups(execution),
   ): Exclude<ExecutionHandoff['custody'], null> | null {
-    const attempts = [...execution.custodyAttempts.entries()].filter(([, attempt]) =>
-      sameValue(attempt.handoff, handoff),
-    )
+    const attempts = groups.get(canonical(handoff)) ?? []
     const root = attempts.find(([, attempt]) => attempt.custody === null)
     if (root === undefined) return null
     const stateOf = (operation: AgentOperationId): 'committed' | 'excluded' | undefined => {

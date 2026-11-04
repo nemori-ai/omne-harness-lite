@@ -98,7 +98,6 @@ export type CommonRoot = Readonly<{
     modelSettlements: Map<string, readonly import('./model-settlement.ts').ModelSettlement[]>
     originalByOperation: Map<string, JournalOriginal>
     eventReceipts: Map<string, CommandReceipt>
-    authorities: Map<string, import('@omne-harness/session-contract').SessionAttemptRecord>
     ended: Map<
       string,
       Readonly<{
@@ -202,7 +201,6 @@ function cloneRoot(root: CommonRoot): CommonRoot {
       effectSteps: new Map(root.agent.effectSteps),
       modelSettlements: new Map(root.agent.modelSettlements),
       eventReceipts: new Map(root.agent.eventReceipts),
-      authorities: new Map(root.agent.authorities),
       admissions: new Map(root.agent.admissions),
       inputBatches: new Map(root.agent.inputBatches),
       batches: new Map(root.agent.batches),
@@ -249,7 +247,6 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
       effectSteps: new Map(),
       modelSettlements: new Map(),
       eventReceipts: new Map(),
-      authorities: new Map(),
       admissions: new Map(),
       inputBatches: new Map(),
       batches: new Map(),
