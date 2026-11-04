@@ -159,7 +159,9 @@ Next:
 | `request-context`、`agent-context`、`agent-host`、`session-ad03`、`session-ad04` | 各自的上限与工厂数值                                                                                                                           |
 | `server-entry`                                                                  | 端口取配置。`historyKinds` 是 `message.user`、`message.assistant`、`message.tool`、`message.system_reminder`、`run.started`、`run.terminal` |
 
-Shell 的参数按可执行文件名定：`powershell` 或 `pwsh` 在 Windows 上取 `-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command`，在其他平台取 `-NoLogo -NoProfile -NonInteractive -Command`。其他可执行文件取 `-c`。Windows PowerShell 的默认执行策略不让运行本地脚本。`-ExecutionPolicy Bypass` 只作用于这一个 Shell 进程，不改宿主的策略。
+Shell 的参数按可执行文件名定：`powershell` 或 `pwsh` 在 Windows 上取 `-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command` 再加一段 UTF-8 前导（见下），在其他平台取 `-NoLogo -NoProfile -NonInteractive -Command`。其他可执行文件取 `-c`。Windows PowerShell 的默认执行策略不让运行本地脚本。`-ExecutionPolicy Bypass` 只作用于这一个 Shell 进程，不改宿主的策略。
+
+Windows 上输出到管道的 PowerShell 按控制台的 OEM 代码页写出（中文系统是 936），原生程序的输出也按这一页解码，而执行宿主按 UTF-8 解码，所以中文成了乱码。前导 `WINDOWS_POWERSHELL_PRELUDE` 是 `-Command` 后面的最后一个参数，PowerShell 把它与调用的脚本用空格接成一个命令。它只对这一个 Shell 进程做几件事：把 `[Console]::InputEncoding`、`[Console]::OutputEncoding` 与 `$OutputEncoding` 设为不带 BOM 的 UTF-8（`[Console]::In` 因此按 UTF-8 读工具的 `stdin`；前者同时设控制台输出页，原生程序继承它，所以 `cmd /c echo` 与 `git log` 的输出以 UTF-8 到达宿主，管道送给原生程序的字符串也以 UTF-8 送出）；把 `Get-Content` 与 `Select-String` 的 `-Encoding` 默认值设为 `UTF8`，读不带 BOM 的 UTF-8 文件不再按 ANSI 页读（调用自己写 `-Encoding` 时以调用为准）。不改机器或用户的任何设置，Linux 的参数不变。
 
 #### Shell 的环境
 
@@ -383,6 +385,7 @@ sequenceDiagram
 - 发行层单独不能装载 `serve`。发行文件没有 `execution-host` 与 `agent-host` 的工厂数值，也没有 `agent-host` 的 `loopGuardPolicy`，进程以 `invalid-config` 退出（R2-D229）。运维者层必须用 `replace` 给出这些值，并重抄发行层的 `jointCommits` 与 `coordination`。省略 `--operator` 时，[本机单用户档](#运维者层的默认值)生成这一层。`loopGuardPolicy` 还没有生产采用来源，本档用的是占位采用，这个缺口归 L-RUN 波 3。
 - 本机单用户档的数值没有测量依据，采用引用是摘要全零的占位。它们来自联调与教程的运维者层，那里是测试值。
 - 本机单用户档的 Shell 环境是 `setup` 当时的白名单值。`PATH` 之后变了，要运行 `setup --reconfigure` 才跟上。白名单以外的变量（例如代理设置）不进 Shell，需要时手工写进 `shellEnvironment`。
+- Windows 上 Shell 的 UTF-8 前导只管输出和读文件。`Set-Content`、`Out-File` 与 `>` 仍按 PowerShell 的默认编码写（Windows PowerShell 5.1 是 ANSI 页），前导不强制 BOM，因为 BOM 会破坏 `package.json` 之类的文件；要写 UTF-8 文件，脚本自己用 `[IO.File]::WriteAllText` 或 `-Encoding utf8`（5.1 带 BOM）。工具的 `stdin` 经 `$input` 读取时仍按控制台页解码，前导够不到它；脚本用 `[Console]::In.ReadToEnd()` 读才是 UTF-8。参数里的中文文本不受影响（命令行是 UTF-16）。验证见 `tests/local/shell-encoding.spec.ts`，它在 Windows 上用真实 `powershell.exe`，其他平台跳过；经执行宿主的 Windows 命令桥做过一次手工核对，没有固化成用例。
 - Windows 上 `setup` 不改也不读回访问控制列表，保护只靠用户目录的继承，前提见[权限](#setup)。
 - 保管库里的凭据是明文，保护靠文件权限。`setup` 不加密它。
 - `omne` CLI 为读默认地址重复了[位置](#位置)的规则，因为应用之间不互相导入。改位置规则时两处要同时改，CLI 的 `tests/local-server.spec.ts` 与本应用的 `tests/local/locations.spec.ts` 各自固定一份。

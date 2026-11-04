@@ -40,7 +40,7 @@ node apps/harness-server/dist/bin.js serve            # Ctrl+C 停止
 - `setup` 把凭据放进状态目录里的保管库，把端口、工作区和 Shell 写进配置文件。配置文件里没有秘密。凭据也可以经管道给出，例如 `printf '%s\n' "$KEY" | node apps/harness-server/dist/bin.js setup`。
 - 位置：Windows 上是 `%LOCALAPPDATA%\omne\config` 与 `%LOCALAPPDATA%\omne\state`。Linux 上是 `~/.config/omne` 与 `~/.local/state/omne`（遵守 `XDG_CONFIG_HOME`、`XDG_STATE_HOME`）。`OMNE_SERVER_HOME=<目录>` 把两者移到 `<目录>/config` 与 `<目录>/state`。
 - 可选参数：`--port <n>`（默认 8787）、`--workspace <目录>`（默认 `<状态目录>/workspace`）、`--shell <可执行文件>`（Windows 默认 Windows PowerShell，其他平台默认 `/bin/bash`）。
-- Shell 工具的环境是 `setup` 当时的 `PATH` 与少数白名单变量，不含名字像秘密的变量。Windows 上 PowerShell 以 `-ExecutionPolicy Bypass` 启动，能运行本地脚本。白名单见 [SPEC.md](SPEC.md#shell-的环境)。
+- Shell 工具的环境是 `setup` 当时的 `PATH` 与少数白名单变量，不含名字像秘密的变量。Windows 上 PowerShell 以 `-ExecutionPolicy Bypass` 启动，能运行本地脚本，并带一段 UTF-8 前导，Shell 输出的中文能原样到达模型。白名单见 [SPEC.md](SPEC.md#shell-的环境)。
 - 再次运行 `setup` 只检查，不覆盖。改设置要加 `--reconfigure`，换凭据要加 `--replace-credential`。
 - `serve` 不带参数时读这份配置。没有运行过 `setup` 时，它提示先运行 `setup`，以退出码 2 退出。
 - `omne` CLI 不带 `--server` 且没有 `OMNE_SERVER` 时，连接配置文件里的端口。

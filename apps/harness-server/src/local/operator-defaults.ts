@@ -199,6 +199,38 @@ export function storageCloseDeadlineMs(shutdownDeadlineMs: number): number {
 const POWERSHELL_ARGS = ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command'] as const
 
 /**
+ * A script that `-Command` runs before the script of the call. On Windows, a PowerShell whose
+ * output goes to a pipe writes in the OEM code page of the console (936 on a Chinese system), and
+ * reads the input of `[Console]::In` and decodes the output of native programs in the same page, while `$OutputEncoding` (the page of text
+ * that goes to a native program) is ASCII. The host decodes the output as UTF-8, so Chinese text
+ * turns to noise. This prelude sets the encodings of this one process to UTF-8 without a
+ * byte order mark. `[Console]::OutputEncoding` also sets the page of the console, which native
+ * programs inherit, so
+ * - the output of PowerShell itself and the output of native programs (`cmd /c echo`, `git log`)
+ *   reach the host as UTF-8, and a string piped to a native program goes out as UTF-8;
+ * - `[Console]::In` reads the standard input of a call, which the host sends as UTF-8, as UTF-8;
+ * - `Get-Content` and `Select-String` read a file without a byte order mark as UTF-8 and not as the
+ *   ANSI page. A call that names another `-Encoding` still wins.
+ * The encodings belong to the process: no machine or user setting changes. The prelude ends with
+ * a semicolon, because PowerShell joins the arguments after `-Command` with spaces, so the script of
+ * the call follows it as the rest of the command.
+ *
+ * Known limit: `Set-Content`, `Out-File` and `>` still write in the default encoding of the
+ * PowerShell, which is the ANSI page in Windows PowerShell 5.1. A byte order mark would break
+ * files such as `package.json`, so the profile does not force one.
+ */
+export const WINDOWS_POWERSHELL_PRELUDE = [
+  '$omneUtf8 = New-Object System.Text.UTF8Encoding $false',
+  '[Console]::InputEncoding = $omneUtf8',
+  '[Console]::OutputEncoding = $omneUtf8',
+  '$OutputEncoding = $omneUtf8',
+  "$PSDefaultParameterValues['Get-Content:Encoding'] = 'UTF8'",
+  "$PSDefaultParameterValues['Select-String:Encoding'] = 'UTF8'",
+  'Remove-Variable omneUtf8',
+  '',
+].join('; ')
+
+/**
  * Windows PowerShell refuses local scripts under its default execution policy. `Bypass` applies to
  * this one process only and changes no policy of the host.
  */
@@ -209,12 +241,13 @@ const WINDOWS_POWERSHELL_ARGS = [
   '-ExecutionPolicy',
   'Bypass',
   '-Command',
+  WINDOWS_POWERSHELL_PRELUDE,
 ] as const
 
 /**
  * The arguments that put a script after the executable. PowerShell (`powershell`, `pwsh`) takes
- * `-Command`, on Windows with `-ExecutionPolicy Bypass`. Any other executable is taken as a POSIX
- * shell that takes `-c`.
+ * `-Command`, on Windows with `-ExecutionPolicy Bypass` and the UTF-8 prelude, which is the last
+ * argument before the script. Any other executable is taken as a POSIX shell that takes `-c`.
  */
 export function shellArguments(platform: NodeJS.Platform, executable: string): readonly string[] {
   const name = pathsOf(platform)

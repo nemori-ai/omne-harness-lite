@@ -10,6 +10,7 @@ import { resolveLocations } from '../../src/local/locations.ts'
 import { captureShellEnvironment, isSecretName } from '../../src/local/settings.ts'
 import {
   LOCAL_HISTORY_KINDS,
+  WINDOWS_POWERSHELL_PRELUDE,
   LocalProfileError,
   localOperatorLayer,
   shellArguments,
@@ -197,7 +198,16 @@ describe('shellArguments', () => {
   ] as const)('%s %s takes the %s arguments', (platform, executable, kind) => {
     const expected = {
       // Windows: the default execution policy refuses local scripts, so this process bypasses it.
-      ps: ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command'],
+      // The prelude sets UTF-8 output in this one process; it is the last argument before the script.
+      ps: [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        WINDOWS_POWERSHELL_PRELUDE,
+      ],
       'ps-posix': ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command'],
       posix: ['-c'],
     }[kind]
