@@ -716,7 +716,7 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
   afterAll(() => rmSync(subject, { recursive: true, force: true }))
   writeFileSync(
     join(subject, 'pnpm-workspace.yaml'),
-    'packages:\n  - packages/*/*\n  - apps/*\n  - tools/*\n  - packages.0.0.1.legacy/core/*\n',
+    'packages:\n  - packages/*/*\n  - apps/*\n  - tools/*\n  - packages.archive.legacy/core/*\n',
   )
   // 计划经 turbo 选成员，turbo 要读被检查仓库根的 package.json 与 packageManager。
   writeFileSync(
@@ -735,7 +735,7 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
     'tools/dev-flow',
     'tools/product-checks',
     'tools/test-runner',
-    'packages.0.0.1.legacy/core/identity-values',
+    'packages.archive.legacy/core/identity-values',
   ]) {
     mkdirSync(join(subject, path), { recursive: true })
     writeFileSync(
