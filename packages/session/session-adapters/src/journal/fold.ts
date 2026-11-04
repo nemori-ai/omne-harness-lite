@@ -265,7 +265,17 @@ export type OperationEntry = Readonly<{
   revision: number
   /** The recognized operation, for a recognition batch; null otherwise. */
   target: AgentOperationId | null
+  /** Whether the recognition recalls the target's own receipt (`op.recognized.recalls`). */
+  recalls: boolean
   kinds: readonly ParticipationKind[]
+}>
+
+/** One persistent rejection of a recordControl: the audit, and the batch that fixed it. */
+export type RejectionEntry = Readonly<{
+  control: AgentOperationId
+  audit: DurableEvidence
+  pub: number
+  revision: number
 }>
 
 export type ExecutionView = Readonly<{
@@ -338,6 +348,8 @@ export type ExecutionView = Readonly<{
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
   /** The operations excluded in this execution. */
   excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
+  /** The operations whose recordControl was persistently rejected, by the rejecting operation. */
+  rejections: ReadonlyMap<AgentOperationId, RejectionEntry>
   /**
    * The operation whose batch advanced the execution to each revision: one batch advances to each
    * revision, so a recognition finds the batch it recognizes by the revision, without a scan.
@@ -398,6 +410,7 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     materials: new Map(),
     ops: new Map(),
     excluded: new Map(),
+    rejections: new Map(),
     reached: new Map(),
   }
 }
@@ -430,6 +443,7 @@ type Draft = {
   materials: Map<string, Readonly<{ source: DurableEvidence; value: Ref; pub: number }>>
   ops: Map<AgentOperationId, OperationEntry>
   excluded: Map<AgentOperationId, ExclusionEntry>
+  rejections: Map<AgentOperationId, RejectionEntry>
   reached: Map<number, AgentOperationId>
   cursor: Partial<CursorMembers>
   cursorMoved: Partial<Record<keyof CursorMembers, number>>
@@ -449,6 +463,7 @@ function draftOf(view: ExecutionView): Draft {
     materials: new Map(view.materials),
     ops: new Map(view.ops),
     excluded: new Map(view.excluded),
+    rejections: new Map(view.rejections),
     reached: new Map(view.reached),
   }
 }
@@ -780,6 +795,9 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
           rejected: [...known.rejected, fact.audit],
           pub,
         })
+      const op = [...draft.ops.keys()].at(-1)
+      if (op !== undefined && !draft.rejections.has(op))
+        draft.rejections.set(op, { control: fact.control, audit: fact.audit, pub, revision })
       break
     }
     case 'wait.entered':
@@ -964,6 +982,7 @@ export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJo
     pub: batch.pub,
     revision: answered,
     target,
+    recalls: recognition?.kind === 'op.recognized' && recognition.recalls === true,
     kinds: batch.envelope.kinds,
   }
   if (!draft.ops.has(batch.envelope.op)) draft.ops.set(batch.envelope.op, entry)

@@ -14,8 +14,10 @@ import {
   fieldTexts,
   fieldsDiff,
   projectExecution,
+  projectOperations,
   type ExecutionField,
 } from '../src/testing/journal-records.ts'
+import { canonical } from '../src/testing/canonical.ts'
 import { JOURNAL_OWNER } from '../src/testing/journal-values.ts'
 import { ok, operation, scene } from './fixtures/common-journal.ts'
 
@@ -142,7 +144,7 @@ describe('the reader records projected from the fold', () => {
     if (written === undefined) throw new Error('the writer keeps no record of the execution')
     const folded = view.executions.get(s.execution)
     if (folded === undefined) throw new Error('the fold holds no view of the execution')
-    const projected = projectExecution(folded, {
+    const context = {
       tenant: s.access.tenant,
       blobs,
       mint: { owner: JOURNAL_OWNER, session: namespace },
@@ -158,12 +160,29 @@ describe('the reader records projected from the fold', () => {
         revision: '1',
         digest: 'memory:reply-admission-projection',
       },
-    })
+    }
+    const projected = projectExecution(folded, context)
     const diff = fieldsDiff(written, projected)
+    // The operation records: every record of the execution the writer keeps, against the fold's.
+    const writtenOps = [...s.view.controls.operations().entries()]
+      .filter(([, record]) => record.kind !== 'pending')
+      .map(([key, record]) => [key, record.kind === 'excluded' ? { ...record, key: '' } : record])
+      .sort()
+    const projectedOps = [...projectOperations(folded, context, projected).entries()].sort()
+    const opsDiff = writtenOps.flatMap(([key, record], index) => {
+      const other = projectedOps[index]
+      return other !== undefined && other[0] === key && canonical(other[1]) === canonical(record)
+        ? []
+        : [
+            `${String(key)}:\n    writer:    ${canonical(record).slice(0, 400)}\n    projected: ${other === undefined ? '(absent)' : canonical(other[1]).slice(0, 400)}`,
+          ]
+    })
     const report = [
       `equal (${String(diff.equal.length)}/${String(EXECUTION_FIELDS.length)}): ${diff.equal.join(', ')}`,
       `differ: ${diff.differ.join(', ')}`,
       `missing: ${diff.missing.join(', ')}`,
+      `operations: ${String(writtenOps.length)} written, ${String(projectedOps.length)} projected, ${String(opsDiff.length)} differ`,
+      ...opsDiff.map(line => `  ${line}`),
       ...diff.differ.map(field => {
         const { expected, actual } = fieldTexts(written, projected, field)
         return `  ${field}:\n    writer:    ${expected.slice(0, 400)}\n    projected: ${actual.slice(0, 400)}`
@@ -171,5 +190,7 @@ describe('the reader records projected from the fold', () => {
     ].join('\n')
     console.log(`records parity\n${report}`)
     for (const field of PROJECTED) expect(diff.equal, `${field}\n${report}`).toContain(field)
+    expect(opsDiff, report).toEqual([])
+    expect(projectedOps.length).toBe(writtenOps.length)
   })
 })

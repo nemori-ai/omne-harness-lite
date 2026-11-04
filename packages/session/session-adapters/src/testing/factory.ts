@@ -60,6 +60,7 @@ import {
   type JournalWrite,
   type MemoryAgentJournalOptions,
   type MemoryExecution,
+  type OperationRecord,
 } from './journal.ts'
 import { commitAccessMatches, createSessionTransactions, qualifyAccess } from './session.ts'
 import {
@@ -1045,6 +1046,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         },
         /** The reader records of this session as the core keeps them: the executions by key. Read only. */
         records: () => cell.current().agent.executions as ReadonlyMap<string, MemoryExecution>,
+        /** The operation records of this session as the core keeps them. Read only. */
+        operations: () => cell.current().agent.operations as ReadonlyMap<string, OperationRecord>,
       },
       durability: 'none' as const,
     }

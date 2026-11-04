@@ -20,7 +20,7 @@ import type {
   ResultResponsibility,
   TerminalObservation,
 } from '@omne-harness/agent-contract'
-import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { canonical } from './canonical.ts'
 import {
   batchEvidence,
@@ -31,14 +31,16 @@ import {
   type OperationEntry,
   type PublishedBatch,
 } from '../journal/index.ts'
-import type {
-  AdmissionLedger,
-  AdmissionProjection,
-  AdmissionRecord,
-  HandoffRecord,
-  MemoryExecution,
+import {
+  operationText,
+  type AdmissionLedger,
+  type AdmissionProjection,
+  type AdmissionRecord,
+  type HandoffRecord,
+  type MemoryExecution,
+  type OperationRecord,
 } from './journal.ts'
-import { finishingOf } from './journal-finishing.ts'
+import { finishingOf, settlementOfFact } from './journal-finishing.ts'
 import { journalEvidence, revisionOf, semanticKey } from './journal-values.ts'
 
 /** Every field of the reader record, in the order the bridge serializes them. */
@@ -491,6 +493,140 @@ export function projectExecution(
   // seeding controls of the tests.
   projected.serial = view.opened === null ? 0 : view.opened.pub
   return projected
+}
+
+/** The method a semantic key names: its prefix before the first colon. */
+const methodOf = (key: string): string => key.split(':')[0] ?? ''
+
+/** The receipt state a method's receipt names: an accepting command answers `accepted`. */
+const stateOf2 = (method: string): CommandReceipt['state'] =>
+  method === 'submit' || method === 'control' ? 'accepted' : 'applied'
+
+/**
+ * The operation records of one execution projected from the fold: a committed record for every
+ * operation of the index, with the answer its batch derives (by the method the semantic key names,
+ * from what the view and the blocks hold of that batch), an excluded record for every exclusion,
+ * and a rejected record for every persistent rejection. The key of an excluded record is the
+ * semantic key of a write that never published; the facts do not hold it, so it is empty here.
+ */
+export function projectOperations(
+  view: ExecutionView,
+  context: ProjectionContext,
+  execution: Partial<MemoryExecution>,
+): Map<string, OperationRecord> {
+  const out = new Map<string, OperationRecord>()
+  const byPub = opsByPub(view)
+  const text = tenantCodec.encode(context.tenant)
+  const tenantText = text.ok ? text.value : ''
+  const keyOf = (op: AgentOperationId) => operationText(tenantText, view.execution, op)
+  const receiptFor = (op: AgentOperationId, entry: OperationEntry): CommandReceipt => {
+    const method = methodOf(entry.digest)
+    if (entry.target !== null && entry.recalls) {
+      const target = view.ops.get(entry.target)
+      const found =
+        target === undefined ? undefined : receiptAt(view, byPub, context.mint, target.pub)
+      if (found !== undefined) return found
+    }
+    return {
+      operation: op,
+      execution: view.execution,
+      revision: revisionOf(entry.revision),
+      evidence: batchEvidence(
+        context.mint,
+        {
+          execution: view.execution,
+          pub: entry.pub,
+          envelope: { digest: entry.digest },
+        } as PublishedBatch,
+        entry.revision,
+      ),
+      state: stateOf2(method),
+    }
+  }
+  const finishing = execution.finishing
+  const valueOf = (
+    op: AgentOperationId,
+    entry: OperationEntry,
+    receipt: CommandReceipt,
+  ): unknown => {
+    const method = methodOf(entry.digest)
+    // A recognition answers from the batch it recognized.
+    const at = entry.target === null ? entry.pub : (view.ops.get(entry.target)?.pub ?? entry.pub)
+    switch (method) {
+      case 'open':
+      case 'attach': {
+        const attachment = view.attachments.find(item => item.pub === at)
+        return { receipt, authority: attachment?.authority }
+      }
+      case 'detach': {
+        const detached = view.attachments.find(
+          item => item.handoff !== null && item.handoffRevision === entry.revision,
+        )
+        return detached?.handoff
+      }
+      case 'prepareFinish': {
+        const list = [...view.finish.lists.values()].find(item => item.issued.pub === at)
+        return { receipt, obligations: list?.issued.evidence }
+      }
+      case 'tryFinish':
+        return { kind: 'ended', receipt }
+      case 'commitSettlement': {
+        const settlement = view.settlements.find(item => item.pub === at)
+        if (settlement !== undefined && finishing !== undefined)
+          return settlementOfFact(settlement.record, receipt, finishing, context.blobs)
+        const candidate = finishing?.candidates.find(item => item.candidate === op)
+        const route = finishing?.routes.find(
+          item => item.kind === 'cancellation' && item.candidate === op,
+        )
+        return {
+          kind: 'establish-cancellation',
+          receipt,
+          candidate,
+          route,
+          supersession: finishing?.supersessions.find(item => item.to === op) ?? null,
+        }
+      }
+      case 'received': {
+        const received = [...view.results.values()].find(item => item.received?.pub === at)
+        if (received?.received === null || received === undefined) return undefined
+        return {
+          kind: 'committed',
+          value: {
+            entry: blob(context.blobs, received.received.custody),
+            receipt,
+            saved: received.received.saved,
+          },
+        }
+      }
+      case 'preserve': {
+        const material = [...view.materials.values()].find(item => item.pub === at)
+        return material?.source
+      }
+      default:
+        return receipt
+    }
+  }
+  for (const [op, entry] of view.ops) {
+    const receipt = receiptFor(op, entry)
+    out.set(keyOf(op), {
+      kind: 'committed',
+      key: entry.digest,
+      value: valueOf(op, entry, receipt),
+      receipt,
+    })
+  }
+  for (const [op, entry] of view.rejections)
+    out.set(keyOf(op), {
+      kind: 'rejected',
+      key: view.ops.get(op)?.digest ?? '',
+      failure: { kind: 'conflict', operation: op },
+      audit: entry.audit,
+      revision: revisionOf(entry.revision),
+    })
+  for (const [op, entry] of view.excluded)
+    if (!out.has(keyOf(op)))
+      out.set(keyOf(op), { kind: 'excluded', key: '', evidence: entry.evidence })
+  return out
 }
 
 export type FieldsDiff = Readonly<{
