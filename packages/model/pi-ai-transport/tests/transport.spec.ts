@@ -106,7 +106,11 @@ describe('constructing the transport', () => {
   it.each([
     ['a backoff that is not a list', { backoffMs: 500 }],
     ['no backoff', {}],
-    ['a backoff list with a hole', { backoffMs: [500, , 1000] }],
+    [
+      'a backoff list with a hole',
+      { backoffMs: Array.from({ length: 3 }, (_, i) => (i === 1 ? undefined : 500)) },
+    ],
+    ['a backoff list with a sparse hole', { backoffMs: Object.assign([500], { length: 2 }) }],
   ])('refuses a retry configuration with %s', (_name, connectRetry) => {
     const limits = { ...LIMITS, connectRetry } as unknown as PiTransportConfig['limits']
     expect(() => createPiTransport(configWith({ limits }))).toThrow(RangeError)
