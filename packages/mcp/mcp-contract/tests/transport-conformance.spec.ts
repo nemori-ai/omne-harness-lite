@@ -141,7 +141,9 @@ describe('the suite refuses a fixture that lists a legacy version', () => {
       ...fixtureOf(['stdio', 'streamable-http']),
       protocolVersions: ['2026-07-28', '2025-11-25'],
     }
-    await expect(runConformanceCase(first, fixture)).rejects.toThrow(AssertionError)
+    await expect(runConformanceCase(first, fixture)).rejects.toThrow(
+      /the fixture lists a legacy version/,
+    )
   })
 })
 
