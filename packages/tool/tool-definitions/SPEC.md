@@ -10,6 +10,13 @@
 
 全部命令使用 declared 参数。实现、参数校验、公开 schema 与 help 使用同一张[命令表](src/commands.ts)。未知字段、重复 JSON 键、错误类型及不完整输入均不进入执行者。Files 的 open 与 Shell 的后台标志在本次交付中明确返回 unsupported，且不启动设施。
 
+Files 与 Shell 用 `wrapped` 编码登记，对模型各是一个工具（D-94）。作者描述只写用途与固定事实，命令菜单由声明一侧加入。描述不含运维构造值，例如 shell 可执行文件或工作区根，所以发行清单能固定定义摘要。
+
+- help 用 `name` 选一个命令，`name` 的取值限于命令名。带 `name` 时答该命令的用法行、完整 JSON Schema、字段说明与规则；不带时答命令菜单与规则。命令没有名为 `command` 的字段，所以 `flat` 编码对这两个工具也成立。
+- 参数无效时，失败原因后附该命令的用法行，例如 `invalid-field:mode. Usage: Files {"command": "write", "params": {…}}`。未知命令由参数解析拒绝，不作为成功结果返回；执行表缺少某个命令是缺陷，抛出错误。
+- Files 的 write 接受 `parents`：为真时先以 `mkdir {parents: true}` 建出缺失的父目录。目录已存在时设施答 `conflict`，写入照常进行，其他失败原样返回。它与 mkdir 走同一放置与授权检查。
+- Shell 的 info 除平台事实外，写出一次性脚本的调用 `shell=[可执行文件, …参数前缀]` 与起始目录 `cwd`（D-96 的放置部分）。
+
 ### 精确编辑与批次
 
 edit 要求非空原文恰好出现一次。它读完整原字节，以 UTF-8 解码，在内存修改，然后以读取的 expectedVersion 替换。中文、BOM、CRLF 与无末尾换行的未编辑内容保持原样。非法 UTF-8 拒绝编辑。

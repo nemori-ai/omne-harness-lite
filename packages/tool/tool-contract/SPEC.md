@@ -509,7 +509,20 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 单函数定义具有工具说明、参数约定及每个参数的说明。多命令定义具有工具说明、合法命令清单及每命令一行说明。作者可以仅提供清单，也可以提供全部命令的完整参数；提供的参数每项须带说明。不完整说明不能冒充完整合法定义。
 
-多命令在消费方面前始终是紧凑清单和交给所选命令的参数，不展开全部命令参数。提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，不熟命令的动作前取得详细用法。
+多命令在消费方面前始终是紧凑清单和交给所选命令的参数，不展开全部命令参数。
+
+#### 多命令工具的单槽调用
+
+多命令工具对模型是一个工具，只占一个声明（D-94，R2-D393、R2-D396）。调用在参数里点名命令，命令所在位置由定义的 `encoding` 决定。编码是封闭集合，每个多命令定义声明一个：
+
+| 编码 | 调用形式 | 约束 |
+| --- | --- | --- |
+| `wrapped` | `{"command": <命令>, "params": {…}}`，`params` 省略即空对象 | 除 `command` 与 `params` 外的字段被拒绝 |
+| `flat` | `{"command": <命令>, …字段}` | 命令不得声明名为 `command` 的字段，也不得是 executor-owned 参数；定义判定以 `flat-conflict:<命令>` 拒绝 |
+
+`decodeCommandCall` 是 `encodeCommandCall` 的偏逆：编码出的调用总能解回同一命令与参数；其余输入得到封闭的拒绝类别（`unreadable`、`not-object`、`command-missing`、`command-unknown`、`extra-field`、`params-not-object`、`command-mismatch`），不猜测命令。`selectCommand` 只读 `command` 字段，供路由在执行前选命令；其余缺陷由命令的参数解析答出原因。
+
+紧凑清单由 `commandMenu` 从定义机械派生：首行写调用形式，之后每个命令一行 `<命令> <签名> - <摘要>`。签名由 `commandSignature` 从参数 schema 派生：必填字段写名字，可选字段加 `?`，封闭取值写 `=a|b`，不写类型与字段说明。`commandCallSchema` 给出这一声明的参数 schema，`command` 的取值恰为命令表。字段说明、完整 schema 与规则由各工具的 help 按命令给出。提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，不熟命令的动作前取得详细用法。
 
 呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是调用方不经 Tools 元工具发现即可调用的工具。常驻集合的规则见[常驻持有者规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
 
@@ -1274,11 +1287,11 @@ simple tool 与 multiple-command tool 复用 ToolReturnDeclaration。单函数�
 
 作者先用 defineToolOperation 将一个 ToolAuthor 的参数说明、返回声明和执行能力封装成 ToolOperation。构造时检查 A、R 与该作者的解析器、执行器、返回验证器、编码器和渲染器的类型关系。封装后对登记层隐藏 A/R 和 executor，内部保留这组对应关系及完整 P13 管线。不能用 ToolAuthor<unknown, unknown, …> 或强制断言拼成异构命令表。类型只能检查可表达的关系，schema 身份、正文及 codec 的语义一致仍需绑定验证。
 
-defineFunctionTool 接受一个已声明参数的操作。defineCommandTool 接受以命令名为键、包含 summary 和 operation 的表。命令键是唯一名称源，不能另传一份平行的名字到执行器表。构造器从这份注册生成 ToolImplementation，分别投影函数参数/returns 或各命令的参数/returns。ToolImplementation 只含实现侧事实：形状、description、`backgroundAllowed` 与 declarations。它不含 name、adoption 与治理字段。装载器用 `deriveDefinition` 把它与资产治理声明合成 ToolDefinition，见[定义完整性与呈现](#定义完整性与呈现)。Catalog 与 ToolUsage 读取这个派生定义，不维护第二份声明。executor-owned 参数命令继续保留自己的 usage、protocol 和 ParameterCodec，不能借此省略返回声明或校验。
+defineFunctionTool 接受一个已声明参数的操作。defineCommandTool 接受以命令名为键、包含 summary 和 operation 的表，以及调用编码 `encoding`。命令键是唯一名称源，不能另传一份平行的名字到执行器表。构造器从这份注册生成 ToolImplementation，分别投影函数参数/returns 或各命令的参数/returns。ToolImplementation 只含实现侧事实：形状、description、`backgroundAllowed` 与 declarations。它不含 name、adoption 与治理字段。装载器用 `deriveDefinition` 把它与资产治理声明合成 ToolDefinition，见[定义完整性与呈现](#定义完整性与呈现)。Catalog 与 ToolUsage 读取这个派生定义，不维护第二份声明。executor-owned 参数命令继续保留自己的 usage、protocol 和 ParameterCodec，不能借此省略返回声明或校验。
 
 这些构造器不执行工具，也不访问外部服务。它们检查可同步判断的形状、名称及模式一致性，保存声明快照和原能力绑定。构造器拒绝空命令表和非法名称，只采用记录的自身键，不查原型链。上游从条目序列生成命令表时，须在覆盖发生前拒绝重名；构造器无法恢复已被调用者覆盖的同名项。它们的成功不是 available 或使用授权。绑定提供者在开放可用性前，异步核对各操作的 schema 来源、精确修订、正文和上限，以及实际作者绑定。声明与绑定不一致时，对应操作不可用，不能改用其他命令或扩大 schema 让它通过。
 
-ToolBindings 提供者经 `register` 接收已装载的 ToolImplementation，按登记键持有。resolve 按 FixedToolRequest 的能力身份、记下的形状和 command 在同形贡献中选择一次操作（记下的登记键仍 live 时优先它），固定其参数解析、executor、返回检查、renderer、程序编码及 schema。单函数只接受 command=null，多命令要求具名且存在的 command，不存在时拒绝，不能默认第一个或任意分派。执行、settle 与恢复都沿原选择。仅满足另一个 command 的 schema 不能成功，不能把所有命令的输出合成联合再验证。已完成结果的归属沿 call 的固定请求和 resultVersion 查回；即使两个命令采用相同 schema，也不能交换调用归属。
+ToolBindings 提供者经 `register` 接收已装载的 ToolImplementation，按登记键持有。resolve 按 FixedToolRequest 的能力身份、记下的形状和 command 在同形贡献中选择一次操作（记下的登记键仍 live 时优先它），固定其参数解析、executor、返回检查、renderer、程序编码及 schema。单函数只接受 command=null，多命令要求具名且存在的 command，不存在时拒绝，不能默认第一个或任意分派。执行、settle 与恢复都沿原选择。仅满足另一个 command 的 schema 不能成功，不能把所有命令的输出合成联合再验证。多命令工具的参数是整次调用：绑定先用 `commandArguments` 按定义的编码切出所选命令的参数，再交给该命令的参数解析；调用点名的命令不是固定请求的 command，或调用无法解码时，结果是带固定原因的失败，不改用调用点名的命令。注册保存作者原有的参数解析，切分只在绑定一侧做一次。已完成结果的归属沿 call 的固定请求和 resultVersion 查回；即使两个命令采用相同 schema，也不能交换调用归属。
 
 登记会封闭不同 A/R，但不隐藏环境 E 或内容块 B 的兼容性。一个注册中的操作使用同一显式 E/B 契约。某个函数只需部分依赖时，由作者提供窄适配；独立服务可按操作注入，不自动并集全部权限。ToolOperation 与 ToolImplementation 是当前执行域的能力，不是 settings 或数据记录，不能交给程序执行方。恢复保存原采用及可恢复来源，不序列化这些闭包。
 

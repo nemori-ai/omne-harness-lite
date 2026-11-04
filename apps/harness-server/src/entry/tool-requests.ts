@@ -8,8 +8,8 @@
 //   必须是这个租户的会话工作主体；判定只有一份，在
 //   `rows/tool-runtime/session-work.ts`，与 Tool 运行时的身份一侧同口径。它的工作文本就是会话 id。其余主体答
 //   denied，核验器缺席答 unavailable。
-// - 定义与可用性：`toolCatalog.inspect`。模型看到的名字按 request-context 的声明规则（`declare-tools.ts`：
-//   多命令工具是 `<工具>.<命令>`，单函数工具是工具名）拆成工具名与命令。消费者材料是发行清单确认的文本消费者。
+// - 定义与可用性：`toolCatalog.inspect`。模型看到的名字就是工具名（`declare-tools.ts`，D-94）；多命令工具的
+//   命令从生效参数的 `command` 选出，见 `commandOf`。消费者材料是发行清单确认的文本消费者。
 //   不在发行清单里、不是官方层、不是 `available` 的答 unavailable；prepare 时定义采用必须与 describe 给出的相同。
 // - requesterScope：会话的当前 Context 作用域，即会话快照 `contextScopes` 的最新一条，未结束（与 AD-04 历史源
 //   的读法相同）。会话以 `coordinator` 调用方类读取（见 `sessionWorkReaderOf`），访问裁定照常；读不到或作用域
