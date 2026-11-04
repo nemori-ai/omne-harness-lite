@@ -65,6 +65,18 @@ export function createRuntimeExecutor(
     access: settings.access.guard,
     position: { access: settings.resolveAccess, receiver: input.receiver },
     capacity: settings.capacity,
+    // No receiver for the owner: the delivery stays owed, paced and named (R2-D273).
+    absentReceiver: {
+      initialMs: settings.configuration.driverRetryDelayMs ?? 1000,
+      maxMs: Math.max(settings.configuration.driverRetryDelayMs ?? 1000, 60_000),
+    },
+    warn: message => {
+      try {
+        input.ctx.logger('tool-executor').warn(message)
+      } catch {
+        // The context has ended; there is nobody to tell.
+      }
+    },
     async accountAtFreeze(access) {
       const account = await dependencies.reads.account(access)
       return 'failure' in account &&
