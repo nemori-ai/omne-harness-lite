@@ -188,7 +188,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 ## 实例宿主与普通调用的边界
 
-`createLocalToolRuntimePlugins` 组装生产实例宿主和实例身份。宿主在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不接受全局 instance。执行器在每次投递结果之后用一次新鲜恢复判定调用是否完成（已结清、没有 pending 任务、投递 pending 为 0）；完成的调用在没有 run 进行时退役，若有 run 正在进行则在该 run 结束时退役，重试 interval 不再重排它。同一租户的投递 run 按到达顺序轮流，后来的调用等自己的轮次；capacity 按在途的租户数计（每租户同时至多一个 run），一个租户在途加排队的 run 不超过 capacity，排队不占别的租户的名额（R2-D164、R2-D186）。组合测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger、本地启动协调器与实例宿主贯通。该证据不证明真实 SQL/Windows 端到端、claim、换实例接管或重启恢复。精确装配责任见[运行时组合工厂](docs/cordis.md#运行时组合工厂)。
+`createLocalToolRuntimePlugins` 组装生产实例宿主和实例身份。宿主在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不接受全局 instance。执行器在每次投递结果之后用一次新鲜恢复判定调用是否完成（已结清、没有 pending 任务、投递 pending 为 0）；完成的调用在没有 run 进行时退役，若有 run 正在进行则在该 run 结束时退役，重试 interval 不再重排它。同一租户的投递 run 按到达顺序轮流，后来的调用等自己的轮次；capacity 按在途的租户数计（每租户同时至多一个 run），一个租户在途加排队的 run 不超过 capacity，排队不占别的租户的名额（R2-D164、R2-D186）。超出时答 `unavailable`，`dependency` 为 `delivery-capacity`：它表示这个租户的在途加排队已满，或在途的租户数已满，不再表示“同租户已有 run 在途”。交付仍欠，由重试 interval 再推。组合测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger、本地启动协调器与实例宿主贯通。该证据不证明真实 SQL/Windows 端到端、claim、换实例接管或重启恢复。精确装配责任见[运行时组合工厂](docs/cordis.md#运行时组合工厂)。
 
 ## 结果交付的推送退避
 

@@ -115,7 +115,8 @@ const unavailableRead = (diagnostic: string) => ({ kind: 'unavailable' as const,
 
 /**
  * 交给 bundle 的耐久记录仓：逐次读当前 SQL 端口，缺席答 `unavailable`（不是空记录）。读到的未结清原调用记进
- * 见证；提交成功且写入了调用的 `settled` 状态时，按调用表删掉这个调用。
+ * 见证；读到调用已是 `settled`，或提交成功且写入了它的 `settled` 状态时，按调用表删掉这个调用（提交答 `unknown` 但实际已落盘的
+ * 结清，由之后的读补上）。
  * 声明 `durable`：它只转交给 SQL 记录仓，从不在内存里保存记录。
  */
 export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore<ToolMessageContentBlock> {
@@ -126,20 +127,22 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore<ToolMessag
       if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
       const answer = await sql.store.read(domain)
       if (answer.kind === 'complete')
-        for (const row of answer.records)
-          if (
-            row.kind === 'call' &&
-            row.call.execution !== null &&
-            row.call.state.phase !== 'settled'
-          ) {
-            const key = callKeyOf(row.call.tenant, row.call.call)
-            const execution = canonicalDigest(row.call.execution)
-            const old = holder.witnessed.get(key)
-            const current =
-              old?.execution === execution ? old : { execution, sources: new Set<string>() }
-            current.sources.add(canonicalDigest(row.call.state.source))
-            holder.witnessed.set(key, current)
+        for (const row of answer.records) {
+          if (row.kind !== 'call') continue
+          const key = callKeyOf(row.call.tenant, row.call.call)
+          if (row.call.state.phase === 'settled') {
+            // The record says the call ended: release it whatever way that commit reached this process.
+            settleCall(holder, key)
+            continue
           }
+          if (row.call.execution === null) continue
+          const execution = canonicalDigest(row.call.execution)
+          const old = holder.witnessed.get(key)
+          const current =
+            old?.execution === execution ? old : { execution, sources: new Set<string>() }
+          current.sources.add(canonicalDigest(row.call.state.source))
+          holder.witnessed.set(key, current)
+        }
       return answer
     },
     async commit(input) {
