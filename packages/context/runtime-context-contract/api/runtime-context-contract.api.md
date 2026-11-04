@@ -480,13 +480,13 @@ export type RevokeEligibilityResult = Readonly<{
 export type CommitInput = Readonly<{
     kind: 'registration';
     commit: CommitRef;
-    after?: CommitRef | null;
+    after: CommitRef | null;
     change: RegistrationChange;
     scopeEnded?: true;
 }> | Readonly<{
     kind: 'step';
     commit: CommitRef;
-    after?: CommitRef | null;
+    after: CommitRef | null;
     tenant: TenantId;
     stepCommit: StepCommit;
     executionEnded: boolean;

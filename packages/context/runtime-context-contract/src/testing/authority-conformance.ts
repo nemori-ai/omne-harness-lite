@@ -231,6 +231,7 @@ async function revocationDuringSupplyDiscarded<P>(fixture: RuntimeContextFixture
   const applying = subject.applyCommit(fixture.principal, {
     kind: 'registration',
     commit: { commit: 'register' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -326,6 +327,7 @@ async function tenantInvalidateScopedToTenant<P>(fixture: RuntimeContextFixture<
   const added = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'foreign' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -390,6 +392,7 @@ async function supplyAnswerMapping<P>(fixture: RuntimeContextFixture<P>) {
   await subject.applyCommit(fixture.principal, {
     kind: 'registration',
     commit: { commit: 'answers' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,

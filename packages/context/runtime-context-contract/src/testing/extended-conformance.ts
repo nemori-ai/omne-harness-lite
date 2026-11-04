@@ -75,6 +75,7 @@ async function addRequired<P>(s: Setup<P>, target: ScopeRef, commit: string) {
   const added = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit },
+    after: null,
     change: {
       kind: 'add',
       scope: target,
@@ -202,6 +203,7 @@ async function registerBeforeProducerThenIncompatibleReadsMissing<P>(
   const applied = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'early' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -247,6 +249,7 @@ async function scopeIndependentCallbackAtThreePoints<P>(fixture: RuntimeContextF
   await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'one' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -291,6 +294,7 @@ async function perRequestBlockOutsideSnapshot<P>(fixture: RuntimeContextFixture<
   await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'request' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -355,6 +359,7 @@ async function childScopeShadowsParent<P>(fixture: RuntimeContextFixture<P>) {
   await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'child' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -543,6 +548,7 @@ async function removedRegistration<P>(
   const added = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'add' },
+    after: null,
     change: {
       kind: 'add',
       scope: target,
@@ -605,6 +611,7 @@ async function statefulCase<P>(
   const reg = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'stateful' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,

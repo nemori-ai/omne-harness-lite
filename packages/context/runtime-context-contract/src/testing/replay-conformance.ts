@@ -85,6 +85,7 @@ async function scopeEndOnly<P>(fixture: RuntimeContextFixture<P>) {
     await s.subject.applyCommit(s.principal, {
       kind: 'registration',
       commit: { commit: 'after-end' },
+      after: null,
       change: {
         kind: 'update',
         creating: false,
@@ -110,6 +111,7 @@ async function scopeEndCommitConflict<P>(fixture: RuntimeContextFixture<P>) {
   const conflict = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'registration' },
+    after: null,
     change: addChange(s.scope, s.tenant),
     scopeEnded: true,
   })
@@ -126,6 +128,7 @@ async function scopeEndAtomicWithRegistration<P>(fixture: RuntimeContextFixture<
   const bad = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'remove-required' },
+    after: null,
     change: {
       kind: 'remove',
       creating: false,
@@ -158,6 +161,7 @@ async function replayFenceClosedUntilFinish<P>(fixture: RuntimeContextFixture<P>
     await subject.applyCommit(fixture.principal, {
       kind: 'registration',
       commit: { commit: 'early' },
+      after: null,
       change: addChange(target, fixture.tenant),
     }),
     incomplete,
@@ -184,6 +188,7 @@ async function replayFenceClosedUntilFinish<P>(fixture: RuntimeContextFixture<P>
   const applied = await subject.applyCommit(fixture.principal, {
     kind: 'registration',
     commit: { commit: 'early' },
+    after: null,
     change: addChange(target, fixture.tenant),
   })
   assert.equal(applied.kind, 'applied')

@@ -111,7 +111,7 @@ export interface SessionContextTranslation {
   commitOf(
     entry: HistoryEntry,
     session: Readonly<{ tenant: TenantId }>,
-  ): Outcome<CommitInput | null, string>
+  ): Outcome<RecordedCommit | null, string>
 }
 
 /**
@@ -131,7 +131,15 @@ export type SessionContextHolderInput<P> = Readonly<{
 }>
 
 type Bound = Readonly<{ tenant: TenantId; session: SessionId }>
-type ContextRecord = Readonly<{ entry: HistoryEntry; input: CommitInput }>
+type WithoutAfter<C> = C extends { readonly after: unknown } ? Omit<C, 'after'> : C
+
+/**
+ * A commit input as the Session log records it. The log keeps no predecessor; the holder adds
+ * `after` from the scope's previous record when it applies the input (RC-02 提交链, R2-D319).
+ */
+export type RecordedCommit = WithoutAfter<CommitInput>
+
+type ContextRecord = Readonly<{ entry: HistoryEntry; input: RecordedCommit }>
 type Registered = Readonly<{
   bindings: readonly NeedBinding[]
   checkpointed: boolean
@@ -222,7 +230,7 @@ function tenantText(tenant: TenantId): string | undefined {
 }
 
 /** The scope and tenant of one commit input (RC-02). */
-function targetOf(input: CommitInput): Readonly<{ scope: ScopeRef; tenant: TenantId }> {
+function targetOf(input: RecordedCommit): Readonly<{ scope: ScopeRef; tenant: TenantId }> {
   switch (input.kind) {
     case 'registration':
       return { scope: input.change.scope, tenant: input.change.tenant }
@@ -248,7 +256,7 @@ function chained(records: readonly ContextRecord[], index: number): CommitInput 
   return { ...input, after: records[index - 1]?.input.commit ?? null }
 }
 
-function endsScope(input: CommitInput): boolean {
+function endsScope(input: RecordedCommit): boolean {
   return input.scopeEnded === true
 }
 
@@ -542,7 +550,7 @@ function recordReader<P>(
   ): Outcome<Map<string, { scope: ScopeRef; records: ContextRecord[] }>, string> {
     const scopes = new Map<string, { scope: ScopeRef; records: ContextRecord[] }>()
     for (const entry of entries) {
-      let translated: Outcome<CommitInput | null, string>
+      let translated: Outcome<RecordedCommit | null, string>
       try {
         translated = input.translation.commitOf(entry, { tenant: bound.tenant })
       } catch (cause) {

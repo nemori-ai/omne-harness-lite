@@ -78,9 +78,9 @@ export function ownChange(change: RegistrationChange): RegistrationChange | unde
   }
 }
 
-/** The predecessor of an ordinary commit; omitted reads as `null` (RC-02 提交链, R2-D319). */
+/** The predecessor of an ordinary commit; required, `null` for the first (RC-02 提交链, R2-D319). */
 function ownAfter(after: unknown): { after: CommitRef | null } | undefined {
-  if (after === undefined || after === null) return { after: null }
+  if (after === null) return { after: null }
   if (typeof after !== 'object' || !('commit' in after) || typeof after.commit !== 'string')
     return undefined
   return { after: { commit: after.commit } }

@@ -281,6 +281,22 @@ describe('RcCommit guard: applyCommit refines the model', () => {
     })
   })
 
+  it('an ordinary commit without `after` is malformed and is not applied', async () => {
+    const h = harness()
+    const log = new Log()
+    log.commit('step')
+    await openWith(h, log, 0)
+    const { after: _after, ...withoutAfter } = log.input(0) as Extract<
+      CommitInput,
+      { kind: 'step' }
+    >
+    expect(await h.rc.applyCommit('holder', withoutAfter as CommitInput)).toMatchObject({
+      kind: 'invalid',
+      reason: 'malformed-input',
+    })
+    expect((await h.rc.applyCommit('holder', log.input(0))).kind).toBe('applied')
+  })
+
   it('a released step commit is answered out-of-order and is not applied again', async () => {
     const h = harness()
     const log = new Log()

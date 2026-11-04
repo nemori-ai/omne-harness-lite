@@ -95,6 +95,7 @@ describe('closing with holder operations in flight', () => {
     const committing = h.rc.applyCommit('holder', {
       kind: 'registration',
       commit: { commit: 'c1' },
+      after: null,
       change: {
         kind: 'add',
         creating: true,

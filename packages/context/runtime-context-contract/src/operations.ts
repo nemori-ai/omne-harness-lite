@@ -85,9 +85,9 @@ export type CommitInput =
       commit: CommitRef
       /**
        * The commit of the scope's previous context record in the holder log; `null` for the first
-       * (RC-02 提交链, R2-D319). Omitted reads as `null`.
+       * (RC-02 提交链, R2-D319).
        */
-      after?: CommitRef | null
+      after: CommitRef | null
       change: RegistrationChange
       /** The same confirmed commit also ends the scope; applied atomically or not at all (RC-09). */
       scopeEnded?: true
@@ -95,8 +95,8 @@ export type CommitInput =
   | Readonly<{
       kind: 'step'
       commit: CommitRef
-      /** As for a registration decision (RC-02 提交链, R2-D319). Omitted reads as `null`. */
-      after?: CommitRef | null
+      /** As for a registration decision (RC-02 提交链, R2-D319). */
+      after: CommitRef | null
       tenant: TenantId
       stepCommit: StepCommit
       /** The execution has ended: `untracked` stateful blocks of the scope become invalid (RC-05). */

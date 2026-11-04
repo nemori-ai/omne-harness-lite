@@ -25,7 +25,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeContextBlockKey,
   decodeScopeRef,
-  type CommitInput,
   type CommitRef,
   type ConsumerClass,
   type ContextBlockKey,
@@ -55,6 +54,7 @@ import type {
 } from '@omne-harness/session-contract'
 import { SessionContextInputService } from '@omne-harness/session-cordis-contract/cordis'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
+import type { RecordedCommit } from './context-holder.ts'
 
 const OWNER = '@omne-harness/session-adapters'
 /** The owner named in the guard material and in `unavailable` when Runtime Context is the cause. */
@@ -746,7 +746,7 @@ export function encodeContextStepCommit(
   }
 }
 
-type StepInput = Extract<CommitInput, { kind: 'step' }>
+type StepInput = Extract<RecordedCommit, { kind: 'step' }>
 
 function decodeStep(updates: unknown): StepInput {
   if (!Array.isArray(updates) || updates.length === 0)
@@ -811,7 +811,7 @@ export type SessionContextCommitTranslation = Readonly<{
   commitOf(
     entry: HistoryEntry,
     session: Readonly<{ tenant: TenantId }>,
-  ): Outcome<CommitInput | null, string>
+  ): Outcome<RecordedCommit | null, string>
 }>
 
 /** A plain object of the entry payload, through the Session entry tree. */
@@ -822,7 +822,7 @@ function payloadOf(entry: HistoryEntry): Record<string, unknown> {
 function decodeRegistrationEntry(
   payload: Record<string, unknown>,
   definitions: SessionContextDefinitions,
-): CommitInput | null {
+): RecordedCommit | null {
   const declaration = open(payload['declaration'], 'declaration')
   if (declaration['kind'] !== 'context-registration') return null
   const recorded = text(payload['scope'], 'scope')
@@ -873,7 +873,7 @@ function decodeRegistrationEntry(
   }
 }
 
-function decodeStepEntry(payload: Record<string, unknown>): CommitInput | null {
+function decodeStepEntry(payload: Record<string, unknown>): RecordedCommit | null {
   const declaration = open(payload['declaration'], 'declaration')
   if (declaration['kind'] !== 'context-step-commit') return null
   const step = decodeStep(declaration['updates'])
@@ -896,14 +896,14 @@ export function createSessionContextTranslation(
 ): SessionContextCommitTranslation {
   type SessionOfEntry = Readonly<{ tenant: TenantId }>
   /** A decoded record of the session's own tenant; another tenant is a record the protocol cannot read. */
-  function owned(input: CommitInput | null, session: SessionOfEntry): CommitInput | null {
+  function owned(input: RecordedCommit | null, session: SessionOfEntry): RecordedCommit | null {
     if (input === null) return null
     const tenant = input.kind === 'registration' ? input.change.tenant : input.tenant
     if (!tenantEquals(tenant, session.tenant))
       throw new Malformed('the record names another tenant than its session')
     return input
   }
-  function translate(entry: HistoryEntry, session: SessionOfEntry): CommitInput | null {
+  function translate(entry: HistoryEntry, session: SessionOfEntry): RecordedCommit | null {
     switch (entry.kind) {
       case REGISTRATION_KIND:
         return owned(decodeRegistrationEntry(payloadOf(entry), definitions), session)
@@ -931,7 +931,7 @@ export function createSessionContextTranslation(
   }
   return Object.freeze({
     kinds: Object.freeze([REGISTRATION_KIND, STEP_KIND, ARCHIVED_KIND]),
-    commitOf(entry: HistoryEntry, session: SessionOfEntry): Outcome<CommitInput | null, string> {
+    commitOf(entry: HistoryEntry, session: SessionOfEntry): Outcome<RecordedCommit | null, string> {
       try {
         return succeed(translate(entry, session))
       } catch (cause) {

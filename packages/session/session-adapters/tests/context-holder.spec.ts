@@ -25,7 +25,6 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   decodeScopeRef,
-  type CommitInput,
   type ContextBlockKey,
   type FinishReplayAction,
   type NeedBinding,
@@ -67,6 +66,7 @@ import {
   createSessionContextHolder,
   type SessionContextTranslation,
 } from '../src/cordis/context-holder.ts'
+import type { RecordedCommit } from '../src/cordis/context-holder.ts'
 import { createSessionRuntimeContextTrust } from '../src/runtime-context-trust.ts'
 
 // --- values --------------------------------------------------------------------------------------
@@ -181,7 +181,7 @@ function add(
   basedOn: number,
   persistence: 'checkpointed' | 'untracked',
   bindings: readonly NeedBinding[] = [modelNeed(key)],
-): CommitInput {
+): RecordedCommit {
   return {
     kind: 'registration',
     commit: { commit },
@@ -199,14 +199,14 @@ function add(
     },
   }
 }
-function remove(at: Target, commit: string, key: ContextBlockKey, basedOn: number): CommitInput {
+function remove(at: Target, commit: string, key: ContextBlockKey, basedOn: number): RecordedCommit {
   return {
     kind: 'registration',
     commit: { commit },
     change: { kind: 'remove', scope: at.scope, tenant: at.tenant, key, basedOn, creating: false },
   }
 }
-function step(at: Target, commit: string, key: ContextBlockKey, value: number): CommitInput {
+function step(at: Target, commit: string, key: ContextBlockKey, value: number): RecordedCommit {
   return {
     kind: 'step',
     commit: { commit },
@@ -226,7 +226,7 @@ function step(at: Target, commit: string, key: ContextBlockKey, value: number): 
     },
   }
 }
-function end(at: Target, commit: string): CommitInput {
+function end(at: Target, commit: string): RecordedCommit {
   return { kind: 'scope', commit: { commit }, scope: at.scope, tenant: at.tenant, scopeEnded: true }
 }
 
@@ -246,9 +246,9 @@ const FACTS_HISTORY = 'session-ad03-facts-history'
 const HOLDER = 'session-ad03'
 /** What a scripted entry records; a function gets the session the holder reads it for. */
 type Scripted =
-  | CommitInput
+  | RecordedCommit
   | null
-  | ((session: Readonly<{ tenant: TenantId }>) => CommitInput | null)
+  | ((session: Readonly<{ tenant: TenantId }>) => RecordedCommit | null)
 
 const sessionKey = (access: { tenant: TenantId; session: SessionId }) =>
   JSON.stringify([textOf(access.tenant), access.session])

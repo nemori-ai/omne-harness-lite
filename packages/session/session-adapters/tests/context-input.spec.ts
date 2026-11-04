@@ -15,7 +15,6 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   decodeScopeRef,
-  type CommitInput,
   type ContextBlockKey,
   type NeedBinding,
   type RegistrationChange,
@@ -69,7 +68,7 @@ import {
 import type { ReplayMaterial } from '@omne-harness/runtime-context-contract'
 import type { SessionFaces } from '@omne-harness/session-contract'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
-import { createSessionContextHolder } from '../src/cordis/context-holder.ts'
+import { createSessionContextHolder, type RecordedCommit } from '../src/cordis/context-holder.ts'
 import { createSessionRuntimeContextTrust } from '../src/runtime-context-trust.ts'
 
 // --- values --------------------------------------------------------------------------------------
@@ -970,7 +969,7 @@ describe('the translation of committed Session entries', () => {
     const log = await sessionLog()
     const translation = createSessionContextTranslation(definitions)
     const inputs = log.entries.map(entry => ok(translation.commitOf(entry, log.access), entry.kind))
-    const expected: CommitInput[] = [
+    const expected: RecordedCommit[] = [
       {
         kind: 'registration',
         commit: { commit: log.initialCommit },
@@ -1013,7 +1012,7 @@ describe('the translation of committed Session entries', () => {
     ]
     expect(inputs).toEqual(expected)
     // The functions come back from the adopted definition, not as copies.
-    const first = inputs[0] as Extract<CommitInput, { kind: 'registration' }>
+    const first = inputs[0] as Extract<RecordedCommit, { kind: 'registration' }>
     expect(first.change.kind === 'add' && first.change.declaration).toBe(notesDeclaration)
     expect(new Set(translation.kinds)).toEqual(new Set(log.entries.map(entry => entry.kind)))
   })
