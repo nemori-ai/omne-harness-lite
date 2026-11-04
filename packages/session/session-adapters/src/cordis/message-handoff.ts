@@ -76,6 +76,7 @@ import { commitJournal, type JournalCombination } from '../journal-commit.ts'
 import { canonical } from '../testing/canonical.ts'
 import { type SessionCoordinatorPrincipalFailure, sessionScopeEvidence } from './agent-drive.ts'
 import { readExecutionRecords } from './agent-journal.ts'
+import { attemptOfAuthority, type GrantedAttachment } from './attempt-grant.ts'
 import { decodeState, encodeState } from './durable-codec.ts'
 
 const OWNER = 'session-adapters/message-handoff'
@@ -361,7 +362,7 @@ function createMessageHandoff<P>(
 
   /** Steps 2 and 3 of the execution branch: the P of the same session and the current advance. */
   async function internal(bound: Bound, prepare: Extract<HandoffPrepare, { kind: 'execution' }>) {
-    // The execution's records and its authorities, folded from the facts of the execution.
+    // The execution's records and its attachments, folded from the facts of the execution.
     const records = await readExecutionRecords(ports, bound)
     if (records.kind === 'unavailable') return fail(unavailable(records.diagnostic))
     const execution = records.execution
@@ -375,22 +376,27 @@ function createMessageHandoff<P>(
         field: 'request',
         reason: 'not the P the Journal saved',
       })
-    return succeed(records.authorities)
+    return succeed(execution.attachments)
   }
 
+  /**
+   * The advance must be the current attempt: the attempt the Session issued the grant of the
+   * Authority's attachment for (R2-D348, R2-D349). A snapshot without its attempt records proves
+   * nothing, so the advance is stale.
+   */
   async function advances(
     bound: Bound,
-    authorities: ReadonlyMap<string, Readonly<{ attempt: string }>>,
+    attachments: readonly GrantedAttachment[],
     prepare: Extract<HandoffPrepare, { kind: 'execution' }>,
   ): Promise<Outcome<null, Failure>> {
     const work = await snapshotOf(bound.tenant, bound.session)
     if ('failure' in work) return work
     const run = work.ok.run
-    const attempt = authorities.get(`${bound.execution}\0${canonical(prepare.advance)}`)?.attempt
+    const attempt = attemptOfAuthority(attachments, work.ok.historyIndex?.attempts, prepare.advance)
     return run.kind === 'active' &&
       run.execution.execution === bound.execution &&
       run.advance !== null &&
-      attempt === run.advance.attempt
+      attempt?.attempt === run.advance.attempt
       ? succeed(null)
       : fail({ kind: 'stale-advance' })
   }

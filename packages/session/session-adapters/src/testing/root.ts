@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto'
 import { freezeValue } from './freeze.ts'
 import { canonical } from './canonical.ts'
-import { emptySessionSources, indexSession, type SessionSources } from './session-sources.ts'
+import {
+  emptySessionSources,
+  indexSession,
+  withAttemptRecords,
+  type SessionSources,
+} from './session-sources.ts'
 import type {
   Access,
   AgentJournal,
@@ -442,6 +447,14 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
         session: value,
         sources: indexSession(draft.sources, value, namespace, draft.session),
       }
+      touch()
+    },
+    /** The Session's attempt records a provider read for this call (R2-D349), in place of the folded ones. */
+    adoptAttemptRecords(
+      records: readonly import('@omne-harness/session-contract').SessionAttemptRecord[],
+    ) {
+      if (!draft) throw new Error('Session attempt records adopted outside common root')
+      draft = { ...draft, sources: withAttemptRecords(draft.sources, records) }
       touch()
     },
     mutate<T>(action: () => T): T {

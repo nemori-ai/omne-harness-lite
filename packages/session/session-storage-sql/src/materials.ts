@@ -47,6 +47,8 @@ import {
   SESSION_TABLES,
   STATE_ITEM_MIGRATION,
   STATE_ITEM_TABLES,
+  ATTEMPT_GRANT_MIGRATION,
+  ATTEMPT_GRANT_TABLES,
 } from './worker/schema.ts'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
@@ -72,6 +74,10 @@ const stateItemMigrationRef = Object.freeze({
   owner: STATE_ITEM_MIGRATION.owner,
   id: STATE_ITEM_MIGRATION.id,
 })
+const attemptGrantMigrationRef = Object.freeze({
+  owner: ATTEMPT_GRANT_MIGRATION.owner,
+  id: ATTEMPT_GRANT_MIGRATION.id,
+})
 const recordMigrationRef = Object.freeze({
   owner: EXECUTION_RECORD_MIGRATION.owner,
   id: EXECUTION_RECORD_MIGRATION.id,
@@ -96,9 +102,13 @@ const factBlobMigrationRef = Object.freeze({
   owner: FACT_BLOB_MIGRATION.owner,
   id: FACT_BLOB_MIGRATION.id,
 })
-/** What a reader of the same-root index requires: the Session log, `er_fact` and the attempts. */
+/**
+ * What a reader of the same-root index requires: the Session log, the grants of its attempts
+ * (`session/005`), `er_fact` and the attempts of the admissions.
+ */
 const indexMigrations = [
   migrationRef,
+  attemptGrantMigrationRef,
   recordMigrationRef,
   admissionAttemptMigrationRef,
   factBlobMigrationRef,
@@ -158,10 +168,11 @@ export const HANDLERS: readonly Handler[] = [
       'sl_state',
       ...STATE_ITEM_TABLES,
       'sl_entry',
+      ...ATTEMPT_GRANT_TABLES,
       ...EXECUTION_RECORD_INDEX_TABLES,
     ],
-    // It reads the snapshot chunks (`session/004`), `er_admission_attempt_idx`
-    // (`execution-record/003`) and `er_fact` (`/006`).
+    // It reads the snapshot chunks (`session/004`), the attempt grants (`session/005`),
+    // `er_admission_attempt_idx` (`execution-record/003`) and `er_fact` (`/006`).
     migrations: [stateItemMigrationRef, ...indexMigrations],
     maxRowsRead: WORK_ROWS_READ,
   },
@@ -177,7 +188,7 @@ export const HANDLERS: readonly Handler[] = [
     // without the snapshot row, answered only at the version the cache folded to.
     handler: 'session.work-index',
     file: 'read-work-index',
-    tables: ['sl_journal', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
+    tables: ['sl_journal', 'sl_entry', ...ATTEMPT_GRANT_TABLES, ...EXECUTION_RECORD_INDEX_TABLES],
     migrations: indexMigrations,
   },
   {
@@ -185,7 +196,7 @@ export const HANDLERS: readonly Handler[] = [
     // position before the batch and the same publication count.
     handler: 'session.work-reads',
     file: 'read-work-reads',
-    tables: ['sl_journal', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
+    tables: ['sl_journal', 'sl_entry', ...ATTEMPT_GRANT_TABLES, ...EXECUTION_RECORD_INDEX_TABLES],
     migrations: indexMigrations,
   },
   {
@@ -301,6 +312,7 @@ export function sessionStorageMaterials(
   const indexMigration = module('execution-index-migration')
   const evidenceMigration = module('operation-evidence-migration')
   const stateItemMigration = module('state-item-migration')
+  const attemptGrantMigration = module('attempt-grant-migration')
   const preadmissionMigration = module('preadmission-migration')
   const admissionAttemptMigration = module('admission-attempt-migration')
   const statePartMigration = module('state-part-migration')
@@ -339,6 +351,7 @@ export function sessionStorageMaterials(
           ...EXECUTION_INDEX_TABLES,
           ...OPERATION_EVIDENCE_TABLES,
           ...STATE_ITEM_TABLES,
+          ...ATTEMPT_GRANT_TABLES,
         ],
         readTables: EXECUTION_RECORD_INDEX_TABLES,
         requiresFacts: [],
@@ -377,6 +390,12 @@ export function sessionStorageMaterials(
         moduleUrl: stateItemMigration.moduleUrl,
         checksum: stateItemMigration.digest,
         requires: [evidenceMigrationRef],
+      },
+      {
+        ...attemptGrantMigrationRef,
+        moduleUrl: attemptGrantMigration.moduleUrl,
+        checksum: attemptGrantMigration.digest,
+        requires: [stateItemMigrationRef],
       },
       {
         ...preadmissionMigrationRef,

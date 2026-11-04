@@ -73,7 +73,7 @@ import {
   executionKey,
   HistoryFailure,
 } from './history.ts'
-import { canonical, materializeModelView, rowData } from './session-values.ts'
+import { canonical, digestOf, materializeModelView, rowData } from './session-values.ts'
 import { journalEvidence } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
 
@@ -251,16 +251,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             `${input.execution}\0${input.operation}`,
             root.agent.originals.get(input.execution)!.at(-1)!,
           )
-          if ((method === 'open' || method === 'attach') && execution) {
-            const value = input as OpenInput<P> | AttachInput<P>
-            const authority = execution.attachments.at(-1)?.authority
-            if (authority)
-              root.agent.authorities.set(
-                `${input.execution}\0${canonical(authority)}`,
-                grantAttempt(root, input.execution, grantOf(value)),
-              )
-          }
-
           if (method === 'recordResult' && execution) {
             const value = input as Parameters<AgentJournal<P>['recordResult']>[0]
             normalizedResult(root, execution, value.consumption, value.result)
@@ -1090,8 +1080,16 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             state.snapshot.run.kind === 'active' ? (state.snapshot.run.advance?.attempt ?? '') : '',
           )
         if (!attempt || attempt.execution !== input.execution) return fail(denied('originalGrant'))
+        // The grant the Session issued for the attempt (R2-D349); the evidence of the SE15 row is
+        // not one, and none stands in for a grant that was not issued.
         const receipt = cell.current().sources.grantByAttempt.get(attempt.attempt)
-        return succeed(receipt ?? attempt.started)
+        return receipt === undefined
+          ? fail<Failure>({
+              kind: 'unavailable',
+              owner: 'session-memory-journal',
+              diagnostic: 'no grant was issued for the current attempt',
+            })
+          : succeed(receipt)
       },
       async interpret(
         input: SessionAccess<P> & {
@@ -1380,7 +1378,23 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           answers: new Map(),
           modelView: materializeModelView({ epoch: 'epoch:0', rows: [] }, entries, entries),
         }
-        cell.mutate(() => cell.replaceSession(state))
+        cell.mutate(() => {
+          cell.replaceSession(state)
+          // A seeded history was not committed through this double, so no commit receipt granted
+          // its attempts. The double issues the grant of each seeded attempt here, at seed time
+          // (R2-D349): a grant of this seed, which is not the evidence of the SE15 row.
+          cell.adoptAttemptRecords(
+            [...cell.state().sources.attempts.values()].map(attempt => ({
+              ...attempt,
+              grant: attempt.grant ?? {
+                owner: 'session-memory-journal',
+                record: `${cell.namespace}/seed/${attempt.attempt}`,
+                revision: attempt.started.revision,
+                digest: `sha256:${digestOf({ seed: attempt.attempt, started: attempt.started })}`,
+              },
+            })),
+          )
+        })
         return succeed(undefined)
       },
     },

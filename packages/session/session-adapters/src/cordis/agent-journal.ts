@@ -163,6 +163,7 @@ import {
   type ReadBatch,
   type Reader,
 } from './journal-read.ts'
+import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -751,13 +752,9 @@ async function fetchBlobClosure(
   return null
 }
 
-/** The records of one execution a reader outside the provider needs: its handoffs and authorities. */
+/** The records of one execution a reader outside the provider needs: its handoffs and attachments. */
 export type ExecutionRecordsRead =
-  | Readonly<{
-      kind: 'read'
-      execution: MemoryExecution | null
-      authorities: CommonRoot['agent']['authorities']
-    }>
+  | Readonly<{ kind: 'read'; execution: MemoryExecution | null }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 const HEX_DIGEST = /^[0-9a-f]{64}$/
@@ -826,7 +823,7 @@ function recordsFoldOf(storage: SqlStorage, key: string): RecordsFold {
 
 /**
  * Reads the records of one execution from its facts: what `message-handoff` and the conditions of
- * AD-05 read of a P and the attempt its advance was granted under. The first read of an execution
+ * AD-05 read of a P and the grant of the attachment an Authority names. The first read of an execution
  * folds its facts and the root's from the first publication; a later read folds only the batches
  * after the publication the kept fold reached (session-storage-sql RT-04 owner list, item 3), so
  * one read is bounded by the step, not by the session. It reads only. K-23 bridge: it folds the
@@ -854,16 +851,12 @@ export async function readExecutionRecords(
   for (const batch of batches) for (const fact of batch.core) foldCore(kept.fold, fact)
   kept.head = head
   kept.executions.add(target.execution)
-  // Only the execution asked about is decoded, with the root's authorities of it: the cost of one
-  // read is that execution's, whatever the session holds.
-  const authorities = new Map<string, [JsonValue, JsonValue]>()
-  for (const [key, entry] of kept.fold.root.maps.get('authorities') ?? [])
-    if (typeof entry[0] === 'string' && entry[0].startsWith(`${target.execution}\0`))
-      authorities.set(key, entry)
+  // Only the execution asked about is decoded: the cost of one read is that execution's, whatever
+  // the session holds.
   const found = kept.fold.executions.get(target.execution)
   const part: CoreFold = {
     executions: new Map(found === undefined ? [] : [[target.execution, found]]),
-    root: { lists: new Map(), maps: new Map([['authorities', authorities]]) },
+    root: { lists: new Map(), maps: new Map() },
   }
   const missing = await fetchBlobClosure(
     resolved.read,
@@ -887,7 +880,6 @@ export async function readExecutionRecords(
       kind: 'read',
       execution:
         [...records.executions.values()].find(item => item.id === target.execution) ?? null,
-      authorities: records.agent.authorities,
     }
   } catch (error) {
     return { kind: 'unavailable', diagnostic: `the Agent records do not decode: ${String(error)}` }
@@ -1090,7 +1082,15 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         try {
           result = normalizedResult(root, execution, caller.consumption, caller.result).result
         } catch (error) {
-          return fail(unavailable(error instanceof Error ? error.message : 'original result'))
+          return fail(
+            unavailable(
+              error instanceof HistoryFailure && error.failure.kind === 'unavailable'
+                ? error.failure.diagnostic
+                : error instanceof Error
+                  ? error.message
+                  : 'original result',
+            ),
+          )
         }
         const consumption = String(caller.consumption) as ConsumptionId
         return succeed(
@@ -1193,35 +1193,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  /**
-   * The open or attach of an ordinary grant: the attempt it names is the advance of the active Run
-   * of this execution, and the check in the same commit verifies it. A cancel wind-down attachment
-   * has none.
-   */
-  function rememberAuthority(book: Book<P>, cell: JournalCell<P>, input: ExecutionMutation<P>) {
-    const snapshot = book.scratch?.snapshot ?? null
-    const root = cell.state()
-    const execution = [...root.agent.executions.values()].find(item => item.id === input.execution)
-    const authority = execution?.attachments.at(-1)?.authority
-    if (
-      authority === undefined ||
-      snapshot === null ||
-      snapshot.run.kind !== 'active' ||
-      snapshot.run.advance === null ||
-      snapshot.run.execution.execution !== input.execution
-    )
-      return
-    const grant =
-      'runtime' in input ? (input as OpenInput<P>).runtime.grant : (input as AttachInput<P>).grant
-    root.agent.authorities.set(`${input.execution}\0${canonical(authority)}`, {
-      run: snapshot.run.run,
-      attempt: snapshot.run.advance.attempt,
-      execution: input.execution,
-      ordinal: snapshot.run.ordinal,
-      started: grant ?? receiptStub(input.execution),
-    })
-  }
-
   /** Fills a new root with the records of the session. */
   function restore(book: Book<P>, cell: JournalCell<P>, records: CoreRecords): void {
     cell.mutate(() => {
@@ -1269,18 +1240,24 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   function build(book: Book<P>): Copy<P> {
     const cell: JournalCell<P> = createCell<P>(book.tenant, book.session, {
       authorize: () => undefined,
+      // R2-D348: the Authority's attachment names its grant; the Session's attempt records of
+      // the snapshot name the attempt that grant was issued for (R2-D349); it must be the advance.
       advances(execution, authority): boolean {
         const snapshot = book.scratch?.snapshot ?? null
         if (snapshot === null || snapshot.run.kind !== 'active' || snapshot.run.advance === null)
           return false
         if (snapshot.run.execution.execution !== execution) return false
-        const attempt = cell.state().agent.authorities.get(`${execution}\0${canonical(authority)}`)
+        const own = [...cell.state().agent.executions.values()].find(item => item.id === execution)
+        const attempt = attemptOfAuthority(
+          own?.attachments ?? [],
+          snapshot.historyIndex?.attempts,
+          authority,
+        )
         return attempt?.attempt === snapshot.run.advance.attempt
       },
       participate: (input, method, receipt, decision) =>
         participation(book, cell, input, method, receipt, decision),
       committed(input, method, receipt) {
-        if (method === 'open' || method === 'attach') rememberAuthority(book, cell, input)
         captureFresh(cell.state(), input.execution, receipt, options.fault)
         return undefined
       },
@@ -1379,13 +1356,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
     return changed
   }
-
-  const receiptStub = (execution: string) => ({
-    owner: OWNER,
-    record: `${execution}/grant`,
-    revision: '0',
-    digest: 'none',
-  })
 
   /** The common root of the session in one read, or null when it is not readable. */
   async function readRoot(book: Book<P>, domain: DomainRef) {
@@ -1612,12 +1582,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
 
   /**
    * The reverse input directory rows of an open or a submit: the accepted input, its original grant
-   * and attachment, and the original attempt of that attachment as the commit hook of the open or
-   * attach recorded it. An attachment without a recorded attempt has none; nothing is guessed from
-   * the current advance.
+   * and attachment, and the original attempt of that attachment: the attempt the Session issued
+   * the attachment's grant for, in the snapshot of this write (R2-D349). An attachment whose grant
+   * names no attempt has none; nothing is guessed from the current advance.
    */
   function admissionsOf(
-    after: CommonRoot,
     written: Written,
     own: MemoryExecution | undefined,
     receipt: CommandReceipt | null,
@@ -1632,9 +1601,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         : check?.kind === 'submit'
           ? check.value.input
           : null
-    const attachment = own.attachments.at(-1)?.authority
+    const attachment = own.attachments.at(-1)
     if (input === null || attachment === undefined) return []
-    const original = after.agent.authorities.get(`${own.id}\0${canonical(attachment)}`)
+    const original = attemptOfGrant(
+      scratch.snapshot?.historyIndex?.attempts,
+      own.id,
+      attachment.grant,
+    )
     return [
       {
         input,
@@ -1642,7 +1615,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         operation: written.operation ?? '',
         accepted: receipt.evidence,
         grant: check?.kind === 'open' ? check.grant : receipt.evidence,
-        attachment: attachment.executionAttachment,
+        attachment: attachment.authority.executionAttachment,
         ...(original === undefined ? {} : { attempt: original.attempt }),
       },
     ]
@@ -1902,7 +1875,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         facts: prepared.records,
         blobs: blobs.ok,
         boundaries: boundariesOf(changed, receipt),
-        admissions: admissionsOf(after, written, own, receipt, scratch),
+        admissions: admissionsOf(written, own, receipt, scratch),
       }),
       ...scratch.checks.map(check => sessionCheckFacts(check)),
       ...scratch.commands.map(command => sessionCommandFacts(command, [])),
@@ -2221,6 +2194,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           snapshot: READS.has(method) ? null : await snapshotOf(book, domain.ok),
         }
         book.scratch = scratch
+        // The Session's attempt records of this call's snapshot, with the grant each was issued
+        // for (R2-D349): the core resolves an Authority's attempt through them (`history.ts`).
+        // Adopted before `before` is taken, so adopting alone is not a write.
+        const attempts = scratch.snapshot?.historyIndex?.attempts
+        if (attempts !== undefined) copy.cell.mutate(() => copy.cell.adoptAttemptRecords(attempts))
         const before = copy.cell.current()
         let answer: Outcome<T, Failure>
         try {

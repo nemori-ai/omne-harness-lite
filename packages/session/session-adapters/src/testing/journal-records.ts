@@ -239,6 +239,7 @@ export function projectExecution(
     state: stateOf(view) as MemoryExecution['state'],
     attachments: view.attachments.map(item => ({
       authority: item.authority,
+      grant: item.grant,
       status: item.status,
       handoff: item.handoff,
       handoffRevision: item.handoffRevision,

@@ -393,6 +393,8 @@ export type SessionReplyAdmissionControls = Readonly<{
 
 type Attachment = {
   authority: Authority
+  /** The grant the Session handed out for this attachment (`exec.attached.grant`), as given. */
+  grant: DurableEvidence | null
   status: 'active' | 'detached' | 'superseded'
   handoff: DurableEvidence | null
   /** The revision at which the handoff was established, for a later detach that recognizes it. */
@@ -3550,7 +3552,15 @@ export function createJournal<P>(
               revision: view.revision,
               state: { kind: 'advancing' },
               checkpoint: checkpointOf(view, state().blobs),
-              attachments: [{ authority, status: 'active', handoff: null, handoffRevision: 0 }],
+              attachments: [
+                {
+                  authority,
+                  grant: runtime.grant,
+                  status: 'active',
+                  handoff: null,
+                  handoffRevision: 0,
+                },
+              ],
               inputs: [copy(initial)],
               inputRevisions: new Map([[initial.id, view.revision]]),
               events: [],
@@ -3640,6 +3650,7 @@ export function createJournal<P>(
             if (old !== undefined) old.status = 'superseded'
             execution.attachments.push({
               authority,
+              grant: input.grant,
               status: 'active',
               handoff: null,
               handoffRevision: 0,
