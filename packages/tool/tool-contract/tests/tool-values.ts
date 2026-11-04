@@ -109,7 +109,8 @@ export function commandsDefinition(): ToolDefinition {
   return {
     ...metadata(),
     name: 'files',
-    kind: 'commands', encoding: 'wrapped',
+    kind: 'commands',
+    encoding: 'wrapped',
     commands: [
       {
         name: 'read',

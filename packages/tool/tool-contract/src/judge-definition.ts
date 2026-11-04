@@ -215,9 +215,9 @@ const commandsShapeFields = {
 }
 
 /** A flat call shares its object with the fields, so no command may declare `command` itself. */
-function flatCallable<T extends Readonly<{ encoding: string; commands: readonly ToolCommandDeclaration[] }>>(
-  check: Check<T>,
-): Check<T> {
+function flatCallable<
+  T extends Readonly<{ encoding: string; commands: readonly ToolCommandDeclaration[] }>,
+>(check: Check<T>): Check<T> {
   return refine(check, (value, at) => {
     if (value.encoding !== 'flat') return undefined
     const conflict = flatConflict(value.commands)

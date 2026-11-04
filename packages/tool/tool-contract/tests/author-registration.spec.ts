@@ -67,7 +67,10 @@ describe('author registration', () => {
     })
     if (!('ok' in defined)) throw new Error(defined.failure.field)
     expect(Object.keys(defined.ok).sort()).toEqual(['parameters', 'returns'])
-    const implemented = defineFunctionTool({ implementation: declaration(), operation: defined.ok })
+    const implemented = defineFunctionTool({
+      implementation: declaration(),
+      operation: defined.ok,
+    })
     if (!('ok' in implemented)) throw new Error(implemented.failure.field)
     const facts = {
       ...declaration(),
@@ -106,7 +109,8 @@ describe('author registration', () => {
   })
 
   it('author registration: a command tool keeps each command with its own return mode', () => {
-    const implemented = defineCommandTool({ encoding: 'wrapped',
+    const implemented = defineCommandTool({
+      encoding: 'wrapped',
       implementation: declaration(),
       commands: {
         read: { summary: 'Read a file.', operation: readOperation() },
@@ -137,7 +141,8 @@ describe('author registration', () => {
     const table = Object.assign(Object.create(inherited) as Record<string, unknown>, {
       read: { summary: 'Read a file.', operation: readOperation() },
     })
-    const implemented = defineCommandTool({ encoding: 'wrapped',
+    const implemented = defineCommandTool({
+      encoding: 'wrapped',
       implementation: declaration(),
       commands: table as Record<string, { summary: string; operation: Operation }>,
     })
@@ -148,14 +153,17 @@ describe('author registration', () => {
   })
 
   it('author registration: rejects an empty command table at construction', () => {
-    expect(defineCommandTool({ encoding: 'wrapped', implementation: declaration(), commands: {} })).toEqual({
+    expect(
+      defineCommandTool({ encoding: 'wrapped', implementation: declaration(), commands: {} }),
+    ).toEqual({
       failure: { field: 'commands', reason: 'empty' },
     })
   })
 
   it('author registration: rejects an illegal command name and an asset-side field at construction', () => {
     expect(
-      defineCommandTool({ encoding: 'wrapped',
+      defineCommandTool({
+        encoding: 'wrapped',
         implementation: declaration(),
         commands: { '': { summary: 'Nameless.', operation: readOperation() } },
       }),
@@ -288,7 +296,9 @@ describe('author registration', () => {
         },
       },
     )
-    expect(defineCommandTool({ encoding: 'wrapped', implementation: declaration(), commands: hostile })).toEqual({
+    expect(
+      defineCommandTool({ encoding: 'wrapped', implementation: declaration(), commands: hostile }),
+    ).toEqual({
       failure: { field: 'input', reason: 'unreadable' },
     })
   })
@@ -360,7 +370,8 @@ describe('wait contract', () => {
     const slot = readToolOperation(defined.ok)
     expect(slot?.author.executor).toBe(author.executor)
     expect(slot?.returns).toEqual(ordinaryReturns)
-    const implemented = defineCommandTool({ encoding: 'wrapped',
+    const implemented = defineCommandTool({
+      encoding: 'wrapped',
       implementation: declaration(),
       commands: { read: { summary: 'Read a file.', operation: defined.ok } },
     })

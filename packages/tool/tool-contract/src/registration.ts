@@ -38,7 +38,11 @@ import {
   type Checked,
   type ShapeRejection,
 } from './shape.ts'
-import { COMMAND_CALL_ENCODINGS, type CommandCallEncoding } from './command-call.ts'
+import {
+  COMMAND_CALL_ENCODINGS,
+  commandParameterCodec,
+  type CommandCallEncoding,
+} from './command-call.ts'
 import { adoption, sameAdoption, sameSchemaIdentity } from './value-shapes.ts'
 import { isToolWaitContract, valueSchema } from './wait-contract.ts'
 
@@ -329,6 +333,17 @@ export function defineCommandTool<E, B extends ContentBlock>(
   )
   if ('failure' in checked) return checked
   const { implementation, encoding, commands } = checked.ok
+  const names = commands.map(([name]) => name)
+  // The model sends the whole call as the arguments of the tool; each command's codec cuts out
+  // its own parameters, so every reader of the author codec sees the same cut.
+  const operation = (name: string, slot: ToolOperationSlot): ToolOperationSlot =>
+    Object.freeze({
+      ...slot,
+      author: Object.freeze({
+        ...slot.author,
+        parameters: commandParameterCodec(encoding, names, name, slot.author.parameters),
+      }),
+    })
   return implement(
     implementation,
     {
@@ -346,7 +361,9 @@ export function defineCommandTool<E, B extends ContentBlock>(
     },
     {
       kind: 'commands',
-      operations: commands.map(([name, { operation }]) => [name, operation] as const),
+      operations: commands.map(
+        ([name, entry]) => [name, operation(name, entry.operation)] as const,
+      ),
     },
   )
 }

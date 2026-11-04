@@ -9,7 +9,8 @@ import {
   type JsonValue,
 } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ToolArguments, ToolCommandDeclaration, ToolDefinition } from './definitions.ts'
+import type { ParameterCodec } from './authoring.ts'
+import type { ToolCommandDeclaration, ToolDefinition } from './definitions.ts'
 
 /**
  * The encodings of one call. `wrapped` is `{"command": <name>, "params": {…}}` and `params` may be
@@ -23,6 +24,11 @@ export const COMMAND_FIELD = 'command'
 export const PARAMS_FIELD = 'params'
 
 type JsonObject = Extract<JsonValue, { kind: 'object' }>
+/** What the menu, the examples and the call schema read from a multi-command definition. */
+export type CommandTable = Pick<
+  Extract<ToolDefinition, { kind: 'commands' }>,
+  'name' | 'encoding' | 'commands'
+>
 /** One decoded call: the selected command and its parameter object. */
 export type CommandCall = Readonly<{ command: string; params: JsonObject }>
 
@@ -96,30 +102,39 @@ export function decodeCommandCallText(
 }
 
 /**
- * The arguments the selected command's codec parses. A function tool keeps its arguments. For a
- * multi-command tool the effective text is the whole call: the parameters are cut out of it, and
- * the command in it must be the admitted one. An incomplete block stays as it is, so the codec
- * answers `incomplete`.
+ * The parameter codec of one command of a multi-command tool. The arguments text is the whole call:
+ * it must name this command, and only its parameter object reaches the author's codec. An
+ * incomplete block goes to the author's codec as it is, which answers `incomplete`.
  */
-export function commandArguments(
-  definition: ToolDefinition,
-  admitted: string | null,
-  args: ToolArguments,
-): Outcome<ToolArguments, CommandCallRejection> {
-  if (definition.kind === 'function' || !args.complete) return succeed(args)
-  const call = decodeCommandCallText(
-    definition.encoding,
-    definition.commands.map(command => command.name),
-    args.effective,
-  )
-  if ('failure' in call) return call
-  if (call.ok.command !== admitted)
-    return fail({ kind: 'command-mismatch', command: call.ok.command, admitted })
-  return succeed({ ...args, effective: writeJsonText(call.ok.params) })
+export function commandParameterCodec<A>(
+  encoding: CommandCallEncoding,
+  commands: readonly string[],
+  command: string,
+  codec: ParameterCodec<A>,
+): ParameterCodec<A> {
+  return {
+    adoption: codec.adoption,
+    parse(args) {
+      if (!args.complete) return codec.parse(args)
+      const call = decodeCommandCallText(encoding, commands, args.effective)
+      if ('failure' in call) return fail({ kind: 'invalid', reason: rejectionText(call.failure) })
+      if (call.ok.command !== command) {
+        const mismatch: CommandCallRejection = {
+          kind: 'command-mismatch',
+          command: call.ok.command,
+          admitted: command,
+        }
+        return fail({ kind: 'invalid', reason: rejectionText(mismatch) })
+      }
+      return codec.parse({ ...args, effective: writeJsonText(call.ok.params) })
+    },
+  }
 }
 
 function member(value: JsonValue | undefined, key: string): JsonValue | undefined {
-  return value?.kind === 'object' ? value.entries.find(entry => entry.key === key)?.value : undefined
+  return value?.kind === 'object'
+    ? value.entries.find(entry => entry.key === key)?.value
+    : undefined
 }
 function strings(value: JsonValue | undefined): readonly string[] {
   return value?.kind === 'array'
@@ -148,10 +163,7 @@ export function commandSignature(parameters: ToolCommandDeclaration['parameters'
 }
 
 /** A call of one command as the model writes it, for usage lines, help and receipts. */
-export function commandExample(
-  definition: Extract<ToolDefinition, { kind: 'commands' }>,
-  command: string,
-): string {
+export function commandExample(definition: CommandTable, command: string): string {
   const found = definition.commands.find(item => item.name === command)
   const signature = found === undefined ? '{…}' : commandSignature(found.parameters)
   const fields = signature.slice(1, -1)
@@ -164,7 +176,7 @@ export function commandExample(
  * The command menu of a multi-command tool: the call form, then one line per command with its
  * signature and summary. The model declaration and `help` without a command use the same menu.
  */
-export function commandMenu(definition: Extract<ToolDefinition, { kind: 'commands' }>): string {
+export function commandMenu(definition: CommandTable): string {
   const form =
     definition.encoding === 'flat'
       ? '{"command": <name>, …fields}'
@@ -181,7 +193,7 @@ const string = (value: string): JsonValue => ({ kind: 'string', value })
 const entry = (key: string, value: JsonValue): JsonEntry => ({ key, value })
 
 /** The arguments schema of the one declaration of a multi-command tool. */
-export function commandCallSchema(definition: Extract<ToolDefinition, { kind: 'commands' }>): JsonValue {
+export function commandCallSchema(definition: CommandTable): JsonValue {
   const command = {
     kind: 'object' as const,
     entries: [
@@ -191,7 +203,9 @@ export function commandCallSchema(definition: Extract<ToolDefinition, { kind: 'c
   }
   const properties: JsonEntry[] = [entry(COMMAND_FIELD, command)]
   if (definition.encoding === 'wrapped')
-    properties.push(entry(PARAMS_FIELD, { kind: 'object', entries: [entry('type', string('object'))] }))
+    properties.push(
+      entry(PARAMS_FIELD, { kind: 'object', entries: [entry('type', string('object'))] }),
+    )
   return {
     kind: 'object',
     entries: [
@@ -203,44 +217,47 @@ export function commandCallSchema(definition: Extract<ToolDefinition, { kind: 'c
   }
 }
 
-/** The fixed English text of a rejection, followed by the menu so the next call can be right. */
+/** The fixed English reason of a rejection. */
+function rejectionText(rejection: CommandCallRejection): string {
+  switch (rejection.kind) {
+    case 'unreadable':
+      return `the arguments are not JSON (${rejection.reason})`
+    case 'not-object':
+      return 'the arguments are not a JSON object'
+    case 'command-missing':
+      return 'the arguments name no command'
+    case 'command-unknown':
+      return `there is no command "${rejection.command}"`
+    case 'extra-field':
+      return `"${rejection.field}" is not a call field; put command fields in "params"`
+    case 'params-not-object':
+      return '"params" is not a JSON object'
+    case 'command-mismatch':
+      return `the call names "${rejection.command}" but "${String(rejection.admitted)}" was admitted`
+    default: {
+      const exhaustive: never = rejection
+      return exhaustive
+    }
+  }
+}
+
+/** The reason of a rejection, followed by the menu so the next call can be right. */
 export function describeCommandCallRejection(
-  definition: Extract<ToolDefinition, { kind: 'commands' }>,
+  definition: CommandTable,
   rejection: CommandCallRejection,
 ): string {
-  const reason = (() => {
-    switch (rejection.kind) {
-      case 'unreadable':
-        return `the arguments are not JSON (${rejection.reason})`
-      case 'not-object':
-        return 'the arguments are not a JSON object'
-      case 'command-missing':
-        return 'the arguments name no command'
-      case 'command-unknown':
-        return `${definition.name} has no command "${rejection.command}"`
-      case 'extra-field':
-        return `"${rejection.field}" is not a call field; put command fields in "params"`
-      case 'params-not-object':
-        return '"params" is not a JSON object'
-      case 'command-mismatch':
-        return `the call names "${rejection.command}" but "${String(rejection.admitted)}" was admitted`
-      default: {
-        const exhaustive: never = rejection
-        return exhaustive
-      }
-    }
-  })()
-  return `${definition.name}: ${reason}.\n${commandMenu(definition)}`
+  return `${definition.name}: ${rejectionText(rejection)}.\n${commandMenu(definition)}`
 }
 
 /** Whether a flat definition declares a field that the call itself uses. */
-export function flatConflict(
-  commands: readonly ToolCommandDeclaration[],
-): string | undefined {
+export function flatConflict(commands: readonly ToolCommandDeclaration[]): string | undefined {
   for (const command of commands) {
     if (command.parameters.kind === 'executor-owned') return command.name
     const properties = member(command.parameters.value.schema, 'properties')
-    if (properties?.kind === 'object' && properties.entries.some(item => item.key === COMMAND_FIELD))
+    if (
+      properties?.kind === 'object' &&
+      properties.entries.some(item => item.key === COMMAND_FIELD)
+    )
       return command.name
   }
   return undefined

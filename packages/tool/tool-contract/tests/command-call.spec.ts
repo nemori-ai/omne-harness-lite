@@ -8,18 +8,29 @@ import {
   decodeCommandCallText,
   describeCommandCallRejection,
   type CommandCallEncoding,
+  type ToolArguments,
   type ToolDefinition,
 } from '@omne-harness/tool-contract'
+import { succeed } from '@omne-harness/operation-result'
+import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import {
   COMMAND_CALL_ENCODINGS,
-  commandArguments,
   commandExample,
   commandSignature,
   decodeCommandCall,
+  defineCommandTool,
+  defineToolOperation,
   encodeCommandCall,
   judgeToolDefinition,
 } from '@omne-harness/tool-contract/provider'
-import { commandsDefinition, functionDefinition } from './tool-values.ts'
+import {
+  adoption,
+  commandsDefinition,
+  declaration,
+  ordinaryAuthor,
+  ordinaryReturns,
+  parameters,
+} from './tool-values.ts'
 
 const LIMITS = {
   maxBytes: 65536,
@@ -40,7 +51,11 @@ function withEncoding(encoding: CommandCallEncoding): Commands {
   if (source.kind !== 'commands') throw new Error('commands')
   return { ...source, encoding }
 }
-const PARAMS = ['{}', '{"path":"a.txt"}', '{"path":"x","text":"line\\nnext","n":3,"deep":{"k":[1,true,null]}}']
+const PARAMS = [
+  '{}',
+  '{"path":"a.txt"}',
+  '{"path":"x","text":"line\\nnext","n":3,"deep":{"k":[1,true,null]}}',
+]
 
 describe('command call encodings', () => {
   for (const encoding of COMMAND_CALL_ENCODINGS) {
@@ -56,7 +71,9 @@ describe('command call encodings', () => {
           const encoded = encodeCommandCall(encoding, call)
           expect(decodeCommandCall(encoding, names, encoded)).toEqual({ ok: call })
           // The same through text, as the model sends it.
-          expect(decodeCommandCallText(encoding, names, writeJsonText(encoded))).toEqual({ ok: call })
+          expect(decodeCommandCallText(encoding, names, writeJsonText(encoded))).toEqual({
+            ok: call,
+          })
         }
     })
 
@@ -107,32 +124,70 @@ describe('command call encodings', () => {
       for (const command of names) {
         const example = commandExample(definition, command)
         expect(example.startsWith(`${definition.name} `)).toBe(true)
-        expect(commandMenu(definition)).toContain(`${command} ${commandSignature(
-          definition.commands.find(item => item.name === command)!.parameters,
-        )}`)
+        expect(commandMenu(definition)).toContain(
+          `${command} ${commandSignature(
+            definition.commands.find(item => item.name === command)!.parameters,
+          )}`,
+        )
       }
     })
 
-    it(`${encoding}: the codec arguments are the parameters of the admitted command`, () => {
-      const call = { command: names[0]!, params: json('{"path":"a.txt"}') as never }
-      const effective = writeJsonText(encodeCommandCall(encoding, call))
-      const args = { original: effective, effective, complete: true }
-      expect(commandArguments(definition, names[0]!, args)).toEqual({
-        ok: { ...args, effective: '{"path":"a.txt"}' },
+    it(`${encoding}: each command codec reads only a call of its own command`, () => {
+      const seen: string[] = []
+      const echo = {
+        adoption: adoption('echo'),
+        parse: (args: ToolArguments) => {
+          seen.push(args.effective)
+          return succeed(json('{}'))
+        },
+      }
+      const operation = () => {
+        const defined = defineToolOperation({
+          parameters: { kind: 'declared', value: parameters() },
+          returns: ordinaryReturns,
+          author: { ...ordinaryAuthor(), parameters: echo },
+        })
+        if ('failure' in defined) throw new Error(defined.failure.reason)
+        return defined.ok
+      }
+      const implemented = defineCommandTool({
+        implementation: declaration(),
+        encoding,
+        commands: {
+          read: { summary: 'Read.', operation: operation() },
+          list: { summary: 'List.', operation: operation() },
+        },
       })
-      expect(commandArguments(definition, names[1] ?? 'other', args)).toMatchObject({
-        failure: { kind: 'command-mismatch', command: names[0] },
+      if ('failure' in implemented) throw new Error(implemented.failure.reason)
+      const slot = readToolRegistration(implemented.ok)
+      if (slot?.kind !== 'commands') throw new Error('commands')
+      const codec = (name: string) =>
+        slot.operations.find(([command]) => command === name)![1].author.parameters
+      const call = writeJsonText(
+        encodeCommandCall(encoding, { command: 'read', params: json('{"path":"a.txt"}') as never }),
+      )
+      const args = (effective: string, complete = true) => ({
+        original: effective,
+        effective,
+        complete,
       })
-      // An incomplete block is left to the codec, which answers incomplete.
-      const partial = { ...args, complete: false }
-      expect(commandArguments(definition, names[0]!, partial)).toEqual({ ok: partial })
+
+      expect(codec('read').parse(args(call))).toHaveProperty('ok')
+      expect(seen).toEqual(['{"path":"a.txt"}'])
+      expect(codec('list').parse(args(call))).toEqual({
+        failure: { kind: 'invalid', reason: 'the call names "read" but "list" was admitted' },
+      })
+      expect(codec('read').parse(args('{"command":"nope"}'))).toEqual({
+        failure: { kind: 'invalid', reason: 'there is no command "nope"' },
+      })
+      // An incomplete block reaches the author codec unchanged, which answers incomplete.
+      seen.length = 0
+      codec('read').parse(args('{"command":"re', false))
+      expect(seen).toEqual(['{"command":"re'])
+      // The adoption stays the author's: the cut changes no persisted codec identity.
+      expect(codec('read').adoption).toEqual(echo.adoption)
     })
   }
-
-  it('leaves the arguments of a function tool unchanged', () => {
-    const args = { original: '{"a":1}', effective: '{"a":1}', complete: true }
-    expect(commandArguments(functionDefinition(), null, args)).toEqual({ ok: args })
-  })
 
   it('derives the signature from the schema: required, optional with ?, choices with =a|b (U2)', () => {
     const parameters = {
@@ -151,8 +206,11 @@ describe('command call encodings', () => {
 
   it('names the reason and repeats the menu in a rejection text (U3)', () => {
     const definition = withEncoding('wrapped')
-    const text = describeCommandCallRejection(definition, { kind: 'command-unknown', command: 'x' })
-    expect(text).toContain('has no command "x"')
+    const text = describeCommandCallRejection(definition, {
+      kind: 'command-unknown',
+      command: 'x',
+    })
+    expect(text.split('\n')[0]).toBe('files: there is no command "x".')
     expect(text).toContain(commandMenu(definition))
   })
 
@@ -167,7 +225,10 @@ describe('command call encodings', () => {
           ...first,
           parameters: {
             kind: 'declared' as const,
-            value: { ...first.parameters.value, schema: json('{"type":"object","properties":{"command":{}}}') },
+            value: {
+              ...first.parameters.value,
+              schema: json('{"type":"object","properties":{"command":{}}}'),
+            },
           },
         },
       ],

@@ -145,4 +145,9 @@ export {
   decodeCommandCallText,
   describeCommandCallRejection,
 } from './command-call.ts'
-export type { CommandCall, CommandCallEncoding, CommandCallRejection } from './command-call.ts'
+export type {
+  CommandCall,
+  CommandCallEncoding,
+  CommandCallRejection,
+  CommandTable,
+} from './command-call.ts'
