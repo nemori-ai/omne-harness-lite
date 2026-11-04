@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isActionArgs,
   isActionName,
   isAdoptionRevision,
   isCatalogRevision,
@@ -16,6 +17,7 @@ import {
   isRequestState,
   isTaskId,
 } from '@omne-harness/mcp-contract'
+import { json } from './json.ts'
 
 describe('isConnectionTarget', () => {
   const accepted = [
@@ -112,7 +114,6 @@ describe('text brands', () => {
     isCredentialBinding,
     isEndpointHolding,
     isProtocolVersion,
-    isRequestState,
     isTaskId,
   }
 
@@ -124,4 +125,24 @@ describe('text brands', () => {
       expect(guard(7)).toBe(false)
       expect(guard(undefined)).toBe(false)
     })
+
+  // V1: the request state is opaque peer text, and the peer may write an empty one.
+  it('isRequestState takes any text as written, the empty text included, and nothing else', () => {
+    expect(isRequestState('x')).toBe(true)
+    expect(isRequestState('')).toBe(true)
+    expect(isRequestState(7)).toBe(false)
+    expect(isRequestState(undefined)).toBe(false)
+  })
+})
+
+describe('isActionArgs', () => {
+  it('takes a JSON object and refuses every other JSON tree', () => {
+    expect(isActionArgs(json({}))).toBe(true)
+    expect(isActionArgs(json({ city: 'Paris' }))).toBe(true)
+    expect(isActionArgs(json([]))).toBe(false)
+    expect(isActionArgs(json(['a']))).toBe(false)
+    expect(isActionArgs(json('a'))).toBe(false)
+    expect(isActionArgs(json(1))).toBe(false)
+    expect(isActionArgs(json(null))).toBe(false)
+  })
 })

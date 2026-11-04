@@ -1,5 +1,6 @@
-// Readers over the lossless JSON tree. Internal: the public entries do not export them.
-import type { JsonEntry, JsonValue } from '@omne-harness/json-text'
+// Readers over the lossless JSON tree. The public root exports `canonical` and `sameJson`; the
+// rest is internal.
+import { writeJsonText, type JsonEntry, type JsonValue } from '@omne-harness/json-text'
 import { compareCodeUnits } from './order.ts'
 
 export type JsonObject = Extract<JsonValue, { kind: 'object' }>
@@ -58,6 +59,11 @@ export function canonical(value: JsonValue): JsonValue {
       return exhaustive
     }
   }
+}
+
+/** True when the two trees have the same canonical text: member order apart, they are equal. */
+export function sameJson(left: JsonValue, right: JsonValue): boolean {
+  return writeJsonText(canonical(left)) === writeJsonText(canonical(right))
 }
 
 /** Orders object members by name in UTF-16 code units. See `compareCodeUnits` on ties. */

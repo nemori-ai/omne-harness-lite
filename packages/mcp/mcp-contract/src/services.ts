@@ -30,6 +30,7 @@ import type {
   AdoptionView,
   CatalogStore,
   CredentialUse,
+  McpClock,
   ProcessLanding,
   StopScope,
   UseEligibility,
@@ -68,10 +69,13 @@ export type RefreshResult =
 export interface ActionDiscovery<P> {
   /** The catalog as stored. It does not connect and does not discover. */
   current(access: Access<P>, ref: EndpointRef): Promise<Outcome<CatalogView, ReadFailure>>
-  /** Discovers and publishes. A store that cannot be read or written answers `unknown`. */
+  /**
+   * Discovers and publishes. A store that cannot be read or written answers `unknown`. The
+   * signal belongs to this refresh alone; when it fires, the refresh answers `kept` (`cancelled`).
+   */
   refresh(
     access: Access<P>,
-    request: Readonly<{ ref: EndpointRef; connectBound?: Millis }>,
+    request: Readonly<{ ref: EndpointRef; connectBound?: Millis; signal?: AbortSignal }>,
   ): Promise<Outcome<RefreshResult, OperationFailure>>
   /** The negotiated facts of the current connection. It does not connect to answer. */
   peer(
@@ -221,6 +225,8 @@ export type McpPorts<P, S> = Readonly<{
   landing: ProcessLanding<P>
   store: CatalogStore
   transports: McpTransportFactory
+  /** The clock that stamps catalog freshness. Absent: the implementation takes the host clock. */
+  clock?: McpClock
 }>
 
 /**

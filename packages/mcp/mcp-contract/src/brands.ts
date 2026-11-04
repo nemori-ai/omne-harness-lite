@@ -1,6 +1,7 @@
 // The branded primitive values of MCP. Each brand is granted by exactly one guard in this file;
-// no other module asserts a brand. The eight opaque text brands check only that the text is not
-// empty: they keep values of different meaning apart by name, not by content.
+// no other module asserts a brand. The opaque text brands check only that the value is text, and
+// all but the request state refuse the empty text: they keep values of different meaning apart
+// by name, not by content.
 declare const brand: unique symbol
 type Brand<T, B extends string> = T & { readonly [brand]: B }
 
@@ -24,7 +25,7 @@ export type Generation = Brand<number, 'Generation'>
 export type CatalogRevision = Brand<number, 'CatalogRevision'>
 /** The correlation key that the caller gives. It is not an MCP identity. */
 export type CorrelationKey = Brand<string, 'CorrelationKey'>
-/** The opaque request state of a multi round-trip request, as the peer wrote it. */
+/** The opaque request state of a multi round-trip request, as the peer wrote it. It may be empty. */
 export type RequestState = Brand<string, 'RequestState'>
 /** The task identifier, as the peer wrote it. */
 export type TaskId = Brand<string, 'TaskId'>
@@ -106,8 +107,9 @@ export function isCorrelationKey(value: unknown): value is CorrelationKey {
   return isText(value)
 }
 
+/** Any text, the empty text included: the peer chooses the state, and it may choose nothing. */
 export function isRequestState(value: unknown): value is RequestState {
-  return isText(value)
+  return typeof value === 'string'
 }
 
 export function isTaskId(value: unknown): value is TaskId {

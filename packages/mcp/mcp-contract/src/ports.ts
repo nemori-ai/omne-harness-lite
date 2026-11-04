@@ -98,6 +98,11 @@ export interface CredentialUse<P> {
   ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
 }
 
+/** The clock of the MCP services: the instant that the catalog freshness is stamped with. */
+export interface McpClock {
+  now(): Date
+}
+
 /** The stop range that a process handle confirmed. */
 export type StopScope = 'tree-confirmed' | 'root-only' | 'unconfirmed'
 

@@ -40,5 +40,15 @@ export {
   type CatalogStoreFixture,
   type MemoryCatalogStore,
 } from './testing-catalog-store.ts'
+export {
+  actionNameOf,
+  generationOf,
+  jsonOf,
+  jsonTextOf,
+  protocolVersionOf,
+  requestStateOf,
+  revisionOf,
+  taskIdOf,
+} from './testing-values.ts'
 export { classifyOutcomeCases, type ClassifyOutcomeCase } from './testing-outcome-cases.ts'
 export { mergeListingCases, type MergeListingCase } from './testing-listing-cases.ts'

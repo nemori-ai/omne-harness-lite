@@ -33,21 +33,30 @@ export type TransportFailure =
   | ErrorAnswer
   | AnswerMalformed
 
-/** One page of `tools/list`, as the peer wrote it. Each tool is the peer object. */
+/** Why the transport withheld a tool from a page. The set is closed. */
+export type WithheldReason = 'header-invalid'
+
+/**
+ * One page of `tools/list`, as the peer wrote it. Each tool is the peer object. `withheld` lists
+ * the tools that the transport took out before handing over the page: on Streamable HTTP, a tool
+ * whose `x-mcp-header` declaration is invalid.
+ */
 export type ListingPage = Readonly<{
   tools: readonly JsonValue[]
   nextCursor?: string
   ttlMs?: number
+  withheld?: readonly Readonly<{ name: Untrusted<string>; reason: WithheldReason }>[]
 }>
 
 /**
- * A request to call one peer action. A continuation carries the answers to an input request.
- * Whether the peer answers with a task is the peer's decision for each request.
+ * A request to call one peer action. `args` is a JSON object (`isActionArgs`). A continuation
+ * carries the request state, the answers to an input request, or both. Whether the peer answers
+ * with a task is the peer's decision for each request.
  */
 export type CallRequest = Readonly<{
   action: ActionName
   args: JsonValue
-  continuation?: Readonly<{ requestState?: RequestState; inputResponses: JsonValue }>
+  continuation?: Readonly<{ requestState?: RequestState; inputResponses?: JsonValue }>
 }>
 
 /** A progress or log notification of the peer. It is process information, never an outcome. */

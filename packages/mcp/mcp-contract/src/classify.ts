@@ -2,7 +2,13 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import { toContentBlocks } from './content.ts'
 import { isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
-import type { CallOutcome, OutputCheck, OutputValidator, PeerAnswer } from './outcomes.ts'
+import type {
+  CallOutcome,
+  OutputCheck,
+  OutputValidator,
+  PeerAnswer,
+  TaskHints,
+} from './outcomes.ts'
 import { isRequestState, isTaskId, type Generation } from './brands.ts'
 
 export type ClassifyContext = Readonly<{
@@ -54,9 +60,26 @@ function inputRequired(result: JsonObject, issuedAt: Generation): CallOutcome {
   }
 }
 
+/** The number a node holds, or undefined for any other node. */
+function numberOf(value: JsonValue | undefined): number | undefined {
+  return value?.kind === 'number' ? Number(value.lexeme) : undefined
+}
+
+/** The hints as the peer wrote them. A `null` ttl is unlimited; a hint of another type is left out. */
+export function taskHintsOf(task: JsonObject): TaskHints {
+  const pollIntervalMs = numberOf(member(task, 'pollIntervalMs'))
+  const ttlMs = numberOf(member(task, 'ttlMs'))
+  const message = textOf(member(task, 'statusMessage'))
+  return {
+    ...(pollIntervalMs === undefined ? {} : { pollIntervalMs }),
+    ...(ttlMs === undefined ? {} : { ttlMs }),
+    ...(message === undefined ? {} : { statusMessage: { untrusted: message } }),
+  }
+}
+
 function task(result: JsonObject, issuedAt: Generation): CallOutcome {
   const taskId = textOf(member(result, 'taskId'))
-  return isTaskId(taskId) ? { kind: 'task', taskId, issuedAt } : MALFORMED
+  return isTaskId(taskId) ? { kind: 'task', taskId, issuedAt, ...taskHintsOf(result) } : MALFORMED
 }
 
 function classifyResult(result: JsonValue, context: ClassifyContext): CallOutcome {

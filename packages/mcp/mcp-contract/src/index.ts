@@ -78,7 +78,9 @@ export {
   type MergeRefusal,
   type UnavailableReason,
 } from './catalog.ts'
+export { isActionArgs, type ActionArgs } from './args.ts'
 export { classifyOutcome, type ClassifyContext } from './classify.ts'
+export { canonical, sameJson } from './json.ts'
 export { toContentBlocks } from './content.ts'
 export { boundInstructions } from './instructions.ts'
 export { catalogKeyOf, connectionKeyOf, peerAccountOf } from './keys.ts'
@@ -103,6 +105,7 @@ export type {
   ProtocolFault,
   ReadFailure,
   Refusal,
+  TaskHints,
   TaskReport,
   TaskStatus,
 } from './outcomes.ts'
@@ -131,5 +134,5 @@ export type {
   TaskControl,
   TaskRef,
 } from './services.ts'
-export type { StopScope } from './ports.ts'
+export type { McpClock, StopScope } from './ports.ts'
 export type { PeerNotification } from './transport.ts'
