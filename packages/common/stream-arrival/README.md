@@ -94,7 +94,7 @@ The canonical representations and limits are fixed below. Lengths count UTF-16 c
 
 The identity and position constants are `STREAM_ID_MAX_LENGTH = 256` and `STREAM_POSITION_MAX_LENGTH = 256`. A value at its limit proceeds to the next check. A value one code unit over its limit fails with `length` before JSON parsing. These are text parsing limits. Message, queue, tenant capacity, throughput, and actual memory limits remain separate obligations.
 
-The call limit covers the current Tool limit of 1668 and Model limit of 1024. The current largest canonical Tool invocation has length 1154. With two quote-only identities of length 256 and a `StreamId` of length 256, the canonical reference has length 2487. A position of length 256 makes its canonical cursor length 4872. Producer identity limits must be checked again before they expand. Valid identities must not be truncated to fit these boundaries.
+The call limit covers the Tool reference limit of 1565 (the operation form, see the Tool contract) and the Model limit of 1024. The call text carries no tenant. The largest canonical Tool invocation has length 1051. With two quote-only identities of length 256 and a `StreamId` of length 256, the canonical reference has length 2366. A position of length 256 makes its canonical cursor length 4715. Producer identity limits must be checked again before they expand. Valid identities must not be truncated to fit these boundaries.
 
 Canonical output has no BOM, insignificant whitespace, or trailing newline. Persistent bytes are the UTF-8 encoding of that text. JSON string escaping follows ECMAScript `JSON.stringify`. Tuple order and domain case are fixed. The version is the JSON number `1`. The string `"1"` fails. No Unicode normalization, case folding, trimming of identity fields, or percent encoding occurs.
 
@@ -143,7 +143,6 @@ Each producer owns its adapter to the original call codec. Model resolves with `
 These generation expressions define canonical text, without randomness or environment-dependent data.
 
 ```js
-const tenantText = '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000000"}'
 const call = JSON.stringify(['model-invocation', 2, 'mcall_a', 'mop_a'])
 const ref = JSON.stringify(['stream-ref', 1, 'model', call, 'str_a'])
 const c0 = JSON.stringify(['stream-cursor', 1, ref, '0'])

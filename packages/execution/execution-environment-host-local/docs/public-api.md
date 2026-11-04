@@ -31,7 +31,7 @@
 | `HostCommandOptions`       | 类型     | `command` 设施的六项上界：`maxBufferedBytes`、`maxChunkBytes`、`startBoundMs`、`graceMs`、`stopBoundMs`、`probeRetryMs`                                                                                                                                                                                                                                                                         | [SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端未实现)                                                   |
 | `HostCommandPrerequisite`  | 类型     | `command` 的平台前提项名：`linux`、`systemd-tools`、`user-manager`、`cgroup-v2`、`scope-round-trip`                                                                                                                                                                                                                                                                                             | 同上                                                                                                     |
 
-[public-entry.spec.ts](../tests/public-entry.spec.ts) 核对根入口的运行导出只有这四个函数；其余名字只在类型层面导出。`host-files.ts` 另有一个标为 `@internal` 的测试辅助函数与共用文件引擎 `createHostFilesEngine`，`host-domain.ts` 另有供提供者使用的责任域内部面；根入口不导出它们，它们不属于公开接口。
+[public-entry.spec.ts](../tests/public-entry.spec.ts) 核对根入口的运行导出只有这五个函数；其余名字只在类型层面导出。`host-files.ts` 另有一个标为 `@internal` 的测试辅助函数与共用文件引擎 `createHostFilesEngine`，`host-domain.ts` 另有供提供者使用的责任域内部面；根入口不导出它们，它们不属于公开接口。
 
 `HostTerminalOptions` 与 `HostTerminalPrerequisite` 从根入口导出。提供者选项 `terminal` 配置终端界值，具体范围见 [SPEC 持久终端](../SPEC.md#持久终端)。诊断增加 `terminalUnavailable`，列出缺少的终端或 scope 前提。
 

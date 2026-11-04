@@ -119,6 +119,8 @@
 - [跨行断言](../../tests/model/consistency.spec.ts)：四条相等各一条反例，装载前退出 2。
 - [发送来源](../../tests/model/sources.spec.ts)：档案采用与真实档案插件相等。
 - [两行真件](../../tests/rows/model/records-host.spec.ts)：真实 SQLite 与 session-storage 上装两行，经 runtime 的受理点放行 W、拒绝未核验主体，直接命令口 `unavailable`，宿主 `resolve` 读到未受理调用，缺凭据配置时发送 `unavailable`，业务阶段 `settled`。
+- [凭据管理的准入与保管](../../tests/rows/model/credential-custody.spec.ts)：真实参考准入与真实文件保管库上，只有代同一租户行事的登录主体能绑定、查看、解绑；他租户、会话工作主体与伪造主体在触到保管库之前答 `denied`；非成员租户答 `denied`，成员资格未知答 `basis-unavailable`；保管库读不出时答 `basis-unavailable` 且字节不变；插件卸载后写入答 `basis-unavailable`；宿主时钟读不出时不写。
+- [凭据保管的答复映射](../../tests/rows/model/credential-mapping.spec.ts)：保管端口对存储的每种答复（写入未确认、未存时间的绑定、时间无法解析、凭据端口抛出或拒绝）各有一个映射；供应商补全在任何情况下都不退回工厂引用。
 - `tests/serve.spec.ts` 的发行树：25 个真实行装载、接受、停止，退出 0。
 
 这些用例证明接线与失败关闭，不证明一次真实的 OpenRouter 发送（S2-3，联调 B）。

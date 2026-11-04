@@ -94,7 +94,7 @@ assembleStream({
 
 身份与位置常量分别为 `STREAM_ID_MAX_LENGTH = 256`、`STREAM_POSITION_MAX_LENGTH = 256`。等于上限继续下一检查，超一单位在 JSON 解析前返回 `length`。这些是文本解析边界；消息、队列、租户容量、吞吐和实际内存限制另有义务。
 
-调用上限覆盖当前 Tool 的 1668 及 Model 的 1024。当前最大规范 Tool invocation 长 1154。两个全为引号的 256 长身份加 256 长 `StreamId`，产生 2487 长规范引用。再加 256 位 position，规范游标长 4872。生产者扩大身份范围前必须重核边界，不截断合法身份来满足上限。
+调用上限覆盖 Tool 的引用上限 1565（操作引用形式，见 Tool 契约）及 Model 的 1024。调用文本不含租户。最大规范 Tool invocation 长 1051。两个全为引号的 256 长身份加 256 长 `StreamId`，产生 2366 长规范引用。再加 256 位 position，规范游标长 4715。生产者扩大身份范围前必须重核边界，不截断合法身份来满足上限。
 
 规范输出没有 BOM、非必要空白或末尾换行，持久字节是该文本的 UTF-8。字符串转义沿 ECMAScript `JSON.stringify`。元组顺序和域标记大小写固定，版本是 JSON number `1`，字符串 `"1"` 拒绝。不做 Unicode 归一化、大小写折叠、身份字段 trim 或百分号编码。
 
