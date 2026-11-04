@@ -79,7 +79,7 @@ Agent SPEC「执行修订」规定：无变化的 commit 不推进 revision，�
 
 7 个操作有跨操作认回：`detach`、`submit`、`acknowledge`、`recordResult`、`recordControl`、`recordTerminalObservation` 与接收共同提交。现状在认回时读一个当前指针（例如 `acknowledgedAt`、`handoffRevision`），把它的修订写进认回记录的回执。
 
-终态里认回批是 `op.recognized`。它要显式记被认回批的 `pub`。答复的修订由那一批推导。重试时不能再读当前指针：指针在之后可能前进。模型里的 `target` 字段就是它（见 [proofs/README.md](proofs/README.md) 命题 6）。
+终态里认回批是 `op.recognized`。它要显式记被认回的批：记 `pub`，或记被认回的操作身份。一个操作只有一批（P6），两种记法等价。本页表中写「记 `pub`」处都可用操作身份代替。答复的修订由那一批推导。重试时不能再读当前指针：指针在之后可能前进。模型里的 `target` 字段就是它（见 [proofs/README.md](proofs/README.md) 命题 6）。
 
 ### 发现 3：排除要有自己的事实
 
@@ -106,6 +106,20 @@ Agent SPEC「执行修订」规定：无变化的 commit 不推进 revision，�
 现状的 `nextEvidence` 用每个 execution 的发证计数器拼出证据记录名。计数器在事务内前进，认回也会前进。若证据仍按计数器铸造，重试时计数器已变，证据不同，答复改变。
 
 终态要求证据是 `(tenant, session, pub, ord, digest)` 的纯函数，不读计数器、时钟或随机数。这样所有证据都可以在重试时重新铸造，不必存储。`DurableEvidence` 的形状不变。
+
+## 与事实车道当前提交的对照
+
+事实车道分支 `PanQiWei/rw2-jo-facts` 的提交 `b107cade1` 已有事实编解码、折叠与答复推导（`src/journal/facts.ts`、`fold.ts`、`decide.ts`、`answer.ts`）。它尚未合入父分支。按该提交逐条对照：
+
+| 发现 | 该提交的现状 | 结论 |
+| --- | --- | --- |
+| 发现 1 | `decide.ts` 的 `batchOf` 对没有事实的命令返回 `null`，不落批 | 未闭合，需要按发现 1 裁定 |
+| 发现 2 | `op.recognized` 记被认回的操作身份；答复的修订经视图的操作索引取被认回批的修订 | 已闭合。一个操作只有一批，操作身份与 `pub` 一一对应 |
+| 发现 3 | 没有操作排除的事实种类。`handoff.recorded` 的 `resolution: 'excluded'` 是准入结果，不是操作排除 | 未闭合 |
+| 发现 4 | 没有排除记录，无写入的答复不落批 | 与默认做法一致。消费者是否依赖 `excluded` 待车道确认 |
+| 发现 5 | 没有 `start-fence` 的事实种类 | 未闭合 |
+| 发现 6 | `batchEvidence` 由 session、execution、`pub` 与批摘要铸造 | 已闭合 |
+| `open`、`attach` | `exec.attached` 记完整 `Authority`；`answer` 由它推导 `authority` 答复。`exec.opened` 不记 `Authority` | `attach` 已闭合。`open` 的批是否同时带 `exec.attached`，待车道确认 |
 
 ## 结论
 

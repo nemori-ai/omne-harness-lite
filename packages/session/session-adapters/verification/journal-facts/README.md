@@ -33,22 +33,22 @@ P4 对应 R2-D294 的第 3 条。那一条是传感器指标，不是不变式�
 
 ## 模型与实现的对应
 
-形式模型与实现之间的对应按 [docs/verification.md](../../../../../docs/verification.md#证明与实现证据) 记录。实现由 Journal 终态的各车道交付。本节的实现名取自已采用的设计。凡标「待车道确认」的，以存储与事实车道合入后的文件为准，合入后更新本表。
+形式模型与实现之间的对应按 [docs/verification.md](../../../../../docs/verification.md#证明与实现证据) 记录。实现由 Journal 终态的各车道交付。落点取自存储车道提交 `65dd5503b` 与事实车道提交 `b107cade1`，两者尚未合入父分支 `PanQiWei/rw2-jo`。凡标「待车道确认」的，以合入后的文件为准，合入后更新本表。
 
 ### 状态
 
 | 模型变量或定义 | 实现 | 落点 |
 | --- | --- | --- |
-| `log`（批序列） | `er_fact` 按 `(tenant, session, pub, ord)` 聚簇。一批是一个 `pub` | session-storage-sql 的迁移与 `src/worker/execution-record-schema.ts`，待车道确认 |
-| 批的 `op`、`digest`、`gen` | `ord = 0` 行的批信封；认回索引 `er_operation (tenant, operation) → (digest, pub)` | 同上，待车道确认 |
-| 批的 `changed` | `cursor.moved` 事实所含的游标成员集合 | session-adapters 的事实编解码，设计名 `src/journal/facts.ts`，待车道确认 |
+| `log`（批序列） | `er_fact` 按 `(tenant, session, pub, ord)` 聚簇。一批是一个 `pub` | session-storage-sql 的 `src/worker/fact-blob-migration.ts`、`fact-rows.ts`、`execution-record-schema.ts`，待车道确认 |
+| 批的 `op`、`digest`、`gen` | `ord = 0` 行的批信封；认回索引 `er_operation (tenant, operation) → (digest, pub)` | 同上，读口 `src/worker/read-execution-batches.ts`、`read-execution-operation.ts`，待车道确认 |
+| 批的 `changed` | `cursor.moved` 事实所含的游标成员集合 | session-adapters 的 `src/journal/facts.ts`，待车道确认 |
 | 批的 `intents`、`results`、`judged` | `call.intended`、`result.received`、`reply.judged` 事实 | 同上，待车道确认 |
-| `view`、`Apply`、`FoldN` | 进程内会话视图与纯折叠函数 `fold` | session-adapters，待车道确认 |
+| `view`、`Apply`、`FoldN` | 进程内会话视图 `SessionJournalView` 与纯折叠函数 `fold` | session-adapters 的 `src/journal/fold.ts`，待车道确认 |
 | `head` | 视图已折叠到的 `pub`，即 `er_root.published` 的读数 | 同上，待车道确认 |
-| `answers`、`DeriveAt` | 实现不存答复。答复由 `answer(batch)` 推导。模型只为检查记下首次返回值 | 推导规则见 [answer-derivation.md](answer-derivation.md) |
+| `answers`、`DeriveAt` | 实现不存答复。答复由 `answer` 从批与视图的操作索引推导。模型只为检查记下首次返回值 | session-adapters 的 `src/journal/answer.ts`，待车道确认。推导规则与缺口见 [answer-derivation.md](answer-derivation.md) |
 | `writerGen` | Authority 的代次 | Agent 契约的 `Authority.generation` |
 | `slot`、`lastCommit` | 执行槽状态与最近一次提交结论 | `packages/agent/agent/src/provider.ts` 与 `run-failure.ts`（R2-D282，已合入） |
-| `Weight` | 字节抽象为权重：`C0` 每批，`WMember` 每个变了的成员，`WFact` 每条事实 | 字节守卫与传感器，设计名 `tests/journal-laws.spec.ts`，待车道确认 |
+| `Weight` | 字节抽象为权重：`C0` 每批，`WMember` 每个变了的成员，`WFact` 每条事实 | 折叠定律测试 `tests/journal-laws.spec.ts` 已在事实车道；批字节守卫与传感器待车道确认 |
 | `logContent` | Session 条目族的内容字节，每步加 `LogMin` 或 `LogBig` | 传感器的日志侧读数，待车道确认 |
 
 ### 动作
@@ -76,7 +76,7 @@ P4 对应 R2-D294 的第 3 条。那一条是传感器指标，不是不变式�
 | 前提 | 内容 | 谁强制 |
 | --- | --- | --- |
 | A1 原子追加 | 一批要么整体可见，要么都不可见 | 存储的单事务提交，待车道以注入失败的用例验证 |
-| A2 折叠纯 | `fold` 不读时钟、随机数或 I/O | 折叠的属性测试（实时折叠等于重放），待车道确认 |
+| A2 折叠纯 | `fold` 不读时钟、随机数或 I/O | 事实车道的折叠定律属性测试 `tests/journal-laws.spec.ts`，待合入 |
 | A3 批自描述 | 批的内容在提交时固定 | P2 与 A1 |
 | A4 操作身份确定派生 | 同一帧同一转移在崩溃前后派生同一身份 | Agent SPEC「并发与提交」的派生规则 |
 | A5 单写者在位 | 旧代次的写入被拒 | `published` 的条件提交与 `(tenant, session, pub, ord)` 主键 |
@@ -98,7 +98,7 @@ TLC 的范围：`journal` 为 3 步、1 次崩溃、1 次拒绝、1 次重试；
 
 本资源没有覆盖：租户隔离；多 execution 与多会话交错；Session 参加者冲突；事件序号连续；保管块分提交；推进资格快照读的窗口。这些由存储与提供者车道的用例承担。
 
-实现是否符合模型，本资源不证明。符合性由事实车道的折叠属性测试、批字节守卫与崩溃点扫描支持，它们尚未合入。
+实现是否符合模型，本资源不证明。符合性由事实车道的折叠属性测试、批字节守卫与崩溃点扫描支持，它们尚未合入父分支。
 
 ## 运行
 
