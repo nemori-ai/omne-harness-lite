@@ -19,6 +19,7 @@ import type { CheckedConfig, CheckedRoute } from './config.ts'
 import type { PiFamilyBinding } from './family.ts'
 import { startExchange, type ExchangeRefusal, type HttpExchange } from './http.ts'
 import { endedBeforeSend, factsOfSend, noFacts } from './fact-stream.ts'
+import { retryBeforeRequestSent } from './retry.ts'
 import { digestOf, firstModelVisibleReference, serializeBody } from './payload.ts'
 import type { SendEnd } from './termination.ts'
 
@@ -125,28 +126,42 @@ function createMaterialized(
     const secret = config.credential.read()
     if (secret === undefined) return refusedBeforeSend(held, { kind: 'credential-missing' })
     const decoder = input.binding.createDecoder({ request: input.request })
+    const exchangeInput = {
+      url: route.url,
+      headers: {
+        authorization: `Bearer ${secret}`,
+        'content-type': 'application/json',
+        accept: 'text/event-stream',
+      },
+      body: held.body,
+      connectTimeoutMs: config.limits.connectTimeoutMs,
+      streamStallTimeoutMs: config.limits.streamStallTimeoutMs,
+      maxErrorBodyBytes: config.limits.maxErrorBodyBytes,
+    }
     const started = startExchange(
       config.network,
-      {
-        url: route.url,
-        headers: {
-          authorization: `Bearer ${secret}`,
-          'content-type': 'application/json',
-          accept: 'text/event-stream',
-        },
-        body: held.body,
-        reservation: held.reservation,
-        connectTimeoutMs: config.limits.connectTimeoutMs,
-        streamStallTimeoutMs: config.limits.streamStallTimeoutMs,
-        maxErrorBodyBytes: config.limits.maxErrorBodyBytes,
-      },
+      { ...exchangeInput, reservation: held.reservation },
       signal,
     )
     // startExchange returned the reservation for a refusal.
     if (started.kind === 'refused') return endedBeforeSend(endOfRefusal(started.reason))
-    phase = { kind: 'started', exchange: started.exchange }
+    // The retries keep the secret in the headers that this one call built: the slot is read once.
+    const exchange =
+      config.limits.connectRetry === undefined || config.limits.connectRetry.backoffMs.length === 0
+        ? started.exchange
+        : retryBeforeRequestSent({
+            capacity: config.network.capacity,
+            diagnostics: config.network.diagnostics,
+            closed: () => config.network.closed,
+            first: started.exchange,
+            startAgain: (reservation, again) =>
+              startExchange(config.network, { ...exchangeInput, reservation }, again),
+            backoffMs: config.limits.connectRetry.backoffMs,
+            signal,
+          })
+    phase = { kind: 'started', exchange }
     return factsOfSend({
-      exchange: started.exchange,
+      exchange,
       decoder,
       route,
       limits: config.limits,

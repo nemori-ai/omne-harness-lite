@@ -20,6 +20,14 @@ export type PiRoute = Readonly<{
  */
 export type PiCredentialSlot = Readonly<{ read(): string | undefined }>
 
+/** At most this many retries: the backoff is bounded, not a loop without end. */
+export const MAX_CONNECT_RETRIES = 8
+
+export type ConnectRetryLimits = Readonly<{
+  /** The wait before each retry, in order; each at most `MAX_TIMER_MS`. */
+  backoffMs: readonly number[]
+}>
+
 export type PiTransportLimits = Readonly<{
   /** From the start of an exchange until it has a connected socket. `null`: no connect timeout. At most `MAX_TIMER_MS`. */
   connectTimeoutMs: number | null
@@ -28,6 +36,13 @@ export type PiTransportLimits = Readonly<{
    * stall timeout. The package gives no default. At most `MAX_TIMER_MS`.
    */
   streamStallTimeoutMs?: number
+  /**
+   * Retries of a send whose request bytes were not yet written: a connection that timed out, was
+   * refused, failed DNS or failed the TLS handshake. `backoffMs[i]` is the wait before retry
+   * `i + 1`, so the length is the most retries; an empty list retries nothing. Once the request
+   * may have reached the wire nothing is retried. Absent: no retry. The package gives no default.
+   */
+  connectRetry?: ConnectRetryLimits
   /** A non-2xx body beyond this many bytes is dropped. */
   maxErrorBodyBytes: number
   /** The largest SSE event, line breaks included. */
@@ -105,7 +120,14 @@ function checkRoutes(routes: Readonly<Record<string, PiRoute>>): ReadonlyMap<str
 
 function checkLimits(limits: PiTransportLimits): PiTransportLimits {
   if (!isObject(limits)) throw new RangeError('limits must be an object')
-  const { connectTimeoutMs, streamStallTimeoutMs, maxErrorBodyBytes, maxEventBytes, json } = limits
+  const {
+    connectTimeoutMs,
+    streamStallTimeoutMs,
+    connectRetry,
+    maxErrorBodyBytes,
+    maxEventBytes,
+    json,
+  } = limits
   if (connectTimeoutMs !== null && !isTimerDuration(connectTimeoutMs))
     throw new RangeError(
       `limits.connectTimeoutMs must be null or a positive integer of at most ${MAX_TIMER_MS}`,
@@ -114,6 +136,7 @@ function checkLimits(limits: PiTransportLimits): PiTransportLimits {
     throw new RangeError(
       `limits.streamStallTimeoutMs must be absent or a positive integer of at most ${MAX_TIMER_MS}`,
     )
+  const checkedRetry = checkConnectRetry(connectRetry)
   if (!isPositiveInteger(maxErrorBodyBytes))
     throw new RangeError('limits.maxErrorBodyBytes must be a positive integer')
   if (!isPositiveInteger(maxEventBytes))
@@ -125,10 +148,28 @@ function checkLimits(limits: PiTransportLimits): PiTransportLimits {
   return Object.freeze({
     connectTimeoutMs,
     ...(streamStallTimeoutMs === undefined ? {} : { streamStallTimeoutMs }),
+    ...(checkedRetry === undefined ? {} : { connectRetry: checkedRetry }),
     maxErrorBodyBytes,
     maxEventBytes,
     json: Object.freeze({ ...json }),
   })
+}
+
+function checkConnectRetry(retry: ConnectRetryLimits | undefined): ConnectRetryLimits | undefined {
+  if (retry === undefined) return undefined
+  if (!isObject(retry)) throw new RangeError('limits.connectRetry must be absent or an object')
+  const { backoffMs } = retry
+  // `Array.from` turns a hole into `undefined`, which the duration check refuses; `every` skips holes.
+  const delays: unknown[] = Array.isArray(backoffMs) ? Array.from(backoffMs as unknown[]) : []
+  if (
+    !Array.isArray(backoffMs) ||
+    delays.length > MAX_CONNECT_RETRIES ||
+    !delays.every(isTimerDuration)
+  )
+    throw new RangeError(
+      `limits.connectRetry.backoffMs must be a list of at most ${MAX_CONNECT_RETRIES} positive integers of at most ${MAX_TIMER_MS}`,
+    )
+  return Object.freeze({ backoffMs: Object.freeze(delays as number[]) })
 }
 
 function isObject(value: unknown): value is object {

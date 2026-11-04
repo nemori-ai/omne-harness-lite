@@ -22,6 +22,7 @@ import {
   type NetworkResources,
   type PiTransport,
   type PiTransportConfig,
+  type PiTransportLimits,
 } from '@omne-harness/pi-ai-transport'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import {
@@ -376,6 +377,24 @@ describe('release and close', () => {
         materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
       }),
     ).toThrow(RangeError)
+  })
+})
+
+describe('the connect retry limits', () => {
+  function resourcesWith(limits: PiTransportLimits) {
+    const shared = createNetworkResources({ maxConnections: 2, idleConnectionTimeoutMs: 1_000 })
+    network = shared
+    return createPiSendResources({
+      network: shared,
+      families: composeFamilies([]),
+      routes: ROUTES,
+      limits,
+      materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
+    })
+  }
+
+  it('refuses an invalid retry backoff when the resources are built', () => {
+    expect(() => resourcesWith({ ...LIMITS, connectRetry: { backoffMs: [0] } })).toThrow(RangeError)
   })
 })
 

@@ -41,7 +41,7 @@
 - `config.network` 是装配创建并拥有的网络资源。多个传输可以共享同一网络资源。传输不创建也不关闭它。
 - `config.families` 是家族贡献，`config.credential` 是凭据槽。两者都由装配注入。
 - `config.routes` 按 `supplier.recipient` 查找路由。本包只查对象自身的属性，不查原型链。每个路由给出完整的 endpoint（`url`）与协议的 end-marker 文本（`endMarker`，协议没有 end-marker 时为 `null`）。
-- `config.limits` 给出 `connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与单个事件 JSON 的 `json` 限额，另有可选的 `streamStallTimeoutMs`（见[“流停顿上界”](#流停顿上界)）。本包不设默认值。
+- `config.limits` 给出 `connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与单个事件 JSON 的 `json` 限额，另有可选的 `streamStallTimeoutMs`（见[“流停顿上界”](#流停顿上界)）与可选的 `connectRetry`（见[“请求发出之前的重试”](#请求发出之前的重试)）。本包不设默认值。
 
 下列情况下，`createPiTransport` 同步抛出 `RangeError`。消息只写字段名与规则，不含 URL：
 
@@ -49,6 +49,7 @@
 - 路由的 `endMarker` 既不是字符串也不是 `null`；
 - `connectTimeoutMs` 既不是 `null` 也不是 1 到 2147483647 之间的整数；
 - `streamStallTimeoutMs` 存在，但不是 1 到 2147483647 之间的整数（`null`、0、负数与小数都被拒绝；消息指向 `limits.streamStallTimeoutMs`）；
+- `connectRetry` 存在，但不是对象，或其 `backoffMs` 不是列表，或列表多于 8 项，或某项不是 1 到 2147483647 之间的整数（空位也被拒绝；消息指向 `limits.connectRetry.backoffMs`）；
 - `maxErrorBodyBytes`、`maxEventBytes` 或 `json` 的任一限额不是正的安全整数；
 - `families` 或 `credential` 不是对象，或 `families.acquire`、`credential.read` 不是函数；
 - `network` 不是 `createNetworkResources` 返回的句柄，含结构相同的其他对象。
@@ -229,7 +230,7 @@
   - 新建的直连：TLS 握手完成时。计时覆盖 TCP 连接与 TLS 握手。
   - 经代理新建的连接：连接池把套接字交给请求时。连接池在 CONNECT、隧道与经隧道的 TLS 握手都完成之后才交出套接字，所以计时覆盖这三步。
   - 复用的连接：连接池把套接字交给请求时，即发起后的下一个 tick。
-- 连接超时后，本包销毁请求。结果是 `connect-failed`，`timeout` 为 `true`。
+- 连接超时后，本包销毁请求。结果是 `connect-failed`，`timeout` 为 `true`。单次交换不重试；一次发送在请求发出之前的失败后的重试见[“请求发出之前的重试”](#请求发出之前的重试)。
 - 同时进行的交换数只由容量限制。连接池不设套接字上限：没有每个接收方的上限（`maxSockets`），也没有总上限（`maxTotalSockets`）。连接池只负责复用连接与关闭空闲连接。
 - 本包不用 `maxSockets` 对齐容量，原因是两者的计数时刻不同。本包在请求与响应关闭时归还名额，等待者随即发起。Node 对不保留的套接字（例如服务端声明 `Keep-Alive: timeout=1`，或套接字已不可写）在请求关闭时销毁它，但要到该套接字自己的 `close` 事件到达时才把它移出连接池的计数，这是事件循环的下一轮。套接字上限等于容量时，这一轮之内发起的请求会进入等待队列，尽管它持有名额。
 - 连接池没有套接字上限，所以持有名额的请求不在连接池中排队。
@@ -239,6 +240,18 @@
   - 空闲连接。
   - 交换已停止、但直连仍在握手的连接。例如交换在发起的同一 tick 内停止，连接池收回仍在握手的套接字。这种连接按 `idleConnectionTimeoutMs` 结束，不按 `connectTimeoutMs` 结束。经代理正在建立的连接不属于这一种，见“代理”。
   - 正在关闭、尚未移出连接池的套接字。它们让物理连接数短暂超过容量。
+
+### 请求发出之前的重试
+
+偶发的连接失败发生在请求字节发出之前，供应商没有收到任何东西，重发没有重复计费或重复效果的风险。所以 `limits.connectRetry` 让一次发送在这类失败后按有界退避重发。它是 `limits` 的可选成员（增量加入，已有字段不变）。
+
+- 形状：`connectRetry: { backoffMs: readonly number[] }`。`backoffMs[i]` 是第 `i + 1` 次重试之前的等待毫秒数，列表长度就是最多的重试次数，至多 8。空列表表示不重试。缺省（成员不存在）表示不重试：本包不给默认值，次数与退避由运维者层给出。装配（运维者层）把它设为必填，缺失或非法时配置被拒绝，不静默退回默认。
+- 只重试请求字节发出之前的失败：交换的结果是 `connect-failed`，且 `HttpExchange.requestMaySent()` 为 `false`。这包括连接超时、连接被拒绝、DNS 失败、新建直连的 TLS 握手失败，以及经代理时 CONNECT 或隧道内握手的失败。`requestMaySent()` 在请求可能已写入已连接的套接字时变为 `true`，之后不再变回：新建直连在 TLS 握手完成时，复用或经隧道交出的套接字在交给请求时。判断偏向保守：发出之后的任何失败（含复用连接上被重置、`http-error`、`stalled`、响应体失败与 `stopped`）都不重试。
+- 每次重试是同一请求体、同一请求头的新交换。凭据只在 `start` 的同步调用中读取一次，重试沿用那次组装的请求头。每次重试按 FIFO 重新预约容量名额：失败的交换在物理关闭时已归还名额，退避期间不占名额。
+- 退避可被取消。`signal` 中止、materialized 或 prepared 的 `close()`、外层 `close()`，在退避期间或等待名额期间立即结束重试，不发出新请求，流以 `interrupted`（`stop: 'confirmed'`）结束。退避的计时器随之清除。网络资源关闭时，退避期间的重试在退避结束后发现并结束（至多一个退避的时长），不发出新请求。
+- 所有重试都失败后，终止保持原来的形状：`failed`，`upstream-unavailable`，`diagnostic` 取最后一次尝试的 `connect-failed` 或 `connect-timeout`，状态码为 `null`。
+- 可见性：每次重试之前，诊断观察者收到一条 `connect-retry` 事件（`level` 为 `info`），带 `attempt`（从 1 起）、`delayMs` 与 `reason`（`connect-failed` 或 `connect-timeout`，即上一次尝试的失败原因）。事件只含计数与封闭词，不含 URL、头或体。每次尝试照常产生 `exchange-started` 与 `connect-failed` 事件，所以一次发送的尝试次数可由 `exchange-started` 数出。
+- 已知限制：`connect-retry` 只进诊断观察者，不进入调用记录。`ProviderDiagnostic` 属 model-contract，它的封闭词表尚没有对应成员；要让重试次数进入调用记录，须由 model-contract 与 model 增加该成员。
 
 ### 流停顿上界
 
@@ -257,7 +270,7 @@
   - 响应体已完整收到（Node 已持有整个响应体）之后不再有停顿，只等待连接关闭。
 - Node 已收到而读者尚未读取的字节不算停顿：到期时响应还有未读字节，说明慢的是读者，本包只重新计时，不失败。
 - 计时器只有一个，由交换持有。交换进入 `closed` 时清除它，停止、取消、连接超时、错误体读完与网络资源关闭都使交换进入 `closed`。交换还从连接的套接字上移除它为计时挂上的 `data` 监听器，连接留在连接池中时不残留监听器。
-- 已知限制：本包不重试，到期之后由调用方决定是否再发一次。到期不能撤回已发出的请求，供应商可能已经收到并开始计费。
+- 已知限制：到期之后本包不重试（流停顿发生在请求发出之后，见[“请求发出之前的重试”](#请求发出之前的重试)），由调用方决定是否再发一次。到期不能撤回已发出的请求，供应商可能已经收到并开始计费。
 - 已知限制：M2 没有重试策略。经 `model-host-local` 的本地装配与 Model 运行时调用时，收到响应头之前到期的 `upstream-unavailable` 属于首内容之前的可重试失败，调用以 `retry-not-decided` 被拒绝，仍处于 `running`，不形成 Settlement，见 [Model 已实现的调用收场](../model/SPEC.md#已实现的调用收场)。首内容之后到期的 `stream-lost` 正常收场，Settlement 可读。这是 M2 无重试的限制，不是停顿上界的缺陷。
 
 ### 代理
@@ -330,13 +343,14 @@
 
 `createDiagnosticSink(observer, { maxPending })` 隔离调用方的诊断观察者。`maxPending` 必须是正的安全整数，否则函数同步抛出 `RangeError`。
 
-- 诊断事件只含种类与级别，不含 URL、头或体。观察者收到的是冻结的副本。
+- 诊断事件只含种类、级别与 `connect-retry` 的三个计数或封闭词成员，不含 URL、头或体。观察者收到的是冻结的副本。
 - 当前的事件种类是封闭集合：
 
   | 种类 | 级别 | 时刻 |
   | --- | --- | --- |
   | `exchange-started` | `info` | 交换发起之后 |
   | `connect-failed` | `error` | 收到响应之前连接关闭或连接超时 |
+  | `connect-retry` | `info` | 请求发出之前的失败之后、退避之前；带 `attempt`、`delayMs`、`reason`，见[“请求发出之前的重试”](#请求发出之前的重试) |
   | `error-body-too-large` | `error` | 错误体超过上限 |
   | `exchange-stopped` | `info` | 交换物理关闭时，不论结果 |
 
@@ -759,6 +773,8 @@ hook 成功时，`end()` 按下列次序给出事实：
 | 发送的 start：同步发出（包内计数与服务端一致）、请求头与请求体、编码诊断在发出之后先于响应事实（含 HTTP 失败）、解码器的终止排在最后、在 end-marker 处结束读取（响应不结束时也是如此，之后的事件不解码，响应随 end-marker 结束时连接留在连接池）、失败映射表各行对真实响应、流中取消与关闭在物理停止之后以 `interrupted` 结束、读入 end-marker 之后的取消保留解码器的终止、读者提前结束、外层关闭、真实发送下的容量等待与取消、close 归还名额 | [transport-exchange.spec.ts](tests/transport-exchange.spec.ts) | 慢 |
 | model-contract 符合性套件 transport 组的六条义务 | [conformance.spec.ts](tests/conformance.spec.ts) | 慢 |
 | 连接容量 | [capacity.spec.ts](tests/capacity.spec.ts) | 快 |
+| 请求发出之前的重试：对注入的交换（假计时器、真实容量）：退避次序与事件、用尽后保持最后一次的结果、请求可能已发出时不重试、2xx、`http-error`、`stalled`、`stopped` 与空列表不重试、退避期间不占名额、`stop()` 与取消在退避与等待名额期间立即结束且计时器清除、停止到达运行中的重试 | [retry.spec.ts](tests/retry.spec.ts) | 快 |
+| 请求发出之前的重试，对真实套接字：被拒绝的连接按退避重试并以原 fault 结束、缺省时只发一次、请求已到服务端后的断开不重试、取消与 materialized 的 `close()` 立即结束长退避 | [transport-retry.spec.ts](tests/transport-retry.spec.ts) | 慢 |
 | 诊断隔离 | [diagnostics.spec.ts](tests/diagnostics.spec.ts)；交换中的隔离见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
 | SSE 分帧 | [sse.spec.ts](tests/sse.spec.ts) | 快 |
 | 协议帧 | [frames.spec.ts](tests/frames.spec.ts) | 快 |
