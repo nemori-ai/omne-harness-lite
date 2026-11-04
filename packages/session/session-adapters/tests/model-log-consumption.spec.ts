@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   decodeActionId,
   type AgentJournal,
+  type AgentJournalEntries,
   type AgentMaterials,
   type Material,
   type PendingCall,
@@ -22,7 +23,11 @@ import {
   sampleReceivedModelAccount,
   sampleReceivedModelResult,
 } from '@omne-harness/agent-contract/testing'
-import { agentJournalKey, agentMaterialsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  agentJournalEntriesKey,
+  agentJournalKey,
+  agentMaterialsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -179,6 +184,7 @@ function entriesKinds(s: ModelScene): string[] {
 
 type Wraps = Partial<{
   load: AgentJournal<string>['load']
+  entries: AgentJournalEntries<string>['read']
   read: AgentMaterials<string, ContentBlock>['read']
   commitEntries: SessionTransactionPort<string>['commitEntries']
 }>
@@ -221,6 +227,14 @@ async function assembled(
       return (wraps.load ?? s.view.journal.load)(input)
     }
   }
+  // The entries port of the same Journal provider, mounted with the Journal.
+  class Entries extends Service {
+    constructor(scope: Context) {
+      super(scope, agentJournalEntriesKey)
+    }
+    readonly read: AgentJournalEntries<string>['read'] = input =>
+      (wraps.entries ?? s.view.entries.read)(input)
+  }
   class Materials extends Service {
     constructor(scope: Context) {
       super(scope, agentMaterialsKey)
@@ -241,6 +255,7 @@ async function assembled(
   }
   const services = { Session, Journal, Materials, Transactions } as const
   for (const name of mountOnly) await mount(ctx, services[name])
+  if (mountOnly.includes('Journal')) await mount(ctx, Entries)
   const consumption = createSessionModelLogConsumptionPlugin<string>({
     // The assembly issues the coordinator principal of a session; the scene has one principal.
     coordinator: async () => succeed(s.access.principal),
@@ -297,8 +312,10 @@ describe('a Model received entry becomes one entries-channel Session batch', () 
     // One batch, keyed by the producer's delivery key, with the Agent entry's material as source.
     expect(f.commits).toHaveLength(1)
     const [item] = f.commits[0]!.observation.items
-    const stored = ok(await s.view.journal.load({ ...s.access, execution: s.execution })).entries
-    expect(item?.fact).toEqual(stored?.find(entry => entry.kind === 'received')?.material)
+    const stored = ok(
+      await s.view.entries.read({ ...s.access, execution: s.execution, after: null, limit: 100 }),
+    ).items.map(listed => listed.entry)
+    expect(item?.fact).toEqual(stored.find(entry => entry.kind === 'received')?.material)
     expect(item?.interpretation.map(part => part.kind)).toEqual(['execution', 'account'])
     expect(item?.interpretation[0]).toMatchObject({
       producer: { kind: 'model', call: s.result.delivery.key.reference },
@@ -442,16 +459,12 @@ describe('reading again', () => {
 })
 
 describe('failures stay failures and commit nothing', () => {
-  it('a Journal load without entries answers unavailable, not an empty channel', async () => {
+  it('an entries read that fails answers unavailable, not an empty channel', async () => {
     const s = await modelScene('no-entries')
     await receive(s, s.result, 'result')
     const f = await assembled(s, {
-      load: async input => {
-        const loaded = await s.view.journal.load(input)
-        if ('failure' in loaded) return loaded
-        const { entries: _entries, ...rest } = loaded.ok
-        return succeed(rest)
-      },
+      entries: async () =>
+        fail({ kind: 'unavailable', owner: 'agentJournalEntries', diagnostic: 'down' }),
     })
 
     expect(await f.consume()).toMatchObject({ failure: { kind: 'unavailable' } })
@@ -546,14 +559,15 @@ describe('failures stay failures and commit nothing', () => {
     await receive(s, s.result, 'result')
     const other = sampleReceivedModelResult(s.access.tenant, 'elsewhere').consumption
     const f = await assembled(s, {
-      load: async input => {
-        const loaded = await s.view.journal.load(input)
-        if ('failure' in loaded || loaded.ok.entries === undefined) return loaded
+      entries: async input => {
+        const read = await s.view.entries.read(input)
+        if ('failure' in read) return read
         return succeed({
-          ...loaded.ok,
-          entries: loaded.ok.entries.map(entry =>
-            entry.kind === 'received' ? { ...entry, consumption: other } : entry,
-          ),
+          ...read.ok,
+          items: read.ok.items.map(({ sequence, entry }) => ({
+            sequence,
+            entry: entry.kind === 'received' ? { ...entry, consumption: other } : entry,
+          })),
         })
       },
     })
@@ -568,16 +582,18 @@ describe('failures stay failures and commit nothing', () => {
     const s = await modelScene('other-consumer')
     await receive(s, s.result, 'result')
     const f = await assembled(s, {
-      load: async input => {
-        const loaded = await s.view.journal.load(input)
-        if ('failure' in loaded || loaded.ok.entries === undefined) return loaded
+      entries: async input => {
+        const read = await s.view.entries.read(input)
+        if ('failure' in read) return read
         return succeed({
-          ...loaded.ok,
-          entries: loaded.ok.entries.map(entry =>
-            entry.kind === 'received'
-              ? { ...entry, consumer: { ...entry.consumer, position: 'elsewhere' } }
-              : entry,
-          ),
+          ...read.ok,
+          items: read.ok.items.map(({ sequence, entry }) => ({
+            sequence,
+            entry:
+              entry.kind === 'received'
+                ? { ...entry, consumer: { ...entry.consumer, position: 'elsewhere' } }
+                : entry,
+          })),
         })
       },
     })
@@ -715,14 +731,15 @@ describe('another tenant', () => {
     await receive(s, s.result, 'result')
     const foreign = sampleReceivedModelResult(memoryOtherAccess('x', 'y').tenant, s.name)
     const f = await assembled(s, {
-      load: async input => {
-        const loaded = await s.view.journal.load(input)
-        if ('failure' in loaded || loaded.ok.entries === undefined) return loaded
+      entries: async input => {
+        const read = await s.view.entries.read(input)
+        if ('failure' in read) return read
         return succeed({
-          ...loaded.ok,
-          entries: loaded.ok.entries.map(entry =>
-            entry.kind === 'received' ? { ...entry, delivery: foreign.delivery } : entry,
-          ),
+          ...read.ok,
+          items: read.ok.items.map(({ sequence, entry }) => ({
+            sequence,
+            entry: entry.kind === 'received' ? { ...entry, delivery: foreign.delivery } : entry,
+          })),
         })
       },
     })

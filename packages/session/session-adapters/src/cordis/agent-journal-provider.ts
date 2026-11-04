@@ -314,6 +314,9 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
 
   const entries: AgentJournalEntries<P> = {
     record: input => routedWrite('record', input, view => view.entries.record(input)),
+    read: input => routedView('entries.read', input, view => view.entries.read(input)),
+    receivedOf: input =>
+      routedView('entries.receivedOf', input, view => view.entries.receivedOf(input)),
   }
 
   const adoptedRequests: SessionAdoptedRequests<P> = {
@@ -393,12 +396,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
   const materials: Materials<P> = {
     preserve(input) {
       if (closed) return Promise.resolve(stopped())
-      // Without an execution the call names no session (K-9), and nothing is guessed.
       const { execution } = input
-      if (execution === undefined)
-        return Promise.resolve(
-          fail<Failure>(unavailable('a material to preserve names no session: no route to one')),
-        )
       // The session Journal reads the execution of a material only as its route, never as a write
       // of that execution's records, so the call goes on unchanged.
       return routedView('preserve', { tenant: input.tenant, execution }, view =>
@@ -416,6 +414,17 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
       return journals
         .forSession({ tenant: input.tenant, session: named.session })
         .materials.read(input)
+    },
+    async describe(input) {
+      if (closed) return stopped()
+      const tenant = tenantCodec.encode(input.tenant)
+      if (!tenant.ok) return fail({ kind: 'denied', action: 'materials.describe' })
+      const named = materialSessionOf(input.source)
+      if (named === null || named.tenant !== tenant.value)
+        return fail(unavailable('the material source names no session of this tenant'))
+      return journals
+        .forSession({ tenant: input.tenant, session: named.session })
+        .materials.describe(input)
     },
   }
 
@@ -505,10 +514,14 @@ declare module '@deepseek-ai/cordis' {
 /** `agentJournalEntries`, made by the body of `SessionLogAgentJournalProvider`. */
 class SessionLogJournalEntries extends AgentJournalEntriesService<unknown> {
   readonly record: AgentJournalEntries<unknown>['record']
+  readonly read: AgentJournalEntries<unknown>['read']
+  readonly receivedOf: AgentJournalEntries<unknown>['receivedOf']
 
   constructor(ctx: Context, entries: AgentJournalEntries<unknown>) {
     super(ctx)
     this.record = entries.record
+    this.read = entries.read
+    this.receivedOf = entries.receivedOf
   }
 }
 
@@ -516,11 +529,13 @@ class SessionLogJournalEntries extends AgentJournalEntriesService<unknown> {
 class SessionLogMaterials extends AgentMaterialsService<unknown, ContentBlock> {
   readonly preserve: Materials<unknown>['preserve']
   readonly read: Materials<unknown>['read']
+  readonly describe: Materials<unknown>['describe']
 
   constructor(ctx: Context, materials: Materials<unknown>) {
     super(ctx)
     this.preserve = materials.preserve
     this.read = materials.read
+    this.describe = materials.describe
   }
 }
 

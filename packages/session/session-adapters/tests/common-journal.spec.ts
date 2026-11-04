@@ -15,7 +15,9 @@ describe('common Session log', () => {
   it('creates Session and opens Agent from its original grant', async () => {
     const { view, access, execution, opened } = await scene()
     const snapshot = ok(await view.journal.load({ ...access, execution }))
-    expect(snapshot.entries).toEqual([])
+    expect(
+      ok(await view.entries.read({ ...access, execution, after: null, limit: 10 })).items,
+    ).toEqual([])
     expect(snapshot.revision).toBe(opened.receipt.revision)
     const recalled = ok(
       await view.journal.query({ ...access, execution, operation: operation('open') }),

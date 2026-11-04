@@ -516,6 +516,39 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         ? fail({ kind: 'commit-unknown', operation: input.operation })
         : outcome
     },
+    read: async input => {
+      const found = qualified(input, false)
+      if ('failure' in found) return found
+      const list = found.ok.entries
+      const from = input.after === null ? 0 : Number(input.after)
+      if (
+        !Number.isSafeInteger(input.limit) ||
+        input.limit < 1 ||
+        (input.after !== null && (!/^(0|[1-9][0-9]*)$/.test(input.after) || from > list.length))
+      )
+        return fail({ kind: 'invalid', field: 'after', reason: 'not a position of the entries' })
+      const items = list.slice(from, from + input.limit).map((entry, index) => ({
+        sequence: String(from + index + 1),
+        entry: structuredClone(entry),
+      }))
+      return succeed({
+        items,
+        next: items.at(-1)?.sequence ?? input.after,
+        caughtUp: from + items.length >= list.length,
+      })
+    },
+    receivedOf: async input => {
+      const found = qualified(input, false)
+      if ('failure' in found) return found
+      return succeed(
+        found.ok.entries
+          .filter(
+            (entry): entry is ReceivedEntry =>
+              entry.kind === 'received' && entry.consumption === input.consumption,
+          )
+          .map(entry => structuredClone(entry)),
+      )
+    },
   }
   const materialPort: AgentMaterials<P, ContentBlock> = {
     async preserve(input) {
@@ -556,6 +589,19 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     },
     async read(input) {
       return readMaterial(input, input.source)
+    },
+    // The bridge of the content description (agent-contract SPEC "扩展、卡片与材料"): the digest of
+    // the canonical content, its size in bytes and its kind. Addressing the store by content is
+    // the obligation of the provider's own store; this bridge only describes what it keeps.
+    async describe(input) {
+      const material = readMaterial(input, input.source)
+      if ('failure' in material) return material
+      const text = canonical(material.ok)
+      return succeed({
+        digest: `sha256:${createHash('sha256').update(text).digest('hex')}`,
+        size: Buffer.byteLength(text, 'utf8'),
+        kind: material.ok.kind,
+      })
     },
   }
   const controls = {
