@@ -22,6 +22,7 @@
 
 ## 内存行为资源
 
+- [admission-guards.spec.ts](admission-guards.spec.ts) 是受理模型的机读守卫：未决写期间不答 not-accepted、揭示后认回一致、换 operation 冲突、份额诚实、他租户不披露。性质见 [formal-mapping.md](../../model-contract/verification/models/formal-mapping.md)。
 - [memory-admission.spec.ts](memory-admission.spec.ts) 检查显式/采用/请求值的参数边界、工具关联、typed 拒绝及未知注入不被非法请求消费；请求各序列与三个 stop 承载的单空位、中间空位、合法密集值及绑定冲突。
 - [memory-core.spec.ts](memory-core.spec.ts) 检查身份、受理、操作唯一、未知与恢复。
 - [memory-dispatch.spec.ts](memory-dispatch.spec.ts) 检查物化、首内容、批次原子性、重试、终局和供应商账目修订。

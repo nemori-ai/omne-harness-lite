@@ -4,7 +4,7 @@
 
 CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md#阶段与版本支持承诺)为准。技术缺项和未运行的验证不改变产品正文规定的范围。
 
-当前只有验证要求与前提说明，没有本目录可执行的协议模型或证明。具体运行、临时探针和逐轮评审证据归任务 tmp。后续资源须记录真实依赖、性质、命令、覆盖及限制，不能用静态类型或模型枚举替代提供者故障验证。
+[有限模型](models/index.md) 有受理与结果推送两个可执行的 TLA+ 模型，[证明](proofs/README.md) 有两条手写推广。ModelHandoff 与 FirstContent 仍只有设计前提。具体运行、临时探针和逐轮评审证据归任务 tmp。后续资源须记录真实依赖、性质、命令、覆盖及限制，不能用静态类型或模型枚举替代提供者故障验证。
 
 目录导航见 [index](index.md)。独立验收归 [acceptance](../acceptance/index.md)。
 
