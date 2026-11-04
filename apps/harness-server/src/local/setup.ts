@@ -369,6 +369,12 @@ function summary(input: {
     `  settings     ${locations.settingsFile} (${input.settingsStep})`,
     `  state        ${locations.stateDir}`,
     `  credential   ${locations.vaultFile} (${credential})`,
+    ...(input.credential === 'rebuilt'
+      ? [
+          '  warning      the tenant model credentials of the old vault are gone. Each tenant uses the',
+          '               deployment default until it runs `omne credential set` again.',
+        ]
+      : []),
     `  workspace    ${settings.workspace}`,
     `  shell        ${settings.shell}`,
     `  address      http://127.0.0.1:${settings.port}`,

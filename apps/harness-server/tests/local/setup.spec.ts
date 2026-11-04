@@ -252,6 +252,8 @@ describe('a second run', () => {
     expect(out.code).toBe(0)
     expect(h.factorySecret()).toBe(second)
     expect(out.stdout).toContain('(replaced)')
+    // Replacing the factory secret of a readable vault keeps the tenant bindings: no warning.
+    expect(out.stdout).not.toContain('tenant model credentials of the old vault')
     expect(out.stdout + out.stderr).not.toContain(second)
   })
 
@@ -313,6 +315,7 @@ describe('a vault that cannot be read', () => {
     const out = await h.run(['--replace-credential'], async () => key)
     expect(out.code, out.stderr).toBe(0)
     expect(out.stdout).toContain('(rebuilt: the old vault could not be read)')
+    expect(out.stdout).toContain('the tenant model credentials of the old vault are gone')
     expect(h.factorySecret()).toBe(key)
     expect(out.stdout + out.stderr).not.toContain(key)
   })
