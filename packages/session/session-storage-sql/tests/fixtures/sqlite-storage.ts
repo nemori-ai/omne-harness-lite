@@ -32,15 +32,18 @@ import admissionAttemptMigration from '../../src/worker/admission-attempt-migrat
 import indexMigration from '../../src/worker/execution-index-migration.ts'
 import recordMigration from '../../src/worker/execution-record-migration.ts'
 import executionRecord from '../../src/worker/execution-record.ts'
+import factBlobMigration from '../../src/worker/fact-blob-migration.ts'
 import factBodyMigration from '../../src/worker/fact-body-migration.ts'
 import migration from '../../src/worker/migration.ts'
 import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
 import participant from '../../src/worker/participant.ts'
 import preadmissionMigration from '../../src/worker/preadmission-migration.ts'
 import readBinding from '../../src/worker/read-binding.ts'
-import readExecutionFacts from '../../src/worker/read-execution-facts.ts'
+import readBlob from '../../src/worker/read-blob.ts'
+import readExecutionBatches from '../../src/worker/read-execution-batches.ts'
+import readExecutionEvents from '../../src/worker/read-execution-events.ts'
+import readExecutionOpen from '../../src/worker/read-execution-open.ts'
 import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
-import readExecutionParts from '../../src/worker/read-execution-parts.ts'
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
@@ -71,9 +74,11 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readReferences,
   readReleasedScopes,
   readHistoryRoot,
-  readExecutionParts,
-  readExecutionFacts,
+  readExecutionBatches,
+  readExecutionOpen,
+  readExecutionEvents,
   readExecutionOperation,
+  readBlob,
   readExecutionSession,
   readPreadmission,
 ]
@@ -92,6 +97,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   admissionAttemptMigration,
   statePartMigration,
   factBodyMigration,
+  factBlobMigration,
 ]
 
 export type StorageCall =

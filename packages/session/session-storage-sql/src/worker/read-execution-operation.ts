@@ -1,6 +1,10 @@
-// The original answer of one operation of the execution record provider, or null.
-import type { JsonValue } from '@omne-harness/sql-contract'
-import { handler, oneRow, text } from './support.ts'
+// The original batch of one operation of the execution record provider, or null: the operation key
+// (`er_operation`) and the facts of the batch it names, in one snapshot. No answer is stored; the
+// provider derives the answer of a recalled operation from this batch. An operation of another
+// tenant reads as null, the same as one that was never written.
+import { EXECUTION_BATCH_MAX_FACTS } from '../codec.ts'
+import { FACT_COLUMNS, factOutput } from './fact-rows.ts'
+import { big, handler, oneRow, rowsOf, text } from './support.ts'
 
 export default handler('execution-record.operation', (input, port) => {
   const value =
@@ -15,10 +19,23 @@ export default handler('execution-record.operation', (input, port) => {
     throw new Error('invalid input')
   const row = oneRow(
     port,
-    'SELECT digest, answer FROM er_operation WHERE tenant = ? AND operation = ? LIMIT 1',
+    'SELECT session, execution, digest, published FROM er_operation WHERE tenant = ? AND operation = ? LIMIT 1',
     [tenant, operation],
   )
-  return row === undefined
-    ? null
-    : { digest: text(row['digest']), answer: JSON.parse(text(row['answer'])) as JsonValue }
+  if (row === undefined) return null
+  const session = text(row['session'])
+  const published = big(row['published'])
+  const facts = rowsOf(
+    port,
+    `SELECT ${FACT_COLUMNS} FROM er_fact WHERE tenant = ? AND session = ? AND pub = ?
+      ORDER BY ord LIMIT ?`,
+    [tenant, session, published, EXECUTION_BATCH_MAX_FACTS],
+  )
+  return {
+    digest: text(row['digest']),
+    session,
+    execution: text(row['execution']),
+    published: String(published),
+    facts: facts.map(factOutput),
+  }
 })

@@ -1,7 +1,8 @@
 // The static materials of the Session storage: two participants (`session` and `execution-record`),
-// their eight migrations (three of `session`: the log, the execution index and the operation
-// evidence table; five of `execution-record`: its records, the preadmission records, the
-// original attempt of an admission, the state parts and the fact bodies) and their
+// their nine migrations (three of `session`: the log, the execution index and the operation
+// evidence table; six of `execution-record`: its records, the preadmission records, the
+// original attempt of an admission, the state parts, the fact bodies, and the fact family with the
+// content blocks that replaces the state parts and the fact bodies) and their
 // read handlers, as the SQL storage contract describes them
 // (sql-contract SPEC 4). The `session` participant reads the same-root index tables of
 // `execution-record` (sql-contract SPEC 4.1: a read table of another participant of the same
@@ -24,6 +25,8 @@ import {
 import {
   ADMISSION_ATTEMPT_MIGRATION,
   ADMISSION_ATTEMPT_TABLES,
+  FACT_BLOB_MIGRATION,
+  FACT_BLOB_TABLES,
   FACT_BODY_MIGRATION,
   FACT_BODY_TABLES,
   EXECUTION_RECORD_INDEX_TABLES,
@@ -83,6 +86,19 @@ const factBodyMigrationRef = Object.freeze({
   owner: FACT_BODY_MIGRATION.owner,
   id: FACT_BODY_MIGRATION.id,
 })
+const factBlobMigrationRef = Object.freeze({
+  owner: FACT_BLOB_MIGRATION.owner,
+  id: FACT_BLOB_MIGRATION.id,
+})
+/** What a reader of the same-root index requires: the Session log, `er_fact` and the attempts. */
+const indexMigrations = [
+  migrationRef,
+  recordMigrationRef,
+  admissionAttemptMigrationRef,
+  factBlobMigrationRef,
+]
+/** What a read of the Agent fact family requires: the session gate reads `sl_journal`. */
+const factMigrations = [migrationRef, recordMigrationRef, factBlobMigrationRef]
 
 /**
  * What the application decides when it builds the materials. There is no default: the limit is an
@@ -121,8 +137,8 @@ export const HANDLERS: readonly Handler[] = [
     file: 'read-work',
     // The snapshot with the history index of its pending inputs (history-index.ts).
     tables: ['sl_journal', 'sl_state', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
-    // It reads `er_admission_attempt_idx`, which the third migration of `execution-record` creates.
-    migrations: [migrationRef, recordMigrationRef, admissionAttemptMigrationRef],
+    // It reads `er_admission_attempt_idx` (`execution-record/003`) and `er_fact` (`/006`).
+    migrations: indexMigrations,
   },
   {
     // The version check of the work cache (SPEC RT-04): two point reads, no snapshot row.
@@ -137,7 +153,7 @@ export const HANDLERS: readonly Handler[] = [
     handler: 'session.work-index',
     file: 'read-work-index',
     tables: ['sl_journal', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
-    migrations: [migrationRef, recordMigrationRef, admissionAttemptMigrationRef],
+    migrations: indexMigrations,
   },
   {
     // The basis a committed batch was reduced on (SPEC RT-04): its index and reads, read at the
@@ -145,7 +161,7 @@ export const HANDLERS: readonly Handler[] = [
     handler: 'session.work-reads',
     file: 'read-work-reads',
     tables: ['sl_journal', 'sl_entry', ...EXECUTION_RECORD_INDEX_TABLES],
-    migrations: [migrationRef, recordMigrationRef, admissionAttemptMigrationRef],
+    migrations: indexMigrations,
   },
   {
     // The ownership of a session and the evidence that created it (D-AUTH r4 4.1): the journal row
@@ -190,26 +206,44 @@ export const HANDLERS: readonly Handler[] = [
     migrations: [indexMigrationRef],
   },
   {
-    handler: 'execution-record.parts',
-    file: 'read-execution-parts',
-    tables: ['er_root', 'er_state', ...STATE_PART_TABLES],
+    // The batches of the fact family of one session after a publication (incremental read).
+    handler: 'execution-record.facts',
+    file: 'read-execution-batches',
+    tables: ['sl_journal', 'er_root', 'er_fact'],
     protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [recordMigrationRef, statePartMigrationRef],
+    migrations: factMigrations,
   },
   {
+    // The open executions of one session (cold start).
+    handler: 'execution-record.open-executions',
+    file: 'read-execution-open',
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution'],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: factMigrations,
+  },
+  {
+    // The events of one execution after a sequence, by the event index.
+    handler: 'execution-record.events',
+    file: 'read-execution-events',
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution'],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: factMigrations,
+  },
+  {
+    // The operation key and the facts of its batch.
     handler: 'execution-record.operation',
     file: 'read-execution-operation',
-    tables: ['er_operation'],
+    tables: ['er_operation', 'er_fact'],
     protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [recordMigrationRef],
+    migrations: [recordMigrationRef, factBlobMigrationRef],
   },
   {
-    // Path P of C-WORKCACHE: the facts of one execution after a sequence, from the append-only rows.
-    handler: 'execution-record.execution-facts',
-    file: 'read-execution-facts',
-    tables: ['er_execution', 'er_fact_idx', ...FACT_BODY_TABLES],
+    // One content block of the tenant by its digest.
+    handler: 'execution-record.blob',
+    file: 'read-blob',
+    tables: ['sl_blob'],
     protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [recordMigrationRef, factBodyMigrationRef],
+    migrations: [factBlobMigrationRef],
   },
   {
     handler: 'execution-record.preadmission',
@@ -244,6 +278,7 @@ export function sessionStorageMaterials(
   const admissionAttemptMigration = module('admission-attempt-migration')
   const statePartMigration = module('state-part-migration')
   const factBodyMigration = module('fact-body-migration')
+  const factBlobMigration = module('fact-blob-migration')
   return {
     participants: [
       {
@@ -251,12 +286,15 @@ export function sessionStorageMaterials(
         protocol: EXECUTION_RECORD_PROTOCOL,
         moduleUrl: record.moduleUrl,
         codeDigest: record.digest,
+        // The tables of 001, 004 and 005 that 006 drops stay owned (RETIRED_TABLES): a fresh
+        // database runs those migrations first, and a migration drops only its owner's tables.
         ownedTables: [
           ...EXECUTION_RECORD_TABLES,
           ...PREADMISSION_TABLES,
           ...ADMISSION_ATTEMPT_TABLES,
           ...STATE_PART_TABLES,
           ...FACT_BODY_TABLES,
+          ...FACT_BLOB_TABLES,
         ],
         readTables: [],
         requiresFacts: [],
@@ -325,6 +363,13 @@ export function sessionStorageMaterials(
         moduleUrl: factBodyMigration.moduleUrl,
         checksum: factBodyMigration.digest,
         requires: [recordMigrationRef],
+      },
+      {
+        // It drops the tables of 001, 004 and 005, so it runs after them.
+        ...factBlobMigrationRef,
+        moduleUrl: factBlobMigration.moduleUrl,
+        checksum: factBlobMigration.digest,
+        requires: [recordMigrationRef, statePartMigrationRef, factBodyMigrationRef],
       },
     ],
     readHandlers: HANDLERS.map(item => {

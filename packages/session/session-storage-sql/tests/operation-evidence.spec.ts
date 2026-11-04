@@ -101,6 +101,7 @@ describe('the migration of the evidence table', () => {
       'execution-record/003-admission-attempt',
       'execution-record/004-state-parts',
       'execution-record/005-fact-body',
+      'execution-record/006-fact-blob',
     ])
     const found = migrations.find(item => item.id === '003-operation-evidence')
     expect(found?.requires).toEqual([{ owner: 'session', id: '002-execution-index' }])
