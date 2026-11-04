@@ -5,6 +5,7 @@
 // operation and one row per event sequence. A tenant holds one block per digest. The reads give the
 // batches after a publication, the open executions, the events after a sequence, one block and the
 // batch of one operation; a session or a key of another tenant answers as if it did not exist.
+import { readFileSync } from 'node:fs'
 import type { JsonValue, SqlIdentity } from '@omne-harness/sql-contract'
 import type { SqlValue } from '@omne-harness/sql-contract/worker'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -249,6 +250,15 @@ describe('one publication appends one batch', () => {
     ])
     expect(count(a, 'sl_blob')).toBe(1)
     expect(a.provider.select('dom_0', 'SELECT published FROM er_root').rows).toEqual([[1n]])
+  })
+
+  it('the participant only appends facts: no statement updates, replaces or deletes a fact row', () => {
+    const source = readFileSync(
+      new URL('../src/worker/execution-record.ts', import.meta.url),
+      'utf8',
+    )
+    expect(source).toMatch(/'INSERT INTO er_fact \(/u)
+    expect(source).not.toMatch(/(UPDATE|DELETE FROM|REPLACE INTO|OR IGNORE INTO) er_fact\b/u)
   })
 
   it('the statements of a later publication carry as many bytes as an earlier one: nothing is rewritten', () => {
