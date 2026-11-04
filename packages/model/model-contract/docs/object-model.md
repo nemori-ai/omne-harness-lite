@@ -146,7 +146,7 @@ classDiagram
 | ContextLimits | 最大上下文窗口、可选的单列输入上限、输出上限，以及触发压缩的窗口默认百分比 | 由档案发布方或维护方配置，压缩方读取，Model 自己不读百分比 |
 | ProfileResolution | 一次同名求值结果及来源，同名筛选胜出后才判断相容和凭据 | 查询值，不是调用方保存的选择或永久许可 |
 | ModalityRequirement | 模态集合（四种模态的任意非空子集，含本阶段不支持的视频）及历史覆盖依据 | 调用方随运行时上下文提供。Model 核来源和相容性 |
-| AssembledModelInput | 完整系统内容、消息、工具声明、参数及表示来源 | 由组装方产生。Model 不补写遗漏的历史 |
+| AssembledModelInput | 完整系统内容、消息、工具声明、参数、请求表示采用 `representation` 与来源 `source`。`representation` 取档案 `definition.representation` 固定的请求表示采用，家族在 `plan` 时拒绝其他采用 | 由组装方产生。Model 不补写遗漏的历史 |
 | FixedModelRequest | 受理后固定的输入、供应商、参数采用与来源，不含预算 | 原调用保管，重试不改用途或路由 |
 | RequestBudget | 完整计量或明确待媒体物化。各维度具有方法与上限，并固定 ModelCountingBasis。有 lineage 的租约计量时带 `calibration`（CalibrationReport），其他计量不带 | 计量能力给请求组装方的报告，不进入固定请求，也不进入物化回执 |
 | PreparationLineage | 请求组装方对一次请求的声明：`continues` 是被延续的调用，`sources` 以消息为键给出产生该 assistant 消息的来源调用。声明者为 `continues` 的前置条件作保（[SPEC lineage 的声明与前置条件](../SPEC.md#lineage-的声明与前置条件)） | 每个租约在 `acquire` 时给一次。Model 不检测前置条件是否被违反，也不比较消息内容 |

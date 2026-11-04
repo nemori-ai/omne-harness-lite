@@ -7,8 +7,9 @@
 // - the first-execution run (`createModelInitialRun`) with the origin read check of the composition;
 // - the qualification registry over `principalVerifier` and `tenantStanding` (the synchronous
 //   `authority`, `execution` and `current` read what the admission points captured);
-// - one evidence adapter per consumer owner adoption, over the `initial` of this activation and the
-//   materialization reader the send stage installs;
+// - one evidence adapter per consumer owner adoption, over the `initial` of this activation, the
+//   materialization reader the send stage installs, and the custody evidence of the Agent owner read
+//   per call from the trusted `agentReceivedRecords` of the `agent-journal` row (R2-D257);
 // - the trusted send sources of the official OpenAI profiles with the factory credential;
 // - the combination: the configured `combinationVersion` and the digest of the same catalog the
 //   `session-storage` row registers.
@@ -40,7 +41,7 @@ import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-a
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import { createModelEvidence } from '../../model/evidence.ts'
+import { agentCustodyOf, createModelEvidence } from '../../model/evidence.ts'
 import { modelRecordsPortOf } from '../../model/ports.ts'
 import { createModelQualification } from '../../model/qualification.ts'
 import { officialSendSources } from '../../model/sources.ts'
@@ -129,6 +130,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
       evidence: evidenceOf(config.member, {
         initial: () => live.initial,
         reader: () => live.reader,
+        custody: () => agentCustodyOf(ctx),
       }),
       clock: given.modelClock,
       manifestDigest: manifest.digest,

@@ -62,14 +62,33 @@ describe('command catalog', () => {
     expect(renderHelp(empty)).toBe(expectedEmptyHelp)
   })
 
-  it('registers exactly the six commands of the spec', () => {
+  it('registers exactly the commands of the spec, the governance commands last', () => {
     expect(productionCatalog.commands.map(command => command.name)).toEqual([
       'register',
       'login',
       'create-session',
       'send-input',
+      'read-history',
       'cancel-run',
       'stop-call',
+      'create-organization',
+      'query-create-organization',
+      'issue-member-invitation',
+      'accept-member-invitation',
+      'reject-member-invitation',
+      'withdraw-member-invitation',
+      'query-invitation',
+      'query-received-invitations',
+      'query-issued-invitations',
+      'query-own-memberships',
+      'query-organization-members',
+      'leave-organization',
+      'remove-member',
+      'change-member-role',
+      'switch-current-tenant',
+      'query-current-tenant',
+      'revoke-login',
+      'query-own-valid-logins',
     ])
   })
 

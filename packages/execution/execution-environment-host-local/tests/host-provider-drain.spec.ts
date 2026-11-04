@@ -62,6 +62,23 @@ vi.mock('node:fs/promises', async importOriginal => {
   }
 })
 
+vi.mock('node:child_process', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  const { holdNativeInput } = await import('./windows-files/native-control.ts')
+  return {
+    ...actual,
+    spawn(...args: Parameters<typeof actual.spawn>) {
+      const child = actual.spawn(...args)
+      holdNativeInput(child, {
+        marker: hold.marker,
+        entered: () => hold.entered(),
+        released: () => hold.gate.released,
+      })
+      return child
+    },
+  }
+})
+
 const roots: string[] = []
 
 afterEach(async () => {
@@ -245,6 +262,7 @@ it('logs the diagnostic and RetirementPending when the host files plugin unloads
   await hostFiles.dispose()
   expect(errors).toMatchObject([
     { kind: 'drainBoundExceeded', provider: 'host-files', inFlight: 1, boundMs: 20 },
+    { name: 'RetirementPending', resources: [] },
     { name: 'RetirementPending', resources: [] },
   ])
   hold.release()

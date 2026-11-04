@@ -4,4 +4,4 @@
 
 ## 内容
 
-- [README.md](README.md)：证明清单与假设。现在没有证明
+- [README.md](README.md)：P1、P5 与读取工作量的手写证明

@@ -15,12 +15,25 @@ export type TerminalInformation = {
   readonly observedCwd: string
 }
 
+export interface TerminalRetention<P> {
+  attach(
+    request: FacilityRequest<P> & { readonly terminal: TerminalRef },
+  ): Promise<FacilityResult<{ readonly terminal: TerminalRef }>>
+  detach(
+    request: FacilityRequest<P> & { readonly terminal: TerminalRef },
+  ): Promise<FacilityResult<{ readonly status: 'confirmed' | 'unconfirmed' }>>
+}
+
+export type TerminalRetentionOperation = keyof TerminalRetention<unknown>
+
 export interface TerminalFacility<P> {
+  readonly retention?: TerminalRetention<P>
   create(
     request: FacilityRequest<P> & {
       readonly cwd: string
       readonly env: Readonly<Record<string, string>>
       readonly geometry?: { readonly columns: number; readonly rows: number }
+      readonly retain?: 'session'
     },
   ): Promise<FacilityResult<{ readonly terminal: TerminalRef }>>
   /** One leg of the terminal; its output mode is always `terminal`. */

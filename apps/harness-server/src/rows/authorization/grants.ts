@@ -7,19 +7,25 @@ import type { MaintenanceGrant, MaintenanceGrantSource } from '@omne-harness/aut
 import type { SystemPurpose } from './cells.ts'
 
 /** The revision and generation of the table. Bump when a record changes. */
-export const MAINTENANCE_GRANT_REVISION = '2'
+export const MAINTENANCE_GRANT_REVISION = '3'
 
 /** The component name of the agent host maintenance principal (DP-1 table 3-3). */
 export const AGENT_HOST_COMPONENT = 'agent-host'
 /** The component name of the tool residency principal (AA:273, DP-1 table 3-4). */
 export const TOOL_RESIDENCY_COMPONENT = 'toolResidencyPrincipal'
 export const TENANT_DOMAIN_SCANNER_COMPONENT = 'tenant-domain-scanner'
+/**
+ * The component name of the session maintainer, `SessionInternalPrincipals.maintainer` (DP-1 table
+ * 3-3, naming rule DP5-C5). Session S3 reads `pending` of one tenant with it (session SPEC S3).
+ */
+export const SESSION_MAINTAINER_COMPONENT = 'sessionPrincipals.maintainer'
 
 /** The components that hold a record. A component outside this union has no record. */
 export type GrantHolder =
   | typeof AGENT_HOST_COMPONENT
   | typeof TOOL_RESIDENCY_COMPONENT
   | typeof TENANT_DOMAIN_SCANNER_COMPONENT
+  | typeof SESSION_MAINTAINER_COMPONENT
 
 /** One record with the purposes typed against the policy; `MaintenanceGrant` widens them to text. */
 export type ReleaseGrant = MaintenanceGrant & Readonly<{ purposes: readonly SystemPurpose[] }>
@@ -38,6 +44,9 @@ function record(component: GrantHolder, purposes: readonly SystemPurpose[]): Rel
 export const MAINTENANCE_GRANTS: Readonly<Record<GrantHolder, ReleaseGrant>> = Object.freeze({
   [TENANT_DOMAIN_SCANNER_COMPONENT]: record(TENANT_DOMAIN_SCANNER_COMPONENT, ['enumerate-tenants']),
   [TOOL_RESIDENCY_COMPONENT]: record(TOOL_RESIDENCY_COMPONENT, ['resident-references']),
+  // S3, the recovery scanner, reads the pending sessions of one tenant with this principal. The
+  // principal takes no other system action: `receive` of a scope release is not granted.
+  [SESSION_MAINTAINER_COMPONENT]: record(SESSION_MAINTAINER_COMPONENT, ['pending-sessions']),
   [AGENT_HOST_COMPONENT]: record(AGENT_HOST_COMPONENT, [
     'agent-instance-publish',
     'agent-instance-quiesce',

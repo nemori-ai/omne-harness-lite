@@ -225,42 +225,45 @@ function live(settings: Settings, initial: CustodianState): LocalCustodian {
     holder.state = refreshed.state
     return holder.state
   }
+  // The one entry of every judgment: the gate first, then the snapshot from disk, and only then
+  // the judgment over it. An unreadable store answers `unavailable` after the gate passed.
+  const judged = <R>(
+    reference: Parameters<typeof judgeGate>[1],
+    judge: (state: CustodianState) => R,
+    face?: Parameters<typeof judgeGate>[2],
+  ) => {
+    const gate = judgeGate(holder.state, reference, face)
+    if (gate) return gate
+    const state = current()
+    return state ? judge(state) : ({ kind: 'unavailable' } as const)
+  }
+  const noteResolve = (
+    state: CustodianState,
+    reference: Parameters<typeof sameCredentialHolder>[1],
+    decision: CredentialResolution,
+  ) => {
+    const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
+    note({ stage: 'resolve', outcome: decision.kind, tenantMatch: binding !== undefined })
+    return decision
+  }
   return {
     path,
-    present(reference) {
-      const gate = judgeGate(holder.state, reference)
-      if (gate) return gate
-      const state = current()
-      if (!state) return { kind: 'unavailable' }
-      return judgePresence(state, reference)
-    },
-    resolve(reference, face) {
-      const gate = judgeGate(holder.state, reference, face)
-      if (gate) return gate
-      const state = current()
-      if (!state) return { kind: 'unavailable' }
-      const decision = judgeResolution(state, reference, face)
-      const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
-      note({ stage: 'resolve', outcome: decision.kind, tenantMatch: binding !== undefined })
-      return decision
-    },
+    present: reference => judged(reference, state => judgePresence(state, reference)),
+    resolve: (reference, face) =>
+      judged(
+        reference,
+        state => noteResolve(state, reference, judgeResolution(state, reference, face)),
+        face,
+      ),
     presentFor(input) {
       const reference = { id: input.id, tenant: input.access.tenant, purpose: input.purpose }
-      const gate = judgeGate(holder.state, reference)
-      if (gate) return gate
-      const state = current()
-      return state ? judgeQualifiedPresence(state, input) : { kind: 'unavailable' }
+      return judged(reference, state => judgeQualifiedPresence(state, input))
     },
     resolveFor(input) {
       const reference = { id: input.id, tenant: input.access.tenant, purpose: input.purpose }
-      const gate = judgeGate(holder.state, reference)
-      if (gate) return gate
-      const state = current()
-      if (!state) return { kind: 'unavailable' }
-      const decision = judgeQualifiedResolution(state, input)
-      const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
-      note({ stage: 'resolve', outcome: decision.kind, tenantMatch: binding !== undefined })
-      return decision
+      return judged(reference, state =>
+        noteResolve(state, reference, judgeQualifiedResolution(state, input)),
+      )
     },
     diagnostics: () => notes.slice(),
     put(reference: CredentialReference, secret: string) {

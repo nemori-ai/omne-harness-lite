@@ -2,26 +2,28 @@
 
 [中文](README_ZH.md)
 
-The `omne` command line client for the Harness Server. It prints help or the build version. It also sends six operations to the server through the SDK: `register`, `login`, `create-session`, `send-input`, `cancel-run`, and `stop-call`. Use it to drive a Harness Server from a shell, a script, or a CI job without writing TypeScript against the SDK.
+The `omne` command line client for the Harness Server. It prints help or the build version. It also sends operations to the server through the SDK: `register`, `login`, `create-session`, `send-input`, `read-history`, `cancel-run`, `stop-call`, and 18 governance operations, one command for each (for example `create-organization`, `switch-current-tenant`, and `revoke-login`). Use it to drive a Harness Server from a shell, a script, or a CI job without writing TypeScript against the SDK.
 
 ## Responsibility and status
 
-This app owns the process entry `omne`, argument parsing, the six commands, the credential reader, the login state file, the build identity, and two public functions that resolve and create the state directory. The package organization page sets the boundary at [The access boundary of the minimal CLI](../../docs/package-organization.md#最小-cli-的接入边界). [SPEC.md](SPEC.md) owns the accepted behavior for help, version, usage errors, and the default state directory.
+This app owns the process entry `omne`, argument parsing, the 25 commands, the credential reader, the login state file, the build identity, and two public functions that resolve and create the state directory. The package organization page sets the boundary at [The access boundary of the minimal CLI](../../docs/package-organization.md#最小-cli-的接入边界). [SPEC.md](SPEC.md) owns the accepted behavior for help, version, usage errors, and the default state directory.
 
 Implemented:
 
 - `omne --help` and `omne --version`.
-- The six commands. Each command sends one public operation through the SDK and prints one JSON object.
+- The 25 commands. Each command sends one public operation through the SDK and prints one JSON object. `read-history` reads all pages of a session history and prints text for a person, or one JSON object with `--json`. The 18 governance commands are named for their operations and act for the tenant that `login.json` holds. [SPEC.md](SPEC.md#治理命令) lists them.
+- `login.json` follows the governance results: `login` saves the `loginId` of the response, `switch-current-tenant` updates the tenant, and `revoke-login` deletes the file when it ends this login.
 - Credential entry without echo on a terminal, and from a pipe.
 - `login.json` in the state directory, written through a temporary file and a rename.
+- `sessions.json` in the state directory: for each session `create-session` made, the tenant that owns it. The same write method.
 - Usage errors for every other argument list.
 - `resolveStateDirectory` and `ensureStateDirectory` as public functions.
 
 Not implemented:
 
-- `read-history`, session observation, and a subscription command.
+- Session observation and a subscription command.
 - A TTY presentation through pi-tui. Output is the same on a terminal and on a pipe.
-- `revoke-login`. The server does not provide it. To forget the login proof on this machine, delete `login.json`.
+- Governance operations on affiliation requests, authorization expressions, and admission judgments, and the commands for the operations that the stage does not provide.
 
 This app imports the SDK and nothing else. It does not import the public contract, a server package, Cordis, or pi-tui. The SDK re-exports the message types and encoding entries that the commands need.
 
@@ -36,6 +38,8 @@ printf '%s\n' "$CREDENTIAL" | node apps/cli/dist/bin.js register --login-identif
 printf '%s\n' "$CREDENTIAL" | node apps/cli/dist/bin.js login --login-identifier alice
 node apps/cli/dist/bin.js create-session --definition default
 node apps/cli/dist/bin.js send-input --session <id> --text 'hello'
+node apps/cli/dist/bin.js read-history --session <id>
+node apps/cli/dist/bin.js read-history --session <id> --json
 node apps/cli/dist/bin.js cancel-run --session <id> --run <run id>
 node apps/cli/dist/bin.js stop-call --session <id> --producer-kind model --call <call id>
 ```
@@ -46,27 +50,29 @@ A typical run has four steps. Register an account with `register`. Issue a login
 
 The server address comes from `--server`, then `OMNE_SERVER`, then (for session commands) the address that `login` recorded, then `http://127.0.0.1:8787`. The SDK accepts only a loopback `http:` address. A rejected address is a usage error.
 
-Every command prints one JSON object to standard output. The object has four keys:
+`read-history` reads the whole history, page by page. By default it prints one block for each entry: text, tool calls, tool results, and the start and end of each run. With `--json` it prints the raw entries in `body.entries`. If it cannot read to the end, it still prints the entries it has, writes the reason to standard error, and exits non-zero (`3` for `denied`, `4` for `basis-unavailable`, `5` when the result is uncertain, `1` for a page it cannot use). [SPEC.md](SPEC.md#读历史) has the rules.
 
-| Key | When it appears | Content |
-| --- | --- | --- |
-| `result` | Always | `response` or `uncertain` |
-| `outcome` | `result` is `response` | The public contract outcome |
-| `body` | `result` is `response` | The response body. For `login`, the body has no `loginProof` |
-| `request` | Always | The identifiers this call sent |
+Every other command, and `read-history --json`, prints one JSON object to standard output. The object has four keys:
+
+| Key       | When it appears        | Content                                                      |
+| --------- | ---------------------- | ------------------------------------------------------------ |
+| `result`  | Always                 | `response` or `uncertain`                                    |
+| `outcome` | `result` is `response` | The public contract outcome                                  |
+| `body`    | `result` is `response` | The response body. For `login`, the body has no `loginProof` |
+| `request` | Always                 | The identifiers this call sent                               |
 
 `request` holds `messageId` for every command, plus the call, accept, input, or control identifiers of the operation. To retry the same intent, pass them back with `--create-call-id`, `--accept-id`, `--input-id`, or `--control-id`. The command then reuses the identifiers, so the server can recognize the retry. A new `messageId` is fine.
 
 `uncertain` means the command has no trustworthy reply. The request may have reached the server, or it may not have. Treat it as neither success nor absence. The exit code reflects that:
 
-| Exit code | Condition |
-| --- | --- |
-| `0` | `succeeded` or `no-change` |
-| `1` | Local failure: identity file, state directory, login state, credential read, or a failed stdout write |
-| `2` | Usage error, including an invalid server address |
-| `3` | Any other refusal, such as `denied`, `not-found`, or `unsupported` |
-| `4` | `basis-unavailable`. Retry later |
-| `5` | `uncertain` or an `unknown` outcome |
+| Exit code | Condition                                                                                             |
+| --------- | ----------------------------------------------------------------------------------------------------- |
+| `0`       | `succeeded` or `no-change`                                                                            |
+| `1`       | Local failure: identity file, state directory, login state, credential read, or a failed stdout write |
+| `2`       | Usage error, including an invalid server address                                                      |
+| `3`       | Any other refusal, such as `denied`, `not-found`, or `unsupported`                                    |
+| `4`       | `basis-unavailable`. Retry later                                                                      |
+| `5`       | `uncertain` or an `unknown` outcome                                                                   |
 
 Other programs can reuse the state directory functions:
 
@@ -95,7 +101,7 @@ The stable promises are:
 - Help and version write only to standard output and exit `0`.
 - Usage errors write only to standard error and exit `2`.
 - A missing or invalid `dist/cli-identity.json` makes `--version` exit `1`.
-- Help, version, usage errors, and `register` do not open, create, or change a state directory. Only `login` creates it. The four session commands only read it.
+- Help, version, usage errors, and `register` do not open, create, or change a state directory. Only `login` creates it. The five session commands only read it, except that `create-session` also writes `sessions.json` after a success.
 - Only `login.json` holds the login proof. No standard output, error text, or other state file holds the credential or the proof.
 - `resolveStateDirectory` never touches the filesystem.
 - `ensureStateDirectory` never removes what occupies the path. It returns an error instead of throwing. A directory it creates has mode `0700` on POSIX.
@@ -107,13 +113,17 @@ Implementation details are free to change: the module layout, the help text word
 
 Each module has one job:
 
-- `src/catalog.ts` holds `defineCatalog`, the production catalog, and `renderHelp`. The production catalog lists the six commands from `src/commands.ts`.
+- `src/catalog.ts` holds `defineCatalog`, the production catalog, and `renderHelp`. The production catalog lists the commands from `src/commands.ts`.
 - `src/argv.ts` holds `parseArgv`, a pure function over `string[]` and a catalog.
-- `src/commands.ts` holds the six commands. `register` and `login` share one runner. The four session commands share another. Each session command is a small table: which options it accepts, how it checks them, and how it builds the request.
-- `src/options.ts` reads `--name value` pairs against a command's option list.
+- `src/command-support.ts` holds what the runners share: the transport, the usage-error messages, and `loadLogin`, which reads the login file and opens the transport.
+- `src/governance-commands.ts` holds the 18 governance commands. Each is a small table: which options it accepts, how it checks them without the login, how it builds the request with it, and which local change follows the response.
+- `src/commands.ts` holds the seven account and session commands and puts the governance commands after them. `register` and `login` share one runner. Four session commands share another. `read-history` has its own runner. Each session command is a small table: which options it accepts, how it checks them, and how it builds the request.
+- `src/history-command.ts` holds `read-history`: the page loop and the result object. `src/history-render.ts` renders one entry as text for a person.
+- `src/options.ts` reads `--name value` pairs, and the switches such as `--json`, against a command's option list.
 - `src/report.ts` prints the result object and maps `result` and `outcome` to an exit code.
 - `src/credential.ts` reads the credential. `editCredential` is the pure line editor for a terminal.
-- `src/login-state.ts` reads and writes `login.json`.
+- `src/login-state.ts` reads, writes, and removes `login.json`.
+- `src/session-owners.ts` reads and writes `sessions.json`.
 - `src/services.ts` holds the real services: the SDK HTTP transport, process stdin, and random identifiers.
 - `src/identity.ts` reads `cli-identity.json` beside the build module through `import.meta.url`.
 - `src/run.ts` maps a parsed command to output and an exit code.
@@ -126,13 +136,13 @@ The build writes the version into `dist/cli-identity.json`. The printed version 
 
 ## Configuration and operation
 
-| Input | Effect |
-| --- | --- |
-| `--home <directory>` | The state directory. A usage error for `register`. Help and version do not use it. |
-| `OMNE_HOME` | The state directory when `--home` is absent. Help and version do not resolve or create that path. An empty value is an error, not a fallback to the default. |
-| `HOME` | The default state directory is `$HOME/.omne`. |
-| `--server <url>` | The server address. Overrides `OMNE_SERVER`. |
-| `OMNE_SERVER` | The server address when `--server` is absent. An empty value counts as absent. |
+| Input                | Effect                                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--home <directory>` | The state directory. A usage error for `register`. Help and version do not use it.                                                                           |
+| `OMNE_HOME`          | The state directory when `--home` is absent. Help and version do not resolve or create that path. An empty value is an error, not a fallback to the default. |
+| `HOME`               | The default state directory is `$HOME/.omne`.                                                                                                                |
+| `--server <url>`     | The server address. Overrides `OMNE_SERVER`.                                                                                                                 |
+| `OMNE_SERVER`        | The server address when `--server` is absent. An empty value counts as absent.                                                                               |
 
 Requirements:
 
@@ -158,7 +168,8 @@ The test task builds this app and its dependencies first, so the SDK `dist` is c
 
 The test kinds follow [package test responsibilities](../../docs/verification.md#包级测试责任与边界):
 
-- Command tests run in this process. `tests/commands.spec.ts` drives the production catalog with the real SDK HTTP transport against a real HTTP server on `127.0.0.1` (`tests/support/fake-service.ts`). The server answers each operation in the wire form of the public contract. Cases cover each command, the exit-code table, usage errors, the state directory rules, the server precedence, and the no-echo rule.
+- Command tests run in this process. `tests/governance-commands.spec.ts` covers the 18 governance commands: one machine-readable result case for each, the `stage-not-provided` answer, the usage errors, the `loginId` that `login` saves, the login file after `switch-current-tenant`, and the deletion by `revoke-login`. `tests/commands.spec.ts` drives the production catalog with the real SDK HTTP transport against a real HTTP server on `127.0.0.1` (`tests/support/fake-service.ts`). The server answers each operation in the wire form of the public contract. Cases cover each command, the exit-code table, usage errors, the state directory rules, the server precedence, and the no-echo rule.
+- `tests/read-history.spec.ts` covers `read-history` against a test service that answers like the public contract: a first-page request has `direction` and `pageBytes`, a cursor request has neither, and a cursor request that has them gets `protocol-rejected`. Cases cover paging over three pages, the request shape of each page, the text rendering of text, tool calls, tool results and run start and end, `--json`, the exit code of each outcome, and the reasons for an incomplete read.
 - Process tests spawn `node dist/bin.js` from a temporary directory outside the repository. Each child gets a new environment with `PATH`, a temporary `HOME`, and optional `OMNE_HOME` and `OMNE_SERVER`. They are in the slow tier because every case starts a process.
 - Unit tests cover the credential reader and its line editor, the login state file, `parseArgv`, the catalog, and the state directory functions.
 - `tests/support/expected.ts` reads both help texts from SPEC.md, so the tests compare the build with the spec's own words.

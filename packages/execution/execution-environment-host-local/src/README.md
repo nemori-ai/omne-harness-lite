@@ -24,4 +24,6 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 - `cordis.ts`：`ExecutionEnvironmentRegistry`、`filesFacilityPlugin`、`commandFacilityPlugin`、`createHostFilesPlugin`、空配置 Schema 与宿主文件插件的配置 Schema。
 - `index.ts`：重导出根入口的四个函数与类型。
 
-`index.ts` 与 `cordis.ts` 带 `PACKAGE_TEMPLATE_DRAFT` 注释，写明还没有接受的部分：`terminal` 提供者、Runtime Context 生产者插件、调用方类核对。具名维护者由负责人指定。
+`index.ts` 与 `cordis.ts` 带 `PACKAGE_TEMPLATE_DRAFT` 注释，写明还没有接受的部分：终端真实后端的独立接受、Runtime Context 生产者插件、调用方类核对。具名维护者由负责人指定。
+
+终端实现由 `host-terminal.ts`、`terminal-control.ts`、`terminal-output.ts` 与 `terminal-gate.ts` 承担，接线与边界见[持久终端机制](../docs/architecture.md#持久终端机制)。

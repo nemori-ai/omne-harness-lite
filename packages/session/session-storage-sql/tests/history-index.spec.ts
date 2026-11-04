@@ -92,10 +92,11 @@ function indexOf(a: App, work: WorkSnapshot, execution: string) {
     SESSION,
     work,
     { kind: 'pending', inputs: work.pending },
-    undefined,
     {
-      executions: [execution],
-      event: null,
+      focus: {
+        executions: [execution],
+        event: null,
+      },
     },
   )
   if (history === 'too-many') throw new Error('too many rows')
@@ -284,8 +285,7 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
           published: '0',
           operation: 'aop_joint_log',
           digest: 'sha256:joint-log',
-          answer: { joint: true },
-          state: { joint: true },
+          blobs: [],
           boundaries: [
             {
               execution: run.execution,
@@ -297,13 +297,11 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
           ],
           facts: [
             {
-              execution: run.execution,
-              sequence: '1',
-              source: event.source,
-              kinds: ['call-registration'],
+              kind: 'event',
+              event: { sequence: '1', source: event.source, kinds: ['call-registration'] },
+              body: { joint: true },
             },
           ],
-          batches: [],
           admissions: [],
         }),
         { participant: 'session', facts: { intent: 'log', observation: encodeValue(event) } },
@@ -532,8 +530,8 @@ async function counted(a: App, call: () => Promise<unknown>) {
     reads.filter(item => pattern.test(item.sql)).reduce((total, item) => total + item.rows, 0)
   return {
     execution: sum(/FROM er_execution/u),
-    facts: sum(/FROM er_fact_idx/u),
-    agent: sum(/FROM er_(execution|fact_idx|batch_idx|admission_idx|admission_attempt_idx)/u),
+    facts: sum(/FROM er_fact\b/u),
+    agent: sum(/FROM er_(execution|fact|admission_idx|admission_attempt_idx)\b/u),
     log: sum(/FROM sl_entry/u),
   }
 }

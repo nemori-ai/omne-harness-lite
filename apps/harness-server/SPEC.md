@@ -76,7 +76,7 @@ node apps/harness-server/dist/bin.js serve --distribution <绝对 JSON 路径> [
 - 根上同名提供者与子树提供者并存，两者都 ACTIVE，子树消费者得到子树实现。
 - 同一作用域内第二个同名提供者 FAILED，错误含 `has been registered`，不静默覆盖。
 
-行 id 与受信成员的唯一源是应用装配页。S0 的行快照 `src/s0/aa-rows.json` 由 `scripts/aa-rows.mjs write` 从该页抽取，只能由脚本再生。`scripts/aa-rows.mjs check` 对快照与该页逐字节比较，`tests/aa-rows.spec.ts` 对正式页运行同一检查。
+行 id 与受信成员的唯一源是应用装配页。S0 的行快照 `src/s0/aa-rows.json` 由 `scripts/aa-rows.mjs write` 从该页抽取，只能由脚本再生。`scripts/aa-rows.mjs check` 对快照与该页逐字节比较，`tests/aa-rows.spec.ts` 对正式页运行同一检查。同一个检查还对源码做两项机读拦截（身份治理 E1、E2，R2-D208）：受信表里的名字只经入口对象的 `env.readTrusted` 读取，或由受信表列为可见的行在自己的行上下文里读取；`issueActingForTenant(` 与 `issueSystem(` 只出现在 `scripts/aa-trust-config.json` 列出的文件里。该文件的 `pending` 名单只报告、不失败，现在为空。规则与局限见 [README](README.md#verification)。
 
 子 fiber 消费的受信名也列入该行的可见集合。这是启动门控的具名例外（N-4）。
 
@@ -152,6 +152,7 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tree`           | `implementation` 按行取 `real`、`contract-double` 或 `s0-double`                                                                                                                                                                                            |
 | `entry-object`   | 新增，只在 `serve`。每个入口对象一条：`name`、`implementation`、`trusted`。不含对象的值。`s0.assemblyLifecycle` 记 `real`，占位对象记 `s0-double`。与 `tree` 一样在装载前完整输出                                                                           |
+| `log`            | 新增，只在 `serve`。`level`（`error`、`info` 或 `warn`）、`name`（记录器名）、`text`（格式化后的消息）。根上登记的导出器把级别不高于 WARN 的 Cordis 日志各写成一条，DEBUG 不输出（R2-D253）。消息带什么由各行负责，导出器不另裁剪。格式化失败时 `text` 是固定文字，写出失败时这条丢弃，都不抛给记日志的调用方 |
 | `startup-result` | `profile: 'real'`、`scope: 'serving'`。`accepting` 见「就绪与诊断」。新增 `implementations`：三种实现各自的行数                                                                                                                                             |
 | 之后             | `accepting` 为 true 时进程等停止请求：`--stop-on-stdin-close`、SIGINT、SIGTERM 或运行期换代。收到后 stderr 写 `serve: stop requested: <原因>`，再走有序关闭。启动码非零时与 S0 一样立即发起计划停止。装载前拒绝时 stdout 只有 `tree` 与 `entry-object` 记录 |
 
@@ -241,6 +242,7 @@ sequenceDiagram
 - `serve` 的停止触发只有 `--stop-on-stdin-close`、SIGINT 与 SIGTERM。Windows 上只有关闭标准输入能跨进程触发。
 - `--state-root` 的保护只是文档化的前提（DP1-C19）。
 - `serve` 下运维者只能插入 `stubPlugin`：真实导出绑定在它声明的行 id 上，运维者 `insert` 的行 id 必须是新 id（DP1-C9）。
+- 发行层单独不能装载 `serve`。发行文件没有 `execution-host` 与 `agent-host` 的工厂数值，也没有 `agent-host` 的 `loopGuardPolicy`，进程以 `invalid-config` 退出（R2-D229）。运维者层必须用 `replace` 给出这些值，并重抄发行层的 `jointCommits` 与 `coordination`。示例是 [tools/joint-b/operator.mjs](../../tools/joint-b/operator.mjs)，数值是测试值。`loopGuardPolicy` 还没有生产采用来源，这个缺口归 L-RUN 波 3。
 - 成员插件在插件体内自登记的行要等正式 `assemblyLifecycle` 被接受后再定承载（N-r2-3）。现在带阶段的行只经 `defineRow` 的两种承载进入。
 - `storage` 句柄的结果受提供者自己的 `closeDeadlineMs` 约束。它大于 D 时，句柄在 D 答 `incomplete`，提供者仍在关闭。
 - 行清单的四跳同步靠人工：装配页到 `aa-rows.json` 由脚本再生，装配页到 `stubs.ts` 由线负责人手工同步，`stubs.ts` 到真实行声明由 `real-manifests-sync` 检查，等待装配页补丁的差额写在该测试的具名清单里。

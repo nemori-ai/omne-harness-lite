@@ -44,6 +44,8 @@ usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-
 usage: serve --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n> --state-root <abs dir> [--stop-on-stdin-close]
 ```
 
+With only the distribution file, `serve` cannot load. The distribution layer gives no factory values for `execution-host` and `agent-host`, and no `loopGuardPolicy` for `agent-host`. The process exits with `invalid-config` and does not serve (R2-D229). The operator layer must give these values with `replace` on the whole row. `replace` does not merge: for `agent-host`, copy `jointCommits` and `coordination` from the distribution layer exactly. See [tools/joint-b/operator.mjs](../../tools/joint-b/operator.mjs) for an example. Its numbers are test values with no measurement behind them. `loopGuardPolicy` has only a test adoption now and no production adoption source. The known limit is in [SPEC.md](SPEC.md#已知限制).
+
 Other programs can call `runS0` and import the record types:
 
 ```ts
@@ -109,9 +111,19 @@ pnpm --filter @omne-harness/harness-server run check:aa-rows
 pnpm --filter @omne-harness/harness-server run check:tool-release
 ```
 
-`test:slow` starts `dist/bin.js`, so run `build` first. `check:aa-rows` compares the snapshot with the application assembly page. `check:tool-release` recomputes the tool release manifest from the built `@omne-harness/tool-definitions`, so build that package first.
+`test:slow` starts `dist/bin.js`, so run `build` first. `check:tool-release` recomputes the tool release manifest from the built `@omne-harness/tool-definitions`, so build that package first.
 
 The tests use doubles and fixture rows, not a real SQL provider, real identity, or real storage. Doubles do not show durability or real vendor behavior.
+
+`check:aa-rows` does three checks and exits with a nonzero code when one fails:
+
+- The snapshot `src/s0/aa-rows.json` equals the plugin tree and the trusted table of the application assembly page.
+- Rule E1, trusted reads. A name in the trusted table is read in one of two ways. An entry object module (`src/entry`) reads it through `env.readTrusted(name)`. A row source (`src/rows`) reads it only when the trusted table lists the name as visible for that row. An entry module that calls `get`, an index, `ctx.<name>` or an aliased import on a trusted name at the root fails. A row source that mentions a name its row cannot see fails.
+- Rule E2, issuer call sites. `issueActingForTenant(` and `issueSystem(` occur only in the files that `issuerCallSites` and `issuerDefinition` of `scripts/aa-trust-config.json` list.
+
+`pending` in `scripts/aa-trust-config.json` lists names that should become trusted but that the table does not list yet. The check scans them with the same rules and only reports the findings. A pending name that the table lists is enforced. The list is empty now.
+
+The scanner is lexical. It does not follow a trusted name that was assigned to another variable first.
 
 Not covered:
 

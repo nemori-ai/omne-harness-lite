@@ -1,4 +1,6 @@
 import { adoption } from './runtime-values.ts'
+import { testControlSubjects } from './control-subject-values.ts'
+import type { ToolControlSubjects } from '@omne-harness/tool'
 // A real runtime and ledger over the non-durable store, with controllable ports for the way from
 // an admission to a start: an environment provider, a live-only binding whose start stages a
 // capsule and consumes the permit, a start authority and a clock. The authority here is a small
@@ -76,6 +78,8 @@ export type EnvironmentAnswer = 'prepared' | 'rejected' | 'unavailable' | 'pendi
 
 export type StartOptions = HarnessOptions &
   Readonly<{
+    controlSubjects?: ToolControlSubjects<Principal> | null
+    omitRuntimeControls?: boolean
     /** The answer of the environment provider by call; `prepared` when absent. */
     environment?: ReadonlyMap<string, EnvironmentAnswer>
     authority?: TestAuthority
@@ -476,7 +480,16 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const environments = testEnvironments(options.environment ?? new Map())
   const originalCustody = testSettlementPorts().custody
   const custody = options.custodyPort?.(originalCustody) ?? originalCustody
-  const settlement = { custody, releaseInspection: environments, content: null }
+  const controlSubjects =
+    options.controlSubjects === undefined
+      ? testControlSubjects(guards(options).access)
+      : options.controlSubjects
+  const settlement = {
+    custody,
+    releaseInspection: environments,
+    content: null,
+    ...(controlSubjects === null ? {} : { controlSubjects }),
+  }
   const ledger = createToolLedger(
     store,
     { ...guards(options), factAcknowledgements },
@@ -492,6 +505,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     settlement,
   )
   const dependencies: ToolDependencies<Principal, Block, TestEnvironment> = {
+    ...(options.omitRuntimeControls === true ? {} : { controls: ledger.controls }),
     commands: options.commands?.(ledger.commands) ?? ledger.commands,
     admissions: publicLedger.admissions,
     queues: ledger.queues,

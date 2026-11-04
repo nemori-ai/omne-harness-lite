@@ -63,7 +63,7 @@ Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 
 
 ## 受信服务键
 
-下列五个键只在装配的受信子树内可见（[应用装配的受信子树](../../../../docs/architecture/runtime/application-assembly.md#受信子树)）。根上的插件按名取得时得到 `undefined`。前三个键的接口归 `session-contract`，键与抽象类归本成员。`sessionReplayFacts` 与 `sessionScopeLookup` 的接口是本成员 `src/context-facts.ts` 里的纯类型，不导入 Cordis，不导入提供者。前三个键的行为见 session-contract 的[委派入口](../../session-contract/docs/access-check.md#委派入口)与[会话归属读口与会话工作主体](../../session-contract/docs/access-check.md#会话归属读口与会话工作主体)。
+下列六个键只在装配的受信子树内可见（[应用装配的受信子树](../../../../docs/architecture/runtime/application-assembly.md#受信子树)）。根上的插件按名取得时得到 `undefined`。前三个键的接口归 `session-contract`，键与抽象类归本成员。`sessionReplayFacts` 与 `sessionScopeLookup` 的接口是本成员 `src/context-facts.ts` 里的纯类型，`sessionAdoptedRequests` 的接口是 `src/adopted-request.ts` 里的纯类型，都不导入 Cordis，不导入提供者。前三个键的行为见 session-contract 的[委派入口](../../session-contract/docs/access-check.md#委派入口)与[会话归属读口与会话工作主体](../../session-contract/docs/access-check.md#会话归属读口与会话工作主体)。
 
 | 键 | 接口 | 谁提供 | 谁取得 |
 | --- | --- | --- | --- |
@@ -72,6 +72,7 @@ Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 
 | `sessionPrincipalBindings` | `SessionPrincipalBindingSource` | 会话存储组合（`session-storage` 行） | 只由装配入口按调用读取，没有行 `inject` |
 | `sessionReplayFacts` | `SessionReplayFacts` | AD-03 持有者的装配行（`session-ad03`，由其事实插件回答） | Runtime Context 的装配入口按调用读取，没有行 `inject` |
 | `sessionScopeLookup` | `SessionScopeLookup` | AD-03 持有者的装配行（`session-ad03`，由其事实插件回答） | 装配入口按调用读取，没有行 `inject` |
+| `sessionAdoptedRequests` | `SessionAdoptedRequests` | 会话日志 Journal 提供者（`agent-journal` 行，与 `agentJournal` 同一插件体） | AD-04 的历史源子插件（`session-ad04` 行）按调用读取，没有行 `inject`；缺席时窄采用来源答 `unavailable` |
 
 `sessionDelegatedTransactions` 与 `sessionTransactions` 必须由同一存储核心提供，读写同一份会话事实与待办索引。应用装配的 `session-storage` 行兑现这一点（[契约端口表](../../session-contract/SPEC.md#构造依赖端口与出站端口)）。
 

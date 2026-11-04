@@ -106,7 +106,15 @@ async function runMember(root, member, index, out, options) {
   const record = {
     member: member.member,
     requested: member.tests,
-    files: member.tests.map(file => ({ file, pass: 0, fail: 0, skip: 0, skipped: [] })),
+    platformExclusive: member.platformExclusive ?? [],
+    files: member.tests.map(file => ({
+      file,
+      pass: 0,
+      fail: 0,
+      skip: 0,
+      skipped: [],
+      platformExcluded: [],
+    })),
     issues: [],
     failed: false,
   }
@@ -145,7 +153,10 @@ async function runMember(root, member, index, out, options) {
     } catch (error) {
       record.issues.push(`Cannot read raw Vitest report: ${error.message}`)
     }
-    const summary = summarize(raw, cwd, member.tests, result)
+    const summary = summarize(raw, cwd, member.tests, result, {
+      platform: process.platform,
+      exclusive: member.platformExclusive ?? [],
+    })
     Object.assign(record, {
       ...summary,
       rawReport: rawPath,

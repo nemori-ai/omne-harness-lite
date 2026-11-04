@@ -127,9 +127,19 @@ export interface SessionWork<P> {
         residentAdoption?: StartAdoption
       }>,
   ): Reply<StartedRun>
+  /**
+   * `expected` is the Run-layer revision the claimant read (SPEC PM-05, R2-D327). With it, of two
+   * claimants that read the same Run layer only the first holds; the second gets `stale-advance`.
+   * It is optional until every caller sends it; a claim without it is not compared.
+   */
   claim(
     input: Mutation<P> &
-      Readonly<{ run: RunId; instance: AgentInstanceRef; continuity: DurableEvidence }>,
+      Readonly<{
+        run: RunId
+        instance: AgentInstanceRef
+        continuity: DurableEvidence
+        expected?: SessionRevision
+      }>,
   ): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
   reload(
     input: Mutation<P> &

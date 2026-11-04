@@ -306,6 +306,7 @@ async function staleDuringRead<P>(fixture: Fixture<P>, control: keyof RuntimeCon
     const commit = await t.subject.applyCommit(fixture.principal, {
       kind: 'registration',
       commit: { commit: 'late' },
+      after: null,
       change: {
         kind: 'add',
         creating: true,

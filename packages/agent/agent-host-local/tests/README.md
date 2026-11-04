@@ -44,3 +44,18 @@ CP3 判定只有 Session 参加的回滚时用 `line-through/cp3-rollbacks.ts` �
 - `history.prefix.<execution>.committedConsequences: required original material is missing`：在 5946efe4d 上出现，不加扰动时 12 次中出现 1 次。
 
 复现脚本：`line-through/cp3-repro-loop.sh <次数> <标签>` 不加扰动地连跑 CP3，并打印每次失败的原因与签名。`line-through/cp3-repro-delay.sh <毫秒> <次数> <标签>` 只在构建产物里加一段调度延迟，把 AD-02 读执行头与 commitLog 之间的窗口拉宽，运行结束后还原该文件。日志写在 `tmp/cp3-repro/<标签>/`。升级条件：在批次 D、E 的准入、C1 联调或 SC4 端到端中，不加扰动时只要出现一次 KL-146 的回滚，就升级为波 2 必修。
+
+### J6 的两种轮数
+
+`line-through/w2-counts.spec.ts` 有两种长度，由环境变量 `OMNE_J6_ROUNDS` 选择（R2-D141）。
+
+- 默认（准入慢层）：跑 20 轮，两种形状的用例合计约 52 秒（机器上有其他任务时测得）。只比较两个窗口，即第 15 至 20 轮对第 5 至 10 轮，口径是 `stable()`：剔除轮号、字节、重试和 `execution-record.parts` 调用数，其余逐项相等。每轮接收数与 parts 调用上界的断言照常。增长判定不运行，因为它要求第 11 至 200 轮。证据写进 `tmp/line-session-run/w2/C-JOINT/short/`，不覆盖测量证据。
+- 测量入口 `OMNE_J6_ROUNDS=200`：跑完整 200 轮，窗口是第 181 至 200 轮对第 11 至 30 轮，并对定时计数做增长判定（R2-D17、R2-D118）。证据写进 `tmp/line-session-run/w2/C-JOINT/`。其他取值会被拒绝。入口用环境变量而不用 `test:measure` 脚本，因为它不改 package.json，准入、独占名额和手工命令都用同一条命令行，且短轮与 200 轮跑的是同一份用例，不会各自走样。
+
+完整 200 轮在三个时点各跑一次，不进准入：C1 联调 B；每个波的波末；合入改动 Session 热路径（session-storage-sql 的提交、读取、工作缓存与历史索引，session-adapters 的 Journal 与证据读取）的 PR 之前和之后。命令在工作树根，用 Git Bash，独占运行名额：
+
+```sh
+OMNE_J6_ROUNDS=200 ./scripts/with-test-slot.sh pnpm --filter @omne-harness/agent-host-local exec vitest run --mode slow --typecheck.enabled=false tests/line-through/w2-counts.spec.ts
+```
+
+短轮版本的命令相同，只是不设 `OMNE_J6_ROUNDS`。增长判定的纯函数与它的负控在 `line-through/growth.spec.ts`，快层运行，不依赖轮数。

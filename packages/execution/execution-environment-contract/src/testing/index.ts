@@ -43,3 +43,15 @@ export {
   type ScriptedCommandAnswer,
   type ScriptedCommandFacility,
 } from './scripted-command.ts'
+export {
+  createScriptedTerminalFacility,
+  type TerminalScript,
+  type ScriptedTerminalAnswer,
+  type ScriptedTerminalFacility,
+} from './scripted-terminal.ts'
+export {
+  terminalFacilityConformance,
+  type TerminalConformanceAcquisition,
+  type TerminalConformanceSubject,
+  type TerminalConformanceOptions,
+} from './terminal-conformance.ts'

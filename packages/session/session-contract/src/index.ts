@@ -152,6 +152,8 @@ export type {
 } from './ports.ts'
 export { sessionModesBlock } from './block.ts'
 export {
+  expectedHolds,
+  expectedRevision,
   judgeAdvance,
   judgeCompletion,
   judgeIdle,
@@ -178,7 +180,13 @@ export {
   type RunStartJudgment,
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
-export { reduce } from './reduce.ts'
+export { batchEvidence, reduce } from './reduce.ts'
+export {
+  CONTEXT_SCOPE_KINDS,
+  contextScopeOf,
+  contextScopesOf,
+  type SessionContextScope,
+} from './context-scopes.ts'
 
 export {
   projectSessionLog,

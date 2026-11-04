@@ -15,7 +15,7 @@ Each level states only checked facts. A commit that changes the support level up
 | Level | Delivered | Entry | Verification |
 | --- | --- | --- | --- |
 | Public entry exported | `createOpenAiFamily`, `officialOpenAiProfiles`, `openAiTokenizerResources`, `OPENAI_RECORDS`, `OPENAI_OWNER` and their types | Root entry | `public-entry.spec.ts` |
-| Records | 12 current records at revision 1, migrated from the sealed family policy. Pure data with committed fingerprints | `OPENAI_RECORDS` | `records.spec.ts`, `adoptions.spec.ts` |
+| Records | 14 current records at revision 1: 12 migrated from the sealed family policy, and GPT-6.1 Sol and Terra from the official model list of 2026-11-03. Pure data with committed fingerprints | `OPENAI_RECORDS` | `records.spec.ts`, `adoptions.spec.ts` |
 | Acquire and binding | One acquire gives one binding for the exact supplier. An unknown adoption, a wrong route, a mismatched tokenizer and a cancelled acquire fail as a whole | `createOpenAiFamily` with `composeFamilies` | `family.spec.ts` |
 | Parameters and request body | Output limit and the reasoning efforts that each model publishes, written as themselves: `low`, `medium`, `high` and `max`. `none` and every other parameter are `unsupported` before sending, because by the project convention no record turns reasoning off | `binding.rules.plan`, `binding.encode` | `plan.spec.ts` |
 | Rules | Encrypted reasoning seal and replay, usage arithmetic with unknown Pro scope and a `usage-inconsistent` diagnostic for a negative input remainder, object-root tool schema | `src/rules.ts` | `rules.spec.ts` |

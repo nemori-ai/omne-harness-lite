@@ -15,8 +15,8 @@
 //   (`change(context-step-commit)`), or the end of a scope (SE27). AD-03's replay takes it as its
 //   `translation`.
 //
-// The plugin keeps no business fact. The translation keeps one derivative: the tenant of each scope
-// it has decoded a record of, because the end of a scope (SE27) does not name its tenant.
+// The plugin keeps no business fact, and the translation keeps no state: the end of a scope (SE27)
+// does not name its tenant, and the holder hands in the tenant of the session it reads.
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { JsonEntry, JsonValue } from '@omne-harness/json-text'
@@ -25,7 +25,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeContextBlockKey,
   decodeScopeRef,
-  type CommitInput,
   type CommitRef,
   type ConsumerClass,
   type ContextBlockKey,
@@ -55,6 +54,7 @@ import type {
 } from '@omne-harness/session-contract'
 import { SessionContextInputService } from '@omne-harness/session-cordis-contract/cordis'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
+import type { RecordedCommit } from './context-holder.ts'
 
 const OWNER = '@omne-harness/session-adapters'
 /** The owner named in the guard material and in `unavailable` when Runtime Context is the cause. */
@@ -84,8 +84,6 @@ const STEP_KIND = 'session.recovery-input-adopted'
 const ARCHIVED_KIND = 'session.archived'
 /** The block name of the head element of a step commit. It has no dot, so no block key equals it. */
 const STEP_HEAD = '@step'
-/** The initial bound of the scope-to-tenant derivative; the assembly may set another (IC-14). */
-const SCOPE_TENANTS = 4096
 
 // --- The definitions --------------------------------------------------------------------------
 
@@ -748,7 +746,7 @@ export function encodeContextStepCommit(
   }
 }
 
-type StepInput = Extract<CommitInput, { kind: 'step' }>
+type StepInput = Extract<RecordedCommit, { kind: 'step' }>
 
 function decodeStep(updates: unknown): StepInput {
   if (!Array.isArray(updates) || updates.length === 0)
@@ -806,11 +804,14 @@ function decodeStep(updates: unknown): StepInput {
  * AD-12's translation protocol in the reading direction, in the shape AD-03's replay takes
  * (`SessionContextTranslation` of `context-holder.ts`): the Runtime Context commit input that one
  * committed Session entry records, `null` for an entry that records none, a failure for a record
- * that the protocol cannot read.
+ * that the protocol cannot read. `session` is the session whose log holds the entry.
  */
 export type SessionContextCommitTranslation = Readonly<{
   kinds: readonly string[]
-  commitOf(entry: HistoryEntry): Outcome<CommitInput | null, string>
+  commitOf(
+    entry: HistoryEntry,
+    session: Readonly<{ tenant: TenantId }>,
+  ): Outcome<RecordedCommit | null, string>
 }>
 
 /** A plain object of the entry payload, through the Session entry tree. */
@@ -821,7 +822,7 @@ function payloadOf(entry: HistoryEntry): Record<string, unknown> {
 function decodeRegistrationEntry(
   payload: Record<string, unknown>,
   definitions: SessionContextDefinitions,
-): CommitInput | null {
+): RecordedCommit | null {
   const declaration = open(payload['declaration'], 'declaration')
   if (declaration['kind'] !== 'context-registration') return null
   const recorded = text(payload['scope'], 'scope')
@@ -872,7 +873,7 @@ function decodeRegistrationEntry(
   }
 }
 
-function decodeStepEntry(payload: Record<string, unknown>): CommitInput | null {
+function decodeStepEntry(payload: Record<string, unknown>): RecordedCommit | null {
   const declaration = open(payload['declaration'], 'declaration')
   if (declaration['kind'] !== 'context-step-commit') return null
   const step = decodeStep(declaration['updates'])
@@ -884,74 +885,35 @@ function decodeStepEntry(payload: Record<string, unknown>): CommitInput | null {
 /**
  * AD-12's translation protocol for AD-03's replay: hand the result to `createSessionContextHolder`
  * as its `translation`. `definitions` gives back the bindings and declarations that the materials
- * reference. The end of a scope (SE27) does not name its tenant: the translation takes it from the
- * scope's earlier registrations and step commits, which every replay reads first because it reads
- * the session log from its start. The end of a scope that has neither is `null` (a named limitation:
- * such a scope has no registration to end). The end of a scope whose tenant the bounded table
- * evicted fails, so the holder reads the session again instead of leaving the scope open.
+ * reference. The end of a scope (SE27) does not name its tenant: it is the tenant of the session
+ * whose log holds the entry, which the holder hands in with each entry. So a scope that has no
+ * registration and no step commit ends too, and Runtime Context, which recovered it with the empty
+ * material (AD-03 1a), learns the end. A registration or a step commit that names another tenant
+ * than its session fails.
  */
 export function createSessionContextTranslation(
   definitions: SessionContextDefinitions,
-  options: Readonly<{ scopeTenants?: number }> = {},
 ): SessionContextCommitTranslation {
-  const bound = options.scopeTenants ?? SCOPE_TENANTS
-  /** scope text → its tenant; a derivative of decoded records, the oldest goes first. */
-  const tenants = new Map<string, TenantId>()
-  /**
-   * The scopes whose tenant was evicted. The end of such a scope fails, so the holder reads the
-   * session as unreadable instead of never ending the scope. When this set would outgrow its own
-   * bound, `forgotten` is set: from then on no unknown scope can be told from an evicted one.
-   */
-  const evicted = new Set<string>()
-  let forgotten = false
-  function learn(input: CommitInput): void {
-    const scope =
-      input.kind === 'registration'
-        ? input.change.scope
-        : input.kind === 'step'
-          ? input.stepCommit.scope
-          : input.scope
+  type SessionOfEntry = Readonly<{ tenant: TenantId }>
+  /** A decoded record of the session's own tenant; another tenant is a record the protocol cannot read. */
+  function owned(input: RecordedCommit | null, session: SessionOfEntry): RecordedCommit | null {
+    if (input === null) return null
     const tenant = input.kind === 'registration' ? input.change.tenant : input.tenant
-    const known = tenants.get(scope.ref)
-    if (known !== undefined && !tenantEquals(known, tenant))
-      throw new Malformed(`scope ${scope.ref} is named with two tenants`)
-    tenants.delete(scope.ref)
-    tenants.set(scope.ref, tenant)
-    evicted.delete(scope.ref)
-    if (tenants.size > bound) {
-      const oldest = tenants.keys().next()
-      if (!oldest.done) {
-        tenants.delete(oldest.value)
-        if (evicted.size >= bound) forgotten = true
-        else evicted.add(oldest.value)
-      }
-    }
+    if (!tenantEquals(tenant, session.tenant))
+      throw new Malformed('the record names another tenant than its session')
+    return input
   }
-  function translate(entry: HistoryEntry): CommitInput | null {
+  function translate(entry: HistoryEntry, session: SessionOfEntry): RecordedCommit | null {
     switch (entry.kind) {
-      case REGISTRATION_KIND: {
-        const input = decodeRegistrationEntry(payloadOf(entry), definitions)
-        if (input !== null) learn(input)
-        return input
-      }
-      case STEP_KIND: {
-        const input = decodeStepEntry(payloadOf(entry))
-        if (input !== null) learn(input)
-        return input
-      }
+      case REGISTRATION_KIND:
+        return owned(decodeRegistrationEntry(payloadOf(entry), definitions), session)
+      case STEP_KIND:
+        return owned(decodeStepEntry(payloadOf(entry)), session)
       case ARCHIVED_KIND: {
         const payload = payloadOf(entry)
         const binding = open(payload['scope'], 'scope')
         if (binding['ended'] === null || binding['ended'] === undefined) return null
         const scope = scopeOf(binding['scope'], 'scope.scope')
-        const tenant = tenants.get(scope.ref)
-        if (tenant === undefined) {
-          // Only a scope with no registration and no step commit ends as null. A scope whose
-          // tenant this translation forgot fails: answering null would leave it open for ever.
-          if (evicted.has(scope.ref) || forgotten)
-            throw new Error(`the tenant of scope ${scope.ref} was evicted; read the session again`)
-          return null
-        }
         return {
           kind: 'scope',
           commit: contextScopeEndCommit({
@@ -959,7 +921,7 @@ export function createSessionContextTranslation(
             operation: text(payload['operation'], 'operation'),
           }),
           scope,
-          tenant,
+          tenant: session.tenant,
           scopeEnded: true,
         }
       }
@@ -969,9 +931,9 @@ export function createSessionContextTranslation(
   }
   return Object.freeze({
     kinds: Object.freeze([REGISTRATION_KIND, STEP_KIND, ARCHIVED_KIND]),
-    commitOf(entry: HistoryEntry): Outcome<CommitInput | null, string> {
+    commitOf(entry: HistoryEntry, session: SessionOfEntry): Outcome<RecordedCommit | null, string> {
       try {
-        return succeed(translate(entry))
+        return succeed(translate(entry, session))
       } catch (cause) {
         return fail(`${entry.kind} ${entry.id}: ${describe(cause)}`)
       }

@@ -7,7 +7,12 @@
 import { describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { WorkSnapshot } from '@omne-harness/session-contract'
-import { creation, guard, operationId, sessionId } from '@omne-harness/session-contract/testing'
+import {
+  creation,
+  intakeInput,
+  operationId,
+  sessionId,
+} from '@omne-harness/session-contract/testing'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { SESSION_EXECUTION_HANDLER, decodeSessionExecution } from '../src/participants.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
@@ -59,7 +64,7 @@ const startRun = (a: App, session: string, tenant: TenantId = TENANT_A) =>
         instance: { owner: 'agent', id: 'instance-1' },
       },
     },
-    guards: [guard('evidence-bridge', 'login-entry', { session, operation: `start-${session}` })],
+    guards: [],
   })
 
 /** Creates `session` with one accepted input, ready for a startRun. */
@@ -148,7 +153,9 @@ describe('the startRun commit writes the index in its own transaction', () => {
 
   it('a startRun that Session rejects writes no index row', async () => {
     const a = await app()
-    await ready(a, 'session-1')
+    // The first input did not come through the login entry: the gate of decide refuses the start.
+    ok(await a.create(TENANT_A, 'session-1'))
+    ok(await a.accept(TENANT_A, 'session-1', 'session-1-input', intakeInput('session-1-input')))
     const refused = await a.port.commit({
       access: a.access(TENANT_A),
       command: {

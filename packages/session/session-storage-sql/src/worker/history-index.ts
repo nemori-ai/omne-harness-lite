@@ -84,6 +84,31 @@ export type HistoryFocus = Readonly<{
 
 export const NO_FOCUS: HistoryFocus = { executions: [], event: null }
 
+/**
+ * The input range and focus of the history read a batch was judged and reduced on: a read Worker
+ * reads the same index and reads again from it (C-TOPOLOGY §2.9 H2).
+ */
+export type HistoryBasis = Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
+
+/** The execution of a Run as the history index reads it. */
+type ExecutionReference = Readonly<{ execution: string; readThrough: string }>
+
+/**
+ * The fields of a snapshot that the history index reads: tenant, session, revision, pending inputs,
+ * and the execution and read-through of the current Run and of the earlier ones. The work cache
+ * sends only these to `session.work-index` and `session.work-reads`; a whole snapshot has them too.
+ */
+export type WorkIndexInput = Readonly<{
+  tenant: WorkSnapshot['tenant']
+  session: WorkSnapshot['session']
+  revision: WorkSnapshot['revision']
+  pending: WorkSnapshot['pending']
+  run:
+    | Readonly<{ kind: 'active'; run: RunId; execution: ExecutionReference }>
+    | Readonly<{ kind: Exclude<WorkSnapshot['run']['kind'], 'active'> }>
+  executions?: readonly Readonly<{ run: RunId; execution: ExecutionReference }>[]
+}>
+
 export type SessionHistory = Readonly<{ index: SessionHistoryIndex; reads: SessionHistoryReads }>
 
 type Planted = Readonly<{
@@ -437,21 +462,11 @@ const viewOf = (index: SessionRowsIndex): SessionRowsView => ({
  */
 function sessionRows(read: Reader, port: Executor, scope: Scope, upto?: bigint): SessionRowsView {
   if (upto !== undefined) return sessionRowsThrough(read, port, scope, upto)
-  const key = JSON.stringify([scope.tenant, scope.session])
-  const base = provenBase(port, scope, key)
-  const from = base?.through ?? 0n
-  read.charge(base?.count ?? 0)
-  const after = rowsAfter(read, port, scope, from)
+  const { key, base, after } = loadBase(read, port, scope)
   if (after.added === 0n) {
     if (base === undefined) return viewOf(emptyIndex())
     keep(key, base)
     return viewOf(base)
-  }
-  if (base !== undefined && after.last - from !== after.added) {
-    kept.delete(key)
-    throw new Error(
-      `the history index found a gap in the Session log after position ${String(from)}: ${String(after.added)} rows up to position ${String(after.last)}`,
-    )
   }
   const planted = after.rows.map(plant)
   const committed = after.top <= journalTail(port, scope)
@@ -479,21 +494,39 @@ function sessionRowsThrough(
   scope: Scope,
   upto: bigint,
 ): SessionRowsView {
+  const { base, after } = loadBase(read, port, scope, upto)
+  if (after.added === 0n) return viewOf(base ?? emptyIndex())
+  const index = base === undefined ? emptyIndex() : cloneIndex(base)
+  fold(index, scope, after.rows.map(plant))
+  return viewOf(index)
+}
+
+/** The kept index of a session, proven, and the rows of its log after the cursor of that index. */
+type Loaded = Readonly<{ key: string; base: SessionRowsIndex | undefined; after: RowsAfter }>
+
+/**
+ * The kept index of the session when its fingerprint still holds (`provenBase`), charged against
+ * the row bound, and the rows after its cursor, up to `upto` when given. A kept cursor past `upto`
+ * cannot be rolled back: it throws `BelowKept`. Rows after the cursor that do not continue it
+ * without a gap are a log that was not only appended to: it throws, and a read of the whole log
+ * drops the kept index first.
+ */
+function loadBase(read: Reader, port: Executor, scope: Scope, upto?: bigint): Loaded {
   const key = JSON.stringify([scope.tenant, scope.session])
   const base = provenBase(port, scope, key)
-  if (base !== undefined && base.through > upto)
+  if (upto !== undefined && base !== undefined && base.through > upto)
     throw new BelowKept(`the kept index is past position ${String(upto)}`)
   const from = base?.through ?? 0n
   read.charge(base?.count ?? 0)
   const after = rowsAfter(read, port, scope, from, upto)
-  if (after.added === 0n) return viewOf(base ?? emptyIndex())
-  if (base !== undefined && after.last - from !== after.added)
+  // No row after the cursor ends at the cursor: `last - from` is then 0 as `added` is.
+  if (base !== undefined && after.last - from !== after.added) {
+    if (upto === undefined) kept.delete(key)
     throw new Error(
       `the history index found a gap in the Session log after position ${String(from)}: ${String(after.added)} rows up to position ${String(after.last)}`,
     )
-  const index = base === undefined ? emptyIndex() : cloneIndex(base)
-  fold(index, scope, after.rows.map(plant))
-  return viewOf(index)
+  }
+  return { key, base, after }
 }
 
 /** The kept index of `key` when the log row at its cursor still has its fingerprint; else none. */
@@ -573,12 +606,23 @@ function interpretedOf(
 }
 
 /** The facts of one execution: a row with an unknown kind is not a boundary, so it fails the execution. */
+/**
+ * The event projection of one `er_fact` row (source, consequences, control and the batch of an
+ * input-taken event), or undefined when it does not parse.
+ */
+function projectionOf(row: Row): Readonly<Record<string, unknown>> | undefined {
+  const value = readable(row['event'])
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Readonly<Record<string, unknown>>)
+    : undefined
+}
+
 function factsOf(rows: readonly Row[]): SessionFactBoundary[] | null {
   const facts: SessionFactBoundary[] = []
   for (const row of rows) {
     const kinds = readable(row['kinds'])
     if (!Array.isArray(kinds) || !kinds.every(isConsequenceKind)) return null
-    const source = readable(row['source'])
+    const source = projectionOf(row)?.['source']
     // An unreadable source is a missing row: the range has a gap there.
     if (source === undefined) continue
     facts.push({ sequence: text(row['sequence']), source: source as DurableEvidence, kinds })
@@ -600,7 +644,7 @@ function endedOf(cell: SqlCell | undefined): ExecutionHistoryBoundary['ended'] |
 type Context = Readonly<{
   read: Reader
   scope: Scope
-  snapshot: WorkSnapshot
+  snapshot: WorkIndexInput
   starts: ReadonlyMap<string, Start>
   focus: HistoryFocus
   /** The last Session position the decision saw; the whole log when absent. */
@@ -615,11 +659,15 @@ function focusedSequence(context: Context, execution: string): bigint {
 
 /**
  * The execution boundary of one execution, from its row in `er_execution` (a point lookup) and the
- * unread facts in `er_fact_idx`. Left out (null) when it has no SE13 in this session, its head
- * receipt is a placeholder (digest `unknown`) or does not parse, its ended event does not parse,
- * a fact names an unknown kind, or the progress has no interpretation row.
+ * unread events in `er_fact`, with the batches of the same event rows. Left out (null) when it has
+ * no SE13 in this session, its head receipt is a placeholder (digest `unknown`) or does not parse,
+ * its ended event does not parse, a fact names an unknown kind, or the progress has no
+ * interpretation row.
  */
-function boundaryOf(context: Context, execution: string): ExecutionHistoryBoundary | null {
+function boundaryOf(
+  context: Context,
+  execution: string,
+): Readonly<{ boundary: ExecutionHistoryBoundary; batches: SessionBatchRecord[] }> | null {
   const { read, scope, snapshot } = context
   const start = context.starts.get(execution)
   if (start === undefined) return null
@@ -633,66 +681,59 @@ function boundaryOf(context: Context, execution: string): ExecutionHistoryBounda
   if (receipt === null || receipt.digest === 'unknown') return null
   const ended = endedOf(row['ended'])
   if (ended === 'malformed') return null
-  const readThrough = executionReadThrough(snapshot, start.run, execution) ?? '0'
-  const facts = factsOf(
-    read(
-      `SELECT sequence, source, kinds FROM er_fact_idx
-        WHERE tenant = ? AND execution = ? AND session = ? AND (sequence > ? OR sequence = ?)
-        ORDER BY sequence LIMIT ?`,
-      [
-        scope.tenant,
-        execution,
-        scope.session,
-        BigInt(readThrough),
-        focusedSequence(context, execution),
-      ],
-    ),
+  // It reads only the Run and the executions of the snapshot, which `WorkIndexInput` carries.
+  const readThrough = executionReadThrough(snapshot as WorkSnapshot, start.run, execution) ?? '0'
+  const events = read(
+    `SELECT eseq AS sequence, event, kinds FROM er_fact
+      WHERE tenant = ? AND execution = ? AND session = ? AND (eseq > ? OR eseq = ?)
+      ORDER BY eseq LIMIT ?`,
+    [
+      scope.tenant,
+      execution,
+      scope.session,
+      BigInt(readThrough),
+      focusedSequence(context, execution),
+    ],
   )
+  const facts = factsOf(events)
   if (facts === null) return null
   const interpreted =
     readThrough === '0' ? null : interpretedOf(read, scope, start.run, context.upto)
   if (readThrough !== '0' && interpreted === null) return null
   return {
-    run: start.run,
-    execution,
-    started: start.started,
-    revision: text(row['revision']),
-    executionEvidence: receipt,
-    emittedThrough: text(row['emitted_through']),
-    readThrough,
-    interpreted,
-    ended,
-    facts,
+    boundary: {
+      run: start.run,
+      execution,
+      started: start.started,
+      revision: text(row['revision']),
+      executionEvidence: receipt,
+      emittedThrough: text(row['emitted_through']),
+      readThrough,
+      interpreted,
+      ended,
+      facts,
+    },
+    batches: batchesOf(events, start.run, execution),
   }
 }
 
 /**
- * The batches of one execution that are not interpreted yet, and the batch of the focused event.
- * An interpreted batch is not listed: its taken effect is not indexed in this wave (`taken` stays
- * empty), and a listed batch without its taken effect reads as a contradiction.
+ * The batches among the unread events of one execution and the focused event: the input-taken
+ * events, whose projection carries the batch. An interpreted batch is not listed: its taken effect
+ * is not indexed in this wave (`taken` stays empty), and a listed batch without its taken effect
+ * reads as a contradiction.
  */
-function batchesOf(context: Context, boundary: ExecutionHistoryBoundary): SessionBatchRecord[] {
-  const { read, scope } = context
-  return read(
-    `SELECT sequence, source, batch FROM er_batch_idx
-      WHERE tenant = ? AND execution = ? AND session = ? AND (sequence > ? OR sequence = ?)
-      ORDER BY sequence LIMIT ?`,
-    [
-      scope.tenant,
-      boundary.execution,
-      scope.session,
-      BigInt(boundary.readThrough),
-      focusedSequence(context, boundary.execution),
-    ],
-  ).flatMap(row => {
-    const source = readable(row['source'])
-    const batch = readable(row['batch']) as SessionBatchRecord['batch'] | undefined
+function batchesOf(events: readonly Row[], run: RunId, execution: string): SessionBatchRecord[] {
+  return events.flatMap(row => {
+    const event = projectionOf(row)
+    const source = event?.['source']
+    const batch = event?.['batch'] as SessionBatchRecord['batch'] | undefined
     return source === undefined || !Array.isArray(batch?.ordered)
       ? []
       : [
           {
-            run: boundary.run,
-            execution: boundary.execution,
+            run,
+            execution,
             sequence: text(row['sequence']),
             source: source as DurableEvidence,
             batch,
@@ -736,10 +777,10 @@ function closeOver(context: Context, inputs: readonly string[]): Closure {
     }
     const execution = pendingExecutions.shift()
     if (execution === undefined || closure.executions.has(execution)) continue
-    const boundary = boundaryOf(context, execution)
-    closure.executions.set(execution, boundary)
-    if (boundary === null) continue
-    const batches = batchesOf(context, boundary)
+    const found = boundaryOf(context, execution)
+    closure.executions.set(execution, found?.boundary ?? null)
+    if (found === null) continue
+    const { batches } = found
     closure.batches.push(...batches)
     for (const batch of batches) pendingInputs.push(...batch.batch.ordered)
   }
@@ -898,16 +939,21 @@ export function observedPrefix(
  * The history index and reads of one decision. `scope` is the input range of the decision and
  * `focus` what it names besides; `limit` bounds the rows of every statement together.
  */
+/**
+ * How far one history read reaches: `limit` bounds the rows of every statement together, `focus`
+ * is what the decision names besides its scope, and `upto` the last Session position it reads.
+ */
+export type HistoryReadOptions = Readonly<{ limit?: number; focus?: HistoryFocus; upto?: bigint }>
+
 export function readHistory(
   port: Executor,
   tenant: string,
   session: string,
-  snapshot: WorkSnapshot,
+  snapshot: WorkIndexInput,
   scope: SessionInputScope,
-  limit: number = MAX_ROWS,
-  focus: HistoryFocus = NO_FOCUS,
-  upto?: bigint,
+  options: HistoryReadOptions = {},
 ): SessionHistory | 'too-many' {
+  const { limit = MAX_ROWS, focus = NO_FOCUS, upto } = options
   const where: Scope = { tenant, session }
   const read = boundedReader(port, limit)
   try {
@@ -970,7 +1016,7 @@ export function workIndexOf(
   port: Executor,
   tenant: string,
   session: string,
-  snapshot: WorkSnapshot,
+  snapshot: WorkIndexInput,
 ): SessionHistory | 'too-many' {
   return readHistory(
     port,
@@ -978,6 +1024,6 @@ export function workIndexOf(
     session,
     snapshot,
     { kind: 'pending', inputs: snapshot.pending },
-    WORK_INDEX_ROWS,
+    { limit: WORK_INDEX_ROWS },
   )
 }

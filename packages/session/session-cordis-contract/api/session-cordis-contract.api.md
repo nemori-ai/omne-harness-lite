@@ -18,6 +18,7 @@
 - `AutoArchivePolicy` · 包 `@omne-harness/session-contract`
 - `BatchId` · 包 `@omne-harness/session-contract`
 - `BoundedClose` · 包 `@omne-harness/session-contract`
+- `CONTEXT_SCOPE_KINDS` · 包 `@omne-harness/session-contract`
 - `CallBinding` · 包 `@omne-harness/session-contract`
 - `ClockSample` · 包 `@omne-harness/session-contract`
 - `CommitReceipt` · 包 `@omne-harness/session-contract`
@@ -124,6 +125,9 @@
 - `SessionAccessOperation` · 包 `@omne-harness/session-contract`
 - `SessionAccessRequest` · 包 `@omne-harness/session-contract`
 - `SessionAccessTarget` · 包 `@omne-harness/session-contract`
+- `SessionAdoptedRequest` · `adopted-request.d.ts`
+- `SessionAdoptedRequestRead` · `adopted-request.d.ts`
+- `SessionAdoptedRequests` · `adopted-request.d.ts`
 - `SessionAdoptionPlanAnswer` · 包 `@omne-harness/session-contract`
 - `SessionAdoptionPlanInput` · 包 `@omne-harness/session-contract`
 - `SessionAdoptionRecorded` · 包 `@omne-harness/session-contract`
@@ -142,6 +146,7 @@
 - `SessionClock` · 包 `@omne-harness/session-contract`
 - `SessionCommand` · 包 `@omne-harness/session-contract`
 - `SessionContextInput` · 包 `@omne-harness/session-contract`
+- `SessionContextScope` · 包 `@omne-harness/session-contract`
 - `SessionControlAnswer` · 包 `@omne-harness/session-contract`
 - `SessionControlDecisionInput` · 包 `@omne-harness/session-contract`
 - `SessionControlEntryReferences` · 包 `@omne-harness/session-contract`
@@ -214,7 +219,10 @@
 - `Waiting` · 包 `@omne-harness/session-contract`
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
+- `batchEvidence` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
+- `contextScopeOf` · 包 `@omne-harness/session-contract`
+- `contextScopesOf` · 包 `@omne-harness/session-contract`
 - `decide` · 包 `@omne-harness/session-contract`
 - `decideControlConsequences` · 包 `@omne-harness/session-contract`
 - `deriveDriveOperation` · 包 `@omne-harness/session-contract`
@@ -223,6 +231,8 @@
 - `digestSessionEntries` · 包 `@omne-harness/session-contract`
 - `digestSessionLog` · 包 `@omne-harness/session-contract`
 - `executionReadThrough` · 包 `@omne-harness/session-contract`
+- `expectedHolds` · 包 `@omne-harness/session-contract`
+- `expectedRevision` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
 - `isDeferredFact` · 包 `@omne-harness/session-contract`
 - `judgeAdvance` · 包 `@omne-harness/session-contract`
@@ -246,6 +256,7 @@
 - `AgentDrivePortService` · `cordis.d.ts`
 - `ScopeReleasePortService` · `cordis.d.ts`
 - `SessionAccessCheckService` · `cordis.d.ts`
+- `SessionAdoptedRequestsService` · `cordis.d.ts`
 - `SessionAdoptionSourceService` · `cordis.d.ts`
 - `SessionClockService` · `cordis.d.ts`
 - `SessionContextInputService` · `cordis.d.ts`
@@ -266,6 +277,7 @@
 - `SessionTransactionPortService` · `cordis.d.ts`
 - `SessionWorkPrincipalsService` · `cordis.d.ts`
 - `sessionAccessCheckKey` · `cordis.d.ts`
+- `sessionAdoptedRequestsKey` · `cordis.d.ts`
 - `sessionAdoptionSourceKey` · `cordis.d.ts`
 - `sessionAgentDriveKey` · `cordis.d.ts`
 - `sessionClockKey` · `cordis.d.ts`
@@ -303,6 +315,37 @@
 - `sessionCursorSigningConformance` · `testing.d.ts`
 - `sessionPrincipalBindingsConformance` · `testing.d.ts`
 - `sessionWorkPrincipalsConformance` · `testing.d.ts`
+
+## 声明文件 `adopted-request.d.ts`
+
+```ts
+import type { Access } from '@omne-harness/legal-identity';
+import type { Adoption, DurableEvidence, SessionId } from '@omne-harness/session-contract';
+export type SessionAdoptedRequest = Readonly<{
+    order: string;
+    execution: string;
+    reference: string;
+    fixed: DurableEvidence;
+    coverage: DurableEvidence | null;
+    schema: Adoption;
+    record: unknown;
+}>;
+export type SessionAdoptedRequestRead = Readonly<{
+    kind: 'value';
+    value: SessionAdoptedRequest | null;
+}> | Readonly<{
+    kind: 'denied';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export interface SessionAdoptedRequests<P> {
+    readAdoptedRequest(input: Readonly<{
+        access: Access<P>;
+        session: SessionId;
+    }>): Promise<SessionAdoptedRequestRead>;
+}
+```
 
 ## 声明文件 `context-facts.d.ts`
 
@@ -342,6 +385,7 @@ export interface SessionScopeLookup {
 import { type Context, Service } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallerClass, SessionClock, SessionContextInput, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
+import type { SessionAdoptedRequests } from './adopted-request.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts';
 export type SessionIntercept = Readonly<{
@@ -500,6 +544,12 @@ export declare abstract class SessionCursorSigningService extends Service implem
     abstract readonly verify: SessionCursorSigning['verify'];
 }
 export declare const sessionCursorSigningKey = "sessionCursorSigning";
+export declare abstract class SessionAdoptedRequestsService<P = unknown> extends Service implements SessionAdoptedRequests<P> {
+    static readonly provide = "sessionAdoptedRequests";
+    constructor(ctx: Context);
+    abstract readonly readAdoptedRequest: SessionAdoptedRequests<P>['readAdoptedRequest'];
+}
+export declare const sessionAdoptedRequestsKey = "sessionAdoptedRequests";
 declare module '@deepseek-ai/cordis' {
     interface Context {
         session: SessionService<unknown>;
@@ -523,6 +573,7 @@ declare module '@deepseek-ai/cordis' {
         sessionCursorSigning: SessionCursorSigningService;
         sessionReplayFacts: SessionReplayFactsService;
         sessionScopeLookup: SessionScopeLookupService;
+        sessionAdoptedRequests: SessionAdoptedRequestsService<unknown>;
     }
     interface Events {
         'session-cordis-contract/committed'(tenant: TenantId, session: SessionId, revision: SessionRevision, source: DurableEvidence, kinds: readonly string[]): void;
@@ -565,6 +616,7 @@ export interface SessionCursorSigning {
 export type * from '@omne-harness/session-contract';
 export type * from './cursor-signing.ts';
 export type * from './context-facts.ts';
+export type * from './adopted-request.ts';
 ```
 
 ## 声明文件 `testing.d.ts`

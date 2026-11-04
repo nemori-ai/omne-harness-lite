@@ -25,20 +25,32 @@ const SEALED = {
   'openai/gpt-5.6-luna-pro': ['standard', 'gpt56-patch', 'unknown'],
 } as const
 
+/**
+ * The models added from the official model pages of 2026-11-03. GPT-6.1 Sol publishes no `none`.
+ * The image guide names neither model, so both take the GPT-6 proxy of Sol and Luna.
+ */
+const ADDED = {
+  'openai/gpt-6.1-sol': ['astra', 'sol-luna-auto-proxy', 'inherited'],
+  'openai/gpt-6.1-terra': ['standard', 'sol-luna-auto-proxy', 'inherited'],
+} as const
+
+const MODELS = { ...SEALED, ...ADDED }
+
+/** The published efforts below `xhigh`: the contract has no `xhigh`. */
 const EFFORTS = {
   standard: ['none', 'low', 'medium', 'high', 'max'],
   astra: ['low', 'medium', 'high', 'max'],
 } as const
 
 function sealedOf(record: OpenAiRecord) {
-  const sealed = Object.entries(SEALED).find(([name]) => name === record.name)?.[1]
-  if (sealed === undefined) throw new Error(`no sealed row for ${record.name}`)
+  const sealed = Object.entries(MODELS).find(([name]) => name === record.name)?.[1]
+  if (sealed === undefined) throw new Error(`no sealed or added row for ${record.name}`)
   return sealed
 }
 
 describe('the migrated models', () => {
-  it('has one current record at revision 1 per sealed model, and nothing else', () => {
-    expect(RECORDS.map(record => record.name).toSorted()).toEqual(Object.keys(SEALED).toSorted())
+  it('has one current record at revision 1 per sealed or added model, and nothing else', () => {
+    expect(RECORDS.map(record => record.name).toSorted()).toEqual(Object.keys(MODELS).toSorted())
     for (const record of RECORDS) {
       expect(record.revision).toBe('1')
       expect(record.status).toBe('current')
@@ -71,6 +83,15 @@ describe('the migrated models', () => {
         if (wire !== 'unsupported') expect(wire).toEqual({ field: 'reasoning.effort', value })
     },
   )
+
+  it('says in the evidence of GPT-6.1 Terra that its image rule is an inference', () => {
+    const terra = RECORDS.find(record => record.name === 'openai/gpt-6.1-terra')
+    expect(terra?.profile.evidence).toContain(
+      'The image rule sol-luna-auto-proxy/1 is an inference',
+    )
+    const sol = RECORDS.find(record => record.name === 'openai/gpt-6.1-sol')
+    expect(sol?.profile.evidence).not.toContain('inference')
+  })
 
   it('turns the sealed parameter drops into explicit unsupported entries', () => {
     for (const record of RECORDS) {

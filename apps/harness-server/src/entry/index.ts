@@ -4,6 +4,7 @@
 // `scopedRuntimeContextTrust` 与 `executionAuthorities` 共用一份按运行懒建的 Scope 来源（见 execution-wiring.ts）。
 // 三个系统主体模块经受信名 `principalIssuer` 的服务签发，必须排在 `principalIssuer` 之后。
 // `toolReleaseRegistrant` 与 `toolContributionAuthority` 共用一份按运行读取的发行快照，登记者排在权威之前。
+// `toolClock` 与 Tool 运行时组的 bundle 共用同一个时钟实例（按运行的根共享）；`toolPublicationAuthority` 读同一份调用见证。
 import type { EntryObjectModule } from '../types.ts'
 import { agentClock } from './agent-clock.ts'
 import { agentHostPrincipal } from './agent-host-principal.ts'
@@ -24,6 +25,7 @@ import { sessionWorkPrincipals } from './session-work-principals.ts'
 import { storageHost } from './storage-host.ts'
 import { toolContributionAuthority, toolReleaseRegistrant } from './tool-release.ts'
 import { toolResidencyPrincipal } from './tool-residency-principal.ts'
+import { toolClock, toolPublicationAuthority } from './tool-runtime-objects.ts'
 
 export const entryObjects: readonly EntryObjectModule[] = [
   principalVerifier,
@@ -32,6 +34,8 @@ export const entryObjects: readonly EntryObjectModule[] = [
   toolResidencyPrincipal,
   toolReleaseRegistrant,
   toolContributionAuthority,
+  toolClock,
+  toolPublicationAuthority,
   sessionPrincipals,
   sessionWorkPrincipals,
   requestContextTrust,

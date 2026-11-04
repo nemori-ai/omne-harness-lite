@@ -1,5 +1,5 @@
 import { admitRevision, judgeCallAccount } from '@omne-harness/call-account'
-import { initialRunPort, type BoundCommandAccess } from './initial.ts'
+import { initialRunPort, type BoundCommandAccess, type ModelInitialRun } from './initial.ts'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
@@ -379,6 +379,29 @@ export type CallAccessInput<P> = Access<P> & { readonly call: ModelCallId }
  * the block of an unresolved ordered write, the change on a copy, the call capacity, then one
  * `commit`.
  */
+/** A drafted call whose retained material exceeds its own result capacity. */
+function overCapacity(call: CallDocument | undefined): ModelFailure | null {
+  return call && call.request !== null && materialBytes(call) > BigInt(call.capacity.bytes)
+    ? { kind: 'capacity', required: call.capacity }
+    : null
+}
+/** A first admit reserves its initial record before the commit, when the core has an initial run. */
+function beginInitialAdmission<P, T>(
+  initialRun: ModelInitialRun<P> | undefined,
+  args: WriteArguments<T>,
+  tenant: string,
+  original: CallDocument | undefined,
+  fingerprint: string,
+): Outcome<void, ModelFailure> {
+  if (initialRun === undefined || args.method !== 'admit' || original !== undefined)
+    return { ok: undefined }
+  return initialRunPort(initialRun).beginAdmission({
+    tenant,
+    call: args.input.call,
+    admission: args.input.operation,
+    admissionFingerprint: fingerprint,
+  })
+}
 export class ModelCommandCore<P> {
   readonly options: ModelCommandsCoreOptions<P>
   readonly storage: ModelCommandStorage
@@ -617,21 +640,10 @@ export class ModelCommandCore<P> {
     const applied = args.apply(draft)
     if ('failure' in applied) return applied
     const call = draft.call
-    if (call && call.request !== null && materialBytes(call) > BigInt(call.capacity.bytes))
-      return { failure: { kind: 'capacity', required: call.capacity } }
-    if (
-      this.options.initialRun !== undefined &&
-      args.method === 'admit' &&
-      original === undefined
-    ) {
-      const begun = initialRunPort(this.options.initialRun).beginAdmission({
-        tenant: key,
-        call: input.call,
-        admission: input.operation,
-        admissionFingerprint: fingerprint,
-      })
-      if ('failure' in begun) return begun
-    }
+    const over = overCapacity(call)
+    if (over) return { failure: over }
+    const begun = beginInitialAdmission(this.options.initialRun, args, key, original, fingerprint)
+    if ('failure' in begun) return begun
     const status = this.storage.commit(key, {
       operation: input.operation,
       expected: original,

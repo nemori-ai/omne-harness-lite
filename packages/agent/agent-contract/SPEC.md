@@ -45,7 +45,8 @@ Agent 自己的执行结束由本域条件提交成立。外部协调者的业�
 | Model | 关联身份与必要参数 | 首次 admit 前固定 call/admission，编码保存 ModelInvocationRef、固定输入、原消费位置与发起者。Agent 发起的调用关联 execution，独立调用保留原身份，租户显式携带 |
 | Model | 成功 | 登记已提交，登记不等于已经发出 |
 | Model | 拒绝与参数冲突 | 挂接失去推进资格、输入未固定，或同一调用身份绑定不同固定输入时拒绝 |
-| Model | 未知 | 按提交前原 reference 查询。只有权威 not-accepted 才沿原身份再受理，不另造身份 |
+| Model | 未知 | 按提交前原 reference 查询，原身份保持未知直到 Model 回答。查询不可用、timeout 或路由缺席都不证明未受理：不换身份，不重发，等待。查到已受理就沿原身份继续。Model 答权威 not-accepted 时，Agent 作废原意图（checkpoint 的 `voided` 记下原 reference 与依据），以 attempt+1 派生的新身份重新准备并提交新意图。admit 答 conflict 时先按原 reference 查询，已受理就沿原身份继续，权威 not-accepted 就同样作废，不停在原处。依据 R2-D292 |
+| Model | 原身份再受理 | 进程内的暂时失败（unavailable）沿原身份、用内存中同一份 ready 重试。崩溃之后 checkpoint 不保存请求，重新准备的请求不一定与固定记录相同：固定依据只记修订与摘要，`fixed` 的摘要也不绑定内容。所以原身份只允许重新受理与固定记录内容一致的请求，一致只能用完整输入摘要 `coverage.budget.inputDigest` 判定，不能用来源修订或 `fixed` 判定。本实现在崩溃之后从不在原身份下受理重新准备的请求，一律等权威 not-accepted 后作废。依据 R2-D292 |
 | Model | 同身份重试 | 同一身份和同一固定输入认回原登记 |
 | Tool | 关联与必要参数 | 先保存完整原 ToolInvokeRequest、consumer、材料 fixed 和 intent。Tool 来源以租户及完整 consumer 分配或认回身份，Agent 不预分配 call/admission |
 | Tool | 成功、拒绝与未知 | invoke 四种结果与 associated 保存按“Tool 调用关联与控制引用”。同 consumer 异请求由 Tool 拒绝，不绕过当前资格 |
@@ -73,9 +74,9 @@ associated 只证明已知调用身份，不证明受理提交成功。Tool 提�
 
 Agent 保存的 `pending.position` 与原请求的 `request.consumer` 按 owner、work、position、purpose 四个字段逐一相等。两个领域分别拥有自己的类型。消费位置不是 ConsumptionId。Agent 为每次逻辑动作保存唯一且稳定的原位置，恢复或替换挂接不重建它。新逻辑动作使用新位置，重发原动作使用完整原 consumer。
 
-`fixed` 指向 `AgentMaterials.preserve` 成功返回的 facts 材料。其 value 是完整原 `ToolInvokeRequest`，schema 是该材料格式的精确 Adoption。恢复解读后以 Tool 的 `judgeToolInvokeRequest` 校验，并核对 consumer 投影。`allowed.request` 与材料输入来自同一次冻结且一致。只存 ToolPart、参数摘要或 consumer 不满足要求，当前 catalog 不能重建原请求。具体 schema 实例与序列化须由后续 A2 采用方案绑定，本节不指定虚构 schema。
+`fixed` 指向 `AgentMaterials.preserve` 成功返回的 facts 材料，与 `allowed.request` 是同一份材料（R2-D292）。其 value 是判断时冻结的完整 `ToolInvokeRequest`，`batchDecision` 为 null；发起时由屏障记录填入屏障依据，见“[工具执行与结果承接](#工具执行与结果承接)”第 10 条。schema 是该材料格式的精确 Adoption。恢复解读后以 Tool 的 `judgeToolInvokeRequest` 校验，并核对 consumer 投影。只存 ToolPart、参数摘要或 consumer 不满足要求，当前 catalog 不能重建原请求。具体 schema 实例与序列化须由后续 A2 采用方案绑定，本节不指定虚构 schema。
 
-AgentMaterials 提供者拥有材料，Journal 拥有 fixed 绑定及 effect intent。先保存完整材料，再共同保存 Tool intent、原位置与 effect intent，随后才能 invoke。材料成功而 Journal 未知时保留材料，沿原 Journal operation 查询。只有可靠排除原写入或全部消费责任终结后才能回收。原意图或引用未知时继续保留，checkpoint 前进不丢材料。
+AgentMaterials 提供者拥有材料，Journal 拥有 fixed 绑定及 effect intent。判断时先保存完整材料，再提交判断；之后共同保存 Tool intent、原位置与 effect intent，随后才能 invoke。材料成功而 Journal 未知时保留材料，沿原 Journal operation 查询。只有可靠排除原写入或全部消费责任终结后才能回收。原意图或引用未知时继续保留，checkpoint 前进不丢材料。
 
 | Tool 登记观察 | 接续责任 |
 | --- | --- |
@@ -280,6 +281,8 @@ commit、prepareFinish、tryFinish，以及 commitSettlement 的候选、迁移�
 | commitSettlement | 该变体允许的保管或判断记录与责任处置：新修订 | 同 operation 同输入认回原结果 | 无事件，不改 checkpoint |
 | load、inputs、read、query、订阅等读取 | 无 | 不借读取修复或改写快照事实 | 不推进 revision |
 
+checkpoint 只保存不能重算的事实（R2-D292）。最终请求记录之前的准备只在内存。I0 固定的输入批随 checkpoint 保存，崩溃后从它重新准备。作废原意图的提交建立新事实，分配一个新修订；它从 `calls` 去掉原调用，把原意图记入 `voided`，`voided` 只追加。
+
 output.emittedThrough 随事件的耐久提交建立；出口把既有事件交给读取方，不改写同一 revision 下的这个字段。确认不自动结清事件保管或其他结果责任。合法 ended 之后的新结果、观察、保管登记与合法迟到控制事实仍分配新修订，但终态结论、checkpoint 与最后事件不变。不能先违规结束，再用迟到事实补合法性。
 
 ### 提交参加者协议
@@ -441,7 +444,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 ### 定义与扩展声明
 
-公开入口是 `judgeAgentDefinition` 与 `judgeLoopExtensions`。成功结果必须是逐层冻结、不与输入共享对象的声明数据副本。`judgeAgentDefinition` 的成功值冻结定义本身、`references` 与 `attributes` 及其中每个元素，引用的 `capability` 也冻结。`judgeLoopExtensions` 的成功值冻结批次数组和其中每项声明，声明里的 `dimension`、`needs`（含每项需要声明及其 `schema`）与 `implementation` 也冻结。单项拒绝只有 `kind` 与 `reason`。一批扩展被拒绝时还有 `index`。容器不合法时 `index` 为 0。某一项不合法时 `index` 是该项序号。
+公开入口是 `judgeAgentDefinition` 与 `judgeLoopExtensions`。成功结果必须是逐层冻结、不与输入共享对象的声明数据副本。`judgeAgentDefinition` 的成功值冻结定义本身、`references` 与 `attributes` 及其中每个元素，引用的 `capability` 也冻结。`judgeLoopExtensions` 的成功值冻结批次数组和其中每项声明，声明里的 `dimension`、`needs`（含每项需要声明及其 `schema`）与 `implementation` 也冻结。`judgeAgentDefinition` 的成功值还冻结 `instructions` 与其中每段。单项拒绝有 `kind` 与 `reason`，可带诊断文本 `detail`。`detail` 只给人和日志读，没有固定词表，调用方只按 `reason` 决定。`judgeAgentDefinition` 在 `instructions` 不合法时给出 `detail`，写明哪一段的哪个成员违反哪条规则。一批扩展被拒绝时还有 `index`。容器不合法时 `index` 为 0。某一项不合法时 `index` 是该项序号。
 
 拒绝原因共十四种：`malformed`、`duplicate-capability`、`unknown-attribute`、`unknown-position`、`unknown-power`、`dimension-missing`、`dimension-not-allowed`、`power-above-ceiling`、`needs-not-allowed`、`implementation-missing`、`error-policy-not-allowed`、`unavailability-not-allowed`、`executable`、`checker-failed`。设计只规定了 `needs`、`implementation`、`onError` 与 `unavailability` 的合法组合，没有给拒绝原因命名。后四个原因（`needs-not-allowed`、`implementation-missing`、`error-policy-not-allowed`、`unavailability-not-allowed`）沿用“一个字段一个原因”的既有写法，调用方不必读诊断文本。`judgeAgentDefinition` 只返回 `malformed`、`duplicate-capability`、`unknown-attribute`、`executable` 与 `checker-failed`。
 
@@ -453,13 +456,27 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 `judgeAgentDefinition` 的输入是封闭对象：`category` 为 `AgentDefinition`，`name` 是非空字符串。定义不带版本：`version` 不是声明表的成员，输入带 `version` 时按“声明表没有列出的成员”得到 `malformed`。每个新 execution 采用当时的合法胜出者，规则见[定义专题的版本采用](docs/public-api/definition.md#版本采用与实际变化)。`references` 与 `attributes` 必须是数组。空数组合法。缺席和 null 拒绝。每个引用是封闭对象，`capability` 是带非空 `category` 与非空 `name` 的封闭对象，`resident` 可省略，给出时是布尔值。每个 attribute 是只含 `item` 的封闭对象。允许的 item 是 `first_token_wait_limit`、`post_first_token_stall_limit`、`model`，常量 `ATTRIBUTE_ITEMS` 列出它们。`item` 是字符串但不在这三项里时得到 `unknown-attribute`。其他结构问题都得到 `malformed`。同一 capability 的 category 与 name 至多一次，重复得到 `duplicate-capability`。同一 `item` 出现两次得到 `malformed`。成功结果的 attribute 只保留 `item`。成功结果没有版本字段。本入口不读取资产库。
 
+`instructions` 是定义携带的系统提示词，可省略（R2-D124：定义是它的提示词的唯一源）。省略时成功值里也没有这个成员，判定结果、冻结输出与规范文本与没有这条规则时逐字相同。给出时它是有序段的数组，规则如下，常量 `INSTRUCTION_LIMITS` 列出数值与 id 形状。
+
+| 规则 | 不满足时 |
+| --- | --- |
+| 是数组，段数 1 到 32。空数组不合法：「没有提示词」只有省略一种写法，同一内容只有一份规范文本 | `malformed` |
+| 每段是只含 `id` 与 `text` 的封闭对象，两者都是非空字符串 | `malformed` |
+| `id` 匹配 `^[a-z][a-z0-9-]{0,63}$`，在本定义内不重复 | `malformed` |
+| `text` 按 UTF-8 字节计不超过 10000。复制阶段的字符串上限按 UTF-16 码元计，多字节字符能通过那一项而超出这一项，所以这一项另算 | `malformed` |
+| `text` 不含 `{{`。提示词渲染把它读成变量引用，定义段不带变量 | `malformed` |
+| 整份声明仍受上文的限额约束，含 100000 字节 | 现有规则 |
+
+段的次序就是提示词的次序。成功值的每段只保留 `id` 与 `text`。提示词改动一个字，定义的规范文本就变，采用摘要由采用方按定义正文算出（harness-server 的 `agent-adoptions` 行），所以摘要随之变化。Request Context 组装时怎样读这些段归 agent-context 的[请求准备](../../context/agent-context/SPEC.md#requests-groups)。
+
 一份定义有多处不合法时，`judgeAgentDefinition` 按下面的次序返回第一处。
 
 1. 复制。复制按自有键的次序逐层遍历输入。遍历到每个值时，复制检查深度、单个对象的成员数、JSON 值个数、字符串长度与数字文本长度，也检查这个值是不是函数或访问器。原型、循环引用等其他复制问题同样在遍历到该值时报告。所以限额问题与 `executable` 哪个先报告，取决于遍历先到达哪一个。例如定义先有函数成员、后有超长字符串成员时得到 `executable`，两个成员的次序相反时得到 `malformed`。
 2. 字节上限。复制完成之后，判断才计算整份文本的字节数。所以输入超过字节上限、后面的成员里又有函数时，得到 `executable`。
-3. 结构问题。schema 校验的第一个问题决定原因，其余问题不报告。问题按 schema 的成员次序排列：`category`、`name`、`references`、`attributes`，然后是声明表没有列出的成员。这个次序与输入的键序无关。
+3. 结构问题。schema 校验的第一个问题决定原因，其余问题不报告。问题按 schema 的成员次序排列：`category`、`name`、`references`、`attributes`、`instructions`，然后是声明表没有列出的成员。这个次序与输入的键序无关。
 4. 重复的 capability。
 5. 重复的 item。
+6. `instructions` 的组合规则：按段的次序，每段依次查 id 形状、id 重复、`text` 字节数、变量标记。
 
 扩展按提交顺序返回。每项声明含 `name`、`position`、`power` 与 `implementation`，可含 `dimension`、`needs`、`onError` 与 `unavailability`。输入还可带来源提示 `source`，值是 `workspace` 或 `author`。`source` 只用于上限判断，不进入成功值，因为设计类型 `LoopExtensionDeclaration` 没有 `source` 字段。`name` 必须是非空字符串。声明表没有列出的成员一律得到 `malformed`。
 
@@ -545,7 +562,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 正文规则与 `judgeAgentDefinition` 同源，同一组夹具在两个入口上得到相同的接受与拒绝。差别有三处。第一，正文不带 `category` 键，因为注册表的键给出类别，带它得到 `unknown-field`。第二，`context.capabilityName` 给出时，正文 `name` 必须与它相等。第三，`judgeAgentDefinition` 按上文的声明限额检查输入，正文契约不另设限额，读树的限额由调用 `readBodyText` 的一方给出。
 
-正文判断的拒绝原因共七个，与 `RefusalReason` 分开，条件见下表。正文与定义同样不带版本：`version` 是未列出的键，得到 `unknown-field`。
+正文判断的拒绝原因共八个，与 `RefusalReason` 分开，条件见下表。正文与定义同样不带版本：`version` 是未列出的键，得到 `unknown-field`。
 
 | 拒绝原因 | 条件 |
 | --- | --- |
@@ -555,7 +572,8 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 | `invalid-resident` | 引用的 `resident` 存在，但不是布尔值 |
 | `unknown-attribute` | `attributes` 缺失或不是数组，某项不是对象，或某项的 `item` 不在 `ATTRIBUTE_ITEMS` 里 |
 | `duplicate-attribute` | 同一 `item` 出现多次 |
-| `unknown-field` | 正文、引用、能力或属性项里有未列出的键 |
+| `invalid-instructions` | `instructions` 存在但违反声明判断的任一条 `instructions` 规则：不是非空数组、段数超过 32、段不是对象、`id` 或 `text` 缺失、为空或不是字符串、`id` 形状不合或重复、`text` 超过 10000 字节或含 `{{` |
+| `unknown-field` | 正文、引用、能力、属性项或提示词段里有未列出的键 |
 
 一份正文有多处不合法时，`judge` 按下面的次序返回第一处。
 
@@ -563,6 +581,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 2. `name`，然后是 `name-mismatch`。
 3. `references`：先查它是不是数组，再逐个引用依次查 `capability`、`resident`、引用与能力里的未知键。全部引用通过后查重复的 capability。
 4. `attributes`：先查它是不是数组，再逐项依次查 `item`、属性项里的未知键、重复的 `item`。
+5. `instructions`（存在时）：先查它是不是非空数组，再逐段依次查 `id` 与 `text`、段里的未知键，全部段通过后查段数与组合规则。
 5. 正文顶层的未知键。
 
 第一，`deriveDeclarations` 的 `entries` 取正文的 attribute 项。设计没有给出 AgentDefinition 的声明词汇，所以沿用上文已经固定的 attribute 词表，不新造概念。第二，嵌套对象里的未知键一律得到 `unknown-field`，与 `judgeAgentDefinition` 的严格对象一致。第三，`references` 与 `attributes` 缺失按拒绝处理，不视为空表，与上文“缺席和 null 拒绝”一致。第四，上表的七个拒绝原因与上面的检查次序。
@@ -589,11 +608,11 @@ Agent 将明确事实求成下一步，再通过公开端口协调工作。外�
 
 [本节定义](docs/public-api/README.md#身份原位置与纯求值)。
 
-StepId 区分一轮主要请求及其动作承接位置，ActionId 区分同一步内不同动作。拒收模型回复之后的新调用有新 action/call，保留原否决历史。PassageId 固定一次位置、扩展采用、动作和链序号。身份生成不授予资格，稳定身份先保管再用于外部操作；恢复不因换执行挂接重建它们。PendingCall.model 保存 ModelInvocationRef，用于 admit、cancel 与恢复对账时的只读 inspect。观察与读取由 Agent 外侧按该引用经 Model 的 current 承担。首次 admit 前即可由已固定的 tenant/call/admission 编码，意图先保存。Tool 分支先保存 intent，只有 Tool 证明调用身份后才保存 associated 与 ToolInvocationRef，见“Tool 调用关联与控制引用”。
+StepId 区分一轮主要请求及其动作承接位置，ActionId 区分同一步内不同动作。拒收模型回复之后的新调用有新 action/call，保留原否决历史。同一 step 的主调用有 attempt 序号，它等于本 step 已作废意图的个数。attempt 不为零时，action、consumption、call 与受理 operation 都带 attempt，所以作废的意图不会在原身份下再被受理（R2-D292）。PassageId 固定一次位置、扩展采用、动作和链序号。身份生成不授予资格，稳定身份先保管再用于外部操作；恢复不因换执行挂接重建它们。PendingCall.model 保存 ModelInvocationRef，用于 admit、cancel 与恢复对账时的只读 inspect。观察与读取由 Agent 外侧按该引用经 Model 的 current 承担。首次 admit 前即可由已固定的 tenant/call/admission 编码，意图先保存。Tool 分支先保存 intent，只有 Tool 证明调用身份后才保存 associated 与 ToolInvocationRef，见“Tool 调用关联与控制引用”。
 
 AgentCheckpoint 由 Agent 解释并通过 AgentJournal 保存。外部协调者的提交参加者可以把它纳入自己的原子提交，但不得另行维护第二份 Agent 工作状态。效果协调层把生产者公开状态投影为 ProducerDecisionView，纯 Evaluator 不解释外域状态编码。查询不可用返回失败，原状态未定保持 unresolved，不用空集合或结束状态代替。decode 必须核对精确采用、身份关系和完整性，不能把任意 JsonValue 当 AgentCheckpoint。缺少 `replyAdmissionRead` 或 schema 未知的 checkpoint 一律拒绝，不默认为 unverified 或零值。本版本的 decode 只核对其中一部分，见“[回复准入的已核实前缀](#回复准入的已核实前缀)”的已知限制。编码只允许数据，不含运行对象。
 
-next 是纯函数，不读时钟、当前注册或数据库，不发请求。相同完整输入与精确采用得到同一决定；缺必要事实返回具体失败。条件快照只是判断依据，影响推进的写入及实际发起仍在领域边界重新裁定。权限模式及环境选择由原领域解释，RuntimeConditions 只传 Loop 所需的 ProgressionDirective 与采用依据，不把 bypass 模式当直接授权，也不含守卫。守卫阶梯由循环判断这一受信系统扩展计算并记为 checkpoint 的守卫事实 `guard`，规则见“[循环守卫](#循环守卫)”。L0 始终保留观测；L3 的失败候选由 I8 按最新守卫事实的 `basis` 认回，L4 的人工等待就是循环判断那次扩展调用的卡片等待，不以换执行挂接清零，Agent 不自动生成默认阈值。
+next 是纯函数，不读时钟、当前注册或数据库，不发请求。相同完整输入与精确采用得到同一决定；缺必要事实返回具体失败。条件快照只是判断依据，影响推进的写入及实际发起仍在领域边界重新裁定。权限模式及环境选择由原领域解释，RuntimeConditions 只传 Loop 所需的 ProgressionDirective 与采用依据，不把 bypass 模式当直接授权，也不含守卫。守卫阶梯由循环判断这一受信系统扩展计算并记为 checkpoint 的守卫事实 `guard`，规则见“[循环守卫](#循环守卫)”。L0 始终保留观测；L3 的失败候选由 I8 按最新守卫事实的 `basis` 认回，L4 的人工等待就是循环判断那次扩展调用的卡片等待，不以换执行挂接清零，Agent 不自动生成默认阈值。M2 有一项临时兜底：工厂配置 `maxRunSteps` 限制一次执行的步数，缺省为 50，见“[循环守卫](#循环守卫)”第 9 条。依据是 R2-D221，完整的循环判断见波 3。
 
 优先级依次为有效取消/终态/失效推进，原操作未知与原结果交接，已有扩展/压缩/人工等待，合法批次承接，当前请求准备，整批动作发起，最终完成候选。原调用在途时不能因新消息改走新请求入口。主回复准入事实由 Journal 与接续共同提交，按原 call/resultVersion 去重；其有范围、有规则采用、带已核实前缀终点的投影进入 LoopFacts，不能用当前消息列表重建被压缩掉的原否决历史。E2 只读已核实前缀之后的新增事实，读取位置随正常提交保存，规则见“[回复准入的已核实前缀](#回复准入的已核实前缀)”。没有动作与空队列不直接产生终态；必须核未完等待、模式及终态前经过。Next 只是求值结果，调用方自行伪造某分支也不能绕过实际操作的守卫。
 
@@ -643,7 +662,7 @@ Agent 经 ModelContextReader.read 取得模型可读的 Runtime Context。读取
 3. 模型可读块与工具、扩展的私有块分开读取。ModelContextReader 在装配时绑定到模型这一个消费者，调用方不能用参数改成其他消费者。它只返回标为模型可读、且当前资格允许的块。
 4. 私有块包括权限输入。它们只经工具与扩展各自的注入能力读取，例如动作准入和扩展的 needs 能力，每次读取都核验当前资格。私有块不进入模型请求、事件、失败诊断和遥测。RuntimeConditions 的 context 只是条件依据的引用，不含块内容，也不是模型可读的读取结果。
 5. full 还是 incremental 由 Context 决定，Agent 不要求某一种。Agent 向读取端口传入历史依据、本 execution 已采用的覆盖依据（checkpoint 的 adoptedContext，新 execution 为空）和压缩转换依据（压缩提交之后的读取才有）。Context 按 [Runtime Context 的 RC-04](../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料) 返回 full 或 incremental 与覆盖证据。Agent 只记录 Context 返回的种类与覆盖，不改变它们。
-6. 读到不等于采用。ModelContextRead 只说明读到了什么。覆盖在最终请求记录时才成为已采用覆盖，并保存在 checkpoint。记录之前，未采用的读取被新的读取、选择变化或压缩提交取代，直接丢弃，不影响已采用覆盖。
+6. 读到不等于采用。ModelContextRead 只说明读到了什么。覆盖在最终请求记录时才成为已采用覆盖，并保存在 checkpoint。记录之前，未采用的读取被新的读取、选择变化或压缩提交取代，直接丢弃，不影响已采用覆盖。主用途的最终请求记录在同一次提交中还写 checkpoint 的 adoptedRequest：这次调用的引用、固定依据，以及准备方在 ready 中交来的 state 与 schema。Agent 原样保存 state，不解释它。调用收场、calls 清空、工具往返和下一步的请求准备都不改 adoptedRequest，只有下一次主用途的最终请求记录替换它。压缩用途的最终请求记录不写它，新 execution 中它为空。作废意图的提交不改 adoptedRequest，但被作废的请求从未发出，不算“上一次已采用”：读取方取 `reference` 不在 `voided` 中的最近一次（R2-D292）。
 7. 空闲期间的变化由新 execution 开始和建立挂接时的拉取承接，不依赖逐条推送。同一 execution 长时间等待后继续推进时，下一次主请求准备前的读取传入 checkpoint 的 adoptedContext，Context 沿提醒链返回 incremental 或 full；Agent 不因等待时长改为要求某一种。
 8. 每次读取都核验当前资格，不用旧日志恢复已撤回的访问权。读取不可用时请求不准备，Agent 不用旧快照冒充当前。
 
@@ -668,7 +687,7 @@ CurrentConditions.read 的 previous 是上一次已用于请求准备的条件�
 
 1. 压缩之前位置：Agent 先经过压缩之前位置。扩展在该位置只能 observed、inject、veto、stop、ask，不能改写。veto 使压缩被跳过，后果见“无法装下”。
 2. 逐步执行：derive 的 result 为 null 时返回第一步，之后每次带上上一步的结果，返回下一步、最终转换或失败。每一步是一次独立的内部模型调用，有自己的 ActionId、Model 受理身份、原消费位置（回到压缩节点）和费用。步骤请求按压缩用途选择的实际收件模型准备：Context 一侧的适配器在 derive 内把步骤请求交给 Model 的请求准备，continue 带 Model 返回的固定请求。
-3. 进度持久：一步的结果被保管并交给 derive 之后，新的 CompactionProgress 与下一步的效果意图在同一次 Journal 提交中保存。每消费一步，Context 返回的 completed 恰好加一。Agent 另自持已发起步数，记在 CompactionState 的 initiated，随 checkpoint 持久；崩溃后以它认回同一步，同一步被认回时不重复计数。恢复沿已保存的进度继续，不从零开始。
+3. 进度持久：一步的结果被保管并交给 derive 之后，新的 CompactionProgress 与下一步的效果意图在同一次 Journal 提交中保存。每消费一步，Context 返回的 completed 恰好加一。Agent 另自持已发起步数，记在 CompactionState 的 initiated，随 checkpoint 持久；崩溃后以它认回同一步，同一步被认回时不重复计数。恢复沿已保存的进度继续，不从零开始。CompactionState 不保存步骤请求：需要时以同一 action、当前进度与为 null 的上一步结果再调用 derive，重算当前步（R2-D292）。重算的请求内容相同，证据记录重新铸造，所以认回同一步时比较内容摘要，不比较证据记录。
 4. 至多一次计划：同一次准备至多进入一个计划，已进入的计划不重开。checkpoint 的 compaction 已记录本 step 的计划时，Context 再次返回 needs-compaction 是合法结果，表示允许的处理之后仍装不下。Agent 不进入第二个计划，以 cannot-fit 进入失败候选，原因是 after-compaction，并附上 Context 的原结果与计划身份。prepare 与 RequestPreparation.resume 返回的这一结果都按本条处理。
 5. 不递归：压缩步骤的请求不经过 prepare，也不触发压缩。Agent 不压缩压缩请求。步骤请求只经过压缩用途的调模型之前与之后两次经过，该位置对压缩用途允许的输出见[位置输出表](docs/public-api/extensions.md#位置输出表)，否决的后果见“无法装下”第 3 条。
 6. 计划耗尽：completed 达到 bound 而没有合法摘要时，derive 返回 cannot-fit，原因是 after-compaction。Agent 不再发起步骤，沿 Context 的失败结果进入失败候选。Agent 自己也核对上界：不发起序号不小于 bound 的步骤。derive 返回的计划身份与 bound 必须与计划开始时 needs-compaction 给出的相同，completed 不得减少，每消费一步 completed 必须恰好加一，continue 返回时 completed 必须小于 bound。不相同、减少、停滞、多加或 continue 时 completed 不小于 bound，Agent 都按 invalid 失败进入失败候选，不再发起步骤。
@@ -716,7 +735,7 @@ CurrentConditions.read 的 previous 是上一次已用于请求准备的条件�
 | select | 租户核对。主体能否使用该档案范围由选择端口按 Model 契约核验。选择不授予发送资格 | 没有操作身份。同样的输入与同样的来源修订得到同样的结果。设置可以变化，所以每次准备都重新求值 | 只读，不加锁。设置变化与读取并发时，结果带来源证据，由 Agent 比较 | 无 | 值。只作为最终请求的一部分保存，记录之前可丢弃 |
 | ModelContextReader.read | 每次核验模型这个消费者的当前资格。消费者在装配时绑定 | 只读。同一来源修订、同一已采用覆盖与同一压缩转换依据得到同一读取结果 | 不阻塞生产者的更新。读取期间的更新由来源证据区分 | 无 | 值。未采用的读取被后来的读取取代时丢弃。覆盖在最终请求记录时采用，保存在 checkpoint |
 | CurrentConditions.read | 租户核对。读取资格不等于推进资格 | 只读。同一 previous 与同一来源得到同一值 | 只读，不加锁 | 无 | 值。条件变化只使未记录的候选重算 |
-| prepare | 租户核对。advance 必须是当前有效的执行挂接 | 纯计算。输入相同（含 previous 与调模型之前位置的经过）返回已有结果，输入有合法变化就重新计算 | 同一 execution 同一时刻至多一个未记录的准备，由 Loop 的串行推进和单执行槽保证 | 无 | Preparation 保存在 checkpoint，直到最终请求记录或被新的准备取代 |
+| prepare | 租户核对。advance 必须是当前有效的执行挂接 | 纯计算。输入相同（含 previous 与调模型之前位置的经过）返回已有结果，输入有合法变化就重新计算 | 同一 execution 同一时刻至多一个未记录的准备，由 Loop 的串行推进和单执行槽保证 | 无 | checkpoint 只保存 needs-compaction 与 cannot-fit，直到新的准备取代或新 step 开始。assembled 与 ready 只在内存。最终请求记录之前崩溃时，Loop 回到 I1，用 checkpoint 的输入批重新准备（R2-D292） |
 | derive | 同 prepare | 同一 action、同一进度与同一结果得到同一返回，认回同一步不重复计数 | 步骤串行。同一计划同一时刻至多一个步骤在途 | 没有新的事件种类。步骤结果以 producer 事件投影，转换消息以 message 事件投影，均由 Agent 提交时产生 | 进度保存在 checkpoint 的压缩状态。ended 之后不接受新步骤 |
 | resume | 同 prepare | 同一原准备与同一提交依据得到同一重算结果。原准备的 original 固定了调模型之前位置的经过，resume 不另接收它 | 与 derive 共用单执行槽 | 无 | 返回值取代原准备，计划结束。checkpoint 的 compaction 保留到本 step 结束，新 step 开始时清空 |
 
@@ -756,11 +775,11 @@ RegisteredReads 只路由已登记只读协议，不接受任意 URL、方法或
 
 对账得到的原卡片事实经 commitSettlement 的 record-card-reconciliation 合入原卡片责任，见“[commitSettlement 的变体](#commitsettlement-的变体)”。
 
-AgentMaterials 只保管材料及可解释版本，不拥有工作推进。preserve 同 identity/consumer/内容认回，冲突拒绝。Model 结果不走 preserve 后再绑定 custody 的路径，由结果接收方按“[接收共同提交](#接收共同提交)”保存。通用材料端口及 Tool 的既有保管协议保持有效。孤立材料在绑定未知期间保留，不能超时删除可能已经被外部协调者引用的内容；清理须得到原操作排除或全部消费责任终结的证据。read 每次核权，缺内容明确故障，不能把元数据摘要当正文。processed 路径只保存业务所需完成依据，不强制全文第二副本。
+AgentMaterials 只保管材料及可解释版本，不拥有工作推进。材料按内容寻址（R2-D292）：同一租户的相同内容只存一份。preserve 按内容摘要幂等，同一 execution 再次保存相同内容时认回同一证据，不写第二份。同一 identity 与 consumer 配不同内容时返回 invalid，field 为 `identity`。`describe` 只读材料的摘要、字节数与种类，不返回内容；它与 read 一样每次核权。摘要只用于比较相等，调用方不自行计算。Model 结果不走 preserve 后再绑定 custody 的路径，由结果接收方按“[接收共同提交](#接收共同提交)”保存。通用材料端口及 Tool 的既有保管协议保持有效。孤立材料在绑定未知期间保留，不能超时删除可能已经被外部协调者引用的内容；清理须得到原操作排除或全部消费责任终结的证据。read 每次核权，缺内容明确故障，不能把元数据摘要当正文。processed 路径只保存业务所需完成依据，不强制全文第二副本。
 
-`preserve` 的输入可带 `execution`，供提供者按原执行路由材料。调用方提供该字段时，提供者核对原执行的访问资格与已有消费绑定，不从 `consumer.work` 解析或推断会话。当前过渡期保留不带该字段的旧调用和旧保存路径，不据此声明旧提供者已经支持 execution 路由。已迁移的调用方始终传入 execution。收紧为必填须在全部消费者迁移完成后由本契约另行采用。
+`preserve` 的输入必须带 `execution`，提供者按它路由材料。提供者核对该执行的访问资格与已有消费绑定，不从 `consumer.work` 解析或推断会话。不带 `execution` 的旧调用与旧保存路径已经删除。保存成功而尚无事实引用的材料不是事实，见“[接收共同提交](#接收共同提交)”的“块与事实”。
 
-Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.invoke` 发 direct 调用。`ActionJudgment.allowed.request` 使用这个公开请求，不使用受信 `FixedToolRequest`。请求的 `availability` 原样取自请求组装保存的可用性结论，Agent 不重算或改写它。Tool 的受信入口绑定来源、调用方式及内部固定请求。programmatic 子调用由 Tool 原协议拥有，Agent 不另造来源。`acceptDecision` 是 Tool 受信内部端口，普通 Agent 不因持有 ToolRuntime 获得它。
+Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.invoke` 发 direct 调用。`ActionJudgment.allowed.request` 指向这个公开请求的已保存材料，不使用受信 `FixedToolRequest`，见“[工具执行与结果承接](#工具执行与结果承接)”第 10 条。请求的 `availability` 原样取自请求组装保存的可用性结论，Agent 不重算或改写它。Tool 的受信入口绑定来源、调用方式及内部固定请求。programmatic 子调用由 Tool 原协议拥有，Agent 不另造来源。`acceptDecision` 是 Tool 受信内部端口，普通 Agent 不因持有 ToolRuntime 获得它。
 
 脚本入口只暴露明确许可且当前合法可用的工具。扩展修改生效参数或包装工具转调目标时保留编排来源，不能借父脚本批准扩大目标权限。原整批判断屏障继续适用；已知参数的同批动作先完成共同判断，动态产生的新目标动作重新准入，不自动算入已批准批次。脚本宿主不能直接取得 executor 或全局 Cordis Context。此规则不定义完整脚本语言、宿主、调度或恢复协议；实际脚本桥接实现须按 Tool 的持续义务验证。
 
@@ -776,6 +795,7 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 6. 守卫事实随 checkpoint 持久。压缩、崩溃、换执行挂接与 runtime 换代都不清零，新 step 不清零。恢复后读到的守卫事实与中断前相同。runtime 顺序复用不沿用上一执行的守卫事实。
 7. 循环判断不可用时，Conclusion 记不可用分支，守卫事实保持上一次的值，Agent 不伪造判断。它报错时按后置位置的报错规则处置，守卫事实同样保持上一次的值。
 8. 守卫判断的费用归原 Agent 执行。守卫事实缺依据时不编造通过，规则见“[性能、诊断与维护](#性能诊断与维护)”。
+9. M2 的临时兜底（R2-D221）：循环判断在波 3 交付之前，一次执行最多走 `maxRunSteps` 步。这个数值项属于通用实现的工厂配置，缺省为 50，见[工厂配置](../agent/docs/public-api.md#工厂配置)。一步是一次主模型请求及其工具调用。已走满上限时，Agent 不开新一步，执行以 kind 为 `guard`、`level` 为 3 的失败候选结束，`basis` 记上限与已走步数。这条兜底不写守卫事实，也不改变第 1 至 8 条。完整的循环判断见波 3。
 
 #### 整批判断屏障与动作准入
 
@@ -792,13 +812,13 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 5. 原扩展消费答复后再次返回 `ask`，或后继扩展返回 `ask`，都开出新一轮卡片。新一轮有新的 round，仍属原批，屏障继续关闭。
 6. 人明确拒答是答复。它向原扩展返回没有答案，不授予动作。它不是批准，也不等于人不同意。卡片来自作者扩展时，由原扩展决定后果。卡片来自官方准入时，由授权领域按 [AU-05](../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验) 判定。附言也是答复，处置见第 11 条。Agent 不因没有批准重问同一张卡。重复或并发的答复不产生额外许可，一张卡片只有一个有效答复。
 7. 动作、生效参数、工具定义采用或影响批准的授权依据改变时，旧批准失效。官方准入以新值重新判断，可能再次出卡。无关的配置变化不重问。准入检查、人看到的卡片与实际发起使用同一份生效参数。参数只在两处改变：同链在官方准入之前的扩展改写它，或人选择卡片草稿 `proposedRewrite` 绑定的那个选项。第一种情形下，官方准入按改写后的参数判断。第二种情形下，`proposedRewrite.option` 指向草稿 `options` 中的一项，人的答复 `chosen` 等于该项时改写生效：卡片来自官方准入时，官方准入在 `replay` 中先把生效参数换成 `proposedRewrite.effectiveArguments`，再带答复按新参数再次判断；卡片来自作者扩展时，由该扩展在 `replay` 中以 rewrite 输出这一改写，之后链末官方准入按新参数判断。
-8. 屏障打开后，Agent 按原动作顺序把获准动作交 Tool 发起。发起请求（`ToolInvokeRequest`）的 `batchDecision` 在屏障打开时填入屏障打开的依据，发起时随请求交给 Tool。Tool 按原准入证据、当前主体资格与当前权限再核，规则见 Tool 的[发起的完整前提](../../tool/tool-contract/SPEC.md#发起的完整前提)与 [P04](../../tool/tool-contract/SPEC.md#p04-实际发起围栏)。再核分两段，撤权在实际发起处生效，不以旧允许发出。
+8. 屏障打开后，Agent 按原动作顺序把获准动作交 Tool 发起。发起请求（`ToolInvokeRequest`）取自判断时保存的请求材料。它的 `batchDecision` 是屏障打开的依据，Agent 在发起时从屏障记录填入，不改写已保存的请求材料。Tool 按原准入证据、当前主体资格与当前权限再核，规则见 Tool 的[发起的完整前提](../../tool/tool-contract/SPEC.md#发起的完整前提)与 [P04](../../tool/tool-contract/SPEC.md#p04-实际发起围栏)。再核分两段，撤权在实际发起处生效，不以旧允许发出。
    - `accepted` 返回原调用引用与原受理回执。Agent 保存 associated 后进入 T0，dispatched 槽位不把原回执冒充当前状态。
    - `commit-unknown` 带原调用引用。Agent 保存 associated 后以 lookup 查询。not-accepted 不能排除来源继续签发，须沿原 invoke 接续。
    - `association-unknown` 无调用引用。Agent 保留 intent、完整原请求和 consumer，以当前资格重复原 invoke，不进入需要 associated 的 Tool 生产者视图。
    - `rejected` 只确定拒绝本次尝试。保留事实证明该逻辑动作没有已受理或未决的较早尝试时，才建立 denied 槽位，单结果经过的 outcome 为 denied。首次确定拒绝且此前无未知符合条件；较早未知之后的新拒绝本身不符合。否则保留原 intent 或 associated、fixed 完整请求、consumer、effect intent 与未决保管责任，不建立 denied，不覆盖 dispatched、result 或 background。缺槽位表示未决，不表示拒绝。
    - Tool 受理之后、实际启动之前在启动围栏处拒绝：Tool 调用已经存在，Tool 按自己的规则以 unavailable 终局与未启动的效果收场。该动作的槽位为 result，带这个 Tool 终局，单结果经过的 outcome 为 executed。
-9. 判断阶段本批全部动作被拒绝时，屏障记为 all-denied。屏障打开后，只有每个动作都确定拒绝且保留事实证明没有已受理或未决的尝试时，才适用无工具等待规则。不能从全部当前响应为 rejected 推导不存在 Tool 或批次可以推进。Agent 仅为符合上述确定拒绝条件的动作按原顺序建立 denied 槽位，单结果经过、候选消息与消息准入的进度记在槽位中，随 checkpoint 保存。被拒绝的动作各自经过执行动作之后的单结果范围，不经过整批范围。拒绝原因与每个动作的拒绝消息保存，经消息准入后进入回复，Loop 沿已有事实重新求值。
+9. 判断阶段本批全部动作被拒绝时，屏障记为 all-denied。屏障打开后，只有每个动作都确定拒绝且保留事实证明没有已受理或未决的尝试时，才适用无工具等待规则。不能从全部当前响应为 rejected 推导不存在 Tool 或批次可以推进。Agent 仅为符合上述确定拒绝条件的动作按原顺序建立 denied 槽位，单结果经过、候选消息的摘要与消息准入的进度记在槽位中，随 checkpoint 保存。被拒绝的动作各自经过执行动作之后的单结果范围，不经过整批范围。拒绝原因与每个动作的拒绝消息保存，经消息准入后进入回复，Loop 沿已有事实重新求值。
    较早尝试未决或已知受理时，保留屏障原 open 决定，不改为 all-denied，该动作不能以新拒绝授权批次完成。其他动作沿原独立发起与逐槽处理规则继续。恢复复用同一逻辑动作和当前合法资格：association-unknown 重入完整原 invoke，已知引用沿 Tool 原 lookup 与 invoke 恢复。lookup 的 not-accepted 加后来 rejected 仍不可靠排除原调用。资格不可得或被撤销时保留未知及交接、结算责任，不伪造资格。当前接口不能证明解决时允许继续未决，不新增 Tool 否定证明接口。
    原受理认回后沿原动作槽位继续 dispatched、result 或 background 的保管、逐槽处理与解除路径，不产生竞争的 denied 结果。T3 不把缺槽位视为齐备，T5 不把该动作视为已完成。
 10. 本批尚无答复的卡片按“[扩展、卡片与材料](#扩展卡片与材料)”的终态后卡片规则处置。条件终结之前，Agent 不为结束执行而作废这些卡片。执行终结后，长期 reconcile 按原身份作废它们。已有答复保留，不因作废改写。
@@ -823,6 +843,11 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 7. 后台：转后台保持原 Tool 执行身份、原 PendingCall 与原消费关系。Agent 不接管 Tool 的协程或内部等待，不启动第二次工具。后台占位足以满足该槽位，当前步骤不等待后台的真实结束。后台关系与许可归 Tool 的[前后台的关系边界](../../tool/tool-contract/SPEC.md#前后台的关系边界)。
 8. 迟到结果：后台的最终结果以原 PendingCall 的 consumption 到达，由 Loop 在合法的后继位置消费。它不改写原槽位的占位，不重开已结束的批次。执行已无推进资格或已终结时，合法保管方只保管与对账，不推进业务。
 9. Tool 内部 Ask：Tool 内部等人的等待归 Tool 执行。Agent 只把它投影为 tool-active 的 waiting human，不为它出卡，不把它转后台。人的答复经 Tool 的受信内部 acceptDecision 端口回原等待。它与扩展的卡片是两件事。
+10. 动作与槽位只存引用（R2-D292、R2-D294）。checkpoint 不保存工具请求、原调用部件或候选消息的正文，正文各有唯一的保存位置。
+    - 判断允许一个动作时，Agent 先经 `AgentMaterials.preserve` 保存完整的 `ToolInvokeRequest`，再提交判断。`ActionJudgment.allowed.request` 是这份请求材料的证据。保存成功而判断未提交时，材料没有引用。恢复后同一动作以同一请求再次保存，按摘要认回同一证据，不产生第二份材料。
+    - `Action.original` 只记原 `tool_call` 部件的 `callId`。需要原部件时，Agent 从该批 `source` 对应的模型结果材料取回该 callId 的部件。材料缺失时返回 unavailable，找不到该部件时返回 invalid，不按别的部件替代。
+    - `PendingCall.fixed` 是同一份请求材料的证据。重新发起时，Agent 从该材料读出请求，再填入屏障依据，不从 checkpoint 取请求正文。
+    - `ActionSlot` 不保存候选消息。单结果经过结束时，槽位记下候选消息的摘要 `candidateDigest`。P 固定候选之前，Agent 由该槽位的结果材料或拒绝依据，加单结果经过的结论，重新计算候选，并核对摘要。摘要不符时返回 invalid，不以重算的候选继续准入。P 已保存的候选同样按摘要核对。
 
 #### 消息准入
 
@@ -1058,7 +1083,7 @@ resume 经 Journal.attach 为原 execution 取得新的执行挂接。attach 有
 
 InputOrigin 是首次准入的不可变出处，由提供者首次写入，此后 prepare、lookup 与认回都返回原值；调用方不上传 origin。invoke 分支保留当时真实的实例、scope、definition 与 grant。submit 分支由可信 Journal resolver 取得原 execution 绑定：executionBinding 指向含 tenant、execution、scope、精确采用、coordination 与不透明外部关联的原版本记录，该记录受 H 的保留责任保护，不能只留哈希；delivery 记录实际交入路由，runtime-view 的 instance 是原视图的可核验来源，不声称该实例现在存活，durable-view 表示首次交入确实没有 runtime 路由，不是 unknown。提供者从受信入口取得路由事实，不从请求参数、当前挂接或先前的实例猜造；来源不可确定时保留 unavailable，不填 durable-view 掩盖缺证。原实例失联、同一视图改走长期路由或当前主体变化都不覆盖 origin。原主体的稳定身份编码与首次资格依据另存在提供者记录，凭据不进入材料。origin 是历史事实，不授当前主体或后继实例权力。
 
-Journal.open 的原始受理输入含原 invoke 的 InputEntry、原 H 的引用与本次真实的 InvokeRuntimeContext；首次 open 要求 scope 与 definition 与原 invoke origin 的固定采用一致，并使用原初始 checkpoint。Journal.submit 保留现有 ExecutionMutation 与完整 value，另带谱系判别与 original 关联：new-input 只允许 submit 原入口，Journal 核 operation 等于 `original.entry.operation`、原 origin 确为 submit、原 H 为确切 prepared，随后按新受理协议核协调来源与终结排序，不能把 invoke 的 `entry.initial` 改写成 submit 的 value 伪造首次来源；recognize-input 只表达“[原操作认回与恢复](#原操作认回与恢复)”允许的新 B 认回，Journal 核 B 不等于原 entry 的操作 A，并通过原 O 的权威受理记录证明 A 已可靠受理该 InputId，原 A 可以是 invoke 或 submit。invoke 原输入使用 `entry.initial`，submit 原输入使用 `entry.value`；成功认回要求它与本次 value 的 InputId、完整 content、source、priority 完全一致，并核 tenant 与 execution 归属一致。B 只在自己的权威结果记录中同次固定完整本次语义、B 的回执与真实的 A 来源；不把原事实改署为 B 新建立，不返回原 open 的 Authority，不新建 H、受理前记录、转换、分配、历史、事件或 execution revision。这个判别是内部受理输入，不增加公开 submit 的参数。
+Journal.open 的原始受理输入含原 invoke 的 InputEntry、原 H 的引用与本次真实的 InvokeRuntimeContext；首次 open 要求 scope 与 definition 与原 invoke origin 的固定采用一致。初始 checkpoint 是 open 的 `checkpoint` 参数，它是 `AgentEvaluator.initial` 对绑定 definition 与第一个 step 的值。InputEntry 不含 checkpoint（R2-D292）。Journal.submit 保留现有 ExecutionMutation 与完整 value，另带谱系判别与 original 关联：new-input 只允许 submit 原入口，Journal 核 operation 等于 `original.entry.operation`、原 origin 确为 submit、原 H 为确切 prepared，随后按新受理协议核协调来源与终结排序，不能把 invoke 的 `entry.initial` 改写成 submit 的 value 伪造首次来源；recognize-input 只表达“[原操作认回与恢复](#原操作认回与恢复)”允许的新 B 认回，Journal 核 B 不等于原 entry 的操作 A，并通过原 O 的权威受理记录证明 A 已可靠受理该 InputId，原 A 可以是 invoke 或 submit。invoke 原输入使用 `entry.initial`，submit 原输入使用 `entry.value`；成功认回要求它与本次 value 的 InputId、完整 content、source、priority 完全一致，并核 tenant 与 execution 归属一致。B 只在自己的权威结果记录中同次固定完整本次语义、B 的回执与真实的 A 来源；不把原事实改署为 B 新建立，不返回原 open 的 Authority，不新建 H、受理前记录、转换、分配、历史、事件或 execution revision。这个判别是内部受理输入，不增加公开 submit 的参数。
 
 | 输入认回的条件 | 既定结果与写入界限 |
 | --- | --- |
@@ -1093,6 +1118,16 @@ AgentJournal 保存带 expected revision 的 checkpoint、effect intent、事件
 同一操作同一语义输入返回原结果，同一操作不同输入返回 conflict。本契约允许的新 operation 同事实认回按“[原操作认回与恢复](#原操作认回与恢复)”恢复。changed 表示 expected 已过期且本操作没有提交，调用方重读并重新求值。commit-unknown 保留原操作，先 query 再决定，不换身份重试。query 的结论有 committed、rejected、excluded 与 unknown 四种，见“[查询的四种结论与持久拒绝](#查询的四种结论与持久拒绝)”。excluded 必须排除原写入及延迟提交，不是简单的查无记录。rejected 表示原 recordControl 已被持久拒绝，调用方保留拒绝及其责任，不当作成功、排除或未知。通知只唤醒，不作为恢复事实源。effect intent 先可靠保存。Model 再用原 admission 受理；Tool 再用完整原 ToolInvokeRequest 经普通 invoke 关联。生产者受理及发出点另行核对当前围栏，Journal.commit 不预先授予未来的授权。
 
 load 返回原控制命令、当前完成意图、effect intent、逐结果的责任台账、终态后观察台账、输出进度、已发行的终结责任清单 `finishObligations`（未发行时为 null）、结算投影 `settlement`，以及 handoff 责任的投影 `handoffs`（每项含原 request、resolution、history 与 retirement，范围见“[真实历史的提交点](#真实历史的提交点)”的末段），恢复不依赖旧命令的调用栈。大记录可以用同一快照修订号的受限分页实现，但不能用不完整数组冒充完整快照。
+
+`ExecutionSnapshot` 只含开放项与头位置（R2-D292）。头位置是 `revision`。已关闭的项离开快照，它的事实仍在 Journal 中，经分页读取。快照的大小随未结工作变化，不随执行已走的步数增长。各项的开放范围如下。
+
+- `results`：尚无 completion，或释放仍为 pending 的结果责任。
+- `effects`：调用仍在 checkpoint 的 `calls` 中，或动作仍在 checkpoint 当前批次中的 effect intent。
+- `handoffs`：历史仍为 pending、保管链尚未提交，或仍被引用的 H。引用指当前 checkpoint 的 `currentHandoff`、当前批次的槽位、当前 step 的主回复，以及已发行的终结责任清单。输入 H 在其输入尚未被取用，或属于当前输入批时，也是开放项。早先 step 已处置且无引用的 H 离开快照。
+- execution 处于 settling 或 ended 时，它不再推进 step。终结责任清单与结算可以引用它的任一项，所以快照保留上面三类的全部项。
+- 接收面条目不在快照中，见“[日志条目](#日志条目)”第 6 条。
+
+读方不得把快照中缺席的已关闭项当作从未发生。需要已关闭项时，读方经对应的分页读取或点读取得。
 
 recordResult 供当前合法的保管方核对原结果版本和交付责任，不要求旧挂接有效。transfer 为 custody 或 processed 时，提供者在自己的共同提交边界建立保管或处理依据并更新结果责任，成功回执才能支持生产者确认。Model 的结果采用与账目接收使用“[结果接收](#结果接收)”规定的共同提交，不以此处的 custody、processed 或 release 路径完成。Agent 不把 saved 填入要求原生产者确认的 confirmed.receipt，也不把 Model 的 ACK 作为 Agent 收场条件。它不能修改 checkpoint、接受输入或发新效果。recordResult 不追加 producer 事件，由后继有资格的条件提交承担 producer 投影。transfer 为 none 时只核对已有责任与释放结果，confirmed 必须包含原生产者的确认依据。结果项、版本、消费位置与 transfer 逐项一致，冲突则拒绝。执行 ended 之后仍可调用，保管资格与业务推进权分别检查。结果对账不需要活体或新推进权，终态后只保管原事实，不再发起原业务。
 
@@ -1397,6 +1432,8 @@ prepareFinish 的失败如下。
 | material | custody | AgentMaterials 的原 identity、ConsumerRef、schema 与原结果版本、完整材料或可解析的固定引用、当前保管者及承接依据 | 原 identity 与 consumer |
 | output | custody | 原 execution 的输出区间、emittedThrough、acknowledgedThrough、未确认原事件的读取位置及长期 Journal 保管依据 | 原连续输出区间 |
 | terminal-observation | custody | 完整 TerminalObservation、原终态与精确 Adoption、当前观察与保管责任。终态前覆盖固定观察计划，终态提交固定实际集合 | PassageId |
+
+Model 调用的 call 项以下列事实之一为收场依据，处置为 settled：原调用的结果或 received 条目；失败候选 no-reply 所指原调用的最终失败；失败候选 model-refused 所指原调用的受理确定拒绝。确定拒绝不留发出，所以该调用没有结果、received 条目或保管责任。候选被后来的取消候选替代时，这两种依据仍然有效。model-refused 一条的依据是 R2-D237。
 
 control 项的必需内容与控制受理时的保存义务已由 [#730 DD1](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6443041428) 修订。写回本契约之前，本页不承诺 control 项的公开形状，实现不能按某一种 control 内容声称已兑现本契约。这个缺口登记在开放问题页的 [U-9](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。
 
@@ -1768,9 +1805,13 @@ J01 规定一份 Journal 内 Agent 条目的读取形状。Agent 在执行记录
 3. 推进者写入时带自己的 Authority。该挂接已被取代或其推进资格已撤销时，record 返回 stale-advance，不写入。结果接收方写入 `received` 时 Authority 为 null。`start-fence` 的 Authority 为 null 时返回 invalid，field 为 `authority`。
 4. execution 已 ended 时，`start-fence` 返回 terminal。`received` 仍可写入，因为保管资格与推进权分别检查，规则同 recordResult。
 5. Access 的租户与 execution 所属租户不同时返回 denied，不区分对象不存在与无权访问。
-6. 读取形状是 `ExecutionSnapshot` 与 `AgentEvent`。`ExecutionSnapshot.entries` 是可选字段。提供者支持本端口时，它按提交顺序给出该 execution 的全部已提交条目。字段缺席表示提供者不支持接收面条目，不表示没有条目。需要条目的读方在字段缺席时返回 unavailable，不把缺席当作空列表。条目另以事件种类 `entry` 投影：事件体是 `Readonly<{ kind: 'entry'; entry: AgentJournalEntry }>`。投影按下列规则成立。
+6. 条目不进入 `ExecutionSnapshot`（R2-D292）。读方经本端口的两个读取方法取得条目，二者都核对当前读取资格，跨租户或不存在的 execution 返回 denied。
+   - `read` 按提交顺序分页读取。`after` 为 null 时从第一条开始。每条带从 `1` 起连续的 `sequence`。`next` 是本页最后一条的 sequence；空页时是请求的 `after`。`caughtUp` 表示读取时本页之后没有已提交条目。`after` 不是已有位置时返回 invalid。
+   - `receivedOf` 按提交顺序给出一个 consumption 的全部 `received` 条目，结果版本与账目修订都在内。没有条目时返回空列表，空列表表示该 consumption 尚无已提交条目。
+   - 读方不得因读取失败而把条目当作不存在。读取 unavailable 时保持原责任。
+   条目另以事件种类 `entry` 投影：事件体是 `Readonly<{ kind: 'entry'; entry: AgentJournalEntry }>`。投影按下列规则成立。
    - Journal 在写入条目的同一次原子提交里分配 `entry` 事件。写入条目的入口是 `AgentJournalEntries.record` 与 `AgentReceivedCommits.commit`。条目与事件不会只成立一半。`AgentJournal.commit` 的 `events` 不含 `entry`，`entry` 事件只由写条目的这两个入口分配。
-   - execution 已经 ended 时，ended 之后可写的 `received` 条目照常写入，但不追加事件。ended 仍是最后一个事件。终态之后写入的条目只经 load 与 `ExecutionSnapshot.entries` 读取。
+   - execution 已经 ended 时，ended 之后可写的 `received` 条目照常写入，但不追加事件。ended 仍是最后一个事件。终态之后写入的条目只经 `read` 与 `receivedOf` 读取。
    - 事件的执行挂接取该 execution 最近建立的挂接。结果接收方写 `received` 时不带挂接，这一条同样适用。
    - 事件的 `schema` 是该 execution 全部事件共用的那一个事件格式采用，规则见“[事件身份与序号](#事件身份与序号)”。
    - 事件的 `cause` 取写入该条目的那次提交的耐久证据，即该次 record 或 commit 回执的 `evidence`。
@@ -1784,9 +1825,9 @@ J01 规定一份 Journal 内 Agent 条目的读取形状。Agent 在执行记录
 
 J02 规定结果的去处、常驻的结果接收方、保存回执与账目。结果接收方实现 Model 的 `ModelResultReceiver` 与 Tool 的 `ToolResultReceiver`，按原拥有者的协议返回 saved 回执。结果接收方由 Agent 宿主装配并常驻，是 Agent 实例外的角色，不随实例重装配丢失状态。回执与失败的形状、saved 的合取事实和 push 的决定顺序归 Model 的[结果推送与保存](../../model/model-contract/SPEC.md#结果推送与保存)与 Tool 的[结果推送与保存](../../tool/tool-contract/SPEC.md#结果推送与保存)。本小节只规定接收方在 Agent 一侧的责任。
 
-1. 去处。生产者推送到受理时冻结的 `ConsumerRef`。接收方按冻结 consumer 和原调用引用查找原 `PendingCall`、consumption、execution 与原 instance，不重新选择去处。稳定目标查询由保存原消费绑定的提供者实现，以 Access、冻结 consumer 和原调用引用为查询依据。原绑定随 Journal 已提交的 PendingCall 建立，包含租户、execution、原 instance、reference、consumer 与 consumption。checkpoint 清掉已完成调用、原 attachment 脱离或实例销毁后，提供者仍保留这份绑定供迟到交付和账目使用。不得从当前 attachment 或任意 consumer 文本猜测 instance。
+1. 去处。生产者推送到受理时冻结的 `ConsumerRef`。接收方按冻结 consumer 和原调用引用查找原 `PendingCall`、consumption、execution 与原 instance，不重新选择去处。稳定目标查询由保存原消费绑定的提供者实现，以 Access、冻结 consumer 和原调用引用为查询依据。原绑定随 Journal 已提交的 PendingCall 建立，包含租户、execution、原 instance、reference、consumer 与 consumption。checkpoint 清掉已完成调用、原 attachment 脱离或实例销毁后，提供者仍保留这份绑定供迟到交付和账目使用。不得从当前 attachment 或任意 consumer 文本猜测 instance。查询端口是 `ModelReceptionTargets`：`forExecution` 返回一个 execution 的全部原 Model 绑定，`resolve` 按调用引用与冻结 consumer 返回一个绑定。`resolve` 的可选 `execution` 只是路由：接收方从本 Agent 自己登记的消费位置读出它，按 execution 分存绑定的提供者只读该 execution 的记录。绑定属于别的 execution 时按不存在答 denied，需要路由的提供者在没有路由时也答 denied。目标始终取自已提交的绑定（依据 R2-D237）。 Tool 的查询端口是 `ToolReceptionTargets`，规则相同，只是绑定来自已提交的 associated Tool PendingCall：`resolve` 在没有原消费关联时答 null（Tool 协议据此答 `not-accepted`），路由不符或缺少所需路由时答 denied；路由从本 Agent 登记的 Tool 消费位置读出，`work` 就是 execution（依据 R2-D273）。
 2. 租户。载荷的调用引用编入租户。接收方用原拥有者的公开 resolve 函数取得这个租户，核对它与 `access.tenant` 相同。接收方不从去处、地址或宿主取得租户。目标不存在、跨租户或无权访问时统一返回 denied，不泄漏存在性。
-3. 保存。`received` 条目的唯一写入者是结果接收方。它经 `AgentReceivedCommits.commit` 提交完整冻结载荷的 `Material`，或不依赖生产者待释放副本的可恢复引用的材料表示，以及尚无材料证据的条目草稿。提供者在同一次提交中建立完整 `received` 条目、材料与 saved 依据。接收方取得 committed 的原结果后才返回 saved，不在调用方先 preserve 再 record。saved 证据的 owner 是冻结的 `consumer.owner`，证据定位 `received` 条目、材料和原消费责任。能力与未知处理见“[接收共同提交](#接收共同提交)”。
+3. 保存。`received` 条目的唯一写入者是结果接收方。它经 `AgentReceivedCommits.commit` 提交完整冻结载荷的 `Material`，或不依赖生产者待释放副本的可恢复引用的材料表示，以及尚无材料证据的条目草稿。提供者在同一次提交中建立完整 `received` 条目、材料与 saved 依据。接收方取得 committed 的原结果后才返回 saved，不在调用方先 preserve 再 record：事实与条目不分两次写。saved 证据的 owner 是冻结的 `consumer.owner`，证据定位 `received` 条目、材料和原消费责任。能力与未知处理见“[接收共同提交](#接收共同提交)”。
 4. 认回键。结果的认回键是（租户，生产者种类，调用，结果版本）。账目的认回键是（调用，Model 的 dispatch 或 Tool 的账目事件 event，修订），租户来自调用引用。键直接取生产者的交付键：Model 的 `ModelDeliveryKey` 与 Tool 的 `ToolDeliveryKey`。接收操作身份由完整交付键确定派生，提供者再按租户与 execution 分域。新旧接收入口共享此认回键，同键同内容认回原条目与原 saved。同键异 consumer、consumption、材料或账目返回 conflict，原条目不变。提交未知时只查询原 operation；仍为 unknown 时不发 saved，不自动换身份。excluded 不冒充成功。
 5. 账目。`received` 条目带推送载荷里运行时补全的账目。Model 结果带冻结时全部 dispatch 的账目快照。Tool 结果带 account 或 null。账目交付带该修订的 `CallAccount`。尚无报告时保持 null，不填零。
 6. 主体。接收方以代原租户行事的主体写 Journal（J19）。写入所用 Access 的租户就是调用引用的租户。接收方不以系统作用域的主体写某个租户的条目。
@@ -1795,7 +1836,7 @@ J02 规定结果的去处、常驻的结果接收方、保存回执与账目。�
 9. 主体资格。每次 push，包括已保存交付的重投，都先以 `AgentAccessCheck` 核验主体的 receive-result 资格，目标使用原绑定的 instance 与 execution。allowed 之后才读取原调用权威或写入。denied 与 unavailable 按生产者协议返回，不写入，没有默认放行。核验结果只对这一次 push 有效，缓存不放行。`AgentAccessOperation` 的 receive-result 成员由本节承担。
 10. Model 原交付校验。接收工厂必须取得 Model 的只读 inspect 与 dispatches。每次 push 在主体资格通过后，经这些入口核验原受理、admission、完整冻结 consumer 和完整 dispatch 集合，然后才能认回原 saved。原调用未受理、admission 非原值、consumer 不符、dispatch 缺项或多项等，按 Model 协议的字段与原因返回 invalid；集合不可读返回 unavailable，dependency 为 dispatches。只有这些前置检查通过后，同 key 异内容才返回 conflict。Model 查询只决定 push 准入，完整材料仍来自本次合法的生产者交付，不由 inspect 构造。
 11. 完整材料。接收方在首次异步或排队前取得合法 typed delivery 的自有冻结副本，后续调用方修改不得改变已接收输入。Model 交付使用现有 facts 材料分支及具名版本 schema，保存完整 settlement、parts、accounts、consumer 与 key。读取时校验 schema、租户、原 reference、版本及绑定；缺失或不支持的材料显式失败，不把未知 JSON 强转为可信材料。此约定不增加 Material 分支或改变接收共同提交的公开形状。Tool 交付同样使用 facts 材料，采用 owner=agent、name=received-tool-delivery、revision=1、digest=agent:received-tool-delivery/1，value 为规范 JSON `{tenant, delivery}`。delivery 保留完整 ToolDelivery，包括 terminal、actualTerminal、effect、原来源、结果、账目和冻结消费位置。读回先验证 Tool 形状与公开关系，再核对租户、原 reference、consumer、consumption 和 received 条目。缺失或不支持的材料显式失败，不从条目或当前 runtime 推造收场。该采用依据为 [R2-D36](https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6578370268)，不改变 Material.tool。Tool 的原消费关联不存在时按 Tool 协议返回 invalid，field 为 key.reference，reason 为 not-accepted；跨租户或当前资格被拒仍返回 denied。
-12. loop 与接收方分工。正常 loop 对 Model 只调用 admit 与 cancel。受理未知或恢复重新挂接时允许 inspect 对账，但不能由查询返回值写 received 或材料。loop 等待 Journal 条目、现有事件提示和 timer，不连接 Model observer，不轮询 Model 收场。缺少 entries 返回 unavailable；无匹配 received 时继续等待。采用时按原 reference、consumer 与 consumption 选择已提交 result，再从同一提供者读取完整材料。后续恢复仍由原 received 派生结果，业务提交沿原 checkpoint 与幂等交接规则。接收提交增加 revision 时，仍持有效 attachment 的 loop 必须重新 load 并以新修订继续条件提交，不能将该变化误判为另一推进者。真正失去 Authority 时仍停止推进。
+12. loop 与接收方分工。正常 loop 对 Model 只调用 admit 与 cancel。受理未知或恢复重新挂接时允许 inspect 对账，但不能由查询返回值写 received 或材料。loop 等待 Journal 条目、现有事件提示和 timer，不连接 Model observer，不轮询 Model 收场。loop 经 `AgentJournalEntries.receivedOf` 读取原 consumption 的条目，读取失败返回原失败，不当作没有条目；无匹配 received 时继续等待。采用时按原 reference、consumer 与 consumption 选择已提交 result，再从同一提供者读取完整材料。后续恢复仍由原 received 派生结果，业务提交沿原 checkpoint 与幂等交接规则。接收提交增加 revision 时，仍持有效 attachment 的 loop 必须重新 load 并以新修订继续条件提交，不能将该变化误判为另一推进者。真正失去 Authority 时仍停止推进。
 
 维护入口 retry/recover 返回 Agent Reply，先从原绑定提供者取得该 execution 的完整原 Model 绑定集合，再核各原 instance/execution 的当前 receive-result 资格。无对象、无原绑定或无权统一 denied；依赖不可读返回 unavailable，不能返回空成功报告。材料读取、出站、报告与诊断均限定到本次绑定集合，await 期间新增绑定不进入本次维护。每次出站和最终报告之前重核资格；拒绝不改变原 unknown、blocked 或实际在途责任。inspect 仅供宿主管理，可返回全局状态，不可暴露为租户查询。
 
@@ -1834,6 +1875,10 @@ saved 与 outlet 完成互不等待。宿主状态持有出站任务引用和驱
 任一公开已提交状态都不能只含本次新增的材料或条目。`AgentJournal.load` 与材料读取必须投影同一权威状态。两次独立读取跨越发布点时可分别读到旧态和新态，本能力不为它们建立共同快照。原先已独立保存的材料不因本次提交而成为新材料，也不能据此追认历史两写具有原子性。
 
 `ReceivedCommitResult` 的 committed 分支带 `ReceivedCommitValue`，其中 receipt 是原命令回执，entry 是含材料引用的完整原条目，saved 是生产者保存回执所需的耐久依据。saved.owner 必须是冻结的 consumer.owner，并定位已成立的条目、材料和原消费责任。receipt.evidence、entry.material 与 saved 分别承担命令、材料和保存依据，不要求三者相等。提供者不能仅改普通命令证据的 owner 来伪造 saved。接收方将原 saved 按生产者协议返回，不在本端口执行生产者 ACK。
+
+##### 块与事实
+
+材料是按内容寻址的块，不是事实（R2-D292）。提供者可以在引用它的事实之前单独提交块，例如块大于单次提交的上限时。块按摘要幂等写入，重复写入不产生第二份。没有事实引用的块是待回收的块，不是半个事实：它不进入快照、条目或事件，不推进 revision，也不改变任何操作的答复。引用块的事实仍按本节规则一次提交。调用方保存了块而尚未提交事实时，恢复后以同一内容再次保存，认回同一块。
 
 ##### 资格、身份与认回
 
@@ -1950,10 +1995,17 @@ J08 规定 Agent 作为 Model 调用方时适用的 Model 侧条款。
    - 决定来源的核验：Model 的受信适配按原 `position.policy` 解析协调者的 inspect，以当前受信 principal 与显式租户读取原 position，核验同一 decided、同一完整 position、同一决定与同一 source，并验证 source 由协调者的耐久记录拥有者签发、摘要与修订对应真实记录。调用者自报 owner 或 digest、指向任意非空 Evidence 都不构成核验。协调者解析不到、来源读权限未知或记录查询不可用时，Model 不保存新的决定。
    - 协调者的 worker 停用而耐久记录 authority 仍可用时，该 authority 依据原 manifest 的确定生命周期事实记录同一协调者的不可用决定，inspect 仍认回它。协调者的采用与记录 authority 整体缺席时的收场没有采用：原调用保持具名未完，禁止新 retry，不声称已收场，见开放问题页的 [U-8](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。Settlement 的 source 不能冒充协调者的 decided.source。
    - 协调者的记录、计时、决定与保管由 Model 宿主或其独立的持久依赖持有，寿命不取决于发起的 Agent 挂接。Agent 的 Journal 持有原 Passage、卡片、输出与该失败分支的等待。旧 Agent 挂接丢失不使原策略不可用，协调者保留状态并等待合法后继。
-5. 下列各点交 Model 拥有者确认。[#682](https://github.com/nemori-ai/omne-harness-lite/issues/682) 已接受的内容没有确认它们，本契约写为未决项。第 4 条的 consumer 编码与来源核验已由 MP1、MP2 的配对确认，不在此列。
-   - 证据适配器的端口形状。Model 契约只有装配声明里的 evidence 采用，没有导出该端口的类型。承接卡未定。
+5. M6 的受理结果按种类处置，依据是 R2-D237。Model 对 `admit` 答 denied、invalid、unsupported 或 capacity，是对这次调用的确定拒绝。同一请求再次受理仍被拒绝，所以 Agent 不等待它，以 kind 为 `model-refused` 的失败候选经 F1 结束执行。候选的 `call` 是原 ModelCallId，`failure` 是 Model 的原拒绝，不改写种类与字段，`source` 是原调用的固定请求依据 `PendingCall.fixed`。确定拒绝不留发出，原调用在 F1 退出 checkpoint 的 `calls`，终结责任清单以该拒绝为它的收场依据，见“[终结责任清单](#终结责任清单)”。Model 答 unavailable 时，Agent 在 M6 按依赖等待，等待的 owner 为 `modelRuntime`，检查时刻到后以原 call 与原 admission 再受理。commit-unknown 按原 reference 认回，规则不变。
+6. 下列各点交 Model 拥有者确认。[#682](https://github.com/nemori-ai/omne-harness-lite/issues/682) 已接受的内容没有确认它们，本契约写为未决项。第 4 条的 consumer 编码与来源核验已由 MP1、MP2 的配对确认，不在此列。
    - replay 被拒之后的再次发出怎样由重试决定表达，以及 resent 从哪里来（PM-05）。这一点与 [#446](https://github.com/nemori-ai/omne-harness-lite/issues/446) 的 5.1 同批确认。
    - J08 原文所说交 Model 确认的其余四点，在具名来源中没有找到，本契约不列出。
+7. Agent consumer owner 的证据适配器按耐久接收记录核验 ACK，依据 R2-D257。
+   - 读口是 `AgentReceivedRecords`：只有 `query`，答复与同一 Journal 提供者的 `AgentReceivedCommits.query` 相同，不写。它的服务键 `agentReceivedRecords` 是受信名，装配只让持有该证据适配器的行看见。
+   - 适配器是 `@omne-harness/agent` 的 `createAgentCustodyEvidence`。它只接受 retained 证据。它从 consumer 的位置取 execution，从调用的 invocation reference 与结果版本组出交付键，按结果接收方的同一规则推出接收 operation，读该 operation 的记录。记录 committed，且交付键、完整 consumer 与 saved 证据都与 ACK 的输入完全一致，才确认这份证据。
+   - 记录已 committed，但交付键、完整 consumer 或 saved 证据有一项不一致，或证据不是 Agent 位置的 retained 证据：这份证据不是本 owner 保存的，按 Model 契约的「伪证据拒绝」答 `handoff-invalid`（R2-D260）。
+   - 记录不存在、未知或已排除，读失败或抛出：答 `unavailable`（`consumer-evidence`），不当作确认，可以重试。
+   - 两种失败 Model 都不写：结果、保管与份额不变，以同一 ACK operation 以后再交接。
+   - Model 侧的端口形状（可晚些答复、带 invocation reference 与 principal）归 Model 成员的 `ModelCommandsEvidence.handoff`，见 [Model 实现规格](../../model/model/SPEC.md#结果消费支持)。
 
 #### 执行身份的范围
 
@@ -1987,7 +2039,7 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 | AgentExecutionRecovery.load | Access、execution | ExecutionSnapshot，含 finishObligations、settlement 与 handoffs | denied；unavailable（投影未覆盖原子快照的事实范围，或不能完成同一修订的一致读取） |
 | AgentExecutionRecovery.reconcile | ExecutionMutation | 剩余责任与依据。remaining 只列 ConsumptionId，不列出全部卡片责任 | denied；unavailable；conflict |
 | AgentExecutionRecovery.detach | ExecutionMutation、挂接资格、原因依据 | 交接依据 | denied（含失去业务资格后的新 detach）；changed；stale-advance（新 detach 的挂接已 superseded）；terminal（ended 之后的新 detach）；commit-unknown。挂接已 detached 时只认回原交接依据 |
-| AgentJournal.open、attach | open：ExecutionMutation 与两部分输入，即 original（原 invoke 的 OriginalInputAcceptance，含原 InputEntry 及其初始 checkpoint 与原 H 引用）与 runtime（本次 InvokeRuntimeContext，含 instance、scope、definition 与 grant）。instance、推进资格依据与初始 checkpoint 只从这两部分取得，不另列一份。attach：ExecutionMutation、instance、推进资格依据、恢复依据与 takeover 依据（可空） | 命令回执与新授予的 Authority | 同 invoke 与 resume，但 busy 在 runtime 预约槽时已返回；denied 也包括推进资格依据缺失或核对失败，以及 coordinated 绑定要求 grant 而收到空 grant；unsupported 也包括 standalone 绑定收到非空 grant 或来源依据（写前返回）；attach 对已 ended 的 execution 返回 terminal；attach 核对 execution 首次建立时固定的协调关联，不允许经另一个绑定降级 |
+| AgentJournal.open、attach | open：ExecutionMutation、original（原 invoke 的 OriginalInputAcceptance，含原 InputEntry 与原 H 引用）、runtime（本次 InvokeRuntimeContext，含 instance、scope、definition 与 grant）与初始 checkpoint。instance 与推进资格依据只从 original 与 runtime 取得，不另列一份。初始 checkpoint 是纯求值 `initial` 的值（R2-D292）。attach：ExecutionMutation、instance、推进资格依据、恢复依据与 takeover 依据（可空） | 命令回执与新授予的 Authority | 同 invoke 与 resume，但 busy 在 runtime 预约槽时已返回；denied 也包括推进资格依据缺失或核对失败，以及 coordinated 绑定要求 grant 而收到空 grant；unsupported 也包括 standalone 绑定收到非空 grant 或来源依据（写前返回）；attach 对已 ended 的 execution 返回 terminal；attach 核对 execution 首次建立时固定的协调关联，不允许经另一个绑定降级 |
 | AgentJournal.commit | 条件提交的全部内容，含调用方交接与 `handoff`（prepare、resolve、retire 或 null） | 命令回执。没有任何新事实时不推进 revision，回执的 revision 是提交时的当前 revision，不发事件，见“[执行修订](#执行修订)” | changed（含 Ja 的 expected 或历史前提失效）；commit-unknown；conflict；terminal（ended 之后的新 commit，含 Ja）；unavailable（含：核验不可用或暂时的依赖故障；提交参加者当前不能完成自己的部分，任何一方的事实都没有保存，可用同一操作重试，见“[提交参加者协议](#提交参加者协议)”）；unsupported（含缺历史组合或参加者，写前返回）；stale-advance（旧挂接，先于 terminal 与 changed）；`checkpoint.replyAdmissionRead` 改变时的提交时前缀校验：denied（依据属于另一租户）、invalid（field 为 `checkpoint.replyAdmissionRead`：依据属于另一执行或伪造、超出已发布序位、倒退或回到 unverified）、unavailable（依据合法而资料缺失，owner 为 AgentJournal，诊断以 `missing-basis` 开头），见“[回复准入的已核实前缀](#回复准入的已核实前缀)”；invalid（`events` 含 `entry` 或 `ended` 事件体。类型已排除它们，调用方绕过类型时得到这个结果，field 为 `events`，reason 是诊断文本，写明是哪一种事件体由 Journal 分配，不作为契约；`handoff` 的 request、outcome 与 CallerCommit 对不上，或 retire 不满足 currentHandoff 等于 H 与可信 excluded）。次序见“[判定次序与失败映射](#判定次序与失败映射)” |
 | AgentJournal.recordHandoff | ExecutionMutation、`original`（lookup 的 recorded 或 excluded）；后继另带 custody（protocol、custodyRoot、rootRequest、factSource、predecessor、priorExcluded） | 命令回执，revision 为本次成功版本 | denied（含外租户的请求：在资格核对之前返回，action 为 recordHandoff，execution 存在与否回答相同，不披露原记录；当前资格拒绝的 action 见“[判定次序与失败映射](#判定次序与失败映射)”）；unavailable（来源、资格核验、原责任或记录暂不可读；成功与排除记录矛盾）；conflict（同 operation 异语义；根已有不同 factBinding）；invalid（缺 tenant 或不可解析的字段，field 指向该字段；field 为 operation，reason 为 operation-permanently-excluded 的永久排除；链循环、截断、跳过前驱或派生不符，field 为 operation；确定伪造的 source 或 original 字段）；terminal（原责任不属合法 ended 覆盖）；unsupported（缺必要组合能力，写前返回）；commit-unknown，查原 attempt，不另造后继。次序见“[准入结果保管](#准入结果保管)” |
 | AgentJournal.recordResult | 结果、消费、交接、释放 | 命令回执 | conflict（结果项、版本、位置与交接不一致）；denied（当前保管或处理资格失效，不因旧挂接失效返回 stale-advance）；unavailable。合法责任可在 ended 后登记 |
@@ -1998,6 +2050,7 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 | AgentJournal.recordTerminalObservation | 终态、PassageId、采用、观察依据 | 命令回执 | conflict（同一观察配不同值）；invalid（观察项不存在，field 为 passage；终态不匹配或尚不存在，field 为 terminal；采用不匹配，field 为 implementation）；denied；unavailable（读取失败或投影不全，不推成观察项不存在） |
 | AgentJournal.inputs、readReplyAdmissions | Access、execution、水位线；或下界 `from`、固定范围 `through`、游标、页限 | 有序的输入批；或 `(from, through]` 内序位连续的原事实页，带 `start`、`end` 与 `tail` | unavailable；denied（另一租户的前缀、游标或请求，或当前读取资格不成立）；invalid（前缀、游标或范围不属于本执行、伪造或越界）；范围读不完整返回缺口，原因为 retention、missing-fact、missing-basis 或 range-unavailable，不把空页当作完成，见“[回复准入的已核实前缀](#回复准入的已核实前缀)” |
 | AgentRuntimeControl.quiesce | Access、操作身份、原因依据 | drained 或 unresolved，附剩余 execution 与依据 | denied；conflict；unavailable |
+| AgentJournalEntries.read、receivedOf | Access、execution；read 另带游标 `after` 与页限 `limit`，receivedOf 另带 consumption | read 为按提交顺序的一页条目，带 `next` 与 `caughtUp`；receivedOf 为该 consumption 的全部 `received` 条目 | denied（跨租户、不存在或当前读取资格不成立）；invalid（`after` 不是已有位置，field 为 after）；unavailable（来源不可读，不当作没有条目） |
 | AgentJournalEntries.record | ExecutionMutation、Authority（`received` 为 null）、接收面条目 | 命令回执 | stale-advance（挂接已被取代或推进资格已撤销）；terminal（ended 之后写 `start-fence`）；invalid（推进者条目缺 Authority，field 为 authority）；conflict（同一操作配不同条目，或同一交付键配不同内容）；denied（跨租户，含调用引用的租户与 Access 不同）；unavailable；commit-unknown。见“[日志条目](#日志条目)” |
 | AgentReceivedCommits.commit | ExecutionMutation、不含 material 的 ReceivedEntry 草稿、完整 Material；不带 Authority | committed，含原 receipt、完整 entry 与 saved；或 excluded，含原排除依据 | invalid（实际无效字段）；denied；conflict（operation 异语义或 delivery 异绑定、材料、账目）；unavailable（确定中途失败不新增任一半、不推进 revision，或既有材料不可读）；unsupported（缺能力或旧 saved 无依据，不表示未提交）；commit-unknown，先按原 operation query。精确映射见“[接收共同提交](#接收共同提交)” |
 | AgentReceivedCommits.query | 指向被查询原操作的 ExecutionMutation | committed，含原 value；excluded，含原依据；或 unknown | invalid（实际无效查询字段）；denied；unavailable（权威状态或原材料不可读）；unsupported（旧非接收操作或富结果依据不足，不表示未提交）。查询失败保持未知，不产生排除依据 |

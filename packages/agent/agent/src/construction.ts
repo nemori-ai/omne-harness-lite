@@ -8,8 +8,8 @@ import type * as T from '@omne-harness/tool-contract'
 import type {
   ActionAdmission,
   Access,
-  Action,
   ActionId,
+  ActionToolCall,
   AgentExecutionId,
   Adoption,
   AgentAccessCheck,
@@ -19,6 +19,7 @@ import type {
   AgentHandle,
   AgentInstanceId,
   AgentJournal,
+  AgentJournalEntries,
   AgentMaterials,
   AgentRegistrationHandle,
   AgentRuntime,
@@ -56,6 +57,11 @@ export type AgentConfiguration = Readonly<{
   /** The coordination mode this assembly requires of the Journal binding; no implicit default. */
   coordination: JournalCapabilities['coordination']
   loopGuardPolicy: Adoption
+  /**
+   * The most steps one execution takes (M2 fallback of R2-D221; the full loop judgment is wave 3).
+   * Absent: `DEFAULT_MAX_RUN_STEPS`. A step is one main Model request and the tools it calls.
+   */
+  maxRunSteps?: number
 }>
 
 export type AgentRuntimeOptions = Readonly<{
@@ -63,9 +69,14 @@ export type AgentRuntimeOptions = Readonly<{
   configuration: AgentConfiguration
 }>
 
-/** The named, read-only record of the 17 injected capabilities. It is not a service container. */
+/** The named, read-only record of the 18 injected capabilities. It is not a service container. */
 export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   journal: AgentJournal<P>
+  /**
+   * The receiving entries of the same Journal provider: the loop reads the received results of a
+   * consumption here, not from the snapshot (agent-contract SPEC "日志条目" 6).
+   */
+  entries: AgentJournalEntries<P>
   access: AgentAccessCheck<P>
   models: M.ModelRuntime<P>
   tools: T.ToolRuntime<P, B>
@@ -94,7 +105,7 @@ type ToolRequestInput<P> = Access<P> &
   Readonly<{
     execution: AgentExecutionId
     action: ActionId
-    original: Action['original']
+    original: ActionToolCall
     effectiveArguments: string
     consumer: T.ToolInvokeRequest['consumer']
   }>

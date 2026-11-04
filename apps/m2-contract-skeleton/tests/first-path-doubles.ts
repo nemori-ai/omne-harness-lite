@@ -55,7 +55,7 @@ import {
 import { decodeHistorySequence } from '@omne-harness/request-context-contract'
 import { createAssemblyFixture } from '@omne-harness/request-context-contract/testing'
 import { createMemorySessionJournal } from '@omne-harness/session-adapters/testing'
-import type { SessionAccess } from '@omne-harness/session-contract'
+import type { SessionAccess, SessionTransactionPort } from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
   createMemoryInitializationSource,
@@ -435,6 +435,8 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
         {
           ...dependencies,
           journal: journal?.journal ?? dependencies.journal,
+          // The Loop reads its received entries from the Journal it commits to.
+          entries: journal?.entries ?? dependencies.entries,
           materials: journal?.materials ?? dependencies.materials,
           models,
           tools,
@@ -447,6 +449,7 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
     return {
       provider,
       journal: journal?.journal ?? dependencies.journal,
+      entries: journal?.entries ?? dependencies.entries,
       materials: journal?.materials ?? dependencies.materials,
       instance,
       releaseModel: scenario === 'held' ? () => held.splice(0).forEach(settle => settle()) : null,
@@ -536,25 +539,33 @@ export type SessionStoreKind = 'contract-memory' | 'session-log'
  * session-contract memory transaction port; the Agent then keeps its own memory Journal.
  * `session-log` is the common-log provider of session-adapters (#756): one log carries the Session
  * entries and the Agent Journal, and derived Session participation is judged by the same check.
+ * `configure` may script the evidence bridge and wrap the contract-memory transaction port.
  */
 export function sessionAssembly(
   kind: SessionStoreKind = 'contract-memory',
-  configureEvidence: (bridge: MemorySessionEvidenceBridge) => void = () => {},
+  configure: Readonly<{
+    evidence?: (bridge: MemorySessionEvidenceBridge) => void
+    transactions?: (
+      port: SessionTransactionPort<PathPrincipal>,
+    ) => SessionTransactionPort<PathPrincipal>
+  }> = {},
 ): PathDependencies['session'] {
   return ({ accessCheck }): SessionAssembly => {
     const initialization = trustedInitialization()
     const evidence = createMemorySessionEvidenceBridge({ initialization })
-    configureEvidence(evidence)
-    if (kind === 'contract-memory')
+    configure.evidence?.(evidence)
+    if (kind === 'contract-memory') {
+      const port = createMemorySessionTransactions<PathPrincipal>({
+        initialization,
+        history: createMemorySessionHistorySource(),
+        accessCheck,
+      })
       return {
-        transactions: createMemorySessionTransactions<PathPrincipal>({
-          initialization,
-          history: createMemorySessionHistorySource(),
-          accessCheck,
-        }),
+        transactions: configure.transactions?.(port) ?? port,
         evidence,
         agentJournal: null,
       }
+    }
     const backend = createMemorySessionJournal<PathPrincipal>({
       initialization,
       accessCheck,
@@ -566,7 +577,7 @@ export function sessionAssembly(
       evidence,
       agentJournal: access => {
         const view = backend.forSession(access)
-        return { journal: view.journal, materials: view.materials }
+        return { journal: view.journal, entries: view.entries, materials: view.materials }
       },
     }
   }

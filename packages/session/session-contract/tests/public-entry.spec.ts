@@ -6,9 +6,13 @@ import * as testing from '@omne-harness/session-contract/testing'
 // be added here on purpose; the entry codec and the identity derivations of `decide` stay out.
 it('exports exactly the declared root runtime surface', () => {
   expect(Object.keys(session).sort()).toEqual([
+    'CONTEXT_SCOPE_KINDS',
     'INGRESS_FAMILIES',
     'INITIALIZATION_PROTOCOL',
+    'batchEvidence',
     'commandDigest',
+    'contextScopeOf',
+    'contextScopesOf',
     'decide',
     'decideControlConsequences',
     'deriveDriveOperation',
@@ -17,6 +21,8 @@ it('exports exactly the declared root runtime surface', () => {
     'digestSessionEntries',
     'digestSessionLog',
     'executionReadThrough',
+    'expectedHolds',
+    'expectedRevision',
     'initializationRegistrationCommit',
     'isDeferredFact',
     'judgeAdvance',
@@ -74,6 +80,7 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'initializationFixtureFacts',
     'initializationFixtureGuard',
     'inputId',
+    'intakeInput',
     'isNotApplicable',
     'memoryAccess',
     'memoryOtherAccess',

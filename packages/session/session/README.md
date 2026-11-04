@@ -33,7 +33,7 @@ Status: mechanism member, candidate technical design. Technical acceptance has n
 The package has one entry: `@omne-harness/session`. A host uses the package in this order:
 
 1. Build `SessionDependencies` and a `SessionConfiguration`. Four dependencies are required to start: the access check, the delegated transaction entry, the internal principals and the work principals.
-2. Call `createSessionInstance(dependencies, configuration, { measure })`. The third argument is optional; `measure` receives the measurement events of the SPEC section 测量事件, and nothing is emitted without it.
+2. Call `createSessionInstance(dependencies, configuration, { measure, diagnose })`. The third argument is optional; `measure` receives the measurement events of the SPEC section 测量事件, and nothing is emitted without it. `diagnose` receives the named diagnostics of the SPEC section 诊断出口; without it they stay in the instance memory only.
 3. Give each caller class its own faces from `facesFor(caller)`.
 4. Call `maintain(tenant)` for each tenant that the host serves. Keep the handle that the call returns.
 5. Pass commit notices to `committed` and change notices to `changed`.

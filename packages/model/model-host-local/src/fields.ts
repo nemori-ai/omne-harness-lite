@@ -14,3 +14,14 @@ export function fieldOf(value: unknown, key: string): unknown {
 export function isIntegerAtLeast(value: unknown, minimum: number): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= minimum
 }
+
+/** One validation issue of a configuration literal, the Standard Schema shape. */
+type Issue = { message: string }
+
+/** The result of parsing a configuration literal: the value, or the issues that refused it. */
+export type Parsed<T> = Readonly<{ value: T }> | Readonly<{ issues: Issue[] }>
+
+/** A refusal of a configuration literal with one issue. */
+export function rejected(message: string): Parsed<never> {
+  return { issues: [{ message }] }
+}

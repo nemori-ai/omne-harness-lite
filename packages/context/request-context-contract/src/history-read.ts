@@ -116,6 +116,18 @@ function takePage(
     ? { kind: 'invalid', field: 'history.cursor', reason: 'cursor-invalidated' }
     : { kind: 'more', cursor: next }
 }
+/** What a read starts from: the rows it keeps, the cursor of its first page and how it ends up. */
+function resumeOf(
+  evidence: HistoryEvidence,
+  from: ReturnType<typeof start>,
+  prefix: HistoryPrefix | undefined,
+) {
+  const held = from === null || prefix === undefined ? [] : prefix.rows
+  const cursor: HistoryCursor | null =
+    from === null || from.after === null ? null : { evidence, after: from.after }
+  const mode = from === null ? ('full' as const) : ('tail' as const)
+  return { held, cursor, mode }
+}
 /**
  * Reads every page of one fixed history evidence (H1). With a verified prefix of the same history
  * only the rows after it are read; an unchanged evidence reads no page. An epoch change is returned
@@ -130,9 +142,9 @@ export async function readHistory<P>(
   const from = start(evidence, prefix)
   if (from?.mode === 'same' && prefix !== undefined)
     return { kind: 'history', rows: prefix.rows, evidence, mode: 'same', added: [] }
-  const held = from === null || prefix === undefined ? [] : prefix.rows
-  let cursor: HistoryCursor | null =
-    from === null || from.after === null ? null : { evidence, after: from.after }
+  const resume = resumeOf(evidence, from, prefix)
+  const held = resume.held
+  let cursor = resume.cursor
   const rows: HistoryRow[] = [...held]
   while (true) {
     const result = await source.read({ access, evidence, cursor, budgetBytes: HISTORY_PAGE_BYTES })
@@ -145,7 +157,7 @@ export async function readHistory<P>(
         kind: 'history',
         rows,
         evidence,
-        mode: from === null ? 'full' : 'tail',
+        mode: resume.mode,
         added: rows.slice(held.length),
       }
     else return step

@@ -2,7 +2,7 @@
 
 ## 使用方式
 
-用 json-text 的 readJsonText 取得配置 JsonValue，然后调用 createFilesAuthor。Files 配置只含必需的 resultMaxBytes。Shell 还要求 executable、argsPrefix、cwd、env。不存在未测试的默认字节上界，也不继承 process.env。
+用 json-text 的 readJsonText 取得配置 JsonValue，然后调用 createFilesAuthor。Files 配置含必需的 resultMaxBytes 与可选的 cwd。cwd 是绝对路径的工作区根，相对路径按它解析，规则见 [SPEC](../SPEC.md#文件路径解析)。Shell 还要求 executable、argsPrefix、cwd、env。不存在未测试的默认字节上界，也不继承 process.env。
 
 Shell 配置示例为 {"resultMaxBytes":32768,"executable":"/bin/sh","argsPrefix":["-c"],"cwd":"/work","env":{}}。该示例是调用者输入，不是平台探测或推荐的生产默认。
 

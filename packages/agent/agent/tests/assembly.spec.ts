@@ -1,4 +1,4 @@
-// The test assembly and the factory: all 17 dependencies are present, they are independent per call,
+// The test assembly and the factory: all 18 dependencies are present, they are independent per call,
 // and the factory turns them into an idle provider without touching any of them (C1).
 import { expect, it } from 'vitest'
 import { createAgentRuntime } from '@omne-harness/agent'
@@ -6,7 +6,7 @@ import { createTestAgentDependencies } from '@omne-harness/agent/testing'
 import { options, take, watched } from './factory-support.ts'
 import { execution, failure, instance, load, ok, open, tenantA } from './journal-support.ts'
 
-it('assembles all 17 dependencies with registration null', () => {
+it('assembles all 18 dependencies with registration null', () => {
   const { dependencies, durability } = createTestAgentDependencies<string>()
   expect(durability).toBe('none')
   expect(Object.keys(dependencies).sort()).toEqual([
@@ -16,6 +16,7 @@ it('assembles all 17 dependencies with registration null', () => {
     'cards',
     'clock',
     'conditions',
+    'entries',
     'extensions',
     'handoff',
     'journal',
@@ -62,7 +63,7 @@ it('gives the Journal options to the memory Journal and shares no state between 
 
 it('C1: the factory given the test assembly returns an idle provider and calls no dependency', async () => {
   const { dependencies, calls } = watched(createTestAgentDependencies<string>().dependencies)
-  expect(Object.keys(dependencies)).toHaveLength(17)
+  expect(Object.keys(dependencies)).toHaveLength(18)
   const provider = ok(await createAgentRuntime(dependencies, options()))
   expect(calls).toEqual([])
   expect(provider.runtime.instance).toBe(instance())

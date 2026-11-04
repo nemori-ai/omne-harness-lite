@@ -152,7 +152,8 @@ export function storageConfig(storageRoot, closeDeadlineMs) {
     maxCommandBytes: 1048576,
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
-    maxJsonDepth: 64,
+    // 发行配置 storage 行的 `maxJsonDepth`（R2-D270）：整行替换时要抄过来，否则 A2 的 Tool 意图被拒（command_limit）。
+    maxJsonDepth: 128,
     maxJsonMembers: 65536,
     maxResponseBytes: 65536,
     maxOperationResponseBytes: 1048576,

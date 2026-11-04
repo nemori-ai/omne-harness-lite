@@ -86,6 +86,12 @@ export type WireProfile = Readonly<{
   fixed: readonly GatewayParam[]
   /** How many usage-only chunks the decoder accepts after the finish chunk. */
   usageTail: Readonly<{ maxFrames: number }>
+  /**
+   * How a tool name of the request becomes a function name of the gateway, and back.
+   * `underscore/1`: each code point outside `[A-Za-z0-9_-]` becomes `_`. `maxLength`: the longest
+   * function name the supplier takes.
+   */
+  toolNames: Readonly<{ rule: 'underscore/1'; maxLength: number }>
 }>
 
 /** Gateway provider pinning: body `provider.order`, and the `provider` names chunks may report. */
@@ -268,7 +274,10 @@ export type ProjectedTurn = Readonly<{
   replay: ReplayWire
 }>
 
-/** The request as the wire carries it. The meter sees exactly what encode writes. */
+/**
+ * The request as the wire carries it. The meter sees exactly what encode writes: tool names, in
+ * the tools, the tool choice and the tool calls of the turns, are the gateway names.
+ */
 export type ProjectedRequest = Readonly<{
   instruction: readonly ContentBlock[]
   turns: readonly ProjectedTurn[]

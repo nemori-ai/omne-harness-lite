@@ -9,6 +9,7 @@ import * as releasePlugins from './cordis.ts'
 import { createHostFilesRuntime, type HostFilesRuntime } from './host-files.ts'
 import { createExecutionHostBinding, hostFactoryBindings } from './rows/execution-host/index.ts'
 import { checkModelRowConsistency } from './model/consistency.ts'
+import { exportReleaseLogs } from './log-exporter.ts'
 import { entryObjects as releaseEntryObjects } from './entry/index.ts'
 import {
   LifecycleRegistry,
@@ -583,6 +584,8 @@ async function runServeWithHostFiles(
 
   const expected = expectedPhases(rows)
   const root = new Context()
+  // Messages up to WARN reach stdout as `log` records; without it Cordis exports up to INFO only (R2-D253).
+  exportReleaseLogs(root, write)
   let loaded: readonly LoadedRow[] = []
   let shutdownReport: ReturnType<typeof runShutdown> | undefined
   const shutdown = () => {

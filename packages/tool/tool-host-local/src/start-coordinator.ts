@@ -42,6 +42,13 @@ import {
   type StartProgress,
   type ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
+import {
+  checkStartPermitRequirement,
+  readRequirementSource,
+  REQUIRED_IN_WAVE2,
+  REQUIREMENTS_UNAVAILABLE,
+  type StartPermitRequirements,
+} from './start-permit-requirements.ts'
 
 type TenantId = LedgerDomain['tenant']
 
@@ -85,11 +92,29 @@ export type LocalStartCoordinatorInput<P, B extends ContentBlock = ContentBlock>
   store: ToolLedgerStore<B>
   /** Proves the principal, the tenant and the call; a forged tenant is denied. */
   access: StartCoordinatorAccess<P>
+  /** Required for new starts. Omission fails closed while existing acceptances remain readable. */
+  permitRequirements?: StartPermitRequirements<P>
   /** The guard resources that apply to a request; each becomes one guard of its permit. */
   guardsOf: (request: FixedToolRequest) => readonly GuardResource[]
   /** How many times a revision conflict is re-read and re-decided. */
   commitAttempts: number
+  /**
+   * The longest one caller waits for its turn of the tenant section, in milliseconds. A caller
+   * that reaches it answers `unavailable` instead of waiting further, so a turn that never
+   * settles cannot hold every later call of the same tenant forever.
+   *
+   * The default is derived from the store's own bounds rather than chosen: one turn runs at most
+   * `commitAttempts` rounds, and one round does one read and one commit. The sqlite provider bounds
+   * a read by `readQueueTimeoutMs` (1000) and a write lock by `lockWaitMs` (5000)
+   * (sqlite-provider SPEC:307,323), so one round stays under 6000 ms and a turn under
+   * `commitAttempts × 6000 ms`. An operator that deploys a store with other bounds passes its own
+   * value.
+   */
+  turnTimeoutMs?: number
 }>
+
+/** The store bounds one round of a turn can consume: a read wait plus a write lock wait. */
+const TURN_MS_PER_ATTEMPT = 6_000
 
 // ---------------------------------------------------------------------------------------------
 // The records of the host domain
@@ -117,6 +142,10 @@ type PermitRecord = Readonly<{
   call: ToolCallId
   start: ToolOperationId
   digest: string
+  request?: FixedToolRequest
+  inputDigest?: string
+  requestBinding?: string
+  requirementSource?: DurableEvidence
 }>
 type AcceptanceRecord = Readonly<{
   kind: 'acceptance'
@@ -125,6 +154,7 @@ type AcceptanceRecord = Readonly<{
   permit: string
   executorReceipt: DurableEvidence
   acceptance: DurableEvidence
+  requirementSource?: DurableEvidence
 }>
 type RejectionRecord = Readonly<{
   kind: 'rejection'
@@ -306,6 +336,21 @@ function isObject(value: unknown): value is object {
   return typeof value === 'object' && value !== null
 }
 
+/** Minted identities are immutable. Shape-only callers still cannot mutate a queued value. */
+function snapshotTenant(tenant: TenantId): TenantId {
+  if (
+    Object.isFrozen(tenant) &&
+    Object.isFrozen(tenant.organization) &&
+    Object.isFrozen(tenant.account)
+  )
+    return tenant
+  return Object.freeze({
+    ...tenant,
+    organization: Object.freeze({ ...tenant.organization }),
+    account: Object.freeze({ ...tenant.account }),
+  })
+}
+
 /** Reads `keys` of `value` as filled texts, or names the first key that is not one. */
 function texts<K extends string>(
   value: unknown,
@@ -369,7 +414,14 @@ function judgeExecution(value: unknown, field: string): Outcome<ToolExecutionRef
   if ('failure' in instance) return invalid(`${field}.instance`, instance.failure.reason)
   const generation: unknown = Reflect.get(value, 'generation')
   if (!filledText(generation)) return invalid(`${field}.generation`, 'type')
-  return succeed({ tenant, call: call.ok, instance: instance.ok, generation })
+  return succeed(
+    Object.freeze({
+      tenant: snapshotTenant(tenant),
+      call: call.ok,
+      instance: instance.ok,
+      generation,
+    }),
+  )
 }
 
 /** A first-start record: the start kind, its operation, its executor adoption and execution. */
@@ -389,12 +441,14 @@ function judgeStart(
   if ('failure' in executor) return executor
   const execution = judgeExecution(Reflect.get(value, 'execution'), `${field}.execution`)
   if ('failure' in execution) return execution
-  return succeed({
-    kind: 'start',
-    operation: operation.ok,
-    executor: executor.ok,
-    execution: execution.ok,
-  })
+  return succeed(
+    Object.freeze({
+      kind: 'start',
+      operation: operation.ok,
+      executor: Object.freeze(executor.ok),
+      execution: execution.ok,
+    }),
+  )
 }
 
 type CallInput<P> = Readonly<{ principal: P; tenant: TenantId; call: ToolCallId }>
@@ -408,7 +462,13 @@ function judgeCallInput<P>(input: unknown): Outcome<CallInput<P>, ToolFailure> {
   const call = decodeToolCallId(Reflect.get(input, 'call'))
   if ('failure' in call) return invalid('call', call.failure.reason)
   // The principal is the caller's type; the access guard judges it.
-  return succeed({ principal: Reflect.get(input, 'principal') as P, tenant, call: call.ok })
+  return succeed(
+    Object.freeze({
+      principal: Reflect.get(input, 'principal') as P,
+      tenant: snapshotTenant(tenant),
+      call: call.ok,
+    }),
+  )
 }
 
 type PermitGuard = Readonly<{ owner: string; resource: string; revision: string }>
@@ -418,6 +478,7 @@ type PermitInput = Readonly<{
   start: Extract<ToolStartRecord, { kind: 'start' }>
   guards: readonly PermitGuard[]
   digest: string
+  inputDigest: string
 }>
 
 /** The digest a permit is stored under: its start, its guard revisions and its request. */
@@ -435,10 +496,25 @@ function permitDigest(
   })
 }
 
-function judgePermit(value: unknown, call: ToolCallId): Outcome<PermitInput, ToolFailure> {
+function judgePermit(
+  value: unknown,
+  tenant: TenantId,
+  call: ToolCallId,
+): Outcome<PermitInput, ToolFailure> {
   if (!isObject(value)) return invalid('permit', 'type')
   const start = judgeStart(Reflect.get(value, 'start'), 'permit.start')
   if ('failure' in start) return start
+  const inputDigest: unknown = Reflect.get(value, 'inputDigest')
+  if (!filledText(inputDigest)) return invalid('permit.inputDigest', 'type')
+  const permitTenant: unknown = Reflect.get(value, 'tenant')
+  if (
+    !isTenantShape(permitTenant) ||
+    canonicalDigest(permitTenant) !== canonicalDigest(tenant) ||
+    Reflect.get(value, 'call') !== call ||
+    Reflect.get(value, 'operation') !== start.ok.operation ||
+    !sameStartCall(start.ok, tenant, call)
+  )
+    return invalid('permit', 'identity')
   const request = judgeEvidence(Reflect.get(value, 'request'), 'permit.request')
   if ('failure' in request) return request
   const guards: unknown = Reflect.get(value, 'guards')
@@ -453,7 +529,73 @@ function judgePermit(value: unknown, call: ToolCallId): Outcome<PermitInput, Too
     start: start.ok,
     guards: read,
     digest: permitDigest(call, start.ok, read, request.ok),
+    inputDigest,
   })
+}
+
+function sameStartCall(
+  start: Extract<ToolStartRecord, { kind: 'start' }>,
+  tenant: TenantId,
+  call: ToolCallId,
+): boolean {
+  return (
+    start.execution.call === call &&
+    canonicalDigest(start.execution.tenant) === canonicalDigest(tenant)
+  )
+}
+
+function requestBinding(
+  tenant: TenantId,
+  call: ToolCallId,
+  start: ToolStartRecord,
+  inputDigest: string,
+  permit: string,
+): string {
+  return canonicalDigest({ tenant, call, start, inputDigest, permit })
+}
+
+function storedRequest(
+  stored: PermitRecord,
+  tenant: TenantId,
+  call: ToolCallId,
+  start: ToolStartRecord,
+): FixedToolRequest | null {
+  const request = judgeFixedToolRequest(stored.request)
+  if ('failure' in request || readRequirementSource(stored.requirementSource) === null) return null
+  const inputDigest = canonicalDigest(request.ok)
+  if (
+    stored.inputDigest !== inputDigest ||
+    stored.requestBinding !== requestBinding(tenant, call, start, inputDigest, stored.digest)
+  )
+    return null
+  return request.ok
+}
+
+function rejectStart(
+  tenant: TenantId,
+  stored: PermitRecord,
+  revision: ToolRevision,
+  reason: string,
+): Decision<StartProgress> {
+  const evidence = mint(tenant, startKey('rejection', stored.call, stored.start), revision, {
+    reason,
+    permit: stored.digest,
+  })
+  return {
+    kind: 'commit',
+    puts: [
+      {
+        kind: 'rejection',
+        call: stored.call,
+        start: stored.start,
+        operation: stored.start,
+        reason,
+        evidence,
+      },
+    ],
+    deletes: [keyOf(stored)],
+    value: { kind: 'rejected', reason, exclusion: evidence },
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -521,13 +663,24 @@ function snapshotOf<B extends ContentBlock>(
 export function createLocalStartCoordinator<P, B extends ContentBlock = ContentBlock>(
   input: LocalStartCoordinatorInput<P, B>,
 ): ToolStartAuthority<P> {
-  const { store, access, guardsOf, commitAttempts } = input
+  const { store, access, guardsOf, commitAttempts, permitRequirements } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
+  const turnTimeoutMs = input.turnTimeoutMs ?? commitAttempts * TURN_MS_PER_ATTEMPT
+  if (!Number.isSafeInteger(turnTimeoutMs) || turnTimeoutMs <= 0)
+    throw new TypeError('turnTimeoutMs: range')
   const sections = new Map<string, Promise<void>>()
 
-  /** Each tenant keeps one queue; an old tail cannot remove a newer queued turn. */
-  const serial = <T>(tenant: TenantId, work: () => Promise<T>): Promise<T> => {
+  /**
+   * Each tenant keeps one queue; an old tail cannot remove a newer queued turn.
+   *
+   * The wait of one caller is bounded: it answers `expired()` once `turnTimeoutMs` passes, whether
+   * it spent that time behind an earlier turn or inside its own work. A turn that expires this way
+   * keeps its section until its work settles, so two turns never run at once and the domain
+   * revision still orders every write; later callers queue behind it and each answer `expired()`
+   * on their own bound rather than waiting forever.
+   */
+  const serial = <T>(tenant: TenantId, work: () => Promise<T>, expired: () => T): Promise<T> => {
     const key = JSON.stringify([tenant.organization.text, tenant.account.text])
     const turn = (sections.get(key) ?? Promise.resolve()).then(work)
     const release = () => {
@@ -535,7 +688,24 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
     }
     const tail = turn.then(release, release)
     sections.set(key, tail)
-    return turn
+    return new Promise<T>((resolve, reject) => {
+      let settled = false
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        resolve(expired())
+      }, turnTimeoutMs)
+      const settle = (act: () => void) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        act()
+      }
+      turn.then(
+        value => settle(() => resolve(value)),
+        reason => settle(() => reject(reason)),
+      )
+    })
   }
 
   const domain = (tenant: TenantId): LedgerDomain => ({
@@ -579,33 +749,40 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
   /** Reads, decides and commits by revision inside the serial section. */
   const transact = <T>(
     tenant: TenantId,
-    decide: (snapshot: Snapshot, revision: ToolRevision) => Decision<T>,
+    decide: (snapshot: Snapshot, revision: ToolRevision) => Decision<T> | Promise<Decision<T>>,
     unknown: (diagnostic: string) => Outcome<T, ToolFailure>,
   ): Promise<Outcome<T, ToolFailure>> =>
-    serial(tenant, async () => {
-      for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
-        const snapshot = await read(tenant)
-        if ('failure' in snapshot) return snapshot
-        const revision = nextRevision(snapshot.ok.revision)
-        const decision = decide(snapshot.ok, revision)
-        if (decision.kind === 'reply') return decision.outcome
-        let committed: Awaited<ReturnType<typeof store.commit>>
-        try {
-          committed = await store.commit({
-            domain: domain(tenant),
-            expected: snapshot.ok.revision,
-            revision,
-            writes: writesOf<B>(decision),
-          })
-        } catch {
-          return unknown('the start ledger threw on commit')
+    serial(
+      tenant,
+      async () => {
+        for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
+          const snapshot = await read(tenant)
+          if ('failure' in snapshot) return snapshot
+          const revision = nextRevision(snapshot.ok.revision)
+          const decision = await decide(snapshot.ok, revision)
+          if (decision.kind === 'reply') return decision.outcome
+          let committed: Awaited<ReturnType<typeof store.commit>>
+          try {
+            committed = await store.commit({
+              domain: domain(tenant),
+              expected: snapshot.ok.revision,
+              revision,
+              writes: writesOf<B>(decision),
+            })
+          } catch {
+            return unknown('the start ledger threw on commit')
+          }
+          if (committed.kind === 'committed') return succeed(decision.value)
+          if (committed.kind === 'unknown') return unknown(committed.diagnostic)
+          if (committed.kind === 'unavailable') return unavailable(committed.diagnostic)
         }
-        if (committed.kind === 'committed') return succeed(decision.value)
-        if (committed.kind === 'unknown') return unknown(committed.diagnostic)
-        if (committed.kind === 'unavailable') return unavailable(committed.diagnostic)
-      }
-      return unavailable(`${commitAttempts} revision conflicts in a row`)
-    })
+        return unavailable(`${commitAttempts} revision conflicts in a row`)
+      },
+      () =>
+        unavailable(
+          `The turn did not settle within ${turnTimeoutMs} ms; earlier work of this tenant may still be running`,
+        ),
+    )
 
   const unknownProgress = (diagnostic: string): Outcome<StartProgress, ToolFailure> =>
     succeed({ kind: 'unknown', diagnostic })
@@ -620,19 +797,58 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
   }
 
   const prepare: ToolStartAuthority<P>['prepare'] = async raw => {
-    const checked = await callEntry(raw)
+    const checked = judgeCallInput<P>(raw)
     if ('failure' in checked) return checked
     const start = judgeStart(Reflect.get(raw, 'start'), 'start')
     if ('failure' in start) return start
     const request = judgeFixedToolRequest(Reflect.get(raw, 'request'))
     if ('failure' in request)
       return invalid(`request.${request.failure.field}`, request.failure.reason)
-    const { tenant, call } = checked.ok
+    const { principal, tenant, call } = checked.ok
+    if (!sameStartCall(start.ok, tenant, call)) return invalid('start', 'identity')
+    const allowed = await qualify(principal, tenant, call, 'start')
+    if ('failure' in allowed) return allowed
     const resources = guardsOf(request.ok)
     const inputDigest = canonicalDigest(request.ok)
     return transact<StartPermit>(
       tenant,
-      (snapshot, revision) => {
+      async (snapshot, revision) => {
+        const existing = snapshot.records.get(startKey('permit', call, start.ok.operation))
+        if (existing?.kind === 'permit') {
+          const original = storedRequest(existing, tenant, call, start.ok)
+          if (original === null)
+            return reply(
+              fail({
+                kind: 'unavailable',
+                dependency: 'start-permit-requirements',
+                diagnostic: REQUIREMENTS_UNAVAILABLE,
+              }),
+            )
+          if (canonicalDigest(original) !== inputDigest)
+            return reply(fail({ kind: 'conflict', operation: start.ok.operation }))
+        }
+        const currentAccess = await qualify(principal, tenant, call, 'start')
+        if ('failure' in currentAccess) return reply(currentAccess)
+        const requirement = await checkStartPermitRequirement(
+          permitRequirements,
+          Object.freeze({ ...checked.ok, start: start.ok, request: request.ok }),
+        )
+        if (requirement.kind === 'required')
+          return reply(
+            fail({
+              kind: 'unsupported',
+              adoption: startCoordinatorAdoption,
+              reason: REQUIRED_IN_WAVE2,
+            }),
+          )
+        if (requirement.kind !== 'not-required')
+          return reply(
+            fail({
+              kind: 'unavailable',
+              dependency: 'start-permit-requirements',
+              diagnostic: REQUIREMENTS_UNAVAILABLE,
+            }),
+          )
         const guards: StartGuard[] = resources.map(resource => {
           const guard = guardOf(snapshot, resource)
           return {
@@ -656,11 +872,16 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
           guards,
           request: evidence,
         }
+        const digest = permitDigest(call, start.ok, guards, evidence)
         const stored: PermitRecord = {
           kind: 'permit',
           call,
           start: start.ok.operation,
-          digest: permitDigest(call, start.ok, guards, evidence),
+          digest,
+          request: request.ok,
+          inputDigest,
+          requestBinding: requestBinding(tenant, call, start.ok, inputDigest, digest),
+          requirementSource: requirement.source,
         }
         return { kind: 'commit', puts: [stored], value: permit }
       },
@@ -669,17 +890,19 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
   }
 
   const consume: ToolStartAuthority<P>['consume'] = async raw => {
-    const checked = await callEntry(raw)
+    const checked = judgeCallInput<P>(raw)
     if ('failure' in checked) return checked
-    const { tenant, call } = checked.ok
-    const permit = judgePermit(Reflect.get(raw, 'permit'), call)
+    const { principal, tenant, call } = checked.ok
+    const permit = judgePermit(Reflect.get(raw, 'permit'), tenant, call)
     if ('failure' in permit) return permit
     const receipt = judgeEvidence(Reflect.get(raw, 'executorReceipt'), 'executorReceipt')
     if ('failure' in receipt) return receipt
+    const allowed = await qualify(principal, tenant, call, 'start')
+    if ('failure' in allowed) return allowed
     const start = permit.ok.start.operation
     return transact<StartProgress>(
       tenant,
-      (snapshot, revision) => {
+      async (snapshot, revision) => {
         const known = progressOf(snapshot, call, start)
         if (known !== null) return reply(succeed(known))
         const stored = snapshot.records.get(startKey('permit', call, start))
@@ -694,27 +917,30 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
         )
         if (moved !== undefined) {
           const reason = `guard ${moved.owner}/${moved.resource} was invalidated before the start`
-          const key = startKey('rejection', call, start)
-          const evidence = mint(tenant, key, revision, { reason, permit: permit.ok.digest })
-          const rejection: RejectionRecord = {
-            kind: 'rejection',
-            call,
-            start,
-            operation: start,
-            reason,
-            evidence,
-          }
-          return {
-            kind: 'commit',
-            puts: [rejection],
-            deletes: [keyOf(stored)],
-            value: { kind: 'rejected', reason, exclusion: evidence },
-          }
+          return rejectStart(tenant, stored, revision, reason)
         }
+        const request = storedRequest(stored, tenant, call, permit.ok.start)
+        if (request === null || stored.inputDigest !== permit.ok.inputDigest)
+          return reply(unknownProgress(REQUIREMENTS_UNAVAILABLE))
+        const currentAccess = await qualify(principal, tenant, call, 'start')
+        if ('failure' in currentAccess) {
+          if (currentAccess.failure.kind === 'denied')
+            return rejectStart(tenant, stored, revision, 'access-denied-before-start')
+          return reply(unknownProgress('access-guard unavailable'))
+        }
+        const requirement = await checkStartPermitRequirement(
+          permitRequirements,
+          Object.freeze({ ...checked.ok, start: permit.ok.start, request }),
+        )
+        if (requirement.kind === 'required')
+          return rejectStart(tenant, stored, revision, REQUIRED_IN_WAVE2)
+        if (requirement.kind !== 'not-required')
+          return reply(unknownProgress(REQUIREMENTS_UNAVAILABLE))
         const key = startKey('acceptance', call, start)
         const acceptance = mint(tenant, key, revision, {
           permit: permit.ok.digest,
           executorReceipt: receipt.ok,
+          requirementSource: requirement.source,
         })
         const accepted: AcceptanceRecord = {
           kind: 'acceptance',
@@ -723,6 +949,7 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
           permit: permit.ok.digest,
           executorReceipt: receipt.ok,
           acceptance,
+          requirementSource: requirement.source,
         }
         return {
           kind: 'commit',

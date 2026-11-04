@@ -7,6 +7,11 @@
     "sourceMap": false,
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["tests/**/*.ts", "acceptance/**/*.ts", "vitest.acceptance.config.ts"],
+  "include": [
+    "tests/**/*.ts",
+    "verification/*/guards/**/*.ts",
+    "acceptance/**/*.ts",
+    "vitest.acceptance.config.ts"
+  ],
   "exclude": ["**/*.legacy/**"]
 }

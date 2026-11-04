@@ -5,6 +5,7 @@ import { succeed } from '@omne-harness/operation-result'
 import type { SessionFailure } from '@omne-harness/session-contract'
 import {
   creation,
+  evidence,
   operationId,
   ordinaryInput,
   shapeOf,
@@ -102,7 +103,7 @@ describe('each face operation asks the access check exactly once', () => {
       'startRun',
     )
     const snapshot = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    // The first commit of the face operation meets a tail that another writer has just moved.
+    // The first commit of the face operation meets a Run layer that another writer has just moved.
     let moved = false
     h.view.onCommit(async (input, next) => {
       if (!moved) {
@@ -111,17 +112,19 @@ describe('each face operation asks the access check exactly once', () => {
           await h.backend.transactions.commit({
             access: h.access(),
             command: {
-              kind: 'accept',
+              kind: 'release',
               input: {
                 tenant: h.access().tenant,
                 session: h.access().session,
-                operation: operationId('accept-concurrent'),
-                value: ordinaryInput('concurrent'),
+                operation: operationId('release-concurrent'),
+                advance: started.advance,
+                expected: snapshot.revision,
+                handover: evidence('handover-concurrent'),
               },
             },
             guards: [],
           }),
-          'concurrent accept',
+          'concurrent release',
         )
       }
       return next()
@@ -144,7 +147,8 @@ describe('each face operation asks the access check exactly once', () => {
     })
     const decided = h.checks.asked().map(request => request.operation)
     expect(decided.filter(operation => operation === 'finishRun')).toHaveLength(1)
-    expect(decided.filter(operation => operation === 'accept')).toHaveLength(2)
+    expect(decided.filter(operation => operation === 'accept')).toHaveLength(1)
+    expect(decided.filter(operation => operation === 'release')).toHaveLength(1)
     const methods = h.view.calls().map(call => call.method)
     expect(methods.filter(method => method === 'commit')).toHaveLength(1)
     expect(methods.filter(method => method === 'readWork')).toHaveLength(1)

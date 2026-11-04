@@ -14,7 +14,7 @@
 
 常驻引用提供者仍存在但页读取失败时，协调者保留作者并 reopen。真实必需依赖被卸载时，Cordis 卸载宿主及其子作者；该代挂起请求返回 unavailable，旧引用不能继续装载。作者贡献撤除不证明其他宿主持有的执行 pin、结果或外部资源已经结清。
 
-装配 runtime 时显式提供 operationIdentities 与 sourceIssuer.resolve，来源核验器读取同一实际入口保存的完整绑定。生产提供者仍未实现。宿主创建实例时取得身份，并传给 driver.run；同一存活实例重复唤醒沿用。该传参不增加 claim 或接管保证。普通入口与受信 admission 的边界归[契约](../../tool-contract/SPEC.md#342-普通操作与实例目录)。
+装配 runtime 时显式提供 operationIdentities 与 sourceIssuer.resolve，来源核验器读取同一实际入口保存的完整绑定。来源签发器由应用提供，实例宿主由下述运行时组合工厂创建。宿主创建实例时取得身份，并传给 driver.run；同一存活实例重复唤醒沿用。该传参不增加 claim 或接管保证。普通入口与受信 admission 的边界归[契约](../../tool-contract/SPEC.md#342-普通操作与实例目录)。
 
 ## 作者原语的装配
 
@@ -111,7 +111,20 @@ sequenceDiagram
 
 Scope 与最终事实适配是 `createLocalToolBindings` 的构造依赖，返回不确定时保留原执行。来源、设置、schema、持有者读取和拒绝依据保存由受信装配提供。完整运行组合不能由作者入口测试推定。
 
-
 ## 具名偏离：热换代作者保留
 
 按 [R2-D63](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6591819035)，本批只保证首次装载，以及 Reader 仍在但读取失败时保留贡献。持有者存在时热撤 Reader、协调者换代不撤作者的完整配对留在波 3。当前服务撤除会由 Cordis 卸载作者，贡献随之丢失；不宣称冻结契约的热换代保留义务已经兑现。上游 tool-cordis-contract/docs/cordis.md 的完整目标保持不变，不能把本偏离当作对其改写。
+
+## 运行时组合工厂
+
+从 `@omne-harness/tool-host-local/cordis` 导入 `createLocalToolRuntimePlugins`。输入形状由 [LocalToolRuntimeInput](../src/runtime-composition.ts) 拥有。返回 records、instanceHost、instances、environments、executor、runtime 六个插件，以及 authorExecution、close 和 diagnostics。每个插件在自己的 fiber 安装，同一 bundle 共享一份记录仓、账本、启动协调器和 driver。不要为 bindings 另建启动协调器。
+
+应用提供耐久 store、custody、content、来源 issuer/guard、当前资格与主体恢复、环境采用和原子提交端口。工厂拒绝非耐久 store。标记为 durable 不替代实际持久化保证。records 提供 toolCommands、toolReads、toolStartAuthority 和 toolStartFence；bindings 的 authority 取得该 bundle 发布的当前 toolStartAuthority，scope/settle 使用同一 bundle.authorExecution。
+
+实例目录静态依赖 toolPublicationAuthority；环境插件以 integrator caller 取得 executionEnvironment；executor 静态依赖 toolCommands、toolInstanceHost、toolClock；runtime 门面静态依赖 toolCommands、toolReads。Catalog、binding、环境和原结果接收方按阶段读取，缺席回复 unavailable。原结果接收方缺席（冻结 owner 没有登记，`tool-result-receiver`），或查找、推送答任何 `unavailable` 时，交付保持待推。executor 的 `tool-executor` 日志每次写一条具名 warn，内容有调用、接收方 owner 与依赖及诊断。下一次推送按退避进行：首次等 `driverRetryDelayMs`（缺省 1000 ms），之后每次加倍，封顶 60000 ms。接收方答出非 `unavailable` 的结果后清除退避。确定失败（`denied`、`invalid` 或异常）不退避，每次写一条具名 warn，交付保持待推（R2-D327）。退避表项随交付释放，表的大小只与在途交付有关。规则见 [SPEC](../SPEC.md#结果交付的推送退避)（R2-D273、R2-D282，`tests/delivery/absent-receiver.spec.ts`、`tests/delivery/unavailable-receiver.spec.ts`）。应用仍须安装自身的当前资格、发行贡献权威、常驻引用桥和 Execution 提供者。
+
+根入口的 `createEnvironmentStateStore`、`createEnvironmentResourceLedger`、`createRetainedTerminalLedger` 为同一 Tool store 提供环境与保留账本视图。生产状态写入需要 guarded 端口把调用修订核对和 host 域更新放进同一事务。`createLocalToolControlSubjects` 按原主体绑定恢复并重新核验资格；JSON 中的主体描述不是可直接使用的主体。
+
+executor 退役后不能在同一 bundle 重装。close 结束本代调度、观察与本地等待，不表示外部效果撤销、物理资源停止或耐久待办解除。目录撤除结束旧观察为 stale-instance，执行真正完成才结束为 closed；当前权限拒绝先于上述结果。保留终端的 Session 结束回收由应用接到既有结束事件，重启重新附着不在本波支持范围。
+
+`tests/runtime-composition/` 覆盖单进程真实工厂、发布、原结果推送、调用控制和退役。冻结外域输入的组合结果不能代替真实 SQL、Windows 设施和应用授权链的验证。Windows 独立入口必须收到真实装配 runner，未提供时失败。

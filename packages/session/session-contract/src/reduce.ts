@@ -34,6 +34,18 @@ export function batchEvidence(batch: CommittedBatch, session: string): DurableEv
   }
 }
 
+/**
+ * The entries that change the Run layer of an active Run (SPEC I-R2, R2-D327): its start, an
+ * attempt that starts or gives the advance back, and an adoption change. The batch that holds one
+ * sets the Run-layer revision; an accept, a hand-over or an Agent fact does not.
+ */
+const RUN_LAYER_KINDS: ReadonlySet<string> = new Set([
+  'run.started',
+  'run.attempt-started',
+  'run.attempt-released',
+  'session.adoption',
+])
+
 type Draft = {
   -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K]
 }
@@ -337,6 +349,8 @@ function reduceBatch(
     validateInterpretationEntry(draft, entry, interpretationRuns?.get(row.id))
     const diagnostic = apply(draft, entry, source)
     if (diagnostic !== null) return quarantined(`${row.kind} at ${row.id}: ${diagnostic}`)
+    if (RUN_LAYER_KINDS.has(entry.kind) && draft.run.kind === 'active')
+      draft.run = { ...draft.run, revision: batch.revision }
     const workEntryIndex = projectWorkEntries(before, draft, entry, row)
     if (workEntryIndex !== undefined) draft.workEntryIndex = workEntryIndex
     requiredWorkEntries(draft)

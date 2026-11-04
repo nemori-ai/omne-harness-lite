@@ -4,7 +4,11 @@
 // proves nothing about a real provider.
 import { assembleModelReceiverFixture, type ModelReceiverFixture } from './model-receiver.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { decodeModelInstanceId, type ModelInstanceId } from '@omne-harness/model-contract'
+import {
+  decodeModelInstanceId,
+  type ModelInstanceId,
+  type ModelResultReceiver,
+} from '@omne-harness/model-contract'
 import {
   createScriptedModelProvider,
   createScriptedConformanceSubject,
@@ -133,6 +137,12 @@ export type TestAgentDependenciesOptions<P> = Readonly<{
   journal?: TestJournalOptions<P>
   /** Enables the public Model testing pusher under an explicit tenant principal. */
   receivingPrincipal?: P
+  /**
+   * Where the pusher looks for the receiver of a consumer owner, as a Model runtime resolves it
+   * from its registration table. Absent: the receiver this function builds over the memory
+   * Journal. Only with `receivingPrincipal`.
+   */
+  resolveReceiver?: (owner: string) => ModelResultReceiver<P> | null
   /** The instance of the scripted Model provider. Default: `minst_agent-testing`. */
   modelInstance?: ModelInstanceId
   /** The start of the manual clock. Default: `1970-01-01T00:00:00Z`. */
@@ -217,7 +227,7 @@ export function createTestAgentDependencies<P>(
       : createScriptedResultPusher({
           scripted: models,
           principal: options.receivingPrincipal,
-          resolveReceiver: () => receiver,
+          resolveReceiver: options.resolveReceiver ?? (() => receiver),
         })
   const controls: TestAgentControls<P> = {
     journal,
@@ -241,11 +251,13 @@ export function createTestAgentDependencies<P>(
   }
   controls.materials.preserve.always(input => journal.provider.materials.preserve(input))
   controls.materials.read.always(input => journal.provider.materials.read(input))
+  controls.materials.describe.always(input => journal.provider.materials.describe(input))
   return {
     durability: 'none',
     controls,
     dependencies: {
       journal: controls.journal.port,
+      entries: journal.provider.entries,
       access: controls.access.port,
       models: pusher?.provider.runtime ?? models.provider.runtime,
       tools: controls.tools.port,

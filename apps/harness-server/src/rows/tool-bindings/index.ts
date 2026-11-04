@@ -1,10 +1,11 @@
 // `tool-bindings` 行（AA 插件树、简报 B3-T2a 第 5、6、9 项）：绑定登记表与 Catalog。一个插件、一个 fiber
 // 提供两个服务：类静态 provide 的 `toolBindings`，与构造时注册的 `toolCatalog`（L-TOOL 事实清单 §4）。
 // 四个工厂参数：
-// - `availability`：发行静态事实，见 `availability.ts`。
-// - `authority`：逐次读取当前 `toolStartAuthority` 的窄代理。B 段接 `createLocalToolRuntimePlugins` bundle。
-// - `scope`、`settle`：A 段占位，明确答 unavailable。B 段接 `createLocalToolRuntimePlugins` bundle 的
-//   `authorExecution.scope` 与 `authorExecution.settle`。
+// - `availability`：发行静态事实与执行环境的在场事实，见 `availability.ts`。
+// - `authority`：逐次读取当前 `toolStartAuthority` 的窄代理。提供者是 `tool-records` 行装的 bundle records 插件
+//   （同一个启动协调器），本行不建第二个。
+// - `scope`、`settle`：Tool 运行时组同一个 bundle 的 `authorExecution.scope` 与 `authorExecution.settle`（B 段，
+//   L-TOOL 事实清单 §1）。逐次读本次运行的 bundle；还没建好时 scope 抛出 unavailable、settle 答 unavailable。
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { fail } from '@omne-harness/operation-result'
 import type {
@@ -23,6 +24,7 @@ import {
   type LocalToolBindingsPluginInput,
 } from '@omne-harness/tool-host-local/cordis'
 import { defineRow } from '../../row.ts'
+import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { createReleaseAvailability } from './availability.ts'
 
 type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBlock>
@@ -60,18 +62,29 @@ export function startAuthorityProxy(ctx: Context): ToolStartAuthority<unknown> {
   return Object.freeze(proxy)
 }
 
-/** A 段占位（B 段接 `createLocalToolRuntimePlugins` bundle）：没有执行作用域，作者不会运行。 */
-export const unavailableScope: Input['scope'] = () => {
-  throw new Error('unavailable: tool-bindings has no author execution scope before segment B')
+/** bundle 的执行作用域；bundle 还没建好时抛出，作者不会运行。 */
+export function bundleScope(ctx: Context): Input['scope'] {
+  return input => {
+    const bundle = toolRuntimeHolder(ctx).bundle
+    if (bundle === null)
+      throw new Error('unavailable: the tool runtime bundle is not built; the author does not run')
+    return bundle.value.authorExecution.scope(input)
+  }
 }
 
-/** A 段占位（B 段接 `createLocalToolRuntimePlugins` bundle）：没有收场来源，不伪造结果。 */
-export const unavailableSettle: Input['settle'] = async () =>
-  fail({
-    kind: 'unavailable',
-    dependency: 'toolRuntime',
-    diagnostic: 'author settlement is unavailable before segment B',
-  })
+/** bundle 的收场；bundle 还没建好时答 unavailable，不伪造结果。 */
+export function bundleSettle(ctx: Context): Input['settle'] {
+  return async input => {
+    const bundle = toolRuntimeHolder(ctx).bundle
+    if (bundle === null)
+      return fail({
+        kind: 'unavailable',
+        dependency: 'toolRuntime',
+        diagnostic: 'the tool runtime bundle is not built',
+      })
+    return bundle.value.authorExecution.settle(input)
+  }
+}
 
 const bindingsPlugin: Plugin.Object = {
   name: 'tool-bindings',
@@ -80,8 +93,8 @@ const bindingsPlugin: Plugin.Object = {
     const Bindings = createLocalToolBindingsPlugin<unknown, unknown, ToolMessageContentBlock>({
       availability: createReleaseAvailability(ctx),
       authority: startAuthorityProxy(ctx),
-      scope: unavailableScope,
-      settle: unavailableSettle,
+      scope: bundleScope(ctx),
+      settle: bundleSettle(ctx),
     })
     // Both services register in this row's fiber: `toolBindings` here, `toolCatalog` in its constructor.
     new Bindings(ctx)

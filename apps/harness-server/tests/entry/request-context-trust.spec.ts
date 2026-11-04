@@ -1,4 +1,5 @@
-// `requestContextTrust`（验收 4、DP5-C2、DP5-C3）：登记授权默认拒绝，核验器先于一切，三个租户逐一比较；
+// `requestContextTrust`（验收 4、DP5-C2、DP5-C3、R2-D202）：登记授权默认拒绝，核验器先于一切，三个租户逐一比较；
+// 发行名单只有会话格：会话工作主体只为自己的会话、以发行固定的 agent-context owner 做 register。
 // 主体绑定给经核验主体的稳定键。经服务键与导出的工厂调用。
 import { describe, expect, it } from 'vitest'
 import {
@@ -22,7 +23,12 @@ import {
   requestContextTrust,
   type RegistrationGrant,
 } from '../../src/entry/request-context-trust.ts'
-import { principalIssuer } from '../../src/entry/principals.ts'
+import { AGENT_CONTEXT_OWNER } from '../../src/assembly/agent-context-owner.ts'
+import { ENTRY_COMPONENTS, principalIssuer } from '../../src/entry/principals.ts'
+import type {
+  SessionScopeOwnership,
+  SessionScopeOwnershipSource,
+} from '../../src/entry/session-scope-source.ts'
 import { fixtureEnv, fixtureTenant, got, okOf } from './support.ts'
 
 const tenantA = fixtureTenant('a')
@@ -50,10 +56,128 @@ const GRANT: RegistrationGrant = {
   actions: ['register'],
 }
 
+/** A scope ownership source that answers one fixed ownership, and counts the lookups. */
+function ownedAs(answer: SessionScopeOwnership) {
+  let asked = 0
+  const source: SessionScopeOwnershipSource = {
+    lookup: () => {
+      asked++
+      return Promise.resolve(answer)
+    },
+  }
+  return { source, asked: () => asked }
+}
+
+describe('the session cell of the release list (R2-D202)', () => {
+  const { authority, acting } = authorityWithActing(ENTRY_COMPONENTS.sessionWork, tenantA)
+  const bound = (tenant: TenantId, session: string): SessionScopeOwnership => ({
+    kind: 'bound',
+    tenant,
+    session: session as never,
+    generation: '1',
+  })
+  const check = (
+    owned: SessionScopeOwnershipSource | undefined,
+    patch: Partial<{ owner: Adoption; action: 'register' | 'replace'; principal: Principal }> = {},
+  ) =>
+    createRegistrationAuthority({
+      verifier: authority.verifier,
+      grants: REGISTRATION_ALLOW_LIST,
+      ...(owned === undefined ? {} : { scopeOwners: owned }),
+    }).check({
+      access: { principal: patch.principal ?? acting, tenant: tenantA },
+      target: target(tenantA),
+      owner: patch.owner ?? AGENT_CONTEXT_OWNER,
+      action: patch.action ?? 'register',
+    })
+
+  it('allows the session work principal to register for the scope of its own session', async () => {
+    await expect(check(ownedAs(bound(tenantA, 'ses_1')).source)).resolves.toEqual({
+      kind: 'allowed',
+    })
+  })
+
+  it('denies a scope of another session or another tenant, and an unbound scope', async () => {
+    for (const answer of [
+      bound(tenantA, 'ses_2'),
+      bound(tenantB, 'ses_1'),
+      { kind: 'unbound' } as const,
+    ])
+      await expect(check(ownedAs(answer).source)).resolves.toEqual({ kind: 'denied' })
+  })
+
+  it('denies another owner and replace before it reads the scope', async () => {
+    const owned = ownedAs(bound(tenantA, 'ses_1'))
+    await expect(check(owned.source, { owner: OWNER })).resolves.toEqual({ kind: 'denied' })
+    await expect(check(owned.source, { action: 'replace' })).resolves.toEqual({ kind: 'denied' })
+    expect(owned.asked()).toBe(0)
+  })
+
+  it('denies a principal of the same component whose work is not a session', async () => {
+    const actor = okOf(
+      authority.issuer.issueSystem({ component: ENTRY_COMPONENTS.sessionWork }),
+      'actor',
+    )
+    const other = okOf(
+      authority.issuer.issueActingForTenant({
+        actor,
+        tenant: tenantA,
+        work: { owner: 'other-work', work: 'ses_1' },
+      }),
+      'acting principal',
+    )
+    await expect(
+      check(ownedAs(bound(tenantA, 'ses_1')).source, { principal: other }),
+    ).resolves.toEqual({ kind: 'denied' })
+  })
+
+  it('denies a session cell for a principal whose issuing component is not sessionWorkPrincipals, before it reads the scope (R2-D219)', async () => {
+    // A grant that names another component with the session cell: its principal has a session work
+    // and the scope is that session's, but only `sessionWorkPrincipals` issues session work principals.
+    const other = authorityWithActing('session-ad04', tenantA)
+    const owned = ownedAs(bound(tenantA, 'ses_1'))
+    const decision = await createRegistrationAuthority({
+      verifier: other.authority.verifier,
+      grants: [
+        {
+          component: 'session-ad04',
+          owners: [AGENT_CONTEXT_OWNER.owner],
+          actions: ['register'],
+          ownSession: true,
+        },
+      ],
+      scopeOwners: owned.source,
+    }).check({
+      access: { principal: other.acting, tenant: tenantA },
+      target: target(tenantA),
+      owner: AGENT_CONTEXT_OWNER,
+      action: 'register',
+    })
+    expect(decision).toEqual({ kind: 'denied' })
+    expect(owned.asked()).toBe(0)
+  })
+
+  it('keeps an unknown or unreadable ownership as it is, and answers unavailable without the source', async () => {
+    await expect(check(ownedAs({ kind: 'unknown' }).source)).resolves.toEqual({ kind: 'unknown' })
+    await expect(check(ownedAs({ kind: 'unavailable' }).source)).resolves.toMatchObject({
+      kind: 'unavailable',
+    })
+    await expect(check(undefined)).resolves.toMatchObject({ kind: 'unavailable' })
+  })
+})
+
 describe('registrationAuthority (DP5-C2 order)', () => {
-  it('ships with an empty allow list in wave 1 (DP5-C3): the installed service never allows', async () => {
-    expect(REGISTRATION_ALLOW_LIST).toEqual([])
+  it('ships one cell (R2-D202): only the session work principal, for the release agent-context owner, to register; others are denied', async () => {
+    expect(REGISTRATION_ALLOW_LIST).toEqual([
+      {
+        component: 'sessionWorkPrincipals',
+        owners: [AGENT_CONTEXT_OWNER.owner],
+        actions: ['register'],
+        ownSession: true,
+      },
+    ])
     expect(Object.isFrozen(REGISTRATION_ALLOW_LIST)).toBe(true)
+    expect(Object.isFrozen(REGISTRATION_ALLOW_LIST[0])).toBe(true)
     const fixture = fixtureEnv([requestContextTrustKey, principalIssuerKey])
     await fixture.install(principalIssuer)
     await fixture.install(requestContextTrust)

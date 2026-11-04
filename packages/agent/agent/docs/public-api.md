@@ -1,6 +1,6 @@
 # Agent 通用实现的构造入口
 
-根入口导出下列类型、`createAgentRuntime`、通用评估器 `agentEvaluator`（契约 `AgentEvaluator` 的实现，装配经 `AgentAdoptions` 为绑定的定义采用它）与它写入的 checkpoint 的 schema 采用 `agentCheckpointSchema`。根入口还导出独立 Model 接收工厂、宿主持有状态、完整材料读取器与控制推进 `advanceControl`，说明见下文。`createAgentRuntime` 的协调者要求所采用的评估器以本包的节点集合（Loop 算法页节点表的节点 ID）为 `position` 词汇，并返回本包转移表能承接的 `Next`。经 `AgentAdoptions` 交来的其他评估器只与契约形状兼容，不与本协调者的语义兼容：它的位置与决定没有转移行时，执行以缺陷停止。工厂已实现创建校验与四个面的访问守卫，`invoke` 走 Loop 正常路径的骨架，其他操作本体尚未实现，实际支持范围与未实现的校验见[成员 README](../README_ZH.md#支持范围)。下列行为是设计中的工厂行为，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。测试装配在 `./testing` 入口，见[成员 README](../README_ZH.md#支持范围)。本包不接收 Cordis Context，不导入任何外部协调者的类型。
+根入口导出下列类型、`createAgentRuntime`、通用评估器 `agentEvaluator`（契约 `AgentEvaluator` 的实现，装配经 `AgentAdoptions` 为绑定的定义采用它）与它写入的 checkpoint 的 schema 采用 `agentCheckpointSchema`。根入口还导出独立 Model 接收工厂、宿主持有状态、完整材料读取器、控制推进 `advanceControl` 与执行步数上限的缺省值 `DEFAULT_MAX_RUN_STEPS`，说明见下文与[工厂配置](#工厂配置)。`createAgentRuntime` 的协调者要求所采用的评估器以本包的节点集合（Loop 算法页节点表的节点 ID）为 `position` 词汇，并返回本包转移表能承接的 `Next`。经 `AgentAdoptions` 交来的其他评估器只与契约形状兼容，不与本协调者的语义兼容：它的位置与决定没有转移行时，执行以缺陷停止。工厂已实现创建校验与四个面的访问守卫，`invoke` 走 Loop 正常路径的骨架，其他操作本体尚未实现，实际支持范围与未实现的校验见[成员 README](../README_ZH.md#支持范围)。下列行为是设计中的工厂行为，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。测试装配在 `./testing` 入口，见[成员 README](../README_ZH.md#支持范围)。本包不接收 Cordis Context，不导入任何外部协调者的类型。
 
 ## 参数与依赖
 
@@ -58,6 +58,7 @@ export type AgentConfiguration = Readonly<{
   jointCommits: readonly Exclude<CallerCommit['kind'], 'none'>[]
   coordination: 'standalone' | 'coordinated'
   loopGuardPolicy: Adoption
+  maxRunSteps?: number
 }>
 export type AgentRuntimeOptions = Readonly<{
   binding: AgentRuntimeBinding
@@ -65,6 +66,7 @@ export type AgentRuntimeOptions = Readonly<{
 }>
 export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   journal: AgentJournal<P>
+  entries: AgentJournalEntries<P>
   access: AgentAccessCheck<P>
   models: M.ModelRuntime<P>
   tools: T.ToolRuntime<P, B>
@@ -95,7 +97,10 @@ export declare function createAgentRuntime<P, B extends ContentBlock>(
 ): Reply<AgentProvider<P>>
 ```
 
-`extras` 是可选的第三个参数，目前只有 `measure`：测量事件的观察者，行为见 SPEC 的[测量事件](../SPEC.md#测量事件)。它不是配置，不进入配置校验，缺省不发任何事件。
+`extras` 是可选的第三个参数，有两项。它们不是配置，不进入配置校验。
+
+- `measure`：测量事件的观察者，行为见 SPEC 的[测量事件](../SPEC.md#测量事件)。缺省时不发任何事件。
+- `failed`：运行失败的接收者，事件类型是 `AgentRunFailed`，行为见 SPEC 的[运行失败](../SPEC.md#运行失败)。缺省时执行槽照样改为 failed，只是不报告。
 
 创建先校验配置、安全作用域、精确采用和提供者能力，成功得到 idle 实例。提供者能力包括三项：Journal 绑定声明的 `capabilities.coordination` 与配置 `coordination` 严格相等；Journal 提供者对配置 `jointCommits` 中每一种共同提交声明了参加者；Journal 绑定已固定消息准入的历史组合登记。三项核对都在创建 runtime、登记或写状态之前完成。
 
@@ -131,6 +136,7 @@ createAgentRuntime 没有操作身份，也不是幂等操作：每次调用创�
 | 依赖         | 服务键               | 必需性                                                                                                                                              | 缺席时                                                                                                                | 换代时                                                                                                                                         |
 | ------------ | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | journal      | agentJournal         | 必需                                                                                                                                                | 创建返回 unavailable                                                                                                  | 新提供者必须能读到同一 execution 的原记录。读不到时，在途 execution 保持 suspended，不由新提供者重新初始化                                     |
+| entries      | agentJournalEntries  | 本实现局部必需：Loop 经 `receivedOf` 读取一个 consumption 的 received 条目。快照不含条目。须与 journal 同一提供者                                    | 读不到 received 条目时，等待结果的节点返回 unavailable，不把读不到当作没有结果                                        | 与 journal 同一提供者换代，规则同 journal                                                                                                      |
 | access       | agentAccessCheck     | 必需。端口是契约包的 AgentAccessCheck，由授权领域的适配器实现                                                                                       | 创建返回 unavailable，不创建 runtime                                                                                  | 换代只影响后续操作。已经通过核验并受理的操作不重新核验，已经合法发出的调用沿原身份查询和控制                                                   |
 | adoptions    | agentAdoptions       | 必需                                                                                                                                                | 创建返回 unavailable                                                                                                  | 新实现只影响尚未开始的经过，原经过沿原精确采用，不换实现                                                                                       |
 | conditions   | agentConditions      | 必需。端口是契约包的 CurrentConditions，只投影当前推进要求与采用依据，不计算守卫                                                                    | 创建返回 unavailable                                                                                                  | 每次请求准备时读取当前条件，换实现后下一次读取生效，已记录的最终请求不变                                                                       |
@@ -150,7 +156,7 @@ createAgentRuntime 没有操作身份，也不是幂等操作：每次调用创�
 
 ## 工厂配置
 
-本表是 Agent 自己的可配置取值项的唯一位置。取值项经过校验，默认值只是装配提供的配置初值，可以由装配者替换。本契约不规定数值默认值。
+本表是 Agent 自己的可配置取值项的唯一位置。取值项经过校验，默认值只是装配提供的配置初值，可以由装配者替换。本契约不规定数值默认值，`maxRunSteps` 除外。
 
 | 配置项                   | 含义                                                                                                                                                                   | 单位 | 校验                                                                                                | 默认值     |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------- | ---------- |
@@ -162,6 +168,7 @@ createAgentRuntime 没有操作身份，也不是幂等操作：每次调用创�
 | jointCommits             | 本装配会使用的 CallerCommit 共同提交种类。创建时与 Journal 提供者声明的参加者逐种比对，缺一种返回 unsupported。独立调用的装配列空表。它不表达输入与终态的协调能力，那项由 `coordination` 表达。已知限制：创建只核本表是参加者的子集。Journal 声明了 `message` 而本表漏列时，T5 的工具消息以 `none` 提交，Session 历史里没有这条消息，也不报错。发行配置须列全，由装配检查核对 | 无   | 列表元素取自 message、context-transition、custody、processed，不重复。`none` 不需要参加者，不在表中 | 由装配提供 |
 | coordination             | 本装配要求的 Journal 协调模式。创建时与 Journal 绑定声明的 `capabilities.coordination` 严格相等，不相等返回 unsupported。没有隐式默认。standalone 配置加 standalone 绑定可独立 invoke、submit 与 finish；coordinated 配置加 coordinated 绑定在 open、attach、submit 与 tryFinish 强制协调核对，规则见 SPEC 的“[提交参加者协议](../../agent-contract/SPEC.md#提交参加者协议)” | 无   | `standalone` 或 `coordinated`，必填 | 由装配提供 |
 | loopGuardPolicy          | 循环判断这一受信系统扩展所用检测策略的精确采用。算法与阈值由该采用携带，守卫事实的 `policy` 记录它。阈值不是本表的数值项，Agent 不写死数值                             | 无   | `Adoption` 的四个字段都是非空字符串。通用实现解析不到该采用时，创建返回 unavailable                 | 由装配提供 |
+| maxRunSteps | 一次执行最多走的步数。一步是一次主模型请求及其工具调用。走满之后 E4 与 I8 不开新一步，执行以 kind 为 `guard`、`level` 为 3 的失败候选结束。这是 M2 的临时兜底，依据 R2-D221，完整的循环判断见波 3 | 步 | 可以缺省。给出时是正安全整数 | 缺省为 `DEFAULT_MAX_RUN_STEPS`，即 50 |
 
 循环判断的默认实现随本通用实现提供，它按 `loopGuardPolicy` 读原始工作事实并记录守卫事实，行为见 SPEC 的“[循环守卫](../../agent-contract/SPEC.md#循环守卫)”。替换这项受信系统扩展是装配方的指定，不走作者声明。工具并行上限 `toolConcurrency` 由 [Loop 算法页的 A2](architecture/loop-algorithm.md#复杂度上界与进展) 使用，每段处理限额 `reconciliationBatchLimit` 由恢复与等待的处理段使用，见[内部机制](architecture/mechanisms.md#等待唤醒与公平)。事件读取窗口的上限不是 AgentConfiguration 的取值项：每次读取的 `limit` 超过提供者声明的上限时返回输入无效，见 SPEC 的“[读取、游标与缺口](../../agent-contract/SPEC.md#读取游标与缺口)”。压缩的预算与计划归 Context，不在本表登记。压缩的步数上界来自 Context 的压缩计划，是 CompactionProgress 的 bound，不是 AgentConfiguration 的取值项。ended 执行的事件与结果保留政策由 Journal 提供者声明，不是 AgentConfiguration 的一项。消息准入的历史组合登记由 Journal 绑定固定，也不是本表的取值项，工厂的核对见“[参数与依赖](#参数与依赖)”。
 
@@ -190,9 +197,11 @@ JavaScript 单线程下，任一 invoke 要么先于宿主的到期回调取得�
 
 ## 独立 Model 接收入口
 
-根入口导出 `createAgentModelReceiver`、`createModelReceiverState`、`agentModelDeliverySchema` 和 `readModelDeliveryMaterial`。类型由 [receiving-types.ts](../src/receiving-types.ts) 与 [receiving.ts](../src/receiving.ts) 拥有。
+根入口导出 `createAgentModelReceiver`、`createModelReceiverState`、`agentModelDeliverySchema`、`readModelDeliveryMaterial` 和 `AGENT_CONSUMER_OWNER`。`AGENT_CONSUMER_OWNER` 是本 Agent 受理每个 Model 调用时登记的 consumer owner，宿主按它把接收方登记到 Model runtime（IC-13）。类型由 [receiving-types.ts](../src/receiving-types.ts) 与 [receiving.ts](../src/receiving.ts) 拥有。`ModelReceptionTarget` 与 `ModelReceptionTargets` 已提升到 agent-contract，本包同名再导出（R2-D237）。
 
-`ModelReceiverDependencies` 必须传同一提供者的 journal/entries/materials/received，receive-result 的 access check，原目标查询 targets，Model inspect/dispatches 窄面，账目 outlet 与显式租户容量。`ModelReceptionTarget` 带原 execution、instance 和 model PendingCall。targets 的 resolve 按调用引用取得原绑定，forExecution 返回同租户 execution 的原 Model 绑定集合。两者由保存原消费绑定的提供者实现，核当前保管资格，不按 consumer 文本或当前 attachment 猜身份。received 为 null 时工厂拒绝创建接收方。
+根入口还导出 `createAgentCustodyEvidence` 与类型 `AgentCustodyEvidence`、`AgentCustodyQuestion`（[custody-evidence.ts](../src/custody-evidence.ts)，R2-D257）。它是 Agent consumer owner 对 Model ACK 的证据适配器：经 `AgentReceivedRecords` 读结果接收方提交的 `received` 记录，交付键、完整 consumer 与 saved 证据完全一致才确认；记录已提交而证据与它不一致时按伪证据答 `handoff-invalid`；记录不存在或读失败答 `unavailable`。规则归 [agent-contract J08 第 7 条](../../agent-contract/SPEC.md#作为-model-调用方)。
+
+`ModelReceiverDependencies` 必须传同一提供者的 journal/entries/materials/received，receive-result 的 access check，原目标查询 targets，Model inspect/dispatches 窄面，账目 outlet 与显式租户容量。`ModelReceptionTarget` 带原 execution、instance 和 model PendingCall。targets 的 resolve 按调用引用取得原绑定，forExecution 返回同租户 execution 的原 Model 绑定集合。两者由保存原消费绑定的提供者实现，核当前保管资格，不按 consumer 文本或当前 attachment 猜身份。接收方调用 resolve 时附上路由 `execution`：它从本 Agent 自己登记的消费位置（`work` 为 `<execution>/<step>`）读出。位置不是本 Agent 登记的形状时不附路由。路由只决定提供者读哪个 execution 的记录，目标仍是提供者答复的已提交绑定。received 为 null 时工厂拒绝创建接收方。
 
 `createModelReceiverState()` 的返回值由宿主持有。重装配继续传同一状态。句柄的 push 遵守 Model 接收顺序，共同提交、材料核对及入队后即可返回 saved，不等待 outlet。recover 与 retry 返回 `Reply<ModelReceiverReport>`：先取得原绑定集合，再核每个原 instance/execution 的 receive-result 资格；不存在、无绑定或无权统一 denied，依赖不可用返回具名 unavailable。recover 只读取该集合所属的 received 与材料；retry 只驱动集合内的未知提交与账目。每次出站前和返回报告前重新核当前资格，报告及诊断只含本次已授权集合，不纳入 await 期间新增绑定。inspect 是宿主管理视图，返回全局待办数、blocked 数及诊断副本，不能作为租户公开查询。账目 hard failure 保持 blocked，重装配不会自动重发。状态持有真实任务引用及当前出站驱动代；旧代只完成已开始的交接，不发出后继，实际在途任务结束前不释放出口占用。维护取消结束本次等待与后续驱动，不取消真实交接。最终资格检查尚未完成时，返回无内容 unavailable，owner 为 agent-model-receiver，diagnostic 为 maintenance-cancelled，不返回 counts 或私有诊断。
 
@@ -206,7 +215,7 @@ facts 材料保存原租户编码与完整 ModelDelivery。精确采用为 owner
 
 `createAgentToolReceiver(dependencies, state)` 提供 `ToolResultReceiver` 的 push，以及 retry、recover 和 inspect。`createToolReceiverState()` 的返回值由宿主持有，与 Agent runtime 的生命期分开。组件重建继续传同一状态，不清除未知操作或真实在途任务。received 为 null 时返回 unsupported。
 
-依赖包括同一 `AgentReceivedProvider`、`AgentAccessCheck`、`ToolReceptionTargets` 和租户容量函数。targets.resolve 按原调用引用与完整 consumer 查询持久保留的 Tool PendingCall、consumption、execution 和原 instance。目标提供者须先核当前访问资格，再返回原绑定或 null。null 表示不存在原消费关联，push 按 Tool 协议返回 invalid/key.reference/not-accepted；来源不可读返回 unavailable/association。绑定存在后，接收方核 receive-result、原 reference 与 consumer。targets.forExecution 返回该 execution 的完整原绑定集合，不从当前挂接或 consumer.work 推断身份。
+依赖包括同一 `AgentReceivedProvider`、`AgentAccessCheck`、`ToolReceptionTargets` 和租户容量函数。targets.resolve 按原调用引用与完整 consumer 查询持久保留的 Tool PendingCall、consumption、execution 和原 instance。目标提供者须先核当前访问资格，再返回原绑定或 null。null 表示不存在原消费关联，push 按 Tool 协议返回 invalid/key.reference/not-accepted；来源不可读返回 unavailable/association。绑定存在后，接收方核 receive-result、原 reference 与 consumer。targets.forExecution 返回该 execution 的完整原绑定集合，不从当前挂接或 consumer.work 推断身份。`ToolReceptionTarget` 与 `ToolReceptionTargets` 已提升到 agent-contract，本包同名再导出（R2-D273）。接收方调用 resolve 时附上路由 `execution`：它从本 Agent 登记的 Tool 消费位置读出（owner 为本 Agent，purpose 为 `action`，`work` 就是 execution）；位置不是这个形状时不附路由。路由只决定提供者读哪个 execution 的记录，目标仍是提供者答复的已提交绑定。
 
 新交付取得租户独立的 records、bytes、attachments 与 inFlight 额度后，经原共同提交端口一次保存材料和 received。unknown 继续查询原 operation，不能再次 preserve 或新建提交身份。重复 key 不占新逻辑额度，实际在途调用仍占 inFlight。signal 只结束等待，不撤销已受理的写入；真实写入结束才释放在途额度。
 

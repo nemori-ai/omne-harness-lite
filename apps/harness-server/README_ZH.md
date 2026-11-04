@@ -44,6 +44,8 @@ usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-
 usage: serve --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n> --state-root <abs dir> [--stop-on-stdin-close]
 ```
 
+只带发行文件时，`serve` 不能装载。发行层不写 `execution-host` 与 `agent-host` 的工厂数值，也不写 `agent-host` 的 `loopGuardPolicy`。进程以 `invalid-config` 退出，不进入服务（R2-D229）。运维者层必须给出这些值，用 `replace` 整行替换。`replace` 不合并：`agent-host` 要把发行层的 `jointCommits` 与 `coordination` 逐字重抄。示例见 [tools/joint-b/operator.mjs](../../tools/joint-b/operator.mjs)。其中的数值是测试值，没有测量依据；`loopGuardPolicy` 目前只有测试采用，还没有生产采用来源。已知限制见 [SPEC.md](SPEC.md#已知限制)。
+
 其他程序可以调用 `runS0` 并导入记录类型：
 
 ```ts
@@ -109,7 +111,17 @@ pnpm --filter @omne-harness/harness-server run check:aa-rows
 pnpm --filter @omne-harness/harness-server run check:tool-release
 ```
 
-`test:slow` 会启动 `dist/bin.js`，所以先运行 `build`。`check:aa-rows` 比较行快照与应用装配页。`check:tool-release` 从已构建的 `@omne-harness/tool-definitions` 重算 Tool 发行清单，所以先构建该包。
+`test:slow` 会启动 `dist/bin.js`，所以先运行 `build`。`check:tool-release` 从已构建的 `@omne-harness/tool-definitions` 重算 Tool 发行清单，所以先构建该包。
+
+`check:aa-rows` 做三项检查，任何一项不通过时以非零退出码退出：
+
+- 行快照 `src/s0/aa-rows.json` 与应用装配页的插件树和受信表相同。
+- 规则 E1，受信名的读法。受信表里的名字只有两种读法：入口对象模块（`src/entry`）经 `env.readTrusted(name)` 读取；行源码（`src/rows`）只在受信表把这个名字列为该行可见时读取。入口模块在根上对受信名用 `get`、下标、`ctx.<名>` 或别名导入时不通过。行源码提到本行看不见的受信名时不通过。
+- 规则 E2，签发调用点。`issueActingForTenant(` 与 `issueSystem(` 只出现在 `scripts/aa-trust-config.json` 的 `issuerCallSites` 与 `issuerDefinition` 列出的文件里。
+
+`scripts/aa-trust-config.json` 的 `pending` 列出应当进受信表、但表里还没有的名字。检查按同样的规则扫描它们，只报告、不失败。表里已经列出的 pending 名字照常强制。现在这个列表为空。
+
+扫描是词法扫描。受信名先赋给别的变量再读取时，扫描认不出。
 
 测试使用替身与夹具行，不使用真实 SQL 提供者、真实身份和真实存储。替身通过不证明耐久性或真实供应商行为。
 

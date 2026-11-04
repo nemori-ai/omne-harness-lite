@@ -45,6 +45,7 @@ import {
   decodeDispatchId,
   decodeResultVersion,
   type DispatchId,
+  type ModelDelivery,
   type ResultPart,
 } from '@omne-harness/model-contract'
 import { historySessionOf } from '@omne-harness/session-adapters'
@@ -55,6 +56,7 @@ import {
   createSessionMessageHandoffPlugin,
   createSessionModelLogConsumptionPlugin,
   createSessionToolLogConsumptionPlugin,
+  type JournalPublicationReport,
 } from '@omne-harness/session-adapters/cordis'
 import { createSessionProviderPlugin } from '@omne-harness/session-cordis/cordis'
 import { createAgentContextPlugin } from '@omne-harness/agent-context/cordis'
@@ -129,6 +131,19 @@ export function toolCallBlock(callId: string, name = 'read_file'): Original {
     name,
     arguments: { kind: 'object', entries: [] },
   } as unknown as Original
+}
+
+/**
+ * A reply block of the Model double: an opaque reasoning state without pairs, as a real provider
+ * returns encrypted reasoning. The delivery carries no scope/format for it (R2-D70).
+ */
+export function reasoningStateBlock(id: string, payload = 'opaque'): Original {
+  const identity = judgeBlockIdentity({
+    id: `blk_${id}`,
+    visibility: { toHuman: false, toModel: true },
+  })
+  if ('rejected' in identity) throw new Error(identity.rejected)
+  return { ...identity.ok, kind: 'reasoning_state', payload, pairs: [] } as unknown as Original
 }
 
 // --- the Model double -------------------------------------------------------------------------------
@@ -297,8 +312,28 @@ function associatedOf(snapshot: ExecutionSnapshot): AssociatedTool[] {
 
 // --- the options and the world -----------------------------------------------------------------------
 
+/**
+ * The text of a value with its members in name order at every depth: a consumer position read back
+ * from the Journal (a content block, canonical JSON) and the one the Tool request carries name the
+ * same position with their members in different orders.
+ */
+function stable(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, member]) => member !== undefined)
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+  return `{${entries.map(([key, member]) => `${JSON.stringify(key)}:${stable(member)}`).join(',')}}`
+}
+
 export type W2Options = Readonly<{
   model: ModelScript
+  /**
+   * Changes a Model delivery before the real receiver saves it. The scripted producer seals only
+   * the block kinds of its allowlist (no `reasoning_state`), so a scenario that needs the delivery
+   * a real provider makes adds the other parts here. The Model double still settles the call.
+   */
+  modelDelivery?: (delivery: ModelDelivery) => ModelDelivery
   tool?: ToolScript
   /** The fixed delay of the Model and Tool doubles when a step names none. */
   defaultDelayMs?: number
@@ -318,6 +353,15 @@ export type W2Options = Readonly<{
   earlier?: 'double' | 'session'
   /** Parts of other closures: `plugins` mount after the Agent host, `handoff: 'external'` keeps the scripted one out. */
   plugins?: readonly PluginMount[]
+  /** Faces of the Tool request source double to replace, for a scenario where the source refuses. */
+  toolRequests?: Partial<NonNullable<Dependencies['toolRequests']>>
+  /**
+   * Receives each publication of the Agent records, of the Agent's Journal and of the one the
+   * receivers write through (session-adapters `SessionLogJournalOptions.report`).
+   */
+  report?: (report: JournalPublicationReport) => void
+  /** Wraps the shared storage after the world's counting wrapper, for example to measure commits. */
+  wrapStorage?: NonNullable<LineWorldOptions['wrapStorage']>
 }>
 
 /**
@@ -365,6 +409,7 @@ export async function openW2World(options: W2Options) {
       toolRequests.push(request)
       return { ok: request }
     },
+    ...options.toolRequests,
   }
   /** The Model call identities in the order they were admitted. */
   const modelCalls: string[] = []
@@ -401,7 +446,10 @@ export async function openW2World(options: W2Options) {
     ad06?: (target: never) => Promise<unknown>
   } = {}
   const w = await openLineWorld({
-    wrapStorage: storage => countingStorage(storage, counters),
+    wrapStorage: storage => {
+      const counted = countingStorage(storage, counters)
+      return options.wrapStorage === undefined ? counted : options.wrapStorage(counted)
+    },
     journalPlugin: combination => [
       createSessionAgentJournalPlugin({
         // Real plugin; the installation is the test installation of agent-contract/testing.
@@ -409,9 +457,11 @@ export async function openW2World(options: W2Options) {
           installation: testCancellationPolicyInstallation,
           policy: createTestCancellationPolicy(),
         },
+        ...(options.report === undefined ? {} : { report: options.report }),
       }),
       combination,
     ],
+    ...(options.report === undefined ? {} : { journalReport: options.report }),
     handoff: 'external',
     // The manual clock is moved by `until`, far faster than real time: no instance idles out.
     hostConfig: { instanceIdleMs: 2_000_000_000 },
@@ -426,12 +476,12 @@ export async function openW2World(options: W2Options) {
         ? createAgentHostLocalPlugin({ measure: observe, toolRequests: toolRequestSource })
         : observedHandoffHost(options.onHandoff, toolRequestSource, observe),
     // `earlier: 'session'` is real (AD-04): the K-RQ holder sources over the Session log replace the
-    // holder double. The fixed request facts of the narrow adoption source are those of the world's
-    // adopted-request double. By default the earlier context is the history of the holder double.
+    // holder double. The narrow adoption source reads the Session's own record of fixed requests
+    // (FIXED-FACTS F5). By default the earlier context is the history of the holder double.
     ...(earlier === 'session' ? { holder: 'external' as const } : {}),
     sessionProvider: ObservedSession,
     contextPlugin: createAgentContextPlugin({ measure: observe }),
-    plugins: ({ adopted, combination, coordinator }) => {
+    plugins: ({ combination, coordinator }) => {
       // Real (AD-02): the Agent's publication is interpreted into the session log, woken by the
       // Journal plugin's `agent-published` event. Real: the handoff provider and its records.
       const ad02 = createSessionJournalInterpretationPlugin<string>({ coordinator })
@@ -443,7 +493,7 @@ export async function openW2World(options: W2Options) {
       const history =
         earlier === 'session'
           ? (() => {
-              const ad04 = createSessionHistorySource({ heads: { sessionOf: headOf }, adopted })
+              const ad04 = createSessionHistorySource({ heads: { sessionOf: headOf } })
               return [[ad04.lowerBound], [ad04.source]] as const
             })()
           : []
@@ -497,7 +547,8 @@ export async function openW2World(options: W2Options) {
     wrapModelReceiver: receiver => ({
       ...receiver,
       push: async input => {
-        const answer = await receiver.push(input)
+        const delivery = options.modelDelivery?.(input.delivery) ?? input.delivery
+        const answer = await receiver.push({ ...input, delivery })
         if ('ok' in answer) counters.receive('model')
         return answer
       },
@@ -628,7 +679,7 @@ export async function openW2World(options: W2Options) {
           const target = found.ok.find(
             item =>
               item.pending.reference === input.reference &&
-              JSON.stringify(item.pending.position) === JSON.stringify(input.consumer),
+              stable(item.pending.position) === stable(input.consumer),
           )
           return { ok: target ?? null }
         },
@@ -837,6 +888,12 @@ export async function openW2World(options: W2Options) {
     return run.kind === 'terminal' ? String(run.terminal.run) : null
   }
 
+  /** The outcome of the Run that Session last ended, null before the first end. */
+  async function lastOutcome(): Promise<string | null> {
+    const { run } = ok(await w.probe.readWork(intakeAccess))
+    return run.kind === 'terminal' ? run.terminal.outcome : null
+  }
+
   /**
    * One round: the input goes in through the intake face and the Run goes to its terminal, with the
    * counters and the recorder of the scenario open around it. Returns the counts of the round.
@@ -874,6 +931,7 @@ export async function openW2World(options: W2Options) {
     releases: () => releases,
     roundCompletes: () => roundsComplete,
     lastTerminal,
+    lastOutcome,
     progress,
     modelReferences,
     runRound,

@@ -47,6 +47,7 @@ import {
   type BeforeAdmitSlot,
   type SchedulingPolicy,
   type SessionDependencies,
+  type SessionDiagnostic,
   type SessionMeasure,
   type SessionInstance,
 } from '../../src/index.ts'
@@ -243,10 +244,17 @@ export async function harness(options: HarnessOptions) {
     principals: { coordinator: 'system:coordinator', maintainer: 'system:maintainer' },
     admission: { current: () => admission },
   }
+  // Every named diagnostic of the instance (SessionDiagnostic), oldest first.
+  const diagnostics: SessionDiagnostic[] = []
   const instance: SessionInstance<string> = createSessionInstance(
     dependencies,
     { policy: { ...defaultSchedulingPolicy, ...options.policy } },
-    options.measure === undefined ? undefined : { measure: options.measure },
+    {
+      ...(options.measure === undefined ? {} : { measure: options.measure }),
+      diagnose: diagnostic => {
+        diagnostics.push(diagnostic)
+      },
+    },
   )
 
   const faces = (caller: SessionCallerClass): SessionFaces<string> => instance.facesFor(caller)
@@ -280,6 +288,7 @@ export async function harness(options: HarnessOptions) {
     instance,
     dependencies,
     backend,
+    diagnostics: (): readonly SessionDiagnostic[] => [...diagnostics],
     checks: {
       asked: () => checks.controls.asked(),
       count: () => checks.controls.asked().length,

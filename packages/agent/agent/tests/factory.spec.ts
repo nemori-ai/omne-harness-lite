@@ -69,6 +69,10 @@ describe('C1 invalid: a configuration value out of range', () => {
     ['loopGuardPolicy', { ...adoption('loop-guard'), digest: '' }, 'loopGuardPolicy.digest'],
     ['loopGuardPolicy', { owner: 'o', name: 'n', revision: '1' }, 'loopGuardPolicy.digest'],
     ['loopGuardPolicy', { ...adoption('loop-guard'), extra: 'x' }, 'loopGuardPolicy.extra'],
+    ['maxRunSteps', 0, 'maxRunSteps'],
+    ['maxRunSteps', 2.5, 'maxRunSteps'],
+    ['maxRunSteps', '50', 'maxRunSteps'],
+    ['maxRunSteps', null, 'maxRunSteps'],
   ]
   it.each(cases)('%s = %j is invalid at configuration.%s', async (key, value, field) => {
     const result = await refused(undefined, options({ [key]: loose(value) }))
@@ -82,12 +86,22 @@ describe('C1 invalid: a configuration value out of range', () => {
         observerBufferBytes: Number.MAX_SAFE_INTEGER,
         reconciliationBatchLimit: Number.MAX_SAFE_INTEGER,
         toolConcurrency: Number.MAX_SAFE_INTEGER,
+        maxRunSteps: Number.MAX_SAFE_INTEGER,
         reconciliationDelayMs: 0,
         denialBackoffMs: 0,
       }),
     )
     ok(created)
     expect(calls).toEqual([])
+  })
+})
+
+describe('C1 maxRunSteps is optional (R2-D221)', () => {
+  it('creates without maxRunSteps, and with the smallest limit', async () => {
+    const without = options()
+    expect('maxRunSteps' in without.configuration).toBe(false)
+    ok((await create(undefined, without)).created)
+    ok((await create(undefined, options({ maxRunSteps: 1 }))).created)
   })
 })
 

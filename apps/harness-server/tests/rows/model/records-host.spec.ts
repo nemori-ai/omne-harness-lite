@@ -29,6 +29,7 @@ import {
 } from '@omne-harness/model-cordis-contract/cordis'
 import { stubPlugin } from '../../../src/cordis.ts'
 import { cursorSigning } from '../../../src/entry/cursor-signing.ts'
+import { identityClock } from '../../../src/entry/identity-clock.ts'
 import { modelClock } from '../../../src/entry/model-clock.ts'
 import { modelHostAuthority } from '../../../src/entry/model-authorities.ts'
 import {
@@ -128,7 +129,7 @@ function rowsOf(storageRoot: string, options: { credential: boolean }) {
       id: 'session-storage',
       plugin: 'sessionStorageRow',
       config: {
-        combinationVersion: 'session-composite/2',
+        combinationVersion: 'session-composite/4',
         directoryFile: join(storageRoot, 'tenant-domains.json'),
         domainRule: 'organization-account/1',
       },
@@ -167,6 +168,8 @@ const entryObjects = [
   cursorSigning,
   modelClock,
   modelHostAuthority,
+  // The `authorization` row injects it to judge the end time of a maintenance grant.
+  identityClock,
 ]
 
 describe('the model-records and model-host rows', () => {

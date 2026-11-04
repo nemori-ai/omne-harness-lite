@@ -4,7 +4,9 @@
 // the body runs; a new provider of an injected service runs the body again, so the old faces and
 // the registrations of the old instances end and a later acquire builds a new instance.
 import { afterEach, describe, expect, it } from 'vitest'
+import { createAgentRuntime } from '@omne-harness/agent'
 import { agentHostConfig } from '../src/host-config.ts'
+import { createAgentHostPluginOver } from '../src/testing.ts'
 import {
   INJECTED,
   PROVIDED,
@@ -63,6 +65,8 @@ describe('loading', () => {
     ['an unknown coordination mode', { ...hostConfig, coordination: 'shared' }],
     ['a joint commit kind twice', { ...hostConfig, jointCommits: ['message', 'message'] }],
     ['a loop guard policy without a digest', { ...hostConfig, loopGuardPolicy: { owner: 'a' } }],
+    ['a step limit of zero', { ...hostConfig, maxRunSteps: 0 }],
+    ['a step limit that is not a whole number', { ...hostConfig, maxRunSteps: 2.5 }],
     ['an unknown field', { ...hostConfig, tenant: 'org' }],
     ['no configuration', undefined],
   ])('fails the fiber and provides nothing for %s', async (_name, config) => {
@@ -75,6 +79,33 @@ describe('loading', () => {
   it('takes the configuration of the candidate row', () => {
     const answer = agentHostConfig['~standard'].validate(hostConfig)
     expect(answer).toEqual({ value: hostConfig })
+  })
+})
+
+// R2-D221: the step limit is an optional factory item. The host hands it to the factory as given;
+// absent, the factory's own default applies, so the host adds no value of its own.
+describe('the step limit of an execution', () => {
+  async function limitSeen(config: unknown): Promise<unknown> {
+    const seen: unknown[] = []
+    const plugin = createAgentHostPluginOver((dependencies, options) => {
+      seen.push(options.configuration.maxRunSteps)
+      return createAgentRuntime(dependencies, options)
+    })
+    const host = await world({ plugin, config })
+    await host.host
+    expect(host.host.state).toBe(ACTIVE)
+    ok(await host.provision.acquire(slotOf('a')))
+    expect(seen).toHaveLength(1)
+    return seen[0]
+  }
+
+  it('hands the configured maxRunSteps to the Agent factory', async () => {
+    expect(await limitSeen({ ...hostConfig, maxRunSteps: 7 })).toBe(7)
+  })
+
+  it('negative control: without maxRunSteps the host gives none, and the factory default holds', async () => {
+    expect('maxRunSteps' in hostConfig).toBe(false)
+    expect(await limitSeen(hostConfig)).toBeUndefined()
   })
 })
 

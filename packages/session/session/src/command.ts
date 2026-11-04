@@ -5,6 +5,8 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decide,
+  expectedHolds,
+  expectedRevision,
   mutationAccessRequest,
   type CommitReceipt,
   type GuardCommand,
@@ -103,8 +105,26 @@ export type CommandHandler<P> = (
 
 type Lookup = Readonly<{ kind: 'new' }> | Readonly<{ kind: 'held' }>
 
+type ContextCommand = Extract<SessionCommand, { kind: 'create' | 'change' | 'startRun' | 'reload' }>
+type IdleCommand = Extract<SessionCommand, { kind: 'recordIdle' | 'considerAutoArchive' }>
+
+function preparesContext(command: SessionCommand): command is ContextCommand {
+  return (
+    command.kind === 'create' ||
+    command.kind === 'change' ||
+    command.kind === 'startRun' ||
+    command.kind === 'reload'
+  )
+}
+
+function preparesIdle(command: SessionCommand): command is IdleCommand {
+  return command.kind === 'recordIdle' || command.kind === 'considerAutoArchive'
+}
+
 /** The `expected` the caller asserted, or undefined for a command that carries none. */
 function expectedOf(command: SessionCommand): WorkSnapshot['revision'] | undefined {
+  // `claim` may carry `expected` (contract PM-05, R2-D327); without it the claim stays as before.
+  if (command.kind === 'claim') return command.input.expected
   if (!OPTIMISTIC.has(command.kind) || !('expected' in command.input)) return undefined
   return command.input.expected
 }
@@ -164,6 +184,32 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     }
   }
 
+  /** The evidence, Context and idle owners whose material the kind of this command asks for. */
+  const guardSteps = (
+    access: SessionAccess<P>,
+    command: SessionCommand,
+  ): readonly (() => Promise<Outcome<readonly GuardCommand[], SessionFailure>>)[] => {
+    const steps: (() => Promise<Outcome<readonly GuardCommand[], SessionFailure>>)[] = []
+    const routedNotOrdinary = command.kind === 'accept' && command.input.value.kind !== 'ordinary'
+    if (EVIDENCE.has(command.kind) || routedNotOrdinary)
+      steps.push(() =>
+        guarded(OWNERS.evidence, 'evidence.prepare', () =>
+          dependencies.evidence.prepare(command, access),
+        ),
+      )
+    if (preparesContext(command))
+      steps.push(() =>
+        guarded(OWNERS.context, 'context.prepare', () =>
+          dependencies.context.prepare(access, command),
+        ),
+      )
+    if (preparesIdle(command))
+      steps.push(() =>
+        guarded(OWNERS.idle, 'idle.prepare', () => dependencies.idle.prepare(access, command)),
+      )
+    return steps
+  }
+
   /** Step 4: the guard material of the command, from the owners its kind fixes. */
   const materials = async (
     access: SessionAccess<P>,
@@ -175,32 +221,10 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     )
     if ('failure' in identity) return identity
     guards.push(identity.ok)
-    const routedNotOrdinary = command.kind === 'accept' && command.input.value.kind !== 'ordinary'
-    if (EVIDENCE.has(command.kind) || routedNotOrdinary) {
-      const evidence = await guarded(OWNERS.evidence, 'evidence.prepare', () =>
-        dependencies.evidence.prepare(command, access),
-      )
-      if ('failure' in evidence) return evidence
-      guards.push(...evidence.ok)
-    }
-    if (
-      command.kind === 'create' ||
-      command.kind === 'change' ||
-      command.kind === 'startRun' ||
-      command.kind === 'reload'
-    ) {
-      const context = await guarded(OWNERS.context, 'context.prepare', () =>
-        dependencies.context.prepare(access, command),
-      )
-      if ('failure' in context) return context
-      guards.push(...context.ok)
-    }
-    if (command.kind === 'recordIdle' || command.kind === 'considerAutoArchive') {
-      const idle = await guarded(OWNERS.idle, 'idle.prepare', () =>
-        dependencies.idle.prepare(access, command),
-      )
-      if ('failure' in idle) return idle
-      guards.push(...idle.ok)
+    for (const step of guardSteps(access, command)) {
+      const prepared = await step()
+      if ('failure' in prepared) return prepared
+      guards.push(...prepared.ok)
     }
     if (command.kind === 'accept' && command.input.value.kind === 'ordinary') {
       const admitted = admission()
@@ -264,8 +288,10 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     const refusal = refusalOf(snapshot.ok, command)
     if (refusal !== null) return fail(refusal)
     const expected = expectedOf(command)
-    return expected !== undefined && expected !== snapshot.ok.revision
-      ? fail({ kind: 'changed', revision: snapshot.ok.revision })
+    // The advance commands compare the Run-layer revision, the others the snapshot revision
+    // (contract I-R2, R2-D327).
+    return expected !== undefined && !expectedHolds(snapshot.ok, command.kind, expected)
+      ? fail({ kind: 'changed', revision: expectedRevision(snapshot.ok, command.kind) })
       : null
   }
 
@@ -342,6 +368,38 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     )
   }
 
+  /** A held operation: the original answer comes back from the record; nothing new is committed. */
+  const recall = async (
+    view: SessionTransactionPort<P>,
+    access: SessionAccess<P>,
+    command: SessionCommand,
+  ): Promise<CommandAnswer> => {
+    if (!RECALL_WITH_MATERIAL.has(command.kind)) return commit(view, access, command, [])
+    const recalled = await materials(access, command)
+    return 'failure' in recalled ? recalled : commit(view, access, command, recalled.ok)
+  }
+
+  /** Whether a `changed` answer is redone: only a command that asserted no `expected`, within the budget. */
+  const redoable = (command: SessionCommand, failure: SessionFailure, retries: number): boolean =>
+    failure.kind === 'changed' &&
+    OPTIMISTIC.has(command.kind) &&
+    expectedOf(command) === undefined &&
+    retries < policy.command.retriesOnChanged
+
+  /** Step 6 and the hand-over of a commit that succeeded; a recovered commit is neither. */
+  const settle = async (
+    view: SessionTransactionPort<P>,
+    access: SessionAccess<P>,
+    command: SessionCommand,
+    answer: CommandAnswer & Readonly<{ ok: unknown }>,
+  ): Promise<CommandAnswer> => {
+    const receipt = receiptOf(answer.ok)
+    if (receipt?.recovered === true) return answer
+    if (receipt !== null) await afterCommit(view, access, command, receipt)
+    input.committed(command)
+    return answer
+  }
+
   /** Steps 1 (recall part) to 6 over one bound view. `retries` counts the `changed` redos so far. */
   const run = async (
     view: SessionTransactionPort<P>,
@@ -354,12 +412,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
       return commit(view, access, command, [])
     const lookup = await lookUp(view, access, command)
     if ('failure' in lookup) return lookup
-    if (lookup.ok.kind === 'held') {
-      // The original answer comes back from the record; nothing new is committed or notified.
-      if (!RECALL_WITH_MATERIAL.has(command.kind)) return commit(view, access, command, [])
-      const recalled = await materials(access, command)
-      return 'failure' in recalled ? recalled : commit(view, access, command, recalled.ok)
-    }
+    if (lookup.ok.kind === 'held') return recall(view, access, command)
     if (command.kind !== 'create') {
       const early = await readAndRefuse(view, access, command)
       if (early !== null) return early
@@ -367,21 +420,11 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     const guards = await materials(access, command)
     if ('failure' in guards) return guards
     const answer = await commit(view, access, command, guards.ok)
-    if ('failure' in answer) {
-      if (
-        answer.failure.kind === 'changed' &&
-        OPTIMISTIC.has(command.kind) &&
-        expectedOf(command) === undefined &&
-        retries < policy.command.retriesOnChanged
-      )
-        return run(view, access, command, retries + 1)
-      return answer
-    }
-    const receipt = receiptOf(answer.ok)
-    if (receipt?.recovered === true) return answer
-    if (receipt !== null) await afterCommit(view, access, command, receipt)
-    input.committed(command)
-    return answer
+    if ('failure' in answer)
+      return redoable(command, answer.failure, retries)
+        ? run(view, access, command, retries + 1)
+        : answer
+    return settle(view, access, command, answer)
   }
 
   return async (caller, command, principal) => {

@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialPort } from '@omne-harness/model-contract/provider'
 import { ModelCredentialService } from '@omne-harness/model-cordis-contract/cordis'
-import { fieldOf, isIntegerAtLeast, isRecord } from './fields.ts'
+import { fieldOf, isIntegerAtLeast, isRecord, rejected, type Parsed } from './fields.ts'
 import {
   createLocalCustodian,
   openLocalCustodian,
@@ -14,13 +14,6 @@ import {
 export { deliverInjected } from './deliver-injected.ts'
 
 type PluginConfig = CreateOptions
-
-type Issue = { message: string }
-type Parsed<T> = Readonly<{ value: T }> | Readonly<{ issues: Issue[] }>
-
-function rejected(message: string): Parsed<never> {
-  return { issues: [{ message }] }
-}
 
 function parseCount(value: unknown, name: string, minimum: number): Parsed<number | undefined> {
   if (value === undefined) return { value: undefined }
@@ -155,6 +148,7 @@ export type {
   ResultPushLimits,
   ResultPushOptions,
   ResultPushRecord,
+  ResultPushRecovery,
   RuntimeEvent,
 } from './plugins/runtime.ts'
 export { ModelProfilesLocalPlugin } from './plugins/profiles.ts'

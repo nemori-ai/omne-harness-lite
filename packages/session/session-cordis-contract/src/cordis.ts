@@ -31,6 +31,7 @@ import type {
   SessionRevision,
   SessionTransactionPort,
 } from '@omne-harness/session-contract'
+import type { SessionAdoptedRequests } from './adopted-request.ts'
 import type { SessionCursorSigning } from './cursor-signing.ts'
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts'
 
@@ -344,6 +345,26 @@ export abstract class SessionCursorSigningService extends Service implements Ses
 }
 export const sessionCursorSigningKey = SessionCursorSigningService.provide
 
+/**
+ * The adopted request of a session: what the session-log Journal provider saved in the same
+ * publication as the last main-purpose M0 (FIXED-FACTS F4). The `agent-journal` row provides it
+ * in the plugin body of `agentJournal`, so it is in the same authoritative ordering as the Agent
+ * records. The consumer takes it per call (`ctx.get`) and treats absence as `unavailable`.
+ *
+ * @owner packages/session/session-cordis-contract
+ */
+export abstract class SessionAdoptedRequestsService<P = unknown>
+  extends Service
+  implements SessionAdoptedRequests<P>
+{
+  static readonly provide = 'sessionAdoptedRequests'
+  constructor(ctx: Context) {
+    super(ctx, SessionAdoptedRequestsService.provide)
+  }
+  abstract readonly readAdoptedRequest: SessionAdoptedRequests<P>['readAdoptedRequest']
+}
+export const sessionAdoptedRequestsKey = SessionAdoptedRequestsService.provide
+
 declare module '@deepseek-ai/cordis' {
   // The trusted identity adapter of an assembly narrows the principal type. Providers still
   // check every input at run time.
@@ -369,6 +390,7 @@ declare module '@deepseek-ai/cordis' {
     sessionCursorSigning: SessionCursorSigningService
     sessionReplayFacts: SessionReplayFactsService
     sessionScopeLookup: SessionScopeLookupService
+    sessionAdoptedRequests: SessionAdoptedRequestsService<unknown>
   }
   interface Events {
     /**

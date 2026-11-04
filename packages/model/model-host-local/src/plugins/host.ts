@@ -329,6 +329,114 @@ export type ModelRuntimeLocalPluginClass = {
   readonly Config: typeof modelHostConfigSchema
 }
 
+type ExecutionChannel = Exclude<
+  ReturnType<ModelInitialExecution<unknown>['openHost']>,
+  { failure: unknown }
+>['ok']
+
+/** Refuses a start whose options contradict the injected service or each other. */
+function assertStartOptions(ctx: Context, options: ModelHostPluginOptions): void {
+  if (
+    options.observation !== undefined &&
+    options.observation.commands !== Reflect.get(ctx.modelCommands, symbols.original)
+  )
+    throw new TypeError('model host: observation commands do not match the injected service')
+  if (options.executionChannel !== undefined && options.releaseExecution === undefined)
+    throw new TypeError('model host: execution channel requires an entry release owner')
+}
+
+/** Takes the execution channel of the entry, if the options name one; a failed lease throws. */
+function captureExecutionChannel(options: ModelHostPluginOptions): ExecutionChannel | undefined {
+  const captured = options.executionChannel?.()
+  if (captured !== undefined && 'failure' in captured)
+    throw new Error(`model host: execution channel unavailable (${captured.failure.kind})`)
+  return captured?.ok
+}
+
+/**
+ * The one release of the channel: the entry release owner first, then the close of the channel,
+ * even when the owner throws. Every call returns the same promise, so the release runs once.
+ */
+function createExecutionRelease(
+  ctx: Context,
+  options: ModelHostPluginOptions,
+  channel: ExecutionChannel | undefined,
+): () => Promise<void> {
+  let releasing: Promise<void> | undefined
+  return () => (releasing ??= releaseChannel())
+  async function releaseChannel(): Promise<void> {
+    if (channel === undefined) return
+    try {
+      await options.releaseExecution?.()
+    } catch {
+      ctx.logger.warn('model host: execution release failed')
+    } finally {
+      channel.close()
+    }
+  }
+}
+
+/** Opens the host lease of the observation source, if the options name one; a failed lease throws. */
+function openObservationHost(
+  options: ModelHostPluginOptions,
+): ModelObservationHost<unknown> | undefined {
+  const lease = options.observation?.source.openHost()
+  if (lease !== undefined && 'failure' in lease)
+    throw new Error(`model host: observation lease unavailable (${lease.failure.kind})`)
+  return lease?.ok
+}
+
+type BoundHostParts = Readonly<{
+  host: ModelDriverHost<unknown>
+  stage: ReturnType<typeof createRuntimeStage>
+  provider: ReturnType<ModelHostPluginOptions['provider']>
+  binding: ModelDriverBinding
+  observation: ModelObservationHost<unknown> | undefined
+  releaseExecution: () => Promise<void>
+}>
+
+/**
+ * Publishes the bound host and owns its shutdown. When the contribution cannot be created or
+ * does not settle, the bound host closes and the stage stops before the error goes on.
+ */
+async function publishBoundHost(ctx: Context, parts: BoundHostParts): Promise<void> {
+  const { host, stage, provider, binding, observation, releaseExecution } = parts
+  try {
+    // The extension point of the runtime facade: `modelRuntime` is published in the same
+    // contribution as the host, after the bind and from `provider`. The contribution is
+    // created inside this `try`: a fiber that unloads in the start window makes it throw, and the
+    // bound host must then close.
+    const contribution = ctx.plugin({
+      name: 'model-runtime-local-contribution',
+      apply: (child: Context) => {
+        new HostContribution(child, host)
+        stage.contribute(child, provider.runtime)
+        if (observation !== undefined) createModelStreamLocalPlugin({ source: observation })(child)
+      },
+    })
+    // The entry owns the send child on another fiber. Await its release after drives and push
+    // return, while the commands parent is still alive.
+    ctx.effect(() => [
+      contribution.dispose,
+      async () => {
+        try {
+          await orderedShutdown(ctx, provider, binding, observation)()
+          await stage.stop()
+        } catch {
+          ctx.logger.warn('model host: shutdown did not complete cleanly')
+        } finally {
+          await releaseExecution()
+        }
+      },
+    ])
+    await contribution
+  } catch (error) {
+    await binding.close()
+    await stage.stop()
+    throw error
+  }
+}
+
 /**
  * The class that is the `ModelRuntimeLocalPlugin` of the design, for the host part. It is made by a
  * function because its two options are objects. The static `inject` is the design's: commands,
@@ -338,35 +446,12 @@ export function createModelRuntimeLocalPlugin(
   options: ModelHostPluginOptions,
 ): ModelRuntimeLocalPluginClass {
   async function start(ctx: Context, settings: ModelHostSettings): Promise<void> {
-    if (
-      options.observation !== undefined &&
-      options.observation.commands !== Reflect.get(ctx.modelCommands, symbols.original)
-    )
-      throw new TypeError('model host: observation commands do not match the injected service')
-    if (options.executionChannel !== undefined && options.releaseExecution === undefined)
-      throw new TypeError('model host: execution channel requires an entry release owner')
-    const captured = options.executionChannel?.()
-    if (captured !== undefined && 'failure' in captured)
-      throw new Error(`model host: execution channel unavailable (${captured.failure.kind})`)
-    const channel = captured?.ok
-    let releasing: Promise<void> | undefined
-    const releaseExecution = () => (releasing ??= releaseChannel())
-    async function releaseChannel(): Promise<void> {
-      if (channel === undefined) return
-      try {
-        await options.releaseExecution?.()
-      } catch {
-        ctx.logger.warn('model host: execution release failed')
-      } finally {
-        channel.close()
-      }
-    }
+    assertStartOptions(ctx, options)
+    const channel = captureExecutionChannel(options)
+    const releaseExecution = createExecutionRelease(ctx, options, channel)
     let observation: ModelObservationHost<unknown> | undefined
     try {
-      const lease = options.observation?.source.openHost()
-      if (lease !== undefined && 'failure' in lease)
-        throw new Error(`model host: observation lease unavailable (${lease.failure.kind})`)
-      observation = lease?.ok
+      observation = openObservationHost(options)
       const host = createLocalDriverHost({
         settings,
         authority: ctx.modelHostAuthority,
@@ -378,6 +463,7 @@ export function createModelRuntimeLocalPlugin(
         {
           commands: channel?.commands ?? ctx.modelCommands,
           authority: ctx.modelHostAuthority,
+          scanBatchSize: settings.scanBatchSize,
           report: event => reportRuntimeEvent(ctx, event),
         },
         options.results,
@@ -393,41 +479,14 @@ export function createModelRuntimeLocalPlugin(
       if ('failure' in bound)
         throw new Error(`the model host could not bind: ${bound.failure.kind}`)
 
-      try {
-        // The extension point of the runtime facade: `modelRuntime` is published in the same
-        // contribution as the host, after the bind above and from `provider`. The contribution is
-        // created inside this `try`: a fiber that unloads in the start window makes it throw, and the
-        // bound host must then close.
-        const contribution = ctx.plugin({
-          name: 'model-runtime-local-contribution',
-          apply: (child: Context) => {
-            new HostContribution(child, host)
-            stage.contribute(child, provider.runtime)
-            if (observation !== undefined)
-              createModelStreamLocalPlugin({ source: observation })(child)
-          },
-        })
-        // The entry owns the send child on another fiber. Await its release after drives and push
-        // return, while the commands parent is still alive.
-        ctx.effect(() => [
-          contribution.dispose,
-          async () => {
-            try {
-              await orderedShutdown(ctx, provider, bound.ok, observation)()
-              await stage.stop()
-            } catch {
-              ctx.logger.warn('model host: shutdown did not complete cleanly')
-            } finally {
-              await releaseExecution()
-            }
-          },
-        ])
-        await contribution
-      } catch (error) {
-        await bound.ok.close()
-        await stage.stop()
-        throw error
-      }
+      await publishBoundHost(ctx, {
+        host,
+        stage,
+        provider,
+        binding: bound.ok,
+        observation,
+        releaseExecution,
+      })
     } catch (error) {
       observation?.close()
       await releaseExecution()

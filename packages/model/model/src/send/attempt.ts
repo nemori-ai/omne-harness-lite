@@ -122,6 +122,27 @@ export function createAttemptRunner<P>(
     attempts.delete(id)
     return refused(failure)
   }
+  /** The secret of the selected credential, only through the qualified path and its own scope. */
+  function resolveCredential(
+    attempt: SendAttempt<P>,
+    selection: CredentialSelection,
+  ): Outcome<string, ModelFailure> {
+    if (!credentials.resolveFor || typeof selection.official !== 'boolean')
+      return { failure: unavailable('model-credential', 'qualified-path-missing') }
+    const resolved = credentials.resolveFor({
+      id: selection.id,
+      purpose: MODEL_SEND,
+      official: selection.official,
+      access: { principal: attempt.input.principal, tenant: attempt.input.tenant },
+    })
+    if (resolved.kind === 'denied')
+      return { failure: { kind: 'denied', action: 'model-credential' } }
+    if (resolved.kind !== 'value')
+      return { failure: unavailable('model-credential', `credential-${resolved.kind}`) }
+    if (resolved.scope !== selection.scope)
+      return { failure: { kind: 'denied', action: 'credential-scope' } }
+    return { ok: resolved.value }
+  }
   function start(attempt: SendAttempt<P>, selection: CredentialSelection): SendStart {
     try {
       if (attempt.signal.aborted)
@@ -133,30 +154,12 @@ export function createAttemptRunner<P>(
           kind: 'refused',
           failure: { kind: 'invalid', field: 'receipt', reason: 'changed-after-commit' },
         }
-      if (!credentials.resolveFor || typeof selection.official !== 'boolean')
-        return {
-          kind: 'refused',
-          failure: unavailable('model-credential', 'qualified-path-missing'),
-        }
-      const resolved = credentials.resolveFor({
-        id: selection.id,
-        purpose: MODEL_SEND,
-        official: selection.official,
-        access: { principal: attempt.input.principal, tenant: attempt.input.tenant },
-      })
-      if (resolved.kind === 'denied')
-        return { kind: 'refused', failure: { kind: 'denied', action: 'model-credential' } }
-      if (resolved.kind !== 'value')
-        return {
-          kind: 'refused',
-          failure: unavailable('model-credential', `credential-${resolved.kind}`),
-        }
-      if (resolved.scope !== selection.scope)
-        return { kind: 'refused', failure: { kind: 'denied', action: 'credential-scope' } }
+      const credential = resolveCredential(attempt, selection)
+      if ('failure' in credential) return { kind: 'refused', failure: credential.failure }
       try {
         return {
           kind: 'started',
-          facts: resource.startWithCredential(materialized, resolved.value, attempt.signal),
+          facts: resource.startWithCredential(materialized, credential.ok, attempt.signal),
         }
       } catch {
         return { kind: 'unknown', diagnostic: 'transport-start-unknown' }

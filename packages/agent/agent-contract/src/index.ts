@@ -1,6 +1,6 @@
 export { agentBodyContract } from './body-contract.ts'
 export { obligationCategoryOf } from './finishing.ts'
-export { ATTRIBUTE_ITEMS } from './definition.ts'
+export { ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS } from './definition.ts'
 export { POSITIONS, POWERS } from './extensions.ts'
 export { judgeAgentDefinition } from './judge-definition.ts'
 export { judgeLoopExtensions } from './judge-extensions.ts'
@@ -17,6 +17,7 @@ export type {
   AttributeDeclaration,
   AttributeItem,
   CapabilityRef,
+  InstructionSection,
 } from './definition.ts'
 export {
   AGENT_IDENTITY_MAX_LENGTH,

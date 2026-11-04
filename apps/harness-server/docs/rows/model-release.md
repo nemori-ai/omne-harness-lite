@@ -15,7 +15,7 @@
 | `model-host` | `createModelRuntimeLocalPlugin` 加 `createModelRuntime` | `executionChannel`、`releaseExecution`、`qualifyObservation`、`send`（按调用现取 `modelSendBoundary`）、`retry`（恒 `unavailable`）、推送账本 | `host` 四项、`runtime` 八项、`results` 五项，行体自校验 |
 | `model-request-preparation` | `createModelRequestPreparationPlugin` | OpenAI 家族 | `maxCitedCalls`、`openai.limits`、`openai.margin` |
 
-`combinationVersion` 与 `session-storage` 行相等，发行值是 `session-composite/2`（R2-D65）；两行都用 `compositeManifestDigest(storageCatalog())` 的同一摘要。
+`combinationVersion` 与 `session-storage` 行相等，发行值是 `session-composite/4`（R2-D65 换到 `/2`；Tool B 段并入 `tool` 参加者后换到 `/3`；Agent Journal 事实族加入状态分块与执行事实迁移后换到 `/4`，R2-D342）；两行都用 `compositeManifestDigest(storageCatalog())` 的同一摘要。
 换版本不为已登记租户补登记，开发环境清存储根（R2-D98）。
 
 装载时（`serve` 的配置边界，任何插件装载之前）核四条跨行相等，不等即退出 2 并写明哪两行哪一项：
@@ -26,6 +26,8 @@
 4. `model-records.sendStage.profiles` = `model-profiles` 的 `retryPolicy` 与 `compactionTriggerPercent`（发送来源的档案采用摘要由同一定义算出）。
 
 只有两行都是真件时才核；缺项由各行自己的 schema 报。
+
+`compactionTriggerPercent` 对全部官方档案生效，`coding` 等单个定义不能另设。运维者层的推荐值是 `"80"`（R2-D124：出厂 coding agent 的压缩阈值 80%）；r9 与 serve 的测试运维层用这个值。发行层仍不写它。
 
 ## 两类主体与 ActorRef
 
@@ -77,7 +79,8 @@
 - **ActorRef 是租户级的 standing 记录**：同一租户的全部 W 与 M 共用一个 ActorRef，`resolve` 第 3 步对原发起者的核对退化为「同一租户」。M2 是个人租户，按 R2-D33 方案 A 接受；按主体区分的 ActorRef 由入口签发者在波 3 给出。
 - **W 的受理捕获以调用为期，不以入口为期**：一个 W 在宿主包装的命令调用进行中时，拿同一个 W 直接经 `modelCommands` 服务发起的调用也被放行（`authorize` 只查表里有没有这个对象的捕获）。调用结束后捕获释放，直接调用回到 `unavailable`。记录，不修。
 - **s0 树不变**：`config/s0.distribution.json` 与 s0 允许表没有改动，s0 只装 `stubPlugin`；真件只进 `serve.distribution.json`。
-- **`receive`、`lateFact`、`retry`、`handoff` 证据恒 `unavailable`**：首内容保持 `none-proven`，重试收场 `policy-unavailable`（首内容前停顿长期 `running`，用户仍可取消），结果停在 `saved` 不 ACK（AD-05 未接），晚到账目不补录。
+- **`receive`、`lateFact`、`retry` 证据恒 `unavailable`**：首内容保持 `none-proven`，重试收场 `policy-unavailable`（首内容前停顿长期 `running`，用户仍可取消），晚到账目不补录。
+- **`handoff` 证据按耐久接收记录核验（R2-D257）**：Agent consumer owner 的证据适配器（`@omne-harness/agent` 的 `createAgentCustodyEvidence`）经受信名 `agentReceivedRecords`（`agent-journal` 行提供，只对本行可见）读结果接收方提交的 `received` 记录，租户、调用引用与结果版本、完整 consumer 与 saved 证据完全一致才确认；记录已提交但交付键、consumer 或 saved 证据不一致，或证据不是 Agent 位置的 retained 证据，按伪证据拒绝，答 `handoff-invalid`（R2-D260）；读面缺席、记录不存在、读失败答 `unavailable`，可以重试。两种失败都不写，结果与份额保留，同一 ACK operation 以后再确认。M2 发行只有一个 Model 调用的 consumer owner，`@omne-harness/agent`（运维者层 `model-records.owners` 只给这一个）；别的 owner 的 ACK 不进 Agent 适配器，答 `unavailable`（`owner-not-wired`），不当作伪证据（R2-D262）。ACK 与清理完成后该调用的份额归还，同一租户的下一次调用才放得下（发行份额 1000000 字节、每次调用 524288 字节，R2-D256）。已知限制：推送台账在进程内。成员已经能在启动时扫描耐久 custody，接续已 saved、未 ACK 的调用（model-host-local SPEC「启动扫描」，R2-D260），但发行不传 `results.recovery`。原因有两个：宿主主体按调用签发，资格表对不带调用的恢复扫描答 `unavailable`（`tenant-scan-not-provided`）；宿主接管记录只在进程内，重启前受理的调用 `resolve` 答 `unavailable`（见下一条）。所以发行里进程重启后，已 saved、未 ACK 的调用仍不会被重新推送与确认，份额要等跨进程恢复（波 3）。
 - **目录发布权威恒 `denied`**：不挡本地 host 的 drive（R2-D33 §5.3）。
 - **官方档案采用摘要规则是 model-host-local 私有规则的复制**，由 `tests/model/sources.spec.ts` 对真实 `ModelProfilesLocalPlugin` 守护。
 - **数值没有测量依据**：r9 与 serve 测试的运维者层是测试值，E9 首测后按曲线改运维者层配置。

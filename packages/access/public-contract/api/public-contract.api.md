@@ -6,6 +6,7 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `AccountId` · 包 `@omne-harness/legal-identity`
 - `GovernanceCodecLimits` · `messages.d.ts`
 - `GovernanceDiagnostic` · `messages.d.ts`
 - `GovernanceEncodeResult` · `messages.d.ts`
@@ -20,6 +21,8 @@
 - `GovernanceResponseRead` · `messages.d.ts`
 - `GovernanceStageNotProvided` · `messages.d.ts`
 - `GovernanceStageOperation` · `messages.d.ts`
+- `LoginStateId` · 包 `@omne-harness/legal-identity`
+- `OrganizationId` · 包 `@omne-harness/legal-identity`
 - `ProofInput` · `messages.d.ts`
 - `SessionCodecLimits` · `session-messages.d.ts`
 - `SessionDiagnostic` · `session-messages.d.ts`
@@ -38,14 +41,23 @@
 - `SessionResponseRead` · `session-messages.d.ts`
 - `SessionSuccessBodies` · `session-messages.d.ts`
 - `SessionTerminalSource` · `session-messages.d.ts`
+- `TenantId` · 包 `@omne-harness/legal-identity`
+- `encodeAccountIdText` · `identity-text.d.ts`
 - `encodeGovernanceRequest` · `codec.d.ts`
 - `encodeGovernanceResponse` · `codec.d.ts`
+- `encodeLoginStateIdText` · `identity-text.d.ts`
+- `encodeOrganizationIdText` · `identity-text.d.ts`
 - `encodeSessionRequest` · `session-codec.d.ts`
 - `encodeSessionResponse` · `session-codec.d.ts`
+- `encodeTenantText` · `identity-text.d.ts`
+- `readAccountIdText` · `identity-text.d.ts`
 - `readGovernanceRequest` · `codec.d.ts`
 - `readGovernanceResponse` · `codec.d.ts`
+- `readLoginStateIdText` · `identity-text.d.ts`
+- `readOrganizationIdText` · `identity-text.d.ts`
 - `readSessionRequest` · `session-codec.d.ts`
 - `readSessionResponse` · `session-codec.d.ts`
+- `readTenantText` · `identity-text.d.ts`
 
 ## 声明文件 `codec.d.ts`
 
@@ -120,6 +132,21 @@ export declare function readRequestDocument(bytes: Uint8Array, limits: JsonLimit
 };
 ```
 
+## 声明文件 `identity-text.d.ts`
+
+```ts
+import { type AccountId, type LoginStateId, type OrganizationId, type TenantId } from '@omne-harness/legal-identity';
+export type { AccountId, LoginStateId, OrganizationId, TenantId };
+export declare function readTenantText(text: string): TenantId | undefined;
+export declare function encodeTenantText(value: TenantId): string;
+export declare function readOrganizationIdText(text: string): OrganizationId | undefined;
+export declare function encodeOrganizationIdText(value: OrganizationId): string;
+export declare function readAccountIdText(text: string): AccountId | undefined;
+export declare function encodeAccountIdText(value: AccountId): string;
+export declare function readLoginStateIdText(text: string): LoginStateId | undefined;
+export declare function encodeLoginStateIdText(value: LoginStateId): string;
+```
+
 ## 声明文件 `index.d.ts`
 
 ```ts
@@ -127,6 +154,8 @@ export { readGovernanceRequest, readGovernanceResponse, encodeGovernanceRequest,
 export { readSessionRequest, readSessionResponse, encodeSessionRequest, encodeSessionResponse, } from './session-codec.ts';
 export type { GovernanceProvidedOperation, GovernanceStageOperation, GovernanceOperation, GovernanceRequest, GovernanceResponse, GovernanceCodecLimits, ProofInput, GovernanceProtocolRejected, GovernanceStageNotProvided, GovernanceProtocolResult, GovernanceDiagnostic, GovernanceRequestRead, GovernanceResponseRead, GovernanceEncodeResult, GovernanceResponseEncodeInput, } from './messages.ts';
 export type { SessionOperation, SessionRequestBodies, SessionProducerRef, SessionTerminalSource, SessionRequest, SessionOutcomes, SessionSuccessBodies, SessionResponse, SessionProtocolRejected, SessionHistoryEntry, SessionHistoryPage, SessionCodecLimits, SessionDiagnostic, SessionRequestRead, SessionResponseRead, SessionEncodeResult, SessionResponseEncodeInput, } from './session-messages.ts';
+export { readTenantText, encodeTenantText, readOrganizationIdText, encodeOrganizationIdText, readAccountIdText, encodeAccountIdText, readLoginStateIdText, encodeLoginStateIdText, } from './identity-text.ts';
+export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
 ```
 
 ## 声明文件 `messages.d.ts`
@@ -340,6 +369,7 @@ export type SuccessBodies = {
         readonly issuedAt: Instant;
         readonly tenantId: TenantId;
         readonly loginProof: string;
+        readonly loginId?: LoginStateId;
     };
     'revoke-login': EmptyBody;
     'replace-credential': EmptyBody;
@@ -516,7 +546,7 @@ export type BusinessResponse<O extends GovernanceProvidedOperation> = {
     readonly [K in BusinessOutcomes[O]]: Correlated<K, BusinessBody<O, K>>;
 }[BusinessOutcomes[O]];
 export type ResponseByOperation = {
-    readonly [O in GovernanceOperation]: GovernanceProtocolRejected | (O extends GovernanceProvidedOperation ? BusinessResponse<O> : GovernanceStageNotProvided);
+    readonly [O in GovernanceOperation]: GovernanceProtocolRejected | GovernanceStageNotProvided | (O extends GovernanceProvidedOperation ? BusinessResponse<O> : never);
 };
 export type GovernanceResponse<O extends GovernanceOperation = GovernanceOperation> = ResponseByOperation[O];
 export type GovernanceDiagnostic = {

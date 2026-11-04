@@ -12,10 +12,21 @@
 // - Idle reclaim: the expiry reads the last report, marks the instance and calls quiesce without
 //   an `await` in between. Only `drained` unloads the contribution fiber. Any other answer keeps the
 //   instance published, writes an error record and waits for the next idle time.
+// - Ordered stop (`quiesceAll`): admission closes first, so `acquire` and `reserve` refuse and no
+//   instance is built. Then every published instance the host runs gets the same quiesce as the
+//   reclaim, whatever its last report. Only `drained` unloads the contribution fiber. The answer is
+//   `settled` only when every instance drained before the caller's signal; otherwise it names each
+//   instance that did not and why. An instance that did not drain stays published for the fiber
+//   unload (docs/cordis.md "停止准入与撤除").
 // - The recovery and control entries check the principal and then call the Journal. They need no
 //   live runtime and keep the Journal's answer, unknown included. A control that the Journal
 //   accepted is advanced like the handle does it when a runtime this host still runs holds the
 //   active attachment of the execution; otherwise it stays accepted for the recovery path.
+// - A run that stopped on a failure: the runtime reports it once through the factory's `failed`
+//   receiver, and the host writes one warn record that names tenant, instance, execution, node,
+//   failure kind and diagnostic (SPEC「运行失败」, R2-D282). The host decides nothing from it. It
+//   keeps node and failure kind by execution, so a quiesce that leaves the execution unresolved
+//   names why in its record (R2-D285).
 // The runtime's own duties (quiesce drains, detaches and withdraws through the handle) belong to
 // the factory. The host never takes the end of a fiber for a detach or for a stopped execution.
 import { randomUUID } from 'node:crypto'
@@ -25,6 +36,8 @@ import {
   type AgentConfiguration,
   type AgentDependencies,
   type AgentProvider,
+  type AgentRunFailed,
+  type AgentRuntimeExtras,
   type AgentRuntimeOptions,
 } from '@omne-harness/agent'
 import {
@@ -76,15 +89,24 @@ import { toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { AgentHostConfig } from './host-config.ts'
 import { stagePort } from './stage-ports.ts'
 
-/** The factory the host calls for each instance: `createAgentRuntime` in production. */
+/**
+ * The factory the host calls for each instance: `createAgentRuntime` in production. `extras` carries
+ * the host's own `failed` receiver; a factory hands it on to `createAgentRuntime`.
+ */
 export type RuntimeFactory = (
   dependencies: AgentDependencies<unknown, ContentBlock>,
   options: AgentRuntimeOptions,
+  extras: HostRuntimeExtras,
 ) => Reply<AgentProvider<unknown>>
+
+/** What the host gives every runtime it builds besides dependencies and options. */
+export type HostRuntimeExtras = Required<Pick<AgentRuntimeExtras, 'failed'>>
 
 /** The statically injected services that the factory takes as they are. */
 export type HostStatics = Readonly<{
   journal: AgentJournal<unknown>
+  /** The receiving entries of the same Journal provider, read by the loop (agent-contract SPEC "日志条目" 6). */
+  entries: AgentDependencies<unknown, ContentBlock>['entries']
   access: AgentDependencies<unknown, ContentBlock>['access']
   models: ModelRuntime<unknown>
   adoptions: AgentDependencies<unknown, ContentBlock>['adoptions']
@@ -117,9 +139,29 @@ export type Host = Readonly<{
   provision: AgentInstanceProvision<unknown>
   /** The directory removed one registration of an instance. */
   retired(tenant: TenantId, instance: AgentInstanceId, generation: number, reason: string): void
+  /** The ordered stop: close admission, quiesce every instance, answer what did not drain. */
+  quiesceAll(input: AgentHostStopInput): Promise<AgentHostStopResult>
   /** The plugin body ends: no new instance, no reclaim. */
   stop(): void
 }>
+
+/** The input of the ordered stop. The caller owns the deadline: the signal aborts when it passes. */
+export type AgentHostStopInput = Readonly<{ signal: AbortSignal }>
+
+/** One instance, or one build, that the ordered stop did not end, and why. */
+export type AgentHostUnsettled = Readonly<{
+  /** Null for a build that had not published an instance by the deadline. */
+  instance: AgentInstanceId | null
+  reason: string
+}>
+
+/**
+ * The answer of the ordered stop. `settled`: admission is closed and every instance drained and
+ * unloaded. `incomplete`: admission is closed, and `instances` names each one that did not end.
+ */
+export type AgentHostStopResult =
+  | Readonly<{ kind: 'settled' }>
+  | Readonly<{ kind: 'incomplete'; detail: string; instances: readonly AgentHostUnsettled[] }>
 
 type Granted = Readonly<{ instance: AgentInstanceId; registration: Registration }>
 type Reserved = Readonly<{
@@ -151,9 +193,16 @@ type InstanceRecord = {
   timer: AbortController | null
   slot: string | null
   status: Status
+  /** The quiesce in flight (reclaim or ordered stop); it resolves after a drained instance retired. */
+  quiescing: Promise<Quiesced> | null
+  /** The runs of this instance that stopped on a failure: execution to `node=… failure=…`. */
+  readonly failedRuns: Map<string, string>
 }
 
+type Quiesced = Outcome<QuiesceResult, Failure>
+
 const OWNER = 'agent-host'
+const CLOSED = 'the host has stopped admitting instances'
 
 const unavailable = (owner: string, diagnostic: string): Failure => ({
   kind: 'unavailable',
@@ -212,9 +261,61 @@ function reclaimReason(instance: AgentInstanceId): DurableEvidence {
   return { owner: OWNER, record: 'idle-reclaim', revision: '1', digest: `instance:${instance}` }
 }
 
-/** The factory configuration: the plugin configuration without the host's own item. */
+/** The reason evidence of the ordered stop, written like the reclaim's. */
+function stopReason(instance: AgentInstanceId): DurableEvidence {
+  return { owner: OWNER, record: 'ordered-stop', revision: '1', digest: `instance:${instance}` }
+}
+
+/**
+ * Why a quiesce answer is not `drained`, or undefined when it is. An unresolved answer names each
+ * remaining execution, with the node and failure kind of a run that stopped on a failure.
+ */
+function notDrained(result: Quiesced, failedRuns: ReadonlyMap<string, string>): string | undefined {
+  if ('ok' in result) {
+    if (result.ok.kind === 'drained') return undefined
+    const named = result.ok.remaining.map(execution => {
+      const failed = failedRuns.get(execution)
+      return failed === undefined ? execution : `${execution} (run stopped: ${failed})`
+    })
+    const left = `quiesce left ${named.length} execution(s) unresolved`
+    return named.length === 0 ? left : `${left}: ${named.join(', ')}`
+  }
+  const { failure } = result
+  return failure.kind === 'unavailable'
+    ? `quiesce failed with unavailable (${failure.owner}: ${failure.diagnostic})`
+    : `quiesce failed with ${failure.kind}`
+}
+
+/** The text of a failure beside its kind: identities and states only, as the Failure carries them. */
+function failureText(failure: Failure): string {
+  switch (failure.kind) {
+    case 'unavailable':
+      return `${failure.owner}: ${failure.diagnostic}`
+    case 'denied':
+      return `action ${failure.action}`
+    case 'invalid':
+      return `field ${failure.field}: ${failure.reason}`
+    case 'commit-unknown':
+    case 'conflict':
+      return `operation ${failure.operation}`
+    default:
+      return failure.kind
+  }
+}
+
+/** The warn record of a run that stopped on a failure (SPEC「运行失败」). */
+function runFailedRecord(event: AgentRunFailed): string {
+  const tenant = tenantTextOf(event.tenant) ?? 'unknown'
+  return (
+    `agent run stopped on a failure: tenant=${tenant} instance=${event.instance} ` +
+    `execution=${event.execution} node=${event.node ?? 'none'} failure=${event.failure.kind} ` +
+    `diagnostic=${failureText(event.failure)}`
+  )
+}
+
+/** The factory configuration: the plugin configuration without the host's own items. */
 function factoryConfiguration(config: AgentHostConfig): AgentConfiguration {
-  const { instanceIdleMs: _host, ...configuration } = config
+  const { instanceIdleMs: _host, reception: _reception, ...configuration } = config
   return configuration
 }
 
@@ -226,8 +327,10 @@ export function createHost(input: HostInput): Host {
   const slots = new Map<string, InstanceRecord>()
   const building = new Map<string, Promise<Outcome<Granted, Failure>>>()
   let stopped = false
+  /** The ordered stop began: no instance is reserved, built or reclaimed from now on. */
+  let closing = false
 
-  function record(level: 'error' | 'info', message: string): void {
+  function record(level: 'error' | 'warn' | 'info', message: string): void {
     try {
       ctx.logger(OWNER)[level](message)
     } catch {
@@ -358,7 +461,7 @@ export function createHost(input: HostInput): Host {
   /** Starts the idle time of a published instance that the host runs. */
   function arm(entry: InstanceRecord): void {
     disarm(entry)
-    if (stopped || entry.status !== 'published' || entry.provider === null) return
+    if (stopped || closing || entry.status !== 'published' || entry.provider === null) return
     const timer = new AbortController()
     entry.timer = timer
     void (async () => {
@@ -388,57 +491,76 @@ export function createHost(input: HostInput): Host {
   }
 
   /**
+   * Marks the instance, takes it out of its slot and calls quiesce, in one step that never yields.
+   * The returned answer resolves after a `drained` instance retired; any other answer puts the
+   * instance back to published, and back into its slot when `restore` holds and admission is open.
+   * Undefined when no quiesce operation could be made; then nothing changed.
+   */
+  function quiesceNow(
+    entry: InstanceRecord,
+    provider: AgentProvider<unknown>,
+    reason: DurableEvidence,
+    restore: boolean,
+  ): Promise<Quiesced> | undefined {
+    const operation = mintOperation('quiesce')
+    if (operation === undefined) return undefined
+    disarm(entry)
+    entry.status = 'reclaiming'
+    if (entry.slot !== null && slots.get(entry.slot) === entry) slots.delete(entry.slot)
+    let answer: Reply<QuiesceResult>
+    try {
+      answer = provider.control.quiesce({
+        principal,
+        tenant: entry.tenant,
+        operation,
+        reason,
+      })
+    } catch (error) {
+      answer = Promise.resolve(fail(unavailable(OWNER, `quiesce threw: ${describe(error)}`)))
+    }
+    const settled = answer
+      .then(
+        result => result,
+        (error: unknown) => fail(unavailable(OWNER, `quiesce rejected: ${describe(error)}`)),
+      )
+      .then(async (result): Promise<Quiesced> => {
+        if (notDrained(result, entry.failedRuns) === undefined) await retire(entry)
+        else if (entry.status === 'reclaiming') {
+          entry.status = 'published'
+          if (restore && !closing && !stopped) {
+            if (entry.slot !== null && !slots.has(entry.slot) && !building.has(entry.slot))
+              slots.set(entry.slot, entry)
+            if (entry.reported.kind === 'idle') arm(entry)
+          }
+        }
+        if (entry.quiescing === settled) entry.quiescing = null
+        return result
+      })
+    entry.quiescing = settled
+    return settled
+  }
+
+  /**
    * The guard point. It reads the last report, marks the instance and calls quiesce in one step
    * that never yields, so an invoke either took the slot first (the report is not idle) or meets a
    * draining runtime.
    */
   function expire(entry: InstanceRecord): void {
-    if (stopped || entry.status !== 'published' || entry.provider === null) return
-    if (entry.reported.kind !== 'idle') return
-    const operation = mintOperation('quiesce')
-    if (operation === undefined) {
+    if (stopped || closing || entry.status !== 'published') return
+    const { provider } = entry
+    if (provider === null || entry.reported.kind !== 'idle') return
+    const settled = quiesceNow(entry, provider, reclaimReason(entry.instance), true)
+    if (settled === undefined) {
       record('error', `no quiesce operation could be made for ${entry.instance}`)
       return
     }
-    entry.status = 'reclaiming'
-    if (entry.slot !== null && slots.get(entry.slot) === entry) slots.delete(entry.slot)
-    let answer: Reply<QuiesceResult>
-    try {
-      answer = entry.provider.control.quiesce({
-        principal,
-        tenant: entry.tenant,
-        operation,
-        reason: reclaimReason(entry.instance),
-      })
-    } catch (error) {
-      answer = Promise.resolve(fail(unavailable(OWNER, `quiesce threw: ${describe(error)}`)))
-    }
-    void answer.then(
-      result => settleReclaim(entry, result),
-      (error: unknown) =>
-        settleReclaim(entry, fail(unavailable(OWNER, `quiesce rejected: ${describe(error)}`))),
-    )
-  }
-
-  async function settleReclaim(
-    entry: InstanceRecord,
-    result: Outcome<QuiesceResult, Failure>,
-  ): Promise<void> {
-    if ('ok' in result && result.ok.kind === 'drained') {
-      await retire(entry)
-      record('info', `${entry.instance} reclaimed after ${config.instanceIdleMs} ms idle`)
-      return
-    }
-    const why =
-      'ok' in result
-        ? `quiesce left ${result.ok.remaining.length} execution(s) unresolved`
-        : `quiesce failed with ${result.failure.kind}`
-    record('error', `${entry.instance} stays published: ${why}; the next idle time tries again`)
-    if (entry.status !== 'reclaiming') return
-    entry.status = 'published'
-    if (entry.slot !== null && !slots.has(entry.slot) && !building.has(entry.slot))
-      slots.set(entry.slot, entry)
-    if (entry.reported.kind === 'idle') arm(entry)
+    void settled.then(result => {
+      const why = notDrained(result, entry.failedRuns)
+      if (why === undefined)
+        record('info', `${entry.instance} reclaimed after ${config.instanceIdleMs} ms idle`)
+      else
+        record('error', `${entry.instance} stays published: ${why}; the next idle time tries again`)
+    })
   }
 
   /** Ends an instance: no route, no timer, and its contribution fiber unloads. */
@@ -499,6 +621,7 @@ export function createHost(input: HostInput): Host {
     definition: Adoption,
   ): Outcome<InstanceRecord, Failure> {
     if (stopped) return fail(unavailable(OWNER, 'the host has stopped'))
+    if (closing) return fail(unavailable(OWNER, CLOSED))
     if (ctx.get('agentInstances') === undefined)
       return fail(unavailable('agentInstances', 'no directory is present'))
     const instance = minted(decodeAgentInstanceId(`agent-instance-${randomUUID()}`))
@@ -525,6 +648,8 @@ export function createHost(input: HostInput): Host {
       timer: null,
       slot: null,
       status: 'reserved',
+      quiescing: null,
+      failedRuns: new Map(),
     }
     records.set(key, entry)
     return succeed(entry)
@@ -715,10 +840,27 @@ export function createHost(input: HostInput): Host {
       if ('failure' in reserved) return reserved
       const entry = reserved.ok
       const { instance } = entry
-      const created = await factory(dependenciesOf(entry), {
-        binding: { instance, tenant: slot.tenant, scope: slot.scope, definition: slot.definition },
-        configuration: factoryConfiguration(config),
-      })
+      const created = await factory(
+        dependenciesOf(entry),
+        {
+          binding: {
+            instance,
+            tenant: slot.tenant,
+            scope: slot.scope,
+            definition: slot.definition,
+          },
+          configuration: factoryConfiguration(config),
+        },
+        {
+          failed: event => {
+            entry.failedRuns.set(
+              event.execution,
+              `node=${event.node ?? 'none'} failure=${event.failure.kind}`,
+            )
+            record('warn', runFailedRecord(event))
+          },
+        },
+      )
       if ('failure' in created) {
         await cancel(entry)
         return created
@@ -727,7 +869,7 @@ export function createHost(input: HostInput): Host {
       const host: Access<unknown> = { principal, tenant: slot.tenant }
       const refused = await qualify(host, 'publish', { kind: 'instance', instance })
       const operation = mintOperation('publish')
-      if (refused !== undefined || operation === undefined || stopped) {
+      if (refused !== undefined || operation === undefined || stopped || closing) {
         await cancel(entry)
         return fail(refused ?? unavailable(OWNER, 'the host cannot publish now'))
       }
@@ -754,6 +896,8 @@ export function createHost(input: HostInput): Host {
 
   const provision: AgentInstanceProvision<unknown> = {
     async acquire(raw) {
+      // After the ordered stop began, no slot answers, not even one with a published instance.
+      if (closing || stopped) return fail(unavailable(OWNER, CLOSED))
       const judged = judgeSlot(raw)
       if ('failure' in judged) return judged
       const { slot, tenant } = judged.ok
@@ -882,6 +1026,85 @@ export function createHost(input: HostInput): Host {
     },
   }
 
+  // --- the ordered stop ------------------------------------------------------------------------
+
+  /** Resolves `'deadline'` when the signal aborts; `release` drops the listener. */
+  function deadlineOf(signal: AbortSignal) {
+    let release = () => {}
+    const reached = new Promise<'deadline'>(resolve => {
+      if (signal.aborted) return resolve('deadline')
+      const abort = () => resolve('deadline')
+      signal.addEventListener('abort', abort, { once: true })
+      release = () => signal.removeEventListener('abort', abort)
+    })
+    return { reached, release: () => release() }
+  }
+
+  /** The reason an instance did not end, or undefined when its quiesce drained in time. */
+  async function judged(
+    entry: InstanceRecord,
+    pending: Promise<Quiesced>,
+    reached: Promise<'deadline'>,
+  ): Promise<string | undefined> {
+    const answer = await Promise.race([pending, reached])
+    return answer === 'deadline'
+      ? 'quiesce gave no answer before the deadline'
+      : notDrained(answer, entry.failedRuns)
+  }
+
+  async function quiesceAll({ signal }: AgentHostStopInput): Promise<AgentHostStopResult> {
+    closing = true
+    for (const entry of records.values()) disarm(entry)
+    const { reached, release } = deadlineOf(signal)
+    const unsettled: AgentHostUnsettled[] = []
+    try {
+      // A build that passed its admission check before the stop publishes or cancels; wait for it.
+      const builds = [...building.values()]
+      if (builds.length > 0) {
+        const done = await Promise.race([Promise.all(builds).then(() => 'built' as const), reached])
+        if (done === 'deadline')
+          unsettled.push({
+            instance: null,
+            reason: `${building.size} instance build(s) had not finished before the deadline`,
+          })
+      }
+      const waits: Promise<void>[] = []
+      for (const entry of records.values()) {
+        const note = (reason: string | undefined) => {
+          if (reason !== undefined) unsettled.push({ instance: entry.instance, reason })
+        }
+        if (entry.quiescing !== null) {
+          waits.push(judged(entry, entry.quiescing, reached).then(note))
+          continue
+        }
+        if (entry.status !== 'published') continue
+        const { provider } = entry
+        if (provider === null) {
+          if (entry.current?.state === 'published')
+            note('published by another caller; the host holds no runtime to quiesce')
+          continue
+        }
+        const pending = quiesceNow(entry, provider, stopReason(entry.instance), false)
+        if (pending === undefined) note('no quiesce operation could be made')
+        else waits.push(judged(entry, pending, reached).then(note))
+      }
+      await Promise.all(waits)
+    } catch (error) {
+      unsettled.push({ instance: null, reason: `the ordered stop failed: ${describe(error)}` })
+    } finally {
+      release()
+    }
+    if (unsettled.length === 0) {
+      record('info', 'ordered stop: every instance drained')
+      return { kind: 'settled' }
+    }
+    const detail = unsettled
+      .map(({ instance, reason }) => `${instance ?? 'build'}: ${reason}`)
+      .join('; ')
+    record('error', `ordered stop left ${unsettled.length} unsettled: ${detail}`)
+    return { kind: 'incomplete', detail, instances: unsettled }
+  }
+
   return {
     instanceHost,
     authority,
@@ -896,6 +1119,7 @@ export function createHost(input: HostInput): Host {
       if (current !== null && generation === entry.registrations.length)
         entry.current = { registration: current.registration, state: 'withdrawn' }
     },
+    quiesceAll,
     stop() {
       stopped = true
       for (const entry of records.values()) disarm(entry)

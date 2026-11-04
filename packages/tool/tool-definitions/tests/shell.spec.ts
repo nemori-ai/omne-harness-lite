@@ -101,7 +101,6 @@ it('refuses a missing or denied attachment before execute and never creates a re
   const fixture = shellFixture()
   const author = value(createShellAuthor(fixture.config))
   const terminal = { id: 'session', generation: '1' }
-  await run(author, 'create_session', {}, fixture.environment)
   const unavailable = {
     ...fixture.environment,
     terminal: {
@@ -112,14 +111,18 @@ it('refuses a missing or denied attachment before execute and never creates a re
     },
   }
   expect(await run(author, 'execute', { terminal, script: 'pwd' }, unavailable)).toContain(
-    'unsupported',
+    'unavailable',
   )
   const denied = {
     ...fixture.environment,
     terminal: {
       ...fixture.environment.terminal,
-      attach: async () =>
-        ({ kind: 'rejected', requestId: 'denied', reason: 'notAuthorized' }) as const,
+      retention: {
+        attach: async () =>
+          ({ kind: 'rejected', requestId: 'denied', reason: 'notAuthorized' }) as const,
+        detach: async () =>
+          ({ kind: 'rejected', requestId: 'denied', reason: 'notAuthorized' }) as const,
+      },
     },
   }
   expect(await run(author, 'execute', { terminal, script: 'pwd' }, denied)).toContain(
@@ -127,9 +130,12 @@ it('refuses a missing or denied attachment before execute and never creates a re
   )
   expect(fixture.executions).toHaveLength(0)
   expect(fixture.starts).toHaveLength(0)
-  expect(fixture.creates).toHaveLength(1)
-  expect(await run(author, 'create_session', {}, unavailable)).toContain('unsupported')
-  expect(fixture.creates).toHaveLength(1)
+  expect(fixture.creates).toHaveLength(0)
+  expect(await run(author, 'create_session', {}, unavailable)).toContain('unavailable')
+  expect(await run(author, 'close_session', { terminal }, unavailable)).toContain('unavailable')
+  expect(fixture.creates).toHaveLength(0)
+  expect(fixture.executions).toHaveLength(0)
+  expect(fixture.starts).toHaveLength(0)
 })
 
 it('refuses background before either facility starts and drains split UTF-8 with a complete byte bound', async () => {

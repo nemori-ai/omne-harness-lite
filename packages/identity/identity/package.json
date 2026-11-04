@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Identity: the two system-side principals, their in-process issuer and verifier, named qualifications with role mappings, the tenant standing read port, and the register, login issue and login recognition operations with a ./testing reference double",
+  "description": "Identity: the two system-side principals, their in-process issuer and verifier, named qualifications with role mappings, the tenant standing read port, and the register, login issue and login recognition operations, and the governance port, with ./testing reference doubles and contract suites",
   "engines": {
     "node": ">=24"
   },

@@ -4,6 +4,6 @@
 - [持续验证场景](README.md#model-持续验证场景)。
 - [能力覆盖](README.md#model-产品能力与设计覆盖)：产品与设计逐项对应。
 - [类型消费检查](README.md#model-类型消费检查)。
-- [有限模型](models/index.md)。
+- [有限模型](models/index.md)：受理与结果推送的模型、[性质与守卫](models/formal-mapping.md)、[运行记录](models/formal-runs.md)。
 - [论证与证明](proofs/index.md)。
 - [SPEC 的观测与验证保证](../SPEC.md#观测资源与验证)。

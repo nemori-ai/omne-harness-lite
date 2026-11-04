@@ -56,6 +56,7 @@
 | `RequestPurpose`, `AssemblyCall`, `InputGroups`, `GroupName`, `HistoryUpper`, `HistoryCursor`, `TenantModelCall`, `SourcedMessage`, `ContinuationBasis`, `AdoptedRequestFact`, `CompactionBasis`, `HistoryEvidence`, `NewInputBatch`, `BlockMaterial`, `SnapshotMaterial`, `ContextReadGroup`, `AssemblyContext`, `PromptContributionBase`, `PromptSection`, `PromptVariable`, `PromptContribution`, `PromptContributionSet`, `SelectedModel`, `ToolAdoption`, `ConditionsEvidence`, `AlterationEvidence`, `PreviousPreparation`, `TransitionEvidence`, `Layer`, `PrefixBreakReason`, `LayerAnchor`, `SnapshotAnchor`, `Coverage`, `BudgetBreach`, `FitVerdict`, `RepresentationChoice`, `SnapshotReminder`, `TailFacts`, `RequestLayers`, `RequestCandidate`, `CompactionPlan`, `PlanProgress`, `SummaryMaterial`, `StepRequest`, `StepInput`, `ContextTransition`, `AssemblyFailure`, `InvalidReason`, `UnavailableOwner`, `AssemblyUnknown`, `AssemblyOutcome`, `AssemblyResult`, `PlanResult`, `StepResult` | [values.ts](../src/values.ts) |
 | `LAYER_ORDER`, `PREFIX_BREAK_REASONS` | [values.ts](../src/values.ts) |
 | `DeriveInput` | [values.ts](../src/values.ts) |
+| `FixedRequestRecord`, `FixedRequestRecordRejection`, `encodeFixedRequestRecord`, `decodeFixedRequestRecord`, `forecastOf` | [fixed-request.ts](../src/fixed-request.ts) |
 
 ### 现有测试导出
 

@@ -533,7 +533,7 @@ export async function takeInputs<P>(
   await ok(
     opened.journal.commit(
       commitAt(opened, snapshot, name, opened.authority, {
-        checkpoint: { ...snapshot.checkpoint, inputBatch: taken.batch.id },
+        checkpoint: { ...snapshot.checkpoint, inputBatch: taken.batch },
         events: [{ kind: 'input-taken', batch: taken.batch }],
       }),
     ),

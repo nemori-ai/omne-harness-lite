@@ -4,6 +4,10 @@
 
 public-entry 检查命令声明、help 和精确字节编辑。files-behavior 检查预检零写、重叠、批次未知、分页及操作映射。shell 检查明确配置、终端路由、cwd、后台零启动与中文字节上界。shell-control 检查单句柄停止、未确认及输出丢弃。contract-doubles 另外消费 Execution 已有内存文件与脚本进程。
 
+text-bounds 用单字节及多字节输入检查完整截断标记也计入预算，并核对首尾字节与所报区间。它同时覆盖一次返回和分段观察窗口。
+
+files-paths 用仿宿主的替身核对相对路径按工作区根解析：`.`、子路径、`..` 越界、绝对路径、Windows 风格根、move 与 patch 的第二路径，以及没有工作区根时的诊断。替身只模仿拒绝原因，不证明真实守卫。
+
 files-behavior 在 move 与 copy 门面边界核对 replace 和 expectedVersion。shell-control 启动独立 Node 子进程运行 [early-result-rejection.ts](fixtures/early-result-rejection.ts)。该用例经公开作者与 executeTool 分别执行 command、terminal 路径，让终局先拒绝、输出后结束，核对未处理拒绝为零、输出排空及 unknown 结果。子进程消费已构建的包，测试前须完成 build。
 
 这些是作者行为测试。fixture 不验证租户授权、安全文件根、PTY、真实进程停止或跨进程耐久。取消后的停止文本通过真实 scope.context 直接运行作者核对，因为独立包装器会拒绝已取消作用域的返回值。独立接受不在本测试目录内。

@@ -9,8 +9,11 @@ import type {
   ToolCallId,
   ToolCatalog,
   ToolState,
+  ControlRecord,
+  ToolOperationId,
 } from '@omne-harness/tool-contract'
 import type { CallAccess } from '@omne-harness/tool-contract/provider'
+import type { AccessVerdict } from './ledger-guards.ts'
 import type {
   Mutation,
   ResultPolicy,
@@ -106,6 +109,8 @@ export type ToolLedgerQueues<P> = Readonly<{
 }>
 
 export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
+  /** The ledger's original-controller check before a pending stop is sent. */
+  controls?: ToolLedgerControls<P>
   facts: ToolLedgerFacts<P, B>
   commands: ToolCommands<P, B>
   admissions: ToolLedgerAdmissions<P>
@@ -137,7 +142,30 @@ export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
 
 /** Explicit ledger providers. A null content reader disables byte reads only. */
 export type ToolLedgerPorts<P> = Readonly<{
+  /** A trusted identity owner. Absence disables new controls and pending propagation. */
+  controlSubjects?: ToolControlSubjects<P>
   content: Pick<ToolContentReader<P>, 'read'> | null
   custody: Pick<ToolOutputCustody<P>, 'retainResult'>
   releaseInspection: Pick<ToolEnvironment<P, unknown>, 'adoption' | 'inspectRelease'>
+}>
+
+/** Durable controller references, issued and resolved by the trusted identity owner. */
+export type ToolControlSubjects<P> = Readonly<{
+  capture(input: CallAccess<P>): Reply<DurableEvidence>
+  /** Compare stable subjects, including refreshed credentials, within the requested tenant. */
+  matches(input: CallAccess<P> & Readonly<{ subject: DurableEvidence }>): Promise<AccessVerdict>
+  /** Resolve the original subject and check its current control scope for this tenant/call. */
+  qualify(
+    input: Omit<CallAccess<P>, 'principal'> & Readonly<{ subject: DurableEvidence }>,
+  ): Promise<AccessVerdict>
+}>
+
+export type ToolLedgerControls<P> = Readonly<{
+  prepareDispatch(
+    input: CallAccess<P> &
+      Readonly<{
+        control: ToolOperationId
+        source: DurableEvidence
+      }>,
+  ): Reply<ControlRecord>
 }>

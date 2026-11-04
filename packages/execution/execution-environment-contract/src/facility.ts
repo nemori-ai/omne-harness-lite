@@ -10,7 +10,11 @@ export interface EnvironmentFacilities {}
 export type FacilityKey = keyof EnvironmentFacilities & string
 
 /** Operation names of one facility. */
-export type FacilityOperation<K extends FacilityKey> = keyof EnvironmentFacilities[K] & string
+export type FacilityOperation<K extends FacilityKey> = Exclude<
+  keyof EnvironmentFacilities[K],
+  K extends 'terminal' ? 'retention' : never
+> &
+  string
 
 /**
  * Facility declaration registered with the environment. `guarded` names the operations that must

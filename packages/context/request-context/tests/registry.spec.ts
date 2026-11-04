@@ -310,7 +310,7 @@ describe('leases are recorded per generation (RQ-05, RQ-12)', () => {
     // The main failure is returned; the give-back failure is not dropped.
     expect(await registry.assembly(f.target).assemble(f.call)).toMatchObject({
       kind: 'unavailable',
-      owner: 'meter',
+      owner: 'preparation',
     })
     await expect(registry.close()).resolves.toEqual({ kind: 'unavailable', outstanding: [owner] })
   })

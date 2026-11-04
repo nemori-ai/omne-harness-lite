@@ -162,6 +162,8 @@ SDK 不另写结果含义。必须遵守的客户端规则是自动再送条件�
 - `query-current-tenant` 不带行事租户。
 - `issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。
 - 版本是 `governance-public/1` 时，`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏正文和坏证明下都是 `stage-not-provided`。版本不是 `governance-public/1` 时是 `protocol-rejected`。
+- 部署声明不提供的治理操作，答复是空 `body` 的 `stage-not-provided`，见公开契约的[部署声明不提供的操作](../public-contract/SPEC.md#部署声明不提供的操作)。客户端把它交成这次调用的 `response`，不是 `uncertain`，也不再送。`messageId` 对不上或 `body` 不为空的这类答复仍是 `uncertain`。
+- `issue-login` 成功响应的可选 `loginId` 原样交给调用者。缺席时照常读出。格式不合法时，公开契约读不出该响应，结果是 `uncertain`。
 
 会话客户端与 HTTP 适配另有下列验证义务。
 
@@ -176,5 +178,4 @@ SDK 不另写结果含义。必须遵守的客户端规则是自动再送条件�
 
 - M2 的适配只接受 `127.0.0.1` 或 `localhost` 上的 `http:` 地址。其他地址的构造失败，包括 `https:`。这是 M2 的范围限制，不是登录证明的保护规则。M2 的服务只在回环地址上提供明文，见承载页的[已知限制](../public-contract/docs/http-binding.md#已知限制)。远程访问或 TLS 进入范围时，适配的这条限制随之改。
 - 「[客户端职责](#客户端职责)」要求注册和签发登录之前选定对端信任材料。M2 的明文回环连接没有可以核验的信任材料。M2 用上一条的回环地址限制代替这项核验，适配不要求调用者给出信任材料。TLS 进入范围时，这项核验随之生效。
-- M2 部署对 32 个治理操作答 `stage-not-provided`，这是服务端接入的[治理位置的偏离](../server-entry/SPEC.md#治理位置的偏离)。公开契约的 `readGovernanceResponse` 读不出这些响应，所以 SDK 的调用者发这些操作时得到 `uncertain`。偏离闭合后，这条限制随之消失。
 - 会话观察客户端不在波 1。

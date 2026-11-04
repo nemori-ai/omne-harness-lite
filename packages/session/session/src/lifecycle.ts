@@ -1,6 +1,8 @@
 // The run state of one instance (SPEC「资源与替换」): whether it is closed, the work in flight, and the
 // signal that cancels clock waits. `close` stops new triggers first, then lets the work in flight
-// end; it rolls nothing back and sends nothing.
+// end; it rolls nothing back and sends nothing. It also keeps the named diagnostics of the
+// coordinators and hands each to the observer of the factory, if one was given.
+import type { SessionDiagnose, SessionDiagnostic } from './diagnostics.ts'
 
 const FAULT_LIMIT = 64
 
@@ -9,6 +11,11 @@ export class Lifecycle {
   readonly #faults: unknown[] = []
   readonly #inflight = new Set<Promise<unknown>>()
   readonly #abort = new AbortController()
+  readonly #diagnose: SessionDiagnose | undefined
+
+  constructor(diagnose?: SessionDiagnose) {
+    this.#diagnose = diagnose
+  }
 
   get closed(): boolean {
     return this.#closed
@@ -42,7 +49,20 @@ export class Lifecycle {
     ).catch(() => undefined)
   }
 
-  /** The defects that background work raised, oldest first, at most FAULT_LIMIT. */
+  /**
+   * Records a step that stopped on a failure (SPEC C2 失败分支「停止并记诊断」). It is kept in
+   * `faults` with the defects and handed to the observer; an observer that throws changes nothing.
+   */
+  diagnose(diagnostic: SessionDiagnostic): void {
+    if (this.#faults.length < FAULT_LIMIT) this.#faults.push(diagnostic)
+    try {
+      this.#diagnose?.(diagnostic)
+    } catch {
+      // The observer's own failure leaves no trace (SessionDiagnose).
+    }
+  }
+
+  /** The defects and diagnostics of background work, oldest first, at most FAULT_LIMIT. */
   get faults(): readonly unknown[] {
     return [...this.#faults]
   }
