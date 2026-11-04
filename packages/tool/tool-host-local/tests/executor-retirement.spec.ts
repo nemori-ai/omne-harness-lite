@@ -8,6 +8,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import type { ToolExecutionRef } from '@omne-harness/tool-contract'
 import type { ToolDriver, ToolInstanceHost } from '@omne-harness/tool-contract/provider'
 import { createRuntimeExecutor } from '../src/runtime-executor.ts'
+import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
 import { evidence, instanceId } from './coordinator-values.ts'
 import { fixture } from './delivery/fixture.ts'
 
@@ -65,7 +66,11 @@ function controlledHost() {
  * the call through `ctx.plugin` and owns a fiber. `fiber` is what that plugin call returns.
  */
 async function world(
-  options: Readonly<{ execution?: boolean; fiber?: { dispose(): Promise<void> } }> = {},
+  options: Readonly<{
+    execution?: boolean
+    fiber?: { dispose(): Promise<void> }
+    receiver?: ExecutorInput['receiver']
+  }> = {},
 ) {
   const f = await fixture()
   const recovery = gate()
@@ -76,11 +81,17 @@ async function world(
     instance: instanceId,
     generation: '1',
   }
+  let foreign = false
   const loadRecovery = vi.fn(
     async (input: Parameters<typeof f.ledger.commands.loadRecovery>[0]) => {
       await recovery.pass()
       const answer = await f.ledger.commands.loadRecovery(input)
       recovered += 1
+      if ('ok' in answer && foreign) {
+        const other = decodeToolInstanceId('instance-2')
+        if ('failure' in other) throw new Error('fixture instance')
+        return succeed({ ...answer.ok, execution: { ...execution, instance: other.ok } })
+      }
       if ('failure' in answer || options.execution !== true) return answer
       return succeed({
         ...answer.ok,
@@ -123,10 +134,22 @@ async function world(
       operationIdentities: f.input.identities,
       instances: controlled.host,
     } as unknown as ExecutorInput['dependencies'],
-    receiver: f.input.position.receiver as unknown as ExecutorInput['receiver'],
+    receiver:
+      options.receiver ?? (f.input.position.receiver as unknown as ExecutorInput['receiver']),
   })
   const step: Step = { ...f.access, instance: instanceId, signal: new AbortController().signal }
-  return { f, executor, controlled, step, recovery, access, recovered: () => recovered }
+  return {
+    f,
+    executor,
+    controlled,
+    step,
+    recovery,
+    access,
+    recovered: () => recovered,
+    foreignInstance: () => {
+      foreign = true
+    },
+  }
 }
 
 it('R2-D164 a complete call retires when the run in progress ends, and is not rescheduled', async () => {
@@ -188,6 +211,33 @@ it('R2-D186 a failed cleanup keeps the call, the interval wakes it, and it retir
     await vi.waitFor(() => expect(w.executor.diagnostics().completed).toBe(1))
     expect(dispose).toHaveBeenCalledTimes(2)
     expect(w.executor.knows(w.f.access)).toBe(false)
+    await w.executor.close()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('R2-D327 the executor lets a call go and its pacing entries go with it', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  try {
+    const unavailable = async () =>
+      fail({
+        kind: 'unavailable' as const,
+        dependency: 'tool-result-receiver',
+        diagnostic: 'absent',
+      })
+    const w = await world({ receiver: unavailable as unknown as ExecutorInput['receiver'] })
+    expect(w.executor.remember(w.f.access)).toBe(true)
+    // The receiver is absent: the delivery stays owed and holds one pacing entry.
+    await w.controlled.run(w.step)
+    await vi.waitFor(() => expect(w.executor.diagnostics().pacedDeliveries).toBe(1))
+    expect(w.executor.knows(w.f.access)).toBe(true)
+
+    // Another instance owns the call now: this executor drops it, and the entry goes too.
+    w.foreignInstance()
+    await w.controlled.run(w.step)
+    expect(w.executor.knows(w.f.access)).toBe(false)
+    expect(w.executor.diagnostics().pacedDeliveries).toBe(0)
     await w.executor.close()
   } finally {
     vi.useRealTimers()

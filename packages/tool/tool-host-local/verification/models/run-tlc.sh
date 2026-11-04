@@ -14,7 +14,7 @@ cd "$WORK" || exit 2
 java -version > out/java-version.txt 2>&1
 sha256sum "$JAR" ./*.tla ./*.cfg > out/sha256.txt
 : > out/summary.txt
-for cfg in StartFence.cfg StartFence-wide.cfg StartFence-unsafe-*.cfg DeliveryBackoff.cfg DeliveryBackoff-unsafe-*.cfg; do
+for cfg in StartFence.cfg StartFence-wide.cfg StartFence-unsafe-*.cfg DeliveryBackoff.cfg DeliveryBackoff-table.cfg DeliveryBackoff-unsafe-*.cfg; do
   name=${cfg%.cfg}
   module=${name%%-*}
   start=$(date +%s)

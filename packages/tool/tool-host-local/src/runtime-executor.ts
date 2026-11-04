@@ -212,7 +212,10 @@ export function createRuntimeExecutor(
         .warn('Instance observation cleanup is unconfirmed; the local index is retained.')
       return
     }
-    if (calls.get(key) === entry) calls.delete(key)
+    if (calls.get(key) === entry) {
+      calls.delete(key)
+      delivery.release(wake)
+    }
     completed += 1
   }
   /**
@@ -257,7 +260,10 @@ export function createRuntimeExecutor(
         // A new executor cannot attach an old execution by resolving the latest providers.
         if (before.ok.execution !== null && before.ok.execution.instance !== step.instance) {
           foreignExecutionRuns += 1
-          if (calls.get(keyOf(step)) === entry) calls.delete(keyOf(step))
+          if (calls.get(keyOf(step)) === entry) {
+            calls.delete(keyOf(step))
+            delivery.release(step)
+          }
           return
         }
         const progress = await driver.advance(step)
@@ -302,6 +308,7 @@ export function createRuntimeExecutor(
     live: () => !abort.signal.aborted,
     diagnostics: () => ({
       knownCalls: calls.size,
+      pacedDeliveries: delivery.pacedEntries(),
       completed,
       foreignExecutionRuns,
       unownedRuns,

@@ -17,9 +17,11 @@
 | T | 他租户主体的操作一律 denied，不写记录 | SPEC「6 身份、租户与失败」 | 跨租户泄漏或篡改 | `start-tenant-isolation.spec.ts` | 只有守卫 T，没有建模 |
 | Q1 | 无热环：连续第 k 次 unavailable 推送不早于前 k−1 次等待之和 | SPEC「结果交付的推送退避」；R2-D273、R2-D282 | 对拒收的接收方空转，日志爆炸 | `delivery/unavailable-receiver.spec.ts` 的定值用例 | `PushesPaced`；守卫 Q1；[证明](proofs/README.md#q1-推送次数的上界) |
 | Q2 | 等待不超过 `maxMs` | 同上 | 交付事实上停止 | 同上 | `DelayCapped`；守卫 Q2 |
-| Q3 | unavailable 不结束交付责任 | 同上 | 结果静默丢失 | 同上 | `OwedUntilSaved`；守卫 Q3 |
+| Q3 | unavailable 与确定失败都不结束交付责任 | 同上；SPEC「确定失败」（R2-D327） | 结果静默丢失 | 同上 | `OwedUntilSaved`；守卫 Q3 |
 | Q4 | 没有 unavailable 的答复清除退避 | 同上 | 偶发故障后一直慢推 | 同上第二个用例 | `ResetAfterAnswer`；守卫 Q4 |
 | Q5 | 每次进入退避写一条具名 warn | 同上 | 失败静默 | 同上的 warn 计数 | `WarnPerPacedPush`；守卫 Q5 |
+| Q6 | 每次确定失败（denied、invalid、异常）写一条具名 warn，交付仍待推 | SPEC「确定失败」；R2-D327 | 失败在日志里没有痕迹 | 无 | `WarnPerDefiniteFailure`；守卫 Q6；`delivery/receiver-failure.spec.ts` |
+| Q7 | 退避表项随交付：只有仍待推的交付有表项，表的大小不超过在途交付数 | SPEC「退避表项的生命期」；R2-D327 | 表项留到进程结束，撤权或放弃的调用越积越多 | 无 | `TableFollowsDelivery`、`TableBounded`（两个交付的`DeliveryBackoff-table`）；[证明](proofs/README.md#q7-退避表项的生命期)；`delivery/receiver-failure.spec.ts` 与 `executor-retirement.spec.ts` |
 | L | 等待结束后的驱动一定推送 | 同上「保持待推」 | 退避把交付永久挡住 | 无 | 只有守卫 L，模型不检查进展 |
 
 ## StartFence 与源码
@@ -51,8 +53,14 @@
 | `receiver = "unavailable"` | `receiverOf` 答 unavailable，或 `push` 答 unavailable，进入 `pace` |
 | `delay`、`until` | `paced` 表项：`delay = last ? min(2·last, maxMs) : initialMs`，`until = now + delay` |
 | `warns` | `pace` 里的 `input.warn` |
-| `receiver = "denied"` | 确定失败：`paced.delete`，交付仍待推，不写 warn |
-| `receiver = "saved"` | 推送成功：`paced.delete` 后 `state.save` |
+| `receiver = "denied"`、`"throws"` | 确定失败：`failed` 清除表项并写一条 warn（`failures`、`failWarns`），交付仍待推。异常由 `push` 与 `receiverOf` 的 `try` 收束 |
+| `receiver = "saved"` | 推送成功：`unpace` 后 `state.save` |
+| `Deliveries`、`Table`、`delay[d] > 0` | `paced`：按调用再按交付摘要的两层表；`pacedEntries()` 数表项 |
+| `End(d, "revoked")` | 访问判定答 `denied`（`current`，或 `drive` 入口）：`unpaceCall` |
+| `End(d, "excluded")` | run 结束时没有看到该交付仍待推：`retainPaced` 删去其余表项 |
+| `End(d, "abandoned")` | 执行器退役调用或调用改由另一实例执行：`release`；worker 关闭：`paced.clear()` |
+
+模型的 `End` 在转移的那一刻释放表项；源码在 worker 下一次观察到离开时释放（下一次驱动，或执行器的 `release`）。执行器每个重试间隔都驱动存活的调用，所以延迟至多一个间隔，见 [证明](proofs/README.md#q7-退避表项的生命期)。
 
 退避状态只在内存里。模型不含进程重启。重启后第一轮等待重新从 `initialMs` 开始，见证明的前提。
 
@@ -61,7 +69,8 @@
 | 文件 | 守的性质 | 驱动与判读 | 负控 |
 | --- | --- | --- | --- |
 | `tests/start-fence-properties.spec.ts` | P1–P6、T | 40 个种子，每个 30 步。随机发 prepare、consume（任一签发过的 permit）、inspect、exclude、invalidate、重送和他租户操作，并注入提交答复丢失。驱动真实协调器和内存账本。判读器按模型性质检查每个可观察答复，最后读账本核对守卫修订 | 同一驱动和判读器对着六个各删一条规则的玩具排序域运行，必须分别报出 P2、P1、P3、P4、P5、T |
-| `tests/delivery/backoff-bound.spec.ts` | Q1–Q5、L | 30 个种子，每个 60 次驱动。时钟随机前进（含零步，即同一时刻的突发驱动），接收方随机答 unavailable、denied 或 saved。驱动真实交付 worker。判读器按模型逐次重放 | 同一驱动和判读器对着六个各删一条规则的玩具 worker 运行，必须分别报出 Q1、Q2、Q4、Q3、Q5、L |
+| `tests/delivery/backoff-bound.spec.ts` | Q1–Q6、L | 30 个种子，每个 60 次驱动。时钟随机前进（含零步，即同一时刻的突发驱动），接收方随机答 unavailable、denied 或 saved。驱动真实交付 worker。判读器按模型逐次重放 | 同一驱动和判读器对着七个各删一条规则的玩具 worker 运行，必须分别报出 Q1、Q2、Q4、Q3、Q5、Q6、L |
+| `tests/delivery/receiver-failure.spec.ts` | Q6、Q7 | 具体用例：denied、invalid、异常各写一条带租户、调用、交付与原因的 warn 并保持待推；撤权、不再待推、放弃、关闭各释放表项 | 源码变异负控，见 [formal-runs.md](formal-runs.md#源码变异负控) |
 
 P2 的守卫以失效证据返回的那一步作为围栏点。这比模型的提交点弱：提交已生效但答复丢失时，守卫不判断。模型和证明覆盖提交点。
 
@@ -71,4 +80,4 @@ P2 的守卫以失效证据返回的那一步作为围栏点。这比模型的�
 
 - 多个 start 和多个守卫资源的组合，只由证明推广，没有机检。
 - 路径守卫 `withinRoot` 与 `placePath` 的属性测试没有写。
-- `paced` 表项的回收没有守卫，见 [formal-runs.md](formal-runs.md#观察) 的观察 O2。
+- 表项的释放是在 worker 观察到离开时发生，不是转移的瞬间。没有守卫去测一个既不被驱动、也不被执行器释放的调用；执行器的 `calls` 表只经退役、改由他实例、关闭三条路径放弃调用，三条都释放。

@@ -1,7 +1,8 @@
 // The receiver is registered but answers `unavailable` to the push (R2-D282; the measured case is
 // a journal commit the storage refuses, pushed 714 times). The delivery stays owed, each push that
 // fails writes one named warning, and the next push waits a backoff that doubles up to its cap. A
-// receiver that answers without `unavailable` clears the backoff. The worker runs on the memory
+// receiver that answers without `unavailable` clears the backoff; a definite failure also writes
+// its own named warning (R2-D327). The worker runs on the memory
 // ledger and a scripted receiver; the clock of the pacing is a test reading.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it, vi } from 'vitest'
@@ -97,15 +98,18 @@ describe('a delivery whose receiver answers unavailable to the push', () => {
     await t.drive()
     expect(t.warnings[1]).toContain('in 2000 ms')
 
-    // The receiver answers, not with unavailable: the backoff is cleared, the delivery stays owed.
+    // The receiver answers, not with unavailable: the backoff is cleared, the delivery stays owed,
+    // and the definite failure leaves its own named warning (R2-D327).
     t.answer('denied')
     t.at(3000)
     expect(ok(await t.drive())).toEqual({ pending: 1 })
-    expect(t.warnings).toHaveLength(2)
+    expect(t.warnings).toHaveLength(3)
+    expect(t.warnings[2]).toContain('failed definitively')
+    expect(t.warnings[2]).not.toContain('the next push is in')
     // Cleared: the next push is not paced away.
     t.answer('unavailable')
     expect(ok(await t.drive())).toEqual({ pending: 1 })
     expect(t.push).toHaveBeenCalledTimes(4)
-    expect(t.warnings[2]).toContain('in 1000 ms')
+    expect(t.warnings[3]).toContain('in 1000 ms')
   })
 })
