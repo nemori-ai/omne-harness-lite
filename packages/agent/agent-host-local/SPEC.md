@@ -1,6 +1,6 @@
 # Agent 具体装配的行为边界
 
-本包承担 Agent 的本地宿主装配。根入口提供独立 Model 与 Tool 接收组件。`./cordis` 导出宿主插件 `agentHostPlugin`，实现范围与缺口见“[宿主插件](#宿主插件)”。插件在插件体内组装 Model 结果接收组件并登记到 Model runtime，见“[结果接收](#结果接收)”。领域行为消费 [agent-contract](../agent-contract/SPEC.md)，框架公共保证消费 [agent-cordis-contract](../agent-cordis-contract/SPEC.md)。
+本包承担 Agent 的本地宿主装配。根入口提供独立 Model 与 Tool 接收组件。`./cordis` 导出宿主插件 `agentHostPlugin`，实现范围与缺口见“[宿主插件](#宿主插件)”。插件在插件体内组装 Model 结果接收组件并登记到 Model runtime，并在子插件里组装 Tool 结果接收组件并登记到 Tool runtime，见“[结果接收](#结果接收)”。领域行为消费 [agent-contract](../agent-contract/SPEC.md)，框架公共保证消费 [agent-cordis-contract](../agent-cordis-contract/SPEC.md)。
 
 ## 提供者责任
 
@@ -41,6 +41,19 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 - 配置。`reception` 可选，六项都是正整数：`records`、`bytes`、`attachments`、`inFlight`、`retryMs`、`retryMaxMs`，且 `retryMaxMs` 不小于 `retryMs`。缺省时取 `src/reception.ts` 的 `RECEPTION_INITIAL`，它们是配置初值，不是本成员的上限。
 
 用例在 `tests/reception.spec.ts`：登记后推送的回复让 execution 越过 M1 并结束；供应方答 400 的失败结果同样保存，execution 以 no-reply 失败结束；有序停止撤销登记，之后的推送是 `no-receiver`；宿主停机期间推送失败的结果在插件体恢复后重投，只保存一次；outlet 答 `scope-unresolved` 时仍答 saved，驱动的重试稍后送达账目；`agentClock` 读不到一次之后驱动照常继续；等待按次加倍并在 `retryMaxMs` 封顶；答 denied 时停止并记 warn；插件体重跑后待办账目照样送达；被拒推送不覆盖获准推送的 Access。Model 是 model-contract 的脚本化推送器，从 Model runtime 的登记表解析接收方。这些用例不证明真实 Model 宿主、会话日志 Journal 或进程重启。
+
+#### Tool 结果接收
+
+依据 R2-D273、[应用装配页](../../../docs/architecture/runtime/application-assembly.md) 与 IC-13：插件体挂子插件 `agent-host-tool-reception`，它静态 inject `toolRuntime` 与 `agentToolReceptionTargets`，用根入口的 `createLocalToolReceiver` 组装 Tool 结果接收方，经 `toolRuntime.registerResultReceiver(AGENT_CONSUMER_OWNER, receiver)` 登记。
+
+- 子插件。Tool 是宿主的局部依赖，所以登记放在子插件里：两键缺席时只有子插件停在 PENDING，宿主照常就绪，Tool 的交付保持待推。
+- 依赖。provider 是父插件体 inject 得到的同一 Journal 提供者的四个面，access 是 `agentAccessCheck`，targets 是子插件 inject 得到的 `agentToolReceptionTargets`。容量取配置的 `reception`，与 Model 共用这六项配置。不使用账目出站。
+- 状态。Tool 接收状态按 Cordis 根保存一份，与 Model 的状态分开，不随子插件或插件体结束。
+- 登记的寿命。登记是子插件 fiber 的 effect，子插件或插件体结束时随之撤除。同一 owner 已有另一条存活 fiber 的登记时，登记抛出冲突，子插件 fiber 进入 FAILED。
+- 有序停止。`quiesceAll` 先撤 Model 与 Tool 两个登记，再停止准入、停用实例。之后才运行的子插件不再登记。
+- 维护驱动。与 Model 相同（`src/reception-driver.ts`）：只记 receive-result 核验答 allowed 的推送的 Access；首次 `recover`，之后 `retry`，按 `reception.retryMs` 起步加倍退避，封顶 `reception.retryMaxMs`；时钟不可用或运行抛出时记 error 并按同样退避继续；答 denied 时停止并记 warn。子插件重跑时，新接收方驱动状态里仍为提交未知的接收。
+
+用例在 `tests/tool-reception.spec.ts`：宿主在没有 Tool 两键时就绪，两键到来后接收方登记在 Agent 的 consumer owner 下；推送按 Agent 登记的 Tool 消费位置把 execution 作为路由交给目标查询；有序停止撤销登记；目标查询撤除或宿主卸载时登记撤除，新提供者到来后重新登记。Tool runtime 是只有接收登记表的 `ToolRuntimeService`，目标查询是记录替身。真实 Tool 宿主、会话日志目标查询与完整回路由 harness-server 的 `tests/rows/tool-runtime/release-tool-delivery.spec.ts` 覆盖。
 
 ### 测量事件
 
@@ -85,7 +98,7 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 
 共同提交、材料核对和入队后即返回 saved，不等待 outlet。宿主状态持有实际出站任务与当前驱动代；旧代只结算已发出的交接，不能驱动后继。每次实际出站前重核原绑定资格。停止只停止本次等待与后续驱动，不取消已受理的共同提交，不撤回 saved，不删除材料或待办。取消时目标或最终资格检查尚未完成，返回无内容 unavailable（owner=agent-model-receiver，diagnostic=maintenance-cancelled）；已判定 denied 不改成成功。接收状态的内存实现仅支持同进程接续，不证明断电或跨进程恢复；要求耐久的宿主须保存接收与出站的业务事实。Promise 和驱动代只表示本进程的实际执行，不作为耐久记录。容量、材料、接收与出站的精确行为分别沿 [J02](../agent-contract/SPEC.md#结果接收)、[共同提交](../agent-contract/SPEC.md#接收共同提交)和 [J28](../agent-contract/SPEC.md#账目出站)。
 
-Tool 工厂沿 [Tool 接收入口](../agent/docs/public-api.md#独立-tool-接收入口)消费独立算法，以同一提供者共同保存 Tool 完整材料和 received。其依赖为 provider、access、targets 与容量，不使用 Model 专用的账目手交。状态归宿主所有，运行实例停止不撤销接收责任。此入口不新增 Cordis 服务或 Tool 生产路由。
+Tool 工厂沿 [Tool 接收入口](../agent/docs/public-api.md#独立-tool-接收入口)消费独立算法，以同一提供者共同保存 Tool 完整材料和 received。其依赖为 provider、access、targets 与容量，不使用 Model 专用的账目手交。状态归宿主所有，运行实例停止不撤销接收责任。宿主插件经子插件把它登记到 Tool runtime，见“[Tool 结果接收](#tool-结果接收)”。
 
 ## 验证
 

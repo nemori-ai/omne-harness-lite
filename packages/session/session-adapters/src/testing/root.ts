@@ -209,6 +209,7 @@ function cloneRoot(root: CommonRoot): CommonRoot {
       targets: new Map(root.receiving.targets),
       callTargets: new Map(root.receiving.callTargets),
       executionTargets: new Map(root.receiving.executionTargets),
+      toolTargets: new Map(root.receiving.toolTargets),
     },
   }
 }

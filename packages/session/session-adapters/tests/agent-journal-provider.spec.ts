@@ -27,6 +27,7 @@ import {
   type DurableEvidence,
   type Material,
   type ModelReceptionTargets,
+  type ToolReceptionTargets,
   type PendingCall,
   type ReceivedEntry,
 } from '@omne-harness/agent-contract'
@@ -45,6 +46,7 @@ import {
   agentModelReceptionTargetsKey,
   agentReceivedCommitsKey,
   agentReceivedRecordsKey,
+  agentToolReceptionTargetsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -262,6 +264,7 @@ async function assembled(
   const adopted = () => face<SessionAdoptedRequests<unknown>>(sessionAdoptedRequestsKey)
   const received = () => face<AgentReceivedCommits<string, ContentBlock>>(agentReceivedCommitsKey)
   const targets = () => face<ModelReceptionTargets<string>>(agentModelReceptionTargetsKey)
+  const toolTargets = () => face<ToolReceptionTargets<string>>(agentToolReceptionTargetsKey)
   const records = () => face<AgentReceivedRecords<string>>(agentReceivedRecordsKey)
   return {
     ctx,
@@ -272,6 +275,7 @@ async function assembled(
     adopted,
     received,
     targets,
+    toolTargets,
     records,
     wiring: services.wiring,
   }
@@ -860,6 +864,104 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
       s.execution,
     )
     expect(await targets().resolve({ ...query, execution: sibling.execution })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+  })
+})
+
+/** The scene's execution opened, with one associated Tool call committed in its action batch. */
+async function withToolCall(s: SqlScene, journal: AgentJournal<string>, name: string) {
+  const opened = ok(await journal.open(s.openInput))
+  const tool = toolCall(s.access.tenant, name)
+  ok(
+    await journal.commit({
+      ...s.access,
+      execution: s.execution,
+      operation: operation(`tool-${name}`),
+      authority: opened.authority,
+      expected: opened.receipt.revision,
+      checkpoint: { ...s.checkpoint, batch: tool.batch },
+      state: { kind: 'advancing' },
+      events: [],
+      effects: [
+        { action: tool.pending.action, pending: tool.pending, authority: opened.authority },
+      ],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+      handoff: null,
+      finish: null,
+    }),
+  )
+  return { tool, instance: opened.authority.instance }
+}
+
+// R2-D273: the target query of the host's Tool result receiver. Red when the plugin stops
+// providing the face, answers from the live checkpoint, or lets a route reach the binding of
+// another execution (the session core and the plugin both compare it; red when neither does).
+describe('agentToolReceptionTargets: the Tool result receiver face', () => {
+  it('answers the binding the committed associated Tool call made, also from a new instance', async () => {
+    const s = await scene('tool-targets')
+    const first = await assembled(s)
+    expect(first.plugin.store?.[agentToolReceptionTargetsKey]?.fiber === first.plugin).toBe(true)
+    const { tool, instance: original } = await withToolCall(s, first.journal(), 'tool-targets')
+    const query = {
+      access: s.access,
+      consumer: tool.pending.position,
+      reference: tool.pending.reference,
+      execution: s.execution,
+    }
+    const target = { execution: s.execution, instance: original, pending: tool.pending }
+    expect(ok(await first.toolTargets().resolve(query))).toEqual(target)
+    expect(
+      ok(await first.toolTargets().forExecution({ access: s.access, execution: s.execution })),
+    ).toEqual([target])
+    await first.plugin.dispose()
+    const second = await assembled(s)
+    expect(ok(await second.toolTargets().resolve(query))).toEqual(target)
+  })
+
+  it('an unknown call on the right route is no binding (null); no route, another tenant or a route that holds nothing is denied', async () => {
+    const s = await scene('tool-route')
+    const { journal, toolTargets } = await assembled(s)
+    const { tool } = await withToolCall(s, journal(), 'tool-route')
+    const query = {
+      access: s.access,
+      consumer: tool.pending.position,
+      reference: tool.pending.reference,
+    }
+    const unknown = toolCall(s.access.tenant, 'tool-route-unknown').pending.reference
+    expect(
+      ok(await toolTargets().resolve({ ...query, reference: unknown, execution: s.execution })),
+    ).toBeNull()
+    expect(await toolTargets().resolve(query)).toHaveProperty('failure.kind', 'denied')
+    const nobody = ok(decodeAgentExecutionId('tool-route-nobody'))
+    expect(await toolTargets().resolve({ ...query, execution: nobody })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+    expect(
+      await toolTargets().forExecution({ access: other, execution: s.execution }),
+    ).toHaveProperty('failure.kind', 'denied')
+  })
+
+  it('a route to another execution of the same session does not resolve the binding of the first', async () => {
+    const s = await scene('tool-sibling')
+    const { journal, toolTargets } = await assembled(s)
+    const { tool } = await withToolCall(s, journal(), 'tool-sibling')
+    const sibling = await nextRun(s, 2)
+    expect(sibling.execution).not.toBe(s.execution)
+    // The sibling is opened, so the access on its route is allowed: only the binding's execution tells.
+    ok(await journal().open(sibling.openInput))
+    const query = {
+      access: s.access,
+      consumer: tool.pending.position,
+      reference: tool.pending.reference,
+    }
+    expect(ok(await toolTargets().resolve({ ...query, execution: s.execution }))?.execution).toBe(
+      s.execution,
+    )
+    expect(await toolTargets().resolve({ ...query, execution: sibling.execution })).toHaveProperty(
       'failure.kind',
       'denied',
     )

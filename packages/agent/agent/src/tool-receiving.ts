@@ -20,6 +20,7 @@ import {
   type ToolSavedReceipt,
 } from '@omne-harness/tool-contract'
 import { canonical } from './canonical.ts'
+import { actionPositionExecution } from './loop/identities.ts'
 import { tenantKey } from './receiving-state.ts'
 import {
   toolDeliveryMaterial,
@@ -52,6 +53,16 @@ type Pending<P> = Readonly<{
   key: string
   tenant: string
 }>
+/** The target query of a delivery: the route comes from the position this owner registered. */
+function targetQuery<P>(access: Access<P>, value: ToolDelivery<ContentBlock>) {
+  const route = actionPositionExecution(value.consumer)
+  return {
+    access,
+    consumer: value.consumer,
+    reference: value.key.reference,
+    ...(route === null ? {} : { execution: route }),
+  }
+}
 export interface AgentToolReceiver<P> extends ToolResultReceiver<P, ContentBlock> {
   retry(input: Maintenance<P>): Reply<ToolReceiverReport>
   recover(input: Maintenance<P>): Reply<ToolReceiverReport>
@@ -151,11 +162,7 @@ export function createAgentToolReceiver<P>(
   ): Promise<Outcome<ToolReceptionTarget, ToolDeliveryFailure>> {
     let resolved
     try {
-      resolved = await dependencies.targets.resolve({
-        access,
-        consumer: value.consumer,
-        reference: value.key.reference,
-      })
+      resolved = await dependencies.targets.resolve(targetQuery(access, value))
     } catch {
       return fail({ kind: 'unavailable', dependency: 'association' })
     }

@@ -265,6 +265,8 @@
 - `TerminalParticipantFacts` · `finishing.d.ts`
 - `ToolAssociationRecord` · `finishing.d.ts`
 - `ToolIntentKey` · `finishing.d.ts`
+- `ToolReceptionTarget` · `receiving.d.ts`
+- `ToolReceptionTargets` · `receiving.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
 - `UtcInstantText` · `identity.d.ts`
 - `Waiting` · `evaluation.d.ts`
@@ -3181,6 +3183,26 @@ export interface ModelReceptionTargets<P> {
         reference: M.ModelInvocationRef;
         execution?: AgentExecutionId;
     }>): Reply<ModelReceptionTarget>;
+}
+export type ToolReceptionTarget = Readonly<{
+    execution: AgentExecutionId;
+    instance: AgentInstanceId;
+    pending: Extract<PendingCall, {
+        kind: 'tool';
+        association: 'associated';
+    }>;
+}>;
+export interface ToolReceptionTargets<P> {
+    resolve(input: Readonly<{
+        access: Access<P>;
+        consumer: ConsumerRef;
+        reference: T.ToolInvocationRef;
+        execution?: AgentExecutionId;
+    }>): Reply<ToolReceptionTarget | null>;
+    forExecution(input: Readonly<{
+        access: Access<P>;
+        execution: AgentExecutionId;
+    }>): Reply<readonly ToolReceptionTarget[]>;
 }
 export type AgentReceivedProvider<P, B extends ContentBlock> = Readonly<{
     journal: AgentJournal<P>;

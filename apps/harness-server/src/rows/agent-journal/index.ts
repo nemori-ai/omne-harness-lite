@@ -13,7 +13,8 @@
 // the digest from the same catalog). `routeCacheEntries` is optional.
 //
 // The row provides `agentJournal`, `agentJournalEntries`, `agentMaterials`, the two faces of the
-// Model result receiver, `agentReceivedCommits` and `agentModelReceptionTargets` (R2-D237), and
+// Model result receiver, `agentReceivedCommits` and `agentModelReceptionTargets` (R2-D237), the
+// target query of the Tool result receiver, `agentToolReceptionTargets` (R2-D273), and
 // `sessionAdoptedRequests`: the one plugin body makes the services over one session-log Journal, so
 // they are in one authoritative ordering (agent-cordis-contract SPEC "生产者接收面的服务").
 // `sessionAdoptedRequests` is the fixed request that the last main-purpose M0 recorded in the session
@@ -35,6 +36,7 @@ import {
   agentModelReceptionTargetsKey,
   agentReceivedCommitsKey,
   agentReceivedRecordsKey,
+  agentToolReceptionTargetsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import {
   sessionAccessCheckKey,
@@ -59,6 +61,7 @@ export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}
         agentReceivedCommitsKey,
         agentReceivedRecordsKey,
         agentModelReceptionTargetsKey,
+        agentToolReceptionTargetsKey,
         sessionAdoptedRequestsKey,
       ],
       injects: [sessionAccessCheckKey, storageKey, tenantDomainLookupKey],

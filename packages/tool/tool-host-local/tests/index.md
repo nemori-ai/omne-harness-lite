@@ -25,6 +25,7 @@
 - [导入图遍历工具](module-graph.ts)。
 - [R2-D164 完成调用的退役与重排](executor-retirement.spec.ts)。
 - [R2-D164 同租户投递的轮次](delivery/turns.spec.ts)。
+- [R2-D273 接收方缺席时的待推、具名 warn 与退避](delivery/absent-receiver.spec.ts)。
 - [测试夹具](fixtures/index.md)。
 - [包索引](../index.md)。
 

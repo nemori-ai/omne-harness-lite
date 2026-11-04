@@ -29,7 +29,12 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ModelReceptionTarget, ModelReceptionTargets } from './reception-targets.ts'
+import type {
+  ModelReceptionTarget,
+  ModelReceptionTargets,
+  ToolReceptionTarget,
+  ToolReceptionTargets,
+} from './reception-targets.ts'
 import { canonical } from './canonical.ts'
 import { jsonTree } from './material-value.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
@@ -178,6 +183,8 @@ export type ReceivingState = {
   targets: Map<string, ModelReceptionTarget>
   callTargets: Map<string, ModelReceptionTarget>
   executionTargets: Map<string, ModelReceptionTarget[]>
+  /** The original binding of each associated Tool call, by tenant and call reference (R2-D273). */
+  toolTargets: Map<string, ToolReceptionTarget>
 }
 export function emptyReceivingState(): ReceivingState {
   return {
@@ -190,6 +197,7 @@ export function emptyReceivingState(): ReceivingState {
     targets: new Map(),
     callTargets: new Map(),
     executionTargets: new Map(),
+    toolTargets: new Map(),
   }
 }
 
@@ -657,6 +665,54 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       return 'failure' in permission ? permission : succeed(structuredClone(found))
     },
   }
+  // The Tool bindings are kept from the committed associated PendingCalls (`remember`). The provider
+  // checks the access of the routed execution before it reveals a binding or its absence.
+  const toolTargetPort: ToolReceptionTargets<P> = {
+    async forExecution(input) {
+      const access = { ...input.access, execution: input.execution }
+      const permission = qualified(access)
+      if ('failure' in permission) return permission
+      // The reference carries its tenant: a binding of another tenant does not resolve under this one.
+      return succeed(
+        structuredClone(
+          [...hooks.state().toolTargets.values()].filter(
+            target =>
+              target.execution === input.execution &&
+              'ok' in resolveToolInvocationRef(target.pending.reference, input.access.tenant),
+          ),
+        ),
+      )
+    },
+    async resolve(input) {
+      if ('failure' in resolveToolInvocationRef(input.reference, input.access.tenant))
+        return fail(denied())
+      const found = hooks.state().toolTargets.get(targetKey(input.access, input.reference))
+      const route = input.execution ?? found?.execution
+      // Without a route an absent binding names no execution to check the access on.
+      if (route === undefined) return fail(denied())
+      const permission = qualified({ ...input.access, execution: route })
+      if ('failure' in permission) return permission
+      if (found === undefined) return succeed(null)
+      // A route names the execution whose records are read; a binding of another one is absent.
+      if (found.execution !== route) return fail(denied())
+      return succeed(structuredClone(found))
+    },
+  }
+  /** Keeps the first binding of an associated Tool call: its execution, instance and PendingCall. */
+  function rememberTool(
+    execution: MemoryExecution,
+    instance: AgentInstanceId,
+    pending: Extract<import('@omne-harness/agent-contract').PendingCall, { kind: 'tool' }>,
+  ): void {
+    if (pending.association !== 'associated') return
+    const key = targetKey({ tenant: execution.tenant }, pending.reference)
+    if (!hooks.state().toolTargets.has(key))
+      hooks.state().toolTargets.set(key, {
+        execution: execution.id,
+        instance,
+        pending: structuredClone(pending),
+      })
+  }
   return {
     ports: { entries, materials: materialPort, received },
     queryQualification(input: ExecutionMutation<P>): Failure | undefined {
@@ -671,6 +727,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     },
     controls,
     targets: targetPort,
+    toolTargets: toolTargetPort,
     remember(execution: MemoryExecution, instance: AgentInstanceId) {
       for (const pending of pendingCalls(execution)) {
         if (pending.kind === 'tool' && pending.association === 'intent') continue
@@ -694,6 +751,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             canonical([tenantText(execution.tenant), pending.position]),
             execution.id,
           )
+        if (pending.kind === 'tool') rememberTool(execution, instance, pending)
         if (pending.kind !== 'model') continue
         const key = targetKey({ tenant: execution.tenant }, pending.reference)
         if (!hooks.state().targets.has(key)) {

@@ -68,6 +68,18 @@ export function positionExecution(consumer: ConsumerRef): AgentExecutionId | nul
   return 'ok' in execution ? execution.ok : null
 }
 
+/**
+ * The execution that a Tool consumer position of this coordinator names. The coordinator registers
+ * each action under `AGENT_OWNER` with `work` = `<execution>` and purpose `action` (`toolConsumer`
+ * in `tools.ts`). Like `positionExecution`, it is only the route of the target query. Null for a
+ * position of another owner, purpose or shape.
+ */
+export function actionPositionExecution(consumer: ConsumerRef): AgentExecutionId | null {
+  if (consumer.owner !== AGENT_OWNER || consumer.purpose !== 'action') return null
+  const execution = decodeAgentExecutionId(consumer.work)
+  return 'ok' in execution ? execution.ok : null
+}
+
 export function stepOf(ordinal: number): StepId {
   const text = `step-${ordinal}`
   return minted(decodeStepId(text), text)

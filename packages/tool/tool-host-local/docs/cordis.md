@@ -121,7 +121,7 @@ Scope 与最终事实适配是 `createLocalToolBindings` 的构造依赖，返�
 
 应用提供耐久 store、custody、content、来源 issuer/guard、当前资格与主体恢复、环境采用和原子提交端口。工厂拒绝非耐久 store。标记为 durable 不替代实际持久化保证。records 提供 toolCommands、toolReads、toolStartAuthority 和 toolStartFence；bindings 的 authority 取得该 bundle 发布的当前 toolStartAuthority，scope/settle 使用同一 bundle.authorExecution。
 
-实例目录静态依赖 toolPublicationAuthority；环境插件以 integrator caller 取得 executionEnvironment；executor 静态依赖 toolCommands、toolInstanceHost、toolClock；runtime 门面静态依赖 toolCommands、toolReads。Catalog、binding、环境和原结果接收方按阶段读取，缺席回复 unavailable。应用仍须安装自身的当前资格、发行贡献权威、常驻引用桥和 Execution 提供者。
+实例目录静态依赖 toolPublicationAuthority；环境插件以 integrator caller 取得 executionEnvironment；executor 静态依赖 toolCommands、toolInstanceHost、toolClock；runtime 门面静态依赖 toolCommands、toolReads。Catalog、binding、环境和原结果接收方按阶段读取，缺席回复 unavailable。原结果接收方缺席（冻结 owner 没有登记，`tool-result-receiver`）时，交付保持待推，executor 的 `tool-executor` 日志写一条具名 warn，下一次查找按退避进行：首次等 `driverRetryDelayMs`（缺省 1000 ms），之后加倍，封顶 60000 ms；找到接收方后清除退避（R2-D273，`tests/delivery/absent-receiver.spec.ts`）。应用仍须安装自身的当前资格、发行贡献权威、常驻引用桥和 Execution 提供者。
 
 根入口的 `createEnvironmentStateStore`、`createEnvironmentResourceLedger`、`createRetainedTerminalLedger` 为同一 Tool store 提供环境与保留账本视图。生产状态写入需要 guarded 端口把调用修订核对和 host 域更新放进同一事务。`createLocalToolControlSubjects` 按原主体绑定恢复并重新核验资格；JSON 中的主体描述不是可直接使用的主体。
 

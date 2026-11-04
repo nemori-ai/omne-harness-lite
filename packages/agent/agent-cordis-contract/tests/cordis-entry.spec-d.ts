@@ -15,6 +15,7 @@ import type {
   AgentRegistrationId,
   Failure,
   ModelReceptionTargets,
+  ToolReceptionTargets,
   Registration,
   Reply,
 } from '@omne-harness/agent-contract'
@@ -34,6 +35,7 @@ import {
   type AgentReceivedCommitsService,
   type AgentReceivedRecordsService,
   type ModelReceptionTargetsService,
+  type ToolReceptionTargetsService,
   type AgentInstanceHostService,
   type AgentInstancesService,
   type AgentJournalEntriesService,
@@ -97,6 +99,10 @@ it('types the two result receiver faces of the Journal provider with their ports
   >()
   expectTypeOf<ModelReceptionTargetsService<string>['resolve']>().toEqualTypeOf<
     ModelReceptionTargets<string>['resolve']
+  >()
+  expectTypeOf(ctx.agentToolReceptionTargets).toEqualTypeOf<ToolReceptionTargetsService<unknown>>()
+  expectTypeOf<ToolReceptionTargetsService<string>['resolve']>().toEqualTypeOf<
+    ToolReceptionTargets<string>['resolve']
   >()
 })
 

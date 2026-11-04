@@ -92,7 +92,7 @@ import {
   type ToolOperationRef,
 } from '@omne-harness/tool-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { ModelReceptionTargets } from './reception-targets.ts'
+import type { ModelReceptionTargets, ToolReceptionTargets } from './reception-targets.ts'
 import { createJournalReceiving, type JournalReceivingControls } from './journal-receiving.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -266,6 +266,7 @@ export type MemoryAgentJournal<P> = Readonly<{
     received: NonNullable<AgentReceivedProvider<P, ContentBlock>['received']>
   }
   targets: ModelReceptionTargets<P>
+  toolTargets: ToolReceptionTargets<P>
   receiving: JournalReceivingControls<P>
   durability: 'none'
 
@@ -4390,6 +4391,7 @@ export function createJournal<P>(
     port,
     provider: { journal: port, ...receiving.ports },
     targets: receiving.targets,
+    toolTargets: receiving.toolTargets,
     receiving: receiving.controls,
     durability: 'none',
     setRetainedToolInvocationFault(input) {

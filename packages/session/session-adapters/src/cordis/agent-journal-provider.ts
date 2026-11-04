@@ -40,6 +40,8 @@
 // reference to a session, so it reads only the session of the route the receiver names, and the
 // session answers from the bindings its committed PendingCalls established. A binding of another
 // execution, or a resolve without a route, answers `denied`, as an absent binding does.
+// `agentToolReceptionTargets` is the same query for the associated Tool calls (R2-D273), on the same
+// route; an absent Tool binding of the routed execution answers null, as the Tool protocol needs.
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -51,6 +53,7 @@ import type {
   AgentReceivedRecords,
   Failure,
   ModelReceptionTargets,
+  ToolReceptionTargets,
 } from '@omne-harness/agent-contract'
 import {
   AgentJournalEntriesService,
@@ -59,6 +62,7 @@ import {
   AgentReceivedCommitsService,
   AgentReceivedRecordsService,
   ModelReceptionTargetsService,
+  ToolReceptionTargetsService,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -361,6 +365,30 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     },
   }
 
+  // The Tool bindings answer on the same route as the Model ones: the receiver reads the route from
+  // the Tool consumer position that the Agent registered (`work` is the execution). No route names
+  // no session, and a binding of another execution is not the binding of this route (R2-D273).
+  const toolTargets: ToolReceptionTargets<P> = {
+    forExecution: input =>
+      routedView(
+        'toolTargets.forExecution',
+        { tenant: input.access.tenant, execution: input.execution },
+        view => view.toolTargets.forExecution(input),
+      ),
+    async resolve(input) {
+      const { execution } = input
+      if (execution === undefined) return fail<Failure>({ kind: 'denied', action: 'resolve' })
+      const found = await routedView(
+        'toolTargets.resolve',
+        { tenant: input.access.tenant, execution },
+        view => view.toolTargets.resolve(input),
+      )
+      if ('ok' in found && found.ok !== null && found.ok.execution !== execution)
+        return fail<Failure>({ kind: 'denied', action: 'resolve' })
+      return found
+    },
+  }
+
   const stopped = () => fail<Failure>(unavailable('the agentJournal plugin has stopped'))
   const materials: Materials<P> = {
     preserve(input) {
@@ -397,6 +425,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     materials,
     received,
     targets,
+    toolTargets,
     adoptedRequests,
     close(): void {
       closed = true
@@ -533,6 +562,18 @@ class SessionLogReceptionTargets extends ModelReceptionTargetsService<unknown> {
   }
 }
 
+/** `agentToolReceptionTargets`, made by the body of `SessionLogAgentJournalProvider` (R2-D273). */
+class SessionLogToolReceptionTargets extends ToolReceptionTargetsService<unknown> {
+  readonly forExecution: ToolReceptionTargets<unknown>['forExecution']
+  readonly resolve: ToolReceptionTargets<unknown>['resolve']
+
+  constructor(ctx: Context, targets: ToolReceptionTargets<unknown>) {
+    super(ctx)
+    this.forExecution = targets.forExecution
+    this.resolve = targets.resolve
+  }
+}
+
 /** `sessionAdoptedRequests`, made by the body of `SessionLogAgentJournalProvider`. */
 class SessionLogAdoptedRequests extends SessionAdoptedRequestsService<unknown> {
   readonly readAdoptedRequest: SessionAdoptedRequests<unknown>['readAdoptedRequest']
@@ -545,7 +586,8 @@ class SessionLogAdoptedRequests extends SessionAdoptedRequestsService<unknown> {
 
 /**
  * The provider of `agentJournal`, `agentJournalEntries`, `agentMaterials`, `agentReceivedCommits`,
- * `agentReceivedRecords`, `agentModelReceptionTargets` and `sessionAdoptedRequests`: the seven services
+ * `agentReceivedRecords`, `agentModelReceptionTargets`, `agentToolReceptionTargets` and
+ * `sessionAdoptedRequests`: the eight services
  * are made in this one plugin body over one session-log Journal, so they come and go together. It
  * needs `storage`, the trusted `tenantDomainLookup` and `sessionAccessCheck`; with any of them
  * absent the plugin stays pending and provides none of the keys. A new provider of any of them
@@ -641,6 +683,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     new SessionLogReceivedCommits(ctx, routed.received)
     new SessionLogReceivedRecords(ctx, routed.received)
     new SessionLogReceptionTargets(ctx, routed.targets)
+    new SessionLogToolReceptionTargets(ctx, routed.toolTargets)
     new SessionLogAdoptedRequests(ctx, routed.adoptedRequests)
     ctx.effect(() => () => routed.close())
   }

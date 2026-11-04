@@ -213,6 +213,7 @@ import {
   type TenantDomainLookup,
 } from '@omne-harness/sql-contract'
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
+import { ToolRuntimeService } from '@omne-harness/tool-cordis-contract/cordis'
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import {
   createLocalModelReceiver,
@@ -785,13 +786,12 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     [RegisteredReadsService, createScriptedReads<unknown>().port, 'Reads'],
   ] as const)
     await mount(serviceOf(Base as unknown as AbstractService, port as object, name))
+  // The scripted Tool runtime under its definition class, so it carries the result receiver table
+  // that the host's Tool reception registers with (R2-D273).
   const tools = createScriptedToolRuntime<unknown>()
-  await mount({
-    name: 'tool-runtime-double',
-    apply(inner: Context) {
-      inner.provide('toolRuntime', tools.port)
-    },
-  })
+  await mount(
+    serviceOf(ToolRuntimeService as unknown as AbstractService, tools.port, 'ToolRuntime'),
+  )
 
   // The context side: the earlier context of the holder double, the real providers above it.
   const fixture = createAssemblyFixture({

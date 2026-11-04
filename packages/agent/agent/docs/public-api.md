@@ -210,7 +210,7 @@ facts 材料保存原租户编码与完整 ModelDelivery。精确采用为 owner
 
 `createAgentToolReceiver(dependencies, state)` 提供 `ToolResultReceiver` 的 push，以及 retry、recover 和 inspect。`createToolReceiverState()` 的返回值由宿主持有，与 Agent runtime 的生命期分开。组件重建继续传同一状态，不清除未知操作或真实在途任务。received 为 null 时返回 unsupported。
 
-依赖包括同一 `AgentReceivedProvider`、`AgentAccessCheck`、`ToolReceptionTargets` 和租户容量函数。targets.resolve 按原调用引用与完整 consumer 查询持久保留的 Tool PendingCall、consumption、execution 和原 instance。目标提供者须先核当前访问资格，再返回原绑定或 null。null 表示不存在原消费关联，push 按 Tool 协议返回 invalid/key.reference/not-accepted；来源不可读返回 unavailable/association。绑定存在后，接收方核 receive-result、原 reference 与 consumer。targets.forExecution 返回该 execution 的完整原绑定集合，不从当前挂接或 consumer.work 推断身份。
+依赖包括同一 `AgentReceivedProvider`、`AgentAccessCheck`、`ToolReceptionTargets` 和租户容量函数。targets.resolve 按原调用引用与完整 consumer 查询持久保留的 Tool PendingCall、consumption、execution 和原 instance。目标提供者须先核当前访问资格，再返回原绑定或 null。null 表示不存在原消费关联，push 按 Tool 协议返回 invalid/key.reference/not-accepted；来源不可读返回 unavailable/association。绑定存在后，接收方核 receive-result、原 reference 与 consumer。targets.forExecution 返回该 execution 的完整原绑定集合，不从当前挂接或 consumer.work 推断身份。`ToolReceptionTarget` 与 `ToolReceptionTargets` 已提升到 agent-contract，本包同名再导出（R2-D273）。接收方调用 resolve 时附上路由 `execution`：它从本 Agent 登记的 Tool 消费位置读出（owner 为本 Agent，purpose 为 `action`，`work` 就是 execution）；位置不是这个形状时不附路由。路由只决定提供者读哪个 execution 的记录，目标仍是提供者答复的已提交绑定。
 
 新交付取得租户独立的 records、bytes、attachments 与 inFlight 额度后，经原共同提交端口一次保存材料和 received。unknown 继续查询原 operation，不能再次 preserve 或新建提交身份。重复 key 不占新逻辑额度，实际在途调用仍占 inFlight。signal 只结束等待，不撤销已受理的写入；真实写入结束才释放在途额度。
 
