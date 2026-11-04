@@ -524,6 +524,7 @@ export type FailureCandidate = Readonly<{
     kind: 'no-reply';
     call: M.ModelCallId;
     result: ProducedResult;
+    fault?: M.ModelFault;
 }> | Readonly<{
     kind: 'model-refused';
     call: M.ModelCallId;

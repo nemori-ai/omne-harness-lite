@@ -4,7 +4,7 @@
 // time is the boundary time. No `Date.now` or `performance.now` is read here, and the injected
 // `AgentClock` is not used: it is a UTC reading that answers asynchronously and that tests count.
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
-import type { AgentRunFailedReceiver } from './run-failure.ts'
+import type { AgentRunEndedFailedReceiver, AgentRunFailedReceiver } from './run-failure.ts'
 
 /**
  * One pass of work that Agent does for one execution:
@@ -51,6 +51,11 @@ export type AgentRuntimeExtras = Readonly<{
    * slot still becomes `failed`, and nobody is told.
    */
   failed?: AgentRunFailedReceiver
+  /**
+   * The receiver of the report of a run that ended with a `fail` conclusion (SPEC「以失败终结」).
+   * Absent: the run ends the same, and nobody is told.
+   */
+  endedFailed?: AgentRunEndedFailedReceiver
 }>
 
 export type AgentMeasurer = Readonly<{

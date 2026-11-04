@@ -113,6 +113,7 @@ export async function createAgentRuntime<P, B extends ContentBlock>(
       dependencies,
       measurer: createAgentMeasurer(extras.measure),
       failed: extras.failed,
+      endedFailed: extras.endedFailed,
     }),
   )
 }

@@ -311,6 +311,30 @@ describe('read-history', () => {
       )
     })
 
+    it('shows the cause a failed run ended with, and none for a completed run', async () => {
+      const record = 'run-2/execution/step-4/model-failed/upstream-unavailable/connect-timeout'
+      const failed = entry('6', 'run.terminal', {
+        terminal: { run: 'run-2', outcome: 'failed', evidence: {} },
+        cause: { owner: '@omne-harness/agent', record, revision: '1', digest: 'sha256:x' },
+      })
+      const completed = entry('7', 'run.terminal', {
+        terminal: { run: 'run-3', outcome: 'completed', evidence: {} },
+        cause: { owner: '@omne-harness/agent', record: 'ignored', revision: '1', digest: 'd' },
+      })
+      const service = await serve(historyService([page([failed, completed], null)]))
+      await loginOwningSession(service)
+      const result = await cli(['read-history', '--session', sessionId])
+      expect(result.code).toBe(0)
+      expect(result.stdout).toBe(
+        [
+          '#6 run.terminal: Run run-2 ended: failed',
+          `    cause: ${record}`,
+          '#7 run.terminal: Run run-3 ended: completed',
+          '',
+        ].join('\n'),
+      )
+    })
+
     it('shows an entry kind it does not know as its kind and a clipped payload', async () => {
       const unknown = entry('9', 'session.frozen', { evidence: 'x'.repeat(2000) })
       const service = await serve(historyService([page([unknown], null)]))

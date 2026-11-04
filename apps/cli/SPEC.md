@@ -230,7 +230,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 `，退出码非零。原因是下列之一：`page <k> was answered <outcome>`（第 k 页的 `outcome` 不是 `succeeded`）、`page <k> had no trusted answer`（没有可信答复）、`page <k> is not a history page`（成功的回复不是历史页）、`page <k> has no cursor but is not the last`（未读完却没有 `next`）、`page <k> did not advance the cursor`（`next` 与本页请求的 `cursor` 相同）、`more than 10000 pages`。
 - 退出码：读完为 `0`。停在某页的 `outcome` 时，按[命令结果与退出码](#命令结果与退出码)的映射：`denied` 等为 `3`，`basis-unavailable` 为 `4`；没有可信答复为 `5`，另写 `omne read-history: result uncertain
 `。成功的页不可读成历史页、缺游标或游标不前进为 `1`。标准输出写入失败为 `1`。
-- 人读输出（缺省）每个条目一段，首行为 `#<entryId> <kind>: <正文>`。消息条目的正文是各块的文本，块之间换行，续行缩进四个空格：`text` 块显示文本，`tool_call` 块显示 `[tool call <名> <callId>] <参数>`，`tool_result` 块显示 `[tool result <callId>]`，随后的文本块显示结果内容。`run.started` 显示 `Run <run> started (entry <entry>)`，`run.terminal` 显示 `Run <run> ended: <outcome>`。其余种类和块显示种类名与截断的载荷。参数与载荷最多显示 500 个字符，超出处写 `...`。人读输出不是 JSON 对象。
+- 人读输出（缺省）每个条目一段，首行为 `#<entryId> <kind>: <正文>`。消息条目的正文是各块的文本，块之间换行，续行缩进四个空格：`text` 块显示文本，`tool_call` 块显示 `[tool call <名> <callId>] <参数>`，`tool_result` 块显示 `[tool result <callId>]`，随后的文本块显示结果内容。`run.started` 显示 `Run <run> started (entry <entry>)`，`run.terminal` 显示 `Run <run> ended: <outcome>`；outcome 不是 completed 且条目的 `cause` 带 record 时，续行显示 `cause: <record>`，即 Agent 终结结论的原因记录，模型调用失败时形如 `<execution>/<step>/model-failed/<故障原因>/<诊断>`。其余种类和块显示种类名与截断的载荷。参数与载荷最多显示 500 个字符，超出处写 `...`。人读输出不是 JSON 对象。
 - `--json` 输出一个 JSON 对象加换行，键同[命令结果与退出码](#命令结果与退出码)。`body` 是 `{ entries, complete }`：`entries` 是各页的条目原样拼接（`entryId`、`revision`、`kind`、`payload`），`complete` 说明是否读完。停在某页时 `outcome` 是该页的 `outcome`，`result` 为 `uncertain` 时没有 `outcome`。`request` 有 `messageId`（首页）和 `tenant`。
 
 ### 治理命令

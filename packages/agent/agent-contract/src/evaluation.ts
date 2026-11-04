@@ -81,7 +81,16 @@ export type FailureCandidate = Readonly<{
         model: DurableEvidence
         selection: DurableEvidence
       }>
-    | Readonly<{ kind: 'no-reply'; call: M.ModelCallId; result: ProducedResult }>
+    | Readonly<{
+        kind: 'no-reply'
+        call: M.ModelCallId
+        result: ProducedResult
+        /**
+         * The fault of the call when Model settled it as failed, exactly as the settlement carries
+         * it. Absent when the call completed without content (R2-D356).
+         */
+        fault?: M.ModelFault
+      }>
     | Readonly<{
         kind: 'model-refused'
         call: M.ModelCallId
