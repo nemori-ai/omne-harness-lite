@@ -4908,7 +4908,7 @@ export function createJournal<P>(
     write,
     holds,
     receiptOf,
-    nextEvidence,
+    ownEvidence,
     projectEntry: (execution, entry, cause) =>
       appendEvents(execution, [{ kind: 'entry', entry }], cause),
     ...(options.custodian === undefined ? {} : { custodian: options.custodian }),

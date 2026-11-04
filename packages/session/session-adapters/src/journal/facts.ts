@@ -570,7 +570,10 @@ export function factKey(fact: FactBody): string {
     case 'call.associated':
       return `associated/${fact.action}`
     case 'result.received':
-      return `received/${fact.consumption}`
+      // An account delivery follows the result of the same consumption: its own key.
+      return fact.result.delivery === 'account'
+        ? `account/${fact.delivery}`
+        : `received/${fact.consumption}`
     case 'result.handled':
       return `handled/${fact.consumption}/${fact.stage}`
     case 'reply.judged':

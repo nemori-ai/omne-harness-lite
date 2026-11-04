@@ -39,6 +39,7 @@ import { canonical } from './canonical.ts'
 import { jsonTree } from './material-value.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
 import { journalEvidence, semanticKey } from './journal-values.ts'
+import { blobOf, refOf, type FactBody, type ProducerCall } from '../journal/index.ts'
 
 type Input<P> = ReceivedCommitInput<P, ContentBlock>
 export type Kept = { entry: ReceivedEntry; receipt: CommandReceipt; saved: DurableEvidence | null }
@@ -94,7 +95,8 @@ type Hooks<P> = {
     evidence: DurableEvidence,
     state: CommandReceipt['state'],
   ): CommandReceipt
-  nextEvidence(execution: MemoryExecution, what: string, revision: number): DurableEvidence
+  /** The evidence of the batch the running write appends under `key`, reaching `revision`. */
+  ownEvidence(execution: AgentExecutionId, key: string, revision: number): DurableEvidence
   /**
    * Allocates the `entry` event of a written entry inside the same transaction (SPEC "日志条目"
    * 6): the next sequence under the latest established attachment, `cause` the evidence of the
@@ -131,6 +133,31 @@ const deliveryText = <P>(
   ])
 const textOf = <P>(input: Input<P>) =>
   `received:${canonical({ entry: input.entry, material: input.material })}`
+/** The producer call a received entry refers to: the delivery key without the material. */
+function receivedCall(entry: ReceivedEntry): ProducerCall {
+  const key = entry.delivery.key
+  return {
+    producer: entry.delivery.producer,
+    call: String(key.reference),
+    version: key.kind === 'result' ? String(key.result) : refOf(key).digest,
+    delivery: key.kind,
+    source: structuredClone(entry.material),
+  }
+}
+
+/** The `result.received` fact of a saved entry: identities, the custody reference and saved. */
+function receivedFact(entry: ReceivedEntry, saved: DurableEvidence): FactBody {
+  return {
+    kind: 'result.received',
+    consumption: entry.consumption,
+    delivery: saved.record,
+    result: receivedCall(entry),
+    consumer: structuredClone(entry.consumer),
+    custody: refOf(entry),
+    saved: structuredClone(saved),
+  }
+}
+
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -366,6 +393,8 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               return { kind: 'answer', value: fail(conflict(input)) }
             const value = rich(input, kept)
             if ('failure' in value) return { kind: 'answer', value }
+            // Another operation for a saved delivery answers the original value under an alias
+            // of the reader records; it appends no batch (see SPEC K-23).
             alias(input, text, kept)
             return {
               kind: 'answer',
@@ -378,7 +407,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             execution,
             input.operation,
             revision,
-            hooks.nextEvidence(execution, 'received', revision),
+            hooks.ownEvidence(execution.id, text, revision),
             'applied',
           )
           const entry: ReceivedEntry = { ...input.entry, material: sourceOf(input) }
@@ -392,17 +421,23 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           }
           const value = { receipt, entry, saved }
           return {
-            kind: 'write',
-            receipt,
-            value: { kind: 'committed' as const, value: structuredClone(value) },
-            apply() {
+            kind: 'batch',
+            facts: [receivedFact(entry, saved)],
+            blobs: [blobOf(entry)],
+            kinds: [],
+            derive: derived => {
+              if (derived.kind !== 'received' || canonical(derived.receipt) !== canonical(receipt))
+                throw new TypeError('a received batch answered another receipt than it judged')
+              return { kind: 'committed' as const, value: structuredClone(value) }
+            },
+            project: (_batch, view) => {
               hooks.state().materials.set(canonical(entry.material), {
                 tenant: tenantText(input.tenant),
                 execution: input.execution,
                 value: input.material,
               })
               execution.entries.push(entry)
-              execution.revision = revision
+              execution.revision = view.revision
               hooks.state().deliveries.set(deliveryText(input, entry), value)
               hooks.state().aliases.set(operationKey(input), value)
               hooks.projectEntry(execution, entry, receipt.evidence)
@@ -485,21 +520,34 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           if (scripted.kind === 'unavailable')
             return { kind: 'answer', value: fail(unavailable('record is scripted unavailable')) }
         }
-        const revision = execution.revision + 1
-        const receipt = hooks.receiptOf(
-          execution,
-          input.operation,
-          revision,
-          hooks.nextEvidence(execution, 'record', revision),
-          'applied',
-        )
+        const evidence = hooks.ownEvidence(execution.id, text, execution.revision + 1)
+        const entry = input.entry
+        const fact: FactBody =
+          entry.kind === 'received'
+            ? receivedFact(entry, evidence)
+            : {
+                kind: 'fence.started',
+                operation: entry.operation,
+                guard: structuredClone(entry.guard),
+                fence: structuredClone(entry.fence),
+              }
+        let written: CommandReceipt | undefined
         return {
-          kind: 'write',
-          receipt,
-          value: structuredClone(receipt),
-          apply() {
+          kind: 'batch',
+          facts: [fact],
+          blobs: entry.kind === 'received' ? [blobOf(entry)] : [],
+          kinds: [],
+          derive: derived => {
+            if (!('receipt' in derived)) throw new TypeError('a record answers its receipt')
+            written = derived.receipt
+            return structuredClone(derived.receipt)
+          },
+          project: (_batch, view) => {
+            if (written === undefined)
+              throw new TypeError('append derives the receipt before it projects the batch')
+            const receipt = written
             execution.entries.push(input.entry)
-            execution.revision = revision
+            execution.revision = view.revision
             if (input.entry.kind === 'received') {
               const kept = { entry: input.entry, receipt, saved: null }
               hooks.state().deliveries.set(deliveryText(input, input.entry), kept)

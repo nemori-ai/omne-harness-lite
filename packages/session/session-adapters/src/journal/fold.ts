@@ -528,7 +528,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       const known = draft.results.get(fact.consumption)
       draft.results.set(fact.consumption, {
         consumption: fact.consumption,
-        result: fact.result,
+        result: known?.result ?? fact.result,
         received: known?.received ?? {
           delivery: fact.delivery,
           consumer: fact.consumer,
