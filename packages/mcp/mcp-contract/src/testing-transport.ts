@@ -8,6 +8,7 @@ import { isTaskId, type TaskId } from './brands.ts'
 import { boundInstructions } from './instructions.ts'
 import type { AnswerMalformed } from './outcomes.ts'
 import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
+import { LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
 import { NotApplicable, conformanceCase, type ConformanceCase } from './testing-case.ts'
 import { actionNameOf, jsonOf } from './testing-values.ts'
 import type {
@@ -80,9 +81,28 @@ export type PeerScript = Readonly<{
   wellKnown?: Readonly<{ [path: string]: PlainJson }>
 }>
 
-/** What the peer saw: each request and notification as sent, and what the client did to it. */
+/**
+ * The MCP request headers of one Streamable HTTP request, by lower-case name, as the peer read
+ * them. A header that the request did not carry is absent.
+ */
+export type PeerRequestHeaders = Readonly<{
+  'mcp-protocol-version'?: string
+  'mcp-method'?: string
+  'mcp-name'?: string
+}>
+
+/**
+ * What the peer saw: each request and notification as sent, and what the client did to it. A
+ * request on Streamable HTTP carries `headers`; a request on stdio does not.
+ */
 export type PeerReceived =
-  | Readonly<{ kind: 'request'; id: string; method: string; params?: PlainJson }>
+  | Readonly<{
+      kind: 'request'
+      id: string
+      method: string
+      params?: PlainJson
+      headers?: PeerRequestHeaders
+    }>
   | Readonly<{ kind: 'notification'; method: string; params?: PlainJson }>
   /** The client's answer to a request the peer sent. */
   | Readonly<{ kind: 'response'; id: string; result?: PlainJson; error?: PlainJson }>
@@ -100,13 +120,25 @@ export type PeerNeeds = Readonly<{
   instructionsByteLimit?: number
 }>
 
-/** A peer the fixture prepared, with the factory and the material to reach it. */
+/**
+ * A peer the fixture prepared, with the factory and the material to reach it. `received` resolves
+ * to what the peer saw so far, in order, once everything that the client sent before the call is
+ * recorded. A fixture whose peer records late, for example an aborted HTTP answer stream or the
+ * answer to a request of the peer, waits for it before it resolves.
+ */
 export type ScriptedPeer = Readonly<{
   factory: McpTransportFactory
   material: TransportMaterial
-  received(): readonly PeerReceived[]
+  received(): Promise<readonly PeerReceived[]>
   close(): Promise<void>
 }>
+
+/**
+ * A script, or a function that writes the script from the target of the Streamable HTTP material.
+ * The fixture calls the function once, after it knows the target and before the peer answers. The
+ * suite passes a function only with `streamable-http` needs.
+ */
+export type ScriptSource = PeerScript | ((target: string) => PeerScript)
 
 /**
  * The fixture of the transport suite. `kinds` lists the material kinds it can open; a case that
@@ -117,7 +149,7 @@ export type ScriptedPeer = Readonly<{
 export type TransportFixture = Readonly<{
   kinds: readonly TransportKind[]
   protocolVersions: readonly string[]
-  peer(script: PeerScript, needs: PeerNeeds): Promise<ScriptedPeer>
+  peer(script: ScriptSource, needs: PeerNeeds): Promise<ScriptedPeer>
 }>
 
 export const PROTOCOL_VERSION_KEY = 'io.modelcontextprotocol/protocolVersion'
@@ -129,6 +161,7 @@ export const TASKS_EXTENSION = 'io.modelcontextprotocol/tasks'
 
 type Case = ConformanceCase<TransportFixture>
 type Body<T> = (peer: ScriptedPeer, transport: McpTransport) => Promise<T>
+type Request = Extract<PeerReceived, { kind: 'request' }>
 
 function isRecord(value: PlainJson | undefined): value is Readonly<{ [key: string]: PlainJson }> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -154,6 +187,16 @@ function error(code: number, message: string, data?: PlainJson): PeerReply {
   return { kind: 'error', error: data === undefined ? { code, message } : { code, message, data } }
 }
 
+/** An HTTP 400 answer whose body is a JSON-RPC error. */
+function badRequest(code: number, message: string, data?: PlainJson): PeerReply {
+  const body = {
+    jsonrpc: '2.0',
+    id: null,
+    error: data === undefined ? { code, message } : { code, message, data },
+  }
+  return { kind: 'http', status: 400, body: JSON.stringify(body) }
+}
+
 const SILENT: PeerReply = { kind: 'silent' }
 const STREAM_BREAKS: PeerReply = { kind: 'stream-breaks' }
 const PROCESS_EXITS: PeerReply = { kind: 'process-exits' }
@@ -162,6 +205,9 @@ const TASK_NOT_FOUND = error(-32602, 'Task not found')
 
 const TOOL = { name: 'echo', inputSchema: { type: 'object' } }
 const DONE = { content: [{ type: 'text', text: 'done' }] }
+const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
+/** An `initialize` answer that the legacy path reads. */
+const LEGACY = result({ protocolVersion: OFFERED_LEGACY_VERSION, capabilities: {} })
 
 /** A modern discover result that names the highest version the transport speaks. */
 function modern(
@@ -182,20 +228,28 @@ const echo: CallRequest = { action: actionNameOf('echo'), args: jsonOf({}) }
 
 const never = new AbortController().signal
 
+/** The script with a modern discover answer unless the script names its own. */
+function withModernDiscover(fixture: TransportFixture, script: ScriptSource): ScriptSource {
+  if (typeof script === 'function')
+    return target => ({ discover: modern(fixture), ...script(target) })
+  return { discover: modern(fixture), ...script }
+}
+
 /** Opens a transport to a scripted peer, runs the body, and closes both. */
 async function withPeer<T>(
   fixture: TransportFixture,
-  script: PeerScript,
+  script: ScriptSource,
   needs: Partial<PeerNeeds>,
   body: Body<T>,
 ): Promise<T> {
   const kind = needs.kind ?? fixture.kinds[0]
   assert.ok(kind !== undefined, 'the fixture names no material kind')
   if (!fixture.kinds.includes(kind)) throw new NotApplicable(`${kind} material`)
-  const peer = await fixture.peer(
-    { discover: modern(fixture), ...script },
-    { ...needs, kind, instructionsByteLimit: needs.instructionsByteLimit ?? 4096 },
-  )
+  const peer = await fixture.peer(withModernDiscover(fixture, script), {
+    ...needs,
+    kind,
+    instructionsByteLimit: needs.instructionsByteLimit ?? 4096,
+  })
   try {
     const opened = await peer.factory.open(peer.material, never)
     assert.ok('ok' in opened, `the transport did not open: ${JSON.stringify(opened)}`)
@@ -209,16 +263,23 @@ async function withPeer<T>(
   }
 }
 
-function requests(peer: ScriptedPeer, method: string) {
-  return peer
-    .received()
-    .flatMap(entry => (entry.kind === 'request' && entry.method === method ? [entry] : []))
+function requests(received: readonly PeerReceived[], method: string): readonly Request[] {
+  return received.flatMap(entry =>
+    entry.kind === 'request' && entry.method === method ? [entry] : [],
+  )
 }
 
-function notifications(peer: ScriptedPeer, method: string) {
-  return peer
-    .received()
-    .flatMap(entry => (entry.kind === 'notification' && entry.method === method ? [entry] : []))
+function notifications(received: readonly PeerReceived[], method: string) {
+  return received.flatMap(entry =>
+    entry.kind === 'notification' && entry.method === method ? [entry] : [],
+  )
+}
+
+/** The methods of the requests and notifications, in the order the peer saw them. */
+function methods(received: readonly PeerReceived[]): readonly string[] {
+  return received.flatMap(entry =>
+    entry.kind === 'request' || entry.kind === 'notification' ? [entry.method] : [],
+  )
 }
 
 function ok<T>(outcome: Outcome<T, TransportFailure>, what: string): T {
@@ -235,11 +296,24 @@ function malformed(what: AnswerMalformed['what']): TransportFailure {
   return { kind: 'answer-malformed', what }
 }
 
-/** Every request and notification carries the envelope, and the capabilities say what T3 says. */
-function assertEnvelopes(peer: ScriptedPeer): void {
-  const sent = peer
-    .received()
-    .filter(entry => entry.kind === 'request' || entry.kind === 'notification')
+function versionOf(entry: Request): PlainJson | undefined {
+  return at(entry.params, '_meta', PROTOCOL_VERSION_KEY)
+}
+
+/** The `Mcp-Name` that a request carries on Streamable HTTP: the tool name or the task id. */
+function mcpNameOf(entry: Request): PlainJson | undefined {
+  if (entry.method === 'tools/call') return at(entry.params, 'name')
+  if (['tasks/get', 'tasks/update', 'tasks/cancel'].includes(entry.method))
+    return at(entry.params, 'taskId')
+  return undefined
+}
+
+/**
+ * Every request and notification carries the envelope, and the capabilities say what T3 says. On
+ * Streamable HTTP every request also carries the MCP request headers of T3.
+ */
+function assertEnvelopes(peer: ScriptedPeer, received: readonly PeerReceived[]): void {
+  const sent = received.filter(entry => entry.kind === 'request' || entry.kind === 'notification')
   assert.ok(sent.length > 0, 'the peer received nothing')
   for (const entry of sent) {
     const meta = at(entry.params, '_meta')
@@ -268,17 +342,23 @@ function assertEnvelopes(peer: ScriptedPeer): void {
     assert.strictEqual(capabilities['sampling'], undefined, `${entry.method}: sampling declared`)
     assert.strictEqual(capabilities['roots'], undefined, `${entry.method}: roots declared`)
     assert.strictEqual(meta[LOG_LEVEL_KEY], undefined, `${entry.method}: logLevel set`)
+    if (entry.kind === 'request' && peer.material.kind === 'streamable-http')
+      assert.deepStrictEqual(
+        entry.headers,
+        {
+          'mcp-protocol-version': meta[PROTOCOL_VERSION_KEY],
+          'mcp-method': entry.method,
+          ...(mcpNameOf(entry) === undefined ? {} : { 'mcp-name': mcpNameOf(entry) }),
+        },
+        `${entry.method}: the MCP request headers`,
+      )
   }
-  assert.deepStrictEqual(requests(peer, 'logging/setLevel'), [], 'logging/setLevel was sent')
+  assert.deepStrictEqual(requests(received, 'logging/setLevel'), [], 'logging/setLevel was sent')
   assert.deepStrictEqual(
-    requests(peer, 'subscriptions/listen'),
+    requests(received, 'subscriptions/listen'),
     [],
     'subscriptions/listen was sent',
   )
-}
-
-function versionOf(entry: Extract<PeerReceived, { kind: 'request' }>): PlainJson | undefined {
-  return at(entry.params, '_meta', PROTOCOL_VERSION_KEY)
 }
 
 /** A credential handle that counts rejections and authorizes with a fixed header. */
@@ -304,17 +384,49 @@ function countingCredential(
 const bearer = (parameters: string) => `Bearer ${parameters}`
 const METADATA_PATH = '/.well-known/oauth-protected-resource'
 
-/** A process handle whose streams and stop calls are observed. */
+/** The path of the target without a trailing slash, as RFC 9728 inserts it after the well-known path. */
+function pathOf(target: string): string {
+  return new URL(target).pathname.replace(/\/$/u, '')
+}
+
+/** The protected resource metadata URL with the path of the target (RFC 9728, section 3.1). */
+function metadataUrlOf(target: string): string {
+  return new URL(`${METADATA_PATH}${pathOf(target)}`, target).href
+}
+
+function targetOf(peer: ScriptedPeer): string {
+  assert.ok(peer.material.kind === 'streamable-http', 'the case needs streamable-http material')
+  return peer.material.target
+}
+
+/**
+ * A process handle that hands every byte to and from the process unchanged and records when the
+ * transport closes stdin, cancels stdout or stops the process.
+ */
 function observedProcess(process: ProcessHandle, events: string[]): ProcessHandle {
+  const writer = process.stdin.getWriter()
+  const reader = process.stdout.getReader()
+  let cancelled = false
   return {
     stdin: new WritableStream<Uint8Array>({
-      close() {
+      write: chunk => writer.write(chunk),
+      async close() {
         events.push('stdin-closed')
+        await writer.close()
       },
+      abort: reason => writer.abort(reason),
     }),
     stdout: new ReadableStream<Uint8Array>({
-      cancel() {
+      async pull(controller) {
+        const next = await reader.read()
+        if (cancelled) return
+        if (next.done) controller.close()
+        else controller.enqueue(next.value)
+      },
+      async cancel(reason) {
+        cancelled = true
         events.push('stdout-cancelled')
+        await reader.cancel(reason)
       },
     }),
     stderr: process.stderr,
@@ -336,7 +448,7 @@ const t1Cases = (): readonly Case[] => [
         assert.strictEqual(typeof sent.requestId, 'string')
         assert.notStrictEqual(sent.requestId, '')
         assert.deepStrictEqual(await sent.answer, { kind: 'result', result: jsonOf(DONE) })
-        const [request] = requests(peer, 'tools/call')
+        const [request] = requests(await peer.received(), 'tools/call')
         assert.ok(request !== undefined, 'tools/call was not sent')
         assert.strictEqual(request.id, sent.requestId)
         assert.strictEqual(at(request.params, 'name'), 'echo')
@@ -369,7 +481,7 @@ const t1Cases = (): readonly Case[] => [
         assert.deepStrictEqual(await transport.call(echo, never), {
           failure: { kind: 'not-sent', cause: 'connection-unavailable' },
         })
-        assert.deepStrictEqual(requests(peer, 'tools/call'), [])
+        assert.deepStrictEqual(requests(await peer.received(), 'tools/call'), [])
       }),
   ),
   conformanceCase(
@@ -510,7 +622,7 @@ const t2Cases = (): readonly Case[] => [
           const second = ok(await transport.listActions('p2'), 'listActions')
           assert.strictEqual(second.nextCursor, undefined)
           assert.strictEqual(second.ttlMs, undefined)
-          const [, next] = requests(peer, 'tools/list')
+          const [, next] = requests(await peer.received(), 'tools/list')
           assert.strictEqual(at(next?.params, 'cursor'), 'p2')
         },
       ),
@@ -585,8 +697,9 @@ const t3Cases = (): readonly Case[] => [
           const sent = ok(await transport.call(echo, never), 'call')
           await sent.answer
           ok(await transport.getTask(taskId('t1')), 'getTask')
-          assertEnvelopes(peer)
-          const [discover] = requests(peer, 'server/discover')
+          const received = await peer.received()
+          assertEnvelopes(peer, received)
+          const [discover] = requests(received, 'server/discover')
           assert.strictEqual(
             discover === undefined ? undefined : versionOf(discover),
             fixture.protocolVersions[0],
@@ -596,10 +709,45 @@ const t3Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T3',
+    'streamable-http: each request carries MCP-Protocol-Version, Mcp-Method, and Mcp-Name for tools/call and tasks/* (item 7)',
+    async fixture =>
+      withPeer(
+        fixture,
+        {
+          calls: { echo: result(DONE) },
+          listing: { '': result({ tools: [] }) },
+          tasks: { t1: { get: result({ status: 'working' }) } },
+        },
+        { kind: 'streamable-http' },
+        async (peer, transport) => {
+          ok(await transport.discover(), 'discover')
+          ok(await transport.listActions(), 'listActions')
+          await ok(await transport.call(echo, never), 'call').answer
+          ok(await transport.getTask(taskId('t1')), 'getTask')
+          ok(await transport.updateTask(taskId('t1'), jsonOf({})), 'updateTask')
+          ok(await transport.cancelTask(taskId('t1')), 'cancelTask')
+          const received = await peer.received()
+          assertEnvelopes(peer, received)
+          const names = received.flatMap(entry =>
+            entry.kind === 'request' ? [[entry.method, entry.headers?.['mcp-name']]] : [],
+          )
+          assert.deepStrictEqual(names, [
+            ['server/discover', undefined],
+            ['tools/list', undefined],
+            ['tools/call', 'echo'],
+            ['tasks/get', 't1'],
+            ['tasks/update', 't1'],
+            ['tasks/cancel', 't1'],
+          ])
+        },
+      ),
+  ),
+  conformanceCase(
+    'T3',
     'a legacy peer: discover falls back to initialize and initialized (item 7)',
     async fixture => {
       const initialized = {
-        protocolVersion: '2025-11-25',
+        protocolVersion: OFFERED_LEGACY_VERSION,
         capabilities: { tools: {} },
         serverInfo: { name: 'old', version: '1' },
         instructions: 'hello',
@@ -610,24 +758,112 @@ const t3Cases = (): readonly Case[] => [
         {},
         async (peer, transport) => {
           const identity = ok(await transport.discover(), 'discover')
-          assert.strictEqual(identity.protocolVersion, '2025-11-25')
+          assert.strictEqual(identity.protocolVersion, OFFERED_LEGACY_VERSION)
           assert.deepStrictEqual(identity.capabilities, jsonOf({ tools: {} }))
           assert.deepStrictEqual(identity.serverInfo, { untrusted: jsonOf(initialized.serverInfo) })
           assert.strictEqual(identity.instructions?.untrusted.text, 'hello')
-          const order = peer
-            .received()
-            .flatMap(entry =>
-              entry.kind === 'request' || entry.kind === 'notification' ? [entry.method] : [],
-            )
-          assert.deepStrictEqual(order, [
+          const received = await peer.received()
+          assert.deepStrictEqual(methods(received), [
             'server/discover',
             'initialize',
             'notifications/initialized',
           ])
-          assertEnvelopes(peer)
+          assertEnvelopes(peer, received)
         },
       )
     },
+  ),
+  conformanceCase(
+    'T3',
+    'legacy: initialize offers the highest legacy version and declares elicitation.form only (item 7)',
+    async fixture =>
+      withPeer(
+        fixture,
+        { discover: METHOD_NOT_FOUND, initialize: LEGACY },
+        {},
+        async (peer, transport) => {
+          ok(await transport.discover(), 'discover')
+          const [initialize] = requests(await peer.received(), 'initialize')
+          assert.ok(initialize !== undefined, 'initialize was not sent')
+          assert.strictEqual(at(initialize.params, 'protocolVersion'), OFFERED_LEGACY_VERSION)
+          assert.strictEqual(versionOf(initialize), OFFERED_LEGACY_VERSION)
+          assert.ok(isRecord(at(initialize.params, 'clientInfo')), 'initialize: no clientInfo')
+          const capabilities = at(initialize.params, 'capabilities')
+          assert.ok(isRecord(capabilities), 'initialize: no capabilities')
+          assert.ok(isRecord(at(capabilities, 'elicitation', 'form')), 'elicitation.form missing')
+          assert.strictEqual(at(capabilities, 'elicitation', 'url'), undefined, 'elicitation.url')
+          assert.strictEqual(capabilities['sampling'], undefined, 'sampling declared')
+          assert.strictEqual(capabilities['roots'], undefined, 'roots declared')
+          assert.strictEqual(
+            at(capabilities, 'extensions', TASKS_EXTENSION),
+            undefined,
+            'the tasks extension is declared on the legacy revision',
+          )
+        },
+      ),
+  ),
+  conformanceCase(
+    'T3',
+    'after negotiation every request carries the negotiated version, on the legacy path too (item 7)',
+    async fixture => {
+      const negotiated = LEGACY_PROTOCOL_VERSIONS[1]
+      await withPeer(
+        fixture,
+        {
+          discover: METHOD_NOT_FOUND,
+          initialize: result({ protocolVersion: negotiated, capabilities: {} }),
+          calls: { echo: result(DONE) },
+          listing: { '': result({ tools: [] }) },
+        },
+        {},
+        async (peer, transport) => {
+          assert.strictEqual(ok(await transport.discover(), 'discover').protocolVersion, negotiated)
+          ok(await transport.listActions(), 'listActions')
+          await ok(await transport.call(echo, never), 'call').answer
+          const received = await peer.received()
+          assertEnvelopes(peer, received)
+          const after = received.slice(
+            received.findIndex(
+              entry =>
+                entry.kind === 'notification' && entry.method === 'notifications/initialized',
+            ),
+          )
+          const versions = after.flatMap(entry =>
+            entry.kind === 'request' || entry.kind === 'notification'
+              ? [[entry.method, at(entry.params, '_meta', PROTOCOL_VERSION_KEY)]]
+              : [],
+          )
+          assert.deepStrictEqual(versions, [
+            ['notifications/initialized', negotiated],
+            ['tools/list', negotiated],
+            ['tools/call', negotiated],
+          ])
+        },
+      )
+    },
+  ),
+  conformanceCase(
+    'T3, T7',
+    'legacy: an initialize answer with a version outside LEGACY_PROTOCOL_VERSIONS is discover-shape',
+    async fixture =>
+      withPeer(
+        fixture,
+        {
+          discover: METHOD_NOT_FOUND,
+          initialize: result({ protocolVersion: '2024-01-01', capabilities: {} }),
+        },
+        {},
+        async (peer, transport) => {
+          assert.deepStrictEqual(
+            failure(await transport.discover(), 'discover'),
+            malformed('discover-shape'),
+          )
+          assert.deepStrictEqual(
+            notifications(await peer.received(), 'notifications/initialized'),
+            [],
+          )
+        },
+      ),
   ),
   conformanceCase(
     'T3',
@@ -635,15 +871,12 @@ const t3Cases = (): readonly Case[] => [
     async fixture =>
       withPeer(
         fixture,
-        {
-          discover: SILENT,
-          initialize: result({ protocolVersion: '2025-11-25', capabilities: {} }),
-        },
+        { discover: SILENT, initialize: LEGACY },
         { kind: 'stdio' },
         async (_peer, transport) => {
           assert.strictEqual(
             ok(await transport.discover(), 'discover').protocolVersion,
-            '2025-11-25',
+            OFFERED_LEGACY_VERSION,
           )
         },
       ),
@@ -660,14 +893,73 @@ const t3Cases = (): readonly Case[] => [
             status: 400,
             body: '{"error":"unknown method server/discover"}',
           },
-          initialize: result({ protocolVersion: '2025-11-25', capabilities: {} }),
+          initialize: LEGACY,
         },
         { kind: 'streamable-http' },
         async (_peer, transport) => {
           assert.strictEqual(
             ok(await transport.discover(), 'discover').protocolVersion,
-            '2025-11-25',
+            OFFERED_LEGACY_VERSION,
           )
+        },
+      ),
+  ),
+  conformanceCase(
+    'T3',
+    'streamable-http: a 400 whose body is a JSON-RPC error of another code is a legacy peer (item 7)',
+    async fixture =>
+      withPeer(
+        fixture,
+        { discover: badRequest(-32601, 'Method not found'), initialize: LEGACY },
+        { kind: 'streamable-http' },
+        async (_peer, transport) => {
+          assert.strictEqual(
+            ok(await transport.discover(), 'discover').protocolVersion,
+            OFFERED_LEGACY_VERSION,
+          )
+        },
+      ),
+  ),
+  conformanceCase(
+    'T3',
+    'streamable-http: a 400 whose body is a JSON-RPC -32022 error is retried with the version in common (item 7)',
+    async fixture => {
+      const lowest = fixture.protocolVersions.at(-1)
+      assert.ok(lowest !== undefined)
+      await withPeer(
+        fixture,
+        {
+          discover: [
+            badRequest(-32022, 'unsupported', { supported: ['2000-01-01', lowest] }),
+            result({ supportedVersions: [lowest], capabilities: {} }),
+          ],
+          initialize: LEGACY,
+        },
+        { kind: 'streamable-http' },
+        async (peer, transport) => {
+          assert.strictEqual(ok(await transport.discover(), 'discover').protocolVersion, lowest)
+          const received = await peer.received()
+          assert.strictEqual(requests(received, 'server/discover').length, 2)
+          assert.deepStrictEqual(requests(received, 'initialize'), [])
+        },
+      )
+    },
+  ),
+  conformanceCase(
+    'T3',
+    'streamable-http: a 400 whose body is a JSON-RPC -32021 error is error-answer, with no legacy fallback (item 7)',
+    async fixture =>
+      withPeer(
+        fixture,
+        { discover: badRequest(-32021, 'Missing required client capability'), initialize: LEGACY },
+        { kind: 'streamable-http' },
+        async (peer, transport) => {
+          assert.deepStrictEqual(failure(await transport.discover(), 'discover'), {
+            kind: 'error-answer',
+            code: -32021,
+            message: 'Missing required client capability',
+          })
+          assert.deepStrictEqual(requests(await peer.received(), 'initialize'), [])
         },
       ),
   ),
@@ -685,7 +977,7 @@ const t3Cases = (): readonly Case[] => [
             code: -32603,
             message: 'boom',
           })
-          assert.strictEqual(requests(peer, 'initialize').length, 1)
+          assert.strictEqual(requests(await peer.received(), 'initialize').length, 1)
         },
       ),
   ),
@@ -713,7 +1005,7 @@ const t3Cases = (): readonly Case[] => [
         fixture,
         {
           discover: result({ supportedVersions: ['1999-01-01'], capabilities: {} }),
-          initialize: result({ protocolVersion: '2025-11-25', capabilities: {} }),
+          initialize: LEGACY,
         },
         {},
         async (peer, transport) => {
@@ -721,13 +1013,13 @@ const t3Cases = (): readonly Case[] => [
             failure(await transport.discover(), 'discover'),
             malformed('discover-shape'),
           )
-          assert.deepStrictEqual(requests(peer, 'initialize'), [])
+          assert.deepStrictEqual(requests(await peer.received(), 'initialize'), [])
         },
       ),
   ),
   conformanceCase(
     'T3',
-    '-32022 with supported versions: one retry with the highest version in common (item 7)',
+    '-32022 with supported versions: one retry with the highest version in common, kept after (item 7)',
     async fixture => {
       const lowest = fixture.protocolVersions.at(-1)
       assert.ok(lowest !== undefined)
@@ -738,14 +1030,20 @@ const t3Cases = (): readonly Case[] => [
             error(-32022, 'unsupported', { supported: ['2000-01-01', lowest] }),
             result({ supportedVersions: [lowest], capabilities: {} }),
           ],
+          initialize: LEGACY,
+          listing: { '': result({ tools: [] }) },
         },
         {},
         async (peer, transport) => {
           assert.strictEqual(ok(await transport.discover(), 'discover').protocolVersion, lowest)
-          const sent = requests(peer, 'server/discover')
+          ok(await transport.listActions(), 'listActions')
+          const received = await peer.received()
+          const sent = requests(received, 'server/discover')
           assert.strictEqual(sent.length, 2)
           assert.strictEqual(sent[1] === undefined ? undefined : versionOf(sent[1]), lowest)
-          assert.deepStrictEqual(requests(peer, 'initialize'), [])
+          const [listing] = requests(received, 'tools/list')
+          assert.strictEqual(listing === undefined ? undefined : versionOf(listing), lowest)
+          assert.deepStrictEqual(requests(received, 'initialize'), [])
         },
       )
     },
@@ -756,14 +1054,19 @@ const t3Cases = (): readonly Case[] => [
     async fixture =>
       withPeer(
         fixture,
-        { discover: error(-32022, 'unsupported', { supported: ['2000-01-01'] }) },
+        {
+          discover: error(-32022, 'unsupported', { supported: ['2000-01-01'] }),
+          initialize: LEGACY,
+        },
         {},
         async (peer, transport) => {
           assert.deepStrictEqual(
             failure(await transport.discover(), 'discover'),
             malformed('discover-shape'),
           )
-          assert.strictEqual(requests(peer, 'server/discover').length, 1)
+          const received = await peer.received()
+          assert.strictEqual(requests(received, 'server/discover').length, 1)
+          assert.deepStrictEqual(requests(received, 'initialize'), [])
         },
       ),
   ),
@@ -776,7 +1079,7 @@ const t3Cases = (): readonly Case[] => [
       const unsupported = error(-32022, 'unsupported', { supported: [highest] })
       await withPeer(
         fixture,
-        { discover: [unsupported, unsupported, modern(fixture)] },
+        { discover: [unsupported, unsupported, modern(fixture)], initialize: LEGACY },
         {},
         async (peer, transport) => {
           assert.deepStrictEqual(failure(await transport.discover(), 'discover'), {
@@ -785,31 +1088,62 @@ const t3Cases = (): readonly Case[] => [
             message: 'unsupported',
             data: jsonOf({ supported: [highest] }),
           })
-          assert.strictEqual(requests(peer, 'server/discover').length, 2)
+          const received = await peer.received()
+          assert.strictEqual(requests(received, 'server/discover').length, 2)
+          assert.deepStrictEqual(requests(received, 'initialize'), [])
         },
       )
     },
   ),
   conformanceCase(
     'T3',
-    'legacy: a request from the peer is refused with a JSON-RPC error (item 7)',
+    '-32021 on server/discover is error-answer even when initialize would succeed (item 7)',
+    async fixture =>
+      withPeer(
+        fixture,
+        {
+          discover: error(-32021, 'Missing required client capability'),
+          initialize: LEGACY,
+        },
+        {},
+        async (peer, transport) => {
+          assert.deepStrictEqual(failure(await transport.discover(), 'discover'), {
+            kind: 'error-answer',
+            code: -32021,
+            message: 'Missing required client capability',
+          })
+          assert.deepStrictEqual(requests(await peer.received(), 'initialize'), [])
+        },
+      ),
+  ),
+  conformanceCase(
+    'T3',
+    'legacy: a request the peer sends after notifications/initialized is refused with a JSON-RPC error (item 7)',
     async fixture =>
       withPeer(
         fixture,
         {
           discover: METHOD_NOT_FOUND,
-          initialize: result({ protocolVersion: '2025-11-25', capabilities: {} }),
+          initialize: LEGACY,
+          listing: { '': result({ tools: [] }) },
           peerRequests: [{ method: 'roots/list' }],
         },
         {},
         async (peer, transport) => {
           ok(await transport.discover(), 'discover')
-          const responses = peer
-            .received()
-            .flatMap(entry => (entry.kind === 'response' ? [entry] : []))
-          assert.strictEqual(responses.length, 1)
-          assert.strictEqual(typeof at(responses[0]?.error, 'code'), 'number')
-          assert.strictEqual(responses[0]?.result, undefined)
+          ok(await transport.listActions(), 'listActions')
+          const received = await peer.received()
+          const initialized = received.findIndex(
+            entry => entry.kind === 'notification' && entry.method === 'notifications/initialized',
+          )
+          const responses = received.flatMap((entry, index) =>
+            entry.kind === 'response' ? [{ entry, index }] : [],
+          )
+          assert.strictEqual(responses.length, 1, 'the peer request was not answered once')
+          const [answer] = responses
+          assert.ok(answer !== undefined && answer.index > initialized)
+          assert.strictEqual(typeof at(answer.entry.error, 'code'), 'number')
+          assert.strictEqual(answer.entry.result, undefined)
         },
       ),
   ),
@@ -824,9 +1158,33 @@ const t3Cases = (): readonly Case[] => [
         { instructionsByteLimit: 8 },
         async (peer, transport) => {
           const identity = ok(await transport.discover(), 'discover')
-          const expected = boundInstructions(whole, 8)
           assert.deepStrictEqual(identity.instructions, {
-            untrusted: { ...expected, generation: peer.material.generation },
+            untrusted: { ...boundInstructions(whole, 8), generation: peer.material.generation },
+          })
+        },
+      )
+    },
+  ),
+  conformanceCase(
+    'T3',
+    'legacy: the instructions of initialize are cut to the byte limit of the material too',
+    async fixture => {
+      const whole = 'abcdefghijklmnop'
+      await withPeer(
+        fixture,
+        {
+          discover: METHOD_NOT_FOUND,
+          initialize: result({
+            protocolVersion: OFFERED_LEGACY_VERSION,
+            capabilities: {},
+            instructions: whole,
+          }),
+        },
+        { instructionsByteLimit: 8 },
+        async (peer, transport) => {
+          const identity = ok(await transport.discover(), 'discover')
+          assert.deepStrictEqual(identity.instructions, {
+            untrusted: { ...boundInstructions(whole, 8), generation: peer.material.generation },
           })
         },
       )
@@ -853,7 +1211,7 @@ const t3Cases = (): readonly Case[] => [
           await first.answer
           const second = ok(await transport.call(echo, never), 'call')
           await second.answer
-          const tokens = requests(peer, 'tools/call').map(request =>
+          const tokens = requests(await peer.received(), 'tools/call').map(request =>
             at(request.params, '_meta', 'progressToken'),
           )
           assert.strictEqual(tokens.length, 2)
@@ -874,38 +1232,60 @@ const t3Cases = (): readonly Case[] => [
 ]
 
 const t4Cases = (): readonly Case[] => {
-  const metadata = (issuer: string) => ({
-    resource: 'https://peer.test/mcp',
+  /** Protected resource metadata whose `resource` is the target (RFC 9728, section 3.3). */
+  const metadata = (target: string, issuer: string) => ({
+    resource: target,
     authorization_servers: [issuer],
     scopes_supported: ['files:read', 'files:write'],
   })
+  const unauthorized = (challenge: string): PeerReply => ({
+    kind: 'http',
+    status: 401,
+    headers: { 'www-authenticate': bearer(challenge) },
+  })
+  const forbidden = (challenge: string): PeerReply => ({
+    kind: 'http',
+    status: 403,
+    headers: { 'www-authenticate': bearer(challenge) },
+  })
+  const authorizationRequired = (refused: TransportFailure) => {
+    assert.ok(
+      refused.kind === 'not-sent' && refused.cause === 'authorization-required',
+      JSON.stringify(refused),
+    )
+    return refused.discovery
+  }
   return [
     conformanceCase(
       'T4',
       '401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11)',
       async fixture => {
         const credential = countingCredential()
-        const url = 'https://peer.test/.well-known/oauth-protected-resource/mcp'
-        const header = bearer(`resource_metadata="${url}", scope="files:read"`)
         await withPeer(
           fixture,
-          {
-            calls: { echo: { kind: 'http', status: 401, headers: { 'www-authenticate': header } } },
-            wellKnown: { [`${METADATA_PATH}/mcp`]: metadata('https://issuer.test') },
-          },
+          target => ({
+            calls: {
+              echo: unauthorized(
+                `resource_metadata="${metadataUrlOf(target)}", scope="files:read"`,
+              ),
+            },
+            wellKnown: {
+              [`${METADATA_PATH}${pathOf(target)}`]: metadata(target, 'https://issuer.test'),
+            },
+          }),
           { kind: 'streamable-http', credential },
-          async (_peer, transport) => {
-            const refused = failure(await transport.call(echo, never), 'call')
-            assert.strictEqual(refused.kind, 'not-sent')
-            assert.strictEqual(refused.cause, 'authorization-required')
-            assert.ok(refused.kind === 'not-sent' && refused.cause === 'authorization-required')
-            assert.strictEqual(refused.discovery.resourceMetadataUrl, url)
-            assert.strictEqual(refused.discovery.metadata, 'fetched')
-            assert.deepStrictEqual(refused.discovery.resourceMetadata, {
-              untrusted: jsonOf(metadata('https://issuer.test')),
+          async (peer, transport) => {
+            const target = targetOf(peer)
+            const discovery = authorizationRequired(
+              failure(await transport.call(echo, never), 'call'),
+            )
+            assert.strictEqual(discovery.resourceMetadataUrl, metadataUrlOf(target))
+            assert.strictEqual(discovery.metadata, 'fetched')
+            assert.deepStrictEqual(discovery.resourceMetadata, {
+              untrusted: jsonOf(metadata(target, 'https://issuer.test')),
             })
-            assert.deepStrictEqual(refused.discovery.issuers, ['https://issuer.test'])
-            assert.deepStrictEqual(refused.discovery.scopes, ['files:read'])
+            assert.deepStrictEqual(discovery.issuers, ['https://issuer.test'])
+            assert.deepStrictEqual(discovery.scopes, ['files:read'])
             assert.strictEqual(credential.rejections(), 1)
           },
         )
@@ -913,80 +1293,76 @@ const t4Cases = (): readonly Case[] => {
     ),
     conformanceCase(
       'T4',
-      '401 without resource_metadata: the well-known URL with the path is tried before the root (item 11)',
+      '401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11)',
       async fixture => {
+        const credential = countingCredential()
         await withPeer(
           fixture,
-          {
-            listing: {
-              '': {
-                kind: 'http',
-                status: 401,
-                headers: { 'www-authenticate': bearer('realm="mcp"') },
-              },
-            },
-            wellKnown: { [METADATA_PATH]: metadata('https://root.test') },
-          },
-          { kind: 'streamable-http', credential: countingCredential() },
+          target => ({
+            listing: { '': unauthorized('realm="mcp"') },
+            wellKnown: { [METADATA_PATH]: metadata(target, 'https://root.test') },
+          }),
+          { kind: 'streamable-http', credential },
           async (peer, transport) => {
-            const refused = failure(await transport.listActions(), 'listActions')
-            assert.ok(
-              refused.kind === 'not-sent' && refused.cause === 'authorization-required',
-              JSON.stringify(refused),
+            const discovery = authorizationRequired(
+              failure(await transport.listActions(), 'listActions'),
             )
-            const origin = new URL(
-              peer.material.kind === 'streamable-http'
-                ? peer.material.target
-                : 'https://invalid.test/',
+            const fetched = (await peer.received()).flatMap(entry =>
+              entry.kind === 'fetch' ? [new URL(entry.url).pathname] : [],
             )
-            const path = origin.pathname.replace(/\/$/u, '')
-            const fetched = peer
-              .received()
-              .flatMap(entry => (entry.kind === 'fetch' ? [new URL(entry.url).pathname] : []))
-            assert.deepStrictEqual(fetched, [`${METADATA_PATH}${path}`, METADATA_PATH])
-            assert.strictEqual(
-              new URL(refused.discovery.resourceMetadataUrl).pathname,
+            assert.deepStrictEqual(fetched, [
+              `${METADATA_PATH}${pathOf(targetOf(peer))}`,
               METADATA_PATH,
-            )
-            assert.strictEqual(refused.discovery.metadata, 'fetched')
-            assert.deepStrictEqual(refused.discovery.issuers, ['https://root.test'])
-            assert.deepStrictEqual(refused.discovery.scopes, ['files:read', 'files:write'])
+            ])
+            assert.strictEqual(new URL(discovery.resourceMetadataUrl).pathname, METADATA_PATH)
+            assert.strictEqual(discovery.metadata, 'fetched')
+            assert.deepStrictEqual(discovery.issuers, ['https://root.test'])
+            assert.deepStrictEqual(discovery.scopes, ['files:read', 'files:write'])
+            assert.strictEqual(credential.rejections(), 1)
           },
         )
       },
     ),
     conformanceCase(
       'T4',
-      '401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header (item 11)',
-      async fixture =>
-        withPeer(
+      '401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header; reportRejection once (item 11)',
+      async fixture => {
+        const credential = countingCredential()
+        await withPeer(
           fixture,
-          {
-            calls: {
-              echo: {
-                kind: 'http',
-                status: 401,
-                headers: { 'www-authenticate': bearer('scope="a b"') },
-              },
-            },
-          },
-          { kind: 'streamable-http', credential: countingCredential() },
+          { calls: { echo: unauthorized('scope="a b"') } },
+          { kind: 'streamable-http', credential },
           async (_peer, transport) => {
-            const refused = failure(await transport.call(echo, never), 'call')
-            assert.ok(
-              refused.kind === 'not-sent' && refused.cause === 'authorization-required',
-              JSON.stringify(refused),
+            const discovery = authorizationRequired(
+              failure(await transport.call(echo, never), 'call'),
             )
-            assert.strictEqual(refused.discovery.metadata, 'unavailable')
-            assert.strictEqual(refused.discovery.resourceMetadata, undefined)
-            assert.strictEqual(
-              new URL(refused.discovery.resourceMetadataUrl).pathname,
-              METADATA_PATH,
-            )
-            assert.deepStrictEqual(refused.discovery.issuers, [])
-            assert.deepStrictEqual(refused.discovery.scopes, ['a', 'b'])
+            assert.strictEqual(discovery.metadata, 'unavailable')
+            assert.strictEqual(discovery.resourceMetadata, undefined)
+            assert.strictEqual(new URL(discovery.resourceMetadataUrl).pathname, METADATA_PATH)
+            assert.deepStrictEqual(discovery.issuers, [])
+            assert.deepStrictEqual(discovery.scopes, ['a', 'b'])
+            assert.strictEqual(credential.rejections(), 1)
           },
-        ),
+        )
+      },
+    ),
+    conformanceCase(
+      'T4',
+      '401 on discover: authorization-required with no legacy fallback; reportRejection once (item 11)',
+      async fixture => {
+        const credential = countingCredential()
+        await withPeer(
+          fixture,
+          { discover: unauthorized('scope="files:read"'), initialize: LEGACY },
+          { kind: 'streamable-http', credential },
+          async (peer, transport) => {
+            const discovery = authorizationRequired(failure(await transport.discover(), 'discover'))
+            assert.deepStrictEqual(discovery.scopes, ['files:read'])
+            assert.strictEqual(credential.rejections(), 1)
+            assert.deepStrictEqual(requests(await peer.received(), 'initialize'), [])
+          },
+        )
+      },
     ),
     conformanceCase(
       'T4',
@@ -995,26 +1371,32 @@ const t4Cases = (): readonly Case[] => {
         const credential = countingCredential()
         await withPeer(
           fixture,
-          {
-            calls: {
-              echo: {
-                kind: 'http',
-                status: 403,
-                headers: {
-                  'www-authenticate': bearer('error="insufficient_scope", scope="files:write"'),
-                },
-              },
-            },
-          },
+          { calls: { echo: forbidden('error="insufficient_scope", scope="files:write"') } },
           { kind: 'streamable-http', credential },
           async (_peer, transport) => {
-            const refused = failure(await transport.call(echo, never), 'call')
-            assert.ok(
-              refused.kind === 'not-sent' && refused.cause === 'authorization-required',
-              JSON.stringify(refused),
+            const discovery = authorizationRequired(
+              failure(await transport.call(echo, never), 'call'),
             )
-            assert.deepStrictEqual(refused.discovery.scopes, ['files:write'])
+            assert.deepStrictEqual(discovery.scopes, ['files:write'])
             assert.strictEqual(credential.rejections(), 1)
+          },
+        )
+      },
+    ),
+    conformanceCase(
+      'T4',
+      '403 with another Bearer error (invalid_token): connection-unavailable; reportRejection is not called (item 11)',
+      async fixture => {
+        const credential = countingCredential()
+        await withPeer(
+          fixture,
+          { calls: { echo: forbidden('error="invalid_token", scope="files:write"') } },
+          { kind: 'streamable-http', credential },
+          async (_peer, transport) => {
+            assert.deepStrictEqual(await transport.call(echo, never), {
+              failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+            })
+            assert.strictEqual(credential.rejections(), 0)
           },
         )
       },
@@ -1043,20 +1425,10 @@ const t4Cases = (): readonly Case[] => {
       async fixture =>
         withPeer(
           fixture,
-          {
-            discover: {
-              kind: 'http',
-              status: 401,
-              headers: { 'www-authenticate': bearer('realm="mcp"') },
-            },
-          },
+          { discover: unauthorized('realm="mcp"') },
           { kind: 'streamable-http' },
           async (_peer, transport) => {
-            const refused = failure(await transport.discover(), 'discover')
-            assert.ok(
-              refused.kind === 'not-sent' && refused.cause === 'authorization-required',
-              JSON.stringify(refused),
-            )
+            authorizationRequired(failure(await transport.discover(), 'discover'))
           },
         ),
     ),
@@ -1071,15 +1443,13 @@ const t5Cases = (): readonly Case[] => [
       withPeer(fixture, { calls: { echo: SILENT } }, { kind: 'stdio' }, async (peer, transport) => {
         const sent = ok(await transport.call(echo, never), 'call')
         await transport.cancelRequest(sent.requestId)
-        const [cancelled] = notifications(peer, 'notifications/cancelled')
+        const received = await peer.received()
+        const [cancelled] = notifications(received, 'notifications/cancelled')
         assert.ok(cancelled !== undefined, 'notifications/cancelled was not sent')
         assert.strictEqual(at(cancelled.params, 'requestId'), sent.requestId)
-        assert.ok(
-          isRecord(at(cancelled.params, '_meta', CLIENT_CAPABILITIES_KEY)),
-          'the cancel carries no envelope',
-        )
+        assertEnvelopes(peer, received)
         assert.deepStrictEqual(
-          peer.received().filter(entry => entry.kind === 'stream-aborted'),
+          received.filter(entry => entry.kind === 'stream-aborted'),
           [],
         )
       }),
@@ -1095,11 +1465,12 @@ const t5Cases = (): readonly Case[] => [
         async (peer, transport) => {
           const sent = ok(await transport.call(echo, never), 'call')
           await transport.cancelRequest(sent.requestId)
+          const received = await peer.received()
           assert.deepStrictEqual(
-            peer.received().filter(entry => entry.kind === 'stream-aborted'),
+            received.filter(entry => entry.kind === 'stream-aborted'),
             [{ kind: 'stream-aborted', id: sent.requestId }],
           )
-          assert.deepStrictEqual(notifications(peer, 'notifications/cancelled'), [])
+          assert.deepStrictEqual(notifications(received, 'notifications/cancelled'), [])
         },
       ),
   ),
@@ -1175,7 +1546,7 @@ const t5Cases = (): readonly Case[] => [
           assert.deepStrictEqual(await pending, {
             failure: { kind: 'not-sent', cause: 'connection-unavailable' },
           })
-          assert.deepStrictEqual(requests(peer, 'tools/call'), [])
+          assert.deepStrictEqual(requests(await peer.received(), 'tools/call'), [])
         },
       )
     },
@@ -1301,7 +1672,7 @@ const t6Cases = (): readonly Case[] => {
     ),
     conformanceCase(
       'T6',
-      'updateTask sends tasks/update with the task id and the input responses; the ack is accepted',
+      'updateTask sends tasks/update with the task id, the input responses and the envelope; the ack is accepted',
       async fixture => {
         const responses = { name: { action: 'accept', content: { input: 'Luca' } } }
         await withPeer(
@@ -1312,16 +1683,18 @@ const t6Cases = (): readonly Case[] => {
             assert.deepStrictEqual(await transport.updateTask(taskId('t1'), jsonOf(responses)), {
               ok: 'accepted',
             })
-            const [update] = requests(peer, 'tasks/update')
+            const received = await peer.received()
+            const [update] = requests(received, 'tasks/update')
             assert.strictEqual(at(update?.params, 'taskId'), 't1')
             assert.deepStrictEqual(at(update?.params, 'inputResponses'), responses)
+            assertEnvelopes(peer, received)
           },
         )
       },
     ),
     conformanceCase(
       'T6',
-      'cancelTask sends tasks/cancel; the ack is requested; no notifications/cancelled',
+      'cancelTask sends tasks/cancel with the envelope; the ack is requested; no notifications/cancelled',
       async fixture =>
         withPeer(
           fixture,
@@ -1329,8 +1702,10 @@ const t6Cases = (): readonly Case[] => {
           {},
           async (peer, transport) => {
             assert.deepStrictEqual(await transport.cancelTask(taskId('t1')), { ok: 'requested' })
-            assert.strictEqual(at(requests(peer, 'tasks/cancel')[0]?.params, 'taskId'), 't1')
-            assert.deepStrictEqual(notifications(peer, 'notifications/cancelled'), [])
+            const received = await peer.received()
+            assert.strictEqual(at(requests(received, 'tasks/cancel')[0]?.params, 'taskId'), 't1')
+            assert.deepStrictEqual(notifications(received, 'notifications/cancelled'), [])
+            assertEnvelopes(peer, received)
           },
         ),
     ),
@@ -1364,8 +1739,7 @@ const t6Cases = (): readonly Case[] => {
           {},
           async (_peer, transport) => {
             const refused = failure(await transport.getTask(taskId('t1')), 'getTask')
-            assert.strictEqual(refused.kind, 'error-answer')
-            assert.ok(refused.kind === 'error-answer')
+            assert.ok(refused.kind === 'error-answer', JSON.stringify(refused))
             assert.strictEqual(refused.code, -32021)
             assert.deepStrictEqual(
               refused.data,
@@ -1374,6 +1748,25 @@ const t6Cases = (): readonly Case[] => {
           },
         )
       },
+    ),
+    conformanceCase(
+      'T6',
+      'streamable-http: a 400 whose body is a JSON-RPC error is the error answer of a task operation (item 12)',
+      async fixture =>
+        withPeer(
+          fixture,
+          { tasks: { t1: { get: badRequest(-32021, 'Missing required client capability') } } },
+          { kind: 'streamable-http' },
+          async (_peer, transport) => {
+            assert.deepStrictEqual(await transport.getTask(taskId('t1')), {
+              failure: {
+                kind: 'error-answer',
+                code: -32021,
+                message: 'Missing required client capability',
+              },
+            })
+          },
+        ),
     ),
     conformanceCase(
       'T6',
@@ -1392,6 +1785,39 @@ const t6Cases = (): readonly Case[] => {
           async (_peer, transport) => {
             assert.deepStrictEqual(ok(await transport.getTask(taskId('t1')), 'getTask'), {
               status: 'working',
+            })
+          },
+        ),
+    ),
+    conformanceCase(
+      'T6',
+      'a poll interval or ttl that is not a non-negative safe integer is left out (item 12)',
+      async fixture =>
+        withPeer(
+          fixture,
+          {
+            tasks: {
+              t1: {
+                get: [
+                  task('working', { pollIntervalMs: -5, ttlMs: 1.5 }),
+                  task('working', { pollIntervalMs: 2 ** 53, ttlMs: -1 }),
+                  task('working', { pollIntervalMs: 0, ttlMs: 2 ** 53 - 1 }),
+                ],
+              },
+            },
+          },
+          {},
+          async (_peer, transport) => {
+            assert.deepStrictEqual(ok(await transport.getTask(taskId('t1')), 'getTask'), {
+              status: 'working',
+            })
+            assert.deepStrictEqual(ok(await transport.getTask(taskId('t1')), 'getTask'), {
+              status: 'working',
+            })
+            assert.deepStrictEqual(ok(await transport.getTask(taskId('t1')), 'getTask'), {
+              status: 'working',
+              pollIntervalMs: 0,
+              ttlMs: 2 ** 53 - 1,
             })
           },
         ),
@@ -1450,6 +1876,37 @@ const t7Cases = (): readonly Case[] => {
             })
             assert.deepStrictEqual(await transport.getTaskResult(taskId('t1')), {
               failure: malformed('result-missing'),
+            })
+          },
+        ),
+    ),
+    conformanceCase(
+      'T7',
+      'error-missing: failed without an error object, for getTask and getTaskResult; no error is made up',
+      async fixture =>
+        withPeer(
+          fixture,
+          {
+            tasks: {
+              t1: {
+                get: [
+                  task({ status: 'failed' }),
+                  task({ status: 'failed' }),
+                  task({ status: 'failed', error: 'not an object' }),
+                ],
+              },
+            },
+          },
+          {},
+          async (_peer, transport) => {
+            assert.deepStrictEqual(await transport.getTask(taskId('t1')), {
+              failure: malformed('error-missing'),
+            })
+            assert.deepStrictEqual(await transport.getTaskResult(taskId('t1')), {
+              failure: malformed('error-missing'),
+            })
+            assert.deepStrictEqual(await transport.getTaskResult(taskId('t1')), {
+              failure: malformed('error-missing'),
             })
           },
         ),
@@ -1516,8 +1973,9 @@ const deviationCases = (): readonly Case[] => [
           ok(await transport.discover(), 'discover')
           ok(await transport.listActions(), 'listActions')
           ok(await transport.getTask(taskId('t1')), 'getTask')
+          const received = await peer.received()
           for (const method of ['server/discover', 'tools/list', 'tasks/get']) {
-            const sent = requests(peer, method)
+            const sent = requests(received, method)
             assert.strictEqual(sent.length, 2, `${method} was sent ${sent.length} times`)
             assert.notStrictEqual(
               sent[0]?.id,
@@ -1550,8 +2008,9 @@ const deviationCases = (): readonly Case[] => [
           assert.deepStrictEqual(await transport.cancelTask(taskId('t1')), {
             failure: { kind: 'no-answer', cause: 'stream-broken' },
           })
+          const received = await peer.received()
           for (const method of ['tools/call', 'tasks/update', 'tasks/cancel'])
-            assert.strictEqual(requests(peer, method).length, 1, `${method} was re-sent`)
+            assert.strictEqual(requests(received, method).length, 1, `${method} was re-sent`)
         },
       ),
   ),
@@ -1567,7 +2026,7 @@ const deviationCases = (): readonly Case[] => [
           assert.deepStrictEqual(await transport.listActions(), {
             failure: { kind: 'no-answer', cause: 'stream-broken' },
           })
-          assert.strictEqual(requests(peer, 'tools/list').length, 2)
+          assert.strictEqual(requests(await peer.received(), 'tools/list').length, 2)
         },
       ),
   ),

@@ -202,6 +202,40 @@ const interimCases: readonly ClassifyOutcomeCase[] = [
     issuedAt,
     expected: { kind: 'task', taskId: taskIdOf('task-9'), issuedAt },
   },
+  {
+    name: 'task: a negative or fractional poll interval or ttl is left out',
+    answer: result({
+      resultType: 'task',
+      taskId: 'task-9',
+      status: 'working',
+      pollIntervalMs: -5,
+      ttlMs: 1.5,
+    }),
+    issuedAt,
+    expected: { kind: 'task', taskId: taskIdOf('task-9'), issuedAt },
+  },
+  {
+    name: 'task: a hint written with an exponent or a sign is left out, as is an unsafe integer',
+    answer: {
+      kind: 'result',
+      result: jsonTextOf(
+        '{"resultType":"task","taskId":"task-9","pollIntervalMs":1e2,"ttlMs":-0,"status":"working"}',
+      ),
+    },
+    issuedAt,
+    expected: { kind: 'task', taskId: taskIdOf('task-9'), issuedAt },
+  },
+  {
+    name: 'task: zero is a hint; an integer past the safe range is left out',
+    answer: {
+      kind: 'result',
+      result: jsonTextOf(
+        '{"resultType":"task","taskId":"task-9","pollIntervalMs":9007199254740992,"ttlMs":0}',
+      ),
+    },
+    issuedAt,
+    expected: { kind: 'task', taskId: taskIdOf('task-9'), issuedAt, ttlMs: 0 },
+  },
 ]
 
 const faultCases: readonly ClassifyOutcomeCase[] = [

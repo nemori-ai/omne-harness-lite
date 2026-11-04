@@ -90,7 +90,8 @@ export type TaskStatus = 'working' | 'input_required' | 'completed' | 'failed' |
 
 /**
  * The hints of a task, as the peer wrote them on the task handle or on `tasks/get`. A `ttlMs` of
- * `null` means unlimited and is left out. A hint that is not of its type is left out.
+ * `null` means unlimited and is left out. A hint that is not of its type is left out: the poll
+ * interval and the ttl are non-negative safe integers, the status message is text.
  */
 export type TaskHints = Readonly<{
   pollIntervalMs?: number
@@ -166,6 +167,7 @@ export type AnswerMalformed = Readonly<{
     | 'status-unknown'
     | 'input-requests-missing'
     | 'result-missing'
+    | 'error-missing'
     | 'error-shape'
     | 'tools-missing'
     | 'discover-shape'

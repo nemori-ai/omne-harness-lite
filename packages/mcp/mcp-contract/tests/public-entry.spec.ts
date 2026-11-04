@@ -21,6 +21,7 @@ const BRAND_GUARDS = [
 
 const ROOT = [
   ...BRAND_GUARDS,
+  'LEGACY_PROTOCOL_VERSIONS',
   'actionPermissionItems',
   'boundInstructions',
   'canonical',

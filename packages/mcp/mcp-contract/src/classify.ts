@@ -60,15 +60,23 @@ function inputRequired(result: JsonObject, issuedAt: Generation): CallOutcome {
   }
 }
 
-/** The number a node holds, or undefined for any other node. */
-function numberOf(value: JsonValue | undefined): number | undefined {
-  return value?.kind === 'number' ? Number(value.lexeme) : undefined
+// A count of milliseconds as the peer wrote it: digits only, no sign, fraction or exponent.
+const COUNT = /^\d+$/u
+
+/** The non-negative safe integer a node holds, or undefined for any other node. */
+function countOf(value: JsonValue | undefined): number | undefined {
+  if (value?.kind !== 'number' || !COUNT.test(value.lexeme)) return undefined
+  const count = Number(value.lexeme)
+  return Number.isSafeInteger(count) ? count : undefined
 }
 
-/** The hints as the peer wrote them. A `null` ttl is unlimited; a hint of another type is left out. */
+/**
+ * The hints as the peer wrote them. A `null` ttl is unlimited. A hint of another type is left
+ * out; for the poll interval and the ttl that is anything but a non-negative safe integer.
+ */
 export function taskHintsOf(task: JsonObject): TaskHints {
-  const pollIntervalMs = numberOf(member(task, 'pollIntervalMs'))
-  const ttlMs = numberOf(member(task, 'ttlMs'))
+  const pollIntervalMs = countOf(member(task, 'pollIntervalMs'))
+  const ttlMs = countOf(member(task, 'ttlMs'))
   const message = textOf(member(task, 'statusMessage'))
   return {
     ...(pollIntervalMs === undefined ? {} : { pollIntervalMs }),

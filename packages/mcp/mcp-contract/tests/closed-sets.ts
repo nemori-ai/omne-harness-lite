@@ -116,6 +116,7 @@ export const ANSWER_MALFORMED_WHAT = [
   'status-unknown',
   'input-requests-missing',
   'result-missing',
+  'error-missing',
   'error-shape',
   'tools-missing',
   'discover-shape',

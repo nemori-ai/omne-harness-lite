@@ -17,6 +17,7 @@ import type {
   TaskStatus,
 } from './outcomes.ts'
 import type { HttpCredentialHandle } from './ports.ts'
+import { LEGACY_PROTOCOL_VERSIONS, isLegacyProtocolVersion } from './revisions.ts'
 import {
   CLIENT_CAPABILITIES_KEY,
   CLIENT_INFO_KEY,
@@ -26,6 +27,7 @@ import {
   type PeerNotificationScript,
   type PeerReceived,
   type PeerReply,
+  type PeerRequestHeaders,
   type PeerScript,
   type PlainJson,
   type Replies,
@@ -63,8 +65,9 @@ export type ScriptedTransportFactory = McpTransportFactory &
 type PlainRecord = Readonly<{ [key: string]: PlainJson }>
 type Request = Extract<PeerReceived, { kind: 'request' }>
 
-const LEGACY_VERSION = '2025-11-25'
+const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
 const MODERN_ERROR_CODES: readonly number[] = [-32022, -32021, -32020]
+const METHOD_NOT_FOUND = -32601
 const READ_METHODS: readonly string[] = ['server/discover', 'tools/list', 'tasks/get']
 const TASK_STATUSES: readonly TaskStatus[] = [
   'working',
@@ -76,6 +79,15 @@ const TASK_STATUSES: readonly TaskStatus[] = [
 const CLIENT_CAPABILITIES: PlainJson = {
   elicitation: { form: {} },
   extensions: { [TASKS_EXTENSION]: {} },
+}
+/** The capabilities of a legacy `initialize`: the tasks extension exists on modern revisions only. */
+const LEGACY_CAPABILITIES: PlainJson = { elicitation: { form: {} } }
+/** The requests whose `Mcp-Name` header carries a parameter, and that parameter. */
+const MCP_NAME_SOURCES: Readonly<{ [method: string]: string }> = {
+  'tools/call': 'name',
+  'tasks/get': 'taskId',
+  'tasks/update': 'taskId',
+  'tasks/cancel': 'taskId',
 }
 const METADATA_PATH = '/.well-known/oauth-protected-resource'
 const INTEGER = /^-?\d+$/u
@@ -194,9 +206,18 @@ type Wire =
 
 type Pending = {
   settle(wire: Wire): void
+  /** Starts the stdio probe time of `server/discover`; an answer before it ends clears it. */
+  startProbe(milliseconds: number): void
   observe?: (notification: PeerNotification) => void
   progressToken: string
 }
+
+/** How one request is sent: the observer of a call, the `_meta` version, the probe time. */
+type Dispatch = Readonly<{
+  observe?: (notification: PeerNotification) => void
+  version?: string
+  probeTimeoutMs?: number
+}>
 
 class Deferred<T> {
   settled = false
@@ -266,6 +287,8 @@ function readTask(result: JsonValue): Outcome<TaskReport | 'expired', TransportF
     return { failure: malformed('input-requests-missing') }
   if (status === 'completed' && member(result, 'result') === undefined)
     return { failure: malformed('result-missing') }
+  if (status === 'failed' && !isObject(member(result, 'error')))
+    return { failure: malformed('error-missing') }
   const report: TaskReport = {
     status,
     ...(status === 'input_required' && inputRequests !== undefined
@@ -288,8 +311,10 @@ function readTaskAnswer(result: JsonValue): Outcome<TaskAnswer, TransportFailure
         : { ok: { kind: 'finished', answer: { kind: 'result', result: value } } }
     }
     case 'failed': {
-      const error = member(result, 'error') ?? jsonOf({ code: -32603, message: 'failed' })
-      return { ok: { kind: 'finished', answer: { kind: 'error', error } } }
+      const error = member(result, 'error')
+      return error === undefined
+        ? { failure: malformed('error-missing') }
+        : { ok: { kind: 'finished', answer: { kind: 'error', error } } }
     }
     case 'cancelled':
       return { ok: { kind: 'cancelled' } }
@@ -400,6 +425,30 @@ function challengeOf(header: string | null): ReadonlyMap<string, string> {
   return parameters
 }
 
+/** The error object of an HTTP body that is a JSON-RPC error response, or undefined. */
+function jsonRpcErrorOf(body: string | undefined): JsonValue | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body ?? '')
+  } catch {
+    return undefined
+  }
+  if (!isPlainJson(parsed) || !isPlainRecord(parsed)) return undefined
+  const error = parsed['error']
+  return isPlainRecord(error) ? jsonOf(error) : undefined
+}
+
+/** The MCP request headers of a Streamable HTTP request (T3). */
+function headersOf(method: string, params: PlainRecord, version: string): PeerRequestHeaders {
+  const source = MCP_NAME_SOURCES[method]
+  const name = source === undefined ? undefined : params[source]
+  return {
+    'mcp-protocol-version': version,
+    'mcp-method': method,
+    ...(typeof name === 'string' ? { 'mcp-name': name } : {}),
+  }
+}
+
 function stringsOf(value: PlainJson | undefined): readonly string[] {
   return Array.isArray(value) ? value.flatMap(item => (typeof item === 'string' ? [item] : [])) : []
 }
@@ -466,21 +515,34 @@ class ScriptedTransport implements McpTransport {
     id: string,
     method: string,
     params: PlainRecord,
-    observe?: (notification: PeerNotification) => void,
-    version?: string,
+    how: Dispatch = {},
   ): Readonly<{ reply: PeerReply | undefined; wire: Promise<Wire> }> {
+    const version = how.version ?? this.version ?? this.highest
     const meta: PlainRecord =
       method === 'tools/call'
         ? { ...this.envelope(version), progressToken: id }
         : this.envelope(version)
-    const request: Request = { kind: 'request', id, method, params: { ...params, _meta: meta } }
+    const request: Request = {
+      kind: 'request',
+      id,
+      method,
+      params: { ...params, _meta: meta },
+      ...(this.material.kind === 'streamable-http'
+        ? { headers: headersOf(method, params, version) }
+        : {}),
+    }
     const deferred = new Deferred<Wire>()
+    let probe: ReturnType<typeof setTimeout> | undefined
     const entry: Pending = {
       settle: wire => {
+        clearTimeout(probe)
         this.pending.delete(id)
         deferred.resolve(wire)
       },
-      ...(observe === undefined ? {} : { observe }),
+      startProbe: milliseconds => {
+        probe = setTimeout(() => entry.settle({ kind: 'probe-timeout' }), milliseconds)
+      },
+      ...(how.observe === undefined ? {} : { observe: how.observe }),
       progressToken: id,
     }
     if (!this.usable) {
@@ -491,7 +553,7 @@ class ScriptedTransport implements McpTransport {
     this.peer.log.push(request)
     const reply = this.peer.reply(method, params)
     this.validate(reply, method)
-    void this.deliver(request, reply, entry)
+    void this.deliver(request, reply, entry, how.probeTimeoutMs)
     return { reply, wire: deferred.promise }
   }
 
@@ -504,9 +566,19 @@ class ScriptedTransport implements McpTransport {
       throw new TypeError(`script: a process-exits reply to ${method} on streamable-http material`)
   }
 
-  private async deliver(request: Request, reply: PeerReply, entry: Pending): Promise<void> {
+  /**
+   * Answers after the pace hook. The probe time starts only then, so a test that holds the answer
+   * does not turn a modern peer into a legacy one.
+   */
+  private async deliver(
+    request: Request,
+    reply: PeerReply,
+    entry: Pending,
+    probeTimeoutMs: number | undefined,
+  ): Promise<void> {
     await this.options.pace?.(request)
     if (!this.pending.has(request.id)) return
+    if (probeTimeoutMs !== undefined) entry.startProbe(probeTimeoutMs)
     switch (reply.kind) {
       case 'result':
         for (const notification of reply.notifications ?? []) this.notify(notification, entry)
@@ -543,7 +615,11 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
-  /** An HTTP-level answer: 401 and 403 are read by T4, 400 on discover is a legacy signal. */
+  /**
+   * An HTTP-level answer: 401 and 403 are read by T4. A 400 whose body is a JSON-RPC error is the
+   * error answer of the request, except that on `server/discover` only an error of the modern
+   * revision is; any other 400 to `server/discover` is a legacy signal (T3).
+   */
   private async httpAnswer(
     request: Request,
     reply: Extract<PeerReply, { kind: 'http' }>,
@@ -562,8 +638,17 @@ class ScriptedTransport implements McpTransport {
       }
     }
     if (reply.status === 403) return { kind: 'not-sent', failure: notSent }
-    if (reply.status === 400 && request.method === 'server/discover')
-      return { kind: 'legacy-signal' }
+    if (reply.status === 400) {
+      const error = jsonRpcErrorOf(reply.body)
+      const discover = request.method === 'server/discover'
+      const code = error === undefined ? undefined : errorOf(error)?.code
+      if (
+        error !== undefined &&
+        (!discover || (code !== undefined && MODERN_ERROR_CODES.includes(code)))
+      )
+        return { kind: 'error', error }
+      if (discover) return { kind: 'legacy-signal' }
+    }
     throw new TypeError(
       `script: an http ${reply.status} reply to ${request.method} is not supported`,
     )
@@ -631,13 +716,11 @@ class ScriptedTransport implements McpTransport {
     if (!this.usable) return { kind: 'not-sent', failure: notSent }
     const id = this.reserveId()
     if (!(await this.authorize(id))) return { kind: 'not-sent', failure: notSent }
-    const sent = this.dispatch(id, method, params, undefined, version)
-    if (method === 'server/discover' && this.material.kind === 'stdio') {
-      const timeout = new Promise<Wire>(resolve =>
-        setTimeout(() => resolve({ kind: 'probe-timeout' }), this.options.probeTimeoutMs ?? 0),
-      )
-      return Promise.race([sent.wire, timeout])
-    }
+    const probe = method === 'server/discover' && this.material.kind === 'stdio'
+    const sent = this.dispatch(id, method, params, {
+      ...(version === undefined ? {} : { version }),
+      ...(probe ? { probeTimeoutMs: this.options.probeTimeoutMs ?? 0 } : {}),
+    })
     return sent.wire
   }
 
@@ -658,13 +741,17 @@ class ScriptedTransport implements McpTransport {
     return { failure: modern.failure.kind === 'fallback' ? modern.failure.failure : legacy.failure }
   }
 
-  /** The modern path, once with a retry on `-32022`. `fallback` carries the failure to report if the legacy path fails too. */
+  /**
+   * The modern path, once with a retry on `-32022`. `fallback` carries the failure to report if
+   * the legacy path fails too. `legacy-peer` says the peer does not speak the modern revision, so
+   * a failure of the legacy path is the one to report.
+   */
   private async modernPath(): Promise<
     Outcome<
       PeerIdentity,
       | Readonly<{ kind: 'final'; failure: TransportFailure }>
       | Readonly<{ kind: 'fallback'; failure: TransportFailure }>
-      | Readonly<{ kind: 'fallback-silent' }>
+      | Readonly<{ kind: 'legacy-peer' }>
     >
   > {
     let retried = false
@@ -702,6 +789,7 @@ class ScriptedTransport implements McpTransport {
           }
           if (MODERN_ERROR_CODES.includes(answer.code))
             return { failure: { kind: 'final', failure: answer } }
+          if (answer.code === METHOD_NOT_FOUND) return { failure: { kind: 'legacy-peer' } }
           return { failure: { kind: 'fallback', failure: answer } }
         }
         case 'no-answer':
@@ -709,7 +797,7 @@ class ScriptedTransport implements McpTransport {
           return { failure: { kind: 'final', failure: interpretFailure(wire) } }
         case 'legacy-signal':
         case 'probe-timeout':
-          return { failure: { kind: 'fallback-silent' } }
+          return { failure: { kind: 'legacy-peer' } }
         default: {
           const exhaustive: never = wire
           return exhaustive
@@ -762,16 +850,26 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
+  /** The legacy path: `initialize` with the highest legacy version, then `notifications/initialized`. */
   private async legacyPath(): Promise<Outcome<PeerIdentity, TransportFailure>> {
-    const wire = await this.request('initialize', {
-      protocolVersion: LEGACY_VERSION,
-      capabilities: CLIENT_CAPABILITIES,
-      clientInfo: this.options.clientInfo ?? { name: 'scripted-transport', version: '0' },
-    })
+    const wire = await this.request(
+      'initialize',
+      {
+        protocolVersion: OFFERED_LEGACY_VERSION,
+        capabilities: LEGACY_CAPABILITIES,
+        clientInfo: this.options.clientInfo ?? { name: 'scripted-transport', version: '0' },
+      },
+      OFFERED_LEGACY_VERSION,
+    )
     const read = interpret(wire, (result): Outcome<PeerIdentity, TransportFailure> => {
       const version = isObject(result) ? textOf(member(result, 'protocolVersion')) : undefined
       const capabilities = isObject(result) ? member(result, 'capabilities') : undefined
-      if (!isObject(result) || !isProtocolVersion(version) || !isObject(capabilities))
+      if (
+        !isObject(result) ||
+        !isProtocolVersion(version) ||
+        !isLegacyProtocolVersion(version) ||
+        !isObject(capabilities)
+      )
         return { failure: malformed('discover-shape') }
       this.version = version
       return {
@@ -831,11 +929,13 @@ class ScriptedTransport implements McpTransport {
         ? {}
         : { inputResponses: plainOf(continuation.inputResponses) }),
     }
-    const sent = this.dispatch(id, 'tools/call', params, observe)
-    // An HTTP-level answer is a failure of the call itself, not an answer of the peer (T4).
+    const sent = this.dispatch(id, 'tools/call', params, observe === undefined ? {} : { observe })
+    // An HTTP-level answer settles before the call returns: a refusal is a failure of the call
+    // itself (T4), a 400 with a JSON-RPC error is the answer of the peer.
     if (sent.reply === undefined || sent.reply.kind === 'http') {
       const wire = await sent.wire
-      return { failure: wire.kind === 'not-sent' ? wire.failure : notSent }
+      if (wire.kind === 'not-sent') return { failure: wire.failure }
+      return { ok: { requestId: id, answer: Promise.resolve(answerOf(wire)) } }
     }
     const entry = this.pending.get(id)
     signal.addEventListener(
@@ -843,25 +943,7 @@ class ScriptedTransport implements McpTransport {
       () => entry?.settle({ kind: 'no-answer', cause: 'abandoned' }),
       { once: true },
     )
-    const answer = sent.wire.then((wire): PeerAnswer => {
-      switch (wire.kind) {
-        case 'result':
-          return { kind: 'result', result: wire.result }
-        case 'error':
-          return { kind: 'error', error: wire.error }
-        case 'no-answer':
-          return { kind: 'no-answer', cause: wire.cause }
-        case 'not-sent':
-        case 'legacy-signal':
-        case 'probe-timeout':
-          return { kind: 'no-answer', cause: 'abandoned' }
-        default: {
-          const exhaustive: never = wire
-          return exhaustive
-        }
-      }
-    })
-    return { ok: { requestId: id, answer } }
+    return { ok: { requestId: id, answer: sent.wire.then(answerOf) } }
   }
 
   async cancelRequest(requestId: string): Promise<void> {
@@ -911,6 +993,26 @@ class ScriptedTransport implements McpTransport {
     const { stdin, stdout } = this.material.process
     await stdin.close().catch(() => undefined)
     await stdout.cancel().catch(() => undefined)
+  }
+}
+
+/** The answer of a sent call. */
+function answerOf(wire: Wire): PeerAnswer {
+  switch (wire.kind) {
+    case 'result':
+      return { kind: 'result', result: wire.result }
+    case 'error':
+      return { kind: 'error', error: wire.error }
+    case 'no-answer':
+      return { kind: 'no-answer', cause: wire.cause }
+    case 'not-sent':
+    case 'legacy-signal':
+    case 'probe-timeout':
+      return { kind: 'no-answer', cause: 'abandoned' }
+    default: {
+      const exhaustive: never = wire
+      return exhaustive
+    }
   }
 }
 
