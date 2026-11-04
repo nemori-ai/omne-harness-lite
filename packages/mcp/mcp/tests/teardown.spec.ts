@@ -146,6 +146,38 @@ describe('every process is asked to stop, whichever stop rejects (decision 4)', 
       ])
     },
   )
+
+  it("a process an earlier adoption revision left lingering is asked again by the new revision's entry", async () => {
+    const w = world({ script: [...usualScript(), ...usualScript()], stop: 'root-only' })
+    adoptStdio(w, files)
+    const c = core(w)
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+    w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
+    // The new revision closes the old connection (process 0 confirms only its root and lingers),
+    // takes the lingering process over, and stops it again before it starts process 1.
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+    expect(w.landing.processes()).toEqual([{ stops: 2 }, { stops: 0 }])
+    expect(await c.connections.release(alice, files)).toEqual({
+      ok: { kind: 'released', process: 'root-only' },
+    })
+    expect(w.landing.processes()).toEqual([{ stops: 3 }, { stops: 1 }])
+    expect(await c.status.inspect(alice, files)).toMatchObject({
+      ok: {
+        connection: {
+          kind: 'lost',
+          reason: 'close-unconfirmed',
+          residual: [
+            { kind: 'process', confirmed: 'root-only' },
+            { kind: 'process', confirmed: 'root-only' },
+          ],
+        },
+      },
+    })
+  })
 })
 
 describe('the entry stays while its teardown waits on a port (decision 20)', () => {
