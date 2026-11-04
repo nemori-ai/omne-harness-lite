@@ -34,7 +34,7 @@ if (reopened.kind === 'open') {
 }
 ```
 
-Cordis 宿主用 `LocalCredentialPlugin` 装载同一保管库，配置 `{ path, factorySecret }`。装载与撤除的行为见 [Cordis 集成](cordis.md)。
+Cordis 宿主用 `LocalCredentialPlugin` 装载同一保管库，配置 `{ path, factorySecret? }`。保管库已由配置命令建好时只给 `path`。装载与撤除的行为见 [Cordis 集成](cordis.md)。
 
 ### 保管库初始化命令
 

@@ -16,6 +16,8 @@
 | `shutdown.spec.ts`    | fast | 有序关闭的阶段次序、截止时间、幂等、报告闩锁、登记准入（N-7）、运行期换代（N-3） |
 | `s0-process.spec.ts`  | slow | 启动 `dist/bin.js`，断言退出码与 JSON 输出，输入在 `tests/fixtures/process/`     |
 | `e2e-identity/`       | slow | 租户身份 AC-9 端到端（K10）：真实 `serve` 进程两次与 `omne` CLI 走完步骤 1 至 13 |
+| `local/`              | fast | 本机单用户档：位置规则（含 Linux XDG）、配置文件、运维者层默认值、`setup` 的次序与权限、`serve` 读取配置 |
+| `local/setup-serve-process.spec.ts` | slow | `setup` 后 `serve` 不带参数就绪，CLI 不给地址也能注册，哨兵密钥不外泄；没有 `setup` 时的提示 |
 
 真实模式（`serve`）的用例、行用例与 R9 贯通用例（`tests/r9/`）列在 [real-mode.md](../docs/real-mode.md#真实模式的测试)。
 

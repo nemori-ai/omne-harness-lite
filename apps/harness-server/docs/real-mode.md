@@ -215,7 +215,7 @@ expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
 
 发行配置里含绝对路径的字段（`storage` 的 `storageRoot`、`session-storage` 的 `directoryFile`）与 `server-entry` 的 `listenPort` 不写进发行文件，由运维者层 `replace` 给出（L-APP 波 1 决定 L1-12）。
 
-发行层单独不能装载 `serve`：`execution-host` 与 `agent-host` 的工厂数值和 `agent-host` 的 `loopGuardPolicy` 也必须由运维者层给出，缺任何一项都以 `invalid-config` 退出（R2-D229）。写法与已知限制见 [SPEC](../SPEC.md#已知限制)，示例见 [tools/joint-b/operator.mjs](../../../tools/joint-b/operator.mjs)。
+发行层单独不能装载 `serve`：`execution-host` 与 `agent-host` 的工厂数值和 `agent-host` 的 `loopGuardPolicy` 也必须由运维者层给出，缺任何一项都以 `invalid-config` 退出（R2-D229）。省略 `--operator` 时，[本机单用户档](../SPEC.md#运维者层的默认值)生成这一层。已知限制见 [SPEC](../SPEC.md#已知限制)。
 
 夹具在 `tests/fixtures/serve/`：定义包 `definitions.ts`，行目录 `rows/`，入口对象 `entry/`，装载入口 `harness.ts`。
 
