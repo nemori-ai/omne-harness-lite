@@ -16,7 +16,7 @@
 | 判读 | 正控要求 `Model checking completed. No error has been found.`。负控要求日志点名预期性质：`Invariant <名> is violated`、`Action property <名> is violated`，或活性配置只声明一条性质并出现 `Temporal properties were violated` |
 | 运行时间 | 2026-11-04（北京时间） |
 
-输入摘要：`FixedReplay.tla` SHA-256 `9eab35e1f3fd3edce7744213b431c99163d415cded6bd6a6b19d9a25b2cbb6bc`，`CompactionFit.tla` SHA-256 `affb9b82f6edb124e9d04819f24d945f0ca5bad85404d9d832a569fe61612782`。
+输入摘要：`FixedReplay.tla` SHA-256 `9eab35e1f3fd3edce7744213b431c99163d415cded6bd6a6b19d9a25b2cbb6bc`，`CompactionFit.tla` SHA-256 `37328f3d61fdb3f279e159acfbcb76dfc2d1ed35ecf8339151a8c820b8413096`（R2-D316 之后重跑；`FixedReplay.tla` 与它的配置没有变化，没有重跑）。
 
 ## FixedReplay
 
@@ -46,21 +46,20 @@
 
 | 配置 | 期望 | 结果 | 退出码 | 生成 / 不同状态 | 深度 | 用时（秒） | 判读 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `design` | 通过 | 通过 | 0 | 16,010 / 15,930 | 6 | 4 | 正控。十条不变量加 `AppendOnly`、`Terminates` |
-| `design-wide` | 通过 | 通过 | 0 | 394,526 / 366,974 | 7 | 39 | 正控，放大范围 |
-| `aligned` | 通过 | 通过 | 0 | 18,434 / 16,626 | 6 | 2 | 摘要后检查改为整请求对触发线时，`CompactionKeepsWork` 也成立 |
-| `finding-keeps-work` | `CompactionKeepsWork` | 命中 | 12 | 12,594 / 12,514 | 5 | 2 | 缺陷 D-1 |
-| `finding-trigger-gap` | `CompactionKeepsWork` | 命中 | 12 | 6,990 / 6,910 | 5 | 1 | 缺陷 D-1，SysW 为 0 时仍命中 |
+| `design` | 通过 | 通过 | 0 | 18,434 / 16,626 | 6 | 3 | 正控。十一条不变量加 `AppendOnly`、`Terminates`；摘要后检查是整请求对触发线，`CompactionKeepsWork` 成立 |
+| `design-wide` | 通过 | 通过 | 0 | 611,270 / 429,338 | 7 | 16 | 正控，放大范围 |
+| `regression-trigger-gap` | 通过 | 通过 | 0 | 8,904 / 8,312 | 6 | 2 | 回归正控：原缺陷的数值（SysW 为 0），摘要后检查改为整请求对触发线后，`CompactionKeepsWork` 成立 |
+| `bad-post-hard-only` | `CompactionKeepsWork` | 命中 | 12 | 12,595 / 12,515 | 5 | 1 | 负控：恢复「只比硬上限」（`PostCheckPartial` 为 TRUE），原缺陷的反例重新出现 |
 | `bad-truncate` | `NoSilentTruncation` | 命中 | 12 | 1,524 / 1,524 | 2 | 1 | 负控 |
-| `bad-replan` | `AtMostOnePlan` | 命中 | 12 | 12,595 / 12,515 | 5 | 2 | 负控 |
+| `bad-replan` | `AtMostOnePlan` | 命中 | 12 | 12,594 / 12,514 | 5 | 1 | 负控 |
 | `bad-rewrite` | `AppendOnly` | 命中 | 13 | 8,774 / 8,774 | 4 | 1 | 负控（动作性质） |
-| `bad-ignore-open` | `OpenVisible` | 命中 | 12 | 23,874 / 21,604 | 4 | 1 | 负控 |
-| `bad-split-pairs` | `NoOrphanResult` | 命中 | 12 | 14,372 / 12,702 | 4 | 2 | 负控 |
-| `bad-retain-budget` | `RetainBounded` | 命中 | 12 | 15,727 / 14,057 | 4 | 1 | 负控 |
-| `bad-retain-view` | `ViewBounded` | 命中 | 12 | 15,728 / 14,058 | 4 | 1 | 负控 |
+| `bad-ignore-open` | `OpenVisible` | 命中 | 12 | 23,879 / 21,609 | 4 | 1 | 负控 |
+| `bad-split-pairs` | `NoOrphanResult` | 命中 | 12 | 14,377 / 12,707 | 4 | 1 | 负控 |
+| `bad-retain-budget` | `RetainBounded` | 命中 | 12 | 15,733 / 14,063 | 4 | 1 | 负控 |
+| `bad-retain-view` | `ViewBounded` | 命中 | 12 | 15,745 / 14,075 | 4 | 1 | 负控 |
 | `bad-strategy-rep` | `RepresentationAdopted` | 命中 | 12 | 1,284 / 1,284 | 2 | 1 | 负控 |
-| `bad-skip-resume` | `FixableFits` | 命中 | 12 | 8,776 / 8,776 | 4 | 1 | 负控 |
-| `bad-retry-veto` | `Terminates` | 命中 | 13 | 28,260 / 25,950 | — | 4 | 负控（活性）：否决后重开同一步，热环 |
+| `bad-skip-resume` | `FixableFits` | 命中 | 12 | 8,775 / 8,775 | 4 | 1 | 负控 |
+| `bad-retry-veto` | `Terminates` | 命中 | 13 | 28,260 / 25,950 | — | 2 | 负控（活性）：否决后重开同一步，热环 |
 | `limit-mixed-fallback` | `NoRepRefusal` | 命中 | 12 | 1,284 / 1,284 | 2 | 1 | 已知限制 RA-2 的演示，不是负控 |
 
 负控的状态数是找到第一个反例时的读数。多个 worker 时，两次运行之间可能不同。
@@ -80,14 +79,29 @@
 
 每个变异都使它点名的守卫变红。
 
+摘要之后检查的变异负控（R2-D316）在 `tests/trigger-fit.spec.ts`，做法相同：
+
+| 变异 | 改了什么 | 变红的用例 |
+| --- | --- | --- |
+| 恢复旧检查 | `src/compaction-step.ts` 摘要后检查回到「只比硬上限、空框架」 | 反例数值无转换；步数未用完给下一步；系统提示词与第六层计入；「每个转换之后装得下」。共 4 项变红，其余 2 项通过 |
+| 空框架 | 同一处只把请求框架换成空系统提示词与空工具，仍比触发线 | 系统提示词与第六层计入；「每个转换之后装得下」。共 2 项变红 |
+
+两个变异之后都还原并重新构建，6 项通过。
+
 ## 发现的缺陷
 
-**D-1 压缩成功后，请求仍可能被判装不下。** 待裁定。
+**D-1 压缩成功后，请求仍可能被判装不下。** 已按 R2-D316 修复。
 
-- 反例（`finding-trigger-gap`）：历史权重 1、2、2、2，触发线 6，硬上限 8。策略覆盖第 1 条，摘要权重 1。摘要后检查得 7，不超过硬上限，所以给出压缩转换。提交后 resume 重判得 7，超过触发线，`judgeBudget` 给 `needs-compaction`。因为已有转换，`assemblyOutcome` 给 `cannot-fit`（`after-compaction`）。工作失败，而请求其实在硬上限之内。
-- 出处：`src/compaction-step.ts` 的 `deriveFrom` 只按硬上限检查保留、摘要与其后条目，不含系统提示词、工具、第四与第六层，也不比触发线。`src/assembly-outcome.ts` 在已有转换时把 `needs-compaction` 一律转成 `cannot-fit`。`src/budget.ts` 的 `needs-compaction` 同时包括超限与超触发线。
-- SPEC 有两种读法。RQ-06 说「补入后仍超限，返回结局装不下」，只说超限。组装结果表说「本次准备已进入过压缩计划仍不通过」，不通过可以包括触发线。所以这是要裁定的 SPEC 歧义，不只是实现错误。
-- 建议拥有者：本成员（RQ-06 与组装结果表）。候选做法有两个：摘要后检查改为整请求对触发线（`aligned` 配置表明此时 `CompactionKeepsWork` 成立）；或 resume 之后只在超过硬上限时给 `cannot-fit`。本次没有改产品代码。
+- 反例：历史权重 1、2、2、2，触发线 6，硬上限 8。策略覆盖第 1 条，摘要权重 1。原来摘要后检查只比硬上限，得 7 不超限，所以给出压缩转换。提交后 `resume` 重判得 7，超过触发线，`assemblyOutcome` 因已有转换给 `cannot-fit`（`after-compaction`）。
+- 裁定：摘要后的检查拿整个请求对照触发线，口径与 `judgeBudget` 相同。整请求包括系统提示词、工具、第四层与第六层。SPEC 的 RQ-06 与组装结果表已统一为「已进入过压缩计划后，整请求仍超过硬限额或触发界线，才是装不下」。
+- 修复后的行为：同一数值在 `deriveStep` 就不给转换。步数没有用完给下一步，用完则给 `cannot-fit`（`bound-exhausted`）。转换只在提交后装得下时才给出。模型：`regression-trigger-gap` 通过，`bad-post-hard-only` 命中。代码：`tests/trigger-fit.spec.ts`。
+- 没有采用的做法：`resume` 之后只在超过硬上限时给 `cannot-fit`。请求会一直停在触发线之上，每一步都再触发压缩。
+
+**D-1 的剩余限制。**
+
+- 覆盖范围在计划里固定，`deriveStep` 不扩大它，也不开第二次计划（`AtMostOnePlan`）。策略给出过小的覆盖范围时，工作仍会失败，但在提交之前以 `cannot-fit` 失败，不再先提交再被 `resume` 拒绝。更大的覆盖范围要由压缩策略在计划时选择。默认策略总是覆盖到窗口末端。
+- `deriveStep` 用计划时冻结的请求框架计量。第四层的内容取自本次读取，压缩提交后重给的完整快照可以更大。这时 `resume` 仍按同一规则判定，不静默放行。模型把非历史部分合成常量 `SysW`，没有覆盖这个差异。
+- 行为用例的计量器用 `x` 文本的长度代替令牌数，工具声明没有进入权重。
 
 **D-2 恢复的接缝义务（交给 agent，不是本成员的缺陷）。** 去掉 checkpoint 里整份请求的副本后，恢复在原身份下重新受理之前必须比较 `coverage.budget.inputDigest`，不能比较 `fixed.digest` 或来源修订。`bad-compare-tokens` 与 `bad-naive-readmit` 给出反例。建议拥有者：agent 的恢复路径。
 

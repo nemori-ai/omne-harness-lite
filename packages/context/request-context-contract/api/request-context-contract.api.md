@@ -528,6 +528,7 @@ export type BudgetInput = Readonly<{
     limits: readonly M.ModelLimit[];
     policy: CompactionPolicy;
 }>;
+export declare function overTrigger(whole: M.RequestBudget, context: M.ContextLimits, policy: CompactionPolicy): readonly M.BudgetCheck[];
 export declare function judgeBudget(input: BudgetInput): FitVerdict;
 ```
 
@@ -538,7 +539,7 @@ import type * as M from '@omne-harness/model-contract';
 import type { CompactionContext, CoveredEntry, Message, RecordEntryRef } from '@omne-harness/message';
 import type { Adoption } from './refs.js';
 import type { RetentionMeasurement } from './ports.js';
-import type { AssemblyFailure, AssemblyUnknown, ProjectedHistory, ProjectedMessage, SelectedModel, SummaryMaterial } from './values.js';
+import type { AssemblyFailure, AssemblyUnknown, ProjectedHistory, ProjectedMessage, RequestFrame, SelectedModel, SummaryMaterial } from './values.js';
 import type { OperationContext } from './operation-context.js';
 export declare function projectWindow(view: ProjectedHistory, window: CompactionContext): ProjectedHistory;
 export declare function projectedOf(projected: ProjectedHistory, entries: readonly RecordEntryRef[]): readonly ProjectedMessage[];
@@ -548,7 +549,7 @@ export type CompactionCandidate = Readonly<{
     selection: SelectedModel;
     source: Adoption;
 }>;
-export declare function measureCompactionCandidate<P>(context: OperationContext<P>, candidate: CompactionCandidate, projected: readonly ProjectedMessage[], messages: readonly Message[]): Promise<M.RequestBudget | AssemblyFailure | AssemblyUnknown>;
+export declare function measureCompactionCandidate<P>(context: OperationContext<P>, candidate: CompactionCandidate, projected: readonly ProjectedMessage[], messages: readonly Message[], frame?: RequestFrame | null): Promise<M.RequestBudget | AssemblyFailure | AssemblyUnknown>;
 export declare function retentionMeasure<P>(context: OperationContext<P>, candidate: CompactionCandidate, projected: ProjectedHistory): (entries: readonly RecordEntryRef[]) => Promise<RetentionMeasurement>;
 ```
 
@@ -898,11 +899,11 @@ export declare function placeContext(input: PlacementInput): Placement | Extract
 
 ```ts
 import { type CompactionContext, type RecordEntryRef } from '@omne-harness/message';
-import type { AssemblyInput, CompactionBasis, PlanResult } from './values.js';
+import type { AssemblyInput, CompactionBasis, PlanResult, PreparedInputKey } from './values.js';
 import type { OperationContext } from './operation-context.js';
 export declare function planWindow(window: CompactionContext, coverTo: RecordEntryRef): CompactionContext;
 export declare function basisDigest(basis: Omit<CompactionBasis, 'digest'>): string;
-export declare function planInputs<P>(input: AssemblyInput<P>, rows: readonly import('./ports.js').HistoryRow[], window: CompactionContext, context: OperationContext<P>): Promise<PlanResult>;
+export declare function planInputs<P>(input: AssemblyInput<P>, key: PreparedInputKey, rows: readonly import('./ports.js').HistoryRow[], window: CompactionContext, context: OperationContext<P>): Promise<PlanResult>;
 ```
 
 ## 声明文件 `ports.d.ts`
@@ -2342,6 +2343,12 @@ export type RequestCandidate = Readonly<{
     modality: M.ModalityRequirement | null;
     continuation: Omit<ContinuationBasis, 'call' | 'fixed'>;
 }>;
+export type RequestFrame = Readonly<{
+    system: M.AssembledModelInput['system'];
+    tools: M.AssembledModelInput['tools'];
+    snapshotReminder: Message | null;
+    tailFacts: Message | null;
+}>;
 export type CompactionBasis = Readonly<{
     target: ContextTarget;
     history: HistoryEvidence;
@@ -2350,6 +2357,7 @@ export type CompactionBasis = Readonly<{
     selection: SelectedModel;
     representation: Adoption;
     continuation: ContinuationBasis | null;
+    frame: RequestFrame;
     retainedBudget: string;
     digest: string;
 }>;

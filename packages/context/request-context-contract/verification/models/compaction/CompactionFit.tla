@@ -24,9 +24,9 @@ CONSTANTS
   R,            \* retention budget
   S,            \* largest summary weight a step can produce
   B,            \* step bound of the plan
-  \* design choice under examination
-  PostCheckPartial,   \* deriveStep checks retained+summary+after against L only
   \* negative controls
+  PostCheckPartial,   \* deriveStep checks retained+summary+after against L only (the check
+                      \* before R2-D316); FALSE: the whole request against the trigger line
   TruncateToFit, Replan, RewriteOnCompact, IgnoreOpen, SplitPairs,
   IgnoreRetainBudget, UseStrategyRep, SkipResumeCheck, RetryVetoed,
   \* known limitation
@@ -182,6 +182,6 @@ AtMostOnePlan == plans <= 1
 RepresentationAdopted == built \subseteq {ProfileRep}
 NoRepRefusal == phase # "unavailable" \/ reason # "plan-refused-representation"
 Terminates == <>(phase \in Outcomes)
-(* Under examination: a committed compaction is followed by a fixable request. *)
+(* A committed compaction is followed by a fixable request (R2-D316).        *)
 CompactionKeepsWork == (transition /\ phase \in Outcomes) => phase = "fixable"
 =============================================================================

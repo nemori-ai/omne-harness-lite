@@ -46,4 +46,4 @@ FR-1（固定请求可重放）不成立，反例就是结论，见 [formal-mapp
 
 ## 未覆盖
 
-- 缺陷 D-1（压缩成功后仍判装不下）是活性的缺口，不是安全缺口，没有证明。见 [formal-runs.md](../formal-runs.md#发现的缺陷)。
+- CF-5（压缩成功后装得下，R2-D316）由 `CompactionKeepsWork` 在有限范围内检查，没有无界证明。见 [formal-runs.md](../formal-runs.md#发现的缺陷)。

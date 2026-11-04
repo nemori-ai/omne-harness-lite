@@ -42,6 +42,7 @@
 | CF-2 | 保留名单与未结工作在压缩后的视图里；调用与结果不拆开 | RQ-06「保留名单」「未结工作」「配对」 | 丢失未完成的工作，或看到孤立结果 | 用例与 `judgeCompaction` | `RetainedVisible`、`OpenVisible`、`NoOrphanResult`、`RetainBounded` |
 | CF-3 | 压缩后视图有界，与已覆盖前缀长度无关 | RQ-06「增量判断窗口」；RQ-10 | 请求随会话增长无界 | 无 | `ViewBounded`；[证明](proofs/README.md#cf-3-压缩后视图有界) |
 | CF-4 | 结局封闭且可见：装不下就是 `cannot-fit` 或 `needs-compaction`，不静默截断；至多一次压缩计划；步数有界 | RQ-02 结果表、RQ-05、RQ-06、RQ-07 | 静默截断；压缩热环 | 用例 | `NoSilentTruncation`、`FixableFits`、`AtMostOnePlan`、`Terminates`；守卫 G4、G5 |
+| CF-5 | 提交的压缩之后请求装得下：摘要后检查与装入裁定同一口径 | RQ-06「装得下的口径」（R2-D316） | 压缩成功后 `resume` 仍判装不下，工作失败 | 无 | `CompactionKeepsWork`；回归正控 `regression-trigger-gap`，负控 `bad-post-hard-only`；`tests/trigger-fit.spec.ts` |
 | RA-1 | 每份 Model 组装输入取 `profile.definition.representation` | RQ-05 | 家族在 `rules.plan` 拒绝 | 用例 | `RepresentationAdopted`；守卫 G6 |
 | RA-2 | 回退档案有不同家族的供应商时，同一表示会被另一家族拒绝 | RQ-05 | 整个准备不可用 | 无 | 已知限制，只建模（`limit-mixed-fallback`） |
 
@@ -67,8 +68,9 @@
 | `w`、`open`、`callOf` | 历史条目的权重、未结工作下界、结果所属的调用 |
 | `log`、`Comps`、`ViewSet` | message 的历史日志与压缩记录；视图从最后一条压缩记录起算 |
 | `Judge` | `src/budget.ts` 的 `judgeBudget` 与 `src/assembly-outcome.ts` 的 `assemblyOutcome` |
+| `SysW` | 压缩依据里冻结的请求框架 `frame`：第一层系统提示词、第二层工具、第四层与第六层提醒消息（`src/plan.ts` 的 `frameOf`） |
 | `Fits`、`T`、`L` | 触发线（百分比线与余量的较小者）与硬上限 |
-| `Step`、`PostW`、`PostFits` | `src/compaction-step.ts` 的 `deriveFrom`：摘要后检查。`PostCheckPartial` 为 TRUE 时只按硬上限检查保留、摘要和其后条目，这是现行实现 |
+| `Step`、`PostW`、`PostFits` | `src/compaction-step.ts` 的 `deriveFrom`：摘要后检查，整请求（请求框架、保留项、摘要、其后条目）对硬限额与触发线，判定用 `src/budget.ts` 的 `overTrigger`，与 `judgeBudget` 同一口径（R2-D316）。`PostCheckPartial` 为 TRUE 是恢复旧检查的负控 |
 | `Legal` | `src/plan.ts` 的 `acceptDraft` 与 message 的 `judgeCompaction` |
 | `Commit` | 压缩记录追加后 resume 重判 |
 | `Build`、`Rep` | `src/model-input.ts` 的 `buildModelInput` |

@@ -1,8 +1,7 @@
 design.cfg pass
 design-wide.cfg pass
-aligned.cfg pass
-finding-keeps-work.cfg CompactionKeepsWork
-finding-trigger-gap.cfg CompactionKeepsWork
+regression-trigger-gap.cfg pass
+bad-post-hard-only.cfg CompactionKeepsWork
 bad-truncate.cfg NoSilentTruncation
 bad-replan.cfg AtMostOnePlan
 bad-rewrite.cfg AppendOnly
