@@ -2,6 +2,7 @@
 // failure stops at the hop that owns it without faking the later ones, and every probe of CS v2
 // records the public refusal it meets instead of building the missing behavior.
 import { describe, expect, it } from 'vitest'
+import type { PassageId } from '@omne-harness/agent-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
   HistoryPage,
@@ -398,14 +399,19 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(evidenceAt(observed, 'H08')[1]).toContain('message.user,')
   })
 
-  it('records that the Agent loop stops at A0 with the tool-call action pending before any Tool invocation', async () => {
+  // Without a trusted Tool request source the admission is unavailable, so the Agent denies the whole
+  // batch (agent-contract SPEC 「整批判断屏障与动作准入」 item 2, commit b0204876e) instead of
+  // stopping at A0. The loop then hands the denial over at T5 as a `tool` message, which the message
+  // bridge of this application refuses: it takes only `model-reply` sources (SPEC.md, known
+  // limitations). The loop stays at T5, no Tool runs and no second Model call follows.
+  it('records that the Agent loop denies the tool-call batch and stops at T5 before any Tool invocation', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(kindAt(observed, 'H10')).toBe('refused')
+    expect(kindAt(observed, 'H10')).toBe('disconnected')
     expect(evidenceAt(observed, 'H10')).toEqual([
       'agent:the tool-call reply was admitted and handed over to Session',
+      'agent:no second reply within 2000 event-loop turns',
       'caller-reported: Tool runtime invocations 0, execution-environment effects none, Model admissions 1',
-      'agent:journal state advancing at A0',
-      'agent:the loop stopped at A0 with the tool-call action pending: no trusted Tool request source (GAP-TOOL-LOOP)',
+      'agent:journal state advancing at T5',
       'agent:no Model request carried a tool result',
     ])
   })
@@ -432,6 +438,9 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(evidenceAt(observed, 'H10').join(' ')).not.toContain('GAP-TOOL-LOOP')
   })
 
+  // The upstream loop no longer stays at A0 with a pending action (see the test above), so these two
+  // tests give the probe the A0 snapshots through the journal reads. They check the judgment of the
+  // probe, not a stop of the Agent loop.
   it('judges the A0 stop of H10 from the last journal snapshot it read', async () => {
     const original = agentDouble()
     const observed = await runFirstTenantPath(
@@ -445,13 +454,28 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
             ...agent,
             journal: {
               ...agent.journal,
-              // The first read sees the loop before A0; the next one sees it at A0.
+              // The first read sees the loop before A0; the next one sees it at A0 with the action
+              // still pending.
               async load(request) {
                 const snapshot = await agent.journal.load(request)
                 loads += 1
-                if ('failure' in snapshot || loads > 1) return snapshot
-                const checkpoint = { ...snapshot.ok.checkpoint, position: 'I4' }
-                return { ok: { ...snapshot.ok, checkpoint } }
+                if ('failure' in snapshot) return snapshot
+                if (loads === 1) {
+                  const checkpoint = { ...snapshot.ok.checkpoint, position: 'I4' }
+                  return { ok: { ...snapshot.ok, checkpoint } }
+                }
+                const { batch } = snapshot.ok.checkpoint
+                if (batch === null) return snapshot
+                const actions = batch.actions.map(action => ({
+                  ...action,
+                  judgment: { kind: 'pending' as const, passage: `${action.id}/A0` as PassageId },
+                }))
+                const checkpoint = {
+                  ...snapshot.ok.checkpoint,
+                  position: 'A0',
+                  batch: { ...batch, actions },
+                }
+                return { ok: { ...snapshot.ok, state: { kind: 'advancing' as const }, checkpoint } }
               },
             },
           }
@@ -490,8 +514,12 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
                       ? { kind: 'waiting' as const, passage: action.judgment.passage, cards: [] }
                       : action.judgment,
                 }))
-                const checkpoint = { ...snapshot.ok.checkpoint, batch: { ...batch, actions } }
-                return { ok: { ...snapshot.ok, checkpoint } }
+                const checkpoint = {
+                  ...snapshot.ok.checkpoint,
+                  position: 'A0',
+                  batch: { ...batch, actions },
+                }
+                return { ok: { ...snapshot.ok, state: { kind: 'advancing' as const }, checkpoint } }
               },
             },
           }
@@ -641,15 +669,18 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     ])
   })
 
-  it('records where the Agent loop holds a received result with reasoning parts', async () => {
+  // R2-D268 (correcting R2-D70): the loop forms the reply without the sealed `thinking` part instead
+  // of answering `unsupported` and holding the result at M6 (agent SPEC). The reply is handed over,
+  // the execution ends, and round 2 meets GAP-SECOND-RUN. The reply carries no `replay` (KL-66), so
+  // GAP-REASONING-REPLAY stays open.
+  it('records that the Agent loop hands over the reply of a result with reasoning parts and stops at the second Run', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(kindAt(observed, 'H12')).toBe('refused')
+    expect(kindAt(observed, 'H12')).toBe('disconnected')
     expect(evidenceAt(observed, 'H12')).toEqual([
       'model-contract:the public pusher delivered the reasoning result to the host receiver',
-      'agent:journal state waiting at M6',
-      'agent:no reply within 2000 event-loop turns',
-      'agent:the loop holds the received result with reasoning parts at M6 and handed over no reply (GAP-REASONING-REPLAY)',
-      'agent:no second request was sent',
+      'agent:journal state ended at F3',
+      'agent:the reasoning reply was handed over',
+      'round 2: session-startRun:run-active',
     ])
   })
 

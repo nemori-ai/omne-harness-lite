@@ -446,7 +446,7 @@ async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
       const shell = await call(
         runtime,
         principal,
-        await requestFor(ctx, principal, 'Shell.execute', '{"script":"Write-Output tool-b-shell"}'),
+        await requestFor(ctx, principal, 'Shell.execute', '{"script":"echo tool-b-shell"}'),
       )
       const write = await call(
         runtime,
@@ -467,7 +467,7 @@ async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
         ctx,
         principal,
         'Shell.execute',
-        '{"script":"Write-Output foreign"}',
+        '{"script":"echo foreign"}',
       )
       const foreign = await runtime.invoke({
         principal: ctx.get(WORK_B),

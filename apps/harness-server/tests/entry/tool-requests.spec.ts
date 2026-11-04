@@ -113,7 +113,7 @@ async function world() {
 }
 
 function actionInput(principal: unknown, tenant = TENANT_A, name = 'Shell.execute') {
-  const args = '{"script":"Write-Output tool-b"}'
+  const args = '{"script":"echo tool-b"}'
   return {
     principal,
     tenant,
@@ -166,8 +166,8 @@ describe('the trusted Tool request source', () => {
     expect(request).toMatchObject({
       command: 'execute',
       arguments: {
-        original: '{"script":"Write-Output tool-b"}',
-        effective: '{"script":"Write-Output tool-b"}',
+        original: '{"script":"echo tool-b"}',
+        effective: '{"script":"echo tool-b"}',
         complete: true,
       },
       requesterScope: SCOPE,
