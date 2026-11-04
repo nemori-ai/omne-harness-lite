@@ -342,7 +342,7 @@ flowchart LR
 
 Tool 的 `tool-resident-admitted` 记录会话常驻工具首次装载的定义。缺了它就不能恢复上列的常驻工具 name 与参数形状，因此它满足准入。常驻工具当前记下的登记键可从 Run 的采用依据派生，不另写会话事实。常驻规则见 [Tool 契约](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)。
 
-会话规格规定种类准入、效力、整批提交，以及一条事实能否改变推进资格或 Run 终态。调用者不能自填种类取得治理权。各领域只规定自己的事实。这些规则约束 Session 条目族。Agent 事实族的种类准入归 Agent 契约，Agent 事实不直接改变推进资格或 Run 终态，Session 按它们的事件投影派生治理事实，见[两个只追加族](#h1-two-families)。例如 `tool-resident-admitted` 的内容由 Tool 规定，它的种类准入由会话规定。日志的追加、分页和恢复只由会话规定。
+会话规格规定种类准入、效力、整批提交，以及一条事实能否改变推进资格或 Run 终态。调用者不能自填种类取得治理权。各领域只规定自己的事实。例如 `tool-resident-admitted` 的内容由 Tool 规定，它的种类准入由会话规定。日志的追加、分页和恢复只由会话规定。这些规则约束 Session 条目族。Agent 事实族的种类准入归 Agent 契约，它的追加与恢复由 Journal 提供者在同一个存储事务域里兑现。Agent 事实不直接改变推进资格或 Run 终态，Session 按它们的事件投影派生治理事实，见[两个只追加族](#h1-two-families)。
 
 ```mermaid
 flowchart TD
