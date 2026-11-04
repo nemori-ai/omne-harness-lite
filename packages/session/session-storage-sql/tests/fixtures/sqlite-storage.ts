@@ -58,6 +58,7 @@ import readWorkIndex from '../../src/worker/read-work-index.ts'
 import readWorkReads from '../../src/worker/read-work-reads.ts'
 import readWorkVersion from '../../src/worker/read-work-version.ts'
 import readWork from '../../src/worker/read-work.ts'
+import stateItemMigration from '../../src/worker/state-item-migration.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
@@ -93,6 +94,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   recordMigration,
   indexMigration,
   evidenceMigration,
+  stateItemMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,
@@ -112,6 +114,11 @@ export type SqliteStorage = Readonly<{
   readSql: string[]
   /** Every SELECT that a participant ran inside a write transaction, with the rows it returned. */
   participantReads: { sql: string; rows: number }[]
+  /**
+   * Every other statement that a participant ran inside a write transaction, with the length of its
+   * text parameters: what a commit wrote, whether the transaction then committed or not.
+   */
+  participantWrites: { sql: string; text: number }[]
   /** Domains that exist, by transaction domain name. */
   domains(): readonly string[]
   /** Seeds derived rows that the commands of this test cannot produce (a test set-up, not a path). */
@@ -167,6 +174,7 @@ export function createSqliteStorage(): SqliteStorage {
   const calls: StorageCall[] = []
   const readSql: string[] = []
   const participantReads: { sql: string; rows: number }[] = []
+  const participantWrites: { sql: string; text: number }[] = []
   let failing: string | null = null
   let lose = false
   let writeFault: { pattern: RegExp; left: number } | null = null
@@ -221,6 +229,14 @@ export function createSqliteStorage(): SqliteStorage {
             faultAt(sql)
             const result = rowsOf(domain.db, sql, params)
             if (/^\s*SELECT/i.test(sql)) participantReads.push({ sql, rows: result.rows.length })
+            else
+              participantWrites.push({
+                sql,
+                text: params.reduce<number>(
+                  (sum, value) => sum + (typeof value === 'string' ? value.length : 0),
+                  0,
+                ),
+              })
             return result
           },
           requireFact: () => null,
@@ -345,6 +361,7 @@ export function createSqliteStorage(): SqliteStorage {
     calls,
     readSql,
     participantReads,
+    participantWrites,
     domains: () => [...domains.keys()],
     seed: (name, sql, params = []) => {
       const domain = domains.get(name)

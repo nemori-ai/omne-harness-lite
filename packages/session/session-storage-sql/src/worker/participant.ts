@@ -33,9 +33,10 @@ import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../cod
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { NO_FOCUS, readHistory, type HistoryBasis, type SessionHistory } from './history-index.ts'
-import { judgeLog, readCoveringText, type CoveringSnapshot, type LogBatch } from './log.ts'
+import { judgeLog, readCoveringHead, type CoveringSnapshot, type LogBatch } from './log.ts'
 import type { SessionWorkReply } from '../participants.ts'
 import { PROTOCOL } from './schema.ts'
+import { assemble, deepFreeze, writeState, type StoredState } from './state-rows.ts'
 import { assignPositions, big, oneRow, readVersion, rowsOf, text, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
@@ -46,31 +47,33 @@ export const PARTICIPANT_SNAPSHOT_SESSIONS = 256
 /** The snapshot text, in UTF-16 code units, that one write Worker keeps over all sessions. */
 export const PARTICIPANT_SNAPSHOT_TEXT = 64 * 1024 * 1024
 
-/** Freezes a decoded snapshot and every object and array in it. */
-function deepFreeze<T>(value: T): T {
-  if (typeof value !== 'object' || value === null) return value
-  for (const member of Object.values(value)) deepFreeze(member)
-  return Object.freeze(value)
-}
-
-type ParsedEntry = Readonly<{ covered: bigint; text: string; snapshot: WorkSnapshot }>
+type ParsedEntry = Readonly<{
+  covered: bigint
+  text: string
+  bytes: number
+  snapshot: WorkSnapshot
+}>
 
 /**
- * The parsed `sl_state` snapshot of each session in this write Worker, so a commit that reads the
- * same snapshot text as an earlier one does not parse it again (C-WORKCACHE A2). Read handlers run
- * in read Workers and do not use it.
+ * The parsed snapshot of each session in this write Worker, so a commit that reads the same head
+ * text as an earlier one does not read the chunk rows nor parse them again (C-WORKCACHE A2,
+ * R2-D292). Read handlers run in read Workers and do not use it.
  *
- * - Every commit still reads the `sl_state` row of its session and checks `covered == tail`. A
- *   kept snapshot is reused only when the text of that row is equal to the text it was parsed from.
+ * - Every commit still reads the `sl_state` head row of its session and checks `covered == tail`.
+ *   A kept snapshot is reused only when the head text of that row is equal to the text it was kept
+ *   with. The head carries the token of its chunk rows (`state-rows.ts`), so an equal head text
+ *   means equal chunks.
  *   This deviates from design v2 §6.1, which reuses on `covered == tail` without reading the row
  *   (R2-D96): the revision does not tell databases apart (one module instance can serve more than
  *   one database, as the in-process test provider does), a rolled-back write can leave a revision
  *   that a later commit writes again with other content, and in a group commit a later operation
  *   sees the staged row of an earlier one. Equal text gives an equal parse in each of these cases,
- *   so a hit never answers a snapshot that the row does not hold. The cost: one read of the row and
- *   one O(|S|) string comparison per commit. What it saves is `JSON.parse` and `decodeValue`.
- * - Only the snapshot that a transaction read is kept, never the one that the commit computes: the
- *   participant does not see whether its transaction commits.
+ *   so a hit never answers a snapshot that the rows do not hold. The cost: one read of the head row
+ *   and one comparison of the head text per commit. What it saves is the read of the chunk rows,
+ *   `JSON.parse` and `decodeValue`.
+ * - The snapshot that a commit wrote is kept with the head text it wrote. The participant does not
+ *   see whether its transaction commits: a rolled-back write leaves the old head, which is not
+ *   equal, so the kept snapshot is not used.
  * - A row that does not cover the tail answers `behind` and drops the entry; a row that does not
  *   parse throws and keeps nothing for the session.
  * - A kept snapshot is deep-frozen. A reader that writes into it throws a `TypeError`, so the
@@ -91,20 +94,30 @@ export class ParsedSnapshots {
     this.textLimit = textLimit
   }
 
-  /** The snapshot that covers `tail`: the kept one when the row holds the same text. */
+  /** The snapshot that covers `tail`: the kept one when the row holds the same head text. */
   readonly covering: CoveringSnapshot = (port, tenant, session, tail) => {
     const key = JSON.stringify([tenant, session])
     const kept = this.entries.get(key)
     if (kept !== undefined) this.forget(key, kept)
-    const read = readCoveringText(port, tenant, session, tail)
+    const read = readCoveringHead(port, tenant, session, tail)
     if (read === 'behind') return read
     if (kept !== undefined && kept.text === read) {
       this.keep(key, { ...kept, covered: tail })
       return kept.snapshot
     }
-    const snapshot = deepFreeze(decodeValue(JSON.parse(read) as JsonValue) as WorkSnapshot)
-    this.keep(key, { covered: tail, text: read, snapshot })
+    const stored = assemble(port, tenant, session, read)
+    const snapshot = deepFreeze(stored.snapshot)
+    this.keep(key, { covered: tail, text: read, bytes: stored.layout.bytes, snapshot })
     return snapshot
+  }
+
+  /** Keeps the snapshot that a commit wrote, under the head text it wrote. */
+  wrote(tenant: string, session: string, covered: bigint, stored: StoredState): void {
+    const key = JSON.stringify([tenant, session])
+    const kept = this.entries.get(key)
+    if (kept !== undefined) this.forget(key, kept)
+    const { head, bytes } = stored.layout
+    this.keep(key, { covered, text: head, bytes, snapshot: deepFreeze(stored.snapshot) })
   }
 
   /** The kept entry of a session, without changing the order (for tests). */
@@ -112,7 +125,7 @@ export class ParsedSnapshots {
     return this.entries.get(JSON.stringify([tenant, session]))
   }
 
-  /** The number of kept sessions and their text length. */
+  /** The number of kept sessions and their stored text length. */
   get size(): Readonly<{ sessions: number; text: number }> {
     return { sessions: this.entries.size, text: this.held }
   }
@@ -125,13 +138,13 @@ export class ParsedSnapshots {
 
   private forget(key: string, entry: ParsedEntry): void {
     this.entries.delete(key)
-    this.held -= entry.text.length
+    this.held -= entry.bytes
   }
 
   private keep(key: string, entry: ParsedEntry): void {
-    if (this.sessions <= 0 || entry.text.length > this.textLimit) return
+    if (this.sessions <= 0 || entry.bytes > this.textLimit) return
     this.entries.set(key, entry)
-    this.held += entry.text.length
+    this.held += entry.bytes
     for (const [oldest, old] of this.entries) {
       if (this.entries.size <= this.sessions && this.held <= this.textLimit) break
       this.forget(oldest, old)
@@ -173,17 +186,17 @@ function workOf(
     tenant: string
     session: string
     revision: string
-    stored: string
+    bytes: number
     entries: readonly HistoryEntry[]
     decided: HistoryBasis | 'none'
   }>,
 ): SessionWorkReply {
-  const { tenant, session, revision, stored, entries, decided } = input
+  const { tenant, session, revision, bytes, entries, decided } = input
   const work: SessionWorkReply = {
     tail: revision,
     // Read after this transaction moved the journal row to `revision`.
     published: readVersion(port, { tenant, session })?.published ?? '0',
-    bytes: stored.length,
+    bytes,
     first: (entries[0] as HistoryEntry).id,
     last: (entries[entries.length - 1] as HistoryEntry).id,
     indexed: decided !== 'none',
@@ -652,8 +665,8 @@ function insertOperation(
   )
 }
 
-/** What a batch wrote before its operation record: the new model view epoch and snapshot text. */
-type Written = Readonly<{ kind: 'written'; epoch: string; stored: string }>
+/** What a batch wrote before its operation record: the new model view epoch and the stored size. */
+type Written = Readonly<{ kind: 'written'; epoch: string; bytes: number }>
 
 /**
  * The rows every published batch writes before its operation record (W1 step 7): the entries and
@@ -681,13 +694,11 @@ function writeBatch(
       kind: 'failed',
       diagnostic: 'the model view epoch exceeds the read bound of a compaction',
     }
-  const stored = JSON.stringify(encodeValue(snapshot))
-  port.execute(
-    'INSERT OR REPLACE INTO sl_state (tenant, session, snapshot, covered) VALUES (?, ?, ?, ?)',
-    [tenant, session, stored, BigInt(revision)],
-  )
+  const covered = BigInt(revision)
+  const stored = writeState(port, { tenant, session, covered }, previous, snapshot)
+  parsedSnapshots.wrote(tenant, session, covered, stored)
   maintainDerived(port, tenant, session, previous, snapshot)
-  return { kind: 'written', epoch, stored }
+  return { kind: 'written', epoch, bytes: stored.layout.bytes }
 }
 
 function runQuery(
@@ -991,7 +1002,7 @@ function publishCommand(
     entries,
   })
   if (written.kind !== 'written') return written
-  const { epoch, stored } = written
+  const { epoch, bytes } = written
   const admitted = admittedInput(command)
   if (admitted !== null)
     port.execute(
@@ -1024,7 +1035,7 @@ function publishCommand(
           tenant,
           session,
           revision,
-          stored,
+          bytes,
           entries,
           decided: { scope: batch.history.reads.scope, focus: NO_FOCUS },
         })
@@ -1150,7 +1161,7 @@ function publishSameLog(
     entries,
   })
   if (written.kind !== 'written') return written
-  const { epoch, stored } = written
+  const { epoch, bytes } = written
   const saved = record(receipt)
   insertOperation(port, {
     tenant,
@@ -1175,7 +1186,7 @@ function publishSameLog(
   return participated(
     batch.answer,
     false,
-    workOf(port, { tenant, session, revision, stored, entries, decided }),
+    workOf(port, { tenant, session, revision, bytes, entries, decided }),
   )
 }
 
@@ -1188,7 +1199,7 @@ function withDigest(reply: ParticipantReply, digest: string, extra: object = {})
 
 /** The entries interpretation commit. Its record keeps the batch receipt and the entries receipt. */
 function runEntries(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
-  const judged = judgeEntries(facts, port)
+  const judged = judgeEntries(facts, port, parsedSnapshots.covering)
   switch (judged.kind) {
     case 'unsupported':
       return { kind: 'unsupported', basis: { reason: judged.reason } } as const
