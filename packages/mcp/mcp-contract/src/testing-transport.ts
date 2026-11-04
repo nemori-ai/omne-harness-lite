@@ -546,7 +546,11 @@ function resultValues(
   switch (`${request}|${answer}`) {
     case 'discover|result':
     case 'discover-retry|result':
-      return [{ supportedVersions: versions, capabilities: { tools: {} } }]
+      // The highest version in common is chosen whatever order the peer lists its versions in.
+      return [
+        { supportedVersions: versions, capabilities: { tools: {} } },
+        { supportedVersions: [...versions].reverse(), capabilities: { tools: {} } },
+      ]
     case 'discover|result:no-common':
     case 'discover-retry|result:no-common':
       return [{ supportedVersions: ['2099-01-01'], capabilities: {} }]
