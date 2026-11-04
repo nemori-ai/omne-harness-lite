@@ -48,6 +48,11 @@ export type LocalDeliveryInput<P, B extends ContentBlock> = Readonly<{
   accountAtFreeze(
     input: CallAccess<P>,
   ): Reply<Extract<ToolDelivery<B>, { kind: 'result' }>['account']>
+  /**
+   * The tenants with a run in flight, and for one tenant its running and queued runs. A call with
+   * no place answers `delivery-capacity` and stays owed. It does not mean the tenant is busy:
+   * a later call of the same tenant waits for its turn (R2-D164, R2-D186).
+   */
   capacity: number
   /**
    * The pacing of a push whose receiver answers `unavailable`, or has none registered for the
