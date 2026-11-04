@@ -1550,6 +1550,9 @@ importers:
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
         version: 2.3.1
+      '@omne-harness/mcp':
+        specifier: workspace:*
+        version: link:../mcp
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -2238,6 +2241,9 @@ importers:
         specifier: workspace:*
         version: link:../skill-contract
     devDependencies:
+      '@omne-harness/skill':
+        specifier: workspace:*
+        version: link:../skill
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
