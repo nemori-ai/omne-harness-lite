@@ -463,6 +463,7 @@ export function createModelRuntimeLocalPlugin(
         {
           commands: channel?.commands ?? ctx.modelCommands,
           authority: ctx.modelHostAuthority,
+          scanBatchSize: settings.scanBatchSize,
           report: event => reportRuntimeEvent(ctx, event),
         },
         options.results,

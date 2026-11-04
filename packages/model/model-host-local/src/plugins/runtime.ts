@@ -14,6 +14,10 @@
 // - The ledger holds every frozen delivery and its standing until the ACK. It is the one store of
 //   the push state and has one writer: the stage that holds its lease. A successor that takes the
 //   same ledger goes on with the same keys and payloads.
+// - The durable custody of the commands is the fact of what is still owed, not the ledger. With
+//   `recovery`, the push scans the commands when it starts and wakes every settled call that is not
+//   yet acknowledged and cleaned, so a new process with an empty ledger pushes and acknowledges
+//   what an earlier one left (R2-D260). There is no second, durable ledger.
 import { randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
@@ -21,6 +25,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   decodeModelOperationId,
   encodeModelInvocationRef,
+  type Access,
   type ConsumerRef,
   type DispatchId,
   type ModelCallId,
@@ -32,6 +37,7 @@ import {
   type ModelResultReceiver,
   type ModelRuntime,
   type ModelSavedReceipt,
+  type Reply,
   type ResultPart,
 } from '@omne-harness/model-contract'
 import type {
@@ -160,10 +166,27 @@ export type ResultPushLimits = Readonly<{
   maxPendingAccounts: number
 }>
 
+/**
+ * Where the push finds, when it starts, the calls that an earlier process left settled and not yet
+ * acknowledged or cleaned. The assembly owns the tenants and their recovery principals.
+ */
+export type ResultPushRecovery = Readonly<{
+  /**
+   * The tenants to scan, each with a principal that may scan and load its calls for recovery.
+   * Read once when the push starts.
+   */
+  scopes(): Reply<readonly Access<unknown>[]>
+}>
+
 export type ResultPushOptions = Readonly<{
   /** The store of the push records; the assembly owns it, so a successor plugin can take it. */
   ledger: ResultPushLedger
   limits: ResultPushLimits
+  /**
+   * The start scan. Without it the push knows only what the ledger holds and what settles while it
+   * runs, so a call that settled before the start and is missing from the ledger stays owed.
+   */
+  recovery?: ResultPushRecovery
 }>
 
 /** What the push reports to the plugin for a diagnostic: kinds and counts only, no identities. */
@@ -178,6 +201,10 @@ export type RuntimeEvent =
   | Readonly<{ kind: 'late-account-refused'; pending: number }>
   | Readonly<{ kind: 'blocked'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'work-threw' }>
+  /** The start scan stopped at `step`; the calls it did not reach wait for the next start. */
+  | Readonly<{ kind: 'recovery-failed'; step: 'scopes' | 'scan' | 'load'; failure: string }>
+  /** The start scan ended: it woke `woken` settled calls that were still owed. */
+  | Readonly<{ kind: 'recovered'; woken: number }>
 
 const LIMIT_NAMES = [
   'maxConcurrentCalls',
@@ -270,6 +297,8 @@ type StageInput = Readonly<{
   commands: ModelCommands<unknown>
   /** Gives the trusted principal of a call; the push acts as it. */
   authority: ModelHostAuthority<unknown>
+  /** The page size of the start scan: the host's `scanBatchSize`. */
+  scanBatchSize: number
   report(event: RuntimeEvent): void
 }>
 
@@ -340,13 +369,14 @@ export function createRuntimeStage(
       },
       stop: async () => {},
     }
-  return createResultPush(input, options.ledger, checkedLimits(options.limits))
+  return createResultPush(input, options.ledger, checkedLimits(options.limits), options.recovery)
 }
 
 function createResultPush(
   input: StageInput,
   ledger: ResultPushLedger,
   limits: ResultPushLimits,
+  recovery: ResultPushRecovery | undefined,
 ): RuntimeStage {
   const { commands, authority, report } = input
   const dirty = new Map<string, Target>()
@@ -363,6 +393,7 @@ function createResultPush(
   const stopping = new AbortController()
   let phase: 'ready' | 'started' | 'stopped' = 'ready'
   let release: (() => void) | undefined
+  let scanning: Promise<void> = Promise.resolve()
 
   function wake(target: Target): void {
     const key = keyOf(target)
@@ -871,6 +902,58 @@ function createResultPush(
     return frozen({ reference: reference.ok, consumer: recovery.ok.state.consumer })
   }
 
+  /**
+   * The start scan: every tenant of `recovery`, page by page, wakes each settled call whose custody
+   * is still with the producer or whose cleanup is not released. A call that is not settled is not
+   * the push's: its settle wakes it. It never rejects; a failure is reported and ends the scan of
+   * that tenant, and the next start scans again.
+   */
+  async function recover(source: ResultPushRecovery): Promise<void> {
+    try {
+      const scopes = await source.scopes()
+      if ('failure' in scopes) {
+        report({ kind: 'recovery-failed', step: 'scopes', failure: scopes.failure.kind })
+        return
+      }
+      let woken = 0
+      for (const scope of scopes.ok) woken += await scanTenant(scope)
+      report({ kind: 'recovered', woken })
+    } catch {
+      report({ kind: 'recovery-failed', step: 'scan', failure: 'threw' })
+    }
+  }
+
+  async function scanTenant(scope: Access): Promise<number> {
+    let woken = 0
+    let after: string | null = null
+    do {
+      if (stopping.signal.aborted) return woken
+      const page = await commands.scanPending({ ...scope, after, limit: input.scanBatchSize })
+      if ('failure' in page) {
+        report({ kind: 'recovery-failed', step: 'scan', failure: page.failure.kind })
+        return woken
+      }
+      for (const call of page.ok.calls) if (await wakeIfOwed(scope, call)) woken += 1
+      after = page.ok.next
+    } while (after !== null)
+    return woken
+  }
+
+  async function wakeIfOwed(scope: Access, call: ModelCallId): Promise<boolean> {
+    if (stopping.signal.aborted) return false
+    const loaded = await commands.loadRecovery({ ...scope, call })
+    if ('failure' in loaded) {
+      const { failure } = loaded
+      if (failure.kind !== 'invalid' || failure.reason !== 'recovery-material-released')
+        report({ kind: 'recovery-failed', step: 'load', failure: failure.kind })
+      return false
+    }
+    const { state } = loaded.ok
+    if (state.phase !== 'settled') return false
+    wake({ tenant: scope.tenant, call })
+    return true
+  }
+
   const wrapped: ModelCommands<unknown> = {
     ...delegatedCommands(commands),
     async settle(settle) {
@@ -917,11 +1000,15 @@ function createResultPush(
       // What a predecessor left in the ledger goes on here, with its original keys and payloads.
       for (const record of ledger.records()) if (unfinished(record)) wake(record)
       pump()
+      // What an earlier process left in the durable custody goes on here, with an empty ledger too.
+      if (recovery !== undefined) scanning = recover(recovery)
     },
     async stop() {
       if (phase === 'stopped') return
       phase = 'stopped'
       stopping.abort()
+      // The scan stops at its next page or call; what it wakes after the stop is not pushed.
+      await scanning
       dirty.clear()
       await Promise.allSettled(running.values())
       // An account that was accepted before the stop is frozen into the inbox by its intake. No
@@ -1004,6 +1091,14 @@ export function reportRuntimeEvent(ctx: Context, event: RuntimeEvent): void {
       return
     case 'work-threw':
       ctx.logger.warn('model result push: the work of a call threw')
+      return
+    case 'recovery-failed':
+      ctx.logger.warn(
+        `model result push: the start scan stopped at ${event.step} (${event.failure}); the rest waits for the next start`,
+      )
+      return
+    case 'recovered':
+      ctx.logger.info(`model result push: the start scan woke ${event.woken} owed calls`)
       return
   }
 }
