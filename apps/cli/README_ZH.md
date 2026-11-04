@@ -2,16 +2,16 @@
 
 [English](README.md)
 
-`omne` 是 Harness Server 的命令行客户端。它打印帮助或构建版本，并经 SDK 向服务器发送操作：`register`、`login`、`create-session`、`send-input`、`cancel-run`、`stop-call`，以及 18 个治理操作，每个操作一个命令（例如 `create-organization`、`switch-current-tenant` 和 `revoke-login`）。用它从 shell、脚本或 CI 里驱动一个 Harness Server，不必自己写 TypeScript 调用 SDK。
+`omne` 是 Harness Server 的命令行客户端。它打印帮助或构建版本，并经 SDK 向服务器发送操作：`register`、`login`、`create-session`、`send-input`、`read-history`、`cancel-run`、`stop-call`，以及 18 个治理操作，每个操作一个命令（例如 `create-organization`、`switch-current-tenant` 和 `revoke-login`）。用它从 shell、脚本或 CI 里驱动一个 Harness Server，不必自己写 TypeScript 调用 SDK。
 
 ## 职责与状态
 
-本应用拥有进程入口 `omne`、参数解析、24 个命令、凭据读取、登录状态文件、构建身份，以及解析和创建状态目录的两个公开函数。接入边界见[包组织](../../docs/package-organization.md#最小-cli-的接入边界)。帮助、版本、用法错误与默认状态目录的规则已接受，写在 [SPEC.md](SPEC.md)。
+本应用拥有进程入口 `omne`、参数解析、25 个命令、凭据读取、登录状态文件、构建身份，以及解析和创建状态目录的两个公开函数。接入边界见[包组织](../../docs/package-organization.md#最小-cli-的接入边界)。帮助、版本、用法错误与默认状态目录的规则已接受，写在 [SPEC.md](SPEC.md)。
 
 已经实现：
 
 - `omne --help` 和 `omne --version`。
-- 24 个命令。每个命令经 SDK 发送一个公开操作，并打印一个 JSON 对象。18 个治理命令以操作名为名，以 `login.json` 里的租户行事。[SPEC.md](SPEC.md#治理命令)列出它们。
+- 25 个命令。每个命令经 SDK 发送一个公开操作，并打印一个 JSON 对象。`read-history` 读完一个会话的全部历史页，缺省打印给人读的文本，加 `--json` 打印一个 JSON 对象。18 个治理命令以操作名为名，以 `login.json` 里的租户行事。[SPEC.md](SPEC.md#治理命令)列出它们。
 - `login.json` 随治理结果变化：`login` 保存响应里的 `loginId`，`switch-current-tenant` 更新租户，`revoke-login` 撤销本登录时删除该文件。
 - 终端上不回显的凭据输入，以及从管道读取凭据。
 - 状态目录里的 `login.json`，经临时文件加改名写入。
@@ -21,7 +21,7 @@
 
 尚未实现：
 
-- `read-history`、会话观察和订阅命令。
+- 会话观察和订阅命令。
 - 经 pi-tui 的终端界面。终端和管道上的输出相同。
 - 隶属请求、授权表达与准入判断的治理操作，以及本阶段不提供的操作的命令。
 
@@ -38,6 +38,8 @@ printf '%s\n' "$CREDENTIAL" | node apps/cli/dist/bin.js register --login-identif
 printf '%s\n' "$CREDENTIAL" | node apps/cli/dist/bin.js login --login-identifier alice
 node apps/cli/dist/bin.js create-session --definition default
 node apps/cli/dist/bin.js send-input --session <id> --text 'hello'
+node apps/cli/dist/bin.js read-history --session <id>
+node apps/cli/dist/bin.js read-history --session <id> --json
 node apps/cli/dist/bin.js cancel-run --session <id> --run <运行标识>
 node apps/cli/dist/bin.js stop-call --session <id> --producer-kind model --call <调用标识>
 ```
@@ -48,7 +50,9 @@ node apps/cli/dist/bin.js stop-call --session <id> --producer-kind model --call 
 
 服务地址的取值次序是 `--server`、`OMNE_SERVER`、（会话命令）`login` 记录的地址，最后是 `http://127.0.0.1:8787`。SDK 只接受回环 `http:` 地址，不合的地址按用法错误处理。
 
-每个命令向标准输出写一个 JSON 对象，含四个键：
+`read-history` 按页读完整个历史。缺省每个条目打印一段：文本、工具调用、工具结果，以及每个 Run 的开始与终结。加 `--json` 时，原始条目在 `body.entries` 里。读不到末尾时，命令仍打印已经读到的条目，在标准错误写原因，并以非零退出（`denied` 为 `3`，`basis-unavailable` 为 `4`，结果不确定为 `5`，读到不可用的页为 `1`）。规则见 [SPEC.md](SPEC.md#读历史)。
+
+其余命令和 `read-history --json` 向标准输出写一个 JSON 对象，含四个键：
 
 | 键        | 出现条件               | 内容                                      |
 | --------- | ---------------------- | ----------------------------------------- |
@@ -97,7 +101,7 @@ else {
 - 帮助和版本只写标准输出，退出 `0`。
 - 用法错误只写标准错误，退出 `2`。
 - `dist/cli-identity.json` 缺失或无效时，`--version` 退出 `1`。
-- 帮助、版本、用法错误和 `register` 不打开、不创建、不修改状态目录。只有 `login` 创建它。四个会话命令只读取它，只是 `create-session` 成功后还会写 `sessions.json`。
+- 帮助、版本、用法错误和 `register` 不打开、不创建、不修改状态目录。只有 `login` 创建它。五个会话命令只读取它，只是 `create-session` 成功后还会写 `sessions.json`。
 - 只有 `login.json` 含登录证明。任何标准输出、错误文本和其他状态文件都不含凭据或证明。
 - `resolveStateDirectory` 不访问文件系统。
 - `ensureStateDirectory` 不删除占用路径的文件或目录。它返回错误，不抛出异常。它新建的目录在 POSIX 上权限为 `0700`。
@@ -113,8 +117,9 @@ else {
 - `src/argv.ts` 放 `parseArgv`，是 `string[]` 和目录上的纯函数。
 - `src/command-support.ts` 放执行器共用的部分：传输、用法错误消息，以及读登录文件并打开传输的 `loadLogin`。
 - `src/governance-commands.ts` 放 18 个治理命令。每个命令是一张小表：接受哪些选项、不看登录时怎样检查、有了登录怎样构造请求，以及响应之后的本地改动。
-- `src/commands.ts` 放六个账号与会话命令，并把治理命令排在它们之后。`register` 与 `login` 共用一个执行器，四个会话命令共用另一个。每个会话命令是一张小表：接受哪些选项、怎样检查、怎样构造请求。
-- `src/options.ts` 按命令的选项表读取 `--名字 值` 对。
+- `src/commands.ts` 放七个账号与会话命令，并把治理命令排在它们之后。`register` 与 `login` 共用一个执行器，四个会话命令共用另一个，`read-history` 有自己的执行器。每个会话命令是一张小表：接受哪些选项、怎样检查、怎样构造请求。
+- `src/history-command.ts` 放 `read-history`：翻页循环和结果对象。`src/history-render.ts` 把一个条目渲染成给人读的文本。
+- `src/options.ts` 按命令的选项表读取 `--名字 值` 对和 `--json` 这类开关。
 - `src/report.ts` 打印结果对象，并把 `result` 与 `outcome` 映射为退出码。
 - `src/credential.ts` 读取凭据。`editCredential` 是终端上的纯行编辑函数。
 - `src/login-state.ts` 读、写、删除 `login.json`。
@@ -164,6 +169,7 @@ pnpm turbo run typecheck --filter=@omne-harness/cli
 测试种类按[包级测试责任](../../docs/verification.md#包级测试责任与边界)划分：
 
 - 本进程内的命令测试。`tests/governance-commands.spec.ts` 覆盖 18 个治理命令：每个命令一条机读结果用例、`stage-not-provided` 应答、用法错误、`login` 保存的 `loginId`、`switch-current-tenant` 之后的登录文件，以及 `revoke-login` 的删除。`tests/commands.spec.ts` 用生产目录和真实的 SDK HTTP 传输适配，对 `127.0.0.1` 上的真实 HTTP 服务器（`tests/support/fake-service.ts`）运行。服务器按公开契约的线上形状答复每个操作。用例覆盖每个命令、退出码表、用法错误、状态目录规则、服务地址次序和不回显规则。
+- `tests/read-history.spec.ts` 覆盖 `read-history`。测试服务按公开契约答复：首页请求带 `direction` 和 `pageBytes`，带游标的请求两者都不带，带游标又带这两个字段的请求答 `protocol-rejected`。用例覆盖三页翻页、每页请求的形状、文本、工具调用、工具结果与 Run 开始和终结的人读渲染、`--json`、每种 outcome 的退出码，以及读不完整的各种原因。
 - 构建产物的进程测试。它们从仓库外的临时目录启动 `node dist/bin.js`，每个子进程使用新的环境，含 `PATH`、临时 `HOME`，以及可选的 `OMNE_HOME` 和 `OMNE_SERVER`。每个用例都起子进程，所以归慢层。
 - 单元测试覆盖凭据读取与行编辑、登录状态文件、`parseArgv`、目录和状态目录函数。
 - `tests/support/expected.ts` 从 SPEC.md 读两份帮助文本，测试拿构建结果与规格的原话比较。

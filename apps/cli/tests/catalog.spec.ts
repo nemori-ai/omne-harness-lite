@@ -68,6 +68,7 @@ describe('command catalog', () => {
       'login',
       'create-session',
       'send-input',
+      'read-history',
       'cancel-run',
       'stop-call',
       'create-organization',

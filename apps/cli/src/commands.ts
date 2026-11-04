@@ -1,7 +1,6 @@
 import {
   createGovernanceClient,
   createSessionClient,
-  parseTenantText,
   tenantText,
   userTextMessage,
   type SessionRequest,
@@ -16,9 +15,12 @@ import {
   localFailure,
   missingOption,
   openTransport,
+  proofOf,
   refusedServer,
+  resolveOwner,
   serverOption,
   stateDirectory,
+  tenantOption,
   text,
   unrecognized,
   usageError,
@@ -26,6 +28,7 @@ import {
   type Option,
 } from './command-support.ts'
 import { governanceCommands } from './governance-commands.ts'
+import { runReadHistory } from './history-command.ts'
 import { writeLoginState, type LoginState } from './login-state.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
@@ -144,13 +147,6 @@ interface ExistingCommand<Parsed> extends SessionCommandBase<Parsed> {
 
 type SessionCommand<Parsed> = CreatingCommand<Parsed> | ExistingCommand<Parsed>
 
-/** `--tenant`: `undefined` when absent, `null` when present but not a tenant text. */
-function tenantOption(values: Option): TenantId | undefined | null {
-  const given = values.get('--tenant')
-  if (given === undefined) return undefined
-  return parseTenantText(given) ?? null
-}
-
 async function runSession<Parsed>(
   command: SessionCommand<Parsed>,
   args: readonly string[],
@@ -180,20 +176,9 @@ async function runSession<Parsed>(
     built = command.build(parsed, { ...context, loginTenant })
   } else {
     const { session, tenant: given } = command.target(parsed)
-    let owner = given
-    if (owner === undefined) {
-      const records = readSessionOwners(directory)
-      if (records.kind === 'failure') return localFailure(output, records.message)
-      owner = parseTenantText(records.owners.get(session) ?? '')
-    }
-    if (owner === undefined)
-      return usageError(
-        output,
-        `omne ${name}: the owner tenant of this session is unknown
-Add --tenant <tenant>.
-`,
-      )
-    built = command.build(parsed, { ...context, owner })
+    const resolved = resolveOwner(name, session, given, directory, output)
+    if (resolved.kind === 'exit') return resolved.code
+    built = command.build(parsed, { ...context, owner: resolved.owner })
   }
   const client = createSessionClient({ transport: opened.transport })
   const result = await attempt(() => client.submit(built.request))
@@ -212,10 +197,6 @@ Add --tenant <tenant>.
   output.stderr(`omne ${name}: cannot write session records ${saved.path}${reason}
 `)
   return 1
-}
-
-function proofOf(state: LoginState) {
-  return { kind: 'present', value: state.loginProof } as const
 }
 
 const createSession: CreatingCommand<{
@@ -399,6 +380,12 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id> --text <text>',
     summary: 'Send a user message to a session.',
     run: (args, output, environment) => runSession(sendInput, args, output, environment),
+  },
+  {
+    name: 'read-history',
+    usage: '--session <id>',
+    summary: 'Read the whole history of a session.',
+    run: runReadHistory,
   },
   {
     name: 'cancel-run',
