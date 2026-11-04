@@ -74,6 +74,7 @@ process.on('message', async message => {
           modelContext: group(['modelContext'], ['read']),
           handoff: group(['handoff'], ['prepare', 'lookup', 'exclude']),
           materials: group(['materials'], ['preserve', 'read']),
+          entries: group(['entries'], ['read', 'receivedOf']),
           clock: group(['clock'], ['now']),
         },
       })
