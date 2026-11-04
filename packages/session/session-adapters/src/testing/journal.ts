@@ -513,13 +513,16 @@ export type Attempt<R> =
     }>
   /** A new operation that recognizes an existing fact: only its index is saved, at the fact's revision. */
   | Readonly<{ kind: 'recognize'; value: R; receipt: CommandReceipt }>
-  /** Contradicting evidence: the audit is saved with one new revision and the conflict is fixed. */
+  /**
+   * Contradicting evidence: the audit is a fact of one batch with one new revision, and the
+   * conflict is fixed under the operation.
+   */
   | Readonly<{
       kind: 'reject'
       failure: Extract<Failure, { kind: 'conflict' }>
       audit: DurableEvidence
-      revision: number
-      apply: () => void
+      facts: readonly FactBody[]
+      project: (batch: PublishedBatch, view: ExecutionView) => void
     }>
 
 const STAGES: Readonly<Record<ExecutionControl['kind'], ReadonlySet<ControlStage>>> = {
@@ -1858,14 +1861,22 @@ export function createJournal<P>(
       if (prepared.kind === 'answer') return { kind: 'answered', value: prepared.value }
       if (prepared.kind === 'unknown') return prepared
       if (prepared.kind === 'reject') {
-        prepared.apply()
+        const appended = append(input, key, {
+          kind: 'batch',
+          facts: prepared.facts,
+          blobs: [],
+          kinds: [],
+          derive: receiptIn,
+          project: prepared.project,
+        })
+        if ('failure' in appended) return { kind: 'answered', value: appended }
         cell.touch()
         state().operations.set(at, {
           kind: 'rejected',
           key,
           failure: prepared.failure,
           audit: prepared.audit,
-          revision: revisionOf(prepared.revision),
+          revision: appended.ok.receipt.revision,
         })
         return { kind: 'rejected', failure: prepared.failure }
       }
@@ -4260,13 +4271,14 @@ export function createJournal<P>(
             // The same stage fact is recognized by the new operation at the fact's revision.
             const first = execution.stageReceipts.get(stageKey)
             if (first !== undefined) {
-              const receipt = recognition(
+              const at = Number(first.revision)
+              return recognitionBatch(
                 execution,
                 input.operation,
-                Number(first.revision),
+                reachedBy(execution.id, at),
+                at,
                 'applied',
               )
-              return recognize(receipt, receipt)
             }
           }
           const ended = execution.state.kind === 'ended'
@@ -4283,36 +4295,42 @@ export function createJournal<P>(
             return answer(fail({ kind: 'terminal' }))
           }
           if (!sameFact && fact !== undefined && fact.state === 'reached') {
-            // Contradicting evidence: the persistent rejection saves an audit with one revision.
-            const revision = execution.revision + 1
-            const audit = nextEvidence(execution, 'rejected-control', revision)
+            // Contradicting evidence: the persistent rejection saves an audit with one revision;
+            // the audit is the evidence of its own batch.
+            const audit = ownEvidence(execution.id, key, execution.revision + 1)
             return {
               kind: 'reject',
               failure: conflict(input.operation),
               audit,
-              revision,
-              apply: () => {
-                execution.revision = revision
+              facts: [{ kind: 'control.rejected', control: input.target, audit }],
+              project: (_batch, view) => {
+                execution.revision = view.revision
               },
             }
           }
-          const revision = execution.revision + 1
-          const evidence = nextEvidence(execution, 'record-control', revision)
-          const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+          const evidence = ownEvidence(execution.id, key, execution.revision + 1)
+          const changed: ControlRecord = {
+            ...updated,
+            stages: {
+              ...record.stages,
+              [input.stage]: { state: input.state, source: copy(input.source) },
+            },
+          }
+          let written: CommandReceipt | undefined
           return {
-            kind: 'write',
-            value: receipt,
-            receipt,
-            apply: () => {
-              execution.controls[index] = {
-                ...updated,
-                stages: {
-                  ...record.stages,
-                  [input.stage]: { state: input.state, source: copy(input.source) },
-                },
+            kind: 'batch',
+            facts: [controlStageOf(changed, input.stage, input.state, copy(input.source))],
+            blobs: [],
+            kinds: [],
+            derive: derived => (written = receiptIn(derived)),
+            project: (_batch, view) => {
+              execution.controls[index] = changed
+              if (!sameFact) {
+                if (written === undefined)
+                  throw new TypeError('append derives the receipt before it projects the batch')
+                execution.stageReceipts.set(stageKey, written)
               }
-              if (!sameFact) execution.stageReceipts.set(stageKey, receipt)
-              execution.revision = revision
+              execution.revision = view.revision
               if (ended || sameFact) return
               appendEvents(
                 execution,
