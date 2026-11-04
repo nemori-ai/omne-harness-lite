@@ -293,7 +293,25 @@ const requests = {
     kind: 'object',
     fields: { expressionId: { rule: { kind: 'text' } } },
   },
+  'bind-model-credential': { kind: 'object', fields: { secret: { rule: { kind: 'text' } } } },
+  'unbind-model-credential': empty,
+  'describe-model-credential': empty,
 } satisfies Readonly<Record<GovernanceProvidedOperation, Rule>>
+
+const modelCredentialState: Rule = {
+  kind: 'one-of',
+  rules: [
+    { kind: 'object', fields: { state: { rule: { kind: 'literal', values: ['unbound'] } } } },
+    {
+      kind: 'object',
+      fields: {
+        state: { rule: { kind: 'literal', values: ['usable', 'unreadable'] } },
+        tenantId: { rule: { kind: 'tenant' } },
+        configuredAt: { rule: { kind: 'instant' }, optional: true },
+      },
+    },
+  ],
+}
 
 const successes = {
   'public-health': {
@@ -315,6 +333,7 @@ const successes = {
       issuedAt: { rule: { kind: 'instant' } },
       tenantId: { rule: { kind: 'tenant' } },
       loginProof: { rule: { kind: 'text' } },
+      loginId: { rule: { kind: 'login' }, optional: true },
     },
   },
   'revoke-login': empty,
@@ -427,10 +446,17 @@ const successes = {
     },
   },
   'withdraw-authorization-expression': empty,
+  'bind-model-credential': {
+    kind: 'object',
+    fields: { configuredAt: { rule: { kind: 'instant' } } },
+  },
+  'unbind-model-credential': empty,
+  'describe-model-credential': modelCredentialState,
 } satisfies Readonly<Record<GovernanceProvidedOperation, Rule>>
 
 const noChanges = {
   'revoke-login': empty,
+  'unbind-model-credential': empty,
   'switch-current-tenant': empty,
   'release-affiliation': {
     kind: 'object',
@@ -553,6 +579,9 @@ const outcomes = {
     'unknown',
   ],
   'withdraw-authorization-expression': ['succeeded', 'denied', 'basis-unavailable', 'unknown'],
+  'bind-model-credential': ['succeeded', 'denied', 'basis-unavailable', 'unknown'],
+  'unbind-model-credential': ['succeeded', 'no-change', 'denied', 'basis-unavailable', 'unknown'],
+  'describe-model-credential': ['succeeded', 'denied', 'basis-unavailable'],
 } satisfies { readonly [O in GovernanceProvidedOperation]: readonly BusinessOutcomes[O][] }
 
 export const stages = [
@@ -598,6 +627,9 @@ const proofOperations: ReadonlySet<string> = new Set([
   'judge-admission',
   'submit-authorization-expression',
   'withdraw-authorization-expression',
+  'bind-model-credential',
+  'unbind-model-credential',
+  'describe-model-credential',
 ])
 
 const tenantOperations: ReadonlySet<string> = new Set([
@@ -625,6 +657,9 @@ const tenantOperations: ReadonlySet<string> = new Set([
   'judge-admission',
   'submit-authorization-expression',
   'withdraw-authorization-expression',
+  'bind-model-credential',
+  'unbind-model-credential',
+  'describe-model-credential',
 ])
 
 export function requestRule(operation: GovernanceProvidedOperation): RequestRule {

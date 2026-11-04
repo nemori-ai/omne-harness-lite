@@ -7,7 +7,7 @@
 
 Agent 自有设计已明确。step 从一次主请求准备开始；主回复拒收后的新调用建立新 step/action/call。压缩、扩展内部调用及 Model 内部 retry 不另开主 step。原始主回复准入事实按 call/resultVersion 去重，随接续共同提交。连续与累计否决由有覆盖范围的事实投影产生，恢复、压缩和新输入不清零。
 
-精确形状归[主回复准入契约](../../../agent-contract/docs/public-api/README.md#身份原位置与纯求值)，规则与恢复归[Step 与历史](mechanisms.md#step-与历史)和[事实投影](mechanisms.md#事实投影与长期读取)。本域仍负责循环守卫的原事实依据，不规定统一次数上限或把否决计数等同于守卫阶梯。
+精确形状归[主回复准入契约](../../../agent-contract/docs/public-api/README.md#身份原位置与纯求值)，规则与恢复归[Step 与历史](mechanisms.md#step-与历史)和[事实投影](mechanisms.md#事实投影与长期读取)。本域仍负责循环守卫的原事实依据，不规定统一次数上限或把否决计数等同于守卫阶梯。M2 有一项临时兜底：拒收后的新 step 计入工厂配置 `maxRunSteps`（缺省 50），所以连续否决也受这个步数上限约束。依据是 R2-D229 与 R2-D221，完整的循环判断见波 3。
 
 待完成的是实现及验证，须覆盖同回复重复提交、提交回执丢失、拒收后恢复、投影缺页及新输入不清零。外部协调者对推进者的映射归[外域依赖](#外部协调者怎样与-agent-共同受理输入和终结)，不是 Agent 的计数规则。
 
@@ -72,7 +72,7 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 | U-16 | 工厂从 Journal 绑定的哪个成员读到历史组合登记：SPEC 的[真实历史的提交点](../../../agent-contract/SPEC.md#真实历史的提交点)要求工厂从可信的绑定构造结果核历史拥有者 Adoption、原准入记录 resolver、共享事务域身份与两个提交处理器，绑定上承载这份登记的成员没有公开形状 | Agent 契约（agent-contract 的公开类型） | 公开类型给出该成员的形状，工厂页引用它 |
 | U-17 | 取消 control 未成立时 `MessageHandoff.exclude` 的返回：SPEC 的[内部 H 的排除与退役](../../../agent-contract/SPEC.md#内部-h-的排除与退役)只规定当前有效取消已成立时的调用与结果表，没有写明调用者在取消尚未成立时调用 exclude 得到哪一种失败 | Agent 契约（agent-contract 的 SPEC 与 `MessageHandoff` 的公开类型） | exclude 的结果联合写明该分支并落到公开类型。在此之前提供者不得在取消未成立时封闭 H，也不得返回 excluded |
 | U-18 | 同一来源位置在旧 H 未定时另建 H 的失败映射：SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)规定同一来源位置在旧 H 未定时不能另建 H，`commit` 带 `handoff.prepare` 遇到这种情形返回哪一种失败没有写进逐操作表 | Agent 契约（agent-contract 的 SPEC 逐操作表与 `commit` 的公开类型） | 逐操作表的 commit 行与公开类型写明该失败映射。在此之前提供者拒绝该写入并保留原 H，不返回成功，失败种类由关闭时固定 |
-| U-19 | 协调者的取消路线：协调者没有实现 F0 与 cancelled 候选的 F1，遇到时以未实现失败停止。`commitSettlement` 的六个变体已在契约、两份替身与一致性套件中实现，协调者还不调用它们。内存替身接受结论为 cancelled 的 F1 `commit`，测试用它构造旧的 cancelled 候选；节点表的 [F1](loop-algorithm.md#节点表) 规定 cancelled 候选经 establish-cancellation 建立 | Agent 运行时（[#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) 阶段 5） | 协调者按节点表实现 F0 与 cancelled 候选的 F1 至 F3，测试经协调者的取消路线构造候选。在此之前 Agent 不能声称取消路线已实现 |
+| U-19 | 协调者已接通取消的 F0 至 F3：读取治理安装引用，经 establish-cancellation 或 migrate-cancellation 建立路线，经 judge-cancellation、prepareFinish 与唯一的 tryFinish 收场。控制入口已保存命令，并向原 Model 调用请求中断。interrupt-tool 与 background-tool 只按受理时保存的原调用快照发一次 Tool 控制。回执未知时只保存原操作引用并查询，引用在保存前丢失时保持未决。F0 为每个前台已关联的 Tool 调用派生一条逐调用中断。A2 在每次 invoke 前重核当前资格。内存 Journal 验证覆盖：无已发调用的取消；原 Model 结果到达后的取消收场；两个前台 Tool 调用的结果在取消后到达时的取消收场。未实现 agent-contract SPEC:1338 允许的 held，取消要等原结果到达。后台占位槽位、生产发起围栏及完整责任接管尚未完成。当前内存 Journal 的挂接核对也未把撤权阶段映射为全部旧写者失效                                                                                                                                                                                                                                                                                   | Agent 运行时及 Journal 提供者（[#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) 阶段 5）                                                                                                                                                            | 补齐 Tool 控制与实际发起围栏，验证全部旧写者的撤权、未知控制和责任交接。不得以替身的取消终态或已保存的撤权阶段声称生产者物理停止或跨进程围栏已经成立                                                                                                                                       |
 | U-20 | 候选 origin 的固定记录：SPEC 的[候选与路线](../../../agent-contract/SPEC.md#候选与路线)要求 origin 解析到提出该候选的那次求值的固定记录。求值本身没有耐久记录，协调者暂取快照的 `history` 作为最接近的固定记录。取消候选的 origin 与 conditions 同样取最接近的固定记录：两份内存 Journal 替身取控制的受理记录与 intent 来源 | Agent 契约与 Agent 运行时（[#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)） | 拥有者给求值指定耐久的拥有者记录，或在 SPEC 写明 origin 可以指向的现有记录，协调者按此取值 |
 | U-21 | author route 的 `plan` 与 `policy`：协调者建立的 author route 的 `plan` 为空，`policy` 取 `checkpoint.definition`，Journal 因此看不到落终态之前位置的声明。两份内存 Journal 替身建立 author route 时 `plan` 也都写死为空，一致性套件的 plan 断言在本项关闭之前只能比较两个空列表 | Agent 运行时（[#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)） | 协调者在 F1 交出落终态之前位置的实际声明与采用，替身据此建立 author route，一致性套件的 plan 断言与一个非空声明对照 |
 | U-22 | material 类的终结责任：两份内存 Journal 替身的 prepareFinish 都不产生 kind 为 material 的清单项，SPEC 的[终结责任清单](../../../agent-contract/SPEC.md#终结责任清单)规定了这一项 | Agent 的内存 Journal 替身与 session-adapters 的内存 Journal 替身 | 两份替身各自产生 material 项，一致性套件有对应用例 |
@@ -111,6 +111,15 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收)第 11 条只为 Model 交付规定了 facts 材料分支与具名版本 schema。Tool 交付的完整收场材料（`terminal`、`actualTerminal`、`effect`）没有已采用的 schema，当前公开的 `ReceivedDelivery` 与 `Material.tool` 也不直接声明这三项。所以读取 Journal 的外部协调者不能从材料确定 Tool 调用已经收场，只能返回不可用并保留任务。外部协调者一侧的登记名是 [TOOL-SETTLEMENT-SCHEMA](../../../../../docs/architecture/runtime/application-assembly.md#tool-settlement-schema)。
 
 关闭条件是拥有者为 Tool 交付采用完整收场 schema，并写回 SPEC 的结果接收第 11 条。
+
+<a id="agent-m07"></a>
+## AGENT-M07 步数上限放到 200 时收尾一步停住（D-88）
+
+本项尚未闭合，根因未查明。拥有者是 Agent 实现，R2-D372 登记为已知限制。
+
+默认 `maxRunSteps` 为 50，这个路径在默认值下到不了。把 `maxRunSteps` 放到足够容纳 200 个工具步与收尾一步时，应用的 `tests/rows/storage/journal-bytes.spec.ts` 观察到：200 个工具步正常完成，收尾回复是第 201 次受理，该步提交若干次后停住，没有写终结事实，也没有拒绝计数。该用例按现状断言「收尾一步停住且没有 ended」，修好后这条断言变红。
+
+关闭条件是查明收尾一步停住的原因并修复，再把用例改成断言 Run 完成。
 
 ## 保留的专题边界
 

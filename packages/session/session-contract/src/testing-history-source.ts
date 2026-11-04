@@ -6,12 +6,26 @@ import type {
   SessionInputAdmission,
   SessionInputScope,
 } from './history-values.ts'
-import type { InputId, SessionAccess } from './identity.ts'
+import type { DurableEvidence, InputId, SessionAccess } from './identity.ts'
 import type { SessionLogObservation } from './projection.ts'
 import type { WorkSnapshot } from './values.ts'
-import { decodeEntry } from './entries.ts'
+import { decodeEntries } from './entries.ts'
 import { digestOf } from './operations.ts'
 import { evidence } from './testing-values.ts'
+
+/**
+ * The evidence that the history index of the fixture gives for one row of the log: the row
+ * identity, its revision and the digest of its content. `commitLog` of the double names the
+ * progress row of its commit with the same function, so the saved fact and the index agree.
+ */
+export function entryEvidence(row: HistoryEntry): DurableEvidence {
+  return {
+    owner: '@omne-harness/session-contract',
+    record: row.id,
+    revision: row.revision,
+    digest: `sha256:${digestOf(row)}`,
+  }
+}
 
 export interface MemorySessionHistorySource {
   /** Fixture-owned Agent facts. Calling this asserts the original event, not adapter verification. */
@@ -61,8 +75,9 @@ export function createMemorySessionHistorySource(): MemorySessionHistorySource {
     },
     read(snapshot, entries, scope) {
       const { admissions, observations } = factsOf(snapshot)
-      const rows = entries.flatMap(row => {
-        const decoded = decodeEntry(row)
+      const decodedRows = decodeEntries(entries, null)
+      const rows = entries.flatMap((row, index) => {
+        const decoded = decodedRows[index]!
         return 'ok' in decoded ? [{ row, value: decoded.ok }] : []
       })
       const creation = rows[0]?.value
@@ -72,12 +87,7 @@ export function createMemorySessionHistorySource(): MemorySessionHistorySource {
         creation.session !== snapshot.session
       )
         throw new TypeError('history entries belong to another tenant or Session')
-      const receipt = (row: HistoryEntry) => ({
-        owner: '@omne-harness/session-contract',
-        record: row.id,
-        revision: row.revision,
-        digest: `sha256:${digestOf(row)}`,
-      })
+      const receipt = entryEvidence
       const accepted = rows.flatMap(({ row, value }) =>
         value.kind === 'intake.routed' && 'input' in value
           ? [{ input: value.input, source: receipt(row) }]

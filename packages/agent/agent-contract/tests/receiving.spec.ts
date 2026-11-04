@@ -131,6 +131,7 @@ describe('the entries suite fails a provider that breaks a rule', () => {
         return authority
       },
       entries: {
+        ...fixture.double,
         record: input => {
           if (input.authority === null) return fixture.double.record(input)
           const current = latest.get(input.execution) ?? input.authority
@@ -143,6 +144,7 @@ describe('the entries suite fails a provider that breaks a rule', () => {
 
   it('fails the tenant case when another tenant gets an answer other than missing', async () => {
     const cases = brokenCases(port => ({
+      ...port,
       record: async input =>
         input.tenant === otherAccess.tenant
           ? { failure: { kind: 'unavailable', owner: 'agentJournal', diagnostic: 'exists' } }
@@ -158,6 +160,7 @@ describe('the entries suite fails a provider that breaks a rule', () => {
     const cases = brokenCases(port => {
       let writes = 0
       return {
+        ...port,
         record: async input => {
           const answer = await port.record(input)
           if (input.authority !== null || !('ok' in answer)) return answer
@@ -180,6 +183,7 @@ describe('the entries suite fails a provider that breaks a rule', () => {
     const cases = agentJournalEntriesConformance({
       ...fixture,
       entries: {
+        ...fixture.double,
         record: async input => {
           const answer = await fixture.double.record(input)
           if ('ok' in answer) calls.set(input.execution, (calls.get(input.execution) ?? 0) + 1)
@@ -256,6 +260,7 @@ describe('the entries suite fails a provider that breaks a rule', () => {
     const cases = agentJournalEntriesConformance({
       ...fixture,
       entries: {
+        ...fixture.double,
         record: async input => {
           const answer = await fixture.double.record(input)
           if ('failure' in answer)
@@ -286,6 +291,7 @@ describe('the entries suite fails a provider that breaks a rule', () => {
     const cases = agentJournalEntriesConformance({
       ...fixture,
       entries: {
+        ...fixture.double,
         record: async input => {
           const answer = await fixture.double.record(input)
           if ('failure' in answer && answer.failure.kind === 'commit-unknown')
@@ -310,6 +316,7 @@ describe('the entries suite fails a provider that breaks a rule', () => {
     const cases = agentJournalEntriesConformance({
       ...fixture,
       entries: {
+        ...fixture.double,
         record: async input => {
           const answer = await fixture.double.record(input)
           if ('failure' in answer && answer.failure.kind === 'unavailable')
@@ -581,14 +588,14 @@ describe('the commit cases of the suite fail a provider that breaks a rule', () 
 })
 
 describe('the outlet suite fails a provider that breaks a rule', () => {
-  it('fails the tenant case when a call of another tenant is received', async () => {
+  it('fails the tenant case when a handoff reaches another tenant', async () => {
     const fixture = memoryAgentAccountOutletFixture(access, otherAccess)
-    const lenient: AgentAccountOutlet<string> = {
-      deliver: async () => ({ kind: 'received' }),
+    const leaking: AgentAccountOutlet<string> = {
+      deliver: async ({ handoff }) => fixture.outlet.deliver({ access: otherAccess, handoff }),
     }
-    const cases = agentAccountOutletConformance({ ...fixture, outlet: lenient })
+    const cases = agentAccountOutletConformance({ ...fixture, outlet: leaking })
     await expect(caseNamed(cases, 'another tenant').run()).rejects.toThrow(
-      /call of another tenant should be denied/u,
+      /another tenant should not see the handoff/u,
     )
   })
 
@@ -642,7 +649,7 @@ describe('joint received custody through the original conformance entry', () => 
     expect(() =>
       agentJournalEntriesConformance(fixture, {
         received: 'required',
-        joint: { ...fixture.joint, entries: { record: fixture.entries.record } },
+        joint: { ...fixture.joint, entries: { ...fixture.entries } },
       }),
     ).toThrow(/share the entries port/u)
   })
@@ -743,6 +750,7 @@ describe('reference material custody', () => {
     const value = committed.ok.value
     const legacy = await fixture.joint.materials.preserve({
       ...access,
+      execution: input.execution,
       identity: 'legacy-custody',
       consumer: entry.consumer,
       value: input.material,
@@ -767,6 +775,36 @@ describe('reference material custody', () => {
       new Set([value.saved.record, value.receipt.evidence.record, value.entry.material.record])
         .size,
     ).toBe(3)
+  })
+})
+
+describe('reference material custody with an explicit execution', () => {
+  it('checks the current principal when material is preserved on an explicit execution route', async () => {
+    const fixture = memoryReceivedCommitFixture(access, otherAccess)
+    const execution = decodeAgentExecutionId('material-explicit')
+    if (!('ok' in execution)) throw new Error('invalid fixture identity')
+    await fixture.open(access, execution.ok)
+    const { material: _source, ...entry } = sampleReceivedModelResult(access.tenant, 'explicit')
+    const value = fixture.joint.material('explicit')
+    const preserved = await fixture.joint.materials.preserve({
+      ...access,
+      execution: execution.ok,
+      identity: 'explicit-custody',
+      consumer: entry.consumer,
+      value,
+    })
+    if (!('ok' in preserved)) throw new Error('fixture preserve failed')
+    const stranger = { tenant: access.tenant, principal: 'unqualified-principal' }
+    expect(await fixture.joint.materials.read({ ...stranger, source: preserved.ok })).toMatchObject(
+      { failure: { kind: 'denied' } },
+    )
+    expect(await fixture.joint.materials.read({ ...access, source: preserved.ok })).toEqual({
+      ok: value,
+    })
+    fixture.joint.qualify(access, execution.ok, 'denied')
+    expect(await fixture.joint.materials.read({ ...access, source: preserved.ok })).toMatchObject({
+      failure: { kind: 'denied' },
+    })
   })
 })
 

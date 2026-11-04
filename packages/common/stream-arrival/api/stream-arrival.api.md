@@ -208,8 +208,6 @@ export type StreamCallFailure = Readonly<{
     kind: 'malformed';
 }> | Readonly<{
     kind: 'invalid-tenant';
-}> | Readonly<{
-    kind: 'foreign-tenant';
 }>;
 export type StreamCallCodec = Readonly<{
     producer: StreamProducer;

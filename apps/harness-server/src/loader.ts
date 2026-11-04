@@ -1,7 +1,29 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
+import { ConfigError, distributionSchema, operatorSchema, parseBoundary } from './config-schema.ts'
 import { awaitReadiness, type LoadedRow, type ReadinessReport } from './readiness.ts'
 import type { Trust } from './trust.ts'
 import type { Implementation, RowId, RowManifest, ServiceName, TreeRow } from './types.ts'
+
+/** Factory ownership follows the release binding, not a replaced row's config source. */
+export function validateFactoryRows(options: {
+  distribution: unknown
+  operator: unknown
+  allowlist: readonly string[]
+  bindings: Readonly<Record<string, string>>
+}): void {
+  const distribution = parseBoundary(distributionSchema(options.allowlist), options.distribution)
+  for (const row of distribution.rows) {
+    const required = options.bindings[row.plugin]
+    if (required !== undefined && required !== row.id)
+      throw new ConfigError('invalid-config', `factory export requires row ${required}`)
+  }
+  if (options.operator === undefined) return
+  const operator = parseBoundary(operatorSchema(options.allowlist), options.operator)
+  for (const op of operator.ops) {
+    if (op.kind === 'insert' && options.bindings[op.row.plugin] !== undefined)
+      throw new ConfigError('invalid-config', 'factory row cannot be inserted')
+  }
+}
 
 export type RowSpec = Readonly<{
   row: TreeRow
@@ -137,27 +159,23 @@ export function preflight(
 
 export type StartResult =
   | Readonly<{ kind: 'rejected'; exitCode: 2; diagnostics: readonly PreflightDiagnostic[] }>
+  | Readonly<{ kind: 'preparation-failed'; exitCode: 3; error: unknown }>
   | Readonly<{ kind: 'entry-failed'; exitCode: 3; name: ServiceName; error: unknown }>
   | Readonly<{ kind: 'started'; rows: readonly LoadedRow[]; report: ReadinessReport }>
 
-/**
- * Load the final tree in order, then wait for readiness.
- *
- * `omitEntryObjects` is a test input that withholds named entry objects.
- * `await ctx.plugin(...)` ends when loading ends, which does not mean ACTIVE:
- * the state is read from the fiber afterwards.
- */
-export async function startTree(options: {
+type StartOptions = {
   root: Context
   trust: Trust
   rows: readonly RowSpec[]
   entryObjects: readonly EntryObject[]
   omitEntryObjects?: readonly ServiceName[] | undefined
+  prepare?: () => void | Promise<void>
   readinessTimeoutMs: number
   barrier: () => void | Promise<void>
-}): Promise<StartResult> {
-  const { root, trust } = options
-  const diagnostics = preflight(
+}
+
+function preflightStart(options: StartOptions): PreflightDiagnostic[] {
+  return preflight(
     options.rows.map(({ row, manifest, implementation, declared }) => ({
       id: row.id,
       plugin: row.plugin,
@@ -165,11 +183,16 @@ export async function startTree(options: {
       ...(implementation === undefined ? {} : { implementation }),
       ...(declared === undefined ? {} : { declared }),
     })),
-    trust,
+    options.trust,
     options.entryObjects,
   )
-  if (diagnostics.length > 0) return { kind: 'rejected', exitCode: 2, diagnostics }
+}
 
+/** Install the entry objects in order, apart from the withheld ones. The first install failure stops it. */
+async function installEntryObjects(
+  options: StartOptions,
+): Promise<Extract<StartResult, { kind: 'entry-failed' }> | undefined> {
+  const { root, trust } = options
   const omitted = new Set(options.omitEntryObjects ?? [])
   for (const name of omitted) {
     if (!options.entryObjects.some(object => object.name === name)) {
@@ -189,7 +212,18 @@ export async function startTree(options: {
       return { kind: 'entry-failed', exitCode: 3, name: object.name, error }
     }
   }
+  return undefined
+}
 
+/**
+ * Create every row in order and wait for each to finish loading, sharing the readiness deadline.
+ * A row still LOADING at the deadline does not hold the loader for ever: later rows are still
+ * created, in order, but not awaited. `elapsedMs` is what the readiness wait must subtract.
+ */
+async function loadRows(
+  options: StartOptions,
+): Promise<{ loaded: LoadedRow[]; elapsedMs: number }> {
+  const { root, trust } = options
   const startedAt =
     /* wall-clock: operation-timing -- Share one readiness deadline between loading and waiting. */ Date.now()
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -210,8 +244,6 @@ export async function startTree(options: {
         visible: trust.visibleNames(row.id),
       }
       loaded.push(entry)
-      // A row that is still LOADING at the deadline must not hold the loader for ever.
-      // Later rows are still created, in order, but not awaited.
       if (stalled) continue
       const settled = fiber.then(
         () => 'loaded' as const,
@@ -225,15 +257,48 @@ export async function startTree(options: {
   } finally {
     clearTimeout(timer)
   }
-  const elapsed =
+  const elapsedMs =
     /* wall-clock: operation-timing -- Share one readiness deadline between loading and waiting. */ Date.now() -
     startedAt
+  return { loaded, elapsedMs }
+}
+
+/**
+ * Load the final tree in order, then wait for readiness.
+ *
+ * `omitEntryObjects` is a test input that withholds named entry objects.
+ * `await ctx.plugin(...)` ends when loading ends, which does not mean ACTIVE:
+ * the state is read from the fiber afterwards.
+ */
+export async function startTree(options: StartOptions): Promise<StartResult> {
+  const diagnostics = preflightStart(options)
+  if (diagnostics.length > 0) return { kind: 'rejected', exitCode: 2, diagnostics }
+
+  try {
+    await options.prepare?.()
+  } catch (error) {
+    return { kind: 'preparation-failed', exitCode: 3, error }
+  }
+
+  const entryFailed = await installEntryObjects(options)
+  if (entryFailed !== undefined) return entryFailed
+
+  const { loaded, elapsedMs } = await loadRows(options)
   const report = await awaitReadiness({
     rows: loaded,
-    timeoutMs: Math.max(0, options.readinessTimeoutMs - elapsed),
+    timeoutMs: Math.max(0, options.readinessTimeoutMs - elapsedMs),
     barrier: options.barrier,
   })
   return { kind: 'started', rows: loaded, report }
+}
+
+/** Explicit unload waits for the fiber before the entry runs its maintenance callback. */
+export async function disposeRow(
+  row: LoadedRow,
+  afterDispose?: () => Promise<unknown>,
+): Promise<void> {
+  await row.fiber.dispose()
+  await afterDispose?.()
 }
 
 /** Dispose rows in reverse load order, then the root. Reports every failure together. */
@@ -241,7 +306,7 @@ export async function disposeTree(root: Context, rows: readonly LoadedRow[]): Pr
   const errors: unknown[] = []
   for (const row of [...rows].reverse()) {
     try {
-      await row.fiber.dispose()
+      await disposeRow(row)
     } catch (error) {
       errors.push(error)
     }

@@ -57,6 +57,18 @@ export function sessionView<P>(
         invoke(input, 'journal.recordTerminalObservation', view =>
           view.journal.recordTerminalObservation(input),
         ),
+      readCancellationInstallation: input =>
+        invoke(
+          input,
+          'journal.readCancellationInstallation',
+          async view =>
+            (await view.journal.readCancellationInstallation?.(input)) ??
+            fail({
+              kind: 'unavailable',
+              owner: 'session-log-journal',
+              diagnostic: 'the session Journal has no cancellation installation read',
+            }),
+        ),
       load: input => invoke(input, 'journal.load', view => view.journal.load(input)),
       inputs: input => invoke(input, 'journal.inputs', view => view.journal.inputs(input)),
       readReplyAdmissions: input =>
@@ -78,11 +90,16 @@ export function sessionView<P>(
     },
     entries: {
       record: input => invoke(input, 'entries.record', view => view.entries.record(input)),
+      read: input => invoke(input, 'entries.read', view => view.entries.read(input)),
+      receivedOf: input =>
+        invoke(input, 'entries.receivedOf', view => view.entries.receivedOf(input)),
     },
     materials: {
       preserve: input =>
         invoke(input, 'materials.preserve', view => view.materials.preserve(input)),
       read: input => invoke(input, 'materials.read', view => view.materials.read(input)),
+      describe: input =>
+        invoke(input, 'materials.describe', view => view.materials.describe(input)),
     },
     received: {
       commit: input => invoke(input, 'received.commit', view => view.received.commit(input)),

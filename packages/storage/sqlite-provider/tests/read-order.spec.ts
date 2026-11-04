@@ -12,15 +12,32 @@ import {
 import {
   DOMAIN,
   TENANT_A,
+  command,
+  commitRequest,
   identity,
   leases,
   makeWorkspace,
   type Built,
+  type Provider,
   type Workspace,
 } from './support.ts'
 
 let workspace: Workspace
 let built: Built
+
+/**
+ * Two quick snapshot reads side by side, so that both reader Workers of the domain exist before a
+ * case measures time: a read that has to spawn and open its Worker takes longer than the short
+ * delays below, and a case that expects a read to wait at the barrier needs its reader at once.
+ */
+async function warmReaders(storage: Provider['storage']): Promise<void> {
+  const results = await Promise.all([
+    storage.read(readRequest('page')),
+    storage.read(readRequest('page')),
+  ])
+  for (const result of results)
+    if (result.kind !== 'read') throw new Error(`warm-up read is ${result.kind}`)
+}
 
 beforeEach(async () => {
   workspace = await makeWorkspace()
@@ -70,6 +87,132 @@ describe('domain-serial (C10)', () => {
       storage.read(readRequest('page', { sleepMs: 300 })),
     ])
     expect(Date.now() - start).toBeLessThan(560)
+  })
+})
+
+describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
+  it('a commit makes progress while domain-serial reads keep arriving', async () => {
+    // Defect: a write waits while any barrier is queued (the old barrier). Six streams keep the
+    // read queue of the domain non-empty, so a barrier is queued at every release and the commit
+    // would wait until the streams drain (well over 2 s from its start).
+    const { storage } = await readyProvider(workspace, built, {}, 1)
+    await warmReaders(storage)
+    const stopAt = Date.now() + 2000
+    const stream = async (): Promise<void> => {
+      while (Date.now() < stopAt) {
+        const result = await storage.read(readRequest('serial', { sleepMs: 100 }))
+        if (result.kind !== 'read') throw new Error(`stream read is ${result.kind}`)
+      }
+    }
+    const streams = Array.from({ length: 6 }, stream)
+    await delay(300)
+    const start = Date.now()
+    expect((await storage.commit(commitOf(built, 'during-stream'))).kind).toBe('committed')
+    const elapsed = Date.now() - start
+    await Promise.all(streams)
+    // Under the defect the commit lands only after the streams end: after `stopAt`, not before.
+    expect(elapsed).toBeLessThan(1000)
+    expect(start + elapsed).toBeLessThan(stopAt)
+  })
+
+  it('keeps the place of a sent write until the Worker answers, also after its caller stopped observing', async () => {
+    // Defect (reviewer probe G12): the place goes back when the reply observation expires. A
+    // domain-serial read sent after that would snapshot before the write commits: it would see no
+    // row and return long before the write ends.
+    const { storage } = await readyProvider(workspace, built, { lockWaitMs: 200 }, 0)
+    await warmReaders(storage)
+    const start = Date.now()
+    const writing = storage.commit(
+      commitRequest(built, {
+        identity: identity({ operationKey: 'spinning' }),
+        commands: [command('ledger', { mode: 'spin', ms: '1000', note: 'spinning' })],
+      }),
+    )
+    expect(await writing).toMatchObject({ kind: 'unknown', diagnostic: 'reply_wait_expired' })
+    const read = await storage.read(readRequest('serial'))
+    expect(read).toMatchObject({ kind: 'read', output: { a: '1', b: '1' } })
+    expect(Date.now() - start).toBeGreaterThanOrEqual(950)
+    expect((await storage.query(identity({ operationKey: 'spinning' }))).kind).toBe('committed')
+  })
+
+  it('withdraws a write that waited at the barrier longer than lockWaitMs: unknown, no place kept, not pending', async () => {
+    // Defect: the wait has no bound (the commit would come back `committed` after the read), or
+    // the expired write keeps its place (the second serial read would wait behind it for ever).
+    const { storage } = await readyProvider(workspace, built, { lockWaitMs: 200 }, 1)
+    await warmReaders(storage)
+    const reading = storage.read(readRequest('serial', { sleepMs: 700 }))
+    await delay(150)
+    const start = Date.now()
+    const result = await storage.commit(commitOf(built, 'expired'))
+    expect(result).toMatchObject({ kind: 'unknown', diagnostic: 'barrier_wait_expired' })
+    expect(Date.now() - start).toBeLessThan(500)
+    const second = storage.read(readRequest('serial', { sleepMs: 50 }))
+    expect((await reading).kind).toBe('read')
+    expect((await second).kind).toBe('read')
+    // Nothing was sent: the identity is neither pending nor committed.
+    expect((await storage.query(identity({ operationKey: 'expired' }))).kind).toBe('not_committed')
+  })
+
+  it('withdraws a domain-serial read that times out while it waits at the barrier: its reader serves the next read at once', async () => {
+    // Defect: the expired read keeps its place and its reader until the barrier is granted to it
+    // (the old code): the snapshot read would wait for the first read to end (about 600 ms).
+    const { storage } = await readyProvider(workspace, built, { readQueueTimeoutMs: 100 }, 1)
+    await warmReaders(storage)
+    const first = storage.read(readRequest('serial', { sleepMs: 600 }))
+    await delay(100)
+    const expired = await storage.read(readRequest('serial', { sleepMs: 50 }))
+    expect(expired).toMatchObject({ kind: 'unavailable', reason: 'queue_timeout' })
+    const start = Date.now()
+    expect((await storage.read(readRequest('page'))).kind).toBe('read')
+    expect(Date.now() - start).toBeLessThan(300)
+    expect((await first).kind).toBe('read')
+  })
+
+  it('withdraws a write whose observer aborts while it waits at the barrier: the write never runs', async () => {
+    // Defect: the abort only detaches the observer and the write is still sent after the read
+    // (the old code): the query would find it `committed`.
+    const { storage } = await readyProvider(workspace, built, {}, 1)
+    await warmReaders(storage)
+    const reading = storage.read(readRequest('serial', { sleepMs: 500 }))
+    await delay(150)
+    const abort = new AbortController()
+    const pending = storage.commit(commitOf(built, 'aborted'), { signal: abort.signal })
+    await delay(50)
+    abort.abort()
+    expect(await pending).toMatchObject({ kind: 'unknown', diagnostic: 'observer_detached' })
+    expect((await reading).kind).toBe('read')
+    expect((await storage.query(identity({ operationKey: 'aborted' }))).kind).toBe('not_committed')
+  })
+})
+
+describe('the barrier is held for at most readObservationMs (SPEC 9.3)', () => {
+  it('releases the barrier at the observation deadline: a commit does not wait for the abandoned read', async () => {
+    // Defect: the barrier is held until the SQL of the read ends (the old code): the commit would
+    // wait the whole 800 ms sleep.
+    const { storage } = await readyProvider(workspace, built, { readObservationMs: 100 }, 1)
+    await warmReaders(storage)
+    const start = Date.now()
+    const reading = storage.read(readRequest('serial', { sleepMs: 800 }))
+    await delay(50)
+    expect((await storage.commit(commitOf(built, 'after-deadline'))).kind).toBe('committed')
+    expect(Date.now() - start).toBeLessThan(600)
+    expect((await reading).kind).toBe('unavailable')
+    expect(await reading).toMatchObject({ reason: 'read_timeout' })
+  })
+
+  it('a cancelled observation does not stop the deadline: the barrier of a cancelled read still goes at it', async () => {
+    // Defect: the cancel stops the timers of the task and the barrier is held until the SQL ends
+    // (the old code): the commit would wait the whole 800 ms sleep.
+    const { storage } = await readyProvider(workspace, built, { readObservationMs: 100 }, 1)
+    await warmReaders(storage)
+    const start = Date.now()
+    const abort = new AbortController()
+    const reading = storage.read(readRequest('serial', { sleepMs: 800 }), { signal: abort.signal })
+    await delay(50)
+    abort.abort()
+    expect((await reading).kind).toBe('cancelled')
+    expect((await storage.commit(commitOf(built, 'after-cancel'))).kind).toBe('committed')
+    expect(Date.now() - start).toBeLessThan(600)
   })
 })
 

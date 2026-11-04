@@ -17,14 +17,9 @@ import {
   type SystemActionDecision,
   type SystemActionRequest,
 } from '@omne-harness/authorization'
-import type {
-  ActionAdmission,
-  AgentAccessCheck,
-  AgentAccessDecision,
-} from '@omne-harness/agent-contract'
+import type { AgentAccessCheck, AgentAccessDecision } from '@omne-harness/agent-contract'
 import type { ActingForTenantPrincipal, SystemPrincipal } from '@omne-harness/identity'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
-import { succeed } from '@omne-harness/operation-result'
 import type {
   MutationName,
   SessionAccessCheck,
@@ -35,10 +30,11 @@ import { resolveCell, type BranchInput, type ResolvedCell, type SystemPurpose } 
 import { AGENT_POLICY } from './agent-policy.ts'
 import { SESSION_POLICY } from './session-policy.ts'
 
-/** The `work.owner` of a principal that the login of this request produced (server-entry, ID-16). */
-export const LOGIN_WORK_OWNER = 'identity-login'
-/** The `work.owner` of a session work principal (AA runtime object table, DA4 §4.1). */
-export const SESSION_WORK_OWNER = 'session'
+import { classOf } from '../../model/principals.ts'
+import { classify, SESSION_WORK_OWNER } from './principals.ts'
+export { LOGIN_WORK_OWNER, SESSION_WORK_OWNER } from './principals.ts'
+export { createActionAdmission } from './action-admission.ts'
+export { createToolAccessGuard } from './tool-access.ts'
 
 /** The two dependencies of both checks. Both read again on every call. */
 export type AccessPorts = Readonly<{
@@ -57,56 +53,6 @@ type Plan =
 
 const DENIED: Plan = Object.freeze({ kind: 'denied' })
 
-/** The principal, classified by shape alone. The value is the very object that was given. */
-type Classified =
-  | Readonly<{ column: 'login' | 'work'; principal: ActingForTenantPrincipal }>
-  | Readonly<{ column: 'system'; principal: SystemPrincipal }>
-
-function recordOf(value: unknown): object | null {
-  return typeof value === 'object' && value !== null ? value : null
-}
-
-function textMember(value: object, name: string): string | null {
-  const member: unknown = Reflect.get(value, name)
-  return typeof member === 'string' ? member : null
-}
-
-function isSystemShape(value: unknown): value is SystemPrincipal {
-  const record = recordOf(value)
-  return (
-    record !== null &&
-    textMember(record, 'kind') === 'system' &&
-    textMember(record, 'component') !== null
-  )
-}
-
-function isActingShape(value: unknown): value is ActingForTenantPrincipal {
-  const record = recordOf(value)
-  if (record === null || textMember(record, 'kind') !== 'acting-for-tenant') return false
-  const work = recordOf(Reflect.get(record, 'work'))
-  return (
-    work !== null &&
-    textMember(work, 'owner') !== null &&
-    textMember(work, 'work') !== null &&
-    isSystemShape(Reflect.get(record, 'actor')) &&
-    Reflect.get(record, 'tenant') !== undefined
-  )
-}
-
-/** Policy draft §2. A principal outside the three columns has no column. */
-function classify(value: unknown): Classified | null {
-  if (isSystemShape(value)) return { column: 'system', principal: value }
-  if (!isActingShape(value)) return null
-  switch (value.work.owner) {
-    case LOGIN_WORK_OWNER:
-      return { column: 'login', principal: value }
-    case SESSION_WORK_OWNER:
-      return { column: 'work', principal: value }
-    default:
-      return null
-  }
-}
-
 function tenantText(tenant: TenantId): string {
   const encoded = tenantCodec.encode(tenant)
   if (!encoded.ok) throw new TypeError('the tenant is not a minted tenant')
@@ -114,7 +60,7 @@ function tenantText(tenant: TenantId): string {
 }
 
 /** The tenant of an acting principal against the tenant of the access (policy draft §3 step 4). */
-function actsFor(who: Classified, tenant: TenantId | null): boolean {
+function actsFor(who: NonNullable<ReturnType<typeof classify>>, tenant: TenantId | null): boolean {
   if (who.column === 'system') return true
   return tenant !== null && tenantEquals(who.principal.tenant, tenant)
 }
@@ -125,10 +71,13 @@ type Builders = Readonly<{
   matrix(purpose: SystemPurpose, principal: SystemPrincipal): SystemActionRequest | null
 }>
 
-function planCell(cell: ResolvedCell, who: Classified, build: Builders): Plan {
+function planCell(
+  cell: ResolvedCell,
+  who: NonNullable<ReturnType<typeof classify>>,
+  build: Builders,
+): Plan {
   switch (cell.verdict) {
     case 'deny':
-    case 'deny-pending':
       return DENIED
     case 'member': {
       if (who.column === 'system') return DENIED
@@ -153,20 +102,8 @@ function unavailable(diagnostic: string): Verdict {
   return Object.freeze({ kind: 'unavailable', diagnostic })
 }
 
-function fromAdmission(decision: AdmissionDecision): Verdict {
-  switch (decision.kind) {
-    case 'allowed':
-      return Object.freeze({ kind: 'allowed', evidence: decision.evidence })
-    case 'denied':
-      return Object.freeze({ kind: 'denied' })
-    case 'unavailable':
-      return unavailable(decision.diagnostic)
-    default:
-      return unavailable(OUTSIDE_CONTRACT)
-  }
-}
-
-function fromSystemAction(decision: SystemActionDecision): Verdict {
+/** Both authorization ports answer with this shape; every other kind is outside the contract. */
+function fromDecision(decision: AdmissionDecision | SystemActionDecision): Verdict {
   switch (decision.kind) {
     case 'allowed':
       return Object.freeze({ kind: 'allowed', evidence: decision.evidence })
@@ -186,9 +123,9 @@ async function execute(plan: Plan, ports: AccessPorts): Promise<Verdict> {
     case 'unavailable':
       return unavailable(plan.diagnostic)
     case 'member':
-      return fromAdmission(await ports.admission.check(plan.input))
+      return fromDecision(await ports.admission.check(plan.input))
     case 'matrix':
-      return fromSystemAction(await ports.systemActions.check(plan.request))
+      return fromDecision(await ports.systemActions.check(plan.request))
     default:
       return unavailable(OUTSIDE_CONTRACT)
   }
@@ -435,10 +372,23 @@ export function createSessionAccessCheck(ports: AccessPorts): SessionAccessCheck
 
 type AgentRequest = Parameters<AgentAccessCheck<unknown>['check']>[0]
 
+/**
+ * The principal of an Agent request. `receive-result` alone also takes the Model host work
+ * principal M (`src/model/principals.ts`): the Model host pushes a result with the M it resolved
+ * through `ModelHostAuthority.resolve`, and the `receive-result` row admits it by the member cell
+ * of the work column, which checks the tenant only (R2-D248, DP-4 Q-1). M takes no other operation.
+ */
+function agentPrincipalOf(operation: string, principal: unknown): ReturnType<typeof classify> {
+  const who = classify(principal)
+  if (who !== null || operation !== 'receive-result') return who
+  const model = classOf(principal)
+  return model?.kind === 'host' ? { column: 'work', principal: model.principal } : null
+}
+
 function planAgent(input: AgentRequest): Plan {
   const { access, operation, target } = input
   if (typeof operation !== 'string' || !Object.hasOwn(AGENT_POLICY, operation)) return DENIED
-  const who = classify(access.principal)
+  const who = agentPrincipalOf(operation, access.principal)
   if (who === null || !actsFor(who, access.tenant)) return DENIED
   // Policy draft §3 step 5: a `scope` target of a work principal is the scope of its own session.
   if (
@@ -501,18 +451,4 @@ function agentMatrixRequest(
 export function createAgentAccessCheck(ports: AccessPorts): AgentAccessCheck<unknown> {
   const check: AgentAccessCheck<unknown>['check'] = input => answer(() => planAgent(input), ports)
   return Object.freeze({ check })
-}
-
-const NO_RULE_SOURCE =
-  'no action rule source is installed in this deployment; an action is never admitted without one'
-
-/**
- * `ActionAdmission` for this deployment (application assembly, `agentActionAdmission`). M2 has no
- * rule source, no permission interpreter and no decision card interpreter, so every action is
- * `unavailable`. There is no default allow, and `permissions` or `decision` change nothing.
- */
-export function createActionAdmission(): ActionAdmission<unknown> {
-  const admit: ActionAdmission<unknown>['admit'] = () =>
-    Promise.resolve(succeed({ kind: 'unavailable', diagnostic: NO_RULE_SOURCE }))
-  return Object.freeze({ admit })
 }

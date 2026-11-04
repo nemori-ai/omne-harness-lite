@@ -149,13 +149,13 @@ async function settledOrPending<T>(promise: Promise<T>): Promise<T | 'pending'> 
   ])
 }
 
-it('declares the host layer, the files and command keys, no isolation, and an empty resource recovery', async () => {
+it('declares the host facilities, no isolation, and platform resource recovery availability', async () => {
   const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
   expect(provider).toMatchObject({
     name: 'host-files',
     bindingKinds: ['host_machine'],
     continuity: { kind: 'not_guaranteed' },
-    facilities: ['files', 'command'],
+    facilities: ['files', 'command', 'terminal'],
     isolation: [],
   })
   expect(provider.generation).toMatch(/^[0-9a-f-]{36}$/)
@@ -163,9 +163,9 @@ it('declares the host layer, the files and command keys, no isolation, and an em
     provider.generation,
   )
   expect(provider.quotaDomain).toBe('host-files')
-  // The command scopes are listed through the user manager; a Linux host without one cannot list.
+  // Windows has no complete cold index; Linux needs a reachable user manager.
   expect(await provider.listRecoveryResources?.(scope1)).toEqual(
-    (await userManagerReachable()) || process.platform !== 'linux'
+    process.platform !== 'win32' && ((await userManagerReachable()) || process.platform !== 'linux')
       ? { kind: 'listed', resources: [] }
       : { kind: 'unavailable' },
   )
@@ -179,7 +179,7 @@ it('declares the host layer, the files and command keys, no isolation, and an em
     generation: provider.generation,
     version: packageVersion,
     platform: { os: process.platform, release: release() },
-    facilities: ['files', 'command'],
+    facilities: ['files', 'command', 'terminal'],
     isolation: [],
     prerequisites: facts.prerequisites,
   })
@@ -208,7 +208,7 @@ it('hands out a host lease with its own identity and evidence, and the files and
   expect(acquired.lease.continuity).toEqual({ kind: 'not_guaranteed' })
   expect(acquired.lease.facility('files')).toBeDefined()
   expect(acquired.lease.facility('command')).toBeDefined()
-  expect(acquired.lease.facility('terminal')).toBeUndefined()
+  expect(acquired.lease.facility('terminal')).toBeDefined()
   expect(await acquired.lease.release()).toEqual({ kind: 'released' })
 })
 

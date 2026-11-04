@@ -14,6 +14,7 @@ import {
   AGENT_POLICY,
   MAINTENANCE_GRANTS,
   MAINTENANCE_GRANT_REVISION,
+  SESSION_MAINTAINER_COMPONENT,
   SESSION_POLICY,
   holderProjection,
   releaseMaintenanceGrants,
@@ -57,10 +58,15 @@ function agentInstanceRequest(
 }
 
 describe('the release grant table', () => {
-  it('is a frozen constant with a record for the agent host and the tool residency principal', () => {
+  it('is a frozen constant with a record for each of the four system holders', () => {
     expect(Object.isFrozen(MAINTENANCE_GRANTS)).toBe(true)
     expect(AGENT_HOST_COMPONENT).toBe('agent-host')
-    expect(Object.keys(MAINTENANCE_GRANTS).sort()).toEqual(['agent-host', 'toolResidencyPrincipal'])
+    expect(Object.keys(MAINTENANCE_GRANTS).sort()).toEqual([
+      'agent-host',
+      'sessionPrincipals.maintainer',
+      'tenant-domain-scanner',
+      'toolResidencyPrincipal',
+    ])
   })
 
   it('gives the agent host the three agent instance purposes and nothing else', () => {
@@ -72,6 +78,11 @@ describe('the release grant table', () => {
 
   it('gives the tool residency principal resident-references only', () => {
     expect(MAINTENANCE_GRANTS.toolResidencyPrincipal.purposes).toEqual(['resident-references'])
+  })
+
+  it('gives the session maintainer pending-sessions only (R2-D204 item 2)', () => {
+    expect(SESSION_MAINTAINER_COMPONENT).toBe('sessionPrincipals.maintainer')
+    expect(MAINTENANCE_GRANTS[SESSION_MAINTAINER_COMPONENT].purposes).toEqual(['pending-sessions'])
   })
 
   it('writes every record as an open deployment-level release record without an end time', () => {
@@ -187,6 +198,9 @@ describe('the holder projection', () => {
     ])
     expect(projection.toolResidencyPrincipal).toEqual([
       { table: 'session', operation: 'references', purpose: 'resident-references' },
+    ])
+    expect(projection[SESSION_MAINTAINER_COMPONENT]).toEqual([
+      { table: 'session', operation: 'pending', purpose: 'pending-sessions' },
     ])
   })
 })

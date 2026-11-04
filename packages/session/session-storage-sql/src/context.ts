@@ -18,6 +18,7 @@ import type {
   TenantDomainAccess,
 } from '@omne-harness/sql-contract'
 import { OWNER, type CursorOptions } from './cursor.ts'
+import type { WorkCacheBounds } from './work-cache.ts'
 import { PROTOCOL } from './worker/schema.ts'
 
 export type SessionStorageOptions<P> = Readonly<{
@@ -33,6 +34,12 @@ export type SessionStorageOptions<P> = Readonly<{
   attemptLimit?: number
   /** Cursor lifetime. Default 15 minutes. */
   cursorTtlMs?: number
+  /**
+   * The bounds of the work cache of `storage` (SPEC RT-04), shared by every reader of the same
+   * storage object; the first reader that reaches the storage sets them. Defaults
+   * `WORK_CACHE_SESSIONS` and `WORK_CACHE_BYTES`; 0 keeps nothing.
+   */
+  workCache?: WorkCacheBounds
   now?: () => number
 }>
 
@@ -155,7 +162,13 @@ export async function readHandler(
     requestKey: randomUUID(),
     input,
   })
-  if (result.kind === 'read') return succeed(result.output as HandlerOutput)
+  if (result.kind === 'read') {
+    const output = result.output as HandlerOutput
+    // A stored row that does not read (support.ts `handler`).
+    return output['kind'] === 'malformed'
+      ? failure(unavailable(`read ${handler}: ${String(output['diagnostic'])}`))
+      : succeed(output)
+  }
   return failure(
     unavailable(`read ${handler}: ${result.kind === 'cancelled' ? 'cancelled' : result.reason}`),
   )

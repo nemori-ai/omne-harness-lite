@@ -2,7 +2,8 @@ import type { AssemblyInput, AssemblyResult, PreparedInputKey } from './values.j
 import type { HistoryRow } from './ports.js'
 import type { OperationContext } from './operation-context.js'
 import { validateInput } from './input-validation.js'
-import { prepareStable } from './preparation.js'
+import { prepareStable, type ReuseBasis } from './preparation.js'
+import { contentControlOf, type AssemblyReuse } from './reuse.js'
 import { placeLayers, assembledInput } from './assembly-layers.js'
 import { representLayers } from './assembly-representation.js'
 import { measureLayers } from './assembly-budget.js'
@@ -15,17 +16,39 @@ export async function assembleInputs<P>(
   key: PreparedInputKey,
   rows: readonly HistoryRow[],
   context: OperationContext<P>,
+  basis?: ReuseBasis & Readonly<{ reuse?: AssemblyReuse | undefined }>,
 ): Promise<AssemblyResult> {
   const invalid = validateInput(input)
   if (invalid !== null) return invalid
-  const stable = prepareStable(input, key, rows)
+  const stable = prepareStable(input, key, rows, basis)
   if (stable.kind !== 'prepared') return stable
   const dynamic = placeLayers(input, stable)
   if (dynamic.kind !== 'layers') return dynamic
+  // The stable derivations are complete here; the registry publishes them only with a result.
+  basis?.reuse?.stage({
+    target: input.target,
+    key: stable.key,
+    history: {
+      evidence: input.history,
+      token: key.tokens.history,
+      rows: stable.rows,
+      view: stable.view,
+    },
+    prompt: { token: key.tokens.prompt, context: input.assembleContext, rendered: stable.prompt },
+    tools: { token: key.tokens.tools, declarations: stable.declarations },
+    snapshot: { identity: dynamic.stable.identity, reminder: dynamic.layers.snapshotReminder },
+    split: dynamic.stable.split,
+    contentControl: contentControlOf(input),
+  })
   const represented = await representLayers(input, context, dynamic.messages)
   if (represented.kind !== 'chosen') return represented
-  const assembled = assembledInput(input, context.policies, dynamic.layers, represented.messages)
-  const facts = continuationFacts(input.history, input.selection, assembled)
+  const assembled = assembledInput(input, dynamic.layers, represented.messages)
+  const facts = continuationFacts(
+    input.history,
+    input.selection,
+    assembled,
+    context.policies.representation.identity,
+  )
   const measured = await measureLayers(
     input,
     context,

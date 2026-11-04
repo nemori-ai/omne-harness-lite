@@ -108,11 +108,24 @@ export type Label =
   | 'ready'
   | 'call'
   | 'recorded'
+  | 'voided'
   | 'settled'
   | 'kept'
   | 'partial'
   | 'empty'
   | 'fixed'
+  | 'cancel'
+  | 'cancelled'
+  | 'tools'
+  | 'judged'
+  | 'open'
+  | 'denied'
+  | 'dispatched'
+  | 'judge'
+  | 'slotted'
+  | 'received'
+  | 'batch'
+  | 'dispatch'
   | 'ended'
   | 'observed'
   | 'delivered'
@@ -169,6 +182,16 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'E4', on: 'resume-M5', to: 'M5' },
   { from: 'E4', on: 'resume-I3', to: 'I3' },
   { from: 'E4', on: 'resume-I4', to: 'I4' },
+  { from: 'E4', on: 'resume-A0', to: 'A0' },
+  { from: 'E4', on: 'resume-A1', to: 'A1' },
+  { from: 'E4', on: 'resume-A2', to: 'A2' },
+  { from: 'E4', on: 'resume-A3', to: 'A3' },
+  { from: 'E4', on: 'resume-T0', to: 'T0' },
+  { from: 'E4', on: 'resume-T1', to: 'T1' },
+  { from: 'E4', on: 'resume-T2', to: 'T2' },
+  { from: 'E4', on: 'resume-T3', to: 'T3' },
+  { from: 'E4', on: 'resume-T4', to: 'T4' },
+  { from: 'E4', on: 'resume-T5', to: 'T5' },
   { from: 'E4', on: 'resume-F1', to: 'F1' },
   { from: 'E4', on: 'resume-F2', to: 'F2' },
   { from: 'E4', on: 'resume-F3', to: 'F3' },
@@ -193,6 +216,10 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'M0', on: 'recorded', to: 'M6' },
   { from: 'M6', on: 'admitted', to: 'M1' },
   { from: 'M6', on: 'wait', to: 'W0' },
+  // R2-D237: the Model's definite refusal of the admission is the failure candidate model-refused.
+  { from: 'M6', on: 'try-finish', to: 'F1' },
+  // R2-D292: an authoritative not-accepted voids the intent; the step prepares again at I1.
+  { from: 'M6', on: 'voided', to: 'I1' },
   { from: 'M1', on: 'wait', to: 'W0' },
   { from: 'M1', on: 'settled', to: 'M3' },
   { from: 'M3', on: 'kept', to: 'M4' },
@@ -208,12 +235,40 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'I3', on: 'partial', to: 'I8' },
   { from: 'I3', on: 'try-finish', to: 'F1' },
   { from: 'I4', on: 'empty', to: 'I8' },
+  { from: 'I4', on: 'tools', to: 'A0' },
+  { from: 'A0', on: 'judged', to: 'A1' },
+  { from: 'A1', on: 'judge', to: 'A0' },
+  { from: 'A1', on: 'open', to: 'A2' },
+  { from: 'A1', on: 'denied', to: 'A3' },
+  { from: 'A2', on: 'dispatched', to: 'T0' },
+  { from: 'A2', on: 'wait', to: 'W0' },
+  { from: 'A3', on: 'slotted', to: 'T2' },
+  { from: 'T0', on: 'wait', to: 'W0' },
+  { from: 'T0', on: 'received', to: 'T1' },
+  { from: 'T1', on: 'kept', to: 'T2' },
+  { from: 'T2', on: 'passed', to: 'T3' },
+  { from: 'T3', on: 'wait', to: 'W0' },
+  { from: 'T3', on: 'batch', to: 'T4' },
+  { from: 'T3', on: 'admit', to: 'T5' },
+  // A2's wait for a free place of toolConcurrency (A2 -> A2 in the graph): a slot that T1 filled
+  // frees a place, and an association-unknown intent is sent again with its original request.
+  { from: 'T3', on: 'dispatch', to: 'A2' },
+  { from: 'T4', on: 'proceed', to: 'T5' },
+  { from: 'T5', on: 'admitted', to: 'I8' },
+  { from: 'T5', on: 'rejected', to: 'H0' },
+  { from: 'T5', on: 'wait', to: 'W0' },
+  { from: 'H0', on: 'try-finish', to: 'F1' },
   { from: 'I8', on: 'take-inputs', to: 'I0' },
   { from: 'I8', on: 'try-finish', to: 'F1' },
   { from: 'I8', on: 'wait', to: 'W0' },
   { from: 'F1', on: 'fixed', to: 'F2' },
+  { from: 'E1', on: 'cancel', to: 'F0' },
+  { from: 'E4', on: 'cancel', to: 'F0' },
+  { from: 'F0', on: 'cancelled', to: 'F1' },
+  { from: 'F0', on: 'terminal', to: 'F4' },
   { from: 'F1', on: 'reconcile', to: 'R0' },
   { from: 'F2', on: 'proceed', to: 'F3' },
+  { from: 'F2', on: 'reconcile', to: 'R0' },
   { from: 'F3', on: 'ended', to: 'F4' },
   { from: 'F3', on: 'reconcile', to: 'R0' },
   { from: 'F4', on: 'observed', to: 'O0' },

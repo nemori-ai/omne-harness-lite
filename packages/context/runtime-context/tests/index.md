@@ -15,4 +15,6 @@
 - [replay-checkpoints.spec.ts](replay-checkpoints.spec.ts)：没有步提交的 `checkpointed` 块在恢复材料里缺席
 - [diagnostics.spec.ts](diagnostics.spec.ts)：诊断不带块值，变化出口与诊断出口抛错不改结果
 - [bind-caller.spec.ts](bind-caller.spec.ts)：`bind` 的调用方声明在访问核对之后比较
+- [commit-order.spec.ts](commit-order.spec.ts)：提交顺序的形式守卫，对照 RcCommit 模型
+- [read-differential.spec.ts](read-differential.spec.ts)：读取缓存与父链的差分守卫，对照 RcRead 模型
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空

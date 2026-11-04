@@ -181,14 +181,14 @@ S4 只覆盖这一种情形：tryFinish 在 status 不是 settling 的那一步�
 
 例：符合轨迹 `complete-2` 先固定候选（F1-complete），再发布一条消息并离开 settling（Ja-h1），再 F2，最后以同一候选 ended。另一条路径也可达：F1-complete（输入尚未承接）→ TakeInputs → F2 → Prepare → TryFinish ended。这两条路径在 SPEC 下是否合法，由待裁决 3 决定。
 
-## 取消收束：已定读法乙，本波是已知限制
+## 取消收束：已定读法乙，当前是已知限制
 
 SPEC 写明三件事：业务前提真正变化时建立新候选并保存替代链接（“条件终结”）；新输入先成立时 tryFinish 返回 changed（“条件终结”结果表）；submit 先成功时终结必须重读并保留真实处置（“[输入内容与水位线](../SPEC.md#输入内容与水位线)”）。SPEC 没有写明：取消候选建立之后又受理新输入时，取消怎样收束。两种读法各与一处原文相抵：
 
 - 读法甲：`establish-cancellation` 替代水位线已落后的取消候选。它超出“commitSettlement 的变体”表 establish-cancellation 行的“Journal 唯一允许的新事实”，那一列只允许取代 complete 或 failed 候选。
 - 读法乙：取消候选不因后来的输入返回 changed，这些输入记为 held，取消收束之后再处理。五类责任表 inputs 行支持它（取消候选保留所有 accepted input 及终局处置）。它与结果表 changed 行的“含新输入先成立”相抵。
 
-Reduce 已定读法乙（[#502 评论](https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6562280172)）。理由是取消必须能收束，乙只延后新输入，不丢输入。本波没有实现乙：SPEC 尚未补写，两份内存 Journal 仍是另一种做法，模型也没有表达乙。这是已知限制，进波 2。波 2 的工作是补写 SPEC、对齐两份内存 Journal、在模型中表达乙，并让探针 `probe-keep-cancelled` 的反例转为通过。
+Reduce 已定读法乙（[#502 评论](https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6562280172)）。理由是取消必须能收束，乙只延后新输入，不丢输入。当前没有实现乙：SPEC 尚未补写，两份内存 Journal 仍是另一种做法，模型也没有表达乙。这是已知限制。待办是补写 SPEC、对齐两份内存 Journal、在模型中表达乙，并让探针 `probe-keep-cancelled` 的反例转为通过。
 
 两份内存 Journal 的做法是：`establish-cancellation` 不替代当前的取消候选，返回 invalid；候选的输入水位线落后时，tryFinish 返回 changed。两条合在一起，取消候选之后受理的一项输入会让取消一直不能收束。代码注释为前一条引用 rulings-S3B。本页没有找到这份记录可核对的采用依据。Reduce 的裁定已取代这一做法。
 
@@ -233,8 +233,8 @@ Reduce 已定读法乙（[#502 评论](https://github.com/nemori-ai/omne-harness
 
 | 步骤 | 不回放的原因 |
 | --- | --- |
-| `Migrate`、`RecordLegacyReturn`、`RecordToolAssociation`、`RecordCardReconciliation` | 本波的回放驱动没有映射它们。夹具接口已有可选控制 `seedLegacyCandidate` 与 `hostRecord`，扩展驱动后可以回放 |
-| `Rh`、`JaRetire`、第二个 H | 本波的回放驱动没有映射它们。`JaRetire` 与第二个 H 都要先经 `Exclude` |
+| `Migrate`、`RecordLegacyReturn`、`RecordToolAssociation`、`RecordCardReconciliation` | 当前的回放驱动没有映射它们。夹具接口已有可选控制 `seedLegacyCandidate` 与 `hostRecord`，扩展驱动后可以回放 |
+| `Rh`、`JaRetire`、第二个 H | 当前的回放驱动没有映射它们。`JaRetire` 与第二个 H 都要先经 `Exclude` |
 | `Exclude`、`ProviderPrepare` 的 rejected | 提供者一侧的动作，没有 Journal 调用。prepared 只作为无调用的步骤出现在轨迹中 |
 | `Hold`、`Decide` | 挂起写入在模型中是抽象的未定推进写入，没有对应的单一 Journal 调用 |
 | `ParticipantAccept`、`Deliver`、`ParticipantTerminal` | 轨迹配置取 standalone 绑定（`Coordinated = FALSE`），回放驱动没有映射参加者的步骤 |
@@ -249,13 +249,14 @@ Reduce 已定读法乙（[#502 评论](https://github.com/nemori-ai/omne-harness
 - Journal 写入内部的交错、跨进程提交、存储故障与耐久性。模型假定每次写入是原子提交。
 - 终态后观察、确认进度、`reconcile` 与回复准入的已核实前缀。
 - 协调者一侧的取消路线（F0 与 cancelled 的 F1）。AG-20 落地时扩展模型。
-- 取消收束的读法乙，见“取消收束”。进波 2。
+- 取消收束的读法乙，见“取消收束”。
 - 结果的 processed 路径。模型只有 custody 一条保管路径。
 - Model 结果的接收共同提交与 Tool 结果的 recordResult 保管路径之间的差别。
 - 参加者的 ready、blocked、unknown 条件，有效取消之前的 exclude 与 exclude 的 unknown 结论，撤权尚未成立的状态。见“被假定的环境行为”。
 - author route 的终态前经过只是一个布尔量。清单在 F2 之后仍然有效，模型不强制“先 F2 后 prepareFinish”。轨迹 `ordinary-1` 先 Prepare 后 F2，而“条件终结”写普通路径的次序固定。模型只检查 tryFinish 在没有证明时不 ended，不检查调用方是否按次序调用。
 - 回执丢失只对 tryFinish、prepareFinish、judge-cancellation 与保管写入建模，见“规模上限”。
 - Journal 真件的回放。它在 W1-RUN-8 的接受阶段调用同一个驱动。
+- M6 的确定拒绝（R2-D237）。它经 F1 以 `model-refused` 结束，call 项以 Model 的原拒绝为收场依据退出 `calls`。模型的 call 只有 issued、recorded、settled 三态，没有已拒绝态。
 
 ## 待 Agent 契约拥有者裁定
 

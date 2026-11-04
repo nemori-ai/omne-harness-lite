@@ -1,6 +1,7 @@
 // The account outlet of Agent as a Request Context account fact (SPEC "账目出站").
 import { describe, expect, it } from 'vitest'
 import type { AgentAccountHandoff, AgentAccountOutcome } from '@omne-harness/agent-contract'
+import type { TenantId } from '@omne-harness/legal-identity'
 import {
   agentAccountOutletConformance,
   sampleAccountHandoff,
@@ -60,7 +61,7 @@ describe('the conformance suite of AgentAccountOutlet', () => {
       current: async (who, handoff) => {
         const call = resolveModelInvocationRef(handoff.call, who.tenant)
         if (!('ok' in call)) return null
-        return inbox.current(call.ok.call, handoff.dispatch)
+        return inbox.current(who.tenant, call.ok.call, handoff.dispatch)
       },
     })
     expect(cases.length).toBeGreaterThan(0)
@@ -116,28 +117,37 @@ describe('the fact handed to the inbox', () => {
 })
 
 describe('a tenant that is not the tenant of the call', () => {
-  it('is denied before the resolver and the inbox are asked', async () => {
-    const { inbox, facts } = stubInbox(() => receivedOnce)
-    let resolved = 0
+  // R2-D357: the call reference carries no tenant. A handoff encoded for another tenant is the
+  // same text, so the call is located in the deliverer's tenant, never in the other one.
+  it('locates the call in the tenant of the access, never in another tenant', async () => {
+    const asked: TenantId[] = []
+    const { inbox } = stubInbox(() => receivedOnce)
     const outlet = createAgentAccountOutlet({
       inbox,
       sender,
       resolveTarget: async input => {
-        resolved++
+        asked.push(input.call.tenant)
         return targetOf(input.call.tenant)
       },
     })
     const handoff = sampleAccountHandoff(otherAccess.tenant, 'foreign')
-    expect(await outlet.deliver({ access, handoff })).toEqual({ kind: 'denied' })
-    expect(resolved).toBe(0)
-    expect(facts).toHaveLength(0)
+    expect(handoff).toEqual(sampleAccountHandoff(access.tenant, 'foreign'))
+    await outlet.deliver({ access, handoff })
+    expect(asked).toEqual([access.tenant])
   })
 
-  it('is denied before the target is missing, so a foreign call never learns the scope state', async () => {
+  it('answers a missing target the same for a handoff encoded for another tenant', async () => {
     const { inbox } = stubInbox(() => receivedOnce)
     const outlet = createAgentAccountOutlet({ inbox, sender, resolveTarget: absentAccountTarget })
-    const handoff = sampleAccountHandoff(otherAccess.tenant, 'foreign-absent')
-    expect(await outlet.deliver({ access, handoff })).toEqual({ kind: 'denied' })
+    const foreign = await outlet.deliver({
+      access,
+      handoff: sampleAccountHandoff(otherAccess.tenant, 'foreign-absent'),
+    })
+    const own = await outlet.deliver({
+      access,
+      handoff: sampleAccountHandoff(access.tenant, 'foreign-absent'),
+    })
+    expect(JSON.stringify(foreign)).toBe(JSON.stringify(own))
   })
 
   it('is denied when the resolver answers a target of another tenant, and nothing is received', async () => {

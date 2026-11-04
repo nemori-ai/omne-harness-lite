@@ -31,7 +31,9 @@ import type {
   SessionRevision,
   SessionTransactionPort,
 } from '@omne-harness/session-contract'
+import type { SessionAdoptedRequests } from './adopted-request.ts'
 import type { SessionCursorSigning } from './cursor-signing.ts'
+import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts'
 
 /** The intercept configuration of a caller plugin: `inject: { session: { caller } }`. */
 export type SessionIntercept = Readonly<{ caller: SessionCallerClass }>
@@ -78,6 +80,8 @@ export abstract class SessionTransactionPortService<P = unknown>
   abstract readonly queryControlOperation: SessionTransactionPort<P>['queryControlOperation']
   abstract readonly readModelSelection: SessionTransactionPort<P>['readModelSelection']
   abstract readonly commitEntries: SessionTransactionPort<P>['commitEntries']
+  /** Optional like the port member, and not abstract: a provider without it omits it. */
+  declare readonly commitLog?: NonNullable<SessionTransactionPort<P>['commitLog']>
   abstract readonly history: SessionTransactionPort<P>['history']
   abstract readonly pending: SessionTransactionPort<P>['pending']
   abstract readonly references: SessionTransactionPort<P>['references']
@@ -167,15 +171,15 @@ export abstract class SessionIdentityBridgeService<P = unknown>
 export const sessionIdentityKey = SessionIdentityBridgeService.provide
 
 /** @owner packages/session/session-contract */
-export abstract class SessionEvidenceBridgeService
+export abstract class SessionEvidenceBridgeService<P = unknown>
   extends Service
-  implements SessionEvidenceBridge
+  implements SessionEvidenceBridge<P>
 {
   static readonly provide = 'sessionEvidence'
   constructor(ctx: Context) {
     super(ctx, SessionEvidenceBridgeService.provide)
   }
-  abstract readonly prepare: SessionEvidenceBridge['prepare']
+  abstract readonly prepare: SessionEvidenceBridge<P>['prepare']
 }
 export const sessionEvidenceKey = SessionEvidenceBridgeService.provide
 
@@ -256,15 +260,17 @@ export abstract class ScopeReleasePortService extends Service implements ScopeRe
 export const sessionScopeReleaseKey = ScopeReleasePortService.provide
 
 /** @owner packages/session/session-contract */
-export abstract class SessionAdoptionSourceService
+export abstract class SessionAdoptionSourceService<P = unknown>
   extends Service
-  implements SessionAdoptionSource
+  implements SessionAdoptionSource<P>
 {
   static readonly provide = 'sessionAdoptionSource'
   constructor(ctx: Context) {
     super(ctx, SessionAdoptionSourceService.provide)
   }
-  abstract readonly prepare: SessionAdoptionSource['prepare']
+  abstract readonly prepare: SessionAdoptionSource<P>['prepare']
+  /** Optional like the port member, and not abstract: the adoption point that Session calls before `startRun`. */
+  declare readonly plan?: NonNullable<SessionAdoptionSource<P>['plan']>
 }
 export const sessionAdoptionSourceKey = SessionAdoptionSourceService.provide
 
@@ -292,6 +298,38 @@ export abstract class SessionCustodySourceService extends Service implements Ses
 export const sessionCustodySourceKey = SessionCustodySourceService.provide
 
 /**
+ * The replay facts of the context holder: what its durable facts say about the checkpointed
+ * blocks of a scope. Trusted: the `session-ad03` row provides it, and only the assembly entry of
+ * Runtime Context reads it, per call. A missing service reads as `unavailable`.
+ *
+ * @owner packages/session/session-cordis-contract
+ */
+export abstract class SessionReplayFactsService extends Service implements SessionReplayFacts {
+  static readonly provide = 'sessionReplayFacts'
+  constructor(ctx: Context) {
+    super(ctx, SessionReplayFactsService.provide)
+  }
+  abstract readonly stepCommittedBlocks: SessionReplayFacts['stepCommittedBlocks']
+}
+export const sessionReplayFactsKey = SessionReplayFactsService.provide
+
+/**
+ * The session that a scope belongs to. Trusted: the `session-ad03` row provides it from the index
+ * that the holder keeps, and only the assembly entry of Runtime Context reads it, per call. A
+ * missing service reads as `unavailable`, never as a grant.
+ *
+ * @owner packages/session/session-cordis-contract
+ */
+export abstract class SessionScopeLookupService extends Service implements SessionScopeLookup {
+  static readonly provide = 'sessionScopeLookup'
+  constructor(ctx: Context) {
+    super(ctx, SessionScopeLookupService.provide)
+  }
+  abstract readonly lookup: SessionScopeLookup['lookup']
+}
+export const sessionScopeLookupKey = SessionScopeLookupService.provide
+
+/**
  * The narrow cursor signing of the Session reads. A provider signs and verifies with its current
  * key per call. The consumer takes it per call (`ctx.get`) and treats absence as `unavailable`.
  *
@@ -307,6 +345,26 @@ export abstract class SessionCursorSigningService extends Service implements Ses
 }
 export const sessionCursorSigningKey = SessionCursorSigningService.provide
 
+/**
+ * The adopted request of a session: what the session-log Journal provider saved in the same
+ * publication as the last main-purpose M0 (FIXED-FACTS F4). The `agent-journal` row provides it
+ * in the plugin body of `agentJournal`, so it is in the same authoritative ordering as the Agent
+ * records. The consumer takes it per call (`ctx.get`) and treats absence as `unavailable`.
+ *
+ * @owner packages/session/session-cordis-contract
+ */
+export abstract class SessionAdoptedRequestsService<P = unknown>
+  extends Service
+  implements SessionAdoptedRequests<P>
+{
+  static readonly provide = 'sessionAdoptedRequests'
+  constructor(ctx: Context) {
+    super(ctx, SessionAdoptedRequestsService.provide)
+  }
+  abstract readonly readAdoptedRequest: SessionAdoptedRequests<P>['readAdoptedRequest']
+}
+export const sessionAdoptedRequestsKey = SessionAdoptedRequestsService.provide
+
 declare module '@deepseek-ai/cordis' {
   // The trusted identity adapter of an assembly narrows the principal type. Providers still
   // check every input at run time.
@@ -319,17 +377,20 @@ declare module '@deepseek-ai/cordis' {
     sessionWorkPrincipals: SessionWorkPrincipalsService<unknown>
     sessionPrincipalBindings: SessionPrincipalBindingsService
     sessionIdentity: SessionIdentityBridgeService<unknown>
-    sessionEvidence: SessionEvidenceBridgeService
+    sessionEvidence: SessionEvidenceBridgeService<unknown>
     sessionClock: SessionClockService
     sessionIdleInput: SessionIdleInputService<unknown>
     sessionContextInput: SessionContextInputService<unknown>
     sessionNotifier: SessionNotifierService
     sessionAgentDrive: AgentDrivePortService
     sessionScopeRelease: ScopeReleasePortService
-    sessionAdoptionSource: SessionAdoptionSourceService
+    sessionAdoptionSource: SessionAdoptionSourceService<unknown>
     sessionProductionSource: SessionProductionSourceService
     sessionCustodySource: SessionCustodySourceService
     sessionCursorSigning: SessionCursorSigningService
+    sessionReplayFacts: SessionReplayFactsService
+    sessionScopeLookup: SessionScopeLookupService
+    sessionAdoptedRequests: SessionAdoptedRequestsService<unknown>
   }
   interface Events {
     /**

@@ -21,6 +21,7 @@ import {
 } from './initialization-plan.ts'
 import { initializationGuard, validateAdoption } from './initialization-validation.ts'
 import type {
+  InitialAdoption,
   InitializationAdoption,
   InitializationGuardFacts,
   InitializationGuardResult,
@@ -52,6 +53,7 @@ function adoptionEntries(
   value: InitializationAdoption,
   createOperation: SessionOperationId,
   item: Readonly<{ owner: string; item: string }> | null,
+  created: InitialAdoption,
 ): readonly EncodedEntry[] {
   const residents = residentEntries(
     snapshot,
@@ -71,6 +73,7 @@ function adoptionEntries(
         initialization: { createOperation, item, adoption: value },
       },
       originOf(value.source),
+      { created },
     ),
     ...residents.entries,
   ]
@@ -145,6 +148,7 @@ function successfulFacts(
       consequence.adoption,
       state.createOperation,
       plan,
+      snapshot?.initialization?.initialAdoption ?? state.initialAdoption,
     )
   }
   const decision = consequence.decision
@@ -276,7 +280,7 @@ export function decideInitializationCreate(
     }
     const initial = [
       encodeEntry(created, originOf(facts.initialAdoption.source)),
-      ...adoptionEntries(null, adoption, command.input.operation, null),
+      ...adoptionEntries(null, adoption, command.input.operation, null, facts.initialAdoption),
     ]
     return entries(
       resultEntries(

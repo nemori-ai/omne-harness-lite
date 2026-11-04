@@ -173,6 +173,158 @@
         "path": "docs/member-documentation.md",
         "anchor": "行为契约与完整文档"
       }
+    },
+    {
+      "id": "row-tool-residency",
+      "path": "apps/harness-server/docs/rows/tool-residency.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      }
+    },
+    {
+      "id": "row-tool-release",
+      "path": "apps/harness-server/docs/rows/tool-release.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      }
+    },
+    {
+      "id": "row-tool-runtime",
+      "path": "apps/harness-server/docs/rows/tool-runtime.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      }
+    },
+    {
+      "id": "row-execution-host",
+      "path": "apps/harness-server/docs/rows/execution-host.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      }
+    },
+    {
+      "id": "row-session-storage",
+      "path": "apps/harness-server/docs/rows/session-storage.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      }
+    },
+    {
+      "id": "row-runtime-context-trust",
+      "path": "apps/harness-server/docs/rows/runtime-context-trust.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      }
+    },
+    {
+      "id": "row-execution-authorities",
+      "path": "apps/harness-server/docs/rows/execution-authorities.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      }
+    },
+    {
+      "id": "row-adoption-sources",
+      "path": "apps/harness-server/docs/rows/adoption-sources.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      }
     }
   ]
 }

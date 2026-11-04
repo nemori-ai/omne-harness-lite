@@ -24,6 +24,7 @@ import {
   type PrincipalCodec,
   type GuardResource,
   type StartCoordinatorAccess,
+  type StartPermitRequirements,
 } from '@omne-harness/tool-host-local'
 
 export type Principal = Readonly<{ subject: string; tenants: readonly string[] }>
@@ -159,6 +160,11 @@ export function access(
 /** The guard of every request: the programmable permission of the script runner. */
 export const permission: GuardResource = { owner: 'permissions', resource: 'scope-1/read_file' }
 
+/** Test-only decision. Production must supply its own current, complete action judgment. */
+export const noPermitRequirements: StartPermitRequirements<unknown> = {
+  check: async () => ({ kind: 'not-required', source: evidence('test-no-permit-required') }),
+}
+
 export function coordinator<B extends ContentBlock>(
   store: ToolLedgerStore<B>,
   options: Readonly<{ guards?: readonly GuardResource[]; unavailable?: string }> = {},
@@ -166,6 +172,7 @@ export function coordinator<B extends ContentBlock>(
   return createLocalStartCoordinator<Principal, B>({
     store,
     access: access(options),
+    permitRequirements: noPermitRequirements,
     guardsOf: () => options.guards ?? [permission],
     commitAttempts: 4,
   })

@@ -3,6 +3,7 @@ import type {
   CredentialId,
   MaterializationReceipt,
   ModelFailure,
+  ModelFault,
 } from '@omne-harness/model-contract'
 import type {
   CredentialPort,
@@ -16,10 +17,15 @@ import type {
 export type CredentialSelection = Readonly<{
   id: CredentialId
   scope: 'tenant' | 'factory'
+  official?: boolean
 }>
 export type SendStart =
   | Readonly<{ kind: 'started'; facts: AsyncIterable<TransportFact> }>
-  | Readonly<{ kind: 'refused'; failure: ModelFailure }>
+  /**
+   * `fault` is set when the refusal is final for this call: the credential is missing or cannot be
+   * read. The boundary then records it as the terminal of the not-sent dispatch.
+   */
+  | Readonly<{ kind: 'refused'; failure: ModelFailure; fault?: ModelFault }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>
 
 /** All current-qualification changes and dispatch claims use this same synchronous owner. */
@@ -48,7 +54,7 @@ export interface SendResources<P> {
 export type ModelSendBoundaryOptions<P> = Readonly<{
   commands: ModelCommands<P>
   coordinator: SendCoordinator<P>
-  credentials: CredentialPort
+  credentials: CredentialPort<P>
   resources: SendResources<P>
   maxRetainedAttempts: number
 }>

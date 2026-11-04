@@ -1,5 +1,5 @@
 import { requiredWorkEntries } from './work-entry-state.ts'
-import { decodeEntry } from './entries.ts'
+import { decodeEntries } from './entries.ts'
 import { validateFrontierBatch } from './frontier-state.ts'
 import { SessionValidationFailure } from './session-validation.ts'
 import { CallConflict } from './call-state.ts'
@@ -14,7 +14,7 @@ import type {
 import type { Adoption } from './identity.ts'
 import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/legal-identity'
 import type { RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
-import type { HistoryEntry, ProducerFact, SessionFailure } from './faces.ts'
+import type { HistoryEntry, ProducerFact, SessionFailure, StartAdoption } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
 import {
@@ -23,6 +23,8 @@ import {
   validateInitializationRecall,
 } from './decide-initialization.ts'
 import {
+  expectedHolds,
+  expectedRevision,
   judgeAdvance,
   judgeRunStart,
   resolveOperation,
@@ -255,25 +257,58 @@ function decideAccept(
   }
 }
 
-/** The owner of the guard material that confirms the login of an ordinary-input entry (#318 design, 「普通输入的来源与登录门」). */
+/**
+ * The owner of the `origin` that the server entry writes on an ordinary input accepted after a
+ * recognized login (handoff「普通输入的来源与登录门」). An interactive Run starts only from such an input.
+ */
 export const LOGIN_ENTRY_OWNER = 'login-entry'
+
+/**
+ * The adoption entries of a `startRun` or `reload`: the new resident tools, then the adoption
+ * entry when the candidate differs from the current adoption or the material names resident keys.
+ * A `verdict` in the material means the adoption point proved the resident shape lost: nothing is
+ * committed and the caller freezes.
+ */
+function adoptionEntries(
+  snapshot: WorkSnapshot,
+  material: StartAdoption | undefined,
+  candidate: Adoption,
+  current: Adoption,
+  source: DurableEvidence,
+): Decision {
+  if (material?.verdict !== undefined)
+    return rejected({ kind: 'frozen', verdict: material.verdict })
+  const residents = residentEntries(snapshot, material, source)
+  if (residents.kind !== 'entries') return residents
+  if (digestOf(candidate) === digestOf(current) && material === undefined) return residents
+  const keys = material === undefined ? {} : { residentKeys: material.keys }
+  return entries([
+    ...residents.entries,
+    encodeEntry({ kind: 'session.adoption', adopted: candidate, ...keys }, sessionOrigin(source)),
+  ])
+}
+
+/**
+ * The login gate (R2-D198): an interactive start needs a first input that came through the login
+ * entry. The origin is the stored input fact, read in the commit transaction (`reads.firstInput`),
+ * so the check and the commit see the same input.
+ */
+function loggedIn(reads: DecideReads, first: InputId): boolean {
+  const stored = reads.firstInput
+  return stored !== undefined && stored.input === first && stored.origin.owner === LOGIN_ENTRY_OWNER
+}
 
 function decideStartRun(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'startRun' }>,
-  guards: readonly GuardCommand[],
+  reads: DecideReads,
 ): Decision {
   const judgment = judgeRunStart(snapshot, command.input.entry)
   if (judgment.kind !== 'eligible') {
     if (judgment.kind === 'frozen') return rejected({ kind: 'frozen', verdict: null })
     return rejected({ kind: judgment.kind })
   }
-  // The login gate (ruling R2): an interactive entry needs the login confirmation that the
-  // evidence bridge takes from the first input's origin. Presence only; `facts` stays opaque.
-  if (
-    command.input.entry === 'interactive' &&
-    !guards.some(guard => guard.owner === LOGIN_ENTRY_OWNER)
-  )
+  if (command.input.entry === 'interactive' && !loggedIn(reads, judgment.first))
     return rejected({ kind: 'login-required' })
   const { candidate, instance } = command.input
   if (emptyAdoption(candidate)) return invalid('candidate', 'incomplete adoption')
@@ -282,26 +317,15 @@ function decideStartRun(
   const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
   const run = runIdOf(snapshot.session, judgment.first, predecessor)
   const source = commandEvidence(command.input.operation, 'run-started')
-  const out: EncodedEntry[] = []
-  const residents = residentEntries(snapshot, command.input.residentAdoption, source)
-  if (residents.kind !== 'entries') return residents
-  out.push(...residents.entries)
-  if (
-    digestOf(candidate) !== digestOf(snapshot.definition.adopted) ||
-    command.input.residentAdoption !== undefined
+  const adopted = adoptionEntries(
+    snapshot,
+    command.input.residentAdoption,
+    candidate,
+    snapshot.definition.adopted,
+    source,
   )
-    out.push(
-      encodeEntry(
-        {
-          kind: 'session.adoption',
-          adopted: candidate,
-          ...(command.input.residentAdoption === undefined
-            ? {}
-            : { residentKeys: command.input.residentAdoption.keys }),
-        },
-        sessionOrigin(source),
-      ),
-    )
+  if (adopted.kind !== 'entries') return adopted
+  const out: EncodedEntry[] = [...adopted.entries]
   out.push(
     encodeEntry(
       {
@@ -576,8 +600,17 @@ function decideAttempt(
     })
   if (command.kind === 'reload' && snapshot.frozen !== null)
     return rejected({ kind: 'frozen', verdict: snapshot.frozen })
-  if (command.kind === 'reload' && command.input.expected !== snapshot.revision)
-    return rejected({ kind: 'changed', revision: snapshot.revision })
+  if (command.kind === 'reload' && !expectedHolds(snapshot, 'reload', command.input.expected))
+    return rejected({ kind: 'changed', revision: expectedRevision(snapshot, 'reload') })
+  // Two recoverers that read the same Run layer: the first claim moves the Run-layer revision, so
+  // the second finds a successor (stale-advance), or a released advance (changed) (SPEC PM-05,
+  // R2-D343).
+  if (command.kind === 'claim' && !expectedHolds(snapshot, 'claim', command.input.expected))
+    return rejected(
+      snapshot.run.advance !== null
+        ? { kind: 'stale-advance', current: snapshot.run.advance }
+        : { kind: 'changed', revision: expectedRevision(snapshot, 'claim') },
+    )
   const source = command.kind === 'claim' ? command.input.continuity : command.input.handover
   if (
     !completeEvidence(source) ||
@@ -592,25 +625,15 @@ function decideAttempt(
       command.input.candidate.name !== snapshot.definition.adopted.name
     )
       return invalid('candidate', 'a reload must preserve the definition identity')
-    const residents = residentEntries(snapshot, command.input.residentAdoption, source)
-    if (residents.kind !== 'entries') return residents
-    out.push(...residents.entries)
-    if (
-      digestOf(command.input.candidate) !== digestOf(snapshot.run.adoption) ||
-      command.input.residentAdoption !== undefined
+    const adopted = adoptionEntries(
+      snapshot,
+      command.input.residentAdoption,
+      command.input.candidate,
+      snapshot.run.adoption,
+      source,
     )
-      out.push(
-        encodeEntry(
-          {
-            kind: 'session.adoption',
-            adopted: command.input.candidate,
-            ...(command.input.residentAdoption === undefined
-              ? {}
-              : { residentKeys: command.input.residentAdoption.keys }),
-          },
-          sessionOrigin(source),
-        ),
-      )
+    if (adopted.kind !== 'entries') return adopted
+    out.push(...adopted.entries)
   }
   if (snapshot.run.advance !== null)
     out.push(
@@ -794,7 +817,7 @@ function decideCommand(
     case 'accept':
       return decideAccept(previous, command)
     case 'startRun':
-      return decideStartRun(previous, command, guards)
+      return decideStartRun(previous, command, reads)
     case 'recordMessage':
       return decideRecordMessage(previous, command)
     case 'receive':
@@ -878,8 +901,10 @@ export function decide(
       command,
     )
     if (decision.kind === 'entries' && previous !== null && decision.entries.length > 0) {
-      const decoded = decision.entries.map(row => {
-        const value = decodeEntry(row)
+      const decoded = decodeEntries(
+        decision.entries,
+        previous.initialization?.initialAdoption ?? null,
+      ).map(value => {
         if (!('ok' in value)) throw new Error('invalid locally encoded entry')
         return value.ok
       })

@@ -1,7 +1,7 @@
 // Pure evaluation types of the Agent contract (README, "身份、原位置与纯求值"): the facts the loop
 // reads, the next step it returns, and the evaluator port. Types only; no function runs here.
 import type { Outcome } from '@omne-harness/operation-result'
-import type { Message, ToolPart } from '@omne-harness/message'
+import type { Message, ToolCallPart } from '@omne-harness/message'
 import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
 import type { ControlRecord, ResultResponsibility } from './execution.ts'
@@ -25,7 +25,12 @@ import type {
 } from './identity.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { HandoffReference, MessageSource, Passage } from './passages.ts'
-import type { CompactionProgress, CompactionState, Preparation } from './request.ts'
+import type {
+  CompactionProgress,
+  CompactionState,
+  Preparation,
+  SavedPreparation,
+} from './request.ts'
 
 export type ProducedResult = Readonly<{
   producer:
@@ -76,7 +81,24 @@ export type FailureCandidate = Readonly<{
         model: DurableEvidence
         selection: DurableEvidence
       }>
-    | Readonly<{ kind: 'no-reply'; call: M.ModelCallId; result: ProducedResult }>
+    | Readonly<{
+        kind: 'no-reply'
+        call: M.ModelCallId
+        result: ProducedResult
+        /**
+         * The fault of the call when Model settled it as failed, exactly as the settlement carries
+         * it. Absent when the call completed without content (R2-D356).
+         */
+        fault?: M.ModelFault
+      }>
+    | Readonly<{
+        kind: 'model-refused'
+        call: M.ModelCallId
+        failure: Extract<
+          M.ModelFailure,
+          { kind: 'denied' | 'invalid' | 'unsupported' | 'capacity' }
+        >
+      }>
     | Readonly<{ kind: 'message-rejected'; from: MessageSource; evidence: DurableEvidence }>
     | Readonly<{ kind: 'extension-stop'; passage: PassageId; reason: string }>
     | Readonly<{ kind: 'guard'; level: 3; basis: DurableEvidence }>
@@ -132,14 +154,24 @@ export type PendingCall = PendingCommon &
           | Readonly<{ association: 'associated'; reference: T.ToolInvocationRef }>
         ))
   )
+/**
+ * The judgment of one action. `allowed.request` is the evidence of the preserved `ToolInvokeRequest`:
+ * the request body lives in the material, not in the judgment (SPEC "工具执行与结果承接").
+ */
 export type ActionJudgment =
   | Readonly<{ kind: 'pending'; passage: PassageId }>
   | Readonly<{ kind: 'waiting'; passage: PassageId; cards: readonly DurableEvidence[] }>
   | Readonly<{ kind: 'denied'; evidence: DurableEvidence }>
-  | Readonly<{ kind: 'allowed'; evidence: DurableEvidence; request: T.ToolInvokeRequest }>
+  | Readonly<{ kind: 'allowed'; evidence: DurableEvidence; request: DurableEvidence }>
+/** The `tool_call` part of the reply that an action comes from, as the ports that judge it take it. */
+export type ActionToolCall = ToolCallPart
+/**
+ * One action of a batch. `original` names the `tool_call` part of the batch source by its call id;
+ * the part itself is read back from the preserved reply, not kept here.
+ */
 export type Action = Readonly<{
   id: ActionId
-  original: ToolPart & Readonly<{ kind: 'tool_call' }>
+  original: Readonly<{ callId: string }>
   effectiveArguments: string
   judgment: ActionJudgment
   call: PendingCall | null
@@ -156,10 +188,15 @@ export type ActionBarrier =
       approved: readonly [ActionId, ...ActionId[]]
     }>
   | Readonly<{ kind: 'all-denied'; evidence: DurableEvidence }>
+/**
+ * One slot of a batch. The candidate message is not kept: it is computed again from the preserved
+ * result and the passage conclusions. `candidateDigest` is the digest of that candidate when the
+ * single-result passage ended; a candidate computed again with another digest is `invalid`.
+ */
 export type ActionSlot = Readonly<{
   action: ActionId
   each: readonly PassageId[] | null
-  candidate: Message | null
+  candidateDigest: string | null
   handoff: HandoffReference | null
 }> &
   (
@@ -258,6 +295,28 @@ export type GuardFact = Readonly<{
   passage: PassageId
   at: AgentInstant
 }>
+/**
+ * The final request of the last main-purpose M0: its invocation, the fixed basis of the ready
+ * preparation, and the preparing side's opaque state with the schema it names.
+ */
+export type AdoptedRequest = Readonly<{
+  reference: M.ModelInvocationRef
+  fixed: DurableEvidence
+  schema: Adoption
+  record: JsonValue
+}>
+/**
+ * A main Model intent that the Model answered with an authoritative not-accepted (SPEC "身份、范围与
+ * 归属", Model 未知行; R2-D292). The call was never admitted and never sent: the intent is closed
+ * by `basis`, and the step prepares its request again under the next attempt. `reference` is the
+ * invocation of the voided intent; `action` is the action of its effect.
+ */
+export type VoidedIntent = Readonly<{
+  step: StepId
+  action: ActionId
+  reference: M.ModelInvocationRef
+  basis: DurableEvidence
+}>
 export type AgentCheckpoint = Readonly<{
   schema: Adoption
   definition: Adoption
@@ -266,10 +325,24 @@ export type AgentCheckpoint = Readonly<{
   calls: readonly PendingCall[]
   passages: readonly Passage[]
   batch: ActionBatch | null
-  inputBatch: InputBatchId | null
-  requestPreparation: Preparation | null
+  /**
+   * The input batch the current step took: its identity, watermark and ordered inputs. A restart
+   * before the final request record prepares again from it (R2-D292).
+   */
+  inputBatch: InputBatch | null
+  /**
+   * The saved preparation of the current step: only `needs-compaction` and `cannot-fit` are kept
+   * (R2-D292). `assembled` and `ready` stay in the memory of the coordinator.
+   */
+  requestPreparation: SavedPreparation | null
   compaction: CompactionState | null
   adoptedContext: DurableEvidence | null
+  /**
+   * The request the last main-purpose M0 recorded: written only by that commit and replaced only
+   * by the next one; null in a new execution. `record` is the `state` of the ready preparation,
+   * kept as given and never read by the Agent. Optional until Reduce makes it required (R2-D18).
+   */
+  adoptedRequest?: AdoptedRequest | null
   guard: GuardFact | null
   completedPassages: readonly PassageId[]
   priorConditions: DurableEvidence | null
@@ -277,6 +350,12 @@ export type AgentCheckpoint = Readonly<{
   currentHandoff: HandoffReference | null
   /** The verified read position of the reply admission facts; written only by an ordinary commit. */
   replyAdmissionRead: ReplyAdmissionRead
+  /**
+   * The voided main Model intents of this execution, in the order they were voided. The attempt of
+   * the main call of a step is the number of its voided intents. Only the voiding commit appends
+   * to it; nothing removes an item.
+   */
+  voided: readonly VoidedIntent[]
 }>
 export type RuntimeConditions = Readonly<{
   source: DurableEvidence

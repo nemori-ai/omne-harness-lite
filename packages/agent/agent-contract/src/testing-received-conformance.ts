@@ -63,6 +63,7 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
     query: joint.received?.query,
     read: joint.materials?.read,
     preserve: joint.materials?.preserve,
+    describe: joint.materials?.describe,
     journalQuery: joint.journal?.query,
     bind: joint.bind,
     material: joint.material,
@@ -706,6 +707,7 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
         const source = await ok(
           joint.materials.preserve({
             ...input,
+            execution: input.execution,
             identity: 'legacy',
             consumer: input.entry.consumer,
             value: input.material,
@@ -771,6 +773,7 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
         const source = await ok(
           joint.materials.preserve({
             ...foreign,
+            execution: foreign.execution,
             identity: 'foreign-legacy',
             consumer: foreign.entry.consumer,
             value: input.material,
@@ -916,6 +919,7 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
         const source = await ok(
           joint.materials.preserve({
             ...legacy,
+            execution: legacy.execution,
             identity: 'record-then-commit',
             consumer: legacy.entry.consumer,
             value: legacy.material,
@@ -1007,6 +1011,60 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
         )
         assert.deepEqual(await fixture.read(input, input.execution), [])
         assert.deepEqual(await events(input), before, 'a refused commit allocates no event')
+      },
+    },
+    {
+      // Red when a preserve of content already kept writes a second copy or another source, or
+      // when describe needs the content to answer.
+      name: 'materials are addressed by content: the same content answers the same source, describe gives digest, size and kind',
+      async run() {
+        const input = await prepare('content-addressed')
+        const preserve = (identity: string, value: typeof input.material) =>
+          joint.materials.preserve({
+            ...input,
+            identity,
+            consumer: input.entry.consumer,
+            value,
+          })
+        const first = await ok(preserve('content-a', input.material))
+        const before = await stats(input)
+        assert.deepEqual(await ok(preserve('content-a', input.material)), first)
+        assert.deepEqual(
+          await ok(preserve('content-b', input.material)),
+          first,
+          'the same content under another identity is the same material',
+        )
+        assert.deepEqual(await stats(input), before, 'a preserve by digest writes nothing new')
+        const described = await ok(joint.materials.describe({ ...input, source: first }))
+        assert.equal(described.kind, input.material.kind)
+        assert.ok(described.size > 0, 'the size counts the bytes of the content')
+        assert.ok(described.digest.length > 0, 'the digest names the content')
+        const other = await ok(preserve('content-c', joint.material('content-other')))
+        assert.notDeepEqual(other, first, 'other content is another material')
+        const otherDescribed = await ok(joint.materials.describe({ ...input, source: other }))
+        assert.notEqual(otherDescribed.digest, described.digest)
+        await refused(
+          preserve('content-a', joint.material('content-changed')),
+          'invalid',
+          'the same identity with other content',
+        )
+      },
+    },
+    {
+      // Red when describe answers for a material of another tenant.
+      name: 'describe of a material of another tenant is not answered',
+      async run() {
+        const input = await prepare('describe-foreign')
+        const source = await ok(
+          joint.materials.preserve({
+            ...input,
+            identity: 'describe-foreign',
+            consumer: input.entry.consumer,
+            value: input.material,
+          }),
+        )
+        const answer = await joint.materials.describe({ ...otherAccess, source })
+        assert.ok('failure' in answer, 'describe of a foreign material must fail')
       },
     },
   ]

@@ -58,3 +58,9 @@ export {
   type JournalReplayStep,
   type JournalReplayTrace,
 } from './testing-journal-replay.ts'
+export {
+  describeMaterial,
+  entryPage,
+  materialDigest,
+  receivedEntriesOf,
+} from './testing-journal-reads.ts'

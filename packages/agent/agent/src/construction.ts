@@ -7,6 +7,10 @@ import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
 import type {
   ActionAdmission,
+  Access,
+  ActionId,
+  ActionToolCall,
+  AgentExecutionId,
   Adoption,
   AgentAccessCheck,
   AgentAdoptions,
@@ -15,6 +19,7 @@ import type {
   AgentHandle,
   AgentInstanceId,
   AgentJournal,
+  AgentJournalEntries,
   AgentMaterials,
   AgentRegistrationHandle,
   AgentRuntime,
@@ -29,6 +34,7 @@ import type {
   ModelContextReader,
   ModelSelection,
   RegisteredReads,
+  Reply,
   RequestPreparation,
 } from '@omne-harness/agent-contract'
 
@@ -51,6 +57,11 @@ export type AgentConfiguration = Readonly<{
   /** The coordination mode this assembly requires of the Journal binding; no implicit default. */
   coordination: JournalCapabilities['coordination']
   loopGuardPolicy: Adoption
+  /**
+   * The most steps one execution takes (M2 fallback of R2-D221; the full loop judgment is wave 3).
+   * Absent: `DEFAULT_MAX_RUN_STEPS`. A step is one main Model request and the tools it calls.
+   */
+  maxRunSteps?: number
 }>
 
 export type AgentRuntimeOptions = Readonly<{
@@ -58,12 +69,23 @@ export type AgentRuntimeOptions = Readonly<{
   configuration: AgentConfiguration
 }>
 
-/** The named, read-only record of the 17 injected capabilities. It is not a service container. */
+/** The named, read-only record of the 18 injected capabilities. It is not a service container. */
 export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   journal: AgentJournal<P>
+  /**
+   * The receiving entries of the same Journal provider: the loop reads the received results of a
+   * consumption here, not from the snapshot (agent-contract SPEC "日志条目" 6).
+   */
+  entries: AgentJournalEntries<P>
   access: AgentAccessCheck<P>
   models: M.ModelRuntime<P>
   tools: T.ToolRuntime<P, B>
+  toolRequests?: Readonly<{
+    describe(input: ToolRequestInput<P>): Reply<Adoption>
+    prepare(
+      input: ToolRequestInput<P> & Readonly<{ definition: Adoption; admission: DurableEvidence }>,
+    ): Reply<T.ToolInvokeRequest>
+  }>
   adoptions: AgentAdoptions<P>
   conditions: CurrentConditions<P>
   requests: RequestPreparation<P>
@@ -78,6 +100,15 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   registration: AgentRegistrationHandle<P> | null
   clock: AgentClock
 }>
+
+type ToolRequestInput<P> = Access<P> &
+  Readonly<{
+    execution: AgentExecutionId
+    action: ActionId
+    original: ActionToolCall
+    effectiveArguments: string
+    consumer: T.ToolInvokeRequest['consumer']
+  }>
 
 /** What a successful creation returns. `control` goes to the host only. */
 export interface AgentProvider<P> {

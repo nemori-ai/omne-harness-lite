@@ -13,6 +13,35 @@ export function createModelCommandsCore<P>(
   return new ModelCommandCore(options, storage)
 }
 export { modelCommands } from './commands.ts'
+export { createModelInitialRun } from './initial.ts'
+export { createModelInitialExecution } from './initial-execution.ts'
+export type {
+  InitialTarget,
+  ModelAcceptedOrigin,
+  ModelInitialRunLimits,
+  ModelInitialRun,
+  ModelInitialExecution,
+  ModelInitialHostChannel,
+} from './initial.ts'
+export { describeModelMaterialization } from './value.ts'
+export type { MaterializationDescriptionInput } from './value.ts'
+export { createModelObservationStorage } from './observation.ts'
+export type {
+  ModelObservationLimits,
+  ModelObservationTiming,
+  ModelObservationSource,
+  ModelObservationHost,
+  ObservationFacts,
+  ConfirmedObservationRecord,
+} from '../stream-types.ts'
+export type {
+  ModelBeforePublish,
+  ModelConfirmationPass,
+  ModelRunCompletion,
+  ModelConfirmationDiagnostic,
+  ConfirmationSeen,
+  ConfirmationStage,
+} from './types.ts'
 export { hasRecoveryWork } from './judge.ts'
 export type { ModelCommandCore } from './state.ts'
 export type { CommandWrite, ModelCommandStorage, PendingPage, RunScope } from './storage.ts'
@@ -25,6 +54,8 @@ export type {
   CommandResource,
   DispatchDocument,
   EvidenceContext,
+  HandoffEvidenceAnswer,
+  HandoffEvidenceInput,
   ModelCommandsAuthority,
   ModelCommandsCoreOptions,
   ModelCommandsEvidence,

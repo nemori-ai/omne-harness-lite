@@ -40,6 +40,10 @@
 | `AssemblyPolicies`, `AssemblyOperations` | [ports.ts](../src/ports.ts) |
 | `PreparedInputKey` | [values.ts](../src/values.ts) |
 | `AssemblyOperationsInput` | [operations.ts](../src/operations.ts) |
+| `AssemblyReuse` | [reuse.ts](../src/reuse.ts) |
+| `CachedAssemblyMaterial` | [reuse.ts](../src/reuse.ts) |
+| `ContentControl` | [reuse.ts](../src/reuse.ts) |
+| `SnapshotIdentity` | [reuse.ts](../src/reuse.ts) |
 | `createAssemblyOperations` | [operations.ts](../src/operations.ts) |
 | `SourceRead`, `SourceGroupValue`, `GroupSource`, `ContextGroupSources`, `AdoptedRead`, `AdoptedRequestSource`, `SourceDecision`, `ContextReadEligibility`, `PrincipalBinding`, `ContextSources`, `SourceRegistrationAuthority`, `SourceSettlement`, `ContextRegistration`, `RegistrationResult`, `ContextSourceRegistry`, `ContextRegistryOptions` | [sources.ts](../src/sources.ts) |
 | `HistoryResolution`, `HistoryEvidenceResolver` | [history-resolution.ts](../src/history-resolution.ts) |
@@ -52,6 +56,7 @@
 | `RequestPurpose`, `AssemblyCall`, `InputGroups`, `GroupName`, `HistoryUpper`, `HistoryCursor`, `TenantModelCall`, `SourcedMessage`, `ContinuationBasis`, `AdoptedRequestFact`, `CompactionBasis`, `HistoryEvidence`, `NewInputBatch`, `BlockMaterial`, `SnapshotMaterial`, `ContextReadGroup`, `AssemblyContext`, `PromptContributionBase`, `PromptSection`, `PromptVariable`, `PromptContribution`, `PromptContributionSet`, `SelectedModel`, `ToolAdoption`, `ConditionsEvidence`, `AlterationEvidence`, `PreviousPreparation`, `TransitionEvidence`, `Layer`, `PrefixBreakReason`, `LayerAnchor`, `SnapshotAnchor`, `Coverage`, `BudgetBreach`, `FitVerdict`, `RepresentationChoice`, `SnapshotReminder`, `TailFacts`, `RequestLayers`, `RequestCandidate`, `CompactionPlan`, `PlanProgress`, `SummaryMaterial`, `StepRequest`, `StepInput`, `ContextTransition`, `AssemblyFailure`, `InvalidReason`, `UnavailableOwner`, `AssemblyUnknown`, `AssemblyOutcome`, `AssemblyResult`, `PlanResult`, `StepResult` | [values.ts](../src/values.ts) |
 | `LAYER_ORDER`, `PREFIX_BREAK_REASONS` | [values.ts](../src/values.ts) |
 | `DeriveInput` | [values.ts](../src/values.ts) |
+| `FixedRequestRecord`, `FixedRequestRecordRejection`, `encodeFixedRequestRecord`, `decodeFixedRequestRecord`, `forecastOf` | [fixed-request.ts](../src/fixed-request.ts) |
 
 ### 现有测试导出
 

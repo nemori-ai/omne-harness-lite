@@ -83,6 +83,23 @@ vi.mock('node:fs/promises', async importOriginal => {
   }
 })
 
+vi.mock('node:child_process', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  const { holdNativeInput } = await import('./windows-files/native-control.ts')
+  return {
+    ...actual,
+    spawn(...args: Parameters<typeof actual.spawn>) {
+      const child = actual.spawn(...args)
+      holdNativeInput(child, {
+        marker: control.marker,
+        entered: () => control.entered(),
+        released: () => control.released,
+      })
+      return child
+    },
+  }
+})
+
 const roots: string[] = []
 
 afterEach(async () => {
@@ -399,7 +416,8 @@ it('lets a rebuilt registry settle the original acquisition through the recovery
   // The registry is lost; a new registry and a new generation join the same domain.
   const second = createEnvironmentRegistry<unknown>({ recovery, ...ports })
   second.registerFacility(filesFacility)
-  second.registerProvider(createHostFilesProvider({ domain, drainBoundMs: 20 }))
+  const fresh = createHostFilesProvider({ domain, drainBoundMs: 20 })
+  second.registerProvider(fresh)
   const access = createRecoveryAccess()
   expect(await second.inspectRecoveryAcquisition(access, original)).toEqual({
     kind: 'original',
@@ -411,7 +429,11 @@ it('lets a rebuilt registry settle the original acquisition through the recovery
   if (result.kind !== 'recovered') throw new Error('expected a recovery')
   expect(result.settledAcquisitions).toEqual([{ original, outcome: 'settled' }])
   expect(result.unsupported).toEqual([])
-  expect(result.unavailable).toEqual([])
+  expect(result.unavailable).toEqual(
+    process.platform === 'win32'
+      ? [{ name: fresh.name, generation: fresh.generation, version: fresh.version }]
+      : [],
+  )
   expect(await second.inspectRecoveryAcquisition(access, original)).toMatchObject({
     status: 'settled',
   })

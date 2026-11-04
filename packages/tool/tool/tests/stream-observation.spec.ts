@@ -158,19 +158,22 @@ async function drain(iterable: AsyncIterable<Frame>): Promise<Frame[]> {
 const endedWith = (reason: string): Frame[] => [{ kind: 'ended', reason } as Frame]
 
 describe('instances.current (SPEC「current 的回复」)', () => {
-  it('answers denied for a foreign tenant and invalid for a malformed reference, without the directory', async () => {
+  it('answers a foreign tenant as a missing call and invalid for a malformed reference, without the directory', async () => {
     const w = world()
     const call = await w.invoke()
-    expect(
-      await w.runtime.instances.current({
-        access: { principal: principalA, tenant: tenantB },
-        reference: call.reference,
-      }),
-    ).toEqual({ failure: { kind: 'denied', action: 'connect' } })
+    // R2-D357 negative control: the same request to a world where no tenant invoked the call.
+    const request = {
+      access: { principal: principalA, tenant: tenantB },
+      reference: call.reference,
+    }
+    const foreign = await w.runtime.instances.current(request)
+    const absent = await world().runtime.instances.current(request)
+    expect(JSON.stringify(foreign)).toBe(JSON.stringify(absent))
+    const connectsAfterForeign = w.connects.length
     expect(
       await w.runtime.instances.current({ access, reference: '[]' as ToolInvocationRef }),
     ).toMatchObject({ failure: { kind: 'invalid', field: 'reference' } })
-    expect(w.connects).toEqual([])
+    expect(w.connects.length).toBe(connectsAfterForeign)
   })
 
   it.each([
@@ -246,14 +249,20 @@ describe('instances.current (SPEC「current 的回复」)', () => {
 })
 
 describe('observation.observe: Tool in the public failure order', () => {
-  it('ends with denied for an unminted or foreign tenant, before any lookup', async () => {
+  it('ends a foreign tenant as for a missing call and an unminted tenant with denied before any lookup', async () => {
     const w = world()
     const call = await w.invoke()
     const ref = refOf(call.reference, streamId('str_a'))
     const foreign = { principal: principalA, tenant: tenantB }
-    expect(
-      await drain(w.runtime.observation.observe({ ref, access: foreign, signal: signal() })),
-    ).toEqual(endedWith('denied'))
+    // R2-D357 negative control: the same observation in a world where no tenant invoked the call.
+    const theirs = await drain(
+      w.runtime.observation.observe({ ref, access: foreign, signal: signal() }),
+    )
+    const absent = await drain(
+      world().runtime.observation.observe({ ref, access: foreign, signal: signal() }),
+    )
+    expect(JSON.stringify(theirs)).toBe(JSON.stringify(absent))
+    const connectsAfterForeign = w.connects.length
     const unminted = {
       principal: principalA,
       tenant: { ...tenantA, account: { text: 'acc_forged' } } as never,
@@ -261,12 +270,12 @@ describe('observation.observe: Tool in the public failure order', () => {
     expect(
       await drain(w.runtime.observation.observe({ ref, access: unminted, signal: signal() })),
     ).toEqual(endedWith('denied'))
-    expect(w.connects).toEqual([])
+    expect(w.connects.length).toBe(connectsAfterForeign)
   })
 
   it('ends with stale-stream for unreadable syntax, a wrong producer or a malformed call, before any lookup', async () => {
     const w = world()
-    const modelRef = JSON.stringify(['stream-ref', 1, 'model', '["model-invocation",1]', 'str_a'])
+    const modelRef = JSON.stringify(['stream-ref', 1, 'model', '["model-invocation",2]', 'str_a'])
     const malformedCall = JSON.stringify(['stream-ref', 1, 'tool', '[]', 'str_a'])
     for (const ref of ['not a reference', modelRef, malformedCall] as StreamRef[])
       expect(await drain(w.runtime.observation.observe({ ref, access, signal: signal() }))).toEqual(
@@ -865,17 +874,12 @@ describe('observation.observe: the facade owns termination and release', () => {
     })
   })
 
-  it('ends with denied, before routing, when the call inside the reference belongs to another tenant', async () => {
+  it('carries no tenant in the call inside the reference: another tenant encodes the same text', async () => {
+    // R2-D357: the tenant of an observation is the observer's; the text cannot name another.
     const w = world()
     const call = await w.invoke()
     const parts = ok(resolveToolInvocationRef(call.reference, tenantA))
-    const foreign = ok(encodeToolInvocationRef({ ...parts, tenant: tenantB }))
-    const ref = JSON.stringify(['stream-ref', 1, 'tool', foreign, 'str_a']) as StreamRef
-    const connectsBefore = w.connects.length
-    expect(await drain(w.runtime.observation.observe({ ref, access, signal: signal() }))).toEqual(
-      endedWith('denied'),
-    )
-    expect(w.connects.length).toBe(connectsBefore)
+    expect(ok(encodeToolInvocationRef({ ...parts, tenant: tenantB }))).toBe(call.reference)
   })
 })
 

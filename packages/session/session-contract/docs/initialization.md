@@ -1,6 +1,6 @@
 # 初始化实现与提供者接线
 
-行为唯一源为 [初始化来源与提交](../SPEC.md#初始化来源与提交)。当前纯核心实现来源计划、严格守卫解析、同批成功事实、原结果认回及 revision 3 重建。真实采用源、加载器、Context 的准备与提交应用、耐久存储仍由提供者兑现。
+行为唯一源为 [初始化来源与提交](../SPEC.md#初始化来源与提交)。当前纯核心实现来源计划、严格守卫解析、同批成功事实、原结果认回及 revision 4 重建。真实采用源、加载器、Context 的准备与提交应用、耐久存储仍由提供者兑现。
 
 ## 守卫和提交
 
@@ -26,7 +26,7 @@ SE01、初始 SE08、首次 SE36，以及结果对应的 SE07、SE08、SE36、SE
 
 ## 精确发布摘要
 
-初始化协议 revision 1 和日志解释器 revision 3 均绑定当前生产源码集合的 SHA-256。摘要输入是本包 `src/` 下所有 `.ts` 文件，递归枚举并按包内相对路径的 UTF-16 顺序排序。排除相对路径以 `testing` 开头的测试入口与替身，以及仅保存两个常量的 `src/release-digests.ts`。排除文件不得承载生产行为。
+初始化协议 revision 1 和日志解释器 revision 4 均绑定当前生产源码集合的 SHA-256。摘要输入是本包 `src/` 下所有 `.ts` 文件，递归枚举并按包内相对路径的 UTF-16 顺序排序。排除相对路径以 `testing` 开头的测试入口与替身，以及仅保存两个常量的 `src/release-digests.ts`。排除文件不得承载生产行为。
 
 每个文件依次输入：路径 UTF-8 字节数的十进制 ASCII 文本、冒号、以 `src/` 开头的相对路径 UTF-8 字节、文件字节数的十进制 ASCII 文本、冒号、原始文件字节。文件集合和路径也是摘要内容。没有时间、环境变量或绝对路径。运行时只读取编译后的常量，不读文件系统。
 
@@ -36,7 +36,7 @@ SE01、初始 SE08、首次 SE36，以及结果对应的 SE07、SE08、SE36、SE
 node packages/session/session-contract/docs/recompute-release.mjs --write
 ```
 
-[protocol-release.spec.ts](../tests/protocol-release.spec.ts) 独立枚举完整集合、重算字节摘要，并检查被排除的常量文件没有行为。同 revision 不同 digest 是不同精确采用。当前解释器只支持当前精确 revision 3；其他采用以版本不兼容隔离，保留原日志，不以新字段要求判旧历史畸形，不自动回填或重新 create。
+[protocol-release.spec.ts](../tests/protocol-release.spec.ts) 独立枚举完整集合、重算字节摘要，并检查被排除的常量文件没有行为。同 revision 不同 digest 是不同精确采用。当前解释器只支持当前精确 revision 4；其他采用以版本不兼容隔离，保留原日志，不以新字段要求判旧历史畸形，不自动回填或重新 create。
 
 ## 验证导航
 

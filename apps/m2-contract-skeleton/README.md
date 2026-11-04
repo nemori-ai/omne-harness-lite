@@ -42,18 +42,18 @@ A probe that does not connect proves where it stopped: the public entry that ref
 
 A residual gap names what the connected path does not include. Only a blocking residual gap keeps a hop in the `gap` state. The owners are tracked in the delivery process, not in this file.
 
-| Gap | Blocking | Hops | Summary |
-| --- | --- | --- | --- |
-| GAP-SESSION-WIRE | no | H03, H04, H08 | The session codecs run in process. The server entry that maps the wire session and recognizes the login is still missing. |
-| GAP-SESSION-COORDINATOR | no | H04, H07, H09 | No Session faces, drive adapter, or Session-side hand-over. This app orders the calls. |
-| GAP-RUN-COMPLETED | no | H07 | Session cannot form a completed Run terminal on this path. |
-| GAP-AGENT-CONTEXT | no | H05 | No Agent-side Context adapter. The bridge fixes the request after the Request Context lease. |
-| GAP-RECEIVE-SURFACE | no | H06 | H06 connects through the pusher and the host receiver. The Session-side accounting of the Model ACK stays the named deviation `MODEL-ACK-ARRIVAL`. |
-| GAP-SECOND-RUN | yes | H09 | Session refuses the second Run with `run-active`, and the Agent answers `input.submit` with `unavailable`. |
-| GAP-TOOL-LOOP | yes | H10 | The Agent loop stops at I4 with the tool-call reply. No Tool invocation follows. |
-| GAP-AGENT-REASSEMBLY | yes | H11 | `quiesce`, `detach`, and `resume` answer `unavailable`. No public entry supplies the server-entry observation path, so the continuity of the observation after reassembly is not observed. |
-| GAP-REASONING-REPLAY | yes | H12 | The Agent loop holds the received result with reasoning parts at M6 and hands over no reply. |
-| GAP-SESSION-LOG-TARGETS | yes | H13 | The same-log provider exposes no Model reception targets, so no receiver can be built over the Session log. |
+| Gap                     | Blocking | Hops          | Summary                                                                                                                                                                                                                                                  |
+| ----------------------- | -------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GAP-SESSION-WIRE        | no       | H03, H04, H08 | The session codecs run in process. The server entry that maps the wire session and recognizes the login is still missing.                                                                                                                                |
+| GAP-SESSION-COORDINATOR | no       | H04, H07, H09 | No Session faces, drive adapter, or Session-side hand-over. This app orders the calls.                                                                                                                                                                   |
+| GAP-RUN-COMPLETED       | no       | H07           | Session cannot form a completed Run terminal on this path.                                                                                                                                                                                               |
+| GAP-AGENT-CONTEXT       | no       | H05           | No Agent-side Context adapter. The bridge fixes the request after the Request Context lease.                                                                                                                                                             |
+| GAP-RECEIVE-SURFACE     | no       | H06           | H06 connects through the pusher and the host receiver. The Session-side accounting of the Model ACK stays the named deviation `MODEL-ACK-ARRIVAL`.                                                                                                       |
+| GAP-SECOND-RUN          | yes      | H09           | Session refuses the second Run with `run-active`, and the Agent answers `input.submit` with `unavailable`.                                                                                                                                               |
+| GAP-TOOL-LOOP           | yes      | H10           | The assembly has no `toolRequests`, so the Agent denies the whole tool-call batch. The loop then stops at T5, because the message bridge of this application refuses the hand-over of the denial. No Tool invocation follows. Owner: Reduce B3 (R2-D36). |
+| GAP-AGENT-REASSEMBLY    | yes      | H11           | `quiesce`, `detach`, and `resume` answer `unavailable`. No public entry supplies the server-entry observation path, so the continuity of the observation after reassembly is not observed.                                                               |
+| GAP-REASONING-REPLAY    | yes      | H12           | The Agent loop hands over the reply without the sealed reasoning parts (R2-D268), so the next request cannot replay them. Round 2 also meets GAP-SECOND-RUN.                                                                                             |
+| GAP-SESSION-LOG-TARGETS | yes      | H13           | The same-log provider exposes no Model reception targets, so no receiver can be built over the Session log.                                                                                                                                              |
 
 ## Configuration and operation
 
@@ -63,7 +63,7 @@ Node.js 24 or later and the repository's frozen workspace dependencies are requi
 
 The [tests](tests) run the connected path over the doubles. They check that each hop of the first round is connected, that the session codecs carried the create, send, and read-history messages, that Request Context acquired and released a Model preparation lease, that the history reply has the Model reply text, and that another tenant cannot read the session.
 
-They check that H03 stays pending, with no Session store built, when the Session access check is `undefined`, and that H03 stops when the check denies. They check that the path stops at the owning hop when identity refuses the login, when the Session login gate has no login confirmation, when the Session evidence bridge is unavailable, when Session refuses the hand-over, when the Model does not settle, and when the history does not carry the reply.
+They check that H03 stays pending, with no Session store built, when the Session access check is `undefined`, and that H03 stops when the check denies. They check that the path stops at the owning hop when identity refuses the login, when the first input did not come through the login entry, when the Session evidence bridge is unavailable, when Session refuses the hand-over, when the Model does not settle, and when the history does not carry the reply.
 
 They check where H09 to H13 stop and which public entry refused, and that the evidence names a refusal only when the path observed it. They pin the upstream facts behind the blocking residual gaps: the unimplemented Agent faces, the missing reception targets of the same-log provider, and the refusal of a sealed `reasoning_state` part by the scripted Model producer. They check that the `session-log` store connects H13 and stops at H06, and that the Tool double runs a file read, a file write, and one command.
 

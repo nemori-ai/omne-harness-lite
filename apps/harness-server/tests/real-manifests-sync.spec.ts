@@ -1,5 +1,8 @@
 // `real-manifests-sync`（R1-1，DP1-C5、DP1-C8）：真实行的声明与 `stubs.ts` 的同一行（去掉前缀）逐项相同。
 // 等待装配页补丁的差额写在 `KNOWN_GAPS`，每条带补丁编号；补丁落地、线负责人同步 `stubs.ts` 后删掉对应条目。
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vitest'
 import * as cordisExports from '../src/cordis.ts'
 import { STUB_EXPORT, serveProfile } from '../src/profile.ts'
@@ -10,12 +13,7 @@ import { AA_FIXTURE_ROWS } from './fixtures/serve/index.ts'
 /** 具名差额清单：行 → 补丁编号与该补丁落地后 `stubs.ts` 这一行会变成的样子（只写变化的字段）。 */
 const KNOWN_GAPS: Readonly<
   Record<string, Readonly<{ patch: string; manifest: Partial<RowManifest> }>>
-> = {
-  // 真件行只提供 `agentJournal`。`agentJournalEntries` 与 `agentMaterials` 在
-  // `session-adapters` 里还没有提供方（K-9：写 `AgentMaterials` 带不出一条执行路径），
-  // 所以表里那两项要等它们有提供方时再随补丁一起从表里去掉。
-  'agent-journal': { patch: 'AAP-16', manifest: { provides: ['agentJournal'] } },
-}
+> = {}
 
 const profile = serveProfile()
 
@@ -69,7 +67,7 @@ describe('real-manifests-sync', () => {
   test('the known gaps name rows of the table and a patch each', () => {
     for (const [row, gap] of Object.entries(KNOWN_GAPS)) {
       expect(profile.stubManifests.has(row as RowId), row).toBe(true)
-      expect(gap.patch).toMatch(/^AAP-\d+$/)
+      expect(gap.patch).toMatch(/^(?:AAP-\d+|R2-D41（Reduce 收件时改装配页、aa-rows、stubs）)$/)
     }
   })
 
@@ -93,5 +91,36 @@ describe('real-manifests-sync', () => {
     expect(profile.stubManifests.get('agent-host' as RowId)?.provides).toContain(
       'agentPublicationAuthority',
     )
+  })
+})
+
+/** 发行树里每个文件（`src`、`config`），相对本应用根目录。 */
+function releaseFiles(): string[] {
+  const root = fileURLToPath(new URL('..', import.meta.url))
+  const files: string[] = []
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) walk(path)
+      else files.push(path)
+    }
+  }
+  walk('src')
+  walk('config')
+  return files.map(path => join(root, path))
+}
+
+describe('FIXED-FACTS F6：窄采用来源的替身已删除', () => {
+  test('发行树（src、config）里不再出现采用来源缺件的三个字面量', () => {
+    const literals = ['adopted-facts-absent', 'adopted-absent', 'B1-GAP-ADOPTED-REQUEST-SOURCE']
+    const files = releaseFiles()
+    expect(files.length).toBeGreaterThan(0)
+    const hits = files.flatMap(file => {
+      const text = readFileSync(file, 'utf8')
+      return literals
+        .filter(literal => text.includes(literal))
+        .map(literal => `${file}: ${literal}`)
+    })
+    expect(hits).toEqual([])
   })
 })

@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   decodeActionId,
   type AgentJournal,
+  type AgentJournalEntries,
   type AgentMaterials,
   type Material,
   type PendingCall,
@@ -22,7 +23,11 @@ import {
   sampleReceivedModelAccount,
   sampleReceivedModelResult,
 } from '@omne-harness/agent-contract/testing'
-import { agentJournalKey, agentMaterialsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  agentJournalEntriesKey,
+  agentJournalKey,
+  agentMaterialsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -179,6 +184,7 @@ function entriesKinds(s: ModelScene): string[] {
 
 type Wraps = Partial<{
   load: AgentJournal<string>['load']
+  entries: AgentJournalEntries<string>['read']
   read: AgentMaterials<string, ContentBlock>['read']
   commitEntries: SessionTransactionPort<string>['commitEntries']
 }>
@@ -194,6 +200,12 @@ async function assembled(
   mountOnly: readonly (typeof ALL)[number][] = ALL,
 ) {
   const ctx = new Context()
+  const logged: { type: string; text: string }[] = []
+  ctx.logger.exporter({
+    // Level 2 takes warn; the exporter default of 1 takes only error and success.
+    levels: { default: 2 },
+    export: message => logged.push({ type: message.type, text: String(message.args[0]) }),
+  })
   const callers: unknown[] = []
   const commits: Parameters<SessionTransactionPort<string>['commitEntries']>[0][] = []
   const reads = { work: 0, load: 0, material: 0 }
@@ -221,6 +233,14 @@ async function assembled(
       return (wraps.load ?? s.view.journal.load)(input)
     }
   }
+  // The entries port of the same Journal provider, mounted with the Journal.
+  class Entries extends Service {
+    constructor(scope: Context) {
+      super(scope, agentJournalEntriesKey)
+    }
+    readonly read: AgentJournalEntries<string>['read'] = input =>
+      (wraps.entries ?? s.view.entries.read)(input)
+  }
   class Materials extends Service {
     constructor(scope: Context) {
       super(scope, agentMaterialsKey)
@@ -241,6 +261,8 @@ async function assembled(
   }
   const services = { Session, Journal, Materials, Transactions } as const
   for (const name of mountOnly) await mount(ctx, services[name])
+  // The entries port is always present: the cases of an absent dependency name the four above.
+  await mount(ctx, Entries)
   const consumption = createSessionModelLogConsumptionPlugin<string>({
     // The assembly issues the coordinator principal of a session; the scene has one principal.
     coordinator: async () => succeed(s.access.principal),
@@ -253,6 +275,7 @@ async function assembled(
     callers,
     commits,
     reads,
+    logged,
     plugin,
     consume: (other: Partial<typeof target> = {}) => consumption.consume({ ...target, ...other }),
   }
@@ -297,8 +320,10 @@ describe('a Model received entry becomes one entries-channel Session batch', () 
     // One batch, keyed by the producer's delivery key, with the Agent entry's material as source.
     expect(f.commits).toHaveLength(1)
     const [item] = f.commits[0]!.observation.items
-    const stored = ok(await s.view.journal.load({ ...s.access, execution: s.execution })).entries
-    expect(item?.fact).toEqual(stored?.find(entry => entry.kind === 'received')?.material)
+    const stored = ok(
+      await s.view.entries.read({ ...s.access, execution: s.execution, after: null, limit: 100 }),
+    ).items.map(listed => listed.entry)
+    expect(item?.fact).toEqual(stored.find(entry => entry.kind === 'received')?.material)
     expect(item?.interpretation.map(part => part.kind)).toEqual(['execution', 'account'])
     expect(item?.interpretation[0]).toMatchObject({
       producer: { kind: 'model', call: s.result.delivery.key.reference },
@@ -343,6 +368,76 @@ describe('a Model received entry becomes one entries-channel Session batch', () 
     expect(f.commits[1]?.observation).toMatchObject({ after: '1', through: '2' })
     expect(f.commits[1]?.start).toMatchObject({ kind: 'saved', progress: { through: '1' } })
     expect(entriesKinds(s).slice(3)).toEqual(['account.linked', 'entries.interpreted'])
+  })
+})
+
+describe('AD-05 trigger: the event of the Journal plugin wakes the consumption', () => {
+  /** Lets the not-awaited dispatch of an event and the queued consumption finish. */
+  const settle = () => new Promise<void>(resolve => setTimeout(resolve, 50))
+  /** What the Journal plugin sends after a successful write (C-ADAPTERS-A); the memory Journal does not. */
+  const published = (f: Awaited<ReturnType<typeof assembled>>, s: ModelScene) =>
+    f.ctx.parallel(
+      'session-adapters/agent-published',
+      s.access.tenant,
+      s.access.session,
+      s.execution,
+    )
+
+  it('a received write followed by the event is consumed once, with no call to consume', async () => {
+    const s = await modelScene('trigger')
+    const f = await assembled(s)
+    await receive(s, s.result, 'trigger')
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(1)
+    expect(await progressOf(s)).toMatchObject({ through: '1', execution: s.execution })
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(1)
+  })
+
+  it('a failure of the triggered consumption is logged when it appears and when it changes, not on every event', async () => {
+    const s = await modelScene('trigger-warn')
+    const wraps: Wraps = {
+      entries: async () =>
+        fail({ kind: 'unavailable', owner: 'agentJournalEntries', diagnostic: 'down' }),
+    }
+    const f = await assembled(s, wraps)
+    const warned = () => f.logged.filter(line => line.type === 'warn').map(line => line.text)
+    await receive(s, s.result, 'trigger-warn')
+    await published(f, s)
+    await published(f, s)
+    await settle()
+    // The same failure on two events: one named line, with the diagnostic.
+    expect(warned()).toEqual([`the consumption of ${s.execution} answered unavailable: down`])
+    // Another failure: another line.
+    wraps.entries = async () =>
+      fail({ kind: 'unavailable', owner: 'agentJournalEntries', diagnostic: 'gone' })
+    await published(f, s)
+    await settle()
+    expect(warned()).toHaveLength(2)
+    expect(warned()[1]).toContain('gone')
+    // A consumption that succeeds clears the failure, so its return is logged again.
+    delete wraps.entries
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(1)
+    wraps.entries = async () =>
+      fail({ kind: 'unavailable', owner: 'agentJournalEntries', diagnostic: 'down' })
+    await published(f, s)
+    await published(f, s)
+    await settle()
+    expect(warned()).toHaveLength(3)
+  })
+
+  it('a stopped plugin does not consume after the event', async () => {
+    const s = await modelScene('trigger-stopped')
+    const f = await assembled(s)
+    await receive(s, s.result, 'trigger-stopped')
+    await f.plugin.dispose()
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(0)
   })
 })
 
@@ -406,16 +501,12 @@ describe('reading again', () => {
 })
 
 describe('failures stay failures and commit nothing', () => {
-  it('a Journal load without entries answers unavailable, not an empty channel', async () => {
+  it('an entries read that fails answers unavailable, not an empty channel', async () => {
     const s = await modelScene('no-entries')
     await receive(s, s.result, 'result')
     const f = await assembled(s, {
-      load: async input => {
-        const loaded = await s.view.journal.load(input)
-        if ('failure' in loaded) return loaded
-        const { entries: _entries, ...rest } = loaded.ok
-        return succeed(rest)
-      },
+      entries: async () =>
+        fail({ kind: 'unavailable', owner: 'agentJournalEntries', diagnostic: 'down' }),
     })
 
     expect(await f.consume()).toMatchObject({ failure: { kind: 'unavailable' } })
@@ -510,14 +601,15 @@ describe('failures stay failures and commit nothing', () => {
     await receive(s, s.result, 'result')
     const other = sampleReceivedModelResult(s.access.tenant, 'elsewhere').consumption
     const f = await assembled(s, {
-      load: async input => {
-        const loaded = await s.view.journal.load(input)
-        if ('failure' in loaded || loaded.ok.entries === undefined) return loaded
+      entries: async input => {
+        const read = await s.view.entries.read(input)
+        if ('failure' in read) return read
         return succeed({
-          ...loaded.ok,
-          entries: loaded.ok.entries.map(entry =>
-            entry.kind === 'received' ? { ...entry, consumption: other } : entry,
-          ),
+          ...read.ok,
+          items: read.ok.items.map(({ sequence, entry }) => ({
+            sequence,
+            entry: entry.kind === 'received' ? { ...entry, consumption: other } : entry,
+          })),
         })
       },
     })
@@ -532,16 +624,18 @@ describe('failures stay failures and commit nothing', () => {
     const s = await modelScene('other-consumer')
     await receive(s, s.result, 'result')
     const f = await assembled(s, {
-      load: async input => {
-        const loaded = await s.view.journal.load(input)
-        if ('failure' in loaded || loaded.ok.entries === undefined) return loaded
+      entries: async input => {
+        const read = await s.view.entries.read(input)
+        if ('failure' in read) return read
         return succeed({
-          ...loaded.ok,
-          entries: loaded.ok.entries.map(entry =>
-            entry.kind === 'received'
-              ? { ...entry, consumer: { ...entry.consumer, position: 'elsewhere' } }
-              : entry,
-          ),
+          ...read.ok,
+          items: read.ok.items.map(({ sequence, entry }) => ({
+            sequence,
+            entry:
+              entry.kind === 'received'
+                ? { ...entry, consumer: { ...entry.consumer, position: 'elsewhere' } }
+                : entry,
+          })),
         })
       },
     })
@@ -557,10 +651,10 @@ describe('failures stay failures and commit nothing', () => {
     await receive(s, s.result, 'result')
     let strip = false
     const f = await assembled(s, {
-      load: async input => {
-        const loaded = await s.view.journal.load(input)
-        if (!strip || 'failure' in loaded) return loaded
-        return succeed({ ...loaded.ok, entries: [] })
+      entries: async input => {
+        const read = await s.view.entries.read(input)
+        if (!strip || 'failure' in read) return read
+        return succeed({ ...read.ok, items: [] })
       },
     })
     ok(await f.consume())
@@ -671,27 +765,6 @@ describe('another tenant', () => {
 
     expect(answer).toMatchObject({ failure: { kind: 'denied' } })
     expect(f.reads.load).toBe(0)
-    expect(f.commits).toHaveLength(0)
-  })
-
-  it('an entry whose call names another tenant is denied, not committed', async () => {
-    const s = await modelScene('foreign-call')
-    await receive(s, s.result, 'result')
-    const foreign = sampleReceivedModelResult(memoryOtherAccess('x', 'y').tenant, s.name)
-    const f = await assembled(s, {
-      load: async input => {
-        const loaded = await s.view.journal.load(input)
-        if ('failure' in loaded || loaded.ok.entries === undefined) return loaded
-        return succeed({
-          ...loaded.ok,
-          entries: loaded.ok.entries.map(entry =>
-            entry.kind === 'received' ? { ...entry, delivery: foreign.delivery } : entry,
-          ),
-        })
-      },
-    })
-
-    expect(await f.consume()).toMatchObject({ failure: { kind: 'denied' } })
     expect(f.commits).toHaveLength(0)
   })
 

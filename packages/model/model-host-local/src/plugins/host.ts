@@ -13,9 +13,14 @@
 // - All scheduling state is in the closure of `createLocalDriverHost`. The service instance carries
 //   the four operations of `ModelInstanceHost` and nothing else: `bind` stays with the plugin.
 import { randomUUID } from 'node:crypto'
-import { Service, type Context } from '@deepseek-ai/cordis'
+import { Service, symbols, type Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ModelRuntimeProvider } from '@omne-harness/model'
+import type {
+  ModelInitialExecution,
+  ModelObservationHost,
+  ModelObservationSource,
+} from '@omne-harness/model/commands'
 import type {
   CallAccess,
   ModelCallId,
@@ -43,6 +48,7 @@ import {
 } from '@omne-harness/model-cordis-contract/cordis'
 import { modelHostConfigSchema, type ModelHostSettings } from './config.ts'
 import { createRuntimeStage, reportRuntimeEvent, type ResultPushOptions } from './runtime.ts'
+import { createModelStreamLocalPlugin } from './stream-observation.ts'
 
 const DEPENDENCY = 'model-instance-host'
 const GENERATION = /^(0|[1-9][0-9]*)$/u
@@ -65,6 +71,7 @@ type HostInput = Readonly<{
   authority: ModelHostAuthority<unknown>
   /** The current observation qualification of the observer; see `ModelHostPluginOptions`. */
   qualifyObservation: ModelHostPluginOptions['qualifyObservation']
+  observation?: ModelObservationHost<unknown>
   report(event: HostEvent): void
 }>
 
@@ -132,6 +139,7 @@ function createLocalDriverHost(input: HostInput): ModelDriverHost<unknown> {
 
   async function closeNow(): Reply<void> {
     phase = 'closing'
+    input.observation?.close()
     // What was woken but not yet dispatched is handed to the successor: it is durable in the
     // commands and the recovery scan finds it. It is not reported as done.
     const undispatched = wakes.size
@@ -212,6 +220,7 @@ function createLocalDriverHost(input: HostInput): ModelDriverHost<unknown> {
         execution: Object.freeze({ ...execution }),
         registration: randomUUID(),
       })
+      input.observation?.attach(publication)
       routes.set(key, { publication, handle })
       return { ok: publication }
     },
@@ -228,7 +237,10 @@ function createLocalDriverHost(input: HostInput): ModelDriverHost<unknown> {
         held.publication.registration === registration &&
         held.publication.execution.instance === execution.instance &&
         held.publication.execution.generation === execution.generation
-      if (removed) routes.delete(key)
+      if (removed) {
+        input.observation?.retire(held.publication)
+        routes.delete(key)
+      }
       return { ok: { removed } }
     },
 
@@ -277,6 +289,13 @@ class HostContribution extends ModelInstanceHostService<unknown> {
  * serialisable values, so they come from the assembly that creates the plugin class.
  */
 export type ModelHostPluginOptions = Readonly<{
+  executionChannel?(): ReturnType<ModelInitialExecution<unknown>['openHost']>
+  /** The entry closes its send child and then the channel after host and push drain. */
+  releaseExecution?(): Promise<void>
+  observation?: Readonly<{
+    commands: ModelCommands<unknown>
+    source: ModelObservationSource<unknown>
+  }>
   /**
    * Builds the runtime provider over the unbound host, the commands of the plugin and the injected
    * clock. The plugin binds its `driver` and calls its `quiesce` first when it shuts down. A
@@ -310,6 +329,114 @@ export type ModelRuntimeLocalPluginClass = {
   readonly Config: typeof modelHostConfigSchema
 }
 
+type ExecutionChannel = Exclude<
+  ReturnType<ModelInitialExecution<unknown>['openHost']>,
+  { failure: unknown }
+>['ok']
+
+/** Refuses a start whose options contradict the injected service or each other. */
+function assertStartOptions(ctx: Context, options: ModelHostPluginOptions): void {
+  if (
+    options.observation !== undefined &&
+    options.observation.commands !== Reflect.get(ctx.modelCommands, symbols.original)
+  )
+    throw new TypeError('model host: observation commands do not match the injected service')
+  if (options.executionChannel !== undefined && options.releaseExecution === undefined)
+    throw new TypeError('model host: execution channel requires an entry release owner')
+}
+
+/** Takes the execution channel of the entry, if the options name one; a failed lease throws. */
+function captureExecutionChannel(options: ModelHostPluginOptions): ExecutionChannel | undefined {
+  const captured = options.executionChannel?.()
+  if (captured !== undefined && 'failure' in captured)
+    throw new Error(`model host: execution channel unavailable (${captured.failure.kind})`)
+  return captured?.ok
+}
+
+/**
+ * The one release of the channel: the entry release owner first, then the close of the channel,
+ * even when the owner throws. Every call returns the same promise, so the release runs once.
+ */
+function createExecutionRelease(
+  ctx: Context,
+  options: ModelHostPluginOptions,
+  channel: ExecutionChannel | undefined,
+): () => Promise<void> {
+  let releasing: Promise<void> | undefined
+  return () => (releasing ??= releaseChannel())
+  async function releaseChannel(): Promise<void> {
+    if (channel === undefined) return
+    try {
+      await options.releaseExecution?.()
+    } catch {
+      ctx.logger.warn('model host: execution release failed')
+    } finally {
+      channel.close()
+    }
+  }
+}
+
+/** Opens the host lease of the observation source, if the options name one; a failed lease throws. */
+function openObservationHost(
+  options: ModelHostPluginOptions,
+): ModelObservationHost<unknown> | undefined {
+  const lease = options.observation?.source.openHost()
+  if (lease !== undefined && 'failure' in lease)
+    throw new Error(`model host: observation lease unavailable (${lease.failure.kind})`)
+  return lease?.ok
+}
+
+type BoundHostParts = Readonly<{
+  host: ModelDriverHost<unknown>
+  stage: ReturnType<typeof createRuntimeStage>
+  provider: ReturnType<ModelHostPluginOptions['provider']>
+  binding: ModelDriverBinding
+  observation: ModelObservationHost<unknown> | undefined
+  releaseExecution: () => Promise<void>
+}>
+
+/**
+ * Publishes the bound host and owns its shutdown. When the contribution cannot be created or
+ * does not settle, the bound host closes and the stage stops before the error goes on.
+ */
+async function publishBoundHost(ctx: Context, parts: BoundHostParts): Promise<void> {
+  const { host, stage, provider, binding, observation, releaseExecution } = parts
+  try {
+    // The extension point of the runtime facade: `modelRuntime` is published in the same
+    // contribution as the host, after the bind and from `provider`. The contribution is
+    // created inside this `try`: a fiber that unloads in the start window makes it throw, and the
+    // bound host must then close.
+    const contribution = ctx.plugin({
+      name: 'model-runtime-local-contribution',
+      apply: (child: Context) => {
+        new HostContribution(child, host)
+        stage.contribute(child, provider.runtime)
+        if (observation !== undefined) createModelStreamLocalPlugin({ source: observation })(child)
+      },
+    })
+    // The entry owns the send child on another fiber. Await its release after drives and push
+    // return, while the commands parent is still alive.
+    ctx.effect(() => [
+      contribution.dispose,
+      async () => {
+        try {
+          await orderedShutdown(ctx, provider, binding, observation)()
+          await stage.stop()
+        } catch {
+          ctx.logger.warn('model host: shutdown did not complete cleanly')
+        } finally {
+          await releaseExecution()
+        }
+      },
+    ])
+    await contribution
+  } catch (error) {
+    await binding.close()
+    await stage.stop()
+    throw error
+  }
+}
+
 /**
  * The class that is the `ModelRuntimeLocalPlugin` of the design, for the host part. It is made by a
  * function because its two options are objects. The static `inject` is the design's: commands,
@@ -319,49 +446,50 @@ export function createModelRuntimeLocalPlugin(
   options: ModelHostPluginOptions,
 ): ModelRuntimeLocalPluginClass {
   async function start(ctx: Context, settings: ModelHostSettings): Promise<void> {
-    const host = createLocalDriverHost({
-      settings,
-      authority: ctx.modelHostAuthority,
-      qualifyObservation: access => options.qualifyObservation(access),
-      report: event => reportOf(ctx, event),
-    })
-    const stage = createRuntimeStage(
-      {
-        commands: ctx.modelCommands,
-        authority: ctx.modelHostAuthority,
-        report: event => reportRuntimeEvent(ctx, event),
-      },
-      options.results,
-    )
-    const provider = options.provider({
-      host,
-      commands: stage.commands,
-      clock: ctx.modelClock,
-    })
-    // The order is the guarantee: the host was built unbound, it binds here, and only after the
-    // bind has returned is the contribution that publishes it created.
-    const bound = await host.bind(provider.driver)
-    if ('failure' in bound) throw new Error(`the model host could not bind: ${bound.failure.kind}`)
-
+    assertStartOptions(ctx, options)
+    const channel = captureExecutionChannel(options)
+    const releaseExecution = createExecutionRelease(ctx, options, channel)
+    let observation: ModelObservationHost<unknown> | undefined
     try {
-      // The extension point of the runtime facade: `modelRuntime` is published in the same
-      // contribution as the host, after the bind above and from `provider`. The contribution is
-      // created inside this `try`: a fiber that unloads in the start window makes it throw, and the
-      // bound host must then close.
-      const contribution = ctx.plugin({
-        name: 'model-runtime-local-contribution',
-        apply: (child: Context) => {
-          new HostContribution(child, host)
-          stage.contribute(child, provider.runtime)
-        },
+      observation = openObservationHost(options)
+      const host = createLocalDriverHost({
+        settings,
+        authority: ctx.modelHostAuthority,
+        qualifyObservation: access => options.qualifyObservation(access),
+        report: event => reportOf(ctx, event),
+        ...(observation !== undefined && { observation }),
       })
-      // One outer effect owns the contribution, the push and the shutdown. They are disposed in
-      // reverse order of this list, one after the other: the shutdown first, then the push, which
-      // keeps its unfinished deliveries in its ledger for a successor, and the contribution last.
-      ctx.effect(() => [contribution.dispose, stage.stop, orderedShutdown(ctx, provider, bound.ok)])
-      await contribution
+      const stage = createRuntimeStage(
+        {
+          commands: channel?.commands ?? ctx.modelCommands,
+          authority: ctx.modelHostAuthority,
+          scanBatchSize: settings.scanBatchSize,
+          report: event => reportRuntimeEvent(ctx, event),
+        },
+        options.results,
+      )
+      const provider = options.provider({
+        host,
+        commands: stage.commands,
+        clock: ctx.modelClock,
+      })
+      // The order is the guarantee: the host was built unbound, it binds here, and only after the
+      // bind has returned is the contribution that publishes it created.
+      const bound = await host.bind(provider.driver)
+      if ('failure' in bound)
+        throw new Error(`the model host could not bind: ${bound.failure.kind}`)
+
+      await publishBoundHost(ctx, {
+        host,
+        stage,
+        provider,
+        binding: bound.ok,
+        observation,
+        releaseExecution,
+      })
     } catch (error) {
-      await bound.ok.close()
+      observation?.close()
+      await releaseExecution()
       throw error
     }
   }
@@ -389,8 +517,10 @@ function orderedShutdown(
   ctx: Context,
   provider: Pick<ModelRuntimeProvider<unknown>, 'quiesce'>,
   binding: ModelDriverBinding,
+  observation: ModelObservationHost<unknown> | undefined,
 ): () => Promise<void> {
   return async () => {
+    observation?.close()
     try {
       const quiesced = await provider.quiesce()
       if ('failure' in quiesced)

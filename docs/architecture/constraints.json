@@ -539,6 +539,52 @@
       ],
       "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6562280172",
       "reason": "agent-context 实现 Agent 的请求与账目出站端口，Agent 要用工具，工具要感知运行时上下文（Reduce 裁定）"
+    },
+    {
+      "id": "GCX-TOOL-EXECUTION",
+      "edges": [
+        {
+          "from": "packages/execution/execution-environment",
+          "to": "packages/context/runtime-context-contract"
+        },
+        {
+          "from": "packages/execution/execution-environment-contract",
+          "to": "packages/context/runtime-context-contract"
+        },
+        {
+          "from": "packages/execution/execution-environment-cordis-contract",
+          "to": "packages/context/runtime-context-contract"
+        },
+        {
+          "from": "packages/execution/execution-environment-host-local",
+          "to": "packages/context/runtime-context-contract"
+        },
+        {
+          "from": "packages/tool/tool-definitions",
+          "to": "packages/execution/execution-environment-contract"
+        }
+      ],
+      "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6593090424",
+      "reason": "Tool 作者消费 Execution 的公开设施与环境声明，Execution 要感知运行时上下文（Reduce 裁定）"
+    },
+    {
+      "id": "GCX-TOOL-HOST-EXECUTION",
+      "edges": [
+        {
+          "from": "packages/tool/tool-host-local",
+          "to": "packages/context/runtime-context-contract"
+        },
+        {
+          "from": "packages/tool/tool-host-local",
+          "to": "packages/execution/execution-environment-contract"
+        },
+        {
+          "from": "packages/tool/tool-host-local",
+          "to": "packages/execution/execution-environment-cordis-contract"
+        }
+      ],
+      "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6602975605",
+      "reason": "本地 Tool 宿主经 Execution 的公开契约与 Cordis 服务获取执行环境，并感知运行时上下文（Reduce 裁定 R2-D142 第 8 项）"
     }
   ]
 }

@@ -79,6 +79,7 @@ function checkpoint(): AgentCheckpoint {
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
+    voided: [],
   }
 }
 
@@ -96,7 +97,6 @@ async function openExecution(host: World, instance: AgentInstanceId) {
     operation: OPEN,
     execution: EXECUTION,
     initial,
-    checkpoint: checkpoint(),
   }
   const handoff = { kind: 'input' as const, execution: EXECUTION, entry: OPEN, input: initial.id }
   const original: OriginalInputAcceptance = {
@@ -123,6 +123,7 @@ async function openExecution(host: World, instance: AgentInstanceId) {
       operation: OPEN,
       original,
       runtime,
+      checkpoint: checkpoint(),
     }),
   )
 }

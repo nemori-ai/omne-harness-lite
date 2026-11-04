@@ -1,5 +1,10 @@
 import { createHash } from 'node:crypto'
-import type { Access, AgentExecutionId, Reply } from '@omne-harness/agent-contract'
+import type {
+  Access,
+  AgentExecutionId,
+  AgentOperationId,
+  Reply,
+} from '@omne-harness/agent-contract'
 import { decodeAgentOperationId } from '@omne-harness/agent-contract'
 import {
   judgeModelDelivery,
@@ -11,6 +16,7 @@ import {
 } from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { canonical } from './canonical.ts'
+import { AGENT_OWNER, positionExecution } from './loop/identities.ts'
 import {
   modelDeliveryMaterial,
   modelReceivedDraft,
@@ -32,6 +38,12 @@ import {
 } from './receiving-state.ts'
 export { createModelReceiverState, ModelReceiverState } from './receiving-state.ts'
 export type { ModelReceptionDiagnostic, ModelReceiverReport } from './receiving-state.ts'
+/**
+ * The consumer owner under which this Agent registers every Model call it admits, and so the owner
+ * under which the host registers the receiver with the Model runtime (IC-13).
+ */
+export const AGENT_CONSUMER_OWNER: string = AGENT_OWNER
+
 export interface AgentModelReceiver<P> extends ModelResultReceiver<P> {
   recover(input: {
     access: Access<P>
@@ -57,8 +69,39 @@ function freeze<T>(value: T): T {
   }
   return value
 }
+/**
+ * The target query of one delivery. The route is read from the position this Agent registered; the
+ * target is the binding the provider answers with. Another owner's position names no route.
+ */
+function targetQuery<P>(access: Access<P>, delivery: ModelDelivery) {
+  const route = positionExecution(delivery.consumer)
+  return {
+    access,
+    reference: delivery.key.reference,
+    consumer: delivery.consumer,
+    ...(route === null ? {} : { execution: route }),
+  }
+}
 const receptionKey = <P>(access: Access<P>, delivery: ModelDelivery) =>
   canonical([tenantKey(access), delivery.key])
+
+/**
+ * The operation under which this receiver commits the delivery that `key` names for the tenant of
+ * `access`. It is derived, so the owner's evidence adapter finds the same committed record from the
+ * delivery key alone (custody-evidence.ts).
+ */
+export function receptionOperation<P>(
+  access: Access<P>,
+  key: ModelDelivery['key'],
+): AgentOperationId {
+  const operation = decodeAgentOperationId(
+    `received-${createHash('sha256')
+      .update(canonical([tenantKey(access), key]))
+      .digest('hex')}`,
+  )
+  if ('failure' in operation) throw new Error('invalid derived reception operation')
+  return operation.ok
+}
 
 export function createAgentModelReceiver<P>(
   dependencies: ModelReceiverDependencies<P>,
@@ -163,11 +206,7 @@ export function createAgentModelReceiver<P>(
     if (stopped?.aborted) return fail({ kind: 'cancelled-before-accept' })
     let resolved
     try {
-      resolved = await dependencies.targets.resolve({
-        access,
-        reference: delivery.key.reference,
-        consumer: delivery.consumer,
-      })
+      resolved = await dependencies.targets.resolve(targetQuery(access, delivery))
     } catch (error) {
       return failed('targets', error)
     }
@@ -278,16 +317,12 @@ export function createAgentModelReceiver<P>(
         sameTenant.reduce((sum, item) => sum + item.attachments, attachments) > capacity.attachments
       )
         return fail({ kind: 'backpressured', resource: 'attachments' })
-      const operation = decodeAgentOperationId(
-        `received-${createHash('sha256').update(key).digest('hex')}`,
-      )
-      if ('failure' in operation) throw new Error('invalid derived reception operation')
       reception = {
         access: input.access,
         target,
         binding: bindingKey(input.access, target),
         delivery,
-        operation: operation.ok,
+        operation: receptionOperation(input.access, delivery.key),
         bytes,
         attachments,
         commit: { kind: 'new' },

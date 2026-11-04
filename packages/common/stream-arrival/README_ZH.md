@@ -94,7 +94,7 @@ assembleStream({
 
 身份与位置常量分别为 `STREAM_ID_MAX_LENGTH = 256`、`STREAM_POSITION_MAX_LENGTH = 256`。等于上限继续下一检查，超一单位在 JSON 解析前返回 `length`。这些是文本解析边界；消息、队列、租户容量、吞吐和实际内存限制另有义务。
 
-调用上限覆盖当前 Tool 的 1668 及 Model 的 1024。当前最大规范 Tool invocation 长 1154。两个全为引号的 256 长身份加 256 长 `StreamId`，产生 2487 长规范引用。再加 256 位 position，规范游标长 4872。生产者扩大身份范围前必须重核边界，不截断合法身份来满足上限。
+调用上限覆盖 Tool 的引用上限 1565（操作引用形式，见 Tool 契约）及 Model 的 1024。调用文本不含租户。最大规范 Tool invocation 长 1051。两个全为引号的 256 长身份加 256 长 `StreamId`，产生 2366 长规范引用。再加 256 位 position，规范游标长 4715。生产者扩大身份范围前必须重核边界，不截断合法身份来满足上限。
 
 规范输出没有 BOM、非必要空白或末尾换行，持久字节是该文本的 UTF-8。字符串转义沿 ECMAScript `JSON.stringify`。元组顺序和域标记大小写固定，版本是 JSON number `1`，字符串 `"1"` 拒绝。不做 Unicode 归一化、大小写折叠、身份字段 trim 或百分号编码。
 
@@ -121,13 +121,13 @@ assembleStream({
 
 decode、parse、encode、judge 返回 `Outcome`。`StreamValueRejection` 带 `field` 和 `reason`。field 是 `StreamId`、`StreamPosition`、`StreamRef` 或 `StreamCursor`。reason 集合是 `type`、`length`、`syntax`、`domain`、`version`、`shape`、`producer`、`identity`、`position`、`unreadable`。
 
-身份、位置 decoder 和 envelope parser 直接返回该 rejection。引用失败是带 rejection 的 `invalid-envelope`，或 `wrong-producer`、`malformed`、`invalid-tenant`、`foreign-tenant`。游标失败是带 rejection 的 `invalid`，或 `foreign-stream`。调用 codec 暴露 `producer` 和 `resolve({ text, tenant })`。resolve 经 `Outcome` 返回规范 call 文本，或 `malformed`、`invalid-tenant`、`foreign-tenant`。
+身份、位置 decoder 和 envelope parser 直接返回该 rejection。引用失败是带 rejection 的 `invalid-envelope`，或 `wrong-producer`、`malformed`、`invalid-tenant`。游标失败是带 rejection 的 `invalid`，或 `foreign-stream`。调用 codec 暴露 `producer` 和 `resolve({ text, tenant })`。resolve 经 `Outcome` 返回规范 call 文本，或 `malformed`、`invalid-tenant`。没有表示「调用属于另一租户」的失败：call 文本不含租户，另一租户的调用按所给租户解析，生产者在该租户里找不到这个调用（R2-D370）。
 
 检查按以下顺序执行，首个失败决定结果。
 
 1. `decodeStreamId` 先核 string，再核非空及长度上限，最后核词法。失败依次是 `type`、`length`、`identity`。`decodeStreamPosition` 同序，词法失败为 `position`。field 是各自 decoder 的字段名。
 2. `parseStreamEnvelope` 依次核 string、非空及引用长度上限、JSON 语法、数组、domain、version、精确五项、producer、call、stream。field 固定 `StreamRef`。非数组或项数不符为 `shape`。producer 非 `model` 或 `tool` 为 `producer`。call 非 string 为 `shape`，空或超限为 `length`。stream 非法为 `identity`。额外项不忽略。成功冻结 envelope，但只提供路由值。
-3. `judgeStreamRef` 先以 `tenantCodec.encode` 核 tenant 铸造关系，失败为 `invalid-tenant`。再解析 envelope，失败包为 `invalid-envelope`。再比较 `codec.producer`，不同为 `wrong-producer`，不调用 resolve。最后调用 resolve，保留三种原调用失败。成功重新规范编码，输出超限为 `invalid-envelope`，reason 为 `length`。
+3. `judgeStreamRef` 先以 `tenantCodec.encode` 核 tenant 铸造关系，失败为 `invalid-tenant`。再解析 envelope，失败包为 `invalid-envelope`。再比较 `codec.producer`，不同为 `wrong-producer`，不调用 resolve。最后调用 resolve，保留两种原调用失败。成功重新规范编码，输出超限为 `invalid-envelope`，reason 为 `length`。
 4. `encodeStreamRef` 先捕获精确四键 tenant、producer、call、stream 的 data record。每键必须是自有可枚举 data property，原型只能是 `Object.prototype` 或 null。不调用 getter、toJSON 或转换函数。反射异常为 `invalid-envelope/unreadable`，其他非法 record 外形为 `invalid-envelope/shape`。捕获后按上述次序核 tenant、envelope 字段、producer、原 codec 和规范输出。不冻结调用方 record。
 5. `encodeStreamCursor` 捕获精确 ref、position 两键 record，沿同一描述符与原型规则，失败为 `invalid`，field 为 `StreamCursor`。ref 是已判定规范品牌，position 重新核词法，非法为 `position`。按固定元组编码并核游标输出上限。伪造 ref 品牌是编程错误，结构检查不证明原调用已验证。
 6. `judgeStreamCursor` 依次核原始 string、非空及游标长度上限、JSON 语法、数组、domain、version、精确四项、内嵌 ref、position。field 固定 `StreamCursor`。内嵌 ref 非 string 为 `shape`，空或超限为 `length`。position 非法为 `position`。结构全部通过后才比较目标 ref，不同为 `foreign-stream`，成功返回规范游标文本。
@@ -136,7 +136,7 @@ judge 参数容器及调用 codec 是 typed 注入依赖，不是 unknown 序列
 
 `judgeStreamRef` 是引用解码边界，没有绕过 tenant 和生产者校验的 `decodeStreamRef`。read 只接收这些边界产生的品牌，不核当前资格，不重调生产者 codec。不可读的伪造品牌抛通用 `TypeError`，不回显输入。parse 和 read 的对象结果冻结，调用方输入不冻结、不修改。
 
-各生产者维护原调用 codec 适配器。Model 先调用 `resolveModelInvocationRef(text, tenant)`，再调用 `encodeModelInvocationRef(parts)`。Tool 使用对应的 `resolveToolInvocationRef` 和 `encodeToolInvocationRef`。详细 malformed rejection 映为 `malformed`，`invalid-tenant`、`foreign-tenant` 保持原 kind。共同 tenant 检查先于 Tool codec，所以 Tool 将未铸造 tenant 归 foreign 的内部差异不改变公共结果。没有原 codec 验证的测试 callback 不是正式身份适配器。Tool 具体适配器仍归 Tool。
+各生产者维护原调用 codec 适配器。Model 先调用 `resolveModelInvocationRef(text, tenant)`，再调用 `encodeModelInvocationRef(parts)`。Tool 使用对应的 `resolveToolInvocationRef` 和 `encodeToolInvocationRef`。详细 malformed rejection 映为 `malformed`，`invalid-tenant` 保持原 kind。共同 tenant 检查先于生产者 codec，所以 codec 自己对未铸造 tenant 的检查不改变公共结果。没有原 codec 验证的测试 callback 不是正式身份适配器。Tool 具体适配器仍归 Tool。
 
 #### 固定编码例
 
@@ -152,7 +152,7 @@ judge 参数容器及调用 codec 是 typed 注入依赖，不是 unknown 序列
 | producer 改 tool，仍配 Model codec | `wrong-producer`，不调用 codec |
 | model producer 配合法 Tool invocation | `malformed` |
 | 输入同形未铸造 tenant | `invalid-tenant`，不调用 codec |
-| 输入另一 account 的已铸造 tenant | `foreign-tenant` |
+| 输入另一 account 的已铸造 tenant | 同一规范 ref：call 文本不含租户 |
 | stream 是 `str_` | reason 为 `identity` |
 | position 是 `01`，或游标 position 是数值零 | reason 为 `position` |
 | 游标内嵌 ref 的 stream 改 `str_b` | `foreign-stream` |
@@ -205,11 +205,11 @@ Abort 和迭代器 return 只移除本次观察，不取消生产者工作、不
 
 ### 失败顺序与迭代完成
 
-tenant 未铸造、跨租户或当前资格拒绝均以 denied 结束。公共 ref 语法不可读时以 stale-stream 结束，不查目标。tenant 与公开语法检查后，先取得当前资格允许，再读取目标。资格来源不可用时返回 unavailable，即使目标实际已退役也不能先披露 stale。
+tenant 未铸造或当前资格拒绝以 denied 结束。公共 ref 语法不可读时以 stale-stream 结束，不查目标。tenant 与公开语法检查后，先取得当前资格允许，再读取目标。资格来源不可用时返回 unavailable，即使目标实际已退役也不能先披露 stale。
 
 语法检查就是 envelope 解析。envelope 解析给出的 `invalid-envelope` 在资格允许之前以 stale-stream 结束。`wrong-producer`、`malformed` 以及规范输出超限给出的 `invalid-envelope` 是目标检查。例如引用的 producer 为 model、call 文本是一段合法 Tool invocation 时，纯函数返回 `malformed`。来源在资格允许之后才判定这三种失败，并以 stale-stream 结束。资格允许之前，来源只披露 tenant 结果与 envelope 结果。
 
-资格允许后，wrong producer、同租户未知映射或退役发布返回 stale-stream。目标来源不可用返回 unavailable。之后才检查容量和交付正常内容。每次实际输出重新跑输出前检查。已交出的终止帧不再追加第二个终止原因。
+资格允许后，wrong producer、同租户未知映射或退役发布返回 stale-stream。指向另一租户调用的引用属于同租户未知映射，回复与从未存在的调用相同（R2-D370）。目标来源不可用返回 unavailable。之后才检查容量和交付正常内容。每次实际输出重新跑输出前检查。已交出的终止帧不再追加第二个终止原因。
 
 已保留、尚未交出的终止帧不是最终帧。交出前来源对它跑输出前检查。检查失败时，来源交出 denied、unavailable 或 stale-stream，而不是这个保留帧。之后的 source-closed 或 producer-ended 结束，以及 source-history gap，都不取代已保留的终止帧。
 

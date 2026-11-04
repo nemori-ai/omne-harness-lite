@@ -15,15 +15,23 @@ function forbidden(specifier: string): boolean {
   )
 }
 
-it('root entry exports the factory, evaluator, checkpoint and received-model schema and reader; construction shapes are types', () => {
+it('root entry exports the factory, evaluator, checkpoint, control advance, step limit default, producer receivers and the custody evidence; construction shapes are types', () => {
   expect(Object.keys(agent).sort()).toEqual([
+    'AGENT_CONSUMER_OWNER',
+    'DEFAULT_MAX_RUN_STEPS',
+    'advanceControl',
     'agentCheckpointSchema',
     'agentEvaluator',
     'agentModelDeliverySchema',
+    'agentToolDeliverySchema',
+    'createAgentCustodyEvidence',
     'createAgentModelReceiver',
     'createAgentRuntime',
+    'createAgentToolReceiver',
     'createModelReceiverState',
+    'createToolReceiverState',
     'readModelDeliveryMaterial',
+    'readToolDeliveryMaterial',
   ])
 })
 
@@ -48,6 +56,7 @@ it('testing entry exports the memory Journal, the scripted doubles, the clock an
     'createTableAdoptions',
     'createTableConditions',
     'createTestAgentDependencies',
+    'createToolReceiverFixture',
     'readyPreparation',
     'testAdoption',
     'testEvidence',

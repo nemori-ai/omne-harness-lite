@@ -41,3 +41,13 @@ SPEC 的行为变化时，同步对应测试与本目录 `index.md`。宿主文�
 运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过。当前的运行记录见 SPEC [组合与验证](../SPEC.md#组合与验证)。
 
 当前缺口：契约意义的授予根（宿主提供者不声称它）、同一文件系统上的绑定挂载、起点之外设备上的递归搜索与删除、macOS、同一 isolate 标签下重复装载、配置校验失败，都没有测试。`describe()` 看不到是否配置了根（契约没有位置），只测了证据里的条目。真实的 `failed` 单元状态没有构造出来，只有判断函数的测试。具名维护者由负责人指定。
+
+## Linux 终端验证
+
+[host-terminal.spec.ts](host-terminal.spec.ts)运行协议、原始字节和真实 Cordis 声明用例。它不启动 Linux PTY。
+
+[host-terminal-recovery.spec.ts](host-terminal-recovery.spec.ts)使用真实 Bash、node-pty 与 systemd，覆盖持久 cwd、临时覆盖、非 UTF-8 字节、获取归属、并发、单终端强停、伪输出、后台写者、释放及新进程恢复。仅在 Linux 且 `OMNE_HOST_TERMINAL_LINUX=1` 时运行；缺前提会 runtime skip，不能记通过。先 build，再在成员目录运行 `OMNE_HOST_TERMINAL_LINUX=1 OMNE_HOST_COMMAND_LINUX=1 pnpm exec vitest run --mode slow tests/host-terminal-recovery.spec.ts`。
+
+分段回归还核对 `return 0/7/125`、命令失败、提前返回后的状态保留与覆盖恢复，以及 shell 退出和 cwd 恢复失败后的失效。
+
+Windows 运行 `pnpm exec vitest run --mode fast`。单独过滤全 skip 的 Linux 文件按仓库规则退出非零，表示没有实跑用例。

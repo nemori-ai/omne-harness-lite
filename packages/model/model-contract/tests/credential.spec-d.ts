@@ -94,8 +94,10 @@ it('presence and resolution are closed unions of kinds', () => {
   void [presence, resolution, bare, noScope, unlisted, secretOnAbsent]
 })
 
-it('the port has present and resolve only, and a store can add its own diagnostics', () => {
-  expectTypeOf<keyof CredentialPort>().toEqualTypeOf<'present' | 'resolve'>()
+it('the port has legacy and optional qualified operations, and a store can add its own diagnostics', () => {
+  expectTypeOf<keyof CredentialPort>().toEqualTypeOf<
+    'present' | 'resolve' | 'presentFor' | 'resolveFor'
+  >()
   const port: CredentialPort = {
     present: () => ({ kind: 'unavailable' }),
     resolve: () => ({ kind: 'unavailable' }),

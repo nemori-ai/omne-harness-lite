@@ -4,6 +4,7 @@
 // 子命令可在任意位置，错误文字前缀 `s0:`）。有 `serve` 时走真实模式。S0 的字节级比较（对基线源码）由
 // 过程目录里的 `s0-bytes-compare.sh` 做；本文件把基线行为里能写成字面值的部分固定下来。
 import { execFile } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -11,6 +12,8 @@ import { describe, expect, it } from 'vitest'
 const memberDir = fileURLToPath(new URL('..', import.meta.url))
 const bin = join(memberDir, 'dist', 'bin.js')
 const distribution = join(memberDir, 'config', 's0.distribution.json')
+// A server home that never exists: no case here reaches the local setup of the host that runs it.
+const noSetupHome = join(tmpdir(), `bin-argv-no-setup-${String(process.pid)}`)
 
 type Outcome = { code: number | null; stdout: string; stderr: string }
 
@@ -19,7 +22,7 @@ function runBin(args: readonly string[]): Promise<Outcome> {
     execFile(
       process.execPath,
       [bin, ...args],
-      { env: { ...process.env, NO_COLOR: '1' }, timeout: 60_000 },
+      { env: { ...process.env, NO_COLOR: '1', OMNE_SERVER_HOME: noSetupHome }, timeout: 60_000 },
       (error, stdout, stderr) => {
         const code = error === null ? 0 : typeof error.code === 'number' ? error.code : null
         resolve({ code, stdout, stderr })
@@ -80,16 +83,37 @@ describe('bin: S0 argument parsing is the baseline path when no positional is se
 })
 
 describe('bin: serve anywhere in the positionals selects the real mode', () => {
-  it('serve after the options: the serve usage error, prefix serve', async () => {
+  it('serve after the options: without --state-root it needs the local setup, prefix serve', async () => {
     const out = await runBin([...options, 'serve'])
     expect(out.code).toBe(2)
     expect(out.stdout).toBe('')
-    expect(out.stderr.startsWith('serve: missing --state-root\nusage: serve ')).toBe(true)
+    expect(out.stderr).toBe(
+      `serve: not set up: no state directory at ${join(noSetupHome, 'state')}\n` +
+        'Run `harness-server setup` first.\n',
+    )
   })
 
   it('serve with an extra positional is refused with the serve prefix', async () => {
     const out = await runBin(['serve', 'extra', ...options])
     expect(out.code).toBe(2)
     expect(out.stderr.startsWith('serve: expected subcommand serve\nusage: serve ')).toBe(true)
+  })
+})
+
+describe('bin: setup in the positionals selects the local setup', () => {
+  it('--help prints the setup usage and exits 0 without touching the host', async () => {
+    const out = await runBin(['setup', '--help'])
+    expect(out.code).toBe(0)
+    expect(out.stdout.startsWith('usage: setup ')).toBe(true)
+    expect(out.stderr).toBe('')
+  })
+
+  it('an unknown option is refused without repeating it, because it can be a key', async () => {
+    const sentinel = ['sk', 'or', 'sentinel', String(process.pid)].join('-')
+    const out = await runBin(['setup', `--api-key=${sentinel}`])
+    expect(out.code).toBe(2)
+    expect(out.stdout).toBe('')
+    expect(out.stderr.startsWith('setup: unrecognized arguments\nusage: setup ')).toBe(true)
+    expect(out.stderr).not.toContain(sentinel)
   })
 })

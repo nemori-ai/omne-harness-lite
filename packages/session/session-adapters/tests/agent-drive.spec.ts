@@ -2,7 +2,10 @@
 // is checked: the two fixed samples encode to their texts and parse back, and every malformed text
 // is refused; `invoke` and `resume` read the active Run as `coordinator`, check the slot reference
 // against it, and reach the runtime only through `acquire` and `resolve`, with the coordinator
-// principal on every outbound call; each Agent answer maps by the SPEC table; a reference that does
+// principal on every outbound call; each Agent answer maps by the SPEC table; a control names its
+// call by the invocation reference that Session holds, resolved for the target tenant, and a
+// producer that does not resolve is a reported `unavailable` (another tenant's is `denied`), never
+// an accepted or `unsupported` control; a reference that does
 // not match the Run, and an Agent `invalid` that is not an input refusal, answer `unavailable`;
 // another tenant's principal, session or handle is never used; the plugin is absent while any
 // dependency is absent and drops its handles when an instance retires or the plugin runs again.
@@ -31,6 +34,11 @@ import {
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { createMemoryInstanceProvision } from '@omne-harness/agent-cordis-contract/testing'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import {
+  decodeModelCallId,
+  decodeModelOperationId,
+  encodeModelInvocationRef,
+} from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   Adoption,
@@ -53,6 +61,11 @@ import {
   userMessage,
 } from '@omne-harness/session-contract/testing'
 import { SessionService, sessionAgentDriveKey } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  decodeToolCallId,
+  decodeToolOperationId,
+  encodeToolInvocationRef,
+} from '@omne-harness/tool-contract'
 import { createSessionAgentDrivePlugin, sessionScopeEvidence } from '../src/cordis/agent-drive.ts'
 import { decodeSessionSlotRef, encodeSessionSlotRef } from '../src/slot-ref.ts'
 
@@ -140,6 +153,8 @@ function activeRun(instance: AgentInstanceRef | null, adopted: Adoption = runAdo
       instance === null ? null : { run: 'run-1' as never, attempt: 'attempt-1' as never, instance },
     ordinal: '1',
     execution: { execution: EXECUTION, revision: null, evidence: null, readThrough: '0' },
+    // The fixture's Run layer: the face under test reads the Run, never this revision.
+    revision: '1' as WorkSnapshot['revision'],
   }
 }
 
@@ -812,20 +827,39 @@ describe('control goes to the long-term control entry, without a handle', () => 
     digest: expect.stringMatching(/^[0-9a-f]{64}$/),
   })
 
+  // A Session producer names its call by the invocation reference that AD-05 and AD-06 read from
+  // `key.reference` (session-contract 稳定调用引用的读取); the Agent control names the call itself.
+  const modelReference = (tenant: TenantId, call = 'mcall_1') =>
+    must(
+      encodeModelInvocationRef({
+        tenant,
+        call: must(decodeModelCallId(call)),
+        admission: must(decodeModelOperationId(`mop_${call}-admission`)),
+      }),
+    )
+  const toolReference = (tenant: TenantId, call = 'tcall-1') =>
+    must(
+      encodeToolInvocationRef({
+        tenant,
+        call: must(decodeToolCallId(call)),
+        admission: must(decodeToolOperationId(`${call}-admission`)),
+      }),
+    )
+
   it.each<[string, Parameters<AgentDrivePort['control']>[0]['intent'], Partial<ExecutionControl>]>([
     [
       'stop-call of a Model call',
-      { kind: 'stop-call', producer: { kind: 'model', call: 'mcall_1' } },
+      { kind: 'stop-call', producer: { kind: 'model', call: modelReference(A.tenant) } },
       { kind: 'interrupt-model', call: 'mcall_1' as never },
     ],
     [
       'stop-call of a Tool call',
-      { kind: 'stop-call', producer: { kind: 'tool', call: 'tcall-1' } },
+      { kind: 'stop-call', producer: { kind: 'tool', call: toolReference(A.tenant) } },
       { kind: 'interrupt-tool', call: 'tcall-1' as never },
     ],
     [
       'background-tool',
-      { kind: 'background-tool', producer: { kind: 'tool', call: 'tcall-1' } },
+      { kind: 'background-tool', producer: { kind: 'tool', call: toolReference(A.tenant) } },
       { kind: 'background-tool', call: 'tcall-1' as never },
     ],
     [
@@ -860,18 +894,47 @@ describe('control goes to the long-term control entry, without a handle', () => 
     expect(f.calls).toHaveLength(0)
   })
 
-  it('a Model call that is not a Model call identity is a translation defect', async () => {
+  // A producer call that does not resolve is answered unavailable and reported, never accepted and
+  // never `unsupported`: Session stops replaying on `unsupported` and would drop the control.
+  it.each<[string, Parameters<AgentDrivePort['control']>[0]['intent']]>([
+    [
+      'a Model call that is not a reference',
+      { kind: 'stop-call', producer: { kind: 'model', call: 'not-a-model-call' } },
+    ],
+    [
+      'a Model call identity instead of its reference',
+      { kind: 'stop-call', producer: { kind: 'model', call: 'mcall_1' } },
+    ],
+    [
+      'a Tool reference named as a Model call',
+      { kind: 'stop-call', producer: { kind: 'model', call: toolReference(A.tenant) } },
+    ],
+    [
+      'a Tool call identity instead of its reference',
+      { kind: 'stop-call', producer: { kind: 'tool', call: 'tcall-1' } },
+    ],
+    [
+      'a background Tool call that is not a reference',
+      { kind: 'background-tool', producer: { kind: 'tool', call: 'tcall-1' } },
+    ],
+  ])('%s is a reported translation defect', async (_name, intent) => {
     const f = await assembled()
-    const answer = await f
-      .drive()
-      .control(
-        controlInput({ kind: 'stop-call', producer: { kind: 'model', call: 'not-a-model-call' } }),
-      )
-    expect(answer).toHaveProperty(
-      'failure.diagnostic',
-      expect.stringMatching(/^translation defect/),
-    )
+    const answer = await f.drive().control(controlInput(intent))
+    expect(answer).toEqual({
+      failure: {
+        kind: 'unavailable',
+        diagnostic: expect.stringMatching(/^translation defect: .*not .* invocation reference/),
+      },
+    })
     expect(f.calls).toHaveLength(0)
+    expect(f.errors()).toHaveLength(1)
+  })
+
+  it('cannot name another tenant in a Model or Tool reference (R2-D357)', () => {
+    // The text carries no tenant: a reference encoded for tenant B is the caller's own reference,
+    // located in the caller's tenant.
+    expect(modelReference(B.tenant)).toBe(modelReference(A.tenant))
+    expect(toolReference(B.tenant)).toBe(toolReference(A.tenant))
   })
 })
 

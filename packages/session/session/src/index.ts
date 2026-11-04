@@ -6,4 +6,16 @@ export {
   type SchedulingPolicy,
   type SessionConfiguration,
 } from './policy.ts'
-export { createSessionInstance, type MaintenanceHandle, type SessionInstance } from './instance.ts'
+export {
+  createSessionInstance,
+  type MaintenanceHandle,
+  type SessionInstance,
+  type SessionInstanceOptions,
+} from './instance.ts'
+export type {
+  SessionMeasure,
+  SessionMeasureEvent,
+  SessionRoundCompleteEvent,
+  SessionSegmentEvent,
+} from './measure.ts'
+export type { SessionDiagnose, SessionDiagnostic } from './diagnostics.ts'

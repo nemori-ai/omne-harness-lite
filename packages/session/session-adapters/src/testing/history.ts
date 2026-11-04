@@ -3,10 +3,11 @@ export { pendingCalls } from './pending.ts'
 import { corrupt, unavailable } from './history-failure.ts'
 export { HistoryFailure, corrupt, unavailable } from './history-failure.ts'
 import { normalizeControl } from './control.ts'
-import { humanWaiting } from './human.ts'
+import { captureHuman, humanWaiting } from './human.ts'
 import type {
   AgentEvent,
   Authority,
+  CommandReceipt,
   PendingCall,
   ProducedResult as AgentResult,
 } from '@omne-harness/agent-contract'
@@ -60,15 +61,20 @@ export function grantAttempt(
     findGrantAttempt(root, execution, grant) ?? unavailable('grant does not identify original SE15')
   )
 }
+/**
+ * The attempt the Authority was granted under (R2-D348): the Agent records the grant of the
+ * attachment the Authority names, and the Session resolves that grant to its attempt.
+ */
 export function authorityAttempt(
   root: CommonRoot,
   execution: string,
   authority: Authority,
 ): SessionAttemptRecord {
-  return (
-    root.agent.authorities.get(`${execution}\0${canonical(authority)}`) ??
-    unavailable('original Authority to grant relationship')
-  )
+  const own = [...root.agent.executions.values()].find(item => item.id === execution)
+  const text = canonical(authority)
+  const attachment = own?.attachments.find(item => canonical(item.authority) === text)
+  if (attachment === undefined) unavailable('original Authority to grant relationship')
+  return grantAttempt(root, execution, attachment.grant)
 }
 export function originalPending(
   root: CommonRoot,
@@ -221,13 +227,38 @@ function callConsequences(
   }
   return result
 }
-function normalizeOriginal(
+/**
+ * The consequences of an input-taken event. A step that took no input (the step after a Tool
+ * result) has no Session acceptance: an empty batch is only observed, and Session's refusal of an
+ * empty SE14 batch stays as it is.
+ */
+function takenConsequences(
+  batch: Extract<AgentEvent['body'], { kind: 'input-taken' }>['batch'],
+): readonly SessionLogConsequence[] {
+  if (batch.ordered.length === 0) return [{ kind: 'observed' }]
+  return [
+    {
+      kind: 'input-taken',
+      batch: {
+        id: String(batch.id) as BatchId,
+        watermark: batch.watermark,
+        ordered: batch.ordered.map(input => String(input) as InputId),
+      },
+    },
+  ]
+}
+
+/**
+ * The consequences of one event that the original Agent fragments of the same root decide alone:
+ * every event body but `control`, whose consequences read the Session state of the interpretation
+ * and are refused here as unavailable. The production Journal, which holds no Session state in its
+ * copy, normalizes with this function; the memory double reaches it through `normalize`.
+ */
+export function normalizeAgentEvent(
   root: CommonRoot,
   execution: MemoryExecution,
   event: AgentEvent,
 ): readonly SessionLogConsequence[] {
-  const state = root.session
-  if (!state) unavailable('Session')
   if (event.execution !== execution.id) corrupt('event.execution')
   const original = root.agent.eventReceipts.get(`${execution.id}\0${event.sequence}`)
   if (!original || canonical(original.evidence) !== canonical(event.cause))
@@ -235,16 +266,7 @@ function normalizeOriginal(
   const body = event.body
   switch (body.kind) {
     case 'input-taken':
-      return [
-        {
-          kind: 'input-taken',
-          batch: {
-            id: String(body.batch.id) as BatchId,
-            watermark: body.batch.watermark,
-            ordered: body.batch.ordered.map(input => String(input) as InputId),
-          },
-        },
-      ]
+      return takenConsequences(body.batch)
     // `message` is already saved by AD-01; `entry` tells of a condition the same Journal saved in
     // the same commit. Neither has a Session consequence (session-contract EC-01).
     case 'message':
@@ -312,8 +334,91 @@ function normalizeOriginal(
       ]
     }
     case 'control':
-      return normalizeControl(root, execution, event)
+      return unavailable('control consequences read the Session state of the interpretation')
   }
+}
+function normalizeOriginal(
+  root: CommonRoot,
+  execution: MemoryExecution,
+  event: AgentEvent,
+): readonly SessionLogConsequence[] {
+  if (!root.session) unavailable('Session')
+  if (event.body.kind !== 'control') return normalizeAgentEvent(root, execution, event)
+  if (event.execution !== execution.id) corrupt('event.execution')
+  const original = root.agent.eventReceipts.get(`${execution.id}\0${event.sequence}`)
+  if (!original || canonical(original.evidence) !== canonical(event.cause))
+    unavailable('event original commit')
+  return normalizeControl(root, execution, event)
+}
+/** The Pending calls one event names: the producer waits of a waiting event, the original of a producer event. */
+function pendingOf(root: CommonRoot, execution: MemoryExecution, event: AgentEvent): PendingCall[] {
+  if (event.body.kind === 'waiting')
+    return event.body.waits.flatMap(wait => (wait.kind === 'producer' ? [wait.pending] : []))
+  if (event.body.kind === 'producer')
+    return [normalizedResult(root, execution, event.body.consumption, event.body.result).pending]
+  return []
+}
+
+/**
+ * Keeps the first call event of the consumption of `value`, and the event that associates a Tool
+ * intent with its actual call.
+ */
+function rememberCallOrigin(
+  root: CommonRoot,
+  execution: MemoryExecution,
+  event: AgentEvent,
+  value: PendingCall,
+): void {
+  registration(root, execution, value)
+  const key = `${execution.id}\0${value.consumption}`,
+    prior = root.agent.callOrigins.get(key)
+  if (!prior) {
+    root.agent.callOrigins.set(key, { first: event.sequence, pending: value, association: null })
+    return
+  }
+  if (
+    prior.pending.kind === 'tool' &&
+    prior.pending.association === 'intent' &&
+    value.kind === 'tool' &&
+    value.association === 'associated' &&
+    prior.association === null
+  )
+    root.agent.callOrigins.set(key, {
+      ...prior,
+      association: { sequence: event.sequence, pending: value, source: event.cause },
+    })
+}
+
+/**
+ * Keeps, in the root of the write that appended `event`, the original fragments that the
+ * normalization of the event reads: its commit receipt, its ended position, the control records of
+ * a control event, the Pending of a waiting or producer event with the first call event of each
+ * consumption, and the human material of a human wait. It throws as its reads throw: a
+ * HistoryFailure for a missing original, a TypeError for human material without an original card
+ * round. The caller decides whether that fails the write.
+ */
+export function captureEventOriginal(
+  root: CommonRoot,
+  execution: MemoryExecution,
+  event: AgentEvent,
+  receipt: CommandReceipt,
+): void {
+  root.agent.eventReceipts.set(`${execution.id}\0${event.sequence}`, receipt)
+  if (event.body.kind === 'ended')
+    root.agent.ended.set(execution.id, { sequence: event.sequence, source: event.cause })
+  if (event.body.kind === 'control')
+    root.agent.controls.set(
+      `${execution.id}\0${event.sequence}`,
+      structuredClone(execution.controls),
+    )
+  const pending = pendingOf(root, execution, event)
+  root.agent.pendingEvents.set(`${execution.id}\0${event.sequence}`, pending)
+  for (const value of pending) rememberCallOrigin(root, execution, event, value)
+  if (event.body.kind === 'waiting' && event.body.waits.some(wait => wait.kind === 'human'))
+    root.agent.human.set(
+      `${execution.id}\0${event.sequence}`,
+      captureHuman(event, execution.checkpoint, receipt),
+    )
 }
 const normalized = new WeakMap<AgentEvent, readonly SessionLogConsequence[]>()
 export function normalize(

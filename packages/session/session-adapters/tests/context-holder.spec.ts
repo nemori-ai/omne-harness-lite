@@ -3,23 +3,28 @@
 // caller of `applyCommit`; a scope it has not recovered starts a recovery session whose material
 // holds the registrations in log order, the checkpointed blocks that have a step commit (and no
 // other block), and the end; `out-of-order` starts a recovery session that supersedes the current
-// one; `replayFacts.stepCommittedBlocks` reads the same records and makes C18's trust refuse a
-// finish that leaves out a step-committed block; the `runtimeContextReaderEligibility` provider
-// passes the handoff suite, refuses another tenant before it reads anything, and issues per
-// consumer class; both plugins stay absent while a dependency is absent, and a new Runtime Context
-// provider makes the scope recover again before the next eligibility.
+// one; the facts plugin `session-ad03-facts` (R2-D29) reads the same records through its history
+// sub-plugin (`reader`), outside the replay, and its `replayFacts.stepCommittedBlocks` makes C18's
+// trust refuse a finish that leaves out a step-committed block; the
+// `runtimeContextReaderEligibility` provider passes the handoff suite, refuses another tenant
+// before it reads anything, and issues per consumer class; a new scope with no record is recovered
+// with the empty material only while the session's scope bindings, read afresh, show it open
+// (R2-D219 B1); those bindings are read from the SE27/SE28 entries, one kind per read, and never
+// from the work snapshot (SCOPE-NARROW); the holder and replay plugins stay absent while a
+// dependency is absent, and a new Runtime Context provider makes the scope recover again before
+// the next eligibility.
 //
 // Runtime Context is the contract's memory double behind a Cordis service, with C18's trust built
-// from the test authority ports and the holder's own `replayFacts`. The translation from a Session
-// entry to a Runtime Context commit input is a scripted double: its real provider is AD-12's
-// translation protocol, which is not delivered yet.
+// from the test authority ports and the facts plugin's `replayFacts`. The translation from a Session
+// entry to a Runtime Context commit input is a scripted double; AD-12's real translation is checked
+// in `context-input.spec.ts`. The session service records every call with the plugin that made it
+// and that plugin's caller class; its work face serves nothing and only records a call.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   decodeScopeRef,
-  type CommitInput,
   type ContextBlockKey,
   type FinishReplayAction,
   type NeedBinding,
@@ -34,18 +39,22 @@ import {
 } from '@omne-harness/runtime-context-contract/testing'
 import {
   RuntimeContextService,
+  runtimeContextKey,
   runtimeContextReaderEligibilityKey,
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { readerEligibilityConformance } from '@omne-harness/runtime-context-cordis-contract/testing'
-import type {
-  EntryId,
-  HistoryEntry,
-  HistoryPage,
-  SessionAccess,
-  SessionFaces,
-  SessionId,
-  SessionRevision,
+import {
+  CONTEXT_SCOPE_KINDS,
+  contextScopeOf,
+  type EntryId,
+  type HistoryEntry,
+  type HistoryPage,
+  type SessionAccess,
+  type SessionFaces,
+  type SessionId,
+  type SessionRevision,
 } from '@omne-harness/session-contract'
+import type { JsonValue } from '@omne-harness/json-text'
 import {
   adoption,
   evidence,
@@ -57,6 +66,7 @@ import {
   createSessionContextHolder,
   type SessionContextTranslation,
 } from '../src/cordis/context-holder.ts'
+import type { RecordedCommit } from '../src/cordis/context-holder.ts'
 import { createSessionRuntimeContextTrust } from '../src/runtime-context-trust.ts'
 
 // --- values --------------------------------------------------------------------------------------
@@ -77,8 +87,27 @@ function scopeRef(ref: string): ScopeRef {
   if ('failure' in decoded) throw new Error('fixture: scope')
   return decoded.ok
 }
-const scopeA = scopeRef('session-scope:a')
-const scopeB = scopeRef('session-scope:b')
+/** The scope that the creation of a session mints: generation 1 (J18). */
+const createdScope = (access: SessionAccess<unknown>) =>
+  scopeRef(contextScopeOf({ tenant: access.tenant, session: access.session, generation: '1' }))
+const scopeA = createdScope(A)
+const scopeB = createdScope(B)
+
+/** The json-text tree of a plain value, as Session stores an entry payload. */
+function tree(value: unknown): JsonValue {
+  if (value === null) return { kind: 'null' }
+  if (typeof value === 'string') return { kind: 'string', value }
+  if (typeof value === 'boolean') return { kind: 'boolean', value }
+  if (typeof value === 'number') return { kind: 'number', lexeme: String(value) }
+  if (Array.isArray(value)) return { kind: 'array', items: value.map(tree) }
+  return {
+    kind: 'object',
+    entries: Object.entries(value as Record<string, unknown>).map(([key, item]) => ({
+      key,
+      value: tree(item),
+    })),
+  }
+}
 
 const numberShape = {
   '~standard': {
@@ -152,7 +181,7 @@ function add(
   basedOn: number,
   persistence: 'checkpointed' | 'untracked',
   bindings: readonly NeedBinding[] = [modelNeed(key)],
-): CommitInput {
+): RecordedCommit {
   return {
     kind: 'registration',
     commit: { commit },
@@ -170,14 +199,14 @@ function add(
     },
   }
 }
-function remove(at: Target, commit: string, key: ContextBlockKey, basedOn: number): CommitInput {
+function remove(at: Target, commit: string, key: ContextBlockKey, basedOn: number): RecordedCommit {
   return {
     kind: 'registration',
     commit: { commit },
     change: { kind: 'remove', scope: at.scope, tenant: at.tenant, key, basedOn, creating: false },
   }
 }
-function step(at: Target, commit: string, key: ContextBlockKey, value: number): CommitInput {
+function step(at: Target, commit: string, key: ContextBlockKey, value: number): RecordedCommit {
   return {
     kind: 'step',
     commit: { commit },
@@ -197,17 +226,29 @@ function step(at: Target, commit: string, key: ContextBlockKey, value: number): 
     },
   }
 }
-function end(at: Target, commit: string): CommitInput {
+function end(at: Target, commit: string): RecordedCommit {
   return { kind: 'scope', commit: { commit }, scope: at.scope, tenant: at.tenant, scopeEnded: true }
 }
 
 const REGISTRATION = 'session.context-registration-changed'
 const STEP = 'session.recovery-input-adopted'
 const ARCHIVED = 'session.archived'
+const UNARCHIVED = 'session.unarchived'
 
 // --- the fixture -----------------------------------------------------------------------------------
 
 type Call = Readonly<{ method: string; input: unknown; principal?: unknown }>
+/** One call of the session service: the plugin that made it, its caller class, the method. */
+type SessionCall = Readonly<{ plugin: string; caller: unknown; method: string; input: unknown }>
+const REPLAY = 'session-ad03-replay'
+const FACTS = 'session-ad03-facts'
+const FACTS_HISTORY = 'session-ad03-facts-history'
+const HOLDER = 'session-ad03'
+/** What a scripted entry records; a function gets the session the holder reads it for. */
+type Scripted =
+  | RecordedCommit
+  | null
+  | ((session: Readonly<{ tenant: TenantId }>) => RecordedCommit | null)
 
 const sessionKey = (access: { tenant: TenantId; session: SessionId }) =>
   JSON.stringify([textOf(access.tenant), access.session])
@@ -215,7 +256,9 @@ const sessionKey = (access: { tenant: TenantId; session: SessionId }) =>
 /**
  * A real Cordis root with a memory Runtime Context behind its service, a session service that
  * serves the history face from a per-session log (pages of two entries, only to the coordinator
- * principal of that session), and the two AD-03 plugins.
+ * principal of that session) and the work snapshot, and the three AD-03 plugins. Each call is
+ * recorded with the plugin that made it: `replayCalls`, `factsCalls` (the facts plugin itself),
+ * `factsHistoryCalls` (record and scope reads of the facts plugin) and `holderCalls`.
  */
 async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}) {
   const ctx = new Context()
@@ -223,25 +266,41 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
   ctx.logger.exporter({
     export: message => logged.push({ name: message.name, type: message.type }),
   })
-  const faults = { outOfOrder: 0, finish: 0, history: false, principal: false, incomplete: false }
+  const faults = {
+    outOfOrder: 0,
+    finish: 0,
+    history: false,
+    principal: false,
+    incomplete: false,
+    /** A history read of the scope kinds (SE27, SE28) answers `unavailable`. */
+    scopes: false,
+  }
   const rcCalls: Call[] = []
-  const historyCalls: Call[] = []
-  const callers: unknown[] = []
+  const sessionCalls: SessionCall[] = []
+  const callsOf = (plugin: string) => sessionCalls.filter(call => call.plugin === plugin)
   const principalsAsked: unknown[] = []
 
   // The session log: entries per session and the commit input each entry records.
   const logs = new Map<string, HistoryEntry[]>()
-  const inputs = new Map<string, CommitInput | null>()
+  const inputs = new Map<string, Scripted>()
   let serial = 0
-  /** `undefined` leaves the entry without a scripted input, so its translation fails. */
-  function append(access: SessionAccess<unknown>, kind: string, input?: CommitInput | null) {
+  /**
+   * `undefined` leaves the entry without a scripted input, so its translation fails. `payload` is
+   * what Session stored; the scripted translation does not read it.
+   */
+  function append(
+    access: SessionAccess<unknown>,
+    kind: string,
+    input?: Scripted,
+    payload: JsonValue = { kind: 'null' },
+  ) {
     serial++
     const entry: HistoryEntry = {
       id: `entry-${serial}` as EntryId,
       revision: String(serial) as SessionRevision,
       kind,
       schema: adoption('test-entry'),
-      payload: { kind: 'null' },
+      payload,
       origin: { owner: 'session', via: null, source: evidence(`entry-${serial}`) },
     }
     const key = sessionKey(access)
@@ -252,9 +311,10 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
 
   const translation: SessionContextTranslation = {
     kinds: [REGISTRATION, STEP, ARCHIVED],
-    commitOf: entry => {
+    commitOf: (entry, session) => {
       const input = inputs.get(entry.id)
-      return input === undefined ? fail('no commit input scripted for this entry') : succeed(input)
+      if (input === undefined) return fail('no commit input scripted for this entry')
+      return succeed(typeof input === 'function' ? input(session) : input)
     },
   }
 
@@ -345,31 +405,92 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
       annotations: [],
     }
   }
-  const historyFace: SessionFaces<unknown>['history'] = {
-    begin: async input => {
-      historyCalls.push({ method: 'begin', input })
-      if (!owns(input)) return fail({ kind: 'denied', action: 'history.begin' })
-      if (faults.history)
-        return fail({ kind: 'unavailable', owner: 'session', diagnostic: 'history down' })
-      return succeed(page(sessionKey(input), input.kinds, 0))
-    },
-    next: async input => {
-      historyCalls.push({ method: 'next', input })
-      if (!owns(input)) return fail({ kind: 'denied', action: 'history.next' })
-      const [key, kinds, offset] = JSON.parse(input.cursor) as [string, string[], number]
-      if (key !== sessionKey(input)) return fail({ kind: 'denied', action: 'history.next' })
-      return succeed(page(key, kinds, offset))
-    },
-    since: async () => fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
-    readModelView: async () =>
-      fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
-  }
-  class Session extends SessionService<unknown> {
-    get history(): SessionFaces<unknown>['history'] {
-      callers.push(this[Service.resolveConfig]())
-      return historyFace
+  // The history face admits the `reader` class only (session-contract「四个面与公开操作」); another
+  // class is refused as the provider refuses it. Both readers of the records (the replay sub-plugin
+  // and the history sub-plugin of the facts plugin) are `reader`, so both land in `historyCalls`.
+  const historyFaceFor = (caller: unknown, plugin: string): SessionFaces<unknown>['history'] => {
+    const reader = (caller as { caller?: unknown }).caller === 'reader'
+    const calls = {
+      push: (call: Omit<SessionCall, 'plugin'>) => sessionCalls.push({ plugin, ...call }),
     }
-    readonly work = {} as SessionFaces<unknown>['work']
+    return {
+      begin: async input => {
+        calls.push({ method: 'begin', input, caller })
+        if (!reader || !owns(input)) return fail({ kind: 'denied', action: 'history.begin' })
+        const scoping = input.kinds.every(kind =>
+          (CONTEXT_SCOPE_KINDS as readonly string[]).includes(kind),
+        )
+        if (faults.history || (faults.scopes && scoping))
+          return fail({ kind: 'unavailable', owner: 'session', diagnostic: 'history down' })
+        return succeed(page(sessionKey(input), input.kinds, 0))
+      },
+      next: async input => {
+        calls.push({ method: 'next', input, caller })
+        if (!reader || !owns(input)) return fail({ kind: 'denied', action: 'history.next' })
+        const [key, kinds, offset] = JSON.parse(input.cursor) as [string, string[], number]
+        if (key !== sessionKey(input)) return fail({ kind: 'denied', action: 'history.next' })
+        return succeed(page(key, kinds, offset))
+      },
+      since: async () => fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
+      readModelView: async () =>
+        fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
+    }
+  }
+  // The context scopes of each session, as Session mints and ends them (J18): the creation mints
+  // generation 1; SE28 (`session.unarchived`) a new generation; SE27 (`session.archived`) ends one.
+  // Both are entries of the log, with the payload Session stores.
+  const generations = new Map<string, ScopeRef[]>()
+  const generationsOf = (access: SessionAccess<unknown>) =>
+    generations.get(sessionKey(access)) ?? [createdScope(access)]
+  const binding = (access: SessionAccess<unknown>, scope: ScopeRef, ended: unknown) => {
+    const generation = generationsOf(access).findIndex(item => item.ref === scope.ref) + 1
+    if (generation === 0) throw new Error('fixture: a scope the session did not mint')
+    return { generation: String(generation), scope: scope.ref, operation: 'op-mint', ended }
+  }
+  /** Mints the next generation of a session, as unarchiving commits it (SE28). */
+  const mint = (access: SessionAccess<unknown>): ScopeRef => {
+    const next = scopeRef(
+      contextScopeOf({
+        tenant: access.tenant,
+        session: access.session,
+        generation: String(generationsOf(access).length + 1),
+      }),
+    )
+    generations.set(sessionKey(access), [...generationsOf(access), next])
+    append(access, UNARCHIVED, null, tree({ scope: binding(access, next, null) }))
+    return next
+  }
+  /**
+   * Ends a scope, as the archive commits it (SE27). `input` is what the scripted translation reads
+   * from the entry: `null` records no commit the replay can apply.
+   */
+  const endScope = (access: SessionAccess<unknown>, scope: ScopeRef, input: Scripted = null) =>
+    append(
+      access,
+      ARCHIVED,
+      input,
+      tree({
+        operation: 'op-archive',
+        scope: binding(access, scope, evidence('archived')),
+        tasks: [],
+      }),
+    )
+  // The work face serves nothing: the holder reads no snapshot. A call is recorded, so a test sees it.
+  const workFaceFor = (caller: unknown, plugin: string): SessionFaces<unknown>['work'] =>
+    ({
+      readWork: async (input: SessionAccess<unknown>) => {
+        sessionCalls.push({ plugin, caller, method: 'readWork', input })
+        return fail({ kind: 'unavailable', owner: 'session', diagnostic: 'no snapshot served' })
+      },
+    }) as unknown as SessionFaces<unknown>['work']
+  class Session extends SessionService<unknown> {
+    // `this.ctx` is the caller's context (service-method-ctx-is-caller): its fiber names the plugin.
+    get history(): SessionFaces<unknown>['history'] {
+      return historyFaceFor(this[Service.resolveConfig](), this.ctx.fiber.name)
+    }
+    get work(): SessionFaces<unknown>['work'] {
+      return workFaceFor(this[Service.resolveConfig](), this.ctx.fiber.name)
+    }
     readonly management = {} as SessionFaces<unknown>['management']
     readonly reconciliation = {} as SessionFaces<unknown>['reconciliation']
   }
@@ -378,6 +499,7 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
   const fibers = new Map<string, Awaited<ReturnType<Context['plugin']>>>()
   for (const name of options.mount ?? (['rc', 'session'] as const))
     fibers.set(name, await mount(ctx, services[name]))
+  const factsFiber = await mount(ctx, holder.facts)
   const replayFiber = await mount(ctx, holder.replay)
   const holderFiber = await mount(ctx, holder.holder)
 
@@ -401,13 +523,27 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
     faults,
     services,
     fibers,
+    factsFiber,
     replayFiber,
     holderFiber,
     rcCalls,
-    historyCalls,
-    callers,
+    sessionCalls,
+    get replayCalls() {
+      return callsOf(REPLAY)
+    },
+    get factsCalls() {
+      return callsOf(FACTS)
+    },
+    get factsHistoryCalls() {
+      return callsOf(FACTS_HISTORY)
+    },
+    get holderCalls() {
+      return callsOf(HOLDER)
+    },
     principalsAsked,
     append,
+    mint,
+    endScope,
     committed,
     handoff,
     methods: () => rcCalls.map(call => call.method),
@@ -426,6 +562,15 @@ async function mount(ctx: Context, plugin: Parameters<Context['plugin']>[0]) {
   const fiber = await ctx.plugin(plugin)
   disposers.push(() => fiber.dispose())
   return fiber
+}
+
+/** The scope reads among `calls`: one `begin` of SE27 alone opens each (SCOPE-NARROW). */
+function scopeReadsOf(calls: readonly SessionCall[]): number {
+  return calls.filter(
+    call =>
+      call.method === 'begin' &&
+      JSON.stringify((call.input as { kinds?: unknown }).kinds) === JSON.stringify([ARCHIVED]),
+  ).length
 }
 
 /** The create batch of scope A: two checkpointed blocks and an untracked one, two step commits. */
@@ -481,12 +626,21 @@ describe('a scope seen for the first time is recovered with the complete materia
     // Every principal on the holder face is the session's coordinator principal.
     const principal = coordinatorOf(A.tenant, A.session)
     expect(f.rcCalls.every(call => call.principal === principal)).toBe(true)
-    // Every read of `session` went through the reader caller class.
-    expect(f.callers.length).toBeGreaterThan(0)
-    expect(f.callers.every(caller => (caller as { caller?: unknown }).caller === 'reader')).toBe(
-      true,
-    )
-    expect(f.historyCalls.map(call => call.method)).toContain('next')
+    // The replay sub-plugin and the history sub-plugin of the facts plugin read the records and the
+    // scope bindings as `reader`; the facts plugin itself calls nothing. Each plugin calls `session`
+    // with one caller class (AD-00 rule 1), and no plugin reads the work snapshot.
+    const classOf = (call: SessionCall) => (call.caller as { caller?: unknown }).caller
+    expect(f.replayCalls.length).toBeGreaterThan(0)
+    expect(f.replayCalls.every(call => classOf(call) === 'reader')).toBe(true)
+    expect(f.replayCalls.map(call => call.method)).toContain('next')
+    expect(f.factsHistoryCalls.length).toBeGreaterThan(0)
+    expect(f.factsHistoryCalls.every(call => classOf(call) === 'reader')).toBe(true)
+    expect(f.factsCalls).toEqual([])
+    expect(f.sessionCalls.filter(call => call.method === 'readWork')).toEqual([])
+    for (const plugin of new Set(f.sessionCalls.map(call => call.plugin)))
+      expect(new Set(f.sessionCalls.filter(call => call.plugin === plugin).map(classOf)).size).toBe(
+        1,
+      )
   })
 
   it('finishes ready through C18 trust: the facts the replay asks name exactly the step-committed checkpointed blocks', async () => {
@@ -527,7 +681,7 @@ describe('a scope seen for the first time is recovered with the complete materia
   it('carries the confirmed end and does not apply records of another scope', async () => {
     const f = await assembled()
     f.append(A, REGISTRATION, add(atA, 'r1', NOTES, 0, 'checkpointed'))
-    f.append(A, ARCHIVED, end(atA, 'end-1'))
+    f.endScope(A, scopeA, end(atA, 'end-1'))
     await f.committed(A, [REGISTRATION, ARCHIVED])
     const { material } = lastInput<{ material: ReplayMaterial }>(f, 'finishReplay')
     expect(material.end).toEqual({ commit: { commit: 'end-1' } })
@@ -589,10 +743,27 @@ describe('the replay sub-plugin is the only caller of applyCommit', () => {
     f.append(A, REGISTRATION, later)
     await f.committed(A, [REGISTRATION])
     expect(f.methods()).toEqual(['beginReplay', 'finishReplay', 'applyCommit'])
-    expect(lastInput(f, 'applyCommit')).toEqual(later)
+    // The input names the scope's record before it in the log (RC-02 提交链, R2-D319).
+    expect(lastInput(f, 'applyCommit')).toEqual({ ...later, after: { commit: 's3' } })
     // A notice that repeats does not apply the same commit again.
     await f.committed(A, [REGISTRATION])
     expect(f.methods().filter(method => method === 'applyCommit')).toHaveLength(1)
+  })
+
+  it('chains each later record after the record before it, a step after a registration too', async () => {
+    const f = await assembled()
+    seedA(f)
+    await f.committed(A, [REGISTRATION, STEP])
+    const later = add(atA, 'r4', 'test.later', 3, 'checkpointed')
+    const next = step(atA, 's4', NOTES, 4)
+    f.append(A, REGISTRATION, later)
+    f.append(A, STEP, next)
+    await f.committed(A, [REGISTRATION, STEP])
+    const applied = f.rcCalls.filter(call => call.method === 'applyCommit').map(call => call.input)
+    expect(applied).toEqual([
+      { ...later, after: { commit: 's3' } },
+      { ...next, after: { commit: 'r4' } },
+    ])
   })
 
   it('ignores a notice whose kinds hold no context record', async () => {
@@ -600,7 +771,7 @@ describe('the replay sub-plugin is the only caller of applyCommit', () => {
     seedA(f)
     await f.committed(A, ['run.terminal'])
     expect(f.methods()).toEqual([])
-    expect(f.historyCalls).toEqual([])
+    expect(f.replayCalls).toEqual([])
   })
 
   it('the handoff path recovers and issues but never applies a commit', async () => {
@@ -776,12 +947,12 @@ describe('the runtimeContextReaderEligibility provider', () => {
     const f = await assembled()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])
-    const reads = f.historyCalls.length
+    const reads = f.sessionCalls.length
     const issued = f.methods().length
     expect(await f.handoff()!.current({ ...modelRequest, tenant: B.tenant })).toEqual({
       kind: 'refused',
     })
-    expect(f.historyCalls.length).toBe(reads)
+    expect(f.sessionCalls.length).toBe(reads)
     expect(f.methods().length).toBe(issued)
   })
 
@@ -803,14 +974,197 @@ describe('the runtimeContextReaderEligibility provider', () => {
     })
   })
 
-  it('answers absent for a consumer class that the registrations give nothing to read', async () => {
+  it('issues an eligibility with no key to a consumer class that the registrations give nothing to read', async () => {
     const f = await assembled()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])
-    expect(await f.handoff()!.current({ ...modelRequest, consumer: 'extension' })).toEqual({
-      kind: 'absent',
+    const answer = await f.handoff()!.current({ ...modelRequest, consumer: 'extension' })
+    expect(answer.kind).toBe('current')
+    expect(lastInput(f, 'issueEligibility')).toMatchObject({
+      consumer: 'extension',
+      keys: [],
+      bindings: [],
     })
-    expect(f.methods().filter(method => method === 'issueEligibility')).toEqual([])
+  })
+
+  it('recovers a newly minted scope that has no context record with the empty material and issues an empty eligibility (AD-03 1a)', async () => {
+    const f = await assembled()
+    // The creation of session A minted scope A (generation 1).
+    await f.committed(A, ['session.created'])
+    const answer = await f.handoff()!.current(modelRequest)
+    if (answer.kind !== 'current')
+      throw new Error(`expected current, got ${JSON.stringify(answer)}`)
+    expect(f.methods()).toEqual(['beginReplay', 'finishReplay', 'issueEligibility'])
+    expect(lastInput(f, 'beginReplay')).toMatchObject({ scope: scopeA, through: null })
+    expect(lastInput(f, 'issueEligibility')).toMatchObject({ keys: [], bindings: [] })
+    // The reader of that eligibility reads the empty snapshot: a value, not a missing one.
+    const rc = f.ctx.get(runtimeContextKey) as RuntimeContextService<unknown>
+    const bound = await rc.bind(answer.eligibility)
+    if (bound.kind !== 'bound') throw new Error(`expected bound, got ${bound.kind}`)
+    const snapshot = await bound.reader.snapshot()
+    expect(snapshot).toMatchObject({ kind: 'success', value: { blocks: [], missing: [] } })
+  })
+
+  it('indexes the session scopes on the first notice of a session even when its kinds do not name the creation, and only once', async () => {
+    const f = await assembled()
+    // The creation entry can fall outside the notice's page: the first notice names other kinds.
+    await f.committed(A, ['intake.routed'])
+    await f.committed(A, [REGISTRATION])
+    expect((await f.handoff()!.current(modelRequest)).kind).toBe('current')
+    // The facts plugin reads the scopes once; the replay reads them once more, to see the new
+    // scope still open before the empty material (R2-D219 B1). The holder reads nothing.
+    expect(scopeReadsOf(f.factsHistoryCalls)).toBe(1)
+    expect(scopeReadsOf(f.replayCalls)).toBe(1)
+    expect(f.holderCalls).toEqual([])
+  })
+
+  it('a scope that no snapshot lists stays unseen, and an ended one is not indexed', async () => {
+    const f = await assembled()
+    // A creation notice of a session whose only scope has ended, and no notice for scope B.
+    f.endScope(A, scopeA, null)
+    await f.committed(A, ['session.created'])
+    for (const request of [modelRequest, { ...modelRequest, scope: scopeB, tenant: B.tenant }])
+      expect(await f.handoff()!.current(request)).toEqual({
+        kind: 'unavailable',
+        diagnostic: 'the holder has not seen this scope in the session log',
+      })
+    expect(f.methods()).toEqual([])
+  })
+
+  it('R2-D219 B1 P1: a new scope that ended before its first eligibility is absent, not recovered open, even when no record of its end is read', async () => {
+    const f = await assembled()
+    await f.committed(A, ['session.created'])
+    // The archive ends the scope; its entry records no commit the replay can read.
+    f.endScope(A, scopeA, null)
+    await f.committed(A, [ARCHIVED])
+    expect(await f.handoff()!.current(modelRequest)).toEqual({ kind: 'absent' })
+    // Nothing was recovered open and nothing was issued.
+    expect(f.methods()).toEqual([])
+  })
+
+  it('R2-D219 B1: the end of a scope with no other record reaches Runtime Context with the tenant of its session', async () => {
+    const f = await assembled()
+    await f.committed(A, ['session.created'])
+    f.endScope(A, scopeA, session => end({ scope: scopeA, tenant: session.tenant }, 'end-1'))
+    await f.committed(A, [ARCHIVED])
+    expect(await f.handoff()!.current(modelRequest)).toEqual({ kind: 'absent' })
+    expect(f.methods()).toEqual(['beginReplay', 'finishReplay'])
+    const { material } = lastInput<{ material: ReplayMaterial }>(f, 'finishReplay')
+    expect(material).toEqual({
+      registrations: [],
+      checkpoints: [],
+      end: { commit: { commit: 'end-1' } },
+    })
+  })
+
+  it('R2-D219 B1 P2: a new scope recovered with the empty material and then archived is absent, and Runtime Context ends it', async () => {
+    const f = await assembled()
+    await f.committed(A, ['session.created'])
+    const first = await f.handoff()!.current(modelRequest)
+    if (first.kind !== 'current') throw new Error(`expected current, got ${JSON.stringify(first)}`)
+    f.endScope(A, scopeA, session => end({ scope: scopeA, tenant: session.tenant }, 'end-1'))
+    await f.committed(A, [ARCHIVED])
+    expect(lastInput(f, 'applyCommit')).toEqual(end(atA, 'end-1'))
+    expect(await f.handoff()!.current(modelRequest)).toEqual({ kind: 'absent' })
+    // Runtime Context knows the end: the reader of the earlier eligibility is refused.
+    const rc = f.ctx.get(runtimeContextKey) as RuntimeContextService<unknown>
+    const bound = await rc.bind(first.eligibility)
+    const read = bound.kind === 'bound' ? await bound.reader.snapshot() : bound
+    expect(read).toMatchObject({ kind: 'refused', reason: 'scope-ended' })
+  })
+
+  it('R2-D219 B1: a new scope whose scopes cannot be read is unavailable, and recovered once they read', async () => {
+    const f = await assembled()
+    await f.committed(A, ['session.created'])
+    f.faults.scopes = true
+    expect(await f.handoff()!.current(modelRequest)).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the session scopes: the history read answered unavailable',
+    })
+    expect(f.methods()).toEqual([])
+    f.faults.scopes = false
+    expect((await f.handoff()!.current(modelRequest)).kind).toBe('current')
+    expect(
+      f.replayCalls.every(call => (call.caller as { caller?: unknown }).caller === 'reader'),
+    ).toBe(true)
+  })
+
+  it('R2-D219: a first-notice scope read that failed is read again on demand, and while it fails its own reason is the answer', async () => {
+    const f = await assembled()
+    f.faults.scopes = true
+    await f.committed(A, ['session.created'])
+    const failing = await f.handoff()!.current(modelRequest)
+    expect(failing).toEqual({
+      kind: 'unavailable',
+      diagnostic:
+        'the open scopes of a session could not be indexed: the history read answered unavailable',
+    })
+    f.faults.scopes = false
+    expect((await f.handoff()!.current(modelRequest)).kind).toBe('current')
+    // A scope of another tenant does not read this tenant's sessions again.
+    const reads = f.sessionCalls.length
+    f.faults.scopes = true
+    await f.committed(B, ['session.created'])
+    f.faults.scopes = false
+    const before = f.sessionCalls.length
+    expect(before).toBeGreaterThan(reads)
+    expect(
+      (await f.handoff()!.current({ ...modelRequest, scope: scopeB, tenant: A.tenant })).kind,
+    ).toBe('unavailable')
+    expect(f.sessionCalls.length).toBe(before)
+  })
+
+  it('R2-D219 P3: two concurrent first notices of a session share one scope read', async () => {
+    const f = await assembled()
+    await Promise.all([f.committed(A, ['intake.routed']), f.committed(A, ['run.terminal'])])
+    expect(scopeReadsOf(f.factsHistoryCalls)).toBe(1)
+    expect((await f.handoff()!.current(modelRequest)).kind).toBe('current')
+  })
+
+  it('SCOPE-NARROW: the scopes are read from SE27 and SE28, one kind per read, never from the work snapshot', async () => {
+    const f = await assembled()
+    await f.committed(A, ['session.created'])
+    expect((await f.handoff()!.current(modelRequest)).kind).toBe('current')
+    expect(f.sessionCalls.filter(call => call.method === 'readWork')).toEqual([])
+    const scoped = f.sessionCalls
+      .filter(call => call.method === 'begin')
+      .map(call => (call.input as { kinds: readonly string[] }).kinds)
+      .filter(kinds => kinds.some(kind => kind === ARCHIVED || kind === UNARCHIVED))
+      .filter(kinds => !kinds.includes(REGISTRATION))
+    // Each scope read asks each kind alone: a read of one kind is an index read in the store.
+    expect(scoped.length).toBeGreaterThan(0)
+    expect(scoped.every(kinds => kinds.length === 1)).toBe(true)
+  })
+
+  it('SCOPE-NARROW: an end committed after a read that saw the scope open is read, not remembered', async () => {
+    const f = await assembled()
+    await f.committed(A, ['session.created'])
+    // The first eligibility reads the scope open, but its recovery does not finish.
+    f.faults.finish = 1
+    expect((await f.handoff()!.current(modelRequest)).kind).toBe('unavailable')
+    expect(f.methods()).toEqual(['beginReplay', 'finishReplay'])
+    // The archive ends the scope; its entry records no commit the replay can apply.
+    f.endScope(A, scopeA, null)
+    await f.committed(A, [ARCHIVED])
+    expect(await f.handoff()!.current(modelRequest)).toEqual({ kind: 'absent' })
+    // Nothing was recovered open after the end.
+    expect(f.methods()).toEqual(['beginReplay', 'finishReplay'])
+  })
+
+  it('SCOPE-NARROW: a new generation is found from its SE28, and the ended one stays absent', async () => {
+    const f = await assembled()
+    await f.committed(A, ['session.created'])
+    f.endScope(A, scopeA, null)
+    const next = f.mint(A)
+    f.ports.bind(next, A.tenant)
+    await f.committed(A, [ARCHIVED, UNARCHIVED])
+    expect(await f.handoff()!.current({ ...modelRequest, scope: next })).toMatchObject({
+      kind: 'current',
+    })
+    expect(lastInput(f, 'beginReplay')).toMatchObject({ scope: next, through: null })
+    // Generation 1 was indexed open by the creation notice; its bindings now show it ended.
+    expect(await f.handoff()!.current(modelRequest)).toEqual({ kind: 'absent' })
+    expect(f.rcCalls.filter(call => call.method === 'beginReplay')).toHaveLength(1)
   })
 
   it('reissues with supersedes when a later registration changes the revision', async () => {
@@ -869,7 +1223,7 @@ describe('the runtimeContextReaderEligibility provider', () => {
     seedA(f)
     f.faults.principal = true
     await f.committed(A, [REGISTRATION, STEP])
-    expect(f.historyCalls).toEqual([])
+    expect(f.sessionCalls).toEqual([])
     expect(f.methods()).toEqual([])
   })
 })
@@ -877,14 +1231,19 @@ describe('the runtimeContextReaderEligibility provider', () => {
 // --- Cordis lifecycle ------------------------------------------------------------------------------
 
 describe('on real Cordis', () => {
-  it('both plugins stay absent while runtimeContext is absent: no handoff, no recovery', async () => {
+  it('the holder and replay plugins stay absent while runtimeContext is absent: no handoff, no recovery', async () => {
     const f = await assembled({ mount: ['session'] })
     expect(f.handoff()).toBeUndefined()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])
-    expect(f.historyCalls).toEqual([])
+    // No recovery, and the replay sub-plugin read nothing: only the facts plugin read the records.
+    expect(f.methods()).toEqual([])
+    expect(f.replayCalls).toEqual([])
+    expect(f.factsHistoryCalls.length).toBeGreaterThan(0)
+    // The facts plugin needs `session` alone: it has indexed the scope and answers.
     expect(await f.holder.replayFacts.stepCommittedBlocks(scopeA, null)).toEqual({
-      kind: 'unavailable',
+      kind: 'known',
+      keys: [],
     })
     // The provider arrives: the plugins start, the next notice recovers the scope.
     await mount(f.ctx, f.services.rc)
@@ -893,12 +1252,16 @@ describe('on real Cordis', () => {
     expect(f.methods()).toEqual(['beginReplay', 'finishReplay'])
   })
 
-  it('both plugins stay absent while session is absent', async () => {
+  it('the three plugins stay absent while session is absent', async () => {
     const f = await assembled({ mount: ['rc'] })
     expect(f.handoff()).toBeUndefined()
     seedA(f)
     await f.committed(A, [REGISTRATION, STEP])
     expect(f.methods()).toEqual([])
+    expect(f.sessionCalls).toEqual([])
+    expect(await f.holder.replayFacts.stepCommittedBlocks(scopeA, null)).toEqual({
+      kind: 'unavailable',
+    })
   })
 
   it('a new Runtime Context provider recovers the scope again before the next eligibility', async () => {
@@ -920,16 +1283,33 @@ describe('on real Cordis', () => {
     })
   })
 
-  it('a stopped replay sub-plugin no longer listens and its facts are unavailable', async () => {
+  it('a stopped replay sub-plugin no longer listens, and the replay facts still answer from the facts plugin (R2-D29)', async () => {
     const f = await assembled()
     seedA(f)
     await f.replayFiber.dispose()
     await f.committed(A, [REGISTRATION, STEP])
-    expect(f.historyCalls).toEqual([])
-    expect(await f.holder.replayFacts.stepCommittedBlocks(scopeA, null)).toEqual({
-      kind: 'unavailable',
+    // No recovery and no apply, and the stopped replay sub-plugin read nothing.
+    expect(f.methods()).toEqual([])
+    expect(f.replayCalls).toEqual([])
+    expect(f.factsHistoryCalls.length).toBeGreaterThan(0)
+    expect(await f.holder.replayFacts.stepCommittedBlocks(scopeA, { commit: 's3' })).toEqual({
+      kind: 'known',
+      keys: [NOTES],
     })
     expect((await f.handoff()!.current(modelRequest)).kind).toBe('unavailable')
+  })
+
+  it('a stopped facts plugin no longer listens, and the replay facts and the lookup are unavailable (R2-D29)', async () => {
+    const f = await assembled()
+    seedA(f)
+    await f.committed(A, [REGISTRATION, STEP])
+    const held = f.holder.replayFacts
+    await f.factsFiber.dispose()
+    expect(await held.stepCommittedBlocks(scopeA, null)).toEqual({ kind: 'unavailable' })
+    const before = f.factsCalls.length + f.factsHistoryCalls.length
+    f.append(A, REGISTRATION, add(atA, 'r4', 'test.later', 3, 'checkpointed'))
+    await f.committed(A, [REGISTRATION])
+    expect(f.factsCalls.length + f.factsHistoryCalls.length).toBe(before)
   })
 
   it('a stopped holder plugin withdraws the handoff', async () => {

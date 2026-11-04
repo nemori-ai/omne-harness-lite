@@ -5,14 +5,14 @@
 ## 包根
 
 - [README_ZH.md](README_ZH.md)、[README.md](README.md)：用途、状态、使用、目录结构与文档职责
-- [SPEC.md](SPEC.md)：记录位置、注册单事务、秘密保存、签发、识别、读口、停止与重启的行为，已知限制，验证资源
+- [SPEC.md](SPEC.md)：记录位置、注册单事务、秘密保存、签发、识别、读口、停止与重启的行为，迁移 002、治理写与读、撤销与当前选择、邀请与名单、空闲刷新、邀请时长，已知限制，验证资源
 - `documentation.json`：本包的文档登记
 - `package.json`：两个公开入口、脚本与依赖
 
 ## 目录
 
 - [docs/](docs/index.md)：内部架构、流程、对象模型、公开接口导航、使用与定位、Cordis 集成
-- [src/](src/index.md)：工厂、配置、材料、插件，以及 `worker/` 下的参加者、迁移与读 handler
+- [src/](src/index.md)：工厂、治理端口、配置、材料、插件，以及 `worker/` 下的参加者、迁移与读 handler
 - [tests/](tests/index.md)：持续测试与 `fixtures/` 下的真实 sqlite-provider 夹具
 - [schema/](schema/index.md)：不适用
 - [verification/](verification/index.md)：不适用

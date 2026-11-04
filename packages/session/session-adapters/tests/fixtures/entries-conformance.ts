@@ -170,7 +170,7 @@ export function entriesFixture() {
           operation: operation('fixture-take'),
           authority,
           expected: loaded.revision,
-          checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+          checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
           state: { kind: 'advancing' },
           events: [{ kind: 'input-taken', batch: page.batch }],
           effects: [],
@@ -256,7 +256,9 @@ export function entriesFixture() {
     },
     async read(who, execution) {
       const loaded = await provider.journal.load({ ...who, execution })
-      return 'ok' in loaded ? loaded.ok.entries : undefined
+      if ('failure' in loaded) return undefined
+      const read = await provider.entries.read({ ...who, execution, after: null, limit: 10_000 })
+      return 'ok' in read ? read.ok.items.map(item => item.entry) : undefined
     },
     events: listEvents,
     // Detaches the current attachment through the public port, as `AgentJournalAttachment.detach`

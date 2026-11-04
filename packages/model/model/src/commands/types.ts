@@ -1,4 +1,6 @@
 import type { Outcome } from '@omne-harness/operation-result'
+import type { ModelInitialRun } from './initial.ts'
+import type { CommandWrite, RunScope } from './storage.ts'
 import type { StreamAssembly } from '@omne-harness/stream-arrival'
 import type {
   Access,
@@ -14,6 +16,7 @@ import type {
   MaterializationReceipt,
   ModelCallId,
   ModelFailure,
+  ModelInvocationRef,
   ModelOperationId,
   OutputCursor,
   ReadId,
@@ -68,6 +71,17 @@ export type EvidenceContext = Readonly<{
   request: FixedModelRequest
 }> &
   Pick<ExecutionRef, 'tenant'>
+/** What the commands give the consumer owner's evidence adapter for one ACK. */
+export type HandoffEvidenceInput = Omit<EvidenceContext, 'request'> &
+  Readonly<{
+    result: ResultVersion
+    evidence: Handoff
+    reference: ModelInvocationRef
+    principal: unknown
+  }>
+export type HandoffEvidenceAnswer =
+  | Outcome<DurableEvidence, ModelFailure>
+  | Promise<Outcome<DurableEvidence, ModelFailure>>
 export interface ModelCommandsEvidence {
   readonly adoption: Adoption
   continuity(
@@ -90,10 +104,14 @@ export interface ModelCommandsEvidence {
     input: EvidenceContext &
       Readonly<{ position: RetryPosition; decision: RetryDecision; source: DurableEvidence }>,
   ): Outcome<DurableEvidence, ModelFailure>
-  handoff(
-    input: Omit<EvidenceContext, 'request'> &
-      Readonly<{ result: ResultVersion; evidence: Handoff }>,
-  ): Outcome<DurableEvidence, ModelFailure>
+  /**
+   * The consumer owner's confirmation of an ACK's evidence. It may answer later: the commands read
+   * it before the write fence, because the owner reads its own durable record, and the write then
+   * keeps it only for the same call, consumer, result and evidence. `reference` is the call's
+   * invocation reference, by which the owner names the delivery it saved; `principal` is the access
+   * of the ACK. A failure that cannot be read stays a failure, never a confirmation.
+   */
+  handoff(input: HandoffEvidenceInput): HandoffEvidenceAnswer
   receive(
     input: EvidenceContext &
       Readonly<{
@@ -120,12 +138,36 @@ export type ModelCommandsLimits = Readonly<{
 }>
 export type ResultPaging = Pick<ModelCommandsLimits, 'resultPageParts' | 'resultPageTargetBytes'>
 export type ModelCommandsCoreOptions<P> = Readonly<{
+  initialRun?: ModelInitialRun<P>
   owners: readonly ModelConsumerOwnerDeclaration[]
   authority: ModelCommandsAuthority<P>
   evidence: readonly ModelCommandsEvidence[]
   clock: Pick<ModelClock, 'now'>
   limits: ModelCommandsLimits
 }>
+export type ConfirmationSeen = Readonly<{
+  call: CallDocument | undefined
+  operation: Binding | undefined
+}>
+export type ConfirmationStage =
+  | Readonly<{ kind: 'write'; tenant: string; write: CommandWrite }>
+  | Readonly<{ kind: 'publish'; tenant: string; call: CallDocument }>
+export type ModelConfirmationPass = Readonly<{
+  scope: RunScope | null
+  seen: ConfirmationSeen | null
+  staged: ConfirmationStage | null
+}>
+export type ModelRunCompletion =
+  | Readonly<{ kind: 'confirmed' }>
+  | Readonly<{ kind: 'failed'; failure: ModelFailure }>
+  | Readonly<{ kind: 'threw' }>
+export type ModelConfirmationDiagnostic = Readonly<{
+  kind: 'initial-confirmation-failed' | 'observation-confirmation-failed'
+}>
+export type ModelBeforePublish = (
+  pass: ModelConfirmationPass | null,
+  completion: ModelRunCompletion,
+) => void
 export const MODEL_WRITE_METHODS = [
   'admit',
   'claim',

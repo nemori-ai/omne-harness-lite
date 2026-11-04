@@ -3,7 +3,9 @@ import type { LifecyclePhase, RowId, RowManifest } from '../types.ts'
 /**
  * Human projection of the provide and inject columns of the AA plugin-tree table.
  * Names are the formal AA keys; the S0 private service name is `s0.<key>`.
- * Keys that the table gives only in prose (the evidence sources of `session-ad10`) are left out.
+ * Keys that the table gives only in prose are written out where a real row of `./cordis` injects
+ * them (`session-ad10`: the three evidence sources; `session-ad06`: the Journal views and
+ * `sessionTransactions`), so that `real-manifests-sync` compares the real row with this table.
  * When AA changes the rows, regenerate aa-rows.json, then update this table by hand.
  */
 type Entry = {
@@ -18,12 +20,17 @@ const priv = (keys: readonly string[] = []): readonly string[] => keys.map(key =
 const TABLE: Readonly<Record<string, Entry>> = {
   storage: { provides: ['storage'], injects: ['storageHost'], phase: 'storage' },
   identity: {
-    provides: ['identityOperations', 'tenantStanding'],
+    provides: ['identityOperations', 'tenantStanding', 'identityGovernance'],
     injects: ['storage', 'identityClock'],
   },
   authorization: {
-    provides: ['agentAccessCheck', 'sessionAccessCheck', 'agentActionAdmission'],
-    injects: ['tenantStanding', 'principalVerifier'],
+    provides: [
+      'agentAccessCheck',
+      'sessionAccessCheck',
+      'agentActionAdmission',
+      'systemActionAuthorization',
+    ],
+    injects: ['tenantStanding', 'principalVerifier', 'identityClock'],
   },
   'session-storage': {
     provides: [
@@ -44,15 +51,46 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionPrincipals',
       'sessionWorkPrincipals',
     ],
+    phase: 'business',
   },
-  'session-ad01': { injects: ['session'] },
-  'session-ad02': { injects: ['session'] },
-  'session-ad03': { injects: ['runtimeContext', 'session'] },
-  'session-ad04': { injects: ['session'] },
-  'session-ad05': { injects: ['session'] },
-  'session-ad06': { injects: ['session'] },
+  'session-ad02': {
+    injects: [
+      'sessionWorkPrincipals',
+      'session',
+      'sessionTransactions',
+      'storage',
+      'tenantDomainLookup',
+    ],
+  },
+  'session-ad03': {
+    provides: ['runtimeContextReaderEligibility', 'sessionReplayFacts', 'sessionScopeLookup'],
+    injects: ['sessionWorkPrincipals', 'runtimeContext', 'session'],
+  },
+  'session-ad04': { provides: ['contextHolderSources'], injects: ['session'] },
+  'session-ad05': {
+    injects: [
+      'sessionWorkPrincipals',
+      'session',
+      'agentJournal',
+      'agentJournalEntries',
+      'agentMaterials',
+      'sessionTransactions',
+    ],
+  },
+  'session-ad06': {
+    injects: [
+      'session',
+      'agentJournal',
+      'agentJournalEntries',
+      'agentMaterials',
+      'sessionTransactions',
+    ],
+  },
   'session-ad09': { provides: ['sessionIdentity'], injects: ['principalVerifier'] },
-  'session-ad10': { provides: ['sessionEvidence'] },
+  'session-ad10': {
+    provides: ['sessionEvidence'],
+    injects: ['sessionAdoptionSource', 'sessionProductionSource', 'sessionCustodySource'],
+  },
   'session-ad11': {
     provides: ['sessionIdleInput'],
     injects: ['modelRuntime', 'toolRuntime', 'session'],
@@ -72,10 +110,31 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['sessionScopeRelease'],
     injects: ['executionEnvironment', 'session'],
   },
-  'session-handoff': { provides: ['agentMessageHandoff'], injects: ['session'] },
-  'session-conditions': { provides: ['agentConditions'], injects: ['session'] },
+  'session-handoff': {
+    provides: ['agentMessageHandoff'],
+    injects: [
+      'sessionWorkPrincipals',
+      'session',
+      'agentAccessCheck',
+      'storage',
+      'tenantDomainLookup',
+    ],
+  },
+  'session-conditions': {
+    provides: ['agentConditions'],
+    injects: ['definitionMappings', 'session', 'storage', 'tenantDomainLookup'],
+  },
   'agent-journal': {
-    provides: ['agentJournal', 'agentJournalEntries', 'agentMaterials'],
+    provides: [
+      'agentJournal',
+      'agentJournalEntries',
+      'agentMaterials',
+      'agentReceivedCommits',
+      'agentReceivedRecords',
+      'agentModelReceptionTargets',
+      'agentToolReceptionTargets',
+      'sessionAdoptedRequests',
+    ],
     injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],
     group: 'agent-journal',
   },
@@ -93,6 +152,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentJournal',
       'agentJournalEntries',
       'agentMaterials',
+      'agentReceivedCommits',
+      'agentModelReceptionTargets',
       'agentAccessCheck',
       'agentAdoptions',
       'agentConditions',
@@ -123,8 +184,11 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['modelRequestPreparation'],
     injects: ['modelCommands'],
   },
-  'model-credential': { provides: ['modelCredential'] },
-  'model-records': { provides: ['modelCommands'], injects: ['storage', 'tenantDomainLookup'] },
+  'model-credential': { provides: ['modelCredential', 'modelCredentialCustody'] },
+  'model-records': {
+    provides: ['modelCommands', 'modelSendBoundary'],
+    injects: ['storage', 'tenantDomainLookup', 'modelClock', 'principalVerifier', 'tenantStanding'],
+  },
   'tool-records': {
     provides: ['toolCommands', 'toolReads', 'toolStartAuthority', 'toolStartFence'],
     injects: ['storage', 'tenantDomainLookup'],
@@ -137,10 +201,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'tool-runtime': {
     provides: ['toolRuntime'],
     injects: ['toolCommands', 'toolReads'],
-    phase: 'business',
   },
   'tool-executor': {
-    injects: ['toolCommands', 'toolInstanceHost', 'toolClock'],
+    provides: ['toolInstanceHost'],
+    injects: ['toolCommands', 'toolClock'],
     phase: 'business',
   },
   'tool-host': {
@@ -163,7 +227,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'agent-context': {
     provides: ['agentRequests', 'agentModelContext'],
-    injects: ['requestContext', 'runtimeContext', 'modelRequestPreparation'],
+    injects: [
+      'requestContext',
+      'contextHolderSources',
+      'runtimeContextReaderEligibility',
+      'runtimeContext',
+      'modelRequestPreparation',
+      'modelPreparationResources',
+      'agentAdoptions',
+    ],
   },
   'agent-account-outlet': {
     provides: ['agentAccountOutlet'],

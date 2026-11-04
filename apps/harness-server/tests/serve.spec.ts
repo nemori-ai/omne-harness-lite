@@ -4,8 +4,9 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { stubPlugin } from '../src/cordis.ts'
+import { agentJournalCombination } from '../src/rows/agent-journal/config.ts'
 import { serveProfile } from '../src/profile.ts'
 import type { S0Record } from '../src/run.ts'
 import { rowIds } from '../src/s0/rows.ts'
@@ -43,8 +44,23 @@ beforeEach(() => {
   storageEvents.length = 0
 })
 
+/**
+ * The release names the `execution-host` factory row, whose absolute paths only the operator layer
+ * gives (L1-12); without them the tree is rejected before loading. These cases read the tree and
+ * entry records, so they load the release with the test operator layer.
+ */
+async function releaseOperator(): Promise<unknown> {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
+  scratches.push(base)
+  return operatorLayer({ storageRoot: join(base, 'storage'), port: await freePort() })
+}
+const scratches: string[] = []
+afterEach(() => {
+  for (const base of scratches.splice(0)) rmSync(base, { recursive: true, force: true })
+})
+
 describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
-  it('the release tree of 7 real, 1 contract-double and 41 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 46 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     // The operator layer gives what the distribution file does not hold: absolute paths and the port.
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
@@ -67,12 +83,47 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         'identity:real',
         'authorization:real',
         'session-storage:real',
-        'session-provider:contract-double',
+        'session-provider:real',
+        'session-ad02:real',
+        'session-ad03:real',
+        'session-ad04:real',
+        'session-ad05:real',
+        'session-ad06:real',
         'session-ad09:real',
+        'session-ad10:real',
+        'session-ad12:real',
+        'session-ad14:real',
+        'session-handoff:real',
+        'session-conditions:real',
+        'agent-journal:real',
         'agent-adoptions:real',
         'adoption-sources:real',
+        'agent-model-selection:real',
+        'agent-host:real',
+        'agent-instances:real',
+        'model-host:real',
+        'model-instances:real',
+        'model-converters:real',
         'model-profiles:real',
+        'model-request-preparation:real',
         'model-credential:real',
+        'model-records:real',
+        'tool-records:real',
+        'tool-bindings:real',
+        'tool-runtime:real',
+        'tool-executor:real',
+        'tool-host:real',
+        'tool-residency:real',
+        'tool-instances:real',
+        'tool-environments:real',
+        'execution-environment:real',
+        'execution-files:real',
+        'execution-command:real',
+        'execution-host:real',
+        'request-context:real',
+        'agent-context:real',
+        'agent-account-outlet:real',
+        'runtime-context:real',
         'server-entry:real',
       ])
       expect(run.of('row-state').every(r => r['state'] === 'ACTIVE')).toBe(true)
@@ -81,9 +132,9 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 49,
+        enabledRows: 48,
         barrierCalls: 1,
-        implementations: { real: 10, 'contract-double': 1, 's0-double': 38 },
+        implementations: { real: 46, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
@@ -92,8 +143,13 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
     }
   })
 
+  it('the release gives agent-journal the combination that the session-storage row registers', () => {
+    const row = release.rows.find(r => r.id === 'agent-journal')
+    expect(row).toMatchObject({ plugin: 'agentJournalRow', config: agentJournalCombination() })
+  })
+
   it('R1-1: only s0.assemblyLifecycle carries the s0. prefix', async () => {
-    const run = await serveOnce({ distribution: release })
+    const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
     const profile = serveProfile()
     const names = new Set<string>()
     for (const manifest of profile.stubManifests.values()) {
@@ -109,7 +165,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
   })
 
   it('DP1-C11: placeholders are s0-double, the lifecycle is real, no value is printed', async () => {
-    const run = await serveOnce({ distribution: release })
+    const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
     const entries = run.of('entry-object')
     expect(entries.find(r => r['name'] === 's0.assemblyLifecycle')).toEqual({
       kind: 'entry-object',
@@ -199,7 +255,12 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
 
   it('R1-3: a real row that injects an entry-object name the registry lacks is PENDING, with the module it is ACTIVE', async () => {
     const rows = tree([{ id: 'runtime-context', plugin: 'fixtureRuntimeContext' }])
-    const without = await serveOnce({ distribution: rows, plugins: fixturePlugins })
+    // The release registry carries `runtimeContextTrust` since C-TRUST; a registry without it is given explicitly.
+    const without = await serveOnce({
+      distribution: rows,
+      plugins: fixturePlugins,
+      entryObjects: [],
+    })
     expect(without.result.exitCode).toBe(4)
     expect(without.state('runtime-context')).toMatchObject({
       state: 'PENDING',

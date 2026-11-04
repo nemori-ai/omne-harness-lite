@@ -23,6 +23,7 @@ import {
   producedResult,
   type Principal,
   withLineage,
+  loadWithEntries,
 } from './journal-support.ts'
 import {
   alice,
@@ -52,7 +53,10 @@ function coordinator(
   })
 }
 async function load(assembly: LoopAssembly) {
-  return ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+  return await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
 }
 
 describe('#516 terminal exit', () => {

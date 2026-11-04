@@ -26,6 +26,7 @@ import { tenantKey } from './boundary.ts'
 import type { ToolDependencies } from './construction.ts'
 import { createFactDriver } from './driver-facts.ts'
 import { createBindingInvoker } from './driver-binding.ts'
+import { createControlDriver } from './driver-control.ts'
 import { preserveSavedFinal } from './driver-settlement.ts'
 import { isExcludedFailure } from './ledger-exclusion.ts'
 import { queueKeyOf } from './ledger-start.ts'
@@ -490,6 +491,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   }
 
   const binding = createBindingInvoker(dependencies, environmentOf)
+  const controls = createControlDriver(dependencies)
   const facts = createFactDriver(dependencies, binding, (step, delayed) => {
     if (step.signal.aborted) return
     if (delayed) scheduleLater(step.tenant, step.call, [step.signal])
@@ -677,6 +679,19 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     if (phase === 'settled' && recovery.tasks.some(task => task.kind === 'queue')) {
       const result = await attempt('queue', () => repairRelease(step, recovery, cancelled))
       if (result !== null) return result
+    }
+    for (const task of recovery.tasks) {
+      if (task.kind !== 'stop' && task.kind !== 'release') continue
+      if (task.state === 'blocked') continue
+      const result = await attempt(`${task.kind}:${task.operation}`, async () =>
+        after(
+          task.kind === 'stop'
+            ? await controls.stop(step, recovery, task)
+            : await controls.release(step, task),
+        ),
+      )
+      if (result !== null) return result
+      if (cancelled()) return blocked('the run was aborted')
     }
     const settlement = recovery.tasks.find(task => task.kind === 'settle')
     if (phase !== 'settled' && settlement?.kind === 'settle') {

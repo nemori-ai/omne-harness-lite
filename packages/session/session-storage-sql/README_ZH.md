@@ -14,7 +14,7 @@ Session 的存储成员。它用 SQL 实现 `SessionTransactionPort`，只经 `@
 
 - 已实现：根入口 `createSessionStorage`、`sessionStorageMaterials`、`SESSION_PARTICIPANT`；一个参加者 `session`、一个迁移、八个 `snapshot` 读 handler；端口的提交、读、`queryOperation`、`queryControlOperation`、`readModelSelection`、`commitEntries`、历史读、`pending`、`references`、`releasedScopes`。`commitEntries` 不问访问检查，在一次存储提交里写入条目、快照与操作记录。
 - 没有 `./cordis` 子路径。会话存储组合（材料目录、组合声明、事务域目录、Cordis 服务）由应用承担，本成员不重建它。
-- 未实现：`sl_batch`、`sl_blob`、`sl_ref_idx`、R9 追赶与重建、PostgreSQL。
+- 未实现：`sl_batch`、条目的 `payload_ref`、`sl_ref_idx`、R9 追赶与重建、PostgreSQL。`sl_blob` 已建表，只由 `execution-record` 参加者写入。
 - 已验证：公开入口与依赖规则（`tests/public-entry.spec.ts`）、租户隔离与事务域目录（`tests/tenant-isolation.spec.ts`），以及另一位写者在 `tests/` 补入的用例。`node:sqlite` 夹具在内存库上运行真实的 participant 与 handler，**不**覆盖 Worker、持久与关闭。`tests/real-provider.spec.ts` 在真实 sqlite-provider 上运行本包：Worker 下提交、回执返回后杀进程再按原身份 `query`、未提交身份、关闭、两种限额，以及组提交计数（原操作 8、物理写事务 8，零合并）。断电、WAL 维护、跨进程写者与锁等待超时没有覆盖。新行为没有先红后绿记录，以负控用例代替。
 - 前提：存储契约现在是 [sql-contract](../../storage/sql-contract/SPEC.md)，提供者是 [sqlite-provider](../../storage/sqlite-provider/SPEC.md)。提供者只是测试的开发依赖。
 
@@ -25,7 +25,7 @@ Session 的存储成员。它用 SQL 实现 `SessionTransactionPort`，只经 `@
 根入口是唯一入口：
 
 - `createSessionStorage(options)`：返回 `SessionTransactionPort<P>`。`options` 含 `storage`（`SqlStorage`）、`domains`（`TenantDomainAccess`）、`accessCheck`、`cursorSigning`、`combination`（`combinationVersion` 与 `manifestDigest`），以及可选的 `attemptLimit`（初值 8）、`cursorTtlMs`（初值 15 分钟）、`now`。
-- `sessionStorageMaterials()`：返回参加者、迁移与读 handler 三份静态描述，应用把它们并入自己的材料目录。
+- `sessionStorageMaterials({ readOutputLimitBytes })`：返回参加者、迁移与读 handler 三份静态描述，应用把它们并入自己的材料目录。`readOutputLimitBytes` 必填、没有默认值、必须是正安全整数，成为每个读 handler 的 `maxOutputBytes`；装配让提供者的 `maxReadResultBytes` 不小于它（SPEC K-1），推荐 20 MiB。
 - `SESSION_PARTICIPANT`：组合里列给 Session 日志的参加者名，值为 `session`。
 
 应用用这三项完成会话存储组合，再把端口交给 [session](../session/README.md) 工厂的 `transactions` 依赖。每次操作显式传入租户与会话，本成员不从连接、事务域或装配树推断租户，也没有默认权限。装配步骤见[使用与定位](docs/context.md#使用方式)，应用承担的部分见 [装配边界](docs/cordis.md)。

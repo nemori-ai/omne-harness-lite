@@ -94,7 +94,7 @@ The canonical representations and limits are fixed below. Lengths count UTF-16 c
 
 The identity and position constants are `STREAM_ID_MAX_LENGTH = 256` and `STREAM_POSITION_MAX_LENGTH = 256`. A value at its limit proceeds to the next check. A value one code unit over its limit fails with `length` before JSON parsing. These are text parsing limits. Message, queue, tenant capacity, throughput, and actual memory limits remain separate obligations.
 
-The call limit covers the current Tool limit of 1668 and Model limit of 1024. The current largest canonical Tool invocation has length 1154. With two quote-only identities of length 256 and a `StreamId` of length 256, the canonical reference has length 2487. A position of length 256 makes its canonical cursor length 4872. Producer identity limits must be checked again before they expand. Valid identities must not be truncated to fit these boundaries.
+The call limit covers the Tool reference limit of 1565 (the operation form, see the Tool contract) and the Model limit of 1024. The call text carries no tenant. The largest canonical Tool invocation has length 1051. With two quote-only identities of length 256 and a `StreamId` of length 256, the canonical reference has length 2366. A position of length 256 makes its canonical cursor length 4715. Producer identity limits must be checked again before they expand. Valid identities must not be truncated to fit these boundaries.
 
 Canonical output has no BOM, insignificant whitespace, or trailing newline. Persistent bytes are the UTF-8 encoding of that text. JSON string escaping follows ECMAScript `JSON.stringify`. Tuple order and domain case are fixed. The version is the JSON number `1`. The string `"1"` fails. No Unicode normalization, case folding, trimming of identity fields, or percent encoding occurs.
 
@@ -121,13 +121,13 @@ All operations are synchronous and exported from the root entry. The table descr
 
 The decode, parse, encode, and judge operations return `Outcome`. A `StreamValueRejection` has `field` and `reason`. The field is `StreamId`, `StreamPosition`, `StreamRef`, or `StreamCursor`. Reasons are `type`, `length`, `syntax`, `domain`, `version`, `shape`, `producer`, `identity`, `position`, and `unreadable`.
 
-The identity and position decoders, and the envelope parser, return that rejection directly. A reference failure is `invalid-envelope` with `rejection`, `wrong-producer`, `malformed`, `invalid-tenant`, or `foreign-tenant`. A cursor failure is `invalid` with `rejection`, or `foreign-stream`. Call codecs expose `producer` and `resolve({ text, tenant })`. The resolver returns canonical call text, or `malformed`, `invalid-tenant`, or `foreign-tenant` through `Outcome`.
+The identity and position decoders, and the envelope parser, return that rejection directly. A reference failure is `invalid-envelope` with `rejection`, `wrong-producer`, `malformed`, or `invalid-tenant`. A cursor failure is `invalid` with `rejection`, or `foreign-stream`. Call codecs expose `producer` and `resolve({ text, tenant })`. The resolver returns canonical call text, or `malformed` or `invalid-tenant` through `Outcome`. No failure names another tenant: a call text carries no tenant, so a call of another tenant resolves for the presented tenant, and the producer finds no such call there (R2-D370).
 
 Checks occur in the following order. The first failure wins.
 
 1. `decodeStreamId` checks string type, nonempty length and upper limit, then lexical form. Failures are `type`, `length`, then `identity`. `decodeStreamPosition` uses the same order, with `position` for lexical failure. Each rejection names the decoder's own field.
 2. `parseStreamEnvelope` checks string type, nonempty length and the reference limit, JSON syntax, array shape, domain, version, exact tuple length of five, producer, call, then stream. Every rejection has field `StreamRef`. A non-array or wrong tuple length is `shape`. Producer must be `model` or `tool`, otherwise the reason is `producer`. A nonstring call is `shape`. An empty or oversized call is `length`. Invalid stream text is `identity`. Extra tuple elements are not ignored. Success freezes the envelope but only supplies routing values.
-3. `judgeStreamRef` first checks the tenant's minted identity through `tenantCodec.encode`, returning `invalid-tenant` on failure. It then parses the envelope, wrapping a rejection as `invalid-envelope`. Next it compares the envelope producer with `codec.producer`. A mismatch returns `wrong-producer` without calling `resolve`. Finally it calls `resolve`, preserving the three call failure kinds. Success encodes the canonical reference again. An oversized canonical output is `invalid-envelope` with reason `length`.
+3. `judgeStreamRef` first checks the tenant's minted identity through `tenantCodec.encode`, returning `invalid-tenant` on failure. It then parses the envelope, wrapping a rejection as `invalid-envelope`. Next it compares the envelope producer with `codec.producer`. A mismatch returns `wrong-producer` without calling `resolve`. Finally it calls `resolve`, preserving the two call failure kinds. Success encodes the canonical reference again. An oversized canonical output is `invalid-envelope` with reason `length`.
 4. `encodeStreamRef` first captures an exact data record with the keys `tenant`, `producer`, `call`, and `stream`. Each key must be an own, enumerable data property. Only `Object.prototype` and null prototypes are allowed. The operation never calls getters, `toJSON`, or conversion functions. Reflection failure is `invalid-envelope` with reason `unreadable`. Other invalid record shapes use `shape`. After capture, it checks the tenant, envelope field values, producer, original call codec, and canonical output as above. It does not freeze the caller's record.
 5. `encodeStreamCursor` captures an exact `ref` and `position` data record under the same descriptor and prototype rules. Record failures use `invalid` with field `StreamCursor`. It accepts an already validated canonical reference brand and checks position lexical form again. An invalid position uses reason `position`. It encodes the fixed cursor tuple and applies the cursor output limit. A forged reference brand is a programming error, not proof of original call validation.
 6. `judgeStreamCursor` checks raw string type, nonempty length and the cursor limit, JSON syntax, array shape, domain, version, exact tuple length of four, embedded reference, then position. Every rejection has field `StreamCursor`. A nonstring embedded reference is `shape`. An empty or oversized embedded reference is `length`. Invalid position is `position`. It completes these structural checks before comparing the embedded reference with the target. A mismatch is `foreign-stream`. Success returns canonical cursor text.
@@ -136,15 +136,14 @@ The judge parameter containers and call codecs are typed injected dependencies. 
 
 `judgeStreamRef` is the reference decode boundary. There is no alternate `decodeStreamRef` that bypasses tenant and producer validation. Read operations accept only branded values from the validated boundaries. They neither check current permission nor call the producer codec again. An unreadable forged brand throws a generic `TypeError` without the input text. All object results of parsing and reading are frozen. Caller inputs remain unfrozen and unchanged.
 
-Each producer owns its adapter to the original call codec. Model resolves with `resolveModelInvocationRef(text, tenant)`, then encodes with `encodeModelInvocationRef(parts)`. Tool uses its corresponding `resolveToolInvocationRef` and `encodeToolInvocationRef`. The adapter maps a detailed malformed-call rejection to `malformed`, and preserves `invalid-tenant` and `foreign-tenant`. The common tenant check precedes Tool's codec, so Tool's internal treatment of an unminted tenant as foreign does not change the public result. A test callback without original codec validation is not an identity adapter. Tool's concrete adapter remains a Tool obligation.
+Each producer owns its adapter to the original call codec. Model resolves with `resolveModelInvocationRef(text, tenant)`, then encodes with `encodeModelInvocationRef(parts)`. Tool uses its corresponding `resolveToolInvocationRef` and `encodeToolInvocationRef`. The adapter maps a detailed malformed-call rejection to `malformed`, and preserves `invalid-tenant`. The common tenant check precedes the producer's codec, so the codec's own check of an unminted tenant does not change the public result. A test callback without original codec validation is not an identity adapter. Tool's concrete adapter remains a Tool obligation.
 
 #### Fixed codec examples
 
 These generation expressions define canonical text, without randomness or environment-dependent data.
 
 ```js
-const tenantText = '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000000"}'
-const call = JSON.stringify(['model-invocation', 1, tenantText, 'mcall_a', 'mop_a'])
+const call = JSON.stringify(['model-invocation', 2, 'mcall_a', 'mop_a'])
 const ref = JSON.stringify(['stream-ref', 1, 'model', call, 'str_a'])
 const c0 = JSON.stringify(['stream-cursor', 1, ref, '0'])
 const c10 = JSON.stringify(['stream-cursor', 1, ref, '10'])
@@ -162,7 +161,7 @@ The fixed refusal cases have the following results.
 | Producer becomes `tool` with the Model codec | `wrong-producer`, with no codec call |
 | Model producer contains a valid Tool invocation | `malformed` |
 | A same-shaped unminted tenant is supplied | `invalid-tenant`, with no codec call |
-| Another account's minted tenant is supplied | `foreign-tenant` |
+| Another account's minted tenant is supplied | The same canonical reference: the call text carries no tenant |
 | Stream is `str_` | Reason `identity` |
 | Position is `01`, or cursor position is the number zero | Reason `position` |
 | Cursor embeds a reference with stream `str_b` | `foreign-stream` |
@@ -213,11 +212,11 @@ Count and byte limits are inclusive maxima. Check the proposed occupancy before 
 
 ### Failure order and iterator completion
 
-An unminted tenant, a foreign tenant, or denied current permission ends with denied. Unreadable public reference syntax ends with stale-stream without a target lookup. After tenant and syntax checks, permission must allow the request before target lookup. An unavailable permission source ends with unavailable, even when the target is stale.
+An unminted tenant or denied current permission ends with denied. Unreadable public reference syntax ends with stale-stream without a target lookup. After tenant and syntax checks, permission must allow the request before target lookup. An unavailable permission source ends with unavailable, even when the target is stale.
 
 The syntax check is the envelope parse. An `invalid-envelope` failure from the envelope parse ends with stale-stream before permission. The `wrong-producer` and `malformed` failures, and an `invalid-envelope` from the canonical output limit, are target checks. For example, the pure functions return `malformed` for a reference whose producer is model and whose call text is a valid Tool invocation. The source decides these three failures after permission and ends with stale-stream. Before permission, the source discloses only the tenant result and the envelope result.
 
-Once permission allows the request, a wrong producer, an unknown same-tenant mapping, or a retired publication ends with stale-stream. An unavailable target source ends with unavailable. These checks precede capacity checks and ordinary content. Each actual output repeats the pre-output checks. An already emitted terminal frame is final and cannot acquire a second terminal reason.
+Once permission allows the request, a wrong producer, an unknown same-tenant mapping, or a retired publication ends with stale-stream. A reference to a call of another tenant is an unknown same-tenant mapping: it gets the same answer as a call that never existed (R2-D370). An unavailable target source ends with unavailable. These checks precede capacity checks and ordinary content. Each actual output repeats the pre-output checks. An already emitted terminal frame is final and cannot acquire a second terminal reason.
 
 A held terminal frame, one that is not yet emitted, is not final. Before output, the source runs the pre-output checks on it. When a check fails, the source emits denied, unavailable, or stale-stream instead of the held frame. A later source-closed or producer-ended end, or a source-history gap, does not replace a held terminal frame.
 

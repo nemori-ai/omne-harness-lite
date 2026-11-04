@@ -8,6 +8,9 @@
 - [sqlite-storage.ts](sqlite-storage.ts)：`node:sqlite` 上的 `SqlStorage` 测试提供者
 - [real-provider.ts](real-provider.ts)：真实 sqlite-provider 组合与 WAL 提交帧计数
 - [real-provider-child.ts](real-provider-child.ts)：杀进程用例的子进程
+- [real-system-reads.ts](real-system-reads.ts)：真实提供者上系统读用例的两租户夹具
 - [real-joint-child.ts](real-joint-child.ts)：共同提交杀进程用例的子进程
 - [app.ts](app.ts)：测试应用组合
 - [entries.ts](entries.ts)：每个公开入口的调用清单
+- [entry-text.ts](entry-text.ts)：`sl_entry.entry` 文本的测试入口，转到 `src/entry-codec.ts`
+- [session-scenario.ts](session-scenario.ts)：字节度量与速度对照用的固定会话

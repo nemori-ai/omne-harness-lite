@@ -10,6 +10,7 @@
 //   copy that reads the slot at start. The slow tests use the real pi transport and families.
 // The runtime of the driven calls is the real `createModelRuntime`; the plugin replaces its sender.
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { createServer, connect, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -219,6 +220,13 @@ class SpyCredential extends ModelCredentialService {
     SpyCredential.resolves += 1
     return { kind: 'value', scope: 'factory', value: PLACEHOLDER }
   }
+  override readonly presentFor: NonNullable<CredentialPort['presentFor']> = () => ({
+    kind: 'unavailable',
+  })
+  override readonly resolveFor: NonNullable<CredentialPort['resolveFor']> = () => {
+    SpyCredential.resolves += 1
+    return { kind: 'value', scope: 'factory', value: PLACEHOLDER }
+  }
 }
 
 // --- the observing transport of the fast tests ---------------------------------------------------
@@ -278,6 +286,7 @@ function observing() {
       const resources = sendResourcesOver<unknown>({ config, createTransport })
       return {
         acquire: input => resources.acquire(input),
+        materialization: resources.materialization,
         async close() {
           events.push('resources-close')
           await closeGate
@@ -319,6 +328,10 @@ function optionsOf(scene: Scene, over: Partial<ModelSendStagePluginOptions> = {}
     routes: ROUTES,
     transportLimits: TRANSPORT_LIMITS,
     preparation: { maxCitedCalls: 8, supplierOf: factorySupplier<unknown>() },
+    materialization: {
+      maxRecords: 4,
+      execution: () => ({ ok: { owner: 'host', subject: 'legacy-channel', revision: '1' } }),
+    },
     ...over,
   } satisfies ModelSendStagePluginOptions
 }
@@ -421,7 +434,138 @@ afterEach(() => {
   SpyCredential.resolves = 0
 })
 
+it('captures the private channel and installs its materialization reader until the send stage exits', async () => {
+  const scene = sceneOf(REQUEST, 'channel-install')
+  const ctx = new Context()
+  await ctx.plugin(SpyCredential)
+  await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+  const events: string[] = []
+  const commands = scene.memory.dependencies.commands
+  const coordinator = scene.memory.controls.send.coordinator
+  const qualifyExecution = vi.fn(() => ({
+    ok: { owner: 'host', subject: 'private', revision: '1' },
+  }))
+  const executionChannel = vi.fn(() => ({
+    ok: {
+      commands,
+      coordinator,
+      qualifyExecution,
+      prepare: vi.fn(),
+      close: vi.fn(),
+    },
+  }))
+  const reader = { prove: vi.fn() }
+  const installMaterialization = vi.fn(given => {
+    expect(given).toBe(reader)
+    events.push('install')
+    return () => {
+      events.push('withdraw')
+    }
+  })
+  const Stage = sendStagePluginOver({
+    options: optionsOf(scene, { executionChannel, installMaterialization }),
+    assemble: config => {
+      expect(config.commands === commands).toBe(true)
+      expect(config.coordinator).toBe(coordinator)
+      expect(config.materialization.execution).toBe(qualifyExecution)
+      return {
+        send: { send: vi.fn() },
+        preparation: { acquire: vi.fn() },
+        materialization: reader,
+        close: async () => {
+          events.push('close')
+        },
+      }
+    },
+  })
+  const fiber = await ctx.plugin(Stage, SETTINGS)
+  expect(executionChannel).toHaveBeenCalledTimes(1)
+  expect(installMaterialization).toHaveBeenCalledTimes(1)
+  await fiber.dispose()
+  expect(events).toEqual(['install', 'withdraw', 'close'])
+})
+
 describe('the plugin and its dependencies', () => {
+  it('forwards qualified methods while held and makes them unavailable before close completes', async () => {
+    const scene = sceneOf(REQUEST, 'qualified-port')
+    const watch = observing()
+    const ctx = new Context()
+    const presentFor = vi.fn<NonNullable<CredentialPort['presentFor']>>(() => ({
+      kind: 'unavailable',
+    }))
+    const resolveFor = vi.fn<NonNullable<CredentialPort['resolveFor']>>(() => ({
+      kind: 'value',
+      scope: 'factory',
+      value: PLACEHOLDER,
+    }))
+    class QualifiedCredential extends SpyCredential {
+      override readonly presentFor = presentFor
+      override readonly resolveFor = resolveFor
+    }
+    await ctx.plugin(QualifiedCredential)
+    await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+    let port: CredentialPort | undefined
+    const Stage = sendStagePluginOver({
+      options: optionsOf(scene),
+      assemble: config => {
+        port = config.credentials
+        return assembleOver({ config, factories: watch.factories })
+      },
+    })
+    const fiber = await ctx.plugin(Stage, SETTINGS)
+    const input = {
+      id: decoded(decodeCredentialId('qualified-port')),
+      purpose: 'model-send' as const,
+      official: true,
+      access: { tenant: tenantOf('5'), principal: null },
+    }
+    expect(port?.presentFor?.(input)).toEqual({ kind: 'unavailable' })
+    expect(port?.resolveFor?.(input)).toEqual({
+      kind: 'value',
+      scope: 'factory',
+      value: PLACEHOLDER,
+    })
+    expect(presentFor).toHaveBeenCalledWith(input)
+    expect(resolveFor).toHaveBeenCalledWith(input)
+    expect(SpyCredential.resolves).toBe(0)
+    const finish = watch.hold()
+    const disposing = fiber.dispose()
+    await vi.waitFor(() => expect(watch.events).toContain('resources-close'))
+    expect(port?.presentFor?.(input)).toEqual({ kind: 'unavailable' })
+    expect(port?.resolveFor?.(input)).toEqual({ kind: 'unavailable' })
+    expect(presentFor).toHaveBeenCalledTimes(1)
+    expect(resolveFor).toHaveBeenCalledTimes(1)
+    finish()
+    await disposing
+    await watch.dispose()
+  })
+
+  it('preserves the absence of qualified methods on a legacy credential service', async () => {
+    const scene = sceneOf(REQUEST, 'legacy-port')
+    const watch = observing()
+    const ctx = new Context()
+    class LegacyCredential extends ModelCredentialService {
+      readonly present: CredentialPort['present'] = () => ({ kind: 'unavailable' })
+      readonly resolve: CredentialPort['resolve'] = () => ({ kind: 'unavailable' })
+    }
+    await ctx.plugin(LegacyCredential)
+    await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+    let port: CredentialPort | undefined
+    const Stage = sendStagePluginOver({
+      options: optionsOf(scene),
+      assemble: config => {
+        port = config.credentials
+        return assembleOver({ config, factories: watch.factories })
+      },
+    })
+    const fiber = await ctx.plugin(Stage, SETTINGS)
+    expect(port?.presentFor).toBeUndefined()
+    expect(port?.resolveFor).toBeUndefined()
+    expect(SpyCredential.resolves).toBe(0)
+    await fiber.dispose()
+    await watch.dispose()
+  })
+
   it('serves modelSendBoundary while it lives and withdraws it with the fiber', async () => {
     const { ctx, Stage, watch } = await treeOf('serve')
     const fiber = await ctx.plugin(Stage, SETTINGS)
@@ -517,7 +661,7 @@ describe('a send through the plugin', () => {
       send: (input, signal) => ctx.modelSendBoundary.send(input, signal),
     })
     await run.drive(REQUEST)
-    expect(run.results.map(result => result.kind)).toEqual(['started'])
+    expect(run.results).toEqual([expect.objectContaining({ kind: 'started' })])
     // One acquire: the probe is the first transport, the send's own transport the second.
     const [sent] = watch.acquired()
     expect(sent?.reads).toEqual([PLACEHOLDER])
@@ -640,6 +784,7 @@ describe('a send through the plugin', () => {
         const resources = watch.factories.createSendResources(config)
         return {
           acquire: input => resources.acquire(input),
+          materialization: resources.materialization,
           async close() {
             await resources.close()
             throw new Error(cause)
@@ -704,6 +849,142 @@ describe('the recordings through modelSendBoundary', () => {
         expect(JSON.stringify(viaPlugin.facts)).not.toContain(PLACEHOLDER)
       } finally {
         await direct.close()
+      }
+    },
+  )
+})
+
+/**
+ * A TCP front for a local server: the first connection is dropped before the TLS handshake ends,
+ * so the client fails to connect and no request byte is written. Later connections go through.
+ */
+async function frontDroppingFirst(target: URL): Promise<{
+  readonly url: URL
+  readonly connections: () => number
+  close(): Promise<void>
+}> {
+  let connections = 0
+  const open = new Set<Socket>()
+  const front: Server = createServer(client => {
+    connections += 1
+    open.add(client)
+    client.once('close', () => open.delete(client))
+    client.on('error', () => undefined)
+    if (connections === 1) {
+      client.destroy()
+      return
+    }
+    const upstream = connect(Number(target.port), target.hostname)
+    open.add(upstream)
+    upstream.once('close', () => open.delete(upstream))
+    upstream.on('error', () => client.destroy())
+    client.pipe(upstream)
+    upstream.pipe(client)
+  })
+  await new Promise<void>(resolve => front.listen(0, '127.0.0.1', resolve))
+  const address = front.address()
+  if (address === null || typeof address === 'string') throw new Error('no front address')
+  return {
+    url: new URL(`https://127.0.0.1:${address.port}/`),
+    connections: () => connections,
+    close: async () => {
+      for (const socket of open) socket.destroy()
+      await new Promise<void>(resolve => front.close(() => resolve()))
+    },
+  }
+}
+
+describe('a connect failure that the send retries, through the plugin', () => {
+  it(
+    'writes exactly one warn naming the call, the retry, the wait and the reason, and the call completes',
+    { tags: ['slow'] },
+    async () => {
+      const name = 'openai-reasoning'
+      const request = await recordedRequest(name)
+      const label = replayLabel('retry', name)
+      const recording = readFileSync(
+        new URL(
+          `../../pi-ai-transport/tests/fixtures/recordings/${name}/stream.sse`,
+          import.meta.url,
+        ),
+      )
+      const closers: (() => unknown)[] = []
+      try {
+        const vault = realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-retry-')))
+        closers.push(() => rmSync(vault, { recursive: true, force: true }))
+        const certificate = createCertificate()
+        closers.push(() => certificate.dispose())
+        const server = await startHttpsServer(certificate, (res, received) => {
+          if (received.path !== ROUTE_PATH) {
+            res.writeHead(404).end()
+            return
+          }
+          res.writeHead(200, { 'content-type': 'text/event-stream' })
+          res.end(recording)
+        })
+        closers.push(() => server.close())
+        const front = await frontDroppingFirst(server.url)
+        closers.push(() => front.close())
+        const scene = sceneOf(request, label)
+        const ctx = new Context()
+        const warnings: string[] = []
+        ctx.logger.exporter({
+          colors: 0,
+          levels: { default: 3 },
+          export: message => {
+            if (message.type === 'warn') warnings.push(message.args.map(String).join(' '))
+          },
+        })
+        await ctx.plugin(LocalCredentialPlugin, {
+          path: join(vault, `${label}.vault.json`),
+          factorySecret: PLACEHOLDER,
+        })
+        await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+        const Stage = createModelSendStagePlugin(
+          optionsOf(scene, {
+            network: {
+              maxConnections: 2,
+              idleConnectionTimeoutMs: 60_000,
+              tls: { ca: certificate.cert },
+            },
+            routes: {
+              openrouter: {
+                url: new URL(ROUTE_PATH, front.url).href,
+                endMarker: GATEWAY_END_MARKER,
+              },
+            },
+            transportLimits: { ...TRANSPORT_LIMITS, connectRetry: { backoffMs: [20, 40] } },
+          }),
+        )
+        const fiber = await ctx.plugin(Stage, { maxRetainedAttempts: 4 })
+        closers.push(() => fiber.dispose())
+        const run = runtimeOver(scene, {
+          send: (input, signal) => ctx.modelSendBoundary.send(input, signal),
+        })
+        const driven = await run.drive(request)
+
+        expect(driven).toEqual({ ok: undefined })
+        const records = decoded(
+          await scene.memory.dependencies.commands.dispatches({
+            principal: scene.principal,
+            tenant: scene.scope,
+            call: scene.call,
+          }),
+        )
+        expect(records).toHaveLength(1)
+        expect(records[0]?.terminal).toMatchObject({ kind: 'completed' })
+        // The first connection was dropped, the retry got through, and only one request arrived.
+        expect(front.connections()).toBe(2)
+        expect(server.requests).toHaveLength(1)
+        expect(warnings).toHaveLength(1)
+        expect(warnings[0]).toContain(scene.call)
+        expect(warnings[0]).toContain('retry 1')
+        expect(warnings[0]).toContain('delay 20 ms')
+        expect(warnings[0]).toMatch(/reason connect-(failed|timeout)/u)
+        expect(warnings[0]).not.toContain(PLACEHOLDER)
+        expect(warnings[0]).not.toContain('127.0.0.1')
+      } finally {
+        for (const closer of closers.toReversed()) await closer()
       }
     },
   )

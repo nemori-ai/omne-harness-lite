@@ -44,10 +44,14 @@
 | [UL-tenant-workspace-relation](terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation) | 租户—工作区关系 | Tenant–Workspace Relation | 记录租户对工作区的关系；Host 区分治理所有者与参与者，登记外部仓库仅有参与者 |
 | [UL-workspace-super-administrator](terms/subjects-and-ownership.md#ul-workspace-super-administrator--工作区超级管理员--workspace-super-administrator) | 工作区超级管理员 | Workspace Super Administrator | Omne Host 托管工作区创建者授予某租户的超管角色，具有该工作区销毁资格 |
 | [UL-membership-standing](terms/subjects-and-ownership.md#ul-membership-standing--成员资格效力--membership-standing) | 成员资格效力 | Membership Standing | 这个租户此刻算不算数，**只有有效/无效两个取值**；**「目标范围不可用」不是第三个取值，那是失败** |
+| [UL-current-standing](terms/subjects-and-ownership.md#ul-current-standing--当前资格--current-standing) | 当前资格 | Current Standing | 对一个租户在读取那一刻的成员资格效力、租户角色与具名资格的一次读数；**一次读数不是许可**，读不到是失败 |
 | [UL-current-tenant-identity](terms/subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity) | 当前租户身份 | Current Tenant Identity | 登录状态上的一项选择，**创建那一刻被捕获，之后切换不影响已创建的** |
 | [UL-tenant-role](terms/subjects-and-ownership.md#ul-tenant-role--租户角色--tenant-role) | 租户角色 | Tenant Role | 租户在其组织内当前能做什么 |
 | [UL-super-administrator](terms/subjects-and-ownership.md#ul-super-administrator--超级管理员--super-administrator) | 超级管理员 | Super Administrator | 一个组织内的最高治理角色，**不是平台管理员** |
 | [UL-deployment-operator](terms/subjects-and-ownership.md#ul-deployment-operator--运维者--deployment-operator) | 运维者 | Deployment Operator | 握着一次治理中心部署的人，**不是账号、不是租户角色，产品不记它是谁**；对治理事实没有门 |
+| [UL-acting-for-tenant-principal](terms/subjects-and-ownership.md#ul-acting-for-tenant-principal--代租户行事主体--acting-for-tenant-principal) | 代租户行事主体 | Acting-for-Tenant Principal | 代表一个明确租户行事的主体：实际代行者、租户、原工作关联；**没有不带租户的形式，签发与核验只证明来源** |
+| [UL-system-principal](terms/subjects-and-ownership.md#ul-system-principal--系统主体--system-principal) | 系统主体 | System Principal | 不代表任何租户的内部调用主体，由部件名指明；**系统作用域不自动授予业务正文读取或代租户访问** |
+| [UL-session-work-principal](terms/subjects-and-ownership.md#ul-session-work-principal--会话工作主体--session-work-principal) | 会话工作主体 | Session Work Principal | 原工作关联属于某个会话的代租户行事主体；**签发前核对会话归属，不符不签发** |
 
 ## [作用域与求值](terms/scope-and-resolution.md)
 

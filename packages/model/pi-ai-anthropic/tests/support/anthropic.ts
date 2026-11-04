@@ -58,10 +58,11 @@ export const CONFIG: AnthropicFamilyConfig = {
 /** One family for the whole test run: the tokenizer initializes once per family. */
 export const FAMILY = createAnthropicFamily(CONFIG)
 
+/** The current record of the name: the only revision that profiles publish. */
 export function recordNamed(name: string): AnthropicRecord {
   const records: readonly AnthropicRecord[] = ANTHROPIC_RECORDS
-  const record = records.find(item => item.name === name)
-  if (record === undefined) throw new Error(`no record ${name}`)
+  const record = records.find(item => item.name === name && item.status === 'current')
+  if (record === undefined) throw new Error(`no current record ${name}`)
   return record
 }
 

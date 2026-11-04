@@ -7,12 +7,15 @@
 // named: the transport is the scripted transport of `@omne-harness/model-contract/testing`; the
 // result receiver is the scripted receiver below, which stands for the Agent receiver of
 // agent-host-local (`createLocalModelReceiver`, joined in integration A). The receiver keeps the
-// four facts of `saved` apart and answers `saved` only when all four hold.
+// four facts of `saved` apart and answers `saved` only when all four hold. Its saved map stands for
+// the receiver's durable records and outlives a restart; a restart is simulated in one process by a
+// new plugin class with a new, empty push ledger over the same commands.
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import {
   accountCodec,
   organizationCodec,
   tenant,
+  tenantEquals,
   type TenantId,
 } from '@omne-harness/legal-identity'
 import {
@@ -35,6 +38,7 @@ import {
   type ModelSavedReceipt,
 } from '@omne-harness/model-contract'
 import {
+  MODEL_SEND,
   decodeCredentialId,
   type CallAccountReport,
   type ModelCommands,
@@ -54,6 +58,7 @@ import {
   createModelRuntimeLocalPlugin,
   type ResultPushLedger,
   type ResultPushLimits,
+  type ResultPushRecovery,
 } from '../src/cordis.ts'
 
 function unbox<T>(decoded: { ok: T } | { failure: unknown }): T {
@@ -132,9 +137,9 @@ const ANSWER: readonly Exclude<TransportFact, { kind: 'ended' }>[] = [
 ]
 const ENDING = { kind: 'completed', reason: 'limit' } as const
 
-async function until(check: () => boolean, label: string): Promise<void> {
+async function until(check: () => boolean | Promise<boolean>, label: string): Promise<void> {
   for (let tries = 0; tries < 1000; tries += 1) {
-    if (check()) return
+    if (await check()) return
     await new Promise(resolve => setTimeout(resolve, 2))
   }
   throw new Error(`timed out waiting for ${label}`)
@@ -235,8 +240,24 @@ type Hooks = {
  * The services the plugin injects, the in-memory commands under them, and a plugin class whose
  * provider is the real Model runtime over the plugin's commands.
  */
-function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushLedger }> = {}) {
-  const ledger = input.ledger ?? createMemoryResultPushLedger()
+function world(
+  input: Readonly<{
+    limits?: ResultPushLimits
+    ledger?: ResultPushLedger
+    /**
+     * `unavailable`: the consumer owner's evidence adapter cannot confirm, as the release's
+     * `handoff` evidence answers while the durable received record cannot be read (R2-D257).
+     */
+    custodyEvidence?: 'verified' | 'unavailable'
+    /** The share of the whole assembly; the memory commands sum every tenant against it. */
+    capacity?: Readonly<{ bytes: string; blocks: string; attachmentBytes: string }>
+    /** The start scan of the push; without it the push does not scan. */
+    recovery?: ResultPushRecovery
+  }> = {},
+) {
+  let ledger = input.ledger ?? createMemoryResultPushLedger()
+  /** The answer of the consumer owner's evidence adapter; a test may change it. */
+  const evidence = { mode: input.custodyEvidence ?? 'verified' }
   const hooks: Hooks = {}
   const handoffs: Parameters<ModelCommands<unknown>['handoff']>[0][] = []
   const memory = createTestModelDependencies<unknown>({
@@ -281,12 +302,20 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
         }),
         // The custody evidence is the scripted receiver's own, for this call's frozen key only.
         handoff: given =>
-          given.evidence.kind === 'retained' &&
-          given.evidence.custody.owner === CONSUMER &&
-          given.evidence.custody.record.startsWith('saved/') &&
-          given.evidence.custody.record.includes(given.call)
-            ? { ok: given.evidence.custody }
-            : { failure: { kind: 'handoff-invalid', reason: 'evidence' } },
+          evidence.mode === 'unavailable'
+            ? {
+                failure: {
+                  kind: 'unavailable',
+                  dependency: 'consumer-evidence',
+                  diagnostic: 'received-records-absent',
+                },
+              }
+            : given.evidence.kind === 'retained' &&
+                given.evidence.custody.owner === CONSUMER &&
+                given.evidence.custody.record.startsWith('saved/') &&
+                given.evidence.custody.record.includes(given.call)
+              ? { ok: given.evidence.custody }
+              : { failure: { kind: 'handoff-invalid', reason: 'evidence' } },
       },
     ],
     limits: {
@@ -294,13 +323,21 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
       resultPageParts: 4,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '200', attachmentBytes: '0' },
+      capacity: input.capacity ?? { bytes: '1000000', blocks: '200', attachmentBytes: '0' },
     },
     sending: {
       maxRetainedAttempts: 8,
       credentials: {
         present: () => ({ kind: 'unavailable' }),
         resolve: () => ({ kind: 'value', scope: 'factory', value: 'synthetic-credential' }),
+        resolveFor: input => {
+          expect(input.id).toBe(unbox(decodeCredentialId('push-test-query')))
+          expect(input.purpose).toBe(MODEL_SEND)
+          expect(input.official).toBe(true)
+          expect(input.access.principal).toBe(PRINCIPAL)
+          expect(tenantEquals(input.access.tenant, TENANT)).toBe(true)
+          return { kind: 'value', scope: 'factory', value: 'synthetic-credential' }
+        },
       },
       sources: [
         {
@@ -415,43 +452,60 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
   }
   // The commands the provider writes through: the plugin's, captured for the late-account source.
   const provided: { commands?: ModelCommands<unknown> } = {}
-  const Plugin = createModelRuntimeLocalPlugin({
-    provider: given => {
-      provided.commands = given.commands
-      const send = memory.controls.send.createSender({ resources, commands: given.commands })
-      return createModelRuntime(
-        {
-          commands: given.commands,
-          send,
-          retry: memory.dependencies.retry,
-          instances: given.host,
-          clock: given.clock,
-        },
-        CONFIGURATION,
-      )
-    },
-    qualifyObservation: async () => ({ ok: undefined }),
-    results: { ledger, limits: input.limits ?? LIMITS },
-  })
+  const pluginClass = () =>
+    createModelRuntimeLocalPlugin({
+      provider: given => {
+        provided.commands = given.commands
+        const send = memory.controls.send.createSender({ resources, commands: given.commands })
+        return createModelRuntime(
+          {
+            commands: given.commands,
+            send,
+            retry: memory.dependencies.retry,
+            instances: given.host,
+            clock: given.clock,
+          },
+          CONFIGURATION,
+        )
+      },
+      qualifyObservation: async () => ({ ok: undefined }),
+      results: {
+        ledger,
+        limits: input.limits ?? LIMITS,
+        ...(input.recovery !== undefined && { recovery: input.recovery }),
+      },
+    })
+  let Plugin = pluginClass()
   const ctx = new Context()
   const messages: string[] = []
+  const warnings: string[] = []
   ctx.logger.exporter({
     colors: 0,
     levels: { default: 3 },
     export: message => {
-      messages.push(message.args.map(String).join(' '))
+      const text = message.args.map(String).join(' ')
+      messages.push(text)
+      if (message.type === 'warn') warnings.push(text)
     },
   })
   return {
     ctx,
-    ledger,
     hooks,
     handoffs,
     messages,
+    warnings,
     raw,
     controls: memory.controls,
-    Plugin,
+    evidence,
     provided,
+    /**
+     * A new process over the same commands: the next `load` builds a new plugin class over a new,
+     * empty push ledger. Unload the plugin first.
+     */
+    restart() {
+      ledger = createMemoryResultPushLedger()
+      Plugin = pluginClass()
+    },
     async services() {
       await ctx.plugin(Authority)
       await ctx.plugin(Clock)
@@ -470,19 +524,20 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
         },
       })
     },
-    async admit(name: string) {
-      const call = callOf(name)
-      return unbox(
-        await ctx.modelRuntime.calls.admit({
-          principal: PRINCIPAL,
-          tenant: TENANT,
-          call,
-          operation: op(`admit-${name}`),
-          request,
-          consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
-          capacity: CAPACITY,
-        }),
-      )
+    async admit(name: string, capacity = CAPACITY) {
+      return unbox(await this.tryAdmit(name, capacity))
+    },
+    /** The admission answer as it is, a refusal included. */
+    tryAdmit(name: string, capacity = CAPACITY) {
+      return ctx.modelRuntime.calls.admit({
+        principal: PRINCIPAL,
+        tenant: TENANT,
+        call: callOf(name),
+        operation: op(`admit-${name}`),
+        request,
+        consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
+        capacity,
+      })
     },
     async custody(name: string) {
       const lookup = unbox(
@@ -554,6 +609,50 @@ it('pushes the frozen result to the registered receiver and then acknowledges it
   expect(w.handoffs[0]?.evidence).toMatchObject({ kind: 'retained', custody: { owner: CONSUMER } })
   const custody = await w.custody('one')
   expect(custody).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
+})
+
+// R2-D256: the release reserves 524288 bytes of a 1000000-byte share for each call. The share of a
+// call comes back only when the Model's own ACK and the cleanup are done; a second call of the same
+// tenant fits only then.
+const HALF_SHARE = { bytes: '524288', blocks: '20', attachmentBytes: '0' }
+const SHARE = { bytes: '1000000', blocks: '200', attachmentBytes: '0' }
+
+it('gives the share of a call back after the ACK and the cleanup, so the same tenant admits its next call', async () => {
+  const w = world({ capacity: SHARE })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('first', HALF_SHARE)
+
+  await until(() => w.record('first')?.cleanup === 'released', 'the push, ACK and cleanup')
+  expect(await w.custody('first')).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
+  const second = await w.tryAdmit('second', HALF_SHARE)
+  expect(second).toMatchObject({ ok: { call: callOf('second'), recovered: false } })
+  await until(() => w.record('second')?.cleanup === 'released', 'the second call to its cleanup')
+  expect(w.handoffs).toHaveLength(2)
+})
+
+it('keeps the custody and the share of a saved call while the consumer evidence is unavailable', async () => {
+  const w = world({ capacity: SHARE, custodyEvidence: 'unavailable' })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('first', HALF_SHARE)
+
+  await until(() => w.handoffs.length > 0, 'the ACK attempt after saved')
+  await quiet()
+  // Saved is not an ACK: the producer keeps the result and its share (SPEC: no capacity is won back
+  // by dropping a delivered result before the ACK).
+  expect(w.record('first')?.result?.standing.status).toBe('saved')
+  expect(await w.custody('first')).toEqual({ kind: 'producer' })
+  expect(
+    w.warnings.some(text => text.includes('acknowledgement did not complete (unavailable)')),
+  ).toBe(true)
+  expect(await w.tryAdmit('second', HALF_SHARE)).toMatchObject({
+    failure: { kind: 'capacity', required: HALF_SHARE },
+  })
 })
 
 it.each(['material', 'responsibility', 'deduplication', 'retention'] as const)(
@@ -693,6 +792,8 @@ it('keeps a result without a receiver waiting and pushes it when the consumer ow
   await until(() => w.record('one')?.result?.standing.status === 'waiting', 'the waiting result')
   expect(w.record('one')?.result?.standing).toEqual({ status: 'waiting', reason: 'no-receiver' })
   expect(w.messages.some(text => text.includes('no receiver'))).toBe(true)
+  // A warning, not info: the consumer waits until a receiver registers (R2-D237).
+  expect(w.warnings.some(text => text.includes('no receiver'))).toBe(true)
 
   const scripted = scriptedReceiver()
   await w.register(scripted.receiver)
@@ -962,4 +1063,136 @@ it('waits on unload for a late account that is being accepted and hands it to th
     'the account pushed by the successor',
   )
   expect(scripted.pushes.map(delivery => delivery.kind)).toEqual(['result', 'account'])
+})
+
+// R2-D260: the push ledger is in memory and a restart loses it. The durable custody of the commands
+// says what is owed: with `recovery`, the push scans every tenant when it starts and wakes each
+// settled call that is not yet acknowledged and cleaned.
+const SCAN_TENANT: ResultPushRecovery = {
+  scopes: async () => ({ ok: [{ principal: PRINCIPAL, tenant: TENANT }] }),
+}
+
+it('pushes again after a restart that lost the ledger, acknowledges, and gives the share back', async () => {
+  const w = world({ capacity: SHARE, custodyEvidence: 'unavailable', recovery: SCAN_TENANT })
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('first', HALF_SHARE)
+  await until(() => w.handoffs.length > 0, 'the ACK attempt after saved')
+  expect(await w.custody('first')).toEqual({ kind: 'producer' })
+  expect(await w.tryAdmit('second', HALF_SHARE)).toMatchObject({ failure: { kind: 'capacity' } })
+
+  await first.dispose()
+  w.restart()
+  expect(w.record('first')).toBeUndefined()
+  w.evidence.mode = 'verified'
+  await w.load()
+  await until(() => w.record('first')?.cleanup === 'released', 'the push, ACK and cleanup')
+  // Pushed again with the same key and the same frozen payload, so the receiver recognises it.
+  expect(scripted.pushes).toHaveLength(2)
+  expect(scripted.pushes[1]).toEqual(scripted.pushes[0])
+  expect(await w.custody('first')).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
+  expect(w.messages.some(text => text.includes('start scan woke 1 owed calls'))).toBe(true)
+  expect(await w.tryAdmit('second', HALF_SHARE)).toMatchObject({ ok: { call: callOf('second') } })
+})
+
+it('wakes nothing on a later restart once the call is acknowledged and cleaned', async () => {
+  const w = world({ recovery: SCAN_TENANT })
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.record('one')?.cleanup === 'released', 'the push, ACK and cleanup')
+
+  await first.dispose()
+  w.restart()
+  await w.load()
+  await until(
+    () => w.messages.filter(text => text.includes('start scan woke')).length === 2,
+    'the scan of the restart',
+  )
+  await quiet()
+  expect(w.messages.at(-1)).toContain('start scan woke 0 owed calls')
+  expect(scripted.pushes).toHaveLength(1)
+  expect(w.handoffs).toHaveLength(1)
+  expect(w.record('one')).toBeUndefined()
+})
+
+it('acknowledges after a restart when the result was saved but the ACK answer was lost, without a second push', async () => {
+  // The ACK commits and its answer is lost, then the process ends before the ACK is recognised: the
+  // custody is acknowledged and the cleanup pending. The start scan wakes it for the cleanup only.
+  const w = world({ recovery: SCAN_TENANT, limits: { ...LIMITS, maxRedeliveries: 0 } })
+  await w.services()
+  w.hooks.handoff = () => 'lost'
+  w.hooks.advanceCleanup = () => 'fail'
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.handoffs.length > 0, 'the ACK attempt')
+  await until(async () => (await w.custody('one')).kind === 'acknowledged', 'the committed ACK')
+
+  await first.dispose()
+  w.restart()
+  w.hooks.handoff = () => 'pass'
+  w.hooks.advanceCleanup = () => 'pass'
+  await w.load()
+  await until(() => w.record('one')?.cleanup === 'released', 'the cleanup after the restart')
+  expect(await w.custody('one')).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
+  expect(scripted.pushes).toHaveLength(1)
+  expect(w.handoffs).toHaveLength(1)
+})
+
+it('says so when the start scan cannot run, and the call stays with the producer', async () => {
+  const refusing: ResultPushRecovery = {
+    scopes: async () => ({ ok: [{ principal: { subject: 'stranger' }, tenant: TENANT }] }),
+  }
+  const w = world({ custodyEvidence: 'unavailable', recovery: refusing })
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.handoffs.length > 0, 'the ACK attempt after saved')
+
+  await first.dispose()
+  w.restart()
+  w.evidence.mode = 'verified'
+  await w.load()
+  await until(
+    () => w.warnings.some(text => text.includes('start scan stopped at scan (denied)')),
+    'the refused scan',
+  )
+  await quiet()
+  expect(scripted.pushes).toHaveLength(1)
+  expect(await w.custody('one')).toEqual({ kind: 'producer' })
+})
+
+it('leaves a call that is not settled to its own settle', async () => {
+  // Admitted in the commands and never driven, as a call an earlier process left running.
+  const w = world({ recovery: SCAN_TENANT })
+  await w.services()
+  unbox(
+    await w.raw.admit({
+      principal: PRINCIPAL,
+      tenant: TENANT,
+      call: callOf('running'),
+      operation: op('admit-running'),
+      request,
+      consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
+      capacity: CAPACITY,
+    }),
+  )
+  await w.load()
+  await until(
+    () => w.messages.some(text => text.includes('start scan woke 0 owed calls')),
+    'the start scan',
+  )
+  expect(w.record('running')).toBeUndefined()
 })

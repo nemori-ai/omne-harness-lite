@@ -32,7 +32,7 @@ async function serveRows(): Promise<Run> {
   const storageRoot = join(base, 'storage')
   const { mkdirSync } = await import('node:fs')
   mkdirSync(stateRoot)
-  const policy = accessPolicyRow(allowAll)
+  const policy = accessPolicyRow(allowAll, { includePrincipalVerifier: true })
   const records: S0Record[] = []
   const stderr: string[] = []
   const controller = new AbortController()

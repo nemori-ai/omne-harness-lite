@@ -6,8 +6,7 @@
 //
 // Its own checks are few and on the boundary: a command whose tenant was not minted gets `denied`;
 // an initialization material (session-contract「初始化守卫编码」) that binds another tenant or session
-// than the command gets `denied`; a login confirmation is only for `startRun`; and a command of the
-// table with no material at all is `unavailable`, not an empty success. A source failure comes back
+// than the command gets `denied`; and a command of the table with no material at all is `unavailable`, not an empty success. A source failure comes back
 // as the source gave it. The resident-tool part of the candidate adoption (P-8) is still a candidate:
 // the bridge passes the source's material through and encodes no resident key.
 import type { Context } from '@deepseek-ai/cordis'
@@ -18,6 +17,7 @@ import type {
   CustodyEvidenceCommand,
   GuardCommand,
   ProductionEvidenceCommand,
+  SessionAccess,
   SessionCommand,
   SessionEvidenceBridge,
 } from '@omne-harness/session-contract'
@@ -30,8 +30,6 @@ import {
 
 /** The owner named in `unavailable` when the bridge itself cannot answer. */
 const BRIDGE_OWNER = 'sessionEvidence'
-/** The owner of the login confirmation material (session-contract `LOGIN_ENTRY_OWNER`). */
-const LOGIN_ENTRY = 'login-entry'
 /** The owner of the initialization guard material (session-contract「初始化守卫编码」). */
 const INITIALIZATION = 'session-initialization'
 
@@ -55,7 +53,10 @@ const CUSTODY: ReadonlySet<string> = new Set<CustodyEvidenceCommand['kind']>([
 ])
 
 type Prepared = ReturnType<SessionEvidenceBridge['prepare']>
-type Source = Readonly<{ key: string; prepare(command: SessionCommand): Prepared }>
+type Source<P> = Readonly<{
+  key: string
+  prepare(command: SessionCommand, access?: SessionAccess<P>): Prepared
+}>
 
 function describe(cause: unknown): string {
   try {
@@ -113,20 +114,57 @@ function bindsCommand(guard: GuardCommand, tenant: string, session: string): boo
   )
 }
 
+/** What the bridge has to answer: the outcome of `prepare`. */
+type Answer = Awaited<Prepared>
+
+/**
+ * The material one source gave, or the outcome that ends the preparation: a throw, an answer that
+ * is no outcome or no material list, or the source's own failure, which keeps its kind and its
+ * owner and is not rewritten into a business refusal.
+ */
+async function guardsOf<P>(
+  source: Source<P>,
+  command: SessionCommand,
+  access: SessionAccess<P> | undefined,
+): Promise<Readonly<{ guards: readonly GuardCommand[] }> | Readonly<{ stop: Answer }>> {
+  let answer: Answer
+  try {
+    answer = await source.prepare(command, access)
+  } catch (cause) {
+    return { stop: unavailable(source.key, `the source threw: ${describe(cause)}`) }
+  }
+  if (typeof answer !== 'object' || answer === null)
+    return { stop: unavailable(source.key, 'the source answered no outcome') }
+  if ('failure' in answer) return { stop: answer }
+  if (!Array.isArray(answer.ok) || !answer.ok.every(isGuard))
+    return { stop: unavailable(source.key, 'the source answered a malformed material') }
+  return { guards: answer.ok }
+}
+
+/**
+ * The refusal of one material on the boundary of the bridge, or null when it passes: an
+ * initialization material must bind the tenant and the session of the command.
+ */
+function refusalOf(guard: GuardCommand, command: SessionCommand, tenant: string): Answer | null {
+  if (guard.owner === INITIALIZATION && !bindsCommand(guard, tenant, command.input.session))
+    return fail({ kind: 'denied' as const, action: command.kind })
+  return null
+}
+
 /**
  * The evidence bridge. It needs all three sources: with one of them absent the plugin stays pending
  * and does not provide `sessionEvidence`, so Session mutations that need evidence answer
  * `unavailable` (装配页缺口表).
  */
-export class SessionEvidenceBridgeProvider extends SessionEvidenceBridgeService {
+export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceBridgeService<P> {
   static readonly inject = [
     sessionAdoptionSourceKey,
     sessionProductionSourceKey,
     sessionCustodySourceKey,
   ]
-  private readonly adoption: Source
-  private readonly production: Source
-  private readonly custody: Source
+  private readonly adoption: Source<P>
+  private readonly production: Source<P>
+  private readonly custody: Source<P>
   private closed = false
 
   constructor(ctx: Context) {
@@ -134,7 +172,9 @@ export class SessionEvidenceBridgeProvider extends SessionEvidenceBridgeService 
     // Each source is typed by its narrow command union; the bridge routes by kind before it calls.
     this.adoption = {
       key: sessionAdoptionSourceKey,
-      prepare: command => ctx[sessionAdoptionSourceKey].prepare(command as AdoptionEvidenceCommand),
+      // The original access goes to the adoption source as it came. The two other sources keep their signature.
+      prepare: (command, access) =>
+        ctx[sessionAdoptionSourceKey].prepare(command as AdoptionEvidenceCommand, access),
     }
     this.production = {
       key: sessionProductionSourceKey,
@@ -150,44 +190,23 @@ export class SessionEvidenceBridgeProvider extends SessionEvidenceBridgeService 
     })
   }
 
-  readonly prepare: SessionEvidenceBridge['prepare'] = async command => {
+  readonly prepare: SessionEvidenceBridge<P>['prepare'] = async (command, access) => {
     if (this.closed) return unavailable(BRIDGE_OWNER, 'the evidence bridge has stopped')
     // A tenant that legal-identity did not mint names no tenant: no source sees the command.
     const tenant = tenantCodec.encode(command.input.tenant)
     if (!tenant.ok) return fail({ kind: 'denied' as const, action: command.kind })
 
-    const sources: Source[] = []
-    if (ADOPTION.has(command.kind)) sources.push(this.adoption)
-    if (PRODUCTION.has(command.kind)) sources.push(this.production)
-    if (CUSTODY.has(command.kind)) sources.push(this.custody)
+    const sources = this.sourcesFor(command)
     // The material table has no row for this command (`claim`, a routed accept): no material.
     if (sources.length === 0) return succeed([])
 
     const materials: GuardCommand[] = []
     for (const source of sources) {
-      let answer: Awaited<Prepared>
-      try {
-        answer = await source.prepare(command)
-      } catch (cause) {
-        return unavailable(source.key, `the source threw: ${describe(cause)}`)
-      }
-      if (typeof answer !== 'object' || answer === null)
-        return unavailable(source.key, 'the source answered no outcome')
-      // A source failure keeps its kind and its owner: not rewritten into a business refusal.
-      if ('failure' in answer) return answer
-      if (!Array.isArray(answer.ok) || !answer.ok.every(isGuard))
-        return unavailable(source.key, 'the source answered a malformed material')
-      for (const guard of answer.ok) {
-        if (guard.owner === LOGIN_ENTRY && command.kind !== 'startRun')
-          return unavailable(
-            source.key,
-            `the source gave a login confirmation for ${command.kind}; it belongs to startRun only`,
-          )
-        if (
-          guard.owner === INITIALIZATION &&
-          !bindsCommand(guard, tenant.value, command.input.session)
-        )
-          return fail({ kind: 'denied' as const, action: command.kind })
+      const given = await guardsOf(source, command, access)
+      if ('stop' in given) return given.stop
+      for (const guard of given.guards) {
+        const refused = refusalOf(guard, command, tenant.value)
+        if (refused !== null) return refused
         materials.push(guard)
       }
     }
@@ -198,5 +217,14 @@ export class SessionEvidenceBridgeProvider extends SessionEvidenceBridgeService 
         `no source gave material for ${command.kind}`,
       )
     return succeed(materials)
+  }
+
+  /** The sources the material table names for the kind of `command`, in table order. */
+  private sourcesFor(command: SessionCommand): Source<P>[] {
+    const sources: Source<P>[] = []
+    if (ADOPTION.has(command.kind)) sources.push(this.adoption)
+    if (PRODUCTION.has(command.kind)) sources.push(this.production)
+    if (CUSTODY.has(command.kind)) sources.push(this.custody)
+    return sources
   }
 }

@@ -127,6 +127,24 @@ describe('timeouts (SPEC 9.2 steps 9 and 10)', () => {
   })
 })
 
+describe('result byte budget (SPEC 9.2 step 6)', () => {
+  it('admits as many reads as the global budget holds, answers queue_full to the next, and admits again after one ends', async () => {
+    // Defect: the reservation ignores the byte budget (only the counts are checked): the third
+    // read would queue and come back `read`.
+    const { storage } = await readyProvider(
+      workspace,
+      built,
+      { maxReadResultBytes: 4096, globalReadResultBytes: 8192 },
+      0,
+    )
+    const first = storage.read(readRequest('slow', { ms: 400 }))
+    const second = storage.read(readRequest('slow', { ms: 400 }))
+    expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_full')
+    expect((await Promise.all([first, second])).map(summary)).toEqual(['read', 'read'])
+    expect(summary(await storage.read(readRequest('page')))).toBe('read')
+  })
+})
+
 describe('reply matching (SPEC 9.5)', () => {
   it('accepts a reply only when generation, request number and token all match, once', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 0)

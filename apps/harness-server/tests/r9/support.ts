@@ -5,7 +5,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
@@ -61,49 +61,308 @@ export function newScratch(prefix = 'r9-'): Scratch {
  * The operator layer for the release tree: the three rows whose configuration holds an absolute
  * path or a port. The distribution file keeps neither (decision L1-12).
  */
+/** The adoption every test value of the model rows names; a test parameter, not a release value. */
+const MODEL_TEST_ADOPTION = {
+  owner: 'harness-server-test',
+  name: 'model-rows',
+  revision: '1',
+  digest: '0'.repeat(64),
+}
+
+/**
+ * The operator values of the model rows whose numbers the release layer does not write (R2-D6:
+ * the first production values follow "E9 initial value times 1.5, then the curve of the first
+ * measurement"; there is no E9 table yet). These are test values: they let the release tree load
+ * and the rows construct; no measurement backs them. `records` and `host` share
+ * `resultPageTargetBytes` and `readIdleMs`, `records.sendStage.preparation` equals `preparation`,
+ * and `records.sendStage.profiles` equals `profiles` (the load-time cross-row checks).
+ */
+/**
+ * The Model route when a test gives none: a loopback port that nothing listens on. A test that sends a
+ * Model call without the local gateway (`tests/fixtures/model-gateway.ts`) fails on this machine; it
+ * never reaches a real supplier (R2-D258).
+ */
+export const UNUSED_MODEL_ROUTE = 'https://127.0.0.1:9/api/v1/chat/completions'
+
+export function modelRowsOperatorConfig(options: { storageRoot: string; modelRoute?: string }) {
+  const profiles = {
+    retryPolicy: { owner: 'r9', name: 'retry', revision: '1', digest: '0'.repeat(64) },
+    compactionTriggerPercent: '80',
+    updatedAt: '2026-11-02T00:00:00Z',
+  }
+  const preparation = {
+    maxCitedCalls: 8,
+    openai: {
+      limits: {
+        toolArguments: {
+          maxBytes: 65_536,
+          maxDepth: 32,
+          maxItems: 1_024,
+          maxMembers: 256,
+          maxStringLength: 65_536,
+          maxNumberLength: 64,
+        },
+        maxReasoningText: 65_536,
+      },
+      margin: { percent: '10', source: MODEL_TEST_ADOPTION },
+    },
+  }
+  const host = {
+    host: { concurrencyLimit: 4, wakeCapacity: 64, scanBatchSize: 10, scanIntervalMs: 1000 },
+    runtime: {
+      outputBatchBytes: 16_384,
+      outputBatchDelayMs: 100,
+      observerBufferBytes: 65_536,
+      observerCheckIntervalMs: 25,
+      readIdleMs: 1000,
+      resultPageTargetBytes: 4096,
+      retryBackoffMs: 0,
+      cleanupRetryMs: 1000,
+    },
+    results: {
+      maxConcurrentCalls: 4,
+      maxRedeliveries: 2,
+      maxCleanupSteps: 8,
+      maxPendingAccountsPerTenant: 4,
+      maxPendingAccounts: 16,
+    },
+  }
+  const records = {
+    // The consumer owner of every Agent call (`@omne-harness/agent`, loop/identities.ts AGENT_OWNER).
+    owners: [
+      {
+        consumerOwner: '@omne-harness/agent',
+        evidence: { ...MODEL_TEST_ADOPTION, name: 'agent-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
+    ],
+    limits: {
+      scanPageCalls: 100,
+      resultPageParts: 16,
+      resultPageTargetBytes: 4096,
+      readIdleMs: 1000,
+      capacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
+    },
+    // `maxCommandBytes` is the storage provider's (`providerConfig`); `maxCallBytes` leaves the reserve.
+    maxCallBytes: 524_288,
+    maxCommandBytes: 1_048_576,
+    combinationVersion: 'session-composite/4',
+    send: { mirrorBytes: 4_194_304, maxClaims: 8 },
+    initial: { maxRecords: 1024, maxBindings: 4, maxCallsPerBinding: 1024 },
+    sendStage: {
+      maxRetainedAttempts: 16,
+      materialization: { maxRecords: 16 },
+      factoryQueryId: 'factory-openrouter',
+      profiles: {
+        retryPolicy: profiles.retryPolicy,
+        compactionTriggerPercent: profiles.compactionTriggerPercent,
+      },
+      preparation,
+      network: { maxConnections: 4, idleConnectionTimeoutMs: 60_000 },
+      routes: {
+        openrouter: { url: options.modelRoute ?? UNUSED_MODEL_ROUTE, endMarker: '[DONE]' },
+      },
+      transportLimits: {
+        connectTimeoutMs: 5000,
+        connectRetry: { backoffMs: [500, 1000] },
+        maxErrorBodyBytes: 4096,
+        maxEventBytes: 1_048_576,
+        json: {
+          maxBytes: 1_048_576,
+          maxDepth: 64,
+          maxItems: 4096,
+          maxMembers: 1024,
+          maxStringLength: 1_048_576,
+          maxNumberLength: 64,
+        },
+      },
+    },
+  }
+  return {
+    profiles,
+    preparation,
+    host,
+    records,
+    credential: {
+      path: join(options.storageRoot, 'model-vault.json'),
+      factorySecret: 'r9-test-factory-secret',
+    },
+  }
+}
+
+/**
+ * The `agent-host` row of the operator layer. A `replace` swaps the whole row config, so it copies
+ * the two release items, `jointCommits` and `coordination`, from the distribution file (R2-D162)
+ * and adds the factory numbers and `instanceIdleMs`, which are operator values. These are test
+ * values; `loopGuardPolicy` has no production adoption source yet (a named gap, L-RUN wave 3).
+ */
+function agentHostOperatorConfig(): Record<string, unknown> {
+  const release = JSON.parse(readFileSync(distributionPath, 'utf8')) as {
+    rows: { id: string; config: Record<string, unknown> }[]
+  }
+  const row = release.rows.find(entry => entry.id === 'agent-host')
+  if (row === undefined) throw new Error('the release has no agent-host row')
+  return {
+    jointCommits: row.config['jointCommits'],
+    coordination: row.config['coordination'],
+    observerBufferBytes: 65_536,
+    reconciliationDelayMs: 0,
+    reconciliationBatchLimit: 8,
+    denialBackoffMs: 0,
+    toolConcurrency: 1,
+    loopGuardPolicy: { ...MODEL_TEST_ADOPTION, name: 'loop-guard' },
+    instanceIdleMs: 60_000,
+  }
+}
+
+/** 本机的 shell：可执行文件与把脚本作为最后一个参数传入的前缀参数。 */
+export function hostShell(): Readonly<{ executable: string; argsPrefix: string[] }> {
+  if (process.platform !== 'win32') return { executable: '/bin/sh', argsPrefix: ['-c'] }
+  const systemRoot = process.env['SystemRoot'] ?? 'C:\\Windows'
+  return {
+    executable: join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+    argsPrefix: ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command'],
+  }
+}
+
+/**
+ * Tool 运行时组、宿主提供者与两个作者的运维者值（测试值）。文件根与宿主状态目录在存储根的父目录下新建；
+ * `tool-records` 的 `maxCommandBytes` 与 `storage` 行相同（`providerConfig` 的 1048576），`combinationVersion`
+ * 与 `session-storage` 行相同。
+ */
+export function toolRowsOperatorConfig(options: { storageRoot: string }) {
+  const base = dirname(options.storageRoot)
+  const filesRoot = join(base, 'workspace')
+  const stateDirectory = join(base, 'host-files-state')
+  mkdirSync(filesRoot, { recursive: true })
+  mkdirSync(stateDirectory, { recursive: true })
+  const shell = hostShell()
+  const systemRoot = process.env['SystemRoot']
+  const env =
+    process.platform === 'win32' && systemRoot !== undefined
+      ? { SystemRoot: systemRoot, WINDIR: systemRoot, TEMP: stateDirectory, TMP: stateDirectory }
+      : { PATH: '/usr/bin:/bin', TMPDIR: stateDirectory }
+  return {
+    filesRoot,
+    construction: {
+      Shell: { resultMaxBytes: 32768, ...shell, cwd: filesRoot, env },
+      Files: { resultMaxBytes: 32768 },
+    },
+    records: {
+      filesRoot,
+      combinationVersion: 'session-composite/4',
+      maxCommandBytes: 1048576,
+      maxChunkBytes: 16384,
+      configuration: {
+        authorBufferBytes: 65536,
+        authorBufferItems: 256,
+        authorWaitHistoryBytes: 65536,
+        authorWaitHistoryItems: 32,
+        processBatchBytes: 65536,
+        processBatchDelayMs: 0,
+        observerBufferBytes: 262144,
+        resultPageBytes: 65536,
+        reconciliationDelayMs: 50,
+        ledgerCommitAttempts: 16,
+        queueCapacity: 64,
+        driverRetryDelayMs: 50,
+        driverStepsPerRun: 32,
+      },
+      capacity: 64,
+      observersPerCall: 4,
+      observerQueueFrames: 16,
+      observerResidenceMs: 5000,
+    },
+    host: { filesRoot, stateDirectory },
+  }
+}
+
 export function operatorLayer(options: {
   storageRoot: string
   port: number
   shutdownDeadlineMs?: number
+  /** The `https:` URL of the Model route; the local gateway in tests that send a Model call. */
+  modelRoute?: string
+  /** Replaces the release `maxJsonDepth` of the storage row (the negative control of R2-D270). */
+  maxJsonDepth?: number
 }): unknown {
   const deadline = options.shutdownDeadlineMs ?? SHUTDOWN_DEADLINE_MS
+  const model = modelRowsOperatorConfig(options)
+  const tools = toolRowsOperatorConfig(options)
   return {
     ops: [
       {
         kind: 'replace',
         id: 'storage',
-        config: providerConfig(options.storageRoot, { closeDeadlineMs: deadline - 1000 }),
+        // A `replace` swaps the whole row, so it copies the release `maxJsonDepth` (R2-D270).
+        config: providerConfig(options.storageRoot, {
+          closeDeadlineMs: deadline - 1000,
+          maxJsonDepth: options.maxJsonDepth ?? releaseMaxJsonDepth(),
+        }),
       },
       {
         kind: 'replace',
         id: 'session-storage',
         config: {
-          combinationVersion: 'session-composite/1',
+          combinationVersion: 'session-composite/4',
           directoryFile: join(options.storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },
       },
-      // 模型侧两行的配置是机器级参数：保管库路径与官方档案快照。写进运维层，不写进发行配置。
+      // 模型侧五行的配置是机器级参数与运维者的数值：保管库路径、官方档案快照、宿主与记录仓的上限、准备行的家族配置。
+      // 写进运维层，不写进发行配置（R2-D6：发行层不写数值默认值）。
+      { kind: 'replace', id: 'model-credential', config: model.credential },
+      { kind: 'replace', id: 'model-profiles', config: model.profiles },
+      { kind: 'replace', id: 'model-request-preparation', config: model.preparation },
+      { kind: 'replace', id: 'model-host', config: model.host },
+      { kind: 'replace', id: 'model-records', config: model.records },
+      // Tool 与执行环境各行的数值与路径归运维者层，发行层不写默认值（B3-T2a 第 4 项、Tool B 段）。这里是测试值：
+      // 文件根与宿主状态目录在存储根旁边新建；Shell 用本机的 shell（Windows 是 powershell，其余是 /bin/sh）；
+      // 运行时组的数值取 L-TOOL C06 组合用例的同一组值（tool-storage-sql windows-composition/assembly.ts）。
+      { kind: 'replace', id: 'tool-host', config: { construction: tools.construction } },
+      { kind: 'replace', id: 'tool-records', config: tools.records },
+      { kind: 'replace', id: 'execution-host', config: tools.host },
+      // B1（R2-D136）：Context 侧与 Session 适配行的数值归运维者层，发行层不写。这里是测试值：
+      // 账目收件口的上限、agent-context 的采用身份与结果容量、AD-03/AD-04 的索引上界与页大小（成员初值）。
       {
         kind: 'replace',
-        id: 'model-credential',
+        id: 'request-context',
+        config: { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
+      },
+      {
+        kind: 'replace',
+        id: 'agent-context',
         config: {
-          path: join(options.storageRoot, 'model-vault.json'),
-          factorySecret: 'r9-test-factory-secret',
+          // The result capacity of one call is at most `maxCallBytes` of model-records (N1): a larger
+          // one is refused at the admission as `capacity` (G-DIALOG layer 9).
+          resultCapacity: { bytes: '524288', blocks: '100', attachmentBytes: '0' },
         },
       },
       {
         kind: 'replace',
-        id: 'model-profiles',
-        config: {
-          retryPolicy: { owner: 'r9', name: 'retry', revision: '1', digest: '0'.repeat(64) },
-          compactionTriggerPercent: '80',
-          updatedAt: '2026-11-02T00:00:00Z',
-        },
+        id: 'session-ad03',
+        config: { scopeIndexEntries: 4096, pageBytes: 65536 },
       },
+      {
+        kind: 'replace',
+        id: 'session-ad04',
+        config: { scopeIndexEntries: 4096, pageBytes: 65536 },
+      },
+      // SC4（R2-D162）：agent-host 换真件后，工厂数值与实例空闲时长归运维者层；整行替换时重抄发行层的两项。
+      { kind: 'replace', id: 'agent-host', config: agentHostOperatorConfig() },
       { kind: 'replace', id: 'server-entry', config: { listenPort: options.port } },
     ],
   }
+}
+
+/** The `maxJsonDepth` the release distribution gives the storage row. */
+export function releaseMaxJsonDepth(): number {
+  const release = JSON.parse(readFileSync(distributionPath, 'utf8')) as {
+    rows: { id: string; config: Record<string, unknown> }[]
+  }
+  const depth = release.rows.find(entry => entry.id === 'storage')?.config['maxJsonDepth']
+  if (typeof depth !== 'number') throw new Error('the release storage row gives no maxJsonDepth')
+  return depth
 }
 
 export function writeOperator(path: string, layer: unknown): void {
@@ -153,6 +412,8 @@ export function startServer(options: {
   operatorPath: string
   port: number
   startupTimeoutMs?: number
+  /** A PEM file the child trusts in addition (`NODE_EXTRA_CA_CERTS`): the local Model gateway. */
+  extraCaPath?: string
 }): Promise<ServerHandle> {
   const args = [
     serverBin,
@@ -170,7 +431,11 @@ export function startServer(options: {
     '--stop-on-stdin-close',
   ]
   const child = spawn(process.execPath, args, {
-    env: { ...process.env, NO_COLOR: '1' },
+    env: {
+      ...process.env,
+      NO_COLOR: '1',
+      ...(options.extraCaPath === undefined ? {} : { NODE_EXTRA_CA_CERTS: options.extraCaPath }),
+    },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   let stdout = ''
@@ -282,7 +547,9 @@ export function runOmne(options: {
 
 /** The login proof that `omne login` saved in a state directory. Only tests and the driver read it. */
 export function savedLoginProof(home: string): string {
-  const state = JSON.parse(readFileSync(join(home, 'login.json'), 'utf8')) as { loginProof: string }
+  const state = JSON.parse(readFileSync(join(home, 'login.json'), 'utf8')) as {
+    loginProof: string
+  }
   return state.loginProof
 }
 

@@ -1,25 +1,19 @@
-// M4-6, an early guard only: the materials of this member and `sessionStorageMaterials()` form a
-// valid combination for one tenant domain, and a construction that checks materials verifies the
-// code digests of both. The combination guarantee itself belongs to the session storage combination
-// row of the application (L-APP). This member has no `modelStorageMaterials()` yet, so the
-// descriptors are built here from the built module files, the way that function will build them.
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+// M4-6, an early guard only: `modelStorageMaterials()` and `sessionStorageMaterials(options)` form a valid
+// combination for one tenant domain, and a construction that checks materials verifies the code
+// digests of both. The combination guarantee itself belongs to the session storage combination row
+// of the application (L-APP).
+import { appendFileSync, copyFileSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   CALL_HANDLER,
-  CALL_READ_MAX_OUTPUT_BYTES,
-  CALL_READ_MAX_ROWS,
   COMMAND_RESERVE_BYTES,
-  MIGRATION,
   MODEL_PARTICIPANT,
-  MODEL_TABLES,
-  PENDING_HANDLER,
-  PENDING_PAGE_MAX,
-  PROTOCOL,
-  TABLES,
   createSqlModelCommands,
+  modelStorageMaterials,
+  type ModelStorageMaterials,
 } from '@omne-harness/model-storage-sql'
 import { sessionStorageMaterials } from '@omne-harness/session-storage-sql'
 import {
@@ -30,89 +24,42 @@ import {
 import { createMemorySqlStorage } from '@omne-harness/sql-contract/testing'
 import { coreOptions, lookup, sqliteStorage, tenantOf, textOf } from './fixture.ts'
 
-function file(name: string): Readonly<{ moduleUrl: string; digest: string }> {
-  const moduleUrl = new URL(`../dist/${name}.js`, import.meta.url).href
-  const digest = createHash('sha256')
-    .update(readFileSync(fileURLToPath(moduleUrl)))
-    .digest('hex')
-  return { moduleUrl, digest }
-}
-
-function modelMaterials() {
-  const participant = file('commit')
-  const migration = file('schema')
-  const reads = file('reads')
-  const requiresMigrations = [{ owner: MIGRATION.owner, id: MIGRATION.id }]
-  return {
-    participants: [
-      {
-        participant: MODEL_PARTICIPANT,
-        protocol: PROTOCOL,
-        moduleUrl: participant.moduleUrl,
-        codeDigest: participant.digest,
-        ownedTables: MODEL_TABLES,
-        readTables: [],
-        requiresFacts: [],
-        providesFacts: [],
-        allowedFunctions: [],
-        grouping: 'groupable' as const,
-      },
-    ],
-    migrations: [
-      {
-        ...requiresMigrations[0]!,
-        moduleUrl: migration.moduleUrl,
-        checksum: migration.digest,
-        requires: [],
-      },
-    ],
-    readHandlers: [
-      {
-        handler: CALL_HANDLER,
-        readTables: MODEL_TABLES,
-        maxOutputBytes: CALL_READ_MAX_OUTPUT_BYTES,
-        maxRowsRead: CALL_READ_MAX_ROWS,
-      },
-      {
-        handler: PENDING_HANDLER,
-        readTables: [TABLES.call.name],
-        maxOutputBytes: 1 << 20,
-        maxRowsRead: PENDING_PAGE_MAX + 1,
-      },
-    ].map(item => ({
-      ...item,
-      protocol: PROTOCOL,
-      moduleUrl: reads.moduleUrl,
-      codeDigest: reads.digest,
-      ordering: 'snapshot' as const,
-      requiresMigrations,
-    })),
-  }
-}
-
-function catalogOf(model: ReturnType<typeof modelMaterials>): SqlMaterialCatalog {
-  const session = sessionStorageMaterials()
+function catalogOf(model: ModelStorageMaterials): SqlMaterialCatalog {
+  const session = sessionStorageMaterials({ readOutputLimitBytes: 20971520 })
   return {
     catalogProtocol: 'sql-catalog/1',
     participants: [...session.participants, ...model.participants],
     migrations: [...session.migrations, ...model.migrations],
     readHandlers: [...session.readHandlers, ...model.readHandlers],
     declaredCombinations: {
-      tenant: { combinationVersion: 'session-model-1', participants: ['session', 'model'] },
+      tenant: {
+        combinationVersion: 'session-model-1',
+        participants: [...session.participants.map(item => item.participant), MODEL_PARTICIPANT],
+      },
       system: null,
     },
   }
 }
 
+/** The materials with the module of `model.call` moved to `url`; its digest is kept as it was. */
+function withCallModuleAt(model: ModelStorageMaterials, url: string): ModelStorageMaterials {
+  return {
+    ...model,
+    readHandlers: model.readHandlers.map(item =>
+      item.handler === CALL_HANDLER ? { ...item, moduleUrl: url } : item,
+    ),
+  }
+}
+
 describe('the combination with the session log', () => {
   it('forms a valid manifest, and the SQL commands take its digest', () => {
-    const catalog = catalogOf(modelMaterials())
-    const manifest = combinationManifest({ catalog, participants: ['session', MODEL_PARTICIPANT] })
+    const catalog = catalogOf(modelStorageMaterials())
+    const participants = catalog.declaredCombinations.tenant?.participants ?? []
+    const manifest = combinationManifest({ catalog, participants })
     if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
-    expect(manifest.manifest.participants.map(item => item.participant)).toEqual([
+    expect(manifest.manifest.participants.map(item => item.participant)).toContain(
       MODEL_PARTICIPANT,
-      'session',
-    ])
+    )
     const A = tenantOf('a')
     expect(() =>
       createSqlModelCommands({
@@ -130,17 +77,37 @@ describe('the combination with the session log', () => {
   })
 
   it('passes the construction that checks the code digests of both members', async () => {
-    const built = await createMemorySqlStorage({ materials: catalogOf(modelMaterials()) })
+    const built = await createMemorySqlStorage({ materials: catalogOf(modelStorageMaterials()) })
     expect(await built.control.close({ initiator: 'disposal' })).toEqual({ kind: 'closed' })
   })
 
   it('fails the construction when the code digest of the model participant does not match', async () => {
-    const model = modelMaterials()
+    const model = modelStorageMaterials()
     const [participant] = model.participants
     if (participant === undefined) throw new Error('no participant')
     const tampered = { ...model, participants: [{ ...participant, codeDigest: 'f'.repeat(64) }] }
     await expect(createMemorySqlStorage({ materials: catalogOf(tampered) })).rejects.toThrow(
       'material_digest_mismatch: participant model',
     )
+  })
+
+  it('fails the construction when a handler file changes and its digest is not updated', async () => {
+    const model = modelStorageMaterials()
+    const call = model.readHandlers.find(item => item.handler === CALL_HANDLER)
+    if (call === undefined) throw new Error('no model.call handler')
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-materials-')))
+    try {
+      const copy = join(dir, 'handler-call.js')
+      copyFileSync(fileURLToPath(call.moduleUrl), copy)
+      const moved = withCallModuleAt(model, pathToFileURL(copy).href)
+      const same = await createMemorySqlStorage({ materials: catalogOf(moved) })
+      await same.control.close({ initiator: 'disposal' })
+      appendFileSync(copy, '\n// changed\n')
+      await expect(createMemorySqlStorage({ materials: catalogOf(moved) })).rejects.toThrow(
+        `material_digest_mismatch: handler ${CALL_HANDLER}`,
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

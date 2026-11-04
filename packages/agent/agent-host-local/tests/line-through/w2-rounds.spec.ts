@@ -1,0 +1,327 @@
+// J1 and J2: conversation rounds over the whole line on one real Cordis root.
+//
+// Real: the product parts of ./w2-world.ts, with AD-02 (the Agent's publication interpreted into the
+// session log) and the handoff provider on the real sqlite-provider. Doubles: the Model and the Tool
+// (fixed delays), the Tool request preparation (R2-D36), the Runtime Context handoff, and the earlier
+// context, which is the history of the K-RQ holder double: the AD-04 history source is installed in
+// the world only by `earlier: 'session'`, and the Request Context refuses its first page (the
+// defect D3 of the report: the Session model view starts at sequence 1, Request Context reads from
+// 0), so no scenario here reads the earlier rounds from the Session log yet.
+//
+// Placeholders name what they wait for. D3 and D4 are the combination defects of the first batch of
+// C-JOINT (attempt 502-r3-a2), handed back with their reproductions.
+// @module-tag slow
+// Why slow: real Workers, real files and the whole line on one root.
+import { afterEach, describe, expect, it } from 'vitest'
+import { EARLIER, intakeAccess, ok, strangerAccess } from './world.ts'
+import { ad04RowsOf, historyReadGrowth, type RoundCount } from './w2-measure.ts'
+import {
+  reasoningStateBlock,
+  replyText,
+  toolCallBlock,
+  openW2World,
+  type W2World,
+} from './w2-world.ts'
+
+/** The rows a round adds to the session log: its input and its reply. */
+const NEW_ROWS_PER_ROUND = 2
+/**
+ * The AD-04 read path per round from the second on: one page read of the rows after the kept cursor
+ * and, because the cursors Session issues are signed and only one row early is usable, one more read
+ * of the rows up to the row before the upper bound to get that cursor (`mint` in session-adapters
+ * `src/cordis/history-source.ts`, C-FIX-CURSOR). Measured in rounds 2 and 3: 2 reads, 5 rows.
+ */
+const AD04_READS = 2
+/**
+ * The rows the AD-04 read path reads for `added` new rows: the page read returns the added rows and the
+ * row before them (the signed cursor of Session is usable only one row early), and the mint read,
+ * which gets that cursor for the next round, reads the rows of this round again. So: `2 * added + 1`
+ * (R2-D75). Rounds 2 and 3 measure 5 rows for 2 added rows.
+ */
+const AD04_ROWS_FOR = (added: number) => 2 * added + 1
+
+const worlds: W2World[] = []
+afterEach(async () => {
+  for (const world of worlds.splice(0)) await world.close()
+})
+
+const textOf = (message: { blocks: readonly unknown[] }): string =>
+  message.blocks.map(block => (block as { text?: string }).text ?? '').join('')
+
+describe('J1: three rounds of one conversation', () => {
+  it('J1 round 1: one Model request on the earlier context, its result saved, the Run ends', async () => {
+    const w = await openW2World({
+      model: a => ({ parts: [replyText(`r${a.index}`, `answer ${a.index}`)], reason: 'stop' }),
+    })
+    worlds.push(w)
+    await w.createSession('j1')
+    const first = await w.runRound(1, 'first question')
+
+    // One Model request, built from the earlier context; the reply was saved by the receiver.
+    expect(w.admits).toHaveLength(1)
+    expect(w.assembled.map(messages => messages.map(textOf))).toEqual([[...EARLIER]])
+    expect(first).toMatchObject({ modelRequests: 1, modelReceives: 1, toolInvokes: 0 })
+    // AD-02 interpreted the Agent's events into the session log: its commits are counted.
+    expect(first.ad02Commits).toBeGreaterThan(0)
+    // The Run ended through the one terminal exit of Session.
+    expect(ok(await w.transactions.readWork(intakeAccess)).run).toMatchObject({
+      kind: 'terminal',
+      terminal: { outcome: 'completed' },
+    })
+
+    // Another tenant reads neither the execution nor the session.
+    const execution = await w.execution()
+    expect(await w.journal().load({ ...strangerAccess, execution })).toEqual({
+      failure: { kind: 'denied', action: 'load' },
+    })
+    expect(await w.transactions.readWork(strangerAccess)).toMatchObject({
+      failure: { kind: 'denied' },
+    })
+  })
+
+  it('J1 three rounds: the request grows and the history read returns only the new rows', async () => {
+    const w = await openW2World({
+      earlier: 'session',
+      model: a => ({
+        parts: [replyText(`r${a.index}`, `answer ${a.index}`)],
+        reason: 'stop',
+      }),
+    })
+    worlds.push(w)
+    await w.createSession('j1')
+    for (const round of [1, 2, 3]) {
+      await w.runRound(round, `question ${round}`)
+      // After the round the interpretation has caught up with what the Agent emitted, so the next
+      // startRun goes through.
+      const { emitted, readThrough } = await w.progress(await w.execution())
+      expect(readThrough).toBe(emitted)
+    }
+    // The measured values go to the log before the assertions below (R2-D75: red stays red), with
+    // the identities of the rows behind them (R2-D78).
+    console.log(
+      'J1-AD04',
+      JSON.stringify(
+        w.counters.rounds.map(count => ({
+          round: count.round,
+          ad04ProjectedRows: count.ad04ProjectedRows,
+          ad04StableRecompute: count.ad04StableRecompute,
+          ad04ReadCalls: count.ad04ReadCalls,
+          ad04ReadRows: count.ad04ReadRows,
+        })),
+      ),
+      JSON.stringify(w.counters.ad04Rows, (_key, value: unknown) =>
+        typeof value === 'bigint' ? Number(value) : value,
+      ),
+    )
+    // S3 item 3 by identity (R2-D78): the AD-04 reads of rounds 2 and 3 read the rows the round added
+    // and the boundary row, never an earlier row. The boundary row is the row the cursor of the
+    // Request Context stands after (it reads only the tail after its cached rows). The page read
+    // starts at the boundary row, because the signed cursor of Session is usable only one row early.
+    // The mint read, which gets the cursor for the next round, reads the boundary row and the added
+    // rows up to the row before the upper bound again, because Session issues no cursor after the
+    // upper bound. So the rows read again are the boundary row and the added rows but the last.
+    // One comparison for both rounds, so that a failure shows every round that breaks it.
+    const rows = [2, 3].map(round => ({ round, ...ad04RowsOf(w.counters.ad04Rows, round) }))
+    expect(
+      rows.map(({ round, added, read, reread }) => ({ round, added: added.length, read, reread })),
+    ).toEqual(
+      rows.map(({ round, added, boundary }) => ({
+        round,
+        added: NEW_ROWS_PER_ROUND,
+        read: [boundary, ...added],
+        reread: [boundary, ...added.slice(0, -1)],
+      })),
+    )
+
+    // The request of round n carries the inputs and the replies of the rounds before it.
+    const sizes = w.assembled.map(messages => messages.length)
+    expect(sizes).toHaveLength(3)
+    expect(sizes[1]).toBeGreaterThan(sizes[0] ?? 0)
+    expect(sizes[2]).toBeGreaterThan(sizes[1] ?? 0)
+    const second = w.assembled[1]?.map(textOf) ?? []
+    expect(second).toEqual(expect.arrayContaining(['question 1', 'answer 0']))
+    // S3 item 3: the history page reads of rounds 2 and 3 depend on the rows the round before added,
+    // not on the length of the history (R2-D72). Rounds 2 and 3 read the same, and the read is the
+    // bound for the rows that were added.
+    const [, two, three] = w.counters.rounds
+    expect(two?.ad04ReadCalls).toBe(three?.ad04ReadCalls)
+    expect(two?.ad04ReadRows).toBe(three?.ad04ReadRows)
+    expect(
+      historyReadGrowth(w.counters.rounds, NEW_ROWS_PER_ROUND, AD04_ROWS_FOR, AD04_READS),
+    ).toEqual([])
+    // The rows the AD-04 read path hands out in rounds 2 and 3 (the probes left out) are the same in
+    // both rounds and are the rows its reads need for the rows the round added (R2-D78).
+    expect(two?.ad04ProjectedRows).toBe(three?.ad04ProjectedRows)
+    for (const count of [two, three])
+      expect(count?.ad04ProjectedRows).toBe(AD04_ROWS_FOR(NEW_ROWS_PER_ROUND))
+    // The probes of the qualification check read one row each, and their number is that of round 1.
+    expect(two?.probeReadCalls).toBe(w.counters.rounds[0]?.probeReadCalls)
+    expect(three?.probeReadCalls).toBe(two?.probeReadCalls)
+  })
+})
+
+describe('J1 negative control of the history read criterion', () => {
+  // The criterion must turn red when the reads grow with the history: the counts of the real rounds
+  // with the rows of the earlier rounds read again in round 3 (a source that reads from the start).
+  it('J1 a round that reads the earlier rows again breaks the criterion', async () => {
+    const w = await openW2World({
+      earlier: 'session',
+      model: a => ({ parts: [replyText(`r${a.index}`, `answer ${a.index}`)], reason: 'stop' }),
+    })
+    worlds.push(w)
+    await w.createSession('j1n')
+    for (const round of [1, 2, 3]) await w.runRound(round, `question ${round}`)
+    const real = w.counters.rounds
+    expect(historyReadGrowth(real, NEW_ROWS_PER_ROUND, AD04_ROWS_FOR, AD04_READS)).toEqual([])
+    const [one, two, three] = real as [RoundCount, RoundCount, RoundCount]
+    const fromStart: RoundCount[] = [
+      one,
+      two,
+      { ...three, ad04ReadRows: three.ad04ReadRows + one.ad04ReadRows + two.ad04ReadRows },
+    ]
+    const broken = historyReadGrowth(fromStart, NEW_ROWS_PER_ROUND, AD04_ROWS_FOR, AD04_READS)
+    expect(broken.length).toBeGreaterThan(0)
+    expect(broken.join(' ')).toContain('round 3')
+  })
+})
+
+describe('J1 replay block', () => {
+  // R7 item 5, S3-3: the request of round 2 carries the reasoning_state block of round 1. R2-D70
+  // names this a deviation of wave 2: the delivery has no scope/format channel. Since R2-D268 the
+  // Agent Loop leaves a sealed reasoning_state or thinking part out of the reply
+  // (agent/src/loop/model-result.ts), so no later request replays it. L-MODEL adds the replay
+  // channel in wave 3. Not written as passing.
+  it.todo(
+    'J1 the request of round 2 replays the reasoning_state block of round 1 (R2-D70 named deviation, wave 3)',
+  )
+})
+
+describe('J2: a Tool result enters the next Model request', () => {
+  it('J2 invokes the Tool double once with the request of the fixed schema and saves its result', async () => {
+    const w = await openW2World({
+      model: a =>
+        a.index === 0
+          ? { parts: [toolCallBlock('tc-j2')], reason: 'tool-suggestions' }
+          : { parts: [replyText(`r${a.index}`, 'done')], reason: 'stop' },
+    })
+    worlds.push(w)
+    await w.createSession('j2')
+    await w.accept('j2-in', 'read the file')
+    await w.until(() => w.toolPushes.length === 1)
+    const [saved] = await Promise.all(w.toolPushes)
+
+    expect(w.tools.invoke.calls).toHaveLength(1)
+    expect(w.toolRequests).toHaveLength(1)
+    expect(w.toolRequests[0]?.arguments).toEqual({
+      original: '{}',
+      effective: '{}',
+      complete: true,
+    })
+    // The receiver saved the original result of that call.
+    expect(saved).toHaveProperty('ok')
+  })
+
+  it('J2 a Tool action whose admission is unavailable is denied, the denial goes to the Model, and the Run completes', async () => {
+    // agent-contract SPEC "整批判断屏障与动作准入" rule 2: an unavailable admission denies the batch.
+    // Before the fix the Run stayed at A0 with no terminal and no further commit.
+    const w = await openW2World({
+      earlier: 'session',
+      model: a =>
+        a.index === 0
+          ? { parts: [toolCallBlock('tc-j2u')], reason: 'tool-suggestions' }
+          : { parts: [replyText(`r${a.index}`, 'could not run it')], reason: 'stop' },
+      toolRequests: {
+        describe: async () => ({
+          failure: { kind: 'unavailable', owner: 'agentToolRequests', diagnostic: 'scenario' },
+        }),
+      },
+    })
+    worlds.push(w)
+    await w.createSession('j2u')
+    await w.runRound(1, 'read the file')
+    expect(await w.lastOutcome()).toBe('completed')
+    expect(w.tools.invoke.calls).toHaveLength(0)
+    // The next Model request of the round carries the denial message of the action.
+    const tools = (w.assembled[1] ?? []).filter(message => message.role === 'tool')
+    expect(tools).toHaveLength(1)
+  })
+
+  it('J2 the second step of a Run, whose result carries a reasoning_state, wakes the Agent and the Run completes', async () => {
+    // R2-D268: the step-2 result after a denied Tool action carries an opaque reasoning_state, as a
+    // real provider returns encrypted reasoning. Before the fix the Agent read the received result at
+    // M3, answered `unsupported` and stopped: the execution stayed waiting at M6, with no terminal.
+    // The scripted producer cannot seal a reasoning_state, so the delivery of step 2 gets it on the
+    // way to the real receiver.
+    const w = await openW2World({
+      earlier: 'session',
+      model: a =>
+        a.index === 0
+          ? { parts: [toolCallBlock('tc-j2r')], reason: 'tool-suggestions' }
+          : { parts: [replyText(`r${a.index}`, 'not allowed')], reason: 'stop' },
+      modelDelivery: delivery =>
+        delivery.kind === 'result' && delivery.consumer.work.endsWith('/step-2')
+          ? {
+              ...delivery,
+              parts: [
+                { kind: 'sealed', trims: [], block: reasoningStateBlock('rs2') },
+                ...delivery.parts,
+              ],
+            }
+          : delivery,
+      toolRequests: {
+        describe: async () => ({
+          failure: { kind: 'unavailable', owner: 'agentToolRequests', diagnostic: 'scenario' },
+        }),
+      },
+    })
+    worlds.push(w)
+    await w.createSession('j2r')
+    await w.runRound(1, 'list the files')
+    expect(await w.lastOutcome()).toBe('completed')
+    expect(w.modelCalls).toHaveLength(2)
+    expect(w.receivedFailures).toEqual([])
+    const execution = await w.execution()
+    const page = ok(
+      await w.probeLog.output.read({ ...w.agentAccess, execution, after: null, limit: 100 }),
+    )
+    if (page.kind !== 'page') throw new Error('the output has a gap')
+    // The received material of step 2 keeps the reasoning state.
+    const received = page.events.filter(event => event.body.kind === 'entry')
+    expect(received).toHaveLength(2)
+    // The reply of step 2 holds the text and leaves the reasoning state out.
+    const replies = page.events.flatMap(event =>
+      event.body.kind === 'message' && event.body.message.role === 'assistant'
+        ? [event.body.message]
+        : [],
+    )
+    expect(replies).toHaveLength(2)
+    expect(replies[1]?.blocks.map(block => block.kind)).toEqual(['text'])
+    expect(textOf(replies[1]!)).toBe('not allowed')
+  })
+
+  it('J2 the Tool result enters the next request of the round and the request of round 2', async () => {
+    const w = await openW2World({
+      earlier: 'session',
+      model: a =>
+        a.index === 0
+          ? { parts: [toolCallBlock('tc-j2b')], reason: 'tool-suggestions' }
+          : { parts: [replyText(`r${a.index}`, `answer ${a.index}`)], reason: 'stop' },
+    })
+    worlds.push(w)
+    await w.createSession('j2b')
+    await w.runRound(1, 'read the file')
+    await w.runRound(2, 'and again')
+    expect(w.tools.invoke.calls).toHaveLength(1)
+
+    const toolResultOf = (messages: (typeof w.assembled)[number]) =>
+      messages.filter(message => message.role === 'tool')
+    // The next Model request of the same round has the Tool result of that call.
+    expect(toolResultOf(w.assembled[1] ?? [])).toHaveLength(1)
+    // The request of round 2 still has it: it comes from the history read, and the Tool double is not
+    // asked again.
+    expect(toolResultOf(w.assembled[2] ?? [])).toHaveLength(1)
+    expect(w.counters.rounds[1]).toMatchObject({ toolInvokes: 0 })
+    // AD-02 wrote the result into the session log: the second round read it back as a history row.
+    expect(w.counters.rounds[1]?.historyRows).toBeGreaterThan(0)
+  })
+})

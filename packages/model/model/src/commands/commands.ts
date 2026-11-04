@@ -10,9 +10,11 @@ import {
 import type {
   AckReceipt,
   CustodyState,
+  DispatchId,
   Lookup,
   ModelCallId,
   ModelFailure,
+  ModelOperationId,
   ReadStart,
   Revision,
   Settlement,
@@ -66,13 +68,42 @@ import {
   releaseMaterial,
   type ModelCommandCore,
 } from './state.ts'
-import type { CallDocument, DispatchDocument } from './types.ts'
+import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
+import { initialRunPort, type BoundCommandAccess } from './initial.ts'
+import { handoffQuestion, provenHandoff, readHandoffProof } from './handoff-evidence.ts'
+
+/** Every execution write first needs its call, still at the revision that the writer expected. */
+function atExpected<T>(
+  draft: Draft,
+  input: Readonly<{ expected: Revision; operation: ModelOperationId }>,
+  apply: (call: CallDocument) => Outcome<Applied<T>, ModelFailure>,
+): Outcome<Applied<T>, ModelFailure> {
+  const call = draft.call
+  if (!call) return { failure: invalid('call', 'not-found') }
+  const conflict = expected(call, input.expected, input.operation)
+  if (conflict) return { failure: conflict }
+  return apply(call)
+}
+
+/** An execution write on one dispatch also needs that dispatch in the expected call. */
+function atDispatch<T>(
+  draft: Draft,
+  input: Readonly<{ expected: Revision; operation: ModelOperationId; dispatch: DispatchId }>,
+  apply: (call: CallDocument, dispatch: DispatchDocument) => Outcome<Applied<T>, ModelFailure>,
+): Outcome<Applied<T>, ModelFailure> {
+  return atExpected(draft, input, call => {
+    const dispatch = dispatchOf(call, input.dispatch)
+    if ('kind' in dispatch) return { failure: dispatch }
+    return apply(call, dispatch)
+  })
+}
 
 // The 22 methods of ModelCommands over the shared core: for each, the order of its checks, the
 // change it makes to the call document and the receipt that recovers it.
 
 export function callCommands<P>(
   core: ModelCommandCore<P>,
+  bound?: BoundCommandAccess<P>,
 ): Pick<ModelCommands<P>, 'admit' | 'recall' | 'query' | 'dispatches' | 'control' | 'settle'> {
   return {
     admit: raw => {
@@ -262,42 +293,39 @@ export function callCommands<P>(
             expected: input.expected,
             termination: input.termination,
           },
-          check: call => core.execution(input, call),
-          apply: draft => {
-            const call = draft.call
-            if (!call) return { failure: invalid('call', 'not-found') }
-            const conflict = expected(call, input.expected, input.operation)
-            if (conflict) return { failure: conflict }
-            if (call.state.phase === 'settled')
-              return {
-                failure: {
-                  kind: 'conflict',
-                  operation: input.operation,
-                  revision: call.state.revision,
+          check: call => core.execution(input, call, bound),
+          apply: draft =>
+            atExpected(draft, input, call => {
+              if (call.state.phase === 'settled')
+                return {
+                  failure: {
+                    kind: 'conflict',
+                    operation: input.operation,
+                    revision: call.state.revision,
+                  },
+                }
+              const legality = settlementFailure(call, input.termination)
+              if (legality) return { failure: legality }
+              const version = resultVersion()
+              const settlement: Settlement = {
+                version,
+                termination: structuredClone(input.termination),
+                cursor: call.cursor,
+                source: {
+                  owner: 'model-memory',
+                  record: `${input.call}/${version}`,
+                  revision: String(BigInt(call.state.revision) + 1n),
+                  digest: digest(input.termination),
                 },
               }
-            const legality = settlementFailure(call, input.termination)
-            if (legality) return { failure: legality }
-            const version = resultVersion()
-            const settlement: Settlement = {
-              version,
-              termination: structuredClone(input.termination),
-              cursor: call.cursor,
-              source: {
-                owner: 'model-memory',
-                record: `${input.call}/${version}`,
-                revision: String(BigInt(call.state.revision) + 1n),
-                digest: digest(input.termination),
-              },
-            }
-            if (encodedBytes(settlement) > MAX_SETTLEMENT_BYTES)
-              return { failure: invalid('settlement', 'encoded-byte-limit') }
-            call.state = { ...call.state, phase: 'settled', settlement }
-            bump(call)
-            return {
-              ok: { value: structuredClone(settlement), receipt: { kind: 'settle', settlement } },
-            }
-          },
+              if (encodedBytes(settlement) > MAX_SETTLEMENT_BYTES)
+                return { failure: invalid('settlement', 'encoded-byte-limit') }
+              call.state = { ...call.state, phase: 'settled', settlement }
+              bump(call)
+              return {
+                ok: { value: structuredClone(settlement), receipt: { kind: 'settle', settlement } },
+              }
+            }),
           replay: (_call, b) =>
             b.receipt.kind === 'settle'
               ? { ok: structuredClone(b.receipt.settlement) }
@@ -309,6 +337,7 @@ export function callCommands<P>(
 
 export function recoveryCommands<P>(
   core: ModelCommandCore<P>,
+  bound?: BoundCommandAccess<P>,
 ): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'claim'> {
   const scans = new Map<string, { tenant: string; calls: readonly ModelCallId[]; offset: number }>()
   function scanPage(scope: string, after: string | null, limit: number) {
@@ -380,7 +409,16 @@ export function recoveryCommands<P>(
           input,
           method: 'claim',
           fields: { instance: input.instance, continuity: input.continuity },
-          check: call => authFailure(core.authorize(input, 'recovery', call, input.call)),
+          check: call => {
+            if (core.options.initialRun === undefined)
+              return authFailure(core.authorize(input, 'recovery', call, input.call))
+            const checked = initialRunPort(core.options.initialRun)
+              .boundAccess(bound)
+              ?.claim(input, call) ?? {
+              failure: { kind: 'denied' as const, action: 'execution-channel' },
+            }
+            return 'failure' in checked ? checked.failure : null
+          },
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
@@ -430,6 +468,7 @@ export function recoveryCommands<P>(
 
 export function dispatchCommands<P>(
   core: ModelCommandCore<P>,
+  bound?: BoundCommandAccess<P>,
 ): Pick<
   ModelCommands<P>,
   | 'prepareDispatch'
@@ -452,17 +491,14 @@ export function dispatchCommands<P>(
         input,
         method,
         fields,
-        check: call => core.execution(input, call),
-        apply: draft => {
-          const call = draft.call
-          if (!call) return { failure: invalid('call', 'not-found') }
-          const conflict = expected(call, input.expected, input.operation)
-          if (conflict) return { failure: conflict }
-          const failure = apply(call)
-          if (failure) return { failure }
-          const revision = bump(call)
-          return { ok: { value: revision, receipt: { kind: 'revision', revision } } }
-        },
+        check: call => core.execution(input, call, bound),
+        apply: draft =>
+          atExpected(draft, input, call => {
+            const failure = apply(call)
+            if (failure) return { failure }
+            const revision = bump(call)
+            return { ok: { value: revision, receipt: { kind: 'revision', revision } } }
+          }),
         replay: (_call, b) =>
           b.receipt.kind === 'revision' ? { ok: b.receipt.revision } : missingReceipt(),
       }),
@@ -629,31 +665,26 @@ export function dispatchCommands<P>(
             dispatch: input.dispatch,
             receipt: input.receipt,
           },
-          check: call => core.execution(input, call),
-          apply: draft => {
-            const call = draft.call
-            if (!call) return { failure: invalid('call', 'not-found') }
-            const conflict = expected(call, input.expected, input.operation)
-            if (conflict) return { failure: conflict }
-            const dispatch = dispatchOf(call, input.dispatch)
-            if ('kind' in dispatch) return { failure: dispatch }
-            const proof = materializationProof(call, dispatch, input)
-            if ('failure' in proof) return proof
-            dispatch.record = {
-              ...dispatch.record,
-              materialization: {
-                receipt: structuredClone(input.receipt),
-                source: structuredClone(proof.ok),
-              },
-            }
-            const revision = bump(call)
-            return {
-              ok: {
-                value: { revision, source: structuredClone(proof.ok) },
-                receipt: { kind: 'materialization', revision, source: structuredClone(proof.ok) },
-              },
-            }
-          },
+          check: call => core.execution(input, call, bound),
+          apply: draft =>
+            atDispatch(draft, input, (call, dispatch) => {
+              const proof = materializationProof(call, dispatch, input)
+              if ('failure' in proof) return proof
+              dispatch.record = {
+                ...dispatch.record,
+                materialization: {
+                  receipt: structuredClone(input.receipt),
+                  source: structuredClone(proof.ok),
+                },
+              }
+              const revision = bump(call)
+              return {
+                ok: {
+                  value: { revision, source: structuredClone(proof.ok) },
+                  receipt: { kind: 'materialization', revision, source: structuredClone(proof.ok) },
+                },
+              }
+            }),
           replay: (_call, b) =>
             b.receipt.kind === 'materialization'
               ? { ok: { revision: b.receipt.revision, source: structuredClone(b.receipt.source) } }
@@ -724,42 +755,37 @@ export function dispatchCommands<P>(
             window: input.window,
             facts: input.facts,
           },
-          check: call => core.execution(input, call),
-          apply: draft => {
-            const call = draft.call
-            if (!call) return { failure: invalid('call', 'not-found') }
-            const conflict = expected(call, input.expected, input.operation)
-            if (conflict) return { failure: conflict }
-            const dispatch = dispatchOf(call, input.dispatch)
-            if ('kind' in dispatch) return { failure: dispatch }
-            if (dispatch.windows.get(input.window) !== 'open')
-              return { failure: invalid('window', 'not-open') }
-            const failure = reduceFacts(call, dispatch, input.facts)
-            if (failure) return { failure }
-            const completed = receiveCompletion(call, input)
-            if ('failure' in completed) return completed
-            mergeReceiveWindow(call, dispatch, input.window, completed.ok)
-            call.cursor = cursor(String(BigInt(call.cursor) + 1n))
-            bump(call)
-            const snapshot: Snapshot = {
-              call: input.call,
-              cursor: call.cursor,
-              blocks: structuredClone(dispatch.blocks),
-              state: structuredClone(call.state),
-            }
-            call.snapshots.set(call.cursor, snapshot)
-            if (
-              BigInt(call.dispatches.reduce((count, item) => count + item.blocks.length, 0)) >
-              BigInt(call.capacity.blocks)
-            )
-              return { failure: { kind: 'capacity', required: call.capacity } }
-            return {
-              ok: {
-                value: structuredClone(snapshot),
-                receipt: { kind: 'preserve', cursor: call.cursor },
-              },
-            }
-          },
+          check: call => core.execution(input, call, bound),
+          apply: draft =>
+            atDispatch(draft, input, (call, dispatch) => {
+              if (dispatch.windows.get(input.window) !== 'open')
+                return { failure: invalid('window', 'not-open') }
+              const failure = reduceFacts(call, dispatch, input.facts)
+              if (failure) return { failure }
+              const completed = receiveCompletion(call, input)
+              if ('failure' in completed) return completed
+              mergeReceiveWindow(call, dispatch, input.window, completed.ok)
+              call.cursor = cursor(String(BigInt(call.cursor) + 1n))
+              bump(call)
+              const snapshot: Snapshot = {
+                call: input.call,
+                cursor: call.cursor,
+                blocks: structuredClone(dispatch.blocks),
+                state: structuredClone(call.state),
+              }
+              call.snapshots.set(call.cursor, snapshot)
+              if (
+                BigInt(call.dispatches.reduce((count, item) => count + item.blocks.length, 0)) >
+                BigInt(call.capacity.blocks)
+              )
+                return { failure: { kind: 'capacity', required: call.capacity } }
+              return {
+                ok: {
+                  value: structuredClone(snapshot),
+                  receipt: { kind: 'preserve', cursor: call.cursor },
+                },
+              }
+            }),
           replay: (call, b) => {
             if (b.receipt.kind !== 'preserve') return missingReceipt()
             const snapshot = call?.snapshots.get(b.receipt.cursor)
@@ -835,37 +861,32 @@ export function dispatchCommands<P>(
             expected: input.expected,
             dispatch: input.dispatch,
           },
-          check: call => core.execution(input, call),
-          apply: draft => {
-            const call = draft.call
-            if (!call) return { failure: invalid('call', 'not-found') }
-            const conflict = expected(call, input.expected, input.operation)
-            if (conflict) return { failure: conflict }
-            const dispatch = dispatchOf(call, input.dispatch)
-            if ('kind' in dispatch) return { failure: dispatch }
-            const failure = retryable(call, dispatch)
-            if (failure) return { failure }
-            if (!call.request || call.retryPosition)
-              return { failure: invalid('retry', 'already-positioned') }
-            const position = {
-              operation: operation(),
-              dispatch: input.dispatch,
-              policy: structuredClone(call.request.retryPolicy),
-              consumer: {
-                owner: call.request.retryPolicy.owner,
-                work: input.call,
-                position: input.dispatch,
-                purpose: 'model-retry',
-              },
-            }
-            call.retryPosition = position
-            call.retry = null
-            call.state = { ...call.state, phase: 'retry-decision', dispatch: input.dispatch }
-            bump(call)
-            return {
-              ok: { value: structuredClone(position), receipt: { kind: 'retry', position } },
-            }
-          },
+          check: call => core.execution(input, call, bound),
+          apply: draft =>
+            atDispatch(draft, input, (call, dispatch) => {
+              const failure = retryable(call, dispatch)
+              if (failure) return { failure }
+              if (!call.request || call.retryPosition)
+                return { failure: invalid('retry', 'already-positioned') }
+              const position = {
+                operation: operation(),
+                dispatch: input.dispatch,
+                policy: structuredClone(call.request.retryPolicy),
+                consumer: {
+                  owner: call.request.retryPolicy.owner,
+                  work: input.call,
+                  position: input.dispatch,
+                  purpose: 'model-retry',
+                },
+              }
+              call.retryPosition = position
+              call.retry = null
+              call.state = { ...call.state, phase: 'retry-decision', dispatch: input.dispatch }
+              bump(call)
+              return {
+                ok: { value: structuredClone(position), receipt: { kind: 'retry', position } },
+              }
+            }),
           replay: (_call, b) =>
             b.receipt.kind === 'retry'
               ? { ok: structuredClone(b.receipt.position) }
@@ -908,6 +929,7 @@ export function dispatchCommands<P>(
 
 export function consumptionCommands<P>(
   core: ModelCommandCore<P>,
+  bound?: BoundCommandAccess<P>,
 ): Pick<ModelCommands<P>, 'acquireRead' | 'nextRead' | 'endRead' | 'handoff' | 'advanceCleanup'> {
   return {
     acquireRead: input =>
@@ -989,8 +1011,11 @@ export function consumptionCommands<P>(
           ? { failure: invalid('read', 'identity') }
           : core.updateRead(input, input.read, 'end'),
       ),
-    handoff: input =>
-      core.runWrite(input, () =>
+    handoff: async input => {
+      // The owner's evidence is read before the fence (handoff-evidence.ts); the write keeps it
+      // only for the very call, consumer, result and evidence it was read for.
+      const read = await readHandoffProof(core, input)
+      return core.runWrite(input, () =>
         core.write<AckReceipt>({
           input,
           method: 'handoff',
@@ -999,27 +1024,9 @@ export function consumptionCommands<P>(
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
-            if (call.state.phase !== 'settled') return { failure: { kind: 'not-settled' } }
-            if (input.result !== call.state.settlement.version)
-              return { failure: { kind: 'handoff-invalid', reason: 'result-version' } }
-            const source =
-              input.evidence.kind === 'processed'
-                ? input.evidence.completion
-                : input.evidence.custody
-            if (source.owner !== call.state.consumer.owner)
-              return { failure: { kind: 'handoff-invalid', reason: 'consumer-owner' } }
-            const adapter = core.adapter(call)
-            if ('kind' in adapter) return { failure: adapter }
-            const proof = checkedEvidence(
-              adapter.handoff({
-                tenant: input.tenant,
-                call: input.call,
-                consumer: structuredClone(call.state.consumer),
-                execution: call.execution,
-                result: input.result,
-                evidence: structuredClone(input.evidence),
-              }),
-            )
+            const question = handoffQuestion(core, input, call)
+            if ('failure' in question) return question
+            const proof = provenHandoff(question.ok, read)
             if ('failure' in proof) return proof
             if (call.state.custody.kind === 'producer') {
               call.state = {
@@ -1062,14 +1069,15 @@ export function consumptionCommands<P>(
             }
           },
         }),
-      ),
+      )
+    },
     advanceCleanup: input =>
       core.runWrite(input, () =>
         core.write<CustodyState>({
           input,
           method: 'advanceCleanup',
           fields: { instance: input.instance, generation: input.generation },
-          check: call => core.execution(input, call),
+          check: call => core.execution(input, call, bound),
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
@@ -1104,11 +1112,14 @@ export function consumptionCommands<P>(
 }
 
 /** All 22 methods over one core. */
-export function modelCommands<P>(core: ModelCommandCore<P>): ModelCommands<P> {
+export function modelCommands<P>(
+  core: ModelCommandCore<P>,
+  bound?: BoundCommandAccess<P>,
+): ModelCommands<P> {
   return {
-    ...callCommands(core),
-    ...recoveryCommands(core),
-    ...dispatchCommands(core),
-    ...consumptionCommands(core),
+    ...callCommands(core, bound),
+    ...recoveryCommands(core, bound),
+    ...dispatchCommands(core, bound),
+    ...consumptionCommands(core, bound),
   } satisfies ModelCommands<P>
 }

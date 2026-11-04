@@ -2,11 +2,18 @@
 // credential slot that only that resource can fill. The network resources and the family
 // contributions are shared and injected; this module never closes the network.
 import type { SendResource, SendResources } from '@omne-harness/model'
-import type { ModelFailure } from '@omne-harness/model-contract'
+import { isDeepStrictEqual } from 'node:util'
+import type {
+  DispatchId,
+  ModelCallId,
+  ModelFailure,
+  TransportFailure,
+} from '@omne-harness/model-contract'
 import type {
   MaterializedTransport,
   ModelTransport,
   PreparedTransport,
+  SendDemand,
 } from '@omne-harness/model-contract/provider'
 import {
   createPiTransport,
@@ -18,6 +25,12 @@ import {
   type PiTransportConfig,
   type PiTransportLimits,
 } from '@omne-harness/pi-ai-transport'
+import {
+  materializationRecords,
+  SOURCE_UNAVAILABLE,
+  type PiMaterializationOptions,
+  type ModelMaterializationEvidenceReader,
+} from './materialization-proof.ts'
 
 export type PiSendResourcesConfig = Readonly<{
   /** Created and closed by the caller. Every transport of these resources shares it. */
@@ -26,11 +39,27 @@ export type PiSendResourcesConfig = Readonly<{
   /** Looked up by `supplier.recipient`, e.g. `openrouter`. The caller gives every URL. */
   routes: Readonly<Record<string, PiRoute>>
   limits: PiTransportLimits
+  materialization: PiMaterializationOptions
+  /**
+   * Told before each retry of a send whose request bytes had not left (`limits.connectRetry`), with
+   * the call and the dispatch that retries. A throw is dropped. Absent: nobody is told.
+   */
+  onConnectRetry?: (retry: ConnectRetryReport) => void
+}>
+
+/** One retry of one send: who retries, which retry it is, the wait before it and why. */
+export type ConnectRetryReport = Readonly<{
+  call: ModelCallId
+  dispatch: DispatchId
+  attempt: number
+  delayMs: number
+  reason: 'connect-failed' | 'connect-timeout'
 }>
 
 /** Production `SendResources` and the close of every resource that is still open. */
 export type PiSendResources<P> = SendResources<P> &
   Readonly<{
+    materialization: ModelMaterializationEvidenceReader
     /**
      * Refuses new acquires, releases every open resource and waits for the release. It does not
      * close the network resources. Idempotent.
@@ -85,9 +114,12 @@ export function sendResourcesOver<P>(
   }>,
 ): PiSendResources<P> {
   const { config, createTransport } = input
+  // The report hook is the send resources' own: the transport gets one per send, below.
+  const { onConnectRetry, ...transportBase } = config
+  const proofs = materializationRecords(config.materialization)
   // The probe checks the configuration once, here, so a bad route or limit fails the assembly
   // and not the first send. It is never used; its close is awaited by `close`.
-  const probe = createTransport({ ...config, credential: EMPTY_SLOT })
+  const probe = createTransport({ ...transportBase, credential: EMPTY_SLOT })
   const probeClosed: Promise<unknown> = probe.close().then(
     () => null,
     (error: unknown) => error ?? new Error('pi transport probe close failed'),
@@ -95,23 +127,61 @@ export function sendResourcesOver<P>(
   const open = new Set<SendResource>()
   let closing: Promise<void> | undefined
 
-  function acquireOne(): SendResource {
+  function acquireOne(demand: SendDemand<P>, owner: object): SendResource {
     // The secret of the send that is starting. It holds a value only inside startWithCredential.
     let secret: string | undefined
     const produced = new WeakSet<MaterializedTransport>()
     let released: Promise<void> | undefined
-    const pi = createTransport({ ...config, credential: { read: () => secret } })
+    let inactive = false
+    let preparation: ReturnType<ModelTransport['prepare']> | undefined
+    const pi = createTransport({
+      ...transportBase,
+      credential: { read: () => secret },
+      ...(onConnectRetry === undefined
+        ? {}
+        : {
+            onConnectRetry: event =>
+              onConnectRetry({
+                call: demand.call,
+                dispatch: demand.dispatch,
+                attempt: event.attempt,
+                delayMs: event.delayMs,
+                reason: event.reason,
+              }),
+          }),
+    })
     const transport: ModelTransport = {
-      async prepare(request, supplier, dispatch) {
-        const prepared = await pi.transport.prepare(request, supplier, dispatch)
-        if (!('ok' in prepared)) return prepared
-        return { ok: recordingPrepared(prepared.ok, produced) }
+      prepare(request, supplier, dispatch) {
+        if (inactive) return Promise.resolve({ failure: SOURCE_UNAVAILABLE })
+        if (
+          !isDeepStrictEqual(request, demand.request) ||
+          !isDeepStrictEqual(supplier, demand.supplier) ||
+          dispatch.resent.length !== 0
+        )
+          return Promise.resolve({
+            failure: { kind: 'invalid', field: 'demand', reason: 'binding' },
+          })
+        preparation ??= (async () => {
+          const prepared = await pi.transport.prepare(request, supplier, dispatch)
+          if (!('ok' in prepared)) return prepared
+          if (inactive) {
+            await prepared.ok.close()
+            return { failure: SOURCE_UNAVAILABLE }
+          }
+          return {
+            ok: recordingPrepared(prepared.ok, produced, materialized => {
+              if (inactive) return SOURCE_UNAVAILABLE
+              return proofs.record(owner, demand, materialized.receipt)
+            }),
+          }
+        })()
+        return preparation
       },
     }
     const resource: SendResource = {
       transport,
       startWithCredential(materialized, value, signal) {
-        if (released !== undefined) throw new SendResourceDefect('resource-released')
+        if (inactive) throw new SendResourceDefect('resource-released')
         if (!produced.has(materialized)) throw new SendResourceDefect('foreign-materialization')
         secret = value
         try {
@@ -122,6 +192,8 @@ export function sendResourcesOver<P>(
         }
       },
       release() {
+        inactive = true
+        proofs.release(owner, demand)
         released ??= (async () => {
           open.delete(resource)
           await pi.close()
@@ -142,9 +214,22 @@ export function sendResourcesOver<P>(
   }
 
   return {
-    async acquire(): Promise<AcquireResult> {
+    materialization: proofs.reader,
+    async acquire(input): Promise<AcquireResult> {
       if (closing !== undefined) return { failure: CLOSED }
-      return { ok: acquireOne() }
+      const qualification = config.materialization.execution(input.execution)
+      if ('failure' in qualification) return qualification
+      const { principal, tenant, execution, ...binding } = input
+      const demand = { ...structuredClone(binding), principal, tenant, execution: { ...execution } }
+      const owner = {}
+      const failure = proofs.reserve(owner, demand)
+      if (failure !== null) return { failure }
+      try {
+        return { ok: acquireOne(demand, owner) }
+      } catch (error) {
+        proofs.release(owner, demand)
+        throw error
+      }
     },
     close() {
       closing ??= closeAll()
@@ -157,12 +242,23 @@ export function sendResourcesOver<P>(
 function recordingPrepared(
   prepared: PreparedTransport,
   produced: WeakSet<MaterializedTransport>,
+  record: (materialized: MaterializedTransport) => TransportFailure | null,
 ): PreparedTransport {
+  let result: ReturnType<PreparedTransport['materialize']> | undefined
   return {
-    async materialize(signal) {
-      const materialized = await prepared.materialize(signal)
-      if ('ok' in materialized) produced.add(materialized.ok)
-      return materialized
+    materialize(signal) {
+      result ??= (async () => {
+        const materialized = await prepared.materialize(signal)
+        if ('failure' in materialized) return materialized
+        const failure = record(materialized.ok)
+        if (failure !== null) {
+          await materialized.ok.close()
+          return { failure }
+        }
+        produced.add(materialized.ok)
+        return materialized
+      })()
+      return result
     },
     close: () => prepared.close(),
   }

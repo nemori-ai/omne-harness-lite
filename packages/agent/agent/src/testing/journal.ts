@@ -277,16 +277,28 @@ export type MemoryAgentJournal<P> = Readonly<{
   targets: ModelReceptionTargets<P>
   receiving: JournalReceivingControls<P>
   durability: 'none'
+  /**
+   * Every material source a durable fact of the execution refers to: the received entries, the
+   * fixed request of every effect intent, the allowed requests of the current batch and the stage
+   * sources of the controls. A material outside it is an orphan.
+   */
+  referencedSources(
+    input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
+  ): readonly DurableEvidence[]
+  /**
+   * Every handoff record of the execution at its current revision, open or closed. The snapshot of
+   * `load` lists the open ones only; a test that checks a closed record reads it here.
+   */
+  handoffRecords(
+    input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
+  ): readonly ExecutionHandoff[]
   /** Changes one saved Tool control's invocation, or restores its first saved bytes with null. */
   setRetainedToolInvocationFault(
     input: Readonly<{
       tenant: TenantId
       execution: AgentExecutionId
       control: AgentOperationId
-      fault:
-        | Readonly<{ kind: 'malformed' }>
-        | Readonly<{ kind: 'foreign-tenant'; reference: ToolInvocationRef }>
-        | null
+      fault: Readonly<{ kind: 'malformed' }> | null
     }>,
   ):
     | Readonly<{ kind: 'applied' }>
@@ -578,13 +590,8 @@ function controlTarget(
   for (const pending of calls) {
     if (pending.kind !== 'tool' || pending.association !== 'associated') continue
     const parts = resolveToolInvocationRef(pending.reference, tenant)
-    if ('failure' in parts) {
-      return fail(
-        parts.failure.kind === 'foreign-tenant'
-          ? denied('control')
-          : invalid('command.call', 'invalid-tool-invocation-reference'),
-      )
-    }
+    if ('failure' in parts)
+      return fail(invalid('command.call', 'invalid-tool-invocation-reference'))
     if (parts.ok.call !== command.call) continue
     if (matched !== undefined && admission !== parts.ok.admission) ambiguous = true
     matched = pending
@@ -628,8 +635,7 @@ function operationText(tenant: string, execution: AgentExecutionId, operation: A
 
 /**
  * The key of the restore baseline of a well-formed retained-fault request: the canonical tenant,
- * execution and control. A request with another shape, or with a foreign payload that the real
- * resolver does not call foreign, has no key.
+ * execution and control. A request with another shape has no key.
  */
 function retainedFaultKey(input: RetainedFaultInput): string | undefined {
   if (!exactDataFields(input, ['tenant', 'execution', 'control', 'fault'])) return undefined
@@ -643,17 +649,7 @@ function retainedFaultKey(input: RetainedFaultInput): string | undefined {
   const key = operationText(tenant.value, input.execution, input.control)
   const fault = input.fault
   if (fault === null) return key
-  if (exactDataFields(fault, ['kind']) && fault.kind === 'malformed') return key
-  if (!exactDataFields(fault, ['kind', 'reference']) || fault.kind !== 'foreign-tenant')
-    return undefined
-  const resolved = resolveToolInvocationRef(fault.reference, input.tenant)
-  return 'failure' in resolved && resolved.failure.kind === 'foreign-tenant' ? key : undefined
-}
-
-/** Whether a Tool reference names a tenant other than the given one. */
-function foreignReference(reference: ToolInvocationRef, tenant: TenantId): boolean {
-  const resolved = resolveToolInvocationRef(reference, tenant)
-  return 'failure' in resolved && resolved.failure.kind === 'foreign-tenant'
+  return exactDataFields(fault, ['kind']) && fault.kind === 'malformed' ? key : undefined
 }
 
 /** A supplied `toolOperation` that resolved in the caller's tenant: the bytes as given and the parts. */
@@ -665,7 +661,6 @@ type LocalAttachment = Readonly<{
 type SuppliedAttachment =
   | LocalAttachment
   | Readonly<{ kind: 'malformed'; reference: ToolOperationRef }>
-  | Readonly<{ kind: 'foreign' }>
 
 /** Reads the optional attachment of a recording once, through the public Tool resolver. */
 function suppliedAttachment(
@@ -674,9 +669,8 @@ function suppliedAttachment(
   const reference = request.toolOperation
   if (reference === undefined) return undefined
   const resolved = resolveToolOperationRef(reference, request.tenant)
-  if ('ok' in resolved) return { kind: 'local', reference, parts: resolved.ok }
-  return resolved.failure.kind === 'foreign-tenant'
-    ? { kind: 'foreign' }
+  return 'ok' in resolved
+    ? { kind: 'local', reference, parts: resolved.ok }
     : { kind: 'malformed', reference }
 }
 
@@ -692,19 +686,11 @@ const damaged = (diagnostic: string): Failure => ({
 })
 
 /**
+ * The parts of the retained operation reference of a Tool control, checked against its invocation.
  * A retained reference that does not resolve in the record's tenant, or that does not agree with the
  * other retained reference, breaks an invariant of this provider. It is not a caller conflict (SPEC
- * "Recording operation 与阶段事实"): a foreign reference is denied without details, any other damage
- * makes the record unavailable.
+ * "Recording operation 与阶段事实"): the record is unavailable.
  */
-function retainedFailure(
-  failure: Readonly<{ kind: 'malformed' | 'foreign-tenant' }>,
-  diagnostic: string,
-): Failure {
-  return failure.kind === 'foreign-tenant' ? denied('recordControl') : damaged(diagnostic)
-}
-
-/** The parts of the retained operation reference of a Tool control, checked against its invocation. */
 function retainedOperation(
   record: ToolControlRecord,
   invocation: ToolInvocationParts,
@@ -713,7 +699,7 @@ function retainedOperation(
   if (record.toolOperation === null) return succeed(null)
   const diagnostic = 'invalid-retained-tool-operation'
   const retained = resolveToolOperationRef(record.toolOperation, tenant)
-  if ('failure' in retained) return fail(retainedFailure(retained.failure, diagnostic))
+  if ('failure' in retained) return fail(damaged(diagnostic))
   return retained.ok.call === invocation.call && retained.ok.admission === invocation.admission
     ? succeed(retained.ok)
     : fail(damaged(diagnostic))
@@ -735,9 +721,7 @@ function attachToolOperation(
       : fail(invalid('toolOperation', 'not-applicable-to-control'))
   }
   const invocation = resolveToolInvocationRef(record.toolInvocation, tenant)
-  if ('failure' in invocation) {
-    return fail(retainedFailure(invocation.failure, 'invalid-retained-tool-invocation'))
-  }
+  if ('failure' in invocation) return fail(damaged('invalid-retained-tool-invocation'))
   const retained = retainedOperation(record, invocation.ok, tenant)
   if ('failure' in retained) return retained
   if (attachment === undefined) return succeed({ kind: 'unchanged' })
@@ -799,6 +783,58 @@ function undetermined(record: HandoffRecord): boolean {
 
 /** The `load.handoffs` projection: a frozen deep copy of every record at this revision. */
 /** The handoff records with the custody chain that `custody` derives from the operation records. */
+/**
+ * The open items of a snapshot (agent-contract SPEC "提交与保管"): the snapshot holds what is still
+ * open, so its size does not grow with the steps the execution took. A closed item stays in the
+ * Journal; it only leaves the snapshot.
+ */
+/**
+ * Whether the execution is settling or ended: it takes no further step, and the finish obligations
+ * and the settlement may refer to any of its items, so the snapshot keeps them all.
+ */
+function finishing(execution: Execution): boolean {
+  return execution.state.kind === 'settling' || execution.state.kind === 'ended'
+}
+
+function openResult(result: ResultResponsibility): boolean {
+  return result.completion === null || result.release.kind === 'pending'
+}
+
+/** An effect intent whose call is still open in the checkpoint or whose action is in its batch. */
+function openEffect(checkpoint: AgentCheckpoint, effect: EffectIntent): boolean {
+  return (
+    checkpoint.calls.some(call => call.action === effect.action) ||
+    (checkpoint.batch?.actions.some(action => action.id === effect.action) ?? false)
+  )
+}
+
+/**
+ * A handoff record with a pending history or an unsettled custody chain, or one that is still
+ * referred to: the current H, a slot of the current batch, an H of the current step, or the H of an
+ * input that is not taken yet or is in the current input batch.
+ */
+function openHandoff(execution: Execution, record: ExecutionHandoff): boolean {
+  if (record.history.kind === 'pending') return true
+  if (record.custody !== null && record.custody.committed === null) return true
+  if (finishing(execution)) return true
+  const { checkpoint } = execution
+  const same = (reference: HandoffReference | null) =>
+    reference !== null && canonical(reference) === canonical(record.handoff)
+  if (same(checkpoint.currentHandoff)) return true
+  if (checkpoint.batch?.slots.some(slot => same(slot.handoff)) ?? false) return true
+  if (record.handoff.kind === 'input') return openInput(execution, record.handoff.input)
+  return record.request.kind === 'execution' && record.request.position.step === checkpoint.step
+}
+
+/** An accepted input that no batch took yet, or one of the current input batch. */
+function openInput(execution: Execution, input: InputId): boolean {
+  const index = execution.inputs.findIndex(accepted => accepted.id === input)
+  if (index < 0) return true
+  const taken = execution.checkpoint.inputBatch
+  const from = taken === null ? 0 : (execution.batches.get(taken.id)?.from ?? 0)
+  return index >= from
+}
+
 function handoffsOf(
   execution: Execution,
   custody: (handoff: HandoffReference) => ExecutionHandoff['custody'],
@@ -1292,7 +1328,7 @@ export function createMemoryAgentJournal<P>(
 
   function inputBoundary(execution: Execution): Range {
     const taken = execution.checkpoint.inputBatch
-    const from = taken === null ? 0 : (execution.batches.get(taken)?.to ?? 0)
+    const from = taken === null ? 0 : (execution.batches.get(taken.id)?.to ?? 0)
     return { from, to: execution.inputs.length }
   }
 
@@ -1347,11 +1383,14 @@ export function createMemoryAgentJournal<P>(
         executionAttachment: activeAttachment(execution)?.authority ?? null,
         unresolved,
         controls: execution.controls,
-        results: execution.results,
-        entries: execution.entries,
-        effects: execution.effects,
+        results: execution.results.filter(result => finishing(execution) || openResult(result)),
+        effects: execution.effects.filter(
+          effect => finishing(execution) || openEffect(execution.checkpoint, effect),
+        ),
         terminalObservations: execution.observations,
-        handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff)),
+        handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff)).filter(record =>
+          openHandoff(execution, record),
+        ),
         finishObligations: currentObligations(execution.finishing) ?? null,
         settlement: settlementOf(execution.finishing),
         output: {
@@ -2161,13 +2200,8 @@ export function createMemoryAgentJournal<P>(
     const record = options.hostRecords?.get(sourceEvidence.record)
     if (record === undefined)
       return answer(fail(damaged(`the host answers no record for ${sourceEvidence.record}`)))
-    // A tool-return record carries no tenant: its tenant is the one of its returned reference. A
-    // foreign one is denied here too, so no variant tells what kind of record a foreign source is.
-    if (
-      record.kind === 'tool-return' &&
-      foreignReference(record.returned.reference, execution.tenant)
-    )
-      return answer(fail(denied('commitSettlement')))
+    // A tool-return record carries no tenant, and its returned reference names none either
+    // (R2-D357): its tenant isolation is not a check of this stub (R2-D372).
     // A record of another tenant is denied before anything of it is compared or disclosed; a record
     // of another execution of this tenant is not a source of this execution.
     if (record.kind !== 'tool-return') {
@@ -2308,8 +2342,6 @@ export function createMemoryAgentJournal<P>(
       case 'record-tool-association': {
         if (record.kind !== 'tool-return')
           return answer(fail(invalid('source', 'not the return of this intent')))
-        // A foreign return was denied before the switch, before the intent and the request are
-        // compared, so the answer does not tell whether it is the return of the requested intent.
         const reference = resolveToolInvocationRef(record.returned.reference, execution.tenant)
         if ('failure' in reference)
           return answer(fail(invalid('source', 'the returned reference is malformed')))
@@ -2457,7 +2489,7 @@ export function createMemoryAgentJournal<P>(
           tenant: input.tenant,
           revision: 1,
           state: { kind: 'advancing' },
-          checkpoint: copy(entry.checkpoint),
+          checkpoint: copy(input.checkpoint),
           attachments: [],
           inputs: [copy(initial)],
           inputRevisions: new Map([[initial.id, 1]]),
@@ -3130,9 +3162,6 @@ export function createMemoryAgentJournal<P>(
       const entered = enter(method, request)
       if ('failure' in entered) return entered
       const attachment = suppliedAttachment(request)
-      // SPEC "Recording operation 与阶段事实" step 2: a foreign attachment is denied before the
-      // operation and the target are read, like a write on another tenant's execution.
-      if (attachment?.kind === 'foreign') return fail(denied(method))
       const input = {
         principal: request.principal,
         tenant: request.tenant,
@@ -3633,6 +3662,18 @@ export function createMemoryAgentJournal<P>(
       return write('recordTerminalObservation', input, key, prepare, beforeRecognition)
     },
 
+    async readCancellationInstallation(input) {
+      const fault = readFault('load')
+      if (fault !== undefined) return fault
+      const found = owned(input, 'load')
+      if ('failure' in found) return found
+      const refused = unreadable(input, 'load')
+      if (refused !== undefined) return fail(refused)
+      return options.cancellation === undefined
+        ? fail(damaged('no cancellation policy is installed on this binding'))
+        : succeed(copy(options.cancellation.installation.record))
+    },
+
     async load(input) {
       const fault = readFault('load')
       if (fault !== undefined) return fault
@@ -3785,6 +3826,24 @@ export function createMemoryAgentJournal<P>(
     targets: receiving.targets,
     receiving: receiving.controls,
     durability: 'none',
+    referencedSources(input) {
+      const execution = executions.get(executionKey(input.tenant, input.execution))
+      if (execution === undefined || !tenantEquals(execution.tenant, input.tenant)) return []
+      const sources: DurableEvidence[] = []
+      for (const entry of execution.entries)
+        if (entry.kind === 'received') sources.push(entry.material)
+      for (const effect of execution.effects) sources.push(effect.pending.fixed)
+      for (const action of execution.checkpoint.batch?.actions ?? [])
+        if (action.judgment.kind === 'allowed') sources.push(action.judgment.request)
+      for (const control of execution.controls)
+        for (const stage of Object.values(control.stages)) sources.push(stage.source)
+      return copy(sources)
+    },
+    handoffRecords(input) {
+      const execution = executions.get(executionKey(input.tenant, input.execution))
+      if (execution === undefined || !tenantEquals(execution.tenant, input.tenant)) return []
+      return handoffsOf(execution, handoff => custodyOf(execution, handoff))
+    },
     setRetainedToolInvocationFault(input) {
       if (!retainedToolInvocationFaults) return { kind: 'rejected', reason: 'disabled' }
       const key = retainedFaultKey(input)
@@ -3805,12 +3864,8 @@ export function createMemoryAgentJournal<P>(
         }
         return { kind: 'cleared' }
       }
-      const reference =
-        input.fault.kind === 'malformed'
-          ? MALFORMED_RETAINED_TOOL_INVOCATION
-          : input.fault.reference
       if (original === undefined) retainedToolInvocationBaselines.set(key, record.toolInvocation)
-      execution.controls[index] = { ...record, toolInvocation: reference }
+      execution.controls[index] = { ...record, toolInvocation: MALFORMED_RETAINED_TOOL_INVOCATION }
       return { kind: 'applied' }
     },
     failNext(method, fault) {

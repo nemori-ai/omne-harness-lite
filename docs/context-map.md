@@ -24,11 +24,11 @@
 
 ## 使用管理部署
 
-核对封存应用的操作，直接读[封存版 CLI 说明](../apps.0.0.1.legacy/cli/README.md)；部署或诊断旧宿主，直接读[tenancy-host说明](../apps.0.0.1.legacy/tenancy-host/README.md)及其部署入口。核对支持任务、环境、调用身份、输入结果与失败处置。[专门指南](guides/README.md)按使用、管理、部署和集成提供来源与停止点，完整操作流程仍有缺项。仅需操作时无需读内部产品设计。现有源无法闭合该操作或权限不明时暂停，缺口交应用拥有者；不靠目标设计推断已支持能力。
+核对封存应用的操作，直接读固定提交中的[封存版 CLI 说明](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/cli/README.md)；部署或诊断旧宿主，直接读固定提交中的[tenancy-host说明](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md)及其部署入口。核对支持任务、环境、调用身份、输入结果与失败处置。[专门指南](guides/README.md)按使用、管理、部署和集成提供来源与停止点，完整操作流程仍有缺项。仅需操作时无需读内部产品设计。现有源无法闭合该操作或权限不明时暂停，缺口交应用拥有者；不靠目标设计推断已支持能力。
 
 ## 消费独立包
 
-从[包入口](../packages/README.md)选择能力，核对目标成员的文档与实现状态，读 README、公开承诺和必要行为／生命周期约定。目标目录只有文档时不能直接安装或调用；核对已有实现则从[封存包入口](../packages.0.0.1.legacy/README.md)进入，再按其实际例子和检查验证。仅在资源交接或跨成员组合影响保证时展开[系统架构入口](architecture/README.md)。公开责任足够时停止；缺承诺或需要内部深层导入时暂停，由契约拥有者处理。
+从[包入口](../packages/README.md)选择能力，核对目标成员的文档与实现状态，读 README、公开承诺和必要行为／生命周期约定。目标目录只有文档时不能直接安装或调用；核对已有实现则从固定提交中的[封存包入口](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)进入，再按其实际例子和检查验证。仅在资源交接或跨成员组合影响保证时展开[系统架构入口](architecture/README.md)。公开责任足够时停止；缺承诺或需要内部深层导入时暂停，由契约拥有者处理。
 
 ## 局部修复
 

@@ -3,8 +3,8 @@
 // pulled settlement, reads that stay open until every settlement has ended); the history reads
 // call Session as `reader` and `readWork` as `coordinator`, both with the access of the call;
 // another tenant is denied before any Session call; the model view translates to the Request
-// Context history (escaped epoch, canonical sequences, a cursor bound to its evidence, a fixed
-// upper bound, epoch changes, no empty page for a failure); the compaction window is cut at the
+// Context history (escaped epoch, canonical sequences from 0 while the Session rows count from 1, a
+// cursor bound to its evidence, a fixed upper bound, epoch changes, no empty page for a failure); the compaction window is cut at the
 // fixed upper bound and needs the lower bound sub-plugin; the eligibility bridge and the narrow
 // adoption source check the access of every call; a tail page costs the same at N = 10 and N = 100
 // rows (SS-21); both sub-plugins stay absent without `session`, and the lent reads answer
@@ -15,15 +15,19 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness/message'
+import { createContextAccounting } from '@omne-harness/request-context'
 import type {
   Access,
-  AdoptedRequestSource,
   ContextHolderParts,
   DurableEvidence,
-  GroupToken,
   HistoryEvidence,
   HistoryReadResult,
 } from '@omne-harness/request-context-cordis-contract'
+import {
+  decodeRecoveryGrantRef,
+  type ContextTarget,
+  type HistoryCursor,
+} from '@omne-harness/request-context-contract'
 import {
   ContextHolderSourcesService,
   contextHolderSourcesKey,
@@ -39,8 +43,19 @@ import type {
   WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { evidence, memoryOtherAccess, operationId } from '@omne-harness/session-contract/testing'
-import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
+import type {
+  SessionAdoptedRequest,
+  SessionAdoptedRequestRead,
+  SessionAdoptedRequests,
+} from '@omne-harness/session-cordis-contract'
+import {
+  SessionAdoptedRequestsService,
+  SessionService,
+  sessionAdoptedRequestsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionHistorySource } from '../src/cordis/history-source.ts'
+import { agentContextReady } from './fixtures/agent-context-ready.ts'
+import { invocation, m0Checkpoint, type FixedValues } from './fixtures/adopted-request.ts'
 import { ok, scene, type SceneQualification } from './fixtures/common-journal.ts'
 
 // --- the fixture -----------------------------------------------------------------------------------
@@ -51,6 +66,8 @@ type Faults = {
   epochChangedAt: number | null
   /** The `readWork` answer gets this `contextScopes` value. */
   scopes?: WorkSnapshot['contextScopes']
+  /** Rewrites every model view page Session answers, to a shape Session itself never gives. */
+  page?: (page: Extract<ModelViewRead, { kind: 'page' }>) => ModelViewRead
 }
 type Mounted = 'session' | 'lowerBound' | 'source'
 
@@ -70,7 +87,8 @@ async function world(
   options: Readonly<{
     ctx?: Context
     mount?: readonly Mounted[]
-    adopted?: AdoptedRequestSource<unknown>
+    /** `absent`: no `sessionAdoptedRequests` is provided. A scripted provider read when absent. */
+    adopted?: 'absent'
   }> = {},
 ) {
   const qualification: { -readonly [K in keyof SceneQualification]: SceneQualification[K] } = {
@@ -98,6 +116,7 @@ async function world(
         const answer = await history.readModelView(input)
         if ('ok' in answer && answer.ok.kind === 'page') {
           modelViewRows.push(answer.ok.rows.length)
+          if (faults.page !== undefined) return { ok: faults.page(answer.ok) }
           if (faults.epochChangedAt === views) {
             const changed: ModelViewRead = {
               kind: 'epoch-changed',
@@ -141,11 +160,21 @@ async function world(
           ? { tenant: s.access.tenant, session: s.access.session }
           : null,
     },
-    ...(options.adopted === undefined ? {} : { adopted: options.adopted }),
   })
 
   const ctx = options.ctx ?? new Context()
+  const logged: { name: string; type: string; text: string }[] = []
+  ctx.logger.exporter({
+    export: message =>
+      logged.push({ name: message.name, type: message.type, text: String(message.args[0]) }),
+  })
   const fibers = new Map<Mounted, Awaited<ReturnType<Context['plugin']>>>()
+  const provider = scriptedAdoptedRequests()
+  // A second world on the same root keeps the provider the first one mounted.
+  if (options.adopted !== 'absent' && ctx.get(sessionAdoptedRequestsKey) === undefined) {
+    const fiber = await ctx.plugin(provider.Plugin)
+    disposers.push(() => fiber.dispose())
+  }
   const plugins = { session: Session, lowerBound: ad04.lowerBound, source: ad04.source } as const
   for (const name of options.mount ?? (['session', 'lowerBound', 'source'] as const)) {
     const fiber = await ctx.plugin(plugins[name])
@@ -226,11 +255,13 @@ async function world(
     fibers,
     calls,
     faults,
+    logged,
     qualification,
     head,
     access,
     borrow,
     remind,
+    provider,
     modelViewRows,
     sessionCalls: () => calls.length,
   }
@@ -269,15 +300,30 @@ async function readAll(parts: ContextHolderParts<unknown>, access: unknown, ev: 
 const intruder = memoryOtherAccess<unknown>('intruder')
 const intruderAccess: Access<unknown> = { principal: 'intruder', tenant: intruder.tenant }
 
-const token = 'adopted-1' as GroupToken
-function handedAdopted() {
-  const asked: string[] = []
-  const source: AdoptedRequestSource<unknown> = {
-    authority: { owner: 'test', name: 'fixed-requests', revision: '1', digest: 'test:fixed' },
-    readCount: async () => (asked.push('readCount'), { kind: 'value', value: token }),
-    readSource: async () => (asked.push('readSource'), { kind: 'value', value: null }),
+/**
+ * The scripted read port of the session-log Journal provider: `sessionAdoptedRequests` answers
+ * the request `saved` holds (null before the first M0), or the `answer` a test sets, or throws.
+ * It records the access and the session of every call.
+ */
+function scriptedAdoptedRequests() {
+  const state: {
+    saved: SessionAdoptedRequest | null
+    answer: SessionAdoptedRequestRead | 'throw' | null
+    calls: Readonly<{ access: unknown; session: unknown }>[]
+    /** Runs while a read is in flight, before it answers: what changes meanwhile. */
+    meanwhile: (() => void) | null
+  } = { saved: null, answer: null, calls: [], meanwhile: null }
+  class Plugin extends SessionAdoptedRequestsService<unknown> {
+    readonly readAdoptedRequest = async (
+      input: Parameters<SessionAdoptedRequests<unknown>['readAdoptedRequest']>[0],
+    ): Promise<SessionAdoptedRequestRead> => {
+      state.calls.push({ access: input.access, session: input.session })
+      state.meanwhile?.()
+      if (state.answer === 'throw') throw new Error('the provider read threw')
+      return state.answer ?? { kind: 'value', value: state.saved }
+    }
   }
-  return { source, asked }
+  return { state, Plugin }
 }
 
 // --- K-RQ ------------------------------------------------------------------------------------------
@@ -285,7 +331,7 @@ function handedAdopted() {
 describe('contextHolderSources conformance against the AD-04 source sub-plugin', () => {
   const fixture: ContextHolderSourcesFixture<unknown> = {
     async start(ctx) {
-      const w = await world({ ctx, adopted: handedAdopted().source })
+      const w = await world({ ctx })
       const resolve = async (parts: ContextHolderParts<unknown>, access: Access<unknown>) =>
         parts.resolveHistory({ access, evidence: w.head })
       return {
@@ -358,7 +404,7 @@ describe('every Session call carries the access of the part call', () => {
   })
 
   it('denies another tenant in every part before any Session call', async () => {
-    const w = await world({ adopted: handedAdopted().source })
+    const w = await world()
     const { parts } = await w.borrow()
     const ev = await resolved(w, parts)
     const before = w.sessionCalls()
@@ -404,7 +450,8 @@ describe('the history read translates the Session model view', () => {
     const ev = await resolved(w, parts)
     const scopes = ok(await w.s.backend.transactions.readWork(w.s.access)).contextScopes ?? []
     expect(ev.target.scope.ref).toBe(scopes.at(-1)?.scope)
-    expect(ev.upper).toEqual({ kind: 'entry', seq: '3' })
+    // Three Session rows, 1 to 3: the history rows are 0 to 2.
+    expect(ev.upper).toEqual({ kind: 'entry', seq: '2' })
     // The Session epoch holds a control character; the EpochId writes it as %00.
     expect(ev.epoch).toContain('%00')
     expect(ev.epoch).not.toContain('\u0000')
@@ -416,7 +463,7 @@ describe('the history read translates the Session model view', () => {
     await w.remind(3)
     const ev = await resolved(w, parts)
     await w.remind(2, 'late')
-    expect(await readAll(parts, w.access, ev)).toEqual(['1', '2', '3', '4'])
+    expect(await readAll(parts, w.access, ev)).toEqual(['0', '1', '2', '3'])
     const first = await parts.history.read({
       access: w.access,
       evidence: ev,
@@ -425,10 +472,10 @@ describe('the history read translates the Session model view', () => {
     })
     if (first.kind !== 'page') throw new Error('not a page')
     const [row] = first.page.rows
-    expect(row).toMatchObject({ seq: '1', entry: '3', message: { role: 'user' } })
+    expect(row).toMatchObject({ seq: '0', entry: '3', message: { role: 'user' } })
     expect(typeof row?.bytes).toBe('string')
     expect(row).not.toHaveProperty('sourceCall')
-    expect(first.page.next).toEqual({ evidence: ev, after: '1' })
+    expect(first.page.next).toEqual({ evidence: ev, after: '0' })
   })
 
   it('refuses a cursor of another evidence and a malformed upper bound without a Session call', async () => {
@@ -437,7 +484,7 @@ describe('the history read translates the Session model view', () => {
     await w.remind(2)
     const ev = await resolved(w, parts)
     const before = w.sessionCalls()
-    const other: HistoryEvidence = { ...ev, upper: { kind: 'entry', seq: '2' as never } }
+    const other: HistoryEvidence = { ...ev, upper: { kind: 'entry', seq: '1' as never } }
     expect(
       await parts.history.read({
         access: w.access,
@@ -455,6 +502,98 @@ describe('the history read translates the Session model view', () => {
       }),
     ).toEqual({ kind: 'invalid', field: 'evidence', reason: 'upper-out-of-range' })
     expect(w.sessionCalls()).toBe(before)
+  })
+
+  // The Session model view numbers its rows from 1 and names the empty view by the bound "0", so a
+  // row "0" has no history sequence, and a text that is not a canonical decimal has none either. A
+  // Session cursor is opaque and is never decoded, but it names the position after the last row of
+  // its page, so a cursor on a page without rows names nothing. The page is Session's, so a bad one is a defect of the translation: it is
+  // `unavailable` and it is logged at error level, never a quiet empty page or a made-up sequence.
+  describe('a Session page that does not translate is a visible defect', () => {
+    const rowZero = (page: Extract<ModelViewRead, { kind: 'page' }>): ModelViewRead => ({
+      ...page,
+      rows: page.rows.map((row, at) => (at === 0 ? { ...row, seq: '0' } : row)),
+    })
+    it.each([
+      {
+        name: 'a row numbered 0',
+        page: rowZero,
+        diagnostic: 'model view row 0 does not translate',
+      },
+      {
+        name: 'a row that is not a canonical decimal',
+        page: (page: Extract<ModelViewRead, { kind: 'page' }>): ModelViewRead => ({
+          ...page,
+          rows: page.rows.map((row, at) => (at === 0 ? { ...row, seq: '01' } : row)),
+        }),
+        diagnostic: 'model view row 01 does not translate',
+      },
+      {
+        name: 'a next cursor that follows no row',
+        page: (page: Extract<ModelViewRead, { kind: 'page' }>): ModelViewRead => ({
+          ...page,
+          rows: [],
+          next: 'after-nothing',
+        }),
+        diagnostic: 'the model view cursor follows no row',
+      },
+    ])('$name', async ({ page, diagnostic }) => {
+      const w = await world()
+      const { parts } = await w.borrow()
+      await w.remind(2)
+      const ev = await resolved(w, parts)
+      w.faults.page = page
+      const answer = await parts.history.read({
+        access: w.access,
+        evidence: ev,
+        cursor: null,
+        budgetBytes: 1,
+      })
+      expect(answer).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: `translation defect: ${diagnostic}`,
+      })
+      expect(w.logged).toContainEqual({
+        name: 'session-adapters/history-source',
+        type: 'error',
+        text: `translation defect: ${diagnostic}`,
+      })
+    })
+
+    it('a page that does not move past the cursor it was asked from is a defect, not thousands of reads', async () => {
+      const w = await world()
+      const { parts } = await w.borrow()
+      await w.remind(6)
+      const ev = await resolved(w, parts)
+      // Every page is the first row alone with the cursor of the start: the skip never advances.
+      w.faults.page = page => ({ ...page, rows: page.rows.slice(0, 1), next: '0' })
+      const calls = w.sessionCalls()
+      const answer = await parts.history.read({
+        access: w.access,
+        evidence: ev,
+        cursor: { evidence: ev, after: '4' as never },
+        budgetBytes: 1,
+      })
+      expect(answer).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: 'translation defect: the model view page does not move on',
+      })
+      expect(w.sessionCalls() - calls).toBeLessThanOrEqual(3)
+    })
+
+    it('a bound of 0 in the basis is the empty history, not a defect', async () => {
+      const w = await world()
+      const { parts } = await w.borrow()
+      const ev = await resolved(w, parts)
+      const answer = await parts.history.read({
+        access: w.access,
+        evidence: { ...ev, upper: { kind: 'empty' } },
+        cursor: null,
+        budgetBytes: 1,
+      })
+      expect(answer.kind).not.toBe('unavailable')
+      expect(w.logged.filter(item => item.type === 'error')).toEqual([])
+    })
   })
 
   it('answers a scope it has not resolved unavailable, without a Session call', async () => {
@@ -485,7 +624,7 @@ describe('the history read translates the Session model view', () => {
     })
     expect(changed).toEqual({
       kind: 'epoch-changed',
-      current: { target: ev.target, epoch: `${ev.epoch}+1`, upper: { kind: 'entry', seq: '1' } },
+      current: { target: ev.target, epoch: `${ev.epoch}+1`, upper: { kind: 'entry', seq: '0' } },
     })
     w.qualification.session = 'unavailable'
     const down = await parts.history.read({
@@ -495,6 +634,39 @@ describe('the history read translates the Session model view', () => {
       budgetBytes: 9,
     })
     expect(down.kind).toBe('unavailable')
+  })
+
+  // request-context-contract SPEC, "历史源读口与 epoch 视图": the rows of an epoch are numbered from 0
+  // without a gap, the upper bound is the last row, and each cursor names the last row returned. A
+  // page that starts at the Session row number 1 is refused by the Request Context reader.
+  it('numbers the rows of an epoch from 0 to the upper bound, as the Request Context reads them', async () => {
+    const w = await world()
+    const { parts } = await w.borrow()
+    await w.remind(4)
+    const ev = await resolved(w, parts)
+    if (ev.upper.kind !== 'entry') throw new Error('an entry upper bound is expected')
+    let cursor: HistoryCursor | null = null
+    let expected = 0n
+    for (let pages = 0; ; pages++) {
+      if (pages > 20) throw new Error('the read did not end')
+      const answer: HistoryReadResult = await parts.history.read({
+        access: w.access,
+        evidence: ev,
+        cursor,
+        budgetBytes: 1,
+      })
+      if (answer.kind !== 'page') throw new Error(`not a page: ${JSON.stringify(answer)}`)
+      for (const row of answer.page.rows) {
+        expect(row.seq).toBe(String(expected))
+        expected += 1n
+      }
+      if (answer.page.next === null) break
+      expect(answer.page.next.after).toBe(answer.page.rows.at(-1)?.seq)
+      cursor = answer.page.next
+    }
+    // The last row is the upper bound: five rows, 0 to 4.
+    expect(String(expected - 1n)).toBe(ev.upper.seq)
+    expect(ev.upper.seq).toBe('4')
   })
 })
 
@@ -608,66 +780,335 @@ describe('the read eligibility bridge and the narrow adoption source', () => {
     expect(await check()).toEqual({ kind: 'denied' })
   })
 
-  it('reads the handed fixed request facts only for an admitted access', async () => {
-    const handed = handedAdopted()
-    const w = await world({ adopted: handed.source })
+  it('reads the provider only for an admitted access, with the access of the call and the session of the target', async () => {
+    const w = await world()
     const { parts } = await w.borrow()
     const { target } = await resolved(w, parts)
-    expect(parts.adopted.authority).toEqual(handed.source.authority)
-    expect(await parts.adopted.readCount({ access: w.access, target })).toEqual({
+    expect(parts.adopted.authority).toMatchObject({ owner: '@omne-harness/session-adapters' })
+    expect(await parts.adopted.readSource({ access: w.access, target })).toEqual({
       kind: 'value',
-      value: token,
+      value: null,
     })
+    expect(w.provider.state.calls).toEqual([{ access: w.access, session: w.s.access.session }])
     w.qualification.session = false
     expect(await parts.adopted.readSource({ access: w.access, target })).toEqual({ kind: 'denied' })
-    expect(handed.asked).toEqual(['readCount'])
+    expect(await parts.adopted.readCount({ access: w.access, target })).toEqual({ kind: 'denied' })
+    expect(w.provider.state.calls).toHaveLength(1)
+  })
+})
+
+// --- the narrow adoption source over the a part (FIXED-FACTS F5) -----------------------------------
+
+/** What the provider saved for one main-purpose M0 of `target`, and the record it holds. */
+function savedOf(target: ContextTarget, tag: string, order: string, values: FixedValues = {}) {
+  const { record, adoptedRequest, adoptedContext } = m0Checkpoint(target, tag, values)
+  const saved: SessionAdoptedRequest = {
+    order,
+    execution: `exe_${tag}`,
+    reference: adoptedRequest.reference,
+    fixed: adoptedRequest.fixed,
+    coverage: adoptedContext,
+    schema: adoptedRequest.schema,
+    record: adoptedRequest.record,
+  }
+  return { saved, record }
+}
+
+describe('the narrow adoption source reads the a part of the session (RQ-14)', () => {
+  async function adoptedWorld() {
+    const w = await world()
+    const { parts } = await w.borrow()
+    const { target } = await resolved(w, parts)
+    const source = () => parts.adopted.readSource({ access: w.access, target })
+    const count = () => parts.adopted.readCount({ access: w.access, target })
+    return { w, parts, target, source, count }
+  }
+
+  it('answers null before the first M0, and after one every field of the fact from the a part', async () => {
+    const { w, target, source } = await adoptedWorld()
+    expect(await source()).toEqual({ kind: 'value', value: null })
+    const { saved, record } = savedOf(target, '1', '1')
+    w.provider.state.saved = saved
+    const answer = await source()
+    if (answer.kind !== 'value' || answer.value === null) throw new Error(JSON.stringify(answer))
+    const expected = {
+      coverage: record.coverage,
+      target,
+      call: { tenant: target.tenant, call: 'mcall_1' },
+      candidate: record.candidate,
+      order: '1',
+      committed: saved.fixed,
+      windowTokens: record.windowTokens,
+      accounting: { kind: 'unsettled' },
+      forecast: record.forecast,
+      continuation: null,
+    }
+    expect(Object.keys(answer.value).sort()).toEqual(Object.keys(expected).sort())
+    for (const [field, value] of Object.entries(expected))
+      expect(answer.value[field as keyof typeof answer.value], field).toEqual(value)
   })
 
-  it('answers unavailable after the access check when no fixed request facts are handed in', async () => {
-    const w = await world()
+  it('the token changes when a new M0 is saved, and only then', async () => {
+    const { w, target, count, source } = await adoptedWorld()
+    const none = await count()
+    expect(none.kind).toBe('value')
+    expect(await count()).toEqual(none)
+    w.provider.state.saved = savedOf(target, '1', '1').saved
+    const first = await count()
+    expect(first.kind).toBe('value')
+    expect(first).not.toEqual(none)
+    await source()
+    expect(await count()).toEqual(first)
+    // The next M0, of another execution: a higher order, another token.
+    w.provider.state.saved = savedOf(target, '2', '2').saved
+    const second = await count()
+    expect(second.kind).toBe('value')
+    expect(second).not.toEqual(first)
+  })
+
+  it('the order is the order of the a part: one more for the M0 of the next execution', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const orders: string[] = []
+    // Both M0 evidences are revision 1 of their own record: only the a part orders them.
+    for (const [tag, order] of [
+      ['1', '1'],
+      ['2', '2'],
+    ] as const) {
+      w.provider.state.saved = savedOf(target, tag, order).saved
+      const answer = await source()
+      if (answer.kind !== 'value' || answer.value === null) throw new Error(JSON.stringify(answer))
+      orders.push(answer.value.order)
+    }
+    expect(orders).toEqual(['1', '2'])
+  })
+
+  it('a record of another tenant is denied, a record of another scope is null', async () => {
+    const { w, target, source } = await adoptedWorld()
+    w.provider.state.saved = savedOf({ ...target, tenant: intruder.tenant }, '1', '1').saved
+    expect(await source()).toEqual({ kind: 'denied' })
+    // The last M0 fixed a request of an earlier scope: the target scope has none yet.
+    const earlier = { ...target, scope: { ...target.scope, ref: 'scope:earlier' } as never }
+    w.provider.state.saved = savedOf(earlier, '1', '1').saved
+    expect(await source()).toEqual({ kind: 'value', value: null })
+  })
+
+  it('a target scope retired while the a part was read is unavailable, not null', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const bindings = ok(await w.s.backend.transactions.readWork(w.s.access)).contextScopes ?? []
+    const last = bindings.at(-1)
+    if (last === undefined) throw new Error('the session has no scope')
+    // Between the eligibility check and the answer of the provider, the session archives the
+    // target scope, revokes the archive into a new scope, and the first M0 of the new scope lands.
+    const next = { ...target, scope: { ...target.scope, ref: 'scope:after-archive' } as never }
+    w.provider.state.saved = savedOf(next, '2', '2').saved
+    w.provider.state.meanwhile = () => {
+      w.faults.scopes = [
+        ...bindings.map(binding => ({ ...binding, ended: evidence('archived') })),
+        { ...last, scope: 'scope:after-archive', ended: null },
+      ]
+    }
+    const answer = await source()
+    expect(answer).toMatchObject({ kind: 'unavailable' })
+    expect(JSON.stringify(answer)).toContain('retired')
+  })
+
+  it('a record of another scope is unavailable while the current scope is not readable', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const earlier = { ...target, scope: { ...target.scope, ref: 'scope:earlier' } as never }
+    w.provider.state.saved = savedOf(earlier, '1', '1').saved
+    await w.fibers.get('lowerBound')?.dispose()
+    expect(await source()).toMatchObject({ kind: 'unavailable' })
+  })
+
+  it('passes the provider unavailable and denied on as they are, never as null', async () => {
+    const { w, source, count } = await adoptedWorld()
+    w.provider.state.answer = { kind: 'unavailable', diagnostic: 'the a part is not readable' }
+    expect(await source()).toMatchObject({ kind: 'unavailable' })
+    expect(await count()).toMatchObject({ kind: 'unavailable' })
+    w.provider.state.answer = { kind: 'denied' }
+    expect(await source()).toEqual({ kind: 'denied' })
+    w.provider.state.answer = 'throw'
+    expect(await source()).toMatchObject({ kind: 'unavailable' })
+  })
+
+  it('answers unavailable without sessionAdoptedRequests', async () => {
+    const w = await world({ adopted: 'absent' })
     const { parts } = await w.borrow()
     const { target } = await resolved(w, parts)
     const answer = await parts.adopted.readSource({ access: w.access, target })
     expect(answer).toMatchObject({ kind: 'unavailable' })
-    expect(JSON.stringify(answer)).toContain('adopted-facts-absent')
-    w.qualification.session = false
-    expect(await parts.adopted.readSource({ access: w.access, target })).toEqual({ kind: 'denied' })
+    expect(JSON.stringify(answer)).toContain('adopted-requests-absent')
+  })
+
+  it('a record whose coverage is not the coverage of the M0 evidence, or that does not decode, is invalid', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const { saved } = savedOf(target, '1', '1')
+    // The record changed after the M0 evidence was minted: its coverage digest no longer agrees.
+    const tampered = structuredClone(saved.record) as { coverage: { prefixBreak: string } }
+    tampered.coverage.prefixBreak = 'unchanged'
+    w.provider.state.saved = { ...saved, record: tampered }
+    expect(await source()).toEqual({
+      kind: 'invalid',
+      field: 'adopted',
+      reason: 'source-evidence-conflict',
+    })
+    w.provider.state.saved = { ...saved, coverage: null }
+    expect(await source()).toMatchObject({ kind: 'invalid', reason: 'source-evidence-conflict' })
+    w.provider.state.saved = { ...saved, record: { schema: 'other/1' } }
+    expect(await source()).toEqual({
+      kind: 'invalid',
+      field: 'adopted',
+      reason: 'unsupported-format',
+    })
+  })
+
+  it('the coverage evidence that the real agent-context mints for a ready preparation passes the check', async () => {
+    const w = await world()
+    const { ready, target: fixed } = await agentContextReady(w.s.access.tenant)
+    // The current scope of the session is the scope agent-context fixed the request for.
+    const bindings = ok(await w.s.backend.transactions.readWork(w.s.access)).contextScopes ?? []
+    const last = bindings.at(-1)
+    if (last === undefined) throw new Error('the session has no scope')
+    w.faults.scopes = [...bindings.slice(0, -1), { ...last, scope: fixed.scope.ref }]
+    const { parts } = await w.borrow()
+    const { target } = await resolved(w, parts)
+    expect(target.scope.ref).toBe(fixed.scope.ref)
+    // The a part as the provider saves it from the checkpoint of that M0.
+    w.provider.state.saved = {
+      order: '1',
+      execution: 'exe_1',
+      reference: invocation(w.s.access.tenant, 'ready'),
+      fixed: ready.source,
+      coverage: ready.coverage,
+      schema: ready.schema,
+      record: ready.state,
+    }
+    const answer = await parts.adopted.readSource({ access: w.access, target })
+    expect(answer).toMatchObject({
+      kind: 'value',
+      value: { order: '1', committed: ready.source, candidate: 'action-1' },
+    })
+  })
+
+  it('RQ-14: the window usage of the real accounting is not-fixed before the first M0 and an estimate after it', async () => {
+    const { w, parts, target } = await adoptedWorld()
+    const accounting = createContextAccounting<unknown>({
+      sourceAuthority: { check: async () => ({ kind: 'allowed' }) },
+      readEligibility: parts.eligibility,
+      adoptedSource: parts.adopted,
+      recoveryAuthority: {
+        check: async () => ({ kind: 'allowed' }),
+        checkFact: async () => ({ kind: 'allowed' }),
+      },
+      limits: { maxTargets: 4, maxFactsPerTarget: 16, maxRevisionsPerDispatch: 8 },
+    })
+    const grant = decodeRecoveryGrantRef('grant_1')
+    if ('failure' in grant) throw new Error('the fixture grant is invalid')
+    const rebuilt = await accounting.recovery.rebuildAccounts({
+      access: { scope: 'system', principal: 'host', grant: grant.ok },
+      target,
+      replay: {
+        snapshot: evidence('accounts'),
+        facts: (async function* (): AsyncGenerator<never> {})(),
+      },
+    })
+    expect(rebuilt.kind).toBe('rebuilt')
+    const usage = () => accounting.inbox.usage({ access: w.access, target })
+    expect(await usage()).toEqual({ kind: 'value', value: { kind: 'not-fixed' } })
+    const { saved, record } = savedOf(target, '1', '1', {
+      windowTokens: '128000',
+      forecast: { kind: 'estimate', usedTokens: '1200' },
+    })
+    w.provider.state.saved = saved
+    expect(await usage()).toMatchObject({
+      kind: 'value',
+      value: {
+        kind: 'estimate',
+        candidate: record.candidate,
+        usedTokens: '1200',
+        windowTokens: '128000',
+      },
+    })
   })
 })
 
 // --- SS-21 -----------------------------------------------------------------------------------------
 
+/**
+ * The Session calls of one read after a kept cursor (SS-21, R2-D72): one page from the cursor
+ * Session issued, and one more page that asks Session for the cursor before the new upper bound,
+ * because a page that reaches the upper bound carries no cursor (`mint`, K-18). The constant does
+ * not depend on the history: a read that grows with N is the defect this case guards.
+ */
+const CALLS_PER_TAIL_READ = 2
+
 describe('SS-21: a page after the cursor costs the same at N = 10 and N = 100 rows', () => {
-  async function tail(rows: number) {
-    const w = await world()
-    const { parts } = await w.borrow()
-    await w.remind(rows - 1)
-    const ev = await resolved(w, parts)
-    const calls = w.sessionCalls()
-    const served = w.modelViewRows.length
-    const after = String(rows - 2) as never
+  // The cursor is the one a reader holds from its previous read: the history had N - 2 rows, the
+  // reader read them all, and two rows were added since. The Session cursors are opaque, so the
+  // reader starts at the cursor it kept one row before the previous upper bound.
+  type Tail = Readonly<{ calls: number; rows: number; returned: readonly string[] }>
+  type TailRead = (
+    parts: ContextHolderParts<unknown>,
+    w: Awaited<ReturnType<typeof world>>,
+    ev: HistoryEvidence,
+    after: string,
+  ) => Promise<readonly string[]>
+
+  /** The read of the case: the rows after the cursor, with the cursor the reader kept. */
+  const afterCursor: TailRead = async (parts, w, ev, after) => {
     const answer = await parts.history.read({
       access: w.access,
       evidence: ev,
-      cursor: { evidence: ev, after },
+      cursor: { evidence: ev, after: after as never },
       budgetBytes: 400,
     })
     if (answer.kind !== 'page') throw new Error(JSON.stringify(answer))
+    return answer.page.rows.map(row => row.seq)
+  }
+
+  async function tail(rows: number, read: TailRead = afterCursor): Promise<Tail> {
+    const w = await world()
+    const { parts } = await w.borrow()
+    await w.remind(rows - 3)
+    expect(await readAll(parts, w.access, await resolved(w, parts))).toHaveLength(rows - 2)
+    await w.remind(2, 'later')
+    const ev = await resolved(w, parts)
+    const calls = w.sessionCalls()
+    const served = w.modelViewRows.length
+    // The history rows are 0 to rows - 1: the cursor is before the last two.
+    const returned = await read(parts, w, ev, String(rows - 3))
     return {
       calls: w.sessionCalls() - calls,
       rows: w.modelViewRows.slice(served).reduce((sum, count) => sum + count, 0),
-      returned: answer.page.rows.map(row => row.seq),
+      returned,
     }
   }
 
-  it('reads one model view page holding only the rows after the cursor', async () => {
+  /** What the case asserts of the two sizes: the same constant number of calls and rows. */
+  function expectFlat(small: Tail, large: Tail) {
+    expect(small.calls).toBe(CALLS_PER_TAIL_READ)
+    expect(large.calls).toBe(CALLS_PER_TAIL_READ)
+    expect(small.rows).toBe(large.rows)
+  }
+
+  it('reads the rows after the cursor and one row before it, then the cursor for the next read', async () => {
     const small = await tail(10)
     const large = await tail(100)
-    expect(small.calls).toBe(1)
-    expect(large.calls).toBe(1)
-    expect(small.rows).toBe(large.rows)
-    expect(small.returned).toEqual(['9', '10'])
-    expect(large.returned).toEqual(['99', '100'])
+    expectFlat(small, large)
+    expect(small.returned).toEqual(['8', '9'])
+    expect(large.returned).toEqual(['98', '99'])
+  })
+
+  it('negative control: a reader that reads the history from the start fails the same assertions', async () => {
+    // Every read starts at the beginning and skips the rows it has: the calls grow with N.
+    const fromStart: TailRead = async (parts, w, ev, after) => {
+      const seqs = await readAll(parts, w.access, ev)
+      return seqs.filter(seq => Number(seq) > Number(after))
+    }
+    const small = await tail(10, fromStart)
+    const large = await tail(100, fromStart)
+    expect(large.calls).toBeGreaterThan(small.calls)
+    expect(() => expectFlat(small, large)).toThrow()
   })
 
   it('negative control: reading the history from the start grows with N', async () => {

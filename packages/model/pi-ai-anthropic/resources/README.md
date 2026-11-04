@@ -16,7 +16,7 @@
 
 ## 本包事实
 
-`tokenizers/anthropic-legacy/` 有三个文件，从封存件 `packages.0.0.1.legacy/model/pi-ai-transport/resources/tokenizers/anthropic-legacy/` 原样迁入：
+`tokenizers/anthropic-legacy/` 有三个文件，从封存件 [packages.0.0.1.legacy/model/pi-ai-transport/resources/tokenizers/anthropic-legacy/](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/model/pi-ai-transport/resources/tokenizers/anthropic-legacy)（已从仓库删除，链接指向固定提交）原样迁入：
 
 - `claude.json`：旧 Claude BPE 词表，696615 字节，SHA-256 `58dad83d85e9cd57be209172449ebfbc395df2b455c11fe8b7e5b661e6f462ad`。来源是 anthropics/anthropic-tokenizer-typescript 的提交 `4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b`。Anthropic 称它对 Claude 3 以后的型号只是很粗的近似。
 - `LICENSE`：上游许可证，SHA-256 `f8508be03f7b370f84fb8411b78cc36b5addaa185628d91b6ca09888d0487798`。上游仓库的 LICENSE 是 MIT 条款，其 package.json 声明 Apache-2.0。副本删去了末尾一个空行，条款不变。

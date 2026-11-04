@@ -23,6 +23,7 @@ import type {
 } from '@omne-harness/runtime-context-contract'
 import type { ContextMaterials, LatestRead, Place } from './materials.ts'
 import { digest, tenantText } from './records.ts'
+import { createContextMeasurer, type ContextMeasure } from './measure.ts'
 import { failureOfRead, recipientText, unavailable } from './translate.ts'
 
 export type AgentModelContextOptions<P> = Readonly<{
@@ -33,6 +34,8 @@ export type AgentModelContextOptions<P> = Readonly<{
   eligibility: ReaderEligibilityHandoff<P>
   /** The Runtime Context reader face, bound to the model consumer class. */
   runtimeContext: ReaderOperations
+  /** The observer of the measurement events (SPEC「测量事件」). Absent means no event is built. */
+  measure?: ContextMeasure
 }>
 
 type ReadInput<P> = Parameters<ModelContextReader<P>['read']>[0]
@@ -78,6 +81,7 @@ export function createAgentModelContext<P>(
   options: AgentModelContextOptions<P>,
 ): ModelContextReader<P> {
   const { materials, parts, eligibility, runtimeContext } = options
+  const measurer = createContextMeasurer(options.measure)
 
   async function current(access: Access<P>, target: ContextTarget): Promise<Answer<EligibilityId>> {
     const handed = await eligibility.current({
@@ -210,17 +214,10 @@ export function createAgentModelContext<P>(
     const reader = await readerOf(access, target, latest)
     if ('failure' in reader) return fail(reader.failure)
     const recipient = recipientText(input.recipient)
-    const incremental =
-      latest !== undefined &&
-      latest.reader === reader.ok.reader &&
-      latest.recipient === recipient &&
-      input.transition === null &&
-      (await adoptedHolds(input, target))
-    const taken = await take(reader.ok, incremental ? latest : undefined)
+    const kept = await keptRead(latest, reader.ok.reader, recipient, input, target)
+    const taken = await take(reader.ok, kept)
     if ('failure' in taken) {
-      // A reader that no entry holds ends here; a kept one stays with its entry.
-      if (latest?.reader !== reader.ok.reader) void reader.ok.reader.end().catch(() => undefined)
-      if (taken.ended) materials.dropScope(tenant, target.scope.ref)
+      releaseAfter(taken.ended, latest, reader.ok.reader, place)
       return fail(taken.failure)
     }
     const { group, cursor, content } = taken.ok
@@ -251,6 +248,35 @@ export function createAgentModelContext<P>(
     })
     const result: ModelContextRead = { recipient: input.recipient, content, source, coverage }
     return succeed(result)
+  }
+
+  /** The kept read when this read goes on from it, else undefined: the read is then a full one. */
+  async function keptRead(
+    latest: LatestRead | undefined,
+    reader: ContextReader,
+    recipient: LatestRead['recipient'],
+    input: ReadInput<P>,
+    target: ContextTarget,
+  ): Promise<LatestRead | undefined> {
+    const incremental =
+      latest !== undefined &&
+      latest.reader === reader &&
+      latest.recipient === recipient &&
+      input.transition === null &&
+      (await adoptedHolds(input, target))
+    return incremental ? latest : undefined
+  }
+
+  /** What a read that gave no material leaves behind: its reader and, when it ended, its scope. */
+  function releaseAfter(
+    ended: boolean,
+    latest: LatestRead | undefined,
+    reader: ContextReader,
+    place: Place,
+  ): void {
+    // A reader that no entry holds ends here; a kept one stays with its entry.
+    if (latest?.reader !== reader) void reader.end().catch(() => undefined)
+    if (ended) materials.dropScope(place.tenant, place.scope)
   }
 
   type Taken = Readonly<{
@@ -307,5 +333,13 @@ export function createAgentModelContext<P>(
     }
   }
 
-  return { read }
+  return {
+    read: input =>
+      measurer.segment(
+        'read',
+        input.advance.execution,
+        () => read(input),
+        answer => 'failure' in answer,
+      ),
+  }
 }

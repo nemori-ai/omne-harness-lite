@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness/message'
 import {
+  expectedRevision,
   reduce,
   type BatchId,
   type CallBinding,
@@ -440,7 +441,7 @@ describe('original result responsibility', () => {
           ...s.base,
           operation: operationId('reload'),
           run: s.run.run,
-          expected: current.snapshot.revision,
+          expected: expectedRevision(current.snapshot, 'reload'),
           instance: { owner: 'agent', id: 'replacement' },
           candidate: s.run.adoption,
           handover: evidence('reload'),

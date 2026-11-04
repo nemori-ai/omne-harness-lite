@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import {
   deriveDriveOperation,
+  expectedRevision,
   type AgentDrivePort,
   type SessionId,
   type WorkSnapshot,
@@ -19,6 +20,7 @@ import {
   succeeded,
 } from '@omne-harness/session-contract/testing'
 import { sessionSlotReference } from '../src/slot-reference.ts'
+import { interceptReads, turn } from './fixtures/control-fixture.ts'
 import { memoryBackend } from './fixtures/backends.ts'
 import { harness, TENANT_A, type Harness, type HarnessOptions } from './fixtures/harness.ts'
 
@@ -85,6 +87,154 @@ describe('the session slot reference (XC-AGINST 第 2.1 节, AD-14 rule)', () =>
 })
 
 describe('S1 and C2: a commit that leaves a startable input opens the Run', () => {
+  for (const withdrawal of [
+    'released',
+    'replaced',
+    'read-failed',
+    'principal-denied',
+    'archived',
+    'closed',
+  ] as const)
+    it(`SC-01 ${withdrawal} 后原 invoke 不再发送`, async () => {
+      const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
+      await h.create()
+      const invoke = vi.fn<AgentDrivePort['invoke']>(async () => fail({ kind: 'busy' }))
+      h.drive.invoke = invoke
+      await h.accept('input-1')
+      await vi.waitFor(() => expect(invoke).toHaveBeenCalledTimes(1))
+      await turn()
+      const snapshot = await read(h)
+      if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
+        throw new Error('no attempt')
+      const execution = snapshot.run.execution.execution
+      if (withdrawal === 'released' || withdrawal === 'replaced') {
+        succeeded(
+          await h.faces('coordinator').work.release({
+            ...h.access(),
+            operation: operationId('release'),
+            advance: snapshot.run.advance,
+            expected: expectedRevision(snapshot, 'release'),
+            handover: evidence('released'),
+          }),
+          'release',
+        )
+        if (withdrawal === 'replaced') {
+          const released = await read(h)
+          succeeded(
+            await h.faces('coordinator').work.claim({
+              ...h.access(),
+              operation: operationId('claim'),
+              run: snapshot.run.run,
+              instance: { owner: 'agent', id: 'replacement' },
+              continuity: evidence('continuity'),
+              expected: expectedRevision(released, 'claim'),
+            }),
+            'claim',
+          )
+        }
+      } else if (withdrawal === 'read-failed') {
+        interceptReads(h, async () =>
+          fail({ kind: 'unavailable', owner: 'test-read', diagnostic: 'read failed' }),
+        )
+      } else if (withdrawal === 'principal-denied') {
+        h.bindings.controls.answerNext({ ok: { kind: 'not-bound' } })
+      } else if (withdrawal === 'archived') {
+        succeeded(
+          await h.faces('intake').work.control({
+            ...h.access(),
+            operation: operationId('archive'),
+            intent: { kind: 'archive' },
+          }),
+          'archive',
+        )
+      } else await h.instance.close()
+      h.clock.controls.advance(1000)
+      await turn()
+      expect(invoke.mock.calls.filter(([input]) => input.execution === execution)).toHaveLength(1)
+    })
+
+  it('SC-01 重新读取期间实例关闭则不发送', async () => {
+    const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
+    await h.create()
+    const invoke = vi.fn<AgentDrivePort['invoke']>(async () => fail({ kind: 'busy' }))
+    h.drive.invoke = invoke
+    await h.accept('input-1')
+    await vi.waitFor(() => expect(invoke).toHaveBeenCalledTimes(1))
+    await turn()
+    const original = h.backend.transactions.readWork.bind(h.backend.transactions)
+    let reading: (() => void) | undefined
+    let started = false
+    interceptReads(h, async input => {
+      started = true
+      await new Promise<void>(resolve => {
+        reading = resolve
+      })
+      return original(input)
+    })
+    h.clock.controls.advance(1000)
+    await vi.waitFor(() => expect(started).toBe(true))
+    const closing = h.instance.close()
+    reading?.()
+    await closing
+    expect(invoke).toHaveBeenCalledTimes(1)
+  })
+
+  it('SC-01 commit-unknown 查询后立即重试仍重新核资格', async () => {
+    const h = await service()
+    await h.create()
+    h.drive.query = async () => {
+      const snapshot = await read(h)
+      if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
+        throw new Error('no attempt')
+      succeeded(
+        await h.faces('coordinator').work.release({
+          ...h.access(),
+          operation: operationId('release'),
+          advance: snapshot.run.advance,
+          expected: expectedRevision(snapshot, 'release'),
+          handover: evidence('released'),
+        }),
+        'release',
+      )
+      return { ok: 'excluded' }
+    }
+    const invoke = vi.fn<AgentDrivePort['invoke']>(async () =>
+      fail({ kind: 'commit-unknown', operation: 'original' }),
+    )
+    h.drive.invoke = invoke
+    await h.accept('input-1')
+    await vi.waitFor(async () => {
+      const snapshot = await read(h)
+      expect(snapshot.run.kind === 'active' && snapshot.run.advance === null).toBe(true)
+    })
+    await turn()
+    expect(invoke).toHaveBeenCalledTimes(1)
+  })
+
+  it('SC-01 busy 后取消禁止第二次 invoke', async () => {
+    const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
+    await h.create()
+    const invoke = vi.fn<AgentDrivePort['invoke']>(async () => fail({ kind: 'busy' as const }))
+    h.drive.invoke = invoke
+    await h.accept('input-1')
+    await vi.waitFor(() => expect(invoke).toHaveBeenCalledTimes(1))
+    const snapshot = await read(h)
+    if (snapshot.run.kind !== 'active') throw new Error('no active Run')
+    const execution = snapshot.run.execution.execution
+    succeeded(
+      await h.faces('intake').work.cancelRun({
+        ...h.access(),
+        operation: operationId('cancel'),
+        run: snapshot.run.run,
+        urgency: 'graceful',
+      }),
+      'cancel',
+    )
+    h.clock.controls.advance(1000)
+    await new Promise(resolve => setImmediate(resolve))
+    expect(invoke.mock.calls.filter(([input]) => input.execution === execution)).toHaveLength(1)
+  })
+
   it('accept wakes S1; C2 starts the Run with the slot reference, invokes with the derived identity, and records the hand-over', async () => {
     const h = await service()
     await h.create()

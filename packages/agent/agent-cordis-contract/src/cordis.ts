@@ -22,6 +22,8 @@ import {
   type AgentJournal,
   type AgentJournalEntries,
   type AgentMaterials,
+  type AgentReceivedCommits,
+  type AgentReceivedRecords,
   type AgentRegistrationId,
   type CurrentConditions,
   type DecisionCards,
@@ -29,6 +31,8 @@ import {
   type Failure,
   type MessageHandoff,
   type ModelContextReader,
+  type ModelReceptionTargets,
+  type ToolReceptionTargets,
   type ModelSelection,
   type RegisteredReads,
   type Registration,
@@ -217,6 +221,7 @@ export abstract class AgentMaterialsService<P, B extends ContentBlock>
   }
   abstract readonly preserve: AgentMaterials<P, B>['preserve']
   abstract readonly read: AgentMaterials<P, B>['read']
+  abstract readonly describe: AgentMaterials<P, B>['describe']
 }
 export const agentMaterialsKey = AgentMaterialsService.provide
 
@@ -297,8 +302,74 @@ export abstract class AgentJournalEntriesService<P>
     super(ctx, AgentJournalEntriesService.provide)
   }
   abstract readonly record: AgentJournalEntries<P>['record']
+  abstract readonly read: AgentJournalEntries<P>['read']
+  abstract readonly receivedOf: AgentJournalEntries<P>['receivedOf']
 }
 export const agentJournalEntriesKey = AgentJournalEntriesService.provide
+
+// The joint custody port of the result receiver (agent-contract "接收共同提交"). The provider of
+// `agentJournal` serves it in the same ordering, with `agentJournalEntries` and `agentMaterials`.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class AgentReceivedCommitsService<P, B extends ContentBlock>
+  extends Service
+  implements AgentReceivedCommits<P, B>
+{
+  static readonly provide = 'agentReceivedCommits'
+  constructor(ctx: Context) {
+    super(ctx, AgentReceivedCommitsService.provide)
+  }
+  abstract readonly commit: AgentReceivedCommits<P, B>['commit']
+  abstract readonly query: AgentReceivedCommits<P, B>['query']
+}
+export const agentReceivedCommitsKey = AgentReceivedCommitsService.provide
+
+// The read face of the received records (agent-contract J08 item 6), for the evidence adapter of
+// the Agent consumer owner. The provider of `agentJournal` serves it from the same records. A
+// trusted name: the assembly makes it visible only to the holder of that adapter.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class AgentReceivedRecordsService<P>
+  extends Service
+  implements AgentReceivedRecords<P>
+{
+  static readonly provide = 'agentReceivedRecords'
+  constructor(ctx: Context) {
+    super(ctx, AgentReceivedRecordsService.provide)
+  }
+  abstract readonly query: AgentReceivedRecords<P>['query']
+}
+export const agentReceivedRecordsKey = AgentReceivedRecordsService.provide
+
+// The stable target query of the Model result receiver (agent-contract J02 item 1). The provider
+// that keeps the original consumption bindings, the provider of `agentJournal`, serves it.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class ModelReceptionTargetsService<P>
+  extends Service
+  implements ModelReceptionTargets<P>
+{
+  static readonly provide = 'agentModelReceptionTargets'
+  constructor(ctx: Context) {
+    super(ctx, ModelReceptionTargetsService.provide)
+  }
+  abstract readonly forExecution: ModelReceptionTargets<P>['forExecution']
+  abstract readonly resolve: ModelReceptionTargets<P>['resolve']
+}
+export const agentModelReceptionTargetsKey = ModelReceptionTargetsService.provide
+
+// The stable target query of the Tool result receiver (agent-contract J02 item 1, R2-D273). The
+// provider that keeps the original consumption bindings, the provider of `agentJournal`, serves it.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class ToolReceptionTargetsService<P>
+  extends Service
+  implements ToolReceptionTargets<P>
+{
+  static readonly provide = 'agentToolReceptionTargets'
+  constructor(ctx: Context) {
+    super(ctx, ToolReceptionTargetsService.provide)
+  }
+  abstract readonly forExecution: ToolReceptionTargets<P>['forExecution']
+  abstract readonly resolve: ToolReceptionTargets<P>['resolve']
+}
+export const agentToolReceptionTargetsKey = ToolReceptionTargetsService.provide
 
 // The account outlet of Agent. The adapter on the side of Request Context provides it.
 /** @owner packages/agent/agent-cordis-contract */
@@ -849,6 +920,10 @@ declare module '@deepseek-ai/cordis' {
     agentExecutionRecovery: AgentExecutionRecoveryService<unknown>
     agentJournalEntries: AgentJournalEntriesService<unknown>
     agentAccountOutlet: AgentAccountOutletService<unknown>
+    agentReceivedCommits: AgentReceivedCommitsService<unknown, ContentBlock>
+    agentReceivedRecords: AgentReceivedRecordsService<unknown>
+    agentModelReceptionTargets: ModelReceptionTargetsService<unknown>
+    agentToolReceptionTargets: ToolReceptionTargetsService<unknown>
     agentExecutionControl: AgentExecutionControlService<unknown>
     agentInstances: AgentInstancesService<unknown>
     agentInstanceProvision: AgentInstanceProvisionService<unknown>

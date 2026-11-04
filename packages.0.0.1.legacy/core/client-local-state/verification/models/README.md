@@ -1,9 +1,0 @@
-# 本地比较替换行为义务
-
-LocalChoice.tla 为候选行为模型：两个调用（退出旧引用、保存新引用），分开读取快照、网络返回、真实本地提交与调用者确认；允许一次外部重建存储，实例身份改变、修订重置。提交后可以确认installed或unconfirmed，未写入也可以unconfirmed，不把未知当作未发生。
-
-valid.cfg 检查TypeOK、NoStaleOverwrite、NoForeignSnapshot、NoFalseNoChange；在弱公平调度及每个阶段可结束的前提下检查EventuallyDone。bad-split把比较和写分开，bad-instance只比较可在新实例复用的修订，bad-claim把真实写入说成not-installed，分别应触发对应反例。Record.value只是完整应用记录的抽象标签，不证明任意字段解析/过滤。
-
-有限检查只覆盖抽象两个调用/一次存储换代，不替代操作系统、SQLite、文件权限、目录同步与真实关闭验证。不需要为纯字段形状预造Alloy模型；若后续引入更复杂身份关系须重新判断。
-
-条款映射：S3/S5比较写入对应NoStaleOverwrite、实例身份对应NoForeignSnapshot；S5/S6未确认不作未发生对应NoFalseNoChange（只覆盖返回分类，不覆盖operationId查证）。Reset只表示持有真实已签发快照后观察到存储代际改变，不模拟来自另一提供者的凭证或伪造/关闭引用；这些输入分类须动态测试。EventuallyDone对应S7有条件进展，依赖两调用按有限脚本推进、网络返回阶段可结束及弱公平；不宣称真实网络或整次客户端使用必然结束。

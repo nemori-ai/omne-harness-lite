@@ -36,8 +36,8 @@ import type { LoopNode } from './nodes.ts'
 export const agentCheckpointSchema: Adoption = Object.freeze({
   owner: '@omne-harness/agent',
   name: 'agent-checkpoint',
-  revision: '2',
-  digest: 'agent:agent-checkpoint/2',
+  revision: '3',
+  digest: 'agent:agent-checkpoint/3',
 })
 
 /** The position of a new checkpoint: every new logical execution passes E3 once (node table E3). */
@@ -66,11 +66,13 @@ function initial(
     requestPreparation: null,
     compaction: null,
     adoptedContext: null,
+    adoptedRequest: null,
     guard: null,
     completedPassages: [],
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
+    voided: [],
   })
 }
 
@@ -114,13 +116,25 @@ function next(facts: LoopFacts): Outcome<Next, Failure> {
   }
 }
 
-/** Node table I8: a lawful basis to go on opens a new iteration; otherwise completion is proposed. */
-function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
-  const { checkpoint } = facts
-  // Non-empty action batches and extension passages still belong to their own nodes.
-  if (checkpoint.batch !== null && checkpoint.batch.actions.length > 0) return unsupported
-  if (checkpoint.passages.some(passage => passage.progress.kind !== 'applied')) return unsupported
-  const waiting: Waiting[] = checkpoint.calls.map(pending => ({ kind: 'producer', pending }))
+/**
+ * A batch with actions reaches I8 only from T5, after every slot's message was admitted: 'round'.
+ * Its results or denials are new history the model has not seen. A batch in any other state
+ * belongs to its own nodes: 'open'. No batch, or one without actions: 'none'.
+ */
+function toolRound(batch: AgentCheckpoint['batch']): 'none' | 'round' | 'open' {
+  if (batch === null || batch.actions.length === 0) return 'none'
+  const admitted = batch.actions.every(action =>
+    batch.slots.some(slot => slot.action === action.id && slot.handoff !== null),
+  )
+  return admitted ? 'round' : 'open'
+}
+
+/** The producer waits of I8, or null when a ready result needs its later consumption nodes. */
+function producerWaits(facts: LoopFacts): Waiting[] | null {
+  const waiting: Waiting[] = facts.checkpoint.calls.map(pending => ({
+    kind: 'producer',
+    pending,
+  }))
   for (const producer of facts.producers) {
     // Ready results need their later consumption nodes, never an idle producer wait.
     if (
@@ -128,20 +142,31 @@ function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
       producer.kind === 'tool-result' ||
       producer.kind === 'tool-background'
     )
-      return unsupported
-    if (
-      !waiting.some(
-        item =>
-          item.kind === 'producer' && item.pending.consumption === producer.pending.consumption,
-      )
+      return null
+    const known = waiting.some(
+      item => item.kind === 'producer' && item.pending.consumption === producer.pending.consumption,
     )
-      waiting.push({ kind: 'producer', pending: producer.pending })
+    if (!known) waiting.push({ kind: 'producer', pending: producer.pending })
   }
+  return waiting
+}
+
+/** Node table I8: a lawful basis to go on opens a new iteration; otherwise completion is proposed. */
+function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
+  const { checkpoint } = facts
+  const round = toolRound(checkpoint.batch)
+  if (round === 'open') return unsupported
+  if (checkpoint.passages.some(passage => passage.progress.kind !== 'applied')) return unsupported
+  const waiting = producerWaits(facts)
+  if (waiting === null) return unsupported
   if (facts.consumption.some(item => item.custody === null && item.completion === null))
     waiting.push({ kind: 'dependency', owner: 'agentJournal', position: 'I8' })
   if (waiting.length > 0) return succeed({ kind: 'wait', waiting })
-  if (facts.batch.ordered.length > 0 || facts.conditions.progression.kind === 'continue')
-    return succeed({ kind: 'take-inputs', position: 'I0' })
+  const basis =
+    round === 'round' ||
+    facts.batch.ordered.length > 0 ||
+    facts.conditions.progression.kind === 'continue'
+  if (basis) return succeed({ kind: 'take-inputs', position: 'I0' })
   // Neither an action nor an empty queue ends the execution by itself: this is only a candidate,
   // which F1 fixes and F3 commits or refuses.
   return succeed({ kind: 'try-finish', conclusion: { kind: 'complete' }, failure: null })
@@ -186,7 +211,7 @@ function encode(value: AgentCheckpoint): Continuation {
   }
 }
 
-/** Every member of the checkpoint this evaluator writes; each one is required. */
+/** The members of the checkpoint this evaluator writes and always requires on decode. */
 const CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = [
   'schema',
   'definition',
@@ -204,6 +229,19 @@ const CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = [
   'priorConditions',
   'currentHandoff',
   'replyAdmissionRead',
+  'voided',
+]
+
+/**
+ * The members the contract declares optional: `initial` writes them, and decode keeps them when
+ * present and leaves them out when absent (R2-D18: optional until Reduce makes them required).
+ */
+const OPTIONAL_CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = ['adoptedRequest']
+
+/** Every member a decoded checkpoint may hold; any other member is unknown. */
+const KNOWN_CHECKPOINT_MEMBERS: readonly string[] = [
+  ...CHECKPOINT_MEMBERS,
+  ...OPTIONAL_CHECKPOINT_MEMBERS,
 ]
 
 /** The plain value of a JSON value tree: the inverse of `toJson`. */
@@ -266,10 +304,10 @@ function readPositionOf(value: unknown): Outcome<ReplyAdmissionRead, Failure> {
 }
 
 /**
- * Decodes a continuation this evaluator encoded: the exact schema adoption, every member present
- * and no other, the definition, step and position of the continuation, and the read position of
- * the reply admission facts exactly (D5: a missing member or an unknown schema is refused, never
- * taken as `unverified` or as zero). There is no named migration of an older schema. The other
+ * Decodes a continuation this evaluator encoded: the exact schema adoption, every required member
+ * present, an optional one kept only when present, and no other member, the definition, step and
+ * position of the continuation, and the read position of the reply admission facts exactly (D5: a
+ * missing required member or an unknown schema is refused, never taken as `unverified` or as zero). There is no named migration of an older schema. The other
  * facets keep their encoded shape: judging their identity relations is #502 stage 5 (resume).
  */
 function decode(value: Continuation): Outcome<AgentCheckpoint, Failure> {
@@ -280,7 +318,7 @@ function decode(value: Continuation): Outcome<AgentCheckpoint, Failure> {
   for (const member of CHECKPOINT_MEMBERS)
     if (!Object.hasOwn(tree, member)) return refused(`checkpoint.${member}`, 'missing')
   for (const member of Object.keys(tree))
-    if (!(CHECKPOINT_MEMBERS as readonly string[]).includes(member))
+    if (!KNOWN_CHECKPOINT_MEMBERS.includes(member))
       return refused(`checkpoint.${member}`, 'unknown-field')
   if (!sameAdoption(tree['schema'], value.schema))
     return refused('checkpoint.schema', 'not the schema of the continuation')
@@ -294,6 +332,15 @@ function decode(value: Continuation): Outcome<AgentCheckpoint, Failure> {
   if ('failure' in step) return refused('checkpoint.step', step.failure.reason)
   const read = readPositionOf(tree['replyAdmissionRead'])
   if ('failure' in read) return read
+  // R2-D292: a checkpoint keeps no assembled or ready preparation; one that holds it is not ours.
+  const preparation = tree['requestPreparation']
+  if (
+    preparation !== null &&
+    (!isRecord(preparation) ||
+      (preparation['kind'] !== 'needs-compaction' && preparation['kind'] !== 'cannot-fit'))
+  )
+    return refused('checkpoint.requestPreparation', 'not a saved preparation')
+  if (!Array.isArray(tree['voided'])) return refused('checkpoint.voided', 'type')
   // The members were checked one by one above; the other facets keep the shape encode wrote.
   return succeed({ ...(tree as AgentCheckpoint), step: step.ok, replyAdmissionRead: read.ok })
 }

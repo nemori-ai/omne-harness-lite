@@ -6,10 +6,18 @@
 // the settlement it pulled has ended.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { agentModelContextKey, agentRequestsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  AgentAdoptionsService,
+  agentAdoptionsKey,
+  agentModelContextKey,
+  agentRequestsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
+import type { AgentAdoptions, AgentDefinition } from '@omne-harness/agent-contract'
+import type { ContextMeasureEvent, ToolLookup } from '@omne-harness/agent-context'
 import {
   AgentContextProvider,
   MODEL_PREPARATION_RESOURCES,
+  createAgentContextPlugin,
 } from '@omne-harness/agent-context/cordis'
 import { ModelRequestPreparationService } from '@omne-harness/model-cordis-contract/cordis'
 import { RequestContextProvider } from '@omne-harness/request-context-cordis/cordis'
@@ -49,6 +57,29 @@ const PENDING = 0
 const ACTIVE = 2
 const FAILED = 3
 const config = { owner, resultCapacity: RESULT_CAPACITY }
+
+/** The adoptions double: one definition, `coding`, with two instruction sections; others invalid. */
+const CODING: AgentDefinition = {
+  category: 'AgentDefinition',
+  name: 'coding',
+  references: [],
+  attributes: [],
+  instructions: [
+    { id: 'role', text: '# Role\n\nYou are the coding agent.' },
+    { id: 'tools', text: '# Tools\n\nUse help first.' },
+  ],
+}
+const CODING_ADOPTION = { owner: 'release', name: 'coding', revision: '1', digest: 'sha256:coding' }
+class Adoptions extends AgentAdoptionsService<unknown> {
+  readonly resolve: AgentAdoptions<unknown>['resolve'] = async input =>
+    input.adoption.name === CODING_ADOPTION.name
+      ? // The evaluator is not read by the fourth group; the double gives none.
+        { ok: { definition: CODING, evaluator: {} as never, extensions: [] } }
+      : { failure: { kind: 'invalid', field: 'adoption', reason: 'not of this deployment' } }
+  readonly handover: AgentAdoptions<unknown>['handover'] = async () => ({
+    failure: { kind: 'unsupported' },
+  })
+}
 
 class ProbeTrust extends RequestContextTrustService<unknown> {
   readonly principalBinding = createTestingPrincipalBinding<unknown>()
@@ -147,6 +178,7 @@ async function providers(w: World) {
           inner.provide(MODEL_PREPARATION_RESOURCES, w.f.preparation)
         },
       }),
+    agentAdoptions: (ctx: Context) => ctx.plugin(Adoptions),
   }
   return { plugins, holder }
 }
@@ -158,15 +190,19 @@ const KEYS: readonly Key[] = [
   'runtimeContext',
   'modelRequestPreparation',
   'modelPreparationResources',
+  'agentAdoptions',
 ]
 
-async function assembled(leaveOut: Key | null = null) {
+async function assembled(
+  leaveOut: Key | null = null,
+  Plugin: typeof AgentContextProvider = AgentContextProvider,
+) {
   const w = await createWorld()
   const { plugins, holder } = await providers(w)
   const ctx = new Context()
   const fibers = new Map<Key, Awaited<ReturnType<(typeof plugins)[Key]>>>()
   for (const key of KEYS) if (key !== leaveOut) fibers.set(key, await plugins[key](ctx))
-  const plugin = await ctx.plugin(AgentContextProvider, config)
+  const plugin = await ctx.plugin(Plugin, config)
   return { w, ctx, plugin, holder, fibers }
 }
 
@@ -195,7 +231,7 @@ describe('AgentContextProvider on real Cordis', () => {
       expect(ctx.get(agentModelContextKey)).toBeUndefined()
     })
 
-  it('injects no key of model selection, the journal or the extensions', () => {
+  it('injects the adoptions of Agent and no key of model selection, the journal or the extensions', () => {
     expect(Object.keys(AgentContextProvider.inject).sort()).toEqual(
       [
         contextHolderSourcesKey,
@@ -204,6 +240,7 @@ describe('AgentContextProvider on real Cordis', () => {
         requestContextKey,
         runtimeContextKey,
         runtimeContextReaderEligibilityKey,
+        agentAdoptionsKey,
       ].sort(),
     )
     expect(AgentContextProvider.inject[runtimeContextKey]).toEqual({ consumer: 'model' })
@@ -265,6 +302,60 @@ describe('AgentContextProvider on real Cordis', () => {
     expect(ctx.get(agentRequestsKey)).toBeUndefined()
   })
 
+  it('reads the instructions of the adopted definition through agentAdoptions, ahead of the registered sections', async () => {
+    const { ctx, w } = await assembled()
+    const reader = ctx.get(agentModelContextKey)
+    const requests = ctx.get(agentRequestsKey)
+    const face = ctx.get(requestContextKey)
+    if (reader === undefined || requests === undefined || face === undefined)
+      throw new Error('services absent')
+    // A registered contributor of the same scope: it must follow the definition sections.
+    await ctx.plugin({
+      name: 'contributor',
+      inject: { [requestContextKey]: { scope: w.f.target.scope } },
+      apply(inner: Context) {
+        const registered = inner.requestContext.contributeSection({
+          kind: 'section',
+          name: 'workspace/guide',
+          source: owner,
+          order: '1',
+          template: '# Workspace guide',
+          uses: [],
+        })
+        if (registered.kind !== 'registered') throw new Error(registered.reason)
+      },
+    })
+    const read = await reader.read(w.readInput())
+    if (!('ok' in read)) throw new Error('read refused')
+    const prepared = await requests.prepare(
+      w.prepareInput(read.ok, { definition: CODING_ADOPTION }),
+    )
+    if (!('ok' in prepared) || prepared.ok.kind !== 'assembled')
+      throw new Error(`expected assembled, got ${JSON.stringify(prepared)}`)
+    const [system] = prepared.ok.input.system
+    expect(system?.kind).toBe('text')
+    const text = system?.kind === 'text' ? system.text : ''
+    expect(text.indexOf('# Role')).toBe(0)
+    expect(text.indexOf('# Tools')).toBeGreaterThan(text.indexOf('# Role'))
+    expect(text.indexOf('# Workspace guide')).toBeGreaterThan(text.indexOf('# Tools'))
+  })
+
+  it('fails closed when the adopted definition cannot be resolved: no candidate, no empty prompt', async () => {
+    const { ctx, w } = await assembled()
+    const reader = ctx.get(agentModelContextKey)
+    const requests = ctx.get(agentRequestsKey)
+    if (reader === undefined || requests === undefined) throw new Error('services absent')
+    const read = await reader.read(w.readInput())
+    if (!('ok' in read)) throw new Error('read refused')
+    const prepared = await requests.prepare(
+      w.prepareInput(read.ok, { definition: { ...CODING_ADOPTION, name: 'unknown' } }),
+    )
+    expect('failure' in prepared && prepared.failure).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: expect.stringContaining('definition-invalid'),
+    })
+  })
+
   it('fails to load a configuration without a result capacity', async () => {
     const w = await createWorld()
     const { plugins } = await providers(w)
@@ -274,5 +365,66 @@ describe('AgentContextProvider on real Cordis', () => {
     await Promise.resolve(plugin).catch(() => undefined)
     expect(plugin.state).toBe(FAILED)
     expect(ctx.get(agentRequestsKey)).toBeUndefined()
+  })
+})
+
+describe('createAgentContextPlugin on real Cordis (SPEC「测量事件」)', () => {
+  it('hands the observer to the preparation and the read the plugin serves', async () => {
+    const events: ContextMeasureEvent[] = []
+    const Plugin = createAgentContextPlugin({ measure: event => events.push(event) })
+    const { ctx, plugin, w } = await assembled(null, Plugin)
+    expect(plugin.state).toBe(ACTIVE)
+    const prepared = await readAndPrepare(ctx, w)
+    expect('ok' in prepared && prepared.ok.kind).toBe('assembled')
+    expect(events.map(event => `${event.operation}:${event.phase}`)).toEqual([
+      'read:start',
+      'read:end',
+      'prepare:start',
+      'prepare:end',
+    ])
+  })
+
+  it('makes the tool lookup once from the context of the plugin and reads the sixth group through it', async () => {
+    const made: Context[] = []
+    const asked: string[] = []
+    const lookup: ToolLookup<unknown> = async ({ binding }) => {
+      asked.push(binding.name)
+      return { kind: 'unavailable', diagnostic: `scripted: ${binding.name}` }
+    }
+    const Plugin = createAgentContextPlugin({
+      toolLookup: ctx => {
+        made.push(ctx)
+        return lookup
+      },
+    })
+    const { ctx, plugin, w } = await assembled(null, Plugin)
+    expect(plugin.state).toBe(ACTIVE)
+    expect(made).toHaveLength(1)
+    expect(made[0]?.fiber).toBe(plugin)
+    const reader = ctx.get(agentModelContextKey)
+    const requests = ctx.get(agentRequestsKey)
+    if (reader === undefined || requests === undefined) throw new Error('services absent')
+    const read = await reader.read(w.readInput())
+    if (!('ok' in read)) throw new Error(`read refused: ${JSON.stringify(read.failure)}`)
+    const bindings = [{ owner: 'session', name: 'Files', revision: '0.0.0', digest: 'sha256:f' }]
+    const prepared = await requests.prepare(
+      w.prepareInput(read.ok, { conditions: { ...w.conditions, bindings } }),
+    )
+    expect(asked).toEqual(['Files'])
+    expect('failure' in prepared && prepared.failure).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: expect.stringContaining('scripted: Files'),
+    })
+    expect(made).toHaveLength(1)
+  })
+
+  it('has the inject and the configuration of the provider, and no event without an observer', async () => {
+    const Plugin = createAgentContextPlugin()
+    expect(Plugin).not.toBe(AgentContextProvider)
+    expect(Plugin.inject).toBe(AgentContextProvider.inject)
+    expect(Plugin.Config).toBe(AgentContextProvider.Config)
+    const { ctx, w } = await assembled(null, Plugin)
+    const prepared = await readAndPrepare(ctx, w)
+    expect('ok' in prepared && prepared.ok.kind).toBe('assembled')
   })
 })

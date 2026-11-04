@@ -2,6 +2,15 @@
 // application assembly page, then check or write the committed snapshot.
 // Plain Node, no dependencies, no build step.
 import { readFileSync, writeFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import {
+  byLocation,
+  describeFinding,
+  readTrustConfig,
+  scanIssuerCalls,
+  scanTrustedReads,
+} from './aa-source.mjs'
 
 const SOURCE = 'docs/architecture/runtime/application-assembly.md'
 const ROW_CELL = /^`([a-z0-9][a-z0-9-]*)`$/
@@ -106,18 +115,74 @@ export function diff(aa, rows) {
   return out
 }
 
+const HERE = dirname(fileURLToPath(import.meta.url))
+const USAGE =
+  'usage: aa-rows.mjs <check|write> --aa <AA path> --rows <JSON path> [--no-source | --src <dir> --repo <dir> --trust-config <JSON path>]'
+
 function parseArgs(argv) {
   const [command, ...rest] = argv
   const opts = {}
-  for (let i = 0; i < rest.length; i += 2) opts[rest[i]] = rest[i + 1]
-  if ((command !== 'check' && command !== 'write') || !opts['--aa'] || !opts['--rows']) {
-    throw new Error('usage: aa-rows.mjs <check|write> --aa <AA path> --rows <JSON path>')
+  for (let i = 0; i < rest.length; i++) {
+    if (rest[i] === '--no-source') opts['--no-source'] = true
+    else opts[rest[i]] = rest[++i]
   }
-  return { command, aaPath: opts['--aa'], rowsPath: opts['--rows'] }
+  if ((command !== 'check' && command !== 'write') || !opts['--aa'] || !opts['--rows']) {
+    throw new Error(USAGE)
+  }
+  return {
+    command,
+    aaPath: opts['--aa'],
+    rowsPath: opts['--rows'],
+    source:
+      opts['--no-source'] === true
+        ? null
+        : {
+            srcRoot: resolve(opts['--src'] ?? resolve(HERE, '../src')),
+            repoRoot: resolve(opts['--repo'] ?? resolve(HERE, '../../..')),
+            configPath: resolve(opts['--trust-config'] ?? resolve(HERE, 'aa-trust-config.json')),
+          },
+  }
+}
+
+/** E1 and E2 over the sources. Returns the exit code; findings on pending names are only reported. */
+function checkSources(aa, { srcRoot, repoRoot, configPath }) {
+  const config = readTrustConfig(configPath)
+  const findings = [
+    ...scanTrustedReads({
+      srcRoot,
+      repoRoot,
+      trusted: aa.trusted,
+      rowIds: aa.rows,
+      pending: config.pending,
+    }),
+    ...scanIssuerCalls({
+      repoRoot,
+      roots: config.issuerScanRoots,
+      callSites: config.issuerCallSites,
+      definitionOwners: config.issuerDefinition,
+    }),
+  ].sort(byLocation)
+  const failing = findings.filter(f => !f.pending)
+  const pending = findings.filter(f => f.pending)
+  const tableNames = new Set((aa.trusted ?? []).flatMap(entry => entry.names))
+  for (const name of config.pending) {
+    const state = tableNames.has(name) ? 'enforced (listed in the trusted table)' : 'report-only'
+    const own = pending.filter(f => f.name === name)
+    console.log(
+      `aa-rows: pending ${name} ${state} findings=${own.length}${own.length > 0 ? ` files=${new Set(own.map(f => f.file)).size}` : ''}`,
+    )
+  }
+  for (const f of pending) console.log(`aa-rows: pending-finding ${describeFinding(f)}`)
+  if (failing.length === 0) {
+    console.log(`aa-rows: source ok trusted-names=${tableNames.size}`)
+    return 0
+  }
+  console.error(['aa-rows: source violations', ...failing.map(describeFinding)].join('\n'))
+  return 1
 }
 
 function main(argv) {
-  const { command, aaPath, rowsPath } = parseArgs(argv)
+  const { command, aaPath, rowsPath, source } = parseArgs(argv)
   const aa = extract(readFileSync(aaPath, 'utf8'))
   if (command === 'write') {
     writeFileSync(rowsPath, canonical(aa))
@@ -128,7 +193,7 @@ function main(argv) {
     console.log(
       `aa-rows: ok rows=${aa.rows.length} trusted=${aa.trusted === null ? 'none' : aa.trusted.length}`,
     )
-    return 0
+    return source === null ? 0 : checkSources(aa, source)
   }
   let items
   try {

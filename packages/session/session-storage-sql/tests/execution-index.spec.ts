@@ -7,10 +7,16 @@
 import { describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { WorkSnapshot } from '@omne-harness/session-contract'
-import { creation, guard, operationId, sessionId } from '@omne-harness/session-contract/testing'
+import {
+  creation,
+  intakeInput,
+  operationId,
+  sessionId,
+} from '@omne-harness/session-contract/testing'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { SESSION_EXECUTION_HANDLER, decodeSessionExecution } from '../src/participants.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
+import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
 import { kindOf } from './fixtures/entries.ts'
 
@@ -58,7 +64,7 @@ const startRun = (a: App, session: string, tenant: TenantId = TENANT_A) =>
         instance: { owner: 'agent', id: 'instance-1' },
       },
     },
-    guards: [guard('evidence-bridge', 'login-entry', { session, operation: `start-${session}` })],
+    guards: [],
   })
 
 /** Creates `session` with one accepted input, ready for a startRun. */
@@ -78,7 +84,9 @@ async function started(a: App, session: string, tenant: TenantId = TENANT_A) {
 
 describe('the materials of the execution index', () => {
   it('the session participant owns the index table through its own second migration, and the handler reads only that table', () => {
-    const materials = sessionStorageMaterials()
+    const materials = sessionStorageMaterials({
+      readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES,
+    })
     const session = materials.participants.find(item => item.participant === 'session')
     expect(session?.ownedTables).toContain('sl_execution_idx')
     expect(materials.migrations.map(item => `${item.owner}/${item.id}`)).toContain(
@@ -90,7 +98,9 @@ describe('the materials of the execution index', () => {
   })
 
   it('the index migration requires the session log migration, which creates the table it extends', () => {
-    const migrations = sessionStorageMaterials().migrations
+    const migrations = sessionStorageMaterials({
+      readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES,
+    }).migrations
     const index = migrations.find(
       item => `${item.owner}/${item.id}` === 'session/002-execution-index',
     )
@@ -143,7 +153,9 @@ describe('the startRun commit writes the index in its own transaction', () => {
 
   it('a startRun that Session rejects writes no index row', async () => {
     const a = await app()
-    await ready(a, 'session-1')
+    // The first input did not come through the login entry: the gate of decide refuses the start.
+    ok(await a.create(TENANT_A, 'session-1'))
+    ok(await a.accept(TENANT_A, 'session-1', 'session-1-input', intakeInput('session-1-input')))
     const refused = await a.port.commit({
       access: a.access(TENANT_A),
       command: {

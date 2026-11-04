@@ -6,10 +6,10 @@
 
 | 入口 | 作用 |
 |---|---|
-| [package-tenancy-host.sh](package-tenancy-host.sh) | 脚本仍执行 `apps/tenancy-host/tools/package.ts`。仓库里没有这个路径，它不会进入 `apps.0.0.1.legacy` |
-| [build-tenancy-image.sh](build-tenancy-image.sh) | 脚本仍执行 `apps/tenancy-host/tools/docker-image.ts`。仓库里没有这个路径，它不会进入 `apps.0.0.1.legacy` |
+| [package-tenancy-host.sh](package-tenancy-host.sh) | 脚本仍执行 `apps/tenancy-host/tools/package.ts`。仓库里没有这个路径 |
 | [package-cli.sh](package-cli.sh) | 把 `@omne-harness/cli` 构建到临时目录，把其中的 `dist/` 写入一个尚不存在的绝对路径 `.tar.gz`。不删除、不写入 `apps/cli/dist`，不安装、不上传 |
 | [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再把正文交给测试运行器的 `check` 命令：算基线以来改动的影响面并打印计划，按[步骤图](#check-的步骤图)跑常驻检查与计划里的各步（无依赖的同时跑），最后是严格模式的回路状态；任一步失败即终止其余并返回那一步的退出码。`--admission` 为准入模式并写准入日志与运行记录（根脚本 `pnpm run admission`），`--keep-going` 失败后继续跑其余步骤，`--resume-from <H1>` 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下可用，`pnpm run admission --resume-from <H1>`）；`--preflight` 是[预检](#预检)（根脚本 `pnpm run preflight`），不占运行名额 |
+| [check-journal-facts.mjs](check-journal-facts.mjs) | 根脚本 `check:journal-facts` 的入口：扫测试世界留下的库（默认 `tmp/journal-facts/`，由 harness-server 的 `journal-bytes` 用例写入）里 `er_fact.body`，出现 `role`、`content`、`messages`、`system` 键就退出 1。没有库或没有 `er_fact` 表时跳过并说明原因，退出 0 |
 | [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
 | [slot-unless-plan-only.sh](slot-unless-plan-only.sh) | 根脚本 `test:affected` 与 `mutation` 的入口：实际运行时取一个运行名额，带 `--plan-only` 只列范围时不取 |
 | [test-tier.sh](test-tier.sh) | 根脚本 `test:tier` 的入口：取一个运行名额，先构建，再跑全部成员的一层。层必须给 `fast`、`slow` 或 `all`，缺层或层名不对时退出 2 |
@@ -34,9 +34,9 @@
 - 接着两行 `环境自检：依赖——…` 与 `环境自检：换行——…`：做了什么，一致时写「不动」。
 - 中间：影响面计划、每一步的开始与结束（秒数、退出码、失败步骤的日志路径）、总计与关键路径。成员测试一层失败后做过定向重跑时，另有一行 `test 步定向重跑 N 个文件：…`，逐个写文件、原因分类与结果。
 - 末行：`exit=<退出码>`。没有这一行表示运行中途中止：基线被拒时根本不写日志（以 2 退出），算计划或步骤图核对抛错时日志只有开头几行。集成节点核对证据时按这一条判断。
-基线在正文开头按统一规则解析一次（`BASELINE`，再取任务上下文固定的 `targetBase`，再取 `origin/main`，本地没有这个引用就取 `main`）并以 `BASELINE` 传给各步，
-影响面与最后的回路状态共用它。规则由测试运行器的 `baseline` 命令给出，实现在 `@omne-harness/repo-toolchain` 的 `resolveBaseline`，`pnpm run check:plan`、`test:affected` 与 `mutation` 用同一个函数。
-已绑定任务的工作树只接受等于 `targetBase` 的显式基线：同步过目标分支以后，开工时的 `taskBase` 不再是合法的 `BASELINE`，传入会被拒绝，脚本这时只在标准错误写出原因并以 2 退出，不运行任何检查（它先占一个运行名额，名额被别的运行占着时，拒绝要排队之后才出现）。已绑定的树不必传基线。
+  基线在正文开头按统一规则解析一次（`BASELINE`，再取任务上下文固定的 `targetBase`，再取 `origin/main`，本地没有这个引用就取 `main`）并以 `BASELINE` 传给各步，
+  影响面与最后的回路状态共用它。规则由测试运行器的 `baseline` 命令给出，实现在 `@omne-harness/repo-toolchain` 的 `resolveBaseline`，`pnpm run check:plan`、`test:affected` 与 `mutation` 用同一个函数。
+  已绑定任务的工作树只接受等于 `targetBase` 的显式基线：同步过目标分支以后，开工时的 `taskBase` 不再是合法的 `BASELINE`，传入会被拒绝，脚本这时只在标准错误写出原因并以 2 退出，不运行任何检查（它先占一个运行名额，名额被别的运行占着时，拒绝要排队之后才出现）。已绑定的树不必传基线。
 
 设置 `OMNE_SUBJECT_ROOT` 时，`format.sh` 的检查模式检查该目录所在的仓库，规则仍取脚本自己的检出。格式自测在自身入口清除 `OMNE_SUBJECT_ROOT` 与 `OMNE_RUNNER_ROOT`，保证 fixture 和 Git hook 检查自己的沙盒。
 
@@ -61,7 +61,7 @@
 - 每步的输出落 `tmp/check-run/<head 短号>/<步骤>.log`，名字里的 `:` 换成 `-`，例如 `check-docs.log`；只留最近 5 个头的目录。
 - 结束时写逐步耗时表 `tmp/check-run/<head 短号>/steps.tsv`（步骤、退出码、秒数、相对开始的起止秒）与运行记录 `run.json`（准入运行另在准入日志旁边写一份），并打印实际走过的关键路径。
 
-- 不依赖任何步骤的常驻检查：`check:agents`、`check:docs`、`check:design`、`check:lines`、`format:check`、`test:format`、`lint:oxlint`，以及写范围与线归属的核对 `node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts`（根 `package.json` 没有对应的脚本）。它读本工作树的 task context，逐提交算出本卡自己改过的文件，再加上未提交的改动。不在 binding 写范围内的文件为 `change-outside-scope`，线内的卡改到别的线或联调轨道的文件为 `change-outside-line`。本卡改了契约成员的 `api` 目录时，它用钉住的 `omne-contract-api --diff <taskBase>` 比较这些成员的快照差异，超过 binding 的契约变更时为 `contract-exceeds-declared`。有任一项时退出 1，检查失败。`omne-contract-api` 运行失败时退出 2，检查也失败。标准错误逐项写文件、代码与改法。没有 task context 时只写「未绑定」，检查继续。算法与退出码见 [dev-flow 交付观察说明](../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
+- 不依赖任何步骤的常驻检查：`check:agents`、`check:docs`、`check:design`、`check:lines`、`check:journal-facts`、`format:check`、`test:format`、`lint:oxlint`，以及写范围与线归属的核对 `node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts`（根 `package.json` 没有对应的脚本）。它读本工作树的 task context，逐提交算出本卡自己改过的文件，再加上未提交的改动。不在 binding 写范围内的文件为 `change-outside-scope`，线内的卡改到别的线或联调轨道的文件为 `change-outside-line`。本卡改了契约成员的 `api` 目录时，它用钉住的 `omne-contract-api --diff <taskBase>` 比较这些成员的快照差异，超过 binding 的契约变更时为 `contract-exceeds-declared`。有任一项时退出 1，检查失败。`omne-contract-api` 运行失败时退出 2，检查也失败。标准错误逐项写文件、代码与改法。没有 task context 时只写「未绑定」，检查继续。算法与退出码见 [dev-flow 交付观察说明](../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
 - 不依赖任何步骤、按计划：`pnpm run test:python`（pytest）与构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）。
 - 构建之后：`check:declarations`；契约成员 API 快照与 dist 的核对 `node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-check`（根 `package.json` 没有对应的脚本；它运行钉住的 `omne-contract-api --check --json`。成员为 differs、unreadable、missing 或 invalid 时退出 1，检查失败，标准错误逐个写成员、状态与改法。没有 dist 的成员（unbuilt）只报告：影响面计划没有选中它们，所以没有构建。本卡改了成员的快照或源码时，影响面会选中它。工具缺失、运行失败或输出不合格时退出 2，检查也失败。见 [dev-flow 集成工具说明](../tools/dev-flow/src/integration/README.md#契约快照核对)）；`lint:rules`（也核[验收的覆盖声明](../tools/product-checks/README_ZH.md#验收的覆盖声明)与提交署名）；`lint:deps`（dependency-cruiser 解析验收夹具对 dist 的导入）；按计划的类型检查、成员测试与可执行验收。成员测试跑被选中成员的快层，快层全部通过才跑慢层（[分层](../tools/test-runner/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」。可执行验收只跑被选中、带 `acceptance` 脚本的成员，驱动构建出来的 `dist/`，任何一份不过整套检查就失败；耗时记录写进主检出的 `tmp/acceptance-ledger/`，是回路状态里验收耗时传感器的读数来源。计划里一个带验收的成员都没有时，为当前提交记一份标着「本次影响面不含带验收的成员」的账本，传感器认它。现在只有 `apps/cli` 一份，约 6～16 秒。
 - 其余全部结束之后：`pnpm run loop:status --strict --base <基线> --out tmp/loop-status-check`：方向与环、验收锁、开着的传感器都有数据（验收被计划跳过时认上一步的记录），破一个就失败（见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md#回路状态)）。基线就是正文开头解析的那一个；HEAD 就是那个提交时照跑，新增依赖为 0。它只读源码、git 与验收的耗时记录，放最后是让前面的失败先报；产物写进被 git 忽略的 `tmp/loop-status-check/`（每次先清掉），回路目录里什么都不写。这一步约 30 秒，大头是重复代码检测。单独跑这一步时，要先在同一个提交上跑过 `pnpm run acceptance`（或 `pnpm run check` 的验收一步留下过记录），否则验收耗时传感器没数据、严格模式判失败。
@@ -135,18 +135,23 @@ dev-flow 的 `tests/test-slot-launch.spec.ts` 在所在平台上核对这些起�
 失效的文件由下一个看队列的进程删掉。等待者发现自己的票被回收时在标准错误报「票被回收，重新排队」并重新领号；
 持有者发现名额文件被删时报「名额文件被删」，命令照常跑完。没有 `side` 行的旧版登记按同侧处理。
 队列的增删在 `queue.lock` 目录内进行，目录由 `mkdir` 原子创建；它的持有者同侧按进程号判、对侧只看停留时间（30 秒），
-收尾只删自己建的那把锁。
+只有成功独占创建 owner 且读回仍属于自己的登记，才进入队列工作。owner 创建失败或目录消失时重新取得队列，
+不靠递归补建目录恢复所有权。新版 owner、票和名额均写入 `version=2`、`pid`、`side`、`since`、`cwd`、`cmd` 与 `beat`。
+读取者区分路径不存在、登记尚未完整发布和完整登记；空内容、部分内容或读取失败不能直接判为死进程。
+尚未完整发布的票和名额保留原文件。队列仍沿用 30 秒年龄回收规则，收尾只删读回仍属于自己的锁。
+旧版 owner 的 `pid` 和可选 `side` 格式、没有 `side` 的完整票和名额继续可读。
 
-**一个锁目录**：Windows 侧与 WSL 侧共用 Windows 用户临时目录下的 `omne-test-slots-<用户名>`。WSL 里（有 `WSL_DISTRO_NAME`）
-脚本经 interop 起 Windows PowerShell 取 `%TEMP%` 的长名与 `%USERNAME%`（8.3 短名如 `ALIENW~1` 转成长名；
-systemd 启用后 binfmt 登记常被清掉，这时经 `/init` 起），在那里建目录与一个探针文件，再用 `wslpath -u` 转成 WSL 路径，
+**一个锁目录**：Windows 侧与 WSL 侧共用 Windows 用户临时目录下的 `omne-test-slots-<用户名>`。
+Windows 用 `os.tmpdir()` 与 `os.userInfo().username` 解析目录。WSL 里（有 `WSL_DISTRO_NAME`），脚本经 interop 起 Windows PowerShell，
+取 `%TEMP%` 的长名与 `[Environment]::UserName`，不取 Linux 用户名，也不依赖 `USERNAME` 环境变量。
+systemd 启用后 binfmt 登记常被清掉，这时经 `/init` 起。脚本在那里建目录与一个探针文件，再用 `wslpath -u` 转成 WSL 路径，
 在 WSL 路径下看得见探针才算同一个目录。解析失败或看不见探针时回退 `/tmp/omne-test-slots-<uid>`，
 并在标准错误报「WSL 与 Windows 没有共用名额」。`OMNE_TEST_SLOT_DIR` 仍可覆盖。
 
 | 环境变量 | 初值 | 含义 |
 |---|---|---|
 | `OMNE_TEST_SLOTS` | 1 | 同时允许几套在跑 |
-| `OMNE_TEST_SLOT_DIR` | Windows 为系统临时目录下的 `omne-test-slots-<用户名>`；WSL 解析到同一个目录（见上）；其余 POSIX 为 `/tmp/omne-test-slots-<uid>` | 锁文件目录；同一用户的全部检出共用，不随 `TMPDIR` 变化。要跨用户排队，把它指到一个共享可写的目录 |
+| `OMNE_TEST_SLOT_DIR` | Windows 为系统临时目录下的 `omne-test-slots-<用户名>`；WSL 解析到同一个目录（见上）；其余 POSIX 为 `/tmp/omne-test-slots-<uid>` | 锁文件目录；同一用户且临时目录相同的全部检出共用。要跨用户或不同临时目录排队，把它指到一个共享可写的目录 |
 | `OMNE_TEST_SLOT_POLL_SECONDS` | 5 | 没轮到时隔多久再看一次 |
 | `OMNE_TEST_SLOT_MAX_WAIT_SECONDS` | 7200 | 最多等多久；超过即以 **75** 退出，命令**没有执行** |
 | `OMNE_TEST_SLOT_LEDGER` | `${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl` | 运行账本，见下文 |
@@ -159,6 +164,8 @@ systemd 启用后 binfmt 登记常被清掉，这时经 `/init` 起），在那�
 
 **已知限制**（#979 D1）：
 
+- Windows 的临时目录由进程环境决定。不同 `TEMP` 或 `TMP` 可能把调用方分进不同队列，
+  这时应为全部调用方显式设置 `OMNE_TEST_SLOT_DIR`，两侧指向同一物理目录。
 - 名额只覆盖经根脚本的入口。成员级 vitest（`pnpm exec vitest run`、`pnpm --filter <成员> test`、`turbo run test*`）不占名额，
   与准入并发时，时序敏感的用例可能变红。
 - 跨侧判定只看心跳，依赖两侧时钟一致；WSL 的时钟落后超过心跳阈值（三个间隔加 5 秒）时，对侧活着的持有者会被误删，
@@ -169,8 +176,13 @@ systemd 启用后 binfmt 登记常被清掉，这时经 `/init` 起），在那�
 - 过渡期：还没并入这一版的 WSL 检出仍用 `/tmp/omne-test-slots-<uid>`，与新版不互斥。Reduce 把修补 RI 到 mainline、
   各线轨道 FI 之后，过渡期结束。
 - POSIX 下只杀包装进程时命令成孤儿而名额已释放（见上）。
-- 队列锁被别人删掉又重建时，本进程不持锁就进临界区。名额本身仍靠独占创建，互斥不受影响，破坏的是先来后到的计数。
-  可达的路径只有两条：过渡期对侧旧版脚本删了这把锁，或本进程停滞超过 30 秒。
+- 未升级的读取者会把尚未写完的登记误判为死进程。新版读取者修复了这一判定，但新旧脚本混跑仍可能出现命令重叠。
+  全部持有者与等待者退出后再一起更新检出；普通混跑测试通过不证明发布交错安全。
+- 队列仍依赖 30 秒年龄限制。读取旧 owner 后，另一进程可能已删除并重建同名队列目录；旧快照的回收会误删新目录。
+  owner 发布后的所有权读回不是原子校验，也不能保证整个工作期间始终持锁。队列失去独占时，FIFO 与互斥都不能无条件保证。
+  本次修复没有消除代际回收竞态、时钟偏差或进程停滞超过年龄限制的风险。
+- 写入者在票或名额尚未完整发布时异常退出，会留下无法判定归属的文件。读取者保留它，等待者按原超时策略退出，
+  不自动当作死进程回收。清理前须先确认相关包装进程及其命令均已结束。
 - 持有者的心跳把 `utimes` 的任何失败都当作名额文件被删。9p 下对侧正在读该文件时，可能误报一句「名额文件被删」。
   报错不影响互斥，命令照常跑完。
 - 领票循环没有次数上限。权限持续被拒，而 `mkdirSync(queue.lock)` 又没有先抛错时，进程会静默空转。

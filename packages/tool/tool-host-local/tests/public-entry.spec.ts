@@ -16,6 +16,8 @@ it('root entry exports the local start coordinator (G5), the host clock (G4), th
     'START_COORDINATOR_DOMAIN_KEY',
     'START_COORDINATOR_OWNER',
     'createAbsentToolPorts',
+    'createEnvironmentResourceLedger',
+    'createEnvironmentStateStore',
     'createLocalGrantVerifiers',
     'createLocalInvocationSource',
     'createLocalOperationIdentities',
@@ -24,10 +26,14 @@ it('root entry exports the local start coordinator (G5), the host clock (G4), th
     'createLocalStartGuard',
     'createLocalTextResults',
     'createLocalToolBindingRegistry',
+    'createLocalToolBindings',
     'createLocalToolCatalog',
     'createLocalToolClock',
+    'createLocalToolControlSubjects',
     'createLocalToolCredentials',
     'createLocalToolLedgerGuards',
+    'createLocalToolLoader',
+    'createRetainedTerminalLedger',
     'localArgumentLimits',
     'startCoordinatorAdoption',
   ])
@@ -84,10 +90,33 @@ describe('production sources import no testing entry', () => {
     expect(sources.length).toBeGreaterThan(0)
   })
 
-  it.each(sources)('src/%s imports no testing entry and no Cordis', file => {
-    const text = readFileSync(memberPath(`src/${file}`), 'utf8')
-    expect(specifiersOf(text).filter(forbiddenInSource)).toEqual([])
-  })
+  it.each(sources)(
+    'src/%s imports no testing entry and keeps Cordis in explicit assembly adapters',
+    file => {
+      const text = readFileSync(memberPath(`src/${file}`), 'utf8')
+      const authorAdapter = [
+        'contribute-tool.ts',
+        'author-generations.ts',
+        'cordis.ts',
+        'cordis-host.ts',
+        'cordis-bindings.ts',
+        'runtime-cordis.ts',
+        'runtime-composition.ts',
+        'runtime-executor.ts',
+        'runtime-records.ts',
+        'runtime-facade.ts',
+        'runtime-instances.ts',
+        'runtime-environments.ts',
+      ].includes(file)
+      expect(
+        specifiersOf(text).filter(
+          specifier =>
+            /(^|\/)testing(\.d)?(\.ts|\.js)?$/u.test(specifier) ||
+            (!authorAdapter && forbiddenFromRoot(specifier)),
+        ),
+      ).toEqual([])
+    },
+  )
 
   it('sees a testing entry in every form of import that the walker reads', () => {
     const text = [

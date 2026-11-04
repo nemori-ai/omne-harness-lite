@@ -2,20 +2,24 @@
 // strategies: the four outcomes of prepare, the request that the Model double fixes, the lineage of
 // a second round, the translated groups, the staging table, the registration, the failure classes,
 // and the plan identity, bound and completed checks of derive and resume.
+import { writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import type { Preparation } from '@omne-harness/agent-contract'
+import { decodeActionId, type Preparation } from '@omne-harness/agent-contract'
 import { decodeModelCallId } from '@omne-harness/model-contract'
-import type {
-  AssemblyCall,
-  AssemblyOperations,
-  StepResult,
+import {
+  decodeFixedRequestRecord,
+  type AssemblyCall,
+  type AssemblyOperations,
+  type StepResult,
 } from '@omne-harness/request-context-contract'
 import { fixtureBudget } from '@omne-harness/request-context-contract/testing'
+import { digest } from '../src/records.ts'
 import {
   RESULT_CAPACITY,
   authority,
   createWorld,
   evidence,
+  historyRow,
   meterBy,
   owner,
   tenantOf,
@@ -80,6 +84,89 @@ describe('prepare', () => {
     expect(w.counts.model).toBe(1)
   })
 
+  describe('the fixed request record in the state of a ready preparation (RQ-14)', () => {
+    /** A report with two input-tokens checks; the forecast is the larger one. */
+    const twoChecks: NonNullable<WorldOptions['meter']> = () => {
+      const [only] = fixtureBudget().checks
+      if (only === undefined) throw new Error('fixture check')
+      const at = (amount: string) => ({
+        ...only,
+        measurement: { kind: 'exact' as const, amount, method: only.supplier },
+      })
+      return { ok: { ...fixtureBudget(), checks: [at('7'), at('90')] } }
+    }
+    /** The selection of a profile with another window than the fixture profile has. */
+    function widerSelection(w: World, provided: string) {
+      const { profile } = w.selection.resolution
+      const { context } = profile.definition
+      return {
+        ...w.selection,
+        resolution: {
+          ...w.selection.resolution,
+          profile: {
+            ...profile,
+            definition: {
+              ...profile.definition,
+              context: { ...context, window: { ...context.window, provided } },
+            },
+          },
+        },
+      }
+    }
+
+    it('keeps the facts of this moment: coverage, window of the fixing profile, forecast, candidate and target', async () => {
+      const w = await createWorld({ meter: twoChecks })
+      const result = okOf(
+        await prepared(w, { beforeModelCall: w.passed, selection: widerSelection(w, '4000') }),
+      )
+      if (result.kind !== 'ready') throw new Error(`expected ready, got ${result.kind}`)
+      const decoded = decodeFixedRequestRecord(result.state)
+      if (!('ok' in decoded)) throw new Error(`state refused: ${JSON.stringify(decoded)}`)
+      const record = decoded.ok
+      expect(digest(record.coverage)).toBe(result.coverage.digest)
+      expect(record.coverage).toEqual(w.candidates.at(-1)?.coverage)
+      expect(record.windowTokens).toBe('4000')
+      expect(record.forecast).toEqual({ kind: 'estimate', usedTokens: '90' })
+      expect(record.candidate).toBe('action-1')
+      expect(record.target).toEqual(w.f.target)
+      expect(record.continuation).toBeNull()
+    })
+
+    it('keeps the coverage of the candidate, not a coverage that a later read gives', async () => {
+      const w = await createWorld({
+        rows: Array.from({ length: 3 }, (_, i) => historyRow(i)),
+        upper: 0,
+      })
+      const first = okOf(await prepared(w, { beforeModelCall: w.passed }))
+      w.growTo(2)
+      const later = okOf(await prepared(w, { beforeModelCall: w.passed }))
+      if (first.kind !== 'ready' || later.kind !== 'ready') throw new Error('expected ready')
+      const record = decodeFixedRequestRecord(first.state)
+      if (!('ok' in record)) throw new Error('state refused')
+      expect(digest(record.ok.coverage)).toBe(first.coverage.digest)
+      expect(digest(record.ok.coverage)).not.toBe(later.coverage.digest)
+    })
+
+    it('has no forecast when the report has no input-tokens check', async () => {
+      const w = await createWorld({ meter: () => ({ ok: { ...fixtureBudget(), checks: [] } }) })
+      const result = okOf(await prepared(w, { beforeModelCall: w.passed }))
+      if (result.kind !== 'ready') throw new Error(`expected ready, got ${result.kind}`)
+      const record = decodeFixedRequestRecord(result.state)
+      expect('ok' in record && record.ok.forecast).toBeNull()
+    })
+
+    it('leaves the state null for assembled and needs-compaction preparations', async () => {
+      const w = await createWorld()
+      const assembled = okOf(await prepared(w))
+      expect(assembled.kind).toBe('assembled')
+      expect(assembled.state).toEqual({ kind: 'null' })
+      const compact = await createWorld({ meter: meterBy(500) })
+      const needs = okOf(await prepared(compact))
+      expect(needs.kind).toBe('needs-compaction')
+      expect(needs.state).toEqual({ kind: 'null' })
+    })
+  })
+
   it('declares continues in the second round when the first request is the fixed adoption', async () => {
     const w = await createWorld()
     okOf(await prepared(w, { beforeModelCall: w.passed }))
@@ -132,14 +219,147 @@ describe('the groups that Request Context reads', () => {
     })
   })
 
-  it('gives no tool when the conditions name no binding, and tools-source-absent otherwise', async () => {
+  describe('the fourth group with a definition (R2-D124)', () => {
+    const definition = { owner: 'release', name: 'coding', revision: '1', digest: 'sha256:coding' }
+    const sections = [
+      { id: 'role', text: '# Role' },
+      { id: 'trust', text: '# Trust' },
+      { id: 'tools', text: '# Tools' },
+    ]
+    const systemText = (result: Awaited<ReturnType<typeof prepared>>) => {
+      const value = okOf(result)
+      if (value.kind !== 'assembled') throw new Error(value.kind)
+      const [block] = value.input.system
+      return block?.kind === 'text' ? block.text : ''
+    }
+
+    it('contributes the instructions as the first sections, in the order of the definition', async () => {
+      let prompt: unknown
+      let w: World | undefined
+      w = await createWorld({
+        definitions: async ({ definition: asked }) =>
+          asked.name === 'coding'
+            ? { kind: 'value', value: sections }
+            : { kind: 'unavailable', diagnostic: 'unknown' },
+        operations: real => ({
+          ...real,
+          assemble: async (call: AssemblyCall<string>) => {
+            prompt = await w?.registered[0]?.groups.prompt.readSource(call)
+            return real.assemble(call)
+          },
+        }),
+      })
+      const text = systemText(await prepared(w, { definition }))
+      expect(text.split('\n')).toEqual(['# Role', '# Trust', '# Tools'])
+      expect(prompt).toMatchObject({
+        kind: 'value',
+        value: {
+          promptContributions: {
+            contributions: sections.map(section => ({
+              kind: 'section',
+              name: `definition/${section.id}`,
+              scope: w?.f.target.scope,
+              source: definition,
+              template: section.text,
+              uses: [],
+            })),
+          },
+          assembleContext: { scope: w.f.target.scope, workspace: null, keys: {} },
+        },
+      })
+      expect(
+        (prompt as { value: { assembleContext: { definition: unknown } } }).value.assembleContext
+          .definition,
+      ).toEqual(expect.stringContaining('"name":"coding"'))
+    })
+
+    it('fails closed when the definition cannot be read: no candidate, and no empty prompt is sent', async () => {
+      let assembled = 0
+      const w = await createWorld({
+        definitions: async () => ({ kind: 'unavailable', diagnostic: 'definition-store-down' }),
+        operations: real => ({
+          ...real,
+          assemble: async (call: AssemblyCall<string>) => {
+            const result = await real.assemble(call)
+            if ('candidate' in result) assembled += 1
+            return result
+          },
+        }),
+      })
+      const refused = await prepared(w, { definition })
+      expect('failure' in refused && refused.failure).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: expect.stringContaining('definition-store-down'),
+      })
+      expect(assembled).toBe(0)
+    })
+
+    it('fails closed when no definition source was given and a definition is named', async () => {
+      const w = await createWorld()
+      const refused = await prepared(w, { definition })
+      expect('failure' in refused && refused.failure).toMatchObject({
+        kind: 'unavailable',
+        diagnostic: expect.stringContaining('definition-source-absent'),
+      })
+    })
+
+    it('contributes nothing for a definition that carries no instructions, and keeps the definition key', async () => {
+      let prompt: unknown
+      let w: World | undefined
+      w = await createWorld({
+        definitions: async () => ({ kind: 'value', value: null }),
+        operations: real => ({
+          ...real,
+          assemble: async (call: AssemblyCall<string>) => {
+            prompt = await w?.registered[0]?.groups.prompt.readSource(call)
+            return real.assemble(call)
+          },
+        }),
+      })
+      expect(kindOf(await prepared(w, { definition }))).toBe('assembled')
+      expect(prompt).toMatchObject({
+        kind: 'value',
+        value: { promptContributions: null, assembleContext: { scope: w.f.target.scope } },
+      })
+      expect(
+        (prompt as { value: { assembleContext: { definition: unknown } } }).value.assembleContext
+          .definition,
+      ).toEqual(expect.stringContaining('"name":"coding"'))
+    })
+
+    it('a definition text that differs by one character gives another fourth-group token', async () => {
+      const tokens: string[] = []
+      let variant = sections
+      let w: World | undefined
+      w = await createWorld({
+        definitions: async () => ({ kind: 'value', value: variant }),
+        operations: real => ({
+          ...real,
+          assemble: async (call: AssemblyCall<string>) => {
+            const read = await w?.registered[0]?.groups.prompt.readCount(call)
+            if (read?.kind === 'value') tokens.push(read.value)
+            return real.assemble(call)
+          },
+        }),
+      })
+      okOf(await prepared(w, { definition }))
+      okOf(await prepared(w, { definition }))
+      variant = [{ id: 'role', text: '# Role!' }, ...sections.slice(1)]
+      okOf(await prepared(w, { definition }))
+      expect(tokens).toHaveLength(3)
+      expect(tokens[0]).toBe(tokens[1])
+      expect(tokens[2]).not.toBe(tokens[0])
+    })
+  })
+
+  it('gives no tool when the conditions name no binding, and tool-lookup-absent without a lookup otherwise', async () => {
     const w = await createWorld()
     expect(kindOf(await prepared(w))).toBe('assembled')
     const bound = { ...w.conditions, bindings: [owner] }
     const refused = await prepared(w, { conditions: bound })
     expect('failure' in refused && refused.failure).toMatchObject({
       kind: 'unavailable',
-      diagnostic: expect.stringContaining('tools-source-absent'),
+      diagnostic: expect.stringContaining('tool-lookup-absent'),
     })
   })
 
@@ -383,6 +603,34 @@ describe('derive and resume', () => {
     expect(result.kind === 'cannot-fit' ? 'cannot-fit' : result.progress.completed).toBe('1')
   })
 
+  // R2-D292: the Agent keeps no step request; with the same action and progress and a null result
+  // it derives the request of the current step again. The content is the same: the same fixed
+  // request and the same digests. The evidence records are minted anew, so a caller recognizes the
+  // step by its content digests, never by the records.
+  it('derives a step request of the same content again for the same action and progress', async () => {
+    const { derive } = await stepped(real => real)
+    const content = (step: Extract<Awaited<ReturnType<typeof derive>>, { ok: unknown }>['ok']) => {
+      if (step.kind !== 'continue') throw new Error(`expected continue, got ${step.kind}`)
+      const { request, coverage, source, budget, purpose, id } = step.stepRequest as Extract<
+        typeof step.stepRequest,
+        { kind: 'ready' }
+      >
+      return {
+        progress: step.progress,
+        request,
+        purpose,
+        id,
+        digests: [coverage.digest, source.digest, budget.digest],
+      }
+    }
+    const first = okOf(await derive())
+    const again = okOf(await derive())
+    expect(content(again)).toEqual(content(first))
+    // Negative control of the comparison: the evidence records themselves are not the same.
+    if (first.kind === 'continue' && again.kind === 'continue')
+      expect(again.stepRequest.source.record).not.toBe(first.stepRequest.source.record)
+  })
+
   for (const completed of ['2', '0'])
     it(`refuses a step result that Request Context counts as ${completed} steps done`, async () => {
       const { derive } = await stepped(real =>
@@ -431,5 +679,83 @@ describe('derive and resume', () => {
       kind: 'unavailable',
       diagnostic: expect.stringContaining('tools-source-absent'),
     })
+  })
+})
+
+describe('CX-14 the derivation of a long conversation grows with the new rows', () => {
+  const seed = 2
+  const perRound = 2
+  const actionOf = (round: number) => {
+    const id = decodeActionId(`action-${round}`)
+    if ('failure' in id) throw new Error('fixture action')
+    return id.ok
+  }
+  /** One real round: the holder resolves the head to the longer history, then the adapter prepares. */
+  async function round(w: World, index: number, last: number) {
+    w.growTo(last)
+    w.observation.reset()
+    const calls = w.f.preparation.calls().length
+    const context = await w.read()
+    const result = await w.requests.prepare(w.prepareInput(context, { action: actionOf(index) }))
+    const kind = kindOf(result)
+    if (kind !== 'assembled') throw new Error(`round ${index}: ${JSON.stringify(result)}`)
+    const whole = w.f.preparation.calls()[calls]
+    return {
+      round: index,
+      ...w.observation.counts(),
+      // The whole request is still measured with every message of the history.
+      measuredMessages: whole?.assembled[0]?.messages.length ?? 0,
+      requestMessages:
+        'ok' in result && result.ok.kind === 'assembled' ? result.ok.input.messages.length : 0,
+    }
+  }
+  const worldOf = (rounds: number) =>
+    createWorld({
+      rows: Array.from({ length: seed + perRound * rounds }, (_, i) => historyRow(i, `row ${i}`)),
+      upper: seed - 1,
+    })
+
+  it('CX-14 reads only the new rows in the second and third round', async () => {
+    const w = await worldOf(3)
+    const first = await round(w, 1, seed - 1)
+    const second = await round(w, 2, seed + perRound - 1)
+    const third = await round(w, 3, seed + 2 * perRound - 1)
+    expect(first).toMatchObject({ pageCalls: 1, returnedRows: seed })
+    for (const next of [second, third])
+      expect(next).toMatchObject({ pageCalls: 1, returnedRows: perRound, olderRowsTouched: 1 })
+    expect(second.requestMessages).toBeGreaterThan(first.requestMessages)
+    expect(third.requestMessages).toBeGreaterThan(second.requestMessages)
+    expect(second.messageRows).toBeLessThan(first.messageRows + perRound * 2)
+  })
+
+  it('CX-14 keeps derivation counts constant for 200 rounds', async () => {
+    const rounds = 200
+    const w = await worldOf(rounds)
+    const table = [await round(w, 1, seed - 1)]
+    for (let index = 2; index <= rounds; index++)
+      table.push(await round(w, index, seed + perRound * (index - 1) - 1))
+    const derived = (item: (typeof table)[number]) => ({
+      pageCalls: item.pageCalls,
+      returnedRows: item.returnedRows,
+      messageRows: item.messageRows,
+      touchedRows: item.touchedRows,
+      olderRowsTouched: item.olderRowsTouched,
+    })
+    const early = table.slice(10, 30).map(derived)
+    const late = table.slice(180, 200).map(derived)
+    // Rounds 11 to 30 and rounds 181 to 200 do the same work per round, pair by pair.
+    expect(late).toEqual(early.slice(0, late.length))
+    for (const item of table.slice(1)) {
+      expect(item.pageCalls).toBe(1)
+      expect(item.returnedRows).toBe(perRound)
+      // Only the last cached row is read: the cursor of the tail read continues from it.
+      expect(item.olderRowsTouched).toBe(1)
+    }
+    // The full request is not skipped: it is still built and measured over the whole history.
+    const requests = table.map(item => item.requestMessages)
+    expect(requests.at(-1)).toBeGreaterThan((requests[19] ?? 0) * 5)
+    expect(table.at(-1)?.measuredMessages).toBeGreaterThan(table[19]?.measuredMessages ?? 0)
+    const out = process.env.CX14_COUNTS_OUT
+    if (out !== undefined) writeFileSync(out, JSON.stringify(table, null, 1))
   })
 })

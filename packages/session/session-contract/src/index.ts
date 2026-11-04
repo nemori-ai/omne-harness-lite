@@ -83,6 +83,7 @@ export type {
   SessionManagement,
   SessionReconciliation,
   SessionWork,
+  StartAdoption,
   StartedRun,
 } from './faces.ts'
 export {
@@ -113,12 +114,17 @@ export type {
   SessionEntriesProgress,
   SessionEntriesReceipt,
   SessionEntriesStart,
+  SessionLogCommitObservation,
+  SessionLogReceipt,
 } from './interpretation-values.ts'
 export type {
   AdoptionEvidenceCommand,
   AgentDrivePort,
   CustodyEvidenceCommand,
   ProductionEvidenceCommand,
+  SessionAdoptionPlanAnswer,
+  SessionAdoptionPlanInput,
+  SessionAdoptionRecorded,
   SessionAdoptionSource,
   SessionCustodySource,
   SessionProductionSource,
@@ -146,6 +152,8 @@ export type {
 } from './ports.ts'
 export { sessionModesBlock } from './block.ts'
 export {
+  expectedHolds,
+  expectedRevision,
   judgeAdvance,
   judgeCompletion,
   judgeIdle,
@@ -172,7 +180,14 @@ export {
   type RunStartJudgment,
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
-export { reduce } from './reduce.ts'
+export { batchEvidence, reduce } from './reduce.ts'
+export { expandHistoryEntries } from './entries.ts'
+export {
+  CONTEXT_SCOPE_KINDS,
+  contextScopeOf,
+  contextScopesOf,
+  type SessionContextScope,
+} from './context-scopes.ts'
 
 export {
   projectSessionLog,
@@ -180,6 +195,17 @@ export {
   type SessionLogConsequence,
 } from './projection.ts'
 export { projectSessionEntries, digestSessionEntries } from './entries-interpretation.ts'
+export { digestSessionLog, executionReadThrough } from './log-interpretation.ts'
+export {
+  decideControlConsequences,
+  type SessionControlDecisionInput,
+  type SessionControlEvidence,
+  type SessionControlOrigin,
+  type SessionControlRecordEvidence,
+  type SessionControlSettlement,
+  type SessionControlStage,
+} from './control-normalization.ts'
+export { isDeferredFact, type SessionFactKind } from './history-values.ts'
 export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts'
 export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts'
 export type {

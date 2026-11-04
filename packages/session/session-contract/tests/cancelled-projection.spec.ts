@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  expectedRevision,
   projectSessionLog,
   type SessionLogObservation,
   type RunId,
@@ -38,7 +39,7 @@ async function fail(s: Scene, run: RunId) {
         ...s.base,
         operation: operationId(`fail-${run}`),
         run,
-        expected: (await s.read()).revision,
+        expected: expectedRevision(await s.read(), 'finishRun'),
         bounded: { kind: 'uninterpretable', evidence: evidence('bounded') },
       },
     }),

@@ -151,6 +151,18 @@ describe('a view bound to session-1 of tenant A, while tenant B has its own sess
     expect(await a.port.readWork(a.access(TENANT_B))).toEqual(before)
   })
 
+  it('commitLog: denied, and nothing reaches the storage', async () => {
+    const a = await twoTenants()
+    const view = readBinding(a)
+    if (view.commitLog === undefined) throw new Error('the view offers no commitLog')
+    const calls = a.provider.calls.length
+    const answer = await view.commitLog({
+      observation: { tenant: TENANT_A, session: sessionId('session-1') },
+    } as never)
+    expect(answer).toEqual({ failure: { kind: 'denied', action: 'commitLog' } })
+    expect(a.provider.calls.length).toBe(calls)
+  })
+
   it('commitEntries: denied, not the unavailable answer of the public port', async () => {
     const a = await twoTenants()
     const view = readBinding(a)

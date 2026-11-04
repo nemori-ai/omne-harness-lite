@@ -3,13 +3,12 @@
 // test provider the Session storage port, the pair of a public port and a delegated entry, and the
 // session binding source.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { SessionCommand, SessionAccess } from '@omne-harness/session-contract'
+import type { RoutedInput, SessionCommand, SessionAccess } from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
   createPolicySessionAccessCheck,
   creation,
   evidence,
-  guard,
   initializationFixtureFacts,
   initializationFixtureGuard,
   operationId,
@@ -52,7 +51,14 @@ export const textOf = (tenant: TenantId): string => {
 
 export type App = Awaited<ReturnType<typeof app>>
 
-export async function app(options: { directory?: readonly TenantId[]; now?: () => number } = {}) {
+export async function app(
+  options: {
+    directory?: readonly TenantId[]
+    now?: () => number
+    /** The bounds of the work cache of the storage (SPEC RT-04); the member's defaults when absent. */
+    workCache?: SessionStorageOptions<string>['workCache']
+  } = {},
+) {
   const provider: SqliteStorage = createSqliteStorage()
   const known = options.directory ?? [TENANT_A, TENANT_B]
   const entries: TenantDomain[] = known.map((tenant, index) => ({
@@ -107,6 +113,7 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
     cursorSigning: signing,
     combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
     now: options.now ?? (() => clock),
+    ...(options.workCache === undefined ? {} : { workCache: options.workCache }),
   }
   const port = createSessionStorage<string>(storageOptions)
   // The pair over the same options and storage: its public port and its delegated entry.
@@ -134,7 +141,13 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
     ]
     return port.commit({ access: access(tenant, session), command, guards })
   }
-  const accept = (tenant: TenantId, session: string, name: string) =>
+  /** Accepts the ordinary input `name`; by default it came through the login entry. */
+  const accept = (
+    tenant: TenantId,
+    session: string,
+    name: string,
+    value: Extract<RoutedInput, { kind: 'ordinary' }> = ordinaryInput(name),
+  ) =>
     port.commit({
       access: access(tenant, session),
       command: {
@@ -143,10 +156,10 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
           tenant,
           session: sessionId(session),
           operation: operationId(`accept-${name}`),
-          value: ordinaryInput(name),
+          value,
         },
       },
-      guards: [guard('login', 'login-entry', 'present')],
+      guards: [],
     })
   /** Registers a tenant in its own new domain; the directory publishes a new revision. */
   const register = async (tenant: TenantId) => {
@@ -171,6 +184,8 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
   return {
     port,
     pair,
+    /** The options of both ports, for a test that opens another port instance. */
+    storageOptions,
     bindings,
     provider,
     register,

@@ -22,6 +22,7 @@
 
 ## 内存行为资源
 
+- [admission-guards.spec.ts](admission-guards.spec.ts) 是受理模型的机读守卫：未决写期间不答 not-accepted、揭示后认回一致、换 operation 冲突、份额诚实、他租户不披露。性质见 [formal-mapping.md](../../model-contract/verification/models/formal-mapping.md)。
 - [memory-admission.spec.ts](memory-admission.spec.ts) 检查显式/采用/请求值的参数边界、工具关联、typed 拒绝及未知注入不被非法请求消费；请求各序列与三个 stop 承载的单空位、中间空位、合法密集值及绑定冲突。
 - [memory-core.spec.ts](memory-core.spec.ts) 检查身份、受理、操作唯一、未知与恢复。
 - [memory-dispatch.spec.ts](memory-dispatch.spec.ts) 检查物化、首内容、批次原子性、重试、终局和供应商账目修订。
@@ -29,6 +30,7 @@
 - [memory-replay.spec.ts](memory-replay.spec.ts) 检查收场的回放：`scope` 取请求声明，`format` 取物化回执的 `replayFormat`；含推理续接状态的回复在流内与晚到终局两条路径上，缺格式时都以 `replay-format-unknown` 拒绝且不保存。
 - [commands-accounts.spec.ts](commands-accounts.spec.ts) 对内存 ModelCommands 运行账目共用套件 `checkCommandsAccounts`，要求全部九项通过。admit 的请求含两条消息，使保留的消息身份可见。它还对改坏一条规则的内存副本运行套件，要求对应项失败，证明每项都能变红。每一项至少有一份这样的副本。改坏的规则是：读取时账目缺少调用方的 `subject`；读取时每份账目都标为 `received`；每次到达都当成新事件；没有账目的调用读到另一调用的账目；报告自带的 `subject` 被删去而不是被拒绝；读取不核对调用方的资格；清理时一并丢弃消息身份；物化回执缺 `replayFormat` 时自行补一个格式。
 - [memory-consumption.spec.ts](memory-consumption.spec.ts) 检查完整块分页、当前资格、ACK 与材料释放。
+- [handoff-evidence.spec.ts](handoff-evidence.spec.ts) 检查 ACK 的 owner 证据在写栅栏外读取：适配器晚些确认时 ACK 成立、带调用的 invocation reference；晚些答 `unavailable` 时保管不变、同一 operation 以后可确认；写入会先拒的 ACK 不问适配器（R2-D257）。
 - [runtime-testing.spec.ts](runtime-testing.spec.ts) 检查逐方法构造依赖、发送身份关联与调用后引用修改隔离、send/retry 参数及稀疏序列失败通道、一次发送及耗尽/异常/取消释放、宿主和手动时钟。
 
 fixture 的主体与证据只在本地测试适配中可信。它们不替代真实耐久、消费者完成、跨进程排除或资格事务的证据。
@@ -53,6 +55,8 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 ## 产品发送验证
 
 [send.spec.ts](send.spec.ts) 通过真实 runtime 和 driver 建立 prepared dispatch，经公开产品 sender 验证凭据五结果、scope 与禁止回退、显式 factory 来源、回执提交、物化/开窗/send 写的 applied 与 not-applied 原参数认回、当前撤权/取消/代次排序，以及两个 sender 共用后端的一次 start。查询拒绝、异常或仍未知时保留原尝试和容量；已确认提交但回执暂不可取时仍保留资源。产品闭包在同步重入和重复调用时最多解析并 start 一次，保留原事实流。后端认领另在 recordSend 尚未提交时核实，不能用本地 map 替代。单 iterator、原流未预取、abort 中断事实、done/return/throw/读取异常、逆序幂等释放及释放失败均有行为断言。
+
+凭据 absent 与 unreadable 在 not-sent 发送记录上留下 `credential` 失败终止。终止写未确认时，重试重放同一 operation。[send-credential-terminal.spec.ts](send-credential-terminal.spec.ts) 经 acceptance 夹具的真实 driver 验证调用以该失败结算，且上游 start 为 0；发送记录读取失败一次（答 unavailable 或抛出）时，下一次驱动仍结算。not-sent 记录或终止写被明确拒绝（denied、stale-instance、conflict）时，send.spec.ts 断言边界答该拒绝，不答 unavailable。之后释放失败时，答复仍是该拒绝，尝试与容量保留。出口表与模型见 Model SPEC「发送边界的出口」。
 
 [send-fixture.ts](send-fixture.ts) 只提供真实内存 Commands、资格安排、脚本外部传输、资源及故障。它不编排发送。未知流始终由产品 sender 保留和交接。公开类型由 [send.spec-d.ts](send.spec-d.ts) 核对，安装场景运行已安装根入口的产品工厂，确认提交真实回执、一次 start 与资源关闭。
 

@@ -8,6 +8,7 @@ import {
   AgentAccountOutletService,
   ModelContextReaderService,
   RequestPreparationService,
+  agentAdoptionsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ModelPreparationResources, ResultCapacity } from '@omne-harness/model-contract'
 import { modelRequestPreparationKey } from '@omne-harness/model-cordis-contract/cordis'
@@ -25,9 +26,11 @@ import {
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { absentAccountTarget, createAgentAccountOutlet } from './account-outlet.ts'
 import { createContextMaterials } from './materials.ts'
+import type { ContextMeasure } from './measure.ts'
 import { createAgentModelContext } from './model-context.ts'
 import { createAgentRequests, type AgentRequests } from './requests.ts'
-import { absentStepResults, firstWaveTools, unavailable } from './translate.ts'
+import { absentToolLookup, toolsSourceOf, type ToolLookup } from './tools.ts'
+import { absentStepResults, definitionSourceOf, unavailable } from './translate.ts'
 
 /**
  * The key of the Model preparation resources (X-3). Its Cordis definition belongs to
@@ -159,6 +162,7 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
     [runtimeContextKey]: { consumer: 'model' },
     [modelRequestPreparationKey]: null,
     [MODEL_PREPARATION_RESOURCES]: null,
+    [agentAdoptionsKey]: null,
   }
   /** Checked before the constructor runs; a configuration that does not fit fails the load. */
   static readonly Config = standardSchema(decodeContextConfig)
@@ -166,8 +170,15 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
   readonly derive: RequestPreparationService<unknown>['derive']
   readonly resume: RequestPreparationService<unknown>['resume']
 
-  constructor(ctx: Context, config: AgentContextConfig) {
+  /**
+   * `input` is what the plugin factory hands in: the measurement observer and the tool lookup of
+   * the sixth group. Loaded as is, the plugin has neither: no event is built, and every non-empty
+   * set of bindings answers `tool-lookup-absent`.
+   */
+  constructor(ctx: Context, config: AgentContextConfig, input: AgentContextPluginInput = {}) {
     super(ctx)
+    const { measure } = input
+    const toolLookup = input.toolLookup?.(ctx) ?? absentToolLookup
     const materials = createContextMaterials<unknown>({
       owner: config.owner,
       capacity: config.materials ?? DEFAULT_MATERIAL_CAPACITY,
@@ -178,7 +189,7 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
     const leased = ctx.contextHolderSources.lease({
       settle: () => requests?.close() ?? Promise.resolve({ kind: 'settled' }),
     })
-    const preparation: ModelPreparationResources<unknown> = ctx.get(MODEL_PREPARATION_RESOURCES)
+    const preparation: ModelPreparationResources<unknown> = ctx[MODEL_PREPARATION_RESOURCES]
     const refused =
       leased.kind === 'leased'
         ? unavailable('agent-context-closed')
@@ -194,14 +205,19 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
         conversions: createAbsentConversionResults(),
         model: ctx.modelRequestPreparation,
         resultCapacity: config.resultCapacity,
-        tools: firstWaveTools,
+        // The sixth group: the resident bindings of the conditions, read through the tool lookup.
+        tools: toolsSourceOf(toolLookup),
         stepResults: absentStepResults,
+        // The definition sections of the fourth group come from the adoptions service of Agent.
+        definitions: definitionSourceOf(ctx.agentAdoptions),
+        ...(measure === undefined ? {} : { measure }),
       })
       read = createAgentModelContext({
         materials,
         parts,
         eligibility: ctx.runtimeContextReaderEligibility,
         runtimeContext: { bind: eligibility => ctx.runtimeContext.bind(eligibility) },
+        ...(measure === undefined ? {} : { measure }),
       }).read
     }
     // After the lease ends `requests` refuses by itself; the reader needs the flag below.
@@ -218,5 +234,38 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
       },
       'agentContext.close',
     )
+  }
+}
+
+/** What the assembly entry hands to `createAgentContextPlugin`. */
+export type AgentContextPluginInput = Readonly<{
+  /**
+   * The observer of the measurement events, handed to the request preparation and the readable
+   * context of the plugin (SPEC「测量事件」). It is a function, so it is not a configuration member.
+   * Absent: no event is built, as with `AgentContextProvider` itself.
+   */
+  measure?: ContextMeasure
+  /**
+   * The tool lookup of the sixth group (SPEC「组六」), made from the context of the plugin: the
+   * constructor calls it once, and the lookup it returns serves every call. It is a function of the
+   * context, so it is not a configuration member and adds no service key. Absent: `absentToolLookup`.
+   */
+  toolLookup?: (ctx: Context) => ToolLookup<unknown>
+}>
+
+/**
+ * The plugin of `AgentContextProvider` with the measurement observer and the tool lookup that the
+ * assembly entry hands in. The `inject`, the configuration and the provided keys are those of
+ * `AgentContextProvider`; neither input is a Cordis service or a configuration member. Use the
+ * returned class as `ctx.plugin(Plugin, config)` does with the provider class.
+ */
+export function createAgentContextPlugin(
+  input: AgentContextPluginInput = {},
+): typeof AgentContextProvider {
+  const given = { ...input }
+  return class AgentContextAssembledPlugin extends AgentContextProvider {
+    constructor(ctx: Context, config: AgentContextConfig) {
+      super(ctx, config, given)
+    }
   }
 }

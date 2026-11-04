@@ -1,7 +1,7 @@
 // The `execution-record` participant and the joint commit of the Session log combination, over the
 // node:sqlite test provider: one storage commit with an `execution-record` and a `session` command
-// is all or nothing; the publication count and the head revision guard the write; the original
-// answer is unique per operation; a read-only check writes no row and its conflict stops the batch;
+// is all or nothing; the publication count and the head revision guard the write; an operation
+// has one batch; a read-only check writes no row and its conflict stops the batch;
 // the common root moves on a publication of either side and is read in one snapshot.
 import { describe, expect, it } from 'vitest'
 import {
@@ -27,6 +27,7 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
+  decodeExecutionRecordFacts,
   decodeExecutionRecordReply,
   decodeSessionHistoryRoot,
   decodeSessionReply,
@@ -36,8 +37,10 @@ import {
   type ExecutionRecordWrite,
   type SessionCheck,
 } from '../src/participants.ts'
-import { canonicalText, decodeValue, sha256 } from '../src/codec.ts'
+import { canonicalText, sha256 } from '../src/codec.ts'
+import { entryOfText } from './fixtures/entry-text.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
+import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
 
 const SESSION = sessionId('session-1')
@@ -65,8 +68,7 @@ function write(over: Partial<ExecutionRecordWrite> = {}): ExecutionRecordWrite {
     published: '0',
     operation: 'aop_open',
     digest: 'sha256:open',
-    answer: { kind: 'answer', value: 'open' },
-    state: { opaque: ['state', 1] },
+    blobs: [],
     boundaries: [
       {
         execution,
@@ -76,8 +78,15 @@ function write(over: Partial<ExecutionRecordWrite> = {}): ExecutionRecordWrite {
         ended: null,
       },
     ],
-    facts: [{ execution, sequence: '1', source: evidence('agent/event/1'), kinds: ['producer'] }],
-    batches: [],
+    facts: [
+      { kind: 'batch', body: { opaque: ['state', 1] } },
+      {
+        execution,
+        kind: 'event',
+        event: { sequence: '1', source: evidence('agent/event/1'), kinds: ['producer'] },
+        body: { event: 1 },
+      },
+    ],
     admissions: [],
     ...over,
   }
@@ -116,8 +125,23 @@ const root = async (a: App) =>
   decodeSessionHistoryRoot(
     await read(a, 'session.history-root', { tenant: textOf(TENANT_A), session: SESSION }),
   )
-const state = async (a: App, tenant: TenantId = TENANT_A) =>
-  read(a, 'execution-record.state', { tenant: textOf(tenant), session: SESSION }, tenant)
+/**
+ * The publication count of the session and the envelope body of its last batch (null: no batch), or
+ * the refusal of the read.
+ */
+const state = async (a: App, tenant: TenantId = TENANT_A) => {
+  const page = decodeExecutionRecordFacts(
+    await read(
+      a,
+      'execution-record.facts',
+      { tenant: textOf(tenant), session: SESSION, after: '0' },
+      tenant,
+    ),
+  )
+  return page?.kind === 'facts'
+    ? { published: page.published, state: page.batches.at(-1)?.facts[0]?.body ?? null }
+    : page
+}
 const count = (a: App, table: string): number =>
   Number(a.provider.select('dom_0', `SELECT COUNT(*) AS n FROM ${table}`).rows[0]?.[0] ?? 0)
 
@@ -200,7 +224,9 @@ async function cancel(a: App, work: WorkSnapshot) {
 }
 
 describe('the materials of the Session log combination', () => {
-  const materials = sessionStorageMaterials()
+  const materials = sessionStorageMaterials({
+    readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES,
+  })
   const catalog: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
     participants: materials.participants,
@@ -266,7 +292,7 @@ describe('the first publication: one commit with an execution-record and a sessi
       expect(result.kind).toBe('rolled_back')
       expect(count(a, 'er_operation')).toBe(0)
       expect(count(a, 'er_execution')).toBe(0)
-      expect(count(a, 'er_fact_idx')).toBe(0)
+      expect(count(a, 'er_fact')).toBe(0)
       expect(count(a, 'sl_entry')).toBe(entries)
       expect((await root(a))?.published).toBe('0')
       expect(await state(a)).toEqual({ published: '0', state: null })
@@ -301,13 +327,19 @@ describe('the guards of an execution-record write', () => {
     expect(count(a, 'er_operation')).toBe(1)
     const next = await joint(a, 'aop_4', [
       executionRecordFacts(
-        write({ operation: 'aop_4', expected: '1', revision: '2', published: '1', facts: [] }),
+        write({
+          operation: 'aop_4',
+          expected: '1',
+          revision: '2',
+          published: '1',
+          facts: [{ kind: 'batch', body: null }],
+        }),
       ),
     ])
     expect(next.kind).toBe('committed')
   })
 
-  it('an operation that has an original answer is a conflict that carries the original digest and answer', async () => {
+  it('an operation that has a batch is a conflict that carries the original digest and its publication', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
     expect((await joint(a, 'aop_x', [executionRecordFacts(write())])).kind).toBe('committed')
@@ -319,7 +351,7 @@ describe('the guards of an execution-record write', () => {
     ).toEqual({
       kind: 'operation-conflict',
       digest: 'sha256:open',
-      answer: { kind: 'answer', value: 'open' },
+      published: '1',
     })
     expect((await state(a)) as { published: string }).toMatchObject({ published: '1' })
   })
@@ -339,7 +371,7 @@ describe('the guards of an execution-record write', () => {
           expected: '1',
           revision: '2',
           published: '0',
-          state: { opaque: ['other'] },
+          facts: [{ kind: 'batch', body: { opaque: ['other'] } }],
         }),
       ),
     ])
@@ -358,7 +390,7 @@ describe('the guards of an execution-record write', () => {
     const a = await app()
     ok(await a.create(TENANT_A))
     expect((await joint(a, 'aop_t', [executionRecordFacts(write())])).kind).toBe('committed')
-    expect(await state(a, TENANT_B)).toEqual({ published: '0', state: null })
+    expect(await state(a, TENANT_B)).toEqual({ kind: 'denied' })
     expect(
       await read(
         a,
@@ -372,7 +404,7 @@ describe('the guards of an execution-record write', () => {
         tenant: textOf(TENANT_A),
         operation: 'aop_open',
       }),
-    ).toEqual({ digest: 'sha256:open', answer: { kind: 'answer', value: 'open' } })
+    ).toMatchObject({ digest: 'sha256:open', published: '1', session: SESSION })
   })
 })
 
@@ -469,6 +501,7 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
             run: work.run.run,
             instance: { owner: 'agent', id: 'instance-2' },
             continuity: evidence('continuity'),
+            expected: work.run.revision,
           },
         },
         guards: [],
@@ -612,7 +645,7 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
       "SELECT position, revision, entry FROM sl_entry WHERE kind = 'run.started'",
     ).rows[0]
     if (row === undefined) throw new Error('no SE13 row')
-    const entry = decodeValue(JSON.parse(String(row[2])) as JsonValue)
+    const entry = entryOfText(String(row[2]))
     const se13: DurableEvidence = {
       owner: '@omne-harness/session-storage-sql',
       record: `${textOf(TENANT_A)}/${SESSION}/entry/${String(row[0])}`,

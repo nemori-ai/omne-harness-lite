@@ -18,6 +18,7 @@
 
 - 验证义务在 [obligations.md](../docs/verification-obligations.md)：组 D 派生等于重算，组 R 读路径的复杂度与退化，组 W 写路径与并发写裁定，组 F 失败分类与耐久。
 - 符合性套件的规则在 [SPEC 的符合性](../SPEC.md#符合性)，派生等于重算的检查方式是影子表集合差。
-- `models/` 与 `proofs/` 目前没有内容。候选模型是两个进程对同一 `tail` 的并发提交裁定（[W6](../SPEC.md#w6)），尚未立项。
+- [attempt-grant/](attempt-grant/README.md) 是 grant 到 attempt 解析的有限模型（R2-D349）：索引在提交时写入，读时不推断；负控复现只记 `started` 回执、回落到唯一 attempt 的生产读法在第二个 attempt 上的失败。
+- [log-commit/](log-commit/README.md) 是同日志提交与未知结果认回的有限模型。`models/` 与 `proofs/` 目前没有内容。候选模型是两个进程对同一 `tail` 的并发提交裁定（[W6](../SPEC.md#w6)），尚未立项。
 - 现有用例在 `tests/`，跑在 `node:sqlite` 夹具上，不覆盖 sqlite-provider 的 Worker、持久与关闭（[tests](../tests/README.md)）。义务表里的各组大多尚未实现。目标前提是真实 SQLite 或 PostgreSQL 提供者，没有内存替身。
 - 断电耐久归 [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方，本目录不记录耐久证据。

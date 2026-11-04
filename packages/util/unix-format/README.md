@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-Pure functions that format text by Unicode code point. This member is a port of the sealed `packages.0.0.1.legacy/util/unix-format` package. The function names and the tested output bytes are unchanged. The package name is `@omne-harness/unix-format`.
+Pure functions that format text by Unicode code point. This member is a port of the sealed [`packages.0.0.1.legacy/util/unix-format`](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/util/unix-format) package. The sealed package is deleted from the repository, and the link points to a fixed commit. The function names and the tested output bytes are unchanged. The package name is `@omne-harness/unix-format`.
 
 ## Responsibility and status
 

@@ -17,7 +17,11 @@ import {
   resolveModelInvocationRef,
   type ModelDelivery,
 } from '@omne-harness/model-contract'
-import type { AgentAccountHandoff, AgentAccountOutcome } from '@omne-harness/agent-contract'
+import {
+  decodeAgentExecutionId,
+  type AgentAccountHandoff,
+  type AgentAccountOutcome,
+} from '@omne-harness/agent-contract'
 import { modelDeliveryMaterial, modelReceivedDraft } from '../src/receiving-material.ts'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import {
@@ -31,6 +35,7 @@ import {
   openInput,
   operation,
   tenantB,
+  loadWithEntries,
 } from './journal-support.ts'
 import { alice, loopAssembly } from './loop-support.ts'
 import { options } from './factory-support.ts'
@@ -63,9 +68,10 @@ async function setup() {
   const authority = ok(await coordinator.accept())
   assembly.release.open()
   ok(await coordinator.runExecution())
-  const snapshot = ok(
-    await assembly.dependencies.journal.load({ ...alice, execution: execution() }),
-  )
+  const snapshot = await loadWithEntries(assembly.dependencies, {
+    ...alice,
+    execution: execution(),
+  })
   const pending = snapshot.checkpoint.calls[0]
   if (!pending || pending.kind !== 'model') throw new Error('model pending expected')
   const pusher = assembly.controls.pusher
@@ -113,12 +119,41 @@ async function setup() {
 }
 
 describe('host Model receiver', () => {
+  it('routes standalone material by explicit execution and retains its access boundary', async () => {
+    const s = await setup()
+    const consumer = {
+      ...s.delivery.consumer,
+      work: 'opaque-value-not-an-execution',
+      position: 'material',
+    }
+    const input = {
+      ...alice,
+      execution: execution(),
+      identity: 'standalone-material',
+      consumer,
+      value: s.assembly.controls.journal.receiving.material('standalone'),
+    }
+    const source = ok(await s.dependencies.provider.materials.preserve(input))
+    expect(ok(await s.dependencies.provider.materials.read({ ...alice, source }))).toEqual(
+      input.value,
+    )
+    s.assembly.controls.journal.receiving.qualify(alice, execution(), 'denied')
+    expect(await s.dependencies.provider.materials.read({ ...alice, source })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+    expect(await s.dependencies.provider.materials.preserve(input)).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+  })
   it('jointly saves complete material and recalls it after detach and reassembly', async () => {
     const s = await setup()
     const saved = ok(await s.push())
-    const snapshot = ok(
-      await s.assembly.dependencies.journal.load({ ...alice, execution: execution() }),
-    )
+    const snapshot = await loadWithEntries(s.assembly.dependencies, {
+      ...alice,
+      execution: execution(),
+    })
     expect(snapshot.entries).toHaveLength(1)
     const entry = snapshot.entries?.[0]
     if (!entry || entry.kind !== 'received') throw new Error('received entry expected')
@@ -151,9 +186,10 @@ describe('host Model receiver', () => {
       const s = await setup()
       s.assembly.controls.journal.failNext('received', { kind: 'commit-unknown', outcome })
       expect(await s.push()).toEqual({ failure: { kind: 'outcome-unknown' } })
-      const before = ok(
-        await s.dependencies.provider.journal.load({ ...alice, execution: execution() }),
-      )
+      const before = await loadWithEntries(s.dependencies.provider, {
+        ...alice,
+        execution: execution(),
+      })
       expect(before.entries).toHaveLength(outcome === 'applied' ? 1 : 0)
       if (outcome === 'pending') {
         const operation = before.unresolved[0]
@@ -166,9 +202,10 @@ describe('host Model receiver', () => {
       if (outcome === 'dropped')
         expect(replay).toEqual({ failure: { kind: 'unavailable', dependency: 'responsibility' } })
       else expect(replay).toHaveProperty('ok')
-      const after = ok(
-        await s.dependencies.provider.journal.load({ ...alice, execution: execution() }),
-      )
+      const after = await loadWithEntries(s.dependencies.provider, {
+        ...alice,
+        execution: execution(),
+      })
       expect(after.entries).toHaveLength(outcome === 'dropped' ? 0 : 1)
     },
   )
@@ -216,6 +253,43 @@ describe('host Model receiver', () => {
     expect(await s.receiver.push({ ...input, delivery: { ...s.delivery, accounts: [] } })).toEqual({
       failure: { kind: 'invalid', field: 'accounts', reason: 'dispatch-set-mismatch' },
     })
+  })
+  // Red when the receiver stops routing the target query, or reads the route from text that its own
+  // owner did not register: a provider that keeps bindings per execution then finds none.
+  it('routes the target query to the execution its own consumer position names', async () => {
+    const s = await setup()
+    const routes: unknown[] = []
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        targets: {
+          forExecution: input => s.dependencies.targets.forExecution(input),
+          resolve(input) {
+            routes.push(input.execution)
+            return s.dependencies.targets.resolve(input)
+          },
+        },
+      },
+      createModelReceiverState<string>(),
+    )
+    const signal = new AbortController().signal
+    expect(await receiver.push({ access: alice, delivery: s.delivery, signal })).toHaveProperty(
+      'ok',
+    )
+    expect(routes).toEqual([execution()])
+    // Another owner's position names no route; the target query gets none.
+    const foreign = { ...s.delivery.consumer, owner: 'another-owner' }
+    await receiver.push({ access: alice, delivery: { ...s.delivery, consumer: foreign }, signal })
+    expect(routes).toEqual([execution(), undefined])
+    // A route to another execution reads no binding there: the provider answers as for none.
+    expect(
+      await s.dependencies.targets.resolve({
+        access: alice,
+        consumer: s.delivery.consumer,
+        reference: s.delivery.key.reference,
+        execution: ok(decodeAgentExecutionId('another-execution')),
+      }),
+    ).toHaveProperty('failure.kind', 'denied')
   })
   it('takes a frozen input before asynchronous authorization', async () => {
     const s = await setup(),
@@ -289,7 +363,7 @@ describe('received account outbox and capacity', () => {
     expect(s.sent).toEqual([])
     ok(await s.coordinator.runExecution())
     expect(
-      ok(await s.dependencies.provider.journal.load({ ...alice, execution: execution() })).state
+      (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() })).state
         .kind,
     ).toBe('ended')
     const result = withAccount(s.delivery)
@@ -322,7 +396,8 @@ describe('received account outbox and capacity', () => {
       account: item.account,
     })
     expect(
-      ok(await s.dependencies.provider.journal.load({ ...alice, execution: execution() })).entries,
+      (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() }))
+        .entries,
     ).toHaveLength(2)
   })
   it('rejects a partial dispatch set and sends every non-null dispatch after joint publication', async () => {
@@ -349,7 +424,8 @@ describe('received account outbox and capacity', () => {
     expect(await s.receiver.push({ ...input, delivery: complete })).toHaveProperty('ok')
     expect(s.sent.map(item => item.dispatch)).toEqual([original.dispatch, dispatch])
     expect(
-      ok(await s.dependencies.provider.journal.load({ ...alice, execution: execution() })).entries,
+      (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() }))
+        .entries,
     ).toHaveLength(1)
   })
   it.each(['records', 'bytes'] as const)(
@@ -377,7 +453,7 @@ describe('received account outbox and capacity', () => {
         }),
       ).toEqual({ failure: { kind: 'backpressured', resource } })
       expect(
-        ok(await s.dependencies.provider.journal.load({ ...alice, execution: execution() }))
+        (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() }))
           .entries,
       ).toEqual([])
     },
@@ -419,7 +495,8 @@ describe('received account outbox and capacity', () => {
       await receiver.push({ access: alice, delivery, signal: new AbortController().signal }),
     ).toEqual({ failure: { kind: 'backpressured', resource: 'attachments' } })
     expect(
-      ok(await s.dependencies.provider.journal.load({ ...alice, execution: execution() })).entries,
+      (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() }))
+        .entries,
     ).toEqual([])
   })
   it('cancels before acceptance without a write and retains actual in-flight capacity after an aborted wait', async () => {
@@ -478,7 +555,8 @@ describe('received account outbox and capacity', () => {
       }),
     ).toHaveProperty('ok')
     expect(
-      ok(await s.dependencies.provider.journal.load({ ...alice, execution: execution() })).entries,
+      (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() }))
+        .entries,
     ).toHaveLength(1)
   })
 })
@@ -539,9 +617,10 @@ describe('receiver failure boundaries', () => {
     expect(
       ok(await s.receiver.push({ access: alice, delivery: s.delivery, signal: controller.signal })),
     ).toEqual(saved)
-    const snapshot = ok(
-      await s.dependencies.provider.journal.load({ ...alice, execution: execution() }),
-    )
+    const snapshot = await loadWithEntries(s.dependencies.provider, {
+      ...alice,
+      execution: execution(),
+    })
     const entry = snapshot.entries?.[0]
     if (!entry || entry.kind !== 'received') throw new Error('received required')
     s.assembly.controls.journal.receiving.loseMaterial(entry.material)
@@ -602,7 +681,7 @@ it('refuses a non-original admission, result relation, tenant, and authoritative
     failure: { kind: 'invalid', field: 'key.reference', reason: 'not-accepted' },
   })
   expect(
-    ok(await s.dependencies.provider.journal.load({ ...alice, execution: execution() })).entries,
+    (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() })).entries,
   ).toEqual([])
   expect(s.sent).toEqual([])
 })
@@ -663,13 +742,10 @@ it.each(['same', 'different'] as const)(
     )
     expect(foreignTarget.pending.reference).toBe(foreignReference)
     expect(foreignTarget.pending.consumption).toBe(later.consumption)
-    expect(
-      await s.dependencies.targets.resolve({
-        access: foreign,
-        reference: s.pending.reference,
-        consumer: s.pending.position,
-      }),
-    ).toHaveProperty('failure.kind', 'denied')
+    // R2-D357: the reference carries no tenant, so the foreign tenant's text is alice's text, and
+    // it resolves to the foreign tenant's own target only, never to alice's.
+    expect(foreignReference).toBe(s.pending.reference)
+    expect(foreignTarget.pending.consumption).not.toBe(s.pending.consumption)
     expect(
       await s.receiver.push({
         access: alice,
@@ -679,14 +755,15 @@ it.each(['same', 'different'] as const)(
     ).toEqual({ failure: { kind: 'invalid', field: 'consumer', reason: 'not-original' } })
     ok(await s.push())
     expect(
-      ok(await s.dependencies.provider.journal.load({ ...alice, execution: execution() })).entries,
+      (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() }))
+        .entries,
     ).toHaveLength(1)
     for (const [who, id] of [
       [alice, execution('later-execution')],
       [foreign, execution()],
     ] as const)
       expect(
-        ok(await s.dependencies.provider.journal.load({ ...who, execution: id })).entries,
+        (await loadWithEntries(s.dependencies.provider, { ...who, execution: id })).entries,
       ).toEqual([])
   },
 )
@@ -992,7 +1069,7 @@ it.each(['targets', 'access', 'journal'] as const)(
           dependency === 'journal'
             ? {
                 ...s.dependencies.provider,
-                journal: { ...s.dependencies.provider.journal, load: throws },
+                entries: { ...s.dependencies.provider.entries, receivedOf: throws },
               }
             : s.dependencies.provider,
       },
@@ -1006,17 +1083,17 @@ it.each(['targets', 'access', 'journal'] as const)(
   },
 )
 
-it('preserves explicit denied from Journal maintenance load without changing retained state', async () => {
+it('preserves explicit denied from the Journal entries read of maintenance without changing retained state', async () => {
   const s = await setup()
   const receiver = createAgentModelReceiver(
     {
       ...s.dependencies,
       provider: {
         ...s.dependencies.provider,
-        journal: {
-          ...s.dependencies.provider.journal,
-          async load() {
-            return { failure: { kind: 'denied', action: 'load' } }
+        entries: {
+          ...s.dependencies.provider.entries,
+          async receivedOf() {
+            return { failure: { kind: 'denied', action: 'read' } }
           },
         },
       },
@@ -1092,7 +1169,7 @@ it.each(['targets', 'access', 'final-access'] as const)(
   },
 )
 
-it('rechecks qualification after an awaited load and denies the final report after revocation', async () => {
+it('rechecks qualification after an awaited entries read and denies the final report after revocation', async () => {
   const s = await setup(),
     entered = Promise.withResolvers<void>(),
     release = Promise.withResolvers<void>()
@@ -1107,12 +1184,12 @@ it('rechecks qualification after an awaited load and denies the final report aft
       },
       provider: {
         ...s.dependencies.provider,
-        journal: {
-          ...s.dependencies.provider.journal,
-          async load(input) {
+        entries: {
+          ...s.dependencies.provider.entries,
+          async receivedOf(input) {
             entered.resolve()
             await release.promise
-            return s.dependencies.provider.journal.load(input)
+            return s.dependencies.provider.entries.receivedOf(input)
           },
         },
       },
@@ -1422,9 +1499,10 @@ it('freezes the original binding workset before authorization and excludes a con
       recovery: evidence('later-recovery'),
     }),
   )
-  const snapshot = ok(
-    await s.dependencies.provider.journal.load({ ...alice, execution: execution() }),
-  )
+  const snapshot = await loadWithEntries(s.dependencies.provider, {
+    ...alice,
+    execution: execution(),
+  })
   ok(
     await s.dependencies.provider.journal.commit({
       ...alice,

@@ -2,7 +2,7 @@
 // 材料目录只有 identity-sql 自己的材料。APP-0 的 `fixtureStorage` 只提供裸的 `storage` 名字，没有 `SqlStorage`
 // 的方法，identity-sql 插件体在它上面 `registerCombination` 会抛错，所以本行要一个能受理登记的提供者。
 // 撤除时关闭提供者并删掉临时根。真实的 `storage` 行（APP-1）另有入口对象承载的关闭，这里不模拟它。
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Context, Plugin } from '@deepseek-ai/cordis'
@@ -116,3 +116,25 @@ export const fixtureSqliteStorage = defineRow({
   lifecycle: { kind: 'none' },
   plugin: memberPlugin,
 })
+
+/** The four values of the identity row as the release writes them. */
+export type ReleaseIdentityConfig = Readonly<{
+  maxLifetime: string
+  idlePeriod: string
+  invitationDefaultDuration: string
+  invitationMaxDuration: string
+}>
+
+/**
+ * The configuration of the `identity` row of `config/serve.distribution.json`, read from the file,
+ * so a change of the release values reaches the cases that use it (R2-D249).
+ */
+export function releaseIdentityConfig(): ReleaseIdentityConfig {
+  const path = join(import.meta.dirname, '../../../config/serve.distribution.json')
+  const release = JSON.parse(readFileSync(path, 'utf8')) as {
+    rows: { id: string; config?: ReleaseIdentityConfig }[]
+  }
+  const row = release.rows.find(entry => entry.id === 'identity')
+  if (row?.config === undefined) throw new Error('the release has no identity row configuration')
+  return row.config
+}

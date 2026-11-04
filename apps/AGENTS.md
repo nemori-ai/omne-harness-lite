@@ -4,4 +4,4 @@
 
 应用负责启动、配置、装配、就绪与退出；可复用行为回所属[能力组](../packages/README.md)，通过公开入口组合。应用与包、部署拓扑的边界归[系统架构](../docs/architecture/README.md)及[源码布局](../docs/workspace.md)。
 
-旧应用从[legacy入口](../apps.0.0.1.legacy/README.md)查源，不把其名称或旧政策当作新架构约束。改变身份、授权、生命周期或故障语义时定位相应架构与契约拥有者；命令和配置留实际成员说明。
+旧应用已从仓库删除，从固定提交中的[legacy入口](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md)查源，不把其名称或旧政策当作新架构约束。改变身份、授权、生命周期或故障语义时定位相应架构与契约拥有者；命令和配置留实际成员说明。

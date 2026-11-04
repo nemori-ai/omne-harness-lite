@@ -78,6 +78,7 @@ export class Probe extends RuntimeContextService {
     const applied = await this.memory.applyCommit('probe', {
       kind: 'registration',
       commit: { commit: target.ref },
+      after: null,
       change: {
         kind: 'add',
         creating: true,

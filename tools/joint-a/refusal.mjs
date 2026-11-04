@@ -13,6 +13,7 @@
 // 判断只看响应体里的 `outcome`，不看状态码（公开契约的承载页第 211 行同款规则）。
 import { join } from 'node:path'
 import {
+  holdTestSlot,
   SESSION_PATH,
   blockedCount,
   doubleRows,
@@ -35,6 +36,8 @@ import {
   verdict,
   writeJson,
 } from './support.mjs'
+
+holdTestSlot(import.meta.url)
 
 const CREDENTIALS = { alice: 'alice-pw-REFUSE-4b19', bob: 'bob-pw-REFUSE-8d02' }
 /** 真实的会话标识形状，但没有人创建过。 */
@@ -129,7 +132,14 @@ async function run(scratch, port, doubles) {
       readHistoryRequest(bobTenant, UNKNOWN_SESSION, bobProof),
     ),
   }
-  const allDenied = Object.values(cross).every(isDenied)
+  // 用属主的租户文本读，答 denied。bob 自己的租户在首次 create 之前没有事务域，
+  // 存储按 session-storage-sql SPEC「事务域目录没有该租户」答 unavailable，
+  // 接入层映射为 basis-unavailable。两种答案都要求真实会话与不存在的会话逐字节相同。
+  const isUnregistered = reply => replyOf(reply)?.outcome === 'basis-unavailable'
+  const allDenied =
+    isDenied(cross.ownerTenantReal) &&
+    isDenied(cross.ownerTenantUnknown) &&
+    [cross.ownTenantReal, cross.ownTenantUnknown].every(r => isDenied(r) || isUnregistered(r))
   const sameAnswer = (a, b) => a.status === b.status && a.body === b.body
   const indistinguishable =
     sameAnswer(cross.ownerTenantReal, cross.ownerTenantUnknown) &&

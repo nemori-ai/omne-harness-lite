@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-按字段声明把值渲染成 XML 文本的纯函数。本成员从封存的 `packages.0.0.1.legacy/util/xml-format` 迁入。函数名和测试锁定的输出字节不变。包名是 `@omne-harness/xml-format`。
+按字段声明把值渲染成 XML 文本的纯函数。本成员从封存的 [`packages.0.0.1.legacy/util/xml-format`](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/util/xml-format) 迁入。封存包已从仓库删除，链接指向固定提交。函数名和测试锁定的输出字节不变。包名是 `@omne-harness/xml-format`。
 
 ## 职责与状态
 

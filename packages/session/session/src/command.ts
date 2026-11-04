@@ -5,15 +5,19 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decide,
+  expectedHolds,
+  expectedRevision,
   mutationAccessRequest,
   type CommitReceipt,
   type GuardCommand,
+  type HistoryEntry,
   type MutationName,
   type SessionAccess,
   type SessionAccessRequest,
   type SessionCallerClass,
   type SessionCommand,
   type SessionFailure,
+  type SessionNotifier,
   type SessionTransactionPort,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -21,11 +25,13 @@ import { admitsCommand } from './callers.ts'
 import type { SessionDependencies } from './dependencies.ts'
 import { denied, guarded, messageOf, OWNERS, unavailable } from './failures.ts'
 import type { Lifecycle } from './lifecycle.ts'
+import { terminalOf, type SessionMeasurer } from './measure.ts'
 import type { SchedulingPolicy } from './policy.ts'
 import { qualify, readSnapshot } from './qualify.ts'
 
 /** The commands that carry `expected` and so may meet `changed` at the commit (SPEC CP-01). */
 const OPTIMISTIC: ReadonlySet<MutationName> = new Set([
+  'claim',
   'reload',
   'release',
   'finishRun',
@@ -87,6 +93,7 @@ export type CommandHandlerInput<P> = Readonly<{
   dependencies: SessionDependencies<P>
   policy: SchedulingPolicy
   lifecycle: Lifecycle
+  measurer: SessionMeasurer
   /** Called after a commit of this instance that is not a recall, before the answer returns. */
   committed(command: SessionCommand): void
 }>
@@ -98,6 +105,22 @@ export type CommandHandler<P> = (
 ) => Promise<CommandAnswer>
 
 type Lookup = Readonly<{ kind: 'new' }> | Readonly<{ kind: 'held' }>
+
+type ContextCommand = Extract<SessionCommand, { kind: 'create' | 'change' | 'startRun' | 'reload' }>
+type IdleCommand = Extract<SessionCommand, { kind: 'recordIdle' | 'considerAutoArchive' }>
+
+function preparesContext(command: SessionCommand): command is ContextCommand {
+  return (
+    command.kind === 'create' ||
+    command.kind === 'change' ||
+    command.kind === 'startRun' ||
+    command.kind === 'reload'
+  )
+}
+
+function preparesIdle(command: SessionCommand): command is IdleCommand {
+  return command.kind === 'recordIdle' || command.kind === 'considerAutoArchive'
+}
 
 /** The `expected` the caller asserted, or undefined for a command that carries none. */
 function expectedOf(command: SessionCommand): WorkSnapshot['revision'] | undefined {
@@ -129,7 +152,7 @@ export function receiptOf(value: unknown): CommitReceipt | null {
 }
 
 export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandHandler<P> {
-  const { dependencies, policy, lifecycle } = input
+  const { dependencies, policy, lifecycle, measurer } = input
 
   /** Step 1, the recall part: one point lookup through the view. */
   const lookUp = async (
@@ -160,6 +183,32 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     }
   }
 
+  /** The evidence, Context and idle owners whose material the kind of this command asks for. */
+  const guardSteps = (
+    access: SessionAccess<P>,
+    command: SessionCommand,
+  ): readonly (() => Promise<Outcome<readonly GuardCommand[], SessionFailure>>)[] => {
+    const steps: (() => Promise<Outcome<readonly GuardCommand[], SessionFailure>>)[] = []
+    const routedNotOrdinary = command.kind === 'accept' && command.input.value.kind !== 'ordinary'
+    if (EVIDENCE.has(command.kind) || routedNotOrdinary)
+      steps.push(() =>
+        guarded(OWNERS.evidence, 'evidence.prepare', () =>
+          dependencies.evidence.prepare(command, access),
+        ),
+      )
+    if (preparesContext(command))
+      steps.push(() =>
+        guarded(OWNERS.context, 'context.prepare', () =>
+          dependencies.context.prepare(access, command),
+        ),
+      )
+    if (preparesIdle(command))
+      steps.push(() =>
+        guarded(OWNERS.idle, 'idle.prepare', () => dependencies.idle.prepare(access, command)),
+      )
+    return steps
+  }
+
   /** Step 4: the guard material of the command, from the owners its kind fixes. */
   const materials = async (
     access: SessionAccess<P>,
@@ -171,32 +220,10 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     )
     if ('failure' in identity) return identity
     guards.push(identity.ok)
-    const routedNotOrdinary = command.kind === 'accept' && command.input.value.kind !== 'ordinary'
-    if (EVIDENCE.has(command.kind) || routedNotOrdinary) {
-      const evidence = await guarded(OWNERS.evidence, 'evidence.prepare', () =>
-        dependencies.evidence.prepare(command),
-      )
-      if ('failure' in evidence) return evidence
-      guards.push(...evidence.ok)
-    }
-    if (
-      command.kind === 'create' ||
-      command.kind === 'change' ||
-      command.kind === 'startRun' ||
-      command.kind === 'reload'
-    ) {
-      const context = await guarded(OWNERS.context, 'context.prepare', () =>
-        dependencies.context.prepare(access, command),
-      )
-      if ('failure' in context) return context
-      guards.push(...context.ok)
-    }
-    if (command.kind === 'recordIdle' || command.kind === 'considerAutoArchive') {
-      const idle = await guarded(OWNERS.idle, 'idle.prepare', () =>
-        dependencies.idle.prepare(access, command),
-      )
-      if ('failure' in idle) return idle
-      guards.push(...idle.ok)
+    for (const step of guardSteps(access, command)) {
+      const prepared = await step()
+      if ('failure' in prepared) return prepared
+      guards.push(...prepared.ok)
     }
     if (command.kind === 'accept' && command.input.value.kind === 'ordinary') {
       const admitted = admission()
@@ -260,8 +287,10 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     const refusal = refusalOf(snapshot.ok, command)
     if (refusal !== null) return fail(refusal)
     const expected = expectedOf(command)
-    return expected !== undefined && expected !== snapshot.ok.revision
-      ? fail({ kind: 'changed', revision: snapshot.ok.revision })
+    // The advance commands compare the Run-layer revision, the others the snapshot revision
+    // (contract I-R2, R2-D327).
+    return expected !== undefined && !expectedHolds(snapshot.ok, command.kind, expected)
+      ? fail({ kind: 'changed', revision: expectedRevision(snapshot.ok, command.kind) })
       : null
   }
 
@@ -279,19 +308,12 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     }
   }
 
-  /** Step 6: the notice after a durable commit. Its absence or failure changes no answer. */
-  const notify = async (
+  /** The entries that one commit wrote, read back through the view. Empty when the read fails. */
+  const entriesOf = async (
     view: SessionTransactionPort<P>,
     access: SessionAccess<P>,
     receipt: CommitReceipt,
-  ): Promise<void> => {
-    let notifier
-    try {
-      notifier = dependencies.notifier.current()
-    } catch {
-      return
-    }
-    if (notifier === null) return
+  ): Promise<readonly HistoryEntry[]> => {
     const page = await guarded(OWNERS.delegated, 'history.begin', () =>
       view.history.begin({
         ...access,
@@ -301,16 +323,38 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
         pageBytes: NOTICE_PAGE_BYTES,
       }),
     )
-    const kinds =
-      'ok' in page
-        ? [
-            ...new Set(
-              page.ok.entries
-                .filter(entry => entry.revision === receipt.revision)
-                .map(entry => entry.kind),
-            ),
-          ]
-        : []
+    return 'ok' in page ? page.ok.entries.filter(entry => entry.revision === receipt.revision) : []
+  }
+
+  /**
+   * Step 6: the notice after a durable commit. Its absence or failure changes no answer. The same
+   * read of the committed entries serves the round-complete event, so an instance with an observer
+   * and no notifier reads them for that event alone.
+   */
+  const afterCommit = async (
+    view: SessionTransactionPort<P>,
+    access: SessionAccess<P>,
+    command: SessionCommand,
+    receipt: CommitReceipt,
+  ): Promise<void> => {
+    let notifier: SessionNotifier | null = null
+    try {
+      notifier = dependencies.notifier.current()
+    } catch {
+      // A failing notifier gives no notice.
+    }
+    if (notifier === null && !measurer.active) return
+    const entries = await entriesOf(view, access, receipt)
+    for (const entry of entries.filter(candidate => candidate.kind === 'run.terminal'))
+      measurer.roundComplete({
+        session: access.session,
+        ...terminalOf(entry.payload),
+        revision: receipt.revision,
+        entry: entry.id,
+        operation: command.input.operation,
+      })
+    if (notifier === null) return
+    const kinds = [...new Set(entries.map(entry => entry.kind))]
     const target = notifier
     lifecycle.spawn(() =>
       target.committed({
@@ -321,6 +365,38 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
         kinds,
       }),
     )
+  }
+
+  /** A held operation: the original answer comes back from the record; nothing new is committed. */
+  const recall = async (
+    view: SessionTransactionPort<P>,
+    access: SessionAccess<P>,
+    command: SessionCommand,
+  ): Promise<CommandAnswer> => {
+    if (!RECALL_WITH_MATERIAL.has(command.kind)) return commit(view, access, command, [])
+    const recalled = await materials(access, command)
+    return 'failure' in recalled ? recalled : commit(view, access, command, recalled.ok)
+  }
+
+  /** Whether a `changed` answer is redone: only a command that asserted no `expected`, within the budget. */
+  const redoable = (command: SessionCommand, failure: SessionFailure, retries: number): boolean =>
+    failure.kind === 'changed' &&
+    OPTIMISTIC.has(command.kind) &&
+    expectedOf(command) === undefined &&
+    retries < policy.command.retriesOnChanged
+
+  /** Step 6 and the hand-over of a commit that succeeded; a recovered commit is neither. */
+  const settle = async (
+    view: SessionTransactionPort<P>,
+    access: SessionAccess<P>,
+    command: SessionCommand,
+    answer: CommandAnswer & Readonly<{ ok: unknown }>,
+  ): Promise<CommandAnswer> => {
+    const receipt = receiptOf(answer.ok)
+    if (receipt?.recovered === true) return answer
+    if (receipt !== null) await afterCommit(view, access, command, receipt)
+    input.committed(command)
+    return answer
   }
 
   /** Steps 1 (recall part) to 6 over one bound view. `retries` counts the `changed` redos so far. */
@@ -335,12 +411,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
       return commit(view, access, command, [])
     const lookup = await lookUp(view, access, command)
     if ('failure' in lookup) return lookup
-    if (lookup.ok.kind === 'held') {
-      // The original answer comes back from the record; nothing new is committed or notified.
-      if (!RECALL_WITH_MATERIAL.has(command.kind)) return commit(view, access, command, [])
-      const recalled = await materials(access, command)
-      return 'failure' in recalled ? recalled : commit(view, access, command, recalled.ok)
-    }
+    if (lookup.ok.kind === 'held') return recall(view, access, command)
     if (command.kind !== 'create') {
       const early = await readAndRefuse(view, access, command)
       if (early !== null) return early
@@ -348,21 +419,11 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     const guards = await materials(access, command)
     if ('failure' in guards) return guards
     const answer = await commit(view, access, command, guards.ok)
-    if ('failure' in answer) {
-      if (
-        answer.failure.kind === 'changed' &&
-        OPTIMISTIC.has(command.kind) &&
-        expectedOf(command) === undefined &&
-        retries < policy.command.retriesOnChanged
-      )
-        return run(view, access, command, retries + 1)
-      return answer
-    }
-    const receipt = receiptOf(answer.ok)
-    if (receipt?.recovered === true) return answer
-    if (receipt !== null) await notify(view, access, receipt)
-    input.committed(command)
-    return answer
+    if ('failure' in answer)
+      return redoable(command, answer.failure, retries)
+        ? run(view, access, command, retries + 1)
+        : answer
+    return settle(view, access, command, answer)
   }
 
   return async (caller, command, principal) => {
@@ -379,11 +440,16 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     // Fixed before the first await: the decision covers exactly this command (contract 当前操作的访问裁定).
     const request: SessionAccessRequest<P> = mutationAccessRequest(access, command)
     return lifecycle.track(
-      (async () => {
-        const view = await qualify(dependencies, request)
-        if ('failure' in view) return view
-        return run(view.ok, access, command, 0)
-      })(),
+      measurer.segment(
+        command.kind,
+        access.session,
+        async () => {
+          const view = await qualify(dependencies, request)
+          if ('failure' in view) return view
+          return run(view.ok, access, command, 0)
+        },
+        answer => 'failure' in answer,
+      ),
     )
   }
 }

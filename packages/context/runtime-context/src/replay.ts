@@ -83,12 +83,12 @@ function ownMaterial(material: ReplayMaterial): ReplayMaterial | undefined {
 }
 
 export function createReplay<P>(world: World<P>) {
-  function appliedCommits(scopeRef: string): AppliedCommit[] {
-    const out: AppliedCommit[] = []
-    for (const [key, entry] of world.commits)
-      if (key.startsWith(scopeRef + '\0'))
-        out.push({ commit: entry.input.commit, digest: entry.digest })
-    return out
+  /** The success entry the scope still keeps: at most one (R2-D319). */
+  function appliedCommits(s: ScopeState): AppliedCommit[] {
+    return [...s.successes.values()].map(entry => ({
+      commit: entry.input.commit,
+      digest: entry.digest,
+    }))
   }
 
   function invalidateScope(s: ScopeState) {
@@ -274,6 +274,10 @@ export function createReplay<P>(world: World<P>) {
     s.revision = staged.revision
     s.epoch++
     s.checkpoint = session.through
+    // The replay's last record is the new head; an entry that is not at the head is released.
+    s.head = session.through
+    for (const commit of s.successes.keys())
+      if (commit !== session.through?.commit) s.successes.delete(commit)
     s.needsSupply.clear()
     s.refreshFailedAt.clear()
     world.targetsVersion++
@@ -320,7 +324,7 @@ export function createReplay<P>(world: World<P>) {
         through: session.through,
         material,
         previous: previousOf(s),
-        appliedCommits: appliedCommits(s.scope.ref),
+        appliedCommits: appliedCommits(s),
       }),
     )
     if (isFailure(decided)) {

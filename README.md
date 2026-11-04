@@ -4,7 +4,7 @@
 
 项目处于 `0.0.0 → 0.1.0` 研发阶段，尚未正式上线或提供生产服务。第一版完整交付为单机系统，同时为个人设备和云端集群的后续装配保留边界。具体阶段范围归[项目要求](docs/requirements.md#交付阶段与功能范围)和各产品的版本承诺。
 
-新 `packages/` 和 `apps/` 目前维护目标文档与骨架，尚未建立产品源码、成员 manifest 或可启动应用。封存实现保存在带 `.0.0.1.legacy` 后缀的目录中。设计接受、实现支持和运行验证分别记录，不能凭文档目录判断功能已可用。
+新 `packages/` 和 `apps/` 目前维护目标文档与骨架，尚未建立产品源码、成员 manifest 或可启动应用。0.0.1 的封存实现已从仓库删除，原件见[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31)。设计接受、实现支持和运行验证分别记录，不能凭文档目录判断功能已可用。
 
 [项目要求](docs/requirements.md) ·
 [产品设计](.meta_harness/design/product/README.md) ·
@@ -62,11 +62,11 @@
 | [docs/](docs/README.md) | 项目要求、工程规范、系统架构、领域关系、读者与任务指引、维护指南及RFC入口 |
 | [packages/](packages/README.md) | 目标能力组与成员文档；具体包边界沿[产品包组织](docs/package-organization.md)维护 |
 | [apps/](apps/README.md) | 目标应用与装配责任；尚无可启动成员 |
-| [packages.0.0.1.legacy/](packages.0.0.1.legacy/README.md)、[apps.0.0.1.legacy/](apps.0.0.1.legacy/README.md) | 封存源码与公开说明，用于来源核对及仍有的工具依赖；不作为新树实现支持 |
+| [packages.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)、[apps.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md) | 封存源码与公开说明，已从仓库删除，链接指向固定提交。只用于来源核对，不作为新树实现支持 |
 | [tools/spec-tools/](tools/spec-tools/README.md)、[scripts/](scripts/README.md) | 开发检查器与仓库自动化 |
 
 参与研发从 [CONTRIBUTING.md](CONTRIBUTING.md)和[开发初始化](docs/development.md#准备可用的检出)开始。人或 agent 使用的 coding agent harness 须安装项目指定版本的 pstack 与 Matt 插件，版本及采用范围归[技能入口](docs/engineering/skills.md)。环境准备、命令与按任务选择验证的方法继续由开发指南维护。
 
 日常文档维护可运行 `pnpm run check:docs`，结构缺项通过 `pnpm run docs:inventory` 查看。`pnpm run check` 按影响面选择必要检查，未选择的检查没有执行；结论边界归[验证说明](docs/verification.md)。这些检查不证明产品已支持、业务行为符合或已获负责人接受。
 
-阅读封存命令时，从[封存CLI](apps.0.0.1.legacy/cli/README.md)或[封存宿主](apps.0.0.1.legacy/tenancy-host/README.md)核对构建、环境与权限前提，不能直接当作新树启动方法。新增或修改文档按[维护指南](docs/maintenance.md)选择层级、同步消费者和检查引用。
+阅读封存命令时，从固定提交中的[封存CLI](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/cli/README.md)或[封存宿主](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md)核对构建、环境与权限前提，不能直接当作新树启动方法。新增或修改文档按[维护指南](docs/maintenance.md)选择层级、同步消费者和检查引用。

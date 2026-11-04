@@ -21,14 +21,17 @@
 // unknown, and is not committed as an empty item. Model release confirmation is not read here: the
 // MODEL-ACK-ARRIVAL duty of Session JC-Release is open, so `saved` never becomes a release.
 //
-// The plugin keeps nothing but the current generation of its dependencies. A call made while the
-// plugin is pending or stopped, or one that was waiting when it stopped, answers `unavailable`
-// and commits nothing.
+// The plugin keeps nothing but the current generation of its dependencies and one queue per
+// session. It is woken by `session-adapters/agent-published`, the event of the Journal plugin after
+// each successful write, and consumes the execution the event names; `consume` stays callable. A
+// call made while the plugin is pending or stopped, or one that was waiting when it stopped,
+// answers `unavailable` and commits nothing.
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   AgentExecutionId,
   AgentJournal,
+  AgentJournalEntries,
   AgentJournalEntry,
   AgentMaterials,
   ExecutionSnapshot,
@@ -36,7 +39,11 @@ import type {
   Material,
   ReceivedEntry,
 } from '@omne-harness/agent-contract'
-import { agentJournalKey, agentMaterialsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  agentJournalEntriesKey,
+  agentJournalKey,
+  agentMaterialsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -63,8 +70,10 @@ import type {
 import { sessionKey, sessionTransactionsKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
+import { subscribePublished } from './published-queue.ts'
 
 const OWNER = 'session-adapters/model-log'
+/** The event of the Journal plugin after each successful write (AD-05 trigger). */
 const CHANNEL = 'model-received'
 /** The reads after a `changed`: another commit moved the channel between the read and the commit. */
 const ROUNDS = 3
@@ -113,6 +122,7 @@ export type SessionModelLogConsumptionInput<P> = Readonly<{
 type Ports<P> = Readonly<{
   readWork(access: SessionAccess<P>): Reply<WorkSnapshot>
   load: AgentJournal<P>['load']
+  entries: AgentJournalEntries<P>['read']
   read: AgentMaterials<P, ContentBlock>['read']
   commitEntries: SessionTransactionPort<P>['commitEntries']
   /** True once the generation stopped; checked before the commit. */
@@ -120,6 +130,28 @@ type Ports<P> = Readonly<{
 }>
 
 type Answer<T> = Outcome<T, SessionFailure>
+/** The most entries one page of the entries read asks for. */
+const ENTRY_PAGE = 256
+
+/**
+ * Every committed receiving entry of the execution, page by page through the entries port of the
+ * same Journal provider: the snapshot carries none (agent-contract SPEC "日志条目" 6).
+ */
+async function committedEntries<P>(
+  read: AgentJournalEntries<P>['read'],
+  input: Readonly<{ principal: P; tenant: TenantId; execution: AgentExecutionId }>,
+): Promise<Outcome<readonly AgentJournalEntry[], Failure>> {
+  const found: AgentJournalEntry[] = []
+  let after: string | null = null
+  for (;;) {
+    const page = await read({ ...input, after, limit: ENTRY_PAGE })
+    if ('failure' in page) return page
+    found.push(...page.ok.items.map(item => item.entry))
+    if (page.ok.caughtUp) return succeed(found)
+    after = page.ok.next
+  }
+}
+
 type ModelEntry = ReceivedEntry &
   Readonly<{ delivery: Extract<ReceivedEntry['delivery'], { producer: 'model' }> }>
 type Step = Readonly<{ kind: 'item'; item: SessionEntriesItem }> | Readonly<{ kind: 'unbound' }>
@@ -334,9 +366,23 @@ function createModelLogConsumption<P>(
     })
     if ('failure' in loaded) return agentFailure('load', loaded.failure)
     const snapshot: ExecutionSnapshot = loaded.ok
-    if (snapshot.entries === undefined)
-      return unavailable('the Journal provider serves no entries; absent is not an empty list')
-    const channel = snapshot.entries.filter(isModelReceived)
+    const read = await committedEntries(ports.entries, {
+      principal: access.principal,
+      tenant: access.tenant,
+      execution: target.execution,
+    })
+    if ('failure' in read) return agentFailure('load', read.failure)
+    // The entries and the revision come from two reads: a revision that moved between them is
+    // read again on the next publication, not bound to entries of another revision.
+    const again = await ports.load({
+      principal: access.principal,
+      tenant: access.tenant,
+      execution: target.execution,
+    })
+    if ('failure' in again) return agentFailure('load', again.failure)
+    if (again.ok.revision !== snapshot.revision)
+      return unavailable('the execution changed while its entries were read')
+    const channel = read.ok.filter(isModelReceived)
     const saved: SessionEntriesProgress | undefined = work.ok.entriesProgress?.find(
       item => item.run === run && item.execution === target.execution && item.channel === CHANNEL,
     )
@@ -441,11 +487,24 @@ function headEvidence(
   }
 }
 
+/** A failure as the log names it: its kind, and the diagnostic or the field it carries. */
+function failureText(failure: Failure | SessionFailure): string {
+  const detail =
+    'diagnostic' in failure
+      ? failure.diagnostic
+      : 'field' in failure
+        ? `${failure.field}: ${failure.reason}`
+        : null
+  return detail === null ? failure.kind : `${failure.kind}: ${detail}`
+}
+
 /**
  * The AD-05 plugin and the call that reaches it. The plugin provides no key: it needs `session`
  * with the `coordinator` caller class, `agentJournal`, `agentMaterials` and `sessionTransactions`,
  * and stays pending while any of them is absent. A new provider of any of them runs the plugin
- * again. `consume` reaches the current generation; while there is none it answers `unavailable`.
+ * again. It subscribes to `session-adapters/agent-published` and consumes the named execution after
+ * each event, one session at a time; an event that names no Model entry commits nothing. `consume`
+ * reaches the current generation; while there is none it answers `unavailable`.
  */
 export function createSessionModelLogConsumptionPlugin<P>(
   input: SessionModelLogConsumptionInput<P>,
@@ -456,6 +515,7 @@ export function createSessionModelLogConsumptionPlugin<P>(
       name: 'session-ad05',
       inject: {
         [agentJournalKey]: null,
+        [agentJournalEntriesKey]: null,
         [agentMaterialsKey]: null,
         [sessionTransactionsKey]: null,
         [sessionKey]: { caller: 'coordinator' as const },
@@ -464,12 +524,14 @@ export function createSessionModelLogConsumptionPlugin<P>(
         let stopped = false
         const session = ctx[sessionKey]
         const journal = ctx[agentJournalKey]
+        const entries = ctx[agentJournalEntriesKey]
         const materials = ctx[agentMaterialsKey]
         const transactions = ctx[sessionTransactionsKey]
         const logger = ctx.logger(OWNER)
         const consume = createModelLogConsumption<P>(input, {
           readWork: access => session.work.readWork(access),
           load: value => journal.load(value),
+          entries: value => entries.read(value),
           read: value => materials.read(value),
           commitEntries: value => transactions.commitEntries(value),
           stopped: () => stopped,
@@ -482,6 +544,26 @@ export function createSessionModelLogConsumptionPlugin<P>(
             return unavailable(`a dependency threw: ${describe(cause)}`)
           }
         }
+        // AD-05 trigger: each successful write of the Journal names its execution; a consume after
+        // it commits what was received since the saved progress, and nothing when nothing was.
+        // A failure is logged when it appears and when it changes, not on every event: the events
+        // of one step come faster than the entries settle (the execution changes while its entries
+        // are read, and the next event reads them again), and a failure that stays the same across
+        // events is one failure. A consumption that succeeds clears it, so its return is logged.
+        const failing = new Map<string, string>()
+        subscribePublished(
+          ctx,
+          () => stopped,
+          async target => {
+            const answer = await guarded(target)
+            if ('failure' in answer) {
+              const said = failureText(answer.failure)
+              if (failing.get(target.execution) === said) return
+              failing.set(target.execution, said)
+              logger.warn(`the consumption of ${target.execution} answered ${said}`)
+            } else failing.delete(target.execution)
+          },
+        )
         ctx.effect(() => {
           current = guarded
           return () => {

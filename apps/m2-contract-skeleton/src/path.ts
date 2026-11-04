@@ -21,6 +21,8 @@ import {
   type AgentExecutionHandle,
   type InputId as AgentInputId,
   type AgentJournal,
+  type AgentJournalEntries,
+  type AgentJournalEntry,
   type AgentMaterials,
   type AgentOperationId,
   type Access,
@@ -149,6 +151,8 @@ function withEvidence(observation: ConnectedObservation, more: readonly string[]
 /** The Agent Journal and materials of one session on the Session log (#756). */
 export type SessionLogAgentJournal = Readonly<{
   journal: AgentJournal<PathPrincipal>
+  /** The receiving entries of the same Journal; the snapshot carries none. */
+  entries: AgentJournalEntries<PathPrincipal>
   materials: AgentMaterials<PathPrincipal, ContentBlock>
 }>
 
@@ -175,6 +179,8 @@ export type AgentScenario = 'reply' | 'tool-call' | 'reasoning' | 'held'
 export type PathAgent = Readonly<{
   provider: AgentProvider<PathPrincipal>
   journal: AgentJournal<PathPrincipal>
+  /** The receiving entries of the same Journal; the snapshot carries none. */
+  entries: AgentJournalEntries<PathPrincipal>
   materials: AgentMaterials<PathPrincipal, ContentBlock>
   /** The Agent instance that Session's `startRun` names. */
   instance: string
@@ -1470,8 +1476,7 @@ type AgentSnapshot = Extract<
   Awaited<ReturnType<AgentJournal<PathPrincipal>['load']>>,
   { ok: unknown }
 >['ok']
-type JournalEntry = NonNullable<AgentSnapshot['entries']>[number]
-type ReceivedModelResult = Extract<JournalEntry, { kind: 'received' }>
+type ReceivedModelResult = Extract<AgentJournalEntry, { kind: 'received' }>
 
 async function loadSnapshot(
   agent: Pick<PathAgent, 'journal'>,
@@ -1482,9 +1487,33 @@ async function loadSnapshot(
   return 'ok' in loaded ? loaded.ok : null
 }
 
-/** The received Model result entry of a snapshot, if the journal holds one. */
-function receivedModelResult(snapshot: AgentSnapshot | null): ReceivedModelResult | null {
-  const entries = snapshot?.entries ?? []
+/**
+ * Every committed receiving entry of an execution, read page by page through the entries port in
+ * commit order. Null when a read fails: a failed read is not an empty journal.
+ */
+async function journalEntries(
+  agent: Pick<PathAgent, 'entries'>,
+  access: Access<PathPrincipal>,
+  execution: AgentExecutionId,
+): Promise<readonly AgentJournalEntry[] | null> {
+  const found: AgentJournalEntry[] = []
+  let after: string | null = null
+  for (;;) {
+    const page = await agent.entries.read({ ...access, execution, after, limit: 100 })
+    if ('failure' in page) return null
+    found.push(...page.ok.items.map(item => item.entry))
+    if (page.ok.caughtUp || page.ok.next === null) return found
+    after = page.ok.next
+  }
+}
+
+/** The received Model result entry of an execution, if the journal holds one. */
+async function receivedModelResult(
+  agent: Pick<PathAgent, 'entries'>,
+  access: Access<PathPrincipal>,
+  execution: AgentExecutionId,
+): Promise<ReceivedModelResult | null> {
+  const entries = (await journalEntries(agent, access, execution)) ?? []
   for (const entry of entries)
     if (
       entry.kind === 'received' &&
@@ -1507,13 +1536,13 @@ type AgentFacts = Readonly<{
 }>
 
 async function agentFacts(
-  agent: Pick<PathAgent, 'journal' | 'materials' | 'admitted'>,
+  agent: Pick<PathAgent, 'journal' | 'entries' | 'materials' | 'admitted'>,
   access: Access<PathPrincipal>,
   execution: AgentExecutionId,
   log: BridgeLog,
 ): Promise<AgentFacts> {
   const snapshot = await loadSnapshot(agent, access, execution)
-  const modelResult = receivedModelResult(snapshot)
+  const modelResult = await receivedModelResult(agent, access, execution)
   const facts = { snapshot, log, admitted: agent.admitted(), modelResult }
   if (modelResult === null || modelResult.delivery.producer !== 'model')
     return { ...facts, materialReadable: false, originalCall: null }
@@ -1691,6 +1720,7 @@ async function readSessionLogRecords(
       'agent-journal:this store keeps the Agent Journal outside the Session log, so it does not probe H13 (GAP-SESSION-LOG-TARGETS)',
     )
   const snapshot = await loadSnapshot(journal, scene.access, drive.execution)
+  const entries = await journalEntries(journal, scene.access, drive.execution)
   const work = await assembly.transactions.readWork(scene.access)
   const sameExecution = 'ok' in work && runOfDrive(work.ok.run, drive)
   const page = await scene.history()
@@ -1698,7 +1728,7 @@ async function readSessionLogRecords(
   return observed(snapshot !== null && sameExecution && handedOver, [
     snapshot === null
       ? 'session-adapters:journal.load on the Session log has no execution'
-      : `session-adapters:journal.load on the Session log returns the execution opened under the Run grant, at ${snapshot.checkpoint.position} with ${snapshot.entries?.length ?? 0} received entr(ies)`,
+      : `session-adapters:journal.load on the Session log returns the execution opened under the Run grant, at ${snapshot.checkpoint.position} with ${entries?.length ?? 0} received entr(ies)`,
     sameExecution
       ? 'session-contract:readWork binds the Run to the same execution'
       : 'session-contract:readWork binds the Run to another execution',
@@ -1881,9 +1911,17 @@ function stateLabel(snapshot: AgentSnapshot | null): string {
     : `agent:journal state ${snapshot.state.kind} at ${snapshot.checkpoint.position}`
 }
 
-/** Whether the loop stopped at I4, the step that refuses a reply with tool calls until #502 stage 2. */
+/**
+ * Whether the loop stopped at A0 with an action still pending. The Agent loop admits each action
+ * of the batch at A0 and answers `unavailable` when the assembly gives it no trusted Tool request
+ * source (`toolRequests`), so the journal stays at A0 and the action stays `pending`.
+ */
 function atToolRefusal(snapshot: AgentSnapshot | null): boolean {
-  return snapshot?.state.kind === 'advancing' && snapshot.checkpoint.position === 'I4'
+  return (
+    snapshot?.state.kind === 'advancing' &&
+    snapshot.checkpoint.position === 'A0' &&
+    (snapshot.checkpoint.batch?.actions.some(action => action.judgment.kind === 'pending') ?? false)
+  )
 }
 
 /** The facility calls of card #790 item 2: a file read, a file write and one command. */
@@ -1913,7 +1951,7 @@ function toolRoundTripClosed(
 /**
  * H10: the Model requests a tool; the Agent runs it in the execution environment and calls the
  * Model again with the result. The probe waits for the tool-call reply, then for the reply after
- * the tool result unless the loop already stopped at I4.
+ * the tool result unless the loop already stopped at A0.
  */
 async function probeToolRoundTrip(context: PathContext): Promise<ConnectedObservation> {
   const probe = await openProbe(context, TOOL_PROBE)
@@ -1921,7 +1959,7 @@ async function probeToolRoundTrip(context: PathContext): Promise<ConnectedObserv
   const { session, drive } = probe.opened
   const { agent } = drive
   const { snapshot, waits } = await awaitToolRound(context, session, drive)
-  // The refusal at I4 is judged from the last snapshot that the probe read.
+  // The refusal at A0 is judged from the last snapshot that the probe read.
   const refused = atToolRefusal(snapshot)
   const effects = agent.toolEffects()
   const toolResult = drive.log.requestBlocks.has('tool_result')
@@ -1932,7 +1970,11 @@ async function probeToolRoundTrip(context: PathContext): Promise<ConnectedObserv
     ...waits,
     `caller-reported: Tool runtime invocations ${agent.toolInvocations()}, execution-environment effects ${effects.join(',') || 'none'}, Model admissions ${agent.admitted()}`,
     stateLabel(snapshot),
-    ...(refused ? ['agent:the loop stopped at I4 with the tool-call reply (GAP-TOOL-LOOP)'] : []),
+    ...(refused
+      ? [
+          'agent:the loop stopped at A0 with the tool-call action pending: no trusted Tool request source (GAP-TOOL-LOOP)',
+        ]
+      : []),
     toolResult
       ? 'agent:a later Model request carried the tool result'
       : 'agent:no Model request carried a tool result',
@@ -1945,7 +1987,7 @@ function timedOut(waited: BridgeLog['waited'], label: string): readonly string[]
 }
 
 /**
- * The waits of the tool probe: for the tool-call reply, then, unless the loop stopped at I4, for
+ * The waits of the tool probe: for the tool-call reply, then, unless the loop stopped at A0, for
  * the reply after the tool result. Returns the last snapshot it read and the waits that timed out.
  */
 async function awaitToolRound(
@@ -1969,12 +2011,14 @@ async function awaitToolRound(
   }
 }
 
+// A success that carries a kind is named by it (R2-D173, R2-D185): a quiesce that answers
+// `unresolved` left an execution to hand over and is not written as succeeded.
 const replyLabel = (name: string, reply: { ok: unknown } | { failure: unknown } | null) =>
   reply === null
     ? `agent:${name} not reached`
     : 'failure' in reply
       ? `agent:${name} ${kindOf(reply.failure)}`
-      : `agent:${name} succeeded`
+      : `agent:${name} ${kindOf(reply.ok) === 'unknown' ? 'succeeded' : kindOf(reply.ok)}`
 
 type Withdrawal = Readonly<{
   quiesced: { ok: unknown } | { failure: unknown }
@@ -2094,7 +2138,8 @@ async function probeReasoningReplay(context: PathContext): Promise<ConnectedObse
   const { session, drive } = probe.opened
   const waited = drive.log.waited
   const snapshot = await loadSnapshot(drive.agent, session.scene.access, drive.execution)
-  const received = receivedModelResult(snapshot) !== null
+  const received =
+    (await receivedModelResult(drive.agent, session.scene.access, drive.execution)) !== null
   const head = [
     received
       ? 'model-contract:the public pusher delivered the reasoning result to the host receiver'

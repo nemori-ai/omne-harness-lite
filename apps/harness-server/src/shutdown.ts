@@ -2,7 +2,14 @@
 // 抛出记 failed，协调者继续下一阶段。报告确定后才调用 `assemblyReportSettled()`，之后才撤除根。
 import type { LifecycleEntry, LifecycleRegistry } from './lifecycle.ts'
 import { PHASE_ORDER } from './lifecycle.ts'
-import type { HandleOutcome, LifecyclePhase, RowId, ShutdownReport, StopResult } from './types.ts'
+import type {
+  HandleOutcome,
+  HostFilesReport,
+  LifecyclePhase,
+  RowId,
+  ShutdownReport,
+  StopResult,
+} from './types.ts'
 
 export type { ShutdownReport }
 
@@ -45,6 +52,8 @@ export type ShutdownRecord = Readonly<{
 
 export type ShutdownOptions = Readonly<{
   log?: (record: ShutdownRecord) => void
+  /** Entry-owned host retirement and final maintenance, bounded only for report collection. */
+  afterBusiness?: () => Promise<HostFilesReport>
   /** 步骤 9：撤除 Cordis 根。结果只进诊断。 */
   disposeRoot?: () => Promise<unknown> | unknown
 }>
@@ -61,20 +70,21 @@ export function runShutdown(
   return registry.once(() => execute(registry, expected, deadlineMs, clock, options))
 }
 
-async function execute(
-  registry: LifecycleRegistry,
-  expected: ReadonlyMap<RowId, LifecyclePhase>,
-  deadlineMs: number,
-  clock: ShutdownClock,
-  options: ShutdownOptions,
-): Promise<ShutdownReport> {
+type StepLog = (
+  action: ShutdownAction,
+  phase: LifecyclePhase | null,
+  row: RowId | null,
+  detail?: string,
+) => void
+
+/** What every stop step shares: the one deadline D, its clock and the numbered step log. */
+type StopBudget = Readonly<{ deadline: number; clock: ShutdownClock; log: StepLog }>
+
+type Frozen = ReturnType<LifecycleRegistry['freeze']>
+
+function numberedLog(sink: ShutdownOptions['log']): StepLog {
   let seq = 0
-  const log = (
-    action: ShutdownAction,
-    phase: LifecyclePhase | null,
-    row: RowId | null,
-    detail?: string,
-  ) => {
+  return (action, phase, row, detail) => {
     const record: ShutdownRecord = {
       kind: 'shutdown-step',
       seq: ++seq,
@@ -83,78 +93,96 @@ async function execute(
       action,
       ...(detail === undefined ? {} : { detail }),
     }
-    options.log?.(record)
+    sink?.(record)
   }
+}
 
-  registry.enterStopping()
-  const frozen = registry.freeze()
-  const deadline = clock.now() + deadlineMs
+async function stopOne(
+  entry: LifecycleEntry,
+  phase: LifecyclePhase,
+  row: RowId,
+  { deadline, clock, log }: StopBudget,
+): Promise<HandleOutcome> {
+  entry.stopCalled = true
+  log('stop-call', phase, row)
+  const stopped: Promise<StopResult> = Promise.resolve()
+    .then(() => entry.handle.stop(deadline))
+    .catch((error: unknown): StopResult => ({ kind: 'failed', detail: messageOf(error) }))
+  const timer = clock.after(deadline - clock.now())
+  const winner = await Promise.race([
+    stopped.then(result => ({ result })),
+    timer.promise.then(() => null),
+  ])
+  if (winner !== null) {
+    timer.cancel()
+    return { row, phase, result: winner.result }
+  }
+  void stopped.then(late => log('late-result', phase, row, `after deadline: ${late.kind}`))
+  return {
+    row,
+    phase,
+    result: {
+      kind: 'incomplete',
+      detail: `deadline reached before stop settled (D=${deadline})`,
+    },
+  }
+}
 
-  const stopOne = async (
-    entry: LifecycleEntry,
-    phase: LifecyclePhase,
-    row: RowId,
-  ): Promise<HandleOutcome> => {
-    entry.stopCalled = true
-    log('stop-call', phase, row)
-    const stopped: Promise<StopResult> = Promise.resolve()
-      .then(() => entry.handle.stop(deadline))
-      .catch((error: unknown): StopResult => ({ kind: 'failed', detail: messageOf(error) }))
-    const timer = clock.after(deadline - clock.now())
-    const winner = await Promise.race([
-      stopped.then(result => ({ result })),
-      timer.promise.then(() => null),
-    ])
-    if (winner !== null) {
-      timer.cancel()
-      return { row, phase, result: winner.result }
-    }
-    void stopped.then(late => log('late-result', phase, row, `after deadline: ${late.kind}`))
+/** One expected row: stop the live handle, or say why there was nothing to stop. */
+async function outcomeOfRow(
+  registry: LifecycleRegistry,
+  frozen: Frozen,
+  phase: LifecyclePhase,
+  row: RowId,
+  budget: StopBudget,
+): Promise<HandleOutcome> {
+  const live = frozen.live.get(row)
+  if (live !== undefined) {
+    const outcome = await stopOne(live, phase, row, budget)
+    const failure = registry.startFailure
+    if (failure?.row !== row) return outcome
+    // 启动期抛出的句柄仍收到 stop；报告记 failed，并保留 stop 的结果作诊断。
+    const stop = outcome.result.kind === 'settled' ? '' : `; stop ${outcome.result.kind}`
     return {
       row,
       phase,
-      result: {
-        kind: 'incomplete',
-        detail: `deadline reached before stop settled (D=${deadline})`,
-      },
+      result: { kind: 'failed', detail: `start failed: ${failure.detail}${stop}` },
     }
   }
-
-  const outcomes: HandleOutcome[] = []
-  for (const phase of PHASE_ORDER) {
-    const rows = [...expected].filter(([, expectedPhase]) => expectedPhase === phase)
-    const phaseOutcomes = await Promise.all(
-      rows.map(async ([row]): Promise<HandleOutcome> => {
-        const live = frozen.live.get(row)
-        if (live !== undefined) {
-          const outcome = await stopOne(live, phase, row)
-          const failure = registry.startFailure
-          if (failure?.row !== row) return outcome
-          // 启动期抛出的句柄仍收到 stop；报告记 failed，并保留 stop 的结果作诊断。
-          const stop = outcome.result.kind === 'settled' ? '' : `; stop ${outcome.result.kind}`
-          return {
-            row,
-            phase,
-            result: { kind: 'failed', detail: `start failed: ${failure.detail}${stop}` },
-          }
-        }
-        const gone = frozen.withdrawn.get(row)
-        if (gone !== undefined) {
-          return { row, phase, result: { kind: 'disposed-before-stop', detail: gone.detail } }
-        }
-        return { row, phase, result: { kind: 'not-registered' } }
-      }),
-    )
-    outcomes.push(...phaseOutcomes)
+  const gone = frozen.withdrawn.get(row)
+  if (gone !== undefined) {
+    return { row, phase, result: { kind: 'disposed-before-stop', detail: gone.detail } }
   }
+  return { row, phase, result: { kind: 'not-registered' } }
+}
 
-  const report: ShutdownReport = Object.freeze({
-    overall: outcomes.every(o => o.result.kind === 'settled') ? 'settled' : 'incomplete',
-    outcomes: Object.freeze(outcomes),
-  })
-  log('report-fixed', null, null, report.overall)
+/** Entry-owned host maintenance after the business phase, bounded by D only for the report. */
+async function collectHostFiles(
+  afterBusiness: () => Promise<HostFilesReport>,
+  phase: LifecyclePhase,
+  { deadline, clock, log }: StopBudget,
+): Promise<HostFilesReport> {
+  const maintenance = Promise.resolve()
+    .then(afterBusiness)
+    .catch((): HostFilesReport => {
+      log('diagnostic', phase, null, 'host-files maintenance failed')
+      return { kind: 'unavailable', diagnostic: 'maintenance-failed' }
+    })
+  const timer = clock.after(deadline - clock.now())
+  const winner = await Promise.race([maintenance, timer.promise.then(() => null)])
+  if (winner === null) {
+    void maintenance.then(() =>
+      log('late-result', phase, null, 'host-files maintenance completed after deadline'),
+    )
+    return { kind: 'unavailable', diagnostic: 'deadline' }
+  }
+  timer.cancel()
+  return winner
+}
 
-  for (const [row, entry] of frozen.live) {
+/** After the report is fixed, each live handle that asked for it is told so. A throw is a diagnostic. */
+function announceReportSettled(live: Frozen['live'], log: StepLog): void {
+  for (const [row, entry] of live) {
     if (entry.handle.assemblyReportSettled === undefined) continue
     log('report-settled-call', entry.handle.phase, row)
     try {
@@ -163,14 +191,51 @@ async function execute(
       log('diagnostic', entry.handle.phase, row, `assemblyReportSettled threw: ${messageOf(error)}`)
     }
   }
+}
 
-  if (options.disposeRoot !== undefined) {
-    log('dispose-root', null, null)
-    try {
-      await options.disposeRoot()
-    } catch (error) {
-      log('diagnostic', null, null, `root disposal failed: ${messageOf(error)}`)
+async function retireRoot(dispose: ShutdownOptions['disposeRoot'], log: StepLog): Promise<void> {
+  if (dispose === undefined) return
+  log('dispose-root', null, null)
+  try {
+    await dispose()
+  } catch (error) {
+    log('diagnostic', null, null, `root disposal failed: ${messageOf(error)}`)
+  }
+}
+
+async function execute(
+  registry: LifecycleRegistry,
+  expected: ReadonlyMap<RowId, LifecyclePhase>,
+  deadlineMs: number,
+  clock: ShutdownClock,
+  options: ShutdownOptions,
+): Promise<ShutdownReport> {
+  const log = numberedLog(options.log)
+  registry.enterStopping()
+  const frozen = registry.freeze()
+  const budget: StopBudget = { deadline: clock.now() + deadlineMs, clock, log }
+
+  const outcomes: HandleOutcome[] = []
+  let hostFiles: HostFilesReport | undefined
+  for (const phase of PHASE_ORDER) {
+    const rows = [...expected].filter(([, expectedPhase]) => expectedPhase === phase)
+    const phaseOutcomes = await Promise.all(
+      rows.map(([row]) => outcomeOfRow(registry, frozen, phase, row, budget)),
+    )
+    outcomes.push(...phaseOutcomes)
+    if (phase === 'business' && options.afterBusiness !== undefined) {
+      hostFiles = await collectHostFiles(options.afterBusiness, phase, budget)
     }
   }
+
+  const report: ShutdownReport = Object.freeze({
+    overall: outcomes.every(o => o.result.kind === 'settled') ? 'settled' : 'incomplete',
+    outcomes: Object.freeze(outcomes),
+    ...(hostFiles === undefined ? {} : { hostFiles: Object.freeze(hostFiles) }),
+  })
+  log('report-fixed', null, null, report.overall)
+
+  announceReportSettled(frozen.live, log)
+  await retireRoot(options.disposeRoot, log)
   return report
 }

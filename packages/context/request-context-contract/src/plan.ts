@@ -1,10 +1,13 @@
 import { judgeCompaction, type CompactionContext, type RecordEntryRef } from '@omne-harness/message'
 import type {
+  AssemblyFailure,
   AssemblyInput,
   CompactionBasis,
   CompactionPlan,
   PlanResult,
+  PreparedInputKey,
   ProjectedHistory,
+  RequestFrame,
 } from './values.js'
 import type { CompactionPlanDraft, RetentionMeasurement } from './ports.js'
 import type { OperationContext } from './operation-context.js'
@@ -14,6 +17,8 @@ import { project } from './projection.js'
 import { decodePlanId } from './refs.js'
 import { digest, messageId, textBlock } from './internal.js'
 import { projectWindow, retentionLimit, retentionMeasure } from './compaction-context.js'
+import { prepareStable } from './preparation.js'
+import { placeLayers } from './assembly-layers.js'
 
 /** The window cut at the plan's end: covered to `coverTo`, the rest of covered joins `after`. */
 export function planWindow(window: CompactionContext, coverTo: RecordEntryRef): CompactionContext {
@@ -31,6 +36,7 @@ export function basisDigest(basis: Omit<CompactionBasis, 'digest'>): string {
 /** Plans a compaction from stably read groups and the CM-02 window of the same evidence. */
 export async function planInputs<P>(
   input: AssemblyInput<P>,
+  key: PreparedInputKey,
   rows: readonly import('./ports.js').HistoryRow[],
   window: CompactionContext,
   context: OperationContext<P>,
@@ -43,11 +49,12 @@ export async function planInputs<P>(
   )
     return invalid('plan-mismatch')
   const view = project(rows, input.history.epoch)
+  const frame = frameOf(input, key, rows)
+  if ('kind' in frame) return frame
   const projected = projectWindow(view, window)
   const { policies } = context
   const candidate = {
     selection: input.selection,
-    representation: policies.representation.identity,
     source: policies.compaction.identity,
   }
   const measure = retentionMeasure(context, candidate, projected)
@@ -79,7 +86,25 @@ export async function planInputs<P>(
       budget: draft.budget,
       diagnostic: 'Open-work floor exceeds retention budget',
     }
-  return acceptDraft(input, window, projected, draft, measure, limit, context)
+  return acceptDraft(input, window, projected, draft, measure, limit, frame, context)
+}
+
+/** The layers outside the history, placed as `assemble` places them for this call (RQ-06). */
+function frameOf<P>(
+  input: AssemblyInput<P>,
+  key: PreparedInputKey,
+  rows: readonly import('./ports.js').HistoryRow[],
+): RequestFrame | AssemblyFailure {
+  const stable = prepareStable(input, key, rows)
+  if (stable.kind !== 'prepared') return stable
+  const placed = placeLayers(input, stable)
+  if (placed.kind !== 'layers') return placed
+  return {
+    system: placed.layers.systemPrompt,
+    tools: placed.layers.toolDeclarations.direct,
+    snapshotReminder: placed.layers.snapshotReminder.message,
+    tailFacts: placed.layers.tailFacts.message,
+  }
 }
 
 function measuredFailure(measured: Exclude<RetentionMeasurement, { kind: 'measured' }>) {
@@ -100,6 +125,7 @@ async function acceptDraft<P>(
   draft: Extract<CompactionPlanDraft, { kind: 'draft' }>,
   measure: (entries: readonly RecordEntryRef[]) => Promise<RetentionMeasurement>,
   limit: bigint,
+  frame: RequestFrame,
   context: OperationContext<P>,
 ): Promise<PlanResult> {
   const { policies } = context
@@ -149,6 +175,7 @@ async function acceptDraft<P>(
     selection: input.selection,
     representation: policies.representation.identity,
     continuation: input.adopted?.continuation ?? null,
+    frame,
     retainedBudget: limit.toString(),
   }
   const basis: CompactionBasis = { ...unsigned, digest: basisDigest(unsigned) }

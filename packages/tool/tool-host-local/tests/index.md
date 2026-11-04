@@ -4,6 +4,7 @@
 - [根入口与导入方向测试](public-entry.spec.ts)。
 - [未交付入口与依赖方向测试](entry-boundary.spec.ts)。
 - [本地启动协调器测试](start-coordinator.spec.ts)。
+- [R2-D60 无需许可与失败关闭](start-permit-requirements.spec.ts)。
 - [租户串行与慢存储交错](start-tenant-isolation.spec.ts)。
 - [实际环境入口的调度测试](environment-scheduling.spec.ts)。
 - [凭据绑定与分层选择测试](credentials.spec.ts)。
@@ -11,6 +12,7 @@
 - [协调器对启动围栏套件的一致性测试](start-authority-conformance.spec.ts)。
 - [宿主时钟的契约一致性](clock-conformance.spec.ts)、[时钟规则](clock.spec.ts)与[手动时间源](clock-values.ts)。
 - [登记表的契约一致性与登记规则](bindings-conformance.spec.ts)。
+- [作者绑定的注册化身、命令分派及拒绝清理](author-binding-regressions.spec.ts)。
 - [Catalog 测试](catalog.spec.ts)。
 - [缺席端口测试](absent-ports.spec.ts)。
 - [部件对 createToolRuntime 的组合测试](runtime-composition.spec.ts)。
@@ -21,6 +23,11 @@
 - [登记表与 Catalog 的测试构造器](binding-values.ts)。
 - [测试构造器](coordinator-values.ts)。
 - [导入图遍历工具](module-graph.ts)。
+- [R2-D164 完成调用的退役与重排](executor-retirement.spec.ts)。
+- [R2-D327 接收方确定失败的 warn 与结局，退避表项随交付释放](delivery/receiver-failure.spec.ts)。
+- [R2-D164 同租户投递的轮次](delivery/turns.spec.ts)。
+- [R2-D273 接收方缺席或查找答 unavailable 时的待推、具名 warn 与退避](delivery/absent-receiver.spec.ts)。
+- [R2-D282 接收方对推送答 unavailable 时的待推、具名 warn、退避与复位](delivery/unavailable-receiver.spec.ts)。
 - [测试夹具](fixtures/index.md)。
 - [包索引](../index.md)。
 

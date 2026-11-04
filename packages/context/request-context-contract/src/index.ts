@@ -72,6 +72,12 @@ export type { PreparedInputKey } from './values.js'
 export type { AssemblyOperationsInput } from './operations.js'
 export { createAssemblyOperations } from './operations.js'
 export type {
+  AssemblyReuse,
+  CachedAssemblyMaterial,
+  ContentControl,
+  SnapshotIdentity,
+} from './reuse.js'
+export type {
   SourceRead,
   SourceGroupValue,
   GroupSource,
@@ -187,3 +193,5 @@ export type {
 } from './values.js'
 export { LAYER_ORDER, PREFIX_BREAK_REASONS } from './values.js'
 export type { DeriveInput } from './values.js'
+export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js'
+export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf } from './fixed-request.js'

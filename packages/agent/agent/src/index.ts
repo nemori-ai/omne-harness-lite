@@ -1,5 +1,7 @@
 export { createAgentRuntime } from './runtime.ts'
 export { agentCheckpointSchema, agentEvaluator } from './loop/evaluator.ts'
+export { advanceControl } from './control.ts'
+export { DEFAULT_MAX_RUN_STEPS } from './configuration.ts'
 export type {
   AgentConfiguration,
   AgentDependencies,
@@ -8,9 +10,26 @@ export type {
   AgentRuntimeOptions,
 } from './construction.ts'
 
+export type {
+  AgentMeasure,
+  AgentMeasureEvent,
+  AgentRuntimeExtras,
+  AgentSegmentEvent,
+} from './measure.ts'
+export type {
+  AgentRunEndedFailed,
+  AgentRunEndedFailedReceiver,
+  AgentRunFailed,
+  AgentRunFailedReceiver,
+} from './run-failure.ts'
+
 export { agentModelDeliverySchema, readModelDeliveryMaterial } from './receiving-material.ts'
 
-export { createAgentModelReceiver, createModelReceiverState } from './receiving.ts'
+export {
+  AGENT_CONSUMER_OWNER,
+  createAgentModelReceiver,
+  createModelReceiverState,
+} from './receiving.ts'
 export type {
   AgentModelReceiver,
   ModelReceiverState,
@@ -23,3 +42,18 @@ export type {
   ModelReceptionTargets,
   ModelReceptionCapacity,
 } from './receiving-types.ts'
+
+export { createAgentCustodyEvidence } from './custody-evidence.ts'
+export type { AgentCustodyEvidence, AgentCustodyQuestion } from './custody-evidence.ts'
+
+export { createAgentToolReceiver } from './tool-receiving.ts'
+export type { AgentToolReceiver } from './tool-receiving.ts'
+export { createToolReceiverState } from './tool-receiving-state.ts'
+export type { ToolReceiverState, ToolReceiverReport } from './tool-receiving-state.ts'
+export type {
+  ToolReceiverDependencies,
+  ToolReceptionTarget,
+  ToolReceptionTargets,
+  ToolReceptionCapacity,
+} from './tool-receiving-types.ts'
+export { agentToolDeliverySchema, readToolDeliveryMaterial } from './tool-receiving-material.ts'

@@ -235,6 +235,8 @@ export function assembleLocalHost(input: LocalHostInput) {
       credentials: {
         present: () => ({ kind: 'unavailable' }),
         resolve: () => ({ kind: 'unavailable' }),
+        presentFor: () => ({ kind: 'unavailable' }),
+        resolveFor: () => ({ kind: 'unavailable' }),
       },
       sources: request.suppliers.map(supplier => ({
         profile: request.profile,
@@ -256,6 +258,13 @@ export function assembleLocalHost(input: LocalHostInput) {
   })
   const host = assembleLocalModel({
     credentials: custodian,
+    materialization: {
+      maxRecords: 4,
+      execution: reference =>
+        tenantEquals(reference.tenant, scope) && reference.instance === instance
+          ? { ok: { owner: 'local-model-host', subject: 'local-channel', revision: '1' } }
+          : { failure: { kind: 'denied', action: 'execution-channel' } },
+    },
     commands: memory.dependencies.commands,
     coordinator: memory.controls.send.coordinator,
     families: FAMILIES,

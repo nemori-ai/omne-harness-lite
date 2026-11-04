@@ -15,7 +15,9 @@ describe('common Session log', () => {
   it('creates Session and opens Agent from its original grant', async () => {
     const { view, access, execution, opened } = await scene()
     const snapshot = ok(await view.journal.load({ ...access, execution }))
-    expect(snapshot.entries).toEqual([])
+    expect(
+      ok(await view.entries.read({ ...access, execution, after: null, limit: 10 })).items,
+    ).toEqual([])
     expect(snapshot.revision).toBe(opened.receipt.revision)
     const recalled = ok(
       await view.journal.query({ ...access, execution, operation: operation('open') }),
@@ -37,7 +39,7 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
       operation: operation('take'),
       authority: opened.authority,
       expected: loaded.revision,
-      checkpoint: { ...checkpoint, inputBatch: batch.batch.id },
+      checkpoint: { ...checkpoint, inputBatch: batch.batch },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: batch.batch }],
       effects: [],
@@ -89,7 +91,7 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
       operation: operation('message-tail'),
       authority: opened.authority,
       expected: submitted.revision,
-      checkpoint: { ...checkpoint, inputBatch: batch.batch.id },
+      checkpoint: { ...checkpoint, inputBatch: batch.batch },
       state: { kind: 'advancing' },
       events: [{ kind: 'message', message, source: evidence('message-admission') }],
       effects: [],

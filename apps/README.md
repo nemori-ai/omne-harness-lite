@@ -32,4 +32,4 @@
 
 ## 旧应用
 
-已有的 CLI 与宿主实现保留在 [apps.0.0.1.legacy](../apps.0.0.1.legacy/README.md)。它们是封存实现和现有工具的依赖，不属于本树已完成的能力。
+旧的 CLI 与宿主实现已从仓库删除，原件见固定提交中的 [apps.0.0.1.legacy](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md)。它们是封存实现，不属于本树已完成的能力。

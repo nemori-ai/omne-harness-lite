@@ -41,6 +41,7 @@ describe('initial', () => {
       requestPreparation: null,
       compaction: null,
       adoptedContext: null,
+      adoptedRequest: null,
       guard: null,
       completedPassages: [],
       priorConditions: null,
@@ -227,6 +228,24 @@ describe('decode (D5: the checkpoint read position and the exact schema)', () =>
       kind: 'invalid',
       field: expect.stringMatching(/^checkpoint\.replyAdmissionRead/u),
     })
+  })
+
+  it('keeps the optional adopted request, its opaque record included, and leaves an absent one out', () => {
+    if (pendingCall.kind !== 'model') throw new Error('the fixture call is a model call')
+    const adoptedRequest = {
+      reference: pendingCall.reference,
+      fixed: basis,
+      schema: adoption('preparation-state'),
+      record: {
+        kind: 'object',
+        entries: [{ key: 'windowTokens', value: { kind: 'string', value: '128000' } }],
+      },
+    } as const
+    const withRequest = { ...saved, adoptedRequest }
+    expect(ok(agentEvaluator.decode(agentEvaluator.encode(withRequest)))).toEqual(withRequest)
+    // A checkpoint written before the member existed decodes without it, not as null.
+    const decoded = ok(agentEvaluator.decode(agentEvaluator.encode(saved)))
+    expect(Object.hasOwn(decoded, 'adoptedRequest')).toBe(false)
   })
 
   it('refuses a member the checkpoint does not have', () => {

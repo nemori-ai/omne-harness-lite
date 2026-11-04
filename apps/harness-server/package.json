@@ -3,9 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Harness server application assembly: S0 skeleton",
+  "description": "Harness server application assembly: S0 skeleton, the real serve mode and the local single-user setup",
   "engines": {
     "node": ">=24"
+  },
+  "bin": {
+    "harness-server": "./dist/bin.js"
   },
   "exports": {
     ".": {
@@ -20,7 +23,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "config"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
@@ -28,31 +32,45 @@
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false",
-    "check:aa-rows": "node scripts/aa-rows.mjs check --aa ../../docs/architecture/runtime/application-assembly.md --rows src/s0/aa-rows.json"
+    "check:aa-rows": "node scripts/aa-rows.mjs check --aa ../../docs/architecture/runtime/application-assembly.md --rows src/s0/aa-rows.json",
+    "check:tool-release": "node scripts/tool-release.mjs check"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/agent": "workspace:*",
+    "@omne-harness/agent-context": "workspace:*",
     "@omne-harness/agent-contract": "workspace:*",
     "@omne-harness/agent-cordis-contract": "workspace:*",
+    "@omne-harness/agent-host-local": "workspace:*",
     "@omne-harness/authorization": "workspace:*",
     "@omne-harness/exchange-refs": "workspace:*",
+    "@omne-harness/execution-environment": "workspace:*",
+    "@omne-harness/execution-environment-contract": "workspace:*",
+    "@omne-harness/execution-environment-cordis-contract": "workspace:*",
+    "@omne-harness/execution-environment-host-local": "workspace:*",
     "@omne-harness/identity": "workspace:*",
     "@omne-harness/identity-sql": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
     "@omne-harness/kernel-basis": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/model": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/model-cordis-contract": "workspace:*",
     "@omne-harness/model-host-local": "workspace:*",
+    "@omne-harness/model-storage-sql": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/pi-ai-openai": "workspace:*",
     "@omne-harness/pi-ai-transport": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
+    "@omne-harness/request-context": "workspace:*",
     "@omne-harness/request-context-contract": "workspace:*",
+    "@omne-harness/request-context-cordis": "workspace:*",
     "@omne-harness/request-context-cordis-contract": "workspace:*",
+    "@omne-harness/runtime-context": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",
+    "@omne-harness/runtime-context-cordis": "workspace:*",
     "@omne-harness/runtime-context-cordis-contract": "workspace:*",
+    "@omne-harness/schema-provider": "workspace:*",
     "@omne-harness/server-entry": "workspace:*",
     "@omne-harness/session-adapters": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
@@ -61,6 +79,12 @@
     "@omne-harness/session-storage-sql": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*",
     "@omne-harness/sqlite-provider": "workspace:*",
+    "@omne-harness/tool": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/tool-cordis-contract": "workspace:*",
+    "@omne-harness/tool-definitions": "workspace:*",
+    "@omne-harness/tool-host-local": "workspace:*",
+    "@omne-harness/tool-storage-sql": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",
     "zod": "catalog:"
   },

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type {
+  Action,
+  ActionBatch,
+  ActionSlot,
   AgentCheckpoint,
   Authority,
   ExecutionSnapshot,
@@ -15,6 +18,7 @@ import {
 } from '../src/loop/coordinator.ts'
 import {
   acceptedInput,
+  adoption,
   afterTerminalPassage,
   checkpoint,
   commitAt,
@@ -24,7 +28,9 @@ import {
   ok,
   operation,
   otherTenant,
+  producedResult,
   type Principal,
+  loadWithEntries,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
 import {
@@ -60,7 +66,10 @@ function coordinator(assembly: LoopAssembly, change: Partial<ExecutionEntry<Prin
 }
 
 async function load(assembly: LoopAssembly) {
-  return ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+  return await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
 }
 
 function route(at: AgentCheckpoint, change: Partial<ExecutionSnapshot> = {}) {
@@ -83,9 +92,10 @@ describe('E4 recovery routing', () => {
   it.each([
     ['E3', 'E3'],
     ['I1', 'I1'],
-    ['P0', 'P0'],
-    ['P1', 'P1'],
-    ['I2', 'I2'],
+    // R2-D292: the positions before the final request record prepare again at I1.
+    ['P0', 'I1'],
+    ['P1', 'I1'],
+    ['I2', 'I1'],
     ['M0', 'M0'],
     ['M6', 'M6'],
     ['M1', 'M1'],
@@ -112,7 +122,7 @@ describe('E4 recovery routing', () => {
     },
   )
 
-  it('NA-E4-2: the input batch and preparation determine the recovery point', async () => {
+  it('NA-E4-2: the input batch and the saved preparation determine the recovery point', async () => {
     const preparationsSaved: AgentCheckpoint[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -130,13 +140,27 @@ describe('E4 recovery routing', () => {
     ok(await c.runExecution())
     const preparations = assembly.controls.requests.prepare.calls
     expect(preparations).toHaveLength(2)
-    expect(preparationsSaved[0]?.requestPreparation?.kind).toBe('assembled')
-    expect(ok(route(preparationsSaved[0]!))).toBe('P0')
-    // Read real preparations from the Journal writes, not a second request builder.
+    // R2-D292: an assembled or ready preparation is never written; the route prepares again.
+    expect(preparationsSaved).toEqual([])
     const at = (await load(assembly)).checkpoint
-    expect(at.requestPreparation?.kind).toBe('ready')
-    expect(ok(route({ ...at, position: 'I2', calls: [] }))).toBe('P1')
-    expect(ok(route({ ...checkpoint('I0'), inputBatch: inputBatch(1).id }))).toBe('I1')
+    expect(at.requestPreparation).toBeNull()
+    expect(ok(route({ ...at, position: 'I2', calls: [] }))).toBe('I1')
+    expect(ok(route({ ...checkpoint('I0'), inputBatch: inputBatch(1) }))).toBe('I1')
+    // The saved kinds still decide: cannot-fit goes to F1.
+    const cannotFit = {
+      id: preparations[0]!.action,
+      purpose: 'main',
+      position: preparations[0]!.position,
+      source: evidence('cannot-fit'),
+      state: { kind: 'null' },
+      schema: adoption('state'),
+      kind: 'cannot-fit',
+      reason: 'fixed',
+      diagnostic: 'too large',
+    } as const
+    expect(ok(route({ ...at, position: 'I1', calls: [], requestPreparation: cannotFit }))).toBe(
+      'F1',
+    )
     expect(ok(route({ ...at, position: 'I8', calls: [] }))).toBe('I8')
   })
 
@@ -158,34 +182,63 @@ describe('E4 recovery routing', () => {
     expect(ok(route(checkpoint(position), { state: { kind: 'settling', intent } }))).toBe(position)
   })
 
-  it.each([
-    'C0',
-    'C1',
-    'C2',
-    'C3',
-    'C4',
-    'A0',
-    'A1',
-    'A2',
-    'A3',
-    'T0',
-    'T1',
-    'T2',
-    'T3',
-    'T4',
-    'T5',
-    'X0',
-    'X1',
-    'X2',
-    'X3',
-    'X4',
-    'X5',
-  ])('NA-E4-2: unfinished node %s has a named stage owner', position => {
-    expect(failure(route(checkpoint(position)))).toMatchObject({
-      kind: 'unsupported',
-      node: position,
-      card: expect.stringContaining('#502'),
-    })
+  it.each(['C0', 'C1', 'C2', 'C3', 'C4', 'X0', 'X1', 'X2', 'X3', 'X4', 'X5'])(
+    'NA-E4-2: unfinished node %s has a named stage owner',
+    position => {
+      expect(failure(route(checkpoint(position)))).toMatchObject({
+        kind: 'unsupported',
+        node: position,
+        card: expect.stringContaining('#502'),
+      })
+    },
+  )
+
+  it.each(['A0', 'A1', 'A2', 'A3', 'T0', 'T1', 'T2', 'T3', 'T4', 'T5'])(
+    'resumes the implemented tool node %s without resetting its checkpoint',
+    position => {
+      const at = checkpoint(position)
+      expect(ok(route(at))).toBe(position)
+      expect(at.position).toBe(position)
+    },
+  )
+
+  it('routes a saved action batch by its barrier and slots, never past an unslotted action', () => {
+    const action = (id: string, judgment: string, call: unknown = null) =>
+      ({ id, judgment: { kind: judgment }, call }) as unknown as Action
+    const slot = (id: string, kind: string, handoff: unknown = null) =>
+      ({ action: id, kind, each: null, candidate: null, handoff }) as unknown as ActionSlot
+    const batch = (
+      barrier: string,
+      actions: readonly Action[],
+      slots: readonly ActionSlot[],
+    ): ActionBatch =>
+      ({
+        id: 'step-1/actions',
+        source: producedResult('mcall_x'),
+        actions,
+        barrier: { kind: barrier, evidence: evidence('barrier') },
+        slots,
+        batchPass: null,
+      }) as unknown as ActionBatch
+    const at = (position: string, saved: ActionBatch) => ({ ...checkpoint(position), batch: saved })
+    const two = [action('a', 'allowed', pendingCall), action('b', 'allowed')]
+    expect(ok(route(at('A1', batch('closed', two, []))))).toBe('A1')
+    // b has no slot yet: only A2 may send it, even if a result of a is kept.
+    expect(ok(route(at('T2', batch('open', two, [slot('a', 'result')]))))).toBe('A2')
+    expect(
+      ok(route(at('T3', batch('open', two, [slot('a', 'dispatched'), slot('b', 'result')])))),
+    ).toBe('T0')
+    expect(
+      ok(route(at('T3', batch('open', two, [slot('a', 'result'), slot('b', 'result')])))),
+    ).toBe('T1')
+    expect(
+      ok(route(at('T5', batch('open', two, [slot('a', 'result'), slot('b', 'result')])))),
+    ).toBe('T5')
+    const denied = [action('a', 'denied'), action('b', 'denied')]
+    expect(ok(route(at('A1', batch('all-denied', denied, []))))).toBe('A3')
+    expect(
+      ok(route(at('T3', batch('all-denied', denied, [slot('a', 'denied'), slot('b', 'denied')])))),
+    ).toBe('T2')
   })
 
   it('NA-E4-2: a saved extension passage takes precedence over the E3 position', () => {
@@ -473,8 +526,11 @@ describe('R0 and W0 coordination', () => {
     assembly.release.open()
     await eventually(
       async () =>
-        ok(
-          await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+        (
+          await loadWithEntries(assembly.controls.journal.provider, {
+            ...alice,
+            execution: execution(),
+          })
         ).entries?.some(
           entry =>
             entry.kind === 'received' &&
@@ -1030,10 +1086,11 @@ describe('checkpoint positions saved by the current assembly', () => {
     }))
     const expected: Record<string, string> = {
       E4: 'evaluate',
+      // R2-D292: before the final request record nothing of the preparation is saved.
       I1: 'I1',
-      P0: 'P0',
-      P1: 'P0',
-      I2: 'P1',
+      P0: 'I1',
+      P1: 'I1',
+      I2: 'I1',
       M6: 'M6',
       M4: 'M4',
       Q2: 'Q2',

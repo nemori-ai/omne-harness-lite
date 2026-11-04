@@ -95,7 +95,7 @@ const MEMBERS = [
   member('tools/test-runner'),
   member('tools/product-checks'),
   member('tools/repo-toolchain'),
-  member('packages.0.0.1.legacy/core/stream-assembly'),
+  member('packages.archive.legacy/core/stream-assembly'),
 ]
 
 /** 造出来的 turbo 包依赖图：与成员清单声明的依赖一致。 */
@@ -133,14 +133,13 @@ describe('输入集与影响面规则同源：每类改动进谁的键', () => {
       'packages/core/mid',
       'apps/top',
     ])
-    // 产品源码（含测试与 vitest 配置）另被 product-checks 的读者规则点名，所以也进它的键。
     for (const file of [
       'packages/core/mid/src/a.ts',
       'packages/core/mid/tests/a.spec.ts',
       'packages/core/mid/vitest.config.ts',
     ])
-      expect(keyedBy(file), file).toEqual(['packages/core/mid', 'apps/top', 'tools/product-checks'])
-    expect(keyedBy('apps/top/src/a.ts')).toEqual(['apps/top', 'tools/product-checks'])
+      expect(keyedBy(file), file).toEqual(['packages/core/mid', 'apps/top'])
+    expect(keyedBy('apps/top/src/a.ts')).toEqual(['apps/top'])
   })
 
   it('上游成员的文件按依赖图传递进下游的键：底层一改，直接与间接依赖它的都变', () => {
@@ -159,12 +158,11 @@ describe('输入集与影响面规则同源：每类改动进谁的键', () => {
     ])
     // 被读的成员根目录文档：只进读者规则点名的成员。
     expect(keyedBy('packages/common/message/README.md')).toEqual(['packages/common/message'])
-    // 产品源码同时是成员文件与 product-checks 的读者输入。
+    // 产品源码只是成员文件，没有读者规则点名它。
     expect(keyedBy('packages/core/base/src/c.ts')).toEqual([
       'packages/core/base',
       'packages/core/mid',
       'apps/top',
-      'tools/product-checks',
     ])
   })
 
@@ -199,7 +197,7 @@ describe('输入集与影响面规则同源：每类改动进谁的键', () => {
     expect(keyedBy('docs/verification.md')).toEqual([])
     expect(keyedBy('.meta_harness/human/guide.md')).toEqual([])
     expect(keyedBy('tools/spec-tools/src/x.py')).toEqual([])
-    expect(keyedBy('packages.0.0.1.legacy/core/stream-assembly/src/a.ts')).toEqual([])
+    expect(keyedBy('packages.archive.legacy/core/stream-assembly/src/a.ts')).toEqual([])
   })
 
   it('输入集按路径排序，与给入顺序无关', () => {

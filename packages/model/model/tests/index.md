@@ -7,13 +7,14 @@
 - [安装闭包场景](install/scenario.mjs)：经消费目录里安装的包调用 `executeModel`、`deliver`、判定及真实受理、首次分派与实例观察。
 - [测试夹具](fixtures/index.md)。
 
-- [请求准入与参数](memory-admission.spec.ts)、[内存身份与恢复](memory-core.spec.ts)、[发出与流](memory-dispatch.spec.ts)、[发出边界的拒绝](memory-dispatch-refusals.spec.ts)、[收场的回放](memory-replay.spec.ts)、[读/ACK/清理](memory-consumption.spec.ts)。
+- [请求准入与参数](memory-admission.spec.ts)、[内存身份与恢复](memory-core.spec.ts)、[发出与流](memory-dispatch.spec.ts)、[发出边界的拒绝](memory-dispatch-refusals.spec.ts)、[收场的回放](memory-replay.spec.ts)、[读/ACK/清理](memory-consumption.spec.ts)、[受理的形式守卫](admission-guards.spec.ts)。
 - [账目共用套件](commands-accounts.spec.ts)：账目规则、清理后仍可读的消息身份、缺回放格式的收场整批被拒。
 - [真实受理、首次分派与完整符合性](runtime-admission.spec.ts)。
 - [实例观察](runtime-observation.spec.ts)、[原流保存及交错](runtime-receive.spec.ts)、[受控外部流与宿主](runtime-fixture.ts)。
 - [原流交接、确认推进、刷新乱序与驱动锁](runtime-transitions.spec.ts)。
 - [quiesce 的受理闸门、认回与 pending/running 计数](runtime-quiesce.spec.ts)。
 - [取消对发送的停止请求](send-interruption.spec.ts)：只停被取消调用的发送，保留驱动信号，流结束后不再停止。
+- [凭据缺失的确定失败](send-credential-terminal.spec.ts)：租户凭据缺失或读不出时，真实 driver 以 `credential` 失败结算调用，上游 start 为 0。
 - [构造与五端口](runtime-testing.spec.ts)、[合法身份与受信测试适配](memory-fixture.ts)。
 
 [memory-partial.spec.ts](memory-partial.spec.ts) 从实际 preserve 驱动部分结果、真实 trim、目标页、临界容量的控制/终局/读/ACK/清理。

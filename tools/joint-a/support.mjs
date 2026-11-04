@@ -28,6 +28,26 @@ export const serveDistribution = join(serverMember, 'config', 'serve.distributio
 
 /** `serve` 的关闭截止时间。`storage` 行的关闭期限比它低一秒。 */
 export const SHUTDOWN_DEADLINE_MS = 5000
+
+/**
+ * 联调脚本起整棵发行树，是重负载检查，要先取机器的运行名额（`scripts/with-test-slot.mjs`），
+ * 与准入、全量测试排同一个队。已经持有名额（`OMNE_TEST_SLOT_HELD`）时直接放行；否则在名额包装下
+ * 重新运行本脚本，并以它的退出码退出。
+ */
+export function holdTestSlot(scriptUrl) {
+  if (process.env['OMNE_TEST_SLOT_HELD']) return
+  const child = spawnSync(
+    process.execPath,
+    [
+      join(repoRoot, 'scripts', 'with-test-slot.mjs'),
+      process.execPath,
+      fileURLToPath(scriptUrl),
+      ...process.argv.slice(2),
+    ],
+    { stdio: 'inherit' },
+  )
+  process.exit(child.status ?? 1)
+}
 export const READINESS_TIMEOUT_MS = 15_000
 
 export const SESSION_PATH = '/session-public/1'
@@ -132,7 +152,9 @@ export function storageConfig(storageRoot, closeDeadlineMs) {
     maxCommandBytes: 1048576,
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
-    maxJsonDepth: 64,
+    // 发行配置 storage 行的 `maxJsonDepth`（R2-D270）：整行替换时要抄过来，否则带首条输入的 Session `create`（K-14，69 层）
+    // 在提供者初值 64 下被拒（command_limit）。K-23 桥删除后 A2 的 Tool 意图材料只有个位数层（R2-D372）。
+    maxJsonDepth: 128,
     maxJsonMembers: 65536,
     maxResponseBytes: 65536,
     maxOperationResponseBytes: 1048576,
@@ -145,8 +167,8 @@ export function storageConfig(storageRoot, closeDeadlineMs) {
     readQueueGlobal: 256,
     readQueueTimeoutMs: 1000,
     maxReadInputBytes: 262144,
-    maxReadResultBytes: 4194304,
-    globalReadResultBytes: 33554432,
+    maxReadResultBytes: 20971520,
+    globalReadResultBytes: 268435456,
     readObservationMs: 2000,
     readerIdleMs: 30000,
     queryQueuePerDomain: 16,

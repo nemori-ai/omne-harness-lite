@@ -23,12 +23,14 @@ export function delegatedOf<P>(context: Context<P>): SessionDelegatedTransaction
 
 /**
  * The port surface of one view. `pending`, `references` and `releasedScopes` name no session, so
- * the binding denies them; `commitEntries` asks no access on the port, so the view denies it here.
+ * the binding denies them; `commitEntries` and `commitLog` ask no access on the port, so the view
+ * denies them here.
  */
 function viewOf<P>(port: SessionTransactionPort<P>): SessionTransactionPort<P> {
   return {
     ...port,
     commitEntries: () => Promise.resolve(failure({ kind: 'denied', action: 'commitEntries' })),
+    commitLog: () => Promise.resolve(failure({ kind: 'denied', action: 'commitLog' })),
   }
 }
 

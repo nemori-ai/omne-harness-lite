@@ -5,6 +5,7 @@
 // The checks hold the judgments, so the spec and the driver cannot drift apart.
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { startModelGateway, type ModelGateway } from '../fixtures/model-gateway.ts'
 import {
   bodyOf,
   cursorKeySpellings,
@@ -29,6 +30,9 @@ const CREDENTIALS = { alice: 'alice-pw-MARKER-7f3a', bob: 'bob-pw-MARKER-91c2' }
 const INPUT_TEXT = 'hello from the r9 flow MARKER-input'
 /** A session id of the real shape that nobody created. */
 const UNKNOWN_SESSION = 'f'.repeat(64)
+/** How long the flow waits for the Run that the input started to end before the first stop. */
+const RUN_END_TIMEOUT_MS = 60_000
+const RUN_END_POLL_MS = 500
 
 export type Check = Readonly<{
   /** Acceptance item of the R9 closure (APP-12). 0 is the flow itself. */
@@ -102,6 +106,28 @@ const readHistory = (tenant: string, session: string, loginProof: string) => ({
   loginProof,
 })
 
+/**
+ * The operator layer of the flow: the release layer of `support.ts`, plus the Run entries in the
+ * history that `server-entry` serves. The flow reads `run.terminal` to know that the Run the input
+ * started has ended before it stops the process.
+ */
+function withRunEntries(layer: unknown): unknown {
+  const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
+  return {
+    ops: ops.map(op =>
+      op.id === 'server-entry'
+        ? {
+            ...op,
+            config: {
+              ...op.config,
+              historyKinds: ['message.user', 'message.assistant', 'run.started', 'run.terminal'],
+            },
+          }
+        : op,
+    ),
+  }
+}
+
 function pendingRows(records: readonly Rec[]): string[] {
   return records
     .filter(record => record.kind === 'row-state' && record['state'] !== 'ACTIVE')
@@ -118,10 +144,20 @@ export async function runR9Flow(): Promise<FlowRecord> {
   const outputs: string[] = []
   const checks: Check[] = []
   let server: ServerHandle | undefined
+  let gateway: ModelGateway | undefined
   try {
     const port = await freePort()
+    // The Model calls go to a local gateway that refuses each with HTTP 400, never to a real
+    // supplier (R2-D258): the Run that the input starts ends the same way every time.
+    gateway = await startModelGateway()
+    const modelGateway = gateway
     const operatorPath = join(scratch.base, 'operator.json')
-    writeOperator(operatorPath, operatorLayer({ storageRoot: scratch.storageRoot, port }))
+    writeOperator(
+      operatorPath,
+      withRunEntries(
+        operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: modelGateway.url }),
+      ),
+    )
     const homes = {
       alice: join(scratch.base, 'home-alice'),
       bob: join(scratch.base, 'home-bob'),
@@ -156,6 +192,7 @@ export async function runR9Flow(): Promise<FlowRecord> {
         stateRoot: scratch.stateRoot,
         operatorPath,
         port,
+        extraCaPath: modelGateway.certPath,
       })
       const records = handle.records()
       runs.push({
@@ -190,11 +227,11 @@ export async function runR9Flow(): Promise<FlowRecord> {
     checks.push(
       check(
         1,
-        'the real tree is accepting with 10 real, 1 contract-double and 38 s0-double rows',
+        'the real tree is accepting with 46 real and 2 s0-double rows',
         first?.startup?.['accepting'] === true &&
           first.startup['outcome'] === 'ready' &&
           JSON.stringify(first.startup['implementations']) ===
-            JSON.stringify({ real: 10, 'contract-double': 1, 's0-double': 38 }) &&
+            JSON.stringify({ real: 46, 'contract-double': 0, 's0-double': 2 }) &&
           first.pending.length === 0,
         `startup ${shortJson(first?.startup)}, not ACTIVE: ${(first?.pending ?? []).join(', ')}`,
       ),
@@ -282,12 +319,16 @@ export async function runR9Flow(): Promise<FlowRecord> {
       'bob',
       ['send-input', '--session', UNKNOWN_SESSION, '--text', 'x', '--tenant', aliceTenant],
     )
+    // Bob's own tenant is named with --tenant: the session is not Bob's, so his CLI has no record
+    // of its owner and the current selection is no longer used for an existing session.
     const bobOnReal = await cli('bob sends to the session with his own tenant', 'bob', [
       'send-input',
       '--session',
       session,
       '--text',
       'x',
+      '--tenant',
+      bobTenant,
     ])
     const bobOnUnknown = await cli('bob sends to an unknown session with his own tenant', 'bob', [
       'send-input',
@@ -295,13 +336,25 @@ export async function runR9Flow(): Promise<FlowRecord> {
       UNKNOWN_SESSION,
       '--text',
       'x',
+      '--tenant',
+      bobTenant,
     ])
     const refusals = [bobOnRealWithAlice, bobOnUnknownWithAlice, bobOnReal, bobOnUnknown]
+    // With the owner's tenant text the answer is denied. Bob's own tenant has no transaction
+    // domain until its first create, so there the storage answers unavailable
+    // (session-storage-sql SPEC, "事务域目录没有该租户"). Either answer must not tell a real
+    // session from an unknown one; the next check compares them byte for byte.
+    const isDenied = (run: CliRun): boolean =>
+      run.status === 3 && run.result?.['outcome'] === 'denied'
+    const isUnregistered = (run: CliRun): boolean =>
+      run.status === 4 && run.result?.['outcome'] === 'basis-unavailable'
     checks.push(
       check(
         3,
-        'the other tenant is denied on the session, with exit 3 and outcome denied',
-        refusals.every(run => run.status === 3 && run.result?.['outcome'] === 'denied'),
+        'the other tenant is refused on the session: denied under the owner tenant, denied or unavailable under its own unregistered tenant',
+        isDenied(bobOnRealWithAlice) &&
+          isDenied(bobOnUnknownWithAlice) &&
+          [bobOnReal, bobOnUnknown].every(run => isDenied(run) || isUnregistered(run)),
         refusals.map(run => `${String(run.status)}/${String(run.result?.['outcome'])}`).join(' '),
       ),
       check(
@@ -336,14 +389,41 @@ export async function runR9Flow(): Promise<FlowRecord> {
     checks.push(
       check(
         3,
-        'the other tenant reading the history is denied, and the answer does not tell a real session from an unknown one',
+        'the other tenant reading the history is refused, and the answer does not tell a real session from an unknown one',
         Object.values(reads).every(reply => !reply.body.includes(INPUT_TEXT)) &&
-          Object.values(reads).every(reply => reply.body.includes('denied')) &&
+          [reads.ownerTenantReal, reads.ownerTenantUnknown].every(reply =>
+            reply.body.includes('"outcome":"denied"'),
+          ) &&
+          [reads.ownTenantReal, reads.ownTenantUnknown].every(
+            reply =>
+              reply.body.includes('"outcome":"denied"') ||
+              reply.body.includes('"outcome":"basis-unavailable"'),
+          ) &&
           sameBytes(reads.ownerTenantReal, reads.ownerTenantUnknown) &&
           sameBytes(reads.ownTenantReal, reads.ownTenantUnknown),
         Object.entries(reads)
           .map(([label, reply]) => `${label}: ${String(reply.status)} ${reply.body.slice(0, 160)}`)
           .join(' | '),
+      ),
+    )
+
+    // Item 4 is an ordered stop and a restart, not a stop with work in flight: the input started a
+    // Run (its Model call goes out), so the flow waits until the history shows that Run ended. A
+    // stop while the Run is still running answers `incomplete` on purpose (AG-QUIESCE).
+    const ended = await waitForRunEnd(port, aliceTenant, session, aliceProof)
+    outputs.push(ended.body)
+    checks.push(
+      check(
+        4,
+        'the Run that the input started ends before the first stop (run.terminal in the history)',
+        ended.ok,
+        `no run.terminal after ${String(RUN_END_TIMEOUT_MS)} ms: status ${String(ended.status)}`,
+      ),
+      check(
+        4,
+        'the Model call of that Run went to the local gateway, not to a real supplier',
+        modelGateway.requests() > 0,
+        `the local gateway saw ${String(modelGateway.requests())} requests`,
       ),
     )
 
@@ -489,7 +569,24 @@ export async function runR9Flow(): Promise<FlowRecord> {
     return { startedAt, runs, steps, http, checks }
   } finally {
     await server?.kill()
+    await gateway?.close()
     scratch.remove()
+  }
+}
+
+/** Reads the owner's history until a `run.terminal` entry is there, or the timeout passes. */
+async function waitForRunEnd(
+  port: number,
+  tenant: string,
+  session: string,
+  loginProof: string,
+): Promise<{ ok: boolean; status: number; body: string }> {
+  const deadline = Date.now() + RUN_END_TIMEOUT_MS
+  for (;;) {
+    const reply = await post(port, SESSION_PATH, readHistory(tenant, session, loginProof))
+    if (reply.status === 200 && reply.body.includes('"run.terminal"')) return { ok: true, ...reply }
+    if (Date.now() >= deadline) return { ok: false, ...reply }
+    await new Promise(resolve => setTimeout(resolve, RUN_END_POLL_MS))
   }
 }
 

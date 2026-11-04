@@ -25,7 +25,9 @@
 | [pipeline.spec.ts](pipeline.spec.ts) | 快 | CP-01 的认回、事务外拒绝、材料拥有者、`changed` 上限、未知结局、通知与关闭 |
 | [construction.spec.ts](construction.spec.ts) | 快 | 启动条件与 `SchedulingPolicy` 的逐字段核对 |
 | [advance.spec.ts](advance.spec.ts) | 快 | S1、C2 的开 Run 顺序、会话槽引用的两组样例、S4、S3 |
+| [wake-up.spec.ts](wake-up.spec.ts) | 快 | 唤醒模型的守卫：判断进行时到达的触发让 S1 再跑一次；重试用尽或没有发出 `invoke` 的已授予 Run 由扫描或下一次触发以同一出站身份重发；`invoke`、`receive`、`finishRun` 与 S1 读快照的失败各留下具名诊断；有界收束不因无关提交答 `changed`（R2-D327） |
 | [complexity.spec.ts](complexity.spec.ts) | 快 | SS-02：两个历史规模下各面操作的确定性计数相同，并有一个负控 |
+| [measure.spec.ts](measure.spec.ts) | 快 | SPEC「测量事件」：面操作段的起止、`span` 成对、失败结局、轮完成事件，以及无观察者与观察者抛出时答复不变 |
 
 没有 `*.spec-d.ts` 类型测试。
 

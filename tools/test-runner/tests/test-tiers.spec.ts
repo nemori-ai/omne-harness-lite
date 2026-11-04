@@ -37,7 +37,7 @@ import {
   typecheckArgs,
 } from '../src/testing/turbo.ts'
 import { slugOf } from '../src/testing/run.ts'
-import { triage, triageSummary } from '../src/testing/triage.ts'
+import { rerunInFile, triage, triageSummary } from '../src/testing/triage.ts'
 import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
 
 const ROOT_DEFINITION = fileURLToPath(new URL('../../../vitest.tiers.mts', import.meta.url))
@@ -636,6 +636,45 @@ describe('真起 vitest：带过滤的运行要么选中要么失败（#737）',
     expect(none.ran).toEqual([])
   })
 
+  it('慢层归因重跑不重复类型开关，真实成功与失败都能执行', { tags: ['slow'] }, async () => {
+    const subject = project({
+      'rerun.spec.ts': [
+        "test('会通过', { tags: ['slow'] }, () => {})",
+        "test('会失败', { tags: ['slow'] }, () => { throw new Error('expected failure') })",
+      ].join('\n'),
+    })
+    writeFileSync(
+      join(subject, 'package.json'),
+      JSON.stringify({
+        name: 'slow-triage-fixture',
+        private: true,
+        scripts: {
+          'test:slow': `${JSON.stringify(process.execPath)} ${JSON.stringify(VITEST)} run --mode slow --typecheck.enabled=false`,
+        },
+      }),
+    )
+    const output = join(subject, 'triage')
+    mkdirSync(output)
+    const outcomes = []
+    for (const test of ['会通过', '会失败', undefined]) {
+      outcomes.push(
+        await rerunInFile(
+          subject,
+          'test:slow',
+          '.',
+          'tests/rerun.spec.ts',
+          test,
+          join(output, String(outcomes.length)),
+        ),
+      )
+    }
+    expect(outcomes, readFileSync(join(output, '0.log'), 'utf8')).toEqual([
+      'passed',
+      'failed',
+      'failed',
+    ])
+  })
+
   it(
     '现状：失败归因经成员脚本与同一配置重跑时，选中生成的用例名，选不中的归为未能单独重跑',
     // 刻画现状，不是回归：triage 走成员脚本 `test`（不给 mode，不开 preParse），#682 的现象没有经过这条路。
@@ -677,7 +716,7 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
   afterAll(() => rmSync(subject, { recursive: true, force: true }))
   writeFileSync(
     join(subject, 'pnpm-workspace.yaml'),
-    'packages:\n  - packages/*/*\n  - apps/*\n  - tools/*\n  - packages.0.0.1.legacy/core/*\n',
+    'packages:\n  - packages/*/*\n  - apps/*\n  - tools/*\n  - packages.archive.legacy/core/*\n',
   )
   // 计划经 turbo 选成员，turbo 要读被检查仓库根的 package.json 与 packageManager。
   writeFileSync(
@@ -696,7 +735,7 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
     'tools/dev-flow',
     'tools/product-checks',
     'tools/test-runner',
-    'packages.0.0.1.legacy/core/identity-values',
+    'packages.archive.legacy/core/identity-values',
   ]) {
     mkdirSync(join(subject, path), { recursive: true })
     writeFileSync(

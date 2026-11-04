@@ -24,8 +24,11 @@ import {
   createAgentModelContext,
   createAgentRequests,
   createContextMaterials,
-  firstWaveTools,
+  absentToolLookup,
+  type ContextMeasure,
+  type DefinitionSource,
   type StepResultSource,
+  toolsSourceOf,
   type ToolsSource,
 } from '@omne-harness/agent-context'
 import {
@@ -62,6 +65,7 @@ import {
   type ContextSources,
   type HistoryEvidence,
   type HistoryRow,
+  type HistorySource,
   type RegistrationResult,
   type RequestCandidate,
   type SourceRead,
@@ -146,6 +150,12 @@ export const meterBy =
   (perMessage: number): MeterScript =>
   input => ({ ok: fixtureBudget(String(input.assembled.messages.length * perMessage)) })
 
+function upperAt(index: number): HistoryEvidence['upper'] {
+  const seq = decodeHistorySequence(String(index))
+  if ('failure' in seq) throw new Error('fixture sequence')
+  return { kind: 'entry', seq: seq.ok }
+}
+
 export const position: ConsumerRef = {
   owner: 'agent',
   work: 'execution-1',
@@ -156,22 +166,91 @@ export const position: ConsumerRef = {
 export type WorldOptions = Readonly<{
   tenant?: TenantId
   rows?: readonly HistoryRow[]
+  /** The index of the last row the holder resolves the head to; the rows after it are not yet written. */
+  upper?: number
   meter?: MeterScript
   tools?: ToolsSource<string>
   stepResults?: StepResultSource<string>
+  /** The reader of definition instructions (the fourth group); absent leaves the factory default. */
+  definitions?: DefinitionSource<string>
   capacity?: number
+  /** The observer of the measurement events; absent leaves both factories without one. */
+  measure?: ContextMeasure
   /** Wraps the operation group the adapter gets, to script or observe one outcome. */
   operations?: (real: AssemblyOperations<string>) => AssemblyOperations<string>
 }>
 
 export type World = Awaited<ReturnType<typeof createWorld>>
 
+const TRACKED_ROW_FIELDS = new Set([
+  'seq',
+  'entry',
+  'message',
+  'prefixDigest',
+  'sourceCall',
+  'bytes',
+])
+
+/**
+ * What the history port returned and which rows the derivations then read. Every row a page hands
+ * out is wrapped, so the observation comes from the functions that really process the rows and not
+ * from what the test expects them to process.
+ */
+function createHistoryObservation() {
+  let pages = 0
+  let returned = new Set<string>()
+  let returnedRows = 0
+  let touched = new Map<string, Set<string>>()
+  const touch = (seq: string, field: string) => {
+    const fields = touched.get(seq) ?? new Set<string>()
+    fields.add(field)
+    touched.set(seq, fields)
+  }
+  return {
+    wrap(row: HistoryRow): HistoryRow {
+      returned.add(row.seq)
+      returnedRows++
+      return new Proxy(row, {
+        get(target, field, receiver) {
+          if (typeof field === 'string' && TRACKED_ROW_FIELDS.has(field)) touch(target.seq, field)
+          return Reflect.get(target, field, receiver)
+        },
+      })
+    },
+    page() {
+      pages++
+    },
+    reset() {
+      pages = 0
+      returnedRows = 0
+      returned = new Set()
+      touched = new Map()
+    },
+    /** The counts since the last reset. */
+    counts() {
+      const ofField = (field: string) =>
+        [...touched.values()].filter(fields => fields.has(field)).length
+      return {
+        pageCalls: pages,
+        returnedRows,
+        /** Distinct rows whose message a derivation read: validation, filtering and projection. */
+        messageRows: ofField('message'),
+        /** Distinct rows read by any derivation. */
+        touchedRows: touched.size,
+        /** Distinct rows read although this round's pages did not return them. */
+        olderRowsTouched: [...touched.keys()].filter(seq => !returned.has(seq)).length,
+      }
+    },
+  }
+}
+
 /** Counts the calls of every downstream port and gives the adapter the real ones behind them. */
 export async function createWorld(options: WorldOptions = {}) {
   const tenant = options.tenant ?? tenantOf('1')
+  const allRows = options.rows ?? [historyRow(0, 'read it'), historyRow(1, 'thanks')]
   const f: AssemblyFixture = createAssemblyFixture({
     tenant,
-    rows: options.rows ?? [historyRow(0, 'read it'), historyRow(1, 'thanks')],
+    rows: allRows,
     policies: {
       compaction: createDefaultCompactionPolicy({
         config: { retainBudget: { kind: 'tokens', retainTokens: '600' } },
@@ -196,10 +275,25 @@ export async function createWorld(options: WorldOptions = {}) {
   }
 
   const historyEvidence: HistoryEvidence = f.history.evidence()
+  let upper = options.upper ?? allRows.length - 1
+  const observation = createHistoryObservation()
+  const observedHistory: HistorySource<string> = {
+    async read(input) {
+      observation.page()
+      const result = await f.history.read(input)
+      return result.kind === 'page'
+        ? {
+            ...result,
+            page: { ...result.page, rows: result.page.rows.map(row => observation.wrap(row)) },
+          }
+        : result
+    },
+    compactionContext: input => f.history.compactionContext(input),
+  }
   // A holder that admits the access yet resolves the head to a target of another tenant.
   let resolvedTenant: TenantId = tenant
   const parts: ContextHolderParts<string> = {
-    history: f.sources.history,
+    history: observedHistory,
     adopted: f.sources.adopted,
     eligibility: f.sources.eligibility,
     resolveHistory: async ({
@@ -213,6 +307,7 @@ export async function createWorld(options: WorldOptions = {}) {
             kind: 'value',
             value: {
               ...historyEvidence,
+              upper: upperAt(upper),
               target: { ...historyEvidence.target, tenant: resolvedTenant },
             },
           }
@@ -373,8 +468,10 @@ export async function createWorld(options: WorldOptions = {}) {
     conversions: createAbsentConversionResults<string>(),
     model,
     resultCapacity: RESULT_CAPACITY,
-    tools: options.tools ?? firstWaveTools,
+    tools: options.tools ?? toolsSourceOf(absentToolLookup),
     stepResults: options.stepResults ?? (async () => ({ kind: 'unavailable', diagnostic: 'none' })),
+    ...(options.definitions === undefined ? {} : { definitions: options.definitions }),
+    ...(options.measure === undefined ? {} : { measure: options.measure }),
   })
   const reader = createAgentModelContext<string>({
     materials,
@@ -388,6 +485,7 @@ export async function createWorld(options: WorldOptions = {}) {
       },
     },
     runtimeContext,
+    ...(options.measure === undefined ? {} : { measure: options.measure }),
   })
 
   const selection: SelectedModel = {
@@ -481,6 +579,12 @@ export async function createWorld(options: WorldOptions = {}) {
 
   return {
     f,
+    /** The history port and the rows it handed out, as the derivations then read them. */
+    observation,
+    /** The holder resolves the head to this row from now on; the rows exist already. */
+    growTo(index: number) {
+      upper = index
+    },
     tenant,
     access,
     counts,

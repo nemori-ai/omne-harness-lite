@@ -1,17 +1,11 @@
 // `session-storage` 行（会话存储组合）与 `storage` 行在真实 sqlite-provider 上的行为：租户登记只在放行的 `create`
 // 之后发生，读与被拒的 `create` 不登记；重启后已登记租户可读；委派视图只服务绑定的那次操作；参加者常量与目录一致。
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test } from 'vitest'
+import { MODEL_PARTICIPANT } from '@omne-harness/model-storage-sql'
+import { TOOL_PARTICIPANT } from '@omne-harness/tool-storage-sql'
 import type { SessionTransactionPort } from '@omne-harness/session-contract'
 import { mutationAccessRequest } from '@omne-harness/session-contract'
 import {
@@ -27,6 +21,7 @@ import { tenantDomainLookupKey, tenantDomainsKey } from '@omne-harness/sql-contr
 import { runTenantDomainLookupConformance } from '@omne-harness/sql-contract/testing'
 import { cursorSigning } from '../../../src/entry/cursor-signing.ts'
 import { storageHost } from '../../../src/entry/storage-host.ts'
+import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { storageCatalog } from '../../../src/rows/storage/catalog.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS } from '../../../src/rows/session-storage/composite.ts'
 import {
@@ -138,7 +133,7 @@ describe('tenant registration (acceptance 1)', () => {
     expect(await lookup(tree).lookup({ tenant: textOf(TENANT_A) })).toEqual({
       kind: 'unregistered',
     })
-    expect(existsSync(ws.directoryFile)).toBe(false)
+    expect(JSON.parse(readFileSync(ws.directoryFile, 'utf8')).tenants).toEqual([])
   })
 
   test('a create whose access names another session than the command is denied before anything registers', async () => {
@@ -155,7 +150,7 @@ describe('tenant registration (acceptance 1)', () => {
     expect(await lookup(tree).lookup({ tenant: textOf(TENANT_A) })).toEqual({
       kind: 'unregistered',
     })
-    expect(existsSync(ws.directoryFile)).toBe(false)
+    expect(JSON.parse(readFileSync(ws.directoryFile, 'utf8')).tenants).toEqual([])
   })
 
   test('a failed write of the directory file answers unavailable without a path, and the tenant stays unregistered in the snapshot', async () => {
@@ -177,7 +172,7 @@ describe('tenant registration (acceptance 1)', () => {
     expect(await lookup(tree).lookup({ tenant: textOf(TENANT_A) })).toEqual({
       kind: 'unregistered',
     })
-    expect(existsSync(ws.directoryFile)).toBe(false)
+    expect(JSON.parse(readFileSync(ws.directoryFile, 'utf8')).tenants).toEqual([])
   })
 
   test('two tenants get two domains; the second create of a registered tenant does not re-register', async () => {
@@ -279,7 +274,7 @@ describe('restart (acceptance 2, in-process)', () => {
     )
     const tree = await load(ws)
     expect(tree.state('session-storage')).toMatchObject({ state: 'FAILED' })
-    expect(tree.state('session-storage').error?.message).toContain('other/1')
+    expect(tree.state('session-storage').error?.message).toContain('different rule')
   })
 
   test('a directory with a non-tenant entry is refused; a well-formed one publishes its tenants as ready', async () => {
@@ -324,6 +319,19 @@ describe('the composite declaration (acceptance 6)', () => {
     for (const participant of SESSION_COMPOSITE_PARTICIPANTS)
       expect(names, participant).toContain(participant)
     expect([...SESSION_COMPOSITE_PARTICIPANTS]).toEqual([...SESSION_COMPOSITE_PARTICIPANTS].sort())
+  })
+
+  test('wave 2: the model participant and its migration are in the combination the row registers (R2-D6, R2-D65)', () => {
+    expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(MODEL_PARTICIPANT)
+    const catalog = storageCatalog()
+    expect(catalog.migrations.map(item => item.owner)).toContain(MODEL_PARTICIPANT)
+    expect(COMBINATION_VERSION).toBe('session-composite/4')
+  })
+
+  test('segment B: the tool participant and its migration are in the same combination', () => {
+    expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(TOOL_PARTICIPANT)
+    const catalog = storageCatalog()
+    expect(catalog.migrations.map(item => item.owner)).toContain(TOOL_PARTICIPANT)
   })
 })
 
@@ -376,12 +384,33 @@ describe('the delegated entry and the trusted reads', () => {
     expect('ok' in (await bound.readWork(access(TENANT_A, 's1')))).toBe(true)
   })
 
-  test('tenantDomains.enumerate and sessionPrincipalBindings.read answer unavailable, never ready or bound', async () => {
+  test('a bound view refuses the two writes that ask no access on the port: commitEntries and commitLog (R2-D256)', async () => {
+    const tree = await load(workspace())
+    started(tree)
+    const command = createCommand(TENANT_A, 's1')
+    const view = tree
+      .trusted<SessionDelegatedTransactionsService<string>>(sessionDelegatedTransactionsKey)
+      .bind({
+        request: mutationAccessRequest(access(TENANT_A, 's1'), command),
+        evidence: evidence('bound/create'),
+      })
+    const commitLog = view.commitLog
+    if (commitLog === undefined) throw new Error('the view offers no commitLog')
+    expect(await commitLog({} as never)).toEqual({
+      failure: { kind: 'denied', action: 'commitLog' },
+    })
+    expect(await view.commitEntries({} as never)).toEqual({
+      failure: { kind: 'denied', action: 'commitEntries' },
+    })
+    expect(tree.check.controls.asked()).toEqual([])
+  })
+
+  test('tenantDomains denies an unissued principal and sessionPrincipalBindings answers unavailable for a tenant the directory has not registered', async () => {
     const tree = await load(workspace())
     started(tree)
     const domains = tree.service<TenantDomains<string>>(tenantDomainsKey)
     expect(await domains.enumerate({ principal: 'anyone' })).toMatchObject({
-      kind: 'unavailable',
+      kind: 'denied',
     })
     const bindings = tree.trusted<SessionPrincipalBindingsService>(sessionPrincipalBindingsKey)
     expect(await bindings.read({ tenant: TENANT_A, session: sessionId('s1') })).toMatchObject({

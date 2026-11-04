@@ -22,6 +22,7 @@ import { serveProfile } from '../../../src/profile.ts'
 import { sessionStorageRow } from '../../../src/rows/session-storage/index.ts'
 import { storageRow } from '../../../src/rows/storage/index.ts'
 import { monotonicClock, runShutdown, type ShutdownReport } from '../../../src/shutdown.ts'
+import { prepareStartupDirectory } from '../../../src/startup-directory.ts'
 import { createTrust } from '../../../src/trust.ts'
 import type {
   EntryEnv,
@@ -143,6 +144,7 @@ export async function loadTree(options: TreeOptions): Promise<LoadedTree> {
     trust,
     rows: options.rows,
     entryObjects,
+    prepare: () => prepareStartupDirectory(options.rows),
     readinessTimeoutMs: options.readinessTimeoutMs ?? 10_000,
     barrier: () => {},
   })

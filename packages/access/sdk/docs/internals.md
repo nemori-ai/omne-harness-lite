@@ -15,7 +15,7 @@ SDK 持有传输适配和登录证明。它不解释 `outcome`。自动再送只
 | `src/transport.ts`      | `GovernanceTransport` 与 `TransportReport` 的形状。传输适配只见字节，不见消息。   |
 | `src/http-transport.ts` | `createHttpTransport`。地址校验、`fetch` 调用、`not-sent` 与 `uncertain` 的分类。 |
 | `src/client.ts`         | 两个客户端。编码、发送、再送、读响应、核对 `messageId`。                          |
-| `src/tenant.ts`         | `parseTenantText` 与 `tenantText`。                                               |
+| `src/tenant.ts`         | `parseTenantText` 与 `tenantText`，调用公开契约的租户文本函数。                   |
 | `src/user-message.ts`   | `userTextMessage`。                                                               |
 | `src/limits.ts`         | 客户端缺省的 json-text 预算。                                                     |
 
@@ -33,9 +33,9 @@ SDK 持有传输适配和登录证明。它不解释 `outcome`。自动再送只
 
 `fetch` 用 `redirect: 'manual'`，所以登录证明不会随重定向送到别处。
 
-## 为什么租户文本借用请求编解码
+## 身份文本由公开契约拥有
 
-公开契约不导出身份编解码，SDK 的依赖里也没有身份包。`TenantId` 只有身份包的编解码能铸造。`parseTenantText` 把文本放进一份探测用的 `query-create-session` 请求，交给 `readSessionRequest`，取出读到的租户。`tenantText` 反向用 `encodeSessionRequest`。这两个函数的行为就是公开契约的租户读写规则，没有第二份规则。公开契约若导出身份编解码，这两个函数改为直接调用它们。
+身份值的序列化表示由公开契约拥有，见公开契约规格的[身份值的文本](../../public-contract/SPEC.md#身份值的文本)。SDK 的依赖里没有身份包。`parseTenantText` 与 `tenantText` 直接调用公开契约的 `readTenantText` 与 `encodeTenantText`。组织、账号和登录的读写函数原样转出。SDK 不再有探测请求，身份文本规则只有公开契约一份。
 
 ## 验证与维护
 

@@ -214,12 +214,17 @@ export type HandoffCustody = Readonly<{
 /** The role group that opens an execution, attaches to it and detaches; see SPEC "托管协调与运行实例". */
 export interface AgentJournalAttachment<P> {
   /**
-   * The instance, the grant and the initial checkpoint come only from the two parts: the runtime
-   * context and the invoke entry of the original acceptance (SPEC "逐操作及输入分类").
+   * The instance and the grant come only from the runtime context and the invoke entry of the
+   * original acceptance (SPEC "逐操作及输入分类"). `checkpoint` is the initial checkpoint: the
+   * `AgentEvaluator.initial` of the definition of `runtime` and the first step (R2-D292).
    */
   open(
     input: ExecutionMutation<P> &
-      Readonly<{ original: OriginalInputAcceptance; runtime: InvokeRuntimeContext }>,
+      Readonly<{
+        original: OriginalInputAcceptance
+        runtime: InvokeRuntimeContext
+        checkpoint: AgentCheckpoint
+      }>,
   ): Reply<Readonly<{ receipt: CommandReceipt; authority: Authority }>>
   attach(
     input: ExecutionMutation<P> &
@@ -334,6 +339,10 @@ export interface AgentJournalObservation<P> {
 /** The read-only role group: snapshot, inputs, reply admissions, outcome query and event reads; see SPEC "托管协调与运行实例". */
 export interface AgentJournalReading<P> {
   load(input: Access<P> & Readonly<{ execution: AgentExecutionId }>): Reply<ExecutionSnapshot>
+  /** Reads the current governance installation reference under the existing Journal read qualification. */
+  readCancellationInstallation?(
+    input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
+  ): Reply<DurableEvidence>
   inputs(
     input: Access<P> & Readonly<{ execution: AgentExecutionId; watermark: DurableEvidence }>,
   ): Reply<Readonly<{ batch: InputBatch; messages: readonly Message[] }>>

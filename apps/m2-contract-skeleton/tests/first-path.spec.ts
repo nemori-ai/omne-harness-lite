@@ -2,8 +2,14 @@
 // failure stops at the hop that owns it without faking the later ones, and every probe of CS v2
 // records the public refusal it meets instead of building the missing behavior.
 import { describe, expect, it } from 'vitest'
+import type { AgentJournalEntry, PassageId } from '@omne-harness/agent-contract'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { HistoryPage, RunId } from '@omne-harness/session-contract'
+import type {
+  HistoryPage,
+  RunId,
+  SessionCommand,
+  SessionTransactionPort,
+} from '@omne-harness/session-contract'
 import {
   createMemoryInitializationSource,
   memoryOtherAccess,
@@ -17,6 +23,7 @@ import {
   wireSessionOf,
   type FirstPathHop,
   type FirstPathObservation,
+  type PathAgent,
   type PathDependencies,
   type PathPrincipal,
   type SessionAssembly,
@@ -49,6 +56,24 @@ const kindAt = (observed: FirstPathObservation, hop: FirstPathHop) =>
   (observed[hop] ?? NOT_REACHED).kind
 const evidenceAt = (observed: FirstPathObservation, hop: FirstPathHop) =>
   evidenceOf(observed[hop] ?? NOT_REACHED)
+
+/**
+ * A Session store whose accepted ordinary inputs lose the login-entry origin that the path gives
+ * them, as an input that did not come through the login entry: Session refuses to start a Run.
+ */
+function withoutLoginOrigin<P>(port: SessionTransactionPort<P>): SessionTransactionPort<P> {
+  const commit = (input: Parameters<SessionTransactionPort<P>['commit']>[0]) => {
+    const command: SessionCommand = input.command
+    if (command.kind !== 'accept' || command.input.value.kind !== 'ordinary')
+      return port.commit(input)
+    const value = {
+      ...command.input.value,
+      origin: { ...command.input.value.origin, owner: 'intake' },
+    }
+    return port.commit({ ...input, command: { ...command, input: { ...command.input, value } } })
+  }
+  return { ...port, commit: commit as SessionTransactionPort<P>['commit'] }
+}
 
 /** A Session store whose transaction port is wrapped by `wrap`; the evidence bridge stays. */
 function wrappedStore(
@@ -152,17 +177,19 @@ describe('connected tenant path, first round', () => {
   it('stops at H03 when the Session evidence bridge is unavailable', async () => {
     const observed = await runFirstTenantPath(
       pathDependencies({
-        session: sessionAssembly('contract-memory', bridge => bridge.controls.unavailable(true)),
+        session: sessionAssembly('contract-memory', {
+          evidence: bridge => bridge.controls.unavailable(true),
+        }),
       }),
     )
     expect(observed.H03).toEqual({ kind: 'refused', evidence: ['session-create:unavailable'] })
     expect(kindAt(observed, 'H04')).not.toBe('connected')
   })
 
-  it('refuses startRun with login-required when the evidence bridge gives no login confirmation', async () => {
+  it('refuses startRun with login-required when the first input did not come through the login entry', async () => {
     const observed = await runFirstTenantPath(
       pathDependencies({
-        session: sessionAssembly('contract-memory', bridge => bridge.controls.loginEntry(false)),
+        session: sessionAssembly('contract-memory', { transactions: withoutLoginOrigin }),
       }),
     )
     expect(kindAt(observed, 'H03')).toBe('connected')
@@ -293,7 +320,7 @@ describe('connected tenant path, first round', () => {
     const refused = await runContractSkeleton(
       skeletonInputs({
         path: pathDependencies({
-          session: sessionAssembly('contract-memory', bridge => bridge.controls.loginEntry(false)),
+          session: sessionAssembly('contract-memory', { transactions: withoutLoginOrigin }),
         }),
       }),
     )
@@ -373,19 +400,30 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(evidenceAt(observed, 'H08')[1]).toContain('message.user,')
   })
 
-  it('records that the Agent loop stops at I4 with the tool-call reply before any Tool invocation', async () => {
+  // R2-D318 triage on the JO parent c9c6d7b93: the four red cases of H10 and H12 do not come from the
+  // checkpoint lane (narrowed checkpoint, whole-batch inputBatch, `voided`, attempt identities). They
+  // come from two Agent changes that the JO parent already carried before the checkpoint lane
+  // (R2-D303 pinned the same stops on the older base): b0204876e and R2-D268 (53fee8e88). The probes
+  // read the Journal snapshot and the received entries, and neither read depends on an identity
+  // encoding. The stops below follow the accepted contract.
+  // Without a trusted Tool request source the admission is unavailable, so the Agent denies the whole
+  // batch (agent-contract SPEC 「整批判断屏障与动作准入」 item 2, commit b0204876e) instead of
+  // stopping at A0. The loop then hands the denial over at T5 as a `tool` message, which the message
+  // bridge of this application refuses: it takes only `model-reply` sources (SPEC.md, known
+  // limitations). The loop stays at T5, no Tool runs and no second Model call follows.
+  it('records that the Agent loop denies the tool-call batch and stops at T5 before any Tool invocation', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(kindAt(observed, 'H10')).toBe('refused')
+    expect(kindAt(observed, 'H10')).toBe('disconnected')
     expect(evidenceAt(observed, 'H10')).toEqual([
       'agent:the tool-call reply was admitted and handed over to Session',
+      'agent:no second reply within 2000 event-loop turns',
       'caller-reported: Tool runtime invocations 0, execution-environment effects none, Model admissions 1',
-      'agent:journal state advancing at I4',
-      'agent:the loop stopped at I4 with the tool-call reply (GAP-TOOL-LOOP)',
+      'agent:journal state advancing at T5',
       'agent:no Model request carried a tool result',
     ])
   })
 
-  it('claims no I4 refusal when the tool-call reply never arrives', async () => {
+  it('claims no A0 refusal when the tool-call reply never arrives', async () => {
     const original = agentDouble()
     const observed = await runFirstTenantPath(
       pathDependencies({
@@ -404,10 +442,13 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(evidenceAt(observed, 'H10')).toContain(
       'agent:no second reply within 50 event-loop turns',
     )
-    expect(evidenceAt(observed, 'H10').join(' ')).not.toContain('I4')
+    expect(evidenceAt(observed, 'H10').join(' ')).not.toContain('GAP-TOOL-LOOP')
   })
 
-  it('judges the I4 stop of H10 from the last journal snapshot it read', async () => {
+  // The upstream loop no longer stays at A0 with a pending action (see the test above), so these two
+  // tests give the probe the A0 snapshots through the journal reads. They check the judgment of the
+  // probe, not a stop of the Agent loop.
+  it('judges the A0 stop of H10 from the last journal snapshot it read', async () => {
     const original = agentDouble()
     const observed = await runFirstTenantPath(
       pathDependencies({
@@ -420,13 +461,28 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
             ...agent,
             journal: {
               ...agent.journal,
-              // The first read sees the loop before I4; the next one sees it at I4.
+              // The first read sees the loop before A0; the next one sees it at A0 with the action
+              // still pending.
               async load(request) {
                 const snapshot = await agent.journal.load(request)
                 loads += 1
-                if ('failure' in snapshot || loads > 1) return snapshot
-                const checkpoint = { ...snapshot.ok.checkpoint, position: 'I3' }
-                return { ok: { ...snapshot.ok, checkpoint } }
+                if ('failure' in snapshot) return snapshot
+                if (loads === 1) {
+                  const checkpoint = { ...snapshot.ok.checkpoint, position: 'I4' }
+                  return { ok: { ...snapshot.ok, checkpoint } }
+                }
+                const { batch } = snapshot.ok.checkpoint
+                if (batch === null) return snapshot
+                const actions = batch.actions.map(action => ({
+                  ...action,
+                  judgment: { kind: 'pending' as const, passage: `${action.id}/A0` as PassageId },
+                }))
+                const checkpoint = {
+                  ...snapshot.ok.checkpoint,
+                  position: 'A0',
+                  batch: { ...batch, actions },
+                }
+                return { ok: { ...snapshot.ok, state: { kind: 'advancing' as const }, checkpoint } }
               },
             },
           }
@@ -434,10 +490,55 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
       }),
     )
     expect(kindAt(observed, 'H10')).toBe('refused')
-    expect(evidenceAt(observed, 'H10')).toContain('agent:journal state advancing at I4')
+    expect(evidenceAt(observed, 'H10')).toContain('agent:journal state advancing at A0')
     expect(evidenceAt(observed, 'H10')).toContain(
-      'agent:the loop stopped at I4 with the tool-call reply (GAP-TOOL-LOOP)',
+      'agent:the loop stopped at A0 with the tool-call action pending: no trusted Tool request source (GAP-TOOL-LOOP)',
     )
+  })
+
+  it('does not take an A0 stop with no pending action for the refusal of H10', async () => {
+    const original = agentDouble()
+    const observed = await runFirstTenantPath(
+      pathDependencies({
+        replyTurns: 50,
+        agent: async input => {
+          const agent = await original(input)
+          if (input.scenario !== 'tool-call') return agent
+          return {
+            ...agent,
+            journal: {
+              ...agent.journal,
+              // The loop is at A0, but every action of the batch is already judged.
+              async load(request) {
+                const snapshot = await agent.journal.load(request)
+                if ('failure' in snapshot) return snapshot
+                const { batch } = snapshot.ok.checkpoint
+                if (batch === null) return snapshot
+                const actions = batch.actions.map(action => ({
+                  ...action,
+                  judgment:
+                    action.judgment.kind === 'pending'
+                      ? { kind: 'waiting' as const, passage: action.judgment.passage, cards: [] }
+                      : action.judgment,
+                }))
+                const checkpoint = {
+                  ...snapshot.ok.checkpoint,
+                  position: 'A0',
+                  batch: { ...batch, actions },
+                }
+                return { ok: { ...snapshot.ok, state: { kind: 'advancing' as const }, checkpoint } }
+              },
+            },
+          }
+        },
+      }),
+    )
+    expect(kindAt(observed, 'H10')).toBe('disconnected')
+    expect(evidenceAt(observed, 'H10')).toContain('agent:journal state advancing at A0')
+    expect(evidenceAt(observed, 'H10')).toContain(
+      'agent:no second reply within 50 event-loop turns',
+    )
+    expect(evidenceAt(observed, 'H10').join(' ')).not.toContain('GAP-TOOL-LOOP')
   })
 
   it('runs one Tool invocation as a file read, a file write and one command in the #791 doubles', async () => {
@@ -457,12 +558,14 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(environment.command.calls.map(call => call.executable)).toEqual(['cat'])
   })
 
-  it('records quiesce, detach and resume as unavailable and one Model admission after the Model settled', async () => {
+  // R2-D173, R2-D185: quiesce during the Model call answers `unresolved` (the execution in the slot
+  // is not handed over, #502 stage 5), and the draining runtime refuses the resume. H11 stays refused.
+  it('records quiesce as unresolved, detach and resume as unavailable and one Model admission after the Model settled', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
     expect(kindAt(observed, 'H11')).toBe('refused')
     expect(evidenceAt(observed, 'H11')).toEqual([
       'caller-reported: Model admissions 1 after the Model settled',
-      'agent:control.quiesce unavailable',
+      'agent:control.quiesce unresolved',
       'agent:recovery.detach unavailable',
       'agent:runtime.resume unavailable',
       'agent:the original driver continued from the received entry after the Model settled',
@@ -522,7 +625,9 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     )
   })
 
-  it('answers the withdrawal, the resume and the submit as not implemented by #502, not as an access refusal', async () => {
+  // R2-D173, R2-D185: quiesce has a body now and answers without a diagnostic; the resume after it
+  // meets a draining runtime. Submit and detach stay not implemented by #502.
+  it('answers the submit and the detach as not implemented by #502 and the resume after quiesce as draining, not as an access refusal', async () => {
     const diagnostics: string[] = []
     const note = <T extends { ok: unknown } | { failure: unknown }>(reply: T): T => {
       if ('failure' in reply && typeof reply.failure === 'object' && reply.failure !== null)
@@ -566,21 +671,23 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     )
     expect(diagnostics).toEqual([
       'submit is not implemented yet; #502 assigns it no stage',
-      'quiesce is not implemented until #502 stage 5',
       'detach is not implemented until #502 stage 5',
-      'resume is not implemented until #502 stage 5',
+      'the runtime is draining after quiesce; a new resume is not accepted',
     ])
   })
 
-  it('records where the Agent loop holds a received result with reasoning parts', async () => {
+  // R2-D268 (correcting R2-D70): the loop forms the reply without the sealed `thinking` part instead
+  // of answering `unsupported` and holding the result at M6 (agent SPEC). The reply is handed over,
+  // the execution ends, and round 2 meets GAP-SECOND-RUN. The reply carries no `replay` (KL-66), so
+  // GAP-REASONING-REPLAY stays open.
+  it('records that the Agent loop hands over the reply of a result with reasoning parts and stops at the second Run', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(kindAt(observed, 'H12')).toBe('refused')
+    expect(kindAt(observed, 'H12')).toBe('disconnected')
     expect(evidenceAt(observed, 'H12')).toEqual([
       'model-contract:the public pusher delivered the reasoning result to the host receiver',
-      'agent:journal state waiting at M6',
-      'agent:no reply within 2000 event-loop turns',
-      'agent:the loop holds the received result with reasoning parts at M6 and handed over no reply (GAP-REASONING-REPLAY)',
-      'agent:no second request was sent',
+      'agent:journal state ended at F3',
+      'agent:the reasoning reply was handed over',
+      'round 2: session-startRun:run-active',
     ])
   })
 
@@ -750,6 +857,36 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
   })
 })
 
+/**
+ * The entries port of `agent` with the committed entries passed through `rewrite` and served as one
+ * caught-up page. `rewrite` answers null for an unreadable journal: the read then fails.
+ */
+function rewrittenEntries(
+  agent: PathAgent,
+  rewrite: (entries: readonly AgentJournalEntry[]) => readonly AgentJournalEntry[] | null,
+): PathAgent['entries'] {
+  return {
+    ...agent.entries,
+    async read(request) {
+      const found: AgentJournalEntry[] = []
+      let after: string | null = null
+      for (;;) {
+        const page = await agent.entries.read({ ...request, after })
+        if ('failure' in page) return page
+        found.push(...page.ok.items.map(item => item.entry))
+        if (page.ok.caughtUp || page.ok.next === null) break
+        after = page.ok.next
+      }
+      const entries = rewrite(found)
+      if (entries === null)
+        return { failure: { kind: 'unavailable', owner: 'test', diagnostic: 'no entries' } }
+      if (request.after !== null) return { ok: { items: [], next: request.after, caughtUp: true } }
+      const items = entries.map((entry, index) => ({ sequence: String(index + 1), entry }))
+      return { ok: { items, next: items.at(-1)?.sequence ?? null, caughtUp: true } }
+    },
+  }
+}
+
 it.each([
   'missing-snapshot',
   'missing-entries',
@@ -765,32 +902,35 @@ it.each([
     pathDependencies({
       agent: async input => {
         const agent = await original(input)
-        return {
-          ...agent,
-          journal: {
-            ...agent.journal,
-            async load(request) {
-              const snapshot = await agent.journal.load(request)
-              if ('failure' in snapshot) return snapshot
-              if (variant === 'missing-snapshot')
+        // The journal is unreadable: neither the snapshot nor the entries can be read.
+        if (variant === 'missing-snapshot')
+          return {
+            ...agent,
+            journal: {
+              ...agent.journal,
+              async load(request) {
+                const snapshot = await agent.journal.load(request)
+                if ('failure' in snapshot) return snapshot
                 return {
                   failure: { kind: 'unavailable', owner: 'test', diagnostic: 'no snapshot' },
                 }
-              if (variant === 'missing-entries') {
-                const { entries: _, ...rest } = snapshot.ok
-                return { ok: rest }
-              }
-              const entries =
-                variant === 'empty'
-                  ? []
-                  : variant === 'start-fence'
-                    ? [sampleStartFence('wrong')]
-                    : variant === 'tool-account'
-                      ? [sampleReceivedToolAccount(input.tenant, 'wrong')]
-                      : [sampleReceivedModelAccount(input.tenant, 'wrong')]
-              return { ok: { ...snapshot.ok, entries } }
+              },
             },
-          },
+            entries: rewrittenEntries(agent, () => null),
+          }
+        if (variant === 'missing-entries')
+          return { ...agent, entries: rewrittenEntries(agent, () => null) }
+        return {
+          ...agent,
+          entries: rewrittenEntries(agent, () =>
+            variant === 'empty'
+              ? []
+              : variant === 'start-fence'
+                ? [sampleStartFence('wrong')]
+                : variant === 'tool-account'
+                  ? [sampleReceivedToolAccount(input.tenant, 'wrong')]
+                  : [sampleReceivedModelAccount(input.tenant, 'wrong')],
+          ),
         }
       },
     }),
@@ -848,24 +988,12 @@ it('selects the result after unrelated entries rather than adopting the first en
         const agent = await original(input)
         return {
           ...agent,
-          journal: {
-            ...agent.journal,
-            async load(request) {
-              const snapshot = await agent.journal.load(request)
-              if ('failure' in snapshot) return snapshot
-              return {
-                ok: {
-                  ...snapshot.ok,
-                  entries: [
-                    sampleStartFence('other'),
-                    sampleReceivedToolAccount(input.tenant, 'other'),
-                    sampleReceivedModelAccount(input.tenant, 'other'),
-                    ...(snapshot.ok.entries ?? []),
-                  ],
-                },
-              }
-            },
-          },
+          entries: rewrittenEntries(agent, entries => [
+            sampleStartFence('other'),
+            sampleReceivedToolAccount(input.tenant, 'other'),
+            sampleReceivedModelAccount(input.tenant, 'other'),
+            ...entries,
+          ]),
         }
       },
     }),
@@ -884,41 +1012,35 @@ it('does not claim H06 when readable received material names another original ca
         let replacement: { from: string; to: string } | null = null
         return {
           ...agent,
-          journal: {
-            ...agent.journal,
-            async load(request) {
-              const snapshot = await agent.journal.load(request)
-              if ('failure' in snapshot) return snapshot
-              const entries = snapshot.ok.entries?.map(entry => {
-                if (
-                  entry.kind !== 'received' ||
-                  entry.delivery.producer !== 'model' ||
-                  entry.delivery.key.kind !== 'result' ||
-                  !('accounts' in entry.delivery)
-                )
-                  return entry
-                const ref = resolveModelInvocationRef(entry.delivery.key.reference, input.tenant)
-                const call = decodeModelCallId('mcall_other-original')
-                if ('failure' in ref || 'failure' in call)
-                  throw new Error('valid original reference required')
-                const changed = encodeModelInvocationRef({
-                  ...ref.ok,
-                  tenant: input.tenant,
-                  call: call.ok,
-                })
-                if ('failure' in changed) throw new Error('valid replacement required')
-                replacement = { from: entry.delivery.key.reference, to: changed.ok }
-                return {
-                  ...entry,
-                  delivery: {
-                    ...entry.delivery,
-                    key: { ...entry.delivery.key, reference: changed.ok },
-                  },
-                }
+          entries: rewrittenEntries(agent, entries =>
+            entries.map(entry => {
+              if (
+                entry.kind !== 'received' ||
+                entry.delivery.producer !== 'model' ||
+                entry.delivery.key.kind !== 'result' ||
+                !('accounts' in entry.delivery)
+              )
+                return entry
+              const ref = resolveModelInvocationRef(entry.delivery.key.reference, input.tenant)
+              const call = decodeModelCallId('mcall_other-original')
+              if ('failure' in ref || 'failure' in call)
+                throw new Error('valid original reference required')
+              const changed = encodeModelInvocationRef({
+                ...ref.ok,
+                tenant: input.tenant,
+                call: call.ok,
               })
-              return { ok: { ...snapshot.ok, ...(entries === undefined ? {} : { entries }) } }
-            },
-          },
+              if ('failure' in changed) throw new Error('valid replacement required')
+              replacement = { from: entry.delivery.key.reference, to: changed.ok }
+              return {
+                ...entry,
+                delivery: {
+                  ...entry.delivery,
+                  key: { ...entry.delivery.key, reference: changed.ok },
+                },
+              }
+            }),
+          ),
           materials: {
             ...agent.materials,
             async read(request) {
@@ -948,56 +1070,4 @@ it('does not claim H06 when readable received material names another original ca
   )
   expect(kindAt(observed, 'H06')).not.toBe('connected')
   expect(evidenceAt(observed, 'H06')).toContain('agent:no reply of the journal Model call')
-})
-
-it('rejects a received reference encoded for another tenant', async () => {
-  const original = agentDouble()
-  const { encodeModelInvocationRef, resolveModelInvocationRef } =
-    await import('@omne-harness/model-contract')
-  const observed = await runFirstTenantPath(
-    pathDependencies({
-      agent: async input => {
-        const agent = await original(input)
-        return {
-          ...agent,
-          journal: {
-            ...agent.journal,
-            async load(request) {
-              const snapshot = await agent.journal.load(request)
-              if ('failure' in snapshot) return snapshot
-              const entries = snapshot.ok.entries?.map(entry => {
-                if (entry.kind !== 'received' || entry.delivery.producer !== 'model') return entry
-                const ref = resolveModelInvocationRef(entry.delivery.key.reference, input.tenant)
-                if ('failure' in ref) throw new Error('original reference required')
-                const foreign = encodeModelInvocationRef({
-                  ...ref.ok,
-                  tenant: memoryOtherAccess<PathPrincipal>('foreign').tenant,
-                })
-                if ('failure' in foreign) throw new Error('foreign reference required')
-                if ('accounts' in entry.delivery)
-                  return {
-                    ...entry,
-                    delivery: {
-                      producer: 'model' as const,
-                      key: { ...entry.delivery.key, reference: foreign.ok },
-                      accounts: entry.delivery.accounts,
-                    },
-                  }
-                return {
-                  ...entry,
-                  delivery: {
-                    producer: 'model' as const,
-                    key: { ...entry.delivery.key, reference: foreign.ok },
-                    account: entry.delivery.account,
-                  },
-                }
-              })
-              return { ok: { ...snapshot.ok, ...(entries === undefined ? {} : { entries }) } }
-            },
-          },
-        }
-      },
-    }),
-  )
-  expect(kindAt(observed, 'H06')).not.toBe('connected')
 })

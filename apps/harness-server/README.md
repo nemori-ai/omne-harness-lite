@@ -13,6 +13,8 @@ Implemented:
 - The two-layer plugin tree and the boundary schema.
 - The loader, the trusted-subtree visibility, and the readiness report.
 - The row snapshot `src/s0/aa-rows.json`, its generator, and its diff check.
+- The built-in tool release manifest `config/tool-release.json`, its generator `scripts/tool-release.mjs`, and its check. See [docs/rows/tool-release.md](docs/rows/tool-release.md).
+- The Model production wiring: the `model-records` and `model-host` rows, the application Model module `src/model/` and the real `modelHostAuthority`. See [docs/rows/model-release.md](docs/rows/model-release.md).
 - The shutdown coordinator and the process entry `dist/bin.js`.
 - The `./cordis` export, which holds the S0 stub plugin. Row closures add their real exports to it.
 - The `serve` subcommand, the row declaration `defineRow`, the entry object registry, and the checks before loading in the real mode. See [docs/real-mode.md](docs/real-mode.md).
@@ -21,17 +23,41 @@ The ordered shutdown rules in SPEC.md (the start order, no new `start` after the
 
 The S0 mode does not open HTTP, create a tenant, open a business state root, or read a real secret. A passing S0 run does not show that a tenant can be created or used.
 
-The `serve` mode loads the same rows under formal service keys. In the sample distribution, the storage, identity, authorization, session storage and provider, agent adoption, adoption source, and server entry rows are real, and the remaining rows are still stubs. A passing `serve` run checks the assembly, not a full tenant path.
+The `serve` mode loads the same rows under formal service keys. In the sample distribution, the storage, identity, authorization, session storage and provider, agent adoption, adoption source, tool bindings, tool host, tool residency, and server entry rows are real, and the remaining rows are still stubs. A passing `serve` run checks the assembly, not a full tenant path.
 
 ## Usage
 
-Build first, then run the process entry. The `s0` and `serve` positionals select the mode:
+### Run the server on your own host
+
+One person who runs the server on own host uses the local single-user profile. Build, set up once, then run only `serve`. The commands are the same on Windows and Linux:
+
+```sh
+pnpm exec turbo run build --filter="@omne-harness/harness-server..." --filter="@omne-harness/cli..."
+node apps/harness-server/dist/bin.js setup            # asks for the model credential (OpenRouter API key), input is hidden
+node apps/harness-server/dist/bin.js serve            # Ctrl+C stops it
+```
+
+- `setup` puts the credential into the vault in the state directory. It writes the port, the workspace and the shell into the settings file. The settings file holds no secret. A pipe can also supply the credential, for example `printf '%s\n' "$KEY" | node apps/harness-server/dist/bin.js setup`.
+- Places: on Windows `%LOCALAPPDATA%\omne\config` and `%LOCALAPPDATA%\omne\state`. On Linux `~/.config/omne` and `~/.local/state/omne` (`XDG_CONFIG_HOME` and `XDG_STATE_HOME` apply). `OMNE_SERVER_HOME=<dir>` moves both to `<dir>/config` and `<dir>/state`.
+- Options: `--port <n>` (default 8787), `--workspace <dir>` (default `<state>/workspace`), `--shell <executable>` (default Windows PowerShell on Windows, `/bin/bash` elsewhere).
+- The environment of the Shell tool is the `PATH` that `setup` saw and a few allowlisted variables. It holds no variable whose name looks like a secret. On Windows, PowerShell starts with `-ExecutionPolicy Bypass`, so local scripts run, and a UTF-8 prelude, so that Chinese text in the output reaches the model intact. The allowlist is in [SPEC.md](SPEC.md#shell-的环境).
+- A second `setup` checks and does not overwrite. It opens the vault, so a vault that cannot be read is an error, not "kept". Add `--reconfigure` to change the settings. Add `--reset` to replace a settings file that is not valid with default values. Add `--replace-credential` to change the credential, or to build a new vault in place of one that cannot be read.
+- `serve` without arguments reads this setup. On a host without `setup`, it tells you to run `setup` and exits with code 2.
+- The `omne` CLI uses the port of the settings file when there is no `--server` and no `OMNE_SERVER`.
+
+The full rules are in [SPEC.md](SPEC.md#本机单用户档).
+
+### Both modes and all arguments
+
+The `s0` and `serve` positionals select the mode:
 
 ```sh
 pnpm --filter @omne-harness/harness-server run build
 node apps/harness-server/dist/bin.js s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>
-node apps/harness-server/dist/bin.js serve --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n> --state-root <abs dir> [--stop-on-stdin-close]
+node apps/harness-server/dist/bin.js serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
 ```
+
+For each argument that `serve` does not get, it takes the value of the local single-user profile. The distribution is the bundled `config/serve.distribution.json`. The timeouts are 30000 and 10000 ms. The operator layer and the state root come from the `setup` configuration.
 
 `s0` stops by itself after it writes the startup result. `serve` waits for a stop request: a closed stdin (with `--stop-on-stdin-close`), SIGINT, or SIGTERM. On Windows, a closed stdin is the only way another process can stop it.
 
@@ -39,8 +65,11 @@ A usage error prints `<subcommand>: <reason>` and then the usage line of that su
 
 ```text
 usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>
-usage: serve --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n> --state-root <abs dir> [--stop-on-stdin-close]
+usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
+usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--reset] [--replace-credential]
 ```
+
+With only the distribution file, `serve` cannot load. The distribution layer gives no factory values for `execution-host` and `agent-host`, and no `loopGuardPolicy` for `agent-host`. The process exits with `invalid-config` and does not serve (R2-D229). The operator layer must give these values. Without `--operator`, the local single-user profile makes this layer: it starts from the configuration of each release row and adds the numbers of `src/local/operator-defaults.ts`. If you write your own `--operator`, note that `replace` does not merge: for `agent-host`, copy `jointCommits` and `coordination` from the distribution layer exactly. The numbers of the profile have no measurement behind them, and `loopGuardPolicy` has only a placeholder adoption. The known limit is in [SPEC.md](SPEC.md#已知限制).
 
 Other programs can call `runS0` and import the record types:
 
@@ -84,14 +113,18 @@ The test inventory in [tests/README.md](tests/README.md) names each file and its
 
 | Input | Effect |
 | --- | --- |
-| `--distribution` | Absolute path of the release layer JSON. |
-| `--operator` | Optional absolute path of the operator layer JSON. |
-| `--readiness-timeout-ms` | Positive integer. Wait limit for readiness. |
-| `--shutdown-deadline-ms` | Positive integer. Shared shutdown deadline. |
-| `--state-root` | `serve` only. Existing absolute directory for the state files of the entry objects. Its protection is a premise: keep it under the user directory of the operator. |
+| `--distribution` | Absolute path of the release layer JSON. Without it, `serve` uses `config/serve.distribution.json`. |
+| `--operator` | Optional absolute path of the operator layer JSON. Without it, `serve` makes the layer of the local single-user profile. |
+| `--readiness-timeout-ms` | Positive integer. Wait limit for readiness. Without it, `serve` uses 30000. |
+| `--shutdown-deadline-ms` | Positive integer. Shared shutdown deadline. Without it, `serve` uses 10000. |
+| `--state-root` | `serve` only. Existing absolute directory for the state files of the entry objects. Without it, `serve` uses the state directory of the local profile. Its protection is a premise: keep it under the user directory of the operator. |
 | `--stop-on-stdin-close` | `serve` only. A closed stdin requests a planned stop. |
+| `OMNE_SERVER_HOME` | Environment variable. `setup` and `serve` use `<dir>/config` and `<dir>/state` instead of the platform directories. |
+| `LOCALAPPDATA`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME` | Environment variables. They set the platform directories. |
 
-Requirements: Node `>=24`, from `engines.node`. The runtime dependencies are in `package.json`. The process reads no environment variable and no real secret.
+The arguments and the behavior of `setup` are in [SPEC.md](SPEC.md#setup).
+
+Requirements: Node `>=24`, from `engines.node`. The runtime dependencies are in `package.json`. `s0`, and `serve` with all arguments, read no environment variable and no real secret. `setup` reads the model credential from standard input and writes it into the vault of the state directory. `serve` gets the model credential only from that vault.
 
 ## Verification
 
@@ -104,11 +137,22 @@ pnpm --filter @omne-harness/harness-server run build
 pnpm --filter @omne-harness/harness-server run test:fast
 pnpm --filter @omne-harness/harness-server run test:slow
 pnpm --filter @omne-harness/harness-server run check:aa-rows
+pnpm --filter @omne-harness/harness-server run check:tool-release
 ```
 
-`test:slow` starts `dist/bin.js`, so run `build` first. `check:aa-rows` compares the snapshot with the application assembly page.
+`test:slow` starts `dist/bin.js`, so run `build` first. `check:tool-release` recomputes the tool release manifest from the built `@omne-harness/tool-definitions`, so build that package first.
 
 The tests use doubles and fixture rows, not a real SQL provider, real identity, or real storage. Doubles do not show durability or real vendor behavior.
+
+`check:aa-rows` does three checks and exits with a nonzero code when one fails:
+
+- The snapshot `src/s0/aa-rows.json` equals the plugin tree and the trusted table of the application assembly page.
+- Rule E1, trusted reads. A name in the trusted table is read in one of two ways. An entry object module (`src/entry`) reads it through `env.readTrusted(name)`. A row source (`src/rows`) reads it only when the trusted table lists the name as visible for that row. An entry module that calls `get`, an index, `ctx.<name>` or an aliased import on a trusted name at the root fails. A row source that mentions a name its row cannot see fails.
+- Rule E2, issuer call sites. `issueActingForTenant(` and `issueSystem(` occur only in the files that `issuerCallSites` and `issuerDefinition` of `scripts/aa-trust-config.json` list.
+
+`pending` in `scripts/aa-trust-config.json` lists names that should become trusted but that the table does not list yet. The check scans them with the same rules and only reports the findings. A pending name that the table lists is enforced. The list is empty now.
+
+The scanner is lexical. It does not follow a trusted name that was assigned to another variable first.
 
 Not covered:
 
@@ -122,6 +166,13 @@ Change the behavior in [SPEC.md](SPEC.md) first, then the code and the tests. Do
 ```sh
 cd apps/harness-server
 node scripts/aa-rows.mjs write --aa ../../docs/architecture/runtime/application-assembly.md --rows src/s0/aa-rows.json
+```
+
+When `@omne-harness/tool-definitions` or the version of this app changes, rebuild it and regenerate the tool release manifest in the same change:
+
+```sh
+cd apps/harness-server
+node scripts/tool-release.mjs write
 ```
 
 Then update `src/s0/stubs.ts` by hand to follow the changed rows. `tests/real-manifests-sync.spec.ts` compares every real row export with that table. When an assembly-page patch lands, remove its entry from `KNOWN_GAPS` in the same change.

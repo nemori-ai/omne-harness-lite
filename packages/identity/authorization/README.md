@@ -51,7 +51,7 @@ const decision = await check.check({
 | `SystemActionRequest`、`SystemActionTarget`、`SystemActionDecision`、`SystemActionDenial`、`SystemActionBasis`、`SystemActionFacts`、`SystemActionAuthorization` | 系统动作授权端口及其请求、结论与依据 |
 | `decideSystemAction(request, facts)`、`referenceSystemActionAuthorization` | 系统动作的纯裁定与进程内参考检查 |
 | `SYSTEM_ACTION_MATRIX`、`SystemActionRow` | 十行系统用途矩阵 |
-| `MaintenanceGrant`、`MaintenanceGrantReading`、`MaintenanceGrantSource`、`SystemActionClock`、`ExpiryReading`、`SystemActionDependencies` | 维护授权读口与可信时钟 |
+| `MaintenanceGrant`、`MaintenanceGrantReading`、`MaintenanceGrantSource`、`SystemActionClock`、`ExpiryReading`、`SystemActionDependencies` | 维护授权读口与到期时钟 |
 | `scriptedMaintenanceGrants`、`manualSystemClock`（`./testing`） | 读口与时钟的替身，不是生产来源 |
 
 系统动作的判定顺序、矩阵与撤权已知限制见 [SPEC AU-12](SPEC.md#au-12-系统动作授权端口判定顺序用途矩阵与维护授权读口)。本包不提供生产 `SystemActionAuthorization` 与生产授予来源，也没有 grant 管理入口。

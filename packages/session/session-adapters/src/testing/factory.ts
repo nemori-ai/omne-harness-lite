@@ -7,7 +7,6 @@ import { normalizeControls } from './control.ts'
 import { createFrontier, commandScope, defaultBudget } from './frontier.ts'
 import { emptyHistory } from './empty-history.ts'
 import { sessionView } from './session-view.ts'
-import { captureHuman } from './human.ts'
 import {
   type AcceptedInput,
   type AgentJournal,
@@ -35,7 +34,9 @@ import {
   type SessionTransactionPort,
   type SessionFailure,
   type SessionOperationId,
-  type SessionLogObservation,
+  type SessionLogCommitObservation,
+  type SessionLogReceipt,
+  type CommitReceipt,
   type ConsumptionId,
   type CommittedBatch,
   type GuardCommand,
@@ -58,6 +59,8 @@ import {
   type JointDecision,
   type JournalWrite,
   type MemoryAgentJournalOptions,
+  type MemoryExecution,
+  type OperationRecord,
 } from './journal.ts'
 import { commitAccessMatches, createSessionTransactions, qualifyAccess } from './session.ts'
 import {
@@ -65,12 +68,12 @@ import {
   grantAttempt,
   findGrantAttempt,
   authorityAttempt,
+  captureEventOriginal,
   normalizedResult,
-  registration,
   executionKey,
   HistoryFailure,
 } from './history.ts'
-import { canonical, materializeModelView, rowData } from './session-values.ts'
+import { canonical, digestOf, materializeModelView, rowData } from './session-values.ts'
 import { journalEvidence } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
 
@@ -248,16 +251,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             `${input.execution}\0${input.operation}`,
             root.agent.originals.get(input.execution)!.at(-1)!,
           )
-          if ((method === 'open' || method === 'attach') && execution) {
-            const value = input as OpenInput<P> | AttachInput<P>
-            const authority = execution.attachments.at(-1)?.authority
-            if (authority)
-              root.agent.authorities.set(
-                `${input.execution}\0${canonical(authority)}`,
-                grantAttempt(root, input.execution, grantOf(value)),
-              )
-          }
-
           if (method === 'recordResult' && execution) {
             const value = input as Parameters<AgentJournal<P>['recordResult']>[0]
             normalizedResult(root, execution, value.consumption, value.result)
@@ -291,68 +284,17 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             const old = root.agent.indexedEvents.get(input.execution) ?? 0
             const batches = [...(root.agent.batches.get(input.execution) ?? [])]
             for (const event of execution.events.slice(old)) {
-              root.agent.eventReceipts.set(`${execution.id}\0${event.sequence}`, receipt)
-              if (event.body.kind === 'ended')
-                root.agent.ended.set(execution.id, {
-                  sequence: event.sequence,
-                  source: event.cause,
-                })
-              if (event.body.kind === 'control')
-                root.agent.controls.set(
-                  `${execution.id}\0${event.sequence}`,
-                  structuredClone(execution.controls),
-                )
-              const pending =
-                event.body.kind === 'waiting'
-                  ? event.body.waits.flatMap(wait =>
-                      wait.kind === 'producer' ? [wait.pending] : [],
-                    )
-                  : event.body.kind === 'producer'
-                    ? [
-                        normalizedResult(root, execution, event.body.consumption, event.body.result)
-                          .pending,
-                      ]
-                    : []
-              root.agent.pendingEvents.set(`${execution.id}\0${event.sequence}`, pending)
-              for (const value of pending) {
-                registration(root, execution, value)
-                const key = `${execution.id}\0${value.consumption}`,
-                  prior = root.agent.callOrigins.get(key)
-                if (!prior)
-                  root.agent.callOrigins.set(key, {
-                    first: event.sequence,
-                    pending: value,
-                    association: null,
-                  })
-                else if (
-                  prior.pending.kind === 'tool' &&
-                  prior.pending.association === 'intent' &&
-                  value.kind === 'tool' &&
-                  value.association === 'associated' &&
-                  prior.association === null
-                )
-                  root.agent.callOrigins.set(key, {
-                    ...prior,
-                    association: { sequence: event.sequence, pending: value, source: event.cause },
-                  })
-              }
-              if (
-                event.body.kind === 'waiting' &&
-                event.body.waits.some(wait => wait.kind === 'human')
-              ) {
-                try {
-                  root.agent.human.set(
-                    `${execution.id}\0${event.sequence}`,
-                    captureHuman(event, execution.checkpoint, receipt),
-                  )
-                } catch (error) {
-                  return {
-                    kind: 'invalid',
-                    field: 'events.waiting',
-                    reason:
-                      error instanceof Error ? error.message : 'invalid original human material',
-                  } as const
-                }
+              try {
+                captureEventOriginal(root, execution, event, receipt)
+              } catch (error) {
+                // Only the human material check refuses here; any other throw is the outer catch's.
+                if (!(error instanceof TypeError) || error instanceof HistoryFailure) throw error
+                return {
+                  kind: 'invalid',
+                  field: 'events.waiting',
+                  reason:
+                    error instanceof Error ? error.message : 'invalid original human material',
+                } as const
               }
             }
             for (const event of execution.events.slice(old))
@@ -810,7 +752,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     sequence: string,
     operation: SessionOperationId,
     verify: () => SessionFailure | null = () => null,
-  ) {
+  ): Promise<Outcome<CommitReceipt | SessionLogReceipt | null, SessionFailure>> {
     await publications.wait(publicationKey(cell, operation))
     const qualification = verify()
     if (qualification) return fail(qualification)
@@ -872,7 +814,10 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         owner: 'session-history',
         diagnostic: 'original event',
       })
-    const observation: SessionLogObservation = {
+    // An observed-only event has no Session row; `commitLog` does not commit it (session-contract
+    // FR-03), and the next committed event names it in its gap.
+    if (fact.consequences.every(item => item.kind === 'observed')) return succeed(null)
+    const observation: SessionLogCommitObservation = {
       tenant: cell.tenant,
       session: cell.session,
       execution,
@@ -884,7 +829,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       source: fact.source,
       consequences: fact.consequences,
     }
-    const result = await base.controls.project(observation, operation)
+    const result = await base.commitLog({ observation })
     return fault === 'after-publish' && cell.current() !== root
       ? fail<SessionFailure>({ kind: 'commit-unknown', operation })
       : result
@@ -898,6 +843,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     queryControlOperation: base.queryControlOperation,
     readModelSelection: base.readModelSelection,
     commitEntries: base.commitEntries,
+    commitLog: base.commitLog,
     history: base.history,
     pending: base.pending,
     references: base.references,
@@ -979,7 +925,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     let view = views.get(key)
     if (!view) {
       view = createJournal(cell, {
-        prepareResult: resultPreparation(cell, publications, base.controls.project, agentFailure),
+        prepareResult: resultPreparation(cell, publications, base.commitLog, agentFailure),
         qualifyParticipation: (input, method, receipt) =>
           qualifyJoint(cell, input, method, receipt),
         participants: ['message', 'context-transition', 'custody', 'processed'],
@@ -1075,6 +1021,36 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         faultWrite: cell.fault,
         quarantine: cell.quarantine,
         root: () => cell.current().position,
+        /**
+         * The Agent fact family of this session as published (R2-D292): the appended batches, their
+         * fold, the blocks, and the namespace the batch evidence is minted under. Read only.
+         */
+        facts: () => {
+          const agent = cell.current().agent
+          return {
+            log: agent.log,
+            view: agent.view,
+            blobs: agent.blobs as ReadonlyMap<string, unknown>,
+            namespace: cell.namespace,
+          }
+        },
+        /** The reader records of this session as the core keeps them: the executions by key. Read only. */
+        records: () => cell.current().agent.executions as ReadonlyMap<string, MemoryExecution>,
+        /** The operation records of this session as the core keeps them. Read only. */
+        operations: () => cell.current().agent.operations as ReadonlyMap<string, OperationRecord>,
+        /** The original fragments of the events (receipts, pendings, call origins, human) and the event index. Read only. */
+        fragments: () => {
+          const agent = cell.current().agent
+          return {
+            eventReceipts: agent.eventReceipts as ReadonlyMap<string, CommandReceipt>,
+            pendingEvents: agent.pendingEvents,
+            callOrigins: agent.callOrigins,
+            human: agent.human,
+            indexedEvents: agent.indexedEvents as ReadonlyMap<string, number>,
+          }
+        },
+        /** The receiving state of this session as the core keeps it. Read only. */
+        receiving: () => cell.current().receiving,
       },
       durability: 'none' as const,
     }
@@ -1117,8 +1093,16 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             state.snapshot.run.kind === 'active' ? (state.snapshot.run.advance?.attempt ?? '') : '',
           )
         if (!attempt || attempt.execution !== input.execution) return fail(denied('originalGrant'))
+        // The grant the Session issued for the attempt (R2-D349); the evidence of the SE15 row is
+        // not one, and none stands in for a grant that was not issued.
         const receipt = cell.current().sources.grantByAttempt.get(attempt.attempt)
-        return succeed(receipt ?? attempt.started)
+        return receipt === undefined
+          ? fail<Failure>({
+              kind: 'unavailable',
+              owner: 'session-memory-journal',
+              diagnostic: 'no grant was issued for the current attempt',
+            })
+          : succeed(receipt)
       },
       async interpret(
         input: SessionAccess<P> & {
@@ -1407,7 +1391,23 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           answers: new Map(),
           modelView: materializeModelView({ epoch: 'epoch:0', rows: [] }, entries, entries),
         }
-        cell.mutate(() => cell.replaceSession(state))
+        cell.mutate(() => {
+          cell.replaceSession(state)
+          // A seeded history was not committed through this double, so no commit receipt granted
+          // its attempts. The double issues the grant of each seeded attempt here, at seed time
+          // (R2-D349): a grant of this seed, which is not the evidence of the SE15 row.
+          cell.adoptAttemptRecords(
+            [...cell.state().sources.attempts.values()].map(attempt => ({
+              ...attempt,
+              grant: attempt.grant ?? {
+                owner: 'session-memory-journal',
+                record: `${cell.namespace}/seed/${attempt.attempt}`,
+                revision: attempt.started.revision,
+                digest: `sha256:${digestOf({ seed: attempt.attempt, started: attempt.started })}`,
+              },
+            })),
+          )
+        })
         return succeed(undefined)
       },
     },

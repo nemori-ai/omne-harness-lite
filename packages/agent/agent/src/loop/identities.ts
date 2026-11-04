@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto'
 import {
   decodeActionId,
   decodeActionBatchId,
+  decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeConsumptionId,
   decodeStepId,
@@ -15,6 +16,7 @@ import {
   type ActionBatchId,
   type AgentExecutionId,
   type AgentOperationId,
+  type ConsumerRef,
   type ConsumptionId,
   type DurableEvidence,
   type ExecutionRevision,
@@ -50,6 +52,33 @@ function digest(text: string): string {
 }
 
 const STEP = /^step-(0|[1-9][0-9]*)$/u
+
+/**
+ * The execution that a consumer position of this coordinator names. The coordinator registers its
+ * Model consumer under `AGENT_OWNER` with `work` = `<execution>/<step>` (the main position of
+ * `coordinator.ts`); this reads it back. The result receiver uses it only as the route of its
+ * target query: the target it acts on is the committed binding the provider answers with. Null for
+ * a position of another owner or of another shape.
+ */
+export function positionExecution(consumer: ConsumerRef): AgentExecutionId | null {
+  if (consumer.owner !== AGENT_OWNER) return null
+  const at = consumer.work.lastIndexOf('/')
+  if (at <= 0 || !STEP.test(consumer.work.slice(at + 1))) return null
+  const execution = decodeAgentExecutionId(consumer.work.slice(0, at))
+  return 'ok' in execution ? execution.ok : null
+}
+
+/**
+ * The execution that a Tool consumer position of this coordinator names. The coordinator registers
+ * each action under `AGENT_OWNER` with `work` = `<execution>` and purpose `action` (`toolConsumer`
+ * in `tools.ts`). Like `positionExecution`, it is only the route of the target query. Null for a
+ * position of another owner, purpose or shape.
+ */
+export function actionPositionExecution(consumer: ConsumerRef): AgentExecutionId | null {
+  if (consumer.owner !== AGENT_OWNER || consumer.purpose !== 'action') return null
+  const execution = decodeAgentExecutionId(consumer.work)
+  return 'ok' in execution ? execution.ok : null
+}
 
 export function stepOf(ordinal: number): StepId {
   const text = `step-${ordinal}`
@@ -99,8 +128,19 @@ export function handoffStage(
   return minted(decodeAgentOperationId(text), text)
 }
 
-export function mainAction(step: StepId): ActionId {
-  const text = `${step}/main`
+/**
+ * The suffix of attempt `attempt` of the main call of a step (SPEC "身份、范围与归属", Model 未知行;
+ * R2-D292). Attempt 0 has none, so the identities of a step that was never voided stay as they
+ * were. A later attempt follows the voided intents of its step; it is never a retry counter.
+ */
+function attemptSuffix(attempt: number, separator: string): string {
+  if (!Number.isSafeInteger(attempt) || attempt < 0)
+    throw new Error(`attempt ${attempt} is not a count of voided intents`)
+  return attempt === 0 ? '' : `${separator}a${attempt}`
+}
+
+export function mainAction(step: StepId, attempt = 0): ActionId {
+  const text = `${step}/main${attemptSuffix(attempt, '-')}`
   return minted(decodeActionId(text), text)
 }
 
@@ -110,18 +150,41 @@ export function mainBatch(step: StepId): ActionBatchId {
   return minted(decodeActionBatchId(text), text)
 }
 
-export function mainConsumption(step: StepId): ConsumptionId {
-  const text = `${step}/main/reply`
+/**
+ * The consumptions of one execution. Session keeps the call registrations of a session by
+ * consumption (session-contract `SessionWorkEntryIndex`: calls are unique by consumption), and a
+ * session holds the executions of all its Runs, so a consumption names its execution as well as its
+ * step: the same step of two executions is two consumptions.
+ */
+function consumptionScope(execution: AgentExecutionId): string {
+  return digest(execution).slice(0, 40)
+}
+
+export function mainConsumption(
+  execution: AgentExecutionId,
+  step: StepId,
+  attempt = 0,
+): ConsumptionId {
+  const text = `${consumptionScope(execution)}/${step}/main${attemptSuffix(attempt, '-')}/reply`
   return minted(decodeConsumptionId(text), text)
 }
 
-/** The prefix-free body that stands for one execution and step in a Model identity. */
-function modelBody(execution: AgentExecutionId, step: StepId): string {
-  return `${digest(execution).slice(0, 40)}_${ordinalOf(step)}`
+/** The consumption of the result of one Tool action of the execution. */
+export function toolConsumption(execution: AgentExecutionId, action: ActionId): ConsumptionId {
+  const text = `${consumptionScope(execution)}/${action}/result`
+  return minted(decodeConsumptionId(text), text)
 }
 
-export function mainCall(execution: AgentExecutionId, step: StepId): ModelCallId {
-  const text = `mcall_${modelBody(execution, step)}`
+/**
+ * The prefix-free body that stands for one execution, step and attempt in a Model identity. The
+ * attempt part `_a<n>` starts with a letter, so it never reads as the ordinal or as `what`.
+ */
+function modelBody(execution: AgentExecutionId, step: StepId, attempt = 0): string {
+  return `${digest(execution).slice(0, 40)}_${ordinalOf(step)}${attemptSuffix(attempt, '_')}`
+}
+
+export function mainCall(execution: AgentExecutionId, step: StepId, attempt = 0): ModelCallId {
+  const text = `mcall_${modelBody(execution, step, attempt)}`
   return minted(decodeModelCallId(text), text)
 }
 
@@ -129,8 +192,9 @@ export function modelOperation(
   execution: AgentExecutionId,
   step: StepId,
   what: 'admit' | 'read' | 'ack' | `read_${number}`,
+  attempt = 0,
 ): ModelOperationId {
-  const text = `mop_${modelBody(execution, step)}_${what}`
+  const text = `mop_${modelBody(execution, step, attempt)}_${what}`
   return minted(decodeModelOperationId(text), text)
 }
 
@@ -140,17 +204,20 @@ export type Message = LoopFacts['inputs'][number]
 /**
  * The saved locator of the main call of one step (model-contract SPEC "可保存调用引用"): the tenant,
  * the call and its admission operation, encoded by the contract before the first admit, so the
- * PendingCall that holds it can be committed before the Model is asked.
+ * PendingCall that holds it can be committed before the Model is asked. The call and the admission
+ * are minted here (model-contract: the caller mints `ModelCallId`); `attempt` is the number of
+ * voided intents of the step, so a voided intent is never admitted again under its identity.
  */
 export function mainInvocation(
   tenant: TenantId,
   execution: AgentExecutionId,
   step: StepId,
+  attempt = 0,
 ): ModelInvocationRef {
   const parts = {
     tenant,
-    call: mainCall(execution, step),
-    admission: modelOperation(execution, step, 'admit'),
+    call: mainCall(execution, step, attempt),
+    admission: modelOperation(execution, step, 'admit', attempt),
   }
   return minted(encodeModelInvocationRef(parts), `${parts.call}/${parts.admission}`)
 }

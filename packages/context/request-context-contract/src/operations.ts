@@ -20,6 +20,7 @@ import { assembleInputs } from './assembly.js'
 import { planInputs } from './plan.js'
 import { deriveFrom } from './compaction-step.js'
 import { resumeInputs } from './resume.js'
+import type { AssemblyReuse } from './reuse.js'
 
 type Failure = AssemblyFailure | AssemblyUnknown
 export type AssemblyOperationsInput<P> = Readonly<{
@@ -29,6 +30,11 @@ export type AssemblyOperationsInput<P> = Readonly<{
   policies: AssemblyPolicies
   /** The source set generation when a registry binds the group; part of `PreparedInputKey`. */
   generation?: SourceGeneration | null
+  /**
+   * The reuse a registry lends to one call (CX-14). Absent for a standalone group, which keeps no
+   * state between calls.
+   */
+  reuse?: AssemblyReuse
 }>
 
 async function eligible<P>(
@@ -108,10 +114,19 @@ export function createAssemblyOperations<P>(
   ): Promise<R | Failure> => {
     const begun = await begin(call, input)
     if (begun.kind !== 'begun') return begun
+    // Only after the call was admitted: the cache answers no question about who may read.
+    const cached = window
+      ? null
+      : (input.reuse?.load({
+          principal: begun.principal,
+          purpose: call.purpose,
+          position: call.position,
+        }) ?? null)
     const read = await readInputs(call, input.target, input.sources, {
       window,
       principal: begun.principal,
       generation: input.generation ?? null,
+      cached,
     })
     if (read.kind !== 'inputs') return read
     return publish(call, input, await derive(read, begun.principal))
@@ -130,6 +145,7 @@ export function createAssemblyOperations<P>(
           ),
           read.rows,
           contextOf(call),
+          { historyRead: read.historyRead, reuse: input.reuse },
         ),
       ),
     resume: (call): Promise<AssemblyResult> =>
@@ -145,13 +161,26 @@ export function createAssemblyOperations<P>(
           ),
           read.rows,
           contextOf(call),
+          { historyRead: read.historyRead, reuse: input.reuse },
         ),
       ),
     planCompaction: (call): Promise<PlanResult> =>
-      run(call, true, async read =>
+      run(call, true, async (read, principal) =>
         read.window === null
           ? { kind: 'invalid', field: 'history.compactionContext', reason: 'missing-input' }
-          : planInputs(read.input, read.rows, read.window, contextOf(call)),
+          : planInputs(
+              read.input,
+              preparationKey(
+                read.input,
+                principal,
+                read.tokens,
+                input.policies,
+                input.generation ?? null,
+              ),
+              read.rows,
+              read.window,
+              contextOf(call),
+            ),
       ),
     deriveStep: async (derive: DeriveInput<P>): Promise<StepResult> => {
       const call = derive?.call

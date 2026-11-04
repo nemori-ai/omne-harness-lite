@@ -7,8 +7,7 @@ import type { CallAccount } from '@omne-harness/call-account'
 import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
 import type {
-  Action,
-  AgentCheckpoint,
+  ActionToolCall,
   AgentConclusion,
   GuardFact,
   PendingCall,
@@ -161,7 +160,7 @@ export type Subject =
     }>
   | Readonly<{
       action: ActionId
-      original: Action['original']
+      original: ActionToolCall
       effectiveArguments: string
       definition: T.ToolDefinition
       batch: readonly ActionId[]
@@ -240,7 +239,7 @@ export interface ActionAdmission<P> {
         execution: AgentExecutionId
         passage: PassageId
         action: ActionId
-        original: Action['original']
+        original: ActionToolCall
         effectiveArguments: string
         definition: Adoption
         /** Reads by need name in declaration order; an empty list is "no read", not a grant. */
@@ -265,8 +264,8 @@ export type MessageSource =
 /**
  * The complete content of one external command, as the admission provider and the Journal keep
  * it (SPEC "输入内容与水位线"): the original entry operation O, the execution and the accepted
- * input, without instance or grant. An invoke entry also keeps the complete initial checkpoint
- * that the first prepare was given; a submit entry has none.
+ * input, without instance or grant. It holds no checkpoint: the initial checkpoint is the pure
+ * `AgentEvaluator.initial` of the definition and the first step, which `open` receives (R2-D292).
  */
 export type InputEntry =
   | Readonly<{
@@ -274,7 +273,6 @@ export type InputEntry =
       operation: AgentOperationId
       execution: AgentExecutionId
       initial: AcceptedInput
-      checkpoint: AgentCheckpoint
     }>
   | Readonly<{
       kind: 'submit'
@@ -418,17 +416,33 @@ export type Material<B extends ContentBlock> =
   | Readonly<{ kind: 'model'; result: ProducedResult; pages: readonly M.ResultPage[] }>
   | Readonly<{ kind: 'tool'; result: ProducedResult; pages: readonly T.ResultPage<B>[] }>
   | Readonly<{ kind: 'facts'; schema: Adoption; value: JsonValue }>
-/** The port that preserves and reads the materials a consumer keeps; see SPEC "扩展、卡片与材料". */
+/**
+ * What `AgentMaterials.describe` tells about one preserved material without its content: the digest
+ * of the content, its size in bytes and its kind. The same content of one tenant has one digest; a
+ * caller compares digests for equality only and does not compute them.
+ */
+export type MaterialDescription = Readonly<{
+  digest: string
+  size: number
+  kind: Material<ContentBlock>['kind']
+}>
+/**
+ * The port that preserves and reads the materials a consumer keeps; see SPEC "扩展、卡片与材料".
+ * Materials are addressed by content: one tenant keeps one copy of the same content, and a preserve
+ * of content already kept writes no second copy.
+ */
 export interface AgentMaterials<P, B extends ContentBlock> {
   preserve(
     input: Access<P> &
       Readonly<{
+        execution: AgentExecutionId
         identity: string
         consumer: ConsumerRef
         value: Material<B>
       }>,
   ): Reply<DurableEvidence>
   read(input: Access<P> & Readonly<{ source: DurableEvidence }>): Reply<Material<B>>
+  describe(input: Access<P> & Readonly<{ source: DurableEvidence }>): Reply<MaterialDescription>
 }
 /** The port that captures a registered read-only protocol; see SPEC "扩展、卡片与材料". */
 export interface RegisteredReads<P> {

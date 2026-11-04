@@ -12,14 +12,14 @@ Model 的 SQL 存储成员。它实现共享命令核心的存储端口 `ModelCo
 
 状态：`draft`。覆盖范围见 SPEC 的[实现现状](SPEC.md#实现现状)。
 
-- 已实现：`createSqlModelCommands`（给出 `send` 时同时给出共用核心的发送协调器）、`createSendMirror`、`createSqlModelStorage`、表与迁移、行解析、参加者、两个 handler 模块、构造期核对。
-- 未实现：`modelStorageMaterials()`。
+- 已实现：`createSqlModelCommands`（给出 `send` 时同时给出共用核心的发送协调器）、`createSendMirror`、`createSqlModelStorage`、表与迁移、行解析、参加者、两个 handler 模块、静态材料 `modelStorageMaterials()` 及其 `codeDigest`、构造期核对。
+- 已实现：`./cordis` 的 `createSqlModelRecordsPlugin`，发布 `modelCommands` 并拥有独立的发送子 fiber。
 - 已知差异：进程重启后，对重启前结论未定的写，`query` 可能回答 `not-committed`。与内存实现的全部差异见 SPEC 的[已知差异](SPEC.md#已知差异)。
-- 没有 `./cordis` 子路径。应用插件 `modelCommands` 归应用。
+- 应用通过对象选项提供依赖映射与发送子插件。
 
 ## 使用
 
-根入口是唯一入口。建好耐久的命令：
+不使用 Cordis 时，从根入口构造耐久的命令：
 
 ```ts
 import { createSqlModelCommands } from '@omne-harness/model-storage-sql'
@@ -39,6 +39,25 @@ const { commands } = createSqlModelCommands({
 ```
 
 `commands` 有 `ModelCommands` 的 22 个方法。共享核心用存储的 `run(work, scope)` 运行每个方法。scope 给出租户、调用，写方法还给出 operation。`work` 里核心用 `documents`、`reserved` 读取，用 `commit` 或 `publish` 写入一次。CAS 冲突后，run 重新读取并再次运行工作。`scanPending` 用存储的 `pending` 端口，不运行尝试。
+
+工厂还接受可选的 `initialRun`、`observation: { limits, timing }` 与 `reportConfirmation`，返回 `initial` 和 `observations`，未启用时分别为 `null`。所有启用部分共用一个核心。首次记录只在进程内，不新增 SQL 接管表。行为见[最终确认与私有侧口](SPEC.md#最终确认与私有侧口)。
+
+### Cordis 装配
+
+从 `@omne-harness/model-storage-sql/cordis` 导入 `createSqlModelRecordsPlugin`。将工厂返回的插件与 `SqlModelRecordsConfig` 交给 `ctx.plugin`。可编译的装载示例见[英文使用说明](README.md#cordis-assembly)。
+
+| 输入                                         | 应用须提供的内容                                                                                                                                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options.inject`                             | `resolve` 所需的完整服务键常量列表。不得包含本插件发布的 `modelCommands`。                                                                                                                  |
+| `options.resolve(ctx, config)`               | 本次激活使用的 `storage`、`domains`、`clock`、`authority`、`evidence`、`sources` 与 `manifestDigest`。政策和已登记的存储组合归应用。                                                        |
+| `options.sendStage(coordinator, activation)` | 发送子插件及其配置 `{ plugin, config }`。本地宿主可用 `model-host-local/cordis` 的 `createModelSendStagePlugin`，把此协调器与其余发送选项一起传入；子插件配置须给出 `maxRetainedAttempts`。 |
+| `config`                                     | `owners`、完整 `limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion` 与 `send: { mirrorBytes, maxClaims }`。新入口不提供数值默认值。                                            |
+
+22 个公开方法完整委托同一个 SQL 命令实例。协调器只经闭包交给发送工厂，没有对应服务键。发送子插件声明自己的依赖；除非 `resolve` 自身需要凭据，否则不把子插件的凭据依赖放进记录插件的 `inject`。
+
+首次执行可由 `resolve` 返回运行级 `initialRun`。启用观察时，把十二项限额放入 `config.observation`，由 `resolve` 返回 `observation: { timing }`；只给其中一边会加载失败。`sendStage(coordinator, activation)` 取得 `activation.initial` 与可选的 `{ commands, source }` 观察配对，commands 是实际 records Service 原体。把原配对交给宿主，不替换其中对象。旧 callback 可以忽略第二参数。这些对象只经闭包交接，绑定与寿命规则归[记录插件规格](SPEC.md#cordis-记录插件)。
+
+采用 Cordis 4.0.4。缺凭据时，发送子 fiber 为 `PENDING`，记录 fiber 仍可为 `ACTIVE`，命令仍可查询。凭据恢复后子插件启动。子插件装载失败会记日志、进入 `FAILED`，显式等待该子 fiber 会拒绝，父记录 fiber 不会自动失败。应用须观察子 fiber 或日志来判断发送是否就绪。撤除记录 fiber 会撤除命令贡献并等待子插件清理，注入的存储仍归其提供者所有，已提交事实仍保存在存储中。
 
 ## 契约
 

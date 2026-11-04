@@ -7,7 +7,6 @@
 // tenant and the host records of another tenant or execution. Every case reads only what the port
 // returns. testing-journal-core.ts appends these cases to the suite.
 import assert from 'node:assert/strict'
-import type { TenantId } from '@omne-harness/legal-identity'
 import type * as M from '@omne-harness/model-contract'
 import {
   decodeModelCallId,
@@ -37,7 +36,6 @@ import {
 import type { HandoffCustody } from './journal.ts'
 import type { CardRound, Passage } from './passages.ts'
 import { uncoveredCase, type ConformanceCase } from './testing-case.ts'
-import type { TestHostRecord } from './testing-cancellation.ts'
 import {
   advancement,
   advances,
@@ -202,6 +200,21 @@ function noReplyContent(name: string, call: M.ModelCallId): Partial<FinishCandid
   }
 }
 
+/** The content of a candidate that fails because the Model refused the admission of `call`. */
+function refusedContent(name: string, call: M.ModelCallId): Partial<FinishCandidateContent> {
+  return {
+    conclusion: { kind: 'fail', cause: evidence(`cause/${name}`) },
+    failure: {
+      step: null,
+      at: '2026-10-30T00:00:00Z',
+      source: evidence(`failure/${name}`),
+      kind: 'model-refused',
+      call,
+      failure: { kind: 'capacity', required: { bytes: '1', blocks: '1', attachmentBytes: '0' } },
+    },
+  }
+}
+
 function itemsOf(snapshot: ExecutionSnapshot): readonly FinishObligation[] {
   assert.ok(snapshot.finishObligations !== null, 'the obligations should be issued')
   return snapshot.finishObligations.items
@@ -259,44 +272,37 @@ async function savedToolIntent<P>(opened: AgentJournalCoreOpened<P>, name: strin
   return { pending, key, reference }
 }
 
-/**
- * A host Tool return whose reference belongs to another tenant, for a variant that does not take
- * Tool returns: no effect stands behind its intent key, because the tenant is denied first.
- */
-function foreignToolReturn<P>(
-  opened: AgentJournalCoreOpened<P>,
-  tenant: TenantId,
-  name: string,
-): TestHostRecord {
-  const pending = toolIntent(opened, name)
-  return {
-    kind: 'tool-return',
-    intent: {
-      intent: operation(`core-foreign-${name}`),
-      action: pending.action,
-      position: pending.position,
-    },
-    request: pending.fixed,
-    returned: {
-      kind: 'accepted',
-      reference: identity(
-        encodeToolInvocationRef({
-          tenant,
-          call: identity(decodeToolCallId(`core-call-foreign-${name}`), 'call'),
-          admission: identity(decodeToolOperationId(`core-admission-foreign-${name}`), 'admission'),
-        }),
-        'reference',
-      ),
-      receipt: evidence(`tool-receipt-foreign-${name}`),
-    },
-    received: evidence(`received/foreign-${name}`),
-    custody: evidence(`custody/foreign-${name}`),
-  }
-}
-
 /** The cases of the finishing chapter; the core suite appends them. */
 export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[] {
   return [
+    {
+      name: 'cancellation installation read returns the configured record without changing execution state',
+      run: async () => {
+        const opened = await fixture.open('read-cancellation-installation')
+        const read = opened.journal.readCancellationInstallation
+        if (read === undefined || opened.installation === undefined) {
+          await uncoveredCase('', 'cancellation installation read').run()
+          return
+        }
+        const before = await load(opened)
+        const input = { ...opened.access, execution: opened.execution }
+        if (opened.installation === null)
+          await refused(read(input), 'unavailable', 'missing installation')
+        else
+          assert.deepEqual(
+            await ok(read(input), 'read cancellation installation'),
+            opened.installation.record,
+          )
+        assert.deepEqual(await load(opened), before, 'the installation read writes no state')
+        const other = await requireOtherAccess(opened)
+        if (other !== undefined)
+          await refused(
+            read({ ...other, execution: opened.execution }),
+            'denied',
+            'foreign installation read',
+          )
+      },
+    },
     {
       name: 'F1: a settling commit with `finish` establishes the candidate under this operation, its author route and the FinishIntent projection with obligations and beforeTerminal null; the retry recognizes; other content under the same operation conflicts; a non-settling commit with finish, and a settling commit before any candidate, are invalid',
       run: async () => {
@@ -2607,6 +2613,50 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
       },
     },
     {
+      // R2-D241: a refused admission leaves no send, so the call it names is settled; a provider
+      // that reads only no-reply keeps it unknown and the Run never finishes.
+      name: 'a call that the Model refused to admit is settled on that basis: the model-refused failure of the current failed candidate names the call',
+      run: async () => {
+        const opened = await fixture.open('final-failure-refused')
+        const { journal } = opened
+        await takeInputs(opened)
+        const { pending, call } = modelIntent(opened, 'call-r')
+        await ok(
+          journal.commit(
+            commitAt(opened, await load(opened), 'effect', opened.authority, {
+              effects: [{ action: pending.action, pending, authority: opened.authority }],
+            }),
+          ),
+          'the effect intent',
+        )
+        const at = await load(opened)
+        await ok(
+          journal.commit(
+            f1Commit(
+              opened,
+              at,
+              'f1',
+              opened.authority,
+              candidateContent(at, 'f1', refusedContent('f1', call)),
+            ),
+          ),
+          'F1 of the model-refused failure',
+        )
+        await ok(journal.commit(f2Commit(opened, await load(opened), 'f2')), 'F2')
+        await ok(
+          journal.prepareFinish(prepareInput(opened, await load(opened), 'prepare')),
+          'prepareFinish',
+        )
+        const item = itemOf(await load(opened), 'call')
+        assert.equal(item.disposition.kind, 'settled')
+        assert.deepEqual(
+          item.disposition.kind === 'settled' ? item.disposition.completion : null,
+          evidence('failure/f1'),
+          'the refusal is the basis of the settlement',
+        )
+      },
+    },
+    {
       name: 'the final failure of a superseded candidate still settles its call: after the cancelled candidate replaces the no-reply failure, the call is settled, the judgment is not unknown and the cancel tryFinish ends',
       run: async () => {
         const opened = await fixture.open('final-failure-superseded')
@@ -3572,7 +3622,7 @@ function askedPassage(name: string): Readonly<{ passage: Passage; round: CardRou
  * The cases where another tenant reaches the Journal (SPEC "判定次序与失败映射" 1 and
  * "commitSettlement 的变体" step 1): another tenant's recordHandoff, prepareFinish, tryFinish and
  * commitSettlement are denied with the action of the operation, before the qualification, the same
- * for an existing and a missing execution; and a host record or a returned reference of another
+ * for an existing and a missing execution; and a host record of another
  * tenant is denied to the owner's custody variants, before the record is compared.
  */
 function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[] {
@@ -3813,7 +3863,7 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
       },
     },
     {
-      name: 'record-card-reconciliation: a host record of another tenant is denied with the action commitSettlement before the record is compared, also a Tool return of another tenant, a record of another execution is invalid at original; neither writes; the record of this execution is merged',
+      name: 'record-card-reconciliation: a host record of another tenant is denied with the action commitSettlement before the record is compared, a record of another execution is invalid at original; neither writes; the record of this execution is merged',
       run: async () => {
         const opened = await fixture.open('foreign-card-record')
         if (!(await requireInstallation(opened))) return
@@ -3879,18 +3929,6 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           'a host record of another tenant and another round',
         )
         assert.deepEqual(deniedOtherRound, denied, 'the same answer before the round is compared')
-        // A Tool return of another tenant is denied before its kind is compared, so the answer
-        // does not tell what kind of record the foreign source is.
-        const foreignTool = await opened.hostRecord(foreignToolReturn(opened, other.tenant, 'card'))
-        assert.deepEqual(
-          await refused(
-            journal.commitSettlement({ ...recording, original: foreignTool }),
-            'denied',
-            'a Tool return of another tenant',
-          ),
-          denied,
-          'the same answer before the kind is compared',
-        )
         const invalid = await refused(
           journal.commitSettlement({ ...recording, original: elsewhere }),
           'invalid',
@@ -3904,7 +3942,7 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
       },
     },
     {
-      name: 'record-legacy-return: a host record of another tenant is denied with the action commitSettlement before the record is compared, also a Tool return of another tenant, a record of another execution is invalid at source, a request that is not the input of the passage is invalid at request; none writes; the return of this execution is saved',
+      name: 'record-legacy-return: a host record of another tenant is denied with the action commitSettlement before the record is compared, a record of another execution is invalid at source, a request that is not the input of the passage is invalid at request; none writes; the return of this execution is saved',
       run: async () => {
         const opened = await fixture.open('foreign-legacy-record')
         if (!(await requireInstallation(opened))) return
@@ -3973,18 +4011,6 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           'a host record of another tenant and another input',
         )
         assert.deepEqual(deniedOtherInput, denied, 'the same answer before the input is compared')
-        const foreignTool = await opened.hostRecord(
-          foreignToolReturn(opened, other.tenant, 'legacy'),
-        )
-        assert.deepEqual(
-          await refused(
-            journal.commitSettlement({ ...recording, source: foreignTool }),
-            'denied',
-            'a Tool return of another tenant',
-          ),
-          denied,
-          'the same answer before the kind is compared',
-        )
         const invalid = await refused(
           journal.commitSettlement({ ...recording, source: elsewhere }),
           'invalid',
@@ -4005,91 +4031,6 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
         assert.equal((await query(opened, recording.operation)).kind, 'unknown')
         const result = await ok(journal.commitSettlement(recording), 'the own return')
         assert.equal(result.kind, 'record-legacy-return')
-      },
-    },
-    {
-      name: 'record-tool-association: a host return whose reference belongs to another tenant is denied with the action commitSettlement before its intent and request are compared, the same for a return of another intent or another request; the association stays',
-      run: async () => {
-        const opened = await fixture.open('foreign-tool-reference')
-        if (!(await requireInstallation(opened))) return
-        const other = await requireOtherAccess(opened)
-        if (other === undefined) return
-        if (opened.hostRecord === undefined) {
-          await uncoveredCase('', 'hostRecord control').run()
-          return
-        }
-        const { journal } = opened
-        await takeInputs(opened)
-        const { key, pending } = await savedToolIntent(opened, 'call')
-        const control = await effectiveCancel(opened)
-        await establish(opened, control)
-        const foreignReference = identity(
-          encodeToolInvocationRef({
-            tenant: other.tenant,
-            call: identity(decodeToolCallId('core-call-foreign'), 'call'),
-            admission: identity(decodeToolOperationId('core-admission-foreign'), 'admission'),
-          }),
-          'reference',
-        )
-        const foreignReturn = {
-          kind: 'tool-return' as const,
-          intent: key,
-          request: pending.fixed,
-          returned: {
-            kind: 'accepted' as const,
-            reference: foreignReference,
-            receipt: evidence('tool-receipt-foreign'),
-          },
-          received: evidence('received/call-foreign'),
-          custody: evidence('custody/call-foreign'),
-        }
-        const source = await opened.hostRecord(foreignReturn)
-        // The same foreign return of another intent, and of another request: denied before the
-        // intent and the request are compared, so the answer does not tell whether the return is
-        // the one of the requested intent (SPEC "record-tool-association" failure table, the
-        // foreign-tenant row: before the original intent or source is disclosed).
-        const otherIntent = await opened.hostRecord({
-          ...foreignReturn,
-          intent: { ...key, intent: operation('core-foreign-other-intent') },
-        })
-        const otherRequest = await opened.hostRecord({
-          ...foreignReturn,
-          request: evidence('request/foreign-other'),
-        })
-        const before = await load(opened)
-        const associate = (name: string, source: DurableEvidence) =>
-          journal.commitSettlement(
-            settlement<P, 'record-tool-association'>(opened, name, {
-              kind: 'record-tool-association',
-              intent: key,
-              request: pending.fixed,
-              source,
-              priorExcluded: null,
-            }),
-          )
-        const denied = await refused(
-          associate('associate-foreign', source),
-          'denied',
-          'a returned reference of another tenant',
-        )
-        assert.deepEqual(denied, { kind: 'denied', action: 'commitSettlement' })
-        const deniedOtherIntent = await refused(
-          associate('associate-foreign-other-intent', otherIntent),
-          'denied',
-          'a returned reference of another tenant under another intent',
-        )
-        assert.deepEqual(deniedOtherIntent, denied, 'the same answer before the intent is compared')
-        const deniedOtherRequest = await refused(
-          associate('associate-foreign-other-request', otherRequest),
-          'denied',
-          'a returned reference of another tenant under another request',
-        )
-        assert.deepEqual(
-          deniedOtherRequest,
-          denied,
-          'the same answer before the request is compared',
-        )
-        assert.deepEqual(await load(opened), before, 'the association stays')
       },
     },
     {

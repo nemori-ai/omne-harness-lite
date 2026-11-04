@@ -40,7 +40,7 @@
 
 第 1 步分两部分：核权（`check` 与 `bind`）与认回（派生身份、经视图点查、`resolveOperation`）。核权每次面操作只做一次。本节与本文别处说「回到第 1 步」「从第 1 步开始」或「运行第 1 步」时，都只指认回部分。
 
-只有七种命令带 `expected`，做乐观并发核对：`reload`、`release`、`finishRun`、`recordIdle`、`bindExternalCall`、`completeExternalConsumption` 与 `commitDerived(context-reminder)`。对它们，调用方的 `expected` 在第 2 步与快照的 `revision` 比较，不等答 `changed` 不提交；相等时服务照调用方的原值提交，第 5 步的一致性由存储提供者保证：事务内的 `decide` 发现 `expected` 不等于尾部时得到 `changed`，服务把它交回调用方。尾部与 `expected` 一致时，事务内的 `decide` 与第 3 步读同一快照与同一参数。`decide` 是纯函数，所以两次结局相同。
+只有八种命令带 `expected`，做乐观并发核对：`claim`、`reload`、`release`、`finishRun`、`recordIdle`、`bindExternalCall`、`completeExternalConsumption` 与 `commitDerived(context-reminder)`。对它们，调用方的 `expected` 在第 2 步与快照比较（`claim`、`reload`、`release`、`finishRun` 与 Run 层修订比较，其余与快照的 `revision` 比较；契约[推进命令的 expected](../session-contract/SPEC.md#run-layer-expected)，R2-D343），不等答 `changed` 不提交；相等时服务照调用方的原值提交，第 5 步的一致性由存储提供者保证：事务内的 `decide` 发现 `expected` 不等于尾部时得到 `changed`，服务把它交回调用方。尾部与 `expected` 一致时，事务内的 `decide` 与第 3 步读同一快照与同一参数。`decide` 是纯函数，所以两次结局相同。
 
 其余命令不带 `expected`。事务内的 `decide` 以存储参加者读到的当前状态重新裁定，结局可能与第 3 步不同，以事务内的结局为准，不产生 `changed`。第 3 步只用来提前得到拒绝原因与决定收哪些材料，材料集合按命令种类固定，所以状态变化不会让收到的材料失配。
 
@@ -80,7 +80,7 @@
 
 #### CP-03 读操作
 
-`readWork`、`loadRecovery`、`readInput`、`queryOperation`、`inspectIdle`、`pending`、`references`、`releasedScopes` 与四个历史读操作（`begin`、`next`、`since`、`readModelView`）只做核权与读取。单会话的读操作在面操作开头调用一次 `check`，读取经委派视图。`pending`、`references` 与 `releasedScopes` 不属于单会话的面操作，委派视图对它们答 `denied`：面操作不另行调用 `check`，直接调用公开 `SessionTransactionPort` 的同名方法，由端口在实际执行处调用一次 `check`。历史页的 `annotations` 由存储提供者的读路径随页给出（[SessionHistory](../session-contract/SPEC.md#sessionhistory)），本成员不另行拼接。它们不派生操作身份，不写条目，不发通知。`readWork` 不走快照缓存，经视图读权威快照（[CA-3](#ca-3) 的已知限制）。`loadRecovery` 与 `queryOperation` 也不走缓存。
+`readWork`、`loadRecovery`、`readInput`、`queryOperation`、`inspectIdle`、`pending`、`references`、`releasedScopes` 与四个历史读操作（`begin`、`next`、`since`、`readModelView`）只做核权与读取。单会话的读操作在面操作开头调用一次 `check`，读取经委派视图。`pending`、`references` 与 `releasedScopes` 不属于单会话的面操作，委派视图对它们答 `denied`：面操作不另行调用 `check`，直接调用公开 `SessionTransactionPort` 的同名方法，由端口在实际执行处调用一次 `check`。历史页的 `annotations` 由存储提供者的读路径随页给出（[SessionHistory](../session-contract/SPEC.md#sessionhistory)），本成员不另行拼接。存储视图按 session-log revision 4 的存储形式分页，本成员用 `expandHistoryEntries` 把 `begin`、`next`、`since` 页中 `entries` 与 `annotations` 的引用换回所指的值，读者看到完整形式的载荷（[条目的存储形式](../session-contract/SPEC.md#条目的存储形式)）。只有含带常驻工具的 SE01 或初始 SE08 的页需要会话的初始采用：该会话第一次遇到这样的页时，经同一视图读一次快照；SE01 写后不变，本成员按租户与会话保留该值，最多 256 个会话，之后的页不再读。保留值只在该页自己的核权之后使用。引用解不开时答 `unavailable`，`owner` 为 `session`。页的字节上限按存储形式计，展开后的页可以超过 `pageBytes`。它们不派生操作身份，不写条目，不发通知。`readWork` 与 `loadRecovery` 不走 CA-3 快照槽，经视图读权威快照；SQL 存储的端口在这次读里先点查版本，再决定从它的工作缓存回答还是整读（session-storage-sql [RT-04](../session-storage-sql/SPEC.md#rt-04)），所以回答仍是存储在当前版本上的权威快照。`queryOperation` 不走缓存。
 
 ### EX 受理流水线的拓展点编排
 
@@ -144,7 +144,7 @@
 | 顺序 | 按 [PM-13](../session-contract/SPEC.md#pm-13) 经 AgentDrivePort.control 的长期入口送达原执行，不先取得挂接。接续收束与 J07 映射沿 [AD-14](../session-adapters/SPEC.md#ad-14)。原生产者确认或未知经 receive 保存。reconciled 只表示原控制的传播、生产者核对与原责任交接已对账，不以 Tool 围栏生效为条件 |
 | 输入与产出 | 原控制操作、固定选择与待核对责任；control 出站及 receive 命令。没有本域 startFence 字段或失效调用 |
 | 单写 | 同一控制 operation 重放认回；受理不等于实际停止 |
-| 失败分支 | 不可用与未知保留责任，按原身份接续。超过上限仍 propagating 并报告。suspend 的恢复次序未决保持，不以本域提交证明 Tool 已阻止新发起 |
+| 失败分支 | 不可用与未知保留责任，按原身份接续。超过上限仍 propagating 并报告。关闭不等待未应答的出站，迟到应答丢弃；重启后由 S3 以同一操作身份找回重放。suspend 的恢复次序未决保持，不以本域提交证明 Tool 已阻止新发起 |
 
 <a id="c4"></a>
 
@@ -347,7 +347,8 @@
 `SessionId` 只在租户内唯一，一个服务实例服务全部租户，所以三层缓存的键都带租户。缓存不是核权点：
 
 - CA-3 的命中与 `changed` 后的权威读都在面操作开头的那一次 `check` 之后（[CP-01](#cp-access)）。核权失败时返回 `denied`、`invalid` 或 `unavailable`，不使用缓存。
-- 已知限制：`SessionTransactionPort` 没有只返回尾部修订的读操作，所以 CA-3 不做尾部比对。在端口提供这项读取之前，CA-3 的命中只用于 CP-01 第 2 步。那里的正确性不依赖快照新鲜度（带 `expected` 的命令由事务内核对兜底，其余命令由事务内的 `decide` 重新裁定）。`readWork` 的回答不走 CA-3，经视图读权威快照。触发条件：事务端口增加尾部修订读取之后，按本表的有效性规则启用 `readWork` 的缓存回答。
+- 已知限制：`SessionTransactionPort` 没有只返回尾部修订的读操作，所以 CA-3 不做尾部比对，命中只用于 CP-01 第 2 步。那里的正确性不依赖快照新鲜度（带 `expected` 的命令由事务内核对兜底，其余命令由事务内的 `decide` 重新裁定）。`readWork` 的回答不走 CA-3。按版本核对的快照缓存由 SQL 存储在端口内部提供（session-storage-sql [RT-04](../session-storage-sql/SPEC.md#rt-04)），契约不变；其他存储提供者没有这项缓存时 `readWork` 每次整读。
+- `session.work` 的唯一内存拥有者是 SQL 存储的工作缓存（WorkHolder，session-storage-sql [当前状态的拥有者与直接读者](../session-storage-sql/SPEC.md#rt-04-owner)）。CA-3 槽不是第二个拥有者：它只供 CP-01 第 2 步的事务外预判，从不回答 `readWork` 或 `loadRecovery`。本成员的读取（S1 至 S3、C5、CP-01 第 2 步的权威读、`readWork`、`loadRecovery`、`inspectIdle`）都经委派视图或端口到达 WorkHolder，本成员不直接读存储的 `session.work`。保留直接读 Session log 存储的五类调用点与 AD-07、AD-04 两项已知限制见该节。
 - CA-1 命中只省去载荷读取。分页、逐条披露核对与条目位置仍由事务端口的历史读取完成，缓存只按条目身份为已核权页提供载荷。
 - CA-2 命中同样不代替 `readModelView` 的核权（[session-adapters](../session-adapters/SPEC.md)）。
 
@@ -376,9 +377,12 @@
 - 工厂 `createSessionInstance`。构造前核对四项启动条件与 `SchedulingPolicy` 的每个字段。任一不合，工厂抛出错误并指出依赖名或字段路径，不调用任何依赖。
 - [CP-01](#cp-01) 的六步，含 `changed` 重做与 `command.retriesOnChanged` 上限，以及 [cp-access](#cp-access) 的一次核权与委派视图。
 - [CP-03](#cp-03) 的读路径。调用方类按契约的四面操作表核对，不在其中返回 `denied`，不调用 `check`。
-- [S1](#s1)，以及 [C2](#c2) 的开 Run 顺序：`judgeRunStart`、`startRun`、`invoke`、`receive(input-handover)`。`invoke` 答 `invalid` 时提交有界收束的 `finishRun`。`startRun` 带回冻结判定时提交 `freeze`。`startRun`、`claim`、`reload` 的 `instance` 按 XC-AGINST 第 2.1 节的会话槽引用规则计算。
+- [S1](#s1)，以及 [C2](#c2) 的开 Run 顺序：`judgeRunStart`、`startRun`、`invoke`、`receive(input-handover)`。`invoke` 答 `invalid` 时提交有界收束的 `finishRun`，它的 `expected` 是 Run 层修订，无关提交不使它答 `changed`（契约[推进命令的 expected](../session-contract/SPEC.md#run-layer-expected)，R2-D327）。`startRun` 带回冻结判定时提交 `freeze`。`startRun`、`claim`、`reload` 的 `instance` 按 XC-AGINST 第 2.1 节的会话槽引用规则计算。
+- 已授予而未受理的 Run（契约 [PA-06](../session-contract/SPEC.md#pa-06) 第 2 项、[PM-14](../session-contract/SPEC.md#pm-14) 第 2 行，R2-D327）：S1 读到 Run 为 active、`advance` 非空、首条输入仍待处理而没有 SE35 时，不调用 `judgeRunStart`，把会话交 C2 重放。C2 在会话串行队列里重读快照，以该 Run 的 OP-00 身份（首条输入与前继 Run）认回原 `startRun`，取得原回执，再以同一出站身份 `invoke`。触发来自提交通知、本地唤醒或 S3 按 `inputs` 找到的会话，所以重试序列用尽、进程崩溃或 Agent 端口缺席之后，Run 不会永远停在 active 而没有执行。`advance` 已转到后来的 attempt 时，重放需要那个 attempt 的授予依据，属于 C5 的接管，本成员记 `attempt-replaced` 诊断后停止。
+- C2 与 S1 的失败分支都记具名诊断（R2-D327）：`invoke` 的不可重试失败、重试序列用尽（`retries-exhausted`）、Agent 端口缺席（`agent-absent`）、退避等待不成立（`clock-refused`）、读快照失败，`receive`、`finishRun`、`freeze`、`startRun` 的失败（`commit-unknown` 交 S4，不算停止），以及 S1 读快照失败。`invoke` 答 `denied` 时按 C2 行重读快照：本 attempt 已被取代则停止，不记诊断；仍持有推进资格则记 `denied`。`startRun` 答 `run-active`、`frozen` 时按 C2 行无害结束，不记诊断。诊断带会话、租户、Run、步骤、原因与失败原文，不带正文，见[诊断出口](#诊断出口)。
 - [S4](#s4)：按同一操作身份查询，结局已知后交回原发起者，以同一身份重做。
-- [S3](#s3)：启动扫描读原因的并集，周期扫描读 `inputs` 与 `unresolved`。有待处理输入的会话交 S1，每个未知操作交 S4。
+- [S3](#s3)：启动扫描读原因的并集，周期扫描读 `inputs`、`unresolved` 与 `controls`。有待处理输入的会话交 S1，每个未知操作交 S4，有 `propagating` 控制的会话交 C3。
+- [C3](#c3) 与 [S5](#s5) 的控制重放：控制提交、通知中的控制条目与扫描唤醒 C3，按 `controlReplay.intervalMs` 与 `controlReplay.maxReplays` 经 `AgentDrivePort.control` 送达原执行（`control.ts`）。
 - 停止顺序：先不接受新的触发，再等在途工作结束。停止期间不发出出站调用。
 
 ### 实现选择
@@ -386,7 +390,7 @@
 - 第 1 步认回：点查经视图调用 `queryOperation`（控制命令调用 `queryControlOperation`）。点查答 `committed`，或答身份属于另一种记录形式的 `conflict` 时，流水线不读快照、不收材料，直接经视图 `commit`，由存储参加者的 `decide` 认回原答案或答 `conflict`。`create` 与 `completeInitialization` 的认回仍收材料，因为初始化认回要核对来源守卫。点查答 `denied` 时，除 `create` 外返回 `denied`。
 - 第 3 步只返回快照本身决定的拒绝：`archived`、`frozen`、`run-active`、`no-input`、`not-ready`、`terminal`、`stale-advance`。其他拒绝可能依赖材料或同根读取，只有事务内的 `decide` 能裁定，所以流水线不在事务外返回它们。
 - 第 4 步的材料拥有者按命令种类固定：每个变更调用身份桥。证据桥只用于需要它的命令。Context 输入用于 `create`、`change`、`startRun`、`reload`。空闲输入用于 `recordIdle`、`considerAutoArchive`。
-- 第 6 步的事件种类：流水线经同一视图读一页历史（1 MiB 字节预算），取该次提交修订的条目种类。读取失败时种类集合为空，通知照发。本实例自己的提交按命令种类在本地唤醒 S1，不依赖事件种类。
+- 第 6 步的事件种类：流水线经同一视图读一页历史（1 MiB 字节预算），取该次提交修订的条目种类。读取失败时种类集合为空，通知照发。本实例自己的提交按命令种类在本地唤醒 S1，不依赖事件种类。给了测量观察者时，即使没有通知器也读这一页，用于[轮完成事件](#测量事件)；没有观察者而没有通知器时不读。
 - 端口抛错时：`commit` 抛错按 `commit-unknown` 返回，其余端口抛错按 `unavailable` 返回，`owner` 为该端口的服务键。
 - C2 的候选采用取快照的 `definition.adopted`。`invoke` 的 `source` 与 `grant` 都取 `startRun` 回执的 `source`，因为 SE13 与 SE15 在同一次提交里写入。
 - 读出的快照不属于本次访问的租户与会话时，流水线不用它，返回 `denied`。
@@ -398,17 +402,51 @@
 | [CP-02](#cp-02) 参加分支 | 四个面上的参加命令走 CP-01 | 执行记录提供者接入同日志提交（C19） |
 | [EX-1](#ex-1) 非空槽列表 | 普通输入的 `accept` 返回 `unavailable`，`owner` 为 `sessionAdmission`。槽可能展开提交内容，而委派视图绑定已核验的原命令，展开后的命令没有获准的提交路径 | 命令域与 hooks 定义槽的公开入口，并且委派入口的规则覆盖展开后的命令 |
 | EX-2、C1 单列的协调器 | `accept` 直接走 CP-01，本地唤醒 S1 代替推进条件触发 | 受理槽进入本波以后的范围 |
-| C2 的续入、同日志解释（[RD](#rd-同日志解释)）、恢复与接管、换代 | 不交入后续输入，不解释 Agent 事实。`invoke` 答 `denied` 时停止，不区分来源 | RD 依赖 `commitEntries` 的范围检查（C11）与 Journal 提供者（C19） |
-| [C3](#c3)、[C4](#c4)、[C5](#c5)，[S2](#s2)、[S5](#s5)、[S6](#s6)、[S7](#s7) | 不触发。`changed` 通知不唤醒任何调度器 | 各自的协调对象进入实现 |
-| S3 的其余六个原因、每会话退避、部署租户枚举 | 周期扫描只读 `inputs` 与 `unresolved`。租户由调用方逐个交入 `maintain` | 对应协调器进入实现。租户枚举归 session-cordis |
+| C2 的续入、同日志解释（[RD](#rd-同日志解释)）、恢复与接管、换代 | 不交入后续输入，不解释 Agent 事实。已授予未受理的 Run 只在当前 `advance` 仍是 `startRun` 授予的 attempt 时重放 `invoke`；被 `claim` 或 `reload` 换过 attempt 的 Run 记诊断后等 C5 | RD 依赖 `commitEntries` 的范围检查（C11）与 Journal 提供者（C19） |
+| [C4](#c4)、[C5](#c5)，[S2](#s2)、[S6](#s6)、[S7](#s7) | 不触发。`changed` 通知不唤醒任何调度器 | 各自的协调对象进入实现 |
+| S3 的其余五个原因、每会话退避、部署租户枚举 | 周期扫描读 `inputs`、`unresolved` 与 `controls`。没有每会话退避：已授予未受理的 Run 在 Agent 一直不可用时，每个扫描周期重放一轮 `advance.retryDelaysMs`，每轮用尽记一条 `retries-exhausted` 诊断。租户由调用方逐个交入 `maintain` | 对应协调器进入实现。租户枚举归 session-cordis |
 | [CA](#ca-缓存) 三层缓存 | 没有缓存。第 2 步总经视图读权威快照 | 实测显示权威读成为瓶颈 |
-| 诊断出口 | `SessionDependencies` 没有诊断端口。通知失败、`forSession` 失败、S4 超过上限时只停止，不报告维护者。后台工作抛出的缺陷留在实例内存里 | 公开接口页增加诊断端口 |
+| 诊断出口的其余部分 | S1 与 C2 的失败已记具名诊断（[诊断出口](#诊断出口)）。通知失败、S4 超过上限、S3 读 `pending` 失败时仍只停止，不报告维护者。C3/S5 的 `maxReplays` 超限后控制停在 `propagating`，不记诊断 | 这些协调器按同一出口补齐 |
+
+### 诊断出口
+
+<a id="诊断出口"></a>依据 R2-D327：协调器的一步因失败停止时，记一条具名诊断，不静默返回。诊断留在实例内存（与后台缺陷同一个有界列表，最多 64 条），并同步交给工厂的可选第三个参数 `createSessionInstance(依赖, 配置, { diagnose })`。缺省时只留在内存。形状是 `SessionDiagnostic`，源码在 [diagnostics.ts](src/diagnostics.ts)：
+
+| 字段 | 含义 |
+| --- | --- |
+| `owner` | 停止的协调器或调度器：`S1`、`C2` |
+| `step` | 停止的步骤：`read`、`startRun`、`replay`、`invoke`、`receive`、`finishRun`、`freeze` |
+| `tenant`、`session` | 会话 |
+| `run` | 该步服务的 Run；Run 尚未确定时为 `null` |
+| `reason` | 端口答复的失败种类，或本成员的原因：`retries-exhausted`、`agent-absent`、`clock-refused`、`attempt-replaced` |
+| `detail` | 失败答复的 JSON 文本，或本成员的简短说明。不带输入、消息或结果正文 |
+
+- 观察者被同步调用。它抛出不改变任何行为，也不留痕。观察者不得回调本实例。
+- 实例关闭后不记诊断：停止顺序里中断的等待与读取不是失败。
+- 诊断不是耐久审计。重启后它们不再存在；工作本身由会话日志与 S3 找回。
+
+### 测量事件
+
+<a id="测量事件"></a>依据 R2-D17（DP1 取 C）与 R2-D49：Session 把 E9 要用的边界作为结构化事件交给调用工厂的人，由装配去采集。这是工厂的可选第三个参数 `createSessionInstance(依赖, 配置, { measure })`，不是服务键，不是配置，缺省不建任何事件。事件形状不是冻结的产品 API，字段名是 Session 与采集方之间的约定。
+
+| 事件 | 何时发出 | 字段 |
+| --- | --- | --- |
+| `segment`，`phase: 'start'` | 一次面操作（变更与读，含公开端口上的目录读）开始做它的工作，即核权之前 | `span`（进程内唯一，起止成对）、`operation`（命令种类或读操作名）、`session`（目录读为 `null`） |
+| `segment`，`phase: 'end'` | 同一面操作要交回答复时，含抛出 | 上列字段加 `outcome`：`ok`，或带 `failure` 的答复与抛出为 `failure` |
+| `round-complete` | 本实例的一次提交写下 `run.terminal` 条目之后、答复交回之前。认回（`recovered`）的提交与别的进程的提交不发 | `session`、`run`、`outcome`（终态结局）、`revision`、`entry`、`operation` |
+
+- **时间**：事件不带时间。观察者在被同步调用的那一刻读自己的单调时钟，那一刻就是边界时刻，所以同一进程、同一时钟代次由观察者的拥有者保证。本成员不读 `Date.now`、`performance.now`，也不用注入的 `SessionClock`：它读 UTC 时刻、异步作答、测试会给它计次，不是单调时钟。
+- **一轮就是一次 Run**：`round-complete` 是明确的轮完成事实，不由输入受理推断。Session 不持有累计条目数，所以事件不带它；`revision` 是不透明的提交身份。要累计条目数的采集者自己读历史。
+- **段是包含式的**：Session 段包含它等待存储、身份桥与证据桥的时间，也包含嵌套的面操作。段之间不能相加成端到端耗时，扣除外部等待由采集者做。
+- **观察者抛出**不改变任何答复，也不留痕。观察者不得回调本实例。
+- **不在这里**：Agent 段与 Context 段由各自成员发出。跨成员的时钟与关联由采集者负责。
 
 ### 已有测试
 
 成员测试在 `tests/`，逐项对应见 [tests/README.md](tests/README.md)。
 
 - session-contract 的事务套件经四个面运行：对内存替身对 21 例全部通过；对真实 sqlite-provider 上的 SQL 提供者对，21 例全部通过。
+- [测量事件](#测量事件)：起止成对、并发时的 `span`、读与目录读、失败结局、`run.terminal` 提交的轮完成事件（认回不重发、无通知器时仍发）、无观察者时不读条目、观察者抛出不改答复。
 - [VM-13](#vm-机制的持续验证义务) 的计次与失败分支、跨租户拒绝、[VM-01](#vm-机制的持续验证义务) 的重做与上限、SS-02 的确定性计数（两个规模下各面操作的计数相同），各有用例。
 - 没有测试的义务：VM-02 至 VM-12 中本节「未实现」一表涉及的部分，以及崩溃矩阵。
 
@@ -420,7 +458,7 @@
 
 | 编号 | 场景 | 必须观察的结果 | 条款 |
 | --- | --- | --- | --- |
-| VM-01 | 每个变更命令走完流水线六步；调用方持过期 `expected` 调带 `expected` 的七种命令之一；调用方持当前 `expected`，存储层在第 5 步答 `changed`；不带 `expected` 的命令在第 3 步之后状态被并发改变，或存储层对它答 `changed` | 过期 `expected` 在第 2 步答 `changed`，不提交，不换成新的 `revision` 重做；当前 `expected` 在第 5 步得到的 `changed` 原样交给调用方，不重做。不带 `expected` 的命令在状态被并发改变时不得到 `changed`，结局按事务内的当前状态裁定；存储层仍对它答 `changed` 时，重做从第 1 步的认回部分开始，不再调用 `check`，读权威快照，沿用同一操作身份，不得到 `conflict`；重做次数不超过 `command.retriesOnChanged`；超过后调用方收到 `changed`，没有提交 | [CP-01](#cp-01) |
+| VM-01 | 每个变更命令走完流水线六步；调用方持过期 `expected` 调带 `expected` 的八种命令之一；调用方持当前 `expected`，存储层在第 5 步答 `changed`；不带 `expected` 的命令在第 3 步之后状态被并发改变，或存储层对它答 `changed` | 过期 `expected` 在第 2 步答 `changed`，不提交，不换成新的 `revision` 重做；当前 `expected` 在第 5 步得到的 `changed` 原样交给调用方，不重做。不带 `expected` 的命令在状态被并发改变时不得到 `changed`，结局按事务内的当前状态裁定；存储层仍对它答 `changed` 时，重做从第 1 步的认回部分开始，不再调用 `check`，读权威快照，沿用同一操作身份，不得到 `conflict`；重做次数不超过 `command.retriesOnChanged`；超过后调用方收到 `changed`，没有提交 | [CP-01](#cp-01) |
 | VM-02 | 参加命令在提交方事务里运行；提交方回滚 | Session 一侧没有条目，`ExecutionRef` 不变；参加者四种响应与结局一一对应 | [CP-02](#cp-02) |
 | VM-03 | before-admit 槽拦截、放行与展开；同一原提交重复进入 | 拦截只写 SE12，不保管正文；展开内容与原命令同批；重复进入认回原回执 | [EX-1](#ex-1)、[C1](#c1) |
 | VM-04 | 每个协调器在每个失败分支上的动作 | 与各协调器表的「失败分支」一致；没有一个分支把未知改写为成功或失败 | [C1](#c1) 至 [C5](#c5) |
@@ -464,6 +502,15 @@
 | CR-22 | `change`、`setRelation`、`configureAutoArchive`、`commitDerived(context-reminder)` | 没有变更 | 条目已在，通知或消费者未更新 | 调用方以同一提交身份或变化材料身份重试 | 认回原回执。模式值由作用域持有者在下一次拉取补齐；SE07 注册由 AD-03 按提交通知应用，通知丢失时等下一次 SE07、Runtime Context 提供者换代或重启后的恢复会话（[AD-03](../session-adapters/SPEC.md#ad-03) 注册决定一段的已知限制） | 未知期间作用域持有者先使注册生效 |
 | CR-23 | `bindExternalCall`、`completeExternalConsumption` | 没有登记或完成 | 条目已在 | 调用方 `queryOperation` | 认回 | 把 Run 内调用改登记为 Run 外调用 |
 | CR-24 | 提交通知 | 不适用 | 通知未发或丢失 | S3 周期扫描，按八个原因读 `pending` | 按权威读补查；每个原因只由快照决定，所以通知要唤醒的工作都在某个原因之下。前提是 S3 能枚举该租户：部署枚举缺席时，租户要等它的下一条通知 | 通知丢失导致工作丢失 |
+
+### 已知限制
+
+<a id="sn-1"></a>SN-1 Session 快照的读上限：一个会话的权威快照（`WorkSnapshot`）在存储里是一个头行加若干分块行，一次提交只写变了的行（[快照的存储形态](../session-storage-sql/SPEC.md#快照的存储形态)，R2-D292）。`readWork` 一次读出整份。快照里随 Run 增长、Run 结束后也不移出的部分有 `consumptions`、`callRegistrations`、`executions`、`entriesProgress` 与读出时附带的 `historyIndex`。session-storage-sql 的读口 `session.work` 的输出上限由装配经 `sessionStorageMaterials({ readOutputLimitBytes })` 传入，推荐值是 20 MiB，发行装配取这个值（R2-D81）。
+
+- 约多少轮：上限为 20 MiB；按下列实测增长率外推，纯文本形状约在第 3,400 轮触达，工具形约在第 1,400 轮触达。增长率取自 1 MiB 上限下的实测，没有在 20 MiB 处实测。计算：纯文本 1 + (20,971,520 − 15,920) / 6,144 ≈ 3,412，工具形 1 + (20,971,520 − 26,101) / 14,904 ≈ 1,406。实测只作量级参考，来自 agent-host-local 的 line-through 测试世界：纯文本形状（每轮一次输入、一次 Model 请求、一次回复，每轮一个新 Run）的快照第 1 轮末 15,920 字节，此后每轮约增 6.1 KB，第 168 轮末 1,041,932 字节，第 169 轮 `session.work` 答 `read_limit`。工具形（每轮两次 Model 请求、一次 Tool 调用）完成 69 轮，第 70 轮不收口（该轮 Tool 结果已由接收方保存，之后 `session.work` 读答 `read_limit`）：快照第 1 轮末 26,101 字节，第 69 轮末单次最大读 1,039,556 字节，第 70 轮 1,045,705 字节，每轮约增 14.9 KB。
+- 触发后的表现：`readWork` 立即答 `unavailable`，诊断为 `read session.work: read_limit`，不挂起，也不交出部分快照（session-storage-sql `tests/work-read-limit.spec.ts`）。此后凡经 `readWork` 读这份快照的操作对这个会话都答 `unavailable`，在 line-through 测试世界里表现为下一轮没有结束（`runRound` 读快照失败）；已写入的会话日志与条目不受影响。
+- 触发条件：一个会话累计的 Run 与调用登记使快照超过读口上限（发行装配为 20 MiB）。读口上限是装配参数 `readOutputLimitBytes`，与 `maxCommandBytes` 无关。装配的 `maxReadResultBytes` 低于该参数时，提供者不为该读口服务，`session.work` 读答 `handler_unavailable`，见 session-storage-sql SPEC K-1。
+- 处置方向：压缩已结束的 Run，把已终结 Run 的消费、调用登记、执行与条目进度从快照移到按 Run 存放的归档里，快照只留未结的工作与一个有界的摘要，使快照大小与已结束的 Run 数无关。快照形状在那之前不变。
 
 ### 明确缺项
 

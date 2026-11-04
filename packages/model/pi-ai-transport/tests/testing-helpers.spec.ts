@@ -92,7 +92,7 @@ async function writeFixture(record: ChatCompletionsRecord): Promise<string> {
   const body: unknown = JSON.parse(writeJsonText(encoded.ok.body))
   writeFileSync(join(directory, 'request.json'), JSON.stringify({ request, body }, null, 2))
   writeFileSync(join(directory, 'stream.sse'), STREAM)
-  const facts = await replayStream(binding, new TextEncoder().encode(STREAM))
+  const facts = await replayStream(binding, new TextEncoder().encode(STREAM), request)
   writeFileSync(join(directory, 'facts.json'), JSON.stringify(facts, null, 2))
   return directory
 }

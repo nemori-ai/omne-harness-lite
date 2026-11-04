@@ -15,7 +15,7 @@
 | 级别 | 已交付 | 入口 | 验证 |
 | --- | --- | --- | --- |
 | 公开入口 | `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources`、`OPENAI_RECORDS`、`OPENAI_OWNER` 与相应类型 | 根入口 | `public-entry.spec.ts` |
-| 记录 | 12 条 `current` 记录，修订为 `1`，从封存的家族政策迁入。纯数据，提交指纹 | `OPENAI_RECORDS` | `records.spec.ts`、`adoptions.spec.ts` |
+| 记录 | 14 条 `current` 记录，修订为 `1`：12 条从封存的家族政策迁入，GPT-6.1 Sol 与 Terra 取自 2026-11-03 的官方型号清单。纯数据，提交指纹 | `OPENAI_RECORDS` | `records.spec.ts`、`adoptions.spec.ts` |
 | 取得与绑定 | 一次取得给出精确供应商的一个绑定。未知采用、路由不符、tokenizer 不符与取消都整体失败 | `createOpenAiFamily` 与 `composeFamilies` | `family.spec.ts` |
 | 参数与请求体 | 输出上限与各型号公布的推理强度，原样写出：`low`、`medium`、`high` 与 `max`。按项目约定，记录不关闭推理，所以 `none` 与其他参数在发送前返回 `unsupported` | `binding.rules.plan`、`binding.encode` | `plan.spec.ts` |
 | 规则 | 加密推理的封存与回放、用量算术与 Pro 的未知范围、输入余量为负时的 `usage-inconsistent` 诊断、根为对象的工具 schema | `src/rules.ts` | `rules.spec.ts` |

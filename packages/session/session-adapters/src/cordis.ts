@@ -5,11 +5,33 @@ export type {
 } from './cordis/agent-drive.ts'
 export {
   createSessionLogJournal,
+  type JournalPublicationReport,
   type SessionLogJournalOptions,
   type SessionLogJournalProvider,
 } from './cordis/agent-journal.ts'
-export { SessionLogAgentJournalProvider } from './cordis/agent-journal-provider.ts'
+export {
+  SessionLogAgentJournalProvider,
+  createSessionAgentJournalPlugin,
+  type SessionAgentJournalPluginInput,
+} from './cordis/agent-journal-provider.ts'
+export {
+  createSessionConditionsPlugin,
+  type DefaultModes,
+  type DefaultModesFailure,
+  type SessionConditionsInput,
+} from './cordis/conditions.ts'
 export { createSessionContextHolder } from './cordis/context-holder.ts'
+export {
+  createSessionJournalInterpretationPlugin,
+  type JournalInterpretationTarget,
+  type JournalInterpreted,
+  type SessionJournalInterpretationInput,
+} from './cordis/journal-interpretation.ts'
+export {
+  createSessionMessageHandoffPlugin,
+  type MessageHandoffConfig,
+  type SessionMessageHandoffInput,
+} from './cordis/message-handoff.ts'
 export type {
   SessionContextHolderInput,
   SessionContextTranslation,
@@ -47,3 +69,12 @@ export type {
   SessionHistorySourceInput,
 } from './cordis/history-source.ts'
 export { SessionIdentityBridgeProvider } from './cordis/identity-bridge.ts'
+export {
+  createSessionToolLogConsumptionPlugin,
+  type SessionToolLogConsumptionConfig,
+  type SessionToolLogConsumptionInput,
+  type ToolDeliveryEnvelope,
+  type ToolDeliveryReader,
+  type ToolLogConsumed,
+  type ToolLogTarget,
+} from './cordis/tool-log-consumption.ts'

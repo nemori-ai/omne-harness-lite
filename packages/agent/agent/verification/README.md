@@ -27,3 +27,7 @@
 <!-- documentation:placeholder -->
 
 [Model 结果接收模型](model-reception/README.md) 检查共同提交、原操作认回、账目发送时序和实例分离后的责任保留。它是有限安全性模型，不证明产品实现精化、生产耐久或 Model ACK。
+
+[Run 驱动生命周期模型](run-lifecycle/README.md) 检查对外发起至多一次、步数上限、失败不静默、结果唤醒、准入不可用整批拒绝和每步提交有界。它的机读守卫在 `run-lifecycle/guards/`，由本包 vitest 配置收进 `test:fast`；loop 测试目录开放后迁到 `tests/`。它是有限模型，不证明产品实现符合模型。
+
+[Run 取消与单调用中断模型](cancellation/README.md) 检查取消、单调用中断与模型请求、工具动作和结果接收之间的交错。它是有限模型，不证明产品实现符合模型，也不证明外部服务最终响应。

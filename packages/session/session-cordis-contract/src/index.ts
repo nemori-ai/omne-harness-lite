@@ -3,3 +3,5 @@
 // types; the Cordis definitions are at `./cordis`.
 export type * from '@omne-harness/session-contract'
 export type * from './cursor-signing.ts'
+export type * from './context-facts.ts'
+export type * from './adopted-request.ts'

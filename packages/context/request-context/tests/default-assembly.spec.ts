@@ -115,7 +115,8 @@ describe('default strategies in a real operation group', () => {
     const candidate = candidateOf(await f.operations().assemble(f.call))
     const prepared = await prepareThroughModel(f, candidate)
     if (!('ok' in prepared)) throw new Error(`Preparation refused: ${JSON.stringify(prepared)}`)
-    // The double keeps the supplier fixtures as given; only the two minted adoptions are under test.
+    // The double keeps the profile fixtures as given, the request representation among them: it is
+    // the one the profile fixes. Only the adoption this member mints, `source`, is under test.
     const sha = (letter: string) => letter.repeat(64)
     const hexAdoption = (name: string, letter: string) => ({
       owner: 'test',
@@ -134,6 +135,7 @@ describe('default strategies in a real operation group', () => {
         ...prepared.ok,
         profile: hexAdoption('profile', 'a'),
         retryPolicy: hexAdoption('retry', 'b'),
+        representation: hexAdoption('representation', 'd'),
         suppliers: prepared.ok.suppliers.map(supplier => ({
           ...supplier,
           adoption: hexAdoption('supplier', 'c'),
@@ -144,7 +146,9 @@ describe('default strategies in a real operation group', () => {
     })
     expect(judged).toHaveProperty('ok')
     const hex = /^[0-9a-f]{64}$/u
-    expect(candidate.assembled.representation.digest).toMatch(hex)
+    expect(candidate.assembled.representation).toEqual(
+      f.sources.values().model.profile.definition.representation,
+    )
     expect(candidate.assembled.source.digest).toMatch(hex)
   })
   it('gives the same request for the same fixed input', async () => {

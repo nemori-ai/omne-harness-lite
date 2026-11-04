@@ -5,9 +5,11 @@ import { inProcessPrincipalAuthority, type TenantStandingSource } from '@omne-ha
 import * as entry from '@omne-harness/identity/cordis'
 import {
   PrincipalIssuerService,
+  IdentityGovernanceService,
   IdentityOperationsService,
   PrincipalVerifierService,
   TenantStandingSourceService,
+  identityGovernanceKey,
   identityOperationsKey,
   principalIssuerKey,
   principalVerifierKey,
@@ -15,9 +17,11 @@ import {
 } from '@omne-harness/identity/cordis'
 import {
   IDENTITY_CONTRACT_CASES,
+  IDENTITY_GOVERNANCE_CONTRACT_CASES,
+  checkIdentityGovernanceContract,
   checkIdentityOperationsContract,
 } from '@omne-harness/identity/testing'
-import { installOperations } from './cordis-support.ts'
+import { installGovernance, installOperations } from './cordis-support.ts'
 import { ADMIN_ACCOUNT_TEXT, ORGANIZATION_TEXT, parsedTenant } from './support.ts'
 
 const disposers: (() => Promise<unknown>)[] = []
@@ -25,15 +29,17 @@ afterEach(async () => {
   await Promise.all(disposers.splice(0).map(dispose => dispose()))
 })
 
-it('exports five service definitions and their keys from ./cordis', () => {
+it('exports six service definitions and their keys from ./cordis', () => {
   expect(Object.keys(entry).sort()).toEqual(
     [
       'IdentityClockService',
+      'IdentityGovernanceService',
       'IdentityOperationsService',
       'PrincipalIssuerService',
       'PrincipalVerifierService',
       'TenantStandingSourceService',
       'identityClockKey',
+      'identityGovernanceKey',
       'identityOperationsKey',
       'principalIssuerKey',
       'principalVerifierKey',
@@ -44,6 +50,7 @@ it('exports five service definitions and their keys from ./cordis', () => {
   expect(tenantStandingKey).toBe('tenantStanding')
   expect(principalVerifierKey).toBe('principalVerifier')
   expect(principalIssuerKey).toBe('principalIssuer')
+  expect(identityGovernanceKey).toBe('identityGovernance')
 })
 
 it('delegates both principal forms and current standing through real services, then removes all keys', async () => {
@@ -146,4 +153,34 @@ it('runs every applicable operations contract case through the registered servic
   expect(
     report.cases.filter(result => result.status === 'not-applicable').map(result => result.id),
   ).toEqual(['login-inactive-uniform'])
+})
+
+it('runs every governance contract case through the registered service and removes it', async () => {
+  const start = parseInstant('2026-10-25T23:59:30Z')
+  const short = parseDuration('PT60S')
+  const long = parseDuration('PT86400S')
+  if (!start.ok || !short.ok || !long.ok) throw new Error('fixture time invalid')
+  const report = await checkIdentityGovernanceContract(
+    {
+      injectsRecordFaults: true,
+      async create(options) {
+        const installed = await installGovernance(options)
+        expect(installed.governance).toBeInstanceOf(IdentityGovernanceService)
+        disposers.push(async () => {
+          await installed.dispose()
+          expect(installed.ctx.get(identityGovernanceKey)).toBeUndefined()
+        })
+        return { operations: installed.operations, governance: installed.governance }
+      },
+    },
+    { start: start.value, short: short.value, long: long.value },
+  )
+  expect(report.cases.filter(result => result.status === 'failed')).toEqual([])
+  expect(report.cases.map(result => result.id)).toEqual(
+    IDENTITY_GOVERNANCE_CONTRACT_CASES.map(result => result.id),
+  )
+  // This fixture offers no restart, so the restart case is not applicable here.
+  expect(
+    report.cases.filter(result => result.status === 'not-applicable').map(result => result.id),
+  ).toEqual(['revoked-stays-invalid-after-restart'])
 })

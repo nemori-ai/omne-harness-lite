@@ -23,6 +23,7 @@ import {
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { list, object, sorted, text } from './json.ts'
+import { declarationName, toolNamesOf, type ToolNames } from './tool-names.ts'
 import type {
   ChatCompletionsRecord,
   ChatMessage,
@@ -63,6 +64,10 @@ export type Projection = Readonly<{
   tools: readonly JsonValue[]
   /** `undefined`: the body has no `tool_choice`. */
   toolChoice: JsonValue | undefined
+  /** The tool declarations with their gateway names, for the meter. */
+  declared: readonly ToolDeclaration[]
+  /** The tool choice with the gateway name, for the meter. */
+  choice: FixedModelRequest['toolChoice']
   treatments: readonly ReplayTreatment[]
   diagnostics: readonly ReplayDiagnostic[]
 }>
@@ -156,10 +161,19 @@ type PendingCalls = Map<string, string>
 
 /**
  * Projects the request for one supplier. Failures name a safe path: `/system/<i>`,
- * `/messages/<i>/blocks/<j>`, `/tools/<k>` or `toolChoice`.
+ * `/messages/<i>/blocks/<j>`, `/tools/<k>` or `toolChoice`. The tool names of the request map
+ * first, with the rule of the record (see tool-names.ts).
  */
 export function project(input: ProjectionInput): Outcome<Projection, TransportFailure> {
   const { record, hooks } = input
+  const named = toolNamesOf({
+    profile: record.wire.toolNames,
+    tools: input.tools,
+    messages: input.messages,
+    adapter: input.adapter,
+  })
+  if (!('ok' in named)) return named
+  const names = named.ok
   const replay = projectReplay({
     messages: input.messages,
     declaration: input.declaration,
@@ -202,7 +216,7 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
       case 'assistant': {
         const treatment = treatments.get(index)
         if (treatment === undefined) throw new Error(`the replay projection lacks message ${index}`)
-        const converted = assistantMessage(message, path, treatment, pending, input)
+        const converted = assistantMessage(message, path, treatment, pending, names, input)
         if (!('ok' in converted)) return converted
         if (converted.ok !== null) messages.push(converted.ok)
         continue
@@ -229,15 +243,18 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
   if (orphan.done !== true) return invalid(orphan.value, 'orphan-tool-call')
 
   const tools: JsonValue[] = []
+  const declared: ToolDeclaration[] = []
   for (const [index, tool] of input.tools.entries()) {
-    const wired = toolPayload(tool, hooks)
+    const gateway = { ...tool, name: names.wire(tool.name) }
+    const wired = toolPayload(gateway, hooks)
     if (!('ok' in wired))
       return wired.failure.kind === 'invalid' || wired.failure.kind === 'unsupported'
         ? { failure: { ...wired.failure, field: `/tools/${index}/${wired.failure.field}` } }
         : wired
     tools.push(wired.ok)
+    declared.push(gateway)
   }
-  const toolChoice = toolChoiceOf(input.toolChoice, input.tools)
+  const toolChoice = toolChoiceOf(input.toolChoice, input.tools, names)
   if (!('ok' in toolChoice)) return toolChoice
 
   return {
@@ -245,7 +262,9 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
       instruction: input.system.filter(block => block.visibility.toModel),
       messages,
       tools,
-      toolChoice: toolChoice.ok,
+      toolChoice: toolChoice.ok.json,
+      declared,
+      choice: toolChoice.ok.choice,
       treatments: replay.treatments,
       diagnostics: replay.diagnostics,
     },
@@ -306,6 +325,7 @@ function assistantMessage(
   path: string,
   treatment: ReplayTreatment,
   pending: PendingCalls,
+  names: ToolNames,
   input: ProjectionInput,
 ): Outcome<WireMessage | null, TransportFailure> {
   const parts: WirePart[] = []
@@ -352,15 +372,17 @@ function assistantMessage(
       case 'tool_call_unparsed': {
         const args = block.kind === 'tool_call' ? writeJsonText(block.arguments) : block.raw
         const id = normalizeToolCallId(block.callId)
+        const name = names.wire(block.name)
         toolCalls.push(
           object({
             id: text(id),
             type: text('function'),
-            function: object({ name: text(block.name), arguments: text(args) }),
+            function: object({ name: text(name), arguments: text(args) }),
           }),
         )
         pending.set(id, at)
-        blocks.push(block)
+        // The meter sees the gateway name, as the call goes out.
+        blocks.push({ ...block, name })
         continue
       }
       case 'tool_call_incomplete':
@@ -465,8 +487,23 @@ function toolMessage(
   }
 }
 
-/** The function tool of one declaration, its schema through the family hook. */
-export function toolPayload(
+/**
+ * `binding.tools.convertToModelPayload`: the function tool of one declaration alone, with its
+ * gateway name. A name that the rule cannot write is `unsupported` (`name`).
+ */
+export function convertTool(
+  tool: ToolDeclaration,
+  hooks: VendorHooks,
+  profile: ChatCompletionsRecord['wire']['toolNames'],
+  adapter: Adoption,
+): Outcome<JsonValue, TransportFailure> {
+  const name = declarationName(profile, tool.name, adapter)
+  if (!('ok' in name)) return name
+  return toolPayload({ ...tool, name: name.ok }, hooks)
+}
+
+/** The function tool of one declaration that already has its gateway name, its schema through the family hook. */
+function toolPayload(
   tool: ToolDeclaration,
   hooks: VendorHooks,
 ): Outcome<JsonValue, TransportFailure> {
@@ -484,17 +521,28 @@ export function toolPayload(
   }
 }
 
+/** The body `tool_choice` and, for the meter, the choice with the gateway name. */
 function toolChoiceOf(
   choice: FixedModelRequest['toolChoice'],
   tools: readonly ToolDeclaration[],
-): Outcome<JsonValue | undefined, TransportFailure> {
+  names: ToolNames,
+): Outcome<
+  Readonly<{ json: JsonValue | undefined; choice: FixedModelRequest['toolChoice'] }>,
+  TransportFailure
+> {
   if (tools.length === 0)
     return choice === 'none' || choice === 'auto'
-      ? { ok: undefined }
+      ? { ok: { json: undefined, choice } }
       : invalid('toolChoice', 'no-tools')
-  if (typeof choice === 'string') return { ok: text(choice) }
+  if (typeof choice === 'string') return { ok: { json: text(choice), choice } }
   if (!tools.some(tool => tool.name === choice.name)) return invalid('toolChoice', 'unknown-tool')
-  return { ok: object({ type: text('function'), function: object({ name: text(choice.name) }) }) }
+  const name = names.wire(choice.name)
+  return {
+    ok: {
+      json: object({ type: text('function'), function: object({ name: text(name) }) }),
+      choice: { name },
+    },
+  }
 }
 
 // --- Writing the messages ------------------------------------------------------------------

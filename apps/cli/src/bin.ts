@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { productionCatalog } from './catalog.ts'
 import type { ExitCode } from './cli-types.ts'
 import { readBuildIdentity } from './identity.ts'
+import { readLocalServer } from './local-server.ts'
 import { run } from './run.ts'
 import { processServices } from './services.ts'
 
@@ -33,6 +34,8 @@ async function main(): Promise<ExitCode> {
       environmentHome: process.env['OMNE_HOME'],
       homeDirectory: currentHome(),
       environmentServer: process.env['OMNE_SERVER'],
+      localServer: () =>
+        readLocalServer({ platform: process.platform, env: process.env, home: currentHome() }),
       services: processServices,
     },
   )
