@@ -715,7 +715,8 @@ export function closingRuns({
               session: input.access.session,
               operation: `sop_cs-close-${closes}` as never,
               run: work.ok.run.run,
-              expected: work.ok.revision,
+              // The Run-layer revision, the `expected` of a Run advance (R2-D343).
+              expected: work.ok.run.revision,
               bounded: {
                 kind: 'admission-rejected' as const,
                 input: work.ok.run.first,
