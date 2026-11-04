@@ -15,7 +15,7 @@ if [ "$actual" != "$BRANCH" ]; then echo "记录工作树的分支是 '$actual'�
 for d in waves delegate model techdoc progress compat; do
   rsync -a --delete --exclude node_modules --exclude .stryker-tmp "$SRC/$d/" "$R/skill-mcp-domain/$d/"
 done
-cp "$SRC/plan.md" "$SRC/records-sync.sh" "$R/skill-mcp-domain/"
+cp "$SRC/plan.md" "$SRC/records-sync.sh" "$SRC/HANDOFF.md" "$R/skill-mcp-domain/"
 
 git -C "$R" add -A
 if git -C "$R" diff --cached --quiet; then echo "记录无变化"; exit 0; fi

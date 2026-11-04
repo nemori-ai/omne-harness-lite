@@ -88,3 +88,8 @@ reduce 裁定（Skill 领域负责人）：
 - 同一用例连试三种做法仍红。
 
 ## 追加记录
+- 2026-11-04T15:05Z **第 2 轮输入**（第 1 轮交回：GS-06/S7、GS-02、GS-04、GS-05、GS-07 完成；语料 195/197；停在两件归负责人的事）。reduce（Skill 领域负责人）裁定：
+  - **N1 name 与目录名不同 → 接受**（负责人 2026-11-04 对「以头部 name 为准」未提异议）：打上 `tmp/closures/w3-skill-fix/name-relaxation/` 的补丁，带兼容提示（例如 `name-differs-from-root`）；`expectedName` 给出时仍按它拒绝。写范围扩大到 `packages/skills/skill-host-local/examples/`、`packages/skills/skill-host-local/tests/examples.spec.ts` 及该成员 SPEC 验证节与 README 的示例句：示例里的被拒包改成真正读不了的包（例如没有 `SKILL.md`，或头部完全读不出 name），继续演示「检查拒绝」，被拒原因的断言随之改；另加一条断言：name 与目录名不同的包被接受且带兼容提示。
+  - **N2 说明超长要能用，不只能加载**：生态兼容的目的是「能用」。Skill 自己的契约里，说明长度的上限统一放宽到 16384 个字符（检查、资产正文的声明投影、类别端口、读取关口的边界解析、`isSkillDescription` 共用一个常量，从公开根导出）；1025–16384 字符照常可用并带 `description-over-limit` 提示；超过 16384 仍拒绝（`malformed`，防止滥用）。契约 SPEC 写明：这偏离 Agent Skills 规范的 1024 上限，理由是主流宿主接受更长的说明。用例：claude-api 那个包能加载、`describe` 与 `read` 正文成功；16385 字符拒绝。
+  - 两项做完后：社区六类语料加载率 100%，且对每个加载的包 `read` 正文成功（用 `compat/skill-compat.mjs` 复跑，它会读正文）；S1–S7 探索器与 TLC 正控复跑无反例。
+  同一写者（opus）续做，轮次记 2。返工原因：规格（两项放宽的范围此前没写全）。
