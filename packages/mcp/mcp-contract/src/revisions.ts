@@ -14,7 +14,7 @@ export function isModernProtocolVersion(version: string): boolean {
 /**
  * The legacy revisions that a transport accepts in the `initialize` answer, highest first. The
  * legacy path offers the first one. The list is `SUPPORTED_PROTOCOL_VERSIONS` of the official
- * TypeScript SDK 2.4.0 (`@modelcontextprotocol/core`, `src/constants.ts`).
+ * TypeScript SDK 2.4.0 (`@modelcontextprotocol/core`, `src/constants.ts`; `dist/schemas-DscsoNZN.mjs:6`).
  */
 export const LEGACY_PROTOCOL_VERSIONS = [
   '2025-11-25',
