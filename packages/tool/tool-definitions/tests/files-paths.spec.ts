@@ -14,7 +14,9 @@ function construction(cwd?: string) {
     kind: 'object',
     entries: [
       { key: 'resultMaxBytes', value: { kind: 'number', lexeme: '32768' } },
-      ...(cwd === undefined ? [] : [{ key: 'cwd', value: { kind: 'string', value: cwd } }]),
+      ...(cwd === undefined
+        ? []
+        : ([{ key: 'cwd', value: { kind: 'string', value: cwd } }] as const)),
     ],
   } as const
 }
