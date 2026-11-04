@@ -63,6 +63,16 @@ describe('constructing the transport', () => {
       'a connect timeout above the timer limit',
       { limits: { ...LIMITS, connectTimeoutMs: 2 ** 31 } },
     ],
+    ['a retry backoff of zero', { limits: { ...LIMITS, connectRetry: { backoffMs: [0] } } }],
+    [
+      'a retry backoff above the timer limit',
+      { limits: { ...LIMITS, connectRetry: { backoffMs: [500, 2 ** 31] } } },
+    ],
+    ['a fractional retry backoff', { limits: { ...LIMITS, connectRetry: { backoffMs: [1.5] } } }],
+    [
+      'more retries than the bound',
+      { limits: { ...LIMITS, connectRetry: { backoffMs: Array.from({ length: 9 }, () => 100) } } },
+    ],
     ['an error body limit of zero', { limits: { ...LIMITS, maxErrorBodyBytes: 0 } }],
     ['a fractional event limit', { limits: { ...LIMITS, maxEventBytes: 1.5 } }],
     ['a JSON depth of zero', { limits: { ...LIMITS, json: { ...LIMITS.json, maxDepth: 0 } } }],
@@ -91,6 +101,37 @@ describe('constructing the transport', () => {
     } catch (error) {
       expect(String(error)).not.toContain('hunter2')
     }
+  })
+
+  it.each([
+    ['a backoff that is not a list', { backoffMs: 500 }],
+    ['no backoff', {}],
+    [
+      'a backoff list with a hole',
+      { backoffMs: Array.from({ length: 3 }, (_, i) => (i === 1 ? undefined : 500)) },
+    ],
+    ['a backoff list with a sparse hole', { backoffMs: Object.assign([500], { length: 2 }) }],
+  ])('refuses a retry configuration with %s', (_name, connectRetry) => {
+    const limits = { ...LIMITS, connectRetry } as unknown as PiTransportConfig['limits']
+    expect(() => createPiTransport(configWith({ limits }))).toThrow(RangeError)
+  })
+
+  it('refuses an onConnectRetry that is not a function', () => {
+    const onConnectRetry = 'not a function' as unknown as NonNullable<
+      PiTransportConfig['onConnectRetry']
+    >
+    expect(() => createPiTransport(configWith({ onConnectRetry }))).toThrow(RangeError)
+  })
+
+  it('accepts the retry backoff list, an empty one, and no retry configuration', () => {
+    for (const connectRetry of [{ backoffMs: [500, 1000] }, { backoffMs: [] }, undefined])
+      expect(() =>
+        createPiTransport(
+          configWith({
+            limits: { ...LIMITS, ...(connectRetry === undefined ? {} : { connectRetry }) },
+          }),
+        ),
+      ).not.toThrow()
   })
 
   it('accepts a connect timeout of null', () => {

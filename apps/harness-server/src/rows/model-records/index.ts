@@ -172,6 +172,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         routes: sendStage.routes,
         transportLimits: {
           connectTimeoutMs: sendStage.transportLimits.connectTimeoutMs,
+          connectRetry: sendStage.transportLimits.connectRetry,
           maxErrorBodyBytes: sendStage.transportLimits.maxErrorBodyBytes,
           maxEventBytes: sendStage.transportLimits.maxEventBytes,
           json: sendStage.transportLimits.json,

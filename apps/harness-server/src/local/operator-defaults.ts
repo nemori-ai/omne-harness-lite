@@ -125,7 +125,9 @@ function modelRecords(combinationVersion: string) {
       network: { maxConnections: 4, idleConnectionTimeoutMs: 60_000 },
       routes: { openrouter: { url: OPENROUTER_ROUTE, endMarker: '[DONE]' } },
       transportLimits: {
-        connectTimeoutMs: 5000,
+        connectTimeoutMs: 10_000,
+        // Retries only a failure before the request bytes left: 2 retries after 500 ms and 1000 ms.
+        connectRetry: { backoffMs: [500, 1000] },
         maxErrorBodyBytes: 4096,
         maxEventBytes: 1_048_576,
         json: {
