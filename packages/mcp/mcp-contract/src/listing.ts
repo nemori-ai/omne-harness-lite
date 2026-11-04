@@ -47,11 +47,6 @@ export function assertComplete(listing: CompleteListing): void {
   if (!built.has(listing)) throw new TypeError('the listing did not come from completeListing')
 }
 
-/** An input schema is an object whose `type` is `"object"`: `tools/call` takes an object. */
-function isInputSchema(value: JsonValue | undefined): boolean {
-  return isObject(value) && textOf(member(value, 'type')) === 'object'
-}
-
 /**
  * Reads one peer tool object. It has to check these fields together, so it stays one function:
  * the name, the input schema, the output schema and the annotations are the fields MCP reads.
@@ -62,7 +57,7 @@ function actionDefinitionOf(raw: JsonValue): ActionDefinition | undefined {
   const name = textOf(member(raw, 'name'))
   const outputSchema = member(raw, 'outputSchema')
   const annotations = member(raw, 'annotations')
-  if (!isActionName(name) || !isInputSchema(member(raw, 'inputSchema'))) return undefined
+  if (!isActionName(name) || !isObject(member(raw, 'inputSchema'))) return undefined
   if (outputSchema !== undefined && !isObject(outputSchema)) return undefined
   if (annotations !== undefined && !isObject(annotations)) return undefined
   return Object.freeze({
