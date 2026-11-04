@@ -4420,19 +4420,39 @@ export function createJournal<P>(
         // The attempt reaches the write step: it is part of the chain whether it commits or is
         // dropped, because a dropped attempt is permanently excluded under its operation.
         execution.custodyAttempts.set(input.operation, checked.ok)
-        const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'record-handoff', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+        const custody = input.custody
+        const facts: FactBody[] = []
+        // A successor names its permanently excluded predecessor: the exclusion is a fact of the
+        // log, written with the attempt that succeeds it unless a takeover fence wrote it (R2-D307).
+        if (custody !== null && !viewOf(execution.id).excluded.has(custody.predecessor.operation)) {
+          const prior = custody.priorExcluded.at(-1)
+          facts.push({
+            kind: 'op.excluded',
+            operation: custody.predecessor.operation,
+            reason: 'handoff',
+            evidence: copy(custody.predecessor.request),
+            predecessor: prior === undefined ? null : prior.predecessor,
+          })
+        }
+        facts.push({
+          kind: 'handoff.recorded',
+          handoff: copy(reference),
+          resolution: input.original.kind,
+          outcome: refOf(input.original),
+          predecessor: custody === null ? null : custody.predecessor.operation,
+        })
         return {
-          kind: 'write',
-          value: receipt,
-          receipt,
-          apply: () => {
+          kind: 'batch',
+          facts,
+          blobs: [blobOf(input.original)],
+          kinds: [],
+          derive: receiptIn,
+          project: (_batch, view) => {
             if (record.resolution === null) record.resolution = copy(input.original)
             // An unpublished prepared message is retained after the end; Rh never publishes.
             if (execution.state.kind === 'ended' && record.history.kind === 'pending')
               record.history = { kind: 'retained', disposition: execution.state.disposition }
-            execution.revision = revision
+            execution.revision = view.revision
           },
         }
       }
