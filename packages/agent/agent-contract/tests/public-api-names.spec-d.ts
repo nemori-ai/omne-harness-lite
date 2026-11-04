@@ -15,6 +15,7 @@ import type {
   ActionBatchId,
   ActionId,
   ActionJudgment,
+  ActionToolCall,
   ActionSlot,
   AdmissionDecision,
   Adoption,
@@ -590,7 +591,8 @@ describe('the discriminants of the evaluation chapter', () => {
     >()
     expectTypeOf<GuardLevel>().toEqualTypeOf<0 | 1 | 2 | 3>()
     expectTypeOf<Extract<FailureCandidate, { kind: 'guard' }>['level']>().toEqualTypeOf<3>()
-    expectTypeOf<Action['original']['kind']>().toEqualTypeOf<'tool_call'>()
+    expectTypeOf<Action['original']>().toEqualTypeOf<Readonly<{ callId: string }>>()
+    expectTypeOf<ActionToolCall['kind']>().toEqualTypeOf<'tool_call'>()
   })
 
   it('Reply resolves to an Outcome of the value or a Failure', () => {
@@ -851,7 +853,7 @@ describe('the subject of each position', () => {
     }>
     type BeforeAction = Readonly<{
       action: ActionId
-      original: Action['original']
+      original: ActionToolCall
       effectiveArguments: string
       definition: T.ToolDefinition
       batch: readonly ActionId[]
@@ -920,7 +922,7 @@ describe('the subject of each position', () => {
 
   it('carries the original tool call, the outcome and the batch outcomes', () => {
     type Before = Extract<Subject, { definition: unknown }>
-    expectTypeOf<Before['original']>().toEqualTypeOf<Action['original']>()
+    expectTypeOf<Before['original']>().toEqualTypeOf<ActionToolCall>()
     expectTypeOf<Before['definition']>().toEqualTypeOf<T.ToolDefinition>()
     type Each = Extract<Subject, { outcome: unknown }>
     expectTypeOf<KindOf<Each['outcome']>>().toEqualTypeOf<'denied' | 'executed'>()
@@ -1425,12 +1427,12 @@ describe('Tool association and control references', () => {
     >()
     expectTypeOf<
       Extract<ActionJudgment, { kind: 'allowed' }>['request']
-    >().toEqualTypeOf<T.ToolInvokeRequest>()
+    >().toEqualTypeOf<DurableEvidence>()
     expectTypeOf<{
       kind: 'allowed'
       evidence: DurableEvidence
       request: T.ToolInvokeRequest
-    }>().toExtend<ActionJudgment>()
+    }>().not.toExtend<ActionJudgment>()
   })
 
   it('requires invocation and nullable operation only for Tool controls', () => {

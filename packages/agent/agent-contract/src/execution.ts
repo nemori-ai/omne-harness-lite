@@ -47,6 +47,12 @@ export type ExecutionState =
   | Readonly<{ kind: 'settling'; intent: FinishIntent }>
   | Readonly<{ kind: 'suspended'; handoff: DurableEvidence }>
   | Readonly<{ kind: 'ended'; conclusion: AgentConclusion; disposition: DurableEvidence }>
+/**
+ * The open state of one execution at its head position `revision` (SPEC "提交与保管"): the current
+ * checkpoint and only the items still open. A closed item leaves the snapshot; its facts stay in the
+ * Journal and are read through the paged reads. The size of a snapshot does not grow with the
+ * number of steps the execution has taken.
+ */
 export type ExecutionSnapshot = Readonly<{
   execution: AgentExecutionId
   revision: ExecutionRevision
@@ -58,21 +64,23 @@ export type ExecutionSnapshot = Readonly<{
   executionAttachment: Authority | null
   unresolved: readonly AgentOperationId[]
   controls: readonly ControlRecord[]
+  /** The result responsibilities that are not closed: no completion yet, or a pending release. */
   results: readonly ResultResponsibility[]
+  /** The effect intents whose call is still open in the checkpoint or whose action is in its batch. */
   effects: readonly EffectIntent[]
   terminalObservations: readonly TerminalObservation[]
-  /** Every unsettled handoff responsibility and every record still referenced, at this revision. */
+  /**
+   * The open handoff records at this revision: a pending history, an unsettled custody chain, or a
+   * record still referred to (the current H, a slot of the current batch, the main reply of the
+   * current step, or the issued finish obligations). A settled record of an earlier step that
+   * nothing refers to leaves the snapshot.
+   */
   handoffs: readonly ExecutionHandoff[]
   /** The issued finish obligations of the current candidate; null until prepareFinish issued them (SPEC "终结责任清单"). */
   finishObligations: FinishObligations | null
   /** The candidate, route, migration, judgment and custody records at this revision (SPEC "commitSettlement 的变体"). */
   settlement: ExecutionSettlement
   output: Readonly<{ emittedThrough: string | null; acknowledgedThrough: string | null }>
-  /**
-   * The committed receiving entries in commit order, when the provider serves
-   * `AgentJournalEntries`. Absent means the provider does not serve them, not that there are none.
-   */
-  entries?: readonly AgentJournalEntry[]
 }>
 export type AgentState =
   | Readonly<{ kind: 'idle'; instance: AgentInstanceId }>
