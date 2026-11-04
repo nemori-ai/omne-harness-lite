@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { createMemorySessionHistorySource } from '@omne-harness/session-contract/testing'
 import {
   decide,
+  expectedRevision,
   judgeAdvance,
   reduce,
   type HistoryEntry,
@@ -249,5 +250,141 @@ describe('RunAdvance guard: decide and reduce keep the Run and attempt invariant
     expect(
       commit(s, { ...start, input: { ...start.input, operation: operationId('start-2') } }),
     ).toBeNull()
+  })
+})
+
+describe('the Run-layer expected of the advance commands (I-R2, PM-02, PM-05, R2-D327)', () => {
+  /** A session with one accepted input and a started Run, committed through decide and reduce. */
+  function startedRun() {
+    const commit = log()
+    let s = commit(null, {
+      kind: 'create',
+      input: { ...base, operation: operationId('create'), creation: creation() },
+    })
+    s = commit(s, {
+      kind: 'accept',
+      input: { ...base, operation: operationId('accept-1'), value: ordinaryInput('input-1') },
+    })
+    s = commit(s, {
+      kind: 'startRun',
+      input: {
+        ...base,
+        operation: operationId('start'),
+        entry: 'interactive',
+        candidate: creation().definition.candidate,
+        instance: { owner: 'agent', id: 'i' },
+      },
+    })
+    if (s === null || s.run.kind !== 'active') throw new Error('no started Run')
+    return { commit, s }
+  }
+  const accept = (name: string): SessionCommand => ({
+    kind: 'accept',
+    input: { ...base, operation: operationId(`accept-${name}`), value: ordinaryInput(name) },
+  })
+  const claim = (name: string, s: WorkSnapshot, expected?: string): SessionCommand => {
+    if (s.run.kind !== 'active') throw new Error('no active Run')
+    return {
+      kind: 'claim',
+      input: {
+        ...base,
+        operation: operationId(`claim-${name}`),
+        run: s.run.run,
+        instance: { owner: 'agent', id: name },
+        continuity: evidence(`continuity-${name}`),
+        ...(expected === undefined ? {} : { expected: expected as WorkSnapshot['revision'] }),
+      },
+    }
+  }
+  const release = (s: WorkSnapshot): SessionCommand => {
+    if (s.run.kind !== 'active' || s.run.advance === null) throw new Error('no advance')
+    return {
+      kind: 'release',
+      input: {
+        ...base,
+        operation: operationId(`release-${s.revision}`),
+        advance: s.run.advance,
+        expected: expectedRevision(s, 'release'),
+        handover: evidence('handover'),
+      },
+    }
+  }
+  const refusal = (s: WorkSnapshot, command: SessionCommand) => {
+    const decision = decide(s, command, [], null, { compaction: null })
+    return decision.kind === 'rejected' ? decision.failure : decision
+  }
+
+  it('reduce moves the Run-layer revision on a start, an attempt change and a release, not on an accept', () => {
+    const { commit, s } = startedRun()
+    if (s.run.kind !== 'active') throw new Error('no active Run')
+    expect(s.run.revision).toBe(s.revision)
+    const accepted = commit(s, accept('input-2'))
+    if (accepted === null || accepted.run.kind !== 'active') throw new Error('accept')
+    expect(accepted.revision).not.toBe(s.revision)
+    expect(accepted.run.revision).toBe(s.revision)
+    const released = commit(accepted, release(accepted))
+    if (released === null || released.run.kind !== 'active') throw new Error('release')
+    expect(released.run.revision).toBe(released.revision)
+  })
+
+  it('a bounded close that read the Run layer holds after unrelated accepts; a release before it answers changed', () => {
+    const { commit, s } = startedRun()
+    if (s.run.kind !== 'active') throw new Error('no active Run')
+    const close = (expected: string): SessionCommand => ({
+      kind: 'finishRun',
+      input: {
+        ...base,
+        operation: operationId(`close-${expected}`),
+        run: s.run.kind === 'active' ? s.run.run : ('' as never),
+        expected: expected as WorkSnapshot['revision'],
+        bounded: { kind: 'uninterpretable', evidence: evidence('u') },
+      },
+    })
+    const read = expectedRevision(s, 'finishRun')
+    let busy: WorkSnapshot | null = s
+    for (const name of ['input-2', 'input-3', 'input-4']) busy = commit(busy, accept(name))
+    if (busy === null) throw new Error('accept')
+    expect(
+      judgeAdvance(busy, {
+        kind: 'bounded',
+        run: s.run.run,
+        expected: read,
+        basis: { kind: 'uninterpretable', evidence: evidence('u') },
+      }),
+    ).toEqual({ kind: 'ok' })
+    const closed = commit(busy, close(read))
+    expect(closed?.run.kind).toBe('terminal')
+    const released = commit(busy, release(busy))
+    if (released === null) throw new Error('release')
+    expect(refusal(released, close(read))).toEqual({
+      kind: 'changed',
+      revision: expectedRevision(released, 'finishRun'),
+    })
+  })
+
+  it('of two claims that read the same Run layer only the first holds; the second is stale-advance', () => {
+    const { commit, s } = startedRun()
+    const released = commit(s, release(s))
+    if (released === null) throw new Error('release')
+    const read = expectedRevision(released, 'claim')
+    // An unrelated accept between the read and the claims does not stop the first.
+    const busy = commit(released, accept('input-2'))
+    if (busy === null) throw new Error('accept')
+    const first = commit(busy, claim('r1', busy, read))
+    if (first === null || first.run.kind !== 'active') throw new Error('first claim refused')
+    expect(first.run.ordinal).toBe('2')
+    expect(refusal(first, claim('r2', first, read))).toEqual({
+      kind: 'stale-advance',
+      current: first.run.advance,
+    })
+  })
+
+  it('a claim without expected is not compared: two claims both commit (compatibility, R2-D327)', () => {
+    const { commit, s } = startedRun()
+    const first = commit(s, claim('r1', s))
+    if (first === null) throw new Error('first claim refused')
+    const second = commit(first, claim('r2', first))
+    if (second === null || second.run.kind !== 'active') throw new Error('second claim refused')
+    expect(second.run.ordinal).toBe('3')
   })
 })

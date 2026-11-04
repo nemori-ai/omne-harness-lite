@@ -21,6 +21,8 @@ it('exports exactly the declared root runtime surface', () => {
     'digestSessionEntries',
     'digestSessionLog',
     'executionReadThrough',
+    'expectedHolds',
+    'expectedRevision',
     'initializationRegistrationCommit',
     'isDeferredFact',
     'judgeAdvance',

@@ -552,7 +552,7 @@ Session 命令：
 | `readWork`                    | `coordinator`、`maintainer`；当前读取资格                                                                                                           | 只读                                                                               | `Access`                                                                                                                                     | 一个完整权威提交位置上的 `WorkSnapshot`                                     |
 | `readInput`                   | `coordinator`、`maintainer`；当前披露资格                                                                                                           | 只读                                                                               | `InputId`                                                                                                                                    | 该普通输入的消息与来源                                                      |
 | `startRun`                    | `coordinator`、`maintainer`；新 Run 准入与适用的登录门（存储参加者在提交事务里读首条输入保存的 `origin`，经 `DecideReads.firstInput` 交给 `decide`） | session、首条输入与前继 Run                                                        | 入口类别、候选采用、推进实例身份                                                                                                             | `StartedRun`：回执、首个 `AdvanceRef`、采用、首条输入与本成员分配的执行身份 |
-| `claim`                       | `coordinator`、`maintainer`；接管资格（证据桥）                                                                                                     | run、接手实例与连续性摘要                                                          | run、实例、`continuity`                                                                                                                      | 回执与新的 `AdvanceRef`                                                     |
+| `claim`                       | `coordinator`、`maintainer`；接管资格（证据桥）                                                                                                     | run、接手实例与连续性摘要                                                          | run、实例、`continuity`；可选 `expected`（Run 层修订，见 [I-R2](#i-r2)）                                                                  | 回执与新的 `AdvanceRef`                                                     |
 | `reload`                      | `coordinator`；采用资格（证据桥与 Context 输入）                                                                                                    | run、候选与交接证明摘要                                                            | run、候选、实例、`expected`、`handover`                                                                                                      | 回执与新的 `AdvanceRef`                                                     |
 | `recordMessage`               | `coordinator`，参加                                                                                                                                 | 执行记录提供者的操作身份                                                           | `Participation`、经消息准入的消息、来源与准入证据                                                                                            | 回执                                                                        |
 | `preserveResult`              | `coordinator`、`maintainer`，参加；Agent 记录已删除时由 Session 提交。合格保管者资格，不要求旧 attempt 有效                                         | 参加时为执行记录提供者的操作身份；Session 提交时为命令种类、consumption 与结果版本 | consumption、`ProducedResult`、保管证据                                                                                                      | 保管证据                                                                    |
@@ -689,7 +689,7 @@ Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用�
 - 品牌身份与修订只防误用。服务端仍核对来源、租户、对象关系与当前资格。
 - `ProducerRef` 的字符串由生产领域的编解码解析，并核对原关联。`AgentInstanceRef`、`ExecutionRef.execution`、`BatchId` 与 `ConsumptionId` 由 Agent 的受信适配解析。Session 不定义另一套生产者或执行身份格式。
 - `AttemptId` 是 (Run, 序号) 的确定编码，从日志派生，不另存。
-- `WorkSnapshot` 来自一个完整权威提交位置。`lifecycle` 由事实归约得出，不单独写入。取值的优先次序是 `archived`、`initializing`、`active`、`frozen`、`dormant`：初始化完成之前的会话不能开始 Run，也不会被冻结；冻结的会话有未终结 Run 时为 `active`，`frozen` 字段非空。`residents` 是 SE36 的累积，只增不减。`active` 当且仅当有未终结的 Run。`ordinal` 只是已提交 attempt 的开始顺序，不单独证明 `advance` 有效。`revisions` 公开两类修订计数：所选工作区（每次 SE05 加一）与设置声明（每次 SE06 加一）。
+- `WorkSnapshot` 来自一个完整权威提交位置。`lifecycle` 由事实归约得出，不单独写入。取值的优先次序是 `archived`、`initializing`、`active`、`frozen`、`dormant`：初始化完成之前的会话不能开始 Run，也不会被冻结；冻结的会话有未终结 Run 时为 `active`，`frozen` 字段非空。`residents` 是 SE36 的累积，只增不减。`active` 当且仅当有未终结的 Run。`ordinal` 只是已提交 attempt 的开始顺序，不单独证明 `advance` 有效。`run.revision` 是 Run 层修订：最近一次开始本 Run（SE13）、开始或交还 attempt（SE15、SE16）或改变采用（SE08）的提交修订。`accept`、交入、承接与 Agent 事实的提交不移动它（R2-D327）。`revisions` 公开两类修订计数：所选工作区（每次 SE05 加一）与设置声明（每次 SE06 加一）。
 - `RunState.active.execution` 是 `ExecutionRef = { execution, revision, evidence, readThrough }`。它指向 Agent 的权威记录，Session 不保存接续值。`revision` 与 `evidence` 取自同根 load 的真实 head 与该 head 的原回执，或本次参加提交的原回执，第一次之前为空。事件原来源另存，见 [FR-05](#fr-05)。`readThrough` 是已读到并保存的 Agent 事件序号，初值为 `"0"`（[EC-02](#ec-02)）。
 - `pending` 是有待处理资格的普通输入的有序集合。`handed` 是其中已交入执行而尚未承接的子集。`pending` 为空只在权威读成功时有意义，读取故障不变成空集合。
 - `InputBatch` 是 Agent 承接事件给出的批次：批次身份、水位线与精确有序成员。Session 不重选批界或顺序。
@@ -1071,11 +1071,11 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 - 前提：`run.active`，并满足下列之一：`advance` 为 null；旧挂接已交还或已被取代；恢复者持有接管资格。`continuity` 是指向 Agent 原记录的耐久证据，绑定读得的修订与来源，不是接续值。
 - 动作：
-  1. 第一次提交 `claim`（JC-07）：`judgeAdvance` 核对旧 attempt 已交还或可信排除，写 SE15，序号加一。旧 attempt 尚无 SE16 时同批写 SE16。
+  1. 第一次提交 `claim`（JC-07）：`judgeAdvance` 核对旧 attempt 已交还或可信排除，写 SE15，序号加一。旧 attempt 尚无 SE16 时同批写 SE16。带 `expected` 时核对它等于当前 Run 层修订（[推进命令的 expected](#run-layer-expected)）。
   2. 第二次提交是 `resume`：恢复依据为 `continuity` 加恢复者材料，可以含宿主的失联判断；推进资格依据为新 attempt 的 SE15 证据。执行记录提供者授予挂接的条件提交内，Session 参加者按 [PA-01](#pa-01) 第 3 条只读核对。
 - 结果：恢复路径下，旧挂接保持交还状态，新挂接 active。接管路径下，同一次条件提交内旧挂接被取代、新挂接 active，旧 runtime 的后续提交得到 `stale-advance`。两条路径由执行记录提供者按状态选择，Session 不选择。
 - 失败：
-  - `claim` 返回 `stale-advance`（已有其他后继）或 `changed`（旧 attempt 仍有效且未被排除）。
+  - `claim` 返回 `stale-advance`（已有其他后继，含另一个读到同一 Run 层的恢复者已先提交）或 `changed`（旧 attempt 仍有效且未被排除，或带来的 `expected` 已过期而 `advance` 为空）。
   - `resume` 返回 `denied`（没有接管资格，或推进资格依据核对失败）、`changed`（提交时旧挂接仍 active 而没有接管依据）、`terminal`（执行已结束，按 [RS-08](#rs-08) 至 [RS-10](#rs-10) 读结束状态写终态）或 `unavailable`。
   - `resume` 失败不撤销 `claim` 的 SE15。新 attempt 已是当前资格，由同一恢复者或下一次恢复扫描以同一推进资格依据重试。撤销 SE15 会让序号回退。
 - 未知与认回：`claim` 按 OP-00 身份 `queryOperation`。`resume` 按出站操作身份 `query`。
@@ -1089,7 +1089,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 - 前提：[PM-03](#pm-03) 取得交接证明。旧推进已按 [PM-04](#pm-04) 撤除，或旧 runtime 已失联。
 - 动作：
-  1. 第一次提交 `reload`（JC-08）：核对同一定义标识、候选等于交接证明的目标采用、`expected` 等于当前修订、Run 未终态且会话未归档。写 SE15 与旧 attempt 的 SE16，采用变化时写 SE08。
+  1. 第一次提交 `reload`（JC-08）：核对同一定义标识、候选等于交接证明的目标采用、`expected` 等于当前 Run 层修订（[推进命令的 expected](#run-layer-expected)）、Run 未终态且会话未归档。写 SE15 与旧 attempt 的 SE16，采用变化时写 SE08。
   2. 第二次提交是 `resume`：恢复依据绑定交接证明，推进资格依据为新 attempt 的证据。执行记录提供者核验原版本仍适用，并共同保存转换后的接续。Session 参加者按 [PA-01](#pa-01) 第 3 条只读核对。
 - 结果：新 attempt 按新采用推进。原调用、等待与卡片保留。新采用只影响尚未开始的经过。候选等于当前采用时不写 SE08，仍可以写新 attempt。
 - 失败：
@@ -1167,7 +1167,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
   - 同一候选、同一交接证明：OP-00 派生同一身份，认回原回执，不写第二个 attempt。
   - 同一身份、不同候选：返回 `conflict`。
   - 不同候选、不同身份：第二个请求的 `expected` 已经过期，`judgeAdvance` 返回 `changed`。调用方重新准备候选（[PM-03](#pm-03)），不拿旧证明接管新状态。
-  - 候选等于当前采用：reload 入口的求值结果未变化时，装配不调用 `reload`（[比对代替求值](../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)）。调用方仍送来等于当前采用的候选时，不写 SE08；`expected` 等于当前修订时，其余照 attempt 换代处理。
+  - 候选等于当前采用：reload 入口的求值结果未变化时，装配不调用 `reload`（[比对代替求值](../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)）。调用方仍送来等于当前采用的候选时，不写 SE08；`expected` 等于当前 Run 层修订时，其余照 attempt 换代处理。
 - 责任：候选身份归装配。认回归 Session。
 
 <a id="pm-13"></a>
@@ -1567,7 +1567,7 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | 编号                    | 不变量                                                                                                        | 守卫                                                                                                                                                         | 违反时怎样被拒                                                                                                 |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | <a id="i-r1"></a>I-R1   | 同一 Session 至多一个未终结 Run                                                                               | `judgeRunStart`；`startRun` 的条件提交核对 `run` 为 none                                                                                                     | 第二个 `startRun` 返回 `run-active`；同身份认回                                                                |
-| <a id="i-r2"></a>I-R2   | 同一 Run 至多一个非空 `advance`；序号严格递增                                                                 | `judgeAdvance`；`claim` 与 `reload` 的条件提交核对 `expected`                                                                                                | 旧 attempt 的写入得到 `stale-advance`；并发的第二个 `claim` 得到 `stale-advance` 或 `changed`                  |
+| <a id="i-r2"></a>I-R2   | 同一 Run 至多一个非空 `advance`；序号严格递增                                                                 | `judgeAdvance`；`claim`、`reload`、`release` 与 `finishRun` 的条件提交核对 `expected`，它是 Run 层修订（R2-D327，见下文）                                    | 旧 attempt 的写入得到 `stale-advance`；并发的第二个 `claim` 得到 `stale-advance` 或 `changed`                  |
 | <a id="i-r3"></a>I-R3   | 每个普通输入至多一次有效承接；批界由 Agent 的输入水位线决定，Session 不重选                                   | 承接只由 Agent 的 `input-taken` 事件派生（按 EC-01 从同日志解释；SE35 不替代 SE14），按事件身份认回；同一 `InputId` 的 `submit` 按输入身份认回，至多一次受理 | 重放的承接事件不重复写 SE14；重复的 `submit` 认回原受理；Session 没有重选批界的命令                            |
 | <a id="i-r4"></a>I-R4   | 终态三选一且不可反转；终态后没有新 attempt、业务承接或发起。终态前已成立的历史承接按 FR-02 解释，不属于新承接 | `judgeAdvance` 读到 `run.terminal` 时返回 `terminal`；`judgeRunStart` 不复活 Run；后续同日志解释读到第二个结束事实时只认回                                   | 终态后的 `claim`、`reload`、`release`、`finishRun` 返回 `terminal`；终态后的 `submit` 由 Agent 返回 `terminal` |
 | <a id="i-r5"></a>I-R5   | 取消生效即为 cancelled 终态；优雅或强制不改变时点                                                             | `resolveControlScope` 在同批形成 SE26                                                                                                                        | 取消之后完成的条件终结得到「冲突」；强制只改变传播的急迫程度                                                   |
@@ -1576,6 +1576,8 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | <a id="i-r8"></a>I-R8   | Session 不保存第二份 Agent 工作状态                                                                           | 类型层：`ExecutionRef` 没有值字段；推进命令没有接续参数；承接、登记、等待与终态只从 Agent 事件派生                                                           | 携带接续值的命令在类型上不存在；`claim.continuity` 只接受耐久证据                                              |
 | <a id="i-r9"></a>I-R9   | 后台调用、子会话与 Run 外调用不随 Run 取消                                                                    | `resolveControlScope` 的范围表                                                                                                                               | Run 取消的待核对生产者集合不含它们；归档另按 SE27 的范围                                                       |
 | <a id="i-r10"></a>I-R10 | Run 未终结时不声称空闲或完成                                                                                  | `judgeIdle` 读到未终结 Run 时不得出 `due`；`openWork` 列出 `unreadEvents`                                                                                    | 未终结 Run 的会话 `considerAutoArchive` 返回 `not-due`                                                         |
+
+<a id="run-layer-expected"></a>推进命令的 `expected`（R2-D327）：`claim`、`reload`、`release` 与 `finishRun` 的 `expected` 是调用方读到的 Run 层修订（`WorkSnapshot` 的 `run.revision`），由 `expectedRevision` 给出。条件提交在它等于当前 Run 层修订时成立。无关提交不移动 Run 层修订，所以繁忙会话里的有界收束不会因 `accept` 而答 `changed`。等于当前快照修订的 `expected` 也成立：读到它之后没有任何提交，Run 层自然未变；仍按快照修订发送的调用方因此行为不变（`expectedHolds`）。答 `changed` 时带回当前 Run 层修订。其他带 `expected` 的命令仍比较快照修订。`claim` 的 `expected` 暂为可选：带了就核对，读到同一 Run 层的两个恢复者只有先提交的一方成立，另一方在 `advance` 已被占有时得到 `stale-advance`，`advance` 为空时得到 `changed`；不带时不比较，行为与 R2-D327 之前相同，两个恢复者可以先后成立，只靠执行记录提供者的条件提交区分。全部调用方带上 `expected` 之后改为必填。
 
 有界收束是 I-R4 中 Session 以恢复者身份写 failed 终态的唯一入口。cancelled 终态由控制与归档写入，见 RS-10。它有两种依据：P-5 的不可解释记录与 PM-02 的准入拒绝。此时 `judgeAdvance` 以恢复者资格代替 attempt 核对：Run 未终态；依据指向 Agent 记录的不可解释证明或准入拒绝。有界收束写明未收尾效果的提示。Agent 执行已结束而 Session 没有终态，不是有界收束：Session 读结束事实后按 Agent 的结论写 completed 或 failed。Agent 的 cancelled 结论按 RS-10 处理。
 

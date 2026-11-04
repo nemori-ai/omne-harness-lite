@@ -17,7 +17,7 @@
 ## 本包事实
 
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口与 `./testing` 的导出集合，`sessionModesBlock` 的形状。
-- [run-advance-invariants.spec.ts](run-advance-invariants.spec.ts)：种子随机的命令序列经 `decide` 与 `reduce` 提交，逐步核 I-R1 至 I-R4。性质与变异负控见 [formal-runs.md](../verification/models/formal-runs.md)。
+- [run-advance-invariants.spec.ts](run-advance-invariants.spec.ts)：种子随机的命令序列经 `decide` 与 `reduce` 提交，逐步核 I-R1 至 I-R4；另有推进命令的 Run 层 `expected` 用例：无关提交不使有界收束答 `changed`，读到同一 Run 层的两个 `claim` 只有一个成立（R2-D327）。性质与变异负控见 [formal-runs.md](../verification/models/formal-runs.md)。
 - [decide-reduce.spec.ts](decide-reduce.spec.ts)：首条路径种类的 `decide`/`reduce`（创建与初始化项、受理、开 Run、交入、消息参加、有界收束）、认回与冲突、跨租户拒绝、未知种类隔离、领域服务的边界结局。
 - [transactions-conformance.spec.ts](transactions-conformance.spec.ts)：事务端口套件对替身的自证：合法替身全过，无第二租户时跨租户用例记为不适用，每个用例都有一个违例变体让它变红。
 - [dependency-direction.spec.ts](dependency-direction.spec.ts)：构建后的根入口不加载 Cordis、任何 `./cordis` 入口、依赖本成员的成员、`./testing` 与 `node:assert`。

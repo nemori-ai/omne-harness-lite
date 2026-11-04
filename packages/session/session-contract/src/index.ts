@@ -152,6 +152,8 @@ export type {
 } from './ports.ts'
 export { sessionModesBlock } from './block.ts'
 export {
+  expectedHolds,
+  expectedRevision,
   judgeAdvance,
   judgeCompletion,
   judgeIdle,

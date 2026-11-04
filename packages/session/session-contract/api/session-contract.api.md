@@ -220,6 +220,8 @@
 - `digestSessionEntries` · `entries-interpretation.d.ts`
 - `digestSessionLog` · `log-interpretation.d.ts`
 - `executionReadThrough` · `log-interpretation.d.ts`
+- `expectedHolds` · `judgments.d.ts`
+- `expectedRevision` · `judgments.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
 - `isDeferredFact` · `history-values.d.ts`
 - `judgeAdvance` · `judgments.d.ts`
@@ -1136,6 +1138,7 @@ export interface SessionWork<P> {
         run: RunId;
         instance: AgentInstanceRef;
         continuity: DurableEvidence;
+        expected?: SessionRevision;
     }>): Reply<Readonly<{
         receipt: CommitReceipt;
         advance: AdvanceRef;
@@ -1633,7 +1636,7 @@ export type { ControlOperationResolution, SavedModelSelection, SessionCallLookup
 export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInterpretation, SessionEntriesItem, SessionEntriesObservation, SessionEntriesProgress, SessionEntriesReceipt, SessionEntriesStart, SessionLogCommitObservation, SessionLogReceipt, } from './interpretation-values.ts';
 export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, ProductionEvidenceCommand, SessionAdoptionPlanAnswer, SessionAdoptionPlanInput, SessionAdoptionRecorded, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionPrincipalBindingSource, SessionTransactionPort, SessionWorkPrincipals, } from './ports.ts';
 export { sessionModesBlock } from './block.ts';
-export { judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
+export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest } from './decide.ts';
 export { batchEvidence, reduce } from './reduce.ts';
 export { CONTEXT_SCOPE_KINDS, contextScopeOf, contextScopesOf, type SessionContextScope, } from './context-scopes.ts';
@@ -1836,7 +1839,7 @@ import type { CompactionContext } from '@omne-harness/message';
 import type { AdvanceRef, InputId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 import type { AutoArchivePolicy, BoundedClose, ControlIntent, IdleCoverage, IdleObservation, Participation, ProducerRef, RecoveryTask, RoutedInput, RunTerminal, Waiting, WorkSnapshot } from './values.ts';
 import type { CommitReceipt, EntryClass, HistoryEntry, SessionFailure } from './faces.ts';
-import type { GuardCommand, SessionCommand } from './ports.ts';
+import type { GuardCommand, MutationName, SessionCommand } from './ports.ts';
 import type { ConsumptionId, DurableEvidence } from './identity.ts';
 import type { SessionHistoryReads } from './history-values.ts';
 import type { SessionCallWait } from './call-values.ts';
@@ -2007,6 +2010,8 @@ export declare const OFF_PATH_DIAGNOSTIC = "not on the M2 first tenant path; the
 export declare const OFF_PATH_FAILURE: Extract<SessionFailure, {
     kind: 'unavailable';
 }>;
+export declare function expectedRevision(snapshot: WorkSnapshot, kind: MutationName): SessionRevision;
+export declare function expectedHolds(snapshot: WorkSnapshot, kind: MutationName, expected: SessionRevision): boolean;
 export declare function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): AdvanceJudgment;
 export declare function routeInput(snapshot: WorkSnapshot, input: RoutedInput): RouteJudgment;
 export declare function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunStartJudgment;
@@ -2601,8 +2606,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:e6cd6691320350fb435894993410f1184ca9ab04bc94d896800f118217735ed6";
-export declare const SESSION_RELEASE_DIGEST = "sha256:e6cd6691320350fb435894993410f1184ca9ab04bc94d896800f118217735ed6";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:dc5660dcbdcc2b1372a984afedce11c969b50c35f18567cff3debef7cd34279e";
+export declare const SESSION_RELEASE_DIGEST = "sha256:dc5660dcbdcc2b1372a984afedce11c969b50c35f18567cff3debef7cd34279e";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3264,6 +3269,7 @@ export type RunState = Readonly<{
     advance: AdvanceRef | null;
     ordinal: string;
     execution: ExecutionRef;
+    revision?: SessionRevision;
 }> | Readonly<{
     kind: 'terminal';
     terminal: RunTerminal;

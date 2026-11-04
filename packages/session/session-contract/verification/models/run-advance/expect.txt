@@ -1,5 +1,6 @@
 positive-run.cfg pass
 positive-global-wide.cfg pass
+positive-claims.cfg pass
 negative-global-expected.cfg NoAbandonedClose
 bad-second-run.cfg OneOpenRun
 bad-two-advances.cfg OneAdvance
@@ -8,3 +9,4 @@ bad-retake.cfg TakeOnce
 bad-revive.cfg TerminalStable
 bad-post-terminal-attempt.cfg NoPostTerminalAttempt
 bad-silent-reconcile.cfg ReconcileNeedsConfirmation
+bad-claim-no-expected.cfg OneClaimPerRead
