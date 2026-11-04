@@ -3985,20 +3985,23 @@ export function createJournal<P>(
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         const target = controlTarget(input.command, pendingCalls(execution), execution.tenant)
         if ('failure' in target) return answer(target)
-        const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'control', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'accepted')
+        // The accepted stage names this batch: its source is the batch's own evidence.
+        const evidence = ownEvidence(execution.id, key, execution.revision + 1)
+        const record: ControlRecord = {
+          operation: input.operation,
+          ...copy(target.ok),
+          stages: { accepted: { state: 'reached', source: evidence } },
+        }
         return {
-          kind: 'write',
-          value: receipt,
-          receipt,
-          apply: () => {
-            execution.controls.push({
-              operation: input.operation,
-              ...copy(target.ok),
-              stages: { accepted: { state: 'reached', source: evidence } },
-            })
-            execution.revision = revision
+          kind: 'batch',
+          facts: [controlStageOf(record, 'accepted', 'reached', evidence)],
+          blobs: [],
+          kinds: [],
+          derive: receiptIn,
+          receiptState: 'accepted',
+          project: (_batch, view) => {
+            execution.controls.push(record)
+            execution.revision = view.revision
             appendEvents(
               execution,
               [
