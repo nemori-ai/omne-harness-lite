@@ -13,12 +13,14 @@ import {
   cursorMoved,
   cursorOf,
   decodeRows,
+  emptyExecutionView,
   emptySessionView,
   encodeBatch,
   factKey,
   fold,
   foldAll,
   movedMembers,
+  openCalls,
   refOf,
   viewDigest,
   viewText,
@@ -300,6 +302,24 @@ describe('P3 bounded commit: a batch carries this step alone', () => {
     const { rounds, executions } = scene(random(21), { rounds: 20, executions: 1, finish: false })
     const intends = rounds.get(executions[0]!)!
     expect(batchBytes(intends[19]!)).toBeLessThanOrEqual(batchBytes(intends[1]!) + 64)
+  })
+
+  it('the reception targets are a projection: a call opens on call.intended and closes on result.received (R2-D297)', () => {
+    const { log, executions } = scene(random(23), { rounds: 3, executions: 1, finish: false })
+    let view = emptySessionView()
+    for (const batch of log) {
+      const before = openCalls(
+        view.executions.get(executions[0]!) ?? emptyExecutionView(executions[0]!),
+      ).length
+      view = fold(view, batch)
+      const after = openCalls(view.executions.get(executions[0]!)!).length
+      const opened = batch.facts.filter(fact => fact.kind === 'call.intended').length
+      const closed = batch.facts.filter(fact => fact.kind === 'result.received').length
+      expect(after).toBe(before + opened - closed)
+    }
+    const execution = view.executions.get(executions[0]!)!
+    expect(openCalls(execution)).toHaveLength(0)
+    expect(execution.intents.size).toBeGreaterThanOrEqual(3)
   })
 
   it('the terminal batches are constant in the number of tool calls; obligations grow per item only (R2-D297)', () => {

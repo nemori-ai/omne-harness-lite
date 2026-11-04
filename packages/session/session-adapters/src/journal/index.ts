@@ -42,6 +42,7 @@ export {
   fold,
   foldAll,
   handoffKey,
+  openCalls,
   viewDigest,
   viewText,
 } from './fold.ts'

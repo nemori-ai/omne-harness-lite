@@ -877,6 +877,17 @@ export function foldAll(
   return current
 }
 
+/**
+ * The reception targets of one execution (R2-D297): the intended calls whose result has not been
+ * received, each with its consumer position. A projection of `intents` and `results`; nothing is
+ * stored per execution and nothing is rewritten when a call is added.
+ */
+export function openCalls(view: ExecutionView): readonly IntentView[] {
+  return [...view.intents.values()].filter(
+    intent => view.results.get(intent.pending.consumption)?.received == null,
+  )
+}
+
 function plain(value: unknown): unknown {
   if (value instanceof Map)
     return Object.fromEntries([...value].map(([key, item]) => [String(key), plain(item)]))
