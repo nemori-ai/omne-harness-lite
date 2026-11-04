@@ -4,7 +4,12 @@
 // counts show what ran before the rejection.
 import type { Access } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
-import type { CredentialBinding, EndpointHolding, McpPorts } from '@omne-harness/mcp-contract'
+import type {
+  CredentialBinding,
+  EndpointHolding,
+  McpPorts,
+  StopScope,
+} from '@omne-harness/mcp-contract'
 import type {
   CredentialFailure,
   CredentialPurpose,
@@ -46,18 +51,34 @@ function transportsWhoseCloseRejects(factory: McpTransportFactory): McpTransport
   }
 }
 
-function landingWhoseStopRejects(port: ProcessLanding<Principal>): ProcessLanding<Principal> {
+/** How a process answers `stop()`: with a range, or by rejecting after it stopped. */
+export type StopAnswer = StopScope | 'reject'
+
+/**
+ * The landing whose processes answer `stop()` as `answerOf(index)` says at the time of the call
+ * (the first process started is 0). `undefined` keeps the inner double's answer. The inner double
+ * still records the stop, so the counts show every process that was asked.
+ */
+export function landingStoppingAs(
+  port: ProcessLanding<Principal>,
+  answerOf: (index: number) => StopAnswer | undefined,
+): ProcessLanding<Principal> {
+  let started = 0
   return {
     async start(access, launch, env) {
-      const started = await port.start(access, launch, env)
-      if ('failure' in started) return started
-      const process = started.ok
+      const answer = await port.start(access, launch, env)
+      if ('failure' in answer) return answer
+      const index = started
+      started += 1
+      const process = answer.ok
       return {
         ok: {
           ...process,
           async stop() {
-            await process.stop()
-            throw rejection('stop')
+            const confirmed = await process.stop()
+            const scripted = answerOf(index)
+            if (scripted === 'reject') throw rejection('stop')
+            return scripted ?? confirmed
           },
         },
       }
@@ -110,7 +131,7 @@ export function faulty(w: World, faults: readonly Fault[]): McpPorts<Principal, 
   return {
     ...w.ports,
     transports: faults.includes('close') ? transportsWhoseCloseRejects(w.transports) : w.transports,
-    landing: faults.includes('stop') ? landingWhoseStopRejects(w.landing) : w.landing,
+    landing: faults.includes('stop') ? landingStoppingAs(w.landing, () => 'reject') : w.landing,
     credentials: faults.includes('release')
       ? credentialsWhoseReleaseRejects(w.credentials)
       : w.credentials,

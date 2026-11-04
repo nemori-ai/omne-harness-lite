@@ -547,6 +547,52 @@ describe('the adoption read again in the critical section is bounded (decision 2
   })
 })
 
+describe('a teardown that does not answer holds no ensure past its bound (decision 22)', () => {
+  const REFUSED = { failure: { kind: 'connection-unavailable' } }
+
+  it('the close of an earlier revision hangs: two refreshes of the new revision answer connection-unavailable, then the close ends on its own', async () => {
+    const closing = deferred<'closed'>()
+    const w = world({ script: [...usualScript(), { close: closing }, ...usualScript()] })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    const c = core(w)
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+    w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
+    const [one, two] = await Promise.all([
+      c.discovery.refresh(alice, { ref: files }),
+      c.discovery.refresh(alice, { ref: files }),
+    ])
+    expect(one).toEqual(REFUSED)
+    expect(two).toEqual(REFUSED)
+    expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
+    closing.resolve('closed')
+    await settled()
+    expect(w.landing.processes()).toEqual([{ stops: 1 }])
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+  }, 2000)
+
+  it('a release of the same key still closing the transport: a refresh answers connection-unavailable within its bound', async () => {
+    const closing = deferred<'closed'>()
+    const w = world({ script: [...usualScript(), { close: closing }, ...usualScript()] })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    const c = core(w)
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+    const released = c.connections.release(alice, files)
+    await settled()
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual(REFUSED)
+    closing.resolve('closed')
+    expect(await released).toEqual({ ok: { kind: 'released', process: 'tree-confirmed' } })
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+  }, 2000)
+})
+
 describe('two tokens of two revisions at the re-read (observation)', () => {
   it('leaves one entry, on the newer revision; the older build is closed, the newer one is not', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })

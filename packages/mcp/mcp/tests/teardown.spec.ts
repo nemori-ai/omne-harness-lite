@@ -1,10 +1,12 @@
 // The teardown of one entry (SPEC MC-10, decision 21): one entry point for the close order,
-// every step runs when a port rejects, and the breach is absorbed as decision 4 says. Also the
+// every step runs when a port rejects, every process is asked to stop, and the breach is absorbed
+// as decision 4 says. The entry stays in the table while its teardown waits on a port. Also the
 // landing still in flight at a release and at the shutdown (decisions 5 and 6).
 import { describe, expect, it } from 'vitest'
-import { core } from './doubles/core.ts'
-import { settled } from './doubles/deferred.ts'
-import { faulty, type Fault } from './doubles/faults.ts'
+import { only } from './doubles/calls.ts'
+import { core, type Core } from './doubles/core.ts'
+import { deferred, settled } from './doubles/deferred.ts'
+import { faulty, landingStoppingAs, type Fault, type StopAnswer } from './doubles/faults.ts'
 import { stallingLanding } from './doubles/stalls.ts'
 import { alice, millis, ref } from './doubles/values.ts'
 import { VALUE, adoptStdio, usualScript, world, type World } from './doubles/world.ts'
@@ -96,6 +98,95 @@ describe('teardown: every step runs, whichever port rejects (decision 21)', () =
     })
     expect(await c.connections.closeAll()).toEqual([{ ref: files, process: 'tree-confirmed' }])
     expect(w.landing.processes()).toEqual([{ stops: 1 }, { stops: 1 }])
+    expect(w.credentials.handles()).toEqual([
+      { acquired: 1, released: 1 },
+      { acquired: 1, released: 1 },
+    ])
+  })
+})
+
+describe('every process is asked to stop, whichever stop rejects (decision 4)', () => {
+  const CLOSES = [
+    [
+      'release',
+      (c: Core) => c.connections.release(alice, files),
+      { ok: { kind: 'released', process: 'unconfirmed' } },
+    ],
+    ['closeAll', (c: Core) => c.connections.closeAll(), [{ ref: files, process: 'unconfirmed' }]],
+  ] as const
+
+  it.each(CLOSES)(
+    '%s: the own process rejects its stop, the lingering one is still asked',
+    async (_name, close, report) => {
+      const w = world({ script: [...usualScript(), ...usualScript()] })
+      adoptStdio(w, files, WITH_CREDENTIAL)
+      const answers: StopAnswer[] = ['root-only']
+      const c = core({
+        ...w,
+        ports: { ...w.ports, landing: landingStoppingAs(w.landing, index => answers[index]) },
+      })
+      // Process 0 confirms only its root and lingers; the rebuild stops it again and starts process 1.
+      expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+        ok: { kind: 'published' },
+      })
+      expect(await c.connections.release(alice, files)).toEqual({
+        ok: { kind: 'released', process: 'root-only' },
+      })
+      expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+        ok: { kind: 'published' },
+      })
+      expect(w.landing.processes()).toEqual([{ stops: 2 }, { stops: 0 }])
+      answers[1] = 'reject'
+      expect(await close(c)).toEqual(report)
+      // The own process is asked first and rejects; the lingering one is asked all the same.
+      expect(w.landing.processes()).toEqual([{ stops: 3 }, { stops: 1 }])
+      expect(w.credentials.handles()).toEqual([
+        { acquired: 1, released: 1 },
+        { acquired: 1, released: 1 },
+      ])
+    },
+  )
+})
+
+describe('the entry stays while its teardown waits on a port (decision 20)', () => {
+  it('a landing that answers while the transport is still closing: the entry stays, a second release joins the first', async () => {
+    const closing = deferred<'closed'>()
+    const w = world({ script: [...usualScript(), { close: closing }] })
+    adoptStdio(w, files, {
+      ...WITH_CREDENTIAL,
+      settings: { connectTimeout: VALUE(millis(50)) },
+    })
+    // The first start outlives its bound; the rebuild's start lands at once.
+    const stalled = stallingLanding(w.landing, only(1))
+    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'connection-unavailable' },
+    })
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+    const first = c.connections.release(alice, files)
+    await settled()
+    stalled.gate.resolve()
+    await settled()
+    // The late process is stopped and its handle released; the transport has not answered yet.
+    expect(w.landing.processes()).toEqual([{ stops: 0 }, { stops: 1 }])
+    expect(w.credentials.handles()).toEqual([
+      { acquired: 1, released: 1 },
+      { acquired: 1, released: 0 },
+    ])
+    const second = c.connections.release(alice, files)
+    let answered = false
+    void second.then(() => {
+      answered = true
+    })
+    await settled()
+    expect(answered).toBe(false)
+    closing.resolve('closed')
+    const released = { ok: { kind: 'released', process: 'tree-confirmed' } }
+    expect(await first).toEqual(released)
+    expect(await second).toEqual(released)
+    expect(await c.connections.release(alice, files)).toEqual({ ok: { kind: 'no-connection' } })
     expect(w.credentials.handles()).toEqual([
       { acquired: 1, released: 1 },
       { acquired: 1, released: 1 },

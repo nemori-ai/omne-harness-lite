@@ -16,6 +16,7 @@ import type {
   ProcessPurpose,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
+import { from, picker, type Which } from './calls.ts'
 import { deferred, type Deferred } from './deferred.ts'
 import type { Principal } from './values.ts'
 
@@ -39,19 +40,22 @@ export function stallingEligibility(
   }
 }
 
-/** The landing whose `start` waits on `gate` before it starts the process; `calls` counts the asks. */
+/**
+ * The landing whose `start` calls picked by `which` (every call unless given) wait on `gate`
+ * before they start the process; `calls` counts the asks.
+ */
 export function stallingLanding(
   port: ProcessLanding<Principal>,
+  which: Which = from(1),
 ): Readonly<{ port: ProcessLanding<Principal>; gate: Deferred<void>; calls: () => number }> {
   const gate = deferred<void>()
-  let count = 0
+  const asked = picker(which)
   return {
     gate,
-    calls: () => count,
+    calls: asked.calls,
     port: {
       async start(access, launch, env) {
-        count += 1
-        await gate.promise
+        if (asked.next()) await gate.promise
         return port.start(access, launch, env)
       },
     },
