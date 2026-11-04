@@ -195,6 +195,7 @@ export declare abstract class AgentMaterialsService<P, B extends ContentBlock> e
     constructor(ctx: Context);
     abstract readonly preserve: AgentMaterials<P, B>['preserve'];
     abstract readonly read: AgentMaterials<P, B>['read'];
+    abstract readonly describe: AgentMaterials<P, B>['describe'];
 }
 export declare const agentMaterialsKey = "agentMaterials";
 export declare abstract class RegisteredReadsService<P> extends Service implements RegisteredReads<P> {
@@ -240,6 +241,8 @@ export declare abstract class AgentJournalEntriesService<P> extends Service impl
     static readonly provide = "agentJournalEntries";
     constructor(ctx: Context);
     abstract readonly record: AgentJournalEntries<P>['record'];
+    abstract readonly read: AgentJournalEntries<P>['read'];
+    abstract readonly receivedOf: AgentJournalEntries<P>['receivedOf'];
 }
 export declare const agentJournalEntriesKey = "agentJournalEntries";
 export declare abstract class AgentReceivedCommitsService<P, B extends ContentBlock> extends Service implements AgentReceivedCommits<P, B> {

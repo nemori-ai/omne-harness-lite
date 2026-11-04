@@ -355,6 +355,7 @@ describe('unknown, tenancy and registration', () => {
     const { s } = await opened('preserve-unknown')
     const preserve = {
       ...s.access,
+      execution: s.execution,
       identity: 'material-1',
       consumer: { owner: 'session', work: 'work', position: 'at', purpose: 'action' },
       value: {

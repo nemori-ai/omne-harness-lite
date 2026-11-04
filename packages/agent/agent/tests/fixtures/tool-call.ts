@@ -1,5 +1,5 @@
 import { judgeBlockIdentity, type ContentBlock } from '@omne-harness/content-block'
-import type { Action, ExecutionSnapshot, PendingCall } from '@omne-harness/agent-contract'
+import type { ActionToolCall, ExecutionSnapshot, PendingCall } from '@omne-harness/agent-contract'
 import {
   createAgentToolReceiver,
   createToolReceiverState,
@@ -29,7 +29,7 @@ type Assembly = Awaited<ReturnType<typeof controlAssembly>>
 type CallAccount = NonNullable<Extract<ToolDelivery<ContentBlock>, { kind: 'result' }>['account']>
 export type AssociatedTool = Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
 
-export function toolCall(callId = 'tool-call-1', name = 'read_file'): Action['original'] {
+export function toolCall(callId = 'tool-call-1', name = 'read_file'): ActionToolCall {
   const identity = judgeBlockIdentity({
     id: `blk_${callId}`,
     visibility: { toHuman: true, toModel: true },
@@ -130,7 +130,7 @@ async function load(assembly: Assembly): Promise<ExecutionSnapshot> {
  */
 export async function deliverModelReply(
   assembly: Assembly,
-  parts: readonly (ContentBlock | Action['original'])[],
+  parts: readonly (ContentBlock | ActionToolCall)[],
   name: string,
   /** The input token count the dispatch reports as its account; none when omitted. */
   accountLexeme?: string,
@@ -200,7 +200,7 @@ export async function deliverModelReply(
 
 export async function deliverToolSuggestion(
   assembly: Assembly,
-  calls: readonly Action['original'][] = [toolCall()],
+  calls: readonly ActionToolCall[] = [toolCall()],
   accountLexeme?: string,
 ) {
   await deliverModelReply(assembly, calls, 'tools', accountLexeme)

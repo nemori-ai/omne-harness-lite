@@ -85,12 +85,37 @@ export type JournalEntryRecord<P> = ExecutionMutation<P> &
     | Readonly<{ authority: null; entry: ReceivedEntry }>
   )
 
+/** One committed receiving entry and its dense position `sequence` in commit order, from `1`. */
+export type JournalEntryItem = Readonly<{ sequence: string; entry: AgentJournalEntry }>
+
 /**
- * The port that records receiving entries. The provider of `AgentJournal` serves it in the same
- * authoritative ordering; see SPEC "日志条目".
+ * One page of `AgentJournalEntries.read`. `next` is the sequence of the last item, or the `after` of
+ * the request when the page is empty; it is the `after` of the next page. `caughtUp` says that no
+ * entry was committed after this page when it was read.
+ */
+export type JournalEntryPage = Readonly<{
+  items: readonly JournalEntryItem[]
+  next: string | null
+  caughtUp: boolean
+}>
+
+/**
+ * The port that records and reads receiving entries. The provider of `AgentJournal` serves it in the
+ * same authoritative ordering; see SPEC "日志条目". `read` gives the committed entries after `after`
+ * in commit order, at most `limit` of them. `receivedOf` gives every `received` entry of one
+ * consumption in commit order: result versions and account revisions alike. Both check the current
+ * read qualification of the execution; an execution of another tenant answers as one that does not
+ * exist, `denied`.
  */
 export interface AgentJournalEntries<P> {
   record(input: JournalEntryRecord<P>): Reply<CommandReceipt>
+  read(
+    input: Access<P> &
+      Readonly<{ execution: AgentExecutionId; after: string | null; limit: number }>,
+  ): Reply<JournalEntryPage>
+  receivedOf(
+    input: Access<P> & Readonly<{ execution: AgentExecutionId; consumption: ConsumptionId }>,
+  ): Reply<readonly ReceivedEntry[]>
 }
 
 /** One received delivery and its complete material, before the provider creates evidence. */

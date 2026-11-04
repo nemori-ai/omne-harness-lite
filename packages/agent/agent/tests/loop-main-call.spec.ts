@@ -22,6 +22,7 @@ import {
   operation,
   type Principal,
   withLineage,
+  loadWithEntries,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
 import {
@@ -56,7 +57,10 @@ function coordinator(assembly: LoopAssembly) {
   })
 }
 async function load(assembly: LoopAssembly) {
-  return ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+  return await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
 }
 async function pushed(assembly: LoopAssembly) {
   const pending = (await load(assembly)).effects[0]?.pending

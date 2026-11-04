@@ -30,6 +30,7 @@ import {
   otherTenant,
   producedResult,
   type Principal,
+  loadWithEntries,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
 import {
@@ -65,7 +66,10 @@ function coordinator(assembly: LoopAssembly, change: Partial<ExecutionEntry<Prin
 }
 
 async function load(assembly: LoopAssembly) {
-  return ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+  return await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
 }
 
 function route(at: AgentCheckpoint, change: Partial<ExecutionSnapshot> = {}) {
@@ -522,8 +526,11 @@ describe('R0 and W0 coordination', () => {
     assembly.release.open()
     await eventually(
       async () =>
-        ok(
-          await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+        (
+          await loadWithEntries(assembly.controls.journal.provider, {
+            ...alice,
+            execution: execution(),
+          })
         ).entries?.some(
           entry =>
             entry.kind === 'received' &&

@@ -105,6 +105,8 @@ export type HostRuntimeExtras = Required<Pick<AgentRuntimeExtras, 'failed'>>
 /** The statically injected services that the factory takes as they are. */
 export type HostStatics = Readonly<{
   journal: AgentJournal<unknown>
+  /** The receiving entries of the same Journal provider, read by the loop (agent-contract SPEC "日志条目" 6). */
+  entries: AgentDependencies<unknown, ContentBlock>['entries']
   access: AgentDependencies<unknown, ContentBlock>['access']
   models: ModelRuntime<unknown>
   adoptions: AgentDependencies<unknown, ContentBlock>['adoptions']

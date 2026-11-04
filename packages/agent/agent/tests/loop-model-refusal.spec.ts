@@ -10,7 +10,7 @@ import type { EffectIntent, FinishCandidateContent } from '@omne-harness/agent-c
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ModelFailure } from '@omne-harness/model-contract'
 import { fail } from '@omne-harness/operation-result'
-import { execution, ok, type Principal } from './journal-support.ts'
+import { execution, ok, type Principal, loadWithEntries } from './journal-support.ts'
 import { alice, eventually, invoke, loopAssembly, type LoopAssembly } from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
@@ -69,7 +69,10 @@ function refusing(
 }
 
 async function read(assembly: LoopAssembly) {
-  return ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+  return await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
 }
 
 describe('M6 with an admission the Model does not accept (R2-D237)', () => {

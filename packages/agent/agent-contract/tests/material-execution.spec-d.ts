@@ -1,11 +1,23 @@
 import { expectTypeOf, it } from 'vitest'
-import type { AgentExecutionId, AgentMaterials } from '@omne-harness/agent-contract'
+import type {
+  AgentExecutionId,
+  AgentMaterials,
+  DurableEvidence,
+  MaterialDescription,
+} from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 
-type Input = Parameters<AgentMaterials<string, ContentBlock>['preserve']>[0]
+type Port = AgentMaterials<string, ContentBlock>
+type Input = Parameters<Port['preserve']>[0]
 
-it('accepts an explicit execution while retaining the legacy preserve input', () => {
-  expectTypeOf<Input['execution']>().toEqualTypeOf<AgentExecutionId | undefined>()
-  expectTypeOf<Omit<Input, 'execution'>>().toExtend<Input>()
-  expectTypeOf<Input & { execution: AgentExecutionId }>().toExtend<Input>()
+it('requires the execution of every preserve: the legacy input without it is gone', () => {
+  expectTypeOf<Input['execution']>().toEqualTypeOf<AgentExecutionId>()
+  expectTypeOf<Omit<Input, 'execution'>>().not.toExtend<Input>()
+})
+
+it('describes a material by its source alone, without its content', () => {
+  expectTypeOf<Parameters<Port['describe']>[0]['source']>().toEqualTypeOf<DurableEvidence>()
+  expectTypeOf<MaterialDescription>().toEqualTypeOf<
+    Readonly<{ digest: string; size: number; kind: 'model' | 'tool' | 'facts' }>
+  >()
 })

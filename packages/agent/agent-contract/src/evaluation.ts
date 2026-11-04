@@ -1,7 +1,7 @@
 // Pure evaluation types of the Agent contract (README, "身份、原位置与纯求值"): the facts the loop
 // reads, the next step it returns, and the evaluator port. Types only; no function runs here.
 import type { Outcome } from '@omne-harness/operation-result'
-import type { Message, ToolPart } from '@omne-harness/message'
+import type { Message, ToolCallPart } from '@omne-harness/message'
 import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
 import type { ControlRecord, ResultResponsibility } from './execution.ts'
@@ -145,14 +145,24 @@ export type PendingCall = PendingCommon &
           | Readonly<{ association: 'associated'; reference: T.ToolInvocationRef }>
         ))
   )
+/**
+ * The judgment of one action. `allowed.request` is the evidence of the preserved `ToolInvokeRequest`:
+ * the request body lives in the material, not in the judgment (SPEC "工具执行与结果承接").
+ */
 export type ActionJudgment =
   | Readonly<{ kind: 'pending'; passage: PassageId }>
   | Readonly<{ kind: 'waiting'; passage: PassageId; cards: readonly DurableEvidence[] }>
   | Readonly<{ kind: 'denied'; evidence: DurableEvidence }>
-  | Readonly<{ kind: 'allowed'; evidence: DurableEvidence; request: T.ToolInvokeRequest }>
+  | Readonly<{ kind: 'allowed'; evidence: DurableEvidence; request: DurableEvidence }>
+/** The `tool_call` part of the reply that an action comes from, as the ports that judge it take it. */
+export type ActionToolCall = ToolCallPart
+/**
+ * One action of a batch. `original` names the `tool_call` part of the batch source by its call id;
+ * the part itself is read back from the preserved reply, not kept here.
+ */
 export type Action = Readonly<{
   id: ActionId
-  original: ToolPart & Readonly<{ kind: 'tool_call' }>
+  original: Readonly<{ callId: string }>
   effectiveArguments: string
   judgment: ActionJudgment
   call: PendingCall | null
@@ -169,10 +179,15 @@ export type ActionBarrier =
       approved: readonly [ActionId, ...ActionId[]]
     }>
   | Readonly<{ kind: 'all-denied'; evidence: DurableEvidence }>
+/**
+ * One slot of a batch. The candidate message is not kept: it is computed again from the preserved
+ * result and the passage conclusions. `candidateDigest` is the digest of that candidate when the
+ * single-result passage ended; a candidate computed again with another digest is `invalid`.
+ */
 export type ActionSlot = Readonly<{
   action: ActionId
   each: readonly PassageId[] | null
-  candidate: Message | null
+  candidateDigest: string | null
   handoff: HandoffReference | null
 }> &
   (

@@ -251,11 +251,13 @@ export function createTestAgentDependencies<P>(
   }
   controls.materials.preserve.always(input => journal.provider.materials.preserve(input))
   controls.materials.read.always(input => journal.provider.materials.read(input))
+  controls.materials.describe.always(input => journal.provider.materials.describe(input))
   return {
     durability: 'none',
     controls,
     dependencies: {
       journal: controls.journal.port,
+      entries: journal.provider.entries,
       access: controls.access.port,
       models: pusher?.provider.runtime ?? models.provider.runtime,
       tools: controls.tools.port,

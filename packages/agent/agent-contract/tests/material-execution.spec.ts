@@ -11,7 +11,7 @@ function ok<T>(value: { ok: T } | { failure: unknown }): T {
   return value.ok
 }
 
-it('uses the explicit execution and refuses a different consumer binding', async () => {
+it('uses the required execution and refuses a different consumer binding', async () => {
   const access = {
     principal: 'owner',
     tenant: testingTenant(`org_${'0'.repeat(26)}`, `acc_${'1'.repeat(26)}`),
@@ -39,7 +39,7 @@ it('uses the explicit execution and refuses a different consumer binding', async
     failure: { kind: 'denied' },
   })
   const source = ok(await fixture.joint.materials.preserve({ ...input, execution }))
-  expect(ok(await fixture.joint.materials.preserve(input))).toEqual(source)
+  expect(ok(await fixture.joint.materials.preserve({ ...input, execution }))).toEqual(source)
   expect(ok(await fixture.joint.materials.read({ ...access, source }))).toEqual(value)
   fixture.joint.qualify(access, execution, 'denied')
   expect(await fixture.joint.materials.preserve({ ...input, execution })).toMatchObject({
