@@ -63,7 +63,7 @@ export function decodeCommandCall(
   value: JsonValue,
 ): Outcome<CommandCall, CommandCallRejection> {
   if (value.kind !== 'object') return fail({ kind: 'not-object' })
-  const selected = selectCommand(commands, value)
+  const selected = commandIn(commands, value)
   if ('failure' in selected) return selected
   const command = selected.ok
   const rest = value.entries.filter(entry => entry.key !== COMMAND_FIELD)
@@ -84,7 +84,13 @@ export function selectCommand(
   commands: readonly string[],
   value: JsonValue,
 ): Outcome<string, CommandCallRejection> {
-  if (value.kind !== 'object') return fail({ kind: 'not-object' })
+  return value.kind === 'object' ? commandIn(commands, value) : fail({ kind: 'not-object' })
+}
+
+function commandIn(
+  commands: readonly string[],
+  value: JsonObject,
+): Outcome<string, CommandCallRejection> {
   const named = value.entries.find(entry => entry.key === COMMAND_FIELD)
   if (named === undefined || named.value.kind !== 'string') return fail({ kind: 'command-missing' })
   const command = named.value.value
@@ -153,10 +159,8 @@ export function commandArguments(
   return succeed({ ...args, effective: writeJsonText(call.ok.params) })
 }
 
-function member(value: JsonValue | undefined, key: string): JsonValue | undefined {
-  return value?.kind === 'object'
-    ? value.entries.find(entry => entry.key === key)?.value
-    : undefined
+function member(value: JsonValue, key: string): JsonValue | undefined {
+  return value.kind === 'object' ? value.entries.find(entry => entry.key === key)?.value : undefined
 }
 function strings(value: JsonValue | undefined): readonly string[] {
   return value?.kind === 'array'

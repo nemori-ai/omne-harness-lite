@@ -263,6 +263,20 @@ describe('command call encodings', () => {
     expect(judgeToolDefinition(mixed)).toMatchObject({
       failure: { reason: `flat-conflict:${first.name}` },
     })
+    // A schema without properties declares no field, so it cannot clash.
+    const empty = {
+      ...clash,
+      commands: [
+        {
+          ...clash.commands[0]!,
+          parameters: {
+            kind: 'declared' as const,
+            value: { ...first.parameters.value, schema: json('{"type":"object"}') },
+          },
+        },
+      ],
+    }
+    expect(judgeToolDefinition(empty)).toHaveProperty('ok')
     // An executor-owned command cannot promise that it has no field named command.
     expect(judgeToolDefinition(definition)).toMatchObject({
       failure: { reason: 'flat-conflict:shell' },

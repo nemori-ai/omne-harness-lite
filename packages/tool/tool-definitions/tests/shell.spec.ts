@@ -73,6 +73,10 @@ it('retains terminal cwd through the fixture and never falls back for invalid or
   expect(await run(author, 'execute', { terminal, script: 'pwd' }, fixture.environment)).toContain(
     '/next',
   )
+  // info lists each live terminal on its own line after the placement facts.
+  expect(await run(author, 'info', {}, fixture.environment)).toContain(
+    '\nterminal={"id":"session","generation":"1"} state=idle observed_cwd="/next"',
+  )
   await run(
     author,
     'execute',
