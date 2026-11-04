@@ -1,7 +1,8 @@
 // The governance location (SPEC「治理位置」): `register-and-activate` and `issue-login` go to
 // identity's public operations without a login check; the four stage operations and the operations
 // this deployment declares not provided get `stage-not-provided` before any login check; the other
-// eighteen take steps 4 and 6 of the judgment order here and go to identity's governance port. A
+// eighteen take steps 4 and 6 of the judgment order here and go to identity's governance port; the
+// three model credential operations take the same steps and go to the model credential port. A
 // thrown identity call leaves the entry with no trustworthy answer, except `create-organization`,
 // whose result set has the wire `unknown`.
 import type { JsonLimits } from '@omne-harness/json-text'
@@ -27,6 +28,7 @@ import { OUTPUT_LIMITS } from './config.ts'
 import { loginTextOf, tenantTextOf } from './derivation.ts'
 import { emit, type DiagnosticSink } from './diagnostics.ts'
 import { isRefusal, type Caller, type IdentitySteps } from './identity-steps.ts'
+import type { ModelCredentialAccess, ModelCredentialCustody } from './model-credentials.ts'
 import { STATUS_BY_OUTCOME, type PublicOutcome } from './status.ts'
 
 /**
@@ -53,7 +55,19 @@ export const NOT_PROVIDED_GOVERNANCE_OPERATIONS = Object.freeze([
 
 type NotProvided = (typeof NOT_PROVIDED_GOVERNANCE_OPERATIONS)[number]
 
-/** The operations this location answers itself: the two without a login, and the eighteen governed ones. */
+/**
+ * The model credential operations (SPEC「模型凭据」). The entry provides them only when the assembly
+ * gives a `modelCredentials` port; without it they answer `stage-not-provided` like the declared ones.
+ */
+export const MODEL_CREDENTIAL_OPERATIONS = Object.freeze([
+  'bind-model-credential',
+  'unbind-model-credential',
+  'describe-model-credential',
+] as const) satisfies readonly GovernanceProvidedOperation[]
+
+type CredentialOperation = (typeof MODEL_CREDENTIAL_OPERATIONS)[number]
+
+/** The operations this location answers itself: the two without a login, the eighteen governed ones and the three credential ones. */
 type Handled = Exclude<GovernanceProvidedOperation, NotProvided>
 
 export type GovernanceContext = Readonly<{
@@ -62,6 +76,8 @@ export type GovernanceContext = Readonly<{
   steps: IdentitySteps
   /** Ends every observation of one login on this instance with `ended(denied)` (SPEC「登录失效时结束观察」). */
   endObservationsOf: (loginText: string) => void
+  /** Absent: the three model credential operations are not provided by this deployment. */
+  modelCredentials: ModelCredentialCustody | undefined
   readLimits: JsonLimits
   diagnostics: DiagnosticSink | undefined
 }>
@@ -70,6 +86,7 @@ type Reply = JsonAnswer | NoAnswer
 
 const VERSION = 'governance-public/1'
 const NOT_PROVIDED: ReadonlySet<string> = new Set(NOT_PROVIDED_GOVERNANCE_OPERATIONS)
+const CREDENTIAL: ReadonlySet<string> = new Set(MODEL_CREDENTIAL_OPERATIONS)
 
 /** The business responses of one operation without the head: the outcome and its body. */
 type Wire<O extends GovernanceProvidedOperation> =
@@ -220,6 +237,38 @@ async function governed(
     return onRejected === 'unknown' ? answer(bare('unknown')) : { kind: 'no-answer' }
   }
   return answer(wire)
+}
+
+/**
+ * The model credential operations: step 4 (the login), step 6 (the acting tenant is the login's
+ * current selection), then the acting principal for that tenant, issued only when its account is
+ * the login's account. The port decides the rest. A rejected `bind` or `unbind` may have written,
+ * so it answers `unknown`; a rejected `describe` wrote nothing and answers `basis-unavailable`.
+ */
+async function credential(
+  request: GovernanceRequest<CredentialOperation>,
+  context: GovernanceContext,
+  call: (port: ModelCredentialCustody, access: ModelCredentialAccess) => Promise<LooseWire>,
+): Promise<Reply> {
+  const answer = (wire: LooseWire): Reply =>
+    respond(request.operation, request.messageId, wire, context.diagnostics)
+  const port = context.modelCredentials
+  // Only a request for a provided operation reaches a handler; this guards the type.
+  if (port === undefined) return answer(bare('basis-unavailable'))
+  const caller = await context.steps.recognize(request.proof)
+  if (isRefusal(caller)) return answer(bare(caller.outcome))
+  const tenant = request.actingTenant
+  if (tenantTextOf(tenant) !== tenantTextOf(caller.tenant)) return answer(bare('denied'))
+  const principal = await context.steps.actingFor(caller, tenant)
+  if (isRefusal(principal)) return answer(bare(principal.outcome))
+  try {
+    return answer(await call(port, { principal, tenant }))
+  } catch {
+    emit(context.diagnostics, { code: 'model-credential.fault', operation: request.operation })
+    return answer(
+      bare(request.operation === 'describe-model-credential' ? 'basis-unavailable' : 'unknown'),
+    )
+  }
 }
 
 function invitationItem(invitation: MemberInvitation) {
@@ -504,10 +553,33 @@ const HANDLERS: { readonly [O in Handled]: Handler<O> } = {
       if (first === undefined) return bare('basis-unavailable')
       return { outcome: 'succeeded', body: { logins: [first, ...rest], completeness: 'complete' } }
     }),
+
+  'bind-model-credential': (request, context) =>
+    credential(request, context, async (port, access) => {
+      const outcome = await port.bind({ access, secret: request.body.secret })
+      if (outcome.kind !== 'succeeded') return bare(outcome.kind)
+      return { outcome: 'succeeded', body: { configuredAt: outcome.configuredAt } }
+    }),
+
+  'unbind-model-credential': (request, context) =>
+    credential(request, context, async (port, access) =>
+      bare((await port.unbind({ access })).kind),
+    ),
+
+  'describe-model-credential': (request, context) =>
+    credential(request, context, async (port, access) => {
+      const outcome = await port.describe({ access })
+      if (outcome.kind !== 'succeeded') return bare(outcome.kind)
+      return { outcome: 'succeeded', body: outcome.credential }
+    }),
 }
 
-function isHandled(request: GovernanceRequest): request is GovernanceRequest<Handled> {
-  return !NOT_PROVIDED.has(request.operation)
+function isHandled(
+  request: GovernanceRequest,
+  context: GovernanceContext,
+): request is GovernanceRequest<Handled> {
+  if (NOT_PROVIDED.has(request.operation)) return false
+  return context.modelCredentials !== undefined || !CREDENTIAL.has(request.operation)
 }
 
 function dispatch<O extends Handled>(
@@ -526,7 +598,7 @@ export async function handleGovernance(
   const read = readGovernanceRequest({ bytes, limits: context.readLimits })
   if (read.kind !== 'request') return governanceRefusal(read.response)
   const { request } = read
-  if (!isHandled(request))
+  if (!isHandled(request, context))
     return governanceRefusal({
       protocolVersion: VERSION,
       messageId: request.messageId,

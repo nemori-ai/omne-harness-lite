@@ -26,6 +26,7 @@ export type {
   GovernanceResponseRead,
   GovernanceEncodeResult,
   GovernanceResponseEncodeInput,
+  ModelCredentialState,
 } from './messages.ts'
 export type {
   SessionOperation,

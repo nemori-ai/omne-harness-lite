@@ -7,6 +7,14 @@ import {
 } from '@omne-harness/model-contract/provider'
 import { fieldOf } from './fields.ts'
 
+/** A binding as this custody keeps it: the Model binding plus the time it was configured, when known. */
+export type LocalBinding = Binding & { readonly configuredAt?: string }
+
+/** The custody state over local bindings. It is a `CustodianState`, so the Model judgment reads it as is. */
+export type LocalState = Omit<CustodianState, 'bindings'> & {
+  readonly bindings: readonly LocalBinding[]
+}
+
 export type StoredTenant = {
   readonly organization: string
   readonly account: string
@@ -18,6 +26,8 @@ export type StoredBinding = {
   readonly purpose: CredentialPurpose
   readonly secret: string
   readonly life: BindingLife
+  /** The instant text of the last bind. Snapshots written before this field have no time. */
+  readonly configuredAt?: string
 }
 
 export type StoredCustodian = {
@@ -26,13 +36,13 @@ export type StoredCustodian = {
   readonly bindings: readonly StoredBinding[]
 }
 
-export function loadState(raw: unknown): CustodianState | undefined {
+export function loadState(raw: unknown): LocalState | undefined {
   const closed = fieldOf(raw, 'closed')
   const factorySecret = text(fieldOf(raw, 'factorySecret'))
   const rows = fieldOf(raw, 'bindings')
   if (typeof closed !== 'boolean' || factorySecret === undefined) return undefined
   if (!Array.isArray(rows)) return undefined
-  const bindings: Binding[] = []
+  const bindings: LocalBinding[] = []
   const seen = new Set<string>()
   for (const row of rows) {
     const parsed = loadBinding(row)
@@ -45,7 +55,7 @@ export function loadState(raw: unknown): CustodianState | undefined {
   return { closed, factorySecret, bindings }
 }
 
-export function storeState(state: CustodianState): StoredCustodian {
+export function storeState(state: LocalState): StoredCustodian {
   return {
     // A process close stays in memory. The next open reads the bindings.
     closed: false,
@@ -56,11 +66,12 @@ export function storeState(state: CustodianState): StoredCustodian {
       purpose: item.purpose,
       secret: item.secret,
       life: item.life,
+      ...(item.configuredAt === undefined ? {} : { configuredAt: item.configuredAt }),
     })),
   }
 }
 
-function loadBinding(row: unknown): Binding | undefined {
+function loadBinding(row: unknown): LocalBinding | undefined {
   const stored = storedRow(row)
   if (!stored) return undefined
   const id = decodeCredentialId(stored.id)
@@ -73,6 +84,7 @@ function loadBinding(row: unknown): Binding | undefined {
     purpose: MODEL_SEND,
     secret: stored.secret,
     life: stored.life,
+    ...(stored.configuredAt === undefined ? {} : { configuredAt: stored.configuredAt }),
   }
 }
 
@@ -83,6 +95,7 @@ function storedRow(row: unknown):
       readonly organization: string
       readonly account: string
       readonly life: BindingLife
+      readonly configuredAt?: string
     }
   | undefined {
   const tenantRow = fieldOf(row, 'tenant')
@@ -91,10 +104,20 @@ function storedRow(row: unknown):
   const organization = text(fieldOf(tenantRow, 'organization'))
   const account = text(fieldOf(tenantRow, 'account'))
   const life = bindingLife(fieldOf(row, 'life'))
+  const time = fieldOf(row, 'configuredAt')
   if (!id || secret === undefined || fieldOf(row, 'purpose') !== MODEL_SEND || !life)
     return undefined
   if (!organization || !account) return undefined
-  return { id, secret, organization, account, life }
+  // An absent time is an old snapshot. A time that is present but not text is a corrupt one.
+  if (time !== undefined && typeof time !== 'string') return undefined
+  return {
+    id,
+    secret,
+    organization,
+    account,
+    life,
+    ...(time === undefined ? {} : { configuredAt: time }),
+  }
 }
 
 function text(value: unknown): string | undefined {

@@ -1,7 +1,9 @@
 // The `model-request-preparation` row (application assembly, MD-15): the model-host-local
 // preparation plugin with the real OpenAI family. It injects `modelCommands` only, so `prepare` and
 // the metering leases need neither `modelRuntime` nor a supplier network. The plugin also provides
-// `modelPreparationResources` on its fiber; the row table lists the first key only.
+// `modelPreparationResources` on its fiber; the row table lists the first key only. The supplier
+// completion reads `modelCredential` per call to choose the tenant or the factory reference
+// (`src/model/tenant-credential.ts`).
 //
 // The plugin class takes its family bindings and its supplier completion as objects, not as
 // configuration. The row body builds them from the row configuration, then loads the plugin as a
@@ -9,6 +11,7 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import {
   modelCommandsKey,
+  modelCredentialKey,
   modelRequestPreparationKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { createModelRequestPreparationPlugin } from '@omne-harness/model-host-local/cordis'
@@ -16,9 +19,7 @@ import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-a
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { defineRow } from '../../row.ts'
 import { modelRequestPreparationConfig, type ModelRequestPreparationConfig } from './config.ts'
-import { factorySupplier } from './supplier.ts'
-
-export { factorySupplier } from './supplier.ts'
+import { tenantCredentialSupplier } from '../../model/tenant-credential.ts'
 
 const plugin: Plugin.Object = {
   name: 'model-request-preparation',
@@ -34,7 +35,9 @@ const plugin: Plugin.Object = {
     ])
     const preparation = createModelRequestPreparationPlugin({
       bindings,
-      supplierOf: factorySupplier,
+      // `modelCredential` is read per call: a missing custody stops a preparation, it does not hold
+      // the row PENDING, and it never falls back to the factory reference.
+      supplierOf: tenantCredentialSupplier(() => ctx.get(modelCredentialKey)),
     })
     await ctx.plugin(preparation.plugin, { maxCitedCalls: config.maxCitedCalls })
   },

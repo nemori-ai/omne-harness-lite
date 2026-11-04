@@ -61,3 +61,49 @@ N4 是不可观察的变异。`clean` 只在 ACK 之后被调用，而且 Comman
 - 一个调用、一个 owner。不建模冻结失败、冻结读取、`maxConcurrentCalls`、停止、后继插件、SQL 持久化与跨进程。
 - 内存 Commands 的未决写只有「立即可见」一种效果，模型里的 `pending`（之后落地）没有内存对应物。SQL Commands 是否保证排除前 recall 一定答 `commit-unknown`，本次没有核对。见 [formal-runs.md](formal-runs.md#需要确认的点) 的 D1。
 - 进展性质要求 `RefusalsInPlay = FALSE`。见 D2。
+
+## 发送边界
+
+[SendBoundary.tla](SendBoundary.tla) 检查 Model 产品发送边界与 runtime driver 对一个 dispatch 的全部出口（R2-D359、R2-D366）。出口表与结局的规则归 Model SPEC「[发送边界的出口](../../../model/SPEC.md#发送边界的出口)」。实现在 `@omne-harness/model`：`src/send/attempt.ts` 与 `src/driver.ts`。
+
+### 性质
+
+| 编号 | 性质 | 违背后果 | 守卫 |
+| --- | --- | --- | --- |
+| S1 | `FinalDecided`：凭据缺失或读不出时，调用最终结算，或者 driver 以确定拒绝结束 | 调用方一直等，调用不结算，份额不归还 | `send-credential-terminal.spec.ts`、`send.spec.ts` 的明确拒绝与释放失败用例 |
+| S2 | `FinalSettlesUnlessStolen`：本实例保有执行时，终局拒绝以 credential 失败结算 | 同上 | `send-credential-terminal.spec.ts` |
+| S3 | `NoCredFailureAfterStart`：传输已经 start 的调用不会带上 credential 终止 | 已发出字节、可能已计费的调用被报成「凭据缺失」 | `send.spec.ts`「recognizes an unknown not-sent record without resolving credentials a second time」 |
+| S4 | `AtMostOneTerminal`：未确认的终止写重试时，不写第二个终止 | 同一调用两条终止事实 | `send.spec.ts`「retries an unconfirmed credential terminal with the same operation」 |
+| 已知 | `RefusalDecided`：凭据端口答 `unavailable` 时也能定局。不成立，是 SPEC 出口表的已知限制 | 调用方一直等 | 无，交 Model 拥有者裁定 |
+
+### 模型与源码
+
+| 模型 | 源码 |
+| --- | --- |
+| `Resolve` | `attempt.ts` 的 `startQualified` 与 `start`：围栏内解析一次，`value` 立即 start |
+| `RecordWrite`、`RecordReplay`、`RecordRejected` | `recordStarted` 与 `write`：未确认先查询原 operation 再重放；明确拒绝走 `rejectedRefusal` |
+| `TerminalWrite`、`TerminalReplay`、`TerminalRejected` | `terminalStage` 与 `recordTerminal`：终止写的 operation 固定在阶段里 |
+| `RejectedAnswer` 的 `released` | `stopFinal`：释放失败保留尝试与容量，答复仍是确定拒绝 |
+| `rec.window`、窗口守卫 | Commands 的 `preserve`：窗口不是 `open` 时答 `invalid`（`window`、`not-open`） |
+| `DriveAgain` | driver 的 `sendDispatch`：unknown 时阶段仍是 `send`，下一次 drive 交同一 demand |
+| `NotStarted`、`ReadRecord` | driver 的 `not-sent` 阶段、`settleNotSent`、`notSentTerminal`：读失败返回失败并保留阶段 |
+| `Settle` | driver 的 `finish`：结算写；接管后答 `stale-instance` |
+| `Steal` | 另一个实例认领执行，或竞争写改变了调用：之后本实例的写都被明确拒绝 |
+| `Flip` | 租户解绑或重新绑定 |
+
+### 负控
+
+| 配置 | 去掉的守卫 | 对应的源码变异 |
+| --- | --- | --- |
+| `bad-send-rejection-unavailable` | 明确拒绝答成凭据的 `unavailable`（N1 原状） | `rejectedRefusal` 与 `recordTerminal` 改回旧答复：明确拒绝用例变红 |
+| `bad-send-release-overrides` | 释放失败把确定拒绝改成 `unavailable` | `stopFinal` 改回 `stop`：释放失败用例变红 |
+| `bad-send-read-failure-drops` | 读记录失败当作没有终止（N2 原状） | `notSentTerminal` 读失败答 `{ ok: null }`：两条重读用例变红 |
+| `bad-send-retry-new-op` | 重试换新 operation，并去掉窗口守卫 | `DriveAgain` 换 operation：同一 operation 用例变红 |
+| `bad-send-re-resolve` | 重试重新解析凭据 | 无单独变异；`send.spec.ts` 的「不再解析」用例守着 |
+| `send-retry-new-op-window` | 只换新 operation，保留窗口守卫 | 正控：窗口守卫单独也守住 S4，两道守卫互为冗余 |
+
+### 抽象
+
+- 一个 dispatch，一个实例。结算写之外不建模重试决定、新的 dispatch、取消与跨进程恢复。
+- `MaxFaults` 是写确认丢失与读记录失败的总次数。活性依赖它有界，以及 driver 被再次驱动（`WF_vars(Proc)`）。
+- 已经 start 的流只建模为一次接收与结算，不建模流内事实。

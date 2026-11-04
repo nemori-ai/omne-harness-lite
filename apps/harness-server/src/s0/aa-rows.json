@@ -162,6 +162,14 @@
       ]
     },
     {
+      "row": "model-credential",
+      "names": [
+        "principalVerifier",
+        "tenantStanding",
+        "modelCredentialCustody"
+      ]
+    },
+    {
       "row": "model-records",
       "names": [
         "storage",
@@ -221,7 +229,8 @@
       "names": [
         "principalIssuer",
         "definitionMappings",
-        "identityGovernance"
+        "identityGovernance",
+        "modelCredentialCustody"
       ]
     }
   ]

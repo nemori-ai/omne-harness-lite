@@ -77,6 +77,9 @@ const bodies = {
     parameters: {},
   },
   'withdraw-authorization-expression': { expressionId: 'expression' },
+  'bind-model-credential': { secret: 'model-secret' },
+  'unbind-model-credential': {},
+  'describe-model-credential': {},
 } satisfies Record<GovernanceProvidedOperation, object>
 const anonymous = ['public-health', 'register-and-activate', 'issue-login']
 const loginOnly = [

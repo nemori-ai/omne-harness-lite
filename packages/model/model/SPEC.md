@@ -105,8 +105,8 @@ quiesce 返回十进制字符串 `{ pending, running }`。`running` 是本 provi
 | 结果          | 含义                                             | 发送端行为                                                   |
 | ------------- | ------------------------------------------------ | ------------------------------------------------------------ |
 | `value`       | 当前资格允许                                     | 发出，并记下本次采用的值。`scope` 为 `tenant` 或 `factory`。 |
-| `absent`      | 没有这份凭据                                     | 不发送。                                                     |
-| `unreadable`  | 引用在，值暂时读不出                             | 不发送。                                                     |
+| `absent`      | 没有这份凭据                                     | 不发送。产品发送边界把本次调用终结为失败，见下文。           |
+| `unreadable`  | 引用在，值暂时读不出                             | 不发送。产品发送边界把本次调用终结为失败，见下文。           |
 | `denied`      | 跨租户、用途不符、无发送资格、已撤销或保管已关闭 | 不发送。                                                     |
 | `unavailable` | 保管或存储暂时不能判断                           | 不发送，也不得报成 `absent`。                                |
 
@@ -421,7 +421,18 @@ factory 的精确采用、官方身份、当前无 tenant 绑定及查询 ID 来
 
 `official` 取自已登记的 `ModelSendSource.credential`。登记来源的 `kind` 为 `factory` 时，显式选择 tenant 凭据也保留该来源的 `official`；登记来源的 `kind` 为 `tenant` 时才取 false。tenant 选择只解析原 ID，且要求返回 tenant 范围的值，不接受 factory 范围的结果。旧 `resolve` 与 `SendFace` 路径的行为保留，不参与产品发送边界。
 
-absent、unreadable、unavailable 保留不同的 model-credential 安全诊断；denied 保持拒绝。解析、start、事实读取及释放的异常正文不进入业务诊断。秘密只交给原资源的同步私有槽。资源提供者须核物化对象归属，清除临时秘密，并发送回执对应内容。
+absent、unreadable、unavailable 保留不同的 model-credential 安全诊断；denied 保持拒绝。
+
+凭据缺失与读不出不会自己恢复，所以产品发送边界把它们当作本次调用的确定失败，不让调用方等待：
+
+1. 边界记下 not-sent 发送记录。
+2. 边界在本尝试开的接收窗口里写一条终止事实：`{ kind: 'failed', fault: { cause: 'credential', diagnostic, upstreamStatus: null } }`。absent 的 `diagnostic` 是 `credential-missing`，unreadable 的是 `credential-unreadable`。没有字节发往上游，所以 `upstreamStatus` 为 null。
+3. 边界释放资源，返回 not-started，`failure` 仍是 `unavailable`，依赖为 `model-credential`，诊断同上。
+4. driver 读到这条 not-sent 发送记录带有失败终止，就用它结算本次调用。调用进入 settled，终止为上述失败。
+
+终止写未确认时，边界返回 unknown，诊断为 `credential-terminal-unconfirmed`，并保留原写。重试先查询原 operation，再重放同一写，不生成新的 operation。
+
+denied 与 unavailable 不写终止：denied 以确定拒绝结束、不结算；unavailable 的出口见「发送边界的出口」的已知限制。解析、start、事实读取及释放的异常正文不进入业务诊断。秘密只交给原资源的同步私有槽。资源提供者须核物化对象归属，清除临时秘密，并发送回执对应内容。
 
 每个原写在首次提交前固定完整参数，operation 使用具有128位熵的随机值生成。未确认写先 query 原 operation，确定后重放原方法和参数，不改 expected、dispatch 或 payload。查询拒绝、异常或仍未知不证明原写未提交，原尝试、资源和容量继续保留。已确认 committed 但原方法暂不能返回回执时，同样保留原责任；只有权威未提交且原写明确拒绝才可按未提交结束。物化或窗口未知保留资源但零 start。已明确未发的资格拒绝不会因原 not-sent 写的已知冲突改称未知发送；未确认记录仍保留原责任。已经可能 start 的异常或记录冲突始终 unknown，不改报未发。
 
@@ -430,3 +441,45 @@ start 返回事实而记录未确认时，原流和资源由 sender 有界保留
 交出 facts 后只允许一个 iterator，推进串行。耗尽、return、throw 或读取异常均按 materialized、prepared、resource 逆序尝试全部释放，各钩子最多一次。失败抛安全 resource-release-failed，保持可观察且继续占位。signal 只向原传输请求停止，sender 不在 abort 回调关闭原事实流。正常释放才删除本地尝试；后续 send 仍读权威 dispatch，不会再次 start。关闭、跨进程恢复、生产有界调度及完整控制排空不在此构造的实现范围。
 
 内存测试的来源登记以 [commands/types.ts](src/commands/types.ts) 的 `ModelSendSource` 为准，同步围栏以 [testing/state.ts](src/testing/state.ts) 为准。SQL 实现的协调器（`@omne-harness/model-storage-sql` 的 `createSendMirror`）只有一处例外：主体获准、调用不在本进程镜像时，它答 `unavailable`（`qualification-unavailable`），内存实现答 `not-found`；主体未获准时两者都答 `denied`。缺 sending 配置没有默认成功凭据。脚本仅模拟外部传输；产品不得依赖 testing。共同 started 结果交出已确认的原 window 和唯一 facts 流。消费者使用 result.window 保存该流，Commands 仍核原 tenant、call、execution、dispatch 与 window 绑定。window 不授予访问权。driver 已接入该唯一事实消费者，按原窗口批量确认后发布。
+
+### 发送边界的出口
+
+下表列出产品发送边界与 driver 的全部出口。「结局」一列说明调用方会不会无限等待：
+
+- 「结算」：调用进入 settled。
+- 「确定拒绝」：driver 以非 `unavailable` 的失败结束本次驱动。拒绝的原因归另一个拥有者，例如接管执行的实例、胜出的写或访问判定。
+- 「重试」：同一驱动的下一次 drive 继续原阶段，原写只重放，不重新解析，也不再次 start。重试只消耗有界的瞬时故障，之后落到前两种结局。
+- 「等待」：driver 停在 `failed`，失败为 `unavailable`，调用不结算。这是已知限制，见本表最后一组。
+
+凭据缺失与读不出（终局拒绝）：
+
+| 步骤与存储答复 | 边界答复 | driver | 结局 |
+| --- | --- | --- | --- |
+| not-sent 记录确认，终止写确认 | not-started，`unavailable`（`credential-missing` 或 `credential-unreadable`） | 读记录，有终止，结算 | 结算，`cause: credential` |
+| 终止写确认后释放失败 | 同上，尝试与容量保留 | 读记录，有终止，结算 | 结算 |
+| not-sent 记录或终止写未确认（已落地或未落地） | unknown，原写保留 | 下一次 drive 重放同一 operation | 重试 |
+| not-sent 记录或终止写被明确拒绝（`stale-instance`、`conflict`、`denied`） | not-started，失败就是这次拒绝 | 读记录：拒绝前已落地终止就结算，否则以该拒绝结束 | 结算或确定拒绝 |
+| 明确拒绝后释放失败 | 同上，尝试与容量保留，重复 send 答 unknown `resource-release-failed` | 同上 | 结算或确定拒绝 |
+| 任一情况下读记录失败或抛出 | 不适用 | 保留「按记录结算」阶段，返回读取失败，下一次 drive 重读 | 重试 |
+| 结算写遇到接管 | 不适用 | 以 `stale-instance` 结束 | 确定拒绝 |
+
+其他解析结果：
+
+| 步骤与存储答复 | 边界答复 | driver | 结局 |
+| --- | --- | --- | --- |
+| value：记录确认 | started，交出原流 | 接收并按流的终止结算 | 结算 |
+| value：记录未确认或被拒绝 | unknown，原流保留，不再 start | 重试原写 | 重试；执行被接管时一直是 unknown，见已知限制 |
+| denied 或 scope 错配 | not-started，`denied` 或 `invalid` | 读记录，无终止，以该拒绝结束 | 确定拒绝 |
+
+已知限制：下列出口仍让调用方等待，本次没有改。前三行的失败是 `unavailable`，而同一个 dispatch 已不能再发送，driver 的 `failed` 阶段也不重试。最后一行是有意的：可能已发送的调用只能等原记录。
+
+| 出口 | 诊断 |
+| --- | --- |
+| 凭据端口答 `unavailable` 或抛出 | `credential-unavailable` |
+| 当前资格不可得、取得资源前已取消、传输 prepare 或物化失败 | `qualification-unavailable`、`cancelled-before-prepare`、`cancelled-before-start`、`transport-prepare-failed` 等 |
+| 非终局拒绝之后释放失败 | `resource-release-failed` |
+| 已经 start 而发送记录始终不能确认（例如执行被接管） | `send-record-unconfirmed`。可能已发送，所以不得改报未发，也不得判成 credential 失败 |
+
+消除它们需要为每个出口选定结局，例如以哪一种 `ModelFaultCause` 结算，这改变的是 Model 的调用结局，交 Model 拥有者裁定。终局拒绝的机制不限于凭据：fence 拒绝带上 `fault`，边界就写终止，driver 就按记录结算。
+
+这张表由 TLC 模型 [SendBoundary.tla](../model-contract/verification/models/SendBoundary.tla) 检查：终局拒绝最终结算或确定拒绝，可能已发送的调用不判成 credential 失败，重试不写第二个终止。性质、映射与负控见 [formal-mapping.md](../model-contract/verification/models/formal-mapping.md#发送边界)。

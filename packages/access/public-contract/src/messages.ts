@@ -84,6 +84,10 @@ export type RequestBodies = {
     readonly parameters: JsonObject
   }
   'withdraw-authorization-expression': { readonly expressionId: string }
+  /** The secret is only in this request. No response or diagnostic carries it. */
+  'bind-model-credential': { readonly secret: string }
+  'unbind-model-credential': EmptyBody
+  'describe-model-credential': EmptyBody
 }
 export type GovernanceProvidedOperation = keyof RequestBodies
 export type GovernanceStageOperation =
@@ -124,6 +128,9 @@ export type ProofOperations =
   | 'judge-admission'
   | 'submit-authorization-expression'
   | 'withdraw-authorization-expression'
+  | 'bind-model-credential'
+  | 'unbind-model-credential'
+  | 'describe-model-credential'
 export type TenantOperations =
   | 'issue-member-invitation'
   | 'open-affiliation-request'
@@ -149,6 +156,9 @@ export type TenantOperations =
   | 'judge-admission'
   | 'submit-authorization-expression'
   | 'withdraw-authorization-expression'
+  | 'bind-model-credential'
+  | 'unbind-model-credential'
+  | 'describe-model-credential'
 export type RequestByOperation = {
   readonly [O in GovernanceProvidedOperation]: {
     readonly protocolVersion: 'governance-public/1'
@@ -200,6 +210,19 @@ export type AffiliationRequestItem = {
 export type Complete<K extends string, T> = { readonly [P in K]: readonly T[] } & {
   readonly completeness: 'complete'
 }
+/**
+ * The model credential of the acting tenant, as `describe-model-credential` shows it. `unbound`: the
+ * tenant has no binding. `usable`: a binding exists and its secret can be read. `unreadable`: a
+ * binding exists but its secret cannot be read; a call does not fall back to another credential.
+ * `configuredAt` is absent when the custody has no record of the time.
+ */
+export type ModelCredentialState =
+  | { readonly state: 'unbound' }
+  | {
+      readonly state: 'usable' | 'unreadable'
+      readonly tenantId: TenantId
+      readonly configuredAt?: Instant
+    }
 export type LoginList = {
   readonly logins: readonly [LoginItem, ...LoginItem[]]
   readonly completeness: 'complete'
@@ -270,9 +293,13 @@ export type SuccessBodies = {
     readonly persistentSettingsUpdated: false
   }
   'withdraw-authorization-expression': EmptyBody
+  'bind-model-credential': { readonly configuredAt: Instant }
+  'unbind-model-credential': EmptyBody
+  'describe-model-credential': ModelCredentialState
 }
 export type NoChangeBodies = {
   'revoke-login': EmptyBody
+  'unbind-model-credential': EmptyBody
   'switch-current-tenant': EmptyBody
   'release-affiliation': { readonly affiliationId: string; readonly state: 'released' }
   'submit-authorization-expression': { readonly expressionId: string }
@@ -371,6 +398,9 @@ export type BusinessOutcomes = {
     | 'basis-unavailable'
     | 'unknown'
   'withdraw-authorization-expression': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown'
+  'bind-model-credential': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown'
+  'unbind-model-credential': 'succeeded' | 'no-change' | 'denied' | 'basis-unavailable' | 'unknown'
+  'describe-model-credential': 'succeeded' | 'denied' | 'basis-unavailable'
 }
 export type Correlated<K extends string, B> = {
   readonly protocolVersion: 'governance-public/1'

@@ -21,6 +21,7 @@ import { emit, type DiagnosticSink } from './diagnostics.ts'
 import type { DefinitionResolver, SessionIngressFaces } from './faces.ts'
 import { governanceProtocolRejected, handleGovernance } from './governance.ts'
 import { createIdentitySteps } from './identity-steps.ts'
+import type { ModelCredentialCustody } from './model-credentials.ts'
 import { createObservationRegistry } from './observation.ts'
 import { handleSession } from './session.ts'
 import { sessionProtocolRejected } from './session-codec.ts'
@@ -41,6 +42,11 @@ export type ServerEntryDependencies = Readonly<{
   issuer: PrincipalIssuer
   session: SessionIngressFaces<ActingForTenantPrincipal>
   resolveDefinition: DefinitionResolver
+  /**
+   * The model credential binding of the acting tenant (SPEC「模型凭据」). Absent: the three model
+   * credential operations answer `stage-not-provided`.
+   */
+  modelCredentials?: ModelCredentialCustody
   diagnostics?: DiagnosticSink
 }>
 
@@ -198,6 +204,7 @@ export function createServerEntry(input: {
           governance: dependencies.governance,
           steps,
           endObservationsOf: loginText => registry.endLogin(loginText, 'denied'),
+          modelCredentials: dependencies.modelCredentials,
           readLimits: readLimits(config, location.maxBytes),
           diagnostics,
         })

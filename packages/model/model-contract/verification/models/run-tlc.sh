@@ -26,11 +26,15 @@ if [ $# -gt 0 ]; then names=("$@"); else
          bad-foreign-receipt-saved bad-refusal-overwrites-unknown bad-refusal-loses-receiver \
          bad-repush-saved bad-retry-on-unavailable bad-accept-without-reservation \
          bad-reservation-never-released bad-keep-body bad-accounts-before-saved \
-         bad-live-waiting-not-due bad-live-reservation-never-released)
+         bad-live-waiting-not-due bad-live-reservation-never-released \
+         send send-wide send-retry-new-op-window \
+         bad-send-rejection-unavailable bad-send-release-overrides bad-send-read-failure-drops \
+         bad-send-retry-new-op bad-send-re-resolve known-send-unavailable-waits)
 fi
 module_of() {
   case "$1" in
     admission|bad-recall-*|bad-admit-*|bad-capacity-*|bad-truncate-*|bad-tenant-*) echo Admission ;;
+    send|send-*|bad-send-*|known-send-*) echo SendBoundary ;;
     *) echo ResultPush ;;
   esac
 }
