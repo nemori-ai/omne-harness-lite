@@ -1,5 +1,15 @@
 // covers: PD-agent-progression S1, PD-agent-progression S2
 // #518 revision 1. J-AG02 input, actual reply processing and completion. NA-M0/M3/F4/O0.
+//
+// Journal facts migration (R2-D292, R2-D318). The snapshot carries no entries: they are read through
+// the entries port. Recovery follows the accepted design D2 (R2-D306 FR-2; JO final-design 3.3; SPEC
+// "身份、范围与归属" Model rows): the checkpoint saves no request, so a step that restarts before M0
+// saved its intent prepares again (I1, P0 and P1 each commit one revision), and an intent that was
+// saved but never admitted (M6) is voided by the Model's authoritative not-accepted and replaced by
+// an intent of attempt+1 under a new identity. The original identity is never admitted after a
+// crash. The I2 and M6 cuts therefore assert the exact revision ledger of the recovery
+// (`assertRecovery`), not "the resumed commit equals the attempted one at the same revision". M1
+// and M4 still continue the original call and assert no second M0 commit.
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
@@ -12,6 +22,7 @@ import {
   acceptedInput,
   afterTerminalPassage,
   commitAt,
+  entriesOf,
   evidence,
   execution,
   ok,
@@ -62,8 +73,133 @@ async function eventPage(journal: AgentJournal<Principal>) {
   return page.events
 }
 
+/** Every committed entry of the execution, read page by page through the entries port. */
+async function committedEntries(assembly: LoopAssembly) {
+  return await entriesOf(assembly.controls.journal.provider.entries, {
+    ...alice,
+    execution: execution(),
+  })
+}
+
+type Fields = Readonly<Record<string, unknown>>
+type CallRecord = Readonly<{ path: string[]; args: unknown[] }>
+
+function fields(value: unknown, what: string): Fields {
+  if (value === null || typeof value !== 'object' || Array.isArray(value))
+    throw new Error(`${what} is not an object`)
+  return Object.fromEntries(Object.entries(value))
+}
+
+/** The journal.commit candidates of one executor, in call order, with the revision each expects. */
+function commitsOf(calls: readonly CallRecord[]) {
+  return calls
+    .filter(call => call.path.join('.') === 'journal.commit')
+    .map(call => {
+      const candidate = fields(call.args[0], 'commit candidate')
+      const { operation, expected } = candidate
+      if (typeof operation !== 'string' || typeof expected !== 'string')
+        throw new Error('commit candidate without operation or expected revision')
+      return {
+        node: operation.split('/')[0] ?? '',
+        operation,
+        expected: Number(expected),
+        candidate,
+      }
+    })
+}
+
+/** The pending Model call that a commit candidate saves with its effect intent. */
+function intentOf(candidate: Fields) {
+  const effects = candidate['effects']
+  const saved = Array.isArray(effects) ? fields(effects[0], 'effect') : {}
+  const { reference, action, consumption } = fields(saved['pending'], 'pending call')
+  if (
+    typeof reference !== 'string' ||
+    typeof action !== 'string' ||
+    typeof consumption !== 'string'
+  )
+    throw new Error('pending call without identity')
+  return { reference, action, consumption }
+}
+
+/** A commit candidate without the two fields that name the revision it was made at. */
+const withoutRevision = (candidate: Fields) => ({ ...candidate, expected: null, operation: null })
+
+/**
+ * The revision ledger of a recovery that makes another M0 commit, every increment tied to a fact
+ * (R2-D318):
+ *   I2: revision 5 stands at I2 with no intent. The replacement prepares again, so I1, P0 and P1
+ *       commit one checkpoint position each (6, 7, 8) and M0 saves the intent at 9. The intent equals
+ *       the attempted one in everything except the revision it was made at.
+ *   M6: M0 saved the intent at 6 and nothing was admitted. M6 asks the Model, which answers
+ *       not-accepted, and the void commit (7) records the original reference in `voided`. I1, P0 and
+ *       P1 commit 8, 9 and 10; M0 saves the intent of attempt+1 at 11 under a new action,
+ *       consumption and reference.
+ * In both, the one revision between M0 and M3 is the single received entry of the reply.
+ */
+function assertRecovery(
+  cut: 'I2' | 'M6',
+  runs: Readonly<{
+    first: readonly CallRecord[]
+    second: readonly CallRecord[]
+    attempted: unknown
+    afterCheckpoint: unknown
+  }>,
+) {
+  const attempted = fields(runs.attempted, 'attempted M0 intent')
+  const original = intentOf(attempted)
+  const voidsFirst = cut === 'M6'
+  const nodes = voidsFirst ? ['M6', 'I1', 'P0', 'P1', 'M0'] : ['I1', 'P0', 'P1', 'M0']
+  const from = Number(attempted['expected']) + (voidsFirst ? 1 : 0)
+  const commits = commitsOf(runs.second)
+  const ledger = commits.slice(0, nodes.length)
+  expect(ledger.map(item => item.node)).toEqual(nodes)
+  expect(ledger.map(item => item.expected)).toEqual(nodes.map((_, index) => from + index))
+  const resumedCommit = ledger.at(-1)
+  if (resumedCommit === undefined) throw new Error('No resumed M0 commit')
+  const resumed = intentOf(resumedCommit.candidate)
+  expect(commits.find(item => item.node === 'M3')?.expected).toBe(resumedCommit.expected + 2)
+  if (!voidsFirst) {
+    // The same intent, made again at a later revision, after the same three preparation commits.
+    expect(resumed).toEqual(original)
+    expect(withoutRevision(resumedCommit.candidate)).toEqual(withoutRevision(attempted))
+    const preparing = (list: ReturnType<typeof commitsOf>) =>
+      list
+        .filter(item => ['I1', 'P0', 'P1'].includes(item.node))
+        .map(item => withoutRevision(item.candidate))
+    expect(preparing(ledger)).toEqual(preparing(commitsOf(runs.first)))
+  } else {
+    const voidCommit = fields(ledger[0]?.candidate['checkpoint'], 'void checkpoint')
+    const voided = voidCommit['voided']
+    expect(
+      Array.isArray(voided) ? voided.map(item => fields(item, 'voided')['reference']) : [],
+    ).toEqual([original.reference])
+    expect(voidCommit['calls']).toEqual([])
+    expect(resumed.reference).not.toBe(original.reference)
+    expect(resumed.action).not.toBe(original.action)
+    expect(resumed.consumption).not.toBe(original.consumption)
+    const voidedAfter = fields(runs.afterCheckpoint, 'after checkpoint')['voided']
+    expect(Array.isArray(voidedAfter) ? voidedAfter.length : -1).toBe(1)
+  }
+  return {
+    original,
+    resumed,
+    resumedEffects: fields(resumedCommit.candidate, 'resumed M0')['effects'],
+    ledger: commits.map(item => ({
+      node: item.node,
+      operation: item.operation,
+      expected: item.expected,
+    })),
+  }
+}
+
 async function savedModelDelivery(assembly: LoopAssembly, saved: ExecutionSnapshot) {
-  const pending = saved.effects[0]?.pending
+  // The live call: a voided intent (R2-D292) stays in the effect list but was never admitted.
+  const pending = saved.effects.find(
+    effect =>
+      effect.pending.kind === 'model' &&
+      !saved.checkpoint.voided.some(item => item.reference === effect.pending.reference),
+  )?.pending
   const pusher = assembly.controls.pusher
   if (pending?.kind !== 'model' || pusher === null)
     throw new Error('Missing original Model call or producer pusher')
@@ -72,9 +208,10 @@ async function savedModelDelivery(assembly: LoopAssembly, saved: ExecutionSnapsh
   expect(pushed.status).toBe('saved')
   if (pushed.status !== 'saved' || pushed.delivery === null)
     throw new Error('Producer did not receive saved for the original delivery')
-  const received = saved.entries?.filter(item => item.kind === 'received')
+  // The snapshot carries no entries: read every committed entry through the entries port.
+  const received = (await committedEntries(assembly)).filter(item => item.kind === 'received')
   expect(received).toHaveLength(1)
-  const entry = received?.[0]
+  const entry = received[0]
   if (entry === undefined || entry.kind !== 'received') throw new Error('Missing received entry')
   expect(entry.delivery.key).toEqual(pushed.key)
   expect(entry.consumer).toEqual(pushed.delivery.consumer)
@@ -191,7 +328,7 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
             await suspended.promise
           }
         }
-        if (cut === 'M1' && calls.admit === 1 && call.path.join('.') === 'journal.load') {
+        if (cut === 'M1' && calls.admit === 1 && call.path.join('.') === 'entries.receivedOf') {
           reached.resolve()
           await suspended.promise
         }
@@ -236,7 +373,7 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
         ack: 0,
       })
       const beforeDelivery = cut === 'M4' ? await savedModelDelivery(assembly, before) : null
-      if (cut !== 'M4') expect(before.entries).toEqual([])
+      if (cut !== 'M4') expect(await committedEntries(assembly)).toEqual([])
       const preparations = assembly.controls.requests.prepare.calls.length
       expect(
         (await eventPage(assembly.controls.journal.port)).filter(e => e.body.kind === 'message'),
@@ -265,7 +402,7 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
       }
       const cancelledPaths = first.cancelledCalls.map(call => call.path.join('.'))
       expect(cancelledPaths).toEqual(
-        cut === 'I2' ? ['journal.commit'] : cut === 'M1' ? ['journal.load'] : [],
+        cut === 'I2' ? ['journal.commit'] : cut === 'M1' ? ['entries.receivedOf'] : [],
       )
       assembly.release.open()
       if (cut === 'M1') {
@@ -289,8 +426,10 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
           candidate.operation.startsWith('M0/')
         )
       })
-      expect(resumedIntentCalls).toHaveLength(cut === 'I2' ? 1 : 0)
-      if (cut === 'I2') expect(resumedIntentCalls[0]?.args[0]).toEqual(attemptedIntent)
+      // Only a step that restarts before M0 saved its intent (I2), or whose saved intent was never
+      // admitted (M6), makes another M0 commit; M1 and M4 continue the original call.
+      const recovers = cut === 'I2' || cut === 'M6'
+      expect(resumedIntentCalls).toHaveLength(recovers ? 1 : 0)
       const after = await snapshot(assembly.controls.journal.port)
       const events = await eventPage(assembly.controls.journal.port)
       expect(after.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
@@ -300,7 +439,39 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
         !('effects' in attemptedIntent)
       )
         throw new Error('The original M0 intent was not captured')
-      expect(after.effects).toEqual(attemptedIntent.effects)
+      const recovery =
+        cut === 'I2' || cut === 'M6'
+          ? assertRecovery(cut, {
+              first: first.calls,
+              second: second.calls,
+              attempted: attemptedIntent,
+              afterCheckpoint: after.checkpoint,
+            })
+          : null
+      // An execution that ended lists every effect intent it saved (the finish responsibility list
+      // settles a voided one by its `voided` record). I2 saved the intent once; M6 saved the voided
+      // original and then the replacement.
+      const savedEffects = Array.isArray(attemptedIntent.effects) ? attemptedIntent.effects : []
+      expect(after.effects).toEqual(
+        cut === 'M6' && recovery !== null
+          ? [
+              ...savedEffects,
+              ...(Array.isArray(recovery.resumedEffects) ? recovery.resumedEffects : []),
+            ]
+          : attemptedIntent.effects,
+      )
+      if (cut === 'M6' && recovery !== null) {
+        // The voided identity was never admitted: it holds no received entry, and the one
+        // admission of the whole run is the replacement's.
+        const received = ok(
+          await assembly.controls.journal.provider.entries.receivedOf({
+            ...alice,
+            execution: execution(),
+            consumption: recovery.original.consumption as never,
+          }),
+        )
+        expect(received).toEqual([])
+      }
       const afterDelivery = await savedModelDelivery(assembly, after)
       if (beforeDelivery !== null) {
         expect(afterDelivery.entry).toEqual(beforeDelivery.entry)
@@ -308,7 +479,12 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
         expect(afterDelivery.pushed.receipt).toEqual(beforeDelivery.pushed.receipt)
       }
       expect(calls).toEqual({ admit: 1, beginRead: 0, ack: 0 })
-      expect(assembly.controls.requests.prepare.calls).toHaveLength(preparations)
+      // A recovery that makes another M0 commit repeats the preparation of the step exactly once
+      // (the checkpoint saves no request; P0 and P1 call prepare, so the count doubles); the
+      // continued call never prepares again.
+      expect(assembly.controls.requests.prepare.calls).toHaveLength(
+        recovers ? preparations * 2 : preparations,
+      )
       expect(events.filter(e => e.body.kind === 'input-taken')).toHaveLength(1)
       expect(events.filter(e => e.body.kind === 'producer')).toHaveLength(1)
       expect(events.filter(e => e.body.kind === 'message')).toHaveLength(1)
@@ -328,6 +504,7 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
         originalCalls: first.calls,
         cancelledCalls: first.cancelledCalls,
         resumedCalls: second.calls,
+        recovery,
         raw: [...first.output, ...second.output],
       })
     } finally {
