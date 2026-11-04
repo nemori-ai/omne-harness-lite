@@ -1,16 +1,18 @@
 // One journey over a real directory of Skill packages, through the public entries of the three
 // Skill members: `createDirectorySource` of this member gives the bytes; `createPackageInspection`
 // of `@omne-harness/skill` checks every package; `createSkillCatalog` lists and searches what the
-// reader may read; `createSkillAccess` reads the first page of a body. The read check and the
-// resolution are not products of any member: the caller gives them through `standIns`, built from
-// the packages that passed inspection (the tests use the memory doubles of
-// `@omne-harness/skill-contract/testing`). This is an example, not a product assembly: a real
-// integrator owns the read right and the lawful set.
+// reader may read; `createSkillAccess` describes the first Skill found and reads the first page
+// of its body on the material that `describe` pinned. The read check and the resolution are not
+// products of any member: the caller gives them through `standIns`, built from the packages that
+// passed inspection (the tests give the memory doubles of `@omne-harness/skill-contract/testing`).
+// This is an example, not a product assembly: a real integrator owns the read right and the
+// lawful set.
 //
-// It runs as the test `tests/examples.spec.ts`: `pnpm test -- examples` in the member directory
+// It runs as the test `tests/examples.spec.ts`: `pnpm test examples` in the member directory
 // after `pnpm run build`.
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { Access } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   createPackageInspection,
@@ -21,11 +23,12 @@ import {
 import type {
   CatalogEntry,
   DeclaredProjection,
+  DescribeFailure,
   InspectFailure,
   ReadFailure,
   ReadResult,
-  SkillCatalog,
   SkillDefinition,
+  SkillDescription,
 } from '@omne-harness/skill-contract'
 import { createDirectorySource } from '@omne-harness/skill-host-local'
 
@@ -41,11 +44,8 @@ export type Inspection = Readonly<{
 /** A package that passed inspection. */
 export type InspectedPackage = Readonly<{ name: string; root: string; definition: SkillDefinition }>
 
-/** The principal who takes the journey, and the scope. The access type is the one the catalog takes. */
-export type Reader<P, S> = Readonly<{
-  access: Parameters<SkillCatalog<P, S>['summaries']>[0]
-  scope: S
-}>
+/** The principal who takes the journey, and the scope. */
+export type Reader<P, S> = Readonly<{ access: Access<P>; scope: S }>
 
 /** The two judging ports, built by the caller from the packages that passed inspection. */
 export type StandIns<P, S> = (
@@ -66,7 +66,10 @@ export type Journey = Readonly<{
   summaries: Outcome<readonly CatalogEntry[], 'unknown'>
   /** The result of `search` for the query. */
   search: Outcome<readonly CatalogEntry[], 'unknown'>
-  /** The first page of the body of the first adopted Skill that `search` found; absent when it found none. */
+  /** `describe` of the first adopted Skill that `search` found; absent when it found none. */
+  described?: Outcome<SkillDescription, DescribeFailure>
+  /** The first page of its body, on the material that `describe` pinned; absent when `search`
+   * found none or `describe` failed. */
   firstPage?: Outcome<ReadResult, ReadFailure>
 }>
 
@@ -119,24 +122,18 @@ export async function runDirectoryJourney<P, S>(
   const search = await catalog.search(reader.access, reader.scope, { text: query })
 
   // Step 3: describe the first Skill that the search found, then read the first page of its body
-  // on the material that `describe` pinned.
+  // on the material that `describe` pinned. Without a pinned material the read goes without a
+  // basis, and the service says what that is.
   const entry = firstAdopted(search)
   if (entry === undefined) return { inspected, summaries, search }
   const described = await access.describe(reader.access, reader.scope, entry.capability)
-  if (!('ok' in described)) return { inspected, summaries, search, firstPage: described }
+  if (!('ok' in described)) return { inspected, summaries, search, described }
   const { material } = described.ok
-  if (material.kind !== 'pinned')
-    return {
-      inspected,
-      summaries,
-      search,
-      firstPage: { failure: { kind: 'unsupported', what: 'no-readable-package' } },
-    }
   const firstPage = await access.read(
     reader.access,
     reader.scope,
     { capability: entry.capability, part: { kind: 'body' } },
-    { basis: material.basis },
+    material.kind === 'pinned' ? { basis: material.basis } : undefined,
   )
-  return { inspected, summaries, search, firstPage }
+  return { inspected, summaries, search, described, firstPage }
 }

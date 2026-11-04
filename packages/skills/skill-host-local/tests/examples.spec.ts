@@ -1,14 +1,23 @@
 // The real-directory example of `examples/directory-journey.ts` runs as a test: a temporary
 // directory holds two legal packages and one illegal package; the journey inspects every
 // package through the directory source, builds the catalog and the access over the read check
-// and resolution stand-ins that this test gives it, lists the summaries, searches by the
-// description, and reads the first page of the body. The stand-ins are the memory doubles of
-// `skill-contract/testing`; the tenant of the reader is a stand-in too, which the doubles never
-// read. Nothing here is a product assembly.
+// and resolution that this test gives it, lists the summaries, searches by the description,
+// describes the Skill it found and reads the first page of its body. The read check and the
+// resolution are the memory doubles of `skill-contract/testing`; the capability identities and
+// the reader are built by the real constructors of `@omne-harness/assets` and
+// `@omne-harness/legal-identity`. Nothing here is a product assembly.
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { isSkillName, type CatalogEntry } from '@omne-harness/skill-contract'
-import type { SkillRef } from '@omne-harness/skill-contract/provider'
+import { capabilityId, type CapabilityId } from '@omne-harness/assets'
+import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+import {
+  isSkillName,
+  sameCapability,
+  type CatalogEntry,
+  type SkillName,
+} from '@omne-harness/skill-contract'
+import type { SkillResolution, SkillRef } from '@omne-harness/skill-contract/provider'
 import { createMemoryReadCheck, createMemoryResolution } from '@omne-harness/skill-contract/testing'
 import {
   declaredOf,
@@ -23,10 +32,11 @@ type Principal = 'reader'
 type Scope = 'example'
 
 const BODY = 'Read the diff.\n仔细看每一处改动。\n'
+const REVIEW_MANIFEST = `---\nname: review\ndescription: Reviews a change and writes findings.\n---\n${BODY}`
 
 const PACKAGES = {
   review: {
-    'SKILL.md': `---\nname: review\ndescription: Reviews a change and writes findings.\n---\n${BODY}`,
+    'SKILL.md': REVIEW_MANIFEST,
     '.omne/skill.json': '{"formatVersion":1}\n',
     'docs/guide.md': '# Guide\n',
   },
@@ -39,26 +49,29 @@ const PACKAGES = {
   },
 }
 
-/** The reader. The tenant is a stand-in: the memory doubles decide by principal and identity only. */
+function identity(name: string): CapabilityId {
+  const id = capabilityId('skill', name)
+  if (!id.ok) throw new Error(`not a capability identity: skill:${name}`)
+  return id.id
+}
+
+function skillName(text: string): SkillName {
+  if (!isSkillName(text)) throw new Error(`not a skill name: ${text}`)
+  return text
+}
+
+const organization = organizationCodec.parse('org_0123456789abcdefghjkmnpqrs')
+const account = accountCodec.parse('acc_0123456789abcdefghjkmnpqrs')
+if (!organization.ok || !account.ok) throw new Error('the test tenant texts are not legal')
+
 const reader: Reader<Principal, Scope> = {
-  access: { principal: 'reader', tenant: 'example-tenant' } as unknown as Reader<
-    Principal,
-    Scope
-  >['access'],
+  access: access('reader', tenant(organization.value, account.value)),
   scope: 'example',
 }
 
-/**
- * A capability identity of the `skill` category. Minting one is the asset side's job
- * (`@omne-harness/assets`), which this member does not depend on: the test mints a stand-in.
- */
-type CapabilityId = CatalogEntry['capability']
-const mint = (name: string): CapabilityId =>
-  ({ category: 'skill', name }) as unknown as CapabilityId
-
-/** What a resolution would hold for an adopted package of a workspace source: its reference and projection. */
+/** What a resolution holds for an adopted package of a workspace source: its reference and projection. */
 function adoptedOf(item: InspectedPackage) {
-  const capability = mint(item.definition.manifest.name)
+  const capability = identity(item.definition.manifest.name)
   const ref: SkillRef = {
     capability,
     layer: 'workspace',
@@ -68,17 +81,19 @@ function adoptedOf(item: InspectedPackage) {
   return { capability, ref, declared: declaredOf(item.definition) }
 }
 
-const REVIEW = 'review'
-if (!isSkillName(REVIEW)) throw new Error('the sample name is not a skill name')
-
-/** The read check grants `review` only; the resolution adopts every legal package for everyone. */
+/**
+ * The read check refuses `deploy` and grants every other identity; the resolution adopts every
+ * legal package for everyone. A package that inspection rejected would be granted if it reached
+ * the stand-ins at all, so its absence from the summaries shows that it did not.
+ */
 const standIns: StandIns<Principal, Scope> = packages => {
   const adopted = packages.map(adoptedOf)
   return {
     readCheck: createMemoryReadCheck(
-      adopted
-        .filter(item => item.declared.name === REVIEW)
-        .map(item => ({ capability: item.capability, visible: () => true })),
+      adopted.map(item => ({
+        capability: item.capability,
+        visible: () => item.declared.name !== 'deploy',
+      })),
     ),
     resolution: createMemoryResolution(
       adopted.map(item => ({
@@ -87,6 +102,25 @@ const standIns: StandIns<Principal, Scope> = packages => {
         state: { kind: 'adopted', current: { ref: item.ref, declared: item.declared } },
       })),
     ),
+  }
+}
+
+/** The stand-ins above, with a resolution that runs `before` each time it resolves `review`. */
+function resolvingWith(before: (call: number) => Promise<void>): StandIns<Principal, Scope> {
+  return packages => {
+    const ports = standIns(packages)
+    let calls = 0
+    const resolution: SkillResolution<Principal, Scope> = {
+      ...ports.resolution,
+      async resolve(who, at, capability, options) {
+        if (sameCapability(capability, identity('review'))) {
+          calls += 1
+          await before(calls)
+        }
+        return ports.resolution.resolve(who, at, capability, options)
+      },
+    }
+    return { ...ports, resolution }
   }
 }
 
@@ -109,9 +143,16 @@ describe('the directory journey', () => {
     const broken = journey.inspected[0]?.outcome
     expect(broken).toMatchObject({ failure: { kind: 'rejected', code: 'name-mismatch' } })
 
-    const listed: Partial<CatalogEntry>[] = [{ kind: 'adopted', name: REVIEW, dependencies: [] }]
-    expect(journey.summaries).toMatchObject({ ok: listed })
-    expect('ok' in journey.summaries && journey.summaries.ok.length).toBe(1)
+    const listed: CatalogEntry[] = [
+      {
+        kind: 'adopted',
+        capability: identity('review'),
+        name: skillName('review'),
+        description: 'Reviews a change and writes findings.',
+        dependencies: [],
+      },
+    ]
+    expect(journey.summaries).toStrictEqual({ ok: listed })
     expect(journey.search).toStrictEqual(journey.summaries)
 
     expect(journey.firstPage).toMatchObject({
@@ -119,13 +160,38 @@ describe('the directory journey', () => {
     })
   })
 
-  it('finds nothing for a description that no granted package has, and reads no page then', async () => {
+  it('reads on the material that describe pinned', async () => {
+    const journey = await runDirectoryJourney(await root(), { reader, standIns, query: 'findings' })
+    const described = journey.described
+    if (described === undefined || !('ok' in described)) throw new Error('describe failed')
+    const { material } = described.ok
+    if (material.kind !== 'pinned') throw new Error('describe pinned no material')
+    expect(journey.firstPage).toMatchObject({ ok: { basis: material.basis } })
+  })
+
+  it('answers basis-unavailable when the package changes between describe and read', async () => {
+    const base = await root()
+    const changeBeforeRead = async (call: number) => {
+      if (call === 2)
+        await writeFile(join(base, 'review', 'SKILL.md'), REVIEW_MANIFEST.replace('diff', 'patch'))
+    }
+    const journey = await runDirectoryJourney(base, {
+      reader,
+      standIns: resolvingWith(changeBeforeRead),
+      query: 'findings',
+    })
+    expect(journey.described).toHaveProperty('ok')
+    expect(journey.firstPage).toStrictEqual({ failure: { kind: 'basis-unavailable' } })
+  })
+
+  it('finds nothing for a description that only a refused package has, and reads no page then', async () => {
     const journey = await runDirectoryJourney(await root(), {
       reader,
       standIns,
       query: 'release',
     })
     expect(journey.search).toStrictEqual({ ok: [] })
+    expect(journey.described).toBeUndefined()
     expect(journey.firstPage).toBeUndefined()
   })
 })
