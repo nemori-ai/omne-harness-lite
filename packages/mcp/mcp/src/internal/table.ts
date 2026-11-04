@@ -1,9 +1,10 @@
 // The connection table: one `Connection` per connection key (SPEC K2) with the resources behind
 // it, and the operations on them: `ensure` (reuse or build, single flight per key, in the
 // critical section of the holding), `settle` and `lose` (what a request on an established
-// connection found), `close` (the close order, single flight per key) and `closeAll`. The table
-// only orchestrates: the entry is `entry.ts`, the build `build.ts`, the close order
-// `teardown.ts`, the turns `turns.ts`. Nothing outside the table writes the aggregate.
+// connection found), `close` (the close order, single flight per key) and `closeAll` (the same
+// for every entry, after which nothing connects). The table only orchestrates: the entry is
+// `entry.ts`, the build `build.ts`, the close order `teardown.ts`, the turns `turns.ts`. Nothing
+// outside the table writes the aggregate, and an entry leaves the table in one place, `forget`.
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -21,10 +22,12 @@ import {
   type ReleaseReport,
   type StopScope,
 } from '@omne-harness/mcp-contract'
+import { answerOf, untilAborted } from './abort.ts'
 import { createBuilder } from './build.ts'
 import { Connection, type GenerationPolicy } from './connection.ts'
 import {
   ensuredOf,
+  holdsNothing,
   isSettled,
   isUsable,
   residualOf,
@@ -33,13 +36,14 @@ import {
   type ConnectionView,
   type Ensured,
   type EnsureFailure,
+  type EnsureRefusal,
   type Entry,
   type Scope,
   type UnavailableMark,
 } from './entry.ts'
-import { assertAdmitted, type AdmittedEndpoint, type AdoptionRefusal } from './gate.ts'
+import { assertAdmitted, type AdmittedEndpoint } from './gate.ts'
 import { prepareSettings, type PreparedSettings } from './settings.ts'
-import { narrowest, teardown } from './teardown.ts'
+import { abandonLandings, narrowest, teardown } from './teardown.ts'
 import { connectionKeyTextOf, tenantTextOf } from './text.ts'
 import { createTurns } from './turns.ts'
 
@@ -48,6 +52,7 @@ export type {
   ConnectionView,
   Ensured,
   EnsureFailure,
+  EnsureRefusal,
   UnavailableMark,
 } from './entry.ts'
 
@@ -90,8 +95,9 @@ export interface ConnectionTable<P> {
 /** What the critical section of a holding started: an answer, or the build it joined or began. */
 type Started = Readonly<{ outcome: Promise<Outcome<Ensured, EnsureFailure>> }>
 
-const UNKNOWN: AdoptionRefusal = { kind: 'unknown' }
-const NOT_AVAILABLE: AdoptionRefusal = { kind: 'not-available-to-you' }
+const UNKNOWN: EnsureRefusal = { kind: 'unknown' }
+const NOT_AVAILABLE: EnsureRefusal = { kind: 'not-available-to-you' }
+const CONNECTION_UNAVAILABLE: EnsureRefusal = { kind: 'connection-unavailable' }
 
 function policyOf(prepared: PreparedSettings): GenerationPolicy {
   return prepared.transport.kind === 'stdio' ? 'on-attempt' : 'on-negotiation'
@@ -117,17 +123,21 @@ export function createConnectionTable<P, S>(
   // One `ensure` at a time per tenant and holding decides which revision's connection exists.
   const turns = createTurns()
   const builder = createBuilder(ports, config, { afterLanding: forget })
+  // Set by `closeAll`: from then on nothing connects (SPEC decision 5).
+  let shut = false
 
   const entriesOf = (tenantText: string, holding: EndpointHolding): Entry[] =>
     [...entries.values()].filter(
       entry => entry.tenantText === tenantText && entry.ref.holding === holding,
     )
 
-  /** Removes a closed entry that holds nothing and expects nothing; keeps its generation. */
+  /**
+   * The one place an entry leaves the table: when it refuses requests and holds nothing
+   * (`holdsNothing`, decision 20). Its generation stays, for the next connection of the key.
+   */
   function forget(entry: Entry): void {
     if (entries.get(entry.keyText) !== entry || entry.connection.state.kind !== 'closed') return
-    if (entry.pending !== undefined || entry.tearing !== undefined) return
-    if (entry.lingering.length > 0 || entry.landings > 0) return
+    if (!holdsNothing(entry)) return
     lastGeneration.set(
       entry.keyText,
       later(entry.connection.generation, lastGeneration.get(entry.keyText)),
@@ -177,7 +187,7 @@ export function createConnectionTable<P, S>(
         process: undefined,
         credential: undefined,
         lingering: [],
-        landings: 0,
+        landings: [],
         pending: undefined,
         tearing: undefined,
         closing: undefined,
@@ -192,9 +202,10 @@ export function createConnectionTable<P, S>(
   }
 
   /**
-   * The critical section of a holding: the adoption read again, the connections of other
-   * revisions closed (invariant 6), the key's close or teardown in flight waited for, then the
-   * connection reused, joined or built. The build itself runs outside the section.
+   * The critical section of a holding: the adoption read again under what is left of the
+   * caller's bound (decision 22), the connections of other revisions closed (invariant 6), the
+   * key's close or teardown in flight waited for, then the connection reused, joined or built.
+   * The build itself runs outside the section. A table that is shut refuses here.
    */
   async function begin(
     admitted: AdmittedEndpoint,
@@ -203,21 +214,28 @@ export function createConnectionTable<P, S>(
     key: ConnectionKey,
     keyText: string,
     tenantText: string,
+    bound: AbortSignal,
   ): Promise<Started> {
     const answer = (outcome: Outcome<Ensured, EnsureFailure>): Started => ({
       outcome: Promise.resolve(outcome),
     })
-    const refused = (reason: AdoptionRefusal): Started =>
-      answer(fail({ stage: 'settings', reason }))
+    const refused = (reason: EnsureRefusal): Started => answer(fail({ stage: 'settings', reason }))
+    if (shut) return refused(CONNECTION_UNAVAILABLE)
     // The token is not trusted for the revision: the adoption is read again, and a token of
-    // another revision cannot build a connection or close one (SPEC MC-5).
-    const adoption = await ports.adoption.endpoint(access, admitted.ref)
-    if ('failure' in adoption) return refused(UNKNOWN)
-    if (adoption.ok === 'not-adopted') return refused(NOT_AVAILABLE)
-    if (adoption.ok.revision !== admitted.revision) return refused(UNKNOWN)
+    // another revision cannot build a connection or close one (SPEC MC-5). A port that rejects
+    // is read as `unknown`; one that does not answer within the bound does not hold the section.
+    const adoption = await untilAborted(
+      answerOf(ports.adoption.endpoint(access, admitted.ref), fail<'unknown'>('unknown')),
+      bound,
+    )
+    if (adoption.kind === 'aborted') return refused(CONNECTION_UNAVAILABLE)
+    if ('failure' in adoption.value) return refused(UNKNOWN)
+    if (adoption.value.ok === 'not-adopted') return refused(NOT_AVAILABLE)
+    if (adoption.value.ok.revision !== admitted.revision) return refused(UNKNOWN)
     const { holding } = admitted.ref
     const ofOtherRevision = (entry: Entry) => entry.adoptionRevision !== admitted.revision
     for (;;) {
+      if (shut) return refused(CONNECTION_UNAVAILABLE)
       const other = entriesOf(tenantText, holding).find(
         entry => ofOtherRevision(entry) && !isSettled(entry),
       )
@@ -261,13 +279,17 @@ export function createConnectionTable<P, S>(
     options: EnsureOptions = {},
   ): Promise<Outcome<Ensured, EnsureFailure>> {
     assertAdmitted(admitted)
+    if (shut) return fail({ stage: 'settings', reason: CONNECTION_UNAVAILABLE })
     const prepared = prepareSettings(admitted, options.connectBound)
     if ('failure' in prepared) return fail({ stage: 'settings', reason: prepared.failure })
     const key = connectionKeyOf(access.tenant, admitted, prepared.ok.account)
     const keyText = connectionKeyTextOf(key)
     const tenantText = tenantTextOf(access.tenant)
+    // This call's connection bound, for the critical section; the build keeps its own, from the
+    // credential on (MC-5), as the listing keeps its own.
+    const bound = AbortSignal.timeout(prepared.ok.bound)
     const started = await turns.inTurn(holdingTextOf(tenantText, admitted.ref.holding), () =>
-      begin(admitted, access, prepared.ok, key, keyText, tenantText),
+      begin(admitted, access, prepared.ok, key, keyText, tenantText, bound),
     )
     return started.outcome
   }
@@ -322,17 +344,19 @@ export function createConnectionTable<P, S>(
     const found = entriesOf(tenantTextOf(tenant), holding)
     if (found.length === 0) return { kind: 'no-connection' }
     let scope: Scope = 'no-process'
-    for (const entry of found) {
-      const confirmed = await closeEntry(entry)
-      if (confirmed !== 'no-process') scope = narrowest(scope, confirmed)
-    }
+    for (const entry of found) scope = narrowest(scope, await closeEntry(entry))
     return { kind: 'released', process: scope }
   }
 
+  /** The shutdown: every entry closed, the landings still in flight abandoned, nothing connects after. */
   async function closeAll(): Promise<readonly ClosedEndpoint[]> {
+    shut = true
     const closed: ClosedEndpoint[] = []
-    for (const entry of Array.from(entries.values()))
-      closed.push({ ref: entry.ref, process: await closeEntry(entry) })
+    for (const entry of Array.from(entries.values())) {
+      const process = await closeEntry(entry)
+      await abandonLandings(entry)
+      closed.push({ ref: entry.ref, process })
+    }
     return closed
   }
 

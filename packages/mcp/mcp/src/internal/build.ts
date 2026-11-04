@@ -22,16 +22,17 @@ import type {
   TransportFailure,
   TransportMaterial,
 } from '@omne-harness/mcp-contract/provider'
-import { afterwards, untilAborted } from './abort.ts'
+import { answerOf, untilAborted } from './abort.ts'
 import type {
   CatalogMark,
   CredentialHandle,
   Ensured,
   EnsureFailure,
   Entry,
+  Landing,
   UnavailableMark,
 } from './entry.ts'
-import { closeLate, releaseLate, stopLate } from './late.ts'
+import { closeLate, landLate, releaseLate } from './late.ts'
 import type { PreparedSettings } from './settings.ts'
 import { teardown } from './teardown.ts'
 
@@ -112,11 +113,15 @@ export function createBuilder<P, S>(
   config: McpConfig<P>,
   deps: BuilderDependencies,
 ): Builder<P> {
+  /** Marks the catalog; a store that rejects instead of answering is unavailable (decision 4). */
   async function markCatalog(key: CatalogKey, reason: UnavailableMark): Promise<CatalogMark> {
-    const read = await ports.store.read(key)
+    const read = await answerOf(ports.store.read(key), fail('unavailable'))
     if ('failure' in read) return 'unavailable'
     if (read.ok === 'absent') return 'not-acquired'
-    const written = await ports.store.write(key, markUnavailable(read.ok, reason), read.ok.revision)
+    const written = await answerOf(
+      ports.store.write(key, markUnavailable(read.ok, reason), read.ok.revision),
+      fail('unavailable'),
+    )
     if ('failure' in written)
       return written.failure === 'unavailable' ? 'unavailable' : 'revision-conflict'
     return 'marked'
@@ -159,7 +164,7 @@ export function createBuilder<P, S>(
           )
     const acquired = await untilAborted(asked, bound)
     if (acquired.kind === 'aborted') {
-      releaseLate(acquired.late)
+      void releaseLate(acquired.late)
       return fail(PREPARATION_FAILED)
     }
     if ('failure' in acquired.value)
@@ -198,19 +203,15 @@ export function createBuilder<P, S>(
     }
     const started = await untilAborted(ports.landing.start(access, transport.launch, env), bound)
     if (started.kind === 'aborted') {
-      // The process may still land, with the handle in its environment: the handle goes with it
-      // and is released after its `stop()` returned (S9); without a process, on the answer.
+      // The process may still land, with the handle in its environment: the handle goes with the
+      // landing, released after that process's stop (S9) or at the shutdown (decision 6). The
+      // entry holds the landing until it answers (decision 20).
+      const landing: Landing = {
+        credential: credential?.purpose === 'process-env' ? credential : undefined,
+      }
       entry.credential = undefined
-      entry.landings += 1
-      afterwards(started.late, async late => {
-        try {
-          if ('ok' in late) await stopLate(entry, late.ok)
-        } finally {
-          entry.landings -= 1
-          deps.afterLanding(entry)
-          await credential?.release()
-        }
-      })
+      entry.landings = [...entry.landings, landing]
+      void landLate(entry, landing, started.late).then(() => deps.afterLanding(entry))
       return fail(PREPARATION_FAILED)
     }
     if ('failure' in started.value)
@@ -240,7 +241,7 @@ export function createBuilder<P, S>(
       if ('failure' in material) return await failed(entry, material.failure)
       const opened = await untilAborted(ports.transports.open(material.ok, bound), bound)
       if (opened.kind === 'aborted') {
-        closeLate(opened.late)
+        void closeLate(opened.late)
         return await failed(entry, PREPARATION_FAILED)
       }
       if ('failure' in opened.value) return await failed(entry, failedOf(opened.value.failure))

@@ -24,7 +24,7 @@ import {
   type Refusal,
 } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
-import { untilAborted } from './internal/abort.ts'
+import { answerOf, untilAborted } from './internal/abort.ts'
 import { sameJson } from './internal/canonical.ts'
 import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
 import { readAccountOf } from './internal/settings.ts'
@@ -150,7 +150,8 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     ensured: Ensured,
   ): Promise<Outcome<RefreshResult, OperationFailure>> {
     const { generation, connection, peer, catalogKey } = ensured
-    const read = await ports.store.read(catalogKey)
+    // A store that rejects instead of answering is unavailable (SPEC decision 4): `unknown`.
+    const read = await answerOf(ports.store.read(catalogKey), fail('unavailable'))
     if ('failure' in read) return fail(UNKNOWN)
     const current = stateOf(read.ok)
     const basedOn = read.ok === 'absent' ? 'absent' : read.ok.revision
@@ -184,7 +185,10 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     if (admitted.ok === 'superseded') return succeed(SUPERSEDED)
     if (!connection.isCurrent(generation)) return succeed(SUPERSEDED)
     if (request.signal?.aborted === true) return succeed(CANCELLED)
-    const written = await ports.store.write(catalogKey, merged.ok, basedOn)
+    const written = await answerOf(
+      ports.store.write(catalogKey, merged.ok, basedOn),
+      fail('unavailable'),
+    )
     if ('failure' in written)
       return written.failure === 'revision-conflict' ? succeed(SUPERSEDED) : fail(UNKNOWN)
     return succeed({ kind: 'published', revision: merged.ok.revision })
@@ -228,7 +232,10 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     if ('failure' in admitted) return admitted
     const account = readAccountOf(admitted.ok)
     if ('failure' in account) return account
-    const read = await ports.store.read(catalogKeyOf(access.tenant, admitted.ok, account.ok))
+    const read = await answerOf(
+      ports.store.read(catalogKeyOf(access.tenant, admitted.ok, account.ok)),
+      fail('unavailable'),
+    )
     if ('failure' in read) return fail(UNKNOWN)
     if (read.ok === 'absent') return succeed({ kind: 'not-acquired' })
     const record = read.ok

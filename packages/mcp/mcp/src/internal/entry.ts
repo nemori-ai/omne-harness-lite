@@ -1,7 +1,8 @@
 // One entry of the connection table: the `Connection` aggregate of a key, the resources behind
 // it, the views the table hands out, and the predicates the table decides on. No I/O here: the
 // close order is `teardown.ts`, the arrivals after the bound are `late.ts`, the build is
-// `build.ts`, and only `table.ts` puts an entry in or takes it out.
+// `build.ts`, and only `table.ts` puts an entry in or takes it out. An entry is taken out only
+// when `holdsNothing` says so (SPEC decision 20).
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   AdoptionRevision,
@@ -49,8 +50,17 @@ export type Ensured = Readonly<{
 /** What marking a connection failure into the catalog did. */
 export type CatalogMark = 'marked' | 'revision-conflict' | 'unavailable' | 'not-acquired'
 
+export type ConnectionUnavailable = Extract<ConnectionFailure, { kind: 'connection-unavailable' }>
+
+/**
+ * Why `ensure` did not get to a build, with nothing marked: a setting defect, a missing
+ * credential (S4, K1), the adoption read again (withdrawn, unreadable, another revision, or not
+ * answered within the bound), or the table shut by `closeAll`.
+ */
+export type EnsureRefusal = SettingsFailure | AdoptionRefusal | ConnectionUnavailable
+
 export type EnsureFailure =
-  | Readonly<{ stage: 'settings'; reason: SettingsFailure | AdoptionRefusal }>
+  | Readonly<{ stage: 'settings'; reason: EnsureRefusal }>
   | Readonly<{ stage: 'connect'; reason: ConnectionFailure | EffectUnknown; catalog: CatalogMark }>
 
 export type UnavailableMark = Exclude<UnavailableReason, 'no-longer-offered'>
@@ -60,10 +70,29 @@ export type CredentialHandle = ProcessCredentialHandle | HttpCredentialHandle
 /** What a teardown confirmed: the stop range of the processes, or that there was none. */
 export type Scope = StopScope | 'no-process'
 
-/** A process whose stop was not confirmed for the whole tree. Stopped again at every close. */
+/** A process whose stop confirmed less than the whole tree. Stopped again at every close. */
 export type Lingering = Readonly<{ handle: ProcessHandle; confirmed: StopScope }>
 
-export type Entry = {
+/**
+ * A landing still pending after its bound. The process it may hand over carries `credential` in
+ * its environment; the handle is released once: after that process's stop (S9), or at the
+ * shutdown (the exception of S9, decision 6), whichever comes first.
+ */
+export type Landing = { credential: ProcessCredentialHandle | undefined }
+
+/**
+ * What an entry can hold. Each one is closed, stopped or released by the entry's teardown, or
+ * on its arrival after the bound.
+ */
+export type Resources = {
+  transport: McpTransport | undefined
+  process: ProcessHandle | undefined
+  credential: CredentialHandle | undefined
+  lingering: readonly Lingering[]
+  landings: readonly Landing[]
+}
+
+export type Entry = Resources & {
   readonly ref: EndpointRef
   readonly tenantText: string
   readonly keyText: string
@@ -72,17 +101,36 @@ export type Entry = {
   readonly bound: Millis
   connection: Connection
   view: ConnectionView
-  transport: McpTransport | undefined
-  process: ProcessHandle | undefined
-  credential: CredentialHandle | undefined
-  lingering: readonly Lingering[]
-  /** Landings still pending after their bound; each may hand over a process this entry keeps. */
-  landings: number
   pending: Promise<Outcome<Ensured, EnsureFailure>> | undefined
   /** The teardown in flight, shared by a lose, a failed build, a rebuild and a close. */
   tearing: Promise<Scope> | undefined
   /** The close in flight: refuse requests, wait for the build, tear down, forget. */
   closing: Promise<Scope> | undefined
+}
+
+/**
+ * True when the entry holds nothing: no transport, no process handle, no credential handle, no
+ * process whose stop was not confirmed, no landing in flight. The one condition an entry is
+ * forgotten on (decision 20): a pure function of what is held, nothing else.
+ */
+export function holdsNothing(held: Resources): boolean {
+  return (
+    held.transport === undefined &&
+    held.process === undefined &&
+    held.credential === undefined &&
+    held.lingering.length === 0 &&
+    held.landings.length === 0
+  )
+}
+
+/** `lingering` with the latest stop of `handle` recorded: kept when it confirmed less than the tree. */
+export function kept(
+  lingering: readonly Lingering[],
+  handle: ProcessHandle,
+  confirmed: StopScope,
+): readonly Lingering[] {
+  const others = lingering.filter(item => item.handle !== handle)
+  return confirmed === 'tree-confirmed' ? others : [...others, { handle, confirmed }]
 }
 
 export function viewOf(connection: Connection): ConnectionView {
@@ -128,10 +176,4 @@ export function residualOf(found: readonly Entry[]): readonly Residual[] | undef
   const lingering = found.flatMap(entry => entry.lingering)
   if (lingering.length === 0) return undefined
   return lingering.map(({ confirmed }) => ({ kind: 'process', confirmed }))
-}
-
-/** A process confirmed for less than the whole tree stays with the entry, to be stopped again. */
-export function keep(entry: Entry, handle: ProcessHandle, confirmed: StopScope): void {
-  if (confirmed === 'tree-confirmed') return
-  entry.lingering = [...entry.lingering, { handle, confirmed }]
 }
