@@ -137,8 +137,11 @@ export type CursorMembers = Readonly<{
 }>
 export type CursorMember = keyof CursorMembers
 
-/** The stage of one `result.handled`: custody taken, processed, or released by the producer. */
-export type ResultStage = 'custody' | 'processed' | 'released'
+/**
+ * The stage of one `result.handled`: the responsibility recorded before any transfer, custody
+ * taken, processed, or released by the producer.
+ */
+export type ResultStage = 'recorded' | 'custody' | 'processed' | 'released'
 
 /**
  * Every fact kind, with the key of each kind in its first members. One fact is one irreducible
@@ -224,6 +227,16 @@ export type FactBody =
       publication: DurableEvidence
       message: Ref<Message> | null
       history: DurableEvidence | null
+    }>
+  /**
+   * A message the step published without a handoff or a reply admission to project it: the
+   * message is kept by the Session history and the event stream, the fact only refers to it.
+   */
+  | Readonly<{
+      kind: 'message.published'
+      step: StepId
+      message: Ref<Message>
+      source: DurableEvidence
     }>
   | Readonly<{
       kind: 'handoff.prepared'
@@ -414,6 +427,7 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'result.received',
   'result.handled',
   'reply.judged',
+  'message.published',
   'handoff.prepared',
   'handoff.resolved',
   'handoff.retired',
@@ -449,6 +463,7 @@ export const EVENT_OF: Readonly<Partial<Record<FactKind, string>>> = Object.free
   'fence.started': 'entry',
   'result.handled': 'producer',
   'reply.judged': 'message',
+  'message.published': 'message',
   'control.stage': 'control',
   'wait.entered': 'waiting',
   'finish.ended': 'ended',
@@ -560,7 +575,9 @@ export function factKey(fact: FactBody): string {
     case 'input.accepted':
       return `input/${fact.input}`
     case 'step.begun':
-      return `step/${fact.step}`
+      // A step may take more than one input batch (an empty take, then a new input): the batch
+      // is the key.
+      return `step/${fact.batch.id}`
     case 'request.adopted':
       return `request/${fact.step}/${fact.attempt}`
     case 'intent.voided':
@@ -570,11 +587,16 @@ export function factKey(fact: FactBody): string {
     case 'call.associated':
       return `associated/${fact.action}`
     case 'result.received':
-      return `received/${fact.consumption}`
+      // An account delivery follows the result of the same consumption: its own key.
+      return fact.result.delivery === 'account'
+        ? `account/${fact.delivery}`
+        : `received/${fact.consumption}`
     case 'result.handled':
       return `handled/${fact.consumption}/${fact.stage}`
     case 'reply.judged':
       return `reply/${fact.sequence}`
+    case 'message.published':
+      return `message/${fact.step}/${fact.message.digest}/${fact.source.record}`
     case 'handoff.prepared':
     case 'handoff.resolved':
     case 'handoff.retired':

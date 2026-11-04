@@ -378,9 +378,13 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
 /** The key of a handoff reference in `handoffs`. */
 export const handoffKey = (reference: HandoffReference): string => canonical(reference)
 
-/** Whether a batch advances the revision: every batch but a pure recognition does. */
+/**
+ * Whether a batch advances the revision: a batch with a fact other than a recognition does, and
+ * so does a batch that carries a Session participation, which is a joint commit of its own. A pure
+ * recognition and the envelope alone of a command that changed nothing do not.
+ */
 export function advances(batch: PublishedBatch): boolean {
-  return batch.facts.some(fact => fact.kind !== 'op.recognized')
+  return batch.envelope.kinds.length > 0 || batch.facts.some(fact => fact.kind !== 'op.recognized')
 }
 
 type Draft = {
@@ -560,7 +564,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       const known = draft.results.get(fact.consumption)
       draft.results.set(fact.consumption, {
         consumption: fact.consumption,
-        result: fact.result,
+        result: known?.result ?? fact.result,
         received: known?.received ?? {
           delivery: fact.delivery,
           consumer: fact.consumer,
@@ -601,6 +605,9 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
             revision,
           },
         ]
+      break
+    case 'message.published':
+      // Only an event: the message is the Session history's and the event stream's.
       break
     case 'handoff.prepared': {
       const handoff = handoffOf(draft, fact.handoff)
@@ -912,14 +919,12 @@ export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJo
   if (batch.pub <= view.head) return view
   const draft = draftOf(view.executions.get(batch.execution) ?? emptyExecutionView(batch.execution))
   // The index is written before the facts, so the facts that name the batch's op can read it.
-  // The envelope names the revision the batch reaches, computed by the writer under `expected`;
-  // a writer that left it at 0 lets the fold compute it: one more unless the batch is a recognition.
+  // The envelope names the revision the batch reaches, computed by the writer under `expected`
+  // (for a batch that advances none, the revision before it); a writer that left it at 0 lets the
+  // fold compute it: one more unless the batch is a recognition or the envelope alone.
   const moves = advances(batch)
-  const revision = moves
-    ? batch.envelope.rev >= 1
-      ? batch.envelope.rev
-      : draft.revision + 1
-    : draft.revision
+  const revision =
+    batch.envelope.rev >= 1 ? batch.envelope.rev : moves ? draft.revision + 1 : draft.revision
   const recognition = batch.facts.find(fact => fact.kind === 'op.recognized')
   const target = recognition?.kind === 'op.recognized' ? recognition.target : null
   const answered =
