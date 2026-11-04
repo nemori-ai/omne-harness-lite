@@ -200,6 +200,7 @@ describe('the custody chain of a recordHandoff whose storage outcome is undecide
             run: work.run.run,
             instance: { owner: 'agent', id: 'takeover' },
             continuity: evidence('continuity'),
+            expected: work.run.revision,
           },
         },
         guards: [],

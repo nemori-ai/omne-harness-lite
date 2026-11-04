@@ -2,7 +2,7 @@
 // the caller-class consistency check, and the refusal of another tenant (contract J40).
 import { afterEach, describe, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
-import type { SessionFailure } from '@omne-harness/session-contract'
+import { expectedRevision, type SessionFailure } from '@omne-harness/session-contract'
 import {
   creation,
   evidence,
@@ -118,7 +118,7 @@ describe('each face operation asks the access check exactly once', () => {
                 session: h.access().session,
                 operation: operationId('release-concurrent'),
                 advance: started.advance,
-                expected: snapshot.revision,
+                expected: expectedRevision(snapshot, 'release'),
                 handover: evidence('handover-concurrent'),
               },
             },
@@ -136,7 +136,7 @@ describe('each face operation asks the access check exactly once', () => {
         ...h.access(),
         operation: operationId('finish'),
         run: started.advance.run,
-        expected: snapshot.revision,
+        expected: expectedRevision(snapshot, 'finishRun'),
         bounded: {
           kind: 'admission-rejected',
           input: started.first,

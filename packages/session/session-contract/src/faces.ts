@@ -128,9 +128,8 @@ export interface SessionWork<P> {
       }>,
   ): Reply<StartedRun>
   /**
-   * `expected` is the Run-layer revision the claimant read (SPEC PM-05, R2-D327). With it, of two
+   * `expected` is the Run-layer revision the claimant read (SPEC PM-05, R2-D327, R2-D343). Of two
    * claimants that read the same Run layer only the first holds; the second gets `stale-advance`.
-   * It is optional until every caller sends it; a claim without it is not compared.
    */
   claim(
     input: Mutation<P> &
@@ -138,7 +137,7 @@ export interface SessionWork<P> {
         run: RunId
         instance: AgentInstanceRef
         continuity: DurableEvidence
-        expected?: SessionRevision
+        expected: SessionRevision
       }>,
   ): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
   reload(

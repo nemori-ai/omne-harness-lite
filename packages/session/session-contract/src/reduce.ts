@@ -68,7 +68,12 @@ function without(list: readonly InputId[], removed: readonly InputId[]): readonl
 }
 
 /** Applies one decoded entry. Returns a diagnostic when the entry contradicts the state. */
-function apply(draft: Draft, entry: SessionEntry, source: DurableEvidence): string | null {
+function apply(
+  draft: Draft,
+  entry: SessionEntry,
+  source: DurableEvidence,
+  revision: WorkSnapshot['revision'],
+): string | null {
   switch (entry.kind) {
     case 'session.created':
       return 'session.created after the first entry'
@@ -131,6 +136,7 @@ function apply(draft: Draft, entry: SessionEntry, source: DurableEvidence): stri
         advance: null,
         ordinal: '0',
         execution: { execution: entry.execution, revision: null, evidence: null, readThrough: '0' },
+        revision,
       }
       draft.executions = [
         ...(draft.executions ?? []),
@@ -349,7 +355,7 @@ function reduceBatch(
         : row.origin.source
     const before = { ...draft }
     validateInterpretationEntry(draft, entry, interpretationRuns?.get(row.id))
-    const diagnostic = apply(draft, entry, source)
+    const diagnostic = apply(draft, entry, source, batch.revision)
     if (diagnostic !== null) return quarantined(`${row.kind} at ${row.id}: ${diagnostic}`)
     if (RUN_LAYER_KINDS.has(entry.kind) && draft.run.kind === 'active')
       draft.run = { ...draft.run, revision: batch.revision }

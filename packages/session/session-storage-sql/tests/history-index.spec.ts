@@ -193,6 +193,7 @@ describe('K-5: the Agent rows of a decision in its own transaction', () => {
             run: run.run,
             instance: { owner: 'agent', id: 'instance-2' },
             continuity: evidence('continuity'),
+            expected: run.revision,
           },
         },
         guards: [],

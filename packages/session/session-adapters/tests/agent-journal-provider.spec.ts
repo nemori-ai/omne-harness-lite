@@ -1401,6 +1401,7 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
                 run: before.run.run,
                 instance: { owner: 'agent', id: label },
                 continuity: evidence(`continuity-${label}`),
+                expected: before.run.revision,
               },
             },
             guards: [],
