@@ -16,11 +16,11 @@ catalogs:
       specifier: 4.0.1
       version: 4.0.1
     '@modelcontextprotocol/client':
-      specifier: 2.4.0
-      version: 2.4.0
+      specifier: 2.3.1
+      version: 2.3.1
     '@modelcontextprotocol/server':
-      specifier: 2.4.0
-      version: 2.4.0
+      specifier: 2.3.1
+      version: 2.3.1
     '@modelcontextprotocol/server-everything':
       specifier: 2.1.0
       version: 2.1.0
@@ -117,6 +117,10 @@ catalogs:
     zod:
       specifier: 4.6.5
       version: 4.6.5
+
+overrides:
+  '@modelcontextprotocol/node': 2.1.1
+  '@modelcontextprotocol/server-legacy': 2.3.1
 
 packageExtensionsChecksum: sha256-3MGTjzmjlgnhjcqVqzjDdnL5Y1xWwi2kaTEc0nFiVqM=
 
@@ -1542,7 +1546,7 @@ importers:
     dependencies:
       '@modelcontextprotocol/client':
         specifier: 'catalog:'
-        version: 2.4.0
+        version: 2.3.1
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -1555,7 +1559,7 @@ importers:
     devDependencies:
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
-        version: 2.4.0
+        version: 2.3.1
       '@modelcontextprotocol/server-everything':
         specifier: 'catalog:'
         version: 2.1.0
@@ -3172,11 +3176,11 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@hono/node-server@2.1.6':
-    resolution: {integrity: sha512-p/KH9MnfNcsm3sR6x4lNgm5j+QN4Et8srKredl9DZfXiyZ1UQ3aQ2YVpFLbqktYN5JI+DB+VZFKM2PqE5hLKjQ==}
-    engines: {node: '>=20'}
+  '@hono/node-server@1.19.18':
+    resolution: {integrity: sha512-609kppIP9GITS+EwPyB6Kiq8z2yXONaYD1VHpo7MMP9celRJYbkFr9KakJncHwK0EK/XYtlogqmrLchDv5HX5w==}
+    engines: {node: '>=18.14.1'}
     peerDependencies:
-      hono: ^4 || ^5.0.0-0
+      hono: ^4
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -3477,19 +3481,19 @@ packages:
   '@jscpd/tokenizer@4.0.1':
     resolution: {integrity: sha512-l/CPeEigadYcQUsUxf1wdCBfNjyAxYcQU04KciFNmSZAMY+ykJ8fZsiuyfjb+oOuDgsIPZZ9YvbvsCr6NBXueg==}
 
-  '@modelcontextprotocol/client@2.4.0':
-    resolution: {integrity: sha512-LgrD2OphHuG12vfKFKz6SOnq7bKHQmhGJIAYdD+MZBn2npHEyry6uD8zvktodtl5CQM85MO0anUyD9JwmUmxww==}
+  '@modelcontextprotocol/client@2.3.1':
+    resolution: {integrity: sha512-mIGZXpHsjnZ6lD+gD/WCMpR5k8yVQQ8nNFH1N0Srf7AvnwTUMYD6pvTY8ng2+He5FfV7YMZLmrjL7cLa/cc3dQ==}
     engines: {node: '>=20'}
 
-  '@modelcontextprotocol/core@2.4.0':
-    resolution: {integrity: sha512-z8QBKqdfXLPzkLQuG4xp8hrVEMm1PZ1IgxMN2sMbJiFiAKOWXnAzogXn2W4aqIBlP1ea6U5yiqVquvUNM1Cj6Q==}
+  '@modelcontextprotocol/core@2.3.1':
+    resolution: {integrity: sha512-laVmIhPGpWi7rG9q+0UigblRN0Hws/Yjlb6qLFtVqryXVLkc4h+yN8z731POD2LnAGQlFe7/tXhUm7Bi0YB91g==}
     engines: {node: '>=20'}
 
-  '@modelcontextprotocol/node@2.1.2':
-    resolution: {integrity: sha512-IIcIqBpr6NCQQs5DgJTgvbSOAw+3iaR/uquqg+e0nXCdudfjPg/80x0TseUnQx14AUAtE4fsJCEpJKPyb6WPVA==}
+  '@modelcontextprotocol/node@2.1.1':
+    resolution: {integrity: sha512-EY92OAXN2xYL7tNS/MVsWJW1v8VHAPwl9B4Ca3pCrjmvqyC+S1C/6UHsMxF2GoFPraS5Yyg56vFz9brVpFojMA==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@modelcontextprotocol/server': ^2.4.0
+      '@modelcontextprotocol/server': ^2.3.0
 
   '@modelcontextprotocol/server-everything@2.1.0':
     resolution: {integrity: sha512-frpLCQv+IgGH+y4gSOcaQRxUBZ7yYZY2xZ5Ve8yz2vubltPfrilDxRTCjPQEk3W8fsaZSdabvagkfs+T6Bf6mw==}
@@ -3501,8 +3505,8 @@ packages:
     engines: {node: '>=24'}
     hasBin: true
 
-  '@modelcontextprotocol/server-legacy@2.4.0':
-    resolution: {integrity: sha512-xWq1YTZiLZltEXp/NJhsW7IvpuowrapEFuriAz3a86CIwMnt7+r8EaG/7xtWi7aqLzhtplOJJffUE5YIcUT+Aw==}
+  '@modelcontextprotocol/server-legacy@2.3.1':
+    resolution: {integrity: sha512-+cuB+hl7s8DiFXIt13le3cD2wZPOeDYwlycAkRMPljqqNbOLekGRiyslx8WXfqaXSCveS1eDD8/B8rmxz9BZFQ==}
     engines: {node: '>=20'}
     deprecated: This package is a frozen copy of v1's SSE transport and OAuth Authorization Server helpers for migration purposes only. Use StreamableHTTP from @modelcontextprotocol/server and a dedicated OAuth server in production. Will not receive new features.
     peerDependencies:
@@ -3511,8 +3515,8 @@ packages:
       express:
         optional: true
 
-  '@modelcontextprotocol/server@2.4.0':
-    resolution: {integrity: sha512-rgR9yxSaAJ+bcsi/XroT/S2AfPiIWloXAnrdfYSCms9ivVju0ishu/wW0J21Ho6+ZOR1r7RyeRbjiRuF87ix5Q==}
+  '@modelcontextprotocol/server@2.3.1':
+    resolution: {integrity: sha512-e59MfWuSssj6DoQ96JCTqdW1AXT5/XtnTl0WWd6MU1Ka434fFUGGosCLJbGNySDhHGvxQWoRWK137FXYFkYNWw==}
     engines: {node: '>=20'}
 
   '@napi-rs/wasm-runtime@1.2.5':
@@ -6424,7 +6428,7 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@hono/node-server@2.1.6(hono@4.13.16)':
+  '@hono/node-server@1.19.18(hono@4.13.16)':
     dependencies:
       hono: 4.13.16
 
@@ -6677,9 +6681,9 @@ snapshots:
       reprism: 0.0.11
       spark-md5: 3.0.2
 
-  '@modelcontextprotocol/client@2.4.0':
+  '@modelcontextprotocol/client@2.3.1':
     dependencies:
-      '@modelcontextprotocol/core': 2.4.0
+      '@modelcontextprotocol/core': 2.3.1
       cross-spawn: 7.0.6
       eventsource: 3.0.7
       eventsource-parser: 3.1.1
@@ -6687,21 +6691,21 @@ snapshots:
       pkce-challenge: 5.0.1
       zod: 4.6.5
 
-  '@modelcontextprotocol/core@2.4.0':
+  '@modelcontextprotocol/core@2.3.1':
     dependencies:
       zod: 4.6.5
 
-  '@modelcontextprotocol/node@2.1.2(@modelcontextprotocol/server@2.4.0)':
+  '@modelcontextprotocol/node@2.1.1(@modelcontextprotocol/server@2.3.1)':
     dependencies:
-      '@hono/node-server': 2.1.6(hono@4.13.16)
-      '@modelcontextprotocol/server': 2.4.0
+      '@hono/node-server': 1.19.18(hono@4.13.16)
+      '@modelcontextprotocol/server': 2.3.1
       hono: 4.13.16
 
   '@modelcontextprotocol/server-everything@2.1.0':
     dependencies:
-      '@modelcontextprotocol/node': 2.1.2(@modelcontextprotocol/server@2.4.0)
-      '@modelcontextprotocol/server': 2.4.0
-      '@modelcontextprotocol/server-legacy': 2.4.0(express@5.3.0)
+      '@modelcontextprotocol/node': 2.1.1(@modelcontextprotocol/server@2.3.1)
+      '@modelcontextprotocol/server': 2.3.1
+      '@modelcontextprotocol/server-legacy': 2.3.1(express@5.3.0)
       cors: 2.8.6
       express: 5.3.0
       jszip: 3.10.2
@@ -6711,15 +6715,15 @@ snapshots:
 
   '@modelcontextprotocol/server-filesystem@2.1.0':
     dependencies:
-      '@modelcontextprotocol/server': 2.4.0
+      '@modelcontextprotocol/server': 2.3.1
       diff: 8.0.4
       glob: 13.0.6
       minimatch: 10.2.6
       zod: 4.6.5
 
-  '@modelcontextprotocol/server-legacy@2.4.0(express@5.3.0)':
+  '@modelcontextprotocol/server-legacy@2.3.1(express@5.3.0)':
     dependencies:
-      '@modelcontextprotocol/core': 2.4.0
+      '@modelcontextprotocol/core': 2.3.1
       content-type: 1.0.5
       cors: 2.8.6
       express-rate-limit: 8.7.3(express@5.3.0)
@@ -6731,9 +6735,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@modelcontextprotocol/server@2.4.0':
+  '@modelcontextprotocol/server@2.3.1':
     dependencies:
-      '@modelcontextprotocol/core': 2.4.0
+      '@modelcontextprotocol/core': 2.3.1
       zod: 4.6.5
 
   '@napi-rs/wasm-runtime@1.2.5(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)':
