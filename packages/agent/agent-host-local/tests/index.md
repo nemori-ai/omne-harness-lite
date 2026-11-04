@@ -19,6 +19,7 @@
 - [tool-reception.spec.ts](tool-reception.spec.ts)：Tool 结果接收方由子插件登记在 Agent 的 consumer owner 下，宿主在没有 Tool 两键时就绪；推送把 Tool 消费位置的 execution 作为路由交给目标查询；有序停止、目标查询撤除与宿主卸载都撤销登记（R2-D273）
 - [ordered-stop.spec.ts](ordered-stop.spec.ts)：有序停止 `quiesceAll`：无实例 settled，drained 后卸载贡献 fiber，生产工厂的空闲实例 settled，unresolved、抛出与超过截止时 incomplete 并点名，停止开始后 `acquire` 被拒
 - [run-failure.spec.ts](run-failure.spec.ts)：运行失败：Journal 对 I0 的提交答 unavailable，宿主写一条具名 warn，有序停止答 incomplete 并写出 execution、节点与失败种类（R2-D282、R2-D285）
+- [run-ended-failed.spec.ts](run-ended-failed.spec.ts)：以失败终结：模型调用以 connect-timeout 失败后宿主恰好写一条 warn，带 execution、step 与原因；正常完成而无内容的负控原因为 no-reply
 - [provision.spec.ts](provision.spec.ts)：实例取得的符合性套件对宿主真件、回收保护点、quiesce 失败与 unresolved、预约、发布与撤除
 - [recovery.spec.ts](recovery.spec.ts)：恢复入口与无活体控制入口的读回、核验、跨租户拒绝、takeover 与突然失去依赖
 - [control-entry.spec.ts](control-entry.spec.ts)：控制入口对本宿主仍在运行的 runtime 的执行推进取消，Loop 不再发 Model 请求，重试不再写入，主体核验仍拒绝；守卫拒绝时不推进，Journal 收不到该主体的读写

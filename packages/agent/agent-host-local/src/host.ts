@@ -36,6 +36,7 @@ import {
   type AgentConfiguration,
   type AgentDependencies,
   type AgentProvider,
+  type AgentRunEndedFailed,
   type AgentRunFailed,
   type AgentRuntimeExtras,
   type AgentRuntimeOptions,
@@ -91,7 +92,7 @@ import { stagePort } from './stage-ports.ts'
 
 /**
  * The factory the host calls for each instance: `createAgentRuntime` in production. `extras` carries
- * the host's own `failed` receiver; a factory hands it on to `createAgentRuntime`.
+ * the host's own `failed` and `endedFailed` receivers; a factory hands them on to `createAgentRuntime`.
  */
 export type RuntimeFactory = (
   dependencies: AgentDependencies<unknown, ContentBlock>,
@@ -100,7 +101,7 @@ export type RuntimeFactory = (
 ) => Reply<AgentProvider<unknown>>
 
 /** What the host gives every runtime it builds besides dependencies and options. */
-export type HostRuntimeExtras = Required<Pick<AgentRuntimeExtras, 'failed'>>
+export type HostRuntimeExtras = Required<Pick<AgentRuntimeExtras, 'failed' | 'endedFailed'>>
 
 /** The statically injected services that the factory takes as they are. */
 export type HostStatics = Readonly<{
@@ -310,6 +311,20 @@ function runFailedRecord(event: AgentRunFailed): string {
     `agent run stopped on a failure: tenant=${tenant} instance=${event.instance} ` +
     `execution=${event.execution} node=${event.node ?? 'none'} failure=${event.failure.kind} ` +
     `diagnostic=${failureText(event.failure)}`
+  )
+}
+
+/**
+ * The warn record of a run that ended with a `fail` conclusion (SPEC「以失败终结」). The cause is the
+ * record of the conclusion cause as the Journal keeps it; for a failed Model call it reads
+ * `<execution>/<step>/model-failed/<fault cause>/<diagnostic>`.
+ */
+function runEndedFailedRecord(event: AgentRunEndedFailed): string {
+  const tenant = tenantTextOf(event.tenant) ?? 'unknown'
+  return (
+    `agent run ended with a failure: tenant=${tenant} instance=${event.instance} ` +
+    `execution=${event.execution} step=${event.failure?.step ?? 'none'} ` +
+    `failure=${event.failure?.kind ?? 'unknown'} cause=${event.cause.record}`
   )
 }
 
@@ -859,6 +874,7 @@ export function createHost(input: HostInput): Host {
             )
             record('warn', runFailedRecord(event))
           },
+          endedFailed: event => record('warn', runEndedFailedRecord(event)),
         },
       )
       if ('failure' in created) {

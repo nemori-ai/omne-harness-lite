@@ -57,7 +57,12 @@ function renderBody(kind: string, payload: unknown): string {
     return `Run ${word(fields['run'])} started (entry ${word(fields['entry'])})`
   if (fields !== undefined && kind === 'run.terminal') {
     const terminal = record(fields['terminal'])
-    return `Run ${word(terminal?.['run'])} ended: ${word(terminal?.['outcome'])}`
+    const ended = `Run ${word(terminal?.['run'])} ended: ${word(terminal?.['outcome'])}`
+    // The entry's own `cause` field names why a run did not complete; it is shown as kept.
+    const cause = word(record(fields['cause'])?.['record'])
+    return cause === '' || word(terminal?.['outcome']) === 'completed'
+      ? ended
+      : `${ended}\ncause: ${clip(cause)}`
   }
   return clip(JSON.stringify(payload) ?? '')
 }

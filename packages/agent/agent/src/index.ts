@@ -16,7 +16,12 @@ export type {
   AgentRuntimeExtras,
   AgentSegmentEvent,
 } from './measure.ts'
-export type { AgentRunFailed, AgentRunFailedReceiver } from './run-failure.ts'
+export type {
+  AgentRunEndedFailed,
+  AgentRunEndedFailedReceiver,
+  AgentRunFailed,
+  AgentRunFailedReceiver,
+} from './run-failure.ts'
 
 export { agentModelDeliverySchema, readModelDeliveryMaterial } from './receiving-material.ts'
 

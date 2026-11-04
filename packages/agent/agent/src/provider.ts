@@ -32,7 +32,9 @@ import type {
   DurableEvidence,
   EventPage,
   ExecutionAttachmentId,
+  ExecutionState,
   Failure,
+  FailureCandidate,
   QuiesceResult,
 } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -49,7 +51,7 @@ import { createExecutionCoordinator, type Halted } from './loop/coordinator.ts'
 import { agentEvidence } from './loop/identities.ts'
 import { advanceControl } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
-import type { AgentRunFailedReceiver } from './run-failure.ts'
+import type { AgentRunEndedFailedReceiver, AgentRunFailedReceiver } from './run-failure.ts'
 
 const OWNER = '@omne-harness/agent'
 
@@ -192,6 +194,8 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   measurer: AgentMeasurer
   /** The receiver of the report of a run that stopped on a failure; undefined: nobody is told. */
   failed: AgentRunFailedReceiver | undefined
+  /** The receiver of the report of a run that ended with a `fail` conclusion; undefined: nobody is told. */
+  endedFailed: AgentRunEndedFailedReceiver | undefined
 }>
 
 export function createProvider<P, B extends ContentBlock>(
@@ -377,6 +381,31 @@ export function createProvider<P, B extends ContentBlock>(
   }
 
   /**
+   * F4 of `execution` found its committed terminal (SPEC「以失败终结」). A `fail` conclusion goes to
+   * the receiver once, with its cause as the Journal keeps it; other conclusions are not reported.
+   * A receiver that throws changes nothing.
+   */
+  function endedRun(
+    execution: AgentExecutionId,
+    state: Extract<ExecutionState, { kind: 'ended' }>,
+    candidate: FailureCandidate | null,
+  ): void {
+    if (state.conclusion.kind !== 'fail') return
+    try {
+      entry.endedFailed?.({
+        kind: 'run-ended-failed',
+        tenant: binding.tenant,
+        instance,
+        execution,
+        cause: state.conclusion.cause,
+        failure: candidate === null ? null : { kind: candidate.kind, step: candidate.step },
+      })
+    } catch {
+      // The report observes the runtime and never decides an answer of it.
+    }
+  }
+
+  /**
    * U0 to E1 for an invoke that holds the reservation, then the Loop in the background. SPEC
    * "创建、登记与复用": invoke waits for the reliable acceptance only, not for the Loop. A failure
    * before E1 puts the slot `back`: free for a new invoke, the R0 item again for its retry, because
@@ -414,6 +443,7 @@ export function createProvider<P, B extends ContentBlock>(
       initial: input.initial,
       grant: input.grant,
       idle: release,
+      ended: (state, candidate) => endedRun(execution, state, candidate),
       toolConcurrency: entry.configuration.toolConcurrency,
       maxRunSteps: maxRunStepsOf(entry.configuration),
     })

@@ -108,7 +108,7 @@ import {
   sentPosition,
 } from './admission-read.ts'
 import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
-import { consumeModelResult, type ModelOutcome } from './model-result.ts'
+import { consumeModelResult, noReplyReason, type ModelOutcome } from './model-result.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
 import {
   advanceControl,
@@ -175,6 +175,14 @@ export type ExecutionEntry<P> = Readonly<{
   grant: DurableEvidence | null
   /** E9, or E1 finding an advanced execution: give the slot back and return to idle. */
   idle(): void
+  /**
+   * F4 found the committed terminal: the conclusion and the finish candidate it ended with (SPEC
+   * 「以失败终结」). Called at most once per coordinator; absent, nobody is told.
+   */
+  ended?(
+    state: Extract<ExecutionState, { kind: 'ended' }>,
+    candidate: FailureCandidate | null,
+  ): void
   toolConcurrency?: number
   /**
    * The most steps this execution takes (R2-D221, the M2 fallback for the loop judgment of wave 3).
@@ -591,6 +599,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // Whether the wait R0 entered is the memory wait of F3 (agent README, loop-algorithm R0 row): W0
   // writes nothing for it, and the wake retries the terminal through E1.
   let finishWait = false
+  // Whether F4 already told `entry.ended` of the terminal: one report per coordinator.
+  let endReported = false
   // Whether the next F3 issues the obligations again, after a tryFinish answered `changed`.
   let reissueObligations = false
   let cancellationChanged = false
@@ -1561,7 +1571,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
             kind: 'try-finish',
             conclusion: {
               kind: 'fail',
-              cause: agentEvidence(`${execution}/${current.step}/no-reply`, failure),
+              cause: agentEvidence(
+                `${execution}/${current.step}/${noReplyReason(result.settlement)}`,
+                failure,
+              ),
             },
             failure,
           }
@@ -3234,6 +3247,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const read = await load()
       if ('failure' in read) return read
       if (read.ok.state.kind !== 'ended') return fail(defect('F4 without a committed terminal'))
+      if (!endReported) {
+        endReported = true
+        entry.ended?.(read.ok.state, read.ok.settlement.candidate?.failure ?? null)
+      }
       return step('observed', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>

@@ -33,6 +33,15 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 - **停用**：quiesce 把 `failed` 的 execution 算作剩余，答 unresolved，见“[停用](#停用)”。remaining 的契约形状只有 execution 身份，不带节点与失败。调用方要说明原因，就按 execution 对上这次报告。
 - **已知限制**：execution 不终结。Journal 里没有 `ended`，会话历史里也没有 `run.terminal`。它的执行挂接仍是 active，本实现不 detach。因为没有交接，quiesce 对它如实答 unresolved，有序停止对这个实例答 incomplete。节点失败时以失败终结 Run、解除挂接，尚未实现。它要改契约，并要 Session 参加，计划在波 3。实现后，这类 execution 才能收口。
 
+## 以失败终结
+
+<a id="以失败终结"></a>执行以 `fail` 结论终结时，结论原因写明为什么失败，宿主据此记一条日志。以前主调用以失败收场时，原因只留在 Model 的账目里，结论原因只写 `no-reply`，会话历史与服务日志都看不到真实原因。
+
+- **原因记录**：结论原因是 Agent 自记的证据，record 为 `<execution>/<step>/<原因>`。主调用首内容前没有有效回复时，失败候选的 kind 仍是 `no-reply`（SC-AG-153）。原调用被 Model 判为失败收场时，原因段是 `model-failed/<故障 cause>/<诊断>`，诊断取 `ModelFault.diagnostic` 的前 120 个字符并做 URI 编码，所以不增加段；诊断为空时写 `-`。原调用正常完成却没有内容时，原因段才是 `no-reply`。Session 的 `run.terminal` 条目把这个原因原样放在 `cause` 字段，CLI 的 `read-history` 显示它。
+- **报告**：F4 读到已提交的终态后，结论为 `fail` 时，runtime 调用一次 `createAgentRuntime` 第三个参数里的 `endedFailed` 接收者。事件是 `{ kind: 'run-ended-failed', tenant, instance, execution, cause, failure }`。`cause` 是终态里的结论原因；`failure` 是快照里终结候选的 kind 与 step，快照不再带候选时为 null。`complete` 与 `cancelled` 结论不报告。同一个驱动的协调者最多报告一次。接收者被同步调用，不得回调本 runtime；抛出不改变任何答复。没有接收者时执行照样终结。
+- **与运行失败的区别**：[运行失败](#运行失败)是驱动停在节点上、execution 没有终结；本节是 execution 已经终结。一次 Run 只会走其中一种。
+- **已知限制**：报告只在本进程 F4 时发出。进程重启后，恢复驱动重新经过 F4 时会再报告一次。
+
 ## 测量事件
 
 <a id="测量事件"></a>依据 R2-D17（DP1 取 C）与 R2-D49：Agent 把 E9 要用的边界作为结构化事件交给调用工厂的人。参数是 `createAgentRuntime(依赖, 选项, { measure })` 的可选第三个参数，不是服务键，不是配置，不进入 `judgeOptions`，缺省不建任何事件。事件形状不是冻结的产品 API，字段名是 L-RUN 与联调 B 的约定。
@@ -55,6 +64,8 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 ## 验证
 
 测量事件的测试在 `tests/measure.spec.ts`：受理与驱动两类通过的起止成对、观察者缺省与抛出时执行的结果不变。
+
+以失败终结的测试在 `tests/run-ended-failed.spec.ts`：主调用以 connect-timeout 失败收场时，终态结论原因为 `<execution>/step-1/model-failed/upstream-unavailable/connect-timeout`，接收者恰好收到一次报告；诊断中的 `/` 被编码；负控为正常完成而没有内容时原因仍是 `no-reply`；正常完成不报告；接收者抛出时执行照样终结。只覆盖内存 Journal 与脚本化 Model。
 
 运行失败的测试在 `tests/provider-run-failure.spec.ts`：I0 的提交答 unavailable 时，接收者收到一次带租户、实例、execution、节点与失败的报告，observe 仍为 occupied，execution 未终结，新 invoke 答 busy；quiesce 答 unresolved，remaining 为该 execution，不撤登记，重试答同样的剩余；接收者抛出时执行槽照样保持，quiesce 照样 unresolved；M0 回执丢失后经核对继续并正常结束时不报告。只覆盖内存 Journal 与登记句柄替身。
 
