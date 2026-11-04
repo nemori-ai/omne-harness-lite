@@ -844,6 +844,7 @@ async function checkCell(
           ...SESSION_SCRIPT,
           ...(cell.answer === 'http:404+session' ? {} : { initialize: LEGACY }),
           notifications: reply,
+          listing: { '': result({ tools: [] }) },
         },
         async (peer, transport) => {
           assert.strictEqual(conclusion.kind, 'ignored')
@@ -852,6 +853,8 @@ async function checkCell(
             notifications(await peer.received(), 'notifications/initialized').length,
             1,
           )
+          // On Streamable HTTP an answer to a notification leaves the transport as it was.
+          if (http) ok(await transport.listActions(), 'listActions')
         },
       )
     default:
