@@ -113,7 +113,9 @@ export function checkpointOf(
         item => item.pending.kind === 'model' && item.pending.reference === request.reference,
       )
       if (intent === undefined)
-        throw new TypeError(`the Journal holds no call.intended for the voided request ${request.reference}`)
+        throw new TypeError(
+          `the Journal holds no call.intended for the voided request ${request.reference}`,
+        )
       return {
         step: request.step,
         action: intent.action,
