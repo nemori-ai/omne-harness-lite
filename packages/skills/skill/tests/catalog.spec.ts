@@ -99,6 +99,29 @@ describe('the suite goes red on a violating implementation', () => {
   })
 })
 
+describe('an identity listed twice in the lawful set', () => {
+  it('keeps the first answer of the port and leaves the later one out', async () => {
+    const world = createCatalogWorld()
+    const catalog = createSkillCatalog<Principal, Scope>({
+      ...world.ports,
+      resolution: {
+        ...world.ports.resolution,
+        async adopted(who, at) {
+          const listed = await world.ports.resolution.adopted(who, at)
+          if (!('ok' in listed)) return listed
+          const review = listed.ok.find(answer => answer.kind === 'adopted')
+          if (review?.kind !== 'adopted') throw new Error('the world adopts no Skill')
+          const later = { ...review, declared: { ...review.declared, description: 'Later.' } }
+          return succeed([...listed.ok, later])
+        },
+      },
+    })
+    expect(await catalog.summaries(alice, scope, [reviewEntry.capability])).toStrictEqual({
+      ok: [reviewEntry],
+    })
+  })
+})
+
 describe('an empty request', () => {
   it('calls neither the lawful set nor the read check', async () => {
     const world = createCatalogWorld()

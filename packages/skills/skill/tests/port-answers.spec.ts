@@ -63,6 +63,23 @@ const EXPLODING: unknown = new Proxy(
   },
 )
 
+/** A script declaration whose parameters hold every kind of JSON node. */
+const SCRIPT = {
+  entry: 'scripts/run.sh',
+  runKind: 'shell',
+  facilities: ['network'],
+  parameters: {
+    kind: 'object',
+    entries: [
+      { key: 'none', value: { kind: 'null' } },
+      { key: 'flag', value: { kind: 'boolean', value: true } },
+      { key: 'text', value: { kind: 'string', value: 'x' } },
+      { key: 'count', value: { kind: 'number', lexeme: '1' } },
+      { key: 'list', value: { kind: 'array', items: [{ kind: 'null' }] } },
+    ],
+  },
+}
+
 /** The adopted answer and the stand-in answer that the world's resolution gives. */
 async function lawfulAnswers(world: World) {
   const adopted = await world.ports.resolution.resolve(alice, scope, review)
@@ -183,6 +200,16 @@ describe('the resolution at resolve', () => {
         declared: { ...a.declared, settings: [{ name: 'tone', category: 'mood' }] },
       }),
     ],
+    [
+      'with script parameters that hold a node outside the JSON tree',
+      (a: Adopted) => ({
+        ...a,
+        declared: {
+          ...a.declared,
+          scripts: [{ ...SCRIPT, parameters: { kind: 'array', items: [{ kind: 'number' }] } }],
+        },
+      }),
+    ],
   ])('an adopted answer %s makes describe and read answer unknown', async (_case, broken) => {
     const world = createWorld()
     const { adopted } = await lawfulAnswers(world)
@@ -208,6 +235,18 @@ describe('the resolution at resolve', () => {
     }
     const access = createSkillAccess({ ...world.ports, resolution })
     expect(await access.describe(alice, scope, retired)).toStrictEqual(UNKNOWN)
+  })
+
+  it('a script with parameters of every JSON node passes as it was given', async () => {
+    const world = createWorld()
+    const { adopted } = await lawfulAnswers(world)
+    const declared = { ...adopted.declared, scripts: [SCRIPT] }
+    const resolution: SkillResolution<Principal, Scope> = {
+      ...world.ports.resolution,
+      resolve: answering({ ...adopted, declared }),
+    }
+    const access = createSkillAccess({ ...world.ports, resolution })
+    expect(okOf(await access.describe(alice, scope, review)).scripts).toStrictEqual([SCRIPT])
   })
 
   it('a well-formed answer with extra fields passes without them', async () => {
