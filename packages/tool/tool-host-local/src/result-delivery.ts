@@ -32,6 +32,7 @@ import {
   type DeliveryBase,
   type DeliveryRecord,
 } from './delivery-state.ts'
+import { processMonotonicMs } from './clock.ts'
 
 export type DeliveryPosition<P, B extends ContentBlock> = Readonly<{
   access(input: Readonly<{ tenant: TenantId; call: ToolCallId }>): Reply<CallAccess<P>>
@@ -56,7 +57,7 @@ export type LocalDeliveryInput<P, B extends ContentBlock> = Readonly<{
   pacing?: Readonly<{ initialMs: number; maxMs: number }>
   /** Where the named warning of a paced push goes. Absent: nowhere. */
   warn?: (message: string) => void
-  /** A monotonic reading in milliseconds for that pacing. Absent: `performance.now`. */
+  /** A monotonic reading in milliseconds for that pacing. Absent: the process monotonic timer of `clock.ts`. */
   now?: () => number
 }>
 
@@ -149,7 +150,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
    */
   const turns = new Map<string, Turn>()
   const pacing = input.pacing ?? { initialMs: 1000, maxMs: 60_000 }
-  const now = input.now ?? (() => performance.now())
+  const now = input.now ?? processMonotonicMs
   /**
    * The deliveries whose receiver was absent or answered `unavailable` at the last push: when the
    * next push may look again, the wait that set it, and the dependency named then. A receiver that
