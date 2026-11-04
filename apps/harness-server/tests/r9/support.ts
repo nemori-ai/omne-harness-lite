@@ -146,7 +146,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     // `maxCommandBytes` is the storage provider's (`providerConfig`); `maxCallBytes` leaves the reserve.
     maxCallBytes: 524_288,
     maxCommandBytes: 1_048_576,
-    combinationVersion: 'session-composite/3',
+    combinationVersion: 'session-composite/4',
     send: { mirrorBytes: 4_194_304, maxClaims: 8 },
     initial: { maxRecords: 1024, maxBindings: 4, maxCallsPerBinding: 1024 },
     sendStage: {
@@ -249,7 +249,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string }) {
     },
     records: {
       filesRoot,
-      combinationVersion: 'session-composite/3',
+      combinationVersion: 'session-composite/4',
       maxCommandBytes: 1048576,
       maxChunkBytes: 16384,
       configuration: {
@@ -303,7 +303,7 @@ export function operatorLayer(options: {
         kind: 'replace',
         id: 'session-storage',
         config: {
-          combinationVersion: 'session-composite/3',
+          combinationVersion: 'session-composite/4',
           directoryFile: join(options.storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },

@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path'
 import { operatorLayer as baseOperatorLayer } from '../joint-a/support.mjs'
 
 // 会话存储组合的版本：发行层 `session-handoff`、`agent-journal` 与此相同（TOOL-B 起为 /3，R2-D185）。
-const COMBINATION_VERSION = 'session-composite/3'
+const COMBINATION_VERSION = 'session-composite/4'
 
 const ADOPTION = {
   owner: 'joint-b',

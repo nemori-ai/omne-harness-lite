@@ -102,8 +102,8 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/3",
-        "manifestDigest": "e408200bea9f5191ce88849f87651dd0a8df65f104dff7661ec64be8ae0de214"
+        "combinationVersion": "session-composite/4",
+        "manifestDigest": "316ea04838038e8e85be44f2f987cefc2ff5e81795e819cdf64e5ffe5e2bf39e"
       }
     },
     {
@@ -115,8 +115,8 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/3",
-        "manifestDigest": "e408200bea9f5191ce88849f87651dd0a8df65f104dff7661ec64be8ae0de214"
+        "combinationVersion": "session-composite/4",
+        "manifestDigest": "316ea04838038e8e85be44f2f987cefc2ff5e81795e819cdf64e5ffe5e2bf39e"
       }
     },
     {
