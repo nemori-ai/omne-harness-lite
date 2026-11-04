@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-The `omne` command line client for the Harness Server. It prints help or the build version. It also sends operations to the server through the SDK: `register`, `login`, `create-session`, `send-input`, `read-history`, `cancel-run`, `stop-call`, and 18 governance operations, one command for each (for example `create-organization`, `switch-current-tenant`, and `revoke-login`). Use it to drive a Harness Server from a shell, a script, or a CI job without writing TypeScript against the SDK.
+The `omne` command line client for the Harness Server. It prints help or the build version. It also sends operations to the server through the SDK: `register`, `login`, `create-session`, `send-input`, `read-history`, `cancel-run`, `stop-call`, and 18 governance operations, one command for each (for example `create-organization`, `switch-current-tenant`, and `revoke-login`). It also has `credential set|show|unset`, which manages the model credential of the tenant. Use it to drive a Harness Server from a shell, a script, or a CI job without writing TypeScript against the SDK.
 
 ## Responsibility and status
 
@@ -11,7 +11,7 @@ This app owns the process entry `omne`, argument parsing, the 26 commands, the c
 Implemented:
 
 - `omne --help` and `omne --version`.
-- The 25 commands. Each command sends one public operation through the SDK and prints one JSON object. `read-history` reads all pages of a session history and prints text for a person, or one JSON object with `--json`. The 18 governance commands are named for their operations and act for the tenant that `login.json` holds. [SPEC.md](SPEC.md#治理命令) lists them. `credential set|show|unset` sets, shows or unsets the model credential of that tenant. It reads the secret from standard input or a hidden prompt, and it never prints the secret. See [SPEC.md](SPEC.md#模型凭据命令).
+- The 26 commands. Each command sends one public operation through the SDK and prints one JSON object. `read-history` reads all pages of a session history and prints text for a person, or one JSON object with `--json`. The 18 governance commands are named for their operations and act for the tenant that `login.json` holds. [SPEC.md](SPEC.md#治理命令) lists them. `credential set|show|unset` sets, shows or unsets the model credential of that tenant. It reads the secret from standard input or a hidden prompt, and it never prints the secret. See [SPEC.md](SPEC.md#模型凭据命令).
 - `login.json` follows the governance results: `login` saves the `loginId` of the response, `switch-current-tenant` updates the tenant, and `revoke-login` deletes the file when it ends this login.
 - Credential entry without echo on a terminal, and from a pipe.
 - `login.json` in the state directory, written through a temporary file and a rename.

@@ -71,7 +71,7 @@ N4 是不可观察的变异。`clean` 只在 ACK 之后被调用，而且 Comman
 | 编号 | 性质 | 违背后果 | 守卫 |
 | --- | --- | --- | --- |
 | S1 | `FinalDecided`：凭据缺失或读不出时，调用最终结算，或者 driver 以确定拒绝结束 | 调用方一直等，调用不结算，份额不归还 | `send-credential-terminal.spec.ts`、`send.spec.ts` 的明确拒绝与释放失败用例 |
-| S2 | `FinalSettlesUnlessStolen`：本实例保有执行时，终局拒绝以 credential 失败结算 | 同上 | `send-credential-terminal.spec.ts` |
+| S2 | `FinalSettlesUnlessStolen`：本实例保有执行时，带 fault 的确定拒绝以 credential 失败结算 | 同上 | `send-credential-terminal.spec.ts` |
 | S3 | `NoCredFailureAfterStart`：传输已经 start 的调用不会带上 credential 终止 | 已发出字节、可能已计费的调用被报成「凭据缺失」 | `send.spec.ts`「recognizes an unknown not-sent record without resolving credentials a second time」 |
 | S4 | `AtMostOneTerminal`：未确认的终止写重试时，不写第二个终止 | 同一调用两条终止事实 | `send.spec.ts`「retries an unconfirmed credential terminal with the same operation」 |
 | 已知 | `RefusalDecided`：凭据端口答 `unavailable` 时也能定局。不成立，是 SPEC 出口表的已知限制 | 调用方一直等 | 无，交 Model 拥有者裁定 |
@@ -95,9 +95,9 @@ N4 是不可观察的变异。`clean` 只在 ACK 之后被调用，而且 Comman
 
 | 配置 | 去掉的守卫 | 对应的源码变异 |
 | --- | --- | --- |
-| `bad-send-rejection-unavailable` | 明确拒绝答成凭据的 `unavailable`（N1 原状） | `rejectedRefusal` 与 `recordTerminal` 改回旧答复：明确拒绝用例变红 |
+| `bad-send-rejection-unavailable` | 故障：not-sent 记录被明确拒绝，边界却答凭据的 `unavailable` | `rejectedRefusal` 与 `recordTerminal` 改回旧答复：明确拒绝用例变红 |
 | `bad-send-release-overrides` | 释放失败把确定拒绝改成 `unavailable` | `stopFinal` 改回 `stop`：释放失败用例变红 |
-| `bad-send-read-failure-drops` | 读记录失败当作没有终止（N2 原状） | `notSentTerminal` 读失败答 `{ ok: null }`：两条重读用例变红 |
+| `bad-send-read-failure-drops` | 故障：读记录失败被当作没有终止 | `notSentTerminal` 读失败答 `{ ok: null }`：两条重读用例变红 |
 | `bad-send-retry-new-op` | 重试换新 operation，并去掉窗口守卫 | `DriveAgain` 换 operation：同一 operation 用例变红 |
 | `bad-send-re-resolve` | 重试重新解析凭据 | 无单独变异；`send.spec.ts` 的「不再解析」用例守着 |
 | `send-retry-new-op-window` | 只换新 operation，保留窗口守卫 | 正控：窗口守卫单独也守住 S4，两道守卫互为冗余 |

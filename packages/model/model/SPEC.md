@@ -451,7 +451,7 @@ start 返回事实而记录未确认时，原流和资源由 sender 有界保留
 - 「重试」：同一驱动的下一次 drive 继续原阶段，原写只重放，不重新解析，也不再次 start。重试只消耗有界的瞬时故障，之后落到前两种结局。
 - 「等待」：driver 停在 `failed`，失败为 `unavailable`，调用不结算。这是已知限制，见本表最后一组。
 
-凭据缺失与读不出（终局拒绝）：
+凭据缺失与读不出（带 fault 的确定拒绝）：
 
 | 步骤与存储答复 | 边界答复 | driver | 结局 |
 | --- | --- | --- | --- |
@@ -471,15 +471,15 @@ start 返回事实而记录未确认时，原流和资源由 sender 有界保留
 | value：记录未确认或被拒绝 | unknown，原流保留，不再 start | 重试原写 | 重试；执行被接管时一直是 unknown，见已知限制 |
 | denied 或 scope 错配 | not-started，`denied` 或 `invalid` | 读记录，无终止，以该拒绝结束 | 确定拒绝 |
 
-已知限制：下列出口仍让调用方等待，本次没有改。前三行的失败是 `unavailable`，而同一个 dispatch 已不能再发送，driver 的 `failed` 阶段也不重试。最后一行是有意的：可能已发送的调用只能等原记录。
+已知限制：下列出口仍让调用方等待。前三行的失败是 `unavailable`，而同一个 dispatch 已不能再发送，driver 的 `failed` 阶段也不重试。最后一行是有意的：可能已发送的调用只能等原记录。
 
 | 出口 | 诊断 |
 | --- | --- |
 | 凭据端口答 `unavailable` 或抛出 | `credential-unavailable` |
 | 当前资格不可得、取得资源前已取消、传输 prepare 或物化失败 | `qualification-unavailable`、`cancelled-before-prepare`、`cancelled-before-start`、`transport-prepare-failed` 等 |
-| 非终局拒绝之后释放失败 | `resource-release-failed` |
+| 没有写终止的拒绝之后释放失败 | `resource-release-failed` |
 | 已经 start 而发送记录始终不能确认（例如执行被接管） | `send-record-unconfirmed`。可能已发送，所以不得改报未发，也不得判成 credential 失败 |
 
-消除它们需要为每个出口选定结局，例如以哪一种 `ModelFaultCause` 结算，这改变的是 Model 的调用结局，交 Model 拥有者裁定。终局拒绝的机制不限于凭据：fence 拒绝带上 `fault`，边界就写终止，driver 就按记录结算。
+消除它们需要为每个出口选定结局，例如以哪一种 `ModelFaultCause` 结算，这会改变 Model 的调用结局，每个出口的结局登记为 D-86。确定拒绝的机制不限于凭据：fence 拒绝带上 `fault`，边界就写终止，driver 就按记录结算。
 
-这张表由 TLC 模型 [SendBoundary.tla](../model-contract/verification/models/SendBoundary.tla) 检查：终局拒绝最终结算或确定拒绝，可能已发送的调用不判成 credential 失败，重试不写第二个终止。性质、映射与负控见 [formal-mapping.md](../model-contract/verification/models/formal-mapping.md#发送边界)。
+这张表由 TLC 模型 [SendBoundary.tla](../model-contract/verification/models/SendBoundary.tla) 检查：带 fault 的确定拒绝最终结算，或者以确定拒绝结束，可能已发送的调用不判成 credential 失败，重试不写第二个终止。性质、映射与负控见 [formal-mapping.md](../model-contract/verification/models/formal-mapping.md#发送边界)。
