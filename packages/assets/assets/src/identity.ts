@@ -1,3 +1,4 @@
+import type { SettingDefinitions } from '@omne-harness/settings'
 import type { JsonValue } from '@omne-harness/json-text'
 
 export type { JsonLimits, JsonRead, JsonValue } from '@omne-harness/json-text'
@@ -25,6 +26,7 @@ export type BodyContract = {
   readonly schema: JsonValue
   readonly judge: (body: unknown, context?: JudgeContext) => Judgment
   readonly deriveDeclarations: (body: JsonValue, context?: JudgeContext) => Declarations
+  readonly settings?: (body: JsonValue, context?: JudgeContext) => SettingDefinitions | null
   readonly references: (body: JsonValue, context?: JudgeContext) => readonly CapabilityId[]
 }
 

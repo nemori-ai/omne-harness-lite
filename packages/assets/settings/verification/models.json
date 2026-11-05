@@ -1,0 +1,77 @@
+{
+  "model": "models/SettingsComposition.tla",
+  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof",
+  "cases": [
+    {
+      "name": "positive",
+      "config": "models/positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "negative-commit",
+      "config": "models/negative-commit.cfg",
+      "expected": "GuardedCommit"
+    },
+    {
+      "name": "negative-publish",
+      "config": "models/negative-publish.cfg",
+      "expected": "FreshPublication"
+    },
+    {
+      "name": "negative-input",
+      "config": "models/negative-input.cfg",
+      "expected": "FrozenInput"
+    },
+    {
+      "name": "negative-outbox",
+      "config": "models/negative-outbox.cfg",
+      "expected": "RecoverableCommit"
+    },
+    {
+      "name": "negative-unload",
+      "config": "models/negative-unload.cfg",
+      "expected": "UnloadPreservesValue"
+    },
+    {
+      "name": "negative-source-version",
+      "config": "models/negative-source-version.cfg",
+      "expected": "BasisTracksSources"
+    },
+    {
+      "name": "standing-positive",
+      "model": "models/StandingCommit.tla",
+      "config": "models/standing-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "standing-negative-release",
+      "model": "models/StandingCommit.tla",
+      "config": "models/standing-negative-release.cfg",
+      "expected": "TerminalBeforeRelease"
+    },
+    {
+      "name": "standing-negative-seal",
+      "model": "models/StandingCommit.tla",
+      "config": "models/standing-negative-seal.cfg",
+      "expected": "TerminalImmutable"
+    },
+    {
+      "name": "standing-negative-writer",
+      "model": "models/StandingCommit.tla",
+      "config": "models/standing-negative-writer.cfg",
+      "expected": "NoHeldAfterRevocation"
+    },
+    {
+      "name": "standing-negative-admission",
+      "model": "models/StandingCommit.tla",
+      "config": "models/standing-negative-admission.cfg",
+      "expected": "NoNewReservationsDuringDrain"
+    },
+    {
+      "name": "standing-negative-authorization",
+      "model": "models/StandingCommit.tla",
+      "config": "models/standing-negative-authorization.cfg",
+      "expected": "FreshGovernanceAuthorization"
+    }
+  ]
+}

@@ -542,7 +542,7 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
       })
     })
 
-    it('文件数超过上限时给出原因，不复用', () => {
+    it('文件数超过上限时给出原因，不复用', { tags: ['slow'] }, () => {
       const root = repo()
       const imports = Array.from({ length: 2001 }, (_, i) => `import '../../shared/f${i}.ts'`).join(
         '\n',

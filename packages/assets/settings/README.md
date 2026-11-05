@@ -1,26 +1,24 @@
-PACKAGE_TEMPLATE_DRAFT
-
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+公开入口提供声明校验、纯求值、变更决定及查询/命令应用服务。持久化和实际目标策略由独立成员 settings-local 与 assets-local 提供。导出条件 `source` 指向本包源码。发布时去掉它。
 
 # settings
 
 ## 职责与状态
 
-本目录维护目标成员的行为与机制文档，尚无实现成员、公开导出或运行入口。支持未核实，目标公开形状及技术采用仍待确认。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/assets-and-rules/design.md)判断，不以文档存在证明兑现。
+本成员提供不依赖 Assets、Cordis 或数据库的设置核心。声明以 JSON Schema 描述合法值，Zod 校验协议，Ajv 校验取值。目标资格与当前提交由注入端口提供，应用服务不自行授予权限。完整产品的剩余采用边界、原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/assets-and-rules/design.md)判断。
 
 ## 使用与集成
 
-独立消费从 [SPEC](SPEC.md)读取明确输入、结果、资格和生命周期责任；目前不能提供可运行示例或命令。Cordis 消费须在公开契约明确后沿[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)设计装配，不能将活体 Context 当作业务数据。
+独立消费从 [SPEC](SPEC.md)读取行为，从 [公开入口](src/index.ts)读取精确类型。`defineSettings` 校验声明，`evaluateSettings` 处理已合法化的有序来源，`decideSettingsChange` 产生纯变更决定。`createSettingsQueries` 与 `createSettingsCommands` 消费注入端口；提供者必须兑现一致读取、当前资格及原子提交，空实现不构成真实集成。Cordis 装配沿[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)，运行对象不进入业务 DTO。
 
 ## 契约与设计
 
-[SPEC](SPEC.md)完整维护非类型行为，[内部设计](docs/internals.md)维护本成员机制、精确流程与后续设计义务。[组入口](../README.md)维护依赖及协作。公开类型尚待形成，不复制旧签名。
+[SPEC](SPEC.md)维护非类型行为，[内部设计](docs/internals.md)维护机制与未完成义务；[组合模型](../docs/settings-composition.md)维护独立使用与资产组合的 DDD/OOP 和数学分解。[组入口](../README.md)维护依赖及协作。精确类型归公开源码。
 
 ## 配置与运行
 
-配置、环境、资源限制及提供者采用沿 SPEC 和内部设计的适用条件判断。尚无已核实运行装配，不提供默认机制。
+核心无环境变量或默认持久层。部署参数、身份协调和关闭顺序见 [本地提供者](../settings-local/README.md)。核心可独立用于纯计算，托管命令必须注入满足契约的提供者。
 
 ## 验证与维护
 
-SPEC 的不变量与验证场景是持续义务，尚无本次运行证据。成员维护者改变行为时同步公开形状、机制、消费者及验证，组维护者同步跨成员协作与导航。关键未知只暂停依赖路径。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+运行 `pnpm --filter @omne-harness/settings test:fast` 验证纯核心及应用端口行为。`build` 与 `typecheck` 检查公开实现和测试类型。测试不证明实际托管提供者或完整系统联调。
+[验证资源](verification/README.md)维护有限模型与负控，其前提与源码符合性分别判断。成员维护者同步公开形状、行为、消费者与验证，组维护者同步跨成员协作。

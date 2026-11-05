@@ -1,3 +1,10 @@
+import { coordinationOver } from './coordination.ts'
+import type {
+  PrincipalVerifier,
+  StandingDestinationResolver,
+  StandingReservations,
+  IdentityGovernanceRecovery,
+} from '@omne-harness/identity'
 // The provider of the three identity operations, the standing read and the governance port over the
 // SQL storage contract (identity SPEC ID-16, ID-17, ID-18; DP-3). Every computation that is not SQL
 // happens in the main thread: input checks, scrypt, identities, digests, deadlines and result
@@ -93,6 +100,8 @@ export type IdentitySqlInput = Readonly<{
   /** Material derived from a random secret at start, compared for an unknown account (DP3-C6). */
   decoyMaterial: string
   identifiers?: IdentifierSource
+  principalVerifier?: PrincipalVerifier
+  destinationResolver?: StandingDestinationResolver
 }>
 
 export type IdentitySql = Readonly<{
@@ -100,6 +109,8 @@ export type IdentitySql = Readonly<{
   standing: TenantStandingSource
   /** Shares the records of `operations`: a revocation or a switch is seen by recognition. */
   governance: IdentityGovernance
+  reservations: StandingReservations
+  governanceRecovery: IdentityGovernanceRecovery
   /** New calls get the stopped answers (DP3-C16). Calls already accepted run to their end. */
   stop(): void
 }>
@@ -532,11 +543,27 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
     })
   }
 
+  const coordination = coordinationOver({
+    stopped: () => stopped,
+    readTime: () => readTime(),
+    commit: (facts, identity) =>
+      storage.commit({
+        identity,
+        combinationVersion: combination.combinationVersion,
+        manifestDigest: combination.manifestDigest,
+        commands: [{ participant: IDENTITY_PARTICIPANT, facts }],
+      }),
+    query: identity => storage.query(identity),
+    read: input => read('identity.coordination', input),
+    ...(input.principalVerifier === undefined ? {} : { verifier: input.principalVerifier }),
+    ...(input.destinationResolver === undefined ? {} : { resolver: input.destinationResolver }),
+  })
   const governance = governanceOver(
     {
       stopped: () => stopped,
       readTime: () => readTime(),
       commit,
+      writeMembership: coordination.writeMembership,
       query: identity => storage.query(identity),
       read,
     },
@@ -547,6 +574,8 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
     operations: Object.freeze({ registerAndActivate, issueLogin, recognizeLogin }),
     standing: Object.freeze({ read: readStanding }),
     governance,
+    reservations: coordination.reservations,
+    governanceRecovery: coordination.governanceRecovery,
     stop() {
       stopped = true
     },

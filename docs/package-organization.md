@@ -102,7 +102,9 @@ packages/
 │   └── scrypt/                 有界 scrypt 派生与校验
 ├── assets/
 │   ├── assets/                 共同定义、版本、持有与来源
+│   ├── assets-local/           单机固定发布与持有
 │   ├── settings/               设置配值与求值
+│   ├── settings-local/         单机设置持久化与资格协调
 │   └── permissions/            权限配值与求值
 ├── workspace/workspace/        工作区身份与资源关联
 ├── session/
