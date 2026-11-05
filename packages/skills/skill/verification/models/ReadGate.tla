@@ -19,7 +19,8 @@
 (*                                                                         *)
 (* The resolution may answer with a reference to other material than the *)
 (* request (action ResolveMisdirected): the reference of the other        *)
-(* identity, or, with a basis, another material of the requested one.     *)
+(* identity, or, with a basis, another material of the requested one or   *)
+(* a reference without a digest.                                          *)
 (* Skill takes such an answer for no answer (S7).                          *)
 (*                                                                         *)
 (* Flaw selects a deliberate defect so that each property has a negative  *)
@@ -116,6 +117,7 @@ FaultOf(n) ==
       [] n = "open-entryNotFound" -> [call |-> "open", arg |-> "entryNotFound"]
       [] n = "misdirect-identity" -> [call |-> "misdirect", arg |-> "identity"]
       [] n = "misdirect-material" -> [call |-> "misdirect", arg |-> "material"]
+      [] n = "misdirect-digest" -> [call |-> "misdirect", arg |-> "digest"]
 
 VARIABLES
     req, w, variant, fault, smode, abortAt, changeAt,     \* the shared schedule
@@ -141,7 +143,9 @@ CheckAnswer(r, t) ==
     ELSE IF w.grant THEN "granted" ELSE "refused"
 
 (* `id` and `mat` of an adopted answer are the identity and material that its
-   reference names. *)
+   reference names. `dig`: the reference carries a digest. With a basis it
+   carries the digest of the basis back (PR3), for material without a package
+   too; without one, only material with a package has a digest. *)
 ResolveAnswer(r, t, b) ==
     IF fault.call = "resolve" THEN [kind |-> "undecided", id |-> t, mat |-> 0, dig |-> FALSE]
     ELSE IF ~Known(r, t) THEN [kind |-> "none", id |-> t, mat |-> 0, dig |-> FALSE]
@@ -149,32 +153,39 @@ ResolveAnswer(r, t, b) ==
     ELSE IF b # NoBasis /\ b.mat \notin Lawful(t)
         THEN [kind |-> "basisNotLawful", id |-> t, mat |-> 0, dig |-> FALSE]
     ELSE [kind |-> "adopted", id |-> t, mat |-> IF b = NoBasis THEN w.cur[t] ELSE b.mat,
-          dig |-> w.st[t] = "adopted"]
+          dig |-> b # NoBasis \/ w.st[t] = "adopted"]
 
 OtherId(t) == IF t = Hidden THEN Other ELSE Hidden
 
 (* A reference to other material than the request, without PR1 and PR3:
    "identity" names the current material of the other identity; "material",
-   with a basis, names the other material of the requested identity. Without
-   a basis "material" is the honest answer: the adopted material is the
+   with a basis, names the other material of the requested identity;
+   "digest", with a basis, drops the digest of the reference. Without a basis
+   "material" and "digest" are the honest answer: the adopted material is the
    resolution's own word. *)
 MisdirectedAnswer(r, t, b) ==
     IF fault.arg = "identity"
         THEN [kind |-> "adopted", id |-> OtherId(t), mat |-> w.cur[OtherId(t)], dig |-> TRUE]
     ELSE LET honest == ResolveAnswer(r, t, b) IN
-        IF honest.kind = "adopted" /\ b # NoBasis THEN [honest EXCEPT !.mat = 1 - b.mat]
+        IF honest.kind = "adopted" /\ b # NoBasis
+            THEN IF fault.arg = "digest" THEN [honest EXCEPT !.dig = FALSE]
+                 ELSE [honest EXCEPT !.mat = 1 - b.mat]
         ELSE honest
 
 (* S7 at the boundary: an adopted answer about another identity, or with a
-   basis about another material, is no answer. *)
-Misnames(a, t, b) == a.kind = "adopted" /\ (a.id # t \/ (b # NoBasis /\ a.mat # b.mat))
+   basis about another material, is no answer. A basis names material with a
+   digest, so with a basis a reference without one names other material. *)
+Misnames(a, t, b) ==
+    a.kind = "adopted" /\ (a.id # t \/ (b # NoBasis /\ (a.mat # b.mat \/ ~a.dig)))
 Parsed(a, t, b) ==
     IF Flaw # "noRefCheck" /\ Misnames(a, t, b)
         THEN [kind |-> "undecided", id |-> t, mat |-> 0, dig |-> FALSE]
         ELSE a
 
+(* Material without a package: the source holds none at its locator. *)
 SrcNow(r, t) ==
-    IF t = Hidden /\ V(r) = "deleted" THEN Gone
+    IF w.st[t] = "nodigest" THEN Gone
+    ELSE IF t = Hidden /\ V(r) = "deleted" THEN Gone
     ELSE IF calls[r] >= changeAt THEN w.later[t] ELSE w.src[t]
 
 SnapAnswer(r, t) ==

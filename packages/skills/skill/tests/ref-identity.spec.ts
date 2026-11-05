@@ -20,7 +20,6 @@ import {
   currentBasis,
   currentDigest,
   earlierDigest,
-  failureOf,
   granted,
   large,
   largeLocator,
@@ -148,6 +147,11 @@ describe('with a basis, a reference to other material is no answer', () => {
   it('answers unknown for another digest', async () => {
     await expectNoAnswer(await lyingWorld({ ...REVIEW_REF, digest: earlierDigest }), currentBasis)
   })
+
+  it('answers unknown for no digest: a basis names material with one (S7)', async () => {
+    const { digest: _dropped, ...withoutDigest } = REVIEW_REF
+    await expectNoAnswer(await lyingWorld(withoutDigest), currentBasis)
+  })
 })
 
 describe('a reference that agrees with the request passes', () => {
@@ -175,23 +179,6 @@ describe('a reference that agrees with the request passes', () => {
     }
     const description = okOf(await access.describe(alice, scope, workspaceNote, { basis }))
     expect(description.material).toStrictEqual({ kind: 'pinned', basis })
-  })
-
-  it('answers unsupported, not unknown, for a reference without a digest under a basis', async () => {
-    const { digest: _dropped, ...noPackage } = REVIEW_REF
-    const { access } = await lyingWorld(noPackage)
-    expect(
-      failureOf(
-        await access.read(
-          alice,
-          scope,
-          { capability: review, part: { kind: 'body' } },
-          {
-            basis: currentBasis,
-          },
-        ),
-      ),
-    ).toStrictEqual({ kind: 'unsupported', what: 'no-readable-package' })
   })
 })
 

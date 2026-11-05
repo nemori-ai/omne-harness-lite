@@ -78,12 +78,12 @@ describe('export fails as one, without entries', () => {
     })
   })
 
-  it('answers unsupported for an identity without a readable package', async () => {
-    const { access } = createWorld()
+  it('answers basis-unavailable for an identity without a readable package: the source has none where the reference points', async () => {
+    const { access, controls } = createWorld()
     const basis = { capability: noPackage, layer: 'workspace' as const, digest: currentDigest }
     expect(failureOf(await access.export(alice, scope, noPackage, basis))).toStrictEqual({
-      kind: 'unsupported',
-      what: 'no-readable-package',
+      kind: 'basis-unavailable',
     })
+    expect(controls.calls().open).toBe(0)
   })
 })

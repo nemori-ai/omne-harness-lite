@@ -81,6 +81,7 @@
 | `open` 答 `entry-unreadable` 时，本页给出防御性映射。端口的要求只为 `snapshot` 定义这一种，组页也只写了 `snapshot` | [需求端口](#ports) | W3 Skill 线实施规格已定事项 9（2026-11-04） |
 | `resolve` 答 `adopted` 时，引用必须指向所请求的身份；带依据时，引用的来源层、资产版本（依据带资产版本时）与内容摘要必须等于依据的。`known-unavailable` 的能力标识必须是所请求的身份。不合即没有作答。组页只写了「包定位只取自 `SkillRef`」 | [端口答复的统一处置](#port-answer-closed) | w3-skill-fix 裁定 1（GS-06） |
 | 来源在快照阶段答 `bytes-mismatch` 时，检查也答 `source-unavailable`。组页的映射表让检查答 `version-changed`，检查不分调用点 | [需求端口](#ports) | w3-skill-fix 裁定 2（GS-02） |
+| 所钉材料的 `SKILL.md` 没有合法的头部定界时，`read` 的正文答 `source-unavailable`，不交内容。组页第 11 步把整个条目当作正文 | [读取的形状规则](#read-shape) | w3-skill-fix 裁定 3（GS-04） |
 | 头部 YAML 读不出、但能逐行读出 name 与说明时接受；说明超过 1024 个字符时接受；`metadata` 不是文本映射时接受；name 与包根目录名不同时接受。四种都带兼容提示。组页的包格式规则拒绝这四种 | [`SKILL.md`](#manifest)、[兼容提示](#compatibility-hints) | w3-skill-fix 裁定 5（生态兼容）与第 2 轮裁定 N1 |
 | 说明的上限是 16384 个字符，在检查、资产正文、声明投影、替换件与读取的边界解析中都一样。组页与 Agent Skills 规格写 1024 | [值与守卫](#values) | w3-skill-fix 第 2 轮裁定 N2 |
 
@@ -249,10 +250,11 @@ malformed
   - 值可以是普通标量：去掉 ` #` 之后的注释，后面有缩进的续行时，各行去掉首尾空白后以一个空格相连。
   - 值也可以是单行的引号标量：双引号按 JSON 字符串读，单引号里的 `''` 读作 `'`。闭合引号之后只能有空白或注释。
   - 块标量（`|`、`>`）与其他写法读不出。
-  - `name` 合 `SkillName` 的词法、`description` 是非空文本时，检查接受这个包，带兼容提示 `frontmatter-read-by-line`。清单只有这两个字段，`extra` 为空：其他字段不读。否则为 `malformed`。
+  - `name` 合 `SkillName` 的词法、`description` 是长 1 到 `DESCRIPTION_LIMIT` 个字符的文本时，检查接受这个包，带兼容提示 `frontmatter-read-by-line`；说明超过 1024 个字符时另带 `description-over-limit`。清单只有这两个字段，`extra` 为空：其他字段不读。否则为 `malformed`。
+  - 这些是逐字的规则，不按 YAML 的语义读：逐行读取是对已经读不出的头部的尽力读取，不经过读取关口。
 - 头部必须是映射。整个图中的映射键都必须是文本标量。标量只能是 null、布尔值、有限数或文本。`!!binary`、`.inf` 与 `.nan` 为 `malformed`。
 - 别名按所指节点展开。展开后的图最多 4096 个节点：映射、序列与标量各算一个，键不算。映射与序列最多嵌套 16 层，头部的根映射算第 1 层。超出为 `malformed`。
-- 重复键在整个图中都是 `malformed`，包括 Skill 原样保留、不解释的值内部。
+- 重复键在整个图中都是解析错误，包括 Skill 原样保留、不解释的值内部。这时检查按上面的规则逐行读取。
 - 核心字段不强转类型：
 
   | 字段 | 规则 |
@@ -330,7 +332,7 @@ metadata-not-text-map
 - `description-over-limit`：说明超过 Agent Skills 规格的 1024 个字符，全文保留。它不超过 `DESCRIPTION_LIMIT`，所以资产正文、声明投影与读取照常可用。
 - `metadata-not-text-map`：`metadata` 不是文本映射，只保留了文本值。
 
-真正读不了的包仍然拒绝：缺 `SKILL.md`（`manifest-missing`）；没有闭合的头部，或头部既不是 YAML 映射、逐行也读不出 name 或说明，或说明超过 `DESCRIPTION_LIMIT`（`malformed`）；路径或链接落在包根之外（`outside-package`）。
+真正读不了的包仍然拒绝：缺 `SKILL.md`（`manifest-missing`）；没有闭合的头部；头部的 YAML 解析成功但不是映射；YAML 解析有错误或警告，而逐行也读不出 name 或说明；说明超过 `DESCRIPTION_LIMIT`（都是 `malformed`）；路径或链接落在包根之外（`outside-package`）。
 
 放宽没有让任何拒绝原因不再产生，[拒绝原因的集合](#set-inspect-rejections)不变。各原因在放宽后的情形：
 
@@ -353,7 +355,7 @@ metadata-not-text-map
   - 起点或长度为负数或非整数时，是调用方的错误，读取抛出 `TypeError`。
   - 本版本的每页上限不可配置。
 - 读正文时，内容摘要核对整个 `SKILL.md` 条目。字节范围与总长都相对正文起点，不含头部。
-- 正文起点由 `bodyOffsetOf(bytes)` 给出：字节的第一行逐字为 `---` 且以 LF 或 CRLF 结束，之后第一个逐字为 `---` 的行（以 LF 或 CRLF 结束，或是最后一行）是闭合行，正文起点是闭合行的行终止符之后的字节偏移；闭合行是最后一行且没有行终止符时，正文起点等于字节总长。没有这样的开头行或闭合行时答 `undefined`。它只看定界行，不解码字节，也不判断头部的 YAML。
+- 正文起点由 `bodyOffsetOf(bytes)` 给出：字节的第一行逐字为 `---` 且以 LF 或 CRLF 结束，之后第一个逐字为 `---` 的行（以 LF 或 CRLF 结束，或是最后一行）是闭合行，正文起点是闭合行的行终止符之后的字节偏移；闭合行是最后一行且没有行终止符时，正文起点等于字节总长。没有这样的开头行或闭合行时答 `undefined`。它只看定界行，不解码字节，也不判断头部的 YAML。`bodyOffsetOf` 答 `undefined` 时，`SkillAccess.read` 的正文答 `source-unavailable`，不交内容：检查通过的包都有合法的头部，所以只有不来自检查通过的包的材料会走到这里。
 - 结果写出实际范围，它这样确定：
   - 实际起点是不小于请求起点的第一个字符边界。二进制条目的每个字节都是边界，所以实际起点就是请求起点。实际起点超过总长时截到总长。
   - 实际长度是实际交出的字节数。请求终点是请求起点加请求长度，不随实际起点后移而变。文本条目的终点前移到不大于请求终点的上一个字符边界，所以实际长度可以小于请求长度。前移后的终点早于实际起点时，实际范围为空。
@@ -363,7 +365,7 @@ metadata-not-text-map
 - `complete` 为真，当且仅当实际范围的终点（起点加长度）不小于总长，也就是这一页之后没有剩余字节。部分结果不是失败。
 - `read`、`list` 与 `export` 在每次调用端口之前与每次端口返回之后各检查一次 `signal`。任一次发现已中止，操作答 `aborted`，不再调用端口，也不交部分内容。`describe` 不收 `signal`。
 - 中止的活性有一个前提：每次端口调用都会结束（返回或 reject）。端口收不到 `signal`，已经发出的端口调用由端口跑完，所以中止的响应时间受端口时间限制。端口不结束时，操作不答复。
-- `unsupported` 本版本只有 `no-readable-package` 一种：资产正文缺 `package.digest` 时的 `read`、`list` 与 `export`。
+- `unsupported` 本版本只有 `no-readable-package` 一种：不带依据的 `read` 与 `list` 遇到资产正文缺 `package.digest` 的材料时答它。带依据时（`export` 总带依据），端口带回依据的内容摘要（PR3），来源在引用的定位处没有包，操作按映射表答 `basis-unavailable`。
 - `export` 不分批：一次结果交出所钉快照的全部条目，或者一个失败，不交部分包。本版本的 `export` 没有总量上限。以后增加上限是破坏性改动，需要另行裁定。
 
 失败种类的集合（每一种何时出现见[组工程设计「失败种类」](../docs/architecture.md#失败种类)，`aborted` 见上文）：
@@ -424,7 +426,7 @@ no-readable-package
 - 原有规则不变：正文必须经 `readBodyText` 读取；名字为空、工具引用不是 Tool 身份时拒绝为 `incomplete-reference`；名字不等于能力名时拒绝为 `name-mismatch`。
 - 名字必须合 `SkillName` 的词法，否则拒绝为 `name-invalid`。这收紧了资产规格中 `skill` 一段：那一段只要求名字非空。判断次序是：正文与名字为空（`incomplete-reference`）、`name-mismatch`、`name-invalid`、工具引用（`incomplete-reference`），然后是扩展字段。
 - 扩展字段 `description`、`scripts`、`settings` 与 `package` 都可以缺省，所以没有它们的旧正文仍然合法。这四个字段名从此是 `skill` 资产正文的保留字段：它们在场时必须合下列规则，否则拒绝。
-- `description` 是长 1 到 `DESCRIPTION_LIMIT`（16384）个字符（按码点计）的文本。读取资产正文的一方要给 JSON 读取器足够的字符串预算。
+- `description` 是长 1 到 `DESCRIPTION_LIMIT`（16384）个字符（按码点计）的文本。读取资产正文的一方给 `@omne-harness/json-text` 的 `maxStringLength`（按解码后字符串的 UTF-16 码元计）不能小于 `2 × DESCRIPTION_LIMIT`：一个码点最多占两个码元。预算更小时，合法的长说明在读取正文时就被拒绝，见[不在本成员](#not-in-member)。
 - `scripts` 与 `settings` 的每一项与 `.omne/skill.json` 的规则相同，跨项规则也相同：重复为 `malformed`。脚本入口不核对是否在包中，但必须已经规范化，也不得是控制文件：`./run.sh` 这类未规范化的写法与 `SKILL.md` 都为 `malformed`。
 - `package` 是只有 `digest` 一个字段的对象，`digest` 合 `PackageDigest` 的形式。
 - 扩展字段的拒绝原因是 `outside-package`、`setting-category-unknown` 与 `malformed`，按此次序取第一个。
@@ -466,7 +468,7 @@ no-readable-package
 - 没有已知集合的实现，对已不在当前集合里的身份不答 `known-unavailable`，这时不出现替换件。「资产版本不可表示」是例外（见下文）：这时身份仍在集合里、name 已知，任何实现都答 `known-unavailable`。
 - 带依据时，`resolve` 不比较内容摘要：内容摘要由 Skill 在读取时与当前快照比较。依据带资产版本时，`resolve` 核对该资产版本是不是这个主体在此作用域可读的、该能力的合法版本。依据不带资产版本时，`resolve` 核对该能力在依据的来源层对这个主体合法可读。
 - 身份对该主体合法对应时：依据合法就答 `adopted`，其中的内部引用（包定位与内容摘要）指向依据所指的材料，而不是当前采用的材料（PR3）；依据不合法就答 `basis-not-lawful`（PR4）。
-- 带依据答 `adopted` 时，引用的能力标识是所请求的身份，来源层等于依据的，依据带资产版本时资产版本也等于依据的。所指材料有包时，引用的内容摘要就是依据的内容摘要：端口不比较内容摘要，原样带回（PR3）。Skill 在边界上核对这些字段，不合就当作没有作答，见[端口答复的统一处置](#port-answer-closed)。
+- 带依据答 `adopted` 时，引用的能力标识是所请求的身份，来源层等于依据的，依据带资产版本时资产版本也等于依据的。引用的内容摘要就是依据的内容摘要：端口不比较内容摘要，原样带回（PR3），所指材料没有包时也一样。所指材料没有包时，来源在引用的定位处也没有包，读取按映射表答 `basis-unavailable`。Skill 在边界上核对这些字段，不合就当作没有作答，见[端口答复的统一处置](#port-answer-closed)。
 - 资产版本不合 `AssetVersion` 的词法时，Skill 无法表示这份材料。这时端口答 `known-unavailable`，原因是「资产版本不可表示」。
 - `known-unavailable` 带的原因必须可以向该主体说明：它不含秘密，也不披露该主体无权知道的内容。这一义务归端口的实现，`isSafeReason` 只核对词形。
 - `adopted` 只交 `adopted` 与 `known-unavailable` 两种答复，每个身份一个（PR6）。集合为空时答空数组，不是失败。
@@ -502,7 +504,7 @@ no-readable-package
 - `known-unavailable`：`name` 合 `isSkillName`，`reason` 合 `isSafeReason`，可带的 `description` 合 `isSkillDescription`。
 - 引用身份一致（性质 S7）：`resolve` 的答复必须是关于所请求的身份与依据的。
   - `adopted` 的 `ref.capability` 与请求的身份按 `sameCapability` 相同。
-  - 带依据时，`ref.layer` 等于依据的来源层；依据带资产版本时，`ref.assetVersion` 等于它；`ref` 带内容摘要时，内容摘要等于依据的。`ref` 没有内容摘要表示没有可读的包，这时不比较内容摘要，操作答 `unsupported`，不读字节。
+  - 带依据时，`ref.layer` 等于依据的来源层；依据带资产版本时，`ref.assetVersion` 等于它；`ref` 带内容摘要，且等于依据的。依据点名的是带内容摘要的材料，所以不带内容摘要的引用不是那份材料。
   - `known-unavailable` 的 `capability` 与请求的身份相同。
   - `adopted` 列出的每一项按它自己的能力标识（`ref.capability` 或 `capability`）成为一个条目，没有另外的身份可比，所以这一项核对对它自然成立。
   - 不合的答复算端口没有作答，服务当作 `unknown`，不交出任何内容，也不调用来源。
@@ -550,10 +552,13 @@ prefix-conflict
 
 本页只为 `snapshot` 定义 `entry-unreadable`。`open` 答它不在端口的要求之内，上面的 `open` 一行是防御性的映射：来源这样作答时，服务仍有确定的答复。
 
+<a id="not-in-member"></a>
+
 ### 不在本成员
 
 - `PackageInspection`、`SkillCatalog` 与 `SkillAccess` 只有接口与结果值，实现在 `@omne-harness/skill`。
 - 目录来源 `DirectorySource` 在 `@omne-harness/skill-host-local`。
+- 读取资产正文时的字符串预算（`skill` 类别端口的 `description` 一条）归读取资产正文的一方：资产成员或装配。目前还没有这样的读取方，本页只写下限，未封闭。
 
 ## 组合与验证
 

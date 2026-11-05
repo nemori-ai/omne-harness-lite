@@ -292,17 +292,19 @@ export type Fault =
 /**
  * A `resolve` answer that names other material than the request, without the premise PR1 and PR3:
  * `misdirect` answers `adopted` with the reference and declarations of another identity (the
- * point's `to`); the other three take the world's `adopted` answer and change one field of its
- * reference: the source layer, the asset version, or the digest. Skill must take each of them
- * for no answer when it names another identity, or, with a basis, other material than the basis.
+ * point's `to`); the other four take the world's `adopted` answer and change one field of its
+ * reference: the source layer, the asset version, or the digest, or they drop the digest. Skill
+ * must take each of them for no answer when it names another identity, or, with a basis, other
+ * material than the basis: a basis names material with a digest.
  */
-export type Misdirection = 'misdirect' | 'mislayer' | 'misversion' | 'misdigest'
+export type Misdirection = 'misdirect' | 'mislayer' | 'misversion' | 'misdigest' | 'undigest'
 
 export const MISDIRECTIONS: readonly Misdirection[] = [
   'misdirect',
   'mislayer',
   'misversion',
   'misdigest',
+  'undigest',
 ]
 
 /** Which call a fault replaces. `item` replaces one item of the lawful set by a malformed one. */
@@ -456,6 +458,11 @@ function misdirected(
       const other = MATERIAL[name].find(item => item.digest !== ref.digest)?.digest ?? ref.digest
       return { answer: { ...given, ref: { ...ref, digest: other } }, breaks: basis !== undefined }
     }
+    case 'undigest': {
+      if (ref.digest === undefined) return { answer: given, breaks: false }
+      const { digest: _dropped, ...undigested } = ref
+      return { answer: { ...given, ref: undigested }, breaks: basis !== undefined }
+    }
     default: {
       const exhaustive: never = misdirection
       return exhaustive
@@ -572,7 +579,8 @@ export function runOf(world: WorldSpec, schedule: Schedule = PLAIN, gate?: Check
           case 'misdirect':
           case 'mislayer':
           case 'misversion':
-          case 'misdigest': {
+          case 'misdigest':
+          case 'undigest': {
             if (misdirect === undefined) throw new Error(`${fault} is a fault of resolve only`)
             const { answer: changed, breaks } = misdirect(fault, await real())
             const traced = calls[index]

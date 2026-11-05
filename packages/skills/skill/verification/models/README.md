@@ -26,7 +26,8 @@
   - `Mode = "same"`：两个运行看见同一个世界，只在目录读取判定的完成次序上不同。不变式 `SameObservation` 是 S5。
   - `Mode = "single"`：只有运行 1。
 - 端口答复是抽象的。`undecided` 代表实现解析成「没有作答」的全部答复：`unknown`、畸形答复、reject、同步抛出、读取时抛出。来源的故障取 `undecided`、`notFound`、`entryNotFound`。
-- 对应端口可以答错指的引用（动作 `ResolveMisdirected`，故障 `misdirect-identity` 与 `misdirect-material`）：引用指向另一个身份的当前材料，或者带依据时指向所请求身份的另一份材料。成功的结果记下它写明的身份（`out.id`），交出的每一片内容记下 `<<身份, 材料, 条目>>`。条目 `SKILL` 的摘要随身份与材料而变，所以快照摘要也写明身份。边界解析（`Parsed`）把错指的答复变成 `undecided`；`Flaw = "noRefCheck"` 去掉这一核对。不变式 `OwnMaterialOnly` 是 S7。
+- 身份的状态 `nodigest` 是没有包的材料：来源在它的定位处没有包。对应端口的引用是否带内容摘要记在 `dig`。带依据时引用总是带回依据的内容摘要（PR3），没有包的材料也一样，所以这时读取走到快照一步，来源答 `notFound`，操作答 `basis-unavailable`。不带依据时，没有包的材料的引用不带内容摘要，操作答 `unsupported`。
+- 对应端口可以答错指的引用（动作 `ResolveMisdirected`，故障 `misdirect-identity`、`misdirect-material` 与 `misdirect-digest`）：引用指向另一个身份的当前材料；或者带依据时指向所请求身份的另一份材料；或者带依据时不带内容摘要。成功的结果记下它写明的身份（`out.id`），交出的每一片内容记下 `<<身份, 材料, 条目>>`。条目 `SKILL` 的摘要随身份与材料而变，所以快照摘要也写明身份。边界解析（`Parsed`）把错指的答复变成 `undecided`；`Flaw = "noRefCheck"` 去掉这一核对。不变式 `OwnMaterialOnly` 是 S7。
 - `Flaw` 选一个故意的缺陷。每条性质有一个负控配置，它必须报告反例。
 
 <a id="mapping"></a>
@@ -48,25 +49,25 @@
 | `undecided` | `port-answer.ts` 的 `answered` 答 `undefined`；`source-answer.ts` 的 `sourceAnswer` 答 `unavailable` |
 | `abortAt`、`changeAt`、`smode` | 探索器的 `Schedule.abortAfter`、`Schedule.change.after`、`Schedule.addressing` |
 
-模型把每次端口调用与紧接其后的检查点合成一个动作。模型没有表示：字节范围（S4）、`inspect`、映射表中 `notFound`、`entryNotFound` 与 `undecided` 以外的行、解析的逐字段规则、`describe` 结果的声明内容、不终止的端口。错指的引用只表示成「另一个身份」与「另一份材料」：来源层、资产版本与内容摘要三个字段合在材料里，替换件的身份不在模型里。这些由探索器与用例承担，见[性质账本](../README.md#ledger)。
+模型把每次端口调用与紧接其后的检查点合成一个动作。模型没有表示：字节范围（S4）、`inspect`、映射表中 `notFound`、`entryNotFound` 与 `undecided` 以外的行、解析的逐字段规则、`describe` 结果的声明内容、不终止的端口。错指的引用只表示成「另一个身份」「另一份材料」与「没有内容摘要」：来源层、资产版本与内容摘要的值三个字段合在材料里，替换件的身份不在模型里。这些由探索器与用例承担，见[性质账本](../README.md#ledger)。
 
 ### 配置与结果
 
-工具：TLC 2.19（tla2tools.jar v1.7.4，rev 5a47802），Java 21，`-workers 2`。源码基线 `49e984dd8` 加 w3-skill-fix 的改动（S7 与错指动作）。全部配置关闭死锁检查：`Done` 让结束状态停留，模型不声明活性。正控配置都检查全部七个不变式（含 S7 的 `OwnMaterialOnly`）。用时是 2026-11-04 实测，同机有其他负载。
+工具：TLC 2.19（tla2tools.jar v1.7.4，rev 5a47802），Java 21，`-workers 2`。模型是 w3-skill-fix 第 3 轮的版本（S7、三种错指、带依据时引用带回依据的内容摘要；`ReadGate.tla` 的 SHA-256 前 16 位 `a7cf1233b473196a`）。全部配置关闭死锁检查：`Done` 让结束状态停留，模型不声明活性。正控配置都检查全部七个不变式（含 S7 的 `OwnMaterialOnly`）。用时是 2026-11-05 实测，同机有其他负载。
 
 | 配置 | 常量 | 不变式 | 初始状态 | 生成 / 不同状态 | 深度 | 用时 | 结果 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| [ReadGate.cfg](ReadGate.cfg) | `single`；无故障或 12 种故障之一（含两种错指 `misdirect-identity`、`misdirect-material`）；不中止；来源不变；两种来源 | 全部 | 539,136 | 2,390,976 / 1,820,736 | 8 | 54 s | 本范围内无反例 |
-| [ReadGate_Change.cfg](ReadGate_Change.cfg) | `single`；无故障；来源不变或在第 0–5 个答复之后变化；两种来源 | 全部 | 290,304 | 1,310,280 / 1,001,832 | 8 | 28 s | 本范围内无反例 |
-| [ReadGate_Abort.cfg](ReadGate_Abort.cfg) | `single`；无故障或来源 `undecided`；在第 0–6 个答复时中止；来源不变或在第 3 个答复后变化 | 全部 | 1,990,656 | 8,652,840 / 6,537,768 | 8 | 2 min 54 s | 本范围内无反例 |
-| [ReadGate_Disclosure.cfg](ReadGate_Disclosure.cfg) | `twin`；6 对隐藏方式；无故障、`x` 的读取判定或合法集合 `undecided`；不中止或预先中止 | 全部 | 909,792 | 9,963,000 / 6,386,040 | 8 | 3 min 38 s | 本范围内无反例 |
-| [ReadGate_Order.cfg](ReadGate_Order.cfg) | `same`；只有目录；`h` 被拒或被准许；读取判定或合法集合 `undecided` | 全部 | 2,160 | 83,160 / 47,736 | 9 | 7 s | 本范围内无反例 |
-| [ReadGate_FlawNoRefCheck.cfg](ReadGate_FlawNoRefCheck.cfg) | `single`；无故障或两种错指之一；边界解析不核对引用 | `OwnMaterialOnly` | 124,416 | 373,262 / 342,148（中止于反例） | 4 | 16 s | 找到反例：观察者对 `h` 没有读取权（`refused-shows`），对应端口把 `x` 的 `describe` 答成 `h` 的引用，结果写明身份 `h` |
-| [ReadGate_FlawRefusedAsBasis.cfg](ReadGate_FlawRefusedAsBasis.cfg) | 同 Disclosure；读取判定拒绝且带依据时答 `basis-unavailable` | `SameObservation` | 909,792 | 8,808,279 / 5,991,410（中止于反例） | 6 | 2 min 25 s | 找到反例：带 `h` 依据的 `describe`，`refused-hides` 答 `basis-unavailable`，`checked-only` 答 `not-available-to-you` |
-| [ReadGate_FlawUnknownAsEmpty.cfg](ReadGate_FlawUnknownAsEmpty.cfg) | 同 ReadGate 的旧故障集；目录把 `undecided` 压成空列表 | `WholeUnknown` | 456,192 | 1,311,558 / 1,197,510（中止于反例） | 3 | 38 s | 找到反例：合法集合 `undecided`，目录答空列表 |
-| [ReadGate_FlawNoEntryDigest.cfg](ReadGate_FlawNoEntryDigest.cfg) | 同 Change；第 10 步不核对条目摘要 | `NoMixedVersion` | 290,304 | 1,255,013 / 997,961（中止于反例） | 6 | 39 s | 找到反例：只按定位取字节的来源在快照之后换成材料 1，钉住材料 0 的 `read` 交出材料 1 的正文 |
-| [ReadGate_FlawNoCheckAfterSnapshot.cfg](ReadGate_FlawNoCheckAfterSnapshot.cfg) | 同 Abort；快照之后不查 `signal` | `AbortStops` | 1,990,656 | 7,550,523 / 6,205,269（中止于反例） | 5 | 4 min 46 s | 找到反例：在第 3 个答复（快照）时中止，快照 `undecided`，`read` 答 `source-unavailable` 而不是 `aborted` |
-| [ReadGate_FlawCompletionOrder.cfg](ReadGate_FlawCompletionOrder.cfg) | 同 Order；目录按完成次序列出条目 | `SameObservation` | 2,160 | 75,461 / 45,183（中止于反例） | 9 | 10 s | 找到反例：两个身份都被准许，两个运行以不同次序完成判定，条目次序不同 |
+| [ReadGate.cfg](ReadGate.cfg) | `single`；无故障或 13 种故障之一（含三种错指 `misdirect-identity`、`misdirect-material`、`misdirect-digest`）；不中止；来源不变；两种来源 | 全部 | 580,608 | 2,590,632 / 1,976,328 | 8 | 34 s | 本范围内无反例 |
+| [ReadGate_Change.cfg](ReadGate_Change.cfg) | `single`；无故障；来源不变或在第 0–5 个答复之后变化；两种来源 | 全部 | 290,304 | 1,321,620 / 1,013,172 | 8 | 22 s | 本范围内无反例 |
+| [ReadGate_Abort.cfg](ReadGate_Abort.cfg) | `single`；无故障或来源 `undecided`；在第 0–6 个答复时中止；来源不变或在第 3 个答复后变化 | 全部 | 1,990,656 | 8,701,440 / 6,586,368 | 8 | 1 min 30 s | 本范围内无反例 |
+| [ReadGate_Disclosure.cfg](ReadGate_Disclosure.cfg) | `twin`；6 对隐藏方式；无故障、`x` 的读取判定或合法集合 `undecided`；不中止或预先中止 | 全部 | 909,792 | 9,963,000 / 6,386,040 | 8 | 1 min 20 s | 本范围内无反例 |
+| [ReadGate_Order.cfg](ReadGate_Order.cfg) | `same`；只有目录；`h` 被拒或被准许；读取判定或合法集合 `undecided` | 全部 | 2,160 | 83,160 / 47,736 | 9 | 4 s | 本范围内无反例 |
+| [ReadGate_FlawNoRefCheck.cfg](ReadGate_FlawNoRefCheck.cfg) | `single`；无故障或三种错指之一；边界解析不核对引用 | `OwnMaterialOnly` | 165,888 | 497,687 / 456,199（中止于反例） | 4 | 9 s | 找到反例：观察者对 `h` 没有读取权（`refused-shows`），对应端口把 `x` 的 `describe` 答成 `h` 的引用，结果写明身份 `h` |
+| [ReadGate_FlawRefusedAsBasis.cfg](ReadGate_FlawRefusedAsBasis.cfg) | 同 Disclosure；读取判定拒绝且带依据时答 `basis-unavailable` | `SameObservation` | 909,792 | 8,808,278 / 5,991,410（中止于反例） | 6 | 1 min 6 s | 找到反例：带 `h` 依据的 `describe`，`refused-hides` 答 `basis-unavailable`，`checked-only` 答 `not-available-to-you` |
+| [ReadGate_FlawUnknownAsEmpty.cfg](ReadGate_FlawUnknownAsEmpty.cfg) | 同 ReadGate 的旧故障集（不含错指）；目录把 `undecided` 压成空列表 | `WholeUnknown` | 456,192 | 1,311,558 / 1,197,510（中止于反例） | 3 | 19 s | 找到反例：合法集合 `undecided`，目录答空列表 |
+| [ReadGate_FlawNoEntryDigest.cfg](ReadGate_FlawNoEntryDigest.cfg) | 同 Change；第 10 步不核对条目摘要 | `NoMixedVersion` | 290,304 | 1,255,013 / 1,009,301（中止于反例） | 6 | 19 s | 找到反例：只按定位取字节的来源在快照之后换成材料 1，钉住材料 0 的 `read` 交出材料 1 的正文 |
+| [ReadGate_FlawNoCheckAfterSnapshot.cfg](ReadGate_FlawNoCheckAfterSnapshot.cfg) | 同 Abort；快照之后不查 `signal` | `AbortStops` | 1,990,656 | 7,550,526 / 6,205,272（中止于反例） | 5 | 1 min 22 s | 找到反例：在第 3 个答复（快照）时中止，快照 `undecided`，`read` 答 `source-unavailable` 而不是 `aborted` |
+| [ReadGate_FlawCompletionOrder.cfg](ReadGate_FlawCompletionOrder.cfg) | 同 Order；目录按完成次序列出条目 | `SameObservation` | 2,160 | 75,461 / 45,183（中止于反例） | 9 | 3 s | 找到反例：两个身份都被准许，两个运行以不同次序完成判定，条目次序不同 |
 
 负控配置的非零退出本身不算通过：每个负控都必须报告指定的不变式被违反，上表记录了实际的反例。
 

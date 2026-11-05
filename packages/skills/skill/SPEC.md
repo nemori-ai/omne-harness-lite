@@ -55,7 +55,7 @@
 - `answered(call, parse)` 在同一个 `try` 里调用端口并解析答复。reject、同步抛出、解析不收与读取答复时抛出，都答 `undefined`，即没有作答。代价：本包解析代码自己抛出的异常也算没有作答。方向是拒绝而不是放行，调用方看到的是「此刻无法判定」（`unknown`，来源一侧是 `source-unavailable`），看不到本包的缺陷。被吞掉的异常没有诊断出口，这一点留给与观测拥有者的后续议题。
 - 判别字段与载荷字段只认答复对象的自有属性。脚本参数的 JSON 树逐节点重新构造并冻结，嵌套不超过契约的 `DECLARATION_LIMITS.maxDepth`；每层只递归一次，所以深的或成环的树在上限处结束，不会栈溢出。
 - 读取判定或对应端口没有作答时，`gate` 与目录都答 `unknown`，不放行。`adopted` 的答复有一项不合时，目录整次答 `unknown`。来源没有作答时当作 `unavailable`，再按映射表的那一行处置。
-- 引用身份一致（S7）：`parseResolution` 收请求（身份与可选的依据），只放行关于它的答复：`adopted` 的引用指向所请求的身份，带依据时来源层、资产版本（依据带时）与内容摘要（引用带时）等于依据的；`known-unavailable` 的能力标识是所请求的身份。不合的答复与畸形答复同样是没有作答，`gate` 答 `unknown`，不调用来源。核对在边界解析里做一次，`gate` 的分支与之后的阶段不再判断。条款见契约[端口答复的统一处置](../skill-contract/SPEC.md#port-answer-closed)。
+- 引用身份一致（S7）：`parseResolution` 收请求（身份与可选的依据），只放行关于它的答复：`adopted` 的引用指向所请求的身份，带依据时来源层、资产版本（依据带时）与内容摘要等于依据的（引用必须带内容摘要）；`known-unavailable` 的能力标识是所请求的身份。不合的答复与畸形答复同样是没有作答，`gate` 答 `unknown`，不调用来源。核对在边界解析里做一次，`gate` 的分支与之后的阶段不再判断。条款见契约[端口答复的统一处置](../skill-contract/SPEC.md#port-answer-closed)。
 - 解析之后的值才进入服务的逻辑。`gate` 与目录按封闭集合 `switch`，`default` 分支以 `never` 做编译期穷尽：端口类型新增一种答复而这里没有分支时，编译失败。
 
 <a id="no-disclosure"></a>

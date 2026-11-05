@@ -54,8 +54,8 @@ export type ResolveRequest = Readonly<{ capability: CapabilityId; basis?: SkillM
 
 /**
  * Whether `ref` names the material of `request`: the requested identity and, with a basis, the
- * source layer, the asset version (when the basis has one) and the digest of the basis. A
- * reference without a digest names no readable package, so no digest is compared then.
+ * source layer, the asset version (when the basis has one) and the digest of the basis. A basis
+ * names material with a digest, so a reference without one is not that material (S7).
  */
 function namesRequested(ref: SkillRef, request: ResolveRequest): boolean {
   if (!sameCapability(ref.capability, request.capability)) return false
@@ -64,7 +64,7 @@ function namesRequested(ref: SkillRef, request: ResolveRequest): boolean {
   return (
     ref.layer === basis.layer &&
     (basis.assetVersion === undefined || ref.assetVersion === basis.assetVersion) &&
-    (ref.digest === undefined || ref.digest === basis.digest)
+    ref.digest === basis.digest
   )
 }
 

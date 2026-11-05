@@ -339,16 +339,15 @@ describe('parseResolution: the answer names the requested material (S7)', () => 
     ['another asset version', ['ref', 'assetVersion'], 'v1'],
     ['no asset version', ['ref', 'assetVersion'], MISSING],
     ['another digest', ['ref', 'digest'], `sha256:${'b'.repeat(64)}`],
+    ['no digest: a basis names material with one', ['ref', 'digest'], MISSING],
   ])('with a basis, gives no answer for %s', (_case, path, field) => {
     const answer = withField(ADOPTED, path, field)
     expect(aboutReview(answer)).toStrictEqual(answer)
     expect(withBasis(answer)).toBeUndefined()
   })
 
-  it('with a basis, takes the ref of its material, and a ref without a digest', () => {
+  it('with a basis, takes the ref of its material', () => {
     expect(withBasis(ADOPTED)).toStrictEqual(ADOPTED)
-    const noDigest = withField(ADOPTED, ['ref', 'digest'], MISSING)
-    expect(withBasis(noDigest)).toStrictEqual(noDigest)
   })
 
   it('with a basis without an asset version, takes a ref with one', () => {

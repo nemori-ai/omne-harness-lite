@@ -75,7 +75,7 @@
 
 ### S7 引用身份一致
 
-- 定理：主体 `p` 对身份 `c` 的 `describe`、`read`、`list` 或 `export` 成功时，结果写明的身份是 `c`，所钉材料是 `c` 的材料，交出的字节全部来自 `c` 的材料。对应端口对 `c` 答 `adopted`，而引用的能力标识不是 `c`，或者请求带依据而引用的来源层、资产版本（依据带时）或内容摘要（引用带时）不等于依据的，操作整次答 `unknown`，只有失败对象，之后不调用端口。`known-unavailable` 的能力标识不是 `c` 时同样答 `unknown`。
+- 定理：主体 `p` 对身份 `c` 的 `describe`、`read`、`list` 或 `export` 成功时，结果写明的身份是 `c`，所钉材料是 `c` 的材料，交出的字节全部来自 `c` 的材料。对应端口对 `c` 答 `adopted`，而引用的能力标识不是 `c`，或者请求带依据而引用的来源层、资产版本（依据带时）或内容摘要不等于依据的（引用不带内容摘要也算不等：依据点名的是带内容摘要的材料），操作整次答 `unknown`，只有失败对象，之后不调用端口。`known-unavailable` 的能力标识不是 `c` 时同样答 `unknown`。
 - 前提：P0。前提 R1：引用写明身份 `x` 时，它的包定位与内容摘要确属 `x` 的材料。Skill 看不到身份与包的对应，所以 R1 是端口的义务（PR1 中余下的部分）。不假定 PR1 的其余部分与 PR3。
 - 证据：TLA+ `ReadGate.cfg`（错指动作 `ResolveMisdirected`，不变式 `OwnMaterialOnly`）与负控 `ReadGate_FlawNoRefCheck.cfg`；探索器 `identity.ts`，以及 `disclosure.ts`、`whole-unknown.ts`、`basis.ts` 中的错指答复；用例 `tests/ref-identity.spec.ts`、`tests/answer-parse.spec.ts`；契约套件 PR1、PR3 与 `skill-contract/tests/conformance.spec.ts` 中对错指替身的变红证明。
 - 状态：TLA+ 有限范围通过；探索器有限范围通过；真实对应端口的组合未验证。

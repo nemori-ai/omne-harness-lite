@@ -67,12 +67,11 @@ function answerOf<P, S>(
   if (basis === undefined || state.kind === 'known-unavailable') return currentAnswer(entry)
   const material = [state.current, ...(state.earlier ?? [])].find(item => names(item, basis))
   if (material === undefined) return { kind: 'basis-not-lawful' }
-  // The digest is not compared, so the reference carries the digest of the basis: Skill compares
-  // it with the snapshot. A material without a package keeps its reference without a digest.
-  const { ref } = material
+  // The digest is not compared: the reference carries the digest of the basis back, and Skill
+  // compares it with the snapshot (PR3), a material without a package included.
   return {
     kind: 'adopted',
-    ref: ref.digest === undefined ? ref : { ...ref, digest: basis.digest },
+    ref: { ...material.ref, digest: basis.digest },
     declared: material.declared,
   }
 }
