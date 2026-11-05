@@ -24,9 +24,11 @@ import {
   countedAdoption,
   countedCredentials,
   countedEligibility,
+  countedOutputCheck,
   scriptedLanding,
   type Counted,
   type CountedCredentials,
+  type CountedOutputCheck,
   type ScriptedLanding,
 } from './ports.ts'
 import { scriptedTransports, type ScriptedTransports, type Step } from './scripted-transport.ts'
@@ -53,6 +55,8 @@ export type World = Readonly<{
   landing: ScriptedLanding
   store: MemoryCatalogStore
   transports: ScriptedTransports
+  /** The output validator and its call count. */
+  checks: CountedOutputCheck
   /** The close-order events of transports, processes and credential handles, in order. */
   trace: readonly string[]
 }>
@@ -90,8 +94,17 @@ export function world(
   })
   const store = createMemoryCatalogStore()
   const transports = scriptedTransports(options.script ?? [], record)
+  const checks = countedOutputCheck()
   return {
-    ports: { adoption, eligibility, credentials, landing, store, transports },
+    ports: {
+      adoption,
+      eligibility,
+      credentials,
+      landing,
+      store,
+      transports,
+      checkOutput: checks.check,
+    },
     config: { ...CONFIG, ...options.config },
     adoption,
     eligibility,
@@ -99,6 +112,7 @@ export function world(
     landing,
     store,
     transports,
+    checks,
     trace,
   }
 }

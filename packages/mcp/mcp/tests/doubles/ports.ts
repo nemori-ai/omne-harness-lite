@@ -6,7 +6,7 @@ import type {
   ProcessLanding,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
-import type { StopScope } from '@omne-harness/mcp-contract'
+import type { OutputCheck, OutputValidator, StopScope } from '@omne-harness/mcp-contract'
 import {
   createMemoryAdoptionView,
   createMemoryCredentialUse,
@@ -120,4 +120,24 @@ export function scriptedLanding(
     },
   }
   return { ...memory, ...port, processes: () => processes.map(record => ({ ...record })) }
+}
+
+/** The output validator the tests inject, with its calls recorded: the pairs it was given. */
+export type CountedOutputCheck = Readonly<{
+  check: OutputValidator
+  calls: () => number
+}>
+
+/** An output validator that answers `verdict` to every pair and counts its calls. */
+export function countedOutputCheck(
+  verdict: OutputCheck = { kind: 'conforms' },
+): CountedOutputCheck {
+  let count = 0
+  return {
+    check: () => {
+      count += 1
+      return verdict
+    },
+    calls: () => count,
+  }
 }

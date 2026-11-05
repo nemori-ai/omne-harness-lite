@@ -83,11 +83,11 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### 三个入口
 
-| 入口         | 给谁                   | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.`          | 调用方与实现方         | 值、品牌守卫、结局、失败、五个服务接口与结果值、纯函数、`mcpEndpointBodyContract()`、`isActionArgs`、`canonical`、`sameJson`、`McpClock`、`LEGACY_PROTOCOL_VERSIONS`、`FIRST_MODERN_PROTOCOL_VERSION`、`classifyWireEvent` 与 `PROCESS_EXIT_WINDOW_MS`                                                                                                                                                                                            |
-| `./provider` | 端口的实现方           | 五个需求端口、`McpTransport`、`McpTransportFactory` 及其答复类型。只有类型，不重复根入口已导出的类型                                                                                                                                                                                                                                                                                                                                              |
-| `./testing`  | 端口的实现方，用于自测 | 五个需求端口与传输的符合性套件、各自的内存替身（传输的是 `createScriptedTransportFactory`）、`classifyOutcomeCases`、`mergeListingCases`、样本构造器（`jsonOf`、`jsonTextOf`、`generationOf`、`revisionOf`、`actionNameOf`、`protocolVersionOf`、`requestStateOf`、`taskIdOf`），传输决策表 `TRANSPORT_TABLE` 与它的输入域（`transportCells`、`rowsOf`、`cellsOf`），以及 `runConformanceCase`、`isNotApplicable`、`NotApplicable`、`CaseVerdict` |
+| 入口         | 给谁                   | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.`          | 调用方与实现方         | 值、品牌守卫、结局、失败、五个服务接口与结果值、纯函数、`mcpEndpointBodyContract()`、`isActionArgs`、`canonical`、`sameJson`、`McpClock`、`LEGACY_PROTOCOL_VERSIONS`、`FIRST_MODERN_PROTOCOL_VERSION`、`classifyWireEvent` 与 `PROCESS_EXIT_WINDOW_MS`                                                                                                                                                                                                                                                                                                                                  |
+| `./provider` | 端口的实现方           | 五个需求端口、`McpTransport`、`McpTransportFactory` 及其答复类型。只有类型，不重复根入口已导出的类型                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `./testing`  | 端口的实现方，用于自测 | 五个需求端口与传输的符合性套件、各自的内存替身（传输的是 `createScriptedTransportFactory`）、`classifyOutcomeCases`、`mergeListingCases`、样本构造器（`jsonOf`、`jsonTextOf`、`generationOf`、`revisionOf`、`actionNameOf`、`protocolVersionOf`、`requestStateOf`、`taskIdOf`、`adoptionRevisionOf`、`credentialBindingOf`、`connectionTargetOf`、`correlationKeyOf`、`millisOf`、`endpointRefOf`、`peerIdentityOf`），传输决策表 `TRANSPORT_TABLE` 与它的输入域（`transportCells`、`rowsOf`、`cellsOf`），以及 `runConformanceCase`、`isNotApplicable`、`NotApplicable`、`CaseVerdict` |
 
 公开根不导入 `./testing`。产品源码不导入 `./testing`。
 
@@ -214,7 +214,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### 结局分类
 
-- **O1** `classifyOutcome(answer, context)` 是全函数，不抛出。`context` 给出发出时的连接代际、动作的 `outputSchema`（如有）和注入的输出校验函数。
+- **O1** `classifyOutcome(answer, context)` 是全函数，不抛出。`context` 给出发出时的连接代际、动作的 `outputSchema`（如有）和注入的输出校验函数。服务实现把 `McpPorts.checkOutput` 作为这个校验函数交给它（S3）。
 - **O2** 对端答 `result` 时按 `resultType` 分类。缺 `resultType` 的结果来自旧对端，按 `complete` 处理。请求不带方式，是否建任务由对端对每个请求自己决定：
   - `complete` 且 `isError` 为真：`toolError`，带内容与结构化内容（如有）。这是动作自己的失败，不是协议失败。
   - `complete` 且 `isError` 缺省或为假：`complete`，带内容、结构化内容（如有）与输出校验结论。
@@ -309,6 +309,8 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - 服务的构造函数（`createMcp`）收到不合法的 `McpConfig` 时抛出 `RangeError`。
 
   清单新鲜度的 `acquiredAt` 取自 `McpPorts.clock`（`McpClock.now()`，写成 ISO 8601 文本）。`clock` 缺省时实现取本机时钟。
+
+  `McpPorts.checkOutput` 是必填的输出校验函数（`OutputValidator`）：服务实现把它交给 `classifyOutcome`（O1、O3）。没有校验函数时无法如实给出 `conforms` 或 `violates`，所以它没有缺省；JSON Schema 引擎的选择归装配方。
 
   `instructions` 由传输在 `discover` 时处理：先对全文算摘要，再经 `boundInstructions` 截断。截断在完整的 UTF-8 字符边界内，摘要是 `InstructionsDigest`。`boundInstructions` 的上界不是正的安全整数时，它抛出 `RangeError`，这是前提违反。
 

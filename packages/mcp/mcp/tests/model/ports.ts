@@ -391,5 +391,6 @@ export function scriptedPorts(
       },
       write: () => notModelled('store.write'),
     },
+    checkOutput: () => notModelled('checkOutput'),
   }
 }

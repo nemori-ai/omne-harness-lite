@@ -22,6 +22,7 @@ import type {
   CallOutcome,
   InvokeResult,
   OperationFailure,
+  OutputValidator,
   ReadFailure,
   Refusal,
   TaskReport,
@@ -104,8 +105,9 @@ export type ContinueRequest = Readonly<{
   ref: EndpointRef
   action: ActionName
   args: JsonValue
+  /** Each is optional: a retry that carries the request state alone is lawful (SPEC S2). */
   requestState?: RequestState
-  inputResponses: JsonValue
+  inputResponses?: JsonValue
   issuedAt: Generation
   correlationKey: CorrelationKey
   signal: AbortSignal
@@ -149,7 +151,10 @@ export interface TaskControl<P> {
     task: TaskRef,
     inputResponses: JsonValue,
   ): Promise<Outcome<'accepted', OperationFailure>>
-  /** Does not check adoption or eligibility. A terminal state is learned through `queryTask`. */
+  /**
+   * Reuses an existing connection without checking adoption or eligibility; to build one it
+   * checks both, like the other three (SPEC S2). A terminal state is learned through `queryTask`.
+   */
   cancelTask(access: Access<P>, task: TaskRef): Promise<Outcome<'requested', OperationFailure>>
 }
 
@@ -225,6 +230,11 @@ export type McpPorts<P, S> = Readonly<{
   landing: ProcessLanding<P>
   store: CatalogStore
   transports: McpTransportFactory
+  /**
+   * The output validator that `classifyOutcome` is given (SPEC S3, O1). Required: without it no
+   * `conforms` or `violates` conclusion is honest. The JSON Schema engine is the host's choice.
+   */
+  checkOutput: OutputValidator
   /** The clock that stamps catalog freshness. Absent: the implementation takes the host clock. */
   clock?: McpClock
 }>
