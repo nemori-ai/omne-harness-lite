@@ -111,14 +111,14 @@ describe('Model current public protocol through the scripted stream references',
   it('C01 preserves the confirmed state for both never-published and withdrawn null targets', async () => {
     const f = fixture()
     const first = state()
-    f.establishWithoutTarget({ reference: reference(), state: first })
+    f.establishWithoutTarget({ tenant: tenant(), reference: reference(), state: first })
     expect(
       await within(f.references.current({ access: access(), reference: reference() }), 'current'),
     ).toEqual({
       ok: { state: first, current: null },
     })
-    f.confirmSelection({ reference: reference(), selection: selection('2') })
-    f.withdrawTarget(reference())
+    f.confirmSelection({ tenant: tenant(), reference: reference(), selection: selection('2') })
+    f.withdrawTarget({ tenant: tenant(), reference: reference() })
     expect(
       await within(f.references.current({ access: access(), reference: reference() }), 'current'),
     ).toEqual({
@@ -132,7 +132,7 @@ describe('Model current public protocol through the scripted stream references',
     ).toEqual({
       failure: { kind: 'invalid', field: 'reference', reason: 'not-accepted' },
     })
-    f.establishWithoutTarget({ reference: reference(), state: state() })
+    f.establishWithoutTarget({ tenant: tenant(), reference: reference(), state: state() })
     expect(
       await within(
         f.references.current({ access: access(), reference: wrongAdmission() }),
@@ -154,7 +154,7 @@ describe('Model current public protocol through the scripted stream references',
   })
   it('C03 checks the real tenant and invocation codec before reading the owner', async () => {
     const f = fixture()
-    f.confirmSelection({ reference: reference(), selection: selection() })
+    f.confirmSelection({ tenant: tenant(), reference: reference(), selection: selection() })
     expect(
       await within(
         f.references.current({
@@ -188,7 +188,7 @@ describe('Model current public protocol through the scripted stream references',
   })
   it('C04 denies by default and distinguishes principal identity and tenant scope', async () => {
     const f = createScriptedStreamReferences<typeof principal>()
-    f.confirmSelection({ reference: reference(), selection: selection() })
+    f.confirmSelection({ tenant: tenant(), reference: reference(), selection: selection() })
     for (const target of [reference(), wrongAdmission()])
       expect(
         await within(f.references.current({ access: access(), reference: target }), 'current'),
@@ -216,8 +216,8 @@ describe('Model current public protocol through the scripted stream references',
       encodeModelInvocationRef({ tenant: foreign(), call: call(), admission: admission() }),
     )
     const foreignAccess = { principal, tenant: foreign() }
-    f.establishWithoutTarget({ reference: reference(), state: state('1') })
-    f.establishWithoutTarget({ reference: foreignReference, state: state('2') })
+    f.establishWithoutTarget({ tenant: tenant(), reference: reference(), state: state('1') })
+    f.establishWithoutTarget({ tenant: foreign(), reference: foreignReference, state: state('2') })
     f.setAccess(foreignAccess, 'allow')
     expect(
       must(
@@ -262,12 +262,12 @@ describe('Model current public protocol through the scripted stream references',
   })
   it('C05 re-reads one immutable confirmation after a held response', async () => {
     const f = fixture()
-    f.confirmSelection({ reference: reference(), selection: selection() })
+    f.confirmSelection({ tenant: tenant(), reference: reference(), selection: selection() })
     f.holdResponse(1)
     const pending = f.references.current({ access: access(), reference: reference() })
     await within(f.reached(1), 'reached')
     const replacement = selection('2', stream('str_next'))
-    f.confirmSelection({ reference: reference(), selection: replacement })
+    f.confirmSelection({ tenant: tenant(), reference: reference(), selection: replacement })
     f.releaseResponse(1)
     const result = must(await within(pending, 'pending'))
     expect(result).toEqual(replacement)
@@ -278,12 +278,12 @@ describe('Model current public protocol through the scripted stream references',
     Reflect.set(consumer, 'work', 'mutated')
     expect(result.state.consumer.work).toBe('work')
     expect(consumer.work).toBe('mutated')
-    f.withdrawTarget(reference())
+    f.withdrawTarget({ tenant: tenant(), reference: reference() })
     expect(result.current?.ref).toBe(stream('str_next'))
   })
   it('C06 rechecks deny qualification before releasing a response', async () => {
     const f = fixture()
-    f.confirmSelection({ reference: reference(), selection: selection() })
+    f.confirmSelection({ tenant: tenant(), reference: reference(), selection: selection() })
     f.holdResponse(1)
     const pending = f.references.current({ access: access(), reference: reference() })
     await within(f.reached(1), 'reached')
@@ -294,7 +294,7 @@ describe('Model current public protocol through the scripted stream references',
   })
   it('C06 rechecks unavailable qualification before releasing a response', async () => {
     const f = fixture()
-    f.confirmSelection({ reference: reference(), selection: selection() })
+    f.confirmSelection({ tenant: tenant(), reference: reference(), selection: selection() })
     f.holdResponse(1)
     const pending = f.references.current({ access: access(), reference: reference() })
     await within(f.reached(1), 'reached')
@@ -305,7 +305,7 @@ describe('Model current public protocol through the scripted stream references',
   })
   it('C05 rechecks source availability and does not reuse an old confirmed response', async () => {
     const f = fixture()
-    f.confirmSelection({ reference: reference(), selection: selection() })
+    f.confirmSelection({ tenant: tenant(), reference: reference(), selection: selection() })
     f.holdResponse(1)
     const pending = f.references.current({ access: access(), reference: reference() })
     await within(f.reached(1), 'reached')
@@ -326,7 +326,11 @@ describe('Model current public protocol through the scripted stream references',
       },
     }
     const current = selection().current
-    f.confirmSelection({ reference: reference(), selection: { state: settled, current } })
+    f.confirmSelection({
+      tenant: tenant(),
+      reference: reference(),
+      selection: { state: settled, current },
+    })
     expect(
       await within(f.references.current({ access: access(), reference: reference() }), 'current'),
     ).toEqual({
@@ -336,7 +340,7 @@ describe('Model current public protocol through the scripted stream references',
   })
   it('C09 leaves late-response suppression to the consumer using its latest issued request', async () => {
     const f = fixture()
-    f.confirmSelection({ reference: reference(), selection: selection() })
+    f.confirmSelection({ tenant: tenant(), reference: reference(), selection: selection() })
     let latestIssued = 0
     let displayed: ModelStreamSelection | null = null
     const issue = () => ({
@@ -349,7 +353,7 @@ describe('Model current public protocol through the scripted stream references',
     }
     const old = issue()
     const newSelection = selection('2', stream('str_next'))
-    f.confirmSelection({ reference: reference(), selection: newSelection })
+    f.confirmSelection({ tenant: tenant(), reference: reference(), selection: newSelection })
     const recent = issue()
     await apply(recent)
     expect(displayed).toEqual(newSelection)
@@ -361,6 +365,7 @@ describe('Model current public protocol through the scripted stream references',
     const f = fixture()
     expect(() =>
       f.confirmSelection({
+        tenant: tenant(),
         reference: reference(),
         selection: {
           ...selection(),
@@ -370,14 +375,15 @@ describe('Model current public protocol through the scripted stream references',
     ).toThrow('another call')
     expect(() =>
       f.confirmSelection({
+        tenant: tenant(),
         reference: reference(),
         selection: selection('1', stream('str_wrong', wrongAdmission())),
       }),
     ).toThrow('another invocation')
-    f.confirmSelection({ reference: reference(), selection: selection() })
-    expect(() => f.establishWithoutTarget({ reference: wrongAdmission(), state: state() })).toThrow(
-      'admission cannot change',
-    )
+    f.confirmSelection({ tenant: tenant(), reference: reference(), selection: selection() })
+    expect(() =>
+      f.establishWithoutTarget({ tenant: tenant(), reference: wrongAdmission(), state: state() }),
+    ).toThrow('admission cannot change')
   })
 })
 
@@ -404,7 +410,7 @@ it('C08 keeps publication, retirement and observer cancellation separate across 
   })
   source.setAccess(access(), 'allow')
   expect(source.publish({ tenant: tenant(), snapshot: snapshot(oldRef) })).toBe(oldCursor)
-  f.confirmSelection({ reference: reference(), selection: selection() })
+  f.confirmSelection({ tenant: tenant(), reference: reference(), selection: selection() })
   const observation: ModelStreamObservation<typeof principal> = source.observation
   const controller = new AbortController()
   const iterator = observation
@@ -415,14 +421,14 @@ it('C08 keeps publication, retirement and observer cancellation separate across 
     cursor: oldCursor,
     value: snapshot(oldRef),
   })
-  f.withdrawTarget(reference())
+  f.withdrawTarget({ tenant: tenant(), reference: reference() })
   expect(
     must(
       await within(f.references.current({ access: access(), reference: reference() }), 'current'),
     ).current,
   ).toBeNull()
-  expect(source.openObservations(oldRef)).toBe(1)
-  source.end({ ref: oldRef, reason: 'stale-stream' })
+  expect(source.openObservations(oldRef, tenant())).toBe(1)
+  source.end({ tenant: tenant(), ref: oldRef, reason: 'stale-stream' })
   expect((await within(iterator.next(), 'next')).value).toEqual({
     kind: 'ended',
     reason: 'stale-stream',
@@ -434,7 +440,11 @@ it('C08 keeps publication, retirement and observer cancellation separate across 
     ).current,
   ).toBeNull()
   expect(source.publish({ tenant: tenant(), snapshot: snapshot(newRef) })).toBe(newCursor)
-  f.confirmSelection({ reference: reference(), selection: selection('2', newRef) })
+  f.confirmSelection({
+    tenant: tenant(),
+    reference: reference(),
+    selection: selection('2', newRef),
+  })
   const selected = must(
     await within(f.references.current({ access: access(), reference: reference() }), 'current'),
   )
@@ -461,5 +471,7 @@ it('C08 keeps publication, retirement and observer cancellation separate across 
       await within(f.references.current({ access: access(), reference: reference() }), 'current'),
     ),
   ).toEqual(selected)
-  expect(source.openObservations(oldRef) + source.openObservations(newRef)).toBe(0)
+  expect(
+    source.openObservations(oldRef, tenant()) + source.openObservations(newRef, tenant()),
+  ).toBe(0)
 })

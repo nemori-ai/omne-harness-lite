@@ -11,6 +11,7 @@ import {
   type ContributionsResult,
   type PromptContribution,
   type PromptContributionRegistry,
+  type PromptContributionSet,
   type RegistrationRef,
   type RegistrationResult,
   type ScopeRef,
@@ -172,7 +173,13 @@ export class RequestContextProvider extends RequestContextService<unknown> {
     }
   }
 
-  /** The fourth group is read from the registration face, not from the registered source set. */
+  /**
+   * The fourth group joins the registration face to the registered source set: the contributions
+   * that the source set gives for the call (the definition sections of the coordinator's adapter)
+   * come first, the registered contributions follow. A source read that gives no value stays that
+   * read, so a source that fails closed closes the group. The token of the source already covers
+   * its contributions; the token here adds the generation and the layer revisions of the face.
+   */
   private live(sources: ContextSources<unknown>, scope: ScopeRef): ContextSources<unknown> {
     const prompt = sources.groups.prompt
     return {
@@ -197,7 +204,16 @@ export class RequestContextProvider extends RequestContextService<unknown> {
             const set = this.contributions(scope)
             if (set.kind !== 'current')
               return { kind: 'unavailable', diagnostic: 'Registry is closed' }
-            return { kind: 'value', value: { ...value.value, promptContributions: set.set } }
+            const own = value.value.promptContributions
+            const joined: PromptContributionSet =
+              own === null
+                ? set.set
+                : {
+                    contributions: [...own.contributions, ...set.set.contributions],
+                    digest: JSON.stringify([own.digest, set.set.digest]),
+                    generation: set.set.generation,
+                  }
+            return { kind: 'value', value: { ...value.value, promptContributions: joined } }
           },
         },
       },

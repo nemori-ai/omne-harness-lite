@@ -88,8 +88,8 @@ describe('a read that could not look', () => {
 
   it('a storage read that does not return is unavailable, not not-bound', async () => {
     const a = await established()
-    // The binding reads the authoritative state row of the session through the work handler.
-    a.provider.failReads('session.work')
+    // The binding reads the journal row and the first batch of the session through its own handler.
+    a.provider.failReads('session.binding')
     const read = await a.bindings.read({ tenant: TENANT_A, session: SESSION })
     expect(kindOf(read)).toBe('unavailable')
   })

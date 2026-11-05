@@ -24,6 +24,24 @@
 // the `published` callback of its options. The plugin turns that into the event
 // `session-adapters/agent-published`: a wake-up only, which carries no fact, so a subscriber reads
 // the log itself (AD-02 trigger).
+//
+// The same plugin body provides `sessionAdoptedRequests`: the request that the last main-purpose
+// M0 of a session recorded, read from the `a` part of that session (FIXED-FACTS F4). The call
+// names a session, not an execution, so it needs no route; it asks `sessionAccessCheck` whether
+// the access may read the history of that session (`history.readModelView`) before it reads.
+//
+// The same body also provides the two faces of the Model result receiver (R2-D237):
+// `agentReceivedCommits`, the joint commit of a `received` entry with its material, routed by tenant
+// and execution as a Journal write is (so a commit dispatches the wake-up event too), and
+// `agentModelReceptionTargets`, the stable target query. `agentReceivedRecords` is the `query` of
+// the received commits alone, a read face for the evidence adapter of the Agent consumer owner
+// (R2-D257), which confirms a Model ACK from the record the receiver committed. `forExecution` is routed by its
+// execution. `resolve` has no execution of its own: the storage keeps no index from a call
+// reference to a session, so it reads only the session of the route the receiver names, and the
+// session answers from the bindings its committed PendingCalls established. A binding of another
+// execution, or a resolve without a route, answers `denied`, as an absent binding does.
+// `agentToolReceptionTargets` is the same query for the associated Tool calls (R2-D273), on the same
+// route; an absent Tool binding of the routed execution answers null, as the Tool protocol needs.
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -31,18 +49,33 @@ import type {
   AgentJournal,
   AgentJournalEntries,
   AgentMaterials,
+  AgentReceivedCommits,
+  AgentReceivedRecords,
   Failure,
+  ModelReceptionTargets,
+  ToolReceptionTargets,
 } from '@omne-harness/agent-contract'
 import {
   AgentJournalEntriesService,
   AgentJournalService,
   AgentMaterialsService,
+  AgentReceivedCommitsService,
+  AgentReceivedRecordsService,
+  ModelReceptionTargetsService,
+  ToolReceptionTargetsService,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SessionAccessCheck, SessionId } from '@omne-harness/session-contract'
-import { sessionAccessCheckKey } from '@omne-harness/session-cordis-contract/cordis'
+import type {
+  SessionAdoptedRequestRead,
+  SessionAdoptedRequests,
+} from '@omne-harness/session-cordis-contract'
+import {
+  SessionAdoptedRequestsService,
+  sessionAccessCheckKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import {
   SESSION_EXECUTION_HANDLER,
   SESSION_PROTOCOL,
@@ -85,6 +118,8 @@ export type ExecutionRoutedJournalOptions<P> = Readonly<{
   published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
   /** Receives a programming error the Journal read past; see `SessionLogJournalOptions.fault`. */
   fault?: SessionLogJournalOptions<P>['fault']
+  /** Receives each publication and its outcome; see `SessionLogJournalOptions.report`. */
+  report?: SessionLogJournalOptions<P>['report']
 }>
 
 type Journal<P> = AgentJournal<P>
@@ -115,6 +150,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     combination: options.combination,
     ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
     ...(options.fault === undefined ? {} : { fault: options.fault }),
+    ...(options.report === undefined ? {} : { report: options.report }),
   })
   const limit = options.routeCacheEntries ?? ROUTE_CACHE_ENTRIES
   const routes = new Map<string, Route<P>>()
@@ -281,18 +317,89 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
 
   const entries: AgentJournalEntries<P> = {
     record: input => routedWrite('record', input, view => view.entries.record(input)),
+    read: input => routedView('entries.read', input, view => view.entries.read(input)),
+    receivedOf: input =>
+      routedView('entries.receivedOf', input, view => view.entries.receivedOf(input)),
+  }
+
+  const adoptedRequests: SessionAdoptedRequests<P> = {
+    async readAdoptedRequest(input): Promise<SessionAdoptedRequestRead> {
+      if (closed) return { kind: 'unavailable', diagnostic: 'the agentJournal plugin has stopped' }
+      const { access, session } = input
+      if (!tenantCodec.encode(access.tenant).ok) return { kind: 'denied' }
+      let decision
+      try {
+        decision = await options.sessionAccessCheck.check({
+          access,
+          operation: 'history.readModelView',
+          target: { kind: 'session', session },
+        })
+      } catch (error) {
+        return { kind: 'unavailable', diagnostic: `the access check threw: ${String(error)}` }
+      }
+      if (decision.kind === 'denied') return { kind: 'denied' }
+      if (decision.kind !== 'allowed') return decision
+      const read = await journals.readAdopted({ tenant: access.tenant, session })
+      if (read.kind !== 'value' || read.value === null) return read
+      return { kind: 'value', value: { ...read.value } }
+    },
+  }
+
+  const received: AgentReceivedCommits<P, ContentBlock> = {
+    commit: input => routedWrite('received', input, view => view.received.commit(input)),
+    query: input => routedView('received.query', input, view => view.received.query(input)),
+  }
+
+  const targets: ModelReceptionTargets<P> = {
+    forExecution: input =>
+      routedView(
+        'targets.forExecution',
+        { tenant: input.access.tenant, execution: input.execution },
+        view => view.targets.forExecution(input),
+      ),
+    async resolve(input) {
+      const { execution } = input
+      // No route names no session, and the storage has no index from a call to one.
+      if (execution === undefined) return fail<Failure>({ kind: 'denied', action: 'resolve' })
+      const found = await routedView('resolve', { tenant: input.access.tenant, execution }, view =>
+        view.targets.resolve(input),
+      )
+      // The binding names its own execution; another one is not the binding of this route.
+      if ('ok' in found && found.ok.execution !== execution)
+        return fail<Failure>({ kind: 'denied', action: 'resolve' })
+      return found
+    },
+  }
+
+  // The Tool bindings answer on the same route as the Model ones: the receiver reads the route from
+  // the Tool consumer position that the Agent registered (`work` is the execution). No route names
+  // no session, and a binding of another execution is not the binding of this route (R2-D273).
+  const toolTargets: ToolReceptionTargets<P> = {
+    forExecution: input =>
+      routedView(
+        'toolTargets.forExecution',
+        { tenant: input.access.tenant, execution: input.execution },
+        view => view.toolTargets.forExecution(input),
+      ),
+    async resolve(input) {
+      const { execution } = input
+      if (execution === undefined) return fail<Failure>({ kind: 'denied', action: 'resolve' })
+      const found = await routedView(
+        'toolTargets.resolve',
+        { tenant: input.access.tenant, execution },
+        view => view.toolTargets.resolve(input),
+      )
+      if ('ok' in found && found.ok !== null && found.ok.execution !== execution)
+        return fail<Failure>({ kind: 'denied', action: 'resolve' })
+      return found
+    },
   }
 
   const stopped = () => fail<Failure>(unavailable('the agentJournal plugin has stopped'))
   const materials: Materials<P> = {
     preserve(input) {
       if (closed) return Promise.resolve(stopped())
-      // Without an execution the call names no session (K-9), and nothing is guessed.
       const { execution } = input
-      if (execution === undefined)
-        return Promise.resolve(
-          fail<Failure>(unavailable('a material to preserve names no session: no route to one')),
-        )
       // The session Journal reads the execution of a material only as its route, never as a write
       // of that execution's records, so the call goes on unchanged.
       return routedView('preserve', { tenant: input.tenant, execution }, view =>
@@ -311,12 +418,27 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
         .forSession({ tenant: input.tenant, session: named.session })
         .materials.read(input)
     },
+    async describe(input) {
+      if (closed) return stopped()
+      const tenant = tenantCodec.encode(input.tenant)
+      if (!tenant.ok) return fail({ kind: 'denied', action: 'materials.describe' })
+      const named = materialSessionOf(input.source)
+      if (named === null || named.tenant !== tenant.value)
+        return fail(unavailable('the material source names no session of this tenant'))
+      return journals
+        .forSession({ tenant: input.tenant, session: named.session })
+        .materials.describe(input)
+    },
   }
 
   return {
     journal,
     entries,
     materials,
+    received,
+    targets,
+    toolTargets,
+    adoptedRequests,
     close(): void {
       closed = true
       routes.clear()
@@ -395,10 +517,14 @@ declare module '@deepseek-ai/cordis' {
 /** `agentJournalEntries`, made by the body of `SessionLogAgentJournalProvider`. */
 class SessionLogJournalEntries extends AgentJournalEntriesService<unknown> {
   readonly record: AgentJournalEntries<unknown>['record']
+  readonly read: AgentJournalEntries<unknown>['read']
+  readonly receivedOf: AgentJournalEntries<unknown>['receivedOf']
 
   constructor(ctx: Context, entries: AgentJournalEntries<unknown>) {
     super(ctx)
     this.record = entries.record
+    this.read = entries.read
+    this.receivedOf = entries.receivedOf
   }
 }
 
@@ -406,16 +532,80 @@ class SessionLogJournalEntries extends AgentJournalEntriesService<unknown> {
 class SessionLogMaterials extends AgentMaterialsService<unknown, ContentBlock> {
   readonly preserve: Materials<unknown>['preserve']
   readonly read: Materials<unknown>['read']
+  readonly describe: Materials<unknown>['describe']
 
   constructor(ctx: Context, materials: Materials<unknown>) {
     super(ctx)
     this.preserve = materials.preserve
     this.read = materials.read
+    this.describe = materials.describe
+  }
+}
+
+/** `agentReceivedCommits`, made by the body of `SessionLogAgentJournalProvider`. */
+class SessionLogReceivedCommits extends AgentReceivedCommitsService<unknown, ContentBlock> {
+  readonly commit: AgentReceivedCommits<unknown, ContentBlock>['commit']
+  readonly query: AgentReceivedCommits<unknown, ContentBlock>['query']
+
+  constructor(ctx: Context, received: AgentReceivedCommits<unknown, ContentBlock>) {
+    super(ctx)
+    this.commit = received.commit
+    this.query = received.query
   }
 }
 
 /**
- * The provider of `agentJournal`, `agentJournalEntries` and `agentMaterials`: the three services
+ * `agentReceivedRecords`, made by the body of `SessionLogAgentJournalProvider`: the read face of the
+ * same received records, for the evidence adapter of the Agent consumer owner (R2-D257). It is the
+ * `query` of `agentReceivedCommits` and nothing else; it writes nothing and announces nothing.
+ */
+class SessionLogReceivedRecords extends AgentReceivedRecordsService<unknown> {
+  readonly query: AgentReceivedRecords<unknown>['query']
+
+  constructor(ctx: Context, received: AgentReceivedCommits<unknown, ContentBlock>) {
+    super(ctx)
+    this.query = received.query
+  }
+}
+
+/** `agentModelReceptionTargets`, made by the body of `SessionLogAgentJournalProvider`. */
+class SessionLogReceptionTargets extends ModelReceptionTargetsService<unknown> {
+  readonly forExecution: ModelReceptionTargets<unknown>['forExecution']
+  readonly resolve: ModelReceptionTargets<unknown>['resolve']
+
+  constructor(ctx: Context, targets: ModelReceptionTargets<unknown>) {
+    super(ctx)
+    this.forExecution = targets.forExecution
+    this.resolve = targets.resolve
+  }
+}
+
+/** `agentToolReceptionTargets`, made by the body of `SessionLogAgentJournalProvider` (R2-D273). */
+class SessionLogToolReceptionTargets extends ToolReceptionTargetsService<unknown> {
+  readonly forExecution: ToolReceptionTargets<unknown>['forExecution']
+  readonly resolve: ToolReceptionTargets<unknown>['resolve']
+
+  constructor(ctx: Context, targets: ToolReceptionTargets<unknown>) {
+    super(ctx)
+    this.forExecution = targets.forExecution
+    this.resolve = targets.resolve
+  }
+}
+
+/** `sessionAdoptedRequests`, made by the body of `SessionLogAgentJournalProvider`. */
+class SessionLogAdoptedRequests extends SessionAdoptedRequestsService<unknown> {
+  readonly readAdoptedRequest: SessionAdoptedRequests<unknown>['readAdoptedRequest']
+
+  constructor(ctx: Context, requests: SessionAdoptedRequests<unknown>) {
+    super(ctx)
+    this.readAdoptedRequest = requests.readAdoptedRequest
+  }
+}
+
+/**
+ * The provider of `agentJournal`, `agentJournalEntries`, `agentMaterials`, `agentReceivedCommits`,
+ * `agentReceivedRecords`, `agentModelReceptionTargets`, `agentToolReceptionTargets` and
+ * `sessionAdoptedRequests`: the eight services
  * are made in this one plugin body over one session-log Journal, so they come and go together. It
  * needs `storage`, the trusted `tenantDomainLookup` and `sessionAccessCheck`; with any of them
  * absent the plugin stays pending and provides none of the keys. A new provider of any of them
@@ -452,14 +642,26 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
   readonly query: AgentJournal<unknown>['query']
   readonly output: AgentJournal<unknown>['output']
 
-  /** `cancellation` is the trusted installation of R2-D35; only the plugin factory hands it in. */
+  /**
+   * `cancellation` is the trusted installation of R2-D35 and `report` the publication observer;
+   * only the plugin factory hands them in. Without `report`, a publication that the storage refused
+   * or whose outcome is unknown is logged at warn level with its bytes, and every other one at debug
+   * level.
+   */
   constructor(
     ctx: Context,
     config: AgentJournalProviderConfig,
     cancellation?: SessionLogJournalOptions<unknown>['cancellation'],
+    report?: SessionLogJournalOptions<unknown>['report'],
   ) {
     super(ctx)
     const logger = ctx.logger(LOGGER)
+    const logged: NonNullable<SessionLogJournalOptions<unknown>['report']> = item => {
+      const line = `publication ${item.method} of ${item.execution} (operation ${String(item.operation)}): ${item.outcome}, ${String(item.recordBytes)} bytes of Agent records, ${String(item.bytes)} in all`
+      if (item.outcome === 'unavailable' || item.outcome === 'commit-unknown')
+        logger.warn(`${line}: ${String(item.diagnostic)}`)
+      else logger.debug(line)
+    }
     const routed = createExecutionRoutedJournal<unknown>({
       published: (tenant, session, execution) => {
         try {
@@ -472,6 +674,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
         }
       },
       fault: diagnostic => logger.error(diagnostic),
+      report: report ?? logged,
       storage: ctx.storage,
       tenantDomainLookup: ctx.tenantDomainLookup,
       sessionAccessCheck: ctx.sessionAccessCheck,
@@ -508,6 +711,11 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.output = journal.output
     new SessionLogJournalEntries(ctx, routed.entries)
     new SessionLogMaterials(ctx, routed.materials)
+    new SessionLogReceivedCommits(ctx, routed.received)
+    new SessionLogReceivedRecords(ctx, routed.received)
+    new SessionLogReceptionTargets(ctx, routed.targets)
+    new SessionLogToolReceptionTargets(ctx, routed.toolTargets)
+    new SessionLogAdoptedRequests(ctx, routed.adoptedRequests)
     ctx.effect(() => () => routed.close())
   }
 }
@@ -520,6 +728,11 @@ export type SessionAgentJournalPluginInput = Readonly<{
    * Absent: the cancellation variants answer `unavailable`, as with the plain provider.
    */
   cancellation?: SessionLogJournalOptions<unknown>['cancellation']
+  /**
+   * The observer of each publication and its outcome (`SessionLogJournalOptions.report`). Absent:
+   * the provider logs them itself, a refused or unknown one at warn level.
+   */
+  report?: SessionLogJournalOptions<unknown>['report']
 }>
 
 /**
@@ -532,10 +745,10 @@ export type SessionAgentJournalPluginInput = Readonly<{
 export function createSessionAgentJournalPlugin(
   input: SessionAgentJournalPluginInput = {},
 ): typeof SessionLogAgentJournalProvider {
-  const { cancellation } = input
+  const { cancellation, report } = input
   return class SessionLogAgentJournalPlugin extends SessionLogAgentJournalProvider {
     constructor(ctx: Context, config: AgentJournalProviderConfig) {
-      super(ctx, config, cancellation)
+      super(ctx, config, cancellation, report)
     }
   }
 }

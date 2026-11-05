@@ -227,6 +227,7 @@ export const RESIDENT_STEPS = [
   'check:docs',
   'check:design',
   'check:lines',
+  'check:journal-facts',
   'change-scope',
   'format:check',
   'test:format',

@@ -6,7 +6,7 @@
 
 ## 职责与状态
 
-本成员实现 34 项治理请求操作与 7 项会话操作，含会话中断的 `cancel-run` 与 `stop-call`。它还识别 4 项本阶段不提供的治理操作。[行为规格](SPEC.md) 拥有规则。[主入口](src/index.ts) 导出八个函数及其输入、结果类型，两种协议各四个。[治理消息类型](src/messages.ts) 与[会话消息类型](src/session-messages.ts) 把操作与允许的结果和正文关联。[公开接口导航](docs/public-api.md) 索引全部导出。
+本成员实现 37 项治理请求操作（其中 3 项管理行事租户的模型凭据）与 7 项会话操作，含会话中断的 `cancel-run` 与 `stop-call`。它还识别 4 项本阶段不提供的治理操作。[行为规格](SPEC.md) 拥有规则。[主入口](src/index.ts) 导出八个协议函数及其输入、结果类型，两种协议各四个，另导出租户、组织、账号、登录状态的[身份文本函数](SPEC.md#身份值的文本)八个。[治理消息类型](src/messages.ts) 与[会话消息类型](src/session-messages.ts) 把操作与允许的结果和正文关联。[公开接口导航](docs/public-api.md) 索引全部导出。
 
 本成员不核验身份、不判断授权、不执行业务，也不选择传输保护协议。[承载绑定](docs/http-binding.md) 写两个位置的 HTTP 与 SSE 承载。identity 与 authorization 继续拥有身份、授权与业务操作的责任。Session 继续拥有会话业务规则。SDK 和 server-entry 是独立消费者，各自承担后续交付义务。
 
@@ -38,7 +38,7 @@ if (encoded.kind === 'encoded') {
 }
 ```
 
-示例预算由调用者选择，本包没有默认预算。`readGovernanceResponse` 接收原操作与预期 messageId，先完整校验响应，再匹配关联。业务结果用带原操作的 `encodeGovernanceResponse` 编码。共同拒绝的重载不接收 operation，只接受 `protocol-rejected` 或 `stage-not-provided`。
+示例预算由调用者选择，本包没有默认预算。`readGovernanceResponse` 接收原操作与预期 messageId，先完整校验响应，再匹配关联。业务结果用带原操作的 `encodeGovernanceResponse` 编码。共同拒绝的重载不接收 operation，只接受 `protocol-rejected` 或 `stage-not-provided`。每个治理操作的响应也允许空 `body` 的 `stage-not-provided`，因为部署可以声明某个操作不提供。请求读取不知道这份声明。
 
 必填登录证明在本地为 `ProofInput`。缺失和空字符串保留为不同的协议状态，交业务拥有者核验。身份字段使用 legal-identity 铸造的值，时间字段使用 utc-instant 值。租户同时保留组织和账号。parameters 使用 json-text 树，保留数字的原始 lexeme。
 
@@ -46,7 +46,7 @@ if (encoded.kind === 'encoded') {
 
 [公开编解码条款](SPEC.md#公开编解码入口与实现细化)定义检查顺序、封闭字段、预算、关联与诊断。[会话编解码条款](SPEC.md#会话编解码函数)把同一组规则用于会话一组，并写明第 1 步中哪些检查归服务端接入。八个函数同步执行，没有外部副作用。无效编程参数抛固定的 `TypeError`，无效请求或响应模型返回 `invalid`。诊断只有有限的 code，不含凭据、证明、输入路径或原始字节。
 
-稳定的承诺是八个导出函数、它们的输入与结果类型，以及两个协议的操作、结果与正文形状。改动其中任何一项都是协议变更。
+稳定的承诺是八个协议函数、八个身份文本函数、它们的输入与结果类型，以及两个协议的操作、结果与正文形状。改动其中任何一项都是协议变更。
 
 读出请求只证明协议合规。对会话请求，这只覆盖第 1 步中本成员负责的检查：`message` 只核到 JSON 对象与 `role` 为 `user`，完整的消息解码由服务端接入完成。读出响应只证明该操作的结果形状与关联合规。它们都不证明业务授权或耐久提交。
 
@@ -72,7 +72,7 @@ pnpm --filter @omne-harness/public-contract typecheck
 ./scripts/with-test-slot.sh pnpm --filter @omne-harness/public-contract test
 ```
 
-测试消费公开导出。`protocol.spec.ts` 验证共同边界与两端演示。`correlation.spec.ts` 覆盖后缀语法、六项预算和深层输入。`operations.spec.ts` 与 `responses.spec.ts` 覆盖所有操作、封闭正文、终结、名单和秘密排除。`public-consumption.spec-d.ts` 验证操作关联的类型。
+测试消费公开导出。`protocol.spec.ts` 验证共同边界与两端演示。`correlation.spec.ts` 覆盖后缀语法、六项预算和深层输入。`operations.spec.ts` 与 `responses.spec.ts` 覆盖所有操作、封闭正文、终结、名单、秘密排除、部署声明不提供的应答，以及 `issue-login` 可选的 `loginId`。`public-consumption.spec-d.ts` 验证操作关联的类型。`identity-text.spec.ts` 覆盖每个身份文本函数的往返与非法文本、租户文本的严格规则，以及与消息编解码的一致。`model-credential.spec.ts` 覆盖三个模型凭据操作：请求包络、封闭正文、结果集合，以及任何应答都不带秘密。
 
 `session-protocol.spec.ts` 用正反向量覆盖 `readSessionRequest` 负责的第 1 步规则。其中 `message` 只覆盖对象与 `role` 的检查，不含完整消息解码。它还覆盖两个位置上的跨版本拒绝。`session-responses.spec.ts` 覆盖每个会话操作的每个结果、封闭正文、历史页、`unmatched`、`unreadable` 与共同拒绝的重载。`session-consumption.spec-d.ts` 验证会话操作、正文与结果的类型。`session-control-protocol.spec.ts`、`session-control-responses.spec.ts` 与 `session-control-consumption.spec-d.ts` 覆盖 `cancel-run` 与 `stop-call` 的请求、结果集合、成功正文与类型，每条用例只违反一条规则。本成员不把 Session 结果映射为线上结果，也不派生操作身份，两者归服务端接入。
 

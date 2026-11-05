@@ -276,7 +276,7 @@ describe('退化为整次全量', () => {
 
   it('退役目录里命中全局模式的文件不算全局；在役目录里的算', () => {
     const verdict = resumePlan(
-      harness({ changedFiles: ['packages.0.0.1.legacy/x/turbo.json'] }).inputs,
+      harness({ changedFiles: ['packages.archive.legacy/x/turbo.json'] }).inputs,
     )
     expect(verdict.kind).toBe('resume')
     expect(resumePlan(harness({ changedFiles: ['packages/x/turbo.json'] }).inputs).kind).toBe(

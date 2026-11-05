@@ -20,6 +20,7 @@ import {
   type ToolLedgerFacts,
   type ToolLedgerStore,
   type ToolLedgerPorts,
+  type ToolLedgerControls,
 } from '@omne-harness/tool'
 
 it('createToolRuntime takes the dependencies and the configuration and answers a ToolProvider', () => {
@@ -55,6 +56,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
   >()
   expectTypeOf(createToolLedger<P, ContentBlock>).returns.toEqualTypeOf<
     Readonly<{
+      controls: ToolLedgerControls<P>
       commands: ToolCommands<P, ContentBlock>
       reads: ToolReads<P, ContentBlock>
       admissions: Readonly<{

@@ -302,6 +302,23 @@
 - **注意 ②**：**无效不抹掉已经发生的事。**[作者记录与归属照旧指着这个租户](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户)，
   [解除不强停正在进行的工作](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止)；重新加入**不是一次恢复动作**，没有东西被删过
 
+### UL-current-standing · 当前资格 · Current Standing
+
+> **中**：对一个[租户](#ul-tenant--租户--tenant)在读取那一刻的[成员资格效力](#ul-membership-standing--成员资格效力--membership-standing)、[租户角色](#ul-tenant-role--租户角色--tenant-role)与具名资格的一次读数。
+> 成员资格效力有效时，读数带租户角色，以及治理模型的角色映射解出的具名资格。无效时，读数只带这个结论。
+> 每次读取回答当下的事实。一次读数不是许可，不能缓存为允许。读不到时，答案是「不可用」，那是失败，不是成员资格效力的第三个取值。
+>
+> **EN**: One reading, at the moment of the read, of the [membership standing](#ul-membership-standing--成员资格效力--membership-standing), the [tenant role](#ul-tenant-role--租户角色--tenant-role) and the named qualifications of one [tenant](#ul-tenant--租户--tenant).
+> When membership standing is in force, the reading carries the tenant role and the named qualifications that the role mapping of the governance model gives.
+> When it is not in force, the reading carries only that result.
+> Each read answers the facts at that moment. A reading is not a permission, and nobody may cache it as an allowance.
+> If the facts cannot be read, the answer is "unavailable". That is a failure. It is not a third value of membership standing.
+
+- **形态**：视图
+- **出处**：[ID-16 当前资格读口](../../../../packages/identity/identity/SPEC.md#当前资格读口)
+- **别混**：与[成员资格效力](#ul-membership-standing--成员资格效力--membership-standing)不是一回事——成员资格效力只有有效与无效两个取值，是当前资格的一部分；当前资格还带租户角色与具名资格，并且可以是「不可用」
+- **注意**：读口不区分未知租户与非成员，两者都答成员资格无效
+
 ### UL-current-tenant-identity · 当前租户身份 · Current Tenant Identity
 
 > **中**：**一个账号此刻以哪一个[租户](#ul-tenant--租户--tenant)身份行事**——
@@ -387,5 +404,48 @@
   [本产品没有](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#非目标)，刻意不立
 - **注意 ③**：产品挡的是「产品自己开的门」，不是握着磁盘的人——
   [边界说实话](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#613-运维者没有任何一扇门通向账号能做的事)
+
+### UL-acting-for-tenant-principal · 代租户行事主体 · Acting-for-Tenant Principal
+
+> **中**：代表一个明确租户行事的主体。它由三项组成：实际代行者，即一个已签发的[系统主体](#ul-system-principal--系统主体--system-principal)；显式的[租户](#ul-tenant--租户--tenant)；原工作关联，由工作拥有者给出，含 `owner` 与 `work` 两段非空文本。
+> 它的原主体是租户的账号。消费方再核它时，读这个账号在该组织的[当前资格](#ul-current-standing--当前资格--current-standing)，不读实际代行者的事实。
+> 只有 identity 的签发者能签发它。它没有不带租户的形式。成员关系变化不使它失效，下一次准入按新事实判断。
+>
+> **EN**: A principal that acts for one named tenant. It has three parts: the actor, which is an issued [system principal](#ul-system-principal--系统主体--system-principal); the explicit [tenant](#ul-tenant--租户--tenant); and the original work link, which the work owner supplies as two non-empty texts, `owner` and `work`.
+> Its original principal is the account of the tenant. When a consumer verifies it again, the consumer reads the [current standing](#ul-current-standing--当前资格--current-standing) of that account in the organization. It does not read any fact of the actor.
+> Only the identity issuer can issue it. It has no form without a tenant. A change of membership does not invalidate it. The next admission uses the new facts.
+
+- **形态**：属性
+- **出处**：[ID-16 两种主体](../../../../packages/identity/identity/SPEC.md#两种主体) · [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)；[身份与授权 §加入组织后，按明确的租户身份协作](../../product/identity-and-authorization/design.md#加入组织后按明确的租户身份协作)（rev 2）
+- **别混**：已签发或核验通过只证明来源，不证明成员资格有效，也不证明动作获准——成员资格要读[当前资格](#ul-current-standing--当前资格--current-standing)，动作要取授权裁定
+- **注意**：形态判「属性」，因为系统里没有按标识引用「这一个主体」的做法，它是租户或系统部件在一次行事里扮演的角色，不是一份有自己存储的记录
+
+### UL-system-principal · 系统主体 · System Principal
+
+> **中**：不代表任何租户的内部调用主体，由非空的 `component` 名字指明是哪个系统部件。
+> 它用于扫描、卸载、目录枚举、中继和协调者读取。它的行事作用域是系统作用域，不是某个租户。
+> 系统作用域不自动授予业务正文读取或代租户访问，也不免除动作要求的来源、资源和资格检查。
+>
+> **EN**: An internal calling principal that does not act for any tenant. A non-empty `component` name says which system part it is.
+> It serves scanning, uninstall, directory enumeration, relay and coordinator reads. Its scope of action is the system scope, not a tenant.
+> The system scope does not automatically grant reading of business content or access on behalf of a tenant. It also does not remove the source, resource and qualification checks that an action requires.
+
+- **形态**：属性
+- **出处**：[ID-16 两种主体](../../../../packages/identity/identity/SPEC.md#两种主体) · [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)
+- **别混**：与[代租户行事主体](#ul-acting-for-tenant-principal--代租户行事主体--acting-for-tenant-principal)不是一回事——后者必带租户。后者的实际代行者是一个系统主体，但代行者的身份不替代租户的账号。也不是[运维者](#ul-deployment-operator--运维者--deployment-operator)：运维者是握着部署的人，系统主体是装配给部件签发的主体
+
+### UL-session-work-principal · 会话工作主体 · Session Work Principal
+
+> **中**：原工作关联属于某个会话的[代租户行事主体](#ul-acting-for-tenant-principal--代租户行事主体--acting-for-tenant-principal)：`work.owner` 是 `session`，`work.work` 是该会话的标识。
+> 应用装配的会话工作主体签发能力按会话签发它。签发前，装配按调用读会话归属读口，核对租户与会话。读口缺席或结果不符时，不签发。
+> 会话在其工作里以它向 Agent 等能力出示来源。
+>
+> **EN**: An [acting-for-tenant principal](#ul-acting-for-tenant-principal--代租户行事主体--acting-for-tenant-principal) whose original work link belongs to one session: `work.owner` is `session` and `work.work` is the identifier of that session.
+> The session work principal issuing capability of the application assembly issues it per session. Before it issues, the assembly reads the session ownership source on each call and checks the tenant and the session. If the source is absent or the result does not match, it does not issue.
+> The session uses it to show its origin to capabilities such as Agent while it does its work.
+
+- **形态**：属性
+- **出处**：[ID-16 签发与核验](../../../../packages/identity/identity/SPEC.md#签发与核验) · [Session 契约的端口表](../../../../packages/session/session-contract/SPEC.md)；[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)
+- **别混**：原工作关联为登录的代租户行事主体不是它——那一种的 `work.owner` 是 `identity-login`，工作拥有者是 identity。它也不是[系统主体](#ul-system-principal--系统主体--system-principal)：它带租户
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

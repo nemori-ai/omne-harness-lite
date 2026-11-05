@@ -5,6 +5,7 @@ import {
   compareInstants,
   encodeDuration,
   encodeInstant,
+  parseDuration,
   parseInstant,
   type Duration,
   type Instant,
@@ -145,4 +146,36 @@ export function spansLeapSecond(from: Instant, to: Instant): boolean {
     if (deletes && before.ok && within(from, before.value, to)) return true
   }
   return false
+}
+
+function durationOf(value: Scaled): Duration {
+  const unit = 10n ** BigInt(value.scale)
+  const magnitude = value.units < 0n ? -value.units : value.units
+  const whole = magnitude / unit
+  const fraction = (magnitude % unit).toString().padStart(value.scale, '0').replace(/0+$/u, '')
+  const text = `${value.units < 0n ? '-' : ''}PT${whole}${fraction === '' ? '' : `.${fraction}`}S`
+  const parsed = parseDuration(text)
+  if (!parsed.ok) throw new RangeError('a computed duration did not parse')
+  return parsed.value
+}
+
+/** Compares two durations: negative, zero or positive as `left` is shorter, equal or longer. */
+export function compareDurations(left: Duration, right: Duration): number {
+  const a = scaledDuration(left)
+  const b = scaledDuration(right)
+  const scale = Math.max(a.scale, b.scale)
+  const difference = scaleTo(a, scale) - scaleTo(b, scale)
+  return difference < 0n ? -1 : difference > 0n ? 1 : 0
+}
+
+/** `duration` times a whole factor. */
+export function timesDuration(duration: Duration, factor: number): Duration {
+  const value = scaledDuration(duration)
+  return durationOf({ units: value.units * BigInt(factor), scale: value.scale })
+}
+
+/** Half of `duration`, exact: one more fraction digit at most. */
+export function halfDuration(duration: Duration): Duration {
+  const value = scaledDuration(duration)
+  return durationOf({ units: value.units * 5n, scale: value.scale + 1 })
 }

@@ -161,6 +161,7 @@ async function claim(s: Scene, label: string) {
           run: before.run.run,
           instance: { owner: 'agent', id: label },
           continuity: evidence(`continuity-${label}`),
+          expected: before.run.revision,
         },
       },
       guards: [],

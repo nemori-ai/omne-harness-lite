@@ -6,11 +6,6 @@ import { describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
-  decodeToolInvocationRef,
-  readToolInvocationRef,
-} from '@omne-harness/tool-contract/provider'
-import {
-  encodeToolInvocationRef,
   type ConsumerRef,
   type ToolDelivery,
   type ToolResultReceiver,
@@ -42,7 +37,7 @@ const NAMES = {
   RP2: 'a push of the same key and content recalls the original receipt',
   RP3: 'a push of the same key with other content is a conflict that keeps the original',
   RP4: 'the receiver keeps its own copy of the payload',
-  RP5: 'a reference of another tenant is denied and saves nothing',
+  RP5: 'a key saved by another tenant is unknown to the pusher',
   RP6: 'the tenant of the reference is part of the key',
   RP7: 'a malformed reference is invalid',
   RP8: 'the relation table rejects another revision and another call',
@@ -65,21 +60,6 @@ function variant(build: (real: Push, fixture: Fixture) => Push): () => Fixture {
 }
 
 /** The delivery with its reference re-encoded under `tenant`. */
-function underTenant(
-  delivery: ToolDelivery<ContentBlock>,
-  tenant: Fixture['access']['tenant'],
-): ToolDelivery<ContentBlock> {
-  // A malformed reference stays as it is: only a legal one is re-encoded.
-  if ('failure' in decodeToolInvocationRef(delivery.key.reference)) return delivery
-  const parts = readToolInvocationRef(delivery.key.reference)
-  const encoded = encodeToolInvocationRef({ ...parts, tenant })
-  if (!('ok' in encoded)) throw new Error('the reference does not encode')
-  return {
-    ...delivery,
-    key: { ...delivery.key, reference: encoded.ok },
-  } as ToolDelivery<ContentBlock>
-}
-
 const fakeReceipt = (delivery: ToolDelivery<ContentBlock>): ToolSavedReceipt => ({
   key: delivery.key,
   evidence: { ...evidence('fake'), owner: delivery.consumer.owner },
@@ -127,7 +107,8 @@ const variants: readonly Variant<Fixture>[] = [
     fixture: variant(real => {
       const kept = new Map<string, ToolDelivery<ContentBlock>>()
       return async input => {
-        const name = JSON.stringify(input.delivery.key)
+        // Per tenant: a key's reference carries no tenant (R2-D357).
+        const name = JSON.stringify([input.access.tenant, input.delivery.key])
         const earlier = kept.get(name)
         if (earlier !== undefined && !isDeepStrictEqual(earlier, input.delivery))
           return fail({ kind: 'conflict' })
@@ -138,23 +119,12 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    name: 'the tenant comes from the access, not from the reference',
-    fails: [NAMES.RP5],
-    fixture: variant(
-      real => input =>
-        real({ ...input, delivery: underTenant(input.delivery, input.access.tenant) }),
-    ),
-  },
-  {
     name: 'the key leaves out the tenant',
     fails: [NAMES.RP5, NAMES.RP6, NAMES.RP10, NAMES.RP13],
     fixture: variant(
       (real, fixture) => input =>
-        real({
-          ...input,
-          access: fixture.access,
-          delivery: underTenant(input.delivery, fixture.access.tenant),
-        }),
+        // The reference carries no tenant (R2-D357), so the access alone names it.
+        real({ ...input, access: fixture.access }),
     ),
   },
   {

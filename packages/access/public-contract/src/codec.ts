@@ -713,8 +713,10 @@ function responseBody<V extends string, P extends string, S extends string>(
 ): Rule | undefined {
   if (!isRefusal(family, outcome))
     return family.isProvided(operation) ? family.responseRule(operation, outcome) : undefined
-  if (outcome === 'protocol-rejected') return empty
-  return operation === undefined || isStage(family, operation) ? empty : undefined
+  // A refusal has an empty body for every operation. `isRefusal` admits `stage-not-provided` only
+  // for a family with stages. In that family a deployment may declare any provided operation
+  // unprovided, so a provided operation also accepts it.
+  return empty
 }
 
 /** Reads version, outcome and correlation of a response, closing its top-level fields. */

@@ -20,7 +20,8 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { decodeValue } from '../codec.ts'
-import { big, oneRow, text } from './support.ts'
+import { readCoveringSnapshot, type CoveringSnapshot } from './log.ts'
+import { assignPositions, big, oneRow, text } from './support.ts'
 
 /** The journal row of the session before the batch. */
 export type JournalRow = Readonly<{ tail: bigint; seq: bigint; epoch: string }>
@@ -63,6 +64,7 @@ function inputOf(facts: Readonly<Record<string, JsonValue>>): Input | string {
 export function judgeEntries(
   facts: Readonly<Record<string, JsonValue>>,
   port: ParticipantPort,
+  covering: CoveringSnapshot = readCoveringSnapshot,
 ): EntriesJudgment {
   const input = inputOf(facts)
   if (typeof input === 'string') return { kind: 'unsupported', reason: input }
@@ -88,14 +90,9 @@ export function judgeEntries(
     seq: big(journalRow['commit_seq']) + 1n,
     epoch: text(journalRow['epoch']),
   }
-  const state = oneRow(
-    port,
-    'SELECT snapshot, covered FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
-    [tenant, session],
-  )
-  if (state === undefined || big(state['covered']) !== journal.tail)
+  const previous = covering(port, tenant, session, journal.tail)
+  if (previous === 'behind')
     return { kind: 'failed', diagnostic: 'sl_state does not cover the tail' }
-  const previous = decodeValue(JSON.parse(text(state['snapshot'])) as JsonValue) as WorkSnapshot
 
   // Every form of record takes part: a batch, control or answer record has another digest, so
   // the pure check answers conflict for it (SL07).
@@ -133,17 +130,7 @@ export function judgeEntries(
     return { kind: 'failed', diagnostic: 'an entries decision without its progress' }
 
   const revision = String(journal.tail + 1n)
-  const last = oneRow(
-    port,
-    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ? LIMIT 1',
-    [tenant, session],
-  )
-  const first = big(last?.['p'] ?? 0n) + 1n
-  const entries = decision.entries.map((entry, index) => ({
-    ...entry,
-    id: String(first + BigInt(index)),
-    revision,
-  })) as HistoryEntry[]
+  const entries = assignPositions(port, { tenant, session }, revision, decision.entries)
   const reduced = reduce(previous, { revision, entries } as never)
   // RD-1 to RD-3 and every other contradiction: nothing is written.
   if (reduced.kind === 'quarantined')

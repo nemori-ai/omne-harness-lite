@@ -39,6 +39,12 @@
               "pending": false
             },
             {
+              "name": "ToolCommandSelection",
+              "kind": "type",
+              "sameAs": "@omne-harness/request-context-contract",
+              "pending": false
+            },
+            {
               "name": "ToolRoute",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",

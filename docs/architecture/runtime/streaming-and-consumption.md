@@ -165,4 +165,4 @@ flowchart TB
   buffer["内存中的到达缓冲"] -.->|"不是可见来源"| seen
 ```
 
-[封存来源](../../../packages.0.0.1.legacy/core/arrival-events/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/arrival-events/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。

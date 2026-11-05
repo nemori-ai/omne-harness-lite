@@ -78,21 +78,17 @@ export interface MemorySessionEvidenceBridge extends SessionEvidenceBridge {
   readonly durability: 'none'
   readonly controls: Readonly<{
     unavailable(down: boolean): void
-    /** Whether `prepare` of a `startRun` includes the login-entry confirmation (default: yes). */
-    loginEntry(included: boolean): void
   }>
 }
 
 /**
- * An evidence bridge that hands over one material per command, naming the command kind. For a
- * `startRun` it also hands over the login-entry confirmation (owner `login-entry`), as the
- * assembly's bridge takes it from the first input's origin, unless scripted to omit it.
+ * An evidence bridge that hands over one material per command, naming the command kind. The login
+ * gate of a `startRun` is not evidence: Session reads the first input's origin itself.
  */
 export function createMemorySessionEvidenceBridge(
-  options: Readonly<{ loginEntry?: boolean; initialization?: MemoryInitializationSource }> = {},
+  options: Readonly<{ initialization?: MemoryInitializationSource }> = {},
 ): MemorySessionEvidenceBridge {
   let down = false
-  let loginEntry = options.loginEntry ?? true
   return Object.freeze({
     durability: 'none' as const,
     prepare: (command: SessionCommand) => {
@@ -121,21 +117,11 @@ export function createMemorySessionEvidenceBridge(
           operation: command.input.operation,
         }),
       ]
-      if (command.kind === 'startRun' && loginEntry)
-        materials.push(
-          guard('evidence-bridge', 'login-entry', {
-            session: command.input.session,
-            operation: command.input.operation,
-          }),
-        )
       return Promise.resolve(succeed<readonly GuardCommand[]>(materials))
     },
     controls: Object.freeze({
       unavailable: (next: boolean) => {
         down = next
-      },
-      loginEntry: (included: boolean) => {
-        loginEntry = included
       },
     }),
   })

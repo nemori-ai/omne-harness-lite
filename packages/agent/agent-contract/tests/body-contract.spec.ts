@@ -56,6 +56,37 @@ const rows: readonly Row[] = [
     content: { name: 'a', references: [ref('skill', 's', false)], attributes: [] },
   },
   {
+    label: 'ordered instructions',
+    content: {
+      ...legal,
+      instructions: [
+        { id: 'role', text: 'A' },
+        { id: 'tools', text: 'B' },
+      ],
+    },
+  },
+  {
+    label: 'empty instructions',
+    content: { ...legal, instructions: [] },
+    rejected: 'invalid-instructions',
+  },
+  {
+    label: 'repeated instruction id',
+    content: {
+      ...legal,
+      instructions: [
+        { id: 'role', text: 'A' },
+        { id: 'role', text: 'B' },
+      ],
+    },
+    rejected: 'invalid-instructions',
+  },
+  {
+    label: 'instruction with an unknown key',
+    content: { ...legal, instructions: [{ id: 'role', text: 'A', order: 1 }] },
+    rejected: 'unknown-field',
+  },
+  {
     label: 'missing name',
     content: { references: [], attributes: [] },
     rejected: 'incomplete-reference',
@@ -265,7 +296,8 @@ describe('judge agrees with judgeAgentDefinition', () => {
       expect(definitionJudgment.kind).toBe('accepted')
     } else {
       expect(bodyJudgment).toEqual({ ok: false, rejected })
-      expect(definitionJudgment).toEqual({
+      // `detail` is a diagnostic the definition judgment may add; the reason is what both agree on.
+      expect(definitionJudgment).toMatchObject({
         kind: 'refused',
         reason: definitionReason ?? 'malformed',
       })
@@ -280,6 +312,7 @@ describe('judge agrees with judgeAgentDefinition', () => {
         'duplicate-attribute',
         'duplicate-capability',
         'incomplete-reference',
+        'invalid-instructions',
         'invalid-resident',
         'unknown-attribute',
         'unknown-field',

@@ -85,7 +85,7 @@ Session 外独立调用也须明确调用方、资源范围和授权责任。纯
 
 承接责任为治理入口、身份与授权及客户端维护者。待办是明确实际接口和消费者，验证冲突、不可用、撤权及后台路径；既有 Session 和 Run 的固定归属不因入口选择改变。
 
-[封存来源](../../../packages.0.0.1.legacy/core/governance-center-entry/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/governance-center-entry/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="identity-t01"></a>
 ### IDENTITY-T01 账号登录与凭据公共契约承接
@@ -94,7 +94,7 @@ Session 外独立调用也须明确调用方、资源范围和授权责任。纯
 
 承接责任为身份公共契约、凭据及登录提供者与实际消费者。待办是确认当前类型及必要行为，验证共同提交、过期和撤销、实例换代与不可用分类，不复活旧登录或扩大秘密读取资格。
 
-[封存来源](../../../packages.0.0.1.legacy/core/account-identity/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/account-identity/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 ## 本阶段不提供的打开路径
 

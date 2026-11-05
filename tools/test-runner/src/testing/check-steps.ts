@@ -48,6 +48,8 @@ export function checkSteps(inputs: StepInputs): CheckStep[] {
     resident('check:design'),
     // 线归属表的结构校验（重叠、漏掉的成员、轨道登记与契约位置）。
     resident('check:lines'),
+    // Journal 事实体不含内容类型的判别键；扫测试世界留下的库，没有库或没有 er_fact 表时跳过并说明原因。
+    resident('check:journal-facts'),
     // 本卡自己的改动须在 binding 写范围与本线内；没有 task context 时只报告「未绑定」。
     { name: 'change-scope', command: node(inputs.devFlowDeliveryCli), after: [], heavy: false },
     // 按计划：Python 工具测试。pytest-xdist 分进程跑，进程数取预算的四分之一（见 .meta_harness/tooling/tests/conftest.py），

@@ -102,6 +102,14 @@ export interface HttpExchange {
   stop(): void
   /** Request and response are closed, the error body is read, and the slot is returned. */
   readonly stopped: Promise<void>
+  /**
+   * `false` while the request cannot have reached the wire: no socket was assigned yet, or a new
+   * direct connection has not finished its TLS handshake. `true` from the moment the request may
+   * have been written to a connected socket, and for good: a reused or tunnelled socket is
+   * connected when the request gets it. Only a `connect-failed` result with `false` here is a
+   * failure before the request bytes left.
+   */
+  requestMaySent(): boolean
 }
 
 /**
@@ -281,11 +289,14 @@ function runExchange(
   /** Set by the first local end: a stop (`stop()`, the signal, the close of the resources) or a stall. */
   let localEnd: LocalEnd | undefined
   let req: ClientRequest
+  /** Set once the request may have been written to a connected socket; it never goes back. */
+  let requestMaySent = false
 
   const handle: HttpExchange = {
     result: result.promise,
     stop,
     stopped: stopped.promise,
+    requestMaySent: () => requestMaySent,
   }
 
   try {
@@ -330,6 +341,7 @@ function runExchange(
   function onSocket(socket: Socket): void {
     watchBytes(socket)
     if (!socket.connecting) {
+      requestMaySent = true
       clearConnectTimeout()
       return
     }
@@ -338,6 +350,11 @@ function runExchange(
       socket.removeListener('secureConnect', clear)
       clearTimer()
     }
+    // Node writes the request as soon as the handshake is done: from here on it may be on the wire.
+    // Not part of `clear`: the close of the exchange calls that too, and it proves nothing.
+    socket.once('secureConnect', () => {
+      requestMaySent = true
+    })
     socket.once('secureConnect', clear)
     clearConnectTimeout = clear
   }

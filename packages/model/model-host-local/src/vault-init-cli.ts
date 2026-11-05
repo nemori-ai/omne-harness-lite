@@ -22,6 +22,8 @@ export type ReadSecretOptions = Readonly<{
   output: TextSink
   /** Gives up the read, as a signal of the process does. */
   signal?: AbortSignal
+  /** The text written before the read. Default: the prompt of the vault initialization command. */
+  prompt?: string
 }>
 
 const PROMPT = '请输入 OpenRouter 密钥（输入不会显示），按回车结束：'
@@ -82,7 +84,7 @@ function printable(char: string): boolean {
  * the mode, the prompt or any listener is touched.
  */
 export function readSecretFromTerminal(options: ReadSecretOptions): Promise<string> {
-  const { input, output, signal } = options
+  const { input, output, signal, prompt = PROMPT } = options
   if (signal?.aborted) return Promise.reject(new SecretInputError('input-cancelled'))
   if (input.isTTY !== true || typeof input.setRawMode !== 'function') {
     return Promise.reject(new SecretInputError('input-not-terminal'))
@@ -153,7 +155,7 @@ export function readSecretFromTerminal(options: ReadSecretOptions): Promise<stri
 
     process.once('exit', restore)
     signal?.addEventListener('abort', onClosed, { once: true })
-    output.write(PROMPT)
+    output.write(prompt)
     input.on('data', onData)
     input.on('end', onClosed)
     input.on('close', onClosed)

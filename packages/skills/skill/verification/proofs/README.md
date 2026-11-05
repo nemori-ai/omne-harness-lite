@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-本包没有证明。理由见 [verification/README.md](../README.md)。
+本包没有证明。性质的证据是模型与探索器，见 [verification/README.md](../README.md)。

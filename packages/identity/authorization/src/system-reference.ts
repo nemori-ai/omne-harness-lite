@@ -1,5 +1,5 @@
 // The in-process reference system action authorization (SPEC AU-12): reads the facts from the
-// installed identity verifier, the maintenance grant source and the trusted clock, then decides.
+// installed identity verifier, the maintenance grant source and the expiry clock, then decides.
 // It keeps no state and reads again on every call. A dependency that throws is `unavailable`,
 // never `allowed`. A fact is read only when the steps before it passed, so a request outside the
 // matrix never reaches the grant source.
@@ -19,7 +19,7 @@ import {
 } from './system-action.ts'
 import type { SystemActionRow } from './system-matrix.ts'
 
-/** The trusted clock: whether the end time `expiresAt` of a grant is reached now. */
+/** The injected expiry clock: whether the end time `expiresAt` of a grant is reached now. */
 export interface SystemActionClock {
   reached(expiresAt: string): Promise<ExpiryReading>
 }
@@ -39,7 +39,7 @@ export type SystemActionDependencies = Readonly<{
   verifier: PrincipalVerifier
   /** Null when no maintenance grant source is installed; every action of the matrix is then `unavailable`. */
   grants: MaintenanceGrantSource | null
-  /** Null when no trusted clock is installed; a grant with an end time is then `unavailable`. */
+  /** Null when no expiry clock is installed; a grant with an end time is then `unavailable`. */
   clock: SystemActionClock | null
 }>
 
@@ -91,7 +91,7 @@ async function readExpiry(
   expiresAt: string,
 ): Promise<ExpiryReading> {
   if (deps.clock === null)
-    return { kind: 'unavailable', diagnostic: 'no trusted clock is installed' }
+    return { kind: 'unavailable', diagnostic: 'no expiry clock is installed' }
   try {
     const reading = await deps.clock.reached(expiresAt)
     switch (reading.kind) {
@@ -104,11 +104,11 @@ async function readExpiry(
       default:
         return {
           kind: 'unavailable',
-          diagnostic: 'the trusted clock answered outside its contract',
+          diagnostic: 'the expiry clock answered outside its contract',
         }
     }
   } catch {
-    return { kind: 'unavailable', diagnostic: `the trusted clock ${THREW}` }
+    return { kind: 'unavailable', diagnostic: `the expiry clock ${THREW}` }
   }
 }
 

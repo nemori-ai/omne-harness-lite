@@ -15,12 +15,13 @@
 - [faces.ts](faces.ts)：按调用方类给出四个面
 - [callers.ts](callers.ts)：各操作允许的调用方类
 - [failures.ts](failures.ts)：本成员自己产生的失败与端口服务键
-- [advance.ts](advance.ts)：S1 与 C2 的开 Run 顺序
+- [advance.ts](advance.ts)：S1 与 C2 的开 Run 顺序，已授予未受理 Run 的重放与失败诊断
+- [diagnostics.ts](diagnostics.ts)：具名诊断 `SessionDiagnostic` 与观察者类型
 - [slot-reference.ts](slot-reference.ts)：会话槽引用（XC-AGINST 第 2.1 节）
 - [resolution.ts](resolution.ts)：S4 待决认回
 - [scan.ts](scan.ts)：S3 恢复扫描与维护句柄
 - [scheduling.ts](scheduling.ts)：协调器与调度器共用的主体、时钟等待与每会话串行
-- [lifecycle.ts](lifecycle.ts)：关闭状态、在途工作与后台工作
+- [lifecycle.ts](lifecycle.ts)：关闭状态、在途工作、后台工作与诊断记录
 
 ## 阅读路径
 

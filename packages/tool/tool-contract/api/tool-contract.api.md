@@ -12,6 +12,10 @@
 - `Attachment` · `results.d.ts`
 - `BackgroundSource` · `operations.d.ts`
 - `ClockSegment` · `records.d.ts`
+- `CommandCall` · `command-call.d.ts`
+- `CommandCallEncoding` · `command-call.d.ts`
+- `CommandCallRejection` · `command-call.d.ts`
+- `CommandTable` · `command-call.d.ts`
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ContentPage` · `custody.d.ts`
 - `ControlProgress` · `records.d.ts`
@@ -76,6 +80,7 @@
 - `ToolInvocation` · `definitions.d.ts`
 - `ToolInvocationCommands` · `operations.d.ts`
 - `ToolInvocationContentReader` · `operations.d.ts`
+- `ToolInvocationLocation` · `reference.d.ts`
 - `ToolInvocationParts` · `reference.d.ts`
 - `ToolInvocationQueries` · `operations.d.ts`
 - `ToolInvocationRef` · `reference.d.ts`
@@ -83,6 +88,7 @@
 - `ToolInvokeRequest` · `operations.d.ts`
 - `ToolLookup` · `results.d.ts`
 - `ToolOperationId` · `identity.d.ts`
+- `ToolOperationLocation` · `reference.d.ts`
 - `ToolOperationParts` · `reference.d.ts`
 - `ToolOperationRef` · `reference.d.ts`
 - `ToolProgramDeclaration` · `definitions.d.ts`
@@ -118,8 +124,12 @@
 - `WaitState` · `results.d.ts`
 - `backgroundCallsBlock` · `background-calls.d.ts`
 - `backgroundCallsSchema` · `background-calls.d.ts`
+- `commandCallSchema` · `command-call.d.ts`
+- `commandMenu` · `command-call.d.ts`
+- `decodeCommandCallText` · `command-call.d.ts`
 - `decodeToolCallId` · `identity.d.ts`
 - `decodeToolOperationId` · `identity.d.ts`
+- `describeCommandCallRejection` · `command-call.d.ts`
 - `encodeResidentKey` · `resident-key.d.ts`
 - `encodeToolInvocationRef` · `reference.d.ts`
 - `encodeToolOperationRef` · `reference.d.ts`
@@ -129,6 +139,7 @@
 - `residentToolFacts` · `resident-key.d.ts`
 - `resolveToolInvocationRef` · `reference.d.ts`
 - `resolveToolOperationRef` · `reference.d.ts`
+- `selectCommandText` · `command-call.d.ts`
 
 ## 入口 `./binding` · `binding.d.ts`
 
@@ -146,6 +157,7 @@
 - `AdoptionPlan` · `dynamics.d.ts`
 - `AdoptionRules` · `adoption.d.ts`
 - `AvailabilityFacts` · `authoring.d.ts`
+- `COMMAND_CALL_ENCODINGS` · `command-call.d.ts`
 - `CallAccess` · `identity.d.ts`
 - `Checkpoint` · `records.d.ts`
 - `ChildPosition` · `program.d.ts`
@@ -277,7 +289,12 @@
 - `ToolWaitValidation` · `author-context.d.ts`
 - `ToolWaiter` · `author-context.d.ts`
 - `WriteContext` · `execution.d.ts`
+- `commandArguments` · `command-call.d.ts`
+- `commandExample` · `command-call.d.ts`
+- `commandGuide` · `command-call.d.ts`
+- `commandSignature` · `command-call.d.ts`
 - `createDefaultParameterCodec` · `parameter-codec.d.ts`
+- `decodeCommandCall` · `command-call.d.ts`
 - `decodeToolCursor` · `identity.d.ts`
 - `decodeToolDeliveryId` · `identity.d.ts`
 - `decodeToolInstanceId` · `identity.d.ts`
@@ -294,7 +311,9 @@
 - `defineToolOperation` · `registration.d.ts`
 - `defineToolWaitContract` · `wait-contract.d.ts`
 - `deriveDefinition` · `dynamics.d.ts`
+- `describeCommandArgumentsRejection` · `command-call.d.ts`
 - `describedAdoption` · `adoption.d.ts`
+- `encodeCommandCall` · `command-call.d.ts`
 - `evaluateToolAvailability` · `catalog.d.ts`
 - `foldResident` · `dynamics.d.ts`
 - `judgeConsumerRef` · `judge-release.d.ts`
@@ -956,6 +975,69 @@ export declare function presentTool(definition: ToolDefinition): ToolPresentatio
 export declare function evaluateToolAvailability(facts: AvailabilityFacts): ToolAvailability;
 ```
 
+## 声明文件 `command-call.d.ts`
+
+```ts
+import { type JsonValue } from '@omne-harness/json-text';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { ToolArguments, ToolCommandDeclaration, ToolDefinition } from './definitions.ts';
+export declare const COMMAND_CALL_ENCODINGS: readonly [
+    'wrapped',
+    'flat'
+];
+export type CommandCallEncoding = (typeof COMMAND_CALL_ENCODINGS)[number];
+export declare const COMMAND_FIELD = "command";
+export declare const PARAMS_FIELD = "params";
+type JsonObject = Extract<JsonValue, {
+    kind: 'object';
+}>;
+export type CommandTable = Pick<Extract<ToolDefinition, {
+    kind: 'commands';
+}>, 'name' | 'encoding' | 'commands' | 'guide'>;
+export type CommandCall = Readonly<{
+    command: string;
+    params: JsonObject;
+}>;
+export type CommandCallRejection = Readonly<{
+    kind: 'unreadable';
+    reason: string;
+}> | Readonly<{
+    kind: 'not-object';
+}> | Readonly<{
+    kind: 'command-missing';
+}> | Readonly<{
+    kind: 'command-unknown';
+    command: string;
+}> | Readonly<{
+    kind: 'extra-field';
+    field: string;
+}> | Readonly<{
+    kind: 'params-not-object';
+}> | Readonly<{
+    kind: 'command-mismatch';
+    command: string;
+    admitted: string | null;
+}>;
+export declare function decodeCommandCall(encoding: CommandCallEncoding, commands: readonly string[], value: JsonValue): Outcome<CommandCall, CommandCallRejection>;
+export declare function selectCommand(commands: readonly string[], value: JsonValue): Outcome<string, CommandCallRejection>;
+export declare function selectCommandText(commands: readonly string[], text: string): Outcome<string, CommandCallRejection>;
+export declare function encodeCommandCall(encoding: CommandCallEncoding, call: CommandCall): JsonObject;
+export declare function decodeCommandCallText(encoding: CommandCallEncoding, commands: readonly string[], text: string): Outcome<CommandCall, CommandCallRejection>;
+export declare function commandArguments(definition: ToolDefinition, admitted: string | null, args: ToolArguments): Outcome<ToolArguments, Readonly<{
+    kind: 'invalid';
+    reason: string;
+}>>;
+export declare function commandSignature(parameters: ToolCommandDeclaration['parameters']): string;
+export declare function commandExample(definition: CommandTable, command: string): string;
+export declare function commandMenu(definition: CommandTable): string;
+export declare function commandCallSchema(definition: CommandTable): JsonValue;
+export declare function commandGuide(definition: CommandTable, command?: string): string;
+export declare function describeCommandCallRejection(definition: CommandTable, rejection: CommandCallRejection): string;
+export declare function describeCommandArgumentsRejection(definition: CommandTable, command: string, reason: string): string;
+export declare function flatConflict(commands: readonly ToolCommandDeclaration[]): string | undefined;
+export {};
+```
+
 ## 声明文件 `contract.d.ts`
 
 ```ts
@@ -1125,6 +1207,7 @@ import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-
 import type { ScopeRef } from '@omne-harness/runtime-context-contract';
 import type { SchemaRef } from '@omne-harness/schema-provider';
 import type { ToolDeclarations } from './authoring.ts';
+import type { CommandCallEncoding } from './command-call.ts';
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts';
 export type ParameterContract = Readonly<{
     schema: JsonValue;
@@ -1183,7 +1266,9 @@ export type ToolImplementationShape = Readonly<{
     returns: ToolReturnDeclaration;
 }> | Readonly<{
     kind: 'commands';
+    encoding: CommandCallEncoding;
     commands: readonly ToolCommandDeclaration[];
+    guide?: string;
 }>;
 export type ToolImplementationFacts = Readonly<{
     implements: ToolImplementationShape;
@@ -1649,7 +1734,7 @@ export declare function decodeToolRevision(text: unknown): Outcome<ToolRevision,
 export { decodeToolCallId, decodeToolOperationId } from './identity.ts';
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
-export type { ToolInvocationParts, ToolInvocationRef, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
+export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
 export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolCommandDeclaration, ToolDefinition, ToolEnvironmentDeclaration, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
 export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
@@ -1665,6 +1750,8 @@ export { backgroundCallsBlock, backgroundCallsSchema } from './background-calls.
 export type { ToolBackgroundCallsValue } from './background-calls.ts';
 export { encodeResidentKey, projectResidentReferences, residentToolFacts } from './resident-key.ts';
 export type { ResidentHolderPage, ResidentKeyFailure, ResidentReferencesPage, } from './resident-key.ts';
+export { commandCallSchema, commandMenu, decodeCommandCallText, describeCommandCallRejection, selectCommandText, } from './command-call.ts';
+export type { CommandCall, CommandCallEncoding, CommandCallRejection, CommandTable, } from './command-call.ts';
 ```
 
 ## 声明文件 `json-tree.d.ts`
@@ -2419,6 +2506,7 @@ export type { AccountScope, ToolAccounts, ToolContentReader, ToolOffloader, Tool
 export type { ChildPosition, ChildReservation, ChildState, ProgramClosure, ProgramEnd, ProgramToolResult, ProgramTools, ToolChildren, } from './program.ts';
 export { projectToolBackgroundCalls } from './background-calls-projection.ts';
 export type { ToolBackgroundCallSource, ToolBackgroundCallsSource, } from './background-calls-projection.ts';
+export { COMMAND_CALL_ENCODINGS, commandArguments, commandExample, commandGuide, commandSignature, decodeCommandCall, describeCommandArgumentsRejection, encodeCommandCall, } from './command-call.ts';
 ```
 
 ## 声明文件 `records.d.ts`
@@ -2898,7 +2986,7 @@ export type ToolReferenceFailure = Readonly<{
     kind: 'malformed';
     rejection: ToolReferenceRejection;
 }> | Readonly<{
-    kind: 'foreign-tenant';
+    kind: 'invalid-tenant';
 }>;
 export type ToolInvocationParts = Readonly<{
     tenant: TenantId;
@@ -2908,13 +2996,15 @@ export type ToolInvocationParts = Readonly<{
 export type ToolOperationParts = ToolInvocationParts & Readonly<{
     operation: ToolOperationId;
 }>;
-export declare const TOOL_REFERENCE_MAX_LENGTH = 1668;
+export type ToolInvocationLocation = Omit<ToolInvocationParts, 'tenant'>;
+export type ToolOperationLocation = Omit<ToolOperationParts, 'tenant'>;
+export declare const TOOL_REFERENCE_MAX_LENGTH = 1565;
 export declare function encodeToolInvocationRef(parts: ToolInvocationParts): Outcome<ToolInvocationRef, ToolReferenceRejection>;
 export declare function encodeToolOperationRef(parts: ToolOperationParts): Outcome<ToolOperationRef, ToolReferenceRejection>;
 export declare function decodeToolInvocationRef(text: unknown): Outcome<ToolInvocationRef, ToolReferenceRejection>;
 export declare function decodeToolOperationRef(text: unknown): Outcome<ToolOperationRef, ToolReferenceRejection>;
-export declare function readToolInvocationRef(reference: ToolInvocationRef): ToolInvocationParts;
-export declare function readToolOperationRef(reference: ToolOperationRef): ToolOperationParts;
+export declare function readToolInvocationRef(reference: ToolInvocationRef): ToolInvocationLocation;
+export declare function readToolOperationRef(reference: ToolOperationRef): ToolOperationLocation;
 export declare function resolveToolInvocationRef(reference: unknown, tenant: TenantId): Outcome<ToolInvocationParts, ToolReferenceFailure>;
 export declare function resolveToolOperationRef(reference: unknown, tenant: TenantId): Outcome<ToolOperationParts, ToolReferenceFailure>;
 export declare const toolStreamCallCodec: StreamCallCodec;
@@ -2928,6 +3018,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { ToolAuthor, ToolImplementation, ToolImplementationDeclaration, ToolOperation, ToolOperationParameters, ToolOperationSpec } from './authoring.ts';
 import type { ToolReturnDeclaration } from './definitions.ts';
+import { type CommandCallEncoding } from './command-call.ts';
 type Rejection = Readonly<{
     field: string;
     reason: string;
@@ -2959,6 +3050,8 @@ export declare function defineFunctionTool<E, B extends ContentBlock>(input: Rea
 }>): Outcome<ToolImplementation<E, B>, Rejection>;
 export declare function defineCommandTool<E, B extends ContentBlock>(input: Readonly<{
     implementation: ToolImplementationDeclaration;
+    encoding: CommandCallEncoding;
+    guide?: string;
     commands: Readonly<Record<string, Readonly<{
         summary: string;
         operation: ToolOperation<E, B>;
@@ -3083,7 +3176,7 @@ export type ToolDeliveryRejection = Readonly<{
     reason: 'identity';
 }> | Readonly<{
     field: 'key.reference';
-    reason: 'reference-malformed' | 'foreign-tenant';
+    reason: 'reference-malformed';
 }> | Readonly<{
     field: 'key.revision';
     reason: 'revision-mismatch';

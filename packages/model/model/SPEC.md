@@ -105,8 +105,8 @@ quiesce 返回十进制字符串 `{ pending, running }`。`running` 是本 provi
 | 结果          | 含义                                             | 发送端行为                                                   |
 | ------------- | ------------------------------------------------ | ------------------------------------------------------------ |
 | `value`       | 当前资格允许                                     | 发出，并记下本次采用的值。`scope` 为 `tenant` 或 `factory`。 |
-| `absent`      | 没有这份凭据                                     | 不发送。                                                     |
-| `unreadable`  | 引用在，值暂时读不出                             | 不发送。                                                     |
+| `absent`      | 没有这份凭据                                     | 不发送。产品发送边界把本次调用终结为失败，见下文。           |
+| `unreadable`  | 引用在，值暂时读不出                             | 不发送。产品发送边界把本次调用终结为失败，见下文。           |
 | `denied`      | 跨租户、用途不符、无发送资格、已撤销或保管已关闭 | 不发送。                                                     |
 | `unavailable` | 保管或存储暂时不能判断                           | 不发送，也不得报成 `absent`。                                |
 
@@ -254,11 +254,51 @@ settle 确认后先固定内部阶段，再安排附带状态刷新。刷新失�
 
 四个方法在异步交接前只保存协议字段。不透明 principal 和已铸造 tenant 保留原身份，业务值及 completion 的 owner、record、revision、digest 断开调用方别名。明确失败与 commit-unknown 原样返回，程序异常继续抛出；facade 不查询、重试或换 operation。
 
-processed 的完成事实须由冻结 consumer 的 owner 提供，经实际 evidence adapter 验证。ACK 成功后仅请求已有观察刷新，不等待投影，辅助故障不改变原 AckReceipt。读取不要求额外 recovery 资格。消费方法不 schedule；自动清理工作者尚未实现，内存测试通过真实 advanceCleanup 命令验证读保护和清理状态。
+processed 的完成事实须由冻结 consumer 的 owner 提供，经实际 evidence adapter 验证。Commands 的 `handoff` 先在写栅栏外读出该调用，按写入同样的检查（结算、结果版本、证据 owner、冻结的证据适配器）问 owner 的适配器，适配器可以晚些答复（它读 owner 自己的耐久记录，需要 await）；写入只在同一适配器、同一调用、consumer、结果版本与证据下采用这份答复，调用在两者之间变了就答 `unavailable`（`consumer-evidence`），消费者以同一 operation 重试。适配器确认的是只增不减的耐久事实（owner 保存的记录），所以栅栏外读到的确认在写入提交时仍成立（[handoff-evidence.ts](src/commands/handoff-evidence.ts)，R2-D257）。适配器还收到调用的 invocation reference 与本次 ACK 的 principal，用来定位它保存的交付。ACK 成功后仅请求已有观察刷新，不等待投影，辅助故障不改变原 AckReceipt。读取不要求额外 recovery 资格。消费方法不 schedule；自动清理工作者尚未实现，内存测试通过真实 advanceCleanup 命令验证读保护和清理状态。
 
 retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的固定 unavailable。保留 operation 先按现行规则返回 invalid。此静态路径不读取资源、不执行 handoff，也不声称已核承接资格。它对存在、不存在、跨租户和伪造主体给同一支持拒绝。
 
 [第五课](examples/05-read-and-acknowledge.ts)演示公开读取及 processed ACK。[消费测试](tests/README.md#公开结果消费)验证真实 runtime、内存 Commands 和脚本上游，不证明生产耐久、真实厂商或跨进程恢复。
+
+<a id="ack-证据在栅栏外读取的证明"></a>
+### ACK 证据在栅栏外读取的证明
+
+本节是人工成文证明，依据[验证说明](../../../docs/verification.md#证据要求何时触发)「依赖某性质放宽顺序控制」一行：ACK 的 owner 证据不再在写栅栏内问，改为栅栏外读、栅栏内核对，须证明放宽之后目标保证不变。按 R2-D262 的裁定不建形式模型，本证明没有经过机器检查。
+
+**命题。** `handoff` 以操作 o 把调用 c 的保管从 `producer` 改为 `acknowledged`，当且仅当 c 冻结的 owner 证据适配器确认了「提交那一刻的 c」上的这次 ACK。这与在栅栏内同步询问适配器的旧做法结果相同。不确认的答复（`unavailable`、`handoff-invalid`）都不写：保管、结果和份额都不变。
+
+**定义。** 问题 Q(c, a) 是 ACK a 在调用 c 上交给适配器的输入，principal 除外，由 [handoff-evidence.ts](src/commands/handoff-evidence.ts) 的 `handoffQuestion` 给出。核对时比较 Q 的五项：
+
+1. 适配器：按受理时冻结的证据采用找到的同一对象。
+2. 调用：租户、call，以及由原 admission 得出的 invocation reference。
+3. 完整 consumer。
+4. 结果版本。
+5. 证据本身。
+
+Q 里还带执行代次（`execution`），所以比较比五项更严。栅栏外的读取记下 (适配器, Q, 答复)，写入在栅栏内对当前调用重新求 Q，两者相同才采用答复（`provenHandoff`）。
+
+**前提。**
+
+- H1（owner 记录只增不变）：Agent 的接收记录一旦稳定保存，查询就答 committed；committed 带原回执，已成立的成功记录保持原含义（agent-contract SPEC 第 237 与 241 行，「[原操作认回与恢复](../../agent/agent-contract/SPEC.md#原操作认回与恢复)」与「[查询的四种结论与持久拒绝](../../agent/agent-contract/SPEC.md#查询的四种结论与持久拒绝)」；会话日志只追加）。所以适配器在 t₁ 对 Q 的确认在任何 t₂ > t₁ 对同一 Q 仍成立。不确认的答复不被采用为确认，不依赖这一前提。
+- H2（Q 的来源）：consumer、admission（因而 reference）与证据采用在受理时冻结（model-contract SPEC「[参数与注入的裁定](../model-contract/SPEC.md#342-参数与注入的裁定)」）；结果版本在收场时固定；执行代次只由 `claim` 改变；租户与 call 是输入。
+- H3（写入串行）：同一调用的写入经存储的单写栅栏串行，栅栏内看到的是提交前的当前调用。
+
+**推导。** 写入提交 `acknowledged` 必须满足两条：栅栏内对当前调用 c₂ 的前置判定通过；读到的答复是对 Q(c₂) 的确认。前置判定与栅栏外读取共用 `handoffQuestion`，两处拒绝同样的 ACK。第二条推出：适配器对 Q(c₁) 作了确认，且 Q(c₁) = Q(c₂)。由 H1，这份确认在提交时对 Q(c₂) 仍成立，与在栅栏内同步询问得到的确认相同。反方向：答复不是确认，或 Q(c₁) ≠ Q(c₂)，写入在提交前返回失败。写入的 apply 失败时不绑定操作、不改调用，所以什么也不写，同一操作以后可以重试。由 H3，提交与其他写入之间没有交错。
+
+**交错逐条覆盖。**
+
+| 读取与写入之间发生的事 | 为什么命题仍成立 |
+| --- | --- |
+| 另一个 ACK（另一操作）先提交 | 保管已是 `acknowledged`，Q 不含保管。写入沿原分支返回现有确认，不覆盖它；采用的答复仍须是对 Q(c₂) 的确认。同一操作已绑定时走认回，不用读到的答复 |
+| 清理推进或完成 | 清理只在 `acknowledged` 之后发生，不改变 Q；此时写入返回现有确认，不恢复保管 |
+| 换代（`claim`，代次加一） | 执行代次在 Q 里，Q(c₁) ≠ Q(c₂)，写入答 `unavailable`（`evidence-not-read-for-this-call`），不写；同一操作再来时按新代次提问 |
+| owner 或证据采用变化 | consumer 与证据采用在受理时冻结，调用上的 owner 不变；装配换了适配器对象时，对象身份不同，答复不被采用 |
+| 结果版本变化 | 已收场调用的结果版本固定；ACK 给的版本不同时，两处的前置判定都答 `handoff-invalid`，不问适配器 |
+| 读失败、适配器答 `unavailable` 或 `handoff-invalid` | 不是确认，写入原样返回失败，不写 |
+
+**守护用例。** [handoff-evidence.spec.ts](tests/handoff-evidence.spec.ts) 的「does not keep an answer read for the call before it was claimed again」：在适配器答复之前对同一调用 `claim`，断言答 `unavailable`、保管仍是 `producer`、同一操作随后确认。负控：把核对改成只看 `proof === null`，这条用例变红。同一文件还覆盖晚到的确认、晚到的 `unavailable`、拒绝不写，以及写入先拒的 ACK 不问适配器。
+
+**未闭合的部分。** H1 由 Journal 提供者兑现，由它的用例支持：session-adapters 的 `agentReceivedRecords` 用例核对了同一存储上新实例读回同一记录。本证明不证明提供者实现。跨进程写入不在 H3 范围内，M2 是单协调进程（model-contract SPEC「资格、共同提交与实际发送」）。
 
 ## 准备资源与校准租约
 
@@ -381,7 +421,18 @@ factory 的精确采用、官方身份、当前无 tenant 绑定及查询 ID 来
 
 `official` 取自已登记的 `ModelSendSource.credential`。登记来源的 `kind` 为 `factory` 时，显式选择 tenant 凭据也保留该来源的 `official`；登记来源的 `kind` 为 `tenant` 时才取 false。tenant 选择只解析原 ID，且要求返回 tenant 范围的值，不接受 factory 范围的结果。旧 `resolve` 与 `SendFace` 路径的行为保留，不参与产品发送边界。
 
-absent、unreadable、unavailable 保留不同的 model-credential 安全诊断；denied 保持拒绝。解析、start、事实读取及释放的异常正文不进入业务诊断。秘密只交给原资源的同步私有槽。资源提供者须核物化对象归属，清除临时秘密，并发送回执对应内容。
+absent、unreadable、unavailable 保留不同的 model-credential 安全诊断；denied 保持拒绝。
+
+凭据缺失与读不出不会自己恢复，所以产品发送边界把它们当作本次调用的确定失败，不让调用方等待：
+
+1. 边界记下 not-sent 发送记录。
+2. 边界在本尝试开的接收窗口里写一条终止事实：`{ kind: 'failed', fault: { cause: 'credential', diagnostic, upstreamStatus: null } }`。absent 的 `diagnostic` 是 `credential-missing`，unreadable 的是 `credential-unreadable`。没有字节发往上游，所以 `upstreamStatus` 为 null。
+3. 边界释放资源，返回 not-started，`failure` 仍是 `unavailable`，依赖为 `model-credential`，诊断同上。
+4. driver 读到这条 not-sent 发送记录带有失败终止，就用它结算本次调用。调用进入 settled，终止为上述失败。
+
+终止写未确认时，边界返回 unknown，诊断为 `credential-terminal-unconfirmed`，并保留原写。重试先查询原 operation，再重放同一写，不生成新的 operation。
+
+denied 与 unavailable 不写终止：denied 以确定拒绝结束、不结算；unavailable 的出口见「发送边界的出口」的已知限制。解析、start、事实读取及释放的异常正文不进入业务诊断。秘密只交给原资源的同步私有槽。资源提供者须核物化对象归属，清除临时秘密，并发送回执对应内容。
 
 每个原写在首次提交前固定完整参数，operation 使用具有128位熵的随机值生成。未确认写先 query 原 operation，确定后重放原方法和参数，不改 expected、dispatch 或 payload。查询拒绝、异常或仍未知不证明原写未提交，原尝试、资源和容量继续保留。已确认 committed 但原方法暂不能返回回执时，同样保留原责任；只有权威未提交且原写明确拒绝才可按未提交结束。物化或窗口未知保留资源但零 start。已明确未发的资格拒绝不会因原 not-sent 写的已知冲突改称未知发送；未确认记录仍保留原责任。已经可能 start 的异常或记录冲突始终 unknown，不改报未发。
 
@@ -390,3 +441,45 @@ start 返回事实而记录未确认时，原流和资源由 sender 有界保留
 交出 facts 后只允许一个 iterator，推进串行。耗尽、return、throw 或读取异常均按 materialized、prepared、resource 逆序尝试全部释放，各钩子最多一次。失败抛安全 resource-release-failed，保持可观察且继续占位。signal 只向原传输请求停止，sender 不在 abort 回调关闭原事实流。正常释放才删除本地尝试；后续 send 仍读权威 dispatch，不会再次 start。关闭、跨进程恢复、生产有界调度及完整控制排空不在此构造的实现范围。
 
 内存测试的来源登记以 [commands/types.ts](src/commands/types.ts) 的 `ModelSendSource` 为准，同步围栏以 [testing/state.ts](src/testing/state.ts) 为准。SQL 实现的协调器（`@omne-harness/model-storage-sql` 的 `createSendMirror`）只有一处例外：主体获准、调用不在本进程镜像时，它答 `unavailable`（`qualification-unavailable`），内存实现答 `not-found`；主体未获准时两者都答 `denied`。缺 sending 配置没有默认成功凭据。脚本仅模拟外部传输；产品不得依赖 testing。共同 started 结果交出已确认的原 window 和唯一 facts 流。消费者使用 result.window 保存该流，Commands 仍核原 tenant、call、execution、dispatch 与 window 绑定。window 不授予访问权。driver 已接入该唯一事实消费者，按原窗口批量确认后发布。
+
+### 发送边界的出口
+
+下表列出产品发送边界与 driver 的全部出口。「结局」一列说明调用方会不会无限等待：
+
+- 「结算」：调用进入 settled。
+- 「确定拒绝」：driver 以非 `unavailable` 的失败结束本次驱动。拒绝的原因归另一个拥有者，例如接管执行的实例、胜出的写或访问判定。
+- 「重试」：同一驱动的下一次 drive 继续原阶段，原写只重放，不重新解析，也不再次 start。重试只消耗有界的瞬时故障，之后落到前两种结局。
+- 「等待」：driver 停在 `failed`，失败为 `unavailable`，调用不结算。这是已知限制，见本表最后一组。
+
+凭据缺失与读不出（带 fault 的确定拒绝）：
+
+| 步骤与存储答复 | 边界答复 | driver | 结局 |
+| --- | --- | --- | --- |
+| not-sent 记录确认，终止写确认 | not-started，`unavailable`（`credential-missing` 或 `credential-unreadable`） | 读记录，有终止，结算 | 结算，`cause: credential` |
+| 终止写确认后释放失败 | 同上，尝试与容量保留 | 读记录，有终止，结算 | 结算 |
+| not-sent 记录或终止写未确认（已落地或未落地） | unknown，原写保留 | 下一次 drive 重放同一 operation | 重试 |
+| not-sent 记录或终止写被明确拒绝（`stale-instance`、`conflict`、`denied`） | not-started，失败就是这次拒绝 | 读记录：拒绝前已落地终止就结算，否则以该拒绝结束 | 结算或确定拒绝 |
+| 明确拒绝后释放失败 | 同上，尝试与容量保留，重复 send 答 unknown `resource-release-failed` | 同上 | 结算或确定拒绝 |
+| 任一情况下读记录失败或抛出 | 不适用 | 保留「按记录结算」阶段，返回读取失败，下一次 drive 重读 | 重试 |
+| 结算写遇到接管 | 不适用 | 以 `stale-instance` 结束 | 确定拒绝 |
+
+其他解析结果：
+
+| 步骤与存储答复 | 边界答复 | driver | 结局 |
+| --- | --- | --- | --- |
+| value：记录确认 | started，交出原流 | 接收并按流的终止结算 | 结算 |
+| value：记录未确认或被拒绝 | unknown，原流保留，不再 start | 重试原写 | 重试；执行被接管时一直是 unknown，见已知限制 |
+| denied 或 scope 错配 | not-started，`denied` 或 `invalid` | 读记录，无终止，以该拒绝结束 | 确定拒绝 |
+
+已知限制：下列出口仍让调用方等待。前三行的失败是 `unavailable`，而同一个 dispatch 已不能再发送，driver 的 `failed` 阶段也不重试。最后一行是有意的：可能已发送的调用只能等原记录。
+
+| 出口 | 诊断 |
+| --- | --- |
+| 凭据端口答 `unavailable` 或抛出 | `credential-unavailable` |
+| 当前资格不可得、取得资源前已取消、传输 prepare 或物化失败 | `qualification-unavailable`、`cancelled-before-prepare`、`cancelled-before-start`、`transport-prepare-failed` 等 |
+| 没有写终止的拒绝之后释放失败 | `resource-release-failed` |
+| 已经 start 而发送记录始终不能确认（例如执行被接管） | `send-record-unconfirmed`。可能已发送，所以不得改报未发，也不得判成 credential 失败 |
+
+消除它们需要为每个出口选定结局，例如以哪一种 `ModelFaultCause` 结算，这会改变 Model 的调用结局，每个出口的结局登记为 D-86。确定拒绝的机制不限于凭据：fence 拒绝带上 `fault`，边界就写终止，driver 就按记录结算。
+
+这张表由 TLC 模型 [SendBoundary.tla](../model-contract/verification/models/SendBoundary.tla) 检查：带 fault 的确定拒绝最终结算，或者以确定拒绝结束，可能已发送的调用不判成 credential 失败，重试不写第二个终止。性质、映射与负控见 [formal-mapping.md](../model-contract/verification/models/formal-mapping.md#发送边界)。

@@ -5,11 +5,20 @@
 // `stages` the world also provides the six locally required dependencies from the same doubles, so
 // the Loop of `createAgentRuntime` reaches its Model requests; `admits` records each of them.
 //
-// `withRuntimeDuties` wraps the Agent factory with the two runtime duties of XC-AGINST 3.5 that
-// `createAgentRuntime` does not keep yet: quiesce marks the runtime draining before its first
-// `await` and withdraws through the registration handle, and invoke reports `occupied` in the same
-// step that takes the slot. Tests that use it prove the host side only; tests that use the plain
-// factory show what the real runtime answers today.
+// The world also provides the five services of the Model result receiver: `agentJournalEntries`,
+// `agentMaterials`, `agentReceivedCommits` and `agentModelReceptionTargets` from the same memory
+// Journal, and `agentAccountOutlet` from the memory outlet of agent-contract. The Model runtime has a
+// result receiver table the world holds (`receivers`); with `pushTo: 'host'` the scripted pusher
+// resolves its receiver from that table, as a Model runtime does, so a push reaches only the
+// receiver the host registered.
+//
+// `withRuntimeDuties` wraps the Agent factory with the two runtime duties of XC-AGINST 3.5 as a
+// script: quiesce marks the runtime draining before its first `await` and withdraws through the
+// registration handle, and invoke reports `occupied` in the same step that takes the slot. Since
+// R2-D173 (R2-D185) `createAgentRuntime` keeps the first duty for an idle instance; it does not keep
+// the second (a reservation still shows idle), and an execution in its slot answers `unresolved`.
+// The wrapper scripts the answers that the host must handle. Tests that use it prove the host side
+// only; tests that use the plain factory show what the real runtime answers.
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { createAgentRuntime } from '@omne-harness/agent'
 import {
@@ -21,7 +30,13 @@ import {
   decodeAgentExecutionId,
   decodeExecutionAttachmentId,
   type Access,
+  type AgentAccountOutlet,
+  type AgentClock,
+  type AgentExecutionId,
   type AgentInstanceId,
+  type AgentJournal,
+  type AgentJournalEntries,
+  type AgentJournalEntry,
   type AgentRegistrationHandle,
   type AgentState,
   type Failure,
@@ -30,9 +45,13 @@ import {
   ActionAdmissionService,
   AgentAccessCheckService,
   AgentAdoptionsService,
+  AgentAccountOutletService,
   AgentClockService,
+  AgentJournalEntriesService,
   AgentJournalService,
   AgentMaterialsService,
+  AgentReceivedCommitsService,
+  ModelReceptionTargetsService,
   CurrentConditionsService,
   DecisionCardsService,
   ExtensionImplementationsService,
@@ -50,11 +69,16 @@ import {
   tenant,
   type TenantId,
 } from '@omne-harness/legal-identity'
-import type { Admission, ModelRuntime } from '@omne-harness/model-contract'
-import { ModelRuntimeService } from '@omne-harness/model-cordis-contract/cordis'
+import { createMemoryAgentAccountOutlet } from '@omne-harness/agent-contract/testing'
+import type { Admission, ModelResultReceiver, ModelRuntime } from '@omne-harness/model-contract'
+import {
+  ModelRuntimeService,
+  createModelResultReceiverTable,
+  type ModelResultReceiverTable,
+} from '@omne-harness/model-cordis-contract/cordis'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentHostConfig } from '../src/host-config.ts'
-import { createAgentHostPlugin } from '../src/host-plugin.ts'
+import { createAgentHostPlugin, type AgentHostPlugin } from '../src/host-plugin.ts'
 import type { RuntimeFactory } from '../src/host.ts'
 
 export type Principal = string
@@ -109,6 +133,25 @@ export function slotOf(
   return { ...caller(name), scope, definition: definitions[variant] }
 }
 
+/**
+ * Every committed receiving entry of an execution in commit order, page by page through the
+ * entries port: the snapshot carries none (agent-contract SPEC "日志条目" 6). A failed read throws.
+ */
+export async function entriesOf<P>(
+  entries: AgentJournalEntries<P>,
+  input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
+): Promise<readonly AgentJournalEntry[]> {
+  const found: AgentJournalEntry[] = []
+  let after: string | null = null
+  for (;;) {
+    const page = await entries.read({ ...input, after, limit: 50 })
+    if ('failure' in page) throw new Error(`entries read failed: ${JSON.stringify(page.failure)}`)
+    found.push(...page.ok.items.map(item => item.entry))
+    if (page.ok.caughtUp) return found
+    after = page.ok.next
+  }
+}
+
 export function ok<T>(outcome: Outcome<T, unknown>): T {
   if ('failure' in outcome) throw new Error(`expected success, got ${JSON.stringify(outcome)}`)
   return outcome.ok
@@ -136,6 +179,11 @@ export const INJECTED = [
   'agentMessageHandoff',
   'agentClock',
   'modelRuntime',
+  'agentJournalEntries',
+  'agentMaterials',
+  'agentReceivedCommits',
+  'agentModelReceptionTargets',
+  'agentAccountOutlet',
   'agentHostPrincipal',
 ] as const
 export type Injected = (typeof INJECTED)[number]
@@ -163,16 +211,29 @@ const services: Readonly<Record<Exclude<Injected, 'agentHostPrincipal'>, unknown
   agentMessageHandoff: MessageHandoffService,
   agentClock: AgentClockService,
   modelRuntime: ModelRuntimeService,
+  agentJournalEntries: AgentJournalEntriesService,
+  agentMaterials: AgentMaterialsService,
+  agentReceivedCommits: AgentReceivedCommitsService,
+  agentModelReceptionTargets: ModelReceptionTargetsService,
+  agentAccountOutlet: AgentAccountOutletService,
 }
 
-/** Provides `port` under the definition class of `key`, on a fiber of its own. */
-export function serve(root: Context, key: keyof typeof services, port: object): Fiber {
+/**
+ * Provides `port` under the definition class of `key`, on a fiber of its own. The Model runtime
+ * gets `receivers` as its result receiver table, so a registration lands where the test can read.
+ */
+export function serve(
+  root: Context,
+  key: keyof typeof services,
+  port: object,
+  receivers?: ModelResultReceiverTable<unknown>,
+): Fiber {
   // The class is abstract only to TypeScript: the double supplies every abstract member.
-  const Definition = services[key] as Constructor
+  const Definition = services[key] as new (ctx: Context, table?: unknown) => object
   return root.plugin({
     name: `${key}-double`,
     apply(ctx: Context) {
-      Object.assign(new Definition(ctx), port)
+      Object.assign(new Definition(ctx, key === 'modelRuntime' ? receivers : undefined), port)
     },
   })
 }
@@ -182,11 +243,10 @@ const stageServices = [
   [ExtensionImplementationsService, 'extensions'],
   [DecisionCardsService, 'cards'],
   [ActionAdmissionService, 'admission'],
-  [AgentMaterialsService, 'materials'],
   [RegisteredReadsService, 'reads'],
 ] as const
 
-/** Provides the six locally required dependencies from the doubles of `controls`. */
+/** Provides the locally required dependencies (`agentMaterials` is always served) from `controls`. */
 async function serveStages(root: Context, controls: TestAgentControls<Principal>): Promise<void> {
   for (const [Definition, name] of stageServices) {
     const port = controls[name].port
@@ -219,6 +279,8 @@ export type World = Readonly<{
   control: Context['agentExecutionControl']
   retired: Retirement[]
   errors: string[]
+  /** Every warning the root logger exported, in order. */
+  warnings: string[]
   /** Every answer of the Model's admit, in order: one per Model request that the Loop sent. */
   admits: Outcome<Admission, unknown>[]
   /** Every `load` and `recordControl` the Journal served, with the principal that asked. */
@@ -228,7 +290,13 @@ export type World = Readonly<{
   /** The quiesce calls that reached a runtime under `withRuntimeDuties`. */
   quiesced: AgentInstanceId[]
   /** The next quiesce of `withRuntimeDuties` answers this; `drained` when unset. */
-  quiesceAnswers: ('drained' | 'unresolved')[]
+  quiesceAnswers: QuiesceScript[]
+  /** The plugin the world loaded, with its ordered stop. */
+  plugin: AgentHostPlugin
+  /** The result receiver table of the Model runtime double. */
+  receivers: ModelResultReceiverTable<unknown>
+  /** The account outlet double. */
+  outlet: ReturnType<typeof createMemoryAgentAccountOutlet<Principal>>
   /** The next check of `operation`, for `principal` when given, answers denied. */
   refuseNext(operation: string, principal?: Principal): void
   /** Moves the manual clock forward. */
@@ -238,12 +306,20 @@ export type World = Readonly<{
 
 export type JournalCall = Readonly<{ method: 'load' | 'recordControl'; principal: unknown }>
 
+/**
+ * What one quiesce of `withRuntimeDuties` does after its access check. `drained` withdraws through
+ * the handle and answers drained; `unresolved` answers unresolved and stays serving; `hang` never
+ * answers; `throw` rejects; `drained-kept` answers drained without withdrawing, so only the unload
+ * of the contribution fiber can end the registration (`contributor-removed`).
+ */
+export type QuiesceScript = 'drained' | 'unresolved' | 'hang' | 'throw' | 'drained-kept'
+
 export type WorldOptions = Readonly<{
   factory?: 'plain' | 'duties'
   omit?: Injected
   config?: unknown
   /** The plugin to load instead of the one over `factory`, for the factory-made plugin cases. */
-  plugin?: ReturnType<typeof createAgentHostPlugin>
+  plugin?: AgentHostPlugin
   /** The options of the test dependencies, such as the Journal's cancellation policy. */
   dependencies?: TestAgentDependenciesOptions<Principal>
   /**
@@ -251,6 +327,17 @@ export type WorldOptions = Readonly<{
    * admission, materials and registered reads) from the same doubles, so the Loop can run.
    */
   stages?: boolean
+  /**
+   * `host`: the scripted pusher resolves the receiver from the Model runtime's table (needs
+   * `dependencies.receivingPrincipal`). Absent: it pushes to the receiver of the test dependencies.
+   */
+  pushTo?: 'host'
+  /** The account outlet to provide instead of the memory outlet. */
+  outlet?: AgentAccountOutlet<Principal>
+  /** Wraps the manual clock port that the world provides as `agentClock`. */
+  clock?: (port: AgentClock) => AgentClock
+  /** Wraps the Journal port that the world provides as `agentJournal`, after its call log. */
+  journal?: (port: AgentJournal<Principal>) => AgentJournal<Principal>
 }>
 
 export function occupied(instance: AgentInstanceId): AgentState {
@@ -262,7 +349,7 @@ export function occupied(instance: AgentInstanceId): AgentState {
   }
 }
 
-/** The Agent factory with the runtime duties that `createAgentRuntime` does not keep yet. */
+/** The Agent factory with both runtime duties kept by a script, and scripted quiesce answers. */
 function withRuntimeDuties(
   world: Pick<World, 'handles' | 'quiesced' | 'quiesceAnswers'>,
 ): RuntimeFactory {
@@ -303,10 +390,15 @@ function withRuntimeDuties(
             draining = false
             return fail({ kind: 'denied', action: 'quiesce' })
           }
-          if (world.quiesceAnswers.shift() === 'unresolved') {
+          const script = world.quiesceAnswers.shift() ?? 'drained'
+          if (script === 'unresolved') {
             draining = false
             return succeed({ kind: 'unresolved', remaining: [], evidence: input.reason })
           }
+          if (script === 'hang') return new Promise(() => {})
+          if (script === 'throw') throw new Error('the runtime broke during quiesce')
+          if (script === 'drained-kept')
+            return succeed({ kind: 'drained', remaining: [], evidence: input.reason })
           const withdrawn = await handle.withdraw(input)
           if ('failure' in withdrawn) return withdrawn
           return succeed({ kind: 'drained', remaining: [], evidence: input.reason })
@@ -319,9 +411,18 @@ function withRuntimeDuties(
 /** Builds the world. Every injected service is present unless `omit` names one. */
 export async function openWorld(options: WorldOptions = {}): Promise<World> {
   const root = new Context()
-  const { dependencies, controls } = createTestAgentDependencies<Principal>(
-    options.dependencies ?? {},
-  )
+  const receivers = createModelResultReceiverTable<unknown>()
+  const { dependencies, controls } = createTestAgentDependencies<Principal>({
+    ...options.dependencies,
+    ...(options.pushTo === 'host'
+      ? {
+          // The table holds receivers of any principal type; the pusher of this world uses strings.
+          resolveReceiver: (owner: string) =>
+            receivers.resolve(owner) as ModelResultReceiver<Principal> | null,
+        }
+      : {}),
+  })
+  const outlet = createMemoryAgentAccountOutlet<Principal>()
   const admits: Outcome<Admission, unknown>[] = []
   const models: ModelRuntime<Principal> = {
     ...dependencies.models,
@@ -336,7 +437,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
   }
   const journalCalls: JournalCall[] = []
   const base = controls.journal.port
-  const journal: typeof base = {
+  const logged: typeof base = {
     ...base,
     load(input) {
       journalCalls.push({ method: 'load', principal: input.principal })
@@ -347,6 +448,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
       return base.recordControl(input)
     },
   }
+  const journal = options.journal?.(logged) ?? logged
   const refusals: { operation: string; principal: Principal | undefined }[] = []
   controls.access.check.always(input => {
     const at = refusals.findIndex(
@@ -360,9 +462,13 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     return { kind: 'denied' }
   })
   const errors: string[] = []
+  const warnings: string[] = []
+  // Cordis 4.0.4 orders WARN (2) above INFO (1): a warning reaches only an exporter at level 2 or more.
   root.logger.exporter({
+    levels: { default: 2 },
     export: message => {
       if (message.type === 'error') errors.push(String(message.args[0]))
+      if (message.type === 'warn') warnings.push(String(message.args[0]))
     },
   })
   const retired: Retirement[] = []
@@ -378,29 +484,32 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     agentModelSelection: controls.selection.port,
     agentModelContext: controls.modelContext.port,
     agentMessageHandoff: controls.handoff.port,
-    agentClock: controls.clock.port,
+    agentClock: options.clock?.(controls.clock.port) ?? controls.clock.port,
     modelRuntime: models,
+    agentJournalEntries: controls.journal.provider.entries,
+    agentMaterials: controls.materials.port,
+    agentReceivedCommits: present(controls.journal.provider.received ?? undefined, 'received'),
+    agentModelReceptionTargets: controls.journal.targets,
+    agentAccountOutlet: options.outlet ?? outlet,
   }
   const fibers: Record<string, Fiber> = {}
   for (const key of Object.keys(services) as (keyof typeof services)[]) {
     if (key === options.omit) continue
-    fibers[key] = serve(root, key, ports[key])
+    fibers[key] = serve(root, key, ports[key], receivers)
     await fibers[key]
   }
   if (options.stages === true) await serveStages(root, controls)
   if (options.omit !== 'agentHostPrincipal') root.provide('agentHostPrincipal', HOST_PRINCIPAL)
   const handles = new Map<AgentInstanceId, AgentRegistrationHandle<unknown>>()
   const quiesced: AgentInstanceId[] = []
-  const quiesceAnswers: ('drained' | 'unresolved')[] = []
+  const quiesceAnswers: QuiesceScript[] = []
   const factory: RuntimeFactory =
     options.factory === 'duties'
       ? withRuntimeDuties({ handles, quiesced, quiesceAnswers })
-      : (deps, opts) => createAgentRuntime(deps, opts)
+      : (deps, opts, extras) => createAgentRuntime(deps, opts, extras)
   const configured = 'config' in options
-  const host = root.plugin(
-    options.plugin ?? createAgentHostPlugin(factory),
-    (configured ? options.config : hostConfig) as AgentHostConfig,
-  )
+  const plugin = options.plugin ?? createAgentHostPlugin(factory)
+  const host = root.plugin(plugin, (configured ? options.config : hostConfig) as AgentHostConfig)
   // A refused configuration rejects the fiber; the test that expects it awaits the fiber itself.
   host.then(undefined, () => undefined)
   const directoryFiber = root.plugin(agentInstancesPlugin)
@@ -432,11 +541,15 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     },
     retired,
     errors,
+    warnings,
     admits,
     journalCalls,
     handles,
     quiesced,
     quiesceAnswers,
+    plugin,
+    receivers,
+    outlet,
     refuseNext(operation, principal) {
       refusals.push({ operation, principal })
     },

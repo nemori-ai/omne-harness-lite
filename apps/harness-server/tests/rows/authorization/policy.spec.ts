@@ -5,8 +5,6 @@ import { describe, expect, it } from 'vitest'
 import { SYSTEM_ACTION_MATRIX } from '@omne-harness/authorization'
 import {
   AGENT_POLICY,
-  DECISION_ITEMS,
-  PENDING_LABEL,
   SESSION_POLICY,
   auditPolicy,
   cite,
@@ -58,8 +56,8 @@ describe('sources', () => {
     }
   })
 
-  it('counts 48 allowing cells in the Session table and 14 in the Agent table', () => {
-    expect(auditPolicy().session.allowedCells).toBe(48)
+  it('counts 50 allowing cells in the Session table and 14 in the Agent table', () => {
+    expect(auditPolicy().session.allowedCells).toBe(50)
     expect(auditPolicy().agent.allowedCells).toBe(14)
   })
 
@@ -138,49 +136,24 @@ describe('system column and the matrix', () => {
   })
 })
 
-describe('D items', () => {
-  it('marks exactly D-1 (configureAutoArchive × login) and D-2 (setRelation × login) as pending', () => {
-    const pending = [...cells(SESSION_POLICY), ...cells(AGENT_POLICY)]
-      .filter(({ cell }) => cell.verdict === 'deny-pending')
-      .map(({ operation, column, cell }) => ({ operation, column, cell }))
-    expect(pending).toEqual([
-      {
-        operation: 'setRelation',
-        column: 'login',
-        cell: { verdict: 'deny-pending', item: 'D-2' },
-      },
-      {
-        operation: 'configureAutoArchive',
-        column: 'login',
-        cell: { verdict: 'deny-pending', item: 'D-1' },
-      },
-    ])
-    expect(auditPolicy().session.pendingCells).toEqual([
-      'setRelation × login: D-2',
-      'configureAutoArchive × login: D-1',
-    ])
-  })
-
-  it('writes for each D item the missing product rule and the default denial', () => {
-    expect(PENDING_LABEL).toBe('默认拒绝，D 项待产品裁定')
-    for (const item of Object.values(DECISION_ITEMS)) {
-      expect(item.missingRule.trim().length).toBeGreaterThan(0)
-      expect(item.defaultVerdict).toBe('denied')
-      expect(item.label).toBe(PENDING_LABEL)
-      expect(SESSION_POLICY[item.operation][item.column]).toEqual({
-        verdict: 'deny-pending',
-        item: item.id,
-      })
+describe('the cells R2-D204 decided', () => {
+  it('makes the login cells of setRelation and configureAutoArchive member cells that cite R2-D204', () => {
+    for (const operation of ['setRelation', 'configureAutoArchive'] as const) {
+      const cell = SESSION_POLICY[operation].login
+      expect(cell.verdict).toBe('member')
+      expect(cell.verdict === 'member' && cell.source).toContain('R2-D204')
     }
   })
 
-  it('reports a pending cell whose item points at another cell', () => {
+  it('reports a cell whose verdict is none of member, matrix and deny', () => {
     const mutated = {
       ...SESSION_POLICY,
       interrupt: { ...SESSION_POLICY.interrupt, login: { verdict: 'deny-pending', item: 'D-1' } },
     }
     const audit = auditPolicy({ session: mutated as unknown as typeof SESSION_POLICY })
-    expect(audit.findings.some(text => text.includes('interrupt'))).toBe(true)
+    expect(audit.findings).toEqual([
+      expect.stringMatching(/^session `interrupt` × login has an unknown verdict/u),
+    ])
   })
 })
 

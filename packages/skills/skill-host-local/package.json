@@ -29,6 +29,8 @@
     "@omne-harness/skill-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/assets": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/skill": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

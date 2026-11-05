@@ -8,4 +8,7 @@
 - [index.ts](index.ts)：根入口
 - [provider.ts](provider.ts)：端口实现方的入口
 - [testing.ts](testing.ts)：符合性套件与内存替身的入口
+- [capability.ts](capability.ts)：能力标识的判同 `sameCapability`
+- [page-limit.ts](page-limit.ts)：每页上限 `PAGE_LIMIT`
+- [testing-catalog.ts](testing-catalog.ts)：`SkillCatalog` 的符合性套件
 - 模块与职责见 [docs/architecture.md](../docs/architecture.md#模块与依赖)

@@ -69,6 +69,16 @@ export type ScopeState = {
   supplySeq: Map<ContextBlockKey, number>
   /** Bumped by every applied ordinary commit and end; the final replay check compares it. */
   commitsVersion: number
+  /**
+   * The head of the scope's commit chain (RC-02, R2-D319): the last applied ordinary commit, or the
+   * `through` of the installed replay. An ordinary commit applies only when its `after` equals it.
+   */
+  head: CommitRef | null
+  /**
+   * The success table of the scope, by commit identity: at most the commit at `head`, when this
+   * instance applied it. Applying the next commit or installing a replay releases the others.
+   */
+  successes: Map<string, AppliedEntry>
 }
 
 export type Producer<P> = {
@@ -118,7 +128,6 @@ export interface World<P> {
   readonly producers: Map<string, Producer<P>>
   readonly generations: Map<string, number>
   readonly eligibilities: Map<string, Eligibility<P>>
-  readonly commits: Map<string, AppliedEntry>
   readonly sessions: Map<string, ReplaySession>
   readonly listeners: Set<(scope: ScopeRef, revision: number) => void>
   readonly catalog: { get(key: ContextBlockKey): Descriptor | undefined }
@@ -153,7 +162,6 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
     producers: new Map<string, Producer<P>>(),
     generations: new Map<string, number>(),
     eligibilities: new Map<string, Eligibility<P>>(),
-    commits: new Map<string, AppliedEntry>(),
     sessions: new Map<string, ReplaySession>(),
     listeners: new Set<(scope: ScopeRef, revision: number) => void>(),
     catalog: { get: (key: ContextBlockKey) => world.descriptors.get(key) },
@@ -225,6 +233,8 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
         needsSupply: new Map(),
         supplySeq: new Map(),
         commitsVersion: 0,
+        head: null,
+        successes: new Map(),
       }
       world.scopes.set(scope.ref, s)
       world.targetsVersion++

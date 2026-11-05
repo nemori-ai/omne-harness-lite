@@ -2271,8 +2271,6 @@ export type ModelReferenceFailure = Readonly<{
     rejection: ModelReferenceRejection;
 }> | Readonly<{
     kind: 'invalid-tenant';
-}> | Readonly<{
-    kind: 'foreign-tenant';
 }>;
 export declare function encodeModelInvocationRef(parts: ModelInvocationParts): Outcome<ModelInvocationRef, ModelReferenceRejection>;
 export declare function encodeModelOperationRef(parts: ModelOperationParts): Outcome<ModelOperationRef, ModelReferenceRejection>;
@@ -2326,7 +2324,7 @@ export type ModelDeliveryRejection = Readonly<{
     reason: 'identity';
 }> | Readonly<{
     field: 'key.reference';
-    reason: 'reference-malformed' | 'foreign-tenant';
+    reason: 'reference-malformed';
 }> | Readonly<{
     field: 'key.result';
     reason: 'version-mismatch';
@@ -3230,7 +3228,7 @@ export declare function reservedReference<T extends ModelInvocationParts>(parts:
 import { type Outcome } from '@omne-harness/operation-result';
 import type { ModelFailure } from '../result.ts';
 import type { ModelReferenceFailure } from '../reference.ts';
-export declare function referenceRejected(failure: ModelReferenceFailure, action: string): Outcome<never, ModelFailure>;
+export declare function referenceRejected(failure: ModelReferenceFailure): Outcome<never, ModelFailure>;
 ```
 
 ## 声明文件 `testing/result-pages.d.ts`
@@ -3272,11 +3270,12 @@ export type ScriptedStreamObservation<P> = Readonly<{
         snapshot: ModelStreamSnapshot;
     }>): StreamCursor;
     end(input: Readonly<{
+        tenant: TenantId;
         ref: StreamRef;
         reason: 'source-closed' | 'stale-stream';
     }>): void;
     setAccess(access: Access<P>, decision: ScriptedAccessDecision): void;
-    openObservations(ref: StreamRef): number;
+    openObservations(ref: StreamRef, tenant: TenantId): number;
 }>;
 export declare function createScriptedStreamObservation<P>(options?: ScriptedStreamObservationOptions): ScriptedStreamObservation<P>;
 ```
@@ -3284,7 +3283,7 @@ export declare function createScriptedStreamObservation<P>(options?: ScriptedStr
 ## 声明文件 `testing/stream-references.d.ts`
 
 ```ts
-import { type Access } from '@omne-harness/legal-identity';
+import type { Access, TenantId } from '@omne-harness/legal-identity';
 import type { CallState, ModelInvocationRef, ModelStreamReferences, ModelStreamSelection } from '../index.ts';
 import { type ScriptedAccessDecision } from './access.ts';
 export type ScriptedEvent = Readonly<{
@@ -3295,14 +3294,19 @@ export type ScriptedEvent = Readonly<{
 export type ScriptedStreamReferences<P> = Readonly<{
     references: ModelStreamReferences<P>;
     confirmSelection(input: Readonly<{
+        tenant: TenantId;
         reference: ModelInvocationRef;
         selection: ModelStreamSelection;
     }>): void;
     establishWithoutTarget(input: Readonly<{
+        tenant: TenantId;
         reference: ModelInvocationRef;
         state: CallState;
     }>): void;
-    withdrawTarget(reference: ModelInvocationRef): void;
+    withdrawTarget(input: Readonly<{
+        tenant: TenantId;
+        reference: ModelInvocationRef;
+    }>): void;
     setAccess(access: Access<P>, decision: ScriptedAccessDecision): void;
     setSource(state: 'available' | 'unavailable'): void;
     holdResponse(requestId: number): void;

@@ -5,15 +5,11 @@
 // same count gives what the participant read inside its transaction. Another count, a position whose
 // row is not of the revision before the batch, or a kept index past the position is `stale`, and the
 // work cache then reads the snapshot whole.
-import type { SessionInputScope, WorkSnapshot } from '@omne-harness/session-contract'
+import type { SessionInputScope } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
-import { decodeValue, encodeValue } from '../codec.ts'
-import { BelowKept, readHistory, type HistoryFocus } from './history-index.ts'
-import { handler, oneRow, scopeOf, text } from './support.ts'
-
-const count = /^\d+$/
-const isCount = (value: JsonValue | undefined): value is string =>
-  typeof value === 'string' && count.test(value)
+import { decodeValue, encodeValue, isCount } from '../codec.ts'
+import { BelowKept, readHistory, type HistoryFocus, type WorkIndexInput } from './history-index.ts'
+import { handler, oneRow, readVersion, scopeOf, text } from './support.ts'
 
 type Request = Readonly<{
   revision: string
@@ -39,12 +35,8 @@ export default handler('session.work-reads', (input, port) => {
   const scope = scopeOf(input)
   if (scope === null) throw new Error('invalid input')
   const { revision, published, upto, inputs, focus, snapshot } = requestOf(input)
-  const root = oneRow(
-    port,
-    'SELECT published FROM er_root WHERE tenant = ? AND session = ? LIMIT 1',
-    [scope.tenant, scope.session],
-  )
-  if ((root === undefined ? '0' : text(root['published'])) !== published) return { kind: 'stale' }
+  // A name without a session has no row at `upto` either: it is stale whatever count it asks.
+  if (readVersion(port, scope)?.published !== published) return { kind: 'stale' }
   const last = oneRow(
     port,
     'SELECT revision FROM sl_entry WHERE tenant = ? AND session = ? AND position = ? LIMIT 1',
@@ -56,11 +48,9 @@ export default handler('session.work-reads', (input, port) => {
       port,
       scope.tenant,
       scope.session,
-      decodeValue(snapshot) as WorkSnapshot,
+      decodeValue(snapshot) as WorkIndexInput,
       decodeValue(inputs) as SessionInputScope,
-      undefined,
-      decodeValue(focus) as HistoryFocus,
-      BigInt(upto),
+      { focus: decodeValue(focus) as HistoryFocus, upto: BigInt(upto) },
     )
     return history === 'too-many'
       ? { kind: 'stale' }

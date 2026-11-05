@@ -13,6 +13,7 @@
 - [parse-declaration.spec.ts](parse-declaration.spec.ts)：`.omne/skill.json` 的各个拒绝原因
 - [snapshot.spec.ts](snapshot.spec.ts)：快照构造
 - [conformance.spec.ts](conformance.spec.ts)：端口套件、内存替身与进程内的变红证明
+- [catalog-suite.spec.ts](catalog-suite.spec.ts)：`skillCatalogConformance()` 的形状与条款覆盖
 - [contract.spec.ts](contract.spec.ts)、[contract-extension.spec.ts](contract-extension.spec.ts)：`skill` 类别端口
 - [declaration-schema.spec.ts](declaration-schema.spec.ts)：Schema 与解析一致
 - [package-builder.ts](package-builder.ts)、[parse-support.ts](parse-support.ts)、[conformance-world.ts](conformance-world.ts)：测试辅助

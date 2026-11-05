@@ -14,7 +14,6 @@ import {
   callRef,
   deniedAs,
   endedAs,
-  failureOf,
   liveHandle,
   must,
   operation,
@@ -151,9 +150,11 @@ async function deniedOnEveryOperation(tenant: TenantId) {
     deniedAs(await calls.dispatches(who), 'dispatches'),
     deniedAs(await calls.cancel({ ...who, operation: operation('c') }), 'cancel'),
     deniedAs(await instances.connect(who), tenantCodec.encode(tenant).ok ? 'connect' : 'tenant'),
+    // A minted tenant of another account reaches the read of its own partition, which has no such
+    // call (R2-D357): the action is that of a call the provider never accepted.
     deniedAs(
       await consumption.beginRead({ ...who, operation: operation('r'), result: version('a') }),
-      tenantCodec.encode(tenant).ok ? 'beginRead' : 'tenant',
+      tenantCodec.encode(tenant).ok ? 'read' : 'tenant',
     ),
     deniedAs(await consumption.readNext({ ...who, read: first, after: '2' }), 'read'),
     deniedAs(await consumption.closeRead({ ...who, read: first }), 'read'),
@@ -169,7 +170,7 @@ describe('an input that names no call the principal may use', () => {
 
   it('is denied on every operation for another tenant', () => deniedOnEveryOperation(tenantB))
 
-  it('denies inspection of another tenant reference with the inspect action and preserves the original call', async () => {
+  it('answers inspection of another tenant reference as for a call that never existed and preserves the original call', async () => {
     const scripted = scriptedProvider()
     const { calls } = scripted.provider.runtime
     await admitCall(scripted, 'a')
@@ -178,10 +179,13 @@ describe('an input that names no call the principal may use', () => {
       reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
     }
     const before = await calls.inspect(input)
-    expect(failureOf(await calls.inspect({ ...input, tenant: tenantB }))).toEqual({
-      kind: 'denied',
-      action: 'inspect',
-    })
+    // R2-D357: the same reference in a provider where no tenant ever admitted the call.
+    const empty = scriptedProvider().provider.runtime.calls
+    const foreign = await calls.inspect({ ...input, tenant: tenantB })
+    const absent = await empty.inspect({ ...input, tenant: tenantB })
+    expect(foreign).toEqual(absent)
+    expect(JSON.stringify(foreign)).toBe(JSON.stringify(absent))
+    expect(must(foreign)).toMatchObject({ kind: 'not-accepted' })
     expect(await calls.inspect(input)).toEqual(before)
   })
 

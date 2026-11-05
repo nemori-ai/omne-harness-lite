@@ -20,7 +20,7 @@ it('accepted alone cannot reconcile cancellation and the original independent st
       operation: operation('take'),
       authority: opened.authority,
       expected: loaded.revision,
-      checkpoint: { ...checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...checkpoint, inputBatch: page.batch },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: page.batch }],
       effects: [],
@@ -134,7 +134,7 @@ it('an unrelated independent Agent control is observed without inventing a Sessi
   expect(backend.controls.entriesOf(access.tenant, access.session)).toHaveLength(before)
   expect(ok(await backend.transactions.readWork(access)).controls).toEqual([])
 })
-import { toolCall } from './fixtures/tool-call.ts'
+import { keptToolCall, toolCall } from './fixtures/tool-call.ts'
 import { cancel } from './fixtures/progression.ts'
 import type { PendingCall } from '@omne-harness/agent-contract'
 
@@ -249,7 +249,7 @@ it('producer confirmation and physical stop cannot discharge the selected unasso
 })
 it('an original completed Tool slot clears direct stopping only after the corresponding K intent is propagated', async () => {
   const s = await scene('already-completed-tool'),
-    tool = toolCall(s.access.tenant),
+    tool = await keptToolCall(s),
     slot = tool.background.slots[0]!,
     batch = {
       ...tool.batch,
@@ -257,7 +257,7 @@ it('an original completed Tool slot clears direct stopping only after the corres
         {
           action: slot.action,
           each: null,
-          candidate: null,
+          candidateDigest: null,
           handoff: null,
           kind: 'result' as const,
           result: tool.placeholder,
@@ -347,7 +347,7 @@ import { decodeToolWaitId } from '@omne-harness/tool-contract/provider'
 for (const proof of ['no-response', 'placeholder', 'late'] as const)
   it(`does not use a ${proof} Tool slot as pre-interrupt completion`, async () => {
     const s = await scene(`tool-stop-${proof}`),
-      tool = toolCall(s.access.tenant),
+      tool = await keptToolCall(s),
       slot = tool.background.slots[0]!,
       waits = [{ kind: 'producer' as const, pending: tool.pending }]
     const completed = {
@@ -356,7 +356,7 @@ for (const proof of ['no-response', 'placeholder', 'late'] as const)
         {
           action: slot.action,
           each: null,
-          candidate: null,
+          candidateDigest: null,
           handoff: null,
           kind: 'result' as const,
           result: tool.placeholder,

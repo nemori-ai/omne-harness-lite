@@ -19,8 +19,8 @@
 本目录有三类固定输入：
 
 - `adoptions.json`：每条记录一行 `{name, revision, digest}`。`pnpm run fingerprints` 只追加新记录的行；已有行的摘要会变时，脚本拒绝写入。`adoptions.spec.ts` 双向核对。
-- `records/<name>/<revision>/`：每条记录一组回放夹具，共 4 组。目录名用 `encodeURIComponent` 编码，例如 `anthropic%2Fclaude-opus-5.5/1`。`checkChatCompletionsFixtures` 以记录表为唯一清单核对它们。
-- `cases/<用例>/<name>/<revision>/`：其余封存用例，每个用例一个根目录，只含一条记录的夹具。`fixtures.spec.ts` 用只含该记录的家族逐个核对。
+- `records/<name>/<revision>/`：每条记录一组回放夹具，共 6 组。目录名用 `encodeURIComponent` 编码，例如 `anthropic%2Fclaude-opus-5.5/2`。`checkChatCompletionsFixtures` 以记录表为唯一清单核对它们。
+- `cases/<用例>/<name>/<revision>/`：其余封存用例，每个用例一个根目录，只含一条记录的当前修订的夹具。`fixtures.spec.ts` 用只含该记录的家族逐个核对。
 
 每组夹具有三个文件，格式归 [pi-ai-transport SPEC“家族测试助手”](../../../pi-ai-transport/SPEC.md)：
 
@@ -32,7 +32,7 @@
 
 用例表在 [`../support/legacy-cases.ts`](../support/legacy-cases.ts)。每个用例写明来源测试的文件、行号与测试名，期望请求体与期望事实都在表中手写。`pnpm run fixtures` 把表写成本目录的文件。`fixtures.spec.ts` 先核对文件与表逐字相等，再用真实绑定编码与解码。期望事实不由引擎生成。
 
-来源是封存件 `packages.0.0.1.legacy/model/pi-ai-transport/tests/` 的内联 SSE 用例。封存件没有保存原始 SSE 字节，`tests/fixtures/anthropic` 也不含 SSE 帧。
+来源是封存件 [packages.0.0.1.legacy/model/pi-ai-transport/tests/](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/model/pi-ai-transport/tests) 的内联 SSE 用例（已从仓库删除，链接指向固定提交）。封存件没有保存原始 SSE 字节，`tests/fixtures/anthropic` 也不含 SSE 帧。
 
 ### 对照表
 
@@ -40,10 +40,12 @@
 
 | 用例 | 夹具 | 来源 | 差异 |
 | --- | --- | --- | --- |
-| 三轮第 1 轮，带工具：迟到签名的思考与工具调用 | `records/anthropic%2Fclaude-opus-5.5/1` | `CURRENT:468-503`，请求 `:106-150`，回复 `:171-233` | 1、2、3、4 |
-| 三轮第 2 轮：第 1 轮的签名组带回，回复为加密推理 | `records/anthropic%2Fclaude-opus-5/1` | `CURRENT:468-503`，历史 `:253-306`，回放检查 `:416-430` | 1、2、3、4 |
-| 观察到的无 id 文本片段与单独到达的签名，收场帧重复一次并带 usage | `records/anthropic%2Fclaude-sonnet-5/1` | `LATE:272-390` 的用例“the observed id-less text then signature-only fragments”（`:325-349`），第一轮请求 `:429-434` | 1、2、3、4、6 |
-| 三轮第 3 轮，带工具：两轮的组都带回，回复为两个签名块 | `records/anthropic%2Fclaude-fable-5.1/1` | `CURRENT:468-503`，工具结果 `:308-332`，回放检查 `:416-430` | 1、2、3、4 |
+| 三轮第 1 轮，带工具：迟到签名的思考与工具调用 | `records/anthropic%2Fclaude-opus-5.5/2` | `CURRENT:468-503`，请求 `:106-150`，回复 `:171-233` | 1、2、3、4 |
+| 三轮第 2 轮：第 1 轮的签名组带回，回复为加密推理 | `records/anthropic%2Fclaude-opus-5/2` | `CURRENT:468-503`，历史 `:253-306`，回放检查 `:416-430` | 1、2、3、4 |
+| 观察到的无 id 文本片段与单独到达的签名，收场帧重复一次并带 usage | `records/anthropic%2Fclaude-sonnet-5/2` | `LATE:272-390` 的用例“the observed id-less text then signature-only fragments”（`:325-349`），第一轮请求 `:429-434` | 1、2、3、4、6 |
+| 三轮第 3 轮，带工具：两轮的组都带回，回复为两个签名块 | `records/anthropic%2Fclaude-fable-5.1/2` | `CURRENT:468-503`，工具结果 `:308-332`，回放检查 `:416-430` | 1、2、3、4 |
+| 三轮第 1 轮，带工具，2026-11-03 新增的型号 | `records/anthropic%2Fclaude-sonnet-5.5/1` | 同第 1 轮。封存件没有这个型号，夹具沿用同一用例，只换路由名 | 1、2、3、4 |
+| 三轮第 2 轮，2026-11-03 新增的型号 | `records/anthropic%2Fclaude-haiku-5.5/1` | 同第 2 轮，只换路由名 | 1、2、3、4 |
 | 带 id 的片段与迟到签名 | `cases/ls-same-id-late-signature` | `LATE:70-76` | 1、2、3 |
 | 带 id 的片段重复同一签名 | `cases/ls-same-id-repeat-signature` | `LATE:78-84` | 1、2、3 |
 | 两轮用例中带 id 的迟到签名组的第一轮 | `cases/ls-reconstructed-late-signed-group` | `LATE:272-390` 的用例“one reconstructed late-signed group”（`:292-323`） | 1、2、3 |
@@ -76,5 +78,5 @@
    - 费用的单位是 `openrouter-credit`。普通十进制词法照原样，指数形式改写为精确的普通十进制词法。
 4. **请求体的写法。** 现行记录用 `parts`：系统指令、提醒、user、assistant 与工具结果的内容都写成部件数组。提醒的角色是 `user`。图片写记录的 `detail: "auto"`，封存件只写 `url`。缓存标记 `{ "type": "ephemeral", "ttl": "1h" }` 在最后一条消息的最后一个非空文本部件上。封存测试只断言了请求体的部分成员，本目录的期望请求体按现行规格写出。
 5. **拒绝的时机与位置。** 封存件在下一次请求的计划阶段拒绝未签名的组、`[REDACTED]` 加密项与别的路由的组，不发出请求。现行解码器对这样的组不产生部件。下一次请求中，本家族消息的思考没有部件可带时，编解码器不写出这个思考，请求照常发出，见 [pi-ai-anthropic SPEC“规则”](../../SPEC.md#规则)。别的路由的组按回放声明略去，并给出 `replay-omitted` 诊断。这两种请求见 [cross-family-replay.spec.ts](../cross-family-replay.spec.ts)。
-6. **重复的收场帧。** 封存件的流只有一个收场帧，usage 在它之前的一帧。`records/anthropic%2Fclaude-sonnet-5/1` 按经代理观察到的网关形状写出流：收场帧先到一次，再带 usage 重复一次。值是合成值，观察样本不进仓库。
+6. **重复的收场帧。** 封存件的流只有一个收场帧，usage 在它之前的一帧。`records/anthropic%2Fclaude-sonnet-5/2` 按经代理观察到的网关形状写出流：收场帧先到一次，再带 usage 重复一次。值是合成值，观察样本不进仓库。
 7. **没有内容的收场。** 封存件把只有加密推理的 `stop` 当作完成，并封存推理组。推理续接状态部件不是内容，契约只在至少一个有效块合法封口后映射 finish，见 [pi-ai-transport SPEC“映射”](../../../pi-ai-transport/SPEC.md#映射)。所以 `cases/ls-encrypted-discrete` 以 `upstream-protocol`（`finish-without-content`）失败，不封推理组，在 `ended` 之前给出账目。同 id 的加密项保持分开，这一点由 pi-ai-transport 的解码测试（“reasoning detail identity”）核对。

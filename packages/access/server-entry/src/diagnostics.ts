@@ -5,9 +5,11 @@ export type ServerEntryDiagnostic = Readonly<{
   code:
     | 'request.fault'
     | 'identity.fault'
+    | 'model-credential.fault'
     | 'issuer.fault'
     | 'session.read-fault'
     | 'session.commit-fault'
+    | 'session.definition-incomplete'
     | 'encode.fault'
     | 'observation.ended'
     | 'observation.cleanup-failed'

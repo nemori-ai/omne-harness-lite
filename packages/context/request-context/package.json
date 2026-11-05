@@ -33,6 +33,8 @@
     "@omne-harness/request-context-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/pi-ai-openai": "workspace:*",
+    "@omne-harness/pi-ai-transport": "workspace:*",
     "@omne-harness/request-context-cordis-contract": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",
     "@types/node": "catalog:",

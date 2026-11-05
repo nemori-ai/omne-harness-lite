@@ -33,6 +33,7 @@ import {
   isRecoveryAccess,
   type RecoveryAccess,
   type ResourceLedger,
+  type RetainedTerminalLedger,
   type FacilityGuard,
 } from './ports.ts'
 
@@ -46,10 +47,18 @@ type Output<D> = D extends Decoder<infer T> ? T : never
 type Fields = Readonly<Record<string, Decoder<unknown>>>
 function record<const F extends Fields>(
   fields: F,
-): Decoder<{ readonly [K in keyof F]: Output<F[K]> }> {
+): Decoder<{ readonly [K in keyof F]: Output<F[K]> }>
+function record<const F extends Fields, const O extends Fields>(
+  fields: F,
+  optional: O,
+): Decoder<{ readonly [K in keyof F]: Output<F[K]> } & { readonly [K in keyof O]?: Output<O[K]> }>
+function record<const F extends Fields, const O extends Fields = Record<never, never>>(
+  fields: F,
+  optional?: O,
+): Decoder<{ readonly [K in keyof F]: Output<F[K]> } & { readonly [K in keyof O]?: Output<O[K]> }> {
   return (value, path) => {
     if (!isRecord(value)) return refuse(path, 'expected an object')
-    const keys = exactKeys(value, path, Object.keys(fields))
+    const keys = exactKeys(value, path, Object.keys(fields), Object.keys(optional ?? {}))
     if (!keys.ok) return keys
     const result: Record<string, unknown> = {}
     for (const [key, decoder] of Object.entries(fields)) {
@@ -57,8 +66,18 @@ function record<const F extends Fields>(
       if (!item.ok) return item
       result[key] = item.value
     }
+    for (const [key, decoder] of Object.entries(optional ?? {})) {
+      if (value[key] === undefined) continue
+      const item = decoder(value[key], [...path, key])
+      if (!item.ok) return item
+      result[key] = item.value
+    }
     // Every property has been decoded by its matching field decoder above.
-    return accept(Object.freeze(result) as { readonly [K in keyof F]: Output<F[K]> })
+    return accept(
+      Object.freeze(result) as {
+        readonly [K in keyof F]: Output<F[K]>
+      } & { readonly [K in keyof O]?: Output<O[K]> },
+    )
   }
 }
 function nullable<T>(decoder: Decoder<T>): Decoder<T | null> {
@@ -158,13 +177,16 @@ const acquisitionState = variants('kind', {
   allocationFailed: record({ kind: literal('allocationFailed'), reason: rejectReason, cleanup }),
   allocationUnknown: record({ kind: literal('allocationUnknown'), acquisition: decodeAcquisition }),
 })
-const original = record({
-  tenant: decodeTenant,
-  acquisition: decodeAcquisition,
-  origin: decodeOrigin,
-  scope: decodeScope,
-  placement,
-})
+const original = record(
+  {
+    tenant: decodeTenant,
+    acquisition: decodeAcquisition,
+    origin: decodeOrigin,
+    scope: decodeScope,
+    placement,
+  },
+  { retentionScope: decodeScope },
+)
 const queryCause = decodeLiteral(['authority', 'scope-binding', 'provider'])
 const originalInspection = variants('status', {
   allocated: record({
@@ -271,6 +293,16 @@ const ledger: Decoder<ResourceLedger> = (value, path) => {
   if (!functions.ok) return functions
   return isLedger(value) ? accept(value) : refuse(path, 'expected a resource ledger')
 }
+function isRetainedLedger(value: unknown): value is RetainedTerminalLedger {
+  return (
+    isRecord(value) &&
+    value['closed'] instanceof AbortSignal &&
+    ['plan', 'permit', 'stopped'].every(key => typeof value[key] === 'function')
+  )
+}
+const retainedLedger: Decoder<RetainedTerminalLedger> = (value, path) =>
+  isRetainedLedger(value) ? accept(value) : refuse(path, 'expected a retained terminal ledger')
+const retention = record({ scope: decodeScope, ledger: retainedLedger })
 function isGuard(value: unknown): value is FacilityGuard<unknown> {
   return isRecord(value) && typeof value['authorize'] === 'function'
 }
@@ -407,14 +439,17 @@ export const acquireParamsSchema: OperationSchema<
 > = standardSchema(
   pair(
     decodeAccess,
-    record({
-      acquisition: decodeAcquisition,
-      origin: decodeOrigin,
-      scope: decodeScope,
-      placement,
-      ledger,
-      guard,
-    }),
+    record(
+      {
+        acquisition: decodeAcquisition,
+        origin: decodeOrigin,
+        scope: decodeScope,
+        placement,
+        ledger,
+        guard,
+      },
+      { retention },
+    ),
   ),
 )
 const acquisitionQuery = variants('kind', {

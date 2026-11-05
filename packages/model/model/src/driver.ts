@@ -44,6 +44,8 @@ type Stage<P> =
   | { kind: 'idle' }
   | { kind: 'prepare'; input: Prepare; pending: boolean }
   | { kind: 'send'; demand: SendDemand<P> }
+  /** The send was not started. The dispatch record decides between settling and the refusal. */
+  | { kind: 'not-sent'; demand: SendDemand<P>; refusal: ModelFailure }
   | { kind: 'receive'; receiver: Receiver<P>; execution: ExecutionRef }
   | Finishing<P>
   | { kind: 'done' }
@@ -442,6 +444,51 @@ export function createModelDriver<P>(
     refreshProjection(input)
     return { ok: undefined }
   }
+  /**
+   * The failed terminal recorded on this not-sent dispatch, or null when the record has none. A
+   * read that fails is returned as a failure: it does not prove that there is no terminal.
+   */
+  async function notSentTerminal(demand: SendDemand<P>): Reply<Termination | null> {
+    try {
+      const records = await commands.dispatches(demand)
+      if ('failure' in records) return records
+      const record = records.ok.find(item => item.dispatch === demand.dispatch)
+      return {
+        ok:
+          record?.send === 'not-sent' && record.terminal?.kind === 'failed'
+            ? record.terminal
+            : null,
+      }
+    } catch {
+      return blocked('dispatch-record-unconfirmed')
+    }
+  }
+  /**
+   * A refusal that the boundary made final carries a terminal on the not-sent dispatch (for
+   * example a missing credential). The call then settles with it instead of waiting. When the
+   * record cannot be read, the stage stays, so the next drive reads it again.
+   */
+  async function settleNotSent(
+    active: Activity<P>,
+    entry: Extract<Stage<P>, { kind: 'not-sent' }>,
+    input: ModelDriveInput<P>,
+  ): Reply<void> {
+    const terminal = await notSentTerminal(entry.demand)
+    if ('failure' in terminal) return terminal
+    active.stage =
+      terminal.ok === null
+        ? { kind: 'failed', failure: entry.refusal }
+        : {
+            kind: 'finish',
+            execution: entry.demand.execution,
+            receiver: null,
+            termination: terminal.ok,
+            receiveFailure: null,
+            settlement: { kind: 'ready' },
+          }
+    refreshProjection(input)
+    return terminal.ok === null ? { failure: entry.refusal } : { ok: undefined }
+  }
   async function sendDispatch(
     active: Activity<P>,
     demand: SendDemand<P>,
@@ -454,9 +501,8 @@ export function createModelDriver<P>(
       return blocked(sent.diagnostic)
     }
     if (sent.kind === 'not-started') {
-      active.stage = { kind: 'failed', failure: sent.failure }
-      refreshProjection(input)
-      return { failure: sent.failure }
+      active.stage = { kind: 'not-sent', demand, refusal: sent.failure }
+      return settleNotSent(active, active.stage, input)
     }
     const view = active.view
     active.stage = {
@@ -498,6 +544,17 @@ export function createModelDriver<P>(
     }
     return { ok: true }
   }
+  /** Runs the send stage, or reads the record of a send that was not started. */
+  async function sendOrSettle(
+    active: Activity<P>,
+    input: ModelDriveInput<P>,
+    signal: AbortSignal,
+  ): Reply<void> {
+    if (active.stage.kind === 'send')
+      return sendDispatch(active, active.stage.demand, input, signal)
+    if (active.stage.kind === 'not-sent') return settleNotSent(active, active.stage, input)
+    return { ok: undefined }
+  }
   async function runStages(
     active: Activity<P>,
     input: ModelDriveInput<P>,
@@ -510,10 +567,8 @@ export function createModelDriver<P>(
       const prepared = await prepareDispatch(active, active.stage, input, execution, recovery)
       if ('failure' in prepared) return prepared
     }
-    if (active.stage.kind === 'send') {
-      const sent = await sendDispatch(active, active.stage.demand, input, signal)
-      if ('failure' in sent) return sent
-    }
+    const sent = await sendOrSettle(active, input, signal)
+    if ('failure' in sent) return sent
     if (active.stage.kind === 'receive') {
       const received = await receiveDispatch(active, active.stage, signal, competition)
       if ('failure' in received) return received

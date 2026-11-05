@@ -19,10 +19,12 @@ export {
   loginStatePath,
   otherUsersCanRead,
   readLoginState,
+  removeLoginState,
   writeLoginState,
   type LoginState,
   type LoginStateRead,
   type LoginStateReadOptions,
+  type LoginStateRemove,
   type LoginStateWrite,
 } from './login-state.ts'
 export { run } from './run.ts'
@@ -35,3 +37,11 @@ export {
   type StateDirectoryResolution,
   type StateDirectorySource,
 } from './state-directory.ts'
+export {
+  readSessionOwners,
+  sessionOwnersPath,
+  writeSessionOwners,
+  type SessionOwners,
+  type SessionOwnersRead,
+  type SessionOwnersWrite,
+} from './session-owners.ts'

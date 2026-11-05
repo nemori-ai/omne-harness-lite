@@ -54,6 +54,8 @@ export type {
   CommandResource,
   DispatchDocument,
   EvidenceContext,
+  HandoffEvidenceAnswer,
+  HandoffEvidenceInput,
   ModelCommandsAuthority,
   ModelCommandsCoreOptions,
   ModelCommandsEvidence,

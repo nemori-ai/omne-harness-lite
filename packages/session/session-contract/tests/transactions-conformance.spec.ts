@@ -5,7 +5,6 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import type { SessionCommand, SessionTransactionPort } from '@omne-harness/session-contract'
 import {
-  adoption,
   evidence,
   memorySessionTransactionsFixture,
   ordinaryInput,
@@ -29,7 +28,7 @@ const NAMES = {
   recall: 'the same operation with the same input recalls the original receipt',
   conflict: 'the same operation with another input is a conflict',
   tenant: 'another tenant reads denied, the same as for a session that never was',
-  login: 'startRun of an interactive entry needs the login-entry confirmation among the guards',
+  login: 'an interactive startRun needs a first input whose stored origin is the login entry',
   rehand:
     'after a bounded terminal the successor Run re-hands the same input, and judgeCompletion follows',
   accept: 'accept queues an ordinary input and readInput returns it',
@@ -265,22 +264,19 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    name: 'startRun opens the Run without the login-entry confirmation',
+    name: 'startRun opens an interactive Run without reading the origin of its first input',
     fails: [NAMES.login],
     fixture: variant(real => ({
+      // The provider skips the gate: it decides every start as a dispatch start.
       commit: (async input =>
         real.commit(
-          input.command.kind === 'startRun' && input.guards.length === 0
+          input.command.kind === 'startRun'
             ? {
                 ...input,
-                guards: [
-                  {
-                    owner: 'login-entry',
-                    participant: 'variant',
-                    protocol: adoption('variant-material'),
-                    facts: { kind: 'string', value: 'forged' },
-                  },
-                ],
+                command: {
+                  ...input.command,
+                  input: { ...input.command.input, entry: 'dispatch' },
+                },
               }
             : input,
         )) as Port['commit'],

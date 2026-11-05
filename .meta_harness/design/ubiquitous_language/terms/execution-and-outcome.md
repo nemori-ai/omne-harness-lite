@@ -28,7 +28,7 @@
 > **EN**: The optional `programmable` property of a tool definition. It permits an agent to call the tool from a script that combines or orchestrates tool calls. Only explicit `true` permits this use. An omitted value or `false` does not.
 
 - **形态**：属性
-- **出处**：[工具执行：可编程调用许可](../../product/tool-execution/design.md#可编程调用许可)（rev 5）
+- **出处**：[工具执行：可编程调用许可](../../product/tool-execution/design.md#可编程调用许可)（rev 6）
 - **别混**：不是当前动作授权、常驻标记或后台许可。独立程序消费 SDK 不自动属于 Agent 脚本编排；脚本经 SDK 或通用调用入口间接调用工具，仍属于该许可的范围。
 
 ### UL-tool-definition · 工具定义 · Tool Definition
@@ -37,8 +37,9 @@
 > **工具说明与每个参数的说明必填**，缺了就不是一份完整的定义。
 > 其中**目标环境与转后台阈值两项声明的是[设置项](capabilities-and-composition.md#ul-setting--设置--setting)的形状与默认值**，各层配值；
 > 声明之外，**前台上限与并发上限两项偏好类设置的默认值也由它给**。
-> **多命令工具在模型面前只有一种样子——一份一行一命令的紧凑命令清单**：每个命令那一行说明必填；
-> 作者带不带各命令的完整参数由他定，带了只供系统校验与 `inspect`/`help` 答用法，**不进模型面前**。
+> **多命令工具在模型面前是一份一行一命令的紧凑命令清单**：每个命令那一行说明必填；
+> 作者带不带各命令的完整参数由他定。带了完整参数的命令，那一行还列出它接受的字段名、是否可选和封闭取值；
+> 字段类型、字段说明与完整 schema 只供系统校验与 `inspect`/`help` 答用法，**不进模型面前**。
 > 它不是作者直接写下的数据。系统装载工具实现时，从工具资产的一个已发布版本与该资产引用的实现派生它：名字、所需能力与可编程声明取自资产；参数形状、命令表、说明、能不能后台与其余声明取自实现。它记下的采用版本等于那个资产版本。
 > 资产的名字、能力名与定义的名字必须一致，不一致时系统拒绝装载。
 >
@@ -50,10 +51,11 @@
 > environment and the background-conversion threshold declare the shape and default of a
 > setting entry**, whose values the layers assign; beyond the declarations, **it also gives
 > the defaults of two preference settings, the foreground limit and the concurrency limit**.
-> **A multi-command tool has exactly one shape in front of the model — a compact one-line-per-command
-> list**: each command's line of description is required; whether the author includes each command's
-> full arguments is the author's call, and if included they serve only validation and `inspect`/`help`,
-> **never reaching the model**.
+> **A multi-command tool appears to the model as a compact list with one line per command**: each
+> command's line of description is required. Whether the author includes each command's full arguments
+> is the author's call. For a command with full arguments, its line also lists the field names, which
+> fields are optional, and any closed set of values. Field types, field descriptions and the full schema
+> serve only validation and `inspect`/`help`, and **never reach the model**.
 > It is not data that an author writes directly. When the system loads a tool implementation,
 > it derives the definition from one published version of the tool asset and the
 > implementation that the asset references. The name, the required capabilities and the
@@ -65,7 +67,7 @@
 - **形态**：视图
 - **出处**：[PF-006 §5.2](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样) ·
   [工具说明与每个参数的说明，必填](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填) ·
-  [多命令工具的定义里带多少](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；装载时派生与各字段的来源见已采用的 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)，形态由属性改为视图的理由见 [C-66](../conflicts.md#c-71工具定义由长期数据改为装载时派生)
+  [多命令工具的定义里带多少](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · 多命令工具在模型面前的清单与出错时的用法见[工具执行：工具作者必须说明什么](../../product/tool-execution/design.md#工具作者必须说明什么)（rev 6） · [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；装载时派生与各字段的来源见已采用的 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)，形态由属性改为视图的理由见 [C-66](../conflicts.md#c-71工具定义由长期数据改为装载时派生)
 - **别混**：与[工具](capabilities-and-composition.md#ul-tool--工具--tool)不是一回事——
   工具是那一类资产，**工具定义是资产与实现合成出的那一份表示**；
   同一个身份下，官方、组织、租户、工作区各层的资产各自派生自己的一份，形状可以不同
@@ -73,7 +75,7 @@
 - **注意 ①**：**有三样刻意不在定义里**——[等待态](#ul-tool-wait-state--工具等待态--tool-wait-state)、[发帧](#ul-frame-emission--发帧--frame-emission)，
   以及[这一次的结果要不要卸载](#ul-result-offloading--结果卸载--result-offloading)。
   **三样都取决于这一次跑成什么样**，而定义里写的是这个工具跟参数无关的固有属性
-- **注意 ②**：**两种写法的多命令工具在模型面前一模一样**——agent 对不熟的命令动手前仍要先经 `Tools().inspect` 或 `help` 问一次详细用法
+- **注意 ②**：**清单那一行就是 agent 动手前取得的用法**，agent 不必先问 `help` 再调用；需要字段说明或完整 schema 时再经 `Tools().inspect` 或 `help` 查询。调用没点名已知命令时，系统答复命令清单与工具规则；点名了命令但参数不合时，系统答复该命令的详细用法
 
 - **可编程调用**：定义可声明[工具可编程调用许可](#ul-tool-programmability--工具可编程调用许可--tool-programmability)，省略不授予脚本编排许可。
 
@@ -519,7 +521,7 @@
 > **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation and does not delete the full tool result. After the release, continuation proceeds from the data the consumer saved.
 
 - **形态**：过程
-- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 3）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 5）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 4）
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 3）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 6）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 4）
 - **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
 - **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/agent-contract/SPEC.md#确认)
 - **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)
@@ -539,7 +541,7 @@
 > attempt, a rebuilt instance or a recovery does not change it.
 
 - **形态**：属性
-- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 7）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 5）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 3）
+- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 7）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 6）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 3）
 - **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。拓展点是设计时穷举的固定位点；消费位置随每次调用产生，指那次调用的接收处
 - **注意**：[交付责任解除](#ul-delivery-release--交付责任解除--delivery-release)要求消费侧保存原身份与处理位置，那个处理位置就是消费位置
 

@@ -30,7 +30,7 @@
 
 入口回调须 dispose 自己捕获的真实 send 子 fiber，等资源关闭后再 channel.close，期间保留 commands 父 fiber。HOST 在 finally 再幂等关闭 channel。回调失败只报告安全诊断，不宣称资源成功释放。这个跨 fiber 次序归入口组合者，不能由一个宿主 fiber 或多个并发 effect 推导。正文释放不关闭 channel；异常失效时立即撤权仍归入口绑定拥有者。
 
-未派发的唤醒在关闭时留给后继，计数写进诊断。取不到 drive 输入的调用不驱动，原待办留在 `ModelCommands`。停推送时在途推送收到中止信号；未完成的推送、ACK、清理与晚到账目留在装配给出的推送账本里，拿同一账本的后继插件继续。账本同一时刻只有一个写者。
+未派发的唤醒在关闭时留给后继，计数写进诊断。取不到 drive 输入的调用不驱动，原待办留在 `ModelCommands`。停推送时在途推送收到中止信号；未完成的推送、ACK、清理与晚到账目留在装配给出的推送账本里，拿同一账本的后继插件继续。账本同一时刻只有一个写者。装配给出 `results.recovery` 时，推送启动后扫描耐久的 `ModelCommands`，拿空账本的新进程也接续已收场、未结清的调用（[SPEC](../SPEC.md#运行门面与结果推送)）。
 
 ## 发送阶段的装载与退出
 
@@ -77,11 +77,13 @@ classDiagram
 
 ## 生命周期与清理
 
-插件配置是保管库路径、工厂秘密，以及可选的锁等待策略与诊断容量，都是可序列化数据。`path` 必须是非空字符串，`factorySecret` 必须是字符串（空字符串合法），`lock.waitMs`、`lock.backoffMs` 与 `diagnosticsCapacity` 是数字；配置不合格时插件加载失败。不新增 Cordis 事件。
+插件配置是保管库路径、工厂秘密，以及可选的锁等待策略与诊断容量，都是可序列化数据。`path` 必须是非空字符串。`factorySecret` 可以省略，给出时必须是字符串（空字符串合法）。省略时插件不新建保管库，路径上没有文件就答 `unavailable`。`lock.waitMs`、`lock.backoffMs` 与 `diagnosticsCapacity` 是数字；配置不合格时插件加载失败。不新增 Cordis 事件。
 
 路径上没有文件时，插件用配置里的工厂秘密新建保管库；已有文件时打开并使用文件里的工厂秘密。文件损坏时插件仍然注册 `modelCredential`，四个凭据方法均返回 `unavailable`，不改文件，撤除时没有可关闭的保管库。
 
 `LocalCredentialPlugin` 也实现 `presentFor` 与 `resolveFor`，仍通过闭包转发，不公开保管库。资格路径只核同步租户绑定与 `official` 工厂选择。受信发送边界负责在受理点 C 核验 `access`，提供者不核主体与档案事实的来源。新方法不读取 `SendFace`，旧方法保持原行为，见 [兼容期资格凭据路径](../SPEC.md#兼容期资格凭据路径)。
+
+<a id="绑定管理"></a>`createLocalCredentialPlugin()` 建一个受管插件类，并把它的绑定管理交给装配。插件类提供的 `modelCredential` 与 `LocalCredentialPlugin` 相同，服务上没有管理成员。`custody` 跟随当前存活的那一次装载：撤除时先放开 `custody`，再关闭保管库，所以撤除之后的写操作答 `not-written`，不会落到已关闭的保管库上。后装载的插件先装上时，前一次装载的撤除不放开后者。规则见 [SPEC 绑定管理](../SPEC.md#绑定管理)。
 
 fiber 撤除把本进程标成关闭，随后的四个凭据方法返回 `denied`，服务随插件撤除而不可用。没有另做在途等待；关闭不删除绑定，不改写文件，也不改写已经交给发送端的值。保管库文件上的外部副作用不因撤除而撤回。
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  expectedRevision,
   decide,
   projectSessionLog,
   reduce,
@@ -217,7 +218,7 @@ describe('final decisions after an observed-only tail', () => {
               input: {
                 ...input,
                 run: f.run.run,
-                expected: f.snapshot.revision,
+                expected: expectedRevision(f.snapshot, 'finishRun'),
                 bounded: { kind: 'uninterpretable', evidence: evidence('bounded') },
               },
             }

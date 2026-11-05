@@ -12,7 +12,6 @@ import {
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
-import { assistantMessage } from '@omne-harness/session-contract/testing'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { ok, evidence } from './common-journal.ts'
 
@@ -50,32 +49,24 @@ export function toolCall(tenant: TenantId, name = 'tool') {
     delivery: 'background-delivery',
     source: evidence('background-result'),
   }
-  const part = assistantMessage('tool').blocks[0]!
   const batch: ActionBatch = {
     id: ok(decodeActionBatchId(`batch-${name}`)),
     source,
     actions: [
       {
         id: action,
-        original: {
-          kind: 'tool_call',
-          id: part.id,
-          visibility: { toHuman: true, toModel: true },
-          callId: call,
-          name: 'test',
-          arguments: { kind: 'object', entries: [] },
-        },
+        original: { callId: call },
         effectiveArguments: '{}',
         judgment: {
           kind: 'allowed',
           evidence: evidence('action-allowed'),
-          request: request(entry.consumer),
+          request: pending.fixed,
         },
         call: pending,
       },
     ],
     barrier: { kind: 'open', evidence: evidence('action-barrier'), approved: [action] },
-    slots: [{ kind: 'dispatched', action, each: null, candidate: null, handoff: null }],
+    slots: [{ kind: 'dispatched', action, each: null, candidateDigest: null, handoff: null }],
     batchPass: null,
   }
   return {
@@ -91,7 +82,7 @@ export function toolCall(tenant: TenantId, name = 'tool') {
           kind: 'background' as const,
           action,
           each: null,
-          candidate: null,
+          candidateDigest: null,
           handoff: null,
           placeholder,
           confirmation: evidence('background-confirmation'),
@@ -101,6 +92,70 @@ export function toolCall(tenant: TenantId, name = 'tool') {
   }
 }
 import type { ToolInvokeRequest } from '@omne-harness/tool-contract'
+import type { AgentExecutionId, AgentMaterials, Material } from '@omne-harness/agent-contract'
+import type { ContentBlock } from '@omne-harness/content-block'
+import type { JsonValue } from '@omne-harness/json-text'
+
+/** The JSON tree of a plain value, keys in order: how the Agent preserves a fixed request. */
+function jsonOf(value: unknown): JsonValue {
+  if (value === null) return { kind: 'null' }
+  if (typeof value === 'string') return { kind: 'string', value }
+  if (typeof value === 'boolean') return { kind: 'boolean', value }
+  if (typeof value === 'number') return { kind: 'number', lexeme: String(value) }
+  if (Array.isArray(value)) return { kind: 'array', items: value.map(jsonOf) }
+  return {
+    kind: 'object',
+    entries: Object.entries(value as Record<string, unknown>)
+      .filter(([, member]) => member !== undefined)
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .map(([key, member]) => ({ key, value: jsonOf(member) })),
+  }
+}
+
+/**
+ * The Tool call of `toolCall` whose allowed request is a preserved material, as the Agent keeps it
+ * (agent-contract SPEC "工具执行与结果承接" 10): the request body is in the material, the judgment
+ * names it. The Journal reads the background permission from that material.
+ */
+export async function keptToolCall(
+  s: Readonly<{
+    view: Readonly<{ materials: AgentMaterials<string, ContentBlock> }>
+    access: Readonly<{ principal: string; tenant: TenantId }>
+    execution: AgentExecutionId
+  }>,
+  name = 'tool',
+) {
+  const tool = toolCall(s.access.tenant, name)
+  const value: Material<ContentBlock> = {
+    kind: 'facts',
+    schema: {
+      owner: 'agent',
+      name: 'fixed-tool-request',
+      revision: '1',
+      digest: 'agent:fixed-tool-request/1',
+    },
+    value: jsonOf(request(tool.pending.position)),
+  }
+  const source = ok(
+    await s.view.materials.preserve({
+      ...s.access,
+      execution: s.execution,
+      identity: `request-${name}`,
+      consumer: tool.pending.position,
+      value,
+    }),
+  )
+  const kept = <B extends typeof tool.batch>(batch: B): B => ({
+    ...batch,
+    actions: batch.actions.map(action =>
+      action.judgment.kind === 'allowed'
+        ? { ...action, judgment: { ...action.judgment, request: source } }
+        : action,
+    ),
+  })
+  return { ...tool, batch: kept(tool.batch), background: kept(tool.background) }
+}
+
 function request(consumer: PendingCall['position']): ToolInvokeRequest {
   const adoption = (name: string) => ({ owner: 'test', name, revision: '1', digest: name })
   return {

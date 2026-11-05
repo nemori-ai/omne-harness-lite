@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { computeDigest } from '@omne-harness/skill-contract'
-import { sealSnapshot } from '@omne-harness/skill-contract/provider'
+import { isSealedSnapshot, sealSnapshot } from '@omne-harness/skill-contract/provider'
 import { bytesOf, path } from './package-builder.ts'
 
 function files(map: Readonly<Record<string, string | Uint8Array>>) {
@@ -146,5 +146,31 @@ describe('sealSnapshot', () => {
       '\u{1f600}',
       '\uff61',
     ])
+  })
+})
+
+describe('isSealedSnapshot', () => {
+  it('takes a snapshot that sealSnapshot made', () => {
+    const sealed = seal('demo', { 'SKILL.md': 's' })
+    if (!('ok' in sealed)) throw new Error('must seal')
+    expect(isSealedSnapshot(sealed.ok)).toBe(true)
+  })
+
+  it('refuses a copy with the same fields, without throwing', () => {
+    const sealed = seal('demo', { 'SKILL.md': 's' })
+    if (!('ok' in sealed)) throw new Error('must seal')
+    expect(isSealedSnapshot({ ...sealed.ok })).toBe(false)
+    expect(isSealedSnapshot(Object.freeze({ ...sealed.ok }))).toBe(false)
+  })
+
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['a text', 'snapshot'],
+    ['a number', 7],
+    ['a list', []],
+    ['an empty object', {}],
+  ])('refuses %s without throwing', (_case, value) => {
+    expect(isSealedSnapshot(value)).toBe(false)
   })
 })

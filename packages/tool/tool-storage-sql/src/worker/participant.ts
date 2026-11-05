@@ -15,6 +15,7 @@ import {
   parseFacts,
   type ChunkFacts,
   type CustodyAddress,
+  type GuardedHostFacts,
   type LedgerFacts,
   type ManifestFacts,
   type ParticipantAnswer,
@@ -59,6 +60,17 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
     [...domain, facts.revision],
   )
   return participated({ kind: 'committed' })
+}
+
+function commitGuardedHost(facts: GuardedHostFacts, port: ParticipantPort): ParticipantReply {
+  const row = oneRow(
+    port,
+    "SELECT revision FROM tl_domain WHERE tenant = ? AND kind = 'call' AND name = ? LIMIT 1",
+    [facts.call.tenant, facts.call.name],
+  )
+  if (row === undefined || text(row['revision']) !== facts.callExpected)
+    return stopped({ reason: 'call-changed' })
+  return commitLedger(facts.hostCommit, port)
 }
 
 const addressOf = (facts: CustodyAddress) => [facts.tenant, facts.call, facts.operation] as const
@@ -168,6 +180,8 @@ const participant: ParticipantModule = {
     switch (facts.intent) {
       case 'ledger':
         return commitLedger(facts, port)
+      case 'guarded-host':
+        return commitGuardedHost(facts, port)
       case 'chunk':
         return keepChunk(facts, port)
       case 'manifest':

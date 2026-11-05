@@ -5,7 +5,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { readJsonText, writeJsonText, type JsonLimits } from '@omne-harness/json-text'
-import { type Adoption, type Supplier } from '@omne-harness/model-contract'
+import { type Adoption, type FixedModelRequest, type Supplier } from '@omne-harness/model-contract'
 import { judgeFixedModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
 import { sorted } from '../chat-completions/json.ts'
 import { decodeBody, type Progress } from '../fact-stream.ts'
@@ -38,7 +38,9 @@ export function fixtureDirectory(record: Readonly<{ name: string; revision: stri
  *   request does not name the record as a supplier;
  * - an encode that fails or whose body differs from `body`. The encode takes the declaration that
  *   the request fixes for the record and no re-dispatch;
- * - a `stream.sse` whose facts, `ended` included, differ from `facts.json`;
+ * - a `stream.sse` whose facts, `ended` included, differ from `facts.json`. The decoder reads the
+ *   tool names of the request of `request.json`, so a request that is refused or does not encode
+ *   leaves the stream unchecked;
  * - a directory below the root, or below a name directory, that names no record.
  *
  * The binding comes from the family through `composeFamilies` with a factory supplier and is
@@ -72,8 +74,12 @@ export async function checkChatCompletionsFixtures(
       continue
     }
     try {
-      problems.push(...checkEncode(label, acquired.ok, files.request))
-      problems.push(...(await checkDecode(label, acquired.ok, files.stream, files.facts)))
+      const encoded = checkEncode(label, acquired.ok, files.request)
+      problems.push(...encoded.problems)
+      if (encoded.request !== null)
+        problems.push(
+          ...(await checkDecode(label, acquired.ok, encoded.request, files.stream, files.facts)),
+        )
     } finally {
       await acquired.ok.release()
     }
@@ -128,33 +134,53 @@ function budgetsOf(size: number): JsonLimits {
   }
 }
 
-function checkEncode(label: string, binding: PiFamilyBinding, text: string): readonly string[] {
+type EncodeCheck = Readonly<{
+  problems: readonly string[]
+  /** The request of `request.json` when the contract accepts it and the binding encodes it. */
+  request: FixedModelRequest | null
+}>
+
+function checkEncode(label: string, binding: PiFamilyBinding, text: string): EncodeCheck {
   const where = `${label}: request.json`
   const tree = readJsonText(text, budgetsOf(new TextEncoder().encode(text).length))
-  if (tree.kind !== 'ok' || tree.value.kind !== 'object') return [`${where} is not a JSON object`]
+  if (tree.kind !== 'ok' || tree.value.kind !== 'object')
+    return { problems: [`${where} is not a JSON object`], request: null }
   const keys = tree.value.entries.map(entry => entry.key).toSorted()
   if (!isDeepStrictEqual(keys, ['body', 'request']))
-    return [`${where} must have exactly the members request and body`]
+    return { problems: [`${where} must have exactly the members request and body`], request: null }
   const expected = tree.value.entries.find(entry => entry.key === 'body')?.value
   const plain: unknown = JSON.parse(text)
   const request = judgeFixedModelRequest(
     typeof plain === 'object' && plain !== null ? Reflect.get(plain, 'request') : undefined,
   )
   if (!('ok' in request) || expected === undefined)
-    return [`${where}: the contract refuses the request: ${JSON.stringify(failureOf(request))}`]
+    return {
+      problems: [
+        `${where}: the contract refuses the request: ${JSON.stringify(failureOf(request))}`,
+      ],
+      request: null,
+    }
   const index = request.ok.suppliers.findIndex(supplier =>
     sameAdoption(supplier.adoption, binding.adoption),
   )
   const declaration = request.ok.declarations[index]
-  if (declaration === undefined) return [`${where}: no supplier of the request is this record`]
+  if (declaration === undefined)
+    return { problems: [`${where}: no supplier of the request is this record`], request: null }
   const encoded = binding.encode({ request: request.ok, media: [], declaration, resent: [] })
-  if (!('ok' in encoded)) return [`${label}: encode failed: ${JSON.stringify(encoded.failure)}`]
+  if (!('ok' in encoded))
+    return {
+      problems: [`${label}: encode failed: ${JSON.stringify(encoded.failure)}`],
+      request: null,
+    }
   const actualText = writeJsonText(encoded.ok.body)
   const expectedText = writeJsonText(sorted(expected))
-  if (actualText === expectedText) return []
-  return [
-    `${label}: the encoded body differs from request.json body\n  expected ${expectedText}\n  actual   ${actualText}`,
-  ]
+  if (actualText === expectedText) return { problems: [], request: request.ok }
+  return {
+    problems: [
+      `${label}: the encoded body differs from request.json body\n  expected ${expectedText}\n  actual   ${actualText}`,
+    ],
+    request: request.ok,
+  }
 }
 
 function sameAdoption(left: Adoption, right: Adoption): boolean {
@@ -173,6 +199,7 @@ function failureOf(outcome: object): unknown {
 async function checkDecode(
   label: string,
   binding: PiFamilyBinding,
+  request: FixedModelRequest,
   stream: Uint8Array,
   factsText: string,
 ): Promise<readonly string[]> {
@@ -183,7 +210,7 @@ async function checkDecode(
     return [`${label}: facts.json is not JSON`]
   }
   if (!Array.isArray(expected)) return [`${label}: facts.json is not an array of facts`]
-  const actual = await replayStream(binding, stream)
+  const actual = await replayStream(binding, stream, request)
   const plainActual: unknown = JSON.parse(JSON.stringify(actual))
   if (isDeepStrictEqual(plainActual, expected)) return []
   return [
@@ -192,18 +219,19 @@ async function checkDecode(
 }
 
 /**
- * The facts of one SSE body through a new decoder of the binding, ending with the one `ended`:
- * the body decoding of a send and its termination, without an exchange.
+ * The facts of one SSE body through a new decoder of the binding for `request`, ending with the
+ * one `ended`: the body decoding of a send and its termination, without an exchange.
  */
 export async function replayStream(
   binding: PiFamilyBinding,
   stream: Uint8Array,
+  request: FixedModelRequest,
 ): Promise<readonly TransportFact[]> {
   const facts: TransportFact[] = []
   const progress: Progress = { bodyComplete: false }
   const decoding = decodeBody({
     body: oneChunk(stream),
-    decoder: binding.createDecoder(),
+    decoder: binding.createDecoder({ request }),
     endMarker: GATEWAY_END_MARKER,
     limits: { maxEventBytes: Math.max(1, stream.length), json: budgetsOf(stream.length) },
     received: () => true,

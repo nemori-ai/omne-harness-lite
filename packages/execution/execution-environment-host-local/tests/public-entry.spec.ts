@@ -5,7 +5,7 @@ import { expect, it } from 'vitest'
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url))
 
-it('exports the host files facility, its object token reader, the domain and the host provider from the root', async () => {
+it('exports the host files facility, its object token reader, the root position judgment, the domain and the host provider from the root', async () => {
   const root: Record<string, unknown> =
     await import('@omne-harness/execution-environment-host-local')
   expect(Object.keys(root).sort()).toEqual([
@@ -13,6 +13,7 @@ it('exports the host files facility, its object token reader, the domain and the
     'createHostFilesDomain',
     'createHostFilesProvider',
     'hostObjectToken',
+    'hostSegmentsBelowRoot',
   ])
   for (const name of Object.keys(root)) expect(typeof root[name]).toBe('function')
 })
@@ -30,6 +31,7 @@ const reachable = [
   'host-scope',
   'host-probe',
   'command-gate',
+  'root-segments',
 ]
 
 it('keeps Cordis out of every module the root entry reaches', async () => {

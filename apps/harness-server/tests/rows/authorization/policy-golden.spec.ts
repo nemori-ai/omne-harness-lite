@@ -52,8 +52,8 @@ const SESSION_GOLDEN = {
   create: [M, D, D],
   completeInitialization: NOT_MEMBER_ROW,
   change: [M, D, D],
-  setRelation: ['pending D-2', D, D],
-  configureAutoArchive: ['pending D-1', D, D],
+  setRelation: [M, D, D],
+  configureAutoArchive: [M, D, D],
   considerAutoArchive: WORK_ONLY,
   recordIdle: WORK_ONLY,
   interrupt: [M, D, D],
@@ -111,8 +111,6 @@ function describeCell(cell: PolicyCell): string {
   switch (cell.verdict) {
     case 'deny':
       return 'deny'
-    case 'deny-pending':
-      return `pending ${cell.item}`
     case 'member':
     case 'matrix': {
       const head = cell.verdict === 'member' ? 'member' : `matrix ${cell.purpose}`

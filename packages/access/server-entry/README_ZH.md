@@ -13,13 +13,16 @@
 已实现：
 
 - `createServerEntry({ config, dependencies })`，返回 `start()` 与 `stop()`。
-- 治理位置的 `register-and-activate` 与 `issue-login`。
+- 治理位置的 `register-and-activate` 与 `issue-login`。`issue-login` 成功时带新登录的 `loginId`。
+- 治理位置的 18 个治理操作：组织、成员邀请、成员资格、当前租户与账号的登录。它们交给 identity 的治理端口。
+- 治理位置的 3 个模型凭据操作：绑定、解绑与查看行事租户的模型凭据。它们交给 `modelCredentials` 端口。没有这个端口时答 `stage-not-provided`。
+- 成功业务访问的报告，以及登录失效时结束观察。
 - 会话位置的七个会话操作与两个观察操作。观察流只有确认、心跳与 `ended` 帧。
 - 会话操作身份 `SessionOperationId` 的确定性派生。
 
 不在本阶段：
 
-- 治理位置其余 32 个操作答 `stage-not-provided`。
+- 本部署声明不提供的 14 个治理操作答 `stage-not-provided`：`public-health`、`replace-credential`、`query-organization`、隶属的 8 个操作、`judge-admission` 与两个授权表达操作。
 - 观察的 `state`、`refreshing`、`snapshot`、`delta` 与 `gap` 帧。
 - TLS、远程访问与多实例部署的粘性路由。
 
@@ -45,7 +48,7 @@ const entry = createServerEntry({
     historyKinds: ['message.user', 'message.assistant'],
     observation: { perLogin: 4, perInstance: 1000, cancelRetentionMs: 60000 },
   },
-  dependencies: { identity, issuer, session, resolveDefinition, diagnostics },
+  dependencies: { identity, governance, issuer, session, resolveDefinition, diagnostics },
 })
 const { address, port } = await entry.start()
 await entry.stop()
@@ -55,7 +58,7 @@ await entry.stop()
 
 `start()` 只在 `127.0.0.1` 上监听明文 HTTP/1.1。地址是其他值时以 `ServerEntryConfigError` 拒绝，不改写地址。端口 0 由宿主分配，实际端口在返回值里。`stop()` 停止接受新连接，给每个活动观察发 `ended(unavailable)`，等在途请求写完答复，再关闭全部连接。两个位置的路径固定：`/governance-public/1` 与 `/session-public/1`。
 
-依赖有三类：identity 的操作与签发者，Session 的面，以及定义名到创建字段的解析函数。可选的诊断汇在省略时不影响运行。完整的依赖表与配置字段表在 [README.md](README.md#dependencies)。
+依赖有三类：identity 的操作、治理端口与签发者，Session 的面，以及定义名到创建字段的解析函数。治理端口是必需的，必须与 identity 的操作用同一份记录。装配按调用现取治理服务时，服务缺席由端口答 `basis-unavailable`。可选的 `modelCredentials` 端口承接 3 个模型凭据操作，省略时这 3 个操作答 `stage-not-provided`。可选的诊断汇在省略时不影响运行。完整的依赖表与配置字段表在 [README.md](README.md#dependencies)。
 
 ## 契约
 
@@ -72,7 +75,7 @@ await entry.stop()
 
 ## 设计
 
-接入把字节读成公开消息，再把通过协议检查的请求交给 identity 的公开入口与 Session 的面。每个位置的处理函数向 HTTP 层交回 `json`、`no-answer` 或观察流三种答复之一。`no-answer` 表示本成员自身没有可信答复，HTTP 层写空正文的 500。`outcome` 到状态码的表是穷尽的，公开契约新增一个可编码的 `outcome` 而表里缺行时，类型检查失败。
+接入把字节读成公开消息，再把通过协议检查的请求交给 identity 的公开入口、治理端口与 Session 的面。每个位置的处理函数向 HTTP 层交回 `json`、`no-answer` 或观察流三种答复之一。`no-answer` 表示本成员自身没有可信答复，HTTP 层写空正文的 500。`outcome` 到状态码的表是穷尽的，公开契约新增一个可编码的 `outcome` 而表里缺行时，类型检查失败。
 
 会话操作身份由登录文本、租户文本和请求标识确定性派生，所以同一业务意图在崩溃前后得到同一个身份。
 

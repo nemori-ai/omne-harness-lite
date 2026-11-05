@@ -4,4 +4,4 @@
 
 ## 内容
 
-- [README.md](README.md)：证明清单与假设。现在没有证明
+- [README.md](README.md)：FR-2、CF-3、CF-4 的手写证明，以及 FR-1 的结论

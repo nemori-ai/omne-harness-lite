@@ -25,8 +25,10 @@ import {
   createLocalCustodian,
   openLocalCustodian,
   type CreateOptions,
+  type CustodianOptions,
   type LocalCustodian,
   type LockOptions,
+  type OpenResult,
 } from './store.ts'
 
 /** Why a reader gave up: it is not a terminal, the person cancelled, or the read itself failed. */
@@ -353,4 +355,125 @@ function narrowAndVerify(guard: PermissionGuard, path: string, kind: EntryKind):
   } catch {
     throw new PermissionRefused('permission refused')
   }
+}
+
+export type VaultReplaceFailure =
+  | VaultInitFailure
+  /** No readable vault is on the path, and no rebuild was asked for or possible. */
+  | 'vault-unavailable'
+  /**
+   * The file holds the new key, but its mode could not be narrowed or read back. The old key is
+   * already gone from the file. The caller must not report the key as "not stored".
+   */
+  | 'written-not-private'
+
+export type VaultReplaceResult =
+  | Readonly<{
+      ok: true
+      path: string
+      /** The old file could not be read, so a new vault was built in its place. */
+      rebuilt: boolean
+    }>
+  | Readonly<{ ok: false; reason: VaultReplaceFailure }>
+
+export type VaultReplaceDeps = Readonly<{
+  /** Supplies the new key. It is called once, only after the path is known to hold a vault file. */
+  readSecret: () => string | Promise<string>
+  /** Opens the store. Default: `openLocalCustodian`, so the file lock and the atomic publish apply. */
+  openStore?: (options: CustodianOptions) => OpenResult
+  /** Default: mode bits on POSIX, the inherited access control of the user directory on Windows. */
+  guard?: PermissionGuard
+  /** The lock wait of the store. Default: the library default. */
+  lock?: LockOptions
+  /**
+   * A regular file on the path that is not a readable vault (damaged, or not a vault at all) is
+   * removed and a new vault is built with the new key. Its old content is not read. Default: false.
+   */
+  rebuildUnreadable?: boolean
+  /** The user directory of a rebuild (the rule of `initVault`). Default: `os.homedir()`. */
+  home?: () => string
+}>
+
+/**
+ * Replaces the factory secret of the vault at `path`. Order: path rule, a readable vault on the path,
+ * read the key, write it under the file lock and the guard, confirm the key in the file, and narrow
+ * the file mode. Bindings stay as they are. A store that runs on the same file reads the new key on
+ * its next resolution, because every resolution reads the file again.
+ *
+ * With `rebuildUnreadable`, an unreadable regular file on the path is replaced by a new vault: the
+ * key is read and checked first, then the file is removed, then `initVault` builds the vault. A
+ * directory, a link or a missing path is never removed: the answer stays `vault-unavailable`.
+ *
+ * The result carries a reason code and nothing else, as `initVault` does.
+ */
+export async function replaceVaultSecret(
+  path: string,
+  deps: VaultReplaceDeps,
+): Promise<VaultReplaceResult> {
+  if (typeof path !== 'string' || path === '' || path.includes('\0')) {
+    return { ok: false, reason: 'path-invalid' }
+  }
+  const options: CustodianOptions = deps.lock === undefined ? { path } : { path, lock: deps.lock }
+  const opened = (deps.openStore ?? openLocalCustodian)(options)
+  if (opened.kind !== 'open') {
+    return deps.rebuildUnreadable === true && opened.cause !== 'missing'
+      ? rebuild(path, deps)
+      : { ok: false, reason: 'vault-unavailable' }
+  }
+  const store = opened.custodian
+  try {
+    const typed = await typedSecret(deps.readSecret)
+    if (!typed.ok) return { ok: false, reason: typed.reason }
+    return replaceTyped(store, path, typed.secret, deps.guard ?? defaultGuard())
+  } finally {
+    store.close()
+  }
+}
+
+function isRegularFile(path: string): boolean {
+  try {
+    return lstatSync(path).isFile()
+  } catch {
+    return false
+  }
+}
+
+async function rebuild(path: string, deps: VaultReplaceDeps): Promise<VaultReplaceResult> {
+  if (!isRegularFile(path)) return { ok: false, reason: 'vault-unavailable' }
+  const typed = await typedSecret(deps.readSecret)
+  if (!typed.ok) return { ok: false, reason: typed.reason }
+  try {
+    unlinkSync(path)
+  } catch {
+    return { ok: false, reason: 'write-failed' }
+  }
+  const built = await initVault(path, {
+    readSecret: () => typed.secret,
+    ...(deps.guard === undefined ? {} : { guard: deps.guard }),
+    ...(deps.lock === undefined ? {} : { lock: deps.lock }),
+    ...(deps.home === undefined ? {} : { home: deps.home }),
+  })
+  return built.ok ? { ok: true, path: built.path, rebuilt: true } : built
+}
+
+function replaceTyped(
+  store: LocalCustodian,
+  path: string,
+  secret: string,
+  guard: PermissionGuard,
+): VaultReplaceResult {
+  try {
+    guard.confine(() => store.replaceFactorySecret(secret))
+  } catch (error: unknown) {
+    if (errorCode(error) === 'ELOCKED') return { ok: false, reason: 'lock-timeout' }
+    // A publish whose confirmation failed may still have landed: the read-back decides.
+    if (!holdsSecret(path, secret)) return { ok: false, reason: 'write-failed' }
+  }
+  if (!holdsSecret(path, secret)) return { ok: false, reason: 'write-unconfirmed' }
+  try {
+    narrowAndVerify(guard, path, 'file')
+  } catch {
+    return { ok: false, reason: 'written-not-private' }
+  }
+  return { ok: true, path, rebuilt: false }
 }

@@ -131,21 +131,20 @@ function receiptOf(receipt: CommandReceipt): DriveReceipt {
 }
 
 /**
- * Why a Session producer reference does not give its call: `malformed` is a translation defect,
- * `foreign-tenant` names another tenant's call and is refused.
+ * Why a Session producer reference does not give its call: a translation defect. The reference text
+ * carries no tenant (R2-D357), so a call of another tenant resolves for the target tenant and the
+ * Agent finds no such call there.
  */
-type Unresolved = Readonly<{ kind: 'malformed' | 'foreign-tenant'; diagnostic: string }>
+type Unresolved = Readonly<{ kind: 'malformed'; diagnostic: string }>
 
 const unresolved = (
   family: 'Model' | 'Tool',
   failure: Readonly<{ kind: string }>,
 ): Outcome<never, Unresolved> =>
-  failure.kind === 'foreign-tenant'
-    ? fail({ kind: 'foreign-tenant', diagnostic: `the ${family} call belongs to another tenant` })
-    : fail({
-        kind: 'malformed',
-        diagnostic: `the ${family} call is not a ${family} invocation reference (${failure.kind})`,
-      })
+  fail({
+    kind: 'malformed',
+    diagnostic: `the ${family} call is not a ${family} invocation reference (${failure.kind})`,
+  })
 
 /**
  * The Tool call that a Session Tool producer names. Session names a call by its invocation
@@ -311,11 +310,7 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       const { mutation, tenant } = prepared.ok
       const reason = sessionBasis(tenant, input.session, input.control)
       const command = controlOf(input.intent, input.tenant, reason)
-      // Another tenant's call is refused like any cross-tenant target; Agent is not called.
-      if ('failure' in command)
-        return command.failure.kind === 'foreign-tenant'
-          ? fail({ kind: 'denied' })
-          : this.defect('control', command.failure.diagnostic)
+      if ('failure' in command) return this.defect('control', command.failure.diagnostic)
       // unarchive is reconciled by the original Session command; Agent is not called.
       if (command.ok === null) return fail({ kind: 'unsupported' })
       const answer = await this.scope.agentExecutionControl.control({

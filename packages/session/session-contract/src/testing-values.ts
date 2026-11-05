@@ -109,7 +109,11 @@ export function assistantMessage(text: string, id = 'msg_c0nf0rmance000000000000
   } as unknown as Message
 }
 
-/** An ordinary routed input of `input` with the text `text`. */
+/**
+ * An ordinary routed input of `input` with the text `text`, accepted after a login: its origin has the owner `login-entry`, as the server
+ * entry writes it, so an interactive Run may start from it. `intakeInput` is the same input from
+ * another origin.
+ */
 export function ordinaryInput(
   input: string,
   text = `input ${input}`,
@@ -118,8 +122,16 @@ export function ordinaryInput(
     kind: 'ordinary',
     input: inputId(input),
     message: userMessage(text, `msg_${input.padEnd(22, '0')}`),
-    origin: evidence(`intake/${input}`),
+    origin: { ...evidence(`login-entry/${input}`), owner: 'login-entry' },
   }
+}
+
+/** An ordinary input whose origin is not the login entry: an interactive Run cannot start from it. */
+export function intakeInput(
+  input: string,
+  text = `input ${input}`,
+): Extract<RoutedInput, { kind: 'ordinary' }> {
+  return { ...ordinaryInput(input, text), origin: evidence(`intake/${input}`) }
 }
 
 /** A creation that `decide` accepts, with no required identity, so the session is dormant at once. */

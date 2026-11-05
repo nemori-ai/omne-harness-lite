@@ -1,13 +1,19 @@
 // The Cordis binding (DP3-C16; IC-1 to IC-3, IC-8, IC-13, IC-14): a function plugin that injects
-// `storage` and `identityClock`, validates the two lifetimes, opens scrypt with the deployed
-// profile, derives the decoy material, registers the identity combination, and provides
-// `identityOperations` and `tenantStanding` as subclasses of the identity service definitions. One
-// managed effect stops the provider and then waits for scrypt to close. The clock is the injected
-// `identityClock` service (R1-D27): this member reads no wall clock.
+// `storage` and `identityClock`, validates the two lifetimes and the two invitation durations,
+// opens scrypt with the deployed profile, derives the decoy material, registers the identity
+// combination, and provides `identityOperations`, `tenantStanding` and `identityGovernance` as
+// subclasses of the identity service definitions, over one provider instance. One managed effect
+// stops the provider and then waits for scrypt to close. The clock is the injected `identityClock`
+// service (R1-D27): this member reads no wall clock.
 import type { Context } from '@deepseek-ai/cordis'
 import { randomBytes } from 'node:crypto'
-import type { IdentityOperations, TenantStandingSource } from '@omne-harness/identity'
+import type {
+  IdentityGovernance,
+  IdentityOperations,
+  TenantStandingSource,
+} from '@omne-harness/identity'
 import {
+  IdentityGovernanceService,
   IdentityOperationsService,
   TenantStandingSourceService,
   identityClockKey,
@@ -15,7 +21,12 @@ import {
 import { definePlugin, type StandardSchema } from '@omne-harness/kernel-basis/cordis'
 import { openScrypt, SCRYPT_PROFILE } from '@omne-harness/scrypt'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
-import { constantLoginTerms, parseIdentitySqlConfig, type IdentitySqlConfig } from './config.ts'
+import {
+  constantInvitationTerms,
+  constantLoginTerms,
+  parseIdentitySqlConfig,
+  type IdentitySqlConfig,
+} from './config.ts'
 import { identitySqlRegistration } from './materials.ts'
 import { createIdentitySql } from './provider.ts'
 
@@ -38,6 +49,51 @@ class IdentitySqlStandingService extends TenantStandingSourceService {
   constructor(ctx: Context, standing: TenantStandingSource) {
     super(ctx)
     this.read = input => standing.read(input)
+  }
+}
+
+class IdentitySqlGovernanceService extends IdentityGovernanceService {
+  readonly createOrganization: IdentityGovernance['createOrganization']
+  readonly queryCreateOrganization: IdentityGovernance['queryCreateOrganization']
+  readonly issueMemberInvitation: IdentityGovernance['issueMemberInvitation']
+  readonly acceptMemberInvitation: IdentityGovernance['acceptMemberInvitation']
+  readonly rejectMemberInvitation: IdentityGovernance['rejectMemberInvitation']
+  readonly withdrawMemberInvitation: IdentityGovernance['withdrawMemberInvitation']
+  readonly queryInvitation: IdentityGovernance['queryInvitation']
+  readonly queryReceivedInvitations: IdentityGovernance['queryReceivedInvitations']
+  readonly queryIssuedInvitations: IdentityGovernance['queryIssuedInvitations']
+  readonly queryOwnMemberships: IdentityGovernance['queryOwnMemberships']
+  readonly queryOrganizationMembers: IdentityGovernance['queryOrganizationMembers']
+  readonly leaveOrganization: IdentityGovernance['leaveOrganization']
+  readonly removeMember: IdentityGovernance['removeMember']
+  readonly changeMemberRole: IdentityGovernance['changeMemberRole']
+  readonly switchCurrentTenant: IdentityGovernance['switchCurrentTenant']
+  readonly queryCurrentTenant: IdentityGovernance['queryCurrentTenant']
+  readonly revokeLogin: IdentityGovernance['revokeLogin']
+  readonly queryOwnValidLogins: IdentityGovernance['queryOwnValidLogins']
+  readonly reportBusinessAccess: IdentityGovernance['reportBusinessAccess']
+
+  constructor(ctx: Context, governance: IdentityGovernance) {
+    super(ctx)
+    this.createOrganization = input => governance.createOrganization(input)
+    this.queryCreateOrganization = input => governance.queryCreateOrganization(input)
+    this.issueMemberInvitation = input => governance.issueMemberInvitation(input)
+    this.acceptMemberInvitation = input => governance.acceptMemberInvitation(input)
+    this.rejectMemberInvitation = input => governance.rejectMemberInvitation(input)
+    this.withdrawMemberInvitation = input => governance.withdrawMemberInvitation(input)
+    this.queryInvitation = input => governance.queryInvitation(input)
+    this.queryReceivedInvitations = input => governance.queryReceivedInvitations(input)
+    this.queryIssuedInvitations = input => governance.queryIssuedInvitations(input)
+    this.queryOwnMemberships = input => governance.queryOwnMemberships(input)
+    this.queryOrganizationMembers = input => governance.queryOrganizationMembers(input)
+    this.leaveOrganization = input => governance.leaveOrganization(input)
+    this.removeMember = input => governance.removeMember(input)
+    this.changeMemberRole = input => governance.changeMemberRole(input)
+    this.switchCurrentTenant = input => governance.switchCurrentTenant(input)
+    this.queryCurrentTenant = input => governance.queryCurrentTenant(input)
+    this.revokeLogin = input => governance.revokeLogin(input)
+    this.queryOwnValidLogins = input => governance.queryOwnValidLogins(input)
+    this.reportBusinessAccess = input => governance.reportBusinessAccess(input)
   }
 }
 
@@ -87,11 +143,13 @@ export const IdentitySqlPlugin = definePlugin({
       storage,
       clock,
       terms: constantLoginTerms(judged.terms),
+      invitationTerms: constantInvitationTerms(judged.invitationTerms),
       scrypt,
       decoyMaterial: derived.material,
     })
     new IdentitySqlOperationsService(ctx, provider.operations)
     new IdentitySqlStandingService(ctx, provider.standing)
+    new IdentitySqlGovernanceService(ctx, provider.governance)
     // One effect, so the order holds: stop new calls first, then wait for scrypt to finish.
     ctx.effect(() => async () => {
       provider.stop()

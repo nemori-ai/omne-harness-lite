@@ -9,7 +9,7 @@
 | `index.ts` | 根入口，转导工厂、档案函数、资源函数、记录与类型 | 无 |
 | `owner.ts` | 包名常量 `OPENAI_OWNER` | 无 |
 | `record.ts` | 记录类型：引擎的记录加上档案、规则名与计量数据 | 无 |
-| `records.ts` | 12 条记录与 tokenizer 定义，纯数据 | 无 |
+| `records.ts` | 14 条记录与 tokenizer 定义，纯数据 | 无 |
 | `rules.ts` | 四个 hook 的规则表与 `hooksOf` | 无 |
 | `images.ts` | 三条图片补丁规则 | 无 |
 | `adoptions.ts` | 记录派生的组件采用与计数依据 | 无 |

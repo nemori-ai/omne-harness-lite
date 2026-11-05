@@ -3,10 +3,11 @@
 - [源码职责与现状](README.md)。
 - [根入口](index.ts)。
 - [本地启动协调器](start-coordinator.ts)。
+- [可信许可需求来源](start-permit-requirements.ts)。
 - [环境调度工厂](scheduled-environment.ts)与[调度策略](environment-policy.ts)。
 - [环境入口校验](environment-input.ts)。
 - [凭据适配工厂](credentials.ts)。
-- [Cordis 宿主与绑定入口](cordis.ts)，装配说明见 [Cordis 集成](../docs/cordis.md)。
+- [Cordis 宿主与绑定入口](cordis.ts)，见[集成说明](../docs/cordis.md)。
 - [公开接口](../docs/public-api.md)。
 - [包索引](../index.md)。
 
@@ -18,4 +19,4 @@
 
 - [作者装载器](author-loader.ts)核合法设置、定义与 schema。
 - [执行绑定](executor-binding.ts)固定作者与启动身份，[活体执行](live-author-execution.ts)保存逐调用事实及停止状态。
-- [作者入口](author.ts)导出[贡献实现](contribute-tool.ts)与[换代协调者](author-generations.ts)。实现文件不反向导入入口。
+- [作者入口](author.ts)导出[贡献实现](contribute-tool.ts)与[换代协调者](author-generations.ts)，实现文件不反向导入入口。

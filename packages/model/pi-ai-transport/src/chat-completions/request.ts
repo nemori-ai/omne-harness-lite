@@ -154,15 +154,8 @@ function bodyOf(
   }
 }
 
-/** The projection as the meter reads it. */
-function viewOf(
-  projection: Projection,
-  request: Readonly<{
-    tools: ProjectedRequest['tools']
-    toolChoice: ProjectedRequest['toolChoice']
-  }>,
-  applied: readonly Parameter[],
-): ProjectedRequest {
+/** The projection as the meter reads it, with the gateway tool names. */
+function viewOf(projection: Projection, applied: readonly Parameter[]): ProjectedRequest {
   return {
     instruction: projection.instruction,
     turns: projection.messages.flatMap(message =>
@@ -177,8 +170,8 @@ function viewOf(
             },
           ],
     ),
-    tools: request.tools,
-    toolChoice: request.toolChoice,
+    tools: projection.declared,
+    toolChoice: projection.choice,
     applied,
   }
 }
@@ -189,8 +182,6 @@ function represent(
   input: Readonly<{
     projection: Projection
     applied: readonly Parameter[]
-    tools: ProjectedRequest['tools']
-    toolChoice: ProjectedRequest['toolChoice']
     representation: Adoption
   }>,
 ): Outcome<Readonly<{ body: JsonValue; representation: Materialized }>, TransportFailure> {
@@ -198,7 +189,7 @@ function represent(
   if (!('ok' in params)) return params
   const body = bodyOf(context, input.projection, params.ok)
   if (!('ok' in body)) return body
-  const shown = context.meter.represent(viewOf(input.projection, input, input.applied))
+  const shown = context.meter.represent(viewOf(input.projection, input.applied))
   if (!sameAdoption(shown.adoption, input.representation))
     return { failure: { kind: 'unsupported', field: 'representation', adapter: context.adapter } }
   return {
@@ -262,8 +253,6 @@ export function planRequest(
   const encoded = represent(context, {
     projection: projection.ok,
     applied,
-    tools: assembled.tools,
-    toolChoice: assembled.toolChoice,
     representation: assembled.representation,
   })
   if (!('ok' in encoded)) return encoded
@@ -318,8 +307,6 @@ export function encodeRequest(
   const encoded = represent(context, {
     projection: projection.ok,
     applied,
-    tools: request.tools,
-    toolChoice: request.toolChoice,
     representation: request.representation,
   })
   if (!('ok' in encoded)) return encoded

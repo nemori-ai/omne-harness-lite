@@ -20,15 +20,25 @@
 
 部署必须保证该登记文件只有一个写者。多个进程同时改同一登记表不受支持。启动后外部改写或删除的实时检测不在保证内。Windows 不提供这里采用的目录刷盘操作，因此本实现不承诺目录项的断电耐久。文件数据仍执行 fsync。关闭停止新登记并等待在途登记，截止时尚未结束则报告 incomplete。
 
+## 未登记租户的会话读与提交
+
+目录里没有的租户没有会话，因为登记只由放行的 create 触发。经委派视图的会话读与提交（`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、四个 `history` 读和非 create 的 `commit`）对这样的租户答 `denied`，与「会话不存在」是同一个结局（[public-contract 会话判断次序第 6 步](../../../../packages/access/public-contract/SPEC.md#会话判断次序)）。访问裁定仍在先：裁定的 `denied` 与 `unavailable` 不被覆盖。绑定是 create 时不包装，租户在视图第一次解析时登记。
+
+session-storage-sql 对目录缺项答 `unavailable`（[SPEC 失败表](../../../../packages/session/session-storage-sql/SPEC.md)），那是对装配故障的答复。不在这里转换时，没有建过会话的账号读别人的会话，公开契约会得到 `basis-unavailable`，既能区分「租户从未建过会话」与「租户有会话」，也诱使调用者重试。已知限制：登记表文件在运行中被外部删除或改写不在保证内（见上节），这时已登记租户也会按未登记答 `denied`。会话归属读口不受此条影响，见下节。
+
+## 会话归属读口
+
+本行用 session-storage-sql 的 `createSessionPrincipalBindings` 构造受信 `sessionPrincipalBindings`，所用的存储与目录和公开端口相同。这个名字只在受信作用域里可见，根上取不到（R2-D192）。没有登记的租户答 unavailable。
+
 ## 部署枚举
 
-本行必需注入 `principalVerifier`，每次核验时重新取得该服务。行内复用 `referenceSystemActionAuthorization`，并消费共享的 `releaseMaintenanceGrants`。请求固定为 tenant-domains/enumerate、系统资源 tenant-domains/registered-tenants、资源键 deployment 与 `noArguments()`。
+本行不持有授予表，也不自己核验主体。每次 `enumerate` 都按调用现取受信键 `systemActionAuthorization`（`authorization` 行提供），由它按发行授予表与运维者的收回、到期判断（R2-D245）。键缺席或答 `unavailable` 时枚举答 `unavailable`，不放行。不是系统主体的调用者在问授权之前就答 denied。请求固定为 tenant-domains/enumerate、系统资源 tenant-domains/registered-tenants、资源键 deployment 与 `noArguments()`。
 
 只有 AU-12 允许后才读取一次完整快照，revision 与 entries 来自同一次读取。拒绝答 denied，依赖或目录不可用答 unavailable，两者都不含 entries。异常消息不向调用者披露。主体的 component 文本只选择授予记录，不能代替身份签发和核验。新请求不缓存此前的允许结论。
 
 ## 验证入口
 
-`tests/rows/session-storage` 覆盖初始化、缺失、损坏、并发发布与授权枚举。`tests/rows/storage/restart-process.spec.ts` 用两个独立 Node 进程验证真实 SQLite 写入及重启后完整目录。该进程测试采用真实 identity 签发器与显式测试 grant，不证明发行授予表和扫描入口的完整组合。
+`tests/rows/session-provider/unregistered-tenant.spec.ts` 在真实 Session 面与真实存储行上验证未登记租户的读答 `denied`，且与已登记租户读不存在的会话答复相同。`tests/rows/session-storage` 覆盖初始化、缺失、损坏、并发发布与授权枚举。`system-action-enumeration.spec.ts` 把真实 `authorization` 行与本行装在一起，验证运维者收回与到期对枚举生效、授权不可用时不放行、根上同名冒充服务读不到。`tests/rows/storage/restart-process.spec.ts` 用两个独立 Node 进程验证真实 SQLite 写入及重启后完整目录。该进程测试采用真实 identity 签发器与显式测试 grant，不证明发行授予表和扫描入口的完整组合。
 
 ```sh
 pnpm --filter @omne-harness/harness-server exec vitest run tests/rows/storage tests/rows/session-storage --typecheck.enabled=false

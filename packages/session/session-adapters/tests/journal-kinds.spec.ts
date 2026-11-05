@@ -94,7 +94,7 @@ async function started(s: SqlScene) {
     }),
   )
   await committed(s, 'take', () => ({
-    checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+    checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
     events: [{ kind: 'input-taken', batch: page.batch }],
   }))
 }
@@ -115,10 +115,12 @@ function modelWait(s: SqlScene) {
   return pending
 }
 
-/** The kinds column of every fact row of the scene's execution, by sequence. */
+/** The kinds column of every event row of the scene's execution, by sequence. */
 function factKinds(s: SqlScene): Record<string, readonly string[]> {
   if (s.controls === null) throw new Error('the double storage is expected')
-  const rows = s.controls.select('SELECT sequence, kinds FROM er_fact_idx ORDER BY sequence').rows
+  const rows = s.controls.select(
+    `SELECT eseq, kinds FROM er_fact WHERE eseq IS NOT NULL AND execution = '${s.execution}' ORDER BY eseq`,
+  ).rows
   return Object.fromEntries(
     rows.map(([sequence, kinds]) => [String(sequence), JSON.parse(String(kinds)) as string[]]),
   )
@@ -323,36 +325,30 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
     return { value, reads: s.controls.reads.slice(from).filter(item => item === handler).length }
   }
 
-  type Facts = { facts: { consequences: unknown; control: unknown; sequence: string }[] }
+  type Facts = { events: { consequences: unknown; control: unknown; sequence: string }[] }
   const rewriteFacts = (s: SqlScene, change: (output: Facts) => Facts) => {
     s.rewriteReads.current = (request, answer) =>
-      request.handler === EXECUTION_RECORD_HANDLERS.executionFacts && answer.kind === 'read'
+      request.handler === EXECUTION_RECORD_HANDLERS.events && answer.kind === 'read'
         ? { ...answer, output: change(structuredClone(answer.output) as Facts) as never }
         : answer
   }
 
-  it('gives what the records of the execution give, from every progress, and reads no part', async () => {
+  it('gives the events after every progress from the event rows alone, and reads no batch', async () => {
     const s = await eventful('facts-equal')
     for (const after of ['0', '1', '2', '3', '4']) {
-      const facts = await readsDuring(s, EXECUTION_RECORD_HANDLERS.parts, () =>
+      const facts = await readsDuring(s, EXECUTION_RECORD_HANDLERS.facts, () =>
         interpretation(s, after),
       )
       expect(facts.reads).toBe(0)
-      // The same read with every body made absent goes to the records of the execution.
-      rewriteFacts(s, output => ({
-        ...output,
-        facts: output.facts.map(fact => ({ ...fact, consequences: 'absent', control: 'absent' })),
-      }))
-      const records = await readsDuring(s, EXECUTION_RECORD_HANDLERS.parts, () =>
-        interpretation(s, after),
-      )
-      s.rewriteReads.current = null
-      // A read with no event after the progress has no body to miss, so it reads no part either.
-      expect(records.reads > 0).toBe(after !== '4')
-      expect(facts.value).toEqual(records.value)
       expect(facts.value.events.map(event => event.sequence)).toEqual(
         ['1', '2', '3', '4'].slice(Number(after)),
       )
+      // The kinds of each event are the kinds of the consequences its row keeps.
+      const kinds = factKinds(s)
+      for (const event of facts.value.events)
+        expect(event.consequences?.map(item => item.kind) ?? []).toEqual(
+          kinds[event.sequence]?.filter(kind => kind !== 'deferred') ?? [],
+        )
     }
   })
 
@@ -361,12 +357,12 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
     if (s.controls === null) throw new Error('the double storage is expected')
     const rows = (after: string) =>
       s.controls!.select(
-        `SELECT COUNT(*) FROM er_fact_idx WHERE sequence > ${after} AND execution = '${s.execution}'`,
+        `SELECT COUNT(*) FROM er_fact WHERE eseq > ${after} AND execution = '${s.execution}'`,
       ).rows[0]?.[0]
     for (const after of ['0', '3']) {
       let returned = -1
       rewriteFacts(s, output => {
-        returned = output.facts.length
+        returned = output.events.length
         return output
       })
       await interpretation(s, after)
@@ -379,7 +375,7 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
     const s = await eventful('facts-gap')
     rewriteFacts(s, output => ({
       ...output,
-      facts: output.facts.filter(fact => fact.sequence !== '2'),
+      events: output.events.filter(fact => fact.sequence !== '2'),
     }))
     const read = await readExecutionInterpretation(
       { storage: s.storage, tenantDomainLookup: lookup(s) },
@@ -394,13 +390,13 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
   /** Every page holds one fact at most, and names the next: the read follows the pages. */
   type Page = Facts & { next: string | null; revision: string; emittedThrough: string }
   const onePerPage = (page: Page): Page =>
-    page.facts.length <= 1
+    page.events.length <= 1
       ? page
-      : { ...page, facts: page.facts.slice(0, 1), next: page.facts[0]!.sequence }
+      : { ...page, events: page.events.slice(0, 1), next: page.events[0]!.sequence }
   const rewritePages = (s: SqlScene, change: (page: Page, after: string) => Page) => {
     const asked: string[] = []
     s.rewriteReads.current = (request, answer) => {
-      if (request.handler !== EXECUTION_RECORD_HANDLERS.executionFacts || answer.kind !== 'read')
+      if (request.handler !== EXECUTION_RECORD_HANDLERS.events || answer.kind !== 'read')
         return answer
       const after = (request.input as { after: string }).after
       asked.push(after)
@@ -418,7 +414,7 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
     const s = await eventful('facts-tail')
     rewriteFacts(s, output => ({
       ...output,
-      facts: output.facts.filter(fact => fact.sequence !== '4'),
+      events: output.events.filter(fact => fact.sequence !== '4'),
     }))
     expect(await readOf(s)).toMatchObject({
       kind: 'unavailable',
@@ -455,17 +451,6 @@ describe('path P: AD-02 reads the events after its progress from the fact rows (
       diagnostic: expect.stringContaining('kept changing'),
     })
     expect(firsts).toBe(3)
-  })
-
-  it('T-P6: facts a writer stored without a body are read from the records, counted as part reads', async () => {
-    const s = await eventful('facts-legacy')
-    const fresh = await interpretation(s)
-    if (s.controls === null) throw new Error('the double storage is expected')
-    // As a writer before the body table left them: the index rows without their bodies.
-    s.controls.select('DELETE FROM er_fact_body')
-    const legacy = await readsDuring(s, EXECUTION_RECORD_HANDLERS.parts, () => interpretation(s))
-    expect(legacy.reads).toBeGreaterThan(0)
-    expect(legacy.value).toEqual(fresh)
   })
 
   it('an execution of another session reads as none', async () => {

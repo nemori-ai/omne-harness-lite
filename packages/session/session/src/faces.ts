@@ -14,6 +14,7 @@ import type {
 import type { CommandHandler } from './command.ts'
 import type { SessionDependencies } from './dependencies.ts'
 import { guarded, OWNERS } from './failures.ts'
+import { createHistoryPages } from './history-pages.ts'
 import { readSnapshot } from './qualify.ts'
 import type { Reads } from './reads.ts'
 
@@ -119,29 +120,45 @@ export function createFaces<P>(
       reads.directory(caller, 'releasedScopes', port => port.releasedScopes(value)),
   }
 
+  const pages = createHistoryPages()
   const history: SessionFaces<P>['history'] = {
     begin: value =>
       reads.session(caller, 'history.begin', value, view =>
-        view.history.begin({
-          ...accessOf(value),
-          kinds: value.kinds,
-          from: value.from,
-          direction: value.direction,
-          pageBytes: value.pageBytes,
-        }),
+        pages.expanded(
+          view,
+          accessOf(value),
+          'history.begin',
+          view.history.begin({
+            ...accessOf(value),
+            kinds: value.kinds,
+            from: value.from,
+            direction: value.direction,
+            pageBytes: value.pageBytes,
+          }),
+        ),
       ),
     next: value =>
       reads.session(caller, 'history.next', value, view =>
-        view.history.next({ ...accessOf(value), cursor: value.cursor }),
+        pages.expanded(
+          view,
+          accessOf(value),
+          'history.next',
+          view.history.next({ ...accessOf(value), cursor: value.cursor }),
+        ),
       ),
     since: value =>
       reads.session(caller, 'history.since', value, view =>
-        view.history.since({
-          ...accessOf(value),
-          after: value.after,
-          kinds: value.kinds,
-          pageBytes: value.pageBytes,
-        }),
+        pages.expanded(
+          view,
+          accessOf(value),
+          'history.since',
+          view.history.since({
+            ...accessOf(value),
+            after: value.after,
+            kinds: value.kinds,
+            pageBytes: value.pageBytes,
+          }),
+        ),
       ),
     readModelView: value =>
       reads.session(caller, 'history.readModelView', value, view =>

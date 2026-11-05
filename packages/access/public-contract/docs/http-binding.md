@@ -43,6 +43,7 @@
 | 治理 | `open-affiliation-request`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
 | 治理 | `judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
 | 治理 | `disable-subject`、`restore-subject`、`end-subject`、`reopen-after-media-loss` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
+| 治理 | `bind-model-credential`、`unbind-model-credential`、`describe-model-credential` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
 | 会话 | `create-session`、`query-create-session`、`send-input`、`query-send-input`、`read-history`、`cancel-run`、`stop-call`、`cancel-observation` | `/session-public/1` | POST | `application/json` | `application/json; charset=utf-8` | input |
 | 会话 | `observe-session` | `/session-public/1` | POST | `application/json` | `text/event-stream; charset=utf-8`，见[SSE 观察](#sse-观察) | input |
 
@@ -253,7 +254,7 @@
 - 会话路径上的全部请求都受 input 上限约束。所以 `send-input` 以外的会话请求最多可以到 input 上限，不受更小的上限保护。
 - 会话路径上不是观察的请求被严格读取两次：一次在读取分派里，一次在 `readSessionRequest` 里。
 - 观察消息由两端手写读写，见[观察消息的手写读写](#观察消息的手写读写)。收口条件写在该节。
-- 判断服务是否在线只能连接端口。M2 部署不提供 `public-health`，见服务端接入规格的[治理位置的偏离](../../server-entry/SPEC.md#治理位置的偏离)。
+- 判断服务是否在线只能连接端口。M2 部署不提供 `public-health`，见服务端接入规格的[治理位置](../../server-entry/SPEC.md#治理位置)。
 - 多实例部署的粘性路由由部署另行给出，见公开契约的[协议给与装配给](../SPEC.md#协议给与装配给)。
 - 客户端对 SSE 的空闲检测没有规定。客户端只能靠连接断开发现问题。
 - HTTP 层的限流、压缩和 HTTP/2 不在 M2。

@@ -1,4 +1,5 @@
 import { type Context, Service } from '@deepseek-ai/cordis'
+import type { IdentityGovernance } from './governance.ts'
 import type { IdentityClock, IdentityOperations } from './operations.ts'
 import type { PrincipalIssuer, PrincipalVerifier } from './principal.ts'
 import type { TenantStandingSource } from './standing.ts'
@@ -60,6 +61,38 @@ export abstract class IdentityClockService extends Service implements IdentityCl
 }
 export const identityClockKey = IdentityClockService.provide
 
+/**
+ * The governance port (ID-18) as a Cordis seam: a provider that keeps the identity records
+ * provides it next to `identityOperations`. An additive definition (R1-D27, R2-D203).
+ * @owner packages/identity/identity
+ */
+export abstract class IdentityGovernanceService extends Service implements IdentityGovernance {
+  static readonly provide = 'identityGovernance'
+  constructor(ctx: Context) {
+    super(ctx, IdentityGovernanceService.provide)
+  }
+  abstract readonly createOrganization: IdentityGovernance['createOrganization']
+  abstract readonly queryCreateOrganization: IdentityGovernance['queryCreateOrganization']
+  abstract readonly issueMemberInvitation: IdentityGovernance['issueMemberInvitation']
+  abstract readonly acceptMemberInvitation: IdentityGovernance['acceptMemberInvitation']
+  abstract readonly rejectMemberInvitation: IdentityGovernance['rejectMemberInvitation']
+  abstract readonly withdrawMemberInvitation: IdentityGovernance['withdrawMemberInvitation']
+  abstract readonly queryInvitation: IdentityGovernance['queryInvitation']
+  abstract readonly queryReceivedInvitations: IdentityGovernance['queryReceivedInvitations']
+  abstract readonly queryIssuedInvitations: IdentityGovernance['queryIssuedInvitations']
+  abstract readonly queryOwnMemberships: IdentityGovernance['queryOwnMemberships']
+  abstract readonly queryOrganizationMembers: IdentityGovernance['queryOrganizationMembers']
+  abstract readonly leaveOrganization: IdentityGovernance['leaveOrganization']
+  abstract readonly removeMember: IdentityGovernance['removeMember']
+  abstract readonly changeMemberRole: IdentityGovernance['changeMemberRole']
+  abstract readonly switchCurrentTenant: IdentityGovernance['switchCurrentTenant']
+  abstract readonly queryCurrentTenant: IdentityGovernance['queryCurrentTenant']
+  abstract readonly revokeLogin: IdentityGovernance['revokeLogin']
+  abstract readonly queryOwnValidLogins: IdentityGovernance['queryOwnValidLogins']
+  abstract readonly reportBusinessAccess: IdentityGovernance['reportBusinessAccess']
+}
+export const identityGovernanceKey = IdentityGovernanceService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     identityOperations: IdentityOperationsService
@@ -67,5 +100,6 @@ declare module '@deepseek-ai/cordis' {
     principalVerifier: PrincipalVerifierService
     principalIssuer: PrincipalIssuerService
     identityClock: IdentityClockService
+    identityGovernance: IdentityGovernanceService
   }
 }

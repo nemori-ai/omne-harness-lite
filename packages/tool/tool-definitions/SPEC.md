@@ -10,6 +10,13 @@
 
 全部命令使用 declared 参数。实现、参数校验、公开 schema 与 help 使用同一张[命令表](src/commands.ts)。未知字段、重复 JSON 键、错误类型及不完整输入均不进入执行者。Files 的 open 与 Shell 的后台标志在本次交付中明确返回 unsupported，且不启动设施。
 
+Files 与 Shell 用 `wrapped` 编码登记，对模型各是一个工具（D-94）。作者描述只写用途与固定事实，命令菜单由声明一侧加入。描述不含运维构造值，例如 shell 可执行文件或工作区根，所以发行清单能固定定义摘要。
+
+- 每个工具的规则作为定义的 `guide` 登记。help 用 `name` 选一个命令，`name` 的取值限于命令名。help 的答复是首行 `done <工具> help[ <命令>]`，后接 tool-contract 的 `commandGuide`：带 `name` 时是该命令的完整 guide，不带时是工具的 guide。出错的调用读到的是同一段文本。命令没有名为 `command` 的字段，所以 `flat` 编码对这两个工具也成立。
+- 参数无效时，命令编解码器只答原因，例如 `invalid-field:mode`。该命令的 guide 由工具宿主附上（D-104）。未知的 help 主题也由参数解析拒绝，不作为成功结果返回。执行表缺少某个命令是缺陷，抛出错误。
+- Files 的 write 接受 `parents`：为真时先以 `mkdir {parents: true}` 建出缺失的父目录。目录已存在时设施答 `conflict`，写入照常进行，其他失败原样返回。它与 mkdir 走同一放置与授权检查。
+- Shell 的 info 除平台事实外，写出一次性脚本的调用 `shell=[可执行文件, …参数前缀]` 与起始目录 `cwd`（D-96 的放置部分）。
+
 ### 精确编辑与批次
 
 edit 要求非空原文恰好出现一次。它读完整原字节，以 UTF-8 解码，在内存修改，然后以读取的 expectedVersion 替换。中文、BOM、CRLF 与无末尾换行的未编辑内容保持原样。非法 UTF-8 拒绝编辑。
@@ -19,6 +26,21 @@ patch 先读取全部目标并针对原文计算所有范围。重复或重叠�
 ### 文件观察
 
 list 使用 FileEntry.name，不解析对象令牌。任一条目缺少有效名称时，整个列表返回 unavailable，不补造名称、不静默丢条目、不交出部分列表。read、list 与 find 保留版本和分页事实。write 和 edit 转交设施返回的 writeEffect，区分创建、原位修改与替换为新对象；未报告时明确标为 unreported，不猜测效果。find 显式区分 name 与 content。info 返回 stat 确认的类型、大小与时间，并读取至多 min(4096,resultMaxBytes) 字节作为二进制样本。样本观察不证明整份文件是文本。版本变化时不把样本归到旧 stat。
+
+### 文件路径解析
+
+本节按 R2-D290 定。执行环境的 `FileRequest` 没有工作目录字段，所以由 Files 作者解析相对路径。
+
+- Files 的构造值可带 `cwd`，即工作区根。它与 Shell 的 `cwd` 同源，由运维者层给出。`cwd` 必须是绝对路径，否则构造失败。
+- 路径风格取 `cwd` 自己的写法：盘符或 UNC 开头按 Windows，`/` 开头按 POSIX。不取运行作者的进程平台。
+- 有 `cwd` 时，相对路径在调用设施之前解析成绝对路径。`.` 就是 `cwd`。适用的路径有 `path`、`move` 与 `copy` 的 `target`、`patch` 每一项的 `path`。末尾的分隔符保留。
+- 绝对路径不变。Windows 风格下带盘符的相对路径（如 `C:a`）也不变。
+- 解析只换字符串，不授予访问。解析后越出工作区的路径照常交给设施，由宿主的守卫与设施按现有规则答复，例如 `notAuthorized`。作者不另加放行，也不另加拒绝。
+- 结果文本的头部保留模型给的路径。解析改变了路径时，另带 `resolved_path`。
+- 没有 `cwd` 时，相对路径原样交给设施。设施以 `invalidInput` 拒绝时，结果文本末尾加一行说明：需要绝对路径。
+- 工具说明与参数说明写明：相对路径按工作区根解析。
+
+限制：声称 `filesystem-root` 的落点要求相对授予根的路径，绝对路径答 `invalidInput`。这种落点上不配置 `cwd`，相对路径原样交给落点。
 
 ### Shell 路由与控制
 

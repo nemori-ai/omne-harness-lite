@@ -90,7 +90,7 @@ describe('I0 fixes one batch at a legal input boundary', () => {
       {
         kind: 'input-taken',
         batch: expect.objectContaining({
-          id: commit?.checkpoint.inputBatch,
+          id: commit?.checkpoint.inputBatch?.id,
           ordered: ['input-exec-1', 'second', 'third'],
         }),
       },
@@ -217,16 +217,18 @@ describe('I0 fixes one batch at a legal input boundary', () => {
     })
     expect(after).toEqual(before)
     const at = (await snapshot(assembly)).checkpoint
-    expect(at.requestPreparation?.kind).toBe('ready')
+    // R2-D292: the ready preparation lived in memory only; the saved intent keeps the request.
+    expect(at.requestPreparation).toBeNull()
     expect(at.position).toBe('I8')
     expect(assembly.controls.requests.prepare.calls).toHaveLength(2)
   })
 })
 
 describe('I1 prepares at the fixed input boundary', () => {
-  it('NA-I1-1: reads conditions, selects, reads context and commits assembled before P1 produces ready', async () => {
+  it('NA-I1-1: reads conditions, selects, reads context and prepares assembled before P1 produces ready', async () => {
     const log: string[] = []
     const saved: AgentCheckpoint[] = []
+    const prepared: unknown[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
       conditions: {
@@ -251,7 +253,10 @@ describe('I1 prepares at the fixed input boundary', () => {
         ...d.requests,
         prepare(input) {
           log.push(input.previous === null ? 'prepare-first' : 'prepare-review')
-          return d.requests.prepare(input)
+          return d.requests.prepare(input).then(answer => {
+            prepared.push('ok' in answer ? answer.ok : null)
+            return answer
+          })
         },
       },
       journal: {
@@ -275,9 +280,14 @@ describe('I1 prepares at the fixed input boundary', () => {
       'prepare-review',
       'conditions',
     ])
-    expect(saved.map(at => [at.position, at.requestPreparation?.kind])).toEqual([
-      ['P0', 'assembled'],
-      ['I2', 'ready'],
+    // R2-D292: the I1 and P1 commits move the position; neither saves the preparation.
+    expect(saved.map(at => [at.position, at.requestPreparation])).toEqual([
+      ['P0', null],
+      ['I2', null],
+    ])
+    expect(prepared.map(item => (item as { kind: string } | null)?.kind)).toEqual([
+      'assembled',
+      'ready',
     ])
     const [initial, reviewed] = assembly.controls.requests.prepare.calls
     expect(initial).toMatchObject({
@@ -286,7 +296,7 @@ describe('I1 prepares at the fixed input boundary', () => {
       alterations: [],
       purpose: 'main',
     })
-    expect(reviewed?.previous).toEqual(saved[0]?.requestPreparation)
+    expect(reviewed?.previous).toEqual(prepared[0])
     expect(reviewed?.beforeModelCall).toEqual([])
     expect(saved[0]?.priorConditions).toEqual(initial?.conditions.source)
   })
@@ -309,9 +319,8 @@ describe('I1 prepares at the fixed input boundary', () => {
     expect(read?.adopted).toBeNull()
     expect(read?.transition).toBeNull()
     const final = (await snapshot(assembly)).checkpoint
-    expect(final.adoptedContext).toEqual(
-      final.requestPreparation?.kind === 'ready' ? final.requestPreparation.coverage : null,
-    )
+    // R2-D292: the ready preparation is not saved; M0 adopts the coverage it held.
+    expect(final.requestPreparation).toBeNull()
     expect(recorded).toMatchObject({ adoptedContext: final.adoptedContext })
     expect(final.adoptedContext).not.toBeNull()
   })

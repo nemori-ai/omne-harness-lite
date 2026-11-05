@@ -1,4 +1,4 @@
-// The creation checks that read nothing but the options: the eight configuration items of
+// The creation checks that read nothing but the options: the nine configuration items of
 // docs/public-api.md "工厂配置" and the four binding fields. A value the type forbids can still come
 // from an untyped caller, so each check judges the value itself. The first failure is returned as
 // `invalid`, with `field` the path of the item, for example `configuration.toolConcurrency`.
@@ -39,6 +39,17 @@ const NON_NEGATIVE = ['reconciliationDelayMs', 'denialBackoffMs'] as const
 
 const invalid = (field: string, reason: string): Failure => ({ kind: 'invalid', field, reason })
 
+/**
+ * The step limit of one execution when the configuration gives none (R2-D221). Neither pi-agent-core
+ * nor the DSH agent loop has a built-in step or turn budget, so the ruling's fallback value holds.
+ */
+export const DEFAULT_MAX_RUN_STEPS = 50
+
+/** The step limit of one execution: the configured value, or the default when it is absent. */
+export function maxRunStepsOf(configuration: Pick<AgentConfiguration, 'maxRunSteps'>): number {
+  return configuration.maxRunSteps ?? DEFAULT_MAX_RUN_STEPS
+}
+
 function isPositiveSafeInteger(value: unknown): boolean {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
 }
@@ -75,6 +86,8 @@ function judgeConfiguration(configuration: AgentConfiguration): Failure | undefi
     if (!isPositiveSafeInteger(configuration[key])) return invalid(`configuration.${key}`, 'range')
   for (const key of NON_NEGATIVE)
     if (!isNonNegativeInteger(configuration[key])) return invalid(`configuration.${key}`, 'range')
+  if (configuration.maxRunSteps !== undefined && !isPositiveSafeInteger(configuration.maxRunSteps))
+    return invalid('configuration.maxRunSteps', 'range')
   if (!COORDINATION_MODES.includes(configuration.coordination))
     return invalid('configuration.coordination', 'unknown-mode')
   return (

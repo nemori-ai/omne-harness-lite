@@ -16,6 +16,8 @@ omne-harness-lite-spec-tools = { workspace = true }
 
 [dependency-groups]
 dev = ["omne-harness-lite-spec-tools", "pytest>=8,<9", "pytest-xdist>=3.6,<4", "PyYAML>=6,<7"]
+# Python 实现的参考 MCP 服务端：只作 mcp-host-local 的测试对端（生态兼容与回归）。不在默认组里，按需 `uv sync --group mcp-fixtures`。
+mcp-fixtures = ["mcp-server-fetch==2026.10.28"]
 
 [tool.pytest.ini_options]
 testpaths = ["tools/spec-tools/tests", ".meta_harness/tooling/tests", ".meta_harness/agents/skills/design-subagents/canonical/scripts", ".meta_harness/agents/skills/delegate/canonical/scripts"]

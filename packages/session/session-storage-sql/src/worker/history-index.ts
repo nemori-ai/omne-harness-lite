@@ -43,6 +43,7 @@ import {
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { SqlCell, SqlValue } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, plainOf, sha256 } from '../codec.ts'
+import { readEntryText } from '../entry-codec.ts'
 import { logRoot } from './log-root.ts'
 import { big, oneRow, rowsOf, text, type Executor, type Row } from './support.ts'
 
@@ -84,6 +85,31 @@ export type HistoryFocus = Readonly<{
 
 export const NO_FOCUS: HistoryFocus = { executions: [], event: null }
 
+/**
+ * The input range and focus of the history read a batch was judged and reduced on: a read Worker
+ * reads the same index and reads again from it (C-TOPOLOGY §2.9 H2).
+ */
+export type HistoryBasis = Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
+
+/** The execution of a Run as the history index reads it. */
+type ExecutionReference = Readonly<{ execution: string; readThrough: string }>
+
+/**
+ * The fields of a snapshot that the history index reads: tenant, session, revision, pending inputs,
+ * and the execution and read-through of the current Run and of the earlier ones. The work cache
+ * sends only these to `session.work-index` and `session.work-reads`; a whole snapshot has them too.
+ */
+export type WorkIndexInput = Readonly<{
+  tenant: WorkSnapshot['tenant']
+  session: WorkSnapshot['session']
+  revision: WorkSnapshot['revision']
+  pending: WorkSnapshot['pending']
+  run:
+    | Readonly<{ kind: 'active'; run: RunId; execution: ExecutionReference }>
+    | Readonly<{ kind: Exclude<WorkSnapshot['run']['kind'], 'active'> }>
+  executions?: readonly Readonly<{ run: RunId; execution: ExecutionReference }>[]
+}>
+
 export type SessionHistory = Readonly<{ index: SessionHistoryIndex; reads: SessionHistoryReads }>
 
 type Planted = Readonly<{
@@ -91,6 +117,8 @@ type Planted = Readonly<{
   revision: string
   entry: HistoryEntry
   data: Record<string, unknown>
+  /** The grant of an SE15 row (`sl_attempt_grant`, R2-D349); absent for other rows or a legacy row. */
+  grant?: DurableEvidence
 }>
 type Start = Readonly<{ run: RunId; started: DurableEvidence }>
 type Scope = Readonly<{ tenant: string; session: string }>
@@ -176,13 +204,16 @@ export function entryEvidence(
 const rowEvidence = (scope: Scope, row: Planted): DurableEvidence =>
   entryEvidence(scope.tenant, scope.session, row.entry)
 
-function plant(row: Row): Planted {
-  const entry = decodeValue(JSON.parse(text(row['entry'])) as JsonValue) as HistoryEntry
+function plant(row: Row, grants?: ReadonlyMap<string, DurableEvidence>): Planted {
+  const id = text(row['position'])
+  const entry = readEntryText(text(row['entry']), `sl_entry ${id}`)
+  const grant = grants?.get(id)
   return {
-    id: text(row['position']),
+    id,
     revision: text(row['revision']),
     entry,
     data: (plainOf(entry.payload) ?? {}) as Record<string, unknown>,
+    ...(grant === undefined ? {} : { grant }),
   }
 }
 
@@ -192,6 +223,7 @@ type AttemptRow = Readonly<{
   attempt: unknown
   ordinal: string
   started: DurableEvidence
+  grant?: DurableEvidence
 }>
 
 /**
@@ -276,6 +308,7 @@ function resolved(index: SessionRowsIndex, row: AttemptRow): SessionAttemptRecor
         execution,
         ordinal: row.ordinal,
         started: row.started,
+        ...(row.grant === undefined ? {} : { grant: row.grant }),
       })
 }
 
@@ -364,6 +397,7 @@ function attemptRowOf(scope: Scope, row: Planted): AttemptRow {
     attempt: data['attempt'],
     ordinal: String(data['ordinal']),
     started: Object.freeze(rowEvidence(scope, row)),
+    ...(row.grant === undefined ? {} : { grant: Object.freeze(row.grant) }),
   })
 }
 
@@ -437,23 +471,13 @@ const viewOf = (index: SessionRowsIndex): SessionRowsView => ({
  */
 function sessionRows(read: Reader, port: Executor, scope: Scope, upto?: bigint): SessionRowsView {
   if (upto !== undefined) return sessionRowsThrough(read, port, scope, upto)
-  const key = JSON.stringify([scope.tenant, scope.session])
-  const base = provenBase(port, scope, key)
-  const from = base?.through ?? 0n
-  read.charge(base?.count ?? 0)
-  const after = rowsAfter(read, port, scope, from)
+  const { key, base, after } = loadBase(read, port, scope)
   if (after.added === 0n) {
     if (base === undefined) return viewOf(emptyIndex())
     keep(key, base)
     return viewOf(base)
   }
-  if (base !== undefined && after.last - from !== after.added) {
-    kept.delete(key)
-    throw new Error(
-      `the history index found a gap in the Session log after position ${String(from)}: ${String(after.added)} rows up to position ${String(after.last)}`,
-    )
-  }
-  const planted = after.rows.map(plant)
+  const planted = after.rows.map(row => plant(row, after.grants))
   const committed = after.top <= journalTail(port, scope)
   const index = base === undefined ? emptyIndex() : committed ? base : cloneIndex(base)
   try {
@@ -479,21 +503,43 @@ function sessionRowsThrough(
   scope: Scope,
   upto: bigint,
 ): SessionRowsView {
+  const { base, after } = loadBase(read, port, scope, upto)
+  if (after.added === 0n) return viewOf(base ?? emptyIndex())
+  const index = base === undefined ? emptyIndex() : cloneIndex(base)
+  fold(
+    index,
+    scope,
+    after.rows.map(row => plant(row, after.grants)),
+  )
+  return viewOf(index)
+}
+
+/** The kept index of a session, proven, and the rows of its log after the cursor of that index. */
+type Loaded = Readonly<{ key: string; base: SessionRowsIndex | undefined; after: RowsAfter }>
+
+/**
+ * The kept index of the session when its fingerprint still holds (`provenBase`), charged against
+ * the row bound, and the rows after its cursor, up to `upto` when given. A kept cursor past `upto`
+ * cannot be rolled back: it throws `BelowKept`. Rows after the cursor that do not continue it
+ * without a gap are a log that was not only appended to: it throws, and a read of the whole log
+ * drops the kept index first.
+ */
+function loadBase(read: Reader, port: Executor, scope: Scope, upto?: bigint): Loaded {
   const key = JSON.stringify([scope.tenant, scope.session])
   const base = provenBase(port, scope, key)
-  if (base !== undefined && base.through > upto)
+  if (upto !== undefined && base !== undefined && base.through > upto)
     throw new BelowKept(`the kept index is past position ${String(upto)}`)
   const from = base?.through ?? 0n
   read.charge(base?.count ?? 0)
   const after = rowsAfter(read, port, scope, from, upto)
-  if (after.added === 0n) return viewOf(base ?? emptyIndex())
-  if (base !== undefined && after.last - from !== after.added)
+  // No row after the cursor ends at the cursor: `last - from` is then 0 as `added` is.
+  if (base !== undefined && after.last - from !== after.added) {
+    if (upto === undefined) kept.delete(key)
     throw new Error(
       `the history index found a gap in the Session log after position ${String(from)}: ${String(after.added)} rows up to position ${String(after.last)}`,
     )
-  const index = base === undefined ? emptyIndex() : cloneIndex(base)
-  fold(index, scope, after.rows.map(plant))
-  return viewOf(index)
+  }
+  return { key, base, after }
 }
 
 /** The kept index of `key` when the log row at its cursor still has its fingerprint; else none. */
@@ -504,8 +550,40 @@ function provenBase(port: Executor, scope: Scope, key: string): SessionRowsIndex
   return undefined
 }
 
-/** The rows after `from`: those of the five kinds, and the count, last position and top revision of all. */
-type RowsAfter = Readonly<{ rows: readonly Row[]; added: bigint; last: bigint; top: bigint }>
+/**
+ * The rows after `from`: those of the five kinds with the grants of the SE15 rows among them
+ * (`sl_attempt_grant`, by position), and the count, last position and top revision of all.
+ */
+type RowsAfter = Readonly<{
+  rows: readonly Row[]
+  grants: ReadonlyMap<string, DurableEvidence>
+  added: bigint
+  last: bigint
+  top: bigint
+}>
+
+/** The grants written at the SE15 positions in `(from, upto]`, by position; a malformed row is left out. */
+function grantsAfter(
+  read: Reader,
+  scope: Scope,
+  from: bigint,
+  upto?: bigint,
+): ReadonlyMap<string, DurableEvidence> {
+  const bounded = upto === undefined ? '' : ' AND position <= ?'
+  const bounds = upto === undefined ? [from] : [from, upto]
+  const rows = read(
+    `SELECT position, grant FROM sl_attempt_grant
+      WHERE tenant = ? AND session = ? AND position > ?${bounded}
+      ORDER BY position LIMIT ?`,
+    [scope.tenant, scope.session, ...bounds],
+  )
+  const grants = new Map<string, DurableEvidence>()
+  for (const row of rows) {
+    const grant = evidenceOf(readable(row['grant']))
+    if (grant !== null) grants.set(text(row['position']), grant)
+  }
+  return grants
+}
 
 function rowsAfter(
   read: Reader,
@@ -529,9 +607,10 @@ function rowsAfter(
     [scope.tenant, scope.session, ...bounds],
   )
   const added = after === undefined ? 0n : big(after['n'])
+  const grants = rows.length === 0 ? new Map() : grantsAfter(read, scope, from, upto)
   return added === 0n
-    ? { rows, added, last: from, top: 0n }
-    : { rows, added, last: big(after?.['last']), top: big(after?.['top']) }
+    ? { rows, grants, added, last: from, top: 0n }
+    : { rows, grants, added, last: big(after?.['last']), top: big(after?.['top']) }
 }
 
 function journalTail(port: Executor, scope: Scope): bigint {
@@ -573,12 +652,23 @@ function interpretedOf(
 }
 
 /** The facts of one execution: a row with an unknown kind is not a boundary, so it fails the execution. */
+/**
+ * The event projection of one `er_fact` row (source, consequences, control and the batch of an
+ * input-taken event), or undefined when it does not parse.
+ */
+function projectionOf(row: Row): Readonly<Record<string, unknown>> | undefined {
+  const value = readable(row['event'])
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Readonly<Record<string, unknown>>)
+    : undefined
+}
+
 function factsOf(rows: readonly Row[]): SessionFactBoundary[] | null {
   const facts: SessionFactBoundary[] = []
   for (const row of rows) {
     const kinds = readable(row['kinds'])
     if (!Array.isArray(kinds) || !kinds.every(isConsequenceKind)) return null
-    const source = readable(row['source'])
+    const source = projectionOf(row)?.['source']
     // An unreadable source is a missing row: the range has a gap there.
     if (source === undefined) continue
     facts.push({ sequence: text(row['sequence']), source: source as DurableEvidence, kinds })
@@ -600,7 +690,7 @@ function endedOf(cell: SqlCell | undefined): ExecutionHistoryBoundary['ended'] |
 type Context = Readonly<{
   read: Reader
   scope: Scope
-  snapshot: WorkSnapshot
+  snapshot: WorkIndexInput
   starts: ReadonlyMap<string, Start>
   focus: HistoryFocus
   /** The last Session position the decision saw; the whole log when absent. */
@@ -615,11 +705,15 @@ function focusedSequence(context: Context, execution: string): bigint {
 
 /**
  * The execution boundary of one execution, from its row in `er_execution` (a point lookup) and the
- * unread facts in `er_fact_idx`. Left out (null) when it has no SE13 in this session, its head
- * receipt is a placeholder (digest `unknown`) or does not parse, its ended event does not parse,
- * a fact names an unknown kind, or the progress has no interpretation row.
+ * unread events in `er_fact`, with the batches of the same event rows. Left out (null) when it has
+ * no SE13 in this session, its head receipt is a placeholder (digest `unknown`) or does not parse,
+ * its ended event does not parse, a fact names an unknown kind, or the progress has no
+ * interpretation row.
  */
-function boundaryOf(context: Context, execution: string): ExecutionHistoryBoundary | null {
+function boundaryOf(
+  context: Context,
+  execution: string,
+): Readonly<{ boundary: ExecutionHistoryBoundary; batches: SessionBatchRecord[] }> | null {
   const { read, scope, snapshot } = context
   const start = context.starts.get(execution)
   if (start === undefined) return null
@@ -633,66 +727,59 @@ function boundaryOf(context: Context, execution: string): ExecutionHistoryBounda
   if (receipt === null || receipt.digest === 'unknown') return null
   const ended = endedOf(row['ended'])
   if (ended === 'malformed') return null
-  const readThrough = executionReadThrough(snapshot, start.run, execution) ?? '0'
-  const facts = factsOf(
-    read(
-      `SELECT sequence, source, kinds FROM er_fact_idx
-        WHERE tenant = ? AND execution = ? AND session = ? AND (sequence > ? OR sequence = ?)
-        ORDER BY sequence LIMIT ?`,
-      [
-        scope.tenant,
-        execution,
-        scope.session,
-        BigInt(readThrough),
-        focusedSequence(context, execution),
-      ],
-    ),
+  // It reads only the Run and the executions of the snapshot, which `WorkIndexInput` carries.
+  const readThrough = executionReadThrough(snapshot as WorkSnapshot, start.run, execution) ?? '0'
+  const events = read(
+    `SELECT eseq AS sequence, event, kinds FROM er_fact
+      WHERE tenant = ? AND execution = ? AND session = ? AND (eseq > ? OR eseq = ?)
+      ORDER BY eseq LIMIT ?`,
+    [
+      scope.tenant,
+      execution,
+      scope.session,
+      BigInt(readThrough),
+      focusedSequence(context, execution),
+    ],
   )
+  const facts = factsOf(events)
   if (facts === null) return null
   const interpreted =
     readThrough === '0' ? null : interpretedOf(read, scope, start.run, context.upto)
   if (readThrough !== '0' && interpreted === null) return null
   return {
-    run: start.run,
-    execution,
-    started: start.started,
-    revision: text(row['revision']),
-    executionEvidence: receipt,
-    emittedThrough: text(row['emitted_through']),
-    readThrough,
-    interpreted,
-    ended,
-    facts,
+    boundary: {
+      run: start.run,
+      execution,
+      started: start.started,
+      revision: text(row['revision']),
+      executionEvidence: receipt,
+      emittedThrough: text(row['emitted_through']),
+      readThrough,
+      interpreted,
+      ended,
+      facts,
+    },
+    batches: batchesOf(events, start.run, execution),
   }
 }
 
 /**
- * The batches of one execution that are not interpreted yet, and the batch of the focused event.
- * An interpreted batch is not listed: its taken effect is not indexed in this wave (`taken` stays
- * empty), and a listed batch without its taken effect reads as a contradiction.
+ * The batches among the unread events of one execution and the focused event: the input-taken
+ * events, whose projection carries the batch. An interpreted batch is not listed: its taken effect
+ * is not indexed in this wave (`taken` stays empty), and a listed batch without its taken effect
+ * reads as a contradiction.
  */
-function batchesOf(context: Context, boundary: ExecutionHistoryBoundary): SessionBatchRecord[] {
-  const { read, scope } = context
-  return read(
-    `SELECT sequence, source, batch FROM er_batch_idx
-      WHERE tenant = ? AND execution = ? AND session = ? AND (sequence > ? OR sequence = ?)
-      ORDER BY sequence LIMIT ?`,
-    [
-      scope.tenant,
-      boundary.execution,
-      scope.session,
-      BigInt(boundary.readThrough),
-      focusedSequence(context, boundary.execution),
-    ],
-  ).flatMap(row => {
-    const source = readable(row['source'])
-    const batch = readable(row['batch']) as SessionBatchRecord['batch'] | undefined
+function batchesOf(events: readonly Row[], run: RunId, execution: string): SessionBatchRecord[] {
+  return events.flatMap(row => {
+    const event = projectionOf(row)
+    const source = event?.['source']
+    const batch = event?.['batch'] as SessionBatchRecord['batch'] | undefined
     return source === undefined || !Array.isArray(batch?.ordered)
       ? []
       : [
           {
-            run: boundary.run,
-            execution: boundary.execution,
+            run,
+            execution,
             sequence: text(row['sequence']),
             source: source as DurableEvidence,
             batch,
@@ -736,10 +823,10 @@ function closeOver(context: Context, inputs: readonly string[]): Closure {
     }
     const execution = pendingExecutions.shift()
     if (execution === undefined || closure.executions.has(execution)) continue
-    const boundary = boundaryOf(context, execution)
-    closure.executions.set(execution, boundary)
-    if (boundary === null) continue
-    const batches = batchesOf(context, boundary)
+    const found = boundaryOf(context, execution)
+    closure.executions.set(execution, found?.boundary ?? null)
+    if (found === null) continue
+    const { batches } = found
     closure.batches.push(...batches)
     for (const batch of batches) pendingInputs.push(...batch.batch.ordered)
   }
@@ -747,10 +834,10 @@ function closeOver(context: Context, inputs: readonly string[]): Closure {
 }
 
 /**
- * The attempt of one admission: the SE15 the row names (`attempt`), else the SE15 whose receipt is
- * the grant, else the only SE15 of the Run. A row that names an attempt is never matched any other
- * way: when that SE15 is not of the Run the admission is not provable. Attempts are never removed,
- * so a Run with one SE15 had that one when the admission was granted.
+ * The attempt of one admission: the SE15 the row names (`attempt`), else the SE15 the grant names,
+ * else the only SE15 of the Run. A row that names an attempt is never matched any other way: when
+ * that SE15 is not of the Run the admission is not provable. Attempts are never removed, so a Run
+ * with one SE15 had that one when the admission was granted.
  */
 function attemptOf(
   attemptsByRun: ReadonlyMap<unknown, readonly SessionAttemptRecord[]>,
@@ -760,11 +847,22 @@ function attemptOf(
 ): SessionAttemptRecord | null {
   const ofRun = attemptsByRun.get(run) ?? []
   if (recorded !== null) return ofRun.find(item => item.attempt === recorded) ?? null
-  const named =
-    grant === null
-      ? undefined
-      : ofRun.find(item => canonicalText(item.started) === canonicalText(grant))
+  const named = grant === null ? undefined : ofRun.find(item => grantNames(item, grant))
   return named ?? (ofRun.length === 1 ? (ofRun[0] ?? null) : null)
+}
+
+/**
+ * Whether `grant` names the attempt (R2-D349): it is the receipt source of the commit that wrote
+ * its SE15 (`sl_attempt_grant`), or the evidence of the SE15 row itself. The receipt is a different
+ * evidence than the row's (the commit sequence and the digest of the batch, against the position
+ * and the digest of one row), so the written relation is what resolves a grant the Agent holds.
+ */
+export function grantNames(attempt: SessionAttemptRecord, grant: DurableEvidence): boolean {
+  const text = canonicalText(grant)
+  return (
+    (attempt.grant !== undefined && canonicalText(attempt.grant) === text) ||
+    canonicalText(attempt.started) === text
+  )
 }
 
 /** The original admissions of one input, or null when one of them names no provable Run or attempt. */
@@ -898,16 +996,21 @@ export function observedPrefix(
  * The history index and reads of one decision. `scope` is the input range of the decision and
  * `focus` what it names besides; `limit` bounds the rows of every statement together.
  */
+/**
+ * How far one history read reaches: `limit` bounds the rows of every statement together, `focus`
+ * is what the decision names besides its scope, and `upto` the last Session position it reads.
+ */
+export type HistoryReadOptions = Readonly<{ limit?: number; focus?: HistoryFocus; upto?: bigint }>
+
 export function readHistory(
   port: Executor,
   tenant: string,
   session: string,
-  snapshot: WorkSnapshot,
+  snapshot: WorkIndexInput,
   scope: SessionInputScope,
-  limit: number = MAX_ROWS,
-  focus: HistoryFocus = NO_FOCUS,
-  upto?: bigint,
+  options: HistoryReadOptions = {},
 ): SessionHistory | 'too-many' {
+  const { limit = MAX_ROWS, focus = NO_FOCUS, upto } = options
   const where: Scope = { tenant, session }
   const read = boundedReader(port, limit)
   try {
@@ -970,7 +1073,7 @@ export function workIndexOf(
   port: Executor,
   tenant: string,
   session: string,
-  snapshot: WorkSnapshot,
+  snapshot: WorkIndexInput,
 ): SessionHistory | 'too-many' {
   return readHistory(
     port,
@@ -978,6 +1081,6 @@ export function workIndexOf(
     session,
     snapshot,
     { kind: 'pending', inputs: snapshot.pending },
-    WORK_INDEX_ROWS,
+    { limit: WORK_INDEX_ROWS },
   )
 }

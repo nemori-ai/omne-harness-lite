@@ -60,6 +60,7 @@ export {
   memoryOtherAccess,
   mintEvidence,
   operationId,
+  intakeInput,
   ordinaryInput,
   sessionId,
   testingTenant,

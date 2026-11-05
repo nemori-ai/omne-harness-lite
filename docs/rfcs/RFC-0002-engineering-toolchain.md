@@ -53,8 +53,8 @@ owner: PanQiWei
 
 | 改动文件 | `TURBO_SCM_BASE=<基准> turbo ls --affected` |
 | --- | --- |
-| `packages.0.0.1.legacy/core/identity-values/src/index.ts` | 66 个包 |
-| `apps.0.0.1.legacy/cli/src/assembly.ts` | 1 个包，即 cli |
+| [`packages.0.0.1.legacy/core/identity-values/src/index.ts`](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/identity-values/src/index.ts) | 66 个包 |
+| [`apps.0.0.1.legacy/cli/src/assembly.ts`](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/cli/src/assembly.ts) | 1 个包，即 cli |
 | `tsconfig.base.json`、`Makefile`、`docs/README.md` | 0 个包 |
 
 由此得到三条观察。turbo 在工作树里选出改动包和它的全部下游。根目录文件默认不选中任何包。`tsconfig.base.json`、锁文件、共同 lint 和依赖规则配置必须写入 `globalDependencies`，否则会漏检。turbo 没有「未识别的文件按全量处理」这一条。`affected.ts` 现在有。替换之后要保留。

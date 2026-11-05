@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import type {
   AgentEventBody,
@@ -14,7 +15,14 @@ import {
   type ToolInvokeOutcome,
   type ToolState,
 } from '@omne-harness/tool-contract'
-import { evidence, execution, ok } from './journal-support.ts'
+import {
+  adoption,
+  evidence,
+  execution,
+  ok,
+  loadWithEntries,
+  type LoadedWithEntries,
+} from './journal-support.ts'
 import { alice, eventually, invoke } from './loop-support.ts'
 import {
   associatedTools,
@@ -55,8 +63,8 @@ function acceptEach(assembly: Assembly) {
   })
 }
 
-async function snapshot(assembly: Assembly): Promise<ExecutionSnapshot> {
-  return ok(await assembly.dependencies.journal.load(input))
+async function snapshot(assembly: Assembly): Promise<LoadedWithEntries> {
+  return await loadWithEntries(assembly.dependencies, input)
 }
 
 async function events(assembly: Assembly): Promise<readonly AgentEventBody[]> {
@@ -284,6 +292,179 @@ describe('tool result round', () => {
     ])
   })
 
+  it('denies the whole batch when the admission answers unavailable, and the run goes on', async () => {
+    const assembly = await toolAssembly()
+    acceptEach(assembly)
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'unavailable', diagnostic: 'no action rule matches this action' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    await secondModelCall(assembly)
+    // No later chain calls admit after the unavailable answer, and nothing reaches Tool.
+    expect(assembly.controls.admission.admit.calls).toHaveLength(1)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly)).map(message => message.blocks[0])).toEqual([
+      expect.objectContaining({ callId: 'call-a' }),
+      expect.objectContaining({ callId: 'call-b' }),
+    ])
+  })
+
+  it('does not release an action allowed earlier in a batch whose later admission is unavailable', async () => {
+    const assembly = await toolAssembly()
+    acceptEach(assembly)
+    assembly.controls.admission.admit.once(() => ({
+      ok: { kind: 'allow', evidence: evidence('allowed-first') },
+    }))
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'unavailable', diagnostic: 'rule source down' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toHaveLength(2)
+  })
+
+  it('reads a denied Failure of the admission port as unavailable and denies the batch', async () => {
+    const assembly = await toolAssembly()
+    acceptEach(assembly)
+    assembly.controls.admission.admit.always(() => ({
+      failure: { kind: 'denied', action: 'admit-action' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toHaveLength(1)
+  })
+
+  it('denies the batch when the trusted Tool request source cannot describe the action', async () => {
+    const assembly = await toolAssembly(
+      {},
+      {},
+      {
+        async describe() {
+          return {
+            failure: { kind: 'unavailable', owner: 'agentToolRequests', diagnostic: 'down' },
+          }
+        },
+      },
+    )
+    acceptEach(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.admission.admit.calls).toHaveLength(0)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toHaveLength(1)
+  })
+
+  it('denies only an action the source answered, and the model reads the answer as its result', async () => {
+    const answer = 'Files: there is no command "nope".\nCall with {"command": <name>, …}'
+    const assembly = await toolAssembly(
+      {},
+      {},
+      {
+        async describe(request) {
+          return request.original.callId === 'call-a'
+            ? { ok: { kind: 'answered', text: answer } }
+            : { ok: { kind: 'tool', definition: adoption('read_file') } }
+        },
+      },
+    )
+    acceptEach(assembly)
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'allow', evidence: evidence('allowed') },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    const [called] = await associatedTools(assembly, 1)
+    if (called === undefined) throw new Error('call-b not associated')
+    // The answered action is not admitted or sent; the other action of the batch runs.
+    expect(assembly.controls.admission.admit.calls).toHaveLength(1)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+    const [denied] = (await snapshot(assembly)).checkpoint.batch?.actions ?? []
+    expect(denied?.judgment).toMatchObject({
+      kind: 'denied',
+      evidence: { record: expect.stringMatching(/\/answered$/) },
+      answer: expect.anything(),
+    })
+    // The answer is preserved under an identity that names its text, so another text is another material.
+    const digest = createHash('sha256').update(answer).digest('hex')
+    expect(
+      assembly.controls.materials.preserve.calls
+        .map(call => call.identity)
+        .filter(identity => identity.includes('/answer/')),
+    ).toEqual([expect.stringMatching(new RegExp(`/answer/${digest}$`))])
+    expect(
+      await pushToolResult(
+        toolReceiver(assembly),
+        toolDelivery(called, { name: 'b', content: [textBlock('result b', 'blk_b')] }),
+      ),
+    ).toHaveProperty('ok')
+    await secondModelCall(assembly)
+    const [first, second] = toolMessages(await events(assembly))
+    expect(first?.blocks).toEqual([
+      expect.objectContaining({ kind: 'tool_result', callId: 'call-a' }),
+      expect.objectContaining({ kind: 'text', text: answer }),
+    ])
+    expect(second?.blocks[0]).toEqual(expect.objectContaining({ callId: 'call-b' }))
+  })
+
+  it('answers every action of a batch the source answered, through the all-denied barrier', async () => {
+    const assembly = await toolAssembly(
+      {},
+      {},
+      {
+        async describe(request) {
+          return { ok: { kind: 'answered', text: `guide for ${request.original.callId}` } }
+        },
+      },
+    )
+    acceptEach(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.admission.admit.calls).toHaveLength(0)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly)).map(message => message.blocks[1])).toEqual([
+      expect.objectContaining({ kind: 'text', text: 'guide for call-a' }),
+      expect.objectContaining({ kind: 'text', text: 'guide for call-b' }),
+    ])
+  })
+
+  it('denies the batch when the source refuses to prepare an allowed action', async () => {
+    const assembly = await toolAssembly(
+      {},
+      {},
+      {
+        async prepare() {
+          return { failure: { kind: 'denied', action: 'tool-request' } }
+        },
+      },
+    )
+    acceptEach(assembly)
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'allow', evidence: evidence('allowed') },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toHaveLength(1)
+  })
+
+  it('denies the batch when the assembly gave no trusted Tool request source', async () => {
+    const assembly = await toolAssembly({}, {}, null)
+    acceptEach(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toHaveLength(1)
+  })
+
   it('makes a rejected tool message a failure candidate of the execution', async () => {
     const assembly = await toolAssembly()
     acceptEach(assembly)
@@ -331,8 +512,13 @@ async function toolRound(
 }
 
 /** The handoff records of one source kind, each with the Ja that published its history. */
-function published(read: ExecutionSnapshot, source: 'tool-result' | 'model-reply') {
-  return read.handoffs.flatMap(record =>
+/** The committed H of `source`, closed ones included: the snapshot lists the open records only. */
+function published(assembly: Assembly, source: 'tool-result' | 'model-reply') {
+  const records = assembly.controls.journal.handoffRecords({
+    tenant: alice.tenant,
+    execution: input.execution,
+  })
+  return records.flatMap(record =>
     record.request.kind === 'execution' &&
     record.request.source.kind === source &&
     record.resolution?.kind === 'recorded' &&
@@ -347,7 +533,7 @@ function published(read: ExecutionSnapshot, source: 'tool-result' | 'model-reply
 describe('the caller commit of a source Ja', () => {
   it('hands the tool message to the declared message participant in the same commit', async () => {
     const assembly = await toolRound(['message'], ['message'])
-    const [tool] = published(await snapshot(assembly), 'tool-result')
+    const [tool] = published(assembly, 'tool-result')
     if (tool === undefined) throw new Error('tool message not published')
     const decision = tool.outcome.decision
     if (decision.kind !== 'prepared') throw new Error('tool message not prepared')
@@ -368,7 +554,7 @@ describe('the caller commit of a source Ja', () => {
   it('commits the tool message with caller none when the assembly did not declare message', async () => {
     // The Journal binding offers the participant, but the factory configuration does not use it.
     const assembly = await toolRound([], ['message'])
-    expect(published(await snapshot(assembly), 'tool-result')).toHaveLength(1)
+    expect(published(assembly, 'tool-result')).toHaveLength(1)
     expect(assembly.controls.journal.joint()).toEqual([])
   })
 
@@ -376,7 +562,7 @@ describe('the caller commit of a source Ja', () => {
     const assembly = await toolRound(['message'], ['message'])
     await deliverModelReply(assembly, [textBlock('done', 'blk_done')], 'final')
     await eventually(async () => (await snapshot(assembly)).state.kind === 'ended')
-    const replies = published(await snapshot(assembly), 'model-reply')
+    const replies = published(assembly, 'model-reply')
     expect(replies).toHaveLength(2)
     const operations = assembly.controls.journal.joint().map(fact => fact.operation)
     for (const reply of replies) expect(operations).not.toContain(reply.operation)

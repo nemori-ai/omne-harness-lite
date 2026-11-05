@@ -8,7 +8,7 @@
 - [index.ts](index.ts)：根入口
 - [construction.ts](construction.ts)：工厂的构造形状
 - [runtime.ts](runtime.ts)：`createAgentRuntime` 与创建校验的次序
-- [configuration.ts](configuration.ts)：配置七项与绑定字段的校验
+- [configuration.ts](configuration.ts)：配置项与绑定字段的校验，以及执行步数上限的缺省值
 - [access.ts](access.ts)：公开操作前的租户核对与 `access.check`
 - [provider.ts](provider.ts)：四个面、单执行槽与状态投影；`invoke` 与 `observe` 之外的操作本体是阶段性临时做法
 - [loop/nodes.ts](loop/nodes.ts)：节点词汇与转移表（正常路径），每行来自该节点在节点表中的行

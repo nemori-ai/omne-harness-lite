@@ -12,6 +12,24 @@ import type {
 
 export class WorkerExited extends Error {}
 
+/**
+ * Sends a request for a caller that observes the reply for at most `ms` (SPEC 9.3): `expire` runs
+ * then, and the caller moves on with `unknown`. The request itself ends only with the reply or the
+ * exit of the Worker, so what it holds goes back with that, never with the observation.
+ */
+export async function observeReply<T>(
+  send: () => Promise<T>,
+  ms: number,
+  expire: () => void,
+): Promise<T> {
+  const observation = setTimeout(expire, ms)
+  try {
+    return await send()
+  } finally {
+    clearTimeout(observation)
+  }
+}
+
 const WRITER_EXTENSION = import.meta.url.endsWith('.ts') ? 'ts' : 'js'
 const WRITER_URL = new URL(`./worker/writer.${WRITER_EXTENSION}`, import.meta.url)
 

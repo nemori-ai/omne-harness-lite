@@ -303,13 +303,22 @@ it('reads the recovery authority service on each recovery, and answers unavailab
   expect(await service.releaseScope(scope('scope-1'), recoveryAccess)).toEqual(unavailable)
 
   const authority = await ctx.plugin(Authority)
-  // The files profile lists a complete empty resource set; nothing is unsupported or unavailable.
+  // Recovery authorization succeeds even when Windows cannot enumerate all cold resources.
   expect(await service.recoverOwned(scope('scope-1'), recoveryAccess)).toMatchObject({
     kind: 'recovered',
     stopped: [],
     pending: [],
     unsupported: [],
-    unavailable: [],
+    unavailable:
+      process.platform === 'win32'
+        ? [
+            {
+              name: 'host-files',
+              generation: expect.stringMatching(/^[0-9a-f-]{36}$/u),
+              version: expect.any(String),
+            },
+          ]
+        : [],
     settledAcquisitions: [],
     pendingAcquisitions: [],
     unsupportedAcquisitions: [],

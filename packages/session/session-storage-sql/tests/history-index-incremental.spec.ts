@@ -15,7 +15,7 @@ import type {
 } from '@omne-harness/session-contract'
 import { operationId, sessionId } from '@omne-harness/session-contract/testing'
 import type { SqlStorage } from '@omne-harness/sql-contract'
-import { encodeValue } from '../src/codec.ts'
+import { storedText } from './fixtures/entry-text.ts'
 import { createSessionStorage } from '../src/index.ts'
 import { readHistory } from '../src/worker/history-index.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
@@ -98,7 +98,7 @@ function apart(a: App): App {
   return { ...a, port: createSessionStorage<string>({ ...a.storageOptions, storage }) }
 }
 
-function claim(a: App, run: string, name: string) {
+function claim(a: App, read: ReturnType<typeof activeRun>, name: string) {
   return a.port.commit({
     access: a.access(TENANT_A),
     command: {
@@ -107,9 +107,10 @@ function claim(a: App, run: string, name: string) {
         tenant: TENANT_A,
         session: sessionId(SESSION),
         operation: operationId(name),
-        run,
+        run: read.run,
         instance: { owner: 'agent', id: 'instance-2' },
         continuity: { owner: 'test', record: 'continuity', revision: '1', digest: 'd' },
+        expected: read.revision,
       },
     } as never,
     guards: [],
@@ -130,7 +131,7 @@ describe('T-A3-1: the kept index answers as a whole read after every commit', ()
     await step(() => a.accept(TENANT_A, SESSION, 'input-1'))
     await step(() => startRun(a, 'start-run-1'))
     const first = activeRun(await workOf(a))
-    await step(() => claim(a, first.run, 'claim-1'))
+    await step(() => claim(a, first, 'claim-1'))
     await step(() => cancelRun(a, first.run, 'cancel-1'))
     await step(() => a.accept(TENANT_A, SESSION, 'input-2'))
     await step(() => startRun(a, 'start-run-2'))
@@ -200,9 +201,7 @@ function tree(value: unknown): unknown {
 type Db = ReturnType<typeof migratedPort>['port']
 
 function entryText(position: number, revision: number, kind: string, data: object): string {
-  return JSON.stringify(
-    encodeValue({ id: String(position), revision: String(revision), kind, payload: tree(data) }),
-  )
+  return storedText({ id: String(position), revision: String(revision), kind, payload: tree(data) })
 }
 
 function insert(
@@ -412,13 +411,13 @@ describe('what is kept', () => {
     tail(db, 'bound', 1)
     read(db, 'bound')
     const counted = counting(db as Port)
-    expect(readHistory(counted.port, 't', 'bound', snapshotOf('bound'), pending(), 2)).toBe(
-      'too-many',
-    )
+    expect(
+      readHistory(counted.port, 't', 'bound', snapshotOf('bound'), pending(), { limit: 2 }),
+    ).toBe('too-many')
     expect(counted.indexed()).toBe(0)
-    expect(readHistory(db as Port, 't', 'bound', snapshotOf('bound'), pending(), 3)).not.toBe(
-      'too-many',
-    )
+    expect(
+      readHistory(db as Port, 't', 'bound', snapshotOf('bound'), pending(), { limit: 3 }),
+    ).not.toBe('too-many')
   })
 
   it('at most 256 sessions are kept: the least recently used one is read whole again', () => {

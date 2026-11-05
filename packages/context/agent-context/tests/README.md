@@ -20,7 +20,8 @@
 - `measure.spec.ts`：SPEC「测量事件」。读取、准备、派生、续接各发一对起止并带 execution，被拒绝的调用以 failure 结束，无观察者与观察者抛出时答复不变。
 - `model-context.spec.ts`：`agentModelContext` 在真实 Runtime Context 机制上的完整与增量读取、材料键、材料丢失、证据的可解析范围与各种拒绝。
 - `requests.spec.ts`：`agentRequests` 在真实 Request Context 登记表与默认策略上的四种结局、经 Model 请求准备替身固定的请求、第二轮的 `lineage.continues`、组与令牌、暂存表、登记、失败类别，以及 `derive`、`resume` 的核对。
-- `context-plugin.spec.ts`：真实 Cordis 4.0.4 上的上下文插件。真实的 request-context 与 runtime-context 提供者，K-RQ 用 `createMemoryContextHolder`，K-RC 用 `createScriptedReaderEligibility`，X-3 用 `createScriptedPreparationResources` 替身。覆盖六键缺一停在 `PENDING`、停止与旧引用、持有者拉取结算并在结算之后关读口、不合的配置加载失败，以及 `createAgentContextPlugin({ measure })` 把观察者交给真实装配上的读取与准备。
+- `tools.spec.ts`：SPEC「组六的读口」。`toolsSourceOf` 单独与经真实 Request Context 两层：绑定 Files 与 Shell 时恰好两项、声明逐条等于定义；空绑定不查不声明；未知、拒绝、抛出、名不符、同名都使整组失败关闭。工具定义是手写的命令工具，真实 Files 与 Shell 定义的组合在 harness-server `tests/rows/agent-context/`。
+- `context-plugin.spec.ts`：真实 Cordis 4.0.4 上的上下文插件。真实的 request-context 与 runtime-context 提供者，K-RQ 用 `createMemoryContextHolder`，K-RC 用 `createScriptedReaderEligibility`，X-3 用 `createScriptedPreparationResources` 替身。覆盖六键缺一停在 `PENDING`、停止与旧引用、持有者拉取结算并在结算之后关读口、不合的配置加载失败，以及 `createAgentContextPlugin({ measure, toolLookup })` 把观察者交给真实装配上的读取与准备、以插件上下文造一次工具读口。
 
 测试经构建产物导入所用成员，先构建依赖。测试通过不代替规格或验收。真实装配里账目投影的初始化（ACCT-INIT）、真实的 K-RQ、K-RC 与 X-3 提供者不在这里覆盖。
 

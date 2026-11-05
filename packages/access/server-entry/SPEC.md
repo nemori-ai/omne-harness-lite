@@ -4,6 +4,8 @@
 
 下列条款由 #978 波 1 设计点 DP-2 采用，依据是 DP-2 决策记录（评论 6561904972）与 R1-D27（评论 6562041248）：本段第一段对会话位置和承载页的引用、「[位置与操作范围](#位置与操作范围)」整节（含各小节）、「[验证](#验证)」一节中会话位置与 HTTP 层的验证义务。其余条款保持各自原有的采用状态。
 
+「[治理位置](#治理位置)」「[成功业务访问的报告](#成功业务访问的报告)」「[登录失效时结束观察](#登录失效时结束观察)」三个小节，以及「[服务端的 HTTP 层责任](#服务端的-http-层责任)」与「[验证](#验证)」中治理端口的条款，按 Reduce 的 R2-D203、R2-D204 与身份治理交付规格的 F2、F3、C4、C5 修订。
+
 ## 入口职责
 
 服务端接入接受已经完成传输保护的字节。传输保护失败时，调用者没有可信答复，对外是 `unknown`，不是 `basis-unavailable`，也不是业务结果。远程字节流必须具备保密和完整。传输路线沿[技术基础的共同技术选择](../../../docs/architecture/technical-foundations.md#共同技术选择)：HTTP JSON 控制与查询，fetch SSE 单向观察。公开操作、认证、端点与订阅语义由公开契约拥有。本页不选定具体保护协议。
@@ -14,7 +16,7 @@
 
 必填登录证明的缺失、空字符串、未签发、已撤销，以及不是本部署签发的证明，交给 identity。对外是同一份 `denied`。时间或权威记录不可得时，identity 返回 `basis-unavailable`。接入不改写这两个结果，也不另持一份登录表。
 
-发起者只取证明核验出的账号。请求体里的账号、组织和租户是目标。通过协议检查的请求交给 identity 与 authorization 的公开入口。接入不把存储对象放进公开响应。
+发起者只取证明核验出的账号。请求体里的账号、组织和租户是目标。治理操作交给 identity 的治理入口。只有 `judge-admission` 交给 authorization，本部署不提供它。接入不把存储对象放进公开响应。
 
 ## 位置与操作范围
 
@@ -26,11 +28,66 @@
 
 ### 治理位置
 
-M2 的治理位置只提供两个公开操作：`register-and-activate` 和 `issue-login`。
+接入按公开契约的[判断次序](../public-contract/SPEC.md#判断次序)处理治理消息。治理位置的操作分四组：
 
-- 接入把这两个消息交给 identity 的公开入口，不核验登录证明。
-- 其余治理操作按 D-10 答 `stage-not-provided`，空 `body`。这是一个偏离，见[治理位置的偏离](#治理位置的偏离)。
-- 识别登录不是公开操作。它是会话位置判断次序第 2 步的内部步骤。
+- `register-and-activate` 和 `issue-login`：接入把消息交给 identity 的公开入口，不核验登录证明。`issue-login` 成功时，响应带新登录的 `loginId`。
+- 18 个治理操作：`create-organization`、`query-create-organization`、`issue-member-invitation`、`accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`query-received-invitations`、`query-issued-invitations`、`query-own-memberships`、`query-organization-members`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-current-tenant`、`revoke-login`、`query-own-valid-logins`。接入把它们交给 identity 的治理端口（identity ID-18）。
+- 3 个模型凭据操作：`bind-model-credential`、`unbind-model-credential`、`describe-model-credential`。接入把它们交给装配给的 `modelCredentials` 端口，规则见[模型凭据](#模型凭据)。
+- 部署声明不提供的 14 个操作：`public-health`、`replace-credential`、`query-organization`、隶属的 8 个操作、`judge-admission`、`submit-authorization-expression` 与 `withdraw-authorization-expression`。声明是成员常量 `NOT_PROVIDED_GOVERNANCE_OPERATIONS`（`src/governance.ts`）。规则见公开契约的[部署声明不提供的操作](../public-contract/SPEC.md#部署声明不提供的操作)：请求通过第 3 步的封闭字段检查之后，接入答 `stage-not-provided`，`body` 为空，不识别登录，也不读取账号库。
+
+识别登录不是公开操作。它是两个位置判断次序里的内部步骤。
+
+#### 模型凭据
+
+本节兑现公开契约的[模型凭据](../public-contract/SPEC.md#模型凭据)。接入只做登录与行事租户的步骤，资格与保管归端口。
+
+1. 装配没有给 `modelCredentials` 端口时，这 3 个操作按[部署声明不提供的操作](../public-contract/SPEC.md#部署声明不提供的操作)处理：通过第 3 步之后答 `stage-not-provided`，不识别登录。
+2. 第 4 步：把 `loginProof` 交给 identity 的登录识别，`denied` 与 `basis-unavailable` 原样对外。
+3. 第 6 步：`actingTenant` 不等于识别出的当前选择时答 `denied`，不调用端口。这一份 `denied` 与其他原因的 `denied` 除 `messageId` 外逐字节相同，不披露对方租户有没有凭据。
+4. 用签发者为行事租户签发代租户行事主体，`work.owner` 是 `identity-login`，规则同会话位置的第 4 步。账号不等答 `denied`，签发失败答 `basis-unavailable`。
+5. 把主体与行事租户交给端口。端口的结果按公开契约对外表示。端口拒绝（Promise 被拒绝）时，`bind-model-credential` 与 `unbind-model-credential` 答 `unknown`，因为写入可能已经发生。`describe-model-credential` 答 `basis-unavailable`。接入记诊断 `model-credential.fault`。
+
+秘密只在 `bind-model-credential` 的请求里。接入把它原样交给端口，不写进响应、诊断或错误文本。这 3 个操作不报告成功业务访问。
+
+接入对 18 个治理操作的职责如下。
+
+| 步骤 | 接入的职责 |
+| --- | --- |
+| 1 至 3 协议读取 | 用 `readGovernanceRequest` 读取。不合规是 `protocol-rejected`。声明不提供的操作在这之后答 `stage-not-provided` |
+| 4 登录识别 | 把 `loginProof` 交给 identity 的登录识别。接入不改写 `denied` 与 `basis-unavailable`，也不另持登录表 |
+| 6 行事租户 | 要求行事租户的操作：核对 `actingTenant` 等于识别出的当前选择。不等是 `denied`，响应不含实际选择 |
+| 7、8 业务判断与提交 | 把识别出的登录原样交给治理端口。identity 在提交时再核对登录有效、选择未变，并判断资格。结果按公开契约对外表示 |
+
+补充规则如下。
+
+- `issue-member-invitation` 的 `duration` 是线上文本，接入用 `parseDuration` 读取。读不出 SI 秒时长时，结果是 `denied`，不建立邀请。这一步在第 6 步之后。
+- `query-own-valid-logins` 的端口给出空名单时，结果是 `basis-unavailable`，没有登录数组。
+- `revoke-login` 答 `succeeded` 或 `no-change` 时，目标登录已经失效。接入按[登录失效时结束观察](#登录失效时结束观察)结束它在本实例上的观察。
+- 治理端口是必需依赖，必须与 `identity` 用同一份记录，撤销与切换才对登录识别生效（R2-D235 S1）。装配按调用现取治理服务时，服务缺席由端口答 `basis-unavailable`，18 个治理操作原样对外答 `basis-unavailable`。
+- 治理位置的 `denied` 在各个原因下，响应除 `messageId` 外逐字节相同。原因包括登录缺失、空、无效或已失效，行事租户不符，以及 identity 的业务拒绝。`not-visible` 不区分对象不存在、属于其他账号与看不见。
+- 治理操作不报告成功业务访问，所以不刷新空闲计时。
+
+### 成功业务访问的报告
+
+接入为下面两类成功调用 identity 治理端口的 `reportBusinessAccess({ login })`，`login` 是这次请求识别出的登录：
+
+- 会话位置的 7 个操作答 `succeeded`。编码失败时没有答复，不报告。
+- `observe-session` 建立成功，即认领到名额之后。
+
+其他请求都不报告：失败的请求、治理操作、`cancel-observation`、声明不提供的操作和仅完成识别的请求。
+
+接入先写出答复，再报告。`observe-session` 在流附着、连接关闭的监听登记之后再报告。接入不等报告结束，也不给报告设时限。报告永不结束时，答复照常写出，名额照常释放，`stop()` 照常结束。报告答 `basis-unavailable` 或 Promise 被拒绝时，接入记诊断 `identity.fault`，答复不变。
+
+先写答复的代价是一个竞态：调用者收到答复后立刻发出的下一次请求，可能先于这次刷新到达 identity。空闲期限以分钟计，所以这个竞态只在空闲截止时刻前的极短时间内有影响。
+
+### 登录失效时结束观察
+
+观察记录绑定建立它的登录。登录失效后，接入在两种时机结束这份登录的观察，原帧流发 `ended(denied)`：
+
+1. 本实例上的 `revoke-login` 答 `succeeded` 或 `no-change` 时，接入立刻结束目标登录在本实例上的全部观察。
+2. 每一轮，接入用建立时的登录证明再识别一次登录。空闲期限或最长期限已到、登录已在别处撤销时，识别答 `invalid`，接入结束该观察。识别答 `basis-unavailable` 或抛出时，接入发 `ended(unavailable)`。
+
+本阶段的观察不定位，也不刷新，所以一轮是一个心跳间隔 `heartbeatIntervalMs`。同一观察的登录重核串行执行。观察结束后到达的重核结果不改变任何东西。与撤销并发建立的观察，最迟在下一轮结束。
 
 ### 会话位置
 
@@ -42,7 +99,7 @@ M2 的治理位置只提供两个公开操作：`register-and-activate` 和 `iss
 | 2 登录识别 | 把 `loginProof` 交给 identity 的登录识别，得到账号、登录和当前租户。接入不改写 `denied` 与 `basis-unavailable`，也不另持登录表 |
 | 3 行事租户 | 只对 `create-session`：核对 `actingTenant` 等于该登录的当前选择，不等是 `denied`，响应不含实际选择 |
 | 4 目标租户与主体 | 目标租户的账号等于识别出的账号时，用签发者签发代租户行事主体，规则见[登录到 Access](../../../docs/architecture/runtime/runtime-contract-handoff.md#登录到-access)。账号不等是 `denied`。签发者未安装或签发失败是 `basis-unavailable` |
-| 5 部署范围 | 用 `definitionMappings` 解析 `definition`。定义名不在映射内，或 `pageBytes` 超出部署上界，是 `invalid` |
+| 5 部署范围 | 用 `definitionMappings` 解析 `definition`。定义名不在映射内，或 `pageBytes` 超出部署上界，是 `invalid`。`create-session` 的映射条目没有 `initialModelSelection` 时，是 `basis-unavailable`，不调用 Session，记诊断 `session.definition-incomplete` |
 | 6 Session 判断 | 按[操作到 Session 的映射](../../../docs/architecture/runtime/runtime-contract-handoff.md#操作到-session-的映射)调用 Session 的面。结果按公开契约的映射表对外表示 |
 
 补充规则如下。
@@ -50,7 +107,9 @@ M2 的治理位置只提供两个公开操作：`register-and-activate` 和 `iss
 - `cancel-run` 和 `stop-call` 调用 Session 的 `cancelRun` 与 `stopCall`，调用方类是 `intake`。它们没有行事租户，第 3 步不适用。
 - `stop-call` 的 `producer.kind` 为 `tool` 时，接入在 Session 的访问裁定之后、会话存在核对之前答 `unsupported`。接入不写任何记录。该结果与会话是否存在、`controlId` 是否用过无关。
 - 接入从识别出的登录和请求标识派生 `SessionOperationId`，规则见[SessionOperationId 的派生规则](#sessionoperationid-的派生规则)。客户端不填它。
+- `initialModelSelection` 对公开创建是必需项：客户端不填它，公开操作也没有切换模型的入口。缺它的会话永远读不到当前模型选择，Run 无法启动。接入因此不创建这样的会话，缺口属于部署配置，不属于调用者的消息，所以答 `basis-unavailable`，不答 `invalid`。
 - `definitionMappings` 的选择是部署装配的配置。接入只读取已装配的映射，不自己选择。同一份映射数据交给 Agent 采用和 Session 采用来源。
+- 映射条目可带可选的 `residentCapabilities`，列出该定义的会话在 `create` 时纳入的常驻工具能力名，形状是 Session 采用点输入的 `capabilities`。接入不读这一项，也不在创建里声明常驻工具。常驻工具的材料由 Session 采用来源按这一项从部署的工具来源解出，解不出时创建失败。没有这一项的条目不纳入常驻工具。
 - 会话位置的 `denied` 不披露会话是否存在。接入对所有 `denied` 原因给出逐字节相同的响应，见[denied 的一致性](../public-contract/docs/http-binding.md#denied-的一致性)。
 - 观察操作的建立点、帧与取消沿公开契约的[会话观察](../public-contract/SPEC.md#会话观察)。承载格式见[SSE 观察](../public-contract/docs/http-binding.md#sse-观察)。观察消息的读写见承载页的[观察消息的手写读写](../public-contract/docs/http-binding.md#观察消息的手写读写)。
 
@@ -75,17 +134,6 @@ M2 的治理位置只提供两个公开操作：`register-and-activate` 和 `iss
 
 碰撞测试分两层。接入的碰撞测试归接入，见[验证](#验证)：每个族只改一个字段，身份就变。摘要算法本身的碰撞测试归 Session，已在 Session 的 `deriveIngressOperation` 测试中。
 
-### 治理位置的偏离
-
-偏离：接入对 32 个治理操作答 `stage-not-provided`，状态 501，`body` 为空对象。这 32 个操作是公开契约的 34 个治理请求操作中，除 `register-and-activate` 和 `issue-login` 之外的全部，`public-health` 也在其中。公开契约现在只让四个固定操作得到 `stage-not-provided`，并写明正常操作没有这个结果。所以这是接入对公开契约的偏离。
-
-- 拥有者：服务端接入。
-- 影响：按公开契约的 `readGovernanceResponse` 读这 32 个操作的响应，读到 `unreadable`，调用者本地永远保持未知。M2 的 CLI 不发这 32 个操作，所以这个偏离不挡 M2。SDK 的调用者发这些操作时得到 `uncertain`，见 SDK 的[已知限制](../sdk/SPEC.md#已知限制)。
-- 闭合条件：public-contract 的两张可加卡。PC-1：治理位置每个正常操作的允许结果集合增加 `stage-not-provided`。PC-2：公开契约的「本阶段不提供的操作」一节写明，部署可以声明自己不提供的治理操作，这些操作得到 `stage-not-provided`。两张卡合入后，本节删去。
-- 过渡期的做法：接入先用公开契约的 `readGovernanceRequest` 读消息，只对读出的 `request` 且操作名属于这 32 个的消息答 `stage-not-provided`。接入不自己预读 `operation`，所以严格读取规则只有契约读取函数一个读取者。
-- 过渡期的代价：这 32 个操作带坏字段时，答 `protocol-rejected`，不答 `stage-not-provided`。这与四个固定操作不同。登录核验和账号库读取在这些操作上都不发生。
-- 可选的第三张卡 PC-3：`readGovernanceRequest` 接受部署声明的操作集合，命中时在封闭字段检查之前答 `stage-not-provided`。它消除上面的代价，不挡 M2。
-
 ### 服务端的 HTTP 层责任
 
 下面的规则属于服务端自己，不是两端共用的承载保证。
@@ -98,11 +146,12 @@ M2 的治理位置只提供两个公开操作：`register-and-activate` 和 `iss
 
 依赖抛出异常或不可达时，对外结果按调用的类别决定。接入不把它们写成接入自身的故障。
 
-- 读取类依赖：identity 的登录识别、authorization、签发者，以及 Session 的读取类调用（`queryOperation`、日志读取与历史页读取）。它们抛出异常或不可达时，结果是 `basis-unavailable`，状态 503。读取没有提交任何效果，所以「现在不能得出允许」成立。
+- 读取类依赖：identity 的登录识别、签发者，以及 Session 的读取类调用（`queryOperation`、日志读取与历史页读取）。它们抛出异常或不可达时，结果是 `basis-unavailable`，状态 503。读取没有提交任何效果，所以「现在不能得出允许」成立。
 - Session 的提交类调用：`create`、`accept`、`cancelRun` 与 `stopCall`。调用开始之后抛出异常或不可达时，结果是 `unknown`，状态 500，带 `unknown` 的响应体。提交可能已经发生，所以接入不答 `basis-unavailable`。依据是公开契约：只有存储提交之前来源不可读才是 `basis-unavailable`（[Session 结果与线上结果](../public-contract/SPEC.md#session-结果与线上结果)），`commit-unknown` 映射为 `unknown`（[结果](../public-contract/SPEC.md#结果)）。调用者用原标识原样再送，或用查询操作认回。
 - 治理位置的 `register-and-activate` 与 `issue-login`：identity 的公开入口抛出异常或不可达时，签发或激活可能已经提交。公开契约[结果闭合与关联](../public-contract/SPEC.md#结果闭合与关联)给这两个操作的结果集没有线上 `unknown`，丢失回执只是调用者本地未知。所以接入不构造业务结果，写出响应体为空的状态 500，并关闭连接。
+- 治理位置的 18 个治理操作：治理端口的 Promise 被拒绝时，结果对接入未知（identity ID-18）。`create-organization` 的结果集有线上 `unknown`，接入答 `unknown`，状态 500，带响应体。其余 17 个操作的结果集没有线上 `unknown`，接入写出响应体为空的状态 500，并关闭连接。接入不答 `basis-unavailable`。
 
-响应体为空的状态 500 表示接入没有可信答复。它只用于接入自身的故障和上面治理位置的这一种情况。接入写出它之后关闭连接。接入不把这类情况写成 `denied`、`succeeded` 或 `basis-unavailable`。`unknown` 的状态 500 带响应体，不属于这一条。
+响应体为空的状态 500 表示接入没有可信答复。它只用于接入自身的故障和上面治理位置的两种情况。接入写出它之后关闭连接。接入不把这类情况写成 `denied`、`succeeded` 或 `basis-unavailable`。`unknown` 的状态 500 带响应体，不属于这一条。
 
 ## 依赖
 
@@ -131,7 +180,7 @@ function receiveRevoke(
 }
 ```
 
-接入先按公开契约做严格 JSON 读取。读取失败时返回 `protocol-rejected`，没有业务效果。协议检查通过后，接入把登录证明交给 identity 的公开入口，把通过身份检查的请求交给 authorization 的公开入口。它们返回的 `denied` 和 `basis-unavailable` 原样成为响应的 `outcome`。接入不改写这两个结果，也不把存储对象放进响应。
+接入先按公开契约做严格 JSON 读取。读取失败时返回 `protocol-rejected`，没有业务效果。协议检查通过后，接入把登录证明交给 identity 的登录识别，把通过第 6 步的请求交给 identity 的治理端口。它们返回的 `denied` 和 `basis-unavailable` 原样成为响应的 `outcome`。接入不改写这两个结果，也不把存储对象放进响应。
 
 ## 验证
 
@@ -143,6 +192,17 @@ function receiveRevoke(
 - `query-current-tenant` 不带行事租户。
 - `issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。
 - 版本是 `governance-public/1` 时，`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏正文和坏证明下都是 `stage-not-provided`。版本不是 `governance-public/1` 时是 `protocol-rejected`。
+
+治理位置另有下列验证义务。
+
+- 18 个治理操作的每种端口结果映射到公开契约的 `outcome`、`body` 与状态码。
+- 声明不提供的 14 个操作答 `stage-not-provided`，登录识别没有被调用。负控：治理操作用同一份证明时，登录识别被调用。
+- 治理位置的 `denied` 在各个原因下，响应除 `messageId` 外逐字节相同。属于其他账号的目标与不存在的目标得到相同的 `not-visible`。
+- 登录识别抛出时是状态 503 和 `basis-unavailable`。`create-organization` 的端口被拒绝时是带响应体的 `unknown`，其余操作是空响应体的状态 500 并关闭连接。
+- 诊断里没有登录证明、凭据、登录标识与登录的 `loginId`。
+- 只有会话位置的 `succeeded` 与建立成功的观察报告成功业务访问。报告失败不改变答复。
+- `revoke-login` 成功时，目标登录的观察立刻得到 `ended(denied)`。登录到期后，观察在下一轮得到 `ended(denied)`。
+- 其他登录用同一 `observationId` 的 `cancel-observation` 答 `succeeded` 与 `state: not-found`，不结束原观察，也不调用 Session。
 
 会话位置与 HTTP 层另有下列验证义务。实现闭包用测试兑现它们。
 

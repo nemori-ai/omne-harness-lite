@@ -19,6 +19,7 @@
 - [accounting.ts](accounting.ts)：收件口、恢复口、系统恢复访问与授权端口的类型（RQ-14、RQ-15）。
 - [operations.ts](operations.ts)：`createAssemblyOperations`，访问与资格、主体键、读取、派生与发布前再核资格。
 - [operation-context.ts](operation-context.ts)：一次操作内共用的访问身份、目标、来源与策略。
+- [fixed-request.ts](fixed-request.ts)：固定请求记录 `FixedRequestRecord` 的格式、编解码与预测取法（RQ-14）。
 - [input-read.ts](input-read.ts)：七组的稳定读取，读计数、读来源、再读计数，每组两次尝试。
 - [model-input.ts](model-input.ts)：从选择到 Model 输入的一次转换，来源调用与延续依据。
 - [input-validation.ts](input-validation.ts)：输入绑定与 Runtime Context 读取前提。

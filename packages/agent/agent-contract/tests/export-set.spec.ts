@@ -8,6 +8,7 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
   expect(Object.keys(agent).sort()).toEqual([
     'AGENT_IDENTITY_MAX_LENGTH',
     'ATTRIBUTE_ITEMS',
+    'INSTRUCTION_LIMITS',
     'POSITIONS',
     'POSITION_OUTPUTS',
     'POWERS',

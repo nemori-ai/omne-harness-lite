@@ -4,9 +4,15 @@
 //
 // The shape of one round of the plain test is one input of a fixed size and one reply. The tool shape
 // adds one Tool call: two Model requests (before and after the Tool), one Tool invoke, one reply each.
-// Both must run the 200 rounds; a round that does not end stops the run, and the curve says where.
+// Both must run all the rounds; a round that does not end stops the run, and the curve says where.
 // The windows are the first ones again (R2-D81, the deviations of R2-D64 and R2-D67 withdrawn): rounds
 // 181 to 200 against rounds 11 to 30.
+//
+// Two lengths (R2-D141). The 200 rounds, with the growth judgement of the timed counts, run only at
+// the measurement entry `OMNE_J6_ROUNDS=200`; the admission slow tier runs 20 rounds and compares the
+// stable counts of rounds 15-20 with those of rounds 5-10, by the same `stable` rule and the same
+// receive and parts-bound assertions. The growth rule needs rounds 11 to 200, so the short run does not
+// judge it. When the 200 rounds run: the member `tests/README.md`, "J6 的两种轮数".
 //
 // The calls of `execution-record.parts` are a named deviation (R2-D85): they are bounded per round, not
 // equal, because a catch-up of the copy of the Agent records takes one page more when the text of its
@@ -18,7 +24,7 @@
 // Context and Agent, read with one clock (`performance.now()`); `round-complete` is the explicit event
 // of Session (R2-D17 P2). The counts, the curve and the limit are written before any assertion runs.
 // @module-tag slow
-// Why slow: up to 200 rounds of real Workers and real files.
+// Why slow: real Workers and real files; 20 rounds by default, 200 at the measurement entry.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
@@ -29,6 +35,7 @@ import {
   type PartsRoundReads,
   type RoundCount,
 } from './w2-measure.ts'
+import { CONTROL_PER_ROUND, roundGrowthOf, type Growth } from './growth.ts'
 import { intakeAccess } from './world.ts'
 
 const worlds: W2World[] = []
@@ -36,11 +43,39 @@ afterEach(async () => {
   for (const world of worlds.splice(0)) await world.close()
 })
 
-const OUT = new URL('../../../../../tmp/line-session-run/w2/C-JOINT/', import.meta.url)
-const MAX_ROUNDS = 200
-const WINDOW = 20
-/** The early window: rounds 11 to 30. The late one is the last `WINDOW` rounds, 181 to 200. */
-const EARLY_FROM = 10
+/**
+ * The measurement entry (R2-D141): `OMNE_J6_ROUNDS=200` runs the full 200 rounds with the growth
+ * judgement of the timed counts, and writes its evidence to `C-JOINT/`. Without it the admission
+ * slow tier runs the short version, which compares the stable counts of two windows only; its
+ * evidence goes to `C-JOINT/short/`, so it never overwrites a measurement. Any other value is
+ * refused: a run must not quietly be another length than the one asked for.
+ */
+const MEASURED = (() => {
+  const asked = process.env['OMNE_J6_ROUNDS']
+  if (asked === undefined || asked === '') return false
+  if (asked !== '200') throw new Error(`OMNE_J6_ROUNDS is 200 or unset, not ${asked}`)
+  return true
+})()
+const OUT = new URL(
+  MEASURED
+    ? '../../../../../tmp/line-session-run/w2/C-JOINT/'
+    : '../../../../../tmp/line-session-run/w2/C-JOINT/short/',
+  import.meta.url,
+)
+/** The windows: `WINDOW` rounds from round `EARLY_FROM + 1`, against the last `WINDOW` rounds. */
+const RUN = MEASURED
+  ? { rounds: 200, window: 20, earlyFrom: 10, timeout: 3_600_000 }
+  : { rounds: 20, window: 6, earlyFrom: 4, timeout: 300_000 }
+const MAX_ROUNDS = RUN.rounds
+const WINDOW = RUN.window
+/** The early window: rounds 11 to 30 when measured (5 to 10 in the short run). */
+const EARLY_FROM = RUN.earlyFrom
+/** The windows of the run, as the titles name them: the late one is the last `WINDOW` rounds. */
+const WINDOWS = `rounds ${String(MAX_ROUNDS - WINDOW + 1)}-${String(MAX_ROUNDS)} equal those of rounds ${String(EARLY_FROM + 1)}-${String(EARLY_FROM + WINDOW)}`
+const GROWTH_TITLE = MEASURED ? 'the timed counts do not grow with the rounds and ' : ''
+/** The rule of the timed counts needs rounds 11 to 200, so only the measured run judges growth. */
+const timedGrowthOf = (shape: Shape, completed: readonly RoundCount[]) =>
+  MEASURED ? timedGrowth(shape, completed) : { growing: [], controlMissed: [] }
 /**
  * The items every round must show alike: all but the number of the round, the retries, the bytes and
  * the number of `execution-record.parts` calls, which `partsOverBound` bounds instead (R2-D85).
@@ -67,12 +102,21 @@ const stable = ({
  * with the work cache (session-storage-sql RT-04) a read is a fold, an index swap or a whole read by
  * timing, and AD-02 merges its triggers by timing (`ad02Commits`). These counts are not compared
  * round by round; they must not grow with the number of rounds (R2-D118).
+ *
+ * `session.history-root` is the Journal provider's point read of the publication count, one per
+ * Journal call (session-adapters SPEC "事实族存储", 同步): the position has one source, the store,
+ * and every call consults it. The calls of a round are the Agent's (a fixed number) plus those of
+ * the AD-05 and AD-06 consumers the publications wake, which read the execution again when it
+ * changed while its entries were read; how many such re-reads a round takes is the interleaving of
+ * the publications with the consumers, so the count is timed, like the Session reads those
+ * consumers make. It is bounded by the calls of a round, which do not grow with the rounds.
  */
 const TIMED_HANDLERS: readonly string[] = [
   'session.work',
   'session.work-index',
   'session.work-reads',
   'session.history',
+  'session.history-root',
 ]
 
 const untimed = (counts: Readonly<Record<string, number>>): Record<string, number> =>
@@ -90,73 +134,44 @@ function timedOf(count: RoundCount): Record<string, number> {
   return timed
 }
 
-/**
- * The growth rule of R2-D17 (tools/e9 `evaluateGrowth`), taken for the timed counts by R2-D118: the
- * rounds 11 to 200 in blocks of 10, the median of each block, a least-squares line through the 19
- * medians. The count grows when the slope is positive, R² is at least 0.95 and the growth over 180
- * rounds exceeds three times the median absolute deviation of the residuals.
- */
-const GROWTH = {
-  firstRound: 11,
-  lastRound: 200,
-  blockSize: 10,
-  minR2: 0.95,
-  madFactor: 3,
-  span: 180,
-}
-/** The negative control of R2-D118: this much per round added to a count must be judged growth. */
-const CONTROL_PER_ROUND = 0.1
-
-const median = (values: readonly number[]): number => {
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = sorted.length >> 1
-  return sorted.length % 2 === 1 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2
-}
-
-type Growth = Readonly<{ grows: boolean; slope: number; r2: number; residualMAD: number }>
-
-/** Judges one count per round (index 0 is round 1) by the rule of `GROWTH`. */
-function roundGrowthOf(values: readonly number[]): Growth {
-  const samples = values.slice(GROWTH.firstRound - 1, GROWTH.lastRound)
-  const xs: number[] = []
-  const ys: number[] = []
-  for (let block = 0; block * GROWTH.blockSize < samples.length; block += 1) {
-    xs.push(GROWTH.firstRound + block * GROWTH.blockSize + (GROWTH.blockSize - 1) / 2)
-    ys.push(median(samples.slice(block * GROWTH.blockSize, (block + 1) * GROWTH.blockSize)))
-  }
-  const meanX = xs.reduce((sum, x) => sum + x, 0) / xs.length
-  const meanY = ys.reduce((sum, y) => sum + y, 0) / ys.length
-  const slope =
-    xs.reduce((sum, x, index) => sum + (x - meanX) * (ys[index]! - meanY), 0) /
-    xs.reduce((sum, x) => sum + (x - meanX) ** 2, 0)
-  const residuals = ys.map((y, index) => y - (meanY + slope * (xs[index]! - meanX)))
-  const variance = ys.reduce((sum, y) => sum + (y - meanY) ** 2, 0)
-  const r2 = variance === 0 ? 0 : 1 - residuals.reduce((sum, r) => sum + r * r, 0) / variance
-  const center = median(residuals)
-  const residualMAD = median(residuals.map(r => Math.abs(r - center)))
-  const grows =
-    slope > 0 && r2 >= GROWTH.minR2 && slope * GROWTH.span > GROWTH.madFactor * residualMAD
-  return { grows, slope, r2, residualMAD }
-}
+/** What `judgeTimedGrowth` says of one timed count: its own judgement and that of its control. */
+type TimedJudgement = Readonly<{ measured: Growth; control: Growth }>
 
 /**
- * Judges every timed count of the run and writes the judgement: the names that grow, and the names
- * whose negative control (the count plus `CONTROL_PER_ROUND` times the round) is not judged growth.
+ * Judges every timed count of the run by the growth rule (`growth.ts`, R2-D118): each name with its
+ * own judgement and with that of its negative control, the count plus `CONTROL_PER_ROUND` times the
+ * round. It only judges; `timedGrowth` writes the evidence.
  */
-function timedGrowth(shape: Shape, completed: readonly RoundCount[]) {
+function judgeTimedGrowth(completed: readonly RoundCount[]): Record<string, TimedJudgement> {
   const names = Object.keys(timedOf(completed[0]!))
-  const judged = Object.fromEntries(
+  return Object.fromEntries(
     names.map(name => {
       const values = completed.map(count => timedOf(count)[name]!)
       const control = values.map((value, index) => value + (index + 1) * CONTROL_PER_ROUND)
       return [name, { measured: roundGrowthOf(values), control: roundGrowthOf(control) }]
     }),
   )
-  writeFileSync(new URL(`j6-timed-growth-${shape}.json`, OUT), JSON.stringify(judged, null, 1))
+}
+
+/** The names that grow, and the names whose negative control is not judged growth. */
+const verdictOf = (judged: Readonly<Record<string, TimedJudgement>>) => {
+  const names = Object.keys(judged)
   return {
     growing: names.filter(name => judged[name]!.measured.grows),
     controlMissed: names.filter(name => !judged[name]!.control.grows),
   }
+}
+
+/** Writes the judgement of one shape to the evidence file of the run. */
+function writeTimedGrowth(shape: Shape, judged: Readonly<Record<string, TimedJudgement>>): void {
+  writeFileSync(new URL(`j6-timed-growth-${shape}.json`, OUT), JSON.stringify(judged, null, 1))
+}
+
+/** Judges the timed counts, writes the judgement, and returns the verdict the case asserts. */
+function timedGrowth(shape: Shape, completed: readonly RoundCount[]) {
+  const judged = judgeTimedGrowth(completed)
+  writeTimedGrowth(shape, judged)
+  return verdictOf(judged)
 }
 
 type Shape = 'tool' | 'plain'
@@ -332,8 +347,8 @@ async function runToLimit(shape: Shape, w: W2World) {
 
 describe('J6: fixed round counts', () => {
   it(
-    'J6 plain shape: 200 rounds, the counts of rounds 181-200 equal those of rounds 11-30',
-    { timeout: 3_600_000 },
+    `J6 plain shape: ${String(MAX_ROUNDS)} rounds, ${GROWTH_TITLE}the other counts of ${WINDOWS}`,
+    { timeout: RUN.timeout },
     async () => {
       const w = await openW2World({
         earlier: 'session',
@@ -349,9 +364,10 @@ describe('J6: fixed round counts', () => {
         expect(count).toMatchObject({ modelReceives: 1, toolReceives: 0 })
       // The parts calls stay within their named bound (R2-D85).
       expect(partsOverBound('plain', completed, w.counters.partsRounds)).toEqual([])
-      // The timed counts do not grow with the number of rounds, and the negative control does (R2-D118).
-      expect(timedGrowth('plain', completed)).toEqual({ growing: [], controlMissed: [] })
-      // The windows: no other item may differ between rounds 11-30 and 181-200.
+      // The timed counts do not grow with the number of rounds, and the negative control does (R2-D118);
+      // judged in the measured run only.
+      expect(timedGrowthOf('plain', completed)).toEqual({ growing: [], controlMissed: [] })
+      // The windows: no other item may differ between the early and the late rounds.
       const early = completed.slice(EARLY_FROM, EARLY_FROM + WINDOW).map(stable)
       const late = completed.slice(-WINDOW).map(stable)
       expect(late).toEqual(early)
@@ -359,8 +375,8 @@ describe('J6: fixed round counts', () => {
   )
 
   it(
-    'J6 tool shape: 200 rounds, two Model results and one Tool result each round, the counts of rounds 181-200 equal those of rounds 11-30',
-    { timeout: 3_600_000 },
+    `J6 tool shape: ${String(MAX_ROUNDS)} rounds, two Model results and one Tool result each round, ${GROWTH_TITLE}the other counts of ${WINDOWS}`,
+    { timeout: RUN.timeout },
     async () => {
       const w = await openW2World({
         earlier: 'session',
@@ -378,7 +394,7 @@ describe('J6: fixed round counts', () => {
           toolReceives: 1,
         })
       expect(partsOverBound('tool', completed, w.counters.partsRounds)).toEqual([])
-      expect(timedGrowth('tool', completed)).toEqual({ growing: [], controlMissed: [] })
+      expect(timedGrowthOf('tool', completed)).toEqual({ growing: [], controlMissed: [] })
       const early = completed.slice(EARLY_FROM, EARLY_FROM + WINDOW).map(stable)
       const late = completed.slice(-WINDOW).map(stable)
       expect(late).toEqual(early)

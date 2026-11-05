@@ -98,14 +98,14 @@ function judge(delivery: ModelDelivery) {
 }
 
 describe('typed delivery relations through the public entry', () => {
-  it('R01/R24 checks minted tenant and foreign invocation before other failures', () => {
+  it('R01/R24 checks the minted tenant before other failures', () => {
     // @ts-expect-error exercise the runtime identity guard without minting a brand
     expect(judgeModelDelivery({ tenant: {}, delivery: resultDelivery() })).toEqual({
       failure: { field: 'tenant', reason: 'identity' },
     })
-    expect(judge(resultDelivery(foreign()))).toEqual({
-      failure: { field: 'key.reference', reason: 'foreign-tenant' },
-    })
+    // R2-D357: a delivery for another tenant is the same text; the judge locates it in the
+    // presented tenant, and the receiver's own partition answers whether the call exists there.
+    expect(resultDelivery(foreign())).toEqual(resultDelivery())
   })
   it('R02 gives malformed reference priority over a result version mismatch', () => {
     const delivery = resultDelivery()
@@ -256,7 +256,7 @@ function aborted(): AbortSignal {
 }
 
 describe('receiver qualification and original ownership', () => {
-  it('R01 denies unminted and foreign tenants before querying owner or key', async () => {
+  it('R01 denies an unminted tenant before querying owner or key', async () => {
     const store = fixture()
     expect(
       await store.receiver.push({
@@ -266,8 +266,36 @@ describe('receiver qualification and original ownership', () => {
         signal: aborted(),
       }),
     ).toEqual({ failure: { kind: 'denied' } })
-    expect(await push(store, resultDelivery(foreign()))).toEqual({ failure: { kind: 'denied' } })
     expect(queries(store)).toEqual([])
+  })
+  it('R01 answers a delivery of another tenant byte for byte as one whose call never existed', async () => {
+    // R2-D357: tenant A's call is established; tenant B pushes a delivery naming it. B's
+    // partition has no such call, exactly as in a receiver where no tenant ever had it.
+    const half = { records: 10, bytes: 50000, attachments: 5000, inFlight: 5 }
+    const both = [
+      { tenant: tenant(), reserved: half },
+      { tenant: foreign(), reserved: half },
+    ]
+    const withCall = createDeliveryFixture<typeof principal>({ limits, tenants: both })
+    withCall.establishOriginalCall({
+      tenant: tenant(),
+      reference: reference(),
+      consumer,
+      dispatches: [dispatchId(), otherDispatchId()],
+    })
+    const withoutCall = createDeliveryFixture<typeof principal>({ limits, tenants: both })
+    const stranger = { tenant: foreign(), principal }
+    for (const store of [withCall, withoutCall]) store.setAccess(stranger, 'allow')
+    const send = (store: DeliveryFixture<typeof principal>) =>
+      store.receiver.push({
+        access: stranger,
+        delivery: resultDelivery(),
+        signal: new AbortController().signal,
+      })
+    const foreignAnswer = await send(withCall)
+    const absentAnswer = await send(withoutCall)
+    expect(foreignAnswer).toHaveProperty('failure')
+    expect(JSON.stringify(foreignAnswer)).toBe(JSON.stringify(absentAnswer))
   })
   it('R07 defaults to deny and keys permission by tenant and principal identity without traversing principal', async () => {
     const store = fixture()
@@ -788,6 +816,7 @@ describe('bounded custody resources', () => {
     })
     for (const target of [tenant(), foreign()]) {
       store.establishOriginalCall({
+        tenant: target,
         reference: reference(target),
         consumer,
         dispatches: [dispatchId(), otherDispatchId()],

@@ -21,18 +21,27 @@ afterEach(async () => {
 type Json = { [key: string]: unknown }
 
 /**
- * A page of the Agent records of the session with the empty batch of the execution named `id`. A
- * part holds its execution as an `executions` entry `[order, key, value]`.
+ * A page of the facts of the session with the empty batch of the execution named `id`: the
+ * `step.begun` fact of the input-taken event and the `cursor.moved` fact of the checkpoint member.
  */
 function renamed(output: JsonValue, id: string): JsonValue {
-  const copy = structuredClone(output) as { parts: { state: { executions?: unknown[][] } }[] }
-  for (const entry of copy.parts.flatMap(part => part.state.executions ?? [])) {
-    const execution = entry[2] as { events: { body: Json }[]; checkpoint: Json }
-    for (const event of execution.events) {
-      const batch = event.body['batch'] as { id: string; ordered: unknown[] } | undefined
-      if (event.body['kind'] === 'input-taken' && batch?.ordered.length === 0) batch.id = id
+  const copy = structuredClone(output) as {
+    batches: { facts: { kind: string; body: Json }[] }[]
+  }
+  for (const fact of copy.batches.flatMap(batch => batch.facts)) {
+    // A family row holds its fact as text; the rewrite decodes it and writes it back the same way.
+    const text = typeof fact.body === 'string'
+    const body = (text ? JSON.parse(fact.body as unknown as string) : fact.body) as Json
+    if (fact.kind === 'step.begun') {
+      const batch = body['batch'] as { id: string; ordered: unknown[] } | undefined
+      if (batch?.ordered.length === 0) batch.id = id
     }
-    execution.checkpoint['inputBatch'] = id
+    if (fact.kind === 'cursor.moved') {
+      // The cursor member names the batch by its identity.
+      const members = body['members'] as Json
+      if (typeof members['inputBatch'] === 'string') members['inputBatch'] = id
+    }
+    fact.body = (text ? JSON.stringify(body) : body) as Json
   }
   return copy as unknown as JsonValue
 }
@@ -65,7 +74,7 @@ async function afterEmptyTake(name: string) {
             operation: operation(label),
             authority,
             expected: loaded.revision,
-            checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+            checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
             state: { kind: 'advancing' },
             events: [{ kind: 'input-taken', batch: page.batch }],
             effects: [],
@@ -104,7 +113,7 @@ describe('the range of an empty batch in a rebuilt Journal copy', () => {
     const s = await afterEmptyTake('taken-range-foreign')
     const bad = id(String(s.execution))
     s.rewriteReads.current = (request, answer) =>
-      request.handler === EXECUTION_RECORD_HANDLERS.parts && answer.kind === 'read'
+      request.handler === EXECUTION_RECORD_HANDLERS.facts && answer.kind === 'read'
         ? { ...answer, output: renamed(answer.output, bad) }
         : answer
     await expect(load(s)).rejects.toThrow('original input batch range is unavailable')

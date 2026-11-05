@@ -103,3 +103,12 @@ export function addDuration(instant: Instant, duration: Duration): Instant | und
 export function isPositive(duration: Duration): boolean {
   return scaledDuration(duration).units > 0n
 }
+
+/** -1, 0 or 1 as `left` is shorter than, as long as, or longer than `right`. */
+export function compareDurations(left: Duration, right: Duration): -1 | 0 | 1 {
+  const a = scaledDuration(left)
+  const b = scaledDuration(right)
+  const scale = Math.max(a.scale, b.scale)
+  const difference = scaleTo(a, scale) - scaleTo(b, scale)
+  return difference < 0n ? -1 : difference > 0n ? 1 : 0
+}

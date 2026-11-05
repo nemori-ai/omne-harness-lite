@@ -304,7 +304,10 @@ export function createMemoryFileSystem<P = unknown>(
       const children = [...entry.entries].sort(byName)
       const offset = request.offset ?? 0
       const end = Math.min(children.length, offset + (request.limit ?? children.length))
-      const entries = children.slice(offset, end).map(([, child]) => information(child))
+      const entries = children.slice(offset, end).map(([name, child]) => ({
+        ...information(child),
+        name,
+      }))
       const more = end < children.length ? { nextOffset: end } : {}
       const value = { directory: identity(entry), entries, ...more }
       return { kind: 'done', requestId: request.requestId, value }

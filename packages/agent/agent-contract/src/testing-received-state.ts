@@ -171,8 +171,6 @@ export function receivedFailure<P, B extends ContentBlock>(
       ? resolveModelInvocationRef(delivery.key.reference, input.tenant)
       : resolveToolInvocationRef(delivery.key.reference, input.tenant)
   if ('failure' in resolved)
-    return resolved.failure.kind === 'foreign-tenant'
-      ? denied()
-      : { kind: 'invalid', field: 'entry.delivery.key.reference', reason: 'invalid reference' }
+    return { kind: 'invalid', field: 'entry.delivery.key.reference', reason: 'invalid reference' }
   return null
 }

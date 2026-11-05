@@ -25,5 +25,5 @@ flowchart LR
 ## 失败与生命周期
 
 - 每一步的失败都是返回值，见 [SPEC「拒绝次序」](../SPEC.md#拒绝次序)。
-- 前提被破坏（快照不是 `sealSnapshot` 造出，或控制文件字节与快照不符）时，`parseSkillPackage` 抛出 `TypeError`。
+- 前提被破坏（快照不是 `sealSnapshot` 造出，或控制文件字节与快照不符）时，`parseSkillPackage` 抛出 `TypeError`。服务从来源取到快照时，先用不抛出的 `isSealedSnapshot` 核对，不合就当作来源此刻不可用，不把它交给 `parseSkillPackage`。
 - 本包不持有状态，数据流里的每个值都不可变。

@@ -21,6 +21,13 @@ export type Core = Readonly<{
   pending: PendingIndex
   /** Operations that wait for a Worker. The close protocol answers them at the deadline. */
   inFlight: InFlight
+  /**
+   * How long the caller of a sent commit, query or registration observes the reply (SPEC 9.3):
+   * twice lockWaitMs, so that the Worker's own verdict on a lock wait of up to lockWaitMs reaches
+   * the caller first, and the same again covers the inbox and the execution. After it the caller
+   * gets `unknown` (`reply_wait_expired`); what the request holds stays with the Worker.
+   */
+  replyObservationMs: number
   /** A diagnostic of at most maxDiagnosticBytes. Callers branch on kind and reason only. */
   diagnostic(text: string): string
 }>
@@ -43,6 +50,7 @@ export function createCore(
     admission: new Admission(config),
     pending: new PendingIndex(),
     inFlight: new InFlight(),
+    replyObservationMs: 2 * config.lockWaitMs,
     diagnostic: text => clipDiagnostic(text, config.maxDiagnosticBytes),
   }
 }

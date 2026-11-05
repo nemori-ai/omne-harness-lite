@@ -1,5 +1,7 @@
 // XC-MODELSEL: the saved model selection with the original commit that saved it.
 import { plainOf } from '../codec.ts'
+import { readEntryText } from '../entry-codec.ts'
+import { readMember } from './state-rows.ts'
 import { big, handler, oneRow, scopeOf, text } from './support.ts'
 
 type Selection = { name: string; basis: unknown }
@@ -18,9 +20,14 @@ export default handler('session.model-selection', (input, port) => {
   if (state === undefined) return { kind: 'absent' }
   if (state['snapshot'] === null || big(state['covered']) !== big(state['tail']))
     return { kind: 'behind' }
-  const snapshot = JSON.parse(text(state['snapshot'])) as {
-    revision: string
-    creation?: { initialModelSelection?: Selection }
+  // The head of the stored snapshot (R2-D292): the revision, and `creation` from the head or from
+  // its member row. No chunk is read.
+  const head = text(state['snapshot'])
+  const snapshot = {
+    revision: (JSON.parse(head) as { revision: string }).revision,
+    creation: readMember(port, scope.tenant, scope.session, head, 'creation') as
+      | { initialModelSelection?: Selection }
+      | undefined,
   }
   const saved = oneRow(
     port,
@@ -32,7 +39,7 @@ export default handler('session.model-selection', (input, port) => {
   let selection: Selection | undefined
   let at = 1n
   if (saved !== undefined) {
-    const entry = JSON.parse(text(saved['entry'])) as { payload: unknown }
+    const entry = readEntryText(text(saved['entry']), 'sl_entry session.model-selected')
     const declaration = (
       plainOf(entry.payload) as {
         declaration?: { kind?: string; name?: string; basis?: unknown }
