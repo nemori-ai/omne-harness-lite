@@ -897,7 +897,7 @@
 > the middle of a Run changes only current availability.
 
 - **形态**：位置
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 5）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（采用点判定表与刷新点表）；新 Run 开始与显式 reload 两个入口见 [项目要求 SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition)
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 6）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（采用点判定表与刷新点表）；新 Run 开始与显式 reload 两个入口见 [项目要求 SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition)
 - **别混**：不是当下可用性的核对时点。可用性每次尝试开始时核对，Run 中途也可以变
 - **注意**：会话初始化不判冻结，也不谈前进；它只确定集合与每一项的首次定义
 

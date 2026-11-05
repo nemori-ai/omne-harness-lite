@@ -106,7 +106,7 @@ export async function toolAssembly(
 ) {
   const source: ToolRequests = {
     async describe() {
-      return { ok: adoption('read_file') }
+      return { ok: { kind: 'tool', definition: adoption('read_file') } }
     },
     async prepare(input) {
       return { ok: fixedToolRequest(input.consumer) }

@@ -145,10 +145,10 @@ async function preparedBy(source: ReleaseToolRequests, principal: unknown, tenan
   const input = actionInput(principal, tenant)
   const described = await source.describe(input)
   if ('failure' in described) return described
-  if ('kind' in described.ok) throw new Error(`describe answered: ${described.ok.text}`)
+  if (described.ok.kind === 'answered') throw new Error(`describe answered: ${described.ok.text}`)
   return source.prepare({
     ...input,
-    definition: described.ok,
+    definition: described.ok.definition,
     admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
   })
 }
@@ -161,8 +161,8 @@ describe('the trusted Tool request source', () => {
     const request = async (args: string) => {
       const input = actionInput(principalA, TENANT_A, 'Shell', args)
       const described = await source.describe(input)
-      if ('failure' in described || 'kind' in described.ok) return described
-      return source.prepare({ ...input, definition: described.ok, admission })
+      if ('failure' in described || described.ok.kind === 'answered') return described
+      return source.prepare({ ...input, definition: described.ok.definition, admission })
     }
     // The command codec judges the rest of the call when the tool runs, so a bad call still routes.
     expect(await request('{"command":"info","params":{}}')).toMatchObject({

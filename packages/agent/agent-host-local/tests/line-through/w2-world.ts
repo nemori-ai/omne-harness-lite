@@ -408,7 +408,7 @@ export async function openW2World(options: W2Options) {
   const toolRequests: ToolInvokeRequest[] = []
   // Double (R2-D36): the prepared request of the fixed schema.
   const toolRequestSource: NonNullable<Dependencies['toolRequests']> = {
-    describe: async () => ({ ok: testAdoption('w2-read_file') }),
+    describe: async () => ({ ok: { kind: 'tool', definition: testAdoption('w2-read_file') } }),
     prepare: async input => {
       const request = fixedToolRequest(input.consumer)
       toolRequests.push(request)

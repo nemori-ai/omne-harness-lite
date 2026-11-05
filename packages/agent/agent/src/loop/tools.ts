@@ -167,12 +167,14 @@ export async function admitToolAction<P>(
   }
   const described = await ports.toolRequests.describe(input)
   if ('failure' in described) return asUnavailable('agentToolRequests', described.failure)
-  if ('kind' in described.ok) return answered(ports, access, execution, action, described.ok.text)
+  if (described.ok.kind === 'answered')
+    return answered(ports, access, execution, action, described.ok.text)
+  const { definition } = described.ok
   const admitted = await ports.admission.admit({
     ...input,
     advance,
     passage: action.judgment.passage,
-    definition: described.ok,
+    definition,
     permissions: [],
     decision: null,
   })
@@ -180,11 +182,11 @@ export async function admitToolAction<P>(
   if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)
   const prepared = await ports.toolRequests.prepare({
     ...input,
-    definition: described.ok,
+    definition,
     admission: admitted.ok.evidence,
   })
   if ('failure' in prepared) return asUnavailable('agentToolRequests', prepared.failure)
-  const request = checkedRequest(prepared.ok, described.ok, input.consumer, action, original)
+  const request = checkedRequest(prepared.ok, definition, input.consumer, action, original)
   if ('failure' in request) return request
   return succeed({ kind: 'allowed', action, evidence: admitted.ok.evidence, request: request.ok })
 }
