@@ -530,12 +530,12 @@ guide 是定义的投影，由 `commandGuide` 机械派生（D-104）。多命�
 - 带一个已知命令时，guide 依次写：调用示例 `Usage: …`、摘要、`JSON Schema: …`，以及每个字段一行 `<字段>: <说明>`。executor-owned 参数只写前两项。
 - 两种 guide 后面都接定义的 `guide`。
 
-工具的 help 答同一段文本。调用出错时，系统按出错的层次把 guide 交给模型，作者不拼出错文本：
+工具的 help 不带命令时答工具的 guide，带一个命令时答该命令的 guide。调用出错时，模型读到的 guide 由下面两处生成，作者不拼出错文本：
 
-- 调用没点名已知命令（`unreadable`、`not-object`、`command-missing`、`command-unknown`）时，`describeCommandCallRejection` 写原因行，后接工具的 guide。
-- 调用点名了已知命令，但整次调用或参数不被该命令接受（`extra-field`、`params-not-object`、`command-mismatch`，或命令编解码器答 `invalid`）时，`describeCommandArgumentsRejection` 写 `<工具> <命令>: <原因>.`，后接该命令的 guide。编解码器答 `incomplete` 时只写原因。
+- 调用没点名已知命令（`unreadable`、`not-object`、`command-missing`、`command-unknown`）时，可信 Tool 请求来源用 `describeCommandCallRejection` 作答：原因行，后接工具的 guide。
+- 调用点名了已知命令，但整次调用或参数不被该命令接受（`extra-field`、`params-not-object`、`command-mismatch`，或该命令的 `ParameterCodec.parse` 答 `invalid`）时，工具宿主的绑定用 `describeCommandArgumentsRejection` 给出失败原因：`<工具> <命令>: <原因>.`，后接该命令的 guide。`parse` 答 `incomplete`（参数没有收全）时只给原因。
 
-提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，不熟命令的动作前取得详细用法。
+提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，对不熟的命令，声明里的签名行就是动作前取得的用法；需要字段说明或完整 schema 时再问 help，不设「先 help 再调用」的门（R2-D399 确认的 P6）。
 
 呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是调用方不经 Tools 元工具发现即可调用的工具。常驻集合的规则见[常驻持有者规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
 
@@ -1300,7 +1300,7 @@ simple tool 与 multiple-command tool 复用 ToolReturnDeclaration。单函数�
 
 作者先用 defineToolOperation 将一个 ToolAuthor 的参数说明、返回声明和执行能力封装成 ToolOperation。构造时检查 A、R 与该作者的解析器、执行器、返回验证器、编码器和渲染器的类型关系。封装后对登记层隐藏 A/R 和 executor，内部保留这组对应关系及完整 P13 管线。不能用 ToolAuthor<unknown, unknown, …> 或强制断言拼成异构命令表。类型只能检查可表达的关系，schema 身份、正文及 codec 的语义一致仍需绑定验证。
 
-defineFunctionTool 接受一个已声明参数的操作。defineCommandTool 接受以命令名为键、包含 summary 和 operation 的表，以及调用编码 `encoding`。命令键是唯一名称源，不能另传一份平行的名字到执行器表。构造器从这份注册生成 ToolImplementation，分别投影函数参数/returns 或各命令的参数/returns。ToolImplementation 只含实现侧事实：形状、description、`backgroundAllowed` 与 declarations。它不含 name、adoption 与治理字段。装载器用 `deriveDefinition` 把它与资产治理声明合成 ToolDefinition，见[定义完整性与呈现](#定义完整性与呈现)。Catalog 与 ToolUsage 读取这个派生定义，不维护第二份声明。executor-owned 参数命令继续保留自己的 usage、protocol 和 ParameterCodec，不能借此省略返回声明或校验。
+defineFunctionTool 接受一个已声明参数的操作。defineCommandTool 接受以命令名为键、包含 summary 和 operation 的表，调用编码 `encoding`，以及可选的工具规则 `guide`（给出时不得为空白）。命令键是唯一名称源，不能另传一份平行的名字到执行器表。构造器从这份注册生成 ToolImplementation，分别投影函数参数/returns 或各命令的参数/returns。ToolImplementation 只含实现侧事实：形状、description、`backgroundAllowed` 与 declarations。它不含 name、adoption 与治理字段。装载器用 `deriveDefinition` 把它与资产治理声明合成 ToolDefinition，见[定义完整性与呈现](#定义完整性与呈现)。Catalog 与 ToolUsage 读取这个派生定义，不维护第二份声明。executor-owned 参数命令继续保留自己的 usage、protocol 和 ParameterCodec，不能借此省略返回声明或校验。
 
 这些构造器不执行工具，也不访问外部服务。它们检查可同步判断的形状、名称及模式一致性，保存声明快照和原能力绑定。构造器拒绝空命令表和非法名称，只采用记录的自身键，不查原型链。上游从条目序列生成命令表时，须在覆盖发生前拒绝重名；构造器无法恢复已被调用者覆盖的同名项。它们的成功不是 available 或使用授权。绑定提供者在开放可用性前，异步核对各操作的 schema 来源、精确修订、正文和上限，以及实际作者绑定。声明与绑定不一致时，对应操作不可用，不能改用其他命令或扩大 schema 让它通过。
 

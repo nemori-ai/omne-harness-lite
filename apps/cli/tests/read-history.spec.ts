@@ -324,6 +324,7 @@ describe('read-history', () => {
           call('c3', 'Files.read', { path: 'a.ts' }),
           call('c4', 'run', { command: 'ls', cwd: '/' }),
           call('c5', 'run', { command: 'ls', params: 'x' }),
+          call('c6', 'run', { command: 'ls -la' }),
         ),
       )
       const service = await serve(historyService([page([calls], null)]))
@@ -337,6 +338,7 @@ describe('read-history', () => {
           '    [tool call Files.read c3] {"path":"a.ts"}',
           '    [tool call run c4] {"command":"ls","cwd":"/"}',
           '    [tool call run c5] {"command":"ls","params":"x"}',
+          '    [tool call run c6] {"command":"ls -la"}',
           '',
         ].join('\n'),
       )

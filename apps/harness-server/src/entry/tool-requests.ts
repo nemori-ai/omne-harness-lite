@@ -19,6 +19,7 @@
 // - 设置采用：发行清单里这个作者的固定设置采用。并发作用域：发行唯一的作用域（`rows/tool-runtime/scope.ts`）。
 // - workspace 为 null（本发行没有工作区身份，不猜）；resources 为空；前台执行；不加请求级的并发与时限。
 import type { Context } from '@deepseek-ai/cordis'
+import type { ToolCallAnswer } from '@omne-harness/agent'
 import type { Failure } from '@omne-harness/agent-contract'
 import type { AgentHostLocalPluginInput } from '@omne-harness/agent-host-local/cordis'
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
@@ -129,7 +130,7 @@ async function availabilityOf(
 ): Promise<
   Outcome<
     | (Extract<ToolAvailability, { kind: 'available' }> & { command: string | null })
-    | Readonly<{ kind: 'answered'; text: string }>,
+    | ToolCallAnswer,
     Failure
   >
 > {

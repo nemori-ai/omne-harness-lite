@@ -204,7 +204,9 @@ async function answered<P>(
   const stored = await ports.materials.preserve({
     ...access,
     execution,
-    identity: `${execution}/${action.id}/answer`,
+    // The digest keeps a retried A0 whose source answers another text from refusing the same
+    // identity with other content: each text is its own material.
+    identity: `${execution}/${action.id}/answer/${createHash('sha256').update(text).digest('hex')}`,
     consumer: toolConsumer(execution, action),
     value: { kind: 'facts', schema: toolCallAnswerSchema, value: { kind: 'string', value: text } },
   })

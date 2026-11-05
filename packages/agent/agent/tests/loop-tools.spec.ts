@@ -400,6 +400,28 @@ describe('tool result round', () => {
     expect(second?.blocks[0]).toEqual(expect.objectContaining({ callId: 'call-b' }))
   })
 
+  it('answers every action of a batch the source answered, through the all-denied barrier', async () => {
+    const assembly = await toolAssembly(
+      {},
+      {},
+      {
+        async describe(request) {
+          return { ok: { kind: 'answered', text: `guide for ${request.original.callId}` } }
+        },
+      },
+    )
+    acceptEach(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.admission.admit.calls).toHaveLength(0)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly)).map(message => message.blocks[1])).toEqual([
+      expect.objectContaining({ kind: 'text', text: 'guide for call-a' }),
+      expect.objectContaining({ kind: 'text', text: 'guide for call-b' }),
+    ])
+  })
+
   it('denies the batch when the source refuses to prepare an allowed action', async () => {
     const assembly = await toolAssembly(
       {},

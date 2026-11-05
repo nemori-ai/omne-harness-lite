@@ -23,7 +23,9 @@ function clip(text: string): string {
  */
 function commandCall(given: unknown): Readonly<{ command: string; params: unknown }> | undefined {
   const call = record(given)
+  // A command name is one short word; any other `command` value is an argument shown as it is.
   if (call === undefined || typeof call['command'] !== 'string') return undefined
+  if (!/^[\w.-]{1,64}$/.test(call['command'])) return undefined
   if (Object.keys(call).some(key => key !== 'command' && key !== 'params')) return undefined
   if (call['params'] !== undefined && record(call['params']) === undefined) return undefined
   return { command: call['command'], params: call['params'] }
