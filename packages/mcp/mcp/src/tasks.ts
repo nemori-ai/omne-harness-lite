@@ -32,19 +32,33 @@ export type TasksDependencies<P, S> = Pick<
 
 const UNKNOWN: Refusal = { kind: 'unknown' }
 const NO_CONNECTION: OperationFailure = { kind: 'effect-unknown', cause: 'no-connection' }
+const CONNECTION_UNAVAILABLE: OperationFailure = { kind: 'connection-unavailable' }
 const ABANDONED = fail<TransportFailure>({ kind: 'no-answer', cause: 'abandoned' })
 
 /** A request of the task's initiator: the connection to send it on, or why there is none. */
 type OnConnection = Readonly<{ ensured: Ensured; record: TaskRecord }>
 
+/** The transport's answer as the operation's: `queryTask`, `provideTaskInput`, `cancelTask`. */
+const asIs = <T>(_on: OnConnection, answer: T): T => answer
+
 /**
- * What a failed build means for a task operation (S2): a setting defect, a missing credential, a
- * withdrawn adoption, the shut table or a bound that fired first mean there is no connection to
- * build; an unreadable adoption is `unknown`; a failure of the build itself is reported as it is.
+ * What a failed build means for a task request, which was not sent (S2, R7, MC-17 step 3). No
+ * material to build on (a setting defect, a missing credential, a withdrawn adoption) is
+ * `no-connection`; an unreadable adoption is `unknown`. A build that gave no connection is the
+ * connection failure: a bound that fired first, the shutdown under way, a step that failed;
+ * `discover` without an answer is `connection-unavailable`, because the task request never left.
  */
 function failureOfEnsure(failure: EnsureFailure): OperationFailure {
-  if (failure.stage === 'connect') return failure.reason
-  return failure.reason.kind === 'unknown' ? UNKNOWN : NO_CONNECTION
+  if (failure.stage === 'connect')
+    return failure.reason.kind === 'effect-unknown' ? CONNECTION_UNAVAILABLE : failure.reason
+  switch (failure.reason.kind) {
+    case 'unknown':
+      return UNKNOWN
+    case 'connection-unavailable':
+      return failure.reason
+    default:
+      return NO_CONNECTION
+  }
 }
 
 export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P> {
@@ -60,31 +74,42 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
   })
 
   /**
-   * The connection of the task (S2): the usable one of the tenant's holding on the task's peer
-   * account, reused with no port asked; else one built through the gate, with eligibility
-   * `granted`, on the same peer account, unless the table is shut (S8).
+   * A connection built for the task through the gate (S2): eligibility `granted`, the material of
+   * S4, and the same peer account the task was started on, so another account's credentials do
+   * not act on it.
    */
-  async function connectionOf(
+  async function built(
     access: Access<P>,
     task: TaskRef,
     record: TaskRecord,
   ): Promise<Outcome<Ensured, OperationFailure>> {
-    const account = accountTextOf(record.account)
-    const reused = table
-      .currentOf(access.tenant, task.ref.holding)
-      .find(ensured => accountTextOf(ensured.key.account) === account)
-    if (reused !== undefined) return succeed(reused)
-    if (table.isShut()) return fail(NO_CONNECTION)
     const decision = await decideForUse(gate, access, task.ref)
     if (decision.kind !== 'admitted')
       return fail(decision.kind === 'adoption-unknown' ? UNKNOWN : NO_CONNECTION)
     const prepared = prepareSettings(decision.endpoint, task.connectBound)
     if ('failure' in prepared) return fail(NO_CONNECTION)
-    // The task was started on one peer account; another account's credentials do not act on it.
-    if (accountTextOf(prepared.ok.account) !== account) return fail(NO_CONNECTION)
+    if (accountTextOf(prepared.ok.account) !== accountTextOf(record.account))
+      return fail(NO_CONNECTION)
     const options = task.connectBound === undefined ? {} : { connectBound: task.connectBound }
     const ensured = await table.ensure(decision.endpoint, access, options)
     return 'failure' in ensured ? fail(failureOfEnsure(ensured.failure)) : ensured
+  }
+
+  /**
+   * Steps 2–3 of MC-17: nothing after the shutdown (S8); then the usable connection of the
+   * tenant's holding on the task's peer account, reused with no port asked; else one built.
+   */
+  function connectionOf(
+    access: Access<P>,
+    task: TaskRef,
+    record: TaskRecord,
+  ): Promise<Outcome<Ensured, OperationFailure>> {
+    if (table.isShut()) return Promise.resolve(fail(NO_CONNECTION))
+    const account = accountTextOf(record.account)
+    const reused = table
+      .currentOf(access.tenant, task.ref.holding)
+      .find(ensured => accountTextOf(ensured.key.account) === account)
+    return reused === undefined ? built(access, task, record) : Promise.resolve(succeed(reused))
   }
 
   /**
@@ -113,17 +138,20 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
   }
 
   /**
-   * One task request of the initiator (S2, S8): the initiator check first, then the connection,
+   * One task request of the initiator (S2, S8, MC-17): the initiator and the task as it was
+   * issued first (a reference with another generation is not this task), then the connection,
    * then the request under the connection bound. A request the bound cuts off has no answer; a
-   * transport that breaches its contract gave none either (T9).
+   * transport that breaches its contract gave none either (T9). `send` is the port call alone;
+   * `read` turns the transport's answer into the operation's outside `ask` (MC-15).
    */
-  async function request<T>(
+  async function request<T, R>(
     access: Access<P>,
     task: TaskRef,
     send: (on: OnConnection) => Promise<Outcome<T, TransportFailure>>,
-  ): Promise<Outcome<T, OperationFailure>> {
+    read: (on: OnConnection, answer: T) => R,
+  ): Promise<Outcome<R, OperationFailure>> {
     const record = tasks.get(keyOf(access, task))
-    if (record === undefined) return fail(UNKNOWN)
+    if (record === undefined || record.issuedAt !== task.issuedAt) return fail(UNKNOWN)
     const connection = await connectionOf(access, task, record)
     if ('failure' in connection) return connection
     const ensured = connection.ok
@@ -132,7 +160,7 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
     const answered = await within(asked, startBound(ensured.bound, 'task'), scope)
     const answer = answered.kind === 'answered' ? answered.value : ABANDONED
     if ('failure' in answer) return fail(await failureOf(ensured, answer.failure))
-    return answer
+    return succeed(read(on, answer.ok))
   }
 
   /** The result of a finished task, classified like the answer to a call (O1), on the task's schema. */
@@ -150,17 +178,17 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
 
   return {
     queryTask: (access, task): Promise<Outcome<TaskReport | 'expired', OperationFailure>> =>
-      request(access, task, on => on.ensured.transport.getTask(task.taskId)),
-    taskResult: async (access, task) => {
-      const answered = await request(access, task, async on => {
-        const answer = await on.ensured.transport.getTaskResult(task.taskId)
-        return 'failure' in answer ? answer : succeed(resultOf(on, answer.ok))
-      })
-      return answered
-    },
+      request(access, task, on => on.ensured.transport.getTask(task.taskId), asIs),
+    taskResult: (access, task) =>
+      request(access, task, on => on.ensured.transport.getTaskResult(task.taskId), resultOf),
     provideTaskInput: (access, task, inputResponses: JsonValue) =>
-      request(access, task, on => on.ensured.transport.updateTask(task.taskId, inputResponses)),
+      request(
+        access,
+        task,
+        on => on.ensured.transport.updateTask(task.taskId, inputResponses),
+        asIs,
+      ),
     cancelTask: (access, task) =>
-      request(access, task, on => on.ensured.transport.cancelTask(task.taskId)),
+      request(access, task, on => on.ensured.transport.cancelTask(task.taskId), asIs),
   }
 }
