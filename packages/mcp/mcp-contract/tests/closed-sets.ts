@@ -17,7 +17,11 @@ import type {
   Refusal,
   UnavailableReason,
 } from '@omne-harness/mcp-contract'
-import type { EligibilityVerdict, TransportFailure } from '@omne-harness/mcp-contract/provider'
+import type {
+  EligibilityVerdict,
+  TransportFailure,
+  WithheldReason,
+} from '@omne-harness/mcp-contract/provider'
 
 export const ENDPOINT_BODY_REJECTIONS = [
   'malformed',
@@ -112,8 +116,10 @@ export const ANSWER_MALFORMED_WHAT = [
   'status-unknown',
   'input-requests-missing',
   'result-missing',
+  'error-missing',
   'error-shape',
   'tools-missing',
+  'cursor-invalid',
   'discover-shape',
 ] as const satisfies readonly AnswerMalformed['what'][]
 
@@ -153,6 +159,8 @@ export const ELIGIBILITY_REFUSALS = [
   'disabled',
 ] as const satisfies readonly Extract<EligibilityVerdict, { kind: 'refused' }>['reason'][]
 
+export const WITHHELD_REASONS = ['header-invalid'] as const satisfies readonly WithheldReason[]
+
 export const CLOSED_SETS = {
   EndpointBodyRejection: ENDPOINT_BODY_REJECTIONS,
   ListingDefect: LISTING_DEFECTS,
@@ -170,4 +178,5 @@ export const CLOSED_SETS = {
   DegradedReason: DEGRADED_REASONS,
   LostReason: LOST_REASONS,
   EligibilityVerdict: ELIGIBILITY_REFUSALS,
+  WithheldReason: WITHHELD_REASONS,
 } as const

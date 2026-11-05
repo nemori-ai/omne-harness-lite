@@ -27,4 +27,5 @@ export type {
   TaskAnswer,
   TransportFailure,
   TransportMaterial,
+  WithheldReason,
 } from './transport.ts'

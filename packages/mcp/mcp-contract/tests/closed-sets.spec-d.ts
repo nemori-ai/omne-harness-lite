@@ -15,7 +15,11 @@ import type {
   Refusal,
   UnavailableReason,
 } from '@omne-harness/mcp-contract'
-import type { EligibilityVerdict, TransportFailure } from '@omne-harness/mcp-contract/provider'
+import type {
+  EligibilityVerdict,
+  TransportFailure,
+  WithheldReason,
+} from '@omne-harness/mcp-contract/provider'
 import type { CLOSED_SETS } from './closed-sets.ts'
 
 type Members<K extends keyof typeof CLOSED_SETS> = (typeof CLOSED_SETS)[K][number]
@@ -39,4 +43,5 @@ test('each code list has exactly the members of its type', () => {
   expectTypeOf<Members<'EligibilityVerdict'>>().toEqualTypeOf<
     Extract<EligibilityVerdict, { kind: 'refused' }>['reason']
   >()
+  expectTypeOf<Members<'WithheldReason'>>().toEqualTypeOf<WithheldReason>()
 })

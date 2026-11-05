@@ -82,14 +82,26 @@ export type CallOutcome =
       requestState?: RequestState
       issuedAt: Generation
     }>
-  | Readonly<{ kind: 'task'; taskId: TaskId; issuedAt: Generation }>
+  | (Readonly<{ kind: 'task'; taskId: TaskId; issuedAt: Generation }> & TaskHints)
   | Readonly<{ kind: 'protocolError'; fault: ProtocolFault }>
   | Readonly<{ kind: 'unknown'; cause: NoAnswerCause }>
 
 export type TaskStatus = 'working' | 'input_required' | 'completed' | 'failed' | 'cancelled'
 
+/**
+ * The hints of a task, as the peer wrote them on the task handle or on `tasks/get`. A `ttlMs` of
+ * `null` means unlimited and is left out. A hint that is not of its type is left out: the poll
+ * interval and the ttl are non-negative safe integers, the status message is text.
+ */
+export type TaskHints = Readonly<{
+  pollIntervalMs?: number
+  ttlMs?: number
+  statusMessage?: Untrusted<string>
+}>
+
 /** The state of a task, and the input requests it waits for when it is `input_required`. */
-export type TaskReport = Readonly<{ status: TaskStatus; inputRequests?: Untrusted<JsonValue> }>
+export type TaskReport = Readonly<{ status: TaskStatus; inputRequests?: Untrusted<JsonValue> }> &
+  TaskHints
 
 /** A refusal reason that a use-eligibility answer gives only to a principal with eligibility. */
 export type BlockedReason = 'local-command-not-enabled' | 'disabled'
@@ -155,8 +167,10 @@ export type AnswerMalformed = Readonly<{
     | 'status-unknown'
     | 'input-requests-missing'
     | 'result-missing'
+    | 'error-missing'
     | 'error-shape'
     | 'tools-missing'
+    | 'cursor-invalid'
     | 'discover-shape'
 }>
 
