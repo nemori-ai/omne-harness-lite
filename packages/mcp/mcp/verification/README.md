@@ -239,6 +239,7 @@ TLC 负控与变异的对应：`bad-no-absorb-close` 与 M1，`bad-forget-open`�
 - 上限之外的调度：例如一个键 3 次 `ensure`，或两种偏离同时出现；调用口的场景每个主体一个关联键、一个任务。
 - 调用口：HTTP 端点、输出 schema 与 `checkOutput`、`inputRequired` 结局与真实的继续、任务表与在途表跨重启、授权发现的 `not-sent`：两种证据都不覆盖，由既有用例承担。「新建连接的账户变了」只在模型里。
 - `closeAll` 把放弃落点与关闭条目时的本包错误收进 `AggregateError` 的一路：端口经 `ask` 不会让这两步拒绝，只有本包自己的缺陷会走到这里，所以没有不往本包注入缺陷就能触发的用例。任务作用域记下的本包错误一路有用例（P7）。
+- S8 的关停先判（`prepare` 开头的 `table.isShut()`，`2678b21b5`）：两种证据都不区分「关停之后问没问端口」。P13 只禁传输的 `call`，关停之后 `ensure` 本来就拒绝，所以去掉这一判（变异 S1，`mutations/merged-s8/`，场景 `call-shutdown`）没有新签名；守住它的是 `tests/continue.spec.ts` 的用例。
 - 模型与实现之间没有精化证明。
 
 ## 维护
