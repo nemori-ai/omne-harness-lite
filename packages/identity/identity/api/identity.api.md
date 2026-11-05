@@ -25,8 +25,11 @@
 - `GovernanceModelRef` · `qualification.d.ts`
 - `GovernanceNoChange` · `governance.d.ts`
 - `GovernanceNotVisible` · `governance.d.ts`
+- `GovernanceOperationRef` · `governance.d.ts`
+- `GovernanceRecoveryOutcome` · `governance.d.ts`
 - `IdentityClock` · `operations.d.ts`
 - `IdentityGovernance` · `governance.d.ts`
+- `IdentityGovernanceRecovery` · `governance.d.ts`
 - `IdentityOperations` · `operations.d.ts`
 - `IdentityOperationsOptions` · `operations.d.ts`
 - `InvitationDispositionInput` · `governance.d.ts`
@@ -79,7 +82,15 @@
 - `RoleQualifications` · `qualification.d.ts`
 - `RoleRef` · `qualification.d.ts`
 - `RoleResolutionFailure` · `qualification.d.ts`
+- `StandingBinding` · `reservations.d.ts`
+- `StandingDestinationResolver` · `reservations.d.ts`
 - `StandingEvidence` · `standing.d.ts`
+- `StandingRecoveryPage` · `reservations.d.ts`
+- `StandingReservation` · `reservations.d.ts`
+- `StandingReservations` · `reservations.d.ts`
+- `StandingReserveOutcome` · `reservations.d.ts`
+- `StandingSettleOutcome` · `reservations.d.ts`
+- `StandingTerminal` · `reservations.d.ts`
 - `SwitchCurrentTenantInput` · `governance.d.ts`
 - `SwitchCurrentTenantOutcome` · `governance.d.ts`
 - `SystemPrincipal` · `principal.d.ts`
@@ -90,22 +101,32 @@
 - `governanceModelEquals` · `qualification.d.ts`
 - `inProcessPrincipalAuthority` · `principal.d.ts`
 - `isQualification` · `qualification.d.ts`
+- `isStandingBinding` · `reservations.d.ts`
+- `isStandingReservation` · `reservations.d.ts`
 - `qualificationsOf` · `qualification.d.ts`
 - `scopeOf` · `principal.d.ts`
+- `standingPrincipalRef` · `reservations.d.ts`
+- `standingReservationId` · `reservations.d.ts`
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
 - `IdentityClockService` · `cordis.d.ts`
+- `IdentityGovernanceRecoveryService` · `cordis.d.ts`
 - `IdentityGovernanceService` · `cordis.d.ts`
 - `IdentityOperationsService` · `cordis.d.ts`
 - `PrincipalIssuerService` · `cordis.d.ts`
 - `PrincipalVerifierService` · `cordis.d.ts`
+- `StandingDestinationResolverService` · `cordis.d.ts`
+- `StandingReservationsService` · `cordis.d.ts`
 - `TenantStandingSourceService` · `cordis.d.ts`
 - `identityClockKey` · `cordis.d.ts`
 - `identityGovernanceKey` · `cordis.d.ts`
+- `identityGovernanceRecoveryKey` · `cordis.d.ts`
 - `identityOperationsKey` · `cordis.d.ts`
 - `principalIssuerKey` · `cordis.d.ts`
 - `principalVerifierKey` · `cordis.d.ts`
+- `standingDestinationResolverKey` · `cordis.d.ts`
+- `standingReservationsKey` · `cordis.d.ts`
 - `tenantStandingKey` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
@@ -145,6 +166,8 @@
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
+import type { StandingReservations, StandingDestinationResolver } from './reservations.ts';
+import type { IdentityGovernanceRecovery } from './governance.ts';
 import type { IdentityGovernance } from './governance.ts';
 import type { IdentityClock, IdentityOperations } from './operations.ts';
 import type { PrincipalIssuer, PrincipalVerifier } from './principal.ts';
@@ -206,8 +229,32 @@ export declare abstract class IdentityGovernanceService extends Service implemen
     abstract readonly reportBusinessAccess: IdentityGovernance['reportBusinessAccess'];
 }
 export declare const identityGovernanceKey = "identityGovernance";
+export declare abstract class StandingReservationsService extends Service implements StandingReservations {
+    static readonly provide = "standingReservations";
+    constructor(ctx: Context);
+    abstract readonly reserve: StandingReservations['reserve'];
+    abstract readonly settle: StandingReservations['settle'];
+    abstract readonly recover: StandingReservations['recover'];
+}
+export declare const standingReservationsKey = "standingReservations";
+export declare abstract class StandingDestinationResolverService extends Service implements StandingDestinationResolver {
+    static readonly provide = "standingDestinationResolver";
+    constructor(ctx: Context);
+    abstract readonly seal: StandingDestinationResolver['seal'];
+}
+export declare const standingDestinationResolverKey = "standingDestinationResolver";
+export declare abstract class IdentityGovernanceRecoveryService extends Service implements IdentityGovernanceRecovery {
+    static readonly provide = "identityGovernanceRecovery";
+    constructor(ctx: Context);
+    abstract readonly resume: IdentityGovernanceRecovery['resume'];
+    abstract readonly recover: IdentityGovernanceRecovery['recover'];
+}
+export declare const identityGovernanceRecoveryKey = "identityGovernanceRecovery";
 declare module '@deepseek-ai/cordis' {
     interface Context {
+        standingReservations: StandingReservationsService;
+        standingDestinationResolver: StandingDestinationResolverService;
+        identityGovernanceRecovery: IdentityGovernanceRecoveryService;
         identityOperations: IdentityOperationsService;
         tenantStanding: TenantStandingSourceService;
         principalVerifier: PrincipalVerifierService;
@@ -413,6 +460,31 @@ export type InvitationTermsReading = Readonly<{
 export interface InvitationTermsSource {
     read(): Promise<InvitationTermsReading>;
 }
+export type GovernanceOperationRef = Readonly<{
+    operationId: string;
+}>;
+export type GovernanceRecoveryOutcome = Readonly<{
+    kind: 'finished';
+    operation: GovernanceOperationRef;
+    outcome: LeaveOrganizationOutcome | MemberChangeOutcome | InvitationDispositionOutcome;
+}> | Readonly<{
+    kind: 'pending';
+    operation: GovernanceOperationRef;
+}> | GovernanceDenied | GovernanceNotVisible | GovernanceBasisUnavailable;
+export interface IdentityGovernanceRecovery {
+    resume(input: GovernanceLogin & Readonly<{
+        operation: GovernanceOperationRef;
+    }>): Promise<GovernanceRecoveryOutcome>;
+    recover(input?: Readonly<{
+        after?: string;
+        limit?: number;
+    }>): Promise<Readonly<{
+        kind: 'recovered';
+        examined: number;
+        finished: number;
+        next: string | null;
+    }> | GovernanceBasisUnavailable>;
+}
 ```
 
 ## 声明文件 `index.d.ts`
@@ -425,6 +497,9 @@ export type { GovernanceModelRef, Qualification, RoleMapping, RoleQualifications
 export type { StandingEvidence, TenantStandingReading, TenantStandingSource } from './standing.ts';
 export type { ClockReading, IdentityClock, IdentityOperations, IdentityOperationsOptions, IssuedLogin, IssueLoginInput, IssueLoginOutcome, LoginCredentialInput, LoginRecognition, LoginTerms, LoginTermsReading, LoginTermsSource, RecognizeLoginInput, RegisterAndActivateInput, RegisterAndActivateOutcome, } from './operations.ts';
 export type { BusinessAccessReport, ChangeMemberRoleInput, CreatedOrganization, CreateOrganizationInput, CreateOrganizationOutcome, CurrentTenantOutcome, GovernanceActing, GovernanceBasisUnavailable, GovernanceConflict, GovernanceDenied, GovernanceLogin, GovernanceNoChange, GovernanceNotVisible, IdentityGovernance, InvitationDispositionInput, InvitationDispositionOutcome, InvitationListOutcome, InvitationState, InvitationTerminal, InvitationTerms, InvitationTermsReading, InvitationTermsSource, IssueMemberInvitationInput, IssueMemberInvitationOutcome, LeaveOrganizationInput, LeaveOrganizationOutcome, MemberChangeOutcome, MemberInvitation, OrganizationMember, OrganizationMembersOutcome, OwnMembership, OwnMembershipsOutcome, OwnValidLoginsOutcome, QueryCreateOrganizationInput, QueryCreateOrganizationOutcome, QueryInvitationInput, QueryInvitationOutcome, QueryOrganizationMembersInput, RemoveMemberInput, RevokeLoginInput, RevokeLoginOutcome, SwitchCurrentTenantInput, SwitchCurrentTenantOutcome, ValidLogin, } from './governance.ts';
+export { standingPrincipalRef, standingReservationId, isStandingBinding, isStandingReservation, } from './reservations.ts';
+export type { StandingBinding, StandingReservation, StandingTerminal, StandingDestinationResolver, StandingReserveOutcome, StandingSettleOutcome, StandingRecoveryPage, StandingReservations, } from './reservations.ts';
+export type { GovernanceOperationRef, GovernanceRecoveryOutcome, IdentityGovernanceRecovery, } from './governance.ts';
 ```
 
 ## 声明文件 `operations.d.ts`
@@ -603,6 +678,79 @@ export declare const DEFAULT_TEAM_ROLES: Readonly<{
 export declare const DEFAULT_TEAM_ROLE_MAPPING: RoleMapping;
 export declare function governanceModelEquals(left: GovernanceModelRef, right: GovernanceModelRef): boolean;
 export declare function qualificationsOf(mapping: RoleMapping, role: RoleRef): Outcome<readonly Qualification[], RoleResolutionFailure>;
+```
+
+## 声明文件 `reservations.d.ts`
+
+```ts
+import type { ActingForTenantPrincipal } from './principal.ts';
+import { type Qualification } from './qualification.ts';
+export type StandingBinding = Readonly<{
+    version: 'standing/1';
+    owner: string;
+    operationId: string;
+    principalRef: string;
+    destination: string;
+    scopeRef: string;
+    targetRef: string;
+    inputDigest: string;
+}>;
+export type StandingReservation = Readonly<{
+    id: string;
+    binding: StandingBinding;
+    required: readonly Qualification[];
+}>;
+export type StandingTerminal = Readonly<{
+    kind: 'terminal';
+    reservation: StandingReservation;
+    outcome: 'committed' | 'aborted';
+}>;
+export interface StandingDestinationResolver {
+    seal(reservation: StandingReservation): Promise<StandingTerminal | Readonly<{
+        kind: 'unavailable';
+        diagnostic: string;
+    }>>;
+}
+export type StandingReserveOutcome = Readonly<{
+    kind: 'held';
+    reservation: StandingReservation;
+}> | StandingTerminal | Readonly<{
+    kind: 'denied' | 'operation-conflict' | 'blocked';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export type StandingSettleOutcome = StandingTerminal | Readonly<{
+    kind: 'not-found';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export type StandingRecoveryPage = Readonly<{
+    kind: 'recovered';
+    examined: number;
+    settled: number;
+    next: string | null;
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export interface StandingReservations {
+    reserve(input: Readonly<{
+        principal: ActingForTenantPrincipal;
+        binding: StandingBinding;
+        required: readonly Qualification[];
+    }>): Promise<StandingReserveOutcome>;
+    settle(id: string): Promise<StandingSettleOutcome>;
+    recover(input?: Readonly<{
+        after?: string;
+        limit?: number;
+    }>): Promise<StandingRecoveryPage>;
+}
+export declare function standingPrincipalRef(principal: ActingForTenantPrincipal): string;
+export declare function standingReservationId(binding: StandingBinding, required: readonly Qualification[]): string;
+export declare function isStandingBinding(value: unknown): value is StandingBinding;
+export declare function isStandingReservation(value: unknown): value is StandingReservation;
 ```
 
 ## 声明文件 `standing.d.ts`

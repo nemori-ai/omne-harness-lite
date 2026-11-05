@@ -1,4 +1,6 @@
 import { type Context, Service } from '@deepseek-ai/cordis'
+import type { StandingReservations, StandingDestinationResolver } from './reservations.ts'
+import type { IdentityGovernanceRecovery } from './governance.ts'
 import type { IdentityGovernance } from './governance.ts'
 import type { IdentityClock, IdentityOperations } from './operations.ts'
 import type { PrincipalIssuer, PrincipalVerifier } from './principal.ts'
@@ -93,8 +95,51 @@ export abstract class IdentityGovernanceService extends Service implements Ident
 }
 export const identityGovernanceKey = IdentityGovernanceService.provide
 
+/** @owner packages/identity/identity */
+export abstract class StandingReservationsService extends Service implements StandingReservations {
+  static readonly provide = 'standingReservations'
+  constructor(ctx: Context) {
+    super(ctx, StandingReservationsService.provide)
+  }
+  abstract readonly reserve: StandingReservations['reserve']
+  abstract readonly settle: StandingReservations['settle']
+  abstract readonly recover: StandingReservations['recover']
+}
+export const standingReservationsKey = StandingReservationsService.provide
+
+/** Trusted assembly provides this optional route. Absence retains every held reservation.
+ * @owner packages/identity/identity */
+export abstract class StandingDestinationResolverService
+  extends Service
+  implements StandingDestinationResolver
+{
+  static readonly provide = 'standingDestinationResolver'
+  constructor(ctx: Context) {
+    super(ctx, StandingDestinationResolverService.provide)
+  }
+  abstract readonly seal: StandingDestinationResolver['seal']
+}
+export const standingDestinationResolverKey = StandingDestinationResolverService.provide
+
+/** @owner packages/identity/identity */
+export abstract class IdentityGovernanceRecoveryService
+  extends Service
+  implements IdentityGovernanceRecovery
+{
+  static readonly provide = 'identityGovernanceRecovery'
+  constructor(ctx: Context) {
+    super(ctx, IdentityGovernanceRecoveryService.provide)
+  }
+  abstract readonly resume: IdentityGovernanceRecovery['resume']
+  abstract readonly recover: IdentityGovernanceRecovery['recover']
+}
+export const identityGovernanceRecoveryKey = IdentityGovernanceRecoveryService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
+    standingReservations: StandingReservationsService
+    standingDestinationResolver: StandingDestinationResolverService
+    identityGovernanceRecovery: IdentityGovernanceRecoveryService
     identityOperations: IdentityOperationsService
     tenantStanding: TenantStandingSourceService
     principalVerifier: PrincipalVerifierService

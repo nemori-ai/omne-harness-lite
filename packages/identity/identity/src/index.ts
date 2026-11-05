@@ -95,3 +95,24 @@ export type {
   SwitchCurrentTenantOutcome,
   ValidLogin,
 } from './governance.ts'
+export {
+  standingPrincipalRef,
+  standingReservationId,
+  isStandingBinding,
+  isStandingReservation,
+} from './reservations.ts'
+export type {
+  StandingBinding,
+  StandingReservation,
+  StandingTerminal,
+  StandingDestinationResolver,
+  StandingReserveOutcome,
+  StandingSettleOutcome,
+  StandingRecoveryPage,
+  StandingReservations,
+} from './reservations.ts'
+export type {
+  GovernanceOperationRef,
+  GovernanceRecoveryOutcome,
+  IdentityGovernanceRecovery,
+} from './governance.ts'

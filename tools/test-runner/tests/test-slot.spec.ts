@@ -6,6 +6,7 @@
 // 分侧判存活（#979 D1）：登记带 side 行，进程号只在同侧判，对侧只看心跳或年龄；队列锁同一规则、只删自己的；
 // 票号单调、票被回收时提示；持有者发现名额文件被删时提示；旧版登记按同侧处理；WSL 里的默认目录解析
 // 用预载的替身覆盖 wslpath 与 PowerShell，不依赖真实 WSL（真实跨侧归 test-slot-wsl.spec.ts）。
+import { randomInt } from 'node:crypto'
 import { type ChildProcess, execFileSync, spawn, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -79,6 +80,7 @@ let dir: string
  * 已经退出的不再杀：Windows 上每次 taskkill 都要起一个进程，机器忙时几次就超过收尾钩子的时限。
  */
 let groups: ChildProcess[] = []
+const fallbackDirectories: string[] = []
 beforeEach(() => {
   dir = realpathSync(mkdtempSync(join(tmpdir(), 'omne-slot-')))
 })
@@ -87,6 +89,7 @@ afterEach(() => {
     if (child.pid !== undefined && child.exitCode === null && child.signalCode === null)
       killTree(child.pid)
   groups = []
+  for (const path of fallbackDirectories.splice(0)) rmSync(path, { recursive: true, force: true })
   rmSync(dir, { recursive: true, force: true })
 })
 
@@ -399,6 +402,7 @@ const INTEROP_SOURCE = `import cp from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { syncBuiltinESMExports } from 'node:module'
 import { dirname, join } from 'node:path'
+if (process.platform !== 'win32') process.getuid = () => Number(process.env.SLOT_TEST_UID)
 const root = process.env.SLOT_TEST_INTEROP_ROOT
 const mode = process.env.SLOT_TEST_INTEROP
 const toLinux = windows => join(root, ...windows.replace(/^[A-Za-z]:\\\\/, '').split('\\\\'))
@@ -1156,13 +1160,22 @@ const timer = setInterval(() => {
   })
 
   describe('WSL 里的默认目录', () => {
-    /** 不设 OMNE_TEST_SLOT_DIR，让脚本自己解析；Windows 上 TEMP 把回退隔离在私有目录里。 */
+    /** 不设 OMNE_TEST_SLOT_DIR；POSIX 用预载的独立 UID，Windows 用私有 TEMP。 */
     function resolveDefault(mode: 'ok' | 'unshared' | 'broken') {
       const root = join(dir, 'windows')
+      const uid = randomInt(0x4000_0000, 0x7fff_ffff)
+      const fallback = WINDOWS
+        ? join(dir, `omne-test-slots-${userInfo().username}`)
+        : `/tmp/omne-test-slots-${uid}`
+      if (!WINDOWS) {
+        mkdirSync(fallback)
+        fallbackDirectories.push(fallback)
+      }
       const env = slotEnv({
         ...preload('interop', INTEROP_SOURCE),
         WSL_DISTRO_NAME: 'Fake',
         SLOT_TEST_INTEROP: mode,
+        SLOT_TEST_UID: String(uid),
         SLOT_TEST_INTEROP_ROOT: root,
         TEMP: dir,
         TMP: dir,
@@ -1177,13 +1190,8 @@ const timer = setInterval(() => {
         ]),
         { encoding: 'utf8', env, timeout: 20_000 },
       )
-      return { ...result, root }
+      return { ...result, root, fallback }
     }
-    /** 回退目录：Windows 上是私有 TEMP；POSIX 上是真实的 /tmp，用例只在里面短暂领一次。 */
-    const fallback = () =>
-      WINDOWS
-        ? join(dir, `omne-test-slots-${userInfo().username}`)
-        : `/tmp/omne-test-slots-${process.getuid?.() ?? ''}`
 
     it('有 interop：解析到 Windows 临时目录下的同一个目录，探针用完即删，不提示', () => {
       const result = resolveDefault('ok')
@@ -1197,15 +1205,15 @@ const timer = setInterval(() => {
     it('interop 起不来：回退到本侧目录，并在标准错误提示没有共用名额', () => {
       const result = resolveDefault('broken')
       expect(result.status, result.stderr).toBe(0)
-      expect(result.stdout).toBe(join(fallback(), 'slot-1.lock'))
+      expect(result.stdout).toBe(join(result.fallback, 'slot-1.lock'))
       expect(result.stderr).toContain('WSL 与 Windows 没有共用名额')
-      expect(result.stderr).toContain(fallback())
+      expect(result.stderr).toContain(result.fallback)
     })
 
     it('解析出了路径，但 Windows 建的文件在那里看不见：同目录判定不成立，回退并提示', () => {
       const result = resolveDefault('unshared')
       expect(result.status, result.stderr).toBe(0)
-      expect(result.stdout).toBe(join(fallback(), 'slot-1.lock'))
+      expect(result.stdout).toBe(join(result.fallback, 'slot-1.lock'))
       expect(result.stderr).toContain('WSL 与 Windows 没有共用名额')
       expect(result.stderr).toContain('看不见')
     })

@@ -4,7 +4,12 @@
 // day at most). `close` stops the provider, closes scrypt and closes the storage. The build is the
 // real one, or a mutant of it for a negative control.
 import type { SqlStorage } from '@omne-harness/sql-contract'
-import type { IdentityClock, LoginTermsSource } from '@omne-harness/identity'
+import type {
+  IdentityClock,
+  LoginTermsSource,
+  PrincipalVerifier,
+  StandingDestinationResolver,
+} from '@omne-harness/identity'
 import {
   adjustableInvitationTerms,
   adjustableLoginTerms,
@@ -47,6 +52,8 @@ export type ProviderOptions = Readonly<{
   storage?: OpenedStorage
   /** The build under test: the real one by default, or a mutant (`mutants.ts`). */
   build?: IdentitySqlBuild
+  principalVerifier?: PrincipalVerifier
+  destinationResolver?: StandingDestinationResolver
 }>
 
 export type OpenedProvider = Readonly<{
@@ -81,6 +88,12 @@ export async function openProvider(options: ProviderOptions = {}): Promise<Opene
     scrypt: scrypt.module,
     decoyMaterial: scrypt.decoyMaterial,
     ...(options.identifiers === undefined ? {} : { identifiers: options.identifiers }),
+    ...(options.principalVerifier === undefined
+      ? {}
+      : { principalVerifier: options.principalVerifier }),
+    ...(options.destinationResolver === undefined
+      ? {}
+      : { destinationResolver: options.destinationResolver }),
   })
   return {
     provider,

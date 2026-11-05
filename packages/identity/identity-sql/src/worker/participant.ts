@@ -8,6 +8,7 @@
 // needs, and that the expected state still holds; then it writes. The domain's writes are serial,
 // so two commands never pass the same check before either writes. A refusal writes nothing and
 // answers `participated` with its outcome, so a refusal is not a rollback.
+import { membershipGate, standingCommand, type MembershipMode } from './standing.ts'
 import type {
   ParticipantModule,
   ParticipantPort,
@@ -174,6 +175,8 @@ function register(facts: RegisterFacts, port: ParticipantPort): ParticipantReply
     facts.loginIdentifier,
   ])
   if (taken !== undefined) return { kind: 'conflict', basis: { reason: 'identifier-taken' } }
+  const blocked = membershipGate(port, facts.organization, facts.account)
+  if (blocked !== undefined) return { kind: 'conflict', basis: { reason: 'membership-blocked' } }
   port.execute(
     'INSERT INTO id_account (account, login_identifier, personal_organization) VALUES (?, ?, ?)',
     [facts.account, facts.loginIdentifier, facts.organization],
@@ -306,6 +309,8 @@ function createOrganization(facts: CreateOrganizationFacts, port: ParticipantPor
     receipt('denied', null, null)
     return DENIED()
   }
+  const blocked = membershipGate(port, facts.organization, who.account)
+  if (blocked !== undefined) return blocked
   // The organization, the creator's tenant and the first super administrator, in this one command.
   port.execute('INSERT INTO id_organization (organization, kind) VALUES (?, ?)', [
     facts.organization,
@@ -420,7 +425,10 @@ function admit(
   invitation: string,
   found: InvitationRow,
   port: ParticipantPort,
+  mode?: MembershipMode,
 ) {
+  const blocked = membershipGate(port, found.organization, found.invitedAccount, mode)
+  if (blocked !== undefined) return blocked
   setInvitationState(port, invitation, 'accepted')
   const current = membershipOf(port, found.organization, found.invitedAccount)
   if (current?.state === MEMBERSHIP_ACTIVE)
@@ -464,7 +472,11 @@ function admit(
   return reply('succeeded', { invitation, state: 'accepted' })
 }
 
-function disposeInvitation(facts: DisposeInvitationFacts, port: ParticipantPort) {
+function disposeInvitation(
+  facts: DisposeInvitationFacts,
+  port: ParticipantPort,
+  mode?: MembershipMode,
+) {
   const who = actingCaller(port, facts)
   if (who.kind !== 'caller') return reply(who.outcome)
   const invitation = facts.invitation
@@ -484,13 +496,17 @@ function disposeInvitation(facts: DisposeInvitationFacts, port: ParticipantPort)
     state = INVITATION_EXPIRED
   }
   if (state !== INVITATION_OPEN) return reply('no-change', { invitation, state })
-  if (facts.action === 'accept') return admit(facts, invitation, found, port)
+  if (facts.action === 'accept') return admit(facts, invitation, found, port, mode)
   const terminal = facts.action === 'reject' ? 'rejected' : 'withdrawn'
   setInvitationState(port, invitation, terminal)
   return reply('succeeded', { invitation, state: terminal })
 }
 
-function leaveOrganization(facts: LeaveOrganizationFacts, port: ParticipantPort) {
+function leaveOrganization(
+  facts: LeaveOrganizationFacts,
+  port: ParticipantPort,
+  mode?: MembershipMode,
+) {
   const who = actingCaller(port, facts)
   if (who.kind !== 'caller') return reply(who.outcome)
   const organization = facts.actingOrganization
@@ -499,6 +515,8 @@ function leaveOrganization(facts: LeaveOrganizationFacts, port: ParticipantPort)
   const own = membershipOf(port, organization, who.account)
   if (own === undefined || own.state !== MEMBERSHIP_ACTIVE) return DENIED()
   if (leavesNoAdmin(port, organization, own.role, null, facts.superAdminRole)) return DENIED()
+  const blocked = membershipGate(port, organization, who.account, mode)
+  if (blocked !== undefined) return blocked
   port.execute(
     `UPDATE id_membership SET state = ?, revision = revision + 1
       WHERE organization = ? AND account = ?`,
@@ -507,7 +525,7 @@ function leaveOrganization(facts: LeaveOrganizationFacts, port: ParticipantPort)
   return reply('succeeded')
 }
 
-function changeMember(facts: ChangeMemberFacts, port: ParticipantPort) {
+function changeMember(facts: ChangeMemberFacts, port: ParticipantPort, mode?: MembershipMode) {
   const who = actingCaller(port, facts)
   if (who.kind !== 'caller') return reply(who.outcome)
   const organization = facts.organization
@@ -519,22 +537,35 @@ function changeMember(facts: ChangeMemberFacts, port: ParticipantPort) {
     facts.account === null ? undefined : membershipOf(port, organization, facts.account)
   if (facts.account === null || target === undefined || target.state !== MEMBERSHIP_ACTIVE)
     return NOT_VISIBLE()
+  return applyMemberChange(facts, port, organization, facts.account, target, mode)
+}
+
+function applyMemberChange(
+  facts: ChangeMemberFacts,
+  port: ParticipantPort,
+  organization: string,
+  account: string,
+  target: NonNullable<ReturnType<typeof membershipOf>>,
+  mode?: MembershipMode,
+) {
   if (facts.change === 'role' && facts.targetRole === null) return DENIED()
   if (facts.expectedRole !== target.role) return reply('conflict')
   const nextRole = facts.change === 'remove' ? null : facts.targetRole
   if (leavesNoAdmin(port, organization, target.role, nextRole, facts.superAdminRole))
     return DENIED()
+  const blocked = membershipGate(port, organization, account, mode)
+  if (blocked !== undefined) return blocked
   if (nextRole === null)
     port.execute(
       `UPDATE id_membership SET state = ?, revision = revision + 1
         WHERE organization = ? AND account = ?`,
-      [MEMBERSHIP_REMOVED, organization, facts.account],
+      [MEMBERSHIP_REMOVED, organization, account],
     )
   else if (nextRole !== target.role)
     port.execute(
       `UPDATE id_membership SET role = ?, revision = revision + 1
         WHERE organization = ? AND account = ?`,
-      [nextRole, organization, facts.account],
+      [nextRole, organization, account],
     )
   return reply('succeeded')
 }
@@ -601,18 +632,22 @@ function reportAccess(facts: ReportAccessFacts, port: ParticipantPort) {
   return reply('refreshed', { idleDeadline: text(row?.['idle_deadline']) })
 }
 
-function governance(facts: GovernanceFacts, port: ParticipantPort): ParticipantReply {
+function governance(
+  facts: GovernanceFacts,
+  port: ParticipantPort,
+  mode?: MembershipMode,
+): ParticipantReply {
   switch (facts.kind) {
     case 'create-organization':
       return createOrganization(facts, port)
     case 'issue-invitation':
       return issueInvitation(facts, port)
     case 'dispose-invitation':
-      return disposeInvitation(facts, port)
+      return disposeInvitation(facts, port, mode)
     case 'leave-organization':
-      return leaveOrganization(facts, port)
+      return leaveOrganization(facts, port, mode)
     case 'change-member':
-      return changeMember(facts, port)
+      return changeMember(facts, port, mode)
     case 'switch-tenant':
       return switchTenant(facts, port)
     case 'revoke-login':
@@ -630,6 +665,16 @@ const participant: ParticipantModule = {
   participant: IDENTITY_PARTICIPANT,
   protocol: PROTOCOL,
   execute(rawFacts, port) {
+    const coordinated = standingCommand(rawFacts, port, governance, raw => {
+      const parsed = parseFacts(raw)
+      return parsed !== undefined &&
+        (parsed.kind === 'leave-organization' ||
+          parsed.kind === 'change-member' ||
+          (parsed.kind === 'dispose-invitation' && parsed.action === 'accept'))
+        ? parsed
+        : undefined
+    })
+    if (coordinated !== undefined) return coordinated
     const facts = parseFacts(rawFacts)
     if (facts === undefined) return { kind: 'unsupported', basis: { reason: 'facts' } }
     if (facts.kind === 'register') return register(facts, port)
