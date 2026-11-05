@@ -158,6 +158,7 @@
 - `TailFacts` · `values.d.ts`
 - `TenantModelCall` · `values.d.ts`
 - `ToolAdoption` · `values.d.ts`
+- `ToolCommandSelection` · `values.d.ts`
 - `ToolDeclarationSet` · `values.d.ts`
 - `ToolRoute` · `values.d.ts`
 - `TransitionEvidence` · `values.d.ts`
@@ -586,7 +587,7 @@ export declare function isCoverage(value: unknown): value is Coverage;
 
 ```ts
 import type { ToolAdoption } from './values.js';
-export type { ToolRoute, ToolDeclarationSet } from './values.js';
+export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './values.js';
 import type { ToolDeclarationSet } from './values.js';
 export declare function declareTools(tools: readonly ToolAdoption[]): ToolDeclarationSet;
 ```
@@ -665,7 +666,7 @@ export type HistoryEvidenceResolver<P> = (input: HistoryResolution<P>) => Promis
 export type { ScopeRef, ContextBlockKey } from '@omne-harness/runtime-context-contract';
 export type { Path, Decoded, Decoder } from './schema.js';
 export { standardSchema, compactionPolicySchema, representationPolicyConfigSchema, planProgressSchema, compactionPlanSchema, coverageSchema, } from './schema.js';
-export type { ToolRoute, ToolDeclarationSet } from './declare-tools.js';
+export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './declare-tools.js';
 export { declareTools } from './declare-tools.js';
 export type { ConversionIndex, RepresentationResult } from './representation.js';
 export { chooseRepresentations } from './representation.js';
@@ -2517,11 +2518,18 @@ export type DeriveInput<P> = Readonly<{
     step: StepInput;
     material: SummaryMaterial;
 }>;
+export type ToolCommandSelection = Readonly<{
+    kind: 'none';
+}> | Readonly<{
+    kind: 'argument';
+    encoding: T.CommandCallEncoding;
+    commands: readonly string[];
+}>;
 export type ToolRoute = Readonly<{
     declared: string;
     tool: Adoption;
     binding: Adoption;
-    command: string | null;
+    selection: ToolCommandSelection;
 }>;
 export type ToolDeclarationSet = Readonly<{
     direct: readonly M.ToolDeclaration[];

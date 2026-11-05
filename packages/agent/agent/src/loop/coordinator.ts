@@ -120,6 +120,7 @@ import {
   actionOf,
   admitToolAction,
   candidateDigest,
+  answeredCandidate,
   deniedCandidate,
   deniedForUnavailableAdmission,
   deniedSlot,
@@ -129,6 +130,7 @@ import {
   toolIntentOf,
   toolProduced,
   toolReceivedOf,
+  toolCallAnswerOf,
   toolResultCandidate,
   type AssociatedToolCall,
   type ToolAdmission,
@@ -1966,6 +1968,21 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return computed
   }
 
+  /**
+   * The candidate of a denied slot: the generic denial, or the answer the action was denied with,
+   * read back from its material. A material that is not an answer is `invalid` (D-104).
+   */
+  async function deniedSlotCandidate(action: Action): Promise<Outcome<Message, Failure>> {
+    const answer = action.judgment.kind === 'denied' ? action.judgment.answer : undefined
+    if (answer === undefined) return succeed(deniedCandidate(execution, action))
+    const material = await ports.materials.read({ ...access, source: answer })
+    if ('failure' in material) return material
+    const text = toolCallAnswerOf(material.ok)
+    if (text === null)
+      return fail({ kind: 'invalid', field: 'judgment.answer', reason: 'not a call answer' })
+    return succeed(answeredCandidate(execution, action, text))
+  }
+
   /** The candidate of a slot before any digest: no extension is adopted at after_action yet. */
   async function computedCandidate(
     action: Action,
@@ -1973,7 +1990,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   ): Promise<Outcome<Message, Failure>> {
     if (slot.each !== null && slot.each.length > 0)
       return fail(notYet('T2', 'a single-result passage with conclusions', '#502 stage 5'))
-    if (slot.kind === 'denied') return succeed(deniedCandidate(execution, action))
+    if (slot.kind === 'denied') return deniedSlotCandidate(action)
     if (slot.kind !== 'result') return fail(defect(`T2: no candidate of a ${slot.kind} slot`))
     const received = await receivedToolResult(action)
     if ('failure' in received) return received

@@ -8,8 +8,8 @@
 //   必须是这个租户的会话工作主体；判定只有一份，在
 //   `rows/tool-runtime/session-work.ts`，与 Tool 运行时的身份一侧同口径。它的工作文本就是会话 id。其余主体答
 //   denied，核验器缺席答 unavailable。
-// - 定义与可用性：`toolCatalog.inspect`。模型看到的名字按 request-context 的声明规则（`declare-tools.ts`：
-//   多命令工具是 `<工具>.<命令>`，单函数工具是工具名）拆成工具名与命令。消费者材料是发行清单确认的文本消费者。
+// - 定义与可用性：`toolCatalog.inspect`。模型看到的名字就是工具名（`declare-tools.ts`，D-94）；多命令工具的
+//   命令从生效参数的 `command` 选出，见 `commandOf`。消费者材料是发行清单确认的文本消费者。
 //   不在发行清单里、不是官方层、不是 `available` 的答 unavailable；prepare 时定义采用必须与 describe 给出的相同。
 // - requesterScope：会话的当前 Context 作用域，即会话快照 `contextScopes` 的最新一条，未结束（与 AD-04 历史源
 //   的读法相同）。会话以 `coordinator` 调用方类读取（见 `sessionWorkReaderOf`），访问裁定照常；读不到或作用域
@@ -19,6 +19,7 @@
 // - 设置采用：发行清单里这个作者的固定设置采用。并发作用域：发行唯一的作用域（`rows/tool-runtime/scope.ts`）。
 // - workspace 为 null（本发行没有工作区身份，不猜）；resources 为空；前台执行；不加请求级的并发与时限。
 import type { Context } from '@deepseek-ai/cordis'
+import type { ToolCallAnswer } from '@omne-harness/agent'
 import type { Failure } from '@omne-harness/agent-contract'
 import type { AgentHostLocalPluginInput } from '@omne-harness/agent-host-local/cordis'
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
@@ -39,11 +40,13 @@ import type {
 } from '@omne-harness/session-contract'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
-import type {
-  ToolAvailability,
-  ToolCatalog,
-  ToolConsumerProfile,
-  ToolInvokeRequest,
+import {
+  describeCommandCallRejection,
+  selectCommandText,
+  type ToolAvailability,
+  type ToolCatalog,
+  type ToolConsumerProfile,
+  type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
@@ -77,12 +80,23 @@ const denied = (action: string) => fail<Failure>({ kind: 'denied', action })
 
 type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
 
-/** 按 request-context 的声明规则拆模型看到的名字：`<工具>.<命令>` 或工具名。 */
-export function routeOf(declared: string): Readonly<{ name: string; command: string | null }> {
-  const dot = declared.indexOf('.')
-  return dot < 0
-    ? { name: declared, command: null }
-    : { name: declared.slice(0, dot), command: declared.slice(dot + 1) }
+/**
+ * 模型看到的声明名就是工具名（D-94）。多命令工具从生效参数里选命令：点名已知命令的调用都送到该命令，
+ * 参数不合由工具宿主答出原因与该命令的 guide；没点名已知命令的调用不运行，来源直接作答，
+ * 答复是原因与工具的 guide（D-104）。
+ */
+function commandOf(
+  definition: ToolAvailability['definition'],
+  effectiveArguments: string,
+): Readonly<{ command: string | null }> | Readonly<{ answer: string }> {
+  if (definition.kind === 'function') return { command: null }
+  const selected = selectCommandText(
+    definition.commands.map(command => command.name),
+    effectiveArguments,
+  )
+  return 'failure' in selected
+    ? { answer: describeCommandCallRejection(definition, selected.failure) }
+    : { command: selected.ok }
 }
 
 /** 主体经核验是这个租户的会话工作主体时给出会话 id（判定只有 `session-work.ts` 一份）。 */
@@ -114,11 +128,15 @@ async function availabilityOf(
   release: Trusted,
   input: DescribeInput,
 ): Promise<
-  Outcome<Extract<ToolAvailability, { kind: 'available' }> & { command: string | null }, Failure>
+  Outcome<
+    | (Extract<ToolAvailability, { kind: 'available' }> & { command: string | null })
+    | ToolCallAnswer,
+    Failure
+  >
 > {
   const catalog = ports.catalog()
   if (catalog === undefined) return unavailable('tool catalog absent')
-  const { name, command } = routeOf(input.original.name)
+  const name = input.original.name
   if (!release.manifest.entries.some(entry => entry.asset.name === name))
     return unavailable(`${name} is not a release tool`)
   let answer: Awaited<ReturnType<ToolCatalog<unknown>['inspect']>>
@@ -127,7 +145,7 @@ async function availabilityOf(
       principal: input.principal,
       tenant: input.tenant,
       name,
-      command,
+      command: null,
       consumer: consumerOf(release),
     })
   } catch {
@@ -140,7 +158,12 @@ async function availabilityOf(
   const availability = answer.ok
   if (availability.kind !== 'available' || availability.layer.kind !== 'official')
     return unavailable(`${name} is not available`)
-  return succeed({ ...availability, command })
+  const selected = commandOf(availability.definition, input.effectiveArguments)
+  return succeed(
+    'answer' in selected
+      ? { kind: 'answered', text: selected.answer }
+      : { ...availability, command: selected.command },
+  )
 }
 
 /** 会话快照里当前（最后一个、未结束的）Context 作用域。 */
@@ -218,7 +241,9 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     if ('failure' in session) return session
     const availability = await availabilityOf(ports, release.ok, input)
     if ('failure' in availability) return availability
-    return succeed(availability.ok.definition.adoption)
+    return succeed(
+      availability.ok.kind === 'answered' ? availability.ok : availability.ok.definition.adoption,
+    )
   }
 
   const prepare: ReleaseToolRequests['prepare'] = async (input: PrepareInput) => {
@@ -228,6 +253,8 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     if ('failure' in session) return session
     const found = await availabilityOf(ports, release.ok, input)
     if ('failure' in found) return found
+    // An answered call is never prepared: describe answered it already.
+    if (found.ok.kind === 'answered') return unavailable('the call names no command of the tool')
     const { command, ...availability } = found.ok
     if (canonicalDigest(availability.definition.adoption) !== canonicalDigest(input.definition))
       return unavailable('the current definition differs from the described one')

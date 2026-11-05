@@ -11,5 +11,5 @@
 - [files.ts](../src/files.ts)拥有 Files 工厂与固定 executor 身份。
 - [shell.ts](../src/shell.ts)拥有 Shell 工厂与固定 executor 身份。
 - [environment.ts](../src/environment.ts)定义去除公共请求字段后的已限权门面。宿主仍须填写每次真实身份并执行授权。
-- [commands.ts](../src/commands.ts)拥有命令字段与描述。help 返回同一份 JSON Schema。
+- [commands.ts](../src/commands.ts)拥有命令字段与描述。help 返回 tool-contract 的 `commandGuide`：带 `name` 时是该命令的用法行、摘要、JSON Schema 与逐字段说明，不带时是命令清单，两者后面都接工具规则（定义的 `guide`）。
 - [protocol.ts](../src/protocol.ts)拥有边界校验。配置与参数不读取主机默认值。

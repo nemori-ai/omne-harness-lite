@@ -16,6 +16,7 @@ export async function run<E>(
   if (registration?.kind !== 'commands') throw new Error('Expected commands')
   const operation = registration.operations.find(([name]) => name === command)?.[1]
   if (operation === undefined) throw new Error('Missing command')
+  // The author's codec parses the parameters; the binding cuts them out of the call (D-94).
   const text = JSON.stringify(args)
   const parsed = operation.author.parameters.parse({
     original: text,

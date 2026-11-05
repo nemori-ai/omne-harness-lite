@@ -231,7 +231,10 @@ function commandModule(events: string[]): ToolImplementationModule<unknown, Cont
             adoption: adoption(`parameters-${name}`),
             parse: value => {
               events.push(`parse-${name}`)
-              return value.effective === name
+              // The command codec receives the parameters only, cut out of the whole call.
+              if (value.effective === '{"v":"partial"}')
+                return fail({ kind: 'incomplete', reason: 'partial' })
+              return value.effective === `{"v":"${name}"}`
                 ? succeed(`${name}-parsed`)
                 : fail({ kind: 'invalid', reason: `expected ${name}` })
             },
@@ -258,6 +261,7 @@ function commandModule(events: string[]): ToolImplementationModule<unknown, Cont
     executor: adoption('commands'),
     createAuthor: () =>
       defineCommandTool({
+        encoding: 'wrapped',
         implementation: {
           description: 'Two distinct commands',
           backgroundAllowed: false,
@@ -271,6 +275,11 @@ function commandModule(events: string[]): ToolImplementationModule<unknown, Cont
   }
 }
 
+/** The whole call text of a wrapped command call. */
+function call(command: string, value: string): string {
+  return JSON.stringify({ command, params: { v: value } })
+}
+
 describe('author binding command selection', () => {
   it('dispatches the second command with its parser and settlement operation', async () => {
     const events: string[] = []
@@ -278,7 +287,11 @@ describe('author binding command selection', () => {
     const fixed: FixedToolRequest = {
       ...fixture.fixed,
       command: 'second',
-      arguments: { original: 'second', effective: 'second', complete: true },
+      arguments: {
+        original: call('second', 'second'),
+        effective: call('second', 'second'),
+        complete: true,
+      },
     }
     const binding = await fixture.resolve(fixed)
     unbox(await binding.start(await fixture.input(fixed), {}))
@@ -316,15 +329,81 @@ describe('author binding command selection', () => {
     const fixed: FixedToolRequest = {
       ...fixture.fixed,
       command: 'second',
-      arguments: { original: 'first', effective: 'first', complete: true },
+      arguments: {
+        original: call('second', 'first'),
+        effective: call('second', 'first'),
+        complete: true,
+      },
     }
     const binding = await fixture.resolve(fixed)
     unbox(await binding.start(await fixture.input(fixed), {}))
     await new Promise<void>(resolve => setImmediate(resolve))
     expect(events).toEqual(['parse-second'])
-    expect(fixture.settlements[0]?.outcome).toEqual({ kind: 'failed', reason: 'expected second' })
+    // The reason of the codec comes with the guide of the admitted command (D-104).
+    expect(fixture.settlements[0]?.outcome).toEqual({
+      kind: 'failed',
+      reason: [
+        'read_file second: expected second.',
+        'Usage: read_file {"command": "second", "params": {…}}',
+        'Second command',
+      ].join('\n'),
+    })
     expect(fixture.settlements[0]?.operation.author.parameters.adoption.name).toBe(
       'parameters-second',
+    )
+  })
+
+  it('gives only the reason, without a guide, for incomplete parameters', async () => {
+    const fixture = await harness(commandModule([]))
+    const fixed: FixedToolRequest = {
+      ...fixture.fixed,
+      command: 'second',
+      arguments: {
+        original: call('second', 'partial'),
+        effective: call('second', 'partial'),
+        complete: true,
+      },
+    }
+    const binding = await fixture.resolve(fixed)
+    unbox(await binding.start(await fixture.input(fixed), {}))
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(fixture.settlements[0]?.outcome).toEqual({ kind: 'failed', reason: 'partial' })
+  })
+
+  it('gives only the reason, without a guide, for invalid parameters of a function tool', async () => {
+    const fixture = await harness(
+      authorModule(
+        async () => 'unused',
+        () => fail({ kind: 'invalid', reason: 'bad-args' }),
+      ),
+    )
+    const binding = await fixture.resolve()
+    unbox(await binding.start(await fixture.input(), {}))
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(fixture.settlements[0]?.outcome).toEqual({ kind: 'failed', reason: 'bad-args' })
+  })
+
+  it('fails a call that names another command than the admitted one, before the author parses it', async () => {
+    const events: string[] = []
+    const fixture = await harness(commandModule(events))
+    const fixed: FixedToolRequest = {
+      ...fixture.fixed,
+      command: 'second',
+      arguments: {
+        original: call('first', 'first'),
+        effective: call('first', 'first'),
+        complete: true,
+      },
+    }
+    const binding = await fixture.resolve(fixed)
+    unbox(await binding.start(await fixture.input(fixed), {}))
+    await new Promise<void>(resolve => setImmediate(resolve))
+    // The failure is a result the model reads, not a silent run of the other command.
+    expect(events).toEqual([])
+    const outcome = fixture.settlements[0]?.outcome
+    if (outcome?.kind !== 'failed') throw new Error('the call did not fail')
+    expect(outcome.reason.split('\n')[0]).toBe(
+      'read_file second: the call names "first" but "second" was admitted.',
     )
   })
 })

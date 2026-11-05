@@ -31,7 +31,7 @@
 | `after_model_call`，`ending: 'complete_reply'` | `{ purpose: 'main' \| 'compaction'; call: M.ModelCallId; result: ProducedResult; reply: Message; termination: M.Termination; account: CallAccount \| null }` | 无 |
 | `after_model_call`，`ending: 'failure'` | `{ purpose: 'main' \| 'compaction'; call: M.ModelCallId; request: M.FixedModelRequest; fault: M.ModelFault; dispatches: readonly M.DispatchRecord[]; retry: M.RetryResolution \| null }` | 无 |
 | `before_action` | `{ action: ActionId; original: ActionToolCall; effectiveArguments: string; definition: T.ToolDefinition; batch: readonly ActionId[] }`。`batch` 列出同批全部动作，含本动作 | `effectiveArguments` |
-| `after_action`，`scope: 'each'` | `{ action: ActionId; outcome: Readonly<{ kind: 'denied'; evidence: DurableEvidence }> \| Readonly<{ kind: 'executed'; result: ProducedResult; terminal: T.ToolTerminal }>; candidate: Message }`。`candidate` 是将交消息准入的候选消息：executed 时是工具结果消息，denied 时是拒绝消息 | `candidate.blocks` |
+| `after_action`，`scope: 'each'` | `{ action: ActionId; outcome: Readonly<{ kind: 'denied'; evidence: DurableEvidence }> \| Readonly<{ kind: 'executed'; result: ProducedResult; terminal: T.ToolTerminal }>; candidate: Message }`。`candidate` 是将交消息准入的候选消息：executed 时是工具结果消息，denied 时是拒绝消息；动作以作答被拒绝时，是可信 Tool 请求来源的作答正文 | `candidate.blocks` |
 | `after_action`，`scope: 'batch'` | `{ batch: ActionBatchId; outcomes: readonly Readonly<{ action: ActionId; outcome: 'denied' \| 'executed'; terminal: T.ToolTerminal \| null }>[] }`。`outcomes` 按原动作顺序列出本批全部动作，含被拒绝的动作；转后台的动作为 executed 且 `terminal` 为 null | 无 |
 | `before_terminal` | `{ proposed: AgentConclusion; basis: DurableEvidence }`。候选终态及其完整依据 | 无 |
 | `after_terminal` | `{ terminal: AgentConclusion; disposition: DurableEvidence }`。已成立的终态 | 无 |
@@ -340,7 +340,7 @@ Agent 保证以下几点。
 
 ### 全拒
 
-本批全部动作都被拒绝时，没有工具执行可等待。每个被拒绝的动作仍各自经过 `after_action/each`，`outcome.kind` 为 `denied`，`candidate` 是该动作的拒绝消息。Agent 不经过 `after_action/batch`，拒绝事实经回复消息与执行事实到达后续位置，Loop 沿已有事实重新求值。作者的 `before_action` Conclusion 全部保留。屏障打开后全部获准动作都在 Tool 受理时被拒绝时，后果相同。至少一个动作被 Tool 受理时，即使它随后在启动围栏处被拒绝，本批也经过 `after_action/batch`。
+本批全部动作都被拒绝时，没有工具执行可等待。每个被拒绝的动作仍各自经过 `after_action/each`，`outcome.kind` 为 `denied`，`candidate` 是该动作的拒绝消息，以作答被拒绝的动作是作答正文。Agent 不经过 `after_action/batch`，拒绝事实经回复消息与执行事实到达后续位置，Loop 沿已有事实重新求值。作者的 `before_action` Conclusion 全部保留。屏障打开后全部获准动作都在 Tool 受理时被拒绝时，后果相同。至少一个动作被 Tool 受理时，即使它随后在启动围栏处被拒绝，本批也经过 `after_action/batch`。
 
 卡片端口与动作准入端口的形状见[公开接口页](README.md#扩展人工卡片与材料)的 `DecisionCards` 与 `ActionAdmission`。卡片的唯一有效答复归 HITL 的 [INV-HI06](../../../../human-intervention/human-intervention/SPEC.md#inv-hi06-一张卡片只有一个有效人的处理)。批次只阻塞其原等待范围归 [INV-HI10](../../../../human-intervention/human-intervention/SPEC.md#inv-hi10-批次只阻塞其原等待范围)。扩展接续复用已发生判断而不重跑效果归 [INV-HI13](../../../../human-intervention/human-intervention/SPEC.md#inv-hi13-扩展接续复用已发生判断而不重跑效果)。
 

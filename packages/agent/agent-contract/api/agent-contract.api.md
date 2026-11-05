@@ -612,6 +612,7 @@ export type ActionJudgment = Readonly<{
 }> | Readonly<{
     kind: 'denied';
     evidence: DurableEvidence;
+    answer?: DurableEvidence;
 }> | Readonly<{
     kind: 'allowed';
     evidence: DurableEvidence;

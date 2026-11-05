@@ -51,21 +51,24 @@ function admissionFor(config: unknown) {
   })
   const { actionRules } = authorizationConfig.parse(config)
   const admission = createActionAdmission({ actionRules, readAdmission: () => identity })
-  // `declared` is the name the model calls: `<tool>.<command>` for a multi-command tool. The
-  // definition is the one the trusted Tool request source describes for it, named by the tool.
-  return (declared: string) =>
-    admission.admit({
+  // `call` is `<tool>` or `<tool>.<command>`. The model calls the tool and names the command in the
+  // arguments (D-94); the definition is the one the trusted Tool request source describes for it.
+  return (call: string) => {
+    const [tool = call, command] = call.split('.')
+    const args = command === undefined ? '{}' : JSON.stringify({ command, params: {} })
+    return admission.admit({
       principal,
       tenant,
       execution: 'e',
       passage: 'p',
       action: 'a',
-      original: { name: declared, arguments: '{}' },
-      effectiveArguments: '{}',
-      definition: { owner: 'tool', name: declared.split('.')[0], revision: '1', digest: 'd' },
+      original: { name: tool, arguments: args },
+      effectiveArguments: args,
+      definition: { owner: 'tool', name: tool, revision: '1', digest: 'd' },
       permissions: [],
       decision: null,
     } as never)
+  }
 }
 
 describe('release action rules', () => {
@@ -76,7 +79,7 @@ describe('release action rules', () => {
     expect(await admit('Other')).toMatchObject({ ok: { kind: 'unavailable' } })
   })
 
-  it('matches a multi-command call by its tool: the release rules cover Shell.info and Files.read', async () => {
+  it('matches a multi-command call by its tool: the release rules cover every command of Shell and Files', async () => {
     const admit = admissionFor(configOf(undefined))
     expect(await admit('Shell.info')).toMatchObject({
       ok: { kind: 'allow', evidence: { record: 'action-rule/shell' } },

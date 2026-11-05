@@ -70,6 +70,7 @@ function commandTool(
       settings: null,
     },
     kind: 'commands',
+    encoding: 'wrapped',
     commands: commands.map(command => ({
       name: command.name,
       summary: command.summary,
@@ -224,22 +225,28 @@ describe('the sixth group through the real Request Context', () => {
     )
   }
 
-  it('declares to the model exactly the commands of the bound definitions, with their summaries and schemas', async () => {
+  it('declares to the model one tool per bound definition, with its command menu and call schema', async () => {
     const w = await createWorld({ tools: toolsSourceOf(lookupOf(KNOWN)) })
     const result = await preparedWith(w, [binding('Shell'), binding('Files')])
     if (!('ok' in result) || result.ok.kind !== 'assembled')
       throw new Error(`expected assembled, got ${JSON.stringify(result)}`)
-    const declared = [FILES, SHELL].flatMap(definition =>
-      definition.kind === 'commands'
-        ? definition.commands.map(command => ({
-            name: `${definition.name}.${command.name}`,
-            description: command.summary,
-            argumentsSchema:
-              command.parameters.kind === 'declared' ? command.parameters.value.schema : null,
-          }))
-        : [],
-    )
-    expect(result.ok.input.tools).toEqual(declared)
+    // Each tool is one declaration (D-94): its description ends with one menu line per command,
+    // and the arguments schema enumerates the commands.
+    const tools = result.ok.input.tools
+    expect(tools.map(tool => tool.name)).toEqual([FILES.name, SHELL.name])
+    for (const [index, definition] of [FILES, SHELL].entries()) {
+      if (definition.kind !== 'commands') throw new Error('commands')
+      const tool = tools[index]!
+      expect(tool.description.startsWith(`${definition.description}\n\nCall with `)).toBe(true)
+      for (const command of definition.commands)
+        expect(tool.description).toContain(`\n${command.name} {`)
+      expect(JSON.stringify(tool.argumentsSchema)).toContain(
+        JSON.stringify({
+          kind: 'array',
+          items: definition.commands.map(command => ({ kind: 'string', value: command.name })),
+        }),
+      )
+    }
   })
 
   it('declares no tool for an empty set of bindings', async () => {

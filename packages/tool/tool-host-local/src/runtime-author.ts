@@ -6,10 +6,12 @@ import {
 } from '@omne-harness/tool'
 import {
   decodeToolOperationId,
+  type FixedToolRequest,
   type ToolTerminal,
   type ProcessBlock,
 } from '@omne-harness/tool-contract'
 import {
+  commandArguments,
   defaultResultPolicy,
   describedAdoption,
   renderToolResult,
@@ -17,6 +19,7 @@ import {
   type ToolOutputCustody,
   type ToolWaiter,
 } from '@omne-harness/tool-contract/provider'
+import type { ToolOperationSlot } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingsInput } from './executor-binding.ts'
 import type { ToolEnvironmentValue } from './author-environment.ts'
 import { createLocalTextResults } from './text-results.ts'
@@ -226,30 +229,13 @@ export function createRuntimeAuthorExecution(
         if (call.outcome.kind === 'failed') projected = failed(call.outcome.reason, 'executor')
         else {
           const decoded = author.codec.decode(bytes)
-          const argumentsValue = author.parameters.parse(call.request.arguments)
+          const argumentsValue = savedArguments(author, call.request)
           if ('failure' in decoded || 'failure' in argumentsValue) {
             projected = failed(
               'The original output or argument codec cannot reconstruct the saved return.',
             )
           } else {
-            const result = (() => {
-              if (author.kind === 'ordinary') {
-                const checked = author.output.check({
-                  arguments: argumentsValue.ok,
-                  value: decoded.ok,
-                })
-                return 'failure' in checked
-                  ? checked
-                  : renderToolResult(checked.ok, author, text, defaultResultPolicy)
-              }
-              const checked = author.output.check({
-                arguments: argumentsValue.ok,
-                value: decoded.ok,
-              })
-              return 'failure' in checked
-                ? checked
-                : renderToolResult(checked.ok, author, text, defaultResultPolicy)
-            })()
+            const result = checkedResult(author, argumentsValue.ok, decoded.ok, text)
             projected =
               'failure' in result
                 ? failed(result.failure.reason)
@@ -280,4 +266,32 @@ export function createRuntimeAuthorExecution(
       })
     },
   }
+}
+
+/**
+ * The arguments of a saved call as its codec reads them again: the parameters of the admitted
+ * command for a multi-command tool (D-94), the whole arguments otherwise.
+ */
+function savedArguments(author: ToolOperationSlot['author'], request: FixedToolRequest) {
+  const cut = commandArguments(request.availability.definition, request.command, request.arguments)
+  return 'failure' in cut ? cut : author.parameters.parse(cut.ok)
+}
+
+/** The checked and rendered result of a decoded return, per author kind. */
+function checkedResult(
+  author: ToolOperationSlot['author'],
+  args: unknown,
+  value: unknown,
+  text: ReturnType<typeof createLocalTextResults>,
+) {
+  if (author.kind === 'ordinary') {
+    const checked = author.output.check({ arguments: args, value })
+    return 'failure' in checked
+      ? checked
+      : renderToolResult(checked.ok, author, text, defaultResultPolicy)
+  }
+  const checked = author.output.check({ arguments: args, value })
+  return 'failure' in checked
+    ? checked
+    : renderToolResult(checked.ok, author, text, defaultResultPolicy)
 }

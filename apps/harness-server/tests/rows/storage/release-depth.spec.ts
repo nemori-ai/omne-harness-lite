@@ -123,10 +123,11 @@ const serving = (body: string) => ({
   provider: 'OpenAI',
 })
 
-/** The release tool the scripted Model calls: `Shell.info` takes no arguments. */
-const TOOL = 'Shell_info'
+/** The release tool the scripted Model calls, with the call of its `info` command (D-94). */
+const TOOL = 'Shell'
+const CALL = '{"command":"info","params":{}}'
 
-/** First request: one call of `Shell.info`. Every later request: a short text. */
+/** First request: one call of Shell `info`. Every later request: a short text. */
 const toolThenText: GatewayScript = ({ index, body }) => ({
   status: 200,
   contentType: 'text/event-stream',
@@ -143,7 +144,7 @@ const toolThenText: GatewayScript = ({ index, body }) => ({
                       index: 0,
                       id: 'call_depth',
                       type: 'function',
-                      function: { name: TOOL, arguments: '{}' },
+                      function: { name: TOOL, arguments: CALL },
                     },
                   ],
                 },

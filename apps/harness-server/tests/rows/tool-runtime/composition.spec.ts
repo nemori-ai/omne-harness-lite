@@ -316,7 +316,10 @@ function requestSource(ctx: Context) {
 }
 
 let positions = 0
-async function requestFor(ctx: Context, principal: unknown, name: string, args: string) {
+/** `command` is `<tool>.<command>`; the model calls the tool and names the command in the call. */
+async function requestFor(ctx: Context, principal: unknown, command: string, params: string) {
+  const [name = command, selected] = command.split('.')
+  const args = `{"command":${JSON.stringify(selected)},"params":${params}}`
   const source = requestSource(ctx)
   const position = `step-${++positions}/tool/0`
   const input = {
@@ -342,6 +345,7 @@ async function requestFor(ctx: Context, principal: unknown, name: string, args: 
   } as unknown as Parameters<ReturnType<typeof createReleaseToolRequests>['describe']>[0]
   const described = await source.describe(input)
   if ('failure' in described) throw new Error(`describe: ${JSON.stringify(described.failure)}`)
+  if ('kind' in described.ok) throw new Error(`describe answered: ${described.ok.text}`)
   const prepared = await source.prepare({
     ...input,
     definition: described.ok,

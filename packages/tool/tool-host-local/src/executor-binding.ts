@@ -7,13 +7,15 @@ import type {
   ToolCatalog,
   ToolStartRecord,
 } from '@omne-harness/tool-contract'
-import type {
-  CallAccess,
-  ToolBindings,
-  ToolExecutionFact,
-  ToolExecutionScope,
-  ToolExecutorBinding,
-  ToolStartAuthority,
+import {
+  commandArguments,
+  describeCommandArgumentsRejection,
+  type CallAccess,
+  type ToolBindings,
+  type ToolExecutionFact,
+  type ToolExecutionScope,
+  type ToolExecutorBinding,
+  type ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration, type ToolOperationSlot } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingRegistry, ToolBindingSelection } from './bindings.ts'
@@ -81,8 +83,24 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     let outcome: Parameters<typeof dependencies.settle>[0]['outcome']
     let scope: ToolExecutionScope | undefined
     try {
-      const argumentsValue = operation.author.parameters.parse(input.request.arguments)
-      if ('failure' in argumentsValue) throw new Error(argumentsValue.failure.reason)
+      // The arguments of a multi-command tool are the whole call; its command codec parses the
+      // parameters only (D-94). Arguments that the command does not take fail with the reason
+      // and the guide of the command, so the next call can be right (D-104).
+      const { request } = input
+      const { definition } = request.availability
+      const invalid = (reason: string) =>
+        definition.kind === 'commands' && request.command !== null
+          ? describeCommandArgumentsRejection(definition, request.command, reason)
+          : reason
+      const cut = commandArguments(definition, request.command, request.arguments)
+      if ('failure' in cut) throw new Error(invalid(cut.failure.reason))
+      const argumentsValue = operation.author.parameters.parse(cut.ok)
+      if ('failure' in argumentsValue)
+        throw new Error(
+          argumentsValue.failure.kind === 'invalid'
+            ? invalid(argumentsValue.failure.reason)
+            : argumentsValue.failure.reason,
+        )
       parsed = argumentsValue.ok
       scope = dependencies.scope({ ...input, execution })
       const value = await operation.author.executor.execute(parsed, environment, scope.context)

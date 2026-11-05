@@ -453,7 +453,7 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 
 根入口的 `createTools` 消费普通 runtime 的 `queries.readResult` 和 `content.read`。它不取得 invoke、control、release 或 raw。工厂提供真实 `Tools` 作者、`present` 和受信消费侧的 `readReply`。作者只有 `help`、`read_result`，显式 `programmable:false`，两操作都是 structured、program:none。输入模态为 text。直接输出可能保留源 text、image、voice 或 video 内容，因此声明四种输出模态。file ref 依其媒体类型承载内容，普通 attachments 的地址仍是文本。
 
-`help` 的闭合对象只有可选 string command。未知名称形成具名错误。`read_result` 的闭合 oneOf 分支为 result 和 attachment，kind、非空 reference、null 或非空 after 都必填。参数、注册声明和帮助从同一命令描述生成。作者先使用 ParameterCodec 的完整 JSON、重复键及预算检查，再核字段。模型不能提供 tenant、principal、路径、maxBytes 或 raw selector。
+`help` 的闭合对象只有可选 string command。因为有这个名为 `command` 的字段，Tools 以 `wrapped` 编码登记，调用形如 `{"command": "help", "params": {"command": "search"}}`；`flat` 会与调用层的 `command` 冲突。Tools 的 help 仍是本成员自写的文本，不来自 `commandGuide`，阅读规则也没有登记为定义的 `guide`，这是已知限制。未知名称形成具名错误。`read_result` 的闭合 oneOf 分支为 result 和 attachment，kind、非空 reference、null 或非空 after 都必填。参数、注册声明和帮助从同一命令描述生成。作者先使用 ParameterCodec 的完整 JSON、重复键及预算检查，再核字段。模型不能提供 tenant、principal、路径、maxBytes 或 raw selector。
 
 ### 引用与调用
 

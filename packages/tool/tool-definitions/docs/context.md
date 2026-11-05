@@ -16,6 +16,6 @@ Files 门面用当前对象点名器填 named，包含 move/copy 的目标父对
 
 ## 调用参数与结果
 
-参数使用 snake_case。调用 help 查询完整声明。Files 的 edit 使用 path、old_text、new_text。patch 使用 edits 列表，每项包含同样三个字段。Shell execute 使用 script，可选完整 terminal 引用、cwd、env、stdin 与 run_in_background。
+参数使用 snake_case。Files 与 Shell 用 `wrapped` 编码调用，例如 `{"command": "write", "params": {…}}`。查询某个命令的完整声明时调用 `{"command": "help", "params": {"name": "write"}}`。Files 的 edit 使用 path、old_text、new_text。patch 使用 edits 列表，每项包含同样三个字段。Shell execute 使用 script，可选完整 terminal 引用、cwd、env、stdin 与 run_in_background。
 
 结果是 Unix CLI 风格文本。复制分页偏移、版本及终端完整引用。unknown 不得重发为新批次。图片附件与后台工作尚未实现。

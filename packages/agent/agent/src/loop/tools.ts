@@ -42,6 +42,14 @@ export const fixedToolRequestSchema = {
   digest: 'agent:fixed-tool-request/1',
 } as const
 
+/** The schema of a preserved answer of the trusted request source: one JSON string. */
+export const toolCallAnswerSchema = {
+  owner: 'agent',
+  name: 'tool-call-answer',
+  revision: '1',
+  digest: 'agent:tool-call-answer/1',
+} as const
+
 function minted<T>(result: Outcome<T, unknown>): T {
   if ('failure' in result) throw new Error('invalid derived Tool action identity')
   return result.ok
@@ -159,6 +167,7 @@ export async function admitToolAction<P>(
   }
   const described = await ports.toolRequests.describe(input)
   if ('failure' in described) return asUnavailable('agentToolRequests', described.failure)
+  if ('kind' in described.ok) return answered(ports, access, execution, action, described.ok.text)
   const admitted = await ports.admission.admit({
     ...input,
     advance,
@@ -178,6 +187,39 @@ export async function admitToolAction<P>(
   const request = checkedRequest(prepared.ok, described.ok, input.consumer, action, original)
   if ('failure' in request) return request
   return succeed({ kind: 'allowed', action, evidence: admitted.ok.evidence, request: request.ok })
+}
+
+/**
+ * A0 for a call that the trusted request source answered without running a tool (D-104): the
+ * answer is preserved first, and the action is denied with it. Only this action is denied; the
+ * model reads the answer as the result of its call.
+ */
+async function answered<P>(
+  ports: Ports<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  action: Action,
+  text: string,
+): Promise<Outcome<ToolAdmission, Failure>> {
+  const stored = await ports.materials.preserve({
+    ...access,
+    execution,
+    // The digest keeps a retried A0 whose source answers another text from refusing the same
+    // identity with other content: each text is its own material.
+    identity: `${execution}/${action.id}/answer/${createHash('sha256').update(text).digest('hex')}`,
+    consumer: toolConsumer(execution, action),
+    value: { kind: 'facts', schema: toolCallAnswerSchema, value: { kind: 'string', value: text } },
+  })
+  if ('failure' in stored) return stored
+  const evidence = agentEvidence(`${execution}/${action.id}/answered`, stored.ok)
+  return judged({ ...action, judgment: { kind: 'denied', evidence, answer: stored.ok } })
+}
+
+/** The text of a preserved answer, or null when the material is not one. */
+export function toolCallAnswerOf(material: Material<ContentBlock>): string | null {
+  if (material.kind !== 'facts' || canonical(material.schema) !== canonical(toolCallAnswerSchema))
+    return null
+  return material.value.kind === 'string' ? material.value.value : null
 }
 
 /**
@@ -412,6 +454,17 @@ export function deniedCandidate(execution: AgentExecutionId, action: Action): Me
       visibility: VISIBLE,
       text: 'The tool call was denied and did not run.',
     },
+  ])
+}
+
+/** T2: the candidate message of a slot denied with an answer is the answer, not the denial. */
+export function answeredCandidate(
+  execution: AgentExecutionId,
+  action: Action,
+  text: string,
+): Message {
+  return toolMessage(execution, action, [
+    { kind: 'text', id: `${action.id}/answer` as BlockId, visibility: VISIBLE, text },
   ])
 }
 
