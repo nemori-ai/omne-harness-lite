@@ -16,7 +16,9 @@ import {
   type PlainJson,
   type TaskScript,
 } from '@omne-harness/mcp-contract/testing'
-import { alice, bob } from './doubles/identities.ts'
+import { manualBounds } from './doubles/bounds.ts'
+import { settled } from './doubles/deferred.ts'
+import { alice, bob, mallory } from './doubles/identities.ts'
 import { listing, peer, services, taskHandle, taskStatus, text, type Peer } from './doubles/peer.ts'
 import { MAIN, adoptStdio, storedRecord } from './doubles/world.ts'
 
@@ -92,12 +94,14 @@ describe('the task table opens the operations to the initiator only (SPEC S2)', 
     expect(c.p.requests('tasks/get')[0]?.params).toMatchObject({ taskId: 't1' })
   })
 
-  it('answers another principal, and a task not in the table, with the same unknown, asking no port', async () => {
+  it('answers another principal, another tenant, and a task not in the table, with the same unknown, asking no port', async () => {
     const c = await started()
     const asked = portCalls(c.p)
     const other = await c.invoker.queryTask(bob, task)
+    const elsewhere = await c.invoker.queryTask(mallory, task)
     const absent = await c.invoker.queryTask(alice, { ...task, taskId: taskIdOf('t9') })
     expect(other).toStrictEqual(UNKNOWN)
+    expect(elsewhere).toStrictEqual(other)
     expect(absent).toStrictEqual(other)
     expect(await c.invoker.taskResult(bob, task)).toStrictEqual(UNKNOWN)
     expect(await c.invoker.provideTaskInput(bob, task, jsonOf({}))).toStrictEqual(UNKNOWN)
@@ -232,6 +236,29 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
       ok: { connection: { kind: 'lost', reason: 'stream-broken' } },
     })
     expect(c.p.requests('tasks/get')).toHaveLength(1)
+  })
+
+  it('a request the connection bound cuts off has no answer: effect-unknown (abandoned); the connection stays', async () => {
+    const p = peer({
+      listing: { '': listing([{ name: 'read' }]) },
+      calls: { read: taskHandle('t1') },
+      tasks: { t1: { get: { kind: 'silent' } } },
+    })
+    adoptStdio(p, files)
+    const bounds = manualBounds()
+    const { services: s } = services(p, bounds.runtime)
+    expect(await s.discovery.refresh(alice, { ref: files })).toMatchObject({ ok: { kind: 'published' } })
+    const current = await s.discovery.current(alice, files)
+    if (!('ok' in current) || current.ok.kind !== 'acquired') throw new Error('not acquired')
+    const digest = current.ok.actions[0]?.definitionDigest
+    if (digest === undefined) throw new Error('no digest')
+    await invokeTask(s.invoker, digest)
+    const query = s.invoker.queryTask(alice, task)
+    await settled()
+    expect(p.requests('tasks/get')).toHaveLength(1)
+    bounds.fire('task')
+    expect(await query).toEqual({ failure: { kind: 'effect-unknown', cause: 'abandoned' } })
+    expect(await s.status.inspect(alice, files)).toMatchObject({ ok: { connection: { kind: 'ready' } } })
   })
 
   it('a JSON-RPC error and an unreadable answer are passed on as they are', async () => {
