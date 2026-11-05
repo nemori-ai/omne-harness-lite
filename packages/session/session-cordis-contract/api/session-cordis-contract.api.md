@@ -209,6 +209,7 @@
 - `SessionScopeLookup` · `context-facts.d.ts`
 - `SessionScopeLookupAnswer` · `context-facts.d.ts`
 - `SessionTakenRecord` · 包 `@omne-harness/session-contract`
+- `SessionTodos` · 包 `@omne-harness/session-contract`
 - `SessionTransactionPort` · 包 `@omne-harness/session-contract`
 - `SessionWork` · 包 `@omne-harness/session-contract`
 - `SessionWorkEntryIndex` · 包 `@omne-harness/session-contract`
@@ -216,6 +217,12 @@
 - `StartAdoption` · 包 `@omne-harness/session-contract`
 - `StartedRun` · 包 `@omne-harness/session-contract`
 - `StepCommittedBlocks` · `context-facts.d.ts`
+- `TodoItem` · 包 `@omne-harness/session-contract`
+- `TodoItemId` · 包 `@omne-harness/session-contract`
+- `TodoMutationReceipt` · 包 `@omne-harness/session-contract`
+- `TodoPage` · 包 `@omne-harness/session-contract`
+- `TodoPageCursor` · 包 `@omne-harness/session-contract`
+- `VisibleTodoItem` · 包 `@omne-harness/session-contract`
 - `Waiting` · 包 `@omne-harness/session-contract`
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
