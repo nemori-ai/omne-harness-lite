@@ -125,7 +125,7 @@
 | 字节范围六条规则、请求终点、正文起点 | `tests/range.spec.ts` | 终点不前移（M4）；请求终点按实际起点算（P5） |
 | `read` 与 `list` 的次序（第 5 步在第 6 步前、范围校验在端口前）、失败、不缓存 | `tests/read.spec.ts` | 第 6 步提到第 5 步前；忽略正文起点（M10）；不过滤控制文件（M9） |
 | `export` 整包或失败 | `tests/export.spec.ts` | 跳过失败条目（M8） |
-| 没有可读包的材料带依据（PR3）：`describe` 交回依据，`read`、`list`、`export` 取快照后答 `basis-unavailable` 且不 `open`，坏路径答 `bad-path` | `tests/no-package.spec.ts` | 内存解析对无包材料不带回依据的内容摘要（第 3 轮手工变异 R3-2，5 例变红） |
+| 没有可读包的材料带依据（PR3）：`describe` 交回依据，`read`、`list`、`export` 取快照后答 `basis-unavailable` 且不 `open`，坏路径答 `bad-path` | `tests/no-package.spec.ts` | 内存解析替身对无包材料不带回依据的内容摘要（第 3 轮手工变异 R3-2，5 例变红；变异的是契约的内存替身 `createMemoryResolution`，不是本成员的 `src/`） |
 | `skillAccessConformance()` 在本实现上、在两个世界（对应端口对 stranger 隐藏 / 对所有人作答）全绿；跳过第 2 步的服务在后者恰好 A1–A3 变红 | `tests/conformance.spec.ts` | 第 2 步注释掉（M5） |
 | `skillCatalogConformance()` 在本实现上全绿（`NotApplicable` 计为失败）。把 `refused` 也列出的实现恰好红四条：SC3「lists a granted identity and not a refused one」、SC5「filters to the identities of the request that are lawful and granted」与 SC7 的两条。把 `unknown` 压成空列表的实现恰好红两条：SC2「answers unknown when the lawful set is unknown」与 SC3「answers unknown when the read check of one identity is unknown」。核验按两种完成次序释放时答复相同 | `tests/catalog.spec.ts`、`tests/catalog-world.ts` | 过滤 `granted` 改成过滤非 `unknown`（W3-M1）；任一 `unknown` 改答空列表（W3-M2）；去掉排序（W3-M5）；匹配忽略说明（W3-M13）；只规范化查询一侧（W3-M14） |
 | 空的 `capabilities` 不调用任何端口；合法集合里重复的身份保留第一条 | `tests/catalog.spec.ts` | 去掉空请求的直接作答（W3-M23）；保留最后一条（W3-M24） |
@@ -133,7 +133,7 @@
 | 三个解析函数逐字段的畸形答复（缺失、类型不对、值域外）、只认自有属性、JSON 树的重新构造、冻结、深度上限与数字词法 | `tests/answer-parse.spec.ts` | 删掉任一字段的核对、放宽它的值域、改认原型链上的属性、去掉深度上限（第 3 轮的差分变异） |
 | 三类端口的判别值与载荷：集合外的答复、残缺的载荷、reject、同步抛出、读取时抛出，答复都按契约统一处置，不抛出 | `tests/port-answers.spec.ts` | 来源调用还原为直接查表、reject 原样上抛（W3-M4）；解析移出 `try`（W3-M17、W3-M17b）；列表跳过不合的项（W3-M18）；`open` 的 `ok` 接受文本（W3-M19）；`isSealedSnapshot` 不查登记（W3-M20）；JSON 节点不核对（W3-M21）；说明上限放宽一个字符（W3-M22b）；没有作答的核验当作 `refused`（W3-M25） |
 
-M 与 F 编号是交付时的手工变异记录（W2 在 `tmp/closures/w2-skill/mutations/`，W3 在 `tmp/closures/w3-skill-catalog/mutations/`，F 在 `tmp/closures/w3-skill-fix/mut/`），不随本文件维护。未覆盖：真实的读取判定、对应与来源；对同一个包的并发写入；内容存储来源；大集合下目录的性能。替身通过不证明真实端口的行为。
+M 与 F 编号是交付时的手工变异记录（W2 在 `tmp/closures/w2-skill/mutations/`，W3 在 `tmp/closures/w3-skill-catalog/mutations/`，F 在 `tmp/closures/w3-skill-fix/mut/`，R3 在 `tmp/closures/w3-skill-fix/r3/`），不随本文件维护。未覆盖：真实的读取判定、对应与来源；对同一个包的并发写入；内容存储来源；大集合下目录的性能。替身通过不证明真实端口的行为。
 
 <a id="properties"></a>
 
@@ -149,6 +149,6 @@ M 与 F 编号是交付时的手工变异记录（W2 在 `tmp/closures/w2-skill/
 | S4 范围正确 | 实际范围的两端在字符边界上，长度不超过 `PAGE_LIMIT`，`complete` 当且仅当终点不小于总长，正文从 `bodyOffsetOf` 起算；非法范围在端口之前抛 `TypeError` | 模型未覆盖 | 有限范围通过 |
 | S5 次序无关 | 目录的答复不随读取判定的完成次序变化 | 有限范围通过 | 有限范围通过 |
 | S6 中止不交部分 | `signal` 在第 `k` 个端口答复时中止，操作恰好调用 `k` 次端口并答 `aborted`；中止的 `signal` 上从不调用端口 | 有限范围通过 | 有限范围通过 |
-| S7 引用身份一致 | 成功的操作只交所请求身份的材料：结果的身份是所请求的身份，交出的字节来自该身份的材料。引用指向别的身份，或带依据时指向别的材料，整次答 `unknown`，不调用来源 | 有限范围通过 | 有限范围通过 |
+| S7 引用身份一致 | 成功的操作只交所请求身份的材料：结果的身份是所请求的身份，交出的字节来自该身份的材料。引用指向别的身份，或带依据时指向别的材料，整次答 `unknown`，不调用来源 | 有限范围通过，不含带依据时引用不带内容摘要的子情形 | 有限范围通过 |
 
 模型是 [verification/models/ReadGate.tla](verification/models/ReadGate.tla)，在 TLC 2.19 上检查，配置与状态数见 [verification/models/README.md](verification/models/README.md)。探索器在 [tests/model/](tests/model/README.md)，驱动 `dist` 中的真实服务，端口是内存替身加故障包装。两者都是有限范围的结果，不是无条件证明。真实端口与本包的组合没有验证。

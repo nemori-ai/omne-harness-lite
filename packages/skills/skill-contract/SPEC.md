@@ -15,6 +15,7 @@
 | W3 Skill 线实施规格（reduce 裁定）、第 2 轮裁定 R1–R9 与第 3 轮裁定 S1–S3 | 2026-11-04 | 可加改动：公开根导出 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DECLARATION_LIMITS`、`sameCapability` 与 `isSkillDescription`；`./provider` 导出 `isSealedSnapshot`；[目录的匹配规则](#catalog-search)；[端口答复的统一处置](#port-answer-closed)；`open` 答 `entry-unreadable` 的映射；`skillCatalogConformance` |
 | W3 闭包 w3-skill-fix 的 reduce 裁定（卡 #1119 r1） | 2026-11-04 | 引用身份一致（GS-06，性质 S7）：统一处置核对表的 `resolve` 一行与 PR3 的内容摘要；`inspect` 的映射按调用点分格（GS-02）；中止活性的前提（GS-05）；生态兼容的放宽与兼容提示（见[兼容提示](#compatibility-hints)） |
 | w3-skill-fix 第 2 轮 reduce 裁定 N1、N2（2026-11-04T15:05Z） | 2026-11-04 | name 与包根目录名不同时接受并带提示，只有期望名字拒绝；说明的上限统一为公开根导出的 `DESCRIPTION_LIMIT`（16384） |
+| w3-skill-fix 第 2 轮 reduce 裁定 B1 | 2026-11-04 | 带依据时引用不带内容摘要算错指（S7）；端口对没有可读包的材料也带回依据的内容摘要（PR3），带依据的操作不答 `unsupported` |
 
 各裁定的内容写在下文对应的条款里。裁定编号（例如 G3、C19）只是过程标签，决定的内容已经写全在本页。
 
@@ -83,6 +84,7 @@
 | 来源在快照阶段答 `bytes-mismatch` 时，检查也答 `source-unavailable`。组页的映射表让检查答 `version-changed`，检查不分调用点 | [需求端口](#ports) | w3-skill-fix 裁定 2（GS-02） |
 | 所钉材料的 `SKILL.md` 没有合法的头部定界时，`read` 的正文答 `source-unavailable`，不交内容。组页第 11 步把整个条目当作正文 | [读取的形状规则](#read-shape) | w3-skill-fix 裁定 3（GS-04） |
 | 带依据时，`read`、`list` 与 `export` 不答 `unsupported`：端口带回依据的内容摘要（PR3），没有可读包的材料也一样，第 5 步总是通过；结果由第 6 步的路径校验、第 7 步的快照与内容摘要的核对决定，来源在引用的定位处没有包时答 `basis-unavailable`。组页第 5 步写不带内容摘要答 `unsupported`，带不带依据都一样 | [读取的形状规则](#read-shape)、[需求端口](#ports) | w3-skill-fix 第 2 轮裁定 B1 |
+| 带依据的 `describe` 对资产正文缺 `package.digest` 的材料交出依据所指的材料，不标「没有可读的包」：PR3 让带依据的引用总带内容摘要。组页「描述」各处写这种材料的 `describe` 不带材料依据、标明「没有可读的包」，没有分带不带依据；只在不带依据时与本页相同 | [值与守卫](#values)、[需求端口](#ports) | w3-skill-fix 第 2 轮裁定 B1 |
 | 头部 YAML 读不出、但能逐行读出 name 与说明时接受；说明超过 1024 个字符时接受；`metadata` 不是文本映射时接受；name 与包根目录名不同时接受。四种都带兼容提示。组页的包格式规则拒绝这四种 | [`SKILL.md`](#manifest)、[兼容提示](#compatibility-hints) | w3-skill-fix 裁定 5（生态兼容）与第 2 轮裁定 N1 |
 | 说明的上限是 16384 个字符，在检查、资产正文、声明投影、替换件与读取的边界解析中都一样。组页与 Agent Skills 规格写 1024 | [值与守卫](#values) | w3-skill-fix 第 2 轮裁定 N2 |
 
@@ -366,7 +368,7 @@ metadata-not-text-map
 - `complete` 为真，当且仅当实际范围的终点（起点加长度）不小于总长，也就是这一页之后没有剩余字节。部分结果不是失败。
 - `read`、`list` 与 `export` 在每次调用端口之前与每次端口返回之后各检查一次 `signal`。任一次发现已中止，操作答 `aborted`，不再调用端口，也不交部分内容。`describe` 不收 `signal`。
 - 中止的活性有一个前提：每次端口调用都会结束（返回或 reject）。端口收不到 `signal`，已经发出的端口调用由端口跑完，所以中止的响应时间受端口时间限制。端口不结束时，操作不答复。
-- `unsupported` 本版本只有 `no-readable-package` 一种：不带依据的 `read` 与 `list` 遇到资产正文缺 `package.digest` 的材料时答它。带依据时（`export` 总带依据）不答 `unsupported`：端口带回依据的内容摘要（PR3），结果由快照与内容摘要的核对决定；来源在引用的定位处没有包时，操作按映射表答 `basis-unavailable`。
+- `unsupported` 本版本只有 `no-readable-package` 一种：不带依据的 `read` 与 `list` 遇到资产正文缺 `package.digest` 的材料时答它。带依据时（`export` 总带依据）不答 `unsupported`：端口带回依据的内容摘要（PR3），其余步骤照常：`read` 先做第 6 步的路径校验，坏路径答 `bad-path`；之后由快照与内容摘要的核对决定，来源在引用的定位处没有包时，操作按映射表答 `basis-unavailable`。
 - `export` 不分批：一次结果交出所钉快照的全部条目，或者一个失败，不交部分包。本版本的 `export` 没有总量上限。以后增加上限是破坏性改动，需要另行裁定。
 
 失败种类的集合（每一种何时出现见[组工程设计「失败种类」](../docs/architecture.md#失败种类)，`aborted` 见上文）：
@@ -469,7 +471,7 @@ no-readable-package
 - 没有已知集合的实现，对已不在当前集合里的身份不答 `known-unavailable`，这时不出现替换件。「资产版本不可表示」是例外（见下文）：这时身份仍在集合里、name 已知，任何实现都答 `known-unavailable`。
 - 带依据时，`resolve` 不比较内容摘要：内容摘要由 Skill 在读取时与当前快照比较。依据带资产版本时，`resolve` 核对该资产版本是不是这个主体在此作用域可读的、该能力的合法版本。依据不带资产版本时，`resolve` 核对该能力在依据的来源层对这个主体合法可读。
 - 身份对该主体合法对应时：依据合法就答 `adopted`，其中的内部引用（包定位与内容摘要）指向依据所指的材料，而不是当前采用的材料（PR3）；依据不合法就答 `basis-not-lawful`（PR4）。
-- 带依据答 `adopted` 时，引用的能力标识是所请求的身份，来源层等于依据的，依据带资产版本时资产版本也等于依据的。引用的内容摘要就是依据的内容摘要：端口不比较内容摘要，原样带回（PR3），所指材料没有包时也一样。这时读取的结果仍由快照与内容摘要的核对决定：来源在引用的定位处没有包时，按映射表答 `basis-unavailable`。Skill 在边界上核对这些字段，不合就当作没有作答，见[端口答复的统一处置](#port-answer-closed)。
+- 带依据答 `adopted` 时，引用的能力标识是所请求的身份，来源层等于依据的，依据带资产版本时资产版本也等于依据的。引用的内容摘要就是依据的内容摘要：端口不比较内容摘要，原样带回（PR3），所指材料没有包时也一样。这时读取的其余步骤照常，见[读取的形状规则](#read-shape)中 `unsupported` 一条。Skill 在边界上核对这些字段，不合就当作没有作答，见[端口答复的统一处置](#port-answer-closed)。
 - 资产版本不合 `AssetVersion` 的词法时，Skill 无法表示这份材料。这时端口答 `known-unavailable`，原因是「资产版本不可表示」。
 - `known-unavailable` 带的原因必须可以向该主体说明：它不含秘密，也不披露该主体无权知道的内容。这一义务归端口的实现，`isSafeReason` 只核对词形。
 - `adopted` 只交 `adopted` 与 `known-unavailable` 两种答复，每个身份一个（PR6）。集合为空时答空数组，不是失败。

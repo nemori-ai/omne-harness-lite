@@ -27,7 +27,7 @@
   - `Mode = "single"`：只有运行 1。
 - 端口答复是抽象的。`undecided` 代表实现解析成「没有作答」的全部答复：`unknown`、畸形答复、reject、同步抛出、读取时抛出。来源的故障取 `undecided`、`notFound`、`entryNotFound`。
 - 身份的状态 `nodigest` 是没有包的材料：来源在它的定位处没有包。对应端口的引用是否带内容摘要记在 `dig`。带依据时引用总是带回依据的内容摘要（PR3），没有包的材料也一样，所以这时读取走到快照一步，来源答 `notFound`，操作答 `basis-unavailable`。不带依据时，没有包的材料的引用不带内容摘要，操作答 `unsupported`。
-- 对应端口可以答错指的引用（动作 `ResolveMisdirected`，故障 `misdirect-identity`、`misdirect-material` 与 `misdirect-digest`）：引用指向另一个身份的当前材料；或者带依据时指向所请求身份的另一份材料；或者带依据时不带内容摘要。成功的结果记下它写明的身份（`out.id`），交出的每一片内容记下 `<<身份, 材料, 条目>>`。条目 `SKILL` 的摘要随身份与材料而变，所以快照摘要也写明身份。边界解析（`Parsed`）把错指的答复变成 `undecided`；`Flaw = "noRefCheck"` 去掉这一核对。不变式 `OwnMaterialOnly` 是 S7。`misdirect-digest` 不能让任何不变式变红：去掉 `Parsed` 里对它的核对，七个不变式仍成立，状态数不变（第 3 轮 L3 评审在副本上做过）。原因是去掉核对之后，这种答复在模型里走「没有可读包」的路径答 `unsupported`，或者 `describe` 成功且身份是所请求的，七个不变式都看不出差别。所以 S7 的「带依据时引用不带内容摘要」这一子情形不由本模型证明，由探索器（`tests/model/` 的 `undigest` 错指）与单元用例承担。
+- 对应端口可以答错指的引用（动作 `ResolveMisdirected`，故障 `misdirect-identity`、`misdirect-material` 与 `misdirect-digest`）：引用指向另一个身份的当前材料；或者带依据时指向所请求身份的另一份材料；或者带依据时不带内容摘要。成功的结果记下它写明的身份（`out.id`），交出的每一片内容记下 `<<身份, 材料, 条目>>`。条目 `SKILL` 的摘要随身份与材料而变，所以快照摘要也写明身份。边界解析（`Parsed`）把错指的答复变成 `undecided`；`Flaw = "noRefCheck"` 去掉这一核对。不变式 `OwnMaterialOnly` 是 S7。`misdirect-digest` 不能让任何不变式变红：把 `Misnames` 里的 `\/ ~a.dig` 删掉再跑 `ReadGate.cfg`，七个不变式仍成立，可以照此复现。原因是去掉核对之后，这种答复在模型里走「没有可读包」的路径答 `unsupported`，或者 `describe` 成功且身份是所请求的，七个不变式都看不出差别。所以 S7 的「带依据时引用不带内容摘要」这一子情形不由本模型证明，由探索器（`tests/model/` 的 `undigest` 错指）与单元用例承担。
 - `Flaw` 选一个故意的缺陷。每条性质有一个负控配置，它必须报告反例。
 
 <a id="mapping"></a>
