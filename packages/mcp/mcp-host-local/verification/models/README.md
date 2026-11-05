@@ -20,7 +20,7 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 - 在途项的相 `st[r]`：`init`（还没登记）、`auth`（已登记，还没交给线路：授权中）、`sent`（已交给线路）、`disc`（授权发现中）、`done`（已结算）。答复 `out[r]`：`none`、`result`、`abandoned`（`no-answer`，`abandoned`）、`notSent`（`not-sent`，`connection-unavailable`）、`authReq`（`not-sent`，`authorization-required`）、`broken`。
 - 调用方的等待 `cw[r]`：`none`、`waiting`、`answered`。它是调用方对这个请求的最后一个等待：`call` 的 `answer`，或读写类操作的结果。结算放开它，别的事不放开它。
 - 工作流的阶段 `wf[r]`：`none`、`auth`（等凭据句柄）、`line`（等线路的应答）、`disc`（等元数据取回）、`end`。端口在在途项结算之后才答复时，工作流丢弃答复：不发出、不调用句柄、不再结算。
-- 快照，由有效动作写入，不变式只读它们：`cutAt[r]`（`signal` 或 `close()` 结算在途项时它所处的相；`init` 表示请求在 `close()` 之后或 `signal` 触发之后才开始，当场拒绝）、`firstOut[r]`（第一次结算的答复）、`settles[r]`（结算次数）、`credAtClose`（`close()` 被调用时凭据句柄的调用计数 `cred`）。
+- 快照，由有效动作写入，不变式只读它们：`cutAt[r]`（`signal` 或 `close()` 结算在途项时它所处的相；`init` 表示请求在 `close()` 之后或 `signal` 触发之后才开始，当场拒绝）、`firstOut[r]`（第一次结算的答复）、`settles[r]`（结算次数）、`credAtClose`（`close()` 被调用时凭据句柄的调用计数 `cred`）。`V2_NoCredentialAfterClose` 从 `closed` 起断言 `cred` 不再变化，比 V2 的陈述（`close()` 返回之后）强；强形式通过蕴含定理所述的形式。
 - 其余：`sends[r]`（发出次数）、`signalled`（信号已触发的请求）、`refusals`（带句柄的材料上，对尚未结算的请求的拒绝数）、`cred`（`authorize` 与 `reportRejection` 的调用计数）、`closed`、`closeDone`。
 
 结算规则，`signal` 与 `close()` 相同：`auth` → `notSent`，`sent` → `abandoned`，`disc` → `authReq`。两者都当场结算，不等句柄、线路或发现。`close()` 在线路的 `close` 答复之后返回（`LineClosed`）。
