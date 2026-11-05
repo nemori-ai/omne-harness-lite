@@ -454,8 +454,8 @@ export function createConnectionTable<P, S>(
       ),
     ])
     const defects = [
-      ...[...abandoned, ...closing].flatMap(item =>
-        item.status === 'rejected' ? [item.reason as unknown] : [],
+      ...[...abandoned, ...closing].flatMap((item): unknown[] =>
+        item.status === 'rejected' ? [item.reason] : [],
       ),
       ...scope.exit(),
     ]

@@ -260,20 +260,21 @@ function describePending(pending: readonly ScriptedPortCall[]): string {
 /**
  * P8 theorem T2 (`P8_BoundedEnsure`): an `ensure` whose own bounds all fired has answered,
  * whatever the ports still pending do (they may hang) and whatever bounds of other calls are
- * left. Every `ensure` that waits started at least its section bound.
+ * left. An `ensure` that waits with no bound of its own breaks it too: each one starts its section
+ * bound before it first waits, so `fired === started` with none started is a violation.
  */
 function ensureUnbounded(view: RunView): Found[] {
   const waiting = view.ops.filter(op => {
     if (op.kind !== 'ensure' || op.status !== 'waiting') return false
     const { started, fired } = view.boundsOf(op.name)
-    return started > 0 && fired === started
+    return fired === started
   })
   if (waiting.length === 0) return []
   return [
     {
       property: 'P8',
       signature: stuckSignature(view.pending),
-      detail: `${waiting.map(op => op.name).join(', ')} waiting after its own bounds fired; pending: ${describePending(view.pending)}`,
+      detail: `${waiting.map(op => op.name).join(', ')} waiting after its own bounds fired (or with none started); pending: ${describePending(view.pending)}`,
     },
   ]
 }

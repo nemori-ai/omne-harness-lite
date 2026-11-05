@@ -247,6 +247,39 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     expect(writes).toBe(0)
   })
 
+  it('an error of this package in a build reaches a call that joined it while it still waits (P7)', async () => {
+    const w = world()
+    const adopted = adoptStdio(w, files, {
+      auth: 'static',
+      env: [{ name: 'TOKEN', source: 'credential' }],
+    })
+    w.credentials.reject(alice.tenant, MAIN)
+    const record = await storedRecord(w, await keyOf(w, adopted, credentialAccount), ['read'])
+    const last = Number.MAX_SAFE_INTEGER
+    if (!isCatalogRevision(last)) throw new TypeError('not a catalog revision')
+    // The mark of the failed build waits here until the second call has joined it.
+    const marking = deferred<void>()
+    let reads = 0
+    const store = {
+      ...w.ports.store,
+      read: async () => {
+        reads += 1
+        await marking.promise
+        return { ok: { ...record, revision: last } }
+      },
+    }
+    const table = createConnectionTable({ ...w.ports, store }, w.config)
+    const endpoint = await admitted(w, files)
+    const began = table.ensure(endpoint, alice)
+    await settled()
+    const joined = table.ensure(endpoint, alice)
+    await settled()
+    marking.resolve()
+    await expect(began).rejects.toThrow(RangeError)
+    await expect(joined).rejects.toThrow(RangeError)
+    expect(reads).toBe(1)
+  })
+
   it('credential rejected: credential-unavailable (rejected), actions marked, revision one higher', async () => {
     const w = world()
     const adopted = adoptStdio(w, files, {

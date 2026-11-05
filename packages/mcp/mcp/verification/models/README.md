@@ -16,22 +16,22 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 
 ## 配置
 
-| 配置                   | 种类                 | 键   | `ensure` | `release` | `closeAll` | `lose` | 偏离与预算                                  | 检查                                                                        |
-| ---------------------- | -------------------- | ---- | -------- | --------- | ---------- | ------ | ------------------------------------------- | --------------------------------------------------------------------------- |
-| `valid-faults`         | 正控                 | A    | 1        | 1         | 1          | 1      | `fail`、`reject`、`unconfirmed`，1          | P1–P7 与 P8 T2 的全部不变式                                                 |
-| `valid-rebuild`        | 正控                 | A    | 2        | 0         | 1          | 0      | 无（端口可挂起、迟到）                      | 同上                                                                        |
-| `valid-throws`         | 正控                 | A    | 1        | 0         | 1          | 0      | `throw`，1                                  | 同上                                                                        |
-| `valid-two-keys`       | 正控                 | A、B | 各 1     | 0         | 1          | 0      | 无；不触发时限（`CONSTRAINT NoBoundFired`） | P1–P5 与 P7，P5 为主；P1 的关停之后一句、P6、P8 T2 在这里会空成立，不列     |
-| `live`                 | 正控（活性）         | A    | 1        | 1         | 1          | 0      | `fail`、`reject`、`unconfirmed`，1          | `LiveSpec` 下的 `P8_EveryCallerAnswers`                                     |
-| `probe-a1`             | 反定理的探针         | A    | 1        | 1         | 0          | 0      | 无                                          | `P8_BoundedClose`，须违反                                                   |
-| `probe-live-hang`      | 反定理的探针（活性） | A    | 1        | 1         | 1          | 0      | 无                                          | `HangSpec` 下的 `P8_EveryCallerAnswers`，须有时序反例                       |
-| `bad-no-absorb-close`  | 负控                 | A    | 1        | 1         | 0          | 0      | `reject`，1                                 | 拆除不吸收 `close()` 的 reject。`P2_NoneHoldsNothing` 须违反                |
-| `bad-forget-open`      | 负控                 | A    | 2        | 0         | 1          | 0      | 无                                          | 遗忘不要求已关闭。`P2_ForgetHoldsNothing` 须违反                            |
-| `bad-forget-open-late` | 负控                 | A    | 1        | 0         | 0          | 0      | 无                                          | 同一缺陷，迟到答复让 `lost` 的条目离开表。`P6_LateInvisible` 须违反         |
-| `bad-no-shut`          | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | `closeAll` 不置关停。`P4_NoConnectAfterShut` 须违反                         |
-| `bad-ok-after-shut`    | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | 协商之后不核关停。`P4_NoOkAfterShut` 须违反                                 |
-| `bad-abandon-landed`   | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | `closeAll` 也释放已交来进程的落点的句柄。`P1_ReleasedAfterStop` 须违反      |
-| `bad-unbounded-wrap`   | 负控                 | A    | 1        | 0         | 0          | 0      | 无                                          | 失败的建连等收场与标记时不受时限。`P8_BoundedEnsure` 须违反                 |
+| 配置                   | 种类                 | 键   | `ensure` | `release` | `closeAll` | `lose` | 偏离与预算                                  | 检查                                                                    |
+| ---------------------- | -------------------- | ---- | -------- | --------- | ---------- | ------ | ------------------------------------------- | ----------------------------------------------------------------------- |
+| `valid-faults`         | 正控                 | A    | 1        | 1         | 1          | 1      | `fail`、`reject`、`unconfirmed`，1          | P1–P7 与 P8 T2 的全部不变式                                             |
+| `valid-rebuild`        | 正控                 | A    | 2        | 0         | 1          | 0      | 无（端口可挂起、迟到）                      | 同上                                                                    |
+| `valid-throws`         | 正控                 | A    | 1        | 0         | 1          | 0      | `throw`，1                                  | 同上                                                                    |
+| `valid-two-keys`       | 正控                 | A、B | 各 1     | 0         | 1          | 0      | 无；不触发时限（`CONSTRAINT NoBoundFired`） | P1–P5 与 P7，P5 为主；P1 的关停之后一句、P6、P8 T2 在这里会空成立，不列 |
+| `live`                 | 正控（活性）         | A    | 1        | 1         | 1          | 0      | `fail`、`reject`、`unconfirmed`，1          | `LiveSpec` 下的 `P8_EveryCallerAnswers`                                 |
+| `probe-a1`             | 反定理的探针         | A    | 1        | 1         | 0          | 0      | 无                                          | `P8_BoundedClose`，须违反                                               |
+| `probe-live-hang`      | 反定理的探针（活性） | A    | 1        | 1         | 1          | 0      | 无                                          | `HangSpec` 下的 `P8_EveryCallerAnswers`，须有时序反例                   |
+| `bad-no-absorb-close`  | 负控                 | A    | 1        | 1         | 0          | 0      | `reject`，1                                 | 拆除不吸收 `close()` 的 reject。`P2_NoneHoldsNothing` 须违反            |
+| `bad-forget-open`      | 负控                 | A    | 2        | 0         | 1          | 0      | 无                                          | 遗忘不要求已关闭。`P2_ForgetHoldsNothing` 须违反                        |
+| `bad-forget-open-late` | 负控                 | A    | 1        | 0         | 0          | 0      | 无                                          | 同一缺陷，迟到答复让 `lost` 的条目离开表。`P6_LateInvisible` 须违反     |
+| `bad-no-shut`          | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | `closeAll` 不置关停。`P4_NoConnectAfterShut` 须违反                     |
+| `bad-ok-after-shut`    | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | 协商之后不核关停。`P4_NoOkAfterShut` 须违反                             |
+| `bad-abandon-landed`   | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | `closeAll` 也释放已交来进程的落点的句柄。`P1_ReleasedAfterStop` 须违反  |
+| `bad-unbounded-wrap`   | 负控                 | A    | 1        | 0         | 0          | 0      | 无                                          | 失败的建连等收场与标记时不受时限。`P8_BoundedEnsure` 须违反             |
 
 `valid-two-keys` 不触发时限，迟到路径只在一个键的配置里检查：不加这个约束时，两个键的状态空间相乘，TLC 运行 17 分钟仍未完成。各配置的时限上界相同、先建先到期；`P8_BoundedEnsure` 是 P8 T2 的全局形式，逐个 `ensure` 的形式归探索器（[../README.md](../README.md#状态映射)「模型的抽象」）。负控与探索器的变异的对应见 [../README.md](../README.md#两种证据能变红)。
 
@@ -53,7 +53,7 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 
 ## 运行记录
 
-运行环境：TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)，tla2tools.jar SHA-256 `936a262061c91469…`，6 个工作线程。模型 SHA-256 `b14f3711fe731cc4…`（第 1 轮评审裁定 F2、F3 之后：落点从开始起就在途，关停开始之后的失败按关停收场）。
+运行环境：TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)，即 tla2tools v1.7.4 发行包里的 TLC，tla2tools.jar SHA-256 `936a262061c91469…`，6 个工作线程。模型 SHA-256 `b14f3711fe731cc4…`（第 1 轮评审裁定 F2、F3 之后：落点从开始起就在途，关停开始之后的失败按关停收场）。
 
 | 配置                   | 结论                                      | 不同状态数 | 生成状态数 | 深度 | 耗时    | 判读     |
 | ---------------------- | ----------------------------------------- | ---------- | ---------- | ---- | ------- | -------- |

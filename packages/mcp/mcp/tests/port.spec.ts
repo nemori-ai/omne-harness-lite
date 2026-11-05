@@ -1,7 +1,7 @@
 // The port adapter and the bounded wait (SPEC MC-5, MC-15): `ask` reads a throw when the port is
 // called the same as a rejection, as the port's breach answer; `within` stops waiting when its
 // bound fires and leaves the work, and what the work hands over late, to the task scope.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ask, within } from '../src/internal/port.ts'
 import { createTaskScope } from '../src/internal/scope.ts'
 import { deferred, settled } from './doubles/deferred.ts'
@@ -85,5 +85,22 @@ describe('the task scope (SPEC P7)', () => {
     await settled()
     expect(afterExit).toEqual([new Error('after')])
     expect(scope.exit()).toEqual([])
+  })
+
+  it('by default throws an error after the exit outside any promise, as an uncaught exception', async () => {
+    const queued: (() => void)[] = []
+    const queue = vi.spyOn(globalThis, 'queueMicrotask').mockImplementation(callback => {
+      queued.push(callback)
+    })
+    try {
+      const scope = createTaskScope()
+      scope.exit()
+      const error = new Error('after')
+      scope.spawn(Promise.reject(error))
+      await vi.waitFor(() => expect(queued).toHaveLength(1))
+      expect(() => queued[0]?.()).toThrow(error)
+    } finally {
+      queue.mockRestore()
+    }
   })
 })

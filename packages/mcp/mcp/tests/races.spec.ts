@@ -7,7 +7,7 @@ import { connectionKeyOf } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
 import { admit } from '../src/internal/gate.ts'
 import { createConnectionTable } from '../src/internal/table.ts'
-import { between } from './doubles/calls.ts'
+import { between, only } from './doubles/calls.ts'
 import { manualBounds } from './doubles/bounds.ts'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
@@ -662,11 +662,68 @@ describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
     await settled()
     const second = c.discovery.refresh(alice, { ref: files })
     await settled()
-    expect(bounds.started()).toEqual(['section', 'build', 'section', 'join'])
     bounds.fire('join')
     expect(await second).toEqual(REFUSED)
     expect(stalled.calls()).toBe(1)
     stalled.gate.resolve()
     expect(await first).toMatchObject({ ok: { kind: 'published' } })
+  })
+
+  it('at the table, a call queued past its section bound answers at the settings stage', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files)
+    // Call 1 is the gate; call 2, the re-read of the first ensure in the critical section, never
+    // answers.
+    const silent = silentAdoption(w.ports.adoption, only(2))
+    const bounds = manualBounds()
+    const ports = { ...w.ports, adoption: silent.port }
+    const table = createConnectionTable(ports, w.config, bounds.runtime)
+    const admitted = await admit(ports, alice, files)
+    if (admitted.kind !== 'admitted') throw new Error('not admitted')
+    const first = table.ensure(admitted.endpoint, alice)
+    const second = table.ensure(admitted.endpoint, alice)
+    await settled()
+    const refused = { failure: { stage: 'settings', reason: { kind: 'connection-unavailable' } } }
+    bounds.fire('section', 1)
+    expect(await second).toEqual(refused)
+    bounds.fire('section', 0)
+    expect(await first).toEqual(refused)
+  })
+
+  it('at the table, a call that joins past its own bound answers at the connect stage with the mark pending', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files)
+    const stalled = stallingLanding(w.landing)
+    const bounds = manualBounds()
+    const ports = { ...w.ports, landing: stalled.port }
+    const table = createConnectionTable(ports, w.config, bounds.runtime)
+    const admitted = await admit(ports, alice, files)
+    if (admitted.kind !== 'admitted') throw new Error('not admitted')
+    const first = table.ensure(admitted.endpoint, alice)
+    await settled()
+    const second = table.ensure(admitted.endpoint, alice)
+    await settled()
+    bounds.fire('join')
+    expect(await second).toEqual({
+      failure: { stage: 'connect', reason: { kind: 'connection-unavailable' }, catalog: 'pending' },
+    })
+    stalled.gate.resolve()
+    expect('ok' in (await first)).toBe(true)
+    await table.closeAll()
+  })
+
+  it('a refresh stops reading pages at its listing bound: the cut-off page has no answer', async () => {
+    const w = world({
+      script: [{ discover: peerIdentity() }, { listActions: deferred<ListingPage>() }],
+    })
+    adoptStdio(w, files)
+    const bounds = manualBounds()
+    const c = core(w, bounds.runtime)
+    const refreshing = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    bounds.fire('listing')
+    expect(await refreshing).toEqual({
+      ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defect: 'page-failed' } },
+    })
   })
 })

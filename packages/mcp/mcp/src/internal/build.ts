@@ -44,7 +44,7 @@ import { closeArrived, landArrived, releaseArrived, type LandingFailure } from '
 import { ask, within, type Settle, type StartBound } from './port.ts'
 import type { TaskScope } from './scope.ts'
 import type { PreparedSettings } from './settings.ts'
-import { releaseLanding, teardown } from './teardown.ts'
+import { teardown } from './teardown.ts'
 
 export type Builder<P> = Readonly<{
   /** Builds the connection of `entry` from `prepared`, under the connection bound. */
@@ -229,14 +229,13 @@ export function createBuilder<P, S>(
   /**
    * A landing still pending at its bound: the entry keeps it, with the handle it carries, until
    * it answers (decision 20). The handle is released after the stop of the process that lands
-   * (S9), or at the shutdown (decision 6); a landing that outlives its bound after the shutdown
-   * began keeps no handle.
+   * (S9), or at the shutdown (decision 6): `closeAll` releases the handle of every landing still
+   * pending, so one whose bound fires after the shutdown began holds no handle any more.
    */
   function landingOutlived(
     entry: Entry,
     landing: Landing,
   ): Settle<Outcome<ProcessHandle, LandingFailure>> {
-    if (deps.shut()) scope.spawn(releaseLanding(landing))
     const arrived = landArrived(entry, landing)
     return async started => {
       await arrived(started)
