@@ -4,7 +4,7 @@
 
 ## 内容
 
-- [README.md](README.md)：探索的空间、组合数、用时、与模型的对应、已知反例与前提外的反例
+- [README.md](README.md)：探索的空间、组合数、用时、与模型的对应、已知反例与余下的前提
 - [world.ts](world.ts)：世界、孪生世界、日程与包装后的端口
 - [explore.ts](explore.ts)：请求、执行与报告
 - [disclosure.ts](disclosure.ts)：S1 无披露（自组合）
@@ -13,7 +13,8 @@
 - [range.ts](range.ts)：S4 范围正确
 - [order.ts](order.ts)：S5 次序无关
 - [abort.ts](abort.ts)：S6 中止不交部分
-- [explore.spec.ts](explore.spec.ts)：运行六个探索的测试
+- [identity.ts](identity.ts)：S7 引用身份一致
+- [explore.spec.ts](explore.spec.ts)：运行七个探索的测试
 
 ## 阅读路径
 

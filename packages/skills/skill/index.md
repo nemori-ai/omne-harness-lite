@@ -5,7 +5,7 @@
 ## 包根
 
 - [README_ZH.md](README_ZH.md)、[README.md](README.md)：用途、状态、目录结构与文档职责
-- [SPEC.md](SPEC.md)：三段、映射、无披露、正文与范围、检查；行为条款本身归契约与组页
+- [SPEC.md](SPEC.md)：三段、映射、端口答复与引用身份一致、无披露、正文与范围、检查、性质与证据；行为条款本身归契约与组页
 - `documentation.json`：本包的文档登记
 - `package.json`：公开入口、脚本与依赖
 
@@ -13,9 +13,9 @@
 
 - [docs/](docs/index.md)：内部设计、公开使用与集成说明
 - [src/](src/index.md)：两个工厂、端口束、映射表与三段
-- [tests/](tests/index.md)：服务、每段、范围与符合性套件的测试
+- [tests/](tests/index.md)：服务、每段、范围与符合性套件的测试；[tests/model/](tests/model/index.md) 是对真实服务的有界穷举探索器
 - [schema/](schema/index.md)：对外 Schema（本包没有）
-- [verification/](verification/index.md)：模型、论证与证明（本包没有）
+- [verification/](verification/index.md)：性质账本 S1–S7 与 TLA+ 模型 `ReadGate.tla`（没有证明）
 - [adr/](adr/index.md)：实现取舍与理由（本包没有独立 ADR）
 - [examples/](examples/index.md)：使用示例（本包尚无独立示例）
 - [resources/](resources/index.md)：运行所需的非源码资源（本包没有）

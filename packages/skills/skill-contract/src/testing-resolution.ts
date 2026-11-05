@@ -4,13 +4,14 @@ import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
 import { sameCapability } from './capability.ts'
-import { digestOfSorted } from './digest.ts'
+import { digestOfSorted, isPackageDigest } from './digest.ts'
 import { isAssetVersion } from './names.ts'
 import type { CatalogResolution, Resolution, SkillResolution } from './ports.ts'
 import { conformanceCase, handle, type ConformanceCase } from './testing-case.ts'
 import type {
   AssetVersion,
   DeclaredProjection,
+  PackageDigest,
   SafeReason,
   SkillMaterialBasis,
   SkillName,
@@ -66,7 +67,13 @@ function answerOf<P, S>(
   if (basis === undefined || state.kind === 'known-unavailable') return currentAnswer(entry)
   const material = [state.current, ...(state.earlier ?? [])].find(item => names(item, basis))
   if (material === undefined) return { kind: 'basis-not-lawful' }
-  return { kind: 'adopted', ref: material.ref, declared: material.declared }
+  // The digest is not compared: the reference carries the digest of the basis back, and Skill
+  // compares it with the snapshot (PR3), a material without a package included.
+  return {
+    kind: 'adopted',
+    ref: { ...material.ref, digest: basis.digest },
+    declared: material.declared,
+  }
 }
 
 /**
@@ -108,6 +115,11 @@ export type ResolutionFixture<P, S> = Readonly<{
   earlier?: SkillMaterialBasis
   /** A source layer in which `adopted` is not lawful for `permitted`, if there is one. */
   unlawfulLayer?: SourceLayer
+  /**
+   * An identity adopted for `permitted` whose material has no readable package (its asset body
+   * has no `package.digest`), if there is one.
+   */
+  noPackage?: CapabilityId
 }>
 
 /** The name of the non-disclosure case. */
@@ -140,6 +152,13 @@ function otherVersion(version: AssetVersion): AssetVersion {
   for (const text of ['conformance-unlawful-version', 'conformance-unlawful-version-2'])
     if (isAssetVersion(text) && text !== version) return text
   throw new Error('unreachable: two different texts cannot both equal one version')
+}
+
+/** A package digest that differs from `digest`. */
+function otherDigest(digest: PackageDigest): PackageDigest {
+  for (const text of [`sha256:${'0'.repeat(64)}`, `sha256:${'1'.repeat(64)}`])
+    if (isPackageDigest(text) && text !== digest) return text
+  throw new Error('unreachable: two different texts cannot both equal one digest')
 }
 
 function capabilityOf(answer: CatalogResolution): CapabilityId {
@@ -186,9 +205,39 @@ export function skillResolutionConformance<P, S>(): ConformanceCase<ResolutionFi
         basis: basisOf(ref),
       })
       if (answer.kind !== 'adopted') assert.fail(`expected adopted, got ${answer.kind}`)
+      assert.ok(sameCapability(answer.ref.capability, f.adopted), 'the ref names another identity')
       assert.equal(answer.ref.layer, ref.layer)
       assert.equal(answer.ref.assetVersion, ref.assetVersion)
     }),
+    conformanceCase('PR3', 'gives back the digest of the basis without comparing it', async f => {
+      const ref = await adoptedRef(f)
+      const digest = otherDigest(handle(ref.digest, 'digest of the adopted material'))
+      const answer = await f.resolution.resolve(f.permitted.access, f.permitted.scope, f.adopted, {
+        basis: { ...basisOf(ref), digest },
+      })
+      if (answer.kind !== 'adopted') assert.fail(`expected adopted, got ${answer.kind}`)
+      assert.equal(answer.ref.digest, digest, 'the ref does not carry the digest of the basis')
+    }),
+    conformanceCase(
+      'PR3',
+      'gives back the digest of the basis for material without a readable package',
+      async f => {
+        const identity = handle(f.noPackage, 'noPackage')
+        const plain = await f.resolution.resolve(f.permitted.access, f.permitted.scope, identity)
+        if (plain.kind !== 'adopted') assert.fail(`the noPackage sample answered ${plain.kind}`)
+        assert.equal(plain.ref.digest, undefined, 'the noPackage sample has a readable package')
+        const basis = basisOf(plain.ref)
+        const answer = await f.resolution.resolve(f.permitted.access, f.permitted.scope, identity, {
+          basis,
+        })
+        if (answer.kind !== 'adopted') assert.fail(`expected adopted, got ${answer.kind}`)
+        assert.equal(
+          answer.ref.digest,
+          basis.digest,
+          'the ref does not carry the digest of the basis',
+        )
+      },
+    ),
     conformanceCase(
       'PR3',
       'resolves a basis of an earlier lawful version to the earlier material',

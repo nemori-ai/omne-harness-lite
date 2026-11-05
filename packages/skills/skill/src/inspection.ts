@@ -27,7 +27,7 @@ export function createPackageInspection(source: SkillPackageSource): PackageInsp
       options?: Readonly<{ expectedName?: SkillName }>,
     ): Promise<Outcome<SkillDefinition, InspectFailure>> {
       const taken = await sourceAnswer(() => source.snapshot(locator), isSealedSnapshot)
-      if (!('ok' in taken)) return fail(sourceFailureTo('inspect', taken.failure))
+      if (!('ok' in taken)) return fail(sourceFailureTo('inspect', taken.failure, 'snapshot'))
       const snapshot = taken.ok
       /** The bytes of a control file that the snapshot lists, or `undefined` when it does not. */
       const control = async (path: string): Promise<Outcome<Bytes | undefined, InspectFailure>> => {
@@ -37,7 +37,7 @@ export function createPackageInspection(source: SkillPackageSource): PackageInsp
           () => source.open(locator, snapshot.digest, entry.path),
           isBytes,
         )
-        return 'ok' in opened ? opened : fail(sourceFailureTo('inspect', opened.failure))
+        return 'ok' in opened ? opened : fail(sourceFailureTo('inspect', opened.failure, 'open'))
       }
       const manifest = await control(MANIFEST_PATH)
       if (!('ok' in manifest)) return manifest

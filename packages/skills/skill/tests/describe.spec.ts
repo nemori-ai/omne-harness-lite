@@ -39,7 +39,7 @@ describe('the description', () => {
     expect(description.material).toStrictEqual({ kind: 'pinned', basis: earlierBasis })
   })
 
-  it('gives back the digest of the basis, not the digest the resolution names', async () => {
+  it('gives back the basis whose digest the source no longer holds: describe reads no bytes', async () => {
     const { access } = createWorld()
     const other = granted(isPackageDigest, `sha256:${'e'.repeat(64)}`)
     const basis = { ...currentBasis, digest: other }

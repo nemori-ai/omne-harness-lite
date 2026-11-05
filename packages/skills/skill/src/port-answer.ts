@@ -4,11 +4,16 @@
 // together. A port that rejects or throws, an answer that the parse does not take, and an answer
 // that throws while it is read all give `undefined`: no answer. Each service says what no answer
 // is for it: `unknown` for the read check and the resolution, `unavailable` for the source.
+// The parse of `resolve` also takes the request: an answer about another identity, or, with a
+// basis, about other material than the basis, is no answer either (S7, "引用身份一致").
+import type { CapabilityId } from '@omne-harness/assets'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { sameCapability, type SkillMaterialBasis } from '@omne-harness/skill-contract'
 import type {
   CatalogResolution,
   ReadVerdict,
   Resolution,
+  SkillRef,
 } from '@omne-harness/skill-contract/provider'
 import { adoptedOf, fieldOf, has, listOf, standInOf } from './answer-values.ts'
 
@@ -44,13 +49,54 @@ export function parseVerdict(answer: unknown): ReadVerdict | undefined {
   return undefined
 }
 
-/** `SkillResolution.resolve`: one of the five answers, each with its whole payload. */
-export function parseResolution(answer: unknown): Resolution | undefined {
+/** What one `resolve` call asked about: the identity and, when the caller gave one, the basis. */
+export type ResolveRequest = Readonly<{ capability: CapabilityId; basis?: SkillMaterialBasis }>
+
+/**
+ * Whether `ref` names the material of `request`: the requested identity and, with a basis, the
+ * source layer, the asset version (when the basis has one) and the digest of the basis. A basis
+ * names material with a digest, so a reference without one is not that material (S7).
+ */
+function namesRequested(ref: SkillRef, request: ResolveRequest): boolean {
+  if (!sameCapability(ref.capability, request.capability)) return false
+  const { basis } = request
+  if (basis === undefined) return true
+  return (
+    ref.layer === basis.layer &&
+    (basis.assetVersion === undefined || ref.assetVersion === basis.assetVersion) &&
+    ref.digest === basis.digest
+  )
+}
+
+/**
+ * `SkillResolution.resolve`: one of the five answers, each with its whole payload, and about
+ * `request`. An `adopted` reference or a stand-in of another identity is no answer, so the value
+ * that comes out names only the requested material and no later step looks at this again.
+ */
+export function parseResolution(
+  request: ResolveRequest,
+): (answer: unknown) => Resolution | undefined {
+  return answer => {
+    switch (fieldOf(answer, 'kind')) {
+      case 'adopted': {
+        const adopted = adoptedOf(answer)
+        return adopted !== undefined && namesRequested(adopted.ref, request) ? adopted : undefined
+      }
+      case 'known-unavailable': {
+        const standIn = standInOf(answer)
+        return standIn !== undefined && sameCapability(standIn.capability, request.capability)
+          ? standIn
+          : undefined
+      }
+      default:
+        return payloadFreeOf(answer)
+    }
+  }
+}
+
+/** The three answers of `resolve` without a payload. */
+function payloadFreeOf(answer: unknown): Resolution | undefined {
   switch (fieldOf(answer, 'kind')) {
-    case 'adopted':
-      return adoptedOf(answer)
-    case 'known-unavailable':
-      return standInOf(answer)
     case 'basis-not-lawful':
       return BASIS_NOT_LAWFUL
     case 'none':
@@ -61,7 +107,8 @@ export function parseResolution(answer: unknown): Resolution | undefined {
   return undefined
 }
 
-/** One item of the lawful set: only the two answers that the set holds. */
+/** One item of the lawful set: only the two answers that the set holds. The identity of an item
+ * is the identity it names (`ref.capability` or `capability`): there is no request to compare. */
 function parseLawfulItem(answer: unknown): CatalogResolution | undefined {
   switch (fieldOf(answer, 'kind')) {
     case 'adopted':

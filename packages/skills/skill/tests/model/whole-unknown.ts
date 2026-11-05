@@ -20,6 +20,7 @@ import {
 } from './explore.ts'
 import {
   DESCRIPTION_WORD,
+  MISDIRECTIONS,
   NAMES,
   runOf,
   undecides,
@@ -97,6 +98,8 @@ function accessWorld(state: IdentityState, held: IdentitySpec['held']): WorldSpe
 const ACCESS_FAULTS: readonly FaultPoint[] = [
   ...UNDECIDED.map(fault => ({ site: { port: 'check', name: 'alpha' }, fault }) as const),
   ...UNDECIDED.map(fault => ({ site: { port: 'resolve', name: 'alpha' }, fault }) as const),
+  // A reference to other material is no answer when it breaks the request (no PR1, PR3).
+  ...MISDIRECTIONS.map(fault => ({ site: { port: 'resolve', name: 'alpha' }, fault }) as const),
   ...SOURCE_FAULTS.map(fault => ({ site: { port: 'snapshot' }, fault }) as const),
   ...SOURCE_FAULTS.map(fault => ({ site: { port: 'open' }, fault }) as const),
   // The second entry of an export: the first entry passed, the package must not.

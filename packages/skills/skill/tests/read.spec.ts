@@ -2,7 +2,13 @@
 // bytes, the step order, the failures of the steps, no partial content on `version-changed`
 // and `aborted`, the abort checkpoints before any port, and no cache between two calls.
 import { describe, expect, it } from 'vitest'
-import type { ReadTarget } from '@omne-harness/skill-contract'
+import { createSkillAccess } from '@omne-harness/skill'
+import { isSkillName, type ReadTarget } from '@omne-harness/skill-contract'
+import {
+  createMemoryReadCheck,
+  createMemoryResolution,
+  createMemorySource,
+} from '@omne-harness/skill-contract/testing'
 import {
   alice,
   BLOB,
@@ -10,6 +16,8 @@ import {
   bytesOf,
   createWorld,
   currentBasis,
+  digestOf,
+  granted,
   earlierBasis,
   failureOf,
   FRONT,
@@ -21,6 +29,7 @@ import {
   okOf,
   path,
   review,
+  reviewLocator,
   scope,
 } from './access-world.ts'
 
@@ -283,6 +292,49 @@ describe('list gives', () => {
     const signal = controls.abortAfterSnapshot()
     expect(await access.list(alice, scope, review, { signal })).toStrictEqual({
       failure: { kind: 'aborted' },
+    })
+  })
+})
+
+describe('the body of a SKILL.md without a legal frontmatter', () => {
+  // Not reachable for a material whose digest comes from a package that passed `inspect`: the
+  // entry digest is checked at step 10, and `inspect` rejects such bytes. Reachable only when the
+  // asset digest comes from elsewhere. The bytes are then not known to be a body.
+  it.each([
+    ['no frontmatter at all', '# Title\nSome text.\n'],
+    ['an opening delimiter without a closing one', '---\nname: review\nNot closed.\n'],
+  ])('answers source-unavailable without content for %s', async (_case, manifest) => {
+    const files = { 'SKILL.md': manifest, 'docs/guide.md': GUIDE }
+    const digest = digestOf('review', files)
+    const access = createSkillAccess({
+      readCheck: createMemoryReadCheck([{ capability: review, visible: () => true }]),
+      resolution: createMemoryResolution([
+        {
+          capability: review,
+          visible: () => true,
+          state: {
+            kind: 'adopted',
+            current: {
+              ref: { capability: review, layer: 'workspace', locator: reviewLocator, digest },
+              declared: {
+                name: granted(isSkillName, 'review'),
+                tools: [],
+                scripts: [],
+                settings: [],
+              },
+            },
+          },
+        },
+      ]),
+      source: createMemorySource([{ locator: reviewLocator, rootName: 'review', files }]),
+    })
+    expect(await access.read(alice, scope, body)).toStrictEqual({
+      failure: { kind: 'source-unavailable' },
+    })
+    // A resource of the same material is still read whole: only the body needs the header.
+    expect(okOf(await access.read(alice, scope, resource('docs/guide.md'))).content).toStrictEqual({
+      kind: 'text',
+      text: GUIDE,
     })
   })
 })

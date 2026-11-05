@@ -8,6 +8,7 @@ it('exports the skill body port', () => {
   expect(Object.keys(skill).sort()).toEqual([
     'DECLARATION_LIMITS',
     'DECLARATION_PATH',
+    'DESCRIPTION_LIMIT',
     'MANIFEST_PATH',
     'PAGE_LIMIT',
     'bodyOffsetOf',

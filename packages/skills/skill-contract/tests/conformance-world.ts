@@ -54,6 +54,8 @@ export const scope: Scope = 'workspace-a'
 export const reviewCapability = capability('review')
 export const retiredCapability = capability('retired')
 export const missingCapability = capability('nobody-has-this')
+/** Adopted, but its asset body has no `package.digest`: no readable package. */
+export const noPackageCapability = capability('no-package')
 
 const currentFiles = {
   'SKILL.md': '---\nname: review\ndescription: Reviews a change.\n---\nRead the diff.\n',
@@ -116,6 +118,17 @@ export function memoryResolution() {
       },
     },
     {
+      capability: noPackageCapability,
+      visible: onlyAlice,
+      state: {
+        kind: 'adopted',
+        current: {
+          ref: { capability: noPackageCapability, layer: 'tenant', locator: missingLocator },
+          declared: { ...declared, name: granted(isSkillName, 'no-package') },
+        },
+      },
+    },
+    {
       capability: retiredCapability,
       visible: onlyAlice,
       state: {
@@ -148,6 +161,7 @@ export function resolutionFixture(
     standIn: retiredCapability,
     earlier: earlierBasis,
     unlawfulLayer: 'workspace',
+    noPackage: noPackageCapability,
   }
 }
 

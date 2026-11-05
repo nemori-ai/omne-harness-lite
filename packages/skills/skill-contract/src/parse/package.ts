@@ -4,6 +4,7 @@ import type { JsonLimits } from '@omne-harness/assets'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { computeDigest } from '../digest.ts'
 import type { InspectFailure, InspectRejectionCode } from '../failures.ts'
+import { orderedHints } from '../hints.ts'
 import { DECLARATION_PATH, MANIFEST_PATH } from '../names.ts'
 import { assertSealed } from '../snapshot.ts'
 import type {
@@ -69,8 +70,11 @@ export function parseSkillPackage(input: ParseInput): Outcome<SkillDefinition, P
     return reject('manifest-missing', 'the package has no SKILL.md')
   const manifest = readManifest(control.manifest)
   const name = manifest.kind === 'ok' ? manifest.manifest.name : manifest.name
-  const mismatch = nameMismatch(name, snapshot.rootName, input.expectedName)
-  if (mismatch !== undefined) return reject('name-mismatch', mismatch)
+  // The name of the manifest is the name of the package. Only an expected name that the caller
+  // gives rejects it; a root name that differs gives a hint (the main hosts accept it).
+  const { expectedName } = input
+  if (name !== undefined && expectedName !== undefined && name !== expectedName)
+    return reject('name-mismatch', 'the name differs from the expected name')
   let declaration = EMPTY_DECLARATION
   let findings: readonly Finding[] = []
   if (control.declaration !== undefined) {
@@ -85,17 +89,17 @@ export function parseSkillPackage(input: ParseInput): Outcome<SkillDefinition, P
   const first = firstFinding(findings)
   if (first !== undefined) return reject(first.code, first.detail)
   if (manifest.kind === 'malformed') return reject('malformed', manifest.detail)
-  return succeed(Object.freeze({ manifest: manifest.manifest, declaration, snapshot }))
-}
-
-/** Why the name breaks the name rule, or `undefined`. A name that could not be read is not compared. */
-function nameMismatch(
-  name: string | undefined,
-  rootName: string,
-  expected: SkillName | undefined,
-): string | undefined {
-  if (name === undefined) return undefined
-  if (name !== rootName) return 'the name differs from the package root name'
-  if (expected !== undefined && name !== expected) return 'the name differs from the expected name'
-  return undefined
+  const renamed = manifest.manifest.name !== snapshot.rootName
+  const hints = orderedHints([
+    ...(renamed ? (['name-differs-from-root'] as const) : []),
+    ...manifest.hints,
+  ])
+  return succeed(
+    Object.freeze({
+      manifest: manifest.manifest,
+      declaration,
+      snapshot,
+      ...(hints.length === 0 ? {} : { compatibilityHints: hints }),
+    }),
+  )
 }

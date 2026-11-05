@@ -1,20 +1,32 @@
-// The one table from a source answer to a service failure: three columns, one for `inspect`,
-// one for the `snapshot` call and one for the `open` call of the byte-reading operations.
+// The one table from a source answer to a service failure: three columns, one for `inspect`
+// (with a cell for each of its two calls), one for the `snapshot` call and one for the `open`
+// call of the byte-reading operations.
 // Every row is pinned here; the inspection and access tests show that the services go
 // through this table.
 import { describe, expect, it } from 'vitest'
 import { sourceFailureTo } from '../src/mapping.ts'
 
-describe('sourceFailureTo for inspect', () => {
+describe('sourceFailureTo for inspect, by call', () => {
   it.each([
-    ['package-not-found', { kind: 'source-unavailable' }],
-    ['entry-not-found', { kind: 'source-unavailable' }],
-    ['unavailable', { kind: 'source-unavailable' }],
-    ['bytes-mismatch', { kind: 'version-changed' }],
-    ['entry-unreadable', { kind: 'rejected', code: 'malformed' }],
-    ['outside-package', { kind: 'rejected', code: 'outside-package' }],
-  ] as const)('%s → %j', (failure, expected) => {
-    expect(sourceFailureTo('inspect', failure)).toMatchObject(expected)
+    ['package-not-found', { kind: 'source-unavailable' }, { kind: 'source-unavailable' }],
+    ['entry-not-found', { kind: 'source-unavailable' }, { kind: 'source-unavailable' }],
+    ['unavailable', { kind: 'source-unavailable' }, { kind: 'source-unavailable' }],
+    // A snapshot does not answer about one entry; a source that does is not usable. Only the
+    // bytes of an opened entry can move away from the snapshot.
+    ['bytes-mismatch', { kind: 'source-unavailable' }, { kind: 'version-changed' }],
+    [
+      'entry-unreadable',
+      { kind: 'rejected', code: 'malformed' },
+      { kind: 'rejected', code: 'malformed' },
+    ],
+    [
+      'outside-package',
+      { kind: 'rejected', code: 'outside-package' },
+      { kind: 'rejected', code: 'outside-package' },
+    ],
+  ] as const)('%s → %j at snapshot, %j at open', (failure, atSnapshot, atOpen) => {
+    expect(sourceFailureTo('inspect', failure, 'snapshot')).toMatchObject(atSnapshot)
+    expect(sourceFailureTo('inspect', failure, 'open')).toMatchObject(atOpen)
   })
 })
 

@@ -43,10 +43,15 @@ const PACKAGES = {
   deploy: {
     'SKILL.md': '---\nname: deploy\ndescription: Ships a release.\n---\nRun the pipeline.\n',
   },
-  // The directory is `broken` and the manifest names `other`: `name-mismatch`.
+  // The directory `broken` has no `SKILL.md`: a package that cannot be read, `manifest-missing`.
   broken: {
-    'SKILL.md': '---\nname: other\ndescription: Names another package.\n---\nNo.\n',
+    'notes.md': 'Only notes, no manifest.\n',
   },
+}
+
+/** A legal package whose directory is `renamed` and whose manifest names `other`. */
+const RENAMED = {
+  'SKILL.md': '---\nname: other\ndescription: Names another package.\n---\nYes.\n',
 }
 
 function identity(name: string): CapabilityId {
@@ -141,7 +146,7 @@ describe('the directory journey', () => {
     expect(journey.inspected.map(item => item.name)).toStrictEqual(['broken', 'deploy', 'review'])
     expect(journey.inspected.map(item => 'ok' in item.outcome)).toStrictEqual([false, true, true])
     const broken = journey.inspected[0]?.outcome
-    expect(broken).toMatchObject({ failure: { kind: 'rejected', code: 'name-mismatch' } })
+    expect(broken).toMatchObject({ failure: { kind: 'rejected', code: 'manifest-missing' } })
 
     const listed: CatalogEntry[] = [
       {
@@ -157,6 +162,16 @@ describe('the directory journey', () => {
 
     expect(journey.firstPage).toMatchObject({
       ok: { part: { kind: 'body' }, content: { kind: 'text', text: BODY }, complete: true },
+    })
+  })
+
+  it('accepts a package whose name differs from its directory, with a compatibility hint', async () => {
+    const base = await root()
+    await writeTree(join(base, 'renamed'), { files: RENAMED })
+    const journey = await runDirectoryJourney(base, { reader, standIns, query: 'findings' })
+    const renamed = journey.inspected.find(item => item.name === 'renamed')?.outcome
+    expect(renamed).toMatchObject({
+      ok: { manifest: { name: 'other' }, compatibilityHints: ['name-differs-from-root'] },
     })
   })
 

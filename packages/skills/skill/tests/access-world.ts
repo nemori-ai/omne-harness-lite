@@ -94,6 +94,8 @@ export const missing = capability('nobody-has-this')
 
 export const reviewLocator: PackageLocator = { kind: 'directory', root: '/skills/review' }
 export const largeLocator: PackageLocator = { kind: 'directory', root: '/skills/large' }
+/** Where the material of `noPackage` would be: the source has no package there. */
+export const noPackageLocator: PackageLocator = { kind: 'directory', root: '/skills/no-package' }
 
 const encoder = new TextEncoder()
 export const BODY = 'Read the diff.\n仔细看每一处改动。\n'
@@ -299,7 +301,7 @@ export function createWorld(options: WorldOptions = {}): World {
       state: {
         kind: 'adopted',
         current: {
-          ref: { capability: noPackage, layer: 'workspace', locator: reviewLocator },
+          ref: { capability: noPackage, layer: 'workspace', locator: noPackageLocator },
           declared: { ...declared, name: granted(isSkillName, 'no-package') },
         },
       },

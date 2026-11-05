@@ -16,7 +16,7 @@ export { PAGE_LIMIT } from './page-limit.ts'
 export { DECLARATION_LIMITS } from './parse/declaration.ts'
 export { bodyOffsetOf } from './parse/manifest.ts'
 export { parseSkillPackage, type ParseFailure, type ParseInput } from './parse/package.ts'
-export { isSkillDescription } from './parse/shape.ts'
+export { DESCRIPTION_LIMIT, isSkillDescription } from './parse/shape.ts'
 export { projectAssetBody } from './project.ts'
 export type {
   ByteRange,
@@ -45,6 +45,7 @@ export type {
   SkillFailure,
   UnsupportedWhat,
 } from './failures.ts'
+export type { CompatibilityHint } from './hints.ts'
 export type {
   AssetVersion,
   Bytes,

@@ -46,13 +46,13 @@ source-answer.ts ──► port-answer.ts ──► answer-values.ts
 - **阶段而不是一个长函数。** 每个阶段的失败类型是契约失败联合的一个子集（`PinStageFailure = Exclude<PinFailure, GateFailure>` 等），编译器核对每一步只能答它那几步的失败。各操作在自己那一步结束，不会因为共用代码而多走一步。
 - **「材料已变」由调用方交给 `pin`。** `pin(ports, gated, material, moved, signal?)` 原样交回 `moved`，类型是调用方给的那一个；`export` 交 `basis-unavailable`，所以编译器证明它不会答 `adopted-material-changed`，不需要重载也不需要断言。
 - **第 5 步是独立的 `materialOf`。** 它把「要钉哪份材料」算成一个 `SkillMaterialBasis`（依据，或 `SkillRef` 的材料），`describe` 的 `material`、`pin` 的摘要比较与结果里的 `basis` 都用它，一个决定一处。`read` 在第 6 步之前调用它，所以次序与组页一致。
-- **一张映射表，三列。** 来源的六种答复在 `inspect`、`snapshot`、`open` 三处的映射写在一张表里，列由调用的是哪个来源操作决定。没有第二处映射。
+- **一张映射表，三列。** 来源的六种答复在 `inspect`、`snapshot`、`open` 三处的映射写在一张表里，列由调用的是哪个来源操作决定。`inspect` 一列按它自己的两个调用点再分两格，因为快照阶段的 `bytes-mismatch` 是来源违约，`open` 阶段的才是字节变了。没有第二处映射。
 - **无披露的三条路径答同一个对象。** `NOT_AVAILABLE` 是一个冻结常量，三处返回它。深度相等不是巧合，是同一个引用。
-- **端口答复在边界上解析一次。** 每个端口方法一个解析函数，判别值与载荷一起核对，交出重新构造的值。之后的逻辑只见到解析后的类型，不再检查字段。`answered` 把调用与解析放在同一个 `try` 里：端口 reject、同步抛出、答复不合、读取答复时抛出都是「没有作答」，各服务再说它是 `unknown` 还是 `unavailable`。代价：本包自己的解析缺陷也会表现为「没有作答」，这一方向是拒绝而不是放行。`gate` 与目录的 `switch` 用 `never` 分支做编译期穷尽。
+- **端口答复在边界上解析一次。** 每个端口方法一个解析函数，判别值与载荷一起核对，交出重新构造的值。之后的逻辑只见到解析后的类型，不再检查字段。`resolve` 的解析还收请求：引用指向别的身份、带依据时指向别的材料，或替换件是别的身份，都是没有作答（S7）。这一核对放在解析里而不是 `gate` 的分支里，所以交出的值就已经关于所请求的材料，下游不再判断。`answered` 把调用与解析放在同一个 `try` 里：端口 reject、同步抛出、答复不合、读取答复时抛出都是「没有作答」，各服务再说它是 `unknown` 还是 `unavailable`。代价：本包自己的解析缺陷也会表现为「没有作答」，这一方向是拒绝而不是放行。`gate` 与目录的 `switch` 用 `never` 分支做编译期穷尽。
 - **目录先过滤再核验。** 合法集合解析后先去重、排序，再按 `capabilities` 或查询留下身份，只对留下的身份并发调用读取判定。答复按条目次序读取，所以完成次序不改变结果。空的 `capabilities` 在调用任何端口之前答空列表。
 - **检查点在每次端口调用两侧。** `gate` 收 `signal`，在 `check`、`resolve` 前后各查一次；`pin`、`verifiedBytes` 同样。已中止时四个端口都不被调用。`describe` 不传 `signal`，所以它收到 `aborted` 是不可达分支，代码里以抛出标明。
 - **范围校验在操作开头。** `read` 先 `assertByteRange`，再调用端口；非法范围是调用方的错误，不消耗端口调用。
-- **正文起点来自契约。** `bodyOffsetOf` 与 `readManifest` 共用契约里同一个定界行扫描 `frontmatterBounds`，`read` 不自己解释头部。
+- **正文起点来自契约。** `bodyOffsetOf` 与 `readManifest` 共用契约里同一个定界行扫描 `frontmatterBounds`，`read` 不自己解释头部。没有合法头部时 `read` 正文答 `source-unavailable`，不把未知字节当正文。
 - **字节范围是纯函数。** `sliceRange` 不认识端口与快照，穷举测试。请求终点按请求的起点与长度算，终点前移不早于实际起点。字符边界用 UTF-8 续字节规则：快照把条目标为 `text` 时字节已经是严格 UTF-8，所以边界上的切片一定能解码。
 
 ## 验证与维护
@@ -60,7 +60,8 @@ source-answer.ts ──► port-answer.ts ──► answer-values.ts
 | 保证 | 验证资源 |
 | --- | --- |
 | 每个阶段只答它那几步的失败；`export` 不答 `adopted-material-changed` | `tests/types.spec-d.ts`；`tests/gate.spec.ts`、`pin.spec.ts`、`bytes.spec.ts` 每个分支一例 |
-| 映射表三列 | `tests/mapping.spec.ts`、`tests/inspection.spec.ts` |
+| 映射表三列，`inspect` 按调用点两格 | `tests/mapping.spec.ts`、`tests/inspection.spec.ts` |
+| 引用身份一致（S7） | `tests/ref-identity.spec.ts`、`tests/answer-parse.spec.ts`；`tests/model/identity.ts` |
 | 无披露、集合外答复 | `tests/gate.spec.ts`；`tests/conformance.spec.ts` 在两个世界跑套件，跳过第 2 步的服务在「对所有人作答」的世界恰好 A1–A3 变红 |
 | 端口答复的解析与统一处置 | `tests/answer-parse.spec.ts`（逐字段）、`tests/port-answers.spec.ts`（经服务） |
 | 目录：套件、违约实现、完成次序、空请求、重复保留第一条；匹配规则 | `tests/catalog.spec.ts`、`tests/catalog-world.ts`；`tests/match.spec.ts` |

@@ -1,14 +1,20 @@
 // Reads SKILL.md: strict UTF-8 without a byte order mark, a `---` frontmatter closed by the first
-// line that is only `---`, and a YAML mapping whose keys are unique in the whole tree.
+// line that is only `---`, and a YAML mapping whose keys are unique in the whole tree. What the
+// community Skills do beyond that and the main hosts accept is accepted too, with a compatibility
+// hint: a description over the 1024 characters of the Agent Skills specification (up to
+// `DESCRIPTION_LIMIT`), metadata that is not a text map, and a frontmatter that strict YAML does
+// not read but whose name and description can be read line by line.
 import { isMap, parseDocument } from 'yaml'
+import type { CompatibilityHint } from '../hints.ts'
 import { isBoundedText, isSkillName } from '../names.ts'
 import type { ManifestValue, SkillManifest, SkillName } from '../values.ts'
-import { DESCRIPTION_MAX } from './shape.ts'
+import { readByLine } from './by-line.ts'
+import { DESCRIPTION_LIMIT, isSkillDescription, SPECIFICATION_DESCRIPTION_LIMIT } from './shape.ts'
 import { plainValue } from './yaml-value.ts'
 
-/** What the manifest gives to the package rules. `name` is present when the YAML could be read. */
+/** What the manifest gives to the package rules. `name` is present when it could be read. */
 export type ManifestRead =
-  | Readonly<{ kind: 'ok'; manifest: SkillManifest }>
+  | Readonly<{ kind: 'ok'; manifest: SkillManifest; hints: readonly CompatibilityHint[] }>
   | Readonly<{ kind: 'malformed'; detail: string; name?: string }>
 
 const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
@@ -111,8 +117,7 @@ export function readManifest(bytes: Uint8Array): ManifestRead {
   if (bounds === undefined) return malformed('SKILL.md has no closed frontmatter')
   const yaml = utf8.decode(bytes.subarray(bounds.yamlStart, bounds.yamlEnd))
   const document = parseDocument(yaml, YAML_OPTIONS)
-  if (document.errors.length > 0 || document.warnings.length > 0)
-    return malformed('the frontmatter is not valid YAML')
+  if (document.errors.length > 0 || document.warnings.length > 0) return lineRead(yaml)
   if (!isMap(document.contents)) return malformed('the frontmatter is not a mapping')
   const rawName: unknown = document.contents.get('name')
   const fields = plainValue(document, document.contents)
@@ -121,21 +126,60 @@ export function readManifest(bytes: Uint8Array): ManifestRead {
   return interpret(fields, rawName)
 }
 
+/** A description over the limit of the Agent Skills specification gets a hint. */
+function descriptionHints(description: string): CompatibilityHint[] {
+  return isBoundedText(description, SPECIFICATION_DESCRIPTION_LIMIT)
+    ? []
+    : ['description-over-limit']
+}
+
+/** A frontmatter that strict YAML does not read: its name and description, read line by line. */
+function lineRead(yaml: string): ManifestRead {
+  const { name, description } = readByLine(yaml)
+  const fail = (detail: string) =>
+    malformed(`the frontmatter is not valid YAML, and line by line ${detail}`, name)
+  if (!isSkillName(name)) return fail('its name is not a Skill name')
+  if (!isSkillDescription(description))
+    return fail(`its description is not text of 1 to ${DESCRIPTION_LIMIT} characters`)
+  return {
+    kind: 'ok',
+    manifest: Object.freeze({ name, description, extra: Object.freeze({}) }),
+    hints: ['frontmatter-read-by-line', ...descriptionHints(description)],
+  }
+}
+
 /** The checks of the interpreted fields, in order. It reads nothing that it did not check. */
 function interpret(fields: FieldMap, rawName: unknown): ManifestRead {
   const fail = (detail: string) => malformed(detail, rawName)
   if (!isSkillName(rawName)) return fail('name is not a Skill name')
   const description = fields['description']
-  if (!isBoundedText(description, DESCRIPTION_MAX))
-    return fail('description is not text of 1 to 1024 characters')
+  if (!isSkillDescription(description))
+    return fail(`description is not text of 1 to ${DESCRIPTION_LIMIT} characters`)
   if (!isOptional(fields['license'], value => typeof value === 'string'))
     return fail('license is not text')
   if (!isOptional(fields['compatibility'], value => isBoundedText(value, COMPATIBILITY_MAX)))
     return fail('compatibility is not text of 1 to 500 characters')
-  if (!isOptional(fields['metadata'], isTextMap)) return fail('metadata is not a text map')
   if (!isOptional(fields['allowed-tools'], value => typeof value === 'string'))
     return fail('allowed-tools is not text')
-  return { kind: 'ok', manifest: manifestOf(rawName, description, fields) }
+  const hints = descriptionHints(description)
+  if (!isOptional(fields['metadata'], isTextMap)) hints.push('metadata-not-text-map')
+  return { kind: 'ok', manifest: manifestOf(rawName, description, fields), hints }
+}
+
+/** The text values of `value`: all of it for a text map, the text entries of another map, and
+ * `undefined` for a value that is no map. */
+function textEntriesOf(
+  value: ManifestValue | undefined,
+): Readonly<Record<string, string>> | undefined {
+  if (isTextMap(value)) return value
+  if (!isFieldMap(value)) return undefined
+  return Object.freeze(
+    Object.fromEntries(
+      Object.entries(value).flatMap(([key, item]) =>
+        typeof item === 'string' ? [[key, item] as const] : [],
+      ),
+    ),
+  )
 }
 
 function isOptional(value: ManifestValue | undefined, check: (value: ManifestValue) => boolean) {
@@ -152,14 +196,14 @@ function manifestOf(name: SkillName, description: string, fields: FieldMap): Ski
   const license = textField(fields, 'license')
   const compatibility = textField(fields, 'compatibility')
   const allowedTools = textField(fields, 'allowed-tools')
-  const metadata = fields['metadata']
+  const metadata = textEntriesOf(fields['metadata'])
   const extra = Object.entries(fields).filter(([key]) => !INTERPRETED.has(key))
   return Object.freeze({
     name,
     description,
     ...(license === undefined ? {} : { license }),
     ...(compatibility === undefined ? {} : { compatibility }),
-    ...(isTextMap(metadata) ? { metadata } : {}),
+    ...(metadata === undefined ? {} : { metadata }),
     ...(allowedTools === undefined ? {} : { allowedTools }),
     extra: Object.freeze(Object.fromEntries(extra)),
   })

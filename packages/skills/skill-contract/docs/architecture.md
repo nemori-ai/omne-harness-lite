@@ -14,6 +14,8 @@
 | `media.ts` | 媒体类型推断与 `encoding` 判定 |
 | `snapshot.ts` | 唯一的快照构造器，以及快照的运行时登记；`assertSealed` 与不抛出的 `isSealedSnapshot` 查同一个登记 |
 | `parse/manifest.ts`、`parse/yaml-value.ts` | `SKILL.md` 的定界、YAML 解析与转换 |
+| `parse/by-line.ts` | 严格 YAML 读不出时，逐行读顶层 `name` 与 `description` |
+| `hints.ts` | 兼容提示的封闭集合与次序 |
 | `parse/declaration.ts` | `.omne/skill.json` 的严格读取 |
 | `parse/shape.ts` | 依赖、脚本与设置声明的形状规则，声明文件与资产正文共用；说明的长度上限与 `isSkillDescription` |
 | `parse/package.ts` | `parseSkillPackage`：前提核对与拒绝次序 |

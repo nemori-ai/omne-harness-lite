@@ -223,8 +223,8 @@ describe('the resolution at resolve', () => {
       (s: StandIn) => ({ ...s, reason: 'Gone.\u0007' }),
     ],
     [
-      'with a description longer than 1024 characters',
-      (s: StandIn) => ({ ...s, description: 'x'.repeat(1025) }),
+      'with a description longer than DESCRIPTION_LIMIT (16384) characters',
+      (s: StandIn) => ({ ...s, description: 'x'.repeat(16385) }),
     ],
   ])('a stand-in answer %s makes describe answer unknown', async (_case, broken) => {
     const world = createWorld()
@@ -313,10 +313,10 @@ describe('the resolution at adopted', () => {
       }),
     ],
     [
-      'an adopted item whose description is longer than 1024 characters',
+      'an adopted item whose description is longer than DESCRIPTION_LIMIT (16384) characters',
       (a: Adopted) => ({
         ...a,
-        declared: { ...a.declared, description: 'x'.repeat(1025) },
+        declared: { ...a.declared, description: 'x'.repeat(16385) },
       }),
     ],
   ])('a list with %s makes the catalog answer unknown', async (_case, broken) => {

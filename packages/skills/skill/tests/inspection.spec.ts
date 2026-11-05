@@ -106,8 +106,21 @@ describe('a legal package', () => {
   })
 })
 
-/** What `inspect` answers for each source failure, at `snapshot` and at `open` alike. */
-const MAPPED: readonly (readonly [SourceFailure, InspectFailure])[] = [
+/** What `inspect` answers for each source failure at `snapshot`. A snapshot does not answer about
+ * one entry: a source that answers `entry-not-found` or `bytes-mismatch` there does not keep the
+ * port contract, so `inspect` takes it as unusable now, like `read`, `list` and `export` do. */
+const MAPPED_AT_SNAPSHOT: readonly (readonly [SourceFailure, InspectFailure])[] = [
+  ['package-not-found', { kind: 'source-unavailable' }],
+  ['entry-not-found', { kind: 'source-unavailable' }],
+  ['unavailable', { kind: 'source-unavailable' }],
+  ['bytes-mismatch', { kind: 'source-unavailable' }],
+  ['entry-unreadable', { kind: 'rejected', code: 'malformed' }],
+  ['outside-package', { kind: 'rejected', code: 'outside-package' }],
+]
+
+/** What `inspect` answers for each source failure at the `open` of a control file. The bytes of
+ * an entry that the snapshot listed moved: `version-changed`. */
+const MAPPED_AT_OPEN: readonly (readonly [SourceFailure, InspectFailure])[] = [
   ['package-not-found', { kind: 'source-unavailable' }],
   ['entry-not-found', { kind: 'source-unavailable' }],
   ['unavailable', { kind: 'source-unavailable' }],
@@ -130,7 +143,7 @@ async function failureOf(source: SkillPackageSource): Promise<InspectFailure> {
 }
 
 describe('the source fails at snapshot', () => {
-  it.each(MAPPED)('%s maps to %j', async (failure, expected) => {
+  it.each(MAPPED_AT_SNAPSHOT)('%s maps to %j', async (failure, expected) => {
     const source: SkillPackageSource = {
       snapshot: async () => fail(failure),
       open: async () => {
@@ -143,7 +156,7 @@ describe('the source fails at snapshot', () => {
 })
 
 describe('the source fails at open', () => {
-  it.each(MAPPED)('%s maps to %j', async (failure, expected) => {
+  it.each(MAPPED_AT_OPEN)('%s maps to %j', async (failure, expected) => {
     const memory = demoSource({ 'SKILL.md': manifest, '.omne/skill.json': declaration })
     const source: SkillPackageSource = {
       snapshot: target => memory.snapshot(target),

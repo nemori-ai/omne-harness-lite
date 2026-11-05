@@ -4,7 +4,7 @@
 
 ## 内容
 
-- [README.md](README.md)：性质账本 S1–S6（定理、前提、证据、状态）与证据状态
+- [README.md](README.md)：性质账本 S1–S7（定理、前提、证据、状态）与证据状态
 - [models/](models/index.md)：形式模型 `ReadGate.tla` 与它的配置
 - [proofs/](proofs/index.md)：论证与证明（本包没有）
 

@@ -29,6 +29,7 @@ import {
   sealSnapshot,
   type CatalogResolution,
   type PackageInspection,
+  type Resolution,
   type PackageLocator,
   type ReadVerdict,
   type SkillPackageSource,
@@ -277,8 +278,34 @@ export type CallSite =
   | Readonly<{ port: 'open'; name: Name; path: string }>
 
 /** An answer that the port gives instead of the world's answer. The first five are "no answer"
- * in the contract's sense, except `unknown`, which is the decided answer "cannot decide now". */
-export type Fault = 'unknown' | 'malformed' | 'reject' | 'throw' | 'proxy' | SourceFailure
+ * in the contract's sense, except `unknown`, which is the decided answer "cannot decide now".
+ * The misdirections are well-formed `resolve` answers that break PR1 or PR3; see `Misdirection`. */
+export type Fault =
+  | 'unknown'
+  | 'malformed'
+  | 'reject'
+  | 'throw'
+  | 'proxy'
+  | SourceFailure
+  | Misdirection
+
+/**
+ * A `resolve` answer that names other material than the request, without the premise PR1 and PR3:
+ * `misdirect` answers `adopted` with the reference and declarations of another identity (the
+ * point's `to`); the other four take the world's `adopted` answer and change one field of its
+ * reference: the source layer, the asset version, or the digest, or they drop the digest. Skill
+ * must take each of them for no answer when it names another identity, or, with a basis, other
+ * material than the basis: a basis names material with a digest.
+ */
+export const MISDIRECTIONS = [
+  'misdirect',
+  'mislayer',
+  'misversion',
+  'misdigest',
+  'undigest',
+] as const
+
+export type Misdirection = (typeof MISDIRECTIONS)[number]
 
 /** Which call a fault replaces. `item` replaces one item of the lawful set by a malformed one. */
 export type FaultSite =
@@ -290,7 +317,8 @@ export type FaultSite =
   /** Every `open`, or only the `open` of `path`. */
   | Readonly<{ port: 'open'; path?: string }>
 
-export type FaultPoint = Readonly<{ site: FaultSite; fault: Fault }>
+/** `to` is the identity whose reference a `misdirect` gives; the default is the next name. */
+export type FaultPoint = Readonly<{ site: FaultSite; fault: Fault; to?: Name }>
 
 export type Schedule = Readonly<{
   /** `digest`: `open` keys bytes by the snapshot digest (the memory double); `locator`: it gives
@@ -359,13 +387,87 @@ function malformedOf(site: CallSite): unknown {
   }
 }
 
-function isSourceFailure(fault: Fault): fault is SourceFailure {
-  return !['unknown', 'malformed', 'reject', 'throw', 'proxy'].includes(fault)
+/**
+ * Whether `point` names other material than `request` asks for. Without a basis, the source
+ * layer, the asset version and the digest of the adopted material are the resolution's own word,
+ * so only `misdirect` breaks a request without one: the others are honest answers there.
+ */
+export function misdirects(point: FaultPoint | undefined, basis: unknown): boolean {
+  if (point === undefined || !isMisdirection(point.fault)) return false
+  return point.fault === 'misdirect' || basis !== undefined
 }
 
-/** Whether a fault leaves the answer undecided. A source failure is a decided answer. */
+function isMisdirection(fault: Fault): fault is Misdirection {
+  return MISDIRECTIONS.some(item => item === fault)
+}
+
+function isSourceFailure(fault: Fault): fault is SourceFailure {
+  return (
+    !isMisdirection(fault) && !['unknown', 'malformed', 'reject', 'throw', 'proxy'].includes(fault)
+  )
+}
+
+/** Whether a fault leaves the answer undecided. A source failure is a decided answer. A
+ * misdirection is no answer only when it breaks the request; see `misdirected`. */
 export function undecides(fault: Fault): boolean {
-  return !isSourceFailure(fault)
+  return !isSourceFailure(fault) && !isMisdirection(fault)
+}
+
+function nextName(name: Name): Name {
+  return NAMES[(NAMES.indexOf(name) + 1) % NAMES.length] ?? name
+}
+
+/**
+ * The answer of `misdirection` for a `resolve` of `name` whose world answer is `given`, and
+ * whether it breaks the request: it names another identity, or, with a basis, another source
+ * layer, asset version or digest than the basis. A change that does not apply (the world does
+ * not answer `adopted`, or the reference has no digest) leaves the answer as it is.
+ */
+function misdirected(
+  misdirection: Misdirection,
+  name: Name,
+  to: Name | undefined,
+  given: Resolution,
+  basis: SkillMaterialBasis | undefined,
+): Readonly<{ answer: Resolution; breaks: boolean }> {
+  if (misdirection === 'misdirect') {
+    const other = to ?? nextName(name)
+    return {
+      answer: { kind: 'adopted', ...memoryMaterial(other, 0, true) },
+      breaks: other !== name,
+    }
+  }
+  if (given.kind !== 'adopted') return { answer: given, breaks: false }
+  const { ref } = given
+  switch (misdirection) {
+    case 'mislayer':
+      return {
+        answer: {
+          ...given,
+          ref: { ...ref, layer: ref.layer === 'tenant' ? 'workspace' : 'tenant' },
+        },
+        breaks: basis !== undefined,
+      }
+    case 'misversion':
+      return {
+        answer: { ...given, ref: { ...ref, assetVersion: granted(isAssetVersion, 'v9') } },
+        breaks: basis?.assetVersion !== undefined,
+      }
+    case 'misdigest': {
+      if (ref.digest === undefined) return { answer: given, breaks: false }
+      const other = MATERIAL[name].find(item => item.digest !== ref.digest)?.digest ?? ref.digest
+      return { answer: { ...given, ref: { ...ref, digest: other } }, breaks: basis !== undefined }
+    }
+    case 'undigest': {
+      if (ref.digest === undefined) return { answer: given, breaks: false }
+      const { digest: _dropped, ...undigested } = ref
+      return { answer: { ...given, ref: undigested }, breaks: basis !== undefined }
+    }
+    default: {
+      const exhaustive: never = misdirection
+      return exhaustive
+    }
+  }
 }
 
 function matches(site: FaultSite, call: CallSite): boolean {
@@ -442,9 +544,15 @@ export function runOf(world: WorldSpec, schedule: Schedule = PLAIN, gate?: Check
     if (abortAfter !== undefined && abortAfter === count) controller.abort()
   }
 
-  /** One port call: the world's answer, or the fault of the schedule. */
-  const call = <T>(site: CallSite, real: () => Promise<T>): Promise<T> => {
+  /** One port call: the world's answer, or the fault of the schedule. A misdirection is the
+   * world's answer changed by `misdirect`, which also says whether the change breaks the request. */
+  const call = <T>(
+    site: CallSite,
+    real: () => Promise<T>,
+    misdirect?: (misdirection: Misdirection, given: T) => Readonly<{ answer: T; breaks: boolean }>,
+  ): Promise<T> => {
     const fault = faultAt(schedule, site)
+    const index = calls.length
     calls.push({
       site,
       undecided: fault !== undefined && undecides(fault),
@@ -468,6 +576,17 @@ export function runOf(world: WorldSpec, schedule: Schedule = PLAIN, gate?: Check
             throw new Error('the port rejected')
           case 'proxy':
             return widened<T>(EXPLODING)
+          case 'misdirect':
+          case 'mislayer':
+          case 'misversion':
+          case 'misdigest':
+          case 'undigest': {
+            if (misdirect === undefined) throw new Error(`${fault} is a fault of resolve only`)
+            const { answer: changed, breaks } = misdirect(fault, await real())
+            const traced = calls[index]
+            if (traced !== undefined) calls[index] = { ...traced, undecided: breaks }
+            return changed
+          }
           default:
             return widened<T>(fail(fault))
         }
@@ -494,8 +613,13 @@ export function runOf(world: WorldSpec, schedule: Schedule = PLAIN, gate?: Check
     },
     resolution: {
       resolve(who, at, item, options) {
-        return call({ port: 'resolve', name: nameOf(item) }, () =>
-          resolution.resolve(who, at, item, options),
+        const name = nameOf(item)
+        const site: CallSite = { port: 'resolve', name }
+        const to = schedule.faults?.find(point => matches(point.site, site))?.to
+        return call(
+          site,
+          () => resolution.resolve(who, at, item, options),
+          (misdirection, given) => misdirected(misdirection, name, to, given, options?.basis),
         )
       },
       adopted(who, at) {

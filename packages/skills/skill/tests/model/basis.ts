@@ -25,7 +25,10 @@ import {
   bytesIn,
   materialByDigest,
   runOf,
+  MISDIRECTIONS,
+  misdirects,
   sealedOf,
+  type FaultPoint,
   type Held,
   type Material,
   type MaterialIndex,
@@ -137,6 +140,14 @@ function plainlyReadable(current: MaterialIndex, held: Held, request: AccessRequ
   return true
 }
 
+/** Without PR1 and PR3: no fault, or one reference to other material (`misdirect` to beta). */
+const MISDIRECTED: readonly (FaultPoint | undefined)[] = [
+  undefined,
+  ...MISDIRECTIONS.map(
+    fault => ({ site: { port: 'resolve', name: 'alpha' }, fault, to: 'beta' }) as const,
+  ),
+]
+
 const PAGES = [
   { start: 0, length: 8 },
   { start: 8, length: 8 },
@@ -183,28 +194,38 @@ export async function exploreBasis(): Promise<Report> {
               knownTo: ['alice'],
               held,
             },
-            beta: { state: { kind: 'absent' }, readers: [], knownTo: [], held: 'none' },
+            // The package of beta is there, so a reference to it would give bytes.
+            beta: { state: { kind: 'absent' }, readers: [], knownTo: [], held: 0 },
             gamma: { state: { kind: 'absent' }, readers: [], knownTo: [], held: 'none' },
           }
-          const schedule: Schedule = { addressing, ...(change === undefined ? {} : { change }) }
-          for (const request of requests()) {
-            const observation = await perform(runOf(world, schedule), 'alice', request)
-            ledger.count()
-            const broken = mixedBreak(world, request, observation)
-            if (broken !== undefined)
-              ledger.break({ world, schedule, who: 'alice', request, detail: broken })
-            if (
-              change === undefined &&
-              plainlyReadable(current, held, request) &&
-              okOf(observation) === undefined
-            )
-              ledger.break({
-                world,
-                schedule,
-                who: 'alice',
-                request,
-                detail: `a plain read answered ${JSON.stringify(observation)}`,
-              })
+          for (const point of MISDIRECTED) {
+            const schedule: Schedule = {
+              addressing,
+              ...(change === undefined ? {} : { change }),
+              ...(point === undefined ? {} : { faults: [point] }),
+            }
+            for (const request of requests()) {
+              // A misdirection that the request cannot tell from an honest answer is not one.
+              if (point !== undefined && !misdirects(point, request.basis)) continue
+              const observation = await perform(runOf(world, schedule), 'alice', request)
+              ledger.count()
+              const broken = mixedBreak(world, request, observation)
+              if (broken !== undefined)
+                ledger.break({ world, schedule, who: 'alice', request, detail: broken })
+              if (
+                change === undefined &&
+                point === undefined &&
+                plainlyReadable(current, held, request) &&
+                okOf(observation) === undefined
+              )
+                ledger.break({
+                  world,
+                  schedule,
+                  who: 'alice',
+                  request,
+                  detail: `a plain read answered ${JSON.stringify(observation)}`,
+                })
+            }
           }
         }
       }
