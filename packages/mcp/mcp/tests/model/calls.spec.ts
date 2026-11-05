@@ -1,9 +1,9 @@
 // P9–P14 of SPEC「性质与证据」(the call port, MC-16 and MC-17), with P1–P8 still checked, by the
 // bounded exhaustive explorer on the real `createCalls` and `createTasks` over the real
 // connection table, at the bounds of `scenarios.ts`: no scenario reaches a violation. A
-// violation fails its case with the shortest schedule that showed it. The wide, task and
-// isolation scenarios are CPU-heavy (tens of thousands of states, each a replay) and run in the
-// slow tier. Each exploration runs inside a case, not in a hook, for the same reasons as
+// violation fails its case with the shortest schedule that showed it. The two-invoke, task and
+// task-account scenarios are CPU-heavy (thousands of states, each a replay) and run in the slow
+// tier. Each exploration runs inside a case, not in a hook, for the same reasons as
 // `lifecycle.spec.ts`.
 import { describe, expect, it } from 'vitest'
 import { explore, type Exploration } from './explore.ts'
@@ -58,9 +58,7 @@ describe('continue: invoke, then continueWithInput at the generation of that mom
 })
 
 describe('call-shutdown: invoke, cancel and closeAll', () => {
-  it('P1–P14 hold, P13 above all', { tags: ['slow'], timeout: EXPLORE_MS }, () =>
-    holds(CALL_SHUTDOWN),
-  )
+  it('P1–P14 hold, P13 above all', () => holds(CALL_SHUTDOWN), EXPLORE_MS)
 })
 
 describe('call-twice: two invoke on one correlation key, cancel', () => {
@@ -76,15 +74,11 @@ describe('task-methods: each of the four task operations once', () => {
 })
 
 describe('foreign-cancel: another principal, and the same principal text in another tenant, cancel', () => {
-  it('P1–P14 hold, P12 above all', { tags: ['slow'], timeout: EXPLORE_MS }, () =>
-    holds(FOREIGN_CANCEL),
-  )
+  it('P1–P14 hold, P12 above all', () => holds(FOREIGN_CANCEL), EXPLORE_MS)
 })
 
 describe('foreign-task: another principal of the tenant queries the task alice started', () => {
-  it('P1–P14 hold, P12 above all', { tags: ['slow'], timeout: EXPLORE_MS }, () =>
-    holds(FOREIGN_TASK),
-  )
+  it('P1–P14 hold, P12 above all', () => holds(FOREIGN_TASK), EXPLORE_MS)
 })
 
 describe('task-account: a task operation never reuses the connection of another peer account', () => {
