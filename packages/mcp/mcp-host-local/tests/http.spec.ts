@@ -386,6 +386,9 @@ describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
         },
       },
     })
+    // The read stops at the byte bound: the peer wrote 16 MiB and what the sockets hold per address, not the document.
+    expect(peer.endlessBytes()).toBeGreaterThanOrEqual(2 * 16_777_216)
+    expect(peer.endlessBytes()).toBeLessThan(2 * 16_777_216 + 48 * 1_048_576)
     await transport.close()
     await peer.close()
   })
