@@ -1396,6 +1396,34 @@ const t2Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T2',
+    'streamable-http on a legacy revision: x-mcp-header is not checked (item 8)',
+    async fixture => {
+      const bad = {
+        name: 'bad',
+        inputSchema: {
+          type: 'object',
+          properties: { q: { type: 'string', 'x-mcp-header': 'not a token' } },
+        },
+      }
+      await withPeer(
+        fixture,
+        {
+          discover: METHOD_NOT_FOUND,
+          initialize: LEGACY,
+          listing: { '': result({ tools: [bad] }) },
+        },
+        { kind: 'streamable-http' },
+        async (_peer, transport) => {
+          ok(await transport.discover(), 'discover')
+          const page = ok(await transport.listActions(), 'listActions')
+          assert.deepStrictEqual(page.tools, [jsonOf(bad)])
+          assert.strictEqual(page.withheld, undefined)
+        },
+      )
+    },
+  ),
+  conformanceCase(
+    'T2',
     'stdio: x-mcp-header is not checked and the page is handed over as written (item 8)',
     async fixture => {
       const bad = { name: 'bad', inputSchema: { type: 'object', 'x-mcp-header': 'root' } }

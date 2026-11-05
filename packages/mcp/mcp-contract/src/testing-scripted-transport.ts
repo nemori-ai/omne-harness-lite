@@ -1051,7 +1051,9 @@ class ScriptedTransport implements McpTransport {
       if (cursor !== undefined && nextCursor === undefined)
         return { failure: malformed('cursor-invalid') }
       const ttlMs = countOf(member(result, 'ttlMs'))
-      const page = this.material.kind === 'streamable-http' ? withheldOf(tools) : { tools }
+      // SEP-2243 belongs to the modern revision: a legacy connection sends no `Mcp-Param` header.
+      const checked = this.material.kind === 'streamable-http' && !this.legacy
+      const page = checked ? withheldOf(tools) : { tools }
       return {
         ok: {
           ...page,
