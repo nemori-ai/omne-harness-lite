@@ -94,6 +94,7 @@ export {
   type WireEvent,
 } from './wire.ts'
 export { catalogKeyOf, connectionKeyOf, peerAccountOf } from './keys.ts'
+export { OUTPUT_CHECK_FAILED, STRUCTURED_CONTENT_MISSING } from './outcomes.ts'
 export type {
   AuthorizationDiscovery,
   BlockedReason,

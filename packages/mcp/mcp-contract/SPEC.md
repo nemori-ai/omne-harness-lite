@@ -214,13 +214,13 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### 结局分类
 
-- **O1** `classifyOutcome(answer, context)` 是全函数，不抛出。`context` 给出发出时的连接代际、动作的 `outputSchema`（如有）和注入的输出校验函数。服务实现把 `McpPorts.checkOutput` 作为这个校验函数交给它（S3）。
+- **O1** `classifyOutcome(answer, context)` 是全函数，不抛出；校验函数抛出时它也不抛出（O3）。`context` 给出发出时的连接代际、动作的 `outputSchema`（如有）和注入的输出校验函数。服务实现把 `McpPorts.checkOutput` 作为这个校验函数交给它（S3）。
 - **O2** 对端答 `result` 时按 `resultType` 分类。缺 `resultType` 的结果来自旧对端，按 `complete` 处理。请求不带方式，是否建任务由对端对每个请求自己决定：
   - `complete` 且 `isError` 为真：`toolError`，带内容与结构化内容（如有）。这是动作自己的失败，不是协议失败。
   - `complete` 且 `isError` 缺省或为假：`complete`，带内容、结构化内容（如有）与输出校验结论。
   - `input_required`：`inputRequired`，带 `inputRequests`（不可信值）、`requestState`（各自如有）与发出代际。两者至少有一项，`inputRequests` 是对象。
   - `task`：`task`，带 `taskId` 与发出代际，以及任务句柄上的提示 `pollIntervalMs`、`ttlMs`、`statusMessage`（各自如有，`statusMessage` 是不可信值）。`ttlMs` 为 `null` 表示无限，省略。提示的类型不对时省略该提示，不判 `result-malformed`。`pollIntervalMs` 与 `ttlMs` 的类型是非负安全整数：词形只有数字，不带符号、小数点或指数，值不超过 `Number.MAX_SAFE_INTEGER`。其他数值按类型不对省略。`statusMessage` 的类型是文本。
-- **O3** 输出校验结论只有三种：动作没有声明 `outputSchema` 时是 `no-schema`，不调用校验函数。声明了 `outputSchema` 但结果没有结构化内容时是 `violates`，原因是 `structured-content-missing`，不调用校验函数。其余情形调用一次校验函数，用它的答复。`toolError` 不调用校验函数。原因文本 `structured-content-missing` 是契约值；校验函数给出的其他原因文本不是契约。
+- **O3** 输出校验结论只有三种：动作没有声明 `outputSchema` 时是 `no-schema`，不调用校验函数。声明了 `outputSchema` 但结果没有结构化内容时是 `violates`，原因是 `structured-content-missing`，不调用校验函数。其余情形调用一次校验函数，用它的答复。校验函数抛出时它没有给出结论，结论是 `violates`，原因是 `output-check-failed`：没有结论的结构化内容不当作符合 schema。`toolError` 不调用校验函数。原因文本 `structured-content-missing` 与 `output-check-failed` 是契约值，以常量 `STRUCTURED_CONTENT_MISSING` 与 `OUTPUT_CHECK_FAILED` 从根入口导出；校验函数给出的其他原因文本不是契约。
 - **O4** 对端答 JSON-RPC 错误时是 `protocolError`，`fault` 是 `peer-error`，带整数错误码、消息与 `data`（如有）。错误码的词形必须是整数（`^-?\d+$`），带小数点或指数的词形不算整数。错误码不作翻译，所有码都按同一规则交出。协议错误不证明调用没有效果。
 - **O5** 读不懂的应答也是 `protocolError`，不猜测成功：
   - `result-type-unknown`：`resultType` 是未知的文本，带原值。
