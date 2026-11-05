@@ -3,6 +3,7 @@
 // It is not a wire; the real lines are tested on real wires in `conformance.spec.ts`.
 import type { PlainJson, PlainRecord } from '@omne-harness/mcp-contract'
 import type { Exchange, Line, LineEvent, Outbound, SseEntry } from '../src/line.ts'
+import { AsyncQueue } from '../src/queue.ts'
 
 /**
  * How the line answers one message. `message` answers with a JSON-RPC message that gets the
@@ -36,61 +37,6 @@ export type Sent = Readonly<{
   message: PlainRecord
   headers: Readonly<{ [name: string]: string }>
 }>
-
-export class AsyncQueue<T> implements AsyncIterable<T> {
-  private readonly items: T[] = []
-  private waiting: ((result: IteratorResult<T>) => void) | undefined
-  private rejectWaiting: ((reason: unknown) => void) | undefined
-  private ended = false
-  private failure: unknown
-
-  push(item: T): void {
-    if (this.waiting !== undefined) {
-      const resolve = this.waiting
-      this.waiting = undefined
-      this.rejectWaiting = undefined
-      resolve({ value: item, done: false })
-      return
-    }
-    this.items.push(item)
-  }
-
-  end(): void {
-    this.ended = true
-    const resolve = this.waiting
-    this.waiting = undefined
-    this.rejectWaiting = undefined
-    resolve?.({ value: undefined, done: true })
-  }
-
-  fail(reason: unknown): void {
-    this.ended = true
-    this.failure = reason
-    const reject = this.rejectWaiting
-    this.waiting = undefined
-    this.rejectWaiting = undefined
-    reject?.(reason)
-  }
-
-  [Symbol.asyncIterator](): AsyncIterator<T> {
-    return {
-      next: () => {
-        const item = this.items.shift()
-        if (item !== undefined) return Promise.resolve({ value: item, done: false })
-        if (this.failure !== undefined) return Promise.reject(this.failure)
-        if (this.ended) return Promise.resolve({ value: undefined, done: true })
-        return new Promise((resolve, reject) => {
-          this.waiting = resolve
-          this.rejectWaiting = reject
-        })
-      },
-      return: () => {
-        this.ended = true
-        return Promise.resolve({ value: undefined, done: true })
-      },
-    }
-  }
-}
 
 function isRecord(value: unknown): value is PlainRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
