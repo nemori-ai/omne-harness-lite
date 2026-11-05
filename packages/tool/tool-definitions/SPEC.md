@@ -65,3 +65,17 @@ Shell 为各输出流分别增量解码，连续块拆开的中文不会损坏�
 ## 组合与验证
 
 [成员测试](tests/README.md)通过公开根作者、真实 executeTool 与 createIndependentToolScope 运行。定向设施和 Execution 的内存/脚本替身只证明作者映射。取消时独立包装器不再交出返回值，因此停止文本另以真实作用域上下文核对。真实后端、跨获取 terminal 保留/附着、生产 Cordis 贡献及完整 ToolResult 交付仍由父线组合验证。
+
+## TodoItems 作者
+
+TodoItems 采用 [Session Todo 契约](../../session/session-contract/SPEC.md)的绑定业务投影。公开窄口与 JSON DTO 归 [todo-items-port.ts](src/todo-items-port.ts)。作者不依赖 Session 包，不持有身份、操作派生、授权或存储状态。宿主逐次核验访问，并将原调用身份绑定到业务方法。
+
+- TodoItems 采用 wrapped 单声明，只有 help、add、remove、mark_complete、list。参数只含业务字段，未知字段拒绝。help 无需绑定。缺少绑定明确答 unavailable。
+- add 保留原文，拒绝空白及超过 4096 UTF-8 字节的文本。list 的 limit 为 1..100，默认 50。after 只能是完整游标对象或 null，缺省读首页。Session 继续拥有游标修订、租户、资格与条目位置的验证。
+- 构造值只有必填的 resultMaxBytes，必须为正安全整数。environment 为 null，仅有文本输入输出，不支持后台或 programmatic 返回。运维值不进入定义。
+- 非 help 输出为完整 JSON，保留 receipt、item、page、next 和全部可达失败字段。recovered 描述原操作的结果，不证明当前条目状态。commit-unknown 保留原 operation，不证明未提交，不自动生成新的 add。
+- 输出超过预算时返回完整 unavailable，并提示减小 list limit。它不表示 mutation 未提交。预算连失败文本都无法容纳时，输出校验明确失败。作者不截断 JSON 或游标，不保存超大结果缓存。UTF-8 解码使用 fatal 模式。
+- 1 MiB 是部署初始预算。控制字符经过 JSON 转义会扩大字节数，所以该预算不保证容纳每一种合法的 100 项页面。
+- attachTodoItems 复用传入的同一 context 对象，以 WeakMap 登记。必须在产生新 context 的 Tools 附着之后调用。finish 先清除 Todo，再委托原 finish，重复调用返回同一 Promise。清理失败仍不恢复访问，也不撤销已提交效果。
+
+[Todo 作者测试](tests/todo-items.spec.ts)通过真实 commandArguments、参数解码、executeTool、输出校验和 codec 检查业务映射。Tools 组合使用真实 attachToolsCapability。绑定业务方法使用定向替身，未覆盖完整应用、SQL、真实 Agent 或自动 Runtime Context 投影。
