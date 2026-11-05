@@ -15,7 +15,7 @@ Execution Environment 按纯契约、Cordis 服务定义、机制实现、Servic
 | [execution-environment-contract](execution-environment-contract/README.md) | module | 访问身份、绑定层、连续性、环境要求、落点、获取、采用记录、租约、受管资源；四个需要端口（资源账本、设施守卫、恢复授权、环境授权）与可信绑定来源的使用约定；设施协议与 `files`、`command`、`terminal` 三个设施的形状；工具环境声明的 schema 与采用身份；两条块声明 |
 | [execution-environment-cordis-contract](execution-environment-cordis-contract/README.md) | service-contract | 唯一 Cordis 服务定义 `executionEnvironment`、intercept 配置类型；恢复入口（`recoverOwned`、`releaseScope` 与恢复查询）在同一服务上 |
 | [execution-environment](execution-environment/README.md) | module | 不含 Cordis 的登记表机制：提供者与设施表、按允许绑定顺序匹配、获取状态与槽（租户加获取键）、租约视图与逐操作门、恢复编排 |
-| [execution-environment-host-local](execution-environment-host-local/README.md) | service-provider | Service 实现与撤除保留；宿主 `files` 提供者（读取、查看、写入与关闭四项操作）；`command`、`terminal` 的宿主机制只有设计，没有实现 |
+| [execution-environment-host-local](execution-environment-host-local/README.md) | service-provider | Service 实现与撤除保留；宿主 `files` 提供者（十二项操作，其中读取、查看、写入与关闭之外的八项只在 Linux 上是真实行为）；`command` 与 `terminal` 的宿主后端（Linux 与 Windows 各有命令后端与持久终端）；一次性命令留下的进程的处置与保留只在 Linux 兑现 |
 | [image](image/README.md) | module | 图像预算、打开、编码与关闭；公开入口是 `imageBudget`、`open` 与句柄上的 encode 和 close |
 
 依赖方向：`execution-environment-cordis-contract` 与 `execution-environment` 各自只依赖 `execution-environment-contract`；`execution-environment-host-local` 依赖这三个成员。契约成员依赖 `runtime-context-contract`（作用域引用与块声明类型）、`legal-identity`、`operation-result`、`json-text`、`schema-provider`；不依赖 Tool、Session、授权的契约，它们依赖本组。图像成员与 Execution Environment 没有交接。精确依赖图见[组架构](docs/architecture.md)。

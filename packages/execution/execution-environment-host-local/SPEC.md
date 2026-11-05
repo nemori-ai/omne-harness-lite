@@ -11,7 +11,7 @@
 
 上层依据：系统页[执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)的成员分工，领域页[文件使用的交接](../../../docs/domains/execution-environments/architecture.md#文件使用的交接)，契约的[设施协议](../execution-environment-contract/SPEC.md#设施协议)、[INV-EE04](../execution-environment-contract/SPEC.md#inv-ee04-原主体在实际边界继续受约束)、[INV-EE09](../execution-environment-contract/SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)、[INV-EE13](../execution-environment-contract/SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) 与 [INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)。
 
-两个入口的模板标记写明还没有接受的部分：`terminal` 的提供者、Runtime Context 生产者插件、调用方类的核对。`files` 的十二项操作、宿主文件根、`command`（只在 Linux 上）与平台前提的探测已经实现，但本页除[宿主文件使用](#宿主文件使用)外都没有经过独立技术接受。`terminal` 的 Linux 实现与验证前提见[持久终端](#持久终端)。实现与独立接受分别报告。本成员不导入任何上层领域的契约。租户、作用域、原调用与恢复授权都随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
+两个入口的模板标记写明还没有接受的部分：Runtime Context 生产者插件、调用方类的核对。`files` 的十二项操作、宿主文件根、`command`（处置与保留只在 Linux 上兑现，Windows 有一次性命令后端）、`terminal` 与平台前提的探测已经实现，但本页除[宿主文件使用](#宿主文件使用)外都没有经过独立技术接受。`terminal` 的实现与验证前提见[持久终端](#持久终端)。实现与独立接受分别报告。本成员不导入任何上层领域的契约。租户、作用域、原调用与恢复授权都随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 
 ## 结果与不变量
 
@@ -40,14 +40,14 @@
 - `inspectAcquisition(原描述)` 读责任域的原记录：打开的答已获取（带原租约与证据），释放中的答待定（阶段 `releasing`，资源列出停止未确认的命令进程），已结清的答已结清，指纹不同的答冲突。没有记录时，原描述的提供者代是本责任域签发过的代则答未分配，否则答未知：新进程的责任域没有证据说明旧容量已经结清。配额域与本责任域不同的原描述按没有记录处理。
 - `listAcquisitions(作用域)` 列出请求方作用域是该作用域、尚未结清的全部获取的原描述，包括没有受管资源的获取。
 - `settleAcquisition(原描述)` 与查询做同样的定位，然后排空这份获取：封门面、使原租约以来源 `provider`、原因 `released` 失效、等在途操作、重试失败的关闭。什么都不剩时答已结清，否则答待处置（资源列出停止未确认的命令进程）。结清不重做文件写入，也不回滚已写入的字节。重复结清答已结清，不再返还名额。
-- 本提供者的文件操作不留下受管资源；命令与终端的 scope 单元是受管资源。`listRecoveryResources` 与 `recover` 只处理这些单元，见[宿主命令与终端](#宿主命令与终端未实现)的资源级冷恢复。不是 Linux 的宿主答完整的空列表。Linux 上没有可达的用户管理器时答 `unavailable`，不答空列表。描述符、在途操作与失败关闭由获取路径（枚举与结清）覆盖，空的资源列表不证明没有这些责任。
+- 本提供者的文件操作不留下受管资源；命令与终端的 scope 单元是受管资源。`listRecoveryResources` 与 `recover` 只处理这些单元，见[宿主命令与终端](#宿主命令与终端)的资源级冷恢复。Windows 没有完整的冷资源索引，答 `unavailable`。Linux 与 Windows 之外的宿主答责任域已知的保留终端资源，没有时为空列表。Linux 上没有可达的用户管理器时答 `unavailable`，不答空列表。描述符、在途操作与失败关闭由获取路径（枚举与结清）覆盖，空的资源列表不证明没有这些责任。
 - 本提供者不读账本：账本关闭后的拒绝由登记表的门在调用设施之前做（[INV-EE15](../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。直接调用 `createHostFilesProvider` 得到的租约原件不经过门。终端额外读取原账本的关闭信号，阻止关闭之后的创建与执行。请求方作用域随 `ProviderAcquireInput.scope` 到达，进入原描述与获取枚举。
 - `retire()` 先把提供者标为已退役，之后新的获取返回 `providerUnavailable`。然后它封住这一代全部尚未结清的获取的门面，使它们的租约原件以来源 `provider`、原因 `providerRetired` 失效，再逐份排空。每份都结清时返回已排空，并结束这一代对引擎诊断的订阅；否则返回待处置，资源列出停止未确认的命令进程，并给 `diagnose` 一条诊断。原记录与仍打开的描述符留在责任域，新的代经同一责任域查询与结清它们。待处置之后再调用 `retire()` 会再排空一次。
 - `drainBoundMs` 的初值是 10000，用于释放、结清与退役。它必须是有限的非负数，否则 `createHostFilesProvider` 抛出 `RangeError`。
-- 诊断 `HostFilesDiagnostic` 有四类，`diagnose` 抛出都不改变结果。结果为待处置时：仍有在途操作时 `kind` 为 `drainBoundExceeded`，只剩关闭失败的描述符时为 `closePending`；带提供者名与代、在途操作数（文件操作与命令启动）、打开的描述符数与上界，释放或结清时另带获取键。命令进程的停止没有确认时为 `stopUnconfirmed`，缺平台前提而拒绝命令启动时为 `commandUnavailable`，两者见[宿主命令与终端](#宿主命令与终端未实现)。批次发布后删不掉临时文件时为 `temporaryFileRemains`：带提供者名与代、批次 id、已发布的路径、临时文件名与可选的错误码。第四类来自文件引擎，不属于某一份获取，所以不带获取键。
+- 诊断 `HostFilesDiagnostic` 的 `kind` 有七种，`diagnose` 抛出都不改变结果。结果为待处置时：仍有在途操作时 `kind` 为 `drainBoundExceeded`，只剩关闭失败的描述符时为 `closePending`；带提供者名与代、在途操作数（文件操作与命令启动）、打开的描述符数与上界，释放或结清时另带获取键。命令进程的停止没有确认时为 `stopUnconfirmed`，缺平台前提而拒绝命令启动时为 `commandUnavailable`，缺终端前提时为 `terminalUnavailable`，三者见[宿主命令与终端](#宿主命令与终端)。保留进程的标记文件与单元不一致时为 `retainedMarker`，见[一次性命令留下的进程的兑现](#一次性命令留下的进程的兑现)。批次发布后删不掉临时文件时为 `temporaryFileRemains`：带提供者名与代、批次 id、已发布的路径、临时文件名与可选的错误码。`temporaryFileRemains` 来自文件引擎，不属于某一份获取，所以不带获取键。
 - 文件引擎的配置：提供者向责任域要一个按文件配置共用的引擎，配置是 `filesRoot`、`stateDirectory` 与 `limits`。这些值不合法时 `createHostFilesProvider` 在登记这一代之前抛出：路径不是绝对路径为 `TypeError`，上界不是正安全整数为 `RangeError`。三项都不给时，行为与没有这些选项之前相同。同一责任域里配置相同的提供者共用一个引擎，配置不同的各用一个，见[宿主文件责任域](#宿主文件责任域)。
 
-提供者事实里的前提是下列探测的合并。P2（`files` 的目录描述符前提，`probeHostFilesPrerequisite(stateDirectory)`）由 `describe()` 读取：满足或不满足的结果在这一代内保留，未知的结果下一次 `describe()` 再探。`command` 的 P1、P3～P6 由创建时开始的后台探测给出，见[宿主命令与终端](#宿主命令与终端未实现)。合并规则：任一项不满足为 `unsatisfied`，否则任一项未知为 `unknown`，全部满足为 `satisfied`。不满足的项名不进宿主事实。
+提供者事实里的前提是下列探测的合并。P2（`files` 的目录描述符前提，`probeHostFilesPrerequisite(stateDirectory)`）由 `describe()` 读取：满足或不满足的结果在这一代内保留，未知的结果下一次 `describe()` 再探。`command` 的 P1、P3～P6 由创建时开始的后台探测给出，见[宿主命令与终端](#宿主命令与终端)。合并规则：任一项不满足为 `unsatisfied`，否则任一项未知为 `unknown`，全部满足为 `satisfied`。不满足的项名不进宿主事实。
 
 契约的提供者事实只有三态的前提，没有放宿主文件根的位置，严格的事实 Schema 也不接受多余的字段。所以配置了宿主文件根这件事不写进 `describe()`，而写进获取的证据（见 `acquire`）。要在 `describe()` 里看见它，需要契约增加一个字段，这归契约的拥有者。提供者事实不携带日期（日期由后续宿主事实块生产者在块级提供，见[契约 INV-EE17](../execution-environment-contract/SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)）。
 
@@ -58,9 +58,11 @@
 | `filesRoot`、`stateDirectory`                                                | `filesRoot`、`stateDirectory`                                                                           |
 | `listPageLimit`、`searchEntryBudget`、`searchByteBudget`、`searchFileBytes`  | `limits.listPageLimit`、`limits.searchEntryBudget`、`limits.searchByteBudget`、`limits.searchFileBytes` |
 | `startBoundMs`、`graceMs`、`stopBoundMs`、`probeRetryMs`（与命令缓冲的两项） | `command` 里的同名字段                                                                                  |
+| `residuePolicy`、`retainedPerScope`、`retainedPollMs`                        | `command` 里的同名字段                                                                                  |
+| `terminal`                                                                   | `terminal`（见[持久终端](#持久终端)）                                                                   |
 | `drainBoundMs`                                                               | `drainBoundMs`                                                                                          |
 
-宿主文件插件现在的配置 Schema 只接受表中的路径、命令和 `drainBoundMs` 字段，不接受四项列表与搜索上界；它们只能经直接创建提供者给出。
+宿主文件插件现在的配置 Schema 只接受表中的字段，即路径、命令（含留下的进程的三项）、`terminal` 与 `drainBoundMs`，不接受四项列表与搜索上界；它们只能经直接创建提供者给出。
 
 ### 宿主文件责任域
 
@@ -180,7 +182,7 @@
 - 三个端口都不经构造参数进入。登记表的恢复授权、环境授权与可信绑定每次被调用时，Service 用自己装载时的上下文 `ctx.get` 现取 `executionRecoveryAuthority`、`executionEnvironmentAuthority` 与 `executionScopeBinding` 服务并转交（[IC-9](../../../docs/architecture/cordis-integration-conventions.md#ic-9)、[IC-16](../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。取不到时答不可用：没有装载恢复授权服务时，`recoverOwned` 与 `releaseScope` 以 `unavailable` 拒绝；没有装载环境授权或可信绑定服务时，环境面以 `unavailable` 拒绝，查询答查询不可用，不放行。服务方法里的 `this.ctx` 是调用方的上下文，不从那里取端口。
 - `registerFacility` 与 `registerProvider` 在方法里用 `this.ctx.effect` 调用登记表的同名方法。登记落在调用方插件的 fiber 上，调用方卸载即撤除（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）。`registerFacility` 返回的撤除函数调用同一个效应撤除。`registerProvider` 返回的撤除函数直接调用登记表的撤除函数：它可以重试，并发调用共用一次退役；效应只在调用方 fiber 卸载时调用一次登记表的撤除函数。
 - Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空对象，其余值以「configuration accepts no fields」校验失败（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。
-- 宿主文件插件的配置 `HostFilesConfig` 接受缺省、`null`、空对象，或带下列字段的对象：`drainBoundMs`（有限的非负数）、`filesRoot` 与 `stateDirectory`（绝对路径），以及命令的六项上界（见[宿主命令与终端](#宿主命令与终端未实现)）。其他字段或其他值校验失败，插件不装载。缺省时取提供者的初值。列表与搜索的上界不在配置里，见[宿主提供者的事实](#宿主提供者的事实)。
+- 宿主文件插件的配置 `HostFilesConfig` 接受缺省、`null`、空对象，或带下列字段的对象：`drainBoundMs`（有限的非负数）、`filesRoot` 与 `stateDirectory`（绝对路径），命令的六项上界与留下的进程的三项（`residuePolicy`、`retainedPerScope`、`retainedPollMs`，见[宿主命令与终端](#宿主命令与终端)），以及 `terminal`（见[持久终端](#持久终端)）。其他字段或其他值校验失败，插件不装载。缺省时取提供者的初值。列表与搜索的上界不在配置里，见[宿主提供者的事实](#宿主提供者的事实)。
 - `filesFacilityPlugin`、`commandFacilityPlugin` 与 `createHostFilesPlugin(domain)` 返回的插件，`inject` 都是服务键常量并声明 `caller: provider`。`filesFacilityPlugin` 与 `commandFacilityPlugin` 装载时经 `ctx.executionEnvironment` 登记 `files` 或 `command` 设施声明，不登记提供者。宿主文件插件装载时用工厂收到的责任域与配置登记一代新的宿主文件提供者，不登记声明。诊断经 `ctx.logger('executionEnvironment.hostFiles')` 以错误级写出。声明的生灭与宿主提供者的生灭分开：只装宿主文件插件时，需要 `files` 或 `command` 的落点解析返回 `missingFacility`。责任域是运行时对象，不进 JSON 配置。
 - 本成员不读取调用方类的 intercept 配置，不按调用方类拒绝调用。
 - 本成员不登记 Runtime Context 的生产者，不发布 `execution.placement` 与 `execution.host-facts` 两条块。
@@ -188,9 +190,7 @@
 
 ### 宿主命令与终端
 
-<a id="宿主命令与终端未实现"></a>
-
-本节写宿主提供者承担的 `command`，其平台范围仍为 Linux（Q-9）。#421 修订 6 的波 2 派发增加普通每获取的 Linux `terminal`，见下文[持久终端](#持久终端)。机制见[架构的宿主命令机制](docs/architecture.md#宿主命令机制)。依据是 GATE-EE 候选第 3、4 节与 [D1 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330)。本节没有经过独立技术接受。
+本节写宿主提供者承担的 `command`。平台范围（Q-9）：Linux 兑现一次性命令的处置与保留，见[一次性命令留下的进程的兑现](#一次性命令留下的进程的兑现)。Windows 有一次性命令后端：根进程退出时停止 Job 里剩下的进程，结局不带 `residue`。macOS 没有命令后端。普通每获取的 `terminal` 见下文[持久终端](#持久终端)。机制见[架构的宿主命令机制](docs/architecture.md#宿主命令机制)。依据是 GATE-EE 候选第 3、4 节与 [D1 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330)。本节没有经过独立技术接受。
 
 提供者与终端：
 
@@ -346,7 +346,7 @@ node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口
 
 本节是宿主提供者在 Linux 上对契约[一次性命令留下的进程](../execution-environment-contract/SPEC.md#一次性命令留下的进程)的兑现，实现由 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 交付。契约的保留进程 `stop` 条款冻结，本提供者没有实现它。契约的[终端段的完成与字节归属](../execution-environment-contract/SPEC.md#终端段的完成与字节归属)见[持久终端](#持久终端)。
 
-本节取代了原来的两条：「主进程退出之后，提供者强制停止这个单元」，以及持久终端的「只剩 gate 与 shell」。那两条的依据是 GATE-EE 候选第 3、4 节，D1 决策记录没有涉及它们。取代它们的依据是 #1137 卡正文的「总体设计」，未经技术接受：调用方与人一样能让自己起的进程活下去，同时每个活着的进程都恰好有一个归属方，能被列出，能被确认停止，宿主崩溃后能被找回。
+本节的采用依据是 #1137 卡正文的「总体设计」，未经技术接受。目标：调用方与人一样能让自己起的进程活下去，同时每个活着的进程都恰好有一个归属方，能被列出，能被确认停止，宿主崩溃后能被找回。
 
 收纳：一次性命令的执行域是它的 systemd 用户 scope 单元。命令的子进程继承单元的 cgroup，`setsid` 与双重 fork 不能使进程离开单元，所以本提供者满足契约的封闭收纳。
 
@@ -360,7 +360,7 @@ node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口
 1. 退出帧报告门以外没有进程：停止单元，`residue` 是 `none`。读数未知时按有留下的进程处理。
 2. 配置 `residuePolicy` 是 `stop`：停止，原因 `policy`。
 3. 获取没有保留进程账本视图（`retention.processes`）：停止，原因 `unbound`。
-4. 获取的保留范围与请求方的作用域不同，提供者没有状态目录，或获取没有租户：停止，原因 `policy`。本提供者只把执行域移交给发起请求的作用域。
+4. 获取的保留范围与请求方的作用域不同，或提供者没有状态目录：停止，原因 `policy`。本提供者只把执行域移交给发起请求的作用域。
 5. 保留范围已封闭，获取已释放，或这个进程已被要求停止：停止，原因 `closed`。
 6. 在保留进程索引里同步占一个名额。满额时停止，原因 `capacity`。索引的标记文件还没有读全，或者在处置期限内读不完时，停止，原因 `policy`。
 7. 保留进程账本 `plan`。答 `closed` 时作废预留，原因 `closed`。其余不是 `recorded` 的答案（含抛出与超时），作废预留，原因 `unbound`。
@@ -393,22 +393,25 @@ node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口
 - 提供者重启之后，第一次用到索引时读全部标记文件。启动身份不同、单元已不在、格式不是本版本的标记文件被删去，并发出 `retainedMarker` 诊断（`discarded`）。有一个标记文件读不出时，这次加载不完整：预留答不可用，`list` 与冷恢复的列举答 `unavailable`，下一次用到时再加载。
 - 标记文件写不成时，执行域仍归保留范围，并发出 `retainedMarker` 诊断（`notWritten`）。只要这一项还在索引里，不论运行中还是停止中，`maintain()` 每次都重写它，写成之后不再重写。确认停止之后标记文件删不掉时，诊断是 `notRemoved`。
 
-Windows 的兑现（未实现，需要 Windows 宿主验证）：根进程退出时，可以保留就不终止 Job，bridge 继续持有 Job 句柄并读管道。变空检测用 Job 完成端口的 `JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO`。bridge 意外退出时，`KILL_ON_JOB_CLOSE` 停止留下的进程，这是保守方向。冷恢复按保留账本里的原 Job 名重开。
+Windows 的兑现（未实现，需要 Windows 宿主验证）：根进程退出时，可以保留就不终止 Job，bridge 继续持有 Job 句柄并读管道。变空检测沿用共用索引的轮询，或用 Job 完成端口的 `JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO`，由 Windows 兑现时验证后选定。bridge 意外退出时，`KILL_ON_JOB_CLOSE` 停止留下的进程，这是保守方向。冷恢复按标记文件里记下的 Job 名重开，因为保留账本不能枚举。
 
 macOS 没有命令后端。将来的提供者若只能按进程组或会话收纳，就不满足封闭收纳，不提供保留进程。
 
-已知偏离：
+已知偏离，每条带收敛条件，或写明接受为本期范围：
 
-- 只移交给请求方自己的作用域。保留范围与请求方作用域不同的获取，处置原因是 `policy`，不是契约所列的任何一项不成立。
-- 契约的原因里没有「索引不可用」。标记文件读不全时，本提供者用 `policy`。`plan` 答 `unavailable` 或超时时用 `unbound`。
-- 标记窗口：`adopt` 确认之后、标记文件写完之前提供者崩溃时，重启后的索引里没有这个单元。冷恢复的列举仍按单元描述列出它，但它不被列为保留进程，也不自行结清，只有该作用域的冷恢复会停止它。标记文件写不成、`maintain()` 还没有重写成功时也是这样。
-- 标记文件不记停止意图。停止还没有确认时提供者崩溃，重启后这一项按运行中加载：列出、占名额，直到它变空或保留范围再次封闭。应用现在没有接 `releaseScope`，持久化停止意图只服务一条没有接线的路径。
-- 提供者重启之后，加载的保留进程要等有获取给出该范围的保留进程账本视图才有账本可记。在这之前它们自行结清时，索引删去标记文件，但没有记 `stopped`。
-- 移交之后，命令写出的字节被读出丢弃，不保存，也没有读取它们的操作。
-- Windows 没有一次性命令后端（见上文的平台范围）。
+- 只移交给请求方自己的作用域。保留范围与请求方作用域不同的获取，处置原因是 `policy`，不是契约所列的任何一项不成立。接受为本期范围。收敛条件：出现保留范围与请求方作用域不同的装配时，扩展处置与冷恢复按保留范围列出。
+- 契约的原因里没有「不可用」一类。标记文件读不全时，本提供者用 `policy`。`plan` 答 `unavailable` 或超时时用 `unbound`。收敛条件：契约的原因集合加入「不可用」一类之后，这两处映射改用该类。
+- 标记窗口：`adopt` 确认之后、标记文件写完之前提供者崩溃时，重启后的索引里没有这个单元。契约把它记为[保留进程的恢复](../execution-environment-contract/SPEC.md#保留进程的恢复)的已知限制，本条引用它。本提供者的现状：冷恢复的列举仍按单元描述列出这个单元，但它不被列为保留进程，也不自行结清，只有该作用域的冷恢复会停止它。标记文件写不成、`maintain()` 还没有重写成功时也是这样。收敛条件：保留进程账本端口提供读取之后，加载时用账本补全索引。
+- 标记文件不记停止意图。停止还没有确认时提供者崩溃，重启后这一项按运行中加载：列出、占名额，直到它变空或保留范围再次封闭。应用现在没有接 `releaseScope`，持久化停止意图只服务一条没有接线的路径。收敛条件：应用接上 `releaseScope`（接线见 [harness-server 的 `releaseScope` 接线](../../../apps/harness-server/SPEC.md#releasescope-wiring)）时，同一改动把停止意图写进标记文件。
+- 提供者重启之后，加载的保留进程要等有获取给出该范围的保留进程账本视图才有账本可记。在这之前它们自行结清时，索引删去标记文件，但没有记 `stopped`。集成方接受同一保留范围任一视图为已移交的键记 `stopped`，所以任一获取给出该范围的视图之后就可以记账。收敛条件：同标记窗口一条，保留进程账本端口提供读取之后，加载时用账本补全索引。
+- 移交之后，命令写出的字节被读出丢弃，不保存，也没有读取它们的操作。接受为本期范围。收敛条件：读取保留进程输出立项时。
+- 保留进程索引的配置（`retainedPerScope`、`retainedPollMs`）、监督者与诊断去向，取自第一次建立该状态目录索引的那一代提供者。配置重载不改变它们，直到该状态目录的各代都退役。收敛条件：需要重载这几项时，索引按代登记它们，取最近加入的一代。
+- Windows 的一次性命令后端在根进程退出时停止 Job 里剩下的进程。它的结局不带 `residue`，也不交出保留扩展。收敛条件：Windows 兑现（见上文「Windows 的兑现」一段）。
 - Windows 终端：段的字节归属只在 Linux 兑现。Windows 终端仍按观察窗口归属字节，结局不带 `between`。ConPTY 会重绘输出，可能吞掉未知的 OSC 序列，这一点尚未在真实 ConPTY 上验证。收敛计划：在 Windows 宿主上验证 ConPTY 是否保留哨兵，成立就按 Linux 的做法兑现，不成立就保留按观察窗口归属，并写明这条限制。
 
-负责人是 #1137 的执行者。
+预期行为：句柄已确认停止之后再调用 `stop`，提供者再发一次停止，并再记一条 `confirmed`。集成方按已确认保持原事实，不改变结论。
+
+这些偏离的负责人是本成员 `execution-environment-host-local` 的拥有者。
 
 ### 撤除顺序
 
@@ -443,7 +446,7 @@ macOS 没有命令后端。将来的提供者若只能按进程组或会话收�
 | 命令的输出缓冲               | 这个进程的句柄                                    | 放不下的块整块丢弃并计数；读者放弃后全部计入丢弃                                                                     | 读者读完或放弃，且进程已有结局                               |
 | 命令已经产生的外部效果       | 宿主机                                            | 停止不撤回它们；强制停止的结局是 `effectUnknown`                                                                     | 不随停止或撤除撤回                                           |
 
-进程失败：文件一侧没有可恢复的东西，责任域的记录随进程结束。命令一侧的受管资源是 scope 单元，进程结束后它们仍在 systemd 用户管理器里，由资源级恢复按单元坐标列举与停止（见[宿主命令与终端](#宿主命令与终端未实现)的资源级冷恢复），恢复不重启命令，也不结清获取。移交保留范围的单元由新进程从标记文件找回，照常读成员、在范围封闭时停止（见[一次性命令留下的进程的兑现](#留下的进程的兑现)）。新进程的责任域对旧进程的原描述答未知，不答未分配；需要域外可信进程退出证据的冷恢复结清是 M2 之后的剩余责任。登记表的重建沿 [execution-environment SPEC](../execution-environment/SPEC.md#所有权失败与生命周期)。撤除函数抛出的错误只进 `ctx.logger`，`fiber.dispose()` 的调用方观察不到，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
+进程失败：文件一侧没有可恢复的东西，责任域的记录随进程结束。命令一侧的受管资源是 scope 单元，进程结束后它们仍在 systemd 用户管理器里，由资源级恢复按单元坐标列举与停止（见[宿主命令与终端](#宿主命令与终端)的资源级冷恢复），恢复不重启命令，也不结清获取。移交保留范围的单元由新进程从标记文件找回，照常读成员、在范围封闭时停止（见[一次性命令留下的进程的兑现](#留下的进程的兑现)）。新进程的责任域对旧进程的原描述答未知，不答未分配；需要域外可信进程退出证据的冷恢复结清是 M2 之后的剩余责任。登记表的重建沿 [execution-environment SPEC](../execution-environment/SPEC.md#所有权失败与生命周期)。撤除函数抛出的错误只进 `ctx.logger`，`fiber.dispose()` 的调用方观察不到，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
 
 ## 组合与验证
 

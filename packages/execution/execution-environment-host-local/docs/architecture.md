@@ -191,9 +191,7 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 
 ## 宿主命令机制
 
-<a id="宿主命令与终端机制设计未实现"></a>
-
-本节说明宿主提供者怎样承担 `command`。行为以 SPEC 的[宿主命令与终端](../SPEC.md#宿主命令与终端)为准。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。`command` 只在 Linux 上实现。`terminal` 的 Linux 路径见[持久终端机制](#持久终端机制)。
+本节说明宿主提供者怎样承担 `command`。行为以 SPEC 的[宿主命令与终端](../SPEC.md#宿主命令与终端)为准。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。`command` 的处置与保留只在 Linux 上兑现。Windows 有一次性命令后端，见 [Windows 说明](windows-execution.md)。`terminal` 的 Linux 路径见[持久终端机制](#持久终端机制)。
 
 `command` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。理由：登记表在一层里只选一个提供者。按设施拆成几个宿主提供者时，需要 `files` 加 `command` 的工具在宿主层得不到落点（`missingFacility`）。再加一个合并的提供者，又会有两个提供者同时合格（`ambiguousEnvironment`）。
 
@@ -205,6 +203,7 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 | `src/host-scope.ts`   | systemd 用户 scope：起单元、强制停止与确认、按描述列举、引用的读写       |
 | `src/command-gate.ts` | 门进程脚本。它在命令的单元里运行，只用 Node 的内置模块，不被任何模块导入 |
 | `src/host-command.ts` | 每份获取的命令门面：前置检查、启动、帧的读取、有界缓冲、进程句柄与停止   |
+| `src/host-retained-processes.ts` | 同一状态目录各代共用的保留进程索引：预留、提交、标记文件、列出、封闭、变空检测、重启加载 |
 
 | 机制               | 设计                                                                                                                                                                                                                                                                                                        |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
