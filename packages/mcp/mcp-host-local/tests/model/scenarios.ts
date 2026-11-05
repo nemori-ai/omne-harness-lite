@@ -66,6 +66,26 @@ export const HTTP_RESEND: Scenario = {
 }
 
 /**
+ * Streamable HTTP with a handle: one `call` whose answer stream carries a peer `ping`, then
+ * `close()`. The response to the peer `ping` is a POST the credential authorizes (T3, P7); after
+ * `close()` the session must not authorize it.
+ */
+export const HTTP_PEER: Scenario = {
+  name: 'http-peer',
+  material: 'http',
+  discovers: 0,
+  calls: 1,
+  lists: 0,
+  close: true,
+  answers: {
+    'line.send': ['stream'],
+    'stream.next': ['ping', 'end', 'break'],
+  },
+  breaches: 0,
+  wireFaults: 1,
+}
+
+/**
  * Streamable HTTP without a handle: one `call`, one `listActions`, `close()`; the wire may refuse
  * with 401 or 403: there is no handle to hear of it.
  */

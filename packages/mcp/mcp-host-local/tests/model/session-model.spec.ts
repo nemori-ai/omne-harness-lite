@@ -9,6 +9,7 @@ import { explore, type Exploration, type Scenario } from './explore.ts'
 import {
   HTTP_BARE,
   HTTP_CALL,
+  HTTP_PEER,
   HTTP_RESEND,
   MINIMAL,
   SSE_FALLBACK,
@@ -79,6 +80,12 @@ describe('http-call: one call with its signal, close(); every T8 refusal and exc
 describe('http-bare: HTTP without a handle, one call, one listActions, close(); refusals with no handle to hear of them', () => {
   it('V1–V6 hold, V3 above all', { timeout: EXPLORE_MS }, async () => {
     expect(violations(await explore(HTTP_BARE))).toEqual([])
+  })
+})
+
+describe('http-peer: one call whose answer stream carries a peer ping, close(); the response is authorized', () => {
+  it('V1–V6 hold', { timeout: EXPLORE_MS }, async () => {
+    expect(violations(await explore(HTTP_PEER))).toEqual([])
   })
 })
 
