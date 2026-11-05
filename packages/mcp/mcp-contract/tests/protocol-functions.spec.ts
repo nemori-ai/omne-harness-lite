@@ -222,6 +222,14 @@ describe('withheldTools (T2)', () => {
       expect(withheldNames(typed(type)), String(type)).toEqual([String(type)])
   })
 
+  it('withholds a declaration on the root of the input schema, whatever its type', () => {
+    for (const type of ['string', 'integer', 'boolean', 'object'])
+      expect(
+        withheldNames(tool(type, { type, 'x-mcp-header': 'X-Root', properties: {} })),
+        type,
+      ).toEqual([type])
+  })
+
   it('accepts every character of an RFC 9110 token and rejects the rest, the empty name and a name that is not text', () => {
     const named = (name: unknown) =>
       tool('t', {
