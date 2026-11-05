@@ -105,7 +105,6 @@ function realize(chosen, id, token) {
       return
     case 'process-exits':
       process.exit(0)
-    // eslint-disable-next-line no-fallthrough
     default:
       // silent, unsent (not realizable here), http (not on stdio): nothing on the wire.
       return

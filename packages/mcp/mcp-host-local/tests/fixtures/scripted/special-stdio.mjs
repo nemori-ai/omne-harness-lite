@@ -42,14 +42,12 @@ lines.on('line', line => {
       return
     case 'exit-before-answer':
       process.exit(3)
-    // eslint-disable-next-line no-fallthrough
     case 'answer-then-exit':
       write({
         id: message.id,
         result: message.method === 'server/discover' ? MODERN : { content: [] },
       })
       process.exit(0)
-    // eslint-disable-next-line no-fallthrough
     default:
       answer(message)
   }
