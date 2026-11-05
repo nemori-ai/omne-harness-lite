@@ -221,7 +221,8 @@ function dispose<P>(input: {
     information: {
       process: identity,
       origin: request.origin,
-      handedOverAtMs: Date.now(),
+      handedOverAtMs:
+        /* wall-clock: operation-timing -- a scripted handover time for a test double */ Date.now(),
       state: 'running',
       processes: answer.leaves,
     },

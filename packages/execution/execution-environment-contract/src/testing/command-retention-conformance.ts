@@ -170,9 +170,14 @@ async function checkScopeClose(s: CommandRetentionSubject, waitMs: number): Prom
   const { process } = await retained(s.acquisition, s.commands.leftover())
   assert.equal(await s.domainStopped(process), false, 'retained before the scope closes')
   await s.closeScope()
-  const deadline = Date.now() + waitMs
+  const deadline =
+    /* wall-clock: operation-timing -- bound the wait for a confirmed stop */ Date.now() + waitMs
   while (!(await s.domainStopped(process))) {
-    assert.ok(Date.now() < deadline, 'the scope closed but the domain is not confirmed stopped')
+    assert.ok(
+      /* wall-clock: operation-timing -- bound the wait for a confirmed stop */ Date.now() <
+        deadline,
+      'the scope closed but the domain is not confirmed stopped',
+    )
     await new Promise(resolve => setTimeout(resolve, 20))
   }
 }
