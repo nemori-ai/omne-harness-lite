@@ -1,10 +1,6 @@
 // The stdio half of the A-layer fixture: a scripted peer in a child process on real pipes, the
 // process handle double of a landing, and the records the peer reports back on stderr.
-import { spawn, type ChildProcess } from 'node:child_process'
-import { createInterface } from 'node:readline'
-import { Readable, Writable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
-import type { StopScope } from '@omne-harness/mcp-contract'
 import type { ProcessHandle, TransportMaterial } from '@omne-harness/mcp-contract/provider'
 import {
   NotApplicable,
@@ -15,7 +11,7 @@ import {
   type Replies,
 } from '@omne-harness/mcp-contract/testing'
 import { generationOf } from '@omne-harness/mcp-contract/testing'
-import { track } from './children.ts'
+import { spawnHandle } from '../process.ts'
 
 const PEER = fileURLToPath(new URL('./stdio-peer.mjs', import.meta.url))
 const RECORD = '@omne '
@@ -53,7 +49,6 @@ function unsentPlan(script: PeerScript): 'reachable' | 'unreachable' {
 }
 
 type Spawned = Readonly<{
-  child: ChildProcess
   handle: ProcessHandle
   log: PeerReceived[]
   ready: Promise<void>
@@ -61,59 +56,22 @@ type Spawned = Readonly<{
 }>
 
 function spawnPeer(args: readonly string[]): Spawned {
-  const child = spawn(process.execPath, args, { stdio: ['pipe', 'pipe', 'pipe'] })
-  track(child)
   const log: PeerReceived[] = []
-  let stderrController: ReadableStreamDefaultController<string> | undefined
-  const stderr = new ReadableStream<string>({
-    start(controller) {
-      stderrController = controller
-    },
-  })
   let markReady = (): void => undefined
   const ready = new Promise<void>(resolve => {
     markReady = resolve
   })
-  const exited = new Promise<void>(resolve => child.once('exit', () => resolve()))
-  if (child.stderr !== null) {
-    const lines = createInterface({ input: child.stderr })
-    lines.on('line', line => {
-      if (!line.startsWith(RECORD)) {
-        try {
-          stderrController?.enqueue(`${line}\n`)
-        } catch {
-          // The handle's stderr was cancelled: the line reads and discards it.
-        }
-        return
-      }
+  const spawned = spawnHandle(args, {
+    onStderrLine: line => {
+      if (!line.startsWith(RECORD)) return false
       const entry: unknown = JSON.parse(line.slice(RECORD.length))
-      if (typeof entry !== 'object' || entry === null || !('kind' in entry)) return
+      if (typeof entry !== 'object' || entry === null || !('kind' in entry)) return true
       if (entry.kind === 'ready') markReady()
       else log.push(entry as PeerReceived)
-    })
-  }
-  void exited.then(() => {
-    try {
-      stderrController?.close()
-    } catch {
-      // Already closed or cancelled.
-    }
-  })
-  if (child.stdin === null || child.stdout === null) throw new Error('the child has no pipes')
-  const stdin: WritableStream<Uint8Array> = Writable.toWeb(child.stdin)
-  const stdout: ReadableStream<Uint8Array> = Readable.toWeb(child.stdout)
-  const handle: ProcessHandle = {
-    stdin,
-    stdout,
-    stderr,
-    exited,
-    async stop(): Promise<StopScope> {
-      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
-      await exited
-      return 'root-only'
+      return true
     },
-  }
-  return { child, handle, log, ready, exited }
+  })
+  return { handle: spawned.handle, log, ready, exited: spawned.exited }
 }
 
 export type StdioPeer = Readonly<{

@@ -31,13 +31,14 @@ export class StdioLine implements Line {
     this.writer = process.stdin.getWriter()
     this.stdout = process.stdout.getReader()
     this.stderr = process.stderr.getReader()
+    // One reaction on the handle's own promise: the line sees the exit before anyone who awaited
+    // the promise after it goes on.
     this.exited = process.exited.then(
-      () => undefined,
-      () => undefined,
+      () => this.onExited(),
+      () => this.onExited(),
     )
     void this.readStdout()
     void this.drainStderr()
-    void this.exited.then(() => this.onExited())
   }
 
   /**
@@ -57,18 +58,24 @@ export class StdioLine implements Line {
   private async readStdout(): Promise<void> {
     const decoder = new TextDecoder('utf-8', { fatal: false })
     let buffered = ''
+    /** The bytes of `buffered`: the line in progress. */
     let pendingBytes = 0
+    let broken = false
     try {
       for (;;) {
         const next = await this.stdout.read()
         if (next.done) break
-        pendingBytes += next.value.byteLength
         buffered += decoder.decode(next.value, { stream: true })
         let newline = buffered.indexOf('\n')
         if (newline < 0) {
+          pendingBytes += next.value.byteLength
           if (pendingBytes <= BYTE_LIMIT) continue
-          // One line above the byte bound breaks the stream (contract T2).
-          await this.stdout.cancel().catch(() => undefined)
+          broken = true
+          break
+        }
+        // The first line of the chunk may have been in progress; its bytes are measured exactly.
+        if (encoder.encode(buffered.slice(0, newline)).byteLength > BYTE_LIMIT) {
+          broken = true
           break
         }
         while (newline >= 0) {
@@ -79,9 +86,17 @@ export class StdioLine implements Line {
         pendingBytes = encoder.encode(buffered).byteLength
       }
       const tail = buffered + decoder.decode()
-      if (tail !== '' && pendingBytes <= BYTE_LIMIT) this.deliver(tail)
+      if (!broken && tail !== '' && pendingBytes <= BYTE_LIMIT) this.deliver(tail)
     } catch {
       // stdout errored or was cancelled: it ended either way.
+    }
+    if (broken) {
+      // One line above the byte bound breaks the stream (contract T2): the stream is unusable
+      // now, whatever the process does next.
+      await this.stdout.cancel().catch(() => undefined)
+      this.stdoutEndedAt ??= this.now()
+      this.announce()
+      return
     }
     this.onStdoutEnded()
   }

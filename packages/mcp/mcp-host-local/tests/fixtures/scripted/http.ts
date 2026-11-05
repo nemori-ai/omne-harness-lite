@@ -25,7 +25,7 @@ const servers = new Set<Server>()
  * … up to 10080) with `TypeError: fetch failed` and no cause code, and this host's ephemeral
  * range starts at 1024. A port in use is tried again.
  */
-async function listenFree(server: Server): Promise<number> {
+export async function listenFree(server: Server): Promise<number> {
   for (;;) {
     const port = 20_000 + Math.floor(Math.random() * 40_000)
     const listening = await new Promise<boolean>(resolve => {
@@ -102,7 +102,18 @@ class Peer {
     private readonly target: string,
     private readonly unreachable: () => void,
     private readonly legacySse: boolean,
+    private readonly endpointOrigin: string | undefined,
   ) {}
+
+  breakStreams(): void {
+    for (const stream of this.sseStreams.values()) stream.destroy()
+    this.sseStreams.clear()
+  }
+
+  /** The streams stay open; their sessions are forgotten, so the endpoint answers 404. */
+  endSessions(): void {
+    this.sseStreams.clear()
+  }
 
   private pick(key: string, replies: Replies | undefined, fallback: PeerReply): PeerReply {
     const list = listOf(replies)
@@ -257,7 +268,8 @@ class Peer {
     this.sessionCount += 1
     const session = `s${this.sessionCount}`
     response.writeHead(200, { 'content-type': 'text/event-stream' })
-    response.write(`event: endpoint\ndata: /message?sessionId=${session}\n\n`)
+    const endpoint = `${this.endpointOrigin ?? ''}/message?sessionId=${session}`
+    response.write(`event: endpoint\ndata: ${endpoint}\n\n`)
     this.sseStreams.set(session, response)
     request.on('close', () => this.sseStreams.delete(session))
   }
@@ -266,15 +278,13 @@ class Peer {
     const session = url.searchParams.get('sessionId')
     const stream = session === null ? undefined : this.sseStreams.get(session)
     if (session !== null && stream === undefined) {
-      response
-        .writeHead(404, { 'content-type': 'application/json' })
-        .end(
-          JSON.stringify({
-            jsonrpc: '2.0',
-            id: null,
-            error: { code: -32000, message: 'Session not found' },
-          }),
-        )
+      response.writeHead(404, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: null,
+          error: { code: -32000, message: 'Session not found' },
+        }),
+      )
       return
     }
     let parsed: unknown
@@ -460,12 +470,18 @@ class Peer {
 export type HttpPeer = Readonly<{
   material: TransportMaterial
   received(): Promise<readonly PeerReceived[]>
+  /** The legacy HTTP+SSE mode: destroys every open stream. */
+  breakStreams(): void
+  /** The legacy HTTP+SSE mode: forgets every session, so that its endpoint answers 404. */
+  endSessions(): void
   close(): Promise<void>
 }>
 
 export type HttpPeerOptions = Readonly<{
   /** The peer speaks the legacy HTTP+SSE transport: `GET` gives the stream and the endpoint. */
   legacySse?: boolean
+  /** The origin the `endpoint` event names; default: the peer's own. */
+  endpointOrigin?: string
 }>
 
 export async function httpPeer(
@@ -498,7 +514,14 @@ export async function httpPeer(
     server.close()
     servers.delete(server)
   }
-  peer = new Peer(script, versions, target, unreachable, options.legacySse === true)
+  peer = new Peer(
+    script,
+    versions,
+    target,
+    unreachable,
+    options.legacySse === true,
+    options.endpointOrigin,
+  )
   peer.planUnsent()
   const material: TransportMaterial = {
     kind: 'streamable-http',
@@ -508,8 +531,11 @@ export async function httpPeer(
     instructionsByteLimit: needs.instructionsByteLimit ?? 4096,
   }
   const log = peer.log
+  const built = peer
   return {
     material,
+    breakStreams: () => built.breakStreams(),
+    endSessions: () => built.endSessions(),
     async received() {
       let seen = log.length
       for (;;) {
