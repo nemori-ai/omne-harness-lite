@@ -4,7 +4,7 @@
 // operations script what the peer says; cases of the connection table keep `world.ts`, which
 // scripts what the transport object does.
 import type { McpConfig, McpPorts, PeerNotification } from '@omne-harness/mcp-contract'
-import type { McpTransport, McpTransportFactory } from '@omne-harness/mcp-contract/provider'
+import type { McpTransportFactory } from '@omne-harness/mcp-contract/provider'
 import {
   createMemoryCatalogStore,
   createScriptedTransportFactory,
@@ -32,6 +32,7 @@ import {
   type CountedOutputCheck,
   type ScriptedLanding,
 } from './ports.ts'
+import { reshapedTransports } from './transports.ts'
 import { CONFIG } from './world.ts'
 
 type Request = Extract<PeerReceived, { kind: 'request' }>
@@ -68,12 +69,7 @@ export type CallGate = Readonly<{
 
 /** A factory whose transports' `call` waits on the gate; the test orders a cancel with it. */
 function gatedCalls(factory: McpTransportFactory, gate: CallGate): McpTransportFactory {
-  // The scripted transport is a class instance: its methods are not own properties, so each one
-  // is delegated by name.
-  const gated = (transport: McpTransport): McpTransport => ({
-    generation: transport.generation,
-    discover: () => transport.discover(),
-    listActions: cursor => transport.listActions(cursor),
+  return reshapedTransports(factory, transport => ({
     async call(request, signal, observe) {
       await gate.before?.()
       if (gate.notify !== undefined) observe?.(gate.notify)
@@ -81,19 +77,7 @@ function gatedCalls(factory: McpTransportFactory, gate: CallGate): McpTransportF
       await gate.after?.()
       return called
     },
-    cancelRequest: requestId => transport.cancelRequest(requestId),
-    getTask: taskId => transport.getTask(taskId),
-    updateTask: (taskId, inputResponses) => transport.updateTask(taskId, inputResponses),
-    getTaskResult: taskId => transport.getTaskResult(taskId),
-    cancelTask: taskId => transport.cancelTask(taskId),
-    close: () => transport.close(),
-  })
-  return {
-    async open(material, signal) {
-      const opened = await factory.open(material, signal)
-      return 'failure' in opened ? opened : { ok: gated(opened.ok) }
-    },
-  }
+  }))
 }
 
 export function peer(

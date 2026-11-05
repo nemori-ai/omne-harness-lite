@@ -1,7 +1,9 @@
 // The call port `cancel` (SPEC S2, MC-12, MC-16): it reads the in-flight table only, so another
-// principal or tenant on the same correlation key gets `unknown`; a cancel before the send keeps
-// the call off the wire; a cancel after the send, or one that lands between the send and its
-// record, tells the peer once and ends the call as unknown (abandoned).
+// principal or tenant on the same correlation key gets `unknown`; from the reservation on, a
+// cancel and the caller's abort fire the one stop signal of the call, so a stop before the send
+// keeps the call off the wire and ends the key, and a stop after the send, or between the send
+// and its record, tells the peer once, does not wait for it, and ends the call as unknown
+// (abandoned).
 import { describe, expect, it } from 'vitest'
 import {
   digestDefinition,
@@ -59,12 +61,32 @@ function portCalls(p: Peer) {
   return { adoption: p.adoption.calls(), eligibility: p.eligibility.calls() }
 }
 
+/**
+ * A call gate that tells the case when the call reached the transport (`before` the send, or
+ * `after` it), and holds the call there until the case releases it: the case orders a cancel
+ * against the send by what has happened, not by a number of turns.
+ */
+function holdingAt(where: 'before' | 'after') {
+  const reached = deferred<void>()
+  const held = deferred<void>()
+  const hold = async () => {
+    reached.resolve()
+    await held.promise
+  }
+  return {
+    reached: reached.promise,
+    release: () => held.resolve(),
+    callGate: where === 'before' ? { before: hold } : { after: hold },
+  }
+}
+
 describe('cancel reads the in-flight table only (SPEC S2)', () => {
   it('answers unknown to another principal and to another tenant on the same correlation key, and asks no port', async () => {
-    const { p, digest } = await arranged({ kind: 'silent' })
+    const hold = holdingAt('after')
+    const { p, digest } = await arranged({ kind: 'silent' }, { callGate: hold.callGate })
     const { services: s } = services(p)
     const call = s.invoker.invoke(alice, request(digest))
-    await settled()
+    await hold.reached
     const asked = portCalls(p)
     expect(await s.invoker.cancel(bob, c1)).toBe('unknown')
     expect(await s.invoker.cancel(mallory, c1)).toBe('unknown')
@@ -72,7 +94,9 @@ describe('cancel reads the in-flight table only (SPEC S2)', () => {
     expect(portCalls(p)).toEqual(asked)
     expect(p.cancels()).toBe(0)
     expect(await s.invoker.cancel(alice, c1)).toBe('signalled')
+    hold.release()
     expect(await call).toEqual(ABANDONED)
+    await settled()
     expect(p.cancels()).toBe(1)
   })
 
@@ -85,7 +109,7 @@ describe('cancel reads the in-flight table only (SPEC S2)', () => {
   })
 })
 
-describe('a cancel before the send (SPEC S2, MC-16 step 6)', () => {
+describe('a cancel before the send (SPEC S2, MC-16 steps 2–8)', () => {
   it('makes the call answer not sent (cancelled) with no call on the wire; the key has ended', async () => {
     const { p, digest } = await arranged(completed([text('hi')]))
     // The invoke's gate is the first eligibility call; it waits until the case lets it go.
@@ -104,7 +128,7 @@ describe('a cancel before the send (SPEC S2, MC-16 step 6)', () => {
   })
 })
 
-describe('a cancel after the send (SPEC S2, MC-16 step 8)', () => {
+describe('a cancel after the send (SPEC S2, MC-16 step 11)', () => {
   it('tells the peer once and ends the call as unknown (abandoned), without waiting for the peer', async () => {
     const { p, digest } = await arranged({ kind: 'silent' })
     const { services: s } = services(p)
@@ -119,30 +143,27 @@ describe('a cancel after the send (SPEC S2, MC-16 step 8)', () => {
   })
 
   it('that lands between the send and its record is the same: the call is on the wire, so the peer is told once', async () => {
-    const gate = deferred<void>()
-    const { p, digest } = await arranged(completed([text('hi')]), {
-      callGate: { after: () => gate.promise },
-    })
+    const hold = holdingAt('after')
+    const { p, digest } = await arranged(completed([text('hi')]), { callGate: hold.callGate })
     const { services: s } = services(p)
     const call = s.invoker.invoke(alice, request(digest))
-    await settled()
+    await hold.reached
     expect(p.requests('tools/call')).toHaveLength(1)
     expect(await s.invoker.cancel(alice, c1)).toBe('signalled')
-    gate.resolve()
+    hold.release()
     expect(await call).toEqual(ABANDONED)
+    await settled()
     expect(p.cancels()).toBe(1)
   })
 
   it('that races the send, which the transport then refuses, is a cancel before the send: nothing is lost', async () => {
-    const gate = deferred<void>()
-    const { p, digest } = await arranged(completed([text('hi')]), {
-      callGate: { before: () => gate.promise },
-    })
+    const hold = holdingAt('before')
+    const { p, digest } = await arranged(completed([text('hi')]), { callGate: hold.callGate })
     const { services: s } = services(p)
     const call = s.invoker.invoke(alice, request(digest))
-    await settled()
+    await hold.reached
     expect(await s.invoker.cancel(alice, c1)).toBe('signalled')
-    gate.resolve()
+    hold.release()
     expect(await call).toEqual({ kind: 'not-sent', reason: { kind: 'cancelled' } })
     expect(p.requests('tools/call')).toHaveLength(0)
     expect(p.cancels()).toBe(0)
@@ -152,13 +173,15 @@ describe('a cancel after the send (SPEC S2, MC-16 step 8)', () => {
   })
 
   it('with the caller abort too tells the peer once only', async () => {
-    const { p, digest } = await arranged({ kind: 'silent' })
+    const hold = holdingAt('after')
+    const { p, digest } = await arranged({ kind: 'silent' }, { callGate: hold.callGate })
     const { services: s } = services(p)
     const controller = new AbortController()
     const call = s.invoker.invoke(alice, request(digest, controller.signal))
-    await settled()
+    await hold.reached
     expect(await s.invoker.cancel(alice, c1)).toBe('signalled')
     controller.abort()
+    hold.release()
     expect(await call).toEqual(ABANDONED)
     await settled()
     expect(p.cancels()).toBe(1)
