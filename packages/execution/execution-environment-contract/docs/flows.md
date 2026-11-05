@@ -1,10 +1,10 @@
 # 执行环境契约的协议流程
 
-本页给出本成员的十条协议级流程。每条流程有一张时序图和一张「失败与责任交接」表，并标出对应的 [SPEC](../SPEC.md) 条款。行为以 SPEC 为准，图只投影条款，不表示运行实现已经存在。F-EEC07 与 F-EEC08 是设计，当前没有提供者实现 `command` 与 `terminal`。
+本页给出本成员的十一条协议级流程。每条流程有一张时序图和一张「失败与责任交接」表，并标出对应的 [SPEC](../SPEC.md) 条款。行为以 SPEC 为准，图只投影条款，不表示运行实现已经存在。F-EEC07、F-EEC08 与 F-EEC11 的状态行写出哪个提供者在哪个平台上兑现它们。
 
 图中的「执行环境」是 `ExecutionEnvironment` 的实现。不含 Cordis 的登记表机制归 [execution-environment](../../execution-environment/README.md)，它的机制级流程见该成员的 `docs/flows.md`。跨成员流程 F-EX01 至 F-EX04 归组的[协作入口](../../docs/key-flows.md)。本页各条注明对应的组流程 F-EX。对象的状态与转移见[对象模型](object-model.md#生命周期)。设施协议的规则见 SPEC [设施协议](../SPEC.md#设施协议)，逐设施的展开见[内部架构](architecture.md#设施协议)。
 
-图中只出现通用角色：集成方、执行环境、提供者、设施拥有者、设施守卫、资源账本、维护者、恢复授权端口、环境授权端口、作用域绑定来源与观察者。设施守卫、资源账本、恢复授权端口、环境授权端口与作用域绑定来源都由集成方实现。
+图中只出现通用角色：集成方、执行环境、提供者、设施拥有者、设施守卫、资源账本、维护者、恢复授权端口、环境授权端口、作用域绑定来源与观察者。设施守卫、资源账本、恢复授权端口、环境授权端口与作用域绑定来源都由集成方实现。F-EEC11 把资源账本分成两份：本次获取的获取账本与保留范围的保留进程账本，两份都由集成方实现。F-EEC11 的图里另有提供者自己维护的保留进程索引。
 
 ## 流程
 
@@ -247,7 +247,7 @@ sequenceDiagram
   participant L as 租约
   participant G as 设施守卫
   participant P as 提供者的命令设施
-  participant R as 资源账本
+  participant R as 获取账本（本次获取的资源账本）
   participant X as 进程
   I->>L: start(请求身份、访问身份、原调用、绑定层、可执行文件、参数、工作目录、环境变量、输出模式)
   L->>G: authorize(command, start, 请求)
@@ -264,8 +264,11 @@ sequenceDiagram
     I->>P: stop(graceful 或 forced)
     P-->>I: confirmed 或 unconfirmed
   end
-  P-->>I: result：completed 或 failed
-  P->>R: stopped(键, confirmed 或 unconfirmed)
+  Note over P,X: 主进程退出之后，提供者先处置执行域（见 F-EEC11），再交出 result
+  P-->>I: result：completed（做处置的提供者带 residue）或 failed
+  opt 执行域仍归本次获取，停止有了结果
+    P->>R: stopped(键, confirmed 或 unconfirmed)
+  end
 ```
 
 | 环节 | 结果 | 失败与责任交接 |
@@ -274,17 +277,21 @@ sequenceDiagram
 | 启动 | `done` 交出 `ProcessHandle`，表示进程实际已启动。进程身份是提供者给的身份加代，不是裸进程号 | 被接纳但进程映像没有启动时为 `rejected`，原因 `unavailable`。启动与否不可确认时为 `unknown` |
 | 增量输出 | `output` 是唯一的输出主体，只允许一个读者。每块是原始字节，不按行或字符切分，大小不超过单块上限 | 不承诺逐字节、逐行或实时送达。读者调用 `return()` 只放弃读取权，不停止进程，之后的字节都计入丢弃 |
 | 有界缓冲 | 缓冲不超过缓冲上限 | 无人读、慢读或读者离开时，新字节被丢弃并计数，不阻塞终局与停止。`observedOffset` 的空隙标出丢弃的位置 |
-| 终局 | `completed` 只用于进程完成已确认，带退出码、信号或未知退出，以及时长与输出计数 | 完成不可确认时为 `failed`（`unavailable` 或 `effectUnknown`），仍交出截至失联的时长与输出计数。`result` 不会永不结算。重复或并发等待不再启动任何东西 |
+| 处置 | 主进程退出之后，提供者在交出 `result` 之前对执行域做一次处置：停止执行域，或把它移交保留范围。规则见 SPEC [处置](../SPEC.md#处置)与[移交](../SPEC.md#移交)，时序见 F-EEC11 | 停止的确认不推迟 `result`。`failed` 结局没有处置，执行域仍归本次获取 |
+| 终局 | `completed` 只用于进程完成已确认，带退出码、信号或未知退出，以及时长与输出计数。做处置的提供者在 `completed` 里带 `residue`：`none`、`retained`、`stopping` 或 `unknown` | 完成不可确认时为 `failed`（`unavailable` 或 `effectUnknown`），仍交出截至失联的时长与输出计数。`result` 不会永不结算。重复或并发等待不再启动任何东西。不做处置的提供者不带 `residue`，消费者不能把缺省当作 `none` |
 | 停止 | `stop` 在有界时间内返回 `confirmed` 或 `unconfirmed` | 未确认的停止保留处置责任，不写成已停。进程已退出只认对该进程身份记录的回收状态，不认父进程退出、完成通知或一次查不到 |
+| 获取账本的停止记账 | 执行域仍归本次获取时，提供者在获取账本记 `stopped` | 已移交保留范围的执行域不在获取账本记 `stopped`。获取账本对它的责任在 `adopt` 生效的同一个提交里结束 |
 | 四件事分开 | 输出结束、进程终局、停止请求与资源已停分别判断 | 失败或未知的回执不伪造退出码 |
 
-### F-EEC08 终端腿
+<a id="f-eec08-终端腿"></a>
 
-状态：宿主提供者提供 `terminal` 设施，平台范围见 host-local 的[持久终端](../../execution-environment-host-local/SPEC.md#持久终端)，机制见[持久终端机制](../../execution-environment-host-local/docs/architecture.md#持久终端机制)。
+### F-EEC08 终端段
 
-条款：[设施协议](../SPEC.md#设施协议)、[INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的 [`terminal`](architecture.md#terminal终端)。
+状态：宿主提供者提供 `terminal` 设施，平台范围见 host-local 的[持久终端](../../execution-environment-host-local/SPEC.md#持久终端)，机制见[持久终端机制](../../execution-environment-host-local/docs/architecture.md#持久终端机制)。按哨兵归属字节只在 Linux 上兑现。Windows 终端仍按观察窗口归属字节，见 SPEC [终端段的完成与字节归属](../SPEC.md#终端段的完成与字节归属)。
 
-前提：租约暴露 `terminal`。终端是一个受管资源，每条腿是另一个受管资源。
+条款：[设施协议](../SPEC.md#设施协议)、[终端段的完成与字节归属](../SPEC.md#终端段的完成与字节归属)、[INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的 [`terminal`](architecture.md#terminal终端)。段的完成与字节归属以 SPEC「终端段的完成与字节归属」为准，本条只投影它。
+
+前提：租约暴露 `terminal`。终端是一个受管资源，每一段是另一个受管资源。
 
 ```mermaid
 sequenceDiagram
@@ -293,6 +300,7 @@ sequenceDiagram
   participant P as 提供者的终端设施
   participant R as 资源账本
   participant S as 持久 shell
+  participant Y as PTY 字节流
   I->>L: create(工作目录、环境变量、尺寸)
   L->>P: 过守卫之后 create
   P->>R: plan(终端) 与 permit
@@ -300,28 +308,39 @@ sequenceDiagram
   P-->>I: done：TerminalRef（身份加代）
   I->>L: execute(终端、脚本、可选的工作目录与环境变量)
   L->>P: 过守卫之后 execute
-  P->>R: plan(这条腿) 与 permit
-  P->>S: 执行这一段
+  P->>R: plan(这一段) 与 permit
+  P->>S: 执行这一段（带本段的随机数，不经 PTY 输入写入）
   P-->>I: done：ProcessHandle（输出模式 terminal）
-  S-->>P: 回执、输出边界、无残留的后代
-  P-->>I: result：completed
-  I->>L: execute(下一条腿)
+  S->>Y: 段首哨兵
+  S->>Y: 段内字节（前台进程与同一终端里的后台进程）
+  S->>Y: 段尾哨兵
+  S-->>P: 控制通道：本段的结束帧
+  Y-->>P: 读出的字节，直到段尾哨兵
+  Note over P: 收到结束帧之后继续读到段尾哨兵，读到暂时无数据时不交出
+  P-->>I: result：completed（段内字节；between 带本段之前的段间字节与丢弃字节数）
+  Y-->>P: 段尾哨兵之后的字节（例如后台进程的写入）
+  Note over P: 段间字节进有界缓冲，超出上界的只计入丢弃数
+  I->>L: execute(下一段)
+  Note over I,P: 下一段的结果单独带上这些段间字节与丢弃字节数
   I->>L: close(终端)
+  P->>S: 停止终端执行域里的全部进程
   P-->>I: confirmed 或 unconfirmed
 ```
 
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
 | 创建 | 交出新的 `TerminalRef`。终端归原实例的代 | 新实例使用新身份，不复活旧终端的状态。只提供命令而不提供终端的环境拒绝终端请求，不降成一次性执行 |
-| 一条腿 | 同一终端同一时刻只有一条在途的腿。每条腿是独立的请求，各自过守卫、各自计划与许可，各自有 `ProcessHandle` | 已有在途的腿时以 `busy` 拒绝，不排队 |
-| 状态持续 | 工作目录、变量、函数与 shell 选项跨腿持续 | 带显式工作目录或环境变量的腿在子 shell 里运行，不改写终端的基态 |
-| 完成 | 有效回执、观察到的输出边界与无残留的后代三者都成立时，这条腿才完成。回执不是输出字节 | 已发布的完成不改写。完成未知时不接纳后继的腿 |
-| 失效 | 控制损坏、超时、`exit` 或 `exec`、重复回执、完成后仍有数据、空闲时出现数据、确认不了后代已停，终端都失效 | 失效不换新 shell 假装继续。在途的腿以 `failed`（`effectUnknown`）结算。无效的终端引用由终端设施明确失败 |
-| 停止与关闭 | `stop` 可能停止整个终端；`close` 的结果是 `confirmed` 或 `unconfirmed` | 旧腿确认完成后，不误停新腿。未确认的关闭保留处置责任 |
+| 一段 | 同一终端同一时刻只有一段在途。每一段是独立的请求，各自过守卫、各自计划与许可，各自有 `ProcessHandle` | 已有在途的段时以 `busy` 拒绝，不排队 |
+| 状态持续 | 工作目录、变量、函数与 shell 选项跨段持续 | 带显式工作目录或环境变量的段在子 shell 里运行，不改写终端的基态 |
+| 段内字节 | 段的输出是 PTY 字节流中本段段首哨兵与段尾哨兵之间的字节。段进行期间，同一终端里的后台进程写出的字节也归本段 | 哨兵带本段的随机数，只有提供者能认出它 |
+| 完成 | 段的完成只看控制通道上本段的结束帧。静默时长与屏幕内容都不判完成。提供者收到结束帧之后继续读到段尾哨兵，再交出段结果 | 读到暂时无数据时不交出段结果。已发布的完成不改写。完成未知时不接纳后继的段 |
+| 段间字节 | 不在任何一段之内的字节是段间字节。提供者把它们放进有界缓冲。下一段的结果在 `between` 里单独带上段间字节与丢弃字节数 | 段间字节不混入段内输出。超出缓冲上界的字节只计入丢弃数。不按哨兵归属字节的提供者不带 `between` |
+| 失效 | 终端只在下列情况失效：shell 死亡、控制帧格式错误、代不符、与控制通道失联。终端里的后台进程不使终端失效 | 失效不换新 shell 假装继续。在途的段以 `failed`（`effectUnknown`）结算。无效的终端引用由终端设施明确失败 |
+| 停止与关闭 | `stop` 可能停止整个终端。`close` 停止终端执行域里的全部进程，包括脱离了 shell 的进程，结果是 `confirmed` 或 `unconfirmed` | 旧段确认完成后，不误停新段。未确认的关闭保留处置责任，不报告已关闭 |
 
 ### F-EEC09 文件批次的提交与认回
 
-条款：[设施协议](../SPEC.md#设施协议)、[INV-EE14](../SPEC.md#inv-ee14-未知保持原身份不盲目重放效果)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的[文件设施](architecture.md#files文件)。当前的宿主文件设施只实现读取、查看、写入与关闭，批次的两项操作返回 `unsupported`。
+条款：[设施协议](../SPEC.md#设施协议)、[INV-EE14](../SPEC.md#inv-ee14-未知保持原身份不盲目重放效果)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的[文件设施](architecture.md#files文件)。宿主文件设施在 Linux 宿主上实现批次的两项操作，在其他宿主上对它们答 `rejected`（`unavailable`），见 [host-local SPEC](../../execution-environment-host-local/SPEC.md) 的「八项操作」。
 
 前提：租约暴露 `files`。每条目标带路径、点名对象、字节与期望版本。
 
@@ -391,6 +410,73 @@ sequenceDiagram
 | 替换写入 | `done` 带新的 `version` | `expectedVersion` 不符时为 `rejected/conflict`，文件不变。调用方重读后再决定 |
 | 未知 | `unknown` 表示文件可能已部分改变 | 调用方先查看，不自动重放写入 |
 | 观察条件 | 同一版本只表示提供者没有观察到变化 | 版本不是外部的比较并交换，不排除与写入同时发生的外部写入 |
+
+### F-EEC11 一次性命令的处置与移交
+
+状态：宿主提供者在 Linux 上兑现，见 host-local 的[一次性命令留下的进程的兑现](../../execution-environment-host-local/SPEC.md#留下的进程的兑现)。保留进程的显式 `stop` 条款冻结，不在本条。
+
+条款：[处置](../SPEC.md#处置)、[移交](../SPEC.md#移交)、[容量](../SPEC.md#容量)、[保留进程的恢复](../SPEC.md#保留进程的恢复)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。本条展开 [F-EEC07](#f-eec07-命令的增量输出与终局) 的「处置」一环。
+
+前提：主进程已经退出，输出已经安静。获取账本是本次获取的资源账本。本次获取若带受信的保留范围，还带该范围的保留进程账本视图。两份账本都由集成方实现。保留进程索引由提供者维护。
+
+```mermaid
+sequenceDiagram
+  participant P as 提供者
+  participant N as 提供者的保留进程索引
+  participant K as 保留进程账本（集成方）
+  participant A as 获取账本（集成方）
+  Note over P: 监督进程发来退出帧，带执行域成员的读数
+  alt 读数确定只剩监督进程
+    Note over P: 归本次获取。停止执行域，residue = none
+    P->>A: stopped(键, confirmed 或 unconfirmed)
+  else 有留下的进程或读数未知，但不能保留
+    Note over P: 归本次获取。停止执行域，residue = stopping（带原因）
+    P->>A: stopped(键, confirmed 或 unconfirmed)
+  else 有留下的进程或读数未知，并且可以保留
+    P->>N: 同步占一个预留（首个异步等待之前）
+    P->>K: plan(键)
+    K-->>P: recorded
+    alt 提交前复核不成立
+      P->>N: 作废预留
+      Note over P: 归本次获取。停止执行域，residue = stopping（closed）
+      P->>A: stopped(键, confirmed 或 unconfirmed)
+    else 复核成立
+      P->>K: adopt(键)
+      Note over K,A: 一次耐久提交：保留进程账本接受这个键，获取账本结束对这个键的责任
+      alt 答 confirmed，执行域仍待处置
+        P->>N: 写入耐久索引，状态运行中
+        Note over P: 归保留范围，residue = retained
+      else 答 confirmed，执行域在等待期间已被打断
+        P->>N: 写入耐久索引，状态停止中
+        Note over P: 归保留范围，提供者停止它，residue = stopping（closed）
+        P->>K: stopped(键, confirmed 或 unconfirmed)，只记一次
+      else 答 closed
+        P->>N: 作废预留
+        Note over P: 归本次获取。停止执行域，residue = stopping（closed）
+        P->>A: stopped(键, confirmed 或 unconfirmed)
+      else 读不到（抛出、超时或 unavailable）
+        Note over P: residue = unknown。预留保留，归属未知，不记账
+        loop 查清之前
+          P->>K: adopt(同一个键)
+        end
+        Note over P: 答 confirmed 时归保留范围，答 closed 时按 closed 一支停止
+      end
+    end
+  end
+  Note over P: 处置完成之后交出 result。停止的确认不推迟 result，stopped 可以在 result 之后记
+```
+
+| 环节 | 结果 | 失败与责任交接 |
+| --- | --- | --- |
+| 读数 | 退出帧带监督者对执行域成员的读数 | 读数未知时按有留下的进程处理，不当作执行域已空 |
+| 只剩监督进程 | 执行域归本次获取。提供者停止它，`residue` 是 `none` | 停止记入获取账本。`none` 不表示已经确认停止 |
+| 不能保留 | 执行域归本次获取。提供者停止它，`residue` 是 `stopping`，原因写出不成立的那一项 | 停止记入获取账本。停止的确认不推迟结局 |
+| 预留 | 提供者先在保留进程索引里同步占一个预留，再在保留进程账本 `plan`。预留占该保留范围的一个名额 | 名额已满时不预留，处置走停止，原因 `capacity`。满额不停止已经保留的进程 |
+| 提交前复核 | 复核保留范围仍未封闭，执行域仍待处置 | 任一项不成立时，提供者作废索引里的预留，执行域归本次获取并被停止，`residue` 是 `stopping`（`closed`）。保留进程账本里那条 `plan` 留作没有提交的计划项 |
+| `adopt` 答 `confirmed` | 执行域归保留范围。提供者把它写入耐久索引，`residue` 是 `retained`，带保留进程引用与进程数或「未知」 | 获取账本对这个键的责任在同一个提交里结束，之后获取账本不为它记 `stopped`。写入耐久索引之前提供者崩溃时，见 SPEC [保留进程的恢复](../SPEC.md#保留进程的恢复)的已知限制 |
+| `adopt` 确认时执行域已被打断 | 执行域仍归保留范围，作为停止中的项进耐久索引，占名额。提供者停止它，`residue` 是 `stopping`（`closed`） | 停止只记一次，记入保留进程账本，不记入获取账本 |
+| `adopt` 答 `closed` | 执行域归本次获取。提供者作废索引里的预留并停止执行域，`residue` 是 `stopping`（`closed`） | 停止记入获取账本。保留进程账本里那条 `plan` 留作没有提交的计划项 |
+| `adopt` 读不到 | `residue` 是 `unknown`。预留保留，归属未知 | 提供者用同一个键再 `adopt` 查询。查清之前，本次获取不结清，也不停止这个执行域，执行域不被重复移交，两份账本都不记 `stopped` |
 
 ## 失败与生命周期
 
