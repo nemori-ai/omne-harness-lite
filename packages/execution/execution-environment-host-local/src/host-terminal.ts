@@ -41,7 +41,11 @@ import { createTerminalReader, type TerminalFrame } from './terminal-control.ts'
 import { createTerminalOutput, type TerminalOutput } from './terminal-output.ts'
 import type { RetainedTerminalBackend, RetainedTerminalFactory } from './host-retained-terminals.ts'
 
-export type HostTerminalOptions = HostCommandOptions &
+/** The terminal's bounds: the command bounds without the options about processes a command leaves behind. */
+export type HostTerminalOptions = Omit<
+  HostCommandOptions,
+  'residuePolicy' | 'retainedPerScope' | 'retainedPollMs'
+> &
   Readonly<{
     /** Maximum bytes of one private control frame, including script and environment. Initial 1 MiB. */
     maxControlBytes?: number
