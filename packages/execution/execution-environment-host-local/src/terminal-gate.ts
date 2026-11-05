@@ -1,16 +1,9 @@
 import { execFileSync } from 'node:child_process'
-import {
-  closeSync,
-  constants,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  readSync,
-  writeSync,
-} from 'node:fs'
+import { closeSync, constants, mkdirSync, openSync, readSync, writeSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { Socket } from 'node:net'
 import { join } from 'node:path'
+import { ownUnitPlacement, scopeMembers } from './scope-cgroup.ts'
 
 type Initial = {
   generation: string
@@ -101,23 +94,14 @@ function writeAvailable(fd: number, bytes: Buffer): Buffer {
 }
 
 function inOwnScope(): boolean {
-  return readFileSync('/proc/self/cgroup', 'utf8')
-    .split('\n')
-    .some(line => line.startsWith('0::') && line.split('/').at(-1) === unit)
+  return ownUnitPlacement(unit).kind === 'inUnit'
 }
 
 function noOtherWriters(): boolean {
   if (pty === undefined) return false
-  const path = readFileSync('/proc/self/cgroup', 'utf8')
-    .split('\n')
-    .find(line => line.startsWith('0::'))
-    ?.slice(3)
-  if (path === undefined || !path.endsWith(`/${unit}`)) return false
-  const members = readFileSync(`/sys/fs/cgroup${path}/cgroup.procs`, 'utf8')
-    .trim()
-    .split('\n')
-    .filter(Boolean)
-    .map(Number)
+  const placement = ownUnitPlacement(unit)
+  const members = placement.kind === 'inUnit' ? scopeMembers(placement.directory) : undefined
+  if (members === undefined) return false
   return (
     members.includes(process.pid) &&
     members.includes(pty.pid) &&
