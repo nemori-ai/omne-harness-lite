@@ -8,14 +8,14 @@ MCP 组的本机宿主成员：契约 `McpTransportFactory` 与 `McpTransport` �
 
 本包把 [`@omne-harness/mcp-contract`](../mcp-contract/README_ZH.md) 的传输端口兑现在真实的进程管道与 HTTP 连接上。调用方是 [`@omne-harness/mcp`](../mcp/README_ZH.md)：它经 `McpTransportFactory.open(material, signal)` 取得传输，再调用 `discover`、`listActions`、`call`、任务操作、`cancelRequest` 与 `close`。本包不起进程、不停进程、不读设置、不取凭据：进程由落点交来，凭据句柄由调用方放在材料里。
 
-| 范围                                                                                         | 状态                                                                                                                         |
-| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| stdio 传输：按行读写、读不懂的行丢弃、行字节上界、退出窗口、stderr 读出丢弃、T5 的关闭次序   | 已实现，在脚本化对端、SDK 对端与 `server-everything` 上验证                                                                  |
-| Streamable HTTP 传输：JSON 与 SSE 应答、不跟随重定向、再发规则、授权发现、旧修订的会话与 S07 | 已实现，在脚本化对端、SDK bearer 网关、SDK 2025 会话与 `server-everything` 上验证                                            |
-| 旧 HTTP+SSE 回退：GET 流 + endpoint，作为 HTTP 线路的一种模式                                | 已实现，在脚本化对端与 `server-everything sse` 上验证                                                                        |
-| 契约传输套件 `mcpTransportConformance()`                                                     | 两种材料各跑一遍：stdio 优先 97 过 / 1 不适用、HTTP 优先 96 过 / 2 不适用、0 失败；不适用的理由在 [SPEC](SPEC.md#组合与验证) |
-| 远程对端、TLS、代理、真实网络失败；与 `@omne-harness/mcp` 的真实组合                         | 未验证；归 `w3-mcp-e2e` 与集成任务                                                                                           |
-| 技术接受                                                                                     | 尚未取得；本包是候选实现                                                                                                     |
+| 范围                                                                                         | 状态                                                                                          |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| stdio 传输：按行读写、读不懂的行丢弃、行字节上界、退出窗口、stderr 读出丢弃、T5 的关闭次序   | 已实现，在脚本化对端、SDK 对端与 `server-everything` 上验证                                   |
+| Streamable HTTP 传输：JSON 与 SSE 应答、不跟随重定向、再发规则、授权发现、旧修订的会话与 S07 | 已实现，在脚本化对端、SDK bearer 网关、SDK 2025 会话与 `server-everything` 上验证             |
+| 旧 HTTP+SSE 回退：GET 流 + endpoint，作为 HTTP 线路的一种模式                                | 已实现，在脚本化对端与 `server-everything sse` 上验证                                         |
+| 契约传输套件 `mcpTransportConformance()`                                                     | 两种材料各跑一遍；通过、不适用与失败分开计数，不适用的用例与理由在 [SPEC](SPEC.md#组合与验证) |
+| 远程对端、TLS、代理、真实网络失败；与 `@omne-harness/mcp` 的真实组合                         | 未验证；归 `w3-mcp-e2e` 与集成任务                                                            |
+| 技术接受                                                                                     | 尚未取得；本包是候选实现                                                                      |
 
 ## 使用
 
@@ -40,11 +40,11 @@ await transport.close() // 关闭传输；进程由它的持有者停止
 
 ## 契约
 
-公开类型在 [src/index.ts](src/index.ts)（`createLocalTransportFactory`、`LocalTransportOptions`）；端口类型是契约的 `@omne-harness/mcp-contract/provider`，本包不导出 SDK 的类型。类型以外的行为由 [SPEC.md](SPEC.md) 拥有：它写明本包兑现契约的哪些条款、本包自己的决定（H1–H13）、与官方 SDK 的复用关系，以及与协议的偏离。选项不合法时 `createLocalTransportFactory` 抛出 `RangeError`；传输方法以 `Outcome` 答复，不 reject。错误、生命周期与资源的拥有者见 SPEC「所有权、失败与生命周期」。
+公开类型在 [src/index.ts](src/index.ts)（`createLocalTransportFactory`、`LocalTransportOptions`）；端口类型是契约的 `@omne-harness/mcp-contract/provider`，本包不导出 SDK 的类型。类型以外的行为由 [SPEC.md](SPEC.md) 拥有：它写明本包兑现契约的哪些条款、本包自定的事项、说明怎样兑现的 H 条目、与官方 SDK 的复用关系，以及与协议和契约的偏离。选项不合法时 `createLocalTransportFactory` 抛出 `RangeError`；传输方法以 `Outcome` 答复，不 reject。错误、生命周期与资源的拥有者见 SPEC「所有权、失败与生命周期」。
 
 ## 设计
 
-一个与线路无关的协议会话（`src/session.ts`）加两条线路（`src/stdio-line.ts`、`src/http-line.ts`）。线路只搬字节并报告线上发生了什么；会话把它翻成契约的线上事件，交给契约根导出的 `classifyWireEvent` 归类，再按契约 T8 的行得出结论。请求的组成、页的剔除、授权发现与应答的读法都调用契约根导出的函数。模块与机制见 [docs/architecture.md](docs/architecture.md)，流程见 [docs/flows.md](docs/flows.md)，对象见 [docs/object-model.md](docs/object-model.md)。
+一个与线路无关的协议会话（`src/session.ts`）加两条线路（`src/stdio-line.ts`、`src/http-line.ts`）。线路只搬字节并报告线上发生了什么；会话把它翻成契约的线上事件，交给契约根导出的 `classifyWireEvent` 归类，再从契约的决策层取得 T8 行的结论。请求的组成、页的剔除、授权发现、应答的读法与出站消息的文本都调用契约根导出的函数。模块与机制见 [docs/architecture.md](docs/architecture.md)，流程见 [docs/flows.md](docs/flows.md)，对象见 [docs/object-model.md](docs/object-model.md)。
 
 ## 配置与运行
 
@@ -54,15 +54,15 @@ await transport.close() // 关闭传输；进程由它的持有者停止
 
 ```sh
 pnpm turbo run build typecheck test --filter=@omne-harness/mcp-host-local
-pnpm exec vitest run --mode fast                                   # public-entry、session（内存线路）
+pnpm exec vitest run --mode fast                                   # public-entry、session、lines（内存线路）
 pnpm exec vitest run --mode slow --typecheck.enabled=false         # conformance、stdio、http（起子进程与本机端口）
 ```
 
-慢层起子进程与本机 HTTP 服务端（随机端口 20000–59999），每个用例结束时核对没有遗留。性质、前提与未覆盖见 [SPEC「组合与验证」](SPEC.md#组合与验证)。测试通过不等于技术接受。
+慢层起子进程与本机 HTTP 服务端（随机端口 20000–59999），每个用例结束时核对没有遗留。SPEC 的 SDK 复用表依据的探针在 [verification/sdk](verification/sdk/README.md)。性质、前提与未覆盖见 [SPEC「组合与验证」](SPEC.md#组合与验证)。测试通过不等于技术接受。
 
 ## 维护
 
-契约 T1–T9、R4 或 `classifyWireEvent` 一变，`src/session.ts` 随之变；`TRANSPORT_TABLE` 加行时 `tests/session.spec.ts` 自动覆盖。线路端口 `src/line.ts` 是内部类型，改它要同步两条线路与内存线路替身。SDK 升级时重核 SPEC「与 SDK 的复用关系」的 `文件:行` 与 B 层夹具的 API。消费者：`@omne-harness/mcp`（经契约端口）、组设计。
+T8 的结论来自契约的决策层；契约 T3、T5 或 T9 改变请求的发出、取消或关闭方式时，`src/session.ts` 随之变。`TRANSPORT_TABLE` 加行时 `tests/session.spec.ts` 自动覆盖。线路端口 `src/line.ts` 是内部类型，改它要同步两条线路与内存线路替身。SDK 升级时重跑 `verification/sdk/` 的探针，重核 SPEC「与 SDK 的复用关系」的 `文件:行`，并核对 B 层夹具的 API。消费者：`@omne-harness/mcp`（经契约端口）、组设计。
 
 ## 目录结构与文档职责
 
@@ -81,7 +81,7 @@ docs/                     内部设计、公开使用与集成说明
 src/                      公开定义、运行时校验与内部实现
 tests/                    持续测试；fixtures/ 存放对端夹具
 schema/                   对外 Schema（本包没有）
-verification/             models/ 与 proofs/（本包没有）
+verification/             持续验证资源；sdk/ 存放 SDK 探针
 adr/                      有持续消费者的实现取舍（本包没有）
 examples/                 面向公开入口的示例（本包没有）
 resources/                运行所需的非源码资源（本包没有）

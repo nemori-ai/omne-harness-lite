@@ -12,11 +12,11 @@
 
 ## 定义索引
 
-| 定义                          | 源码                            | 输入与输出                                                                         | 失败行为                                                         |
-| ----------------------------- | ------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `createLocalTransportFactory` | [factory.ts](../src/factory.ts) | `LocalTransportOptions` → 契约的 `McpTransportFactory`                             | 选项不合法抛 `RangeError`（[options.ts](../src/options.ts)）     |
-| `LocalTransportOptions`       | [options.ts](../src/options.ts) | `clientInfo`、`probeTimeoutMs`、`fetch?`                                           | —                                                                |
-| `McpTransportFactory.open`    | [factory.ts](../src/factory.ts) | 契约的 `TransportMaterial` 与 `signal` → `Outcome<McpTransport, TransportFailure>` | SPEC [H3](../SPEC.md#h3)：`signal` 已中止答 `not-sent`，不发请求 |
-| `McpTransport` 的各方法       | [session.ts](../src/session.ts) | 契约 T1–T9 的输入与结局                                                            | 契约 T8 的行；本包的决定 SPEC [H1–H13](../SPEC.md#结果与不变量)  |
+| 定义                          | 源码                            | 输入与输出                                                                         | 失败行为                                                                  |
+| ----------------------------- | ------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `createLocalTransportFactory` | [factory.ts](../src/factory.ts) | `LocalTransportOptions` → 契约的 `McpTransportFactory`                             | 选项不合法抛 `RangeError`（[options.ts](../src/options.ts)）              |
+| `LocalTransportOptions`       | [options.ts](../src/options.ts) | `clientInfo`、`probeTimeoutMs`、`fetch?`                                           | —                                                                         |
+| `McpTransportFactory.open`    | [factory.ts](../src/factory.ts) | 契约的 `TransportMaterial` 与 `signal` → `Outcome<McpTransport, TransportFailure>` | SPEC [H3](../SPEC.md#h3)：`signal` 已中止答 `not-sent`，不发请求          |
+| `McpTransport` 的各方法       | [session.ts](../src/session.ts) | 契约 T1–T9 的输入与结局                                                            | 契约 T8 的行；本包怎样兑现见 SPEC [结果与不变量](../SPEC.md#结果与不变量) |
 
-内部模块（不是公开面）：[line.ts](../src/line.ts) 的线路端口、[stdio-line.ts](../src/stdio-line.ts)、[http-line.ts](../src/http-line.ts)、[authorization.ts](../src/authorization.ts)、[message.ts](../src/message.ts)、[limits.ts](../src/limits.ts)、[queue.ts](../src/queue.ts)。
+内部模块（不是公开面）：[line.ts](../src/line.ts) 的线路端口、[stdio-line.ts](../src/stdio-line.ts)、[http-line.ts](../src/http-line.ts)、[authorization.ts](../src/authorization.ts)、[body.ts](../src/body.ts)、[limits.ts](../src/limits.ts)、[queue.ts](../src/queue.ts)。会话的计时端口 `Scheduler` 与 `SessionOptions` 在 [session.ts](../src/session.ts)，是内部类型，不经公开根导出。

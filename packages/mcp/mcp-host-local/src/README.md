@@ -16,4 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：只有
 
 ## 本包事实
 
-十个模块，见 [index.md](index.md)。负责人：本成员的维护者。当前缺口：`package.json` 声明的 `@modelcontextprotocol/client` 只被 `tests/public-entry.spec.ts` 的对照断言使用，产品源码不用它；它该不该留在 `dependencies` 由依赖的写入负责人决定。
+模块见 [index.md](index.md)。负责人：本成员的维护者。`@modelcontextprotocol/client` 在 `package.json` 的 `devDependencies` 里，只给测试与 `verification/sdk/` 的探针用；产品源码不导入它。
