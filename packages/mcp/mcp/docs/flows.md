@@ -59,7 +59,7 @@ sequenceDiagram
 
 关闭（`connections.release` 与 `closeAll`，SPEC MC-10）：一个键同时只有一次关闭：拒新请求（`Connection.close()`）→ 等在途的建连结束 → `transport.close()` → `process.stop()`（自己的与上次未确认停止的，每个都问）→ 释放凭据句柄 → 报告确认范围。端口违约不跳过后一步，也不跳过其余进程（SPEC MC-14）。拆除（后三步）是条目唯一的，`lose` 与准备失败先同步转 `lost` 再走同一个拆除；拆除途中的关闭等它完成，`ensure` 至多等到自己的临界区时限。
 
-关停（`closeAll`）：置已关停 → 同步发起全部在途落点句柄的释放（已交来进程的落点除外） → 并发关闭各条目 → 等全部拆除与释放结束 → 任务作用域记下了本包的错误时以 `AggregateError` 抛出，否则报告每条连接的确认范围。之后本实例不再建连（S8）：`refresh` 答 `connection-unavailable`，`invoke` 答「未发出：`connection-unavailable`」，任务操作答 `effect-unknown`（`no-connection`）（SPEC [MC-16](../SPEC.md#mc-16)、[MC-17](../SPEC.md#mc-17)）。
+关停（`closeAll`）：置已关停 → 同步发起全部在途落点句柄的释放（已交来进程的落点除外） → 并发关闭各条目 → 等全部拆除与释放结束 → 任务作用域记下了本包的错误时以 `AggregateError` 抛出，否则报告每条连接的确认范围。之后本实例不再建连（S8）：`refresh` 答 `connection-unavailable`，`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」，任务操作答 `effect-unknown`（`no-connection`）（SPEC [MC-16](../SPEC.md#mc-16)、[MC-17](../SPEC.md#mc-17)）。
 
 调用（`invoker.invoke`，SPEC [MC-16](../SPEC.md#mc-16)；`continueWithInput` 相同，另核代际）：
 
