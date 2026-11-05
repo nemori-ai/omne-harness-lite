@@ -15,7 +15,8 @@ Files 与 Shell 用 `wrapped` 编码登记，对模型各是一个工具（D-94�
 - 每个工具的规则作为定义的 `guide` 登记。help 用 `name` 选一个命令，`name` 的取值限于命令名。help 的答复是首行 `done <工具> help[ <命令>]`，后接 tool-contract 的 `commandGuide`：带 `name` 时是该命令的完整 guide，不带时是工具的 guide。出错的调用读到的是同一段文本。命令没有名为 `command` 的字段，所以 `flat` 编码对这两个工具也成立。
 - 参数无效时，命令编解码器只答原因，例如 `invalid-field:mode`。该命令的 guide 由工具宿主附上（D-104）。未知的 help 主题也由参数解析拒绝，不作为成功结果返回。执行表缺少某个命令是缺陷，抛出错误。
 - Files 的 write 接受 `parents`：为真时先以 `mkdir {parents: true}` 建出缺失的父目录。目录已存在时设施答 `conflict`，写入照常进行，其他失败原样返回。它与 mkdir 走同一放置与授权检查。
-- Shell 的 info 除平台事实外，写出一次性脚本的调用 `shell=[可执行文件, …参数前缀]` 与起始目录 `cwd`（D-96 的放置部分）。
+- Shell 的 info 除平台事实外，写出一次性脚本的调用 `shell=[可执行文件, …参数前缀]` 与起始目录 `cwd`（D-96 的放置部分）。之后是终端列表，再之后是保留进程：每个保留进程一行 `retained_process=<引用> state=<running|stopping> processes=<数|unknown> origin=<原调用> handed_over_at=<ISO 8601 UTC>`。列表为空时写 `retained_processes=none`。环境没有命令保留扩展时写 `retained_processes=unavailable`；`list` 没有答 `done` 时写 `retained_processes=unavailable reason=<原因>`。读不到不写成 `none`。info 不写保留进程的上界：契约的 `list` 不带上界，满额时一次性执行的 `residue` 行写原因 `capacity`。
+- Shell 的 guide 写明进程寿命的四条规则：一次性执行留在后台的进程（例如 `cmd &`）在调用返回后作为保留进程继续运行，info 列出它们，它们在自己退出或执行环境关闭其保留范围时结束，不能保留时被停止，`residue` 行写明原因；`run_in_background` 现在不支持，一次性执行一直等到主进程退出、输出安静；终端里的后台任务随终端存在，`close_session` 停止终端里的全部进程；要长期运行、不受本工具管理的服务交给宿主自己的服务管理器，那是命令自己的外部效果。guide 不说「会话结束时停止」：会话结束是否关闭保留范围由装配决定，本机部署现在不关闭。
 
 ### 精确编辑与批次
 
@@ -44,7 +45,7 @@ list 使用 FileEntry.name，不解析对象令牌。任一条目缺少有效名
 
 ### Shell 路由与控制
 
-没有 terminal 参数时，execute 调用 command.start，使用显式配置的可执行文件、参数前缀、初始 cwd 与 env。create_session 声明 Session 保留；带 terminal 的 execute 与 close_session 先由本次获取 attach，再调用对应设施。缺保留或附着能力时明确 unsupported，不创建替代终端，也不回退为一次性执行。terminal 的持续状态归提供者，作者不保存会话表。单次 cwd 与 env 覆盖只转发到本次调用。
+没有 terminal 参数时，execute 调用 command.start，使用显式配置的可执行文件、参数前缀、初始 cwd 与 env。结局 `completed` 带处置报告时，结局行之后写一行：`residue=none`、`residue=retained process=<引用> processes=<数|unknown>`、`residue=stopping reason=<原因>` 或 `residue=unknown`。`stopping` 不写成已停，`unknown` 不写成 `none`。结局没有处置报告（终端段、不做处置的提供者、`failed`）时没有这一行。处置的含义归[执行环境契约的「一次性命令留下的进程」](../../execution/execution-environment-contract/SPEC.md#一次性命令留下的进程未实现)。create_session 声明 Session 保留；带 terminal 的 execute 与 close_session 先由本次获取 attach，再调用对应设施。缺保留或附着能力时明确 unsupported，不创建替代终端，也不回退为一次性执行。terminal 的持续状态归提供者，作者不保存会话表。单次 cwd 与 env 覆盖只转发到本次调用。
 
 Windows terminal 的 completed 表示前台段结束，不证明持久 shell 退出或业务成功。输出按观察窗口归属，前台已写未读字节也可能出现在后窗；空脚本不保证排空；close 可释放尚未交付的空闲缓冲。help 说明这些限制，未知退出码不显示为成功，未交付字节不显示为已交付。
 
