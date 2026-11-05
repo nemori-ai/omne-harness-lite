@@ -214,11 +214,13 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 | 门一侧的暂停与恢复 | 门把命令的字节按单块上限切块并编码成帧。帧管道的写端返回 false 时，门暂停读命令的两条管道，`drain` 之后恢复。所以管理端读得慢时，命令被阻塞在自己的输出管道上，门的内存不随输出增长，字节也不丢                                                                                                             |
 | 帧的读取           | 管理端按行读帧，每行有上界（单块上限的 base64 长度加固定余量）。帧的次序固定：就绪，然后起来或映像失败，然后数据，最后一个退出。超长、非 JSON、未知帧、次序不对、超过单块上限，都使资源失效并强制停止                                                                                                       |
 | 有界缓冲           | 管理端立刻读帧，两条流共用一个缓冲。放不下的块整块丢弃并计数，下一块的 `observedOffset` 写出缺口。只有一个读者，读者放弃后全部计入丢弃                                                                                                                                                                      |
-| 结局               | 门在主进程退出后等两条管道关闭，或者等输出安静 100 毫秒，再发退出帧。命令留在后台的进程可能占着管道，所以不能只等管道关闭。只有收到退出帧才是 `completed`，其余是 `failed`（`effectUnknown`）。不写回执文件，也没有身份目录                                                                                 |
+| 结局               | 门在主进程退出后等两条管道关闭，或者等输出安静 100 毫秒，再发退出帧。命令留在后台的进程可能占着管道，所以不能只等管道关闭。退出帧带门从 `cgroup.procs` 读出的门以外的进程数。只有收到退出帧才是 `completed`，其余是 `failed`（`effectUnknown`）。不写回执文件，也没有身份目录                                                                                 |
 | 停止与确认         | 强制停止：`systemctl --user kill --kill-whom=all --signal=SIGKILL`，再 `stop`（退出码 5 按已不在），等门进程退出，最后用 `systemctl --user show -p LoadState -p ActiveState` 读到 `inactive` 或 `not-found` 才报 `confirmed`，上界内会再读。平和停止只把 `SIGTERM` 发给主进程，超时报 `unconfirmed`，不升级 |
 | 超时               | 启动、平和停止与强制停止都有上界。启动超时答 `unknown`，资源留在这份获取，由释放、结清或退役停止                                                                                                                                                                                                            |
 | 平台前提           | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 探测单元里的程序看得到 cgroup v2 统一层级、P6 同一个探测单元里的程序被自己单元的目录列出，单元的强制停止得到确认。探测程序是 `scope-probe.ts`，看不到统一层级时以 3 退出。提供者创建时在后台探测。不满足时启动答 `unavailable`，`files` 照常可用。不用猜测的进程号或假后端顶替                                                                                                               |
-| 冷恢复             | 列举用 `systemctl --user show -p Id -p Description 'omne-host-*.scope'` 读各单元的 key=value 块，选出描述属于这个作用域的单元。读不懂的块、缺属性的块与别的单元名使整个列举答 `unavailable`。恢复只接受本提供者写下的单元名。启动身份变了直接视为已停止，否则按强制停止序列停止并核对。它不重启命令，也不接回输出                                                                                                                           |
+| 处置与移交         | 退出帧之后门留在单元里读管道并丢弃字节。管理端按 SPEC 的次序处置：停止单元，或在保留进程索引里占名额、在保留进程账本 `plan` 与 `adopt` 之后移交保留范围。移交生效时归属同步改变，管理端给门发 `retain` 并关闭通道。`adopt` 结果未知时归属记为未知，停止与排空先再问 `adopt` |
+| 保留进程索引       | `host-retained-processes.ts`，一个状态目录一个，各代共用。标记文件 `<stateDirectory>/retained-processes/<资源键>.json` 是重启后的依据。按保留范围计名额。按 `retainedPollMs` 读单元的 `cgroup.procs`，门以外没有进程时停止、记 `stopped`、删标记。保留范围封闭时停止它的全部保留进程 |
+| 冷恢复             | 列举用 `systemctl --user show -p Id -p Description 'omne-host-*.scope'` 读各单元的 key=value 块，选出描述属于这个作用域的单元。读不懂的块、缺属性的块与别的单元名使整个列举答 `unavailable`。列举另带保留进程索引里这个作用域的单元，标记文件读不全时答 `unavailable`。恢复只接受本提供者写下的单元名。启动身份变了直接视为已停止，否则按强制停止序列停止并核对。它不重启命令，也不接回输出                                                                                                                           |
 
 理由：
 
@@ -254,14 +256,19 @@ sequenceDiagram
     M->>M: 有界缓冲，放不下的块丢弃并计数
   end
   T-->>G: 主进程退出
-  G-->>M: exit 帧
-  M->>S: kill（SIGKILL）与 stop
-  M->>S: systemctl --user show
-  S-->>M: inactive 或 not-found
-  M->>R: stopped(坐标, confirmed)
+  G-->>M: exit 帧（带门以外的进程数）
+  alt 处置为停止
+    M->>S: kill（SIGKILL）与 stop
+    M->>S: systemctl --user show
+    S-->>M: inactive 或 not-found
+    M->>R: stopped(坐标, confirmed)
+  else 处置为移交
+    M->>G: retain，关闭通道
+    Note over M,G: 单元归保留范围，由保留进程索引读成员、停止与记账
+  end
 ```
 
-退出帧之后一律强制停止单元是现行行为，将被[留下的进程与终端字节归属的兑现](../SPEC.md#留下的进程的兑现)取代。
+处置的次序与各项原因见 [SPEC 一次性命令留下的进程的兑现](../SPEC.md#留下的进程的兑现)。
 
 ## 持久终端机制
 
