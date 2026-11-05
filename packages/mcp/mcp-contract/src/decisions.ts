@@ -182,6 +182,14 @@ function exchangeConclusionOf(
       )
     case 'process-exited':
       return settle({ kind: 'no-answer', cause: 'process-exited', resend: false }, 'process-exited')
+    default:
+      return httpStatusConclusionOf(answer)
+  }
+}
+
+/** The HTTP status rows that read no message: S05, S06, S07 (the rest return undefined). */
+function httpStatusConclusionOf(answer: AnswerClass): AnswerConclusion | undefined {
+  switch (answer) {
     case 'http:401':
     case 'http:403+scope':
       return AUTHORIZATION_REQUIRED

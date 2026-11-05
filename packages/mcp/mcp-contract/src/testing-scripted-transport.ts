@@ -224,22 +224,8 @@ function eventOf(reply: PeerReply, id: string, stdio: boolean): WireEvent | unde
       return stdio ? { kind: 'stdio-ended', stdoutEndedAt: 0 } : { kind: 'http-aborted' }
     case 'process-exits':
       return { kind: 'stdio-ended', stdoutEndedAt: 0, exitedAt: 0 }
-    case 'http': {
-      if (reply.status < 200)
-        throw new TypeError(`script: an http ${reply.status} reply is not observable`)
-      if (reply.status < 300)
-        return {
-          kind: 'http-stream',
-          messages: reply.body === undefined ? [] : [reply.body],
-          ended: true,
-        }
-      return {
-        kind: 'http-status',
-        status: reply.status,
-        headers: lowerCased(reply.headers),
-        body: reply.body ?? '',
-      }
-    }
+    case 'http':
+      return httpEventOf(reply)
     case 'silent':
     case 'unsent':
       return undefined
@@ -247,6 +233,24 @@ function eventOf(reply: PeerReply, id: string, stdio: boolean): WireEvent | unde
       const exhaustive: never = reply
       return exhaustive
     }
+  }
+}
+
+/** The wire event of an HTTP reply: a 2xx body stream, or an error status with its body. */
+function httpEventOf(reply: Extract<PeerReply, { kind: 'http' }>): WireEvent {
+  if (reply.status < 200)
+    throw new TypeError(`script: an http ${reply.status} reply is not observable`)
+  if (reply.status < 300)
+    return {
+      kind: 'http-stream',
+      messages: reply.body === undefined ? [] : [reply.body],
+      ended: true,
+    }
+  return {
+    kind: 'http-status',
+    status: reply.status,
+    headers: lowerCased(reply.headers),
+    body: reply.body ?? '',
   }
 }
 
