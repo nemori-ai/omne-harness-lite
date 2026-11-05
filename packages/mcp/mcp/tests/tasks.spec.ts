@@ -3,7 +3,7 @@
 // one needs the gate's `granted` and the same peer account; the transport's answers are reported
 // as S2 says; after `closeAll` the initiator check comes first.
 import { describe, expect, it } from 'vitest'
-import type { DefinitionDigest, TaskRef } from '@omne-harness/mcp-contract'
+import type { DefinitionDigest, McpPorts, TaskRef } from '@omne-harness/mcp-contract'
 import {
   actionNameOf,
   correlationKeyOf,
@@ -16,11 +16,18 @@ import {
   type PlainJson,
   type TaskScript,
 } from '@omne-harness/mcp-contract/testing'
+import type { TableRuntime } from '../src/internal/table.ts'
 import { manualBounds } from './doubles/bounds.ts'
+import { only } from './doubles/calls.ts'
 import { settled } from './doubles/deferred.ts'
-import { alice, aliceAway, bob, mallory } from './doubles/identities.ts'
+import { alice, aliceAway, bob, mallory, type Principal } from './doubles/identities.ts'
 import { listing, peer, services, taskHandle, taskStatus, text, type Peer } from './doubles/peer.ts'
-import { MAIN, adoptStdio, storedRecord } from './doubles/world.ts'
+import { stallingLanding } from './doubles/stalls.ts'
+import { reshapedTransports } from './doubles/transports.ts'
+import { MAIN, adoptHttp, adoptStdio, storedRecord } from './doubles/world.ts'
+
+/** What a case replaces in the peer's ports, and the table runtime it runs on. */
+type Shape = Readonly<{ ports?: Partial<McpPorts<Principal, string>>; runtime?: TableRuntime }>
 
 const files = endpointRefOf('files')
 const READ = actionNameOf('read')
@@ -42,6 +49,7 @@ async function started(
   t1: TaskScript = { get: WORKING },
   script: PeerScript = {},
   outputSchema?: PlainJson,
+  shape: (p: Peer) => Shape = () => ({}),
 ) {
   const p = peer({
     listing: {
@@ -52,7 +60,11 @@ async function started(
     ...script,
   })
   adoptStdio(p, files)
-  const { services: s, table } = services(p)
+  const shaped = shape(p)
+  const { services: s, table } = services(
+    { ...p, ports: { ...p.ports, ...shaped.ports } },
+    shaped.runtime,
+  )
   // The catalog comes from the peer's listing, so the task's action carries its output schema.
   expect(await s.discovery.refresh(alice, { ref: files })).toMatchObject({
     ok: { kind: 'published' },
@@ -345,5 +357,141 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     expect(await c.invoker.cancelTask(alice, task)).toEqual(NO_CONNECTION)
     expect(portCalls(c.p)).toEqual(asked)
     expect(c.p.opens()).toBe(1)
+  })
+})
+
+describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step 3)', () => {
+  const CONNECTION_UNAVAILABLE = { failure: { kind: 'connection-unavailable' } }
+
+  it('a discover without an answer on the new connection is connection-unavailable, not effect-unknown', async () => {
+    const c = await started(undefined, {}, undefined, p => ({
+      ports: {
+        transports: reshapedTransports(p.ports.transports, (_transport, opened) =>
+          opened === 2
+            ? { discover: async () => ({ failure: { kind: 'no-answer', cause: 'stream-broken' } }) }
+            : {},
+        ),
+      },
+    }))
+    await c.connections.release(alice, files)
+    expect(await c.invoker.queryTask(alice, task)).toEqual(CONNECTION_UNAVAILABLE)
+    expect(c.p.opens()).toBe(2)
+    expect(c.p.requests('tasks/get')).toHaveLength(0)
+  })
+
+  it('a build bound that fires first is connection-unavailable', async () => {
+    const bounds = manualBounds()
+    let stalled: ReturnType<typeof stallingLanding> | undefined
+    const c = await started(undefined, {}, undefined, p => {
+      stalled = stallingLanding(p.landing, only(2))
+      return { ports: { landing: stalled.port }, runtime: bounds.runtime }
+    })
+    if (stalled === undefined) throw new Error('not shaped')
+    await c.connections.release(alice, files)
+    const query = c.invoker.queryTask(alice, task)
+    await settled()
+    expect(stalled.calls()).toBe(2)
+    bounds.fire('build', 1)
+    expect(await query).toEqual(CONNECTION_UNAVAILABLE)
+    stalled.gate.resolve()
+    await settled()
+    expect(c.p.requests('tasks/get')).toHaveLength(0)
+  })
+
+  it('a shutdown under way while the connection is built is connection-unavailable', async () => {
+    let stalled: ReturnType<typeof stallingLanding> | undefined
+    const c = await started(undefined, {}, undefined, p => {
+      stalled = stallingLanding(p.landing, only(2))
+      return { ports: { landing: stalled.port } }
+    })
+    if (stalled === undefined) throw new Error('not shaped')
+    await c.connections.release(alice, files)
+    const query = c.invoker.queryTask(alice, task)
+    await settled()
+    expect(stalled.calls()).toBe(2)
+    const closing = c.connections.closeAll()
+    await settled()
+    stalled.gate.resolve()
+    expect(await query).toEqual(CONNECTION_UNAVAILABLE)
+    await closing
+    expect(c.p.requests('tasks/get')).toHaveLength(0)
+  })
+
+  it('a task request the transport could not send is the connection failure, and the connection is lost (S7)', async () => {
+    const c = await started({ get: { kind: 'unsent' } })
+    expect(await c.invoker.queryTask(alice, task)).toEqual(CONNECTION_UNAVAILABLE)
+    expect(await c.status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'lost', reason: 'stream-broken' } },
+    })
+    expect(c.p.requests('tasks/get')).toHaveLength(0)
+  })
+
+  it('a task request refused for authorization is authorization-required with the discovery, and the connection is lost', async () => {
+    const p = peer({
+      listing: { '': listing([{ name: 'read' }]) },
+      calls: { read: taskHandle('t1') },
+      tasks: {
+        t1: {
+          get: { kind: 'http', status: 401, headers: { 'www-authenticate': 'Bearer scope="a"' } },
+        },
+      },
+    })
+    adoptHttp(p, files)
+    const { services: s } = services(p)
+    expect(await s.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+    const current = await s.discovery.current(alice, files)
+    if (!('ok' in current) || current.ok.kind !== 'acquired') throw new Error('not acquired')
+    const digest = current.ok.actions[0]?.definitionDigest
+    if (digest === undefined) throw new Error('no digest')
+    await invokeTask(s.invoker, digest)
+    expect(await s.invoker.queryTask(alice, task)).toMatchObject({
+      failure: { kind: 'authorization-required', discovery: { scopes: ['a'] } },
+    })
+    expect(await s.status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'lost', reason: 'authorization-required' } },
+    })
+  })
+})
+
+describe('the task reference names the task it was issued as (SPEC S2, MC-17 step 1)', () => {
+  it('an issuedAt other than the recorded one is unknown: not this task, no port asked, no request', async () => {
+    const c = await started()
+    const asked = portCalls(c.p)
+    const other = { ...task, issuedAt: generationOf(2) }
+    expect(await c.invoker.queryTask(alice, other)).toStrictEqual(UNKNOWN)
+    expect(await c.invoker.taskResult(alice, other)).toStrictEqual(UNKNOWN)
+    expect(await c.invoker.provideTaskInput(alice, other, jsonOf({}))).toStrictEqual(UNKNOWN)
+    expect(await c.invoker.cancelTask(alice, other)).toStrictEqual(UNKNOWN)
+    expect(portCalls(c.p)).toEqual(asked)
+    expect(c.p.requests('tasks/get')).toHaveLength(0)
+    expect(await c.invoker.queryTask(alice, task)).toEqual({ ok: { status: 'working' } })
+  })
+})
+
+describe('the result of a finished task is classified outside the port call (SPEC O1, MC-15, MC-17 step 5)', () => {
+  it('a checkOutput that throws is absorbed: the result carries violates (output-check-failed), not effect-unknown', async () => {
+    const throwing = () => {
+      throw new Error('schema engine: unsupported keyword')
+    }
+    const c = await started(
+      {
+        get: taskStatus('t1', 'completed', {
+          result: { content: [text('ok')], structuredContent: { n: 1 } },
+        }),
+      },
+      {},
+      { type: 'object' },
+      () => ({ ports: { checkOutput: throwing } }),
+    )
+    expect(await c.invoker.taskResult(alice, task)).toMatchObject({
+      ok: {
+        kind: 'complete',
+        structured: jsonOf({ n: 1 }),
+        output: { kind: 'violates', reason: 'output-check-failed' },
+      },
+    })
+    expect(c.p.requests('tasks/get')).toHaveLength(1)
   })
 })

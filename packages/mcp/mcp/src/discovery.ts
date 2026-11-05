@@ -26,7 +26,7 @@ import {
 } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
 import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
-import { connectionFailureOf, lostOfNotSent, type NotSent } from './internal/lost.ts'
+import { connectionFailureOf, loseOn, lostOfNotSent, type NotSent } from './internal/lost.ts'
 import { ask, within } from './internal/port.ts'
 import { readAccountOf } from './internal/settings.ts'
 import type { CatalogMark, ConnectionTable, Ensured } from './internal/table.ts'
@@ -117,9 +117,7 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     ensured: Ensured,
     failure: NotSent,
   ): Promise<Outcome<RefreshResult, OperationFailure>> {
-    const { connection, generation } = ensured
-    const lost = lostOfNotSent(failure)
-    const catalog = await table.lose(connection, generation, lost.reason, lost.mark)
+    const catalog = await loseOn(table, ensured, lostOfNotSent(failure))
     return afterMarking(connectionFailureOf(failure), catalog)
   }
 

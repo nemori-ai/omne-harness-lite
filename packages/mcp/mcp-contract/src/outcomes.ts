@@ -45,6 +45,14 @@ export type OutputCheck =
   | Readonly<{ kind: 'no-schema' }>
 
 /**
+ * The two `violates` reasons the contract gives itself (O3). The action declares an output schema
+ * and the result carries no structured content: the validator is not called.
+ */
+export const STRUCTURED_CONTENT_MISSING = 'structured-content-missing'
+/** The validator threw instead of answering: no conclusion, so the output is not taken as conforming. */
+export const OUTPUT_CHECK_FAILED = 'output-check-failed'
+
+/**
  * Checks structured content against an output schema. The caller injects it: this member has
  * no JSON Schema validator. It is called only when the action declares an output schema and the
  * result carries structured content, and its answer is the output check of the outcome.

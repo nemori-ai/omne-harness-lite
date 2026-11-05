@@ -2,12 +2,14 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import { toContentBlocks } from './content.ts'
 import { isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
-import type {
-  CallOutcome,
-  OutputCheck,
-  OutputValidator,
-  PeerAnswer,
-  TaskHints,
+import {
+  OUTPUT_CHECK_FAILED,
+  STRUCTURED_CONTENT_MISSING,
+  type CallOutcome,
+  type OutputCheck,
+  type OutputValidator,
+  type PeerAnswer,
+  type TaskHints,
 } from './outcomes.ts'
 import { isRequestState, isTaskId, type Generation } from './brands.ts'
 
@@ -24,10 +26,19 @@ const INTEGER = /^-?\d+$/u
 
 const MALFORMED: CallOutcome = { kind: 'protocolError', fault: { kind: 'result-malformed' } }
 
+/**
+ * The output check of O3. The validator is the host's: one that throws gives no conclusion, and
+ * content without a conclusion is not taken as conforming (`output-check-failed`), so this
+ * function, and `classifyOutcome` with it, stays total (O1).
+ */
 function outputCheck(structured: JsonValue | undefined, context: ClassifyContext): OutputCheck {
   if (context.outputSchema === undefined) return { kind: 'no-schema' }
-  if (structured === undefined) return { kind: 'violates', reason: 'structured-content-missing' }
-  return context.checkOutput(structured, context.outputSchema)
+  if (structured === undefined) return { kind: 'violates', reason: STRUCTURED_CONTENT_MISSING }
+  try {
+    return context.checkOutput(structured, context.outputSchema)
+  } catch {
+    return { kind: 'violates', reason: OUTPUT_CHECK_FAILED }
+  }
 }
 
 /** `complete`, or `toolError` when `isError` is true. The content list is required. */
