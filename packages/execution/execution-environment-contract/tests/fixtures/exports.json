@@ -260,6 +260,16 @@
               "pending": false
             },
             {
+              "name": "CommandRetention",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CommandRetentionOperation",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "OutputChunk",
               "kind": "type",
               "pending": false
@@ -281,6 +291,26 @@
             },
             {
               "name": "ProcessHandle",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ResidueReport",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ResidueStopReason",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RetainedProcessInformation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RetainedProcessRef",
               "kind": "type",
               "pending": false
             },
@@ -346,6 +376,11 @@
             },
             {
               "name": "ResourceLedger",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RetainedProcessLedger",
               "kind": "type",
               "pending": false
             },

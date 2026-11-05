@@ -812,6 +812,30 @@ it('preserves access identity and refuses forged tenants before invoking any run
   }
 })
 
+it('accepts an optional retained-process ledger beside the retained terminal ledger and keeps its identity', async () => {
+  const { permit: _permit, ...processes } = ledger
+  const retention = { scope, ledger, processes }
+  const decoded = await contract.acquireParamsSchema['~standard'].validate([
+    access,
+    { ...input, retention },
+  ])
+  if (decoded.issues) throw new Error('retention with a process ledger refused')
+  expect(decoded.value[1].retention?.processes).toBe(processes)
+  const { adopt: _adopt, ...withoutAdopt } = processes
+  expect(
+    await contract.acquireParamsSchema['~standard'].validate([
+      access,
+      { ...input, retention: { ...retention, processes: withoutAdopt } },
+    ]),
+  ).toMatchObject({ issues: [{ path: [1, 'retention', 'processes'] }] })
+  expect(
+    await contract.acquireParamsSchema['~standard'].validate([
+      access,
+      { ...input, retention: { ...retention, processes: { ...processes, closed: {} } } },
+    ]),
+  ).toMatchObject({ issues: [{ path: [1, 'retention', 'processes'] }] })
+})
+
 it('exercises scripted provider lifecycle and the memory ledger close boundary', async () => {
   const decoded = await contract.acquireParamsSchema['~standard'].validate([access, input])
   if (decoded.issues) throw new Error('valid acquisition refused')

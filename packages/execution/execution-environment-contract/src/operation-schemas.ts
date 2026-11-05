@@ -33,6 +33,7 @@ import {
   isRecoveryAccess,
   type RecoveryAccess,
   type ResourceLedger,
+  type RetainedProcessLedger,
   type RetainedTerminalLedger,
   type FacilityGuard,
 } from './ports.ts'
@@ -302,7 +303,19 @@ function isRetainedLedger(value: unknown): value is RetainedTerminalLedger {
 }
 const retainedLedger: Decoder<RetainedTerminalLedger> = (value, path) =>
   isRetainedLedger(value) ? accept(value) : refuse(path, 'expected a retained terminal ledger')
-const retention = record({ scope: decodeScope, ledger: retainedLedger })
+function isProcessLedger(value: unknown): value is RetainedProcessLedger {
+  return (
+    isRecord(value) &&
+    value['closed'] instanceof AbortSignal &&
+    ['plan', 'adopt', 'stopped'].every(key => typeof value[key] === 'function')
+  )
+}
+const processLedger: Decoder<RetainedProcessLedger> = (value, path) =>
+  isProcessLedger(value) ? accept(value) : refuse(path, 'expected a retained process ledger')
+const retention = record(
+  { scope: decodeScope, ledger: retainedLedger },
+  { processes: processLedger },
+)
 function isGuard(value: unknown): value is FacilityGuard<unknown> {
   return isRecord(value) && typeof value['authorize'] === 'function'
 }

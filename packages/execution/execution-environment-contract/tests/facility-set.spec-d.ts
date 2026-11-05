@@ -1,12 +1,16 @@
 import { expectTypeOf, it } from 'vitest'
 import type {
   CommandFacility,
+  CommandRetentionOperation,
   EnvironmentLease,
   EnvironmentNeedDeclaration,
   FacilityKey,
   FacilityOperation,
   FacilitySet,
   FileSystemFacility,
+  ResourceLedger,
+  RetainedProcessLedger,
+  SessionTerminalRetention,
   TerminalFacility,
   TerminalRetentionOperation,
 } from '@omne-harness/execution-environment-contract'
@@ -26,6 +30,20 @@ it('accepts legacy four-operation terminals without attachment methods', () => {
   expectTypeOf<Legacy>().toExtend<TerminalFacility<unknown>>()
   expectTypeOf<undefined>().toExtend<TerminalFacility<unknown>['retention']>()
   expectTypeOf<TerminalRetentionOperation>().toEqualTypeOf<'attach' | 'detach'>()
+})
+
+it('keeps the command operation list and accepts commands without the retained-process extension', () => {
+  type Legacy = Pick<CommandFacility<unknown>, 'start'>
+  expectTypeOf<Legacy>().toExtend<CommandFacility<unknown>>()
+  expectTypeOf<undefined>().toExtend<CommandFacility<unknown>['retention']>()
+  expectTypeOf<CommandRetentionOperation>().toEqualTypeOf<'list'>()
+  expectTypeOf<FacilityOperation<'command'>>().toEqualTypeOf<'start'>()
+  expectTypeOf<RetainedProcessLedger>().toEqualTypeOf<
+    Pick<ResourceLedger, 'closed' | 'plan' | 'adopt' | 'stopped'>
+  >()
+  expectTypeOf<SessionTerminalRetention>().toExtend<{
+    readonly processes?: RetainedProcessLedger
+  }>()
 })
 
 it('keeps the complete four-operation consumer mapping and descriptor source compatible', () => {

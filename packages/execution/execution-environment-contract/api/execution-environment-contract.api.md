@@ -21,6 +21,8 @@
 - `BindingKind` · `binding.d.ts`
 - `CommandFacility` · `facilities/command.d.ts`
 - `CommandOutcome` · `facilities/command.d.ts`
+- `CommandRetention` · `facilities/command.d.ts`
+- `CommandRetentionOperation` · `facilities/command.d.ts`
 - `DecodeIssue` = `Issue` · `decode.d.ts`
 - `EnvironmentAction` · `environment.d.ts`
 - `EnvironmentAdoption` · `lease.d.ts`
@@ -100,8 +102,13 @@
 - `RejectReason` · `lease.d.ts`
 - `Rejected` · `lease.d.ts`
 - `RequirementRefusal` · `judge.d.ts`
+- `ResidueReport` · `facilities/command.d.ts`
+- `ResidueStopReason` · `facilities/command.d.ts`
 - `ResourceLedger` · `ports.d.ts`
 - `ResourceRecovery` · `environment.d.ts`
+- `RetainedProcessInformation` · `facilities/command.d.ts`
+- `RetainedProcessLedger` · `ports.d.ts`
+- `RetainedProcessRef` · `facilities/command.d.ts`
 - `RetainedTerminalLedger` · `ports.d.ts`
 - `Retirement` · `environment.d.ts`
 - `SessionTerminalRetention` · `ports.d.ts`
@@ -536,6 +543,7 @@ export interface ProviderRegistrations {
 
 ```ts
 import { type FacilityDescriptor, type FacilityRequest, type FacilityResult } from '../facility.ts';
+import type { OriginRef } from '../identity.ts';
 export type OutputChunk = {
     readonly stream: 'stdout' | 'stderr' | 'terminal';
     readonly data: Uint8Array;
@@ -563,6 +571,23 @@ export type OutputSummary = {
     readonly terminal: OutputCount;
     readonly between?: BetweenSegments;
 };
+export type RetainedProcessRef = {
+    readonly id: string;
+    readonly generation: string;
+};
+export type ResidueStopReason = 'policy' | 'unbound' | 'closed' | 'capacity' | 'uncontained';
+export type ResidueReport = {
+    readonly kind: 'none';
+} | {
+    readonly kind: 'retained';
+    readonly process: RetainedProcessRef;
+    readonly processes: number | 'unknown';
+} | {
+    readonly kind: 'stopping';
+    readonly reason: ResidueStopReason;
+} | {
+    readonly kind: 'unknown';
+};
 export type CommandOutcome = {
     readonly kind: 'completed';
     readonly exit: {
@@ -576,6 +601,7 @@ export type CommandOutcome = {
     };
     readonly durationMs: number;
     readonly output: OutputSummary;
+    readonly residue?: ResidueReport;
 } | {
     readonly kind: 'failed';
     readonly reason: 'unavailable' | 'effectUnknown';
@@ -593,7 +619,19 @@ export interface ProcessHandle {
     readonly result: Promise<CommandOutcome>;
     stop(mode: 'graceful' | 'forced'): Promise<'confirmed' | 'unconfirmed'>;
 }
+export type RetainedProcessInformation = {
+    readonly process: RetainedProcessRef;
+    readonly origin: OriginRef;
+    readonly handedOverAtMs: number;
+    readonly state: 'running' | 'stopping';
+    readonly processes: number | 'unknown';
+};
+export interface CommandRetention<P> {
+    list(request: FacilityRequest<P>): Promise<FacilityResult<readonly RetainedProcessInformation[]>>;
+}
+export type CommandRetentionOperation = keyof CommandRetention<unknown>;
 export interface CommandFacility<P> {
+    readonly retention?: CommandRetention<P>;
     start(request: FacilityRequest<P> & {
         readonly executable: string;
         readonly args: readonly string[];
@@ -830,7 +868,7 @@ import type { Access, OriginRef } from './identity.ts';
 export interface EnvironmentFacilities {
 }
 export type FacilityKey = keyof EnvironmentFacilities & string;
-export type FacilityOperation<K extends FacilityKey> = Exclude<keyof EnvironmentFacilities[K], K extends 'terminal' ? 'retention' : never> & string;
+export type FacilityOperation<K extends FacilityKey> = Exclude<keyof EnvironmentFacilities[K], K extends 'terminal' | 'command' ? 'retention' : never> & string;
 export interface FacilityDescriptor<K extends FacilityKey> {
     readonly key: K;
     readonly operations: readonly FacilityOperation<K>[];
@@ -890,11 +928,11 @@ export type { EnvironmentFacilities, FacilityDescriptor, FacilityKey, FacilityOp
 export { filesFacility } from './facilities/files.ts';
 export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileEntry, FileIdentity, FileInformation, FileRequest, FileSystemFacility, FileTarget, FileVersion, FileWriteResult, HandleGeneration, ObjectToken, } from './facilities/files.ts';
 export { commandFacility } from './facilities/command.ts';
-export type { BetweenSegments, CommandFacility, CommandOutcome, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, } from './facilities/command.ts';
+export type { BetweenSegments, CommandFacility, CommandOutcome, CommandRetention, CommandRetentionOperation, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, ResidueReport, ResidueStopReason, RetainedProcessInformation, RetainedProcessRef, } from './facilities/command.ts';
 export { terminalFacility } from './facilities/terminal.ts';
 export type { TerminalFacility, TerminalInformation, TerminalRef, TerminalRetention, TerminalRetentionOperation, } from './facilities/terminal.ts';
 export { createRecoveryAccess } from './ports.ts';
-export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedTerminalLedger, SessionTerminalRetention, } from './ports.ts';
+export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedProcessLedger, RetainedTerminalLedger, SessionTerminalRetention, } from './ports.ts';
 export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationCleanup, AllocationFailed, LookupUnknown, OriginalAcquisition, OriginalInspection, RecoveryInspection, UnknownAcquisition, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';
 export type { AcquireInput, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, EnvironmentDescription, EnvironmentProvider, ProviderAcquisitionStatus, ProviderQuota, QuotaAnswer, ExecutionEnvironment, OwnedRecovery, PlacementInput, PlatformFacts, ProviderAcquireInput, ProviderAcquisition, ProviderFacts, ProviderRegistrations, RecoveryListing, ResourceRecovery, Retirement, UnsupportedRecovery, } from './environment.ts';
 export { environmentNeedAdoption, environmentNeedSchema } from './need-declaration.ts';
@@ -1269,9 +1307,11 @@ export interface ResourceLedger {
     stopped(key: string, status: 'confirmed' | 'unconfirmed'): Promise<'recorded' | 'unavailable'>;
 }
 export type RetainedTerminalLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'permit' | 'stopped'>;
+export type RetainedProcessLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'adopt' | 'stopped'>;
 export type SessionTerminalRetention = Readonly<{
     scope: ScopeRef;
     ledger: RetainedTerminalLedger;
+    processes?: RetainedProcessLedger;
 }>;
 declare const recoveryAccessMark: unique symbol;
 export interface RecoveryAccess {

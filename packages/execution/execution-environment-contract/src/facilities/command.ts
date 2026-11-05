@@ -4,6 +4,7 @@ import {
   type FacilityRequest,
   type FacilityResult,
 } from '../facility.ts'
+import type { OriginRef } from '../identity.ts'
 
 export type OutputChunk = {
   readonly stream: 'stdout' | 'stderr' | 'terminal'
@@ -37,6 +38,27 @@ export type OutputSummary =
       readonly between?: BetweenSegments
     }
 
+/** Identity of a retained process: the execution domain a one-shot command handed over. */
+export type RetainedProcessRef = { readonly id: string; readonly generation: string }
+
+/** Why a domain with processes left behind is stopped instead of retained. */
+export type ResidueStopReason = 'policy' | 'unbound' | 'closed' | 'capacity' | 'uncontained'
+
+/**
+ * Disposition after the main process exited. `stopping` does not mean stopped: the stop is
+ * confirmed later and does not delay the outcome.
+ */
+export type ResidueReport =
+  | { readonly kind: 'none' }
+  | {
+      readonly kind: 'retained'
+      readonly process: RetainedProcessRef
+      /** Processes in the domain other than the provider's own supervisor. */
+      readonly processes: number | 'unknown'
+    }
+  | { readonly kind: 'stopping'; readonly reason: ResidueStopReason }
+  | { readonly kind: 'unknown' }
+
 export type CommandOutcome =
   | {
       readonly kind: 'completed'
@@ -46,6 +68,8 @@ export type CommandOutcome =
         | { readonly kind: 'unknown' }
       readonly durationMs: number
       readonly output: OutputSummary
+      /** The disposition of what the main process left; only from a provider that disposes. */
+      readonly residue?: ResidueReport
     }
   | {
       readonly kind: 'failed'
@@ -66,7 +90,25 @@ export interface ProcessHandle {
   stop(mode: 'graceful' | 'forced'): Promise<'confirmed' | 'unconfirmed'>
 }
 
+export type RetainedProcessInformation = {
+  readonly process: RetainedProcessRef
+  /** The original call whose one-shot command handed the domain over. */
+  readonly origin: OriginRef
+  /** Wall-clock time of the handover, in milliseconds since the Unix epoch. */
+  readonly handedOverAtMs: number
+  readonly state: 'running' | 'stopping'
+  readonly processes: number | 'unknown'
+}
+
+/** Retained processes of the acquisition's retention scope; the whole scope, not only this caller's. */
+export interface CommandRetention<P> {
+  list(request: FacilityRequest<P>): Promise<FacilityResult<readonly RetainedProcessInformation[]>>
+}
+
+export type CommandRetentionOperation = keyof CommandRetention<unknown>
+
 export interface CommandFacility<P> {
+  readonly retention?: CommandRetention<P>
   start(
     request: FacilityRequest<P> & {
       readonly executable: string
