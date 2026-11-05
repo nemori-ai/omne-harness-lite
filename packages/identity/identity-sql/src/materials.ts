@@ -1,7 +1,4 @@
-// The static materials of the identity storage: one participant, two migrations and four read
-// handlers, with build-fixed `file:` URLs and file digests (sql-contract SPEC §4). The same file
-// holds the names of the system domain and the combination, so the plugin, the provider and the
-// application register and address one thing.
+import { STANDING_TABLES } from './worker/standing.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -75,8 +72,12 @@ const governanceRef = Object.freeze({
   id: GOVERNANCE_MIGRATION.id,
 })
 
-/** Every table of the participant: the six of `001-identity` and the four of `002-governance`. */
-const OWNED_TABLES: readonly string[] = Object.freeze([...IDENTITY_TABLES, ...GOVERNANCE_TABLES])
+const standingRef = Object.freeze({ owner: 'identity', id: '003-standing' })
+const OWNED_TABLES: readonly string[] = Object.freeze([
+  ...IDENTITY_TABLES,
+  ...GOVERNANCE_TABLES,
+  ...STANDING_TABLES,
+])
 
 type Handler = Readonly<{
   handler: string
@@ -93,6 +94,13 @@ const SINGLE = { maxRowsRead: 10, maxOutputBytes: 1 << 16 }
 const LIST = { maxRowsRead: GOVERNANCE_LIST_LIMIT + 16, maxOutputBytes: 1 << 20 }
 
 const READ_HANDLERS: readonly Handler[] = [
+  {
+    handler: 'identity.coordination',
+    file: 'read-coordination',
+    tables: OWNED_TABLES,
+    migrations: [migrationRef, governanceRef, standingRef],
+    ...LIST,
+  },
   {
     handler: HANDLERS.issueBasis,
     file: 'read-issue-basis',
@@ -137,6 +145,7 @@ export function identitySqlMaterials(): IdentitySqlMaterials {
   const participant = module('participant')
   const migration = module('migration')
   const governanceMigration = module('migration-governance')
+  const standingMigration = module('migration-standing')
   materials = {
     participants: [
       {
@@ -159,6 +168,12 @@ export function identitySqlMaterials(): IdentitySqlMaterials {
         moduleUrl: governanceMigration.moduleUrl,
         checksum: governanceMigration.digest,
         requires: [migrationRef],
+      },
+      {
+        ...standingRef,
+        moduleUrl: standingMigration.moduleUrl,
+        checksum: standingMigration.digest,
+        requires: [governanceRef],
       },
     ],
     readHandlers: READ_HANDLERS.map(item => {
