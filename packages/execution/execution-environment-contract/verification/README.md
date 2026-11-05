@@ -40,7 +40,7 @@ JAVA_BIN=<java 可执行文件> TLA2TOOLS_JAR=<tla2tools.jar> TLC_WORKERS=6 \
 
 - 模型只在所列的有限常量内穷举。有限实例里没有反例，不表示任意规模下成立。推广靠 `proofs/` 的手写证明，它不是机器检查的证明。
 - 模型证明的是：平台满足前提时，语义成立。它不证明某个平台满足前提。每个平台的前提由宿主提供者在真机上用慢层用例验证。
-- 模型不证明实现精化模型。实现与模型动作的对应写在 [formal-mapping.md](formal-mapping.md#实现对应)。现在只有 TerminalSegments 有对应，ProcessCustody 在一次性命令实现时填写。
+- 模型不证明实现精化模型。实现与模型动作的对应写在 [formal-mapping.md](formal-mapping.md#实现对应)，TerminalSegments 与 ProcessCustody 都有对应。对应表不是精化证明。
 
 本成员的其他持续验证义务列在 SPEC 的[持续验证义务](../SPEC.md#持续验证义务)，现在由本包测试承担的部分见 [tests/](../tests/README.md)。许可先于首个外部效果、同键获取不重复分配、释放与恢复的状态转移这类性质，主要由机制成员与集成方的组合承担。配额、查询、迟到与结清协议还没有模型。
 

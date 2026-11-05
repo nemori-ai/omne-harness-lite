@@ -32,7 +32,7 @@
 | `MaxCrash` | 提供者崩溃次数的上界 | — | — |
 | `Bound` | A 带保留范围 R | — | — |
 | `Containment` | 收纳方式 | `sealed` | `pgroup`（只按进程组收纳） |
-| `Policy` | 处置策略 | `retain` | `stop`（现行宿主行为）、`hangup`（先挂断，只留挺过挂断的） |
+| `Policy` | 处置策略 | `retain` | `stop`（主进程退出后全部停止）、`hangup`（先挂断，只留挺过挂断的） |
 | `RecheckClosed` | 移交提交时复核范围未封闭 | `TRUE` | `FALSE` |
 | `RecheckPhase` | 移交提交时复核执行域仍待处置 | `TRUE` | `FALSE` |
 | `EvictOldest` | 满额时停最旧的保留执行域 | `FALSE` | `TRUE` |
@@ -67,9 +67,9 @@
 | --- | --- | --- | --- |
 | `K` | 段数 | — | — |
 | `MaxFg`、`MaxBg` | 前台与后台各写的字节数上界 | — | — |
-| `Drain` | 交出段结果之前怎样读 PTY | `sentinel`（读到段尾哨兵） | `eagain`（读到暂时无数据，现行宿主行为） |
+| `Drain` | 交出段结果之前怎样读 PTY | `sentinel`（读到段尾哨兵） | `eagain`（读到暂时无数据即交出） |
 | `Completion` | 怎样判段完成 | `control`（控制通道的结束帧） | `quiet`（静默） |
-| `InvalidateOnExtra` | 段结束时有额外进程就使终端失效 | `FALSE` | `TRUE`（现行宿主行为） |
+| `InvalidateOnExtra` | 段结束时有额外进程就使终端失效 | `FALSE` | `TRUE`（有额外进程即失效） |
 
 配置：
 
