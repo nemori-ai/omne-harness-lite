@@ -6,6 +6,7 @@
 
 - [README.md](README.md)：夹具的两层、来源与约束
 - [process.ts](process.ts)：子进程作为 `ProcessHandle`：管道作 web 流，stderr 先经钩子再进句柄
+- [settle.ts](settle.ts)：受管辖的等待在多长时间内落定的上界，与按上界判定落定的 `settledWithin`
 - `scripted/`（A 层）
   - [stdio-peer.mjs](scripted/stdio-peer.mjs)：真实管道上的脚本化对端，收到的内容以 `@omne ` 行经 stderr 回报
   - [special-stdio.mjs](scripted/special-stdio.mjs)：写非 JSON、写超长行、关 stdout 存活、按时机退出的 stdio 对端
