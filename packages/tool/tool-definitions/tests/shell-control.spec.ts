@@ -134,6 +134,88 @@ it('distinguishes facility offset loss from tool truncation and retains output-f
   expect(result).not.toContain('tool truncated')
 })
 
+it('shows between-segment bytes apart from the segment output, before it', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const original = fixture.process('unused', 'terminal')
+  const environment: ShellAuthorEnvironment = {
+    ...fixture.environment,
+    command: {
+      start: async () => ({
+        kind: 'done',
+        requestId: 'fixture',
+        value: {
+          ...original,
+          output: {
+            async *[Symbol.asyncIterator]() {
+              yield {
+                stream: 'terminal',
+                observedOffset: 0,
+                data: new TextEncoder().encode('ok\n'),
+              }
+            },
+          },
+          result: Promise.resolve({
+            kind: 'completed',
+            exit: { kind: 'code', code: 0 },
+            durationMs: 3,
+            output: {
+              mode: 'terminal',
+              terminal: { observedBytes: 3, discardedBytes: 0 },
+              between: {
+                data: new TextEncoder().encode('late\n'),
+                count: { observedBytes: 9, discardedBytes: 4 },
+              },
+            },
+          }),
+        },
+      }),
+    },
+  }
+  const result = await run(author, 'execute', { script: 'printf ok' }, environment)
+  expect(result).toContain('between_segments observed_bytes=9 facility_discarded_bytes=4')
+  const between = result.indexOf('between_segments facility_discarded_bytes=4\nlate')
+  const segment = result.indexOf('terminal facility_gaps=none')
+  expect(between).toBeGreaterThan(-1)
+  expect(segment).toBeGreaterThan(between)
+  expect(result.slice(segment)).not.toContain('late')
+})
+
+it('shows no between-segment section when the provider reports none', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const original = fixture.process('unused', 'terminal')
+  const environment: ShellAuthorEnvironment = {
+    ...fixture.environment,
+    command: {
+      start: async () => ({
+        kind: 'done',
+        requestId: 'fixture',
+        value: {
+          ...original,
+          output: {
+            async *[Symbol.asyncIterator]() {
+              yield {
+                stream: 'terminal',
+                observedOffset: 0,
+                data: new TextEncoder().encode('ok\n'),
+              }
+            },
+          },
+          result: Promise.resolve({
+            kind: 'completed',
+            exit: { kind: 'code', code: 0 },
+            durationMs: 3,
+            output: { mode: 'terminal', terminal: { observedBytes: 3, discardedBytes: 0 } },
+          }),
+        },
+      }),
+    },
+  }
+  const result = await run(author, 'execute', { script: 'printf ok' }, environment)
+  expect(result).not.toContain('between_segments')
+})
+
 it('rejects missing shell configuration and malformed terminal/geometry before starting', async () => {
   const fixture = shellFixture()
   expect(
