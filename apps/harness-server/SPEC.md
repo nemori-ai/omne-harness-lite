@@ -181,9 +181,11 @@ Shell 进程不继承服务进程的环境。它的环境是 `server.json` 的 `
 | 平台     | 白名单                                                                                                                                       |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | Windows  | `PATH`、`PATHEXT`、`SystemRoot`、`SystemDrive`、`WINDIR`、`ComSpec`、`USERPROFILE`、`APPDATA`、`LOCALAPPDATA`、`ProgramData`、`ProgramFiles`、`ProgramFiles(x86)` |
-| 其他平台 | `PATH`、`HOME`、`USER`、`LANG`、`LC_ALL`                                                                                                     |
+| 其他平台 | `PATH`、`HOME`、`USER`、`LANG`、`LC_ALL`、`XDG_RUNTIME_DIR`、`DBUS_SESSION_BUS_ADDRESS`                                                       |
 
 所以 Shell 里的 `PATH` 是运行 `setup` 时的 `PATH`，agent 能找到 `git`、`node`、`python` 这些工具。宿主上装了新工具、`PATH` 变了时，运行 `setup --reconfigure` 重新取。
+
+`XDG_RUNTIME_DIR` 与 `DBUS_SESSION_BUS_ADDRESS` 让命令找到当前用户的服务管理器，所以 agent 能像人一样用 `systemctl --user` 部署和查看本机服务。命令经服务管理器起的进程归宿主的服务管理器，不归执行环境，执行环境不负责它们的收尾；是否允许这样做由对命令的授权决定。这两个变量不是安全边界：命令可以按自己的用户号推出它们。`setup` 在没有用户会话的环境里运行时取不到它们，这时 Shell 里也没有。已有的 `server.json` 不含这两个变量，运行 `setup --reconfigure` 重新取。
 
 名字像秘密的变量不进 Shell 的环境：名字以 `TOKEN`、`KEY`、`SECRET`、`PASSWORD`、`PASSWD`、`CREDENTIAL`（可带复数 `S`）结尾，或以 `OPENROUTER_` 开头，不分大小写。白名单里没有这样的名字。有人手工把这样的名字写进 `shellEnvironment` 时，`serve` 认为配置不合格，以退出码 2 拒绝。生成运维者层时也再滤一次。
 

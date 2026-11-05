@@ -12,6 +12,9 @@ export const DEFAULT_PORT = 8787
  * The variables `setup` copies from its own environment into the settings, for the Shell tool. It
  * is an allowlist: the shell never gets the whole environment of the host. The temp directory is
  * not here: `serve` points it at the host files directory, which the server owns.
+ * `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` locate the user service manager, so that a
+ * command can use `systemctl --user` as the person can. They are not a security boundary: a
+ * command can derive them from its own user id.
  */
 export const SHELL_ENVIRONMENT_ALLOWLIST: Readonly<Record<'windows' | 'posix', readonly string[]>> =
   {
@@ -29,7 +32,7 @@ export const SHELL_ENVIRONMENT_ALLOWLIST: Readonly<Record<'windows' | 'posix', r
       'ProgramFiles',
       'ProgramFiles(x86)',
     ],
-    posix: ['PATH', 'HOME', 'USER', 'LANG', 'LC_ALL'],
+    posix: ['PATH', 'HOME', 'USER', 'LANG', 'LC_ALL', 'XDG_RUNTIME_DIR', 'DBUS_SESSION_BUS_ADDRESS'],
   }
 
 /**
