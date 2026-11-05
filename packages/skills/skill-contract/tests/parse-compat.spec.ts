@@ -7,7 +7,7 @@ import { readBodyText } from '@omne-harness/assets'
 import { writeJsonText } from '@omne-harness/json-text'
 import { projectAssetBody, skillBodyContract } from '@omne-harness/skill-contract'
 import { manifestText } from './package-builder.ts'
-import { demo, name, parse } from './parse-support.ts'
+import { codeOf, demo, name, parse } from './parse-support.ts'
 
 /** The definition of an accepted package, or an error naming the failure. */
 function accepted(result: ReturnType<typeof parse>) {
@@ -210,6 +210,77 @@ describe('a frontmatter that strict YAML does not read', () => {
       'frontmatter-read-by-line',
       'description-over-limit',
     ])
+  })
+
+  // Each case breaks strict YAML with `x: a: b`, so only the line by line reading applies. A
+  // description that it does not read leaves the manifest without one: `malformed`.
+  it.each([
+    [
+      'a key that does not start the line',
+      ['description: Top.', 'meta:', '  description: Inner.'],
+      'Top.',
+    ],
+    ['a key without a space after the colon', ['description:Glued.'], undefined],
+    ['a repeated key', ['description: One.', 'description: Two.'], undefined],
+    [
+      'an empty first line and an indented value',
+      ['description:', '  On the next line.'],
+      'On the next line.',
+    ],
+    [
+      'a whitespace-only line that ends the value',
+      ['description: First.', '   ', '  Not part of it.'],
+      'First.',
+    ],
+    [
+      'a continuation line that is only a comment',
+      ['description: First', '  # a note', '  second.'],
+      'First second.',
+    ],
+    [
+      'a # inside a word and a comment after a space',
+      ['description: Writes C# and F#. # a note'],
+      'Writes C# and F#.',
+    ],
+    ['an angle bracket that ends a plain value', ['description: Wraps a <tag>'], 'Wraps a <tag>'],
+    ['a pipe that ends a plain value', ['description: Pipes a |'], 'Pipes a |'],
+    ['a literal block scalar', ['description: |', '  Text.'], undefined],
+    ['a folded block scalar', ['description: >', '  Text.'], undefined],
+    ['an escaped double quote', ['description: "Say \\"hi\\" now."'], 'Say "hi" now.'],
+    ['an escape that JSON does not know', ['description: "Bad \\q."'], undefined],
+    ['a quote that does not close', ['description: "Open.'], undefined],
+    [
+      'a quoted value that goes on in indented lines',
+      ['description: "Quoted."', '  more.'],
+      undefined,
+    ],
+    ['text after the closing quote', ['description: "Quoted." more # c'], undefined],
+    ['a comment after two spaces', ['description: "Quoted."  # c'], 'Quoted.'],
+    ['a comment with no space before #', ['description: "Quoted."# c'], undefined],
+    ['a space after the closing quote', ['description: "Quoted." '], 'Quoted.'],
+    ['a single-quoted value with a comment', ["description: 'Quoted.' # c"], 'Quoted.'],
+  ])('reads the description line by line for %s', (_case, lines, description) => {
+    const manifest = manifestText(['name: demo', ...lines, 'x: a: b'])
+    const result = parse('demo', { 'SKILL.md': manifest })
+    if (description === undefined) expect(codeOf(result)).toBe('malformed')
+    else expect(accepted(result).manifest.description).toBe(description)
+  })
+
+  it('rejects as malformed a name read line by line that is not a Skill name', () => {
+    const lines = ['name: Not A Name', 'description: A.', 'x: a: b']
+    expect(codeOf(parse('demo', { 'SKILL.md': manifestText(lines) }))).toBe('malformed')
+  })
+
+  it('rejects as malformed, not name-mismatch, when no name can be read and one is expected', () => {
+    const lines = ['name: |', '  demo', 'description: A.', 'x: a: b']
+    expect(codeOf(parse('demo', { 'SKILL.md': manifestText(lines) }, name('other')))).toBe(
+      'malformed',
+    )
+  })
+
+  it('does not take a key that only starts like one for the name', () => {
+    const lines = ['name:other', 'name: demo', 'description: A.', 'x: a: b']
+    expect(accepted(parse('demo', { 'SKILL.md': manifestText(lines) })).manifest.name).toBe('demo')
   })
 
   it('compares a name read line by line with the expected name', () => {

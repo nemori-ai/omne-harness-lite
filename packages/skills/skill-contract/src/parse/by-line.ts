@@ -42,12 +42,13 @@ function closingOf(text: string, quote: '"' | "'"): number | undefined {
   return undefined
 }
 
-/** A single-line quoted scalar, which a comment may follow; `undefined` when not readable. */
+/** A single-line quoted scalar, which a comment may follow; `undefined` when not readable.
+ * `text` is trimmed, so after the closing quote there is nothing or more text. */
 function quoted(text: string, quote: '"' | "'"): string | undefined {
   const end = closingOf(text, quote)
   if (end === undefined) return undefined
   const rest = text.slice(end)
-  if (rest.trim() !== '' && !/^[ \t]+#/.test(rest)) return undefined
+  if (rest !== '' && !/^[ \t]+#/.test(rest)) return undefined
   const inner = text.slice(0, end)
   return quote === '"' ? doubleQuoted(inner) : inner.slice(1, -1).replaceAll("''", "'")
 }
