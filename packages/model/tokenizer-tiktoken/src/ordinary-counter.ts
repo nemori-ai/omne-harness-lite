@@ -43,7 +43,6 @@ function snapshotPinnedEngine(engine: unknown): EngineSnapshot {
     maxTokenBytes = Math.max(maxTokenBytes, key === '' ? 0 : key.split(',').length)
     finite &&= Number.isFinite(rank)
   }
-  // Every entry was checked above; only this closure owns the engine after construction.
   const ranks = entries as ReadonlyMap<string, number>
   return {
     pattern: engine.patStr,
@@ -53,7 +52,6 @@ function snapshotPinnedEngine(engine: unknown): EngineSnapshot {
   }
 }
 
-/** Counts ordinary text with the pinned engine's regex and rank semantics. */
 export function createOrdinaryCounter(engine: Tiktoken): (text: string) => number {
   const snapshot = snapshotPinnedEngine(engine)
   if (!snapshot.finite) return text => (text === '' ? 0 : engine.encode(text, [], []).length)

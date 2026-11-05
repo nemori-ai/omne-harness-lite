@@ -1,4 +1,4 @@
-// @module-tag slow — bounds synchronous counting with an externally killed Node process.
+// @module-tag slow
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'

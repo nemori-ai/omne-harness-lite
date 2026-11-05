@@ -30,13 +30,13 @@
 
 `engine-shape.spec.ts` 直接消费包内私有模块，核对未声明运行时成员不兼容时的错误。它没有新增包导出。
 
-慢层（`published.spec.ts` 与 `performance.spec.ts`）：
+慢层的两个文件都以 `// @module-tag slow` 标记，都会启动子进程。运行之前必须先构建本包；经 turbo 运行时，turbo 先构建。
 
-- 文件第一行写 `// @module-tag slow`，理由是它启动子进程。
+`published.spec.ts`：
+
 - 子进程从 `realpathSync(mkdtempSync(...))` 得到的临时目录启动，不继承 `BASELINE` 环境变量。
 - 子进程只加载 `dist/index.js`，自己读取两份词表，再初始化并计数。父进程用源码计数，两边结果必须相同。
 - 子进程中实现版本失配同样返回 `unavailable`。
-- 运行慢层之前必须先构建本包。经 turbo 运行时，turbo 先构建。
 
 `performance.spec.ts` 给子进程设置 8 秒外部截止和 SIGKILL，避免同步计算阻塞测试进程。它加载重建后的 dist，计数 24 KiB 空白。该回归只排除已知全扫描退化；不把这个时限提升为跨环境 SLA，也不证明完整请求或服务关闭流程。
 
