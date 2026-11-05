@@ -29,6 +29,7 @@ it('the cordis entry exports the plugin and the injected delivery, not the servi
     'ModelInstancesLocalPlugin',
     'ModelProfilesLocalPlugin',
     'createConfiguredModelRuntimeLocalPlugin',
+    'createLocalCredentialPlugin',
     'createMemoryResultPushLedger',
     'createModelRequestPreparationPlugin',
     'createModelRuntimeLocalPlugin',
@@ -137,14 +138,17 @@ it('a plugin on a corrupt store still loads, answers present with unavailable, a
   expect(ctx.modelCredential).toBeUndefined()
 })
 
-it('rejects a configuration without a path or factory secret', async () => {
+it('rejects a configuration without a path, or with a factory secret that is not a string', async () => {
   const { LocalCredentialPlugin } = await import('@omne-harness/model-host-local/cordis')
   const validate = LocalCredentialPlugin.Config['~standard'].validate
   const missingPath = [{ message: expect.stringMatching(/path/) }]
-  const missingSecret = [{ message: expect.stringMatching(/factorySecret/) }]
+  const badSecret = [{ message: expect.stringMatching(/factorySecret/) }]
   expect(validate({ factorySecret: 'x' })).toHaveProperty('issues', missingPath)
   expect(validate({ path: '', factorySecret: 'x' })).toHaveProperty('issues', missingPath)
-  expect(validate({ path: '/tmp/x' })).toHaveProperty('issues', missingSecret)
+  expect(validate({ path: '/tmp/x', factorySecret: 7 })).toHaveProperty('issues', badSecret)
+  expect(validate({ path: '/tmp/x', factorySecret: null })).toHaveProperty('issues', badSecret)
+  // The factory secret is optional: a vault that a setup command built needs only its path.
+  expect(validate({ path: '/tmp/x' })).toStrictEqual({ value: { path: '/tmp/x' } })
   expect(validate('not a configuration')).toHaveProperty('issues', missingPath)
   expect(validate(null)).toHaveProperty('issues', missingPath)
   expect(validate({ path: '/tmp/x', factorySecret: 'x' })).toStrictEqual({

@@ -24,7 +24,7 @@
 | [architecture.md](architecture.md) | 两个入口与模块、包外依赖、五条关键机制的理由、宿主文件使用（已接受）、模块层的 SOLID 选择 |
 | [flows.md](flows.md) | F-EEH01 装载、F-EEH02 宿主文件使用（已接受的图）、F-EEH03 卸载与关闭 |
 | [object-model.md](object-model.md) | 服务实例、宿主文件责任域、提供者、获取记录、租约原件与句柄代际 |
-| [public-api.md](public-api.md) | 根入口四个函数与三个类型族、`./cordis` 四个导出 |
+| [public-api.md](public-api.md) | 根入口五个函数与三个类型族、`./cordis` 四个导出 |
 | [context.md](context.md) | 装配、点名对象、一次文件使用、独立使用与定位 |
 
 当前缺口：Runtime Context 两条块的发布、调用方类核对、授予根限制、平台前提探测，以及重复装载与配置校验失败的测试。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

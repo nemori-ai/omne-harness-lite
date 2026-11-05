@@ -1,5 +1,8 @@
 // `real-manifests-sync`（R1-1，DP1-C5、DP1-C8）：真实行的声明与 `stubs.ts` 的同一行（去掉前缀）逐项相同。
 // 等待装配页补丁的差额写在 `KNOWN_GAPS`，每条带补丁编号；补丁落地、线负责人同步 `stubs.ts` 后删掉对应条目。
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vitest'
 import * as cordisExports from '../src/cordis.ts'
 import { STUB_EXPORT, serveProfile } from '../src/profile.ts'
@@ -88,5 +91,36 @@ describe('real-manifests-sync', () => {
     expect(profile.stubManifests.get('agent-host' as RowId)?.provides).toContain(
       'agentPublicationAuthority',
     )
+  })
+})
+
+/** 发行树里每个文件（`src`、`config`），相对本应用根目录。 */
+function releaseFiles(): string[] {
+  const root = fileURLToPath(new URL('..', import.meta.url))
+  const files: string[] = []
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) walk(path)
+      else files.push(path)
+    }
+  }
+  walk('src')
+  walk('config')
+  return files.map(path => join(root, path))
+}
+
+describe('FIXED-FACTS F6：窄采用来源的替身已删除', () => {
+  test('发行树（src、config）里不再出现采用来源缺件的三个字面量', () => {
+    const literals = ['adopted-facts-absent', 'adopted-absent', 'B1-GAP-ADOPTED-REQUEST-SOURCE']
+    const files = releaseFiles()
+    expect(files.length).toBeGreaterThan(0)
+    const hits = files.flatMap(file => {
+      const text = readFileSync(file, 'utf8')
+      return literals
+        .filter(literal => text.includes(literal))
+        .map(literal => `${file}: ${literal}`)
+    })
+    expect(hits).toEqual([])
   })
 })

@@ -7,6 +7,7 @@
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [public-entry.spec.ts](public-entry.spec.ts)：两个入口的导出集合
 - [decide-reduce.spec.ts](decide-reduce.spec.ts)：首条路径的判定与归约
+- [run-advance-invariants.spec.ts](run-advance-invariants.spec.ts)：Run 与 attempt 层不变量的种子随机守卫与 Run 层 `expected` 用例，对照 RunAdvance 模型
 - [transactions-conformance.spec.ts](transactions-conformance.spec.ts)：事务端口套件的自证与违例变体
 - [delegated-conformance.spec.ts](delegated-conformance.spec.ts)：委派视图套件的自证与违例变体
 - [dependency-direction.spec.ts](dependency-direction.spec.ts)：构建产物的依赖方向
@@ -18,6 +19,7 @@
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空
 
 - [extended-behavior.spec.ts](extended-behavior.spec.ts)：冻结、执行历史、结果与作用域
+- [context-scopes.spec.ts](context-scopes.spec.ts)：`contextScopesOf` 只从 SE27、SE28 得出与归约快照相同的作用域，与条目顺序无关；他会话的绑定、他种条目与解不开的载荷整体失败；`contextScopeOf` 与归约铸造同一引用
 - [management-behavior.spec.ts](management-behavior.spec.ts)：管理命令、生产者事实与压缩
 - [providers-conformance.spec.ts](providers-conformance.spec.ts)：提供者套件自证
 - [scene.ts](scene.ts)：测试中的会话操作辅助

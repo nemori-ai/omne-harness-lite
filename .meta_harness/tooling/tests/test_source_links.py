@@ -202,9 +202,9 @@ def test_registered_document_only_targets_are_exact(tmp_path):
     assert any('escapes design root' in error for error in check_links(root, tmp_path))
 
 
-@pytest.mark.parametrize('kind', ['packages', 'packages.0.0.1.legacy'])
 @pytest.mark.parametrize('suffix', ['src/index.ts', 'SPEC.md'])
-def test_real_member_origin_requires_workspace_and_manifest(tmp_path, kind, suffix):
+def test_real_member_origin_requires_workspace_and_manifest(tmp_path, suffix):
+    kind = 'packages'
     root = tmp_path / '.meta_harness/design'
     member = f'{kind}/core/example'
     save(tmp_path / 'pnpm-workspace.yaml', f'packages:\n  - {kind}/*/*\n')
@@ -214,8 +214,8 @@ def test_real_member_origin_requires_workspace_and_manifest(tmp_path, kind, suff
     save(root / 'README.md', f'[Source](../../{member}/{suffix})\n')
     target = tmp_path / member / suffix
     modules = ModuleSources(tmp_path)
-    assert modules.origin(target) == ('current-member' if kind == 'packages' else 'archived-member')
-    assert modules.owns(target) == (kind == 'packages')
+    assert modules.origin(target) == 'current-member'
+    assert modules.owns(target)
     assert check_links(root, tmp_path) == []
     (tmp_path / member / 'package.json').unlink()
     assert any('escapes design root' in error for error in check_links(root, tmp_path))

@@ -30,6 +30,7 @@
 - `EnvironmentFacilities` · `facility.d.ts`
 - `EnvironmentLease` · `lease.d.ts`
 - `EnvironmentNeedDeclaration` · `need-declaration.d.ts`
+- `EnvironmentNeedProjection` · `need-schema-ref.d.ts`
 - `EnvironmentProvider` · `environment.d.ts`
 - `EnvironmentRequirement` · `requirement.d.ts`
 - `ExecutionEnvironment` · `environment.d.ts`
@@ -47,12 +48,14 @@
 - `FileBatchOutcome` · `facilities/files.d.ts`
 - `FileBatchRecognition` · `facilities/files.d.ts`
 - `FileBatchRef` · `facilities/files.d.ts`
+- `FileEntry` · `facilities/files.d.ts`
 - `FileIdentity` · `facilities/files.d.ts`
 - `FileInformation` · `facilities/files.d.ts`
 - `FileRequest` · `facilities/files.d.ts`
 - `FileSystemFacility` · `facilities/files.d.ts`
 - `FileTarget` · `facilities/files.d.ts`
 - `FileVersion` · `facilities/files.d.ts`
+- `FileWriteResult` · `facilities/files.d.ts`
 - `HandleGeneration` · `facilities/files.d.ts`
 - `HostDate` · `blocks.d.ts`
 - `InstanceIdentity` · `lease.d.ts`
@@ -98,10 +101,14 @@
 - `RequirementRefusal` · `judge.d.ts`
 - `ResourceLedger` · `ports.d.ts`
 - `ResourceRecovery` · `environment.d.ts`
+- `RetainedTerminalLedger` · `ports.d.ts`
 - `Retirement` · `environment.d.ts`
+- `SessionTerminalRetention` · `ports.d.ts`
 - `TerminalFacility` · `facilities/terminal.d.ts`
 - `TerminalInformation` · `facilities/terminal.d.ts`
 - `TerminalRef` · `facilities/terminal.d.ts`
+- `TerminalRetention` · `facilities/terminal.d.ts`
+- `TerminalRetentionOperation` · `facilities/terminal.d.ts`
 - `UnknownAcquisition` · `lease.d.ts`
 - `UnsupportedRecovery` · `environment.d.ts`
 - `acquireParamsSchema` · `operation-schemas.d.ts`
@@ -116,6 +123,7 @@
 - `describeResultSchema` · `operation-schemas.d.ts`
 - `environmentNeedAdoption` · `need-declaration.d.ts`
 - `environmentNeedSchema` · `need-declaration.d.ts`
+- `environmentNeedSchemaRef` · `need-schema-ref.d.ts`
 - `executionHostFactsBlock` · `blocks.d.ts`
 - `executionPlacementBlock` · `blocks.d.ts`
 - `filesFacility` · `facilities/files.d.ts`
@@ -163,6 +171,12 @@
 - `ScriptedFacilityGuard` · `testing/doubles.d.ts`
 - `ScriptedRecoveryAuthority` · `testing/doubles.d.ts`
 - `ScriptedScopeBindings` · `testing/doubles.d.ts`
+- `ScriptedTerminalAnswer` · `testing/scripted-terminal.d.ts`
+- `ScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
+- `TerminalConformanceAcquisition` · `testing/terminal-conformance.d.ts`
+- `TerminalConformanceOptions` · `testing/terminal-conformance.d.ts`
+- `TerminalConformanceSubject` · `testing/terminal-conformance.d.ts`
+- `TerminalScript` · `testing/scripted-terminal.d.ts`
 - `createMemoryFileSystem` · `testing/memory-files.d.ts`
 - `createMemoryResourceLedger` · `testing/doubles.d.ts`
 - `createScriptedCommandFacility` · `testing/scripted-command.d.ts`
@@ -171,9 +185,11 @@
 - `createScriptedFacilityGuard` · `testing/doubles.d.ts`
 - `createScriptedRecoveryAuthority` · `testing/doubles.d.ts`
 - `createScriptedScopeBindings` · `testing/doubles.d.ts`
+- `createScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
 - `environmentProviderConformance` · `testing/provider-conformance.d.ts`
 - `executionEnvironmentConformance` · `testing/environment-conformance.d.ts`
 - `runConformanceCase` · `testing/case.d.ts`
+- `terminalFacilityConformance` · `testing/terminal-conformance.d.ts`
 
 ## 声明文件 `binding.d.ts`
 
@@ -307,7 +323,7 @@ import type { BindingKind, EnvironmentBinding, EnvironmentContinuity } from './b
 import type { FacilityDescriptor, FacilityKey } from './facility.ts';
 import type { Access, AcquisitionRef, OriginRef } from './identity.ts';
 import type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationFailed, EnvironmentLease, InstanceIdentity, LookupUnknown, OriginalAcquisition, Pending, Placement, ProviderIdentity, RecoveryInspection, Rejected, UnknownAcquisition } from './lease.ts';
-import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger } from './ports.ts';
+import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger, SessionTerminalRetention } from './ports.ts';
 import type { EnvironmentRequirement, IsolationClaim } from './requirement.ts';
 export type PlatformFacts = Readonly<{
     os: string;
@@ -329,6 +345,9 @@ export type ProviderAcquireInput = Readonly<{
     placement: Placement;
     tenant: TenantId;
     ledger: ResourceLedger;
+    retention?: SessionTerminalRetention & {
+        readonly released: AbortSignal;
+    };
 }>;
 export type ProviderAcquisition = Readonly<{
     kind: 'acquired';
@@ -475,6 +494,7 @@ export type AcquireInput<P> = Readonly<{
     placement: Placement;
     ledger: ResourceLedger;
     guard: FacilityGuard<P>;
+    retention?: SessionTerminalRetention;
 }>;
 export type EnvironmentAction = Readonly<{
     kind: 'resolve';
@@ -610,10 +630,16 @@ export type FileIdentity = {
     readonly handle: HandleGeneration;
     readonly version: FileVersion;
 };
+export type FileWriteResult = FileIdentity & {
+    readonly writeEffect?: 'created' | 'in-place' | 'replaced';
+};
 export type FileInformation = FileIdentity & {
     readonly type: 'file' | 'directory' | 'symlink';
     readonly sizeBytes: number;
     readonly modifiedMs: number;
+};
+export type FileEntry = FileInformation & {
+    readonly name?: string;
 };
 export type FileTarget = {
     readonly path: string;
@@ -653,7 +679,7 @@ export interface FileSystemFacility<P> {
         readonly bytes: Uint8Array;
         readonly mode: 'create' | 'replace';
         readonly expectedVersion?: FileVersion;
-    }): Promise<FacilityResult<FileIdentity>>;
+    }): Promise<FacilityResult<FileWriteResult>>;
     close(request: FileRequest<P> & {
         readonly handle: HandleGeneration;
     }): Promise<FacilityResult<{
@@ -664,7 +690,7 @@ export interface FileSystemFacility<P> {
         readonly limit?: number;
     }): Promise<FacilityResult<{
         readonly directory: FileIdentity;
-        readonly entries: readonly FileInformation[];
+        readonly entries: readonly FileEntry[];
         readonly nextOffset?: number;
     }>>;
     search(request: FileRequest<P> & {
@@ -742,7 +768,21 @@ export type TerminalInformation = {
     readonly state: 'idle' | 'running' | 'invalid' | 'closed';
     readonly observedCwd: string;
 };
+export interface TerminalRetention<P> {
+    attach(request: FacilityRequest<P> & {
+        readonly terminal: TerminalRef;
+    }): Promise<FacilityResult<{
+        readonly terminal: TerminalRef;
+    }>>;
+    detach(request: FacilityRequest<P> & {
+        readonly terminal: TerminalRef;
+    }): Promise<FacilityResult<{
+        readonly status: 'confirmed' | 'unconfirmed';
+    }>>;
+}
+export type TerminalRetentionOperation = keyof TerminalRetention<unknown>;
 export interface TerminalFacility<P> {
+    readonly retention?: TerminalRetention<P>;
     create(request: FacilityRequest<P> & {
         readonly cwd: string;
         readonly env: Readonly<Record<string, string>>;
@@ -750,6 +790,7 @@ export interface TerminalFacility<P> {
             readonly columns: number;
             readonly rows: number;
         };
+        readonly retain?: 'session';
     }): Promise<FacilityResult<{
         readonly terminal: TerminalRef;
     }>>;
@@ -783,7 +824,7 @@ import type { Access, OriginRef } from './identity.ts';
 export interface EnvironmentFacilities {
 }
 export type FacilityKey = keyof EnvironmentFacilities & string;
-export type FacilityOperation<K extends FacilityKey> = keyof EnvironmentFacilities[K] & string;
+export type FacilityOperation<K extends FacilityKey> = Exclude<keyof EnvironmentFacilities[K], K extends 'terminal' ? 'retention' : never> & string;
 export interface FacilityDescriptor<K extends FacilityKey> {
     readonly key: K;
     readonly operations: readonly FacilityOperation<K>[];
@@ -841,17 +882,19 @@ export type { EnvironmentRequirement, IsolationClaim, IsolationClaims } from './
 export { describeFacility } from './facility.ts';
 export type { EnvironmentFacilities, FacilityDescriptor, FacilityKey, FacilityOperation, FacilityReason, FacilityRequest, FacilityResult, } from './facility.ts';
 export { filesFacility } from './facilities/files.ts';
-export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileIdentity, FileInformation, FileRequest, FileSystemFacility, FileTarget, FileVersion, HandleGeneration, ObjectToken, } from './facilities/files.ts';
+export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileEntry, FileIdentity, FileInformation, FileRequest, FileSystemFacility, FileTarget, FileVersion, FileWriteResult, HandleGeneration, ObjectToken, } from './facilities/files.ts';
 export { commandFacility } from './facilities/command.ts';
 export type { CommandFacility, CommandOutcome, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, } from './facilities/command.ts';
 export { terminalFacility } from './facilities/terminal.ts';
-export type { TerminalFacility, TerminalInformation, TerminalRef } from './facilities/terminal.ts';
+export type { TerminalFacility, TerminalInformation, TerminalRef, TerminalRetention, TerminalRetentionOperation, } from './facilities/terminal.ts';
 export { createRecoveryAccess } from './ports.ts';
-export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, } from './ports.ts';
+export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedTerminalLedger, SessionTerminalRetention, } from './ports.ts';
 export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationCleanup, AllocationFailed, LookupUnknown, OriginalAcquisition, OriginalInspection, RecoveryInspection, UnknownAcquisition, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';
 export type { AcquireInput, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, EnvironmentDescription, EnvironmentProvider, ProviderAcquisitionStatus, ProviderQuota, QuotaAnswer, ExecutionEnvironment, OwnedRecovery, PlacementInput, PlatformFacts, ProviderAcquireInput, ProviderAcquisition, ProviderFacts, ProviderRegistrations, RecoveryListing, ResourceRecovery, Retirement, UnsupportedRecovery, } from './environment.ts';
 export { environmentNeedAdoption, environmentNeedSchema } from './need-declaration.ts';
 export type { EnvironmentNeedDeclaration } from './need-declaration.ts';
+export { environmentNeedSchemaRef } from './need-schema-ref.ts';
+export type { EnvironmentNeedProjection } from './need-schema-ref.ts';
 export { executionHostFactsBlock, executionPlacementBlock } from './blocks.ts';
 export type { ExecutionHostFactsValue, ExecutionPlacementEntry, ExecutionPlacementValue, } from './blocks.ts';
 export { judgeRequirement, matchProviders } from './judge.ts';
@@ -1023,6 +1066,7 @@ export type OriginalAcquisition = Readonly<{
     origin: OriginRef;
     scope: ScopeRef;
     placement: Placement;
+    retentionScope?: ScopeRef;
 }>;
 export type AcquisitionQuery = Readonly<{
     kind: 'local';
@@ -1098,6 +1142,26 @@ export declare const environmentNeedAdoption: Readonly<{
     revision: '1';
     digest: `sha256:${string}`;
 }>;
+```
+
+## 声明文件 `need-schema-ref.d.ts`
+
+```ts
+import { type SchemaRef } from '@omne-harness/schema-provider';
+import { z } from 'zod';
+declare const needShape: z.ZodObject<{
+    facilities: z.ZodArray<z.ZodString>;
+    isolation: z.ZodArray<z.ZodString>;
+    layers: z.ZodArray<z.ZodEnum<{
+        host_machine: "host_machine";
+        session_sandbox: "session_sandbox";
+        stateless_sandbox: "stateless_sandbox";
+        tenant_sandbox: "tenant_sandbox";
+    }>>;
+}, z.core.$strict>;
+export type EnvironmentNeedProjection = z.output<typeof needShape>;
+export declare const environmentNeedSchemaRef: SchemaRef<EnvironmentNeedProjection>;
+export {};
 ```
 
 ## 声明文件 `operation-schemas.d.ts`
@@ -1198,6 +1262,11 @@ export interface ResourceLedger {
     adopt(key: string): Promise<'confirmed' | 'closed' | 'unavailable'>;
     stopped(key: string, status: 'confirmed' | 'unconfirmed'): Promise<'recorded' | 'unavailable'>;
 }
+export type RetainedTerminalLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'permit' | 'stopped'>;
+export type SessionTerminalRetention = Readonly<{
+    scope: ScopeRef;
+    ledger: RetainedTerminalLedger;
+}>;
 declare const recoveryAccessMark: unique symbol;
 export interface RecoveryAccess {
     readonly [recoveryAccessMark]: true;
@@ -1380,6 +1449,8 @@ export { executionEnvironmentConformance, type EnvironmentConformanceOptions, ty
 export { createScriptedEnvironmentProvider, createMemoryResourceLedger, createScriptedFacilityGuard, createScriptedRecoveryAuthority, createScriptedEnvironmentAuthority, createScriptedScopeBindings, type EnvironmentAuthorityScript, type ScriptedEnvironmentAuthority, type ScriptedScopeBindings, type ProviderScript, type ScriptedEnvironmentProvider, type MemoryResourceLedger, type ScriptedFacilityGuard, type ScriptedRecoveryAuthority, } from './doubles.ts';
 export { createMemoryFileSystem, type MemoryFileSystem, type MemoryFileSystemOptions, } from './memory-files.ts';
 export { createScriptedCommandFacility, type CommandScript, type ScriptedCommandAnswer, type ScriptedCommandFacility, } from './scripted-command.ts';
+export { createScriptedTerminalFacility, type TerminalScript, type ScriptedTerminalAnswer, type ScriptedTerminalFacility, } from './scripted-terminal.ts';
+export { terminalFacilityConformance, type TerminalConformanceAcquisition, type TerminalConformanceSubject, type TerminalConformanceOptions, } from './terminal-conformance.ts';
 ```
 
 ## 声明文件 `testing/memory-files.d.ts`
@@ -1473,4 +1544,94 @@ type StopRecord = Readonly<{
 }>;
 export declare function createScriptedCommandFacility<P = unknown>(script: CommandScript<P>): ScriptedCommandFacility<P>;
 export {};
+```
+
+## 声明文件 `testing/scripted-process.d.ts`
+
+```ts
+import type { ProcessHandle } from '../index.ts';
+import type { ScriptedCommandAnswer } from './scripted-command.ts';
+type Started = Extract<ScriptedCommandAnswer, {
+    kind: 'started';
+}>;
+export type ScriptedStopRecord = Readonly<{
+    process: ProcessHandle['process'];
+    mode: 'graceful' | 'forced';
+    answer: 'confirmed' | 'unconfirmed';
+}>;
+export type ScriptedProcess = Readonly<{
+    handle: ProcessHandle;
+    settled: boolean;
+    complete(): void;
+}>;
+export declare function createScriptedProcess({ mode, answer, identity, onStop, }: {
+    mode: ProcessHandle['outputMode'];
+    answer: Started;
+    identity: ProcessHandle['process'];
+    onStop(record: ScriptedStopRecord): void;
+}): ScriptedProcess;
+export {};
+```
+
+## 声明文件 `testing/scripted-terminal.d.ts`
+
+```ts
+import type { TerminalFacility, TerminalRef } from '../index.ts';
+import type { ScriptedCommandAnswer } from './scripted-command.ts';
+import { type ScriptedStopRecord } from './scripted-process.ts';
+type ExecuteRequest<P> = Parameters<TerminalFacility<P>['execute']>[0];
+export type ScriptedTerminalAnswer = (Extract<ScriptedCommandAnswer, {
+    kind: 'started';
+}> & {
+    readonly observedCwd?: string;
+}) | Exclude<ScriptedCommandAnswer, {
+    kind: 'started';
+}>;
+export type TerminalScript<P = unknown> = (request: ExecuteRequest<P>, base: Readonly<{
+    observedCwd: string;
+    env: Readonly<Record<string, string>>;
+}>) => ScriptedTerminalAnswer | Promise<ScriptedTerminalAnswer>;
+export type ScriptedTerminalFacility<P = unknown> = Readonly<{
+    durability: 'none';
+    facility: TerminalFacility<P>;
+    calls: readonly ExecuteRequest<P>[];
+    stops: readonly ScriptedStopRecord[];
+    close(): void;
+    invalidate(terminal: TerminalRef): void;
+    finish(terminal: TerminalRef): Promise<void>;
+}>;
+export declare function createScriptedTerminalFacility<P = unknown>(script: TerminalScript<P>): ScriptedTerminalFacility<P>;
+export {};
+```
+
+## 声明文件 `testing/terminal-conformance.d.ts`
+
+```ts
+import type { FacilityRequest, ProcessHandle, TerminalFacility, TerminalRef } from '../index.ts';
+import { type ConformanceCase } from './case.ts';
+export type TerminalConformanceAcquisition = Readonly<{
+    facility: TerminalFacility<unknown>;
+    createRequest: Parameters<TerminalFacility<unknown>['create']>[0];
+    request(): FacilityRequest<unknown>;
+    executeRequest(terminal: TerminalRef): Parameters<TerminalFacility<unknown>['execute']>[0];
+}>;
+export type TerminalConformanceSubject = Readonly<{
+    acquisitions: readonly [
+        TerminalConformanceAcquisition,
+        TerminalConformanceAcquisition
+    ];
+    control?: {
+        start(acquisition: TerminalConformanceAcquisition, terminal: TerminalRef): Promise<ProcessHandle>;
+        finish(process: ProcessHandle): Promise<void>;
+        stopMode: 'graceful' | 'forced';
+        stopAnswer: 'confirmed' | 'unconfirmed';
+        closeAnswer: 'confirmed' | 'unconfirmed';
+    };
+    dispose?(): Promise<void>;
+}>;
+export type TerminalConformanceOptions = Readonly<{
+    subject(): TerminalConformanceSubject | Promise<TerminalConformanceSubject>;
+    waitMs?: number;
+}>;
+export declare function terminalFacilityConformance(options: TerminalConformanceOptions): readonly ConformanceCase[];
 ```

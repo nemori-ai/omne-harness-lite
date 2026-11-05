@@ -405,6 +405,18 @@ export type RequestCandidate = Readonly<{
   continuation: Omit<ContinuationBasis, 'call' | 'fixed'>
 }>
 
+/**
+ * The parts of a request outside the history, as they stood when the plan was made: the system
+ * prompt (layer 1), the declared tools (layer 2), the snapshot reminder (layer 4) and the tail
+ * reminder (layer 6). The check after a summary measures them with the candidate view (RQ-06).
+ */
+export type RequestFrame = Readonly<{
+  system: M.AssembledModelInput['system']
+  tools: M.AssembledModelInput['tools']
+  snapshotReminder: Message | null
+  tailFacts: Message | null
+}>
+
 /** 计划时冻结的压缩依据：可保存的数据值，不带读口、租约或句柄（RQ-06）。 */
 export type CompactionBasis = Readonly<{
   target: ContextTarget
@@ -414,6 +426,7 @@ export type CompactionBasis = Readonly<{
   selection: SelectedModel
   representation: Adoption
   continuation: ContinuationBasis | null
+  frame: RequestFrame
   retainedBudget: string
   digest: string
 }>
@@ -592,11 +605,22 @@ export type DeriveInput<P> = Readonly<{
   material: SummaryMaterial
 }>
 
+/**
+ * How a declared name reaches a tool. A function tool has no command to select; a multi-command
+ * tool selects it from the call arguments with the tool's encoding.
+ */
+export type ToolCommandSelection =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{
+      kind: 'argument'
+      encoding: T.CommandCallEncoding
+      commands: readonly string[]
+    }>
 export type ToolRoute = Readonly<{
   declared: string
   tool: Adoption
   binding: Adoption
-  command: string | null
+  selection: ToolCommandSelection
 }>
 export type ToolDeclarationSet = Readonly<{
   direct: readonly M.ToolDeclaration[]

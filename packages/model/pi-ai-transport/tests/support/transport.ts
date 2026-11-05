@@ -5,7 +5,7 @@ import type {
   PreparedTransport,
   TransportFact,
 } from '@omne-harness/model-contract/provider'
-import type { PiCredentialSlot, PiTransportLimits } from '../../src/index.ts'
+import type { PiCredentialSlot, PiTransportConfig, PiTransportLimits } from '../../src/index.ts'
 import type { NetworkInternals } from '../../src/network.ts'
 import { createPiTransport, type PiTransport } from '../../src/transport.ts'
 import {
@@ -49,6 +49,7 @@ export function transportOver(
     url: string
     credential?: PiCredentialSlot
     limits?: PiTransportLimits
+    onConnectRetry?: PiTransportConfig['onConnectRetry']
   }>,
 ): TransportUnderTest {
   const family = createTestFamily()
@@ -59,6 +60,7 @@ export function transportOver(
     routes: { [SUPPLIER.recipient]: { url: options.url, endMarker: END_MARKER } },
     credential: options.credential ?? { read: () => 'test-secret' },
     limits: options.limits ?? LIMITS,
+    ...(options.onConnectRetry === undefined ? {} : { onConnectRetry: options.onConnectRetry }),
   })
   async function prepare(): Promise<PreparedTransport> {
     const prepared = await built.transport.prepare(REQUEST, SUPPLIER, { resent: [] })

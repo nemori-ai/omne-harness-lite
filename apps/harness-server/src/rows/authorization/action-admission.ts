@@ -18,10 +18,16 @@ function unavailable(diagnostic: string): AdmissionDecision {
   return { kind: 'unavailable', diagnostic }
 }
 
+/**
+ * The rules of the action's tool. `tool` names the tool of the definition the trusted Tool request
+ * source described, not the model's spelling of the call. A multi-command tool is one declaration
+ * whose call names the command (D-94), so a rule on `Shell` covers every Shell command, and a deny
+ * on a tool cannot be passed by naming one of its commands.
+ */
 function ruleFor(rules: ActionRules, input: Request) {
   const matches = rules.rules.filter(
     rule =>
-      rule.tool === input.original.name &&
+      rule.tool === input.definition.name &&
       (rule.definition == null ||
         (rule.definition.owner === input.definition.owner &&
           rule.definition.name === input.definition.name &&

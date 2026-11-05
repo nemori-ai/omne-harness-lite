@@ -4,6 +4,4 @@
 
 ## 内容
 
-- [README.md](README.md)：证明清单与假设
-
-本目录目前没有其他文件，原因见 [README.md](README.md)。
+- [README.md](README.md)：P3、P4 的手写证明

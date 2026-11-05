@@ -13,7 +13,10 @@ import type {
   ObjectToken,
 } from '@omne-harness/execution-environment-contract'
 import { createHostFileBatch, type HostFileDiagnostic } from './host-file-batch.ts'
+import { createWindowsBatch } from './windows-files/batch.ts'
 import { createHostFileTree, hostFilesLimits, type HostFilesLimits } from './host-file-tree.ts'
+import { createWindowsFiles, createWindowsRootIdentity } from './windows-files/facility.ts'
+import { windowsSegmentsBelow } from './root-segments.ts'
 import {
   createCodes,
   createHostPathsCore,
@@ -154,8 +157,8 @@ export type HostFilesEngineOptions = Readonly<{
 
 /**
  * The host `files` facility. Every operation acts on the object the request names. Without a
- * Linux host the eight operations beyond `read`, `stat`, `write` and `close` answer `unavailable`
- * without touching the file system.
+ * Linux or Windows backend the eight operations beyond `read`, `stat`, `write` and `close`
+ * answer `unavailable` without touching the file system.
  */
 export function createHostFiles(): FileSystemFacility<unknown> {
   return createHostFilesEngine().facilityFor('host-files')
@@ -178,6 +181,10 @@ export function createHostFilesEngine(
   absolutePath('root', options.root)
   absolutePath('stateDirectory', options.stateDirectory)
   const bounds = hostFilesLimits(limits)
+  const windowsRootIdentity =
+    process.platform === 'win32' && options.root !== undefined
+      ? createWindowsRootIdentity(options.root)
+      : undefined
   const core = createHostPathsCore({
     root: options.root,
     probeDirectory: options.stateDirectory,
@@ -711,7 +718,12 @@ export function createHostFilesEngine(
         if (!isHostPath(path)) return reject(requestId, 'invalidInput')
         if (named === null) return reject(requestId, 'notAuthorized')
         if (paths.rooted) {
-          const refusal = await gate(paths, requestId, [path])
+          const refusal =
+            process.platform === 'win32' && options.root !== undefined
+              ? (await windowsSegmentsBelow(options.root, path)) === undefined
+                ? reject(requestId, 'notAuthorized')
+                : undefined
+              : await gate(paths, requestId, [path])
           if (refusal !== undefined) return refusal
         }
         if (handleObject.token !== namedToken) return unknown(requestId)
@@ -741,6 +753,35 @@ export function createHostFilesEngine(
       copy: tree.copy,
       commitBatch: batch.commitBatch,
       recoverBatch: batch.recoverBatch,
+    }
+
+    if (process.platform === 'win32') {
+      const windows = createWindowsFiles({
+        ...options,
+        ...(windowsRootIdentity === undefined ? {} : { rootIdentity: windowsRootIdentity }),
+        limits: bounds,
+        issue,
+      })
+      operations.list = windows.list
+      operations.search = windows.search
+      operations.mkdir = windows.mkdir
+      operations.remove = windows.remove
+      operations.move = windows.move
+      operations.write = windows.write
+      operations.copy = windows.copy
+      const windowsBatch = createWindowsBatch({
+        files: windows,
+        ...(options.stateDirectory === undefined ? {} : { stateDirectory: options.stateDirectory }),
+        generation,
+        running,
+        sealed: () => sealed.has(owner),
+      })
+      operations.commitBatch = windowsBatch.commitBatch
+      operations.recoverBatch = windowsBatch.recoverBatch
+      if (options.root !== undefined) {
+        operations.read = windows.read
+        operations.stat = windows.stat
+      }
     }
 
     /** Once the owner is sealed, a new operation is refused without touching the file system. */

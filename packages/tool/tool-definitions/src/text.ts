@@ -27,18 +27,25 @@ function prefix(text: string, maximum: number): string {
 function suffix(text: string, maximum: number): string {
   return [...prefix([...text].reverse().join(''), maximum)].reverse().join('')
 }
+function truncateText(headText: string, tailText: string, total: number, maximum: number): string {
+  let reserve = utf8Length(`\n[tool truncated bytes 0..${total} of ${total}]\n`)
+  while (reserve < maximum) {
+    const budget = maximum - reserve
+    const head = prefix(headText, Math.ceil(budget / 2))
+    const tail = suffix(tailText, Math.floor(budget / 2))
+    const start = utf8Length(head)
+    const end = total - utf8Length(tail)
+    const output = `${head}\n[tool truncated bytes ${start}..${end} of ${total}]\n${tail}`
+    const excess = utf8Length(output) - maximum
+    if (excess <= 0) return output
+    reserve += excess
+  }
+  return prefix('[tool truncated]', maximum)
+}
 /** UTF-8 byte ranges refer to the complete unbounded tool text. */
 export function bounded(text: string, maximum: number): string {
   const total = utf8Length(text)
-  if (total <= maximum) return text
-  const reserve = utf8Length(`\n[tool truncated bytes 0..${total} of ${total}]\n`)
-  if (reserve >= maximum) return prefix('[tool truncated]', maximum)
-  const budget = maximum - reserve
-  const head = prefix(text, Math.ceil(budget / 2))
-  const tail = suffix(text, Math.floor(budget / 2))
-  const start = utf8Length(head)
-  const end = total - utf8Length(tail)
-  return `${head}\n[tool truncated bytes ${start}..${end} of ${total}]\n${tail}`
+  return total <= maximum ? text : truncateText(text, text, total, maximum)
 }
 export class TextWindow {
   private head = ''
@@ -55,12 +62,7 @@ export class TextWindow {
   }
   render(maximum: number): string {
     if (this.total <= maximum) return this.head
-    const reserve = utf8Length(`\n[tool truncated bytes 0..${this.total} of ${this.total}]\n`)
-    if (reserve >= maximum) return prefix('[tool truncated]', maximum)
-    const budget = maximum - reserve
-    const head = prefix(this.head, Math.ceil(budget / 2))
-    const tail = suffix(this.tail, Math.floor(budget / 2))
-    return `${head}\n[tool truncated bytes ${utf8Length(head)}..${this.total - utf8Length(tail)} of ${this.total}]\n${tail}`
+    return truncateText(this.head, this.tail, this.total, maximum)
   }
 }
 export function identityText(value: FileIdentity): string {

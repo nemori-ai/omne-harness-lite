@@ -147,9 +147,15 @@ it('every one of the 22 methods runs its attempt under a scope that names the te
   for (const method of methods) {
     const { commands, scopes } = recording(f)
     await calls[method](commands)
+    const call: ModelCallId = callId()
+    if (method === 'handoff') {
+      // The ACK first reads the call to ask the owner's evidence adapter outside the fence: a read
+      // attempt that names the tenant and the call, then the write attempt.
+      expect(scopes, method).toHaveLength(2)
+      expect(scopes.shift(), method).toStrictEqual({ tenant: text.value, call })
+    }
     expect(scopes, method).toHaveLength(1)
     const scope = scopes[0]
-    const call: ModelCallId = callId()
     if (method === 'scanPending') {
       // A scan reads across calls of the tenant: it names no call and no operation.
       expect(scope, method).toStrictEqual({ tenant: text.value })

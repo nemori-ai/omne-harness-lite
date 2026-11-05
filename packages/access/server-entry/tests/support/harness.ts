@@ -1,17 +1,23 @@
-// The test harness: a server entry on a loopback port with the identity reference double, the
+// The test harness: a server entry on a loopback port with the identity reference double (its
+// operations and governance port over shared records, a manual clock and adjustable terms), the
 // in-process principal authority and the Session double, plus the HTTP helpers that the cases use.
 import { createHash } from 'node:crypto'
 import { request as httpRequest, type IncomingMessage } from 'node:http'
 import { connect } from 'node:net'
 import {
   inProcessPrincipalAuthority,
+  type IdentityGovernance,
   type IdentityOperations,
   type PrincipalIssuer,
 } from '@omne-harness/identity'
 import {
+  adjustableInvitationTerms,
   adjustableLoginTerms,
-  inProcessIdentityOperations,
+  inProcessIdentity,
   manualIdentityClock,
+  recordStoreFaults,
+  type ManualIdentityClock,
+  type RecordStoreFaultControl,
 } from '@omne-harness/identity/testing'
 import { parseDuration, parseInstant } from '@omne-harness/utc-instant'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -33,6 +39,11 @@ export const decoder = new TextDecoder()
 
 export const DEFINITION = 'assistant'
 
+export const INITIAL_MODEL_SELECTION = {
+  name: 'fixture/model',
+  basis: { owner: 'fixture', record: 'model-selection', revision: '1', digest: 'sha256:selection' },
+} as const
+
 export function resolveDefinition(name: string): ResolvedDefinition | undefined {
   if (name !== DEFINITION) return undefined
   return {
@@ -46,6 +57,7 @@ export function resolveDefinition(name: string): ResolvedDefinition | undefined 
       revision: '1',
       digest: 'sha256:defaults',
     },
+    initialModelSelection: INITIAL_MODEL_SELECTION,
   }
 }
 
@@ -73,6 +85,11 @@ export type Fixture = Readonly<{
   entry: ServerEntry
   port: number
   identity: IdentityOperations
+  governance: IdentityGovernance
+  /** The identity double's clock: it moves only when a case moves it. */
+  clock: ManualIdentityClock
+  /** The identity double's record store faults. */
+  faults: RecordStoreFaultControl
   issuer: PrincipalIssuer
   session: SessionDouble
   diagnostics: ServerEntryDiagnostic[]
@@ -83,26 +100,55 @@ export type Fixture = Readonly<{
 export type FixtureOptions = Readonly<{
   config?: Partial<ServerEntryConfig>
   identity?: (base: IdentityOperations) => IdentityOperations
+  governance?: (base: IdentityGovernance) => IdentityGovernance
   issuer?: (base: PrincipalIssuer) => PrincipalIssuer
   dependencies?: Partial<ServerEntryDependencies>
 }>
 
-export function identityDouble(): IdentityOperations {
+export const IDLE_PERIOD = 'PT600S'
+export const MAX_LIFETIME = 'PT3600S'
+
+function duration(text: string) {
+  const parsed = parseDuration(text)
+  if (!parsed.ok) throw new Error(`fixture duration ${text} did not parse`)
+  return parsed.value
+}
+
+export type IdentityDouble = Readonly<{
+  operations: IdentityOperations
+  governance: IdentityGovernance
+  clock: ManualIdentityClock
+  faults: RecordStoreFaultControl
+}>
+
+/** Both identity ports over one deployment's records: logins live 3600 s, idle 600 s; invitations 7 or at most 30 days. */
+export function identityDouble(): IdentityDouble {
   const start = parseInstant('2026-11-02T00:00:00Z')
-  const lifetime = parseDuration('PT3600S')
-  const idle = parseDuration('PT600S')
-  if (!start.ok || !lifetime.ok || !idle.ok) throw new Error('fixture time did not parse')
-  return inProcessIdentityOperations({
-    clock: manualIdentityClock(start.value).clock,
-    terms: adjustableLoginTerms({ maxLifetime: lifetime.value, idlePeriod: idle.value }).source,
+  if (!start.ok) throw new Error('fixture time did not parse')
+  const clock = manualIdentityClock(start.value)
+  const faults = recordStoreFaults()
+  const identity = inProcessIdentity({
+    clock: clock.clock,
+    terms: adjustableLoginTerms({
+      maxLifetime: duration(MAX_LIFETIME),
+      idlePeriod: duration(IDLE_PERIOD),
+    }).source,
+    invitationTerms: adjustableInvitationTerms({
+      defaultDuration: duration('PT604800S'),
+      maxDuration: duration('PT2592000S'),
+    }).source,
+    faults: faults.faults,
   })
+  return { operations: identity.operations, governance: identity.governance, clock, faults }
 }
 
 export async function startFixture(options: FixtureOptions = {}): Promise<Fixture> {
   const members = new Map<string, Set<string>>()
   const session = createSessionDouble({ members })
-  const baseIdentity = identityDouble()
-  const identity = options.identity?.(baseIdentity) ?? baseIdentity
+  const double = identityDouble()
+  const identity = options.identity?.(double.operations) ?? double.operations
+  const governance =
+    options.governance === undefined ? double.governance : options.governance(double.governance)
   const authority = inProcessPrincipalAuthority()
   const issuer = options.issuer?.(authority.issuer) ?? authority.issuer
   const diagnostics: ServerEntryDiagnostic[] = []
@@ -110,6 +156,7 @@ export async function startFixture(options: FixtureOptions = {}): Promise<Fixtur
     config: baseConfig(options.config),
     dependencies: {
       identity,
+      governance,
       issuer,
       session: session.faces,
       resolveDefinition,
@@ -122,6 +169,9 @@ export async function startFixture(options: FixtureOptions = {}): Promise<Fixtur
     entry,
     port: listening.port,
     identity,
+    governance: double.governance,
+    clock: double.clock,
+    faults: double.faults,
     issuer,
     session,
     diagnostics,
@@ -225,6 +275,8 @@ export function sessionMessage(
 
 export type Login = Readonly<{
   loginProof: string
+  /** The identifier of this login, from the `issue-login` reply. */
+  loginId: string
   tenant: TenantId
   tenantText: string
   accountText: string
@@ -246,7 +298,8 @@ export async function login(
     body: governance('issue-login', { loginIdentifier: identifier, credential }),
   })
   if (issued.status !== 200) throw new Error(`issue-login failed: ${issued.text}`)
-  const body = (issued.json as { body: { loginProof: string; tenantId: string } }).body
+  const body = (issued.json as { body: { loginProof: string; tenantId: string; loginId: string } })
+    .body
   const tenant = tenantCodec.parse(body.tenantId)
   if (!tenant.ok) throw new Error('issued tenant did not parse')
   const accountText = tenant.value.account.text
@@ -256,12 +309,43 @@ export async function login(
   fixture.members.set(key, existing)
   return {
     loginProof: body.loginProof,
+    loginId: body.loginId,
     tenant: tenant.value,
     tenantText: body.tenantId,
     accountText,
     loginIdentifier: identifier,
     credential,
   }
+}
+
+/** Issues one more login of an account that is already registered. */
+export async function anotherLogin(fixture: Fixture, who: Login): Promise<Login> {
+  const issued = await send(fixture.port, GOVERNANCE_PATH, {
+    body: governance('issue-login', {
+      loginIdentifier: who.loginIdentifier,
+      credential: who.credential,
+    }),
+  })
+  if (issued.status !== 200) throw new Error(`issue-login failed: ${issued.text}`)
+  const body = (issued.json as { body: { loginProof: string; tenantId: string; loginId: string } })
+    .body
+  return { ...who, loginProof: body.loginProof, loginId: body.loginId }
+}
+
+/** A governed governance message of `who`: the proof, and the acting tenant unless `acting` is null. */
+export function governed(
+  who: Login,
+  operation: string,
+  body: unknown,
+  acting: string | null = who.tenantText,
+  messageId = 'm-1',
+): string {
+  return governance(
+    operation,
+    body,
+    { loginProof: who.loginProof, ...(acting === null ? {} : { actingTenant: acting }) },
+    messageId,
+  )
 }
 
 export function sha256Hex(parts: readonly string[]): string {

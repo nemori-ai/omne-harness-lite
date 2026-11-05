@@ -288,12 +288,17 @@ describe('reference, identity and source checks', () => {
     side => {
       const before = snapshot()
       const after = advance(before)
-      const bad = { ...(side === 'before' ? before : after), ref: reference('str_a', foreign()) }
-      expect(diff(side === 'before' ? bad : before, side === 'after' ? bad : after)).toEqual({
-        failure: { kind: 'reference', side, failure: { kind: 'foreign-tenant' } },
+      const bad = { ...(side === 'before' ? before : after), ref: 'invalid' as StreamRef }
+      expect(diff(side === 'before' ? bad : before, side === 'after' ? bad : after)).toMatchObject({
+        failure: { kind: 'reference', side, failure: { kind: 'invalid-envelope' } },
       })
     },
   )
+
+  it('carries no tenant in a reference, so the value of another tenant is the same text', () => {
+    // R2-D357: the tenant comes from the caller and its store partition, not from the text.
+    expect(reference('str_a', foreign())).toBe(reference('str_a'))
+  })
 
   it('labels delta reference failures, rejects the other producer and hides malformed-call details', () => {
     const before = snapshot()

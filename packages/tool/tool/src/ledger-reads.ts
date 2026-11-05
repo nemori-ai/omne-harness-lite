@@ -219,7 +219,7 @@ export function readRecovery<B extends ContentBlock>(
     start: call.start,
     startRejection: call.startRejection,
     invocations: call.start === null ? [] : [call.start],
-    controls: [],
+    controls: call.state.controls,
     result: original === undefined || original === null ? null : original.value,
     unresolved: [],
     preparations: call.preparations,

@@ -212,7 +212,9 @@ describe('inputs that break the precondition of the function', () => {
   it('throws when the snapshot was not made by sealSnapshot', () => {
     const built = buildPackage('demo', { 'SKILL.md': demo() })
     const forged = { ...built.snapshot }
-    expect(() => parseSkillPackage({ snapshot: forged, control: built.control })).toThrow(TypeError)
+    expect(() => parseSkillPackage({ snapshot: forged, control: built.control })).toThrow(
+      new TypeError('the snapshot was not made by sealSnapshot'),
+    )
   })
 })
 

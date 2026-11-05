@@ -17,15 +17,17 @@ Gated ──materialOf──► SkillMaterialBasis ──pin──► Pinned ─
 
 | 值 | 身份 | 由谁造 | 谁消费 |
 | --- | --- | --- | --- |
-| `SkillPorts` | 无；集成方的一个对象 | 集成方 | 两个工厂与各阶段 |
+| `SkillPorts` | 无；集成方的一个对象 | 集成方 | 三个工厂与各阶段 |
 | `Gated` | 无 | `gate` | `describe` 的组装、`materialOf`、`pin` |
 | `SkillMaterialBasis`（所钉材料） | 无；契约的公开值 | `materialOf` | `describe` 的 `material`、`pin` |
 | `Pinned` | 无 | `pin` | `list` 的组装、第 9 步的查找、`verifiedBytes`、结果的 `basis` |
 | `Bytes` | 无 | `verifiedBytes` | `read` 的切页、`export` 的条目 |
 | `Sliced` | 无 | `sliceRange` | `read` 的结果 |
+| 解析后的端口答复（`ReadVerdict`、`Resolution`、合法集合） | 无；重新构造的值，不是端口的对象 | `port-answer.ts` 的解析函数 | `gate`、目录 |
+| 目录条目 `CatalogEntry` | 无；契约的公开值 | `catalog.ts`，从解析后的合法集合组装 | `summaries`、`search` 的结果 |
 
 对外的结果值（`SkillDescription`、`ReadResult`、`ResourceListing`、`SkillExport`）归契约，由 `service.ts` 从上面的值组装。
 
 ## 生命周期
 
-每个值在一次操作里被造出、被下一阶段消费、随操作结束被丢弃。没有缓存，没有在调用之间存活的对象。`createSkillAccess` 与 `createPackageInspection` 交出的对象只持有端口的引用，没有自己的状态。
+每个值在一次操作里被造出、被下一阶段消费、随操作结束被丢弃。没有缓存，没有在调用之间存活的对象。`createSkillAccess`、`createSkillCatalog` 与 `createPackageInspection` 交出的对象只持有端口的引用，没有自己的状态。

@@ -1,16 +1,28 @@
-// The `execution-record` participant module: the records of the execution record provider (the
-// Agent Journal) in the Session log's transaction domain. In the commit transaction it does six
-// things and decides nothing of the Agent: it finds the execution row, compares the head revision
-// and the publication count with the expected ones, inserts the original answer under its unique
-// operation, replaces the opaque state (whole, or the parts the write names), writes the index rows
-// the provider prepared, and adds one to the publication count. The state, its parts and the
-// answers are opaque: it stores them as they came.
-// Its second intent keeps the preadmission records (`preadmission`): the intent of one handoff is
-// saved before the provider answers, and its outcome is fixed once.
+// The `execution-record` participant module: the Agent facts of the execution record provider (the
+// Agent Journal) as the second append-only family of the Session log (R2-D292), and the content
+// blocks of the tenant (TB-04). It decides nothing of the Agent. In the commit transaction a
+// publication does six things: it finds the original batch of the operation; it compares the
+// publication count of the session and the head revision of the execution with the expected
+// ones (the first gate); it appends the batch of facts at the next publication (the primary key is
+// the second gate) with the content blocks the batch needs, once per tenant and digest; it writes
+// the operation key, the head rows and the admissions the provider prepared; and it adds one to
+// the publication count. Nothing is replaced and no answer is stored: an answer is derived from
+// the batch of its operation. The fact bodies are opaque: it stores them as they came.
+// Its `blobs` intent stores content blocks alone, before the facts that refer to them, for a block
+// that does not fit one command with them.
+// Its `preadmission` intent keeps the preadmission records: the intent of one handoff is saved
+// before the provider answers, and its outcome is fixed once.
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantModule, ParticipantReply } from '@omne-harness/sql-contract/worker'
-import { canonicalText, decodeValue, sha256 } from '../codec.ts'
+import {
+  blobDigest,
+  canonicalText,
+  decodeValue,
+  EXECUTION_BATCH_MAX_FACTS,
+  EXECUTION_FACT_MAX_BYTES,
+  sha256,
+} from '../codec.ts'
 import { findPreadmission, preadmissionRecord } from './read-preadmission.ts'
 import { big, oneRow, text, type Executor, type Row } from './support.ts'
 
@@ -34,15 +46,10 @@ type Boundary = Readonly<{
   emittedThrough: string
   ended: JsonValue
 }>
-type Fact = Readonly<{
-  execution: string
-  sequence: string
-  source: JsonValue
-  kinds: JsonValue
-  /** The body of the fact (`er_fact_body`); undefined when the writer sent none. */
-  body: Readonly<{ consequences: JsonValue; control: JsonValue }> | undefined
-}>
-type Batch = Readonly<{ execution: string; sequence: string; source: JsonValue; batch: JsonValue }>
+/** The event of a fact that is an event: its sequence, kinds and the projection Session reads. */
+type Event = Readonly<{ sequence: string; kinds: readonly string[]; projection: Json }>
+type Fact = Readonly<{ execution: string; kind: string; event: Event | null; body: string }>
+type Blob = Readonly<{ digest: string; media: string; payload: string }>
 type Admission = Readonly<{
   input: string
   execution: string
@@ -52,8 +59,6 @@ type Admission = Readonly<{
   attachment: string
   attempt: string | null
 }>
-/** One named part of the opaque state; `state` null drops the part. */
-type Part = Readonly<{ part: string; state: JsonValue | null }>
 type Write = Readonly<{
   tenant: string
   session: string
@@ -63,17 +68,9 @@ type Write = Readonly<{
   published: string
   operation: string
   digest: string
-  answer: JsonValue
-  /**
-   * The whole state (`kind: 'whole'`), or the parts this write changes (`kind: 'parts'`); with
-   * `replace` the parts are the whole state and every part the write does not name goes.
-   */
-  state:
-    | Readonly<{ kind: 'whole'; state: JsonValue }>
-    | Readonly<{ kind: 'parts'; parts: readonly Part[]; replace: boolean }>
-  boundaries: readonly Boundary[]
   facts: readonly Fact[]
-  batches: readonly Batch[]
+  blobs: readonly Blob[]
+  boundaries: readonly Boundary[]
   admissions: readonly Admission[]
 }>
 
@@ -82,6 +79,7 @@ const isText = (value: JsonValue | undefined): value is string =>
   typeof value === 'string' && value !== ''
 const isInteger = (value: JsonValue | undefined): value is string =>
   typeof value === 'string' && INTEGER.test(value)
+const utf8 = (value: string): number => Buffer.byteLength(value, 'utf8')
 
 function listOf<T>(value: JsonValue | undefined, parse: (item: Json) => T | null): T[] | null {
   if (!Array.isArray(value)) return null
@@ -116,27 +114,46 @@ function parseBoundary(item: Json): Boundary | null {
     : null
 }
 
-function parseFact(item: Json): Fact | null {
-  const { execution, sequence, kinds } = item
-  // A writer that names either member writes the body; one that names neither writes none.
-  const bodied = 'consequences' in item || 'control' in item
-  return isText(execution) && isInteger(sequence) && Array.isArray(kinds)
-    ? {
-        execution,
-        sequence,
-        source: item['source'] ?? null,
-        kinds,
-        body: bodied
-          ? { consequences: item['consequences'] ?? null, control: item['control'] ?? null }
-          : undefined,
-      }
-    : null
+/**
+ * The event of a fact: a positive sequence, an evidence object as its source and text kinds.
+ * `consequences`, `control` and `batch` pass as given; an absent `consequences` or `control` is
+ * null (not decided, not a deferred control fact), an absent `batch` is left out.
+ */
+function parseEvent(raw: JsonValue | undefined): Event | null | 'malformed' {
+  if (raw === undefined || raw === null) return null
+  if (!isJson(raw)) return 'malformed'
+  const { sequence, source, kinds } = raw
+  if (!isInteger(sequence) || sequence === '0' || !isJson(source)) return 'malformed'
+  if (!Array.isArray(kinds) || !kinds.every(kind => isText(kind))) return 'malformed'
+  const projection: Record<string, JsonValue> = {
+    source,
+    consequences: raw['consequences'] ?? null,
+    control: raw['control'] ?? null,
+  }
+  if (raw['batch'] !== undefined && raw['batch'] !== null) projection['batch'] = raw['batch']
+  return { sequence, kinds: kinds as string[], projection }
 }
 
-function parseBatch(item: Json): Batch | null {
-  const { execution, sequence } = item
-  return isText(execution) && isInteger(sequence)
-    ? { execution, sequence, source: item['source'] ?? null, batch: item['batch'] ?? null }
+/** One fact of the batch; its execution is the write's when it names none. */
+function parseFact(execution: string): (item: Json) => Fact | null {
+  return item => {
+    const owner = item['execution'] ?? execution
+    const { kind } = item
+    const event = parseEvent(item['event'])
+    if (!isText(owner) || !isText(kind) || event === 'malformed' || !('body' in item)) return null
+    const body = JSON.stringify(item['body'] ?? null)
+    return utf8(body) > EXECUTION_FACT_MAX_BYTES ? null : { execution: owner, kind, event, body }
+  }
+}
+
+/** A block whose digest is the digest of its payload; any other block is malformed. */
+function parseBlob(item: Json): Blob | null {
+  const { digest, media, payload } = item
+  return isText(digest) &&
+    isText(media) &&
+    typeof payload === 'string' &&
+    blobDigest(payload) === digest
+    ? { digest, media, payload }
     : null
 }
 
@@ -157,24 +174,6 @@ function parseAdmission(item: Json): Admission | null {
     : null
 }
 
-function parsePart(item: Json): Part | null {
-  const { part } = item
-  return isText(part) && 'state' in item ? { part, state: item['state'] ?? null } : null
-}
-
-/** The whole state or its parts: exactly one of `state` and `parts`, never both. */
-function parseState(raw: Json): Write['state'] | null {
-  if ('parts' in raw) {
-    if ('state' in raw) return null
-    const parts = listOf(raw['parts'], parsePart)
-    const replace = raw['replace'] ?? false
-    if (parts === null || typeof replace !== 'boolean') return null
-    if (new Set(parts.map(item => item.part)).size !== parts.length) return null
-    return { kind: 'parts', parts, replace }
-  }
-  return 'state' in raw ? { kind: 'whole', state: raw['state'] ?? null } : null
-}
-
 type Head = Pick<
   Write,
   | 'tenant'
@@ -185,10 +184,9 @@ type Head = Pick<
   | 'published'
   | 'operation'
   | 'digest'
-  | 'answer'
 >
 
-/** The identity, the expected counts and the original answer of the write. */
+/** The identity and the expected counts of the write. */
 function parseHead(raw: Json): Head | null {
   const tenant = tenantOf(raw['tenant'])
   const { session, execution, expected, revision, published, operation, digest } = raw
@@ -200,38 +198,70 @@ function parseHead(raw: Json): Head | null {
     !isInteger(revision) ||
     !isInteger(published) ||
     !isText(operation) ||
-    !isText(digest) ||
-    !('answer' in raw)
+    !isText(digest)
   )
     return null
-  return {
-    tenant,
-    session,
-    execution,
-    expected,
-    revision,
-    published,
-    operation,
-    digest,
-    answer: raw['answer'] ?? null,
-  }
+  return { tenant, session, execution, expected, revision, published, operation, digest }
 }
 
-/** Parses the write at the boundary; a malformed one is unsupported and writes nothing. */
+/**
+ * Parses the write at the boundary; a malformed one is unsupported and writes nothing. A batch
+ * holds one to `EXECUTION_BATCH_MAX_FACTS` facts (the first is its envelope), each body at most
+ * `EXECUTION_FACT_MAX_BYTES`, and no two events of one execution with one sequence.
+ */
 function parseWrite(raw: JsonValue | undefined): Write | null {
   if (!isJson(raw)) return null
   const head = parseHead(raw)
-  const state = parseState(raw)
-  if (head === null || state === null) return null
+  if (head === null) return null
+  const facts = listOf(raw['facts'], parseFact(head.execution))
+  const blobs = listOf(raw['blobs'] ?? [], parseBlob)
   const boundaries = listOf(raw['boundaries'], parseBoundary)
-  const facts = listOf(raw['facts'], parseFact)
-  const batches = listOf(raw['batches'], parseBatch)
   const admissions = listOf(raw['admissions'], parseAdmission)
-  if (boundaries === null || facts === null || batches === null || admissions === null) return null
-  return { ...head, state, boundaries, facts, batches, admissions }
+  if (facts === null || blobs === null || boundaries === null || admissions === null) return null
+  if (facts.length === 0 || facts.length > EXECUTION_BATCH_MAX_FACTS) return null
+  const events = facts.flatMap(fact =>
+    fact.event === null ? [] : [JSON.stringify([fact.execution, fact.event.sequence])],
+  )
+  if (new Set(events).size !== events.length) return null
+  return { ...head, facts, blobs, boundaries, admissions }
 }
 
 const json = (value: JsonValue): string => JSON.stringify(value)
+
+/**
+ * Appends the batch at publication `pub`. A plain INSERT: a row already at one of these positions
+ * (a writer that passed the count check at a taken position), an event sequence or an operation
+ * already written makes the statement fail, and the storage rolls the whole commit back.
+ */
+function appendBatch(port: Executor, write: Write, pub: bigint): void {
+  write.facts.forEach((fact, ord) =>
+    port.execute(
+      'INSERT INTO er_fact (tenant, session, pub, ord, execution, kind, eseq, op, kinds, event, body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        write.tenant,
+        write.session,
+        pub,
+        BigInt(ord),
+        fact.execution,
+        fact.kind,
+        fact.event === null ? null : BigInt(fact.event.sequence),
+        ord === 0 ? write.operation : null,
+        json(fact.event?.kinds ?? []),
+        fact.event === null ? null : canonicalText(fact.event.projection),
+        fact.body,
+      ],
+    ),
+  )
+}
+
+/** Stores each block once per tenant and digest: a block the tenant holds is not written again. */
+function storeBlobs(port: Executor, tenant: string, blobs: readonly Blob[]): void {
+  for (const blob of blobs)
+    port.execute(
+      'INSERT OR IGNORE INTO sl_blob (tenant, digest, media, size, payload) VALUES (?, ?, ?, ?, ?)',
+      [tenant, blob.digest, blob.media, BigInt(utf8(blob.payload)), blob.payload],
+    )
+}
 
 function writeIndex(port: Executor, write: Write): void {
   const { tenant, session } = write
@@ -246,36 +276,6 @@ function writeIndex(port: Executor, write: Write): void {
         json(boundary.receipt),
         BigInt(boundary.emittedThrough),
         boundary.ended === null ? null : json(boundary.ended),
-      ],
-    )
-  for (const fact of write.facts) {
-    port.execute(
-      'INSERT INTO er_fact_idx (tenant, execution, sequence, session, source, kinds) VALUES (?, ?, ?, ?, ?, ?)',
-      [tenant, fact.execution, BigInt(fact.sequence), session, json(fact.source), json(fact.kinds)],
-    )
-    if (fact.body !== undefined)
-      port.execute(
-        'INSERT INTO er_fact_body (tenant, execution, sequence, session, consequences, control) VALUES (?, ?, ?, ?, ?, ?)',
-        [
-          tenant,
-          fact.execution,
-          BigInt(fact.sequence),
-          session,
-          fact.body.consequences === null ? null : json(fact.body.consequences),
-          fact.body.control === null ? null : json(fact.body.control),
-        ],
-      )
-  }
-  for (const batch of write.batches)
-    port.execute(
-      'INSERT INTO er_batch_idx (tenant, execution, sequence, session, source, batch) VALUES (?, ?, ?, ?, ?, ?)',
-      [
-        tenant,
-        batch.execution,
-        BigInt(batch.sequence),
-        session,
-        json(batch.source),
-        json(batch.batch),
       ],
     )
   for (const admission of write.admissions) {
@@ -308,44 +308,13 @@ function writeIndex(port: Executor, write: Write): void {
   }
 }
 
-/**
- * The whole state replaces the state of the session and drops its parts. Parts replace or drop the
- * parts they name; with `replace` the whole state and every other part go first. A dropped part is
- * kept as a row with a NULL state, marked with the count `next`, as every part this write writes.
- */
-function writeState(port: Executor, write: Write, next: bigint): void {
-  const { tenant, session, state } = write
-  const scope = [tenant, session]
-  const dropAll = () =>
-    port.execute(
-      'UPDATE er_state_part SET state = NULL, published = ? WHERE tenant = ? AND session = ? AND state IS NOT NULL',
-      [next, ...scope],
-    )
-  if (state.kind === 'whole') {
-    port.execute('INSERT OR REPLACE INTO er_state (tenant, session, state) VALUES (?, ?, ?)', [
-      ...scope,
-      json(state.state),
-    ])
-    dropAll()
-    return
-  }
-  if (state.replace) {
-    port.execute('DELETE FROM er_state WHERE tenant = ? AND session = ?', scope)
-    dropAll()
-  }
-  for (const part of state.parts)
-    port.execute(
-      'INSERT OR REPLACE INTO er_state_part (tenant, session, part, state, published) VALUES (?, ?, ?, ?, ?)',
-      [...scope, part.part, part.state === null ? null : json(part.state), next],
-    )
-}
-
 function publish(port: Executor, write: Write): ParticipantReply {
   const { tenant, session, execution } = write
-  // The original answer first: the provider tells a recall of the same operation by its digest.
+  // The original batch first: the provider tells a recall of the same operation by its digest
+  // and derives the answer from the batch at `published`.
   const original = oneRow(
     port,
-    'SELECT digest, answer FROM er_operation WHERE tenant = ? AND operation = ? LIMIT 1',
+    'SELECT digest, published FROM er_operation WHERE tenant = ? AND operation = ? LIMIT 1',
     [tenant, write.operation],
   )
   if (original !== undefined)
@@ -354,7 +323,7 @@ function publish(port: Executor, write: Write): ParticipantReply {
       basis: {
         kind: 'operation',
         digest: text(original['digest']),
-        answer: JSON.parse(text(original['answer'])) as JsonValue,
+        published: String(big(original['published'])),
       },
     }
   const root = oneRow(
@@ -369,7 +338,7 @@ function publish(port: Executor, write: Write): ParticipantReply {
     [tenant, execution],
   )
   const current = head === undefined ? null : text(head['revision'])
-  // An execution of the same identity in another session is a conflict too: nothing is written.
+  // The first gate. An execution of the same identity in another session is a conflict too.
   if (
     published !== BigInt(write.published) ||
     current !== write.expected ||
@@ -380,11 +349,12 @@ function publish(port: Executor, write: Write): ParticipantReply {
       basis: { kind: 'revision', revision: current, published: String(published) },
     }
   const next = published + 1n
+  appendBatch(port, write, next)
+  storeBlobs(port, tenant, write.blobs)
   port.execute(
-    'INSERT INTO er_operation (tenant, operation, session, execution, digest, answer, published) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [tenant, write.operation, session, execution, write.digest, json(write.answer), next],
+    'INSERT INTO er_operation (tenant, operation, session, execution, digest, published) VALUES (?, ?, ?, ?, ?, ?)',
+    [tenant, write.operation, session, execution, write.digest, next],
   )
-  writeState(port, write, next)
   writeIndex(port, write)
   port.execute('INSERT OR REPLACE INTO er_root (tenant, session, published) VALUES (?, ?, ?)', [
     tenant,
@@ -392,6 +362,16 @@ function publish(port: Executor, write: Write): ParticipantReply {
     next,
   ])
   return { kind: 'participated', response: { published: String(next), digest: write.digest } }
+}
+
+/** The `blobs` intent: blocks alone, before the facts that refer to them. A block is not a fact. */
+function blobs(port: Executor, raw: JsonValue | undefined): ParticipantReply {
+  const tenant = isJson(raw) ? tenantOf(raw['tenant']) : null
+  const list = isJson(raw) ? listOf(raw['blobs'], parseBlob) : null
+  if (tenant === null || list === null || list.length === 0)
+    return unsupported('the blocks are malformed')
+  storeBlobs(port, tenant, list)
+  return { kind: 'participated', response: { stored: list.map(blob => blob.digest) } }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -529,8 +509,9 @@ const participant: ParticipantModule = {
   protocol: PROTOCOL,
   execute(facts, port) {
     if (facts['intent'] === 'preadmission') return preadmission(port, facts)
+    if (facts['intent'] === 'blobs') return blobs(port, facts['write'])
     if (facts['intent'] !== 'publish')
-      return unsupported('the facts are neither a publication nor a preadmission')
+      return unsupported('the facts are neither a publication, blocks nor a preadmission')
     const write = parseWrite(facts['write'])
     if (write === null) return unsupported('the publication is malformed')
     return publish(port, write)

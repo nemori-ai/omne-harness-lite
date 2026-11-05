@@ -1,6 +1,7 @@
 // `requestContextTrust`（AA 运行时对象表「请求上下文信任」、DP5-C2、DP5-C3）：受信名，只有 `request-context` 行看得见。
 // 内容是两个适配：来源登记授权 `registrationAuthority` 按 DP5-C2 的次序作答，先核验主体，再比三个租户，
-// 再按组件名查放行名单；波 1 名单为空，所以任何输入都不 `allowed`。主体绑定 `principalBinding` 给经核验主体的
+// 再按组件名查放行名单。名单只有一格（R2-D202）：会话工作主体为它自己的会话登记 agent-context 的来源，
+// 作用域所属的会话经受信 `sessionScopeLookup` 解出、再经 `sessionPrincipalBindings` 核对归属，须等于主体的工作。主体绑定 `principalBinding` 给经核验主体的
 // 稳定键（request-context-contract SPEC「独立路径」）。组件名文本自己不是凭据（DP5-C1）。
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
@@ -17,20 +18,38 @@ import {
   RequestContextTrustService,
   requestContextTrustKey,
 } from '@omne-harness/request-context-cordis-contract/cordis'
+import { AGENT_CONTEXT_OWNER } from '../assembly/agent-context-owner.ts'
 import type { EntryObjectModule } from '../types.ts'
-import { verifierOf } from './principals.ts'
+import { sessionWorkOf } from '../rows/tool-runtime/session-work.ts'
+import { sessionScopesOf } from './execution-wiring.ts'
+import { ENTRY_COMPONENTS, verifierOf } from './principals.ts'
+import type { SessionScopeOwnershipSource } from './session-scope-source.ts'
 
 export type RegistrationAction = 'register' | 'replace'
 
-/** 一个放行格（DP5-C4）：持有者的组件名，它可以替哪些 `owner.owner` 做哪些动作。 */
+/**
+ * 一个放行格（DP5-C4）：持有者的组件名，它可以替哪些 `owner.owner` 做哪些动作。`ownSession` 为 true 时，
+ * 主体还须是会话工作主体，而且它的工作就是目标作用域所属的会话。
+ */
 export type RegistrationGrant = Readonly<{
   component: string
   owners: readonly string[]
   actions: readonly RegistrationAction[]
+  ownSession?: boolean
 }>
 
-/** 波 1 的放行名单为空（DP5-C3、表 3-5）。加行要同时满足 DP5-C4 的三项，只写在发行代码里。 */
-export const REGISTRATION_ALLOW_LIST: readonly RegistrationGrant[] = Object.freeze([])
+/**
+ * 发行的放行名单（DP5-C3 起为空；R2-D202 加一格）。加行要同时满足 DP5-C4 的三项，只写在发行代码里：
+ * 会话工作主体只为它自己的会话、只以发行固定的 agent-context owner、只做 `register`。
+ */
+export const REGISTRATION_ALLOW_LIST: readonly RegistrationGrant[] = Object.freeze([
+  Object.freeze({
+    component: ENTRY_COMPONENTS.sessionWork,
+    owners: Object.freeze([AGENT_CONTEXT_OWNER.owner]),
+    actions: Object.freeze(['register' as const]),
+    ownSession: true,
+  }),
+])
 
 const DENIED: SourceDecision = Object.freeze({ kind: 'denied' })
 const ALLOWED: SourceDecision = Object.freeze({ kind: 'allowed' })
@@ -49,7 +68,37 @@ async function verify(verifier: PrincipalVerifier, value: unknown): Promise<Prin
 export type RegistrationAuthorityOptions = Readonly<{
   verifier: PrincipalVerifier
   grants: readonly RegistrationGrant[]
+  /** 作用域的归属（AD-03 的事实，经主体绑定确认）；`ownSession` 的放行格要它。缺席时这类格答 unavailable。 */
+  scopeOwners?: SessionScopeOwnershipSource
 }>
+
+/**
+ * `ownSession` 放行格的会话核对：主体须是会话工作主体（`sessionWorkOf` 的严口径：签发组件是
+ * `sessionWorkPrincipals`，工作拥有者是 Session，租户是目标的租户），作用域所属的会话须是它的工作。
+ */
+async function ownSessionDecision(
+  options: RegistrationAuthorityOptions,
+  principal: Principal,
+  target: Parameters<SourceRegistrationAuthority<Principal>['check']>[0]['target'],
+): Promise<SourceDecision> {
+  const work = sessionWorkOf(principal, target.tenant)
+  if (work === undefined) return DENIED
+  if (options.scopeOwners === undefined)
+    return { kind: 'unavailable', diagnostic: 'the scope ownership source is not wired' }
+  const owned = await options.scopeOwners.lookup(target.scope)
+  switch (owned.kind) {
+    case 'bound':
+      return tenantEquals(owned.tenant, target.tenant) && owned.session === work.session
+        ? ALLOWED
+        : DENIED
+    case 'unbound':
+      return DENIED
+    case 'unknown':
+      return { kind: 'unknown' }
+    default:
+      return { kind: 'unavailable', diagnostic: 'the scope ownership is not readable' }
+  }
+}
 
 export function createRegistrationAuthority(
   options: RegistrationAuthorityOptions,
@@ -77,7 +126,8 @@ export function createRegistrationAuthority(
     const grant = options.grants.find(entry => entry.component === principal.actor.component)
     if (grant === undefined) return DENIED
     if (!grant.owners.includes(owner.owner) || !grant.actions.includes(action)) return DENIED
-    return ALLOWED
+    // 5. 会话格：作用域所属的会话须是主体自己的工作。
+    return grant.ownSession === true ? ownSessionDecision(options, principal, target) : ALLOWED
   }
   return Object.freeze({ check })
 }
@@ -144,6 +194,7 @@ export const requestContextTrust: EntryObjectModule = {
       registrationAuthority: createRegistrationAuthority({
         verifier,
         grants: REGISTRATION_ALLOW_LIST,
+        scopeOwners: sessionScopesOf(env).scopeOwners,
       }),
     })
   },

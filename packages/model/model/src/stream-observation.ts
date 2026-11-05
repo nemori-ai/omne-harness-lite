@@ -123,23 +123,26 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
             if (request.signal.aborted) return { kind: 'ended', reason: 'observer-closed' }
             return held
           }
+          /** Before an open delivery: qualification, abort and residence; false once it held a terminal. */
+          function recheck(): boolean {
+            const checked = ports.check(request)
+            if ('failure' in checked) {
+              hold({ kind: 'ended', reason: publicReason(checked.failure) })
+              return false
+            }
+            if (request.signal.aborted) {
+              abort()
+              return false
+            }
+            if (expired()) {
+              gap()
+              return false
+            }
+            return true
+          }
           function flush(): void {
             if (!pending || phase === 'closed' || phase === 'new' || phase === 'opening') return
-            if (phase === 'open') {
-              const checked = ports.check(request)
-              if ('failure' in checked) {
-                hold({ kind: 'ended', reason: publicReason(checked.failure) })
-                return
-              }
-              if (request.signal.aborted) {
-                abort()
-                return
-              }
-              if (expired()) {
-                gap()
-                return
-              }
-            }
+            if (phase === 'open' && !recheck()) return
             if (terminal) {
               const frame = disclose(terminal)
               const resolve = pending
@@ -187,6 +190,17 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
             push: enqueue,
             end: reason => hold({ kind: 'ended', reason }),
           }
+          /** The current timer is due: recheck the open observation, deliver, then arm the next one. */
+          function elapse(controller: AbortController, result: 'elapsed' | 'cancelled'): void {
+            if (timer !== controller || phase !== 'open' || result === 'cancelled') return
+            timer = null
+            timerDeadline = Infinity
+            const checked = ports.check(request)
+            if ('failure' in checked) hold({ kind: 'ended', reason: publicReason(checked.failure) })
+            else if (expired()) gap()
+            flush()
+            schedule()
+          }
           function schedule(): void {
             if (phase !== 'open') return
             const deadline = Math.min(
@@ -199,17 +213,7 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
             timer = controller
             timerDeadline = deadline
             void ports.timing.waitUntil(deadline, controller.signal).then(
-              result => {
-                if (timer !== controller || phase !== 'open' || result === 'cancelled') return
-                timer = null
-                timerDeadline = Infinity
-                const checked = ports.check(request)
-                if ('failure' in checked)
-                  hold({ kind: 'ended', reason: publicReason(checked.failure) })
-                else if (expired()) gap()
-                flush()
-                schedule()
-              },
+              result => elapse(controller, result),
               () => {
                 if (timer === controller && phase === 'open')
                   hold({ kind: 'ended', reason: 'unavailable' })

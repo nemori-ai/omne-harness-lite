@@ -6,4 +6,5 @@
 
 - [README.md](README.md)：示例的运行前提
 - [inspect-directory.ts](inspect-directory.ts)：取快照并检查一个目录包
+- [directory-journey.ts](directory-journey.ts)：检查、目录与读取的一次旅程，由 `tests/examples.spec.ts` 运行
 - [sample-skill/](sample-skill/SKILL.md)：示例检查的 Skill 包

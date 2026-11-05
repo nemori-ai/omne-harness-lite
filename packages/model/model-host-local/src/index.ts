@@ -1,6 +1,9 @@
 export {
   createLocalCustodian,
   openLocalCustodian,
+  type BindingRemoval,
+  type BindingView,
+  type BindingWrite,
   type CreateOptions,
   type CustodianOptions,
   type Diagnostic,
@@ -18,6 +21,7 @@ export type {
 export {
   createPiSendResources,
   SendResourceDefect,
+  type ConnectRetryReport,
   type PiSendResources,
   type PiSendResourcesConfig,
   type SendResourceDefectReason,

@@ -210,16 +210,15 @@ describe('a reserved operation and the access to a call', () => {
     const own = failureOf(await run(access('a')))
     expect(own).toMatchObject({ kind: 'invalid' })
     expect(failureOf(await run(access('missing')))).toEqual(own)
-    expect(failureOf(await run({ ...access('a'), tenant: tenantB }))).toEqual(
-      method === 'beginRead' ? { kind: 'denied', action: 'beginRead' } : own,
-    )
+    // R2-D357: another tenant's reference resolves in the caller's tenant, so the reserved
+    // operation is refused the same way as for the caller's own or a missing call.
+    expect(failureOf(await run({ ...access('a'), tenant: tenantB }))).toEqual(own)
   }
 
   it('is refused before the access is checked on admit', () => refusedBeforeAccess('admit'))
   it('is refused before the access is checked on inspect', () => refusedBeforeAccess('inspect'))
   it('is refused before the access is checked on cancel', () => refusedBeforeAccess('cancel'))
-  it('resolves the reference tenant before refusing a reserved read operation', () =>
-    refusedBeforeAccess('beginRead'))
+  it('is refused before the access is checked on beginRead', () => refusedBeforeAccess('beginRead'))
   it('is refused before the access is checked on acknowledge', () =>
     refusedBeforeAccess('acknowledge'))
 })

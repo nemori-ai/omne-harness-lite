@@ -4,7 +4,15 @@ import { agentEvaluator } from '@omne-harness/agent'
 import { fail } from '@omne-harness/operation-result'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import { options } from './factory-support.ts'
-import { acceptedInput, execution, failure, ok, operation, withLineage } from './journal-support.ts'
+import {
+  acceptedInput,
+  execution,
+  failure,
+  ok,
+  operation,
+  withLineage,
+  loadWithEntries,
+} from './journal-support.ts'
 import {
   alice,
   eventsOf,
@@ -68,15 +76,17 @@ describe('R0 preserves the original conditional operation', () => {
       })
       ok(await c.accept())
       expect(failure(await c.runExecution()).failure.kind).toBe('commit-unknown')
-      const before = ok(
-        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-      )
+      const before = await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      })
       const written = writes
       await c.runExecution()
       expect(writes, 'R0 must not invalidate the original conditional submission').toBe(written)
-      const after = ok(
-        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-      )
+      const after = await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      })
       if (outcome !== 'load-unavailable') {
         expect(after.revision).toBe(before.revision)
         expect(after.checkpoint).toEqual(before.checkpoint)
@@ -90,9 +100,10 @@ describe('R0 preserves the original conditional operation', () => {
         assembly.controls.journal.settle(execution(), original, 'applied')
       assembly.release.open()
       ok(await c.runExecution())
-      const finished = ok(
-        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-      )
+      const finished = await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      })
       expect(finished.state.kind).toBe('ended')
       expect(finished.effects).toHaveLength(1)
     },
@@ -160,9 +171,10 @@ describe('W0 rereads the original producer', () => {
     const handle = ok(await invoke(assembly))
     await eventually(async () => assembly.controls.clock.pending().length === 1)
     expect(assembly.controls.clock.pending()).toEqual(['1970-01-01T00:00:01.000Z'])
-    const waiting = ok(
-      await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-    )
+    const waiting = await loadWithEntries(assembly.controls.journal.provider, {
+      ...alice,
+      execution: execution(),
+    })
     expect(waiting.state.kind).toBe('waiting')
     expect(waiting.checkpoint.calls).toHaveLength(1)
     assembly.release.open()
@@ -176,14 +188,16 @@ describe('W0 rereads the original producer', () => {
       return 'ok' in state && state.ok.kind === 'found' && state.ok.state.phase === 'settled'
     })
     await eventually(async () => {
-      const saved = ok(
-        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-      )
+      const saved = await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      })
       return saved.entries?.some(entry => entry.kind === 'received') === true
     })
-    const received = ok(
-      await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-    )
+    const received = await loadWithEntries(assembly.controls.journal.provider, {
+      ...alice,
+      execution: execution(),
+    })
     expect(received.checkpoint).toEqual(waiting.checkpoint)
     expect(received.executionAttachment).toEqual(waiting.executionAttachment)
     // The notification was dropped and the driver has not replied: only the check time remains.
@@ -289,9 +303,10 @@ describe('the public driver reconciles lost Journal receipts', () => {
       const handle = ok(await invoke(assembly))
       if (outcome === 'pending') {
         await eventually(async () => assembly.controls.clock.pending().length === 1)
-        const unresolved = ok(
-          await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-        )
+        const unresolved = await loadWithEntries(assembly.controls.journal.provider, {
+          ...alice,
+          execution: execution(),
+        })
         expect(unresolved.unresolved).toEqual([original])
         expect(unresolved.state.kind).toBe('advancing')
         expect(admissions).toBe(0)
@@ -332,9 +347,10 @@ describe('W0 local ownership', () => {
     })
     const authority = ok(await c.accept())
     ok(await c.runExecution())
-    const before = ok(
-      await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-    )
+    const before = await loadWithEntries(assembly.controls.journal.provider, {
+      ...alice,
+      execution: execution(),
+    })
     const controller = new AbortController()
     const waiting = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
     await eventually(async () => assembly.controls.clock.pending().length === 1)
@@ -348,13 +364,19 @@ describe('W0 local ownership', () => {
     expect(ok(await waiting)).toBe('cancelled')
     expect(assembly.controls.clock.pending()).toEqual([])
     expect(
-      ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })),
+      await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      }),
     ).toEqual(before)
     assembly.release.open()
     await eventually(
       async () =>
-        ok(
-          await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+        (
+          await loadWithEntries(assembly.controls.journal.provider, {
+            ...alice,
+            execution: execution(),
+          })
         ).entries?.some(
           entry =>
             entry.kind === 'received' &&
@@ -364,7 +386,10 @@ describe('W0 local ownership', () => {
     )
     ok(await c.runExecution())
     expect(
-      ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })),
+      await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      }),
     ).toMatchObject({ state: { kind: 'ended' } })
   })
 
@@ -383,9 +408,10 @@ describe('W0 local ownership', () => {
     })
     ok(await c.accept())
     ok(await c.runExecution())
-    const before = ok(
-      await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-    )
+    const before = await loadWithEntries(assembly.controls.journal.provider, {
+      ...alice,
+      execution: execution(),
+    })
     expect(
       failure(
         await c.waitForWake({ reconciliationDelayMs: 1e300, signal: new AbortController().signal }),
@@ -396,7 +422,10 @@ describe('W0 local ownership', () => {
     })
     expect(assembly.controls.clock.pending()).toEqual([])
     expect(
-      ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })),
+      await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      }),
     ).toEqual(before)
   })
 })
@@ -416,7 +445,10 @@ it('a zero interval yields to other tasks and does not fabricate a positive dead
   })
   ok(await c.accept())
   ok(await c.runExecution())
-  const before = ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+  const before = await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
   let otherTask = false
   setImmediate(() => {
     otherTask = true
@@ -427,7 +459,10 @@ it('a zero interval yields to other tasks and does not fabricate a positive dead
   expect(otherTask).toBe(true)
   expect(assembly.controls.clock.pending()).toEqual([])
   ok(await c.runExecution())
-  const after = ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+  const after = await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
   expect(after.revision).toBe(before.revision)
   expect(after.checkpoint).toEqual(before.checkpoint)
 })
@@ -529,9 +564,10 @@ it.each(['observer', 'clock'] as const)(
     })
     ok(await c.accept())
     ok(await c.runExecution())
-    const before = ok(
-      await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-    )
+    const before = await loadWithEntries(assembly.controls.journal.provider, {
+      ...alice,
+      execution: execution(),
+    })
     const result = await c.waitForWake({
       reconciliationDelayMs: 1000,
       signal: new AbortController().signal,
@@ -542,7 +578,10 @@ it.each(['observer', 'clock'] as const)(
     })
     expect(assembly.controls.clock.pending()).toEqual([])
     expect(
-      ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })),
+      await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      }),
     ).toEqual(before)
   },
 )
@@ -587,7 +626,10 @@ it('NA-W0-2: an input arriving as observation starts is reread before sleeping u
   })
   ok(await c.accept())
   ok(await c.runExecution())
-  const before = ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+  const before = await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
   expect(
     ok(await c.waitForWake({ reconciliationDelayMs: 1000, signal: new AbortController().signal })),
   ).toBe('ready')
@@ -595,8 +637,11 @@ it('NA-W0-2: an input arriving as observation starts is reread before sleeping u
   assembly.release.open()
   await eventually(
     async () =>
-      ok(
-        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+      (
+        await loadWithEntries(assembly.controls.journal.provider, {
+          ...alice,
+          execution: execution(),
+        })
       ).entries?.some(
         entry =>
           entry.kind === 'received' &&
@@ -605,7 +650,10 @@ it('NA-W0-2: an input arriving as observation starts is reread before sleeping u
       ) === true,
   )
   ok(await c.runExecution())
-  const after = ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+  const after = await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
   expect(after.state.kind).toBe('ended')
   expect(after.checkpoint.step).toBe('step-2')
   expect(after.executionAttachment).toEqual(before.executionAttachment)
@@ -638,13 +686,16 @@ it('NA-R0-2: an unknown W0 commit is queried without a second waiting submission
   }))
   const handle = ok(await invoke(assembly))
   await eventually(async () => assembly.controls.clock.pending().length === 1)
-  const before = ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+  const before = await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
   expect(before.unresolved).toEqual([original])
   expect(waitingWrites).toBe(1)
   ok(assembly.controls.clock.advanceTo('1970-01-01T00:00:01.000Z'))
   await eventually(async () => assembly.controls.clock.pending()[0] === '1970-01-01T00:00:02.000Z')
   expect(
-    ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })),
+    await loadWithEntries(assembly.controls.journal.provider, { ...alice, execution: execution() }),
   ).toEqual(before)
   expect(waitingWrites).toBe(1)
   expect(assembly.controls.journal.settle(execution(), original, 'applied')).toBe(true)
@@ -693,16 +744,20 @@ it('NA-W0-1: an input racing the waiting commit is reread without abandoning the
   })
   ok(await c.accept())
   ok(await c.runExecution())
-  const waiting = ok(
-    await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-  )
+  const waiting = await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
   expect(waiting.state.kind).toBe('waiting')
   expect(waiting.checkpoint.calls).toHaveLength(1)
   assembly.release.open()
   await eventually(
     async () =>
-      ok(
-        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+      (
+        await loadWithEntries(assembly.controls.journal.provider, {
+          ...alice,
+          execution: execution(),
+        })
       ).entries?.some(
         entry =>
           entry.kind === 'received' &&
@@ -711,9 +766,10 @@ it('NA-W0-1: an input racing the waiting commit is reread without abandoning the
       ) === true,
   )
   ok(await c.runExecution())
-  const finished = ok(
-    await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-  )
+  const finished = await loadWithEntries(assembly.controls.journal.provider, {
+    ...alice,
+    execution: execution(),
+  })
   expect(finished.state.kind).toBe('ended')
   expect(finished.checkpoint.step).toBe('step-2')
 })
@@ -778,18 +834,20 @@ describe('review regressions preserve the original wait responsibility', () => {
       let ran = await first.runExecution()
       if ('ok' in ran) ran = await first.runExecution()
       expect(failure(ran).failure.kind).toBe('commit-unknown')
-      const before = ok(
-        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-      )
+      const before = await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      })
       const oldWrites = writes.length
       const oldQueries = queries.length
       const next = mode === 'same' ? first : create()
       continuing = true
       await next.continueExecution(authority)
       continuing = false
-      const after = ok(
-        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-      )
+      const after = await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      })
       expect(
         writes.slice(oldWrites),
         'continuation must not invalidate the original expected revision',
@@ -807,9 +865,10 @@ describe('review regressions preserve the original wait responsibility', () => {
         ).kind,
       ).toBe('committed')
       ok(await next.runExecution())
-      const ended = ok(
-        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-      )
+      const ended = await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      })
       expect(ended.state.kind).toBe('ended')
       expect(ended.results).toEqual([])
       expect(ended.entries?.filter(entry => entry.kind === 'received')).toHaveLength(1)
@@ -870,8 +929,12 @@ describe('review regressions preserve the original wait responsibility', () => {
     assembly.release.open()
     ok(await c.runExecution())
     expect(
-      ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })).state
-        .kind,
+      (
+        await loadWithEntries(assembly.controls.journal.provider, {
+          ...alice,
+          execution: execution(),
+        })
+      ).state.kind,
     ).toBe('ended')
   })
 
@@ -918,12 +981,17 @@ describe('review regressions preserve the original wait responsibility', () => {
       const handle = ok(await invoke(assembly))
       await eventually(
         async () =>
-          ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })).state
-            .kind === 'ended',
+          (
+            await loadWithEntries(assembly.controls.journal.provider, {
+              ...alice,
+              execution: execution(),
+            })
+          ).state.kind === 'ended',
       )
-      const ended = ok(
-        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-      )
+      const ended = await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      })
       expect(reads).toBeGreaterThan(failureAt)
       expect(ended.effects).toHaveLength(1)
       expect((await eventsOf(handle)).filter(event => event.body.kind === 'waiting')).toHaveLength(
@@ -970,9 +1038,10 @@ describe('review regressions preserve the original wait responsibility', () => {
       })
       ok(await c.accept())
       ok(await c.runExecution())
-      const before = ok(
-        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
-      )
+      const before = await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      })
       const controller = new AbortController()
       const waiting = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
       if (outcome === 'unavailable') {
@@ -992,7 +1061,10 @@ describe('review regressions preserve the original wait responsibility', () => {
       }
       expect(assembly.controls.clock.pending()).toEqual([])
       expect(
-        ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })),
+        await loadWithEntries(assembly.controls.journal.provider, {
+          ...alice,
+          execution: execution(),
+        }),
       ).toEqual(before)
     },
   )

@@ -2,25 +2,25 @@
 
 [English](README.md)
 
-Skill 两个应用服务的通用实现：`createPackageInspection` 经来源检查一个包，`createSkillAccess` 经 `@omne-harness/skill-contract` 的三个需求端口描述、读取、列举与导出一份 Skill。
+Skill 三个应用服务的通用实现：`createPackageInspection` 经来源检查一个包，`createSkillCatalog` 列出并检索主体能读的 Skill，`createSkillAccess` 经 `@omne-harness/skill-contract` 的三个需求端口描述、读取、列举与导出一份 Skill。
 
 ## 职责与状态
 
-本包实现契约的接口 `PackageInspection` 与 `SkillAccess`。它在调用之间不持有状态，没有缓存，也没有自己的来源：每次操作都现场核验读取权、对应与包字节。端口由集成方给出。`SkillCatalog` 尚不在本包（W3）。
+本包实现契约的接口 `PackageInspection`、`SkillCatalog` 与 `SkillAccess`。它在调用之间不持有状态，没有缓存，也没有自己的来源：每次操作都现场核验读取权、对应与包字节。端口由集成方给出。目录只收读取判定与对应端口，不读字节。
 
-状态：候选，没有技术接受。服务对 `skill-contract/testing` 的内存替身与 `SkillAccess` 符合性套件验证过。真实的读取判定、对应与来源都没有在这里验证。第一个真实来源是 `@omne-harness/skill-host-local`。
+状态：候选，没有技术接受。服务对 `skill-contract/testing` 的内存替身、`SkillAccess` 与 `SkillCatalog` 符合性套件验证过。真实的读取判定、对应与来源都没有在这里验证。第一个真实来源是 `@omne-harness/skill-host-local`。
 
 ## 使用
 
-最小示例见 [README.md「Usage」](README.md#usage)。两个工厂收普通对象，交普通对象，没有要启动或释放的东西。`read`、`list` 与 `export` 收 `AbortSignal`，`describe` 不收。`@omne-harness/skill-contract/testing` 的内存替身只能装进测试。
+最小示例见 [README.md「Usage」](README.md#usage)。三个工厂收普通对象，交普通对象，没有要启动或释放的东西。`read`、`list` 与 `export` 收 `AbortSignal`，`describe` 与目录不收。每个端口答复在边界上解析一次，判别值与载荷都核对。端口 reject、抛出或答复解析不了时服务不抛出：读取判定与对应端口算 `unknown`，来源算 `unavailable`。`@omne-harness/skill-contract/testing` 的内存替身只能装进测试。
 
 ## 契约
 
-数据形状是 `@omne-harness/skill-contract` 的公开类型。两个服务的行为归契约：拒绝次序与控制文件规则归[契约 SPEC「检查 Skill 包」](../skill-contract/SPEC.md#parse)，读取的形状规则归[「读取的形状规则」](../skill-contract/SPEC.md#read-shape)，读取 11 步与端口映射归组页[「读取」](../docs/architecture.md#读取)与[「端口」](../docs/architecture.md#端口)。本包的 [SPEC.md](SPEC.md) 只拥有实现加上的部分：11 步怎样切成三段、映射在哪里、本包自己做的决定。公开定义的导航在 [docs/public-api.md](docs/public-api.md)。
+数据形状是 `@omne-harness/skill-contract` 的公开类型。三个服务的行为归契约：目录的过滤与检索规则归[契约 SPEC「目录的匹配规则」](../skill-contract/SPEC.md#catalog-search)，拒绝次序与控制文件规则归[契约 SPEC「检查 Skill 包」](../skill-contract/SPEC.md#parse)，读取的形状规则归[「读取的形状规则」](../skill-contract/SPEC.md#read-shape)，读取 11 步与端口映射归组页[「读取」](../docs/architecture.md#读取)与[「端口」](../docs/architecture.md#端口)。本包的 [SPEC.md](SPEC.md) 只拥有实现加上的部分：11 步怎样切成三段、映射在哪里、本包自己做的决定。公开定义的导航在 [docs/public-api.md](docs/public-api.md)。
 
 ## 设计
 
-三段，每段是一个只依赖端口的函数：`gate`（第 1–3 步）、`pin`（第 5、7 步）、`verifiedBytes`（第 9、10 步）。`describe` 在 `gate` 后结束，`list` 在 `pin` 后结束，`read` 与 `export` 走完三段。一张表 `mapping.ts` 把来源答复变成服务失败。`range.ts` 是字节范围的纯函数。见 [docs/architecture.md](docs/architecture.md)。
+三段，每段是一个只依赖端口的函数：`gate`（第 1–3 步）、`pin`（第 5、7 步）、`verifiedBytes`（第 9、10 步）。`describe` 在 `gate` 后结束，`list` 在 `pin` 后结束，`read` 与 `export` 走完三段。一张表 `mapping.ts` 把来源答复变成服务失败；`port-answer.ts`、`answer-values.ts` 与 `source-answer.ts` 解析每个端口答复（含载荷），交出重新构造的值。`catalog.ts` 是目录：合法集合、每个身份一条、过滤或纯匹配函数 `match.ts`，再对留下的身份做读取判定。`range.ts` 是字节范围的纯函数。见 [docs/architecture.md](docs/architecture.md)。
 
 ## 配置与运行
 
@@ -28,7 +28,7 @@ Skill 两个应用服务的通用实现：`createPackageInspection` 经来源检
 
 ## 验证
 
-在本目录运行 `pnpm run build`、`pnpm run typecheck` 与 `pnpm test`。测试把服务放在内存替身上运行，直接运行每一段，并在本实现上运行 `SkillAccess` 符合性套件。见 [tests/README.md](tests/README.md)。未覆盖：真实端口、对同一个包的并发写入、内容存储来源。
+在本目录运行 `pnpm run build`、`pnpm run typecheck` 与 `pnpm test`。测试把服务放在内存替身上运行，直接运行每一段，并在本实现上运行 `SkillAccess` 与 `SkillCatalog` 符合性套件，后者还对两个违约目录核对恰好预期的用例变红。见 [tests/README.md](tests/README.md)。安全性质 S1–S6 在 [verification/README.md](verification/README.md) 写成定理，由 TLA+ 模型经 TLC 检查，并由 [tests/model/](tests/model/README.md) 对真实服务的有界穷举探索核对。未覆盖：真实端口、对同一个包的并发写入、内容存储来源。
 
 ## 维护
 

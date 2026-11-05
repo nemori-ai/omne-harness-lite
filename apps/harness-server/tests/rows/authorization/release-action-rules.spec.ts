@@ -15,7 +15,9 @@ const tenant = fixtureTenant('a')
 const distribution: unknown = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
 )
-const allowlist = serveProfile().allowlist
+// `runServe` adds the `executionHost` factory binding to the allowlist (HOSTFILE-FACTORY-ROW); the
+// release now names it for `execution-host`, so reading the release tree needs the same entry.
+const allowlist = [...serveProfile().allowlist, 'executionHost']
 
 function configOf(operator: unknown): unknown {
   const row = loadTree(distribution, operator, allowlist).rows.find(r => r.id === 'authorization')
@@ -49,19 +51,24 @@ function admissionFor(config: unknown) {
   })
   const { actionRules } = authorizationConfig.parse(config)
   const admission = createActionAdmission({ actionRules, readAdmission: () => identity })
-  return (tool: string) =>
-    admission.admit({
+  // `call` is `<tool>` or `<tool>.<command>`. The model calls the tool and names the command in the
+  // arguments (D-94); the definition is the one the trusted Tool request source describes for it.
+  return (call: string) => {
+    const [tool = call, command] = call.split('.')
+    const args = command === undefined ? '{}' : JSON.stringify({ command, params: {} })
+    return admission.admit({
       principal,
       tenant,
       execution: 'e',
       passage: 'p',
       action: 'a',
-      original: { name: tool, arguments: '{}' },
-      effectiveArguments: '{}',
+      original: { name: tool, arguments: args },
+      effectiveArguments: args,
       definition: { owner: 'tool', name: tool, revision: '1', digest: 'd' },
       permissions: [],
       decision: null,
     } as never)
+  }
 }
 
 describe('release action rules', () => {
@@ -70,6 +77,44 @@ describe('release action rules', () => {
     expect(await admit('Files')).toMatchObject({ ok: { kind: 'allow' } })
     expect(await admit('Shell')).toMatchObject({ ok: { kind: 'allow' } })
     expect(await admit('Other')).toMatchObject({ ok: { kind: 'unavailable' } })
+  })
+
+  it('matches a multi-command call by its tool: the release rules cover every command of Shell and Files', async () => {
+    const admit = admissionFor(configOf(undefined))
+    expect(await admit('Shell.info')).toMatchObject({
+      ok: { kind: 'allow', evidence: { record: 'action-rule/shell' } },
+    })
+    expect(await admit('Shell.run')).toMatchObject({ ok: { kind: 'allow' } })
+    expect(await admit('Files.read')).toMatchObject({
+      ok: { kind: 'allow', evidence: { record: 'action-rule/files' } },
+    })
+    expect(await admit('Other.run')).toMatchObject({ ok: { kind: 'unavailable' } })
+  })
+
+  it('a deny on Shell stops Shell.run: naming one command does not pass the rule of its tool', async () => {
+    const operator = {
+      ops: [
+        {
+          kind: 'replace',
+          id: 'authorization',
+          config: {
+            actionRules: {
+              revision: 'operator-2',
+              rules: [
+                { id: 'files', effect: 'allow', tool: 'Files' },
+                { id: 'shell-run', effect: 'allow', tool: 'Shell.run' },
+                { id: 'no-shell', effect: 'deny', tool: 'Shell' },
+              ],
+            },
+          },
+        },
+      ],
+    }
+    const admit = admissionFor(configOf(operator))
+    expect(await admit('Shell.run')).toMatchObject({
+      ok: { kind: 'deny', reason: 'rule/no-shell', evidence: { revision: 'operator-2' } },
+    })
+    expect(await admit('Files.write')).toMatchObject({ ok: { kind: 'allow' } })
   })
 
   it('lets the operator layer deny one tool with a row replace, and the deny wins over the release allow', async () => {

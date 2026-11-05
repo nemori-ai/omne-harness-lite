@@ -67,6 +67,7 @@ import {
 import {
   ActionAdmissionService,
   AgentAccessCheckService,
+  AgentAccountOutletService,
   AgentAdoptionsService,
   AgentClockService,
   CurrentConditionsService,
@@ -141,6 +142,7 @@ import {
   createSessionLogJournal,
   createSessionMessageHandoffPlugin,
   SessionLogAgentJournalProvider,
+  type JournalPublicationReport,
 } from '@omne-harness/session-adapters/cordis'
 import type {
   GuardCommand,
@@ -199,7 +201,7 @@ import {
   SESSION_HISTORY_ROOT_HANDLER,
   SESSION_LOG_PARTICIPANTS,
   SESSION_PROTOCOL,
-  decodeExecutionRecordParts,
+  decodeExecutionRecordOpen,
   decodeSessionHistoryRoot,
 } from '@omne-harness/session-storage-sql/participants'
 import {
@@ -212,6 +214,7 @@ import {
   type TenantDomainLookup,
 } from '@omne-harness/sql-contract'
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
+import { ToolRuntimeService } from '@omne-harness/tool-cordis-contract/cordis'
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import {
   createLocalModelReceiver,
@@ -510,6 +513,8 @@ export type LineWorldOptions = Readonly<{
   wrapProvider?: <T extends object>(provider: T) => T
   /** Wraps the Model receiver the pusher resolves, for example to count what it saves. */
   wrapModelReceiver?: (receiver: AgentModelReceiver<unknown>) => AgentModelReceiver<unknown>
+  /** Receives each publication of the session-log Journal the receivers write through. */
+  journalReport?: (report: JournalPublicationReport) => void
 }>
 
 /** The CP3 behaviour: the call starts and settles with one text. */
@@ -745,6 +750,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     tenantDomainLookup: lookup,
     sessionAccessCheck: sessionChecks as never,
     combination,
+    ...(options.journalReport === undefined ? {} : { report: options.journalReport }),
   }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId })
 
   // A read-only copy of the session-log Journal over the uncounted storage, for the doubles and the test.
@@ -784,13 +790,12 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     [RegisteredReadsService, createScriptedReads<unknown>().port, 'Reads'],
   ] as const)
     await mount(serviceOf(Base as unknown as AbstractService, port as object, name))
+  // The scripted Tool runtime under its definition class, so it carries the result receiver table
+  // that the host's Tool reception registers with (R2-D273).
   const tools = createScriptedToolRuntime<unknown>()
-  await mount({
-    name: 'tool-runtime-double',
-    apply(inner: Context) {
-      inner.provide('toolRuntime', tools.port)
-    },
-  })
+  await mount(
+    serviceOf(ToolRuntimeService as unknown as AbstractService, tools.port, 'ToolRuntime'),
+  )
 
   // The context side: the earlier context of the holder double, the real providers above it.
   const fixture = createAssemblyFixture({
@@ -1105,6 +1110,11 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   }
   await mount(serviceOf(ModelRuntimeService, models, 'ModelRuntime'))
+  // The host plugin injects the account outlet for its own receiver (R2-D237); the world's pusher
+  // pushes to the receiver above, so the host's one is registered in the double's private table.
+  await mount(
+    serviceOf(AgentAccountOutletService as unknown as AbstractService, outlet, 'AccountOutlet'),
+  )
 
   // The host: the agent-host plugin, the directory plugin and AD-14 over them.
   ctx.provide('agentHostPrincipal', 'agent-host-maintainer')
@@ -1158,13 +1168,14 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       if (result.kind !== 'read') throw new Error(`${handler}: ${result.kind}`)
       return result.output
     }
-    const agent = decodeExecutionRecordParts(
-      await read(EXECUTION_RECORD_HANDLERS.parts, EXECUTION_RECORD_PROTOCOL),
+    const agent = decodeExecutionRecordOpen(
+      await read(EXECUTION_RECORD_HANDLERS.openExecutions, EXECUTION_RECORD_PROTOCOL),
     )
     const root = decodeSessionHistoryRoot(
       await read(SESSION_HISTORY_ROOT_HANDLER, SESSION_PROTOCOL),
     )
-    if (agent === null || root === null) throw new Error('the common root is not readable')
+    if (agent === null || agent.kind !== 'open' || root === null)
+      throw new Error('the common root is not readable')
     return { agent: agent.published, session: root.published }
   }
 
@@ -1199,6 +1210,14 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
         sessionAccessCheck: sessionChecks as never,
         combination,
       }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId }).journal,
+    /** The entries port of a new session-log Journal over the same storage. */
+    freshEntries: () =>
+      createSessionLogJournal<unknown>({
+        storage,
+        tenantDomainLookup: lookup,
+        sessionAccessCheck: sessionChecks as never,
+        combination,
+      }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId }).entries,
     published,
     pushes,
     admits,

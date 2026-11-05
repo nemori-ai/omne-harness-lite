@@ -19,6 +19,7 @@ import type { CheckedConfig, CheckedRoute } from './config.ts'
 import type { PiFamilyBinding } from './family.ts'
 import { startExchange, type ExchangeRefusal, type HttpExchange } from './http.ts'
 import { endedBeforeSend, factsOfSend, noFacts } from './fact-stream.ts'
+import { retryBeforeRequestSent } from './retry.ts'
 import { digestOf, firstModelVisibleReference, serializeBody } from './payload.ts'
 import type { SendEnd } from './termination.ts'
 
@@ -92,6 +93,18 @@ export async function materialize(
   }
 }
 
+/** The observer of one transport hears of a retry; whatever it does never reaches the send. */
+function tell(
+  observer: CheckedConfig['onConnectRetry'],
+  event: Parameters<NonNullable<CheckedConfig['onConnectRetry']>>[0],
+): void {
+  try {
+    observer?.(Object.freeze({ ...event }))
+  } catch {
+    // The observer is the caller's: its failure changes nothing of the send.
+  }
+}
+
 function capacityUnavailable(diagnostic: 'cancelled' | 'network-closed'): TransportFailure {
   return { kind: 'unavailable', dependency: 'connection-capacity', diagnostic }
 }
@@ -124,29 +137,48 @@ function createMaterialized(
     if (signal.aborted || config.network.closed) return refusedBeforeSend(held, { kind: 'stopped' })
     const secret = config.credential.read()
     if (secret === undefined) return refusedBeforeSend(held, { kind: 'credential-missing' })
-    const decoder = input.binding.createDecoder()
+    const decoder = input.binding.createDecoder({ request: input.request })
+    const exchangeInput = {
+      url: route.url,
+      headers: {
+        authorization: `Bearer ${secret}`,
+        'content-type': 'application/json',
+        accept: 'text/event-stream',
+      },
+      body: held.body,
+      connectTimeoutMs: config.limits.connectTimeoutMs,
+      streamStallTimeoutMs: config.limits.streamStallTimeoutMs,
+      maxErrorBodyBytes: config.limits.maxErrorBodyBytes,
+    }
     const started = startExchange(
       config.network,
-      {
-        url: route.url,
-        headers: {
-          authorization: `Bearer ${secret}`,
-          'content-type': 'application/json',
-          accept: 'text/event-stream',
-        },
-        body: held.body,
-        reservation: held.reservation,
-        connectTimeoutMs: config.limits.connectTimeoutMs,
-        streamStallTimeoutMs: config.limits.streamStallTimeoutMs,
-        maxErrorBodyBytes: config.limits.maxErrorBodyBytes,
-      },
+      { ...exchangeInput, reservation: held.reservation },
       signal,
     )
     // startExchange returned the reservation for a refusal.
     if (started.kind === 'refused') return endedBeforeSend(endOfRefusal(started.reason))
-    phase = { kind: 'started', exchange: started.exchange }
+    // The retries keep the secret in the headers that this one call built: the slot is read once.
+    const exchange =
+      config.limits.connectRetry === undefined || config.limits.connectRetry.backoffMs.length === 0
+        ? started.exchange
+        : retryBeforeRequestSent({
+            capacity: config.network.capacity,
+            diagnostics: {
+              emit: event => {
+                config.network.diagnostics.emit(event)
+                if (event.kind === 'connect-retry') tell(config.onConnectRetry, event)
+              },
+            },
+            closed: () => config.network.closed,
+            first: started.exchange,
+            startAgain: (reservation, again) =>
+              startExchange(config.network, { ...exchangeInput, reservation }, again),
+            backoffMs: config.limits.connectRetry.backoffMs,
+            signal,
+          })
+    phase = { kind: 'started', exchange }
     return factsOfSend({
-      exchange: started.exchange,
+      exchange,
       decoder,
       route,
       limits: config.limits,

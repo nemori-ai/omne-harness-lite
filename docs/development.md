@@ -138,7 +138,7 @@ tsconfig、oxlint 与 dependency-cruiser 的共享规则在 [repo-config](../too
 `lint:oxlint` 与 `lint:deps` 违反即失败，`pnpm run check` 每次都跑。oxlint 检查工具、脚本、源码包与应用；dependency-cruiser 对这些目录的依赖违规同样失败。
 dependency-cruiser 用类型检查的 `source` 条件解析跨包导入，`dist` 与依赖只作叶子不深入；它自带一份 TypeScript 6 解析 `.ts`（见 `pnpm-workspace.yaml` 的 `packageExtensions`）。方向规则按[产品包组织](package-organization.md#依赖方向与cordis集成)写成成员路径，成员与组之间的环由 repo-toolchain 在同一张图上算；`lint:deps` 运行钉住的 repo-toolchain 的 `omne-deps`。
 自 0.0.12 起，`omne-deps` 还执行 `docs/architecture/constraints.json` 的方向行。规则与角色只从运行检查器的仓库读取，被检查的检出改不了它们。命中方向行失败；方向行引用的角色没有文件时也失败。没有方向行时，命令只输出一行说明。详见 repo-toolchain README 的[依赖方向](../tools/repo-toolchain/README.md#dependency-directions)一节。
-Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和源码字符串里的 legacy 路径，仍由 `pnpm run lint:rules` 检查；legacy 的导入边归 `lint:deps`。
+Cordis 服务关系与领域规则仍由 `pnpm run lint:rules` 检查。
 
 ### 仓库工具链的版本
 
@@ -252,9 +252,9 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 
 ## 运行入口
 
-**先构建，再按所属应用的 README 启动。**治理中心的命令与配置见
-[tenancy-host](../apps.0.0.1.legacy/tenancy-host/README.md)，从零部署并完成账号/组织旅程的演练见
-[黑盒端到端入口](../apps.0.0.1.legacy/tenancy-host/tests/e2e/README.md)。后者使用实际构建产物，包含网络、证书和临时数据目录的环境要求。
+**先构建，再按所属应用的 README 启动。**封存治理中心已从仓库删除，固定提交中的命令与配置见
+[tenancy-host](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md)，从零部署并完成账号/组织旅程的演练见
+[黑盒端到端入口](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/tests/e2e/README.md)。后者使用实际构建产物，包含网络、证书和临时数据目录的环境要求。
 
 产品包的构建、类型检查与测试分别为 `pnpm run build`、`pnpm run typecheck`、`pnpm run test`；
 结构检查为 `pnpm run lint:rules`。开发工具、agent 产物与形式模型的检查入口见下文。
@@ -481,7 +481,7 @@ gh pr create --base main --head <自己的工作分支> \
 | 形式工具检查失败 | `pnpm run check:formal-tools` 看 Java/JAR 是否就位；输出`MISMATCH`表示`TLA2TOOLS_JAR`不是钉住的v1.7.4发布文件；缺环境、覆盖缺口与执行失败是三件事 |
 | `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness/cli`、`@omne-harness/tenancy-host` |
 | `storage conformance · postgres` 显示 skipped | 未设 `OMNE_TEST_PG_URL`；跳过不是通过（[验证与证据](verification.md)） |
-| 不知道如何启动产品 | 先构建，再按 [CLI](../apps.0.0.1.legacy/cli/README.md) 或 [治理中心](../apps.0.0.1.legacy/tenancy-host/README.md) 的命令启动；制品打包不自动安装或发布服务 |
+| 不知道如何启动产品 | 先构建，再按固定提交中封存版 [CLI](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/cli/README.md) 或 [治理中心](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md) 的命令启动；制品打包不自动安装或发布服务 |
 
 ## 通过对话维护交付卡
 

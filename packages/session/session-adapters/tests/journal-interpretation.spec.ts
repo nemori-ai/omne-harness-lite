@@ -13,7 +13,6 @@
 // combination (real participants, migrations and read handlers).
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  decodeAgentExecutionId,
   decodeInputId,
   type AgentJournal,
   type DurableEvidence,
@@ -39,16 +38,8 @@ import {
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { EXECUTION_RECORD_HANDLERS } from '@omne-harness/session-storage-sql/participants'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
-import {
-  checkpoint,
-  instance,
-  ok,
-  openInput,
-  operation,
-  scene,
-  submitInput,
-} from './fixtures/common-journal.ts'
-import { cordisScene, handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
+import { ok, operation, scene, submitInput } from './fixtures/common-journal.ts'
+import { cordisScene, handed, nextRun, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 type CommitLog = NonNullable<SessionTransactionPort<string>['commitLog']>
 type Sent = Readonly<{ observation: SessionLogCommitObservation }>
@@ -89,10 +80,8 @@ async function interpreted(
       if (result.kind === 'read' && request.handler.startsWith('execution-record.'))
         bytes.read.push(JSON.stringify(result.output).length)
       if (!heads.unwritten || result.kind !== 'read') return result
-      if (request.handler === STATE_HANDLER)
-        return { ...result, output: withoutHeads(result.output) }
       // The head row as another execution's call leaves it: its receipt is the placeholder.
-      if (request.handler === FACTS_HANDLER)
+      if (request.handler === EVENTS_HANDLER)
         return { ...result, output: withPlaceholderHead(result.output) }
       return result
     },
@@ -117,21 +106,8 @@ async function interpreted(
   return { s, c, sent, script, interpretation, fiber, mountPlugin, target, heads, bytes }
 }
 
-const STATE_HANDLER = EXECUTION_RECORD_HANDLERS.parts
-const FACTS_HANDLER = EXECUTION_RECORD_HANDLERS.executionFacts
-
-/**
- * A page of the Agent records with every head receipt of the notes set to null. A part holds the
- * notes of its execution as `notes.heads` entries `[order, key, value]`.
- */
-function withoutHeads(output: JsonValue): JsonValue {
-  const copy = structuredClone(output) as {
-    parts?: { state: { 'notes.heads'?: unknown[][] } }[]
-  }
-  for (const part of copy.parts ?? [])
-    for (const entry of part.state['notes.heads'] ?? []) entry[2] = null
-  return copy as JsonValue
-}
+const BATCHES_HANDLER = EXECUTION_RECORD_HANDLERS.facts
+const EVENTS_HANDLER = EXECUTION_RECORD_HANDLERS.events
 
 function withPlaceholderHead(output: JsonValue): JsonValue {
   const copy = structuredClone(output) as { receipt?: { digest: string } | null }
@@ -139,9 +115,9 @@ function withPlaceholderHead(output: JsonValue): JsonValue {
   return copy as JsonValue
 }
 
-/** How many times the Agent records or the facts of an execution were read from the storage. */
+/** How many times the batches of the session or the events of an execution were read. */
 const stateReads = (s: SqlScene) =>
-  s.controls?.reads.filter(handler => handler === STATE_HANDLER || handler === FACTS_HANDLER)
+  s.controls?.reads.filter(handler => handler === BATCHES_HANDLER || handler === EVENTS_HANDLER)
     .length ?? 0
 
 const work = async (s: SqlScene): Promise<WorkSnapshot> =>
@@ -243,7 +219,7 @@ async function take(s: Where, journal: AgentJournal<string>) {
       operation: operation('take'),
       authority,
       expected: loaded.revision,
-      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: page.batch }],
       effects: [],
@@ -466,7 +442,7 @@ async function takeNothing(s: Where, journal: AgentJournal<string>, label: strin
       operation: operation(label),
       authority,
       expected: loaded.revision,
-      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: page.batch }],
       effects: [],
@@ -826,7 +802,7 @@ describe('AD-02 interprets the control events of a Session cancel (deferred cont
         operation: operation('take'),
         authority: m.opened.authority,
         expected: loaded.revision,
-        checkpoint: { ...m.checkpoint, inputBatch: page.batch.id },
+        checkpoint: { ...m.checkpoint, inputBatch: page.batch },
         state: { kind: 'advancing' },
         events: [{ kind: 'input-taken', batch: page.batch }],
         effects: [],
@@ -964,7 +940,7 @@ describe('a session with earlier Runs: the bytes of one Run do not grow with the
   )
 
   it(
-    'a copy rebuilt from the parts loads every execution as the copy that wrote them',
+    'a copy rebuilt from the facts loads every execution as the copy that wrote them',
     { timeout: 60_000 },
     async () => {
       const { executions, journal, s } = await runs(3)
@@ -983,66 +959,4 @@ async function readThroughOf2(s: SqlScene, execution: string): Promise<string | 
   if (snapshot.run.kind === 'active' && snapshot.run.execution.execution === execution)
     return snapshot.run.execution.readThrough
   return readThroughOf(snapshot, execution)
-}
-
-/** Cancels the active Run, accepts input `n` and starts the next Run: the scene of its execution. */
-async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
-  const snapshot = await work(s)
-  if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
-  ok(
-    await s.port.commit({
-      access: s.sessionAccess,
-      command: {
-        kind: 'control',
-        input: {
-          tenant: s.access.tenant,
-          session: s.access.session,
-          operation: operationId(`cancel-${n}`),
-          intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
-        },
-      },
-      guards: [],
-    }),
-  )
-  const value = ordinaryInput(`input-${n}`)
-  ok(
-    await s.port.commit({
-      access: s.sessionAccess,
-      command: {
-        kind: 'accept',
-        input: {
-          tenant: s.access.tenant,
-          session: s.access.session,
-          operation: operationId(`accept-${n}`),
-          value,
-        },
-      },
-      guards: [guard('evidence-bridge', 'ordinary-intake', value)],
-    }),
-  )
-  const started = ok(await startRun(s, `start-${n}`))
-  const next = await work(s)
-  if (next.run.kind !== 'active') throw new Error('the next Run is not active')
-  const execution = ok(decodeAgentExecutionId(next.run.execution.execution))
-  const admitted = ok(await s.port.readInput({ ...s.access, input: next.run.first }))
-  const initial = {
-    id: ok(decodeInputId(admitted.input)),
-    content: admitted.message,
-    source: (started as { receipt: { source: DurableEvidence } }).receipt.source,
-    priority: 'ordinary' as const,
-  }
-  return {
-    ...s,
-    execution,
-    initial,
-    openInput: openInput({
-      access: s.access,
-      execution,
-      operation: operation(`open-${n}`),
-      instance: instance(),
-      grant: initial.source,
-      initial,
-      checkpoint: checkpoint(),
-    }),
-  }
 }

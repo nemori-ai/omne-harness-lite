@@ -25,19 +25,18 @@ export function referenceParts<T extends { tenant: TenantId; reference: ModelInv
   if (
     !Array.isArray(tuple) ||
     tuple[0] !== 'model-invocation' ||
-    tuple[1] !== 1 ||
-    tuple.length !== 5
+    tuple[1] !== 2 ||
+    tuple.length !== 4
   )
     throw new Error('fixture reference tuple')
-  const call = decodeModelCallId(tuple[3])
-  const admission = decodeModelOperationId(tuple[4])
+  const call = decodeModelCallId(tuple[2])
+  const admission = decodeModelOperationId(tuple[3])
   if ('failure' in call || 'failure' in admission) throw new Error('fixture reference identity')
   return { ...input, call: call.ok, admission: admission.ok }
 }
 
 /** Negative fixture: bypass the codec to send a reserved admission into the public boundary. */
 export function reservedReference<T extends ModelInvocationParts>(parts: T): string {
-  const tenant = tenantCodec.encode(parts.tenant)
-  if (!tenant.ok) throw new Error('fixture requires a minted tenant')
-  return JSON.stringify(['model-invocation', 1, tenant.value, parts.call, parts.admission])
+  if (!tenantCodec.encode(parts.tenant).ok) throw new Error('fixture requires a minted tenant')
+  return JSON.stringify(['model-invocation', 2, parts.call, parts.admission])
 }

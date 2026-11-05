@@ -1,5 +1,5 @@
 // @module-tag slow
-// 慢：每个用例启动 dist/bin.js 子进程，并装载 48 行发行树（25 个真实行、23 个替身行，真实 SQLite 存储）。
+// 慢：每个用例启动 dist/bin.js 子进程，并装载 48 行发行树（42 个真实行、6 个替身行，真实 SQLite 存储与宿主文件根）。
 // `serve` 子命令的进程级验收（DP1-C1、C2、C3、C19）：起 `dist/bin.js serve`，`--stop-on-stdin-close` 发起计划停止，
 // 断言退出码与 stdout JSON 记录。先运行 `pnpm run build`。
 import { execFile, spawn } from 'node:child_process'
@@ -26,12 +26,12 @@ const parse = (stdout: string): Rec[] =>
     .filter(line => line.length > 0)
     .map(line => JSON.parse(line) as Rec)
 
-function runBin(args: readonly string[]): Promise<Outcome> {
+function runBin(args: readonly string[], env: NodeJS.ProcessEnv = {}): Promise<Outcome> {
   return new Promise(resolve => {
     execFile(
       process.execPath,
       [bin, ...args],
-      { env: { ...process.env, NO_COLOR: '1' }, timeout: 60_000 },
+      { env: { ...process.env, NO_COLOR: '1', ...env }, timeout: 60_000 },
       (error, stdout, stderr) => {
         const code = error === null ? 0 : typeof error.code === 'number' ? error.code : null
         resolve({ code, stdout, stderr, records: parse(stdout) })
@@ -115,7 +115,7 @@ describe('serve process', () => {
       scope: 'serving',
       accepting: true,
       outcome: 'ready',
-      implementations: { real: 25, 'contract-double': 0, 's0-double': 23 },
+      implementations: { real: 46, 'contract-double': 0, 's0-double': 2 },
     })
     expect(of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
     expect(out.stderr).toContain('serve: stop requested: stdin closed')
@@ -156,8 +156,20 @@ describe('serve process', () => {
     }
   })
 
+  it('missing --state-root on a host without setup: exit 2, the setup hint, nothing on stdout', async () => {
+    // An empty server home stands for a host where `setup` never ran (and keeps a real setup out).
+    const home = join(scratch, 'no-setup-home')
+    const out = await runBin(['serve', ...common(scratch).slice(0, 6)], {
+      OMNE_SERVER_HOME: home,
+    })
+    expect(out.code).toBe(2)
+    expect(out.stdout).toBe('')
+    expect(out.stderr).toBe(
+      `serve: not set up: no state directory at ${join(home, 'state')}\nRun \`harness-server setup\` first.\n`,
+    )
+  })
+
   it.each([
-    ['missing --state-root', ['serve', ...common(scratch).slice(0, 6)]],
     ['relative --state-root', ['serve', ...common('state')]],
     ['--state-root that is not a directory', ['serve', ...common(join(scratch, 'none'))]],
   ])('%s: exit 2, nothing on stdout', async (_name, args) => {

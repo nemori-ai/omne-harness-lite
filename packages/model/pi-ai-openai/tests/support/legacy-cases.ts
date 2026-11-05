@@ -374,6 +374,9 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
   encryptedReplay('openai/gpt-5.6-sol'),
   encryptedReplay('openai/gpt-5.6-terra'),
   encryptedReplay('openai/gpt-5.6-luna'),
+  // The records added from the official lists of 2026-11-03 reuse the encrypted replay.
+  encryptedReplay('openai/gpt-6.1-sol'),
+  encryptedReplay('openai/gpt-6.1-terra'),
   basicCase({
     id: 'rf-v1-v2-same-frame-order',
     slot: 'record',

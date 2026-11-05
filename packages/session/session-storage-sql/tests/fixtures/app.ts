@@ -3,13 +3,12 @@
 // test provider the Session storage port, the pair of a public port and a delegated entry, and the
 // session binding source.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { SessionCommand, SessionAccess } from '@omne-harness/session-contract'
+import type { RoutedInput, SessionCommand, SessionAccess } from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
   createPolicySessionAccessCheck,
   creation,
   evidence,
-  guard,
   initializationFixtureFacts,
   initializationFixtureGuard,
   operationId,
@@ -142,7 +141,13 @@ export async function app(
     ]
     return port.commit({ access: access(tenant, session), command, guards })
   }
-  const accept = (tenant: TenantId, session: string, name: string) =>
+  /** Accepts the ordinary input `name`; by default it came through the login entry. */
+  const accept = (
+    tenant: TenantId,
+    session: string,
+    name: string,
+    value: Extract<RoutedInput, { kind: 'ordinary' }> = ordinaryInput(name),
+  ) =>
     port.commit({
       access: access(tenant, session),
       command: {
@@ -151,10 +156,10 @@ export async function app(
           tenant,
           session: sessionId(session),
           operation: operationId(`accept-${name}`),
-          value: ordinaryInput(name),
+          value,
         },
       },
-      guards: [guard('login', 'login-entry', 'present')],
+      guards: [],
     })
   /** Registers a tenant in its own new domain; the directory publishes a new revision. */
   const register = async (tenant: TenantId) => {

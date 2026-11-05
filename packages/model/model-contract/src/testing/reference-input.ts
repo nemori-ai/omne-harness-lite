@@ -18,7 +18,6 @@ export function invocationReference<T extends ModelInvocationParts>(parts: T): M
 
 /** Negative fixture: bypass the codec to send a reserved admission into the public boundary. */
 export function reservedReference<T extends ModelInvocationParts>(parts: T): string {
-  const tenant = tenantCodec.encode(parts.tenant)
-  if (!tenant.ok) throw new Error('fixture requires a minted tenant')
-  return JSON.stringify(['model-invocation', 1, tenant.value, parts.call, parts.admission])
+  if (!tenantCodec.encode(parts.tenant).ok) throw new Error('fixture requires a minted tenant')
+  return JSON.stringify(['model-invocation', 2, parts.call, parts.admission])
 }

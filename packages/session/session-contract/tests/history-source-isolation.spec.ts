@@ -19,7 +19,6 @@ import {
   operationId,
   creation,
   ordinaryInput,
-  guard,
   succeeded,
 } from '@omne-harness/session-contract/testing'
 import { encodeEntry, decodeEntry } from '../src/entries.ts'
@@ -96,9 +95,15 @@ async function collidingHistory(access: SessionAccess<string>) {
         instance: { owner: 'agent', id: 'same-instance' },
       },
     },
-    [guard('login', 'login-entry', 'present')],
+    [],
     null,
-    { compaction: null },
+    {
+      compaction: null,
+      firstInput: {
+        input: ordinaryInput('shared-input').input,
+        origin: ordinaryInput('shared-input').origin,
+      },
+    },
   )
   if (start.kind !== 'entries') throw new Error(JSON.stringify(start))
   const revision = String(BigInt(snapshot.revision) + 1n) as WorkSnapshot['revision']

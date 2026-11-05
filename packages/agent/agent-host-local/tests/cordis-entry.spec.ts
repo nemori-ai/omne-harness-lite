@@ -18,6 +18,11 @@ it('exports the agent-host plugin with its static inject list', async () => {
     'agentMessageHandoff',
     'agentClock',
     'modelRuntime',
+    'agentJournalEntries',
+    'agentMaterials',
+    'agentReceivedCommits',
+    'agentModelReceptionTargets',
+    'agentAccountOutlet',
     'agentHostPrincipal',
   ])
 })

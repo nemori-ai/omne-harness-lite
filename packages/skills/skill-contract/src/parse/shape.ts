@@ -4,7 +4,7 @@
 // can give the first code by order.
 import { capabilityId, type CapabilityId, type JsonValue } from '@omne-harness/assets'
 import { INSPECT_REJECTIONS, type InspectRejectionCode } from '../failures.ts'
-import { isControlFile, toPackagePath } from '../names.ts'
+import { isBoundedText, isControlFile, toPackagePath } from '../names.ts'
 import type {
   PackagePath,
   ScriptDeclaration,
@@ -33,6 +33,12 @@ const malformed = (detail: string): Finding => ({ code: 'malformed', detail })
 
 /** The longest description, in code points, of a manifest and of an asset body. */
 export const DESCRIPTION_MAX = 1024
+
+/** A description of a manifest, of an asset body or of a stand-in: text of 1 to 1024 characters,
+ * counted in code points. */
+export function isSkillDescription(value: unknown): value is string {
+  return isBoundedText(value, DESCRIPTION_MAX)
+}
 
 /** The fields of an object, or `undefined` when the value is not an object. */
 export function fieldsOf(value: JsonValue | undefined): ReadonlyMap<string, JsonValue> | undefined {

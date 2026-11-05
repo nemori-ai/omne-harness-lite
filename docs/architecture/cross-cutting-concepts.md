@@ -307,7 +307,7 @@ COMMON-T02 与 COMMON-T03 是现行契约，锚点留在本节。COMMON-T01 与 
 
 承接责任为公共身份值、身份及各边界消费者。待办是定位唯一公开入口和必要行为，核验实际消费者及资源身份，不以旧包名指认已经完成的现行契约。
 
-[封存来源](../../packages.0.0.1.legacy/core/identity-values/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/identity-values/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="common-t02"></a>
 ### COMMON-T02 内容块的精确契约承接
@@ -333,7 +333,7 @@ flowchart TD
 
 承接责任为共同内容、消息、Model、Tool 与各内容消费者。
 
-[封存来源](../../packages.0.0.1.legacy/core/content-blocks/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/content-blocks/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="common-t03"></a>
 ### COMMON-T03 消息形状与消费行为的承接
@@ -357,7 +357,7 @@ flowchart TD
   member["packages/common/message"] -->|"发布消息值、解析与相等"| field
 ```
 
-[封存来源](../../packages.0.0.1.legacy/core/messages/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/messages/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="common-t04"></a>
 ### COMMON-T04 时间服务与到期值契约承接
@@ -366,4 +366,4 @@ flowchart TD
 
 承接责任为公共时间值、时钟提供者、到期业务及装配维护者。待办是确认精确表示及必要消费行为，核对等待后的准入、恢复时刻、撤除和耐久检查点的适用范围，不新增统一时长政策。
 
-[封存来源](../../packages.0.0.1.legacy/core/offer-expiry/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/offer-expiry/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。

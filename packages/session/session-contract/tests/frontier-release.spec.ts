@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  expectedRevision,
   decide,
   reduce,
   type Decision,
@@ -50,7 +51,7 @@ describe('every frozen terminal release gate', () => {
                 ...s.base,
                 operation: operationId(kind),
                 run: run.run,
-                expected: snapshot.revision,
+                expected: expectedRevision(snapshot, 'finishRun'),
                 bounded: { kind: 'uninterpretable', evidence: evidence('bounded') },
               },
             }

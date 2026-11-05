@@ -12,7 +12,6 @@ import {
   SESSION_PATH,
   doubleRows,
   freePort,
-  operatorLayer,
   post,
   readHistoryRequest,
   repoRoot,
@@ -23,6 +22,7 @@ import {
   verdict,
   writeJson,
 } from '../joint-a/support.mjs'
+import { operatorLayerB } from './operator.mjs'
 
 export * from '../joint-a/support.mjs'
 
@@ -39,8 +39,28 @@ export function parseArgs(argv) {
     evidence: value('--evidence'),
     platform: value('--platform'),
     modelSource: value('--model-source'),
+    definition: value('--definition') ?? DEFAULT_DEFINITION,
   }
 }
+
+/**
+ * 建会话用的定义。`assistant` 没有 `initialModelSelection`，也没有工具引用，拿不到回复、S4 没有工具可调，
+ * 所以默认用 `coding`（引用 Files 与 Shell，带模型选择）。可用 `--definition` 改。
+ */
+export const DEFAULT_DEFINITION = 'coding'
+
+/**
+ * 模型一侧会影响 S2～S4 回复与账目的行。树上这些行还是替身时，观察只作参考。
+ * 对照 `apps/harness-server/src/s0/stubs.ts` 的行表：Session 侧的 `session-ad*`、`session-provider`、
+ * `session-handoff`、`session-conditions`，Agent 侧的 `agent-*`，模型与请求侧的 `model-`、
+ * `request-context`、`runtime-context`。
+ */
+export const MODEL_SIDE =
+  /^(agent-|model-|session-ad|session-provider|session-handoff|session-conditions|request-context|runtime-context)/
+
+/** 工具一侧再加：工具行、执行环境与设施行、接入行。 */
+export const TOOL_SIDE =
+  /^(agent-|model-|session-ad|session-provider|session-handoff|session-conditions|request-context|runtime-context|tool-|execution|command|terminal|app-access|access-)/
 
 export const sleep = ms => new Promise(resolveSleep => setTimeout(resolveSleep, ms))
 
@@ -103,10 +123,15 @@ export function relevantDoubles(records, pattern) {
 export const CREDENTIAL = 'joint-b-pw-alice-5e3a'
 
 /** 起 `serve`。返回句柄与调用 `omne` 的函数。 */
-export async function startTree(scratch) {
+export async function startTree(scratch, options = {}) {
   const port = await freePort()
   const operatorPath = join(scratch.base, 'operator.json')
-  writeJson(operatorPath, operatorLayer({ storageRoot: scratch.storageRoot, port }))
+  // 公开读口 `read-history` 默认只给 message.user 与 message.assistant；S4-7 要从会话日志的
+  // `run.started` 条目读 Run 标识，由运维层把这一类也列进 server-entry 的 historyKinds。
+  writeJson(
+    operatorPath,
+    operatorLayerB({ storageRoot: scratch.storageRoot, port, historyKinds: options.historyKinds }),
+  )
   const handle = await startServer({ stateRoot: scratch.stateRoot, operatorPath, port })
   const home = join(scratch.base, 'home-alice')
   const server = `http://127.0.0.1:${String(port)}`
@@ -118,16 +143,16 @@ const succeeded = run => run.status === 0 && run.result?.outcome === 'succeeded'
 export { succeeded }
 
 /** 注册、登录、建会话。有一步不成功时 session 为空串。 */
-export function openSession(tree) {
+export function openSession(tree, definition = DEFAULT_DEFINITION) {
   const register = tree.cli(['register', '--login-identifier', 'alice'], CREDENTIAL)
   const login = tree.cli(['login', '--login-identifier', 'alice'], CREDENTIAL)
-  const created = tree.cli(['create-session', '--definition', 'assistant'])
+  const created = tree.cli(['create-session', '--definition', definition])
   const all = [register, login, created]
   return {
     session: all.every(succeeded) ? String(created.result?.body?.session ?? '') : '',
     detail:
       `注册 ${String(register.status)}，登录 ${String(login.status)}，` +
-      `建会话 ${String(created.status)}`,
+      `建会话（定义 ${definition}）${String(created.status)}`,
   }
 }
 
@@ -185,6 +210,21 @@ export function isReplyEntry(entry, inputTexts) {
   return (
     /assistant|model|reply|response/i.test(String(entry.kind)) || /"role":"assistant"/.test(text)
   )
+}
+
+/**
+ * 从历史条目读 Run 标识：取 kind 为 `run.started` 的条目，读载荷的 `run`。
+ * 这是目前唯一的公开读口（CLI 与 SDK 都没有读 Run 的命令），条目由 Session 契约写入
+ * （`packages/session/session-contract/src/decide.ts` 的 run.started），要求 `read-history` 列出这一类。
+ * 读不到时返回 undefined。
+ */
+export function runIdOf(entries) {
+  for (const entry of entries) {
+    if (entry.kind !== 'run.started') continue
+    const run = entry.payload?.run
+    if (typeof run === 'string' && run !== '') return run
+  }
+  return undefined
 }
 
 // ------------------------------------------------------------------ 域文件只读观察

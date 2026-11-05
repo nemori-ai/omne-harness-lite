@@ -144,6 +144,7 @@ it('a producer event uses the original effect after checkpoint movement and rema
           run: before.run.run,
           instance: { owner: 'agent', id: 'new' },
           continuity: evidence('continuity'),
+          expected: before.run.revision,
         },
       },
       guards: [],

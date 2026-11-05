@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import {
   deriveDriveOperation,
+  expectedRevision,
   type AgentDrivePort,
   type SessionId,
   type WorkSnapshot,
@@ -112,12 +113,13 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
             ...h.access(),
             operation: operationId('release'),
             advance: snapshot.run.advance,
-            expected: snapshot.revision,
+            expected: expectedRevision(snapshot, 'release'),
             handover: evidence('released'),
           }),
           'release',
         )
-        if (withdrawal === 'replaced')
+        if (withdrawal === 'replaced') {
+          const released = await read(h)
           succeeded(
             await h.faces('coordinator').work.claim({
               ...h.access(),
@@ -125,9 +127,11 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
               run: snapshot.run.run,
               instance: { owner: 'agent', id: 'replacement' },
               continuity: evidence('continuity'),
+              expected: expectedRevision(released, 'claim'),
             }),
             'claim',
           )
+        }
       } else if (withdrawal === 'read-failed') {
         interceptReads(h, async () =>
           fail({ kind: 'unavailable', owner: 'test-read', diagnostic: 'read failed' }),
@@ -187,7 +191,7 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
           ...h.access(),
           operation: operationId('release'),
           advance: snapshot.run.advance,
-          expected: snapshot.revision,
+          expected: expectedRevision(snapshot, 'release'),
           handover: evidence('released'),
         }),
         'release',

@@ -3,14 +3,23 @@
 // end before F3, and the runtime never shows idle. The stop keeps the port's owner apart from
 // `@omne-harness/agent#defect` inside the coordinator only; the waits of #502 1.9 make that
 // readable. The failure branches of these nodes are the work of #502 1.3 to 1.9; this test only
-// pins that no failure becomes a success or a silent stop.
+// pins that no failure becomes a success or a silent stop. M6 has its branch (R2-D237): an
+// unavailable admission is a saved dependency wait at M6, not a stop; the refusals and the wake are
+// in loop-model-refusal.spec.ts.
 import { describe, expect, it } from 'vitest'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type { Failure } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ModelFailure } from '@omne-harness/model-contract'
 import { fail } from '@omne-harness/operation-result'
-import { execution, failure, ok, type Principal } from './journal-support.ts'
+import {
+  execution,
+  failure,
+  ok,
+  type Principal,
+  loadWithEntries,
+  entriesOf,
+} from './journal-support.ts'
 import { alice, eventually, invoke, loopAssembly, stoppedAt } from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
@@ -218,7 +227,7 @@ const CASES: readonly Case[] = [
           const loaded = await d.journal.load(input)
           return 'ok' in loaded &&
             loaded.ok.checkpoint.position === 'M6' &&
-            loaded.ok.entries?.length
+            (await entriesOf(d.entries, input)).length > 0
             ? fail(PORT_FAILURE)
             : loaded
         },
@@ -288,12 +297,20 @@ describe('a port failure on the normal path stops the run at its node (#502 1.2 
     // the execution is ended, but the runtime still holds the slot and does not show idle.
     const state = await stoppedAt(assembly, position)
     if (node === 'F4' || node === 'O0') expect(state.kind).toBe('ended')
+    else if (port === 'models.calls.admit')
+      expect(state).toEqual({
+        kind: 'waiting',
+        waits: [{ kind: 'dependency', owner: 'modelRuntime', position: 'M6' }],
+      })
     else expect(state.kind).not.toBe('ended')
     if (port !== 'journal.tryFinish') return
     // The wait of an unavailable F3 is in memory: several check times pass, each retries
     // tryFinish, and none of them writes a revision.
     const read = async () =>
-      ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+      await loadWithEntries(assembly.controls.journal.provider, {
+        ...alice,
+        execution: execution(),
+      })
     const stopped = await read()
     for (let check = 0; check < 3; check += 1) {
       await eventually(async () => assembly.controls.clock.pending().length > 0)

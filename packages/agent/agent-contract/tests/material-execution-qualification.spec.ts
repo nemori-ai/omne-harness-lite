@@ -50,12 +50,12 @@ describe('an explicit execution on a consumer without a bound execution needs a 
     ).toMatchObject({ failure: { kind: 'denied' } })
   })
 
-  it('does not let a legacy-shape repeat drop the execution of retained material', async () => {
+  it('keeps the execution of retained material: a repeat names it, and a stranger cannot read it', async () => {
     const { fixture, execution, input, value } = await setup()
     const source = ok(await fixture.joint.materials.preserve({ ...access, ...input, execution }))
-    expect(await fixture.joint.materials.preserve({ ...access, ...input })).toMatchObject({
-      failure: { kind: 'denied' },
-    })
+    expect(ok(await fixture.joint.materials.preserve({ ...access, ...input, execution }))).toEqual(
+      source,
+    )
     const stranger = { tenant: access.tenant, principal: 'stranger' }
     expect(await fixture.joint.materials.read({ ...stranger, source })).toMatchObject({
       failure: { kind: 'denied' },

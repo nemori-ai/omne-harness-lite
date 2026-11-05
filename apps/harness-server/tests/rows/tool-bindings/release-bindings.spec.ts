@@ -1,6 +1,6 @@
 // `tool-bindings` 行（B3-T2a 第 5、6、9 项）：一个插件一个 fiber 提供 `toolBindings` 与 `toolCatalog`；可用性只取
 // 已核来源；启动权威是逐次现取的窄代理；scope 与 settle 是明确的 unavailable 占位。
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { principalIssuerKey, principalVerifierKey } from '@omne-harness/identity/cordis'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -23,9 +23,10 @@ import { createReleaseAvailability } from '../../../src/rows/tool-bindings/avail
 import {
   startAuthorityProxy,
   toolBindingsRow,
-  unavailableScope,
-  unavailableSettle,
+  bundleScope,
+  bundleSettle,
 } from '../../../src/rows/tool-bindings/index.ts'
+import { toolRuntimeHolder, type ToolRuntimeBundle } from '../../../src/rows/tool-runtime/holder.ts'
 import { StubService } from '../../../src/s0/stub-plugin.ts'
 import { fixtureEnv, fixtureTenant, got, okOf } from '../../entry/support.ts'
 import { TEST_CONSTRUCTION, entryOf, releaseFixture, tree } from '../tool-host/support.ts'
@@ -134,7 +135,7 @@ describe('tool-bindings: availability from verified sources only', () => {
   })
 })
 
-describe('tool-bindings: the start authority proxy and the segment-A placeholders', () => {
+describe('tool-bindings: the start authority proxy and the bundle author execution', () => {
   const call = { principal: null, tenant: fixtureTenant('a'), call: 'call-1' } as never
 
   it('answers unavailable without a provider and for a double that is not the contract service', async () => {
@@ -176,11 +177,30 @@ describe('tool-bindings: the start authority proxy and the segment-A placeholder
     expect(await proxy.prepare(call)).toMatchObject({ failure: { kind: 'unavailable' } })
   })
 
-  it('has no execution scope and no settlement before segment B', async () => {
-    expect(() => unavailableScope(call)).toThrow(/unavailable/)
-    expect(await unavailableSettle(call)).toMatchObject({
+  it('has no execution scope and no settlement while the run has no runtime bundle', async () => {
+    const root = new Context()
+    expect(() => bundleScope(root)(call)).toThrow(/unavailable/)
+    expect(await bundleSettle(root)(call)).toMatchObject({
       failure: { kind: 'unavailable', dependency: 'toolRuntime' },
     })
+  })
+
+  it('hands scope and settle to the author execution of the run bundle, read on every call', async () => {
+    const root = new Context()
+    const scoped = { scope: 'from-bundle' }
+    const settled = succeed({ kind: 'from-bundle' })
+    const authorExecution = { scope: vi.fn(() => scoped), settle: vi.fn(async () => settled) }
+    const scope = bundleScope(root)
+    const settle = bundleSettle(root)
+    // The row reads the run's holder on each call, so a bundle built after the row still serves it.
+    toolRuntimeHolder(root).bundle = {
+      value: { authorExecution } as unknown as ToolRuntimeBundle,
+      configDigest: 'test',
+    }
+    expect(scope(call)).toBe(scoped)
+    expect(await settle(call)).toBe(settled)
+    expect(authorExecution.scope).toHaveBeenCalledWith(call)
+    expect(authorExecution.settle).toHaveBeenCalledWith(call)
   })
 })
 

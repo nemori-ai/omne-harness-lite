@@ -71,7 +71,7 @@ it('keeps identical original execution, input and operation IDs isolated in thre
       operation: operation('same-commit'),
       authority: first.opened.authority,
       expected: first.opened.receipt.revision,
-      checkpoint: { ...first.checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...first.checkpoint, inputBatch: page.batch },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: page.batch }],
       effects: [],

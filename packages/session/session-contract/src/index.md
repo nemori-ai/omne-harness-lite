@@ -27,6 +27,7 @@
 
 - [decision-support.ts](decision-support.ts)：判定共用的证据、采用与终态批次
 - [decide-management.ts](decide-management.ts)：控制、关系、空闲、冻结与作用域代次
+- [context-scopes.ts](context-scopes.ts)：作用域引用的铸造，以及不读快照、只读 SE27/SE28 得出会话全部作用域的纯函数
 - [decide-results.ts](decide-results.ts)：原调用绑定、保管与处理
 - [decide-receive.ts](decide-receive.ts)：外部事实与恢复任务对账
 - [projection.ts](projection.ts)：同日志的纯 Session 解释接缝

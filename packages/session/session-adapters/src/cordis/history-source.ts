@@ -15,24 +15,33 @@
 // has ended (RQ-12). After the reads have closed, every part answers unavailable.
 //
 // The Session log is the authority. The plugins keep only derivatives: the scope-to-session index
-// (process lifetime, bounded) and the lease bookkeeping of one source fiber. Named gaps: the
-// decoding of a history head evidence to its session is handed in as `heads`; the fixed request
-// facts of the narrow adoption source are handed in as `adopted`, and without them that part answers
-// unavailable after its access check (NP-02).
+// (process lifetime, bounded) and the lease bookkeeping of one source fiber. Named gap: the
+// decoding of a history head evidence to its session is handed in as `heads`.
+//
+// The narrow adoption source reads the `a` part of the session (FIXED-FACTS F5): the request the
+// last main-purpose M0 recorded, through `sessionAdoptedRequests` of the session-log Journal
+// provider, taken per call. It decodes the fixed request record of request-context-contract and
+// checks it against the target and the coverage evidence of the same M0.
+import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { parseRecordEntryRef, type CompactionContext } from '@omne-harness/message'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
+  decodeCommitOrder,
   decodeEpochId,
+  decodeFixedRequestRecord,
   decodeGroupToken,
   decodeHistorySequence,
   type Access,
   type AdoptedRead,
+  type AdoptedRequestFact,
   type AdoptedRequestSource,
   type CompactionContextResult,
   type ContextReadEligibility,
   type ContextTarget,
+  type Coverage,
   type DurableEvidence,
   type EpochId,
   type GroupToken,
@@ -66,7 +75,13 @@ import type {
   SessionId,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
-import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
+import type {
+  SessionAdoptedRequest,
+  SessionAdoptedRequestRead,
+  SessionAdoptedRequests,
+} from '@omne-harness/session-cordis-contract'
+import { sessionAdoptedRequestsKey, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
+import { canonical } from '../testing/canonical.ts'
 import { compactionReads } from '../testing/session-values.ts'
 
 const LOGGER = 'session-adapters/history-source'
@@ -102,23 +117,26 @@ export interface SessionHistoryHeads {
 /** What the assembly hands to AD-04. */
 export type SessionHistorySourceInput = Readonly<{
   heads: SessionHistoryHeads
-  /**
-   * The fixed request facts of the coordinator (CX-08). The holder adds the access check of every
-   * call. Absent, the narrow adoption source answers unavailable after its access check.
-   */
-  adopted?: AdoptedRequestSource<unknown>
   /** The most scopes the scope-to-session index keeps; the oldest goes first. */
   scopeIndexEntries?: number
   /** The page size of the full history read of a compaction window. */
   pageBytes?: number
 }>
 
-/** The authority the narrow adoption source names while no fixed request facts are handed in. */
-const ABSENT_ADOPTED: AdoptedRequestSource<unknown>['authority'] = {
+/** The authority the narrow adoption source names: the `a` part of the session log. */
+const ADOPTED_AUTHORITY: AdoptedRequestSource<unknown>['authority'] = {
   owner: '@omne-harness/session-adapters',
-  name: 'session-ad04/adopted-absent',
+  name: 'session-ad04/adopted',
   revision: '1',
-  digest: 'session-ad04:adopted-absent',
+  digest: 'session-ad04:adopted',
+}
+
+/**
+ * The digest that agent-context mints for the coverage evidence of a preparation: SHA-256 of the
+ * canonical text of the `Coverage`, base64url (agent-context SPEC, record evidence table).
+ */
+function coverageDigest(coverage: Coverage): string {
+  return createHash('sha256').update(canonical(coverage)).digest('base64url')
 }
 
 /** The `readWork` of the lower bound sub-plugin, as the source sub-plugin sees it. */
@@ -368,6 +386,24 @@ function skippedBytes(book: CursorBook, position: bigint, after: bigint): number
   return position === after ? 0 : (book.span(position, after) ?? PAGE_BYTES)
 }
 
+/** A cursor that Session refuses on a first attempt: the book is forgotten and the read starts over. */
+function staleCursor(token: string | null, failure: SessionFailure, retried: boolean): boolean {
+  return token !== null && failure.kind === 'invalid' && !retried
+}
+
+/** The refusal of a read whose budget or cursor is not usable under `evidence`, if there is one. */
+function readRefusal(
+  budgetBytes: number,
+  cursor: HistoryCursor | null,
+  evidence: HistoryEvidence,
+): Invalid | undefined {
+  if (!Number.isSafeInteger(budgetBytes) || budgetBytes < 1)
+    return invalid('budgetBytes', 'missing-input')
+  if (cursor !== null && !cursorFollows(cursor, evidence))
+    return invalid('cursor', 'cursor-invalidated')
+  return undefined
+}
+
 /** The page of the rows of `kept` that fit `budget` (at least one), and whether more follow. */
 function pageWithin(kept: readonly ModelViewRow[], budget: number, next: boolean): ViewRead {
   const taken: ModelViewRow[] = []
@@ -591,28 +627,139 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
         return admitted.kind === 'invalid' ? DENIED : admitted
       },
     }
-    const handed = this.shared.input.adopted
-    const adoptedRead = async <T>(
-      input: AdoptedRead<unknown>,
-      read: (source: AdoptedRequestSource<unknown>) => Promise<SourceRead<T>>,
-    ): Promise<SourceRead<T>> => {
-      const admitted = await this.admitted(input.access, input.target)
-      if (admitted.kind !== 'located') return admitted
-      if (handed === undefined)
-        return unavailable('adopted-facts-absent: no fixed request facts are handed in (NP-02)')
-      try {
-        return await read(handed)
-      } catch (cause) {
-        return unavailable(`the narrow adoption source threw: ${describe(cause)}`)
-      }
-    }
     const adopted: AdoptedRequestSource<unknown> = {
-      authority: handed?.authority ?? ABSENT_ADOPTED,
-      readCount: input => adoptedRead(input, source => source.readCount(input)),
-      readSource: input => adoptedRead(input, source => source.readSource(input)),
+      authority: ADOPTED_AUTHORITY,
+      readCount: input => this.adoptedCount(input),
+      readSource: input => this.adoptedFact(input),
     }
     const resolveHistory: HistoryEvidenceResolver<unknown> = input => this.resolve(input)
     return { history, adopted, eligibility, resolveHistory }
+  }
+
+  /**
+   * The current fixed adoption of a target (RQ-14): after the same check as `eligibility.check`,
+   * the `a` part of the session of the target, through `sessionAdoptedRequests` with the access of
+   * the call. The provider answers what it saved; this part decodes the fixed request record and
+   * checks it against the target and the coverage evidence of the same M0.
+   */
+  private async adoptedFact(
+    input: AdoptedRead<unknown>,
+  ): Promise<SourceRead<AdoptedRequestFact | null>> {
+    const admitted = await this.admitted(input.access, input.target)
+    if (admitted.kind !== 'located') return admitted
+    const read = await this.savedOf(admitted)
+    switch (read.kind) {
+      case 'denied':
+        return DENIED
+      case 'unavailable':
+        return unavailable(`adopted request: ${read.diagnostic}`)
+      case 'value': {
+        if (read.value === null) return { kind: 'value', value: null }
+        const fact = this.factOf(admitted, read.value)
+        return fact.kind === 'other-scope' ? this.notYetFixed(input) : fact
+      }
+      default:
+        return this.defect('the adopted request read gave an answer of no known kind')
+    }
+  }
+
+  /** What `sessionAdoptedRequests` saved for the session of `located`, read per call. */
+  private async savedOf(located: Located): Promise<SessionAdoptedRequestRead> {
+    let requests: SessionAdoptedRequests<unknown> | undefined
+    try {
+      requests = this.scope.get(sessionAdoptedRequestsKey)
+    } catch (cause) {
+      return unavailable(`the adopted request reads are not readable: ${describe(cause)}`)
+    }
+    if (requests === undefined)
+      return unavailable('adopted-requests-absent: sessionAdoptedRequests is not provided')
+    try {
+      return await requests.readAdoptedRequest({
+        access: located.access,
+        session: located.session.session,
+      })
+    } catch (cause) {
+      return unavailable(`the adopted request read threw: ${describe(cause)}`)
+    }
+  }
+
+  /**
+   * The answer when the last M0 of the session fixed a request of another scope than the target.
+   * It is `null` only while the target is still the current scope of its session, read after the
+   * `a` part was read: a new scope that has not fixed a request yet. A target scope that was
+   * retired fixed a request that can no longer be read, and that is `unavailable`, never `null`
+   * (RQ-14: unknown or unavailable is not null).
+   */
+  private async notYetFixed(input: AdoptedRead<unknown>): Promise<SourceRead<null>> {
+    const admitted = await this.admitted(input.access, input.target)
+    if (admitted.kind !== 'located') return admitted
+    const work = this.shared.link.work
+    if (work === undefined)
+      return unavailable('the lower bound sub-plugin is not running: the current scope is unknown')
+    const head = { tenant: admitted.target.tenant, session: admitted.session.session }
+    const current = await this.currentScope(work, admitted.session, head, admitted.tenant)
+    if (!('scope' in current))
+      return current.kind === 'denied'
+        ? current
+        : unavailable(`the current scope is not readable: ${current.kind}`)
+    return current.scope.ref === admitted.target.scope.ref
+      ? { kind: 'value', value: null }
+      : unavailable('the target scope was retired: the request it fixed is not readable')
+  }
+
+  /**
+   * The `AdoptedRequestFact` of one saved request for the target of `located`, or `other-scope`
+   * when the saved request was fixed for another scope of the session.
+   */
+  private factOf(
+    located: Located,
+    saved: SessionAdoptedRequest,
+  ): SourceRead<AdoptedRequestFact> | Readonly<{ kind: 'other-scope' }> {
+    const decoded = decodeFixedRequestRecord(saved.record)
+    if ('failure' in decoded) return invalid('adopted', 'unsupported-format')
+    const record = decoded.ok
+    if (tenantText(record.target.tenant) !== located.tenant) return DENIED
+    if (record.target.scope.ref !== located.target.scope.ref) return { kind: 'other-scope' }
+    if (saved.coverage === null || coverageDigest(record.coverage) !== saved.coverage.digest)
+      return invalid('adopted', 'source-evidence-conflict')
+    const invocation = resolveModelInvocationRef(saved.reference, located.target.tenant)
+    if ('failure' in invocation) return invalid('adopted', 'source-evidence-conflict')
+    const order = decodeCommitOrder(saved.order)
+    if ('failure' in order) return this.defect('the adoption order is not a commit order')
+    return {
+      kind: 'value',
+      value: {
+        coverage: record.coverage,
+        target: located.target,
+        call: { tenant: located.target.tenant, call: invocation.ok.call },
+        candidate: record.candidate,
+        order: order.ok,
+        committed: saved.fixed,
+        windowTokens: record.windowTokens,
+        accounting: { kind: 'unsettled' },
+        forecast: record.forecast,
+        continuation: record.continuation,
+      },
+    }
+  }
+
+  /**
+   * The token of the current fixed adoption of a target: the generation of this source fiber with
+   * the order and the fixed basis of the fact, or with `none` and the target scope while there is
+   * none. It changes when a new M0 is saved, and only then within one generation.
+   */
+  private async adoptedCount(input: AdoptedRead<unknown>): Promise<SourceRead<GroupToken>> {
+    const fact = await this.adoptedFact(input)
+    if (fact.kind !== 'value') return fact
+    const parts =
+      fact.value === null
+        ? [this.revision, 'none', input.target.scope.ref]
+        : [this.revision, fact.value.order, fact.value.committed.digest]
+    const hash = createHash('sha256').update(canonical(parts)).digest('hex')
+    const token = decodeGroupToken(`session-ad04/adopted/${hash}`)
+    return 'ok' in token
+      ? { kind: 'value', value: token.ok }
+      : this.defect('the adoption token is not a group token')
   }
 
   private async read(
@@ -623,11 +770,9 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     const { evidence } = checked
     const located = this.locate(input.access, evidence.target)
     if (located.kind !== 'located') return located
-    if (!Number.isSafeInteger(input.budgetBytes) || input.budgetBytes < 1)
-      return invalid('budgetBytes', 'missing-input')
     const cursor: HistoryCursor | null = input.cursor
-    if (cursor !== null && !cursorFollows(cursor, evidence))
-      return invalid('cursor', 'cursor-invalidated')
+    const unreadable = readRefusal(input.budgetBytes, cursor, evidence)
+    if (unreadable !== undefined) return unreadable
     const view = await this.viewAfter(
       located,
       basisOf(evidence),
@@ -635,23 +780,36 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       input.budgetBytes,
       'cursor',
     )
-    if (view.kind === 'epoch-changed') {
-      const current = evidenceOf(located.target, view.current)
-      return current === undefined
-        ? this.defect('the current model view basis is not a history evidence')
-        : { kind: 'epoch-changed', current }
-    }
+    if (view.kind === 'epoch-changed') return this.epochChanged(located, view.current)
     if (view.kind !== 'page') return view
+    const rows = this.translateRows(view.rows)
+    if (!Array.isArray(rows)) return rows
+    const last = rows.at(-1)
+    if (!view.more || last === undefined) return { kind: 'page', page: { rows, next: null } }
+    return { kind: 'page', page: { rows, next: { evidence, after: last.seq } } }
+  }
+
+  /** The answer of a read whose basis moved on: the evidence of the current basis. */
+  private epochChanged(
+    located: Located,
+    basis: ModelViewBasis,
+  ): Unavailable | Readonly<{ kind: 'epoch-changed'; current: HistoryEvidence }> {
+    const current = evidenceOf(located.target, basis)
+    return current === undefined
+      ? this.defect('the current model view basis is not a history evidence')
+      : { kind: 'epoch-changed', current }
+  }
+
+  /** The history rows of model view rows; a row that does not translate is a defect. */
+  private translateRows(source: readonly ModelViewRow[]): HistoryRow[] | Unavailable {
     const rows: HistoryRow[] = []
-    for (const row of view.rows) {
+    for (const row of source) {
       const translated = rowOf(row)
       if (translated === undefined)
         return this.defect(`model view row ${row.seq} does not translate`)
       rows.push(translated)
     }
-    const last = rows.at(-1)
-    if (!view.more || last === undefined) return { kind: 'page', page: { rows, next: null } }
-    return { kind: 'page', page: { rows, next: { evidence, after: last.seq } } }
+    return rows
   }
 
   /**
@@ -689,7 +847,7 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       if ('failure' in answer) {
         // A cursor Session refuses (expired, or signed by a key it dropped): forget the book and
         // read once more from the start, which needs no cursor.
-        if (reach.token !== null && answer.failure.kind === 'invalid' && !retried) {
+        if (staleCursor(reach.token, answer.failure, retried)) {
           this.cursors.delete(book.key)
           return this.viewAfter(located, basis, after, budget, field, true)
         }
@@ -699,17 +857,33 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       if (view.kind === 'epoch-changed') return view
       const defect = this.learn(book, basis, view, reach.position)
       if (defect !== undefined) return defect
+      const page = await this.pageAfter(located, basis, book, view, after, budget)
+      if (page !== undefined) return page
       const last = view.rows.at(-1)
-      const kept = view.rows.filter(row => BigInt(row.seq) > after)
-      if (last !== undefined && kept.length > 0) {
-        if (view.next === null && last.seq === basis.upper)
-          await this.mint(located, basis, book, BigInt(basis.upper) - 1n)
-        return pageWithin(kept, budget, view.next !== null)
-      }
       if (view.next === null || last === undefined) return { kind: 'page', rows: [], more: false }
       reach = { position: BigInt(last.seq), token: view.next }
     }
     return unavailable('the model view read did not reach the cursor')
+  }
+
+  /**
+   * The page of `view` that holds the rows after `after`, or undefined when it holds none. A page
+   * that reaches the upper bound without a cursor makes the reader mint the cursor before its last row.
+   */
+  private async pageAfter(
+    located: Located,
+    basis: ModelViewBasis,
+    book: CursorBook,
+    view: Extract<ModelViewRead, { kind: 'page' }>,
+    after: bigint,
+    budget: number,
+  ): Promise<ViewRead | undefined> {
+    const last = view.rows.at(-1)
+    const kept = view.rows.filter(row => BigInt(row.seq) > after)
+    if (last === undefined || kept.length === 0) return undefined
+    if (view.next === null && last.seq === basis.upper)
+      await this.mint(located, basis, book, BigInt(basis.upper) - 1n)
+    return pageWithin(kept, budget, view.next !== null)
   }
 
   /**
@@ -830,21 +1004,9 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     const work = this.shared.link.work
     if (work === undefined) return unavailable('the lower bound sub-plugin is not running')
     const session: SessionAccess<unknown> = { ...checked.access, session: head.session }
-    const snapshot = await this.call(() => work.readWork(session))
-    if ('failure' in snapshot) return refusalOf(snapshot.failure, 'evidence')
-    const work0 = snapshot.ok
-    if (tenantText(work0.tenant) !== headTenant || work0.session !== head.session)
-      return this.defect('readWork answered another session')
-    const bindings = work0.contextScopes ?? []
-    const scopes = this.scopesOf(bindings)
-    if (!Array.isArray(scopes)) return scopes
-    const current = bindings.at(-1)
-    const scope = scopes.at(-1)
-    if (current === undefined || scope === undefined)
-      return unavailable('the session has no context scope')
-    // Every binding of the session is a fact of its log; the newest scope is the current one.
-    for (const each of scopes) this.remember(indexKey(headTenant, each), head)
-    if (current.ended !== null) return unavailable('the context scope of the session has ended')
+    const found = await this.currentScope(work, session, head, headTenant)
+    if (!('scope' in found)) return found
+    const { scope } = found
     const view = await this.call<ModelViewRead>(() =>
       this.scope[sessionKey].history.readModelView({
         ...session,
@@ -859,6 +1021,33 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return resolved === undefined
       ? this.defect('the current model view basis is not a history evidence')
       : { kind: 'value', value: resolved }
+  }
+
+  /**
+   * The current context scope of the session of `head`, read from its open work. Every binding of
+   * the session is a fact of its log and is remembered; the newest scope is the current one.
+   */
+  private async currentScope(
+    work: NonNullable<Shared['link']['work']>,
+    session: SessionAccess<unknown>,
+    head: SessionHistoryHead,
+    headTenant: string,
+  ): Promise<Readonly<{ scope: ScopeRef }> | Refusal> {
+    const snapshot = await this.call(() => work.readWork(session))
+    if ('failure' in snapshot) return refusalOf(snapshot.failure, 'evidence')
+    const work0 = snapshot.ok
+    if (tenantText(work0.tenant) !== headTenant || work0.session !== head.session)
+      return this.defect('readWork answered another session')
+    const bindings = work0.contextScopes ?? []
+    const scopes = this.scopesOf(bindings)
+    if (!Array.isArray(scopes)) return scopes
+    const current = bindings.at(-1)
+    const scope = scopes.at(-1)
+    if (current === undefined || scope === undefined)
+      return unavailable('the session has no context scope')
+    for (const each of scopes) this.remember(indexKey(headTenant, each), head)
+    if (current.ended !== null) return unavailable('the context scope of the session has ended')
+    return { scope }
   }
 
   private remember(key: string, head: SessionHistoryHead): void {
@@ -890,12 +1079,7 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       1,
       'evidence',
     )
-    if (view.kind === 'epoch-changed') {
-      const current = evidenceOf(located.target, view.current)
-      return current === undefined
-        ? this.defect('the current model view basis is not a history evidence')
-        : { kind: 'epoch-changed', current }
-    }
+    if (view.kind === 'epoch-changed') return this.epochChanged(located, view.current)
     if (view.kind !== 'page') return view
     if (evidence.upper.kind === 'empty') return { kind: 'row', entry: null }
     const row = view.rows[0]

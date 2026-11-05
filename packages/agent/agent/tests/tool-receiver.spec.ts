@@ -36,6 +36,7 @@ import {
   ok,
   openInput,
   operation,
+  loadWithEntries,
 } from './journal-support.ts'
 
 const consumer: ConsumerRef = {
@@ -178,7 +179,7 @@ describe('Tool result receiver conformance', () => {
 it('receives a late result after detach and receiver reassembly with the original host state', async () => {
   const s = await setup()
   ok(await s.push())
-  const opened = ok(await s.journal.port.load({ ...access, execution: execution() }))
+  const opened = await loadWithEntries(s.journal.provider, { ...access, execution: execution() })
   if (!opened.executionAttachment) throw new Error('attachment expected')
   ok(
     await s.journal.port.detach({
@@ -198,7 +199,7 @@ it('receives a late result after detach and receiver reassembly with the origina
     delivery: ok(decodeToolDeliveryId('delivery-2')),
   }
   const saved = ok(await rebuilt.push({ access, delivery: late, signal: signal() }))
-  const loaded = ok(await s.journal.port.load({ ...access, execution: execution() }))
+  const loaded = await loadWithEntries(s.journal.provider, { ...access, execution: execution() })
   expect(loaded.entries).toHaveLength(2)
   const entry = loaded.entries?.[1]
   if (!entry || entry.kind !== 'received') throw new Error('received entry expected')
@@ -234,7 +235,7 @@ it.each(['applied', 'pending', 'dropped'] as const)(
     expect(await receiver.push({ access, delivery: s.delivery, signal: signal() })).toEqual({
       failure: { kind: 'outcome-unknown' },
     })
-    const before = ok(await s.journal.port.load({ ...access, execution: execution() }))
+    const before = await loadWithEntries(s.journal.provider, { ...access, execution: execution() })
     expect(before.entries).toHaveLength(outcome === 'applied' ? 1 : 0)
     if (outcome === 'pending') {
       const original = before.unresolved[0]
@@ -249,7 +250,7 @@ it.each(['applied', 'pending', 'dropped'] as const)(
     )
     expect(commits).toBe(1)
     expect(
-      ok(await s.journal.port.load({ ...access, execution: execution() })).entries,
+      (await loadWithEntries(s.journal.provider, { ...access, execution: execution() })).entries,
     ).toHaveLength(outcome === 'dropped' ? 0 : 1)
   },
 )
@@ -325,9 +326,9 @@ it('retains actual in-flight work after wait cancellation and saves once', async
   expect(await receiver.push({ access, delivery: s.delivery, signal: signal() })).toHaveProperty(
     'ok',
   )
-  expect(ok(await s.journal.port.load({ ...access, execution: execution() })).entries).toHaveLength(
-    1,
-  )
+  expect(
+    (await loadWithEntries(s.journal.provider, { ...access, execution: execution() })).entries,
+  ).toHaveLength(1)
 })
 
 it('rechecks current qualification even for a saved key and preserves facts on refusal', async () => {
@@ -404,40 +405,15 @@ it('checks the complete saved payload before returning the provider receipt', as
     failure: { kind: 'outcome-unknown' },
   })
   expect(s.state.receptions.size).toBe(1)
-  expect(ok(await s.journal.port.load({ ...access, execution: execution() })).entries).toHaveLength(
-    1,
-  )
+  expect(
+    (await loadWithEntries(s.journal.provider, { ...access, execution: execution() })).entries,
+  ).toHaveLength(1)
 })
 
-it('rejects foreign references before querying an association', async () => {
-  const s = await setup()
-  let lookups = 0
-  const receiver = ok(
-    createAgentToolReceiver(
-      {
-        ...s.dependencies,
-        targets: {
-          ...s.dependencies.targets,
-          async resolve(input) {
-            lookups++
-            return s.dependencies.targets.resolve(input)
-          },
-        },
-      },
-      s.state,
-    ),
-  )
-  expect(
-    await receiver.push({
-      access,
-      delivery: {
-        ...s.delivery,
-        key: { ...s.delivery.key, reference: reference(otherTenant, 'call-1') },
-      },
-      signal: signal(),
-    }),
-  ).toEqual({ failure: { kind: 'denied' } })
-  expect(lookups).toBe(0)
+it('cannot name another tenant in a delivery reference (R2-D357)', () => {
+  // The text carries no tenant: a reference encoded for another tenant is the caller's own one,
+  // located in the caller's tenant.
+  expect(reference(otherTenant, 'call-1')).toBe(reference(access, 'call-1'))
 })
 
 it('checks current receive-result authorization even when the binding provider returned a target', async () => {
@@ -520,9 +496,9 @@ it('retains a later account revision independently and detects conflicting accou
   expect(
     await s.push({ ...account, account: { ...account.account, place: 'conflicting' } }),
   ).toEqual({ failure: { kind: 'conflict' } })
-  expect(ok(await s.journal.port.load({ ...access, execution: execution() })).entries).toHaveLength(
-    2,
-  )
+  expect(
+    (await loadWithEntries(s.journal.provider, { ...access, execution: execution() })).entries,
+  ).toHaveLength(2)
 })
 
 it.each(['terminal', 'actualTerminal', 'effect', 'value', 'tenant'] as const)(
@@ -664,7 +640,7 @@ it('recovers only the entries of the bound targets and reads no other material',
   expect(state.receptions.size).toBe(0)
 })
 
-it('keeps the execution of retained material when an unqualified principal repeats it in the legacy shape', async () => {
+it('keeps the execution of retained material: another execution or other content under the same identity is refused', async () => {
   const s = await setup()
   const unbound: ConsumerRef = { ...consumer, work: 'unbound-work' }
   const value: Material<ContentBlock> = {
@@ -693,10 +669,27 @@ it('keeps the execution of retained material when an unqualified principal repea
       value,
     }),
   )
-  for (const who of [stranger, access])
-    expect(
-      await materials.preserve({ ...who, identity: 'retained', consumer: unbound, value }),
-    ).toHaveProperty('failure.kind', 'invalid')
+  const changed: Material<ContentBlock> = { ...value, value: { kind: 'string', value: 'other' } }
+  expect(
+    await materials.preserve({
+      ...access,
+      execution: execution(),
+      identity: 'retained',
+      consumer: unbound,
+      value: changed,
+    }),
+  ).toHaveProperty('failure.kind', 'invalid')
+  expect(
+    ok(
+      await materials.preserve({
+        ...access,
+        execution: execution(),
+        identity: 'retained',
+        consumer: unbound,
+        value,
+      }),
+    ),
+  ).toEqual(source)
   expect(await materials.read({ ...stranger, source })).toHaveProperty('failure.kind', 'denied')
   expect(ok(await materials.read({ ...access, source }))).toEqual(value)
 })

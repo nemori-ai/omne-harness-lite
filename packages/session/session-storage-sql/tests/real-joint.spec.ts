@@ -23,7 +23,9 @@ import {
   decodeExecutionRecordReply,
   decodeSessionHistoryRoot,
   decodeSessionReply,
-  decodeExecutionRecordParts,
+  blobDigest,
+  decodeExecutionRecordBlob,
+  decodeExecutionRecordFacts,
   executionRecordFacts,
   sessionCheckFacts,
   sessionCommandFacts,
@@ -64,22 +66,24 @@ const accept = (name: string): SessionCommand => ({
 })
 const login = [guard('login', 'login-entry', 'present')]
 
-async function read(app: RealApp, handler: string) {
+async function read(app: RealApp, handler: string, input: Record<string, JsonValue> = {}) {
   const result = await app.storage.read({
     domain: { scope: { kind: 'tenant', tenant: textOf(TENANT_A) }, transactionDomain: 'dom_0' },
     handler,
     protocol: '1',
     requestKey: 'r',
-    input: { tenant: textOf(TENANT_A), session: SESSION },
+    input: { tenant: textOf(TENANT_A), session: SESSION, ...input },
   })
   if (result.kind !== 'read') throw new Error(`${handler}: ${JSON.stringify(result)}`)
   return result.output
 }
 
-/** The publication count and the whole state of the session (the first page of the parts read). */
-function stateOf(output: JsonValue) {
-  const page = decodeExecutionRecordParts(output)
-  return page === null ? null : { published: page.published, state: page.state }
+/** The publication count of the session and the envelope body of its last batch (null: none). */
+async function stateOf(app: RealApp) {
+  const page = decodeExecutionRecordFacts(await read(app, 'execution-record.facts', { after: '0' }))
+  return page?.kind === 'facts'
+    ? { published: page.published, state: page.batches.at(-1)?.facts[0]?.body ?? null }
+    : page
 }
 
 describe('the joint commit on the real write Worker', () => {
@@ -103,13 +107,10 @@ describe('the joint commit on the real write Worker', () => {
     const after = decodeSessionHistoryRoot(await read(app, 'session.history-root'))
     expect(after?.published).toBe('1')
     expect(BigInt(after!.position)).toBeGreaterThan(BigInt(before!.position) + 1n)
-    expect(stateOf(await read(app, 'execution-record.parts'))).toEqual({
-      published: '1',
-      state: { records: ['joint'] },
-    })
+    expect(await stateOf(app)).toEqual({ published: '1', state: { receipt: 'joint' } })
   })
 
-  it('a session conflict rolls the execution-record write back: no count, no state', async () => {
+  it('a session conflict rolls the execution-record write back: no count, no batch', async () => {
     const app = await open()
     expect('ok' in (await app.create(TENANT_A))).toBe(true)
     const result = await app.storage.commit({
@@ -132,23 +133,24 @@ describe('the joint commit on the real write Worker', () => {
       kind: 'stopped',
       failure: { kind: 'denied', action: 'attach' },
     })
-    expect(stateOf(await read(app, 'execution-record.parts'))).toEqual({
-      published: '0',
-      state: null,
-    })
+    expect(await stateOf(app)).toEqual({ published: '0', state: null })
   })
 })
 
-describe('the size of the Agent records of one session', () => {
-  it('a state the write bound lets in reads back: the read bound holds the state of the largest accepted command', async () => {
+describe('the size of the content blocks of one session', () => {
+  it('a block the write bound lets in reads back: the read bound holds the block of the largest accepted command', async () => {
     const app = await open()
     expect('ok' in (await app.create(TENANT_A))).toBe(true)
     const cap = realConfig('unused').maxCommandBytes
     // The command is the facts of one execution-record write; its UTF-8 size in canonical JSON
     // (no spaces, sorted keys, ASCII only here) is the size of its JSON text. The two operations
     // have names of one length, so the same room fits both.
+    const block = (pad: number) => {
+      const payload = 'x'.repeat(pad)
+      return { digest: blobDigest(payload), media: 'text/plain', payload }
+    }
     const command = (operation: string, pad: number) =>
-      executionRecordFacts(jointWrite({ operation, state: { pad: 'x'.repeat(pad) } }))
+      executionRecordFacts(jointWrite({ operation, blobs: [block(pad)] }))
     const room = cap - Buffer.byteLength(JSON.stringify(command('aop_over', 0)))
     const refused = await app.storage.commit({
       identity: identityOf(TENANT_A, 'dom_0', 'aop_over'),
@@ -156,17 +158,16 @@ describe('the size of the Agent records of one session', () => {
       commands: [command('aop_over', room + 1)],
     })
     expect(refused).toMatchObject({ kind: 'rejected_before_accept', reason: 'command_limit' })
-    const state = { pad: 'x'.repeat(room) }
     const accepted = await app.storage.commit({
       identity: identityOf(TENANT_A, 'dom_0', 'aop_edge'),
       ...app.combination,
       commands: [command('aop_edge', room)],
     })
     expect(accepted.kind).toBe('committed')
-    expect(stateOf(await read(app, 'execution-record.parts'))).toEqual({
-      published: '1',
-      state,
-    })
+    const found = decodeExecutionRecordBlob(
+      await read(app, 'execution-record.blob', { digest: block(room).digest }),
+    )
+    expect(found?.kind === 'blob' ? found.payload.length : null).toBe(room)
   })
 })
 
@@ -197,10 +198,7 @@ describe('the process is killed after the joint receipt came back', () => {
     expect(queryKindOf(found)).toBe('committed')
     if (found.kind !== 'committed') return
     expect(found.responses.map(item => item.participant)).toEqual(['execution-record', 'session'])
-    expect(stateOf(await read(app, 'execution-record.parts'))).toEqual({
-      published: '1',
-      state: { records: ['joint'] },
-    })
+    expect(await stateOf(app)).toEqual({ published: '1', state: { receipt: 'joint' } })
     const input = await app.port.readInput({ ...app.access(TENANT_A), input: 'joint' as never })
     expect('ok' in input).toBe(true)
   })

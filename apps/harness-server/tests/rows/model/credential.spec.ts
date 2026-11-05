@@ -1,4 +1,4 @@
-// `model-credential` row: model-host-local `LocalCredentialPlugin` as a row. It injects nothing, so
+// `model-credential` row: the managed model-host-local credential plugin as a row. It injects nothing, so
 // it is ACTIVE with nothing else in the tree. The vault is a real file in a temporary directory.
 import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -42,7 +42,7 @@ describe('the model-credential row', () => {
       row: 'model-credential',
       implementation: 'real',
       manifest: {
-        provides: ['modelCredential'],
+        provides: ['modelCredential', 'modelCredentialCustody'],
         injects: [],
         phase: null,
         sameProviderGroup: null,
@@ -102,6 +102,31 @@ describe('the model-credential row', () => {
     )
     expect(value.present).toMatchObject({ kind: 'known', present: true })
     expect(value.resolved).toEqual({ kind: 'value', scope: 'tenant', value: TENANT_SECRET })
+  })
+
+  it('keeps the custody key trusted: a row that the table does not list cannot inject it', async () => {
+    const path = vaultPath()
+    const rows = [
+      {
+        id: 'model-credential',
+        plugin: 'modelCredentialRow',
+        config: { path, factorySecret: FACTORY },
+      },
+    ]
+    await expect(
+      withLiveRows(
+        { rows, plugins, probe: ['modelCredential', 'modelCredentialCustody'] },
+        () => 0,
+      ),
+    ).rejects.toThrow(
+      /injects trusted name .{1,2}modelCredentialCustody.{1,2}, which it cannot see/,
+    )
+    // The send-side service the same row provides carries no management member.
+    const { value } = await withLiveRows({ rows, plugins, probe: ['modelCredential'] }, ctx =>
+      Object.keys(ctx.get('modelCredential') as object),
+    )
+    expect(value).not.toContain('bind')
+    expect(value).not.toContain('describe')
   })
 
   it('does not start without a vault path: the plugin refuses the configuration', async () => {

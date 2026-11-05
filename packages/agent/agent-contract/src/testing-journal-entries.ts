@@ -41,6 +41,7 @@ import {
   type ConformanceCase,
 } from './testing-case.ts'
 
+import { entryPage, receivedEntriesOf } from './testing-journal-reads.ts'
 import {
   sampleReceivedModelAccount,
   sampleReceivedModelResult,
@@ -90,7 +91,7 @@ export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
     input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
     fault: RecordFault,
   ): void
-  /** The committed entries in commit order, as `ExecutionSnapshot.entries` gives them. */
+  /** The committed entries in commit order, as the pages of `read` give them. */
   entries(
     input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
   ): readonly AgentJournalEntry[] | undefined
@@ -203,9 +204,26 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
     return write(execution, input, text)
   }
 
+  const read: AgentJournalEntries<P>['read'] = async input => {
+    const execution = executions.get(keyOf(input.tenant, input.execution))
+    if (execution === undefined) return fail<Failure>({ kind: 'denied', action: 'read' })
+    const page = entryPage(execution.entries, input.after, input.limit)
+    return page === undefined
+      ? fail<Failure>({ kind: 'invalid', field: 'after', reason: 'not a position of the entries' })
+      : succeed(page)
+  }
+
+  const receivedOf: AgentJournalEntries<P>['receivedOf'] = async input => {
+    const execution = executions.get(keyOf(input.tenant, input.execution))
+    if (execution === undefined) return fail<Failure>({ kind: 'denied', action: 'read' })
+    return succeed(receivedEntriesOf(execution.entries, input.consumption))
+  }
+
   return {
     durability: 'none',
     record,
+    read,
+    receivedOf,
     open({ tenant, authority }) {
       const key = keyOf(tenant, authority.execution)
       if (executions.has(key)) throw new TypeError('the execution is already open')
@@ -266,7 +284,8 @@ export type RecordFault =
  * What the suite needs from a provider. `access` and `otherAccess` belong to two different
  * tenants. `open` opens a new execution of the tenant of the access under the given execution
  * text and returns its current Authority. `supersede` gives it a new current attachment, `end`
- * ends it, and `read` returns `ExecutionSnapshot.entries` as load gives it. `events` returns
+ * ends it, and `read` returns every committed entry in commit order, as the pages of
+ * `AgentJournalEntries.read` give them. `events` returns
  * every event of the execution in sequence order, as `AgentJournal.read` gives them, and
  * `undefined` for an execution that does not exist, as `read` does; the projection cases
  * (SPEC "日志条目" 6) read it, so a provider without it does not pass the suite.
@@ -377,6 +396,100 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
         assert.equal(receipt.operation, operationId('current'))
         assert.equal(receipt.execution, execution)
         assert.deepEqual(await fixture.read(access, execution), [entry])
+      },
+    },
+    {
+      name: 'read pages the committed entries in commit order from a cursor, and an empty page keeps the cursor',
+      async run() {
+        const execution = executionId('paged')
+        const authority = await fixture.open(access, execution)
+        const fence = sampleStartFence('paged')
+        const result = sampleReceivedModelResult(access.tenant, 'paged')
+        const account = sampleReceivedModelAccount(access.tenant, 'paged')
+        await recorded(
+          advancing(access, execution, authority, operationId('paged-1'), fence),
+          'fence',
+        )
+        await recorded(receiving(access, execution, operationId('paged-2'), result), 'result')
+        await recorded(receiving(access, execution, operationId('paged-3'), account), 'account')
+        const page = (after: string | null) =>
+          entries.read({ ...access, execution, after, limit: 2 })
+        const first = await page(null)
+        assert.ok('ok' in first, 'the first page should be read')
+        assert.deepEqual(first.ok.items, [
+          { sequence: '1', entry: fence },
+          { sequence: '2', entry: result },
+        ])
+        assert.equal(first.ok.next, '2')
+        assert.equal(first.ok.caughtUp, false)
+        const second = await page(first.ok.next)
+        assert.ok('ok' in second, 'the second page should be read')
+        assert.deepEqual(second.ok.items, [{ sequence: '3', entry: account }])
+        assert.equal(second.ok.caughtUp, true)
+        const empty = await page(second.ok.next)
+        assert.ok('ok' in empty, 'a page at the end should be read')
+        assert.deepEqual(empty.ok.items, [])
+        assert.equal(empty.ok.next, '3')
+        assert.equal(empty.ok.caughtUp, true)
+        assert.deepEqual(await fixture.read(access, execution), [fence, result, account])
+      },
+    },
+    {
+      name: 'receivedOf gives every received entry of one consumption in commit order, and none of another',
+      async run() {
+        const execution = executionId('received-of')
+        const authority = await fixture.open(access, execution)
+        const result = sampleReceivedModelResult(access.tenant, 'mine')
+        const other = sampleReceivedToolAccount(access.tenant, 'theirs')
+        const account = sampleReceivedModelAccount(access.tenant, 'mine')
+        await recorded(
+          advancing(access, execution, authority, operationId('of-0'), sampleStartFence('of')),
+          'fence',
+        )
+        await recorded(receiving(access, execution, operationId('of-1'), result), 'result')
+        await recorded(receiving(access, execution, operationId('of-2'), other), 'other')
+        await recorded(receiving(access, execution, operationId('of-3'), account), 'account')
+        const mine = await entries.receivedOf({
+          ...access,
+          execution,
+          consumption: result.consumption,
+        })
+        assert.ok('ok' in mine, 'receivedOf should answer')
+        assert.deepEqual(mine.ok, [result, account])
+        const theirs = await entries.receivedOf({
+          ...access,
+          execution,
+          consumption: other.consumption,
+        })
+        assert.ok('ok' in theirs, 'receivedOf should answer')
+        assert.deepEqual(theirs.ok, [other])
+      },
+    },
+    {
+      name: 'read and receivedOf of a foreign execution answer denied, as one that does not exist',
+      async run() {
+        const execution = executionId('foreign-read')
+        await fixture.open(access, execution)
+        const entry = sampleReceivedModelResult(access.tenant, 'foreign-read')
+        await recorded(receiving(access, execution, operationId('foreign-read'), entry), 'record')
+        const paged = await entries.read({ ...otherAccess, execution, after: null, limit: 10 })
+        assert.ok('failure' in paged && paged.failure.kind === 'denied', 'read should be denied')
+        const of = await entries.receivedOf({
+          ...otherAccess,
+          execution,
+          consumption: entry.consumption,
+        })
+        assert.ok('failure' in of && of.failure.kind === 'denied', 'receivedOf should be denied')
+        const missing = await entries.read({
+          ...access,
+          execution: executionId('never-opened'),
+          after: null,
+          limit: 10,
+        })
+        assert.ok(
+          'failure' in missing && missing.failure.kind === 'denied',
+          'an execution that does not exist should be denied',
+        )
       },
     },
     {
@@ -553,26 +666,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
       },
     },
     {
-      name: 'denies a received delivery whose call reference names another tenant',
-      async run() {
-        const execution = executionId('wrong-call')
-        await fixture.open(access, execution)
-        const before = await eventsOf(execution)
-        await refused(
-          receiving(
-            access,
-            execution,
-            operationId('wrong-call'),
-            sampleReceivedModelResult(otherAccess.tenant, 'wrong-call'),
-          ),
-          'denied',
-          'received with a call of another tenant',
-        )
-        assert.deepEqual(await fixture.read(access, execution), [])
-        await unchangedEvents(execution, before, 'a denied received record')
-      },
-    },
-    {
       name: 'advances the revision on each new entry',
       async run() {
         const execution = executionId('revision')
@@ -636,16 +729,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
           ),
           'conflict',
           'the same Tool account key with another account',
-        )
-        await refused(
-          receiving(
-            access,
-            execution,
-            operationId('at4'),
-            sampleReceivedToolAccount(otherAccess.tenant, 'acc-foreign'),
-          ),
-          'denied',
-          'a Tool account with a call of another tenant',
         )
         assert.deepEqual(await fixture.read(access, execution), [model, tool])
       },

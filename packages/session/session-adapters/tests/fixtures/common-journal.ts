@@ -67,6 +67,7 @@ export function checkpoint(): AgentCheckpoint {
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
+    voided: [],
   }
 }
 export type SceneQualification = {
@@ -250,7 +251,6 @@ export function openInput(
     operation: entry,
     execution,
     initial,
-    checkpoint: initialCheckpoint,
   }
   const handoff = { kind: 'input' as const, execution, entry, input: initial.id }
   return {
@@ -279,6 +279,7 @@ export function openInput(
       },
     },
     runtime,
+    checkpoint: initialCheckpoint,
   }
 }
 

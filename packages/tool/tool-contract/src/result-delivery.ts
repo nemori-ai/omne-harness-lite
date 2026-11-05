@@ -96,7 +96,7 @@ export interface ToolResultReceiver<P, B extends ContentBlock> {
 /** The first relation failure of `judgeToolDelivery`, in the order of the SPEC table. */
 export type ToolDeliveryRejection =
   | Readonly<{ field: 'tenant'; reason: 'identity' }>
-  | Readonly<{ field: 'key.reference'; reason: 'reference-malformed' | 'foreign-tenant' }>
+  | Readonly<{ field: 'key.reference'; reason: 'reference-malformed' }>
   | Readonly<{ field: 'key.revision'; reason: 'revision-mismatch' }>
   | Readonly<{ field: 'account.subject'; reason: 'call-mismatch' }>
 
@@ -110,12 +110,13 @@ export function judgeToolDelivery<B extends ContentBlock>(
 ): Outcome<ToolDelivery<B>, ToolDeliveryRejection> {
   const { delivery } = input
   if (!tenantCodec.encode(input.tenant).ok) return fail({ field: 'tenant', reason: 'identity' })
+  // The reference carries no tenant (R2-D357): it resolves in the presented tenant, and the
+  // receiver's own partition answers whether that tenant has the call.
   const reference = resolveToolInvocationRef(delivery.key.reference, input.tenant)
   if ('failure' in reference)
-    return fail({
-      field: 'key.reference',
-      reason: reference.failure.kind === 'malformed' ? 'reference-malformed' : 'foreign-tenant',
-    })
+    return reference.failure.kind === 'malformed'
+      ? fail({ field: 'key.reference', reason: 'reference-malformed' })
+      : fail({ field: 'tenant', reason: 'identity' })
   if (delivery.kind === 'account' && delivery.key.revision !== delivery.account.revision)
     return fail({ field: 'key.revision', reason: 'revision-mismatch' })
   const account = delivery.account

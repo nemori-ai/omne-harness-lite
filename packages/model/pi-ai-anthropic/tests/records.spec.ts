@@ -18,11 +18,26 @@ const SEALED_MODELS = [
   'anthropic/claude-fable-5.1',
 ] as const
 
+/** The models added from the official model list of 2026-11-03. */
+const ADDED_MODELS = ['anthropic/claude-sonnet-5.5', 'anthropic/claude-haiku-5.5'] as const
+
+/**
+ * The sealed models are at revision 2, which takes the official upstream limits; R2-D126 deleted
+ * revision 1. The added models start at revision 1.
+ */
+const revisionOf = (record: AnthropicRecord) =>
+  (SEALED_MODELS as readonly string[]).includes(record.name) ? '2' : '1'
+
 describe('the migrated models', () => {
-  it('has one current record at revision 1 per sealed model, and nothing else', () => {
-    expect(RECORDS.map(record => record.name).toSorted()).toEqual([...SEALED_MODELS].toSorted())
+  it('has one current record per sealed or added model, at its revision, and nothing else', () => {
+    expect(RECORDS.map(record => `${record.name}/${record.revision}`).toSorted()).toEqual(
+      [
+        ...SEALED_MODELS.map(name => `${name}/2`),
+        ...ADDED_MODELS.map(name => `${name}/1`),
+      ].toSorted(),
+    )
     for (const record of RECORDS) {
-      expect(record.revision).toBe('1')
+      expect(record.revision).toBe(revisionOf(record))
       expect(record.status).toBe('current')
       expect(record.route).toEqual({ recipient: 'openrouter', model: record.name })
     }
@@ -71,11 +86,18 @@ describe('the migrated models', () => {
     for (const record of RECORDS) {
       expect(record.profile.input).toEqual(['text', 'image'])
       expect(record.profile.output).toEqual(['text'])
+      // The official window and output are upstream values; Anthropic publishes no input limit.
       expect(record.profile.context).toEqual({
-        window: { provided: '1000000', upstream: { kind: 'unknown' } },
+        window: { provided: '1000000', upstream: { kind: 'finite', amount: '1000000' } },
         input: { provided: '872000', upstream: { kind: 'unknown' } },
-        output: { provided: '128000', upstream: { kind: 'unknown' } },
+        output: { provided: '128000', upstream: { kind: 'finite', amount: '128000' } },
       })
+      // The evidence of the finite values names its sources and the day of the observation.
+      expect(record.profile.evidence).toContain(
+        'https://platform.claude.com/docs/en/about-claude/models/overview',
+      )
+      expect(record.profile.evidence).toContain('https://openrouter.ai/api/v1/models/')
+      expect(record.profile.evidence).toContain('2026-11-03')
       expect(record.profile.limits).toEqual([
         { metric: 'image-bytes', provided: '4194304', upstream: { kind: 'unknown' } },
       ])

@@ -21,13 +21,15 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { decodeValue, plainOf } from '../codec.ts'
 import type { JournalRow } from './entries.ts'
+import { readState } from './state-rows.ts'
 import {
   entryEvidence,
   readHistory,
+  type HistoryBasis,
   type HistoryFocus,
   type SessionHistory,
 } from './history-index.ts'
-import { big, oneRow, rowsOf, text } from './support.ts'
+import { assignPositions, big, oneRow, rowsOf, text } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_LOG_RECORDS = 100_000
@@ -44,7 +46,7 @@ export type LogBatch = Readonly<{
   entries: readonly HistoryEntry[]
   answer: SessionLogReceipt
   /** The input range and focus of the history read the observation was judged and reduced on. */
-  decision: Readonly<{ scope: SessionInputScope; focus: HistoryFocus }>
+  decision: HistoryBasis
 }>
 
 /**
@@ -155,8 +157,8 @@ export type CoveringSnapshot = (
   tail: bigint,
 ) => WorkSnapshot | 'behind'
 
-/** The snapshot text of the `sl_state` row of the session when it covers `tail`, else `behind`. */
-export function readCoveringText(
+/** The head text of the `sl_state` row of the session when it covers `tail`, else `behind`. */
+export function readCoveringHead(
   port: ParticipantPort,
   tenant: string,
   session: string,
@@ -172,12 +174,13 @@ export function readCoveringText(
 }
 
 /**
- * Reads and parses the `sl_state` row each time. The participant passes its parsed-snapshot cache
- * instead (`ParsedSnapshots.covering`), which reads the same row and parses only a new text.
+ * Reads the head row and the chunk rows each time. The participant passes its parsed-snapshot
+ * cache instead (`ParsedSnapshots.covering`), which reads the same head row and reads the chunks
+ * only for a new head text.
  */
 export const readCoveringSnapshot: CoveringSnapshot = (port, tenant, session, tail) => {
-  const read = readCoveringText(port, tenant, session, tail)
-  return read === 'behind' ? read : (decodeValue(JSON.parse(read) as JsonValue) as WorkSnapshot)
+  const read = readState(port, tenant, session, tail)
+  return read === 'behind' ? read : read.snapshot
 }
 
 type Read = Readonly<{
@@ -245,17 +248,7 @@ function batchOf(
   const { tenant, journal } = start
   const { session } = observation
   const revision = String(journal.tail + 1n)
-  const last = oneRow(
-    port,
-    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ? LIMIT 1',
-    [tenant, session],
-  )
-  const first = big(last?.['p'] ?? 0n) + 1n
-  const entries = projected.entries.map((entry, index) => ({
-    ...entry,
-    id: String(first + BigInt(index)),
-    revision,
-  })) as HistoryEntry[]
+  const entries = assignPositions(port, { tenant, session }, revision, projected.entries)
   const reduced = reduce(
     projected.prepared,
     { revision, entries } as never,
@@ -327,8 +320,7 @@ export function judgeLog(
     observation.session,
     previous,
     scopeOf(previous, observation),
-    undefined,
-    focus,
+    { focus },
   )
   if (history === 'too-many')
     return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }

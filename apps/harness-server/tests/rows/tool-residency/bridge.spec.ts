@@ -25,24 +25,41 @@ describe('the real tool-residency bridge with Session memory transactions', () =
       await app.write({ tenant: tenantA(), key: at, shape: shape() })
       await app.write({ tenant: tenantB(), key: at, shape: shape() })
       await app.write({ tenant: tenantA(), key: at, shape: shape() })
-      await scenario.run({
-        reader: app.reader,
-        key: at,
-        references: [
-          { holder: 'holder-0', tenant: tenantA(), shape: shape() },
-          { holder: 'holder-0', tenant: tenantB(), shape: shape() },
-          { holder: 'holder-1', tenant: tenantA(), shape: shape() },
-        ],
-        interrupt: () =>
-          app.setRead(async () =>
-            fail({ kind: 'unavailable', owner: 'test', diagnostic: 'source-secret' }),
-          ),
-      })
+      // Three holders at page size 1: a first page that is complete would leave the paging cases vacuous.
+      expect(await app.reader.referencing({ scope: 'system', key: at, after: null })).toMatchObject(
+        {
+          ok: { items: [expect.anything()], next: expect.any(String) },
+        },
+      )
+      await expect(
+        scenario.run({
+          reader: app.reader,
+          key: at,
+          references: [
+            { holder: 'holder-0', tenant: tenantA(), shape: shape() },
+            { holder: 'holder-0', tenant: tenantB(), shape: shape() },
+            { holder: 'holder-1', tenant: tenantA(), shape: shape() },
+          ],
+          interrupt: () =>
+            app.setRead(async () =>
+              fail({ kind: 'unavailable', owner: 'test', diagnostic: 'source-secret' }),
+            ),
+        }),
+      ).resolves.toBeUndefined()
     })
 
   for (const scenario of residentKeyRoundTripConformance())
     it(scenario.name, async () => {
-      await scenario.run(await start())
+      const app = await start()
+      await expect(scenario.run(app)).resolves.toBeUndefined()
+      // Whatever the case wrote, the bridge still reads a fresh holder back with its tenant and shape.
+      const probe = key('probe_tool')
+      await app.write({ tenant: tenantA(), key: probe, shape: shape('probe_tool') })
+      expect(
+        await app.reader.referencing({ scope: 'system', key: probe, after: null }),
+      ).toMatchObject({
+        ok: { items: [{ tenant: tenantA(), shape: shape('probe_tool') }], next: null },
+      })
     })
 
   it('uses the maintainer face, the original entry principal, system scope, codec key, cursor and limit', async () => {

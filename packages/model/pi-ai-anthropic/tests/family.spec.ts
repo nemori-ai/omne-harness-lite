@@ -57,7 +57,8 @@ describe('acquire', () => {
     const supplier = supplierOf(SONNET)
     for (const adoption of [
       { ...supplier.adoption, name: 'anthropic/claude-sonnet-5-mini' },
-      { ...supplier.adoption, revision: '2' },
+      // Sonnet 5 is at revision 2; no record has revision 3.
+      { ...supplier.adoption, revision: '3' },
       { ...supplier.adoption, digest: '0'.repeat(64) },
     ])
       expect(await contributions.acquire({ ...supplier, adoption }, live())).toEqual({

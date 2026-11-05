@@ -250,7 +250,10 @@ describe('the startup snapshot', () => {
           ...modules,
           filesToolModule: {
             ...modules.filesToolModule,
-            executor: { ...modules.filesToolModule.executor, revision: '2' },
+            executor: {
+              ...modules.filesToolModule.executor,
+              revision: `${modules.filesToolModule.executor.revision}-drift`,
+            },
           },
         }
       },

@@ -19,6 +19,7 @@
 - [Journal 核心套件的共享辅助：身份、证据、写入输入、终结路径与修订探针](testing-journal-helpers.ts)
 - [套件用的取消政策与安装记录](testing-cancellation.ts)
 - [接收面条目端口的套件与替身](testing-journal-entries.ts)
+- [替身共用的读取形状：条目分页、按消费取接收条目、材料摘要与描述](testing-journal-reads.ts)
 - [账目出站端口的套件与替身](testing-account-outlet.ts)
 - [判断结果与拒绝原因](judgment.ts)
 - [AgentDefinition 判断](judge-definition.ts)

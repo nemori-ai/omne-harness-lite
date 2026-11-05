@@ -141,6 +141,7 @@ async function authorityUnavailableAndUnknown<P>(fixture: RuntimeContextFixture<
     await s.subject.applyCommit(s.principal, {
       kind: 'registration',
       commit: { commit: 'u' },
+      after: { commit: 'registration' },
       change,
     }),
     {
@@ -153,6 +154,7 @@ async function authorityUnavailableAndUnknown<P>(fixture: RuntimeContextFixture<
     await s.subject.applyCommit(s.principal, {
       kind: 'registration',
       commit: { commit: 'x' },
+      after: { commit: 'registration' },
       change,
     }),
     {
@@ -166,6 +168,7 @@ async function authorityUnavailableAndUnknown<P>(fixture: RuntimeContextFixture<
     await s.subject.applyCommit(s.principal, {
       kind: 'registration',
       commit: { commit: 'b' },
+      after: { commit: 'registration' },
       change,
     }),
     {
@@ -181,6 +184,7 @@ async function authorityUnavailableAndUnknown<P>(fixture: RuntimeContextFixture<
   const applied = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'ok' },
+    after: { commit: 'registration' },
     change,
   })
   assert.equal(applied.kind, 'applied')
@@ -227,6 +231,7 @@ async function revocationDuringSupplyDiscarded<P>(fixture: RuntimeContextFixture
   const applying = subject.applyCommit(fixture.principal, {
     kind: 'registration',
     commit: { commit: 'register' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -322,6 +327,7 @@ async function tenantInvalidateScopedToTenant<P>(fixture: RuntimeContextFixture<
   const added = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'foreign' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -386,6 +392,7 @@ async function supplyAnswerMapping<P>(fixture: RuntimeContextFixture<P>) {
   await subject.applyCommit(fixture.principal, {
     kind: 'registration',
     commit: { commit: 'answers' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,

@@ -52,6 +52,14 @@ describe('omne commands as a process', () => {
   it('carries a session command after a login, with the proof in the body', async () => {
     const options = { omneHome: state, omneServer: service.origin }
     await runCliAsync(sandbox, ['login', '--login-identifier', 'alice'], { ...options, stdin })
+    // The session command needs the owner tenant of the session: the process that created it
+    // recorded it, so this is the real create then act path.
+    const created = await runCliAsync(
+      sandbox,
+      ['create-session', '--definition', 'default'],
+      options,
+    )
+    expect(created.status).toBe(0)
     const result = await runCliAsync(
       sandbox,
       ['cancel-run', '--session', sessionId, '--run', 'run-7'],
@@ -120,7 +128,7 @@ describe('omne commands as a process', () => {
   })
 
   it('exits 2 for a name no command has', async () => {
-    const result = await runCliAsync(sandbox, ['read-history'])
+    const result = await runCliAsync(sandbox, ['observe-session'])
     expect(result).toEqual({ status: 2, stdout: '', stderr: unrecognizedArguments })
   })
 })

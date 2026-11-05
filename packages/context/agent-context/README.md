@@ -44,7 +44,7 @@ const requests = createAgentRequests({
   conversions,
   model,
   resultCapacity,
-  tools: firstWaveTools,
+  tools: toolsSourceOf(toolLookup),
   stepResults: absentStepResults,
 })
 ```
@@ -61,7 +61,7 @@ The outlet checks the tenant of the call first, then asks the target resolver, t
 
 ## Configuration and operation
 
-The outlet plugin configuration has one field, `sender`, the adoption identity that the outlet gives to every fact. The context plugin configuration has `owner`, `resultCapacity` and an optional `materials` capacity (initial value 256). A configuration that does not fit makes the load fail. The first wave passes the absent resolver, the first-wave tools rule and the absent step results.
+The outlet plugin configuration has one field, `sender`, the adoption identity that the outlet gives to every fact. The context plugin configuration has `owner`, `resultCapacity` and an optional `materials` capacity (initial value 256). A configuration that does not fit makes the load fail. The plugin passes the absent resolver and the absent step results. The sixth group is `toolsSourceOf(toolLookup)`: the assembly hands the tool lookup to `createAgentContextPlugin({ toolLookup })`, and without it every non-empty set of bindings answers `tool-lookup-absent`.
 
 ## Verification
 

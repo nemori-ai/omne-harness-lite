@@ -1,16 +1,22 @@
+export { sameCapability } from './capability.ts'
 export { skillBodyContract } from './contract.ts'
 export { computeDigest, isPackageDigest } from './digest.ts'
 export { inferMediaType } from './media.ts'
 export {
+  DECLARATION_PATH,
   isAssetVersion,
   isControlFile,
   isPackagePath,
   isSafeReason,
   isSkillName,
+  MANIFEST_PATH,
   toPackagePath,
 } from './names.ts'
+export { PAGE_LIMIT } from './page-limit.ts'
+export { DECLARATION_LIMITS } from './parse/declaration.ts'
 export { bodyOffsetOf } from './parse/manifest.ts'
 export { parseSkillPackage, type ParseFailure, type ParseInput } from './parse/package.ts'
+export { isSkillDescription } from './parse/shape.ts'
 export { projectAssetBody } from './project.ts'
 export type {
   ByteRange,

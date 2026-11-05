@@ -3,8 +3,9 @@
 // them: from the module files of `modelStorageMaterials()`, by default export. The core options
 // (authority, evidence, owners, clock, limits) that build the SQL and the in-memory commands
 // alike. The provider keeps one in-memory database per transaction domain, receipts by full
-// identity and rollback on a stopping reply. It does not model Workers, durability, queues or
-// limits: a pass proves none of those.
+// identity and rollback on a stopping reply. Its read port refuses a statement without LIMIT, as
+// the contract's read port does. It does not model Workers, durability, queues or limits: a pass
+// proves none of those.
 import { DatabaseSync } from 'node:sqlite'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -300,8 +301,13 @@ export function sqliteStorage() {
     read(request) {
       const handler = MODULES.handlers.get(request.handler)
       const db = domainOf(request.domain.transactionDomain).db
+      // The read port rule of sql-contract (SPEC 读 handler): every statement carries a LIMIT. The
+      // sqlite provider refuses the read as `read_port_violation`; this double refuses the statement.
       const outcome = handler?.read(request.input, {
-        execute: (sql, params) => rowsOf(db, sql, params),
+        execute: (sql, params) => {
+          if (!/\blimit\b/iu.test(sql)) throw new Error('read port: a statement has no LIMIT')
+          return rowsOf(db, sql, params)
+        },
       })
       return Promise.resolve(
         outcome?.kind === 'read'

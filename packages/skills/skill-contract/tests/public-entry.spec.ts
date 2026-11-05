@@ -6,6 +6,10 @@ import * as skill from '@omne-harness/skill-contract'
 
 it('exports the skill body port', () => {
   expect(Object.keys(skill).sort()).toEqual([
+    'DECLARATION_LIMITS',
+    'DECLARATION_PATH',
+    'MANIFEST_PATH',
+    'PAGE_LIMIT',
     'bodyOffsetOf',
     'computeDigest',
     'inferMediaType',
@@ -14,21 +18,24 @@ it('exports the skill body port', () => {
     'isPackageDigest',
     'isPackagePath',
     'isSafeReason',
+    'isSkillDescription',
     'isSkillName',
     'parseSkillPackage',
     'projectAssetBody',
+    'sameCapability',
     'skillBodyContract',
     'toPackagePath',
   ])
 })
 
-it('exports the snapshot constructor on the provider entry only', async () => {
+it('exports the snapshot constructor and its guard on the provider entry only', async () => {
   const provider = await import('@omne-harness/skill-contract/provider')
-  expect(Object.keys(provider).sort()).toEqual(['sealSnapshot'])
+  expect(Object.keys(provider).sort()).toEqual(['isSealedSnapshot', 'sealSnapshot'])
   expect(Object.keys(skill)).not.toContain('sealSnapshot')
+  expect(Object.keys(skill)).not.toContain('isSealedSnapshot')
 })
 
-it('exports the four suites and the three memory doubles on the testing entry', async () => {
+it('exports the five suites and the three memory doubles on the testing entry', async () => {
   const testing = await import('@omne-harness/skill-contract/testing')
   expect(Object.keys(testing).sort()).toEqual([
     'NotApplicable',
@@ -38,6 +45,7 @@ it('exports the four suites and the three memory doubles on the testing entry', 
     'isNotApplicable',
     'runConformanceCase',
     'skillAccessConformance',
+    'skillCatalogConformance',
     'skillPackageSourceConformance',
     'skillReadCheckConformance',
     'skillResolutionConformance',
@@ -62,12 +70,12 @@ it('does not import a test framework from the testing entry', () => {
   expect(reached.bare).toContain('node:assert/strict')
 })
 
-it('writes the provider entry only as type re-exports and the one runtime re-export', () => {
+it('writes the provider entry only as type re-exports and the one runtime re-export of the snapshot module', () => {
   const text = readFileSync(join(src, 'provider.ts'), 'utf8')
   const statements = exportStatements(join(src, 'provider.ts'))
   for (const statement of statements)
     expect(statement).toMatch(
-      /^export type \{ [A-Za-z, ]+,? \} from '\.\/[a-z-]+\.ts'$|^export \{ sealSnapshot \} from '\.\/snapshot\.ts'$/,
+      /^export type \{ [A-Za-z, ]+,? \} from '\.\/[a-z-]+\.ts'$|^export \{ isSealedSnapshot, sealSnapshot \} from '\.\/snapshot\.ts'$/,
     )
   // Comments and empty statements are not exports: the mutation sandbox adds both.
   const withoutComments = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
@@ -92,6 +100,7 @@ it('names on the provider entry exactly the types and values that the SPEC gives
     'SkillResolution',
     'SnapshotDefect',
     'SourceFailure',
+    'isSealedSnapshot',
     'sealSnapshot',
   ])
 })

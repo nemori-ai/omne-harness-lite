@@ -73,6 +73,7 @@ it('restores checkpointed blocks without a step commit as absent, and the next s
   const step = await h.rc.applyCommit('holder', {
     kind: 'step',
     commit: { commit: 's1' },
+    after: { commit: 'r2' },
     tenant: tenantA,
     executionEnded: false,
     stepCommit: {

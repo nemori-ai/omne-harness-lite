@@ -7,7 +7,7 @@
 
 Agent 自有设计已明确。step 从一次主请求准备开始；主回复拒收后的新调用建立新 step/action/call。压缩、扩展内部调用及 Model 内部 retry 不另开主 step。原始主回复准入事实按 call/resultVersion 去重，随接续共同提交。连续与累计否决由有覆盖范围的事实投影产生，恢复、压缩和新输入不清零。
 
-精确形状归[主回复准入契约](../../../agent-contract/docs/public-api/README.md#身份原位置与纯求值)，规则与恢复归[Step 与历史](mechanisms.md#step-与历史)和[事实投影](mechanisms.md#事实投影与长期读取)。本域仍负责循环守卫的原事实依据，不规定统一次数上限或把否决计数等同于守卫阶梯。
+精确形状归[主回复准入契约](../../../agent-contract/docs/public-api/README.md#身份原位置与纯求值)，规则与恢复归[Step 与历史](mechanisms.md#step-与历史)和[事实投影](mechanisms.md#事实投影与长期读取)。本域仍负责循环守卫的原事实依据，不规定统一次数上限或把否决计数等同于守卫阶梯。M2 有一项临时兜底：拒收后的新 step 计入工厂配置 `maxRunSteps`（缺省 50），所以连续否决也受这个步数上限约束。依据是 R2-D229 与 R2-D221，完整的循环判断见波 3。
 
 待完成的是实现及验证，须覆盖同回复重复提交、提交回执丢失、拒收后恢复、投影缺页及新输入不清零。外部协调者对推进者的映射归[外域依赖](#外部协调者怎样与-agent-共同受理输入和终结)，不是 Agent 的计数规则。
 
@@ -111,6 +111,15 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收)第 11 条只为 Model 交付规定了 facts 材料分支与具名版本 schema。Tool 交付的完整收场材料（`terminal`、`actualTerminal`、`effect`）没有已采用的 schema，当前公开的 `ReceivedDelivery` 与 `Material.tool` 也不直接声明这三项。所以读取 Journal 的外部协调者不能从材料确定 Tool 调用已经收场，只能返回不可用并保留任务。外部协调者一侧的登记名是 [TOOL-SETTLEMENT-SCHEMA](../../../../../docs/architecture/runtime/application-assembly.md#tool-settlement-schema)。
 
 关闭条件是拥有者为 Tool 交付采用完整收场 schema，并写回 SPEC 的结果接收第 11 条。
+
+<a id="agent-m07"></a>
+## AGENT-M07 步数上限放到 200 时收尾一步停住（D-88）
+
+本项尚未闭合，根因未查明。拥有者是 Agent 实现，R2-D372 登记为已知限制。
+
+默认 `maxRunSteps` 为 50，这个路径在默认值下到不了。把 `maxRunSteps` 放到足够容纳 200 个工具步与收尾一步时，应用的 `tests/rows/storage/journal-bytes.spec.ts` 观察到：200 个工具步正常完成，收尾回复是第 201 次受理，该步提交若干次后停住，没有写终结事实，也没有拒绝计数。该用例按现状断言「收尾一步停住且没有 ended」，修好后这条断言变红。
+
+关闭条件是查明收尾一步停住的原因并修复，再把用例改成断言 Run 完成。
 
 ## 保留的专题边界
 

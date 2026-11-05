@@ -11,6 +11,7 @@ import type {
   LeaseRelease,
   Placement,
   OriginRef,
+  TerminalRetentionOperation,
 } from '@omne-harness/execution-environment-contract'
 import { sameBinding } from './compare.ts'
 
@@ -27,6 +28,7 @@ export type LeaseViewHooks = Readonly<{
   placement: Placement
   /** The acquisition ledger's `closed` signal. The gate is the one entry of every facility operation. */
   ledgerClosed: AbortSignal
+  retentionEnabled: boolean
   /** Read on every operation, so a removed declaration refuses operations on objects already handed out. */
   descriptor: (key: FacilityKey) => StoredDescriptor | undefined
   invalidated: (invalidation: LeaseInvalidation) => void
@@ -69,6 +71,22 @@ function refused(requestId: string, reason: FacilityReason): FacilityResult<neve
   return { kind: 'rejected', requestId, reason }
 }
 
+function requiresRetention(key: FacilityKey, operation: string, request: unknown): boolean {
+  if (key !== 'terminal') return false
+  if (operation === 'attach' || operation === 'detach') return true
+  return operation === 'create' && isRecord(request) && request['retain'] === 'session'
+}
+
+function supportsRetention(facility: object, enabled: boolean): boolean {
+  const retention: unknown = Reflect.get(facility, 'retention')
+  return (
+    enabled &&
+    isRecord(retention) &&
+    typeof retention['attach'] === 'function' &&
+    typeof retention['detach'] === 'function'
+  )
+}
+
 /**
  * Wraps a provider lease. Only keys of the requirement resolve. Every operation of the facility
  * descriptor first checks that the lease still admits operations and the acquisition ledger is
@@ -109,18 +127,19 @@ export function createLeaseView<P>(
     key: FacilityKey,
     operation: string,
     request: unknown,
+    retention = false,
   ): Promise<FacilityResult<never> | 'pass'> => {
     if (!isFacilityRequest<P>(request)) return refused(requestIdOf(request), 'invalidInput')
     if (!accepting()) return refused(request.requestId, 'closed')
     const descriptor = hooks.descriptor(key)
-    if (descriptor === undefined || !descriptor.operations.includes(operation))
+    if (descriptor === undefined || (!retention && !descriptor.operations.includes(operation)))
       return refused(request.requestId, 'unsupported')
     if (!tenantEquals(request.access.tenant, hooks.tenant))
       return refused(request.requestId, 'notAuthorized')
     if (request.origin !== hooks.origin) return refused(request.requestId, 'invalidInput')
     if (!sameBinding(hooks.placement.binding, request.binding))
       return refused(request.requestId, 'invalidInput')
-    if (!descriptor.guarded.includes(operation)) return 'pass'
+    if (!retention && !descriptor.guarded.includes(operation)) return 'pass'
     let decision: 'authorized' | 'notAuthorized' | 'unavailable'
     try {
       decision = await guard.authorize(key, operation, request)
@@ -132,6 +151,21 @@ export function createLeaseView<P>(
     return 'pass'
   }
 
+  function retentionMethod(
+    target: object,
+    extension: Readonly<Record<string, unknown>>,
+    operation: TerminalRetentionOperation,
+  ) {
+    return async (request: unknown): Promise<unknown> => {
+      const decision = await gate('terminal', operation, request, true)
+      if (decision !== 'pass') return decision
+      const method = extension[operation]
+      if (typeof method !== 'function' || !supportsRetention(target, hooks.retentionEnabled))
+        return refused(requestIdOf(request), 'unavailable')
+      return Reflect.apply(method, extension, [request])
+    }
+  }
+
   function guardedFacility<F extends FacilityKey>(
     key: F,
     original: EnvironmentFacilities[F] & object,
@@ -140,15 +174,24 @@ export function createLeaseView<P>(
     return new Proxy(original, {
       get(target, property, receiver) {
         const value: unknown = Reflect.get(target, property, receiver)
-        if (
-          typeof property !== 'string' ||
-          typeof value !== 'function' ||
-          !operations.includes(property)
-        )
-          return value
+        if (key === 'terminal' && property === 'retention') {
+          if (!isRecord(value) || !supportsRetention(target, hooks.retentionEnabled))
+            return undefined
+          return Object.freeze({
+            attach: retentionMethod(target, value, 'attach'),
+            detach: retentionMethod(target, value, 'detach'),
+          })
+        }
+        if (typeof property !== 'string' || !operations.includes(property)) return value
         return async (request: unknown) => {
           const decision = await gate(key, property, request)
           if (decision !== 'pass') return decision
+          if (
+            typeof value !== 'function' ||
+            (requiresRetention(key, property, request) &&
+              !supportsRetention(target, hooks.retentionEnabled))
+          )
+            return refused(requestIdOf(request), 'unsupported')
           const result: unknown = await Reflect.apply(value, target, [request])
           return result
         }

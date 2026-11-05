@@ -18,10 +18,9 @@ uv run --locked python .meta_harness/tooling/src/check_sources.py --root .meta_h
 不放行目录或同级未登记文件。另允许两个精确的非 Markdown 目标
 `docs/engineering/github-delivery.json` 和 `docs/architecture/constraints.json`。
 
-实际 packages 与 apps 当前成员及 `.0.0.1.legacy` 封存成员的文件，包括 Markdown SPEC，
+实际 packages 与 apps 当前成员的文件，包括 Markdown SPEC，
 可由 workspace 包含及排除声明和有效 manifest 确认出处。目标与 manifest 必须留在该检出内。
-`ModuleSources.owns()` 只表示当前成员；`origin()` 返回 `current-member`、`archived-member` 或 None。
-封存出处不授予当前采用或运行支持。tools 不属于产品成员，其 Markdown 按精确登记准入。
+`ModuleSources.owns()` 与 `origin()` 只认当前成员，`origin()` 返回 `current-member` 或 None。tools 不属于产品成员，其 Markdown 按精确登记准入。
 坏登记、非法声明、缺文件、错锚点和越界链接均使检查失败。
 
 未提供 `--source-root` 时，仅检查设计根、既有 meta agents/research 来源和 meta 根入口，

@@ -1,0 +1,13 @@
+replay-ideal.cfg pass
+design.cfg pass
+design-wide.cfg pass
+refute-window-usage.cfg ReplayEqual
+refute-clock.cfg ReplayEqual
+refute-adapter-memory.cfg ReplayEqual
+refute-live-groups.cfg ReplayEqual
+refute-new-input.cfg ReplayEqual
+bad-naive-readmit.cfg SentMatchesRecord
+bad-naive-unknown.cfg NoConflict
+bad-naive-progress.cfg Progress
+bad-compare-tokens.cfg SentMatchesRecord
+bad-keep-voided.cfg AdoptedNotVoided

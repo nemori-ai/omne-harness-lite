@@ -19,6 +19,8 @@ import {
   decodeCandidateRef,
   decodePassageRef,
   decodePositionRef,
+  encodeFixedRequestRecord,
+  forecastOf,
   type Access,
   type Adoption,
   type AssemblyCall,
@@ -43,12 +45,15 @@ import type { ContextMaterials, Place, PlanMaterial, ReadMaterial } from './mate
 import { canonical, digest, tenantText } from './records.ts'
 import { createStaging, type StagedGroups } from './staging.ts'
 import {
+  absentDefinitions,
+  definitionContributions,
   failureOfAssembly,
   failureOfModel,
   failureOfRead,
   jsonOf,
   selectedModel,
   unavailable,
+  type DefinitionSource,
   type StepResultSource,
   type ToolsSource,
 } from './translate.ts'
@@ -68,6 +73,11 @@ export type AgentRequestsOptions<P> = Readonly<{
   resultCapacity: M.ResultCapacity
   tools: ToolsSource<P>
   stepResults: StepResultSource<P>
+  /**
+   * The reader of the instructions of an adopted definition (SPEC「请求准备的取法」, 组四). Absent
+   * means `absentDefinitions`: a `prepare` that names a definition then fails closed.
+   */
+  definitions?: DefinitionSource<P>
   /** The observer of the measurement events (SPEC「测量事件」). Absent means no event is built. */
   measure?: ContextMeasure
 }>
@@ -100,6 +110,7 @@ const settledAll = (settlements: readonly SourceSettlement[]): SourceSettlement 
 
 export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentRequests<P> {
   const { materials, parts, requestContext, model, resultCapacity } = options
+  const definitions: DefinitionSource<P> = options.definitions ?? absentDefinitions
   const measurer = createContextMeasurer(options.measure)
   const owner: Adoption = materials.owner
   const staging = createStaging<P>()
@@ -249,6 +260,8 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }>
     purpose: Preparation['purpose']
     place: Place
+    /** The target of the history that the call resolved; a fixed request record names it. */
+    target: ContextTarget
   }>
 
   /** The assembled or ready preparation of one candidate. */
@@ -257,7 +270,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     candidate: Candidate,
     fixable: boolean,
   ): Promise<Answer<Preparation>> {
-    const { access, input, purpose, place } = outcome
+    const { access, input, purpose, place, target } = outcome
     const coverage = materials.mint('coverage', place, candidate.coverage)
     const shared = {
       ...common(input, purpose, place, { candidate: candidate.candidate, fixable }),
@@ -275,7 +288,23 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     )
     if ('failure' in request) return request
     return {
-      ok: { ...shared, kind: 'ready', request: request.ok, capacity: resultCapacity },
+      ok: {
+        ...shared,
+        kind: 'ready',
+        request: request.ok,
+        capacity: resultCapacity,
+        // The fixed facts at this moment: the candidate's own coverage, the window of the profile
+        // that fixed it and the forecast of its budget report (RQ-14). Agent keeps the value.
+        state: encodeFixedRequestRecord({
+          schema: 'request-context/fixed-request/1',
+          target,
+          candidate: candidate.candidate,
+          coverage: candidate.coverage,
+          windowTokens: input.selection.resolution.profile.definition.context.window.provided,
+          forecast: forecastOf(candidate.verdict.report),
+          continuation: null,
+        }),
+      },
     }
   }
 
@@ -303,6 +332,38 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
         }
       default:
         return { failure: failureOfAssembly(result) }
+    }
+  }
+
+  /**
+   * The fourth group. Without a definition the group has no contributions and a null definition
+   * key, as before. With one, the definition key is the canonical text of the adoption and the
+   * contributions are its instructions in order; a definition that resolves without instructions
+   * contributes nothing. A read that gives no value is the group read: Request Context then
+   * answers unavailable, invalid or denied for the assembly, and no empty prompt is sent.
+   */
+  async function promptGroupOf(
+    access: Access<P>,
+    scope: ContextTarget['scope'],
+    definition: Adoption | undefined,
+  ): Promise<StagedGroups<P>['prompt']> {
+    if (definition === undefined)
+      return {
+        kind: 'value',
+        value: {
+          promptContributions: null,
+          assembleContext: { scope, definition: null, workspace: null, keys: {} },
+        },
+      }
+    const read = await definitions({ access, definition })
+    if (read.kind !== 'value') return read
+    return {
+      kind: 'value',
+      value: {
+        promptContributions:
+          read.value === null ? null : definitionContributions(definition, scope, read.value),
+        assembleContext: { scope, definition: canonical(definition), workspace: null, keys: {} },
+      },
     }
   }
 
@@ -354,13 +415,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
           },
         },
         context: { kind: 'value', value: { contextRead: read.group, transition: null } },
-        prompt: {
-          kind: 'value',
-          value: {
-            promptContributions: null,
-            assembleContext: { scope: target.scope, definition: null, workspace: null, keys: {} },
-          },
-        },
+        prompt: await promptGroupOf(access, target.scope, input.definition),
         model: { kind: 'value', value: selectedModel(input.selection) },
         tools: await options.tools({ access, conditions: input.conditions }),
         control: {
@@ -454,6 +509,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       input,
       purpose: input.purpose,
       place: placeOf(tenant, target, input.advance),
+      target,
     }
     const original: Original['original'] = {
       input: materials.mint('original', outcome.place, {
@@ -670,6 +726,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       },
       purpose: input.original.purpose,
       place: entry.ok.place,
+      target,
     }
     const resumed = { ...call, access }
     const answer = await staged(access, target, resumed, groups, async operations =>

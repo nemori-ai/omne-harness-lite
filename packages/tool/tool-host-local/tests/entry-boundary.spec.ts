@@ -19,9 +19,10 @@ it('exposes only the delivered Cordis factories and refuses undeclared subpaths'
       '--eval',
       `import { deepEqual, equal, rejects } from 'node:assert/strict'
 const entry = await import('@omne-harness/tool-host-local/cordis')
-deepEqual(Object.keys(entry).sort(), ['createLocalToolBindingsPlugin', 'createLocalToolHostPlugin'])
+deepEqual(Object.keys(entry).sort(), ['createLocalToolBindingsPlugin', 'createLocalToolHostPlugin', 'createLocalToolRuntimePlugins'])
 equal(typeof entry.createLocalToolBindingsPlugin, 'function')
 equal(typeof entry.createLocalToolHostPlugin, 'function')
+equal(typeof entry.createLocalToolRuntimePlugins, 'function')
 await rejects(import('@omne-harness/tool-host-local/undeclared'), {
   code: 'ERR_PACKAGE_PATH_NOT_EXPORTED',
 })`,

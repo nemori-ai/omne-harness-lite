@@ -52,8 +52,7 @@ class ModuleSources:
         if self.root is None or not target.is_relative_to(self.root):
             return None
         parts = target.relative_to(self.root).parts
-        size = (3 if parts[0:1] in (("packages",), ("packages.0.0.1.legacy",)) else
-                2 if parts[0:1] in (("apps",), ("apps.0.0.1.legacy",)) else 0)
+        size = 3 if parts[0:1] == ("packages",) else 2 if parts[0:1] == ("apps",) else 0
         if size == 0 or len(parts) <= size:
             return None
         member = "/".join(parts[:size])
@@ -70,4 +69,4 @@ class ModuleSources:
         data = json.loads(raw)
         if not isinstance(data, dict) or not isinstance(data.get("name"), str) or not data["name"]:
             return None
-        return "archived-member" if parts[0].endswith(".0.0.1.legacy") else "current-member"
+        return "current-member"

@@ -22,7 +22,7 @@
 6. 本成员不为每次请求开 fiber，不用 `inject` 表达输入，不发第二种事件（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。历史源读口、转换件结果等读口属于来源集合，由来源适配者经 `register` 或 `replace` 按目标登记（[RQ-12](../request-context-contract/SPEC.md#rq-12-来源集合与登记面)）；`assembly(target)` 的操作组只借用该目标已登记的来源集合，目标没有登记时返回不可用；本插件不 `inject` 作用域持有者或模型侧的服务，只按配置选两个策略。租户、作用域与资格全部随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 7. 本成员不导入任何协调者或持有者的契约。
 8. 本插件只把贡献登记面的变化经 `notify('contributions', …)` 交给来源登记表实例，带作用域引用与该层的修订。本插件不订阅 Runtime Context 的事件、持有者的提交通知或模型选择变更：这些变化随输入携带的修订进入组装，由机制每次比较（[request-context 候选缓存](../request-context/SPEC.md#候选缓存)）。来源登记表实例在构造时从本插件取得登记面的读口。
-9. `assembly(target)` 交出的操作组在每次调用时从本插件的登记表现取该作用域适用的贡献集合，不收调用方传入的贡献，覆盖证据记本作用域适用的段列表摘要与登记面实例的代次。操作组的作用域、组装上下文的作用域引用、历史依据的作用域引用三者不一致时返回无效（[request-context-cordis-contract 性质 2](../request-context-cordis-contract/SPEC.md#结果与不变量)）。
+9. `assembly(target)` 交出的操作组在每次调用时从本插件的登记表现取该作用域适用的贡献集合，接在已登记来源集合第四组读口给出的贡献之后（读口给 `null` 时只有登记表的集合；读口没有给出值时这次读取就是该结果），不收操作参数传入的贡献，覆盖证据记合并后的段列表摘要与登记面实例的代次。操作组的作用域、组装上下文的作用域引用、历史依据的作用域引用三者不一致时返回无效（[request-context-cordis-contract 性质 2](../request-context-cordis-contract/SPEC.md#结果与不变量)）。
 10. 本插件是 `context.compaction-settings` 与 `context.window-usage` 两块的生产者（[RQ-02](../request-context-contract/SPEC.md#rq-02-组装的前置输入)）。Runtime Context 对本插件是可选依赖，不写进本插件的 `inject`。本插件用 `ctx.inject(['runtimeContext'], …)` 把登记两块生产者的那段工作放进子 fiber（[IC-8](../../../docs/architecture/cordis-integration-conventions.md#ic-8)）：Runtime Context 在场时子 fiber 运行并登记；不在场时子 fiber 停在 `PENDING`，本插件照常提供服务，两块读到缺项；Runtime Context 后到场时子 fiber 运行并登记；Runtime Context 换代时子 fiber 重跑，以同一生产者身份重新登记。`context.window-usage` 的回调按作用域取来源登记表实例记下的最近一次固定请求的占用比例。
 
 ## 所有权、失败与生命周期

@@ -2,8 +2,14 @@
 // that implements the Agent's `ModelSelection`. It injects `modelProfiles` and provides
 // `agentModelSelection`. The Session read face is not an `inject`: it is taken from the tree on
 // every call, as a `maintainer`, so a missing or replaced Session shows as `unavailable` of that
-// call and the row stays ACTIVE. Wave 1 does not enable this row in the `serve` tree (DP1-C18): its
-// provider `model-profiles` is still an S0 double there.
+// call and the row stays ACTIVE.
+//
+// The session of a call is located from its execution (`advance.execution`) by
+// `runOfExecution`: the execution index of the tenant, read through the trusted `storage` and
+// `tenantDomainLookup`, then the Session snapshot read with the caller's own principal as a
+// `maintainer`. The two trusted services are also taken on every call, not injected: while the
+// trusted table does not show them to this row, each call is `unavailable` with that diagnostic and
+// the row stays ACTIVE.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import type { ModelSelection } from '@omne-harness/agent-contract'
 import {
@@ -11,9 +17,11 @@ import {
   agentModelSelectionKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
-import { fail } from '@omne-harness/operation-result'
+import { succeed } from '@omne-harness/operation-result'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
+import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { defineRow } from '../../row.ts'
+import { runOfExecution } from '../session-adapters/run-of-execution.ts'
 import { selectModel, type SelectionBindings, type SelectionPorts } from './select.ts'
 
 export type { SelectionBindings } from './select.ts'
@@ -28,24 +36,46 @@ class ModelSelectionImpl extends ModelSelectionService<unknown> {
   }
 }
 
+/** The owner that the location failures of this row name. */
+export const SELECTION_OWNER = 'agent-model-selection'
+
 /**
- * The default bindings. They fail closed: `select` carries no session, and no contract port maps an
- * execution to one yet, so the row cannot tell which saved selection applies. The text-only
- * requirement is the safe floor: Model checks the real modalities again when it accepts a request.
+ * The default modality requirement. The text-only requirement is the safe floor: Model checks the
+ * real modalities again when it accepts a request.
  */
-export const defaultBindings: SelectionBindings = {
-  sessionOf: () =>
-    fail({
-      kind: 'unavailable',
-      owner: 'agent-model-selection',
-      diagnostic: 'no binding from the execution to a session is installed',
-    }),
-  requirementOf: input => ({ modalities: ['text'], source: input.history }),
+export const defaultRequirementOf: SelectionBindings['requirementOf'] = input => ({
+  modalities: ['text'],
+  source: input.history,
+})
+
+/**
+ * The default session binding of a row context: the session whose active Run holds the execution
+ * of the call. Every service is read on each call; see the head comment.
+ */
+export function sessionOfExecution(ctx: Context): SelectionBindings['sessionOf'] {
+  const sessionWork = () =>
+    ctx.intercept(sessionKey, { caller: 'maintainer' }).get(sessionKey, false)?.work
+  return async input => {
+    const located = await runOfExecution(
+      {
+        storage: ctx.get(storageKey, false) ?? undefined,
+        tenantDomainLookup: ctx.get(tenantDomainLookupKey, false) ?? undefined,
+        readWork: session =>
+          sessionWork()?.readWork({ principal: input.principal, tenant: input.tenant, session }),
+      },
+      {
+        tenant: input.tenant,
+        execution: input.advance.execution,
+        action: 'select',
+        owner: SELECTION_OWNER,
+      },
+    )
+    return 'failure' in located ? located : succeed(located.ok.session)
+  }
 }
 
-/** The row over given bindings. A test or an integration passes the session binding it owns. */
+/** The row over given bindings. A binding that is not given is the default one. */
 export function createAgentModelSelectionRow(bindings: Partial<SelectionBindings> = {}) {
-  const complete: SelectionBindings = { ...defaultBindings, ...bindings }
   const plugin: Plugin.Object = {
     name: 'agent-model-selection',
     inject: [modelProfilesKey],
@@ -59,7 +89,10 @@ export function createAgentModelSelectionRow(bindings: Partial<SelectionBindings
             .get(sessionKey, false)
             ?.work.readModelSelection(access),
         resolveProfile: input => ctx.get(modelProfilesKey, false)?.resolve(input),
-        bindings: complete,
+        bindings: {
+          sessionOf: bindings.sessionOf ?? sessionOfExecution(ctx),
+          requirementOf: bindings.requirementOf ?? defaultRequirementOf,
+        },
       }
       new ModelSelectionImpl(ctx, ports)
     },

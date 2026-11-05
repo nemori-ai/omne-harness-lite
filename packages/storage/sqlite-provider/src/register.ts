@@ -13,7 +13,7 @@ import {
 import { type Core, sameScope } from './core.ts'
 import { DOMAIN_BYTES, decodeScope, isDigest, isName } from './fields.ts'
 import type { RegisterReply, RegistrationSpec } from './worker/protocol.ts'
-import { WorkerExited } from './writer-client.ts'
+import { observeReply, WorkerExited } from './writer-client.ts'
 
 type Judged =
   | Readonly<{ kind: 'rejected'; reason: RegisterRejectReason }>
@@ -81,12 +81,17 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
       key: { scope: spec.scope, transactionDomain, combinationVersion: spec.combinationVersion },
       diagnostic: core.diagnostic(text),
     })
-    // At the close deadline the caller gets `unknown`. The reservation stays until the work ends.
-    let expire: () => void = () => undefined
+    // At the close deadline, or when a sent registration has no reply within the reply
+    // observation, the caller gets `unknown`. The reservation stays until the work ends.
+    let expire: (diagnostic: string) => void = () => undefined
     const expired = new Promise<RegisterResultV2>(resolve => {
-      expire = () => resolve(unknown('close_deadline'))
+      expire = diagnostic => resolve(unknown(diagnostic))
     })
-    const leave = core.inFlight.add({ domain: transactionDomain, identity: null, expire })
+    const leave = core.inFlight.add({
+      domain: transactionDomain,
+      identity: null,
+      expire: () => expire('close_deadline'),
+    })
     const work = async (): Promise<RegisterResultV2> => {
       try {
         const outcome = await core.domains.ensure(transactionDomain, spec)
@@ -107,10 +112,11 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
           return unknown('withdrawn_before_start')
         }
         try {
-          reply = await entry.client.request<RegisterReply>({
-            kind: 'register',
-            registration: spec,
-          })
+          reply = await observeReply(
+            () => entry.client.request<RegisterReply>({ kind: 'register', registration: spec }),
+            core.replyObservationMs,
+            () => expire('reply_wait_expired'),
+          )
         } catch (error) {
           return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
         } finally {

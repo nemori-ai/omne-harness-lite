@@ -11,7 +11,6 @@ import {
   judgeStreamRef,
   readStreamRef,
   type StreamFrame,
-  type StreamRef,
 } from '@omne-harness/stream-arrival'
 import {
   encodeToolInvocationRef,
@@ -153,6 +152,23 @@ export function createStreamFacade<P, B extends ContentBlock>(input: {
     const state = await stateOf(reads, resolved.ok)
     if ('failure' in state) return state
     const handle = route.ok
+    const confirmed = await routeOf(directory, resolved.ok)
+    if ('failure' in confirmed) return confirmed
+    const latest = confirmed.ok
+    if (handle === null && latest !== null)
+      return fail({
+        kind: 'unavailable',
+        dependency: DIRECTORY,
+        diagnostic: 'The publication changed during the state read.',
+      })
+    if (
+      handle !== null &&
+      (latest === null ||
+        latest.instance !== handle.instance ||
+        latest.generation !== handle.generation ||
+        latest.stream !== handle.stream)
+    )
+      return fail({ kind: 'stale-instance', instance: handle.instance })
     if (handle === null) return succeed({ state: state.ok, current: null })
     const call = encodeToolInvocationRef({
       tenant: resolved.ok.tenant,
@@ -188,105 +204,133 @@ export function createStreamFacade<P, B extends ContentBlock>(input: {
     })
   }
 
-  /**
-   * Hands on the frames of the handle's source. Before each frame, terminal ones included, the
-   * caller's eligibility is checked again; a refusal or an unavailable source removes the
-   * subscription (which discards its queue) and ends with `denied` or `unavailable` instead of the
-   * frame. After abort no frame of the source is handed on. An exception of the source is not
-   * caught: it stays a connection failure.
-   */
-  async function* relay(
-    handle: ToolHandle<P>,
-    ref: StreamRef,
-    input: ObservationInput<P>,
-    resolved: ResolvedAccess<P>,
-  ): AsyncGenerator<Frame> {
-    const { access, signal } = input
-    const source = handle.observation.observe({ ref, access, signal })[Symbol.asyncIterator]()
-    let open = true
-    const close = async (): Promise<void> => {
-      if (!open) return
-      open = false
-      await source.return?.()
-    }
-    try {
-      for (;;) {
-        const next = await source.next()
-        if (next.done === true) {
-          open = false
-          return
-        }
-        const verdict = await unlessAborted(signal, () => eligibilityOf(directory, resolved))
-        if (verdict === ABORTED || signal.aborted) {
-          await close()
-          yield ended('observer-closed')
-          return
-        }
-        if (verdict !== 'eligible') {
-          await close()
-          yield ended(verdict)
-          return
-        }
-        yield next.value
-        if (isTerminal(next.value)) return
-      }
-    } finally {
-      await close()
-    }
-  }
+  type Routed = Readonly<{
+    input: ObservationInput<P>
+    resolved: ResolvedAccess<P>
+    source: AsyncIterator<Frame>
+  }>
 
-  /**
-   * The failure order of the public contract, with Tool's situations in it: a malformed request,
-   * an unminted or foreign tenant is `denied`; unreadable syntax, a wrong producer or a malformed
-   * call is `stale-stream` (Tool checks eligibility per call, so a reference without a Tool call
-   * ends before eligibility); an abort before or during routing is `observer-closed`; the
-   * directory's refusal is `denied`, its absence or exception is `unavailable`; a reference whose
-   * stream is not the current generation is `stale-stream` before any handle is contacted (SPEC
-   * 「旧代次的终止帧」case 3).
-   */
-  async function* observe(request: ObservationInput<P>): AsyncGenerator<Frame> {
-    const input = observationInput<P>(request)
-    if (input === null) {
-      yield ended('denied')
-      return
-    }
-    const { access, signal } = input
-    const judged = judgeStreamRef({ value: input.ref, tenant: access.tenant }, toolStreamCallCodec)
-    if ('failure' in judged) {
-      const kind = judged.failure.kind
-      yield ended(
-        kind === 'invalid-tenant' || kind === 'foreign-tenant' ? 'denied' : 'stale-stream',
-      )
-      return
-    }
-    const envelope = readStreamRef(judged.ok)
-    const parts = resolveToolInvocationRef(envelope.call, access.tenant)
-    if ('failure' in parts) {
-      yield ended('stale-stream')
-      return
-    }
-    const resolved: ResolvedAccess<P> = {
-      principal: access.principal,
-      tenant: access.tenant,
-      call: parts.ok.call,
-      admission: parts.ok.admission,
-    }
-    const route = await unlessAborted(signal, () => routeOf(directory, resolved))
-    if (route === ABORTED) {
-      yield ended('observer-closed')
-      return
-    }
-    if ('failure' in route) {
-      yield ended(route.failure.kind === 'denied' ? 'denied' : 'unavailable')
-      return
-    }
-    const handle = route.ok
-    if (handle === null || handle.stream !== envelope.stream) {
-      yield ended('stale-stream')
-      return
-    }
-    yield* relay(handle, judged.ok, input, resolved)
-  }
+  const observe: ToolStreamObservation<P>['observe'] = request => ({
+    [Symbol.asyncIterator]() {
+      const controller = new AbortController()
+      const returning = Promise.withResolvers<IteratorResult<Frame>>()
+      let source: AsyncIterator<Frame> | null = null
+      let sourceClosed = false
+      let returned = false
+      let finished = false
+      let prepared: Promise<Outcome<Routed, Frame>> | null = null
+      let tail: Promise<unknown> = Promise.resolve()
+
+      const closeSource = async (): Promise<void> => {
+        if (sourceClosed || source === null) return
+        sourceClosed = true
+        await source.return?.()
+      }
+      const detachSource = () => {
+        void closeSource().catch(() =>
+          process.emitWarning('Tool observation source cleanup failed; error text is withheld.', {
+            code: 'TOOL_OBSERVATION_CLEANUP_FAILED',
+          }),
+        )
+      }
+      const end = async (frame: Frame): Promise<IteratorResult<Frame>> => {
+        finished = true
+        controller.abort()
+        await closeSource()
+        return returned ? { done: true, value: undefined } : { done: false, value: frame }
+      }
+      const prepare = async (): Promise<Outcome<Routed, Frame>> => {
+        const checked = observationInput<P>(request)
+        if (checked === null) return fail(ended('denied'))
+        const input = { ...checked, signal: AbortSignal.any([checked.signal, controller.signal]) }
+        const { access, signal } = input
+        const judged = judgeStreamRef(
+          { value: input.ref, tenant: access.tenant },
+          toolStreamCallCodec,
+        )
+        if ('failure' in judged) {
+          const { kind } = judged.failure
+          return fail(ended(kind === 'invalid-tenant' ? 'denied' : 'stale-stream'))
+        }
+        const envelope = readStreamRef(judged.ok)
+        const parts = resolveToolInvocationRef(envelope.call, access.tenant)
+        if ('failure' in parts) return fail(ended('stale-stream'))
+        const resolved: ResolvedAccess<P> = {
+          ...access,
+          call: parts.ok.call,
+          admission: parts.ok.admission,
+        }
+        // The accepted Tool routing exception ends an initial abort without a directory lookup.
+        const route = await unlessAborted(signal, () => routeOf(directory, resolved))
+        if (route === ABORTED) return fail(ended('observer-closed'))
+        if ('failure' in route)
+          return fail(ended(route.failure.kind === 'denied' ? 'denied' : 'unavailable'))
+        const handle = route.ok
+        if (handle === null || handle.stream !== envelope.stream) return fail(ended('stale-stream'))
+        if (signal.aborted || returned) return fail(ended('observer-closed'))
+        source = handle.observation
+          .observe({ ref: judged.ok, access, signal })
+          [Symbol.asyncIterator]()
+        return succeed({ input, resolved, source })
+      }
+      const read = async (): Promise<IteratorResult<Frame>> => {
+        if (returned || finished) return { done: true, value: undefined }
+        prepared ??= prepare()
+        const ready = await prepared
+        if (returned) return { done: true, value: undefined }
+        if ('failure' in ready) return end(ready.failure)
+        const { input, resolved, source } = ready.ok
+        const next = await source.next()
+        if (returned) return { done: true, value: undefined }
+        if (next.done === true) {
+          finished = true
+          sourceClosed = true
+          return { done: true, value: undefined }
+        }
+        // Every output, including an abort end, needs the current final-boundary permission.
+        const verdict = await eligibilityOf(directory, resolved)
+        if (returned) return { done: true, value: undefined }
+        if (verdict !== 'eligible') return end(ended(verdict))
+        if (
+          next.value.kind === 'ended' &&
+          (next.value.reason === 'denied' ||
+            next.value.reason === 'unavailable' ||
+            next.value.reason === 'stale-stream')
+        )
+          return end(next.value)
+        if (input.signal.aborted) return end(ended('observer-closed'))
+        if (isTerminal(next.value)) return end(next.value)
+        return { done: false, value: next.value }
+      }
+      const iterator: AsyncIterableIterator<Frame> = {
+        [Symbol.asyncIterator]() {
+          return this
+        },
+        next() {
+          const result = tail.then(() => Promise.race([read(), returning.promise]))
+          tail = result.then(
+            () => undefined,
+            () => {
+              finished = true
+              controller.abort()
+              detachSource()
+            },
+          )
+          return result
+        },
+        async return() {
+          if (!returned) {
+            returned = true
+            controller.abort()
+            returning.resolve({ done: true, value: undefined })
+            detachSource()
+          }
+          return { done: true, value: undefined }
+        },
+      }
+      return iterator
+    },
+  })
 
   return Object.freeze({
     instances: Object.freeze<ToolStreamReferences<P>>({ current }),

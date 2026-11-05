@@ -57,7 +57,8 @@ export type SpiedInbox = ContextAccountingInbox<string> &
     /** The facts that reached `receive`, in order, with the receipt of each. */
     seen(): readonly Readonly<{ input: ContextAccountingInput; receipt: AccountReceipt }>[]
     /** The revision of the dispatch that the projection made current, or null. */
-    current(call: string, dispatch: string): string | null
+    /** Per tenant: a call reference carries no tenant (R2-D357). */
+    current(tenant: TenantId, call: string, dispatch: string): string | null
   }>
 
 /**
@@ -93,14 +94,15 @@ export async function realInbox(
   return {
     adopted,
     seen: () => seen,
-    current: (call, dispatch) => heads.get(`${call}\u0000${dispatch}`) ?? null,
+    current: (tenant, call, dispatch) =>
+      heads.get(`${JSON.stringify(tenant)}\u0000${call}\u0000${dispatch}`) ?? null,
     usage: input => accounting.inbox.usage(input),
     async receive(input) {
       const receipt = await accounting.inbox.receive(input)
       seen.push({ input: input.input, receipt })
       if (receipt.kind === 'received' && receipt.change === 'inserted')
         heads.set(
-          `${input.input.call.call}\u0000${input.input.dispatch}`,
+          `${JSON.stringify(input.access.tenant)}\u0000${input.input.call.call}\u0000${input.input.dispatch}`,
           input.input.account.revision,
         )
       return receipt

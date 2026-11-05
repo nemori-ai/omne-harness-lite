@@ -256,9 +256,10 @@ describe('fixed result and content reads through the runtime', () => {
     expect(
       await f.runtime.content.read({ ...f.input, result: resultVersion('unknown') }),
     ).toMatchObject({ failure: { kind: 'invalid', field: 'result' } })
+    // R2-D357: another tenant's partition has no such call; it is answered as a missing one.
     expect(
       await f.runtime.content.read({ ...f.input, principal: principalB, tenant: tenantB }),
-    ).toMatchObject({ failure: { kind: 'denied' } })
+    ).toMatchObject({ failure: { kind: 'invalid' } })
     expect(await f.runtime.content.read({ ...f.input, principal: principalB })).toMatchObject({
       failure: { kind: 'denied' },
     })

@@ -1,19 +1,21 @@
 // Steps 1 to 3 of every operation: the basis names the target, the read check grants, the
 // resolution gives the material. A principal without the right gets `not-available-to-you` on
 // each of the three paths, and the three answers are the same object: nothing says which path
-// it was. An answer of a port outside its closed set does not let anyone through: it is
+// it was. A port that does not answer (see `port-answer.ts`) does not let anyone through: it is
 // `unknown`. The abort checkpoint sits before and after each of the two port calls.
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type {
-  DeclaredProjection,
-  DescribeFailure,
-  SkillFailure,
-  SkillMaterialBasis,
-  SourceLayer,
+import {
+  sameCapability,
+  type DeclaredProjection,
+  type DescribeFailure,
+  type SkillFailure,
+  type SkillMaterialBasis,
+  type SourceLayer,
 } from '@omne-harness/skill-contract'
 import type { Resolution, SkillRef } from '@omne-harness/skill-contract/provider'
+import { answered, parseResolution, parseVerdict } from '../port-answer.ts'
 import type { SkillPorts } from '../ports.ts'
 import { checkpoint } from './checkpoint.ts'
 
@@ -26,35 +28,17 @@ export type Gated = Readonly<{
 }>
 
 export type Aborted = Extract<SkillFailure, { kind: 'aborted' }>
-type Unknown = Extract<SkillFailure, { kind: 'unknown' }>
 
 const NOT_AVAILABLE = Object.freeze({ kind: 'not-available-to-you' } as const)
 const UNKNOWN = Object.freeze({ kind: 'unknown' } as const)
 const ABORTED = Object.freeze({ kind: 'aborted' } as const)
 
-function sameCapability(left: CapabilityId, right: CapabilityId): boolean {
-  return left.category === right.category && left.name === right.name
-}
-
-/** The `kind` of a port answer, when the answer is an object with a text `kind`. */
-function kindOf(answer: unknown): string | undefined {
-  return typeof answer === 'object' && answer !== null && 'kind' in answer
-    ? typeof answer.kind === 'string'
-      ? answer.kind
-      : undefined
-    : undefined
-}
-
-/** A resolution answer outside the closed set: the compiler proves the set, the runtime does not. */
-function unexpected(_answer: never): Unknown {
-  return UNKNOWN
-}
-
-/** Step 3: the resolution answer, mapped by the group page "端口" table. */
+/** Step 3: the parsed resolution answer, mapped by the group page "端口" table. No answer is `unknown`. */
 function gatedOf(
-  answer: Resolution,
+  answer: Resolution | undefined,
   basis: SkillMaterialBasis | undefined,
 ): Outcome<Gated, DescribeFailure> {
+  if (answer === undefined) return fail(UNKNOWN)
   switch (answer.kind) {
     case 'adopted': {
       const { ref, declared } = answer
@@ -78,8 +62,11 @@ function gatedOf(
       return fail(NOT_AVAILABLE)
     case 'unknown':
       return fail(UNKNOWN)
-    default:
-      return fail(unexpected(answer))
+    default: {
+      // A kind that `Resolution` gains and this switch lacks fails to compile here.
+      const exhaustive: never = answer
+      return exhaustive
+    }
   }
 }
 
@@ -96,16 +83,23 @@ export async function gate<P, S>(
     return fail(NOT_AVAILABLE)
   // Step 2: the read check, on the spot. No cache and no earlier success stands in for it.
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
-  const verdict = kindOf(await ports.readCheck.check(access, scope, capability))
+  const verdict = await answered(
+    () => ports.readCheck.check(access, scope, capability),
+    parseVerdict,
+  )
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
-  if (verdict === 'refused') return fail(NOT_AVAILABLE)
-  if (verdict !== 'granted') return fail(UNKNOWN)
+  if (verdict?.kind === 'refused') return fail(NOT_AVAILABLE)
+  if (verdict?.kind !== 'granted') return fail(UNKNOWN)
   // Step 3: the resolution. The package locator comes only from its answer.
-  const answer = await ports.resolution.resolve(
-    access,
-    scope,
-    capability,
-    basis === undefined ? undefined : { basis },
+  const answer = await answered(
+    () =>
+      ports.resolution.resolve(
+        access,
+        scope,
+        capability,
+        basis === undefined ? undefined : { basis },
+      ),
+    parseResolution,
   )
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
   return gatedOf(answer, basis)

@@ -9,7 +9,7 @@ import {
   tenantCodec,
   type TenantId,
 } from '@omne-harness/legal-identity'
-import { manualIdentityClock } from '@omne-harness/identity/testing'
+import { adjustableInvitationTerms, manualIdentityClock } from '@omne-harness/identity/testing'
 import { openScrypt } from '@omne-harness/scrypt'
 import { parseDuration, parseInstant } from '@omne-harness/utc-instant'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
@@ -69,6 +69,10 @@ async function main(): Promise<void> {
           },
         }),
     },
+    invitationTerms: adjustableInvitationTerms({
+      defaultDuration: must(parseDuration('PT3600S'), 'short'),
+      maxDuration: must(parseDuration('PT86400S'), 'long'),
+    }).source,
     scrypt: opened.module,
     decoyMaterial: decoyDone.material,
   })

@@ -19,7 +19,7 @@
 本目录有四类固定输入：
 
 - `adoptions.json`：每条记录一行 `{name, revision, digest}`。`pnpm run fingerprints` 只追加新记录的行；已有行的摘要会变时，脚本拒绝写入。`adoptions.spec.ts` 双向核对。
-- `records/<name>/<revision>/`：每条记录一组回放夹具，共 12 组。目录名用 `encodeURIComponent` 编码，例如 `openai%2Fgpt-6-astra/1`。`checkChatCompletionsFixtures` 以记录表为唯一清单核对它们。
+- `records/<name>/<revision>/`：每条记录一组回放夹具，共 14 组。目录名用 `encodeURIComponent` 编码，例如 `openai%2Fgpt-6-astra/1`。`checkChatCompletionsFixtures` 以记录表为唯一清单核对它们。
 - `cases/<用例>/<name>/<revision>/`：其余封存用例，每个用例一个根目录，只含一条记录的夹具。`fixtures.spec.ts` 用只含该记录的家族逐个核对。
 - `captured/<name>/<revision>/`：真实网关回答的流，现有一组 `openai%2Fgpt-5.6-sol/1`。`fixtures.spec.ts` 用只含该记录的家族核对，见下文“真实流”。
 
@@ -33,7 +33,7 @@
 
 用例表在 [`../support/legacy-cases.ts`](../support/legacy-cases.ts)。每个用例写明来源测试的文件、行号与测试名，期望请求体与期望事实都在表中手写。`pnpm run fixtures` 把表写成本目录的文件。`fixtures.spec.ts` 先核对文件与表逐字相等，再用真实绑定编码与解码。期望事实不由引擎生成。
 
-来源是封存件 `packages.0.0.1.legacy/model/pi-ai-transport/tests/` 的内联 SSE 用例。封存的 `tests/fixtures/openai` 不含 SSE 帧。
+来源是封存件 [packages.0.0.1.legacy/model/pi-ai-transport/tests/](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/model/pi-ai-transport/tests) 的内联 SSE 用例（已从仓库删除，链接指向固定提交）。封存的 `tests/fixtures/openai` 不含 SSE 帧。
 
 ### 真实流
 
@@ -59,6 +59,7 @@
 | 用例 | 夹具 | 来源 | 差异 |
 | --- | --- | --- | --- |
 | 加密推理回放，三个型号 | `records/openai%2Fgpt-5.6-{sol,terra,luna}/1` | `openai-encrypted-replay.spec.ts:49-171`，流 `:55-72`，第二轮请求 `:88-104`、`:145-158` | 1、4、7、8 |
+| 加密推理回放，2026-11-03 新增的两个型号 | `records/openai%2Fgpt-6.1-{sol,terra}/1` | 同上。封存件没有这两个型号，夹具沿用同一用例，只换路由名 | 1、4、7、8 |
 | 同帧顺序与 Unicode | `records/openai%2Fgpt-6-astra/1` | `refusal-stream.spec.ts:161-193` RF-V1/V2 | 1、4、8 |
 | 思考、拒绝与工具的开块顺序 | `records/openai%2Fgpt-6-astra-pro/1` | `refusal-stream.spec.ts:194-231` RF-V2 | 1、2、4、8 |
 | 同上，封存输入不带调用 id | `cases/rf-v2-tool-without-id` | `refusal-stream.spec.ts:194-231` RF-V2 | 1、2 |

@@ -20,16 +20,18 @@
 
    接口与行为归 session-contract 的[委派入口](../session-contract/docs/access-check.md#委派入口)与[会话归属读口与会话工作主体](../session-contract/docs/access-check.md#会话归属读口与会话工作主体)，本成员不另写第二份保证。
 
-## 可选成员与两个受信上下文服务
+## 可选成员与三个受信上下文服务
 
 `SessionTransactionPortService` 的 `commitLog` 与 `SessionAdoptionSourceService` 的 `plan` 是可选成员，不是抽象成员：不提供它们的提供者照常编译，缺席时对应能力不存在，使用者按 `unavailable` 处理。`SessionEvidenceBridgeService` 与 `SessionAdoptionSourceService` 带类型参数 `<P = unknown>`，`prepare` 的第二个可选参数是本次调用的 `SessionAccess<P>`。
 
-下列两个服务的接口是纯类型，在 `src/context-facts.ts`，不导入 Cordis，不导入提供者：
+下列三个服务的接口是纯类型，前两个在 `src/context-facts.ts`，第三个在 `src/adopted-request.ts`，不导入 Cordis，不导入提供者：
 
 - `sessionReplayFacts`（`SessionReplayFactsService`，接口 `SessionReplayFacts`）：持有者自己的耐久事实对某个作用域已检查点块的说法。受信，只由 Runtime Context 的装配入口按调用读取。
 - `sessionScopeLookup`（`SessionScopeLookupService`，接口 `SessionScopeLookup`）：作用域文本属于哪个（租户、会话、代次）。答 `known`、`unknown` 或 `unavailable`。作用域文本是单向摘要，只有铸造它的持有者保存索引。查找缺席按 `unavailable` 处理，不当作放行。受信，只由装配入口按调用读取。
 
-两项由 `session-ad03` 一行提供。提供者行为与受信可见性不在本成员，归 session-adapters 与应用装配。
+- `sessionAdoptedRequests`（`SessionAdoptedRequestsService`，接口 `SessionAdoptedRequests`）：`readAdoptedRequest({ access, session })` 读一个会话最后一次主用途 M0 记下的请求（FIXED-FACTS F4）。答复是 `value`、`denied` 或 `unavailable`。`value` 为 `null` 表示这个会话还没有主用途 M0 记下请求。`order` 是会话内的采用顺序，从 `1` 起，每记一次加一，不是执行修订，也不是发布计数。`reference` 是模型调用引用的文本，`record` 是准备方的不透明状态，提供者原样保存，不解读。每次调用先核对本次 Access 对该会话的读取资格。读不到时答 `unavailable`，不答 `null`。服务缺席时，使用者按 `unavailable` 处理。
+
+前两项由 `session-ad03` 一行提供，第三项由 `agent-journal` 一行在 `agentJournal` 的同一插件体里提供。提供者行为与受信可见性不在本成员，归 session-adapters 与应用装配。
 
 ## 当前访问检查的装配
 

@@ -4,7 +4,7 @@
 // failure comes back as the source gave it, a throw or a malformed answer is `unavailable` with the
 // source's key, and a command with no material at all is `unavailable`, not an empty success; a
 // command whose tenant was not minted, and an initialization material bound to another tenant or
-// session, get `denied`; a login confirmation passes only for `startRun`.
+// session, get `denied`.
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -303,18 +303,5 @@ describe('the boundary checks of the bridge', () => {
     expect(await otherSession.prepare(create(A))).toEqual(
       fail({ kind: 'denied', action: 'create' }),
     )
-  })
-
-  it('passes a login confirmation for startRun only', async () => {
-    const login = guard('adoption-source', 'login-entry', 'first-input-origin')
-    const { prepare } = await assembled({
-      adoption: async given => succeed([guard('adoption-source', 'adoption', given.kind), login]),
-    })
-    expect(await prepare(command('startRun'))).toEqual(
-      succeed([guard('adoption-source', 'adoption', 'startRun'), login]),
-    )
-    expect(await prepare(command('reload'))).toMatchObject({
-      failure: { kind: 'unavailable', owner: 'sessionAdoptionSource' },
-    })
   })
 })

@@ -328,11 +328,13 @@ it('lists a directory sorted by name, page by page', async () => {
     fs.objectToken('d/b'),
   ])
   expect(first.value.entries.map(e => e.type)).toEqual(['file', 'directory'])
+  expect(first.value.entries).toMatchObject([{ name: 'a.txt' }, { name: 'b' }])
   expect(first.value.nextOffset).toBe(2)
   const second = await fs.facility.list({ ...request(), path: 'd', named, offset: 2, limit: 2 })
   expect(second.kind).toBe('done')
   if (second.kind !== 'done') return
   expect(second.value.entries.map(e => e.object)).toEqual([fs.objectToken('d/c.txt')])
+  expect(second.value.entries).toMatchObject([{ name: 'c.txt' }])
   expect(second.value.nextOffset).toBeUndefined()
 })
 

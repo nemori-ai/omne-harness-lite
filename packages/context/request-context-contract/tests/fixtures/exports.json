@@ -66,6 +66,11 @@
               "pending": false
             },
             {
+              "name": "ToolCommandSelection",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "ToolRoute",
               "kind": "type",
               "pending": false
@@ -957,6 +962,31 @@
               "name": "HistoryEvidenceResolver",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "FixedRequestRecord",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FixedRequestRecordRejection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "encodeFixedRequestRecord",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeFixedRequestRecord",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "forecastOf",
+              "kind": "value",
+              "pending": false
             }
           ]
         }
@@ -1241,10 +1271,7 @@
     {
       "module": "@omne-harness/runtime-context-contract",
       "interface": "ContextBlocks",
-      "members": [
-        "context.compaction-settings",
-        "context.window-usage"
-      ],
+      "members": ["context.compaction-settings", "context.window-usage"],
       "pending": false
     }
   ]

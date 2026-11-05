@@ -46,6 +46,8 @@ describe('the ./participants entry', () => {
       unknown
     >
     expect(Object.keys(entry).sort()).toEqual([
+      'EXECUTION_BATCH_MAX_FACTS',
+      'EXECUTION_FACT_MAX_BYTES',
       'EXECUTION_RECORD_HANDLERS',
       'EXECUTION_RECORD_PARTICIPANT',
       'EXECUTION_RECORD_PROTOCOL',
@@ -56,8 +58,13 @@ describe('the ./participants entry', () => {
       'SESSION_PARTICIPANT',
       'SESSION_PROTOCOL',
       'SESSION_WORK_HANDLER',
+      'blobDigest',
+      'decodeExecutionBlobsReply',
+      'decodeExecutionRecordBlob',
+      'decodeExecutionRecordEvents',
+      'decodeExecutionRecordFacts',
+      'decodeExecutionRecordOpen',
       'decodeExecutionRecordOperation',
-      'decodeExecutionRecordParts',
       'decodeExecutionRecordReply',
       'decodePreadmissionRecord',
       'decodePreadmissionReply',
@@ -66,6 +73,7 @@ describe('the ./participants entry', () => {
       'decodeSessionInput',
       'decodeSessionReply',
       'decodeSessionWork',
+      'executionRecordBlobFacts',
       'executionRecordFacts',
       'preadmissionFacts',
       'readCachedSessionWork',

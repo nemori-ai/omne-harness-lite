@@ -14,7 +14,6 @@ import {
   decodeAgentInstanceId,
   decodeExecutionAttachmentId,
   decodePassageId,
-  type Action,
   type ActionAdmission,
   type AdmissionDecision as AgentAdmissionDecision,
   type AgentAccessCheck,
@@ -313,7 +312,8 @@ function decoded<T, F>(result: { ok: T } | { failure: F }, what: string): T {
   return result.ok
 }
 
-type Original = Action['original']
+/** The admitted call in full: admission judges its name and arguments; the Action keeps only its `callId`. */
+type Original = Parameters<ActionAdmission<Principal>['admit']>[0]['original']
 
 const isBlockId = (text: string): text is Original['id'] => text.length > 0
 

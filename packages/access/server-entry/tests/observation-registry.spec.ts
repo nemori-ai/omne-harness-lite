@@ -17,6 +17,7 @@ function claimFor(observationId: string) {
     loginText: 'lgn',
     messageId: 'm-1',
     observationId,
+    checkLogin: () => Promise.resolve('valid' as const),
   }
 }
 const KEY = claimFor('obs-1').key
@@ -35,7 +36,11 @@ function events(text: string): unknown[] {
 
 describe('an end between the claim and the attach', () => {
   it('writes the confirmation first and then the ended frame of the earlier cancel', async () => {
-    const registry = createObservationRegistry(LIMITS, undefined)
+    const registry = createObservationRegistry({
+      limits: LIMITS,
+      loginCheckIntervalMs: 60_000,
+      diagnostics: undefined,
+    })
     const claim = registry.claim(claimFor('obs-1'))
     expect(claim).toBeDefined()
     expect(registry.cancel(KEY)).toBe('ended')
@@ -57,7 +62,11 @@ describe('an end between the claim and the attach', () => {
   })
 
   it('frees the slot of a stream that attaches already closed, and endAll does not wait for an unattached claim', async () => {
-    const registry = createObservationRegistry(LIMITS, undefined)
+    const registry = createObservationRegistry({
+      limits: LIMITS,
+      loginCheckIntervalMs: 60_000,
+      diagnostics: undefined,
+    })
     const first = registry.claim(claimFor('obs-1'))
     const gone = await holdResponse()
     responses.push(gone)

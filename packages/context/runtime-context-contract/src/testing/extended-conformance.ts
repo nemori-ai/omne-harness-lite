@@ -75,6 +75,7 @@ async function addRequired<P>(s: Setup<P>, target: ScopeRef, commit: string) {
   const added = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit },
+    after: null,
     change: {
       kind: 'add',
       scope: target,
@@ -157,6 +158,7 @@ async function reissueCannotChangeReaderConsumer<P>(fixture: RuntimeContextFixtu
   const added = await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'tool-register' },
+    after: { commit: 'registration' },
     change: {
       kind: 'add',
       scope: s.scope,
@@ -201,6 +203,7 @@ async function registerBeforeProducerThenIncompatibleReadsMissing<P>(
   const applied = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'early' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -246,6 +249,7 @@ async function scopeIndependentCallbackAtThreePoints<P>(fixture: RuntimeContextF
   await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'one' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -290,6 +294,7 @@ async function perRequestBlockOutsideSnapshot<P>(fixture: RuntimeContextFixture<
   await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'request' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -354,6 +359,7 @@ async function childScopeShadowsParent<P>(fixture: RuntimeContextFixture<P>) {
   await s.subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'child' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -405,6 +411,7 @@ async function singleWriterPerStepRejectsSecond<P>(fixture: RuntimeContextFixtur
   const committed = await f.subject.applyCommit(f.principal, {
     kind: 'step',
     commit: { commit: 'conflict' },
+    after: { commit: 'stateful' },
     tenant: f.tenant,
     executionEnded: false,
     stepCommit: {
@@ -424,6 +431,7 @@ async function pendingUpdatesNotApplied<P>(fixture: RuntimeContextFixture<P>) {
   const result = await f.subject.applyCommit(f.principal, {
     kind: 'step',
     commit: { commit: 'pending' },
+    after: { commit: 'stateful' },
     tenant: f.tenant,
     executionEnded: false,
     stepCommit: { scope: target, step: { step: 'failed' }, committed: [], pending: [first] },
@@ -540,6 +548,7 @@ async function removedRegistration<P>(
   const added = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'add' },
+    after: null,
     change: {
       kind: 'add',
       scope: target,
@@ -571,6 +580,7 @@ async function removedRegistration<P>(
   const removed = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'remove' },
+    after: { commit: 'add' },
     change: {
       kind: 'remove',
       scope: target,
@@ -601,6 +611,7 @@ async function statefulCase<P>(
   const reg = await f.subject.applyCommit(f.principal, {
     kind: 'registration',
     commit: { commit: 'stateful' },
+    after: null,
     change: {
       kind: 'add',
       creating: true,
@@ -650,6 +661,7 @@ function statefulCommit<P>(
   return {
     kind: 'step',
     commit: { commit: 'step' },
+    after: { commit: 'stateful' },
     tenant: f.tenant,
     executionEnded,
     stepCommit: {
@@ -681,6 +693,7 @@ async function translatedCase<P>(
   const commit = await subject.applyCommit(s.principal, {
     kind: 'registration',
     commit: { commit: 'translation' },
+    after: { commit: 'registration' },
     change: {
       kind: 'update',
       creating: false,

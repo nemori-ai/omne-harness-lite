@@ -16,6 +16,6 @@
 
 ## 本包事实
 
-现在为空，`models/` 与 `proofs/` 都没有资源。本成员的持续验证义务列在 SPEC 的[持续验证义务](../SPEC.md#持续验证义务)，现在由测试承担的部分见 [tests/](../tests/README.md)。某条义务只靠测试无法覆盖时，才在这里加入对应的模型或证明。
+`models/` 有提交顺序与读取隔离的两个 TLA+ 模型，`proofs/` 有对应的手写证明。性质、源码对应与机读守卫见 [formal-mapping.md](formal-mapping.md)，运行记录与发现的缺陷见 [formal-runs.md](formal-runs.md)。守卫驱动真实机制，所以放在 [runtime-context](../../runtime-context/tests/README.md) 成员的测试里。
 
-测试资源已包含纯函数、三面六操作套件与非耐久替身。覆盖与限制见 [测试说明](../tests/README.md)。没有形式模型或耐久保证。
+本成员的持续验证义务列在 SPEC 的[持续验证义务](../SPEC.md#持续验证义务)，现在由测试承担的部分见 [tests/](../tests/README.md)。测试资源包含纯函数、三面六操作套件与非耐久替身。有限范围的模型通过不等于实现符合，也不提供耐久保证。

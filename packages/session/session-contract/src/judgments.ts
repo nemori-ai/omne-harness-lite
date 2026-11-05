@@ -30,7 +30,7 @@ import type {
   WorkSnapshot,
 } from './values.ts'
 import type { CommitReceipt, EntryClass, HistoryEntry, SessionFailure } from './faces.ts'
-import type { GuardCommand, SessionCommand } from './ports.ts'
+import type { GuardCommand, MutationName, SessionCommand } from './ports.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import type { SessionCallWait } from './call-values.ts'
@@ -153,6 +153,12 @@ export type DecideReads = Readonly<{
   calls?: readonly SessionCallLookup[]
   /** `cancelRun`: the same-root Run lookup. Exactly one item must match the target. */
   runs?: readonly SessionRunLookup[]
+  /**
+   * `startRun`: the stored first input of the new Run, read from the same committed root as the
+   * snapshot. Its `origin` is the login gate of an interactive start; absent, or naming another
+   * input, it confirms no login.
+   */
+  firstInput?: Readonly<{ input: InputId; origin: DurableEvidence }>
 }>
 
 export const OFF_PATH_DIAGNOSTIC =
@@ -167,11 +173,47 @@ function terminalOf(snapshot: WorkSnapshot): RunTerminal | null {
   return snapshot.run.kind === 'terminal' ? snapshot.run.terminal : null
 }
 
+/** The commands whose `expected` names the Run-layer revision (SPEC I-R2, R2-D327). */
+const RUN_LAYER_EXPECTED: ReadonlySet<MutationName> = new Set([
+  'claim',
+  'reload',
+  'release',
+  'finishRun',
+])
+
+/**
+ * The revision that `expected` of a command of `kind` is compared with (SPEC I-R2, R2-D327). The
+ * advance commands `claim`, `reload`, `release` and `finishRun` name the Run-layer revision: the
+ * revision of the last commit that started the active Run or changed its advance or adoption, so
+ * an unrelated commit (an `accept`, a hand-over, an Agent fact) does not move it. Every other
+ * command names the snapshot revision. Without an active Run there is no Run layer, so it is the
+ * snapshot revision.
+ */
+export function expectedRevision(snapshot: WorkSnapshot, kind: MutationName): SessionRevision {
+  if (!RUN_LAYER_EXPECTED.has(kind) || snapshot.run.kind !== 'active') return snapshot.revision
+  return snapshot.run.revision
+}
+
+/**
+ * Whether `expected` of a command of `kind` still holds: it equals the revision that
+ * `expectedRevision` names, and nothing else. An advance command that read the snapshot and sends
+ * the snapshot revision does not hold once an unrelated commit moved the snapshot but not the Run
+ * layer; accepting it would let a stale claimant pass beside a fresh one (SPEC I-R2, R2-D343).
+ */
+export function expectedHolds(
+  snapshot: WorkSnapshot,
+  kind: MutationName,
+  expected: SessionRevision,
+): boolean {
+  return expected === expectedRevision(snapshot, kind)
+}
+
 /**
  * The advance judgment (ST08–ST11, ST20): the attempt claim compares run, attempt and `expected`,
  * not the instance (PM-01); the bounded claim compares run and `expected`; the participation
- * claim compares the execution. An archived session, a terminal Run and a stale attempt are
- * refused before the revision is compared, so a late writer learns the state that replaced it.
+ * claim compares the execution. `expected` is the Run-layer revision (`expectedHolds`). An
+ * archived session, a terminal Run and a stale attempt are refused before the revision is
+ * compared, so a late writer learns the state that replaced it.
  */
 export function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): AdvanceJudgment {
   if (snapshot.lifecycle === 'archived') return { kind: 'archived' }
@@ -184,14 +226,14 @@ export function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): Advan
       if (claim.advance.run !== run.run) return { kind: 'stale-advance', current: run.advance }
       if (run.advance === null || run.advance.attempt !== claim.advance.attempt)
         return { kind: 'stale-advance', current: run.advance }
-      if (claim.expected !== snapshot.revision)
-        return { kind: 'changed', revision: snapshot.revision }
+      if (!expectedHolds(snapshot, 'release', claim.expected))
+        return { kind: 'changed', revision: expectedRevision(snapshot, 'release') }
       return { kind: 'ok' }
     }
     case 'bounded': {
       if (claim.run !== run.run) return { kind: 'stale-advance', current: run.advance }
-      if (claim.expected !== snapshot.revision)
-        return { kind: 'changed', revision: snapshot.revision }
+      if (!expectedHolds(snapshot, 'finishRun', claim.expected))
+        return { kind: 'changed', revision: expectedRevision(snapshot, 'finishRun') }
       return { kind: 'ok' }
     }
     case 'participation': {
@@ -225,9 +267,9 @@ export function routeInput(snapshot: WorkSnapshot, input: RoutedInput): RouteJud
 
 /**
  * Whether a new Run may start (ST06, I-R1, I-F2). The first eligible input is the earliest
- * pending one. `login-required` is decided by `decide` from the presence of the login-entry
- * guard material (ruling R2); the snapshot holds no login state, so this function never returns
- * it.
+ * pending one. `login-required` is decided by `decide` from the origin that the first input was
+ * saved with, read in the same transaction as `DecideReads.firstInput` (R2-D198), not from guard
+ * material; the snapshot holds no login state, so this function never returns it.
  */
 export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunStartJudgment {
   if (snapshot.lifecycle === 'archived') return { kind: 'archived' }

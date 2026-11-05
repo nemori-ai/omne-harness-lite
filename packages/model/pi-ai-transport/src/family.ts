@@ -59,7 +59,7 @@ export type PiFamilyBinding = Readonly<{
     }>,
     TransportFailure
   >
-  createDecoder(): PiResponseDecoder
+  createDecoder(input: Readonly<{ request: FixedModelRequest }>): PiResponseDecoder
   release(): Promise<void>
 }>
 export interface PiFamilyContributions {

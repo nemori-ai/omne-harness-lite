@@ -22,16 +22,27 @@ export type SnapshotDefect =
   | Readonly<{ kind: 'duplicate-path'; path: PackagePath }>
   | Readonly<{ kind: 'prefix-conflict'; file: PackagePath; nested: PackagePath }>
 
-const sealed = new WeakSet<object>()
+/**
+ * The registration. `has` is typed to take any value because the WeakSet already answers false
+ * for a value that is no object, so a guard in front of it would be a second, dead check.
+ */
+const sealed: Readonly<{ add(value: object): unknown; has(value: unknown): boolean }> =
+  new WeakSet<object>()
 
 /** Registers a snapshot that `sealSnapshot` built, and narrows it to the branded type. */
 function register(snapshot: SnapshotShape): asserts snapshot is SkillPackageSnapshot {
   sealed.add(snapshot)
 }
 
+/** Whether `value` is a snapshot that `sealSnapshot` made in this process. It does not throw: a
+ * service takes a source answer through it, and a forged snapshot there is a fault of the source. */
+export function isSealedSnapshot(value: unknown): value is SkillPackageSnapshot {
+  return sealed.has(value)
+}
+
 /** Throws when `snapshot` was not made by `sealSnapshot`: a forged snapshot is a caller bug. */
 export function assertSealed(snapshot: SkillPackageSnapshot): void {
-  if (!sealed.has(snapshot)) throw new TypeError('the snapshot was not made by sealSnapshot')
+  if (!isSealedSnapshot(snapshot)) throw new TypeError('the snapshot was not made by sealSnapshot')
 }
 
 /** UTF-16 code unit order. `<` and `<=` are equivalent here: the paths are already unique. */

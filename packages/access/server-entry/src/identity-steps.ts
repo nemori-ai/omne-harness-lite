@@ -1,7 +1,9 @@
 // Steps 2 and 4 of the session judgment order (public contract「会话判断次序」, handoff「登录到
-// Access」): the login proof goes to identity, and the acting principal is issued only when the
-// target tenant's account is the recognized account. Identity's `denied` and `basis-unavailable`
-// are not rewritten; a throwing identity or issuer is `basis-unavailable` (SPEC「服务端的 HTTP 层责任」).
+// Access」), also step 4 of the governance judgment order: the login proof goes to identity, and
+// the acting principal is issued only when the target tenant's account is the recognized account.
+// Identity's `denied` and `basis-unavailable` are not rewritten; a throwing identity or issuer is
+// `basis-unavailable` (SPEC「服务端的 HTTP 层责任」). The report of a successful business access
+// (identity ID-18) goes through here too: its result never changes an answer.
 import {
   accountEquals,
   type AccountId,
@@ -10,6 +12,7 @@ import {
 } from '@omne-harness/legal-identity'
 import type {
   ActingForTenantPrincipal,
+  IdentityGovernance,
   IdentityOperations,
   PrincipalIssuer,
   SystemPrincipal,
@@ -44,13 +47,22 @@ export const LOGIN_WORK_OWNER = 'identity-login'
 export interface IdentitySteps {
   recognize(proof: ProofInput): Promise<Caller | StepRefusal>
   actingFor(caller: Caller, target: TenantId): Promise<ActingForTenantPrincipal | StepRefusal>
+  /**
+   * Reports one successful business access of the caller's login. It settles after identity
+   * answered and never rejects: a failed report leaves a diagnostic and changes no answer.
+   */
+  reportBusinessAccess(caller: Caller): Promise<void>
 }
 
-export function createIdentitySteps(
-  identity: IdentityOperations,
-  issuer: PrincipalIssuer,
-  diagnostics: DiagnosticSink | undefined,
-): IdentitySteps {
+export type IdentityStepsInput = Readonly<{
+  identity: IdentityOperations
+  governance: IdentityGovernance
+  issuer: PrincipalIssuer
+  diagnostics: DiagnosticSink | undefined
+}>
+
+export function createIdentitySteps(input: IdentityStepsInput): IdentitySteps {
+  const { identity, governance, issuer, diagnostics } = input
   let actor: SystemPrincipal | undefined
 
   const systemPrincipal = (): SystemPrincipal | undefined => {
@@ -104,6 +116,16 @@ export function createIdentitySteps(
       } catch {
         emit(diagnostics, { code: 'issuer.fault', operation: 'issueActingForTenant' })
         return UNAVAILABLE
+      }
+    },
+
+    async reportBusinessAccess(caller) {
+      try {
+        const report = await governance.reportBusinessAccess({ login: caller.login })
+        if (report.kind === 'basis-unavailable')
+          emit(diagnostics, { code: 'identity.fault', operation: 'reportBusinessAccess' })
+      } catch {
+        emit(diagnostics, { code: 'identity.fault', operation: 'reportBusinessAccess' })
       }
     },
   }
