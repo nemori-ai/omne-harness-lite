@@ -65,7 +65,7 @@ export type ReservationView = Readonly<{
   key: string
   op: string
   phase: 'reserved' | 'sent' | 'closed'
-  /** How often it ended: `release`, `markEnded`, or `markSent` answering `cancelled`. */
+  /** How often it was concluded (`conclude`). */
   endings: number
 }>
 
@@ -301,14 +301,14 @@ export function answeredWithReservation(view: RunView, op: OpView): Found[] {
     }))
 }
 
-/** P11: at rest no reservation is open; the counting view also reports endings other than one. */
+/** P11: at rest no reservation is open; the counting view also reports conclusions other than one. */
 function reservationsLeft(view: RunView): Found[] {
   const found: Found[] = view.reservations
     .filter(item => item.endings > 1)
     .map(item => ({
       property: 'P11' as const,
-      signature: 'P11-ended-twice',
-      detail: `the reservation of ${item.op} ended ${item.endings} times`,
+      signature: 'P11-concluded-twice',
+      detail: `the reservation of ${item.op} was concluded ${item.endings} times`,
     }))
   if (!atRest(view)) return found
   return [
@@ -534,12 +534,18 @@ function callerUnanswered(view: RunView): Found[] {
 /**
  * P14 T2 (`P14_BoundedAfterStop`, the global form of P8 T2 for the call port): once a stop
  * signal fired for a call (`cancel` or the caller's abort) and every bound fired, the call has
- * answered, whatever the ports still pending do.
+ * answered, whatever the ports still pending do. One port is a premise, not a wait of the call
+ * port: the transport's `call` answers once the signal fired (contract T5, SPEC WF5), so a call
+ * behind its own `transport.call` alone is not stuck.
  */
 function stoppedWaits(view: RunView): Found[] {
   if (view.bounds > 0) return []
   return view.ops
     .filter(op => CALL_OPS.has(op.kind) && op.stopped && op.status === 'waiting')
+    .filter(op => {
+      const pending = pendingOf(view, op)
+      return pending.length === 0 || pending.some(call => call.port !== 'transport.call')
+    })
     .map(op => {
       const pending = pendingOf(view, op)
       // One signature per set of ports waited for: each is a distinct finding.

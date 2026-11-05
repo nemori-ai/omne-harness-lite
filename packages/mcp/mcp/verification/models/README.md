@@ -22,7 +22,7 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 - `Deviations`：`fail`（关口拒绝、传输 `not-sent`、对端 `no-answer`、任务请求 `not-sent`）、`reject`、`throw`。`ensure` 的 `fail` 不占预算：它是建连失败或时限到期，不是端口偏离。挂起不占预算。
 - `Bugs`：负控的缺陷，见配置表。
 
-`Calls.tla` 的端口：`gate`（采用读取、资格核对、配值与清单读取合为一次）、`ensure`（连接表：`ok` 使键的连接可用，建连给下一个代际，复用保持代际；关停之后只答 `fail`）、`call`、`answer`（对端对已发出请求的应答）、`cancelReq`、`task`（四个任务方法之一，受任务时限）。`lose` 在模型里立即生效：它发起的拆除的等待归生命周期模型与 P8 A1。
+`Calls.tla` 的端口：`gate`（采用读取、资格核对、配值与清单读取合为一次）、`ensure`（连接表：`ok` 使键的连接可用，建连给下一个代际，复用保持代际；关停之后只答 `fail`）、`call`、`answer`（对端对已发出请求的应答）、`cancelReq`（在作用域里发出，无人等）、`task`（四个任务方法之一，受任务时限）。`gate`、`ensure` 与 `answer` 的等待受调用的停止信号：信号先到则调用答复，端口调用留着无人等。`lose` 在模型里立即生效，实现里拆除交作用域。传输的 `call` 在停止信号触发之后最终答复是前提（WF5）：`P14_BoundedAfterStop` 不把等在 `callW` 的调用算作卡住。
 
 ## 配置
 
@@ -49,15 +49,14 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 
 | 配置                          | 种类          | 键      | 操作                                                      | `closeAll` | `drop` | 偏离与预算                   | 检查                                                                                          |
 | ----------------------------- | ------------- | ------- | --------------------------------------------------------- | ---------- | ------ | ---------------------------- | --------------------------------------------------------------------------------------------- |
-| `calls-valid`                 | 正控          | A       | `invoke` 1、`cancel` 1、中止 1                            | 1          | 1      | `fail`、`reject`、`throw`，1 | P9–P13 的全部不变式                                                                           |
+| `calls-valid`                 | 正控          | A       | `invoke` 1、`cancel` 1、中止 1                            | 1          | 1      | `fail`、`reject`、`throw`，1 | P9–P13 与 `P14_BoundedAfterStop` 的全部不变式                                                                           |
 | `calls-valid-twice`           | 正控          | A       | `invoke` 2、`cancel` 1                                    | 0          | 1      | 无                           | 同上，P11 为主                                                                                |
 | `calls-valid-continue`        | 正控          | A       | `invoke` 1、`continueWithInput` 1                         | 0          | 1      | 无                           | 同上                                                                                          |
 | `calls-valid-task`            | 正控          | A、C    | 各 `invoke` 1；A 的任务操作 1；对端答任务                 | 1          | 1      | 无                           | 同上，P12 的账户一句为主                                                                      |
 | `calls-valid-isolation`       | 正控          | A、C、D | A `invoke` 1；C、D 各 `cancel` 1 与任务操作 1；对端答任务 | 0          | 0      | 无                           | 同上，P12 为主                                                                                |
 | `calls-live`                  | 正控（活性）  | A       | `invoke` 1、`cancel` 1、中止 1                            | 1          | 0      | `fail`、`reject`，1          | `LiveSpec` 下的 `P14_EveryCallAnswers`                                                        |
-| `calls-equiv-marksent-blind`  | 等价记录      | A       | `invoke` 1、`cancel` 1                                    | 0          | 0      | 无                           | `markSent` 不看取消标记（探索器变异 M17 的对应）：P9–P13 都不违反，所以它不是负控，只记录等价 |
-| `calls-probe-stop`            | P14 T2 的探针 | A       | `invoke` 1、`cancel` 1                                    | 0          | 0      | 无                           | `P14_BoundedAfterStop`，须违反：停止之后调用仍等关口端口（发现 F1）                           |
-| `calls-bad-send-despite-stop` | 负控          | A       | `invoke` 1、`cancel` 1                                    | 0          | 0      | 无                           | 发出前不核停止信号。`P9_NotSentNotSent` 须违反                                                |
+| `calls-bad-send-despite-stop` | 负控 | A | `invoke` 1、`cancel` 1 | 0 | 0 | 无 | 发出前的等待不看停止信号，已取消的调用仍发出。`P9_NotSentNotSent` 须违反 |
+| `calls-bad-gate-unstopped` | 负控 | A | `invoke` 1、`cancel` 1 | 0 | 0 | 无 | 同一缺陷：已取消的调用等在挂起的关口后面。`P14_BoundedAfterStop` 须违反 |
 | `calls-bad-cancel-twice`      | 负控          | A       | `invoke` 1、`cancel` 1                                    | 0          | 0      | 无                           | `cancelRequest` 调用两次。`P10_CancelOnce` 须违反                                             |
 | `calls-bad-no-release`        | 负控          | A       | `invoke` 1                                                | 0          | 0      | `fail`，1                    | 拒绝路径不归还占位。`P11_ReservationEnded` 须违反                                             |
 | `calls-bad-task-any-account`  | 负控          | A、C    | 各 `invoke` 1；A 的任务操作 1；对端答任务                 | 0          | 1      | 无                           | 任务操作复用另一账户的连接。`P12_Isolation` 须违反                                            |
@@ -66,7 +65,7 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 | `calls-bad-send-after-shut`   | 负控          | A       | `invoke` 1                                                | 1          | 0      | 无                           | 关停之后 `ensure` 仍交出连接。`P13_NoSendAfterShut` 须违反                                    |
 | `calls-bad-wait-answer`       | 负控（活性）  | A       | `invoke` 1、`cancel` 1                                    | 0          | 0      | 无                           | 等应答不看停止信号。`LiveSpec` 下的 `P14_EveryCallAnswers` 须有时序反例                       |
 
-`LiveSpec` 的公平性是 WF1、WF2 与 WF4（SPEC P14 T1）：每个时限到期，每次端口调用最终按契约答复，停止信号已触发的请求的对端应答除外。所以负控 `calls-bad-wait-answer` 里对端不答那个应答，等它的调用永不答复；正控里调用不等它。
+`LiveSpec` 的公平性是 WF1、WF2 与 WF4（SPEC P14 T1）：每个时限到期，每次端口调用最终按契约答复，停止信号已触发的请求的对端应答除外。所以负控 `calls-bad-wait-answer` 里对端不答那个应答，等它的调用永不答复；正控里调用不等它。 修复轮的变异 C50（`under` 在答复之后不再核停止信号）在模型里没有负控：外部动作只在静止时到达，答复与停止信号不会落在同一轮。
 
 ## 运行与判读
 
@@ -107,28 +106,27 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 
 运行于 2026-11-05（UTC 10:07 起），`run.py` 退出码 0，全部 14 个配置用时 11 分 11 秒，其中约 5 分钟在等运行名额；同一时段本机另有一个会话在跑差分变异，所以耗时偏长。深度是 TLC 状态图的深度，含内部步，所以比探索器调度的步数大。活性配置不报告深度。
 
-`Calls.tla` 的运行记录（同一 TLC 与 jar，4 个工作线程；模型 SHA-256 `d99810cd7d881c9f…`）：
+`Calls.tla` 的运行记录（同一 TLC 与 jar，4 个工作线程；模型 SHA-256 `b6ca39ff6c5c826c…`，合并头 `630d95dc7` 之后的模型）：
 
-| 配置                          | 结论                                     | 不同状态数 | 生成状态数 | 深度 | 耗时  | 判读     |
-| ----------------------------- | ---------------------------------------- | ---------- | ---------- | ---- | ----- | -------- |
-| `calls-valid`                 | 完成，没有错误                           | 918        | 1493       | 17   | 1.3 s | 符合判读 |
-| `calls-valid-twice`           | 完成，没有错误                           | 916        | 1145       | 25   | 1.4 s | 符合判读 |
-| `calls-valid-continue`        | 完成，没有错误                           | 108        | 123        | 22   | 1.1 s | 符合判读 |
-| `calls-valid-task`            | 完成，没有错误                           | 75100      | 117609     | 32   | 4.6 s | 符合判读 |
-| `calls-valid-isolation`       | 完成，没有错误                           | 3621       | 4601       | 17   | 1.5 s | 符合判读 |
-| `calls-live`                  | 完成，没有错误                           | 542        | 788        | 16   | 1.3 s | 符合判读 |
-| `calls-equiv-marksent-blind`  | 完成，没有错误                           | 46         | 48         | 14   | 1.1 s | 符合判读 |
-| `calls-probe-stop`            | `P14_BoundedAfterStop` 被违反            | 16         | 16         | 11   | 1.1 s | 符合判读 |
-| `calls-bad-send-despite-stop` | `P9_NotSentNotSent` 被违反               | 52         | 53         | 14   | 1.1 s | 符合判读 |
-| `calls-bad-cancel-twice`      | `P10_CancelOnce` 被违反                  | 48         | 48         | 14   | 1.1 s | 符合判读 |
-| `calls-bad-no-release`        | `P11_ReservationEnded` 被违反            | 19         | 20         | 11   | 1.0 s | 符合判读 |
-| `calls-bad-task-any-account`  | `P12_Isolation` 被违反                   | 9527       | 12187      | 20   | 2.4 s | 符合判读 |
-| `calls-bad-key-blind`         | `P12_Isolation` 被违反                   | 16         | 16         | 11   | 2.2 s | 符合判读 |
-| `calls-bad-task-blind`        | `P12_Isolation` 被违反                   | 45         | 49         | 13   | 1.6 s | 符合判读 |
-| `calls-bad-send-after-shut`   | `P13_NoSendAfterShut` 被违反             | 34         | 38         | 12   | 2.2 s | 符合判读 |
-| `calls-bad-wait-answer`       | 时序性质被违反（`P14_EveryCallAnswers`） | 44         | 44         |      | 2.9 s | 符合判读 |
+| 配置 | 结论 | 不同状态数 | 生成状态数 | 深度 | 耗时 | 判读 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `calls-valid` | 完成，没有错误 | 694 | 1246 | 16 | 1.3 s | 符合判读 |
+| `calls-valid-twice` | 完成，没有错误 | 769 | 1010 | 24 | 1.7 s | 符合判读 |
+| `calls-valid-continue` | 完成，没有错误 | 108 | 123 | 22 | 1.2 s | 符合判读 |
+| `calls-valid-task` | 完成，没有错误 | 75100 | 117609 | 32 | 5.4 s | 符合判读 |
+| `calls-valid-isolation` | 完成，没有错误 | 3621 | 4601 | 17 | 1.8 s | 符合判读 |
+| `calls-live` | 完成，没有错误 | 412 | 644 | 15 | 1.4 s | 符合判读 |
+| `calls-bad-send-despite-stop` | `P9_NotSentNotSent` 被违反 | 46 | 49 | 13 | 1.1 s | 符合判读 |
+| `calls-bad-gate-unstopped` | `P14_BoundedAfterStop` 被违反 | 14 | 14 | 9 | 1.2 s | 符合判读 |
+| `calls-bad-cancel-twice` | `P10_CancelOnce` 被违反 | 40 | 41 | 12 | 1.2 s | 符合判读 |
+| `calls-bad-no-release` | `P11_ReservationEnded` 被违反 | 14 | 15 | 9 | 1.1 s | 符合判读 |
+| `calls-bad-task-any-account` | `P12_Isolation` 被违反 | 9551 | 12195 | 19 | 2.2 s | 符合判读 |
+| `calls-bad-key-blind` | `P12_Isolation` 被违反 | 14 | 14 | 9 | 1.1 s | 符合判读 |
+| `calls-bad-task-blind` | `P12_Isolation` 被违反 | 45 | 49 | 13 | 1.2 s | 符合判读 |
+| `calls-bad-send-after-shut` | `P13_NoSendAfterShut` 被违反 | 34 | 38 | 12 | 1.2 s | 符合判读 |
+| `calls-bad-wait-answer` | 时序性质被违反（`P14_EveryCallAnswers`） | 42 | 43 |  | 1.2 s | 符合判读 |
 
-运行于 2026-11-05（UTC 14:16 起），`run.py` 退出码 0，16 个配置用时约 1 分钟，另等运行名额 40 秒。状态数比生命周期模型小得多：连接表在这里只剩可用、代际、丢失与关停，没有五项资源与拆除。
+运行于 2026-11-05（UTC 16:47 起），`run.py` 退出码 0，15 个配置用时 25 秒，证据目录 `tmp/closures/w3-mcp-call-model/formal/20261105T164723Z`。状态数比生命周期模型小得多：连接表在这里只剩可用、代际、丢失与关停，没有五项资源与拆除。基线 `7d91a330c` 上的记录（含当时的探针 `calls-probe-stop`，给出发现 F1 的最短反例）在 Git 历史。
 
 负控的反例（外部动作）：
 
@@ -137,11 +135,11 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 - `bad-unbounded-wrap`：ensure、answer adoption ok、fire、fire；取凭据不答复，两个时限都到期之后建连仍在等失败后的收场。
 - `bad-forget-open-late`：ensure、answer adoption ok、answer acquire ok、fire、fire、answer store ok、answer start ok（迟到）、answer stop ok、answer release ok；`lost` 的条目离开表，状态变成 `none`。
 
-`Calls.tla` 的探针与负控的反例（外部动作）：
+`Calls.tla` 的负控的反例（外部动作）：
 
-- `calls-probe-stop`：invoke A、cancel A；关口端口挂起，调用占位已取消，没有时限可等，仍在等。与探索器 `call` 场景的最短反例相同。
-- `calls-bad-send-despite-stop`：invoke A、answer gate ok、cancel A、answer ensure ok、answer call ok、answer cancelReq ok；占位期间已取消，调用仍发出。
-- `calls-bad-cancel-twice`：invoke A、answer gate ok、answer ensure ok、cancel A、answer call ok、answer cancelReq ok；第二次 `cancelRequest`。
+- `calls-bad-send-despite-stop`：invoke A、cancel A、answer gate ok、answer ensure ok、answer call ok；占位期间已取消，关口与建连的等待没有停下，调用仍发出。
+- `calls-bad-gate-unstopped`：invoke A、cancel A；关口端口挂起，调用已取消而仍在等它，没有时限可等。同一缺陷在 `P14_BoundedAfterStop` 上的样子，也是基线上发现 F1(a) 的最短反例。
+- `calls-bad-cancel-twice`：invoke A、answer gate ok、answer ensure ok、answer call ok、cancel A；放弃时发出第二次 `cancelRequest`。
 - `calls-bad-no-release`：invoke A、answer gate fail；调用答复后占位仍在。
 - `calls-bad-task-any-account`：invoke C、invoke A、两次 answer gate ok、两次 answer ensure ok、answer call ok、answer answer ok、task A；A 的任务操作用了 C 的连接（另一账户）。
 - `calls-bad-key-blind`：invoke A、cancel C；C 的 `cancel` 停止了 A 的调用。
@@ -151,6 +149,6 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 
 ## 本包事实
 
-- 当前内容：连接表生命周期的模型与 14 份配置，调用口的模型与 16 份配置，运行脚本。
+- 当前内容：连接表生命周期的模型与 14 份配置，调用口的模型与 15 份配置，运行脚本。
 - 状态：见上面的运行记录与 [SPEC.md「性质与证据」](../../SPEC.md#properties)。这不是证明，也不表示实现符合模型。
 - 负责人：本包的维护者。连接表或调用口的结构变化时，先改对应模型的动作，再重跑它的全部配置。

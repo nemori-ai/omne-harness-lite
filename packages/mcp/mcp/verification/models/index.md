@@ -8,6 +8,6 @@
 - [ConnectionTable.tla](ConnectionTable.tla)：连接表生命周期的有界模型。
 - [Calls.tla](Calls.tla)：调用口（`invoke`、`continueWithInput`、`cancel`、调用方中止、任务操作）的有界模型，连接表只剩抽象。
 - `valid-*.cfg`、`live.cfg`：生命周期的正控。`probe-*.cfg`：反定理（已知限制 A1 与 P8 T1）的探针。`bad-*.cfg`：负控，每个放进一处已知缺陷。
-- `calls-valid-*.cfg`、`calls-live.cfg`：调用口的正控。`calls-probe-stop.cfg`：P14 T2 的探针（发现 F1）。`calls-bad-*.cfg`：调用口的负控。`calls-equiv-marksent-blind.cfg`：一处等价变异的记录。
+- `calls-valid-*.cfg`、`calls-live.cfg`：调用口的正控。`calls-bad-*.cfg`：调用口的负控，每个放进一处已知缺陷。
 - [run.py](run.py)：串行运行 TLC、判读结果、保存证据。
 - 与实现、探索器的映射见 [../README.md](../README.md#动作映射)。

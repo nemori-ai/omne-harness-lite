@@ -35,7 +35,7 @@ import {
 } from '@omne-harness/mcp-contract/testing'
 import { createCalls } from '../../src/calls.ts'
 import { admit } from '../../src/internal/gate.ts'
-import { InFlightCalls, type InFlightKey } from '../../src/internal/in-flight.ts'
+import { InFlightCalls, type CallPhase, type InFlightKey } from '../../src/internal/in-flight.ts'
 import type { BoundKind } from '../../src/internal/port.ts'
 import { prepareSettings } from '../../src/internal/settings.ts'
 import {
@@ -426,9 +426,8 @@ function reservationTextOf(key: InFlightKey): string {
 /** What the counting view of the in-flight table tells the run. */
 interface ReservationDesk {
   reserved(key: InFlightKey, answer: 'reserved' | 'in-use'): void
-  marked(key: InFlightKey, answer: 'sent' | 'cancelled'): void
-  ended(key: InFlightKey): void
-  released(key: InFlightKey): void
+  marked(key: InFlightKey): void
+  concluded(key: InFlightKey, phase: CallPhase): void
 }
 
 /** The real in-flight table, with every call reported to the run (P11, P12). */
@@ -440,26 +439,24 @@ class CountedInFlight extends InFlightCalls {
     this.#desk = desk
   }
 
-  override reserve(key: InFlightKey): 'reserved' | 'in-use' {
-    const answer = super.reserve(key)
-    this.#desk.reserved(key, answer)
+  override reserve(key: InFlightKey, signal: AbortSignal): AbortSignal | 'in-use' {
+    const answer = super.reserve(key, signal)
+    this.#desk.reserved(key, answer === 'in-use' ? 'in-use' : 'reserved')
     return answer
   }
 
-  override markSent(key: InFlightKey, connection: Ensured['connection']): 'sent' | 'cancelled' {
-    const answer = super.markSent(key, connection)
-    this.#desk.marked(key, answer)
-    return answer
+  override markSent(
+    key: InFlightKey,
+    connection: Ensured['connection'],
+    generation: Ensured['generation'],
+  ): void {
+    super.markSent(key, connection, generation)
+    this.#desk.marked(key)
   }
 
-  override markEnded(key: InFlightKey): void {
-    super.markEnded(key)
-    this.#desk.ended(key)
-  }
-
-  override release(key: InFlightKey): void {
-    super.release(key)
-    this.#desk.released(key)
+  override conclude(key: InFlightKey, phase: CallPhase): void {
+    super.conclude(key, phase)
+    this.#desk.concluded(key, phase)
   }
 }
 
@@ -891,44 +888,32 @@ class Run implements RunView, CallDesk, ReservationDesk {
     ])
   }
 
-  marked(key: InFlightKey, answer: 'sent' | 'cancelled'): void {
+  marked(key: InFlightKey): void {
     const record = this.open_.get(reservationTextOf(key))
     if (record === undefined) return
     this.report(this.foreignReservation(record, 'marked sent'))
-    if (answer === 'sent') record.phase = 'sent'
-    else this.closeReservation(record)
+    record.phase = 'sent'
   }
 
   /**
-   * `markEnded`: the open place of the key ends. An operation that marks its own, already ended
-   * place again changes nothing (`abandon` after `markSent` answered `cancelled`); ending the
-   * place of another operation, or a place nobody held, is a defect.
+   * `conclude`: the one conclusion of the call (MC-16 step 13). The open place of the key is
+   * concluded; concluding the place of another operation, or a place nobody holds, is a defect.
    */
-  ended(key: InFlightKey): void {
+  concluded(key: InFlightKey, phase: CallPhase): void {
     const text = reservationTextOf(key)
     const open = this.open_.get(text)
     if (open !== undefined) {
-      this.report(this.foreignReservation(open, 'ended'))
+      this.report(this.foreignReservation(open, `concluded ${phase}`))
       this.closeReservation(open)
       return
     }
-    const last = this.records.findLast(item => item.text === text)
-    if (last !== undefined && last.op === this.currentOp()?.name) return
     this.report([
       {
         property: 'P11',
-        signature: 'P11-ended-nothing',
-        detail: `${this.currentOp()?.name ?? '?'} ended a place nobody holds`,
+        signature: 'P11-concluded-nothing',
+        detail: `${this.currentOp()?.name ?? '?'} concluded ${phase} a place nobody holds`,
       },
     ])
-  }
-
-  /** `release`: a reserved place is withdrawn; a sent or ended one stays (MC-12). */
-  released(key: InFlightKey): void {
-    const record = this.open_.get(reservationTextOf(key))
-    if (record?.phase !== 'reserved') return
-    this.report(this.foreignReservation(record, 'released'))
-    this.closeReservation(record)
   }
 
   /** P11: an operation acts on the place of another operation. */

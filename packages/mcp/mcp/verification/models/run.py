@@ -30,8 +30,8 @@ REPOSITORY = ROOT.parents[4]
 DEFAULT_MODULE = 'ConnectionTable'
 MODULES = {case: 'Calls' for case in (
     'calls-valid', 'calls-valid-twice', 'calls-valid-continue', 'calls-valid-task',
-    'calls-valid-isolation', 'calls-live', 'calls-equiv-marksent-blind', 'calls-probe-stop',
-    'calls-bad-send-despite-stop', 'calls-bad-cancel-twice', 'calls-bad-no-release',
+    'calls-valid-isolation', 'calls-live', 'calls-bad-send-despite-stop',
+    'calls-bad-gate-unstopped', 'calls-bad-cancel-twice', 'calls-bad-no-release',
     'calls-bad-task-any-account', 'calls-bad-key-blind', 'calls-bad-task-blind',
     'calls-bad-send-after-shut', 'calls-bad-wait-answer')}
 
@@ -59,10 +59,8 @@ CASES = {
     'calls-valid-task': None,
     'calls-valid-isolation': None,
     'calls-live': None,
-    # An equivalence record: a mutation that violates nothing, judged like a positive control.
-    'calls-equiv-marksent-blind': None,
-    'calls-probe-stop': 'P14_BoundedAfterStop',
     'calls-bad-send-despite-stop': 'P9_NotSentNotSent',
+    'calls-bad-gate-unstopped': 'P14_BoundedAfterStop',
     'calls-bad-cancel-twice': 'P10_CancelOnce',
     'calls-bad-no-release': 'P11_ReservationEnded',
     'calls-bad-task-any-account': 'P12_Isolation',

@@ -17,8 +17,14 @@
 (* `cancelReq` (`cancelRequest`) and `task` (one of the four task          *)
 (* methods). Every port is asked through `ask`: a throw when it is called  *)
 (* is an answer at once, the breach answer (`reject`). A port may hang.    *)
-(* `lose` on the connection table is instantaneous here: the wait for the  *)
-(* teardown it starts is the lifecycle model's, and P8 A1's.               *)
+(* A call waits for `gate`, `ensure` and `answer` under its one stop       *)
+(* signal (`under`, `waitAtMost`): when the signal fires first the call    *)
+(* answers and the port call goes on with nobody waiting (the table's      *)
+(* scope). `cancelRequest` is spawned in the scope, not waited for. `lose` *)
+(* is instantaneous here and not waited for either (`loseInScope`): the    *)
+(* teardown it starts is the lifecycle model's. The transport's `call` is  *)
+(* waited for without a bound: that it answers once the signal fired is a  *)
+(* premise of the transport (contract T5, SPEC WF5).                       *)
 (*                                                                         *)
 (* One event-loop turn is one external action followed by internal steps  *)
 (* until no fiber can run (`Quiescent`). The internal steps of all fibers  *)
@@ -49,9 +55,9 @@ CONSTANTS
   Observe      \* TRUE: `ev` names each step for traces; FALSE keeps it constant (liveness)
 
 DeviationNames == {"fail", "reject", "throw"}
-BugNames == {"send-despite-stop", "cancel-twice", "no-release-on-refuse", "task-any-account",
-             "key-blind-principal", "task-blind-principal", "send-after-shut",
-             "wait-answer-unstopped", "marksent-blind"}
+BugNames == {"stop-ignored-before-send", "cancel-twice", "no-release-on-refuse",
+             "task-any-account", "key-blind-principal", "task-blind-principal",
+             "send-after-shut", "wait-answer-unstopped"}
 
 ASSUME Keys \subseteq {"A", "B", "C", "D"}
 ASSUME Callers \subseteq Keys /\ Cancellers \subseteq Keys /\ Taskers \subseteq Keys
@@ -155,16 +161,23 @@ Ask(x, i, port, bound, pc) ==
 
 Done(x, i, res) == [x EXCEPT !.fib[i].pc = "done", !.fib[i].res = res]
 
-(* `release`: a reserved place is withdrawn; a sent or ended one stays. *)
-Release(x, i) ==
-  LET slot == Slot(x.fib[i].key)
-  IN IF x.inflight[slot].phase = "reserved" /\ x.inflight[slot].fib = i
-        /\ "no-release-on-refuse" \notin Bugs
-     THEN [x EXCEPT !.inflight[slot] = NoEntry]
-     ELSE x
+(* The stop signal of a call: the caller's abort, or `cancel` on its place. *)
+Stopped(x, i) ==
+  LET f == x.fib[i]
+      en == x.inflight[Slot(f.key)]
+  IN f.aborted \/ (en.fib = i /\ en.stopFired)
 
-(* `markEnded`: the place ends; the key is free again. *)
-MarkEnded(x, i) == [x EXCEPT !.inflight[Slot(x.fib[i].key)] = [NoEntry EXCEPT !.phase = "ended"]]
+(* `conclude`: the one conclusion of a call (MC-16 step 13). A sent call has *)
+(* ended; a call not sent has ended when its stop signal fired; a call not  *)
+(* sent otherwise gives its place back.                                     *)
+Conclude(x, i, phase) ==
+  LET slot == Slot(x.fib[i].key)
+      en == x.inflight[slot]
+  IN IF en.fib # i \/ en.phase = "ended" THEN x
+     ELSE IF phase = "sent" \/ Stopped(x, i)
+     THEN [x EXCEPT !.inflight[slot] = [NoEntry EXCEPT !.phase = "ended"]]
+     ELSE IF "no-release-on-refuse" \in Bugs THEN x
+     ELSE [x EXCEPT !.inflight[slot] = NoEntry]
 
 (* `lose` on the current generation: the connection is gone at once. *)
 Lose(x, k, g) ==
@@ -172,32 +185,44 @@ Lose(x, k, g) ==
   THEN [x EXCEPT !.conn[k].st = "none"]
   ELSE x
 
-(* The stop signal of a call: the caller's abort, or `cancel` on its place. *)
-Stopped(x, i) ==
-  LET f == x.fib[i]
-      en == x.inflight[Slot(f.key)]
-  IN f.aborted \/ (en.fib = i /\ en.stopFired)
+(* A call not sent whose stop signal fired is `cancelled`, whatever the  *)
+(* step it fired in refused (S2). *)
+Cancelled(x, i) == Done(Conclude(x, i, "unsent"), i, "cancelled")
 
-(* Step 9 of MC-16 before the send, and the end of a cancelled call. *)
-Cancelled(x, i) == Done(MarkEnded(x, i), i, "cancelled")
+(* A step before the send refused the call: `cancelled` once the stop fired. *)
+Refused(x, i) == IF Stopped(x, i) THEN Cancelled(x, i) ELSE Done(Conclude(x, i, "unsent"), i, "refused")
 
-(* Step 12: the peer is told once; the answer is not waited for. *)
-Abandon(x, i) ==
+(* A sent call ends with `res`. *)
+Ended(x, i, res) == Done(Conclude(x, i, "sent"), i, res)
+
+(* `cancelRequest` spawned in the table's scope: a pending call nobody waits for. *)
+SpawnCancelReq(x, i) ==
   LET r == x.fib[i].req
-      x1 == [MarkEnded(x, i) EXCEPT !.reqs[r].cancels = @ + 1, !.fib[i].cancels = @ + 1]
-  IN Ask(x1, i, "cancelReq", 0, "abandonW")
+      x1 == [x EXCEPT !.reqs[r].cancels = @ + 1, !.fib[i].cancels = @ + 1]
+  IN {[o.st EXCEPT !.calls[o.c].owner = 0] : o \in CallOutcomes(x1, i, "cancelReq", 0)}
+
+(* Step 11 once the stop fired: the peer is told once, in the scope, and  *)
+(* the call is `abandoned`. The negative control tells it twice.           *)
+Abandon(x, i) ==
+  LET once == SpawnCancelReq(x, i)
+  IN IF "cancel-twice" \in Bugs
+     THEN {Ended(y, i, "abandoned") : y \in UNION {SpawnCancelReq(z, i) : z \in once}}
+     ELSE {Ended(y, i, "abandoned") : y \in once}
 
 -----------------------------------------------------------------------------
 (* Which fibers can run.                                                   *)
 
 Answered(f) == s.calls[f.wc].st = "answered"
 
+(* The waits of a call before the send end when the stop signal fires (`under`). *)
+StopEnds(i) == Stopped(s, i) /\ "stop-ignored-before-send" \notin Bugs
+
 Runnable(i) ==
   LET f == s.fib[i]
   IN CASE f.pc = "done" -> FALSE
        [] f.pc \in {"start", "lookup"} -> TRUE
-       [] f.pc \in {"gateW", "callW", "abandonW", "tgateW", "tensW"} -> Answered(f)
-       [] f.pc = "ensW" -> Answered(f) \/ f.aborted
+       [] f.pc \in {"callW", "tgateW", "tensW"} -> Answered(f)
+       [] f.pc \in {"gateW", "ensW"} -> Answered(f) \/ StopEnds(i)
        [] f.pc = "ansW" -> Answered(f) \/ (Stopped(s, i) /\ "wait-answer-unstopped" \notin Bugs)
        [] f.pc = "taskW" -> Answered(f) \/ Fired(s, f.wc)
        [] OTHER -> FALSE
@@ -208,26 +233,21 @@ Quiescent == \A i \in DOMAIN s.fib : ~Runnable(i)
 (* Internal steps: `invoke` and `continueWithInput` (calls.ts `perform`,   *)
 (* `sendOn`, `abandon`).                                                   *)
 
-(* The call left on the connection (`markSent`): the place is sent, or it *)
-(* was cancelled while reserved and the call is abandoned (MC-16 step 11). *)
-MarkSent(x, i) ==
-  LET f == x.fib[i]
-      slot == Slot(f.key)
-  IN IF x.inflight[slot].cancelled /\ "marksent-blind" \notin Bugs
-     THEN Abandon(x, i)
-     ELSE Ask([x EXCEPT !.inflight[slot].phase = "sent", !.inflight[slot].gen = f.gen],
-              i, "answer", 0, "ansW")
-
-(* After `ensure` answered `ok`: the continuation's generation, the stop  *)
-(* signal, then the send (MC-16 steps 8-10).                                *)
+(* After `ensure` answered `ok`: the continuation's generation, then the  *)
+(* send (MC-16 steps 8-10).                                                 *)
 AfterEnsure(x, i) ==
   LET f == x.fib[i]
       x1 == [x EXCEPT !.fib[i].gen = x.conn[f.key].gen]
   IN IF f.kind = "continue" /\ x.conn[f.key].gen # f.issued
-     THEN {Done(Release(x1, i), i, "refused")}
-     ELSE IF Stopped(x1, i) /\ "send-despite-stop" \notin Bugs
-     THEN {Cancelled(x1, i)}
+     THEN {Refused(x1, i)}
      ELSE Ask(x1, i, "call", 0, "callW")
+
+(* The call left on the connection (`markSent`): the place is sent. *)
+MarkSent(x, i) ==
+  LET f == x.fib[i]
+      slot == Slot(f.key)
+  IN Ask([x EXCEPT !.inflight[slot].phase = "sent", !.inflight[slot].gen = f.gen],
+         i, "answer", 0, "ansW")
 
 CallStep(i) ==
   LET f == s.fib[i]
@@ -242,45 +262,39 @@ CallStep(i) ==
                                                                               !.fib = i]],
                                i, "gate", 0, "gateW") : s' = y
           [] f.pc = "gateW" ->
-             IF ans # "ok" THEN s' = Done(Release(s, i), i, "refused")
+             (* `under(stop, gate)`: the stop first answers `cancelled`; the gate goes on. *)
+             IF StopEnds(i) THEN s' = Cancelled(s, i)
+             ELSE IF ans # "ok" THEN s' = Refused(s, i)
              ELSE IF f.kind = "continue"
                      /\ (s.conn[k].st # "ready" \/ s.conn[k].gen # f.issued)
-             THEN s' = Done(Release(s, i), i, "refused")
-             ELSE IF Stopped(s, i) THEN s' = Cancelled(s, i)
+             THEN s' = Refused(s, i)
              ELSE \E y \in Ask(s, i, "ensure", 0, "ensW") : s' = y
           [] f.pc = "ensW" ->
-             (* `within(ensure, signal)`: the caller's abort ends the wait; the build *)
-             (* goes on for the other callers (the pending call stays).              *)
-             \/ /\ f.aborted /\ s' = Cancelled(s, i)
-             \/ /\ Answered(f)
-                /\ IF ans = "ok" THEN \E y \in AfterEnsure(s, i) : s' = y
-                   ELSE s' = Done(Release(s, i), i, "refused")
+             (* `under(stop, ensure)`: the build goes on for the other callers. *)
+             IF StopEnds(i) THEN s' = Cancelled(s, i)
+             ELSE IF ans = "ok" THEN \E y \in AfterEnsure(s, i) : s' = y
+             ELSE s' = Refused(s, i)
           [] f.pc = "callW" ->
-             IF ans = "reject" THEN s' = Done(MarkEnded(s, i), i, "abandoned")
+             IF ans = "reject" THEN s' = Ended(s, i, "abandoned")
              ELSE IF ans = "fail"
              THEN IF Stopped(s, i) THEN s' = Cancelled(s, i)
-                  ELSE s' = Done(Release(Lose(s, k, f.gen), i), i, "refused")
+                  ELSE s' = Refused(Lose(s, k, f.gen), i)
              ELSE LET r == Len(s.reqs) + 1
                       x1 == [s EXCEPT !.reqs = Append(@, [fib |-> i, cancels |-> 0]),
                                       !.fib[i].req = r, !.fib[i].sentOk = @ + 1]
                   IN \E y \in MarkSent(x1, i) : s' = y
           [] f.pc = "ansW" ->
-             \/ /\ Stopped(s, i) /\ "wait-answer-unstopped" \notin Bugs
-                /\ \E y \in Abandon(s, i) : s' = y
-             \/ /\ Answered(f)
-                /\ IF ans = "ok"
-                   THEN LET x1 == IF Peer = "task"
-                                  THEN [s EXCEPT !.tasks[TaskSlot(k)] =
-                                                   [account |-> Account(k), owner |-> k]]
-                                  ELSE s
-                        IN s' = Done(MarkEnded(x1, i), i, "sent")
-                   ELSE IF ans = "fail"
-                   THEN s' = Done(MarkEnded(Lose(s, k, f.gen), i), i, "sent-unknown")
-                   ELSE s' = Done(MarkEnded(s, i), i, "abandoned")
-          [] f.pc = "abandonW" ->
-             IF "cancel-twice" \in Bugs /\ f.cancels = 1
+             (* `waitAtMost(answer, stop)`: the stop first abandons the call. *)
+             IF Stopped(s, i) /\ "wait-answer-unstopped" \notin Bugs
              THEN \E y \in Abandon(s, i) : s' = y
-             ELSE s' = Done(s, i, "abandoned")
+             ELSE IF ans = "ok"
+             THEN LET x1 == IF Peer = "task"
+                            THEN [s EXCEPT !.tasks[TaskSlot(k)] =
+                                             [account |-> Account(k), owner |-> k]]
+                            ELSE s
+                  IN s' = Ended(x1, i, "sent")
+             ELSE IF ans = "fail" THEN s' = Ended(Lose(s, k, f.gen), i, "sent-unknown")
+             ELSE s' = Ended(s, i, "abandoned")
 
 -----------------------------------------------------------------------------
 (* Internal steps: the task operations (tasks.ts `request`, `connectionOf`). *)
@@ -434,7 +448,7 @@ Spec == Init /\ [][Next]_vars
 
 (* The peer may never answer a request whose stop signal fired: the call   *)
 (* port told it to cancel, or will. Every other port answers eventually.   *)
-Dropped(c) == s.calls[c].port = "answer" /\ Stopped(s, s.calls[c].owner)
+Dropped(c) == s.calls[c].port = "answer" /\ s.calls[c].owner # 0 /\ Stopped(s, s.calls[c].owner)
 
 (* P14 T1 needs the environment to answer: every bound fires, every call   *)
 (* but a dropped one is answered lawfully, every fiber that can run runs.  *)
@@ -496,12 +510,13 @@ P13_NoSendAfterShut ==
 AllCallsDone == \A i \in DOMAIN s.fib : s.fib[i].kind \in OpKinds => s.fib[i].pc = "done"
 P14_EveryCallAnswers == <>[]AllCallsDone
 
-(* P14 T2 (the global form of P8 T2, a probe): once a stop signal fired  *)
-(* for a call and every bound fired, the call has answered, whatever the  *)
-(* ports still pending do. The code waits for the gate, the transport's   *)
-(* `call` and `cancelRequest` with no bound: expected to fail.            *)
+(* P14 T2 (the global form of P8 T2): once a stop signal fired for a call *)
+(* and every bound fired, the call has answered, whatever the ports still  *)
+(* pending do, the transport's `call` excepted: that it answers once the   *)
+(* signal fired is the transport's premise (T5, WF5), so a call waiting at *)
+(* `callW` is not stuck.                                                    *)
 P14_BoundedAfterStop ==
   ~(/\ Quiescent /\ s.timers = <<>>
-    /\ \E i \in CallFibers : s.fib[i].pc # "done" /\ Stopped(s, i))
+    /\ \E i \in CallFibers : s.fib[i].pc \notin {"done", "callW"} /\ Stopped(s, i))
 
 =============================================================================

@@ -36,21 +36,22 @@
 | 模型动作（Calls.tla）                                              | 探索器的调度选择（`tests/model/explore.ts`）                                            | 实现                                                                                                                            |
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `Invoke(k)`、`Continue(k)`                                         | `invoke A`、`continue A`（代际取调用开始时 `current` 的，没有时取 1）                   | `calls.ts` `createCalls` 的 `invoke`、`continueWithInput`，`perform` 的同步部分                                                 |
-| `CallStep` 的 `start`                                              | 同一步的 `drain()`                                                                      | `perform`：`isActionArgs`、`inFlight.reserve`、`stopOf`、`AbortSignal.any`                                                      |
-| `Ask gate`、`gateW`                                                | `answer adoption.endpoint:A …`、`answer eligibility.check:A …`、`answer store.read:A …` | `guard.ts` `admitForUse`、`gate.ts` `admit`；`settings.ts` `prepareSettings`；`calls.ts` `knownActionOf`                        |
-| `Ask ensure`、`ensW`（`ok` 使连接可用，`fail` 拒绝）               | 连接表的全部端口与时限，同生命周期的映射                                                | `calls.ts` `perform` 里 `within(table.ensure(…), request.signal, scope)`；`table.ts` `ensure`                                   |
-| `AfterEnsure`：继续的代际核对、停止信号核对                        | `drain()`                                                                               | `perform` 的第 6、7、9 步（MC-16）                                                                                              |
-| `Ask call`、`callW`（`ok` 发出、`fail` 是 `not-sent`、`reject`）   | `answer transport.call:tA1 ok                                                           | fail                                                                                                                            | reject`，或它同步抛出                                                      | `calls.ts` `sendOn`：`ask(() => transport.call(…))`、T5 的 `cancelled`、`lose`、`inFlight.release`                 |
-| `MarkSent`                                                         | `drain()`，在途表计数视图记下 `markSent` 的答复                                         | `in-flight.ts` `markSent`；`calls.ts` `abandon`                                                                                 |
-| `Ask answer`、`ansW`（`ok` 结局、`fail` 是 `no-answer`、`reject`） | `answer transport.answer:r1 ok                                                          | fail                                                                                                                            | reject`：对端对请求 `r1`的应答，场景决定`ok` 是完整结果还是任务            | `sendOn`：`waitAtMost(ask(() => answer, ABANDONED), stop)`、`classifyOutcome`、`lose`、`tasks.record`、`markEnded` |
-| `Abandon`、`Ask cancelReq`、`abandonW`                             | `answer transport.cancelRequest:r1 ok                                                   | reject`                                                                                                                         | `calls.ts` `abandon`：`markEnded`，`ask(() => transport.cancelRequest(…))` |
-| `Cancel(k)`                                                        | `cancel A`（A 的主体用关联键 `c`）                                                      | `calls.ts` `cancel`；`in-flight.ts` `cancel`                                                                                    |
-| `Abort(i)`                                                         | `abort iA1`                                                                             | 调用方 `InvokeRequest.signal` 的 `AbortController.abort()`                                                                      |
-| `TaskOp(k)`、`TaskStep` 的 `lookup`                                | `task A get                                                                             | result                                                                                                                          | input                                                                      | cancel`                                                                                                            | `tasks.ts` `createTasks` 的四个操作，`request`：`tasks.get` |
-| `Reusable`、`SendTask`                                             | `drain()`                                                                               | `tasks.ts` `connectionOf`：`table.currentOf(…).find(账户相同)`、`isShut`、`admit`、`prepareSettings` 的账户比较、`table.ensure` |
-| `Ask task`、`taskW`、任务时限的 `Fire`                             | `answer transport.getTask:t1 …` 等四个端口，`fire T(ktA1)`                              | `tasks.ts` `request`：`ask(() => send(on))`、`startBound(bound, 'task')`、`within`、`failureOf`、`losing`                       |
-| `Drop(k)`                                                          | `drop A`：丢失 A 的当前连接                                                             | `table.ts` `lose` 于 `current(key)` 的连接；模型里立即生效，实现里等拆除（P8 A1）                                               |
-| `CloseAll`                                                         | `closeAll`                                                                              | `table.ts` `closeAll`；模型只置关停并清空连接                                                                                   |
+| `CallStep` 的 `start` | 同一步的 `drain()` | `perform`：`checkRequest`、`inFlight.reserve(key, signal)`（交出调用唯一的停止信号） |
+| `Ask gate`、`gateW`（停止信号先到则 `cancelled`） | `answer adoption.endpoint:A …`、`answer eligibility.check:A …`、`answer store.read:A …` | `prepare`：`under(stop, () => admitForUse(…))`、`prepareSettings`、`under(stop, () => knownActionOf(…))` |
+| `Ask ensure`、`ensW`（`ok` 使连接可用，`fail` 拒绝；停止信号先到则 `cancelled`） | 连接表的全部端口与时限，同生命周期的映射 | `prepare` 里 `under(stop, () => table.ensure(…))`；`table.ts` `ensure` |
+| `AfterEnsure`：继续的代际核对 | `drain()` | `prepare` 的 `issuedOn` |
+| `Ask call`、`callW`（`ok` 发出、`fail` 是 `not-sent`、`reject`） | `answer transport.call:tA1 ok|fail|reject`，或它同步抛出 | `perform`：`ask(() => transport.call(…))`、`notSentBy`（T5 的 `cancelled`，否则 `loseInScope`） |
+| `MarkSent` | `drain()`，在途表计数视图记下 `markSent` | `in-flight.ts` `markSent(key, connection, generation)` |
+| `Ask answer`、`ansW`（`ok` 结局、`fail` 是 `no-answer`、`reject`；停止信号先到则放弃） | `answer transport.answer:r1 ok|fail|reject`：对端对请求 `r1` 的应答，场景决定 `ok` 是完整结果还是任务 | `answerOf`：`waitAtMost(ask(() => answer, ABANDONED), on.stop)`、`outcomeOf`（`classifyOutcome`、`loseInScope`、`tasks.record`） |
+| `Abandon`、`SpawnCancelReq`（无人等的待决调用） | `answer transport.cancelRequest:r1 ok|reject`，调用已答复 | `answerOf`：`scope.spawn(ask(() => transport.cancelRequest(…)))` |
+| `Conclude`（`Cancelled`、`Refused`、`Ended`） | `drain()`，在途表计数视图记下 `conclude` | `perform` 的 `finally`：`inFlight.conclude(key, phase)` |
+| `Cancel(k)` | `cancel A`（A 的主体用关联键 `c`） | `calls.ts` `cancel`；`in-flight.ts` `cancel` |
+| `Abort(i)` | `abort iA1` | 调用方 `InvokeRequest.signal` 的 `AbortController.abort()` |
+| `TaskOp(k)`、`TaskStep` 的 `lookup` | `task A get|result|input|cancel` | `tasks.ts` `createTasks` 的四个操作，`request`：`tasks.get`、`issuedAt` 核对 |
+| `Reusable`、`SendTask` | `drain()` | `tasks.ts` `connectionOf`：`isShut`、`table.currentOf(…).find(账户相同)`、`built`（`decideForUse`、`prepareSettings` 的账户比较、`table.ensure`） |
+| `Ask task`、`taskW`、任务时限的 `Fire` | `answer transport.getTask:t1 …` 等四个端口，`fire T(ktA1)` | `tasks.ts` `request`：`ask(() => send(on))`、`startBound(bound, 'task')`、`within`、`failureOf`（`loseInScope`） |
+| `Drop(k)` | `drop A`：丢失 A 的当前连接 | `table.ts` `lose` 于 `current(key)` 的连接；模型里立即生效，实现里拆除在作用域继续 |
+| `CloseAll` | `closeAll` | `table.ts` `closeAll`；模型只置关停并清空连接 |
 
 ## 状态映射
 
@@ -71,7 +72,7 @@
 | 模型变量（Calls.tla）                                                         | 探索器观察                                                                                                                                                                                     | 实现                          |
 | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
 | `conn[k]`（`st`、`gen`）                                                      | `table.current(key)` 与它的代际                                                                                                                                                                | 连接表的条目                  |
-| `inflight[slot]`（`phase`、`cancelled`、`stopFired`、`gen`、`fib`）           | 在途表的计数视图：每次 `reserve`、`markSent`、`markEnded`、`release` 的调用与答复，归属于发起它的操作（`ReservationView`）；键的身份由探索器按（租户、主体文本、关联键）给出，不读实现的键文本 | `in-flight.ts` 的 `#entries`  |
+| `inflight[slot]`（`phase`、`stopFired`、`gen`、`fib`） | 在途表的计数视图：每次 `reserve`、`markSent`、`conclude` 的调用与答复，归属于发起它的操作（`ReservationView`）；键的身份由探索器按（租户、主体文本、关联键）给出，不读实现的键文本 | `in-flight.ts` 的 `#entries` |
 | `tasks[slot]`（`account`、`owner`）                                           | `invoke` 答 `task` 结局的键（`tasksOf`）                                                                                                                                                       | `task-table.ts` 的 `#entries` |
 | `reqs[r].cancels`                                                             | 账本 `requests`：传输交出的每个请求号与它收到的 `cancelRequest` 次数                                                                                                                           | 传输                          |
 | `fib[i]` 的 `aborted`、`stopEarly`、`sends`、`sentOk`、`afterShut`、`cancels` | `OpView` 的 `aborted`、`stopped`、`stoppedBeforeSend`、`sends`、`sentOk`、`afterShut`、`cancelRequests`                                                                                        | 无（只为性质）                |
@@ -90,7 +91,8 @@
 `Calls.tla` 的抽象与范围上限：
 
 - 连接表只剩每个键的「可用、代际」与关停。`ensure` 是一个端口：`ok` 使连接可用（建连给下一个代际，复用保持代际），`fail` 是任何拒绝或时限到期，关停之后只答 `fail`。它的内部步骤、时限与五项资源归生命周期模型；两个模型之间没有组合证明。
-- 关口的采用读取、资格核对、配值与清单读取合为一个端口 `gate`。`lose` 立即生效，不等拆除；`closeAll` 只置关停并清空连接。所以模型里调用从不等拆除或关闭的端口，P8 A1 的那一类等待在模型里不出现，只在探索器里出现。
+- 关口的采用读取、资格核对、配值与清单读取合为一个端口 `gate`。`lose` 立即生效，实现里拆除交作用域（`loseInScope`），两边都不让调用等它；`closeAll` 只置关停并清空连接。`cancelRequest` 在模型里是无人等的待决调用（`owner = 0`），对应 `scope.spawn`。
+- 传输的 `call` 在停止信号触发之后最终答复是前提（WF5）：`P14_BoundedAfterStop` 不把等在 `callW` 的调用算作卡住；探索器同样不把只等自己 `transport.call` 的已停止调用算作违例。
 - 键、租户、主体与账户是常量表，不建它们怎样推导。关联键只有一个 `c`，任务只有一个 `t1`，每个键的调用与任务操作的次数是常量。
 - 所有键的纤程以任意次序交错，没有偏序约简。
 - 对端对已发出请求的应答是一个端口调用；它不能同步抛出。
@@ -100,7 +102,7 @@
 - 状态按投影去重：消费者可见的表、待决调用及其调用点（`src/` 的函数栈）与是否迟到、时限、账本与预算。投影不含 promise 的续体。用例「the projection」在 `throws` 场景上核对去重与不去重找到同一组违例及其最短深度。
 - 每次重放都核对路径与上一状态的投影。本次运行没有一次偏离，所以在这些调度下实现是确定的。
 - 每个键有自己的采用视图，所以几个键的采用修订相同：`two-keys` 的两个键只差租户，`two-accounts` 的两个键只差对端账号。只差对端账号时，两个键的 `stateOf` 是同一个（同租户同持有），所以 P2 的可观察形式在两个键都为 `none` 时才检查。
-- 调用口场景里，在途表是真实的 `InFlightCalls`，经一个只计数的子类观察（`reserve`、`markSent`、`markEnded`、`release` 各自调用 `super` 后报告给运行）；任务表是真实的 `TaskTable`。P11 读这个计数视图，其余性质只读操作的答复与端口账本。
+- 调用口场景里，在途表是真实的 `InFlightCalls`，经一个只计数的子类观察（`reserve`、`markSent`、`conclude` 各自调用 `super` 后报告给运行）；任务表是真实的 `TaskTable`。P11 读这个计数视图，其余性质只读操作的答复与端口账本。
 - 调用口场景的存储持有一份清单（一个动作 `read`，没有输出 schema），所以 `lose` 的标记清单会写存储：`store.write` 是一个端口。生命周期场景的存储照旧答 `absent`，它们的状态数不变。
 - `transport.answer` 是对端对已发出请求的应答，在探索器答复 `transport.call ok` 的那一步建立，归属于发出它的操作。任务请求的时限在请求发出之后才建立（MC-17 的参数次序），探索器把它附到那次请求上，所以任务端口的迟到答复也受 P6 检查。
 - 「新建连接的账户变了」在探索器里不可达：每个键的凭据固定。它只由 `Calls.tla` 的负控 `calls-bad-task-any-account` 在复用一路覆盖，探索器的 `task-account` 场景覆盖同一路。
@@ -135,45 +137,45 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 
 「状态数」是去重后的投影数，「重放数」是从头重放的调度数。每个场景都没有违例，也没有一次重放偏离。有 `closeAll` 或 `release` 的场景都找到反定理 P8 A1 的见证（全部时限到期后关闭仍等挂起的端口）。
 
-调用口的场景（`tests/model/calls.spec.ts`，同一环境，2026-11-05）。每个场景持有一份一个动作的清单，没有 `ensure`，调用自己建连；每个场景也照常检查 P1–P8：
+调用口的场景（`tests/model/calls.spec.ts`，同一环境，2026-11-05，在合并头 `630d95dc7` 的源码上；基线 `7d91a330c` 上同一组场景的反例在「发现」一节）。每个场景持有一份一个动作的清单，没有 `ensure`，调用自己建连；每个场景也照常检查 P1–P8：
 
 | 场景             | 上限                                                                                            | 偏离与预算                      | 状态数 | 重放数 | 最深调度 | 耗时    | 层  | 结果           |
 | ---------------- | ----------------------------------------------------------------------------------------------- | ------------------------------- | ------ | ------ | -------- | ------- | --- | -------------- |
-| `call`           | 1 个键；`invoke`、`cancel` 各 1 次                                                              | 无（端口可挂起、迟到）          | 257    | 442    | 16       | 1.2 s   | 快  | 有反例：F1     |
-| `abort`          | 1 个键；`invoke` 1 次、调用方中止 1 次                                                          | 无                              | 142    | 229    | 16       | 0.4 s   | 快  | 有反例：F1     |
-| `call-faults`    | 同 `call`                                                                                       | 失败、reject、同步抛出，共 1 次 | 908    | 2252   | 19       | 4.5 s   | 快  | 有反例：F1、F2 |
-| `continue`       | 1 个键；`invoke`、`continueWithInput`、`drop` 各 1 次                                           | 无                              | 1078   | 2380   | 34       | 6.8 s   | 快  | 无反例         |
-| `call-shutdown`  | 同 `call`，加 `closeAll`                                                                        | 无                              | 1039   | 2229   | 19       | 4.5 s   | 快  | 有反例：F1     |
-| `foreign-cancel` | 3 个键（A、C、D）；A `invoke` 1 次；C、D 各 `cancel` 1 次                                       | 无                              | 731    | 1473   | 17       | 3.1 s   | 快  | 无反例         |
-| `foreign-task`   | 2 个键（A、C）；A `invoke` 1 次（对端答任务）；C 的任务操作 1 次                                | 无                              | 200    | 361    | 16       | 0.9 s   | 快  | 无反例         |
-| `call-twice`     | 1 个键；`invoke` 2 次（同一关联键）、`cancel` 1 次                                              | 无                              | 17815  | 52777  | 31       | 174.3 s | 慢  | 有反例：F1     |
-| `task`           | 1 个键；`invoke` 1 次（对端答任务）、任务操作 1 次、`drop` 1 次、`closeAll`                     | 无                              | 2433   | 6273   | 34       | 37.3 s  | 慢  | 无反例         |
-| `task-methods`   | 同 `task`，四个任务操作各 1 次，没有 `drop` 与 `closeAll`                                       | 无                              | 7775   | 33625  | 24       | 213.7 s | 慢  | 无反例         |
-| `task-account`   | 2 个键（A、C）；C 的连接在前奏里建好；A `invoke` 1 次（对端答任务）、任务操作 1 次、`drop` 1 次 | 无                              | 5555   | 14666  | 35       | 45.5 s  | 慢  | 无反例         |
+| `call` | 1 个键；`invoke`、`cancel` 各 1 次 | 无（端口可挂起、迟到） | 257 | 442 | 16 | 1.1 s | 快 | 无反例 |
+| `abort` | 1 个键；`invoke` 1 次、调用方中止 1 次 | 无 | 142 | 229 | 16 | 0.5 s | 快 | 无反例 |
+| `call-faults` | 同 `call` | 失败、reject、同步抛出，共 1 次 | 905 | 2249 | 19 | 4.8 s | 快 | 无反例 |
+| `continue` | 1 个键；`invoke`、`continueWithInput`、`drop` 各 1 次 | 无 | 1078 | 2380 | 34 | 7.6 s | 快 | 无反例 |
+| `call-shutdown` | 同 `call`，加 `closeAll` | 无 | 1039 | 2229 | 19 | 4.2 s | 快 | 无反例 |
+| `foreign-cancel` | 3 个键（A、C、D）；A `invoke` 1 次；C、D 各 `cancel` 1 次 | 无 | 731 | 1473 | 17 | 2.7 s | 快 | 无反例 |
+| `foreign-task` | 2 个键（A、C）；A `invoke` 1 次（对端答任务）；C 的任务操作 1 次 | 无 | 200 | 361 | 16 | 0.7 s | 快 | 无反例 |
+| `call-twice` | 1 个键；`invoke` 2 次（同一关联键）、`cancel` 1 次 | 无 | 18139 | 53629 | 31 | 183.8 s | 慢 | 无反例 |
+| `task` | 1 个键；`invoke` 1 次（对端答任务）、任务操作 1 次、`drop` 1 次、`closeAll` | 无 | 2433 | 6273 | 34 | 17.4 s | 慢 | 无反例 |
+| `task-methods` | 同 `task`，四个任务操作各 1 次，没有 `drop` 与 `closeAll` | 无 | 7775 | 33625 | 24 | 83.9 s | 慢 | 无反例 |
+| `task-account` | 2 个键（A、C）；C 的连接在前奏里建好；A `invoke` 1 次（对端答任务）、任务操作 1 次、`drop` 1 次 | 无 | 5555 | 14666 | 35 | 100.6 s | 慢 | 无反例 |
 
 「前奏」是每次运行开始前走完的固定调度（`Scenario.prelude`），不参与分支。调用口场景的耗时在本机另有 TLC 或慢层场景同时运行时量得，偏长。
 
-「有反例」的场景是本页「发现」一节的反例，不是探索器的失败：它们在所列上限内正常跑完。
+慢层四个场景与快层分开运行，各自运行时本机没有别的重负载。
 
 TLC 的配置、上限与结果见 [models/README.md](models/README.md#运行记录)。
 
 ## 发现
 
-探索器在调用口的实现上找到的反例。每条给违反的性质、最短调度与能复现它的场景。处置归调用口的修复轮（闭包 `w3-mcp-call`），本页不裁定。
+探索器在基线 `7d91a330c`（闭包 `w3-mcp-call` 交回的调用口）上找到的反例，与各自的处置。两条都已在合进本分支的调用口分支头 `1a143a4d4`（修复轮 `w3-mcp-call-fix1` 的 `1d158cba9`…`67b653a7f`，加 F1(d) 的修复 `1a143a4d4`；合并头 `630d95dc7`）上由探索器与 TLC 重跑确认消失：全部调用口场景没有违例，没有一条签名带 `transport.answer`；读数见上表与 [models/README.md](models/README.md#运行记录)。
 
-- **F1 停止之后仍等无时限的端口（P14 T2 调用一句）**。`cancel` 或调用方中止之后，调用仍等下面的端口，它们既没有时限，也不看停止信号：
-  - 关口的三个端口（`calls.ts` `perform` 第 3–5 步：`admitForUse`、`knownActionOf`）。最短调度：`invoke A`、`cancel A`（或 `abort iA1`），采用读取挂起；再各答一个端口，资格核对或清单读取挂起。场景 `call`、`abort`。
-  - 传输的 `call`（`sendOn` 的 `ask(() => transport.call(…))`）：停止信号已触发而传输不答。场景 `call`。
-  - `cancelRequest`（`abandon` 等它返回）。最短调度：建连成功，`cancel A`，`answer transport.call:tA1 ok`，`cancelRequest` 挂起。场景 `call`。
-  - `not-sent` 或 `no-answer` 之后 `lose` 发起的拆除与标记清单（`sendOn` 等 `table.lose`）：`transport.close`、`process.stop`、`credential.release`、`store.write` 挂起。这是 P8 A1 的同类。场景 `call-faults`。
+- **F1 停止之后仍等无时限的端口（P14 T2 调用一句）**。`cancel` 或调用方中止之后，调用仍等下面的端口，它们既没有时限，也不看停止信号。最短调度 `invoke A`、`cancel A`（或 `abort iA1`），采用读取挂起。
+  - (a) 关口的三个端口（旧 `perform` 第 3–5 步：`admitForUse`、`knownActionOf`）：已修，`prepare` 的每次等待经 `under(stop, …)`（修复轮 `0d7aeb133`）。
+  - (b) 传输的 `call`：不算缺陷，是端口前提（卡拥有者裁定）。调用在传输报告「没有发出」之前不能答「未发出」；信号触发后 `call` 有界结束是传输按契约 T5 的义务，写成 WF5。P14 T2 的「无时限端口」集合不含它。
+  - (c) `cancelRequest`（旧 `abandon` 等它返回）：已修，`answerOf` 以 `scope.spawn` 发出，不等（修复轮 `0d7aeb133`）。
+  - (d) `not-sent` 或 `no-answer` 之后 `lose` 发起的拆除与标记清单（旧 `sendOn` 等 `table.lose`；P8 A1 的同类）：已修，调用与任务操作经 `loseInScope` 把拆除交给表的作用域，`discovery` 照旧等 `loseOn`（`1a143a4d4`）。
+- **F2 被放弃的调用的应答没有人读（P7）**。占位期间 `cancel`，`transport.call` 答 `ok` 之后旧 `markSent` 答 `cancelled`，`abandon` 走 `cancelRequest`，而 `called.ok.answer` 从未被 `ask` 读取；它 reject（契约 T9 允许）时是未处理的拒绝。最短调度：`invoke A`，建连各答 `ok`，`cancel A`，`answer transport.call:tA1 ok`，`answer transport.answer:r1 reject`。已修：`markSent` 不再答 `cancelled`，`answerOf` 无论停止是否先到都经 `ask` 读 `answer`（修复轮 `0d7aeb133`）。
 
-  TLA+ 的探针 `calls-probe-stop` 给出同一条最短反例（关口挂起）。P14 T1（静止时都已答复；模型里带 WF4 的活性）通过。
+修复轮交给探索器的 C50（`under` 在等待答复之后不再核停止信号）：两种证据都表达不了。探索器与模型一次事件循环轮次只有一个外部动作，端口答复与停止信号不会落在同一轮里；答复到达后调用在下一次外部动作之前就已经跑完 `under`，停止信号不可能夹在中间。变异 C50 在探索器上运行过，没有新增的违例签名（见下表 N 序列）。守住它的是实现里那一行本身，没有变红的用例。第 1 轮的 M17（`markSent` 不看取消标记）在新结构下不存在：占位项没有取消标记，取消落在发出与登记之间时由停止信号在等应答时处理。
 
-- **F2 被放弃的调用的应答没有人读（P7）**。占位期间 `cancel`，`transport.call` 答 `ok` 之后 `markSent` 答 `cancelled`，`abandon` 走 `cancelRequest`，而 `called.ok.answer` 从未被 `ask` 读取；它 reject（契约 T9 允许，服务应读成 `no-answer` `abandoned`）时成为未处理的拒绝，缺省模式下使宿主崩溃。最短调度：`invoke A`，建连的端口各答 `ok`，`cancel A`，`answer transport.call:tA1 ok`，`answer transport.answer:r1 reject`。场景 `call-faults`。等待分支（`waitAtMost(ask(() => answer, …), stop)`）没有这个问题：`ask` 先挂上处理。修复轮要的事实：`markSent` 答 `cancelled` 的分支里，`called.ok.answer` 是一个没有处理函数的 promise，契约 T9 允许传输 reject 它；`abandon` 之前对它挂一个空处理（或经 `ask` 读它）就够，本页不定做法。
-
-M17（`markSent` 不看取消标记）在探索器与模型里都是等价变异：取消在占位期间到达时停止信号已经触发，`waitAtMost` 当即到期，同样走 `abandon`，`cancelRequest` 一次。外部动作只在静止时到达，所以「发出与登记之间」在探索器里没有可插入的点。
 
 ## 两种证据能变红
+
+本页有三个变异序列，各自独立编号，号码不互指：生命周期的 M1–M28（闭包 `w3-mcp-lifecycle`，改连接表的源码，下表）；调用口服务层用例的 C01–C52（修复轮 `w3-mcp-call-fix1`，改调用口的源码，本页末「调用口闭包的变异记录」）；调用口探索器的 N1–N7 与 C50 的探索器重跑（闭包 `w3-mcp-call-model`，本节第二张表）。调用口第 1 轮（闭包 `w3-mcp-call`）曾用过的 M01–M34 已全部由 C 序列重跑或取代，本页不再引用；引用变异时带序列名。
 
 除 P8 T1 外，每条性质至少在一边有能使它变红的缺陷；P8 T1 只有反定理的探针。模型一边是负控配置：在模型里放进一处缺陷，TLC 给出违反所列不变式的轨迹（[models/README.md](models/README.md#运行记录)）。P1、P2、P4、P6 与 P8 T2 有负控，P3、P5、P7 没有。探索器一边是源码变异：每个变异在源码里放进一处缺陷，运行所列用例与探索器的场景，然后按字节还原源码。
 
@@ -207,27 +209,28 @@ M17（`markSent` 不看取消标记）在探索器与模型里都是等价变异
 | M27  | `internal/table.ts`    | 临界区时限到轮到时才起，排队的调用没有自己的时限 | `races.spec.ts` 2 条                            | P8 T2（`rebuild`）           |
 | M28  | `internal/table.ts`    | 加入方把建连抛出的本包错误读成 `pending`         | `ensure.spec.ts` 1 条                           | 未运行                       |
 
-27 个变异都有所列用例变红。编号里没有 M11。M12 到 M15 与 M24、M25、M26、M28 只运行了所列用例，没有运行探索器，所以性质一列写「未运行」。M27 只在 `rebuild` 场景上运行了探索器：正在等而一个自己的时限都没起的 `ensure` 算 P8 T2 违例，所以探索器报出它。M16、M17 在三个快场景 `rebuild`、`faults`、`throws` 与慢场景 `bounds` 上运行了探索器。M16 只在 `bounds` 场景变红：时限先建先到期时，占着临界区的调用的时限总是先到，排队的调用总在自己的时限之前轮到。M17 在 `rebuild` 场景也变红：加入的调用的临界区时限早于建连时限建立，所以先到期。M18 到 M23 在 `bounds`、`faults`、`throws` 三个场景上运行了探索器，都没有违例：多发一次端口调用、多写一次标记、晚一些释放句柄与本包错误的去向不违反 P1–P8 的可检查形式，探索器也不注入本包的错误。它们只由所列用例守住。每个变异的运行日志留在任务 `tmp/`，不进本目录。
+27 个变异都有所列用例变红。生命周期序列里没有 M11。M12 到 M15 与 M24、M25、M26、M28 只运行了所列用例，没有运行探索器，所以性质一列写「未运行」。M27 只在 `rebuild` 场景上运行了探索器：正在等而一个自己的时限都没起的 `ensure` 算 P8 T2 违例，所以探索器报出它。M16、M17 在三个快场景 `rebuild`、`faults`、`throws` 与慢场景 `bounds` 上运行了探索器。M16 只在 `bounds` 场景变红：时限先建先到期时，占着临界区的调用的时限总是先到，排队的调用总在自己的时限之前轮到。M17 在 `rebuild` 场景也变红：加入的调用的临界区时限早于建连时限建立，所以先到期。M18 到 M23 在 `bounds`、`faults`、`throws` 三个场景上运行了探索器，都没有违例：多发一次端口调用、多写一次标记、晚一些释放句柄与本包错误的去向不违反 P1–P8 的可检查形式，探索器也不注入本包的错误。它们只由所列用例守住。每个变异的运行日志留在任务 `tmp/`，不进本目录。
 
 TLC 负控与变异的对应：`bad-no-absorb-close` 与 M1，`bad-forget-open`、`bad-forget-open-late` 与 M2，`bad-no-shut` 与 M3，`bad-abandon-landed` 与 M7，`bad-unbounded-wrap` 与 M6，`bad-ok-after-shut` 与 M8。M5（`ask` 不吸收同步抛出）在模型里没有负控：模型按 `ask` 把抛出写成答复。M9、M10 在模型里没有负控：模型的键是抽象的。
 
-调用口的变异（闭包 `w3-mcp-call-model`，2026-11-05，在 `7d91a330c` 的源码上）：每个变异改源码一处，用探索器跑所列场景，比较变异前后的违例签名，然后按字节还原（`git checkout`，`git status` 干净）。「新增的签名」是基线（本页「发现」的 F1、F2）之外的违例；调度与日志留任务 `tmp/closures/w3-mcp-call-model/mutations/`：
+调用口的变异 N 序列（闭包 `w3-mcp-call-model` 追加 1，2026-11-05，在合并头 `630d95dc7` 的源码上）：每个变异改源码一处，用探索器跑所列场景，比较变异前后的违例签名（合并头上全部场景没有违例，所以下面的签名都是新增），然后按字节还原（`git checkout`，`git status` 干净）。调度、日志与签名留任务 `tmp/closures/w3-mcp-call-model/mutations/merged/`：
 
-| 变异 | 源码                     | 缺陷                                               | 场景             | 新增的签名（探索器报的性质）                                                                           | 最短反例的调度                                                            |
-| ---- | ------------------------ | -------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| N1   | `calls.ts`               | 建连之后不核停止信号就发出（MC-16 第 9 步）        | `call`           | P9 `P9-sent-after-stop`                                                                                | 关口三答，`cancel A`，建连五答，`transport.call ok`：占位期间已取消仍发出 |
-| N2   | `calls.ts`               | `abandon` 调用 `cancelRequest` 两次                | `call`           | P10 `P10-cancelled-twice`                                                                              | 建连后 `cancel A`，`transport.call ok`，`cancelRequest ok`                |
-| N3   | `calls.ts`               | 拒绝的步骤不归还占位（`refused` 不 `release`）     | `call-faults`    | P11 `P11-answered-with-open-reservation`、`P11-reservation-left`；P12 `P12-stopped-foreign-call`       | `invoke A`，采用读取同步抛出：调用答复后占位仍在，之后的 `cancel` 停了它  |
-| N3b  | `calls.ts`               | 发出前取消不标记结束（`cancelled` 不 `markEnded`） | `call`           | P11 同上两条                                                                                           | `invoke A`、`cancel A`、关口三答                                          |
-| N4a  | `internal/in-flight.ts`  | 在途表的键去掉主体                                 | `foreign-cancel` | P12 `P12-stopped-foreign-call`                                                                         | `invoke A`、`cancel C`                                                    |
-| N4d  | `internal/in-flight.ts`  | 在途表的键去掉租户                                 | `foreign-cancel` | P12 `P12-stopped-foreign-call`                                                                         | `invoke A`、`cancel D`                                                    |
-| N4b  | `internal/task-table.ts` | 任务表的键去掉主体                                 | `foreign-task`   | P12 `P12-task-asked-port-for-nobody`、`P12-task-on-foreign-connection`、`P12-task-answered-nobody`；P5 | A 的调用答任务，`task C get`：C 读到 A 的任务，在 A 的传输上发请求        |
-| N4c  | `tasks.ts`               | 复用连接不比对端账户                               | `task-account`   | P12 `P12-task-on-foreign-connection`；P5 `P5-crossing`                                                 | C 已连接，A 的调用答任务，`task A get`：请求发在 C 的传输上               |
-| N5   | `internal/table.ts`      | `closeAll` 不记下关停（生命周期的 M3）             | `call-shutdown`  | P13 `P13-call-after-closeAll`、`P13-sent-after-closeAll`；P4、P1、P2、P3                               | `closeAll`、`invoke A`、关口与建连各答：关停之后发出并答「已发出」        |
-| N6   | `calls.ts`               | 等应答只受调用方 `signal`，不受合成的停止信号      | `call`           | P14 `P14-stopped-waits[transport.answer]`（新的一类等待：取消之后仍等对端应答）                        | 建连后 `transport.call ok`，`cancel A`：对端不答时调用一直等              |
-| M17  | `internal/in-flight.ts`  | `markSent` 不看取消标记                            | `call`           | 无：等价变异（停止信号已触发，`waitAtMost` 当即到期，同样 `abandon`）                                  | —                                                                         |
+| 变异 | 源码 | 缺陷 | 场景 | 新增的签名（探索器报的性质） |
+| --- | --- | --- | --- | --- |
+| N1 | `calls.ts` | `under` 不等停止信号，直接做工作（关口、建连都不看停止） | `call` | P9 `P9-sent-after-stop`；P14 `P14-stopped-waits[adoption.endpoint]`、`[eligibility.check]`、`[store.read]` |
+| N2 | `calls.ts` | 放弃时发出 `cancelRequest` 两次 | `call` | P10 `P10-cancelled-twice` |
+| N3 | `calls.ts` | `perform` 的 `finally` 不 `conclude` | `call`、`call-faults` | P11 `P11-answered-with-open-reservation`、`P11-reservation-left`；P12 `P12-stopped-foreign-call`（占位留下，下一次同键调用被它挡住） |
+| N3b | `calls.ts` | `perform` 的 `finally` `conclude` 两次 | `call` | P11 `P11-concluded-nothing` |
+| N4a | `internal/in-flight.ts` | 在途表的键去掉主体 | `foreign-cancel` | P12 `P12-stopped-foreign-call` |
+| N4d | `internal/in-flight.ts` | 在途表的键去掉租户 | `foreign-cancel` | P12 `P12-stopped-foreign-call` |
+| N4b | `internal/task-table.ts` | 任务表的键去掉主体 | `foreign-task` | P12 `P12-task-asked-port-for-nobody`、`P12-task-on-foreign-connection`、`P12-task-answered-nobody`；P5 `P5-crossing` |
+| N4c | `tasks.ts` | 复用连接不比对端账户 | `task-account` | P12 `P12-task-on-foreign-connection`；P5 `P5-crossing` |
+| N5 | `internal/table.ts` | `closeAll` 不记下关停（生命周期的 M3） | `call-shutdown` | P13 `P13-call-after-closeAll`、`P13-sent-after-closeAll`；P4、P1、P2、P3 |
+| N6 | `calls.ts` | 等应答只受调用方 `signal`，不受合成的停止信号 | `call` | P14 `P14-stopped-waits[transport.answer]` |
+| N7 | `calls.ts` | 采用读取不经 `under`（基线上发现 F1(a) 的样子） | `call` | P14 `P14-stopped-waits[adoption.endpoint]`、`[eligibility.check]` |
+| C50 | `calls.ts` | `under` 在等待答复之后不再核停止信号（修复轮交来的） | `call`、`call-faults` | 无：两种证据都表达不了它要的交错，见「发现」 |
 
-每条新性质至少一个变异变红：P9（N1）、P10（N2）、P11（N3、N3b）、P12（N4a–N4d）、P13（N5）、P14（N6，严格形式的新签名；T1 形式在探索器上没有变异能变红，由模型的 `calls-bad-wait-answer` 承担）。TLC 负控与调用口变异的对应：`calls-bad-send-despite-stop` 与 N1，`calls-bad-cancel-twice` 与 N2，`calls-bad-no-release` 与 N3，`calls-bad-key-blind` 与 N4a，`calls-bad-task-blind` 与 N4b，`calls-bad-task-any-account` 与 N4c，`calls-bad-send-after-shut` 与 N5，`calls-bad-wait-answer` 与 N6。
+每条新性质至少一个变异变红：P9（N1）、P10（N2）、P11（N3、N3b）、P12（N4a–N4d）、P13（N5）、P14 T2（N1、N6、N7）。P14 T1 在探索器上没有变异能变红（静止驱动把端口都答了），由模型的 `calls-bad-wait-answer` 承担。TLC 负控与 N 序列的对应：`calls-bad-send-despite-stop` 与 N1，`calls-bad-gate-unstopped` 与 N7，`calls-bad-cancel-twice` 与 N2，`calls-bad-no-release` 与 N3，`calls-bad-key-blind` 与 N4a，`calls-bad-task-blind` 与 N4b，`calls-bad-task-any-account` 与 N4c，`calls-bad-send-after-shut` 与 N5，`calls-bad-wait-answer` 与 N6。
 
 ## 未覆盖
 
