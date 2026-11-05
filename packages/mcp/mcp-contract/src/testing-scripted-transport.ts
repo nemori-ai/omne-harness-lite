@@ -6,33 +6,36 @@
 // not speak a protocol and is not a product transport.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
-import { authorizationChallengeOf } from './authorization.ts'
+import {
+  callAnswerOf,
+  interpretAnswer,
+  legacyIdentityOf,
+  listingPageOf,
+  taskAnswerOf,
+  taskReportOf,
+} from './answer-readings.ts'
+import { authorizationChallengeOf, discoverAuthorization } from './authorization.ts'
 import type { Generation, TaskId } from './brands.ts'
+import {
+  legacyInitializeParamsOf,
+  notificationTextOf,
+  peerRequestAnswerOf,
+  requestTextOf,
+  responseTextOf,
+} from './composition.ts'
 import {
   ABANDONED,
   NOT_SENT_FAILURE,
   OFFERED_LEGACY_VERSION,
-  callAnswerOf,
   concludeAnswer,
-  discoverAuthorization,
-  discoverWith,
-  interpretAnswer,
-  legacyIdentityOf,
-  legacyInitializeParamsOf,
-  listingPageOf,
-  notificationTextOf,
-  peerRequestAnswerOf,
   requestClassOf,
-  requestTextOf,
-  responseTextOf,
-  taskAnswerOf,
-  taskReportOf,
   type AnswerConclusion,
   type NotificationMethod,
   type ProtocolVersions,
   type RequestMethod,
   type WireAnswer,
 } from './decisions.ts'
+import { discoverWith } from './discovery.ts'
 import { clientEnvelopeOf, mcpRequestHeadersOf, type ClientInfo } from './envelope.ts'
 import type { AuthorizationDiscovery, NoAnswerCause, TaskReport } from './outcomes.ts'
 import { isPlainJson, isPlainRecord, type PlainJson, type PlainRecord } from './plain.ts'

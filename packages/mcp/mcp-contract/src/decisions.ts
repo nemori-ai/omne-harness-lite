@@ -1,33 +1,16 @@
-// The decision layer of SPEC T8, once for every transport. `classifyWireEvent` puts a wire event
-// into its answer class; the functions here draw the conclusion of the T8 row for that class:
-// what the request settles with, whether the transport is still usable, what a `server/discover`
-// answer means for the modern path, how a settled answer reads for each request, and what the
-// transport writes. A transport keeps only its wire and its in-flight table.
-import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { Outcome } from '@omne-harness/operation-result'
-import { authorizationDiscoveryOf, metadataCandidatesOf } from './authorization.ts'
-import type { ClientInfo } from './envelope.ts'
+// The decision layer of SPEC T8, once for every transport: the conclusion of the T8 row for one
+// classification (`classifyWireEvent` puts a wire event into its answer class), what one answer
+// to `server/discover` means for the modern path, and the vocabulary every transport settles a
+// request with (`WireAnswer`). The readings of a settled answer are in `answer-readings.ts`, what
+// a transport writes in `composition.ts`, the orchestration of `discover` in `discovery.ts`, and
+// the authorization discovery in `authorization.ts`. A transport keeps only its wire and its
+// in-flight table.
+import type { JsonValue } from '@omne-harness/json-text'
 import { isObject, member, type JsonObject } from './json.ts'
-import type {
-  AnswerMalformed,
-  AuthorizationDiscovery,
-  NoAnswerCause,
-  PeerAnswer,
-  TaskReport,
-} from './outcomes.ts'
-import type { PlainJson, PlainRecord } from './plain.ts'
-import {
-  errorAnswerOf,
-  peerIdentityOf,
-  readDiscoverResult,
-  readInitializeResult,
-  readListingPage,
-  readTaskAnswer,
-  readTaskReport,
-  type IdentityBound,
-} from './readers.ts'
+import type { AnswerMalformed, NoAnswerCause } from './outcomes.ts'
+import { errorAnswerOf, peerIdentityOf, readDiscoverResult, type IdentityBound } from './readers.ts'
 import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
-import type { ListingPage, TaskAnswer, TransportFailure, TransportMaterial } from './transport.ts'
+import type { TransportFailure, TransportMaterial } from './transport.ts'
 import type { PeerIdentity } from './values.ts'
 import {
   ERROR_CLASSES,
@@ -38,7 +21,6 @@ import {
   type BodyClass,
   type ErrorClass,
   type HttpStatusClass,
-  type PeerMessage,
   type RequestClass,
   type WireClassification,
   type WireContext,
@@ -139,7 +121,8 @@ const MODERN_ERROR_CLASSES: readonly ErrorClass[] = [
   '-32022+legacy',
 ]
 
-const malformed = (what: AnswerMalformed['what']): TransportFailure => ({
+/** The failure of an answer that was read and found malformed (T7). */
+export const malformed = (what: AnswerMalformed['what']): TransportFailure => ({
   kind: 'answer-malformed',
   what,
 })
@@ -313,96 +296,11 @@ export function concludeAnswer(
   }
 }
 
-// ---- The readings of a settled answer (T2, T6, T7) ----
-
-/** A reader of the contract as a reader of the transport: its defect is the `what` of T7. */
-export function readerOf<T, W extends AnswerMalformed['what']>(
-  read: (result: JsonValue) => Outcome<T, W>,
-): (result: JsonValue) => Outcome<T, TransportFailure> {
-  return result => {
-    const outcome = read(result)
-    return 'ok' in outcome ? outcome : { failure: malformed(outcome.failure) }
-  }
-}
-
 /** The failure an error answer reports: the error as written, or `error-shape` when it is unreadable (T7). */
-function errorFailureOf(wire: Extract<WireAnswer, { kind: 'error' }>): TransportFailure {
+export function errorFailureOf(wire: Extract<WireAnswer, { kind: 'error' }>): TransportFailure {
   const answer = errorAnswerOf(wire.error)
   if (wire.errorClass === 'unreadable' || answer === undefined) return malformed('error-shape')
   return answer
-}
-
-/** Reads the answer to a request other than `tools/call` with the reader of that request. */
-export function interpretAnswer<T>(
-  wire: WireAnswer,
-  read: (result: JsonValue) => Outcome<T, TransportFailure>,
-): Outcome<T, TransportFailure> {
-  switch (wire.kind) {
-    case 'result':
-      return read(wire.result)
-    case 'error':
-      return { failure: errorFailureOf(wire) }
-    case 'no-answer':
-      return { failure: { kind: 'no-answer', cause: wire.cause } }
-    case 'not-sent':
-      return { failure: wire.failure }
-    case 'legacy-http':
-      return { failure: NOT_SENT_FAILURE }
-    case 'legacy-peer':
-      return { failure: malformed('discover-shape') }
-    default: {
-      const exhaustive: never = wire
-      return exhaustive
-    }
-  }
-}
-
-/** The answer of a sent call (T8 C01–C05, S03, S04). */
-export function callAnswerOf(wire: WireAnswer): PeerAnswer {
-  switch (wire.kind) {
-    case 'result':
-      return { kind: 'result', result: wire.result }
-    case 'error':
-      return { kind: 'error', error: wire.error }
-    case 'no-answer':
-      return { kind: 'no-answer', cause: wire.cause }
-    case 'not-sent':
-    case 'legacy-peer':
-    case 'legacy-http':
-      return { kind: 'no-answer', cause: 'abandoned' }
-    default: {
-      const exhaustive: never = wire
-      return exhaustive
-    }
-  }
-}
-
-/** The page of `tools/list` (T2, L01–L03); `checkHeaders` applies the `x-mcp-header` rule. */
-export function listingPageOf(
-  wire: WireAnswer,
-  checkHeaders: boolean,
-): Outcome<ListingPage, TransportFailure> {
-  return interpretAnswer(
-    wire,
-    readerOf(result => readListingPage(result, checkHeaders)),
-  )
-}
-
-/** G06: the `-32602` of a task operation that reads a task says the task expired. */
-function expired(wire: WireAnswer): boolean {
-  return wire.kind === 'error' && wire.errorClass === '-32602'
-}
-
-/** The report of `tasks/get` for `getTask` (T6, G01–G06). */
-export function taskReportOf(wire: WireAnswer): Outcome<TaskReport | 'expired', TransportFailure> {
-  return expired(wire) ? { ok: 'expired' } : interpretAnswer(wire, readerOf(readTaskReport))
-}
-
-/** The answer of `tasks/get` for `getTaskResult` (T6, G01–G06). */
-export function taskAnswerOf(wire: WireAnswer): Outcome<TaskAnswer, TransportFailure> {
-  return expired(wire)
-    ? { ok: { kind: 'expired' } }
-    : interpretAnswer(wire, readerOf(readTaskAnswer))
 }
 
 // ---- The probe and the two paths of discover (T3, T8 D rows, I rows) ----
@@ -491,187 +389,4 @@ export function concludeProbe(
       return exhaustive
     }
   }
-}
-
-/** The two paths of a transport's `discover`: the probes and the legacy path, as the transport sends them. */
-export type DiscoverPaths = Readonly<{
-  /** Sends one `server/discover` with this `_meta` version and waits for its answer. */
-  probe(version: string, request: 'discover' | 'discover-retry'): Promise<WireAnswer>
-  /** The legacy path (T3): `initialize`, then `notifications/initialized` when it read. */
-  legacy(): Promise<Outcome<PeerIdentity, TransportFailure>>
-}>
-
-/**
- * `discover` (T3): the modern path first, `server/discover` once more after a `-32022` that
- * names a version in common (D04); then the legacy path when a D row says so, reporting the
- * failure the row names when the legacy path fails too.
- */
-export async function discoverWith(
-  paths: DiscoverPaths,
-  versions: ProtocolVersions,
-  bound: IdentityBound,
-): Promise<Outcome<PeerIdentity, TransportFailure>> {
-  let probe = concludeProbe(await paths.probe(versions[0], 'discover'), 'discover', versions, bound)
-  if (probe.kind === 'retry')
-    probe = concludeProbe(
-      await paths.probe(probe.version, 'discover-retry'),
-      'discover-retry',
-      versions,
-      bound,
-    )
-  switch (probe.kind) {
-    case 'identity':
-      return { ok: probe.identity }
-    case 'final':
-      return { failure: probe.failure }
-    case 'legacy-peer':
-      return paths.legacy()
-    case 'fallback': {
-      const legacy = await paths.legacy()
-      return 'ok' in legacy ? legacy : { failure: probe.failure }
-    }
-    case 'retry':
-      return { failure: malformed('discover-shape') }
-    default: {
-      const exhaustive: never = probe
-      return exhaustive
-    }
-  }
-}
-
-/** The params of the legacy path's `initialize` (T3). */
-export function legacyInitializeParamsOf(clientInfo: ClientInfo): PlainRecord {
-  return {
-    protocolVersion: OFFERED_LEGACY_VERSION,
-    capabilities: {},
-    clientInfo: { name: clientInfo.name, version: clientInfo.version },
-  }
-}
-
-/** The peer identity the legacy path reads from the answer to `initialize` (T3, T8 I01–I07). */
-export function legacyIdentityOf(
-  wire: WireAnswer,
-  bound: IdentityBound,
-): Outcome<PeerIdentity, TransportFailure> {
-  return interpretAnswer(wire, result => {
-    const read = readInitializeResult(result)
-    return 'failure' in read
-      ? { failure: malformed('discover-shape') }
-      : { ok: peerIdentityOf(read.ok, bound) }
-  })
-}
-
-// ---- The authorization discovery (T4, R4) ----
-
-/** Fetches the protected resource metadata at one address: the JSON read there, or nothing. */
-export type MetadataFetch = (url: string, signal: AbortSignal) => Promise<JsonValue | undefined>
-
-/**
- * The discovery of T4 after a refused authorization (R4): the candidate addresses are fetched
- * in order until one gives a JSON object; a fetch that rejects counts as nothing fetched. The
- * signal ends the loop: what was not fetched by then is unavailable.
- */
-export async function discoverAuthorization(
-  target: string,
-  challenge: ReadonlyMap<string, string>,
-  fetchMetadata: MetadataFetch,
-  signal: AbortSignal,
-): Promise<AuthorizationDiscovery> {
-  const candidates = metadataCandidatesOf(target, challenge)
-  const fetched: (JsonValue | undefined)[] = []
-  for (const url of candidates) {
-    if (signal.aborted) break
-    const metadata = await fetchMetadata(url, signal).catch(() => undefined)
-    fetched.push(metadata)
-    if (isObject(metadata)) break
-  }
-  return authorizationDiscoveryOf(challenge, candidates, fetched)
-}
-
-// ---- The requests and notifications of the peer (T3) ----
-
-/** What a transport answers to a request of the peer: `ping` an empty result, the rest `-32601` (T3). */
-export function peerRequestAnswerOf(
-  request: Extract<PeerMessage, { kind: 'request' }>,
-): Readonly<{ result: PlainRecord }> | Readonly<{ error: PlainRecord }> {
-  return request.method === 'ping'
-    ? { result: {} }
-    : { error: { code: METHOD_NOT_FOUND, message: 'Method not found' } }
-}
-
-// ---- The text of what the transport writes (T3, RFC-0010) ----
-
-/** The value tree of plain data this side wrote. */
-function treeOf(value: PlainJson): JsonValue {
-  if (value === null) return { kind: 'null' }
-  if (typeof value === 'boolean') return { kind: 'boolean', value }
-  if (typeof value === 'string') return { kind: 'string', value }
-  if (typeof value === 'number') return { kind: 'number', lexeme: String(value) }
-  if (Array.isArray(value)) return { kind: 'array', items: value.map(treeOf) }
-  return {
-    kind: 'object',
-    entries: Object.entries(value).map(([key, item]) => ({ key, value: treeOf(item) })),
-  }
-}
-
-type Member = Readonly<{ key: string; value: JsonValue }>
-
-/** One JSON-RPC message of this side as text: `jsonrpc` first, then the members in order. */
-function messageTextOf(members: readonly Member[]): string {
-  return writeJsonText({
-    kind: 'object',
-    entries: [{ key: 'jsonrpc', value: { kind: 'string', value: '2.0' } }, ...members],
-  })
-}
-
-/**
- * The params of a request: the plain members, then the value trees the caller wrote, each
- * written as it is (RFC-0010): `arguments` and `inputResponses` keep their lexemes.
- */
-function paramsOf(params: PlainRecord, values: Readonly<{ [key: string]: JsonValue }>): JsonValue {
-  return {
-    kind: 'object',
-    entries: [
-      ...Object.entries(params).map(([key, value]) => ({ key, value: treeOf(value) })),
-      ...Object.entries(values).map(([key, value]) => ({ key, value })),
-    ],
-  }
-}
-
-/** The text of one request of this side (T3). `values` are params the caller wrote as value trees. */
-export function requestTextOf(
-  message: Readonly<{
-    id: string
-    method: RequestMethod
-    params: PlainRecord
-    values?: Readonly<{ [key: string]: JsonValue }>
-  }>,
-): string {
-  return messageTextOf([
-    { key: 'id', value: { kind: 'string', value: message.id } },
-    { key: 'method', value: { kind: 'string', value: message.method } },
-    { key: 'params', value: paramsOf(message.params, message.values ?? {}) },
-  ])
-}
-
-/** The text of one notification of this side (T3, T5). */
-export function notificationTextOf(
-  message: Readonly<{ method: NotificationMethod; params: PlainRecord }>,
-): string {
-  return messageTextOf([
-    { key: 'method', value: { kind: 'string', value: message.method } },
-    { key: 'params', value: treeOf(message.params) },
-  ])
-}
-
-/** The text of a response to a request of the peer: its `id` echoed as written (RFC-0010). */
-export function responseTextOf(
-  message: Readonly<{ id: JsonValue }> &
-    (Readonly<{ result: PlainRecord }> | Readonly<{ error: PlainRecord }>),
-): string {
-  const body: Member =
-    'result' in message
-      ? { key: 'result', value: treeOf(message.result) }
-      : { key: 'error', value: treeOf(message.error) }
-  return messageTextOf([{ key: 'id', value: message.id }, body])
 }

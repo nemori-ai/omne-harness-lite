@@ -1,6 +1,6 @@
-// The authorization discovery of SPEC R4 and T4 as pure functions: the parameters of the
-// challenge, the metadata addresses to try in order, and the discovery assembled from what was
-// fetched. The fetching itself is the transport's; the rules are here, once.
+// The authorization discovery of SPEC R4 and T4, once for every transport: the parameters of the
+// challenge, the metadata addresses to try in order, the discovery assembled from what was
+// fetched, and the fetch loop over a transport's metadata fetch.
 import type { JsonValue } from '@omne-harness/json-text'
 import { isObject, itemsOf, member } from './json.ts'
 import type { AuthorizationDiscovery } from './outcomes.ts'
@@ -74,4 +74,29 @@ export function authorizationDiscoveryOf(
     issuers: textsOf(found?.metadata, 'authorization_servers'),
     scopes: headerScopes.length > 0 ? headerScopes : textsOf(found?.metadata, 'scopes_supported'),
   }
+}
+
+/** Fetches the protected resource metadata at one address: the JSON read there, or nothing. */
+export type MetadataFetch = (url: string, signal: AbortSignal) => Promise<JsonValue | undefined>
+
+/**
+ * The discovery of T4 after a refused authorization (R4): the candidate addresses are fetched
+ * in order until one gives a JSON object; a fetch that rejects counts as nothing fetched. The
+ * signal ends the loop: what was not fetched by then is unavailable.
+ */
+export async function discoverAuthorization(
+  target: string,
+  challenge: ReadonlyMap<string, string>,
+  fetchMetadata: MetadataFetch,
+  signal: AbortSignal,
+): Promise<AuthorizationDiscovery> {
+  const candidates = metadataCandidatesOf(target, challenge)
+  const fetched: (JsonValue | undefined)[] = []
+  for (const url of candidates) {
+    if (signal.aborted) break
+    const metadata = await fetchMetadata(url, signal).catch(() => undefined)
+    fetched.push(metadata)
+    if (isObject(metadata)) break
+  }
+  return authorizationDiscoveryOf(challenge, candidates, fetched)
 }

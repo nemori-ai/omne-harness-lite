@@ -95,7 +95,9 @@ export { withheldTools } from './withheld.ts'
 export {
   authorizationChallengeOf,
   authorizationDiscoveryOf,
+  discoverAuthorization,
   metadataCandidatesOf,
+  type MetadataFetch,
 } from './authorization.ts'
 export {
   errorAnswerOf,
@@ -128,33 +130,34 @@ export {
   OFFERED_LEGACY_VERSION,
   PROBE_REQUESTS,
   RESENT_REQUESTS,
-  callAnswerOf,
   concludeAnswer,
   concludeProbe,
-  discoverAuthorization,
-  discoverWith,
-  interpretAnswer,
-  legacyIdentityOf,
-  legacyInitializeParamsOf,
-  listingPageOf,
-  notificationTextOf,
-  peerRequestAnswerOf,
-  readerOf,
   requestClassOf,
-  requestTextOf,
-  responseTextOf,
   retryVersionOf,
-  taskAnswerOf,
-  taskReportOf,
   type AnswerConclusion,
-  type DiscoverPaths,
-  type MetadataFetch,
   type NotificationMethod,
   type ProbeConclusion,
   type ProtocolVersions,
   type RequestMethod,
   type WireAnswer,
 } from './decisions.ts'
+export {
+  callAnswerOf,
+  interpretAnswer,
+  legacyIdentityOf,
+  listingPageOf,
+  readerOf,
+  taskAnswerOf,
+  taskReportOf,
+} from './answer-readings.ts'
+export {
+  legacyInitializeParamsOf,
+  notificationTextOf,
+  peerRequestAnswerOf,
+  requestTextOf,
+  responseTextOf,
+} from './composition.ts'
+export { discoverWith, type DiscoverPaths } from './discovery.ts'
 export { catalogKeyOf, connectionKeyOf, peerAccountOf } from './keys.ts'
 export type {
   AuthorizationDiscovery,
