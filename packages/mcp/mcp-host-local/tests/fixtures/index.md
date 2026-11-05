@@ -11,7 +11,7 @@
   - [stdio-peer.mjs](scripted/stdio-peer.mjs)：真实管道上的脚本化对端，收到的内容以 `@omne ` 行经 stderr 回报
   - [special-stdio.mjs](scripted/special-stdio.mjs)：写非 JSON、写超长行、关 stdout 存活、按时机退出的 stdio 对端
   - [stdio.ts](scripted/stdio.ts)：起 stdio 对端、`unsent` 的预判（只有第一次交换可实现）、`received()`
-  - [http.ts](scripted/http.ts)：`node:http` 上的脚本化对端：JSON/SSE/任意状态/well-known/`unsent` 预判/`stream-aborted` 记录/旧 HTTP+SSE 的流与 endpoint；`listenFree`
+  - [http.ts](scripted/http.ts)：`node:http` 上的脚本化对端：JSON/SSE/任意状态/well-known/`unsent` 预判/`stream-aborted` 记录/旧 HTTP+SSE 的流与 endpoint；每个请求的方法与路径（`requestLines()`）；无尽元数据文档写出的字节数（`endlessBytes()`）；`listenFree`
   - [children.ts](scripted/children.ts)：子进程登记与遗留核对
 - `sdk/`（B 层）
   - [modern-stdio.mjs](sdk/modern-stdio.mjs)：`serveStdio` 的现代对端（`echo`、`slow`、`crash`）

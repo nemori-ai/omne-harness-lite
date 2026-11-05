@@ -11,6 +11,7 @@ import { generationOf } from '@omne-harness/mcp-contract/testing'
 import { createLocalTransportFactory } from '@omne-harness/mcp-host-local'
 import { metadataFetcher } from '../src/authorization.ts'
 import { HttpLine } from '../src/http-line.ts'
+import type { LineEvent } from '../src/line.ts'
 import { StdioLine } from '../src/stdio-line.ts'
 import { failOnUnhandledErrors } from './unhandled.ts'
 
@@ -123,6 +124,36 @@ describe('a stdio process that is gone before the first request (T8 X02)', () =>
     expect(await opened.ok.listActions()).toEqual(NOT_SENT)
     expect(written).toEqual([])
     await opened.ok.close()
+  })
+})
+
+describe('a stdio process that exits before its stdout ends (T8 exit window)', () => {
+  it('delivers the line that stdout still carries within the window, then reports the end with the exit alone', async () => {
+    let out: ReadableStreamDefaultController<Uint8Array> | undefined
+    const handle: ProcessHandle = {
+      stdin: new WritableStream<Uint8Array>(),
+      stdout: new ReadableStream<Uint8Array>({
+        start: controller => {
+          out = controller
+        },
+      }),
+      stderr: new ReadableStream<string>(),
+      exited: Promise.resolve(),
+      stop: async () => 'root-only',
+    }
+    const line = new StdioLine(handle)
+    setTimeout(() => out?.enqueue(new TextEncoder().encode('{"jsonrpc":"2.0"}\n')), 20)
+    const events: LineEvent[] = []
+    for await (const event of line.events) {
+      events.push(event)
+      if (event.kind === 'ended') break
+    }
+    expect(events.map(event => event.kind)).toEqual(['line', 'ended'])
+    expect(events[0]).toEqual({ kind: 'line', text: '{"jsonrpc":"2.0"}' })
+    const ended = events[1]
+    expect(ended !== undefined && 'exitedAt' in ended).toBe(true)
+    expect(ended !== undefined && 'stdoutEndedAt' in ended).toBe(false)
+    await line.close()
   })
 })
 

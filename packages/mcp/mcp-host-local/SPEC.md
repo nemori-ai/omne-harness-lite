@@ -106,15 +106,15 @@
 
 <a id="h12"></a>
 
-- **H12 退出窗口**（契约 T8 进程退出）：stdout 先结束时，线路最多等 `PROCESS_EXIT_WINDOW_MS` 的退出再报告 `ended`，之后的退出不改变已归类的结论。进程先退出时，线路最多再读 `PROCESS_EXIT_WINDOW_MS` 的 stdout（期内读到的行照常投递），然后报告并取消读取。两个时刻取同一时钟。退出的观察直接挂在句柄的 `exited` 上，先于任何在它之后 `await` 这个 promise 的调用方。反例：观察挂在派生 promise 的第二跳上，先等过 `exited` 的调用方还能写出一个请求。变异：`onExited` 挂在派生 promise 的第二跳上 → `stdio.spec.ts`「a process that answers and exits」变红。「进程先退出后仍读窗口内的 stdout」这一半没有能变红的用例，见「未覆盖」。
+- **H12 退出窗口**（契约 T8 进程退出）：stdout 先结束时，线路最多等 `PROCESS_EXIT_WINDOW_MS` 的退出再报告 `ended`，之后的退出不改变已归类的结论。进程先退出时，线路最多再读 `PROCESS_EXIT_WINDOW_MS` 的 stdout（期内读到的行照常投递），然后报告并取消读取。两个时刻取同一时钟。退出的观察直接挂在句柄的 `exited` 上，先于任何在它之后 `await` 这个 promise 的调用方。反例：观察挂在派生 promise 的第二跳上，先等过 `exited` 的调用方还能写出一个请求。变异：`onExited` 挂在派生 promise 的第二跳上 → `stdio.spec.ts`「a process that answers and exits」变红。变异（进程先退出的一半）：`onExited` 不等窗口，立即报告并取消读取 → `lines.spec.ts`「delivers the line that stdout still carries within the window, then reports the end with the exit alone」变红。
 
 <a id="h13"></a>
 
-- **H13 凭据不外泄**：凭据句柄写进的头只进出站请求（`fetch` 的 `headers`）：POST 与回退的 GET。`Exchange`、`GetOpened`、`WireEvent`、答复、失败、授权发现与本包抛出的错误都不含请求头。本包不写日志。反例：`not-sent` 的失败带着请求头。变异：没有单独的变异。`http.spec.ts`「the credential value appears in no answer, failure or discovery」先断言 `discover` 成功、`authorization-required` 带着发现，再断言所有结局的 JSON 都不含令牌。
+- **H13 凭据不外泄**：凭据句柄写进的头只进出站请求（`fetch` 的 `headers`）：POST 与回退的 GET。`Exchange`、`GetOpened`、`WireEvent`、答复、失败、授权发现与本包抛出的错误都不含请求头。本包不写日志。反例：`not-sent` 的失败带着请求头。变异：会话把请求的 `authorization` 头值写进应答头的挑战参数（授权发现的 `scopes` 带着令牌）→ `http.spec.ts`「the credential value appears in no answer, failure or discovery」变红。该用例先断言 `discover` 成功、`authorization-required` 带着发现，再断言所有结局的 JSON 都不含令牌。
 
 <a id="h14"></a>
 
-- **H14 会话只经注入的端口产生效果**：`Session` 对外的效果只经四个入口：线路（`Line`）、材料里的凭据句柄、`SessionOptions.fetchMetadata` 与计时端口 `SessionOptions.schedule`（`Scheduler`：起一次计时，返回取消函数）。会话不读全局时钟，不直接起全局计时器，不直接调用 `setImmediate`。工厂给缺省的 `schedule`，它用 `setTimeout` 与 `clearTimeout`。线路自己的计时（stdio 的退出窗口）不经这个端口。于是测试可以驱动会话，并排定每一次线路答复、凭据调用与计时触发的次序。反例：会话直接调用 `setTimeout` 起探测计时，测试无法决定它何时触发。变异：没有用例核对它；它是驱动会话的测试替身（`tests/memory-line.ts`）的前提。
+- **H14 会话只经注入的端口产生效果**：`Session` 对外的效果只经四个入口：线路（`Line`）、材料里的凭据句柄、`SessionOptions.fetchMetadata` 与计时端口 `SessionOptions.schedule`（`Scheduler`：起一次计时，返回取消函数）。会话不读全局时钟，不直接起全局计时器，不直接调用 `setImmediate`。工厂给缺省的 `schedule`，它用 `setTimeout` 与 `clearTimeout`。线路自己的计时（stdio 的退出窗口）不经这个端口。于是测试可以驱动会话，并排定每一次线路答复、凭据调用与计时触发的次序。反例：会话直接调用 `setTimeout` 起探测计时，测试无法决定它何时触发。变异：会话直接用 `setTimeout` 起探测计时，不经 `schedule` → `session.spec.ts`「starts a probe timer for the probe only, and clears it when the probe is answered」变红（它用记录计时的 `schedule` 替身，核对计时只经它起、经它取消）。
 
 <a id="sdk-reuse"></a>
 
