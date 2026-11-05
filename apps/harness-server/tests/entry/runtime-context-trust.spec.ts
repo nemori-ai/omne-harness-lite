@@ -25,7 +25,6 @@ import {
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { principalIssuer } from '../../src/entry/principals.ts'
 import {
-  absentReplayFacts,
   createRuntimeContextAuthority,
   createRuntimeContextTrustModule,
   runtimeContextTrust,
@@ -75,13 +74,19 @@ function holderActions(principal: unknown, tenant: TenantId): readonly HolderAct
     { kind: 'prepare', change: change(tenant) },
     {
       kind: 'commit',
-      input: { kind: 'registration', commit: { commit: 'c-1' }, change: change(tenant) },
+      input: {
+        kind: 'registration',
+        commit: { commit: 'c-1' },
+        after: null,
+        change: change(tenant),
+      },
     },
     {
       kind: 'commit',
       input: {
         kind: 'step',
         commit: { commit: 'c-2' },
+        after: { commit: 'c-1' },
         tenant,
         stepCommit: { scope, step: { step: 's-1' }, committed: [], pending: [] },
         executionEnded: false,
@@ -336,7 +341,7 @@ describe('createRuntimeContextAuthority (the request-context-trust order)', () =
   })
 })
 
-describe('the two absent ports', () => {
+describe('the absent bindings port', () => {
   it('bindings: every scope, Session-shaped or forged, is unavailable; never bound, never unbound', async () => {
     await expect(unavailableScopeBindings.lookup(scope)).resolves.toEqual({ kind: 'unavailable' })
     await expect(unavailableScopeBindings.lookup(scopeOf('forged'))).resolves.toEqual({
@@ -344,13 +349,7 @@ describe('the two absent ports', () => {
     })
   })
 
-  it('replayFacts: unavailable, and the diagnostic names the AD-03 holder and its wave-2 key', async () => {
-    await expect(absentReplayFacts.stepCommittedBlocks(scope, null)).resolves.toEqual({
-      kind: 'unavailable',
-    })
-    expect(absentReplayFacts.diagnostic).toContain('session-ad03')
-    expect(absentReplayFacts.diagnostic).toContain('sessionReplayFacts')
-  })
+  // The replay facts port is linked to `sessionReplayFacts`: runtime-context-replay-facts.spec.ts.
 })
 
 type Installed = Readonly<{

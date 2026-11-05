@@ -29,19 +29,19 @@
 
 ## 终端使用者
 
-- 直接读当前[封存版 CLI](../apps.0.0.1.legacy/cli/README.md)，核对构建、连接、认证与命令权限。[使用指南](guides/usage.md)区分封存源与目标能力，说明尚缺的操作验证与承接责任。
+- 直接读固定提交中的[封存版 CLI](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/cli/README.md)，核对构建、连接、认证与命令权限。[使用指南](guides/usage.md)区分封存源与目标能力，说明尚缺的操作验证与承接责任。
 - 按所选命令读输入、结果和失败处置。封存版 CLI 的 README 描述多轮会话及 Shell 等工具；这些来源说明不能证明新树或当前发布支持。专门使用指南由应用与文档维护者接续。
 - 操作前提和预期结果明确后即可停止。需要其它能力才展开其公开说明；未支持任务或权限不明时暂停该操作。
 
 ## 租户管理者
 
-- 直接读[封存版 CLI](../apps.0.0.1.legacy/cli/README.md)，确认调用身份、授权和作用范围。[管理指南](guides/administration.md)已有来源及停止点，完整操作流程仍待验证，缺少所需命令或失败处置时交治理应用拥有者补齐。
+- 直接读固定提交中的[封存版 CLI](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/cli/README.md)，确认调用身份、授权和作用范围。[管理指南](guides/administration.md)已有来源及停止点，完整操作流程仍待验证，缺少所需命令或失败处置时交治理应用拥有者补齐。
 - 读所选公开命令及限制。管理指南由治理应用与文档维护者接续，产品目标不代表管理操作已支持。
 - 职责、授权和失败处置明确后即可停止。跨租户或配置影响不明时展开有关公开契约，由拥有者澄清后再操作。
 
 ## 部署运维者
 
-- 准备或诊断现有装配，直接读[tenancy-host](../apps.0.0.1.legacy/tenancy-host/README.md)及其部署说明，核对环境、构建、配置与数据目录。[部署指南](guides/deployment.md)已有来源及停止点，完整操作流程仍待验证。
+- 准备或诊断现有装配，直接读固定提交中的[tenancy-host](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md)及其部署说明，核对环境、构建、配置与数据目录。[部署指南](guides/deployment.md)已有来源及停止点，完整操作流程仍待验证。
 - 规划daemon、进程分工或集群布局时，另读[部署架构](architecture/deployment/README.md)。目标拓扑不代替当前装配的操作说明和支持范围。
 - 当前任务的环境与失败处置明确后即可停止。涉及存储或网络故障时展开相关成员；所需备份、恢复或生产保证未说明时，暂停对应承诺，交宿主维护者。
 

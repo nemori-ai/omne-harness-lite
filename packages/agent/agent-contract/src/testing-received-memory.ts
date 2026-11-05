@@ -11,7 +11,7 @@ import {
   type AgentExecutionId,
   type DurableEvidence,
 } from './identity.ts'
-import type { AgentMaterials } from './passages.ts'
+import type { AgentMaterials, Material } from './passages.ts'
 import type {
   AgentJournalEntries,
   AgentJournalEntry,
@@ -25,6 +25,12 @@ import type {
 import type { AgentJournalEntriesFixture } from './testing-journal-entries.ts'
 import type { ReceivedCommitFixture } from './testing-received-fixture.ts'
 import { canonicalText, doubleEvidence, projectEntryEvent, tenantText } from './testing-case.ts'
+import {
+  describeMaterial,
+  entryPage,
+  materialDigest,
+  receivedEntriesOf,
+} from './testing-journal-reads.ts'
 import {
   conflict,
   deliveryKey,
@@ -67,6 +73,8 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
   const scopedDelivery = (input: Access<P>, entry: Omit<ReceivedEntry, 'material'>) =>
     canonicalText([tenantText(input.tenant), deliveryKey(entry)])
   const materials = new Map<string, KeptMaterial<B>>()
+  /** One copy of each content per tenant: the materials that name the same digest share it. */
+  const blobs = new Map<string, Material<B>>()
   const custody = new Map<string, AgentExecutionId>()
   const pauses = new Map<string, Pause>()
   const faults = new Map<string, 'before-publish' | 'after-publish'>()
@@ -199,10 +207,13 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       String(receipt.revision),
     )
     const value: ReceivedCommitValue = { receipt, entry, saved }
+    const blob = canonicalText([tenantText(input.tenant), materialDigest(input.material)])
+    const kept = blobs.get(blob) ?? input.material
+    blobs.set(blob, kept)
     materials.set(canonicalText(source), {
       tenant: tenantText(input.tenant),
       execution: input.execution,
-      value: input.material,
+      value: kept,
     })
     writeEntry(state, entry, receipt)
     state.revision += 1
@@ -316,37 +327,64 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
     }
     return writeRecord(state, input, text)
   }
-  const entries: AgentJournalEntries<P> = { record }
+  const readable = (
+    input: Access<P> & { execution: AgentExecutionId },
+  ): Outcome<MemoryExecution, Failure> => {
+    const state = stateOf(input)
+    if (!state) return fail({ kind: 'denied', action: 'read' })
+    return qualified(input)
+  }
+  const entries: AgentJournalEntries<P> = {
+    record,
+    async read(input) {
+      const allowed = readable(input)
+      if ('failure' in allowed) return allowed
+      const page = entryPage(allowed.ok.entries, input.after, input.limit)
+      return page === undefined
+        ? fail({ kind: 'invalid', field: 'after', reason: 'not a position of the entries' })
+        : succeed(page)
+    },
+    async receivedOf(input) {
+      const allowed = readable(input)
+      if ('failure' in allowed) return allowed
+      return succeed(receivedEntriesOf(allowed.ok.entries, input.consumption))
+    },
+  }
+  /** The digest each (tenant, identity, consumer) first preserved: another one is a conflict. */
+  const identities = new Map<string, string>()
   const materialPort: AgentMaterials<P, B> = {
     async preserve(input) {
       const boundExecution = custody.get(canonicalText([tenantText(input.tenant), input.consumer]))
-      const execution = input.execution ?? boundExecution
-      if (!execution || (boundExecution !== undefined && boundExecution !== execution))
-        return fail(denied())
-      const permission = qualified({ ...input, execution })
+      if (boundExecution !== undefined && boundExecution !== input.execution) return fail(denied())
+      const permission = qualified(input)
       if ('failure' in permission) return permission
+      const digest = materialDigest(input.value)
+      const named = canonicalText([tenantText(input.tenant), input.identity, input.consumer])
+      const prior = identities.get(named)
+      if (prior !== undefined && prior !== digest)
+        return fail({ kind: 'invalid', field: 'identity', reason: 'material identity conflict' })
       const source = doubleEvidence(
         'memoryPreservedMaterial',
-        canonicalText([tenantText(input.tenant), input.identity, input.consumer]),
+        canonicalText([tenantText(input.tenant), input.execution, digest]),
         '1',
       )
+      identities.set(named, digest)
       const key = canonicalText(source)
-      const prior = materials.get(key)
-      if (
-        prior &&
-        (prior.execution !== execution || canonicalText(prior.value) !== canonicalText(input.value))
-      )
-        return fail({ kind: 'invalid', field: 'identity', reason: 'material identity conflict' })
-      materials.set(key, {
-        tenant: tenantText(input.tenant),
-        execution,
-        value: structuredClone(input.value),
-      })
+      if (!materials.has(key)) {
+        const blob = canonicalText([tenantText(input.tenant), digest])
+        const value = blobs.get(blob) ?? structuredClone(input.value)
+        blobs.set(blob, value)
+        materials.set(key, { tenant: tenantText(input.tenant), execution: input.execution, value })
+      }
       return succeed(source)
     },
     async read(input) {
       const result = readMaterial(input, input.source)
       return 'failure' in result ? result : succeed(structuredClone(result.ok.value))
+    },
+    async describe(input) {
+      const result = readMaterial(input, input.source)
+      return 'failure' in result ? result : succeed(describeMaterial(result.ok.value))
     },
   }
   const joint: ReceivedCommitFixture<P, B> = {

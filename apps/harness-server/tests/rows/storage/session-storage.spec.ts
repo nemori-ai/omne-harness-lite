@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test } from 'vitest'
 import { MODEL_PARTICIPANT } from '@omne-harness/model-storage-sql'
+import { TOOL_PARTICIPANT } from '@omne-harness/tool-storage-sql'
 import type { SessionTransactionPort } from '@omne-harness/session-contract'
 import { mutationAccessRequest } from '@omne-harness/session-contract'
 import {
@@ -324,7 +325,13 @@ describe('the composite declaration (acceptance 6)', () => {
     expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(MODEL_PARTICIPANT)
     const catalog = storageCatalog()
     expect(catalog.migrations.map(item => item.owner)).toContain(MODEL_PARTICIPANT)
-    expect(COMBINATION_VERSION).toBe('session-composite/2')
+    expect(COMBINATION_VERSION).toBe('session-composite/4')
+  })
+
+  test('segment B: the tool participant and its migration are in the same combination', () => {
+    expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(TOOL_PARTICIPANT)
+    const catalog = storageCatalog()
+    expect(catalog.migrations.map(item => item.owner)).toContain(TOOL_PARTICIPANT)
   })
 })
 
@@ -377,7 +384,28 @@ describe('the delegated entry and the trusted reads', () => {
     expect('ok' in (await bound.readWork(access(TENANT_A, 's1')))).toBe(true)
   })
 
-  test('tenantDomains denies an unissued principal and sessionPrincipalBindings stays unavailable', async () => {
+  test('a bound view refuses the two writes that ask no access on the port: commitEntries and commitLog (R2-D256)', async () => {
+    const tree = await load(workspace())
+    started(tree)
+    const command = createCommand(TENANT_A, 's1')
+    const view = tree
+      .trusted<SessionDelegatedTransactionsService<string>>(sessionDelegatedTransactionsKey)
+      .bind({
+        request: mutationAccessRequest(access(TENANT_A, 's1'), command),
+        evidence: evidence('bound/create'),
+      })
+    const commitLog = view.commitLog
+    if (commitLog === undefined) throw new Error('the view offers no commitLog')
+    expect(await commitLog({} as never)).toEqual({
+      failure: { kind: 'denied', action: 'commitLog' },
+    })
+    expect(await view.commitEntries({} as never)).toEqual({
+      failure: { kind: 'denied', action: 'commitEntries' },
+    })
+    expect(tree.check.controls.asked()).toEqual([])
+  })
+
+  test('tenantDomains denies an unissued principal and sessionPrincipalBindings answers unavailable for a tenant the directory has not registered', async () => {
     const tree = await load(workspace())
     started(tree)
     const domains = tree.service<TenantDomains<string>>(tenantDomainsKey)

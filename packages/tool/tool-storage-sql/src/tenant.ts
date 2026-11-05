@@ -17,7 +17,7 @@ export type Resolution =
   | Readonly<{ kind: 'ready'; at: TenantDomain }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-function tenantText(tenant: unknown): string | null {
+export function tenantText(tenant: unknown): string | null {
   if (!isTenantShape(tenant)) return null
   const parsed = tenantCodec.parse(
     JSON.stringify({ organization: tenant.organization.text, account: tenant.account.text }),

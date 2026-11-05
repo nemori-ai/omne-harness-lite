@@ -4,7 +4,8 @@ const path: Field = {
   name: 'path',
   kind: 'string',
   required: true,
-  description: 'Path in the currently authorized execution placement.',
+  description:
+    'Absolute path, or a path relative to the workspace root, such as "." or "sub/file.txt".',
 }
 const old: Field = {
   name: 'old_text',
@@ -55,19 +56,26 @@ const cwd: Field = {
   description:
     'Directory for this call. Omit to use the configured directory or current terminal directory.',
 }
-const help: Command = {
-  name: 'help',
-  summary: 'List commands or show complete usage.',
-  fields: [
+/** `help` names its topic in `name`, so no field of a command is called `command` (flat calls). */
+function withHelp(commands: readonly Command[]): readonly Command[] {
+  return [
+    ...commands,
     {
-      name: 'command',
-      kind: 'string',
-      description: 'Omit to show all command schemas. Name one command to select its usage.',
+      name: 'help',
+      summary: 'Show the full usage of one command, or list the commands and the rules.',
+      fields: [
+        {
+          name: 'name',
+          kind: 'string',
+          choices: commands.map(command => command.name),
+          description: 'The command to explain. Omit to list all commands and the rules.',
+        },
+      ],
     },
-  ],
+  ]
 }
 
-export const filesCommands: readonly Command[] = [
+export const filesCommands: readonly Command[] = withHelp([
   {
     name: 'read',
     summary: 'Read a UTF-8 text page with version and byte offsets.',
@@ -85,7 +93,11 @@ export const filesCommands: readonly Command[] = [
       },
     ],
   },
-  { name: 'open', summary: 'Image attachments are unsupported in this delivery.', fields: [path] },
+  {
+    name: 'open',
+    summary: 'Open a file as an attachment; images are unsupported in this delivery.',
+    fields: [path],
+  },
   {
     name: 'write',
     summary: 'Create or replace complete UTF-8 file bytes.',
@@ -104,6 +116,11 @@ export const filesCommands: readonly Command[] = [
         choices: ['create', 'replace'],
         description: 'Create a new file or replace an existing file.',
       },
+      {
+        name: 'parents',
+        kind: 'boolean',
+        description: 'Create missing parent directories first. Omit for false.',
+      },
       version,
     ],
   },
@@ -121,7 +138,7 @@ export const filesCommands: readonly Command[] = [
         kind: 'edits',
         required: true,
         description:
-          'Nonempty list of {path,old_text,new_text}. Match against original files. Duplicate or overlapping ranges are rejected.',
+          'Nonempty list of {path,old_text,new_text}. Paths are absolute or relative to the workspace root. Match against original files. Duplicate or overlapping ranges are rejected.',
       },
     ],
   },
@@ -159,7 +176,8 @@ export const filesCommands: readonly Command[] = [
         name: 'target',
         kind: 'string',
         required: true,
-        description: 'Destination path. The host names its authorized parent.',
+        description:
+          'Destination path, absolute or relative to the workspace root. The host names its authorized parent.',
       } satisfies Field,
       {
         name: 'replace',
@@ -178,13 +196,12 @@ export const filesCommands: readonly Command[] = [
       { name: 'parents', kind: 'boolean', description: 'Create missing parents. Omit for false.' },
     ],
   },
-  help,
-]
+])
 
-export const shellCommands: readonly Command[] = [
+export const shellCommands: readonly Command[] = withHelp([
   {
     name: 'create_session',
-    summary: 'Create a terminal in the current authorized acquisition.',
+    summary: 'Create a persistent terminal for subsequent calls in the current session.',
     fields: [
       cwd,
       env,
@@ -228,8 +245,7 @@ export const shellCommands: readonly Command[] = [
   },
   {
     name: 'info',
-    summary: 'Report injected placement facts and current terminal observations.',
+    summary: 'Show the current execution environment and live terminal sessions.',
     fields: [],
   },
-  help,
-]
+])

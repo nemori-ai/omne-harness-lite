@@ -8,6 +8,8 @@
 - [index.ts](index.ts)：根入口与公开定义
 - [options.ts](options.ts)：选项、信封预留与构造期核对
 - [ledger-store.ts](ledger-store.ts)：`ToolLedgerStore` 适配器
+- [guarded-host-commit.ts](guarded-host-commit.ts)：带原调用修订条件的 host 提交
+- [ledger-wire.ts](ledger-wire.ts)：共用账本地址、写入编码与结果映射
 - [custody.ts](custody.ts)：`ToolOutputCustody` 适配器
 - [tenant.ts](tenant.ts)：租户事务域解析与提交请求
 - [json.ts](json.ts)：严格 JSON 编码

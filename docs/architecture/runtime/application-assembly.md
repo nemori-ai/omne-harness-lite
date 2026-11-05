@@ -25,54 +25,54 @@
 
 | 行 id | 成员与插件 | 提供 | 必需（`inject`） | 按调用现取 | 配置（可序列化） |
 | --- | --- | --- | --- | --- | --- |
-| `storage` | 存储契约的 SQLite 提供者 | `storage`：按事务域登记的存储服务（只在[受信存储子树](#受信子树)内可见） | `storageHost`、`assemblyLifecycle` | 无 | 存储根目录；[SQLite 提供者配置](../../../packages/storage/sqlite-provider/SPEC.md#121-配置)要求的四项数值（`admissionQueueLimit`、`lockWaitMs`、`maxCommandsPerCommit`、`maxCommandBytes`）；组提交与关闭期限的数值，按 SQL 提供者的配置。读结果上限 `maxReadResultBytes` 取 20971520（20 MiB，R2-D81），`globalReadResultBytes` 随之取 134217728；提供者在构造期拒绝任何 `maxOutputBytes` 超过它的读 handler |
-| `identity` | `@omne-harness/identity-sql` 的 `./cordis` 插件 | `identityOperations`（注册激活、签发登录、识别登录）；`tenantStanding` | `storage`、`identityClock` | 无 | 登录期限与空闲期限 |
-| `authorization` | 应用成员的授权适配插件 | Session 身份桥使用的准入裁定；`agentAccessCheck`、`sessionAccessCheck`（含作用域释放恢复的三项系统请求：`scope-release-receive`、`scope-release-load` 与 `scope-release-query`）；`agentActionAdmission` | `tenantStanding`、`principalVerifier` | 无 | 无 |
-| `session-storage` | 应用成员的会话存储组合插件：在同一插件体内构造租户到事务域的目录与 `@omne-harness/session-storage-sql` 根入口的纯提供者，目录的存储构造能力只经闭包交给后者 | `sessionTransactions`；`sessionDelegatedTransactions`（会话委派事务，受信）；`tenantDomains`（只含部署枚举 `enumerate`）；`tenantDomainLookup`（已发布快照的只读查找，受信）；`sessionPrincipalBindings`（会话归属读口，受信） | `storage`、`sessionAccessCheck`、`assemblyLifecycle`、`principalVerifier`（部署枚举授权每次核验时重新取得，复用 AU-12 原能力） | `sessionCursorSigning` | 事务域推导规则；组合版本；登记表的文件位置（在存储根目录下）；介质（与 `storage` 行相同的 SQLite）；`pageBytes` 上限；`maxScanPerPage`；`maxRegistrationRetries`；快照重建方式。其余字段取 Session SQL 纯工厂配置的初值。见[租户到事务域的目录](#租户到事务域的目录) |
+| `storage` | 存储契约的 SQLite 提供者 | `storage`：按事务域登记的存储服务（只在[受信存储子树](#受信子树)内可见） | `storageHost`、`assemblyLifecycle` | 无 | 存储根目录；[SQLite 提供者配置](../../../packages/storage/sqlite-provider/SPEC.md#121-配置)要求的四项数值（`admissionQueueLimit`、`lockWaitMs`、`maxCommandsPerCommit`、`maxCommandBytes`）；组提交与关闭期限的数值，按 SQL 提供者的配置。读结果上限 `maxReadResultBytes` 取 20971520（20 MiB，R2-D81），`globalReadResultBytes` 随之取 134217728；提供者在构造期拒绝任何 `maxOutputBytes` 超过它的读 handler。JSON 嵌套上限 `maxJsonDepth` 由发行配置给 128（R2-D270）：带首条输入的 `create` 约 69 层，提供者初值 64 会拒绝它；A2 的 Tool 意图材料按块保存，只有个位数层（R2-D372、R2-D380）；核对用例是 harness-server 的 `tests/rows/storage/release-depth.spec.ts` |
+| `identity` | `@omne-harness/identity-sql` 的 `./cordis` 插件 | `identityOperations`（注册激活、签发登录、识别登录）；`tenantStanding`（受信）；`identityGovernance`（ID-18 治理端口，受信）。三项出自同一个提供者实例、同一份 identity 记录，治理端口的撤销与切换对登录识别生效 | `storage`、`identityClock` | 无 | 登录期限与空闲期限；邀请默认时长 `invitationDefaultDuration` 与最长时长 `invitationMaxDuration`（发行层初值 7 天与 30 天，R2-D204 第 7 项）。迁移 `identity/002-governance` 与读 handler `identity.governance`（输出上限 1 MiB，不超过 `storage` 行的 `maxReadResultBytes`）随本行材料进入发行目录；已有的发行数据库在本行 `registerCombination` 时执行 002 |
+| `authorization` | 应用成员的授权适配插件 | Session 身份桥使用的准入裁定；`agentAccessCheck`、`sessionAccessCheck`（含作用域释放恢复的三项系统请求：`scope-release-receive`、`scope-release-load` 与 `scope-release-query`）；`agentActionAdmission`；`systemActionAuthorization`（系统动作授权，受信，见[系统动作授权](#system-action-authorization)） | `tenantStanding`（受信）、`principalVerifier`（受信）、`identityClock`（维护授予到期的判定时钟，每次判断到期时重新读取） | 无 | `actionRules`；`maintenanceGrants`：运维者对随版本内置的维护授予表只能收回某项（`revoked: true`）或设到期（`expiresAt`），不能新增；表外授予项、改用途、主体或范围的配置让本行启动失败（R2-D204 第 2 项）。收回与到期对本行的三个访问裁定和 `systemActionAuthorization` 同样生效。发行层写空对象 |
+| `session-storage` | 应用成员的会话存储组合插件：在同一插件体内构造租户到事务域的目录与 `@omne-harness/session-storage-sql` 根入口的纯提供者，目录的存储构造能力只经闭包交给后者 | `sessionTransactions`；`sessionDelegatedTransactions`（会话委派事务，受信）；`tenantDomains`（只含部署枚举 `enumerate`）；`tenantDomainLookup`（已发布快照的只读查找，受信）；`sessionPrincipalBindings`（会话归属读口，受信） | `storage`、`sessionAccessCheck`、`assemblyLifecycle` | `sessionCursorSigning`；`systemActionAuthorization`（受信；部署枚举每次调用都经它判断，缺席或答 `unavailable` 时枚举答 `unavailable`，不放行；本行不持有授予表，R2-D245） | 事务域推导规则；组合版本；登记表的文件位置（在存储根目录下）；介质（与 `storage` 行相同的 SQLite）；`pageBytes` 上限；`maxScanPerPage`；`maxRegistrationRetries`；快照重建方式。其余字段取 Session SQL 纯工厂配置的初值。见[租户到事务域的目录](#租户到事务域的目录) |
 | `session-provider` | `@omne-harness/session-cordis` 的插件 | `session`（四个面）；协调器与调度器，含推进触发调度器 S1 | `sessionAccessCheck`、`sessionDelegatedTransactions`（受信）、`sessionPrincipals`、`sessionWorkPrincipals`（受信）、`assemblyLifecycle` | `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionNotifier`、`sessionTransactions`（只服务 `pending`、`references`、`releasedScopes` 三项目录读取） | `admission: 'none'`（本部署没有命令域与 hooks） |
-| `session-ad02` | AD-02 Agent 同日志解释 | 无 | `session`（`'coordinator'`）、`sessionTransactions`（`commitLog` 所在的端口，日志解释的写口，与 AD-05 同构） | Journal 提供者的 `output.read`、`output.events` 与 `load` | 每次读取事件数上限；超时与重试退避 |
-| `session-ad03` | AD-03 持有者与生产者，含回放与变化提醒两个子插件 | `sessionReplayFacts`；作用域到 `(tenant, session, generation)` 的查找（新服务键，键名与受信可见性由 L-RUN 事实清单定） | `runtimeContext`、`session`（`'coordinator'`、`'reader'`） | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
-| `session-ad04` | AD-04 历史源 | 无 | `session`（`'reader'`；下界子插件 `'coordinator'`）；RQ 来源登记服务 | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
-| `session-ad05` | AD-05 Model 日志消费适配，含 Tool 原生产者确认投影 | 无 | `session`（`'coordinator'`）；`sessionTransactions`（`commitEntries` 所在的端口） | 同一 Journal 提供者的 `received` 条目、材料与 `load().results`；`sessionWorkPrincipals`（受信，取协调者主体） | 超时与重试退避 |
-| `session-ad06` | AD-06 Tool 日志消费适配 | 无 | `session`（`'coordinator'`）；同一 Journal 提供者的 entries、results 与材料视图（`agentJournal`、`agentMaterials`）；`sessionTransactions`（`commitEntries` 所在的端口，后果、进度与答案的同批提交只经它） | 无 | 超时与重试退避 |
-| `session-ad09` | AD-09 身份桥 | `sessionIdentity` | `principalVerifier` | 无 | 无 |
+| `session-ad02` | AD-02 Agent 同日志解释（session-adapters 的 `createSessionJournalInterpretationPlugin`，B1 已接） | 无 | `session`（`'coordinator'`）、`sessionTransactions`（`commitLog` 所在的端口，日志解释的写口，与 AD-05 同构）；`storage`、`tenantDomainLookup`（受信，只读该 execution 的执行记录分区）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源（经受信 `sessionWorkPrincipals` 的 `forSession` 构造） | 无：插件不取配置 |
+| `session-ad03` | AD-03 持有者与生产者（session-adapters 的 `createSessionContextHolder`，B1 已接：持有者、回放与事实三个子插件来自同一次工厂调用） | `runtimeContextReaderEligibility`（K-RC，模型类读者资格）；`sessionReplayFacts`、`sessionScopeLookup`（事实子插件） | `runtimeContext`、`session`（`'reader'`，R2-D238） | `sessionWorkPrincipals`（受信，取协调者主体）；提交翻译取发行采用定义的 Context 声明表 | `scopeIndexEntries`（索引上界）、`pageBytes`（历史读页大小），由运维者层给 |
+| `session-ad04` | AD-04 历史源（session-adapters 的 `createSessionHistorySource`，B1 已接） | `contextHolderSources`（K-RQ 持有者部件） | `session`（`'reader'`；下界子插件 `'coordinator'`） | 历史头解码 `historySessionOf`；`sessionAdoptedRequests`（会话自己记录的固定请求事实，`agent-journal` 行的提供者给出），窄采用来源 `adopted` 每次读取时现取，缺席时答不可用 | `scopeIndexEntries`、`pageBytes`，由运维者层给 |
+| `session-ad05` | AD-05 Model 日志消费适配（session-adapters 的 `createSessionModelLogConsumptionPlugin`，B1 已接） | 无 | `session`（`'coordinator'`）；`agentJournal`、`agentJournalEntries`（条目端口）、`agentMaterials`（同一 Journal 提供者）；`sessionTransactions`（`commitEntries` 所在的端口）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源 | 无：插件不取配置 |
+| `session-ad06` | AD-06 Tool 日志消费适配 | 无 | `session`（`'coordinator'`）；同一 Journal 提供者的 results、条目与材料视图（`agentJournal`、`agentJournalEntries`、`agentMaterials`）；`sessionTransactions`（`commitEntries` 所在的端口，后果、进度与答案的同批提交只经它） | 无 | 超时与重试退避 |
+| `session-ad09` | AD-09 身份桥 | `sessionIdentity` | `principalVerifier`（受信） | 无 | 无 |
 | `session-ad10` | AD-10 证据桥 | `sessionEvidence` | 装配采用、生产来源与保管来源的服务（键见缺口表） | 无 | 无 |
 | `session-ad11` | AD-11 空闲输入 | `sessionIdleInput` | `modelRuntime`、`toolRuntime`、`session`（`'maintainer'`） | 无 | 无 |
 | `session-ad12` | AD-12 Context 输入 | `sessionContextInput` | `runtimeContext` | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
-| `session-ad14` | AD-14 `AgentDrivePort` | `sessionAgentDrive` | `agentInstances`、`agentInstanceProvision`、`agentExecutionRecovery`、`agentExecutionControl`、`session`（`'coordinator'`） | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
+| `session-ad14` | AD-14 `AgentDrivePort`（session-adapters 的 `createSessionAgentDrivePlugin`，SC4 已接，R2-D162） | `sessionAgentDrive` | `agentInstances`、`agentInstanceProvision`、`agentExecutionRecovery`、`agentExecutionControl`、`session`（`'coordinator'`） | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
 | `session-ad15` | AD-15 作用域释放，含重新释放子插件 | `sessionScopeRelease` | `executionEnvironment`（`caller: 'maintainer'`）；子插件还需 `session`（`'maintainer'`） | 构造时交入恢复授权 | 超时、重试退避与重新释放页大小 |
-| `session-handoff` | session-adapters 的 J06 消息准入插件 | `agentMessageHandoff` | `session`（`'coordinator'`）、`agentAccessCheck`；`storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记） | 无 | 无。准入记录落 `execution-record` 参加者的新独立表，由会话日志提供者家族写，见[租户到事务域的目录](#租户到事务域的目录) |
-| `session-conditions` | session-adapters 的 J06 当前条件插件。波 4 交付，波 2 保持发行配置里的替身 | `agentConditions` | `session`（`'coordinator'`）、`adoptionCoordinator`（读当前采用配置，`read`；服务键尚不存在，见缺口表） | 实际已采用配置、模型选择、Context 与 bindings 的原来源（见缺口表） | 无 |
-| `agent-journal` | session-adapters 的会话日志 Journal 提供者 | `agentJournal`；同一提供者兑现 `AgentJournalEntries` 与 `AgentMaterials`，并兑现 AD-01 Agent 同日志提交参加者（不另装 `session-ad01` 行） | `sessionAccessCheck`（派生的 Session 参加按 Session 操作裁定）；`storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）；与 `session-storage` 共用会话日志提交状态 | 无 | 组合版本与清单摘要，取自会话存储组合的声明（提交请求要带它们） |
+| `session-handoff` | session-adapters 的 J06 消息准入插件（`createSessionMessageHandoffPlugin`，B1 已接） | `agentMessageHandoff` | `session`（`'coordinator'`）、`agentAccessCheck`；`storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源；调用者稳定身份文本；本提供者的采用身份 | `combinationVersion`、`manifestDigest`：与 `agent-journal` 行相同的会话日志组合。准入记录落 `execution-record` 参加者的 `er_preadmission` 表，见[租户到事务域的目录](#租户到事务域的目录) |
+| `session-conditions` | session-adapters 的 J06 当前条件插件（`createSessionConditionsPlugin`，最小实现，SC1 已接，R2-D145）。以原 Authority 经执行索引定位会话，Run 持有该 execution 且 Journal 记录的 attempt 为当前 attempt 才读；`configuration` 取 Run 采用，`progression` 由协作模式投影（`co-work` → `evaluate-completion`，`auto-drive` → `continue`），`model` 取已保存路由的采用依据，`context` 取未结束的 Runtime Context 作用域，`bindings` 取常驻工具；缺任何来源答 `unavailable`，不补默认。完整设计（`adoptionCoordinator` 读口）归波 4，形状不变 | `agentConditions` | `session`（`'coordinator'`，调用方 Access 只经此面核访问）；子插件 `session-conditions-selection` 另 `inject` `session`（`'maintainer'`），只读保存的模型选择，因为 `readModelSelection` 只接受 `intake` 与 `maintainer`，每个插件只用一个调用方类（session-adapters AD-00 第 1 条）；`storage`、`tenantDomainLookup`（受信存储子树；执行索引与 Journal 的 attempt 记录）；`definitionMappings`（受信；解出 `tenant-default` 模式的值，映射条目的模式采用须与创建所记来源逐字相等） | 租户默认模式解析器（基于受信 `definitionMappings` 构造） | 无 |
+| `agent-journal` | session-adapters 的会话日志 Journal 提供者 | `agentJournal`；同一提供者兑现 `AgentJournalEntries` 与 `AgentMaterials`，并兑现 AD-01 Agent 同日志提交参加者（不另装 `session-ad01` 行）；`agentReceivedCommits`、`agentModelReceptionTargets`（Model 结果接收方的两个面：接收共同提交与稳定目标查询，`agent-host` 注入，R2-D237）；`agentToolReceptionTargets`（Tool 结果接收方的稳定目标查询，`agent-host` 的 Tool 接收子插件注入，R2-D273）；`agentReceivedRecords`（同一份接收记录的只读面，受信，只对本行与 `model-records` 可见；Agent consumer owner 的证据适配器经它核验 Model 的 ACK，R2-D257）；`sessionAdoptedRequests`（会话日志里主用途 M0 记下的固定请求事实，`session-ad04` 按调用现取；根上的名字，不在受信表里，R2-D246） | `sessionAccessCheck`（派生的 Session 参加按 Session 操作裁定）；`storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）；与 `session-storage` 共用会话日志提交状态 | 无 | 组合版本与清单摘要，取自会话存储组合的声明（提交请求要带它们） |
 | `agent-adoptions` | 应用成员的采用适配插件 | `agentAdoptions`；`definitionMappings`（受信，与 `agentAdoptions` 出自同一份解析表与内容身份） | 无 | 无 | [定义名映射](#桥接责任) |
-| `adoption-sources` | 应用成员的采用来源插件，实现 Session 的 `SessionAdoptionSource`。对 `create` 出具 Session 的初始化守卫（[初始化守卫编码](../../../packages/session/session-contract/SPEC.md#初始化守卫编码)）：初始采用是部署映射的条目，计划与要求是该条目的 `requiredIdentities`，常驻工具、来源与结果为空；创建声明了映射没有的来源、结果或常驻工具时答 `invalid`。`startRun`、`reload` 仍出具映射材料，常驻工具的冻结判定经 `plan` 给出，见[桥接责任](#桥接责任)。本行也是领域角色「采用协调」的装配协调者，不另开行 | `sessionAdoptionSource` | `definitionMappings`（受信） | `toolBindings`（`snapshot(access)` 读登记表）；`toolGenerations`（`ensureLoaded` 首装） | 无 |
-| `agent-model-selection` | 应用成员的模型选择适配插件，实现 Agent 的 `ModelSelection` | `agentModelSelection` | `modelProfiles` | 会话保存的选择及其来源，读取面见缺口表 | 无 |
-| `agent-host` | `@omne-harness/agent-host-local` 的宿主插件 | Agent 宿主、`agentPublicationAuthority`、`agentExecutionRecovery`、`agentExecutionControl`、`agentInstanceProvision` | `agentJournal`、`agentJournalEntries`、`agentMaterials`、`agentAccessCheck`、`agentAdoptions`、`agentConditions`、`agentRequests`、`agentModelSelection`、`agentModelContext`、`agentMessageHandoff`、`agentAccountOutlet`、`modelRuntime`、`agentClock`、`agentHostPrincipal`、`assemblyLifecycle` | `toolRuntime`，在工具阶段取得；`toolStartFence`，要使启动失效时先预检，再在子 fiber 取得；其余局部依赖见[宿主的 Cordis 页](../../../packages/agent/agent-host-local/docs/cordis.md#局部依赖与可选依赖) | `jointCommits`：与 Journal 提供者支持的共同提交种类一致；`instanceIdleMs`：实例空闲回收时长；Agent [工厂配置](../../../packages/agent/agent/docs/public-api.md#工厂配置)的其余项 |
+| `adoption-sources` | 应用成员的采用来源插件，实现 Session 的 `SessionAdoptionSource`。对 `create` 出具 Session 的初始化守卫（[初始化守卫编码](../../../packages/session/session-contract/SPEC.md#初始化守卫编码)）：初始采用是部署映射的条目，计划与要求是该条目的 `requiredIdentities`，来源与结果为空；常驻工具是条目 `residentCapabilities` 列出的工具，以本次 `SessionAccess` 经采用规划器解出，首次定义取自受信发行快照，任何一项解不出答 `unavailable`（G-RESIDENTS，R2-D159）；创建声明了映射没有的来源、结果或常驻工具时答 `invalid`。`startRun`、`reload` 仍出具映射材料，常驻工具的冻结判定经 `plan` 给出，见[桥接责任](#桥接责任)。本行也是领域角色「采用协调」的装配协调者，不另开行 | `sessionAdoptionSource` | `definitionMappings`（受信） | `toolBindings`（`snapshot(access)` 读登记表）；`toolGenerations`（`ensureLoaded` 首装） | 无 |
+| `agent-model-selection` | 应用成员的模型选择适配插件，实现 Agent 的 `ModelSelection`。从 execution 经执行索引找到会话，核对活动 Run 持有该 execution，再读回会话保存的选择；找不到答 `unavailable`，Run 已结束答 `terminal`，Run 不符答 `denied`（G-SELECT，R2-D160） | `agentModelSelection` | `modelProfiles` | `storage`、`tenantDomainLookup`（受信存储子树；读执行索引与会话保存的选择） | 无 |
+| `agent-host` | `@omne-harness/agent-host-local` 的宿主插件（`createAgentHostLocalPlugin`，SC4 已接，R2-D162） | Agent 宿主、`agentPublicationAuthority`、`agentExecutionRecovery`、`agentExecutionControl`、`agentInstanceProvision` | `agentJournal`、`agentJournalEntries`、`agentMaterials`、`agentReceivedCommits`、`agentModelReceptionTargets`、`agentAccessCheck`、`agentAdoptions`、`agentConditions`、`agentRequests`、`agentModelSelection`、`agentModelContext`、`agentMessageHandoff`、`agentAccountOutlet`、`modelRuntime`、`agentClock`、`agentHostPrincipal`、`assemblyLifecycle` | `toolRuntime`，在工具阶段取得；Tool 接收子插件静态注入 `toolRuntime` 与 `agentToolReceptionTargets`，二者缺席时只有子插件停在 `PENDING`（R2-D273）；`toolStartFence`，要使启动失效时先预检，再在子 fiber 取得；其余局部依赖见[宿主的 Cordis 页](../../../packages/agent/agent-host-local/docs/cordis.md#局部依赖与可选依赖) | `jointCommits`：与 Journal 提供者支持的共同提交种类一致，必须含 `message`，行 schema 在装载时核对（R2-D93）；`coordination`：与 Journal 绑定声明的协调能力相等。这两项由发行层写出，运维者层整行替换时必须重抄（R2-D162）。`instanceIdleMs`：实例空闲回收时长；Agent [工厂配置](../../../packages/agent/agent/docs/public-api.md#工厂配置)的其余项由运维者层给 |
 | `agent-instances` | `@omne-harness/agent-cordis-contract` 的 `agentInstancesPlugin` | `agentInstances` | `agentPublicationAuthority`、`agentAccessCheck` | 无 | 无 |
 | `model-host` | `@omne-harness/model-host-local` 的 `ModelRuntimeLocalPlugin` | `modelRuntime`、`modelInstanceHost` | `modelCommands`、`modelClock`、`modelHostAuthority` | 发送、重试与目录由局部阶段子插件取得，发送阶段取 `model-records` 行提供的 `modelSendBoundary`；推送阶段按 `ConsumerRef.owner` 读本插件的接收登记表 | 并发上限、唤醒容量、扫描批次与扫描间隔，按[Model 装配设计](../../../packages/model/model/docs/cordis.md#单机提供者的插件划分)；`ModelConfiguration` 的 8 个数与结果推送限额 `ResultPushLimits` 的 5 个数，行体自校验，值注明来源为 E9 初值乘 1.5，首测后按曲线改运维者层配置；发行层不写数值，全部由运维者层给。不进配置的对象：`qualifyObservation` 复用应用 Model 模块权威的 `observe`（先核验观察者）；`modelRetryPolicy` 以恒 `unavailable` 的对象注入，M2 不做重试策略，首内容前停顿长期显示 `running`，用户仍可取消，记已知限制；`executionChannel` 与 `releaseExecution` 取自入口运行级组合。行体承载 `business` 阶段：业务停止 dispose 宿主子 fiber。接线见[Model 生产接线](../../../apps/harness-server/docs/rows/model-release.md) |
 | `model-instances` | `@omne-harness/model-host-local` 的 `ModelInstancesLocalPlugin` | `modelInstances` | `modelPublicationAuthority` | 无 | 无；失去目录只影响路由取得 |
 | `model-converters` | 同成员的 `ModelConvertersLocalPlugin` | `modelConverters`。M2 内没有消费方，不被任何行 `inject`；目录独立于运行时与结果查询 | `modelConverterAuthority` | 无 | 无；独立于运行时与结果查询 |
 | `model-profiles` | Model 档案读取提供者，继承 `ModelProfilesService` | `modelProfiles` | 档案读取、当前身份与设置、凭据状态元数据适配器，精确跨域键归提供者 | 无 | 无 |
-| `model-request-preparation` | `@omne-harness/model-host-local` 的准备插件，继承 `ModelRequestPreparationService` | `modelRequestPreparation` | `modelCommands` | 无 | `maxCitedCalls`（一条世系最多指名的调用数）；`openai.limits`（工具参数解码的六项上限与 `maxReasoningText`）与 `openai.margin`（输入估计的百分比余量 `percent` 及其采用来源 `source`）。每项都由运维者给出，没有初值；不依赖 `modelRuntime` 或供应商网络。同一 OpenAI 家族配置在 `model-records` 行的发送子插件里也用，装载器断言两处相等 |
-| `model-credential` | `@omne-harness/model-host-local` 的 `LocalCredentialPlugin` | `modelCredential` | 无 | 无 | 保管库配置，见[凭据插件](../../../packages/model/model-host-local/docs/cordis.md#生命周期与清理) |
-| `model-records` | 应用成员的 Model 耐久记录仓插件：`ModelCommands` 的 SQL 实现与迁移片段由 Model 线交付，插件接线由应用成员交付。行体以子 fiber 装 `ModelSendStagePlugin`，`coordinator` 只经闭包交给它；凭据缺席只让子 fiber 停在 `PENDING`，不卸 `modelCommands` | `modelCommands`、`modelSendBoundary` | `storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）、`modelClock`、`principalVerifier`、`tenantStanding` | 无 | 行配置只放数据：成员部分 `owners`（`work` 取 `exempt`，M2 没有 Model 与 Agent 的共同提交）、`limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion`（与 `session-storage` 行相等）、`send` 的镜像上限；应用部分 `initial`（首次执行记录的上限）与 `sendStage`（发送子插件的上限、工厂凭据查询 id、官方档案输入、准备与 OpenAI 家族配置、网络、路由、传输上限）。全部由运维者层给，发行层不写数值。`authority`、`evidence`、`send.sources`、`initialRun` 由应用成员的 Model 应用模块（`src/model/`）以对象构造，不进配置。装载时核跨行相等：`limits.resultPageTargetBytes`、`readIdleMs` 与 `model-host.runtime` 同名值，`combinationVersion` 与 `session-storage`，`sendStage.preparation` 与 `model-request-preparation`，`sendStage.profiles` 与 `model-profiles`。与会话日志同一事务域，见[租户到事务域的目录](#租户到事务域的目录)；接线见[Model 生产接线](../../../apps/harness-server/docs/rows/model-release.md) |
-| `tool-records` | 耐久 Tool 记录仓插件：一个插件体、一个记录仓、一个启动协调器；成员是 `@omne-harness/tool-storage-sql` | `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`。后两键是同一启动协调器的两个视图，属同提供者组 `tool-start` | `storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记） | 无 | `maxCommandBytes`：装配把交给 `storage` 行的同一个值交给本行，两行不得不同。与会话日志同一事务域，见[租户到事务域的目录](#租户到事务域的目录) |
-| `tool-bindings` | 绑定登记表与 Catalog 的插件：tool-host-local 的 `createLocalToolBindingsPlugin`，应用成员导出 `toolBindingsRow`。一个插件、一个 fiber 提供两个服务：类静态提供 `toolBindings`，构造时注册 `toolCatalog` | `toolBindings`、`toolCatalog` | `toolContributionAuthority`（运行时对象） | `principalVerifier`（可用性核验主体）；`toolStartAuthority`（启动权威的窄代理，波 2 B 段改接 Tool 运行时组的同一组插件） | 无。与 `tool-records` 分行，Catalog 不与持久 Commands/Reads 共用一个会连带卸载的 fiber |
-| `tool-runtime` | `@omne-harness/tool-host-local` 的门面插件 | `toolRuntime` | `toolCommands`、`toolReads` | `toolCatalog`、`toolInstances` 的稳定窄代理逐次现取 | 按[宿主阶段装配](../../../packages/tool/tool-host-local/docs/cordis.md#阶段装配与换代) |
-| `tool-executor` | tool-host-local 的长期执行宿主插件 | Tool 的独立执行驱动 | `toolCommands`、`toolInstanceHost`、`toolClock` | 准备、环境、等待与输出能力在各自阶段取得 | 有界调度策略，见[宿主规格](../../../packages/tool/tool-host-local/SPEC.md) |
-| `tool-host` | tool-host-local 的换代协调者插件 `createLocalToolHostPlugin`，应用成员导出 `toolHostRow`；作者来源只取发行内置的 Shell、Files，见[发行内置 Tool](../../../apps/harness-server/docs/rows/tool-release.md) | `toolGenerations` | `toolBindings`、`toolContributionAuthority`、`toolResidencyReader` | `toolReleaseRegistrant`（作者闭包的登记者） | 运维者层的 `construction`：Shell 的 `resultMaxBytes`、`executable`、`argsPrefix`、`cwd`、`env`，Files 的 `resultMaxBytes`。发行层不写默认值，缺值的作者装载时答 `unavailable`。冻结不由换代协调者判定 |
+| `model-request-preparation` | `@omne-harness/model-host-local` 的准备插件，继承 `ModelRequestPreparationService` | `modelRequestPreparation` | `modelCommands` | `modelCredential`：补全供应商的凭据引用。租户有自己的绑定时给租户引用，没有时给 factory 引用。读不出绑定是否存在时准备失败，不退回 factory | `maxCitedCalls`（一条世系最多指名的调用数）；`openai.limits`（工具参数解码的六项上限与 `maxReasoningText`）与 `openai.margin`（输入估计的百分比余量 `percent` 及其采用来源 `source`）。每项都由运维者给出，没有初值；不依赖 `modelRuntime` 或供应商网络。同一 OpenAI 家族配置在 `model-records` 行的发送子插件里也用，装载器断言两处相等 |
+| `model-credential` | `@omne-harness/model-host-local` 的受管凭据插件（`createLocalCredentialPlugin`），行体以子 fiber 装载 | `modelCredential`；`modelCredentialCustody`（受信，本应用的服务键，见[模型凭据管理](#model-credential-custody)） | 无 | `principalVerifier`、`tenantStanding`（受信，凭据管理的准入）。缺席时管理答 `basis-unavailable`，行不停在 `PENDING` | 保管库配置，见[凭据插件](../../../packages/model/model-host-local/docs/cordis.md#生命周期与清理) |
+| `model-records` | 应用成员的 Model 耐久记录仓插件：`ModelCommands` 的 SQL 实现与迁移片段由 Model 线交付，插件接线由应用成员交付。行体以子 fiber 装 `ModelSendStagePlugin`，`coordinator` 只经闭包交给它；凭据缺席只让子 fiber 停在 `PENDING`，不卸 `modelCommands` | `modelCommands`、`modelSendBoundary` | `storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）、`modelClock`、`principalVerifier`（受信）、`tenantStanding`（受信） | `agentReceivedRecords`（受信，`agent-journal` 行提供）：Agent consumer owner 的证据适配器按调用现取，按耐久接收记录核验 ACK 的 retained 证据；缺席或读不到时 ACK 答 `unavailable`（R2-D257） | 行配置只放数据：成员部分 `owners`（`work` 取 `exempt`，M2 没有 Model 与 Agent 的共同提交）、`limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion`（与 `session-storage` 行相等）、`send` 的镜像上限；应用部分 `initial`（首次执行记录的上限）与 `sendStage`（发送子插件的上限、工厂凭据查询 id、官方档案输入、准备与 OpenAI 家族配置、网络、路由、传输上限）。全部由运维者层给，发行层不写数值。`authority`、`evidence`、`send.sources`、`initialRun` 由应用成员的 Model 应用模块（`src/model/`）以对象构造，不进配置。装载时核跨行相等：`limits.resultPageTargetBytes`、`readIdleMs` 与 `model-host.runtime` 同名值，`combinationVersion` 与 `session-storage`，`sendStage.preparation` 与 `model-request-preparation`，`sendStage.profiles` 与 `model-profiles`。与会话日志同一事务域，见[租户到事务域的目录](#租户到事务域的目录)；接线见[Model 生产接线](../../../apps/harness-server/docs/rows/model-release.md) |
+| `tool-records` | 耐久 Tool 记录仓插件：一个插件体、一个记录仓、一个启动协调器；成员是 `@omne-harness/tool-storage-sql`。装 `createLocalToolRuntimePlugins` 一次调用所建 bundle 的 records 插件，Tool 五行共用这个 bundle（Tool B 段，R2-D185，见 [Tool 运行时行页](../../../apps/harness-server/docs/rows/tool-runtime.md)） | `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`。后两键是同一启动协调器的两个视图，属同提供者组 `tool-start` | `storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记） | 无 | 整组 Tool 运行时的运维者配置都在本行：`maxCommandBytes`（装配把交给 `storage` 行的同一个值交给本行，两行不得不同）；`filesRoot`（与 `execution-host` 行相同）；`combinationVersion`（与 `session-storage` 行相同）；`maxChunkBytes`；`configuration`（`ToolConfiguration` 的全部字段）；`capacity` 与观察者的三项上限（`observersPerCall`、`observerQueueFrames`、`observerResidenceMs`）。发行层写空对象，缺任何一项装载失败。与会话日志同一事务域，`tool` 参加者并入会话存储组合，见[租户到事务域的目录](#租户到事务域的目录) |
+| `tool-bindings` | 绑定登记表与 Catalog 的插件：tool-host-local 的 `createLocalToolBindingsPlugin`，应用成员导出 `toolBindingsRow`。一个插件、一个 fiber 提供两个服务：类静态提供 `toolBindings`，构造时注册 `toolCatalog` | `toolBindings`、`toolCatalog` | `toolContributionAuthority`（运行时对象） | `principalVerifier`（受信，可用性核验主体）；`toolStartAuthority`（启动权威的窄代理，波 2 B 段改接 Tool 运行时组的同一组插件） | 无。与 `tool-records` 分行，Catalog 不与持久 Commands/Reads 共用一个会连带卸载的 fiber |
+| `tool-runtime` | `@omne-harness/tool-host-local` 的门面插件（同一 bundle，Tool B 段已接）；不带关闭阶段，门面不持有在途工作 | `toolRuntime` | `toolCommands`、`toolReads` | `toolCatalog`、`toolInstances` 的稳定窄代理逐次现取 | 按[宿主阶段装配](../../../packages/tool/tool-host-local/docs/cordis.md#阶段装配与换代) |
+| `tool-executor` | tool-host-local 的实例宿主与长期执行宿主（同一 bundle，Tool B 段已接）：实例宿主装在行 fiber，执行宿主装在子 fiber；行体承载 `business` 阶段，业务停止时关闭 bundle | `toolInstanceHost`；Tool 的独立执行驱动 | `toolCommands`、`toolClock`（子 fiber 另 `inject` `toolInstanceHost`） | 准备、环境、等待与输出能力在各自阶段取得 | 有界调度策略，见[宿主规格](../../../packages/tool/tool-host-local/SPEC.md) |
+| `tool-host` | tool-host-local 的换代协调者插件 `createLocalToolHostPlugin`，应用成员导出 `toolHostRow`；作者来源只取发行内置的 Shell、Files，见[发行内置 Tool](../../../apps/harness-server/docs/rows/tool-release.md) | `toolGenerations` | `toolBindings`、`toolContributionAuthority`、`toolResidencyReader` | `toolReleaseRegistrant`（作者闭包的登记者） | 运维者层的 `construction`：Shell 的 `resultMaxBytes`、`executable`、`argsPrefix`、`cwd`、`env`，Files 的 `resultMaxBytes` 与可选的 `cwd`（工作区根，相对路径按它解析）。发行层不写默认值，缺值的作者装载时答 `unavailable`。冻结不由换代协调者判定 |
 | `tool-residency` | 应用成员的常驻引用桥接插件 | `toolResidencyReader`（键与形状归 [tool-cordis-contract](../../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)） | `session`（`caller: 'maintainer'`）、`toolResidencyPrincipal`（常驻引用读取主体，装配入口提供的运行时对象，见[运行时对象](#运行时对象)） | 无 | 每页读取上限，交给 `references` 的 `limit` |
-| `tool-instances` | Tool 实例目录提供者，构造定义入口的 `ToolInstancesService` | `toolInstances` | `toolPublicationAuthority` | 无 | 无 |
-| `tool-environments` | 工具宿主侧的执行环境适配插件 | `toolEnvironments` | `executionEnvironment`（`caller: 'integrator'`） | 原获取与释放记录按 Tool P03 保存与认回 | 环境目标按调用的固定采用进入，不写共享租户覆盖表 |
-| `execution-environment` | `@omne-harness/execution-environment-host-local` 的 `ExecutionEnvironmentRegistry` | `executionEnvironment` | 无 | `executionEnvironmentAuthority`、`executionScopeBinding`、`executionRecoveryAuthority`，从提供者装载上下文现取 | 空配置 |
-| `execution-files` | 同成员的 `filesFacilityPlugin` | `files` 设施声明，不另提供服务键 | `executionEnvironment`（`caller: 'provider'`） | 无 | 空配置 |
-| `execution-command` | 同成员 `./cordis` 的 `command` 设施声明插件（导出名以 Tool 实现交付为准） | `command` 设施声明，不另提供服务键 | `executionEnvironment`（`caller: 'provider'`） | 无 | 空配置 |
+| `tool-instances` | Tool 实例目录提供者，构造定义入口的 `ToolInstancesService`（同一 bundle，Tool B 段已接） | `toolInstances` | `toolPublicationAuthority` | 无 | 无 |
+| `tool-environments` | 工具宿主侧的执行环境适配插件（同一 bundle，Tool B 段已接）；本行建执行域的 schema-provider，行撤除时关闭 | `toolEnvironments` | `executionEnvironment`（`caller: 'integrator'`） | 原获取与释放记录按 Tool P03 保存与认回 | 环境目标按调用的固定采用进入，不写共享租户覆盖表 |
+| `execution-environment` | `@omne-harness/execution-environment-host-local` 的 `ExecutionEnvironmentRegistry`（Tool B 段已接） | `executionEnvironment` | 无 | `executionEnvironmentAuthority`、`executionScopeBinding`、`executionRecoveryAuthority`，从提供者装载上下文现取；可信作用域绑定的 Scope 归属经受信 `sessionScopeLookup` 读出，再经受信 `sessionPrincipalBindings` 核对 | 空配置 |
+| `execution-files` | 同成员的 `filesFacilityPlugin`（Tool B 段已接） | `files` 设施声明，不另提供服务键 | `executionEnvironment`（`caller: 'provider'`） | 无 | 空配置 |
+| `execution-command` | 同成员 `./cordis` 的 `command` 设施声明插件，加 Shell 要的持久终端设施声明（Tool B 段已接；插件树没有单独的终端行，两个声明同生同灭） | `command` 与 `terminal` 设施声明，不另提供服务键 | `executionEnvironment`（`caller: 'provider'`） | 无 | 空配置 |
 | `execution-host` | 同成员的宿主提供者插件工厂（现名 `createHostFilesPlugin(domain)`，加入 `command` 后以交付的导出名为准）所产插件。这是工厂行，见具名偏离 [`HOSTFILE-FACTORY-ROW`](#hostfile-factory-row) | `host_machine` 的 `files` 与 `command` 提供者，不另提供服务键 | `executionEnvironment`（`caller: 'provider'`） | 无 | `drainBoundMs`；`filesRoot`（宿主文件根，不声称隔离）；`stateDirectory`；`listPageLimit`；三项搜索预算；`startBoundMs`、`graceMs`、`stopBoundMs`、`probeRetryMs`；`command` 的缓冲上限、单块上限与等待上界。字段的精确含义归 execution-environment-host-local 的 SPEC，代码里的数值只是初值；责任域是工厂参数，不进配置 |
-| `request-context` | `@omne-harness/request-context-cordis` 的插件 | `requestContext`、`contextAccountingInbox` | `requestContextTrust`（受信） | 按 [request-context-cordis 的 Cordis 页](../../../packages/context/request-context-cordis/docs/cordis.md)现取 | 压缩策略的选择 |
-| `agent-context` | Context 一侧的 Agent 适配集成包（[适配方案](../../../packages/context/request-context-contract/docs/context.md#适配方案)） | `agentRequests`、`agentModelContext` | `requestContext`、`runtimeContext`、`modelRequestPreparation` | 无 | 无 |
+| `request-context` | `@omne-harness/request-context-cordis` 的插件（B1 已接，行体以子 fiber 装 `RequestContextProvider`） | `requestContext`、`contextAccountingInbox` | `requestContextTrust`（受信） | `principalVerifier`（受信，账目来源核验）；`contextHolderSources`（读取资格，短租借后转问持有者的 `eligibility`）。两项都按调用现取，不 `inject`（SC2，R2-D163）。窄采用来源按调用短租借持有者，转问它的 `adopted` 部件。账目四个端口里恢复授权在发行里没有生产来源，由行以具名缺件答不可用，见 [B1 行页](../../../apps/harness-server/docs/rows/session-run-release.md) | `limits`（账目收件口上限，运维者层）；可选 `selection`（两个策略的选择，缺省为成员初值） |
+| `agent-context` | Context 一侧的 Agent 适配集成包（[适配方案](../../../packages/context/request-context-contract/docs/context.md#适配方案)，B1 已接） | `agentRequests`、`agentModelContext` | `requestContext`、`contextHolderSources`（K-RQ，`session-ad04`）、`runtimeContextReaderEligibility`（K-RC，`session-ad03`）、`runtimeContext`、`modelRequestPreparation`、`modelPreparationResources`（X-3，同一行提供）、`agentAdoptions`（读所采用定义的 `instructions` 作系统提示词首批段） | `toolCatalog`（第六组按 conditions 的 bindings 经 `inspect` 取完整定义，G-TOOLS6，R2-D165）、`toolContributionAuthority`（读受信发行快照里确认的文本消费者）；两者都不是受信名，缺席时第六组整组失败 | `owner`（采用身份）、`resultCapacity`（三项十进制文本）、可选 `materials`，由运维者层给 |
 | `agent-account-outlet` | Context 一侧的 Agent 集成提供者的账目出站插件，继承 `AgentAccountOutletService` | `agentAccountOutlet` | `requestContext`、`contextAccountingInbox`（两键由 `request-context` 行在同一 fiber 提供，见 [request-context-cordis 的 Cordis 页](../../../packages/context/request-context-cordis/docs/cordis.md#插件与服务)） | 无 | `sender`：出站插件作为每条账目事实的发送方给出的采用身份（`owner`、`name`、`revision`、`digest`，都是文本） |
 | `runtime-context` | `@omne-harness/runtime-context-cordis` 的插件 | `runtimeContext` | `runtimeContextTrust`（受信） | 无 | `retention`（初值 64）；`replayCapacity`（初值 10000）；`supplyBoundMs`（初值 30000）；`settleBoundMs`（初值 1000）；`readCacheEntries`（初值 256，0 表示不缓存）；`diagnostics`（诊断级别）。初值由装配给 |
-| `server-entry` | `@omne-harness/server-entry` 的插件 | 治理位置与会话位置的接入 | `session`（`caller: 'intake'` 与 `'reader'`）、`principalIssuer`（受信）、`definitionMappings`（受信）、`assemblyLifecycle` | `identityOperations`、`principalVerifier`、准入裁定 | `listenPort`（初值 8787）；`maxBodyBytes.small`（治理路径，初值 16384）；`maxBodyBytes.input`（会话路径，初值 1048576）；`heartbeatIntervalMs`（初值 15000）；`pageBytes` 上界；读历史的条目种类清单（默认 `message.user`、`message.assistant`）；[定义名映射](#桥接责任)的选择 |
+| `server-entry` | `@omne-harness/server-entry` 的插件 | 治理位置与会话位置的接入 | `session`（`caller: 'intake'` 与 `'reader'`）、`principalIssuer`（受信）、`definitionMappings`（受信）、`assemblyLifecycle` | `identityOperations`；`identityGovernance`（受信，治理位置 18 个操作与成功业务访问的报告；服务缺席时 19 个方法都答 `basis-unavailable`，不抛出）。两项与 `identity` 行同一份记录；`modelCredentialCustody`（受信，治理位置的 3 个模型凭据操作；服务缺席时 3 个方法都答 `basis-unavailable`） | `listenPort`（初值 8787）；`maxBodyBytes.small`（治理路径，初值 16384）；`maxBodyBytes.input`（会话路径，初值 1048576）；`heartbeatIntervalMs`（初值 15000）；`pageBytes` 上界；读历史的条目种类清单（默认 `message.user`、`message.assistant`）；[定义名映射](#桥接责任)的选择 |
 
 每行装一个插件（[IC-16](../cordis-integration-conventions.md#ic-16)）；插件自己的子插件随父插件装载。`session-ad*` 各行的 `inject` 以 [session-adapters 的 Cordis 页](../../../packages/session/session-adapters/docs/cordis.md#插件注入与提供的键)为准，运维者可以按行 id 单独替换其中一行。
 
@@ -80,7 +80,7 @@
 
 `agentActionAdmission` 也由 `authorization` 行提供。它与 `agentAccessCheck`、`sessionAccessCheck` 读同一份角色映射与同一组 identity 读口，失败语义相同。`agent-host` 的阶段适配器以局部依赖取得它。它没有默认放行：规则来源缺席或读不到时答 `unavailable`。M2 不装许可解释器与决定卡解释器，`permissions` 非空或带 `decision` 时答 `unavailable`。有效禁止不改代码即可配置，被禁止的动作答 `deny`。
 
-`agent-host` 在实例之外持有结果接收方，经 `inject` 取得同一会话日志提供者的 Journal、entries、materials 与账目出站，构造时交给它，不新增结果接收服务键。`agent-host` 在插件体内经 `modelRuntime` 的接收登记，把接收方登记到它的 consumer owner 下。登记落在 `agent-host` 的 fiber，撤除时随之撤除（[IC-13](../cordis-integration-conventions.md#ic-13)）。`model-host` 的推送阶段按受理时冻结的 `ConsumerRef.owner` 在本进程登记表中解析接收方；没有登记时不推送，交付保持待推并出具名诊断，登记出现后重推。同一 owner 出现新登记时，旧登记属于已撤除或正在撤除的 fiber，新登记直接替换它；两个都还存活的 fiber 争同一 owner 是装配错误，后登记者 `FAILED`。接收登记是装配给的保证：登记表只在本进程，拆成多个进程时推送目标的到达协议本版不定义。任何 `inject` 了 `modelRuntime` 的插件都能为尚无登记的 owner 登记，这一点不靠可见性约束，由装配测试核对登记者是 `agent-host` 行。Model 经登记的接收方推送，`received`、完整材料、消费绑定与 `saved` 同次提交可见，Agent loop 只从 Journal 采用结果；Agent 对 Model 只发 `admit`、`cancel`，`inspect` 仅用于恢复对账。Model 在 `saved` 之后自己取得 ACK，Agent 不代发 ACK，见 [#787 已接受的接收边界](../../../packages/agent/agent-host-local/docs/cordis.md#接收组件的宿主寿命)。Tool 结果同样经结果接收方推送进入这份日志，接收方只返回 `saved`，Tool 宿主收到 `saved` 后自己解除交付责任。Session 的 AD-05 与 AD-06 只读这份日志，不注入 Model 或 Tool。完整 Tool 收场材料（[`TOOL-SETTLEMENT-SCHEMA`](#tool-settlement-schema)）、Model 确认到达（`MODEL-ACK-ARRIVAL`）与 Tool 解除回执进入日志的方式（`JC-RELEASE-TOOL-PATH`）都有具名承接者，见缺口表。
+`agent-host` 在实例之外持有结果接收方，经 `inject` 取得同一会话日志提供者的 Journal、entries、materials、接收共同提交 `agentReceivedCommits`、稳定目标查询 `agentModelReceptionTargets` 与账目出站，构造时交给它（R2-D237）。这两个键是同一 Journal 提供者给结果接收方的两个面，不是结果接收方本身的服务键：结果接收方仍不另设服务键。`agent-host` 在插件体内经 `modelRuntime` 的接收登记，把接收方登记到它的 consumer owner 下。登记落在 `agent-host` 的 fiber，撤除时随之撤除（[IC-13](../cordis-integration-conventions.md#ic-13)）。`model-host` 的推送阶段按受理时冻结的 `ConsumerRef.owner` 在本进程登记表中解析接收方；没有登记时不推送，交付保持待推并出具名诊断，登记出现后重推。同一 owner 出现新登记时，旧登记属于已撤除或正在撤除的 fiber，新登记直接替换它；两个都还存活的 fiber 争同一 owner 是装配错误，后登记者 `FAILED`。接收登记是装配给的保证：登记表只在本进程，拆成多个进程时推送目标的到达协议本版不定义。任何 `inject` 了 `modelRuntime` 的插件都能为尚无登记的 owner 登记，这一点不靠可见性约束，由装配测试核对登记者是 `agent-host` 行。Model 经登记的接收方推送，`received`、完整材料、消费绑定与 `saved` 同次提交可见，Agent loop 只从 Journal 采用结果；Agent 对 Model 只发 `admit`、`cancel`，`inspect` 仅用于恢复对账。Model 在 `saved` 之后自己取得 ACK，Agent 不代发 ACK，见 [#787 已接受的接收边界](../../../packages/agent/agent-host-local/docs/cordis.md#接收组件的宿主寿命)。Tool 结果同样经结果接收方推送进入这份日志，接收方只返回 `saved`，Tool 宿主收到 `saved` 后自己解除交付责任。Tool 一侧的登记在 `agent-host` 插件体挂的子插件里：它注入 `toolRuntime` 与稳定目标查询 `agentToolReceptionTargets`（同一 Journal 提供者的面），经 `toolRuntime` 的接收登记把 Tool 结果接收方登记到同一 consumer owner 下，登记随子插件 fiber 撤除，有序停止时与 Model 登记一起先撤（R2-D273）。`tool-runtime` 的推送阶段没有登记时不推送，交付保持待推，出具名 warn，按退避重试（R2-D273）。Session 的 AD-05 与 AD-06 只读这份日志，不注入 Model 或 Tool。完整 Tool 收场材料（[`TOOL-SETTLEMENT-SCHEMA`](#tool-settlement-schema)）、Model 确认到达（`MODEL-ACK-ARRIVAL`）与 Tool 解除回执进入日志的方式（`JC-RELEASE-TOOL-PATH`）都有具名承接者，见缺口表。
 
 `agent-host` 把 Agent 公开接口列为必需的十项，加生产者接收面所需的 `agentJournalEntries`、`agentMaterials`、`agentAccountOutlet`，以及宿主维护主体 `agentHostPrincipal`，全部放进 `inject`。`toolStartFence` 是局部依赖，与 `toolRuntime` 同类：缺席时按 `invalidate` 返回 `unavailable` 处置，不写 `start-fence` 条目，不声称新的发起已被阻止，保留任务，之后用原 operation 与原守卫重试。`tool-records` 缺席时 `agent-host` 照常就绪。Agent 的[开放问题](../../../packages/agent/agent/docs/architecture/open-questions.md)里「静态 inject 还是在使用点取得」一项，本部署按 `inject` 裁定：缺任一项时 Agent 宿主停在 `PENDING`，不在首次使用时才失败。`agentJournal`、`agentJournalEntries`、`agentMaterials` 必须由同一行提供，否则启动失败（[生产者接收面的服务](../../../packages/agent/agent-cordis-contract/SPEC.md#生产者接收面的服务)）。
 
@@ -121,6 +121,7 @@ flowchart LR
   agent-instances --> session-ad14
   request-context --> agent-context
   runtime-context --> agent-context
+  agent-adoptions --> agent-context
   agent-journal --> agent-host
   authorization --> agent-host
   agent-adoptions --> agent-host
@@ -135,6 +136,7 @@ flowchart LR
   authorization --> agent-instances
   tool-runtime --> session-ad11
   agent-journal --> session-ad06
+  agent-journal -.-> session-ad04
   model-host --> session-ad11
   execution-environment --> session-ad15
   session-provider --> session-ad15
@@ -162,12 +164,14 @@ flowchart LR
   session-ad11 -.-> session-provider
   session-ad15 -.-> session-provider
   identity -.-> server-entry
-  authorization -.-> server-entry
   authorization --> session-handoff
   storage --> agent-journal
   session-storage --> agent-journal
   storage --> session-handoff
   session-storage --> session-handoff
+  storage --> session-conditions
+  session-storage --> session-conditions
+  agent-adoptions --> session-conditions
   agent-adoptions --> adoption-sources
   tool-bindings -.-> adoption-sources
   tool-host -.-> adoption-sources
@@ -178,7 +182,7 @@ flowchart LR
   agent-account-outlet --> agent-host
 ```
 
-箭头从提供方指向使用方。除 `session-storage` 到 `agent-journal` 表示同一会话日志提交状态外，实线是 `inject`（必需，缺席时使用方停在 `PENDING`）；虚线是按调用现取（缺席时只让需要它的操作返回 `unavailable`）。`session-provider` 对 `session-ad*` 提供的端口按调用现取，`agent-host` 与 `session-ad14` 之间的方向也只有一条实线，所以插件树没有 `inject` 环。`session-ad10` 的来源服务、`session-ad04` 的 RQ 来源登记服务、`session-conditions` 的原来源、Tool 内部后端与 Model 除目录阶段以外的阶段依赖未在图中展开，以表及成员 Cordis 页为准。运行时对象不进插件树，图中不画。受信名的 `inject` 也画实线；哪些行在受信作用域内见[受信子树](#受信子树)。装配入口提供的对象（签发者、会话工作主体、Agent 宿主维护主体、Context 信任、`assemblyLifecycle`）是运行时对象，图中不画。`tool-records` 到 `agent-host` 是虚线：`toolStartFence` 是局部依赖。`model-records`、`tool-records` 与 `session-handoff` 对 `session-storage` 的实线是受信的 `tenantDomainLookup`。`adoption-sources` 的两条虚线是按调用现取的 `toolBindings` 与 `toolGenerations`。
+箭头从提供方指向使用方。除 `session-storage` 到 `agent-journal` 表示同一会话日志提交状态外，实线是 `inject`（必需，缺席时使用方停在 `PENDING`）；虚线是按调用现取（缺席时只让需要它的操作返回 `unavailable`）。`session-provider` 对 `session-ad*` 提供的端口按调用现取，`agent-host` 与 `session-ad14` 之间的方向也只有一条实线，所以插件树没有 `inject` 环。`session-ad10` 的来源服务、`session-ad04` 的 RQ 来源登记服务、Tool 内部后端与 Model 除目录阶段以外的阶段依赖未在图中展开，以表及成员 Cordis 页为准。运行时对象不进插件树，图中不画。受信名的 `inject` 也画实线；哪些行在受信作用域内见[受信子树](#受信子树)。装配入口提供的对象（签发者、会话工作主体、Agent 宿主维护主体、Context 信任、`assemblyLifecycle`）是运行时对象，图中不画。`tool-records` 到 `agent-host` 是虚线：`toolStartFence` 是局部依赖。`model-records`、`tool-records`、`session-handoff` 与 `session-conditions` 对 `session-storage` 的实线是受信的 `tenantDomainLookup`；`agent-adoptions` 到 `session-conditions` 的实线是受信的 `definitionMappings`。`adoption-sources` 的两条虚线是按调用现取的 `toolBindings` 与 `toolGenerations`。
 
 ### 受信子树
 
@@ -194,32 +198,67 @@ flowchart LR
 | 会话工作主体 | `sessionWorkPrincipals` | 装配入口 |
 | 会话归属 | `sessionPrincipalBindings` | `session-storage` 行；只由装配入口按调用读取 |
 | 会话委派事务 | `sessionDelegatedTransactions` | `session-storage` 行 |
+| 会话回放事实 | `sessionReplayFacts`、`sessionScopeLookup` | `session-ad03` 行（事实子插件）；只由装配入口按调用读取，没有行 `inject`（session-cordis-contract [受信服务键](../../../packages/session/session-cordis-contract/docs/cordis.md#受信服务键)，R2-D163、R2-D168） |
 | Context 信任 | `runtimeContextTrust`、`requestContextTrust` | 装配入口 |
+| 系统动作授权 | `systemActionAuthorization` | `authorization` 行；只有 `session-storage` 行按调用读取（R2-D245） |
+| 模型凭据管理 | `modelCredentialCustody` | `model-credential` 行；只有 `server-entry` 行按调用读取 |
+| 接收记录读面 | `agentReceivedRecords` | `agent-journal` 行；只有 `model-records` 行按调用读取，用于 Agent consumer owner 的 ACK 证据核验（R2-D257） |
+| identity 读口 | `principalVerifier`、`tenantStanding`、`identityGovernance` | 核验器：装配入口；资格读口与治理端口：`identity` 行（R2-D203 P-9）。入口对象只经 `env.readTrusted` 读取；Tool 运行时组与 Tool 请求来源不在可见表里，由入口对象 `toolClock` 交给 Tool 共享状态的逐次读法读取 |
 
 `tenantDomainLookup` 是正式键，服务定义归 `@omne-harness/sql-contract` 的 `./cordis`。
+
+<a id="system-action-authorization"></a>`systemActionAuthorization` 是本应用自己定义的第一个服务键（R2-D247），服务定义在 `apps/harness-server/src/rows/authorization/system-action-service.ts`：
+
+- 拥有者是 `authorization` 行。它是唯一的提供者，按随版本内置的维护授予表及运维者的 `maintenanceGrants`（收回、到期）判断某个系统主体可不可以做某个系统动作（authorization SPEC AU-12）；到期每次判断时读 `identityClock`。系统动作的授予表只有这一份，`session-storage` 行不另建。
+- 不放进 `@omne-harness/authorization`：授予表是本应用的发行常量，提供者和唯一的消费者都是本应用的行，那个包也没有 Cordis 入口。
+- 本应用以外的成员需要这个键时，按 [IC-4](../cordis-integration-conventions.md#ic-4) 新开 `@omne-harness/authorization/cordis`，键名与形状不变，本应用改为引用它。
+
+<a id="model-credential-custody"></a>`modelCredentialCustody` 是本应用自己定义的第二个服务键，服务定义在 `apps/harness-server/src/rows/model-credential/custody-service.ts`：
+
+- 拥有者是 `model-credential` 行，它是唯一的提供者。形状是 server-entry 的 `ModelCredentialCustody` 端口：绑定或更换、解绑、查看行事租户自己的模型凭据。秘密只经绑定进入，任何结果都不带秘密。
+- 每次调用先做准入。只有代该租户行事的登录主体可以管理，经 authorization 的租户准入（AU-11，`requires` 为空）。会话工作主体和系统主体一律拒绝。
+- 本宿主按租户一份绑定。发行内置的官方档案都发往同一个接收方，所以一份绑定覆盖本宿主能发出的全部调用。键与派生规则在 `apps/harness-server/src/model/tenant-credential.ts`。
+- 不放进 model-host-local 或 model-cordis-contract：Model 凭据服务不带管理成员（model-cordis-contract「凭据服务」），提供者和唯一的消费者都是本应用的行。本应用以外的成员需要这个键时，按 [IC-4](../cordis-integration-conventions.md#ic-4) 移到届时拥有它的成员的 `./cordis`，键名与形状不变。
 
 | 行 id | 可见的受信名 |
 | --- | --- |
 | `storage` | `storage`、`storageHost` |
-| `identity` | `storage` |
-| `session-storage` | `storage`、`tenantDomainLookup`、`sessionPrincipalBindings`、`sessionDelegatedTransactions` |
+| `identity` | `storage`、`tenantStanding`、`identityGovernance` |
+| `authorization` | `principalVerifier`、`tenantStanding`、`systemActionAuthorization` |
+| `session-storage` | `storage`、`tenantDomainLookup`、`sessionPrincipalBindings`、`sessionDelegatedTransactions`、`systemActionAuthorization` |
 | `session-provider` | `sessionWorkPrincipals`、`sessionDelegatedTransactions` |
-| `session-ad03` | `sessionWorkPrincipals` |
+| `session-ad02` | `storage`、`tenantDomainLookup`、`sessionWorkPrincipals` |
+| `session-ad03` | `sessionWorkPrincipals`、`sessionReplayFacts`、`sessionScopeLookup` |
 | `session-ad04` | `sessionWorkPrincipals` |
 | `session-ad05` | `sessionWorkPrincipals` |
+| `session-ad09` | `principalVerifier` |
 | `session-ad12` | `sessionWorkPrincipals` |
 | `session-ad14` | `sessionWorkPrincipals` |
-| `agent-journal` | `storage`、`tenantDomainLookup` |
-| `session-handoff` | `storage`、`tenantDomainLookup` |
-| `model-records` | `storage`、`tenantDomainLookup` |
+| `agent-journal` | `storage`、`tenantDomainLookup`、`agentReceivedRecords` |
+| `session-handoff` | `storage`、`tenantDomainLookup`、`sessionWorkPrincipals` |
+| `session-conditions` | `storage`、`tenantDomainLookup`、`definitionMappings` |
+| `model-credential` | `principalVerifier`、`tenantStanding`、`modelCredentialCustody` |
+| `model-records` | `storage`、`tenantDomainLookup`、`principalVerifier`、`tenantStanding`、`agentReceivedRecords` |
 | `tool-records` | `storage`、`tenantDomainLookup` |
+| `tool-bindings` | `principalVerifier` |
 | `agent-adoptions` | `definitionMappings` |
 | `adoption-sources` | `definitionMappings` |
-| `request-context` | `requestContextTrust` |
+| `agent-model-selection` | `storage`、`tenantDomainLookup` |
+| `request-context` | `requestContextTrust`、`principalVerifier` |
 | `runtime-context` | `runtimeContextTrust` |
-| `server-entry` | `principalIssuer`、`definitionMappings` |
+| `server-entry` | `principalIssuer`、`definitionMappings`、`identityGovernance`、`modelCredentialCustody` |
 
 表中未列的行可见集合为空。受信子树内的行提供的其他服务名不受隔离，根上的行照常 `inject`。
+
+受信表的读法由 `check:aa-rows` 机读拦截：受信名只经入口对象的 `env.readTrusted` 读取，或由上表列为可见的行在自己的行上下文里读取；`issueActingForTenant(` 与 `issueSystem(` 只出现在白名单文件里（`apps/harness-server/scripts/aa-trust-config.json`）。
+
+<a id="principal-holders"></a>代租户行事主体的持有者与关系核对位置（[ID-16 持有者与关系核对位置](../../../packages/identity/identity/SPEC.md#持有者与关系核对位置)）。进程内参考件的持有约束在本发行里由受信表与上述两项检查兑现：
+
+| 持有者 | 位置 | 签发前的关系核对 |
+| --- | --- | --- |
+| server-entry 的登录步骤 | `packages/access/server-entry/src/identity-steps.ts`（`server-entry` 行，受信 `principalIssuer`） | 账号相等：识别出的账号等于目标租户的账号（ID-16:291） |
+| 会话工作主体的签发者 `sessionWorkPrincipals` | `apps/harness-server/src/entry/session-work-principals.ts` | 会话的归属读口 `sessionPrincipalBindings` |
+| Model 宿主权威 | `apps/harness-server/src/entry/model-authorities.ts` | 原受理记录；核对不成立时不签发 |
 
 两个已知限制同属这一类，约束都不靠可见性：
 
@@ -239,22 +278,22 @@ flowchart LR
 | `session-storage`、`session-provider`、`session-ad*` 行的源码与 `session` 服务键 | Session 实现，待建卡；目标形状已在 [session-cordis-contract 的 Cordis 页](../../../packages/session/session-cordis-contract/docs/cordis.md)固定 |
 | `session-storage` 行的会话存储组合插件：目录、首次 `create` 时的组合登记与迁移、Session SQL 纯工厂接线与共同关闭。成员 `./cordis` 及其加载时一次登记的步骤删除，不再提供 `sessionTransactions` | Session 实现交纯工厂、登记材料与实例关闭契约；M2 应用装配实现交组合插件与登记表 |
 | 登记表重建的两个前提：存储提供者文件名与事务域标识的对应、推导规则可逆 | 存储提供者（[#687](https://github.com/nemori-ai/omne-harness-lite/issues/687)、[#786](https://github.com/nemori-ai/omne-harness-lite/issues/786) 存储线）与应用装配实现；前提不成立时登记表丢失只能人工恢复 |
-| `session-handoff` 与 `session-conditions` 行：session-adapters J06 的两个生产插件，以及当前条件读取的原来源。`session-handoff` 的准入记录落 `execution-record` 参加者的新独立表；`session-conditions` 依赖的 `adoptionCoordinator` 服务键尚不存在，依赖 [#688](https://github.com/nemori-ai/omne-harness-lite/issues/688) 与 app-access 线的提供者行 | Session 实现；`session-handoff` 在波 2，`session-conditions` 移到波 4，波 2 该行保持发行配置里的替身；不以默认允许或空条件的插件冒充就绪。交付前 `agent-host` 停在 `PENDING`，首条路径不能开始接收消息 |
+| `session-conditions` 行的完整设计：`adoptionCoordinator` 服务键尚不存在，依赖 [#688](https://github.com/nemori-ai/omne-harness-lite/issues/688) 与 app-access 线的提供者行；agent-context 第六组的工具来源（Tool B 段）也还没有。常驻工具已在 create 时按映射填充（G-RESIDENTS，R2-D159），但发行树里还没有一方以发行登记者装载 Shell、Files，列了常驻工具的定义在发行树里创建答 `unavailable` | 波 4 J06 完整设计把 `configuration` 的来源换成采用协调者的读口，公开形状不变；最小实现（SC1，R2-D145）已在波 2 换成真件，`bindings` 取已提交的常驻工具。不以默认允许或空条件的插件冒充就绪：缺来源仍答 `unavailable` |
 | Session 一侧 `release` 的记账，Tool 一侧：具名偏离 [`JC-RELEASE-TOOL-PATH`](../../../packages/session/session-contract/SPEC.md#jc-release-tool-path)。Tool 宿主收到 `saved` 后自己解除，解除回执怎样进入日志未定。日志中已有原生产者确认时，AD-05 按 [JC-Release](../../../packages/session/session-contract/SPEC.md#jc-release) 经 `receive(release)` 写 SE19。没有确认时保持 pending，`judgeIdle` 为 not-due，该项不进入 `openWork`。闭合前推送路径没有回执进日志，所以用过工具的会话都不会自动归档 | Agent 契约与宿主拥有者；闭合放在 M2 之后的里程碑 |
 | Session 一侧 `release` 的记账，Model 一侧：`MODEL-ACK-ARRIVAL` 未决，保持 pending，`judgeIdle` 为 not-due，该项不进入 `openWork`，闭合前有 Model 结果的会话不会自动归档 | Agent 契约与宿主拥有者承接 Model 确认到达，闭合放在 M2 之后的里程碑；不把 Tool 的 `recordResult` 路径套给 Model |
 | <a id="tool-settlement-schema"></a>具名偏离 `TOOL-SETTLEMENT-SCHEMA`：Tool 收场的完整 schema（`terminal`、`actualTerminal`、`effect`）未采用。AD-06 缺少可读的完整材料时返回 `unavailable` 并保留任务 | Agent 契约与宿主拥有者；补采用放在里程碑 M2 |
 | `session-ad10` 行：所 `inject` 的装配采用与保管来源服务的键未定。候选采用材料里的冻结判定由装配协调者在采用点调用 Tool 的 `planAdoption` 得出（[工具运行时](tool-runtime.md#冻结判定只随采用材料到达)） | Session 实现 |
 | `agent-journal` 行：Session 会话日志上的生产 Journal 插件；已接受的同日志角色组只有非耐久 `./testing` 提供者 | Session 实现；按 [#756 的同日志提供者](../../../packages/session/session-adapters/SPEC.md#agent-journal-提供者与非耐久替身)兑现，不另建 Agent 存储 |
-| `agent-host` 行：宿主插件 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) |
-| `agent-model-selection` 行：应用侧模型选择适配器，以及它读取会话保存的选择所用的 Session 读面 | M2 应用装配实现 |
+| `agent-host` 行：宿主插件已换真件（SC4，R2-D162）。缺件：有序停止（AH-STOP）；`loopGuardPolicy` 没有生产采用来源，现在只有运维者层的测试值；M2 的临时兜底是 Agent 工厂配置 `maxRunSteps`，缺省 50，发行层可以不写（R2-D221）；`toolRequestsOf` 的生产组合归 Tool B 段；`measure` 接 E9 归 C1 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)；`loopGuardPolicy` 的采用来源与完整的循环判断归 L-RUN 波 3（计划 D-24） |
+| `agent-model-selection` 行：应用侧模型选择适配器已换真件（G-SELECT，R2-D160），以受信 `storage`、`tenantDomainLookup` 读执行索引与会话保存的选择。缺件：模型选择的采用身份 | 采用身份归 L-RUN、L-MODEL 波 3 |
 | `sessionAccessCheck` 的生产提供者（含系统作用域读取所需的系统授权；缺席时 `references` 与 `releasedScopes` 返回 `unavailable`），以及 Session 生产服务与存储工厂对它的必需接线 | 授权适配器的拥有者（authorization 后继）与 Session 实现 |
 | 具名真实提供者：AD-03 的可信绑定与同步 current，AD-04 的完整历史与采用顺序，AD-15 的原获取与目录来源 | Session 实现与 M2 应用装配实现；认领前对应行不宣称可运行 |
 | `runtimeContextTrust` 的两个来源：作用域绑定（作用域文本是 Session 铸造的单向摘要，入口解码不了；作用域到会话的索引是 AD-03 持有者的派生物）与持有者事实（`session-ad03` 以服务键 `sessionReplayFacts` 提供，R2-D5）。作用域绑定的来源：波 2 由 L-RUN 在交 `session-ad03` 时给出，持有者以新服务键导出作用域到 `(tenant, session, generation)` 的查找，与 `sessionReplayFacts` 同形、同批（session-cordis-contract 可加改动）；入口的 `bindings` 用它解出会话，再经受信 `sessionPrincipalBindings` 核对归属，答 `bound{tenant}` 或 `unbound`，查找缺席仍答 `unavailable`（R2-D14）。`authority` 允许的主体类别由 L-RUN 作为设计点报批，批复前放行名单为空，即全部拒绝。交付前入口对象对两者都答 `unavailable`，带目标的 Runtime Context 操作一律 `unavailable`（cause `scope-binding`）；`current()` 由进程代次桥兑现，撤权、原工作失效与 Request Context 换代没有同步来源到达它（[#677](https://github.com/nemori-ai/omne-harness-lite/issues/677) 不闭合） | Session 实现（`session-ad03` 行，波 2）；#677 归资格与组合拥有者 |
 | `agent-adoptions` 行：采用适配 | 首条路径由应用成员按定义名映射提供；采用协调契约归 [#688](https://github.com/nemori-ai/omne-harness-lite/issues/688) |
-| `agent-context` 行：Context 一侧的 Agent 适配集成包 | 已登记在 Context 运行时实现卡 [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542) |
+| `agent-context`、`request-context`、`agent-account-outlet` 与 `session-ad02/03/04/05`、`session-handoff` 行：B1（R2-D136）已换真件；发行里没有生产来源的参数以具名缺件答不可用，见 [B1 行页](../../../apps/harness-server/docs/rows/session-run-release.md) | 缺件归 Reduce 批次 E 之后；`agent-host`、`agent-instances`、`session-ad14` 已由 SC4 换真件（R2-D162） |
 | `model-host`、`model-instances`、`model-converters`、`model-profiles` 行及 Model 局部阶段插件：运行、档案与宿主生产实现 | [#446](https://github.com/nemori-ai/omne-harness-lite/issues/446)（L-MODEL 线父卡；原 #795 的范围并入本波 attempt，#795 不复用）；按[Model 插件划分](../../../packages/model/model/docs/cordis.md#单机提供者的插件划分)保留目录与查询的故障隔离 |
 | Tool 门面、执行宿主、实例目录与执行环境适配的生产插件；`tool-records` 行的插件；`tool-bindings` 行的启动权威、执行作用域与收场（波 2 A 段答 `unavailable`，B 段接 Tool 运行时组）；`execution-command` 行与 `execution-host` 行的 `command` 提供者；`Shell()`、`Files()` 两个多命令工具的定义与 Catalog；terminal 设施与 Windows 执行环境后端 | M2 Tool 与执行环境实现拥有者（L-TOOL，波 2）；现有 [#791](https://github.com/nemori-ai/omne-harness-lite/issues/791) 只交契约核对与 `./testing`，不关闭宿主缺口 |
-| `toolInstanceHost` 的提供方式：`tool-executor` 静态 `inject` 它，由 `tool-executor` 自供还是另成一行未定；回答前 `tool-executor` 行不宣称可装 | M2 Tool 实现拥有者 |
+| `toolInstanceHost` 的提供方式：已定，由 `tool-executor` 行在行 fiber 自供，执行宿主子 fiber `inject` 它（Tool B 段，R2-D185） | 已闭合 |
 | 主体服务（含 Agent 宿主维护主体）与三个环境授权及绑定服务的应用侧提供者 | M2 应用装配实现；精确成员导出名未定义的插件不以本表职责名冒充已交付导出 |
 | `server-entry` 行：接入实现与会话编解码 | 会话编解码归 [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685)；接入实现待建卡 |
 | AD-09 身份桥对 ID-11 与 AU-09 的前提 | identity 与 authorization 后继 |
@@ -273,14 +312,14 @@ flowchart LR
 | 对象 | 使用者 | 要求 |
 | --- | --- | --- |
 | identity 的签发者 | `server-entry`（为登录请求签发代租户行事主体）；装配入口自己（签发系统主体：`SessionInternalPrincipals`、常驻引用读取主体、恢复与扫描的维护者、AD-14 的出站主体、Agent 宿主维护主体） | 装配入口在签发作用域 provide `principalIssuer`，只有 `server-entry` 可见并 `inject`；未提供时 `server-entry` 停在 `PENDING`。装配入口自己持有同一签发者签发系统主体与会话工作主体。identity 的登录流程不持有它（[ID-16](../../../packages/identity/identity/SPEC.md#id-16-首批公开形状主体与资格事实)） |
-| identity 的核验器（`principalVerifier`） | `authorization`、`session-ad09`、`server-entry` | 入口对象，由装配入口提供，不进插件树与插件配置。只证明来源，不证明成员资格 |
+| identity 的核验器（`principalVerifier`） | `authorization`、`session-ad09`、`session-storage`、`model-records`、`tool-bindings`；`request-context`（按调用现取，账目来源核验，SC2，R2-D163）；Tool 运行时组与 Tool 请求来源（经入口对象 `toolClock` 交给 Tool 共享状态的逐次读法） | 入口对象，由装配入口在受信作用域「identity 读口」提供，不进插件树与插件配置。只证明来源，不证明成员资格 |
 | `storageHost` | `storage` | 入口对象，只交给 `storage` 行，不进插件树与插件配置。它把存储控制接到装配的有序关闭 |
-| `identityClock` | `identity`（`identity-sql` 插件 `inject`） | 入口对象，在根上 provide，不受信，不进插件树与插件配置。它是 identity 契约 `./cordis` 的 `IdentityClockService` 子类；`identity` 行必须注入它，缺席时停在 `PENDING` |
+| `identityClock` | `identity`（`identity-sql` 插件 `inject`）；`authorization`（`inject`，判定维护授予的到期） | 入口对象，在根上 provide，不受信，不进插件树与插件配置。它是 identity 契约 `./cordis` 的 `IdentityClockService` 子类；两行必须注入它，缺席时停在 `PENDING` |
 | `SessionInternalPrincipals` | `session-provider` 的 `sessionPrincipals` | 由装配入口签发，Session 身份桥核实 |
 | 会话工作主体（`SessionWorkPrincipals`） | `session-provider` 的 `sessionWorkPrincipals` | 装配入口在会话工作主体作用域 provide。按会话签发前按调用读取 `session-storage` 提供的会话归属读口，核对 tenant 与 session；读口缺席或不符时不签发 |
 | `RuntimeContextTrust`、`RequestContextTrust` | `runtime-context`、`request-context` | 装配入口在 Context 信任作用域 provide，两行 `inject` |
 | `assemblyLifecycle` | 参加有序关闭的行 | 装配入口在根上 provide。行在插件体内登记开始与停止句柄，登记落在该行 fiber，撤除时退登记 |
-| 请求上下文信任 | `request-context` | 入口在受信子树装载 `RequestContextTrustService` 的子类，提供 `requestContextTrust`，内容是主体绑定与来源登记授权两个适配。必需注入，缺席时插件停在 `PENDING`。不进插件树，不进插件配置 |
+| 请求上下文信任 | `request-context` | 入口在受信子树装载 `RequestContextTrustService` 的子类，提供 `requestContextTrust`，内容是主体绑定与来源登记授权两个适配。来源登记的放行名单只有一格（R2-D202）：`sessionWorkPrincipals` 签发的会话工作主体，以发行固定的 agent-context owner 做 `register`，目标作用域经受信 `sessionScopeLookup` 与 `sessionPrincipalBindings` 解出的会话须是主体的工作、租户须相同；作用域归属读不到时答 `unavailable` 或 `unknown`，不放行。必需注入，缺席时插件停在 `PENDING`。不进插件树，不进插件配置 |
 | 运行时上下文信任 | `runtime-context` | 入口在受信子树装载 `RuntimeContextTrustService` 的子类，提供 `runtimeContextTrust`，内容由 `createSessionRuntimeContextTrust` 组合四个端口：`authority` 照请求上下文信任的次序（核验器先答，只放行代租户行事主体，主体的租户等于动作里的租户，再按动作类别放行；表外类别与不带租户的 `revoke` 拒绝，默认拒绝）；`replayFacts` 取 `session-ad03` 提供的 `sessionReplayFacts`，`bindings` 用 `session-ad03` 持有者导出的作用域查找解出会话再经受信 `sessionPrincipalBindings` 核对归属；两个来源交付前、或来源缺席时答 `unavailable`（见缺口表）；`current` 是进程代次桥，绑定读取行的 fiber，行撤除后此前的答案不当前，不闭合 #677。必需注入，缺席时插件停在 `PENDING`。不进插件树，不进插件配置 |
 | 证据桥的生产来源与保管来源 | `session-ad10` 的 `sessionProductionSource`、`sessionCustodySource` | 入口在根上装载 `SessionProductionSourceService`、`SessionCustodySourceService` 的子类。原事实拥有者的来源行交付前，每次 `prepare` 答 `unavailable`、`owner` 是该键、诊断点名来源，不给任何守卫（见缺口表）。不进插件树，不进插件配置 |
 | Agent 宿主维护主体 | `agent-host` 的 `agentHostPrincipal` | 由装配入口签发的系统主体，在根上 provide，`agent-host` 静态 `inject`。宿主用它代实例所属租户发布实例、quiesce 实例并在交清后撤登记，每件都按现行规则核 `publish`、`quiesce`、`withdraw`。被拒或不可用时不声称已发布或已回收。不进插件树，不进插件配置 |
@@ -290,9 +329,11 @@ flowchart LR
 | 环境授权、可信作用域绑定与恢复授权 | `execution-environment`；AD-15 另在构造时接收恢复授权 | 入口装载 `ExecutionEnvironmentAuthorityService`、`ExecutionScopeBindingService`、`ExecutionRecoveryAuthorityService` 的子类，提供 `executionEnvironmentAuthority`、`executionScopeBinding`、`executionRecoveryAuthority`。逐次现取，缺席按[环境端口规则](../../../packages/execution/execution-environment-host-local/docs/cordis.md#插件与配置)不可用 |
 | 宿主文件责任域 | `execution-host` | 进程宿主只创建一次，重载仍交同一责任域；插件卸载只退役这一代，不删除原获取与占用。保管：装配入口在第 2 步、装载任何行之前用 `createHostFilesDomain` 创建它，存在入口的进程级状态里，不进插件树与插件配置，不 provide 成服务，进程退出时丢弃。分发：发行代码的工厂绑定表只有一条，把 `execution-host` 映射到宿主提供者工厂与这个责任域；装载器每次装这一行都用同一个责任域调用工厂（见 [`HOSTFILE-FACTORY-ROW`](#hostfile-factory-row)）。维护：入口配置 `maintainIntervalMs`（初值 60000）给出间隔，前一次 `maintain()` 返回后才排下一次；抛出时写诊断，循环继续，不当作已结清；`execution-host` 行卸载之后立即补跑一次；有序关闭在停业务之后跑最后一次，剩余份数大于 0 时关闭报告写具名剩余 `host-files-unsettled` 与份数，不写成已结清，也不改变关闭的退出码。配额：入口配置 `quotaDomain`（初值 `host-files`）、按租户上界（初值 64）与全局上界（初值无），创建责任域时交入；M2 读启动时的值，改上界要重启进程 |
 | Model 与 Tool 的原事实、权威与时钟适配对象 | `model-host`、`model-instances`、`model-converters`、`tool-runtime`、`tool-executor` 等 | 按各成员的唯一服务定义提供；`toolClock` 由 `createLocalToolClock` 构成。Tool 启动授权与启动围栏由同一提供者兑现同一排序域，不以同名键证明同权威：`toolStartAuthority` 与 `toolStartFence` 由 `tool-records` 行在同一插件体里从同一启动协调器的两个视图提供，不是运行时对象；装载器把两键登记为同提供者组 `tool-start`，两键出自不同行时装载前退出码 2 |
+| `toolClock` | `tool-executor` | 入口对象，由 `createLocalToolClock` 构成，与 Tool 运行时 bundle 用同一个实例，按运行的根共享（Tool B 段，R2-D185） |
+| 实例发布核验（`toolPublicationAuthority`） | `tool-instances` | 入口对象，同步核验实例发布：执行的租户合法、实例与代次与句柄一致，且记录仓读到过这个原调用的这次执行与来源证据才答允许，其余答 `denied`。见证只在本进程内（Tool B 段，R2-D185） |
 | Tool 结果策略 | Tool 宿主的输出适配阶段（`toolResultPolicy`） | 值是 tool-contract 的 `defaultResultPolicy`；无状态，不成行 |
 | 游标签名密钥 | `session-storage` | 只经取用入口交入，不进插件配置（[装配边界](../../../packages/session/session-storage-sql/docs/cordis.md#应用承担什么)） |
-| 时钟 | `session-provider`（`sessionClock`）、`agent-host`（`agentClock`）、`identity`（经入口对象 `identityClock`，不受信，在根上） | 缺席时按各成员规定返回 `unavailable`。`identity` 的时钟由 identity 自己的 `./cordis` 定义 `identityClock` 提供，装配入口在根上 provide 入口对象，不进受信子树。见 [SessionClock](../../../packages/session/session-contract/SPEC.md#sessionclock-与-sessionidleinput) |
+| 时钟 | `session-provider`（`sessionClock`）、`agent-host`（`agentClock`）、`identity` 与 `authorization`（经入口对象 `identityClock`，不受信，在根上） | 缺席时按各成员规定返回 `unavailable`。`identity` 的时钟由 identity 自己的 `./cordis` 定义 `identityClock` 提供，装配入口在根上 provide 入口对象，不进受信子树。见 [SessionClock](../../../packages/session/session-contract/SPEC.md#sessionclock-与-sessionidleinput) |
 | 凭据解析 | `model-host` | 只交凭据引用，不交秘密副本 |
 | 供应商传输适配 | `model-host` | 经注入交给 Model 宿主，不设供应商全局键 |
 
@@ -304,9 +345,9 @@ flowchart LR
 | --- | --- | --- | --- |
 | 授权适配 | 准入输入；identity 的核验器与 `TenantStandingSource` | `AdmissionDecision`；`agentAccessCheck`、`sessionAccessCheck`、`agentActionAdmission` | 读口或核验器不可答时是 `unavailable`，不改写成已知无权 |
 | 签发者安装 | identity 的签发者 | `server-entry` 经 `inject` 取得的签发者（签发作用域） | 未安装时 `server-entry` 行停在 `PENDING`；运行中签发失败时按[会话判断次序](../../../packages/access/public-contract/SPEC.md#会话判断次序)第 4 步返回 `basis-unavailable` |
-| 登录门的证据 | 首条普通输入的 `origin`（`owner` 为 `login-entry`） | `session-ad10` 的证据桥交给 `startRun` 的登录确认 | `origin` 不是登录入口证据时不给确认，Session 返回 `login-required`；它不进入公开结果 |
+| 登录门的证据 | `server-entry` 受理普通输入时写下的 `origin`（`owner` 为 `login-entry`，见[普通输入的来源与登录门](runtime-contract-handoff.md#普通输入的来源与登录门)） | Session 在 `startRun` 的提交事务里由存储参加者读首条输入保存的 `origin`，`decide` 核对；装配不另建桥，证据桥与采用来源都不经手（R2-D198） | `origin` 不是登录入口证据时 Session 返回 `login-required`；它不进入公开结果 |
 | 采用点冻结判定（装配协调者） | 本次 `SessionAccess` 的租户、常驻工具首次定义 shape 与精确采用事实；登记表快照（`toolBindings`）与重装回答（`toolGenerations`） | 新 Run 与显式 reload 均调用 `planAdoption`，把判定放进候选采用材料；由 `session-provider` 的 C2 提交命令及 `freeze` | 收集依据不可用时不补造判定。`toolGenerations` 缺席或 `ensureLoaded` 答 `unavailable` 时，协调者按暂时失败给替换件，不判冻结。登记表缺席时整份材料答 `unavailable` 还是按未知处理，读法待裁（L-TOOL 与 L-RUN 出候选，Reduce 批，波 2 联调前定）。完整失败按[采用点判定](../../../packages/tool/tool-contract/SPEC.md#采用点判定)与 Session 命令契约处理 |
-| 定义名映射 | 公开消息的定义名 | 每个定义名一条：定义候选、执行类型与入口契约的采用，`requiredIdentities`，`modes` 的默认值，以及按能力给出的 `ToolAuthority`（供首装 `ensureLoaded`，由 L-APP 行配置）；同一条也是 `agent-adoptions` 投影 `agentAdoptions` 的依据 | 定义名不在映射内时，服务端接入按会话判断次序第 5 步返回 `invalid` |
+| 定义名映射 | 公开消息的定义名 | 每个定义名一条：定义候选、执行类型与入口契约的采用，`requiredIdentities`，`modes` 的默认值，以及常驻工具的能力名 `residentCapabilities`（取自定义里 `resident` 的 Tool 引用；首装用的 `ToolAuthority` 由受信发行快照按名字解出，映射不另存）；同一条也是 `agent-adoptions` 投影 `agentAdoptions` 的依据 | 定义名不在映射内时，服务端接入按会话判断次序第 5 步返回 `invalid` |
 
 定义名映射是发行层数据，放在 `agent-adoptions` 行的配置里；`server-entry` 只选择用哪一份。`agent-adoptions` 只解析一次映射数据，用同一份只读表提供 `agentAdoptions` 与 `definitionMappings`；`server-entry` 与 `adoption-sources` `inject` `definitionMappings`，不再读第二份配置。映射非法时 `agent-adoptions` 行 `FAILED`。`modes` 的默认值来自映射条目，首条路径不读取租户设置。登录门与定义名映射的公开一侧见[公开接入与宿主](runtime-contract-handoff.md#318-公开接入与宿主)。
 
@@ -320,7 +361,7 @@ flowchart LR
 
 - 推导规则：每个租户一个事务域，事务域标识由租户的 tenantCodec 文本按 `session-storage` 行配置的规则推导。运行时新建的租户不需要改配置。
 - 一租户一事务域：Model 与 Tool 的耐久记录仓（`model-records`、`tool-records` 行）与会话日志在同一事务域，共用该事务域的写队列。它们经受信的 `tenantDomainLookup` 取得已登记租户的事务域，没有登记时不写入、不触发登记；它们的参加者与迁移材料进入下一条的组合登记。写队列争用是已知限制；存储测量超过阈值时重开分域。
-- 组合登记：会话存储组合内的 Session SQL 只在 `create` 提交通过 `sessionAccessCheck`、且目录已发布的快照里没有该租户时，调用目录的解析。解析先以该租户、推导出的事务域和配置的组合版本调用 `registerCombination`。参加者清单与登记材料（参加者模块与迁移片段）取自会话日志存储提供者的公开导出，以及 Model 与 Tool 耐久记录仓实现的公开导出。`agent-journal` 与 Session 共用同一日志发布根，每个事务域只登记一个组合；生产存储的具体参加者材料仍由其实现拥有者交付。`session-handoff` 的准入记录是 `execution-record` 参加者的新独立表与迁移，`model` 参加者与 `modelStorageMaterials()` 也并入这次登记，组合版本随之更换；M2 无发行，开发环境清存储根。已登记租户的补登记归 `session-storage` 行，放波 3。应用成员在构建时导入材料，不经插件树，也不另写一份名字。登记成功、该事务域的迁移片段按存储契约的期望 XP-5 执行完毕之后，才返回事务域；所以第一次提交之前登记与迁移都已完成。再次登记同一组合是幂等的；参加者清单与已登记的不一致时得到 `registration_conflict`，解析返回 `unavailable` 并报告诊断。读取与其他提交只查已发布快照，不登记、不迁移。`agent-host` 的 `jointCommits` 是共同提交的种类，另行与 Journal 提供者核对，不与这份名字清单比较。
+- 组合登记：会话存储组合内的 Session SQL 只在 `create` 提交通过 `sessionAccessCheck`、且目录已发布的快照里没有该租户时，调用目录的解析。解析先以该租户、推导出的事务域和配置的组合版本调用 `registerCombination`。参加者清单与登记材料（参加者模块与迁移片段）取自会话日志存储提供者的公开导出，以及 Model 与 Tool 耐久记录仓实现的公开导出。`agent-journal` 与 Session 共用同一日志发布根，每个事务域只登记一个组合；生产存储的具体参加者材料仍由其实现拥有者交付。`session-handoff` 的准入记录是 `execution-record` 参加者的新独立表与迁移，`model` 参加者与 `modelStorageMaterials()`、Tool 记录仓的 `tool` 参加者与迁移也并入这次登记，组合版本随之更换（发行现为 `session-composite/4`：R2-D185 换到 `/3`，Agent Journal 事实族的迁移加入后换到 `/4`，R2-D342）；M2 无发行，开发环境清存储根。已登记租户的补登记归 `session-storage` 行，放波 3。应用成员在构建时导入材料，不经插件树，也不另写一份名字。登记成功、该事务域的迁移片段按存储契约的期望 XP-5 执行完毕之后，才返回事务域；所以第一次提交之前登记与迁移都已完成。再次登记同一组合是幂等的；参加者清单与已登记的不一致时得到 `registration_conflict`，解析返回 `unavailable` 并报告诊断。读取与其他提交只查已发布快照，不登记、不迁移。`agent-host` 的 `jointCommits` 是共同提交的种类，另行与 Journal 提供者核对，不与这份名字清单比较。
 - 登记表：目录在第一次登记成功、返回事务域之前，把该租户写进登记表。登记表是存储根目录下由应用装配持有的一个文件，以先写临时文件、刷盘、再改名并刷盘目录的方式整体替换；它不是事务域，不经存储契约，只记租户的 tenantCodec 文本。登记表只记解析过的租户，不按 identity 核对租户是否存在：[TenantStandingSource](../../../packages/identity/identity/SPEC.md#当前资格读口) 不区分未知租户与非成员，而进入 Session 的租户已经经过身份桥的资格判断。登记表只增不删、不改。
 - 系统读取：Session SQL 经会话存储组合闭包内的只读快照遍历全部已登记租户的事务域（[XP-6](../../../packages/session/session-storage-sql/SPEC.md#xp-table)），不经 `tenantDomains`。目录缺席、重建中或任何事务域不可读时，`references` 与 `releasedScopes` 返回 `unavailable`，不返回空页或部分租户；AD-15 的重新释放保留任务并重试，换代协调者不能据此撤贡献。未登记租户的读取不触发登记。`agent-journal` 写共同提交之前，经受信的 `tenantDomainLookup` 取得已登记租户的事务域；没有登记时不写入、不触发登记。
 - 启动扫描与周期扫描的扫描者以部署扫描主体调用 `tenantDomains.enumerate`，取得一个修订的完整租户集合，再逐个租户读 `pending`。一轮只覆盖该修订的集合，扫描中目录变化不重启本轮；之后登记的租户由它的首次提交通知与下一轮覆盖。登记表丢失或损坏时，按存储根目录下的事务域文件重建；重建完成之前启动扫描不开始。重建有两个前提：存储提供者的文件名能还原事务域标识，推导规则能从事务域标识还原租户。两者都还没有承诺，见缺口表。
@@ -375,7 +416,14 @@ Session 实现的后继任务尚未建立；在它们写成可派发材料之前
 
 - 删除行 `session-ad01`，由 `agent-journal` 行兑现。运维者层若有指向 `session-ad01` 的覆盖，按 IC-16 启动失败。
 - 行 `session-ad02`、`session-ad05` 的必需列加 `sessionTransactions`；`session-ad03`、`session-ad04`、`session-ad05`、`session-ad12`、`session-ad14` 对 `sessionWorkPrincipals` 可见。
-- 行 `session-handoff` 进受信存储子树；行 `session-conditions` 移到波 4。
+- 行 `session-handoff` 进受信存储子树；行 `session-conditions` 移到波 4，后由 R2-D145 以最小实现提前到波 2（SC1）：进受信存储子树，并对 `definitionMappings` 可见。
 - 行 `model-records` 加 `modelClock`、`principalVerifier`、`tenantStanding` 与 `modelSendBoundary`；行 `adoption-sources` 加两个按调用现取的键。
 - 行 `model-host`、`model-records`、`model-request-preparation` 换成真件（B3-M，R2-D6、R2-D33）；`model` 参加者并入会话存储组合，发行 `combinationVersion` 换到 `session-composite/2`（R2-D65）；`modelHostAuthority` 成为真件，持有入口运行级的 Model 组合。
 - 行 `tool-bindings`、`tool-host`、`tool-residency` 换成真件（B3-T2a，R2-D66）；`tool-bindings` 加两个按调用现取的键，`tool-host` 加一个按调用现取的键与运维者层构造配置；运行时对象表加 Tool 贡献来源权威与发行登记者。
+- 行 `agent-host`、`agent-instances`、`session-ad14` 换成真件（SC4，R2-D162）；`agent-host` 的 `jointCommits` 与 `coordination` 由发行层写出。
+- 行 `agent-model-selection` 进受信存储子树，按调用现取 `storage`、`tenantDomainLookup`（G-SELECT，R2-D160）；行 `agent-context` 加两个按调用现取的键（G-TOOLS6，R2-D165）。
+- 受信子树加作用域「会话回放事实」：`sessionReplayFacts`、`sessionScopeLookup` 对 `session-ad03` 行可见，提供在受信作用域内，根上的同名提供者不再替换它（R2-D163、R2-D168）。
+- 行 `request-context` 加两个按调用现取的键 `principalVerifier`、`contextHolderSources`（SC2，R2-D163）；入口对象 `runtimeContextTrust` 经受信作用域读 `sessionReplayFacts`（R2-D168）。
+- 行 `tool-records`、`tool-runtime`、`tool-executor`、`tool-instances`、`tool-environments` 与 `execution-environment`、`execution-files`、`execution-command`、`execution-host` 换成真件（Tool B 段，R2-D185）；`tool-executor` 自供 `toolInstanceHost`，必需列去掉它；`tool` 参加者并入会话存储组合，发行 `combinationVersion` 换到 `session-composite/3`；入口对象表加 `toolClock`、`toolPublicationAuthority`；`agent-host` 的发行导出交入 Tool 请求来源。
+- 受信子树加作用域「identity 读口」：`principalVerifier`、`tenantStanding`、`identityGovernance` 进受信表（R2-D203 P-9），`check:aa-rows` 的 `pending` 清空。行 `identity` 提供 `identityGovernance`，邀请时长进配置；行 `authorization` 注入 `identityClock`，配置加 `maintenanceGrants`；行 `server-entry` 按调用现取 `identityGovernance`；登记代租户行事主体的持有者表（身份治理 K9，R2-D208、R2-D210、R2-D226）。
+- 行 `session-ad03` 只用 `session` 的 `'reader'` 调用方类（SCOPE-NARROW，R2-D238）。

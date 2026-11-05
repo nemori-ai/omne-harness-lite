@@ -4,11 +4,11 @@
 
 本成员拥有主体、组织成员、租户、登录与当前租户选择的事实，以及治理模型给出的可解释资格。业务规则的采用范围见 [SPEC](SPEC.md)。首批公开形状由 [#659](https://github.com/nemori-ai/omne-harness-lite/issues/659) 交付，依据是 [#638 的 2026-10-23 决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)：两种主体与复合主体、具名资格「组织成本账目读取」。
 
-已实现的部分：两种主体的类型、签发与核验接口、进程内权威；具名资格与角色映射；当前资格读口的类型。注册并激活、签发登录与识别登录三项操作的契约类型，条款见 SPEC ID-17。测试入口 `./testing` 提供这三项操作的进程内参考替身与契约测试套件。持久提供者：账号、组织、成员关系与登录的持久存储，以及读口和三项操作的真实实现，由 [`@omne-harness/identity-sql`](../identity-sql/README.md) 提供（SPEC ID-11）。尚未实现的部分：切换租户、查询、退出与撤销登录，以及成功业务访问报告的形状。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)判断。
+已实现的部分：两种主体的类型、签发与核验接口、进程内权威；具名资格与角色映射；当前资格读口的类型。注册并激活、签发登录与识别登录三项操作的契约类型，条款见 SPEC ID-17。治理端口 `IdentityGovernance` 的契约类型：组织与成员关系、当前租户切换、登录查询与撤销，以及成功业务访问报告，条款见 SPEC ID-18。测试入口 `./testing` 提供两组操作的进程内参考替身与两份契约测试套件。持久提供者：账号、组织、成员关系与登录的持久存储，以及读口和三项操作的真实实现，由 [`@omne-harness/identity-sql`](../identity-sql/README.md) 提供（SPEC ID-11）。尚未实现的部分：治理端口的持久兑现（identity-sql 的后续交付）、组织隶属与更换凭据。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)判断。
 
 ## 使用
 
-用包名导入公开入口。纯值依赖是 `@omne-harness/legal-identity`、`@omne-harness/operation-result` 与 `@omne-harness/utc-instant`。独立的 `./cordis` 入口使用 `@deepseek-ai/cordis` 4.0.4，提供四个原接口的抽象服务定义、注入时钟的定义 `IdentityClockService`（键 `identityClock`）与键，见 [Cordis 消费说明](docs/cordis.md)。根入口不加载 Cordis。
+用包名导入公开入口。纯值依赖是 `@omne-harness/legal-identity`、`@omne-harness/operation-result` 与 `@omne-harness/utc-instant`。独立的 `./cordis` 入口使用 `@deepseek-ai/cordis` 4.0.4，提供四个原接口的抽象服务定义、注入时钟的定义 `IdentityClockService`（键 `identityClock`）、治理端口的定义 `IdentityGovernanceService`（键 `identityGovernance`）与键，见 [Cordis 消费说明](docs/cordis.md)。根入口不加载 Cordis。
 
 ```ts
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -43,10 +43,12 @@ const acting = authority.issuer.issueActingForTenant({
 | `IssueLoginInput`、`IssueLoginOutcome`、`IssuedLogin`                                         | 签发登录的输入与结果                                         |
 | `RecognizeLoginInput`、`LoginRecognition`                                                     | 识别登录的输入与结果                                         |
 | `IdentityClock`、`ClockReading`、`LoginTermsSource`、`LoginTermsReading`、`LoginTerms`        | 注入的时钟与登录期限配置                                     |
+| `IdentityGovernance`、`GovernanceLogin`、`GovernanceActing` 及各操作的输入与结果类型          | 治理端口：组织与成员、当前租户、登录查询与撤销、成功业务访问报告 |
+| `InvitationTermsSource`、`InvitationTermsReading`、`InvitationTerms`                          | 注入的邀请期限配置                                           |
 
 ### 测试入口 `./testing`
 
-`@omne-harness/identity/testing` 只给测试使用，产品源码不导入它。参考替身只实现注册即激活这一种开通方案，账号与登录只在内存中。替身证明什么、不证明什么见 [SPEC ID-17](SPEC.md#id-17-注册激活签发登录与识别登录)。
+`@omne-harness/identity/testing` 只给测试使用，产品源码不导入它。参考替身只实现注册即激活这一种开通方案，账号与登录只在内存中。替身证明什么、不证明什么见 [SPEC ID-17](SPEC.md#id-17-注册激活签发登录与识别登录)。治理参考替身 `inProcessIdentity` 与三项操作共用同一份记录，见 [SPEC ID-18](SPEC.md#id-18-治理端口)。
 
 ```ts
 import { parseDuration, parseInstant } from '@omne-harness/utc-instant'
@@ -76,23 +78,26 @@ if (login.kind === 'succeeded') await identity.recognizeLogin({ loginProof: logi
 | `inProcessIdentityOperations({ clock, terms, faults })`、`InProcessIdentityOptions`                                                             | 三项操作的进程内参考替身。时钟与期限配置都须注入，没有默认值。`faults` 可选 |
 | `manualIdentityClock(start)`、`ManualIdentityClock`                                                                                             | 可控时钟：前进、后退、置为不可得                                            |
 | `adjustableLoginTerms(initial)`、`AdjustableLoginTerms`                                                                                         | 可控期限配置：改值、置为不可得                                              |
-| `recordStoreFaults()`、`RecordStoreFaultControl`、`RecordStoreFaults`、`RecordStore`                                                            | 可控记录库故障：使账号记录库或登录记录库对查询不作答                        |
+| `recordStoreFaults()`、`RecordStoreFaultControl`、`RecordStoreFaults`、`RecordStore`                                                            | 可控记录库故障：使账号、登录或组织记录库对查询不作答                        |
+| `inProcessIdentity({ clock, terms, invitationTerms, faults })`、`InProcessIdentity`、`InProcessIdentityGovernanceOptions`                        | 共用记录的三项操作与治理端口参考替身，带 `restart()`                        |
+| `adjustableInvitationTerms(initial)`、`AdjustableInvitationTerms`                                                                               | 可控邀请期限配置：改值、置为不可得                                          |
+| `checkIdentityGovernanceContract(fixture, options)`、`IDENTITY_GOVERNANCE_CONTRACT_CASES` 及其输入与报告类型                                    | 治理契约测试套件与用例清单                                                  |
 | `checkIdentityOperationsContract(fixture, options)`、`IDENTITY_CONTRACT_CASES`                                                                  | 契约测试套件与用例清单。真实提供者用同一套件检查自己                        |
 | `IdentityContractFixture`、`IdentityContractProviderOptions`、`IdentityContractOptions`、`IdentityContractReport`、`IdentityContractCaseResult` | 套件的输入与逐项报告                                                        |
 
 ## 契约
 
-公开类型在 `src/`。[SPEC](SPEC.md) 的 ID-16 拥有类型表达不了的条款：签发条件、核验的三种答复、资格的含义、读口答当下事实。ID-17 拥有三项操作的判断次序、结果种类、注入与期限条款。治理入口的租户冲突归 ID-08。其余条款沿 ID-01 至 ID-15。合法身份的纯值归 [legal-identity](../../common/legal-identity/README_ZH.md)。
+公开类型在 `src/`。[SPEC](SPEC.md) 的 ID-16 拥有类型表达不了的条款：签发条件、核验的三种答复、资格的含义、读口答当下事实。ID-17 拥有三项操作的判断次序、结果种类、注入与期限条款。ID-18 拥有治理端口的发起登录核对、可见性、判断次序与成功业务访问报告。治理入口的租户冲突归 ID-08。其余条款沿 ID-01 至 ID-15。合法身份的纯值归 [legal-identity](../../common/legal-identity/README_ZH.md)。
 
 签发与核验都不抛出：签发失败返回 `IssueFailure`，核验失败返回 `rejected` 或 `unavailable`。`verify` 是判定，不是解码：`verified` 带回的 `principal` 就是传入的那个对象。`scopeOf` 只提取作用域，不验证主体来源或当前资格。代租户主体的租户未经合法铸造时，它抛出 `TypeError`。手写主体即使携带合法租户，仍须经 `PrincipalVerifier` 核验来源。
 
 ## 设计
 
-`src/principal.ts` 定义两种主体与进程内权威。权威用 `WeakSet` 登记自己签发并冻结的对象；核验就是登记成员资格。`src/qualification.ts` 定义具名资格、角色映射和默认团队映射。`src/standing.ts` 只定义端口类型。`src/operations.ts` 定义三项操作、注入时钟与期限配置的类型。`src/testing/` 是测试入口：`double.ts` 是参考替身，`controls.ts` 是可控时钟、期限配置与记录库故障，`contract.ts` 是契约测试套件，`time.ts` 是替身的期限加法。[内部设计](docs/internals.md)维护机制与流程。
+`src/principal.ts` 定义两种主体与进程内权威。权威用 `WeakSet` 登记自己签发并冻结的对象；核验就是登记成员资格。`src/qualification.ts` 定义具名资格、角色映射和默认团队映射。`src/standing.ts` 只定义端口类型。`src/operations.ts` 定义三项操作、注入时钟与期限配置的类型。`src/governance.ts` 定义治理端口与邀请期限配置的类型。`src/testing/` 是测试入口：`records.ts` 是两个替身共用的内存记录，`double.ts` 是三项操作的参考替身，`governance-double.ts` 是治理参考替身，`controls.ts` 是可控时钟、期限配置与记录库故障，`contract.ts` 与 `governance-contract.ts` 是两份契约测试套件，`time.ts` 是替身的期限加法。[内部设计](docs/internals.md)维护机制与流程。
 
 ## 配置与运行
 
-本包不读环境变量，不创建进程。包根入口不创建账号、凭证或时钟。测试入口的参考替身只在内存中创建账号与登录。时钟与登录期限配置都由调用方注入，没有默认值。进程内权威的登记属于一份已加载的模块：主体经过 JSON、结构化克隆、worker 消息或另一个进程后不再带有签发。
+本包不读环境变量，不创建进程。包根入口不创建账号、凭证或时钟。测试入口的参考替身只在内存中创建账号与登录。时钟、登录期限配置与邀请期限配置都由调用方注入，没有默认值。进程内权威的登记属于一份已加载的模块：主体经过 JSON、结构化克隆、worker 消息或另一个进程后不再带有签发。
 
 ## 验证
 
@@ -109,7 +114,10 @@ if (login.kind === 'succeeded') await identity.recognizeLogin({ loginProof: logi
 | `tests/operations-double.spec.ts`                                | 替身的截止时刻来自注入的时长、闰秒限制、失效登录不恢复、端口抛出与诊断不含秘密、可控时钟       |
 | `tests/operations-scenario.spec.ts`                              | 只经包入口完成注册、登录与识别                                                                 |
 | `tests/operations.spec-d.ts`                                     | 三项操作结果种类的类型正反例                                                                   |
-| `tests/cordis.spec.ts`、`tests/cordis.spec-d.ts`                 | 五个定义的导出清单，四个原接口定义的真实注册、委托、撤除及原接口类型，复用 Operations 契约套件 |
+| `tests/cordis.spec.ts`、`tests/cordis.spec-d.ts`                 | 六个定义的导出清单，四个原接口定义的真实注册、委托、撤除及原接口类型，复用 Operations 契约套件；治理定义经真实 Context 运行治理契约套件 |
+| `tests/governance-contract.spec.ts`                              | 治理契约套件在两组配置下对参考替身全部通过，用例名覆盖交付规格的验收名，共用记录的三项操作仍过操作契约套件 |
+| `tests/governance-negative.spec.ts`                              | 负控：逐项关掉替身的一项核对，对应用例变红                                                     |
+| `tests/governance.spec-d.ts`                                     | 治理端口、Cordis 定义与结果种类的类型正反例；三项操作的形状不变                                |
 | `tests/identity-clock.spec.ts`、`tests/identity-clock.spec-d.ts` | `identityClock` 定义的注册、委托、撤除、消费者的 inject 等待及原接口类型                       |
 | `tests/cordis-package.spec.ts`                                   | 打包制品的根入口隔离、`./cordis` 实际消费及类型正反例                                          |
 
@@ -117,4 +125,4 @@ if (login.kind === 'succeeded') await identity.recognizeLogin({ loginProof: logi
 
 ## 维护
 
-改公开形状先改 `src/`，再同步 SPEC ID-16 或 ID-17、本页与消费者。三项操作的真实提供者用 `checkIdentityOperationsContract` 检查自己，并另行证明持久与恢复。当前消费者是 `packages/identity/authorization`。实现当前资格读口的提供者按 SPEC 的条款写自己的资源、失败与持久责任，不另写一份公共保证。
+改公开形状先改 `src/`，再同步 SPEC ID-16、ID-17 或 ID-18、本页与消费者。三项操作的真实提供者用 `checkIdentityOperationsContract` 检查自己，治理端口的真实提供者用 `checkIdentityGovernanceContract` 检查自己，并各自另行证明持久与恢复。当前消费者是 `packages/identity/authorization`。实现当前资格读口的提供者按 SPEC 的条款写自己的资源、失败与持久责任，不另写一份公共保证。

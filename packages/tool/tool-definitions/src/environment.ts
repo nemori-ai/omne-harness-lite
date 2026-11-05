@@ -1,10 +1,9 @@
 import type {
   CommandFacility,
   FacilityRequest,
-  FacilityResult,
   FileSystemFacility,
   TerminalFacility,
-  TerminalRef,
+  TerminalRetention,
 } from '@omne-harness/execution-environment-contract'
 
 type BoundRequest<T> = Omit<T, keyof FacilityRequest<unknown> | 'named'>
@@ -14,18 +13,8 @@ type BoundMethod<T> = T extends (request: infer R) => infer Answer
 type BoundFacility<T> = { readonly [K in keyof T]: BoundMethod<T[K]> }
 
 /** Optional consumer projection; old facilities fail closed for retained session operations. */
-type BoundTerminal = Omit<BoundFacility<TerminalFacility<unknown>>, 'create'> & {
-  create(
-    request: BoundRequest<Parameters<TerminalFacility<unknown>['create']>[0]> & {
-      readonly retain?: 'session'
-    },
-  ): ReturnType<TerminalFacility<unknown>['create']>
-  attach?(request: {
-    readonly terminal: TerminalRef
-  }): Promise<FacilityResult<{ readonly terminal: TerminalRef }>>
-  detach?(request: {
-    readonly terminal: TerminalRef
-  }): Promise<FacilityResult<{ readonly status: 'confirmed' | 'unconfirmed' }>>
+type BoundTerminal = Omit<BoundFacility<TerminalFacility<unknown>>, 'retention'> & {
+  readonly retention?: BoundFacility<TerminalRetention<unknown>>
 }
 type FileOperations = Omit<
   BoundFacility<FileSystemFacility<unknown>>,

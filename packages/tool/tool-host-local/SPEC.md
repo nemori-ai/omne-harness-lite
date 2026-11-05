@@ -12,7 +12,9 @@
 
 ## 本地启动协调器（G5）
 
-`createLocalStartCoordinator({ store, access, guardsOf, commitAttempts })` 返回 `ToolStartAuthority`。`commitAttempts` 不是正安全整数时抛 `TypeError`。
+`createLocalStartCoordinator({ store, access, guardsOf, commitAttempts, permitRequirements? })` 返回 `ToolStartAuthority`。`commitAttempts` 不是正安全整数时抛 `TypeError`。
+
+R2-D60（[#421 的采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6587795951)）限定本波只启动可信来源明确判定不需授权许可的完整固定动作。`permitRequirements` 的可选性只保持旧构造形状，缺席时不允许新启动。生产来源由装配提供，完整授权许可的 grant/consume 配对留在波 3。本包不从空资源、空能力列表、工具名或访问资格推导无需许可。
 
 ### 1 排序域
 
@@ -24,7 +26,9 @@
 
 ### 2 许可与守卫
 
-`prepare` 核对资格、启动记录与固定请求，然后对 `guardsOf(request)` 的每个资源读取当前守卫修订号，从未失效的守卫是 `0`。它把许可提交为该启动的当前许可，再回复许可。新许可替换同一启动的旧许可。许可本身不授权执行。
+`prepare` 在首次异步等待前固定租户、调用、启动记录与完整请求，保留原主体引用。请求经契约判断器复制并冻结，不冻结调用方对象。它先核访问资格，再进入本租户串行区重核资格和当前许可需求。只有 `not-required` 携带完整 `DurableEvidence` 时才签发许可。`required` 回复 `unsupported`，采用为 `startCoordinatorAdoption`，原因为 `authorization-permit-required-in-wave2`。缺来源、未知、不可用、抛错或非法答复均回复 `unavailable`，依赖为 `start-permit-requirements`，不公开异常正文。
+
+协调器对 `guardsOf(request)` 的每个资源读取当前守卫修订号，从未失效的守卫是 `0`。许可记录保存完整固定请求、规范摘要、租户/调用/完整启动/原许可摘要的绑定，以及本次无需许可的来源证据。相同待决启动的不同固定请求回复 `conflict`。旧待决记录缺少完整绑定时回复 `unavailable`，不覆盖旧记录。请求相同的新许可可替换当前许可，但不清除已有的永久拒绝或受理。许可本身不授权执行。
 
 `invalidate` 把一个守卫的修订号加一，与失效操作记录一起提交之后才回复失效证据。每个租户内，操作号绑定完整守卫输入的规范摘要与首次证据。摘要涵盖 owner、resource、revision、完整 evidence 与 scope 变体的全部契约字段，不受属性顺序或额外属性影响。同操作号、同输入重送时回复首次证据，守卫不再前进；同操作号、异输入回复 `conflict`，`operation` 为本次操作号，不写记录。后续失效或使用同一记录仓重建协调器不改变原操作的绑定。提交结果未知回复 `commit-unknown`，不可用回复 `unavailable`，两者都不给证据。
 
@@ -35,9 +39,11 @@
 1. 该启动已有受理时回复原 `started`，已有启动拒绝或整次调用的排除时回复原 `rejected`。
 2. 许可不是该启动的当前许可（摘要不同，或已被 `inspect` 收回）：有排除标记时回复 `not-started` 与该标记，否则回复 `invalid`（`permit: not-issued`）。
 3. 许可里任一守卫的修订号已不是当前修订号：提交永久的启动拒绝，回复 `rejected`。失效先成立，所以不发起。
-4. 否则提交唯一的受理并收回许可，回复 `started`。受理先成立，所以之后的失效只影响后来的启动。
+4. 从持久记录重新校验完整请求、规范摘要与原许可绑定。旧待决记录缺完整请求或绑定时回复 `unknown`，保留原身份。
+5. 在串行区内重核当前访问资格和许可需求。访问被拒或明确需要许可时，提交永久拒绝并收回许可。需许可的原因为 `authorization-permit-required-in-wave2`。依赖不可用、缺席、未知、抛错或非法答复时回复 `unknown`，保留待决许可，不保存受理。
+6. 当前资格与无需许可结论成立后，提交唯一受理并收回许可，回复 `started`。受理记录与受理证据包含消费时的无需许可来源证据，不伪造授权许可消费事实。每次 CAS 冲突都重读记录并重核来源，不沿用上次允许结果。
 
-受理提交结果未知回复 `unknown`，之后重送同一许可会认回受理。
+受理或拒绝提交结果未知回复 `unknown`。之后重送同一许可认回实际提交的原事实。已有受理或拒绝无需再次查询许可需求来源，入口的访问资格检查仍然适用。旧受理不因缺少新来源字段而消失。最终重核后来源变化仍属于已有残余窗口，本包不承诺跨来源的瞬时撤权。
 
 ### 4 inspect
 
@@ -121,7 +127,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 - Catalog 只列出 `live` 的贡献。同名的多份贡献取登记序号最小的一份。`inspect` 对不存在的名字与只有他租户登记的名字给出同一个回复（`invalid`，`unknown-tool`），不泄露存在性。`search` 按名字排序、每个名字一项，游标是上一页最后一项的名字，所以翻页期间新登记的工具不会让已发出的游标重复或漏项。可用性由注入的 `availability` 端口给出已核验的事实（资格、依赖、输入输出与附件兼容），Catalog 不从调用方取事实；端口不可答时回复 `unavailable`，不当作可用。
 - 执行者命令的用法文本与协议不在定义里，`usage` 对它回复 `unavailable`，不编造。
 
-已知限制：登记不耐久，只在单进程内成立；没有核验器的生产提供者（归应用装配）；工作区层不可见；整套 runtime 的 `./cordis` 入口未交付。
+已知限制：登记不耐久，只在单进程内成立；没有核验器的生产提供者（归应用装配）；工作区层不可见；`./cordis` 已提供运行时组合工厂，真实外域提供者由应用装配负责。
 
 ## 宿主时钟（G4）
 
@@ -182,7 +188,39 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 ## 实例宿主与普通调用的边界
 
-本包尚未提供生产 ToolInstanceHost 或 ToolInstanceIdentities。来源签发器与操作身份已提供，见[账本守卫](#账本守卫tl-11)。宿主实现须在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不再接受全局 instance。当前测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger 和本地启动协调器组合，driver 的 instance 由测试 host 提供。这只证明单进程非耐久组合，不证明 claim、换实例接管或恢复。
+`createLocalToolRuntimePlugins` 组装生产实例宿主和实例身份。宿主在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不接受全局 instance。执行器在每次投递结果之后用一次新鲜恢复判定调用是否完成（已结清、没有 pending 任务、投递 pending 为 0）；完成的调用在没有 run 进行时退役，若有 run 正在进行则在该 run 结束时退役，重试 interval 不再重排它。同一租户的投递 run 按到达顺序轮流，后来的调用等自己的轮次；capacity 按在途的租户数计（每租户同时至多一个 run），一个租户在途加排队的 run 不超过 capacity，排队不占别的租户的名额（R2-D164、R2-D186）。超出时答 `unavailable`，`dependency` 为 `delivery-capacity`：它表示这个租户的在途加排队已满，或在途的租户数已满，不再表示“同租户已有 run 在途”。交付仍欠，由重试 interval 再推。组合测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger、本地启动协调器与实例宿主贯通。该证据不证明真实 SQL/Windows 端到端、claim、换实例接管或重启恢复。精确装配责任见[运行时组合工厂](docs/cordis.md#运行时组合工厂)。
+
+## 结果交付的推送退避
+
+执行器把结果推给冻结 owner 的接收方。接收方可能缺席，也可能在场却答 `unavailable`。后一种情形实测过：Journal 拒收一笔超限提交，同一笔被重推 714 次。两种情形走同一套退避（R2-D273、R2-D282）。
+
+- 触发：查找接收方答 `unavailable`（含缺席，`dependency` 为 `tool-result-receiver`），或接收方对推送答 `unavailable`。`denied`、`invalid` 等确定失败与接收方抛出的异常不退避，但不静默，见下文「确定失败」。推送被取消不退避。
+- 交付保持待推，不算失败，也不丢。退避期内再次驱动同一交付，不查找也不推送，答 `unavailable`。
+- 退避按交付记录计：首次等 `driverRetryDelayMs`（缺省 1000 ms），之后每次加倍，封顶 60000 ms。
+- 每次进入退避写一条具名 warn，写到 `tool-executor` 日志。内容有交付、调用、接收方 owner、`dependency` 与 `diagnostic`、下次推送的间隔。退避期内不再写。
+- 接收方答出非 `unavailable` 的结果（推送成功，或确定失败）后，退避清除。下一次故障从首次等待起算。
+- 退避在内存里。进程重启后从首次等待起算。
+
+### 确定失败（R2-D327）
+
+接收方对推送或查找答 `denied`、`invalid` 等非 `unavailable` 的失败，或查找或推送抛出异常，都是确定失败。
+
+- 交付保持待推，不算失败，也不丢。这次驱动答 `unavailable`，`dependency` 为 `delivery-receiver`，与其他未完成的推送相同。异常在这一次推送内收束，不使同一调用的其他交付停止。
+- 每次确定失败写一条具名 warn，写到 `tool-executor` 日志。内容有租户、调用、交付、接收方 owner，以及原因：失败答复的 `kind` 与其命名字段，或异常的名称与消息（最多 200 字符）。
+- 不退避：下一次驱动立即再推，节奏只受 driver 重试间隔约束。因此每次再推也写一条 warn。
+- 确定失败清除该交付的退避。
+
+### 退避表项的生命期（R2-D327）
+
+退避表项属于交付本身，表的大小只与正在进行的交付有关。表项在这些时刻释放：
+
+- 接收方答出非 `unavailable` 的结果：推送成功或确定失败。
+- 一次 run 结束时没有看到该交付仍待推：交付已保存、已释放、已完成或不再存在。run 被取消或读取不完整时不据此释放。
+- 调用被撤权：驱动入口或 run 内的访问判定答 `denied`，释放该调用的全部表项。
+- 执行器放弃调用：调用退役，或调用已由另一实例执行。执行器经 `release` 释放该调用的全部表项。
+- 交付 worker 关闭：全部表项清空。
+
+`pacedEntries()` 返回当前表项数，执行器的 `diagnostics()` 以 `pacedDeliveries` 带出。
 
 ## 作者装载与执行绑定
 
@@ -190,7 +228,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 `createLocalToolBindings` 在登记表内原子选择并 pin 装载句柄。首选请求记下的键，包括 draining；回退只选同形、可访问的 live 贡献，并取最早登记的一份。绑定按 tenant/call 固定请求，按 tenant/call/start 认回执行。它核原 executor 与 permit 身份，先完成 `authority.consume`，再调用作者。未知消费不进入作者，不重放消费或执行。
 
-同一绑定为其他调用取得 pin 时，登记表在同步步骤中核对原注册仍在且该租户可访问。原注册撤除后，同键后继不能替它提供 pin；即使后继复用了同一个装载句柄，也属于另一注册。已保留的原 start 仍认回原结果。参数解析、执行和结果转换使用同一次选定的命令操作，未知命令在消费许可前拒绝。
+同一绑定为其他调用取得 pin 时，登记表在同步步骤中核对原注册仍在且该租户可访问。原注册撤除后，同键后继不能替它提供 pin；即使后继复用了同一个装载句柄，也属于另一注册。已保留的原 start 仍认回原结果。参数解析、执行和结果转换使用同一次选定的命令操作，未知命令在消费许可前拒绝。多命令工具的参数是整次调用（D-94）：执行前与结果转换时，绑定都先用 `commandArguments` 按定义的编码切出固定请求所选命令的参数，再交给该命令的参数解析。调用点名别的命令、无法解码，或该命令的参数解析答 `invalid` 时，执行失败，不改用调用点名的命令。失败原因是 `describeCommandArgumentsRejection` 的文本：先写原因，后接所选命令的 guide，模型读到它（D-104）。参数解析答 `incomplete` 时只写原因。
 
 启动输入确定无效时，绑定释放本调用尚未使用的解析 pin。合法重试须重新取得原注册的 pin。已经发起或结果未知的执行不受该清理影响。同形回退的 executor 与固定 start.executor 不同时，本实现仍拒绝启动并释放未使用的 pin。该回退如何衔接固定请求与实际执行来源，仍须 Tool 账本、Driver 和绑定的组合承担者闭合；当前作者工厂不声明这条路径可执行。
 
@@ -203,7 +241,6 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 [作者装载测试](tests/author-loading.spec.ts)验证装载及拒绝；[执行绑定测试](tests/author-binding.spec.ts)运行全部 23 条 N7 判据；[真实 Cordis 测试](tests/author-generations.spec.ts)验证 fiber 归属、失败撤除、排空与读取失败保留。外部来源、设置、schema 检查、启动 authority 和结果保管在这些测试中是测试提供者；不据此声明完整 runtime 装配已完成。
 
 [绑定回归测试](tests/author-binding-regressions.spec.ts)验证注册化身隔离、多命令的参数与操作选择，以及拒绝启动后的 pin 清理。跨 executor 同形回退的用例只证明安全拒绝与清理。
-
 
 ## 具名偏离：热换代作者保留
 

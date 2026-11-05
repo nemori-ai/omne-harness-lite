@@ -1,10 +1,7 @@
 import type { ModelFailure, ModelReferenceFailure } from '@omne-harness/model-contract'
 
 /** Reference rejection precedes all object and permission lookups. */
-export function referenceFailure(
-  failure: ModelReferenceFailure,
-  action: string,
-): { failure: ModelFailure } {
+export function referenceFailure(failure: ModelReferenceFailure): { failure: ModelFailure } {
   switch (failure.kind) {
     case 'malformed':
       return {
@@ -16,7 +13,5 @@ export function referenceFailure(
       }
     case 'invalid-tenant':
       return { failure: { kind: 'denied', action: 'tenant' } }
-    case 'foreign-tenant':
-      return { failure: { kind: 'denied', action } }
   }
 }

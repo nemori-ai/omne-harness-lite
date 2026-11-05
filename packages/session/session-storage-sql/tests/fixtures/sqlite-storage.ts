@@ -32,14 +32,18 @@ import admissionAttemptMigration from '../../src/worker/admission-attempt-migrat
 import indexMigration from '../../src/worker/execution-index-migration.ts'
 import recordMigration from '../../src/worker/execution-record-migration.ts'
 import executionRecord from '../../src/worker/execution-record.ts'
+import factBlobMigration from '../../src/worker/fact-blob-migration.ts'
 import factBodyMigration from '../../src/worker/fact-body-migration.ts'
 import migration from '../../src/worker/migration.ts'
 import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
 import participant from '../../src/worker/participant.ts'
 import preadmissionMigration from '../../src/worker/preadmission-migration.ts'
-import readExecutionFacts from '../../src/worker/read-execution-facts.ts'
+import readBinding from '../../src/worker/read-binding.ts'
+import readBlob from '../../src/worker/read-blob.ts'
+import readExecutionBatches from '../../src/worker/read-execution-batches.ts'
+import readExecutionEvents from '../../src/worker/read-execution-events.ts'
+import readExecutionOpen from '../../src/worker/read-execution-open.ts'
 import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
-import readExecutionParts from '../../src/worker/read-execution-parts.ts'
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
@@ -54,11 +58,14 @@ import readWorkIndex from '../../src/worker/read-work-index.ts'
 import readWorkReads from '../../src/worker/read-work-reads.ts'
 import readWorkVersion from '../../src/worker/read-work-version.ts'
 import readWork from '../../src/worker/read-work.ts'
+import stateItemMigration from '../../src/worker/state-item-migration.ts'
+import attemptGrantMigration from '../../src/worker/attempt-grant-migration.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
   readWork,
   readWorkVersion,
+  readBinding,
   readWorkIndex,
   readWorkReads,
   readInput,
@@ -69,9 +76,11 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readReferences,
   readReleasedScopes,
   readHistoryRoot,
-  readExecutionParts,
-  readExecutionFacts,
+  readExecutionBatches,
+  readExecutionOpen,
+  readExecutionEvents,
   readExecutionOperation,
+  readBlob,
   readExecutionSession,
   readPreadmission,
 ]
@@ -86,10 +95,13 @@ const MIGRATIONS: readonly MigrationModule[] = [
   recordMigration,
   indexMigration,
   evidenceMigration,
+  stateItemMigration,
+  attemptGrantMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,
   factBodyMigration,
+  factBlobMigration,
 ]
 
 export type StorageCall =
@@ -104,6 +116,11 @@ export type SqliteStorage = Readonly<{
   readSql: string[]
   /** Every SELECT that a participant ran inside a write transaction, with the rows it returned. */
   participantReads: { sql: string; rows: number }[]
+  /**
+   * Every other statement that a participant ran inside a write transaction, with the length of its
+   * text parameters: what a commit wrote, whether the transaction then committed or not.
+   */
+  participantWrites: { sql: string; text: number }[]
   /** Domains that exist, by transaction domain name. */
   domains(): readonly string[]
   /** Seeds derived rows that the commands of this test cannot produce (a test set-up, not a path). */
@@ -159,6 +176,7 @@ export function createSqliteStorage(): SqliteStorage {
   const calls: StorageCall[] = []
   const readSql: string[] = []
   const participantReads: { sql: string; rows: number }[] = []
+  const participantWrites: { sql: string; text: number }[] = []
   let failing: string | null = null
   let lose = false
   let writeFault: { pattern: RegExp; left: number } | null = null
@@ -213,6 +231,14 @@ export function createSqliteStorage(): SqliteStorage {
             faultAt(sql)
             const result = rowsOf(domain.db, sql, params)
             if (/^\s*SELECT/i.test(sql)) participantReads.push({ sql, rows: result.rows.length })
+            else
+              participantWrites.push({
+                sql,
+                text: params.reduce<number>(
+                  (sum, value) => sum + (typeof value === 'string' ? value.length : 0),
+                  0,
+                ),
+              })
             return result
           },
           requireFact: () => null,
@@ -337,6 +363,7 @@ export function createSqliteStorage(): SqliteStorage {
     calls,
     readSql,
     participantReads,
+    participantWrites,
     domains: () => [...domains.keys()],
     seed: (name, sql, params = []) => {
       const domain = domains.get(name)

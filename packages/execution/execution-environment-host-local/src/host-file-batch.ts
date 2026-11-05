@@ -80,7 +80,7 @@ type ManifestEntry = Readonly<{
  */
 type ManifestState = 'staging' | 'publishing' | 'committed' | 'conflict'
 
-type Manifest = Readonly<{
+export type Manifest = Readonly<{
   version: 1
   id: string
   generation: string
@@ -129,7 +129,7 @@ function isManifest(value: unknown): value is Manifest {
 }
 
 /** Writes the manifest as a whole: a new file, synced, then renamed over the old one. */
-async function writeManifest(file: string, manifest: Manifest): Promise<void> {
+export async function writeManifest(file: string, manifest: Manifest): Promise<void> {
   const temporary = `${file}.${randomUUID()}.tmp`
   const handle = await open(
     temporary,
@@ -178,7 +178,7 @@ function outcomeOf(requestId: string, value: FileBatchOutcome): FacilityResult<F
 }
 
 /** The reason the entries as a whole are unsound, found without the file system. */
-function entriesRefusal(entries: Entries): FacilityReason | undefined {
+export function entriesRefusal(entries: Entries): FacilityReason | undefined {
   if (entries.length === 0) return 'invalidInput'
   const targets = entries.map(entry => entry.path)
   if (!targets.every(isHostPath)) return 'invalidInput'
@@ -190,7 +190,7 @@ function entriesRefusal(entries: Entries): FacilityReason | undefined {
 }
 
 /** The reason a recovery request is refused without the file system; the state directory must be configured. */
-function recoverRefusalOf(
+export function recoverRefusalOf(
   request: RecoverRequest,
   stateDirectory: string | undefined,
 ): FacilityReason | undefined {
@@ -279,7 +279,7 @@ async function publishReplacement(item: Staged): Promise<Stop | undefined> {
 }
 
 /** True when the manifest is the batch of this tenant, of the generation asked for. */
-function isBatchOf(manifest: Manifest, tenant: string, batch: FileBatchRef): boolean {
+export function isBatchOf(manifest: Manifest, tenant: string, batch: FileBatchRef): boolean {
   return (
     manifest.tenant === tenant &&
     manifest.id === batch.id &&
@@ -288,7 +288,7 @@ function isBatchOf(manifest: Manifest, tenant: string, batch: FileBatchRef): boo
 }
 
 /** The manifest of a batch, or why there is none. */
-async function loadManifest(file: string): Promise<Manifest | 'absent' | 'unreadable'> {
+export async function loadManifest(file: string): Promise<Manifest | 'absent' | 'unreadable'> {
   let parsed: unknown
   try {
     parsed = JSON.parse(await readFile(file, 'utf8'))

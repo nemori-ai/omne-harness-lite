@@ -43,7 +43,7 @@ flowchart LR
 4. 根入口不导入 `@deepseek-ai/cordis`（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。本包没有 Cordis 入口，会话存储组合由应用承担，见[装配边界](cordis.md)。
 5. 本成员不导入 `session`、`session-cordis`、`session-adapters` 或任何邻域契约。领域判断只来自 `session-contract` 与 message 包的纯函数，本成员不另写允许或拒绝的规则。
 
-`package.json` 的依赖是 legal-identity、operation-result、session-contract、session-cordis-contract 与 sql-contract。
+`package.json` 的依赖是 json-text、legal-identity、operation-result、session-contract、session-cordis-contract 与 sql-contract。json-text 只用于 `sl_entry.entry` 文本的无损读写（`src/entry-codec.ts`）。
 
 ## 关键机制与理由
 
@@ -63,7 +63,7 @@ flowchart LR
 
 快照（`sl_state`）与七个派生索引在条目的同一事务里写入（[W3](../SPEC.md#w3)、[TB-02](../SPEC.md#tb-02)）。压缩提交在写入时物化新 epoch 的模型视图行（[W4](../SPEC.md#w4)）。读路径只读这些行，不在请求路径上重放日志或重算视图。
 
-理由：读路径的成本必须与历史长度 N 无关（R1、R3、R5、R7、R8）。派生物在变化时算出一次，读取只做点查与范围扫描。代价是每次提交多写派生行，压缩提交多复制 O(|retained| + 保留尾) 行索引。按条目计，写放大约为 3～6 行索引加一次 `sl_state` 替换。换来的是每条读路径都是点查或有界范围扫描。会话日志读多写少：每次模型请求、时间线翻页和恢复都读日志，而条目只在提交时写一次，所以采用这项取舍。派生物可以从 `sl_entry` 重算，所以它们不是第二份权威，[C-01](../SPEC.md#c-01) 以影子表集合差检查两者相等。
+理由：读路径的成本必须与历史长度 N 无关（R1、R3、R5、R7、R8）。派生物在变化时算出一次，读取只做点查与范围扫描。代价是每次提交多写派生行，压缩提交多复制 O(|retained| + 保留尾) 行索引。按条目计，写放大约为 3～6 行索引，加快照的头行与变了的分块（[快照的存储形态](../SPEC.md#快照的存储形态)）。换来的是每条读路径都是点查或有界范围扫描。会话日志读多写少：每次模型请求、时间线翻页和恢复都读日志，而条目只在提交时写一次，所以采用这项取舍。派生物可以从 `sl_entry` 重算，所以它们不是第二份权威，[C-01](../SPEC.md#c-01) 以影子表集合差检查两者相等。
 
 重判条件：某个读路径的退化条件在实测中成为常态，例如 R2 的稀疏过滤经常达到 `maxScanPerPage`，再考虑为它增加派生索引。新索引必须同时进入 W3、C-01 与重建。
 
@@ -103,7 +103,7 @@ sql-contract 给参加者一条业务响应通道，响应证据与回执同事�
 | --- | --- | --- |
 | `commitEntries` | 同批原子性由一次存储提交给出。同一通道的并发互斥来自租户事务域的串行写，不来自本成员。RD-1 至 RD-3 只在提交路径核对，因为没有快照重建 | 规则归 session-contract 拥有者，互斥归应用装配，见 [SPEC 已知限制](../SPEC.md#已知限制)第 1 条 |
 | 夹具不经过 sqlite-provider | 用例在 `node:sqlite` 上直接运行 participant 与 handler。Worker、持久、关闭、队列与限额没有覆盖 | 本成员与提供者拥有者，见 [SPEC 已知限制](../SPEC.md#已知限制) |
-| 尚未实现的设计 | `sl_batch`、`sl_blob`、`sl_ref_idx`、R9 追赶与重建、PostgreSQL、`maxScanPerPage` | 本成员，见 [SPEC 实现现状](../SPEC.md#实现现状) |
+| 尚未实现的设计 | `sl_batch`、条目的 `payload_ref`、`sl_ref_idx`、R9 追赶与重建、PostgreSQL、`maxScanPerPage` | 本成员，见 [SPEC 实现现状](../SPEC.md#实现现状) |
 | R7 代次 1 | 源码返回 `not-committed`，规格要求 `unknown` | 待 Session 契约拥有者裁定 |
 | 对象存储作为 blob 去向 | 没有 blob 去向，载荷一律内联 | 对象或文件存储契约的拥有者（[issue 541](https://github.com/nemori-ai/omne-harness-lite/issues/541)） |
 | 登记键到能力身份的绑定 | 假定 SE08 的登记键按能力身份列出。不成立时 R10 不可用 | Tool 契约与事件目录 |

@@ -194,6 +194,7 @@ for (const kind of ['custody', 'processed'] as const)
             run: before.run.run,
             instance: { owner: 'agent', id: 'successor-instance' },
             continuity: evidence('continuity'),
+            expected: before.run.revision,
           },
         },
         guards: [],

@@ -22,6 +22,8 @@ import {
 } from '@omne-harness/session-contract'
 import type { DomainRef, JsonValue, SqlStorage } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue } from './codec.ts'
+import { readEntryTexts, StoredEntryMalformed } from './entry-codec.ts'
+import type { HistoryBasis, WorkIndexInput } from './worker/history-index.ts'
 import { PROTOCOL } from './worker/schema.ts'
 
 /** The sessions the cache keeps by default; past it the least recently used session goes. */
@@ -46,8 +48,11 @@ type Entry = Readonly<{ version: WorkVersion; bytes: number; snapshot: WorkSnaps
 export type WorkCache = Readonly<{
   /** The entry of `key`, now the most recently used one. */
   get(key: string): Entry | undefined
-  /** Keeps `entry` unless it is older than the entry it would replace; then applies the bounds. */
-  set(key: string, entry: Entry): void
+  /**
+   * Keeps `entry` unless it is older than the entry it would replace or past the bounds; then
+   * applies the bounds. True when the entry is kept.
+   */
+  set(key: string, entry: Entry): boolean
   delete(key: string): void
   /**
    * The whole reads in flight, by key and version: a read that finds one for the version it read
@@ -59,6 +64,8 @@ export type WorkCache = Readonly<{
    * version waits for the fold and answers its entry instead of reading the snapshot whole.
    */
   readonly folds: Map<string, Promise<void>>
+  /** How the folds and index replacements into this cache ended, for measurement. */
+  readonly counts: WorkFoldCounts
   readonly size: number
   readonly bytes: number
 }>
@@ -69,6 +76,11 @@ export type WorkCache = Readonly<{
  */
 export function workKey(domain: string, tenant: string, session: string): string {
   return JSON.stringify([domain, tenant, session])
+}
+
+/** The key of the reads and folds in flight of one session at one version. */
+function flightKey(key: string, version: Readonly<{ tail: string; published: string }>): string {
+  return `${key}|${version.tail}|${version.published}`
 }
 
 const count = (text: string): bigint => BigInt(text)
@@ -120,19 +132,22 @@ export function createWorkCache(bounds: WorkCacheBounds = {}): WorkCache {
     set(key, entry) {
       const held = entries.get(key)
       // A slower read of an older version does not replace the answer of a newer one.
-      if (held !== undefined && compare(entry.version, held.version) < 0) return
+      if (held !== undefined && compare(entry.version, held.version) < 0) return false
       drop(key)
-      if (sessions === 0 || entry.bytes > budget) return
+      if (sessions === 0 || entry.bytes > budget) return false
       entries.set(key, entry)
       used += entry.bytes
+      // The entry is the newest one and fits the bounds alone, so only older entries go.
       for (const oldest of entries.keys()) {
         if (entries.size <= sessions && used <= budget) break
         drop(oldest)
       }
+      return true
     },
     delete: drop,
     flights: new Map(),
     folds: new Map(),
+    counts: { folded: 0, indexed: 0, skipped: 0, quarantined: 0, stale: 0, republished: 0 },
     get size() {
       return entries.size
     },
@@ -226,9 +241,13 @@ async function readOne(
         unavailable: `read ${handler}: ${result.kind === 'cancelled' ? 'cancelled' : result.reason}`,
       }
     const output = result.output
-    return typeof output === 'object' && output !== null && !Array.isArray(output)
-      ? { output: output as Record }
-      : { unavailable: `read ${handler}: not a record` }
+    if (typeof output !== 'object' || output === null || Array.isArray(output))
+      return { unavailable: `read ${handler}: not a record` }
+    // A stored row that does not read (worker/support.ts `handler`).
+    const record = output as Record
+    return record['kind'] === 'malformed'
+      ? { unavailable: `read ${handler}: ${String(record['diagnostic'])}` }
+      : { output: record }
   } catch (error) {
     return {
       unavailable: `read ${handler} threw: ${error instanceof Error ? error.message : String(error)}`,
@@ -257,29 +276,20 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
   // Taken before the version read: its version can then be no newer than the version read, so a
   // version below it means the store went back, never a commit that came in between.
   const held = cache.get(key)
-  const versionRead = await readOne(reach, WORK_VERSION_HANDLER)
-  let version: WorkVersion | null = null
-  if ('output' in versionRead) {
-    const current = versionRead.output
-    if (current['kind'] === 'absent') {
+  const version = await readVersionOf(reach)
+  if (version === 'absent') {
+    cache.delete(key)
+    return { kind: 'absent' }
+  }
+  // The snapshot row is replaced only in the transaction that moves the tail, and an entry is
+  // kept only from a whole read that found it covering its tail: an equal tail is covered still.
+  if (version !== null && held !== undefined) {
+    if (sameVersion(version, held.version)) return { kind: 'state', snapshot: held.snapshot }
+    if (movedBack(version, held.version)) {
       cache.delete(key)
-      return { kind: 'absent' }
-    }
-    const tail = textOf(current['tail'])
-    const published = textOf(current['published'])
-    // The snapshot row is replaced only in the transaction that moves the tail, and an entry is
-    // kept only from a whole read that found it covering its tail: an equal tail is covered still.
-    if (current['kind'] === 'version' && tail !== null && published !== null) {
-      version = { tail, published }
-      if (held !== undefined) {
-        if (sameVersion(version, held.version)) return { kind: 'state', snapshot: held.snapshot }
-        if (movedBack(version, held.version)) {
-          cache.delete(key)
-          return {
-            kind: 'unavailable',
-            diagnostic: `the session log moved backwards from tail ${held.version.tail} published ${held.version.published} to tail ${tail} published ${published}`,
-          }
-        }
+      return {
+        kind: 'unavailable',
+        diagnostic: `the session log moved backwards from tail ${held.version.tail} published ${held.version.published} to tail ${version.tail} published ${version.published}`,
       }
     }
   }
@@ -287,7 +297,7 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
   // Concurrent readers of one key that read one version share that whole read; a reader whose
   // version read failed reads alone.
   if (version === null) return readWhole(reach, cache, key)
-  const flight = `${key}|${version.tail}|${version.published}`
+  const flight = flightKey(key, version)
   const folded = await afterFold(cache, key, flight, version)
   if (folded !== undefined) return { kind: 'state', snapshot: folded }
   const running = cache.flights.get(flight)
@@ -295,6 +305,22 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
   const started = readWhole(reach, cache, key).finally(() => cache.flights.delete(flight))
   cache.flights.set(flight, started)
   return started
+}
+
+/**
+ * The version of the session in the store (`session.work-version`): `absent` when no session of
+ * the tenant has the name, null when the read failed or answered no version.
+ */
+async function readVersionOf(reach: WorkReach): Promise<WorkVersion | 'absent' | null> {
+  const read = await readOne(reach, WORK_VERSION_HANDLER)
+  if (!('output' in read)) return null
+  const current = read.output
+  if (current['kind'] === 'absent') return 'absent'
+  const tail = textOf(current['tail'])
+  const published = textOf(current['published'])
+  return current['kind'] === 'version' && tail !== null && published !== null
+    ? { tail, published }
+    : null
 }
 
 /**
@@ -389,11 +415,11 @@ export type WorkFold = Readonly<{
   basis?: JsonValue
 }>
 
-/** How the folds and index replacements of this process ended, for measurement. */
+/** How the folds and index replacements into the cache of one database ended, for measurement. */
 export type WorkFoldCounts = {
-  /** A commit folded and registered. */
+  /** A commit folded and its snapshot was kept. */
   folded: number
-  /** A publication replaced the index of a held snapshot. */
+  /** A publication replaced the index of a held snapshot, and the snapshot was kept. */
   indexed: number
   /** No held snapshot at the version before, a basis over the bound, or a read of this version in flight. */
   skipped: number
@@ -405,18 +431,15 @@ export type WorkFoldCounts = {
   republished: number
 }
 
-const counts: WorkFoldCounts = {
-  folded: 0,
-  indexed: 0,
-  skipped: 0,
-  quarantined: 0,
-  stale: 0,
-  republished: 0,
-}
-
-/** A copy of the counts of this process. */
-export function workFoldCounts(): WorkFoldCounts {
-  return { ...counts }
+/**
+ * A copy of the fold counts of the database behind `storage` (`storeOf`); all zero while no
+ * reader or writer reached its cache.
+ */
+export function workFoldCounts(storage: SqlStorage): WorkFoldCounts {
+  const cache = caches.get(storeOf(storage))
+  return cache === undefined
+    ? { folded: 0, indexed: 0, skipped: 0, quarantined: 0, stale: 0, republished: 0 }
+    : { ...cache.counts }
 }
 
 /** The page size of the batch read of a fold; a page holds at least one entry whatever its size. */
@@ -439,7 +462,7 @@ function indexInput(snapshot: WorkSnapshot): JsonValue {
     readThrough: execution.readThrough,
   })
   const { run } = snapshot
-  return encodeValue({
+  const input: WorkIndexInput = {
     tenant: snapshot.tenant,
     session: snapshot.session,
     revision: snapshot.revision,
@@ -452,7 +475,8 @@ function indexInput(snapshot: WorkSnapshot): JsonValue {
       run: item.run,
       execution: reference(item.execution),
     })),
-  })
+  }
+  return encodeValue(input)
 }
 
 type Indexed = Readonly<{ version: WorkVersion; snapshot: WorkSnapshot }>
@@ -474,11 +498,10 @@ async function withIndex(
   })
   if (!('output' in read)) return null
   const out = read.output
-  // Over the row bound the whole read answers without an index too, at the version asked.
-  if (out['kind'] === 'too-many') return { version, snapshot }
   const published = textOf(out['published'])
-  if (out['kind'] !== 'index' || published === null) return null
-  if (published !== version.published) counts.republished += 1
+  if ((out['kind'] !== 'index' && out['kind'] !== 'too-many') || published === null) return null
+  // Over the row bound the whole read at the answered count answers without an index too.
+  if (out['kind'] === 'too-many') return { version: { tail: version.tail, published }, snapshot }
   return {
     version: { tail: version.tail, published },
     snapshot: {
@@ -505,7 +528,14 @@ async function batchEntries(reach: WorkReach, fold: WorkFold): Promise<HistoryEn
   for (;;) {
     const read = await readOne(reach, HISTORY_HANDLER, input)
     if (!('output' in read) || read.output['kind'] !== 'page') return null
-    const page = decodeValue(read.output['entries'] as JsonValue) as HistoryEntry[]
+    let page: HistoryEntry[]
+    try {
+      page = readEntryTexts(read.output['entries'])
+    } catch (error) {
+      // A stored row that does not read: no batch, so the read is whole and answers it.
+      if (!(error instanceof StoredEntryMalformed)) throw error
+      return null
+    }
     for (const entry of page) {
       if (BigInt(entry.id) > last) break
       entries.push(entry)
@@ -531,7 +561,8 @@ async function decisionBasis(
   held: WorkSnapshot,
   fold: WorkFold,
 ): Promise<Readonly<{ index: SessionHistoryIndex; reads: SessionHistoryReads }> | null> {
-  const decided = fold.basis as Readonly<{ scope: JsonValue; focus: JsonValue }>
+  // The basis travels encoded: each member is the JSON of the member of the history basis.
+  const decided = fold.basis as { readonly [member in keyof HistoryBasis]: JsonValue }
   const read = await readOne(reach, WORK_READS_HANDLER, {
     revision: held.revision,
     published: fold.published,
@@ -550,6 +581,7 @@ async function decisionBasis(
 /** The snapshot `fold` makes of `held`, at the fold's version; null when it cannot be proved. */
 async function folded(
   reach: WorkReach,
+  counts: WorkFoldCounts,
   held: WorkSnapshot,
   fold: WorkFold,
 ): Promise<Indexed | null> {
@@ -593,8 +625,49 @@ export type FoldPublished = 'same' | 'next'
  * error): it registers nothing and is counted as stale. The promise readers wait for therefore
  * never rejects, and a waiting reader reads whole as if no fold ran.
  */
-function settled(): void {
+function settled(counts: WorkFoldCounts): void {
   counts.stale += 1
+}
+
+/**
+ * What a fold or an index replacement registers: the snapshot with its index and the version the
+ * store answered, its stored text length, and the publication count the index was asked at.
+ */
+type Registration = Readonly<{ indexed: Indexed; bytes: number; asked: string }>
+
+/**
+ * Runs one fold or index replacement under `flight`, so that readers of that version wait for it
+ * (`afterFold`): registers what `produce` answers, and counts it in `counter` (and `republished`
+ * when the count moved past the one asked) only when the cache keeps it. Null registers nothing;
+ * `produce` counts why. It never rejects (`settled`).
+ */
+async function runFlight(
+  cache: WorkCache,
+  key: string,
+  flight: string,
+  counter: 'folded' | 'indexed',
+  produce: () => Promise<Registration | null>,
+): Promise<void> {
+  const { counts } = cache
+  const running = produce()
+    .then(made => {
+      if (made === null) return
+      const kept = cache.set(key, {
+        version: made.indexed.version,
+        bytes: made.bytes,
+        snapshot: frozen(made.indexed.snapshot),
+      })
+      if (!kept) return
+      counts[counter] += 1
+      if (made.indexed.version.published !== made.asked) counts.republished += 1
+    })
+    .catch(() => settled(counts))
+  cache.folds.set(flight, running)
+  try {
+    await running
+  } finally {
+    cache.folds.delete(flight)
+  }
 }
 
 /** True when `before` is the version just below the fold: one tail lower, the count as `published` says. */
@@ -614,11 +687,13 @@ export async function foldCommitted(
   fold: WorkFold,
   published: FoldPublished = 'same',
 ): Promise<void> {
+  let cache: WorkCache | undefined
   try {
-    const cache = workCacheOf(reach.storage, reach.bounds)
+    cache = workCacheOf(reach.storage, reach.bounds)
+    const { counts } = cache
     const key = workKey(reach.domain.transactionDomain, reach.tenant, reach.session)
     const held = cache.get(key)
-    const flight = `${key}|${fold.tail}|${fold.published}`
+    const flight = flightKey(key, fold)
     if (
       held === undefined ||
       !follows(held.version, fold, published) ||
@@ -629,25 +704,12 @@ export async function foldCommitted(
       counts.skipped += 1
       return
     }
-    const running = folded(reach, held.snapshot, fold)
-      .then(indexed => {
-        if (indexed === null) return
-        cache.set(key, {
-          version: indexed.version,
-          bytes: fold.bytes,
-          snapshot: frozen(indexed.snapshot),
-        })
-        counts.folded += 1
-      })
-      .catch(settled)
-    cache.folds.set(flight, running)
-    try {
-      await running
-    } finally {
-      cache.folds.delete(flight)
-    }
+    await runFlight(cache, key, flight, 'folded', async () => {
+      const indexed = await folded(reach, counts, held.snapshot, fold)
+      return indexed === null ? null : { indexed, bytes: fold.bytes, asked: fold.published }
+    })
   } catch {
-    counts.stale += 1
+    if (cache !== undefined) cache.counts.stale += 1
   }
 }
 
@@ -659,8 +721,10 @@ export async function foldCommitted(
  * moved past `published` meanwhile is registered with the index read at it. It never throws.
  */
 export async function refreshWorkIndex(reach: WorkReach, published: string): Promise<void> {
+  let cache: WorkCache | undefined
   try {
-    const cache = workCacheOf(reach.storage, reach.bounds)
+    cache = workCacheOf(reach.storage, reach.bounds)
+    const { counts } = cache
     const key = workKey(reach.domain.transactionDomain, reach.tenant, reach.session)
     const held = cache.get(key)
     if (held === undefined || count(published) <= count(held.version.published)) {
@@ -668,33 +732,19 @@ export async function refreshWorkIndex(reach: WorkReach, published: string): Pro
       return
     }
     const version = { tail: held.version.tail, published }
-    const flight = `${key}|${version.tail}|${version.published}`
+    const flight = flightKey(key, version)
     if (cache.flights.has(flight) || cache.folds.has(flight)) {
       counts.skipped += 1
       return
     }
-    const running = withIndex(reach, version, unindexed(held.snapshot))
-      .then(indexed => {
-        if (indexed === null) {
-          counts.stale += 1
-          return
-        }
-        cache.set(key, {
-          version: indexed.version,
-          bytes: held.bytes,
-          snapshot: frozen(indexed.snapshot),
-        })
-        counts.indexed += 1
-      })
-      .catch(settled)
-    cache.folds.set(flight, running)
-    try {
-      await running
-    } finally {
-      cache.folds.delete(flight)
-    }
+    await runFlight(cache, key, flight, 'indexed', async () => {
+      const indexed = await withIndex(reach, version, unindexed(held.snapshot))
+      if (indexed !== null) return { indexed, bytes: held.bytes, asked: published }
+      counts.stale += 1
+      return null
+    })
   } catch {
-    counts.stale += 1
+    if (cache !== undefined) cache.counts.stale += 1
   }
 }
 

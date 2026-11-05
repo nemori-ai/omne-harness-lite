@@ -7,3 +7,10 @@ export type { JsonBudgets, ServerEntryConfig } from './config.ts'
 export { ServerEntryConfigError } from './config.ts'
 export type { DefinitionResolver, ResolvedDefinition, SessionIngressFaces } from './faces.ts'
 export type { DiagnosticSink, ServerEntryDiagnostic } from './diagnostics.ts'
+export type {
+  ModelCredentialAccess,
+  ModelCredentialBindOutcome,
+  ModelCredentialCustody,
+  ModelCredentialDescribeOutcome,
+  ModelCredentialUnbindOutcome,
+} from './model-credentials.ts'

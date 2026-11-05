@@ -18,3 +18,4 @@ export type {
   SessionRoundCompleteEvent,
   SessionSegmentEvent,
 } from './measure.ts'
+export type { SessionDiagnose, SessionDiagnostic } from './diagnostics.ts'

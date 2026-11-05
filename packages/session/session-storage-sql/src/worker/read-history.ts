@@ -1,5 +1,9 @@
 // R2: one byte-bounded page of the log, in either direction, by position. The continuation is the
-// last position examined; the port seals it.
+// last position examined; the port seals it. The entries and annotations travel as their stored
+// `entry` texts, so the output of a page is as large as its rows; the port reads them with
+// `readEntryText` (entry-codec.ts).
+import { readEntryText } from '../entry-codec.ts'
+import type { JsonValue } from '@omne-harness/sql-contract'
 import { big, handler, oneRow, PAGE_ROWS, rowsOf, scopeOf, text } from './support.ts'
 
 const MAX_KINDS = 64
@@ -103,7 +107,7 @@ export default handler('session.history', (raw, port) => {
         seen.add(position)
         return true
       })
-      .map(row => JSON.parse(text(row['entry'])))
+      .map(row => text(row['entry']))
   }
   const upperRow = oneRow(
     port,
@@ -121,8 +125,10 @@ export default handler('session.history', (raw, port) => {
     kind: 'page',
     upper: String(upperRow?.['revision'] ?? journal['tail']),
     interpreter:
-      sample === undefined ? null : (JSON.parse(text(sample['entry'])) as { schema: never }).schema,
-    entries: taken.map(row => JSON.parse(text(row['entry']))),
+      sample === undefined
+        ? null
+        : (readEntryText(text(sample['entry'])).schema as unknown as JsonValue),
+    entries: taken.map(row => text(row['entry'])),
     scannedThrough: String(lastPosition),
     next: exhausted
       ? null

@@ -4,7 +4,9 @@ import type {
   ActionSlot,
   PendingCall,
   CommandReceipt,
+  DurableEvidence,
 } from '@omne-harness/agent-contract'
+import type { JsonValue } from '@omne-harness/json-text'
 import type { CallBinding } from '@omne-harness/session-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import type { CommonRoot } from './root.ts'
@@ -29,6 +31,22 @@ const evidence = (value: unknown) =>
       typeof value[key as keyof typeof value] === 'string' &&
       String(value[key as keyof typeof value]).length > 0,
   )
+/**
+ * Whether the fixed Tool request that the judgment preserved allows background: the request lives
+ * in its material, not in the checkpoint (agent-contract SPEC "工具执行与结果承接" 10). A material
+ * that is not kept, or not a fixed request, allows nothing.
+ */
+function backgroundAllowed(root: CommonRoot, request: DurableEvidence): boolean {
+  const kept = root.receiving.materials.get(canonical(request))
+  if (kept === undefined || kept.value.kind !== 'facts') return false
+  let node: JsonValue | undefined = kept.value.value
+  for (const key of ['availability', 'definition', 'backgroundAllowed']) {
+    if (node?.kind !== 'object') return false
+    node = node.entries.find(entry => entry.key === key)?.value
+  }
+  return node?.kind === 'boolean' && node.value
+}
+
 /** Captured only inside the authenticated original Agent commit, before the common publication. */
 export function captureBackground(
   root: CommonRoot,
@@ -53,8 +71,7 @@ export function captureBackground(
     const action = actions[0]!
     if (
       action.judgment.kind !== 'allowed' ||
-      (slot.kind === 'background' &&
-        !action.judgment.request.availability.definition.backgroundAllowed) ||
+      (slot.kind === 'background' && !backgroundAllowed(root, action.judgment.request)) ||
       batch.barrier.kind !== 'open' ||
       !batch.barrier.approved.includes(action.id)
     )

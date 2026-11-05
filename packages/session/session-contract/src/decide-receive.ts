@@ -2,20 +2,27 @@ import type { SessionCommand } from './ports.ts'
 import type { WorkSnapshot } from './values.ts'
 import type { AdvanceRef } from './identity.ts'
 import type { Decision } from './judgments.ts'
+import type { HistoryEntry } from './faces.ts'
 import { encodeEntry } from './entries.ts'
 import { completeEvidence, entries, invalid, originOf, rejected } from './decision-support.ts'
 import { digestOf } from './operations.ts'
 import { resultRefusal } from './decide-results.ts'
 import { equalValue } from './session-validation.ts'
 
+/**
+ * The decision of one producer fact. `origin` is the origin its entries carry, the fact source by
+ * default; the entries interpretation gives the interpreted item's, so the stored form names the
+ * origin that the entry really keeps.
+ */
 export function decideProducerFact(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'receive' }>,
+  entryOrigin?: HistoryEntry['origin'],
 ): Decision {
   const { fact } = command.input
   if (fact.kind === 'input-handover') return invalid('fact', 'input handover uses its own decision')
   if (!completeEvidence(fact.source)) return invalid('fact.source', 'incomplete source')
-  const origin = originOf(fact.source)
+  const origin = entryOrigin ?? originOf(fact.source)
   switch (fact.kind) {
     case 'agent-exit':
       switch (startedAttempt(snapshot, fact.advance)) {

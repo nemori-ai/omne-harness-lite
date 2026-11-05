@@ -1,5 +1,6 @@
 import {
   encodeGovernanceResponse,
+  readGovernanceRequest,
   readGovernanceResponse,
   type GovernanceProvidedOperation,
   type GovernanceResponseEncodeInput,
@@ -98,6 +99,9 @@ const successes = {
   'judge-admission': { admitted: true },
   'submit-authorization-expression': { expressionId: 'e', persistentSettingsUpdated: false },
   'withdraw-authorization-expression': {},
+  'bind-model-credential': { configuredAt: at },
+  'unbind-model-credential': {},
+  'describe-model-credential': { state: 'unbound' },
 } satisfies Record<GovernanceProvidedOperation, object>
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
 function response(operation: GovernanceProvidedOperation, outcome: string, body: unknown = {}) {
@@ -191,6 +195,9 @@ const allowed = {
   'judge-admission': ['denied', 'not-visible', 'basis-unavailable'],
   'submit-authorization-expression': ['denied', 'basis-unavailable', 'unknown'],
   'withdraw-authorization-expression': ['denied', 'basis-unavailable', 'unknown'],
+  'bind-model-credential': ['denied', 'basis-unavailable', 'unknown'],
+  'unbind-model-credential': ['denied', 'basis-unavailable', 'unknown'],
+  'describe-model-credential': ['denied', 'basis-unavailable'],
 } satisfies Record<GovernanceProvidedOperation, readonly string[]>
 it.each(Object.entries(allowed))(
   '%s permits exactly its empty-body refusal outcomes',
@@ -206,15 +213,101 @@ it.each(Object.entries(allowed))(
       'not-loginable',
       'uniform-auth-failure',
       'protocol-rejected',
+      'stage-not-provided',
     ]) {
       expect(response(operation, outcome).result.kind).toBe(
-        outcome === 'protocol-rejected' || permitted.includes(outcome) ? 'response' : 'unreadable',
+        outcome === 'protocol-rejected' ||
+          outcome === 'stage-not-provided' ||
+          permitted.includes(outcome)
+          ? 'response'
+          : 'unreadable',
       )
       expect(response(operation, outcome, { secret: true }).result.kind).toBe('unreadable')
     }
-    expect(response(operation, 'stage-not-provided').result.kind).toBe('unreadable')
   },
 )
+
+// A deployment may declare a provided operation unprovided. The contract reads that answer for
+// every provided operation, so a client does not mistake it for a response it cannot read.
+it.each(Object.keys(successes))(
+  'stage-not-provided-readable-for-declared: %s reads, encodes and correlates the declared answer',
+  name => {
+    const operation = name as GovernanceProvidedOperation
+    const { wire, result } = response(operation, 'stage-not-provided')
+    expect(result).toEqual({ kind: 'response', response: wire })
+    if (result.kind !== 'response') return
+    const encoded = encodeGovernanceResponse({
+      operation,
+      response: result.response,
+      limits,
+    } as GovernanceResponseEncodeInput)
+    expect(encoded.kind).toBe('encoded')
+    if (encoded.kind === 'encoded')
+      expect(JSON.parse(new TextDecoder().decode(encoded.bytes))).toEqual(wire)
+    // Controls: a different `messageId` is another call's answer, and the body stays empty.
+    expect(
+      readGovernanceResponse({
+        bytes: bytes(wire),
+        operation,
+        expectedMessageId: 'other',
+        limits,
+      }),
+    ).toEqual({ kind: 'unmatched' })
+    for (const body of [{ protocolVersion: 'governance-public/1' }, { admitted: true }, null])
+      expect(response(operation, 'stage-not-provided', body).result.kind).toBe('unreadable')
+    expect(
+      readGovernanceResponse({
+        bytes: bytes({ ...wire, body: undefined }),
+        operation,
+        expectedMessageId: 'm',
+        limits,
+      }).kind,
+    ).toBe('unreadable')
+  },
+)
+
+it('stage-not-provided-readable-for-declared: the request reader does not know the declaration', () => {
+  // The declaration belongs to the deployment. A valid request for a declared operation still
+  // reads as a request, and only the four fixed stage operations read as `stage-not-provided`.
+  const request = {
+    protocolVersion: 'governance-public/1',
+    messageId: 'm',
+    operation: 'public-health',
+    body: {},
+  }
+  expect(readGovernanceRequest({ bytes: bytes(request), limits }).kind).toBe('request')
+  expect(
+    readGovernanceRequest({ bytes: bytes({ ...request, operation: 'end-subject' }), limits }).kind,
+  ).toBe('stage-not-provided')
+})
+
+it('issue-login success round trips the optional loginId', () => {
+  const loginId = 'lgn_00000000000000000000000000'
+  const body = { ...successes['issue-login'], loginId }
+  const { wire, result } = response('issue-login', 'succeeded', body)
+  expect(result.kind).toBe('response')
+  if (result.kind !== 'response') return
+  const encoded = encodeGovernanceResponse({
+    operation: 'issue-login',
+    response: result.response,
+    limits,
+  } as GovernanceResponseEncodeInput)
+  expect(encoded.kind).toBe('encoded')
+  if (encoded.kind === 'encoded')
+    expect(JSON.parse(new TextDecoder().decode(encoded.bytes))).toEqual(wire)
+  // Controls: the field stays optional, strict, and specific to the sign-in success.
+  expect(response('issue-login', 'succeeded', successes['issue-login']).result.kind).toBe(
+    'response',
+  )
+  for (const bad of [null, '', 'not-a-login-id', 1, { loginId }])
+    expect(response('issue-login', 'succeeded', { ...body, loginId: bad }).result.kind).toBe(
+      'unreadable',
+    )
+  expect(response('revoke-login', 'succeeded', { loginId }).result.kind).toBe('unreadable')
+  expect(response('issue-login', 'uniform-auth-failure', { loginId }).result.kind).toBe(
+    'unreadable',
+  )
+})
 
 it.each([
   'accept-member-invitation',

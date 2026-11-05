@@ -1,6 +1,6 @@
 // Public entry of identity. Shapes and ports only, plus the in-process principal authority; the
 // durable providers of accounts, logins and memberships are later members. The reference double of
-// the account and login operations is in the `./testing` entry. SPEC.md owns the behavior that
+// the account, login and governance operations is in the `./testing` entry. SPEC.md owns the behavior that
 // these types cannot express.
 export { inProcessPrincipalAuthority, scopeOf } from './principal.ts'
 export type {
@@ -49,3 +49,49 @@ export type {
   RegisterAndActivateInput,
   RegisterAndActivateOutcome,
 } from './operations.ts'
+export type {
+  BusinessAccessReport,
+  ChangeMemberRoleInput,
+  CreatedOrganization,
+  CreateOrganizationInput,
+  CreateOrganizationOutcome,
+  CurrentTenantOutcome,
+  GovernanceActing,
+  GovernanceBasisUnavailable,
+  GovernanceConflict,
+  GovernanceDenied,
+  GovernanceLogin,
+  GovernanceNoChange,
+  GovernanceNotVisible,
+  IdentityGovernance,
+  InvitationDispositionInput,
+  InvitationDispositionOutcome,
+  InvitationListOutcome,
+  InvitationState,
+  InvitationTerminal,
+  InvitationTerms,
+  InvitationTermsReading,
+  InvitationTermsSource,
+  IssueMemberInvitationInput,
+  IssueMemberInvitationOutcome,
+  LeaveOrganizationInput,
+  LeaveOrganizationOutcome,
+  MemberChangeOutcome,
+  MemberInvitation,
+  OrganizationMember,
+  OrganizationMembersOutcome,
+  OwnMembership,
+  OwnMembershipsOutcome,
+  OwnValidLoginsOutcome,
+  QueryCreateOrganizationInput,
+  QueryCreateOrganizationOutcome,
+  QueryInvitationInput,
+  QueryInvitationOutcome,
+  QueryOrganizationMembersInput,
+  RemoveMemberInput,
+  RevokeLoginInput,
+  RevokeLoginOutcome,
+  SwitchCurrentTenantInput,
+  SwitchCurrentTenantOutcome,
+  ValidLogin,
+} from './governance.ts'

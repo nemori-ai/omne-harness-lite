@@ -116,7 +116,7 @@ describe('judgeToolDelivery', () => {
     })
   })
 
-  it('rejects a malformed reference and a reference of another tenant', () => {
+  it('rejects a malformed reference and locates a reference in the presented tenant', () => {
     const base = resultDelivery(own())
     const malformed = {
       ...base,
@@ -125,9 +125,9 @@ describe('judgeToolDelivery', () => {
     expect(judgeToolDelivery({ tenant: own(), delivery: malformed })).toEqual({
       failure: { field: 'key.reference', reason: 'reference-malformed' },
     })
-    expect(judgeToolDelivery({ tenant: own(), delivery: resultDelivery(other()) })).toEqual({
-      failure: { field: 'key.reference', reason: 'foreign-tenant' },
-    })
+    // R2-D357: the reference carries no tenant; a delivery encoded for another tenant is the same
+    // value, and the receiver's own partition answers whether the presented tenant has the call.
+    expect(resultDelivery(other())).toEqual(resultDelivery(own()))
   })
 
   it('rejects an account whose key names another revision before it reads the subject', () => {

@@ -29,7 +29,8 @@ export type LocalToolClockInput = Readonly<{
   sleep?: (milliseconds: number, signal: AbortSignal) => Promise<'elapsed' | 'cancelled'>
 }>
 
-const processMonotonicMs = (): number => Number(process.hrtime.bigint() / 1_000_000n)
+/** The process high-resolution timer in milliseconds: never goes back, not the wall time. */
+export const processMonotonicMs = (): number => Number(process.hrtime.bigint() / 1_000_000n)
 
 function timerSleep(milliseconds: number, signal: AbortSignal): Promise<'elapsed' | 'cancelled'> {
   if (signal.aborted) return Promise.resolve('cancelled')

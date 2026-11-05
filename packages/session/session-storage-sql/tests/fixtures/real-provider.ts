@@ -53,8 +53,6 @@ import {
   sessionStorageMaterials,
 } from '../../src/index.ts'
 import {
-  decodeExecutionRecordParts,
-  EXECUTION_RECORD_HANDLERS,
   executionRecordFacts,
   type ExecutionRecordWrite,
   type PreadmissionIntent,
@@ -385,8 +383,8 @@ export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionR
     published: '0',
     operation: 'aop_joint',
     digest: 'sha256:joint',
-    answer: { receipt: 'joint' },
-    state: { records: ['joint'] },
+    facts: [{ kind: 'exec.opened', body: { receipt: 'joint' } }],
+    blobs: [],
     boundaries: [
       {
         execution: 'exe_1',
@@ -396,8 +394,6 @@ export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionR
         ended: null,
       },
     ],
-    facts: [],
-    batches: [],
     admissions: [],
     ...over,
   }
@@ -449,13 +445,14 @@ export function agentPublisher(input: {
   const published = async (tenant: TenantId, session: string): Promise<string> => {
     const read = await input.storage.read({
       domain: domain(tenant),
-      handler: EXECUTION_RECORD_HANDLERS.parts,
+      handler: 'session.work-version',
       protocol: '1',
-      requestKey: `state-${String(writes)}`,
+      requestKey: `version-${String(writes)}`,
       input: { tenant: textOf(tenant), session },
     })
-    if (read.kind !== 'read') throw new Error(`the Agent state is not readable: ${read.kind}`)
-    return decodeExecutionRecordParts(read.output)?.published ?? '0'
+    if (read.kind !== 'read') throw new Error(`the publication count is not readable: ${read.kind}`)
+    const version = read.output as Readonly<{ published?: string }> | null
+    return version?.published ?? '0'
   }
   const commit = async (write: ExecutionRecordWrite): Promise<void> => {
     writes += 1
@@ -474,8 +471,7 @@ export function agentPublisher(input: {
     published,
     operation: `aop_fixture_${String(writes)}`,
     digest: `sha256:fixture-${String(writes)}`,
-    answer: { fixture: writes },
-    state: { fixture: writes },
+    blobs: [],
   })
   return {
     /** Publishes one original event: the new head, its fact row and, when given, its batch row. */
@@ -511,23 +507,16 @@ export function agentPublisher(input: {
         ],
         facts: [
           {
-            execution: event.execution,
-            sequence: event.sequence,
-            source: event.source,
-            kinds: event.kinds,
+            kind: 'event',
+            event: {
+              sequence: event.sequence,
+              source: event.source,
+              kinds: event.kinds,
+              ...(event.batch === undefined ? {} : { batch: event.batch }),
+            },
+            body: { fixture: writes },
           },
         ],
-        batches:
-          event.batch === undefined
-            ? []
-            : [
-                {
-                  execution: event.execution,
-                  sequence: event.sequence,
-                  source: event.source,
-                  batch: event.batch,
-                },
-              ],
         admissions: [],
       })
       heads.set(key, { revision: event.revision, emitted, ended })
@@ -547,8 +536,7 @@ export function agentPublisher(input: {
         expected: head,
         revision: head ?? '0',
         boundaries: [],
-        facts: [],
-        batches: [],
+        facts: [{ kind: 'input.accepted', body: { input: admission.input } }],
         admissions: [
           {
             input: admission.input,
@@ -624,6 +612,8 @@ export function activeRun(work: WorkSnapshot) {
     run: work.run.run,
     execution: work.run.execution.execution,
     attempt: work.run.advance.attempt,
+    /** The Run-layer revision of this read: the `expected` of a claim made from it. */
+    revision: work.run.revision,
   }
 }
 

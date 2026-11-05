@@ -59,10 +59,11 @@ const operationRef: ToolOperationRef = (() => {
 
 describe('invocation reference codec', () => {
   it('encodes the versioned array form and decodes it back to the canonical text', () => {
-    expect(invocationRef).toBe(JSON.stringify(['tool-invocation', 1, tenantTextA, call, admission]))
+    expect(invocationRef).toBe(JSON.stringify(['tool-invocation', 2, call, admission]))
+    // R2-D357: the text carries no tenant; the caller's Access supplies it.
+    expect(invocationRef).not.toContain(tenantTextA)
     expect(decodeToolInvocationRef(invocationRef)).toEqual({ ok: invocationRef })
-    const reordered = `{"account":"acc_${'1'.repeat(26)}", "organization":"org_${'0'.repeat(26)}"}`
-    const spaced = `[ "tool-invocation", 1, ${JSON.stringify(reordered)}, "${call}", "${admission}" ]`
+    const spaced = `[ "tool-invocation", 2, "${call}", "${admission}" ]`
     expect(decodeToolInvocationRef(spaced)).toEqual({ ok: invocationRef })
   })
 
@@ -75,23 +76,17 @@ describe('invocation reference codec', () => {
     expect(decodeToolInvocationRef('not json')).toEqual(failure('type'))
     expect(decodeToolInvocationRef('{"a":1}')).toEqual(failure('type'))
     expect(decodeToolInvocationRef(operationRef)).toEqual(failure('type'))
-    expect(decodeToolInvocationRef('["tool-invocation",2,"t","c","a"]')).toEqual(failure('version'))
-    expect(decodeToolInvocationRef('["tool-invocation","1","t","c","a"]')).toEqual(
-      failure('version'),
-    )
-    expect(decodeToolInvocationRef('["tool-invocation",1,"t","c"]')).toEqual(failure('shape'))
-    expect(decodeToolInvocationRef('["tool-invocation",1,"t","c","a","x"]')).toEqual(
-      failure('shape'),
-    )
-    const badTenant = JSON.stringify([
-      'tool-invocation',
-      1,
-      '{"organization":"o"}',
-      call,
-      admission,
-    ])
-    expect(decodeToolInvocationRef(badTenant)).toEqual(failure('shape'))
-    const badIdentity = JSON.stringify(['tool-invocation', 1, tenantTextA, 'has space', admission])
+    expect(decodeToolInvocationRef('["tool-invocation",3,"c","a"]')).toEqual(failure('version'))
+    expect(decodeToolInvocationRef('["tool-invocation","2","c","a"]')).toEqual(failure('version'))
+    // A version 1 text (it carried the tenant) is refused, not read.
+    const v1 = JSON.stringify(['tool-invocation', 1, tenantTextA, call, admission])
+    expect(decodeToolInvocationRef(v1)).toEqual(failure('version'))
+    expect(resolveToolInvocationRef(v1, tenantA)).toEqual({
+      failure: { kind: 'malformed', rejection: failure('version').failure },
+    })
+    expect(decodeToolInvocationRef('["tool-invocation",2,"c"]')).toEqual(failure('shape'))
+    expect(decodeToolInvocationRef('["tool-invocation",2,"c","a","x"]')).toEqual(failure('shape'))
+    const badIdentity = JSON.stringify(['tool-invocation', 2, 'has space', admission])
     expect(decodeToolInvocationRef(badIdentity)).toEqual(failure('shape'))
     expect(decodeToolInvocationRef('a'.repeat(TOOL_REFERENCE_MAX_LENGTH + 1))).toEqual(
       failure('length'),
@@ -107,7 +102,7 @@ describe('invocation reference codec', () => {
     }
     const invocation = encodeToolInvocationRef(worst)
     if ('failure' in invocation) throw new Error('the longest parts must encode')
-    expect(invocation.ok.length).toBe(1154)
+    expect(invocation.ok.length).toBe(1051)
     const encoded = encodeToolOperationRef(worst)
     if ('failure' in encoded) throw new Error('the longest parts must encode')
     expect(encoded.ok.length).toBe(TOOL_REFERENCE_MAX_LENGTH)
@@ -132,12 +127,7 @@ describe('invocation reference codec', () => {
 describe('operation reference codec', () => {
   it('round-trips and projects the operation', () => {
     expect(decodeToolOperationRef(operationRef)).toEqual({ ok: operationRef })
-    expect(readToolOperationRef(operationRef)).toEqual({
-      tenant: tenantA,
-      call,
-      admission,
-      operation,
-    })
+    expect(readToolOperationRef(operationRef)).toEqual({ call, admission, operation })
     expect(decodeToolOperationRef(invocationRef)).toEqual({
       failure: { field: 'ToolOperationRef', reason: 'type' },
     })
@@ -154,12 +144,14 @@ describe('reference resolution against the presented tenant', () => {
     })
   })
 
-  it('answers foreign-tenant for another minted tenant or a presented shape', () => {
+  it('locates in another minted tenant and refuses a presented shape', () => {
+    // R2-D357: a reference of tenant A, presented by tenant B, names B's call of the same identity;
+    // B's store has none, so the store-backed entry answers as for a call that never existed.
     expect(resolveToolInvocationRef(invocationRef, tenantB)).toEqual({
-      failure: { kind: 'foreign-tenant' },
+      ok: { tenant: tenantB, call, admission },
     })
     expect(resolveToolOperationRef(operationRef, tenantB)).toEqual({
-      failure: { kind: 'foreign-tenant' },
+      ok: { tenant: tenantB, call, admission, operation },
     })
     const presented = {
       name: 'TenantId',
@@ -167,7 +159,10 @@ describe('reference resolution against the presented tenant', () => {
       account: { name: 'AccountId', text: `acc_${'1'.repeat(26)}` },
     } as TenantId
     expect(resolveToolInvocationRef(invocationRef, presented)).toEqual({
-      failure: { kind: 'foreign-tenant' },
+      failure: { kind: 'invalid-tenant' },
+    })
+    expect(resolveToolOperationRef(operationRef, presented)).toEqual({
+      failure: { kind: 'invalid-tenant' },
     })
   })
 
@@ -188,25 +183,25 @@ describe('reference resolution against the presented tenant', () => {
 })
 
 it('reads the parts of a branded invocation reference', () => {
-  expect(readToolInvocationRef(invocationRef)).toEqual({ tenant: tenantA, call, admission })
+  expect(readToolInvocationRef(invocationRef)).toEqual({ call, admission })
 })
 
 describe('reference codec boundary cases with otherwise legal parts', () => {
-  const invocation = ['tool-invocation', 1, tenantTextA, call, admission]
-  const operationElements = ['tool-operation', 1, tenantTextA, call, admission, operation]
+  const invocation = ['tool-invocation', 2, call, admission]
+  const operationElements = ['tool-operation', 2, call, admission, operation]
   it.each([
     {
       name: 'invocation numeric-key object',
       decode: decodeToolInvocationRef,
       field: 'ToolInvocationRef',
-      input: { ...invocation, length: 5 },
+      input: { ...invocation, length: 4 },
       reason: 'type',
     },
     {
       name: 'operation numeric-key object',
       decode: decodeToolOperationRef,
       field: 'ToolOperationRef',
-      input: { ...operationElements, length: 6 },
+      input: { ...operationElements, length: 5 },
       reason: 'type',
     },
     {
@@ -227,21 +222,21 @@ describe('reference codec boundary cases with otherwise legal parts', () => {
       name: 'invalid invocation admission',
       decode: decodeToolInvocationRef,
       field: 'ToolInvocationRef',
-      input: ['tool-invocation', 1, tenantTextA, call, 'has space'],
+      input: ['tool-invocation', 2, call, 'has space'],
       reason: 'shape',
     },
     {
       name: 'invalid operation admission',
       decode: decodeToolOperationRef,
       field: 'ToolOperationRef',
-      input: ['tool-operation', 1, tenantTextA, call, 'has space', operation],
+      input: ['tool-operation', 2, call, 'has space', operation],
       reason: 'shape',
     },
     {
       name: 'invalid operation identity',
       decode: decodeToolOperationRef,
       field: 'ToolOperationRef',
-      input: ['tool-operation', 1, tenantTextA, call, admission, 'has space'],
+      input: ['tool-operation', 2, call, admission, 'has space'],
       reason: 'shape',
     },
   ])('rejects $name', ({ decode, input, field, reason }) => {

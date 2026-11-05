@@ -49,14 +49,16 @@ export const EXECUTION_RECORD_TABLES: readonly string[] = [
   'er_admission_idx',
 ]
 
-/** The same-root index: the tables the `session` participant and the root handler read. */
+/**
+ * The same-root index: the tables the `session` participant and the root handler read. `er_fact`
+ * is created by `execution-record/006-fact-blob`, `er_admission_attempt_idx` by
+ * `execution-record/003-admission-attempt`; the readers of these tables require both.
+ */
 export const EXECUTION_RECORD_INDEX_TABLES: readonly string[] = [
   'er_root',
   'er_execution',
-  'er_fact_idx',
-  'er_batch_idx',
+  'er_fact',
   'er_admission_idx',
-  // Created by `execution-record/003-admission-attempt`, which the readers of these tables require.
   'er_admission_attempt_idx',
 ]
 
@@ -145,4 +147,76 @@ export const FACT_BODY_TABLES: readonly string[] = ['er_fact_body']
 export const FACT_BODY_MIGRATION = Object.freeze({
   owner: 'execution-record',
   id: '005-fact-body',
+})
+
+// The Agent facts as the second append-only family of the session log (R2-D292), and the content
+// blocks of the tenant (TB-04). Migration `execution-record/006-fact-blob` drops the tables the
+// facts replace: the whole and partitioned opaque state (`er_state`, `er_state_part`) and the
+// three event tables that `er_fact` merges (`er_fact_idx`, `er_fact_body`, `er_batch_idx`). It
+// recreates `er_operation` without the `answer` column: an answer is derived from the batch of
+// the operation and is not stored. 0.0.x moves no old data: the records of a session published
+// before this migration are gone, and its reads answer `missing`.
+//
+// `er_fact` is one row per fact. `pub` is the publication of the batch (the session's
+// `er_root.published` after the write) and `ord` its place in the batch. The row at `ord = 0` is
+// the envelope of the batch and the only row that names the operation (`op`); every other row has
+// `op` NULL. `eseq` is the event sequence of a fact that is an event, NULL otherwise; `kinds` is
+// the JSON array of its Session consequence kinds (empty for a fact that is not an event), and
+// `event` the JSON of its event projection (source, consequences, control, batch), which Session
+// reads (K-5). `body` is the JSON of the fact, opaque to this member. The primary key is the second
+// gate of a concurrent write: a write that passed the count check at a position another write took
+// collides here and rolls back.
+export const FACT_BLOB_SCHEMA: readonly string[] = [
+  'DROP TABLE IF EXISTS er_state',
+  'DROP TABLE IF EXISTS er_state_part',
+  'DROP TABLE IF EXISTS er_fact_body',
+  'DROP TABLE IF EXISTS er_fact_idx',
+  'DROP TABLE IF EXISTS er_batch_idx',
+  'DROP TABLE IF EXISTS er_operation',
+  `CREATE TABLE er_operation (
+    tenant TEXT NOT NULL, operation TEXT NOT NULL, session TEXT NOT NULL, execution TEXT NOT NULL,
+    digest TEXT NOT NULL, published INTEGER NOT NULL,
+    PRIMARY KEY (tenant, operation)) STRICT`,
+  `CREATE TABLE er_fact (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, pub INTEGER NOT NULL, ord INTEGER NOT NULL,
+    execution TEXT NOT NULL, kind TEXT NOT NULL, eseq INTEGER, op TEXT, kinds TEXT NOT NULL,
+    event TEXT, body TEXT NOT NULL,
+    CHECK (pub > 0 AND ord >= 0),
+    CHECK ((ord = 0) = (op IS NOT NULL)),
+    CHECK ((eseq IS NULL) = (event IS NULL)),
+    PRIMARY KEY (tenant, session, pub, ord)) STRICT, WITHOUT ROWID`,
+  // The events of one execution in sequence order; a sequence is written once.
+  'CREATE UNIQUE INDEX er_fact_event ON er_fact (tenant, execution, eseq) WHERE eseq IS NOT NULL',
+  // One batch per operation: only the envelope row names it.
+  'CREATE UNIQUE INDEX er_fact_operation ON er_fact (tenant, op) WHERE ord = 0',
+  // The facts of one execution in publication order, for the cold start of an open execution.
+  'CREATE INDEX er_fact_execution ON er_fact (tenant, execution, pub, ord)',
+  // One content block of the tenant by its digest (TB-04): stored once per tenant, never per
+  // session, and never shared across tenants. `size` is the UTF-8 byte count of `payload`.
+  `CREATE TABLE sl_blob (
+    tenant TEXT NOT NULL, digest TEXT NOT NULL, media TEXT NOT NULL, size INTEGER NOT NULL,
+    payload TEXT NOT NULL,
+    PRIMARY KEY (tenant, digest)) STRICT, WITHOUT ROWID`,
+]
+
+/** The tables of `execution-record/006-fact-blob`. */
+export const FACT_BLOB_TABLES: readonly string[] = ['er_fact', 'sl_blob']
+
+/**
+ * The tables that `execution-record/006-fact-blob` drops. The participant still owns their names:
+ * the migrations before it create them on a fresh database, and the migration port lets a
+ * migration drop only the tables of its owner. No statement of the participant or of a read
+ * handler touches them.
+ */
+export const RETIRED_TABLES: readonly string[] = [
+  'er_state',
+  'er_state_part',
+  'er_fact_idx',
+  'er_fact_body',
+  'er_batch_idx',
+]
+
+export const FACT_BLOB_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '006-fact-blob',
 })

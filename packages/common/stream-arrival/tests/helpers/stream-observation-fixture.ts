@@ -131,10 +131,7 @@ export function createStreamFixture<P, S, D, E = never>(
     if ('failure' in resolved) {
       return {
         kind: 'ended',
-        reason:
-          resolved.failure.kind === 'foreign-tenant' || resolved.failure.kind === 'invalid-tenant'
-            ? 'denied'
-            : 'stale-stream',
+        reason: resolved.failure.kind === 'invalid-tenant' ? 'denied' : 'stale-stream',
       }
     }
     if (retired || resolved.ok !== input.ref) return { kind: 'ended', reason: 'stale-stream' }

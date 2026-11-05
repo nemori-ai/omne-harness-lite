@@ -4,10 +4,13 @@ import type {
   EnvironmentLease,
   EnvironmentNeedDeclaration,
   FacilityKey,
+  FacilityOperation,
   FacilitySet,
   FileSystemFacility,
   TerminalFacility,
+  TerminalRetentionOperation,
 } from '@omne-harness/execution-environment-contract'
+import { describeFacility, terminalFacility } from '@omne-harness/execution-environment-contract'
 import {
   createMemoryFileSystem,
   createScriptedCommandFacility,
@@ -17,6 +20,32 @@ import {
   shellEnvironmentSlot,
   type ShellEnvironment as ExampleShellEnvironment,
 } from '../examples/shell-needs.ts'
+
+it('accepts legacy four-operation terminals without attachment methods', () => {
+  type Legacy = Pick<TerminalFacility<unknown>, 'create' | 'execute' | 'close' | 'list'>
+  expectTypeOf<Legacy>().toExtend<TerminalFacility<unknown>>()
+  expectTypeOf<undefined>().toExtend<TerminalFacility<unknown>['retention']>()
+  expectTypeOf<TerminalRetentionOperation>().toEqualTypeOf<'attach' | 'detach'>()
+})
+
+it('keeps the complete four-operation consumer mapping and descriptor source compatible', () => {
+  const labels: Record<FacilityOperation<'terminal'>, { text: string }> = {
+    create: { text: 'create' },
+    execute: { text: 'execute' },
+    close: { text: 'close' },
+    list: { text: 'list' },
+  }
+  terminalFacility.operations.map(operation => labels[operation].text)
+  describeFacility('terminal', {
+    create: 'guarded',
+    execute: 'guarded',
+    close: 'guarded',
+    list: 'guarded',
+  })
+  expectTypeOf<FacilityOperation<'terminal'>>().toEqualTypeOf<
+    'create' | 'execute' | 'close' | 'list'
+  >()
+})
 
 it('compiles the Shell example in examples/ against the public entry', () => {
   expectTypeOf<ExampleShellEnvironment>().toEqualTypeOf<{

@@ -4,7 +4,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与状态
 
-具体的 Cordis 装配与资源生命周期。根入口提供独立 Model 接收组件。已实现：`./cordis` 导出 `agent-host` 插件 `agentHostPlugin`（实例取得、预约与发布、空闲回收、恢复入口与控制入口），尚未登记结果接收方。范围与已知缺口见 [SPEC](SPEC.md#宿主插件)。设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。
+具体的 Cordis 装配与资源生命周期。根入口提供独立 Model 接收组件。已实现：`./cordis` 导出 `agent-host` 插件 `agentHostPlugin`（实例取得、预约与发布、空闲回收、恢复入口与控制入口，以及登记到 Model runtime 的结果接收方）。范围与已知缺口见 [SPEC](SPEC.md#宿主插件)。设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。
 
 ## 使用
 

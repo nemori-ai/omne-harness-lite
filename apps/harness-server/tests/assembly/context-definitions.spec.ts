@@ -143,16 +143,37 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
   // with it proves that no entry carries a field that could declare a Context block.
   const mappings = agentAdoptionsConfig.parse(row.config).mappings
 
-  it('the release adopts at least one definition, and none of them declares a Context block', () => {
-    expect(mappings.length).toBeGreaterThan(0)
+  // A definition carries category, name, references, attributes and optionally instructions
+  // (agent-contract SPEC "声明判断"); none of these members can declare a Context block. The table
+  // below is what the release adopts: `assistant` without references or a prompt, `coding` with
+  // Files and Shell resident and a ten-section prompt (R2-D124). Any other member is a defect.
+  it('the release adopts assistant and coding, and no definition has a member that could declare a Context block', () => {
+    expect(mappings.map(entry => entry.name)).toEqual(['assistant', 'coding'])
     for (const entry of mappings) {
-      expect(entry.definition).toEqual({
-        category: 'AgentDefinition',
-        name: entry.name,
-        references: [],
-        attributes: [],
-      })
+      expect(Object.keys(entry.definition).sort()).toEqual(
+        entry.name === 'coding'
+          ? ['attributes', 'category', 'instructions', 'name', 'references']
+          : ['attributes', 'category', 'name', 'references'],
+      )
+      expect(entry.definition).toMatchObject({ category: 'AgentDefinition', name: entry.name })
     }
+    const assistant = mappings.find(entry => entry.name === 'assistant')
+    expect(assistant?.definition).toEqual({
+      category: 'AgentDefinition',
+      name: 'assistant',
+      references: [],
+      attributes: [],
+    })
+    const coding = mappings.find(entry => entry.name === 'coding')
+    if (coding === undefined) throw new Error('the release has no coding entry')
+    expect(coding.definition).toMatchObject({
+      references: [
+        { capability: { category: 'Tool', name: 'Files' }, resident: true },
+        { capability: { category: 'Tool', name: 'Shell' }, resident: true },
+      ],
+      attributes: [{ item: 'model' }],
+    })
+    expect((coding.definition as { instructions?: unknown[] }).instructions).toHaveLength(10)
   })
 
   it('answers undefined for every adopted definition: there is no block to restore', () => {

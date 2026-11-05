@@ -10,6 +10,7 @@
 //   copy that reads the slot at start. The slow tests use the real pi transport and families.
 // The runtime of the driven calls is the real `createModelRuntime`; the plugin replaces its sender.
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { createServer, connect, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -848,6 +849,142 @@ describe('the recordings through modelSendBoundary', () => {
         expect(JSON.stringify(viaPlugin.facts)).not.toContain(PLACEHOLDER)
       } finally {
         await direct.close()
+      }
+    },
+  )
+})
+
+/**
+ * A TCP front for a local server: the first connection is dropped before the TLS handshake ends,
+ * so the client fails to connect and no request byte is written. Later connections go through.
+ */
+async function frontDroppingFirst(target: URL): Promise<{
+  readonly url: URL
+  readonly connections: () => number
+  close(): Promise<void>
+}> {
+  let connections = 0
+  const open = new Set<Socket>()
+  const front: Server = createServer(client => {
+    connections += 1
+    open.add(client)
+    client.once('close', () => open.delete(client))
+    client.on('error', () => undefined)
+    if (connections === 1) {
+      client.destroy()
+      return
+    }
+    const upstream = connect(Number(target.port), target.hostname)
+    open.add(upstream)
+    upstream.once('close', () => open.delete(upstream))
+    upstream.on('error', () => client.destroy())
+    client.pipe(upstream)
+    upstream.pipe(client)
+  })
+  await new Promise<void>(resolve => front.listen(0, '127.0.0.1', resolve))
+  const address = front.address()
+  if (address === null || typeof address === 'string') throw new Error('no front address')
+  return {
+    url: new URL(`https://127.0.0.1:${address.port}/`),
+    connections: () => connections,
+    close: async () => {
+      for (const socket of open) socket.destroy()
+      await new Promise<void>(resolve => front.close(() => resolve()))
+    },
+  }
+}
+
+describe('a connect failure that the send retries, through the plugin', () => {
+  it(
+    'writes exactly one warn naming the call, the retry, the wait and the reason, and the call completes',
+    { tags: ['slow'] },
+    async () => {
+      const name = 'openai-reasoning'
+      const request = await recordedRequest(name)
+      const label = replayLabel('retry', name)
+      const recording = readFileSync(
+        new URL(
+          `../../pi-ai-transport/tests/fixtures/recordings/${name}/stream.sse`,
+          import.meta.url,
+        ),
+      )
+      const closers: (() => unknown)[] = []
+      try {
+        const vault = realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-retry-')))
+        closers.push(() => rmSync(vault, { recursive: true, force: true }))
+        const certificate = createCertificate()
+        closers.push(() => certificate.dispose())
+        const server = await startHttpsServer(certificate, (res, received) => {
+          if (received.path !== ROUTE_PATH) {
+            res.writeHead(404).end()
+            return
+          }
+          res.writeHead(200, { 'content-type': 'text/event-stream' })
+          res.end(recording)
+        })
+        closers.push(() => server.close())
+        const front = await frontDroppingFirst(server.url)
+        closers.push(() => front.close())
+        const scene = sceneOf(request, label)
+        const ctx = new Context()
+        const warnings: string[] = []
+        ctx.logger.exporter({
+          colors: 0,
+          levels: { default: 3 },
+          export: message => {
+            if (message.type === 'warn') warnings.push(message.args.map(String).join(' '))
+          },
+        })
+        await ctx.plugin(LocalCredentialPlugin, {
+          path: join(vault, `${label}.vault.json`),
+          factorySecret: PLACEHOLDER,
+        })
+        await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+        const Stage = createModelSendStagePlugin(
+          optionsOf(scene, {
+            network: {
+              maxConnections: 2,
+              idleConnectionTimeoutMs: 60_000,
+              tls: { ca: certificate.cert },
+            },
+            routes: {
+              openrouter: {
+                url: new URL(ROUTE_PATH, front.url).href,
+                endMarker: GATEWAY_END_MARKER,
+              },
+            },
+            transportLimits: { ...TRANSPORT_LIMITS, connectRetry: { backoffMs: [20, 40] } },
+          }),
+        )
+        const fiber = await ctx.plugin(Stage, { maxRetainedAttempts: 4 })
+        closers.push(() => fiber.dispose())
+        const run = runtimeOver(scene, {
+          send: (input, signal) => ctx.modelSendBoundary.send(input, signal),
+        })
+        const driven = await run.drive(request)
+
+        expect(driven).toEqual({ ok: undefined })
+        const records = decoded(
+          await scene.memory.dependencies.commands.dispatches({
+            principal: scene.principal,
+            tenant: scene.scope,
+            call: scene.call,
+          }),
+        )
+        expect(records).toHaveLength(1)
+        expect(records[0]?.terminal).toMatchObject({ kind: 'completed' })
+        // The first connection was dropped, the retry got through, and only one request arrived.
+        expect(front.connections()).toBe(2)
+        expect(server.requests).toHaveLength(1)
+        expect(warnings).toHaveLength(1)
+        expect(warnings[0]).toContain(scene.call)
+        expect(warnings[0]).toContain('retry 1')
+        expect(warnings[0]).toContain('delay 20 ms')
+        expect(warnings[0]).toMatch(/reason connect-(failed|timeout)/u)
+        expect(warnings[0]).not.toContain(PLACEHOLDER)
+        expect(warnings[0]).not.toContain('127.0.0.1')
+      } finally {
+        for (const closer of closers.toReversed()) await closer()
       }
     },
   )

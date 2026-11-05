@@ -992,6 +992,9 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
   roundTwo('anthropic/claude-opus-5'),
   observedLateSignature(SONNET),
   roundThreeWithTool('anthropic/claude-fable-5.1'),
+  // The records added from the official list of 2026-11-03 reuse rounds one and two.
+  roundOneWithTool('anthropic/claude-sonnet-5.5'),
+  roundTwo('anthropic/claude-haiku-5.5'),
   ...JOIN_CASES,
   ...BOUNDARY_CASES,
   ...USAGE_CASES,

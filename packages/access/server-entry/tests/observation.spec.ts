@@ -59,7 +59,12 @@ async function slowBeginFixture(
   const slow = { ...faces, history: { ...faces.history, begin: slowBegin } }
   const fixture = await startFixture({
     config,
-    dependencies: { session: slow, identity: base.identity, issuer: base.issuer },
+    dependencies: {
+      session: slow,
+      identity: base.identity,
+      governance: base.governance,
+      issuer: base.issuer,
+    },
   })
   return { fixture, release }
 }

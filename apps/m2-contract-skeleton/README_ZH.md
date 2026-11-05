@@ -42,18 +42,18 @@
 
 残余缺口写明连通路径不包含的部分。只有阻断残余缺口使跳点保持 `gap` 状态。承接者记在交付流程里，不记在本文件。
 
-| 缺口 | 阻断 | 跳 | 摘要 |
-| --- | --- | --- | --- |
-| GAP-SESSION-WIRE | 否 | H03、H04、H08 | 会话编解码在进程内运行。映射线上会话标识与识别登录的服务端接入仍然缺。 |
-| GAP-SESSION-COORDINATOR | 否 | H04、H07、H09 | 没有 Session 的面、推进适配与 Session 一侧的交接，由本应用排定调用次序。 |
-| GAP-RUN-COMPLETED | 否 | H07 | 本路径上 Session 不能形成 completed 的 Run 终态。 |
-| GAP-AGENT-CONTEXT | 否 | H05 | 没有 Agent 一侧的 Context 适配。Request Context 取得租约后，由本应用的桥固定请求。 |
-| GAP-RECEIVE-SURFACE | 否 | H06 | H06 经 pusher 与宿主接收方连通。Model ACK 在 Session 一侧的记账仍是具名偏离 `MODEL-ACK-ARRIVAL`。 |
-| GAP-SECOND-RUN | 是 | H09 | Session 以 `run-active` 拒绝第二个 Run，Agent 对 `input.submit` 答 `unavailable`。 |
-| GAP-TOOL-LOOP | 是 | H10 | Agent loop 带着待判的工具调用动作停在 A0，因为装配缺 `toolRequests`，没有发起 Tool 调用。owner 是 Reduce B3（R2-D36）。 |
-| GAP-AGENT-REASSEMBLY | 是 | H11 | `quiesce`、`detach` 与 `resume` 返回 `unavailable`。没有公开入口提供 server entry 的观察路径，重装配后观察是否连续无法观察。 |
-| GAP-REASONING-REPLAY | 是 | H12 | Agent loop 在 M6 持有带推理部件的已接收结果，不交出回复。 |
-| GAP-SESSION-LOG-TARGETS | 是 | H13 | 同日志提供者不暴露 Model 接收目标，无法在 Session 日志上建立接收方。 |
+| 缺口                    | 阻断 | 跳            | 摘要                                                                                                                                                    |
+| ----------------------- | ---- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GAP-SESSION-WIRE        | 否   | H03、H04、H08 | 会话编解码在进程内运行。映射线上会话标识与识别登录的服务端接入仍然缺。                                                                                  |
+| GAP-SESSION-COORDINATOR | 否   | H04、H07、H09 | 没有 Session 的面、推进适配与 Session 一侧的交接，由本应用排定调用次序。                                                                                |
+| GAP-RUN-COMPLETED       | 否   | H07           | 本路径上 Session 不能形成 completed 的 Run 终态。                                                                                                       |
+| GAP-AGENT-CONTEXT       | 否   | H05           | 没有 Agent 一侧的 Context 适配。Request Context 取得租约后，由本应用的桥固定请求。                                                                      |
+| GAP-RECEIVE-SURFACE     | 否   | H06           | H06 经 pusher 与宿主接收方连通。Model ACK 在 Session 一侧的记账仍是具名偏离 `MODEL-ACK-ARRIVAL`。                                                       |
+| GAP-SECOND-RUN          | 是   | H09           | Session 以 `run-active` 拒绝第二个 Run，Agent 对 `input.submit` 答 `unavailable`。                                                                      |
+| GAP-TOOL-LOOP           | 是   | H10           | 装配缺 `toolRequests`，Agent 拒绝整批工具调用动作。本应用的消息桥拒绝交接拒绝消息，loop 因此停在 T5，没有发起 Tool 调用。owner 是 Reduce B3（R2-D36）。 |
+| GAP-AGENT-REASSEMBLY    | 是   | H11           | `quiesce`、`detach` 与 `resume` 返回 `unavailable`。没有公开入口提供 server entry 的观察路径，重装配后观察是否连续无法观察。                            |
+| GAP-REASONING-REPLAY    | 是   | H12           | Agent loop 交出的回复不含已封的推理部件（R2-D268），下一次请求无法回放它们。第 2 轮还会遇到 GAP-SECOND-RUN。                                            |
+| GAP-SESSION-LOG-TARGETS | 是   | H13           | 同日志提供者不暴露 Model 接收目标，无法在 Session 日志上建立接收方。                                                                                    |
 
 ## 配置与运行
 
@@ -63,7 +63,7 @@
 
 [测试](tests)在替身上运行连通路径。它们检查第一轮每跳已连通，会话编解码承载了创建、发送与读历史三种消息，Request Context 取得并释放了 Model 准备租约，历史中的回复带有 Model 回复文本，其他租户读不到该会话。
 
-它们检查 Session 访问检查为 `undefined` 时 H03 保持 pending、不构建 Session 存储，检查拒绝时停在 H03。它们还检查这些情况下路径停在负责的那一跳：identity 拒绝登录、Session 登录门没有登录确认、Session 证据桥不可用、Session 拒绝交接、Model 不结算、历史没有回复。
+它们检查 Session 访问检查为 `undefined` 时 H03 保持 pending、不构建 Session 存储，检查拒绝时停在 H03。它们还检查这些情况下路径停在负责的那一跳：identity 拒绝登录、首条输入不是经登录入口而来、Session 证据桥不可用、Session 拒绝交接、Model 不结算、历史没有回复。
 
 它们检查 H09 至 H13 停在哪里、哪一个公开入口拒绝，并检查证据只在路径观察到拒绝时才写出拒绝。它们固定阻断残余缺口背后的上游事实：Agent 的面尚未实现、同日志提供者没有接收目标、脚本 Model 生产者拒绝密封的 `reasoning_state` 部件。它们还检查 `session-log` 存储连通 H13 并停在 H06，以及 Tool 替身执行一次文件读、一次文件写和一条命令。
 

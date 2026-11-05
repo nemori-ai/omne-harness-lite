@@ -15,12 +15,14 @@ import type {
   PiProtocolFrame,
   PiResponseDecoder,
 } from '@omne-harness/pi-ai-transport'
+import type { FixedModelRequest } from '@omne-harness/model-contract'
 
 declare const contributions: PiFamilyContributions
+declare const request: FixedModelRequest
 const acquired = await contributions.acquire(supplier, signal)
 if ('ok' in acquired) {
   const binding: PiFamilyBinding = acquired.ok
-  const decoder: PiResponseDecoder = binding.createDecoder()
+  const decoder: PiResponseDecoder = binding.createDecoder({ request })
   const frame: PiProtocolFrame = { kind: 'end-marker' }
   decoder.accept(frame)
   await binding.release()

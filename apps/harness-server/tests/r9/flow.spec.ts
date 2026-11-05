@@ -2,7 +2,8 @@
 // 慢：起真实的 `dist/bin.js serve` 进程两次（同一状态根）、真实的 SQLite 存储，并为每条命令起一个 `omne` 进程。先运行 `pnpm run build`
 // （本成员与 `apps/cli`）。
 // R9 贯通的进程级一层：发行树以 `serve` 真实模式启动，CLI 依次注册、登录、建会话、发输入，另一租户被拒且不披露
-// 存在，重启后账号与登录仍在，输出里没有登录证明、凭据与游标密钥。判断都在 `flow.ts` 的检查里，`run-r9.sh` 跑同一份。
+// 存在，输入开始的 Run 结束后有序停服（R2-D257），重启后账号与登录仍在，输出里没有登录证明、凭据与游标密钥。判断都在
+// `flow.ts` 的检查里，`run-r9.sh` 跑同一份。
 import { describe, expect, it } from 'vitest'
 import { failed, runR9Flow } from './flow.ts'
 

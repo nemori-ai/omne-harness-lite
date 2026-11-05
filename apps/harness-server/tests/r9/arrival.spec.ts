@@ -12,6 +12,7 @@ import {
   type SessionProviderArrival,
 } from '../../src/rows/session-provider/index.ts'
 import { runServe, type S0Record, type ServeResult } from '../../src/run.ts'
+import { startModelGateway } from '../fixtures/model-gateway.ts'
 import { connectable, until } from '../rows/server-entry/support.ts'
 import {
   bodyOf,
@@ -65,9 +66,12 @@ async function withTree<T>(
   const controller = new AbortController()
   const records: S0Record[] = []
   const stderr: string[] = []
+  // The Model calls go to a local gateway, never to a real supplier (R2-D258).
+  const gateway = await startModelGateway()
+  gateway.trustInProcess()
   const finished: Promise<Run> = runServe({
     distribution: release,
-    operator: operatorLayer({ storageRoot: dir.storageRoot, port }),
+    operator: operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: gateway.url }),
     plugins: {
       ...cordis,
       sessionProviderRow: createSessionProviderRow({ observe: arrival => arrivals.push(arrival) }),
@@ -116,6 +120,7 @@ async function withTree<T>(
   } finally {
     controller.abort('test: stop')
     await finished.catch(() => undefined)
+    await gateway.close()
     dir.remove()
   }
 }
@@ -161,8 +166,8 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
     expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
     expect(run.of('startup-result')[0]).toMatchObject({
       accepting: true,
-      // The release has 22 real rows; this layer puts the observing double in the place of `session-provider`.
-      implementations: { real: 24, 'contract-double': 1, 's0-double': 23 },
+      // The release has 46 real rows; this layer puts the observing double in the place of `session-provider`.
+      implementations: { real: 45, 'contract-double': 1, 's0-double': 2 },
     })
     // The face saw the create and the input, each as the principal that the entry's own system
     // component acts with for the tenant. `access: allowed` is the access check, which asks the
@@ -205,21 +210,17 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
       const created = await tools.cli('alice', ['create-session', '--definition', 'assistant'])
       const session = String(bodyOf(created)['session'])
       const aliceTenant = savedTenant(tools.homes.alice)
+      const bobTenant = savedTenant(tools.homes.bob)
       const mark = tools.arrivals.length
-      const send = (session: string, tenant?: string) =>
-        tools.cli('bob', [
-          'send-input',
-          '--session',
-          session,
-          '--text',
-          'x',
-          ...(tenant === undefined ? [] : ['--tenant', tenant]),
-        ])
+      // --tenant is always given: an existing session needs its tenant named, and Bob has no
+      // record of this one.
+      const send = (session: string, tenant: string) =>
+        tools.cli('bob', ['send-input', '--session', session, '--text', 'x', '--tenant', tenant])
       const runs = {
         ownerTenantReal: await send(session, aliceTenant),
         ownerTenantUnknown: await send(UNKNOWN_SESSION, aliceTenant),
-        ownTenantReal: await send(session),
-        ownTenantUnknown: await send(UNKNOWN_SESSION),
+        ownTenantReal: await send(session, bobTenant),
+        ownTenantUnknown: await send(UNKNOWN_SESSION, bobTenant),
       }
       return { runs, arrivals: tools.arrivals.slice(mark) }
     })

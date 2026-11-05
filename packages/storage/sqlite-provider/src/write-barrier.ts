@@ -1,63 +1,111 @@
-// The read barrier of a domain (SPEC 9.3, domain-serial). Writes that are already sent count as
-// admitted. A barrier request waits for them, and from the moment it queues, later writes and
-// later barriers wait behind it. The barrier is held until the read transaction has ended or the
-// exit of the read Worker is observed. The first version covers the whole physical domain.
-type DomainGate = {
-  /** Writes that entered and have not left. */
-  writes: number
-  held: boolean
-  /** Barrier requests in arrival order. */
-  queued: number
-  watchers: (() => void)[]
+// The read barrier of a domain (SQL contract SPEC 9.3, domain-serial). Writes and barrier requests
+// of one domain share one arrival order. A write enters when no barrier is ahead of it, so writes
+// run side by side. A barrier is held when nothing is ahead of it: it waits for the writes that
+// entered before it, and the writes and barriers that arrive later wait behind it. Neither side
+// can starve the other. Every wait is bounded by its caller, with a signal, a time limit or both;
+// a request that expires or is aborted while it waits is withdrawn and keeps no place in the order.
+// The first version covers the whole physical domain.
+
+type Entry = {
+  readonly kind: 'write' | 'barrier'
+  /** Set while the entry waits. Null once it was granted or withdrawn. */
+  grant: (() => void) | null
 }
 
+export type BarrierWait = Readonly<{
+  /** Withdraws the request while it waits. It has no effect once the request was granted. */
+  signal?: AbortSignal
+  /** Withdraws the request when it has waited this long. */
+  timeoutMs?: number
+}>
+
+export type WithdrawnCause = 'aborted' | 'expired'
+
+export type BarrierOutcome =
+  /** `release` is the leave of a write or the release of a barrier. The second call does nothing. */
+  | Readonly<{ kind: 'granted'; release(): void }>
+  | Readonly<{ kind: 'withdrawn'; cause: WithdrawnCause }>
+
 export class WriteBarrier {
-  private readonly gates = new Map<string, DomainGate>()
+  /** Entries of a domain in arrival order: waiting and granted ones. Absent when empty. */
+  private readonly gates = new Map<string, Entry[]>()
 
-  private gate(domain: string): DomainGate {
-    let gate = this.gates.get(domain)
-    if (gate === undefined) {
-      gate = { writes: 0, held: false, queued: 0, watchers: [] }
-      this.gates.set(domain, gate)
+  /** A write enters when no barrier is ahead of it in the order of its domain. */
+  enterWrite(domain: string, wait: BarrierWait): Promise<BarrierOutcome> {
+    return this.join(domain, 'write', wait)
+  }
+
+  /** A barrier is held when nothing is ahead of it in the order of its domain. */
+  acquire(domain: string, wait: BarrierWait): Promise<BarrierOutcome> {
+    return this.join(domain, 'barrier', wait)
+  }
+
+  private join(domain: string, kind: Entry['kind'], wait: BarrierWait): Promise<BarrierOutcome> {
+    if (wait.signal?.aborted === true)
+      return Promise.resolve({ kind: 'withdrawn', cause: 'aborted' })
+    return new Promise(resolve => {
+      const entry: Entry = { kind, grant: null }
+      let timer: NodeJS.Timeout | null = null
+      const stopWaiting = (): void => {
+        if (timer !== null) clearTimeout(timer)
+        timer = null
+        wait.signal?.removeEventListener('abort', onAbort)
+        entry.grant = null
+      }
+      const withdraw = (cause: WithdrawnCause): void => {
+        stopWaiting()
+        this.remove(domain, entry)
+        resolve({ kind: 'withdrawn', cause })
+      }
+      const onAbort = (): void => withdraw('aborted')
+      entry.grant = () => {
+        stopWaiting()
+        let released = false
+        resolve({
+          kind: 'granted',
+          release: () => {
+            if (released) return
+            released = true
+            this.remove(domain, entry)
+          },
+        })
+      }
+      wait.signal?.addEventListener('abort', onAbort, { once: true })
+      if (wait.timeoutMs !== undefined)
+        timer = setTimeout(() => withdraw('expired'), wait.timeoutMs)
+      this.gate(domain).push(entry)
+      this.advance(domain)
+    })
+  }
+
+  private gate(domain: string): Entry[] {
+    let entries = this.gates.get(domain)
+    if (entries === undefined) {
+      entries = []
+      this.gates.set(domain, entries)
     }
-    return gate
+    return entries
   }
 
-  private changed(gate: DomainGate): void {
-    for (const watcher of gate.watchers.splice(0)) watcher()
+  private remove(domain: string, entry: Entry): void {
+    const entries = this.gates.get(domain)
+    if (entries === undefined) return
+    const at = entries.indexOf(entry)
+    if (at >= 0) entries.splice(at, 1)
+    if (entries.length === 0) this.gates.delete(domain)
+    else this.advance(domain)
   }
 
-  private wait(gate: DomainGate): Promise<void> {
-    return new Promise(resolve => gate.watchers.push(resolve))
-  }
-
-  /** A write enters when no barrier is held or queued. The returned function leaves. */
-  async enterWrite(domain: string): Promise<() => void> {
-    const gate = this.gate(domain)
-    while (gate.held || gate.queued > 0) await this.wait(gate)
-    gate.writes += 1
-    let left = false
-    return () => {
-      if (left) return
-      left = true
-      gate.writes -= 1
-      this.changed(gate)
-    }
-  }
-
-  /** Waits for its turn and for the admitted writes to end. The returned function releases. */
-  async acquire(domain: string): Promise<() => void> {
-    const gate = this.gate(domain)
-    gate.queued += 1
-    while (gate.held || gate.writes > 0) await this.wait(gate)
-    gate.queued -= 1
-    gate.held = true
-    let released = false
-    return () => {
-      if (released) return
-      released = true
-      gate.held = false
-      this.changed(gate)
+  /** Grants what the order allows: writes up to the first barrier, that barrier when it is first. */
+  private advance(domain: string): void {
+    const entries = this.gates.get(domain)
+    if (entries === undefined) return
+    for (const entry of entries) {
+      if (entry.kind === 'barrier') {
+        if (entry === entries[0]) entry.grant?.()
+        return
+      }
+      entry.grant?.()
     }
   }
 }

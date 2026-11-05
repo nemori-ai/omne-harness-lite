@@ -6,7 +6,7 @@
 
 ## 当前入口
 
-先确认任务针对封存的 0.0.1 实现，还是新树中的目标能力。封存实现的步骤、结果与失败处置从[封存版 tenancy-host](../../apps.0.0.1.legacy/tenancy-host/README.md)与[部署操作](../../apps.0.0.1.legacy/tenancy-host/deploy/README.md)读取。操作前核对环境、构建、配置、数据目录与平台限制。目标架构和文档目录不表示当前产品已经支持该操作。
+先确认任务针对封存的 0.0.1 实现，还是新树中的目标能力。封存实现已从仓库删除，链接指向固定提交。封存实现的步骤、结果与失败处置从固定提交中的[封存版 tenancy-host](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md)与[部署操作](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/deploy/README.md)读取。操作前核对环境、构建、配置、数据目录与平台限制。目标架构和文档目录不表示当前产品已经支持该操作。
 
 封存说明中部分仓根命令仍采用旧目录坐标。按[当前 workspace](../workspace.md)核对真实路径、构建及依赖后再操作；本页未核实可运行制品或部署环境，不能原样套用历史命令证明当前支持。
 

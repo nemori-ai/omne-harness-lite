@@ -66,6 +66,13 @@ export type SessionAttemptRecord = Readonly<{
   execution: string
   ordinal: string
   started: DurableEvidence
+  /**
+   * The grant of the attempt (R2-D349): the receipt source of the commit that wrote its SE15, the
+   * evidence the Session hands the Agent as `grant` of the invoke or resume of the attempt
+   * (`AgentDrivePort`). It is not `started` (the evidence of the SE15 row itself). Absent when the
+   * storage recorded none for the attempt; a grant then names no attempt.
+   */
+  grant?: DurableEvidence
 }>
 export type SessionTakenRecord = SessionBatchRecord & Readonly<{ commit: DurableEvidence }>
 export type SessionHistoryIndex = Readonly<{

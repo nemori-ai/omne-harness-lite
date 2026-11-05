@@ -22,7 +22,7 @@
 
 ### pi-ai-transport/src
 
-本表路径相对 `packages.0.0.1.legacy/model/pi-ai-transport/src/`，共 31 个文件。
+本表路径相对固定提交 `901d7ff` 中的 `packages.0.0.1.legacy/model/pi-ai-transport/src/`，共 31 个文件。
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
@@ -60,7 +60,7 @@
 
 ### pi-ai-transport/src/input-meters
 
-本表路径相对 `packages.0.0.1.legacy/model/pi-ai-transport/src/input-meters/`，共 28 个文件。
+本表路径相对固定提交 `901d7ff` 中的 `packages.0.0.1.legacy/model/pi-ai-transport/src/input-meters/`，共 28 个文件。
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
@@ -97,7 +97,7 @@
 
 ### pi-ai-transport/src/official-models
 
-本表路径相对 `packages.0.0.1.legacy/model/pi-ai-transport/src/official-models/`，共 8 个文件。
+本表路径相对固定提交 `901d7ff` 中的 `packages.0.0.1.legacy/model/pi-ai-transport/src/official-models/`，共 8 个文件。
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
@@ -112,7 +112,7 @@
 
 ### pi-ai-transport/src/image-preparation
 
-本表路径相对 `packages.0.0.1.legacy/model/pi-ai-transport/src/image-preparation/`，共 5 个文件。
+本表路径相对固定提交 `901d7ff` 中的 `packages.0.0.1.legacy/model/pi-ai-transport/src/image-preparation/`，共 5 个文件。
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
@@ -124,7 +124,7 @@
 
 ### model-request-runtime-local/src
 
-本表路径相对 `packages.0.0.1.legacy/model/model-request-runtime-local/src/`，共 17 个文件。
+本表路径相对固定提交 `901d7ff` 中的 `packages.0.0.1.legacy/model/model-request-runtime-local/src/`，共 17 个文件。
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
@@ -148,7 +148,7 @@
 
 ### model-profile-directory-local/src
 
-本表路径相对 `packages.0.0.1.legacy/model/model-profile-directory-local/src/`，共 9 个文件。
+本表路径相对固定提交 `901d7ff` 中的 `packages.0.0.1.legacy/model/model-profile-directory-local/src/`，共 9 个文件。
 
 | 源文件 | 目标成员或责任拥有者 | 标记 | 去向阶段或后续线 | 理由与保留边界 |
 | --- | --- | --- | --- | --- |
@@ -166,7 +166,7 @@
 
 以下 38 个文件另计，不加入源码数量。八个资源目录属于六家族，DeepSeek、Qwen 各有两套；xAI 没有该目录资源，OpenAI 固定编码由 js-tiktoken 提供。`anthropic-legacy` 的三个文件由本线迁入 `pi-ai-anthropic`。其余资源在本线均不迁入，只分配给具名家族后续线。资源归家族，引擎执行归独立 tokenizer adapter。相同词表可在同一家族去重，完整配置、特殊 token、模板及采用仍分别固定。
 
-本表路径相对 `packages.0.0.1.legacy/model/pi-ai-transport/resources/tokenizers/`。所有行标为“迁”，表示原资源、来源说明或许可证与所属家族一起保留。表中资源名是具体保留对象，不新增公开资源接口。摘要、来源修订和适用限制以同目录 provenance 或 PROVENANCE 为输入；它们不证明私有供应商的完整计量精确。
+本表路径相对固定提交 `901d7ff` 中的 `packages.0.0.1.legacy/model/pi-ai-transport/resources/tokenizers/`。所有行标为“迁”，表示原资源、来源说明或许可证与所属家族一起保留。表中资源名是具体保留对象，不新增公开资源接口。摘要、来源修订和适用限制以同目录 provenance 或 PROVENANCE 为输入；它们不证明私有供应商的完整计量精确。
 
 | 资源文件 | 目标家族与具体去向 | 标记 | 去向线 | 资源或来源边界 |
 | --- | --- | --- | --- | --- |

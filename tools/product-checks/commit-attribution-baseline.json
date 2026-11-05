@@ -17,6 +17,22 @@
     {
       "sha": "f519bb7a46f5f426baa346cd48e7ef010e759241",
       "reason": "已在共享历史中的 Cursor co-author trailer，不改写历史"
+    },
+    {
+      "sha": "9f2150502d7bf1792ab3ffc9cb9f271f21e4ffdf",
+      "reason": "已推送提交含 Co-Authored-By，历史不可改写，Reduce 批准例外（R2-D142）"
+    },
+    {
+      "sha": "4709fbdb683eccc69e3ac29bd1e5211a602d5ada",
+      "reason": "已推送提交含 Co-Authored-By，历史不可改写，Reduce 批准例外（R2-D142）"
+    },
+    {
+      "sha": "f53ba3cea50fd7474383f8b64fb2ce9e970cd03f",
+      "reason": "已推送提交含 Co-Authored-By，历史不可改写，Reduce 批准例外（R2-D142）"
+    },
+    {
+      "sha": "dff59fb72510a65bc6793e63fe9390337d50f328",
+      "reason": "已推送提交含 Co-Authored-By，历史不可改写，Reduce 批准例外（R2-D142）"
     }
   ]
 }

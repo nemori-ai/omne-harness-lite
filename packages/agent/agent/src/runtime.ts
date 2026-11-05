@@ -112,6 +112,8 @@ export async function createAgentRuntime<P, B extends ContentBlock>(
       guard: accessGuard(binding.tenant, dependencies.access),
       dependencies,
       measurer: createAgentMeasurer(extras.measure),
+      failed: extras.failed,
+      endedFailed: extras.endedFailed,
     }),
   )
 }

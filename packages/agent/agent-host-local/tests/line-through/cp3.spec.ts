@@ -48,6 +48,7 @@ import {
   type LineWorld,
 } from './world.ts'
 import { sessionOnlyRollbackExplained } from './cp3-rollbacks.ts'
+import { entriesOf } from '../host-support.ts'
 
 const worlds: LineWorld[] = []
 afterEach(async () => {
@@ -218,7 +219,7 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     expect(await w.published()).toEqual(root)
     const [effect] = saved.effects
     if (effect === undefined || effect.pending.kind !== 'model') throw new Error('no Model call')
-    expect(saved.entries).toEqual([
+    expect(await entriesOf(w.freshEntries(), { ...agent, execution })).toEqual([
       expect.objectContaining({ kind: 'received', consumption: effect.pending.consumption }),
     ])
     expect(saved.state).toMatchObject({ kind: 'waiting', waits: [{ kind: 'producer' }] })

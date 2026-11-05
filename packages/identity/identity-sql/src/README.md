@@ -8,7 +8,7 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 边界
 
-源码只用可擦除的 TypeScript 语法。根入口不导入 `@deepseek-ai/cordis`，Cordis 绑定只从 `cordis.ts` 导出。非类型行为写在包根 `SPEC.md`，不写在源码注释里代替规格。`worker/` 下的模块由存储提供者在 Worker 线程里按文件加载，它们只执行 SQL，没有随机数、时间函数与跨调用状态，运行时只导入本目录内的模块。
+源码只用可擦除的 TypeScript 语法。根入口不导入 `@deepseek-ai/cordis`，Cordis 绑定只从 `cordis.ts` 导出。非类型行为写在包根 `SPEC.md`，不写在源码注释里代替规格。`worker/` 下的模块由存储提供者在 Worker 线程里按文件加载。它们执行 SQL 与必须同处一个事务的记录核对，没有随机数、时间函数与跨调用状态，运行时只导入本目录内的模块。时刻比较用排序键（SPEC IS-10）。
 
 ## 维护
 
@@ -16,4 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-主线程：`index.ts`、`cordis.ts`、`provider.ts`、`materials.ts`、`config.ts`、`deadline.ts`、`identifiers.ts`。时钟不在本目录：它经 `identityClock` 服务键注入。Worker：`worker/schema.ts`、`worker/support.ts`、`worker/migration.ts`、`worker/participant.ts`、`worker/read-issue-basis.ts`、`worker/read-login-by-proof.ts`、`worker/read-standing.ts`。负责人是本成员的写者，当前没有缺口。
+主线程：`index.ts`、`cordis.ts`、`provider.ts`、`governance.ts`、`result.ts`、`materials.ts`、`config.ts`、`deadline.ts`、`identifiers.ts`。时钟不在本目录：它经 `identityClock` 服务键注入。Worker：`worker/schema.ts`、`worker/support.ts`、`worker/migration.ts`、`worker/migration-governance.ts`、`worker/participant.ts`、`worker/read-issue-basis.ts`、`worker/read-login-by-proof.ts`、`worker/read-standing.ts`、`worker/read-governance.ts`。负责人是本成员的写者，当前没有缺口。

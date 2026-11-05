@@ -165,6 +165,8 @@ writeFile(参数: {path, text}, 环境, 执行上下文):
 
 文件工具 = 核对成功(defineCommandTool(
     facts = 文件工具的说明与声明,
+    encoding = "wrapped",
+    guide = "整个工具的规则（可选）",
     commands = {
         read: {summary: "读取文件", operation: 读取操作},
         list: {summary: "列出文件", operation: 列表操作},
@@ -176,6 +178,38 @@ writeFile(参数: {path, text}, 环境, 执行上下文):
 注册生成三个命令的参数及 returns 投影，绑定提供者在装载阶段核实际 schema 和作者。调用 read 时，ToolBindings 选择读取操作；后续返回只能按读取契约检查。若 readFile 返回 `{bytesWritten: 10}`，即使写入 schema 接受它，读取调用仍失败。定义更新不改变原调用采用的 schema。
 
 若只提供读取函数，可将同一个读取操作交给 defineFunctionTool，不必另建一种返回机制。同一个多命令工具的 FIFO、并发和 programmable 规则仍按原工具身份执行。程序执行方只经 ProgramTools 发起具名命令，示例中的注册对象不交给脚本。
+
+## 多命令工具的单槽调用与出错时的 guide
+
+多命令工具对模型只有一条声明。下图画一次调用经过的各方，以及三条出路：执行、来源作答、参数错。规则归 [SPEC](../SPEC.md#多命令工具的单槽调用)，作答在 Agent 一侧的处置归 [Agent 契约](../../../agent/agent-contract/SPEC.md#整批判断屏障与动作准入)。
+
+```mermaid
+sequenceDiagram
+    participant M as 模型
+    participant A as Agent（动作准入 A0）
+    participant S as 可信 Tool 请求来源
+    participant B as 工具宿主的绑定
+    participant C as 命令的参数解析
+    M->>A: tool_call Files {"command": …, "params": {…}}
+    A->>S: describe(生效参数)
+    alt 没点名已知命令
+        S-->>A: answered（原因 + 工具 guide）
+        A-->>M: tool 消息 = 作答正文（只拒绝这一个动作）
+    else 点名已知命令
+        S-->>A: 定义采用
+        A->>A: 准入与 prepare（command = 所选命令）
+        A->>B: 发起
+        B->>B: commandArguments 切出 params
+        B->>C: parse(params)
+        alt 参数错（invalid）
+            C-->>B: 原因
+            B-->>M: 失败结果 = 原因 + 该命令的 guide
+        else 参数对
+            C-->>B: 参数值
+            B-->>M: 命令的执行结果
+        end
+    end
+```
 
 ## 两种返回在 settle 汇合
 

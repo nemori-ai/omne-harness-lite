@@ -62,6 +62,20 @@ function recordedKey(
   return keyMatches(key, recorded) ? key : undefined
 }
 
+/** The shape Session recorded for this capability, read back through Tool's public projection. */
+function recordedShape<P>(
+  access: SessionAccess<P>,
+  recorded: Recorded,
+): ToolBindingEntry['shape'] | undefined {
+  const projected = projectResidentReferences({
+    sessions: [{ ...recorded, tenant: access.tenant, session: access.session }],
+    next: null,
+  })
+  if ('failure' in projected) return undefined
+  const shape = projected.ok.items[0]?.shape
+  return shape === undefined || shape.name !== recorded.capability ? undefined : shape
+}
+
 function planRecorded<P>(
   access: SessionAccess<P>,
   recorded: Recorded,
@@ -71,13 +85,8 @@ function planRecorded<P>(
 ): ResidentAdoption | undefined {
   const key = recordedKey(recorded, entries, definition)
   if (key === undefined) return undefined
-  const projected = projectResidentReferences({
-    sessions: [{ ...recorded, tenant: access.tenant, session: access.session }],
-    next: null,
-  })
-  if ('failure' in projected) return undefined
-  const shape = projected.ok.items[0]?.shape
-  if (shape === undefined || shape.name !== recorded.capability) return undefined
+  const shape = recordedShape(access, recorded)
+  if (shape === undefined) return undefined
   const winner = live[0]
   const facts = {
     recorded: { key, shape, usable: live.some(entry => sameBindingKey(entry.key, key)) },

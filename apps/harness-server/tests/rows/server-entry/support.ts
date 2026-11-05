@@ -22,6 +22,7 @@ import { evidence } from '@omne-harness/session-contract/testing'
 import { SessionService, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { parseDuration, parseInstant } from '@omne-harness/utc-instant'
 import { stubPlugin } from '../../../src/cordis.ts'
+import { serveProfile } from '../../../src/profile.ts'
 import { entryObjects } from '../../../src/entry/index.ts'
 import { defineRow } from '../../../src/row.ts'
 import { serverEntryRow } from '../../../src/rows/server-entry/index.ts'
@@ -283,6 +284,20 @@ class SessionDouble extends SessionService<unknown> {
   }
 }
 
+/**
+ * The release trusted table, with `principalVerifier` also visible to the Session double: the
+ * double verifies what reaches it to record a verdict. The real `session-provider` does not read
+ * the verifier, so the release table does not list it (R2-D203 P-9).
+ */
+export function visibilityWithSessionDouble() {
+  const visibility = new Map(serveProfile().visibility)
+  visibility.set('session-provider' as never, [
+    ...(visibility.get('session-provider' as never) ?? []),
+    principalVerifierKey,
+  ])
+  return visibility
+}
+
 export function sessionDoubleRow(recorder: SessionRecorder) {
   return defineRow({
     row: 'session-provider',
@@ -315,6 +330,15 @@ const ENTRY: DefinitionMappingEntry = {
   entryContract: adoption('entry'),
   requiredIdentities: [],
   modes: { permission: 'never', environment: adoption('env'), collaboration: 'co-work' },
+  initialModelSelection: {
+    name: 'fixture/model',
+    basis: {
+      owner: 'fixture',
+      record: 'model-selection',
+      revision: '1',
+      digest: 'sha256:selection',
+    },
+  },
 }
 
 class MappingsDouble extends DefinitionMappingsService {
@@ -393,6 +417,7 @@ export function startTree(options: TreeOptions): LiveTree {
       ...options.extraPlugins,
     },
     entryObjects,
+    visibility: visibilityWithSessionDouble(),
     stopAfterStartup: false,
     stop: controller.signal,
     readinessTimeoutMs: options.readinessTimeoutMs ?? 1500,

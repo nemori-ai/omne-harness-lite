@@ -90,11 +90,16 @@ export function sessionView<P>(
     },
     entries: {
       record: input => invoke(input, 'entries.record', view => view.entries.record(input)),
+      read: input => invoke(input, 'entries.read', view => view.entries.read(input)),
+      receivedOf: input =>
+        invoke(input, 'entries.receivedOf', view => view.entries.receivedOf(input)),
     },
     materials: {
       preserve: input =>
         invoke(input, 'materials.preserve', view => view.materials.preserve(input)),
       read: input => invoke(input, 'materials.read', view => view.materials.read(input)),
+      describe: input =>
+        invoke(input, 'materials.describe', view => view.materials.describe(input)),
     },
     received: {
       commit: input => invoke(input, 'received.commit', view => view.received.commit(input)),

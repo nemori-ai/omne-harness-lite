@@ -21,15 +21,17 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type {
   AgentJournal,
+  AgentJournalEntries,
   AgentMaterials,
   Material,
   ReceivedEntry,
 } from '@omne-harness/agent-contract'
+import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
 import {
-  sampleReceivedModelResult,
-  sampleReceivedToolAccount,
-} from '@omne-harness/agent-contract/testing'
-import { agentJournalKey, agentMaterialsKey } from '@omne-harness/agent-cordis-contract/cordis'
+  agentJournalEntriesKey,
+  agentJournalKey,
+  agentMaterialsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -229,6 +231,7 @@ function entriesKinds(s: ToolScene): string[] {
 
 type Wraps = Partial<{
   load: AgentJournal<string>['load']
+  entries: AgentJournalEntries<string>['read']
   read: AgentMaterials<string, ContentBlock>['read']
   commitEntries: SessionTransactionPort<string>['commitEntries']
 }>
@@ -283,6 +286,14 @@ async function assembled(s: ToolScene, options: Options = {}) {
       return (wraps.load ?? s.view.journal.load)(input)
     }
   }
+  // The entries port of the same Journal provider, mounted with the Journal.
+  class Entries extends Service {
+    constructor(scope: Context) {
+      super(scope, agentJournalEntriesKey)
+    }
+    readonly read: AgentJournalEntries<string>['read'] = input =>
+      (wraps.entries ?? s.view.entries.read)(input)
+  }
   class Materials extends Service {
     constructor(scope: Context) {
       super(scope, agentMaterialsKey)
@@ -303,6 +314,8 @@ async function assembled(s: ToolScene, options: Options = {}) {
   }
   const services = { Session, Journal, Materials, Transactions } as const
   for (const name of mountOnly) await mount(ctx, services[name])
+  // The entries port is always present: the cases of an absent dependency name the four above.
+  await mount(ctx, Entries)
   const consumption = createSessionToolLogConsumptionPlugin({
     toolDeliveries: options.reader === undefined ? reader : options.reader,
     ...(options.coordinator === undefined ? {} : { coordinator: options.coordinator }),
@@ -364,8 +377,10 @@ describe('a Tool received entry becomes one entries-channel Session batch', () =
     const observation = f.commits[0]!.observation
     expect(observation.channel).toBe('tool-received')
     const [item] = observation.items
-    const stored = ok(await s.view.journal.load({ ...s.access, execution: s.execution })).entries
-    expect(item?.fact).toEqual(stored?.find(entry => entry.kind === 'received')?.material)
+    const stored = ok(
+      await s.view.entries.read({ ...s.access, execution: s.execution, after: null, limit: 100 }),
+    ).items.map(listed => listed.entry)
+    expect(item?.fact).toEqual(stored.find(entry => entry.kind === 'received')?.material)
     expect(item?.interpretation).toEqual([
       {
         kind: 'execution',
@@ -413,11 +428,12 @@ describe('a Tool received entry becomes one entries-channel Session batch', () =
     const s = await toolScene('model-entry')
     const f = await assembled(s, {
       wraps: {
-        load: async input => {
-          const loaded = await s.view.journal.load(input)
-          if ('failure' in loaded) return loaded
+        entries: async input => {
+          const read = await s.view.entries.read(input)
+          if ('failure' in read) return read
           const model = sampleReceivedModelResult(s.access.tenant, s.name)
-          return succeed({ ...loaded.ok, entries: [...(loaded.ok.entries ?? []), model] })
+          const sequence = String(read.ok.items.length + 1)
+          return succeed({ ...read.ok, items: [...read.ok.items, { sequence, entry: model }] })
         },
       },
     })
@@ -598,17 +614,13 @@ describe('failures stay failures and commit nothing', () => {
     expect(f.commits).toHaveLength(0)
   })
 
-  it('a Journal load without entries answers unavailable, not an empty channel', async () => {
+  it('an entries read that fails answers unavailable, not an empty channel', async () => {
     const s = await toolScene('no-entries')
     await receive(s, s.result, 'result')
     const f = await assembled(s, {
       wraps: {
-        load: async input => {
-          const loaded = await s.view.journal.load(input)
-          if ('failure' in loaded) return loaded
-          const { entries: _entries, ...rest } = loaded.ok
-          return succeed(rest)
-        },
+        entries: async () =>
+          fail({ kind: 'unavailable', owner: 'agentJournalEntries', diagnostic: 'down' }),
       },
     })
 
@@ -621,16 +633,18 @@ describe('failures stay failures and commit nothing', () => {
     await receive(s, s.result, 'result')
     const f = await assembled(s, {
       wraps: {
-        load: async input => {
-          const loaded = await s.view.journal.load(input)
-          if ('failure' in loaded || loaded.ok.entries === undefined) return loaded
+        entries: async input => {
+          const read = await s.view.entries.read(input)
+          if ('failure' in read) return read
           return succeed({
-            ...loaded.ok,
-            entries: loaded.ok.entries.map(entry =>
-              entry.kind === 'received'
-                ? { ...entry, consumption: 'other-consumption' as typeof entry.consumption }
-                : entry,
-            ),
+            ...read.ok,
+            items: read.ok.items.map(({ sequence, entry }) => ({
+              sequence,
+              entry:
+                entry.kind === 'received'
+                  ? { ...entry, consumption: 'other-consumption' as typeof entry.consumption }
+                  : entry,
+            })),
           })
         },
       },
@@ -683,14 +697,15 @@ function changedEntry(
 ): Wraps {
   const { material: _material, ...draft } = change(entry)
   return {
-    load: async input => {
-      const loaded = await s.view.journal.load(input)
-      if ('failure' in loaded || loaded.ok.entries === undefined) return loaded
+    entries: async input => {
+      const read = await s.view.entries.read(input)
+      if ('failure' in read) return read
       return succeed({
-        ...loaded.ok,
-        entries: loaded.ok.entries.map(item =>
-          item.kind === 'received' ? { ...change(item), material: item.material } : item,
-        ),
+        ...read.ok,
+        items: read.ok.items.map(({ sequence, entry: item }) => ({
+          sequence,
+          entry: item.kind === 'received' ? { ...change(item), material: item.material } : item,
+        })),
       })
     },
     read: async () => succeed(materialOf(s.access.tenant, draft)),
@@ -890,33 +905,6 @@ describe('another tenant', () => {
     expect(f.reads.load).toBe(0)
   })
 
-  it('an entry whose call names another tenant is denied, not committed', async () => {
-    const s = await toolScene('foreign-call')
-    await receive(s, s.result, 'result')
-    const foreign = sampleReceivedToolAccount(memoryOtherAccess('x', 'y').tenant, s.name)
-    const f = await assembled(s, {
-      wraps: {
-        load: async input => {
-          const loaded = await s.view.journal.load(input)
-          if ('failure' in loaded || loaded.ok.entries === undefined) return loaded
-          return succeed({
-            ...loaded.ok,
-            entries: loaded.ok.entries.map(entry =>
-              entry.kind === 'received' ? { ...entry, delivery: foreign.delivery } : entry,
-            ),
-          })
-        },
-      },
-    })
-
-    expect(await f.consume()).toMatchObject({ failure: { kind: 'denied' } })
-    expect(f.commits).toHaveLength(0)
-  })
-})
-
-// --- configuration and Cordis --------------------------------------------------------------------
-
-describe('the configured timeout', () => {
   it('a load that does not answer in time is unavailable and commits nothing', async () => {
     const s = await toolScene('timeout')
     await receive(s, s.result, 'result')

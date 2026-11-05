@@ -6,7 +6,9 @@ import { INGRESS_FAMILIES, deriveIngressOperation } from '@omne-harness/session-
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import {
   DEFINITION,
+  INITIAL_MODEL_SELECTION,
   SESSION_PATH,
+  resolveDefinition,
   createSession,
   login,
   send,
@@ -72,6 +74,7 @@ describe('create-session and query-create-session', () => {
       workspaceAttachment: null,
       initial: null,
       modes: { kind: 'tenant-default', source: { name: 'defaults' } },
+      initialModelSelection: INITIAL_MODEL_SELECTION,
     })
     const principal = call?.principal as ActingForTenantPrincipal
     expect(principal.kind).toBe('acting-for-tenant')
@@ -123,6 +126,34 @@ describe('create-session and query-create-session', () => {
     expect(reply.status).toBe(422)
     expect(outcomeOf(reply.json)).toBe('invalid')
     expect(fixture.session.controls.calls()).toEqual([])
+  })
+
+  it('refuses a mapped definition without an initial model selection as basis-unavailable, before Session is called', async () => {
+    fixture = await startFixture({
+      dependencies: {
+        resolveDefinition: name => {
+          const full = resolveDefinition(name)
+          if (full === undefined) return undefined
+          const { initialModelSelection: _selection, ...withoutSelection } = full
+          return withoutSelection
+        },
+      },
+    })
+    const who = await login(fixture, 'alice')
+    const reply = await send(fixture.port, SESSION_PATH, {
+      body: sessionMessage(
+        'create-session',
+        { createCallId: 'create-1', definition: DEFINITION, purpose: 'p' },
+        { loginProof: who.loginProof, actingTenant: who.tenantText },
+      ),
+    })
+    expect(reply.status).toBe(503)
+    expect(outcomeOf(reply.json)).toBe('basis-unavailable')
+    expect(fixture.session.controls.calls()).toEqual([])
+    expect(fixture.diagnostics).toContainEqual({
+      code: 'session.definition-incomplete',
+      operation: 'create-session',
+    })
   })
 
   it('answers denied when the acting tenant is not the login current selection', async () => {

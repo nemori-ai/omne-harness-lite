@@ -8,7 +8,7 @@
 - [index.ts](index.ts)：根入口
 - [owner.ts](owner.ts)：包名常量
 - [record.ts](record.ts)：记录类型
-- [records.ts](records.ts)：4 条记录与 tokenizer 定义
+- [records.ts](records.ts)：6 条记录与 tokenizer 定义
 - [rules.ts](rules.ts)：四个 hook 的规则表
 - [images.ts](images.ts)：28 像素块图片规则
 - [adoptions.ts](adoptions.ts)：组件采用与计数依据

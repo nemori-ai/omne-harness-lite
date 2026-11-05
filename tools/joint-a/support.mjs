@@ -152,7 +152,9 @@ export function storageConfig(storageRoot, closeDeadlineMs) {
     maxCommandBytes: 1048576,
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
-    maxJsonDepth: 64,
+    // 发行配置 storage 行的 `maxJsonDepth`（R2-D270）：整行替换时要抄过来，否则带首条输入的 Session `create`（K-14，69 层）
+    // 在提供者初值 64 下被拒（command_limit）。K-23 桥删除后 A2 的 Tool 意图材料只有个位数层（R2-D372）。
+    maxJsonDepth: 128,
     maxJsonMembers: 65536,
     maxResponseBytes: 65536,
     maxOperationResponseBytes: 1048576,

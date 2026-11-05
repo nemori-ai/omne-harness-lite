@@ -42,6 +42,7 @@ async function source(
   const commit = memory.applyCommit('source', {
     kind: 'registration',
     commit: { commit: 'register' },
+    after: null,
     change: {
       kind: 'add',
       scope: target,

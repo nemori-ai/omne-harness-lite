@@ -72,7 +72,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 
 #### 普通输入的来源与登录门
 
-服务端接入把普通输入的 `origin` 写成登录入口证据：`{ owner: 'login-entry', record: login 的 loginStateCodec 文本, revision: '1', digest: ["login-entry", 账号的 accountCodec 文本, login 的 loginStateCodec 文本] 按上述派生规则得到的摘要 }`。它不含识别时刻：Session 的输入摘要包含 `origin`，同一登录下原样再送必须得到同一份内容。换了登录之后原样再送的结果见[会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)。Session 的新 Run 要求登录入口已确认登录有效。装配的证据桥在 `startRun` 时从首条输入的 `origin` 取这项确认。受理时的识别就是登录门的证据。
+服务端接入把普通输入的 `origin` 写成登录入口证据：`{ owner: 'login-entry', record: login 的 loginStateCodec 文本, revision: '1', digest: ["login-entry", 账号的 accountCodec 文本, login 的 loginStateCodec 文本] 按上述派生规则得到的摘要 }`。它不含识别时刻：Session 的输入摘要包含 `origin`，同一登录下原样再送必须得到同一份内容。换了登录之后原样再送的结果见[会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)。Session 的新 Run 要求首条输入经登录入口而来：`startRun` 在提交事务里读首条输入保存的 `origin`，`owner` 须为 `login-entry`（R2-D198）。受理时的识别就是登录门的证据。
 
 `startRun` 由装配的推进触发发起，不是公开操作。`login-required` 不进入公开结果：Run 不开时，读历史读不到回复，原因由宿主诊断。
 
@@ -131,7 +131,7 @@ Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](
 | 承担方 | 责任 | 失败或禁止 |
 | --- | --- | --- |
 | 客户端 | 表达选择或切换的意图，展示结果 | 客户端不填写会话的初始模型选择 |
-| 服务端接入 `server-entry` | `create` 时从部署配置的默认档案路由填入创建材料的初始模型选择（`initialModelSelection`）。合法性来源是采用来源表的 `model` 行 | 该行缺失或不认可这个路由名时，`create` 返回 `unavailable` 或 `invalid`，不用默认名补值 |
+| 服务端接入 `server-entry` | `create` 时从部署配置的默认档案路由填入创建材料的初始模型选择（`initialModelSelection`）。合法性来源是采用来源表的 `model` 行 | 该行缺失或不认可这个路由名时，`create` 返回 `unavailable` 或 `invalid`，不用默认名补值。定义映射条目没有 `initialModelSelection` 时，接入在调用 Session 之前拒绝，对外是 `basis-unavailable`（Session 的 `unavailable`），并记诊断 `session.definition-incomplete`。公开操作没有切换模型的入口，这样的会话永远读不到当前选择，Run 无法启动（R2-D236） |
 | Session | 保存当前选择、来源与切换事实，见 Session 的[模型选择与切换](../../../packages/session/session-contract/SPEC.md#模型选择与切换)。`management.change(model)` 是唯一的正常切换入口。保存选择的窄读口只交出选择与原依据 | 没有初始值也没有合法切换时，读口返回 `not-ready`。它不用当前默认、最近一次实际调用或空名补值，也不返回凭据、有效参数或供应商配置 |
 | 应用的 `agent-model-selection` 行 | 实现 Agent 的[模型选择](../../../packages/agent/agent-contract/SPEC.md#模型选择)。每次尚未固定的请求都读取 Session 保存的选择与来源，再按 `modelProfiles` 解释 | 它不从会话快照的私有字段取值。Session 的选择读口冻结之前，这个适配不交付 |
 | Context 一侧的 `agent-context` 行 | 经 `modelRequestPreparation` 调用 Model 的请求准备 | 无 |
@@ -147,9 +147,9 @@ Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](
 
 - `apps/cli` 只支持 `--help` 与 `--version`。`apps/cli/src/state-directory.ts` 能解析 `$HOME/.omne`，但这两条操作不创建状态根。
 - `apps/harness-server` 的现有模式不打开业务状态根，见其[范围](../../../apps/harness-server/SPEC.md#范围)。
-- `apps.0.0.1.legacy/README.md` 仍列出 tenancy-host 与封存版 CLI，并注明旧 `local-harness` 基线已退役，原件在 Git 历史。它们不是已迁移到新树的服务。
-- `docs/development.md` 仍链接封存版 tenancy-host 与 CLI 的运行材料，这是现有的读者消费者。
-- `scripts/README.md` 写明两个脚本仍指向不存在的 `apps/tenancy-host/tools/*`。这是源码指针的事实，不能据此断定没有旧部署数据。
+- 封存应用树已从仓库删除。固定提交中的 [apps.0.0.1.legacy/README.md](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md) 列出 tenancy-host 与封存版 CLI，并注明旧 `local-harness` 基线已退役，原件在 Git 历史。它们不是已迁移到新树的服务。
+- `docs/development.md` 仍链接固定提交中封存版 tenancy-host 与 CLI 的运行材料，这是现有的读者消费者。
+- `scripts/README.md` 写明 `package-tenancy-host.sh` 仍指向不存在的 `apps/tenancy-host/tools/package.ts`。这是源码指针的事实，不能据此断定没有旧部署数据。
 
 未查范围是：用户实际的状态根、旧的活进程、其他设备与用户目录、已发行制品和生产数据。这些保持未知。仓库里没有文件，不代表这些位置没有数据。
 
@@ -157,7 +157,7 @@ Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](
 | --- | --- |
 | 切换 | 切换前，后继调查为每个已确认的根记录拥有者、实例与消费者、schema 版本、当前进程，以及保存与回退的责任。应用见到旧根而没有已接受方案时，按上文「状态根与归属」处理 |
 | 重建 | 需要重建时，先具名接受保留或迁移方案。持久格式与迁移规则归数据拥有者 |
-| 保留 | 新服务建成时，不删除封存版的运行说明，也不把其历史数据当作新 schema |
+| 保留 | 封存版的运行说明已从仓库删除，原件留在[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy)。不把其历史数据当作新 schema |
 
 ## 仍需补齐的业务增量
 

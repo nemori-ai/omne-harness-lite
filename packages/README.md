@@ -39,4 +39,4 @@
 
 ## 旧实现及工具依赖
 
-旧实现保持于[packages.0.0.1.legacy](../packages.0.0.1.legacy/README.md)。现有开发工具仍可依赖这些显式登记的legacy成员。它们不属于本树的新实现，不构成目标架构符合证据。新增实现必须遵循docs已接受要求和架构，不继承旧布局政策。
+旧实现已从仓库删除，原件见固定提交中的[packages.0.0.1.legacy](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)。它们不属于本树的新实现，不构成目标架构符合证据。新增实现必须遵循docs已接受要求和架构，不继承旧布局政策。

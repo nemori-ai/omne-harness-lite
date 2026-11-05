@@ -38,7 +38,7 @@ export type SystemActionDenial =
 
 /**
  * One maintenance grant record as its source holds it. `purposes` are purpose names of the matrix
- * rows. `generation` only enters the basis. `expiresAt` is judged by the trusted clock.
+ * rows. `generation` only enters the basis. `expiresAt` is judged by the injected clock.
  */
 export type MaintenanceGrant = Readonly<{
   source: string
@@ -56,7 +56,7 @@ export type MaintenanceGrantReading =
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** What the trusted clock answered about one end time. */
+/** What the expiry clock answered about one end time. */
 export type ExpiryReading =
   | Readonly<{ kind: 'reached' }>
   | Readonly<{ kind: 'pending' }>
@@ -253,7 +253,7 @@ function grantStep(
     case 'unavailable':
       return unavailable(expiry.diagnostic)
     default:
-      return unavailable('the trusted clock answered outside its contract')
+      return unavailable('the expiry clock answered outside its contract')
   }
 }
 

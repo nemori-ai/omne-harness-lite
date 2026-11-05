@@ -1,9 +1,12 @@
-// The Anthropic records: one `current` record per exact OpenRouter model, revision `1`. Pure data:
-// a record changes only by a new revision, and the adoption digest covers every member. The
-// models, the parameter subset, the cache rule, the limits and the group rule come from the sealed
+// The Anthropic records: one `current` record per exact OpenRouter model. Pure data: a record
+// changes only by a new revision, and the adoption digest covers every member. The four sealed
+// models, the parameter subset, the cache rule and the group rule come from the sealed
 // `official-models/anthropic.ts` and `input-meters/anthropic-replay.ts` (see provenance.json). The
 // sealed signed-prefix degrade is not migrated: by the project convention a record never turns
-// reasoning off, and the gateway takes a foreign tool turn with reasoning on.
+// reasoning off, and the gateway takes a foreign tool turn with reasoning on. Claude Sonnet 5.5
+// and Claude Haiku 5.5 come from the official model list of 2026-11-03. The four sealed models are
+// at revision `2`: it takes the official window and output as upstream values. Revision `1` is
+// deleted by R2-D126; 0.0.x promises no compatibility with earlier records.
 import type { ParameterTable } from '@omne-harness/pi-ai-transport/chat-completions'
 import { IMAGE_MEDIA_TYPES } from './images.ts'
 import type { AnthropicRecord } from './record.ts'
@@ -54,7 +57,8 @@ export const ANTHROPIC_TOKENIZER = {
 
 /**
  * The parameter subset of the sealed route. Reasoning effort `low` to `max` goes out as
- * `reasoning.effort` with the same value; `none` is not offered. The sealed drops of temperature,
+ * `reasoning.effort` with the same value; `none` is not offered. Anthropic also publishes `xhigh`;
+ * the contract has no `xhigh`, so no record offers it. The sealed drops of temperature,
  * top-p, seed and the two penalties are explicit `unsupported` entries.
  */
 const PARAMETERS = {
@@ -106,20 +110,24 @@ const COMMON = {
     image: { mediaTypes: IMAGE_MEDIA_TYPES, detail: 'auto' },
     fixed: [{ field: 'store', value: false }],
     usageTail: { maxFrames: 2 },
+    // Anthropic takes tool names of `[a-zA-Z0-9_-]`, at most 64 long.
+    toolNames: { rule: 'underscore/1', maxLength: 64 },
   },
   parameters: PARAMETERS,
   extensions: [],
   profile: {
     input: ['text', 'image'],
     output: ['text'],
+    // The official window and output are finite upstream values. Anthropic publishes no input
+    // limit, so the input and the image bytes stay unknown.
     context: {
-      window: { provided: '1000000', upstream: { kind: 'unknown' } },
+      window: { provided: '1000000', upstream: { kind: 'finite', amount: '1000000' } },
       input: { provided: '872000', upstream: { kind: 'unknown' } },
-      output: { provided: '128000', upstream: { kind: 'unknown' } },
+      output: { provided: '128000', upstream: { kind: 'finite', amount: '128000' } },
     },
     limits: [{ metric: 'image-bytes', provided: '4194304', upstream: { kind: 'unknown' } }],
     evidence:
-      'The sealed Anthropic definitions cite an OpenRouter route report of 2026-09-28: a shared 1000000-token window and a 128000-token output ceiling for the selected Anthropic endpoints. The report is not in the repository, so no upstream value is established. The 872000-token input limit reserves the whole output ceiling. The 4194304-byte image limit and the stop sequence limits are the offering of this project.',
+      'Anthropic models overview (https://platform.claude.com/docs/en/about-claude/models/overview) and model pages (https://platform.claude.com/docs/en/models/<model>/overview) observed 2026-11-03: a 1M-token context window and a 128K-token max output on the synchronous Messages API for every model of these records. OpenRouter endpoint metadata (https://openrouter.ai/api/v1/models/<route>/endpoints) observed 2026-11-03 for the Anthropic endpoint agrees: a 1000000-token context and a 128000-token max completion, with no max prompt. No upstream input limit is published; the 872000-token input limit reserves the whole output ceiling. The 4194304-byte image limit and the stop sequence limits are the offering of this project.',
   },
   replay: REPLAY,
   rules: {
@@ -140,28 +148,42 @@ const COMMON = {
 export const ANTHROPIC_RECORDS = [
   {
     name: 'anthropic/claude-opus-5.5',
-    revision: '1',
+    revision: '2',
     route: { recipient: OPENROUTER, model: 'anthropic/claude-opus-5.5' },
     status: 'current',
     ...COMMON,
   },
   {
-    name: 'anthropic/claude-opus-5',
+    name: 'anthropic/claude-sonnet-5.5',
     revision: '1',
+    route: { recipient: OPENROUTER, model: 'anthropic/claude-sonnet-5.5' },
+    status: 'current',
+    ...COMMON,
+  },
+  {
+    name: 'anthropic/claude-haiku-5.5',
+    revision: '1',
+    route: { recipient: OPENROUTER, model: 'anthropic/claude-haiku-5.5' },
+    status: 'current',
+    ...COMMON,
+  },
+  {
+    name: 'anthropic/claude-opus-5',
+    revision: '2',
     route: { recipient: OPENROUTER, model: 'anthropic/claude-opus-5' },
     status: 'current',
     ...COMMON,
   },
   {
     name: 'anthropic/claude-sonnet-5',
-    revision: '1',
+    revision: '2',
     route: { recipient: OPENROUTER, model: 'anthropic/claude-sonnet-5' },
     status: 'current',
     ...COMMON,
   },
   {
     name: 'anthropic/claude-fable-5.1',
-    revision: '1',
+    revision: '2',
     route: { recipient: OPENROUTER, model: 'anthropic/claude-fable-5.1' },
     status: 'current',
     ...COMMON,

@@ -14,7 +14,7 @@ import { CallConflict } from './call-state.ts'
 // kind, a missing origin or a contradiction quarantines the session.
 import type { Adoption, DurableEvidence, InputId } from './identity.ts'
 import type { RecoveryTask, WorkSnapshot } from './values.ts'
-import { SESSION_INTERPRETER, decodeEntry, type SessionEntry } from './entries.ts'
+import { SESSION_INTERPRETER, decodeEntries, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
 import { scopeBinding } from './decide-management.ts'
@@ -33,6 +33,18 @@ export function batchEvidence(batch: CommittedBatch, session: string): DurableEv
     digest: `sha256:${digestOf(batch.entries)}`,
   }
 }
+
+/**
+ * The entries that change the Run layer of an active Run (SPEC I-R2, R2-D327): its start, an
+ * attempt that starts or gives the advance back, and an adoption change. The batch that holds one
+ * sets the Run-layer revision; an accept, a hand-over or an Agent fact does not.
+ */
+const RUN_LAYER_KINDS: ReadonlySet<string> = new Set([
+  'run.started',
+  'run.attempt-started',
+  'run.attempt-released',
+  'session.adoption',
+])
 
 type Draft = {
   -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K]
@@ -56,7 +68,12 @@ function without(list: readonly InputId[], removed: readonly InputId[]): readonl
 }
 
 /** Applies one decoded entry. Returns a diagnostic when the entry contradicts the state. */
-function apply(draft: Draft, entry: SessionEntry, source: DurableEvidence): string | null {
+function apply(
+  draft: Draft,
+  entry: SessionEntry,
+  source: DurableEvidence,
+  revision: WorkSnapshot['revision'],
+): string | null {
   switch (entry.kind) {
     case 'session.created':
       return 'session.created after the first entry'
@@ -119,6 +136,7 @@ function apply(draft: Draft, entry: SessionEntry, source: DurableEvidence): stri
         advance: null,
         ordinal: '0',
         execution: { execution: entry.execution, revision: null, evidence: null, readThrough: '0' },
+        revision,
       }
       draft.executions = [
         ...(draft.executions ?? []),
@@ -303,8 +321,10 @@ function reduceBatch(
     return quarantined(`batch ${batch.revision} holds an entry of another revision`)
   let draft: Draft | null = previous === null ? null : { ...previous }
   const decodedEntries: SessionEntry[] = []
-  for (const row of batch.entries) {
-    const decoded = decodeEntry(row)
+  for (const decoded of decodeEntries(
+    batch.entries,
+    previous?.initialization?.initialAdoption ?? null,
+  )) {
     if ('unknown' in decoded) return quarantined(`unknown entry kind ${decoded.unknown}`)
     if ('malformed' in decoded) return quarantined(decoded.malformed)
     decodedEntries.push(decoded.ok)
@@ -335,8 +355,10 @@ function reduceBatch(
         : row.origin.source
     const before = { ...draft }
     validateInterpretationEntry(draft, entry, interpretationRuns?.get(row.id))
-    const diagnostic = apply(draft, entry, source)
+    const diagnostic = apply(draft, entry, source, batch.revision)
     if (diagnostic !== null) return quarantined(`${row.kind} at ${row.id}: ${diagnostic}`)
+    if (RUN_LAYER_KINDS.has(entry.kind) && draft.run.kind === 'active')
+      draft.run = { ...draft.run, revision: batch.revision }
     const workEntryIndex = projectWorkEntries(before, draft, entry, row)
     if (workEntryIndex !== undefined) draft.workEntryIndex = workEntryIndex
     requiredWorkEntries(draft)

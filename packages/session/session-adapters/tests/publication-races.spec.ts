@@ -56,7 +56,7 @@ it('a taken publication wins against paused final preparation and forces a fresh
       operation: operation('late-taken'),
       authority: s.opened.authority,
       expected: loaded.revision,
-      checkpoint: { ...s.checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...s.checkpoint, inputBatch: page.batch },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: page.batch }],
       effects: [],

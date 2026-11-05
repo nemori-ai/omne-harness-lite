@@ -2,8 +2,16 @@
 // family. The row injects `modelCommands`, and the real `model-records` row has no member yet, so the
 // tests load a named stand-in row of that name (support.ts). A lease without a lineage never reads
 // it. The profile comes from the real `model-profiles` row; the family, its tokenizer and its rules
-// are the real ones. No network is involved.
-import { describe, expect, it } from 'vitest'
+// are the real ones. No network is involved. The supplier completion reads the real
+// `model-credential` row over a vault file in a temporary directory.
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, describe, expect, it } from 'vitest'
+import { createLocalCustodian } from '@omne-harness/model-host-local'
+import { MODEL_SEND } from '@omne-harness/model-contract/provider'
+import { tenantCredentialId } from '../../../src/model/tenant-credential.ts'
+import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
 import type { AssembledModelInput, ModelProfile } from '@omne-harness/model-contract'
 import {
   ModelPreparationResourcesService,
@@ -44,11 +52,32 @@ const profilesConfig = {
   compactionTriggerPercent: '80',
   updatedAt: '2026-11-02T00:00:00Z',
 }
-const plugins = { modelProfilesRow, modelRequestPreparationRow, commandsStandIn }
+const plugins = {
+  modelProfilesRow,
+  modelRequestPreparationRow,
+  commandsStandIn,
+  modelCredentialRow,
+}
+const directory = realpathSync(mkdtempSync(join(tmpdir(), 'model-preparation-row-')))
+afterAll(() => rmSync(directory, { recursive: true, force: true }))
+let vaults = 0
+/** A fresh vault path; the row creates the file on load. */
+function vaultPath(): string {
+  vaults += 1
+  return join(directory, `vault-${vaults}.json`)
+}
+function credentialRow(path: string) {
+  return {
+    id: 'model-credential',
+    plugin: 'modelCredentialRow',
+    config: { path, factorySecret: 'synth-factory-secret' },
+  }
+}
 const rows = [
   { id: 'model-records', plugin: 'commandsStandIn' },
   { id: 'model-profiles', plugin: 'modelProfilesRow', config: profilesConfig },
   { id: 'model-request-preparation', plugin: 'modelRequestPreparationRow', config },
+  credentialRow(vaultPath()),
 ]
 const probe = ['modelProfiles', 'modelRequestPreparation', 'modelPreparationResources']
 const REQUIRED = {
@@ -163,6 +192,71 @@ describe('the model-request-preparation row', () => {
     expect(value.prepared.ok.profile).toEqual(value.profile.adoption)
     expect(value.prepared.ok.messages).toHaveLength(1)
     expect(value.prepared.ok.suppliers[0]?.credential).toEqual({ kind: 'factory' })
+  })
+
+  /** The credential completion of the suppliers of one lease, over the given rows. */
+  async function leaseCredentials(over: typeof rows) {
+    const { value } = await withLiveRows({ rows: over, plugins, probe }, async ctx => {
+      const profile = await profileOf(ctx)
+      const leases = ctx.get(
+        'modelPreparationResources',
+      ) as ModelPreparationResourcesService<unknown>
+      const leased = await leases.acquire({ ...ACCESS, profile })
+      if (!('ok' in leased)) return { failure: leased.failure }
+      const credentials = leased.ok.bindings.map(binding => binding.supplier.credential)
+      await leased.ok.release()
+      return { credentials }
+    })
+    return value
+  }
+
+  it('completes the supplier with the tenant reference when the tenant has its own binding', async () => {
+    const path = vaultPath()
+    const id = tenantCredentialId(TENANT)
+    if (id === undefined) throw new Error('tenant credential id')
+    const seeded = createLocalCustodian({ path, factorySecret: 'synth-factory-secret' })
+    seeded.bind({
+      reference: { id, tenant: TENANT, purpose: MODEL_SEND },
+      secret: 'synth-tenant-secret',
+      configuredAt: '2026-11-04T00:00:00Z',
+    })
+    seeded.close()
+    const value = await leaseCredentials([...rows.slice(0, 3), credentialRow(path)])
+    expect(value).toMatchObject({ credentials: [{ kind: 'tenant', id }] })
+    expect(JSON.stringify(value)).not.toContain('synth-tenant-secret')
+  })
+
+  it('an unreadable binding keeps the tenant reference: the send refuses, nothing falls back', async () => {
+    const path = vaultPath()
+    const id = tenantCredentialId(TENANT)
+    if (id === undefined) throw new Error('tenant credential id')
+    const seeded = createLocalCustodian({ path, factorySecret: 'synth-factory-secret' })
+    const reference = { id, tenant: TENANT, purpose: MODEL_SEND } as const
+    seeded.bind({ reference, secret: 'synth-tenant-secret', configuredAt: '2026-11-04T00:00:00Z' })
+    seeded.markUnreadable(reference)
+    seeded.close()
+    const value = await leaseCredentials([...rows.slice(0, 3), credentialRow(path)])
+    expect(value).toMatchObject({ credentials: [{ kind: 'tenant', id }] })
+  })
+
+  it('a vault that cannot be read refuses the lease instead of the factory reference', async () => {
+    const path = vaultPath()
+    writeFileSync(path, 'not-json')
+    const value = await leaseCredentials([...rows.slice(0, 3), credentialRow(path)])
+    expect(value).toMatchObject({
+      failure: { kind: 'unavailable', dependency: 'model-credential' },
+    })
+  })
+
+  it('without the credential row the lease is refused, never completed with the factory', async () => {
+    const value = await leaseCredentials(rows.slice(0, 3))
+    expect(value).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-credential',
+        diagnostic: 'credential-custody-absent',
+      },
+    })
   })
 
   it('stays PENDING without modelCommands and names the missing key', async () => {

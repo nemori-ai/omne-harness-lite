@@ -24,6 +24,7 @@ let adapter
 let workload
 let firstError
 let runId
+let plannedRounds
 try {
   const module = await import(pathToFileURL(modulePath).href)
   workload = module.workload
@@ -38,6 +39,8 @@ try {
   adapter = await wait(module.open({ root, out, abortSignal: controller.signal }))
   if (typeof adapter?.nextRound !== 'function' || typeof adapter.close !== 'function')
     throw new Error('adapter requires nextRound and close')
+  // 短跑由适配器声明计划轮数；缺窗由判定记等件，不会冒充完整的 200 轮。
+  plannedRounds = adapter.plannedRounds ?? 200
   await driveRounds(
     async round => {
       const events = await wait(adapter.nextRound(round))
@@ -52,6 +55,7 @@ try {
       return row
     },
     row => appendFileSync(join(out, 'progress.jsonl'), JSON.stringify(row) + '\n'),
+    plannedRounds,
   )
 } catch (error) {
   firstError = error.message
@@ -67,7 +71,7 @@ try {
   }
   writeFileSync(
     join(out, 'adapter-result.json'),
-    JSON.stringify({ workload, observations, firstError }, null, 2) + '\n',
+    JSON.stringify({ workload, plannedRounds, observations, firstError }, null, 2) + '\n',
   )
   clearTimeout(timer)
 }

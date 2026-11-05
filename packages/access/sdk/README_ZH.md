@@ -14,7 +14,7 @@
 
 - `createGovernanceClient` 与 `createSessionClient`。`submit` 编码请求，发送，读响应，只交出 `messageId` 相同的那一份。
 - `createHttpTransport`。基于 `fetch` 的传输适配，绑定一个位置和一个回环 `http:` 地址。
-- `parseTenantText`、`tenantText`、`userTextMessage` 三个辅助函数。
+- `parseTenantText`、`tenantText`、组织、账号与登录的身份文本函数，以及 `userTextMessage`。
 - 自动再送：只有传输适配证明请求字节没有发出时才再送一次。
 
 未实现：
@@ -62,7 +62,8 @@ const result = await client.submit({
 | `createSessionClient`、`createGovernanceClient` | 由一个传输适配构造的客户端。`submit` 编码请求，发送，读响应，并只交出 `messageId` 相同的那一份。 |
 | `createHttpTransport` | 基于 `fetch` 的传输适配，绑定一个位置和一个回环 `http:` 地址。 |
 | `RequestInvalidError` | 请求的本地模型不合公开契约。没有发送任何字节。 |
-| `parseTenantText`、`tenantText` | 租户文本与租户标识互转。公开契约不导出身份编解码，所以这两个函数借用它的请求编解码。 |
+| `parseTenantText`、`tenantText` | 租户文本与租户标识互转。两者调用公开契约的身份文本函数。 |
+| `readOrganizationIdText`、`encodeOrganizationIdText`、`readAccountIdText`、`encodeAccountIdText`、`readLoginStateIdText`、`encodeLoginStateIdText` | 公开契约身份文本函数的转出。调用者把文本读成身份值，例如构造 `targetLoginId`，也可以写回文本。不合法的文本读出 `undefined`。写入身份包没有铸造的值抛 `TypeError`。 |
 | `userTextMessage` | 构造 `send-input` 的用户消息。消息标识由 `inputId` 导出，所以保持 `inputId` 与文本不变的重试发送同一份内容。 |
 
 调用者在首次发送前生成 `createCallId`、`acceptId`、`inputId` 和 `controlId`，并在重试同一意图时保持不变。SDK 不替调用者换这些标识。`messageId` 只关联一次发送，调用者每次调用可以生成新值。
@@ -91,7 +92,7 @@ SDK 持有传输适配和调用者交给它的登录证明。传输适配只见�
 
 再送规则只写在一次 `deliver` 里，两个客户端共用它。失败分类只有一边：连接在写出第一个请求字节之前失败才报 `not-sent`，其余失败都报 `uncertain`。保守的一边是 `uncertain`，因为它阻止再送。
 
-`parseTenantText` 与 `tenantText` 把文本放进一份探测请求，交给公开契约的编解码函数，所以租户读写规则只有公开契约一份。
+`parseTenantText` 与 `tenantText` 调用公开契约的身份文本函数，所以身份文本规则只有公开契约一份。
 
 ## 配置与运行
 
@@ -112,7 +113,7 @@ SDK 持有传输适配和调用者交给它的登录证明。传输适配只见�
 测试经包名导入构建后的 `dist`，所以先在本目录运行 `pnpm run build`，再运行 `pnpm run test`。`pnpm run typecheck` 检查类型。
 
 - `tests/http-transport.spec.ts`：对 `127.0.0.1` 上的真实 HTTP 服务器核对地址限制、路径、状态码与响应体、重定向、连接被拒、中途断开和取消。
-- `tests/session-client.spec.ts`：会话七个操作和一个治理操作的往返、`messageId` 关联（含交叉答复）、零字节再送一次、字节已发出后不再送，以及错误文本不含登录证明。
+- `tests/session-client.spec.ts`：会话七个操作和一个治理操作的往返、部署声明不提供的治理操作所得的 `stage-not-provided`、`issue-login` 成功响应可选的 `loginId`、`messageId` 关联（含交叉答复）、零字节再送一次、字节已发出后不再送，以及错误文本不含登录证明。
 - `tests/public-entry.spec.ts`：核对运行时导出清单。
 
 未覆盖：

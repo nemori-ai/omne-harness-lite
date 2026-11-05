@@ -9,6 +9,7 @@ import {
   acceptedInput,
   access,
   checkpoint,
+  entriesOf,
   evidence,
   instance,
   ok,
@@ -68,7 +69,7 @@ function fixture() {
           operation: operation(`take-${execution}`),
           authority,
           expected: snapshot.revision,
-          checkpoint: { ...snapshot.checkpoint, inputBatch: inputs.batch.id },
+          checkpoint: { ...snapshot.checkpoint, inputBatch: inputs.batch },
           state: { kind: 'advancing' },
           handoff: null,
           events: [],
@@ -152,7 +153,7 @@ function fixture() {
     },
     async read(who, execution) {
       const loaded = await journal.load({ ...who, execution })
-      return 'ok' in loaded ? loaded.ok.entries : undefined
+      return 'ok' in loaded ? entriesOf(memory.provider.entries, { ...who, execution }) : undefined
     },
     async events(who, execution) {
       const events: AgentEvent[] = []

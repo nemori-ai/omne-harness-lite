@@ -141,7 +141,7 @@ flowchart LR
 
 `GuardCommand.participant` 填材料的拥有者，不填存储参加者。初始化沿 [Session 自有编码](../../session-contract/SPEC.md#初始化守卫编码)穷举核对真实初始采用、完整计划、原绑定及成功事实，证据桥复用现有 prepare。SessionContextInput.prepare 的四类命令联合保持，不新增 completeInitialization 分支。
 
-证据桥按命令把准备交给三个窄来源端口；来源失败原样交回并指明拥有者。登录确认只属于 `startRun`，`reload` 与 `create` 不带。证据桥在 `startRun` 与 `reload` 时把 Tool 在采用点给出的常驻工具、登记键与冻结判定放进候选采用材料。带回冻结判定时，命令返回 `frozen`，`verdict` 就是这份判定。推进协调随后以它调用 `freeze`。会话已冻结时，`verdict` 为 null。
+证据桥按命令把准备交给三个窄来源端口；来源失败原样交回并指明拥有者。登录门不经证据桥，由 Session 在 `startRun` 的提交事务里核对首条输入的 `origin`。证据桥在 `startRun` 与 `reload` 时把 Tool 在采用点给出的常驻工具、登记键与冻结判定放进候选采用材料。带回冻结判定时，命令返回 `frozen`，`verdict` 就是这份判定。推进协调随后以它调用 `freeze`。会话已冻结时，`verdict` 为 null。
 
 ### FA-10 常驻工具候选采用
 

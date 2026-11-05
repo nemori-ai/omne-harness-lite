@@ -88,7 +88,7 @@ describe('deriveDefinition', () => {
     const source = commandsDefinition()
     if (source.kind !== 'commands') throw new Error('commands')
     const derived = deriveDefinition(governance('files'), {
-      implements: { kind: 'commands', commands: source.commands },
+      implements: { kind: 'commands', encoding: 'wrapped', commands: source.commands },
       description: source.description,
       backgroundAllowed: source.backgroundAllowed,
       declarations: source.declarations,

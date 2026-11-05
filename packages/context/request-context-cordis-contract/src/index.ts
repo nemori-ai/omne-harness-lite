@@ -4,6 +4,7 @@ export type {
   Path,
   Decoded,
   Decoder,
+  ToolCommandSelection,
   ToolRoute,
   ToolDeclarationSet,
   ConversionIndex,

@@ -2,38 +2,15 @@ import type {
   Access,
   AgentAccessCheck,
   AgentAccountOutlet,
-  AgentExecutionId,
-  AgentInstanceId,
   AgentReceivedProvider,
-  ConsumerRef,
-  PendingCall,
-  Reply,
+  ModelReceptionTargets,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { ModelCalls, ModelInvocationRef } from '@omne-harness/model-contract'
+import type { ModelCalls } from '@omne-harness/model-contract'
 
-export type ModelReceptionTarget = Readonly<{
-  execution: AgentExecutionId
-  instance: AgentInstanceId
-  pending: Extract<PendingCall, { kind: 'model' }>
-}>
-
-/** Resolves the original committed consumption, independently of a live attachment. */
-export interface ModelReceptionTargets<P> {
-  forExecution(
-    input: Readonly<{
-      access: Access<P>
-      execution: AgentExecutionId
-    }>,
-  ): Reply<readonly ModelReceptionTarget[]>
-  resolve(
-    input: Readonly<{
-      access: Access<P>
-      consumer: ConsumerRef
-      reference: ModelInvocationRef
-    }>,
-  ): Reply<ModelReceptionTarget>
-}
+// The target query and its binding are contract types (agent-contract J02 item 1); this module
+// names them again so that the existing imports of `@omne-harness/agent` keep working.
+export type { ModelReceptionTarget, ModelReceptionTargets } from '@omne-harness/agent-contract'
 
 export type ModelReceptionCapacity = Readonly<{
   records: number

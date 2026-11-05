@@ -1,7 +1,9 @@
 // Controllable injections for tests: a clock that moves only when the test moves it, a login terms
-// source that the test can change, and a fault switch that stops a record store from answering.
+// source and an invitation terms source that the test can change, and a fault switch that stops a
+// record store from answering.
 // None reads the wall clock or carries a built-in value.
 import type { Duration, Instant } from '@omne-harness/utc-instant'
+import type { InvitationTerms, InvitationTermsSource } from '../governance.ts'
 import type { IdentityClock, LoginTerms, LoginTermsSource } from '../operations.ts'
 import { addDuration } from './time.ts'
 
@@ -51,8 +53,11 @@ export function manualIdentityClock(start: Instant): ManualIdentityClock {
   })
 }
 
-/** The two record stores of an identity provider: accounts, and issued logins. */
-export type RecordStore = 'accounts' | 'logins'
+/**
+ * The record stores of an identity provider: accounts, issued logins, and the organization records
+ * that governance keeps (organizations, memberships, invitations and creation receipts).
+ */
+export type RecordStore = 'accounts' | 'logins' | 'organizations'
 
 /**
  * A fault switch that a provider consults before it queries a record store. A diagnostic means the
@@ -103,6 +108,42 @@ export function adjustableLoginTerms(initial: LoginTerms): AdjustableLoginTerms 
   let terms = initial
   let failure: string | undefined
   const source: LoginTermsSource = Object.freeze({
+    read: () =>
+      Promise.resolve(
+        failure === undefined
+          ? Object.freeze({ kind: 'read' as const, terms })
+          : Object.freeze({ kind: 'unavailable' as const, diagnostic: failure }),
+      ),
+  })
+  return Object.freeze({
+    source,
+    set(next) {
+      terms = next
+    },
+    makeUnavailable(diagnostic) {
+      failure = diagnostic
+    },
+    restore() {
+      failure = undefined
+    },
+  })
+}
+
+export type AdjustableInvitationTerms = Readonly<{
+  /** The port to inject into a provider. */
+  source: InvitationTermsSource
+  /** Changes the terms that later reads answer. The value is not checked here: a provider checks it. */
+  set(terms: InvitationTerms): void
+  /** Makes `read()` answer unavailable until `restore()`. */
+  makeUnavailable(diagnostic: string): void
+  restore(): void
+}>
+
+/** Creates an invitation terms source that answers `initial` until the test changes it. */
+export function adjustableInvitationTerms(initial: InvitationTerms): AdjustableInvitationTerms {
+  let terms = initial
+  let failure: string | undefined
+  const source: InvitationTermsSource = Object.freeze({
     read: () =>
       Promise.resolve(
         failure === undefined

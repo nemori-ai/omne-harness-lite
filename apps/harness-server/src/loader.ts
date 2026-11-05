@@ -163,14 +163,7 @@ export type StartResult =
   | Readonly<{ kind: 'entry-failed'; exitCode: 3; name: ServiceName; error: unknown }>
   | Readonly<{ kind: 'started'; rows: readonly LoadedRow[]; report: ReadinessReport }>
 
-/**
- * Load the final tree in order, then wait for readiness.
- *
- * `omitEntryObjects` is a test input that withholds named entry objects.
- * `await ctx.plugin(...)` ends when loading ends, which does not mean ACTIVE:
- * the state is read from the fiber afterwards.
- */
-export async function startTree(options: {
+type StartOptions = {
   root: Context
   trust: Trust
   rows: readonly RowSpec[]
@@ -179,9 +172,10 @@ export async function startTree(options: {
   prepare?: () => void | Promise<void>
   readinessTimeoutMs: number
   barrier: () => void | Promise<void>
-}): Promise<StartResult> {
-  const { root, trust } = options
-  const diagnostics = preflight(
+}
+
+function preflightStart(options: StartOptions): PreflightDiagnostic[] {
+  return preflight(
     options.rows.map(({ row, manifest, implementation, declared }) => ({
       id: row.id,
       plugin: row.plugin,
@@ -189,17 +183,16 @@ export async function startTree(options: {
       ...(implementation === undefined ? {} : { implementation }),
       ...(declared === undefined ? {} : { declared }),
     })),
-    trust,
+    options.trust,
     options.entryObjects,
   )
-  if (diagnostics.length > 0) return { kind: 'rejected', exitCode: 2, diagnostics }
+}
 
-  try {
-    await options.prepare?.()
-  } catch (error) {
-    return { kind: 'preparation-failed', exitCode: 3, error }
-  }
-
+/** Install the entry objects in order, apart from the withheld ones. The first install failure stops it. */
+async function installEntryObjects(
+  options: StartOptions,
+): Promise<Extract<StartResult, { kind: 'entry-failed' }> | undefined> {
+  const { root, trust } = options
   const omitted = new Set(options.omitEntryObjects ?? [])
   for (const name of omitted) {
     if (!options.entryObjects.some(object => object.name === name)) {
@@ -219,7 +212,18 @@ export async function startTree(options: {
       return { kind: 'entry-failed', exitCode: 3, name: object.name, error }
     }
   }
+  return undefined
+}
 
+/**
+ * Create every row in order and wait for each to finish loading, sharing the readiness deadline.
+ * A row still LOADING at the deadline does not hold the loader for ever: later rows are still
+ * created, in order, but not awaited. `elapsedMs` is what the readiness wait must subtract.
+ */
+async function loadRows(
+  options: StartOptions,
+): Promise<{ loaded: LoadedRow[]; elapsedMs: number }> {
+  const { root, trust } = options
   const startedAt =
     /* wall-clock: operation-timing -- Share one readiness deadline between loading and waiting. */ Date.now()
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -240,8 +244,6 @@ export async function startTree(options: {
         visible: trust.visibleNames(row.id),
       }
       loaded.push(entry)
-      // A row that is still LOADING at the deadline must not hold the loader for ever.
-      // Later rows are still created, in order, but not awaited.
       if (stalled) continue
       const settled = fiber.then(
         () => 'loaded' as const,
@@ -255,12 +257,36 @@ export async function startTree(options: {
   } finally {
     clearTimeout(timer)
   }
-  const elapsed =
+  const elapsedMs =
     /* wall-clock: operation-timing -- Share one readiness deadline between loading and waiting. */ Date.now() -
     startedAt
+  return { loaded, elapsedMs }
+}
+
+/**
+ * Load the final tree in order, then wait for readiness.
+ *
+ * `omitEntryObjects` is a test input that withholds named entry objects.
+ * `await ctx.plugin(...)` ends when loading ends, which does not mean ACTIVE:
+ * the state is read from the fiber afterwards.
+ */
+export async function startTree(options: StartOptions): Promise<StartResult> {
+  const diagnostics = preflightStart(options)
+  if (diagnostics.length > 0) return { kind: 'rejected', exitCode: 2, diagnostics }
+
+  try {
+    await options.prepare?.()
+  } catch (error) {
+    return { kind: 'preparation-failed', exitCode: 3, error }
+  }
+
+  const entryFailed = await installEntryObjects(options)
+  if (entryFailed !== undefined) return entryFailed
+
+  const { loaded, elapsedMs } = await loadRows(options)
   const report = await awaitReadiness({
     rows: loaded,
-    timeoutMs: Math.max(0, options.readinessTimeoutMs - elapsed),
+    timeoutMs: Math.max(0, options.readinessTimeoutMs - elapsedMs),
     barrier: options.barrier,
   })
   return { kind: 'started', rows: loaded, report }

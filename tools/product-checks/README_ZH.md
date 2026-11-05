@@ -18,7 +18,7 @@
 注释与字符串、模板、正则字面量的内容不算代码，括号按代码配对。`no-bail-control` 与
 `restricted-call-sites` 的前两项仍逐行扫原文。新增 core 与身份规则使用已锁定 TypeScript 的语法树，
 不构造类型检查 Program。按路径写死的位置集中在 `src/layout.ts`，入口层包的路径以
-[governance-center-entry verification「包布局常量」](../../packages.0.0.1.legacy/tenancy/governance-center-entry-node/SPEC.md)为准。
+[governance-center-entry verification「包布局常量」](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/tenancy/governance-center-entry-node/SPEC.md)为准。
 **被查的包不存在时规则无事可查、静默通过**；包存在而规则依赖的布局锚点（入口层包的
 `src/events.ts` 与 `src/ops/`、账号能力包的 `src/plugin.ts`、注册组合包的 `TERMINAL_OUTCOMES`）缺席时报出，不静默失效。
 
@@ -134,7 +134,7 @@ stream 解析是否仅在已接受 close 路径可达、snapshot/closeOut/partia
 `asset-model` 的 S-17 字面目录规范化明确采用 `path.normalize` 一类纯运算，允许 `node:path`（及同义的 `path`）导入。
 检查器不因此证明代码没有调用 `resolve()` 隐式取得 cwd；绝对输入、相对输入拒绝、无文件系统访问仍由节点实现测试核对。
 直接采用严格 JSON 工具的 asset-model、call-accounts、messages、arrival-events、model-response、stream-assembly、asset-evaluation
-均可导入 content-blocks 的公开入口。mcp-endpoint 经已接受的 [中性技术依赖](../../packages.0.0.1.legacy/core/mcp-endpoint/SPEC.md)
+均可导入 content-blocks 的公开入口。mcp-endpoint 经已接受的 [中性技术依赖](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/mcp-endpoint/SPEC.md)
 另行批准 content-blocks 根与精确 Schema/runtime 入口；不因此新增块语义的契约边、不允许任意子路径。
 MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留，不因工具依赖采用而获得编译/筛选远端 Schema 的责任。
 

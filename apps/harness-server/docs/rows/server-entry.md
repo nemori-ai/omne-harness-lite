@@ -12,7 +12,7 @@
 | 导出名           | `serverEntryRow`（`src/rows/server-entry/index.ts`）                                                         |
 | 提供             | 无                                                                                                           |
 | 必需（`inject`） | `session`、`principalIssuer`（受信）、`definitionMappings`（受信）、`s0.assemblyLifecycle`（`defineRow` 加） |
-| 按调用现取       | `identityOperations`。行不为 `principalVerifier` 取值，因为成员不核验主体                                    |
+| 按调用现取       | `identityOperations`；`identityGovernance`（受信）；`modelCredentialCustody`（受信）。行不为 `principalVerifier` 取值，因为成员不核验主体 |
 | 阶段             | `entry`，行体承载                                                                                            |
 
 清单与 `src/s0/stubs.ts` 的同一行相同。`tests/real-manifests-sync.spec.ts` 在行进入 `./cordis` 之后逐项比较。
@@ -25,6 +25,7 @@
 | `session`           | `session`，按调用方类取                        | 见下节                                                                                                                                                                  |
 | `resolveDefinition` | `definitionResolverOf(ctx.definitionMappings)` | 未知名得到 `undefined`，接入答 `invalid`                                                                                                                                |
 | `identity`          | 每次调用时 `ctx.get('identityOperations')`     | 提供者重载后下一次请求就用新的。提供者不在树里时，`issueLogin` 与 `recognizeLogin` 答 `basis-unavailable`。`registerAndActivate` 没有这种结局，所以抛出，接入答空的 500 |
+| `modelCredentials`  | 每次调用时 `ctx.get('modelCredentialCustody')` | 受信名，只有本行与提供它的 `model-credential` 行看见。提供者不在树里时，3 个方法都答 `basis-unavailable`，不抛出。准入在提供者里，见[模型凭据](model-release.md#模型凭据) |
 | `diagnostics`       | 不给                                           | 装配没有诊断出口，成员的诊断事件不输出                                                                                                                                  |
 
 ### Session 的两个调用方类

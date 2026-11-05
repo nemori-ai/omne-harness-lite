@@ -59,24 +59,37 @@ function growing(value: Record<string, unknown>): VisibleBlock | null {
   }
 }
 
+/** The part kinds that never ride in a sealed visible block are the open and the tool-side ones. */
+function isSealable<T extends { kind: string }>(part: T): part is Extract<T, ModelBlock> {
+  switch (part.kind) {
+    case 'tool_call_incomplete':
+    case 'tool_call_unparsed':
+    case 'tool_result':
+      return false
+    default:
+      return true
+  }
+}
+
+type SealedShape = Record<string, unknown> & { index: string; block: Record<string, unknown> }
+
+/** The envelope of a sealed block: its keys on the wire, a string index and a record block. */
+function hasSealedShape(value: Record<string, unknown>, encoding: boolean): value is SealedShape {
+  if (!encoding && !outputFields(value, ['kind', 'index', 'block'])) return false
+  return typeof value.index === 'string' && outputRecord(value.block)
+}
+
 function sealed(
   value: Record<string, unknown>,
   encoding: boolean,
 ): VisibleBlock | null | 'unknown' {
-  if (!encoding && !outputFields(value, ['kind', 'index', 'block'])) return null
-  if (typeof value.index !== 'string' || !outputRecord(value.block)) return null
+  if (!hasSealedShape(value, encoding)) return null
   const selected = publicBlock(value.block)
   if (selected === null) return typeof value.block.kind === 'string' ? 'unknown' : null
   const block = judgePart(encoding ? selected : value.block)
   if ('rejected' in block) return null
-  switch (block.ok.kind) {
-    case 'tool_call_incomplete':
-    case 'tool_call_unparsed':
-    case 'tool_result':
-      return null
-    default:
-      return { kind: 'sealed', index: value.index, block: block.ok }
-  }
+  if (!isSealable(block.ok)) return null
+  return { kind: 'sealed', index: value.index, block: block.ok }
 }
 
 function visible(

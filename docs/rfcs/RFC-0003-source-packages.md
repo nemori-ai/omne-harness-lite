@@ -15,7 +15,7 @@ owner: PanQiWei
 
 ## 问题与有效输入
 
-[包组织](../package-organization.md) 已经给出目标分组。`packages/*/*` 和 `apps/*` 在本提案起草时没有 `package.json`。活跃工具仍依赖 `packages.0.0.1.legacy/` 和 `apps.0.0.1.legacy/`。没有一份文本说明第一个真实成员如何声明导出、如何被类型检查、以及哪些目录还不能当成员。
+[包组织](../package-organization.md) 已经给出目标分组。`packages/*/*` 和 `apps/*` 在本提案起草时没有 `package.json`。活跃工具仍依赖 [packages.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy) 和 [apps.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy)（两棵树后来已从仓库删除，链接指向固定提交）。没有一份文本说明第一个真实成员如何声明导出、如何被类型检查、以及哪些目录还不能当成员。
 
 | 当前要求或承诺 | 核对修订与条款 | 本提案受什么约束 |
 | --- | --- | --- |

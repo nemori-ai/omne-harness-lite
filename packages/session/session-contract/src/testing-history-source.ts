@@ -9,7 +9,7 @@ import type {
 import type { DurableEvidence, InputId, SessionAccess } from './identity.ts'
 import type { SessionLogObservation } from './projection.ts'
 import type { WorkSnapshot } from './values.ts'
-import { decodeEntry } from './entries.ts'
+import { decodeEntries } from './entries.ts'
 import { digestOf } from './operations.ts'
 import { evidence } from './testing-values.ts'
 
@@ -75,8 +75,9 @@ export function createMemorySessionHistorySource(): MemorySessionHistorySource {
     },
     read(snapshot, entries, scope) {
       const { admissions, observations } = factsOf(snapshot)
-      const rows = entries.flatMap(row => {
-        const decoded = decodeEntry(row)
+      const decodedRows = decodeEntries(entries, null)
+      const rows = entries.flatMap((row, index) => {
+        const decoded = decodedRows[index]!
         return 'ok' in decoded ? [{ row, value: decoded.ok }] : []
       })
       const creation = rows[0]?.value

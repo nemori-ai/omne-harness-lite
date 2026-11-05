@@ -101,7 +101,8 @@ function readCallRows(input: JsonValue, port: ReadPort): JsonValue {
             WHERE tenant = ? AND operation = ? LIMIT 1`,
           [tenant, operation],
         )[0]
-  const held = rows(port, HELD_SHARE_SQL, [tenant])[0]
+  // The read port demands a LIMIT on every statement; the aggregate gives one row.
+  const held = rows(port, `${HELD_SHARE_SQL} LIMIT 1`, [tenant])[0]
   const capacity = {
     bytes: String(held?.['bytes'] ?? 0),
     blocks: String(held?.['blocks'] ?? 0),

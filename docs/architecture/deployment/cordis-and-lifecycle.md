@@ -114,7 +114,7 @@ Service 方法若使用调用方 Context，在其中通过 `this.ctx.effect()` �
 
 承接责任为装配生命周期与关闭协调者。待办是完成当前消费者和契约承接，验证受影响分支排空、无关工作继续、初始失败和清理失败分别保留。
 
-[封存来源](../../../packages.0.0.1.legacy/core/assembly-lifecycle/README_ZH.md#当前机制与架构偏离)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/assembly-lifecycle/README_ZH.md#当前机制与架构偏离)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="lifecycle-m02"></a>
 ### LIFECYCLE-M02 插件加载与换代的影响范围
@@ -132,7 +132,7 @@ Tool 部分由换代协调者 `toolGenerations` 承接，依据是 [RFC-0012 rev
 
 仍待办的部分：有在途调用时的按键排空与交接依赖 Tool P09 的 `inspectDrain({ executor })`，在此之前协调者在有在途调用时停在 `draining`。协调者的 GC 策略、远端加载提供者，以及 Tool 以外的插件加载与换代，不在这次承接范围内。
 
-[封存来源](../../../packages.0.0.1.legacy/core/cordis-plugin-tree/README_ZH.md#当前支持与架构偏离)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/cordis-plugin-tree/README_ZH.md#当前支持与架构偏离)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="lifecycle-m03"></a>
 ### LIFECYCLE-M03 治理宿主的装配停止范围
@@ -141,7 +141,7 @@ Tool 部分由换代协调者 `toolGenerations` 承接，依据是 [RFC-0012 rev
 
 承接责任为治理宿主、装配及共享后端拥有者。待办是按实际组合验证依赖就绪、局部停止、在途工作与共享资源关闭，不将旧宿主的限定装配作为全系统规则。
 
-[封存来源](../../../apps.0.0.1.legacy/tenancy-host/README.md#当前装配限制与架构偏离)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md#当前装配限制与架构偏离)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="lifecycle-t01"></a>
 ### LIFECYCLE-T01 装配生命周期公共契约承接
@@ -150,13 +150,13 @@ Tool 部分由换代协调者 `toolGenerations` 承接，依据是 [RFC-0012 rev
 
 承接责任为装配生命周期公共契约、协调者及参加者。待办是定位现行类型和必要行为，验证撤除中的在途工作、次序和多重失败；固定代停止差距由本页对应修复待办维护。
 
-[封存来源](../../../packages.0.0.1.legacy/core/assembly-lifecycle/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/assembly-lifecycle/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="kernel-t01"></a>
 ### KERNEL-T01 已采用内核辅助边界的承接
 
-本项为来源与契约承接待办。目标成员是 `packages/assembly/kernel-basis`，位置归[产品包组织](../../package-organization.md)。该目录已是 workspace 成员。根入口为空导出。操作结果归 `packages/common/operation-result`。`./cordis` 导出 `definePlugin` 与 `resolveOptional`。`./testing` 导出 `startTestAssembly`。`packages.0.0.1.legacy/core/kernel-basis` 只供核对原范围，不是现行成员。辅助函数行为与官方内核保证不能合并。目标位置不表示运行或生命周期已经验证。
+本项为来源与契约承接待办。目标成员是 `packages/assembly/kernel-basis`，位置归[产品包组织](../../package-organization.md)。该目录已是 workspace 成员。根入口为空导出。操作结果归 `packages/common/operation-result`。`./cordis` 导出 `definePlugin` 与 `resolveOptional`。`./testing` 导出 `startTestAssembly`。[packages.0.0.1.legacy/core/kernel-basis](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/kernel-basis) 已从仓库删除，只在固定提交中供核对原范围，不是现行成员。辅助函数行为与官方内核保证不能合并。目标位置不表示运行或生命周期已经验证。
 
 承接责任为内核辅助成员、装配组及来源验证维护者。待办是固定实际采用版本，定位公共辅助契约与可复跑资源，分别核验调用方 Context、Fiber 状态、依赖撤除、事件及清理行为。
 
-[封存来源](../../../packages.0.0.1.legacy/core/kernel-basis/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/kernel-basis/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。

@@ -172,7 +172,6 @@ export function invocationReference<T extends Parameters<typeof encodeModelInvoc
 }
 /** A raw reserved locator is used only for an intentionally invalid boundary request. */
 export function reservedReference(parts: Parameters<typeof encodeModelInvocationRef>[0]): string {
-  const tenant = tenantCodec.encode(parts.tenant)
-  if (!tenant.ok) throw new Error('fixture tenant')
-  return JSON.stringify(['model-invocation', 1, tenant.value, parts.call, parts.admission])
+  if (!tenantCodec.encode(parts.tenant).ok) throw new Error('fixture tenant')
+  return JSON.stringify(['model-invocation', 2, parts.call, parts.admission])
 }

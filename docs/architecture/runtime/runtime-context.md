@@ -174,4 +174,4 @@ Runtime Context 不持有耐久状态，也没有存储端口。`persisted` 供�
 
 承接责任为 Runtime Context、作用域持有者、原来源与读取协调者。待办是核验并发更新、撤权、初始化、主动移除及恢复，不将可重算值或活体资源误作持久事实。
 
-[封存来源](../../../packages.0.0.1.legacy/core/runtime-context/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+[固定提交中的封存来源](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/core/runtime-context/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。

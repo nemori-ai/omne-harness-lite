@@ -256,6 +256,7 @@ Reduce 已定读法乙（[#502 评论](https://github.com/nemori-ai/omne-harness
 - author route 的终态前经过只是一个布尔量。清单在 F2 之后仍然有效，模型不强制“先 F2 后 prepareFinish”。轨迹 `ordinary-1` 先 Prepare 后 F2，而“条件终结”写普通路径的次序固定。模型只检查 tryFinish 在没有证明时不 ended，不检查调用方是否按次序调用。
 - 回执丢失只对 tryFinish、prepareFinish、judge-cancellation 与保管写入建模，见“规模上限”。
 - Journal 真件的回放。它在 W1-RUN-8 的接受阶段调用同一个驱动。
+- M6 的确定拒绝（R2-D237）。它经 F1 以 `model-refused` 结束，call 项以 Model 的原拒绝为收场依据退出 `calls`。模型的 call 只有 issued、recorded、settled 三态，没有已拒绝态。
 
 ## 待 Agent 契约拥有者裁定
 

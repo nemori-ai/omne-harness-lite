@@ -223,7 +223,9 @@ describe.each(operations)('C2 $name', ({ name, target, call }) => {
 })
 
 // invoke has its body since #510; its allowed path is in loop-invoke.spec.ts and just below.
-const bodiless = operations.filter(entry => entry.name !== 'invoke')
+// quiesce has its body for an idle runtime (R2-D173); its allowed path is in provider-quiesce.spec.ts
+// and just below.
+const bodiless = operations.filter(entry => entry.name !== 'invoke' && entry.name !== 'quiesce')
 
 describe.each(bodiless)('C2 $name', ({ name, call }) => {
   it('stage-temporary (#502): allowed reaches a body that answers a named unavailable and writes nothing', async () => {
@@ -248,6 +250,19 @@ describe('C2 invoke after allowed', () => {
     })
     expect(failure(invoked)).toMatchObject({ kind: 'unavailable', owner: 'agentAdoptions' })
     expect(calls).toEqual(['access.check', 'adoptions.resolve'])
+  })
+})
+
+describe('C2 quiesce after allowed', () => {
+  it('drains an idle runtime without a registration handle and calls nothing but the check', async () => {
+    const { provider, calls } = await setup()
+    const drained = await provider.control.quiesce({
+      ...alice,
+      operation: operation('op-q'),
+      reason: evidence('retire'),
+    })
+    expect(drained).toMatchObject({ ok: { kind: 'drained', remaining: [] } })
+    expect(calls).toEqual(['access.check'])
   })
 })
 

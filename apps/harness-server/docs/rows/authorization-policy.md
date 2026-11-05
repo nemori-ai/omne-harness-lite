@@ -9,15 +9,22 @@
 | 项    | 内容                                                                                                               |
 | ----- | ------------------------------------------------------------------------------------------------------------------ |
 | 行 id | `authorization`，`implementation` 为 `real`，没有关闭阶段                                                          |
-| 提供  | `sessionAccessCheck`、`agentAccessCheck`、`agentActionAdmission`                                                   |
-| 注入  | `principalVerifier`（入口对象）、`tenantStanding`（`identity` 行）。两项都是必需依赖，缺任一项时本行停在 `PENDING` |
-| 配置  | 可选的 `actionRules` 动作规则快照。政策表和系统授予表仍是源码常量，运维者不能经配置给系统主体授予用途              |
+| 提供  | `sessionAccessCheck`、`agentAccessCheck`、`agentActionAdmission`；受信的 `systemActionAuthorization`（见[系统动作授权](#系统动作授权)） |
+| 注入  | `principalVerifier`（入口对象）、`tenantStanding`（`identity` 行）、`identityClock`（入口对象，判定授予的到期）。三项都是必需依赖，缺任一项时本行停在 `PENDING` |
+| 配置  | 可选的 `actionRules` 动作规则快照，可选的 `maintenanceGrants` 收紧项（见[运维者对授予表的收紧](#运维者对授予表的收紧)）。政策表和系统授予表随版本内置，运维者不能经配置给系统主体授予用途 |
 
-三个服务共用同一组依赖，所以放在同一个插件上，一起装载，一起撤除。服务对象只持有闭包。依赖在每次调用时重新读取。每次检查都读当前事实，不缓存任何 `allowed`。
+四个服务共用同一组依赖，所以放在同一个插件上，一起装载，一起撤除。服务对象只持有闭包。依赖在每次调用时重新读取。每次检查都读当前事实，不缓存任何 `allowed`。
 
 - `sessionAccessCheck` 实现 `SessionAccessCheck`。每次 Session 面的公开读写在实际执行处调用它一次。
 - `agentAccessCheck` 实现 `AgentAccessCheck`。每次 Agent 公开操作调用它一次。
 - `agentActionAdmission` 实现 `ActionAdmission`，见[动作准入](#动作准入)。
+- `systemActionAuthorization` 实现 `SystemActionAuthorization`，见[系统动作授权](#系统动作授权)。
+
+### 系统动作授权
+
+`systemActionAuthorization` 按授予表（含运维者的收回与到期）判断某个系统主体可不可以做某个系统动作，顺序是 AU-12 的固定顺序：核验器核主体、矩阵行、授予记录、参数。它用的读口与两个访问检查的系统格是同一份收紧后的表，所以收紧对两条路径同时生效。到期每次判断时读 `identityClock`，时钟答不出时答 `unavailable`。行停止后，消费者手里的旧引用答 `unavailable`。
+
+这个键是受信名，只有 `session-storage` 行可见，它在每次枚举租户前按调用现取（R2-D245）。服务定义在本应用的 `src/rows/authorization/system-action-service.ts`，拥有者是本行；为什么不放进 `@omne-harness/authorization`、什么时候迁进包，见装配页的[系统动作授权](../../../../docs/architecture/runtime/application-assembly.md#system-action-authorization)（R2-D247）。
 
 ## 一次访问检查怎样得出答复
 
@@ -26,11 +33,11 @@
 1. 复制请求，并读取操作、目标和命令。
 2. 按操作查表。查表用自有属性判断，`constructor`、`__proto__` 这类原型链键不是操作，答复是拒绝。
 3. 核对固定绑定。变更请求的命令种类等于操作，命令里的会话等于目标的会话，命令里的租户等于访问的租户。`pending` 的目标租户等于访问的租户。目标种类必须是该操作定义的种类。不符就拒绝。
-4. 按主体的形状分类，得到 L、W、S 三列之一。形状只用来选列，不授予资格。不属于任何一列就拒绝。
+4. 按主体的形状分类，得到 L、W、S 三列之一。形状只用来选列，不授予资格。不属于任何一列就拒绝。Agent 的 `receive-result` 一项另认 Model 宿主签发的工作主体 M（行事者组件 `modelHostAuthority`、`work.owner` 为 `model`，形状判定在 `src/model/principals.ts` 的 `classOf`）：M 按 W 列的成员格判断，只核租户；M 做其他 Agent 操作一律拒绝（R2-D248）。
 5. 核对租户。L 和 W 的主体租户必须等于访问的租户。S 不做这一步。
 6. 核对工作绑定。W 的目标是 Session 时，`work.work` 必须等于目标的会话。目标是租户（`pending`）时，只核租户。Agent 的 `scope` 目标要求 `scope.owner` 为 `session`，并且 `scope.record` 等于 `work.work`。
 7. 取格。`accept` 按输入种类取分支，`receive` 按事实种类取分支。请求不在分支内就拒绝。
-8. 按格调用依赖。`拒绝`和`默认拒绝`的格不调用依赖。
+8. 按格调用依赖。`拒绝`的格不调用依赖。等待产品规则的格也写成拒绝格，拒绝依据写明缺少的规则（R2-D204 第 4 条：需要批准的动作一律拒绝）。
 
 ### 两种放行
 
@@ -62,30 +69,62 @@
 
 ## 授予表与持有者投影
 
-授予表是源码常量 `MAINTENANCE_GRANTS`。读口只在核验器信任主体、矩阵行匹配之后被调用。它按主体的 `component` 文本在表里找记录。文本只用来定位，不是凭据。手工构造的同名对象在核验一步得到 `untrusted-principal`，到不了读口。
+授予表是随版本内置的源码常量 `MAINTENANCE_GRANTS`，运维者只能收紧它，见下一节。读口只在核验器信任主体、矩阵行匹配之后被调用。它按主体的 `component` 文本在表里找记录。文本只用来定位，不是凭据。手工构造的同名对象在核验一步得到 `untrusted-principal`，到不了读口。
 
-记录是部署级的，不按租户分区，没有撤销，也没有到期。没有记录的系统主体在矩阵格得到 `denied grant-missing`。
+记录是部署级的，不按租户分区。内置记录没有撤销，也没有到期，运维者收紧后才有。没有记录的系统主体在矩阵格得到 `denied grant-missing`。
 
 <!-- policy:grants -->
 
-| 持有者组件名             | 记录                                               | 用途                                                                          |
-| ------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `toolResidencyPrincipal` | `maintenance-grant/toolResidencyPrincipal`，修订 2 | `resident-references`                                                         |
-| `agent-host`             | `maintenance-grant/agent-host`，修订 2             | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
-| `tenant-domain-scanner`  | `maintenance-grant/tenant-domain-scanner`，修订 2  | `enumerate-tenants`                                                           |
+| 持有者组件名                   | 记录                                                     | 用途                                                                          |
+| ------------------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `toolResidencyPrincipal`       | `maintenance-grant/toolResidencyPrincipal`，修订 3       | `resident-references`                                                         |
+| `sessionPrincipals.maintainer` | `maintenance-grant/sessionPrincipals.maintainer`，修订 3 | `pending-sessions`                                                            |
+| `agent-host`                   | `maintenance-grant/agent-host`，修订 3                   | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
+| `tenant-domain-scanner`        | `maintenance-grant/tenant-domain-scanner`，修订 3        | `enumerate-tenants`                                                           |
 
 <!-- /policy:grants -->
+
+### 运维者对授予表的收紧
+
+依据是 R2-D204 第 2 条与 IC-18。系统组件的授予表随版本内置。运维者可以收回其中一项，或给其中一项设到期时间。运维者不能新增，也不能改用途、主体或作用域。
+
+行配置 `maintenanceGrants` 是一个对象。键是记录标识，即上表“记录”一列的文字，例如 `maintenance-grant/agent-host`。值只有两个成员，且至少写一个。
+
+| 成员        | 取值                                | 效果                                                                  |
+| ----------- | ----------------------------------- | --------------------------------------------------------------------- |
+| `revoked`   | 只能是 `true`                       | 记录已收回。授权判定答 `denied grant-revoked`，不再问时钟             |
+| `expiresAt` | UTC 时刻，例如 `2027-01-01T00:00:00Z` | 时钟读数不早于它时，答 `denied grant-expired`；早于它时照常放行 |
+
+```json
+{
+  "maintenanceGrants": {
+    "maintenance-grant/agent-host": { "expiresAt": "2027-01-01T00:00:00Z" },
+    "maintenance-grant/tenant-domain-scanner": { "revoked": true }
+  }
+}
+```
+
+边界如下。
+
+- 配置里出现表外的记录标识时，行启动失败，错误写出该标识和表内的全部标识。键只认记录标识，组件名文字（例如 `agent-host`）也算未知。
+- 值里出现 `purposes`、`component`、`principal`、`scope` 或其他成员，`revoked: false`，空对象，或不是 UTC 时刻的 `expiresAt`，配置都被拒绝，行不启动。
+- 空配置或不写 `maintenanceGrants` 时，行为与内置表完全相同。
+- 到期由注入的 `identityClock` 判定，每次判断时读取，不读系统时间。时钟答不出时，该记录的动作答 `unavailable`，不放行。
+- 配置作用于本行的 Session 与 Agent 访问检查，也作用于 `systemActionAuthorization`。`session-storage` 行的租户枚举每次经这个键判断，不另持授予表，所以收回或到期 `maintenance-grant/tenant-domain-scanner` 后枚举被拒（R2-D245）。
+- 收紧后记录的 `revision` 与 `generation` 保持内置值。收紧后的 `revoked` 和 `expiresAt` 进入裁定依据和证据摘要。
+- 撤权从下一次检查起生效。一次 `check` 答 `allowed` 之后、提交之前的收回不阻止这次提交（K-5）。
 
 下表由系统列和授予表算出。一个持有者通过一格，当且仅当这一格是矩阵格，并且持有者的记录写了这一格的用途。这是一个渲染视图，不是裁定列。
 
 <!-- policy:projection -->
 
-| 持有者                   | 能通过的格                                         |
-| ------------------------ | -------------------------------------------------- |
-| `toolResidencyPrincipal` | Session `references`                               |
-| `agent-host`             | Agent `publish`、Agent `withdraw`、Agent `quiesce` |
-| `tenant-domain-scanner`  | 无 Session 或 Agent 格；只经部署枚举端口使用       |
-| 其他系统主体             | 无                                                 |
+| 持有者                         | 能通过的格                                         |
+| ------------------------------ | -------------------------------------------------- |
+| `toolResidencyPrincipal`       | Session `references`                               |
+| `sessionPrincipals.maintainer` | Session `pending`                                  |
+| `agent-host`                   | Agent `publish`、Agent `withdraw`、Agent `quiesce` |
+| `tenant-domain-scanner`        | 无 Session 或 Agent 格；只经部署枚举端口使用       |
+| 其他系统主体                   | 无                                                 |
 
 <!-- /policy:projection -->
 
@@ -113,8 +152,8 @@
 | `create`                      | 放行（成员）                                       | 拒绝                                | 拒绝                                                           |
 | `completeInitialization`      | 拒绝                                               | 拒绝                                | 拒绝                                                           |
 | `change`                      | 放行（成员）                                       | 拒绝                                | 拒绝                                                           |
-| `setRelation`                 | 默认拒绝（D-2）                                    | 拒绝                                | 拒绝                                                           |
-| `configureAutoArchive`        | 默认拒绝（D-1）                                    | 拒绝                                | 拒绝                                                           |
+| `setRelation`                 | 放行（成员）                                       | 拒绝                                | 拒绝                                                           |
+| `configureAutoArchive`        | 放行（成员）                                       | 拒绝                                | 拒绝                                                           |
 | `considerAutoArchive`         | 拒绝                                               | 放行（成员）                        | 拒绝                                                           |
 | `recordIdle`                  | 拒绝                                               | 放行（成员）                        | 拒绝                                                           |
 | `interrupt`                   | 放行（成员）                                       | 拒绝                                | 拒绝                                                           |
@@ -148,7 +187,7 @@
   - W：出处：SS:551 业务输入分支，DA4 §4.1、§4.7。`ordinary` 与 `card-decision` 分支拒绝：SS:551 对它们只列 intake
   - S：拒绝依据：矩阵外（AU-12 第 2 步）
 - `startRun`
-  - L：拒绝依据：无放行出处。登录确认经证据桥守卫，不经主体（SS:554）
+  - L：拒绝依据：无放行出处。登录门由 Session 核对首条输入保存的 origin，不经主体（SS:554，R2-D198）
   - W：出处：SS:554，DA4 §4.1
   - S：拒绝依据：矩阵外（AU-12 第 2 步）
 - `claim`
@@ -208,11 +247,11 @@
   - W：拒绝依据：SW:129：Agent 不能直接写模式。SS:609 只列 intake。Agent 经 HITL 改模式的证据没有解释形状（AU-11「首批不覆盖的部分」）
   - S：拒绝依据：矩阵外（AU-12 第 2 步）
 - `setRelation`
-  - L：默认拒绝，待 D-2，见「D 项」
+  - L：出处：R2-D204（P-1，qiwei.pan 裁定）：租户是（组织，账号），只有该账号的登录能取得代该租户行事的主体，「只有本人」由主体的签发保证，不需要具名资格。SW:187、SS:610 至 611
   - W：拒绝依据：无放行出处
   - S：拒绝依据：矩阵外（AU-12 第 2 步）
 - `configureAutoArchive`
-  - L：默认拒绝，待 D-1，见「D 项」
+  - L：出处：R2-D204（P-1，qiwei.pan 裁定）：租户是（组织，账号），只有该账号的登录能取得代该租户行事的主体，「只有本人」由主体的签发保证，不需要具名资格。SW:187、SS:610 至 611
   - W：拒绝依据：无放行出处
   - S：拒绝依据：矩阵外（AU-12 第 2 步）
 - `considerAutoArchive`
@@ -450,25 +489,6 @@
 
 `receive-result` 的 W 格放行，只核租户。推送用原受理主体，也就是会话 coordinator 的 W。Model 在推送前经 `ModelHostAuthority.resolve` 取这个主体。这是 L-RUN 与 L-MODEL 对 DP-4 的 Q-1 的对齐结果。L 列和 S 列仍然拒绝。
 
-## D 项
-
-下面两格需要新的产品规则。规则定之前，两格按默认拒绝实现，适配器不调用依赖。
-
-<!-- policy:d-items -->
-
-### D-1 `configureAutoArchive` × L
-
-缺哪条产品规则：谁持有「租户设置资格」。SW:187 写「修改须具相应租户设置资格」，SS:611 只写资格名。ID-16 的具名资格只有组织成本账目读取。默认团队方案（IA:39、41）没有写普通成员能否修改本租户的设置。
-
-默认拒绝：操作不在 M2 公开面，自动归档尚未实现，已知限制。
-
-### D-2 `setRelation` × L
-
-缺哪条产品规则：两条。第一，谁持有「会话管理资格」，可以把自己的主会话标记常驻（SW:187）。第二，建立子会话与 handoff 关系的授权由谁定义。SW:175 写「派发与通信的授权及可靠投递归相应业务」，SS:610 只写「关系依据」，相应业务的授权规则还没有正文。
-
-默认拒绝：操作不在 M2 公开面，自动归档尚未实现，已知限制。
-<!-- /policy:d-items -->
-
 ## 已知限制
 
 - K-1：W 对 Agent 的 `instance`、`execution` 和 `input-entry` 目标只核租户，不核会话。同一租户内，一个会话的 W 能通过授权层访问另一个会话的执行。Agent 自己的目录和执行守卫仍然核对归属。
@@ -482,13 +502,13 @@
 - K-9：`takeover` 对 W 恒放行。取代存活推进者的限制靠 attach 的条件提交。前提是 M2 单进程，每个会话只有一个驱动者。
 - K-10：维护授予是部署级的。一个持有者覆盖本部署的全部租户分区。跨分区限制交给 Session SQL 的目录查找。
 - K-11：授予表按组件名定位。前提是原始签发者只交给受信持有者。装配把签发者交给普通插件时，该插件能签发任何组件名的主体。
-- `tenant-domain-scanner` 只有枚举租户用途，没有 `pending-sessions`。作用域恢复维护主体没有记录。`pending`、`receive` 和 `releasedScopes` 的系统格仍答 `denied grant-missing`。
+- K-12：S3 恢复扫描用 `sessionPrincipals.maintainer` 读 `pending`，授予表给它 `pending-sessions`（R2-D204 第 2 条）。同一主体也用于作用域释放之后的 `receive(scope-release)`，但它没有 `scope-release-receive`，这一步答 `denied grant-missing`。`releasedScopes` 没有持有者，也答 `denied grant-missing`。
 
 ## 动作准入
 
 动作规则采用 R2-D34（[#978 批复](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6577830437)）。`actionRules` 缺席或没有匹配规则时答 `unavailable`。`permissions` 非空或 `decision` 非 null 时也答 `unavailable`，本行不实现权限与人工决定解释器。
 
-行构造时严格解析配置，拒绝未知字段、空 revision、重复规则 id 和非法 effect。每条规则按 `tool` 精确匹配 `original.name`。`definition` 可省略或为 null；指定时逐项匹配 Adoption 的 owner、name、revision、digest。匹配的 deny 优先于所有 allow，与数组顺序无关。规则不可变，运维者用既有行配置 replace 后重载更新它。
+行构造时严格解析配置，拒绝未知字段、空 revision、重复规则 id 和非法 effect。每条规则按 `tool` 精确匹配 `definition.name`，即可信 Tool 请求来源 describe 给出的工具定义名。规则不匹配 `original.name`：`original.name` 由模型给出。多命令工具在模型侧只有一个名字，即工具名，命令写在调用参数的 `command` 里（D-94）。所以一条 `Shell` 规则覆盖 Shell 的全部命令，对 `Shell` 的 deny 也不能用某个命令绕过（R2-D266）。`definition` 可省略或为 null；指定时逐项匹配 Adoption 的 owner、name、revision、digest。匹配的 deny 优先于所有 allow，与数组顺序无关。规则不可变，运维者用既有行配置 replace 后重载更新它。
 
 ```json
 {
@@ -502,7 +522,7 @@
 }
 ```
 
-发行配置 `config/serve.distribution.json` 的 `authorization` 行带 `release-1` 规则快照：`Files` 与 `Shell` 都是 allow，其余工具没有匹配，答 `unavailable`。运维者不改代码就能加一条 deny：在运维者层写一条 `replace` 操作替换 `authorization` 行的配置。`replace` 换整份配置，所以要把发行的两条 allow 一并写回，再加 deny，例如 `{ "id": "no-shell", "effect": "deny", "tool": "Shell" }`。deny 优先，与顺序无关，该工具的动作得到 `deny` 与 `rule/no-shell`。用例 [release-action-rules.spec.ts](../../tests/rows/authorization/release-action-rules.spec.ts) 用真实的分层加载与真实动作准入核对这两种配置。它不证明 S4-6 的端到端观察，Tool 两个消费方的 qualify 接线仍待 L-TOOL。
+发行配置 `config/serve.distribution.json` 的 `authorization` 行带 `release-1` 规则快照：`Files` 与 `Shell` 都是 allow，其余工具没有匹配，答 `unavailable`。运维者不改代码就能加一条 deny：在运维者层写一条 `replace` 操作替换 `authorization` 行的配置。`replace` 换整份配置，所以要把发行的两条 allow 一并写回，再加 deny，例如 `{ "id": "no-shell", "effect": "deny", "tool": "Shell" }`。deny 优先，与顺序无关，该工具的动作得到 `deny` 与 `rule/no-shell`，调用点名哪个已知命令都一样。没点名已知命令的调用不进入动作准入：可信 Tool 请求来源直接以原因和工具的 guide 作答，不运行任何命令，这个动作以作答被拒绝（D-104，R2-D399）。正文只含已声明给模型的定义投影，所以 deny 规则不需要挡它；deny 挡的是会运行的调用。用例 [release-action-rules.spec.ts](../../tests/rows/authorization/release-action-rules.spec.ts) 用真实的分层加载与真实动作准入核对这两种配置，以及点名命令的调用（如 Shell 的 `info`、Files 的 `read`）命中工具规则、`Shell` 的 deny 拦下点名 `run` 的调用。它不证明 S4-6 的端到端观察，Tool 两个消费方的 qualify 接线仍待 L-TOOL。
 
 只有 Session 工作主体进入 AU-11 的成员资格核验。主体必须由原身份权威核验，并代请求租户行事。登录主体、未知角色和系统主体不放行。身份来源失败答 `unavailable`。请求的动作位置、生效参数摘要和规则选择在首次 await 前固定；每次动作重新核验身份。允许和规则禁止的 `decisionEvidence` 绑定规则 id、revision、execution/passage/action、生效参数摘要与身份依据。禁止结果携带 `rule/<id>`，不生成决定卡。输出不携带主体或参数正文。
 
@@ -514,7 +534,7 @@
 
 普通台账动作和 `start` 要求非空 call、可信 Session 工作主体和本租户成员资格，映射到 `tool/<action>` 与 `tool/call`。`invalidate`、`read-raw`、`read-raw-content` 缺本波资格来源，一律答 `unavailable`；后者不以两次异步检查拼出双权限一致读取。
 
-入口 `issueTenantDomainScanner(env)` 经本运行受信签发器签出 `tenant-domain-scanner`，只把主体交给扫描者，不交签发器、不 provide 新键。部署枚举消费者用同一 `releaseMaintenanceGrants()` 与原 `principalVerifier`，不能用组件名文本或复制的主体代替真实签发身份。
+入口 `issueTenantDomainScanner(env)` 经本运行受信签发器签出 `tenant-domain-scanner`，只把主体交给扫描者，不交签发器、不 provide 新键。部署枚举经 `systemActionAuthorization` 由本行判断，用的是本行的核验器与收紧后的授予表，不能用组件名文本或复制的主体代替真实签发身份。
 
 ## 验证
 
@@ -523,6 +543,8 @@
 - `adapters.spec.ts`：两个访问检查对真实的 `SessionAccessCheck` 与 `AgentAccessCheck` 契约运行，依赖是核验器和 `tenantStanding` 的测试替身，授权判定用的是 `@omne-harness/authorization` 的参考件。含依赖抛错时的 `unavailable`、原型链键、固定绑定、前置裁定、矩阵请求的形状、本页与源码的逐格核对，以及 `serveOnce` 下的活树用例。
 - `policy-golden.spec.ts`、`policy.spec.ts`、`policy.spec-d.ts`：表本身的逐格黄金表、审计和行完整性。
 - `grants.spec.ts`：授予表和读口。
+- `grant-tightening.spec.ts`：运维者收紧。模式的接受与拒绝，真实行上的收回、到期、表外标识、改用途和无时钟，每项都有对照用例。
+- `../session-storage/system-action-enumeration.spec.ts`：真实 `authorization` 行与真实 `session-storage` 行一起装载，收回与到期对租户枚举生效、本行不可用时枚举答 `unavailable`、根上同名冒充服务读不到，每项都有负控。
 - `tool-access.spec-d.ts`：同一个 qualify 对象满足两个 Tool 端口。`adapters.spec.ts` 还运行 Tool 五项符合性套件，包含失败依赖，以及动作规则、严格配置和撤除旧引用用例。
 - `../entry/tenant-domain-scanner.spec.ts`：真实入口签发与核验、精确枚举用途、伪造主体拒绝。
 
@@ -533,4 +555,4 @@
 - 改一个格：改 `session-policy.ts` 或 `agent-policy.ts`，同步黄金表，重新生成本页的表区。
 - 新增一个操作：上游枚举多一项时，成员的类型检查变红。补一行，补出处，补黄金表。
 - 新增一个系统动作：先在 `@omne-harness/authorization` 的矩阵里加行，再加矩阵格和授予记录。
-- 改授予表：改 `grants.ts` 的常量，修订常量随之加一，重新生成本页。
+- 改授予表：改 `grants.ts` 的常量，修订常量随之加一，重新生成本页。运维者收紧的规则在 `grant-tightening.ts`。

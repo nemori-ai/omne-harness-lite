@@ -24,7 +24,10 @@ import {
   LifecycleRegistry,
   S0AssemblyLifecycleService,
 } from '../../../src/lifecycle.ts'
-import { storageCatalog } from '../../../src/rows/storage/catalog.ts'
+import {
+  DISTRIBUTION_SESSION_READ_OUTPUT_LIMIT_BYTES,
+  storageCatalog,
+} from '../../../src/rows/storage/catalog.ts'
 import { monotonicClock, runShutdown } from '../../../src/shutdown.ts'
 import type { LifecyclePhase, RowId } from '../../../src/types.ts'
 import { loadStorageTree, type LoadedTree } from './fixtures/tree.ts'
@@ -92,6 +95,25 @@ describe('materials (acceptance 4)', () => {
     // identity 行（identity-sql）在 `system` 域登记自己的组合，它的材料必须在同一份发行目录里。
     expect(catalog.participants.map(item => item.participant)).toContain(IDENTITY_PARTICIPANT)
     expect(catalog.declaredCombinations).toEqual({ tenant: null, system: null })
+  })
+
+  test('the release catalog carries the identity governance migration and read handler, within the read result limit', () => {
+    const catalog = storageCatalog()
+    const migrations = catalog.migrations
+      .filter(item => item.owner === IDENTITY_PARTICIPANT)
+      .map(item => [item.id, item.requires.map(ref => ref.id)])
+    expect(migrations).toEqual([
+      ['001-identity', []],
+      ['002-governance', ['001-identity']],
+    ])
+    const governance = catalog.readHandlers.find(item => item.handler === 'identity.governance')
+    expect(governance?.maxOutputBytes).toBe(1048576)
+    // The storage row serves no handler whose output limit is above its `maxReadResultBytes`
+    // (20 MiB in the release, AA `storage` row); the identity handlers stay well below it.
+    for (const handler of catalog.readHandlers)
+      expect(handler.maxOutputBytes, handler.handler).toBeLessThanOrEqual(
+        DISTRIBUTION_SESSION_READ_OUTPUT_LIMIT_BYTES,
+      )
   })
 
   test('a tampered digest is listed by name and fails install', async () => {

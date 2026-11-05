@@ -29,6 +29,7 @@ export async function run(
         environmentHome: runtime.environmentHome,
         homeDirectory: runtime.homeDirectory,
         environmentServer: runtime.environmentServer,
+        ...(runtime.localServer === undefined ? {} : { localServer: runtime.localServer }),
         services: runtime.services,
       })
     case 'usage-error':

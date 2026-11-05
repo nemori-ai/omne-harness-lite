@@ -15,7 +15,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { EARLIER, intakeAccess, ok, strangerAccess } from './world.ts'
 import { ad04RowsOf, historyReadGrowth, type RoundCount } from './w2-measure.ts'
-import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
+import {
+  reasoningStateBlock,
+  replyText,
+  toolCallBlock,
+  openW2World,
+  type W2World,
+} from './w2-world.ts'
 
 /** The rows a round adds to the session log: its input and its reply. */
 const NEW_ROWS_PER_ROUND = 2
@@ -181,9 +187,10 @@ describe('J1 negative control of the history read criterion', () => {
 
 describe('J1 replay block', () => {
   // R7 item 5, S3-3: the request of round 2 carries the reasoning_state block of round 1. R2-D70
-  // names this a deviation of wave 2: the delivery has no scope/format channel, and the Agent Loop
-  // answers `unsupported` to a result with a reasoning_state or thinking part
-  // (agent/src/loop/model-result.ts). L-MODEL adds the replay channel in wave 3. Not written as passing.
+  // names this a deviation of wave 2: the delivery has no scope/format channel. Since R2-D268 the
+  // Agent Loop leaves a sealed reasoning_state or thinking part out of the reply
+  // (agent/src/loop/model-result.ts), so no later request replays it. L-MODEL adds the replay
+  // channel in wave 3. Not written as passing.
   it.todo(
     'J1 the request of round 2 replays the reasoning_state block of round 1 (R2-D70 named deviation, wave 3)',
   )
@@ -212,6 +219,84 @@ describe('J2: a Tool result enters the next Model request', () => {
     })
     // The receiver saved the original result of that call.
     expect(saved).toHaveProperty('ok')
+  })
+
+  it('J2 a Tool action whose admission is unavailable is denied, the denial goes to the Model, and the Run completes', async () => {
+    // agent-contract SPEC "整批判断屏障与动作准入" rule 2: an unavailable admission denies the batch.
+    // Before the fix the Run stayed at A0 with no terminal and no further commit.
+    const w = await openW2World({
+      earlier: 'session',
+      model: a =>
+        a.index === 0
+          ? { parts: [toolCallBlock('tc-j2u')], reason: 'tool-suggestions' }
+          : { parts: [replyText(`r${a.index}`, 'could not run it')], reason: 'stop' },
+      toolRequests: {
+        describe: async () => ({
+          failure: { kind: 'unavailable', owner: 'agentToolRequests', diagnostic: 'scenario' },
+        }),
+      },
+    })
+    worlds.push(w)
+    await w.createSession('j2u')
+    await w.runRound(1, 'read the file')
+    expect(await w.lastOutcome()).toBe('completed')
+    expect(w.tools.invoke.calls).toHaveLength(0)
+    // The next Model request of the round carries the denial message of the action.
+    const tools = (w.assembled[1] ?? []).filter(message => message.role === 'tool')
+    expect(tools).toHaveLength(1)
+  })
+
+  it('J2 the second step of a Run, whose result carries a reasoning_state, wakes the Agent and the Run completes', async () => {
+    // R2-D268: the step-2 result after a denied Tool action carries an opaque reasoning_state, as a
+    // real provider returns encrypted reasoning. Before the fix the Agent read the received result at
+    // M3, answered `unsupported` and stopped: the execution stayed waiting at M6, with no terminal.
+    // The scripted producer cannot seal a reasoning_state, so the delivery of step 2 gets it on the
+    // way to the real receiver.
+    const w = await openW2World({
+      earlier: 'session',
+      model: a =>
+        a.index === 0
+          ? { parts: [toolCallBlock('tc-j2r')], reason: 'tool-suggestions' }
+          : { parts: [replyText(`r${a.index}`, 'not allowed')], reason: 'stop' },
+      modelDelivery: delivery =>
+        delivery.kind === 'result' && delivery.consumer.work.endsWith('/step-2')
+          ? {
+              ...delivery,
+              parts: [
+                { kind: 'sealed', trims: [], block: reasoningStateBlock('rs2') },
+                ...delivery.parts,
+              ],
+            }
+          : delivery,
+      toolRequests: {
+        describe: async () => ({
+          failure: { kind: 'unavailable', owner: 'agentToolRequests', diagnostic: 'scenario' },
+        }),
+      },
+    })
+    worlds.push(w)
+    await w.createSession('j2r')
+    await w.runRound(1, 'list the files')
+    expect(await w.lastOutcome()).toBe('completed')
+    expect(w.modelCalls).toHaveLength(2)
+    expect(w.receivedFailures).toEqual([])
+    const execution = await w.execution()
+    const page = ok(
+      await w.probeLog.output.read({ ...w.agentAccess, execution, after: null, limit: 100 }),
+    )
+    if (page.kind !== 'page') throw new Error('the output has a gap')
+    // The received material of step 2 keeps the reasoning state.
+    const received = page.events.filter(event => event.body.kind === 'entry')
+    expect(received).toHaveLength(2)
+    // The reply of step 2 holds the text and leaves the reasoning state out.
+    const replies = page.events.flatMap(event =>
+      event.body.kind === 'message' && event.body.message.role === 'assistant'
+        ? [event.body.message]
+        : [],
+    )
+    expect(replies).toHaveLength(2)
+    expect(replies[1]?.blocks.map(block => block.kind)).toEqual(['text'])
+    expect(textOf(replies[1]!)).toBe('not allowed')
   })
 
   it('J2 the Tool result enters the next request of the round and the request of round 2', async () => {

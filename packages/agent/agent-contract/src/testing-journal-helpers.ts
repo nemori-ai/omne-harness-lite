@@ -96,8 +96,8 @@ export interface AgentJournalCoreOpened<P> {
   ) => void
   /**
    * The Access of a second tenant that owns no execution of this case, for the cases where another
-   * tenant calls the Journal (SPEC "判定次序与失败映射" 1). Optional; the foreign-tenant cases are
-   * uncovered without it.
+   * tenant calls the Journal (SPEC "判定次序与失败映射" 1). Optional; the cases of another tenant
+   * are uncovered without it.
    */
   readonly otherAccess?: Access<P>
   /** Attaches a new attachment that supersedes the current one, under the fixture's rules. Optional. */
@@ -533,7 +533,7 @@ export async function takeInputs<P>(
   await ok(
     opened.journal.commit(
       commitAt(opened, snapshot, name, opened.authority, {
-        checkpoint: { ...snapshot.checkpoint, inputBatch: taken.batch.id },
+        checkpoint: { ...snapshot.checkpoint, inputBatch: taken.batch },
         events: [{ kind: 'input-taken', batch: taken.batch }],
       }),
     ),

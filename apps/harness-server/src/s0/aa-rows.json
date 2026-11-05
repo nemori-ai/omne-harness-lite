@@ -61,7 +61,17 @@
     {
       "row": "identity",
       "names": [
-        "storage"
+        "storage",
+        "tenantStanding",
+        "identityGovernance"
+      ]
+    },
+    {
+      "row": "authorization",
+      "names": [
+        "principalVerifier",
+        "tenantStanding",
+        "systemActionAuthorization"
       ]
     },
     {
@@ -70,7 +80,8 @@
         "storage",
         "tenantDomainLookup",
         "sessionPrincipalBindings",
-        "sessionDelegatedTransactions"
+        "sessionDelegatedTransactions",
+        "systemActionAuthorization"
       ]
     },
     {
@@ -81,9 +92,19 @@
       ]
     },
     {
+      "row": "session-ad02",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
       "row": "session-ad03",
       "names": [
-        "sessionWorkPrincipals"
+        "sessionWorkPrincipals",
+        "sessionReplayFacts",
+        "sessionScopeLookup"
       ]
     },
     {
@@ -96,6 +117,12 @@
       "row": "session-ad05",
       "names": [
         "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "session-ad09",
+      "names": [
+        "principalVerifier"
       ]
     },
     {
@@ -114,21 +141,42 @@
       "row": "agent-journal",
       "names": [
         "storage",
-        "tenantDomainLookup"
+        "tenantDomainLookup",
+        "agentReceivedRecords"
       ]
     },
     {
       "row": "session-handoff",
       "names": [
         "storage",
-        "tenantDomainLookup"
+        "tenantDomainLookup",
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "session-conditions",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "definitionMappings"
+      ]
+    },
+    {
+      "row": "model-credential",
+      "names": [
+        "principalVerifier",
+        "tenantStanding",
+        "modelCredentialCustody"
       ]
     },
     {
       "row": "model-records",
       "names": [
         "storage",
-        "tenantDomainLookup"
+        "tenantDomainLookup",
+        "principalVerifier",
+        "tenantStanding",
+        "agentReceivedRecords"
       ]
     },
     {
@@ -136,6 +184,12 @@
       "names": [
         "storage",
         "tenantDomainLookup"
+      ]
+    },
+    {
+      "row": "tool-bindings",
+      "names": [
+        "principalVerifier"
       ]
     },
     {
@@ -151,9 +205,17 @@
       ]
     },
     {
+      "row": "agent-model-selection",
+      "names": [
+        "storage",
+        "tenantDomainLookup"
+      ]
+    },
+    {
       "row": "request-context",
       "names": [
-        "requestContextTrust"
+        "requestContextTrust",
+        "principalVerifier"
       ]
     },
     {
@@ -166,7 +228,9 @@
       "row": "server-entry",
       "names": [
         "principalIssuer",
-        "definitionMappings"
+        "definitionMappings",
+        "identityGovernance",
+        "modelCredentialCustody"
       ]
     }
   ]

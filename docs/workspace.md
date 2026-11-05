@@ -3,7 +3,7 @@
 本页维护 monorepo 的源码归属、包边界与开发环境组织。产品实现以 TypeScript 为主；
 Python 当前服务于开发工具。
 
-> 目标分组与包边界见[产品包组织](package-organization.md)，新骨架见[packages/README](../packages/README.md)、[apps/README](../apps/README.md)，旧成员查[legacy包](../packages.0.0.1.legacy/README.md)及[legacy应用](../apps.0.0.1.legacy/README.md)。领域责任从[领域入口](domains/README.md)定位，未迁契约仍从[原维护入口](../.meta_harness/design/architecture/README.md)定位。本页维护顶层归属与workspace操作规则，不另存成员总数或第二份目标包树。
+> 目标分组与包边界见[产品包组织](package-organization.md)，新骨架见[packages/README](../packages/README.md)、[apps/README](../apps/README.md)，旧成员已从仓库删除，查固定提交中的[legacy包](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)及[legacy应用](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md)。领域责任从[领域入口](domains/README.md)定位，未迁契约仍从[原维护入口](../.meta_harness/design/architecture/README.md)定位。本页维护顶层归属与workspace操作规则，不另存成员总数或第二份目标包树。
 
 项目要求与已接受技术架构从[docs入口](README.md)定位；产品、统一语言及持续研究保持meta源。公开类型、行为契约、必要理由和验证资源随成员拥有者维护。
 目录和包的划分不直接决定插件、服务或部署边界。
@@ -58,28 +58,18 @@ Python 当前服务于开发工具。
 
 ## 目标骨架与封存实现
 
-新packages与apps只提供文档入口和缺项登记，没有真实产品成员或可启动应用。最小 CLI 的依赖方向见[包组织](package-organization.md#最小-cli-的接入边界)。旧产品正文、应用及包分别保持在product.0.0.1.legacy、apps.0.0.1.legacy和packages.0.0.1.legacy；后缀不是发布版本。这些目录留在仓库里供核对。活动工具及其测试不能读取其中的源码或产物。规则测试使用工具自己拥有的最小夹具；隔离运行与历史链接检查分开，见[检查器运行说明](../tools/product-checks/README.md#independence-from-archived-implementations)。它们不是 pnpm workspace 成员，工具不再声明它们的包名。旧源不授予架构采用。
+新packages与apps只提供文档入口和缺项登记，没有真实产品成员或可启动应用。最小 CLI 的依赖方向见[包组织](package-organization.md#最小-cli-的接入边界)。旧产品正文保持在 `.meta_harness/design/product.0.0.1.legacy`，留在仓库里供核对。后缀不是发布版本。旧应用与旧包已从仓库删除，原件见固定提交中的 [apps.0.0.1.legacy](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy) 和 [packages.0.0.1.legacy](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy)。活动工具及其测试不读取这些旧源。规则测试使用工具自己拥有的最小夹具。旧源不授予架构采用。
 
 新包区按目标能力组维护工程关系，已具名目标成员维护长期 SPEC 与内部设计。尚未具名的行为规格承接继续计缺项。新产品区的[正式正文](../.meta_harness/design/product/README.md)包含需求、能力及实现状态、阶段承诺和未决四块。文档落位不建立可执行成员，也不授予设计或实现接受；常规新增成员的公开承诺与模板准入要求保持。
 
 ## 现存实现与工具位置
 
-下面列的是封存实现及现存开发工具的位置。封存目录不在 pnpm workspace 里，不能算作新树的支持能力。静态遍历及默认检查、测试和验收目标排除任意层级中以`.legacy`结尾的目录。`pnpm run check`的按影响面和全量计划均遵守此规则。完整旧产品构建不属于新骨架验收。
+下面列的是现存开发工具的位置。静态遍历及默认检查、测试和验收目标排除任意层级中以`.legacy`结尾的目录。`pnpm run check`的按影响面和全量计划均遵守此规则。完整旧产品构建不属于新骨架验收。
 
 ```text
 package.json / pnpm-workspace.yaml     TypeScript workspace、版本 catalog 与根聚合命令
 pnpm-lock.yaml                         TypeScript 依赖统一锁文件
 tsconfig.base.json                     全体 TS 成员共用的编译选项（NodeNext、strict、.ts 后缀导入）
-packages.0.0.1.legacy/core/{identity-values,offer-expiry,kernel-basis,storage}
-                                       契约纯模块、Cordis 共用件与 probe、存储协议与一致性套件
-packages.0.0.1.legacy/infra/{storage-sql,clock}     存储与时钟提供者（sqlite/pg、租约时钟）
-packages.0.0.1.legacy/tenancy/{credential-verification,account-identity,organization-governance-sql,account-registration}
-                                       tenancy 插件与公开服务实现；完整成员从 packages.0.0.1.legacy/README 查找
-packages.0.0.1.legacy/frontend/governance-center-client-https
-packages.0.0.1.legacy/frontend/client-local-state-sqlite
-packages.0.0.1.legacy/frontend/governance-client-operations-local
-                                       治理协议运输、本地完整状态与共享治理用例
-apps.0.0.1.legacy/cli/                             治理CLI应用；文件输入增量
 tools/artifact-builder/                TS 开发成员；应用归档文件校验与独占发布
 tools/repo-toolchain/                  TS 开发成员；检查器包，发布到 npm
 tools/product-checks/                  TS 开发成员；本仓库的产品规则与 lint:rules，不发布

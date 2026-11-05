@@ -1,9 +1,14 @@
 import type { ToolDeclaration } from '@omne-harness/model-contract'
+import { commandCallSchema, commandMenu } from '@omne-harness/tool-contract'
 import type { ToolAdoption } from './values.js'
 import { digest } from './internal.js'
-export type { ToolRoute, ToolDeclarationSet } from './values.js'
+export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './values.js'
 import type { ToolRoute, ToolDeclarationSet } from './values.js'
-/** Only resident tools are declarations; availability never changes their original definition. */
+/**
+ * Only resident tools are declarations; availability never changes their original definition.
+ * Each tool is one declaration (D-94): a multi-command tool names the command inside its arguments,
+ * and its description ends with the command menu.
+ */
 export function declareTools(tools: readonly ToolAdoption[]): ToolDeclarationSet {
   const direct: ToolDeclaration[] = []
   const programmatic: ToolDeclaration[] = []
@@ -14,38 +19,29 @@ export function declareTools(tools: readonly ToolAdoption[]): ToolDeclarationSet
       a.availability.definition.name.localeCompare(b.availability.definition.name, 'en'),
     )) {
     const def = adopted.availability.definition
-    const declarations =
+    const declaration: ToolDeclaration =
       def.kind === 'function'
-        ? [
-            {
-              name: def.name,
-              description: def.description,
-              argumentsSchema: def.parameters.schema,
-              command: null,
+        ? { name: def.name, description: def.description, argumentsSchema: def.parameters.schema }
+        : {
+            name: def.name,
+            description: `${def.description}\n\n${commandMenu(def)}`,
+            argumentsSchema: commandCallSchema(def),
+          }
+    direct.push(declaration)
+    if (def.programmable === true) programmatic.push(declaration)
+    routes.push({
+      declared: declaration.name,
+      tool: def.adoption,
+      binding: adopted.binding,
+      selection:
+        def.kind === 'function'
+          ? { kind: 'none' }
+          : {
+              kind: 'argument',
+              encoding: def.encoding,
+              commands: def.commands.map(command => command.name),
             },
-          ]
-        : def.commands.map(command => ({
-            name: `${def.name}.${command.name}`,
-            description: command.summary,
-            argumentsSchema:
-              command.parameters.kind === 'declared'
-                ? command.parameters.value.schema
-                : {
-                    kind: 'object' as const,
-                    entries: [{ key: 'type', value: { kind: 'string' as const, value: 'object' } }],
-                  },
-            command: command.name,
-          }))
-    for (const { command, ...declaration } of declarations) {
-      direct.push(declaration)
-      if (def.programmable === true) programmatic.push(declaration)
-      routes.push({
-        declared: declaration.name,
-        tool: def.adoption,
-        binding: adopted.binding,
-        command,
-      })
-    }
+    })
   }
   return { direct, programmatic, routes, digest: digest({ direct, programmatic, routes }) }
 }
