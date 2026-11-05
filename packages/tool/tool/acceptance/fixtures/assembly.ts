@@ -314,7 +314,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
           dependency: 'qa-catalog',
           diagnostic: 'Usage is outside S1–S3',
         }),
-      search: async () => succeed({ entries: [{ ...availability, resident: true }], next: null }),
+      search: async () => succeed({ entries: [{ ...availability, resident: false }], next: null }),
     },
     children: {
       reserve: async () => {
