@@ -374,6 +374,22 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     await unitGone(handle.process.id)
   })
 
+  it('after the handover the handle stop does nothing, answers unconfirmed, and the service stays reachable', async () => {
+    const f = await retaining()
+    const { port, handle, residue } = await retainServer(f)
+    if (residue?.kind !== 'retained') throw new Error('expected retained')
+    await serving(port)
+    expect(await handle.stop('graceful')).toBe('unconfirmed')
+    expect(await handle.stop('forced')).toBe('unconfirmed')
+    expect(await reachable(port)).toBe(true)
+    expect(await unitState(handle.process.id)).toMatchObject({ activeState: 'active' })
+    expect(f.own.stopped).toEqual([])
+    expect(f.processes.stopped).toEqual([])
+    expect(await listed(f.command)).toMatchObject([{ process: residue.process, state: 'running' }])
+    f.released.abort()
+    await unitGone(handle.process.id)
+  })
+
   it('C2: lists the retained process; closing the scope stops its unit, confirms it and records it', async () => {
     const f = await retaining()
     const { port, handle, residue } = await retainServer(f)

@@ -72,6 +72,13 @@ export type HandoverDetails = Readonly<{
 
 export type Handover = Readonly<{ process: RetainedProcessRef; marker: 'written' | 'notWritten' }>
 
+/** A commit whose domain was interrupted meanwhile, with the stop the acquisition may have issued already. */
+export type StoppingHandoverDetails = HandoverDetails &
+  Readonly<{
+    /** A stop of the unit already in flight; the index waits for its reading instead of issuing another. */
+    issued?: Promise<StopReading> | undefined
+  }>
+
 export type RetainedProcessIndex = Readonly<{
   /** Loads the markers once; false when they cannot be read completely, which is not an empty index. */
   ready(): Promise<boolean>
@@ -83,6 +90,17 @@ export type RetainedProcessIndex = Readonly<{
   ): RetainedReservation | 'capacity' | 'unavailable'
   /** The commit took effect: writes the marker and holds the domain as running. */
   commit(reservation: RetainedReservation, details: HandoverDetails): Promise<Handover>
+  /**
+   * The commit took effect, but the domain was stopped, released or its scope closed meanwhile:
+   * the retention scope owns it, so the index holds it as stopping (synchronously: it keeps its
+   * place and is listed), stops it or waits for the stop already issued, records the stop on
+   * `details.ledger`, and lets it go once confirmed. No marker is written: the stop is this
+   * process's to confirm, and after a crash the closure sweep of the scope finds the unit.
+   */
+  commitStopping(
+    reservation: RetainedReservation,
+    details: StoppingHandoverDetails,
+  ): Promise<StopStatus>
   /** The retained processes of `scope` and `tenant`, members read now; `unavailable` when unread. */
   list(
     scope: ScopeRef,
@@ -124,6 +142,11 @@ type Entry = {
   members: number | 'unknown'
   ledger: RetainedProcessLedger | undefined
   stopping: Promise<StopStatus> | undefined
+  /**
+   * The marker on disk: `written` or loaded; `notWritten` when the write failed and the
+   * maintenance writes it again; `none` for a domain that is stopping from its commit on.
+   */
+  marker: 'written' | 'notWritten' | 'none'
 }
 
 const markerVersion = 1
@@ -219,11 +242,20 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
   }
 
   const removeMarker = async (entry: Entry): Promise<void> => {
+    if (entry.marker === 'none') return
     try {
       await rm(markerPath(entry.key), { force: true })
     } catch {
       diagnose({ key: entry.key, unit: entry.unit, issue: 'notRemoved' })
     }
+  }
+
+  /** Writes again a marker whose write failed; a domain stopped meanwhile gets no marker left behind. */
+  const rewriteMarker = async (entry: Entry): Promise<void> => {
+    if (entry.state !== 'running' || entry.marker !== 'notWritten') return
+    if (!(await writeMarker(entry))) return
+    entry.marker = 'written'
+    if (entry.state !== 'running' || !entries.has(entry.key)) await removeMarker(entry)
   }
 
   const discardMarker = async (name: string, key: string, unit: string): Promise<void> => {
@@ -284,6 +316,7 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       members: reading.kind === 'members' ? countOf(reading.pids, gatePid) : 'unknown',
       ledger: undefined,
       stopping: undefined,
+      marker: 'written',
     }
   }
 
@@ -339,12 +372,18 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     }
   }
 
-  const stop = (entry: Entry): Promise<StopStatus> => {
+  /** The stop of one unit, or the wait for the stop `issued` already; one in flight per entry. */
+  const stop = (entry: Entry, issued?: Promise<StopReading>): Promise<StopStatus> => {
     entry.state = 'stopping'
     entry.stopping ??= (async () => {
-      const supervision = await input.supervision()
-      if (supervision === undefined) return 'unconfirmed'
-      const reading = await supervision.stop({ unit: entry.unit, bootId: entry.bootId })
+      let reading: StopReading
+      if (issued !== undefined) {
+        reading = await issued.catch((): StopReading => ({ status: 'unconfirmed' }))
+      } else {
+        const supervision = await input.supervision()
+        if (supervision === undefined) return 'unconfirmed'
+        reading = await supervision.stop({ unit: entry.unit, bootId: entry.bootId })
+      }
       const recorded = await recordStop(entry, reading.status)
       if (reading.status === 'confirmed' && recorded) {
         await removeMarker(entry)
@@ -380,7 +419,7 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       [...entries.values()].map(entry =>
         entry.state === 'stopping' && entry.stopping === undefined
           ? stop(entry).then(() => undefined)
-          : observe(entry, supervision),
+          : Promise.all([rewriteMarker(entry), observe(entry, supervision)]),
       ),
     )
     return [...entries.values()].filter(entry => entry.state === 'stopping').length
@@ -410,6 +449,23 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     return [...entries.values()].filter(entry => entry.scope === digest)
   }
 
+  /** The reserved entry of a commit that took effect, filled with what the handover recorded. */
+  const committed = (reservation: RetainedReservation, details: HandoverDetails): Entry => {
+    const entry = entries.get(reservation.key)
+    if (entry === undefined || entry.state !== 'reserved')
+      throw new Error('a handover commit without a live reservation')
+    entry.unit = details.unit
+    entry.bootId = details.bootId
+    entry.origin = details.origin
+    entry.generation = randomUUID()
+    entry.handedOverAtMs =
+      /* wall-clock: observation-time -- The handover time the contract reports, in epoch milliseconds. */ Date.now()
+    entry.gatePid = details.gatePid
+    entry.members = details.members ?? 'unknown'
+    entry.ledger = details.ledger
+    return entry
+  }
+
   const closeScope = async (
     scope: ScopeRef,
     ledger?: RetainedProcessLedger,
@@ -418,7 +474,7 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     const own = ofScope(scope).filter(entry => entry.state !== 'reserved')
     const view = ledger ?? scopeLedgers.get(scopeDigest(scope))
     for (const entry of own) entry.ledger ??= view
-    await Promise.all(own.map(stop))
+    await Promise.all(own.map(entry => stop(entry)))
     return own.filter(entry => entries.has(entry.key)).map(resourceOf)
   }
 
@@ -445,6 +501,7 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
         members: 'unknown',
         ledger: undefined,
         stopping: undefined,
+        marker: 'none',
       }
       entries.set(key, entry)
       return Object.freeze({
@@ -455,25 +512,18 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       })
     },
     async commit(reservation, details) {
-      const entry = entries.get(reservation.key)
-      if (entry === undefined || entry.state !== 'reserved')
-        throw new Error('a handover commit without a live reservation')
-      entry.unit = details.unit
-      entry.bootId = details.bootId
-      entry.origin = details.origin
-      entry.generation = randomUUID()
-      entry.handedOverAtMs =
-        /* wall-clock: observation-time -- The handover time the contract reports, in epoch milliseconds. */ Date.now()
-      entry.gatePid = details.gatePid
-      entry.members = details.members ?? 'unknown'
-      entry.ledger = details.ledger
+      const entry = committed(reservation, details)
       entry.state = 'running'
       const written = await writeMarker(entry)
+      entry.marker = written ? 'written' : 'notWritten'
       startPolling()
-      return {
-        process: { id: entry.key, generation: entry.generation },
-        marker: written ? 'written' : 'notWritten',
-      }
+      return { process: { id: entry.key, generation: entry.generation }, marker: entry.marker }
+    },
+    commitStopping(reservation, details) {
+      const entry = committed(reservation, details)
+      const stopping = stop(entry, details.issued)
+      startPolling()
+      return stopping
     },
     async list(scope, tenant) {
       if (!(await ready())) return 'unavailable'

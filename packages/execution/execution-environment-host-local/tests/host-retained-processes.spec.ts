@@ -354,6 +354,106 @@ it('answers unavailable, not an empty list, when the markers cannot be read, and
   expect(await unasked.list(scopeOf('scope-a'), tenant)).toBe('unavailable')
 })
 
+it('N3: rewrites a marker that could not be written on the next maintenance, and a new index then loads it', async () => {
+  const state = await stateDirectory()
+  const f = await indexWith(state)
+  const scope = scopeOf('scope-a')
+  // The marker directory is taken by a file: the write at commit fails.
+  await writeFile(join(state, 'retained-processes'), 'in the way')
+  const { key, handed } = await handOver(f, scope)
+  expect(handed.marker).toBe('notWritten')
+  expect(f.facts).toEqual([{ key, unit: unitOf(key), issue: 'notWritten' }])
+  // Still in the way: the maintenance tries again and diagnoses again.
+  await f.index.maintain()
+  expect(f.facts).toHaveLength(2)
+  await rm(join(state, 'retained-processes'))
+  await f.index.maintain()
+  expect(await readdir(join(state, 'retained-processes'))).toEqual([`${key}.json`])
+  // Written: the next maintenance does not write it again.
+  const written = await readFile(join(state, 'retained-processes', `${key}.json`), 'utf8')
+  await f.index.maintain()
+  expect(await readFile(join(state, 'retained-processes', `${key}.json`), 'utf8')).toBe(written)
+  expect(f.facts).toHaveLength(2)
+  const stub = supervisor()
+  stub.members(unitOf(key), [gatePid, 7])
+  const second = await indexWith(state, stub)
+  expect(await second.index.list(scope, tenant)).toMatchObject([
+    { process: handed.process, state: 'running', processes: 1 },
+  ])
+})
+
+it('N2: a handover committed for an interrupted domain is held as stopping: it counts, it is listed, it leaves once the stop is confirmed and recorded', async () => {
+  const state = await stateDirectory()
+  const f = await indexWith(state, supervisor(), { capacity: 1 })
+  const scope = scopeOf('scope-a')
+  const key = randomUUID()
+  const reservation = f.index.reserve(scope, tenant, key)
+  if (typeof reservation === 'string') throw new Error(`expected a reservation: ${reservation}`)
+  const ledger = ledgerStub()
+  f.stub.answerStops({ status: 'unconfirmed' })
+  const stopping = f.index.commitStopping(reservation, {
+    unit: unitOf(key),
+    bootId,
+    origin: originRef('call-1'),
+    gatePid,
+    members: 2,
+    ledger: ledger.ledger,
+  })
+  // Synchronously the place is taken and the reservation can no longer be given back.
+  reservation.abort()
+  expect(f.index.reserve(scope, tenant, 'another')).toBe('capacity')
+  expect(await f.index.list(scope, tenant)).toMatchObject([
+    { process: { id: key }, origin: 'call-1', state: 'stopping', processes: 2 },
+  ])
+  expect(await stopping).toBe('unconfirmed')
+  expect(f.stub.stops).toEqual([{ unit: unitOf(key), bootId }])
+  expect(ledger.stopped).toEqual([[key, 'unconfirmed']])
+  // No marker: the stop is this process's to confirm; a crash leaves the unit to the closure sweep.
+  expect(await readdir(join(state, 'retained-processes')).catch(() => [])).toEqual([])
+  // Unconfirmed: the maintenance stops it again until the supervisor confirms.
+  f.stub.answerStops({ status: 'confirmed' })
+  expect(await f.index.maintain()).toBe(0)
+  expect(f.stub.stops).toHaveLength(2)
+  expect(ledger.stopped).toEqual([
+    [key, 'unconfirmed'],
+    [key, 'confirmed'],
+  ])
+  expect(await f.index.list(scope, tenant)).toEqual([])
+  expect(typeof f.index.reserve(scope, tenant, 'another')).toBe('object')
+})
+
+it('N2: a stop the acquisition already issued is the one the index waits for, recorded once', async () => {
+  const f = await indexWith(await stateDirectory())
+  const scope = scopeOf('scope-a')
+  const key = randomUUID()
+  const reservation = f.index.reserve(scope, tenant, key)
+  if (typeof reservation === 'string') throw new Error(`expected a reservation: ${reservation}`)
+  const ledger = ledgerStub()
+  const issued = deferred<StopReading>()
+  const stopping = f.index.commitStopping(reservation, {
+    unit: unitOf(key),
+    bootId,
+    origin: originRef('call-1'),
+    gatePid,
+    members: null,
+    ledger: ledger.ledger,
+    issued: issued.promise,
+  })
+  expect(await f.index.list(scope, tenant)).toMatchObject([
+    { state: 'stopping', processes: 'unknown' },
+  ])
+  // Another stop and the maintenance join the one in flight.
+  const again = f.index.stop(key)
+  await f.index.maintain()
+  expect(f.stub.stops).toEqual([])
+  issued.resolve({ status: 'confirmed' })
+  expect(await stopping).toBe('confirmed')
+  expect(await again).toBe('confirmed')
+  expect(f.stub.stops).toEqual([])
+  expect(ledger.stopped).toEqual([[key, 'confirmed']])
+  expect(await f.index.list(scope, tenant)).toEqual([])
+})
+
 it('recovers a retained process by its resource, and answers undefined for one it does not hold', async () => {
   const f = await indexWith(await stateDirectory())
   const scope = scopeOf('scope-a')

@@ -14,8 +14,9 @@
 - [host-file-edges.spec.ts](host-file-edges.spec.ts)：宿主文件设施的边界结果与版本一致
 - [host-provider.spec.ts](host-provider.spec.ts)：宿主提供者的事实、经登记表门的账本关闭、退役与退役通知、命令启动前不起进程的拒绝与命令选项的界值
 - [host-command.spec.ts](host-command.spec.ts)：真实 systemd 用户 scope 里的命令：流式输出、显式环境、有界缓冲、门一侧的暂停、停止两态、单调用中断、释放与退役、资源恢复；只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行，归慢层
-- [host-command-residue.spec.ts](host-command-residue.spec.ts)：真实 systemd 用户 scope 里一次性命令留下的进程：移交与活过释放（C1）、列表与封闭即停（C2）、满额不驱逐（C3）、封闭后拒绝（C4）、新实例从标记找回（C6）、列表隔离（C14）、自行结清与各停止原因；只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行，归慢层
-- [host-retained-processes.spec.ts](host-retained-processes.spec.ts)：保留进程索引（替身监督者、真实临时状态目录）：容量、标记读写、按范围与租户列表、变空结清、重启后加载、范围封闭；处置的复核交错（C5）、提交未知与再问、停止原因顺序
+- [host-command-residue.spec.ts](host-command-residue.spec.ts)：真实 systemd 用户 scope 里一次性命令留下的进程：移交与活过释放（C1）、移交之后句柄的停止答 `unconfirmed` 且服务仍可达、列表与封闭即停（C2）、满额不驱逐（C3）、封闭后拒绝（C4）、新实例从标记找回（C6）、列表隔离（C14）、自行结清与各停止原因；只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行，归慢层
+- [host-retained-processes.spec.ts](host-retained-processes.spec.ts)：保留进程索引（替身监督者、真实临时状态目录）：容量、标记读写、写不成的标记由维护重写（N3）、按范围与租户列表、变空结清、重启后加载、范围封闭、被打断的移交作为停止中的项进入索引并并入已发出的停止（N2）；处置的复核交错（C5）、提交未知与再问、停止原因顺序
+- [host-command-custody.spec.ts](host-command-custody.spec.ts)：一次性命令留下的执行域的归属，用假 `systemd-run`（充当门）与假 `systemctl` 驱动真实的 `createHostCommands` 与保留进程索引：移交确认后第 k 个微任务到来的释放（B1）、未读移交的再问只有一个（B2）、移交之后句柄的停止不作用于执行域（N1）、确认而被打断的移交归保留范围并作为停止中的项占名额（N2）、索引加载不结束时处置仍在期限内结束（N4）、`HostTerminalOptions` 不带留下的进程的选项；快层，只在 Linux
 - [host-command-frames.spec.ts](host-command-frames.spec.ts)：门的帧读取、输出缓冲与单一读者、停止确认的判断、恢复引用的读取、监督工具的运行；不起 scope，两个平台都运行
 - [host-probe.spec.ts](host-probe.spec.ts)：`command` 的平台前提探测：改变真实环境后答 `unavailable` 与诊断，前提恢复后再启动；探测程序的退出与停止结果对应的前提项
 - [scope-cgroup.spec.ts](scope-cgroup.spec.ts)：统一、混合与 v1 布局下单元目录的解析，进程是否在自己的单元里，以及探测程序不在自己单元里时不以 0 退出
@@ -25,7 +26,7 @@
 - [ports.ts](ports.ts)：测试辅助：两个端口服务的替身
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：服务、端口服务、两个声明插件与宿主文件插件的装载、卸载与恢复，以及插件配置
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出集合与 Cordis 边界
-- [fixtures/](fixtures/index.md)：测试固定输入，现在为空
+- [fixtures/](fixtures/index.md)：测试固定输入：假监督工具脚本
 
 - [host-terminal.spec.ts](host-terminal.spec.ts)：原始字节、控制协议与 Cordis 增量
 - [host-terminal-recovery.spec.ts](host-terminal-recovery.spec.ts)：真实 Linux PTY、分段与新进程资源恢复

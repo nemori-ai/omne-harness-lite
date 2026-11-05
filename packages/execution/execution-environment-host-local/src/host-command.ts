@@ -35,6 +35,7 @@ import {
   scopeReference,
   type ScopeCoordinate,
   type ScopeTools,
+  type StopReading,
   type StopStatus,
 } from './host-scope.ts'
 
@@ -411,6 +412,8 @@ async function bounded<T extends string>(
  * The commit of a handover, in the command's common order: the reservation is held, `adopt` is
  * asked, and the two rechecks run again after the answer. A confirmed commit whose domain was
  * interrupted or whose scope closed meanwhile belongs to the retention scope but is stopped at once.
+ * This reading is the decision's; the facility reads both again in the very step that changes the
+ * custody, so an interruption between the two readings is not lost.
  */
 async function commitHandover(
   binding: CustodyBinding,
@@ -533,9 +536,12 @@ function requestIssue(request: StartRequest): FacilityReason | undefined {
 
 /**
  * Who carries the stop duty for the domain. `acquisition` from the start; `reserved` while a
- * handover is being committed; `handedOver` once the commit took effect but the domain is stopped
- * before it enters the index; `retained` once the index holds it; `unknown` while the commit's
- * result is unread. Every transition is synchronous, so the rechecks around each wait see it.
+ * handover is being decided and committed (still this acquisition's); `unknown` while the commit's
+ * result is unread (the reservation is kept, nothing is stopped); `handedOver` once the commit took
+ * effect and the index is taking the domain, running or stopping; `retained` once the index holds
+ * it running. Only `acquisition` and `reserved` are this acquisition's: a release, a handle stop or
+ * the gate's end act on nothing else. Every transition is synchronous, in the same step as the
+ * rechecks that justify it, so a wait that returns reads the custody again before it acts.
  */
 type Custody =
   | Readonly<{ kind: 'acquisition' }>
@@ -543,6 +549,9 @@ type Custody =
   | Readonly<{ kind: 'handedOver' }>
   | Readonly<{ kind: 'retained'; process: RetainedProcessRef }>
   | Readonly<{ kind: 'unknown'; reservation: RetainedReservation }>
+
+const ownedByAcquisition = (custody: Custody) =>
+  custody.kind === 'acquisition' || custody.kind === 'reserved'
 
 /** One process in its own scope: the launcher (`systemd-run` turned gate), its frames and its stop. */
 type ProcessEntry = {
@@ -564,9 +573,14 @@ type ProcessEntry = {
   stopRequested: boolean
   /** The acquisition released the domain; set before the release's first wait. */
   released: boolean
+  /** The stop sequence of this acquisition in flight: the unit's stop, then the record. */
   stopping: Promise<StopStatus> | undefined
+  /** The unit's stop itself, while in flight; an interrupted handover gives it to the index. */
+  issued: Promise<StopReading> | undefined
   /** The disposition in flight after the exit frame; a stop waits for it to learn the owner. */
   disposition: Promise<unknown> | undefined
+  /** The one resolution in flight of an unread handover; concurrent askers join it. */
+  resolving: Promise<void> | undefined
   /** Settles a waiting start with what the gate reported. */
   signal: ((event: 'ready' | 'started' | 'spawnFailed' | 'ended') => void) | undefined
   closeControl(): void
@@ -683,43 +697,44 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     index.watchClosure(view.closed, scope, view)
   }
 
-  /** The ledger that carries the stop duty now; undefined while the handover's result is unread. */
-  const dutyLedger = (entry: ProcessEntry): Pick<ResourceLedger, 'stopped'> | undefined => {
-    switch (entry.custody.kind) {
-      case 'acquisition':
-      case 'reserved':
-        return ledger
-      case 'handedOver':
-      case 'retained':
-        return processes
-      case 'unknown':
-        return undefined
-      default: {
-        const exhaustive: never = entry.custody
-        return exhaustive
-      }
-    }
-  }
+  /** The retention scope is closed: its release signal or its ledger's close signal fired. */
+  const scopeClosed = () =>
+    retentionBinding !== undefined &&
+    (retentionBinding.released.aborted || retentionBinding.processes.closed.aborted)
 
-  const forceStop = (entry: ProcessEntry, tools: ScopeTools): Promise<StopStatus> => {
-    entry.stopping ??= (async () => {
+  /** The stop of the unit itself, once per sequence; it marks the domain interrupted before its first wait. */
+  const issueStop = (entry: ProcessEntry, tools: ScopeTools): Promise<StopReading> => {
+    entry.issued ??= (async () => {
       entry.stopRequested = true
-      if (entry.custody.kind === 'retained' && retained !== undefined)
-        return retained.stop(entry.resource.key)
       entry.closeControl()
-      const reading = await forceStopScope({
+      return forceStopScope({
         tools,
         coordinate: entry.coordinate,
         boundMs: settings.stopBoundMs,
         launcherExited: entry.launcherExited,
       })
+    })()
+    return entry.issued
+  }
+
+  /**
+   * The forced stop of a domain this acquisition owns. One that it does not own is not stopped and
+   * answers `unconfirmed`: this acquisition cannot confirm a stop it did not issue. A sequence in
+   * flight is joined. The record goes to this acquisition's ledger only when the domain is still
+   * its own once the disposition settled; a handover that took effect meanwhile gave the unit's
+   * stop to the index, which records it on the retention ledger.
+   */
+  const forceStop = (entry: ProcessEntry, tools: ScopeTools): Promise<StopStatus> => {
+    if (entry.stopping !== undefined) return entry.stopping
+    if (!ownedByAcquisition(entry.custody)) return Promise.resolve('unconfirmed')
+    entry.stopping = (async () => {
+      const reading = await issueStop(entry, tools)
       // The owner is known only once the disposition settled; the stop itself did not wait for it.
       await entry.disposition
-      const duty = dutyLedger(entry)
-      if (duty === undefined) return reading.status
+      if (!ownedByAcquisition(entry.custody)) return reading.status
       let recorded: Awaited<ReturnType<ResourceLedger['stopped']>> = 'unavailable'
       try {
-        recorded = await duty.stopped(entry.resource.key, reading.status)
+        recorded = await ledger.stopped(entry.resource.key, reading.status)
       } catch {
         /* The ledger did not record it: the stop responsibility stays open. */
       }
@@ -730,6 +745,7 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       return reading.status
     })().finally(() => {
       entry.stopping = undefined
+      entry.issued = undefined
     })
     return entry.stopping
   }
@@ -767,57 +783,79 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     }
   }
 
-  const interrupted = (entry: ProcessEntry) => () => entry.stopRequested || entry.released
+  /** What the handover records about the domain, for the index. */
+  const handoverDetails = (entry: ProcessEntry, view: RetainedProcessLedger) => ({
+    unit: entry.coordinate.unit,
+    bootId: entry.coordinate.bootId,
+    origin: entry.origin,
+    gatePid: entry.launcher.pid,
+    members: entry.members,
+    ledger: view,
+  })
 
   /**
-   * The commit took effect: the acquisition lets go at once (synchronously, so a release or a stop
-   * from now on finds the retention ledger on duty), the gate is told, then the index takes the domain.
+   * The commit took effect and the domain is whole: the gate is told, this acquisition drops its
+   * channels, and the index takes the domain as running. The custody changed already.
    */
   const enterIndex = async (
     entry: ProcessEntry,
     reservation: RetainedReservation,
   ): Promise<RetainedProcessRef> => {
-    if (retentionBinding === undefined || processes === undefined)
-      throw new Error('a handover without a retention binding')
-    entry.custody = { kind: 'handedOver' }
-    live.delete(entry)
+    if (retentionBinding === undefined) throw new Error('a handover without a retention binding')
     entry.sendControl({ c: 'retain' })
     entry.closeControl()
     entry.launcher.stdout?.destroy()
     entry.launcher.stderr?.destroy()
     entry.launcher.unref()
-    const handed = await retentionBinding.index.commit(reservation, {
-      unit: entry.coordinate.unit,
-      bootId: entry.coordinate.bootId,
-      origin: entry.origin,
-      gatePid: entry.launcher.pid,
-      members: entry.members,
-      ledger: processes,
-    })
+    const handed = await retentionBinding.index.commit(
+      reservation,
+      handoverDetails(entry, retentionBinding.processes),
+    )
     entry.custody = { kind: 'retained', process: handed.process }
     return handed.process
   }
 
-  /** Carries out a disposition; the custody changes synchronously, the effects follow. */
+  /**
+   * The commit took effect, but the domain was stopped, released or its scope closed meanwhile: it
+   * is the retention scope's, and the index holds it as stopping. A stop this acquisition issued
+   * already is the one the index waits for, so the stop is recorded once, on the retention ledger.
+   */
+  const enterIndexStopping = (entry: ProcessEntry, reservation: RetainedReservation): void => {
+    if (retentionBinding === undefined) throw new Error('a handover without a retention binding')
+    entry.closeControl()
+    void retentionBinding.index.commitStopping(reservation, {
+      ...handoverDetails(entry, retentionBinding.processes),
+      issued: entry.issued,
+    })
+  }
+
+  /**
+   * Carries out a disposition. The custody changes synchronously, in the same step as the reading
+   * of `interrupted` and of the scope's closure that justifies it; the effects follow. A commit that
+   * took effect leaves `live` here, so a release that returns from a wait finds nothing to stop.
+   */
   const apply = async (
     entry: ProcessEntry,
     tools: ScopeTools,
     decision: Disposition,
+    interrupted: () => boolean,
   ): Promise<ResidueReport> => {
     switch (decision.kind) {
       case 'stop':
         if (entry.custody.kind !== 'acquisition') entry.custody = { kind: 'acquisition' }
         void forceStop(entry, tools)
         return decision.residue
-      case 'retainedInterrupted':
-        entry.custody = { kind: 'handedOver' }
-        decision.reservation.abort()
-        void forceStop(entry, tools)
-        return { kind: 'stopping', reason: 'closed' }
       case 'unknown':
         entry.custody = { kind: 'unknown', reservation: decision.reservation }
         return { kind: 'unknown' }
-      case 'retained': {
+      case 'retained':
+      case 'retainedInterrupted': {
+        entry.custody = { kind: 'handedOver' }
+        live.delete(entry)
+        if (decision.kind === 'retainedInterrupted' || interrupted() || scopeClosed()) {
+          enterIndexStopping(entry, decision.reservation)
+          return { kind: 'stopping', reason: 'closed' }
+        }
         const process = await enterIndex(entry, decision.reservation)
         return { kind: 'retained', process, processes: entry.members ?? 'unknown' }
       }
@@ -828,39 +866,63 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     }
   }
 
-  /** The disposition after the exit frame, bounded by the start bound. */
+  /** The disposition after the exit frame, bounded by the start bound, the index's loading included. */
   const dispose = async (entry: ProcessEntry, tools: ScopeTools): Promise<ResidueReport> => {
     const deadline = monotonicMs() + settings.startBoundMs
-    if (retentionBinding !== undefined && entry.members !== 0) await retentionBinding.index.ready()
+    let binding = bindingOf(entry)
+    if (typeof binding !== 'string' && retentionBinding !== undefined && entry.members !== 0) {
+      const index = retentionBinding.index
+      const loaded = await bounded(
+        () => index.ready().then(complete => (complete ? 'loaded' : 'incomplete')),
+        deadline,
+      )
+      // Markers not read completely within the bound: no place can be taken, as when there is none.
+      if (loaded !== 'loaded') binding = 'policy'
+    }
     entry.custody = { kind: 'reserved' }
+    const interrupted = () => entry.stopRequested || entry.released
     const decision = await decideDisposition({
       members: entry.members,
-      binding: bindingOf(entry),
+      binding,
       deadline,
-      interrupted: interrupted(entry),
+      interrupted,
     })
-    return apply(entry, tools, decision)
+    return apply(entry, tools, decision, interrupted)
   }
 
-  /** Asks the commit again for a domain whose handover result is unread. */
-  const resolveUnknown = async (entry: ProcessEntry, tools: ScopeTools): Promise<void> => {
-    if (entry.custody.kind !== 'unknown') return
-    const binding = bindingOf(entry)
-    if (typeof binding === 'string') return
-    // A release does not interrupt here: a commit that took effect hands the domain to its scope.
-    const decision = await resolveUnknownHandover({
-      binding,
-      reservation: entry.custody.reservation,
-      deadline: monotonicMs() + settings.startBoundMs,
-      interrupted: () => entry.stopRequested,
-    })
-    if (decision.kind === 'unknown') return
-    const running = apply(entry, tools, decision)
-    entry.disposition = running
-    // The stop a settled answer started is part of this resolution: a release waits for it.
-    const stopping = entry.stopping
-    await running
-    await stopping
+  /**
+   * Asks the commit again for a domain whose handover result is unread. One resolution per domain
+   * is in flight; a release, a handle stop or a maintenance that arrives meanwhile joins it. A
+   * release does not interrupt it: a commit that took effect hands the domain to its scope. A stop
+   * this acquisition issued before the answer was lost still does.
+   */
+  const resolveUnknown = (entry: ProcessEntry, tools: ScopeTools): Promise<void> => {
+    entry.resolving ??= (async () => {
+      const custody = entry.custody
+      if (custody.kind !== 'unknown') return
+      const binding = bindingOf(entry)
+      if (typeof binding === 'string') return
+      const interrupted = () => entry.stopRequested
+      const decision = await resolveUnknownHandover({
+        binding,
+        reservation: custody.reservation,
+        deadline: monotonicMs() + settings.startBoundMs,
+        interrupted,
+      })
+      if (decision.kind === 'unknown' || entry.custody.kind !== 'unknown') return
+      const running = apply(entry, tools, decision, interrupted)
+      entry.disposition = running
+      // The stop a settled answer started under this acquisition is part of this resolution.
+      const stopping = entry.stopping
+      await running
+      await stopping
+    })()
+      // A resolution that itself failed leaves the custody as it is; the askers are not rejected.
+      .catch(() => undefined)
+      .finally(() => {
+        entry.resolving = undefined
+      })
+    return entry.resolving
   }
 
   const launch = (
@@ -901,7 +963,9 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       stopRequested: false,
       released: false,
       stopping: undefined,
+      issued: undefined,
       disposition: undefined,
+      resolving: undefined,
       signal: undefined,
       exited: exitedGate.promise,
       closeControl: () => writable?.end(),
@@ -967,18 +1031,43 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     return entry
   }
 
-  /** A stop asked through the handle; a domain whose handover is unread is not stopped before it is read. */
+  /**
+   * A stop asked through the handle. It acts only on a domain this acquisition owns: one whose
+   * handover is unread is read first, not stopped; one the retention scope owns is left alone and
+   * the answer is `unconfirmed`, since this acquisition cannot confirm a stop it did not issue.
+   */
   const stopHandle = async (
     entry: ProcessEntry,
     tools: ScopeTools,
     mode: 'graceful' | 'forced',
   ): Promise<StopStatus> => {
-    if (entry.custody.kind === 'unknown') {
-      entry.stopRequested = true
-      await resolveUnknown(entry, tools)
-      if (entry.custody.kind === 'unknown') return 'unconfirmed'
-    }
+    if (entry.custody.kind === 'unknown') await resolveUnknown(entry, tools)
+    if (!ownedByAcquisition(entry.custody)) return 'unconfirmed'
     return mode === 'graceful' ? gracefulStop(entry, tools) : forceStop(entry, tools)
+  }
+
+  /**
+   * The release of one domain, after the release's wait: the custody is read again here, so a
+   * handover that took effect meanwhile is left alone. A domain whose handover is unread is asked
+   * again, not stopped; the resolution never rejects a release.
+   */
+  const release = async (entry: ProcessEntry, tools: ScopeTools): Promise<void> => {
+    switch (entry.custody.kind) {
+      case 'acquisition':
+      case 'reserved':
+        await forceStop(entry, tools)
+        return
+      case 'unknown':
+        await resolveUnknown(entry, tools)
+        return
+      case 'handedOver':
+      case 'retained':
+        return
+      default: {
+        const exhaustive: never = entry.custody
+        return exhaustive
+      }
+    }
   }
 
   const handleOf = (entry: ProcessEntry, tools: ScopeTools): ProcessHandle =>
@@ -1099,15 +1188,8 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       for (const entry of entries) entry.released = true
       // A process exists only after a satisfied probe, and a satisfied answer is kept.
       const reading = await input.prerequisites.ready()
-      if (reading.kind !== 'satisfied') return entries.map(entry => entry.resource)
-      await Promise.all(
-        entries.map(entry =>
-          // A domain whose handover is unread is asked again, not stopped: it may be retained.
-          entry.custody.kind === 'unknown'
-            ? resolveUnknown(entry, reading.tools)
-            : forceStop(entry, reading.tools),
-        ),
-      )
+      if (reading.kind !== 'satisfied') return [...live].map(entry => entry.resource)
+      await Promise.all(entries.map(entry => release(entry, reading.tools)))
       return [...live].map(entry => entry.resource)
     },
     unconfirmed: () => [...live].map(entry => entry.resource),
