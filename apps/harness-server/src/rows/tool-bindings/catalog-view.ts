@@ -23,7 +23,7 @@ import { verifySessionWork } from '../tool-runtime/session-work.ts'
 
 type CatalogWork = Pick<
   WorkSnapshot,
-  'session' | 'tenant' | 'lifecycle' | 'definition' | 'residents'
+  'session' | 'tenant' | 'lifecycle' | 'definition' | 'residents' | 'frozen'
 >
 type Resolved = Awaited<ReturnType<AgentAdoptions<unknown>['resolve']>>
 type AdoptionFailure = Extract<Resolved, { failure: unknown }>['failure']
@@ -67,7 +67,10 @@ export function createReleaseCatalogView(
           return work.failure.kind === 'denied' ? denied() : unavailable('Session read failed')
         if (work.ok.session !== session || !tenantEquals(work.ok.tenant, access.tenant))
           return denied()
-        if (work.ok.lifecycle !== 'active' && work.ok.lifecycle !== 'dormant')
+        if (
+          work.ok.frozen !== null ||
+          (work.ok.lifecycle !== 'active' && work.ok.lifecycle !== 'dormant')
+        )
           return unavailable('Session cannot disclose its current tool view')
         const resolved = await ports.resolve({ ...access, adoption: work.ok.definition.adopted })
         if (resolved === undefined || 'failure' in resolved)

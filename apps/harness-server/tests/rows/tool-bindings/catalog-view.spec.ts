@@ -30,6 +30,7 @@ async function setup() {
         session,
         tenant,
         lifecycle: 'active',
+        frozen: null,
         residents,
         definition: { name: 'coding', adopted },
       }),
@@ -121,6 +122,7 @@ describe('release catalog lawful inclusion', () => {
           tenant: w.tenant,
           session: sessionId('another-session'),
           lifecycle: 'active',
+          frozen: null,
           residents: [],
           definition: { name: 'coding', adopted: w.adopted },
         }),
@@ -179,6 +181,24 @@ describe('release catalog lawful inclusion', () => {
     expect(after).toEqual(before)
   })
 
+  it('refuses an active Run whose independent Session frozen fact is set', async () => {
+    const w = await setup()
+    const evidence = { owner: 'tool', record: 'shape-lost', revision: '1', digest: 'frozen' }
+    const view = createReleaseCatalogView({
+      ...w.ports,
+      readWork: async () =>
+        succeed({
+          tenant: w.tenant,
+          session: w.session,
+          lifecycle: 'active',
+          frozen: { cause: 'tool-shape-lost', evidence, commit: evidence },
+          residents: [],
+          definition: { name: 'coding', adopted: w.adopted },
+        }),
+    })
+    expect(await view.read(w)).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
   it.each(['initializing', 'frozen', 'archived'] as const)(
     'refuses %s Session disclosure',
     async lifecycle => {
@@ -190,6 +210,7 @@ describe('release catalog lawful inclusion', () => {
             tenant: w.tenant,
             session: w.session,
             lifecycle,
+            frozen: null,
             residents: [],
             definition: { name: 'coding', adopted: w.adopted },
           }),
