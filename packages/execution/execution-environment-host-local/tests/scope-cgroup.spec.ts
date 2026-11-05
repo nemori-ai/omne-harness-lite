@@ -119,24 +119,24 @@ it('decodes the octal escapes of a mount point', () => {
   )
 })
 
-// The cgroup of this test process, where the host shows it a unified hierarchy below the root.
-const ownCgroup = (() => {
-  if (process.platform !== 'linux') return undefined
-  const procCgroup = readFileSync('/proc/self/cgroup', 'utf8')
-  const path = procCgroup
-    .split('\n')
-    .find(line => line.startsWith('0::'))
-    ?.slice(3)
-  const visible = unifiedCgroupDirectory(procCgroup, readFileSync('/proc/self/mountinfo', 'utf8'))
-  return path === undefined || path === '/' || visible === undefined
-    ? undefined
-    : (path.split('/').at(-1) ?? '')
-})()
-
-it.skipIf(ownCgroup === undefined)(
+it.skipIf(process.platform !== 'linux')(
   'places this process in its own cgroup, whose member list names it',
-  () => {
-    const leaf = ownCgroup ?? ''
+  context => {
+    // Read inside the test, so that no code under test runs while the file loads.
+    const procCgroup = readFileSync('/proc/self/cgroup', 'utf8')
+    const path = procCgroup
+      .split('\n')
+      .find(line => line.startsWith('0::'))
+      ?.slice(3)
+    const mountinfo = readFileSync('/proc/self/mountinfo', 'utf8')
+    // A host that shows this process no unified hierarchy below the root has nothing to place.
+    if (
+      path === undefined ||
+      path === '/' ||
+      unifiedCgroupDirectory(procCgroup, mountinfo) === undefined
+    )
+      context.skip()
+    const leaf = path?.split('/').at(-1) ?? ''
     const placement = ownUnitPlacement(leaf)
     if (placement.kind !== 'inUnit')
       throw new Error(`expected inUnit: ${JSON.stringify(placement)}`)
