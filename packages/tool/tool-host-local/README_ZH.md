@@ -142,3 +142,5 @@ view 为 null 时返回 unavailable。search 显式配置，例如 `{ k1: 1.2, b
 精确行为和验证边界见[成员规格](SPEC.md#单目标转发来源与保管)。programmatic 启动和全局重启发现保持既有限制。内存存储上的协议测试不能证明耐久性。
 
 `ToolHostAccess.request` 可选配置当前目标策略 `ToolRequestAccess`。装配将其作为 requestAccess 传给 start guard 与 coordinator。配置后每次 prepare 和 consume 尝试都重问策略。不可用或坏答复不能授予启动资格。精确结果见[目标请求当前资格](SPEC.md#目标请求当前资格)。
+
+execute 接受固定意图后，父调用结束等待不取消 provider 的准备工作。退出会等待这项工作。晚到准备失败时，已发出的原父引用可能因没有持久槽而继续未知。pending 为零不表示该引用已解决，须单独核对 unknown 数量。

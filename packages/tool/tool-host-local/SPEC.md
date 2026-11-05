@@ -265,6 +265,10 @@ source.receiver 在同一关联内保存完整交付和 saved 证据。接收先
 
 `createLocalToolForwarding` 惰性取得 runtime、forwarding、catalog、consumer profile、目标 prepare 与 reader。source/admission 尝试受正安全整数 attemptMs 约束。目标观察预算为零，只查一次状态，未 settled 即 pending。预算或父 abort 只结束等待，provider 继续承担已经发起的 promise。scope.finish 关闭新调用和等待，不发送 stop。provider.close 禁新工作、关闭 attachment 的等待并等待在途操作收口，返回 pending 与仍未知的原父数量。close 不能证明未知准入已撤销。
 
+execute 在入口核 live 与原固定 intent 并启动 provider work 后，provider 就承担该次 prepare、来源关联和准入。父 finish、abort 或观察超时不取消这项工作。继续时使用父固定请求解出的原意图，不因调用方随后修改参数而改目标。close 先禁新方法并结束观察，再等待已接受 work 收口。
+
+如果已经向调用方回复 association-unknown，晚到的 prepare 明确失败而未写入来源槽，原父 forwarding 引用仍无持久终局可查。当前实现保留这项未知，不创建失败台账，也不自动建立新槽。close 可返回 pending 为 0、unknown 大于 0；进程内 work 已结束不表示外部引用已解决。unresolved 集合只记录本 provider 已发出的未知引用，后续原槽确认才清除，不是效果或失败权威，也不提供全局重启扫描。
+
 运行时 composition 对普通和 forwarded source 共用 known-call 预约，并在 provider facade 注册独立 receiver。host capacity 至少 2 才能同时拥有父与目标；capacity 为 1 明确 unavailable。资源并发为 1 时目标可排队，父返回 pending 后释放资源，目标继续推进。全局重启扫描仍未支持，恢复限于已知原引用。
 
 验证资源是 [来源反例](tests/forwarding.spec.ts)、[接收故障](tests/forwarding-receiver.spec.ts)、[能力收场](tests/forwarding-capability.spec.ts) 和 [组合验证](tests/runtime-composition/forwarding.spec.ts)。组合测试使用真实 Cordis、ledger、启动协调器和执行绑定，存储及外部环境是显式替身，不证明真实耐久或跨进程运行。

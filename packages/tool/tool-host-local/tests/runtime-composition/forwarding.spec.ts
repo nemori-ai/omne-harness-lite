@@ -68,3 +68,41 @@ it('does not run a forwarded target when its current policy denies after prepara
     await world.close()
   }
 })
+
+it('continues a slow accepted preparation after the parent finishes and drains the original slot before close', async () => {
+  const entered = Promise.withResolvers<void>()
+  const gate = Promise.withResolvers<void>()
+  const world = await fixture(undefined, undefined, 2, true, undefined, async () => {
+    entered.resolve()
+    await gate.promise
+  })
+  try {
+    const parent = accepted(await world.api.invoke(world.forwardInvocation('slow-preparation')))
+    await entered.promise
+    await world.settled(parent)
+    expect(world.forwarded).toEqual([{ kind: 'association-unknown', parent }])
+    expect((await world.plugins.forwarding()?.resume(world.query(parent)))?.kind).toBe(
+      'association-unknown',
+    )
+    let drained = false
+    const closing = world.forwarding.close().then(value => {
+      drained = true
+      return value
+    })
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(drained).toBe(false)
+    gate.resolve()
+    await expect(closing).resolves.toEqual({ pending: 0, unknown: 0 })
+    const resumed = await world.plugins.forwarding()?.resume(world.query(parent))
+    if (resumed?.kind !== 'accepted') throw new Error(JSON.stringify(resumed))
+    await world.settled(resumed.reference)
+    expect(world.launches()).toBe(1)
+    const again = await world.plugins.forwarding()?.resume(world.query(parent))
+    expect(again).toMatchObject({ kind: 'accepted', reference: resumed.reference, recovered: true })
+    expect(world.launches()).toBe(1)
+    await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
+  } finally {
+    gate.resolve()
+    await world.close()
+  }
+})

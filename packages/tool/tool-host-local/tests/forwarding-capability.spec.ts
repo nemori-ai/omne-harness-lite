@@ -61,7 +61,7 @@ it('returns within the attempt budget, closes its attachment, and drains a late 
   await expect(closing).resolves.toMatchObject({ pending: 0 })
   expect(invoked).toBe(1)
 })
-it('aborting during target preparation ends the author wait and never dispatches a new target', async () => {
+it('aborting during accepted target preparation ends only the author wait and drains the original work', async () => {
   const f = await forwardingFixture()
   const gate = Promise.withResolvers<void>(),
     entered = Promise.withResolvers<void>()
@@ -80,7 +80,8 @@ it('aborting during target preparation ends the author wait and never dispatches
     },
     forwarding: () => ({
       resume: async () => ({ kind: 'association-unknown' }),
-      invoke: async () => {
+      invoke: async input => {
+        expect(input.intent).toEqual(f.intent)
         invoked++
         return { kind: 'association-unknown' }
       },
@@ -89,14 +90,23 @@ it('aborting during target preparation ends the author wait and never dispatches
   const attached = provider.bind(f.parent, scope(abort.signal))
   const capability = toolsCapabilityOf(attached.context)
   if (capability === undefined) throw new Error('missing attachment')
-  const answer = capability.execute(f.intent)
+  const supplied = { ...f.intent }
+  const answer = capability.execute(supplied)
   await entered.promise
+  supplied.name = 'retargeted-after-acceptance'
   abort.abort()
   await expect(answer).resolves.toEqual({ kind: 'association-unknown', parent: f.reference })
-  gate.resolve()
   await attached.finish('returned')
-  await provider.close()
-  expect(invoked).toBe(0)
+  let drained = false
+  const closing = provider.close().then(value => {
+    drained = true
+    return value
+  })
+  await new Promise<void>(resolve => setImmediate(resolve))
+  expect(drained).toBe(false)
+  gate.resolve()
+  await closing
+  expect(invoked).toBe(1)
 })
 it('reads the current catalog and returns a command-tool overview without asking for command usage', async () => {
   const f = await forwardingFixture()
@@ -262,3 +272,75 @@ it('keeps a timed-out invocation lookup pending at the same target reference wit
     await provider.close()
   }
 })
+
+it.each(['execute', 'forwarding-read'] as const)(
+  'drains a late definite failure from %s while retaining its externally issued unknown parent reference',
+  async operation => {
+    const f = await forwardingFixture()
+    const gate = Promise.withResolvers<void>()
+    let invoked = 0
+    const provider = createLocalToolForwarding({
+      attemptMs: 10,
+      runtime: () => undefined,
+      catalog: () => undefined,
+      reader: () => undefined,
+      consumer: async () => fail({ kind: 'denied', action: 'unused' }),
+      prepareTarget: async () => {
+        await gate.promise
+        return fail({ kind: 'denied', action: 'admit' })
+      },
+      forwarding: () => ({
+        resume: async () => {
+          if (operation === 'forwarding-read') {
+            await gate.promise
+            return { kind: 'rejected', failure: { kind: 'denied', action: 'admit' } }
+          }
+          return { kind: 'association-unknown' }
+        },
+        invoke: async () => {
+          invoked++
+          return { kind: 'association-unknown' }
+        },
+      }),
+    })
+    const attached = provider.bind(f.parent, scope())
+    const capability = toolsCapabilityOf(attached.context)
+    if (capability === undefined) throw new Error('missing attachment')
+    try {
+      if (operation === 'execute')
+        expect(await capability.execute(f.intent)).toEqual({
+          kind: 'association-unknown',
+          parent: f.reference,
+        })
+      else
+        expect(
+          await capability.readResult({ kind: 'forwarding', reference: f.reference, after: null }),
+        ).toMatchObject({
+          content: [
+            {
+              kind: 'text',
+              text: JSON.stringify({ kind: 'association-unknown', parent: f.reference }),
+            },
+          ],
+        })
+      await attached.finish('returned')
+      let drained = false
+      const closing = provider.close().then(value => {
+        drained = true
+        return value
+      })
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(drained).toBe(false)
+      gate.resolve()
+      expect(await closing).toEqual({ pending: 0, unknown: 1 })
+      expect(invoked).toBe(0)
+      expect(await f.source.forwarding.lookup({ ...f.parent, reference: f.reference })).toEqual({
+        ok: { kind: 'unresolved' },
+      })
+    } finally {
+      gate.resolve()
+      await attached.finish('returned')
+      await provider.close()
+    }
+  },
+)

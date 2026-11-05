@@ -61,7 +61,7 @@ const statusResult = (value: unknown): MessageResult => {
   return result.ok
 }
 
-/** A provider owns late source/admission promises. Finishing an author stops only its wait. */
+/** A provider owns accepted preparation, source and admission work after the author stops waiting. */
 export function createLocalToolForwarding<P>(
   input: LocalToolForwardingInput<P>,
 ): LocalToolForwarding<P> {
@@ -260,14 +260,16 @@ export function createLocalToolForwarding<P>(
               const resumed = await forward.resume({ ...access, reference })
               let outcome = resumed
               if (resumed.kind === 'association-unknown') {
-                if (!live()) return progress
-                const target = await input.prepareTarget(parent, intent)
-                if (!live()) return progress
+                const target = await input.prepareTarget(parent, originalIntent)
                 if ('failure' in target)
                   return target.failure.kind === 'commit-unknown'
                     ? progress
                     : { kind: 'rejected', failure: target.failure }
-                outcome = await forward.invoke({ ...parent, intent, target: target.ok })
+                outcome = await forward.invoke({
+                  ...parent,
+                  intent: originalIntent,
+                  target: target.ok,
+                })
               }
               if (outcome.kind === 'accepted' || outcome.kind === 'commit-unknown')
                 progress = {
@@ -280,7 +282,13 @@ export function createLocalToolForwarding<P>(
             })(),
             reference,
           )
-          return bounded(work, () => progress)
+          const result = await bounded(work, () => progress)
+          if (
+            result.kind === 'association-unknown' ||
+            (result.kind === 'pending' && result.reason === 'commit-unknown')
+          )
+            unresolved.add(reference)
+          return result
         },
         async readResult(argumentsValue) {
           if (!live()) return statusResult(rejected())
@@ -317,6 +325,12 @@ export function createLocalToolForwarding<P>(
             argumentsValue.reference,
           )
           const result = await bounded(work, () => fallback)
+          if (
+            argumentsValue.kind === 'forwarding' &&
+            (result.kind === 'association-unknown' ||
+              (result.kind === 'pending' && result.reason === 'commit-unknown'))
+          )
+            unresolved.add(argumentsValue.reference)
           if (result.kind === 'completed') return result.value
           if (argumentsValue.kind === 'invocation' && result.kind === 'pending')
             return statusResult({

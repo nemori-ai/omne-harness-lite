@@ -145,3 +145,5 @@ Use `createLocalToolForwarding` with lazy runtime, catalog, consumer profile, ta
 The [member specification](SPEC.md#单目标转发来源与保管) defines the current guarantees and test scope. Programmatic start and global restart discovery retain their existing restrictions. Protocol tests over an in-memory store do not establish durability.
 
 `ToolHostAccess.request` accepts an optional `ToolRequestAccess` for current target policy. The assembly passes it to the start guard and coordinator as `requestAccess`. A configured policy must answer on every preparation and consume attempt. Unavailable or malformed answers cannot authorize a start. See [request policy](SPEC.md#目标请求当前资格).
+
+Once execute accepts the fixed intent, the provider continues preparation after the author stops waiting. Shutdown drains that work. A late preparation failure can leave an issued parent reference unknown without a persistent slot. A zero pending count does not resolve that reference; inspect the unknown count separately.

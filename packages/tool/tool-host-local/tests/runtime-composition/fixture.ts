@@ -89,6 +89,7 @@ export async function fixture(
   capacity = 32,
   enableForwarding = false,
   requestAccess?: ToolRequestAccess<unknown>,
+  forwardingPreparation?: () => Promise<void>,
 ) {
   const root = new Context()
   const memory = createMemoryToolLedgerStore<ToolMessageContentBlock>()
@@ -498,8 +499,9 @@ export async function fixture(
         conversion: null,
         attachmentAccess: evidence('attachments'),
       }),
-    prepareTarget: async parent =>
-      succeed({
+    prepareTarget: async parent => {
+      await forwardingPreparation?.()
+      return succeed({
         ...invocation('forwarded').request,
         scope: parent.request.scope,
         requesterScope: parent.request.requesterScope,
@@ -508,7 +510,8 @@ export async function fixture(
         resources: parent.request.resources,
         mode: parent.request.mode,
         limits: parent.request.limits,
-      }),
+      })
+    },
     reader: () => undefined,
     attemptMs: 250,
   })
@@ -664,6 +667,7 @@ export async function fixture(
     signals,
     launches: () => launches,
     forwarded,
+    forwarding,
     forwardInvocation(value: string) {
       if (toolsLoaded === null) throw new Error('Forwarding fixture is disabled')
       const base = invocation(value)
