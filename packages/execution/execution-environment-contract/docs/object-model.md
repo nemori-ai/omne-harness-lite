@@ -302,7 +302,7 @@ stateDiagram-v2
   running --> exited : 主进程退出，输出安静
   running --> stopping : 取消、超时或获取释放
   exited --> stopping : 处置答 none，或不能保留（stopping 带原因）
-  exited --> reserved : 处置可以保留：保留账本 plan，占一个名额
+  exited --> reserved : 处置可以保留：先在提供者索引里同步预留一个名额，再在保留进程账本 plan
   reserved --> retained : adopt 确认，且范围未封闭、执行域仍待处置；归属改为保留范围
   reserved --> stopping : 复核不成立，或 adopt 答 closed；预留作废
   reserved --> reserved : adopt 结果未知，按原移交身份查询

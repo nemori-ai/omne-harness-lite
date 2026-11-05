@@ -97,7 +97,7 @@ SPEC.md                   Behavior beyond the public types, INV-EE01 to INV-EE18
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
 ├── architecture.md       Modules, mechanisms, facility protocol, Q-EE02 to Q-EE06
-├── flows.md              Protocol flows F-EEC01 to F-EEC10
+├── flows.md              Protocol flows F-EEC01 to F-EEC11
 ├── object-model.md       Roles, objects, relations, and lifecycle
 ├── public-api.md         Export entry, definition index, schema, and blocks
 ├── context.md            Independent use, integrators, neighbor handoff, position

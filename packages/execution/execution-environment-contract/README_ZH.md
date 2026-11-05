@@ -58,7 +58,7 @@ export const shellEnvironmentSlot = { schema: environmentNeedAdoption, value: sh
 
 ## 设计
 
-根入口按身份、绑定层、要求、设施、三个核心设施、端口、租约、提供者与操作面、需要声明、块声明、纯函数分成源模块，依赖单向。包外依赖是 runtime-context-contract、legal-identity、operation-result、json-text、schema-provider 与 `@standard-schema/spec`，其中operation-result、json-text 与 legal-identity 是运行值依赖。模块切分、关键机制的理由与设施协议见[内部架构](docs/architecture.md)，十条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+根入口按身份、绑定层、要求、设施、三个核心设施、端口、租约、提供者与操作面、需要声明、块声明、纯函数分成源模块，依赖单向。包外依赖是 runtime-context-contract、legal-identity、operation-result、json-text、schema-provider 与 `@standard-schema/spec`，其中operation-result、json-text 与 legal-identity 是运行值依赖。模块切分、关键机制的理由与设施协议见[内部架构](docs/architecture.md)，十一条协议流程见[协议流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
@@ -92,7 +92,7 @@ SPEC.md                   公开类型以外的行为，INV-EE01 至 INV-EE18
 documentation.json        文档登记
 docs/                     内部设计、公开使用与集成说明
 ├── architecture.md       模块与依赖、关键机制、设施协议、Q-EE02 至 Q-EE06
-├── flows.md              F-EEC01 至 F-EEC10 协议流程
+├── flows.md              F-EEC01 至 F-EEC11 协议流程
 ├── object-model.md       角色、对象、关系与生命周期
 ├── public-api.md         导出入口、定义索引、schema 与块声明
 ├── context.md            独立消费、集成方、邻域交接与系统定位

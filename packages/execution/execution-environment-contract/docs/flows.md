@@ -340,7 +340,7 @@ sequenceDiagram
 
 ### F-EEC09 文件批次的提交与认回
 
-条款：[设施协议](../SPEC.md#设施协议)、[INV-EE14](../SPEC.md#inv-ee14-未知保持原身份不盲目重放效果)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的[文件设施](architecture.md#files文件)。宿主文件设施在 Linux 宿主上实现批次的两项操作，在其他宿主上对它们答 `rejected`（`unavailable`），见 [host-local SPEC](../../execution-environment-host-local/SPEC.md) 的「八项操作」。
+条款：[设施协议](../SPEC.md#设施协议)、[INV-EE14](../SPEC.md#inv-ee14-未知保持原身份不盲目重放效果)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的[文件设施](architecture.md#files文件)。宿主文件设施在哪些平台上实现批次的两项操作，见 [host-local SPEC](../../execution-environment-host-local/SPEC.md) 的「八项操作」。
 
 前提：租约暴露 `files`。每条目标带路径、点名对象、字节与期望版本。
 

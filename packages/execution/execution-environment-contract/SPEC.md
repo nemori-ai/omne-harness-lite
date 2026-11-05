@@ -316,7 +316,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 
 已知限制：
 
-- `adopt` 确认之后、提供者把执行域写入耐久索引之前，若提供者崩溃，这个执行域不在耐久索引里。它不被列出，也不自行结清。它仍作为请求方作用域的受管资源被冷恢复列出。保留范围封闭时，它随该作用域的恢复停止。
+- `adopt` 确认之后、提供者把执行域写入耐久索引之前，若提供者崩溃，这个执行域不在耐久索引里。它不被列出，也不自行结清。它仍作为请求方作用域的受管资源被冷恢复列出，由请求方作用域的恢复（`recoverOwned` 或 `releaseScope`）停止。
 - 提供者写不成耐久索引时，结果相同，直到提供者补写成功。
 
 ### 访问核验
@@ -637,6 +637,8 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 | V-EE26 | `recovery-settles-acquisitions-without-claiming-release`                                                | `list-includes-open-acquisition`                                                                          |
 | V-EE27 | 无                                                                                                      | 无；宿主文件的冷恢复见下方缺项                                                                            |
 
+V-EE28 另有命令保留套件 `commandRetentionConformance`，用例为 `V-EE28.clean-exit-reports-none`、`V-EE28.leftover-is-retained-and-listed`、`V-EE28.list-stays-in-scope-and-tenant`、`V-EE28.handle-stop-after-handover-is-unconfirmed`、`V-EE28.scope-close-stops-retained` 与 `V-EE28.no-ledger-stops-with-reason`。它覆盖处置结果的形状、`list` 不跨保留范围与租户、移交与句柄停止互斥、范围封闭停止保留进程。它不覆盖容量、读数未知、提供者重启与保留进程的显式停止。
+
 ### 明确缺项
 
 提供者抛出仍映射到闭合失败或待处置结果。资源责任不得丢失，原错误须进入诊断，采用 [DP-01 资源边界例外](../../../docs/defensive-patterns.md#dp-01-独立事实分别报告)。当前登记表尚不保留原异常；实现限制与后续责任归 [execution-environment](../execution-environment/SPEC.md#明确缺项)。
@@ -652,4 +654,4 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 - 宿主文件提供者的冷恢复结清需要域外可信的进程退出证据，不在本成员当前范围；具名剩余责任交 [#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)，范围见[提供者的进程内证据边界](#提供者的进程内证据边界)。
 - 自定义的配额、查询、迟到与结清协议需要行为模型与关键性质检查（[验证说明](../../../docs/verification.md)）。这些协议的正式模型尚未进入本成员的 `verification/models/`，相应机制路径保持未验证。`verification/models/` 现有的两个模型只覆盖一次性命令留下的进程与终端段的字节归属，见 [verification/](verification/README.md)。
 
-本成员没有生产实现。登记表 [execution-environment](../execution-environment/SPEC.md#组合与验证) 运行公开执行环境套件，[execution-environment-host-local](../execution-environment-host-local/SPEC.md#组合与验证) 运行两个套件并有真实文件系统上的宿主文件测试，运行记录在各自的 SPEC。候选、自检、独立审阅和实施接受分别判断。
+本成员没有生产实现。登记表 [execution-environment](../execution-environment/SPEC.md#组合与验证) 运行公开执行环境套件，[execution-environment-host-local](../execution-environment-host-local/SPEC.md#组合与验证) 运行公开执行环境套件与提供者套件，在 Linux 上另运行命令保留套件，并有真实文件系统上的宿主文件测试，运行记录在各自的 SPEC。候选、自检、独立审阅和实施接受分别判断。
