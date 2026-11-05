@@ -156,3 +156,47 @@
 - `DELETE` 不发（H7）没有用例核对，因为契约不核它。
 - H12 里「进程先退出后仍读窗口内的 stdout」没有能变红的用例（见 H12）。
 - 调用方（`@omne-harness/mcp`）与本包的真实组合没有在本包验证；组合归组设计与集成任务。
+
+<a id="properties"></a>
+
+## 性质与证据
+
+本节把会话的请求生命周期写成定理，并分别记录每条性质的证据与状态。定理是目标。状态只说明所列证据在其范围内得到的结果，不是证明。模型动作、探索器动作与实现代码的映射、运行命令、规模上限与运行记录见 [verification/README.md](verification/README.md)。模型是 [verification/models/TransportSession.tla](verification/models/TransportSession.tla)，对真实实现的有界穷举探索器在 [tests/model/](tests/model/session-model.spec.ts)。
+
+对象与参与者：
+
+- 一个 `Session`（`src/session.ts`），一个 `McpTransport`，跑在一条线路上（`stdio-line.ts` 或 `http-line.ts`）。
+- 驱动它的调用：`discover`、`call`、`listActions`、`updateTask`、`cancelTask`、`cancelRequest`、`close()`，以及每个 `call` 带的 `signal`。
+- 会话的注入端口（代码修复轮交回）：线路（`send`、`openGet`、应答流、`close`）、凭据句柄（`authorize`、`reportRejection`）、元数据取回 `SessionOptions.fetchMetadata`、计时端口 `SessionOptions.schedule`。会话不读全局时钟、不直接起全局计时器，所以探索器排定每一个端口调用、每一次计时触发、`signal` 与 `close()` 的次序。
+- 一个在途请求的三相（`Pending.phase`）：授权中 `authorizing`、已发出 `sent`、授权发现中 `discovery`。
+
+端口失败模型：每次端口调用可以按契约答复、答复它的失败、reject、或永不答复（挂起）。线路的 `send`、`openGet` 与应答流受它们收到的 `signal` 管辖：`signal` 中止时按契约当即收场（契约 [T5](../mcp-contract/SPEC.md#t8)、线路端口 [`line.ts`](src/line.ts)）。凭据句柄的 `authorize`、`reportRejection` 不收 `signal`，可以挂起，由句柄的持有者承接。
+
+证据分两种，范围见 [verification/README.md](verification/README.md#两种证据与各自范围)：有界穷举探索器驱动真实的 `Session`，核对下列性质的可观察形式；TLA+ 模型 `TransportSession.tla` 在有限配置内核对同一组性质的抽象形式。两者都只在各自上限与抽象之内成立，不是证明。
+
+定理（名字与编号在本节、[verification/README.md](verification/README.md) 与 [verification/models/README.md](verification/models/README.md) 三处相同）：
+
+- **V1 恰好结算一次**：每个请求的答复恰好兑现一次；结算之后到达的线上事件、迟到的端口答复都不改变它。可观察的形式：没有为一个已结算的请求再发请求、再调用凭据句柄（应答流在后台读到结束不算，见[资源释放](#所有权失败与生命周期)）。
+- **V2 关闭之后不碰凭据**：`close()` 返回之后，不再调用凭据句柄的 `authorize` 与 `reportRejection`。
+- **V3 拒绝至多一次**：带 401、或带 `insufficient_scope` 的 403 的应答，至多调用一次 `reportRejection`，且只对曾用这个句柄授权过的请求；其他 403 与没有句柄的材料不调用（契约 [T4](../mcp-contract/SPEC.md#t8)）。
+- **V4 有界**：请求的 `signal` 触发，或 `close()` 被调用之后，在探索器的静止点每个在途请求都已结算——`sent` 相当即结算，`discovery` 相在它的发现端口静止后结算；线路或凭据端口挂起不改变这一点（挂起的端口调用由拥有者承接）。`close()` 在线路的 `close` 答复之后返回，不在它之前。
+- **V5 不代调用方重发**：写类请求（`tools/call`、`tasks/update`、`tasks/cancel`）在流断开或「2xx 而没有应答」后不再发；读类（`server/discover`、`tools/list`、`tasks/get`）至多再发一次，用新的请求号并重新授权；旧 HTTP+SSE 模式下都不再发（契约 [T8 D15、O05、O06、C04](../mcp-contract/SPEC.md#t8)）。
+- **V6 三相的去向**：`close()` 时，授权中的请求答 `not-sent`（`connection-unavailable`），已发出的答 `no-answer`（`abandoned`），授权发现中的请求结束发现后答 `not-sent`（`authorization-required`）（契约 [T5](../mcp-contract/SPEC.md#t8)）。
+
+每条性质的证据状态（用词沿 [docs/verification.md](../../../docs/verification.md#分别表述这六种状态)「分别表述这六种状态」）：
+
+| 性质 | 探索器（真实 `Session`，有限范围） | TLA+ 模型（TLC，有限范围） | 真实组合 |
+| --- | --- | --- | --- |
+| V1 | 可观察形式：有限范围通过。负控：结构上由 `Deferred` 与 `settle` 的删除双重保证，单点源码变异不足以变红，见 [verification/README.md](verification/README.md#两种证据能变红) | 有限范围内找到反例（`bad-resettle`） | 真实组合未验证 |
+| V2 | 有限范围通过；负控 `mV2-send-after-close` 找到反例 | 有限范围内找到反例（`bad-cred-after-close`） | 真实组合未验证 |
+| V3 | 有限范围通过；负控 `mV3-report-twice` 找到反例 | 有限范围内找到反例（`bad-report-twice`） | 真实组合未验证 |
+| V4 | 有限范围通过；负控 `mV4-signal-dead`、`mV4-close-after-line` 找到反例 | 有限范围内找到反例（`bad-signal-dead`、`bad-close-after-line`） | 真实组合未验证 |
+| V5 | 有限范围通过；负控 `mV5-resend-any` 找到反例 | 有限范围内找到反例（`bad-resend`） | 真实组合未验证 |
+| V6 | 有限范围通过；负控 `mV6-close-not-sent` 找到反例 | 有限范围内找到反例（`bad-close-not-sent`） | 真实组合未验证 |
+
+未覆盖（探索器与模型都不覆盖，由既有用例或后续任务承担）：
+
+- 第 1 轮评审阻断 A5（stdio 一行超过 16 MiB 的字节上界）是 `stdio-line.ts` 的逐字节处置，探索器经内存线路驱动会话、不经 stdio 线路（见 [tests/model/](tests/model/session-model.spec.ts) 与 [H8](#h8)），所以探索器不覆盖它，由 `stdio.spec.ts` 承担。
+- 第 1 轮评审阻断 A4（旧 HTTP+SSE 的 GET 收到 401 头、正文到齐前 `close()`）是一次端口答复内部的更细次序，比探索器的外部动作粒度更细，探索器不覆盖它，由 `http.spec.ts` 与模型的 `bad-cred-after-close`（关闭之后授权的抽象形式）承担。
+- 真实线路、真实进程、真实对端与远程网络：真实组合未验证。
+- 两种证据之间没有精化证明。
