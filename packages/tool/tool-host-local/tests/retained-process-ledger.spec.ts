@@ -367,6 +367,11 @@ describe('adopt checks the scope, the original call and the reservation', () => 
     const before = await f.domain()
     expect(await f.processes.adopt(resource.key)).toBe('unavailable')
     expect(await f.domain()).toEqual(before)
+    // The scope's record exists and reserves another key only.
+    expect(await f.processes.plan({ ...resource, key: 'another' })).toBe('recorded')
+    const reservedOther = await f.domain()
+    expect(await f.processes.adopt(resource.key)).toBe('unavailable')
+    expect(await f.domain()).toEqual(reservedOther)
   })
 
   it('answers unavailable when the acquisition record has no fact for the key', async () => {
