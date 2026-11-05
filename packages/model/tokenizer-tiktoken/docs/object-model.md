@@ -23,13 +23,19 @@ classDiagram
     count(segments)
   }
   class Tiktoken
+  class OrdinaryCounter
+  class EngineSnapshot
   TiktokenResources --> TiktokenRanks
-  ModelTextTokenizer --> Tiktoken : 闭包持有
+  ModelTextTokenizer --> OrdinaryCounter : 闭包持有
+  OrdinaryCounter --> EngineSnapshot : 有限 rank
+  OrdinaryCounter --> Tiktoken : 非有限 rank 兼容路径
   ModelTextTokenizer --> "特殊 token 名集合" : 闭包持有
 ```
 
 - `TiktokenResources` 与 `TiktokenRanks` 归调用方。本包只在初始化时读取它们。
-- 返回的 tokenizer 是冻结的普通对象。`definition` 是传入定义的冻结副本。`count` 是闭包，持有 js-tiktoken 引擎与特殊 token 名集合。tokenizer 没有身份字段，两个 tokenizer 用 `definition` 区分。
+- 返回的 tokenizer 是冻结的普通对象。`definition` 是传入定义的冻结副本。`count` 是闭包，持有普通文本计数闭包与特殊 token 名集合。tokenizer 没有身份字段，两个 tokenizer 用 `definition` 区分。
+
+普通文本计数闭包持有初始化时核对的词表与正则模式。每次调用创建自己的正则和邻接节点。节点保存稳定的字节起点、当前终点、前后邻居、版本与存活状态。候选堆中的边保存两端节点和各自的版本，不能跨调用复用。
 
 ## 生命周期
 

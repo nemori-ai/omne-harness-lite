@@ -6,7 +6,7 @@
 
 本成员是 `ModelTextTokenizer` 的 tiktoken 引擎 adapter。家族成员的计量器把本家的词表与特殊 token 表交给它，得到一个 tokenizer。职责与建包条件见[组架构“成员与新增条件”](../docs/architecture.md#成员与新增条件)与[“Tokenizer 的资源与计量分工”](../docs/architecture.md#tokenizer-的资源与计量分工)。
 
-本包只封装引擎：初始化时核对资源，`count` 只做纯计算。本包不收录任何厂商词表。`pi-ai-openai` 以 o200k 词表消费本包，`pi-ai-anthropic` 以它随包发布的 `claude.json` 消费本包。
+本包适配引擎并在内部调度普通文本的 BPE 合并：初始化时核对资源，`count` 只做纯计算。本包不收录任何厂商词表。`pi-ai-openai` 以 o200k 词表消费本包，`pi-ai-anthropic` 以它随包发布的 `claude.json` 消费本包。
 
 ### 支持范围
 

@@ -8,6 +8,7 @@ import type {
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { ranksDigest, resourceDigest, ResourceShapeError } from './digest.ts'
 import { installedEngineVersion } from './engine-version.ts'
+import { createOrdinaryCounter } from './ordinary-counter.ts'
 import type { TiktokenResources } from './resources.ts'
 
 type Count = Outcome<Readonly<{ tokens: string }>, TokenizationFailure>
@@ -30,17 +31,12 @@ function adoptionMismatch(resources: TiktokenResources): string | undefined {
   return undefined
 }
 
-/** Encodes as ordinary text: no special token is allowed, and none is refused. */
-function textTokens(engine: Tiktoken, text: string): number {
-  return text === '' ? 0 : engine.encode(text, [], []).length
-}
-
 /**
  * Counts a segment sequence. Adjacent text segments join into one text before encoding, because
  * token counts of separate pieces do not add up to the count of the joined text.
  */
 function countSegments(
-  engine: Tiktoken,
+  textTokens: (text: string) => number,
   specialTokens: ReadonlySet<string>,
   input: readonly TokenizationSegment[],
 ): Count {
@@ -56,7 +52,7 @@ function countSegments(
       case 'special-token':
         if (!specialTokens.has(segment.name))
           return fail({ kind: 'unsupported-token', name: segment.name })
-        total += textTokens(engine, run) + 1
+        total += textTokens(run) + 1
         run = ''
         break
       default: {
@@ -65,7 +61,7 @@ function countSegments(
       }
     }
   }
-  total += textTokens(engine, run)
+  total += textTokens(run)
   return succeed({ tokens: String(total) })
 }
 
@@ -99,11 +95,12 @@ export function createTiktokenTokenizer(
     special_tokens: { ...specialTokens },
     bpe_ranks: bpeRanks,
   })
+  const textTokens = createOrdinaryCounter(engine)
   // Own keys only, copied now: later changes to the caller's table do not change any count.
   const allowed: ReadonlySet<string> = new Set(Object.keys(resources.specialTokens))
   const tokenizer: ModelTextTokenizer = {
     definition: frozenDefinition(resources.definition),
-    count: input => countSegments(engine, allowed, input),
+    count: input => countSegments(textTokens, allowed, input),
   }
   return succeed(Object.freeze(tokenizer))
 }
