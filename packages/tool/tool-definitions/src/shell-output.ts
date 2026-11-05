@@ -125,6 +125,10 @@ function residueLine(residue: ResidueReport | undefined): string | undefined {
       return `residue=stopping reason=${residue.reason}`
     case 'unknown':
       return 'residue=unknown'
+    default: {
+      const exhaustive: never = residue
+      return exhaustive
+    }
   }
 }
 /** Bytes the terminal received after the previous segment ended; reported only when there were some. */
