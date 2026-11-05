@@ -50,15 +50,13 @@ export async function legacyHttpServer(): Promise<LegacyHttpServer> {
       await transport.handleRequest(request, response)
       return
     }
-    response
-      .writeHead(404, { 'content-type': 'application/json' })
-      .end(
-        JSON.stringify({
-          jsonrpc: '2.0',
-          id: null,
-          error: { code: -32001, message: 'Session not found' },
-        }),
-      )
+    response.writeHead(404, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: null,
+        error: { code: -32001, message: 'Session not found' },
+      }),
+    )
   })
   const port = await listenFree(server)
   const target = `http://127.0.0.1:${port}/mcp`

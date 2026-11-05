@@ -135,3 +135,11 @@ describe('open sends nothing and calls no credential handle (T9)', () => {
     expect(process.events).toEqual(['stdin-closed', 'stdout-cancelled'])
   })
 })
+
+describe('the legacy baseline against SDK 2.4.0', () => {
+  it('names the same legacy revisions as the SDK, so the legacy leg talks to its servers', async () => {
+    const { SUPPORTED_PROTOCOL_VERSIONS } = await import('@modelcontextprotocol/client')
+    const { LEGACY_PROTOCOL_VERSIONS } = await import('@omne-harness/mcp-contract')
+    expect([...LEGACY_PROTOCOL_VERSIONS]).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
+  })
+})

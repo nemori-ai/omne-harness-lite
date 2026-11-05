@@ -43,6 +43,17 @@ async function open(material: TransportMaterial): Promise<McpTransport> {
   return ok(await factory.open(material, never), 'open')
 }
 
+// An SDK peer loads the SDK before it answers the probe; under load that is more than the 300 ms
+// the A-layer cases need to be short. Its probe waits long enough for a cold start.
+const sdkFactory = createLocalTransportFactory({
+  clientInfo: { name: 'omne-harness-test', version: '0' },
+  probeTimeoutMs: 5_000,
+})
+
+async function openSdk(material: TransportMaterial): Promise<McpTransport> {
+  return ok(await sdkFactory.open(material, never), 'open')
+}
+
 function materialOf(process: ProcessHandle): TransportMaterial {
   return { kind: 'stdio', process, generation: generationOf(1), instructionsByteLimit: 4096 }
 }
@@ -132,7 +143,7 @@ describe('the process and the pipe (T8 S01, S02, X02)', () => {
 
   it("the SDK server's tool that exits the process: the call's answer is process-exited", async () => {
     const spawned = spawnHandle([MODERN_SDK])
-    const transport = await open(materialOf(spawned.handle))
+    const transport = await openSdk(materialOf(spawned.handle))
     ok(await transport.discover(), 'discover')
     const sent = ok(
       await transport.call({ action: actionNameOf('crash'), args: jsonOf({}) }, never),
@@ -147,7 +158,7 @@ describe('the process and the pipe (T8 S01, S02, X02)', () => {
 describe('the legacy peer and the probe time (T3)', () => {
   it('an SDK server that speaks only the 2025 revisions: discover falls back to initialize, then echo works', async () => {
     const spawned = spawnHandle([LEGACY_SDK])
-    const transport = await open(materialOf(spawned.handle))
+    const transport = await openSdk(materialOf(spawned.handle))
     const identity = ok(await transport.discover(), 'discover')
     expect(identity.protocolVersion).toBe(OFFERED_LEGACY_VERSION)
     expect(identity.serverInfo).toEqual({
@@ -215,7 +226,7 @@ describe('cancellation (T5)', () => {
 
   it("the SDK server's slow tool: the cancel notification does not settle the answer; close() abandons it", async () => {
     const spawned = spawnHandle([MODERN_SDK])
-    const transport = await open(materialOf(spawned.handle))
+    const transport = await openSdk(materialOf(spawned.handle))
     ok(await transport.discover(), 'discover')
     const sent = ok(
       await transport.call({ action: actionNameOf('slow'), args: jsonOf({ ms: 60_000 }) }, never),
@@ -236,7 +247,7 @@ describe('cancellation (T5)', () => {
 describe('the reference server (B layer)', () => {
   it('server-everything on stdio: the tools are listed and echo answers', async () => {
     const peer = everythingStdio()
-    const transport = await open(materialOf(peer.handle))
+    const transport = await openSdk(materialOf(peer.handle))
     const identity = ok(await transport.discover(), 'discover')
     expect(identity.protocolVersion).toBe('2026-07-28')
     const names: string[] = []

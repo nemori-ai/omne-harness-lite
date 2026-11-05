@@ -1,51 +1,68 @@
 # @omne-harness/mcp-host-local
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
-module 变体草稿。
+MCP 组的本机宿主成员：契约 `McpTransportFactory` 与 `McpTransport` 的两个真实实现（stdio、Streamable HTTP 含旧 HTTP+SSE 回退）与授权发现的取回。
 
 ## 职责与状态
 
-<!-- documentation:placeholder -->
+本包把 [`@omne-harness/mcp-contract`](../mcp-contract/README_ZH.md) 的传输端口兑现在真实的进程管道与 HTTP 连接上。调用方是 [`@omne-harness/mcp`](../mcp/README_ZH.md)：它经 `McpTransportFactory.open(material, signal)` 取得传输，再调用 `discover`、`listActions`、`call`、任务操作、`cancelRequest` 与 `close`。本包不起进程、不停进程、不读设置、不取凭据：进程由落点交来，凭据句柄由调用方放在材料里。
 
-填写实际消费者、平台、职责和采用依据。区分已实现、未实现与未验证。
+| 范围                                                                                         | 状态                                                                                                                         |
+| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| stdio 传输：按行读写、读不懂的行丢弃、行字节上界、退出窗口、stderr 读出丢弃、T5 的关闭次序   | 已实现，在脚本化对端、SDK 对端与 `server-everything` 上验证                                                                  |
+| Streamable HTTP 传输：JSON 与 SSE 应答、不跟随重定向、再发规则、授权发现、旧修订的会话与 S07 | 已实现，在脚本化对端、SDK bearer 网关、SDK 2025 会话与 `server-everything` 上验证                                            |
+| 旧 HTTP+SSE 回退：GET 流 + endpoint，作为 HTTP 线路的一种模式                                | 已实现，在脚本化对端与 `server-everything sse` 上验证                                                                        |
+| 契约传输套件 `mcpTransportConformance()`                                                     | 两种材料各跑一遍：stdio 优先 97 过 / 1 不适用、HTTP 优先 96 过 / 2 不适用、0 失败；不适用的理由在 [SPEC](SPEC.md#组合与验证) |
+| 远程对端、TLS、代理、真实网络失败；与 `@omne-harness/mcp` 的真实组合                         | 未验证；归 `w3-mcp-e2e` 与集成任务                                                                                           |
+| 技术接受                                                                                     | 尚未取得；本包是候选实现                                                                                                     |
 
 ## 使用
 
-<!-- documentation:placeholder -->
+```ts
+import { createLocalTransportFactory } from '@omne-harness/mcp-host-local'
 
-给出最小有效示例、依赖及初始化和释放责任。分别说明独立使用入口与 Cordis 集成入口。逐项核对公开 exports、源码值依赖、生成声明、运行启动和安装闭包。存在 ./cordis 不证明独立安装成立。
+const factory = createLocalTransportFactory({
+  clientInfo: { name: 'my-host', version: '1.0.0' },
+  probeTimeoutMs: 2_000, // stdio 上 server/discover 的等待时限
+})
+
+// material 来自调用方：stdio 带落点交来的 ProcessHandle，Streamable HTTP 带连接目标与可选的凭据句柄
+const opened = await factory.open(material, signal)
+if ('failure' in opened) throw new Error(opened.failure.kind)
+const transport = opened.ok
+const identity = await transport.discover()
+// … listActions、call、getTask、updateTask、getTaskResult、cancelTask、cancelRequest
+await transport.close() // 关闭传输；进程由它的持有者停止
+```
+
+依赖：`@omne-harness/mcp-contract`（端口与协议函数）、`@omne-harness/json-text`、`@omne-harness/operation-result`、`eventsource-parser`。运行环境：Node ≥ 24，全局 `fetch`（可经 `options.fetch` 注入）。本包是 `module` 变体，没有 Cordis 绑定，见 [docs/cordis.md](docs/cordis.md)。初始化只是建工厂；释放是每个传输的 `close()`，没有全局状态。
 
 ## 契约
 
-<!-- documentation:placeholder -->
-
-链接公开类型、必要校验及唯一行为正文。类型外行为由 SPEC.md 拥有，公开定义的导航在 docs/public-api.md。说明错误、生命周期与资源责任的拥有者，不复制签名或状态机。
+公开类型在 [src/index.ts](src/index.ts)（`createLocalTransportFactory`、`LocalTransportOptions`）；端口类型是契约的 `@omne-harness/mcp-contract/provider`，本包不导出 SDK 的类型。类型以外的行为由 [SPEC.md](SPEC.md) 拥有：它写明本包兑现契约的哪些条款、本包自己的决定（H1–H13）、与官方 SDK 的复用关系，以及与协议的偏离。选项不合法时 `createLocalTransportFactory` 抛出 `RangeError`；传输方法以 `Outcome` 答复，不 reject。错误、生命周期与资源的拥有者见 SPEC「所有权、失败与生命周期」。
 
 ## 设计
 
-<!-- documentation:placeholder -->
-
-概述内部模块和关键不变量的拥有者。完整设计写在 docs/architecture.md、docs/flows.md 与 docs/object-model.md。
+一个与线路无关的协议会话（`src/session.ts`）加两条线路（`src/stdio-line.ts`、`src/http-line.ts`）。线路只搬字节并报告线上发生了什么；会话把它翻成契约的线上事件，交给契约根导出的 `classifyWireEvent` 归类，再按契约 T8 的行得出结论。请求的组成、页的剔除、授权发现与应答的读法都调用契约根导出的函数。模块与机制见 [docs/architecture.md](docs/architecture.md)，流程见 [docs/flows.md](docs/flows.md)，对象见 [docs/object-model.md](docs/object-model.md)。
 
 ## 配置与运行
 
-<!-- documentation:placeholder -->
-
-填写配置拥有者、默认行为、环境前提和显式依赖。说明调用者与包各自的运行责任。
+配置只有 `LocalTransportOptions`：`clientInfo`（两项非空文本）、`probeTimeoutMs`（正整数，没有缺省）、可选 `fetch`。本包不读环境变量、不写日志、不设自己的网络超时。调用方负责：交来的 `ProcessHandle` 的进程生命周期、凭据句柄的取得与释放、每个传输的 `close()`。本包负责：传输关闭时释放它持有的读写端、计时与在途的 `fetch`。
 
 ## 验证
 
-<!-- documentation:placeholder -->
+```sh
+pnpm turbo run build typecheck test --filter=@omne-harness/mcp-host-local
+pnpm exec vitest run --mode fast                                   # public-entry、session（内存线路）
+pnpm exec vitest run --mode slow --typecheck.enabled=false         # conformance、stdio、http（起子进程与本机端口）
+```
 
-填写可复跑命令、性质、前提和未覆盖。提供有实际断言的测试。结构通过不表示业务行为已验证。
+慢层起子进程与本机 HTTP 服务端（随机端口 20000–59999），每个用例结束时核对没有遗留。性质、前提与未覆盖见 [SPEC「组合与验证」](SPEC.md#组合与验证)。测试通过不等于技术接受。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-说明公开契约、资源或依赖变化时必须同步的消费者和验证入口。信息不适用时写明理由，未知时登记具名缺口。
+契约 T1–T9、R4 或 `classifyWireEvent` 一变，`src/session.ts` 随之变；`TRANSPORT_TABLE` 加行时 `tests/session.spec.ts` 自动覆盖。线路端口 `src/line.ts` 是内部类型，改它要同步两条线路与内存线路替身。SDK 升级时重核 SPEC「与 SDK 的复用关系」的 `文件:行` 与 B 层夹具的 API。消费者：`@omne-harness/mcp`（经契约端口）、组设计。
 
 ## 目录结构与文档职责
 
@@ -62,12 +79,12 @@ docs/                     内部设计、公开使用与集成说明
 ├── context.md            消费侧使用与系统定位
 └── cordis.md             Cordis 适用性与集成
 src/                      公开定义、运行时校验与内部实现
-tests/                    持续测试；fixtures/ 存放测试输入
-schema/                   对外 Schema
-verification/             models/ 与 proofs/
-adr/                      有持续消费者的实现取舍
-examples/                 面向公开入口的示例
-resources/                运行所需的非源码资源
+tests/                    持续测试；fixtures/ 存放对端夹具
+schema/                   对外 Schema（本包没有）
+verification/             models/ 与 proofs/（本包没有）
+adr/                      有持续消费者的实现取舍（本包没有）
+examples/                 面向公开入口的示例（本包没有）
+resources/                运行所需的非源码资源（本包没有）
 acceptance/               独立验收；fixtures/ 存放验收输入
 ```
 
