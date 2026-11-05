@@ -2,8 +2,8 @@
 // walk the one send order of SPEC MC-16 on the in-flight table, the gate, the catalog and the
 // connection table; `cancel` reads the in-flight table only. From its reservation to its answer a
 // call has one owner, `perform`: every wait before the send is under the call's one stop signal
-// (the caller's signal and `cancel` as one), the key is concluded in one place by the phase the
-// call reached, and after the send the peer is told once and not waited for.
+// (the caller's signal and `cancel` as one), the place is concluded in one spot by the phase the
+// table recorded, and after the send the peer is told once and not waited for.
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -22,39 +22,54 @@ import {
   type InvokeRequest,
   type InvokeResult,
   type KnownAction,
+  type McpConfig,
+  type McpPorts,
   type NotSentReason,
   type PeerAnswer,
   type PeerNotification,
 } from '@omne-harness/mcp-contract'
 import type { CallRequest, SentCall } from '@omne-harness/mcp-contract/provider'
-import type { Ensured, EnsureFailure } from './internal/entry.ts'
+import { classificationOf } from './internal/classification.ts'
+import { CONNECTION_UNAVAILABLE, type Ensured, type EnsureFailure } from './internal/entry.ts'
+import type { AdmittedEndpoint } from './internal/gate.ts'
 import { admitForUse, type UseGate } from './internal/guard.ts'
-import type { CallPhase, InFlightKey } from './internal/in-flight.ts'
+import type { InFlightCalls, InFlightKey, Reservation } from './internal/in-flight.ts'
 import {
   connectionFailureOf,
+  connectionFailureOfBuild,
   loseInScope,
-  lostOfNoAnswer,
   lostOfNotSent,
+  lostOfOutcome,
   type NotSent,
 } from './internal/lost.ts'
 import { ask, waitAtMost, within } from './internal/port.ts'
 import { prepareSettings } from './internal/settings.ts'
-import type { EnsureOptions } from './internal/table.ts'
-import type { InvokerDependencies } from './invoker.ts'
+import { ensureOptionsOf, type ConnectionTable } from './internal/table.ts'
+import type { TaskTable } from './internal/task-table.ts'
 
-export type CallsDependencies<P, S> = Pick<
-  InvokerDependencies<P, S>,
-  'ports' | 'config' | 'table' | 'inFlight' | 'tasks'
->
+export type CallsDependencies<P, S> = Readonly<{
+  ports: McpPorts<P, S>
+  config: McpConfig<P>
+  table: ConnectionTable<P>
+  inFlight: InFlightCalls
+  tasks: TaskTable
+}>
 
 const CORRELATION_KEY_IN_USE: NotSentReason = { kind: 'correlation-key-in-use' }
 const CANCELLED: NotSentReason = { kind: 'cancelled' }
 const DEFINITION_CHANGED: NotSentReason = { kind: 'definition-changed' }
 const ACTION_UNAVAILABLE: NotSentReason = { kind: 'action-unavailable' }
 const UNKNOWN: NotSentReason = { kind: 'unknown' }
-const CONNECTION_UNAVAILABLE: NotSentReason = { kind: 'connection-unavailable' }
 const ABANDONED: PeerAnswer = { kind: 'no-answer', cause: 'abandoned' }
 const UNKNOWN_ABANDONED: CallOutcome = { kind: 'unknown', cause: 'abandoned' }
+
+/** The stop signal fired before the send: the one answer `perform` turns into `cancelled`. */
+const STOPPED = 'stopped'
+type Stopped = typeof STOPPED
+
+/** A `call` that breached its contract (T9): no answer and no request to cancel. */
+const CALL_BREACHED = 'call-breached'
+type CallBreached = typeof CALL_BREACHED
 
 /** What a continuation sends besides the action and the arguments. */
 type Continuation = NonNullable<CallRequest['continuation']>
@@ -68,9 +83,8 @@ type Send =
 type Prepared = Readonly<{ ensured: Ensured; known: KnownAction }>
 
 /** A call on the wire: what the answer is read with. */
-type Sent<P> = Readonly<{
+type Sent = Readonly<{
   send: Send
-  access: Access<P>
   key: InFlightKey
   stop: AbortSignal
   ensured: Ensured
@@ -88,9 +102,7 @@ function sent(outcome: CallOutcome): InvokeResult {
 
 /** The "not sent" reason of a connection that `ensure` did not give (R2, SPEC MC-16 table). */
 function notSentOfEnsure(failure: EnsureFailure): NotSentReason {
-  if (failure.stage === 'settings') return failure.reason
-  // The call itself did not leave: an unknown effect of `discover` is not an unknown effect of it.
-  return failure.reason.kind === 'effect-unknown' ? CONNECTION_UNAVAILABLE : failure.reason
+  return failure.stage === 'settings' ? failure.reason : connectionFailureOfBuild(failure)
 }
 
 /**
@@ -113,10 +125,6 @@ function continuationOf(request: ContinueRequest): Continuation {
     ...(request.requestState === undefined ? {} : { requestState: request.requestState }),
     ...(request.inputResponses === undefined ? {} : { inputResponses: request.inputResponses }),
   }
-}
-
-function ensureOptionsOf(request: Send['request']): EnsureOptions {
-  return request.connectBound === undefined ? {} : { connectBound: request.connectBound }
 }
 
 function callRequestOf(send: Send): CallRequest {
@@ -156,15 +164,17 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
    * A wait of the send order under the call's stop signal (MC-16 step 2). A stop that fired
    * already starts nothing. One that fires first ends the wait: the work goes on in the table's
    * scope. An answer that arrives once the stop fired is not read either. All three are
-   * `cancelled`.
+   * `stopped`.
    */
-  async function under<T, F>(
+  async function under<T>(
     stop: AbortSignal,
-    work: () => Promise<Outcome<T, F>>,
-  ): Promise<Outcome<T, F | typeof CANCELLED>> {
-    if (stop.aborted) return fail(CANCELLED)
+    work: () => Promise<Outcome<T, NotSentReason>>,
+  ): Promise<Outcome<T, NotSentReason> | Stopped> {
+    if (stop.aborted) return STOPPED
     const waited = await within(work(), stop, scope)
-    return waited.kind === 'expired' || stop.aborted ? fail(CANCELLED) : waited.value
+    // An expired wait has a fired stop; the first test keeps the type of `waited` honest.
+    if (waited.kind === 'expired' || stop.aborted) return STOPPED
+    return waited.value
   }
 
   /**
@@ -197,18 +207,29 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     return send.kind === 'invoke' || generation === send.request.issuedAt
   }
 
+  /** Step 7: the build, shared by every caller of the key and bounded by the connection bound. */
+  async function connectionOf(
+    send: Send,
+    access: Access<P>,
+    endpoint: AdmittedEndpoint,
+  ): Promise<Outcome<Ensured, NotSentReason>> {
+    const ensured = await table.ensure(endpoint, access, ensureOptionsOf(send.request.connectBound))
+    return 'failure' in ensured ? fail(notSentOfEnsure(ensured.failure)) : ensured
+  }
+
   /** Steps 3–7 of MC-16: what the send needs, or why the call is not sent. Every wait is under `stop`. */
   async function prepare(
     send: Send,
     access: Access<P>,
     stop: AbortSignal,
-  ): Promise<Outcome<Prepared, NotSentReason>> {
+  ): Promise<Outcome<Prepared, NotSentReason> | Stopped> {
     const { request } = send
+    if (stop.aborted) return STOPPED
     // S8: after `closeAll` nothing connects, for a first call and a continuation alike; no port
     // is asked.
     if (table.isShut()) return fail(CONNECTION_UNAVAILABLE)
     const admitted = await under(stop, () => admitForUse(gate, access, request.ref))
-    if ('failure' in admitted) return admitted
+    if (admitted === STOPPED || 'failure' in admitted) return admitted
     const endpoint = admitted.ok
     const prepared = prepareSettings(endpoint, request.connectBound)
     if ('failure' in prepared) return prepared
@@ -216,44 +237,42 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     const known = await under(stop, () =>
       knownActionOf(send, catalogKeyOf(access.tenant, endpoint, account)),
     )
-    if ('failure' in known) return known
+    if (known === STOPPED || 'failure' in known) return known
     const current = table.current(connectionKeyOf(access.tenant, endpoint, account))
     if (!issuedOn(send, current?.generation)) return fail(UNKNOWN)
-    // The build is shared by every caller of the key and bounded by the connection bound; the
-    // stop ends only this call's wait for it.
-    const ensured = await under(stop, () =>
-      table.ensure(endpoint, access, ensureOptionsOf(request)),
-    )
-    if ('failure' in ensured)
-      return fail('stage' in ensured.failure ? notSentOfEnsure(ensured.failure) : ensured.failure)
+    // The stop ends only this call's wait for the build.
+    const ensured = await under(stop, () => connectionOf(send, access, endpoint))
+    if (ensured === STOPPED || 'failure' in ensured) return ensured
     if (!issuedOn(send, ensured.ok.generation)) return fail(UNKNOWN)
     return succeed({ ensured: ensured.ok, known: known.ok })
   }
 
   /**
-   * Step 9: a call the transport did not send. A transport answering the stop signal that fired
-   * is a cancel before the send, not a lost connection (T5); otherwise the connection is gone (S7)
-   * and its teardown goes on in the table's scope.
+   * Step 9: a call the transport did not send takes the connection down (S7), with the teardown
+   * in the table's scope, unless the answer is the transport's to a stop signal that fired: a
+   * cancel before the send, not a lost connection (T5).
    */
-  function notSentBy(ensured: Ensured, failure: NotSent, stop: AbortSignal): void {
+  function loseUnlessStopReply(ensured: Ensured, failure: NotSent, stop: AbortSignal): void {
     if (failure.cause === 'connection-unavailable' && stop.aborted) return
     loseInScope(table, ensured, lostOfNotSent(failure))
   }
 
-  /** Step 12: the outcome of the answer (O1–O6); a lost connection and a task go to their tables. */
-  function outcomeOf(on: Sent<P>, answer: PeerAnswer): CallOutcome {
+  /**
+   * Step 12: the answer applied to the tables: classified (O1–O6), a lost connection reported to
+   * the connection table, a task recorded for its initiator (MC-17).
+   */
+  function applyAnswer(on: Sent, answer: PeerAnswer): CallOutcome {
     const { outputSchema } = on.known.lastLawful
-    const outcome = classifyOutcome(answer, {
-      issuedAt: on.ensured.generation,
-      ...(outputSchema === undefined ? {} : { outputSchema }),
-      checkOutput: ports.checkOutput,
-    })
-    const lost = outcome.kind === 'unknown' ? lostOfNoAnswer(outcome.cause) : undefined
+    const outcome = classifyOutcome(
+      answer,
+      classificationOf(on.ensured.generation, outputSchema, ports.checkOutput),
+    )
+    const lost = lostOfOutcome(outcome)
     if (lost !== undefined) loseInScope(table, on.ensured, lost)
     if (outcome.kind === 'task')
       tasks.record(
         {
-          tenant: on.access.tenant,
+          tenant: on.key.tenant,
           principalKey: on.key.principalKey,
           holding: on.send.request.ref.holding,
           taskId: outcome.taskId,
@@ -270,9 +289,10 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
   /**
    * Steps 11–12 on a call that is on the wire: the wait for the answer under the stop signal.
    * A stop that fires first tells the peer once, in the table's scope, and does not wait for it:
-   * the outcome is `unknown` (`abandoned`) (T5, O6). An answer that rejects (T9) is no answer.
+   * the outcome is `unknown` (`abandoned`) (T5, O6). The answer is always read through `ask`, so
+   * one that rejects (T9) is no answer, and one that arrives after the stop is dropped.
    */
-  async function answerOf(on: Sent<P>): Promise<InvokeResult> {
+  async function answerOf(on: Sent): Promise<InvokeResult> {
     const { requestId, answer } = on.call
     const waited = await waitAtMost(
       ask(() => answer, ABANDONED),
@@ -282,46 +302,57 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       scope.spawn(ask(() => on.ensured.transport.cancelRequest(requestId), undefined))
       return sent(UNKNOWN_ABANDONED)
     }
-    return sent(outcomeOf(on, waited.value))
+    return sent(applyAnswer(on, waited.value))
   }
 
   /**
-   * The one owner of a call (MC-16): the reservation hands out the stop signal; the steps before
-   * the send run under it; the send; the answer; and one conclusion of the key, by the phase the
-   * call reached. A call not sent whose stop signal fired is `cancelled`, whatever the step it
-   * fired in refused (S2).
+   * Steps 3–12 under the reservation: the steps before the send, the send, and the answer. A
+   * stop signal that fired before the send is `stopped`, whatever the step it fired in answered.
+   */
+  async function sendOrder(
+    send: Send,
+    access: Access<P>,
+    key: InFlightKey,
+    place: Reservation,
+  ): Promise<InvokeResult | Stopped> {
+    const { stop } = place
+    const prepared = await prepare(send, access, stop)
+    if (prepared === STOPPED) return STOPPED
+    if ('failure' in prepared) return notSent(prepared.failure)
+    const { ensured, known } = prepared.ok
+    const called = await ask<Outcome<SentCall, NotSent> | CallBreached>(
+      () => ensured.transport.call(callRequestOf(send), stop, observerOf(send.request.observe)),
+      CALL_BREACHED,
+    )
+    if (called === CALL_BREACHED) {
+      // T9: a `call` that breached left with an unknown effect; the place is a sent one.
+      place.sent(ensured.connection, ensured.generation)
+      return sent(UNKNOWN_ABANDONED)
+    }
+    if ('failure' in called) {
+      loseUnlessStopReply(ensured, called.failure, stop)
+      return stop.aborted ? STOPPED : notSent(connectionFailureOf(called.failure))
+    }
+    place.sent(ensured.connection, ensured.generation)
+    return answerOf({ send, key, stop, ensured, known, call: called.ok })
+  }
+
+  /**
+   * The one owner of a call (MC-16): the reservation hands out the stop signal; the send order
+   * runs under it; and the place is concluded once, in one `finally`, by the phase the table
+   * recorded. A call not sent whose stop signal fired is `cancelled`, whatever the step it fired
+   * in refused (S2): `stopped` becomes `cancelled` here and nowhere else.
    */
   async function perform(send: Send, access: Access<P>): Promise<InvokeResult> {
     checkRequest(send)
-    const { request } = send
-    const key = keyOf(access, request.correlationKey)
-    const stop = inFlight.reserve(key, request.signal)
-    if (stop === 'in-use') return notSent(CORRELATION_KEY_IN_USE)
-    const unsent = (reason: NotSentReason): InvokeResult =>
-      notSent(stop.aborted ? CANCELLED : reason)
-    let phase: CallPhase = 'unsent'
+    const key = keyOf(access, send.request.correlationKey)
+    const place = inFlight.reserve(key, send.request.signal)
+    if (place === 'in-use') return notSent(CORRELATION_KEY_IN_USE)
     try {
-      const prepared = await prepare(send, access, stop)
-      if ('failure' in prepared) return unsent(prepared.failure)
-      const { ensured, known } = prepared.ok
-      const called = await ask(
-        () => ensured.transport.call(callRequestOf(send), stop, observerOf(request.observe)),
-        undefined,
-      )
-      if (called === undefined) {
-        // T9: a `call` that breached left with an unknown effect; there is no request to cancel.
-        phase = 'sent'
-        return sent(UNKNOWN_ABANDONED)
-      }
-      if ('failure' in called) {
-        notSentBy(ensured, called.failure, stop)
-        return unsent(connectionFailureOf(called.failure))
-      }
-      phase = 'sent'
-      inFlight.markSent(key, ensured.connection, ensured.generation)
-      return await answerOf({ send, access, key, stop, ensured, known, call: called.ok })
+      const result = await sendOrder(send, access, key, place)
+      return result === STOPPED ? notSent(CANCELLED) : result
     } finally {
-      inFlight.conclude(key, phase)
+      place.conclude()
     }
   }
 

@@ -53,9 +53,19 @@ export type Builder<P> = Readonly<{
     access: Access<P>,
     prepared: PreparedSettings,
   ): Promise<Outcome<Ensured, EnsureFailure>>
-  /** The connection is lost: requests refused, the entry torn down, the catalog marked. */
-  markLost(entry: Entry, reason: LostReason, mark: UnavailableMark): Promise<CatalogMark>
+  /**
+   * The connection is lost: requests are refused before this returns; the teardown and the
+   * catalog mark go on in `done`.
+   */
+  markLost(entry: Entry, reason: LostReason, mark: UnavailableMark): Losing
 }>
+
+/**
+ * A loss under way: the connection refuses requests already; `done` ends when the entry is
+ * torn down and the catalog marked. A function that answers it does its marking synchronously:
+ * one that awaited first could not answer this shape.
+ */
+export type Losing = Readonly<{ done: Promise<CatalogMark> }>
 
 export type BuilderDependencies = Readonly<{
   /** A landing that was still pending after its bound has answered: the table looks again. */
@@ -152,15 +162,10 @@ export function createBuilder<P, S>(
     return 'marked'
   }
 
-  async function markLost(
-    entry: Entry,
-    reason: LostReason,
-    mark: UnavailableMark,
-  ): Promise<CatalogMark> {
+  function markLost(entry: Entry, reason: LostReason, mark: UnavailableMark): Losing {
     // Requests are refused at once; the teardown is the entry's one teardown.
     entry.connection.lose(reason)
-    await teardown(entry)
-    return markCatalog(entry.catalogKey, mark)
+    return { done: teardown(entry).then(() => markCatalog(entry.catalogKey, mark)) }
   }
 
   /**
@@ -175,7 +180,7 @@ export function createBuilder<P, S>(
     bound: AbortSignal,
   ): Promise<Outcome<never, EnsureFailure>> {
     if (deps.shut()) return shutDown(entry, bound)
-    const marked = await within(markLost(entry, how.lost, how.mark), bound, scope)
+    const marked = await within(markLost(entry, how.lost, how.mark).done, bound, scope)
     const catalog = marked.kind === 'answered' ? marked.value : 'pending'
     return fail({ stage: 'connect', reason: how.reason, catalog })
   }

@@ -18,6 +18,7 @@ import {
   requestStateOf,
   type PeerReply,
 } from '@omne-harness/mcp-contract/testing'
+import { loseOn } from '../src/internal/lost.ts'
 import { settled } from './doubles/deferred.ts'
 import { alice, type Principal } from './doubles/identities.ts'
 import { completed, listing, peer, services, text, type Peer } from './doubles/peer.ts'
@@ -211,7 +212,7 @@ describe('continueWithInput (SPEC S2)', () => {
     )
     await settled()
     // The generation check before the build passed; now the connection is lost under the re-read.
-    await table.lose(first.connection, first.generation, 'stream-broken', 'connection-unavailable')
+    await loseOn(table, first, { reason: 'stream-broken', mark: 'connection-unavailable' })
     stalled.gate.resolve()
     expect(await continued).toEqual({ kind: 'not-sent', reason: { kind: 'unknown' } })
     expect(p.opens()).toBe(2)

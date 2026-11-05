@@ -12,6 +12,7 @@ import {
 } from '@omne-harness/mcp-contract'
 import type { AdoptedEndpoint, AdoptionView } from '@omne-harness/mcp-contract/provider'
 import { admit, admitWithoutEligibility, type AdmittedEndpoint } from '../src/internal/gate.ts'
+import { loseOn } from '../src/internal/lost.ts'
 import { createConnectionTable, type ConnectionTable } from '../src/internal/table.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import {
@@ -79,12 +80,7 @@ describe('ensure: reuse, rebuild and single flight', () => {
     const first = await table.ensure(token, alice)
     if (!('ok' in first)) throw new Error('first ensure failed')
     expect(
-      await table.lose(
-        first.ok.connection,
-        first.ok.generation,
-        'process-exited',
-        'connection-unavailable',
-      ),
+      await loseOn(table, first.ok, { reason: 'process-exited', mark: 'connection-unavailable' }),
     ).toBe('not-acquired')
     expect(first.ok.connection.isCurrent(first.ok.generation)).toBe(false)
     const second = await table.ensure(token, alice)

@@ -35,7 +35,12 @@ import {
 } from '@omne-harness/mcp-contract/testing'
 import { createCalls } from '../../src/calls.ts'
 import { admit } from '../../src/internal/gate.ts'
-import { InFlightCalls, type CallPhase, type InFlightKey } from '../../src/internal/in-flight.ts'
+import {
+  InFlightCalls,
+  type InFlightKey,
+  type Reservation as Place,
+} from '../../src/internal/in-flight.ts'
+import { loseOn, type Lost } from '../../src/internal/lost.ts'
 import type { BoundKind } from '../../src/internal/port.ts'
 import { prepareSettings } from '../../src/internal/settings.ts'
 import {
@@ -213,6 +218,9 @@ const REST_STEPS = 200
 const ACTION = actionNameOf('read')
 const CORRELATION = correlationKeyOf('c')
 const REQUEST_STATE = requestStateOf('s')
+
+/** What `lose` and `drop` report: a broken stream, the mark `connection-unavailable`. */
+const STREAM_BROKEN: Lost = { reason: 'stream-broken', mark: 'connection-unavailable' }
 
 /** The task methods a scenario spends its `tasks` budget on unless it names its own. */
 const DEFAULT_TASK_METHODS: readonly TaskMethod[] = ['get']
@@ -427,10 +435,10 @@ function reservationTextOf(key: InFlightKey): string {
 interface ReservationDesk {
   reserved(key: InFlightKey, answer: 'reserved' | 'in-use'): void
   marked(key: InFlightKey): void
-  concluded(key: InFlightKey, phase: CallPhase): void
+  concluded(key: InFlightKey): void
 }
 
-/** The real in-flight table, with every call reported to the run (P11, P12). */
+/** The real in-flight table, with every reservation, send and conclusion reported to the run (P11, P12). */
 class CountedInFlight extends InFlightCalls {
   readonly #desk: ReservationDesk
 
@@ -439,24 +447,21 @@ class CountedInFlight extends InFlightCalls {
     this.#desk = desk
   }
 
-  override reserve(key: InFlightKey, signal: AbortSignal): AbortSignal | 'in-use' {
-    const answer = super.reserve(key, signal)
-    this.#desk.reserved(key, answer === 'in-use' ? 'in-use' : 'reserved')
-    return answer
-  }
-
-  override markSent(
-    key: InFlightKey,
-    connection: Ensured['connection'],
-    generation: Ensured['generation'],
-  ): void {
-    super.markSent(key, connection, generation)
-    this.#desk.marked(key)
-  }
-
-  override conclude(key: InFlightKey, phase: CallPhase): void {
-    super.conclude(key, phase)
-    this.#desk.concluded(key, phase)
+  override reserve(key: InFlightKey, signal: AbortSignal): Place | 'in-use' {
+    const place = super.reserve(key, signal)
+    this.#desk.reserved(key, place === 'in-use' ? 'in-use' : 'reserved')
+    if (place === 'in-use') return place
+    return {
+      stop: place.stop,
+      sent: (connection, generation) => {
+        place.sent(connection, generation)
+        this.#desk.marked(key)
+      },
+      conclude: () => {
+        place.conclude()
+        this.#desk.concluded(key)
+      },
+    }
   }
 }
 
@@ -899,11 +904,11 @@ class Run implements RunView, CallDesk, ReservationDesk {
    * `conclude`: the one conclusion of the call (MC-16 step 13). The open place of the key is
    * concluded; concluding the place of another operation, or a place nobody holds, is a defect.
    */
-  concluded(key: InFlightKey, phase: CallPhase): void {
+  concluded(key: InFlightKey): void {
     const text = reservationTextOf(key)
     const open = this.open_.get(text)
     if (open !== undefined) {
-      this.report(this.foreignReservation(open, `concluded ${phase}`))
+      this.report(this.foreignReservation(open, 'concluded'))
       this.closeReservation(open)
       return
     }
@@ -911,7 +916,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
       {
         property: 'P11',
         signature: 'P11-concluded-nothing',
-        detail: `${this.currentOp()?.name ?? '?'} concluded ${phase} a place nobody holds`,
+        detail: `${this.currentOp()?.name ?? '?'} concluded a place nobody holds`,
       },
     ])
   }
@@ -1055,17 +1060,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
     const stale = !ensured.connection.isCurrent(ensured.generation)
     const before = this.observe()
     const op = this.newOp('lose', answered?.key)
-    this.invoke(
-      op,
-      () =>
-        this.table.lose(
-          ensured.connection,
-          ensured.generation,
-          'stream-broken',
-          'connection-unavailable',
-        ),
-      String,
-    )
+    this.invoke(op, () => loseOn(this.table, ensured, STREAM_BROKEN), String)
     await drain()
     if (stale) this.report(staleLoseChanged(op, before, this.observe()))
     this.afterStep()
@@ -1077,17 +1072,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
     const current = this.table.current(key.connectionKey)
     if (current === undefined) throw new Nondeterminism(`no current connection of ${name} to drop`)
     this.left.drops -= 1
-    this.invoke(
-      this.newOp('lose', name),
-      () =>
-        this.table.lose(
-          current.connection,
-          current.generation,
-          'stream-broken',
-          'connection-unavailable',
-        ),
-      String,
-    )
+    this.invoke(this.newOp('lose', name), () => loseOn(this.table, current, STREAM_BROKEN), String)
   }
 
   /** What the properties check when an `invoke` or `continue` answers. */

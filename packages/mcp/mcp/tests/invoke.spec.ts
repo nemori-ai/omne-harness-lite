@@ -26,6 +26,7 @@ import {
   type PeerReply,
   type PeerScript,
 } from '@omne-harness/mcp-contract/testing'
+import { loseOn } from '../src/internal/lost.ts'
 import type { TableRuntime } from '../src/internal/table.ts'
 import { only } from './doubles/calls.ts'
 import { manualBounds } from './doubles/bounds.ts'
@@ -756,12 +757,7 @@ describe('the call keeps its one exit whatever the peer or the host does (SPEC M
     await settled()
     expect(base.requests('tools/call')).toHaveLength(1)
     expect(
-      await table.lose(
-        first.connection,
-        first.generation,
-        'stream-broken',
-        'connection-unavailable',
-      ),
+      await loseOn(table, first, { reason: 'stream-broken', mark: 'connection-unavailable' }),
     ).not.toBe('not-current')
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({ ok: {} })
     const [second] = table.currentOf(alice.tenant, files.holding)

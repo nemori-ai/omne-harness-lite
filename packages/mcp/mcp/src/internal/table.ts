@@ -24,7 +24,7 @@ import {
   type Millis,
   type ReleaseReport,
 } from '@omne-harness/mcp-contract'
-import { createBuilder } from './build.ts'
+import { createBuilder, type Losing } from './build.ts'
 import { Connection, type GenerationPolicy } from './connection.ts'
 import {
   CONNECTION_UNAVAILABLE,
@@ -35,7 +35,6 @@ import {
   isUsable,
   residualOf,
   viewOf,
-  type CatalogMark,
   type ConnectionView,
   type Ensured,
   type EnsureFailure,
@@ -62,6 +61,11 @@ export type {
 } from './entry.ts'
 
 export type EnsureOptions = Readonly<{ connectBound?: Millis }>
+
+/** The options of an `ensure` from a request's `connectBound`: absent when the request gives none. */
+export function ensureOptionsOf(connectBound: Millis | undefined): EnsureOptions {
+  return connectBound === undefined ? {} : { connectBound }
+}
 
 /**
  * What the table runs on besides its ports: its source of bounds, and the outlet for an error of
@@ -94,15 +98,16 @@ export interface ConnectionTable<P> {
     outcome: 'page-failed' | 'listed',
   ): void
   /**
-   * A request on `generation` found the connection gone: close what is left, mark the catalog.
-   * A generation that is not current any more is a late result and changes nothing.
+   * A request on `generation` found the connection gone: the connection refuses requests before
+   * this returns; what is left is closed and the catalog marked in `done`. A generation that is
+   * not current any more is a late result and changes nothing.
    */
   lose(
     connection: ConnectionView,
     generation: Generation,
     reason: LostReason,
     mark: UnavailableMark,
-  ): Promise<CatalogMark | 'not-current'>
+  ): Losing | 'not-current'
   /** The usable connection of a key, without building one. */
   current(key: ConnectionKey): Ensured | undefined
   /** The usable connections of a tenant's holding, without building one. */
@@ -411,12 +416,12 @@ export function createConnectionTable<P, S>(
       entry.connection.ready(peer)
   }
 
-  async function lose(
+  function lose(
     connection: ConnectionView,
     generation: Generation,
     reason: LostReason,
     mark: UnavailableMark,
-  ): Promise<CatalogMark | 'not-current'> {
+  ): Losing | 'not-current' {
     const entry = byView.get(connection)
     if (entry === undefined || !entry.connection.isCurrent(generation)) return 'not-current'
     return builder.markLost(entry, reason, mark)

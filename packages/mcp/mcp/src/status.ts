@@ -87,8 +87,7 @@ export function createStatus<P, S>(deps: StatusDependencies<P, S>): EndpointStat
   ): Promise<Outcome<EndpointStatusView, InspectRefusal>> {
     const decision = await admit(ports, access, ref)
     // Invariant 6 at this use: a withdrawn or blocked endpoint does not keep its connection.
-    if (decision.kind !== 'admitted' && withdraws(decision))
-      await table.close(access.tenant, ref.holding)
+    if (withdraws(decision)) await table.close(access.tenant, ref.holding)
     const use = useOf(decision)
     if ('failure' in use)
       return fail(use.failure === 'not-eligible' ? { kind: 'not-available-to-you' } : use.failure)

@@ -20,7 +20,7 @@ import type { ConnectionTable } from './table.ts'
 export type UseGate<P, S> = Readonly<{ ports: GatePorts<P, S>; table: ConnectionTable<P> }>
 
 /** True when the decision means the tenant's connection must not stay open (invariant 6). */
-export function withdraws(decision: GateRefused): boolean {
+export function withdraws(decision: GateDecision): boolean {
   return decision.kind === 'not-adopted' || decision.kind === 'blocked'
 }
 
@@ -29,7 +29,7 @@ async function closeIfWithdrawn<P, S>(
   gate: UseGate<P, S>,
   access: Access<P>,
   ref: EndpointRef,
-  decision: GateRefused,
+  decision: GateDecision,
 ): Promise<void> {
   if (withdraws(decision)) await gate.table.close(access.tenant, ref.holding)
 }
@@ -54,7 +54,7 @@ export async function decideForUse<P, S>(
   ref: EndpointRef,
 ): Promise<GateDecision> {
   const decision = await admit(gate.ports, access, ref)
-  if (decision.kind !== 'admitted') await closeIfWithdrawn(gate, access, ref, decision)
+  await closeIfWithdrawn(gate, access, ref, decision)
   return decision
 }
 

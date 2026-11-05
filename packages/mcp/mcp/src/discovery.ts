@@ -29,7 +29,12 @@ import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
 import { connectionFailureOf, loseOn, lostOfNotSent, type NotSent } from './internal/lost.ts'
 import { ask, within } from './internal/port.ts'
 import { readAccountOf } from './internal/settings.ts'
-import type { CatalogMark, ConnectionTable, Ensured } from './internal/table.ts'
+import {
+  ensureOptionsOf,
+  type CatalogMark,
+  type ConnectionTable,
+  type Ensured,
+} from './internal/table.ts'
 
 /** The refresh request of the contract: the caller's signal belongs to this refresh alone (S5). */
 type RefreshRequest = Parameters<ActionDiscovery<unknown>['refresh']>[1]
@@ -179,8 +184,11 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     if ('failure' in admitted) return admitted
     // The build is shared by every caller of the key and bounded by the connection bound; the
     // caller's abort ends only this refresh.
-    const options = request.connectBound === undefined ? {} : { connectBound: request.connectBound }
-    const asked = await within(table.ensure(admitted.ok, access, options), request.signal, scope)
+    const asked = await within(
+      table.ensure(admitted.ok, access, ensureOptionsOf(request.connectBound)),
+      request.signal,
+      scope,
+    )
     if (asked.kind === 'expired') return succeed(CANCELLED)
     const ensured = asked.value
     if ('failure' in ensured)
