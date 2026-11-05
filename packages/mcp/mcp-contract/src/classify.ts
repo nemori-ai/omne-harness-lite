@@ -2,7 +2,13 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import { toContentBlocks } from './content.ts'
 import { isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
-import type { CallOutcome, OutputCheck, OutputValidator, PeerAnswer } from './outcomes.ts'
+import type {
+  CallOutcome,
+  OutputCheck,
+  OutputValidator,
+  PeerAnswer,
+  TaskHints,
+} from './outcomes.ts'
 import { isRequestState, isTaskId, type Generation } from './brands.ts'
 
 export type ClassifyContext = Readonly<{
@@ -54,9 +60,34 @@ function inputRequired(result: JsonObject, issuedAt: Generation): CallOutcome {
   }
 }
 
+// A count of milliseconds as the peer wrote it: digits only, no sign, fraction or exponent.
+const COUNT = /^\d+$/u
+
+/** The non-negative safe integer a node holds, or undefined for any other node. */
+export function countOf(value: JsonValue | undefined): number | undefined {
+  if (value?.kind !== 'number' || !COUNT.test(value.lexeme)) return undefined
+  const count = Number(value.lexeme)
+  return Number.isSafeInteger(count) ? count : undefined
+}
+
+/**
+ * The hints as the peer wrote them. A `null` ttl is unlimited. A hint of another type is left
+ * out; for the poll interval and the ttl that is anything but a non-negative safe integer.
+ */
+export function taskHintsOf(task: JsonObject): TaskHints {
+  const pollIntervalMs = countOf(member(task, 'pollIntervalMs'))
+  const ttlMs = countOf(member(task, 'ttlMs'))
+  const message = textOf(member(task, 'statusMessage'))
+  return {
+    ...(pollIntervalMs === undefined ? {} : { pollIntervalMs }),
+    ...(ttlMs === undefined ? {} : { ttlMs }),
+    ...(message === undefined ? {} : { statusMessage: { untrusted: message } }),
+  }
+}
+
 function task(result: JsonObject, issuedAt: Generation): CallOutcome {
   const taskId = textOf(member(result, 'taskId'))
-  return isTaskId(taskId) ? { kind: 'task', taskId, issuedAt } : MALFORMED
+  return isTaskId(taskId) ? { kind: 'task', taskId, issuedAt, ...taskHintsOf(result) } : MALFORMED
 }
 
 function classifyResult(result: JsonValue, context: ClassifyContext): CallOutcome {

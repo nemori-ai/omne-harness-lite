@@ -154,6 +154,7 @@ describe('completeListing', () => {
     ['no name', json({ inputSchema: { type: 'object' } })],
     ['an empty name', tool('')],
     ['no input schema', json({ name: 'a' })],
+    ['an input schema that is not an object', json({ name: 'a', inputSchema: true })],
     ['an output schema that is not an object', tool('a', { outputSchema: true })],
     ['annotations that are not an object', tool('a', { annotations: [] })],
   ]

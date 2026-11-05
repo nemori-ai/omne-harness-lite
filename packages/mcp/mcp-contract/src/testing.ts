@@ -40,5 +40,49 @@ export {
   type CatalogStoreFixture,
   type MemoryCatalogStore,
 } from './testing-catalog-store.ts'
+export {
+  actionNameOf,
+  generationOf,
+  jsonOf,
+  jsonTextOf,
+  protocolVersionOf,
+  requestStateOf,
+  revisionOf,
+  taskIdOf,
+} from './testing-values.ts'
 export { classifyOutcomeCases, type ClassifyOutcomeCase } from './testing-outcome-cases.ts'
 export { mergeListingCases, type MergeListingCase } from './testing-listing-cases.ts'
+export {
+  mcpTransportConformance,
+  type PeerNeeds,
+  type PeerNotificationScript,
+  type PeerReceived,
+  type PeerReply,
+  type PeerRequestHeaders,
+  type PeerScript,
+  type PlainJson,
+  type Replies,
+  type ScriptSource,
+  type ScriptedPeer,
+  type TaskScript,
+  type TransportFixture,
+  type TransportKind,
+} from './testing-transport.ts'
+export {
+  TRANSPORT_TABLE,
+  cellsOf,
+  rowsOf,
+  transportCells,
+  type AnswerClass,
+  type ExpectedFailure,
+  type RequestClass,
+  type TableCell,
+  type TableConclusion,
+  type TableKind,
+  type TableRow,
+} from './testing-transport-table.ts'
+export {
+  createScriptedTransportFactory,
+  type ScriptedTransportFactory,
+  type ScriptedTransportOptions,
+} from './testing-scripted-transport.ts'

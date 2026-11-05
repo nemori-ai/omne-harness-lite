@@ -10,15 +10,15 @@ MCP 组的纯契约：值、结局、失败、五个应用服务的接口、纯�
 
 状态：候选契约，尚未取得技术接受。行为正文是 [SPEC.md](SPEC.md)，组设计是[组工程设计](../docs/architecture.md)。
 
-| 部分                                                                                   | 状态                                         |
-| -------------------------------------------------------------------------------------- | -------------------------------------------- |
-| 值、品牌守卫、键                                                                       | 已实现并测试                                 |
-| 正文解析、类别端口 `mcp`、schema                                                       | 已实现并测试                                 |
-| 清单函数 `completeListing`、`mergeListing`、`markUnavailable`、`actionPermissionItems` | 已实现并测试                                 |
-| `classifyOutcome`、`toContentBlocks`、`boundInstructions`                              | 已实现并测试                                 |
-| 五个服务接口                                                                           | 只有接口，由 `@omne-harness/mcp` 实现        |
-| 五个需求端口与传输端口                                                                 | 只有接口；`./testing` 有符合性套件与内存替身 |
-| 真实对端、凭据、进程落点、耐久存储                                                     | 本包不验证                                   |
+| 部分                                                                                   | 状态                                                                                                                                    |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 值、品牌守卫、键                                                                       | 已实现并测试                                                                                                                            |
+| 正文解析、类别端口 `mcp`、schema                                                       | 已实现并测试                                                                                                                            |
+| 清单函数 `completeListing`、`mergeListing`、`markUnavailable`、`actionPermissionItems` | 已实现并测试                                                                                                                            |
+| `classifyOutcome`、`toContentBlocks`、`boundInstructions`                              | 已实现并测试                                                                                                                            |
+| 五个服务接口                                                                           | 只有接口，由 `@omne-harness/mcp` 实现                                                                                                   |
+| 五个需求端口与传输端口                                                                 | 只有接口；`./testing` 有符合性套件与内存替身，传输套件 `mcpTransportConformance()` 在脚本化传输 `createScriptedTransportFactory` 上运行 |
+| 真实对端、凭据、进程落点、耐久存储                                                     | 本包不验证                                                                                                                              |
 
 ## 使用
 
@@ -62,7 +62,7 @@ for (const conformance of mcpCatalogStoreConformance())
 
 ## 设计
 
-模块：`brands`、`values`、`endpoint`、`listing`、`catalog`、`classify`、`content`、`instructions`、`keys`、`outcomes`、`ports`、`transport`、`services`，以及 `./testing` 入口的 `testing-*` 模块。见 [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md) 与 [docs/object-model.md](docs/object-model.md)。
+模块：`brands`、`values`、`args`、`json`、`endpoint`、`listing`、`catalog`、`classify`、`content`、`instructions`、`revisions`、`wire`、`keys`、`outcomes`、`ports`、`transport`、`services`，以及 `./testing` 入口的 `testing-*` 模块。`testing-transport` 放传输套件与夹具类型（`TransportFixture`、`PeerScript`），`testing-transport-table` 放 SPEC T8 决策表的数据形式，套件按表的每一行生成一个用例；`testing-scripted-transport` 放通过它的内存脚本化传输。见 [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md) 与 [docs/object-model.md](docs/object-model.md)。
 
 ## 配置与运行
 
@@ -70,7 +70,7 @@ for (const conformance of mcpCatalogStoreConformance())
 
 ## 验证
 
-运行 `pnpm turbo run build typecheck test --filter=@omne-harness/mcp-contract`。测试导入构建后的包，覆盖正文的每个拒绝原因、清单性质与带种子的随机序列、结局穷举表、每种内容类型、五个套件对内存替身的运行，以及违约替身使套件变红。类型测试钉住每个封闭集合与 `./provider` 的类型导出。SPEC.md 列出测试没有覆盖的部分。
+运行 `pnpm turbo run build typecheck test --filter=@omne-harness/mcp-contract`。测试导入构建后的包，覆盖正文的每个拒绝原因、清单性质与带种子的随机序列、结局穷举表、每种内容类型、五个套件对内存替身的运行、传输套件在脚本化传输上对两种材料的运行，以及违约替身与违约脚本传输使套件变红。类型测试钉住每个封闭集合与 `./provider` 的类型导出。SPEC.md 列出测试没有覆盖的部分。
 
 ## 维护
 
