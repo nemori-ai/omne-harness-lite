@@ -20,9 +20,9 @@
 - [connections.ts](connections.ts)：连接口 `release`、`closeAll`
 - [store/memory.ts](store/memory.ts)：内存清单存储
 - [internal/connection.ts](internal/connection.ts)：`Connection` 聚合
-- [internal/in-flight.ts](internal/in-flight.ts)：`InFlightCalls` 聚合：占位、发出、取消信号
+- [internal/in-flight.ts](internal/in-flight.ts)：`InFlightCalls` 聚合：占位与停止信号、发出、收口
 - [internal/task-table.ts](internal/task-table.ts)：本次运行的任务表
-- [internal/lost.ts](internal/lost.ts)：传输答复到「传输不再可用」的映射
+- [internal/lost.ts](internal/lost.ts)：调用与任务请求的传输答复对连接状态的含义：按原因判断是否转 `lost`，比契约 S7 宽，是登记的偏离
 - [internal/gate.ts](internal/gate.ts)：S1 唯一的裁决、`AdoptedOnly` 与 `AdmittedEndpoint`
 - [internal/guard.ts](internal/guard.ts)：使用边界与发布边界上的关口，不变式 6 的关闭
 - [internal/port.ts](internal/port.ts)：唯一的端口适配器 `ask`（同步抛出与 reject 读成违约答复）；时限下的等待 `waitAtMost`（别人拥有的工作）与 `within`（自己拥有的工作，到期交给作用域）
