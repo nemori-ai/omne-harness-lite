@@ -122,7 +122,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 - 来源核验经构造参数 `verifier` 注入，形状与 Cordis 服务 `toolContributionAuthority` 相同（`verify`、`admits`）。本包不提供核验实现，也不提供默认放行：未注入时 `register` 回复 `unavailable`。核验失败的回复（`denied`、`invalid`、`unavailable`）原样返回，不留部分登记。
 - `register` 在一个同步步骤里完成来源核验、登记资格核验、键与形状核对、同键判定与写入，所以这一步就是本地排序域。调用方 fiber 由构造参数 `fiber()` 给出；它返回 null 时回复 `unavailable`。`retire(fiber)` 撤除该 fiber 的全部贡献，之后该 fiber 的登记回复 `unavailable`。
 - 登记键冲突按 G7：同一 fiber、同一装载 digest（`loaded.executor.digest`）认回原贡献，其他情形回复 `conflict`。`release` 只按自己的 token 撤除。登记序号单调递增，token 不重复。
-- `snapshot` 与 Catalog 按来源层判定可见：`official` 对任何合法租户可见，`organization` 要同组织，`tenant` 要同租户，`workspace` 对任何租户范围都不可见（本包不读取工作区授权）。无法证明合法的租户得到 `unavailable`，不得到空列表。
+- registry 的 `snapshot` 与 Catalog 所读 live contribution 按来源层判定可见：`official` 对任何合法租户可见，`organization` 要同组织，`tenant` 要同租户，`workspace` 对任何租户范围都不可见（本包不读取工作区授权）。无法证明合法的租户得到 `unavailable`，不得到空列表。当前 view 所携带的已知定义是采用拥有者保管的普通数据，其披露资格由受信 scoped view 负责核验；不能从 key、定义内容或 registry 的来源层推导资格。
 - `pins` 与 `drain` 数尚未释放的持有。`createLocalToolBindings.resolve` 通过 `selectAndPin` 原子选择并持有装载句柄；作者结束且事实全部确认后释放。`recover` 只认回本进程保留的执行，见[作者装载与执行绑定](#作者装载与执行绑定)。
 - Catalog 先读应用提供的 `view`，再将其精确的来源层和资产版本与当前租户可见的 `live` 贡献求交。同名取登记序号最小的一份。没有同名 live 贡献时，可使用 view 当前保管的 `knownDefinition`。未纳入、不可披露与没有合法定义的名字都回复 `invalid/unknown-tool`。`view` 为 null 或来源异常时回复 `unavailable`，来源失败原样保留，不用空列表代替。
 - view entry 的可选 `knownDefinition: ToolDefinition` 是当前受信采用拥有者依法保留的普通数据，不带 executor 或活体能力。Catalog 复用定义校验器读取冻结副本，核对 name 与 adoption 均匹配该 entry 的 key。定义不合法或不匹配时回复 `invalid`。省略此字段保持原行为。缺 live 的已知定义由 inspect 和 direct search 返回 `known-unavailable`，原因说明实现不在登记表中。它不会因 availability 允许而成为 available，programmatic 搜索也不返回它。usage 仍须取得当前 availability 的 qualification allowed，才能描述该定义。

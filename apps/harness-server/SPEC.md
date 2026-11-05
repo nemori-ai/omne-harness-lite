@@ -193,6 +193,18 @@ Shell 进程不继承服务进程的环境。它的环境是 `server.json` 的 `
 
 本地档的 SQL 单参加者响应上限为 128 KiB。四个驻留工具的 coding 定义使创建 Session 的响应超过原 64 KiB；响应包含采用定义与完整创建回执。总操作响应仍为 1 MiB，全局及组预留不变。该预算服务当前发行档，不承诺任意大小的定义均可创建；超限仍明确失败并回滚。
 
+### Tools 与会话待办的发行采用
+
+当前正式发行采用 Shell、Files、Tools 和 TodoItems，coding 定义将四项声明为常驻候选。实际常驻集合由 Session 的 WorkSnapshot.residents 提供。Tools 的当前目录由受信会话工作身份、活动 Session、其 adopted AgentDefinition 引用与正式发行资产求交，并保留已经实际持有的常驻项。references.resident 不替代实际持有事实。当前适配只支持官方发行，不声称组织、租户、工作区资产解析或自动继承已经实现。
+
+search 只返回合法非常驻，四项均已实际常驻时成功返回空页；inspect 可查看两类工具。Tools.execute 经原 Tool runtime 启动非常驻目标，准备与实际启动分别核当前纳入、常驻状态及目标授权规则。目标继承父调用的租户、主体和资源上限，不采用父 Tools 获准作为目标授权。已受理调用的结果保管与当前新启动资格分别处理。发现和执行不把目标加入模型直接 tool call 列表。
+
+发行提供者按当前 generation 保留成功校验的普通 ToolDefinition 副本，最多保留该清单的定义数量，不保留 executor、作者对象或运行句柄。live contribution 卸载不删除这份定义；当前会话合法 view 可据此返回 known-unavailable。当前资格仍逐次核验，元数据不是执行授权。提供者不保存跨旧发行的耐久历史。重新启动只重新取得当前发行可合法装载的定义，旧发行历史能力记忆须由采用拥有者另行承接。
+
+TodoItems 作者只得到本次执行绑定的清单能力。应用从可信 Session 工作主体和原 ToolCallId 取得 Session 范围及稳定操作身份，并固定命令与参数；模型不提供 Session、租户或主体标识。每次访问经 Session 当前授权，状态、原操作回执与访问证据同事务提交。add/remove/mark_complete 逐项生效，list 保留完成项并隐藏已移除项，跨 Run 沿同一 Session 延续。提交未知须认回原操作，不能用新模型调用代替。执行作用域关闭后撤销绑定能力。
+
+清单结果通过既有 Tool→Agent 结果链进入历史，同 Session 接续按使用指导主动 list。本次发行未采用自动 Runtime Context 待办投影，不承诺自动注入或每次模型请求必见最新待办；这些保证不能从逐项持久清单推导。
+
 ## 插件树与运维层
 
 树只有两层：发行层和运维层。租户与组织不是第三层。运维操作有三种：`replace` 替换一行的配置，`disable` 停用一行，`insert` 在已有锚点行之后插入一个 allowlist 内的行。
