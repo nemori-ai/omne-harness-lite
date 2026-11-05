@@ -16,7 +16,7 @@
 
 ## 本包事实
 
-本目录有两个 TLA+ 模型。ProcessCustody 对应的 SPEC 条款标「未实现」，模型说明的是目标语义。TerminalSegments 对应的条款已由宿主提供者在 Linux 上兑现。性质与条款的逐条对应、规模上限与前提见 [formal-mapping.md](../formal-mapping.md)。获取、受管资源与设施请求的其他状态转移写在[对象模型](../../docs/object-model.md#生命周期)，没有模型。
+本目录有两个 TLA+ 模型。两个模型对应的 SPEC 条款都已由宿主提供者在 Linux 上兑现。ProcessCustody 的显式停止对应冻结的 `stop` 条款，它现在没有实现。性质与条款的逐条对应、规模上限与前提见 [formal-mapping.md](../formal-mapping.md)。获取、受管资源与设施请求的其他状态转移写在[对象模型](../../docs/object-model.md#生命周期)，没有模型。
 
 ### ProcessCustody
 

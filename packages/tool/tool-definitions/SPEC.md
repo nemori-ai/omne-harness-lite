@@ -45,7 +45,7 @@ list 使用 FileEntry.name，不解析对象令牌。任一条目缺少有效名
 
 ### Shell 路由与控制
 
-没有 terminal 参数时，execute 调用 command.start，使用显式配置的可执行文件、参数前缀、初始 cwd 与 env。结局 `completed` 带处置报告时，结局行之后写一行：`residue=none`、`residue=retained process=<引用> processes=<数|unknown>`、`residue=stopping reason=<原因>` 或 `residue=unknown`。`stopping` 不写成已停，`unknown` 不写成 `none`。结局没有处置报告（终端段、不做处置的提供者、`failed`）时没有这一行。处置的含义归[执行环境契约的「一次性命令留下的进程」](../../execution/execution-environment-contract/SPEC.md#一次性命令留下的进程未实现)。create_session 声明 Session 保留；带 terminal 的 execute 与 close_session 先由本次获取 attach，再调用对应设施。缺保留或附着能力时明确 unsupported，不创建替代终端，也不回退为一次性执行。terminal 的持续状态归提供者，作者不保存会话表。单次 cwd 与 env 覆盖只转发到本次调用。
+没有 terminal 参数时，execute 调用 command.start，使用显式配置的可执行文件、参数前缀、初始 cwd 与 env。结局 `completed` 带处置报告时，结局行之后写一行：`residue=none`、`residue=retained process=<引用> processes=<数|unknown>`、`residue=stopping reason=<原因>` 或 `residue=unknown`。`stopping` 不写成已停，`unknown` 不写成 `none`。结局没有处置报告（终端段、不做处置的提供者、`failed`）时没有这一行。处置的含义归[执行环境契约的「一次性命令留下的进程」](../../execution/execution-environment-contract/SPEC.md#一次性命令留下的进程)。create_session 声明 Session 保留；带 terminal 的 execute 与 close_session 先由本次获取 attach，再调用对应设施。缺保留或附着能力时明确 unsupported，不创建替代终端，也不回退为一次性执行。terminal 的持续状态归提供者，作者不保存会话表。单次 cwd 与 env 覆盖只转发到本次调用。
 
 Windows terminal 的 completed 表示前台段结束，不证明持久 shell 退出或业务成功。输出按观察窗口归属，前台已写未读字节也可能出现在后窗；空脚本不保证排空；close 可释放尚未交付的空闲缓冲。help 说明这些限制，未知退出码不显示为成功，未交付字节不显示为已交付。
 

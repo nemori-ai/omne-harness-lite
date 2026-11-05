@@ -235,7 +235,7 @@ schema 的规则：
 3. 把 `environmentNeedAdoption` 与声明值一起存进工具定义。
 4. 在一个终端里执行一段脚本，读取流式输出与终局。
 
-落在宿主机时，`command` 与 `terminal` 由同一个宿主提供者提供，与 `files` 一样；这两项的宿主提供者现在只有设计，没有实现，见 [execution-environment-host-local 的宿主命令与终端机制](../../execution-environment-host-local/docs/architecture.md#宿主命令与终端机制设计未实现)。这个示例只在类型层面成立，没有提供者，不能单独运行。类型测试 [tests/facility-set.spec-d.ts](../tests/facility-set.spec-d.ts) 导入它，由 `pnpm --filter @omne-harness/execution-environment-contract typecheck`（`tsc -p tsconfig.test.json`）编译。示例与公开入口不一致时，这次编译失败。
+落在宿主机时，`command` 与 `terminal` 由同一个宿主提供者提供，与 `files` 一样；这两项的平台范围见 [execution-environment-host-local 的宿主命令与终端](../../execution-environment-host-local/SPEC.md#宿主命令与终端)。这个示例只在类型层面成立，没有提供者，不能单独运行。类型测试 [tests/facility-set.spec-d.ts](../tests/facility-set.spec-d.ts) 导入它，由 `pnpm --filter @omne-harness/execution-environment-contract typecheck`（`tsc -p tsconfig.test.json`）编译。示例与公开入口不一致时，这次编译失败。
 
 ### 两条块声明
 

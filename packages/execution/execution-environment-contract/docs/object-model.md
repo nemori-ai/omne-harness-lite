@@ -294,7 +294,7 @@ stateDiagram-v2
 
 许可之前没有外部效果；终局与许可写在集成方账本的同一耐久顺序里。文件批次的已提交与未知是终态，不进入「未停」集合。条款见 [INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。
 
-### 一次性命令的执行域（未实现）
+### 一次性命令的执行域
 
 ```mermaid
 stateDiagram-v2
@@ -311,7 +311,7 @@ stateDiagram-v2
   stopped --> [*]
 ```
 
-`exited` 之前与 `reserved` 期间，执行域归本次获取；进入 `retained` 时归属改为保留范围，此后不再改回。本次获取的释放不停止 `retained` 的执行域。`stopping` 在监督者确认之前一直占着原归属方的责任。结局里的 `residue` 与这张图的对应是：`none` 与 `stopping` 走左边的停止，`retained` 走 `reserved` 到 `retained`，`unknown` 是处置没有结果或停在 `reserved` 待查询。条款见 [SPEC 一次性命令留下的进程](../SPEC.md#一次性命令留下的进程未实现)，形式模型见 [ProcessCustody](../verification/models/README.md#processcustody)。
+`exited` 之前与 `reserved` 期间，执行域归本次获取；进入 `retained` 时归属改为保留范围，此后不再改回。本次获取的释放不停止 `retained` 的执行域。`stopping` 在监督者确认之前一直占着原归属方的责任。结局里的 `residue` 与这张图的对应是：`none` 与 `stopping` 走左边的停止，`retained` 走 `reserved` 到 `retained`，`unknown` 是处置没有结果或停在 `reserved` 待查询。条款见 [SPEC 一次性命令留下的进程](../SPEC.md#一次性命令留下的进程)，形式模型见 [ProcessCustody](../verification/models/README.md#processcustody)。
 
 ### 设施请求
 

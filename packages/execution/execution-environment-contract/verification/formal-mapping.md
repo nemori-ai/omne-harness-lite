@@ -35,7 +35,7 @@ ProcessCustody 的性质。编号按 [#1137](https://github.com/nemori-ai/omne-h
 | 模型中的名字 | 编号 | 命题 | SPEC 条款 | 违反的后果 | 守卫（负控） |
 | --- | --- | --- | --- | --- | --- |
 | `NoLeak` | T1 | 平台满足封闭收纳时，没有进程活在所有执行域之外 | [收纳](../SPEC.md#收纳) | 留下的进程失去归属，没有人能列出或停止它 | N2（`pgroup`） |
-| `UniqueOwner` | T2（I1、I3、I4） | 每个活着的执行域恰有一个归属方，且该归属方没有结束责任 | [一次性命令留下的进程](../SPEC.md#一次性命令留下的进程未实现)首段 | 活着的进程没有人负责 | 由 I1、I3、I4 的证明支持 |
+| `UniqueOwner` | T2（I1、I3、I4） | 每个活着的执行域恰有一个归属方，且该归属方没有结束责任 | [一次性命令留下的进程](../SPEC.md#一次性命令留下的进程)首段 | 活着的进程没有人负责 | 由 I1、I3、I4 的证明支持 |
 | `OneDisposition` | T3 | 主进程退出后，执行域或者被停止，或者被移交，不会两者都发生 | [移交](../SPEC.md#移交)第 2、3 项 | 一个执行域既被停止又被保留，`residue` 与实际不符 | N6（提交不复核阶段） |
 | `StopTruth` | T4（I4） | 报告已停的执行域里没有活进程 | [停止](../SPEC.md#停止条款冻结未实现)第 5 项；[保留进程的恢复](../SPEC.md#保留进程的恢复) | 未停的进程被当作已停，责任被提前解除 | 由 I4 的证明支持 |
 | `NoEntryAfterClose` | T5（I5） | 范围封闭之后，没有执行域进入该范围 | [移交](../SPEC.md#移交)第 2 项 | 保留范围封闭之后仍有进程被保留下来，无人收尾 | N5（提交不复核封闭） |
@@ -135,4 +135,33 @@ TerminalSegments 的性质：
 
 ### ProcessCustody
 
-一次性命令留下的进程还没有实现，本表在实现时填写。
+实现是宿主提供者的 Linux 一次性命令（`execution-environment-host-local`）。收纳是 systemd 用户 scope 单元，即模型的 `Containment = "cgroup"`。路径相对该包的 `src/`。
+
+| 模型动作 | 实现位置 | 说明 |
+| --- | --- | --- |
+| `PlanAcq` | `host-command.ts` 的 `start`：获取账本 `plan` | 先于起门进程 |
+| `Launch`、`Refuse` | `start`：门报就绪后获取账本 `permit`，`confirmed` 才发 GO；否则强制停止单元并记 `stopped` | |
+| `ForkPlain`、`ForkImmune`、`RestExit` | 命令自己的进程 | 不在提供者代码里。`Escape` 在 cgroup 收纳下不可用 |
+| `PrimExit` | `command-gate.ts` 的 `finish()` 发退出帧，带单元里门以外的进程数；`host-command.ts` 的 `onExit` | 门在退出帧之后留在单元里 |
+| `Dispose` | `host-command.ts` 的 `dispose` → `decideDisposition` | 五项条件按契约的次序判定 |
+| `PlanRet` | `decideDisposition`：先 `reserve()`（`host-retained-processes.ts`，同步占名额），再保留进程账本 `plan` | 预留在首个异步等待之前 |
+| `Commit` | `commitHandover`：保留进程账本 `adopt`；`apply` 的 `retained` 分支 → `enterIndex` | 归属在 `enterIndex` 里同步改为 `handedOver`，之后写标记文件，再改为 `retained` |
+| `Abort` | `reservation.abort()`：在 `decideDisposition`、`commitHandover` 与 `apply` 的 `retainedInterrupted` 分支 | |
+| `Stop`、`Kill`、`Confirm` | `forceStop`、`gracefulStop`；`host-scope.ts` 的 `forceStopScope`（`systemctl kill`、`stop`、`show`）；保留的执行域走索引的 `stop` | 停止的记账去当前承担责任的账本：获取账本或保留进程账本 |
+| `Drain` | 索引的 `maintain()` → `observe()`：`readScopeMembers` 读单元的 `cgroup.procs`，门以外没有进程或单元已不在时停止并记 `stopped` | 每 `retainedPollMs` 读一次。读不到不当作空 |
+| `Expire` | 没有实现 | SPEC 没有这项配置 |
+| `Release`、`DrainSweep` | `stopAll`：获取排空时强制停止 `live` 里的执行域。已移交的执行域不在 `live` 里 | `DrainSweep` 对应冷恢复的 `listRecoveryResources` 与 `recover` |
+| `Settle` | 责任域的 `drain`：停止全部确认并记账后结清 | |
+| `CloseScope`、`CloseSweep`、`ClosureDone` | 索引的 `watchClosure`：保留范围的释放信号或保留进程账本的 `closed` 信号触发 `closeScope`，停止该范围的全部保留进程 | 未确认的项留在索引里，`maintain()` 再试 |
+| `Crash`、`Recover` | 新的提供者实例：索引 `ready()` 读 `<stateDirectory>/retained-processes/` 下的标记文件；`listRecoveryResources` 与 `recover` 带上索引里的资源 | 别的启动身份与已不在的单元的标记被删去 |
+
+实现里有、模型里没有的行为：
+
+- 提交结果未知时，归属记为未知，预留保留。停止与释放先用同一个键再问 `adopt`，查清之前不停止这个执行域。模型的提交是原子的。
+- 提交之后再复核一次：`adopt` 答 `confirmed`，但执行域在等待期间被停止或释放，或保留范围已封闭时，执行域归保留范围，作为停止中的项进索引并立即停止，停止记入保留进程账本，`residue` 是 `stopping`（`closed`）。复核与归属改变在同一个同步步骤里，对应模型里原子的 `Commit`。打断的情形对应模型的 `Commit` 紧接保留范围一侧的 `Stop`，不对应 `Abort`：`adopt` 已经在集成方账本里生效，归属已是保留范围。物理结果与 `Abort` 后停止相同，执行域被停止，`residue` 不报告保留。
+- 标记文件在 `adopt` 确认之后写，运行中与停止中的移交都写，留到停止确认并记账才删；写不成时由 `maintain()` 重写。标记不记停止意图，重启后停止未确认的项按运行中加载，模型的 `Recover` 则保留阶段。两者之间提供者崩溃时，单元只靠描述里的作用域摘要被列举，没有标记。
+- 移交之后，原句柄的停止不作用于执行域，答 `unconfirmed`。模型里只有本次获取的 `Stop` 与保留范围的停止，没有「别的归属方的句柄」。
+- 门在退出帧之后留在单元里，继续读命令的两条管道并丢弃字节。成员计数按进程号除去门。
+- 只有保留范围与请求方作用域相同的获取才能保留。其他获取的处置原因是 `policy`。标记文件读不全时，预留答不可用，处置原因也是 `policy`。
+- 一个状态目录一个索引，同一状态目录的各代提供者共用名额。
+- 提供者重启之后，加载的保留进程在有获取给出该范围的保留进程账本视图之前没有账本可记。这期间它们自行结清时，提供者删去标记，但没有记 `stopped`。

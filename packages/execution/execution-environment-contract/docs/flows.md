@@ -235,7 +235,7 @@ sequenceDiagram
 
 ### F-EEC07 命令的增量输出与终局
 
-状态：设计，提供者未实现。当前没有成员提供 `command` 设施。宿主机上的机制设计见 host-local 的[宿主命令与终端机制](../../execution-environment-host-local/docs/architecture.md#宿主命令与终端机制设计未实现)。
+状态：宿主提供者在 Linux 上提供 `command` 设施，平台范围见 host-local 的[宿主命令与终端](../../execution-environment-host-local/SPEC.md#宿主命令与终端)，机制见[宿主命令机制](../../execution-environment-host-local/docs/architecture.md#宿主命令机制)。
 
 条款：[设施协议](../SPEC.md#设施协议)、[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的 [`command`](architecture.md#command命令)。
 
@@ -280,7 +280,7 @@ sequenceDiagram
 
 ### F-EEC08 终端腿
 
-状态：设计，提供者未实现。当前没有成员提供 `terminal` 设施。宿主机上的机制设计见 host-local 的[宿主命令与终端机制](../../execution-environment-host-local/docs/architecture.md#宿主命令与终端机制设计未实现)。
+状态：宿主提供者提供 `terminal` 设施，平台范围见 host-local 的[持久终端](../../execution-environment-host-local/SPEC.md#持久终端)，机制见[持久终端机制](../../execution-environment-host-local/docs/architecture.md#持久终端机制)。
 
 条款：[设施协议](../SPEC.md#设施协议)、[INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确)、[INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)、[INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。展开组的 F-EX02 里的一种设施操作。逐设施的规则见内部架构的 [`terminal`](architecture.md#terminal终端)。
 
