@@ -159,6 +159,7 @@ const MAY_HAVE_LEFT: readonly unknown[] = [
   fetchFailure('ERR_SSL'),
   fetchFailure('ERR_TLS_CERT'),
   fetchFailure(7),
+  fetchFailure({ toString: () => 'ECONNREFUSED' }),
   fetchFailure(undefined),
   new TypeError('fetch failed'),
   Object.assign(new TypeError('fetch failed'), { cause: 'ECONNREFUSED' }),
@@ -242,8 +243,20 @@ describe('the fetch of protected resource metadata (R4, T4)', () => {
     expect([...new Headers(seen[0]?.init?.headers).keys()]).toEqual(['accept'])
   })
 
-  it('reads nothing from any status but 200, and cancels the body it did not read', async () => {
-    for (const status of [201, 204, 206, 301, 302, 401, 403, 404, 500]) {
+  it('reads nothing from any status but 200, even when the body holds the document', async () => {
+    for (const status of [201, 202, 206, 301, 302, 400, 401, 403, 404, 500, 503]) {
+      const fetchFn = answering(() => new Response(JSON.stringify(document), { status }))
+      expect(
+        await metadataFetcher(fetchFn)('https://p.test/m', never),
+        String(status),
+      ).toBeUndefined()
+    }
+    const empty = answering(() => new Response(null, { status: 204 }))
+    expect(await metadataFetcher(empty)('https://p.test/m', never)).toBeUndefined()
+  })
+
+  it('cancels the body of an answer it did not read', async () => {
+    for (const status of [301, 404, 500]) {
       let cancelled = false
       const body = new ReadableStream<Uint8Array>({
         pull(controller) {
@@ -253,12 +266,9 @@ describe('the fetch of protected resource metadata (R4, T4)', () => {
           cancelled = true
         },
       })
-      const fetchFn = answering(() => new Response(status === 204 ? null : body, { status }))
-      expect(
-        await metadataFetcher(fetchFn)('https://p.test/m', never),
-        String(status),
-      ).toBeUndefined()
-      if (status !== 204) expect(cancelled, `the body of ${status} is cancelled`).toBe(true)
+      const fetchFn = answering(() => new Response(body, { status }))
+      expect(await metadataFetcher(fetchFn)('https://p.test/m', never)).toBeUndefined()
+      expect(cancelled, `the body of ${status} is cancelled`).toBe(true)
     }
   })
 
