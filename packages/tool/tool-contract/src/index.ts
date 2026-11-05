@@ -153,3 +153,14 @@ export type {
   CommandCallRejection,
   CommandTable,
 } from './command-call.ts'
+export { toolsCapabilityOf } from './tools-capability.ts'
+export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts'
+export type { ToolForwardIntent } from './forwarding.ts'
+export type {
+  SearchArguments,
+  SearchPage,
+  InspectArguments,
+  ToolUsageView,
+  ToolFixedReadArguments,
+  ToolsReadArguments,
+} from './tools-protocol.ts'
