@@ -9,11 +9,12 @@ import {
   type Judgment,
 } from '@omne-harness/assets'
 import { isPackageDigest } from './digest.ts'
-import { isBoundedText, isSkillName } from './names.ts'
+import { isSkillName } from './names.ts'
 import {
   DESCRIPTION_LIMIT,
   fieldsOf,
   firstFinding,
+  isSkillDescription,
   readScripts,
   readSettings,
   unknownKeys,
@@ -97,7 +98,7 @@ function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
   const description = field(body, 'description')
   if (
     description !== undefined &&
-    (description.kind !== 'string' || !isBoundedText(description.value, DESCRIPTION_LIMIT))
+    (description.kind !== 'string' || !isSkillDescription(description.value))
   )
     findings.push({
       code: 'malformed',

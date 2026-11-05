@@ -1,14 +1,15 @@
 // Reads SKILL.md: strict UTF-8 without a byte order mark, a `---` frontmatter closed by the first
 // line that is only `---`, and a YAML mapping whose keys are unique in the whole tree. What the
 // community Skills do beyond that and the main hosts accept is accepted too, with a compatibility
-// hint: a description over the 1024 characters of the Agent Skills specification, metadata that is not a text map, and a frontmatter
-// that strict YAML does not read but whose name and description can be read line by line.
+// hint: a description over the 1024 characters of the Agent Skills specification (up to
+// `DESCRIPTION_LIMIT`), metadata that is not a text map, and a frontmatter that strict YAML does
+// not read but whose name and description can be read line by line.
 import { isMap, parseDocument } from 'yaml'
 import type { CompatibilityHint } from '../hints.ts'
 import { isBoundedText, isSkillName } from '../names.ts'
 import type { ManifestValue, SkillManifest, SkillName } from '../values.ts'
 import { readByLine } from './by-line.ts'
-import { isSkillDescription, SPECIFICATION_DESCRIPTION_LIMIT } from './shape.ts'
+import { DESCRIPTION_LIMIT, isSkillDescription, SPECIFICATION_DESCRIPTION_LIMIT } from './shape.ts'
 import { plainValue } from './yaml-value.ts'
 
 /** What the manifest gives to the package rules. `name` is present when it could be read. */
@@ -139,7 +140,7 @@ function lineRead(yaml: string): ManifestRead {
     malformed(`the frontmatter is not valid YAML, and line by line ${detail}`, name)
   if (!isSkillName(name)) return fail('its name is not a Skill name')
   if (!isSkillDescription(description))
-    return fail('its description is not text of 1 to DESCRIPTION_LIMIT characters')
+    return fail(`its description is not text of 1 to ${DESCRIPTION_LIMIT} characters`)
   return {
     kind: 'ok',
     manifest: Object.freeze({ name, description, extra: Object.freeze({}) }),
@@ -153,7 +154,7 @@ function interpret(fields: FieldMap, rawName: unknown): ManifestRead {
   if (!isSkillName(rawName)) return fail('name is not a Skill name')
   const description = fields['description']
   if (!isSkillDescription(description))
-    return fail('description is not text of 1 to DESCRIPTION_LIMIT characters')
+    return fail(`description is not text of 1 to ${DESCRIPTION_LIMIT} characters`)
   if (!isOptional(fields['license'], value => typeof value === 'string'))
     return fail('license is not text')
   if (!isOptional(fields['compatibility'], value => isBoundedText(value, COMPATIBILITY_MAX)))
