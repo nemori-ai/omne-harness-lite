@@ -329,15 +329,16 @@ node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口
 
 ### 留下的进程与终端字节归属的兑现（未实现）
 
-本节是宿主提供者对契约两节的兑现目标：[一次性命令留下的进程](../execution-environment-contract/SPEC.md#一次性命令留下的进程未实现)与[终端段的完成与字节归属](../execution-environment-contract/SPEC.md#终端段的完成与字节归属未实现)。两者都在 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 中实现，现在都没有实现。实现之前，上文的现行行为不变。
+本节是宿主提供者对契约两节的兑现目标：[一次性命令留下的进程](../execution-environment-contract/SPEC.md#一次性命令留下的进程未实现)与[终端段的完成与字节归属](../execution-environment-contract/SPEC.md#终端段的完成与字节归属未实现)。两者现在都没有实现，实现由 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 承担。实现之前，上文的现行行为不变。
 
-取代的依据：上文「主进程退出之后，提供者强制停止这个单元」与持久终端的「只剩 gate 与 shell」两条，依据是 GATE-EE 候选第 3、4 节。D1 决策记录没有涉及它们，本节所在的「宿主命令与终端」也没有经过独立技术接受。取代它们的是 D-89 设计：agent 与人一样能让自己起的进程活下去，同时每个活着的进程都恰好有一个归属方，能被列出，能被确认停止，宿主崩溃后能被找回。
+取代的依据：上文「主进程退出之后，提供者强制停止这个单元」与持久终端的「只剩 gate 与 shell」两条，依据是 GATE-EE 候选第 3、4 节。D1 决策记录没有涉及它们，本节所在的「宿主命令与终端」也没有经过独立技术接受。取代它们的是 #1137 卡正文的「总体设计」：调用方与人一样能让自己起的进程活下去，同时每个活着的进程都恰好有一个归属方，能被列出，能被确认停止，宿主崩溃后能被找回。
 
 Linux 的兑现：
 
 - 处置的读数：主进程退出、输出安静之后，门报告单元里除门自己以外的进程数，读的是单元 cgroup 的 `cgroup.procs`。读不到时报告未知。
+- 移交等待保留账本的 `plan` 与 `adopt`，上界是 `startBoundMs`。
 - 移交之后，门留在单元里，继续读命令原来的两条管道，读出即丢弃，只计字节数。这样做只为了让留下的进程不因管道关闭而收到 `SIGPIPE`。保存输出不在本次范围。
-- 变空检测：门在委派的子 cgroup 上监听 `cgroup.events` 的 `populated`，或者定时读单元的 `cgroup.procs`。实现时用原型在本机的 cgroup 布局上选定一种，并写进本节。门自己在单元里，所以单元自己的 `cgroup.events` 不会变空。
+- 变空检测：门在委派的子 cgroup 上监听 `cgroup.events` 的 `populated`，或者定时读单元的 `cgroup.procs`。两种做法的取舍尚未定。门自己在单元里，所以单元自己的 `cgroup.events` 不会变空。
 - 提供者重启之后，用 `systemctl --user show -p ControlGroup` 取单元的 cgroup 路径，经 `scope-cgroup.ts` 换算成目录，再读 `cgroup.procs`。只剩门时停止并结清。不用 `TasksCurrent`，因为它数的是线程，而门是带线程池的 Node 进程。
 - 终端哨兵：驱动在段首、段尾向 PTY 写 OSC 私有序列 `ESC ] 7770 ; omne-b|omne-e ; <段随机数> BEL`。随机数经控制 FIFO 交给驱动，不经 PTY 输入，所以不被回显。门只认本段随机数的哨兵，并从输出里删去哨兵。输出处理（`onlcr`）不改写 OSC 序列，这一点由真实 PTY 的用例确认。
 - 段间字节：没有段运行时，门也持续读 PTY。段间字节进有界缓冲，下一段的结果带上它们与丢弃数。
@@ -350,11 +351,11 @@ Linux 的兑现：
 | `command.retainedPerScope` | 8 | 每个保留范围的保留进程上界 |
 | `terminal.betweenSegmentBytes` | 256 KiB | 段间字节缓冲的上界 |
 
-Windows 的兑现（需要 Windows 宿主验证）：根进程退出时，可以保留就不终止 Job，bridge 继续持有 Job 句柄并读管道。变空检测用 Job 完成端口的 `JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO`。bridge 意外退出时，`KILL_ON_JOB_CLOSE` 停止留下的进程，这是保守方向。冷恢复按保留账本里的原 Job 名重开。ConPTY 会重绘输出，可能吞掉未知的 OSC 序列。要先在真实 ConPTY 上验证；不成立时，Windows 终端保留现行的「按观察窗口归属」，并在这里写明。
+Windows 的兑现（需要 Windows 宿主验证）：根进程退出时，可以保留就不终止 Job，bridge 继续持有 Job 句柄并读管道。变空检测用 Job 完成端口的 `JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO`。bridge 意外退出时，`KILL_ON_JOB_CLOSE` 停止留下的进程，这是保守方向。冷恢复按保留账本里的原 Job 名重开。ConPTY 会重绘输出，可能吞掉未知的 OSC 序列，这一点尚未在真实 ConPTY 上验证。不成立时，Windows 终端保留现行的「按观察窗口归属」。
 
 macOS 没有命令后端。将来的提供者若只能按进程组或会话收纳，就不满足封闭收纳，不提供保留进程。
 
-已知偏离：契约的两节已经写入，本提供者仍按上文的现行行为运行。具体是：主进程退出后一律停止单元，命令结局没有 `residue`；终端在段结束时有额外进程就失效；段结果读到 `EAGAIN` 即交出。收敛计划：#1137 的终端一波实现字节归属，留下的进程一波实现处置、移交与 `list`，Windows 一波在有 Windows 宿主时实现。负责人是 #1137 的执行者。
+已知偏离：契约的两节已经写入，本提供者仍按上文的现行行为运行。具体是：主进程退出后一律停止单元，命令结局没有 `residue`；终端在段结束时有额外进程就失效；段结果读到 `EAGAIN` 即交出。收敛计划：#1137 先实现 Linux 终端的字节归属，再实现 Linux 一次性命令的处置、移交与 `list`；Windows 的兑现需要 Windows 宿主验证。负责人是 #1137 的执行者。
 
 ### 撤除顺序
 

@@ -7,7 +7,7 @@
 - 证明是手写的，没有机器检查。它不是 TLAPS 证明。
 - 常量取目标值：`Containment = "sealed"`、`Policy = "retain"`、`RecheckClosed = TRUE`、`RecheckPhase = TRUE`、`EvictOldest = FALSE`、`HonestEnum = TRUE`。`Bound` 取任意值。每条证明写明它用到哪一个目标取值，对应的负控正是去掉这一取值。
 - 范围仍是一份获取 A 与一个保留范围 R。多份获取与多个保留范围不在本页。
-- 方法：对每条性质 P，证明 `Init ⇒ P`，并且对 `Next` 的每个析取项 S，`P ∧ Aux ∧ S ⇒ P′`。`Aux` 是模型里的 `Auxiliary`，它的各项也用同样的方法证明，见下面的引理。
+- 方法：对每条性质 P，证明 `Init ⇒ P`，并且对 `Next` 的每个析取项 S，`P ∧ L ∧ S ⇒ P′`，其中 L 是下面「引理」一节已经证明的引理。模型里的 `Auxiliary` 有 15 个合取项，本页只证明其中被下文用到的几项（L-A 至 L-D、L-K、L-R、L-T）。其余合取项只由 `ProcessCustody-inductive.cfg` 在 1 个执行域下检查，本页不推广。
 - 记号：`ph[u] = "none"` 表示执行域 u 还没有记账。`Live(u)` 表示 u 里有活进程。「改变 ph 的动作」指下表所列的动作。
 
 | 动作 | 改变 `ph` 的方式 |
@@ -60,6 +60,10 @@
 - 使 `indexComplete` 变真的只有 `Recover`。`HonestEnum = TRUE` 时，它对每个 `ph ≠ "none"` 的执行域置 `known`。
 - 负控 N4 取 `HonestEnum = FALSE`：`Recover` 可以只认回一个子集，却仍置 `indexComplete = TRUE`，L-K 不成立，于是 `ClosureTruth` 或 `SettleTruth` 被违反。
 
+**L-R（封闭完成意味着已封闭）：**`closureDone ⇒ closed`。使 `closureDone` 变真的只有 `ClosureDone`，它的守卫含 `closed`。没有动作使 `closed` 变假。
+
+**L-T（结清时没有预留）：**`acqSt = "settled" ⇒ resv = {}`。使 `acqSt` 变为 `settled` 的只有 `Settle`，它的守卫含 `resv = {}`。向 `resv` 加入执行域只经 `Dispose`，它要求 `ph[u] = "exited" ∧ own[u] = "acq" ∧ known[u]`。结清之后由下面 T8 的 `SettleTruth`，获取名下的执行域都处在 `none` 或 `stopped`，没有执行域满足 `Dispose` 的守卫。两条性质一起对动作归纳。
+
 **L-S（获取不会重新打开）：**`acqSt` 只按 `open → draining → settled` 前进。`Release` 与 `Crash` 把 `open` 改为 `draining`，`Settle` 把 `draining` 改为 `settled`。没有动作使它后退。
 
 ## 不变式
@@ -100,7 +104,7 @@
 
 - `retainDecided[u]` 只由 `Commit` 置真。之后 `own[u] = "ret"`（由 I2 不再改变），`ph[u] = "retained"`。
 - `stopDecided[u]` 只在 `ph[u] = "exited"` 时被置真：`Dispose` 的停止分支、`Abort`、`Stop`、`Release`、`DrainSweep`。进入 `exited` 只经 `PrimExit` 从 `running`，进入 `running` 只经 `Launch` 从 `planned`。`Commit` 之后 u 处在 `retained`，由上表，它只能走向 `stopping` 与 `stopped`，不会回到 `exited`。所以先移交、后停止的顺序不可能置 `stopDecided`。
-- 反过来，`stopDecided[u]` 被置真时，`ph[u]` 同时改为 `stopping`，或者已经是 `stopping`（`Abort` 遇到已停止的执行域时不置标记）。`Commit` 的守卫要求 `ph[u] = "exited"`，所以先停止、后移交的顺序也不可能。
+- 反过来，置 `stopDecided[u]` 的五个动作都在同一步把 `ph[u]` 从 `exited` 改为 `stopping`。此后 `ph[u]` 只能是 `stopping` 或 `stopped`。`Commit` 的守卫要求 `ph[u] = "exited"`，所以先停止、后移交的顺序也不可能。
 - 负控 N6 取 `RecheckPhase = FALSE`：`Release` 已把预留中的执行域改为 `stopping`，`Commit` 仍把它移交。
 
 **T5（封闭即终）**由 I5 的两条安全性质组成。
@@ -109,10 +113,10 @@
 
 - `SettleTruth`：`acqSt = "settled" ⇒ ∀u：own[u] = "acq" ⇒ ph[u] ∈ {"none", "stopped"}`。
   - `Settle` 的守卫是 `indexComplete ∧ resv = {} ∧ ∀u：known[u] ∧ own[u] = "acq" ⇒ ph[u] = "stopped"`。由 L-K 与 L-A，每个 `own[u] = "acq"` 的执行域都有 `ph[u] ≠ "none"` 且 `known[u]`，所以都已停止。
-  - 结清之后：由 L-S，`acqSt` 不再是 `open`，`PlanAcq` 不可用；由 F2，已停止的执行域不再离开 `stopped`。`Dispose` 要求 `ph[u] = "exited"`，没有获取名下的执行域满足它，所以 `resv` 保持为空，也不会有执行域经 `Commit` 改变归属。
+  - 结清之后：由 L-S，`acqSt` 不再是 `open`，`PlanAcq` 不可用；由 F2，已停止的执行域不再离开 `stopped`。由 L-T，`resv` 保持为空，所以不会有执行域经 `Commit` 改变归属。
 - `ClosureTruth`：`closureDone ⇒ ∀u：own[u] = "ret" ⇒ ph[u] ∈ {"none", "stopped"}`。
   - `ClosureDone` 的守卫与 `Settle` 同形，只是归属方是 `ret`。同样由 L-K 与 L-A，R 名下的执行域都已停止。
-  - 之后：`closureDone ⇒ closed`，`closed` 不会变假。进入 R 的 `PlanRet` 与 `Commit` 都要求 `¬closed`。由 F2，已停止的执行域不再离开 `stopped`。
+  - 之后：由 L-R，`closed` 成立，且不会变假。进入 R 的 `PlanRet` 与 `Commit` 都要求 `¬closed`。由 F2，已停止的执行域不再离开 `stopped`。
 - 崩溃之后，`Crash` 置 `indexComplete = FALSE`，所以 `Settle` 与 `ClosureDone` 都等到 `Recover` 完整地认回之后才可能前进。这就是 SPEC 中「恢复只在枚举完整时前进」的形式含义。
 
 ## 不在本页

@@ -50,6 +50,7 @@
 | `ProcessCustody-unsafe-pgroup.cfg` | 负控 N2 | `Containment = "pgroup"` | 应违反 `NoLeak` |
 | `ProcessCustody-unsafe-evict.cfg` | 负控 N3 | `EvictOldest = TRUE` | 应违反 `NoEviction` |
 | `ProcessCustody-unsafe-enum.cfg` | 负控 N4 | `HonestEnum = FALSE` | 应违反 `ClosureTruth` 或 `SettleTruth` |
+| `ProcessCustody-unsafe-enum-closure.cfg` | 负控 N4b | `HonestEnum = FALSE` | 应违反 `ClosureTruth`（只查封闭一侧） |
 | `ProcessCustody-unsafe-commit-closed.cfg` | 负控 N5 | `RecheckClosed = FALSE` | 应违反 `NoEntryAfterClose` |
 | `ProcessCustody-unsafe-commit-phase.cfg` | 负控 N6 | `RecheckPhase = FALSE` | 应违反 `OneDisposition` |
 | `ProcessCustody-unsafe-hangup.cfg` | 负控 N10 | `Policy = "hangup"` | 应违反 `KeepWhenPermitted` |
