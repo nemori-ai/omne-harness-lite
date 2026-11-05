@@ -867,22 +867,28 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
       { stdio: 'ignore' },
     )
     const launcherExited = once(launcher, 'exit')
-    await vi.waitFor(async () => {
-      expect(await unitState(unit)).toMatchObject({ activeState: 'active' })
-    })
-    await run('systemctl', ['--user', 'stop', '--no-block', unit])
-    await vi.waitFor(async () => {
-      expect(await unitState(unit)).toMatchObject({ activeState: 'deactivating' })
-    })
-    const provider = hostProvider()
-    const listed = await provider.listRecoveryResources?.(scopeOf(recoverScope))
-    if (listed?.kind !== 'listed') throw new Error(`expected a listing: ${JSON.stringify(listed)}`)
-    expect(listed.resources.map(resource => resource.key)).toEqual([key])
-    const resource = listed.resources[0]
-    if (resource === undefined) throw new Error('expected a listed resource')
-    expect(await provider.recover?.(resource)).toMatchObject({ status: 'confirmedStopped' })
-    expect(await unitState(unit)).toMatchObject({ loadState: 'not-found' })
-    await launcherExited
+    try {
+      await vi.waitFor(async () => {
+        expect(await unitState(unit)).toMatchObject({ activeState: 'active' })
+      })
+      await run('systemctl', ['--user', 'stop', '--no-block', unit])
+      await vi.waitFor(async () => {
+        expect(await unitState(unit)).toMatchObject({ activeState: 'deactivating' })
+      })
+      const provider = hostProvider()
+      const listed = await provider.listRecoveryResources?.(scopeOf(recoverScope))
+      if (listed?.kind !== 'listed')
+        throw new Error(`expected a listing: ${JSON.stringify(listed)}`)
+      expect(listed.resources.map(resource => resource.key)).toEqual([key])
+      const resource = listed.resources[0]
+      if (resource === undefined) throw new Error('expected a listed resource')
+      expect(await provider.recover?.(resource)).toMatchObject({ status: 'confirmedStopped' })
+      expect(await unitState(unit)).toMatchObject({ loadState: 'not-found' })
+    } finally {
+      // The unit ignores SIGTERM: a failed assertion must not leave it waiting out its stop timeout.
+      await run('systemctl', ['--user', 'kill', '--signal=SIGKILL', unit]).catch(() => undefined)
+      await launcherExited
+    }
   })
 
   it('answers unavailable, not an empty list, when no systemctl can be found to list the scopes', async () => {

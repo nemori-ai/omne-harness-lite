@@ -1,14 +1,16 @@
 // Where the unified cgroup hierarchy keeps a scope, read from `/proc/self/cgroup` and
 // `/proc/self/mountinfo` text: unified, hybrid and legacy systemd layouts, a mount that shows only
-// a subtree, and escaped mount points; then where a process stands for one unit. The last test runs
-// the probe program outside its own unit.
+// a subtree, and escaped mount points; then where a process stands for one unit. The last two tests
+// read this test process's own cgroup and run the probe program outside its own unit.
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import {
   noUnifiedHierarchyExit,
   ownUnitPlacement,
+  scopeMembers,
   unifiedCgroupDirectory,
   unitPlacement,
 } from '../src/scope-cgroup.ts'
@@ -92,11 +94,54 @@ it('sees no unified hierarchy on a legacy host, where the kernel still prints a 
   })
 })
 
+it('reads only whole cgroup2 mount lines and an absolute 0:: path', () => {
+  // Too few fields before the separator, and a line without the separator at all.
+  const short = '34 33 0:29 / - cgroup2 cgroup2 rw'
+  const noSeparator = 'xxcgroup2 a b / /mnt'
+  expect(unifiedCgroupDirectory(`0::${scopePath}\n`, [short, noSeparator].join('\n'))).toBe(
+    undefined,
+  )
+  expect(unifiedCgroupDirectory('0::relative/path\n', unifiedAt('/sys/fs/cgroup'))).toBe(undefined)
+  expect(unitPlacement(unit, '0::relative/path\n', unifiedAt('/sys/fs/cgroup'))).toEqual({
+    kind: 'noUnifiedHierarchy',
+  })
+  expect(
+    unifiedCgroupDirectory(`1:name=systemd:${scopePath}\n`, unifiedAt('/sys/fs/cgroup', '/x')),
+  ).toBe(undefined)
+})
+
 it('decodes the octal escapes of a mount point', () => {
   expect(unifiedCgroupDirectory(`0::${scopePath}\n`, unifiedAt('/run/cgroup\\040v2'))).toBe(
     `/run/cgroup v2${scopePath}`,
   )
 })
+
+// The cgroup of this test process, where the host shows it a unified hierarchy below the root.
+const ownCgroup = (() => {
+  if (process.platform !== 'linux') return undefined
+  const procCgroup = readFileSync('/proc/self/cgroup', 'utf8')
+  const path = procCgroup
+    .split('\n')
+    .find(line => line.startsWith('0::'))
+    ?.slice(3)
+  const visible = unifiedCgroupDirectory(procCgroup, readFileSync('/proc/self/mountinfo', 'utf8'))
+  return path === undefined || path === '/' || visible === undefined
+    ? undefined
+    : (path.split('/').at(-1) ?? '')
+})()
+
+it.skipIf(ownCgroup === undefined)(
+  'places this process in its own cgroup, whose member list names it',
+  () => {
+    const leaf = ownCgroup ?? ''
+    const placement = ownUnitPlacement(leaf)
+    if (placement.kind !== 'inUnit')
+      throw new Error(`expected inUnit: ${JSON.stringify(placement)}`)
+    expect(scopeMembers(placement.directory)).toContain(process.pid)
+    expect(ownUnitPlacement(`${leaf}-other`)).toEqual({ kind: 'otherUnit' })
+    expect(scopeMembers('/nonexistent/omne-cgroup')).toBe(undefined)
+  },
+)
 
 it(
   'fails when the probe program does not run in the unit it is named for',

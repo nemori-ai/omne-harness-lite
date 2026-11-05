@@ -238,8 +238,8 @@ export async function forceStopScope(input: {
 
 /**
  * The `Id` and `Description` of every unit in `systemctl show` output (key=value blocks separated
- * by blank lines), or `undefined` when a block is not that shape or names a unit outside
- * `omne-host-*.scope`. The columns of `list-units` text change when a listed unit has a pending
+ * by blank lines), or `undefined` when a block is not that shape (a line without a key, a repeated
+ * key, no `Id` or no `Description`) or names a unit outside `omne-host-*.scope`. The columns of `list-units` text change when a listed unit has a pending
  * job, and systemd 245 ignores `--output=json` there, so the listing reads `show`.
  */
 function shownUnits(text: string): { id: string; description: string }[] | undefined {
@@ -250,8 +250,10 @@ function shownUnits(text: string): { id: string; description: string }[] | undef
     for (const line of block.split('\n')) {
       if (line === '') continue
       const at = line.indexOf('=')
-      if (at <= 0) return undefined
-      values.set(line.slice(0, at), line.slice(at + 1))
+      const key = line.slice(0, at)
+      // A repeated key means two units ran together without the blank line between them.
+      if (at <= 0 || values.has(key)) return undefined
+      values.set(key, line.slice(at + 1))
     }
     const id = values.get('Id')
     const description = values.get('Description')
@@ -265,7 +267,8 @@ function shownUnits(text: string): { id: string; description: string }[] | undef
 /**
  * Lists the scopes of `scope` that this provider started and systemd still knows, from the unit
  * descriptions. A failed listing, or output it cannot read, is `unavailable`, never an empty list.
- * Only a well-formed unit of another scope, or a probe unit, is left out. A unit of an earlier boot
+ * Only a well-formed block that is not this scope's is left out: its description names another
+ * scope, or its unit name is not `omne-host-<uuid>.scope` (a probe unit, say). A unit of an earlier boot
  * is gone with that boot, so it is not listed.
  */
 export async function listScopes(input: {

@@ -33,6 +33,33 @@ function unifiedCgroupPath(procCgroup: string): string | undefined {
   return path?.startsWith('/') === true ? path : undefined
 }
 
+/** The root and mount point of a `cgroup2` line of `/proc/self/mountinfo`, else `undefined`. */
+function cgroup2Mount(line: string): { root: string; mountpoint: string } | undefined {
+  const separator = line.indexOf(' - ')
+  if (separator < 0 || line.slice(separator + 3).split(' ')[0] !== 'cgroup2') return undefined
+  const fields = line.slice(0, separator).split(' ')
+  const root = mountField(fields[3])
+  const mountpoint = mountField(fields[4])
+  return root === undefined || mountpoint === undefined ? undefined : { root, mountpoint }
+}
+
+/** `path` relative to a mount `root` that contains it, segment by segment, else `undefined`. */
+function pathBelow(root: string, path: string): string | undefined {
+  if (root === '/') return path
+  return path === root || path.startsWith(`${root}/`) ? path.slice(root.length) : undefined
+}
+
+/** The directory of cgroup `path` under the first `cgroup2` mount whose root contains it. */
+function mountedDirectory(path: string, mountinfo: string): string | undefined {
+  for (const line of mountinfo.split('\n')) {
+    const mount = cgroup2Mount(line)
+    const below = mount === undefined ? undefined : pathBelow(mount.root, path)
+    if (mount === undefined || below === undefined) continue
+    return mount.mountpoint === '/' ? below || '/' : `${mount.mountpoint}${below}`
+  }
+  return undefined
+}
+
 /**
  * The absolute directory of the cgroup that `/proc/self/cgroup` names in the unified hierarchy
  * (its `0::` line), under the first `cgroup2` mount of `/proc/self/mountinfo` whose root contains
@@ -40,24 +67,7 @@ function unifiedCgroupPath(procCgroup: string): string | undefined {
  */
 export function unifiedCgroupDirectory(procCgroup: string, mountinfo: string): string | undefined {
   const path = unifiedCgroupPath(procCgroup)
-  if (path === undefined) return undefined
-  for (const line of mountinfo.split('\n')) {
-    const separator = line.indexOf(' - ')
-    if (separator < 0 || line.slice(separator + 3).split(' ')[0] !== 'cgroup2') continue
-    const fields = line.slice(0, separator).split(' ')
-    const root = mountField(fields[3])
-    const mountpoint = mountField(fields[4])
-    if (root === undefined || mountpoint === undefined) continue
-    const below =
-      root === '/'
-        ? path
-        : path === root || path.startsWith(`${root}/`)
-          ? path.slice(root.length)
-          : undefined
-    if (below === undefined) continue
-    return mountpoint === '/' ? below || '/' : `${mountpoint}${below}`
-  }
-  return undefined
+  return path === undefined ? undefined : mountedDirectory(path, mountinfo)
 }
 
 /**
@@ -65,12 +75,10 @@ export function unifiedCgroupDirectory(procCgroup: string, mountinfo: string): s
  * path itself, so a mount whose root is the unit's cgroup still places the process in its unit.
  */
 export function unitPlacement(unit: string, procCgroup: string, mountinfo: string): UnitPlacement {
-  const directory = unifiedCgroupDirectory(procCgroup, mountinfo)
-  if (directory === undefined) return { kind: 'noUnifiedHierarchy' }
-  const inUnit =
-    unit !== '' &&
-    !unit.includes('/') &&
-    unifiedCgroupPath(procCgroup)?.endsWith(`/${unit}`) === true
+  const path = unifiedCgroupPath(procCgroup)
+  const directory = path === undefined ? undefined : mountedDirectory(path, mountinfo)
+  if (path === undefined || directory === undefined) return { kind: 'noUnifiedHierarchy' }
+  const inUnit = unit !== '' && !unit.includes('/') && path.endsWith(`/${unit}`)
   return inUnit ? { kind: 'inUnit', directory } : { kind: 'otherUnit' }
 }
 

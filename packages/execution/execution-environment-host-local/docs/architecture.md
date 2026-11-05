@@ -56,7 +56,9 @@ flowchart LR
   Probe --> Cgroup[scope-cgroup.ts]
   Probe -. 在探测单元里起 .-> ScopeProbe[scope-probe.ts]
   ScopeProbe --> Cgroup
-  TerminalGate[terminal-gate.ts] --> Cgroup
+  Provider --> Terminal[host-terminal.ts]
+  Terminal -. 起 gate .-> TerminalGate[terminal-gate.ts]
+  TerminalGate --> Cgroup
   Cordis[./cordis] --> Provider
   Cordis --> EE[execution-environment]
   Cordis --> EECC[execution-environment-cordis-contract]
@@ -225,7 +227,7 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 - 门一侧的暂停与管理端的丢弃分开处理两种压力：前者限制门的内存，后者限制管理端的内存，命令不会因为没有读者而被永远阻塞。
 - 退役强制停止这一代仍在运行的命令。把它们列为待处置资源再交给后继的一代需要更多机制，M2 没有这个需求（D1 结论第 3 条）。代价：配置重载以 `effectUnknown` 结束这些命令。
 - 统一层级的位置取单元里的进程从内核读到的报告：`/proc/self/cgroup` 的 `0::` 行给路径，`/proc/self/mountinfo` 里包含该路径的 `cgroup2` 挂载给目录。systemd 在统一模式下把层级挂在 `/sys/fs/cgroup`，在混合模式下挂在 `/sys/fs/cgroup/unified`，所以固定路径只在一种布局下成立。探测程序与终端 gate 用同一份解析（`scope-cgroup.ts`），所以 P5 与 P6 满足时，gate 的核对也找得到同一个目录。
-- 列举读 `systemctl show`，不读 `list-units`。`list-units` 的文本只在有单元带着待执行的任务（例如正在停止）时多出一列 JOB，列数随单元状态变化。systemd 245 对 `list-units` 忽略 `--output=json`。`show` 的 key=value 块在这些版本上格式相同，正在停止的单元也照常列出。
+- 列举读 `systemctl show`，不读 `list-units`。`list-units` 的文本只在有单元带着待执行的任务（例如正在停止）时多出一列 JOB，列数随单元状态变化。systemd 245 对 `list-units` 忽略 `--output=json`。`show` 按单元打印 key=value 块，不随单元状态增减列；在 systemd 245 上实测，正在停止的单元照常列出，glob 无匹配时输出为空、退出码为 0。
 
 下图是一次命令的时序：管理端在宿主提供者里，门进程与命令在执行域里。
 
