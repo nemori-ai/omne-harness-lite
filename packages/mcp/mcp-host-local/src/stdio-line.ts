@@ -12,14 +12,6 @@ import { AsyncQueue } from './queue.ts'
 const NEWLINE = 0x0a
 const encoder = new TextEncoder()
 
-/** Settles with `aborted` when the signal fires; `undefined` when it never does. */
-function abortOf(signal: AbortSignal): Promise<'aborted'> {
-  return new Promise(resolve => {
-    if (signal.aborted) resolve('aborted')
-    else signal.addEventListener('abort', () => resolve('aborted'), { once: true })
-  })
-}
-
 export class StdioLine implements Line {
   readonly kind = 'stdio'
   readonly events: AsyncIterable<LineEvent>
@@ -172,29 +164,44 @@ export class StdioLine implements Line {
    */
   async send(outbound: Outbound, signal: AbortSignal): Promise<Exchange> {
     if (this.closed || !this.writable || this.exitedAt !== undefined) return { kind: 'unsent' }
+    if (signal.aborted) return { kind: 'aborted' }
+    // The write to a full pipe does not reject when the write end is aborted; it settles only when
+    // the peer reads or ends. So the wait is raced against the signal, and the listener is removed
+    // whichever wins, so a write nobody waits for leaves none behind (N1).
+    let onAbort: () => void = () => undefined
+    const aborted = new Promise<'aborted'>(resolve => {
+      onAbort = () => resolve('aborted')
+      signal.addEventListener('abort', onAbort, { once: true })
+    })
+    // `writing` stays true until the write itself settles: an aborted write to a full pipe is still
+    // outstanding, so `close()` aborts the write end rather than waiting for the peer to read it.
     this.writing = true
     const written = this.writer.write(encoder.encode(`${outbound.text}\n`)).then(
-      () => 'written' as const,
-      () => 'failed' as const,
-    )
-    const outcome = await Promise.race([written, abortOf(signal)])
-    if (outcome === 'written') this.writing = false
-    switch (outcome) {
-      case 'written':
-        return { kind: 'sent' }
-      case 'failed':
+      () => {
         this.writing = false
-        this.writable = false
-        return { kind: 'unsent' }
-      case 'aborted':
-        this.writable = false
-        void this.writer.abort(new Error('the write was abandoned')).catch(() => undefined)
-        if (!this.closed) this.queue.push({ kind: 'broken' })
-        return { kind: 'aborted' }
-      default: {
-        const exhaustive: never = outcome
-        return exhaustive
+        return 'written' as const
+      },
+      () => {
+        this.writing = false
+        return 'failed' as const
+      },
+    )
+    try {
+      switch (await Promise.race([written, aborted])) {
+        case 'written':
+          return { kind: 'sent' }
+        case 'failed':
+          this.writable = false
+          return { kind: 'unsent' }
+        case 'aborted':
+          this.writable = false
+          void this.writer.abort(new Error('the write was abandoned')).catch(() => undefined)
+          // The stream is unusable now, whatever the process does next.
+          if (!this.closed) this.queue.push({ kind: 'broken' })
+          return { kind: 'aborted' }
       }
+    } finally {
+      signal.removeEventListener('abort', onAbort)
     }
   }
 

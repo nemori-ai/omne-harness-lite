@@ -7,6 +7,7 @@ import type { ProcessHandle, TransportMaterial } from '@omne-harness/mcp-contrac
 import { generationOf } from '@omne-harness/mcp-contract/testing'
 import { createLocalTransportFactory } from '@omne-harness/mcp-host-local'
 import { HttpLine } from '../src/http-line.ts'
+import { StdioLine } from '../src/stdio-line.ts'
 
 const BYTE_LIMIT = 16_777_216
 const NOT_SENT = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
@@ -77,6 +78,30 @@ describe('the HTTP line and the signals it is given', () => {
       const exchange = await line.send({ text: '{}', headers: new Headers() }, controller.signal)
       expect(exchange.kind).toBe('stream')
       if (exchange.kind === 'stream') for await (const message of exchange.messages) void message
+    }
+    expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0)
+    await line.close()
+  })
+})
+
+/** A process that accepts every write at once and never writes, exits or is read. */
+function idleHandle(): ProcessHandle {
+  return {
+    stdin: new WritableStream<Uint8Array>(),
+    stdout: new ReadableStream<Uint8Array>(),
+    stderr: new ReadableStream<string>(),
+    exited: new Promise<void>(() => undefined),
+    stop: async () => 'root-only',
+  }
+}
+
+describe('the stdio line and the signals it is given', () => {
+  it('a write nobody waits for leaves no abort listener on the signal once the write completes (N1)', async () => {
+    const line = new StdioLine(idleHandle())
+    const controller = new AbortController()
+    for (let round = 0; round < 50; round += 1) {
+      const exchange = await line.send({ text: '{}', headers: new Headers() }, controller.signal)
+      expect(exchange.kind).toBe('sent')
     }
     expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0)
     await line.close()
