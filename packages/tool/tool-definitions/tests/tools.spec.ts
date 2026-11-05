@@ -7,6 +7,7 @@ import {
   toolsCapabilityOf,
   type ToolsCapability,
   type ToolResult,
+  type ToolUsageView,
 } from '@omne-harness/tool-contract'
 import {
   attachToolsCapability,
@@ -182,6 +183,93 @@ describe('Tools complete author', () => {
       next: 'opaque-next',
     })
   })
+
+  it.each(['schema', 'executor-owned'] as const)(
+    'inspect gives the complete %s command parameters',
+    async kind => {
+      const definition = author().definition
+      const schema = {
+        type: 'object',
+        properties: { query: { type: 'string' } },
+        required: ['query'],
+      }
+      const usage = 'search <query>; quote queries containing spaces'
+      const seen: unknown[] = []
+      const reply = value(
+        await call(
+          'inspect',
+          { name: 'Tools', command: 'search' },
+          capability({
+            inspect: async args => {
+              seen.push(args)
+              return succeed({
+                kind: 'available',
+                definition,
+                executor: adoption,
+                layer: { kind: 'official' },
+                usage: {
+                  definition: adoption,
+                  command: 'search',
+                  description: 'Find a lawful nonresident tool.',
+                  parameters:
+                    kind === 'schema'
+                      ? { schema: tree(schema), vocabulary: adoption, descriptions: [] }
+                      : { kind: 'executor-owned', usage, protocol: adoption },
+                  returns: { kind: 'ordinary', program: { kind: 'none' } },
+                },
+              })
+            },
+          }),
+        ),
+      )
+      expect(seen).toEqual([{ name: 'Tools', command: 'search' }])
+      const [overview, command, description, parameters] = textOf(reply).split('\n')
+      expect(JSON.parse(overview ?? 'null')).toMatchObject({
+        name: 'Tools',
+        programmable: false,
+        availability: 'available',
+      })
+      expect(command).toBe('command: search')
+      expect(description).toBe('Find a lawful nonresident tool.')
+      expect(parameters).toBe(`parameters: ${kind === 'schema' ? JSON.stringify(schema) : usage}`)
+    },
+  )
+
+  it.each(['available', 'known-unavailable'] as const)(
+    'inspect shows an overview without inventing command parameters for %s',
+    async kind => {
+      const definition = author().definition
+      const view: ToolUsageView =
+        kind === 'available'
+          ? { kind, definition, executor: adoption, layer: { kind: 'official' }, usage: null }
+          : { kind, definition, reason: 'model-output-incompatible', usage: null }
+      const reply = value(
+        await call(
+          'inspect',
+          { name: 'Tools', command: null },
+          capability({ inspect: async () => succeed(view) }),
+        ),
+      )
+      const result = JSON.parse(textOf(reply))
+      expect(result).toMatchObject({
+        name: 'Tools',
+        programmable: false,
+        availability: kind,
+        next: 'Inspect one command for its complete parameters.',
+      })
+      expect(result.commands.map((command: { name: string }) => command.name)).toEqual([
+        'help',
+        'search',
+        'inspect',
+        'execute',
+        'read_result',
+      ])
+      expect(
+        result.commands.every((command: { summary: string }) => command.summary.length > 0),
+      ).toBe(true)
+      expect(result).not.toHaveProperty('parameters')
+    },
+  )
 
   it.each(['waiting', 'commit-unknown'] as const)(
     'retains both references for %s without calling completion a success',
