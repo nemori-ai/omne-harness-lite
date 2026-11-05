@@ -26,5 +26,6 @@
 - [status.spec.ts](status.spec.ts)：状态视图
 - [release.spec.ts](release.spec.ts)：关闭次序与 `closeAll`
 - [memory-store.spec.ts](memory-store.spec.ts)：内存存储的符合性套件与隔离
+- [model/](model/)：连接表的有界穷举探索器：驱动真实的 `createConnectionTable`，在每个可达状态核对性质 P1–P8，见 [verification/README.md](../verification/README.md)
 - [doubles/](doubles/)：`world.ts`（端口替身与采用样本）、`core.ts`（服务组装）、`scripted-transport.ts`、`ports.ts`（计数替身）、`stalls.ts`（挂起选中的调用或不再答复的端口）、`faults.ts`（关闭次序的三步做完再 reject 的端口；按进程序号答 `stop()` 的落点）、`handles.ts`（凭据替身共用的句柄包装）、`calls.ts`（按调用序号挑选）、`deferred.ts`、`values.ts`
 - [fixtures/](fixtures/index.md)：测试固定输入（本包目前没有）
