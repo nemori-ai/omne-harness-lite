@@ -49,8 +49,11 @@ function pathBelow(root: string, path: string): string | undefined {
   return path === root || path.startsWith(`${root}/`) ? path.slice(root.length) : undefined
 }
 
-/** The directory of cgroup `path` under the first `cgroup2` mount whose root contains it. */
-function mountedDirectory(path: string, mountinfo: string): string | undefined {
+/**
+ * The directory of cgroup `path` (as the kernel or `systemctl show -p ControlGroup` names it) under
+ * the first `cgroup2` mount of `mountinfo` whose root contains it; `undefined` when no mount does.
+ */
+export function cgroupDirectory(path: string, mountinfo: string): string | undefined {
   for (const line of mountinfo.split('\n')) {
     const mount = cgroup2Mount(line)
     const below = mount === undefined ? undefined : pathBelow(mount.root, path)
@@ -67,7 +70,7 @@ function mountedDirectory(path: string, mountinfo: string): string | undefined {
  */
 export function unifiedCgroupDirectory(procCgroup: string, mountinfo: string): string | undefined {
   const path = unifiedCgroupPath(procCgroup)
-  return path === undefined ? undefined : mountedDirectory(path, mountinfo)
+  return path === undefined ? undefined : cgroupDirectory(path, mountinfo)
 }
 
 /**
@@ -76,7 +79,7 @@ export function unifiedCgroupDirectory(procCgroup: string, mountinfo: string): s
  */
 export function unitPlacement(unit: string, procCgroup: string, mountinfo: string): UnitPlacement {
   const path = unifiedCgroupPath(procCgroup)
-  const directory = path === undefined ? undefined : mountedDirectory(path, mountinfo)
+  const directory = path === undefined ? undefined : cgroupDirectory(path, mountinfo)
   if (path === undefined || directory === undefined) return { kind: 'noUnifiedHierarchy' }
   const inUnit = unit !== '' && !unit.includes('/') && path.endsWith(`/${unit}`)
   return inUnit ? { kind: 'inUnit', directory } : { kind: 'otherUnit' }

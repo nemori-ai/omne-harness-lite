@@ -14,6 +14,8 @@
 - [host-file-edges.spec.ts](host-file-edges.spec.ts)：宿主文件设施的边界结果与版本一致
 - [host-provider.spec.ts](host-provider.spec.ts)：宿主提供者的事实、经登记表门的账本关闭、退役与退役通知、命令启动前不起进程的拒绝与命令选项的界值
 - [host-command.spec.ts](host-command.spec.ts)：真实 systemd 用户 scope 里的命令：流式输出、显式环境、有界缓冲、门一侧的暂停、停止两态、单调用中断、释放与退役、资源恢复；只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行，归慢层
+- [host-command-residue.spec.ts](host-command-residue.spec.ts)：真实 systemd 用户 scope 里一次性命令留下的进程：移交与活过释放（C1）、列表与封闭即停（C2）、满额不驱逐（C3）、封闭后拒绝（C4）、新实例从标记找回（C6）、列表隔离（C14）、自行结清与各停止原因；只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行，归慢层
+- [host-retained-processes.spec.ts](host-retained-processes.spec.ts)：保留进程索引（替身监督者、真实临时状态目录）：容量、标记读写、按范围与租户列表、变空结清、重启后加载、范围封闭；处置的复核交错（C5）、提交未知与再问、停止原因顺序
 - [host-command-frames.spec.ts](host-command-frames.spec.ts)：门的帧读取、输出缓冲与单一读者、停止确认的判断、恢复引用的读取、监督工具的运行；不起 scope，两个平台都运行
 - [host-probe.spec.ts](host-probe.spec.ts)：`command` 的平台前提探测：改变真实环境后答 `unavailable` 与诊断，前提恢复后再启动；探测程序的退出与停止结果对应的前提项
 - [scope-cgroup.spec.ts](scope-cgroup.spec.ts)：统一、混合与 v1 布局下单元目录的解析，进程是否在自己的单元里，以及探测程序不在自己单元里时不以 0 退出

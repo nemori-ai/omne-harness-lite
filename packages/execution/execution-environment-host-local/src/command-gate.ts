@@ -1,17 +1,22 @@
 // The gate process of one host command. `systemd-run --scope` starts it inside the command's own
 // scope unit; the provider's manager talks to it over two private channels:
 // - control, file descriptor 3, manager to gate, one JSON object per line: first the request, then
-//   `{"c":"go"}` at most once, and `{"c":"term"}` for a graceful stop;
+//   `{"c":"go"}` at most once, `{"c":"term"}` for a graceful stop, and `{"c":"retain"}` after the
+//   exit frame when the manager handed the unit over to a retention scope;
 // - frames, standard output, gate to manager, one JSON object per line: `ready`, then `started` or
-//   `spawnFailed`, then `data` frames, then one `exit`.
+//   `spawnFailed`, then `data` frames, then one `exit` with the count of the unit's other members.
 // The gate checks that it runs in its own unit before it reports ready, starts the command only on
 // GO, gives it only the requested environment, and pauses the command's pipes while its frame pipe
-// is full, so the bytes waiting between command and manager stay bounded. It is a script: nothing
-// imports it. It uses Node built-ins only.
+// is full, so the bytes waiting between command and manager stay bounded. After the exit frame it
+// stays in the unit and keeps reading the command's two pipes, discarding the bytes, so processes
+// the command left behind never block on them or see SIGPIPE; the manager decides whether the unit
+// is stopped or kept, and a manager that went away leaves it to cold recovery. It is a script:
+// nothing imports it. It uses Node built-ins and the cgroup placement module only.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { Socket } from 'node:net'
 import type { Readable } from 'node:stream'
+import { ownUnitPlacement, scopeMembers } from './scope-cgroup.ts'
 
 type GateRequest = Readonly<{
   executable: string
@@ -74,13 +79,22 @@ process.stdout.on('drain', resume)
 const control = new Socket({ fd: 3, readable: true, writable: false })
 control.on('error', () => undefined)
 
+/** The unit's members other than this gate, from the kernel's list; null when it cannot be read. */
+function otherMembers(): number | null {
+  const placement = ownUnitPlacement(unit)
+  const pids = placement.kind === 'inUnit' ? scopeMembers(placement.directory) : undefined
+  return pids === undefined ? null : pids.filter(pid => pid !== process.pid).length
+}
+
 function finish(): void {
   if (finished || exitStatus === undefined) return
   finished = true
   if (quiet !== undefined) clearTimeout(quiet)
-  send({ t: 'exit', code: exitStatus.code, signal: exitStatus.signal })
-  for (const stream of streams()) stream.destroy()
-  control.destroy()
+  send({ t: 'exit', code: exitStatus.code, signal: exitStatus.signal, members: otherMembers() })
+  // From here on the pipes are drained and discarded; the gate stays until its unit is stopped.
+  paused = false
+  for (const stream of streams()) stream.resume()
+  setInterval(() => undefined, 2_147_483_647)
 }
 
 function armQuiet(): void {
@@ -92,6 +106,7 @@ function armQuiet(): void {
 
 function forward(stream: Readable, name: 'stdout' | 'stderr', maxChunkBytes: number): void {
   stream.on('data', (chunk: Buffer) => {
+    if (finished) return
     for (let at = 0; at < chunk.length; at += maxChunkBytes)
       if (
         !send({ t: 'data', s: name, b: chunk.subarray(at, at + maxChunkBytes).toString('base64') })
@@ -202,6 +217,9 @@ function onControl(line: string): void {
     went = true
     run(request)
   } else if (command === 'term') child?.kill('SIGTERM')
+  // `retain`: the unit was handed over; the manager may drop both channels. Nothing changes here,
+  // the gate already drains and stays. A manager that stops the unit instead kills the gate with it.
+  else if (command === 'retain') detached = true
 }
 
 let pending = ''
@@ -214,7 +232,8 @@ control.on('data', (text: string) => {
     onControl(line)
   }
 })
-// Without GO the command never starts: a closed control channel ends the gate.
+// Without GO the command never starts: a closed control channel ends the gate. After GO the gate
+// stays whatever the channel does: a manager that went away leaves the unit to cold recovery.
 control.on('end', () => {
   if (!went) process.exit(0)
 })
