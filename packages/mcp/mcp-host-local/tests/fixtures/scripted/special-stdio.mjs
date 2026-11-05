@@ -16,40 +16,44 @@ function answer(message) {
 }
 
 if (mode === 'exit-at-start') process.exit(0)
-
-const lines = createInterface({ input: process.stdin, crlfDelay: Number.POSITIVE_INFINITY })
-lines.on('line', line => {
-  let message
-  try {
-    message = JSON.parse(line)
-  } catch {
-    return
-  }
-  if (message.id === undefined) return
-  switch (mode) {
-    case 'noisy':
-      // A log line, an empty line, a BOM, a truncated object, a duplicate key: all dropped (F4).
-      process.stdout.write(
-        'Listening on stdio\n\n﻿{"jsonrpc":"2.0","id":"x","result":{}}\n{"jsonrpc":"2.0","id":"x"\n{"jsonrpc":"2.0","id":"x","result":{},"result":{}}\n',
-      )
-      answer(message)
+// A peer that never reads stdin: a large request fills the pipe and the write never completes.
+if (mode === 'deaf') {
+  setInterval(() => undefined, 1000)
+} else {
+  const lines = createInterface({ input: process.stdin, crlfDelay: Number.POSITIVE_INFINITY })
+  lines.on('line', line => {
+    let message
+    try {
+      message = JSON.parse(line)
+    } catch {
       return
-    case 'huge-line':
-      process.stdout.write(`${'x'.repeat(16_777_217)}\n`, () => answer(message))
-      return
-    case 'end-stdout':
-      process.stdout.end()
-      return
-    case 'exit-before-answer':
-      process.exit(3)
-    case 'answer-then-exit':
-      write({
-        id: message.id,
-        result: message.method === 'server/discover' ? MODERN : { content: [] },
-      })
-      process.exit(0)
-    default:
-      answer(message)
-  }
-})
-lines.on('close', () => setTimeout(() => process.exit(0), 50))
+    }
+    if (message.id === undefined) return
+    switch (mode) {
+      case 'noisy':
+        // A log line, an empty line, a BOM, a truncated object, a duplicate key: all dropped (F4).
+        process.stdout.write(
+          'Listening on stdio\n\n﻿{"jsonrpc":"2.0","id":"x","result":{}}\n{"jsonrpc":"2.0","id":"x"\n{"jsonrpc":"2.0","id":"x","result":{},"result":{}}\n',
+        )
+        answer(message)
+        return
+      case 'huge-line':
+        process.stdout.write(`${'x'.repeat(16_777_217)}\n`, () => answer(message))
+        return
+      case 'end-stdout':
+        process.stdout.end()
+        return
+      case 'exit-before-answer':
+        process.exit(3)
+      case 'answer-then-exit':
+        write({
+          id: message.id,
+          result: message.method === 'server/discover' ? MODERN : { content: [] },
+        })
+        process.exit(0)
+      default:
+        answer(message)
+    }
+  })
+  lines.on('close', () => setTimeout(() => process.exit(0), 50))
+}

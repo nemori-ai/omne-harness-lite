@@ -20,6 +20,7 @@ import { spawnHandle } from './fixtures/process.ts'
 import { leftover } from './fixtures/scripted/children.ts'
 import { stdioPeer, type StdioPeer } from './fixtures/scripted/stdio.ts'
 import { everythingStdio } from './fixtures/sdk/everything.ts'
+import { settledWithin } from './fixtures/settle.ts'
 
 const VERSIONS = ['2026-07-28']
 const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
@@ -201,6 +202,33 @@ describe('the legacy peer and the probe time (T3)', () => {
       'tools/list',
     ])
     await transport.close()
+    await peer.close()
+  })
+})
+
+describe('a peer that does not read stdin (T5)', () => {
+  it("the pipe is full: the call's signal settles the answer, the transport is unusable, and close() returns, each within the bound", async () => {
+    const peer = special('deaf')
+    const transport = await open(peer.material)
+    const controller = new AbortController()
+    // 1 MiB of arguments: far above the 64 KiB a pipe takes before the writer must wait.
+    const blob = { kind: 'string', value: 'x'.repeat(1 << 20) } as const
+    const call = transport.call(
+      {
+        action: actionNameOf('echo'),
+        args: { kind: 'object', entries: [{ key: 'blob', value: blob }] },
+      },
+      controller.signal,
+    )
+    setTimeout(() => controller.abort(), 50)
+    const sent = await settledWithin(call)
+    expect(sent).not.toBe('pending')
+    if (sent === 'pending') return
+    expect(await settledWithin(ok(sent.settled, 'call').answer)).toEqual({
+      settled: { kind: 'no-answer', cause: 'abandoned' },
+    })
+    expect(await settledWithin(transport.listActions())).toEqual({ settled: NOT_SENT })
+    expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
     await peer.close()
   })
 })

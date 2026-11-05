@@ -101,9 +101,16 @@ class Peer {
     private readonly versions: readonly string[],
     private readonly target: string,
     private readonly unreachable: () => void,
-    private readonly legacySse: boolean,
-    private readonly endpointOrigin: string | undefined,
+    private readonly options: HttpPeerOptions,
   ) {}
+
+  private get legacySse(): boolean {
+    return this.options.legacySse === true
+  }
+
+  private get endpointOrigin(): string | undefined {
+    return this.options.endpointOrigin
+  }
 
   breakStreams(): void {
     for (const stream of this.sseStreams.values()) stream.destroy()
@@ -242,6 +249,8 @@ class Peer {
     const url = new URL(request.url ?? '/', this.target)
     if (request.method === 'GET' && url.pathname.startsWith(METADATA_PATH)) {
       this.log.push({ kind: 'fetch', url: url.href })
+      if (this.options.metadata === 'hangs') return
+      if (this.options.metadata === 'endless') return this.endlessMetadata(request, response)
       const document = this.script.wellKnown?.[url.pathname]
       if (document === undefined) {
         response.writeHead(404, { 'content-type': 'text/plain' }).end('no metadata')
@@ -259,8 +268,31 @@ class Peer {
     response.writeHead(404, { 'content-type': 'text/html' }).end('<html>not found</html>')
   }
 
+  /** A 200 JSON document that never ends: the client must stop reading it at its byte bound. */
+  private endlessMetadata(request: IncomingMessage, response: ServerResponse): void {
+    response.writeHead(200, { 'content-type': 'application/json' })
+    response.write('{"authorization_servers":["https://endless.test"],"pad":"')
+    const chunk = 'x'.repeat(65_536)
+    const more = () => {
+      if (response.destroyed) return
+      if (response.write(chunk)) setImmediate(more)
+      else response.once('drain', more)
+    }
+    request.on('close', () => response.destroy())
+    more()
+  }
+
   /** The legacy HTTP+SSE transport: the stream with the `endpoint` event. */
   private openSse(request: IncomingMessage, response: ServerResponse): void {
+    this.options.onSseRequest?.()
+    const refusal = this.options.sseRefusal
+    if (refusal !== undefined) {
+      response.writeHead(refusal.status, refusal.headers ?? {})
+      response.write('slow')
+      const timer = setTimeout(() => response.end('...'), refusal.bodyDelayMs)
+      request.on('close', () => clearTimeout(timer))
+      return
+    }
     if (!this.legacySse) {
       response.writeHead(405, { 'content-type': 'text/plain' }).end('no stream')
       return
@@ -402,7 +434,9 @@ class Peer {
       case 'silent':
       case 'unsent':
       case 'process-exits':
-        // The answer never comes: the stream stays open until the client ends it.
+        // The answer never comes: the stream stays open until the client ends it. With
+        // `holdHeads` not even the answer head goes out.
+        if (this.options.holdHeads === true) return
         response.writeHead(200, { 'content-type': 'text/event-stream' })
         response.flushHeaders()
         return
@@ -482,6 +516,18 @@ export type HttpPeerOptions = Readonly<{
   legacySse?: boolean
   /** The origin the `endpoint` event names; default: the peer's own. */
   endpointOrigin?: string
+  /** A `silent` reply sends no answer head at all, not even the status line. */
+  holdHeads?: boolean
+  /** The metadata GET never answers (`hangs`), or answers a JSON document that never ends. */
+  metadata?: 'hangs' | 'endless'
+  /** The GET of the legacy fallback answers this status, a partial body, and the rest after a delay. */
+  sseRefusal?: Readonly<{
+    status: number
+    headers?: Readonly<{ [name: string]: string }>
+    bodyDelayMs: number
+  }>
+  /** Called when the peer sees the GET of the legacy fallback. */
+  onSseRequest?: () => void
 }>
 
 export async function httpPeer(
@@ -514,14 +560,7 @@ export async function httpPeer(
     server.close()
     servers.delete(server)
   }
-  peer = new Peer(
-    script,
-    versions,
-    target,
-    unreachable,
-    options.legacySse === true,
-    options.endpointOrigin,
-  )
+  peer = new Peer(script, versions, target, unreachable, options)
   peer.planUnsent()
   const material: TransportMaterial = {
     kind: 'streamable-http',

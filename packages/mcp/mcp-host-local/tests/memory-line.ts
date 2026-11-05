@@ -17,6 +17,8 @@ export type Reply =
       kind: 'message'
       message: PlainRecord
       headers?: Readonly<{ [name: string]: string }>
+      /** The message goes out without the `jsonrpc` member: an envelope that T2 refuses. */
+      bare?: true
     }>
   | Readonly<{
       kind: 'status'
@@ -36,6 +38,8 @@ export type Script = Readonly<{ [method: string]: readonly Reply[] }>
 export type Sent = Readonly<{
   message: PlainRecord
   headers: Readonly<{ [name: string]: string }>
+  /** The text as the session wrote it: the lexemes the peer would read. */
+  text: string
 }>
 
 function isRecord(value: unknown): value is PlainRecord {
@@ -113,7 +117,7 @@ export class MemoryLine implements Line {
         : undefined
     // A message that fails before it leaves is one the peer never sees.
     if (reply?.kind === 'unsent') return { kind: 'unsent' }
-    this.sent.push({ message: parsed, headers })
+    this.sent.push({ message: parsed, headers, text: outbound.text })
     if (reply === undefined) return this.kind === 'stdio' ? { kind: 'sent' } : ended({})
     if (this.kind === 'stdio' || this.sse) return this.onStream(reply, id)
     return this.onHttp(reply, id, signal)
@@ -124,7 +128,7 @@ export class MemoryLine implements Line {
     const sent: Exchange = this.kind === 'stdio' ? { kind: 'sent' } : ended({})
     switch (reply.kind) {
       case 'message':
-        queueMicrotask(() => this.push({ jsonrpc: '2.0', id: id ?? null, ...reply.message }))
+        queueMicrotask(() => this.push(answerOf(reply, id)))
         return sent
       case 'ended':
         queueMicrotask(() => this.queue.push({ ...reply }))
@@ -159,9 +163,7 @@ export class MemoryLine implements Line {
   private onHttp(reply: Reply, id: PlainJson | undefined, signal: AbortSignal): Exchange {
     switch (reply.kind) {
       case 'message':
-        return ended(reply.headers ?? {}, [
-          JSON.stringify({ jsonrpc: '2.0', id: id ?? null, ...reply.message }),
-        ])
+        return ended(reply.headers ?? {}, [JSON.stringify(answerOf(reply, id))])
       case 'empty':
         return ended({})
       case 'status':
@@ -201,6 +203,15 @@ export class MemoryLine implements Line {
     this.closeCount += 1
     this.queue.end()
   }
+}
+
+/** The answer message of a `message` reply: enveloped, or bare when the reply says so. */
+function answerOf(
+  reply: Extract<Reply, { kind: 'message' }>,
+  id: PlainJson | undefined,
+): PlainRecord {
+  const body = { id: id ?? null, ...reply.message }
+  return reply.bare === true ? body : { jsonrpc: '2.0', ...body }
 }
 
 /** A 2xx answer whose messages are all there and whose body ended. */

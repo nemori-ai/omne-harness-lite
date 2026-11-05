@@ -34,6 +34,7 @@ import {
 import { bearerServer } from './fixtures/sdk/bearer-http.ts'
 import { everythingHttp } from './fixtures/sdk/everything.ts'
 import { legacyHttpServer } from './fixtures/sdk/legacy-http.ts'
+import { settledWithin } from './fixtures/settle.ts'
 
 const VERSIONS = ['2026-07-28']
 const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
@@ -263,6 +264,128 @@ describe('authorization (T4, R4)', () => {
     expect(text).not.toContain('another-secret-9b1c')
     expect(text).not.toMatch(/Bearer /u)
     await server.close()
+  })
+})
+
+describe('the waits that the signal and close() govern (T5, T4, T9)', () => {
+  const ABANDONED = { kind: 'no-answer', cause: 'abandoned' }
+  const CHALLENGE = { 'www-authenticate': 'Bearer realm="x"' }
+  const refused: PeerReply = { kind: 'http', status: 401, headers: CHALLENGE }
+
+  it("the peer takes the request and sends no answer head: the call's signal settles the answer within the bound", async () => {
+    const peer = await scripted({ calls: { echo: { kind: 'silent' } } }, { holdHeads: true })
+    const transport = await open(materialOf(targetOf(peer)))
+    const controller = new AbortController()
+    const call = transport.call(echo, controller.signal)
+    setTimeout(() => controller.abort(), 50)
+    const sent = await settledWithin(call)
+    expect(sent).not.toBe('pending')
+    if (sent === 'pending') return
+    const answer = await settledWithin(ok(sent.settled, 'call').answer)
+    expect(answer).toEqual({ settled: ABANDONED })
+    await transport.close()
+    await peer.close()
+  })
+
+  it("401 whose metadata fetch hangs: the call's signal ends the discovery within the bound; authorization-required, metadata unavailable, reportRejection once", async () => {
+    const peer = await scripted({ calls: { echo: refused } }, { metadata: 'hangs' })
+    const handle = credential()
+    const transport = await open(materialOf(targetOf(peer), handle))
+    const controller = new AbortController()
+    const call = transport.call(echo, controller.signal)
+    setTimeout(() => controller.abort(), 50)
+    expect(await settledWithin(call)).toMatchObject({
+      settled: {
+        failure: {
+          kind: 'not-sent',
+          cause: 'authorization-required',
+          discovery: { metadata: 'unavailable' },
+        },
+      },
+    })
+    expect(handle.rejections()).toBe(1)
+    await transport.close()
+    await peer.close()
+  })
+
+  it('401 whose metadata fetch hangs: close() ends the discovery within the bound with the same conclusion, reportRejection once before close() returned', async () => {
+    const peer = await scripted({ listing: { '': refused } }, { metadata: 'hangs' })
+    const handle = credential()
+    const transport = await open(materialOf(targetOf(peer), handle))
+    const listing = transport.listActions()
+    for (let round = 0; round < 200; round += 1) {
+      if ((await peer.received()).some(entry => entry.kind === 'fetch')) break
+      await new Promise(resolve => setTimeout(resolve, 5))
+    }
+    let rejectionsAtClose = -1
+    await transport.close().then(() => {
+      rejectionsAtClose = handle.rejections()
+    })
+    expect(await settledWithin(listing)).toMatchObject({
+      settled: {
+        failure: {
+          kind: 'not-sent',
+          cause: 'authorization-required',
+          discovery: { metadata: 'unavailable' },
+        },
+      },
+    })
+    expect(rejectionsAtClose).toBe(1)
+    await peer.close()
+  })
+
+  it('a metadata document that never ends counts as not fetched: the discovery settles with metadata unavailable', async () => {
+    const peer = await scripted({ listing: { '': refused } }, { metadata: 'endless' })
+    const transport = await open(materialOf(targetOf(peer), credential()))
+    // Two candidate addresses, each read up to the 16 MiB bound over the loopback.
+    expect(await settledWithin(transport.listActions(), 10_000)).toMatchObject({
+      settled: {
+        failure: {
+          kind: 'not-sent',
+          cause: 'authorization-required',
+          discovery: { metadata: 'unavailable' },
+        },
+      },
+    })
+    await transport.close()
+    await peer.close()
+  })
+
+  it('the fallback GET answered 401 with its body still to come when close() runs: reportRejection is not called', async () => {
+    let seen = (): void => undefined
+    const got = new Promise<void>(resolve => {
+      seen = resolve
+    })
+    const plain = (status: number, body: string): PeerReply => ({
+      kind: 'http',
+      status,
+      headers: { 'content-type': 'text/plain' },
+      body,
+    })
+    const peer = await scripted(
+      { discover: plain(404, 'nope'), initialize: plain(400, 'bad') },
+      {
+        sseRefusal: {
+          status: 401,
+          headers: { ...CHALLENGE, 'content-type': 'text/plain' },
+          bodyDelayMs: 1_000,
+        },
+        onSseRequest: () => seen(),
+      },
+    )
+    const handle = credential()
+    const transport = await open(materialOf(targetOf(peer), handle))
+    const discovering = transport.discover()
+    await got
+    await new Promise(resolve => setTimeout(resolve, 50))
+    await transport.close()
+    const rejectionsAtClose = handle.rejections()
+    const outcome = await settledWithin(discovering)
+    await new Promise(resolve => setTimeout(resolve, 100))
+    expect(rejectionsAtClose).toBe(0)
+    expect(handle.rejections()).toBe(0)
+    expect(outcome).toEqual({ settled: NOT_SENT })
+    await peer.close()
   })
 })
 

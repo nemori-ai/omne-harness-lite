@@ -24,6 +24,7 @@ import {
   cellsOf,
   generationOf,
   jsonOf,
+  jsonTextOf,
   taskIdOf,
   type ExpectedFailure,
   type TableCell,
@@ -31,6 +32,7 @@ import {
 } from '@omne-harness/mcp-contract/testing'
 import type { SseEntry } from '../src/line.ts'
 import { Session, type SessionOptions } from '../src/session.ts'
+import { settledWithin } from './fixtures/settle.ts'
 import { MemoryLine, type Reply, type Script } from './memory-line.ts'
 
 const HIGHEST = '2026-07-28'
@@ -126,6 +128,12 @@ const status = (
   status: code,
   headers,
   body,
+})
+/** A JSON-RPC error sent without the `jsonrpc` member: an envelope that T2 refuses. */
+const bareError = (code: number, text: string, data?: PlainJson): Reply => ({
+  kind: 'message',
+  message: { error: data === undefined ? { code, message: text } : { code, message: text, data } },
+  bare: true,
 })
 const METHOD_NOT_FOUND = error(-32601, 'Method not found')
 const LEGACY = result({ protocolVersion: OFFERED_LEGACY_VERSION, capabilities: {} })
@@ -954,7 +962,174 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
   })
 })
 
+describe("the contract's classes decide, not a second reading (T2, T8 D05, D11, O03, C02)", () => {
+  it('a -32022 whose supported list names a modern-looking text that is no date: answer-malformed (discover-shape), no legacy path (D05)', async () => {
+    const { line, transport } = open('streamable-http', {
+      'server/discover': [error(-32022, 'Unsupported', { supported: ['2027-01-01x'] })],
+      initialize: [LEGACY],
+    })
+    expect(await transport.discover()).toEqual({
+      failure: { kind: 'answer-malformed', what: 'discover-shape' },
+    })
+    expect(line.requests('initialize')).toEqual([])
+    await transport.close()
+  })
+
+  it('a -32022 without the jsonrpc member is an unreadable error: the legacy path, no second probe, error-shape when the legacy path fails too (D11)', async () => {
+    const supported = { supported: [HIGHEST] }
+    const first = open('streamable-http', {
+      'server/discover': [bareError(-32022, 'Unsupported', supported)],
+      initialize: [LEGACY],
+    })
+    expect(ok(await first.transport.discover(), 'discover').protocolVersion).toBe(
+      OFFERED_LEGACY_VERSION,
+    )
+    expect(first.line.requests('server/discover')).toHaveLength(1)
+    await first.transport.close()
+
+    const second = open('streamable-http', {
+      'server/discover': [bareError(-32022, 'Unsupported', supported)],
+      initialize: [LEGACY_BROKE],
+    })
+    expect(await second.transport.discover()).toEqual({
+      failure: { kind: 'answer-malformed', what: 'error-shape' },
+    })
+    expect(second.line.requests('server/discover')).toHaveLength(1)
+    await second.transport.close()
+  })
+
+  it('tools/list answered an error without the jsonrpc member: answer-malformed (error-shape) (O03)', async () => {
+    const { transport } = open('stdio', { 'tools/list': [bareError(-32000, 'boom')] })
+    expect(await transport.listActions()).toEqual({
+      failure: { kind: 'answer-malformed', what: 'error-shape' },
+    })
+    await transport.close()
+  })
+
+  it('a call answered an error without the jsonrpc member: the whole message is the error (C02)', async () => {
+    const { transport } = open('stdio', { 'tools/call': [bareError(-32000, 'boom')] })
+    const sent = ok(await transport.call(echo, never), 'call')
+    expect(await sent.answer).toEqual({
+      kind: 'error',
+      error: jsonOf({ id: sent.requestId, error: { code: -32000, message: 'boom' } }),
+    })
+    await transport.close()
+  })
+})
+
+describe('what goes on the wire keeps its lexemes (RFC-0010, T3)', () => {
+  it("writes the caller's values and the peer's request id as they are: an integer beyond 2^53 keeps its digits", async () => {
+    const { line, transport } = open('stdio', {
+      'tools/call': [{ kind: 'silent' }],
+      'tasks/update': [result({})],
+    })
+    const args = jsonTextOf('{"id":1234567890123456789,"price":1.10}')
+    ok(await transport.call({ action: actionNameOf('echo'), args }, never), 'call')
+    expect(line.requests('tools/call')[0]?.text).toContain(
+      '"arguments":{"id":1234567890123456789,"price":1.10}',
+    )
+    ok(
+      await transport.updateTask(taskIdOf('t1'), jsonTextOf('{"n":1234567890123456789}')),
+      'updateTask',
+    )
+    expect(line.requests('tasks/update')[0]?.text).toContain(
+      '"inputResponses":{"n":1234567890123456789}',
+    )
+    line.pushText('{"jsonrpc":"2.0","id":1234567890123456789,"method":"ping"}')
+    await tick()
+    const response = line.sent.find(entry => entry.message['method'] === undefined)
+    expect(response?.text).toContain('"id":1234567890123456789')
+    await transport.close()
+  })
+})
+
 describe('closing and the credential handle (T5, T9)', () => {
+  it('answers a request of a protected peer with the credential on the response (T9)', async () => {
+    const { line, transport, credential } = open('streamable-http', {})
+    ok(await transport.discover(), 'discover')
+    line.push({ jsonrpc: '2.0', id: 9, method: 'ping' })
+    await tick()
+    const response = line.sent.find(entry => entry.message['method'] === undefined)
+    expect(response?.message).toEqual({ jsonrpc: '2.0', id: 9, result: {} })
+    expect(response?.headers['authorization']).toBe('Bearer test-token')
+    expect(credential.authorizations()).toBe(2)
+    await transport.close()
+  })
+
+  it('close() while the metadata of a 401 is being fetched: the fetch ends, authorization-required with metadata unavailable, reportRejection once before close() returned', async () => {
+    let fetching = (): void => undefined
+    const started = new Promise<void>(resolve => {
+      fetching = resolve
+    })
+    const { transport, credential } = open(
+      'streamable-http',
+      { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
+      {
+        fetchMetadata: (_url, signal) =>
+          new Promise(resolve => {
+            fetching()
+            if (signal.aborted) resolve(undefined)
+            signal.addEventListener('abort', () => resolve(undefined), { once: true })
+          }),
+      },
+    )
+    const pending = transport.listActions()
+    await started
+    let rejectionsAtClose = -1
+    await transport.close().then(() => {
+      rejectionsAtClose = credential.rejections()
+    })
+    expect(await settledWithin(pending)).toEqual({
+      settled: {
+        failure: {
+          kind: 'not-sent',
+          cause: 'authorization-required',
+          discovery: {
+            resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
+            metadata: 'unavailable',
+            issuers: [],
+            scopes: [],
+          },
+        },
+      },
+    })
+    expect(rejectionsAtClose).toBe(1)
+  })
+
+  it("the call's signal while the metadata of a 401 is being fetched: the same conclusion, the fetch ended by the signal", async () => {
+    let fetching = (): void => undefined
+    const started = new Promise<void>(resolve => {
+      fetching = resolve
+    })
+    const { transport, credential } = open(
+      'streamable-http',
+      { 'tools/call': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
+      {
+        fetchMetadata: (_url, signal) =>
+          new Promise(resolve => {
+            fetching()
+            if (signal.aborted) resolve(undefined)
+            signal.addEventListener('abort', () => resolve(undefined), { once: true })
+          }),
+      },
+    )
+    const controller = new AbortController()
+    const pending = transport.call(echo, controller.signal)
+    await started
+    controller.abort()
+    expect(await settledWithin(pending)).toMatchObject({
+      settled: {
+        failure: {
+          kind: 'not-sent',
+          cause: 'authorization-required',
+          discovery: { metadata: 'unavailable' },
+        },
+      },
+    })
+    expect(credential.rejections()).toBe(1)
+    await transport.close()
+  })
+
   it('a call still being authorized when close() ran is not-sent and never reaches the line', async () => {
     let release = (): void => undefined
     const gate = new Promise<void>(resolve => {
