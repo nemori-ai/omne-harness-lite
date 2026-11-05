@@ -30,7 +30,8 @@
 | [sql-contract](../../storage/sql-contract/SPEC.md)，契约与辅助已存在                                               | `calendar-local` 编写本域表、迁移、参加者和查询；只使用公开入口              | 自建数据库、事务引擎、通用锁或第二套存储服务                                   |
 | [sqlite-provider](../../storage/sqlite-provider/SPEC.md)，已有提供者及具名限制                                     | 由应用装配选择，local 依赖 sql-contract，不依赖该具体包                      | 扩大 L-1 的授权保证或 L-4 的跨进程写者排除保证                                 |
 | [kernel-basis](../../assembly/kernel-basis/README.md) 与 Cordis                                                    | 绑定使用公开辅助及唯一 Service 定义                                          | 第二套 DI 容器、插件注册表或有序清理框架                                       |
-| [settings](../../assets/settings/README.md)、[notification](../../notification/notification/README.md)，空导出草稿 | 本域定义所需消费投影，交接有效环境和维护通知要求                             | 在 Calendar 写用户设置、通知渠道或替代服务                                     |
+| [settings](../../assets/settings/README.md) 与 [settings-local](../../assets/settings-local/README.md)，已有独立提供者 | 本域消费同一授权读取依据中的有效环境投影；真实 Calendar 消费适配仍待实现 | 在 Calendar 重建设置存储、注册器或资格治理 |
+| [notification](../../notification/notification/README.md)，草稿 | 交接维护通知要求 | 在 Calendar 实现通知渠道或替代服务 |
 | [time](../../time/README.md)，无具名成员                                                                           | 本域工厂接受窄 Clock 依赖，local 用原生时钟和受管等待                        | 为借用专属 Clock 导入 Session/Agent/Tool runtime，或越界创建公共 time 包       |
 
 其他领域 README 与公开源码状态冲突时，引用实际入口并提出交接，不在本次范围内顺手修订外域文件。已有 SQL 只保护自己的事务域，Calendar 与 Schedule 的部署边界沿[安装和部署约定](../../../docs/package-organization.md#日历与日程的安装和部署边界)。

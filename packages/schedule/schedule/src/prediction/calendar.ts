@@ -174,10 +174,13 @@ export class FixedCalendar {
           result.value.working === (result.value.classification === 'workingDay') &&
           result.value.holiday === (result.value.classification === 'holiday'),
       )
-    if (query.kind === 'shift' && result.kind === 'shift')
+    if (query.kind === 'shift' && result.kind === 'shift') {
+      const firstInspected = Temporal.PlainDate.from(query.date)
+        .add({ days: Math.sign(query.offset) })
+        .toString()
       coherent(
-        range.from <= query.date &&
-          range.to >= query.date &&
+        range.from <= firstInspected &&
+          range.to >= firstInspected &&
           range.from <= result.value.date &&
           range.to >= result.value.date &&
           (query.offset < 0
@@ -186,10 +189,14 @@ export class FixedCalendar {
               ? result.value.date > query.date
               : result.value.date === query.date),
       )
+    }
     if (query.kind === 'nth' && result.kind === 'nth')
       coherent(
         range.from <= query.periodStart &&
-          range.to >= query.periodEnd &&
+          range.to >=
+            (query.ordinal === 'last' || result.value.date === null
+              ? query.periodEnd
+              : result.value.date) &&
           (result.value.date === null ||
             (result.value.date >= query.periodStart && result.value.date <= query.periodEnd)),
       )

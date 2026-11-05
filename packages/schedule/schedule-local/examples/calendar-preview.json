@@ -1,0 +1,44 @@
+{
+  "source": {
+    "kind": "inline",
+    "definition": {
+      "label": "春节工作日预览",
+      "recurrence": {
+        "kind": "cron",
+        "expression": "0 9 * * *",
+        "begin": "2026-02-14T00:00:00",
+        "until": "2026-02-28T23:59:59"
+      },
+      "binding": {
+        "kind": "explicit",
+        "timezone": "Asia/Shanghai",
+        "calendar": {
+          "calendarId": "cn-legal-holidays",
+          "version": {
+            "kind": "latest"
+          }
+        }
+      },
+      "calendarOverlay": {
+        "predicate": "workingDay",
+        "adjust": "skip"
+      },
+      "limits": {
+        "eligibleLimit": null,
+        "jobLimit": null,
+        "excludeDates": []
+      },
+      "purpose": {
+        "kind": "reminder",
+        "content": {
+          "title": null,
+          "body": "确认工作日"
+        },
+        "admissionPolicy": "reminder-window-v1",
+        "overlap": "parallel"
+      }
+    }
+  },
+  "after": "2026-02-13T00:00:00.000Z",
+  "count": 30
+}

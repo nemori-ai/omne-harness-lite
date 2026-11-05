@@ -286,3 +286,96 @@ test('lookback cannot skip an original date outside Calendar coverage', async ()
     ),
   ).toMatchObject({ kind: 'error', error: { code: 'coverage_insufficient' } })
 })
+
+test.each([
+  { ordinal: 1, from: '2026-02-02', to: '2026-02-28', date: '2026-02-02' },
+  { ordinal: 1, from: '2026-02-01', to: '2026-02-01', date: '2026-02-02' },
+  { ordinal: 'last', from: '2026-02-01', to: '2026-02-27', date: '2026-02-27' },
+  { ordinal: 99, from: '2026-02-01', to: '2026-02-27', date: null },
+])('rejects an insufficient nth witness %j', async ({ ordinal, from, to, date }) => {
+  const fixture = calendarFixture()
+  const original = fixture.queries.resolve
+  fixture.queries.resolve = async (ctx, request) => {
+    const result = await original(ctx, request)
+    if (request.query.kind !== 'nth' || result.kind !== 'ok' || result.value.result.kind !== 'nth')
+      return result
+    return calendarResolveResultSchema.parse({
+      ...result,
+      value: {
+        ...result.value,
+        result: {
+          kind: 'nth',
+          value: {
+            ...result.value.result.value,
+            date,
+            basis: {
+              ...result.value.result.value.basis,
+              inspectedRange: { from, to },
+            },
+          },
+        },
+      },
+    })
+  }
+  const rule = definition(
+    {
+      kind: 'position',
+      period: 'month',
+      interval: 1,
+      begin: '2026-02-01T00:00:00',
+      until: '2026-02-28T23:59:59',
+      ordinal,
+      selector: { kind: 'workingDay' },
+      times: ['09:00:00'],
+    },
+    { binding: selected },
+  )
+  const result = await harness({ calendar: fixture.queries }).service.preview(context, input(rule))
+  expect(result).toMatchObject({ kind: 'error', error: { code: 'provider_failure' } })
+})
+
+test.each([
+  { adjust: 'nextWorkingDay', origin: '2026-02-07', from: '2026-02-09', to: '2026-02-09' },
+  { adjust: 'nextWorkingDay', origin: '2026-02-07', from: '2026-02-08', to: '2026-02-08' },
+  { adjust: 'previousWorkingDay', origin: '2026-02-08', from: '2026-02-06', to: '2026-02-06' },
+  { adjust: 'previousWorkingDay', origin: '2026-02-08', from: '2026-02-07', to: '2026-02-07' },
+] as const)('rejects incomplete shift witness %j', async ({ adjust, origin, from, to }) => {
+  const fixture = calendarFixture()
+  const original = fixture.queries.resolve
+  fixture.queries.resolve = async (ctx, request) => {
+    const result = await original(ctx, request)
+    if (
+      request.query.kind !== 'shift' ||
+      result.kind !== 'ok' ||
+      result.value.result.kind !== 'shift'
+    )
+      return result
+    return calendarResolveResultSchema.parse({
+      ...result,
+      value: {
+        ...result.value,
+        result: {
+          kind: 'shift',
+          value: {
+            ...result.value.result.value,
+            basis: {
+              ...result.value.result.value.basis,
+              inspectedRange: { from, to },
+            },
+          },
+        },
+      },
+    })
+  }
+  const rule = definition(daily(`${origin}T00:00:00`, `${origin}T23:59:59`), {
+    binding: selected,
+    calendarOverlay: { predicate: 'workingDay', adjust },
+  })
+  expect(
+    await harness({ calendar: fixture.queries }).service.preview(context, input(rule)),
+  ).toMatchObject({
+    kind: 'error',
+    error: { code: 'provider_failure' },
+  })
+  expect(fixture.requests.some(request => request.query.kind === 'shift')).toBe(true)
+})

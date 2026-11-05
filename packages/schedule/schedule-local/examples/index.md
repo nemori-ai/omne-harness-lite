@@ -1,11 +1,5 @@
-# examples 索引
+# 示例索引
 
-<!-- documentation:placeholder -->
-
-本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
-
-## 内容
-
-<!-- documentation:placeholder -->
-
-- [README.md](README.md)：示例的运行前提
+- [运行说明](README.md)列出输入、预期结果和验证边界。
+- [calendar-preview.json](calendar-preview.json)提供可修改的春节工作日预览请求。
+- [calendar-preview.ts](calendar-preview.ts)通过隔离数据库和真实两域应用执行请求。

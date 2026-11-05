@@ -3,6 +3,7 @@ import {
   ScheduleDefinitionSchema,
   ScheduleInstantSchema,
 } from '@omne-harness/schedule-contract'
+import { z } from 'zod'
 import type {
   ScheduleCallContext,
   ScheduleQueryResult,
@@ -18,23 +19,16 @@ import { captureBasis } from './basis.ts'
 import { PredictionPipeline } from './pipeline.ts'
 export type * from './types.ts'
 
-function validateInput(context: ScheduleCallContext, input: SchedulePredictionInput): void {
-  if (
-    !ScheduleCallContextSchema.safeParse(context).success ||
-    !ScheduleDefinitionSchema.safeParse(input.definition).success ||
-    !ScheduleInstantSchema.safeParse(input.after).success ||
-    !ScheduleInstantSchema.nullable().safeParse(input.activationExclusive).success
-  )
-    throw new PredictionFailure('invalid_input', 'Invalid prediction input')
-  for (const number of [input.definitionRevision, input.eligibleConsumed, input.acceptedJobCount])
-    if (!Number.isSafeInteger(number) || number < 0)
-      throw new PredictionFailure(
-        'invalid_input',
-        'Revision and counters must be nonnegative safe integers',
-      )
-  if (!Number.isSafeInteger(input.count) || input.count < 1 || input.count > 100)
-    throw new PredictionFailure('invalid_input', 'Prediction count must be between 1 and 100')
-}
+const predictionInputSchema = z.strictObject({
+  definition: ScheduleDefinitionSchema,
+  definitionRevision: z.int().nonnegative(),
+  eligibleConsumed: z.int().nonnegative(),
+  acceptedJobCount: z.int().nonnegative(),
+  after: ScheduleInstantSchema,
+  activationExclusive: ScheduleInstantSchema.nullable(),
+  count: z.int().min(1).max(100),
+})
+const definitionEnvelopeSchema = z.object({ context: ScheduleCallContextSchema })
 function validateDependencies(dependencies: SchedulePredictionDependencies): void {
   for (const key of [
     'maxCandidates',
@@ -63,15 +57,32 @@ export function createSchedulePredictionService(
     input: SchedulePredictionInput,
     budget: PredictionBudget,
   ): Promise<ScheduleQueryResult<SchedulePreviewView>> {
+    const parsedContext = ScheduleCallContextSchema.safeParse(context)
+    const parsedInput = predictionInputSchema.safeParse(input)
+    const requestId = parsedContext.success
+      ? parsedContext.data.requestId
+      : 'schedule.prediction.invalid-context'
+    if (!parsedContext.success || !parsedInput.success)
+      return {
+        kind: 'error',
+        error: domainError(
+          new PredictionFailure('invalid_input', 'Invalid prediction input'),
+          requestId,
+        ),
+      }
     try {
-      validateInput(context, input)
-      const { basis, calendar } = await captureBasis(context, input, dependencies, budget)
+      const { basis, calendar } = await captureBasis(
+        parsedContext.data,
+        parsedInput.data,
+        dependencies,
+        budget,
+      )
       return {
         kind: 'ok',
-        value: await new PredictionPipeline(input, basis, calendar, budget).run(),
+        value: await new PredictionPipeline(parsedInput.data, basis, calendar, budget).run(),
       }
     } catch (error) {
-      return { kind: 'error', error: domainError(error, context.requestId) }
+      return { kind: 'error', error: domainError(error, requestId) }
     }
   }
   return {
@@ -80,10 +91,20 @@ export function createSchedulePredictionService(
     },
     definitions: {
       async resolve(input) {
+        const envelope = definitionEnvelopeSchema.safeParse(input)
+        if (!envelope.success)
+          return {
+            kind: 'unavailable',
+            error: domainError(
+              new PredictionFailure('invalid_input', 'Invalid definition resolution context'),
+              'schedule.prediction.invalid-context',
+            ),
+          }
         const budget = new PredictionBudget(dependencies)
+        const { context, referenceExclusive, ...prediction } = input
         const result = await calculate(
-          input.context,
-          { ...input, after: input.referenceExclusive, count: 1 },
+          context,
+          { ...prediction, after: referenceExclusive, count: 1 },
           budget,
         )
         if (result.kind === 'error') return { kind: 'unavailable', error: result.error }

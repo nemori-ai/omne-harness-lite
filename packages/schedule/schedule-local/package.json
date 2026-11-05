@@ -44,6 +44,9 @@
     "@omne-harness/sqlite-provider": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness/calendar": "workspace:*",
+    "@omne-harness/calendar-contract": "workspace:*",
+    "@omne-harness/calendar-local": "workspace:*"
   }
 }
