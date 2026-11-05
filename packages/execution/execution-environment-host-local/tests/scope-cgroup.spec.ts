@@ -108,6 +108,9 @@ it('reads only whole cgroup2 mount lines and an absolute 0:: path', () => {
   expect(
     unifiedCgroupDirectory(`1:name=systemd:${scopePath}\n`, unifiedAt('/sys/fs/cgroup', '/x')),
   ).toBe(undefined)
+  expect(
+    unitPlacement(unit, `1:name=systemd:${scopePath}\n`, unifiedAt('/sys/fs/cgroup', '/x')),
+  ).toEqual({ kind: 'noUnifiedHierarchy' })
 })
 
 it('decodes the octal escapes of a mount point', () => {
