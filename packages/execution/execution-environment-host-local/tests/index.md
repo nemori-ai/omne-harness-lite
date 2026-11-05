@@ -15,7 +15,8 @@
 - [host-provider.spec.ts](host-provider.spec.ts)：宿主提供者的事实、经登记表门的账本关闭、退役与退役通知、命令启动前不起进程的拒绝与命令选项的界值
 - [host-command.spec.ts](host-command.spec.ts)：真实 systemd 用户 scope 里的命令：流式输出、显式环境、有界缓冲、门一侧的暂停、停止两态、单调用中断、释放与退役、资源恢复；只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行，归慢层
 - [host-command-frames.spec.ts](host-command-frames.spec.ts)：门的帧读取、输出缓冲与单一读者、停止确认的判断、恢复引用的读取、监督工具的运行；不起 scope，两个平台都运行
-- [host-probe.spec.ts](host-probe.spec.ts)：`command` 的平台前提探测：改变真实环境后答 `unavailable` 与诊断，前提恢复后再启动
+- [host-probe.spec.ts](host-probe.spec.ts)：`command` 的平台前提探测：改变真实环境后答 `unavailable` 与诊断，前提恢复后再启动；探测程序的退出与停止结果对应的前提项
+- [scope-cgroup.spec.ts](scope-cgroup.spec.ts)：统一、混合与 v1 布局下单元目录的解析，进程是否在自己的单元里，以及探测程序不在自己单元里时不以 0 退出
 - [host-provider-drain.spec.ts](host-provider-drain.spec.ts)：退役等在途文件操作、超界待处置与诊断
 - [host-domain.spec.ts](host-domain.spec.ts)：责任域的真实文件与描述符证据：每份获取的排空、关闭失败的归属与维护重试、跨代共用配额与原记录、重建登记表后的结清、冷恢复的保守答复；排空只停止这份获取的命令进程
 - [contract-conformance.spec.ts](contract-conformance.spec.ts)：登记表与宿主提供者经契约套件，以及套件拒绝的故障

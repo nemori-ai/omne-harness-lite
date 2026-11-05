@@ -236,18 +236,39 @@ export async function forceStopScope(input: {
   return show === undefined ? { status: 'unconfirmed' } : { status: 'unconfirmed', show }
 }
 
-function isListedUnit(value: unknown): value is { unit: string; description: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof Reflect.get(value, 'unit') === 'string' &&
-    typeof Reflect.get(value, 'description') === 'string'
-  )
+/**
+ * The `Id` and `Description` of every unit in `systemctl show` output (key=value blocks separated
+ * by blank lines), or `undefined` when a block is not that shape (a line without a key, a repeated
+ * key, no `Id` or no `Description`) or names a unit outside `omne-host-*.scope`. The columns of `list-units` text change when a listed unit has a pending
+ * job, and systemd 245 ignores `--output=json` there, so the listing reads `show`.
+ */
+function shownUnits(text: string): { id: string; description: string }[] | undefined {
+  const units: { id: string; description: string }[] = []
+  for (const block of text.split(/\n{2,}/u)) {
+    if (block.trim() === '') continue
+    const values = new Map<string, string>()
+    for (const line of block.split('\n')) {
+      if (line === '') continue
+      const at = line.indexOf('=')
+      const key = line.slice(0, at)
+      // A repeated key means two units ran together without the blank line between them.
+      if (at <= 0 || values.has(key)) return undefined
+      values.set(key, line.slice(at + 1))
+    }
+    const id = values.get('Id')
+    const description = values.get('Description')
+    if (id === undefined || description === undefined) return undefined
+    if (!id.startsWith('omne-host-') || !id.endsWith('.scope')) return undefined
+    units.push({ id, description })
+  }
+  return units
 }
 
 /**
  * Lists the scopes of `scope` that this provider started and systemd still knows, from the unit
- * descriptions. A failed listing is `unavailable`, never an empty list. A unit of an earlier boot
+ * descriptions. A failed listing, or output it cannot read, is `unavailable`, never an empty list.
+ * Only a well-formed block that is not this scope's is left out: its description names another
+ * scope, or its unit name is not `omne-host-<uuid>.scope` (a probe unit, say). A unit of an earlier boot
  * is gone with that boot, so it is not listed.
  */
 export async function listScopes(input: {
@@ -260,37 +281,18 @@ export async function listScopes(input: {
   if (bootId === undefined) return { kind: 'unavailable' }
   const run = await runTool(
     input.systemctl,
-    [
-      '--user',
-      'list-units',
-      '--all',
-      '--type=scope',
-      '--plain',
-      '--no-legend',
-      '--output=json',
-      'omne-host-*.scope',
-    ],
+    ['--user', 'show', '-p', 'Id', '-p', 'Description', 'omne-host-*.scope'],
     input.boundMs,
   )
   if (run.kind !== 'exited' || run.code !== 0) return { kind: 'unavailable' }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(run.stdout)
-  } catch {
-    return { kind: 'unavailable' }
-  }
-  if (!Array.isArray(parsed)) return { kind: 'unavailable' }
+  const units = shownUnits(run.stdout)
+  if (units === undefined) return { kind: 'unavailable' }
   const digest = scopeDigest(input.scope)
   const resources: ManagedResource[] = []
-  for (const entry of parsed) {
-    if (!isListedUnit(entry)) continue
-    const key = unitPattern.exec(entry.unit)?.[1]
-    if (key === undefined || entry.description !== `${descriptionPrefix} ${digest} ${key}`) continue
-    resources.push({
-      key,
-      provider: input.provider,
-      reference: scopeReference({ unit: entry.unit, bootId }),
-    })
+  for (const { id: unit, description } of units) {
+    const key = unitPattern.exec(unit)?.[1]
+    if (key === undefined || description !== `${descriptionPrefix} ${digest} ${key}`) continue
+    resources.push({ key, provider: input.provider, reference: scopeReference({ unit, bootId }) })
   }
   return { kind: 'listed', resources }
 }

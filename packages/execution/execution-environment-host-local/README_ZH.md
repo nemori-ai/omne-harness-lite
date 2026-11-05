@@ -74,7 +74,7 @@ Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空
 pnpm --filter @omne-harness/execution-environment-host-local test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。十六个测试文件共二百七十个测试：快层 249 个、慢层 20 个、只在非 Linux 宿主上运行的 1 个，见 [tests/](tests/README.md)。文件字节、符号链接、对象替换与描述符用真实文件系统，Cordis 装载用真实 Cordis 4.0.4，授权决定用替身；一些测试文件用模块替身让 `open` 停住，使文件操作保持在途，或让 `FileHandle.close` 与 `unlink` 按预设失败；命令测试用真实的 `systemd-run`、门进程与 `systemctl`。运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过；当前的运行记录见 SPEC [组合与验证](SPEC.md#组合与验证)。契约意义的授予根、重复装载与配置校验失败没有测试。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。各层的测试数与运行宿主见 SPEC 的运行记录，测试清单见 [tests/](tests/README.md)。文件字节、符号链接、对象替换与描述符用真实文件系统，Cordis 装载用真实 Cordis 4.0.4，授权决定用替身；一些测试文件用模块替身让 `open` 停住，使文件操作保持在途，或让 `FileHandle.close` 与 `unlink` 按预设失败；命令测试用真实的 `systemd-run`、门进程与 `systemctl`。运行记录：PanQiWei 接受时只在 Node v26.0.0、darwin 上运行过；当前的运行记录见 SPEC [组合与验证](SPEC.md#组合与验证)。契约意义的授予根、重复装载与配置校验失败没有测试。结构检查通过不表示行为已验证。
 
 ## 维护
 
