@@ -6,8 +6,9 @@ import { describe, expect, it } from 'vitest'
 import { only } from './doubles/calls.ts'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
-import { stallingCredentials, stallingLanding } from './doubles/stalls.ts'
-import { alice, millis, ref } from './doubles/values.ts'
+import { stallingCredentials, stallingLanding, stallingStops } from './doubles/stalls.ts'
+import type { PeerIdentity } from '@omne-harness/mcp-contract'
+import { alice, millis, peerIdentity, ref } from './doubles/values.ts'
 import { VALUE, adoptStdio, usualScript, world, type World } from './doubles/world.ts'
 
 const files = ref('files')
@@ -74,6 +75,29 @@ describe('closeAll releases the handles of the landings in flight at once (decis
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
   })
+
+  it('not for a landing that already handed over its process: the handle waits for its stop (S9)', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files, {
+      ...WITH_CREDENTIAL,
+      settings: { connectTimeout: VALUE(millis(50)) },
+    })
+    const stops = stallingStops(w.landing, only(1))
+    const landing = stallingLanding(stops.port)
+    const c = core({ ...w, ports: { ...w.ports, landing: landing.port } })
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual(REFUSED)
+    landing.gate.resolve()
+    await settled()
+    // The late process is being stopped; it carries the handle in its environment.
+    const all = c.connections.closeAll()
+    await settled()
+    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 0 }])
+    stops.gate.resolve()
+    await all
+    await settled()
+    expect(w.trace).toEqual(['process.stop', 'credential.release'])
+    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
+  })
 })
 
 describe('a build under way when the table shuts goes no further (decision 5)', () => {
@@ -109,6 +133,22 @@ describe('a build under way when the table shuts goes no further (decision 5)', 
     expect(await all).toEqual([{ ref: files, process: 'no-process' }])
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(opens(w)).toBe(0)
+    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
+  })
+
+  it('shut while negotiating: the same refusal as after the shutdown, not a connection about to be torn down (decision 23)', async () => {
+    const discover = deferred<PeerIdentity>()
+    const w = world({ script: [{ discover }] })
+    adoptStdio(w, files, WITH_CREDENTIAL)
+    const c = core(w)
+    const refreshed = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    const all = c.connections.closeAll()
+    await settled()
+    discover.resolve(peerIdentity())
+    expect(await refreshed).toEqual(REFUSED)
+    await all
+    expect(w.trace).toEqual(['transport.close', 'process.stop', 'credential.release'])
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
   })
 })

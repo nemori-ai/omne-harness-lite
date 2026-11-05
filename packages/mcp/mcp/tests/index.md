@@ -18,9 +18,10 @@
 - [ensure.spec.ts](ensure.spec.ts)：连接表的复用、重建、单飞、配值缺陷、连接失败、句柄释放、连接时限与键
 - [entry.spec.ts](entry.spec.ts)：`holdsNothing` 五种资源各一例；删除条件 `forgettable`（已关闭且什么也不持有）
 - [teardown.spec.ts](teardown.spec.ts)：拆除在 `close()`／`stop()`／`release()` reject 每种组合下每步都执行；某个 `stop()` reject 时其余进程仍被要求停止；早先修订留下的未确认进程由新修订的条目再问；拆除等端口时条目不被删除；落点在途时的 `release`／`closeAll`、关停后不建连、关停时立即释放句柄
-- [shutdown.spec.ts](shutdown.spec.ts)：`closeAll` 先释放在途落点的句柄，不等别的条目关闭；建连途中关停，不再起进程、不再打开传输，也不标记清单
+- [shutdown.spec.ts](shutdown.spec.ts)：`closeAll` 先释放在途落点的句柄，不等别的条目关闭，已交来进程的落点除外；建连途中关停（取凭据、起进程、协商时），不再起进程、不再打开传输、不交出连接，也不标记清单
 - [turns.spec.ts](turns.spec.ts)：每个持有一次只跑一个的轮次
-- [port-breach.spec.ts](port-breach.spec.ts)：读类端口（采用、资格、存储）reject 当作 `unknown`／`unavailable`
+- [port.spec.ts](port.spec.ts)：端口适配器 `ask`（同步抛出与 reject 读成违约答复）与时限下的等待 `within`
+- [port-breach.spec.ts](port-breach.spec.ts)：读类端口（采用、资格、存储）违约当作 `unknown`／`unavailable`；建连的端口同步抛出与 reject 同样收场
 - [refresh.spec.ts](refresh.spec.ts)：读口与发布边界，含并发与迟到结果
 - [races.spec.ts](races.spec.ts)：交错：发布边界紧挨写入、旧代际迟到的页、取页时限、关闭对建连、挂起或抛出的端口、建连中中止、旧修订令牌、服务层关口、时限后交来或 reject 的落点、临界区重读的时限、临界区等关闭或拆除的时限
 - [status.spec.ts](status.spec.ts)：状态视图

@@ -1,7 +1,8 @@
-// Read ports in breach (SPEC decision 4): a port that rejects instead of answering an `Outcome`
-// is read as `unknown` (adoption, eligibility) or `unavailable` (the store). The close-order
-// ports that reject are in `teardown.spec.ts`; a transport or landing that rejects within the
-// bound keeps the `failed()` wrap-up of `races.spec.ts` (N1).
+// Ports in breach (SPEC MC-15): every port is asked through `ask`, so a port that throws when it
+// is called, or rejects instead of answering an `Outcome`, answers its breach: `unknown` for
+// adoption and eligibility, `unavailable` for the store, a connection failure for the ports of a
+// build. The close-order ports in breach are in `teardown.spec.ts`; a rejected `discover` is in
+// `races.spec.ts`.
 import { describe, expect, it } from 'vitest'
 import type { AdoptionView, UseEligibility } from '@omne-harness/mcp-contract/provider'
 import { only, picker, type Which } from './doubles/calls.ts'
@@ -108,5 +109,51 @@ describe('a read port that rejects is read as unknown', () => {
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'unknown' },
     })
+  })
+})
+
+describe('a port that throws when it is called answers as one that rejects', () => {
+  const WITH_CREDENTIAL = {
+    auth: 'static',
+    env: [{ name: 'TOKEN', source: 'credential' }],
+  } as const
+
+  function thrower(port: string): () => never {
+    return () => {
+      throw new Error(`${port} threw`)
+    }
+  }
+
+  it('adoption throwing at the gate: inspect and refresh answer unknown, nothing connects', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files)
+    const adoption = { endpoints: thrower('adoption'), endpoint: thrower('adoption') }
+    const c = core({ ...w, ports: { ...w.ports, adoption } })
+    expect(await c.status.inspect(alice, files)).toEqual({ failure: { kind: 'unknown' } })
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'unknown' },
+    })
+    expect(w.transports.calls).toHaveLength(0)
+  })
+
+  it('the landing throwing: refresh answers landing-unavailable and the handle is released once', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files, WITH_CREDENTIAL)
+    const c = core({ ...w, ports: { ...w.ports, landing: { start: thrower('landing') } } })
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'landing-unavailable' },
+    })
+    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
+  })
+
+  it('the transport factory throwing: refresh answers connection-unavailable and the process is stopped', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files, WITH_CREDENTIAL)
+    const c = core({ ...w, ports: { ...w.ports, transports: { open: thrower('open') } } })
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'connection-unavailable' },
+    })
+    expect(w.trace).toEqual(['process.stop', 'credential.release'])
+    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
   })
 })

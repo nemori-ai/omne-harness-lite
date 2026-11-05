@@ -7,8 +7,8 @@ Usage, from the repository root, through the test slot:
 
 A case is the name of a configuration file without `.cfg`. Without a case every case runs. The
 exit code is 0 when every case that ran was judged as expected (see README.md): a positive control
-finishes without an error; a negative control, a known counterexample of 1160e92c8 and the probe
-of the anti-theorem A1 each violate exactly the invariant named below. TLA2TOOLS_JAR names the
+finishes without an error; a negative control and the probe of the anti-theorem A1 each violate
+exactly the invariant named below. TLA2TOOLS_JAR names the
 tla2tools jar, JAVA_BIN the java binary, FORMAL_OUTPUT_DIR the evidence directory (default
 tmp/formal/mcp-connection-table/runs/), FORMAL_WORKERS the TLC workers (default 4).
 """
@@ -38,13 +38,11 @@ CASES = {
     'live': None,
     'bad-no-absorb-close': 'P2_NoneHoldsNothing',
     'bad-forget-open': 'P2_ForgetHoldsNothing',
+    'bad-forget-open-late': 'P6_LateInvisible',
     'bad-no-shut': 'P4_NoConnectAfterShut',
-    'cex-b1': 'P7_NoB1',
-    'cex-n2': 'P7_NoN2',
-    'cex-n3': 'P1_AtMostOnce',
-    'cex-n3-shutdown': 'P3_EveryProcessAsked',
-    'cex-p2': 'P8_NoTeardownStall',
-    'cex-n1': 'P8_NoStoreStall',
+    'bad-ok-after-shut': 'P4_NoOkAfterShut',
+    'bad-abandon-landed': 'P1_ReleasedAfterStop',
+    'bad-unbounded-wrap': 'P8_BoundedEnsure',
     'probe-a1': 'P8_BoundedClose',
     'probe-live-hang': TEMPORAL,
 }

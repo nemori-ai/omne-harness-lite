@@ -452,7 +452,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
 })
 
 describe('ensure: the connection bound', () => {
-  it('answers connection-unavailable at the bound and stops the process it started', async () => {
+  it('answers connection-unavailable at the bound with the mark pending; the started process is stopped after', async () => {
     const never = deferred<'opened'>()
     const w = world({ script: [{ open: never }] })
     adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(1)) } })
@@ -463,9 +463,10 @@ describe('ensure: the connection bound', () => {
       failure: {
         stage: 'connect',
         reason: { kind: 'connection-unavailable' },
-        catalog: 'not-acquired',
+        catalog: 'pending',
       },
     })
+    await settled()
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
       kind: 'lost',
@@ -480,6 +481,7 @@ describe('ensure: the connection bound', () => {
     const table = tableOf(w)
     const token = await admitted(w, files)
     await table.ensure(token, alice)
+    await settled()
     expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
       kind: 'lost',
       reason: 'preparation-failed',

@@ -2,6 +2,7 @@
 // Service-level cases assert connection state through `status.inspect`, the public status port.
 import { createConnections } from '../../src/connections.ts'
 import { createDiscovery, type McpDiscovery } from '../../src/discovery.ts'
+import { createTaskScope } from '../../src/internal/scope.ts'
 import { createConnectionTable } from '../../src/internal/table.ts'
 import { createStatus } from '../../src/status.ts'
 import type { Connections, EndpointStatus } from '@omne-harness/mcp-contract'
@@ -16,11 +17,13 @@ export type Core = Readonly<{
 }>
 
 export function core(w: World): Core {
-  const table = createConnectionTable(w.ports, w.config)
+  const scope = createTaskScope()
+  const table = createConnectionTable(w.ports, w.config, scope)
   const deps = {
     ports: w.ports,
     config: w.config,
     table,
+    scope,
     now: () => new Date('2026-11-03T12:00:00Z'),
   }
   return {

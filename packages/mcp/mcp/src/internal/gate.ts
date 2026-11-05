@@ -18,7 +18,7 @@ import type {
   AdoptionView,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
-import { answerOf } from './abort.ts'
+import { ask } from './port.ts'
 
 declare const adoptedBrand: unique symbol
 declare const admittedBrand: unique symbol
@@ -85,14 +85,14 @@ function tokenOf(endpoint: AdoptedEndpoint): Outcome<AdoptedOnly, 'body-unreadab
 
 /**
  * Adoption only: the endpoint by reference, as a token without eligibility. A port that rejects
- * instead of answering is read as `unknown` (SPEC decision 4).
+ * that breaches its contract instead of answering is read as `unknown` (SPEC MC-15).
  */
 export async function adopted<P, S>(
   ports: Readonly<{ adoption: AdoptionView<P, S> }>,
   access: Access<P>,
   ref: EndpointRef,
 ): Promise<Outcome<AdoptedOnly, AdoptionOutcome>> {
-  const answer = await answerOf(ports.adoption.endpoint(access, ref), fail('unknown'))
+  const answer = await ask(() => ports.adoption.endpoint(access, ref), fail('unknown'))
   if ('failure' in answer) return fail('adoption-unknown')
   if (answer.ok === 'not-adopted') return fail('not-adopted')
   return tokenOf(answer.ok)
@@ -110,7 +110,9 @@ export async function judge<P, S>(
 ): Promise<GateDecision> {
   if (!adoptedTokens.has(endpoint))
     throw new TypeError('the endpoint did not come from the MCP gate')
-  const verdict = await answerOf(ports.eligibility.check(access, endpoint.ref), { kind: 'unknown' })
+  const verdict = await ask(() => ports.eligibility.check(access, endpoint.ref), {
+    kind: 'unknown',
+  })
   switch (verdict.kind) {
     case 'granted': {
       const token = Object.freeze({ ...endpoint })
@@ -153,7 +155,7 @@ export async function admitScope<P, S>(
   access: Access<P>,
   scope: S,
 ): Promise<Outcome<readonly GateDecision[], 'adoption-unknown'>> {
-  const listed = await answerOf(ports.adoption.endpoints(access, scope), fail('unknown'))
+  const listed = await ask(() => ports.adoption.endpoints(access, scope), fail('unknown'))
   if ('failure' in listed) return fail('adoption-unknown')
   const decisions: GateDecision[] = []
   for (const endpoint of listed.ok) {

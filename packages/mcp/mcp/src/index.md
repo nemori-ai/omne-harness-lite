@@ -20,12 +20,13 @@
 - [internal/in-flight.ts](internal/in-flight.ts)：`InFlightCalls` 聚合
 - [internal/gate.ts](internal/gate.ts)：S1 唯一的裁决、`AdoptedOnly` 与 `AdmittedEndpoint`
 - [internal/guard.ts](internal/guard.ts)：使用边界与发布边界上的关口，不变式 6 的关闭
-- [internal/abort.ts](internal/abort.ts)：在时限下等端口（`untilAborted`）；端口 reject 的读法 `answerOf`；时限后交来的东西的收口 `afterwards`
+- [internal/port.ts](internal/port.ts)：唯一的端口适配器 `ask`（同步抛出与 reject 读成违约答复）；时限下的等待 `within`
+- [internal/scope.ts](internal/scope.ts)：连接表的任务作用域：时限之后继续的工作与其中的编程错误
 - [internal/table.ts](internal/table.ts)：连接表，只编排
 - [internal/entry.ts](internal/entry.ts)：条目的资源与视图；谓词 `holdsNothing`、`forgettable`；资源的搬移 `recordStop`、`adoptLingering`、`handOverToLanding`、`landingAnswered`
-- [internal/teardown.ts](internal/teardown.ts)：唯一的关闭次序 `teardown`；每一步在端口调用处吸收违约（`closeTransport`、`stopOne`、`releaseHeld`）；在途落点的句柄 `releaseLanding`、`abandonLandings`
-- [internal/late.ts](internal/late.ts)：时限后交来的传输、句柄与进程
-- [internal/build.ts](internal/build.ts)：时限下的建连、连接丢失的收场与建连途中关停的收场
+- [internal/teardown.ts](internal/teardown.ts)：唯一的关闭次序 `teardown`；每一步经 `ask` 问端口（`closeTransport`、`stopOne`、`releaseHeld`）；在途落点的句柄 `releaseLanding`、`abandonLandings`
+- [internal/late.ts](internal/late.ts)：时限后交来的传输、句柄与进程，作为 `within` 的收口函数
+- [internal/build.ts](internal/build.ts)：时限下的建连，含失败与关停之后的收场
 - [internal/turns.ts](internal/turns.ts)：每个持有一次只跑一个
 - [internal/settings.ts](internal/settings.ts)：S4 配值检查
 - [internal/text.ts](internal/text.ts)、[internal/canonical.ts](internal/canonical.ts)：键文本与 JSON 规范化

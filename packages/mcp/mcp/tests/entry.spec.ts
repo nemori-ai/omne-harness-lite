@@ -71,7 +71,9 @@ describe('holdsNothing: the one condition an entry is forgotten on', () => {
   })
 
   it('is false while a landing is still in flight, even without a handle', () => {
-    expect(holdsNothing({ ...nothing(), landings: [{ credential: undefined }] })).toBe(false)
+    expect(
+      holdsNothing({ ...nothing(), landings: [{ credential: undefined, landed: false }] }),
+    ).toBe(false)
   })
 })
 
@@ -98,7 +100,7 @@ describe('forgettable: closed, and holding nothing', () => {
   })
 
   it('is false for a closed entry that still waits on a landing', () => {
-    const landings = [{ credential: undefined }]
+    const landings = [{ credential: undefined, landed: false }]
     expect(forgettable({ ...nothing(), landings, connection: connection(true) })).toBe(false)
   })
 })

@@ -6,6 +6,8 @@
 // `entry.ts`, the build `build.ts`, the close order `teardown.ts`, the turns `turns.ts`. The
 // `Connection` aggregate is written by the table and by the build it starts; the services report
 // to the table through `settle` and `lose`. An entry leaves the table in one place, `forget`.
+// Nothing runs detached: the work an `ensure` stops waiting for at its bound goes on in the
+// table's scope, whose errors `closeAll` hands to its caller.
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -22,7 +24,6 @@ import {
   type Millis,
   type ReleaseReport,
 } from '@omne-harness/mcp-contract'
-import { untilAborted } from './abort.ts'
 import { createBuilder } from './build.ts'
 import { Connection, type GenerationPolicy } from './connection.ts'
 import {
@@ -44,6 +45,8 @@ import {
   type UnavailableMark,
 } from './entry.ts'
 import { admitWithoutEligibility, assertAdmitted, type AdmittedEndpoint } from './gate.ts'
+import { within } from './port.ts'
+import { createTaskScope, type TaskScope } from './scope.ts'
 import { prepareSettings, type PreparedSettings } from './settings.ts'
 import { abandonLandings, narrowest, teardown } from './teardown.ts'
 import { connectionKeyTextOf, tenantTextOf } from './text.ts'
@@ -91,6 +94,10 @@ export interface ConnectionTable<P> {
   stateOf(tenant: TenantId, holding: EndpointHolding): ConnectionState
   /** The close order: refuse requests, close the transport, stop the process, release the handle. */
   close(tenant: TenantId, holding: EndpointHolding): Promise<ReleaseReport>
+  /**
+   * The shutdown, and the exit of the table's scope: it rejects with an `AggregateError` when
+   * background work of the table raised errors of this package, after every entry is closed.
+   */
   closeAll(): Promise<readonly ClosedEndpoint[]>
 }
 
@@ -126,6 +133,7 @@ function later(left: Generation, right: Generation | undefined): Generation {
 export function createConnectionTable<P, S>(
   ports: McpPorts<P, S>,
   config: McpConfig<P>,
+  scope: TaskScope = createTaskScope(),
 ): ConnectionTable<P> {
   const entries = new Map<string, Entry>()
   const byView = new WeakMap<ConnectionView, Entry>()
@@ -136,7 +144,7 @@ export function createConnectionTable<P, S>(
   const turns = createTurns()
   // Set by `closeAll`: from then on nothing connects (SPEC decision 5).
   let shut = false
-  const builder = createBuilder(ports, config, { afterLanding: forget, shut: () => shut })
+  const builder = createBuilder(ports, config, { afterLanding: forget, shut: () => shut, scope })
 
   const entriesOf = (tenantText: string, holding: EndpointHolding): Entry[] =>
     [...entries.values()].filter(
@@ -224,8 +232,8 @@ export function createConnectionTable<P, S>(
     access: Access<P>,
     bound: AbortSignal,
   ): Promise<EnsureRefusal | 'current'> {
-    const read = await untilAborted(admitWithoutEligibility(ports, access, admitted.ref), bound)
-    if (read.kind === 'aborted') return CONNECTION_UNAVAILABLE
+    const read = await within(admitWithoutEligibility(ports, access, admitted.ref), bound, scope)
+    if (read.kind === 'expired') return CONNECTION_UNAVAILABLE
     if ('failure' in read.value) return read.value.failure
     return read.value.ok.revision === admitted.revision ? 'current' : UNKNOWN
   }
@@ -288,8 +296,8 @@ export function createConnectionTable<P, S>(
       if (blocking !== undefined) {
         // At most to this call's bound (decision 22): a close or teardown that does not end
         // within it goes on by itself, and this call answers.
-        const waited = await untilAborted(blocking, bound)
-        if (waited.kind === 'aborted') return refused(CONNECTION_UNAVAILABLE)
+        const waited = await within(blocking, bound, scope)
+        if (waited.kind === 'expired') return refused(CONNECTION_UNAVAILABLE)
         continue
       }
       const existing = entries.get(keyText)
@@ -387,18 +395,28 @@ export function createConnectionTable<P, S>(
 
   /**
    * The shutdown: nothing connects after it; the handles of the landings in flight are released
-   * first, all at once (decision 6); then every entry is closed, all at once. It waits for every
-   * teardown to end.
+   * first, all at once (decision 6); then every entry is closed, all at once. It waits for both,
+   * then hands over the errors the table's background work raised.
    */
   async function closeAll(): Promise<readonly ClosedEndpoint[]> {
     shut = true
     const all = [...entries.values()]
-    const abandoned = Promise.all(all.map(abandonLandings))
-    const closed = await Promise.all(
-      all.map(async entry => ({ ref: entry.ref, process: await closeEntry(entry) })),
-    )
-    await abandoned
-    return closed
+    // Every entry is closed before the answer, even when closing another one fails (SPEC P3).
+    const [abandoned, closing] = await Promise.all([
+      Promise.allSettled(all.map(abandonLandings)),
+      Promise.allSettled(
+        all.map(async entry => ({ ref: entry.ref, process: await closeEntry(entry) })),
+      ),
+    ])
+    const defects = [
+      ...[...abandoned, ...closing].flatMap(item =>
+        item.status === 'rejected' ? [item.reason as unknown] : [],
+      ),
+      ...scope.defects(),
+    ]
+    if (defects.length > 0)
+      throw new AggregateError(defects, 'the MCP connection table did not close cleanly')
+    return closing.flatMap(item => (item.status === 'fulfilled' ? [item.value] : []))
   }
 
   return { ensure, settle, lose, current, stateOf, close, closeAll }

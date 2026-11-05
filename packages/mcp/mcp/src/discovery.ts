@@ -24,9 +24,10 @@ import {
   type Refusal,
 } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
-import { answerOf, untilAborted } from './internal/abort.ts'
 import { sameJson } from './internal/canonical.ts'
 import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
+import { ask, within } from './internal/port.ts'
+import type { TaskScope } from './internal/scope.ts'
 import { readAccountOf } from './internal/settings.ts'
 import type { CatalogMark, ConnectionTable, Ensured } from './internal/table.ts'
 
@@ -54,6 +55,8 @@ export type DiscoveryDependencies<P, S> = Readonly<{
   table: ConnectionTable<P>
   /** The time a listing is acquired at; a listing's freshness carries it. */
   now: () => Date
+  /** The table's scope: what a refresh stops waiting for goes on there. */
+  scope: TaskScope
 }>
 
 const SUPERSEDED: RefreshResult = { kind: 'kept', reason: { kind: 'superseded' } }
@@ -61,7 +64,10 @@ const CANCELLED: RefreshResult = { kind: 'kept', reason: { kind: 'cancelled' } }
 const UNKNOWN: Refusal = { kind: 'unknown' }
 const ABANDONED: TransportFailure = { kind: 'no-answer', cause: 'abandoned' }
 
-/** What a connection failure's catalog marking means for `refresh` (SPEC S5). */
+/**
+ * What a connection failure's catalog marking means for `refresh` (SPEC S5). A mark still
+ * `pending` at the build's bound leaves the failure itself as the answer.
+ */
 function afterMarking(
   reason: OperationFailure,
   catalog: CatalogMark | 'not-current',
@@ -74,6 +80,7 @@ function afterMarking(
       return fail(UNKNOWN)
     case 'marked':
     case 'not-acquired':
+    case 'pending':
       return fail(reason)
     default: {
       const exhaustive: never = catalog
@@ -94,8 +101,8 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
 
   /**
    * Reads pages until the last one, a failed one, or the page bound, under the listing bound of
-   * invariant 5. A page the bound cuts off is a page without an answer; an abort of the caller
-   * ends the listing as cancelled.
+   * invariant 5. A page the bound cuts off is a page without an answer, and so is a `listActions`
+   * that breaches its contract (contract T9); an abort of the caller ends the listing as cancelled.
    */
   async function listPages(
     ensured: Ensured,
@@ -106,16 +113,17 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     const pages: Outcome<ListingPage, TransportFailure>[] = []
     let cursor: string | undefined
     for (let count = 0; count < config.maxListingPages; count += 1) {
-      const asked = await untilAborted(ensured.transport.listActions(cursor), limit)
-      if (asked.kind === 'aborted') {
+      const page = ask(() => ensured.transport.listActions(cursor), fail(ABANDONED))
+      const asked = await within(page, limit, deps.scope)
+      if (asked.kind === 'expired') {
         if (signal?.aborted === true) return 'cancelled'
         pages.push({ failure: ABANDONED })
         break
       }
-      const page = asked.value
-      pages.push(page)
-      if ('failure' in page || page.ok.nextCursor === undefined) break
-      cursor = page.ok.nextCursor
+      const answered = asked.value
+      pages.push(answered)
+      if ('failure' in answered || answered.ok.nextCursor === undefined) break
+      cursor = answered.ok.nextCursor
     }
     return pages
   }
@@ -150,8 +158,8 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     ensured: Ensured,
   ): Promise<Outcome<RefreshResult, OperationFailure>> {
     const { generation, connection, peer, catalogKey } = ensured
-    // A store that rejects instead of answering is unavailable (SPEC decision 4): `unknown`.
-    const read = await answerOf(ports.store.read(catalogKey), fail('unavailable'))
+    // A store that breaches is unavailable (SPEC MC-15): `unknown`.
+    const read = await ask(() => ports.store.read(catalogKey), fail('unavailable'))
     if ('failure' in read) return fail(UNKNOWN)
     const current = stateOf(read.ok)
     const basedOn = read.ok === 'absent' ? 'absent' : read.ok.revision
@@ -185,8 +193,8 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     if (admitted.ok === 'superseded') return succeed(SUPERSEDED)
     if (!connection.isCurrent(generation)) return succeed(SUPERSEDED)
     if (request.signal?.aborted === true) return succeed(CANCELLED)
-    const written = await answerOf(
-      ports.store.write(catalogKey, merged.ok, basedOn),
+    const written = await ask(
+      () => ports.store.write(catalogKey, merged.ok, basedOn),
       fail('unavailable'),
     )
     if ('failure' in written)
@@ -203,8 +211,12 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     // The build is shared by every caller of the key and bounded by the connection bound; the
     // caller's abort ends only this refresh.
     const options = request.connectBound === undefined ? {} : { connectBound: request.connectBound }
-    const asked = await untilAborted(table.ensure(admitted.ok, access, options), request.signal)
-    if (asked.kind === 'aborted') return succeed(CANCELLED)
+    const asked = await within(
+      table.ensure(admitted.ok, access, options),
+      request.signal,
+      deps.scope,
+    )
+    if (asked.kind === 'expired') return succeed(CANCELLED)
     const ensured = asked.value
     if ('failure' in ensured)
       return ensured.failure.stage === 'settings'
@@ -232,10 +244,8 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     if ('failure' in admitted) return admitted
     const account = readAccountOf(admitted.ok)
     if ('failure' in account) return account
-    const read = await answerOf(
-      ports.store.read(catalogKeyOf(access.tenant, admitted.ok, account.ok)),
-      fail('unavailable'),
-    )
+    const key = catalogKeyOf(access.tenant, admitted.ok, account.ok)
+    const read = await ask(() => ports.store.read(key), fail('unavailable'))
     if ('failure' in read) return fail(UNKNOWN)
     if (read.ok === 'absent') return succeed({ kind: 'not-acquired' })
     const record = read.ok

@@ -47,8 +47,16 @@ export type Ensured = Readonly<{
   bound: Millis
 }>
 
-/** What marking a connection failure into the catalog did. */
-export type CatalogMark = 'marked' | 'revision-conflict' | 'unavailable' | 'not-acquired'
+/**
+ * What marking a connection failure into the catalog did. `pending`: a build reached its bound
+ * before the mark answered; the mark goes on in the table's scope (SPEC P8 T2).
+ */
+export type CatalogMark =
+  | 'marked'
+  | 'revision-conflict'
+  | 'unavailable'
+  | 'not-acquired'
+  | 'pending'
 
 export type ConnectionUnavailable = Extract<ConnectionFailure, { kind: 'connection-unavailable' }>
 
@@ -81,7 +89,11 @@ export type Lingering = Readonly<{ handle: ProcessHandle; confirmed: StopScope }
  * its environment; the handle is released once: after that process's stop (S9), or at the
  * shutdown (the exception of S9, decision 6), whichever comes first.
  */
-export type Landing = { credential: ProcessCredentialHandle | undefined }
+/**
+ * A landing the entry waits for after its bound, with the handle the process may carry. `landed`
+ * once it handed over a process: from then on the handle waits for that process's stop (S9).
+ */
+export type Landing = { credential: ProcessCredentialHandle | undefined; landed: boolean }
 
 /**
  * What an entry can hold. Each one is closed, stopped or released by the entry's teardown, or
@@ -159,6 +171,7 @@ export function handOverToLanding(held: Resources): Landing {
   const { credential } = held
   const landing: Landing = {
     credential: credential?.purpose === 'process-env' ? credential : undefined,
+    landed: false,
   }
   if (landing.credential !== undefined) held.credential = undefined
   held.landings = [...held.landings, landing]

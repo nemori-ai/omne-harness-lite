@@ -235,8 +235,8 @@ describe('build bound (B5): credentials and the landing are bounded too', () => 
   })
 })
 
-describe('a port that throws (N1)', () => {
-  it('a rejected discover is torn down; the next ensure builds again', async () => {
+describe('a port that breaches its contract (MC-15, contract T9)', () => {
+  it('a rejected discover answers effect-unknown (abandoned) and is torn down; the next ensure builds again', async () => {
     const broken = deferred<typeof peer>()
     const w = world({ script: [{ discover: broken }, ...usualScript()] })
     adoptStdio(w, files, { auth: 'static', env: [{ name: 'TOKEN', source: 'credential' }] })
@@ -244,7 +244,7 @@ describe('a port that throws (N1)', () => {
     const first = c.discovery.refresh(alice, { ref: files })
     await settled()
     broken.reject(new Error('transport bug'))
-    await expect(first).rejects.toThrow('transport bug')
+    expect(await first).toEqual({ failure: { kind: 'effect-unknown', cause: 'abandoned' } })
     expect(w.trace).toEqual(['transport.close', 'process.stop', 'credential.release'])
     expect(await c.status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'lost', reason: 'preparation-failed' } },

@@ -12,6 +12,7 @@ import { validateConfig } from './config.ts'
 import { createConnections } from './connections.ts'
 import { createDiscovery, type McpDiscovery } from './discovery.ts'
 import { createInspection } from './inspection.ts'
+import { createTaskScope } from './internal/scope.ts'
 import { createConnectionTable } from './internal/table.ts'
 import { createStatus } from './status.ts'
 
@@ -41,7 +42,8 @@ function localNow(): Date {
 
 /**
  * Builds the core services on the ports. An unlawful configuration is a `RangeError` (SPEC S3).
- * The services share one connection table; nothing connects until a `refresh` asks for it.
+ * The services share one connection table and its scope; nothing connects until a `refresh` asks
+ * for it.
  */
 export function createMcpCore<P, S>(
   ports: McpPorts<P, S>,
@@ -49,8 +51,9 @@ export function createMcpCore<P, S>(
   options: McpCoreOptions = {},
 ): McpCore<P, S> {
   const checked = validateConfig<P>(config)
-  const table = createConnectionTable(ports, checked)
-  const deps = { ports, config: checked, table, now: options.now ?? localNow }
+  const scope = createTaskScope()
+  const table = createConnectionTable(ports, checked, scope)
+  const deps = { ports, config: checked, table, scope, now: options.now ?? localNow }
   return {
     inspection: createInspection(),
     discovery: createDiscovery(deps),

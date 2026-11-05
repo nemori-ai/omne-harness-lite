@@ -47,6 +47,7 @@ import {
 } from '../doubles/values.ts'
 import {
   closeWaitsUnbounded,
+  connectedAfterShutdown,
   connectsAfterShutdown,
   crossesKeys,
   describeReason,
@@ -55,7 +56,6 @@ import {
   lateChanged,
   staleLoseChanged,
   stateViolations,
-  throwCause,
   unhandledRejection,
   unstoppedAtShutdown,
   type Found,
@@ -80,12 +80,15 @@ import {
   type ScriptedPortCall,
 } from './ports.ts'
 
-export type KeyName = 'A' | 'B'
+export type KeyName = 'A' | 'B' | 'C'
 
 /** The bounds of one exploration. */
 export type Scenario = Readonly<{
   name: string
-  /** `A`: alice of one tenant; `B`: mallory of another tenant, on the same holding. */
+  /**
+   * On the same holding and revision: `A`, alice of one tenant; `B`, mallory of another tenant;
+   * `C`, bob of A's tenant with another peer account.
+   */
   keys: readonly KeyName[]
   /** `ensure` calls per key. */
   ensures: number
@@ -108,12 +111,8 @@ export type Scenario = Readonly<{
 /** One choice of a schedule: the action, and which calls made during it throw when called. */
 export type Step = Readonly<{ act: string; throws: readonly number[] }>
 
-/**
- * A violation, with the shortest schedule that showed it and in how many states it was seen.
- * `cause` is the known counterexample of the port that threw earlier in the schedule, if one did.
- */
-export type Violation = Found &
-  Readonly<{ cause: string | undefined; trace: readonly string[]; depth: number; seen: number }>
+/** A violation, with the shortest schedule that showed it and in how many states it was seen. */
+export type Violation = Found & Readonly<{ trace: readonly string[]; depth: number; seen: number }>
 
 export type Exploration = Readonly<{
   scenario: Scenario
@@ -144,20 +143,26 @@ const BOUND = millis(1000)
 /** Lawful steps after which a run driven to rest is taken as not coming to rest. */
 const REST_STEPS = 200
 
+/**
+ * The owner of each key. A and B differ in the tenant only; A and C in the peer account only (the
+ * credential binding). Every key has its own adoption view, so all of them adopt at the same
+ * revision and the connection keys differ in nothing else (SPEC P5).
+ */
 const KEY_OWNERS = {
-  A: { principal: { id: 'alice' }, tenant: home },
-  B: { principal: { id: 'mallory' }, tenant: tenantOf('t') },
+  A: { principal: { id: 'alice' }, tenant: home, credential: 'main' },
+  B: { principal: { id: 'mallory' }, tenant: tenantOf('t'), credential: 'main' },
+  C: { principal: { id: 'bob' }, tenant: home, credential: 'other' },
 } as const
 
 /** One stdio endpoint with a process credential per key, adopted and admitted. */
 export async function modelKeys(names: readonly KeyName[]): Promise<readonly ModelKey[]> {
-  const adoption = createMemoryAdoptionView<Principal, string>({ scopeKey: scope => scope })
   const eligibility = createMemoryUseEligibility<Principal>({ principalKey })
   const endpoint = ref('files')
   const keys: ModelKey[] = []
   for (const name of names) {
     const owner = KEY_OWNERS[name]
     const asking = access<Principal>(owner.principal, owner.tenant)
+    const adoption = createMemoryAdoptionView<Principal, string>({ scopeKey: scope => scope })
     const adopted = adoption.adopt({
       tenant: owner.tenant,
       scope: 'ws',
@@ -172,7 +177,10 @@ export async function modelKeys(names: readonly KeyName[]): Promise<readonly Mod
           facilities: [],
         },
       }),
-      settings: settingsOf({ credential: VALUE(binding('main')), connectTimeout: VALUE(BOUND) }),
+      settings: settingsOf({
+        credential: VALUE(binding(owner.credential)),
+        connectTimeout: VALUE(BOUND),
+      }),
     })
     eligibility.grant(asking, endpoint)
     const decision = await admit({ adoption, eligibility }, asking, endpoint)
@@ -218,8 +226,13 @@ function siteOf(): string {
   return frames.join(' < ')
 }
 
-/** The state without the residual: what P6 compares across a late answer. */
+/**
+ * The state without the residual: what P6 compares across a late answer. A closed entry that
+ * keeps only processes whose stop was not confirmed reports `lost` (`close-unconfirmed`) to carry
+ * its residual (SPEC MC-9); without the residual it is `none`.
+ */
 function coreOf(state: ConnectionState): string {
+  if (state.kind === 'lost' && state.reason === 'close-unconfirmed') return '{"kind":"none"}'
   return JSON.stringify(state, (name, value: unknown) => (name === 'residual' ? undefined : value))
 }
 
@@ -229,6 +242,8 @@ type PendingCall = Readonly<{
   call: ScriptedPortCall
   /** The bound the table waits for it under, for a bounded port. */
   bound: string | undefined
+  /** Made while a late answer, or a call made after one, was handled: its answer is late too. */
+  lateBorn: boolean
   settle: (answer: Answer) => void
 }>
 
@@ -250,8 +265,7 @@ type Budget = {
 }
 
 /** A violation one run found: the step it showed in (1 for the first), and the schedule up to it. */
-type Report = Found &
-  Readonly<{ cause: string | undefined; step: number; trace: readonly string[] }>
+type Report = Found & Readonly<{ step: number; trace: readonly string[] }>
 
 const OP_LETTER: Readonly<Record<OpKind, string>> = {
   ensure: 'e',
@@ -275,6 +289,8 @@ class Run implements RunView, CallDesk {
   private readonly scenario: Scenario
   private readonly table: ConnectionTable<Principal>
   private calls: PendingCall[] = []
+  /** True while the reactions to a late answer run: the calls they make answer late too. */
+  private handlingLate = false
   private timers: Timer[] = []
   private readonly fired = new Set<string>()
   private readonly builds = new Map<string, number>()
@@ -286,8 +302,6 @@ class Run implements RunView, CallDesk {
   private stepThrows: ReadonlySet<number> = new Set()
   private stepCalls = 0
   private closeWaitsSeen = false
-  /** The cause of the first call that threw in this run. */
-  private thrown: string | undefined
 
   constructor(scenario: Scenario, keys: readonly ModelKey[]) {
     this.scenario = scenario
@@ -345,14 +359,14 @@ class Run implements RunView, CallDesk {
           : `${op.name} ${op.status} ${op.result}`,
       ),
       calls: this.calls
-        .map(({ call, bound }) =>
+        .map(pending =>
           [
-            call.port,
-            call.subject,
-            call.context?.op,
-            call.context?.timer,
-            call.site,
-            bound !== undefined && this.fired.has(bound) ? 'late' : '',
+            pending.call.port,
+            pending.call.subject,
+            pending.call.context?.op,
+            pending.call.context?.timer,
+            pending.call.site,
+            this.isLate(pending) ? 'late' : '',
           ].join('|'),
         )
         .sort(),
@@ -481,7 +495,6 @@ class Run implements RunView, CallDesk {
     if (this.mayDeviate('throw')) this.offered.push(index)
     if (this.stepThrows.has(index)) {
       this.left.deviations -= 1
-      this.thrown ??= throwCause(call.site)
       this.log.push(`  ${call.port} ${call.subject} throws when called (at ${call.site})`)
       request.ended?.('throw')
       throw new PortFault(call, 'threw')
@@ -490,6 +503,7 @@ class Run implements RunView, CallDesk {
     this.calls.push({
       call,
       bound: BOUNDED_PORTS.has(call.port) ? call.context?.timer : undefined,
+      lateBorn: this.handlingLate,
       settle: answer => {
         request.ended?.(answer)
         if (answer === 'reject') reject(new PortFault(call, 'rejected'))
@@ -569,6 +583,7 @@ class Run implements RunView, CallDesk {
         const transport = this.ledger.names.get(outcome.ok.transport)
         const record = this.ledger.transports.find(item => item.name === transport)
         this.report(foreignTransport(op, record?.key))
+        this.report(connectedAfterShutdown(this, op))
         return `ok ${transport ?? '?'}@g${outcome.ok.generation}`
       },
     )
@@ -642,12 +657,19 @@ class Run implements RunView, CallDesk {
   private async settle(pending: PendingCall, answer: Answer): Promise<void> {
     this.calls = this.calls.filter(item => item !== pending)
     if (answer !== 'ok') this.left.deviations -= 1
-    const late = pending.bound !== undefined && this.fired.has(pending.bound)
+    const late = this.isLate(pending)
     const before = this.observe()
+    this.handlingLate = late
     pending.settle(answer)
     await drain()
+    this.handlingLate = false
     if (late) this.report(lateChanged(pending.call, before, this.observe()))
     this.afterStep()
+  }
+
+  /** A late answer: its bound fired, or the call was made in the wake of a late answer (P6). */
+  private isLate(pending: PendingCall): boolean {
+    return pending.lateBorn || (pending.bound !== undefined && this.fired.has(pending.bound))
   }
 
   /** Answers every pending call lawfully, oldest first, then fires the bounds left. */
@@ -680,7 +702,7 @@ class Run implements RunView, CallDesk {
       const id = `${item.property}|${item.signature}|${item.detail}`
       if (this.reported.has(id)) continue
       this.reported.add(id)
-      this.reports.push({ ...item, cause: this.thrown, step: this.steps, trace: [...this.log] })
+      this.reports.push({ ...item, step: this.steps, trace: [...this.log] })
     }
   }
 }
@@ -788,7 +810,7 @@ export async function explore(
     for (const report of reports) {
       // A report made while the prefix replayed was collected when the prefix was new.
       if (report.step < length) continue
-      const id = `${report.property}|${report.signature}|${report.cause}`
+      const id = `${report.property}|${report.signature}`
       const known = found.get(id)
       const { step: _step, ...violation } = report
       if (known === undefined) found.set(id, { ...violation, depth: length, seen: 1 })

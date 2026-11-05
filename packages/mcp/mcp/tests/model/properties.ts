@@ -36,28 +36,11 @@ export interface RunView {
 }
 
 const NONE = '{"kind":"none"}'
-const LOST_UNCONFIRMED = '{"kind":"lost","reason":"close-unconfirmed"}'
+const LOST_UNCONFIRMED_WITH_RESIDUAL = '{"kind":"lost","reason":"close-unconfirmed","residual":['
 
-/**
- * The known counterexample a port that throws when called belongs to, by where it was called:
- * B1 the shutdown's release of the landings' handles; N2 the four chains nobody awaits on the
- * late path (`late.ts`, and the release of a landing's handle when its bound fires after the
- * shutdown began); N3 a step of the teardown.
- */
-export function throwCause(site: string): string {
-  if (site.includes('abandonLandings@')) return 'B1'
-  if (
-    site.includes('@late.ts') ||
-    site.includes('releaseLanding@teardown.ts < materialOf@build.ts')
-  )
-    return 'N2'
-  if (site.includes('closeOrder@teardown.ts')) return 'N3'
-  return `throw at ${site}`
-}
-
-/** The signature of a rejection nobody handled: the cause of the throw behind it. */
+/** The signature of a rejection nobody handled: a port's throw that escaped, or an own error. */
 export function unhandledSignature(reason: unknown): string {
-  return reason instanceof PortFault ? throwCause(reason.call.site) : 'P7-internal-error'
+  return reason instanceof PortFault ? 'P7-port-throw-escaped' : 'P7-internal-error'
 }
 
 export function describeReason(reason: unknown): string {
@@ -95,6 +78,18 @@ export function connectsAfterShutdown(view: RunView, call: ScriptedPortCall): Fo
       property: 'P4',
       signature: 'P4-connect-after-closeAll',
       detail: `${call.port} for ${call.key} after closeAll (at ${call.site})`,
+    },
+  ]
+}
+
+/** P4 (decision 23): an `ensure` that answers after `closeAll` began does not answer a connection. */
+export function connectedAfterShutdown(view: RunView, op: OpView): Found[] {
+  if (!view.shutAsked) return []
+  return [
+    {
+      property: 'P4',
+      signature: 'P4-ok-after-closeAll',
+      detail: `${op.name} answered a connection after closeAll`,
     },
   ]
 }
@@ -195,6 +190,15 @@ function releasedTwice(view: RunView): Found[] {
       signature: 'P1-released-twice',
       detail: `${handle.name} release() called ${handle.releases} times`,
     }))
+}
+
+/** P1 with S9: a handle is released only after every process that carries it answered `stop()`. */
+function releasedBeforeStop(view: RunView): Found[] {
+  return view.ledger.earlyReleases.splice(0).map(detail => ({
+    property: 'P1',
+    signature: 'P1-released-before-stop',
+    detail,
+  }))
 }
 
 /**
@@ -315,8 +319,8 @@ function leftAfterShutdown(view: RunView): Found[] {
       })),
   ]
   // An entry may stay after the shutdown only to keep a process whose stop was not confirmed (S7).
-  for (const { key, state, core } of view.observe())
-    if (state !== NONE && (core !== LOST_UNCONFIRMED || !state.includes('residual')))
+  for (const { key, state } of view.observe())
+    if (state !== NONE && !state.startsWith(LOST_UNCONFIRMED_WITH_RESIDUAL))
       found.push({
         property: 'P2',
         signature: 'P2-entry-left',
@@ -329,6 +333,7 @@ function leftAfterShutdown(view: RunView): Found[] {
 export function stateViolations(view: RunView): Found[] {
   return [
     ...releasedTwice(view),
+    ...releasedBeforeStop(view),
     ...heldWithoutEntry(view),
     ...ensureUnbounded(view),
     ...callerUnanswered(view),

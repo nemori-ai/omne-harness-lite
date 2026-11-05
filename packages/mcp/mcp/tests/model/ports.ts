@@ -147,12 +147,21 @@ export type Ledger = Readonly<{
   transports: TransportRecord[]
   /** Arguments of one call that name two keys (P5). */
   crossings: string[]
+  /** Handles released while a process that carries them had no answer to `stop()` (P1, S9). */
+  earlyReleases: string[]
   /** The name of each handle, process and transport object the ports handed out. */
   names: WeakMap<object, string>
 }>
 
 export function emptyLedger(): Ledger {
-  return { handles: [], processes: [], transports: [], crossings: [], names: new WeakMap() }
+  return {
+    handles: [],
+    processes: [],
+    transports: [],
+    crossings: [],
+    earlyReleases: [],
+    names: new WeakMap(),
+  }
 }
 
 function notModelled(member: string): never {
@@ -197,6 +206,11 @@ export function scriptedPorts(
       purpose: 'process-env',
       release() {
         record.releases += 1
+        for (const process of ledger.processes)
+          if (process.handle === record.name && process.lastStop === undefined)
+            ledger.earlyReleases.push(
+              `${record.name} released before ${process.name} answered stop()`,
+            )
         return desk.open({
           port: 'credential.release',
           key: key.name,
