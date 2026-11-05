@@ -36,3 +36,5 @@
 当前缺口：落点的歧义拒绝、获取的幂等与重新核对、租约视图与恢复编排归 [execution-environment](../../execution-environment/README.md) 验证，本目录不覆盖；真实设施行为归提供者成员验证。SPEC 的[持续验证义务](../SPEC.md#持续验证义务)大部分需要组合验证。`operation-schemas.spec.ts` 覆盖三面九操作的 schema（含配额域、原获取描述、查询与恢复查询的答复、采用失败与清理状态）、日期与逐项拒绝，`exports-inventory.spec.ts` 消费共享导出清单工具。`./testing` 的执行环境套件在登记表成员的 `contract-conformance.spec.ts` 运行；执行环境与真实宿主提供者套件、V-EE05/18/19/20/22 坏实现否定在 host-local 的 `contract-conformance.spec.ts` 运行；这些进程内测试不证明真实资源耐久或隔离。具名维护者由负责人指定。
 
 [scripted-terminal-facility.spec.ts](scripted-terminal-facility.spec.ts) 覆盖获取归属与代际、同终端 busy、独立终端、固定 terminal 输出、停止两态、基态目录与单次覆盖、未知启动、迟到结果和生命周期关闭。[terminal-conformance.spec.ts](terminal-conformance.spec.ts) 完整接入七条可复用协议用例，两种停止场景各运行一次。它另验证跨获取故障实现被拒、缺少控制明确不适用、套件惰性组装。两者只运行非耐久替身。
+
+[command-retention-conformance.spec.ts](command-retention-conformance.spec.ts) 用脚本命令替身的保留支持跑一次性命令留下的进程的六条 `V-EE28.` 用例，另一获取分「另一保留范围」与「另一租户」两种形状各跑一次。它另验证缺少无账本获取时第六条不适用、套件惰性组装、两个故障实现（同范围共用列表、封闭不停止）被拒。宿主提供者在 Linux 上的接入见宿主成员的 `tests/command-retention-conformance.spec.ts`。
