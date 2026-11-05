@@ -372,7 +372,7 @@ function expiredOf<T>(wire: Wire): Outcome<T | 'expired', TransportFailure> | un
 }
 
 const RFC9110_TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/u
-const HEADER_TYPES: readonly string[] = ['string', 'integer', 'boolean', 'number']
+const HEADER_TYPES: readonly string[] = ['string', 'integer', 'boolean']
 const NON_REACHABLE: readonly string[] = [
   'items',
   'prefixItems',

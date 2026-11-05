@@ -434,7 +434,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - 对 `call`、`tasks/update` 与 `tasks/cancel`，任何 JSON-RPC 结果都读得懂；`call` 原样交出结果，不分类，分类由 `classifyOutcome` 完成。`call` 收到读不懂的错误对象时原样交出：信封不合格时交出整条消息。对其他请求：
   - `server/discover`：结果是对象，带 `supportedVersions`（列表，其中的文本项是版本）与 `capabilities`（对象）。读得懂时，其中有传输会说的现代版本才算「有共有的现代版本」。
   - `initialize`：结果是对象，`protocolVersion` 是 `LEGACY_PROTOCOL_VERSIONS` 里的一项，`capabilities` 是对象。
-  - `tools/list`：结果是对象，带 `tools` 列表；`nextCursor` 缺省或是文本。交出的页：`tools` 是对端的列表，`nextCursor` 原样；`ttlMs` 是非负安全整数时原样交出（词形规则同 O2），否则省略。Streamable HTTP 上，`x-mcp-header` 声明不合法的工具（SEP-2243：声明只能出现在经 `properties` 链可静态到达的属性上，值是非空的 RFC 9110 token，属性类型是 `string`、`integer`、`boolean` 或 `number`，名字不区分大小写地唯一）由传输从 `tools` 剔除，列在 `withheld`，每项带工具名（不可信值）与原因 `header-invalid`。stdio 上不核 `x-mcp-header`。C1 不变：交出的页里一项非法，整份仍拒绝。
+  - `tools/list`：结果是对象，带 `tools` 列表；`nextCursor` 缺省或是文本。交出的页：`tools` 是对端的列表，`nextCursor` 原样；`ttlMs` 是非负安全整数时原样交出（词形规则同 O2），否则省略。Streamable HTTP 上，`x-mcp-header` 声明不合法的工具（SEP-2243：声明只能出现在经 `properties` 链可静态到达的属性上，值是非空的 RFC 9110 token，属性类型是 `string`、`integer` 或 `boolean`，名字不区分大小写地唯一；`number` 类型的属性上的声明不合法，与 SEP-2243 Final 及 SDK 2.4.0 相同）由传输从 `tools` 剔除，列在 `withheld`，每项带工具名（不可信值）与原因 `header-invalid`。stdio 上不核 `x-mcp-header`。C1 不变：交出的页里一项非法，整份仍拒绝。
   - `tasks/get`：见 T6。
   - 错误对象读得懂：是对象，带整数错误码（词形按 O4）与文本消息。
 - **T3** 请求的组成：

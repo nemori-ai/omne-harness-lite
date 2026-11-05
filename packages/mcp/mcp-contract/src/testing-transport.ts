@@ -1365,15 +1365,30 @@ const t2Cases = (): readonly Case[] => [
           properties: { q: { type: 'string', 'x-mcp-header': 'X-Q' } },
         },
       }
+      const numeric = {
+        name: 'numeric',
+        inputSchema: {
+          type: 'object',
+          properties: { n: { type: 'number', 'x-mcp-header': 'X-N' } },
+        },
+      }
+      const counted = {
+        name: 'counted',
+        inputSchema: {
+          type: 'object',
+          properties: { n: { type: 'integer', 'x-mcp-header': 'X-N' } },
+        },
+      }
       await withPeer(
         fixture,
-        { listing: { '': result({ tools: [bad, good] }) } },
+        { listing: { '': result({ tools: [bad, good, numeric, counted] }) } },
         { kind: 'streamable-http' },
         async (_peer, transport) => {
           const page = ok(await transport.listActions(), 'listActions')
-          assert.deepStrictEqual(page.tools, [jsonOf(good)])
+          assert.deepStrictEqual(page.tools, [jsonOf(good), jsonOf(counted)])
           assert.deepStrictEqual(page.withheld, [
             { name: { untrusted: 'bad' }, reason: 'header-invalid' },
+            { name: { untrusted: 'numeric' }, reason: 'header-invalid' },
           ])
         },
       )
