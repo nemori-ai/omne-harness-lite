@@ -50,27 +50,26 @@ export function valueValidator(item: SettingItem): ValidateFunction | undefined 
   }
 }
 
+function enumMetadata(item: SettingItem): boolean {
+  const choices = item.valueSchema['enum']
+  if (!Array.isArray(choices)) return true
+  const labels = item.presentation.enumLabels ?? []
+  if (labels.length !== choices.length) return false
+  const keys = labels.map(label => canonicalize(label.value))
+  return (
+    new Set(keys).size === choices.length &&
+    choices.every(value => keys.includes(canonicalize(value)))
+  )
+}
+
 function semanticMetadata(item: SettingItem): boolean {
   const schema = item.valueSchema
   const types = Array.isArray(schema['type']) ? schema['type'] : [schema['type']]
   if ((types.includes('number') || types.includes('integer')) && !item.presentation.unit)
     return false
-  const choices = schema['enum']
-  if (Array.isArray(choices)) {
-    const labels = item.presentation.enumLabels ?? []
-    if (labels.length !== choices.length) return false
-    const keys = labels.map(label => canonicalize(label.value))
-    if (
-      new Set(keys).size !== choices.length ||
-      !choices.every(value => keys.includes(canonicalize(value)))
-    )
-      return false
-  }
-  if (
-    item.merge === 'disabled' &&
-    (types.length !== 1 || types[0] !== 'boolean' || item.sensitivity !== 'ordinary')
-  )
-    return false
+  if (!enumMetadata(item)) return false
+  if (item.merge === 'disabled')
+    return types.length === 1 && types[0] === 'boolean' && item.sensitivity === 'ordinary'
   return item.sensitivity !== 'secret' || item.default.kind === 'absent'
 }
 

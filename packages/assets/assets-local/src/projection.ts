@@ -21,7 +21,8 @@ function targetView(
   const holding = readHolding(port, binding.domain, target.targetRef)
   if (!holding || holding.state !== 'held') return null
   const selected = selectedVersion(port, holding)
-  if (!selected || selected.version.declaration.kind !== 'declared') return null
+  if (!selected) return null
+  if (selected.version.declaration.kind === 'none') return 'undeclared' as const
   const { definition, definitionRef } = selected.version.declaration
   return SettingsTargetProjectionSchema.parse({
     target,
@@ -42,7 +43,7 @@ export function guard(port: ParticipantPort, binding: SettingsSqlGuardBinding) {
   })
   if (!belongs(port, binding.domain)) return fail('forbidden')
   const view = targetView(port, binding, binding.command.target)
-  if (!view) return fail('forbidden')
+  if (!view || view === 'undeclared') return fail('forbidden')
   if (!equal(view.definitionRef, binding.command.definitionRef)) return fail('definition_changed')
   if (!withinBudget(view)) return fail('limit_exceeded')
   port.provideFact(
@@ -57,15 +58,7 @@ export function guard(port: ParticipantPort, binding: SettingsSqlGuardBinding) {
   )
   return { kind: 'participated' as const, response: null }
 }
-export function capture(port: ParticipantPort, binding: SettingsProjectionBinding) {
-  const fail = (reason: 'forbidden' | 'limit_exceeded') => ({
-    kind: 'conflict' as const,
-    basis: json({ binding, failure: { kind: 'rejected', reason } }),
-  })
-  const current = readDomain(port)
-  const scope = scopeRef(binding.domain)
-  if (scope === null || (current && !equal(current.domain, binding.domain)))
-    return fail('forbidden')
+function captureTargets(port: ParticipantPort, binding: SettingsProjectionBinding, scope: string) {
   const targets = binding.request.targets
   const selected =
     targets.length === 0 && binding.request.mode === 'management'
@@ -76,6 +69,19 @@ export function capture(port: ParticipantPort, binding: SettingsProjectionBindin
           )
           .rows.map(row => ({ policyId: 'asset', targetRef: String(row[0]), scopeRef: scope }))
       : targets.filter(target => target.policyId === 'asset')
+  return selected
+}
+export function capture(port: ParticipantPort, binding: SettingsProjectionBinding) {
+  const fail = (reason: 'forbidden' | 'limit_exceeded') => ({
+    kind: 'conflict' as const,
+    basis: json({ binding, failure: { kind: 'rejected', reason } }),
+  })
+  const current = readDomain(port)
+  const scope = scopeRef(binding.domain)
+  if (scope === null || (current && !equal(current.domain, binding.domain)))
+    return fail('forbidden')
+  const targets = binding.request.targets
+  const selected = captureTargets(port, binding, scope)
   if (selected.length > 128) return fail('limit_exceeded')
   const views: SettingsTargetProjection[] = []
   const seen = new Set<string>()
@@ -84,7 +90,9 @@ export function capture(port: ParticipantPort, binding: SettingsProjectionBindin
     if (seen.has(key)) continue
     seen.add(key)
     const view = targetView(port, binding, target)
-    if (!view) return fail('forbidden')
+    if (view === 'undeclared' && targets.length === 0 && binding.request.mode === 'management')
+      continue
+    if (!view || view === 'undeclared') return fail('forbidden')
     views.push(view)
   }
   const projection = { binding, views }

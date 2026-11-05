@@ -1,5 +1,8 @@
 import { afterEach, expect, it } from 'vitest'
 import { z } from 'zod'
+import { standingPrincipalRef } from '@omne-harness/identity'
+import { createIdentityQualifiedSettings } from '../src/identity.ts'
+import { GUARD } from './world.ts'
 import { openIdentityWorld } from './identity-world.ts'
 const opened: Awaited<ReturnType<typeof openIdentityWorld>>[] = []
 async function open(options: Parameters<typeof openIdentityWorld>[0] = {}) {
@@ -110,4 +113,54 @@ it('an unavailable destination keeps revocation pending and blocks new reservati
   }
   expect((await pending).kind).toBe('rejected')
   expect(w.world.counts()).toEqual([0, 0, 0])
+})
+
+it('rejects owner access bound to another issued work principal on receipt recovery', async () => {
+  const w = await open()
+  expect((await w.backend.commit(w.principal, w.change)).kind).toBe('committed')
+  const actor = w.authority.issuer.issueSystem({ component: 'other-work' })
+  if (!('ok' in actor)) throw new Error('actor')
+  const issued = w.authority.issuer.issueActingForTenant({
+    actor: actor.ok,
+    tenant: w.principal.tenant,
+    work: { owner: 'settings', work: 'other' },
+  })
+  if (!('ok' in issued)) throw new Error('principal')
+  expect(standingPrincipalRef(issued.ok)).not.toBe(standingPrincipalRef(w.principal))
+  const backend = createIdentityQualifiedSettings({
+    destination: w.destination,
+    required: [],
+    identity: {
+      verifier: w.authority.verifier,
+      standing: w.identity.standing,
+      reservations: w.identity.reservations,
+    },
+    backend: {
+      ...w.terminalOptions,
+      access: {
+        async authorize() {
+          return {
+            kind: 'authorized',
+            scope: w.world.domain.scope,
+            target: w.change.target,
+            principalRef: standingPrincipalRef(w.principal),
+          }
+        },
+      },
+      guards: {
+        participant: GUARD,
+        command: binding => ({ participant: GUARD, facts: { binding } }),
+      },
+    },
+  })
+  try {
+    expect(
+      await backend.getOperation(issued.ok, {
+        target: w.change.target,
+        operationId: w.change.operationId,
+      }),
+    ).toEqual({ kind: 'rejected', reason: 'forbidden' })
+  } finally {
+    await backend.close()
+  }
 })

@@ -537,24 +537,35 @@ function changeMember(facts: ChangeMemberFacts, port: ParticipantPort, mode?: Me
     facts.account === null ? undefined : membershipOf(port, organization, facts.account)
   if (facts.account === null || target === undefined || target.state !== MEMBERSHIP_ACTIVE)
     return NOT_VISIBLE()
+  return applyMemberChange(facts, port, organization, facts.account, target, mode)
+}
+
+function applyMemberChange(
+  facts: ChangeMemberFacts,
+  port: ParticipantPort,
+  organization: string,
+  account: string,
+  target: NonNullable<ReturnType<typeof membershipOf>>,
+  mode?: MembershipMode,
+) {
   if (facts.change === 'role' && facts.targetRole === null) return DENIED()
   if (facts.expectedRole !== target.role) return reply('conflict')
   const nextRole = facts.change === 'remove' ? null : facts.targetRole
   if (leavesNoAdmin(port, organization, target.role, nextRole, facts.superAdminRole))
     return DENIED()
-  const blocked = membershipGate(port, organization, facts.account, mode)
+  const blocked = membershipGate(port, organization, account, mode)
   if (blocked !== undefined) return blocked
   if (nextRole === null)
     port.execute(
       `UPDATE id_membership SET state = ?, revision = revision + 1
         WHERE organization = ? AND account = ?`,
-      [MEMBERSHIP_REMOVED, organization, facts.account],
+      [MEMBERSHIP_REMOVED, organization, account],
     )
   else if (nextRole !== target.role)
     port.execute(
       `UPDATE id_membership SET role = ?, revision = revision + 1
         WHERE organization = ? AND account = ?`,
-      [nextRole, organization, facts.account],
+      [nextRole, organization, account],
     )
   return reply('succeeded')
 }

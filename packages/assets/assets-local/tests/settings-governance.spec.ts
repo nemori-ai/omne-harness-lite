@@ -1,6 +1,8 @@
 import { createCategoryRegistry } from '@omne-harness/assets'
 import { afterEach, expect, it } from 'vitest'
-import { openCatalogWorld } from '../../settings-local/tests/catalog-world.ts'
+const { openCatalogWorld } = (await import(
+  new URL('../tests/catalog-world.ts', import.meta.resolve('@omne-harness/settings-local')).href
+)) as typeof import('../../settings-local/tests/catalog-world.ts')
 import {
   assetsSqlMaterials,
   assetsSettingsProjectionCommand,

@@ -1,45 +1,49 @@
-import { expect, it } from 'vitest'
+import { beforeEach, expect, it } from 'vitest'
 import {
   createSettingsQueries,
   createSettingsCommands,
   defineSettings,
   type SettingsBasis,
+  type SettingDefinitions,
   type SettingsReadPort,
   type SettingsCommitPort,
 } from '../src/index.ts'
 
-const declared = defineSettings({
-  providerId: 'example',
-  definitionId: 'preferences',
-  version: '1',
-  groups: [
-    {
-      id: 'general',
-      parentId: null,
-      title: 'General',
-      description: 'Common preferences',
-      order: 0,
-    },
-  ],
-  items: ['first', 'second'].map(id => ({
-    id,
-    groupId: 'general',
-    category: 'preference',
-    presentation: {
-      title: id,
-      description: 'Display help during use',
-      impact: 'Used on the next read',
-      clear: 'Use the outer value',
-      adoption: 'next-read',
-    },
-    valueSchema: { type: 'boolean' },
-    default: { kind: 'value', value: false },
-    merge: 'override',
-    sensitivity: 'ordinary',
-  })),
+let definition: SettingDefinitions
+beforeEach(() => {
+  const declared = defineSettings({
+    providerId: 'example',
+    definitionId: 'preferences',
+    version: '1',
+    groups: [
+      {
+        id: 'general',
+        parentId: null,
+        title: 'General',
+        description: 'Common preferences',
+        order: 0,
+      },
+    ],
+    items: ['first', 'second'].map(id => ({
+      id,
+      groupId: 'general',
+      category: 'preference',
+      presentation: {
+        title: id,
+        description: 'Display help during use',
+        impact: 'Used on the next read',
+        clear: 'Use the outer value',
+        adoption: 'next-read',
+      },
+      valueSchema: { type: 'boolean' },
+      default: { kind: 'value', value: false },
+      merge: 'override',
+      sensitivity: 'ordinary',
+    })),
+  })
+  if (declared.kind !== 'defined') throw new Error('invalid fixture')
+  definition = declared.definition
 })
-if (declared.kind !== 'defined') throw new Error('invalid fixture')
-const definition = declared.definition
 const target = { policyId: 'independent', targetRef: 'service', scopeRef: 'tenant-a' }
 const definitionRef = {
   providerId: 'example',
@@ -221,4 +225,40 @@ it('rejects invalid commands before persistence and keeps trusted context separa
   const trusted = Object.freeze({ token: 'opaque-context' })
   await commands.change(trusted, command)
   expect(observed[0]).toBe(trusted)
+})
+it('validates history reads before the port and returns dependency failure without details', async () => {
+  const calls: unknown[] = []
+  const principal = Object.freeze({ principal: 'trusted' })
+  let fail = false
+  const commands = createSettingsCommands({
+    commit: async () => ({ kind: 'unknown' as const, operationId: 'unused' }),
+    getOperation: async () => ({ kind: 'not_found' as const }),
+    readChanges: async (context, input) => {
+      calls.push({ context, input })
+      if (fail) throw new Error('private database details')
+      return { kind: 'changes' as const, changes: [], nextRevision: null }
+    },
+  })
+  const input = { target, afterRevision: 0, limit: 100 }
+  for (const invalid of [
+    { ...input, afterRevision: -1 },
+    { ...input, limit: 101 },
+    { ...input, principal: 'forged' },
+  ])
+    expect(await commands.readChanges(principal, invalid)).toEqual({
+      kind: 'rejected',
+      reason: 'invalid_input',
+    })
+  expect(calls).toEqual([])
+  expect(await commands.readChanges(principal, input)).toEqual({
+    kind: 'changes',
+    changes: [],
+    nextRevision: null,
+  })
+  expect(calls).toEqual([{ context: principal, input }])
+  fail = true
+  expect(await commands.readChanges(principal, input)).toEqual({
+    kind: 'rejected',
+    reason: 'unavailable',
+  })
 })

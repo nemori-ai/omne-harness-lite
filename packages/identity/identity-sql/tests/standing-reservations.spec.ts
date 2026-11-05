@@ -221,11 +221,16 @@ it('keeps the membership and admission barrier until the injected destination se
 })
 
 it('rejects a fabricated completion and retains the held reservation on stop', async () => {
+  let valid = false
+  let resolverCalls = 0
   const fixture = await setup({
     async seal(reservation) {
+      resolverCalls++
       return {
         kind: 'terminal',
-        reservation: { ...reservation, binding: { ...reservation.binding, scopeRef: 'wrong' } },
+        reservation: valid
+          ? reservation
+          : { ...reservation, binding: { ...reservation.binding, scopeRef: 'wrong' } },
         outcome: 'committed',
       }
     },
@@ -236,10 +241,14 @@ it('rejects a fabricated completion and retains the held reservation on stop', a
     'unavailable',
   )
   await pending(fixture.deployment.provider.governance.removeMember(fixture.change))
+  valid = true
+  resolverCalls = 0
   fixture.deployment.provider.stop()
   expect(await fixture.deployment.provider.reservations.settle(held.reservation.id)).toMatchObject({
     kind: 'unavailable',
+    diagnostic: 'provider-stopped',
   })
+  expect(resolverCalls).toBe(0)
 })
 
 it('rechecks the initiating login after drain and clears the denied mutation barrier', async () => {
@@ -569,9 +578,16 @@ it('bounds recovery pages and does not release an unavailable destination', asyn
   const first = await fixture.deployment.provider.reservations.recover({ limit: 1 })
   expect(first).toMatchObject({ kind: 'recovered', examined: 1, settled: 0 })
   if (first.kind !== 'recovered' || first.next === null) throw new Error('cursor')
+  const second = await fixture.deployment.provider.reservations.recover({
+    after: first.next,
+    limit: 1,
+  })
+  expect(second).toMatchObject({ kind: 'recovered', examined: 1, settled: 0 })
+  if (second.kind !== 'recovered' || second.next === null) throw new Error('second cursor')
+  expect(second.next).not.toEqual(first.next)
   expect(
-    await fixture.deployment.provider.reservations.recover({ after: first.next, limit: 1 }),
-  ).toMatchObject({ kind: 'recovered', examined: 1, settled: 0 })
+    await fixture.deployment.provider.reservations.recover({ after: second.next, limit: 1 }),
+  ).toMatchObject({ kind: 'recovered', examined: 0, settled: 0, next: null })
   expect(await fixture.deployment.provider.reservations.recover({ limit: 101 })).toMatchObject({
     kind: 'unavailable',
   })
@@ -653,7 +669,7 @@ it('negative control: reusing admission time applies a removal after the initiat
   const mutant = await mutantBuild('standing-stale-login', [
     {
       file: 'worker/standing.js',
-      from: "const facts = parse({ ...original, nowKey: raw['nowKey'] });",
+      from: /const facts = parse\((?=[^;]*\boriginal\b)[^;]*\);/u,
       to: 'const facts = parse(original);',
     },
   ])
@@ -1013,4 +1029,47 @@ it('accepts a terminal whose JSON object properties arrive in a different order'
   expect(await fixture.deployment.provider.governance.removeMember(fixture.change)).toEqual({
     kind: 'succeeded',
   })
+})
+it('recovers invitation acceptance by the same logical operation after admission reply loss', async () => {
+  let lose = false
+  const fixture = await setup(undefined, storage => ({
+    ...storage,
+    async commit(request, options) {
+      const result = await storage.commit(request, options)
+      return lose ? { kind: 'unknown', identity: request.identity, diagnostic: 'lost' } : result
+    },
+    query: id =>
+      lose
+        ? Promise.resolve({ kind: 'unknown', identity: id, diagnostic: 'lost' })
+        : storage.query(id),
+  }))
+  const { governance, governanceRecovery } = fixture.deployment.provider
+  expect(await governance.removeMember(fixture.change)).toEqual({ kind: 'succeeded' })
+  const invitation = await governance.issueMemberInvitation({
+    login: fixture.admin.login,
+    actingTenant: fixture.organization.tenant,
+    invitedLoginIdentifier: 'member',
+  })
+  if (invitation.kind !== 'succeeded') throw new Error('invitation')
+  lose = true
+  const operation = await pending(
+    governance.acceptMemberInvitation({
+      login: fixture.member.login,
+      actingTenant: fixture.member.tenant,
+      invitation: invitation.invitation,
+      expectedState: 'open',
+    }),
+  )
+  lose = false
+  for (let attempt = 0; attempt < 2; attempt++)
+    expect(
+      await governanceRecovery.resume({ login: fixture.member.login, operation }),
+    ).toMatchObject({
+      kind: 'finished',
+      operation,
+      outcome: { kind: 'succeeded', state: 'accepted' },
+    })
+  expect(
+    await fixture.deployment.provider.standing.read({ tenant: fixture.memberTenant }),
+  ).toMatchObject({ kind: 'member' })
 })

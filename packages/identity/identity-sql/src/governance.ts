@@ -432,6 +432,43 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     return Object.freeze({ kind: 'written', reply: response as GovernanceReply })
   }
 
+  const recallWrite = async (identity: SqlIdentity): Promise<Written | Unavailable> => {
+    // The same identity, at most three times. Only a committed receipt gives an outcome.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const recalled = await core.query(identity)
+      if (recalled.kind === 'committed') return replyOf(recalled)
+      if (recalled.kind === 'rolled_back' || recalled.kind === 'not_committed')
+        return unavailable('governance-not-committed')
+    }
+    throw new IdentitySqlResultUnknown('the governance commit result stays unknown')
+  }
+
+  const writeDirect = async (
+    operation: string,
+    facts: GovernanceFacts,
+  ): Promise<Written | Unavailable> => {
+    const result = await core.commit(operation, facts)
+    switch (result.kind) {
+      case 'committed':
+        return replyOf(result)
+      case 'rolled_back': {
+        const stop = result.responses[result.responses.length - 1]?.reply
+        const reason = stop === undefined ? 'none' : 'category' in stop ? stop.category : stop.kind
+        return unavailable(`governance-rolled-back:${reason}`)
+      }
+      case 'rejected_before_accept':
+        return unavailable(`governance-store-unavailable:${result.reason}`)
+      case 'unknown':
+        return recallWrite(result.identity)
+      case 'identity_conflict':
+        throw new IdentitySqlResultUnknown('the governance operation key was already used')
+      default: {
+        const _exhaustive: never = result
+        throw new IdentitySqlResultUnknown(`unexpected commit result ${String(_exhaustive)}`)
+      }
+    }
+  }
+
   const write = async (
     operation: string,
     facts: GovernanceFacts,
@@ -446,34 +483,7 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
       if (reply.outcome === CLOCK_EARLIER_THAN_RECORD) return unavailable(CLOCK_EARLIER_THAN_RECORD)
       return { kind: 'written', reply }
     }
-    const result = await core.commit(operation, facts)
-    switch (result.kind) {
-      case 'committed':
-        return replyOf(result)
-      case 'rolled_back': {
-        const stop = result.responses[result.responses.length - 1]?.reply
-        const reason = stop === undefined ? 'none' : 'category' in stop ? stop.category : stop.kind
-        return unavailable(`governance-rolled-back:${reason}`)
-      }
-      case 'rejected_before_accept':
-        return unavailable(`governance-store-unavailable:${result.reason}`)
-      case 'unknown': {
-        // The same identity, at most three times. Only a committed receipt gives an outcome.
-        for (let attempt = 0; attempt < 3; attempt += 1) {
-          const recalled = await core.query(result.identity)
-          if (recalled.kind === 'committed') return replyOf(recalled)
-          if (recalled.kind === 'rolled_back' || recalled.kind === 'not_committed')
-            return unavailable('governance-not-committed')
-        }
-        throw new IdentitySqlResultUnknown('the governance commit result stays unknown')
-      }
-      case 'identity_conflict':
-        throw new IdentitySqlResultUnknown('the governance operation key was already used')
-      default: {
-        const _exhaustive: never = result
-        throw new IdentitySqlResultUnknown(`unexpected commit result ${String(_exhaustive)}`)
-      }
-    }
+    return writeDirect(operation, facts)
   }
 
   const query = async (request: GovernanceReadInput): Promise<Answered | Unavailable> => {

@@ -20,34 +20,47 @@ export type SettingsEvaluationResult =
   | Readonly<{ kind: 'unavailable' }>
   | Readonly<{ kind: 'incompatible'; itemId: string }>
 
+function applyAssignment(
+  item: SettingItem,
+  sourceId: string,
+  assignment: SettingSource['values'][number],
+  resolution: SettingResolution,
+): SettingResolution {
+  const next = assignment.value
+  if (resolution.lockedBy !== null) {
+    if (next.kind === 'value' || assignment.locked)
+      return { ...resolution, suppressed: [...resolution.suppressed, sourceId] }
+    return resolution
+  }
+  if (next.kind === 'value') {
+    const value = resolution.value
+    if (item.merge !== 'disabled' || value.kind === 'absent' || value.value !== true)
+      resolution = { ...resolution, value: next, source: sourceId }
+  }
+  return { ...resolution, lockedBy: assignment.locked ? sourceId : resolution.lockedBy }
+}
+
 function evaluateItem(
   item: SettingItem,
   sources: readonly SettingSource[],
 ): SettingResolution | Readonly<{ kind: 'incompatible'; itemId: string }> {
   const validate = valueValidator(item)!
-  let value = item.default
-  let source: string | null = value.kind === 'value' ? 'default' : null
-  let lockedBy: string | null = null
-  const suppressed: string[] = []
+  let resolution: SettingResolution = {
+    itemId: item.id,
+    value: item.default,
+    source: item.default.kind === 'value' ? 'default' : null,
+    lockedBy: null,
+    suppressed: [],
+  }
   for (const entry of sources) {
     const assignment = entry.values.find(candidate => candidate.itemId === item.id)
     if (!assignment) continue
     const next = assignment.value
     if (next.kind === 'value' && (item.sensitivity === 'secret' || !validate(next.value)))
       return { kind: 'incompatible', itemId: item.id }
-    if (lockedBy !== null) {
-      if (next.kind === 'value' || assignment.locked) suppressed.push(entry.id)
-      continue
-    }
-    if (next.kind === 'value') {
-      if (item.merge !== 'disabled' || value.kind === 'absent' || value.value !== true) {
-        value = next
-        source = entry.id
-      }
-    }
-    if (assignment.locked) lockedBy = entry.id
+    resolution = applyAssignment(item, entry.id, assignment, resolution)
   }
-  return { itemId: item.id, value, source, lockedBy, suppressed }
+  return resolution
 }
 
 /** Sources arrive in policy-approved order. This pure function does not authorize them. */

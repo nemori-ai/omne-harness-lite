@@ -7,6 +7,8 @@ import {
   isQualification,
   standingPrincipalRef,
   standingReservationId,
+  type ActingForTenantPrincipal,
+  type StandingBinding,
   type GovernanceOperationRef,
   type GovernanceRecoveryOutcome,
   type IdentityGovernanceRecovery,
@@ -15,9 +17,11 @@ import {
   type StandingReservation,
   type StandingReservations,
   type StandingSettleOutcome,
+  type StandingReserveOutcome,
 } from '@omne-harness/identity'
 import { loginStateCodec, tenantCodec } from '@omne-harness/legal-identity'
 import type {
+  CommittedV2,
   CommitResultV2,
   JsonValue,
   QueryResultV2,
@@ -72,12 +76,20 @@ function decodeJson(text: string): unknown {
     return undefined
   }
 }
-const pageLimit = (value: number | undefined) =>
+const pageLimit = (value: unknown) =>
   value === undefined
     ? 32
-    : Number.isInteger(value) && value >= 1 && value <= 100
+    : typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 100
       ? value
       : undefined
+
+function recoveryPage(input: unknown): { after: string; limit: number } | undefined {
+  if (!isRecord(input)) return undefined
+  const limit = pageLimit(input['limit'])
+  if (limit === undefined || (input['after'] !== undefined && typeof input['after'] !== 'string'))
+    return undefined
+  return { after: input['after'] ?? '', limit }
+}
 
 function reservationOf(row: RecordRow): StandingReservation | undefined {
   if (!isText(row['reservation_id']) || !isText(row['binding']) || !isText(row['required']))
@@ -132,6 +144,68 @@ function replyFromRow(row: RecordRow): GovernanceReply | undefined {
     : undefined
 }
 
+function phaseReply(result: CommittedV2): GovernanceReply | undefined {
+  const response = result.responses[0]?.reply
+  if (response?.kind !== 'participated' || !isRecord(response.response)) return undefined
+  const value = response.response
+  return isText(value['outcome']) && Object.values(value).every(isText)
+    ? (value as GovernanceReply)
+    : undefined
+}
+
+async function reservationPrincipal(
+  verifier: PrincipalVerifier,
+  value: unknown,
+  binding: StandingBinding,
+): Promise<
+  | { kind: 'verified'; principal: ActingForTenantPrincipal; tenantText: string }
+  | { kind: 'denied' }
+  | { kind: 'unavailable'; diagnostic: string }
+> {
+  let verified
+  try {
+    verified = await verifier.verify(value)
+  } catch {
+    return { kind: 'unavailable', diagnostic: 'principal-verifier-unavailable' }
+  }
+  if (verified.kind === 'unavailable')
+    return { kind: 'unavailable', diagnostic: 'principal-verifier-unavailable' }
+  if (verified.kind !== 'verified' || verified.principal.kind !== 'acting-for-tenant')
+    return { kind: 'denied' }
+  const principal = verified.principal
+  const tenantText = tenantCodec.encode(principal.tenant)
+  if (
+    !tenantText.ok ||
+    binding.scopeRef !== tenantText.value ||
+    binding.principalRef !== standingPrincipalRef(principal)
+  )
+    return { kind: 'denied' }
+  return { kind: 'verified', principal, tenantText: tenantText.value }
+}
+
+const terminal = (
+  reservation: StandingReservation,
+  outcome: unknown,
+): Exclude<StandingSettleOutcome, { kind: 'not-found' }> =>
+  outcome === 'committed' || outcome === 'aborted'
+    ? { kind: 'terminal', reservation, outcome }
+    : { kind: 'unavailable', diagnostic: 'terminal-malformed' }
+
+function reserveOutcome(
+  result: GovernanceReply | undefined,
+  reservation: StandingReservation,
+): StandingReserveOutcome {
+  if (result?.outcome === 'held') return { kind: 'held', reservation }
+  if (result?.outcome === 'settled') return terminal(reservation, result['terminal'])
+  if (
+    result?.outcome === 'denied' ||
+    result?.outcome === 'operation-conflict' ||
+    result?.outcome === 'blocked'
+  )
+    return { kind: result.outcome }
+  return { kind: 'unavailable', diagnostic: 'reservation-unknown' }
+}
+
 export function coordinationOver(core: Core) {
   const read = async (input: JsonValue): Promise<RecordRow | undefined> => {
     try {
@@ -172,36 +246,18 @@ export function coordinationOver(core: Core) {
     )
       throw new IdentitySqlResultUnknown('membership phase result unknown', operation)
     if (result.kind !== 'committed') return undefined
-    const response = result.responses[0]?.reply
-    if (response?.kind !== 'participated' || !isRecord(response.response)) {
-      if (operation !== undefined)
-        throw new IdentitySqlResultUnknown('membership phase reply malformed', operation)
-      return undefined
-    }
-    const value = response.response
-    if (isText(value['outcome']) && Object.values(value).every(isText))
-      return value as GovernanceReply
+    const reply = phaseReply(result)
+    if (reply !== undefined) return reply
     if (operation !== undefined)
       throw new IdentitySqlResultUnknown('membership phase reply malformed', operation)
     return undefined
   }
-  const terminal = (reservation: StandingReservation, outcome: unknown): StandingSettleOutcome =>
-    outcome === 'committed' || outcome === 'aborted'
-      ? { kind: 'terminal', reservation, outcome }
-      : { kind: 'unavailable', diagnostic: 'terminal-malformed' }
-
-  const settle: StandingReservations['settle'] = async id => {
-    if (core.stopped()) return { kind: 'unavailable', diagnostic: 'provider-stopped' }
-    if (typeof id !== 'string' || id.length > 128) return { kind: 'not-found' }
-    const found = await read({ query: 'reservation', id })
-    if (found === undefined) return { kind: 'unavailable', diagnostic: 'reservation-unavailable' }
-    if (found['row'] === null) return { kind: 'not-found' }
-    if (!record(found['row'])) return { kind: 'unavailable', diagnostic: 'reservation-malformed' }
-    const saved = found['row']
-    const reservation = reservationOf(saved)
-    if (reservation === undefined)
-      return { kind: 'unavailable', diagnostic: 'reservation-malformed' }
-    if (saved['state'] === 'settled') return terminal(reservation, saved['terminal'])
+  async function sealReservation(
+    reservation: StandingReservation,
+  ): Promise<
+    | { kind: 'terminal'; outcome: 'committed' | 'aborted' }
+    | { kind: 'unavailable'; diagnostic: string }
+  > {
     if (core.resolver === undefined)
       return { kind: 'unavailable', diagnostic: 'destination-resolver-missing' }
     let proof: unknown
@@ -219,6 +275,23 @@ export function coordinationOver(core: Core) {
       (proof['outcome'] !== 'committed' && proof['outcome'] !== 'aborted')
     )
       return { kind: 'unavailable', diagnostic: 'destination-terminal-unverified' }
+    return { kind: 'terminal', outcome: proof['outcome'] }
+  }
+
+  const settle: StandingReservations['settle'] = async id => {
+    if (core.stopped()) return { kind: 'unavailable', diagnostic: 'provider-stopped' }
+    if (typeof id !== 'string' || id.length > 128) return { kind: 'not-found' }
+    const found = await read({ query: 'reservation', id })
+    if (found === undefined) return { kind: 'unavailable', diagnostic: 'reservation-unavailable' }
+    if (found['row'] === null) return { kind: 'not-found' }
+    if (!record(found['row'])) return { kind: 'unavailable', diagnostic: 'reservation-malformed' }
+    const saved = found['row']
+    const reservation = reservationOf(saved)
+    if (reservation === undefined)
+      return { kind: 'unavailable', diagnostic: 'reservation-malformed' }
+    if (saved['state'] === 'settled') return terminal(reservation, saved['terminal'])
+    const proof = await sealReservation(reservation)
+    if (proof.kind !== 'terminal') return proof
     const result = await run(
       { kind: 'standing-finish', id, ...serialized(reservation), terminal: proof['outcome'] },
       `${id}/finish`,
@@ -250,24 +323,9 @@ export function coordinationOver(core: Core) {
       inputDigest: input.binding.inputDigest,
     })
     const required = Object.freeze([...new Set(input.required)].sort())
-    let verified
-    try {
-      verified = await core.verifier.verify(input.principal)
-    } catch {
-      return { kind: 'unavailable', diagnostic: 'principal-verifier-unavailable' }
-    }
-    if (verified.kind === 'unavailable')
-      return { kind: 'unavailable', diagnostic: 'principal-verifier-unavailable' }
-    if (verified.kind !== 'verified' || verified.principal.kind !== 'acting-for-tenant')
-      return { kind: 'denied' }
-    const principal = verified.principal
-    const tenantText = tenantCodec.encode(principal.tenant)
-    if (
-      !tenantText.ok ||
-      binding.scopeRef !== tenantText.value ||
-      binding.principalRef !== standingPrincipalRef(principal)
-    )
-      return { kind: 'denied' }
+    const verified = await reservationPrincipal(core.verifier, input.principal, binding)
+    if (verified.kind !== 'verified') return verified
+    const { principal, tenantText } = verified
     const reservation: StandingReservation = Object.freeze({
       id: standingReservationId(binding, required),
       binding,
@@ -297,33 +355,18 @@ export function coordinationOver(core: Core) {
           )
           .map(entry => entry.role),
       ),
-      tenantText: tenantText.value,
+      tenantText,
       organization: principal.tenant.organization.text,
       account: principal.tenant.account.text,
     })
-    if (result?.outcome === 'held') return { kind: 'held', reservation }
-    if (result?.outcome === 'settled') {
-      const settled = terminal(reservation, result['terminal'])
-      return settled.kind === 'not-found'
-        ? { kind: 'unavailable', diagnostic: 'reservation-malformed' }
-        : settled
-    }
-    if (
-      result?.outcome === 'denied' ||
-      result?.outcome === 'operation-conflict' ||
-      result?.outcome === 'blocked'
-    )
-      return { kind: result.outcome }
-    return { kind: 'unavailable', diagnostic: 'reservation-unknown' }
+    return reserveOutcome(result, reservation)
   }
 
   const recoverReservations: StandingReservations['recover'] = async (input = {}) => {
     if (core.stopped()) return { kind: 'unavailable', diagnostic: 'provider-stopped' }
-    if (!isRecord(input)) return { kind: 'unavailable', diagnostic: 'page-invalid' }
-    const limit = pageLimit(input.limit)
-    if (limit === undefined || (input.after !== undefined && typeof input.after !== 'string'))
-      return { kind: 'unavailable', diagnostic: 'page-invalid' }
-    const found = await read({ query: 'reservations', after: input.after ?? '', limit })
+    const page = recoveryPage(input)
+    if (page === undefined) return { kind: 'unavailable', diagnostic: 'page-invalid' }
+    const found = await read({ query: 'reservations', ...page })
     if (found === undefined || !Array.isArray(found['rows']))
       return { kind: 'unavailable', diagnostic: 'reservations-unavailable' }
     let settled = 0
@@ -342,48 +385,37 @@ export function coordinationOver(core: Core) {
     }
   }
 
-  const continueIntent = async (saved: RecordRow): Promise<GovernanceReply | undefined> => {
-    const finished = replyFromRow(saved)
-    if (finished !== undefined) return finished
-    if (
-      !isText(saved['operation_id']) ||
-      !isText(saved['attempt']) ||
-      !isText(saved['organization']) ||
-      !isText(saved['account'])
-    )
-      return undefined
-    const operationId = saved['operation_id']
+  const drainReservations = async (organization: string, account: string): Promise<boolean> => {
     const pending = await read({
       query: 'reservations',
       after: '',
       limit: 100,
-      organization: saved['organization'],
-      account: saved['account'],
+      organization,
+      account,
     })
-    if (pending === undefined || !Array.isArray(pending['rows'])) return undefined
+    if (pending === undefined || !Array.isArray(pending['rows'])) return false
     for (const candidate of pending['rows']) {
       if (
         !record(candidate) ||
         !isText(candidate['reservation_id']) ||
         (await settle(candidate['reservation_id'])).kind !== 'terminal'
       )
-        return undefined
+        return false
     }
-    if (saved['attempt'] !== '0') {
-      const prior = await query(identity(`${operationId}/apply/${saved['attempt']}`))
-      if (prior.kind === 'unknown') return undefined
-      if (prior.kind === 'committed') {
-        const current = await row({ query: 'intent', operationId })
-        if (current !== undefined && current['state'] === 'finished') return replyFromRow(current)
-      }
-    }
+    return true
+  }
+
+  const applyAttempt = async (
+    operationId: string,
+    expectedAttempt: string,
+  ): Promise<GovernanceReply | undefined> => {
     const time = await core.readTime()
     if (time.kind !== 'read') return undefined
     const nowKey = instantOrderKey(encodeInstant(time.instant))
     const prepared = await run({
       kind: 'membership-prepare',
       operationId,
-      expectedAttempt: saved['attempt'],
+      expectedAttempt,
       nowKey,
     })
     if (prepared?.outcome === 'finished') {
@@ -397,6 +429,29 @@ export function coordinationOver(core: Core) {
     )
     const current = await row({ query: 'intent', operationId })
     return current === undefined ? undefined : replyFromRow(current)
+  }
+
+  const continueIntent = async (saved: RecordRow): Promise<GovernanceReply | undefined> => {
+    const finished = replyFromRow(saved)
+    if (finished !== undefined) return finished
+    if (
+      !isText(saved['operation_id']) ||
+      !isText(saved['attempt']) ||
+      !isText(saved['organization']) ||
+      !isText(saved['account'])
+    )
+      return undefined
+    const operationId = saved['operation_id']
+    if (!(await drainReservations(saved['organization'], saved['account']))) return undefined
+    if (saved['attempt'] !== '0') {
+      const prior = await query(identity(`${operationId}/apply/${saved['attempt']}`))
+      if (prior.kind === 'unknown') return undefined
+      if (prior.kind === 'committed') {
+        const current = await row({ query: 'intent', operationId })
+        if (current !== undefined && current['state'] === 'finished') return replyFromRow(current)
+      }
+    }
+    return applyAttempt(operationId, saved['attempt'])
   }
 
   const writeMembership = async (
@@ -455,11 +510,9 @@ export function coordinationOver(core: Core) {
 
   const recoverIntents: IdentityGovernanceRecovery['recover'] = async (input = {}) => {
     if (core.stopped()) return unavailable('provider-stopped')
-    if (!isRecord(input) || (input.after !== undefined && typeof input.after !== 'string'))
-      return unavailable('page-invalid')
-    const limit = pageLimit(input.limit)
-    if (limit === undefined) return unavailable('page-invalid')
-    const found = await read({ query: 'intents', after: input.after ?? '', limit })
+    const page = recoveryPage(input)
+    if (page === undefined) return unavailable('page-invalid')
+    const found = await read({ query: 'intents', ...page })
     if (found === undefined || !Array.isArray(found['rows']))
       return unavailable('governance-recovery-unavailable')
     let finished = 0

@@ -26,7 +26,7 @@ The guard only accepts `policyId: 'asset'`, with `targetRef` equal to the held i
 
 Capture uses the public `SettingsProjectionBinding` and provides `settings.assets-projection`. Management capture with an empty target list enumerates held targets in the domain. An explicit list restricts output to matching asset targets. Other policies contribute no asset views. Runtime capture uses only explicit targets and never chooses a target itself. The composition owner verifies the genuine runtime selection and caller qualification.
 
-A requested missing, removed or undeclared asset target produces a safe refusal. A held asset without a Settings declaration cannot be presented as an available Settings target. Management capture fails safely if such a target prevents a complete result.
+A requested missing, removed or undeclared asset target produces a safe refusal. A held asset without a Settings declaration cannot be presented as an available Settings target. Management enumeration omits a legitimate held asset whose selected version declares no Settings. Such an asset is not a settings target and does not make unrelated settings unavailable. Missing or malformed selected versions still fail instead of silently disappearing.
 
 Each currentness change obtains a new durable owner sequence number. The projection's `ownerRevision` changes when its holding or followed version changes. A pinned holding does not change when another version is published. The sequence is never reused within the domain.
 
@@ -42,4 +42,4 @@ The SQL provider owns commit durability and receipts. Asset mutation, owner sequ
 
 ## Verification responsibility
 
-[Package tests](tests/README.md) exercise public operations with real SQLite Workers, including both holding-removal/setting-write orders. Reopen and lost-reply tests verify ordinary durable recovery. They do not certify power-loss behavior, hardware durability or the complete Identity and Settings application composition. The composition owner provides those applicable independent acceptance results.
+[Package tests](tests/README.md) exercise public operations with real SQLite Workers, including both holding-removal/setting-write orders. Reopen and lost-reply tests verify ordinary durable recovery. The separate settings-governance suite exercises real Identity, independent targets and Assets through one Settings application. These tests do not certify power-loss behavior, hardware durability or complete product adoption. The composition owner provides those applicable independent acceptance results.

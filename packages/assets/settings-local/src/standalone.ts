@@ -10,7 +10,11 @@ import {
 import type { SettingsSqlGuards } from './types.ts'
 import type { SettingsSqlTerminalOptions } from './terminals.ts'
 import type { SettingsProjectionBinding } from './projection.ts'
-import type { SettingsCommitResult, SettingsFailure } from '@omne-harness/settings'
+import type {
+  SettingsCommitResult,
+  SettingsOperationResult,
+  SettingsFailure,
+} from '@omne-harness/settings'
 export const standaloneSettingsGuards: SettingsSqlGuards = {
   participant: STANDALONE_PARTICIPANT,
   command: binding => ({
@@ -88,12 +92,15 @@ export function createStandaloneSettingsOwner(input: SettingsSqlTerminalOptions)
       void pending.then(() => active.delete(pending))
       return pending
     },
-    async getOperation(operationId: string): Promise<SettingsCommitResult> {
+    async getOperation(operationId: string): Promise<SettingsOperationResult> {
       if (closing) return { kind: 'rejected', reason: 'closing' }
       if (!StandaloneMutationSchema.options[0].shape.operationId.safeParse(operationId).success)
         return { kind: 'rejected', reason: 'invalid_input' }
       try {
-        return result(await options.storage.query(identity(operationId)), operationId)
+        const found = await options.storage.query(identity(operationId))
+        if (found.kind === 'not_committed' && equal(found.identity, identity(operationId)))
+          return { kind: 'not_found' }
+        return result(found, operationId)
       } catch {
         return { kind: 'unknown', operationId }
       }

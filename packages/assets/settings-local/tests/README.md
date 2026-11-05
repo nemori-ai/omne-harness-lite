@@ -37,7 +37,7 @@ pnpm --filter @omne-harness/settings-local exec vitest run --mode fast tests/ide
 | [crash.spec.ts](crash.spec.ts)、[crash-child.ts](crash-child.ts) | 子进程 SIGKILL 后重开与原操作恢复。只覆盖该进程终止场景，不代表 OS 崩溃或物理断电。 |
 | [identity-world.ts](identity-world.ts)、[identity.spec.ts](identity.spec.ts) | 真实 Identity SQL、公开 principal、standing、reservations 和 Settings 终态。覆盖撤权先到、提交先到、封口阻止迟到提交及目标不可用后的恢复。默认目标 guard 是夹具，不能据此宣称真实资产资格已覆盖。 |
 | [standalone.spec.ts](standalone.spec.ts) | 真实 Identity 与持久独立目标拥有者。覆盖供给、重开、不可逆退休、版本内容冲突与陈旧编辑。 |
-| [catalog-world.ts](catalog-world.ts)、[catalog.spec.ts](catalog.spec.ts) | 真实 Identity、独立目标、registry、显式选择与目录。覆盖卸载保值、逐页重核、伪造选择拒绝、目标退休、精确重新采用、分页依据、捕获中卸载和观察过期后的时钟回拨。默认装配显式使用空 Asset 投影。 |
+| [catalog-world.ts](catalog-world.ts)、[catalog.spec.ts](catalog.spec.ts) | 真实 Identity、独立目标、registry、显式选择与目录。覆盖卸载保值、逐页重核、伪造选择拒绝、目标退休、独立拥有者原操作回查及关闭拒绝、精确重新采用、分页依据、捕获中卸载和观察过期后的时钟回拨。默认装配显式使用空 Asset 投影。 |
 
 秘密测试要求命令返回 `unsupported`，并检查事务响应不保留测试明文。普通秘密配值不支持；安全声明元数据可出现在目录中。这些场景不构成秘密保管能力的验收。
 

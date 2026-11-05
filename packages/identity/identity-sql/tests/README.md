@@ -26,7 +26,7 @@
 | `stopped.spec.ts`                 | SPEC IS-07：停止后的答复与在途调用                                                                              | 快                              |
 | `scrypt-mapping.spec.ts`          | SPEC IS-04：scrypt 拒绝的映射与假材料                                                                           | 快                              |
 | `public-entry.spec.ts`            | 两个入口的导出、材料、组合与配置校验                                                                            | 快                              |
-| `cordis-entry.spec.ts`            | 插件：非法配置、缺邀请时长、缺时钟 PENDING、三键、注入时钟与截止时刻、撤销、邀请时长、撤除                      | 快加一条慢用例                  |
+| `cordis-entry.spec.ts`            | 插件：非法配置、缺邀请时长、缺时钟 PENDING、五键、注入时钟与截止时刻、撤销、邀请时长、撤除                      | 快加一条慢用例                  |
 | `governance-contract.spec.ts`     | AC-1：identity 治理契约套件，两组配置，接入故障与重启                                                           | 慢：每个用例起新的存储与 Worker |
 | `governance-negative.spec.ts`     | 负控：四项核对各去掉一项，对应用例变红；未改副本全部通过                                                        | 慢：每项跑一遍套件              |
 | `last-admin-concurrent.spec.ts`   | AC-2：两位管理员互相移除或降级，50 次                                                                           | 慢：50 个团队、100 次并发提交   |
@@ -39,4 +39,4 @@
 
 未覆盖：应用层贯通、公开协议到治理端口的映射、多进程并发、闰秒、时序侧信道。负责人是本成员的写者。
 
-`standing-reservations.spec.ts` 使用真实 sqlite-provider 文件与 Worker 验证预留、共同成员门、稳定逻辑身份、原登录重检、有限分页及升级后的旧目录拒绝。三个 dist 副本负控分别移除共同门、伪造终态与复用旧时刻，明确观察相应违例。目标 resolver 是符合性夹具；这些用例不声称真实 Settings 组合通过。
+`standing-reservations.spec.ts` 使用真实 sqlite-provider 文件与 Worker 验证预留、共同成员门、稳定逻辑身份、原登录重检、接受邀请的回执丢失恢复、停止后不调用目标 resolver、无可结算行时仍前进的有限分页及升级后的旧目录拒绝。三个 dist 副本负控分别移除共同门、伪造终态与复用旧时刻，明确观察相应违例。目标 resolver 是符合性夹具；这些用例不声称真实 Settings 组合通过。

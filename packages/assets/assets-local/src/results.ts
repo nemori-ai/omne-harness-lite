@@ -28,31 +28,48 @@ export function receiptResult(
               : 'unavailable',
       }
     case 'committed':
-    case 'rolled_back': {
-      const entry = result.responses.find(
-        response => response.participant === PARTICIPANT && response.protocol === PROTOCOL,
-      )
-      const reply = entry?.reply
-      const raw =
-        reply?.kind === 'participated'
-          ? reply.response
-          : reply?.kind === 'conflict'
-            ? reply.basis
-            : undefined
-      const parsed = receiptSchema.safeParse(raw)
-      if (
-        !parsed.success ||
-        !equal(parsed.data.binding.domain, domain) ||
-        parsed.data.binding.command.operationId !== operationId
-      )
-        return unknown
-      if (command && !equal(parsed.data.binding.command, command))
-        return { kind: 'rejected', reason: 'operation_conflict' }
-      if (parsed.data.result.kind === 'committed' && parsed.data.result.operationId !== operationId)
-        return unknown
-      if (result.kind === 'committed' && parsed.data.result.kind !== 'committed') return unknown
-      if (result.kind === 'rolled_back' && parsed.data.result.kind !== 'rejected') return unknown
-      return parsed.data.result
-    }
+    case 'rolled_back':
+      return terminalReceipt(result, domain, operationId, command)
   }
+}
+function terminalReceipt(
+  result: Extract<CommitResultV2, { kind: 'committed' | 'rolled_back' }>,
+  domain: DomainRef,
+  operationId: string,
+  command?: Mutation,
+): AssetsOperationResult {
+  const unknown = { kind: 'unknown' as const, operationId }
+  const receipt = decodeReceipt(result, domain, operationId)
+  if (!receipt) return unknown
+  if (command && !equal(receipt.binding.command, command))
+    return { kind: 'rejected', reason: 'operation_conflict' }
+  if (receipt.result.kind === 'committed' && receipt.result.operationId !== operationId)
+    return unknown
+  if (result.kind === 'committed' && receipt.result.kind !== 'committed') return unknown
+  if (result.kind === 'rolled_back' && receipt.result.kind !== 'rejected') return unknown
+  return receipt.result
+}
+function decodeReceipt(
+  result: Extract<CommitResultV2, { kind: 'committed' | 'rolled_back' }>,
+  domain: DomainRef,
+  operationId: string,
+) {
+  const entry = result.responses.find(
+    response => response.participant === PARTICIPANT && response.protocol === PROTOCOL,
+  )
+  const reply = entry?.reply
+  const raw =
+    reply?.kind === 'participated'
+      ? reply.response
+      : reply?.kind === 'conflict'
+        ? reply.basis
+        : undefined
+  const parsed = receiptSchema.safeParse(raw)
+  if (
+    !parsed.success ||
+    !equal(parsed.data.binding.domain, domain) ||
+    parsed.data.binding.command.operationId !== operationId
+  )
+    return null
+  return parsed.data
 }

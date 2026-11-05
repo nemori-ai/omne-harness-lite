@@ -38,23 +38,66 @@ export function membershipGate(
   return undefined
 }
 
+const RESERVATION_FIELDS = [
+  'id',
+  'operationRef',
+  'binding',
+  'required',
+  'organization',
+  'account',
+  'tenantText',
+  'roleModel',
+  'roleModelRevision',
+  'knownQualifications',
+  'knownRoles',
+  'qualifiedRoles',
+] as const
+type ReservationFacts = Record<(typeof RESERVATION_FIELDS)[number], string>
+
+function reservationMapping(f: ReservationFacts) {
+  const required: unknown = JSON.parse(f.required)
+  const knownQualifications: unknown = JSON.parse(f.knownQualifications)
+  const knownRoles: unknown = JSON.parse(f.knownRoles)
+  const qualifiedRoles: unknown = JSON.parse(f.qualifiedRoles)
+  if (
+    !Array.isArray(required) ||
+    !Array.isArray(knownQualifications) ||
+    !Array.isArray(knownRoles) ||
+    !Array.isArray(qualifiedRoles) ||
+    ![...required, ...knownQualifications, ...knownRoles, ...qualifiedRoles].every(isText)
+  )
+    return undefined
+  return { required, knownQualifications, knownRoles, qualifiedRoles }
+}
+
+function reservationStanding(
+  f: ReservationFacts,
+  port: ParticipantPort,
+): ParticipantReply | undefined {
+  const member = oneRow(
+    port,
+    `SELECT state, role_model, role_model_revision, role FROM id_membership WHERE organization = ? AND account = ? AND tenant_text = ? LIMIT 1`,
+    [f.organization, f.account, f.tenantText],
+  )
+  if (member === undefined || text(member['state']) !== MEMBERSHIP_ACTIVE) return reply('denied')
+  const mapping = reservationMapping(f)
+  if (mapping === undefined) return { kind: 'unsupported', basis: 'standing-mapping' }
+  const { required, knownQualifications, knownRoles, qualifiedRoles } = mapping
+  if (required.some(item => !knownQualifications.includes(item))) return reply('denied')
+  if (
+    text(member['role_model']) !== f.roleModel ||
+    text(member['role_model_revision']) !== f.roleModelRevision ||
+    !knownRoles.includes(text(member['role']))
+  )
+    return reply('unavailable')
+  if (!qualifiedRoles.includes(text(member['role']))) return reply('denied')
+  return undefined
+}
+
 function reservation(raw: Record<string, unknown>, port: ParticipantPort): ParticipantReply {
-  const names = [
-    'id',
-    'operationRef',
-    'binding',
-    'required',
-    'organization',
-    'account',
-    'tenantText',
-    'roleModel',
-    'roleModelRevision',
-    'knownQualifications',
-    'knownRoles',
-    'qualifiedRoles',
-  ] as const
-  if (!names.every(key => isText(raw[key]))) return { kind: 'unsupported', basis: 'standing-facts' }
-  const f = raw as Record<(typeof names)[number], string>
+  if (!RESERVATION_FIELDS.every(key => isText(raw[key])))
+    return { kind: 'unsupported', basis: 'standing-facts' }
+  const f = raw as ReservationFacts
   const existing = oneRow(
     port,
     'SELECT reservation_id, binding, required, state, terminal FROM id_standing_reservation WHERE operation_ref = ? LIMIT 1',
@@ -71,32 +114,8 @@ function reservation(raw: Record<string, unknown>, port: ParticipantPort): Parti
       terminal: existing['terminal'] === null ? '' : text(existing['terminal']),
     })
   }
-  const member = oneRow(
-    port,
-    `SELECT state, role_model, role_model_revision, role FROM id_membership WHERE organization = ? AND account = ? AND tenant_text = ? LIMIT 1`,
-    [f.organization, f.account, f.tenantText],
-  )
-  if (member === undefined || text(member['state']) !== MEMBERSHIP_ACTIVE) return reply('denied')
-  const required: unknown = JSON.parse(f.required)
-  const knownQualifications: unknown = JSON.parse(f.knownQualifications)
-  const knownRoles: unknown = JSON.parse(f.knownRoles)
-  const qualifiedRoles: unknown = JSON.parse(f.qualifiedRoles)
-  if (
-    !Array.isArray(required) ||
-    !Array.isArray(knownQualifications) ||
-    !Array.isArray(knownRoles) ||
-    !Array.isArray(qualifiedRoles) ||
-    ![...required, ...knownQualifications, ...knownRoles, ...qualifiedRoles].every(isText)
-  )
-    return { kind: 'unsupported', basis: 'standing-mapping' }
-  if (required.some(item => !knownQualifications.includes(item))) return reply('denied')
-  if (
-    text(member['role_model']) !== f.roleModel ||
-    text(member['role_model_revision']) !== f.roleModelRevision ||
-    !knownRoles.includes(text(member['role']))
-  )
-    return reply('unavailable')
-  if (!qualifiedRoles.includes(text(member['role']))) return reply('denied')
+  const denied = reservationStanding(f, port)
+  if (denied !== undefined) return denied
   const pending = oneRow(
     port,
     `SELECT 1 FROM id_membership_intent WHERE organization = ? AND account = ? AND state = 'pending' LIMIT 1`,
@@ -146,6 +165,27 @@ function responseOf(result: ParticipantReply): Record<string, JsonValue> | undef
   return result.kind === 'participated' && isRecord(result.response) ? result.response : undefined
 }
 
+function saveIntent(
+  port: ParticipantPort,
+  operationId: string,
+  facts: string,
+  response: Record<string, JsonValue>,
+): ParticipantReply {
+  const pending = response['outcome'] === 'pending'
+  port.execute(
+    `INSERT INTO id_membership_intent (operation_id, facts, organization, account, state, response, attempt, now_key) VALUES (?, ?, ?, ?, ?, ?, 0, NULL)`,
+    [
+      operationId,
+      facts,
+      pending && isText(response['organization']) ? response['organization'] : null,
+      pending && isText(response['account']) ? response['account'] : null,
+      pending ? 'pending' : 'finished',
+      pending ? null : JSON.stringify(response),
+    ],
+  )
+  return reply(pending ? 'pending' : 'finished')
+}
+
 function admitIntent(
   raw: Record<string, unknown>,
   port: ParticipantPort,
@@ -168,19 +208,7 @@ function admitIntent(
   const result = govern(facts, port, { kind: 'prepare' })
   const response = responseOf(result)
   if (response === undefined) return result
-  const pending = response['outcome'] === 'pending'
-  port.execute(
-    `INSERT INTO id_membership_intent (operation_id, facts, organization, account, state, response, attempt, now_key) VALUES (?, ?, ?, ?, ?, ?, 0, NULL)`,
-    [
-      raw['operationId'],
-      raw['facts'],
-      pending && isText(response['organization']) ? response['organization'] : null,
-      pending && isText(response['account']) ? response['account'] : null,
-      pending ? 'pending' : 'finished',
-      pending ? null : JSON.stringify(response),
-    ],
-  )
-  return reply(pending ? 'pending' : 'finished')
+  return saveIntent(port, raw['operationId'], raw['facts'], response)
 }
 
 function prepareAttempt(raw: Record<string, unknown>, port: ParticipantPort): ParticipantReply {

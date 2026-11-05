@@ -4,7 +4,6 @@ import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contr
 import {
   canonical,
   digest,
-  equal,
   json,
   stateKey,
   settingsSqlOperationBinding,
@@ -26,6 +25,39 @@ function row(port: ParticipantPort, key: string) {
   const raw = port.execute('SELECT record FROM st_targets WHERE target_key = ? LIMIT 1', [key])
     .rows[0]?.[0]
   return raw === undefined ? null : StandaloneRecordSchema.parse(JSON.parse(z.string().parse(raw)))
+}
+function adoptDefinition(
+  port: ParticipantPort,
+  record: Extract<
+    ReturnType<typeof StandaloneMutationSchema.parse>,
+    { kind: 'provision' }
+  >['record'],
+) {
+  const defined = defineSettings(record.definition)
+  if (defined.kind !== 'defined') return fail('invalid_input')
+  if (record.grants.some(g => !record.sourceIds.includes(g.sourceId))) return fail('invalid_input')
+  const definition = defined.definition
+  const definitionRef = {
+    providerId: definition.providerId,
+    definitionId: definition.definitionId,
+    version: definition.version,
+    digest: digest(definition),
+  }
+  const definitionKey = canonical([
+    definition.providerId,
+    definition.definitionId,
+    definition.version,
+  ])
+  const existing = port.execute(
+    'SELECT digest FROM st_definitions WHERE definition_key = ? LIMIT 1',
+    [definitionKey],
+  ).rows[0]?.[0]
+  if (existing !== undefined && existing !== definitionRef.digest) return fail('definition_changed')
+  port.execute(
+    'INSERT INTO st_definitions (definition_key, digest) VALUES (?, ?) ON CONFLICT(definition_key) DO NOTHING',
+    [definitionKey, definitionRef.digest],
+  )
+  return { definition, definitionRef }
 }
 function mutate(facts: Readonly<Record<string, unknown>>, port: ParticipantPort) {
   const domain = domainSchema.parse(facts['domain'])
@@ -55,32 +87,9 @@ function mutate(facts: Readonly<Record<string, unknown>>, port: ParticipantPort)
     }
   } else {
     const record = command.record
-    const defined = defineSettings(record.definition)
-    if (defined.kind !== 'defined') return fail('invalid_input')
-    if (record.grants.some(g => !record.sourceIds.includes(g.sourceId)))
-      return fail('invalid_input')
-    const definition = defined.definition
-    const definitionRef = {
-      providerId: definition.providerId,
-      definitionId: definition.definitionId,
-      version: definition.version,
-      digest: digest(definition),
-    }
-    const definitionKey = canonical([
-      definition.providerId,
-      definition.definitionId,
-      definition.version,
-    ])
-    const existing = port.execute(
-      'SELECT digest FROM st_definitions WHERE definition_key = ? LIMIT 1',
-      [definitionKey],
-    ).rows[0]?.[0]
-    if (existing !== undefined && existing !== definitionRef.digest)
-      return fail('definition_changed')
-    port.execute(
-      'INSERT INTO st_definitions (definition_key, digest) VALUES (?, ?) ON CONFLICT(definition_key) DO NOTHING',
-      [definitionKey, definitionRef.digest],
-    )
+    const adopted = adoptDefinition(port, record)
+    if ('kind' in adopted) return adopted
+    const { definition, definitionRef } = adopted
     next = {
       retired: false,
       projection: {
@@ -94,8 +103,8 @@ function mutate(facts: Readonly<Record<string, unknown>>, port: ParticipantPort)
     }
   }
   port.execute(
-    'INSERT INTO st_targets (target_key, scope_ref, record) VALUES (?, ?, ?) ON CONFLICT(target_key) DO UPDATE SET record=excluded.record',
-    [key, target.scopeRef, canonical(next)],
+    'INSERT INTO st_targets (target_key, scope_ref, retired, record) VALUES (?, ?, ?, ?) ON CONFLICT(target_key) DO UPDATE SET retired=excluded.retired, record=excluded.record',
+    [key, target.scopeRef, next.retired ? 1 : 0, canonical(next)],
   )
   return { kind: 'participated' as const, response: { kind: 'changed', revision } }
 }
@@ -104,20 +113,19 @@ function capture(facts: Readonly<Record<string, unknown>>, port: ParticipantPort
   if (binding.domain.scope.kind !== 'tenant') return fail('forbidden')
   const scopeRef = binding.domain.scope.tenant
   if (binding.request.targets.some(t => t.scopeRef !== scopeRef)) return fail('forbidden')
-  const rows = port.execute(
-    'SELECT record FROM st_targets WHERE scope_ref = ? ORDER BY target_key LIMIT 129',
-    [binding.domain.scope.tenant],
-  ).rows
-  if (rows.length > 128) return fail('limit_exceeded')
-  const records = rows.map(r => StandaloneRecordSchema.parse(JSON.parse(z.string().parse(r[0]))))
-  const views = records
-    .filter(
-      r =>
-        !r.retired &&
-        (binding.request.targets.length === 0 ||
-          binding.request.targets.some(t => equal(t, r.projection.target))),
-    )
-    .map(r => r.projection)
+  const enumerate = binding.request.targets.length === 0 && binding.request.mode === 'management'
+  const records = enumerate
+    ? port
+        .execute(
+          'SELECT record FROM st_targets WHERE scope_ref = ? AND retired = 0 ORDER BY target_key LIMIT 129',
+          [scopeRef],
+        )
+        .rows.map(r => StandaloneRecordSchema.parse(JSON.parse(z.string().parse(r[0]))))
+    : binding.request.targets
+        .filter(t => t.policyId === 'independent')
+        .map(t => row(port, stateKey(binding.domain.scope, t)))
+  const views = records.flatMap(r => (r !== null && !r.retired ? [r.projection] : []))
+  if (views.length > 128) return fail('limit_exceeded')
   port.provideFact(settingsStandaloneProjectionFact, json({ binding, views }))
   return { kind: 'participated' as const, response: null }
 }

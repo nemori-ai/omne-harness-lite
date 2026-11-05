@@ -163,11 +163,11 @@ export function createSettingsCatalog(
     }
     return fail('unavailable')
   }
-  async function captureView(
+  async function prepareCapture(
     principal: ActingForTenantPrincipal,
     request: SettingsViewRequest,
     purpose: 'values' | 'authority',
-  ): Promise<Captured> {
+  ) {
     const verified = await options.verifier.verify(principal)
     if (verified.kind === 'unavailable') return fail('unavailable')
     if (verified.kind !== 'verified' || verified.principal.kind !== 'acting-for-tenant')
@@ -206,9 +206,19 @@ export function createSettingsCatalog(
       expiryEpoch: Math.floor(now / options.cursorLifetimeMs),
       selectionDigest: selected,
     })
+    return { capture, before, principal: verified.principal, scopeRef: tenant.value }
+  }
+  async function captureView(
+    principal: ActingForTenantPrincipal,
+    request: SettingsViewRequest,
+    purpose: 'values' | 'authority',
+  ): Promise<Captured> {
+    const prepared = await prepareCapture(principal, request, purpose)
+    if ('kind' in prepared) return prepared
+    const { capture, before, principal: verifiedPrincipal, scopeRef } = prepared
     const operation = snapshotOperation(capture)
     const held = await options.reservations.reserve({
-      principal: verified.principal,
+      principal: verifiedPrincipal,
       required: options.required,
       binding: {
         version: 'standing/1',
@@ -216,7 +226,7 @@ export function createSettingsCatalog(
         operationId: operation.operationId,
         principalRef: operation.principalRef,
         destination: options.destination,
-        scopeRef: tenant.value,
+        scopeRef,
         targetRef: canonical(operation.target),
         inputDigest: operation.commandDigest,
       },

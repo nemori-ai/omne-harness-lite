@@ -82,6 +82,20 @@ export function createSettingsStandingDestination(
   }
 }
 
+function matchesAccess(
+  access: Extract<
+    Awaited<ReturnType<SettingsSqlAccess<ActingForTenantPrincipal>['authorize']>>,
+    { kind: 'authorized' }
+  >,
+  request: Parameters<SettingsSqlAccess<ActingForTenantPrincipal>['authorize']>[1],
+  principal: ActingForTenantPrincipal,
+) {
+  return (
+    access.principalRef === standingPrincipalRef(principal) &&
+    equal(access.scope, request.scope) &&
+    equal(access.target, request.target)
+  )
+}
 function identityAccess(
   options: IdentityQualifiedSettingsOptions,
 ): SettingsSqlAccess<ActingForTenantPrincipal> {
@@ -108,11 +122,7 @@ function identityAccess(
         return rejected('forbidden')
       const access = await options.backend.access.authorize(verified.principal, request)
       if (access.kind === 'rejected') return access
-      return access.principalRef === standingPrincipalRef(verified.principal) &&
-        equal(access.scope, request.scope) &&
-        equal(access.target, request.target)
-        ? access
-        : rejected('forbidden')
+      return matchesAccess(access, request, verified.principal) ? access : rejected('forbidden')
     },
   }
 }

@@ -2182,15 +2182,6 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@omne-harness/calendar':
-        specifier: workspace:*
-        version: link:../../calendar/calendar
-      '@omne-harness/calendar-contract':
-        specifier: workspace:*
-        version: link:../../calendar/calendar-contract
-      '@omne-harness/calendar-local':
-        specifier: workspace:*
-        version: link:../../calendar/calendar-local
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider

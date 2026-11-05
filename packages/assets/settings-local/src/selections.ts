@@ -57,6 +57,12 @@ export function createSettingsSelections(options: {
       ? standingPrincipalRef(result.principal)
       : fail('forbidden')
   }
+  function readTime(): number | null {
+    const time = options.clock.now()
+    if (!Number.isSafeInteger(time) || time < 0) return null
+    observedTime = Math.max(observedTime, time)
+    return observedTime
+  }
   return {
     async select(principal, targets) {
       if (closed) return fail('closing')
@@ -69,10 +75,8 @@ export function createSettingsSelections(options: {
       const principalRef = await verified(principal)
       if (typeof principalRef !== 'string') return principalRef
       if (closed) return fail('closing')
-      const clockTime = options.clock.now()
-      if (!Number.isSafeInteger(clockTime) || clockTime < 0) return fail('unavailable')
-      const now = (observedTime = Math.max(observedTime, clockTime))
-      if (!Number.isSafeInteger(now) || now < 0 || !Number.isSafeInteger(now + options.lifetimeMs))
+      const now = readTime()
+      if (now === null || !Number.isSafeInteger(now + options.lifetimeMs))
         return fail('unavailable')
       for (const [id, record] of entries) if (record.expires <= now) entries.delete(id)
       if (entries.size >= options.capacity) return fail('limit_exceeded')
@@ -90,10 +94,8 @@ export function createSettingsSelections(options: {
       if (typeof principalRef !== 'string') return principalRef
       const record = entries.get(selectionRef)
       if (closed) return fail('closing')
-      const clockTime = options.clock.now()
-      if (!Number.isSafeInteger(clockTime) || clockTime < 0) return fail('unavailable')
-      const now = (observedTime = Math.max(observedTime, clockTime))
-      if (!Number.isSafeInteger(now) || now < 0) return fail('unavailable')
+      const now = readTime()
+      if (now === null) return fail('unavailable')
       if (record && record.expires <= now) entries.delete(selectionRef)
       if (!record || record.principalRef !== principalRef || record.expires <= now)
         return fail('forbidden')

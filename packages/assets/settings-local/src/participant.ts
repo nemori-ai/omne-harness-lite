@@ -25,6 +25,33 @@ import {
 } from './schema.ts'
 import type { SettingsFailure } from '@omne-harness/settings'
 
+function currentFacts(binding: Binding, port: ParticipantPort) {
+  const reject = (reason: SettingsFailure['reason']): SettingsFailure => ({
+    kind: 'rejected',
+    reason,
+  })
+  let raw: unknown
+  try {
+    raw = port.requireFact(GUARD_FACT)
+  } catch {
+    return reject('unsupported')
+  }
+  if (!withinBudget(raw)) return reject('limit_exceeded')
+  const parsed = guardFactSchema.safeParse(raw)
+  if (!parsed.success || !equal(parsed.data.binding, binding)) return reject('forbidden')
+  const fact = parsed.data
+  const defined = defineSettings(fact.definition)
+  if (defined.kind !== 'defined' || fact.definitionRef.digest !== digest(defined.definition))
+    return reject('definition_changed')
+  if (!equal(fact.definitionRef, binding.command.definitionRef)) return reject('definition_changed')
+  if (
+    fact.definition.items.find(item => item.id === binding.command.itemId)?.sensitivity === 'secret'
+  )
+    return reject('unsupported')
+  if (fact.grants.some(grant => !fact.sourceIds.includes(grant.sourceId)))
+    return reject('forbidden')
+  return fact
+}
 function execute(binding: Binding, port: ParticipantPort) {
   const operationBinding = settingsSqlOperationBinding(binding)
   const fail = (reason: SettingsFailure['reason']) => ({
@@ -34,25 +61,8 @@ function execute(binding: Binding, port: ParticipantPort) {
   if (!equal(port.requireFact(TERMINAL_FACT), { binding: operationBinding, kind: 'consume' }))
     return fail('forbidden')
   if (binding.commandDigest !== commandDigest(binding.command)) return fail('operation_conflict')
-  let raw: unknown
-  try {
-    raw = port.requireFact(GUARD_FACT)
-  } catch {
-    return fail('unsupported')
-  }
-  if (!withinBudget(raw)) return fail('limit_exceeded')
-  const parsed = guardFactSchema.safeParse(raw)
-  if (!parsed.success || !equal(parsed.data.binding, binding)) return fail('forbidden')
-  const fact = parsed.data
-  const defined = defineSettings(fact.definition)
-  if (defined.kind !== 'defined' || fact.definitionRef.digest !== digest(defined.definition))
-    return fail('definition_changed')
-  if (!equal(fact.definitionRef, binding.command.definitionRef)) return fail('definition_changed')
-  if (
-    fact.definition.items.find(item => item.id === binding.command.itemId)?.sensitivity === 'secret'
-  )
-    return fail('unsupported')
-  if (fact.grants.some(grant => !fact.sourceIds.includes(grant.sourceId))) return fail('forbidden')
+  const fact = currentFacts(binding, port)
+  if ('kind' in fact) return fail(fact.reason)
   const current = readStateRecord(port, binding.domain.scope, binding.command.target)
   if (current && !equal(current.definitionRef, fact.definitionRef))
     return fail('definition_changed')

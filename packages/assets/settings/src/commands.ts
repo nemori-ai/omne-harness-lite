@@ -88,12 +88,19 @@ export type SettingsChangeDecision =
         | 'incompatible'
     }>
 
-function sameDefinition(left: SettingsDefinitionRef, right: SettingsDefinitionRef): boolean {
+type DecisionInput = z.infer<typeof DecisionInputSchema>
+
+function currentDefinition({ command, definitionRef, definition }: DecisionInput): boolean {
+  const left = command.definitionRef
+  const right = definitionRef
   return (
     left.providerId === right.providerId &&
     left.definitionId === right.definitionId &&
     left.version === right.version &&
-    left.digest === right.digest
+    left.digest === right.digest &&
+    definition.providerId === right.providerId &&
+    definition.definitionId === right.definitionId &&
+    definition.version === right.version
   )
 }
 function changeSource(source: SettingSource, command: SettingsChange): SettingSource {
@@ -116,21 +123,15 @@ function changeSource(source: SettingSource, command: SettingsChange): SettingSo
   return { id: source.id, values }
 }
 
-/** A decision over already qualified facts. The commit provider must recheck these facts atomically. */
-export function decideSettingsChange(input: unknown): SettingsChangeDecision {
-  if (!withinSettingsBudget(input)) return { kind: 'rejected', reason: 'limit_exceeded' }
-  const parsed = DecisionInputSchema.safeParse(input)
-  if (!parsed.success) return { kind: 'rejected', reason: 'invalid_input' }
-  const { command, state, definition, definitionRef, grants } = parsed.data
+function authorizeChange(
+  input: DecisionInput,
+):
+  | Readonly<{ kind: 'authorized'; position: number }>
+  | Extract<SettingsChangeDecision, { kind: 'rejected' }> {
+  const { command, state, definition, grants } = input
   if (command.expectedRevision !== state.revision)
     return { kind: 'rejected', reason: 'revision_conflict' }
-  if (
-    !sameDefinition(command.definitionRef, definitionRef) ||
-    definition.providerId !== definitionRef.providerId ||
-    definition.definitionId !== definitionRef.definitionId ||
-    definition.version !== definitionRef.version
-  )
-    return { kind: 'rejected', reason: 'definition_changed' }
+  if (!currentDefinition(input)) return { kind: 'rejected', reason: 'definition_changed' }
   const grant = grants.find(grant => grant.sourceId === command.sourceId)
   const position = state.sources.findIndex(source => source.id === command.sourceId)
   if (!grant?.actions.includes(command.action.kind) || position < 0)
@@ -143,6 +144,18 @@ export function decideSettingsChange(input: unknown): SettingsChangeDecision {
       .some(source => source.values.some(value => value.itemId === command.itemId && value.locked))
   )
     return { kind: 'rejected', reason: 'locked' }
+  return { kind: 'authorized', position }
+}
+
+/** A decision over already qualified facts. The commit provider must recheck these facts atomically. */
+export function decideSettingsChange(input: unknown): SettingsChangeDecision {
+  if (!withinSettingsBudget(input)) return { kind: 'rejected', reason: 'limit_exceeded' }
+  const parsed = DecisionInputSchema.safeParse(input)
+  if (!parsed.success) return { kind: 'rejected', reason: 'invalid_input' }
+  const authorized = authorizeChange(parsed.data)
+  if (authorized.kind === 'rejected') return authorized
+  const { command, state, definition } = parsed.data
+  const { position } = authorized
   const sources = state.sources.map((source, index) =>
     index === position ? changeSource(source, command) : source,
   )

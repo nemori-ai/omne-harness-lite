@@ -68,7 +68,9 @@ sequenceDiagram
 4. 没有行或 `state` 不是 `active` 答 `not-member`，证据修订号 `'0'`。
 5. 有行时按 `DEFAULT_TEAM_ROLE_MAPPING` 解析资格。映射失败答 `unavailable`。成功答 `member`，证据修订号取自行。
 
-### 治理写（SPEC IS-10）
+### 普通治理写（SPEC IS-10）
+
+下图仅适用于不改变成员资格的治理操作。接受邀请、退出、移除和角色变更按 IS-16 的持久意图、预留排空与重新授权流程执行，见本页“成员变更与预留”。
 
 ```mermaid
 sequenceDiagram
@@ -76,7 +78,7 @@ sequenceDiagram
   participant P as 治理端口
   participant R as 读 handler governance
   participant W as 参加者 identity
-  C->>P: 例如 removeMember({ login, actingTenant, organization, account, expectedRole })
+  C->>P: 例如 issueMemberInvitation({ login, actingTenant, invitedLoginIdentifier })
   P->>P: 停止标志、读时钟并采用、编码 login 与 actingTenant
   P->>P: 新标识、截止时刻、排序键，输入形状
   opt 发出邀请或空闲刷新
@@ -86,7 +88,7 @@ sequenceDiagram
   P->>W: commit(一条 identity 命令)
   W->>W: 1 发起登录有效（未撤销、读数不早于签发、未到期）、选择等于 actingTenant
   W->>W: 2 行动者角色
-  W->>W: 3 预期状态与最后管理员保护
+  W->>W: 3 本操作输入与当前业务条件
   W->>W: 写入，或什么都不写
   W-->>P: participated，响应带 outcome
   P->>P: unknown 时 query 认回，最多三次

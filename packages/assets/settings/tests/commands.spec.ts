@@ -69,6 +69,19 @@ it('checks revisions and definition identity before deciding a mutation', () => 
       command: { ...command, definitionRef: { ...definitionRef, version: '2' } },
     }),
   ).toEqual({ kind: 'rejected', reason: 'definition_changed' })
+  for (const field of ['providerId', 'definitionId', 'version', 'digest'] as const) {
+    const different = field === 'digest' ? 'b'.repeat(64) : 'other'
+    expect(
+      decideSettingsChange({
+        ...input,
+        command: { ...command, definitionRef: { ...definitionRef, [field]: different } },
+      }),
+    ).toEqual({ kind: 'rejected', reason: 'definition_changed' })
+  }
+  for (const field of ['providerId', 'definitionId', 'version'] as const)
+    expect(
+      decideSettingsChange({ ...input, definition: { ...definition, [field]: 'other' } }),
+    ).toEqual({ kind: 'rejected', reason: 'definition_changed' })
 })
 it('sets, clears and recognizes no-op without incrementing revision', () => {
   const set = decideSettingsChange(input)

@@ -245,3 +245,22 @@ it('counts only active requested standalone targets, not retired history', async
     kind: 'committed',
   })
 }, 30000)
+it('recovers the original standalone owner operation and rejects reads after close', async () => {
+  const w = await open()
+  const command = {
+    kind: 'retire' as const,
+    operationId: 'owner-retire',
+    target: w.change.target,
+    expectedRevision: 1,
+  }
+  const result = await w.owner.mutate(command)
+  expect(result).toMatchObject({ kind: 'committed', operationId: command.operationId })
+  expect(await w.owner.getOperation(command.operationId)).toEqual(result)
+  expect(await w.owner.getOperation('missing-operation')).toEqual({ kind: 'not_found' })
+  expect(await w.owner.getOperation('')).toEqual({ kind: 'rejected', reason: 'invalid_input' })
+  await w.owner.close()
+  expect(await w.owner.getOperation(command.operationId)).toEqual({
+    kind: 'rejected',
+    reason: 'closing',
+  })
+})

@@ -4,10 +4,10 @@ export default {
   ...STANDALONE_MIGRATION,
   up(port) {
     port.execute(
-      'CREATE TABLE st_targets (target_key TEXT PRIMARY KEY, scope_ref TEXT NOT NULL, record TEXT NOT NULL) STRICT',
+      'CREATE TABLE st_targets (target_key TEXT PRIMARY KEY, scope_ref TEXT NOT NULL, retired INTEGER NOT NULL CHECK(retired IN (0, 1)), record TEXT NOT NULL) STRICT',
       [],
     )
-    port.execute('CREATE INDEX st_targets_scope ON st_targets(scope_ref, target_key)', [])
+    port.execute('CREATE INDEX st_targets_scope ON st_targets(scope_ref, retired, target_key)', [])
     port.execute(
       'CREATE TABLE st_definitions (definition_key TEXT PRIMARY KEY, digest TEXT NOT NULL) STRICT',
       [],
