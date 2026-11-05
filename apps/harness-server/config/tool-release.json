@@ -1,6 +1,6 @@
 {
   "format": "omne-harness/tool-release/1",
-  "generation": "sha256:612e197012e1950dc4b6381ee5fe7b46e1e6498e828e03ec8b7fb55f03c6f0ba",
+  "generation": "sha256:8b6ed65e714625629bd786781a44547a4d0167c78f357a4526f88cde7b38a145",
   "artifacts": {
     "package": "@omne-harness/tool-definitions",
     "files": [
@@ -26,15 +26,15 @@
       },
       {
         "path": "dist/commands.d.ts.map",
-        "sha256": "e9ac567aac1407cbad36754d3b18df3e603e8fc0864fe29f864f9795fa5ce9a6"
+        "sha256": "15cc68628c02f52b34383cb78295dcd606b8714220bd5424a61994c7e061062e"
       },
       {
         "path": "dist/commands.js",
-        "sha256": "25afc49ea95557b8d982b357ec9c1a449e5085cb1966d69c08cf9c06f6ea23f6"
+        "sha256": "b9846c68c1b1684e8aad82c0d4c05ea80a4f448c1354ab47cf8b5d7a698ec6b7"
       },
       {
         "path": "dist/commands.js.map",
-        "sha256": "0b0ae62bf2689f063f4351d0eecd9ffc6962734176f972e993ae3a527f606d53"
+        "sha256": "53ca2e594afdde9829725eec8019170a60aa779d0b0530e3d720ead9a40c4103"
       },
       {
         "path": "dist/cordis.d.ts",
@@ -201,7 +201,7 @@
         "sha256": "e6a276b9edf1fe148d1d8443366c436bcf2994cb9fc2dd30fc40cbba8bb018db"
       }
     ],
-    "digest": "sha256:ca111d556a46679c40e72e83bb3430d2750d1cb407dd174b9baf16a853b1fdb5"
+    "digest": "sha256:4d5ab2691d2929bbfa5d24d2cec6b521d7a623ccb31591e6322b142c81ed1a8c"
   },
   "consumer": {
     "input": [
@@ -214,15 +214,15 @@
     "capabilities": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/capabilities",
-      "revision": "sha256:612e197012e1950dc4b6381ee5fe7b46e1e6498e828e03ec8b7fb55f03c6f0ba",
-      "digest": "sha256:cacb7688c1db6124a00c496317044c30d1c1567cc3ce2473e4868da0215eb09b"
+      "revision": "sha256:8b6ed65e714625629bd786781a44547a4d0167c78f357a4526f88cde7b38a145",
+      "digest": "sha256:535122dde7556a490eadc1f285a04c265f77359b79b8af1e8d8f9bba69f70015"
     },
     "conversion": null,
     "attachmentAccess": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/attachment-access",
-      "revision": "sha256:612e197012e1950dc4b6381ee5fe7b46e1e6498e828e03ec8b7fb55f03c6f0ba",
-      "digest": "sha256:248ddac853fdf4e0ae27bcce17fe547a9a90f8ad703bab36f8246bbe9cfe3d16"
+      "revision": "sha256:8b6ed65e714625629bd786781a44547a4d0167c78f357a4526f88cde7b38a145",
+      "digest": "sha256:38908ccd5eb0125c3a20a8b83b73ef0ec8efb6be3cdaf414629b0bf78f550785"
     }
   },
   "entries": [
@@ -233,7 +233,7 @@
           "owner": "@omne-harness/harness-server",
           "name": "Shell",
           "revision": "0.0.0",
-          "digest": "sha256:cb54f28a7b8efa62c5d9434f817f98cd650f91fbb60e4b65aba6fb75f935009f"
+          "digest": "sha256:10985488bd347c646d3e7f684fa776623d10a6bcc1cde3e326ea2136abe120b9"
         }
       },
       "requiredCapabilities": [],
@@ -246,7 +246,7 @@
           "revision": "2",
           "digest": "sha256:5bdad048d0f3b3b49e0d1d4bc427ce746a69c2b9099d70142d85c66da6a41326"
         },
-        "artifacts": "sha256:ca111d556a46679c40e72e83bb3430d2750d1cb407dd174b9baf16a853b1fdb5"
+        "artifacts": "sha256:4d5ab2691d2929bbfa5d24d2cec6b521d7a623ccb31591e6322b142c81ed1a8c"
       },
       "construction": [
         "resultMaxBytes",
@@ -261,18 +261,18 @@
         "revision": "0.0.0",
         "digest": "sha256:94108f64517d8751252caec2702b170d5c24e4326afa8c4abcfe0b47fb8d5129"
       },
-      "definition": "sha256:f702129677efa54f7d6f79e10d6169fdee5e6a61987b802d4bb0764367ea0ed7",
+      "definition": "sha256:cab9363da93b4ec6821649283c28a0accd32e04d5015669915a35bc644073c59",
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/holding",
-        "revision": "sha256:612e197012e1950dc4b6381ee5fe7b46e1e6498e828e03ec8b7fb55f03c6f0ba",
-        "digest": "sha256:c091178b17ff8dccf94b25f8efb2b411f260ab26d2de6f6ff43a867140de5cd4"
+        "revision": "sha256:8b6ed65e714625629bd786781a44547a4d0167c78f357a4526f88cde7b38a145",
+        "digest": "sha256:b30b98f4aa3e805a4f46d1792173a869f78d9eafda24d5e68802d3b81e14df66"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/publication",
-        "revision": "sha256:612e197012e1950dc4b6381ee5fe7b46e1e6498e828e03ec8b7fb55f03c6f0ba",
-        "digest": "sha256:7563e8ec2ddd4bf0cfd5a2eec61e3a40762d120a35bd195cb655adf2603da89f"
+        "revision": "sha256:8b6ed65e714625629bd786781a44547a4d0167c78f357a4526f88cde7b38a145",
+        "digest": "sha256:d127dac5f07e87abbc9882e12c54e2b853e2e00dd917c188a886dd95cfc96bc4"
       }
     },
     {
@@ -282,7 +282,7 @@
           "owner": "@omne-harness/harness-server",
           "name": "Files",
           "revision": "0.0.0",
-          "digest": "sha256:bee2a8a42f9ef6039cf4c1081914e55e6bfcb001ef7c85d92983a0dc50ac4612"
+          "digest": "sha256:ab4f8e16f5b1044c0d928ccc78390fa14ed2b477f3becc018e0315fa60c05c4e"
         }
       },
       "requiredCapabilities": [],
@@ -293,9 +293,9 @@
           "owner": "@omne-harness/tool-definitions",
           "name": "Files",
           "revision": "2",
-          "digest": "sha256:0fddbc002800f055ed92a1cf720e886ded81757555a7104b9a24441b7982c095"
+          "digest": "sha256:484152cb30b4cf06832aabcf493907a881e1c3a96998a6dae3a01572bf2facf2"
         },
-        "artifacts": "sha256:ca111d556a46679c40e72e83bb3430d2750d1cb407dd174b9baf16a853b1fdb5"
+        "artifacts": "sha256:4d5ab2691d2929bbfa5d24d2cec6b521d7a623ccb31591e6322b142c81ed1a8c"
       },
       "construction": [
         "resultMaxBytes",
@@ -307,18 +307,18 @@
         "revision": "0.0.0",
         "digest": "sha256:5bee1c48c061684e0fa0bac8cc65796a1ae64faa833c2a6267bb550b375e152b"
       },
-      "definition": "sha256:31742ec2c954239fb8db2dc5c568a7695a01c38b28cfb926e27ac528f47b2b44",
+      "definition": "sha256:1d108536469389d44a5fc724fbe52641293faa43e9b73345c397db2fde2ea68e",
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/holding",
-        "revision": "sha256:612e197012e1950dc4b6381ee5fe7b46e1e6498e828e03ec8b7fb55f03c6f0ba",
-        "digest": "sha256:725d7f14e095c753538b3ecd435e45d7b550ab112620bf8c56914f9af24343ea"
+        "revision": "sha256:8b6ed65e714625629bd786781a44547a4d0167c78f357a4526f88cde7b38a145",
+        "digest": "sha256:3f69cb13db4a1303942de35dcddb3eb84c1f08068891a679f8344afc3cdb559f"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/publication",
-        "revision": "sha256:612e197012e1950dc4b6381ee5fe7b46e1e6498e828e03ec8b7fb55f03c6f0ba",
-        "digest": "sha256:2d0c7e5129e957281388fa63c5e53e140d111542d668db9e1192049aad37fda2"
+        "revision": "sha256:8b6ed65e714625629bd786781a44547a4d0167c78f357a4526f88cde7b38a145",
+        "digest": "sha256:e4b5a4d2ae90285e00584f1b9a93d71524181efddb550d0613300c0266fae36b"
       }
     }
   ]

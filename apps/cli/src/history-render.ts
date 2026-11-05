@@ -17,6 +17,18 @@ function clip(text: string): string {
   return text.length > clipAt ? `${text.slice(0, clipAt)}...` : text
 }
 
+/**
+ * The command a multi-command tool call names, and its parameters: arguments of a string `command`
+ * and at most an object `params`, the one-slot call form (D-94). Other arguments name no command.
+ */
+function commandCall(given: unknown): Readonly<{ command: string; params: unknown }> | undefined {
+  const call = record(given)
+  if (call === undefined || typeof call['command'] !== 'string') return undefined
+  if (Object.keys(call).some(key => key !== 'command' && key !== 'params')) return undefined
+  if (call['params'] !== undefined && record(call['params']) === undefined) return undefined
+  return { command: call['command'], params: call['params'] }
+}
+
 /** The text of one block of a message. A block of a kind this renderer does not know shows its kind. */
 function renderBlock(block: unknown): string {
   const fields = record(block)
@@ -28,9 +40,13 @@ function renderBlock(block: unknown): string {
     case 'tool_call':
     case 'tool_call_incomplete':
     case 'tool_call_unparsed': {
-      const call = `[tool call ${word(fields['name'])} ${word(fields['callId'])}]`
       const given = fields['arguments'] ?? fields['partial'] ?? fields['raw']
-      const shown = typeof given === 'string' ? given : (JSON.stringify(given) ?? '')
+      const named = kind === 'tool_call' ? commandCall(given) : undefined
+      const tool =
+        named === undefined ? word(fields['name']) : `${word(fields['name'])} ${named.command}`
+      const call = `[tool call ${tool} ${word(fields['callId'])}]`
+      const args = named === undefined ? given : named.params
+      const shown = typeof args === 'string' ? args : (JSON.stringify(args) ?? '')
       return shown === '' ? call : `${call} ${clip(shown)}`
     }
     case 'tool_result':

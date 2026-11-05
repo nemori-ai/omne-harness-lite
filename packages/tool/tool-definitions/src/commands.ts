@@ -93,7 +93,11 @@ export const filesCommands: readonly Command[] = withHelp([
       },
     ],
   },
-  { name: 'open', summary: 'Image attachments are unsupported in this delivery.', fields: [path] },
+  {
+    name: 'open',
+    summary: 'Open a file as an attachment; images are unsupported in this delivery.',
+    fields: [path],
+  },
   {
     name: 'write',
     summary: 'Create or replace complete UTF-8 file bytes.',

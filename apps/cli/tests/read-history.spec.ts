@@ -311,6 +311,37 @@ describe('read-history', () => {
       )
     })
 
+    it('shows the command of a one-slot call after the tool name, and other calls as they are', async () => {
+      const call = (callId: string, name: string, args: unknown) =>
+        block({ kind: 'tool_call', callId, name, arguments: args })
+      const calls = entry(
+        '8',
+        'message.assistant',
+        message(
+          'assistant',
+          call('c1', 'Files', { command: 'read', params: { path: 'a.ts' } }),
+          call('c2', 'Shell', { command: 'info' }),
+          call('c3', 'Files.read', { path: 'a.ts' }),
+          call('c4', 'run', { command: 'ls', cwd: '/' }),
+          call('c5', 'run', { command: 'ls', params: 'x' }),
+        ),
+      )
+      const service = await serve(historyService([page([calls], null)]))
+      await loginOwningSession(service)
+      const result = await cli(['read-history', '--session', sessionId])
+      expect(result.code).toBe(0)
+      expect(result.stdout).toBe(
+        [
+          '#8 message.assistant: [tool call Files read c1] {"path":"a.ts"}',
+          '    [tool call Shell info c2]',
+          '    [tool call Files.read c3] {"path":"a.ts"}',
+          '    [tool call run c4] {"command":"ls","cwd":"/"}',
+          '    [tool call run c5] {"command":"ls","params":"x"}',
+          '',
+        ].join('\n'),
+      )
+    })
+
     it('shows the cause a failed run ended with, and none for a completed run', async () => {
       const record = 'run-2/execution/step-4/model-failed/upstream-unavailable/connect-timeout'
       const failed = entry('6', 'run.terminal', {
