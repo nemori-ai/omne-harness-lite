@@ -232,6 +232,8 @@ function commandModule(events: string[]): ToolImplementationModule<unknown, Cont
             parse: value => {
               events.push(`parse-${name}`)
               // The command codec receives the parameters only, cut out of the whole call.
+              if (value.effective === '{"v":"partial"}')
+                return fail({ kind: 'incomplete', reason: 'partial' })
               return value.effective === `{"v":"${name}"}`
                 ? succeed(`${name}-parsed`)
                 : fail({ kind: 'invalid', reason: `expected ${name}` })
@@ -349,6 +351,36 @@ describe('author binding command selection', () => {
     expect(fixture.settlements[0]?.operation.author.parameters.adoption.name).toBe(
       'parameters-second',
     )
+  })
+
+  it('gives only the reason, without a guide, for incomplete parameters', async () => {
+    const fixture = await harness(commandModule([]))
+    const fixed: FixedToolRequest = {
+      ...fixture.fixed,
+      command: 'second',
+      arguments: {
+        original: call('second', 'partial'),
+        effective: call('second', 'partial'),
+        complete: true,
+      },
+    }
+    const binding = await fixture.resolve(fixed)
+    unbox(await binding.start(await fixture.input(fixed), {}))
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(fixture.settlements[0]?.outcome).toEqual({ kind: 'failed', reason: 'partial' })
+  })
+
+  it('gives only the reason, without a guide, for invalid parameters of a function tool', async () => {
+    const fixture = await harness(
+      authorModule(
+        async () => 'unused',
+        () => fail({ kind: 'invalid', reason: 'bad-args' }),
+      ),
+    )
+    const binding = await fixture.resolve()
+    unbox(await binding.start(await fixture.input(), {}))
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(fixture.settlements[0]?.outcome).toEqual({ kind: 'failed', reason: 'bad-args' })
   })
 
   it('fails a call that names another command than the admitted one, before the author parses it', async () => {

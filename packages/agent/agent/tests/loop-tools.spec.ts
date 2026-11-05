@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import type {
   AgentEventBody,
@@ -384,7 +385,18 @@ describe('tool result round', () => {
     expect(assembly.controls.admission.admit.calls).toHaveLength(1)
     expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
     const [denied] = (await snapshot(assembly)).checkpoint.batch?.actions ?? []
-    expect(denied?.judgment).toMatchObject({ kind: 'denied', answer: expect.anything() })
+    expect(denied?.judgment).toMatchObject({
+      kind: 'denied',
+      evidence: { record: expect.stringMatching(/\/answered$/) },
+      answer: expect.anything(),
+    })
+    // The answer is preserved under an identity that names its text, so another text is another material.
+    const digest = createHash('sha256').update(answer).digest('hex')
+    expect(
+      assembly.controls.materials.preserve.calls
+        .map(call => call.identity)
+        .filter(identity => identity.includes('/answer/')),
+    ).toEqual([expect.stringMatching(new RegExp(`/answer/${digest}$`))])
     expect(
       await pushToolResult(
         toolReceiver(assembly),

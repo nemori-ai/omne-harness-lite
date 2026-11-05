@@ -31,6 +31,21 @@ function commandCall(given: unknown): Readonly<{ command: string; params: unknow
   return { command: call['command'], params: call['params'] }
 }
 
+/**
+ * A tool call: `[tool call <name> <callId>] <arguments>`. A complete one-slot call shows its command
+ * after the name and only its parameters after the marker.
+ */
+function renderToolCall(kind: string, fields: Readonly<Record<string, unknown>>): string {
+  const given = fields['arguments'] ?? fields['partial'] ?? fields['raw']
+  const named = kind === 'tool_call' ? commandCall(given) : undefined
+  const tool =
+    named === undefined ? word(fields['name']) : `${word(fields['name'])} ${named.command}`
+  const call = `[tool call ${tool} ${word(fields['callId'])}]`
+  const args = named === undefined ? given : named.params
+  const shown = typeof args === 'string' ? args : (JSON.stringify(args) ?? '')
+  return shown === '' ? call : `${call} ${clip(shown)}`
+}
+
 /** The text of one block of a message. A block of a kind this renderer does not know shows its kind. */
 function renderBlock(block: unknown): string {
   const fields = record(block)
@@ -41,16 +56,8 @@ function renderBlock(block: unknown): string {
       return word(fields['text'])
     case 'tool_call':
     case 'tool_call_incomplete':
-    case 'tool_call_unparsed': {
-      const given = fields['arguments'] ?? fields['partial'] ?? fields['raw']
-      const named = kind === 'tool_call' ? commandCall(given) : undefined
-      const tool =
-        named === undefined ? word(fields['name']) : `${word(fields['name'])} ${named.command}`
-      const call = `[tool call ${tool} ${word(fields['callId'])}]`
-      const args = named === undefined ? given : named.params
-      const shown = typeof args === 'string' ? args : (JSON.stringify(args) ?? '')
-      return shown === '' ? call : `${call} ${clip(shown)}`
-    }
+    case 'tool_call_unparsed':
+      return renderToolCall(kind, fields)
     case 'tool_result':
       return `[tool result ${word(fields['callId'])}]`
     default:
