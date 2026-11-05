@@ -1,5 +1,5 @@
 // P5: what the SDK 2.4.0 parsing primitives do with the lines and messages that T2 names.
-// Run from the package root: node verification/sdk/p5-sdk-parsing.mjs
+// Run from the package root: node tests/probes/p5-sdk-parsing.mjs
 // The SDK resolves from this package's devDependencies (@modelcontextprotocol/client 2.4.0).
 import {
   LATEST_PROTOCOL_VERSION,

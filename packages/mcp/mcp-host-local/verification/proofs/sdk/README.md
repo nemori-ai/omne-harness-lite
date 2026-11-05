@@ -1,23 +1,23 @@
-# verification/sdk
+# verification/proofs/sdk
 
-本目录存放 [SPEC「与 SDK 的复用关系」](../../SPEC.md#sdk-reuse)引用的三个探针，以及它们输出的关键摘录。复用表的「证据」列用这里的输出说明 SDK 与 `fetch` 的实际行为。SDK 升级时重跑这三个探针，再核对复用表。
+本目录是 [SPEC「与 SDK 的复用关系」](../../../SPEC.md#sdk-reuse)的论证：三个探针回答的问题、运行方式与输出的关键摘录。探针脚本在 `tests/probes/`。复用表的「证据」列用这里的输出说明 SDK 与 `fetch` 的实际行为。SDK 升级时重跑这三个探针，再核对复用表。
 
 ## 探针
 
 | 探针                                           | 它回答的问题                                                                                           | 复用表里引用它的行                                                                                         |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| [p3-http-errors.mjs](p3-http-errors.mjs)       | 全局 `fetch`（undici）对每一种 HTTP 失败报出什么：`cause.code`、头前重置、体中断、中止、重定向、DNS    | `StreamableHTTPClientTransport`（不跟随重定向）；H10 的错误码集合                                          |
-| [p4-everything-sse.mjs](p4-everything-sse.mjs) | 参考服务端 `server-everything` 的 `sse` 与 `streamableHttp` 两种模式在线上怎样答旧 HTTP+SSE 的各个信号 | `SSEClientTransport`；H9 的回退条件                                                                        |
-| [p5-sdk-parsing.mjs](p5-sdk-parsing.mjs)       | SDK 的读法原语怎样处置契约 T2 列出的行与消息，以及 SDK 的版本常量                                      | `ReadBuffer`、`StreamableHTTPClientTransport`、`extractWWWAuthenticateParams`、常量、`parseJSONRPCMessage` |
+| [p3-http-errors.mjs](../../../tests/probes/p3-http-errors.mjs)       | 全局 `fetch`（undici）对每一种 HTTP 失败报出什么：`cause.code`、头前重置、体中断、中止、重定向、DNS    | `StreamableHTTPClientTransport`（不跟随重定向）；H10 的错误码集合                                          |
+| [p4-everything-sse.mjs](../../../tests/probes/p4-everything-sse.mjs) | 参考服务端 `server-everything` 的 `sse` 与 `streamableHttp` 两种模式在线上怎样答旧 HTTP+SSE 的各个信号 | `SSEClientTransport`；H9 的回退条件                                                                        |
+| [p5-sdk-parsing.mjs](../../../tests/probes/p5-sdk-parsing.mjs)       | SDK 的读法原语怎样处置契约 T2 列出的行与消息，以及 SDK 的版本常量                                      | `ReadBuffer`、`StreamableHTTPClientTransport`、`extractWWWAuthenticateParams`、常量、`parseJSONRPCMessage` |
 
 ## 运行
 
 在包根 `packages/mcp/mcp-host-local` 运行。三个探针只用本包的 devDependencies 与 Node 自带的模块，不需要构建本包。
 
 ```sh
-node verification/sdk/p3-http-errors.mjs
-node verification/sdk/p4-everything-sse.mjs
-node verification/sdk/p5-sdk-parsing.mjs
+node tests/probes/p3-http-errors.mjs
+node tests/probes/p4-everything-sse.mjs
+node tests/probes/p5-sdk-parsing.mjs
 ```
 
 - `p3` 起本机 HTTP 服务端。(h) 一项查一个不存在的主机名，结果取决于本机的 DNS：没有网络时是 `EAI_AGAIN`，有网络时可能是 `ENOTFOUND`。两个码都在 H10 的「离开之前」集合里。

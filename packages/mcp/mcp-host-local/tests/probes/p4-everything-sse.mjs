@@ -1,6 +1,6 @@
 // P4: the reference server in `sse` and `streamableHttp` modes, driven with raw fetch: which
 // answers the legacy signals are, and what the legacy HTTP+SSE exchange looks like on the wire.
-// Run from the package root: node verification/sdk/p4-everything-sse.mjs
+// Run from the package root: node tests/probes/p4-everything-sse.mjs
 // The reference server is this package's devDependency @modelcontextprotocol/server-everything
 // 2.1.0. Each mode listens on a free local port.
 import { spawn } from 'node:child_process'

@@ -40,7 +40,7 @@ session.ts ──► 契约根：classifyWireEvent、readPeerMessage 与 T8 的�
 - **旧 HTTP+SSE 是 HTTP 线路的一种模式（SPEC H9）。** 它与 Streamable HTTP 共用 POST、头、凭据、授权发现与状态分类，只多一条 GET 流与一个 endpoint；做成第三条线路会重复这些。回退是否成立是契约 T3 的规则：线路只交出 GET 的事实，会话判定。会话把模式写进 `WireContext.mode`，让契约把 POST 的「2xx 而没有应答」归为 `waiting`。
 - **`fetch` 直接用（SPEC「与 SDK 的复用关系」）。** SDK 的两个 HTTP 传输类在 401/403、非 400 的错误正文与读不懂的 2xx 消息上都丢失契约要交出的事实，只能在 `fetch` 钩子里自己读应答；读了之后那两个类没有剩余价值。每次交换一个 `AbortController`，它随调用方的 `signal` 与关闭中止，交换结束时移除监听；`redirect: 'manual'`；不设超时。
 - **`open` 不发请求（SPEC H3）。** 持有者在时限到期后释放凭据句柄；`open` 不调用句柄、答复前再核 `signal`，于是没有它授权过的传输还会调用它。
-- **边界与重新判断的条件。** 本包按 SDK 2.4.0 的行为对照；SDK 改变探测、回退或头的规则时，重跑 `verification/sdk/` 的探针并重核 SPEC 的复用表。`fetch` 的实现换成非 undici 时，重核 H10 的错误码集合。契约 T8 加行时，决策层在契约里随之变，`tests/session.spec.ts` 自动覆盖新行。
+- **边界与重新判断的条件。** 本包按 SDK 2.4.0 的行为对照；SDK 改变探测、回退或头的规则时，重跑 `tests/probes/` 的探针并重核 SPEC 的复用表。`fetch` 的实现换成非 undici 时，重核 H10 的错误码集合。契约 T8 加行时，决策层在契约里随之变，`tests/session.spec.ts` 自动覆盖新行。
 
 ## 验证与维护
 
@@ -50,6 +50,6 @@ session.ts ──► 契约根：classifyWireEvent、readPeerMessage 与 T8 的�
 | H2、H6、H8、H12（stdio 线路）    | `tests/lines.spec.ts`、`tests/stdio.spec.ts`、`tests/conformance.spec.ts`（stdio 材料）                    |
 | H2、H9、H10、H13（HTTP 线路）    | `tests/lines.spec.ts`、`tests/http.spec.ts`、`tests/conformance.spec.ts`（Streamable HTTP 材料）           |
 | H3（工厂）                       | `tests/public-entry.spec.ts`                                                                               |
-| 复用表的证据                     | `verification/sdk/` 的探针                                                                                 |
+| 复用表的证据                     | `tests/probes/` 的探针                                                                          |
 
-设计变化时同步：`src/line.ts` 改了端口 → 两条线路、`tests/memory-line.ts`；契约的决策层改了导出 → `session.ts` 与本页「关键机制」；SDK 升级 → 重跑 `verification/sdk/` 的探针，重核 SPEC 复用表的 `文件:行` 与 `tests/fixtures/sdk/`。
+设计变化时同步：`src/line.ts` 改了端口 → 两条线路、`tests/memory-line.ts`；契约的决策层改了导出 → `session.ts` 与本页「关键机制」；SDK 升级 → 重跑 `tests/probes/` 的探针，重核 SPEC 复用表的 `文件:行` 与 `tests/fixtures/sdk/`。

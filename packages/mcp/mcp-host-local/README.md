@@ -59,11 +59,11 @@ pnpm exec vitest run --mode fast                                   # public-entr
 pnpm exec vitest run --mode slow --typecheck.enabled=false         # conformance, stdio, http (child processes and local ports)
 ```
 
-The slow tier spawns child processes and local HTTP servers (random ports 20000–59999) and checks after each case that none is left. The probes behind the SPEC's SDK reuse table are in [verification/sdk](verification/sdk/README.md). Properties, premises and what is not covered: [SPEC, composition and verification](SPEC.md#组合与验证). Passing tests are not technical acceptance.
+The slow tier spawns child processes and local HTTP servers (random ports 20000–59999) and checks after each case that none is left. The SPEC's SDK reuse table rests on the probes in `tests/probes/`; their questions and output excerpts are in [verification/proofs/sdk](verification/proofs/sdk/README.md). Properties, premises and what is not covered: [SPEC, composition and verification](SPEC.md#组合与验证). Passing tests are not technical acceptance.
 
 ## Maintenance
 
-The conclusions of T8 come from the contract's decision layer; when T3, T5 or T9 change how a request is sent, cancelled or closed, `src/session.ts` changes with them. A new row of `TRANSPORT_TABLE` is covered by `tests/session.spec.ts` automatically. The line port `src/line.ts` is internal; changing it means changing both lines and the in-memory line double. On an SDK upgrade, re-run the probes in `verification/sdk/`, re-check the `file:line` evidence of the SPEC's reuse table, and check the API of the B-layer fixtures. Consumers: `@omne-harness/mcp` (through the contract port) and the group design.
+The conclusions of T8 come from the contract's decision layer; when T3, T5 or T9 change how a request is sent, cancelled or closed, `src/session.ts` changes with them. A new row of `TRANSPORT_TABLE` is covered by `tests/session.spec.ts` automatically. The line port `src/line.ts` is internal; changing it means changing both lines and the in-memory line double. On an SDK upgrade, re-run the probes in `tests/probes/`, re-check the `file:line` evidence of the SPEC's reuse table, and check the API of the B-layer fixtures. Consumers: `@omne-harness/mcp` (through the contract port) and the group design.
 
 ## Directory structure and documentation roles
 
@@ -80,9 +80,9 @@ docs/                     Internal design, public use, and integration
 ├── context.md            Consumer use and position in the system
 └── cordis.md             Cordis applicability and integration
 src/                      Public definitions, validation, and implementation
-tests/                    Continuous tests; fixtures/ holds the peer fixtures
+tests/                    Continuous tests; fixtures/ holds the peer fixtures, probes/ the SDK probes
 schema/                   External schemas (none in this package)
-verification/             Continuous verification resources; sdk/ holds the SDK probes
+verification/             Continuous verification resources; proofs/sdk/ holds the SDK reuse argument
 adr/                      Implementation decisions with continuing consumers (none)
 examples/                 Examples against the public entry (none)
 resources/                Non-source runtime resources (none)

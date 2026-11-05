@@ -11,4 +11,3 @@
 - [README.md](README.md)：验证资源的范围与运行方式
 - [models/](models/index.md)：形式模型
 - [proofs/](proofs/index.md)：论证与证明
-- [sdk/](sdk/index.md)：SPEC 复用表引用的 SDK 与 `fetch` 探针及其输出摘录

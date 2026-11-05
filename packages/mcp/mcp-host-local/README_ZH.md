@@ -58,11 +58,11 @@ pnpm exec vitest run --mode fast                                   # public-entr
 pnpm exec vitest run --mode slow --typecheck.enabled=false         # conformance、stdio、http（起子进程与本机端口）
 ```
 
-慢层起子进程与本机 HTTP 服务端（随机端口 20000–59999），每个用例结束时核对没有遗留。SPEC 的 SDK 复用表依据的探针在 [verification/sdk](verification/sdk/README.md)。性质、前提与未覆盖见 [SPEC「组合与验证」](SPEC.md#组合与验证)。测试通过不等于技术接受。
+慢层起子进程与本机 HTTP 服务端（随机端口 20000–59999），每个用例结束时核对没有遗留。SPEC 的 SDK 复用表依据 `tests/probes/` 的探针，探针回答的问题与输出摘录在 [verification/proofs/sdk](verification/proofs/sdk/README.md)。性质、前提与未覆盖见 [SPEC「组合与验证」](SPEC.md#组合与验证)。测试通过不等于技术接受。
 
 ## 维护
 
-T8 的结论来自契约的决策层；契约 T3、T5 或 T9 改变请求的发出、取消或关闭方式时，`src/session.ts` 随之变。`TRANSPORT_TABLE` 加行时 `tests/session.spec.ts` 自动覆盖。线路端口 `src/line.ts` 是内部类型，改它要同步两条线路与内存线路替身。SDK 升级时重跑 `verification/sdk/` 的探针，重核 SPEC「与 SDK 的复用关系」的 `文件:行`，并核对 B 层夹具的 API。消费者：`@omne-harness/mcp`（经契约端口）、组设计。
+T8 的结论来自契约的决策层；契约 T3、T5 或 T9 改变请求的发出、取消或关闭方式时，`src/session.ts` 随之变。`TRANSPORT_TABLE` 加行时 `tests/session.spec.ts` 自动覆盖。线路端口 `src/line.ts` 是内部类型，改它要同步两条线路与内存线路替身。SDK 升级时重跑 `tests/probes/` 的探针，重核 SPEC「与 SDK 的复用关系」的 `文件:行`，并核对 B 层夹具的 API。消费者：`@omne-harness/mcp`（经契约端口）、组设计。
 
 ## 目录结构与文档职责
 
@@ -79,9 +79,9 @@ docs/                     内部设计、公开使用与集成说明
 ├── context.md            消费侧使用与系统定位
 └── cordis.md             Cordis 适用性与集成
 src/                      公开定义、运行时校验与内部实现
-tests/                    持续测试；fixtures/ 存放对端夹具
+tests/                    持续测试；fixtures/ 存放对端夹具，probes/ 存放 SDK 探针
 schema/                   对外 Schema（本包没有）
-verification/             持续验证资源；sdk/ 存放 SDK 探针
+verification/             持续验证资源；proofs/sdk/ 存放 SDK 复用的论证
 adr/                      有持续消费者的实现取舍（本包没有）
 examples/                 面向公开入口的示例（本包没有）
 resources/                运行所需的非源码资源（本包没有）

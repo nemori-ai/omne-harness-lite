@@ -1,5 +1,5 @@
 // P3: what the global fetch (undici) reports for each HTTP failure the transport must classify.
-// Run from the package root: node verification/sdk/p3-http-errors.mjs
+// Run from the package root: node tests/probes/p3-http-errors.mjs
 import { createServer } from 'node:http'
 
 const describe = error =>

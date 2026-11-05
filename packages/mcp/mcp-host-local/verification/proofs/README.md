@@ -24,6 +24,6 @@
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
+[sdk/](sdk/README.md) 是 SPEC「与 SDK 的复用关系」一节的论证。复用表每一行写本包为什么复用或不复用 SDK 2.4.0 的某个部件，「证据」列引用三个探针的输出摘录，探针脚本在 `tests/probes/`。探针在 SDK 2.4.0 与本机 Node 的全局 `fetch` 上运行，结论只覆盖这两个版本。SDK 或 Node 升级时，重跑探针，再核对复用表。负责人：本成员的维护者。
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+本目录没有机器检查的证明。会话的形式模型放在 [models/](../models/index.md)。

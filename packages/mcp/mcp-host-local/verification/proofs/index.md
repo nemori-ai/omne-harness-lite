@@ -9,3 +9,4 @@
 <!-- documentation:placeholder -->
 
 - [README.md](README.md)：证明清单与假设
+- [sdk/](sdk/index.md)：SPEC 复用表的论证：SDK 与 `fetch` 探针回答的问题与输出摘录
