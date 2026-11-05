@@ -519,6 +519,53 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     await unitGone(next.handle.process.id)
   })
 
+  it('keeps a domain whose handover is unread: release answers pending and asks again; confirmed hands it over', async () => {
+    const f = await retaining()
+    f.processes.answers.adopt = 'unavailable'
+    const handle = await started(f.command, request(f.cwd, 'sleep 300 & echo started'))
+    expect(residueOf(await finished(handle))).toEqual({ kind: 'unknown' })
+    const key = handle.process.id.slice('omne-host-'.length, -'.scope'.length)
+    expect(f.processes.adopts).toEqual([key])
+    expect(await unitState(handle.process.id)).toMatchObject({ activeState: 'active' })
+    // The release asks the commit again, and does not stop a domain whose owner is unread.
+    expect(await f.lease.release()).toEqual({ kind: 'pending', resources: [f.own.plans[0]] })
+    expect(f.processes.adopts).toEqual([key, key])
+    expect(await unitState(handle.process.id)).toMatchObject({ activeState: 'active' })
+    expect(f.own.stopped).toEqual([])
+    f.processes.answers.adopt = 'confirmed'
+    expect(await f.lease.release()).toEqual({ kind: 'released' })
+    expect(await unitState(handle.process.id)).toMatchObject({ activeState: 'active' })
+    expect(await readdir(join(f.state, 'retained-processes'))).toEqual([`${key}.json`])
+    const later = await leaseOf(f.provider, acquisitionLedger().ledger, {
+      scope: f.scope,
+      processes: f.processes.ledger,
+      released: f.released.signal,
+    })
+    expect(await listed(commandOf(later))).toMatchObject([
+      { process: { id: key }, state: 'running' },
+    ])
+    f.released.abort()
+    await vi.waitFor(() => expect(f.processes.stopped).toEqual([[key, 'confirmed']]), {
+      timeout: 15_000,
+    })
+    await unitGone(handle.process.id)
+  })
+
+  it('stops a domain whose unread handover turns out closed, under the acquisition', async () => {
+    const f = await retaining()
+    f.processes.answers.adopt = 'unavailable'
+    const handle = await started(f.command, request(f.cwd, 'sleep 300 & echo started'))
+    expect(residueOf(await finished(handle))).toEqual({ kind: 'unknown' })
+    const key = handle.process.id.slice('omne-host-'.length, -'.scope'.length)
+    expect(await f.lease.release()).toMatchObject({ kind: 'pending' })
+    f.processes.answers.adopt = 'closed'
+    expect(await f.lease.release()).toEqual({ kind: 'released' })
+    await unitGone(handle.process.id)
+    expect(f.own.stopped).toEqual([[key, 'confirmed']])
+    expect(f.processes.stopped).toEqual([])
+    expect(await readdir(join(f.state, 'retained-processes')).catch(() => [])).toEqual([])
+  })
+
   it('stops with the reason that fails: unbound, policy, another retention scope, no state directory; none when empty', async () => {
     const cwd = await workDirectory()
     const state = await workDirectory('omne-host-residue-state-')

@@ -679,10 +679,8 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       : undefined
   if (retentionBinding !== undefined) {
     const { scope, released, processes: view, index } = retentionBinding
-    const close = () => void index.closeScope(scope, view)
-    for (const signal of [released, view.closed])
-      if (signal.aborted) close()
-      else signal.addEventListener('abort', close, { once: true })
+    index.watchClosure(released, scope, view)
+    index.watchClosure(view.closed, scope, view)
   }
 
   /** The ledger that carries the stop duty now; undefined while the handover's result is unread. */
@@ -771,13 +769,18 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
 
   const interrupted = (entry: ProcessEntry) => () => entry.stopRequested || entry.released
 
-  /** The commit took effect: the index takes the domain, the gate is told, the acquisition lets go. */
+  /**
+   * The commit took effect: the acquisition lets go at once (synchronously, so a release or a stop
+   * from now on finds the retention ledger on duty), the gate is told, then the index takes the domain.
+   */
   const enterIndex = async (
     entry: ProcessEntry,
     reservation: RetainedReservation,
   ): Promise<RetainedProcessRef> => {
     if (retentionBinding === undefined || processes === undefined)
       throw new Error('a handover without a retention binding')
+    entry.custody = { kind: 'handedOver' }
+    live.delete(entry)
     entry.sendControl({ c: 'retain' })
     entry.closeControl()
     entry.launcher.stdout?.destroy()
@@ -792,7 +795,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       ledger: processes,
     })
     entry.custody = { kind: 'retained', process: handed.process }
-    live.delete(entry)
     return handed.process
   }
 
@@ -845,16 +847,20 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     if (entry.custody.kind !== 'unknown') return
     const binding = bindingOf(entry)
     if (typeof binding === 'string') return
+    // A release does not interrupt here: a commit that took effect hands the domain to its scope.
     const decision = await resolveUnknownHandover({
       binding,
       reservation: entry.custody.reservation,
       deadline: monotonicMs() + settings.startBoundMs,
-      interrupted: interrupted(entry),
+      interrupted: () => entry.stopRequested,
     })
     if (decision.kind === 'unknown') return
     const running = apply(entry, tools, decision)
     entry.disposition = running
+    // The stop a settled answer started is part of this resolution: a release waits for it.
+    const stopping = entry.stopping
     await running
+    await stopping
   }
 
   const launch = (
@@ -922,9 +928,12 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       if (exit === undefined) return
       const durationMs = elapsed()
       endOutput()
-      const running = dispose(entry, tools).then(residue => {
-        outcome.settle({ kind: 'completed', exit, durationMs, output: buffer.summary(), residue })
-      })
+      const running = dispose(entry, tools)
+        // A disposition that itself failed has no result: the domain stays with the acquisition.
+        .catch((): ResidueReport => ({ kind: 'unknown' }))
+        .then(residue => {
+          outcome.settle({ kind: 'completed', exit, durationMs, output: buffer.summary(), residue })
+        })
       entry.disposition = running
     }
     /** The gate went away, or its frames broke, without an exit frame: the outcome is unknown. */

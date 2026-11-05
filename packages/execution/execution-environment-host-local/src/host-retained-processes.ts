@@ -94,6 +94,11 @@ export type RetainedProcessIndex = Readonly<{
   stop(key: string): Promise<StopStatus>
   /** Stops every retained process of `scope`; `ledger` records those loaded without one. */
   closeScope(scope: ScopeRef, ledger?: RetainedProcessLedger): Promise<readonly ManagedResource[]>
+  /**
+   * Closes `scope` when `signal` aborts. One listener per signal, however many acquisitions share
+   * it; the latest ledger view given for the scope records the stops.
+   */
+  watchClosure(signal: AbortSignal, scope: ScopeRef, ledger: RetainedProcessLedger): void
   /** Stops the retained process a resource names; undefined when the index does not hold it. */
   recover(resource: ManagedResource): Promise<StopStatus | undefined>
   /** One reading of every retained unit: settles the empty ones, retries the stopping ones. */
@@ -162,6 +167,9 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
   const directory = join(input.stateDirectory, 'retained-processes')
   const entries = new Map<string, Entry>()
   const generations = new Set<string>()
+  const watched = new WeakSet<AbortSignal>()
+  /** The latest ledger view an acquisition gave for each scope digest. */
+  const scopeLedgers = new Map<string, RetainedProcessLedger>()
   let loading: Promise<boolean> | undefined
   let loaded = false
   let timer: ReturnType<typeof setInterval> | undefined
@@ -402,6 +410,18 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     return [...entries.values()].filter(entry => entry.scope === digest)
   }
 
+  const closeScope = async (
+    scope: ScopeRef,
+    ledger?: RetainedProcessLedger,
+  ): Promise<readonly ManagedResource[]> => {
+    await ready()
+    const own = ofScope(scope).filter(entry => entry.state !== 'reserved')
+    const view = ledger ?? scopeLedgers.get(scopeDigest(scope))
+    for (const entry of own) entry.ledger ??= view
+    await Promise.all(own.map(stop))
+    return own.filter(entry => entries.has(entry.key)).map(resourceOf)
+  }
+
   return Object.freeze({
     ready,
     reserve(scope, tenant, key) {
@@ -485,12 +505,16 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       if (entry.state === 'reserved') return 'unconfirmed'
       return stop(entry)
     },
-    async closeScope(scope, ledger) {
-      await ready()
-      const own = ofScope(scope).filter(entry => entry.state !== 'reserved')
-      for (const entry of own) entry.ledger ??= ledger
-      await Promise.all(own.map(stop))
-      return own.filter(entry => entries.has(entry.key)).map(resourceOf)
+    closeScope,
+    watchClosure(signal, scope, ledger) {
+      scopeLedgers.set(scopeDigest(scope), ledger)
+      if (signal.aborted) {
+        void closeScope(scope)
+        return
+      }
+      if (watched.has(signal)) return
+      watched.add(signal)
+      signal.addEventListener('abort', () => void closeScope(scope), { once: true })
     },
     async recover(resource) {
       await ready()
