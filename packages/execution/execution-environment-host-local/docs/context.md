@@ -79,7 +79,7 @@ flowchart LR
 
 ### 现在的真实消费者
 
-现在没有应用装配本成员，也没有包在 `package.json` 里依赖本成员。本成员的测试是现在唯一的使用方。
+应用 `apps/harness-server` 装配本成员：入口创建并保管责任域，工厂行装载 `./cordis` 的插件（见[宿主文件工厂行](../../../../apps/harness-server/docs/rows/execution-host.md)）。除该应用之外，没有包在 `package.json` 里依赖本成员。
 
 ### 上层页面
 

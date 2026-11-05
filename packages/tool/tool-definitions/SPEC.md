@@ -16,7 +16,7 @@ Files 与 Shell 用 `wrapped` 编码登记，对模型各是一个工具（D-94�
 - 参数无效时，命令编解码器只答原因，例如 `invalid-field:mode`。该命令的 guide 由工具宿主附上（D-104）。未知的 help 主题也由参数解析拒绝，不作为成功结果返回。执行表缺少某个命令是缺陷，抛出错误。
 - Files 的 write 接受 `parents`：为真时先以 `mkdir {parents: true}` 建出缺失的父目录。目录已存在时设施答 `conflict`，写入照常进行，其他失败原样返回。它与 mkdir 走同一放置与授权检查。
 - Shell 的 info 除平台事实外，写出一次性脚本的调用 `shell=[可执行文件, …参数前缀]` 与起始目录 `cwd`（D-96 的放置部分）。之后是终端列表，再之后是保留进程：每个保留进程一行 `retained_process=<引用> state=<running|stopping> processes=<数|unknown> origin=<原调用> handed_over_at=<ISO 8601 UTC>`。列表为空时写 `retained_processes=none`。环境没有命令保留扩展时写 `retained_processes=unavailable`；`list` 没有答 `done` 时写 `retained_processes=unavailable reason=<原因>`。读不到不写成 `none`。info 不写保留进程的上界：契约的 `list` 不带上界，满额时一次性执行的 `residue` 行写原因 `capacity`。
-- Shell 的 guide 写明进程寿命的四条规则：一次性执行留在后台的进程（例如 `cmd &`）在调用返回后作为保留进程继续运行，info 列出它们，它们在自己退出或执行环境关闭其保留范围时结束，不能保留时被停止，`residue` 行写明原因；`run_in_background` 现在不支持，一次性执行一直等到主进程退出、输出安静；终端里的后台任务随终端存在，`close_session` 停止终端里的全部进程；要长期运行、不受本工具管理的服务交给宿主自己的服务管理器，那是命令自己的外部效果。guide 不说「会话结束时停止」：会话结束是否关闭保留范围由装配决定，本机部署现在不关闭。
+- Shell 的 guide 写明进程寿命的四条规则：一次性执行留在后台的进程（例如 `cmd &`）在调用返回后作为保留进程继续运行，info 列出它们，它们在自己退出或执行环境关闭其保留范围时结束，不能保留时被停止，`residue` 行写明原因；`run_in_background` 现在不支持，一次性执行一直等到主进程退出、输出安静；终端里的后台任务随终端存在，`close_session` 停止终端里的全部进程；要长期运行、不受本工具管理的服务交给宿主自己的服务管理器，那是命令自己的外部效果。guide 不说「会话结束时停止」：会话结束是否关闭保留范围由装配决定，接线与触发条件见 [harness-server 的已知限制](../../../apps/harness-server/SPEC.md#已知限制)中的作用域释放一条。
 
 ### 精确编辑与批次
 

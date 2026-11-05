@@ -117,13 +117,14 @@ sequenceDiagram
 
 ### F-EEH04 宿主命令：门、许可与转发
 
-依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端未实现)、[架构的宿主命令机制](architecture.md#宿主命令机制)。只在 Linux 上实现。协议级流程是契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。
+依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端)、[架构的宿主命令机制](architecture.md#宿主命令机制)。本图是 Linux 路径。Windows 的一次性命令后端在根进程退出时停止 Job 里剩下的进程，见 [Windows 说明](windows-execution.md)。协议级流程是契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。
 
 ```mermaid
 sequenceDiagram
   participant M as 命令门面（宿主提供者）
   participant R as 资源账本
-  participant K as 保留进程账本与索引
+  participant L as 保留进程账本（集成方）
+  participant I as 保留进程索引与标记文件（提供者）
   participant S as systemd 用户 scope
   participant G as 门进程
   participant T as 命令
@@ -146,12 +147,41 @@ sequenceDiagram
   alt 没有留下的进程，或不能保留
     M->>S: 强制停止序列，记入资源账本
   else 可以保留
-    M->>K: 占名额，plan，adopt
-    K-->>M: confirmed
-    M->>G: retain，然后关闭两条通道
-    M->>K: 写标记文件；之后按 retainedPollMs 读单元成员
+    M->>I: 同步占一个名额（预留）
+    M->>L: plan
+    alt plan 答 closed，或答别的结果、抛出、超时
+      M->>I: 作废预留
+      M->>S: 强制停止序列，原因 closed 或 unbound
+    else plan 答 recorded
+      M->>M: 提交前复核：范围已封闭、获取已释放或已被要求停止？
+      alt 复核不成立
+        M->>I: 作废预留
+        M->>S: 强制停止序列，原因 closed
+      else 复核通过
+        M->>L: adopt
+        alt adopt 答 confirmed，提交时没有被打断
+          L-->>M: confirmed
+          M->>G: retain，然后关闭两条通道
+          M->>I: 写标记文件，之后按 retainedPollMs 读单元成员
+        else adopt 答 confirmed，但等待期间被打断
+          L-->>M: confirmed
+          M->>I: 以停止中的项留在索引里
+          M->>S: 强制停止序列，确认后记入保留进程账本
+        else adopt 答 closed
+          L-->>M: closed
+          M->>I: 作废预留
+          M->>S: 强制停止序列，原因 closed
+        else 结果读不到（抛出或超时）
+          L--xM: 无答案
+          M->>M: residue 为 unknown，预留保留，归属记为未知
+          Note over M,L: 之后的停止与排空先用同一个键再问 adopt
+        end
+      end
+    end
   end
 ```
+
+保留进程账本归集成方，索引与标记文件归提供者。图里有三支需要注意：提交前复核不成立时作废预留并停止；`adopt` 的结果读不到时，归属记为未知，之后的停止与排空再问 `adopt`；`adopt` 确认时执行域已被打断时，执行域作为停止中的项留在索引里并立即停止。
 
 主进程退出之后的处置规则、各项停止原因与 `adopt` 结果未知时的处理见 [SPEC 一次性命令留下的进程的兑现](../SPEC.md#留下的进程的兑现)。处置在 `result` 交出之前完成，停止的确认不推迟 `result`。
 
@@ -171,7 +201,7 @@ sequenceDiagram
 
 ### F-EEH06 停止确认与冷恢复
 
-依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端未实现)的停止两态与资源级冷恢复。协议级流程是契约的 [F-EEC05](../../execution-environment-contract/docs/flows.md#f-eec05-恢复授权收场与作用域释放)。
+依据：[SPEC 宿主命令与终端](../SPEC.md#宿主命令与终端)的停止两态与资源级冷恢复。协议级流程是契约的 [F-EEC05](../../execution-environment-contract/docs/flows.md#f-eec05-恢复授权收场与作用域释放)。
 
 ```mermaid
 sequenceDiagram
