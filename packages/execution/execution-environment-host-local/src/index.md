@@ -17,6 +17,8 @@
 - [host-scope.ts](host-scope.ts)：systemd 用户 scope：起单元、强制停止与确认、按描述列举、引用的读写
 - [host-probe.ts](host-probe.ts)：`command` 的平台前提探测（P1、P3～P6）
 - [command-gate.ts](command-gate.ts)：命令的门进程脚本，在命令的单元里运行，不被导入
+- [scope-probe.ts](scope-probe.ts)：P5 的探测程序脚本，在探测单元里运行，不被导入
+- [scope-cgroup.ts](scope-cgroup.ts)：单元在 cgroup v2 统一层级里的目录与成员，取自内核对本进程的报告
 - [cordis.ts](cordis.ts)：`./cordis` 入口：Service 子类、两个声明插件、宿主文件插件与两份配置 Schema
 
 ## 阅读路径

@@ -236,14 +236,12 @@ export async function forceStopScope(input: {
   return show === undefined ? { status: 'unconfirmed' } : { status: 'unconfirmed', show }
 }
 
-function isListedUnit(value: unknown): value is { unit: string; description: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof Reflect.get(value, 'unit') === 'string' &&
-    typeof Reflect.get(value, 'description') === 'string'
-  )
-}
+/**
+ * One line of `systemctl list-units --plain --no-legend --full`: UNIT LOAD ACTIVE SUB DESCRIPTION,
+ * with an optional failed-unit mark in front. An older systemctl, such as systemd 245, ignores
+ * `--output=json` for this listing and prints this text anyway, so the text is the one format.
+ */
+const listedUnitLine = /^\s*(?:[●*]\s+)?(\S+)\s+\S+\s+\S+\s+\S+\s+(.*?)\s*$/u
 
 /**
  * Lists the scopes of `scope` that this provider started and systemd still knows, from the unit
@@ -267,30 +265,22 @@ export async function listScopes(input: {
       '--type=scope',
       '--plain',
       '--no-legend',
-      '--output=json',
+      '--full',
       'omne-host-*.scope',
     ],
     input.boundMs,
   )
   if (run.kind !== 'exited' || run.code !== 0) return { kind: 'unavailable' }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(run.stdout)
-  } catch {
-    return { kind: 'unavailable' }
-  }
-  if (!Array.isArray(parsed)) return { kind: 'unavailable' }
   const digest = scopeDigest(input.scope)
   const resources: ManagedResource[] = []
-  for (const entry of parsed) {
-    if (!isListedUnit(entry)) continue
-    const key = unitPattern.exec(entry.unit)?.[1]
-    if (key === undefined || entry.description !== `${descriptionPrefix} ${digest} ${key}`) continue
-    resources.push({
-      key,
-      provider: input.provider,
-      reference: scopeReference({ unit: entry.unit, bootId }),
-    })
+  for (const line of run.stdout.split('\n')) {
+    if (line.trim() === '') continue
+    const [, unit, description] = listedUnitLine.exec(line) ?? []
+    if (unit === undefined || !unit.startsWith('omne-host-') || !unit.endsWith('.scope'))
+      return { kind: 'unavailable' }
+    const key = unitPattern.exec(unit)?.[1]
+    if (key === undefined || description !== `${descriptionPrefix} ${digest} ${key}`) continue
+    resources.push({ key, provider: input.provider, reference: scopeReference({ unit, bootId }) })
   }
   return { kind: 'listed', resources }
 }

@@ -192,6 +192,8 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 | 模块                  | 承担                                                                     |
 | --------------------- | ------------------------------------------------------------------------ |
 | `src/host-probe.ts`   | 平台前提 P1、P3～P6 的探测与这一代的探测结果                             |
+| `src/scope-probe.ts`  | 探测单元里运行的程序脚本：P5 成立时以 0 退出，否则以 3 退出，不被任何模块导入 |
+| `src/scope-cgroup.ts` | 从 `/proc/self/cgroup` 与 `/proc/self/mountinfo` 解析单元在统一层级里的目录与成员。只用 Node 的内置模块，探测程序与终端 gate 共用 |
 | `src/host-scope.ts`   | systemd 用户 scope：起单元、强制停止与确认、按描述列举、引用的读写       |
 | `src/command-gate.ts` | 门进程脚本。它在命令的单元里运行，只用 Node 的内置模块，不被任何模块导入 |
 | `src/host-command.ts` | 每份获取的命令门面：前置检查、启动、帧的读取、有界缓冲、进程句柄与停止   |
@@ -207,8 +209,8 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 | 结局               | 门在主进程退出后等两条管道关闭，或者等输出安静 100 毫秒，再发退出帧。命令留在后台的进程可能占着管道，所以不能只等管道关闭。只有收到退出帧才是 `completed`，其余是 `failed`（`effectUnknown`）。不写回执文件，也没有身份目录                                                                                 |
 | 停止与确认         | 强制停止：`systemctl --user kill --kill-whom=all --signal=SIGKILL`，再 `stop`（退出码 5 按已不在），等门进程退出，最后用 `systemctl --user show -p LoadState -p ActiveState` 读到 `inactive` 或 `not-found` 才报 `confirmed`，上界内会再读。平和停止只把 `SIGTERM` 发给主进程，超时报 `unconfirmed`，不升级 |
 | 超时               | 启动、平和停止与强制停止都有上界。启动超时答 `unknown`，资源留在这份获取，由释放、结清或退役停止                                                                                                                                                                                                            |
-| 平台前提           | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 cgroup v2、P6 探测单元往返。提供者创建时在后台探测。不满足时启动答 `unavailable`，`files` 照常可用。不用猜测的进程号或假后端顶替                                                                                                               |
-| 冷恢复             | 列举读 `omne-host-*.scope` 单元的描述，选出这个作用域的单元。恢复只接受本提供者写下的单元名。启动身份变了直接视为已停止，否则按强制停止序列停止并核对。它不重启命令，也不接回输出                                                                                                                           |
+| 平台前提           | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 探测单元里的程序在 cgroup v2 统一层级里找到自己的单元目录、P6 探测单元往返。P5 不检查固定的挂载点，层级的位置只取内核对本进程的报告，所以 systemd 的统一模式与混合模式都满足。提供者创建时在后台探测。不满足时启动答 `unavailable`，`files` 照常可用。不用猜测的进程号或假后端顶替                                                                                                               |
+| 冷恢复             | 列举读 `omne-host-*.scope` 单元的描述，选出这个作用域的单元。列举读 `systemctl list-units --plain --no-legend --full` 的文本行，不用 `--output=json`，因为较旧的 systemctl 对这项列举忽略它。恢复只接受本提供者写下的单元名。启动身份变了直接视为已停止，否则按强制停止序列停止并核对。它不重启命令，也不接回输出                                                                                                                           |
 
 理由：
 

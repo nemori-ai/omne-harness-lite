@@ -20,6 +20,7 @@ import {
   createHostFilesDomain,
   createHostFilesProvider,
 } from '@omne-harness/execution-environment-host-local'
+import { commandDefaults } from '../src/host-command.ts'
 function tenant(account: string) {
   const parsed = tenantCodec.parse(
     JSON.stringify({ organization: 'org_0123456789abcdefghjkmnpqrs', account }),
@@ -38,7 +39,17 @@ function scope(): ProviderAcquireInput['scope'] {
   return { ref }
 }
 
+// On Linux every provider probes the host with real systemd scopes. A probe has four steps that
+// each wait at most the configured stop bound, so `describe()` and `retire()` may take up to four
+// bounds when many scopes start at once (KL-147).
+const linuxWaitMs = 4 * commandDefaults.stopBoundMs
+
 function* hostProviderConformance(options: ProviderConformanceOptions) {
+  if (process.platform === 'linux') {
+    for (const test of environmentProviderConformance({ ...options, waitMs: linuxWaitMs }))
+      yield { test, options: { timeout: linuxWaitMs + 10_000 } }
+    return
+  }
   const budgets = process.platform === 'win32' ? [undefined, 60_000] : [undefined]
   for (const waitMs of budgets) {
     for (const test of environmentProviderConformance(

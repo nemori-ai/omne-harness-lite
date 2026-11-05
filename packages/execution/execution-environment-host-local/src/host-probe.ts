@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { access, constants, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import {
   forceStopScope,
   launchScope,
@@ -17,8 +18,9 @@ const monotonicMs = () =>
 
 /**
  * The platform prerequisites of the host `command` facility: P1 Linux, P3 `systemd-run` and
- * `systemctl` on PATH, P4 a running user manager, P5 cgroup v2, P6 a probe scope that starts and
- * whose forced stop the supervisor confirms.
+ * `systemctl` on PATH, P4 a running user manager, P5 a process in a scope finds the unified cgroup
+ * directory of its unit and is listed there, P6 a probe scope that starts and whose forced stop the
+ * supervisor confirms.
  */
 export type HostCommandPrerequisite =
   | 'linux'
@@ -75,26 +77,30 @@ async function userManagerRuns(systemctl: string, boundMs: number): Promise<bool
   return state === 'running' || state === 'degraded'
 }
 
-async function cgroupV2(): Promise<boolean> {
-  try {
-    await access('/sys/fs/cgroup/cgroup.controllers', constants.R_OK)
-    return true
-  } catch {
-    return false
-  }
-}
+const scopeProbeScript = fileURLToPath(
+  new URL(
+    import.meta.url.endsWith('.ts') ? './scope-probe.ts' : './scope-probe.js',
+    import.meta.url,
+  ),
+)
 
-/** P6: a probe scope runs an empty Node program, exits 0, and its forced stop is confirmed. */
-async function scopeRoundTrip(tools: ScopeTools, boundMs: number): Promise<boolean> {
+/**
+ * P5 and P6 in one probe scope: the program in it finds itself in the unified cgroup directory of
+ * its unit (P5), exits 0, and the forced stop of the scope is confirmed (P6).
+ */
+async function scopeRoundTrip(
+  tools: ScopeTools,
+  boundMs: number,
+): Promise<'cgroup-v2' | 'scope-round-trip' | undefined> {
   const bootId = await readBootId()
-  if (bootId === undefined) return false
+  if (bootId === undefined) return 'scope-round-trip'
   const unit = `omne-host-probe-${randomUUID()}.scope`
   const launcher = launchScope({
     tools,
     unit,
     description: 'omne-host probe',
     command: process.execPath,
-    args: ['-e', ''],
+    args: [scopeProbeScript, unit],
   })
   launcher.stdout?.resume()
   launcher.stderr?.resume()
@@ -112,7 +118,8 @@ async function scopeRoundTrip(tools: ScopeTools, boundMs: number): Promise<boole
     boundMs,
     launcherExited: exited.then(() => undefined),
   })
-  return code === 0 && stop.status === 'confirmed'
+  if (code === 3) return 'cgroup-v2'
+  return code === 0 && stop.status === 'confirmed' ? undefined : 'scope-round-trip'
 }
 
 /** P3 and P4: the tools by absolute path and a running user manager, or the item that is missing. */
@@ -132,12 +139,11 @@ async function resolveScopeTools(
 export async function probeCommandPrerequisites(boundMs: number): Promise<PrerequisiteReading> {
   if (process.platform !== 'linux') return { kind: 'unsatisfied', missing: ['linux'] }
   const tools = await resolveScopeTools(boundMs)
-  const missing: HostCommandPrerequisite[] = typeof tools === 'string' ? [tools] : []
-  if (!(await cgroupV2())) missing.push('cgroup-v2')
-  if (typeof tools === 'string' || missing.length > 0) return { kind: 'unsatisfied', missing }
-  if (!(await scopeRoundTrip(tools, boundMs)))
-    return { kind: 'unsatisfied', missing: ['scope-round-trip'] }
-  return { kind: 'satisfied', tools }
+  if (typeof tools === 'string') return { kind: 'unsatisfied', missing: [tools] }
+  const failed = await scopeRoundTrip(tools, boundMs)
+  return failed === undefined
+    ? { kind: 'satisfied', tools }
+    : { kind: 'unsatisfied', missing: [failed] }
 }
 
 /** The probe of one provider generation: started at creation, a satisfied answer kept for the generation. */

@@ -284,18 +284,24 @@ const listing = (systemctl: string, scope: ListedScope) =>
 it.skipIf(!onLinux)('lists the scopes whose description names the requester scope', async () => {
   const scope = scopeOf('scope-listing-a')
   const key = '0b9c3a2e-5f0d-4d7e-9c51-2a0e6c1d4b7f'
-  const mine = { unit: `omne-host-${key}.scope`, description: scopeDescription(scope, key) }
-  const other = {
-    unit: 'omne-host-6d1c0f4a-7a2b-4f19-8f3c-9b0a5e2d7c11.scope',
-    description: scopeDescription(
-      scopeOf('scope-listing-b'),
-      '6d1c0f4a-7a2b-4f19-8f3c-9b0a5e2d7c11',
-    ),
-  }
-  await withSystemctl(`echo '${JSON.stringify([mine, other])}'`, async systemctl => {
-    const answer = await listing(systemctl, scope)
-    if (answer.kind !== 'listed') throw new Error(`expected a listing: ${JSON.stringify(answer)}`)
-    expect(answer.resources.map(resource => resource.key)).toEqual([key])
+  const failedKey = '3e8a1f60-2c4b-4d9e-a7f1-5b6c8d0e2f43'
+  const otherKey = '6d1c0f4a-7a2b-4f19-8f3c-9b0a5e2d7c11'
+  const lines = [
+    `omne-host-${key}.scope   loaded active running ${scopeDescription(scope, key)}`,
+    `● omne-host-${failedKey}.scope loaded failed failed  ${scopeDescription(scope, failedKey)}`,
+    `omne-host-${otherKey}.scope loaded active running ${scopeDescription(scopeOf('scope-listing-b'), otherKey)}`,
+    'omne-host-probe-1b2c3d4e-0000-4000-8000-000000000000.scope loaded active running omne-host probe',
+  ]
+  await withSystemctl(
+    `printf '%s\\n' ${lines.map(line => `'${line}'`).join(' ')}`,
+    async systemctl => {
+      const answer = await listing(systemctl, scope)
+      if (answer.kind !== 'listed') throw new Error(`expected a listing: ${JSON.stringify(answer)}`)
+      expect(answer.resources.map(resource => resource.key)).toEqual([key, failedKey])
+    },
+  )
+  await withSystemctl('exit 0', async systemctl => {
+    expect(await listing(systemctl, scope)).toEqual({ kind: 'listed', resources: [] })
   })
 })
 
