@@ -135,3 +135,11 @@ The catalog ranks the legal corpus with BM25 and checks the view again after
 asynchronous judgments. Versioned cursors reject changed search or disclosure
 inputs. The bounded cache retains only text indexes. See the
 [behavior and limits](SPEC.md#登记表与-catalog-的实现范围).
+
+### Trusted single-target forwarding
+
+Configure `createLocalInvocationSource` with optional `forwarding: { authority, isParent }`. Both are trusted provider inputs. The source exposes `forwarding`, `recoverBinding`, and `receiver`; ordinary callers cannot claim the reserved forwarding consumer. The runtime plugin factory exposes a lazy `forwarding()` getter and registers the dedicated receiver inside its facade.
+
+Use `createLocalToolForwarding` with lazy runtime, catalog, consumer profile, target preparation and result reader functions. Pass its `bind` method as the execution bindings' optional `capability` hook. Call its `close` during provider shutdown and inspect the returned unknown count. A parent finishing does not cancel its fixed target. Set host known-call capacity to at least two; resource concurrency may remain one.
+
+The [member specification](SPEC.md#单目标转发来源与保管) defines the current guarantees and test scope. Programmatic start and global restart discovery retain their existing restrictions. Protocol tests over an in-memory store do not establish durability.

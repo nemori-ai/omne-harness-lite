@@ -500,3 +500,9 @@ accepted 不关闭 stop 待办。stopped、already-ended 或 rejected 关闭传�
 release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送同记录。unknown 只查询。ledger 继续核验实际 released 回执；pending、unknown、rejected 或不可用均保留任务。释放不删除尚未完成的 deliver 任务。
 
 `scanPending` 仍返回 unsupported。现有 `ToolLedgerStore.read/commit` 只处理具名域，无法枚举租户内有待办的调用。进程内调度与已知调用的 loadRecovery 不构成耐久扫描；完整恢复须由扫描端口及其提供者补齐。控制纵切使用真实 ledger/driver、可控 binding 和内存记录仓。[SQL reopen 用例](../tool-storage-sql/tests/control-subjects.spec.ts) 验证实际 ledger 提交的主体引用经过 SQLite 关闭与重开后仍可用于原主体核验；其身份目录与 SQL 宿主是测试提供者，不证明断电耐久或完整生产组合。
+
+## 单目标转发准入
+
+`createToolForwardRuntime(dependencies, source)` 是受信 provider 工厂。它与普通 invoke 共用来源解析之后的准入、未知映射、原调用查询和调度路径。forwarding 不调用普通 invoke，也不直接启动 executor。source 的完整固定请求原样进入 admissions，programmatic 许可及现有启动围栏继续生效。
+
+resume 只查询来源已有槽。槽未确认时回复 association-unknown，不推断历史准入未发生。目标 identities 已知而写入回执未知时回复 commit-unknown，引用保持不变。此工厂不扩大普通 ToolRuntime 接口；宿主还须提供相同的容量预约与独立结果接收者。

@@ -310,6 +310,26 @@ describe('TL-11 invocation source: issuance and recall', () => {
 })
 
 describe('TL-11 invocation source: boundary and failure', () => {
+  it('rejects the reserved forwarding consumer before consulting authority or storage', async () => {
+    const { store, counts } = observed()
+    const policy = authority()
+    const request = invokeRequest()
+    const answer = await source(store, policy).issuer.resolve(
+      resolveInput({
+        request: {
+          ...request,
+          consumer: {
+            ...request.consumer,
+            owner: '@omne-harness/tool-host-local/tools-forwarding',
+          },
+        },
+      }),
+    )
+    expect(answer).toEqual({ kind: 'rejected', failure: { kind: 'denied', action: 'admit' } })
+    expect(counts).toEqual({ reads: 0, commits: 0 })
+    expect(policy.calls.qualify).toBe(0)
+  })
+
   it('TL-11 a denied qualification is rejected before any store access', async () => {
     const { store, counts } = observed()
     const { issuer } = source(store, authority({ qualify: { kind: 'denied', reason: 'no' } }))

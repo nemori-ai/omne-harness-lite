@@ -1439,3 +1439,15 @@ ToolChildren 具体提供者与 ToolCommands 使用同一父调用事务边界�
 ToolTask 的 child 分支携完整 reservation、动作和真实 ProgramEnd，program-fence 携原父 guard。scanPending 包含有这些任务的父调用，即使其逻辑终局已经成立；loadRecovery 返回原任务及 program 关闭状态。独立 driver 通过 ToolDependencies.children 阶段适配器和正规子 ToolRuntime 恢复查询、控制和保管。程序执行方的具体执行域已销毁或提供者暂缺时，保留 blocked 及诊断，不能删除任务或重新运行程序。
 
 父关闭后迟到认回的已受理子项进入同一责任集合。若原子请求尚未consume且属于屏障scope，父屏障拒绝其新启动；若早已consume，记录原事实并按真实关闭原因补做控制。reach 为 foreground-and-unadmitted 的撤回以原cutoff核验前台范围及未受理项，已合法受理的后台子项继续其自身协议，不能被统一屏障误杀；受理/关系未知先查询。两种情况都不产生责任空档。普通完成的finish守卫还须确认没有未对账reservation及未承接子结果。
+
+## 可信单目标转发与执行能力
+
+provider 入口的 `ToolForwardSource` 和 `ToolForwardRuntime` 提供原父调用的单个 execute 槽。该入口保留父请求的完整 invocation，包括 programmatic 来源。它不调用普通 invoke 重签 direct，也不提供 ProgramTools 的依赖、join 或程序收场保证。普通 invoke 的参数不增加来源、调用身份或能力字段。
+
+作者只通过 `toolsCapabilityOf(context)` 取得当前执行的窄能力。模型参数只包含 search、inspect、execute 和 read_result 的业务字段。受信绑定在启动授权已 consume.started 后附加能力。每个 attachment 绑定新 context，finish 幂等，先关闭能力，再执行原 scope 的 finish。两段清理都失败时保留两个失败，原 scope 的失败不会因能力清理失败而丢失。
+
+execute 的目标 consumer 与原调用身份由来源提供者生成。父完成或取消只终止观察，不隐式停止已固定目标。来源关联未知保留原父引用，准入未知保留原目标与父引用。forwarding 恢复只继续原 execute 槽的固定请求，不选择最新版本，不新建目标。
+
+`ToolFixedReadArguments` 保留 result 与 attachment。`ToolsReadArguments` 另有 invocation 查询和 forwarding 原槽恢复。invocation 查询不提交准入。forwarding 可继续已固定的原目标准入。两者不分页，已固定结果页继续使用原 reader 引用。
+
+目标结果由派生 consumer 的独立 receiver 保管。只有完整 payload 与对应 saved 证据的耐久写入已确认，receiver 才返回 saved。提交未知保留 owed 责任。同 key 异 payload 冲突，晚到 result version 与 account revision 各自认回。该保管不把目标账目并入父调用账目，也不授权删除原结果和附件。

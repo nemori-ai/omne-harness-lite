@@ -132,3 +132,11 @@ view 为 null 时返回 unavailable。search 显式配置，例如 `{ k1: 1.2, b
 目录只对合法语料做 BM25 排名，在异步判断后重读视图。
 搜索条件或披露材料变化会使游标失效。有界缓存只保存文本索引。
 完整行为与限制见[实现范围](SPEC.md#登记表与-catalog-的实现范围)。
+
+### 可信单目标转发
+
+`createLocalInvocationSource` 可配置 `forwarding: { authority, isParent }`。这是受信提供者配置。来源暴露 forwarding、recoverBinding 与 receiver，普通调用不能自报保留的 forwarding consumer。运行时插件工厂提供惰性 forwarding()，并在 facade 内注册专属 receiver。
+
+`createLocalToolForwarding` 接收惰性 runtime、catalog、consumer profile、目标 prepare 和 reader。把 bind 交给执行绑定的可选 capability 接缝。提供者退出时等待 close，并核对返回的 unknown 数。父调用结束不取消已固定目标。host known-call 容量至少为 2，资源并发仍可为 1。
+
+精确行为和验证边界见[成员规格](SPEC.md#单目标转发来源与保管)。programmatic 启动和全局重启发现保持既有限制。内存存储上的协议测试不能证明耐久性。

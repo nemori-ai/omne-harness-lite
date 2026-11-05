@@ -252,3 +252,19 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 ## 具名偏离：热换代作者保留
 
 按 [R2-D63](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6591819035)，本批只保证首次装载，以及 Reader 仍在但读取失败时保留贡献。持有者存在时热撤 Reader、协调者换代不撤作者的完整配对留在波 3。当前服务撤除会由 Cordis 卸载作者，贡献随之丢失；不宣称冻结契约的热换代保留义务已经兑现。上游 tool-cordis-contract/docs/cordis.md 的完整目标保持不变，不能把本偏离当作对其改写。
+
+## 单目标转发来源与保管
+
+`createLocalInvocationSource` 可选的 forwarding 配置提供惰性 start authority 与精确发行采用判定 isParent。缺少配置只禁用转发，普通调用保持原行为。来源逐次核父 CallRecord、完整 request/start、原主体和当前 consumer 资格，并要求 authority.inspect 证实 consume.started。prepared start 本身不授予转发。父历史 settled 不阻止原槽恢复与结果接收。
+
+同一父调用只有 execute 槽。consumer owner 固定为 `@omne-harness/tool-host-local/tools-forwarding`，work 是父 call，position 为 execute，purpose 为 tools-target。普通 issuer 在读取关联前拒绝该 owner。来源自己生成 consumer；应用 prepareTarget 只提供业务目标。目标 scope、requesterScope、context、workspace、resources、limits 与 mode 继承父请求，batchDecision 为 null。目标 settings 和 environment 来自目标采用。
+
+原槽、父证明、完整固定目标与 principal 在既有 invocation-source host 域同一次 CAS 提交。已存槽优先认回，不以最新设置替换。received 更新保留全部原字段。recoverBinding 与 guard 配对核 direct 原 mint 或 forwarded 父证明，不把转发恢复成 direct。当前 programmatic 启动仍受 M2 拒绝限制。
+
+source.receiver 在同一关联内保存完整交付和 saved 证据。接收先核当前资格、原目标引用、完整 consumer 与交付关系。只有 durable store 确认提交后才 saved。提交未知回复 outcome-unknown，生产者保留 owed。读回比较实际 payload 摘要和原键，并核 receiver evidence，不能只相信 stored digest。result、late version 与 account 的键分开。
+
+`createLocalToolForwarding` 惰性取得 runtime、forwarding、catalog、consumer profile、目标 prepare 与 reader。source/admission 尝试受正安全整数 attemptMs 约束。目标观察预算为零，只查一次状态，未 settled 即 pending。预算或父 abort 只结束等待，provider 继续承担已经发起的 promise。scope.finish 关闭新调用和等待，不发送 stop。provider.close 禁新工作、关闭 attachment 的等待并等待在途操作收口，返回 pending 与仍未知的原父数量。close 不能证明未知准入已撤销。
+
+运行时 composition 对普通和 forwarded source 共用 known-call 预约，并在 provider facade 注册独立 receiver。host capacity 至少 2 才能同时拥有父与目标；capacity 为 1 明确 unavailable。资源并发为 1 时目标可排队，父返回 pending 后释放资源，目标继续推进。全局重启扫描仍未支持，恢复限于已知原引用。
+
+验证资源是 [来源反例](tests/forwarding.spec.ts)、[接收故障](tests/forwarding-receiver.spec.ts)、[能力收场](tests/forwarding-capability.spec.ts) 和 [组合验证](tests/runtime-composition/forwarding.spec.ts)。组合测试使用真实 Cordis、ledger、启动协调器和执行绑定，存储及外部环境是显式替身，不证明真实耐久或跨进程运行。

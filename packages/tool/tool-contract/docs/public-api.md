@@ -226,3 +226,9 @@ ProgramTools.call 交回唯一 ToolResult 封装，其 data 为程序值，conte
 
 
 `toolEnvironmentAllocationConformance` 与 `ToolEnvironmentAllocationFixture` 位于 `./testing`。适配器提供自己拥有的故障控制和分配、租约计数，套件检查丢答复后的只读查询、原键并发采用、登记丢失和采用失败。所有控制必需；没有这些事实来源的适配器不能用通用 pending 掩码冒充 allocated 路径。`createMemoryToolEnvironment.controls.allocateBeforeAdoption` 让下一次分配保存独立记录并丢失答复，`leases` 观察实际替身采用次数。`forgetRegistration` 与 `failAdoption` 注入原登记丢失和终局失败。`outstanding` 读取替身原分配表中的未释放数，这两种故障均不清除原分配。替身仅有进程内状态，不证明真实 EE guard/ledger、跨进程耐久或设施动作。
+
+## Tools 执行能力与可信转发
+
+根入口的 [tools-capability.ts](../src/tools-capability.ts) 导出 `toolsCapabilityOf`、`ToolsCapability` 和 `ToolsExecuteAnswer`。[tools-protocol.ts](../src/tools-protocol.ts) 拥有 Search、Inspect 和固定读取的纯业务类型。完整工具概览的 `usage` 为 null，具体命令用法携带 `ToolUsage`。
+
+provider 入口导出 [forwarding.ts](../src/forwarding.ts) 的父证明、原槽关联、source 和 runtime 类型，以及 `attachToolsCapability`。这些构造值不进入普通 invoke 或模型参数。生命周期与未知恢复遵循 [可信单目标转发](../SPEC.md#可信单目标转发与执行能力)。

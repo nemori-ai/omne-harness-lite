@@ -57,31 +57,32 @@ export function attachToolsCapability(
     finish(exit) {
       if (finished !== undefined) return finished
       attachments.delete(context)
-      finished = (async () => {
-        let closeError: unknown
-        let closeFailed = false
+      const completion = Promise.withResolvers<Awaited<ReturnType<ToolExecutionScope['finish']>>>()
+      finished = completion.promise
+      const run = async () => {
+        const errors: unknown[] = []
         try {
           await capability.close()
         } catch (error) {
-          closeFailed = true
-          closeError = error
+          errors.push(error)
         }
+        let answer: Awaited<ReturnType<ToolExecutionScope['finish']>> | undefined
         try {
-          const answer = await scope.finish(exit)
-          if (closeFailed) {
-            if ('failure' in answer)
-              throw new AggregateError([closeError, answer.failure], 'Tool scope cleanup failed')
-            throw closeError
-          }
-          return answer
+          answer = await scope.finish(exit)
         } catch (error) {
-          if (closeFailed && error !== closeError && !(error instanceof AggregateError))
-            throw new AggregateError([closeError, error], 'Tool scope cleanup failed')
-          throw error
+          errors.push(error)
         } finally {
           attachments.delete(context)
         }
-      })()
+        if (errors.length > 0) {
+          if (answer !== undefined && 'failure' in answer) errors.push(answer.failure)
+          if (errors.length === 1) throw errors[0]
+          throw new AggregateError(errors, 'Tool scope cleanup failed')
+        }
+        if (answer === undefined) throw new Error('Tool scope finish returned no answer')
+        return answer
+      }
+      void run().then(completion.resolve, completion.reject)
       return finished
     },
   }

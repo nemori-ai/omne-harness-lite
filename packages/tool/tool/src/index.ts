@@ -73,3 +73,4 @@ export {
   type ToolsOptions,
   type ToolsReadRuntime,
 } from './tools.ts'
+export { createToolForwardRuntime } from './runtime-forwarding.ts'

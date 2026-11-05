@@ -20,6 +20,7 @@ it('root entry exports the independent execution functions, the ledger, the runt
     'createIndependentToolScope',
     'createToolDriver',
     'createToolFactAcknowledgementGuard',
+    'createToolForwardRuntime',
     'createToolLedger',
     'createToolRuntime',
     'createToolRuntimeFacade',

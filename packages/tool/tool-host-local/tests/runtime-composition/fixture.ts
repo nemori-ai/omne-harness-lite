@@ -15,10 +15,13 @@ import type {
   ToolInvokeRequest,
   ToolInvocationRef,
   ToolResultReceiver,
+  ToolsExecuteAnswer,
+  ToolForwardIntent,
 } from '@omne-harness/tool-contract'
-import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
+import { resolveToolInvocationRef, toolsCapabilityOf } from '@omne-harness/tool-contract'
 import {
   defineFunctionTool,
+  defineCommandTool,
   defineToolOperation,
   type ToolBindings,
   type ToolImplementationModule,
@@ -50,6 +53,7 @@ import { createLocalInvocationSource } from '../../src/invocation-source.ts'
 import type { ToolEnvironmentValue } from '../../src/author-environment.ts'
 import type { LocalToolControlSubject } from '../../src/control-subject-adapter.ts'
 import { adoption, evidence, request, tenantA, tenantB } from '../coordinator-values.ts'
+import { createLocalToolForwarding } from '../../src/tool-forwarding.ts'
 import { authorityFor } from '../binding-values.ts'
 
 export function unbox<T>(answer: Outcome<T, unknown>): T {
@@ -82,6 +86,7 @@ export async function fixture(
   author: Author = async value => `answer:${value}`,
   receiver?: ToolResultReceiver<unknown, ToolMessageContentBlock>,
   capacity = 32,
+  enableForwarding = false,
 ) {
   const root = new Context()
   const memory = createMemoryToolLedgerStore<ToolMessageContentBlock>()
@@ -95,6 +100,16 @@ export async function fixture(
   const deliveries: ToolDelivery<ToolMessageContentBlock>[] = []
   const signals = new Map<string, AbortSignal>()
   let launches = 0
+  const forwarded: ToolsExecuteAnswer[] = []
+  const forwardIntent: ToolForwardIntent = {
+    name: 'read_file',
+    command: null,
+    arguments: {
+      kind: 'object',
+      entries: [{ key: 'value', value: { kind: 'string', value: 'forwarded' } }],
+    },
+  }
+
   let allowed = true
   let subjectRecoveryGate: Readonly<{
     entered: PromiseWithResolvers<void>
@@ -121,6 +136,15 @@ export async function fixture(
   const access = { guard: { qualify }, start: { qualify } }
   const sources = createLocalInvocationSource({
     store,
+    ...(enableForwarding
+      ? {
+          forwarding: {
+            authority: () => root.get('toolStartAuthority'),
+            isParent: (request: import('@omne-harness/tool-contract').FixedToolRequest) =>
+              request.availability.definition.adoption.name === 'Tools',
+          },
+        }
+      : {}),
     commitAttempts: 8,
     authority: {
       qualify,
@@ -162,7 +186,14 @@ export async function fixture(
   })
   let bindings: ToolBindings<unknown, ToolMessageContentBlock, ToolEnvironmentValue> | undefined
   const authority = authorityFor({ kind: 'official' }, 'read_file')
-  const verifier = { verify: () => succeed(authority), admits: () => succeed(undefined) }
+  const toolsAuthority = authorityFor({ kind: 'official' }, 'Tools')
+  const verifier = {
+    verify: (value: typeof authority) =>
+      [authority, toolsAuthority].some(known => canonicalDigest(known) === canonicalDigest(value))
+        ? succeed(value)
+        : fail({ kind: 'denied' as const }),
+    admits: () => succeed(undefined),
+  }
   let authorFiber: Fiber | null = null
   const registry = createLocalToolBindingRegistry<
     unknown,
@@ -188,7 +219,9 @@ export async function fixture(
   if (fixed.availability.definition.kind !== 'function')
     throw new Error('Expected function fixture.')
   const parameters = fixed.availability.definition.parameters
-  const module: ToolImplementationModule<ToolEnvironmentValue, ToolMessageContentBlock> = {
+  const moduleFor = (
+    forwarding = false,
+  ): ToolImplementationModule<ToolEnvironmentValue, ToolMessageContentBlock> => ({
     executor: adoption('runtime-test-executor'),
     createAuthor() {
       const operation = defineToolOperation<
@@ -206,6 +239,13 @@ export async function fixture(
           waits: [],
           executor: {
             async execute(args, environment, context) {
+              if (forwarding) {
+                const capability = toolsCapabilityOf(context)
+                if (capability === undefined) throw new Error('No forwarding attachment')
+                const answer = await capability.execute(forwardIntent)
+                forwarded.push(answer)
+                return JSON.stringify(answer)
+              }
               launches += 1
               signals.set(args, context.signal)
               return author(args, environment, context)
@@ -229,6 +269,16 @@ export async function fixture(
         },
       })
       if ('failure' in operation) return operation
+      if (forwarding)
+        return defineCommandTool({
+          encoding: 'wrapped',
+          commands: { execute: { summary: 'Forward one target', operation: operation.ok } },
+          implementation: {
+            description: 'Forwarding fixture',
+            backgroundAllowed: false,
+            declarations: fixed.availability.definition.declarations,
+          },
+        })
       return defineFunctionTool({
         operation: operation.ok,
         implementation: {
@@ -238,7 +288,8 @@ export async function fixture(
         },
       })
     },
-  }
+  })
+  const module = moduleFor()
   const loader = createLocalToolLoader<unknown, ToolEnvironmentValue, ToolMessageContentBlock>({
     authority,
     verifier,
@@ -255,6 +306,26 @@ export async function fixture(
       services: {},
     }),
   )
+  const toolsLoader = createLocalToolLoader<unknown, ToolEnvironmentValue, ToolMessageContentBlock>(
+    {
+      authority: toolsAuthority,
+      verifier,
+      settings: async () => succeed({ kind: 'object', entries: [] }),
+      schemas: async () => succeed(undefined),
+    },
+  )
+  const toolsLoaded = enableForwarding
+    ? unbox(
+        await toolsLoader.load({
+          principal: 'alice',
+          tenant: tenantA,
+          asset: { asset: toolsAuthority.asset, requiredCapabilities: [] },
+          settings: fixed.settings,
+          module: moduleFor(true),
+          services: {},
+        }),
+      )
+    : null
   const placement: Placement = {
     kind: 'placement',
     binding: { kind: 'host_machine' },
@@ -411,11 +482,36 @@ export async function fixture(
   const executor = root.plugin(plugins.executor)
   const runtime = root.plugin(plugins.runtime)
   await Promise.all([external, records, host, directory, environments, executor, runtime])
+  const forwarding = createLocalToolForwarding<unknown>({
+    runtime: () => root.get('toolRuntime'),
+    forwarding: plugins.forwarding,
+    catalog: () => catalog,
+    consumer: async () =>
+      succeed({
+        capabilities: evidence('profile'),
+        conversion: null,
+        attachmentAccess: evidence('attachments'),
+      }),
+    prepareTarget: async parent =>
+      succeed({
+        ...invocation('forwarded').request,
+        scope: parent.request.scope,
+        requesterScope: parent.request.requesterScope,
+        context: parent.request.context,
+        workspace: parent.request.workspace,
+        resources: parent.request.resources,
+        mode: parent.request.mode,
+        limits: parent.request.limits,
+      }),
+    reader: () => undefined,
+    attemptMs: 250,
+  })
   bindings = createLocalToolBindings({
     registry,
     catalog,
     authority: root.toolStartAuthority,
     ...plugins.authorExecution,
+    ...(enableForwarding ? { capability: forwarding.bind } : {}),
   })
   authorFiber = root.plugin({
     name: 'runtime-test-author',
@@ -425,6 +521,17 @@ export async function fixture(
         registry.register({ principal: 'alice', tenant: tenantA, authority, loaded }),
       )
       ctx.effect(() => () => contribution.release())
+      if (toolsLoaded !== null) {
+        const tools = unbox(
+          registry.register({
+            principal: 'alice',
+            tenant: tenantA,
+            authority: toolsAuthority,
+            loaded: toolsLoaded,
+          }),
+        )
+        ctx.effect(() => () => tools.release())
+      }
     },
   })
   await authorFiber
@@ -550,6 +657,30 @@ export async function fixture(
     deliveries,
     signals,
     launches: () => launches,
+    forwarded,
+    forwardInvocation(value: string) {
+      if (toolsLoaded === null) throw new Error('Forwarding fixture is disabled')
+      const base = invocation(value)
+      const text = JSON.stringify({
+        command: 'execute',
+        params: { name: 'read_file', command: null, arguments: { value: 'forwarded' } },
+      })
+      return {
+        ...base,
+        request: {
+          ...base.request,
+          command: 'execute',
+          arguments: { original: text, effective: text, complete: true },
+          availability: {
+            kind: 'available' as const,
+            layer: toolsLoaded.key.layer,
+            definition: toolsLoaded.definition,
+            executor: toolsLoaded.executor,
+          },
+          limits: { ...base.request.limits, concurrency: 1 },
+        },
+      }
+    },
     invocation,
     query,
     streamQuery,
@@ -607,6 +738,7 @@ export async function fixture(
       }
     },
     close: async () => {
+      await forwarding.close()
       await plugins.close()
       await root.fiber.dispose()
     },

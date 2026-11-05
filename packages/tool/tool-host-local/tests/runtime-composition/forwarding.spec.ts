@@ -1,0 +1,41 @@
+import { expect, it } from 'vitest'
+import { accepted, fixture, unbox } from './fixture.ts'
+
+it('forwards through the real executor binding at resource concurrency one and retires both calls', async () => {
+  const world = await fixture(undefined, undefined, 2, true)
+  try {
+    for (let i = 0; i < 4; i++) {
+      const parent = accepted(await world.api.invoke(world.forwardInvocation(`parent-${i}`)))
+      await world.settled(parent)
+      const answer = world.forwarded[i]
+      expect(answer).toMatchObject({ kind: 'pending', parent })
+      if (answer?.kind !== 'pending') throw new Error(JSON.stringify(answer))
+      await world.settled(answer.reference)
+      expect(world.launches()).toBe(i + 1)
+      await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
+      expect(world.plugins.diagnostics().executor?.pacedDeliveries).toBe(0)
+      const resumed = await world.plugins.forwarding()?.resume(world.query(parent))
+      expect(resumed?.kind).toBe('accepted')
+      expect(world.launches()).toBe(i + 1)
+      const found = unbox(await world.api.queries.lookup(world.query(answer.reference)))
+      expect(found).toMatchObject({ kind: 'found', state: { delivery: { kind: 'released' } } })
+    }
+  } finally {
+    await world.close()
+  }
+})
+
+it('reports unavailable at host capacity one without running a target effect', async () => {
+  const world = await fixture(undefined, undefined, 1, true)
+  try {
+    const parent = accepted(await world.api.invoke(world.forwardInvocation('capacity-one')))
+    await world.settled(parent)
+    expect(world.forwarded).toMatchObject([
+      { kind: 'rejected', failure: { kind: 'unavailable', dependency: 'tool-executor' } },
+    ])
+    expect(world.launches()).toBe(0)
+    await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
+  } finally {
+    await world.close()
+  }
+})

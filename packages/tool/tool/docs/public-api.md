@@ -64,3 +64,7 @@ The cases have stable `name` and `clause` fields. Direct consumption and the evi
 [driver.ts](../src/driver.ts) 消费 [P03](../../tool-contract/SPEC.md#p03-环境准备和释放) 的 allocated 事实。它先比对完整原准备与证据形状，再用同一适配器和原输入追加最多一次 prepare。allocated、pending、unknown 或不可用均保留准备任务，后续运行查询原事实。只有 prepared 写准备完成并进入执行队列。`environmentOf` 只重连 prepared，不通过 allocated 领取租约。原获取与无 E 时的结清仍归适配器，分配证据不能替代独立输出保管依据。
 
 验证使用公开 runtime/ledger 和有独立记录的非耐久环境替身，见 [driver-allocation.spec.ts](../tests/driver-allocation.spec.ts)。没有真实 EE 适配器或跨进程恢复证据，U16 丢失全部原事实的缺口保持。
+
+## 受信转发工厂
+
+[createToolForwardRuntime](../src/runtime-forwarding.ts) 接收窄准入依赖与 provider `ToolForwardSource`，返回独立 `ToolForwardRuntime`。普通 invoke 与该工厂共用 [runtime-admission.ts](../src/runtime-admission.ts)。来源、容量预约与结果接收责任见 [单目标转发准入](../SPEC.md#单目标转发准入)。
