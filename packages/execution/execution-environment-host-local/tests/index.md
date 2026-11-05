@@ -15,6 +15,7 @@
 - [host-provider.spec.ts](host-provider.spec.ts)：宿主提供者的事实、经登记表门的账本关闭、退役与退役通知、命令启动前不起进程的拒绝与命令选项的界值
 - [host-command.spec.ts](host-command.spec.ts)：真实 systemd 用户 scope 里的命令：流式输出、显式环境、有界缓冲、门一侧的暂停、停止两态、单调用中断、释放与退役、资源恢复；只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行，归慢层
 - [host-command-residue.spec.ts](host-command-residue.spec.ts)：真实 systemd 用户 scope 里一次性命令留下的进程：移交与活过释放（C1）、移交之后句柄的停止答 `unconfirmed` 且服务仍可达、列表与封闭即停（C2）、满额不驱逐（C3）、封闭后拒绝（C4）、新实例从标记找回（C6）、列表隔离（C14）、自行结清与各停止原因；只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行，归慢层
+- [host-command-release-scope.spec.ts](host-command-release-scope.spec.ts)：真实登记表与宿主提供者、真实 systemd 用户 scope：一次性命令留下的进程移交保留范围之后，登记表的 `releaseScope` 停止它，答 `recovered` 且无待处置项，返回时单元已不在，保留进程账本恰一条 `stopped`（`confirmed`），标记文件已删；只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行，归慢层
 - [host-retained-processes.spec.ts](host-retained-processes.spec.ts)：保留进程索引（替身监督者、真实临时状态目录）：容量、标记读写、写不成的标记由维护重写（N3）、按范围与租户列表、变空结清、重启后加载、范围封闭、被打断的移交作为停止中的项进入索引并并入已发出的停止（N2）；处置的复核交错（C5）、提交未知与再问、停止原因顺序
 - [host-command-custody.spec.ts](host-command-custody.spec.ts)：一次性命令留下的执行域的归属，用假 `systemd-run`（充当门）与假 `systemctl` 驱动真实的 `createHostCommands` 与保留进程索引：移交确认后第 k 个微任务到来的释放（B1）、未读移交的再问只有一个（B2）、移交之后句柄的停止不作用于执行域（N1）、确认而被打断的移交归保留范围并作为停止中的项占名额（N2）、索引加载不结束时处置仍在期限内结束（N4）、`HostTerminalOptions` 不带留下的进程的选项；快层，只在 Linux
 - [host-command-frames.spec.ts](host-command-frames.spec.ts)：门的帧读取、输出缓冲与单一读者、停止确认的判断、恢复引用的读取、监督工具的运行；不起 scope，两个平台都运行
