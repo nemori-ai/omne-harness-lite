@@ -74,6 +74,58 @@ describe('the stdio line and the byte bound (T2)', () => {
   })
 })
 
+/** A process that has exited and ended its stdout already; `written` collects what reaches stdin. */
+function goneHandle(written: Uint8Array[]): ProcessHandle {
+  return {
+    stdin: new WritableStream<Uint8Array>({
+      write(chunk) {
+        written.push(chunk)
+      },
+    }),
+    stdout: new ReadableStream<Uint8Array>({ start: controller => controller.close() }),
+    stderr: new ReadableStream<string>({ start: controller => controller.close() }),
+    exited: Promise.resolve(),
+    stop: async () => 'root-only',
+  }
+}
+
+describe('a stdio process that is gone before the first request (T8 X02)', () => {
+  it('the line writes nothing to it and reports the request as unsent', async () => {
+    const written: Uint8Array[] = []
+    const line = new StdioLine(goneHandle(written))
+    await line.ready()
+    const exchange = await line.send(
+      { text: '{}', headers: new Headers() },
+      new AbortController().signal,
+    )
+    expect(exchange).toEqual({ kind: 'unsent' })
+    expect(written).toEqual([])
+    await line.close()
+  })
+
+  it('the transport opened on it answers not-sent and nothing reaches the process', async () => {
+    const written: Uint8Array[] = []
+    const factory = createLocalTransportFactory({
+      clientInfo: { name: 'host', version: '1' },
+      probeTimeoutMs: 5_000,
+    })
+    const opened = await factory.open(
+      {
+        kind: 'stdio',
+        process: goneHandle(written),
+        generation: generationOf(1),
+        instructionsByteLimit: 4096,
+      },
+      new AbortController().signal,
+    )
+    if (!('ok' in opened)) throw new Error('open failed')
+    expect(await opened.ok.discover()).toEqual(NOT_SENT)
+    expect(await opened.ok.listActions()).toEqual(NOT_SENT)
+    expect(written).toEqual([])
+    await opened.ok.close()
+  })
+})
+
 describe('the HTTP line and the signals it is given', () => {
   it('a write nobody waits for leaves no abort listener on the signal once its answer is read', async () => {
     const line = new HttpLine(

@@ -251,6 +251,42 @@ describe('authorization (T4, R4)', () => {
     await none.close()
   })
 
+  it('with resource_metadata in the challenge only the address it names is fetched', async () => {
+    const NAMED = '/.well-known/oauth-protected-resource/named-document'
+    const peer = await scripted(target => ({
+      listing: {
+        '': {
+          kind: 'http',
+          status: 401,
+          headers: {
+            'www-authenticate': `Bearer realm="mcp", resource_metadata="${new URL(NAMED, target).href}"`,
+          },
+        },
+      },
+      wellKnown: {
+        [NAMED]: { resource: target, authorization_servers: ['https://named.test'] },
+      },
+    }))
+    const transport = await open(materialOf(targetOf(peer), credential()))
+    const failed = await transport.listActions()
+    const fetched = (await peer.received()).flatMap(entry =>
+      entry.kind === 'fetch' ? [new URL(entry.url).pathname] : [],
+    )
+    expect(fetched).toEqual([NAMED])
+    expect(
+      'failure' in failed &&
+        failed.failure.kind === 'not-sent' &&
+        failed.failure.cause === 'authorization-required' &&
+        failed.failure.discovery,
+    ).toMatchObject({
+      resourceMetadataUrl: new URL(NAMED, targetOf(peer)).href,
+      metadata: 'fetched',
+      issuers: ['https://named.test'],
+    })
+    await transport.close()
+    await peer.close()
+  })
+
   it('the credential value appears in no answer, failure or discovery', async () => {
     const server = await bearerServer(SECRET, ['files:read'])
     const outcomes: unknown[] = []
@@ -597,6 +633,13 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
     const received = await peer.received()
     expect(requestsOf(received, 'initialize')).toHaveLength(2)
     expect(requestsOf(received, 'tools/list')[0]?.headers?.['mcp-session-id']).toBeUndefined()
+    // Before the GET the requests go to the target; after it, every message goes to the endpoint.
+    expect(peer.requestLines()).toEqual([
+      'POST /mcp',
+      'POST /mcp',
+      'GET /mcp',
+      ...Array<string>(4).fill('POST /message'),
+    ])
     await transport.close()
     await peer.close()
   })
