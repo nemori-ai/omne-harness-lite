@@ -124,15 +124,17 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 - 登记键冲突按 G7：同一 fiber、同一装载 digest（`loaded.executor.digest`）认回原贡献，其他情形回复 `conflict`。`release` 只按自己的 token 撤除。登记序号单调递增，token 不重复。
 - `snapshot` 与 Catalog 按来源层判定可见：`official` 对任何合法租户可见，`organization` 要同组织，`tenant` 要同租户，`workspace` 对任何租户范围都不可见（本包不读取工作区授权）。无法证明合法的租户得到 `unavailable`，不得到空列表。
 - `pins` 与 `drain` 数尚未释放的持有。`createLocalToolBindings.resolve` 通过 `selectAndPin` 原子选择并持有装载句柄；作者结束且事实全部确认后释放。`recover` 只认回本进程保留的执行，见[作者装载与执行绑定](#作者装载与执行绑定)。
-- Catalog 先读应用提供的 `view`，再将其精确的来源层和资产版本与当前租户可见的 `live` 贡献求交。同名取登记序号最小的一份。未纳入、不可披露与不存在都回复 `invalid/unknown-tool`。`view` 为 null 或来源异常时回复 `unavailable`，来源失败原样保留，不用空列表代替。
+- Catalog 先读应用提供的 `view`，再将其精确的来源层和资产版本与当前租户可见的 `live` 贡献求交。同名取登记序号最小的一份。没有同名 live 贡献时，可使用 view 当前保管的 `knownDefinition`。未纳入、不可披露与没有合法定义的名字都回复 `invalid/unknown-tool`。`view` 为 null 或来源异常时回复 `unavailable`，来源失败原样保留，不用空列表代替。
+- view entry 的可选 `knownDefinition: ToolDefinition` 是当前受信采用拥有者依法保留的普通数据，不带 executor 或活体能力。Catalog 复用定义校验器读取冻结副本，核对 name 与 adoption 均匹配该 entry 的 key。定义不合法或不匹配时回复 `invalid`。省略此字段保持原行为。缺 live 的已知定义由 inspect 和 direct search 返回 `known-unavailable`，原因说明实现不在登记表中。它不会因 availability 允许而成为 available，programmatic 搜索也不返回它。usage 仍须取得当前 availability 的 qualification allowed，才能描述该定义。
 - `view.scope` 是应用核验的租户、主体及会话范围证据，`revision` 固定纳入和披露材料版本。Catalog 不导入 Session 或 Runtime Context。`availability` 只提供可用性事实，不产生披露资格。已被 view 精确纳入的非常驻 `known-unavailable` 可在 direct 搜索中返回。programmatic 只索引非常驻、available 且显式 programmable 的项。search 按本次 view 的 resident 事实排除常驻项，不按名称硬编码；inspect 与 usage 仍可查询合法常驻项。保留搜索结果的 resident 字段形状，返回项为 false。
-- 每次 inspect、usage 与 search 的异步判断结束后重读 view，比较 scope、revision 及 entries。发生变化时首屏回复 `unavailable`，续页回复 `invalid-cursor`。重读后同步重取合法登记列表，比较 ordinal、state、定义、装载摘要和 executor 等元数据。登记换代也按首屏 unavailable、续页 invalid-cursor 拒绝，不能混合旧判断与新绑定。最后比较与构造结果之间没有异步步骤。这是两次观察的一致性检查，不承诺补齐 RC #677 的同步撤权边界。
+- 每次 inspect、usage 与 search 的异步判断结束后重读 view，比较 scope、revision 及 entries，包括已知定义的完整元数据。发生变化时首屏回复 `unavailable`，续页回复 `invalid-cursor`。重读后同步重取合法登记列表，比较 ordinal、state、定义、装载摘要和 executor 等元数据。登记换代也按首屏 unavailable、续页 invalid-cursor 拒绝，不能混合旧判断与新绑定。最后比较与构造结果之间没有异步步骤。这是两次观察的一致性检查，不承诺补齐 RC #677 的同步撤权边界。
 - search 在 BM25 语料统计、排序和分页之前排除常驻项，只对合法非常驻语料评分。每工具一篇文档，只索引名称、描述、命令名称及摘要。BM25 使用正 IDF `log(1+(N-df+0.5)/(df+0.5))`，没有字段或调用历史加权。得分相同按名称的 UTF-16 顺序排列。空白查询按名称列举，非空但没有 token 或没有命中时返回空页。全是常驻项时成功返回空页，来源缺失或失败仍返回失败。resident 事实改变会使旧游标失效，即使 view.revision 没变。
 - 分词采用 NFKC，拆分 camelCase 与下划线并保留完整标识。中文连续片段生成单字及相邻双字，其余字母数字连续分词。索引与查询共用版本 1 规则，查询 token 去重。
 - 构造者显式提供 search 的 k1、b 与 maxCachedCorpora。k1 必须有限且大于零，b 必须有限且在闭区间 [0,1]，容量必须为正安全整数。非法配置抛 TypeError。常用配置为 k1=1.2、b=0.75，应用拥有具体取值。
 - 每个目录实例持有有界 LRU，只缓存不可变分词、词频、文档频率和长度。缓存键包含完整合法非常驻排序材料与分词评分配置。文本或 resident 变化使参与语料改变时重建；仅定义或执行采用等元数据变更而排序材料不变时复用数学结构，结果始终关联本次条目。缓存不持有 principal、许可或执行对象，每次访问仍核 view 和 availability。
-- 版本 2 游标是最长 192 字符的规范 base64url JSON，绑定规范查询、view、完整合法元数据、排序材料、consumer、invocation 及位置。任何绑定变化、非法编码或越界位置都回复 invalid-cursor。游标不授予权限，不采用 HMAC，旧版本没有兼容承诺。合法语料外的登记不影响排名与分页。
+- 版本 2 游标是最长 192 字符的规范 base64url JSON，绑定规范查询、view、完整合法元数据、排序材料、consumer、invocation 及位置。任何绑定变化、非法编码或越界位置都回复 invalid-cursor。游标不授予权限，不采用 HMAC，旧版本没有兼容承诺。合法语料外的登记不影响排名与分页。已知定义元数据变化或贡献退役也使旧游标失效，即使 view.revision 不变。
 - 执行者命令的用法文本与协议不在定义里，`usage` 对它回复 `unavailable`，不编造。
+- 已知定义只在本次 view 中有效。撤出 view 后不再披露，Catalog 不按 scope 保存历史或跨调用补回定义。采用拥有者负责定义的合法取得与保管。应用当前发行 generation 的保管和跨发行历史是不同保证，本读路径不提供耐久采用历史。
 
 已知限制：登记不耐久，只在单进程内成立；没有核验器的生产提供者（归应用装配）；工作区层不可见；`./cordis` 已提供运行时组合工厂，真实外域提供者由应用装配负责。
 

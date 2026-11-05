@@ -1,8 +1,6 @@
-// The Catalog (P02, P16) over the binding registry of this process. It lists only live
-// contributions that the asking tenant may access (G7). A name that is absent and a name that only
-// another tenant registered get the same answer, so the Catalog does not tell whether another
-// tenant registered anything. Whether a tool is available to the consumer is judged by facts that
-// a trusted source verified; the Catalog never takes them from the caller.
+// The Catalog (P02, P16) joins this process's live contributions with the current lawful view.
+// The view can also supply retained definitions without granting an executable binding (G7).
+// Unknown and undisclosed names get the same answer. A trusted source judges availability.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   Access,
@@ -19,6 +17,7 @@ import type {
 import {
   evaluateToolAvailability,
   type AvailabilityFacts,
+  type ToolBindingKey,
 } from '@omne-harness/tool-contract/provider'
 import type { ToolListing, ToolListingSource } from './bindings.ts'
 import { catalogWindow, encodeCatalogCursor } from './catalog-cursor.ts'
@@ -73,6 +72,43 @@ function choose(listings: readonly ToolListing[], name: string): ToolListing | u
     )
       chosen = listing
   return chosen
+}
+
+type CatalogCandidate = Readonly<{
+  key: ToolBindingKey
+  definition: ToolDefinition
+  resident: boolean
+}> &
+  (Readonly<{ kind: 'live'; executor: Adoption }> | Readonly<{ kind: 'known' }>)
+
+/** Existing live ordinals take precedence over retained metadata with the same name. */
+function candidateFor(
+  visible: ReturnType<typeof visibleCatalogListings>,
+  view: LocalToolCatalogView,
+  name: string,
+): CatalogCandidate | undefined {
+  const listing = choose(
+    visible.map(entry => entry.listing),
+    name,
+  )
+  if (listing !== undefined)
+    return {
+      kind: 'live',
+      key: listing.entry.key,
+      definition: listing.definition,
+      executor: listing.executor,
+      resident: visible.find(entry => entry.listing === listing)?.resident ?? false,
+    }
+  const known = view.entries.find(
+    entry => entry.key.asset.name === name && entry.knownDefinition !== undefined,
+  )
+  if (known?.knownDefinition === undefined) return undefined
+  return {
+    kind: 'known',
+    key: known.key,
+    definition: known.knownDefinition,
+    resident: known.resident,
+  }
 }
 
 const same = (left: Adoption, right: Adoption): boolean =>
@@ -174,23 +210,29 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
 
   const judged = async (
     access: Access<P>,
-    listing: ToolListing,
+    candidate: CatalogCandidate,
     consumer: ToolConsumerProfile,
   ): Promise<Outcome<ToolAvailability, ToolFailure>> => {
     const verdict = await availability.judge({
       principal: access.principal,
       tenant: access.tenant,
-      definition: listing.definition,
-      layer: listing.entry.key.layer,
+      definition: candidate.definition,
+      layer: candidate.key.layer,
       consumer,
     })
     if ('failure' in verdict) return verdict
+    if (candidate.kind === 'known')
+      return succeed({
+        kind: 'known-unavailable',
+        definition: candidate.definition,
+        reason: 'the tool implementation is not present in the binding registry',
+      })
     return succeed(
       evaluateToolAvailability({
         ...verdict.ok,
-        definition: listing.definition,
-        executor: listing.executor,
-        layer: listing.entry.key.layer,
+        definition: candidate.definition,
+        executor: candidate.executor,
+        layer: candidate.key.layer,
       }),
     )
   }
@@ -198,21 +240,29 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
   const searchEntries = async (
     request: Parameters<ToolCatalog<P>['search']>[0],
     visible: ReturnType<typeof visibleCatalogListings>,
+    view: LocalToolCatalogView,
   ): Promise<Outcome<readonly ToolCatalogSearchEntry[], ToolFailure>> => {
-    const listings = visible.map(entry => entry.listing)
-    const names = [...new Set(listings.map(listing => listing.definition.name))].sort(byCodeUnits)
+    const names = [
+      ...new Set([
+        ...visible.map(entry => entry.listing.definition.name),
+        ...view.entries
+          .filter(entry => entry.knownDefinition !== undefined)
+          .map(entry => entry.key.asset.name),
+      ]),
+    ].sort(byCodeUnits)
     const entries: ToolCatalogSearchEntry[] = []
     for (const name of names) {
-      const listing = choose(listings, name)
-      if (listing === undefined) continue
-      const resident = visible.find(entry => entry.listing === listing)?.resident ?? false
-      if (resident) continue
-      if (request.invocation === 'programmatic' && listing.definition.programmable !== true)
+      const candidate = candidateFor(visible, view, name)
+      if (candidate === undefined || candidate.resident) continue
+      if (
+        request.invocation === 'programmatic' &&
+        (candidate.kind === 'known' || candidate.definition.programmable !== true)
+      )
         continue
-      const one = await judged(request, listing, request.consumer)
+      const one = await judged(request, candidate, request.consumer)
       if ('failure' in one) return one
       if (request.invocation === 'programmatic' && one.ok.kind !== 'available') continue
-      entries.push({ ...one.ok, resident })
+      entries.push({ ...one.ok, resident: candidate.resident })
     }
     return succeed(entries)
   }
@@ -221,19 +271,16 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
     inspect: async request => {
       const live = await liveFor(request)
       if ('failure' in live) return live
-      const listing = choose(
-        live.ok.entries.map(entry => entry.listing),
-        request.name,
-      )
-      if (listing === undefined) return unknownTool
-      const { definition } = listing
+      const candidate = candidateFor(live.ok.entries, live.ok.view, request.name)
+      if (candidate === undefined) return unknownTool
+      const { definition } = candidate
       if (
         request.command !== null &&
         (definition.kind !== 'commands' ||
           !definition.commands.some(command => command.name === request.command))
       )
         return fail({ kind: 'invalid', field: 'command', reason: 'unknown-command' })
-      const answer = await judged(request, listing, request.consumer)
+      const answer = await judged(request, candidate, request.consumer)
       const current = await readCatalogView(input.view, request)
       const checked = stable(current, live.ok, request)
       return 'failure' in checked ? checked : answer
@@ -242,18 +289,15 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
     usage: async request => {
       const live = await liveFor(request)
       if ('failure' in live) return live
-      const listing = choose(
-        live.ok.entries.map(entry => entry.listing),
-        request.name,
-      )
-      if (listing === undefined || !same(listing.definition.adoption, request.adoption))
+      const candidate = candidateFor(live.ok.entries, live.ok.view, request.name)
+      if (candidate === undefined || !same(candidate.definition.adoption, request.adoption))
         return unknownTool
-      const { definition } = listing
+      const { definition } = candidate
       const verdict = await availability.judge({
         principal: request.principal,
         tenant: request.tenant,
         definition,
-        layer: listing.entry.key.layer,
+        layer: candidate.key.layer,
         consumer: request.consumer,
       })
       const current = await readCatalogView(input.view, request)
@@ -269,7 +313,7 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
       if ('failure' in window) return window
       const live = await liveFor(request)
       if ('failure' in live) return live
-      const judgedEntries = await searchEntries(request, live.ok.entries)
+      const judgedEntries = await searchEntries(request, live.ok.entries, live.ok.view)
       if ('failure' in judgedEntries) return judgedEntries
       const entries = judgedEntries.ok
       const ranked = rank(

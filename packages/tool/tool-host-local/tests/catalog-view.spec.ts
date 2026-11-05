@@ -3,7 +3,14 @@ import { succeed, fail } from '@omne-harness/operation-result'
 import type { ToolCatalog, ToolConsumerProfile } from '@omne-harness/tool-contract'
 import { createLocalToolCatalog } from '../src/catalog.ts'
 import type { LocalToolCatalogView } from '../src/catalog-view.ts'
-import { accessOf, authorityFor, loadedFor, tenantA } from './binding-values.ts'
+import {
+  accessOf,
+  authorityFor,
+  fiberedRegistry,
+  loadedFor,
+  scriptedVerifier,
+  tenantA,
+} from './binding-values.ts'
 
 const evidence = (record: string) => ({ owner: 'test', record, revision: '1', digest: record })
 const consumer: ToolConsumerProfile = {
@@ -319,5 +326,273 @@ describe('legal catalog view and BM25', () => {
         failure: { kind: continuing ? 'invalid-cursor' : 'unavailable' },
       })
     }
+  })
+})
+
+function knownWorld() {
+  const tools = [
+    { name: 'alpha', description: 'apple' },
+    { name: 'bravo', description: 'pear pear pear' },
+    { name: 'charlie', description: 'apple pear' },
+  ].map(({ name, description }) => {
+    const authority = authorityFor({ kind: 'official' }, name)
+    const loaded = loadedFor(authority, '1', { programmable: true })
+    return { authority, loaded: { ...loaded, definition: { ...loaded.definition, description } } }
+  })
+  const { registry, asFiber } = fiberedRegistry(scriptedVerifier(tools.map(tool => tool.authority)))
+  for (const tool of tools) {
+    const registered = asFiber(tool.authority.asset.name, () =>
+      registry.register({ ...access, ...tool }),
+    )
+    if ('failure' in registered) throw new Error('registration failed')
+  }
+  let view: LocalToolCatalogView = {
+    scope: evidence('known-session'),
+    revision: '1',
+    entries: tools.map(tool => ({
+      key: tool.loaded.key,
+      resident: false,
+      knownDefinition: tool.loaded.definition,
+    })),
+  }
+  let qualification: 'allowed' | 'denied' = 'allowed'
+  let gate: (() => Promise<void>) | undefined
+  const catalog = createLocalToolCatalog({
+    registry,
+    view: { read: async () => succeed(view) },
+    search,
+    availability: {
+      judge: async () => {
+        await gate?.()
+        return succeed({ ...allowed, qualification })
+      },
+    },
+  })
+  return {
+    catalog,
+    registry,
+    tools,
+    get view() {
+      return view
+    },
+    set view(value: LocalToolCatalogView) {
+      view = value
+    },
+    set qualification(value: 'allowed' | 'denied') {
+      qualification = value
+    },
+    set gate(value: (() => Promise<void>) | undefined) {
+      gate = value
+    },
+  }
+}
+
+describe('currently disclosed known definitions after contribution retirement', () => {
+  it('keeps the definition and usage without manufacturing an executable binding', async () => {
+    const w = knownWorld()
+    const tool = w.tools[0]
+    if (tool === undefined) throw new Error('missing alpha')
+    const inspected = { ...access, consumer, name: 'alpha', command: null }
+    expect(await w.catalog.inspect(inspected)).toMatchObject({ ok: { kind: 'available' } })
+    w.registry.retire('alpha')
+    const retired = await w.catalog.inspect(inspected)
+    expect(retired).toMatchObject({
+      ok: {
+        kind: 'known-unavailable',
+        definition: tool.loaded.definition,
+        reason: expect.stringContaining('implementation'),
+      },
+    })
+    if ('failure' in retired) throw new Error('missing retained definition')
+    expect(retired.ok).not.toHaveProperty('executor')
+    expect(
+      await w.catalog.usage({ ...inspected, adoption: tool.loaded.definition.adoption }),
+    ).toMatchObject({
+      ok: { description: 'apple', definition: tool.loaded.definition.adoption },
+    })
+    expect(await names(w.catalog, { query: 'apple' })).toContain('alpha')
+    expect(await names(w.catalog, { query: 'apple', invocation: 'programmatic' })).not.toContain(
+      'alpha',
+    )
+    w.qualification = 'denied'
+    expect(
+      await w.catalog.usage({ ...inspected, adoption: tool.loaded.definition.adoption }),
+    ).toMatchObject({
+      failure: { kind: 'denied', action: 'usage' },
+    })
+    expect(await w.catalog.inspect(inspected)).toMatchObject({ ok: { kind: 'known-unavailable' } })
+  })
+
+  it('withdraws disclosure immediately and retains no metadata outside the supplied view', async () => {
+    const w = knownWorld()
+    const original = w.view.entries
+    w.registry.retire('alpha')
+    expect(await names(w.catalog, { query: 'apple' })).toContain('alpha')
+    w.view = { ...w.view, entries: original.filter(entry => entry.key.asset.name !== 'alpha') }
+    expect(
+      await w.catalog.inspect({ ...access, consumer, name: 'alpha', command: null }),
+    ).toMatchObject({
+      failure: { kind: 'invalid', reason: 'unknown-tool' },
+    })
+    expect(await names(w.catalog, { query: 'apple' })).not.toContain('alpha')
+    w.view = { ...w.view, entries: original.map(({ key, resident }) => ({ key, resident })) }
+    expect(
+      await w.catalog.inspect({ ...access, consumer, name: 'alpha', command: null }),
+    ).toMatchObject({
+      failure: { kind: 'invalid', reason: 'unknown-tool' },
+    })
+  })
+
+  it('preserves BM25 order for retired definitions and excludes resident known metadata before ranking', async () => {
+    const w = knownWorld()
+    const expected = await names(w.catalog)
+    for (const tool of w.tools) w.registry.retire(tool.authority.asset.name)
+    expect(await names(w.catalog)).toEqual(expected)
+    expect(await names(w.catalog, { invocation: 'programmatic' })).toEqual([])
+    const residents = Array.from({ length: 100 }, (_, index) =>
+      row(`known-resident${index}`, 'pear'),
+    )
+    w.view = {
+      ...w.view,
+      entries: [
+        ...w.view.entries,
+        ...residents.map(item => ({
+          key: item.entry.key,
+          resident: true,
+          knownDefinition: item.definition,
+        })),
+      ],
+    }
+    expect(await names(w.catalog)).toEqual(expected)
+    expect(await names(w.catalog, { limit: 1 })).toEqual(expected.slice(0, 1))
+    w.view = { ...w.view, entries: w.view.entries.map(entry => ({ ...entry, resident: true })) }
+    expect(await names(w.catalog)).toEqual([])
+    expect(
+      await w.catalog.inspect({ ...access, consumer, name: 'alpha', command: null }),
+    ).toMatchObject({
+      ok: { kind: 'known-unavailable' },
+    })
+  })
+
+  it('keeps live selection and invalidates cursors on retirement or retained metadata changes', async () => {
+    const w = knownWorld()
+    const first = await page(w.catalog, { limit: 1 })
+    if ('failure' in first || first.ok.next === null) throw new Error('missing cursor')
+    w.registry.retire('alpha')
+    expect(await page(w.catalog, { limit: 1, after: first.ok.next })).toMatchObject({
+      failure: { kind: 'invalid-cursor' },
+    })
+    const retired = await page(w.catalog, { limit: 1 })
+    if ('failure' in retired || retired.ok.next === null) throw new Error('missing retired cursor')
+    w.view = {
+      ...w.view,
+      entries: w.view.entries.map(entry => ({
+        ...entry,
+        ...(entry.key.asset.name !== 'bravo' || entry.knownDefinition === undefined
+          ? {}
+          : {
+              knownDefinition: {
+                ...entry.knownDefinition,
+                description: 'changed retained metadata',
+              },
+            }),
+      })),
+    }
+    expect(await page(w.catalog, { limit: 1, after: retired.ok.next })).toMatchObject({
+      failure: { kind: 'invalid-cursor' },
+    })
+    expect(
+      await w.catalog.inspect({ ...access, consumer, name: 'bravo', command: null }),
+    ).toMatchObject({
+      ok: { kind: 'available', definition: { description: 'pear pear pear' } },
+    })
+  })
+
+  it('rejects mismatched or malformed metadata and returns an immutable copy of valid definitions', async () => {
+    for (const mismatch of ['name', 'adoption', 'shape'] as const) {
+      const w = knownWorld()
+      w.view = {
+        ...w.view,
+        entries: w.view.entries.map(entry => ({
+          ...entry,
+          ...(entry.knownDefinition === undefined
+            ? {}
+            : {
+                knownDefinition:
+                  mismatch === 'name'
+                    ? { ...entry.knownDefinition, name: 'different-name' }
+                    : mismatch === 'adoption'
+                      ? {
+                          ...entry.knownDefinition,
+                          adoption: { ...entry.knownDefinition.adoption, revision: 'different' },
+                        }
+                      : { ...entry.knownDefinition, description: '' },
+              }),
+        })),
+      }
+      expect(await page(w.catalog)).toMatchObject({ failure: { kind: 'invalid' } })
+    }
+    const w = knownWorld()
+    const original = w.tools[0]?.loaded.definition
+    if (original === undefined) throw new Error('missing definition')
+    w.registry.retire('alpha')
+    const inspected = await w.catalog.inspect({ ...access, consumer, name: 'alpha', command: null })
+    if ('failure' in inspected) throw new Error('missing retained definition')
+    expect(inspected.ok.definition).not.toBe(original)
+    expect(Object.isFrozen(inspected.ok.definition)).toBe(true)
+    expect(Object.isFrozen(inspected.ok.definition.adoption)).toBe(true)
+    Object.assign(original, { description: 'changed at the source' })
+    expect(inspected.ok.definition.description).toBe('apple')
+  })
+
+  it('preserves the lowest live ordinal before considering same-name known definitions', async () => {
+    const w = setup()
+    const alternate = row('alpha', 'alternate live definition', '2')
+    w.view = {
+      ...w.view,
+      entries: [
+        {
+          key: alternate.entry.key,
+          resident: false,
+          knownDefinition: { ...alternate.definition, description: 'retained metadata' },
+        },
+        ...w.view.entries,
+      ],
+    }
+    w.rows = [...w.rows, { ...alternate, entry: { ...alternate.entry, ordinal: '2' } }]
+    const request = { ...access, consumer, name: 'alpha', command: null }
+    expect(await w.catalog.inspect(request)).toMatchObject({
+      ok: { kind: 'available', definition: { description: 'apple', adoption: { revision: '1' } } },
+    })
+    w.rows = w.rows.map(item =>
+      item === w.rows[0] ? { ...item, entry: { ...item.entry, ordinal: '3' } } : item,
+    )
+    expect(await w.catalog.inspect(request)).toMatchObject({
+      ok: {
+        kind: 'available',
+        definition: { description: 'alternate live definition', adoption: { revision: '2' } },
+      },
+    })
+  })
+
+  it('rejects changed known metadata after an asynchronous availability judgment', async () => {
+    const w = knownWorld()
+    w.registry.retire('alpha')
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    w.gate = async () => {
+      entered.resolve()
+      await resume.promise
+    }
+    const pending = w.catalog.inspect({ ...access, consumer, name: 'alpha', command: null })
+    expect(
+      await Promise.race([entered.promise.then(() => 'judging'), pending.then(() => 'returned')]),
+    ).toBe('judging')
+    w.view = {
+      ...w.view,
+      entries: w.view.entries.filter(entry => entry.key.asset.name !== 'alpha'),
+    }
+    resume.resolve()
+    expect(await pending).toMatchObject({ failure: { kind: 'unavailable' } })
   })
 })
