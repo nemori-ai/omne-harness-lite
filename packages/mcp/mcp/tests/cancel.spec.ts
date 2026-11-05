@@ -3,7 +3,12 @@
 // the call off the wire; a cancel after the send, or one that lands between the send and its
 // record, tells the peer once and ends the call as unknown (abandoned).
 import { describe, expect, it } from 'vitest'
-import type { DefinitionDigest, InvokeRequest } from '@omne-harness/mcp-contract'
+import {
+  digestDefinition,
+  type DefinitionDigest,
+  type InvokeRequest,
+  type InvokeResult,
+} from '@omne-harness/mcp-contract'
 import {
   actionNameOf,
   correlationKeyOf,
@@ -14,7 +19,8 @@ import {
 import { deferred, settled } from './doubles/deferred.ts'
 import { alice, aliceAway, bob, mallory } from './doubles/identities.ts'
 import { completed, listing, peer, services, text, type Peer } from './doubles/peer.ts'
-import { stallingEligibility } from './doubles/stalls.ts'
+import { stallingEligibility, stallingLanding } from './doubles/stalls.ts'
+import { never, reshapedTransports } from './doubles/transports.ts'
 import { adoptStdio, storedRecord } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
@@ -156,5 +162,123 @@ describe('a cancel after the send (SPEC S2, MC-16 step 8)', () => {
     expect(await call).toEqual(ABANDONED)
     await settled()
     expect(p.cancels()).toBe(1)
+  })
+})
+
+const CANCELLED = { kind: 'not-sent', reason: { kind: 'cancelled' } }
+
+/** `n` turns of the event loop: a bound on how long an answer may take once nothing is awaited. */
+async function turns(n: number): Promise<void> {
+  for (let i = 0; i < n; i += 1) await settled()
+}
+
+/** The result of `call` once it settled, else `pending`: the test reads it after some turns. */
+function tracked(call: Promise<InvokeResult>) {
+  let answer: InvokeResult | 'pending' = 'pending'
+  const done = call.then(result => {
+    answer = result
+  })
+  return { read: () => answer, done }
+}
+
+describe('one stop signal from the reservation on (SPEC S2, MC-16 step 2)', () => {
+  it.each(['cancel', 'abort'] as const)(
+    'after the send, a %s does not wait for cancelRequest: the call answers unknown (abandoned) within a few turns',
+    async how => {
+      const { p, digest } = await arranged({ kind: 'silent' })
+      let hanging = 0
+      const transports = reshapedTransports(p.ports.transports, () => ({
+        cancelRequest: () => {
+          hanging += 1
+          return never()
+        },
+      }))
+      const { services: s } = services({ ...p, ports: { ...p.ports, transports } })
+      const controller = new AbortController()
+      const call = tracked(s.invoker.invoke(alice, request(digest, controller.signal)))
+      await settled()
+      expect(p.requests('tools/call')).toHaveLength(1)
+      if (how === 'cancel') expect(await s.invoker.cancel(alice, c1)).toBe('signalled')
+      else controller.abort()
+      await turns(5)
+      expect(call.read()).toEqual(ABANDONED)
+      expect(hanging).toBe(1)
+      expect(await s.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
+      await call.done
+    },
+  )
+
+  it('a cancel while the gate is asked, followed by a refusing step, answers cancelled, and the key has ended', async () => {
+    const { p } = await arranged(completed([text('hi')]))
+    const stalled = stallingEligibility(p.eligibility, 1)
+    const { services: s } = services({ ...p, ports: { ...p.ports, eligibility: stalled.port } })
+    // The expected definition is stale: step 5 would refuse with definition-changed.
+    const stale = digestDefinition({ name: READ, definition: jsonOf({ name: 'read', v: 2 }) })
+    const call = s.invoker.invoke(alice, request(stale))
+    await settled()
+    expect(stalled.calls()).toBe(1)
+    expect(await s.invoker.cancel(alice, c1)).toBe('signalled')
+    stalled.gate.resolve()
+    expect(await call).toEqual(CANCELLED)
+    expect(p.requests('tools/call')).toHaveLength(0)
+    expect(await s.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
+  })
+
+  it.each(['cancel', 'abort'] as const)(
+    'a store read that never answers: a %s ends the wait, the call answers cancelled, and the key has ended',
+    async how => {
+      const { p, digest } = await arranged(completed([text('hi')]))
+      const store = { ...p.store, read: () => never<never>() }
+      const { services: s } = services({ ...p, ports: { ...p.ports, store } })
+      const controller = new AbortController()
+      const call = tracked(s.invoker.invoke(alice, request(digest, controller.signal)))
+      await turns(2)
+      expect(call.read()).toBe('pending')
+      if (how === 'cancel') expect(await s.invoker.cancel(alice, c1)).toBe('signalled')
+      else controller.abort()
+      await turns(5)
+      expect(call.read()).toEqual(CANCELLED)
+      expect(p.requests('tools/call')).toHaveLength(0)
+      expect(await s.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
+      await call.done
+    },
+  )
+
+  it.each(['cancel', 'abort'] as const)(
+    'while the build is under way, a %s answers the call cancelled at once; the build goes on for the key and nothing is sent',
+    async how => {
+      const { p, digest } = await arranged(completed([text('hi')]))
+      const stalled = stallingLanding(p.landing)
+      const { services: s } = services({ ...p, ports: { ...p.ports, landing: stalled.port } })
+      const controller = new AbortController()
+      const call = tracked(s.invoker.invoke(alice, request(digest, controller.signal)))
+      await settled()
+      expect(stalled.calls()).toBe(1)
+      if (how === 'cancel') expect(await s.invoker.cancel(alice, c1)).toBe('signalled')
+      else controller.abort()
+      await turns(5)
+      expect(call.read()).toEqual(CANCELLED)
+      expect(await s.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
+      stalled.gate.resolve()
+      await turns(5)
+      expect(p.requests('tools/call')).toHaveLength(0)
+      expect(p.opens()).toBe(1)
+      expect(await s.status.inspect(alice, files)).toMatchObject({
+        ok: { connection: { kind: 'ready' } },
+      })
+      await call.done
+    },
+  )
+
+  it('a signal that fired before the call starts no wait: no port is asked, the call answers cancelled', async () => {
+    const { p, digest } = await arranged(completed([text('hi')]))
+    const { services: s } = services(p)
+    const asked = portCalls(p)
+    const controller = new AbortController()
+    controller.abort()
+    expect(await s.invoker.invoke(alice, request(digest, controller.signal))).toEqual(CANCELLED)
+    expect(portCalls(p)).toEqual(asked)
+    expect(p.opens()).toBe(0)
+    expect(await s.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
   })
 })

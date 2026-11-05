@@ -83,6 +83,20 @@ describe('classifyOutcome and the injected output validator', () => {
     expect(outcome).toMatchObject({ kind: 'complete', output: { kind: 'no-schema' } })
   })
 
+  it('absorbs a validator that throws: the output violates with the contract reason output-check-failed (O1, O3)', () => {
+    const check = (): OutputCheck => {
+      throw new Error('schema engine: unsupported keyword')
+    }
+    expect(classifyOutcome(answer, { issuedAt, outputSchema: schema, checkOutput: check })).toEqual(
+      {
+        kind: 'complete',
+        content: [],
+        structured: json({ n: 1 }),
+        output: { kind: 'violates', reason: 'output-check-failed' },
+      },
+    )
+  })
+
   it('does not call the validator for a tool error', () => {
     const { calls, check } = validator({ kind: 'conforms' })
     const failed = {

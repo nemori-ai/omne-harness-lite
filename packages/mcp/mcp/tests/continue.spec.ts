@@ -13,8 +13,10 @@ import {
   requestStateOf,
   type PeerReply,
 } from '@omne-harness/mcp-contract/testing'
+import { settled } from './doubles/deferred.ts'
 import { alice } from './doubles/identities.ts'
 import { completed, listing, peer, services, text } from './doubles/peer.ts'
+import { stallingAdoption } from './doubles/stalls.ts'
 import { adoptStdio, storedRecord } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
@@ -137,6 +139,47 @@ describe('continueWithInput (SPEC S2)', () => {
     const second = c.p.requests('tools/call')[1]
     expect(second?.params).toMatchObject({ requestState: 's1' })
     expect(second?.params).not.toHaveProperty('inputResponses')
+  })
+
+  it('is not sent when the build answers a later generation than the one given: unknown, and no call on the new generation', async () => {
+    const p = peer({
+      listing: { '': listing([{ name: 'read' }]) },
+      calls: { read: [ASKS, completed([text('done')])] },
+    })
+    adoptStdio(p, files)
+    const stored = await storedRecord(p, anonymousKey, ['read'])
+    const digest = stored.actions[0]?.definitionDigest
+    if (digest === undefined) throw new Error('no digest')
+    // Adoption reads: the first call's gate (1) and re-read (2); the continuation's gate (3) and
+    // re-read (4). The fourth is delivered only when the case lets it go.
+    const stalled = stallingAdoption(p.adoption, 4)
+    const { services: s, table } = services({ ...p, ports: { ...p.ports, adoption: stalled.port } })
+    const c = { p, digest, table, ...s }
+    const issuedAt = await asked(c, digest)
+    const [first] = table.currentOf(alice.tenant, files.holding)
+    if (first === undefined) throw new Error('no connection')
+    const continued = c.invoker.continueWithInput(
+      alice,
+      continuation(issuedAt, { requestState: requestStateOf('s1') }),
+    )
+    await settled()
+    // The generation check before the build passed; now the connection is lost under the re-read.
+    await table.lose(first.connection, first.generation, 'stream-broken', 'connection-unavailable')
+    stalled.gate.resolve()
+    expect(await continued).toEqual({ kind: 'not-sent', reason: { kind: 'unknown' } })
+    expect(p.opens()).toBe(2)
+    expect(p.requests('tools/call')).toHaveLength(1)
+    expect(await c.invoker.cancel(alice, c2)).toBe('unknown')
+  })
+
+  it('with neither the request state nor the input responses rejects with TypeError before any place is taken', async () => {
+    const c = await arranged()
+    const issuedAt = await asked(c, c.digest)
+    await expect(c.invoker.continueWithInput(alice, continuation(issuedAt))).rejects.toThrow(
+      TypeError,
+    )
+    expect(c.p.requests('tools/call')).toHaveLength(1)
+    expect(await c.invoker.cancel(alice, c2)).toBe('unknown')
   })
 
   it('rejects arguments that are not a JSON object with TypeError (R2)', async () => {

@@ -18,8 +18,10 @@ import {
   correlationKeyOf,
   credentialBindingOf,
   endpointRefOf,
+  generationOf,
   jsonOf,
   millisOf,
+  taskIdOf,
   type PeerReply,
   type PeerScript,
 } from '@omne-harness/mcp-contract/testing'
@@ -30,6 +32,7 @@ import { deferred, settled } from './doubles/deferred.ts'
 import { alice, type Principal } from './doubles/identities.ts'
 import { completed, listing, peer, services, taskHandle, text } from './doubles/peer.ts'
 import { silentAdoption, stallingLanding } from './doubles/stalls.ts'
+import { never, reshapedTransports } from './doubles/transports.ts'
 import { INVALID, MAIN, adoptHttp, adoptStdio, storedRecord } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
@@ -585,5 +588,120 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
       kind: 'progress',
       notification: { untrusted: { kind: 'object' } },
     })
+  })
+})
+
+describe('the call keeps its one exit whatever the peer or the host does (SPEC MC-16 step 13)', () => {
+  const throwing = () => {
+    throw new Error('schema engine: unsupported keyword')
+  }
+
+  it('a checkOutput that throws is absorbed: the call answers sent with violates (output-check-failed), the key is free again, and a task that follows is recorded', async () => {
+    const c = arrange(
+      {
+        listing: { '': listing([{ name: 'read', outputSchema: { type: 'object' } }]) },
+        calls: {
+          read: [completed([text('hi')], { structuredContent: { n: 1 } }), taskHandle('t1')],
+        },
+        tasks: { t1: { get: { kind: 'result', result: { taskId: 't1', status: 'working' } } } },
+      },
+      { ports: { checkOutput: throwing } },
+    )
+    const digest = await published(c)
+    expect(await c.invoker.invoke(alice, request(digest))).toMatchObject({
+      kind: 'sent',
+      outcome: {
+        kind: 'complete',
+        structured: jsonOf({ n: 1 }),
+        output: { kind: 'violates', reason: 'output-check-failed' },
+      },
+    })
+    expect(await c.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
+    expect(await c.invoker.invoke(alice, request(digest))).toMatchObject({
+      kind: 'sent',
+      outcome: { kind: 'task', taskId: 't1' },
+    })
+    expect(
+      await c.invoker.queryTask(alice, {
+        ref: files,
+        taskId: taskIdOf('t1'),
+        issuedAt: generationOf(1),
+      }),
+    ).toEqual({ ok: { status: 'working' } })
+    expect(await state(c)).toEqual({ kind: 'ready' })
+  })
+
+  it('a call that breaches its contract (T9) is sent with an unknown effect: unknown (abandoned), no cancel, the key has ended and is free again', async () => {
+    const base = peer({ listing: { '': TOOLS }, calls: { read: { kind: 'silent' } } })
+    adoptStdio(base, files)
+    let breached = 0
+    const transports = reshapedTransports(base.ports.transports, transport => ({
+      call: (request, signal, observe) => {
+        breached += 1
+        return breached === 1
+          ? Promise.reject(new Error('transport bug'))
+          : transport.call(request, signal, observe)
+      },
+    }))
+    const { services: s, table } = services({ ...base, ports: { ...base.ports, transports } })
+    const c = { p: base, table, ...s }
+    const digest = await published(c)
+    expect(await c.invoker.invoke(alice, request(digest))).toEqual({
+      kind: 'sent',
+      outcome: { kind: 'unknown', cause: 'abandoned' },
+    })
+    expect(base.cancels()).toBe(0)
+    expect(await c.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
+    expect(await state(c)).toEqual({ kind: 'ready' })
+    const next = c.invoker.invoke(alice, request(digest))
+    await settled()
+    expect(breached).toBe(2)
+    expect(await c.invoker.cancel(alice, c1)).toBe('signalled')
+    expect(await next).toEqual({ kind: 'sent', outcome: { kind: 'unknown', cause: 'abandoned' } })
+  })
+
+  it('a call sent on one generation, whose connection is lost and rebuilt before call returns: a later cancel answers unknown and tells no peer (MC-12)', async () => {
+    const gate = deferred<void>()
+    let calls = 0
+    const base = peer({ listing: { '': TOOLS }, calls: { read: { kind: 'silent' } } })
+    const transports = reshapedTransports(base.ports.transports, transport => ({
+      async call(request, signal, observe) {
+        const called = await transport.call(request, signal, observe)
+        calls += 1
+        if (calls !== 1 || 'failure' in called) return called
+        // The send is recorded only once the case lets `call` return; the answer never comes.
+        await gate.promise
+        return { ok: { requestId: called.ok.requestId, answer: never() } }
+      },
+    }))
+    adoptStdio(base, files)
+    const { services: s, table } = services({ ...base, ports: { ...base.ports, transports } })
+    const c = { p: base, table, ...s }
+    const digest = await published(c)
+    const [first] = table.currentOf(alice.tenant, files.holding)
+    if (first === undefined) throw new Error('no connection')
+    expect(first.generation).toBe(1)
+    const controller = new AbortController()
+    const call = c.invoker.invoke(alice, request(digest, { signal: controller.signal }))
+    await settled()
+    expect(base.requests('tools/call')).toHaveLength(1)
+    expect(
+      await table.lose(
+        first.connection,
+        first.generation,
+        'stream-broken',
+        'connection-unavailable',
+      ),
+    ).not.toBe('not-current')
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({ ok: {} })
+    const [second] = table.currentOf(alice.tenant, files.holding)
+    expect(second?.generation).toBe(2)
+    gate.resolve()
+    await settled()
+    await settled()
+    expect(await c.invoker.cancel(alice, c1)).toBe('unknown')
+    expect(base.cancels()).toBe(0)
+    controller.abort()
+    expect(await call).toEqual({ kind: 'sent', outcome: { kind: 'unknown', cause: 'abandoned' } })
   })
 })
