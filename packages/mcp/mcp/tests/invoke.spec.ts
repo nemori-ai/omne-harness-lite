@@ -11,6 +11,7 @@ import {
   type CatalogKey,
   type DefinitionDigest,
   type InvokeRequest,
+  type InvokeResult,
   type McpPorts,
 } from '@omne-harness/mcp-contract'
 import {
@@ -549,6 +550,35 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
       })
       expect(await state(c)).toMatchObject({ kind: 'lost', reason: cause })
       expect(c.p.cancels()).toBe(0)
+    },
+  )
+
+  it.each([
+    ['unsent', CONNECTION_UNAVAILABLE],
+    ['stream-breaks', { kind: 'sent', outcome: { kind: 'unknown', cause: 'stream-broken' } }],
+  ] as const)(
+    'a lost connection whose close() never answers: the call (%s) answers within a few turns, and the connection refuses requests at once (P14)',
+    async (reply, expected) => {
+      const base = peer({ listing: { '': TOOLS }, calls: { read: { kind: reply } } })
+      adoptStdio(base, files)
+      let closes = 0
+      const transports = reshapedTransports(base.ports.transports, () => ({
+        close: () => {
+          closes += 1
+          return never()
+        },
+      }))
+      const { services: s, table } = services({ ...base, ports: { ...base.ports, transports } })
+      const c = { p: base, table, ...s }
+      const digest = await published(c)
+      let answer: InvokeResult | 'pending' = 'pending'
+      void c.invoker.invoke(alice, request(digest)).then(result => {
+        answer = result
+      })
+      for (let turn = 0; turn < 5; turn += 1) await settled()
+      expect(answer).toEqual(expected)
+      expect(closes).toBe(1)
+      expect(await state(c)).toMatchObject({ kind: 'lost' })
     },
   )
 

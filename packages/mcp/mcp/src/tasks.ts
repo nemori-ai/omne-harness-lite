@@ -18,7 +18,7 @@ import {
 import type { TaskAnswer, TransportFailure } from '@omne-harness/mcp-contract/provider'
 import type { Ensured, EnsureFailure } from './internal/entry.ts'
 import { decideForUse, type UseGate } from './internal/guard.ts'
-import { connectionFailureOf, loseOn, lostOfNoAnswer, lostOfNotSent } from './internal/lost.ts'
+import { connectionFailureOf, loseInScope, lostOfNoAnswer, lostOfNotSent } from './internal/lost.ts'
 import { ask, within } from './internal/port.ts'
 import { prepareSettings } from './internal/settings.ts'
 import type { TaskKey, TaskRecord } from './internal/task-table.ts'
@@ -115,16 +115,17 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
   /**
    * The failure of a task request (S2, R7): `not-sent` is the connection failure, `no-answer` is
    * `effect-unknown` with the same cause, a JSON-RPC error and an unreadable answer are passed on.
-   * A transport answer that says the connection is gone goes to the table first (S7).
+   * A transport answer that says the connection is gone goes to the table first (S7); its teardown
+   * goes on in the table's scope.
    */
-  async function failureOf(ensured: Ensured, failure: TransportFailure): Promise<OperationFailure> {
+  function failureOf(ensured: Ensured, failure: TransportFailure): OperationFailure {
     switch (failure.kind) {
       case 'not-sent':
-        await loseOn(table, ensured, lostOfNotSent(failure))
+        loseInScope(table, ensured, lostOfNotSent(failure))
         return connectionFailureOf(failure)
       case 'no-answer': {
         const lost = lostOfNoAnswer(failure.cause)
-        if (lost !== undefined) await loseOn(table, ensured, lost)
+        if (lost !== undefined) loseInScope(table, ensured, lost)
         return { kind: 'effect-unknown', cause: failure.cause }
       }
       case 'error-answer':
@@ -159,7 +160,7 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
     const asked = ask(() => send(on), ABANDONED)
     const answered = await within(asked, startBound(ensured.bound, 'task'), scope)
     const answer = answered.kind === 'answered' ? answered.value : ABANDONED
-    if ('failure' in answer) return fail(await failureOf(ensured, answer.failure))
+    if ('failure' in answer) return fail(failureOf(ensured, answer.failure))
     return succeed(read(on, answer.ok))
   }
 

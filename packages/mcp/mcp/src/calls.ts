@@ -32,7 +32,7 @@ import { admitForUse, type UseGate } from './internal/guard.ts'
 import type { CallPhase, InFlightKey } from './internal/in-flight.ts'
 import {
   connectionFailureOf,
-  loseOn,
+  loseInScope,
   lostOfNoAnswer,
   lostOfNotSent,
   type NotSent,
@@ -229,15 +229,16 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
 
   /**
    * Step 9: a call the transport did not send. A transport answering the stop signal that fired
-   * is a cancel before the send, not a lost connection (T5); otherwise the connection is gone (S7).
+   * is a cancel before the send, not a lost connection (T5); otherwise the connection is gone (S7)
+   * and its teardown goes on in the table's scope.
    */
-  async function notSentBy(ensured: Ensured, failure: NotSent, stop: AbortSignal): Promise<void> {
+  function notSentBy(ensured: Ensured, failure: NotSent, stop: AbortSignal): void {
     if (failure.cause === 'connection-unavailable' && stop.aborted) return
-    await loseOn(table, ensured, lostOfNotSent(failure))
+    loseInScope(table, ensured, lostOfNotSent(failure))
   }
 
   /** Step 12: the outcome of the answer (O1–O6); a lost connection and a task go to their tables. */
-  async function outcomeOf(on: Sent<P>, answer: PeerAnswer): Promise<CallOutcome> {
+  function outcomeOf(on: Sent<P>, answer: PeerAnswer): CallOutcome {
     const { outputSchema } = on.known.lastLawful
     const outcome = classifyOutcome(answer, {
       issuedAt: on.ensured.generation,
@@ -245,7 +246,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       checkOutput: ports.checkOutput,
     })
     const lost = outcome.kind === 'unknown' ? lostOfNoAnswer(outcome.cause) : undefined
-    if (lost !== undefined) await loseOn(table, on.ensured, lost)
+    if (lost !== undefined) loseInScope(table, on.ensured, lost)
     if (outcome.kind === 'task')
       tasks.record(
         {
@@ -278,7 +279,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       scope.spawn(ask(() => on.ensured.transport.cancelRequest(requestId), undefined))
       return sent(UNKNOWN_ABANDONED)
     }
-    return sent(await outcomeOf(on, waited.value))
+    return sent(outcomeOf(on, waited.value))
   }
 
   /**
@@ -310,7 +311,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
         return sent(UNKNOWN_ABANDONED)
       }
       if ('failure' in called) {
-        await notSentBy(ensured, called.failure, stop)
+        notSentBy(ensured, called.failure, stop)
         return unsent(connectionFailureOf(called.failure))
       }
       phase = 'sent'
