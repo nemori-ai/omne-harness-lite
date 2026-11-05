@@ -5,7 +5,16 @@
 import assert from 'node:assert/strict'
 import type { Outcome } from '@omne-harness/operation-result'
 import { isTaskId, type TaskId } from './brands.ts'
+import {
+  CLIENT_CAPABILITIES_KEY,
+  CLIENT_INFO_KEY,
+  LOG_LEVEL_KEY,
+  PROTOCOL_VERSION_KEY,
+  SERVER_INFO_KEY,
+  TASKS_EXTENSION,
+} from './envelope.ts'
 import { boundInstructions } from './instructions.ts'
+import type { PlainJson } from './plain.ts'
 import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
 import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
 import {
@@ -34,13 +43,7 @@ import type {
 } from './transport.ts'
 
 /** JSON as plain data, so that a script can travel to a fixture in another process. */
-export type PlainJson =
-  | string
-  | number
-  | boolean
-  | null
-  | readonly PlainJson[]
-  | Readonly<{ [key: string]: PlainJson }>
+export type { PlainJson } from './plain.ts'
 
 /**
  * A notification the peer sends before it answers a request. When `params` has no
@@ -188,12 +191,14 @@ export type TransportFixture = Readonly<{
   peer(script: ScriptSource, needs: PeerNeeds): Promise<ScriptedPeer>
 }>
 
-export const PROTOCOL_VERSION_KEY = 'io.modelcontextprotocol/protocolVersion'
-export const CLIENT_CAPABILITIES_KEY = 'io.modelcontextprotocol/clientCapabilities'
-export const CLIENT_INFO_KEY = 'io.modelcontextprotocol/clientInfo'
-export const SERVER_INFO_KEY = 'io.modelcontextprotocol/serverInfo'
-export const LOG_LEVEL_KEY = 'io.modelcontextprotocol/logLevel'
-export const TASKS_EXTENSION = 'io.modelcontextprotocol/tasks'
+export {
+  CLIENT_CAPABILITIES_KEY,
+  CLIENT_INFO_KEY,
+  LOG_LEVEL_KEY,
+  PROTOCOL_VERSION_KEY,
+  SERVER_INFO_KEY,
+  TASKS_EXTENSION,
+} from './envelope.ts'
 
 type Case = ConformanceCase<TransportFixture>
 type Body<T> = (peer: ScriptedPeer, transport: McpTransport) => Promise<T>

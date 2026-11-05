@@ -12,18 +12,24 @@
 
 ## 定义索引
 
-| 定义                                                                   | 源码                                      | SPEC 条款          |
-| ---------------------------------------------------------------------- | ----------------------------------------- | ------------------ |
-| 品牌与守卫                                                             | [brands.ts](../src/brands.ts)             | V1–V3              |
-| 组合值、`Untrusted`                                                    | [values.ts](../src/values.ts)             | V4、K1–K3          |
-| `parseEndpointBody`、`launchesLocalCommand`、`mcpEndpointBodyContract` | [endpoint.ts](../src/endpoint.ts)         | E1–E6              |
-| `completeListing`、`digestDefinition`                                  | [listing.ts](../src/listing.ts)           | C1–C4              |
-| `mergeListing`、`markUnavailable`、`actionPermissionItems`             | [catalog.ts](../src/catalog.ts)           | C5–C8              |
-| `classifyOutcome`                                                      | [classify.ts](../src/classify.ts)         | O1–O6              |
-| `toContentBlocks`                                                      | [content.ts](../src/content.ts)           | D1–D5              |
-| `boundInstructions`                                                    | [instructions.ts](../src/instructions.ts) | S3                 |
-| `peerAccountOf`、`catalogKeyOf`、`connectionKeyOf`                     | [keys.ts](../src/keys.ts)                 | K1–K3              |
-| 结局、拒绝与失败                                                       | [outcomes.ts](../src/outcomes.ts)         | R1–R6              |
-| 五个需求端口                                                           | [ports.ts](../src/ports.ts)               | AV、UE、CU、PL、CS |
-| 传输端口                                                               | [transport.ts](../src/transport.ts)       | T1–T6              |
-| 五个服务接口                                                           | [services.ts](../src/services.ts)         | S1–S8              |
+| 定义                                                                                                                                   | 源码                                        | SPEC 条款          |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------------------ |
+| 品牌与守卫                                                                                                                             | [brands.ts](../src/brands.ts)               | V1–V3              |
+| 组合值、`Untrusted`                                                                                                                    | [values.ts](../src/values.ts)               | V4、K1–K3          |
+| `parseEndpointBody`、`launchesLocalCommand`、`mcpEndpointBodyContract`                                                                 | [endpoint.ts](../src/endpoint.ts)           | E1–E6              |
+| `completeListing`、`digestDefinition`                                                                                                  | [listing.ts](../src/listing.ts)             | C1–C4              |
+| `mergeListing`、`markUnavailable`、`actionPermissionItems`                                                                             | [catalog.ts](../src/catalog.ts)             | C5–C8              |
+| `classifyOutcome`                                                                                                                      | [classify.ts](../src/classify.ts)           | O1–O6              |
+| `toContentBlocks`                                                                                                                      | [content.ts](../src/content.ts)             | D1–D5              |
+| `boundInstructions`                                                                                                                    | [instructions.ts](../src/instructions.ts)   | S3                 |
+| `peerAccountOf`、`catalogKeyOf`、`connectionKeyOf`                                                                                     | [keys.ts](../src/keys.ts)                   | K1–K3              |
+| `classifyWireEvent`、`PROCESS_EXIT_WINDOW_MS`                                                                                          | [wire.ts](../src/wire.ts)                   | T2、T8             |
+| `clientEnvelopeOf`、`mcpRequestHeadersOf`                                                                                              | [envelope.ts](../src/envelope.ts)           | T3                 |
+| `withheldTools`                                                                                                                        | [withheld.ts](../src/withheld.ts)           | T2                 |
+| `authorizationChallengeOf`、`metadataCandidatesOf`、`authorizationDiscoveryOf`                                                         | [authorization.ts](../src/authorization.ts) | R4、T4             |
+| `readDiscoverResult`、`readInitializeResult`、`peerIdentityOf`、`readListingPage`、`readTaskReport`、`readTaskAnswer`、`errorAnswerOf` | [readers.ts](../src/readers.ts)             | T2、T3、T6、T7     |
+| `PlainJson`、`PlainRecord`                                                                                                             | [plain.ts](../src/plain.ts)                 | —                  |
+| 结局、拒绝与失败                                                                                                                       | [outcomes.ts](../src/outcomes.ts)           | R1–R6              |
+| 五个需求端口                                                                                                                           | [ports.ts](../src/ports.ts)                 | AV、UE、CU、PL、CS |
+| 传输端口                                                                                                                               | [transport.ts](../src/transport.ts)         | T1–T6              |
+| 五个服务接口                                                                                                                           | [services.ts](../src/services.ts)           | S1–S8              |

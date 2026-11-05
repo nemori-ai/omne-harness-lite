@@ -3,7 +3,13 @@
 // the outcome. The function is pure and total: every event gets one classification.
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
-import { isLegacyProtocolVersion, isModernProtocolVersion } from './revisions.ts'
+import {
+  readDiscoverResult,
+  readInitializeResult,
+  readListingPage,
+  readTaskReport,
+} from './readers.ts'
+import { isModernProtocolVersion } from './revisions.ts'
 
 /**
  * The request classes. `discover` is the first `server/discover` of a connection; `discover-retry`
@@ -108,12 +114,14 @@ export const PROCESS_EXIT_WINDOW_MS = 100
  * - `line`: one line that stdio delivered.
  * - `stdio-ended`: stdout ended, the root process exited, or both; the times are milliseconds on
  *   one clock, and at least one is present.
- * - `http-aborted`: the HTTP exchange failed after the request started to go out and before the
- *   answer head came (reset, timeout).
+ * - `http-aborted`: the HTTP exchange failed after the request started to go out: before the
+ *   answer head came (reset, timeout), or while a 2xx body was being read and before it ended.
+ *   In the legacy HTTP+SSE mode the end of the shared stream is this event for every request in
+ *   flight.
  * - `http-status`: an answer whose status is not 2xx, with its headers by lower-case name and the
  *   whole body.
  * - `http-stream`: a 2xx answer: the JSON-RPC messages read so far (the JSON body, or the data of
- *   each SSE event), and whether the body ended.
+ *   each SSE event), and whether the body ended as the peer meant it to.
  */
 export type WireEvent =
   | Readonly<{ kind: 'unsent' }>
@@ -131,13 +139,17 @@ export type WireEvent =
 
 /**
  * The request an event is classified for: its JSON-RPC id, its class, and whether it carried the
- * legacy session id. `versions` are the modern versions the transport speaks.
+ * legacy session (the `Mcp-Session-Id` header, or the endpoint of the legacy HTTP+SSE mode).
+ * `versions` are the modern versions the transport speaks. `mode` is `sse` in the legacy HTTP+SSE
+ * mode (SPEC T3): there a 2xx POST body ends with no answer as a matter of course, because the
+ * answer comes on the shared stream.
  */
 export type WireContext = Readonly<{
   id: string | number
   request: RequestClass
   session: boolean
   versions: readonly string[]
+  mode?: 'sse'
 }>
 
 /**
@@ -161,13 +173,6 @@ const LIMITS = {
 } as const
 
 const INTEGER = /^-?\d+$/u
-const TASK_STATUSES: readonly string[] = [
-  'working',
-  'input_required',
-  'completed',
-  'failed',
-  'cancelled',
-]
 const STATUS_CLASSES: Readonly<{ [status: number]: HttpStatusClass }> = {
   400: '400',
   404: '404',
@@ -253,29 +258,20 @@ export function resultClassOf(
   switch (request) {
     case 'discover':
     case 'discover-retry': {
-      const offered = isObject(result) ? itemsOf(member(result, 'supportedVersions')) : undefined
-      if (!isObject(result) || offered === undefined || !isObject(member(result, 'capabilities')))
-        return 'result:unreadable'
-      const texts = offered.flatMap(item => (item.kind === 'string' ? [item.value] : []))
-      return versions.some(version => texts.includes(version)) ? 'result' : 'result:no-common'
+      const read = readDiscoverResult(result, versions)
+      if ('ok' in read) return 'result'
+      return read.failure === 'no-common-version' ? 'result:no-common' : 'result:unreadable'
     }
-    case 'initialize': {
-      const version = isObject(result) ? textOf(member(result, 'protocolVersion')) : undefined
-      const readable =
-        isObject(result) &&
-        version !== undefined &&
-        isLegacyProtocolVersion(version) &&
-        isObject(member(result, 'capabilities'))
-      return readable ? 'result' : 'result:unreadable'
-    }
+    case 'initialize':
+      return 'ok' in readInitializeResult(result) ? 'result' : 'result:unreadable'
     case 'tools/list': {
-      if (!isObject(result) || itemsOf(member(result, 'tools')) === undefined)
-        return 'result:tools-missing'
-      const cursor = member(result, 'nextCursor')
-      return cursor === undefined || cursor.kind === 'string' ? 'result' : 'result:cursor-invalid'
+      const read = readListingPage(result, false)
+      return 'ok' in read ? 'result' : `result:${read.failure}`
     }
-    case 'tasks/get':
-      return taskResultClassOf(result)
+    case 'tasks/get': {
+      const read = readTaskReport(result)
+      return 'ok' in read ? 'result' : `result:${read.failure}`
+    }
     case 'tools/call':
     case 'tasks/update':
     case 'tasks/cancel':
@@ -286,25 +282,6 @@ export function resultClassOf(
       return exhaustive
     }
   }
-}
-
-function taskResultClassOf(result: JsonValue): ResultClass {
-  if (!isObject(result)) return 'result:status-unknown'
-  const taskId = textOf(member(result, 'taskId'))
-  const status = textOf(member(result, 'status'))
-  if (
-    taskId === undefined ||
-    taskId === '' ||
-    status === undefined ||
-    !TASK_STATUSES.includes(status)
-  )
-    return 'result:status-unknown'
-  if (status === 'input_required' && !isObject(member(result, 'inputRequests')))
-    return 'result:input-requests-missing'
-  if (status === 'completed' && member(result, 'result') === undefined)
-    return 'result:result-missing'
-  if (status === 'failed' && !isObject(member(result, 'error'))) return 'result:error-missing'
-  return 'result'
 }
 
 /** A message that answers the request: its envelope decides the class; a bad envelope is unreadable. */
@@ -349,10 +326,12 @@ function httpStatusOf(
 }
 
 /**
- * Puts one wire event into its T8 answer class for one request (SPEC T2, T8). A non-JSON stdio
- * line breaks the stream. A line or a 2xx message that carries the request's id and no method is
- * the answer; its envelope and content decide the class. When stdout ended and the process
- * exited, the exit is the cause when it came within `PROCESS_EXIT_WINDOW_MS` after stdout ended.
+ * Puts one wire event into its T8 answer class for one request (SPEC T2, T8). A stdio line that
+ * is not JSON is dropped (`other`); the stream goes on. A line or a 2xx message that carries the
+ * request's id and no method is the answer; its envelope and content decide the class. When stdout
+ * ended and the process exited, the exit is the cause when it came within `PROCESS_EXIT_WINDOW_MS`
+ * after stdout ended. In the legacy HTTP+SSE mode a 2xx body that ended with no answer is still
+ * `waiting`: the answer comes on the shared stream.
  */
 export function classifyWireEvent(event: WireEvent, context: WireContext): WireClassification {
   switch (event.kind) {
@@ -362,8 +341,7 @@ export function classifyWireEvent(event: WireEvent, context: WireContext): WireC
       return answer('silent')
     case 'line': {
       const message = parse(event.text)
-      if (message === undefined) return answer('stream-broken')
-      return answers(message, context)
+      return message !== undefined && answers(message, context)
         ? answer(messageClassOf(message, context))
         : { kind: 'other' }
     }
@@ -383,7 +361,7 @@ export function classifyWireEvent(event: WireEvent, context: WireContext): WireC
         const message = parse(text)
         if (answers(message, context)) return answer(messageClassOf(message, context))
       }
-      return event.ended ? answer('http:2xx') : { kind: 'waiting' }
+      return event.ended && context.mode !== 'sse' ? answer('http:2xx') : { kind: 'waiting' }
     }
     default: {
       const exhaustive: never = event

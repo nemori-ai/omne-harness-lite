@@ -13,6 +13,11 @@
 - [provider.ts](provider.ts)：`./provider` 入口，端口与传输的类型
 - [revisions.ts](revisions.ts)：旧一路接受的协议修订 `LEGACY_PROTOCOL_VERSIONS`（T3）
 - [wire.ts](wire.ts)：应答类别与线上事件的归类函数 `classifyWireEvent`（T2、T8）
+- [plain.ts](plain.ts)：`PlainJson`、`PlainRecord` 与它们的守卫，脚本与请求体的普通 JSON 形
+- [envelope.ts](envelope.ts)：每请求 `_meta` 的键、`clientEnvelopeOf` 与 MCP 请求头 `mcpRequestHeadersOf`（T3）
+- [withheld.ts](withheld.ts)：`x-mcp-header` 声明不合法的工具的剔除 `withheldTools`（T2）
+- [authorization.ts](authorization.ts)：`WWW-Authenticate` 参数、元数据地址次序与授权发现的组装（R4、T4）
+- [readers.ts](readers.ts)：探测、`initialize`、`tools/list`、`tasks/get` 结果与错误对象的读法（T2、T3、T6、T7）
 - [testing.ts](testing.ts)：`./testing` 入口，套件、替身与样本构造器
 - [testing-transport.ts](testing-transport.ts)：传输符合性套件与夹具接口（`TransportFixture`、`PeerScript`）
 - [testing-transport-table.ts](testing-transport-table.ts)：传输决策表 T8 的数据形式与输入域

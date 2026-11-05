@@ -263,8 +263,31 @@ describe('the envelope of an answer (T2)', () => {
       })
   })
 
-  it('breaks the stdio stream on a line that is not JSON', () => {
-    expect(classifyWireEvent({ kind: 'line', text: 'Listening on stdio' }, discover)).toEqual({
+  it('drops a stdio line that is not JSON and keeps the stream (F4: not stricter than the SDK)', () => {
+    for (const text of [
+      'Listening on stdio',
+      '',
+      '﻿{"jsonrpc":"2.0","id":7,"result":{}}',
+      '{"jsonrpc":"2.0","id":7,"result":{},"result":{}}',
+      '{"jsonrpc":"2.0","id":7,"result":{}',
+    ])
+      expect(classifyWireEvent({ kind: 'line', text }, discover), JSON.stringify(text)).toEqual({
+        kind: 'other',
+      })
+  })
+
+  it('in the legacy HTTP+SSE mode a 2xx body that ended with no answer is still waiting', () => {
+    const sse: WireContext = { ...context('tools/list'), mode: 'sse' }
+    expect(classifyWireEvent({ kind: 'http-stream', messages: [], ended: true }, sse)).toEqual({
+      kind: 'waiting',
+    })
+    expect(
+      classifyWireEvent(
+        { kind: 'http-stream', messages: [answer({ result: { tools: [] } })], ended: false },
+        sse,
+      ),
+    ).toEqual({ kind: 'answer', answer: 'result' })
+    expect(classifyWireEvent({ kind: 'http-aborted' }, sse)).toEqual({
       kind: 'answer',
       answer: 'stream-broken',
     })

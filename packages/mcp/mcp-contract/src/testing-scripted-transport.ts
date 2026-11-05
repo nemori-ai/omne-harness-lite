@@ -4,37 +4,39 @@
 // the peer received. It does not speak a protocol and is not a product transport.
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
-import { isProtocolVersion, type Generation, type TaskId } from './brands.ts'
-import { countOf, taskHintsOf } from './classify.ts'
-import { boundInstructions } from './instructions.ts'
-import { isObject, itemsOf, member, textOf } from './json.ts'
+import type { Generation, TaskId } from './brands.ts'
+import {
+  authorizationChallengeOf,
+  authorizationDiscoveryOf,
+  metadataCandidatesOf,
+} from './authorization.ts'
+import { clientEnvelopeOf, mcpRequestHeadersOf, type ClientInfo } from './envelope.ts'
+import { isObject, itemsOf, member } from './json.ts'
 import type {
   AnswerMalformed,
   AuthorizationDiscovery,
   NoAnswerCause,
   PeerAnswer,
   TaskReport,
-  TaskStatus,
 } from './outcomes.ts'
+import { isPlainJson, isPlainRecord, type PlainJson, type PlainRecord } from './plain.ts'
 import type { HttpCredentialHandle } from './ports.ts'
 import {
-  LEGACY_PROTOCOL_VERSIONS,
-  isLegacyProtocolVersion,
-  isModernProtocolVersion,
-} from './revisions.ts'
-import {
-  CLIENT_CAPABILITIES_KEY,
-  CLIENT_INFO_KEY,
-  PROTOCOL_VERSION_KEY,
-  SERVER_INFO_KEY,
-  TASKS_EXTENSION,
-  type PeerNotificationScript,
-  type PeerReceived,
-  type PeerReply,
-  type PeerRequestHeaders,
-  type PeerScript,
-  type PlainJson,
-  type Replies,
+  errorAnswerOf,
+  peerIdentityOf,
+  readDiscoverResult,
+  readInitializeResult,
+  readListingPage,
+  readTaskAnswer,
+  readTaskReport,
+} from './readers.ts'
+import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
+import type {
+  PeerNotificationScript,
+  PeerReceived,
+  PeerReply,
+  PeerScript,
+  Replies,
 } from './testing-transport.ts'
 import { jsonOf } from './testing-values.ts'
 import type {
@@ -48,7 +50,7 @@ import type {
   TransportFailure,
   TransportMaterial,
 } from './transport.ts'
-import type { PeerIdentity, Untrusted } from './values.ts'
+import type { PeerIdentity } from './values.ts'
 
 export type ScriptedTransportOptions = Readonly<{
   /**
@@ -70,38 +72,13 @@ export type ScriptedTransportFactory = McpTransportFactory &
     received(): readonly PeerReceived[]
   }>
 
-type PlainRecord = Readonly<{ [key: string]: PlainJson }>
 type Request = Extract<PeerReceived, { kind: 'request' }>
 
 const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
 const MODERN_ERROR_CODES: readonly number[] = [-32022, -32021, -32020]
 const METHOD_NOT_FOUND = -32601
 const READ_METHODS: readonly string[] = ['server/discover', 'tools/list', 'tasks/get']
-const TASK_STATUSES: readonly TaskStatus[] = [
-  'working',
-  'input_required',
-  'completed',
-  'failed',
-  'cancelled',
-]
-const CLIENT_CAPABILITIES: PlainJson = {
-  elicitation: { form: {} },
-  extensions: { [TASKS_EXTENSION]: {} },
-}
-/**
- * The capabilities on a legacy revision: none. A legacy capability makes the peer send requests
- * to the client, and the client refuses them.
- */
-const LEGACY_CAPABILITIES: PlainJson = {}
-/** The requests whose `Mcp-Name` header carries a parameter, and that parameter. */
-const MCP_NAME_SOURCES: Readonly<{ [method: string]: string }> = {
-  'tools/call': 'name',
-  'tasks/get': 'taskId',
-  'tasks/update': 'taskId',
-  'tasks/cancel': 'taskId',
-}
-const METADATA_PATH = '/.well-known/oauth-protected-resource'
-const INTEGER = /^-?\d+$/u
+const DEFAULT_CLIENT_INFO: ClientInfo = { name: 'scripted-transport', version: '0' }
 
 type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
 const notSent: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
@@ -109,18 +86,6 @@ const malformed = (what: AnswerMalformed['what']): TransportFailure => ({
   kind: 'answer-malformed',
   what,
 })
-
-function isPlainJson(value: unknown): value is PlainJson {
-  if (value === null || typeof value === 'string' || typeof value === 'number') return true
-  if (typeof value === 'boolean') return true
-  if (Array.isArray(value)) return value.every(isPlainJson)
-  if (typeof value !== 'object') return false
-  return Object.values(value).every(isPlainJson)
-}
-
-function isPlainRecord(value: PlainJson | undefined): value is PlainRecord {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 /** The plain form of a JSON tree. */
 function plainOf(value: JsonValue): PlainJson {
@@ -267,23 +232,6 @@ class Deferred<T> {
   }
 }
 
-function errorOf(
-  error: JsonValue,
-): Extract<TransportFailure, { kind: 'error-answer' }> | undefined {
-  if (!isObject(error)) return undefined
-  const code = member(error, 'code')
-  const message = textOf(member(error, 'message'))
-  if (code?.kind !== 'number' || !INTEGER.test(code.lexeme) || message === undefined)
-    return undefined
-  const data = member(error, 'data')
-  return {
-    kind: 'error-answer',
-    code: Number(code.lexeme),
-    message,
-    ...(data === undefined ? {} : { data }),
-  }
-}
-
 /** Reads an answer to a non-call request with the reader of that request. */
 function interpret<T>(
   wire: Wire,
@@ -293,7 +241,7 @@ function interpret<T>(
     case 'result':
       return read(wire.result)
     case 'error': {
-      const answer = errorOf(wire.error)
+      const answer = errorAnswerOf(wire.error)
       return answer === undefined ? { failure: malformed('error-shape') } : { failure: answer }
     }
     case 'no-answer':
@@ -312,154 +260,23 @@ function interpret<T>(
   }
 }
 
-function readTask(result: JsonValue): Outcome<TaskReport | 'expired', TransportFailure> {
-  if (!isObject(result)) return { failure: malformed('status-unknown') }
-  const written = textOf(member(result, 'status'))
-  const status = TASK_STATUSES.find(known => known === written)
-  const taskId = textOf(member(result, 'taskId'))
-  if (status === undefined || taskId === undefined || taskId === '')
-    return { failure: malformed('status-unknown') }
-  const inputRequests = member(result, 'inputRequests')
-  if (status === 'input_required' && !isObject(inputRequests))
-    return { failure: malformed('input-requests-missing') }
-  if (status === 'completed' && member(result, 'result') === undefined)
-    return { failure: malformed('result-missing') }
-  if (status === 'failed' && !isObject(member(result, 'error')))
-    return { failure: malformed('error-missing') }
-  const report: TaskReport = {
-    status,
-    ...(status === 'input_required' && inputRequests !== undefined
-      ? { inputRequests: { untrusted: inputRequests } }
-      : {}),
-    ...taskHintsOf(result),
+/** A reader of the contract as a reader of the transport: its defect is the `what` of T7. */
+function reading<T, W extends AnswerMalformed['what']>(
+  read: (result: JsonValue) => Outcome<T, W>,
+): (result: JsonValue) => Outcome<T, TransportFailure> {
+  return result => {
+    const outcome = read(result)
+    return 'ok' in outcome ? outcome : { failure: malformed(outcome.failure) }
   }
-  return { ok: report }
 }
 
-function readTaskAnswer(result: JsonValue): Outcome<TaskAnswer, TransportFailure> {
-  const report = readTask(result)
-  if ('failure' in report) return report
-  if (report.ok === 'expired' || !isObject(result)) return { ok: { kind: 'expired' } }
-  switch (report.ok.status) {
-    case 'completed': {
-      const value = member(result, 'result')
-      return value === undefined
-        ? { failure: malformed('result-missing') }
-        : { ok: { kind: 'finished', answer: { kind: 'result', result: value } } }
-    }
-    case 'failed': {
-      const error = member(result, 'error')
-      return error === undefined
-        ? { failure: malformed('error-missing') }
-        : { ok: { kind: 'finished', answer: { kind: 'error', error } } }
-    }
-    case 'cancelled':
-      return { ok: { kind: 'cancelled' } }
-    case 'working':
-    case 'input_required':
-      return { ok: { kind: 'not-finished' } }
-    default: {
-      const exhaustive: never = report.ok.status
-      return exhaustive
-    }
-  }
-}
+const readTask = reading(readTaskReport)
+const readAnswer = reading(readTaskAnswer)
 
 /** `expired` for the `-32602` error of a task operation that reads a task. */
 function expiredOf<T>(wire: Wire): Outcome<T | 'expired', TransportFailure> | undefined {
   if (wire.kind !== 'error') return undefined
-  return errorOf(wire.error)?.code === -32602 ? { ok: 'expired' } : undefined
-}
-
-const RFC9110_TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/u
-const HEADER_TYPES: readonly string[] = ['string', 'integer', 'boolean']
-const NON_REACHABLE: readonly string[] = [
-  'items',
-  'prefixItems',
-  'contains',
-  'additionalProperties',
-  'unevaluatedProperties',
-  'unevaluatedItems',
-  'propertyNames',
-  'patternProperties',
-  'dependentSchemas',
-  'oneOf',
-  'anyOf',
-  'allOf',
-  'not',
-  'if',
-  'then',
-  'else',
-  '$defs',
-  'definitions',
-]
-const NAMED_SUBSCHEMAS: readonly string[] = [
-  'patternProperties',
-  'dependentSchemas',
-  '$defs',
-  'definitions',
-]
-
-/** True when a schema breaks an `x-mcp-header` constraint of SEP-2243. */
-function headerDeclarationInvalid(
-  node: JsonValue | undefined,
-  reachable: boolean,
-  depth: number,
-  seen: Set<string>,
-): boolean {
-  if (!isObject(node)) return false
-  const raw = member(node, 'x-mcp-header')
-  if (raw !== undefined) {
-    const name = textOf(raw)
-    const type = textOf(member(node, 'type'))
-    if (!reachable || depth === 0 || name === undefined || !RFC9110_TOKEN.test(name)) return true
-    if (type === undefined || !HEADER_TYPES.includes(type)) return true
-    const lower = name.toLowerCase()
-    if (seen.has(lower)) return true
-    seen.add(lower)
-  }
-  const properties = member(node, 'properties')
-  if (isObject(properties))
-    for (const entry of properties.entries)
-      if (headerDeclarationInvalid(entry.value, reachable, depth + 1, seen)) return true
-  for (const keyword of NON_REACHABLE) {
-    const sub = member(node, keyword)
-    if (sub === undefined) continue
-    const branches =
-      itemsOf(sub) ??
-      (isObject(sub) && NAMED_SUBSCHEMAS.includes(keyword)
-        ? sub.entries.map(entry => entry.value)
-        : [sub])
-    for (const branch of branches)
-      if (headerDeclarationInvalid(branch, false, depth + 1, seen)) return true
-  }
-  return false
-}
-
-function withheldOf(tools: readonly JsonValue[]): ListingPage {
-  const kept: JsonValue[] = []
-  const withheld: Readonly<{ name: Untrusted<string>; reason: 'header-invalid' }>[] = []
-  for (const tool of tools) {
-    const schema = isObject(tool) ? member(tool, 'inputSchema') : undefined
-    if (headerDeclarationInvalid(schema, true, 0, new Set()))
-      withheld.push({
-        name: { untrusted: (isObject(tool) ? textOf(member(tool, 'name')) : undefined) ?? '' },
-        reason: 'header-invalid',
-      })
-    else kept.push(tool)
-  }
-  return withheld.length === 0 ? { tools: kept } : { tools: kept, withheld }
-}
-
-/** The `WWW-Authenticate` parameters of a Bearer challenge, by name. */
-function challengeOf(header: string | null): ReadonlyMap<string, string> {
-  const parameters = new Map<string, string>()
-  if (header === null) return parameters
-  for (const match of header.matchAll(/([A-Za-z_]+)="([^"]*)"/gu)) {
-    if (match[1] !== undefined && match[2] !== undefined)
-      parameters.set(match[1].toLowerCase(), match[2])
-  }
-  return parameters
+  return errorAnswerOf(wire.error)?.code === -32602 ? { ok: 'expired' } : undefined
 }
 
 /** The error object of an HTTP body that is a JSON-RPC error response, or undefined. */
@@ -486,7 +303,7 @@ function refusesAuthorization(status: number, challenge: ReadonlyMap<string, str
 /** The JSON-RPC error of a modern-revision code in an HTTP body, or undefined. */
 function modernErrorOf(body: string | undefined): JsonValue | undefined {
   const error = jsonRpcErrorOf(body)
-  const code = error === undefined ? undefined : errorOf(error)?.code
+  const code = error === undefined ? undefined : errorAnswerOf(error)?.code
   return code !== undefined && MODERN_ERROR_CODES.includes(code) ? error : undefined
 }
 
@@ -505,7 +322,7 @@ function probeAnswerOf(reply: Extract<PeerReply, { kind: 'http' }>): Wire {
  * An HTTP error status to any other request (T8): a JSON-RPC error in the body is the answer; a
  * 5xx without one is a server error; a 4xx without one did not take effect.
  */
-function errorAnswerOf(reply: Extract<PeerReply, { kind: 'http' }>): Wire {
+function httpErrorAnswerOf(reply: Extract<PeerReply, { kind: 'http' }>): Wire {
   const error = jsonRpcErrorOf(reply.body)
   if (error !== undefined) return { kind: 'error', error }
   return reply.status >= 500 ? { kind: 'server-error' } : { kind: 'not-sent', failure: notSent }
@@ -517,27 +334,6 @@ function supportedOf(data: JsonValue | undefined): readonly string[] | undefined
   if (items === undefined || items.length === 0) return undefined
   const texts = items.flatMap(item => (item.kind === 'string' ? [item.value] : []))
   return texts.length === items.length ? texts : undefined
-}
-
-/** The MCP request headers of a Streamable HTTP request (T3), with the legacy session if any. */
-function headersOf(
-  method: string,
-  params: PlainRecord,
-  version: string,
-  session: string | undefined,
-): PeerRequestHeaders {
-  const source = MCP_NAME_SOURCES[method]
-  const name = source === undefined ? undefined : params[source]
-  return {
-    'mcp-protocol-version': version,
-    'mcp-method': method,
-    ...(typeof name === 'string' ? { 'mcp-name': name } : {}),
-    ...(session === undefined || method === 'initialize' ? {} : { 'mcp-session-id': session }),
-  }
-}
-
-function stringsOf(value: PlainJson | undefined): readonly string[] {
-  return Array.isArray(value) ? value.flatMap(item => (typeof item === 'string' ? [item] : [])) : []
 }
 
 /** One transport opened on one material, against the scripted peer. */
@@ -577,14 +373,20 @@ class ScriptedTransport implements McpTransport {
     return highest
   }
 
-  /** The `_meta` envelope. The capabilities follow the version: no tasks extension on a legacy one. */
+  private get clientInfo(): ClientInfo {
+    return this.options.clientInfo ?? DEFAULT_CLIENT_INFO
+  }
+
+  /** The `_meta` envelope (T3), by the contract's one implementation. */
   private envelope(version = this.version ?? this.highest): PlainRecord {
+    return clientEnvelopeOf(version, this.clientInfo)
+  }
+
+  /** The material facts that bind the peer instructions (T3, S3). */
+  private get bound(): Readonly<{ generation: Generation; instructionsByteLimit: number }> {
     return {
-      [PROTOCOL_VERSION_KEY]: version,
-      [CLIENT_CAPABILITIES_KEY]: isModernProtocolVersion(version)
-        ? CLIENT_CAPABILITIES
-        : LEGACY_CAPABILITIES,
-      [CLIENT_INFO_KEY]: this.options.clientInfo ?? { name: 'scripted-transport', version: '0' },
+      generation: this.generation,
+      instructionsByteLimit: this.material.instructionsByteLimit,
     }
   }
 
@@ -626,7 +428,7 @@ class ScriptedTransport implements McpTransport {
       method,
       params: { ...params, _meta: meta },
       ...(this.material.kind === 'streamable-http'
-        ? { headers: headersOf(method, params, version, this.session) }
+        ? { headers: mcpRequestHeadersOf(method, params, version, this.session) }
         : {}),
     }
     const deferred = new Deferred<Wire>()
@@ -748,7 +550,9 @@ class ScriptedTransport implements McpTransport {
     if (reply.status < 200)
       throw new TypeError(`script: an http ${reply.status} reply is not observable`)
     if (reply.status < 300) return { kind: 'no-answer', cause: 'stream-broken' }
-    const challenge = challengeOf(new Headers(reply.headers ?? {}).get('www-authenticate'))
+    const challenge = authorizationChallengeOf(
+      new Headers(reply.headers ?? {}).get('www-authenticate') ?? undefined,
+    )
     if (refusesAuthorization(reply.status, challenge))
       return this.authorizationRequired(request, challenge)
     if (reply.status === 403) return { kind: 'not-sent', failure: notSent }
@@ -756,7 +560,7 @@ class ScriptedTransport implements McpTransport {
       this.dead = 'session-ended'
       return { kind: 'not-sent', failure: { kind: 'not-sent', cause: 'session-ended' } }
     }
-    return request.method === 'server/discover' ? probeAnswerOf(reply) : errorAnswerOf(reply)
+    return request.method === 'server/discover' ? probeAnswerOf(reply) : httpErrorAnswerOf(reply)
   }
 
   /** T4: reports the rejection to the handle that authorized the request, then discovers. */
@@ -785,33 +589,15 @@ class ScriptedTransport implements McpTransport {
   ): Promise<AuthorizationDiscovery> {
     const target =
       this.material.kind === 'streamable-http' ? this.material.target : 'https://invalid.test/'
-    const origin = new URL(target)
-    const path = origin.pathname.replace(/\/$/u, '')
-    const named = challenge.get('resource_metadata')
-    const candidates =
-      named === undefined
-        ? [new URL(`${METADATA_PATH}${path}`, origin).href, new URL(METADATA_PATH, origin).href]
-        : [named]
-    let found: Readonly<{ url: string; metadata: PlainRecord }> | undefined
+    const candidates = metadataCandidatesOf(target, challenge)
+    const fetched: (JsonValue | undefined)[] = []
     for (const url of candidates) {
       const metadata = this.peer.wellKnown(url)
-      // A document that is not a JSON object counts as not fetched (R4).
-      if (isPlainRecord(metadata)) {
-        found = { url, metadata }
-        break
-      }
+      fetched.push(metadata === undefined ? undefined : jsonOf(metadata))
+      // A document that is not a JSON object counts as not fetched (R4): the next address is tried.
+      if (isPlainRecord(metadata)) break
     }
-    const scope = challenge.get('scope')
-    const headerScopes = scope === undefined ? [] : scope.split(/\s+/u).filter(item => item !== '')
-    const metadata = found?.metadata
-    const fallbackUrl = candidates.at(-1) ?? new URL(METADATA_PATH, origin).href
-    return {
-      resourceMetadataUrl: found?.url ?? fallbackUrl,
-      metadata: found === undefined ? 'unavailable' : 'fetched',
-      ...(found === undefined ? {} : { resourceMetadata: { untrusted: jsonOf(found.metadata) } }),
-      issuers: stringsOf(metadata?.['authorization_servers']),
-      scopes: headerScopes.length > 0 ? headerScopes : stringsOf(metadata?.['scopes_supported']),
-    }
+    return authorizationDiscoveryOf(challenge, candidates, fetched)
   }
 
   /** Authorizes an outgoing request with the credential handle, when the material has one. */
@@ -857,13 +643,7 @@ class ScriptedTransport implements McpTransport {
       method,
       params: { ...params, _meta: this.envelope() },
       ...(this.material.kind === 'streamable-http'
-        ? {
-            headers: {
-              'mcp-protocol-version': version,
-              'mcp-method': method,
-              ...(this.session === undefined ? {} : { 'mcp-session-id': this.session }),
-            },
-          }
+        ? { headers: mcpRequestHeadersOf(method, params, version, this.session) }
         : {}),
     })
     const reply = this.peer.notificationReply(method)
@@ -897,8 +677,11 @@ class ScriptedTransport implements McpTransport {
   private probeOf(wire: Wire, retried: boolean): Probe {
     switch (wire.kind) {
       case 'result': {
-        const read = this.readDiscover(wire.result)
-        if ('ok' in read) return { kind: 'identity', identity: read.ok }
+        const read = readDiscoverResult(wire.result, this.versions)
+        if ('ok' in read) {
+          this.version = read.ok.protocolVersion
+          return { kind: 'identity', identity: peerIdentityOf(read.ok, this.bound) }
+        }
         // A result without a version in common is a legacy peer, as in the SDK's classifyResult.
         if (read.failure === 'no-common-version') return { kind: 'legacy-peer' }
         return { kind: 'fallback', failure: malformed('discover-shape') }
@@ -921,7 +704,7 @@ class ScriptedTransport implements McpTransport {
 
   /** A JSON-RPC error on `server/discover`: the modern codes are final, `-32601` is a legacy peer. */
   private probeErrorOf(error: JsonValue, retried: boolean): Probe {
-    const answer = errorOf(error)
+    const answer = errorAnswerOf(error)
     if (answer === undefined) return { kind: 'fallback', failure: malformed('error-shape') }
     if (answer.code === -32022 && !retried) return this.versionRetryOf(answer.data)
     if (MODERN_ERROR_CODES.includes(answer.code)) return { kind: 'final', failure: answer }
@@ -947,46 +730,6 @@ class ScriptedTransport implements McpTransport {
     return this.versions.find(version => offered.includes(version))
   }
 
-  private readDiscover(result: JsonValue): Outcome<PeerIdentity, 'shape' | 'no-common-version'> {
-    if (!isObject(result)) return { failure: 'shape' }
-    const versions = itemsOf(member(result, 'supportedVersions'))
-    const capabilities = member(result, 'capabilities')
-    if (versions === undefined || !isObject(capabilities)) return { failure: 'shape' }
-    const offered = versions.flatMap(item => (item.kind === 'string' ? [item.value] : []))
-    const version = this.commonVersion(offered)
-    if (version === undefined || !isProtocolVersion(version))
-      return { failure: 'no-common-version' }
-    this.version = version
-    const meta = member(result, '_meta')
-    const serverInfo = isObject(meta) ? member(meta, SERVER_INFO_KEY) : undefined
-    return {
-      ok: this.identity(version, capabilities, serverInfo, textOf(member(result, 'instructions'))),
-    }
-  }
-
-  private identity(
-    version: PeerIdentity['protocolVersion'],
-    capabilities: JsonValue,
-    serverInfo: JsonValue | undefined,
-    instructions: string | undefined,
-  ): PeerIdentity {
-    return {
-      protocolVersion: version,
-      capabilities,
-      ...(serverInfo === undefined ? {} : { serverInfo: { untrusted: serverInfo } }),
-      ...(instructions === undefined
-        ? {}
-        : {
-            instructions: {
-              untrusted: {
-                ...boundInstructions(instructions, this.material.instructionsByteLimit),
-                generation: this.generation,
-              },
-            },
-          }),
-    }
-  }
-
   /**
    * The requests of the peer, at one point of the legacy path: `ping` answers an empty result,
    * every other request `-32601` (T3).
@@ -1008,31 +751,17 @@ class ScriptedTransport implements McpTransport {
       'initialize',
       {
         protocolVersion: OFFERED_LEGACY_VERSION,
-        capabilities: LEGACY_CAPABILITIES,
-        clientInfo: this.options.clientInfo ?? { name: 'scripted-transport', version: '0' },
+        capabilities: {},
+        clientInfo: { name: this.clientInfo.name, version: this.clientInfo.version },
       },
       OFFERED_LEGACY_VERSION,
     )
     this.answerPeerRequests('initialize')
     const read = interpret(wire, (result): Outcome<PeerIdentity, TransportFailure> => {
-      const version = isObject(result) ? textOf(member(result, 'protocolVersion')) : undefined
-      const capabilities = isObject(result) ? member(result, 'capabilities') : undefined
-      if (
-        !isObject(result) ||
-        !isProtocolVersion(version) ||
-        !isLegacyProtocolVersion(version) ||
-        !isObject(capabilities)
-      )
-        return { failure: malformed('discover-shape') }
-      this.version = version
-      return {
-        ok: this.identity(
-          version,
-          capabilities,
-          member(result, 'serverInfo'),
-          textOf(member(result, 'instructions')),
-        ),
-      }
+      const legacy = readInitializeResult(result)
+      if ('failure' in legacy) return { failure: malformed('discover-shape') }
+      this.version = legacy.ok.protocolVersion
+      return { ok: peerIdentityOf(legacy.ok, this.bound) }
     })
     if ('failure' in read) return read
     if (wire.kind === 'result') this.session = wire.session
@@ -1043,25 +772,12 @@ class ScriptedTransport implements McpTransport {
 
   async listActions(cursor?: string): Promise<Outcome<ListingPage, TransportFailure>> {
     const wire = await this.request('tools/list', cursor === undefined ? {} : { cursor })
-    return interpret(wire, result => {
-      const tools = isObject(result) ? itemsOf(member(result, 'tools')) : undefined
-      if (!isObject(result) || tools === undefined) return { failure: malformed('tools-missing') }
-      const cursor = member(result, 'nextCursor')
-      const nextCursor = textOf(cursor)
-      if (cursor !== undefined && nextCursor === undefined)
-        return { failure: malformed('cursor-invalid') }
-      const ttlMs = countOf(member(result, 'ttlMs'))
-      // SEP-2243 belongs to the modern revision: a legacy connection sends no `Mcp-Param` header.
-      const checked = this.material.kind === 'streamable-http' && !this.legacy
-      const page = checked ? withheldOf(tools) : { tools }
-      return {
-        ok: {
-          ...page,
-          ...(nextCursor === undefined ? {} : { nextCursor }),
-          ...(ttlMs === undefined ? {} : { ttlMs }),
-        },
-      }
-    })
+    // SEP-2243 belongs to the modern revision: a legacy connection sends no `Mcp-Param` header.
+    const checked = this.material.kind === 'streamable-http' && !this.legacy
+    return interpret(
+      wire,
+      reading(result => readListingPage(result, checked)),
+    )
   }
 
   async call(
@@ -1123,7 +839,7 @@ class ScriptedTransport implements McpTransport {
   async getTaskResult(taskId: TaskId): Promise<Outcome<TaskAnswer, TransportFailure>> {
     const wire = await this.request('tasks/get', { taskId })
     if (expiredOf(wire) !== undefined) return { ok: { kind: 'expired' } }
-    return interpret(wire, readTaskAnswer)
+    return interpret(wire, readAnswer)
   }
 
   async updateTask(

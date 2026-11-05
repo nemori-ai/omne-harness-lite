@@ -84,6 +84,31 @@ export { canonical, sameJson } from './json.ts'
 export { toContentBlocks } from './content.ts'
 export { boundInstructions } from './instructions.ts'
 export { FIRST_MODERN_PROTOCOL_VERSION, LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
+export type { PlainJson, PlainRecord } from './plain.ts'
+export {
+  clientEnvelopeOf,
+  mcpRequestHeadersOf,
+  type ClientInfo,
+  type McpRequestHeaders,
+} from './envelope.ts'
+export { withheldTools } from './withheld.ts'
+export {
+  authorizationChallengeOf,
+  authorizationDiscoveryOf,
+  metadataCandidatesOf,
+} from './authorization.ts'
+export {
+  errorAnswerOf,
+  peerIdentityOf,
+  readDiscoverResult,
+  readInitializeResult,
+  readListingPage,
+  readTaskAnswer,
+  readTaskReport,
+  type IdentityBound,
+  type PeerRead,
+  type TaskReadDefect,
+} from './readers.ts'
 export {
   PROCESS_EXIT_WINDOW_MS,
   classifyWireEvent,
