@@ -447,7 +447,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **T1** 传输失败按对端效果分四种：`not-sent`，请求没有对端效果；`no-answer`，请求已离开而没有应答，效果未知；`error-answer`，请求已离开，对端答 JSON-RPC 错误，带错误码、消息与 `data`（如有）；`answer-malformed`，请求已离开，应答读不懂，见 T7。`not-sent` 的原因有三个：`connection-unavailable`；`authorization-required`，带授权发现（R4）；`session-ended`，Streamable HTTP 旧修订上对端结束了会话。`call` 的失败只会是 `not-sent`；调用已发出后，结局经 `answer` 交出。「传输不再可用」指之后的每个请求答 `not-sent`（`connection-unavailable`）；T8 中没有写「传输不再可用」的行，传输照常可用。
 - **T2** 应答的判据。这些判据由 `classifyWireEvent` 实现，传输用它归类：
   - 对本请求的 JSON-RPC 应答：一条 stdio 行或 2xx 正文里的一条消息，是 JSON 对象，`id` 等于本请求的 id，不带 `method`。它的信封合格指 `jsonrpc` 是 `"2.0"`，且恰好带 `result` 与 `error` 之一；信封不合格的应答算读不懂的错误对象。T8 里写「直接」的应答就是这样的应答。
-  - stdio 上解析不了的一行丢弃，流继续。解析不了指：不是 JSON、空行、带 BOM、重复键，或超出 `@omne-harness/json-text` 的大小、深度与数字词形上限；`classifyWireEvent` 对这样的行都答 `other`。它与 T7 的「读不懂」不同：读不懂的应答已解析，结局是 `answer-malformed`。本组不比官方 SDK 更严（SDK 2.4.0 跳过解析不了的行，client `dist/src-CeKsbNLO.mjs:6773`）。行尾的 `\r` 去掉。请求 `id` 的比较：文本按值，数字按词形。由行内容引起的断流只有一种：一行超过传输的行缓冲上界（16 MiB），传输答 `stream-broken`，不再可用。stdout 结束是另一种流断开，见 T8。是 JSON 但不是对本请求的应答的行：对端的请求按 T3 作答，对端的通知按 T3 处理，其余丢弃。
+  - stdio 上解析不了的一行丢弃，流继续。解析不了指：不是 JSON、空行、带 BOM、重复键，或超出 `@omne-harness/json-text` 的大小、深度与数字词形上限；`classifyWireEvent` 对这样的行都答 `other`。它与 T7 的「读不懂」不同：读不懂的应答已解析，结局是 `answer-malformed`。本组不比官方 SDK 更严（SDK 2.4.0 跳过解析不了的行，client `dist/src-CeKsbNLO.mjs:6773`）。行尾的 `\r` 去掉。请求 `id` 的比较：文本按值，数字按词形。由行内容引起的断流只有一种：一行超过传输的行缓冲上界（16 MiB），传输答 `stream-broken`，不再可用。stdout 结束是另一种流断开，见 T8。一次写在完成之前被它的 `signal` 中止也是流断开，见 T5。是 JSON 但不是对本请求的应答的行：对端的请求按 T3 作答，对端的通知按 T3 处理，其余丢弃。
   - HTTP 错误状态的正文：是 JSON 对象、信封合格且带 `error` 时，按 `error` 归类，不核 `id`；其余正文记为「纯」。1xx 观察不到：HTTP 客户端自己消费它，所以它不在 T8 的输入域里。`classifyWireEvent` 收到 1xx 时按「4xx」归类。
   - 错误对象读得懂：是对象，带整数错误码（词形按 O4）与文本 `message`。
   - 对 `call`、`tasks/update` 与 `tasks/cancel`，任何 JSON-RPC 结果都读得懂；`call` 原样交出结果，不分类，分类由 `classifyOutcome` 完成。`call` 收到读不懂的错误对象时原样交出：信封不合格时交出整条消息。对其他请求：
@@ -471,7 +471,11 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **T4** T8 S05 的授权失败：失败是 `not-sent`（`authorization-required`），带授权发现（R4）。这个请求曾用凭据句柄授权时，传输先调用该句柄的 `reportRejection()` 恰好一次，再报这个失败。T8 S06 的 403 不调用 `reportRejection()`。
 - **T5** 取消与关闭。这些事件与 T8 的应答事件落在同一个请求上时，先发生的那个决定结论，后来的丢弃：
   - `cancelRequest` 不证明对端已停止。stdio 上，以及 Streamable HTTP 旧修订上，它发 `notifications/cancelled`，带 `requestId` 与每请求 `_meta`，`answer` 继续等应答。Streamable HTTP 现代修订上，它中止该请求的应答流，不另发通知，`answer` 以 `no-answer`（`abandoned`）兑现。
-  - `call` 的 `signal` 在调用前已触发时，`call` 答 `not-sent`（`connection-unavailable`）。在发出后触发时，传输不再等待：`answer` 以 `no-answer`（`abandoned`）兑现。取消由调用方经 `cancelRequest` 发出。`signal` 触发后传输释放这次交换。现代 Streamable HTTP 上，释放就是中止应答流，对端可能把它读成取消。stdio 与旧修订上，对端看不到释放。
+  - `call` 的 `signal` 在调用前已触发时，`call` 答 `not-sent`（`connection-unavailable`）。在发出后触发时，传输不再等待：`answer` 以 `no-answer`（`abandoned`）兑现。取消由调用方经 `cancelRequest` 发出。`signal` 触发后传输释放这次交换。对端看到什么按传输与修订分：
+    - 现代修订的 Streamable HTTP：释放就是中止应答流，对端可能把它读成取消。
+    - 旧修订的 Streamable HTTP：释放同样中止应答流，对端看到流断开。按旧修订的协议，断开不表示取消。
+    - SSE 模式：请求没有自己的应答流，对端看不到释放。
+    - stdio：请求已经写出时，对端看不到释放。写还没有完成时，传输中止 stdin 写端，这是流断开（S01、S03）：其他在途请求答 `no-answer`（`stream-broken`），传输不再可用。
   - `close()` 只关闭传输，不停止进程。进程由进程句柄的持有者停止。stdio 的关闭次序：先关 stdin 写端，再取消 stdout 读取。关闭时在途的请求答 `no-answer`（`abandoned`），调用的 `answer` 同样兑现；stdio 上探测在途时也如此，不走旧一路（D13 只对探测时限到成立）。关闭后的请求答 `not-sent`（`connection-unavailable`）。`close()` 可以重复调用。旧修订的 Streamable HTTP 会话在 `close()` 时不发 DELETE：契约只说关闭传输，DELETE 是对端效果。
 - **T6** 任务操作：
   - `getTask` 与 `getTaskResult` 都发 `tasks/get`。结果读得懂：是对象，`taskId` 是非空文本，`status` 是 `TaskStatus` 的五个值之一；`input_required` 带 `inputRequests` 对象；`completed` 带 `result`；`failed` 带 `error` 对象（形状不核，原样交出）。任务形状按 SEP-2663 2026-07-28：结果在顶层带 `taskId`、`status`；`tasks/update` 的参数是 `taskId` 与 `inputResponses`；`tasks/cancel` 的参数是 `taskId`；没有 `tasks/list`。
