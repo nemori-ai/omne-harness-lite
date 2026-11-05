@@ -17,7 +17,7 @@ sequenceDiagram
     C->>D: refresh(access, { ref, connectBound?, signal? })
     D->>G: admitForUse
     G-->>D: AdmittedEndpoint 或 Refusal
-    D->>T: ensure(admitted, access, { signal, connectBound })
+    D->>T: ensure(admitted, access, { connectBound })
     T-->>D: { transport, generation, connection, peer, catalogKey } 或 { reason, catalog }
     D->>S: read(catalogKey)
     S-->>D: 记录或 absent（basedOn）
@@ -43,26 +43,32 @@ sequenceDiagram
     participant F as McpTransportFactory
     T->>T: prepareSettings（S4）、peerAccountOf、键
     T->>T: 重读采用修订；关闭同持有下其他修订的连接（不变式 6）
-    T->>T: 等同键在途的关闭完成
+    T->>T: 等同键在途的关闭或拆除完成（至多到这次 ensure 的临界区时限）
     T->>A: attempt()
-    note over T: 连接时限从这里起，每一步经 untilAborted
+    note over T: 建连时限从这里起，每一次等待经 within；时限到期即答复，收场在任务作用域里继续
+    T->>T: 再停上一条连接遗留的进程
     T->>U: acquire(purpose)（auth 不是 none）
+    T->>T: 已关停？是则拆除，答 connection-unavailable
     T->>L: start(launch, env)（stdio）
+    T->>T: 已关停？是则拆除，答 connection-unavailable
     T->>F: open(material, bound)
     T->>F: transport.discover()
+    T->>T: 已关停？是则拆除，答 connection-unavailable
     T->>A: ready(peer)
 ```
 
-关闭（`connections.release` 与 `closeAll`，SPEC MC-10）：一个键同时只有一次关闭：拒新请求（`Connection.close()`）→ 等在途的建连结束 → `transport.close()` → `process.stop()`（含上次未确认停止的）→ 释放凭据句柄 → 报告确认范围。拆除（后三步）是条目唯一的，`lose` 与准备失败先同步转 `lost` 再走同一个拆除；拆除途中的关闭或 `ensure` 等它完成。
+关闭（`connections.release` 与 `closeAll`，SPEC MC-10）：一个键同时只有一次关闭：拒新请求（`Connection.close()`）→ 等在途的建连结束 → `transport.close()` → `process.stop()`（自己的与上次未确认停止的，每个都问）→ 释放凭据句柄 → 报告确认范围。端口违约不跳过后一步，也不跳过其余进程（SPEC MC-14）。拆除（后三步）是条目唯一的，`lose` 与准备失败先同步转 `lost` 再走同一个拆除；拆除途中的关闭等它完成，`ensure` 至多等到自己的临界区时限。
+
+关停（`closeAll`）：置已关停 → 同步发起全部在途落点句柄的释放（已交来进程的落点除外） → 并发关闭各条目 → 等全部拆除与释放结束 → 任务作用域记下了本包的错误时以 `AggregateError` 抛出，否则报告每条连接的确认范围。之后要连接的操作答 `connection-unavailable`。
 
 下一波 `invoke` 的次序（本波不实现）：`InFlightCalls.reserve` → `admit` → 读清单核动作与摘要 → `table.ensure` → `transport.call` → `markSent` → 等结局 → `markEnded`。
 
 ## 失败与生命周期
 
 - 关口拒绝或配值缺陷时没有连接、没有外部效果。
-- 建立连接的任一步失败、超时或端口抛出：连接转 `lost`、传输关闭、已起的进程 `stop()`、凭据句柄释放、清单 `markUnavailable`；迟到交来的句柄与传输同样收口，迟到交来的进程停止一次、未确认的范围记为 `residual`，它的凭据句柄在这次 `stop()` 之后释放。答复与原因表见 SPEC MC-5。
+- 建立连接的任一步失败、超时或端口违约：连接转 `lost`、传输关闭、已起的进程 `stop()`、凭据句柄释放、清单 `markUnavailable`；时限到期时建连立即答复，这些收场在任务作用域里继续，答复的 `catalog` 是 `pending`；迟到交来的句柄与传输同样收口，迟到交来的进程停止一次、未确认的范围记为 `residual`，它的凭据句柄在这次 `stop()` 之后释放。答复与原因表见 SPEC MC-5。
 - 调用方中止：等建连时答 `kept(cancelled)`（建连留给其他调用方），取页时答 `kept(cancelled)`，发布边界上答 `kept(cancelled)`；都不标记清单。
 - 页取得失败：`not-sent` 使连接 `lost` 并标记清单；其他失败与取页超时使连接 `degraded`，刷新答 `kept(listing-incomplete)`，原采用不变。旧代际迟到的页不改变重建后的连接，刷新答 `kept(superseded)`。
 - 发布边界不成立时不写入：迟到的连接 `kept(superseded)`，取消 `kept(cancelled)`，资格不再 `granted` 答对应 `Refusal`。
-- 关闭只报告 `stop()` 确认的范围。未确认的进程留在条目里作为 `residual`，下一次关闭或重建前再次请求停止。
-- 宿主退出时调用 `closeAll()`；本包没有后台任务，也不重连。
+- 关闭只报告 `stop()` 确认的范围。未确认的进程留在条目里作为 `residual`，下一次关闭或重建前再次请求停止。`stop()` 违约记为 `unconfirmed`。
+- 宿主退出时调用 `closeAll()`。本包的后台工作只有时限之后继续的收场与迟到结果的收口，归连接表的任务作用域；本包不重连。

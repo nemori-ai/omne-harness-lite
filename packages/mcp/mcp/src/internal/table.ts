@@ -1,22 +1,20 @@
-// The connection table: one `Connection` per connection key (SPEC K2), the resources behind it
-// (transport, process, credential handle, processes not yet confirmed stopped), and the
-// operations on them: `ensure` (reuse or build, single flight per key), `settle` and `lose` (what
-// a request on an established connection found), `close` (the close order of the group page,
-// single flight per key) and `closeAll`. The table does the I/O; the aggregate does the state;
-// nothing outside the table writes the aggregate. Every entry has one teardown at a time, shared
-// by a lose, a failed build, a rebuild and a close, in the order transport, processes, handle.
+// The connection table: one `Connection` per connection key (SPEC K2) with the resources behind
+// it, and the operations on them: `ensure` (reuse or build, single flight per key, in the
+// critical section of the holding), `settle` and `lose` (what a request on an established
+// connection found), `close` (the close order, single flight per key) and `closeAll` (the same
+// for every entry, after which nothing connects). The table only orchestrates: the entry is
+// `entry.ts`, the build `build.ts`, the close order `teardown.ts`, the turns `turns.ts`. The
+// `Connection` aggregate is written by the table and by the build it starts; the services report
+// to the table through `settle` and `lose`. An entry leaves the table in one place, `forget`.
+// Nothing runs detached: the work an `ensure` stops waiting for at its bound goes on in the
+// table's scope, whose errors `closeAll` hands to its caller.
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   catalogKeyOf,
   connectionKeyOf,
-  markUnavailable,
-  type AdoptionRevision,
-  type CatalogKey,
-  type ConnectionFailure,
   type ConnectionKey,
   type ConnectionState,
-  type EffectUnknown,
   type EndpointHolding,
   type EndpointRef,
   type Generation,
@@ -24,61 +22,54 @@ import {
   type McpConfig,
   type McpPorts,
   type Millis,
-  type NoAnswerCause,
-  type PeerIdentity,
   type ReleaseReport,
-  type Residual,
-  type StopScope,
-  type UnavailableReason,
 } from '@omne-harness/mcp-contract'
-import type {
-  CredentialFailure,
-  HttpCredentialHandle,
-  McpTransport,
-  ProcessCredentialHandle,
-  ProcessEnvironment,
-  ProcessHandle,
-  TransportFailure,
-  TransportMaterial,
-} from '@omne-harness/mcp-contract/provider'
-import { afterwards, untilAborted } from './abort.ts'
+import { createBuilder } from './build.ts'
 import { Connection, type GenerationPolicy } from './connection.ts'
-import { assertAdmitted, type AdmittedEndpoint, type AdoptionRefusal } from './gate.ts'
-import { prepareSettings, type PreparedSettings, type SettingsFailure } from './settings.ts'
+import {
+  CONNECTION_UNAVAILABLE,
+  adoptLingering,
+  ensuredOf,
+  forgettable,
+  isSettled,
+  isUsable,
+  residualOf,
+  viewOf,
+  type CatalogMark,
+  type ConnectionView,
+  type Ensured,
+  type EnsureFailure,
+  type EnsureRefusal,
+  type Entry,
+  type StopRange,
+  type UnavailableMark,
+} from './entry.ts'
+import { admitWithoutEligibility, assertAdmitted, type AdmittedEndpoint } from './gate.ts'
+import { startTimeout, within, type StartBound } from './port.ts'
+import { createTaskScope, type TaskScope } from './scope.ts'
+import { prepareSettings, type PreparedSettings } from './settings.ts'
+import { abandonLandings, narrowest, teardown } from './teardown.ts'
 import { connectionKeyTextOf, tenantTextOf } from './text.ts'
+import { createTurns } from './turns.ts'
+
+export type {
+  CatalogMark,
+  ConnectionView,
+  Ensured,
+  EnsureFailure,
+  EnsureRefusal,
+  UnavailableMark,
+} from './entry.ts'
 
 export type EnsureOptions = Readonly<{ connectBound?: Millis }>
 
-/** The read-only view of a connection's generation; the aggregate itself stays in the table. */
-export type ConnectionView = Readonly<{
-  readonly generation: Generation
-  isCurrent(generation: Generation): boolean
-}>
-
 /**
- * A usable connection, as it was when `ensure` answered: the transport, the generation and the
- * peer of that moment, the adoption revision it was built under, and the bound its requests use.
+ * What the table runs on besides its ports: the scope of its background work and its source of
+ * bounds. The services that wait on the table's connections use the same ones.
  */
-export type Ensured = Readonly<{
-  transport: McpTransport
-  generation: Generation
-  connection: ConnectionView
-  peer: PeerIdentity
-  catalogKey: CatalogKey
-  adoptionRevision: AdoptionRevision
-  bound: Millis
-}>
+export type TableRuntime = Readonly<{ scope: TaskScope; startBound: StartBound }>
 
-/** What marking a connection failure into the catalog did. */
-export type CatalogMark = 'marked' | 'revision-conflict' | 'unavailable' | 'not-acquired'
-
-export type EnsureFailure =
-  | Readonly<{ stage: 'settings'; reason: SettingsFailure | AdoptionRefusal }>
-  | Readonly<{ stage: 'connect'; reason: ConnectionFailure | EffectUnknown; catalog: CatalogMark }>
-
-export type UnavailableMark = Exclude<UnavailableReason, 'no-longer-offered'>
-
-export type ClosedEndpoint = Readonly<{ ref: EndpointRef; process: StopScope | 'no-process' }>
+export type ClosedEndpoint = Readonly<{ ref: EndpointRef; process: StopRange }>
 
 export interface ConnectionTable<P> {
   /** A usable connection for the admitted endpoint: reused, or built in the order of SPEC S4–S9. */
@@ -109,154 +100,34 @@ export interface ConnectionTable<P> {
   stateOf(tenant: TenantId, holding: EndpointHolding): ConnectionState
   /** The close order: refuse requests, close the transport, stop the process, release the handle. */
   close(tenant: TenantId, holding: EndpointHolding): Promise<ReleaseReport>
+  /**
+   * The shutdown, and the exit of the table's scope: it rejects with an `AggregateError` when
+   * background work of the table raised errors of this package, after every entry is closed.
+   */
   closeAll(): Promise<readonly ClosedEndpoint[]>
+  /** The scope and the source of bounds the table runs on. */
+  readonly runtime: TableRuntime
 }
 
-type CredentialHandle = ProcessCredentialHandle | HttpCredentialHandle
+/**
+ * What the critical section of a holding started: an answer, the build it began, or the build
+ * of another call that it joined. `joined` decides whose bound the caller waits under.
+ */
+type Started = Readonly<{ outcome: Promise<Outcome<Ensured, EnsureFailure>>; joined: boolean }>
 
-type Scope = StopScope | 'no-process'
-
-/** A process whose stop was not confirmed for the whole tree. Stopped again at every close. */
-type Lingering = Readonly<{ handle: ProcessHandle; confirmed: StopScope }>
-
-type Entry = {
-  readonly ref: EndpointRef
-  readonly tenantText: string
-  readonly keyText: string
-  readonly catalogKey: CatalogKey
-  readonly adoptionRevision: AdoptionRevision
-  readonly bound: Millis
-  connection: Connection
-  view: ConnectionView
-  transport: McpTransport | undefined
-  process: ProcessHandle | undefined
-  credential: CredentialHandle | undefined
-  lingering: readonly Lingering[]
-  /** Landings still pending after their bound; each may hand over a process this entry keeps. */
-  landings: number
-  pending: Promise<Outcome<Ensured, EnsureFailure>> | undefined
-  /** The teardown in flight, shared by a lose, a failed build, a rebuild and a close. */
-  tearing: Promise<Scope> | undefined
-  /** The close in flight: refuse requests, wait for the build, tear down, forget. */
-  closing: Promise<Scope> | undefined
+function answered(outcome: Outcome<Ensured, EnsureFailure>): Started {
+  return { outcome: Promise.resolve(outcome), joined: false }
 }
 
-/** What the critical section of a holding started: an answer, or the build it joined or began. */
-type Started = Readonly<{ outcome: Promise<Outcome<Ensured, EnsureFailure>> }>
-
-const CONNECTION_UNAVAILABLE: ConnectionFailure = { kind: 'connection-unavailable' }
-const UNKNOWN: AdoptionRefusal = { kind: 'unknown' }
-const NOT_AVAILABLE: AdoptionRefusal = { kind: 'not-available-to-you' }
-
-type Failed = Readonly<{
-  reason: ConnectionFailure | EffectUnknown
-  lost: LostReason
-  mark: UnavailableMark
-}>
-
-const PREPARATION_FAILED: Failed = {
-  reason: CONNECTION_UNAVAILABLE,
-  lost: 'preparation-failed',
-  mark: 'connection-unavailable',
+/** The existing entry's build in flight, joined, or its usable connection, reused. */
+function reuseOf(existing: Entry): Started | undefined {
+  if (existing.pending !== undefined) return { outcome: existing.pending, joined: true }
+  if (!isUsable(existing)) return undefined
+  const usable = ensuredOf(existing)
+  return usable === undefined ? undefined : answered(succeed(usable))
 }
 
-function lostOfNoAnswer(cause: NoAnswerCause): LostReason {
-  switch (cause) {
-    case 'stream-broken':
-      return 'stream-broken'
-    case 'process-exited':
-      return 'process-exited'
-    case 'abandoned':
-      return 'preparation-failed'
-    default: {
-      const exhaustive: never = cause
-      return exhaustive
-    }
-  }
-}
-
-/** How a failure of `open` or `discover` is reported (SPEC R6, S5, S7). */
-function failedOf(failure: TransportFailure): Failed {
-  switch (failure.kind) {
-    case 'not-sent':
-      return failure.cause === 'authorization-required'
-        ? {
-            reason: { kind: 'authorization-required', discovery: failure.discovery },
-            lost: 'authorization-required',
-            mark: 'authorization-required',
-          }
-        : PREPARATION_FAILED
-    case 'no-answer':
-      return {
-        reason: { kind: 'effect-unknown', cause: failure.cause },
-        lost: lostOfNoAnswer(failure.cause),
-        mark: 'connection-unavailable',
-      }
-    case 'error-answer':
-    case 'answer-malformed':
-      return { ...PREPARATION_FAILED, lost: 'discover-failed' }
-    default: {
-      const exhaustive: never = failure
-      return exhaustive
-    }
-  }
-}
-
-const STOP_ORDER: readonly StopScope[] = ['unconfirmed', 'root-only', 'tree-confirmed']
-
-/** The least confirmed of two stop ranges. */
-function narrower(left: StopScope, right: StopScope): StopScope {
-  return STOP_ORDER.indexOf(left) <= STOP_ORDER.indexOf(right) ? left : right
-}
-
-function narrowest(scope: Scope, confirmed: StopScope): StopScope {
-  return scope === 'no-process' ? confirmed : narrower(scope, confirmed)
-}
-
-function viewOf(connection: Connection): ConnectionView {
-  return Object.freeze({
-    get generation() {
-      return connection.generation
-    },
-    isCurrent: (generation: Generation) => connection.isCurrent(generation),
-  })
-}
-
-function isUsable(entry: Entry): entry is Entry & { transport: McpTransport } {
-  const kind = entry.connection.state.kind
-  return entry.transport !== undefined && (kind === 'ready' || kind === 'degraded')
-}
-
-/** True when nothing of the entry is in flight and it refuses requests: only leftovers remain. */
-function isSettled(entry: Entry): boolean {
-  return (
-    entry.connection.state.kind === 'closed' &&
-    entry.pending === undefined &&
-    entry.tearing === undefined &&
-    entry.closing === undefined
-  )
-}
-
-function ensuredOf(entry: Entry & { transport: McpTransport }): Ensured | undefined {
-  const peer = entry.connection.peer
-  if (peer === undefined) return undefined
-  return {
-    transport: entry.transport,
-    generation: entry.connection.generation,
-    connection: entry.view,
-    peer,
-    catalogKey: entry.catalogKey,
-    adoptionRevision: entry.adoptionRevision,
-    bound: entry.bound,
-  }
-}
-
-/** The processes the entries of one holding left, as the status view reports them. */
-function residualOf(found: readonly Entry[]): readonly Residual[] | undefined {
-  const lingering = found.flatMap(entry => entry.lingering)
-  if (lingering.length === 0) return undefined
-  return lingering.map(({ confirmed }) => ({ kind: 'process', confirmed }))
-}
+const UNKNOWN: EnsureRefusal = { kind: 'unknown' }
 
 function policyOf(prepared: PreparedSettings): GenerationPolicy {
   return prepared.transport.kind === 'stdio' ? 'on-attempt' : 'on-negotiation'
@@ -273,40 +144,37 @@ function later(left: Generation, right: Generation | undefined): Generation {
 export function createConnectionTable<P, S>(
   ports: McpPorts<P, S>,
   config: McpConfig<P>,
+  runtime: TableRuntime = { scope: createTaskScope(), startBound: startTimeout },
 ): ConnectionTable<P> {
+  const { scope, startBound } = runtime
   const entries = new Map<string, Entry>()
   const byView = new WeakMap<ConnectionView, Entry>()
   // The generation a forgotten connection of each key reached: a new connection of the key
   // continues the count, so no generation is used twice in one run (invariant 2).
   const lastGeneration = new Map<string, Generation>()
   // One `ensure` at a time per tenant and holding decides which revision's connection exists.
-  const turns = new Map<string, Promise<void>>()
+  const turns = createTurns()
+  // Set by `closeAll`: from then on nothing connects (SPEC decision 5).
+  let shut = false
+  const builder = createBuilder(ports, config, {
+    afterLanding: forget,
+    shut: () => shut,
+    scope,
+    startBound,
+  })
 
   const entriesOf = (tenantText: string, holding: EndpointHolding): Entry[] =>
     [...entries.values()].filter(
       entry => entry.tenantText === tenantText && entry.ref.holding === holding,
     )
 
-  /** Runs `run` after every earlier run of the same holding; the result is the section's, not awaited here. */
-  function inTurn<T>(holdingText: string, run: () => Promise<T>): Promise<T> {
-    const previous = turns.get(holdingText) ?? Promise.resolve()
-    const turn = previous.then(run)
-    const done = turn.then(
-      () => undefined,
-      () => undefined,
-    )
-    turns.set(holdingText, done)
-    void done.then(() => {
-      if (turns.get(holdingText) === done) turns.delete(holdingText)
-    })
-    return turn
-  }
-
-  /** Removes a closed entry that holds nothing and expects nothing; keeps its generation. */
+  /**
+   * The one place an entry leaves the table: when `forgettable` says so (decision 20). Called
+   * after every change of what the entry holds or of its state. Its generation stays, for the
+   * next connection of the key.
+   */
   function forget(entry: Entry): void {
-    if (entries.get(entry.keyText) !== entry || entry.connection.state.kind !== 'closed') return
-    if (entry.pending !== undefined || entry.tearing !== undefined) return
-    if (entry.lingering.length > 0 || entry.landings > 0) return
+    if (entries.get(entry.keyText) !== entry || !forgettable(entry)) return
     lastGeneration.set(
       entry.keyText,
       later(entry.connection.generation, lastGeneration.get(entry.keyText)),
@@ -314,236 +182,21 @@ export function createConnectionTable<P, S>(
     entries.delete(entry.keyText)
   }
 
-  /** A process confirmed for less than the whole tree stays with the entry, to be stopped again. */
-  function keep(entry: Entry, handle: ProcessHandle, confirmed: StopScope): void {
-    if (confirmed === 'tree-confirmed') return
-    entry.lingering = [...entry.lingering, { handle, confirmed }]
-  }
-
-  /** Stops the process and every lingering one; keeps those not confirmed for the whole tree. */
-  async function stopProcesses(entry: Entry): Promise<Scope> {
-    const own = entry.process
-    entry.process = undefined
-    const handles = [
-      ...(own === undefined ? [] : [own]),
-      ...entry.lingering.map(({ handle }) => handle),
-    ]
-    let scope: Scope = 'no-process'
-    for (const handle of handles) {
-      const confirmed = await handle.stop()
-      entry.lingering = entry.lingering.filter(lingering => lingering.handle !== handle)
-      keep(entry, handle, confirmed)
-      scope = narrowest(scope, confirmed)
-    }
-    return scope
-  }
-
-  /**
-   * The close order of the group page on the resources of one entry, once: a teardown asked while
-   * one is in flight joins it. Close the transport, stop the processes, then release the
-   * credential handle (S9: a process handle after `stop()` returned, an HTTP handle with the close).
-   */
-  function teardown(entry: Entry): Promise<Scope> {
-    if (entry.tearing !== undefined) return entry.tearing
-    const tearing = (async () => {
-      const transport = entry.transport
-      entry.transport = undefined
-      await transport?.close()
-      const scope = await stopProcesses(entry)
-      const credential = entry.credential
-      entry.credential = undefined
-      await credential?.release()
-      return scope
-    })()
-    entry.tearing = tearing
-    return tearing.finally(() => {
-      if (entry.tearing === tearing) entry.tearing = undefined
-    })
-  }
-
   /** Closes one entry, once: a second close of the same entry joins the first. */
-  function closeEntry(entry: Entry): Promise<Scope> {
+  function closeEntry(entry: Entry): Promise<StopRange> {
     if (entry.closing !== undefined) return entry.closing
     const closing = (async () => {
       // A build in flight ends within its bound; the close takes its connection afterwards.
       while (entry.pending !== undefined) await entry.pending.catch(() => undefined)
       if (entry.connection.state.kind !== 'closed') entry.connection.close()
-      const scope = await teardown(entry)
+      const range = await teardown(entry)
       forget(entry)
-      return scope
+      return range
     })()
     entry.closing = closing
     return closing.finally(() => {
       if (entry.closing === closing) entry.closing = undefined
     })
-  }
-
-  /**
-   * A process that landed after its bound: stopped, and kept by the entry of its key when the
-   * stop confirmed less than the tree, so the status reports it and the next close stops it again.
-   */
-  async function stopLate(entry: Entry, process: ProcessHandle): Promise<void> {
-    const confirmed = await process.stop()
-    if (confirmed === 'tree-confirmed') return
-    const home = entries.get(entry.keyText) ?? entry
-    entries.set(entry.keyText, home)
-    keep(home, process, confirmed)
-  }
-
-  async function markCatalog(key: CatalogKey, reason: UnavailableMark): Promise<CatalogMark> {
-    const read = await ports.store.read(key)
-    if ('failure' in read) return 'unavailable'
-    if (read.ok === 'absent') return 'not-acquired'
-    const written = await ports.store.write(key, markUnavailable(read.ok, reason), read.ok.revision)
-    if ('failure' in written)
-      return written.failure === 'unavailable' ? 'unavailable' : 'revision-conflict'
-    return 'marked'
-  }
-
-  /** A preparation failed: refuse requests, close what was taken (S9 handle included), mark, report. */
-  async function failed(entry: Entry, how: Failed): Promise<Outcome<never, EnsureFailure>> {
-    entry.connection.lose(how.lost)
-    await teardown(entry)
-    const catalog = await markCatalog(entry.catalogKey, how.mark)
-    return fail({ stage: 'connect', reason: how.reason, catalog })
-  }
-
-  async function acquireCredential(
-    entry: Entry,
-    access: Access<P>,
-    prepared: PreparedSettings,
-    bound: AbortSignal,
-  ): Promise<Outcome<CredentialHandle | undefined, Failed>> {
-    const { credential, transport } = prepared
-    if (credential.auth === 'none') return succeed(undefined)
-    const holding = entry.ref.holding
-    const asked: Promise<Outcome<CredentialHandle, CredentialFailure>> =
-      transport.kind === 'stdio'
-        ? ports.credentials.acquire(access, holding, { kind: 'process-env' }, credential.binding)
-        : ports.credentials.acquire(
-            access,
-            holding,
-            { kind: 'http-authorization', target: transport.target },
-            credential.binding,
-          )
-    const acquired = await untilAborted(asked, bound)
-    if (acquired.kind === 'aborted') {
-      // A handle that arrives after the bound belongs to no connection: released on arrival.
-      afterwards(acquired.late, async late => {
-        if ('ok' in late) await late.ok.release()
-      })
-      return fail(PREPARATION_FAILED)
-    }
-    if ('failure' in acquired.value)
-      return fail({
-        reason: { kind: 'credential-unavailable', cause: acquired.value.failure },
-        lost: 'preparation-failed',
-        mark: 'credential-unavailable',
-      })
-    return succeed(acquired.value.ok)
-  }
-
-  async function materialOf(
-    entry: Entry,
-    access: Access<P>,
-    prepared: PreparedSettings,
-    generation: Generation,
-    bound: AbortSignal,
-  ): Promise<Outcome<TransportMaterial, Failed>> {
-    const { transport } = prepared
-    const { instructionsByteLimit } = config
-    const credential = entry.credential
-    if (transport.kind === 'streamable-http') {
-      const { target } = transport
-      return succeed(
-        credential?.purpose === 'http-authorization'
-          ? { kind: 'streamable-http', target, credential, generation, instructionsByteLimit }
-          : { kind: 'streamable-http', target, generation, instructionsByteLimit },
-      )
-    }
-    const env: ProcessEnvironment = {
-      values: transport.values,
-      credentials:
-        credential?.purpose === 'process-env'
-          ? transport.credentialVariables.map(name => ({ name, handle: credential }))
-          : [],
-    }
-    const started = await untilAborted(ports.landing.start(access, transport.launch, env), bound)
-    if (started.kind === 'aborted') {
-      // The process may still land, with the handle in its environment: the handle goes with it
-      // and is released after its `stop()` returned (S9); without a process, on the answer.
-      entry.credential = undefined
-      entry.landings += 1
-      afterwards(started.late, async late => {
-        try {
-          if ('ok' in late) await stopLate(entry, late.ok)
-        } finally {
-          entry.landings -= 1
-          forget(entry)
-          await credential?.release()
-        }
-      })
-      return fail(PREPARATION_FAILED)
-    }
-    if ('failure' in started.value)
-      return fail({
-        reason: { kind: 'landing-unavailable' },
-        lost: 'preparation-failed',
-        mark: 'landing-unavailable',
-      })
-    entry.process = started.value.ok
-    return succeed({ kind: 'stdio', process: started.value.ok, generation, instructionsByteLimit })
-  }
-
-  /**
-   * Builds the connection (SPEC S4 step 4) under the connection bound of invariant 5, which
-   * starts at the credential and covers the process start, the open and the negotiation. A port
-   * that throws is torn down like a failure, then the error goes on to the caller.
-   */
-  async function build(
-    entry: Entry,
-    access: Access<P>,
-    prepared: PreparedSettings,
-  ): Promise<Outcome<Ensured, EnsureFailure>> {
-    // What the key's earlier connection left is stopped again before the new attempt.
-    await teardown(entry)
-    const generation = entry.connection.attempt()
-    const bound = AbortSignal.timeout(prepared.bound)
-    try {
-      const credential = await acquireCredential(entry, access, prepared, bound)
-      if ('failure' in credential) return await failed(entry, credential.failure)
-      entry.credential = credential.ok
-      const material = await materialOf(entry, access, prepared, generation, bound)
-      if ('failure' in material) return await failed(entry, material.failure)
-      const opened = await untilAborted(ports.transports.open(material.ok, bound), bound)
-      if (opened.kind === 'aborted') {
-        afterwards(opened.late, async late => {
-          if ('ok' in late) await late.ok.close()
-        })
-        return await failed(entry, PREPARATION_FAILED)
-      }
-      if ('failure' in opened.value) return await failed(entry, failedOf(opened.value.failure))
-      const transport = opened.value.ok
-      entry.transport = transport
-      const discovered = await untilAborted(transport.discover(), bound)
-      if (discovered.kind === 'aborted') return await failed(entry, PREPARATION_FAILED)
-      if ('failure' in discovered.value)
-        return await failed(entry, failedOf(discovered.value.failure))
-      entry.connection.ready(discovered.value.ok)
-      return succeed({
-        transport,
-        generation: entry.connection.generation,
-        connection: entry.view,
-        peer: discovered.value.ok,
-        catalogKey: entry.catalogKey,
-        adoptionRevision: entry.adoptionRevision,
-        bound: entry.bound,
-      })
-    } catch (error: unknown) {
-      if (entry.connection.state.kind === 'preparing') entry.connection.lose('preparation-failed')
-      await teardown(entry)
-      throw error
-    }
   }
 
   /** The entry of a key: the existing one, with a new connection when the old one is closed. */
@@ -571,7 +224,7 @@ export function createConnectionTable<P, S>(
         process: undefined,
         credential: undefined,
         lingering: [],
-        landings: 0,
+        landings: [],
         pending: undefined,
         tearing: undefined,
         closing: undefined,
@@ -586,9 +239,58 @@ export function createConnectionTable<P, S>(
   }
 
   /**
-   * The critical section of a holding: the adoption read again, the connections of other
-   * revisions closed (invariant 6), the key's close or teardown in flight waited for, then the
-   * connection reused, joined or built. The build itself runs outside the section.
+   * The adoption read again before a build (SPEC MC-5): the token is not trusted for the
+   * revision, so a token of another revision cannot build a connection or close one. The read
+   * is the gate's adoption-only read; one that does not answer within `bound` does not hold the
+   * critical section (decision 22).
+   */
+  async function readAgain(
+    admitted: AdmittedEndpoint,
+    access: Access<P>,
+    bound: AbortSignal,
+  ): Promise<EnsureRefusal | 'current'> {
+    const read = await within(admitWithoutEligibility(ports, access, admitted.ref), bound, scope)
+    if (read.kind === 'expired') return CONNECTION_UNAVAILABLE
+    if ('failure' in read.value) return read.value.failure
+    return read.value.ok.revision === admitted.revision ? 'current' : UNKNOWN
+  }
+
+  /**
+   * The settled entries of the holding's other revisions hand what still lingers to `entry`,
+   * which stops it at its next teardown, and leave the table when they hold nothing else.
+   */
+  function inheritLingering(entry: Entry, settled: readonly Entry[]): void {
+    for (const other of settled) {
+      adoptLingering(entry, other)
+      forget(other)
+    }
+  }
+
+  /**
+   * What the critical section waits for before it decides: the close of a connection of the
+   * holding's other revisions (invariant 6), else the close or teardown in flight on the key.
+   */
+  function blockingOf(
+    tenantText: string,
+    holding: EndpointHolding,
+    keyText: string,
+    ofOtherRevision: (entry: Entry) => boolean,
+  ): Promise<StopRange> | undefined {
+    const other = entriesOf(tenantText, holding).find(
+      entry => ofOtherRevision(entry) && !isSettled(entry),
+    )
+    if (other !== undefined) return closeEntry(other)
+    const existing = entries.get(keyText)
+    return existing?.closing ?? existing?.tearing
+  }
+
+  /**
+   * The critical section of a holding: the adoption read again under what is left of the
+   * caller's bound (decision 22), the connections of other revisions closed (invariant 6), the
+   * key's close or teardown in flight waited for under the same bound, then the connection
+   * reused, joined or built. The build itself runs outside the section. A table that is shut
+   * refuses here, and so does a call whose bound fired while it waited for its turn: its caller
+   * has its answer, and it asks no port.
    */
   async function begin(
     admitted: AdmittedEndpoint,
@@ -597,56 +299,63 @@ export function createConnectionTable<P, S>(
     key: ConnectionKey,
     keyText: string,
     tenantText: string,
+    bound: AbortSignal,
   ): Promise<Started> {
-    const answer = (outcome: Outcome<Ensured, EnsureFailure>): Started => ({
-      outcome: Promise.resolve(outcome),
-    })
-    const refused = (reason: AdoptionRefusal): Started =>
-      answer(fail({ stage: 'settings', reason }))
-    // The token is not trusted for the revision: the adoption is read again, and a token of
-    // another revision cannot build a connection or close one (SPEC MC-5).
-    const adoption = await ports.adoption.endpoint(access, admitted.ref)
-    if ('failure' in adoption) return refused(UNKNOWN)
-    if (adoption.ok === 'not-adopted') return refused(NOT_AVAILABLE)
-    if (adoption.ok.revision !== admitted.revision) return refused(UNKNOWN)
+    const refused = (reason: EnsureRefusal): Started =>
+      answered(fail({ stage: 'settings', reason }))
+    if (shut || bound.aborted) return refused(CONNECTION_UNAVAILABLE)
+    const read = await readAgain(admitted, access, bound)
+    if (read !== 'current') return refused(read)
     const { holding } = admitted.ref
     const ofOtherRevision = (entry: Entry) => entry.adoptionRevision !== admitted.revision
     for (;;) {
-      const other = entriesOf(tenantText, holding).find(
-        entry => ofOtherRevision(entry) && !isSettled(entry),
-      )
-      if (other !== undefined) {
-        await closeEntry(other)
+      if (shut || bound.aborted) return refused(CONNECTION_UNAVAILABLE)
+      const blocking = blockingOf(tenantText, holding, keyText, ofOtherRevision)
+      if (blocking !== undefined) {
+        // At most to this call's bound (decision 22): a close or teardown that does not end
+        // within it goes on by itself, and this call answers.
+        const waited = await within(blocking, bound, scope)
+        if (waited.kind === 'expired') return refused(CONNECTION_UNAVAILABLE)
         continue
       }
       const existing = entries.get(keyText)
-      const inFlight = existing?.closing ?? existing?.tearing
-      if (inFlight !== undefined) {
-        await inFlight
-        continue
-      }
-      if (existing?.pending !== undefined) return { outcome: existing.pending }
-      if (existing !== undefined && isUsable(existing)) {
-        const usable = ensuredOf(existing)
-        if (usable !== undefined) return answer(succeed(usable))
-      }
+      const reused = existing === undefined ? undefined : reuseOf(existing)
+      if (reused !== undefined) return reused
       // From here to the start of the build nothing yields: the entry of the holding is this one.
       const entry = entryOf(existing, admitted, access, prepared, key, keyText)
-      for (const settled of entriesOf(tenantText, holding).filter(ofOtherRevision)) {
-        entry.lingering = [...entry.lingering, ...settled.lingering]
-        settled.lingering = []
-        forget(settled)
-      }
+      inheritLingering(entry, entriesOf(tenantText, holding).filter(ofOtherRevision))
       entries.set(keyText, entry)
       byView.set(entry.view, entry)
-      const pending = build(entry, access, prepared)
+      const pending = builder.build(entry, access, prepared)
       const done = () => {
         if (entry.pending === pending) entry.pending = undefined
       }
       entry.pending = pending
       void pending.then(done, done)
-      return { outcome: pending }
+      return { outcome: pending, joined: false }
     }
+  }
+
+  /**
+   * A call that joined the build of another call waits for it at most to its own connection
+   * bound (SPEC P8 T2). Past it, the build goes on for the call that began it, and this call
+   * answers with the mark `pending`. An error of this package in the build reaches the call that
+   * began it, and this call too while it still waits.
+   */
+  async function join(
+    build: Promise<Outcome<Ensured, EnsureFailure>>,
+    connectBound: number,
+  ): Promise<Outcome<Ensured, EnsureFailure>> {
+    const read = build.then(
+      outcome => () => outcome,
+      (error: unknown) => (): never => {
+        throw error
+      },
+    )
+    const waited = await within(read, startBound(connectBound, 'join'), scope)
+    if (waited.kind === 'expired')
+      return fail({ stage: 'connect', reason: CONNECTION_UNAVAILABLE, catalog: 'pending' })
+    return waited.value()
   }
 
   async function ensure(
@@ -655,15 +364,24 @@ export function createConnectionTable<P, S>(
     options: EnsureOptions = {},
   ): Promise<Outcome<Ensured, EnsureFailure>> {
     assertAdmitted(admitted)
+    if (shut) return fail({ stage: 'settings', reason: CONNECTION_UNAVAILABLE })
     const prepared = prepareSettings(admitted, options.connectBound)
     if ('failure' in prepared) return fail({ stage: 'settings', reason: prepared.failure })
     const key = connectionKeyOf(access.tenant, admitted, prepared.ok.account)
     const keyText = connectionKeyTextOf(key)
     const tenantText = tenantTextOf(access.tenant)
-    const started = await inTurn(holdingTextOf(tenantText, admitted.ref.holding), () =>
-      begin(admitted, access, prepared.ok, key, keyText, tenantText),
+    // This call's bounds (SPEC P8 T2): one for the critical section, the wait for its turn
+    // included; one for the build it begins, from the start of the build (MC-5), or for the
+    // build of another call that it joins, from the join.
+    const bound = startBound(prepared.ok.bound, 'section')
+    const turn = turns.inTurn(holdingTextOf(tenantText, admitted.ref.holding), () =>
+      begin(admitted, access, prepared.ok, key, keyText, tenantText, bound),
     )
-    return started.outcome
+    const started = await within(turn, bound, scope)
+    if (started.kind === 'expired')
+      return fail({ stage: 'settings', reason: CONNECTION_UNAVAILABLE })
+    const { outcome, joined } = started.value
+    return joined ? join(outcome, prepared.ok.bound) : outcome
   }
 
   function settle(
@@ -687,10 +405,7 @@ export function createConnectionTable<P, S>(
   ): Promise<CatalogMark | 'not-current'> {
     const entry = byView.get(connection)
     if (entry === undefined || !entry.connection.isCurrent(generation)) return 'not-current'
-    // Requests are refused at once; the teardown is the entry's one teardown.
-    entry.connection.lose(reason)
-    await teardown(entry)
-    return markCatalog(entry.catalogKey, mark)
+    return builder.markLost(entry, reason, mark)
   }
 
   function current(key: ConnectionKey): Ensured | undefined {
@@ -718,20 +433,36 @@ export function createConnectionTable<P, S>(
   async function close(tenant: TenantId, holding: EndpointHolding): Promise<ReleaseReport> {
     const found = entriesOf(tenantTextOf(tenant), holding)
     if (found.length === 0) return { kind: 'no-connection' }
-    let scope: Scope = 'no-process'
-    for (const entry of found) {
-      const confirmed = await closeEntry(entry)
-      if (confirmed !== 'no-process') scope = narrowest(scope, confirmed)
-    }
-    return { kind: 'released', process: scope }
+    let range: StopRange = 'no-process'
+    for (const entry of found) range = narrowest(range, await closeEntry(entry))
+    return { kind: 'released', process: range }
   }
 
+  /**
+   * The shutdown: nothing connects after it; the handles of the landings in flight are released
+   * first, all at once (decision 6); then every entry is closed, all at once. It waits for both,
+   * then hands over the errors the table's background work raised.
+   */
   async function closeAll(): Promise<readonly ClosedEndpoint[]> {
-    const closed: ClosedEndpoint[] = []
-    for (const entry of Array.from(entries.values()))
-      closed.push({ ref: entry.ref, process: await closeEntry(entry) })
-    return closed
+    shut = true
+    const all = [...entries.values()]
+    // Every entry is closed before the answer, even when closing another one fails (SPEC P3).
+    const [abandoned, closing] = await Promise.all([
+      Promise.allSettled(all.map(abandonLandings)),
+      Promise.allSettled(
+        all.map(async entry => ({ ref: entry.ref, process: await closeEntry(entry) })),
+      ),
+    ])
+    const defects = [
+      ...[...abandoned, ...closing].flatMap((item): unknown[] =>
+        item.status === 'rejected' ? [item.reason] : [],
+      ),
+      ...scope.exit(),
+    ]
+    if (defects.length > 0)
+      throw new AggregateError(defects, 'the MCP connection table did not close cleanly')
+    return closing.flatMap(item => (item.status === 'fulfilled' ? [item.value] : []))
   }
 
-  return { ensure, settle, lose, current, stateOf, close, closeAll }
+  return { ensure, settle, lose, current, stateOf, close, closeAll, runtime }
 }

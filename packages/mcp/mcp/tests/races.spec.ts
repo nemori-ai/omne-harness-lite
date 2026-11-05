@@ -7,9 +7,12 @@ import { connectionKeyOf } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
 import { admit } from '../src/internal/gate.ts'
 import { createConnectionTable } from '../src/internal/table.ts'
+import { between, only } from './doubles/calls.ts'
+import { manualBounds } from './doubles/bounds.ts'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import {
+  silentAdoption,
   stallingAdoption,
   stallingCredentials,
   stallingEligibility,
@@ -233,8 +236,8 @@ describe('build bound (B5): credentials and the landing are bounded too', () => 
   })
 })
 
-describe('a port that throws (N1)', () => {
-  it('a rejected discover is torn down; the next ensure builds again', async () => {
+describe('a port that breaches its contract (MC-15, contract T9)', () => {
+  it('a rejected discover answers effect-unknown (abandoned) and is torn down; the next ensure builds again', async () => {
     const broken = deferred<typeof peer>()
     const w = world({ script: [{ discover: broken }, ...usualScript()] })
     adoptStdio(w, files, { auth: 'static', env: [{ name: 'TOKEN', source: 'credential' }] })
@@ -242,7 +245,7 @@ describe('a port that throws (N1)', () => {
     const first = c.discovery.refresh(alice, { ref: files })
     await settled()
     broken.reject(new Error('transport bug'))
-    await expect(first).rejects.toThrow('transport bug')
+    expect(await first).toEqual({ failure: { kind: 'effect-unknown', cause: 'abandoned' } })
     expect(w.trace).toEqual(['transport.close', 'process.stop', 'credential.release'])
     expect(await c.status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'lost', reason: 'preparation-failed' } },
@@ -476,6 +479,27 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
     expect(w.landing.processes()).toEqual([])
   })
 
+  it('a landing that rejects after the bound: no process, the handle released, the entry forgotten', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files, {
+      auth: 'static',
+      env: [{ name: 'TOKEN', source: 'credential' }],
+      settings: { connectTimeout: VALUE(millis(50)) },
+    })
+    const stalled = stallingLanding({ start: () => Promise.reject(new Error('landing bug')) })
+    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'connection-unavailable' },
+    })
+    expect(await c.connections.release(alice, files)).toEqual({
+      ok: { kind: 'released', process: 'unconfirmed' },
+    })
+    stalled.gate.resolve()
+    await settled()
+    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
+    expect(await c.connections.release(alice, files)).toEqual({ ok: { kind: 'no-connection' } })
+  })
+
   it('a credential handle that arrives after the bound is released; a release that rejects is dropped, not unhandled', async () => {
     const w = world({ script: usualScript() })
     adoptHttp(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
@@ -502,6 +526,75 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
       process.off('unhandledRejection', onUnhandled)
     }
   })
+})
+
+describe('the adoption read again in the critical section is bounded (decision 22)', () => {
+  it('a re-read that never answers: connection-unavailable at the bound, and the next ensure of the holding answers within its own bound', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    // Calls 1 and 2 are the gates of the two refreshes; calls 3 and 4, the re-reads of the
+    // critical section, never answer.
+    const silent = silentAdoption(w.ports.adoption, between(3, 4))
+    const c = core({ ...w, ports: { ...w.ports, adoption: silent.port } })
+    const [first, second] = await Promise.all([
+      c.discovery.refresh(alice, { ref: files }),
+      c.discovery.refresh(alice, { ref: files }),
+    ])
+    const refused = { failure: { kind: 'connection-unavailable' } }
+    expect(first).toEqual(refused)
+    expect(second).toEqual(refused)
+    expect(silent.calls()).toBe(4)
+    expect(w.transports.calls).toHaveLength(0)
+    expect(await c.status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'none' } },
+    })
+  })
+})
+
+describe('a teardown that does not answer holds no ensure past its bound (decision 22)', () => {
+  const REFUSED = { failure: { kind: 'connection-unavailable' } }
+
+  it('the close of an earlier revision hangs: two refreshes of the new revision answer connection-unavailable, then the close ends on its own', async () => {
+    const closing = deferred<'closed'>()
+    const w = world({ script: [...usualScript(), { close: closing }, ...usualScript()] })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    const c = core(w)
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+    w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
+    const [one, two] = await Promise.all([
+      c.discovery.refresh(alice, { ref: files }),
+      c.discovery.refresh(alice, { ref: files }),
+    ])
+    expect(one).toEqual(REFUSED)
+    expect(two).toEqual(REFUSED)
+    expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
+    closing.resolve('closed')
+    await settled()
+    expect(w.landing.processes()).toEqual([{ stops: 1 }])
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+  }, 2000)
+
+  it('a release of the same key still closing the transport: a refresh answers connection-unavailable within its bound', async () => {
+    const closing = deferred<'closed'>()
+    const w = world({ script: [...usualScript(), { close: closing }, ...usualScript()] })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    const c = core(w)
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+    const released = c.connections.release(alice, files)
+    await settled()
+    expect(await c.discovery.refresh(alice, { ref: files })).toEqual(REFUSED)
+    closing.resolve('closed')
+    expect(await released).toEqual({ ok: { kind: 'released', process: 'tree-confirmed' } })
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+  }, 2000)
 })
 
 describe('two tokens of two revisions at the re-read (observation)', () => {
@@ -532,5 +625,105 @@ describe('two tokens of two revisions at the re-read (observation)', () => {
     expect(table.current(connectionKeyOf(alice.tenant, old.endpoint, anonymous))).toBeUndefined()
     expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'ready' })
     expect(await table.closeAll()).toHaveLength(1)
+  })
+})
+
+describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
+  const REFUSED = { failure: { kind: 'connection-unavailable' } }
+
+  it('a call queued behind one that holds the critical section answers at its own bound, and asks no port after', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files)
+    // Calls 1 and 2 are the gates of the two refreshes; call 3, the re-read of the first in the
+    // critical section, never answers.
+    const silent = silentAdoption(w.ports.adoption, between(3, 4))
+    const bounds = manualBounds()
+    const c = core({ ...w, ports: { ...w.ports, adoption: silent.port } }, bounds.runtime)
+    const first = c.discovery.refresh(alice, { ref: files })
+    const second = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    expect(silent.calls()).toBe(3)
+    bounds.fire('section', 1)
+    expect(await second).toEqual(REFUSED)
+    bounds.fire('section', 0)
+    expect(await first).toEqual(REFUSED)
+    await settled()
+    expect(silent.calls()).toBe(3)
+    expect(w.transports.calls).toHaveLength(0)
+  })
+
+  it('a call that joins the build of another answers at its own bound; the build goes on for the call that began it', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files)
+    const stalled = stallingLanding(w.landing)
+    const bounds = manualBounds()
+    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } }, bounds.runtime)
+    const first = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    const second = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    bounds.fire('join')
+    expect(await second).toEqual(REFUSED)
+    expect(stalled.calls()).toBe(1)
+    stalled.gate.resolve()
+    expect(await first).toMatchObject({ ok: { kind: 'published' } })
+  })
+
+  it('at the table, a call queued past its section bound answers at the settings stage', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files)
+    // Call 1 is the gate; call 2, the re-read of the first ensure in the critical section, never
+    // answers.
+    const silent = silentAdoption(w.ports.adoption, only(2))
+    const bounds = manualBounds()
+    const ports = { ...w.ports, adoption: silent.port }
+    const table = createConnectionTable(ports, w.config, bounds.runtime)
+    const admitted = await admit(ports, alice, files)
+    if (admitted.kind !== 'admitted') throw new Error('not admitted')
+    const first = table.ensure(admitted.endpoint, alice)
+    const second = table.ensure(admitted.endpoint, alice)
+    await settled()
+    const refused = { failure: { stage: 'settings', reason: { kind: 'connection-unavailable' } } }
+    bounds.fire('section', 1)
+    expect(await second).toEqual(refused)
+    bounds.fire('section', 0)
+    expect(await first).toEqual(refused)
+  })
+
+  it('at the table, a call that joins past its own bound answers at the connect stage with the mark pending', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files)
+    const stalled = stallingLanding(w.landing)
+    const bounds = manualBounds()
+    const ports = { ...w.ports, landing: stalled.port }
+    const table = createConnectionTable(ports, w.config, bounds.runtime)
+    const admitted = await admit(ports, alice, files)
+    if (admitted.kind !== 'admitted') throw new Error('not admitted')
+    const first = table.ensure(admitted.endpoint, alice)
+    await settled()
+    const second = table.ensure(admitted.endpoint, alice)
+    await settled()
+    bounds.fire('join')
+    expect(await second).toEqual({
+      failure: { stage: 'connect', reason: { kind: 'connection-unavailable' }, catalog: 'pending' },
+    })
+    stalled.gate.resolve()
+    expect('ok' in (await first)).toBe(true)
+    await table.closeAll()
+  })
+
+  it('a refresh stops reading pages at its listing bound: the cut-off page has no answer', async () => {
+    const w = world({
+      script: [{ discover: peerIdentity() }, { listActions: deferred<ListingPage>() }],
+    })
+    adoptStdio(w, files)
+    const bounds = manualBounds()
+    const c = core(w, bounds.runtime)
+    const refreshing = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    bounds.fire('listing')
+    expect(await refreshing).toEqual({
+      ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defect: 'page-failed' } },
+    })
   })
 })

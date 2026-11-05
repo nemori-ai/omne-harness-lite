@@ -1,20 +1,12 @@
 // Test helper: the contract's in-memory port doubles wrapped with call counts, handle counts and
 // a scripted stop range. Tests assert on these counts; the doubles keep their contract behavior.
-import type { Access } from '@omne-harness/legal-identity'
-import type { Outcome } from '@omne-harness/operation-result'
 import type {
   AdoptionView,
-  CredentialFailure,
-  CredentialPurpose,
-  HttpCredentialHandle,
-  HttpPurpose,
-  ProcessCredentialHandle,
   ProcessHandle,
   ProcessLanding,
-  ProcessPurpose,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
-import type { CredentialBinding, EndpointHolding, StopScope } from '@omne-harness/mcp-contract'
+import type { StopScope } from '@omne-harness/mcp-contract'
 import {
   createMemoryAdoptionView,
   createMemoryCredentialUse,
@@ -25,6 +17,7 @@ import {
   type MemoryProcessLanding,
   type MemoryUseEligibility,
 } from '@omne-harness/mcp-contract/testing'
+import { releasing, reshapedCredentials } from './handles.ts'
 import { principalKey, type Principal } from './values.ts'
 
 export type Counted<T> = T & Readonly<{ calls: () => number }>
@@ -65,73 +58,24 @@ export type CountedCredentials = MemoryCredentialUse<Principal> &
 
 type Trace = (event: string) => void
 
-function countingProcessHandle(
-  handle: ProcessCredentialHandle,
-  count: HandleCount,
-  trace: Trace,
-): ProcessCredentialHandle {
-  return {
-    purpose: 'process-env',
-    async release() {
-      count.released += 1
-      trace('credential.release')
-      await handle.release()
-    },
-  }
-}
-
-function countingHttpHandle(
-  handle: HttpCredentialHandle,
-  count: HandleCount,
-  trace: Trace,
-): HttpCredentialHandle {
-  return {
-    purpose: 'http-authorization',
-    authorize: headers => handle.authorize(headers),
-    reportRejection: () => handle.reportRejection(),
-    async release() {
-      count.released += 1
-      trace('credential.release')
-      await handle.release()
-    },
-  }
-}
-
 /** The memory credential double; every handle it gives out is counted and its release traced. */
 export function countedCredentials(trace: Trace = () => undefined): CountedCredentials {
   const memory = createMemoryCredentialUse<Principal>()
   const handles: HandleCount[] = []
-  function acquire(
-    access: Access<Principal>,
-    holding: EndpointHolding,
-    purpose: ProcessPurpose,
-    binding: CredentialBinding,
-  ): Promise<Outcome<ProcessCredentialHandle, CredentialFailure>>
-  function acquire(
-    access: Access<Principal>,
-    holding: EndpointHolding,
-    purpose: HttpPurpose,
-    binding: CredentialBinding,
-  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
-  async function acquire(
-    access: Access<Principal>,
-    holding: EndpointHolding,
-    purpose: CredentialPurpose,
-    binding: CredentialBinding,
-  ): Promise<Outcome<ProcessCredentialHandle | HttpCredentialHandle, CredentialFailure>> {
+  const counted = reshapedCredentials(memory, handle => {
     const count: HandleCount = { acquired: 1, released: 0 }
-    if (purpose.kind === 'process-env') {
-      const answer = await memory.acquire(access, holding, purpose, binding)
-      if ('failure' in answer) return answer
-      handles.push(count)
-      return { ok: countingProcessHandle(answer.ok, count, trace) }
-    }
-    const answer = await memory.acquire(access, holding, purpose, binding)
-    if ('failure' in answer) return answer
     handles.push(count)
-    return { ok: countingHttpHandle(answer.ok, count, trace) }
+    return releasing(handle, async () => {
+      count.released += 1
+      trace('credential.release')
+      await handle.release()
+    })
+  })
+  return {
+    ...memory,
+    acquire: counted.acquire,
+    handles: () => handles.map(count => ({ ...count })),
   }
-  return { ...memory, acquire, handles: () => handles.map(count => ({ ...count })) }
 }
 
 export type ScriptedLanding = MemoryProcessLanding<Principal> &

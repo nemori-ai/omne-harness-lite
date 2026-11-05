@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import type { Access } from '@omne-harness/legal-identity'
 import {
   catalogKeyOf,
+  isCatalogRevision,
   type AuthorizationDiscovery,
   type EndpointRef,
   type PeerAccount,
@@ -221,6 +222,64 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
   }
   const credentialAccount: PeerAccount = { kind: 'credential', binding: MAIN }
 
+  it('an error of this package while marking reaches the caller; it is not read as a store breach (MC-5, MC-15)', async () => {
+    const w = world()
+    const adopted = adoptStdio(w, files, {
+      auth: 'static',
+      env: [{ name: 'TOKEN', source: 'credential' }],
+    })
+    w.credentials.reject(alice.tenant, MAIN)
+    const record = await storedRecord(w, await keyOf(w, adopted, credentialAccount), ['read'])
+    // A record at the last revision: the next one cannot be counted (contract `nextRevision`).
+    const last = Number.MAX_SAFE_INTEGER
+    if (!isCatalogRevision(last)) throw new TypeError('not a catalog revision')
+    let writes = 0
+    const store = {
+      ...w.ports.store,
+      read: async () => ({ ok: { ...record, revision: last } }),
+      write: async (...args: Parameters<typeof w.ports.store.write>) => {
+        writes += 1
+        return w.ports.store.write(...args)
+      },
+    }
+    const table = createConnectionTable({ ...w.ports, store }, w.config)
+    await expect(table.ensure(await admitted(w, files), alice)).rejects.toThrow(RangeError)
+    expect(writes).toBe(0)
+  })
+
+  it('an error of this package in a build reaches a call that joined it while it still waits (P7)', async () => {
+    const w = world()
+    const adopted = adoptStdio(w, files, {
+      auth: 'static',
+      env: [{ name: 'TOKEN', source: 'credential' }],
+    })
+    w.credentials.reject(alice.tenant, MAIN)
+    const record = await storedRecord(w, await keyOf(w, adopted, credentialAccount), ['read'])
+    const last = Number.MAX_SAFE_INTEGER
+    if (!isCatalogRevision(last)) throw new TypeError('not a catalog revision')
+    // The mark of the failed build waits here until the second call has joined it.
+    const marking = deferred<void>()
+    let reads = 0
+    const store = {
+      ...w.ports.store,
+      read: async () => {
+        reads += 1
+        await marking.promise
+        return { ok: { ...record, revision: last } }
+      },
+    }
+    const table = createConnectionTable({ ...w.ports, store }, w.config)
+    const endpoint = await admitted(w, files)
+    const began = table.ensure(endpoint, alice)
+    await settled()
+    const joined = table.ensure(endpoint, alice)
+    await settled()
+    marking.resolve()
+    await expect(began).rejects.toThrow(RangeError)
+    await expect(joined).rejects.toThrow(RangeError)
+    expect(reads).toBe(1)
+  })
+
   it('credential rejected: credential-unavailable (rejected), actions marked, revision one higher', async () => {
     const w = world()
     const adopted = adoptStdio(w, files, {
@@ -371,24 +430,28 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     })
   })
 
-  it('discover without an answer: effect-unknown with the cause, lost with the matching reason', async () => {
-    const w = world({ script: [{ discover: { kind: 'no-answer', cause: 'process-exited' } }] })
-    adoptStdio(w, files)
-    const table = tableOf(w)
-    const token = await admitted(w, files)
-    const answer = await table.ensure(token, alice)
-    expect(answer).toEqual({
-      failure: {
-        stage: 'connect',
-        reason: { kind: 'effect-unknown', cause: 'process-exited' },
-        catalog: 'not-acquired',
-      },
-    })
-    expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
-      kind: 'lost',
-      reason: 'process-exited',
-    })
-  })
+  it.each([
+    ['process-exited', 'process-exited'],
+    ['stream-broken', 'stream-broken'],
+    ['abandoned', 'preparation-failed'],
+  ] as const)(
+    'discover without an answer (%s): effect-unknown with the cause, lost (%s)',
+    async (cause, lost) => {
+      const w = world({ script: [{ discover: { kind: 'no-answer', cause } }] })
+      adoptStdio(w, files)
+      const table = tableOf(w)
+      const token = await admitted(w, files)
+      const answer = await table.ensure(token, alice)
+      expect(answer).toEqual({
+        failure: {
+          stage: 'connect',
+          reason: { kind: 'effect-unknown', cause },
+          catalog: 'not-acquired',
+        },
+      })
+      expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({ kind: 'lost', reason: lost })
+    },
+  )
 
   it('a failed stdio attempt still counts a generation; a failed HTTP attempt does not', async () => {
     const stdio = world({
@@ -448,7 +511,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
 })
 
 describe('ensure: the connection bound', () => {
-  it('answers connection-unavailable at the bound and stops the process it started', async () => {
+  it('answers connection-unavailable at the bound with the mark pending; the started process is stopped after', async () => {
     const never = deferred<'opened'>()
     const w = world({ script: [{ open: never }] })
     adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(1)) } })
@@ -459,9 +522,10 @@ describe('ensure: the connection bound', () => {
       failure: {
         stage: 'connect',
         reason: { kind: 'connection-unavailable' },
-        catalog: 'not-acquired',
+        catalog: 'pending',
       },
     })
+    await settled()
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
       kind: 'lost',
@@ -476,6 +540,7 @@ describe('ensure: the connection bound', () => {
     const table = tableOf(w)
     const token = await admitted(w, files)
     await table.ensure(token, alice)
+    await settled()
     expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
       kind: 'lost',
       reason: 'preparation-failed',
@@ -485,9 +550,9 @@ describe('ensure: the connection bound', () => {
 })
 
 describe('ensure: the connection key (invariant 1)', () => {
-  it('does not share a connection between two tenants with the same holding', async () => {
+  it('does not share a connection between two tenants with the same holding and adoption revision', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
-    adoptStdio(w, files)
+    const { revision } = adoptStdio(w, files)
     w.adoption.adopt({
       tenant: away,
       scope: 'ws',
@@ -500,10 +565,25 @@ describe('ensure: the connection key (invariant 1)', () => {
       },
     })
     w.eligibility.grant(mallory, files)
-    const table = tableOf(w)
-    const ours = await table.ensure(await admitted(w, files), alice)
-    const theirs = await table.ensure(await admitted(w, files, mallory), mallory)
+    // The double gives every adoption its own revision. Here both tenants read one revision, so
+    // the tenant is the only part of the two connection keys that differs.
+    const adoption: AdoptionView<Principal, string> = {
+      endpoints: (access, scope) => w.ports.adoption.endpoints(access, scope),
+      endpoint: async (access, endpoint) => {
+        const read = await w.ports.adoption.endpoint(access, endpoint)
+        return 'ok' in read && read.ok !== 'not-adopted' ? { ok: { ...read.ok, revision } } : read
+      },
+    }
+    const ports = { ...w.ports, adoption }
+    const table = createConnectionTable(ports, w.config)
+    const ourToken = await admit(ports, alice, files)
+    const theirToken = await admit(ports, mallory, files)
+    if (ourToken.kind !== 'admitted' || theirToken.kind !== 'admitted')
+      throw new Error('not admitted')
+    const ours = await table.ensure(ourToken.endpoint, alice)
+    const theirs = await table.ensure(theirToken.endpoint, mallory)
     if (!('ok' in ours) || !('ok' in theirs)) throw new Error('ensure failed')
+    expect(theirs.ok.adoptionRevision).toBe(ours.ok.adoptionRevision)
     expect(theirs.ok.transport).not.toBe(ours.ok.transport)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
   })

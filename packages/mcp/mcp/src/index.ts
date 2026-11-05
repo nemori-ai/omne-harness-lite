@@ -41,7 +41,8 @@ function localNow(): Date {
 
 /**
  * Builds the core services on the ports. An unlawful configuration is a `RangeError` (SPEC S3).
- * The services share one connection table; nothing connects until a `refresh` asks for it.
+ * The services share one connection table and its scope; nothing connects until a `refresh` asks
+ * for it.
  */
 export function createMcpCore<P, S>(
   ports: McpPorts<P, S>,
