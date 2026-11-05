@@ -460,6 +460,7 @@ export function createEnvironmentRegistry<P>(
       placement: original.placement,
       ledgerClosed: record.ledger.closed,
       retentionEnabled: record.retention !== undefined,
+      processRetentionEnabled: record.retention?.processes !== undefined,
       descriptor: key => facilities.get(key),
       invalidated: invalidation => {
         if (record.state.kind === 'acquired')
@@ -850,6 +851,7 @@ export function createEnvironmentRegistry<P>(
       })
       const { ledger, guard } = input
       const retentionLedger = input.retention?.ledger
+      const processLedger = input.retention?.processes
       if (!fitsScope(original.placement.binding, original.scope)) return rejected('invalidInput')
       const checked = await checkAccess(
         ports,
@@ -869,7 +871,8 @@ export function createEnvironmentRegistry<P>(
           existing.fingerprint !== print ||
           existing.ledger !== ledger ||
           existing.guard !== guard ||
-          existing.retention?.ledger !== retentionLedger
+          existing.retention?.ledger !== retentionLedger ||
+          existing.retention?.processes !== processLedger
         )
           return rejected('acquisitionConflict')
         if (existing.state.kind === 'provisional' && existing.receipt !== null)
@@ -892,6 +895,7 @@ export function createEnvironmentRegistry<P>(
             : Object.freeze({
                 scope: original.retentionScope,
                 ledger: retentionLedger,
+                ...(processLedger === undefined ? {} : { processes: processLedger }),
                 released: retentionSignal(original.retentionScope),
               }),
         entry: entry ?? null,
