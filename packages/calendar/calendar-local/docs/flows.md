@@ -6,6 +6,8 @@
 
 离线初始化显式读取 registry，核 packHash/条目与政策，再逐历导入。runner 只有种子达到 published/noChange 后才初始化供应与执行 phases。seed=null 报 seedSkipped，不隐含默认导入。来源获取的失败保留旧快照，不阻止覆盖内读取。
 
+已发布种子的原文、来源清单及摘要属于固定发布依据。归档下一年度材料时使用独立清单，不追加或改写旧发布已引用的清单。`data/seeds/evidence/gov-cn-2027-records.json` 只登记待发布官方材料；它不扩大现有种子的覆盖范围，也不表示已满足独立来源核验。
+
 runner tick 串行完成 recover、runDue、deliverReactions 中启用的阶段。contextSupplier 每周期提供可信上下文，timer 只唤醒，due 和未完责任保存在数据库。start 不把观察事件当业务成功。
 
 完整业务流程见[Calendar 关键流程](../../calendar/docs/key-flows.md)。
