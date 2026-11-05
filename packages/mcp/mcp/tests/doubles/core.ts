@@ -3,7 +3,12 @@
 // `status.inspect`, the public status port.
 import { assemble } from '../../src/internal/assembly.ts'
 import type { ConnectionTable, TableRuntime } from '../../src/internal/table.ts'
-import type { ActionDiscovery, Connections, EndpointStatus } from '@omne-harness/mcp-contract'
+import type {
+  ActionCalls,
+  ActionDiscovery,
+  Connections,
+  EndpointStatus,
+} from '@omne-harness/mcp-contract'
 import type { Principal } from './identities.ts'
 import type { World } from './world.ts'
 
@@ -11,6 +16,7 @@ export type Core = Readonly<{
   w: World
   table: ConnectionTable<Principal>
   discovery: ActionDiscovery<Principal>
+  invoker: ActionCalls<Principal>
   status: EndpointStatus<Principal, string>
   connections: Connections<Principal>
 }>

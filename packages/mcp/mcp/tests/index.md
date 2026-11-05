@@ -13,7 +13,9 @@
 - [mcp.spec.ts](mcp.spec.ts)：`createMcp` 的配置校验、服务共享一张表、端口时钟与类别端口
 - [config.spec.ts](config.spec.ts)：`validateConfig`
 - [connection.spec.ts](connection.spec.ts)：`Connection` 的状态机穷举
-- [in-flight.spec.ts](in-flight.spec.ts)：`InFlightCalls` 的五条性质
+- [in-flight.spec.ts](in-flight.spec.ts)：`InFlightCalls` 的性质：占位一步、隔离、代际、发出前的取消、取消信号
+- [invoke.spec.ts](invoke.spec.ts)：`invoke` 的次序每步一例、R2 每个原因、连接表答复的映射、发出后的 `signal`、结局
+- [cancel.spec.ts](cancel.spec.ts)：`cancel` 只查在途表：另一主体或租户、发出前、发出后、发出与登记之间
 - [gate.spec.ts](gate.spec.ts)、[types.spec-d.ts](types.spec-d.ts)：关口的六种答复与能力令牌
 - [ensure.spec.ts](ensure.spec.ts)：连接表的复用、重建、单飞、配值缺陷、连接失败、句柄释放、连接时限与键
 - [entry.spec.ts](entry.spec.ts)：`holdsNothing` 五种资源各一例；删除条件 `forgettable`（已关闭且什么也不持有）
@@ -28,5 +30,5 @@
 - [release.spec.ts](release.spec.ts)：关闭次序与 `closeAll`
 - [memory-store.spec.ts](memory-store.spec.ts)：内存存储的符合性套件与隔离
 - [model/](model/)：连接表的有界穷举探索器：驱动真实的 `createConnectionTable`，在每个可达状态核对性质 P1–P8，见 [verification/README.md](../verification/README.md)
-- [doubles/](doubles/)：`world.ts`（端口替身与采用样本）、`core.ts`（服务组装）、`scripted-transport.ts`、`ports.ts`（计数替身）、`stalls.ts`（挂起选中的调用或不再答复的端口）、`faults.ts`（关闭次序的三步做完再 reject 的端口；按进程序号答 `stop()` 的落点）、`handles.ts`（凭据替身共用的句柄包装）、`calls.ts`（按调用序号挑选）、`deferred.ts`、`identities.ts`（测试世界的租户与主体；契约值的样本用契约 `./testing` 的构造器）
+- [doubles/](doubles/)：`world.ts`（端口替身与采用样本）、`core.ts`（服务组装）、`scripted-transport.ts`、`ports.ts`（计数替身）、`stalls.ts`（挂起选中的调用或不再答复的端口）、`faults.ts`（关闭次序的三步做完再 reject 的端口；按进程序号答 `stop()` 的落点）、`handles.ts`（凭据替身共用的句柄包装）、`calls.ts`（按调用序号挑选）、`deferred.ts`、`peer.ts`（调用口的世界：契约的脚本化传输与对端收到的请求）、`identities.ts`（测试世界的租户与主体；契约值的样本用契约 `./testing` 的构造器）
 - [fixtures/](fixtures/index.md)：测试固定输入（本包目前没有）

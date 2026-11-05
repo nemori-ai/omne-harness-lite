@@ -26,6 +26,7 @@ import {
 } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
 import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
+import { connectionFailureOf, lostOfNotSent, type NotSent } from './internal/lost.ts'
 import { ask, within } from './internal/port.ts'
 import { readAccountOf } from './internal/settings.ts'
 import type { CatalogMark, ConnectionTable, Ensured } from './internal/table.ts'
@@ -111,28 +112,15 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return pages
   }
 
-  /** A page the transport could not send: the connection is gone (S5). */
+  /** A page the transport could not send: the connection is gone (S5, S7). */
   async function pageNotSent(
     ensured: Ensured,
-    failure: Extract<TransportFailure, { kind: 'not-sent' }>,
+    failure: NotSent,
   ): Promise<Outcome<RefreshResult, OperationFailure>> {
     const { connection, generation } = ensured
-    if (failure.cause === 'authorization-required') {
-      const catalog = await table.lose(
-        connection,
-        generation,
-        'authorization-required',
-        'authorization-required',
-      )
-      return afterMarking({ kind: 'authorization-required', discovery: failure.discovery }, catalog)
-    }
-    const catalog = await table.lose(
-      connection,
-      generation,
-      'stream-broken',
-      'connection-unavailable',
-    )
-    return afterMarking({ kind: 'connection-unavailable' }, catalog)
+    const lost = lostOfNotSent(failure)
+    const catalog = await table.lose(connection, generation, lost.reason, lost.mark)
+    return afterMarking(connectionFailureOf(failure), catalog)
   }
 
   async function publish(

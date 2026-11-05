@@ -131,9 +131,12 @@ export function settingsOf(given: Settings = {}): EndpointSettings {
 export const VALUE = <T>(value: T): SettingValue<T> => ({ kind: 'value', value })
 export const INVALID: SettingValue<never> = { kind: 'invalid', text: 'nonsense' }
 
+/** The ports a case adopts into: the world's, or the peer world's of `peer.ts`. */
+export type Adopting = Pick<World, 'adoption' | 'eligibility' | 'credentials'>
+
 /** A ready-to-use stdio adoption for alice: `files`, `auth` none unless given, granted. */
 export function adoptStdio(
-  w: World,
+  w: Adopting,
   ref: EndpointRef,
   options: Readonly<{
     auth?: 'none' | 'static'
@@ -174,7 +177,7 @@ export function adoptStdio(
 
 /** A ready-to-use Streamable HTTP adoption for alice, `auth` static unless given, granted. */
 export function adoptHttp(
-  w: World,
+  w: Adopting,
   ref: EndpointRef,
   options: Readonly<{
     auth?: 'none' | 'static' | 'oauth'
@@ -214,7 +217,7 @@ export function usualScript(names: readonly string[] = ['read']): Step[] {
 
 /** A record of revision `revision` built by the public functions, written into the store. */
 export async function storedRecord(
-  w: World,
+  w: Pick<World, 'store'>,
   key: CatalogKey,
   names: readonly string[],
 ): Promise<ActionCatalogRecord> {

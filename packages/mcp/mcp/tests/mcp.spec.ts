@@ -16,9 +16,7 @@ describe('createMcp', () => {
     const w = world()
     expect(() => createMcp(w.ports, { ...CONFIG, maxListingPages: 0 })).toThrow(RangeError)
     expect(() => createMcp(w.ports, { ...CONFIG, maxActions: 1.5 })).toThrow(RangeError)
-    expect(() => createMcp(w.ports, { ...CONFIG, instructionsByteLimit: -1 })).toThrow(
-      RangeError,
-    )
+    expect(() => createMcp(w.ports, { ...CONFIG, instructionsByteLimit: -1 })).toThrow(RangeError)
     const broken: unknown = { ...CONFIG, principalKey: 'alice' }
     expect(() => createMcp(w.ports, broken as typeof CONFIG)).toThrow(RangeError)
     expect(w.adoption.calls()).toBe(0)
@@ -28,7 +26,13 @@ describe('createMcp', () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files)
     const mcp = createMcp(w.ports, CONFIG)
-    expect(Object.keys(mcp).sort()).toEqual(['connections', 'discovery', 'inspection', 'status'])
+    expect(Object.keys(mcp).sort()).toEqual([
+      'connections',
+      'discovery',
+      'inspection',
+      'invoker',
+      'status',
+    ])
     expect(await mcp.discovery.refresh(alice, { ref: files })).toEqual({
       ok: { kind: 'published', revision: 1 },
     })
