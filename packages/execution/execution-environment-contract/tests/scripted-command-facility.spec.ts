@@ -8,6 +8,7 @@ import {
 } from '@omne-harness/execution-environment-contract'
 import {
   createScriptedCommandFacility,
+  createScriptedRetentionStore,
   type CommandScript,
 } from '@omne-harness/execution-environment-contract/testing'
 
@@ -331,4 +332,72 @@ it('keeps its own copy of scripted output bytes', async () => {
   expect(await drain(answer.value)).toEqual([
     { stream: 'stdout', data: bytes('out'), observedOffset: 0 },
   ])
+})
+
+const leftover: CommandScript = () => ({ kind: 'started', leaves: 2 })
+
+it('adds no retention extension and no residue unless the retention option is given', async () => {
+  const plain = createScriptedCommandFacility(leftover)
+  expect(plain.facility.retention).toBeUndefined()
+  const answer = await plain.facility.start(start())
+  if (answer.kind !== 'done') throw new Error(`start: ${answer.kind}`)
+  expect(await settled(answer.value.result)).not.toHaveProperty('residue')
+})
+
+it('reports none, retained with the count, and an unbound stop when the ledger view is missing', async () => {
+  const store = createScriptedRetentionStore()
+  const scope = (ledger?: boolean) =>
+    createScriptedCommandFacility(leftover, {
+      retention: { store, scope: 'scope', ...(ledger === undefined ? {} : { ledger }) },
+    })
+  const result = async (cmd: ReturnType<typeof scope>, request = start()) => {
+    const answer = await cmd.facility.start(request)
+    if (answer.kind !== 'done') throw new Error(`start: ${answer.kind}`)
+    return settled(answer.value.result)
+  }
+  const retaining = scope()
+  expect(await result(retaining)).toMatchObject({
+    residue: { kind: 'retained', processes: 2, process: { id: expect.any(String) } },
+  })
+  const clean = createScriptedCommandFacility(() => ({ kind: 'started' }), {
+    retention: { store, scope: 'scope' },
+  })
+  expect(await result(clean)).toMatchObject({ residue: { kind: 'none' } })
+  const unbound = scope(false)
+  expect(unbound.facility.retention).toBeUndefined()
+  expect(await result(unbound)).toMatchObject({ residue: { kind: 'stopping', reason: 'unbound' } })
+})
+
+it('hands over: the handle stop answers unconfirmed, the list shows it, closing the scope stops it', async () => {
+  const store = createScriptedRetentionStore()
+  const cmd = createScriptedCommandFacility(leftover, { retention: { store, scope: 'scope' } })
+  const answer = await cmd.facility.start(start())
+  if (answer.kind !== 'done') throw new Error(`start: ${answer.kind}`)
+  const outcome = await settled(answer.value.result)
+  if (outcome.kind !== 'completed' || outcome.residue?.kind !== 'retained')
+    throw new Error('expected a retained leftover')
+  const ref = outcome.residue.process
+  expect(await answer.value.stop('forced')).toBe('unconfirmed')
+  expect(cmd.stops).toEqual([
+    { process: answer.value.process, mode: 'forced', answer: 'unconfirmed' },
+  ])
+  const listed = await cmd.facility.retention?.list(start())
+  expect(listed).toMatchObject({ kind: 'done', value: [{ process: ref, state: 'running' }] })
+  expect(store.stopped(ref)).toBe(false)
+  store.closeScope('scope')
+  expect(store.stopped(ref)).toBe(true)
+  expect(await cmd.facility.retention?.list(start())).toMatchObject({ kind: 'done', value: [] })
+  const late = await cmd.facility.start(start())
+  if (late.kind !== 'done') throw new Error(`start: ${late.kind}`)
+  expect(await settled(late.value.result)).toMatchObject({
+    residue: { kind: 'stopping', reason: 'closed' },
+  })
+})
+
+it('rejects `leaves` on a process that runs until stopped', async () => {
+  const cmd = createScriptedCommandFacility(
+    () => ({ kind: 'started', runs: 'untilStop', leaves: 1 }),
+    { retention: { store: createScriptedRetentionStore(), scope: 'scope' } },
+  )
+  await expect(cmd.facility.start(start())).rejects.toThrow(TypeError)
 })

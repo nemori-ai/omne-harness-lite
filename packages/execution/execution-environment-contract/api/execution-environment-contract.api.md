@@ -159,6 +159,10 @@
 ## 入口 `./testing` · `testing/index.d.ts`
 
 - `CaseVerdict` · `testing/case.d.ts`
+- `CommandRetentionAcquisition` · `testing/command-retention-conformance.d.ts`
+- `CommandRetentionBody` · `testing/command-retention-conformance.d.ts`
+- `CommandRetentionOptions` · `testing/command-retention-conformance.d.ts`
+- `CommandRetentionSubject` · `testing/command-retention-conformance.d.ts`
 - `CommandScript` · `testing/scripted-command.d.ts`
 - `ConformanceCase` · `testing/case.d.ts`
 - `EnvironmentAuthorityScript` · `testing/doubles.d.ts`
@@ -174,10 +178,12 @@
 - `ProviderScript` · `testing/doubles.d.ts`
 - `ScriptedCommandAnswer` · `testing/scripted-command.d.ts`
 - `ScriptedCommandFacility` · `testing/scripted-command.d.ts`
+- `ScriptedCommandOptions` · `testing/scripted-command.d.ts`
 - `ScriptedEnvironmentAuthority` · `testing/doubles.d.ts`
 - `ScriptedEnvironmentProvider` · `testing/doubles.d.ts`
 - `ScriptedFacilityGuard` · `testing/doubles.d.ts`
 - `ScriptedRecoveryAuthority` · `testing/doubles.d.ts`
+- `ScriptedRetentionStore` · `testing/scripted-command.d.ts`
 - `ScriptedScopeBindings` · `testing/doubles.d.ts`
 - `ScriptedTerminalAnswer` · `testing/scripted-terminal.d.ts`
 - `ScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
@@ -185,6 +191,7 @@
 - `TerminalConformanceOptions` · `testing/terminal-conformance.d.ts`
 - `TerminalConformanceSubject` · `testing/terminal-conformance.d.ts`
 - `TerminalScript` · `testing/scripted-terminal.d.ts`
+- `commandRetentionConformance` · `testing/command-retention-conformance.d.ts`
 - `createMemoryFileSystem` · `testing/memory-files.d.ts`
 - `createMemoryResourceLedger` · `testing/doubles.d.ts`
 - `createScriptedCommandFacility` · `testing/scripted-command.d.ts`
@@ -192,6 +199,7 @@
 - `createScriptedEnvironmentProvider` · `testing/doubles.d.ts`
 - `createScriptedFacilityGuard` · `testing/doubles.d.ts`
 - `createScriptedRecoveryAuthority` · `testing/doubles.d.ts`
+- `createScriptedRetentionStore` · `testing/scripted-command.d.ts`
 - `createScriptedScopeBindings` · `testing/doubles.d.ts`
 - `createScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
 - `environmentProviderConformance` · `testing/provider-conformance.d.ts`
@@ -1362,6 +1370,37 @@ export declare function runConformanceCase(test: ConformanceCase): Promise<CaseV
 export declare function bounded<T>(promise: Promise<T>, ms: number): Promise<T>;
 ```
 
+## 声明文件 `testing/command-retention-conformance.d.ts`
+
+```ts
+import type { CommandFacility, FacilityRequest, RetainedProcessRef } from '../index.ts';
+import { type ConformanceCase } from './case.ts';
+type StartRequest = Parameters<CommandFacility<unknown>['start']>[0];
+export type CommandRetentionBody = Pick<StartRequest, 'executable' | 'args' | 'cwd' | 'env' | 'outputMode'>;
+export type CommandRetentionAcquisition = Readonly<{
+    facility: CommandFacility<unknown>;
+    request(): FacilityRequest<unknown>;
+}>;
+export type CommandRetentionSubject = Readonly<{
+    acquisition: CommandRetentionAcquisition;
+    elsewhere: CommandRetentionAcquisition;
+    commands: Readonly<{
+        clean(): CommandRetentionBody;
+        leftover(): CommandRetentionBody;
+    }>;
+    closeScope(): Promise<void>;
+    domainStopped(process: RetainedProcessRef): Promise<boolean>;
+    unbound?: CommandRetentionAcquisition;
+    dispose?(): Promise<void>;
+}>;
+export type CommandRetentionOptions = Readonly<{
+    subject(): CommandRetentionSubject | Promise<CommandRetentionSubject>;
+    waitMs?: number;
+}>;
+export declare function commandRetentionConformance(options: CommandRetentionOptions): readonly ConformanceCase[];
+export {};
+```
+
 ## 声明文件 `testing/doubles.d.ts`
 
 ```ts
@@ -1494,9 +1533,10 @@ export { environmentProviderConformance, type ProviderConformanceOptions, type P
 export { executionEnvironmentConformance, type EnvironmentConformanceOptions, type EnvironmentConformanceSubject, type EnvironmentConformancePorts, } from './environment-conformance.ts';
 export { createScriptedEnvironmentProvider, createMemoryResourceLedger, createScriptedFacilityGuard, createScriptedRecoveryAuthority, createScriptedEnvironmentAuthority, createScriptedScopeBindings, type EnvironmentAuthorityScript, type ScriptedEnvironmentAuthority, type ScriptedScopeBindings, type ProviderScript, type ScriptedEnvironmentProvider, type MemoryResourceLedger, type ScriptedFacilityGuard, type ScriptedRecoveryAuthority, } from './doubles.ts';
 export { createMemoryFileSystem, type MemoryFileSystem, type MemoryFileSystemOptions, } from './memory-files.ts';
-export { createScriptedCommandFacility, type CommandScript, type ScriptedCommandAnswer, type ScriptedCommandFacility, } from './scripted-command.ts';
+export { createScriptedCommandFacility, createScriptedRetentionStore, type CommandScript, type ScriptedCommandAnswer, type ScriptedCommandFacility, type ScriptedCommandOptions, type ScriptedRetentionStore, } from './scripted-command.ts';
 export { createScriptedTerminalFacility, type TerminalScript, type ScriptedTerminalAnswer, type ScriptedTerminalFacility, } from './scripted-terminal.ts';
 export { terminalFacilityConformance, type TerminalConformanceAcquisition, type TerminalConformanceSubject, type TerminalConformanceOptions, } from './terminal-conformance.ts';
+export { commandRetentionConformance, type CommandRetentionAcquisition, type CommandRetentionBody, type CommandRetentionOptions, type CommandRetentionSubject, } from './command-retention-conformance.ts';
 ```
 
 ## 声明文件 `testing/memory-files.d.ts`
@@ -1558,7 +1598,7 @@ export declare function environmentProviderConformance(options: ProviderConforma
 ## 声明文件 `testing/scripted-command.d.ts`
 
 ```ts
-import type { CommandFacility, CommandOutcome, FacilityReason, OutputChunk, ProcessHandle } from '../index.ts';
+import type { CommandFacility, CommandOutcome, FacilityReason, OutputChunk, ProcessHandle, RetainedProcessRef } from '../index.ts';
 export type ScriptedCommandAnswer = Readonly<{
     kind: 'started';
     output?: readonly Readonly<{
@@ -1568,6 +1608,7 @@ export type ScriptedCommandAnswer = Readonly<{
     outcome?: CommandOutcome;
     runs?: 'exit' | 'untilStop';
     stop?: 'confirmed' | 'unconfirmed';
+    leaves?: number | 'unknown';
 }> | Readonly<{
     kind: 'rejected';
     reason: FacilityReason;
@@ -1576,6 +1617,18 @@ export type ScriptedCommandAnswer = Readonly<{
 }>;
 type StartRequest<P> = Parameters<CommandFacility<P>['start']>[0];
 export type CommandScript<P = unknown> = (request: StartRequest<P>) => ScriptedCommandAnswer | Promise<ScriptedCommandAnswer>;
+export type ScriptedRetentionStore = Readonly<{
+    closeScope(scope: string): void;
+    stopped(process: RetainedProcessRef): boolean;
+}>;
+export declare function createScriptedRetentionStore(): ScriptedRetentionStore;
+export type ScriptedCommandOptions = Readonly<{
+    retention?: Readonly<{
+        store: ScriptedRetentionStore;
+        scope: string;
+        ledger?: boolean;
+    }>;
+}>;
 export type ScriptedCommandFacility<P = unknown> = Readonly<{
     durability: 'none';
     facility: CommandFacility<P>;
@@ -1588,7 +1641,7 @@ type StopRecord = Readonly<{
     mode: 'graceful' | 'forced';
     answer: 'confirmed' | 'unconfirmed';
 }>;
-export declare function createScriptedCommandFacility<P = unknown>(script: CommandScript<P>): ScriptedCommandFacility<P>;
+export declare function createScriptedCommandFacility<P = unknown>(script: CommandScript<P>, options?: ScriptedCommandOptions): ScriptedCommandFacility<P>;
 export {};
 ```
 

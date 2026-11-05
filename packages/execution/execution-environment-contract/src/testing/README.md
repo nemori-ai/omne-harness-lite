@@ -6,10 +6,11 @@
 - [case.ts](case.ts)：断言与不适用结果。
 - [doubles.ts](doubles.ts)：提供者、账本、守卫、恢复授权、环境授权与作用域绑定替身。提供者替身带配额域、配额、原获取查询、获取列出与结清。
 - [memory-files.ts](memory-files.ts)：内存文件设施替身 `createMemoryFileSystem`。授予根在替身建立时确定，请求只带相对路径。
-- [scripted-command.ts](scripted-command.ts)：脚本命令设施替身 `createScriptedCommandFacility`。脚本答复每次 `start`，替身给出输出块、终局与停止两态。
+- [scripted-command.ts](scripted-command.ts)：脚本命令设施替身 `createScriptedCommandFacility`。脚本答复每次 `start`，替身给出输出块、终局与停止两态。第二个参数 `retention` 可选；给出时替身像保留的提供者一样处置，见下面「保留进程支持与符合性接入」。
 - [scripted-terminal.ts](scripted-terminal.ts)：每次获取独立的终端替身 `createScriptedTerminalFacility`，提供创建、执行、关闭、列表及显式失效和退出观察。
 - [scripted-process.ts](scripted-process.ts)：命令与终端共用的内部进程机制，不从 testing 入口导出。
 - [terminal-conformance.ts](terminal-conformance.ts)：`terminalFacilityConformance` 的七条可复用协议用例。
+- [command-retention-conformance.ts](command-retention-conformance.ts)：`commandRetentionConformance` 的六条可复用用例，名字以 `V-EE28.` 开头，覆盖处置形状、`list` 隔离、移交之后句柄的停止与范围封闭。
 - [provider-conformance.ts](provider-conformance.ts)：提供者套件。
 - [environment-conformance.ts](environment-conformance.ts)：执行环境套件。
 
@@ -38,3 +39,9 @@ terminalFacilityConformance({ subject, waitMs? }) 惰性返回用例。每条用
 涉及运行中状态的用例还需要 control。start(acquisition, ref) 启动可控执行，finish(handle) 观察其退出并完成清理。stopMode 和 stopAnswer 声明该夹具准备的段进程停止方式与答复。closeAnswer 独立声明持久终端的关闭答复。段进程停止与终端关闭分别确认，两者可以不同。未确认停止的夹具在调用 finish 之前必须保持执行运行；终端关闭未确认不表示段进程仍在运行。真实后端通过夹具控制函数准备场景，不需要返回测试专属字段。缺少控制时三条用例报告不适用，不计通过。dispose() 清理本条用例的所有获取。
 
 完整的双获取、两种停止答复及收场示例见 [terminal-conformance.spec.ts](../../tests/terminal-conformance.spec.ts)。它直接消费公开入口，并证明共享获取的故障实现能通过普通生命周期，却不能通过归属检查。套件只覆盖进程内协议判据，不证明真实 PTY、系统进程停止或目录持久化。
+
+## 保留进程支持与符合性接入
+
+`createScriptedCommandFacility(script, { retention: { store, scope, ledger? } })` 让替身像保留的提供者一样处置。不给 `retention` 时，替身的行为与之前完全相同：没有 `retention` 扩展，终局不带 `residue`。给出时，答复里的 `leaves`（留下的进程数或 `'unknown'`，只用于 `runs: 'exit'`）决定处置：没有 `leaves` 报 `none`；有 `leaves` 且范围未封闭时报 `retained`，句柄的 `stop` 两态都答 `unconfirmed` 且不改变任何东西；范围已封闭时报 `stopping/closed`；`ledger: false` 表示获取没有保留进程账本视图，报 `stopping/unbound` 且不交出 `retention` 扩展。共用一个 `createScriptedRetentionStore()` 并写同一个 `scope` 的替身共用一个保留范围，`list` 按范围与请求的租户过滤。`store.closeScope(scope)` 封闭范围并停止其中的保留进程，`store.stopped(ref)` 读它们的状态。脚本给出自己的 `outcome` 且带 `residue` 时，替身保留它。
+
+`commandRetentionConformance({ subject, waitMs? })` 惰性返回六条用例。主体 `CommandRetentionSubject` 由消费方提供：`acquisition` 与 `elsewhere` 是两个都带保留进程账本视图的获取（保留范围不同，或租户不同），`commands` 给出不留进程与留一个进程的两个命令体，`closeScope()` 封闭 `acquisition` 的保留范围，`domainStopped(ref)` 读出某个引用的执行域是否已停，`unbound` 是没有账本视图的获取（不给时第六条报不适用），`dispose()` 在每条用例之后收尾。`waitMs` 是整条用例的上界，含封闭之后等待停止确认的时间。套件不知道平台：命令怎样写、范围怎样封闭、怎样确认已停都经主体。契约自测见 [command-retention-conformance.spec.ts](../../tests/command-retention-conformance.spec.ts)，它只证明套件的判据能分辨故障实现，不证明真实进程的停止。宿主在 Linux 上的真实运行见 host-local 的 `tests/command-retention-conformance.spec.ts`。

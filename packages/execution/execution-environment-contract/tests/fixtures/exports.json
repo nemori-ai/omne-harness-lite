@@ -964,6 +964,11 @@
               "pending": false
             },
             {
+              "name": "createScriptedRetentionStore",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "ScriptedCommandFacility",
               "kind": "type",
               "pending": false
@@ -975,6 +980,16 @@
             },
             {
               "name": "ScriptedCommandAnswer",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedCommandOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedRetentionStore",
               "kind": "type",
               "pending": false
             },
@@ -1015,6 +1030,31 @@
             },
             {
               "name": "TerminalConformanceOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "commandRetentionConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "CommandRetentionAcquisition",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CommandRetentionBody",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CommandRetentionSubject",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CommandRetentionOptions",
               "kind": "type",
               "pending": false
             }
