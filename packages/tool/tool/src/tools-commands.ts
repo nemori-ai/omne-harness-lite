@@ -119,6 +119,8 @@ export function createToolsAuthor<P>(
         settings: null,
       },
     },
+    // `help` declares a field named `command`, so the call wraps the parameters.
+    encoding: 'wrapped',
     commands,
   })
   if ('failure' in registration) throw new TypeError('Invalid Tools registration')

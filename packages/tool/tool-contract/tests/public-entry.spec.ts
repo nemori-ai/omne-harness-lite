@@ -20,8 +20,12 @@ it('exports on the root only the names members outside the Tool group import, an
   expect(Object.keys(tool).sort()).toEqual([
     'backgroundCallsBlock',
     'backgroundCallsSchema',
+    'commandCallSchema',
+    'commandMenu',
+    'decodeCommandCallText',
     'decodeToolCallId',
     'decodeToolOperationId',
+    'describeCommandCallRejection',
     'encodeResidentKey',
     'encodeToolInvocationRef',
     'encodeToolOperationRef',
@@ -31,15 +35,22 @@ it('exports on the root only the names members outside the Tool group import, an
     'residentToolFacts',
     'resolveToolInvocationRef',
     'resolveToolOperationRef',
+    'selectCommandText',
   ])
 })
 
 it('exports the provider protocol on the provider entry, and no name on both entries', async () => {
   const provider = await import('@omne-harness/tool-contract/provider')
   expect(Object.keys(provider).sort()).toEqual([
+    'COMMAND_CALL_ENCODINGS',
     'TOOL_IDENTITY_MAX_LENGTH',
     'TOOL_REFERENCE_MAX_LENGTH',
+    'commandArguments',
+    'commandExample',
+    'commandGuide',
+    'commandSignature',
     'createDefaultParameterCodec',
+    'decodeCommandCall',
     'decodeToolCursor',
     'decodeToolDeliveryId',
     'decodeToolInstanceId',
@@ -56,7 +67,9 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'defineToolOperation',
     'defineToolWaitContract',
     'deriveDefinition',
+    'describeCommandArgumentsRejection',
     'describedAdoption',
+    'encodeCommandCall',
     'evaluateToolAvailability',
     'foldResident',
     'judgeConsumerRef',

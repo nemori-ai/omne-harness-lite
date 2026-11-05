@@ -139,3 +139,16 @@ export type {
   ResidentKeyFailure,
   ResidentReferencesPage,
 } from './resident-key.ts'
+export {
+  commandCallSchema,
+  commandMenu,
+  decodeCommandCallText,
+  describeCommandCallRejection,
+  selectCommandText,
+} from './command-call.ts'
+export type {
+  CommandCall,
+  CommandCallEncoding,
+  CommandCallRejection,
+  CommandTable,
+} from './command-call.ts'

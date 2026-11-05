@@ -53,7 +53,7 @@ export function createShellAuthor(
   return succeed(
     createAuthor<ShellAuthorEnvironment>(
       'Shell',
-      'Run shell commands and manage persistent terminals in the authorized execution environment.',
+      'Run shell commands and manage persistent terminals in the authorized execution environment. The info command names the platform and shell.',
       shellCommands,
       ['command', 'terminal'],
       maximum,
@@ -70,9 +70,9 @@ export const shellToolModule: ToolImplementationModule<
   executor: describedAdoption({
     owner: '@omne-harness/tool-definitions',
     name: 'Shell',
-    revision: '1',
+    revision: '2',
     changes:
-      'Explicit placement, exact terminal routing, current-handle cancellation, drained byte-bounded UTF-8 output.',
+      'One declaration with the command in the call, the shell and start directory in the description and help by command name.',
     commands: shellCommands,
   }),
   createAuthor: createShellAuthor,
@@ -89,7 +89,7 @@ async function executeShell(
   const terminal = args.terminal()
   switch (command) {
     case 'info':
-      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\n${confirmation(await environment.terminal.list({}), value => value.map(item => `terminal=${JSON.stringify(item.terminal)} state=${item.state} observed_cwd=${JSON.stringify(item.observedCwd)}`).join('\n'))}`
+      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${JSON.stringify(config.text('cwd'))}\n${confirmation(await environment.terminal.list({}), value => value.map(item => `terminal=${JSON.stringify(item.terminal)} state=${item.state} observed_cwd=${JSON.stringify(item.observedCwd)}`).join('\n'))}`
     case 'create_session': {
       if (environment.terminal.retention === undefined)
         return 'rejected reason=unavailable session retention unavailable zero starts'
@@ -120,7 +120,8 @@ async function executeShell(
     case 'execute':
       return executeScript(args, environment, execution, config)
     default:
-      return 'rejected reason=unknown-command'
+      // The command table names exactly these commands, so a miss is a defect, not a result.
+      throw new Error(`Shell has no operation for command ${command}`)
   }
 }
 

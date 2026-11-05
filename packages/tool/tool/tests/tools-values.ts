@@ -11,6 +11,7 @@ import {
 } from '@omne-harness/tool'
 import { createMemoryToolContent } from '@omne-harness/tool/testing'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
+import { commandArguments } from '@omne-harness/tool-contract/provider'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import {
   type Access,
@@ -102,9 +103,14 @@ export async function authorRun(
   const entry = registered.operations.find(([name]) => name === command)
   if (entry === undefined) return fail({ kind: 'invalid', reason: 'unknown-command' } as const)
   const author = entry[1].author
-  const parsed = author.parameters.parse(
-    typeof args === 'string' ? { original: args, effective: args, complete: true } : args,
-  )
+  // A text is the parameters, which the author's codec parses. Arguments are a request's: the whole
+  // call, which a binding cuts for the admitted command first (D-94), or an incomplete block.
+  const cut =
+    typeof args === 'string'
+      ? succeed({ original: args, effective: args, complete: true })
+      : commandArguments(tools.definition, command, args)
+  if ('failure' in cut) return cut
+  const parsed = author.parameters.parse(cut.ok)
   if ('failure' in parsed) return parsed
   const execution = scope()
   const returned = ok(await executeTool(parsed.ok, author.executor, access, execution.scope))
@@ -264,8 +270,8 @@ export function registeredFixture(tools: Tools<Principal>, replyOptions: ToolsOp
         },
         command,
         arguments: {
-          original: JSON.stringify(argumentsValue),
-          effective: JSON.stringify(argumentsValue),
+          original: JSON.stringify({ command, params: argumentsValue }),
+          effective: JSON.stringify({ command, params: argumentsValue }),
           complete: true,
         },
         consumer: { ...request().consumer, position: `reply-${count}` },

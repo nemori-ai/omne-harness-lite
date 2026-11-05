@@ -70,6 +70,7 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 <a id="tool-请求来源"></a>依据 R2-D36：可信的 Tool 请求供给者是 Agent 宿主的构造依赖，不是服务键。它经 `./cordis` 的 `createAgentHostLocalPlugin({ toolRequests })` 交进来，与 `measure` 同一个入口。`toolRequests` 的形状是 `AgentDependencies['toolRequests']`（`describe` 与 `prepare` 两个面）。它是函数对象，不是配置成员，不进入 `agentHostConfig`，也不加 `inject` 键。
 
 - 宿主为每个实例调用 `createAgentRuntime` 时，把传入的 `toolRequests` 放进该 runtime 的依赖，全部实例共用同一个来源。Tool 动作的准入、`describe` 与 `prepare` 的校验和 Tool 调用归 [Agent SPEC](../agent/SPEC.md)，本成员不加、不改。
+- `describe` 可以答 `answered`，即不运行工具，直接以正文答复调用。这个动作因此被拒绝，模型读到的是正文，规则归 [Agent 契约](../agent-contract/SPEC.md#整批判断屏障与动作准入)。
 - 不传 `toolRequests` 时，依赖不带它，Tool 动作的准入答 `unavailable`（owner 为 `agentToolRequests`），Tool 不被调用。`agentHostPlugin` 原样可用，行为不变。
 - 来源的生产投影由 Reduce 供给；本成员不实现它，也不推断它的内容。
 

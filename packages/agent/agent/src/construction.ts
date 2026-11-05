@@ -81,7 +81,7 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   models: M.ModelRuntime<P>
   tools: T.ToolRuntime<P, B>
   toolRequests?: Readonly<{
-    describe(input: ToolRequestInput<P>): Reply<Adoption>
+    describe(input: ToolRequestInput<P>): Reply<Adoption | ToolCallAnswer>
     prepare(
       input: ToolRequestInput<P> & Readonly<{ definition: Adoption; admission: DurableEvidence }>,
     ): Reply<T.ToolInvokeRequest>
@@ -100,6 +100,14 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   registration: AgentRegistrationHandle<P> | null
   clock: AgentClock
 }>
+
+/**
+ * What the trusted request source answers for a call it answers without running a tool: the text
+ * the model reads as the result of the call. A call that names a multi-command tool but none of its
+ * commands gets the guide of the tool (D-104). The action is denied with the answer; the other
+ * actions of the batch are judged as usual.
+ */
+export type ToolCallAnswer = Readonly<{ kind: 'answered'; text: string }>
 
 type ToolRequestInput<P> = Access<P> &
   Readonly<{

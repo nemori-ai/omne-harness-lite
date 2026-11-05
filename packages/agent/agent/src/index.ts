@@ -8,6 +8,7 @@ export type {
   AgentProvider,
   AgentRuntimeBinding,
   AgentRuntimeOptions,
+  ToolCallAnswer,
 } from './construction.ts'
 
 export type {

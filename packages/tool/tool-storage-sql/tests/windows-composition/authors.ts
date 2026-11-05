@@ -77,6 +77,7 @@ function bindEnvironment<E>(
       }
       const { description, declarations, backgroundAllowed } = created.ok.facts
       return defineCommandTool({
+        encoding: 'wrapped',
         implementation: { description, declarations, backgroundAllowed },
         commands,
       })

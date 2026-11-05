@@ -53,6 +53,7 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 | `write-blog` | 为人代笔技术博客：访谈作者、核对设计资料，按方向撰写个人工程复盘或开发者技术专题，以说人话和准确表达为准则 |
 | [`asd-ste100`](skills/asd-ste100/README.md) | 全工作区文档写作与修订的表达规范：英文采用 STE，中文采用清晰性原则；保留语义与要求强度，含结构检查器，由本仓库维护 |
 | `write-agents-md` | AGENTS.md 的心智、边界、继承与阅读地图 |
+| `multi-command-tool-design` | 多命令工具的单槽声明、三层披露、调用编码选择、路由与参数切分，以及按总 token 与工具调用次数的联合目标验收 |
 | `design-subagents` | 角色契约、宿主与模型适配、模板、成对渲染及验证 |
 | `ubiquitous-language` | 统一语言的取名、分卷、无歧义中英文定义、判形态、查重、冲突处置与出处复核；**只有要新增或修改词条的人加载**，该区约定归 [design/ubiquitous_language](../design/ubiquitous_language/AGENTS.md) |
 | `domain-objects` | 领域对象条目的宿主、身份、生灭与并入怎么判，待裁怎么登记，topic 升 rev 后怎么逐条复核，全量重提怎么做；**只有要在那一区落字的人加载**，该区约定归 [design/domain_objects](../design/domain_objects/AGENTS.md) |

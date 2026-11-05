@@ -8,7 +8,7 @@ export {
   compactionPlanSchema,
   coverageSchema,
 } from './schema.js'
-export type { ToolRoute, ToolDeclarationSet } from './declare-tools.js'
+export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './declare-tools.js'
 export { declareTools } from './declare-tools.js'
 export type { ConversionIndex, RepresentationResult } from './representation.js'
 export { chooseRepresentations } from './representation.js'

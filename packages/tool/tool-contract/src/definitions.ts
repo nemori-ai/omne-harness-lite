@@ -4,6 +4,7 @@ import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { SchemaRef } from '@omne-harness/schema-provider'
 import type { ToolDeclarations } from './authoring.ts'
+import type { CommandCallEncoding } from './command-call.ts'
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts'
 
 export type ParameterContract = Readonly<{
@@ -58,7 +59,14 @@ export type ToolCommandDeclaration = Readonly<{
 /** The shape an implementation projects: one function, or a command table. */
 export type ToolImplementationShape =
   | Readonly<{ kind: 'function'; parameters: ParameterContract; returns: ToolReturnDeclaration }>
-  | Readonly<{ kind: 'commands'; commands: readonly ToolCommandDeclaration[] }>
+  | Readonly<{
+      kind: 'commands'
+      /** How the model names a command inside the arguments of the tool's one declaration. */
+      encoding: CommandCallEncoding
+      commands: readonly ToolCommandDeclaration[]
+      /** The rules of the whole tool, which follow every guide the model reads of it. */
+      guide?: string
+    }>
 /** The implementation side of a definition: its shape and what the author declares about it. */
 export type ToolImplementationFacts = Readonly<{
   implements: ToolImplementationShape

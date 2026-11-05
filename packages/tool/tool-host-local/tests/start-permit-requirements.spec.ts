@@ -430,6 +430,7 @@ describe('R2-D60 start permit requirements', () => {
         definition: {
           ...common,
           kind: 'commands',
+          encoding: 'wrapped',
           commands: ['read', 'write'].map(name => ({
             name,
             summary: name,

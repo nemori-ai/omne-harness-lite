@@ -508,7 +508,7 @@
 
 动作规则采用 R2-D34（[#978 批复](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6577830437)）。`actionRules` 缺席或没有匹配规则时答 `unavailable`。`permissions` 非空或 `decision` 非 null 时也答 `unavailable`，本行不实现权限与人工决定解释器。
 
-行构造时严格解析配置，拒绝未知字段、空 revision、重复规则 id 和非法 effect。每条规则按 `tool` 精确匹配 `definition.name`，即可信 Tool 请求来源 describe 给出的工具定义名。规则不匹配 `original.name`：`original.name` 由模型给出，多命令工具在模型侧的名字是 `<工具>.<命令>`（例如 `Shell.run`）。所以一条 `Shell` 规则覆盖 Shell 的全部命令，对 `Shell` 的 deny 也不能用某个命令名绕过（R2-D266）。`definition` 可省略或为 null；指定时逐项匹配 Adoption 的 owner、name、revision、digest。匹配的 deny 优先于所有 allow，与数组顺序无关。规则不可变，运维者用既有行配置 replace 后重载更新它。
+行构造时严格解析配置，拒绝未知字段、空 revision、重复规则 id 和非法 effect。每条规则按 `tool` 精确匹配 `definition.name`，即可信 Tool 请求来源 describe 给出的工具定义名。规则不匹配 `original.name`：`original.name` 由模型给出。多命令工具在模型侧只有一个名字，即工具名，命令写在调用参数的 `command` 里（D-94）。所以一条 `Shell` 规则覆盖 Shell 的全部命令，对 `Shell` 的 deny 也不能用某个命令绕过（R2-D266）。`definition` 可省略或为 null；指定时逐项匹配 Adoption 的 owner、name、revision、digest。匹配的 deny 优先于所有 allow，与数组顺序无关。规则不可变，运维者用既有行配置 replace 后重载更新它。
 
 ```json
 {
@@ -522,7 +522,7 @@
 }
 ```
 
-发行配置 `config/serve.distribution.json` 的 `authorization` 行带 `release-1` 规则快照：`Files` 与 `Shell` 都是 allow，其余工具没有匹配，答 `unavailable`。运维者不改代码就能加一条 deny：在运维者层写一条 `replace` 操作替换 `authorization` 行的配置。`replace` 换整份配置，所以要把发行的两条 allow 一并写回，再加 deny，例如 `{ "id": "no-shell", "effect": "deny", "tool": "Shell" }`。deny 优先，与顺序无关，该工具的动作得到 `deny` 与 `rule/no-shell`，`Shell.run` 等任一命令都一样。用例 [release-action-rules.spec.ts](../../tests/rows/authorization/release-action-rules.spec.ts) 用真实的分层加载与真实动作准入核对这两种配置，以及多命令名（`Shell.info`、`Files.read`）命中工具规则、`Shell` 的 deny 拦下 `Shell.run`。它不证明 S4-6 的端到端观察，Tool 两个消费方的 qualify 接线仍待 L-TOOL。
+发行配置 `config/serve.distribution.json` 的 `authorization` 行带 `release-1` 规则快照：`Files` 与 `Shell` 都是 allow，其余工具没有匹配，答 `unavailable`。运维者不改代码就能加一条 deny：在运维者层写一条 `replace` 操作替换 `authorization` 行的配置。`replace` 换整份配置，所以要把发行的两条 allow 一并写回，再加 deny，例如 `{ "id": "no-shell", "effect": "deny", "tool": "Shell" }`。deny 优先，与顺序无关，该工具的动作得到 `deny` 与 `rule/no-shell`，调用点名哪个已知命令都一样。没点名已知命令的调用不进入动作准入：可信 Tool 请求来源直接以原因和工具的 guide 作答，不运行任何命令，这个动作以作答被拒绝（D-104，R2-D399）。正文只含已声明给模型的定义投影，所以 deny 规则不需要挡它；deny 挡的是会运行的调用。用例 [release-action-rules.spec.ts](../../tests/rows/authorization/release-action-rules.spec.ts) 用真实的分层加载与真实动作准入核对这两种配置，以及点名命令的调用（如 Shell 的 `info`、Files 的 `read`）命中工具规则、`Shell` 的 deny 拦下点名 `run` 的调用。它不证明 S4-6 的端到端观察，Tool 两个消费方的 qualify 接线仍待 L-TOOL。
 
 只有 Session 工作主体进入 AU-11 的成员资格核验。主体必须由原身份权威核验，并代请求租户行事。登录主体、未知角色和系统主体不放行。身份来源失败答 `unavailable`。请求的动作位置、生效参数摘要和规则选择在首次 await 前固定；每次动作重新核验身份。允许和规则禁止的 `decisionEvidence` 绑定规则 id、revision、execution/passage/action、生效参数摘要与身份依据。禁止结果携带 `rule/<id>`，不生成决定卡。输出不携带主体或参数正文。
 

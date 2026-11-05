@@ -605,11 +605,22 @@ export type DeriveInput<P> = Readonly<{
   material: SummaryMaterial
 }>
 
+/**
+ * How a declared name reaches a tool. A function tool has no command to select; a multi-command
+ * tool selects it from the call arguments with the tool's encoding.
+ */
+export type ToolCommandSelection =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{
+      kind: 'argument'
+      encoding: T.CommandCallEncoding
+      commands: readonly string[]
+    }>
 export type ToolRoute = Readonly<{
   declared: string
   tool: Adoption
   binding: Adoption
-  command: string | null
+  selection: ToolCommandSelection
 }>
 export type ToolDeclarationSet = Readonly<{
   direct: readonly M.ToolDeclaration[]
