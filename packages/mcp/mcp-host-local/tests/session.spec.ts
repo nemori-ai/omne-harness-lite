@@ -2,6 +2,7 @@
 // drives the session with the wire event of each cell and holds it to the row's conclusion; the
 // hand-written cases cover what the table does not say: the stdio probe time and close() during
 // a probe (T5), the peer's requests and notifications (T3), and the legacy HTTP+SSE mode (T3).
+import { getEventListeners } from 'node:events'
 import type { Outcome } from '@omne-harness/operation-result'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -67,14 +68,19 @@ function idleProcess(): ProcessHandle {
   }
 }
 
-function countingCredential(): HttpCredentialHandle &
-  Readonly<{ rejections(): number; authorizations(): number }> {
+/** A gate holds the n-th authorization (counting from 1) until its promise settles. */
+type Gate = (authorization: number) => Promise<void> | undefined
+
+function countingCredential(
+  gate?: Gate,
+): HttpCredentialHandle & Readonly<{ rejections(): number; authorizations(): number }> {
   let rejections = 0
   let authorizations = 0
   return {
     purpose: 'http-authorization',
     async authorize(headers) {
       authorizations += 1
+      await gate?.(authorizations)
       headers.set('authorization', 'Bearer test-token')
       return { ok: true }
     },
@@ -98,9 +104,9 @@ const metadata = new Map<string, PlainJson>()
 function open(
   kind: TransportMaterial['kind'],
   script: Script,
-  options: Partial<SessionOptions> & Readonly<{ sse?: SseConfig }> = {},
+  options: Partial<SessionOptions> & Readonly<{ sse?: SseConfig; gate?: Gate }> = {},
 ): Opened {
-  const credential = countingCredential()
+  const credential = countingCredential(options.gate)
   const line = new MemoryLine(
     kind,
     script,
@@ -1248,6 +1254,347 @@ describe('closing and the credential handle (T5, T9)', () => {
         },
       },
     })
+    await transport.close()
+  })
+})
+
+/** A gate that holds every authorization after the first `free` ones until `release()`. */
+function holdAfter(free: number): Readonly<{ gate: Gate; release: () => void }> {
+  let release = (): void => undefined
+  const open = new Promise<void>(resolve => {
+    release = resolve
+  })
+  return { gate: authorization => (authorization > free ? open : undefined), release }
+}
+
+describe('what the signal of a call and close() end (T5)', () => {
+  it('ends the write of a request whose answer head has not come, and the answer is abandoned', async () => {
+    const closed = open('streamable-http', { 'tools/call': [{ kind: 'hang' }] })
+    const calling = closed.transport.call(echo, never)
+    await untilSent(closed.line, 'tools/call')
+    await closed.transport.close()
+    expect(closed.line.hungAborted).toEqual(['tools/call'])
+    expect(await ok(await calling, 'call').answer).toEqual({
+      kind: 'no-answer',
+      cause: 'abandoned',
+    })
+
+    const signalled = open('streamable-http', { 'tools/call': [{ kind: 'hang' }] })
+    const controller = new AbortController()
+    const pending = signalled.transport.call(echo, controller.signal)
+    await untilSent(signalled.line, 'tools/call')
+    controller.abort()
+    expect(await ok(await pending, 'call').answer).toEqual({
+      kind: 'no-answer',
+      cause: 'abandoned',
+    })
+    expect(signalled.line.hungAborted).toEqual(['tools/call'])
+    await signalled.transport.close()
+  })
+
+  it('ends the answer stream of a request through the stream, whether the line watches the signal or not', async () => {
+    const closing = open('streamable-http', { 'tools/call': [{ kind: 'deaf' }] })
+    const first = ok(await closing.transport.call(echo, never), 'call')
+    await closing.transport.close()
+    expect(closing.line.streamAborted).toEqual([first.requestId])
+    expect(await first.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
+
+    const signalled = open('streamable-http', { 'tools/call': [{ kind: 'deaf' }] })
+    const controller = new AbortController()
+    const second = ok(await signalled.transport.call(echo, controller.signal), 'call')
+    controller.abort()
+    expect(await second.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
+    expect(signalled.line.streamAborted).toEqual([second.requestId])
+    await signalled.transport.close()
+  })
+
+  it('reads to its end the answer of a request that was abandoned while its write was in flight', async () => {
+    const { line, transport } = open('streamable-http', { 'tools/call': [{ kind: 'late-stream' }] })
+    const controller = new AbortController()
+    const calling = transport.call(echo, controller.signal)
+    await untilSent(line, 'tools/call')
+    controller.abort()
+    expect(await ok(await calling, 'call').answer).toEqual({
+      kind: 'no-answer',
+      cause: 'abandoned',
+    })
+    await tick()
+    expect(line.drained).toBe(1)
+    await transport.close()
+  })
+
+  it('does not send a call whose signal fired before it began, or one that fires while it is authorized', async () => {
+    const early = open('streamable-http', {})
+    expect(await early.transport.call(echo, AbortSignal.abort())).toEqual({ failure: NOT_SENT })
+    expect(early.line.sent).toEqual([])
+    await early.transport.close()
+
+    const held = holdAfter(0)
+    const { line, transport } = open('streamable-http', {}, { gate: held.gate })
+    const controller = new AbortController()
+    const calling = transport.call(echo, controller.signal)
+    controller.abort()
+    held.release()
+    expect(await ok(await calling, 'call').answer).toEqual({
+      kind: 'no-answer',
+      cause: 'abandoned',
+    })
+    expect(line.sent).toEqual([])
+    await transport.close()
+  })
+
+  it('leaves no listener on the signal of a call once the call has its answer', async () => {
+    const { transport } = open('streamable-http', { 'tools/call': [result({ content: [] })] })
+    const controller = new AbortController()
+    const sent = ok(await transport.call(echo, controller.signal), 'call')
+    await sent.answer
+    await tick()
+    expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0)
+    await transport.close()
+  })
+
+  it('closes the line once however often close() runs', async () => {
+    const { line, transport } = open('stdio', {})
+    await transport.close()
+    await transport.close()
+    expect(line.closeCount).toBe(1)
+  })
+
+  it('ends a notification that is still being written when close() runs', async () => {
+    const { line, transport } = open(
+      'streamable-http',
+      {
+        'server/discover': [METHOD_NOT_FOUND],
+        initialize: [LEGACY],
+        'tools/call': [{ kind: 'silent' }],
+        'notifications/cancelled': [{ kind: 'hang' }],
+      },
+      {},
+    )
+    ok(await transport.discover(), 'discover')
+    const sent = ok(await transport.call(echo, never), 'call')
+    const cancelling = transport.cancelRequest(sent.requestId)
+    await untilSent(line, 'notifications/cancelled')
+    await transport.close()
+    await cancelling
+    expect(line.hungAborted).toEqual(['notifications/cancelled'])
+  })
+
+  it('returns from close() only after the authorization discovery it ended has settled, and before the line is closed', async () => {
+    const order: string[] = []
+    const { line, transport } = open(
+      'streamable-http',
+      { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
+      {
+        fetchMetadata: (_url, signal) =>
+          new Promise(resolve => {
+            signal.addEventListener(
+              'abort',
+              () =>
+                setTimeout(() => {
+                  order.push('metadata-ended')
+                  resolve(undefined)
+                }, 30),
+              { once: true },
+            )
+          }),
+      },
+    )
+    const closeLine = line.close.bind(line)
+    line.close = async () => {
+      order.push('line-closed')
+      await closeLine()
+    }
+    const listing = transport.listActions()
+    await untilSent(line, 'tools/list')
+    await tick()
+    await tick()
+    await transport.close()
+    expect(order).toEqual(['metadata-ended', 'line-closed'])
+    expect(await listing).toMatchObject({ failure: { cause: 'authorization-required' } })
+  })
+})
+
+describe('a session that cannot be used any more sends nothing and asks no credential (T5, T9)', () => {
+  const scripts: Script = {
+    'server/discover': [METHOD_NOT_FOUND],
+    initialize: [status(404, '<html>not found</html>'), LEGACY],
+    'tools/call': [{ kind: 'silent' }],
+  }
+
+  it('does not send a request after close(), whichever request it is', async () => {
+    for (const kind of ['stdio', 'streamable-http'] as const) {
+      const { line, transport, credential } = open(kind, {})
+      ok(await transport.discover(), 'discover')
+      await transport.close()
+      const sentBefore = line.sent.length
+      const authorizedBefore = credential.authorizations()
+      expect(await transport.call(echo, never), kind).toEqual({ failure: NOT_SENT })
+      expect(await transport.listActions(), kind).toEqual({ failure: NOT_SENT })
+      expect(await transport.getTask(taskIdOf('t')), kind).toEqual({ failure: NOT_SENT })
+      expect(await transport.cancelTask(taskIdOf('t')), kind).toEqual({ failure: NOT_SENT })
+      expect(await transport.discover(), kind).toEqual({ failure: NOT_SENT })
+      await transport.cancelRequest('r1')
+      expect(line.sent.length, kind).toBe(sentBefore)
+      expect(credential.authorizations(), kind).toBe(authorizedBefore)
+    }
+  })
+
+  it('does not answer the peer or notify it once the shared stream is gone, and does not ask the credential', async () => {
+    const { line, transport, credential } = open('streamable-http', scripts, {
+      sse: { kind: 'entered' },
+    })
+    ok(await transport.discover(), 'discover')
+    const sent = ok(await transport.call(echo, never), 'call')
+    line.queue.push({ kind: 'broken' })
+    expect(await sent.answer).toEqual({ kind: 'no-answer', cause: 'stream-broken' })
+    const sentBefore = line.sent.length
+    const authorizedBefore = credential.authorizations()
+    line.push({ jsonrpc: '2.0', id: 9, method: 'ping' })
+    await tick()
+    await transport.cancelRequest(sent.requestId)
+    await tick()
+    expect(line.sent.length).toBe(sentBefore)
+    expect(credential.authorizations()).toBe(authorizedBefore)
+    await transport.close()
+  })
+
+  it('writes no answer to the peer and no notification when the stream is gone while the credential is being asked', async () => {
+    const held = holdAfter(6)
+    const { line, transport } = open('streamable-http', scripts, {
+      sse: { kind: 'entered' },
+      gate: held.gate,
+    })
+    ok(await transport.discover(), 'discover')
+    const sent = ok(await transport.call(echo, never), 'call')
+    const sentBefore = line.sent.length
+    line.push({ jsonrpc: '2.0', id: 9, method: 'ping' })
+    const cancelling = transport.cancelRequest(sent.requestId)
+    await tick()
+    line.queue.push({ kind: 'broken' })
+    await tick()
+    held.release()
+    await cancelling
+    await tick()
+    expect(line.sent.length).toBe(sentBefore)
+    await transport.close()
+  })
+
+  it('answers a request that was being authorized when the stream died with not-sent, and never sends it', async () => {
+    const held = holdAfter(5)
+    const { line, transport } = open('streamable-http', scripts, {
+      sse: { kind: 'entered' },
+      gate: held.gate,
+    })
+    ok(await transport.discover(), 'discover')
+    const calling = transport.call(echo, never)
+    await tick()
+    line.queue.push({ kind: 'broken' })
+    await tick()
+    held.release()
+    expect(await calling).toEqual({ failure: NOT_SENT })
+    expect(line.requests('tools/call')).toEqual([])
+    await transport.close()
+  })
+
+  it('does not open the fallback stream when close() ran while its authorization was being asked', async () => {
+    const held = holdAfter(2)
+    const { line, transport } = open(
+      'streamable-http',
+      { 'server/discover': [METHOD_NOT_FOUND], initialize: [status(404, 'gone'), LEGACY] },
+      { sse: { kind: 'entered' }, gate: held.gate },
+    )
+    const discovering = transport.discover()
+    await untilSent(line, 'initialize')
+    await tick()
+    await tick()
+    await transport.close()
+    held.release()
+    expect(await discovering).toEqual({ failure: NOT_SENT })
+    expect(line.sseAttempts).toEqual([])
+  })
+
+  it('turns down the fallback stream that came back after close() ran', async () => {
+    let release = (): void => undefined
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const { line, transport } = open(
+      'streamable-http',
+      { 'server/discover': [METHOD_NOT_FOUND], initialize: [status(404, 'gone'), LEGACY] },
+      { sse: { kind: 'entered', gate } },
+    )
+    const discovering = transport.discover()
+    for (let round = 0; round < 200 && line.sseAttempts.length === 0; round += 1) await tick()
+    expect(line.sseAttempts).toHaveLength(1)
+    await transport.close()
+    release()
+    expect(await discovering).toEqual({ failure: NOT_SENT })
+    expect(line.discarded).toBe(1)
+    expect(line.sse).toBe(false)
+  })
+
+  it('leaves another request of the session in flight when one is told the session ended (S07)', async () => {
+    const { line, transport } = open(
+      'streamable-http',
+      { ...scripts, 'tools/list': [status(404, 'gone')] },
+      { sse: { kind: 'entered' } },
+    )
+    ok(await transport.discover(), 'discover')
+    const other = ok(await transport.call(echo, never), 'call')
+    expect(await transport.listActions()).toEqual({
+      failure: { kind: 'not-sent', cause: 'session-ended' },
+    })
+    expect(await settledWithin(other.answer, 30)).toBe('pending')
+    await transport.close()
+    expect(await other.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
+    expect(line.requests('tools/list')).toHaveLength(1)
+  })
+})
+
+describe('cancelling a request, and the probe timer (T3, T5)', () => {
+  it('sends notifications/cancelled on stdio and on a legacy Streamable HTTP connection and leaves the request waiting for its answer', async () => {
+    for (const kind of ['stdio', 'streamable-http'] as const) {
+      const { line, transport } = open(kind, {
+        'server/discover': [METHOD_NOT_FOUND],
+        initialize: [LEGACY],
+        'tools/call': [{ kind: 'silent' }],
+      })
+      ok(await transport.discover(), 'discover')
+      const sent = ok(await transport.call(echo, never), 'call')
+      await transport.cancelRequest(sent.requestId)
+      expect(line.requests('notifications/cancelled')[0]?.message['params'], kind).toMatchObject({
+        requestId: sent.requestId,
+      })
+      expect(await settledWithin(sent.answer, 30), kind).toBe('pending')
+      expect(line.aborted, kind).toEqual([])
+      await transport.close()
+      expect(await sent.answer, kind).toEqual({ kind: 'no-answer', cause: 'abandoned' })
+    }
+  })
+
+  it('starts a probe timer for the probe only, and clears it when the probe is answered', async () => {
+    const timers: { delayMs: number; cleared: boolean }[] = []
+    const { line, transport } = open(
+      'stdio',
+      { 'tools/call': [{ kind: 'silent' }] },
+      {
+        probeTimeoutMs: 777,
+        schedule: delayMs => {
+          const timer = { delayMs, cleared: false }
+          timers.push(timer)
+          return () => {
+            timer.cleared = true
+          }
+        },
+      },
+    )
+    ok(await transport.discover(), 'discover')
+    expect(timers).toEqual([{ delayMs: 777, cleared: true }])
+    const sent = ok(await transport.call(echo, never), 'call')
+    await untilSent(line, 'tools/call')
+    expect(timers).toHaveLength(1)
+    await transport.cancelRequest(sent.requestId)
     await transport.close()
   })
 })

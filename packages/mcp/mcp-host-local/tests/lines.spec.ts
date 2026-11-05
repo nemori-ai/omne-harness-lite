@@ -226,7 +226,7 @@ describe('the fetch of protected resource metadata (R4, T4)', () => {
       response()
 
   it('reads a 200 answer that holds JSON as the tree of the text, with the request the contract names', async () => {
-    const seen: { url?: string | URL | Request; init?: RequestInit }[] = []
+    const seen: { url: string | URL | Request; init: RequestInit | undefined }[] = []
     const fetchFn: typeof fetch = async (url, init) => {
       seen.push({ url, init })
       return new Response(JSON.stringify(document), { status: 200 })

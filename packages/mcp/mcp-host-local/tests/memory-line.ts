@@ -11,7 +11,7 @@ import { AsyncQueue } from '../src/queue.ts'
  * does not hold: a non-2xx status, a connection that was not made, or a stream without the endpoint.
  */
 export type SseConfig =
-  | Readonly<{ kind: 'entered' }>
+  | Readonly<{ kind: 'entered'; gate?: Promise<void> }>
   | Readonly<{
       kind: 'status'
       status: number
@@ -26,7 +26,10 @@ export type SseConfig =
  * request's id (a stdio line, or a 2xx body on HTTP). `status` is an HTTP error status. `empty`
  * is a 2xx with no message. `silent` never answers (on HTTP: a stream that stays open). `unsent`
  * fails before the message leaves. `aborted` fails before the HTTP answer head. `ended` and
- * `broken` answer `sent` and then push that event on the shared stream.
+ * `broken` answer `sent` and then push that event on the shared stream. `hang` is a write that
+ * does not return until its signal fires, then reports `aborted`; `late-stream` is the same wait
+ * ending in a 2xx answer stream, as when the wire answered while the signal was firing. `deaf` is
+ * a 2xx answer stream that stays open and never looks at the signal: only `abort()` ends it.
  */
 export type Reply =
   | Readonly<{
@@ -48,6 +51,9 @@ export type Reply =
   | Readonly<{ kind: 'aborted' }>
   | Readonly<{ kind: 'ended'; stdoutEndedAt?: number; exitedAt?: number }>
   | Readonly<{ kind: 'broken' }>
+  | Readonly<{ kind: 'hang' }>
+  | Readonly<{ kind: 'late-stream' }>
+  | Readonly<{ kind: 'deaf' }>
 
 export type Script = Readonly<{ [method: string]: readonly Reply[] }>
 
@@ -66,6 +72,14 @@ export class MemoryLine implements Line {
   readonly kind: 'stdio' | 'streamable-http'
   readonly sent: Sent[] = []
   readonly aborted: string[] = []
+  /** The methods of the writes that waited for their signal and were ended by it (`hang`). */
+  readonly hungAborted: string[] = []
+  /** The ids of the answer streams that were ended through `abort()` and nothing else (`deaf`). */
+  readonly streamAborted: string[] = []
+  /** The streams of `late-stream` replies that were read to their end. */
+  drained = 0
+  /** The fallback GET streams the session turned down. */
+  discarded = 0
   readonly queue = new AsyncQueue<LineEvent>()
   readonly events: AsyncIterable<LineEvent>
   closeCount = 0
@@ -95,6 +109,7 @@ export class MemoryLine implements Line {
     const config = this.sseConfig ?? { kind: 'unavailable' }
     switch (config.kind) {
       case 'entered':
+        if (config.gate !== undefined) await config.gate
         return {
           kind: 'stream',
           status: 200,
@@ -103,7 +118,9 @@ export class MemoryLine implements Line {
           enter: () => {
             this.sse = true
           },
-          discard: () => undefined,
+          discard: () => {
+            this.discarded += 1
+          },
         }
       case 'status':
         return {
@@ -157,9 +174,46 @@ export class MemoryLine implements Line {
     // A message that fails before it leaves is one the peer never sees.
     if (reply?.kind === 'unsent') return { kind: 'unsent' }
     this.sent.push({ message: parsed, headers, text: outbound.text })
+    if (reply?.kind === 'hang' || reply?.kind === 'late-stream')
+      return this.hold(reply.kind, typeof method === 'string' ? method : '', signal)
     if (reply === undefined) return this.kind === 'stdio' ? { kind: 'sent' } : ended({})
     if (this.kind === 'stdio' || this.sse) return this.onStream(reply, id)
     return this.onHttp(reply, id, signal)
+  }
+
+  /** A write that does not return until its signal fires. */
+  private hold(
+    kind: 'hang' | 'late-stream',
+    method: string,
+    signal: AbortSignal,
+  ): Promise<Exchange> {
+    return new Promise<Exchange>(resolve => {
+      const fired = () => {
+        this.hungAborted.push(method)
+        if (kind === 'hang') return resolve({ kind: 'aborted' })
+        const messages = new AsyncQueue<string>()
+        messages.end()
+        resolve({
+          kind: 'stream',
+          headers: {},
+          messages: {
+            [Symbol.asyncIterator]: () => {
+              const inner = messages[Symbol.asyncIterator]()
+              return {
+                next: async () => {
+                  const next = await inner.next()
+                  if (next.done) this.drained += 1
+                  return next
+                },
+              }
+            },
+          },
+          abort: () => undefined,
+        })
+      }
+      if (signal.aborted) fired()
+      else signal.addEventListener('abort', fired, { once: true })
+    })
   }
 
   /** stdio and the SSE mode: the message is written; the answer comes on the shared stream. */
@@ -192,6 +246,10 @@ export class MemoryLine implements Line {
         return { kind: 'aborted' }
       case 'unsent':
         return { kind: 'unsent' }
+      case 'hang':
+      case 'late-stream':
+      case 'deaf':
+        throw new TypeError(`${reply.kind} on a shared stream`)
       default: {
         const exhaustive: never = reply
         return exhaustive
@@ -226,8 +284,19 @@ export class MemoryLine implements Line {
         signal.addEventListener('abort', abort, { once: true })
         return { kind: 'stream', headers: {}, messages, abort }
       }
+      case 'deaf':
+        return {
+          kind: 'stream',
+          headers: {},
+          messages: new AsyncQueue<string>(),
+          abort: () => {
+            this.streamAborted.push(typeof id === 'string' ? id : '')
+          },
+        }
       case 'ended':
       case 'broken':
+      case 'hang':
+      case 'late-stream':
         throw new TypeError(`${reply.kind} on a Streamable HTTP request`)
       case 'unsent':
         return { kind: 'unsent' }
