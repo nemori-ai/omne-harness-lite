@@ -34,6 +34,59 @@ function basisIdentity(basis: CalculationBasis) {
     basis.provenanceRefs,
   ])
 }
+type CalendarQuery = CalendarResolve['query']
+type CalendarAnswer = CalendarResolution['result']
+
+function checkDayWitness(
+  query: Extract<CalendarQuery, { kind: 'day' }>,
+  value: Extract<CalendarAnswer, { kind: 'day' }>['value'],
+): void {
+  const range = value.basis.inspectedRange
+  coherent(
+    value.date === query.date &&
+      range.from <= query.date &&
+      range.to >= query.date &&
+      value.working === (value.classification === 'workingDay') &&
+      value.holiday === (value.classification === 'holiday'),
+  )
+}
+function checkShiftWitness(
+  query: Extract<CalendarQuery, { kind: 'shift' }>,
+  value: Extract<CalendarAnswer, { kind: 'shift' }>['value'],
+): void {
+  const range = value.basis.inspectedRange
+  const firstInspected = Temporal.PlainDate.from(query.date)
+    .add({ days: Math.sign(query.offset) })
+    .toString()
+  coherent(
+    range.from <= firstInspected &&
+      range.to >= firstInspected &&
+      range.from <= value.date &&
+      range.to >= value.date &&
+      (query.offset < 0
+        ? value.date < query.date
+        : query.offset > 0
+          ? value.date > query.date
+          : value.date === query.date),
+  )
+}
+function checkNthWitness(
+  query: Extract<CalendarQuery, { kind: 'nth' }>,
+  value: Extract<CalendarAnswer, { kind: 'nth' }>['value'],
+): void {
+  const range = value.basis.inspectedRange
+  coherent(
+    range.from <= query.periodStart &&
+      range.to >=
+        (query.ordinal === 'last' || value.date === null ? query.periodEnd : value.date) &&
+      (value.date === null || (value.date >= query.periodStart && value.date <= query.periodEnd)),
+  )
+}
+function checkQueryWitness(query: CalendarQuery, result: CalendarAnswer): void {
+  if (query.kind === 'day' && result.kind === 'day') checkDayWitness(query, result.value)
+  if (query.kind === 'shift' && result.kind === 'shift') checkShiftWitness(query, result.value)
+  if (query.kind === 'nth' && result.kind === 'nth') checkNthWitness(query, result.value)
+}
 export class FixedCalendar {
   private fixedBasis: CalculationBasis | null = null
   readonly version: CalendarVersionInfo
@@ -122,6 +175,30 @@ export class FixedCalendar {
       throw new PredictionFailure('provider_failure', 'Calendar basis is missing')
     return this.fixedBasis
   }
+  private checkResolutionIdentity(
+    resolution: CalendarResolution,
+    queryKind: CalendarQuery['kind'],
+  ): void {
+    coherent(
+      resolution.calendarId === this.calendarId.calendarId &&
+        resolution.versionId === this.version.versionId &&
+        resolution.coverageStart === this.version.coverageStart &&
+        resolution.coverageEnd === this.version.coverageEnd &&
+        resolution.result.kind === queryKind,
+    )
+  }
+  private checkBasis(basis: CalculationBasis): void {
+    coherent(
+      basis.calendarId === this.calendarId.calendarId &&
+        basis.versionId === this.version.versionId &&
+        basis.coverage.from === this.version.coverageStart &&
+        basis.coverage.to === this.version.coverageEnd &&
+        basis.contentHash === this.version.contentHash &&
+        basis.knowledgeAsOf === this.version.knowledgeAsOf &&
+        JSON.stringify(basis.provenanceRefs) === JSON.stringify(this.version.provenanceRefs),
+    )
+    if (this.fixedBasis !== null) coherent(basisIdentity(basis) === basisIdentity(this.fixedBasis))
+  }
   async query(query: CalendarResolve['query']): Promise<CalendarResolution['result']> {
     this.budget.calendar()
     const parsed = calendarResolveResultSchema.safeParse(
@@ -148,58 +225,9 @@ export class FixedCalendar {
       )
     const { result } = response.value
     const basis = result.value.basis
-    coherent(
-      response.value.calendarId === this.calendarId.calendarId &&
-        response.value.versionId === this.version.versionId &&
-        response.value.coverageStart === this.version.coverageStart &&
-        response.value.coverageEnd === this.version.coverageEnd &&
-        result.kind === query.kind,
-    )
-    coherent(
-      basis.calendarId === this.calendarId.calendarId &&
-        basis.versionId === this.version.versionId &&
-        basis.coverage.from === this.version.coverageStart &&
-        basis.coverage.to === this.version.coverageEnd &&
-        basis.contentHash === this.version.contentHash &&
-        basis.knowledgeAsOf === this.version.knowledgeAsOf &&
-        JSON.stringify(basis.provenanceRefs) === JSON.stringify(this.version.provenanceRefs),
-    )
-    if (this.fixedBasis !== null) coherent(basisIdentity(basis) === basisIdentity(this.fixedBasis))
-    const range = basis.inspectedRange
-    if (query.kind === 'day' && result.kind === 'day')
-      coherent(
-        result.value.date === query.date &&
-          range.from <= query.date &&
-          range.to >= query.date &&
-          result.value.working === (result.value.classification === 'workingDay') &&
-          result.value.holiday === (result.value.classification === 'holiday'),
-      )
-    if (query.kind === 'shift' && result.kind === 'shift') {
-      const firstInspected = Temporal.PlainDate.from(query.date)
-        .add({ days: Math.sign(query.offset) })
-        .toString()
-      coherent(
-        range.from <= firstInspected &&
-          range.to >= firstInspected &&
-          range.from <= result.value.date &&
-          range.to >= result.value.date &&
-          (query.offset < 0
-            ? result.value.date < query.date
-            : query.offset > 0
-              ? result.value.date > query.date
-              : result.value.date === query.date),
-      )
-    }
-    if (query.kind === 'nth' && result.kind === 'nth')
-      coherent(
-        range.from <= query.periodStart &&
-          range.to >=
-            (query.ordinal === 'last' || result.value.date === null
-              ? query.periodEnd
-              : result.value.date) &&
-          (result.value.date === null ||
-            (result.value.date >= query.periodStart && result.value.date <= query.periodEnd)),
-      )
+    this.checkResolutionIdentity(response.value, query.kind)
+    this.checkBasis(basis)
+    checkQueryWitness(query, result)
     this.fixedBasis ??= basis
     return result
   }

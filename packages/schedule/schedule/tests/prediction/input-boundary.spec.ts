@@ -53,3 +53,14 @@ test('preserves the verified request identity when definition resolution input i
   })
   expect(enumerations).toEqual([])
 })
+
+test('returns readable diagnostics for invalid preview and definition resolution inputs', async () => {
+  const { service } = harness()
+  const preview = await Reflect.apply(service.preview, service, [context, null])
+  const resolution = await Reflect.apply(service.definitions.resolve, service.definitions, [null])
+  expect(preview).toMatchObject({ kind: 'error', error: { message: expect.stringMatching(/\S/) } })
+  expect(resolution).toMatchObject({
+    kind: 'unavailable',
+    error: { message: expect.stringMatching(/\S/) },
+  })
+})

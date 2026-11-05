@@ -24,7 +24,7 @@ Node >=24 and ESM. The host supplies worker capacity, SqlStorage, a fixed scope,
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/schedule-local build`, `typecheck` and `test`. Fast tests cover public boundaries and real SQLite behavior. Slow tests exercise worker termination and process crashes. Authority, consent, Calendar and quota use conformance fixtures; production cross-domain integration remains unverified.
+Run `pnpm --filter @omne-harness/schedule-local build`, `typecheck` and `test`. Fast tests cover public boundaries and real SQLite behavior. Slow tests exercise worker termination and process crashes. Calendar integration tests use real CalendarQueries, SQLite, Cordis and released holiday seeds. Identity, settings, authority, consent and quota remain explicit fixtures in those tests. Production cross-domain integration remains unverified.
 
 ## Maintenance
 

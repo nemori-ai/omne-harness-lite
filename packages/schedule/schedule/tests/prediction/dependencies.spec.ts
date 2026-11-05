@@ -379,3 +379,49 @@ test.each([
   })
   expect(fixture.requests.some(request => request.query.kind === 'shift')).toBe(true)
 })
+
+test('accepts the minimal successful nth prefix from a Calendar provider', async () => {
+  const fixture = calendarFixture()
+  const original = fixture.queries.resolve
+  fixture.queries.resolve = async (ctx, request) => {
+    const result = await original(ctx, request)
+    if (request.query.kind !== 'nth' || result.kind !== 'ok' || result.value.result.kind !== 'nth')
+      return result
+    return calendarResolveResultSchema.parse({
+      ...result,
+      value: {
+        ...result.value,
+        result: {
+          kind: 'nth',
+          value: {
+            ...result.value.result.value,
+            basis: {
+              ...result.value.result.value.basis,
+              inspectedRange: { from: '2026-02-01', to: '2026-02-02' },
+            },
+          },
+        },
+      },
+    })
+  }
+  const rule = definition(
+    {
+      kind: 'position',
+      period: 'month',
+      interval: 1,
+      begin: '2026-02-01T00:00:00',
+      until: '2026-02-28T23:59:59',
+      ordinal: 1,
+      selector: { kind: 'workingDay' },
+      times: ['09:00:00'],
+    },
+    { binding: selected },
+  )
+  const preview = value(
+    await harness({ calendar: fixture.queries }).service.preview(context, input(rule)),
+  )
+  expect(preview.complete).toBe(true)
+  expect(preview.candidates.map(candidate => candidate.adjustedLocal)).toEqual([
+    '2026-02-02T09:00:00',
+  ])
+})
