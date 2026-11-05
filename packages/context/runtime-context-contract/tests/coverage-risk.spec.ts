@@ -68,6 +68,7 @@ it('refuses invalid bindings without a producer declaration and does not commit 
       await memory.applyCommit('principal', {
         kind: 'registration',
         commit: { commit: 'invalid-' + index },
+        after: null,
         change,
       }),
     ).toMatchObject({ kind: 'invalid', reason: 'registration', current: 0 })
@@ -77,6 +78,7 @@ it('refuses invalid bindings without a producer declaration and does not commit 
     await memory.applyCommit('principal', {
       kind: 'registration',
       commit: { commit: 'valid' },
+      after: null,
       change: { ...base, bindings: [{ key: 'suite.value', need }] },
     }),
   ).toMatchObject({ kind: 'applied', registrationRevision: 1 })
@@ -93,6 +95,7 @@ async function add(
     await memory.applyCommit('principal', {
       kind: 'registration',
       commit: { commit: target.ref },
+      after: null,
       change: {
         kind: 'add',
         scope: target,

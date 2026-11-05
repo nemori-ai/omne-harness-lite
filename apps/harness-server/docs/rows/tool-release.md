@@ -46,7 +46,7 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
 读不到、形状不对、产物不等、重建不等，快照都是 `unavailable`。快照不可用不让启动失败，但此后两个方法都答
 `unavailable`。这时入口在 Cordis 记录器 `tool-release` 上打一条 warn，写明固定的原因短语（例如
 `artifacts differ from the manifest`、`manifest differs from its recomputation`、`manifest unreadable`）。日志只是
-观察，不改变失败关闭。Cordis 4.0.4 的导出器默认只导出到 info 级别，要看到这条 warn，导出器的级别要开到 warn。
+观察，不改变失败关闭。`serve` 在根上登记的导出器导出到 warn 级别，这条 warn 作为 `log` 记录写到 stdout（R2-D253）。
 
 快照只从刚核对过的包根 import：直接 import `<包根>/dist/index.js` 的文件 URL，不经包名解析，所以解析条件
 （例如 `--conditions=source`）换不成未核对的源码。这个入口文件必须在包产物清单里。
@@ -75,7 +75,7 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
 
 `toolHostRow` 用 `createLocalToolHostPlugin` 提供 `toolGenerations`，与 `tool-residency` 成对装载。
 配置只有运维者层的 `construction`：`Shell` 需要 `resultMaxBytes`、`executable`、`argsPrefix`、`cwd`、`env`，
-`Files` 需要 `resultMaxBytes`。发行层的行配置是空对象。
+`Files` 需要 `resultMaxBytes`，可选 `cwd`（工作区根，与 `Shell` 的 `cwd` 取同一个值；相对路径按它解析，R2-D290）。发行层的行配置是空对象。
 
 - `source.resolve` 只从受信快照取固定模块、配置与上下文。它不按调用参数 import。资产不在快照里答 `denied`。
   运维者层缺这个作者的值、登记者不在、快照不可用，都答 `unavailable`。`context.access` 是登记者，
@@ -85,9 +85,13 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
   换回固定模块，不要求同一对象。`schemas` 另核 `loaded.executor` 与清单全等。
 - 内层 loader 用 `createLocalToolLoader`。`settings` 核对设置采用与清单全等，再交运维者层的构造值。
   `schemas` 先核 `loaded.definition` 的规范化摘要与清单全等，不等答 `invalid`。然后履行非空 environment
-  声明的义务（R2-D79）：采用不是 `environmentNeedAdoption` 时答 `invalid`；是时直接调用执行环境契约的
-  `environmentNeedSchema['~standard'].validate`，不经 schema-provider。结果有 issues 时答 `invalid`；校验件
-  抛出、返回 Promise 或返回读不懂的结果时答 `unavailable`。只有明确的 `{ value }` 才通过。
+  声明的义务（R2-D80，取代 R2-D79 的过渡做法）：采用不是 `environmentNeedAdoption` 时答 `invalid`；声明值写成
+  JSON 文本再按入口给的读取上限读回，读不回答 `invalid`；然后经公共模块 `@omne-harness/schema-provider` 的
+  `validate` 校验，schema 是执行环境契约公开的 `environmentNeedSchemaRef`。判定 `invalid` 对应 `invalid`；
+  `refused`、`unavailable`、`cancelled` 或 provider 抛出对应 `unavailable`。只有 `valid` 才通过。
+  provider 实例与预算由入口给出（`src/entry/schema-domain.ts`，预算各项的来源写在该文件头注释）；行装载时建
+  一个 provider，行 fiber 撤除时关闭，之后的检查答 `refused` 即不可用。`ReleaseAuthorOptions` 的
+  `schemaProvider` 与 `environmentNeed` 只在测试里换。生产路径只有这一条，没有直接调用 Standard Schema 的路径。
 - `recordRejection` 返回被拒绝的 Promise。协调者把它转成 `unavailable`，不伪造永久 `rejected`。
 
 ## `tool-bindings` 行
@@ -101,26 +105,31 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
   `unavailable`。
 - 定义不是官方层，或名字与规范化摘要不与清单条目相等，`qualification` 为 `denied`，三项兼容都为 false。
 - 消费者材料的三项证据必须与清单确认的文本消费者全等。陌生材料答 `unavailable`。
-- `dependencies` 逐项报告 environment 声明的 facility。A 段没有落点与设施的可用性来源，每项如实报 `false`。
+- `dependencies` 逐项报告 environment 声明的 facility。执行环境注册表（`executionEnvironment`）与 Tool 环境适配
+  （`toolEnvironments`）此刻都在场时报 `true`，任一不在报 `false`（R2-D79 第 3 条）。这只说明设施的装配在场，
+  不核宿主提供者的前提。前提不满足时，放置答 `unavailable`。
 - `inputCompatible`、`outputCompatible`、`attachmentsReadable` 按固定定义与确认的文本消费者能力判断。
 
-A 段的运行时三项：
+运行时三项（B 段）：
 
-- `authority` 是窄代理，每次调用现取当前 `toolStartAuthority`，只认契约服务定义的实例。`tool-records` 现在是
-  替身，所以它答 `unavailable`。
-- `scope` 抛出 `unavailable`，作者不会运行；`settle` 答 `unavailable`，不用测试常量冒充结果。
-- 三项都在 B 段改接 `createLocalToolRuntimePlugins` 的同一个 bundle。
+- `authority` 是窄代理，每次调用现取当前 `toolStartAuthority`，只认契约服务定义的实例。提供者是 `tool-records`
+  行装的 bundle records 插件，本行不建第二个启动协调器。
+- `scope`、`settle` 是 Tool 运行时组同一个 bundle 的 `authorExecution.scope` 与 `authorExecution.settle`。
+  每次调用读本次运行的 bundle。bundle 还没建好时，`scope` 抛出 `unavailable`，作者不会运行；`settle` 答
+  `unavailable`。bundle 与五行见 [Tool 运行时组](tool-runtime.md)。
+
+发行行 `toolHostRow` 装好后，按发行清单预装 Shell 与 Files：系统作用域调用 `ensureLoaded`，作者闭包的登记者是
+`toolReleaseRegistrant`（R2-D79 第 4 条）。租户的采用点只读已装的作者。预装不成功只在 Cordis 记录器
+`tool-host` 上记一条 warn，写明作者名与失败种类。Catalog 里没有这个作者，调用答不可用，不放行。
 
 ## 具名缺件与已知限制
 
 - **耐久拒绝记录，波 3**：本波没有拒绝记录仓。
 - **生产的消费者档案来源，波 3**：全仓没有生产的 `ToolConsumerProfile` 来源，「已确认的文本消费者」暂由发行
   清单声明。生产来源由 L-TOOL 在波 3 给出（R2-D79）。
-- **官方作者只能由登记者装载**：租户访问调 `ensureLoaded` 时 `admits` 答 `denied`。B 段的必做项：发行入口在
-  启动时用 `toolReleaseRegistrant` 预装 Shell 与 Files，`adoption-sources` 只读已装的作者，不用租户访问首装
-  官方作者（R2-D79）。
-- **可用性的 `dependencies` 在 A 段恒为 `false`**：A 段没有落点与设施的可用性来源。B 段的必做项：接上执行环境
-  行的真实可用性，否则 Shell、Files 不可用（R2-D79）。
+- **官方作者只能由登记者装载**：租户访问调 `ensureLoaded` 时 `admits` 答 `denied`。发行行在启动时预装两个作者，
+  `adoption-sources` 只读已装的作者（R2-D79）。
+- **设施依赖只核装配在场**：`dependencies` 不核宿主提供者的前提（例如 Linux 用户管理器、Windows 的 shell）。
 - **产物核对不覆盖依赖包**：只核 tool-definitions 自己的 `package.json` 与 `dist`，不核它依赖的包。
 - **核对与 import 之间有改写窗口**：快照先核产物摘要，再 import 模块。两步之间磁盘上的改写不在保护范围内。
 - **CRLF 的 `package.json` 让快照不可用**：检出把 tool-definitions 的 `package.json` 换成 CRLF 时，摘要与清单
@@ -131,10 +140,10 @@ A 段的运行时三项：
 - [来源权威与快照](../../tests/entry/tool-release.spec.ts)：每个字段的改动、非官方层、未知资产、快照不可用、
   登记者以外的主体、代次不符、产物翻转一个字节、手改清单、executor 漂移。
 - [tool-host](../../tests/rows/tool-host/release-host.spec.ts)：真实 Cordis 下按生产路径（真实
-  `environmentNeedSchema`）首装两作者、篡改产物、缺运维者值、校验件抛出或返回 Promise 时失败关闭、租户访问被拒、
+  `environmentNeedSchemaRef` 经 schema-provider）首装两作者、篡改产物、缺运维者值、schema 加载失败或 provider 已关闭时失败关闭、租户访问被拒、
   来源不按参数 import、定义与设置不符、拒绝记录，以及 environment 声明合法通过、改坏一个字段与未知采用答 `invalid`。
 - [tool-bindings](../../tests/rows/tool-bindings/release-bindings.spec.ts)：可用性各分支、启动权威代理、
-  两个占位、一个 fiber 两个服务。
+  bundle 未建时的 scope 与 settle、建好后交给 bundle、一个 fiber 两个服务。
 - [清单脚本](../../tests/tool-release-script.spec.ts)：一致、产物不符、手改条目、只改格式、用法错误。
 
-这些用例证明发行来源与登记链路，不证明作者执行、执行环境或完整 Tool 运行时。
+这些用例证明发行来源与登记链路。作者执行与 Tool 运行时的组合用例见 [Tool 运行时组](tool-runtime.md)。

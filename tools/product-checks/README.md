@@ -153,47 +153,6 @@ The exact `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-su
 
 The rule scans test code and fixtures in `packages/`, `apps/` and `tools/`. It scans `.ts`, `.mts`, `.cts`, `.js`, `.mjs` and `.cjs` files. It parses JavaScript files with JavaScript syntax. It reports a `mkdtempSync` or `mkdtemp` call when the first argument comes from `tmpdir()` or `process.env.TMPDIR` and the created directory is not resolved. The call passes when it is the first argument of `realpathSync`, `realpath` or `realpathSync.native`, or when the argument resolves `tmpdir()` first. The rule rejects a later separate `realpathSync(dir)` statement, because the unresolved path stays in scope. The rule also rejects callback `mkdtemp` and `.then(realpath)` chains. It does not cover tests in `scripts/` or `examples/`, `.tsx` or `.jsx` files, values from other modules, reassignment, or a renamed `require` destructuring of `mkdtemp`. The [Chinese catalogue](README_ZH.md#测试临时目录的物理路径) lists the details.
 
-## Independence from archived implementations
-
-The engineering tools do not load the archived `packages.0.0.1.legacy/` or
-`apps.0.0.1.legacy/` trees. Rule tests own minimal source strings and mutate
-those strings to test rejection. These fixtures test the checker, not the
-behavior of an archived product.
-
-`no-legacy-dependency` checks package manifests, workspace membership, imports,
-and TypeScript-resolved module aliases. Test files retain the import check.
-They also reject archived paths passed to file readers, `URL`, `join`, or
-`resolve`. The path check follows local variable initializers within enclosing
-blocks and follows explicitly selected fields of local object literals. Only the
-path argument of a file reader is checked. Destructured bindings stop lookup in
-outer scopes, and callback bodies are not treated as path arguments. Plain strings supplied as deliberately
-invalid checker input remain allowed. The check does not prove arbitrary dynamic
-paths, reassignment, indirect calls, or cross-module data flow. Run the tools
-without the archived directories to test the actual dependency chain.
-
-To reproduce that isolation from the repository root, use a disposable directory
-outside the checkout. The copy has no Git metadata, dependencies, build output,
-Python environment, or archived implementations:
-
-```sh
-isolated=$(mktemp -d)
-rsync -a --exclude=.git --exclude=.worktrees --exclude=tmp \
-  --exclude=node_modules --exclude=dist --exclude=.venv \
-  --exclude=packages.0.0.1.legacy --exclude=apps.0.0.1.legacy ./ "$isolated/"
-pnpm --dir "$isolated" install --frozen-lockfile --ignore-scripts
-pnpm --dir "$isolated" --filter '@omne-harness/product-checks...' run build
-pnpm --dir "$isolated" --filter @omne-harness/product-checks typecheck
-pnpm --dir "$isolated" --filter @omne-harness/product-checks test
-```
-
-Run `pnpm run check:docs` separately in the checkout that retains the reference
-material. Historical documentation links are not executable dependencies.
-Report every failed command, including failures that also occur at the task
-baseline. These checks do not publish a branch or record an integration. The
-confirmer of a trunk PR writes the commands that ran and their results in the
-confirmation note. The [integration rules](../../docs/engineering/integration.md#检查责任)
-own this duty.
-
 ## Commit attribution audit baseline
 
 After `lint:rules` runs the repo-toolchain `commit-attribution` rule, it filters the result with [`commit-attribution-baseline.json`](commit-attribution-baseline.json). The filter skips only the "agent listed as co-author" lines in the exact commits that the file lists by full 40-character SHA. An agent author or committer, or a "generated with" line, is still reported. Commits outside the list are checked as usual.

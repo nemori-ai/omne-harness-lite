@@ -5,188 +5,18 @@
 // commit: a failure of either write leaves neither, and the same operation then commits once. A
 // rejected reply writes no row. On the node:sqlite double that runs the published modules.
 import { describe, expect, it } from 'vitest'
+import { ok } from './fixtures/common-journal.ts'
+import type { SqlScene } from './fixtures/sql-scene.ts'
 import {
-  decodeActionId,
-  type AgentJournal,
-  type DurableEvidence,
-} from '@omne-harness/agent-contract'
-import { judgeMessage, type Message } from '@omne-harness/message'
-import { decodeModelCallId } from '@omne-harness/model-contract'
-import { decodeToolCallId } from '@omne-harness/tool-contract'
-import { assistantMessage } from '@omne-harness/session-contract/testing'
-import { ok, operation } from './fixtures/common-journal.ts'
-import { sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
-
-type Journal = AgentJournal<string>
-type Commit = Parameters<Journal['commit']>[0]
-type Request = Extract<NonNullable<Commit['handoff']>, { kind: 'prepare' }>['request']
-type Decision = Extract<NonNullable<Commit['handoff']>, { kind: 'resolve' }>['outcome']['decision']
-
-const PROVIDER = { owner: 'suite', name: 'message-handoff', revision: '1', digest: 'suite:handoff' }
-const proof = (record: string): DurableEvidence => ({
-  owner: 'suite',
-  record,
-  revision: '1',
-  digest: `suite:${record}`,
-})
-const MODEL_CALL = ok(decodeModelCallId(`mcall_${'0'.repeat(20)}r1`))
-const ACTION = ok(decodeActionId('core-r1/action'))
-const RESULT_VERSION = 'v1'
-
-function toolMessage(): Message {
-  return {
-    id: 'msg_c0nf0rmance0000000000002',
-    role: 'tool',
-    blocks: [
-      {
-        kind: 'tool_result',
-        id: 'block-result',
-        visibility: { toHuman: true, toModel: true },
-        callId: 'tc-1',
-      },
-      { kind: 'text', id: 'block-body', visibility: { toHuman: true, toModel: true }, text: 'ok' },
-    ],
-  } as unknown as Message
-}
-
-type Source = 'model-reply' | 'tool-result'
-
-async function opened(name: string) {
-  const s = await sqlScene(name)
-  const open = ok(await s.view.journal.open(s.openInput))
-  return { s, authority: open.authority }
-}
-
-async function load(s: SqlScene) {
-  return ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
-}
-
-/** P: the complete request of one H of `source`, saved at the Journal before any prepare. */
-async function prepared(s: SqlScene, authority: Commit['authority'], source: Source) {
-  const loaded = await load(s)
-  const candidate = judgeMessage(
-    source === 'model-reply' ? assistantMessage('reply') : toolMessage(),
-  )
-  if (!('ok' in candidate)) throw new Error('the candidate message is invalid')
-  const result = (producer: unknown) => ({
-    producer,
-    version: RESULT_VERSION,
-    delivery: null,
-    source: proof(`result/${source}`),
-  })
-  const request = {
-    kind: 'execution',
-    reference: { kind: 'execution', execution: s.execution, operation: operation(`h-${source}`) },
-    predecessor: loaded.revision,
-    position: {
-      step: loaded.checkpoint.step,
-      node: source === 'model-reply' ? 'I3' : 'T5',
-      slot: null,
-    },
-    source:
-      source === 'model-reply'
-        ? {
-            kind: 'model-reply',
-            step: loaded.checkpoint.step,
-            action: ACTION,
-            call: MODEL_CALL,
-            result: result({ kind: 'model', call: MODEL_CALL }),
-          }
-        : {
-            kind: 'tool-result',
-            action: ACTION,
-            call: ok(decodeToolCallId('tc-1')),
-            result: result({ kind: 'tool', call: 'tc-1' }),
-          },
-    candidate: candidate.ok,
-    originalAdvance: authority,
-    predecessorHandoff: null,
-  } as Request
-  ok(
-    await s.view.journal.commit({
-      ...s.access,
-      execution: s.execution,
-      operation: operation(`p-${source}`),
-      authority,
-      expected: loaded.revision,
-      checkpoint: { ...loaded.checkpoint, position: 'Q2', currentHandoff: request.reference },
-      state: { kind: 'advancing' },
-      events: [],
-      effects: [],
-      caller: { kind: 'none' },
-      replyAdmission: null,
-      handoff: { kind: 'prepare', request },
-      finish: null,
-    }),
-  )
-  return request
-}
-
-/**
- * Ja: the fixed outcome of H with the real history of its source. The main reply carries its
- * admission fact and a caller of none; the tool result carries the `message` hand-over.
- */
-async function applied(
-  s: SqlScene,
-  authority: Commit['authority'],
-  request: Request,
-  decision: Decision,
-): Promise<Commit> {
-  const loaded = await load(s)
-  const reply = request.source.kind === 'model-reply'
-  const admission = decision.kind === 'prepared' ? decision.admission : decision.evidence
-  return {
-    ...s.access,
-    execution: s.execution,
-    operation: operation(`ja-${request.source.kind}`),
-    authority,
-    expected: loaded.revision,
-    checkpoint: { ...loaded.checkpoint, position: 'Q4', currentHandoff: null },
-    state: { kind: 'advancing' },
-    events:
-      decision.kind === 'prepared'
-        ? [{ kind: 'message', message: decision.message, source: decision.admission }]
-        : [],
-    effects: [],
-    caller:
-      !reply && decision.kind === 'prepared'
-        ? {
-            kind: 'message',
-            message: decision.message,
-            source: proof('record/h'),
-            admission: decision.admission,
-          }
-        : { kind: 'none' },
-    replyAdmission: reply
-      ? {
-          step: loaded.checkpoint.step,
-          action: ACTION,
-          call: MODEL_CALL,
-          resultVersion: RESULT_VERSION,
-          decision: decision.kind === 'prepared' ? 'admitted' : 'rejected',
-          source: admission,
-        }
-      : null,
-    handoff: {
-      kind: 'resolve',
-      outcome: {
-        request,
-        origin: null,
-        provider: PROVIDER,
-        qualification: proof('qualification/h'),
-        record: proof('record/h'),
-        decision,
-      },
-    },
-    finish: null,
-  } as Commit
-}
-
-const admitted = (request: Request): Decision => ({
-  kind: 'prepared',
-  message: request.candidate,
-  admission: proof('admission/h'),
-})
+  admitted,
+  applied,
+  load,
+  opened,
+  prepared,
+  proof,
+  type Commit,
+  type Decision,
+} from './fixtures/main-reply.ts'
 
 const count = (s: SqlScene, table: string): number =>
   Number(s.controls?.select(`SELECT COUNT(*) AS n FROM ${table}`).rows[0]?.[0] ?? -1)
@@ -219,12 +49,23 @@ function plainOf(tree: Tagged): unknown {
   }
 }
 
-/** The recorded payload of the history row a Ja wrote, as the Session log stores it. */
-const writtenEntry = (s: SqlScene, kind: string): Record<string, unknown> => {
-  const rows = s.controls?.select(`SELECT entry FROM sl_entry WHERE kind = '${kind}'`).rows ?? []
-  expect(rows).toHaveLength(1)
-  const stored = JSON.parse(String(rows[0]?.[0])) as { payload: Tagged }
-  return plainOf(stored.payload) as Record<string, unknown>
+/**
+ * The payload of the history row a Ja wrote, read through the public history read of the Session
+ * storage (not from the stored row text, whose encoding is the storage's own).
+ */
+const writtenEntry = async (s: SqlScene, kind: string): Promise<Record<string, unknown>> => {
+  const page = ok(
+    await s.port.history.begin({
+      ...s.sessionAccess,
+      kinds: [kind],
+      from: null,
+      direction: 'forward',
+      pageBytes: 1 << 20,
+    }),
+  )
+  expect(page.exhausted).toBe(true)
+  expect(page.entries).toHaveLength(1)
+  return plainOf(page.entries[0]?.payload as Tagged) as Record<string, unknown>
 }
 
 describe('a Ja writes the real history of its source into the Session log', () => {
@@ -249,7 +90,7 @@ describe('a Ja writes the real history of its source into the Session log', () =
       const { s, authority } = await opened(`history-${source}-pointers`)
       const request = await prepared(s, authority, source)
       ok(await s.view.journal.commit(await applied(s, authority, request, admitted(request))))
-      const entry = writtenEntry(s, role)
+      const entry = await writtenEntry(s, role)
       expect(entry.message).toEqual(request.candidate)
       // The record of the handoff and the admission of the prepared result: not one for the other.
       expect(entry.source).toEqual(proof('record/h'))

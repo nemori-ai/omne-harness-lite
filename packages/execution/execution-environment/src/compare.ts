@@ -94,6 +94,7 @@ export function fingerprint(original: OriginalAcquisition): string {
     p.quotaDomain,
     original.origin,
     scopeChain(original.scope),
+    scopeChain(original.retentionScope),
     bindingFacts(p.binding),
     [p.provider.name, p.provider.generation, p.provider.version],
     p.continuity,
@@ -147,5 +148,8 @@ export function copyOriginal(original: OriginalAcquisition): OriginalAcquisition
     origin: original.origin,
     scope: copyScope(original.scope),
     placement: copyPlacement(original.placement),
+    ...(original.retentionScope === undefined
+      ? {}
+      : { retentionScope: copyScope(original.retentionScope) }),
   })
 }

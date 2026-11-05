@@ -39,7 +39,7 @@ import { readCapturedStream, readRecordFixture, type FamilyName } from './suppor
 /** The record body of the family model with a reasoning state reply: the server's answer. */
 function recordedStream(family: FamilyName, model: string): string {
   const records = family === 'pi-ai-openai' ? OPENAI_RECORDS : ANTHROPIC_RECORDS
-  const record = records.find(entry => entry.name === model)
+  const record = records.find(entry => entry.name === model && entry.status === 'current')
   if (record === undefined) throw new Error(`no record ${model}`)
   return readRecordFixture(family, record).stream
 }

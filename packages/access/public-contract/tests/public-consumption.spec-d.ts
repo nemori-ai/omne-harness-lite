@@ -9,6 +9,7 @@ import {
   type GovernanceStageOperation,
   type GovernanceResponseEncodeInput,
 } from '@omne-harness/public-contract'
+import type { LoginStateId } from '@omne-harness/legal-identity'
 const limits = {
   maxBytes: 1000,
   maxDepth: 10,
@@ -17,6 +18,12 @@ const limits = {
   maxStringLength: 100,
   maxNumberLength: 10,
 }
+test('issue-login success may carry the login identifier', () => {
+  type Issued = Extract<GovernanceResponse<'issue-login'>, { outcome: 'succeeded' }>['body']
+  expectTypeOf<Issued['loginId']>().toEqualTypeOf<LoginStateId | undefined>()
+  type Revoked = Extract<GovernanceResponse<'revoke-login'>, { outcome: 'succeeded' }>['body']
+  expectTypeOf<Revoked['loginId']>().toBeNever()
+})
 test('operation-indexed requests and responses reject unrelated bodies and outcomes', () => {
   const health: GovernanceRequest<'public-health'> = {
     protocolVersion: 'governance-public/1',
@@ -30,13 +37,20 @@ test('operation-indexed requests and responses reject unrelated bodies and outco
   // @ts-expect-error Empty health body cannot carry a credential.
   const bad: GovernanceRequest<'public-health'> = { ...health, body: { credential: 'secret' } }
   void bad
-  const stage: GovernanceResponse<'public-health'> = {
+  // A deployment may declare any provided operation unprovided.
+  const declared: GovernanceResponse<'public-health'> = {
     protocolVersion: 'governance-public/1',
-    // @ts-expect-error Normal operations cannot produce stage outcomes.
     outcome: 'stage-not-provided',
     body: {},
   }
-  void stage
+  void declared
+  const declaredWithBody: GovernanceResponse<'public-health'> = {
+    protocolVersion: 'governance-public/1',
+    outcome: 'stage-not-provided',
+    // @ts-expect-error A stage-not-provided response has an empty body.
+    body: { protocolVersion: 'governance-public/1' },
+  }
+  void declaredWithBody
   const business: GovernanceResponse<GovernanceStageOperation> = {
     protocolVersion: 'governance-public/1',
     messageId: 'm',

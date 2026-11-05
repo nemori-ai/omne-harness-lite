@@ -22,8 +22,12 @@ import {
   type AgentJournal,
   type AgentJournalEntries,
   type AgentMaterials,
+  type AgentReceivedCommits,
+  type AgentReceivedRecords,
   type DurableEvidence,
   type Material,
+  type ModelReceptionTargets,
+  type ToolReceptionTargets,
   type PendingCall,
   type ReceivedEntry,
 } from '@omne-harness/agent-contract'
@@ -39,6 +43,10 @@ import {
   agentJournalEntriesKey,
   agentJournalKey,
   agentMaterialsKey,
+  agentModelReceptionTargetsKey,
+  agentReceivedCommitsKey,
+  agentReceivedRecordsKey,
+  agentToolReceptionTargetsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -61,7 +69,11 @@ import {
   ordinaryInput,
   testingTenant,
 } from '@omne-harness/session-contract/testing'
-import { SessionAccessCheckService } from '@omne-harness/session-cordis-contract/cordis'
+import type { SessionAdoptedRequests } from '@omne-harness/session-cordis-contract'
+import {
+  SessionAccessCheckService,
+  sessionAdoptedRequestsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
 import type { DomainRef, SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
@@ -73,7 +85,14 @@ import {
   type ExecutionRoutedJournalOptions,
 } from '../src/cordis/agent-journal-provider.ts'
 import { checkpoint, instance, ok, openInput, operation } from './fixtures/common-journal.ts'
-import { handed, sqlScene, type SqlScene, type SqlSceneOptions } from './fixtures/sql-scene.ts'
+import {
+  handed,
+  nextRun,
+  sqlScene,
+  type SqlScene,
+  type SqlSceneOptions,
+} from './fixtures/sql-scene.ts'
+import { m0Checkpoint } from './fixtures/adopted-request.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
 // `FiberState` is a const enum of Cordis, so its members are not values to import: in Cordis 4.0.4
@@ -111,6 +130,10 @@ type Wiring = {
   fault: Fault | null
   /** When set, the next storage commit takes it, calls `reached` and waits for `released`. */
   hold: Readonly<{ reached: () => void; released: Promise<void> }> | null
+  /** The decision of the Session access check; every request is allowed when absent. */
+  decide?: ((request: SessionAccessRequest<unknown>) => SessionAccessDecision) | undefined
+  /** Every request the Session access check decided. */
+  decided: SessionAccessRequest<unknown>[]
 }
 
 /**
@@ -119,7 +142,14 @@ type Wiring = {
  * check that allows everything.
  */
 function servicesOf(s: SqlScene, otherDomain: DomainRef) {
-  const wiring: Wiring = { failIndex: false, indexReads: [], reads: 0, fault: null, hold: null }
+  const wiring: Wiring = {
+    failIndex: false,
+    indexReads: [],
+    reads: 0,
+    fault: null,
+    hold: null,
+    decided: [],
+  }
   const storage: SqlStorage = s.storage
   // The operations whose commit never ran and whose outcome stays undecided (`pending`).
   const undecided = new Set<string>()
@@ -175,8 +205,15 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
   class Lookup extends TenantDomainLookupService {
     readonly lookup = lookup
   }
-  const check = (request: SessionAccessRequest<unknown>): Promise<SessionAccessDecision> =>
-    Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) })
+  const check = (request: SessionAccessRequest<unknown>): Promise<SessionAccessDecision> => {
+    wiring.decided.push(request)
+    return Promise.resolve(
+      wiring.decide?.(request) ?? {
+        kind: 'allowed',
+        evidence: evidence(`access/${request.operation}`),
+      },
+    )
+  }
   class Access extends SessionAccessCheckService<unknown> {
     readonly check = check
   }
@@ -224,7 +261,24 @@ async function assembled(
   const journal = () => face<AgentJournal<string>>(agentJournalKey)
   const entries = () => face<AgentJournalEntries<string>>(agentJournalEntriesKey)
   const materials = () => face<AgentMaterials<string, ContentBlock>>(agentMaterialsKey)
-  return { ctx, plugin, journal, entries, materials, wiring: services.wiring }
+  const adopted = () => face<SessionAdoptedRequests<unknown>>(sessionAdoptedRequestsKey)
+  const received = () => face<AgentReceivedCommits<string, ContentBlock>>(agentReceivedCommitsKey)
+  const targets = () => face<ModelReceptionTargets<string>>(agentModelReceptionTargetsKey)
+  const toolTargets = () => face<ToolReceptionTargets<string>>(agentToolReceptionTargetsKey)
+  const records = () => face<AgentReceivedRecords<string>>(agentReceivedRecordsKey)
+  return {
+    ctx,
+    plugin,
+    journal,
+    entries,
+    materials,
+    adopted,
+    received,
+    targets,
+    toolTargets,
+    records,
+    wiring: services.wiring,
+  }
 }
 
 /** The trusted cancellation installation of the test policy, as the assembly entry hands it in. */
@@ -451,7 +505,7 @@ describe('routing by tenant and execution', () => {
         operation: operation('route-a-take'),
         authority: openedA.authority,
         expected: loaded.revision,
-        checkpoint: { ...loaded.checkpoint, inputBatch: page.batch.id },
+        checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
         state: { kind: 'advancing' },
         events: [{ kind: 'input-taken', batch: page.batch }],
         effects: [],
@@ -616,6 +670,7 @@ async function waitingOnModel(
   s: SqlScene,
   journal: AgentJournal<string>,
   name: string,
+  quiet = false,
 ): Promise<Omit<ReceivedEntry, 'material'>> {
   const opened = ok(await journal.open(s.openInput))
   const result = sampleReceivedModelResult(s.access.tenant, name)
@@ -638,8 +693,10 @@ async function waitingOnModel(
       authority: opened.authority,
       expected: opened.receipt.revision,
       checkpoint: { ...s.checkpoint, calls: [pending] },
-      state: { kind: 'waiting', waits },
-      events: [{ kind: 'waiting', waits }],
+      // `quiet`: no event, so the Session history of the Run needs no original of it (a next Run
+      // of the session reads that history).
+      state: quiet ? { kind: 'advancing' } : { kind: 'waiting', waits },
+      events: quiet ? [] : [{ kind: 'waiting', waits }],
       effects: [{ pending, action: pending.action, authority: opened.authority }],
       caller: { kind: 'none' },
       replyAdmission: null,
@@ -651,6 +708,352 @@ async function waitingOnModel(
   return draft
 }
 
+// R2-D237: the two faces the host's Model result receiver needs. Each case is red when the plugin
+// stops providing the face, routes it to the wrong session, or answers from the live checkpoint.
+describe('agentReceivedCommits and agentModelReceptionTargets: the result receiver faces', () => {
+  it('commits a received delivery routed by its execution, as one fact the Journal reads', async () => {
+    const s = await scene('recv-commit')
+    const { plugin, journal, entries, received } = await assembled(s)
+    for (const key of [agentReceivedCommitsKey, agentModelReceptionTargetsKey])
+      expect(plugin.store?.[key]?.fiber === plugin, key).toBe(true)
+    const draft = await waitingOnModel(s, journal(), 'recv-commit')
+    const input = {
+      ...s.access,
+      execution: s.execution,
+      operation: operation('receive'),
+      entry: draft,
+      material: factsMaterial('recv-commit'),
+    }
+    const saved = ok(await received().commit(input))
+    if (saved.kind !== 'committed') throw new Error(`received ${saved.kind}`)
+    const loaded = ok(await journal().load({ ...s.access, execution: s.execution }))
+    const read = ok(
+      await entries().read({ ...s.access, execution: s.execution, after: null, limit: 100 }),
+    )
+    expect(read.items.map(item => item.entry)).toContainEqual(saved.value.entry)
+    // The same operation is recognized: the original commit, no second fact.
+    expect(ok(await received().commit(input))).toEqual(saved)
+    expect(ok(await received().query(input))).toEqual(saved)
+    expect(ok(await journal().load({ ...s.access, execution: s.execution })).revision).toBe(
+      loaded.revision,
+    )
+    // An execution no Run started: denied, nothing written.
+    const unknown = ok(decodeAgentExecutionId('recv-nobody'))
+    expect(await received().commit({ ...input, execution: unknown })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+  })
+
+  // R2-D257: the read face the Agent owner's evidence adapter confirms a Model ACK through. Red
+  // when the plugin does not provide it in its own fiber, when it answers something other than the
+  // committed record, or when a new instance on the same storage no longer finds the record.
+  it('agentReceivedRecords answers the committed record, also from a new instance on the same storage', async () => {
+    const s = await scene('recv-records')
+    const first = await assembled(s)
+    expect(first.plugin.store?.[agentReceivedRecordsKey]?.fiber === first.plugin).toBe(true)
+    const draft = await waitingOnModel(s, first.journal(), 'recv-records')
+    const input = {
+      ...s.access,
+      execution: s.execution,
+      operation: operation('receive-records'),
+      entry: draft,
+      material: factsMaterial('recv-records'),
+    }
+    const absent = { ...input, operation: operation('receive-never') }
+    expect(ok(await first.records().query(absent))).toEqual({ kind: 'unknown' })
+    const saved = ok(await first.received().commit(input))
+    if (saved.kind !== 'committed') throw new Error(`received ${saved.kind}`)
+    const revision = ok(
+      await first.journal().load({ ...s.access, execution: s.execution }),
+    ).revision
+    expect(ok(await first.records().query(input))).toEqual(saved)
+    // A read writes nothing.
+    expect(ok(await first.journal().load({ ...s.access, execution: s.execution })).revision).toBe(
+      revision,
+    )
+    await first.plugin.dispose()
+    const second = await assembled(s)
+    expect(ok(await second.records().query(input))).toEqual(saved)
+  })
+
+  it('answers the binding the committed PendingCall made, after the call left the checkpoint and in a new instance', async () => {
+    const s = await scene('recv-targets')
+    const first = await assembled(s)
+    const draft = await waitingOnModel(s, first.journal(), 'recv-targets')
+    const pending = draft.delivery.producer === 'model' ? draft.delivery.key.reference : null
+    if (pending === null) throw new Error('fixture: a Model entry')
+    const all = ok(await first.targets().forExecution({ access: s.access, execution: s.execution }))
+    expect(all).toHaveLength(1)
+    const [target] = all
+    expect(target?.execution).toBe(s.execution)
+    expect(target?.pending.reference).toBe(pending)
+    const attached = ok(await first.journal().load({ ...s.access, execution: s.execution }))
+    expect(target?.instance).toBe(attached.executionAttachment?.instance)
+    const query = { access: s.access, consumer: draft.consumer, reference: pending }
+    expect(ok(await first.targets().resolve({ ...query, execution: s.execution }))).toEqual(target)
+
+    // The checkpoint drops the call; the binding stays.
+    const loaded = ok(await first.journal().load({ ...s.access, execution: s.execution }))
+    const attach = loaded.executionAttachment
+    if (attach === null) throw new Error('fixture: attached')
+    ok(
+      await first.journal().commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('drop-call'),
+        authority: attach,
+        expected: loaded.revision,
+        checkpoint: { ...loaded.checkpoint, calls: [] },
+        state: { kind: 'advancing' },
+        events: [],
+        effects: [],
+        caller: { kind: 'none' },
+        replyAdmission: null,
+        handoff: null,
+        finish: null,
+      }),
+    )
+    expect(ok(await first.targets().resolve({ ...query, execution: s.execution }))).toEqual(target)
+
+    // A new plugin instance on the same storage reads the binding from the session's records.
+    await first.plugin.dispose()
+    const second = await assembled(s)
+    expect(ok(await second.targets().resolve({ ...query, execution: s.execution }))).toEqual(target)
+    expect(
+      ok(await second.targets().forExecution({ access: s.access, execution: s.execution })),
+    ).toEqual([target])
+  })
+
+  it('a resolve without a route, or routed to an execution that holds no such binding, is denied', async () => {
+    const s = await scene('recv-route')
+    const { journal, targets } = await assembled(s)
+    const draft = await waitingOnModel(s, journal(), 'recv-route')
+    if (draft.delivery.producer !== 'model') throw new Error('fixture: a Model entry')
+    const query = {
+      access: s.access,
+      consumer: draft.consumer,
+      reference: draft.delivery.key.reference,
+    }
+    expect(await targets().resolve(query)).toHaveProperty('failure.kind', 'denied')
+    const nobody = ok(decodeAgentExecutionId('recv-route-nobody'))
+    expect(await targets().resolve({ ...query, execution: nobody })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+    expect(await targets().forExecution({ access: other, execution: s.execution })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+  })
+
+  // R2-D250 N3. Red when a route to another execution of the same session reads the binding of the
+  // first one: both routes reach the same session log, so only the execution of the binding tells.
+  // The execution index routes the sibling to the same session as soon as its Run started. The session
+  // core and the plugin both compare the execution; the case turns red when neither does.
+  it('a route to another execution of the same session does not resolve the binding of the first', async () => {
+    const s = await scene('recv-sibling')
+    const { journal, targets } = await assembled(s)
+    const draft = await waitingOnModel(s, journal(), 'recv-sibling', true)
+    if (draft.delivery.producer !== 'model') throw new Error('fixture: a Model entry')
+    const sibling = await nextRun(s, 2)
+    expect(sibling.execution).not.toBe(s.execution)
+    const query = {
+      access: s.access,
+      consumer: draft.consumer,
+      reference: draft.delivery.key.reference,
+    }
+    expect(ok(await targets().resolve({ ...query, execution: s.execution })).execution).toBe(
+      s.execution,
+    )
+    expect(await targets().resolve({ ...query, execution: sibling.execution })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+  })
+})
+
+/** The scene's execution opened, with one associated Tool call committed in its action batch. */
+async function withToolCall(s: SqlScene, journal: AgentJournal<string>, name: string) {
+  const opened = ok(await journal.open(s.openInput))
+  const tool = toolCall(s.access.tenant, name)
+  ok(
+    await journal.commit({
+      ...s.access,
+      execution: s.execution,
+      operation: operation(`tool-${name}`),
+      authority: opened.authority,
+      expected: opened.receipt.revision,
+      checkpoint: { ...s.checkpoint, batch: tool.batch },
+      state: { kind: 'advancing' },
+      events: [],
+      effects: [
+        { action: tool.pending.action, pending: tool.pending, authority: opened.authority },
+      ],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+      handoff: null,
+      finish: null,
+    }),
+  )
+  return { tool, instance: opened.authority.instance }
+}
+
+// R2-D273: the target query of the host's Tool result receiver. Red when the plugin stops
+// providing the face, answers from the live checkpoint, or lets a route reach the binding of
+// another execution (the session core and the plugin both compare it; red when neither does).
+describe('agentToolReceptionTargets: the Tool result receiver face', () => {
+  it('answers the binding the committed associated Tool call made, also from a new instance', async () => {
+    const s = await scene('tool-targets')
+    const first = await assembled(s)
+    expect(first.plugin.store?.[agentToolReceptionTargetsKey]?.fiber === first.plugin).toBe(true)
+    const { tool, instance: original } = await withToolCall(s, first.journal(), 'tool-targets')
+    const query = {
+      access: s.access,
+      consumer: tool.pending.position,
+      reference: tool.pending.reference,
+      execution: s.execution,
+    }
+    const target = { execution: s.execution, instance: original, pending: tool.pending }
+    expect(ok(await first.toolTargets().resolve(query))).toEqual(target)
+    expect(
+      ok(await first.toolTargets().forExecution({ access: s.access, execution: s.execution })),
+    ).toEqual([target])
+    await first.plugin.dispose()
+    const second = await assembled(s)
+    expect(ok(await second.toolTargets().resolve(query))).toEqual(target)
+  })
+
+  it('an unknown call on the right route is no binding (null); no route, another tenant or a route that holds nothing is denied', async () => {
+    const s = await scene('tool-route')
+    const { journal, toolTargets } = await assembled(s)
+    const { tool } = await withToolCall(s, journal(), 'tool-route')
+    const query = {
+      access: s.access,
+      consumer: tool.pending.position,
+      reference: tool.pending.reference,
+    }
+    const unknown = toolCall(s.access.tenant, 'tool-route-unknown').pending.reference
+    expect(
+      ok(await toolTargets().resolve({ ...query, reference: unknown, execution: s.execution })),
+    ).toBeNull()
+    expect(await toolTargets().resolve(query)).toHaveProperty('failure.kind', 'denied')
+    const nobody = ok(decodeAgentExecutionId('tool-route-nobody'))
+    expect(await toolTargets().resolve({ ...query, execution: nobody })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+    expect(
+      await toolTargets().forExecution({ access: other, execution: s.execution }),
+    ).toHaveProperty('failure.kind', 'denied')
+  })
+
+  it('a route to another execution of the same session does not resolve the binding of the first', async () => {
+    const s = await scene('tool-sibling')
+    const { journal, toolTargets } = await assembled(s)
+    const { tool } = await withToolCall(s, journal(), 'tool-sibling')
+    const sibling = await nextRun(s, 2)
+    expect(sibling.execution).not.toBe(s.execution)
+    // The sibling is opened, so the access on its route is allowed: only the binding's execution tells.
+    ok(await journal().open(sibling.openInput))
+    const query = {
+      access: s.access,
+      consumer: tool.pending.position,
+      reference: tool.pending.reference,
+    }
+    expect(ok(await toolTargets().resolve({ ...query, execution: s.execution }))?.execution).toBe(
+      s.execution,
+    )
+    expect(await toolTargets().resolve({ ...query, execution: sibling.execution })).toHaveProperty(
+      'failure.kind',
+      'denied',
+    )
+  })
+})
+
+describe('sessionAdoptedRequests: the a part of a session, from the same plugin body', () => {
+  /** One main-purpose M0 of the scene's execution through `journal`. */
+  async function m0(s: SqlScene, journal: AgentJournal<string>, authority: unknown, tag: string) {
+    const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
+    const scope = { ref: 'scope:adopted-plugin' } as never
+    const { adoptedRequest, adoptedContext } = m0Checkpoint({ tenant: s.access.tenant, scope }, tag)
+    return ok(
+      await journal.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation(`m0-${tag}`),
+        authority: authority as never,
+        expected: loaded.revision,
+        checkpoint: { ...loaded.checkpoint, adoptedRequest, adoptedContext },
+        state: { kind: 'advancing' },
+        events: [],
+        effects: [],
+        caller: { kind: 'none' },
+        replyAdmission: null,
+        handoff: null,
+        finish: null,
+      }),
+    )
+  }
+
+  it('answers null before the first M0 and the saved request after it, checking history.readModelView on the session each call', async () => {
+    const s = await scene('adopted-plugin')
+    const { plugin, journal, adopted, wiring } = await assembled(s)
+    expect(plugin.store?.[sessionAdoptedRequestsKey]?.fiber === plugin).toBe(true)
+    const read = () => adopted().readAdoptedRequest({ access: s.access, session: s.access.session })
+    const open = ok(await journal().open(s.openInput))
+    expect(await read()).toEqual({ kind: 'value', value: null })
+    await m0(s, journal(), open.authority, '1')
+    const answer = await read()
+    expect(answer).toMatchObject({ kind: 'value', value: { order: '1', execution: s.execution } })
+    expect(wiring.decided.at(-1)).toEqual({
+      access: s.access,
+      operation: 'history.readModelView',
+      target: { kind: 'session', session: s.access.session },
+    })
+  })
+
+  it('a denied access is denied, an undecided one or a throwing check unavailable, and nothing is read', async () => {
+    const s = await scene('adopted-plugin-access')
+    const { adopted, wiring, journal } = await assembled(s)
+    const open = ok(await journal().open(s.openInput))
+    await m0(s, journal(), open.authority, '1')
+    const read = () => adopted().readAdoptedRequest({ access: s.access, session: s.access.session })
+    const reads = wiring.reads
+    wiring.decide = () => ({ kind: 'denied' })
+    expect(await read()).toEqual({ kind: 'denied' })
+    wiring.decide = () => ({ kind: 'unavailable', diagnostic: 'qualification source down' })
+    expect(await read()).toEqual({ kind: 'unavailable', diagnostic: 'qualification source down' })
+    wiring.decide = () => {
+      throw new Error('check threw')
+    }
+    expect(await read()).toMatchObject({ kind: 'unavailable' })
+    expect(wiring.reads).toBe(reads)
+    // An unminted tenant is refused before the check; another tenant never reads this session's a.
+    wiring.decide = undefined
+    const unminted = { ...s.access, tenant: structuredClone(s.access.tenant) }
+    expect(
+      await adopted().readAdoptedRequest({ access: unminted, session: s.access.session }),
+    ).toEqual({ kind: 'denied' })
+    expect(
+      await adopted().readAdoptedRequest({
+        access: { principal: other.principal, tenant: other.tenant },
+        session: s.access.session,
+      }),
+    ).toEqual({ kind: 'value', value: null })
+  })
+
+  it('a held reference answers unavailable after the plugin stopped', async () => {
+    const s = await scene('adopted-plugin-stop')
+    const { plugin, adopted } = await assembled(s)
+    const held = adopted()
+    await plugin.dispose()
+    expect(
+      await held.readAdoptedRequest({ access: s.access, session: s.access.session }),
+    ).toMatchObject({ kind: 'unavailable' })
+  })
+})
+
 describe('agentJournalEntries and agentMaterials: the same provider as agentJournal', () => {
   it('serves the three keys from its own fiber, removes the three together when it stops, and a held reference then answers unavailable', async () => {
     const s = await scene('faces-fiber')
@@ -660,7 +1063,13 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     ok(await journal().open(s.openInput))
     const value = factsMaterial('kept')
     const source = ok(
-      await s.view.materials.preserve({ ...s.access, identity: 'kept', consumer: CONSUMER, value }),
+      await s.view.materials.preserve({
+        ...s.access,
+        execution: s.execution,
+        identity: 'kept',
+        consumer: CONSUMER,
+        value,
+      }),
     )
     const held = { entries: entries(), materials: materials() }
     expect(ok(await held.materials.read({ ...s.access, source }))).toEqual(value)
@@ -682,6 +1091,7 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     expect(
       await held.materials.preserve({
         ...s.access,
+        execution: s.execution,
         identity: 'after-stop',
         consumer: CONSUMER,
         value: factsMaterial('after-stop'),
@@ -709,7 +1119,10 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     const { entry, receipt } = saved.value
 
     const loaded = ok(await journal().load({ ...s.access, execution: s.execution }))
-    expect(loaded.entries).toContainEqual(entry)
+    const read = ok(
+      await entries().read({ ...s.access, execution: s.execution, after: null, limit: 100 }),
+    )
+    expect(read.items.map(item => item.entry)).toContainEqual(entry)
     expect(ok(await materials().read({ ...s.access, source: entry.material }))).toEqual(material)
     // The entries face recognizes the saved delivery: the original receipt and no second fact.
     expect(
@@ -767,13 +1180,19 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     expect(s.commits.length).toBe(commits)
   })
 
-  it('reads a material through the session its source names; another tenant and a foreign source are unavailable, and preserve, which names no session, is unavailable without a write', async () => {
+  it('reads a material through the session its source names; another tenant and a foreign source are unavailable', async () => {
     const s = await scene('faces-materials')
     const { journal, materials, wiring } = await assembled(s)
     ok(await journal().open(s.openInput))
     const value = factsMaterial('kept')
     const source = ok(
-      await s.view.materials.preserve({ ...s.access, identity: 'kept', consumer: CONSUMER, value }),
+      await s.view.materials.preserve({
+        ...s.access,
+        execution: s.execution,
+        identity: 'kept',
+        consumer: CONSUMER,
+        value,
+      }),
     )
     expect(ok(await materials().read({ ...s.access, source }))).toEqual(value)
 
@@ -784,9 +1203,6 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     expect(wiring.reads).toBe(reads)
     expect(
       await materials().read({ ...s.access, source: evidence('not-a-session-log-material') }),
-    ).toMatchObject(unavailableHere)
-    expect(
-      await materials().preserve({ ...s.access, identity: 'new', consumer: CONSUMER, value }),
     ).toMatchObject(unavailableHere)
     expect(s.commits.length).toBe(commits)
   })
@@ -799,6 +1215,7 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
     const source = ok(
       await s.view.materials.preserve({
         ...s.access,
+        execution: s.execution,
         identity: 'ordered',
         consumer: CONSUMER,
         value,
@@ -984,6 +1401,7 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
                 run: before.run.run,
                 instance: { owner: 'agent', id: label },
                 continuity: evidence(`continuity-${label}`),
+                expected: before.run.revision,
               },
             },
             guards: [],
@@ -1330,22 +1748,6 @@ describe('K-9: a material to preserve names an execution, and goes to its sessio
       value: factsMaterial('index'),
     })
     expect(answer).toMatchObject(unavailableHere)
-    expect(s.commits.length).toBe(commits)
-  })
-
-  it('K-9 preserve without an execution stays unavailable and writes nothing, also after the execution was routed', async () => {
-    const s = await scene('k9-legacy')
-    const { journal, materials } = await assembled(s)
-    ok(await journal().open(s.openInput))
-    const commits = s.commits.length
-    expect(
-      await materials().preserve({
-        ...s.access,
-        identity: 'legacy',
-        consumer: CONSUMER,
-        value: factsMaterial('legacy'),
-      }),
-    ).toMatchObject(unavailableHere)
     expect(s.commits.length).toBe(commits)
   })
 

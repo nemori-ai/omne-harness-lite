@@ -24,21 +24,38 @@ function amount(check: M.BudgetCheck): bigint {
 function exceeds(c: M.BudgetCheck): boolean {
   return amount(c) > BigInt(c.limit)
 }
+/** The trigger line in input tokens: the smaller of the window percentage and the room left. */
+function triggerOf(context: M.ContextLimits, policy: CompactionPolicy): bigint {
+  const percent = decimal(policy.triggerPercent ?? context.compactionTriggerPercent)
+  const threshold = (BigInt(context.window.provided) * percent.n) / (100n * percent.scale)
+  const reserved = BigInt(context.output.provided) + BigInt(policy.headroomTokens ?? '0')
+  const remaining = BigInt(context.window.provided) - reserved
+  return remaining < threshold ? remaining : threshold
+}
+/**
+ * The checks of one whole request that are over a hard limit or, for input tokens, over the
+ * trigger line. The verdict of `judgeBudget` and the check after a summary share this rule, so
+ * a compaction that passes the second does not fail the first (RQ-06).
+ */
+export function overTrigger(
+  whole: M.RequestBudget,
+  context: M.ContextLimits,
+  policy: CompactionPolicy,
+): readonly M.BudgetCheck[] {
+  const trigger = triggerOf(context, policy)
+  return whole.checks.filter(
+    c => exceeds(c) || (c.metric === 'input-tokens' && amount(c) > trigger),
+  )
+}
 export function judgeBudget(input: BudgetInput): FitVerdict {
   const fixed: BudgetBreach[] = input.fixedPart.checks
     .filter(exceeds)
     .map(check => ({ check, layer: 'whole' }))
   if (nonEmpty(fixed))
     return { kind: 'fixed-part-over-limit', report: input.whole, breaches: fixed }
-  const percent = decimal(input.policy.triggerPercent ?? input.context.compactionTriggerPercent)
-  const threshold = (BigInt(input.context.window.provided) * percent.n) / (100n * percent.scale)
-  const reserved =
-    BigInt(input.context.output.provided) + BigInt(input.policy.headroomTokens ?? '0')
-  const remaining = BigInt(input.context.window.provided) - reserved
-  const trigger = remaining < threshold ? remaining : threshold
-  const breaches: BudgetBreach[] = input.whole.checks
-    .filter(c => exceeds(c) || (c.metric === 'input-tokens' && amount(c) > trigger))
-    .map(check => ({ check, layer: 'whole' }))
+  const breaches: BudgetBreach[] = overTrigger(input.whole, input.context, input.policy).map(
+    check => ({ check, layer: 'whole' }),
+  )
   if (nonEmpty(breaches)) return { kind: 'needs-compaction', report: input.whole, breaches }
   const unknown = input.whole.checks.filter(c => c.constraint.upstream.kind === 'unknown')
   if (nonEmpty(unknown)) return { kind: 'limit-unknown', report: input.whole, unknown }

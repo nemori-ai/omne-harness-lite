@@ -13,7 +13,8 @@ import type { OperationContext } from './operation-context.js'
 import { invalid, materialOfPlan, summaryStep } from './compaction-request.js'
 import { basisDigest } from './plan.js'
 import { measureCompactionCandidate, projectedOf } from './compaction-context.js'
-import { canonical, digest, messageId, measuredAmount } from './internal.js'
+import { overTrigger } from './budget.js'
+import { canonical, digest, messageId } from './internal.js'
 
 const INDEX = /^(0|[1-9][0-9]*)$/u
 
@@ -109,18 +110,29 @@ export async function deriveFrom<P>(
     plan.basis.projected,
     plan.basis.context.after.map(entry => entry.ref),
   )
+  const { frame } = plan.basis
+  const reminder = frame.snapshotReminder === null ? [] : [frame.snapshotReminder]
+  const tail = frame.tailFacts === null ? [] : [frame.tailFacts]
   const budget = await measureCompactionCandidate(
     context,
     {
       selection: plan.basis.selection,
-      representation: plan.basis.representation,
       source: plan.policy.identity,
     },
     [...retained, ...after],
-    [...retained.map(item => item.message), message, ...after.map(item => item.message)],
+    [
+      ...retained.map(item => item.message),
+      message,
+      ...reminder,
+      ...after.map(item => item.message),
+      ...tail,
+    ],
+    frame,
   )
   if (budget.kind !== 'complete' && budget.kind !== 'deferred-media') return budget
-  const fits = budget.checks.every(c => measuredAmount(c) <= BigInt(c.limit))
+  // The whole request against the trigger line, as `judgeBudget` judges it (RQ-06, R2-D316).
+  const { context: limits } = plan.basis.selection.profile.definition
+  const fits = overTrigger(budget, limits, context.policies.compaction.config).length === 0
   if ('ok' in legal && fits)
     return {
       kind: 'transition',

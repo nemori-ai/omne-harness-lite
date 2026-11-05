@@ -157,6 +157,11 @@ function isBasis(v: unknown): v is CompactionBasis {
     !record(v.selection) ||
     !adoption(v.representation) ||
     !(v.continuation === null || record(v.continuation)) ||
+    !record(v.frame) ||
+    !Array.isArray(v.frame.system) ||
+    !Array.isArray(v.frame.tools) ||
+    !(v.frame.snapshotReminder === null || record(v.frame.snapshotReminder)) ||
+    !(v.frame.tailFacts === null || record(v.frame.tailFacts)) ||
     !integer(v.retainedBudget)
   )
     return false

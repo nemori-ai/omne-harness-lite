@@ -36,7 +36,7 @@ sequenceDiagram
         else 允许
             CP->>Br: 按命令要材料
             CP->>Tx: commit(命令, 材料)
-            Note over Tx: 选尝试代次；事务内调用 decide：带 expected 的七种命令核对 expected，其余按当前状态重新裁定
+            Note over Tx: 选尝试代次；事务内调用 decide：带 expected 的八种命令核对 expected，其余按当前状态重新裁定
             alt changed 且命令带调用方的 expected
                 CP-->>Caller: changed，不重做
             else changed 且命令不带调用方的 expected

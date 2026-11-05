@@ -181,11 +181,11 @@ describe('10 boundary and qualification', () => {
           : { failure: { kind: 'denied', action: actions[name as keyof typeof probes] } },
       ])
     }
+    // R2-D357: tenant B's partition has no such call; it learns only "never accepted", the
+    // answer for a reference no tenant ever admitted.
     expect(
       await assembly.runtime.queries.lookup({ principal: principalB, tenant: tenantB, reference }),
-    ).toEqual({
-      failure: { kind: 'denied', action: 'lookup' },
-    })
+    ).toEqual({ ok: { kind: 'not-accepted', operation: 'op-1' } })
 
     accepted(await assembly.admitInternal(dummyRequest(), principalB, tenantB))
     const ownReference = assembly.referenceOf('call-1')

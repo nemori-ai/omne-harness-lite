@@ -1,8 +1,13 @@
 // `tool-host` 行的发行内置来源（B3-T2a 第 2、4、7、8 项）：真实 Cordis 装 `tool-bindings` 与 `tool-host` 两行，
-// 经 `toolGenerations.ensureLoaded` 观察作者是否进入登记表。environment 检查用执行环境契约自带的
-// `environmentNeedSchema`（R2-D79）；只有「校验件抛出 / 返回 Promise」两条反例注入别的校验件。
+// 经 `toolGenerations.ensureLoaded` 观察作者是否进入登记表。environment 检查经执行域的 schema-provider 与
+// 执行环境契约的 `environmentNeedSchemaRef`（R2-D80）；只有「schema 加载失败 / provider 已关闭」两条反例注入别的来源。
 import { afterEach, describe, expect, it } from 'vitest'
+import {
+  environmentNeedSchemaRef,
+  type EnvironmentNeedProjection,
+} from '@omne-harness/execution-environment-contract'
 import { fail } from '@omne-harness/operation-result'
+import { defineSchema, type SchemaProvider, type SchemaRef } from '@omne-harness/schema-provider'
 import {
   toolBindingsKey,
   toolGenerationsKey,
@@ -10,13 +15,17 @@ import {
 } from '@omne-harness/tool-cordis-contract/cordis'
 import type { ToolBindingRegistry, ToolAuthority } from '@omne-harness/tool-contract/provider'
 import { filesToolModule, shellToolModule } from '@omne-harness/tool-definitions'
+import {
+  closeEnvironmentSchemaProvider,
+  createEnvironmentSchemaProvider,
+} from '../../../src/entry/schema-domain.ts'
 import { governanceOf } from '../../../src/entry/tool-release-manifest.ts'
 import { toolBindingsRow } from '../../../src/rows/tool-bindings/index.ts'
 import { createToolHostPlugin } from '../../../src/rows/tool-host/index.ts'
 import {
   checkEnvironmentNeed,
   releaseAuthorInput,
-  type EnvironmentNeedValidator,
+  type ReleaseAuthorOptions,
 } from '../../../src/rows/tool-host/release-author.ts'
 import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
@@ -49,14 +58,17 @@ async function host(
   options: Readonly<{
     fixture?: ReleaseFixture
     construction?: unknown
-    environmentNeed?: EnvironmentNeedValidator
-  }> = {},
+  }> &
+    ReleaseAuthorOptions = {},
 ): Promise<Host> {
   const fixture = options.fixture ?? (await releaseFixture())
   await fixture.root.plugin(toolBindingsRow)
-  const environmentNeed = options.environmentNeed
+  const { schemaProvider, environmentNeed } = options
   await fixture.root.plugin(
-    createToolHostPlugin(environmentNeed === undefined ? {} : { environmentNeed }),
+    createToolHostPlugin({
+      ...(schemaProvider === undefined ? {} : { schemaProvider }),
+      ...(environmentNeed === undefined ? {} : { environmentNeed }),
+    }),
     options.construction === undefined ? {} : { construction: options.construction },
   )
   return {
@@ -71,7 +83,7 @@ const names = (app: Host) =>
   okOf(app.registry.snapshot(SYSTEM), 'snapshot').map(row => row.key.asset.name)
 
 describe('tool-host: ensureLoaded of the release authors', () => {
-  it('loads Shell and Files on the production path: the real environmentNeedSchema, snapshot and operator values', async () => {
+  it('loads Shell and Files on the production path: the real environmentNeedSchemaRef through the schema-provider, snapshot and operator values', async () => {
     const app = await host({ construction: TEST_CONSTRUCTION })
     for (const name of ['Shell', 'Files']) {
       const loaded = await app.generations.ensureLoaded({
@@ -108,21 +120,17 @@ describe('tool-host: ensureLoaded of the release authors', () => {
     expect(names(app)).toEqual([])
   })
 
-  const throwing: EnvironmentNeedValidator = {
-    '~standard': {
-      validate: () => {
-        throw new Error('validator failure')
-      },
-    },
-  }
-  const asynchronous: EnvironmentNeedValidator = {
-    '~standard': { validate: async (value: unknown) => ({ value }) },
-  }
-  it.each([
-    ['throws', throwing],
-    ['returns a Promise', asynchronous],
-  ])('fails closed and loads nothing when the environment validator %s', async (_, validator) => {
-    const app = await host({ construction: TEST_CONSTRUCTION, environmentNeed: validator })
+  const unloadable: SchemaRef<EnvironmentNeedProjection> = defineSchema({
+    id: 'execution-environment.environment-need',
+    load: () => Promise.reject(new Error('schema load failure')),
+  })
+  const closed = createEnvironmentSchemaProvider()
+  closeEnvironmentSchemaProvider(closed)
+  it.each<[string, Partial<ReleaseAuthorOptions>]>([
+    ['cannot load the schema', { environmentNeed: unloadable }],
+    ['is closed', { schemaProvider: closed }],
+  ])('fails closed and loads nothing when the schema-provider %s', async (_, options) => {
+    const app = await host({ construction: TEST_CONSTRUCTION, ...options })
     const loaded = await app.generations.ensureLoaded({
       authority: authorityOf(app.manifest, 'Shell'),
       access: SYSTEM,
@@ -267,7 +275,11 @@ describe('tool-host: the release source and loader input', () => {
   })
 })
 
-describe('tool-host: the environment declaration against the real environmentNeedSchema', () => {
+describe('tool-host: the environment declaration through the schema-provider', () => {
+  const check = () => ({
+    provider: createEnvironmentSchemaProvider() satisfies SchemaProvider,
+    schema: environmentNeedSchemaRef,
+  })
   async function shellDefinition(): Promise<ToolDefinition> {
     const fixture = await releaseFixture()
     const created = okOf(shellToolModule.createAuthor(tree(TEST_CONSTRUCTION.Shell)), 'author')
@@ -291,7 +303,7 @@ describe('tool-host: the environment declaration against the real environmentNee
   }
 
   it('passes the declaration the author makes', async () => {
-    expect(checkEnvironmentNeed(await shellDefinition())).toEqual({ ok: undefined })
+    expect(await checkEnvironmentNeed(await shellDefinition(), check())).toEqual({ ok: undefined })
   })
 
   it('answers invalid when one field of the declaration is broken', async () => {
@@ -300,7 +312,7 @@ describe('tool-host: the environment declaration against the real environmentNee
       isolation: [],
       layers: ['cloud'],
     })
-    expect(checkEnvironmentNeed(definition)).toMatchObject({
+    expect(await checkEnvironmentNeed(definition, check())).toMatchObject({
       failure: { kind: 'invalid', field: 'environment' },
     })
   })
@@ -316,6 +328,8 @@ describe('tool-host: the environment declaration against the real environmentNee
         environment: { ...environment, adoption: { ...environment.adoption, revision: '2' } },
       },
     }
-    expect(checkEnvironmentNeed(other)).toMatchObject({ failure: { kind: 'invalid' } })
+    expect(await checkEnvironmentNeed(other, check())).toMatchObject({
+      failure: { kind: 'invalid' },
+    })
   })
 })

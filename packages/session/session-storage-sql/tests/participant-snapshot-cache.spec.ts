@@ -1,17 +1,18 @@
-// C-WORKCACHE A2: the participant keeps the parsed `sl_state` snapshot of each session and reuses it
-// when the row that the transaction read holds the same text (R2-D96: by content, not only by the
-// revision). These cases run the real participant over the node:sqlite test provider, which runs
-// every database of a test file in one module instance. Each case starts with no kept snapshot, but
-// no result depends on that: T-A2-4 runs two databases in one case. The cases cover the commit path
-// (`commandStart`) and the log path (`judgeLog`); the entries path reads its own snapshot.
+// C-WORKCACHE A2: the participant keeps the parsed snapshot of each session and reuses it when the
+// head row that the transaction read holds the same text (R2-D96: by content, not only by the
+// revision). The head carries the token of the chunk rows (R2-D292), and the participant keeps the
+// snapshot that a commit wrote under the head it wrote. These cases run the real participant over
+// the node:sqlite test provider, which runs every database of a test file in one module instance.
+// Each case starts with no kept snapshot, but no result depends on that: T-A2-4 runs two databases
+// in one case. The cases cover the commit path (`commandStart`) and the log path (`judgeLog`).
 import { beforeEach, describe, expect, it } from 'vitest'
 import type {
   SessionFailure,
   SessionLogCommitObservation,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
-import { decodeValue } from '../src/codec.ts'
 import { ParsedSnapshots, parsedSnapshots } from '../src/worker/participant.ts'
+import { assemble } from '../src/worker/state-rows.ts'
 import { app, textOf, TENANT_A, TENANT_B, type App } from './fixtures/app.ts'
 import {
   activeRun,
@@ -50,8 +51,18 @@ function stored(a: App, tenant = TENANT_A): Readonly<{ covered: bigint; text: st
   return { covered: BigInt(row[0] as bigint), text: String(row[1]) }
 }
 
-const parsedOf = (text: string): WorkSnapshot =>
-  decodeValue(JSON.parse(text) as never) as WorkSnapshot
+/** The snapshot that the head row and the chunk rows of `tenant`'s session-1 hold. */
+function storedSnapshot(a: App, tenant = TENANT_A): WorkSnapshot {
+  const domain = tenant === TENANT_A ? 'dom_0' : 'dom_1'
+  const port = {
+    execute: (sql: string, params: readonly never[]) => a.provider.select(domain, sql, params),
+  }
+  return assemble(port, textOf(tenant), SESSION, stored(a, tenant).text).snapshot
+}
+
+/** How many times a participant read the chunk rows so far. */
+const chunkReads = (a: App): number =>
+  a.provider.participantReads.filter(read => /FROM sl_state_item\b/u.test(read.sql)).length
 
 const keptOf = (tenant = TENANT_A) => parsedSnapshots.peek(textOf(tenant), SESSION)
 
@@ -77,33 +88,41 @@ describe('T-A2-1: two commits that read the same snapshot parse it once', () => 
     await refusedStart(a, 'start-1')
     const first = keptOf()
     expect(first?.covered).toBe(1n)
-    expect(first?.snapshot).toEqual(parsedOf(stored(a).text))
+    expect(first?.snapshot).toEqual(storedSnapshot(a))
     const reads = stateReads(a)
+    const chunks = chunkReads(a)
     await refusedStart(a, 'start-2')
-    // A parse makes a new snapshot; the same one is the one parse of revision 1.
+    // A parse makes a new snapshot; the same one is the one of revision 1.
     expect(keptOf()?.snapshot).toBe(first?.snapshot)
     expect(stateReads(a)).toBe(reads + 1)
+    expect(chunkReads(a)).toBe(chunks)
   })
 
-  it('a commit after a committed one reads and parses the new revision', async () => {
+  it('a commit after a committed one starts from the snapshot that commit wrote, without the chunk rows', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
     await refusedStart(a, 'start-1')
     const before = keptOf()
     ok(await a.accept(TENANT_A, SESSION, 'input-1'))
-    // accept started from the kept revision 1 and committed revision 2.
-    expect(keptOf()?.snapshot).toBe(before?.snapshot)
+    // accept started from the kept revision 1, committed revision 2 and kept what it wrote.
     const second = stored(a)
     expect(second.covered).toBe(2n)
+    const written = keptOf()
+    expect(written?.snapshot).not.toBe(before?.snapshot)
+    expect(written?.covered).toBe(2n)
+    expect(written?.text).toBe(second.text)
+    expect(written?.snapshot).toEqual(storedSnapshot(a))
     const reads = stateReads(a)
+    const chunks = chunkReads(a)
     ok(await a.accept(TENANT_A, SESSION, 'input-2'))
     expect(stateReads(a)).toBe(reads + 1)
-    expect(keptOf()?.covered).toBe(2n)
-    expect(keptOf()?.snapshot).toEqual(parsedOf(second.text))
+    expect(chunkReads(a)).toBe(chunks)
+    expect(keptOf()?.covered).toBe(3n)
+    expect(keptOf()?.snapshot).toEqual(storedSnapshot(a))
   })
 })
 
-describe('T-A2-2: a commit that fails keeps the snapshot it read, not the one it computed', () => {
+describe('T-A2-2: the snapshot of a commit that fails is kept, but the next commit does not use it', () => {
   // A BEFORE UPDATE trigger that ignores the row makes the conditional tail update change no row,
   // so the participant answers failed and the storage rolls the transaction back.
   const IGNORE_TAIL =
@@ -120,14 +139,16 @@ describe('T-A2-2: a commit that fails keeps the snapshot it read, not the one it
     failureOf(await a.accept(TENANT_A, SESSION, 'input-2'))
     a.provider.seed('dom_0', 'DROP TRIGGER ignore_tail')
 
-    // The failed commit left the stored row, and the kept snapshot is that row at its revision.
+    // The failed commit left the stored row. The kept snapshot is the one it computed, under a head
+    // text that the row does not hold.
     expect(stored(a)).toEqual(committed)
-    expect(keptOf()?.covered).toBe(committed.covered)
-    expect(keptOf()?.snapshot).toEqual(parsedOf(committed.text))
+    expect(keptOf()?.text).not.toBe(committed.text)
 
     // The next commit starts from the stored snapshot: input-2 was never admitted.
+    const chunks = chunkReads(a)
     ok(await a.accept(TENANT_A, SESSION, 'input-3'))
-    const after = parsedOf(stored(a).text)
+    expect(chunkReads(a)).toBe(chunks + 1)
+    const after = storedSnapshot(a)
     expect(stored(a).covered).toBe(3n)
     expect(after.pending).toEqual((await workOf(a)).pending)
     expect(after.pending.map(String)).toEqual(
@@ -161,15 +182,14 @@ describe('T-A2-2: a commit that fails keeps the snapshot it read, not the one it
     expect(failureOf(await a.port.commitLog({ observation })).kind).toBe('unavailable')
     a.provider.failWrite(null)
     expect(stored(a)).toEqual(committed)
-    const kept = keptOf()
-    expect(kept?.covered).toBe(committed.covered)
-    expect(kept?.snapshot).toEqual(parsedOf(committed.text))
+    expect(keptOf()?.text).not.toBe(committed.text)
 
     const reads = stateReads(a)
+    const chunks = chunkReads(a)
     ok(await a.port.commitLog({ observation }))
-    // The retry started from the kept snapshot, then committed the next revision.
-    expect(keptOf()?.snapshot).toBe(kept?.snapshot)
+    // The retry read the stored rows again, then committed the next revision.
     expect(stateReads(a)).toBe(reads + 1)
+    expect(chunkReads(a)).toBe(chunks + 1)
     expect(stored(a).covered).toBe(committed.covered + 1n)
     const work = await workOf(a)
     expect(work.run.kind === 'active' ? work.run.execution.readThrough : null).toBe('1')
@@ -181,7 +201,6 @@ describe('T-A2-3: the snapshot that a commit starts from is deep-frozen', () => 
     const a = await app()
     ok(await a.create(TENANT_A))
     ok(await a.accept(TENANT_A, SESSION, 'input-1'))
-    const read = stored(a)
     ok(await a.accept(TENANT_A, SESSION, 'input-2'))
     const kept = keptOf()?.snapshot
     expect(kept).toBeDefined()
@@ -190,7 +209,7 @@ describe('T-A2-3: the snapshot that a commit starts from is deep-frozen', () => 
       ;(kept as unknown as { pending: unknown[] }).pending.push('x')
     }).toThrow(TypeError)
     // The failed write changed nothing that a later reader sees.
-    expect(keptOf()?.snapshot).toEqual(parsedOf(read.text))
+    expect(keptOf()?.snapshot).toEqual(storedSnapshot(a))
   })
 })
 
@@ -205,9 +224,9 @@ describe('the key of a kept snapshot', () => {
     ok(await a.accept(TENANT_B, SESSION, 'second-in-tenant-b'))
     expect(keptOf(TENANT_A)?.snapshot).toBe(ofA?.snapshot)
     expect(ofA?.snapshot.pending).toEqual([])
-    // Tenant B's commit started from B's revision 2, with B's one pending input.
-    expect(keptOf(TENANT_B)?.covered).toBe(2n)
-    expect(keptOf(TENANT_B)?.snapshot.pending).toHaveLength(1)
+    // Tenant B's commit wrote B's revision 3, with B's two pending inputs.
+    expect(keptOf(TENANT_B)?.covered).toBe(3n)
+    expect(keptOf(TENANT_B)?.snapshot.pending).toHaveLength(2)
   })
 })
 
@@ -225,13 +244,13 @@ describe('T-A2-4: the kept snapshot is checked against the row, not only by its 
       expect(stored(a).covered).toBe(stored(b).covered)
       expect(stored(a).text).not.toBe(stored(b).text)
     }
-    const inputs = (x: App) => parsedOf(stored(x).text).pending.map(String)
+    const inputs = (x: App) => storedSnapshot(x).pending.map(String)
     expect(inputs(a)).toHaveLength(3)
     expect(inputs(b)).toHaveLength(3)
     expect(inputs(a).every(input => input.includes('a-'))).toBe(true)
     expect(inputs(b).every(input => input.includes('b-'))).toBe(true)
-    expect((await workOf(a)).pending).toEqual(parsedOf(stored(a).text).pending)
-    expect((await workOf(b)).pending).toEqual(parsedOf(stored(b).text).pending)
+    expect((await workOf(a)).pending).toEqual(storedSnapshot(a).pending)
+    expect((await workOf(b)).pending).toEqual(storedSnapshot(b).pending)
   })
 })
 

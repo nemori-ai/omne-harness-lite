@@ -87,3 +87,42 @@ export const OPERATION_EVIDENCE_MIGRATION = Object.freeze({
   owner: 'session',
   id: '003-operation-evidence',
 })
+
+// The chunk rows of the collections of a snapshot (SPEC W1, 快照的存储形态, R2-D292): the head
+// stays in `sl_state`, and each run of consecutive items of one collection is one row here, so a
+// commit writes only the chunks it changed. Derived in the same commit as `sl_state`, never read
+// without its head row.
+export const STATE_ITEM_STATEMENTS: readonly string[] = [
+  `CREATE TABLE sl_state_item (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, path TEXT NOT NULL, seq INTEGER NOT NULL,
+    value TEXT NOT NULL, PRIMARY KEY (tenant, session, path, seq)) STRICT, WITHOUT ROWID`,
+]
+
+export const STATE_ITEM_TABLES: readonly string[] = ['sl_state_item']
+
+export const STATE_ITEM_MIGRATION = Object.freeze({
+  owner: 'session',
+  id: '004-state-items',
+})
+
+// The grant of an attempt (R2-D349): the source of the batch receipt of the commit that wrote the
+// SE15 row. The Session hands that receipt source to the Agent as the `grant` of the invoke or
+// resume of the attempt (`AgentDrivePort`); the Agent holds it opaque and gives it back, and the
+// Session resolves it to the attempt here. The receipt is a different evidence than the row's own
+// (`entryEvidence`: one row, its position, its digest; the receipt: the commit sequence and the
+// digest of the whole batch), so the relation is written in the commit that gives the grant out,
+// not inferred when it is read. Written in the same transaction as the `sl_entry` row; `position`
+// is the SE15 row's, so the history index reads the grants after its cursor as it reads the rows.
+export const ATTEMPT_GRANT_STATEMENTS: readonly string[] = [
+  `CREATE TABLE sl_attempt_grant (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, attempt TEXT NOT NULL, position INTEGER NOT NULL,
+    grant TEXT NOT NULL, PRIMARY KEY (tenant, session, attempt)) STRICT`,
+  `CREATE INDEX sl_attempt_grant_position_idx ON sl_attempt_grant (tenant, session, position)`,
+]
+
+export const ATTEMPT_GRANT_TABLES: readonly string[] = ['sl_attempt_grant']
+
+export const ATTEMPT_GRANT_MIGRATION = Object.freeze({
+  owner: 'session',
+  id: '005-attempt-grant',
+})

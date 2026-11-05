@@ -41,6 +41,7 @@
 - [包索引](../index.md)。
 
 - [调用与操作引用 codec 测试](reference.spec.ts)。
+- [引用热路径成本测量](reference-cost.spec.ts)，慢层，只断言宽松上界。
 - [测试租户构造器的合法编码与非法输入](testing-tenant.spec.ts)。
 
 - [后台块 schema 与纯投影](background-calls.spec.ts)。

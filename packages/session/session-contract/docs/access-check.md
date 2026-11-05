@@ -51,7 +51,7 @@
 
 精确形状归 [ports.ts](../src/ports.ts)，根入口导出 `SessionPrincipalBindingSource` 与 `SessionWorkPrincipals`。两者都只在受信作用域内交付，服务键与替身在 [Cordis 定义](../../session-cordis-contract/docs/cordis.md#受信服务键)。
 
-`SessionPrincipalBindingSource.read` 只证明会话的租户归属与已成立身份，不返回输入、历史或快照。它不调用 `SessionAccessCheck`，避免递归依赖。未知 Session 与另一租户的 Session 都答 `not-bound`，两者不可区分。
+`SessionPrincipalBindingSource.read` 只证明会话的租户归属与已成立身份，不返回输入、历史或快照。它不调用 `SessionAccessCheck`，避免递归依赖。`bound` 的 `source` 是建立该会话那一批的证据（该批条目经 `batchEvidence` 算出），之后的提交不改变它；`WorkSnapshot.source` 则是最近一批的证据，二者不同。未知 Session 与另一租户的 Session 都答 `not-bound`，两者不可区分。
 
 `SessionWorkPrincipals.forSession` 为协调器或维护者签发该会话的主体。签发前，实现读取会话归属读口。下表是失败映射，所有失败都不签发主体：
 
@@ -67,4 +67,4 @@
 
 ## 尚未接入的部分
 
-[Cordis 定义](../../session-cordis-contract/docs/cordis.md) 已导出检查 Service 与键。独立子类的装卸测试不证明生产 Session 已完成必需注入。会话存储提供者的委派入口与归属读口、装配入口的 `forSession` 以及 Session 服务实例经视图的接线尚未交付，内存替身不证明这些运行保证。生产 Session 服务、生产系统授权、Session 存储组合、持久重启及跨进程资格均未由这些测试验证。
+[Cordis 定义](../../session-cordis-contract/docs/cordis.md) 已导出检查 Service 与键。独立子类的装卸测试不证明生产 Session 已完成必需注入。会话归属读口已由应用的 `session-storage` 行经受信 `sessionPrincipalBindings` 提供（G-OWNERSHIP，R2-D192），读口构造归 [session-storage-sql](../../session-storage-sql/docs/cordis.md)。会话存储提供者的委派入口、装配入口的 `forSession` 以及 Session 服务实例经视图的接线尚未在本成员的测试里验证，内存替身不证明这些运行保证。生产 Session 服务、生产系统授权、Session 存储组合、持久重启及跨进程资格均未由这些测试验证。

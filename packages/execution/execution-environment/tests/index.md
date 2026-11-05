@@ -10,6 +10,9 @@
 - [acquisition.spec.ts](acquisition.spec.ts)：获取的失败与分配未知、采用核验、采用失败的清理、重核与租户级沙箱
 - [original.spec.ts](original.spec.ts)：原获取：两种查询、丢失答复后的采用、缓存表、恢复查询与获取组
 - [lease-gate.spec.ts](lease-gate.spec.ts)：逐操作门（含账本关闭）、失效与释放
+- [retention.spec.ts](retention.spec.ts)：保留范围核验、指纹、封闭信号与迟到答复，以及真实 registry 的跨获取附着接线
+- [retention-boundaries.spec.ts](retention-boundaries.spec.ts)：撤权后的逐操作守卫、旧提供者拒绝、恢复交接及写入效果透传
+- [retained-provider.ts](retained-provider.ts)：保留终端协议的冻结替身，没有真实 shell、耐久账本或 Session 权威
 - [lifecycle.spec.ts](lifecycle.spec.ts)：登记、退役、关闭、描述与恢复
 - [scope.spec.ts](scope.spec.ts)：请求方作用域：作用域释放、描述与恢复按它过滤，带作用域的绑定层与它核对
 - [doubles.ts](doubles.ts)：测试共用的替身：租户、作用域、账本、守卫、访问端口与可编排的提供者

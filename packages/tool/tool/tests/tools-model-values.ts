@@ -345,11 +345,11 @@ export async function modelHost(
         },
         command,
         consumer: { ...request().consumer, position },
-        arguments: {
-          original: JSON.stringify(args),
-          effective: JSON.stringify(args),
-          complete: true,
-        },
+        // A command of Tools is named in the call; the source tool is a function tool.
+        arguments: (() => {
+          const text = JSON.stringify(command === null ? args : { command, params: args })
+          return { original: text, effective: text, complete: true }
+        })(),
       }),
     })
     if (invoked.kind !== 'accepted') throw new Error(JSON.stringify(invoked))

@@ -18,9 +18,11 @@ it('root entry exports the independent execution functions, the ledger, the runt
   expect(Object.keys(tool).sort()).toEqual([
     'canonicalDigest',
     'createIndependentToolScope',
+    'createToolDriver',
     'createToolFactAcknowledgementGuard',
     'createToolLedger',
     'createToolRuntime',
+    'createToolRuntimeFacade',
     'createTools',
     'executeTool',
     'isTenantShape',

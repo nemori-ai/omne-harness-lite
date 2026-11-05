@@ -33,11 +33,17 @@ import type { ToolReceptionTarget } from '../tool-receiving-types.ts'
 import { canonical } from '../canonical.ts'
 import { jsonTree } from '../receiving-values.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
+import { describeMaterial, entryPage, materialDigest, receivedEntriesOf } from './journal-reads.ts'
 import { journalEvidence, semanticKey } from './journal-values.ts'
 
 type Input<P> = ReceivedCommitInput<P, ContentBlock>
 type Kept = { entry: ReceivedEntry; receipt: CommandReceipt; saved: DurableEvidence | null }
-type Stored = { tenant: string; execution: AgentExecutionId | null; value: Material<ContentBlock> }
+type Stored = {
+  tenant: string
+  execution: AgentExecutionId | null
+  source: DurableEvidence
+  value: Material<ContentBlock>
+}
 type Qualification = 'allowed' | 'denied' | 'unavailable'
 export type JournalReceivingControls<P> = ReturnType<typeof createJournalReceiving<P>>['controls']
 type Hooks<P> = {
@@ -119,10 +125,7 @@ function shape<P>(input: Input<P>): Failure | undefined {
     delivery.producer === 'model'
       ? resolveModelInvocationRef(delivery.key.reference, input.tenant)
       : resolveToolInvocationRef(delivery.key.reference, input.tenant)
-  if ('failure' in resolved)
-    return resolved.failure.kind === 'foreign-tenant'
-      ? denied()
-      : invalid('entry.delivery.key.reference')
+  if ('failure' in resolved) return invalid('entry.delivery.key.reference')
   if (!object(input.material)) return invalid('material')
   if (input.material.kind === 'facts') {
     if (!object(input.material.schema)) return invalid('material.schema')
@@ -137,6 +140,16 @@ function shape<P>(input: Input<P>): Failure | undefined {
 
 export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const materials = new Map<string, Stored>()
+  /** One copy of each content per tenant: every material of the same digest shares it. */
+  const blobs = new Map<string, Material<ContentBlock>>()
+  /** The digest each (tenant, identity, consumer) first preserved; other content is a conflict. */
+  const identities = new Map<string, string>()
+  const keep = (tenant: string, value: Material<ContentBlock>): Material<ContentBlock> => {
+    const blob = canonical([tenant, materialDigest(value)])
+    const kept = blobs.get(blob) ?? structuredClone(value)
+    blobs.set(blob, kept)
+    return kept
+  }
   const deliveries = new Map<string, Kept>()
   const aliases = new Map<string, Kept>()
   const bindings = new Map<string, { execution: AgentExecutionId; text: string }>()
@@ -314,7 +327,8 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               materials.set(canonical(entry.material), {
                 tenant: tenantText(input.tenant),
                 execution: input.execution,
-                value: input.material,
+                source: entry.material,
+                value: keep(tenantText(input.tenant), input.material),
               })
               execution.revision = revision
               deliveries.set(deliveryText(input, entry), value)
@@ -413,39 +427,52 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         }
       })
     },
+    async read(input) {
+      const found = qualified(input, false)
+      if ('failure' in found) return found
+      const page = entryPage(found.ok.entries, input.after, input.limit)
+      return page === undefined
+        ? fail({ kind: 'invalid', field: 'after', reason: 'not a position of the entries' })
+        : succeed(page)
+    },
+    async receivedOf(input) {
+      const found = qualified(input, false)
+      if ('failure' in found) return found
+      return succeed(receivedEntriesOf(found.ok.entries, input.consumption))
+    },
   }
   const materialPort: AgentMaterials<P, ContentBlock> = {
     async preserve(input) {
       if (!tenantCodec.encode(input.tenant).ok) return fail(denied())
       const boundExecution =
         consumerExecutions.get(canonical([tenantText(input.tenant), input.consumer])) ?? null
-      const execution = input.execution ?? boundExecution
-      if (boundExecution !== null && boundExecution !== execution) return fail(denied())
-      if (execution !== null) {
-        const permission = qualified({ ...input, execution })
-        if ('failure' in permission) return permission
-      }
-      const source = journalEvidence(
-        canonical(['material', tenantText(input.tenant), input.identity, input.consumer]),
-        1,
-      )
-      const old = materials.get(canonical(source))
-      if (
-        old &&
-        ((input.execution !== undefined && old.execution !== execution) ||
-          (old.execution !== null && old.execution !== execution) ||
-          canonical(old.value) !== canonical(input.value))
-      )
-        return fail(invalid('identity'))
-      materials.set(canonical(source), {
-        tenant: tenantText(input.tenant),
-        execution,
-        value: structuredClone(input.value),
-      })
+      if (boundExecution !== null && boundExecution !== input.execution) return fail(denied())
+      const permission = qualified(input)
+      if ('failure' in permission) return permission
+      const tenant = tenantText(input.tenant)
+      const digest = materialDigest(input.value)
+      const named = canonical([tenant, input.identity, input.consumer])
+      const prior = identities.get(named)
+      if (prior !== undefined && prior !== digest) return fail(invalid('identity'))
+      // Addressed by content: the same content of the same execution is the same material.
+      const source = journalEvidence(canonical(['material', tenant, input.execution, digest]), 1)
+      identities.set(named, digest)
+      const key = canonical(source)
+      if (!materials.has(key))
+        materials.set(key, {
+          tenant,
+          execution: input.execution,
+          source,
+          value: keep(tenant, input.value),
+        })
       return succeed(source)
     },
     async read(input) {
       return readMaterial(input, input.source)
+    },
+    async describe(input) {
+      const material = readMaterial(input, input.source)
+      return 'failure' in material ? material : succeed(describeMaterial(material.ok))
     },
   }
   const controls = {
@@ -508,6 +535,19 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     loseMaterial(source: DurableEvidence) {
       materials.delete(canonical(source))
     },
+    /** Every material source kept for the execution, whether a fact refers to it or not. */
+    materialSources(access: Access<P>, execution: AgentExecutionId): readonly DurableEvidence[] {
+      return [...materials.values()]
+        .filter(
+          value => value.tenant === tenantText(access.tenant) && value.execution === execution,
+        )
+        .map(value => structuredClone(value.source))
+    },
+    /** The number of distinct contents kept for the tenant: one per digest. */
+    contentCount(access: Access<P>): number {
+      const prefix = canonical([tenantText(access.tenant)]).slice(0, -1)
+      return [...blobs.keys()].filter(key => key.startsWith(prefix)).length
+    },
   }
   const targetPort: ModelReceptionTargets<P> = {
     async forExecution(input) {
@@ -520,7 +560,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       const requested = resolveModelInvocationRef(input.reference, input.access.tenant)
       if ('failure' in requested) return fail(denied())
       const found = callTargets.get(targetKey(input.access, requested.ok.call))
-      if (!found) return fail(denied())
+      // A route names the execution whose records are read; a binding of another one is absent.
+      if (!found || (input.execution !== undefined && input.execution !== found.execution))
+        return fail(denied())
       const permission = qualified({ ...input.access, execution: found.execution })
       return 'failure' in permission ? permission : succeed(structuredClone(found))
     },

@@ -8,6 +8,12 @@
 // built as `server-entry` builds it, through `definitionResolverOf` over the same table. The session
 // is in SQLite: a tree started again over the same storage reads it back. A creation that the mapping
 // does not hold is `invalid` and creates nothing.
+//
+// The `coding` definition names Files and Shell as resident tools (G-RESIDENTS, R2-D159). Its cases
+// add the real Tool rows `tool-bindings`, `tool-host` (with the operator construction of the tests)
+// and `tool-residency` on the release entry objects. The release registrant loads the two authors
+// before the creation, because nothing in the release tree loads them yet (row page of
+// `adoption-sources`). Without the Tool rows the creation fails closed and creates nothing.
 // Slow: a real SQLite tree per case.
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -29,7 +35,15 @@ import {
   sessionKey,
   type SessionService,
 } from '@omne-harness/session-cordis-contract/cordis'
+import { toolGenerationsKey, type ToolGenerations } from '@omne-harness/tool-cordis-contract/cordis'
 import { runtimeContextTrust } from '../../../src/entry/runtime-context-trust.ts'
+import {
+  TOOL_RELEASE_REGISTRANT_KEY,
+  toolContributionAuthority,
+  toolReleaseRegistrant,
+  type ToolReleaseRegistrant,
+} from '../../../src/entry/tool-release.ts'
+import { toolResidencyPrincipal } from '../../../src/entry/tool-residency-principal.ts'
 import { sessionClock } from '../../../src/entry/session-clock.ts'
 import {
   sessionCustodySource,
@@ -45,6 +59,10 @@ import { runtimeContextRow } from '../../../src/rows/runtime-context/index.ts'
 import { sessionAd10Row } from '../../../src/rows/session-ad10/index.ts'
 import { sessionAd12Row } from '../../../src/rows/session-ad12/index.ts'
 import { sessionProviderRealRow } from '../../../src/rows/session-provider/real.ts'
+import { toolBindingsRow } from '../../../src/rows/tool-bindings/index.ts'
+import { toolHostRow } from '../../../src/rows/tool-host/index.ts'
+import { toolResidencyRow } from '../../../src/rows/tool-residency/index.ts'
+import { TEST_CONSTRUCTION, authorityOf, formalManifest } from '../tool-host/support.ts'
 import {
   BASE_ENTRY_OBJECTS,
   declared,
@@ -97,7 +115,9 @@ afterEach(async () => {
   for (const release of live.splice(0).reverse()) await release()
 })
 
-async function start(base: Base): Promise<LoadedTree> {
+/** `tools: 'release'` adds the real Tool rows and the release entry objects of the tool path. */
+async function start(base: Base, tools: 'none' | 'release' = 'none'): Promise<LoadedTree> {
+  const release = tools === 'release'
   const tree = await loadTree({
     base,
     rows: [
@@ -109,6 +129,13 @@ async function start(base: Base): Promise<LoadedTree> {
       declared(runtimeContextRow),
       declared(sessionAd12Row),
       declared(sessionProviderRealRow, { admission: 'none' }),
+      ...(release
+        ? [
+            declared(toolBindingsRow),
+            declared(toolHostRow, { construction: TEST_CONSTRUCTION }),
+            declared(toolResidencyRow, { pageSize: 100 }),
+          ]
+        : []),
     ],
     entryObjects: [
       ...BASE_ENTRY_OBJECTS,
@@ -116,6 +143,9 @@ async function start(base: Base): Promise<LoadedTree> {
       runtimeContextTrust,
       sessionProductionSource,
       sessionCustodySource,
+      ...(release
+        ? [toolResidencyPrincipal, toolReleaseRegistrant, toolContributionAuthority]
+        : []),
     ],
   })
   live.push(() => tree.dispose())
@@ -152,6 +182,22 @@ async function releaseCreation(
       ? {}
       : { initialModelSelection: resolved.initialModelSelection }),
     ...patch,
+  }
+}
+
+/** What the release tree does not do yet: the registrant loads the two release authors. */
+async function loadReleaseAuthors(tree: LoadedTree): Promise<void> {
+  const generations = tree.service<ToolGenerations<unknown, unknown, never>>(toolGenerationsKey)
+  const registrant = tree.root.get(TOOL_RELEASE_REGISTRANT_KEY) as ToolReleaseRegistrant | undefined
+  if (generations === undefined || registrant === undefined)
+    throw new Error('the tree has no tool generations or no release registrant')
+  const manifest = formalManifest()
+  for (const name of ['Files', 'Shell']) {
+    const loaded = await generations.ensureLoaded({
+      authority: authorityOf(manifest, name),
+      access: registrant,
+    })
+    if (!('ok' in loaded)) throw new Error(`${name} did not load: ${JSON.stringify(loaded)}`)
   }
 }
 
@@ -202,6 +248,91 @@ describe('the first create of a tenant over the release rows of the Session path
       expect(read).toEqual({ ok: expect.anything() })
       if (!('ok' in read)) throw new Error('unreachable')
       expect(read.ok).toMatchObject({ session: SESSION, tenant: TENANT_A, lifecycle: 'dormant' })
+    },
+  )
+
+  it(
+    '`create` of the coding definition (R2-D124) saves the release model selection and reads back',
+    { timeout: 90_000 },
+    async () => {
+      const base = makeBase()
+      live.push(() => base.release())
+      const tree = await start(base, 'release')
+      await loadReleaseAuthors(tree)
+      const creation = await releaseCreation('coding')
+      expect(creation.initialModelSelection?.name).toBe('openai/gpt-6.1-sol')
+      const created = await create(tree, creation, 'coding-first')
+      expect(created).toEqual({ ok: expect.anything() })
+      if (!('ok' in created)) throw new Error('unreachable')
+      expect(created.ok.state).toMatchObject({
+        session: sessionId('coding-first'),
+        lifecycle: 'dormant',
+      })
+      const codingAccess = { ...access, session: sessionId('coding-first') }
+      const read = await faces(tree, 'coordinator').work.readWork(codingAccess)
+      expect(read).toMatchObject({ ok: { lifecycle: 'dormant', tenant: TENANT_A } })
+      // `readModelSelection` is an intake or maintainer read (session `callers.ts`).
+      const selection = await faces(tree, 'intake').work.readModelSelection(codingAccess)
+      expect(selection).toMatchObject({ ok: { selection: { name: 'openai/gpt-6.1-sol' } } })
+    },
+  )
+
+  it(
+    '`create` of coding commits Files and Shell as residents; the bindings J06 projects from them are the release asset adoptions',
+    { timeout: 90_000 },
+    async () => {
+      const base = makeBase()
+      live.push(() => base.release())
+      const tree = await start(base, 'release')
+      expect(tree.allActive).toBe(true)
+      await loadReleaseAuthors(tree)
+      const created = await create(tree, await releaseCreation('coding'), 'coding-residents')
+      expect(created).toEqual({ ok: expect.anything() })
+      const read = await faces(tree, 'coordinator').work.readWork({
+        ...access,
+        session: sessionId('coding-residents'),
+      })
+      if (!('ok' in read)) throw new Error(`readWork: ${JSON.stringify(read)}`)
+      const manifest = formalManifest()
+      const adoptionOf = (name: string) => {
+        const entry = manifest.entries.find(item => item.asset.name === name)
+        if (entry === undefined) throw new Error(`no release entry ${name}`)
+        return entry.asset.adoption
+      }
+      expect(read.ok.residents.map(resident => resident.capability)).toEqual(['Files', 'Shell'])
+      // J06's projection (session-adapters `conditions.ts`): owner and digest of `admitted`,
+      // the capability as the name, the version as the revision.
+      const bindings = read.ok.residents.map(resident => ({
+        owner: resident.admitted.owner,
+        name: resident.capability,
+        revision: resident.version,
+        digest: resident.admitted.digest,
+      }))
+      expect(bindings).toEqual([adoptionOf('Files'), adoptionOf('Shell')])
+    },
+  )
+
+  it(
+    '`create` of coding without the Tool rows fails closed with a diagnostic and creates nothing; assistant names no resident and still creates',
+    { timeout: 90_000 },
+    async () => {
+      const base = makeBase()
+      live.push(() => base.release())
+      const tree = await start(base)
+      const refused = await create(tree, await releaseCreation('coding'), 'coding-no-tools')
+      expect(refused).toMatchObject({
+        failure: {
+          kind: 'unavailable',
+          diagnostic: 'resident tools: tool release: no release contribution authority',
+        },
+      })
+      const read = await faces(tree, 'coordinator').work.readWork({
+        ...access,
+        session: sessionId('coding-no-tools'),
+      })
+      expect('ok' in read).toBe(false)
+      const assistant = await create(tree, await releaseCreation('assistant'), 'assistant-no-tools')
+      expect(assistant).toEqual({ ok: expect.anything() })
     },
   )
 

@@ -2,14 +2,7 @@
 // the same shape as the credential plugin). Every number comes from the operator: the design does
 // not turn an unmeasured production number into a default, so a missing or out-of-range value
 // fails the load instead of falling back.
-import { fieldOf, isIntegerAtLeast } from '../fields.ts'
-
-type Issue = { message: string }
-type Parsed<T> = Readonly<{ value: T }> | Readonly<{ issues: Issue[] }>
-
-function rejected(message: string): Parsed<never> {
-  return { issues: [{ message }] }
-}
+import { fieldOf, isIntegerAtLeast, rejected, type Parsed } from '../fields.ts'
 
 function schemaOf<T>(validate: (value: unknown) => Parsed<T>) {
   return { '~standard': { version: 1 as const, vendor: 'model-host-local', validate } }

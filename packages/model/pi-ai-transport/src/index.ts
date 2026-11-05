@@ -22,7 +22,7 @@ export {
 } from './family-table.ts'
 export type { PiCredentialSlot, PiRoute, PiTransportConfig, PiTransportLimits } from './config.ts'
 export { createPiTransport, type PiTransport } from './transport.ts'
-export type { DiagnosticObserver } from './diagnostics.ts'
+export type { ConnectRetryDiagnostic, DiagnosticObserver } from './diagnostics.ts'
 export {
   createNetworkResources,
   type NetworkConfig,

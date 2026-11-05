@@ -398,6 +398,76 @@ describe('encode: tool calls and results', () => {
   })
 })
 
+describe('encode: tool names', () => {
+  const record = testRecord()
+  const names = (outcome: ReturnType<typeof encode>): unknown => {
+    const written = body(outcome)
+    return {
+      tools: (written.tools as { function: { name: string } }[]).map(item => item.function.name),
+      choice: (written.tool_choice as { function: { name: string } }).function.name,
+      calls: (written.messages as { tool_calls?: { function: { name: string } }[] }[]).flatMap(
+        item => (item.tool_calls ?? []).map(call => call.function.name),
+      ),
+    }
+  }
+  const unparsed = (id: string, callId: string, name: string): unknown => ({
+    kind: 'tool_call_unparsed',
+    id,
+    visibility: { toHuman: true, toModel: true },
+    callId,
+    name,
+    raw: '{',
+  })
+
+  it('writes every name of the request with the record rule, a parsed or unparsed call alike', () => {
+    const outcome = encode(record, {
+      messages: [
+        message('u1', 'user', [textBlock('b1', 'go')]),
+        message('a1', 'assistant', [
+          callBlock('c1', 'call_1', 'Files.read'),
+          unparsed('c2', 'call_2', 'Web.fetch/v2'),
+        ]),
+        message('r1', 'tool', [resultBlock('x1', 'call_1')]),
+        message('r2', 'tool', [resultBlock('x2', 'call_2')]),
+      ],
+      tools: [tool('Files.read'), tool('lookup')],
+      toolChoice: { name: 'Files.read' },
+    })
+    expect(names(outcome)).toEqual({
+      tools: ['Files_read', 'lookup'],
+      choice: 'Files_read',
+      calls: ['Files_read', 'Web_fetch_v2'],
+    })
+  })
+
+  it('a hidden history call takes no gateway name', () => {
+    const hidden = {
+      ...(callBlock('c1', 'call_1', 'a.b') as object),
+      visibility: { toHuman: true, toModel: false },
+    }
+    const outcome = encode(record, {
+      messages: [
+        message('u1', 'user', [textBlock('b1', 'go')]),
+        message('a1', 'assistant', [textBlock('t1', 'ok'), hidden]),
+      ],
+      tools: [tool('a_b')],
+    })
+    expect(body(outcome).tools).toHaveLength(1)
+  })
+
+  it('refuses a collision and a name over the record length as unsupported, before the messages', () => {
+    expect(encode(record, { tools: [tool('a_b'), tool('a.b')] })).toEqual({
+      failure: { kind: 'unsupported', field: '/tools/1/name', adapter: adapterOf(record) },
+    })
+    const short = testRecord({
+      wire: { ...record.wire, toolNames: { rule: 'underscore/1', maxLength: 4 } },
+    })
+    expect(encode(short, { tools: [tool('a.bc'), tool('a.bcd')] })).toEqual({
+      failure: { kind: 'unsupported', field: '/tools/1/name', adapter: adapterOf(short) },
+    })
+  })
+})
+
 describe('encode: cache placement', () => {
   const cached = (ttl: '5m' | '1h') =>
     testRecord({ wire: { ...testRecord().wire, cache: { kind: 'last-message', ttl } } })
@@ -735,6 +805,23 @@ describe('bindChatCompletions', () => {
     [
       'an extension on a parameter field',
       () => testRecord({ extensions: [{ definition: EXTENSION, field: 'temperature' }] }),
+    ],
+    [
+      'a tool name rule the engine does not have',
+      () => {
+        const base = testRecord()
+        const rule = 'dot/1' as unknown as 'underscore/1'
+        return testRecord({ wire: { ...base.wire, toolNames: { rule, maxLength: 64 } } })
+      },
+    ],
+    [
+      'a tool name length that is not a positive integer',
+      () => {
+        const base = testRecord()
+        return testRecord({
+          wire: { ...base.wire, toolNames: { rule: 'underscore/1', maxLength: 0 } },
+        })
+      },
     ],
   ])('refuses a record with %s', (_name, make) => {
     const record = make()

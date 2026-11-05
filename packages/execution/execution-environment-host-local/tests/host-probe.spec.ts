@@ -91,7 +91,9 @@ function hostProvider(diagnostics: HostFilesDiagnostic[] = [], probeRetryMs?: nu
   const provider = createHostFilesProvider({
     domain: createHostFilesDomain(),
     diagnose: diagnostic => diagnostics.push(diagnostic),
-    ...(probeRetryMs === undefined ? {} : { command: { probeRetryMs } }),
+    ...(probeRetryMs === undefined
+      ? {}
+      : { command: { probeRetryMs }, terminal: { probeRetryMs } }),
   })
   providers.push(provider)
   return provider
@@ -159,8 +161,8 @@ async function prerequisitesSettle(provider: ReturnType<typeof createHostFilesPr
 }
 
 it(
-  'answers unavailable for a start on a host that is not Linux, and files of the same acquisition still work',
-  { skip: linux },
+  'answers unavailable on an unsupported execution platform, and files of the same acquisition still work',
+  { skip: linux || process.platform === 'win32' },
   async () => {
     const diagnostics: HostFilesDiagnostic[] = []
     const provider = hostProvider(diagnostics)

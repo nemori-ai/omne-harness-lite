@@ -20,12 +20,17 @@ const priv = (keys: readonly string[] = []): readonly string[] => keys.map(key =
 const TABLE: Readonly<Record<string, Entry>> = {
   storage: { provides: ['storage'], injects: ['storageHost'], phase: 'storage' },
   identity: {
-    provides: ['identityOperations', 'tenantStanding'],
+    provides: ['identityOperations', 'tenantStanding', 'identityGovernance'],
     injects: ['storage', 'identityClock'],
   },
   authorization: {
-    provides: ['agentAccessCheck', 'sessionAccessCheck', 'agentActionAdmission'],
-    injects: ['tenantStanding', 'principalVerifier'],
+    provides: [
+      'agentAccessCheck',
+      'sessionAccessCheck',
+      'agentActionAdmission',
+      'systemActionAuthorization',
+    ],
+    injects: ['tenantStanding', 'principalVerifier', 'identityClock'],
   },
   'session-storage': {
     provides: [
@@ -35,7 +40,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'tenantDomainLookup',
       'sessionPrincipalBindings',
     ],
-    injects: ['storage', 'sessionAccessCheck', 'principalVerifier'],
+    injects: ['storage', 'sessionAccessCheck'],
     phase: 'composition',
   },
   'session-provider': {
@@ -48,12 +53,38 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     phase: 'business',
   },
-  'session-ad02': { injects: ['session'] },
-  'session-ad03': { injects: ['runtimeContext', 'session'] },
-  'session-ad04': { injects: ['session'] },
-  'session-ad05': { injects: ['session'] },
+  'session-ad02': {
+    injects: [
+      'sessionWorkPrincipals',
+      'session',
+      'sessionTransactions',
+      'storage',
+      'tenantDomainLookup',
+    ],
+  },
+  'session-ad03': {
+    provides: ['runtimeContextReaderEligibility', 'sessionReplayFacts', 'sessionScopeLookup'],
+    injects: ['sessionWorkPrincipals', 'runtimeContext', 'session'],
+  },
+  'session-ad04': { provides: ['contextHolderSources'], injects: ['session'] },
+  'session-ad05': {
+    injects: [
+      'sessionWorkPrincipals',
+      'session',
+      'agentJournal',
+      'agentJournalEntries',
+      'agentMaterials',
+      'sessionTransactions',
+    ],
+  },
   'session-ad06': {
-    injects: ['session', 'agentJournal', 'agentMaterials', 'sessionTransactions'],
+    injects: [
+      'session',
+      'agentJournal',
+      'agentJournalEntries',
+      'agentMaterials',
+      'sessionTransactions',
+    ],
   },
   'session-ad09': { provides: ['sessionIdentity'], injects: ['principalVerifier'] },
   'session-ad10': {
@@ -81,11 +112,29 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'session-handoff': {
     provides: ['agentMessageHandoff'],
-    injects: ['session', 'agentAccessCheck'],
+    injects: [
+      'sessionWorkPrincipals',
+      'session',
+      'agentAccessCheck',
+      'storage',
+      'tenantDomainLookup',
+    ],
   },
-  'session-conditions': { provides: ['agentConditions'], injects: ['session'] },
+  'session-conditions': {
+    provides: ['agentConditions'],
+    injects: ['definitionMappings', 'session', 'storage', 'tenantDomainLookup'],
+  },
   'agent-journal': {
-    provides: ['agentJournal', 'agentJournalEntries', 'agentMaterials'],
+    provides: [
+      'agentJournal',
+      'agentJournalEntries',
+      'agentMaterials',
+      'agentReceivedCommits',
+      'agentReceivedRecords',
+      'agentModelReceptionTargets',
+      'agentToolReceptionTargets',
+      'sessionAdoptedRequests',
+    ],
     injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],
     group: 'agent-journal',
   },
@@ -103,6 +152,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentJournal',
       'agentJournalEntries',
       'agentMaterials',
+      'agentReceivedCommits',
+      'agentModelReceptionTargets',
       'agentAccessCheck',
       'agentAdoptions',
       'agentConditions',
@@ -133,7 +184,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['modelRequestPreparation'],
     injects: ['modelCommands'],
   },
-  'model-credential': { provides: ['modelCredential'] },
+  'model-credential': { provides: ['modelCredential', 'modelCredentialCustody'] },
   'model-records': {
     provides: ['modelCommands', 'modelSendBoundary'],
     injects: ['storage', 'tenantDomainLookup', 'modelClock', 'principalVerifier', 'tenantStanding'],
@@ -150,10 +201,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'tool-runtime': {
     provides: ['toolRuntime'],
     injects: ['toolCommands', 'toolReads'],
-    phase: 'business',
   },
   'tool-executor': {
-    injects: ['toolCommands', 'toolInstanceHost', 'toolClock'],
+    provides: ['toolInstanceHost'],
+    injects: ['toolCommands', 'toolClock'],
     phase: 'business',
   },
   'tool-host': {
@@ -176,7 +227,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'agent-context': {
     provides: ['agentRequests', 'agentModelContext'],
-    injects: ['requestContext', 'runtimeContext', 'modelRequestPreparation'],
+    injects: [
+      'requestContext',
+      'contextHolderSources',
+      'runtimeContextReaderEligibility',
+      'runtimeContext',
+      'modelRequestPreparation',
+      'modelPreparationResources',
+      'agentAdoptions',
+    ],
   },
   'agent-account-outlet': {
     provides: ['agentAccountOutlet'],

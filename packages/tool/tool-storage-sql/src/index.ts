@@ -1,5 +1,5 @@
 // The Tool storage over the SQL storage contract: the durable ToolLedgerStore, the durable
-// ToolOutputCustody and their static materials. It imports the SQL contract only through its
+// ToolOutputCustody, guarded host commits and their static materials. It imports SQL only through its
 // public entries and builds no Cordis service: the `tool-records` row belongs to the application.
 export {
   CHUNK_ENVELOPE_BYTES,
@@ -8,5 +8,11 @@ export {
   type SqlToolStorageOptions,
 } from './options.ts'
 export { createSqlToolLedgerStore, type SqlToolLedgerStore } from './ledger-store.ts'
+export {
+  createSqlToolGuardedHostCommit,
+  type SqlToolGuardedHostCommit,
+  type SqlToolGuardedHostCommitInput,
+  type SqlToolGuardedHostCommitResult,
+} from './guarded-host-commit.ts'
 export { createSqlToolOutputCustody } from './custody.ts'
 export { TOOL_PARTICIPANT, toolStorageMaterials, type ToolStorageMaterials } from './materials.ts'

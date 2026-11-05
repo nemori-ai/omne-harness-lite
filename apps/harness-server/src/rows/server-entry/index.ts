@@ -9,7 +9,8 @@ import { definitionMappingsKey, definitionResolverOf } from '@omne-harness/serve
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { serverEntryConfig } from './config.ts'
-import { identityOfCall } from './identity.ts'
+import { governanceOfCall, identityOfCall } from './identity.ts'
+import { modelCredentialsOfCall } from './model-credentials.ts'
 
 const LOOPBACK = '127.0.0.1'
 
@@ -31,9 +32,11 @@ async function build(ctx: Context, raw: unknown): Promise<RowHandle> {
     config: { listenAddress: LOOPBACK, ...config },
     dependencies: {
       identity: identityOfCall(ctx),
+      governance: governanceOfCall(ctx),
       issuer: ctx.principalIssuer,
       session: sessionFaces(ctx),
       resolveDefinition: definitionResolverOf(ctx.definitionMappings),
+      modelCredentials: modelCredentialsOfCall(ctx),
     },
   })
   // A fiber that unloads while the tree runs (a provider change) closes the listener too.

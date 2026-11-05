@@ -329,13 +329,43 @@
       "requiredSections": []
     },
     {
+      "id": "verification-models-formal-mapping",
+      "path": "packages/model/model-contract/verification/models/formal-mapping.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "verification-models-formal-runs",
+      "path": "packages/model/model-contract/verification/models/formal-runs.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
       "id": "verification-proofs-readme",
       "path": "packages/model/model-contract/verification/proofs/README.md",
       "kind": "entry",
       "required": true,
       "visibility": "internal",
       "basis": "adopted",
-      "applicability": "not-applicable",
+      "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "目录入口"
@@ -350,7 +380,7 @@
       "required": true,
       "visibility": "internal",
       "basis": "adopted",
-      "applicability": "not-applicable",
+      "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "目录入口"

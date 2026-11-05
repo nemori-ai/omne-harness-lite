@@ -1,10 +1,16 @@
 // The Session policy table (DP-4, policy draft §5): one row per SessionAccessOperation, one cell
 // per principal class. The citations use the abbreviations of policy draft §1 (SS, SAC, SCC, AD,
 // SW, IA, AU, ID, PC, AA, DA4, AGI, LP). `satisfies` makes a missing or extra row a type error.
+//
+// Role neutrality (identity delivery spec D2): every `member` cell asks the tenant admission with an
+// empty `requires`, so tenant role never decides a Session or Agent operation. Basis: no accepted
+// text makes a Session or Agent operation conditional on a tenant role; a Session is the private
+// work of the tenant (PD:33); the only named qualification, `organization-cost-ledger-read`, has no
+// Session consumer (ID-16:301-307). Proof: tests/rows/authorization/role-neutral-member-cells.spec.ts.
 import type { SessionAccessOperation } from '@omne-harness/session-contract'
 import { cell, row, type PolicyRow } from './cells.ts'
 
-const { member, matrix, deny, pending } = cell
+const { member, matrix, deny } = cell
 
 const OUTSIDE_MATRIX = '矩阵外（AU-12 第 2 步）'
 const NO_SOURCE = '无放行出处'
@@ -25,7 +31,7 @@ export const SESSION_POLICY = Object.freeze({
     deny(OUTSIDE_MATRIX),
   ),
   startRun: row(
-    deny(`${NO_SOURCE}。登录确认经证据桥守卫，不经主体（SS:554）`),
+    deny(`${NO_SOURCE}。登录门由 Session 核对首条输入保存的 origin，不经主体（SS:554，R2-D198）`),
     member('SS:554，DA4 §4.1'),
     deny(OUTSIDE_MATRIX),
   ),
@@ -87,8 +93,20 @@ export const SESSION_POLICY = Object.freeze({
     ),
     deny(OUTSIDE_MATRIX),
   ),
-  setRelation: row(pending('D-2'), deny(NO_SOURCE), deny(OUTSIDE_MATRIX)),
-  configureAutoArchive: row(pending('D-1'), deny(NO_SOURCE), deny(OUTSIDE_MATRIX)),
+  setRelation: row(
+    member(
+      'R2-D204（P-1，qiwei.pan 裁定）：租户是（组织，账号），只有该账号的登录能取得代该租户行事的主体，「只有本人」由主体的签发保证，不需要具名资格。SW:187、SS:610 至 611',
+    ),
+    deny(NO_SOURCE),
+    deny(OUTSIDE_MATRIX),
+  ),
+  configureAutoArchive: row(
+    member(
+      'R2-D204（P-1，qiwei.pan 裁定）：租户是（组织，账号），只有该账号的登录能取得代该租户行事的主体，「只有本人」由主体的签发保证，不需要具名资格。SW:187、SS:610 至 611',
+    ),
+    deny(NO_SOURCE),
+    deny(OUTSIDE_MATRIX),
+  ),
   considerAutoArchive: row(
     deny(NO_SOURCE),
     member('SS:612，SCC maintainer「自动归档」，DA4 §4.1。成员失效后为拒绝，见候选限制 K-3'),

@@ -166,7 +166,7 @@
 | 失联与效果 | 查询不可用、仅调用方丢失、Tool 自身确认丢失、外部提交未知。不得从查不到推断未执行或自动重放。 |
 | 账目与观测 | 重复通知不重计；新调用真实计量；费用迟到、未知；账目读取与正文权限分别核对。 |
 | 耐久与安全 | 进程崩溃、OS 崩溃、断电、附件唯一副本、恶意代码和外传。证据覆盖声明的故障与隔离，不能只靠 mock。 |
-| 结果推送 | saved 未知、同 key 异内容、引用属于其他租户、一个租户占满接收份额、account 早于 result 的 saved。不得以普通失败盖过未知，不得从去处取租户，不得在释放前删除冻结载荷。 |
+| 结果推送 | saved 未知、同 key 异内容、另一租户的引用按不存在处理（引用文本不含租户）、一个租户占满接收份额、account 早于 result 的 saved。不得以普通失败盖过未知，不得从去处取租户，不得在释放前删除冻结载荷。 |
 | 启动围栏与授权消费 | 围栏证据之前与之后的 consume、失效前已受理的调用、另一调用出示已消费的许可、受理前撤权与受理后撤权。不得在取得证据前声称已阻止，不得复活已消费许可，不得声称撤权停止了已受理的外发。 |
 
 真实外部效果、控制和隔离缺环境时报告无法验证。长期查询、结果分页、重连快照和排队须有资源边界；具体规模、时间和成本目标仍由相关契约与性能设计明确，不能以“点查询”声称任意全文常数成本。
@@ -273,9 +273,9 @@ resolve 先核当前主体对合法 tenant/consumer 的资格，再访问关联�
 
 普通接口由 `queries`、`commands`、`instances`、`observation`、`content` 和 `catalog` 组成。`instances` 是引用读面 `current`，`observation` 是公共流协议的观察面，两者见[公共流协议上的观察](#公共流协议上的观察)。queries 的 lookup 用调用引用内的原 admission；queryOperation 用操作引用内的原 operation。commands 只有 control 和 releaseDelivery。control 的成功结果为带操作引用的 `committed`。releaseDelivery 为每次意图分配 operation，成功返回 `released` 及原生产者耐久回执，不附本次操作引用，也不承诺本次新增操作记录。首次释放与已释放后的重入使用同一成功形状。两者的未知结果为带原操作引用的 `commit-unknown`，拒绝为 `rejected`。回执未知后用原操作引用查询提交结果，不自动重发。`not-committed` 或 `rolled-back` 只否定这次操作，不证明交付仍 pending。可靠否定后，调用方可以明确再次 releaseDelivery，取得已有释放回执。unknown 或不可读时继续保留未知。lookup 用原 admission 定位并返回当前权威 ToolState，其中的 delivery 可用于认回已有释放。invoke 的 state 才是受理时回执。readProcess 当前未支持，ResultPage 不含 DeliveryState。acceptDecision/acceptResource 留在受信内部端口。每次合法公开 control 都先分配新的 operation，再委托内部 commands.control；同参数重发不是原操作认回。调用方持有原操作引用时应先 queryOperation 对账，引用丢失时本协议没有按控制意图找回的能力。新的 committed 不证明旧 unknown 已完成。新 stop 不撤销旧 stop，新 withdraw 以其提交时的 reach 和关系判断。当前真实 ledger 仍返回 unsupported，此时身份已消耗但没有控制事实，门面返回 rejected/unsupported，不暴露已登记操作。
 
-`ToolInvocationRef` 和 `ToolOperationRef` 是独立字符串品牌，版本 1 分别编码为 `["tool-invocation",1,tenantText,call,admission]` 和 `["tool-operation",1,tenantText,call,admission,operation]`。tenantText 采用 legal-identity 的 tenantCodec，其他身份沿现有身份词法。codec 只接受固定数组长度、标记与版本，总长度最多 1668 个 UTF-16 code units。编解码不读存储、不生成业务身份；编码生成规范 JSON，解码允许同结构的非规范空白并返回规范值。失败为 type、version、shape 或 length。引用不含 principal、instance 或 generation，不授予权限、不证明调用存在，也不创建第二张持久定位表。
+`ToolInvocationRef` 和 `ToolOperationRef` 是独立字符串品牌，版本 2 分别编码为 `["tool-invocation",2,call,admission]` 和 `["tool-operation",2,call,admission,operation]`。文本不含租户（R2-D357）：租户来自调用方的 Access，每个租户的存储有自己的分区。encode 的输入仍含 tenant，未铸造的 tenant 返回 type，但 tenant 不写入文本。身份沿现有身份词法。codec 只接受固定数组长度、标记与版本，总长度最多 1565 个 UTF-16 code units。版本 1 的文本返回 version，没有兼容读取。编解码不读存储、不生成业务身份；编码生成规范 JSON，解码允许同结构的非规范空白并返回规范值。失败为 type、version、shape 或 length。引用不含 principal、instance 或 generation，不授予权限、不证明调用存在，也不创建第二张持久定位表。
 
-每次引用访问先解码并用 tenantEquals 与当前合法租户比较，跨租户或伪造租户回复 denied，不进入底层端口。底层端口每次核当前 principal 与撤权。持久查询、内容和交付不依赖 catalog 或实例目录。`instances.current` 仅提供实时观察的当前引用，unavailable、`current: null` 与 unsupported 保持可辨。放弃引用或观察不取消执行，旧代次的观察以 `producer-ended`/`stale-instance` 结束。
+每次引用访问先核当前租户由 legal-identity 铸造，再解码。伪造租户回复 denied，不进入底层端口。另一租户的引用在调用方租户的分区里定位，查不到，回复与不存在的调用逐字节相同，不披露对方是否存在（R2-D357）。resolve 的失败只有 malformed 与 invalid-tenant；invalid-tenant 表示所给租户未铸造，没有表示「引用属于另一租户」的结局（R2-D370）。底层端口每次核当前 principal 与撤权。持久查询、内容和交付不依赖 catalog 或实例目录。`instances.current` 仅提供实时观察的当前引用，unavailable、`current: null` 与 unsupported 保持可辨。放弃引用或观察不取消执行，旧代次的观察以 `producer-ended`/`stale-instance` 结束。
 
 宿主通过 `ToolInstanceIdentities` 取得实例身份，并显式传给 `ToolDriver.run`。同一存活实例重复唤醒沿用身份，不由 runtime 工厂固定全局 instance。当前固定 generation 的实现限制不构成 claim 或换实例接管能力。
 
@@ -367,7 +367,7 @@ released.evidence 是 Tool 生产侧解除该版本 delivery 的耐久回执，�
 
 生产者只列原 tenant、原 requesterScope 下 relation 为 background，且满足下列任一条件的原调用：phase 不是 settled、物理执行尚未可靠结束、有未清偿任务、原结果或补充版本有 pending 交付。phase 不是 settled 包含 accepted、preparing、queued、starting、running 与 suspended，不能只列 running。Tool 的原调用修订随每项携带，RC 块修订不能代替它。逻辑 settled 但物理执行未结束或清理未完成的调用仍不能漏掉。前台转后台不创建第二 Tool Execution。
 
-reference 必须取自原调用真实的 admission，解码后 reference 的 tenant、call 必须分别与外层 tenant 和本项 call 一致。存在该引用不授予查询或控制权限，消费者通过已有 Tool 查询与命令入口操作，每次仍核当前资格。
+reference 必须取自原调用真实的 admission，解码后 reference 的 call 必须与本项 call 一致。reference 不含租户，外层 tenant 就是每一项的租户。存在该引用不授予查询或控制权限，消费者通过已有 Tool 查询与命令入口操作，每次仍核当前资格。
 
 activity 是可信且获当前披露许可的原调用工作说明，必须为非空字符串。它由原固定请求与实际调用事实的拥有者投影，不能拿 call ID、任意请求者文字或未脱敏参数充当。工作说明缺失，或不能证明它与原调用的绑定时，整个 supply 返回 unknown。当前披露被拒时整个 supply 返回 refused，不编造说明或交付部分列表。
 
@@ -509,7 +509,33 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 单函数定义具有工具说明、参数约定及每个参数的说明。多命令定义具有工具说明、合法命令清单及每命令一行说明。作者可以仅提供清单，也可以提供全部命令的完整参数；提供的参数每项须带说明。不完整说明不能冒充完整合法定义。
 
-多命令在消费方面前始终是紧凑清单和交给所选命令的参数，不展开全部命令参数。提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，不熟命令的动作前取得详细用法。
+多命令在消费方面前始终是紧凑清单和交给所选命令的参数，不展开全部命令参数。
+
+#### 多命令工具的单槽调用
+
+多命令工具对模型是一个工具，只占一个声明（D-94，R2-D393、R2-D396）。调用在参数里点名命令，命令所在位置由定义的 `encoding` 决定。编码是封闭集合，每个多命令定义声明一个：
+
+| 编码 | 调用形式 | 约束 |
+| --- | --- | --- |
+| `wrapped` | `{"command": <命令>, "params": {…}}`，`params` 省略即空对象 | 除 `command` 与 `params` 外的字段被拒绝 |
+| `flat` | `{"command": <命令>, …字段}` | 命令不得声明名为 `command` 的字段，也不得是 executor-owned 参数；定义判定以 `flat-conflict:<命令>` 拒绝 |
+
+`decodeCommandCall` 是 `encodeCommandCall` 的偏逆：编码出的调用总能解回同一命令与参数；其余输入得到封闭的拒绝类别（`unreadable`、`not-object`、`command-missing`、`command-unknown`、`extra-field`、`params-not-object`、`command-mismatch`），不猜测命令。`selectCommand` 只读 `command` 字段，供路由在执行前选命令；其余缺陷由命令的参数解析答出原因。
+
+紧凑清单由 `commandMenu` 从定义机械派生：首行写调用形式，之后每个命令一行 `<命令> <签名> - <摘要>`。签名由 `commandSignature` 从参数 schema 派生：必填字段写名字，可选字段加 `?`，封闭取值写 `=a|b`，不写类型与字段说明。`commandCallSchema` 给出这一声明的参数 schema，`command` 的取值恰为命令表。字段说明、完整 schema 与规则不进入声明。
+
+guide 是定义的投影，由 `commandGuide` 机械派生（D-104）。多命令定义可以带 `guide`，即整个工具的规则，给出时不得为空白。
+
+- 不带命令时，guide 是命令清单。
+- 带一个已知命令时，guide 依次写：调用示例 `Usage: …`、摘要、`JSON Schema: …`，以及每个字段一行 `<字段>: <说明>`。executor-owned 参数只写前两项。
+- 两种 guide 后面都接定义的 `guide`。
+
+工具的 help 不带命令时答工具的 guide，带一个命令时答该命令的 guide。调用出错时，模型读到的 guide 由下面两处生成，作者不拼出错文本：
+
+- 调用没点名已知命令（`unreadable`、`not-object`、`command-missing`、`command-unknown`）时，可信 Tool 请求来源用 `describeCommandCallRejection` 作答：原因行，后接工具的 guide。
+- 调用点名了已知命令，但整次调用或参数不被该命令接受（`extra-field`、`params-not-object`、`command-mismatch`，或该命令的 `ParameterCodec.parse` 答 `invalid`）时，工具宿主的绑定用 `describeCommandArgumentsRejection` 给出失败原因：`<工具> <命令>: <原因>.`，后接该命令的 guide。`parse` 答 `incomplete`（参数没有收全）时只给原因。
+
+提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，对不熟的命令，声明里的签名行就是动作前取得的用法；需要字段说明或完整 schema 时再问 help，不设「先 help 再调用」的门（R2-D399 确认的 P6）。
 
 呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是调用方不经 Tools 元工具发现即可调用的工具。常驻集合的规则见[常驻持有者规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
 
@@ -674,7 +700,7 @@ Tool 提供三样：
 | --- | --- | --- |
 | 引用读面 | `ToolStreamReferences<P>.current({ access, reference })` 返回 `Reply<ToolStreamSelection>`；`ToolStreamSelection` 是 `{ state: ToolState; current: { ref: StreamRef; instance: ToolInstanceId; generation: string; projection: 'tool-process-v1' } \| null }` | 按原调用引用给出当前发布代次的公共引用与当前权威状态。全部回复见下文「`current` 的回复」。它是 [P16](#p16-目录与发现的故障隔离) 表中观察入口一行的后继 |
 | 观察面 | `ToolStreamObservation<P>` 是 `StreamObserver<P, ToolStreamSnapshot, ToolStreamDelta, ToolStreamEnd>`。`ToolStreamSnapshot` 是 `{ state: ToolState; process: readonly ProcessBlock[]; foreground: ForegroundReturn \| null }`；`ToolStreamDelta` 是 `{ state: ToolState; blocks: readonly ProcessBlock[] }`；`ToolStreamEnd` 是 `{ reason: 'closed' \| 'stale-instance' }` | 首帧是一致快照 C 或明确结束；之后每个 delta 从该观察者上一次交付的游标开始。快照与订阅在同一临界区取得。`observe` 的输入没有 `after` |
-| producer `tool` 适配器 | `toolStreamCallCodec: StreamCallCodec`，`producer` 为 `tool`，`resolve({ text, tenant })` 以 `resolveToolInvocationRef` 解析，再以 `encodeToolInvocationRef` 写出规范调用文本 | `malformed` 的详细拒绝映射为公共 `malformed`；`foreign-tenant` 原样保留；公共层的租户核验先于本适配器，所以 Tool 内部把未铸造租户当作外租户的处理不改变公共结果。它是公共 `judgeStreamRef` 与 `encodeStreamRef` 的原调用 codec |
+| producer `tool` 适配器 | `toolStreamCallCodec: StreamCallCodec`，`producer` 为 `tool`，`resolve({ text, tenant })` 以 `resolveToolInvocationRef` 解析，再以 `encodeToolInvocationRef` 写出规范调用文本 | `malformed` 的详细拒绝映射为公共 `malformed`；`invalid-tenant`（所给租户未铸造）原样保留；公共层的租户核验先于本适配器，所以这个分支不改变公共结果。另一租户的调用文本在本租户解析成功，观察在本租户找不到该调用。它是公共 `judgeStreamRef` 与 `encodeStreamRef` 的原调用 codec |
 
 发布代次与引用：发布代次只有一个含义，就是 `(instance, generation)`，即 `ToolExecutionRef` 的 `instance` 与 `generation`；一次 `ToolInstanceHost.publish` 发布一个代次。一条过程流绑定原调用与一个发布代次，每个发布代次使用新的 `StreamId`；旧引用保持原身份，不接到后继。当前代次是实例目录此刻为该调用保存的那个发布；被替换或执行已收场的代次不再是当前代次。
 
@@ -693,7 +719,7 @@ Tool 提供三样：
 
 游标：观察游标是公共 `StreamCursor`，位置是该过程流内发布者为每次已确认投影变化推进的单调位置，含没有新块的状态变化。`ToolCursor` 另有托管与执行用途（`readProcess` 的 `at`、`ProcessSnapshot` 与保管记录的已保存版本），保留，不与 `StreamCursor` 互换。
 
-公共原因与 Tool 自有原因：标准结束原因、gap 原因、它们的先后顺序与迭代器完成规则归 [stream-arrival README 的失败顺序](../../common/stream-arrival/README.md#failure-order-and-iterator-completion)，本页不复制那张表。Tool 的情形进入该顺序的方式：未铸造租户、外租户与当前资格不允许是公共 `denied`；实例目录、资格来源或目标源不可读是公共 `unavailable`，目录提供者回复 `unsupported` 也算目标源不可读；引用语法失败、producer 不是 `tool`、同租户映射不存在与代次已退役是公共 `stale-stream`；该观察者上一次交付的游标之后的历史不可取得是 gap `source-history`，缓冲超限是 gap `buffer`；`signal` 中止或迭代器 return 是公共 `observer-closed`；快照或自有结束值超限是公共 `capacity`。Tool 自有的结束值只有两个，经 `producer-ended` 携带：
+公共原因与 Tool 自有原因：标准结束原因、gap 原因、它们的先后顺序与迭代器完成规则归 [stream-arrival README 的失败顺序](../../common/stream-arrival/README.md#failure-order-and-iterator-completion)，本页不复制那张表。Tool 的情形进入该顺序的方式：未铸造租户与当前资格不允许是公共 `denied`；实例目录、资格来源或目标源不可读是公共 `unavailable`，目录提供者回复 `unsupported` 也算目标源不可读；引用语法失败、producer 不是 `tool`、同租户映射不存在（含另一租户的引用，见上文）与代次已退役是公共 `stale-stream`；该观察者上一次交付的游标之后的历史不可取得是 gap `source-history`，缓冲超限是 gap `buffer`；`signal` 中止或迭代器 return 是公共 `observer-closed`；快照或自有结束值超限是公共 `capacity`。Tool 自有的结束值只有两个，经 `producer-ended` 携带：
 
 | `ToolStreamEnd` | 含义 |
 | --- | --- |
@@ -866,7 +892,7 @@ Tool 核对 saved 的 key 与原冻结键相同后，以 `retained` 证据（`cu
 
 接收方按下列顺序处理。同一 key 曾可能提交时，后面的新回复不清除原未知记录。
 
-1. 核租户与调用引用。租户未铸造或引用属于其他租户时返回 `denied`，不查 key、consumer 或原调用。引用文本非法时返回 `invalid`，`field` 为 `key.reference`，`reason` 为 `reference-malformed`。
+1. 核租户与调用引用。租户未铸造时返回 `denied`，不查 key、consumer 或原调用。引用文本非法时返回 `invalid`，`field` 为 `key.reference`，`reason` 为 `reference-malformed`。引用文本不含租户，另一租户的引用在本租户解析成功，在第 3 步按关联不存在处理，回复与本租户从未有过的调用相同（R2-D370）。
 2. 核本主体的当前接收资格。拒绝返回 `denied`，资格依赖故障返回 `unavailable`。此时不披露原 key 是否保存或冲突。
 3. 核原消费关联与完整冻结 consumer，再按下文纯关系表核修订与 subject。原消费关联是接收方自己保存的“该位置等待这次调用的结果”的记录。关联不存在时返回 `invalid`，`field` 为 `key.reference`，`reason` 为 `not-accepted`；关联来源不可读时返回 `unavailable`，`dependency` 为 `association`，保持先前的未知。consumer 不是关联记录的原值时返回 `invalid`，`field` 为 `consumer`，`reason` 为 `not-original`。生产者据此分开处理：`invalid` 不靠重投修复，交原发起责任方处理；`unavailable` 保留原输入，稍后按原 key 重投。
 4. 在原 key 记录上认回：同内容返回原回执，异内容返回 `conflict`，部分或未知沿原身份认回。
@@ -878,7 +904,7 @@ Tool 核对 saved 的 key 与原冻结键相同后，以 `retained` 证据（`cu
 
 #### 租户、容量与背压
 
-接收入口按租户分开容量与背压。每个租户有自己的份额预留：一个租户占满份额，不能阻止另一个租户的接管，也不能只靠可能被单个租户耗尽的共享桶。Tool 侧同样按租户限制未释放的结果数、账目修订数与字节，以及同时进行的 push 数。容量满时拒绝新的接管，不删除旧责任腾出空间。
+接收入口按租户分开容量与背压。每个租户有自己的份额预留：一个租户占满份额，不能阻止另一个租户的接管，也不能只靠可能被单个租户耗尽的共享桶。Tool 侧同样按租户限制未释放的结果数、账目修订数与字节，以及同时进行的 push 数。同租户的 push 数用尽时，后到的交付在该租户的有界待办里按到达顺序排队，不因同租户已有 push 在途而被拒绝，也不占别的租户的份额。待办满时才答 `unavailable`，交付责任保持待推，稍后重试。接管侧容量满时拒绝新的接管，不删除旧责任腾出空间。
 
 push 的 `access` 是代原租户行事的主体。双方诊断分别记录该主体、key、冻结的 consumer 与尝试关联。诊断不记录正文、秘密或凭据，也不从无响应推断未保存。诊断记录失败时显式报告诊断缺口，不回滚已经成立的业务事实。
 
@@ -890,9 +916,8 @@ push 的 `access` 是代原租户行事的主体。双方诊断分别记录该�
 | --- | --- | --- | --- |
 | 1 | tenant 未铸造 | `tenant` | `identity` |
 | 2 | 调用引用文本非法 | `key.reference` | `reference-malformed` |
-| 3 | 调用引用属于其他租户 | `key.reference` | `foreign-tenant` |
-| 4 | account 交付的 `key.revision` 与 `account.revision` 不同 | `key.revision` | `revision-mismatch` |
-| 5 | 非 null 的 `account.subject` 不是 `tool_execution` 加原调用身份 | `account.subject` | `call-mismatch` |
+| 3 | account 交付的 `key.revision` 与 `account.revision` 不同 | `key.revision` | `revision-mismatch` |
+| 4 | 非 null 的 `account.subject` 不是 `tool_execution` 加原调用身份 | `account.subject` | `call-mismatch` |
 
 第 4 项只用于 account 交付。第 5 项用于 account 交付与 `account` 不为 null 的 result 交付。Model 推送协议的“key 版本与正文版本不同”一行不适用：Tool 的 result 载荷不另带结果版本，`key.result` 是唯一的版本值。
 
@@ -1275,11 +1300,11 @@ simple tool 与 multiple-command tool 复用 ToolReturnDeclaration。单函数�
 
 作者先用 defineToolOperation 将一个 ToolAuthor 的参数说明、返回声明和执行能力封装成 ToolOperation。构造时检查 A、R 与该作者的解析器、执行器、返回验证器、编码器和渲染器的类型关系。封装后对登记层隐藏 A/R 和 executor，内部保留这组对应关系及完整 P13 管线。不能用 ToolAuthor<unknown, unknown, …> 或强制断言拼成异构命令表。类型只能检查可表达的关系，schema 身份、正文及 codec 的语义一致仍需绑定验证。
 
-defineFunctionTool 接受一个已声明参数的操作。defineCommandTool 接受以命令名为键、包含 summary 和 operation 的表。命令键是唯一名称源，不能另传一份平行的名字到执行器表。构造器从这份注册生成 ToolImplementation，分别投影函数参数/returns 或各命令的参数/returns。ToolImplementation 只含实现侧事实：形状、description、`backgroundAllowed` 与 declarations。它不含 name、adoption 与治理字段。装载器用 `deriveDefinition` 把它与资产治理声明合成 ToolDefinition，见[定义完整性与呈现](#定义完整性与呈现)。Catalog 与 ToolUsage 读取这个派生定义，不维护第二份声明。executor-owned 参数命令继续保留自己的 usage、protocol 和 ParameterCodec，不能借此省略返回声明或校验。
+defineFunctionTool 接受一个已声明参数的操作。defineCommandTool 接受以命令名为键、包含 summary 和 operation 的表，调用编码 `encoding`，以及可选的工具规则 `guide`（给出时不得为空白）。命令键是唯一名称源，不能另传一份平行的名字到执行器表。构造器从这份注册生成 ToolImplementation，分别投影函数参数/returns 或各命令的参数/returns。ToolImplementation 只含实现侧事实：形状、description、`backgroundAllowed` 与 declarations。它不含 name、adoption 与治理字段。装载器用 `deriveDefinition` 把它与资产治理声明合成 ToolDefinition，见[定义完整性与呈现](#定义完整性与呈现)。Catalog 与 ToolUsage 读取这个派生定义，不维护第二份声明。executor-owned 参数命令继续保留自己的 usage、protocol 和 ParameterCodec，不能借此省略返回声明或校验。
 
 这些构造器不执行工具，也不访问外部服务。它们检查可同步判断的形状、名称及模式一致性，保存声明快照和原能力绑定。构造器拒绝空命令表和非法名称，只采用记录的自身键，不查原型链。上游从条目序列生成命令表时，须在覆盖发生前拒绝重名；构造器无法恢复已被调用者覆盖的同名项。它们的成功不是 available 或使用授权。绑定提供者在开放可用性前，异步核对各操作的 schema 来源、精确修订、正文和上限，以及实际作者绑定。声明与绑定不一致时，对应操作不可用，不能改用其他命令或扩大 schema 让它通过。
 
-ToolBindings 提供者经 `register` 接收已装载的 ToolImplementation，按登记键持有。resolve 按 FixedToolRequest 的能力身份、记下的形状和 command 在同形贡献中选择一次操作（记下的登记键仍 live 时优先它），固定其参数解析、executor、返回检查、renderer、程序编码及 schema。单函数只接受 command=null，多命令要求具名且存在的 command，不存在时拒绝，不能默认第一个或任意分派。执行、settle 与恢复都沿原选择。仅满足另一个 command 的 schema 不能成功，不能把所有命令的输出合成联合再验证。已完成结果的归属沿 call 的固定请求和 resultVersion 查回；即使两个命令采用相同 schema，也不能交换调用归属。
+ToolBindings 提供者经 `register` 接收已装载的 ToolImplementation，按登记键持有。resolve 按 FixedToolRequest 的能力身份、记下的形状和 command 在同形贡献中选择一次操作（记下的登记键仍 live 时优先它），固定其参数解析、executor、返回检查、renderer、程序编码及 schema。单函数只接受 command=null，多命令要求具名且存在的 command，不存在时拒绝，不能默认第一个或任意分派。执行、settle 与恢复都沿原选择。仅满足另一个 command 的 schema 不能成功，不能把所有命令的输出合成联合再验证。多命令工具的参数是整次调用：绑定先用 `commandArguments` 按定义的编码切出所选命令的参数，再交给该命令的参数解析；调用点名的命令不是固定请求的 command，或调用无法解码时，结果是带固定原因的失败，不改用调用点名的命令。注册保存作者原有的参数解析，切分只在绑定一侧做一次。已完成结果的归属沿 call 的固定请求和 resultVersion 查回；即使两个命令采用相同 schema，也不能交换调用归属。
 
 登记会封闭不同 A/R，但不隐藏环境 E 或内容块 B 的兼容性。一个注册中的操作使用同一显式 E/B 契约。某个函数只需部分依赖时，由作者提供窄适配；独立服务可按操作注入，不自动并集全部权限。ToolOperation 与 ToolImplementation 是当前执行域的能力，不是 settings 或数据记录，不能交给程序执行方。恢复保存原采用及可恢复来源，不序列化这些闭包。
 

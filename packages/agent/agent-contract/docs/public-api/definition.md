@@ -35,6 +35,12 @@ Skill、Tool 和 MCP 的选入按下面的行为顺序成立。
 
 这些规则仅适用 Skill、Tool 和 MCP，不为其他 AgentDefinition、Slash Command、Plugin 或 Loop Extension 开放统一自动继承。
 
+## 系统提示词：`instructions`
+
+定义是它的系统提示词的唯一源（R2-D124）。可选成员 `instructions` 是有序段的数组，每段有 `id` 与 `text`。省略表示定义不带提示词，这不是错误。给出时段数 1 到 32，`id` 在定义内唯一并匹配 `^[a-z][a-z0-9-]{0,63}$`，每段 `text` 按 UTF-8 字节计不超过 10000，不含 `{{`；整份声明仍受 100000 字节约束。违反任一条得到 `malformed`，拒绝带 `detail` 诊断，写明哪一段的哪个成员。精确规则与判断次序见 SPEC 的[声明判断](../../SPEC.md#声明判断)，数值在常量 `INSTRUCTION_LIMITS`。
+
+提示词计入定义的内容：改动一个字，定义的规范文本就变，采用方按正文算出的采用摘要随之变化。Request Context 组装时把这些段按次序作为系统提示词的首批段读出；定义带 `instructions` 却读不出时失败关闭，不发空提示词，规则归 agent-context 的[请求准备](../../../../context/agent-context/SPEC.md#requests-groups)。日期、当前目录、模型名、窗口占用这类逐请求变化的事实不写进 `instructions`，它们走 runtime context 块（request-context-contract 的 [RQ-02](../../../../context/request-context-contract/SPEC.md#rq-02-组装的前置输入)）。
+
 引用的 `resident` 为 true 时，该引用进入常驻候选。常驻集合由采用依据持有方在采用点求出，规则见 Tool 契约的[常驻规则](../../../../tool/tool-contract/SPEC.md#会话常驻规则r1r5)。Agent 只校验 `resident` 的类型，不求常驻集合。
 
 ## 调用方可选声明与已知身份

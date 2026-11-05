@@ -24,7 +24,7 @@ import type { SqlStorage } from '@omne-harness/sql-contract'
 import { describe, expect, it } from 'vitest'
 import { canonicalText, encodeValue } from '../src/codec.ts'
 import { createSessionStorage } from '../src/index.ts'
-import { workFoldCounts, type WorkFoldCounts } from '../src/work-cache.ts'
+import { workFoldCounts, type WorkCacheBounds, type WorkFoldCounts } from '../src/work-cache.ts'
 import { NO_FOCUS, readHistory } from '../src/worker/history-index.ts'
 import { PROTOCOL } from '../src/worker/schema.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
@@ -54,9 +54,9 @@ const readsOf = (a: App, handler: string, from: number): number =>
   a.provider.calls.slice(from).filter(call => call.kind === 'read' && call.handler === handler)
     .length
 
-/** The change of the fold counts since `before`. */
-function since(before: WorkFoldCounts): WorkFoldCounts {
-  const now = workFoldCounts()
+/** The change of the fold counts of the database behind `storage` since `before`. */
+function since(storage: SqlStorage, before: WorkFoldCounts): WorkFoldCounts {
+  const now = workFoldCounts(storage)
   return {
     folded: now.folded - before.folded,
     indexed: now.indexed - before.indexed,
@@ -79,7 +79,7 @@ const none: WorkFoldCounts = {
  * A port over a storage object of its own (a work cache of its own). `hooks` run once, before the
  * read of their handler goes to the storage.
  */
-function portOver(a: App) {
+function portOver(a: App, workCache?: WorkCacheBounds) {
   const hooks = new Map<string, () => Promise<void> | void>()
   /** Changes the next answer of a handler, once. */
   const rewrites = new Map<string, (output: Record<string, unknown>) => Record<string, unknown>>()
@@ -101,7 +101,12 @@ function portOver(a: App) {
     },
   } as SqlStorage
   return {
-    port: createSessionStorage<string>({ ...a.storageOptions, storage }),
+    port: createSessionStorage<string>({
+      ...a.storageOptions,
+      storage,
+      ...(workCache === undefined ? {} : { workCache }),
+    }),
+    storage,
     hooks,
     rewrites,
   }
@@ -132,9 +137,9 @@ const accept = (a: App, port: Port, name: string) =>
  */
 async function folds(a: App, commit: () => Promise<unknown>) {
   await readWork(a.port, a)
-  const before = workFoldCounts()
+  const before = workFoldCounts(a.provider.storage)
   ok(await commit())
-  expect(since(before)).toEqual({ ...none, folded: 1 })
+  expect(since(a.provider.storage, before)).toEqual({ ...none, folded: 1 })
   const from = a.provider.calls.length
   const held = await readWork(a.port, a)
   expect(readsOf(a, WHOLE, from)).toBe(0)
@@ -360,9 +365,9 @@ describe('T-F2: only a fresh commit onto the version just below folds', () => {
   it('no held snapshot: nothing folds, and the next read is whole', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
-    const before = workFoldCounts()
+    const before = workFoldCounts(a.provider.storage)
     ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
-    expect(since(before)).toEqual({ ...none, skipped: 1 })
+    expect(since(a.provider.storage, before)).toEqual({ ...none, skipped: 1 })
     const from = a.provider.calls.length
     await readWork(a.port, a)
     expect(readsOf(a, WHOLE, from)).toBe(1)
@@ -372,16 +377,16 @@ describe('T-F2: only a fresh commit onto the version just below folds', () => {
     const a = await app()
     ok(await a.create(TENANT_A))
     await folds(a, () => a.accept(TENANT_A, 'session-1', 'input-1'))
-    const before = workFoldCounts()
+    const before = workFoldCounts(a.provider.storage)
     ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
-    expect(since(before)).toEqual(none)
+    expect(since(a.provider.storage, before)).toEqual(none)
   })
 
   it('a commit the participant stops folds nothing', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
     await readWork(a.port, a)
-    const before = workFoldCounts()
+    const before = workFoldCounts(a.provider.storage)
     const refused = await a.port.commit({
       access: a.access(TENANT_A),
       command: {
@@ -403,7 +408,7 @@ describe('T-F2: only a fresh commit onto the version just below folds', () => {
       guards: [],
     })
     expect(refused).toHaveProperty('failure')
-    expect(since(before)).toEqual(none)
+    expect(since(a.provider.storage, before)).toEqual(none)
   })
 
   it('the version below differs in the publication count: nothing folds', async () => {
@@ -421,9 +426,54 @@ describe('T-F2: only a fresh commit onto the version just below folds', () => {
     await agent.publish(
       agentEventOf(eventOf(scene, 1, [registrationOf(scene.attempt, 1)], 'log-1')),
     )
-    const before = workFoldCounts()
+    const before = workFoldCounts(a.provider.storage)
     ok(await a.accept(TENANT_A, 'session-1', 'input-2'))
-    expect(since(before)).toEqual({ ...none, skipped: 1 })
+    expect(since(a.provider.storage, before)).toEqual({ ...none, skipped: 1 })
+  })
+})
+
+describe('the fold counts are those of one database', () => {
+  it('a fold into the cache of one database counts there only, never in another one', async () => {
+    const a = await app()
+    const b = await app()
+    ok(await a.create(TENANT_A))
+    ok(await b.create(TENANT_A))
+    await readWork(a.port, a)
+    await readWork(b.port, b)
+    const beforeA = workFoldCounts(a.provider.storage)
+    const beforeB = workFoldCounts(b.provider.storage)
+    ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
+    expect(since(a.provider.storage, beforeA)).toEqual({ ...none, folded: 1 })
+    expect(since(b.provider.storage, beforeB)).toEqual(none)
+    ok(await b.accept(TENANT_A, 'session-1', 'input-1'))
+    ok(await b.accept(TENANT_A, 'session-1', 'input-2'))
+    expect(since(b.provider.storage, beforeB)).toEqual({ ...none, folded: 2 })
+    expect(since(a.provider.storage, beforeA)).toEqual({ ...none, folded: 1 })
+  })
+})
+
+describe('a fold that the cache does not keep', () => {
+  it('is not counted as folded: the new snapshot is over the byte bound of the cache', async () => {
+    const a = await app()
+    ok(await a.create(TENANT_A))
+    const [[stored]] = a.provider.select(
+      'dom_0',
+      'SELECT snapshot FROM sl_state WHERE tenant = ? AND session = ?',
+      [textOf(TENANT_A), 'session-1'],
+    ).rows as unknown as [[string]]
+    const chunks = a.provider.select(
+      'dom_0',
+      'SELECT value FROM sl_state_item WHERE tenant = ? AND session = ?',
+      [textOf(TENANT_A), 'session-1'],
+    ).rows as unknown as [string][]
+    // The stored size is the head text and the chunk texts (R2-D292).
+    const bytes = chunks.reduce((sum, [value]) => sum + value.length, stored.length)
+    // The bound holds the snapshot read now, and not the larger one of the next commit.
+    const { port, storage } = portOver(a, { bytes })
+    await readWork(port, a)
+    const before = workFoldCounts(storage)
+    ok(await accept(a, port, 'input-1'))
+    expect(since(storage, before)).toEqual(none)
   })
 })
 
@@ -435,7 +485,7 @@ describe('T-F3: a publication between the commit and its fold', () => {
       combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
       domainOf: () => 'dom_0',
     })
-    const { port, hooks } = portOver(a)
+    const { port, storage, hooks } = portOver(a)
     ok(await a.create(TENANT_A))
     ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
     ok(await startRun(a, 'start-run-1'))
@@ -454,9 +504,9 @@ describe('T-F3: a publication between the commit and its fold', () => {
         attempt: run.attempt,
       }),
     )
-    const before = workFoldCounts()
+    const before = workFoldCounts(storage)
     ok(await accept(a, port, 'input-3'))
-    expect(since(before)).toEqual({ ...none, folded: 1, republished: 1 })
+    expect(since(storage, before)).toEqual({ ...none, folded: 1, republished: 1 })
     const from = a.provider.calls.length
     const after = await readWork(port, a)
     expect(readsOf(a, WHOLE, from)).toBe(0)
@@ -467,20 +517,69 @@ describe('T-F3: a publication between the commit and its fold', () => {
 
   it('a newer tail at the index read: nothing is registered, and the next read is whole', async () => {
     const a = await app()
-    const { port, hooks } = portOver(a)
+    const { port, storage, hooks } = portOver(a)
+    const other = portOver(a)
     ok(await a.create(TENANT_A))
     await readWork(port, a)
     hooks.set('session.work-index', async () => {
-      ok(await accept(a, portOver(a).port, 'input-other'))
+      ok(await accept(a, other.port, 'input-other'))
     })
-    const before = workFoldCounts()
+    const before = workFoldCounts(storage)
+    const otherBefore = workFoldCounts(other.storage)
     ok(await accept(a, port, 'input-1'))
-    // The other port holds nothing, so its own commit skips its fold.
-    expect(since(before)).toEqual({ ...none, stale: 1, skipped: 1 })
+    expect(since(storage, before)).toEqual({ ...none, stale: 1 })
+    // The other port holds nothing, so its own commit skips its fold, in its own counts.
+    expect(since(other.storage, otherBefore)).toEqual({ ...none, skipped: 1 })
     const from = a.provider.calls.length
     const after = await readWork(port, a)
     expect(readsOf(a, WHOLE, from)).toBe(1)
     expect(after.pending.length).toBe(2)
+  })
+})
+
+describe('T-F3: a publication takes the index of the folded tail over the row bound', () => {
+  it('the fold registers at the answered count; readers that waited for it answer as a whole read', async () => {
+    const a = await app()
+    const { port, storage, hooks } = portOver(a)
+    ok(await a.create(TENANT_A))
+    const held = await readWork(port, a)
+    let readers: Promise<WorkSnapshot>[] = []
+    hooks.set('session.work-index', async () => {
+      readers = Array.from({ length: 3 }, () => readWork(port, a))
+      // The readers read the folded version, the count before the publication, and wait.
+      await new Promise(resolve => setTimeout(resolve, 20))
+      // One publication: the count moves on, and the pending input gets more admission rows than
+      // the index of a work answer may read (`WORK_INDEX_ROWS`), so the index read is `too-many`.
+      a.provider.seed(
+        'dom_0',
+        `INSERT INTO er_admission_idx
+           (tenant, session, input, ordinal, execution, operation, accepted, grant_ref, attachment)
+         WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 1001)
+         SELECT ?, ?, 'input-1', i, 'execution-x', 'aop-' || i, '{}', '{}', 'attachment-x' FROM n`,
+        [textOf(TENANT_A), 'session-1'],
+      )
+      a.provider.seed(
+        'dom_0',
+        `INSERT INTO er_root (tenant, session, published) VALUES (?, ?, 1)
+           ON CONFLICT (tenant, session) DO UPDATE SET published = published + 1`,
+        [textOf(TENANT_A), 'session-1'],
+      )
+    })
+    const before = workFoldCounts(storage)
+    ok(await accept(a, port, 'input-1'))
+    expect(since(storage, before)).toEqual({ ...none, folded: 1, republished: 1 })
+    const answers = await Promise.all(readers)
+    expect(answers.length).toBe(3)
+    const whole = await wholeRead(a)
+    expect(whole.revision).toBe(String(BigInt(held.revision) + 1n))
+    expect(whole.historyIndex).toBeUndefined()
+    for (const answer of answers)
+      expect(canonicalText(encodeValue(answer))).toBe(canonicalText(encodeValue(whole)))
+    // The cache holds the version the store is at: the next read reads no whole snapshot.
+    const from = a.provider.calls.length
+    const after = await readWork(port, a)
+    expect(readsOf(a, WHOLE, from)).toBe(0)
+    expect(canonicalText(encodeValue(after))).toBe(canonicalText(encodeValue(whole)))
   })
 })
 
@@ -492,7 +591,7 @@ describe('T-F3 (H2): a publication before the basis of the batch is read again',
       combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
       domainOf: () => 'dom_0',
     })
-    const { port, hooks } = portOver(a)
+    const { port, storage, hooks } = portOver(a)
     ok(await a.create(TENANT_A))
     ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
     ok(await startRun(a, 'start-run-1'))
@@ -511,10 +610,10 @@ describe('T-F3 (H2): a publication before the basis of the batch is read again',
         attempt: run.attempt,
       }),
     )
-    const before = workFoldCounts()
+    const before = workFoldCounts(storage)
     const committing = a.provider.calls.length
     ok(await accept(a, port, 'input-3'))
-    expect(since(before)).toEqual({ ...none, stale: 1 })
+    expect(since(storage, before)).toEqual({ ...none, stale: 1 })
     // The fold stops at the basis read: it reads no index for a version it cannot prove.
     expect(readsOf(a, 'session.work-index', committing)).toBe(0)
     const from = a.provider.calls.length
@@ -526,7 +625,7 @@ describe('T-F3 (H2): a publication before the basis of the batch is read again',
 describe('T-F3 (H2): the index of this Worker went past the position before the batch', () => {
   it('the basis read is stale, nothing is registered, and the next read is whole', async () => {
     const a = await app()
-    const { port, hooks } = portOver(a)
+    const { port, storage, hooks } = portOver(a)
     ok(await a.create(TENANT_A))
     ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
     await readWork(port, a)
@@ -534,9 +633,9 @@ describe('T-F3 (H2): the index of this Worker went past the position before the 
     hooks.set('session.work-reads', async () => {
       await wholeRead(a)
     })
-    const before = workFoldCounts()
+    const before = workFoldCounts(storage)
     ok(await startRun(portLike(a, port), 'start-run-1'))
-    expect(since(before)).toEqual({ ...none, stale: 1 })
+    expect(since(storage, before)).toEqual({ ...none, stale: 1 })
     const from = a.provider.calls.length
     await readWork(port, a)
     expect(readsOf(a, WHOLE, from)).toBe(1)
@@ -546,7 +645,7 @@ describe('T-F3 (H2): the index of this Worker went past the position before the 
 describe('T-F7: a fold that throws', () => {
   it('a reader waiting for it reads whole and answers the new tail', async () => {
     const a = await app()
-    const { port, hooks, rewrites } = portOver(a)
+    const { port, storage, hooks, rewrites } = portOver(a)
     ok(await a.create(TENANT_A))
     const held = await readWork(port, a)
     const readers: Promise<WorkSnapshot>[] = []
@@ -558,26 +657,26 @@ describe('T-F7: a fold that throws', () => {
     // The batch read answers entries without their ids: the fold throws on them.
     rewrites.set('session.history', output => ({
       ...output,
-      entries: (output['entries'] as Record<string, unknown>[]).map(entry => {
-        const { id: _id, ...rest } = entry
-        return rest
+      entries: (output['entries'] as string[]).map(text => {
+        const { id: _id, ...rest } = JSON.parse(text) as Record<string, unknown>
+        return JSON.stringify(rest)
       }),
     }))
-    const before = workFoldCounts()
+    const before = workFoldCounts(storage)
     const from = a.provider.calls.length
     ok(await accept(a, port, 'input-1'))
     expect(readers.length).toBe(1)
     const answers = await Promise.all(readers)
     expect(answers[0]?.revision).toBe(String(BigInt(held.revision) + 1n))
     expect(readsOf(a, WHOLE, from)).toBe(1)
-    expect(since(before)).toEqual({ ...none, stale: 1 })
+    expect(since(storage, before)).toEqual({ ...none, stale: 1 })
   })
 })
 
 describe('T-F4: a batch that reduce quarantines on the held snapshot', () => {
   it('is not registered; the quarantine is counted and the next read is whole', async () => {
     const a = await app()
-    const { port, hooks } = portOver(a)
+    const { port, storage, hooks } = portOver(a)
     ok(await a.create(TENANT_A))
     await readWork(port, a)
     hooks.set('session.history', () => {
@@ -594,9 +693,9 @@ describe('T-F4: a batch that reduce quarantines on the held snapshot', () => {
         [JSON.stringify(changed), textOf(TENANT_A), 'session-1', position],
       )
     })
-    const before = workFoldCounts()
+    const before = workFoldCounts(storage)
     ok(await accept(a, port, 'input-1'))
-    expect(since(before)).toEqual({ ...none, quarantined: 1 })
+    expect(since(storage, before)).toEqual({ ...none, quarantined: 1 })
     const from = a.provider.calls.length
     const after = await readWork(port, a)
     expect(readsOf(a, WHOLE, from)).toBe(1)
@@ -634,9 +733,9 @@ describe('T-F6: a decision over the bound of the reply', () => {
     for (let n = 0; n < 12; n += 1)
       ok(await a.accept(TENANT_A, 'session-1', `input-${String(n)}-${'x'.repeat(2000)}`))
     await readWork(a.port, a)
-    const before = workFoldCounts()
+    const before = workFoldCounts(a.provider.storage)
     ok(await a.accept(TENANT_A, 'session-1', 'input-last'))
-    expect(since(before)).toEqual({ ...none, skipped: 1 })
+    expect(since(a.provider.storage, before)).toEqual({ ...none, skipped: 1 })
     const from = a.provider.calls.length
     await readWork(a.port, a)
     expect(readsOf(a, WHOLE, from)).toBe(1)

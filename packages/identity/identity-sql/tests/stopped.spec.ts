@@ -1,5 +1,6 @@
-// DP3-C16: after `stop()`, a new call gets an answer that says nothing about credentials, logins
-// or memberships. A call accepted before `stop()` runs to its end.
+// DP3-C16, IS-07: after `stop()`, a new call gets an answer that says nothing about credentials,
+// logins or memberships; the governance port answers like the operations. A call accepted before
+// `stop()` runs to its end.
 import { afterEach, expect, it } from 'vitest'
 import { gatedCompute } from './fixtures/scrypt.ts'
 import { openProvider, type OpenedProvider } from './fixtures/provider.ts'
@@ -47,6 +48,22 @@ it('answers not-loginable, basis-unavailable and unavailable after stop', async 
     kind: 'invalid',
   })
   expect((await opened.provider.standing.read({ tenant: ada.tenant })).kind).toBe('unavailable')
+  // Every governance call, a write, a read or a report, says nothing about the records either.
+  const { governance } = opened.provider
+  for (const outcome of [
+    await governance.createOrganization({
+      login: issued.login,
+      actingTenant: ada.tenant,
+      createCallId: 'call-1',
+      name: 'Team',
+      governanceModelId: 'default-team',
+    }),
+    await governance.revokeLogin({ login: issued.login, target: issued.login }),
+    await governance.queryOwnMemberships({ login: issued.login }),
+    await governance.queryCurrentTenant({ login: issued.login }),
+    await governance.reportBusinessAccess({ login: issued.login }),
+  ])
+    expect(outcome).toEqual({ kind: 'basis-unavailable', diagnostic: 'provider-stopped' })
   // Stopping twice changes nothing.
   opened.provider.stop()
   expect((await opened.provider.standing.read({ tenant: ada.tenant })).kind).toBe('unavailable')

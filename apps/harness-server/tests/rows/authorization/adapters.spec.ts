@@ -30,16 +30,21 @@ import {
   type TenantStandingReading,
   type TenantStandingSource,
 } from '@omne-harness/identity'
-import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
+import {
+  identityClockKey,
+  principalVerifierKey,
+  tenantStandingKey,
+} from '@omne-harness/identity/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { SessionAccessRequest } from '@omne-harness/session-contract'
 import { sessionId } from '@omne-harness/session-contract/testing'
 import {
   AGENT_HOST_COMPONENT,
   AGENT_POLICY,
-  DECISION_ITEMS,
   MAINTENANCE_GRANTS,
+  SESSION_MAINTAINER_COMPONENT,
   SESSION_POLICY,
+  TENANT_DOMAIN_SCANNER_COMPONENT,
   TOOL_RESIDENCY_COMPONENT,
   holderProjection,
   releaseMaintenanceGrants,
@@ -54,8 +59,10 @@ import {
   createToolAccessGuard,
   type AccessPorts,
 } from '../../../src/rows/authorization/adapters.ts'
+import { identityClock } from '../../../src/entry/identity-clock.ts'
 import { authorization } from '../../../src/rows/authorization/row.ts'
 import { authorizationConfig } from '../../../src/rows/authorization/action-rules.ts'
+import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../../../src/model/principals.ts'
 import { serveProfile } from '../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
@@ -141,6 +148,7 @@ function world(grantTable: typeof MAINTENANCE_GRANTS = MAINTENANCE_GRANTS) {
     session: createSessionAccessCheck(ports),
     agent: createAgentAccessCheck(ports),
     system,
+    issuer: authority.issuer,
     login: (tenant: TenantId = A) => acting(tenant, 'identity-login', 'lgs_x'),
     work: (session = OWN, tenant: TenantId = A) => acting(tenant, 'session', session),
     foreign: (tenant: TenantId = A) => acting(tenant, 'unknown-owner', 'x'),
@@ -274,12 +282,29 @@ describe('sessionAccessCheck: members and branches', () => {
     expect(w.seen.standing).toEqual([])
   })
 
-  it('denies D-1 and D-2 for the login principal and calls nothing', async () => {
+  it('lets the own login set the tenant settings and manage the session, with no named qualification', async () => {
     const w = world()
     for (const kind of ['configureAutoArchive', 'setRelation']) {
-      expect(await w.session.check(mutate(w.login(), kind))).toEqual({ kind: 'denied' })
+      expect((await w.session.check(mutate(w.login(), kind))).kind, kind).toBe('allowed')
+    }
+    expect(w.seen.admissions.map(input => input.requires)).toEqual([[], []])
+  })
+
+  it('denies the two operations to a login principal of another tenant, and reads nothing', async () => {
+    const w = world()
+    for (const kind of ['configureAutoArchive', 'setRelation']) {
+      const request = mutate(w.login(B), kind, {}, { tenant: A })
+      expect(await w.session.check(request), kind).toEqual({ kind: 'denied' })
     }
     expect(w.reached()).toBe(0)
+  })
+
+  it('denies the two operations to the work principal and to a foreign principal', async () => {
+    const w = world()
+    for (const kind of ['configureAutoArchive', 'setRelation']) {
+      expect(await w.session.check(mutate(w.work(), kind)), kind).toEqual({ kind: 'denied' })
+      expect(await w.session.check(mutate(w.foreign(), kind)), kind).toEqual({ kind: 'denied' })
+    }
   })
 })
 
@@ -437,6 +462,39 @@ describe('sessionAccessCheck: system principals and the matrix', () => {
     expect(
       await w.session.check(references({ kind: 'system', component: TOOL_RESIDENCY_COMPONENT })),
     ).toEqual({ kind: 'denied' })
+  })
+
+  it('passes `pending` of any tenant for the session maintainer, the S3 recovery scanner, only', async () => {
+    const w = world()
+    const maintainer = w.system(SESSION_MAINTAINER_COMPONENT)
+    for (const tenant of [A, B]) {
+      const answer = await w.session.check(pending(maintainer, tenant))
+      expect(answer, 'the maintainer reads pending').toMatchObject({
+        kind: 'allowed',
+        evidence: { record: `maintenance-grant/${SESSION_MAINTAINER_COMPONENT}` },
+      })
+    }
+    for (const other of [
+      'sessionPrincipals.coordinator',
+      TENANT_DOMAIN_SCANNER_COMPONENT,
+      TOOL_RESIDENCY_COMPONENT,
+      AGENT_HOST_COMPONENT,
+    ])
+      expect(await w.session.check(pending(w.system(other))), other).toEqual({ kind: 'denied' })
+    expect(
+      await w.session.check(pending({ kind: 'system', component: SESSION_MAINTAINER_COMPONENT })),
+      'a copy of the maintainer shape',
+    ).toEqual({ kind: 'denied' })
+  })
+
+  it('gives the session maintainer no other system cell', async () => {
+    const w = world()
+    const maintainer = w.system(SESSION_MAINTAINER_COMPONENT)
+    expect(await w.session.check(references(maintainer))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(releasedScopes(maintainer))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(mutate(maintainer, 'receive', scopeReleaseFact))).toEqual({
+      kind: 'denied',
+    })
   })
 
   it('denies every login and work principal on the system requests, and reads nothing', async () => {
@@ -602,6 +660,44 @@ describe('agentAccessCheck', () => {
     })
   })
 
+  it('lets the Model host work principal M receive a result for its own tenant only, and nothing else (R2-D248)', async () => {
+    const w = world()
+    const target = { kind: 'execution' as const, execution }
+    const host = w.system(MODEL_HOST_COMPONENT)
+    const model = (tenant: TenantId): ActingForTenantPrincipal =>
+      okOf(
+        w.issuer.issueActingForTenant({
+          actor: host,
+          tenant,
+          work: { owner: MODEL_WORK_OWNER, work: 'call-1' },
+        }),
+        'model work principal',
+      )
+    expect(await w.agent.check(agentRequest(model(A), 'receive-result', target))).toMatchObject({
+      kind: 'allowed',
+    })
+    expect(await w.agent.check(agentRequest(model(B), 'receive-result', target))).toEqual({
+      kind: 'denied',
+    })
+    // The member cells of the work column, which W passes: M passes none of them.
+    for (const operation of ['submit', 'control', 'resume', 'detach', 'invoke'] as const)
+      expect(await w.agent.check(agentRequest(model(A), operation, target)), operation).toEqual({
+        kind: 'denied',
+      })
+    // M's shape with an actor of another component is not M.
+    const forged = okOf(
+      w.issuer.issueActingForTenant({
+        actor: w.system('sessionWorkPrincipals'),
+        tenant: A,
+        work: { owner: MODEL_WORK_OWNER, work: 'call-1' },
+      }),
+      'forged',
+    )
+    expect(await w.agent.check(agentRequest(forged, 'receive-result', target))).toEqual({
+      kind: 'denied',
+    })
+  })
+
   it('lets the agent host publish, quiesce and withdraw an instance, and nobody else', async () => {
     const w = world()
     const target = { kind: 'instance' as const, instance }
@@ -713,7 +809,7 @@ describe('agentActionAdmission', () => {
       actionRules: rules,
     })
     for (const change of [
-      { original: { name: 'Shell' } },
+      { definition: { ...input.definition, name: 'Shell' } },
       { permissions: [{ need: 'permission' }] },
       { decision: {} },
     ]) {
@@ -854,7 +950,11 @@ describe('Tool access qualification', () => {
   }
   for (const check of toolAccessGuardConformance<unknown>()) {
     it(check.name, async () => {
-      await check.run(fixture())
+      const subject = fixture()
+      // The suite is only evidence if the fixture really separates listed from unlisted principals.
+      expect(await subject.guard.qualify(subject.allowed)).toEqual({ kind: 'allowed' })
+      expect(await subject.guard.qualify(subject.unlisted)).toMatchObject({ kind: 'denied' })
+      await expect(check.run(subject)).resolves.toBeUndefined()
     })
   }
   it.each([42, ''])('denies malformed call %j before reading admission', async call => {
@@ -952,6 +1052,9 @@ describe('the row', () => {
       apply(scope: Context) {
         scope.provide(principalVerifierKey, authority.verifier)
         scope.provide(tenantStandingKey, { read: async () => readingOf('member') })
+        scope.provide(identityClockKey, {
+          now: () => Promise.reject(new Error('no grant of this case has an end time')),
+        })
       },
     })
     const row = await ctx.plugin(authorization, {
@@ -1111,7 +1214,7 @@ describe('the row', () => {
         ],
       },
       plugins: { identityRow, authorization, probeRow },
-      entryObjects: [verifierModule],
+      entryObjects: [verifierModule, identityClock],
     })
     await answers['run']
 
@@ -1160,20 +1263,16 @@ function labelOf(cell: PolicyCell): string {
       return `放行（矩阵 ${cell.purpose}）${branch}`
     case 'deny':
       return '拒绝'
-    case 'deny-pending':
-      return `默认拒绝（${cell.item}）`
   }
 }
 
-function textOf(cell: PolicyCell): string | null {
+function textOf(cell: PolicyCell): string {
   switch (cell.verdict) {
     case 'member':
     case 'matrix':
       return cell.source
     case 'deny':
       return cell.basis
-    case 'deny-pending':
-      return null
   }
 }
 
@@ -1219,7 +1318,7 @@ describe('the row specification agrees with the tables', () => {
       expect(notes, operation).toContain(`- \`${operation}\``)
       for (const cell of [row.login, row.work, row.system]) {
         const text = textOf(cell)
-        if (text !== null) expect(notes, `${operation}: ${text}`).toContain(text)
+        expect(notes, `${operation}: ${text}`).toContain(text)
       }
     }
   })
@@ -1244,14 +1343,5 @@ describe('the row specification agrees with the tables', () => {
         expect(line, holder).toContain(named)
       }
     }
-  })
-
-  it('writes the D items as default denials: outside the M2 public surface, auto archive not built', () => {
-    const items = region('d-items')
-    for (const item of Object.values(DECISION_ITEMS)) {
-      expect(items).toContain(`### ${item.id}`)
-      expect(items).toContain(item.missingRule)
-    }
-    expect(items).toContain('默认拒绝：操作不在 M2 公开面，自动归档尚未实现，已知限制')
   })
 })

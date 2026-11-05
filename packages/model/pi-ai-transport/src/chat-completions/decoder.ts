@@ -34,6 +34,7 @@ import {
   visibleTextOf,
   type JoinedDetail,
 } from './details.ts'
+import type { ToolNames } from './tool-names.ts'
 import type {
   ChatCompletionsLimits,
   ChatCompletionsRecord,
@@ -45,6 +46,8 @@ export type DecoderInput = Readonly<{
   record: ChatCompletionsRecord
   hooks: VendorHooks
   limits: ChatCompletionsLimits
+  /** The tool names of the request this decoder reads the response of. */
+  names: ToolNames
 }>
 
 /**
@@ -539,7 +542,7 @@ function toolCall(input: DecoderInput, call: ToolCall, block: OpenBlock): ModelB
     id: blockId(block.index),
     visibility: SHOWN,
     callId: call.id,
-    name: call.name,
+    name: input.names.canonical(call.name),
     arguments: decoded,
   }
 }

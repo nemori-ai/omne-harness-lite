@@ -53,7 +53,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 | `revoke-login`、`replace-credential`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-create-organization` | 必填 | 禁止 | 无 |
 | `issue-member-invitation`、`open-affiliation-request` | 必填 | 必填 | `duration` |
 | `query-organization-members` | 必填 | 必填 | `includeRemoved` |
-| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression` | 必填 | 必填 | 无 |
+| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression`、`bind-model-credential`、`unbind-model-credential`、`describe-model-credential` | 必填 | 必填 | 无 |
 
 `disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 不进入这张表。
 
@@ -63,7 +63,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 
 1. 严格 JSON 读取。失败则 `protocol-rejected`。不读取账号库。
 2. 版本不是 `governance-public/1` 时，结果是 `protocol-rejected`。这包括操作名是 `disable-subject`、`restore-subject`、`end-subject` 或 `reopen-after-media-loss` 的消息。操作名不是治理操作时，也是 `protocol-rejected`。版本是 `governance-public/1` 且操作名是这四个时，立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录。不读取账号库。
-3. 按信封表和下面的 body 表检查封闭字段。类型不符、表外字段、禁止字段出现、未列入可省略清单的缺字段，都是 `protocol-rejected`。可省略字段可以不出现。这一步仍不读取账号库。必填 `loginProof` 缺失或空字符串不在这一步拒绝。`leave-organization` 的 `body` 若出现目标成员字段，也是 `protocol-rejected`。
+3. 按信封表和下面的 body 表检查封闭字段。类型不符、表外字段、禁止字段出现、未列入可省略清单的缺字段，都是 `protocol-rejected`。可省略字段可以不出现。这一步仍不读取账号库。必填 `loginProof` 缺失或空字符串不在这一步拒绝。`leave-organization` 的 `body` 若出现目标成员字段，也是 `protocol-rejected`。通过本步的请求，若操作名是部署声明不提供的治理操作，立刻返回 `stage-not-provided` 和空 `body`，不进入第 4 步，见[本阶段不提供的操作](#本阶段不提供的操作)。
 4. 上表要求登录证明时，把缺失、空字符串、未签发、已撤销，以及不是本部署签发的证明，交给 identity。对外是同一份 `denied`。时间或权威登录记录不可得时，identity 返回 `basis-unavailable`。服务端接入不改写这两个结果，也不另持一份登录表。传输保护不证明调用者是谁。裸账号标识、证书、地址、旧连接和调用者自报的授权结果都不是当前登录。
 5. 发起者账号只取这份证明核验出的账号。`body` 里的账号、组织和租户都是目标。
 6. 上表要求行事租户时，核对该值等于该登录的当前选择。不等则 `denied`，响应不包含实际选择。行事租户所属组织与目标组织不同，本身不是冲突。
@@ -89,7 +89,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 | `unknown` | 提交结果尚未认回 | 效果没有发生，或可以安全地自动再做一次 |
 | `conflict` | 调用者有权看见的预期状态已经变了 | 调用者看不见的对象因此被确认存在 |
 | `protocol-rejected` | 消息不被接受 | 任何业务事实 |
-| `stage-not-provided` | 本阶段不提供该操作 | 主体是否存在，或删除、创建已经代替该操作 |
+| `stage-not-provided` | 本阶段，或本部署不提供该操作 | 主体是否存在，或删除、创建已经代替该操作，以及登录是否有效 |
 
 `need-decision` 的 `body` 只含原决定请求的标识。等待超时、连接断开和实例丢失不产生人的答复，也不写成批准或拒绝。答复的交付仍归人工交互的拥有者。本页不定义答复消息。
 
@@ -109,7 +109,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 | 名单 | 数组名 | 每一项 |
 | --- | --- | --- |
-| 有效登录 | `logins` | `loginId`、`issuedAt`、签发时冻结的 `maxDeadline` 与 `idleDeadline` |
+| 有效登录 | `logins` | `loginId`、`issuedAt`、`maxDeadline`（签发时确定，不再变）与 `idleDeadline`（读取时该登录当前的空闲截止时刻） |
 | 本人成员资格 | `memberships` | `organizationId`、`tenantId`、`role` |
 | 组织成员 | `members` | `accountId`、`role`。`includeRemoved` 为 false 时只有当前有效成员。为 true 时只有已解除成员 |
 | 成员邀请 | `invitations` | `invitationId`、`state`、`expiresAt`、`organizationId`、`invitedAccountId` |
@@ -126,7 +126,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 | 操作 | 必填 body 键 | 可省略 | 禁止 |
 | --- | --- | --- | --- |
-| `public-health`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-issued-invitations`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`leave-organization` | 无。`body` 是空对象 | 无 | 任何键。`leave-organization` 还禁止 `accountId` |
+| `public-health`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-issued-invitations`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`leave-organization`、`unbind-model-credential`、`describe-model-credential` | 无。`body` 是空对象 | 无 | 任何键。`leave-organization` 还禁止 `accountId` |
 | `register-and-activate`、`issue-login` | `loginIdentifier`、`credential` | 无 | 任何其他键 |
 | `revoke-login` | `targetLoginId` | 无 | 任何其他键 |
 | `replace-credential` | `currentCredential`、`newCredential` | 无 | 任何其他键 |
@@ -147,10 +147,11 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | `judge-admission` | `resource`、`action`、`parameters`、`scopeId` | 无 | `subject`、`admitted` 及其他键 |
 | `submit-authorization-expression` | `expression`、`action`、`object`、`parameters` | 无 | 任何其他键 |
 | `withdraw-authorization-expression` | `expressionId` | 无 | 任何其他键 |
+| `bind-model-credential` | `secret` | 无 | 任何其他键 |
 
 `loginIdentifier` 是账号在注册时固定的登录标识。`loginId` 和 `targetLoginId` 是一份登录的标识。两者不是同一个键。
 
-`credential`、`currentCredential` 和 `newCredential` 只出现在请求里。响应和诊断不包含它们。
+`credential`、`currentCredential`、`newCredential` 和 `secret` 只出现在请求里。响应和诊断不包含它们。`secret` 是模型凭据的秘密值，不是账号凭据。
 
 邀请的 `state` 只取 `open`、`accepted`、`rejected`、`withdrawn`、`expired` 之一。隶属请求的 `state` 只取 `pending`、`accepted`、`rejected`、`withdrawn`、`invalid`、`expired` 之一。已生效隶属的 `state` 只取 `effective` 或 `released`。
 
@@ -159,7 +160,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | 结果 | body |
 | --- | --- |
 | `register-and-activate` 的 `succeeded` | `accountId`、`organizationId`、`tenantId`。不含 `loginProof` |
-| `issue-login` 的 `succeeded` | `loginIdentifier`、`issuedAt`、`tenantId`、`loginProof`。`loginProof` 只在这一次响应出现 |
+| `issue-login` 的 `succeeded` | `loginIdentifier`、`issuedAt`、`tenantId`、`loginProof`，以及可选的 `loginId`。`loginProof` 只在这一次响应出现 |
 | `create-organization` 的 `succeeded`，以及该回执查询得到的 `succeeded` | `organizationId`、`tenantId` |
 | `issue-member-invitation` 的 `succeeded` | `invitationId`、`state` 为 `open`、`expiresAt` |
 | 邀请处置的 `succeeded` 或有权看见的 `no-change` | `invitationId`、`state`。`state` 是已经形成的那一个终结 |
@@ -181,6 +182,9 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | 表达已记录、持久设置尚未发生且这次写入没有失败的 `succeeded` | `expressionId`，`persistentSettingsUpdated` 为 false |
 | 已有 `expressionId` 的同一决定再次提交的 `no-change` | `expressionId` |
 | `revoke-login`、`replace-credential`、`leave-organization`、`remove-member`、`change-member-role` 的 `succeeded` | 空对象 |
+| `bind-model-credential` 的 `succeeded` | `configuredAt`。不含秘密 |
+| `unbind-model-credential` 的 `succeeded` 与 `no-change` | 空对象 |
+| `describe-model-credential` 的 `succeeded` | `state`。`state` 为 `usable` 或 `unreadable` 时另含 `tenantId`，以及可选的 `configuredAt`。`state` 为 `unbound` 时没有别的键。不含秘密 |
 
 
 ## 操作
@@ -201,7 +205,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 不带既有登录证明。`body` 含 `loginIdentifier` 和 `credential`。
 
-成功时签发一份新的独立登录。`body` 含登录标识、签发时间、该登录的当前租户，以及只返回这一次的登录证明。登录证明是不透明字符串。诊断输出不能包含它。最长有效期和空闲期限在签发时按当时的部署配置冻结。同一账号的另一次成功登录是另一份登录，不合并。
+成功时签发一份新的独立登录。`body` 含登录标识、签发时间、该登录的当前租户，以及只返回这一次的登录证明。`body` 还可以含 `loginId`，即这份新登录自己的标识，调用者之后可以用它作 `revoke-login` 的 `targetLoginId` 退出本登录。它不是登录证明，不能当证明使用。服务端可以省略它。省略时，调用者仍可经 `query-own-valid-logins` 取得这份登录的标识。读取方必须接受它缺席。登录证明是不透明字符串。诊断输出不能包含它。最长有效期和空闲时长在签发时按当时的部署配置冻结。空闲截止时刻从签发时起算，之后随该登录的成功业务访问刷新，冻结的只是空闲时长。同一账号的另一次成功登录是另一份登录，不合并。
 
 时间或期限依据不可得时，直接返回 `basis-unavailable`，不签发。这个选择不经过「凭据已经匹配」的分支。账号不存在、未激活和凭据错误都是 `uniform-auth-failure`。两个结果不同，但 `basis-unavailable` 不能被用来确认凭据是对的。
 
@@ -275,7 +279,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 需要有效登录。`body` 为空对象。不带目标账号。调用者只能查询证明所标识的本账号。
 
-成功时，`body.logins` 含该账号每一份当前有效登录的标识、签发时间，以及签发时冻结的最长期限和空闲期限。`completeness` 为 `complete`。不含登录证明、凭据或历史登录。发起这次查询的有效登录必须出现在名单里。服务端若只能给出空名单，对外是 `basis-unavailable`，没有登录数组。
+成功时，`body.logins` 含该账号每一份当前有效登录的标识、签发时间，以及最长截止时刻 `maxDeadline` 和空闲截止时刻 `idleDeadline`。`maxDeadline` 在签发时确定，之后不变。`idleDeadline` 是读取这一刻该登录当前的空闲截止时刻。该登录的成功业务访问刷新空闲计时之后，它比签发时的值晚。名单不返回签发时的旧值。`completeness` 为 `complete`。不含登录证明、凭据或历史登录。发起这次查询的有效登录必须出现在名单里。服务端若只能给出空名单，对外是 `basis-unavailable`，没有登录数组。
 
 发起登录无效是 `denied`，且没有登录数组。名单无法完整读出时是 `basis-unavailable`，没有登录数组。
 
@@ -345,6 +349,26 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 撤回的 `body` 含 `expressionId`。成功时留下撤回事实，并保留原表达。无资格是 `denied`。提交结果未知时，对外是 `unknown`。该结果不把原表达改成已撤回，也不把未知写成已经生效。读取故障不把原表达写成已撤回，对外是 `basis-unavailable`。
 
 表达记录已经提交、持久设置的更新尚未发生、这次写入也没有失败时，结果是 `succeeded`。服务端在这次成功里产生 `expressionId`，并放进响应 `body`。撤回使用这个 `expressionId`。请求里的 `expression` 是表达内容，不是该标识。`body` 还含 `persistentSettingsUpdated` 为 false。持久设置的这次写入已经失败、表达也没有成为持久设置时，结果是 `basis-unavailable`，不产生 `expressionId`。写入结果未知是 `unknown`。`basis-unavailable` 和 `unknown` 都不报告规则已经生效。已消费的许可不能复用。已经产生 `expressionId` 的同一决定再次提交，不增加许可。有权调用者得到 `no-change`，`body` 含已有的 `expressionId`。第一次提交仍按上面的 `succeeded` 或 `basis-unavailable`。
+
+### 模型凭据
+
+`bind-model-credential`、`unbind-model-credential` 和 `describe-model-credential` 管理行事租户自己的模型凭据。产品规则见模型调用产品设计的[凭据的范围](../../../.meta_harness/design/product/model-invocation/design.md#凭据的范围)与 [J-MD01](../../../.meta_harness/design/product/model-invocation/design.md#j-md01)。凭据的解析与发送归 [Model](../../model/model-contract/SPEC.md#342-凭据引用与解析端口)。
+
+三个操作都需要有效登录和行事租户。目标就是行事租户，`body` 不含目标租户。行事租户与当前选择不同时是 `denied`，不进入业务，响应不说明对方租户有没有凭据。行事租户必须是登录账号自己的租户。管理资格是代该租户行事的登录主体加该租户的当前成员资格。能发起模型调用不等于有这个资格。
+
+本协议按租户管理一份模型凭据。接收方、通道和每租户秘密的数量不在本协议里。一个部署需要更多通道时，另立契约，不改这三个操作的含义。
+
+- `bind-model-credential` 的 `body` 只含 `secret`。成功时，该租户的绑定成立或被更换，`body` 含本次配置时刻 `configuredAt`。之后发起的调用用这份凭据。依据不可得或写入没有发生时是 `basis-unavailable`。写入结果未知时是 `unknown`。调用者用 `describe-model-credential` 认回，不能把 `unknown` 当成没有写入。
+- `unbind-model-credential` 的 `body` 为空。成功时绑定解除，之后的调用按缺凭据处理，与从未绑定相同。已经发出的调用和它们的事实不变。没有绑定时是 `no-change`。`basis-unavailable` 与 `unknown` 的含义同上。
+- `describe-model-credential` 的 `body` 为空。成功时 `state` 取下面三个值之一，不回显秘密：
+
+| `state` | 含义 | 其他键 |
+| --- | --- | --- |
+| `unbound` | 该租户没有绑定 | 无 |
+| `usable` | 绑定存在，秘密可以读出 | `tenantId`（归属）；`configuredAt`（保管没有记录时刻时缺席） |
+| `unreadable` | 绑定存在，秘密读不出。调用不会退回部署默认凭据或其他租户的凭据 | 同上 |
+
+秘密不进入任何响应、诊断、普通错误或遥测。部署可以不提供这三个操作，此时按[部署声明不提供的操作](#部署声明不提供的操作)答 `stage-not-provided`。
 
 ## 当前读面
 
@@ -430,6 +454,15 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 旧备份中的角色不授予访问。坏的 `body` 和坏的登录证明都不改变 `stage-not-provided`。
 
 在治理位置，任何其他 `operation` 都是 `protocol-rejected`。
+
+### 部署声明不提供的操作
+
+部署可以声明自己不提供某些治理操作。本页只写这个机制，不列清单。清单由部署的服务端接入声明。上表的四个名字不是这样声明的：它们由本页固定。本页对这类声明的要求如下。
+
+- 声明只能取自本页的治理操作名。
+- 请求通过第 3 步的封闭字段检查之后，对声明不提供的操作立刻返回 `stage-not-provided`，`body` 为空对象。不进入第 4 步：不核验登录证明，不读取账号库，也不刷新空闲计时。第 3 步不通过的请求仍是 `protocol-rejected`。
+- 响应带这次请求的 `messageId`。每个治理操作的允许结果里都有 `stage-not-provided`，见[结果闭合与关联](#结果闭合与关联)。SDK 把它读成这次调用的 `response`。它不是 `uncertain`，也不是这个操作的业务结果。
+- 声明不改变其余操作的结果、次序和披露。
 
 ## 会话公开操作
 
@@ -836,16 +869,16 @@ const encoded = encodeGovernanceRequest({
 
 ### 操作集合与函数
 
-正常信封表包含34个不同操作。另有4个本阶段不提供的操作，总共38个。`GovernanceProvidedOperation` 仅包含正常34项。`GovernanceOperation` 包含全部38项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部38个操作分别关联结果和 body，正常行没有 `stage-not-provided`，阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
+正常信封表包含37个不同操作。另有4个本阶段不提供的操作，总共41个。`GovernanceProvidedOperation` 仅包含正常37项。`GovernanceOperation` 包含全部41项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部41个操作分别关联结果和 body。每个正常操作的响应还包含 `stage-not-provided`，因为部署可以声明它不提供，见[部署声明不提供的操作](#部署声明不提供的操作)。阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
 
-主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)。
+主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。另有[身份值的文本](#身份值的文本)的八个函数。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)。
 
 | 函数 | 输入与可见结果 |
 | --- | --- |
-| `readGovernanceRequest` | 参数对象包含 `bytes`、`limits`。成功读取正常消息得到 `request`；协议不合规得到 `protocol-rejected` 共同响应和结构诊断；合法版本下的4个阶段操作得到 `stage-not-provided` 共同响应。 |
-| `readGovernanceResponse` | 参数对象包含 `bytes`、本地原 `operation`、`expectedMessageId`、`limits`。先完整核验该操作允许的响应，再匹配关联。匹配得到 `response`；合法但不同关联值或无关联值的协议/阶段响应得到 `unmatched`；其他坏消息得到 `unreadable`。 |
+| `readGovernanceRequest` | 参数对象包含 `bytes`、`limits`。成功读取正常消息得到 `request`；协议不合规得到 `protocol-rejected` 共同响应和结构诊断；合法版本下的4个阶段操作得到 `stage-not-provided` 共同响应。读取不知道部署的声明：合法的正常请求，包括部署声明不提供的操作，都得到 `request`，由服务端接入按声明应答。 |
+| `readGovernanceResponse` | 参数对象包含 `bytes`、本地原 `operation`、`expectedMessageId`、`limits`。先完整核验该操作允许的响应，再匹配关联。匹配得到 `response`；合法但不同关联值或无关联值的协议/阶段响应得到 `unmatched`；其他坏消息得到 `unreadable`。任何治理操作的 `stage-not-provided` 响应只要 `body` 是空对象就读得出。 |
 | `encodeGovernanceRequest` | 参数对象包含本地 `request`、`limits`。合法模型得到 `encoded` 字节，模型字段或值不符得到 `invalid` 和结构诊断。只编码正常操作。 |
-| `encodeGovernanceResponse` | 参数对象包含本地 `operation`、与该操作关联的 `response`、`limits`。合法模型得到 `encoded` 字节，否则得到 `invalid`。本地 `operation` 不写入线上响应。另有共同拒绝重载，只需 response 与 limits，即可编码 protocol-rejected 或 stage-not-provided。无 operation 时只允许这两种共同响应，不能借缺上下文编码任意业务结果。 |
+| `encodeGovernanceResponse` | 参数对象包含本地 `operation`、与该操作关联的 `response`、`limits`。合法模型得到 `encoded` 字节，否则得到 `invalid`。正常操作的 `stage-not-provided` 响应合法，`body` 为空对象。本地 `operation` 不写入线上响应。另有共同拒绝重载，只需 response 与 limits，即可编码 protocol-rejected 或 stage-not-provided。无 operation 时只允许这两种共同响应，不能借缺上下文编码任意业务结果。 |
 
 `GovernanceCodecLimits` 直接别名引用 json-text 的 `JsonLimits`，不添加字段或默认数值。六项预算必须是1至最大安全整数的整数。无效参数容器、非 `Uint8Array` 字节、无效预算、非法本地操作上下文，以及非字符串的 `expectedMessageId` 属于编程错误，抛出固定 `TypeError`，错误不含输入值。参数中的请求或响应模型无效属于 `invalid`，不抛模型内容。messageId只要求字符串，不要求UUID或非空；operation仍必须属于封闭集合。
 
@@ -915,11 +948,31 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 
 编码器核验 plain 数据对象的自有、可枚举、数据属性。参数容器和预算也在不执行访问器的前提下核验；这些编程参数的反射失败抛固定TypeError，不携原异常或输入。进入request或response模型后，非法数据属性、访问器和模型代理反射失败返回invalid，诊断code为field。只在局部输入反射边界捕获用户trap错误；意外内部编程故障不能被catch-all改写成预期拒绝。信封、body及本地判别对象都按封闭形状核验。它不调用输入 getter 或 toJSON，不将代理异常、凭据或证明抛给调用者。公开诊断只包含有限 code `json`、`version`、`operation`、`field`、`budget`，没有任意字段名、路径、键、值、原输入或原bytes。
 
+### 身份值的文本
+
+身份值在线上是字符串。这些字符串的序列化表示由本成员拥有，调用者不自己拼文本，也不借别的消息的编解码铸造值。本成员导出四种身份的文本函数，每种一对：
+
+| 身份 | 读：文本得值 | 写：值得文本 |
+| --- | --- | --- |
+| 租户 `TenantId` | `readTenantText` | `encodeTenantText` |
+| 组织 `OrganizationId` | `readOrganizationIdText` | `encodeOrganizationIdText` |
+| 账号 `AccountId` | `readAccountIdText` | `encodeAccountIdText` |
+| 登录状态 `LoginStateId` | `readLoginStateIdText` | `encodeLoginStateIdText` |
+
+- 读函数同步执行，没有外部副作用。文本不合法，或不是字符串，读出 `undefined`，不抛异常。读出的值是 legal-identity 铸造的值，可直接放进请求模型。
+- 写函数对 legal-identity 没有铸造的值抛固定 `TypeError`，错误不含输入值。
+- 组织、账号、登录状态的文本规则是 legal-identity 对应 codec 的规则：带 `org_`、`acc_`、`lgn_` 前缀加 26 位小写字符，不裁剪空白，不折叠大小写。
+- 租户文本的外层规则同[本地值与线上表示](#本地值与线上表示)里的 `actingTenant` 与 `tenantId`：合法的 UTF-8，严格 JSON，不许重复键，恰好 `organization` 与 `account` 两个字符串成员，再交 tenantCodec。`readTenantText` 不接收预算参数，用固定的小预算：整体至多 1024 字节，深度 1，3 个值，2 个成员，字符串至多 256 个字符。
+- 这些函数读写的文本与请求、响应里同一字段的线上文本逐字节相同。
+- 本成员同时导出四个类型 `TenantId`、`OrganizationId`、`AccountId`、`LoginStateId`，它们就是 legal-identity 的同名类型。
+
+这是可加的变更。已有的八个协议函数及其行为不变。
+
 ### 结果闭合与关联
 
 所有响应都必须显式有合法body，包括空对象body。成功响应缺body不是成功。protocol-rejected 与 stage-not-provided 的 messageId 可省略；其余响应必须有字符串 messageId。合法版本与阶段操作即使缺messageId，也先返回stage-not-provided和空body。它不能为补齐响应类型而提前字段拒绝。两种无关联响应在本地响应读取时都为unmatched。
 
-下面每行另外允许公共 `protocol-rejected`，其body为空。表内 `unknown` 才是可编码的线上unknown，body为空。超时、失联和回执丢失产生的调用者本地未知不自动增加一项线上outcome。每行的成功body沿上文body表，所有未列字段拒绝。
+下面每个正常操作行另外允许公共 `protocol-rejected` 和 `stage-not-provided`，其body为空。表内 `unknown` 才是可编码的线上unknown，body为空。超时、失联和回执丢失产生的调用者本地未知不自动增加一项线上outcome。每行的成功body沿上文body表，所有未列字段拒绝。
 
 | operation | 线上业务 outcome | 依据与协议细化 |
 | --- | --- | --- |
@@ -957,6 +1010,9 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 | judge-admission | succeeded, denied, not-visible, basis-unavailable, need-decision | 准入节四结果及隐藏对象优先 |
 | submit-authorization-expression | succeeded, no-change, denied, basis-unavailable, unknown | 表达节+共同登录步骤 |
 | withdraw-authorization-expression | succeeded, denied, basis-unavailable, unknown | 撤回节及协议细化；succeeded空body |
+| bind-model-credential | succeeded, denied, basis-unavailable, unknown | 模型凭据节；succeeded只含configuredAt |
+| unbind-model-credential | succeeded, no-change, denied, basis-unavailable, unknown | 模型凭据节；succeeded与no-change空body |
+| describe-model-credential | succeeded, denied, basis-unavailable | 模型凭据节；state三选一 |
 | disable-subject | stage-not-provided | 有效版本后跳过其余字段，非法版本为protocol-rejected |
 | restore-subject | stage-not-provided | 同上 |
 | end-subject | stage-not-provided | 同上 |

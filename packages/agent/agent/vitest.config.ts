@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   return {
     test: {
       ...tiers,
-      include: ['tests/**/*.spec.ts'],
+      include: ['tests/**/*.spec.ts', 'verification/*/guards/**/*.spec.ts'],
       typecheck: {
         ...tiers.typecheck,
         enabled: true,

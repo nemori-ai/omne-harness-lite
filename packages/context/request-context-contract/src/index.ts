@@ -8,7 +8,7 @@ export {
   compactionPlanSchema,
   coverageSchema,
 } from './schema.js'
-export type { ToolRoute, ToolDeclarationSet } from './declare-tools.js'
+export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './declare-tools.js'
 export { declareTools } from './declare-tools.js'
 export type { ConversionIndex, RepresentationResult } from './representation.js'
 export { chooseRepresentations } from './representation.js'
@@ -193,3 +193,5 @@ export type {
 } from './values.js'
 export { LAYER_ORDER, PREFIX_BREAK_REASONS } from './values.js'
 export type { DeriveInput } from './values.js'
+export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js'
+export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf } from './fixed-request.js'

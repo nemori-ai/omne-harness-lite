@@ -67,7 +67,6 @@ export function summaryStep(
       ),
       tools: [],
       toolChoice: 'auto',
-      representation: plan.basis.representation,
       source: plan.policy.identity,
     }),
   }

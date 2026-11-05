@@ -27,6 +27,7 @@ import {
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue } from './codec.ts'
+import { readEntryTexts, StoredEntryMalformed } from './entry-codec.ts'
 import { open, OWNER, seal, type CursorBinding } from './cursor.ts'
 import {
   domainOf,
@@ -134,16 +135,22 @@ export async function readModelSelection<P>(
 
 const view = (text: string): string => createHash('sha256').update(text).digest('hex').slice(0, 16)
 
-function page(out: HandlerOutput, next: string | null): HistoryPage {
-  return {
-    source: OWNER,
-    interpreter: out['interpreter'] as never,
-    upper: out['upper'] as never,
-    entries: decodeValue(out['entries'] as JsonValue) as never,
-    scannedThrough: out['scannedThrough'] as string,
-    next,
-    exhausted: out['exhausted'] as boolean,
-    annotations: decodeValue(out['annotations'] as JsonValue) as never,
+/** A row that does not read answers `unavailable` with its diagnostic. */
+function page(out: HandlerOutput, next: string | null): Outcome<HistoryPage, SessionFailure> {
+  try {
+    return succeed({
+      source: OWNER,
+      interpreter: out['interpreter'] as never,
+      upper: out['upper'] as never,
+      entries: readEntryTexts(out['entries']),
+      scannedThrough: out['scannedThrough'] as string,
+      next,
+      exhausted: out['exhausted'] as boolean,
+      annotations: readEntryTexts(out['annotations']),
+    })
+  } catch (error) {
+    if (!(error instanceof StoredEntryMalformed)) throw error
+    return failure(unavailable(`read session.history: ${error.message}`))
   }
 }
 
@@ -189,14 +196,14 @@ async function historyRead<P>(
     upper: string
     direction: 'forward' | 'backward'
   } | null
-  if (nextState === null) return succeed(page(out, null))
+  if (nextState === null) return page(out, null)
   const token = await seal(
     context.cursor,
     { kind: 'history', tenant: read.ok.tenant, session: access.session },
     { ...nextState, kinds, pageBytes } satisfies HistoryState,
   )
   if ('failure' in token) return token
-  return succeed(page(out, token.ok))
+  return page(out, token.ok)
 }
 
 export function historyFace<P>(context: Context<P>): SessionHistory<P> {

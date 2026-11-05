@@ -14,8 +14,8 @@ import type {
 } from '@omne-harness/session-contract'
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { canonicalText, decodeValue, encodeValue, sha256 } from './codec.ts'
-import { readCachedSessionWork, registerSessionWorkIndex } from './work-cache.ts'
+import { canonicalText, decodeValue, encodeValue, isCount, sha256 } from './codec.ts'
+import { readCachedSessionWork, registerSessionWorkIndex, type WorkFold } from './work-cache.ts'
 
 /** The participant that executes the Session commands and the read-only checks. */
 export const SESSION_PARTICIPANT = 'session'
@@ -48,19 +48,23 @@ export const SESSION_EXECUTION_HANDLER = 'session.execution'
 /** The read handlers of the execution record participant. */
 export const EXECUTION_RECORD_HANDLERS = {
   /**
-   * The publication count and the records of one session page by page: the whole state of a writer
-   * that does not split it, and the named parts (`ExecutionRecordPartsRead`).
+   * The batches of the fact family of one session after a publication, one page at a time
+   * (`ExecutionRecordFactsRead`, `decodeExecutionRecordFacts`): the incremental read of a view.
    */
-  parts: 'execution-record.parts',
-  /** The original answer of one operation. */
+  facts: 'execution-record.facts',
+  /** The open executions of one session (`ExecutionRecordOpenRead`): the cold start of a view. */
+  openExecutions: 'execution-record.open-executions',
+  /**
+   * The head row of one execution and its events after a sequence, one page at a time
+   * (`ExecutionRecordEventsRead`, `decodeExecutionRecordEvents`).
+   */
+  events: 'execution-record.events',
+  /** The operation key and the facts of its batch (`decodeExecutionRecordOperation`). */
   operation: 'execution-record.operation',
+  /** One content block of the tenant by digest (`ExecutionRecordBlobRead`). */
+  blob: 'execution-record.blob',
   /** One preadmission record, by tenant and handoff or by tenant and entry (`PreadmissionRead`). */
   preadmission: 'execution-record.preadmission',
-  /**
-   * The head row of one execution and its facts after a sequence, with their bodies, one page at
-   * a time (input: tenant, session, execution, after). See `worker/read-execution-facts.ts`.
-   */
-  executionFacts: 'execution-record.execution-facts',
 } as const
 
 // ---------------------------------------------------------------------------------------------
@@ -162,27 +166,15 @@ export type SessionParticipation =
 
 /**
  * What a published Session batch tells the work cache of the main thread (C-TOPOLOGY §2.9): the
- * version and stored text length of the new snapshot, the positions of the batch, whether it was
- * reduced on a history index, and that index with the reads (`basis`, encoded) when they fit the
- * bound of the reply.
+ * fold of the work cache (`WorkFold`), under the name of this vocabulary.
  */
-export type SessionWorkReply = Readonly<{
-  tail: string
-  published: string
-  bytes: number
-  first: string
-  last: string
-  indexed: boolean
-  basis?: JsonValue
-}>
+export type SessionWorkReply = WorkFold
 
 function workReplyOf(value: JsonValue | undefined): SessionWorkReply | undefined {
   const work = recordOf(value)
   if (work === null) return undefined
   const { tail, published, bytes, first, last, indexed, basis } = work
-  const counts = [tail, published, first, last].every(
-    item => typeof item === 'string' && /^\d+$/.test(item),
-  )
+  const counts = [tail, published, first, last].every(isCount)
   if (!counts || typeof bytes !== 'number' || typeof indexed !== 'boolean') return undefined
   return {
     tail: tail as string,
@@ -239,7 +231,9 @@ export function decodeSessionReply(reply: RecordedReply): SessionParticipation {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The `execution-record` participant
+// The `execution-record` participant: the Agent fact family and the content blocks
+
+export { blobDigest, EXECUTION_BATCH_MAX_FACTS, EXECUTION_FACT_MAX_BYTES } from './codec.ts'
 
 /** The head of one execution after a write: the Agent side of the execution history boundary. */
 export type ExecutionBoundaryRecord = Readonly<{
@@ -252,27 +246,38 @@ export type ExecutionBoundaryRecord = Readonly<{
 }>
 
 /**
- * One event of an execution: its sequence, original source and Session consequence kinds. A writer
- * that names `consequences` or `control` also writes the body row of the fact (`er_fact_body`),
- * which `execution-record.execution-facts` reads back: the JSON of the normalized consequences
- * (null: not decided) and of the deferred control evidence (null: none). Both pass as given.
+ * The event projection of a fact that is an event: what Session reads of it (K-5, AD-02). Its
+ * sequence is unique in its execution. `kinds` are its Session consequence kinds. `consequences`
+ * is the JSON of the normalized consequences (absent or null: not decided), `control` the JSON of
+ * the deferred control evidence (absent or null: none), `batch` the JSON of the batch of an
+ * input-taken event (absent: not one). All three pass as given.
  */
-export type ExecutionFactRecord = Readonly<{
-  execution: string
+export type ExecutionEventProjection = Readonly<{
   sequence: string
   source: DurableEvidence
   kinds: readonly string[]
   consequences?: JsonValue
   control?: JsonValue
+  batch?: JsonValue
 }>
 
-/** One input-taken batch of an execution, as its event wrote it. */
-export type ExecutionBatchRecord = Readonly<{
-  execution: string
-  sequence: string
-  source: DurableEvidence
-  batch: JsonValue
+/**
+ * One fact of a batch. `execution` is the write's execution when absent. `kind` names the kind of
+ * the fact; `body` is its JSON, opaque to this member, at most `EXECUTION_FACT_MAX_BYTES` UTF-8
+ * bytes. A fact that is an event carries its projection in `event`.
+ */
+export type ExecutionFactRecord = Readonly<{
+  execution?: string
+  kind: string
+  event?: ExecutionEventProjection
+  body: JsonValue
 }>
+
+/**
+ * One content block (TB-04): `payload` is its text, `digest` is `blobDigest(payload)` and `media`
+ * its media type. A tenant holds one block per digest.
+ */
+export type ExecutionBlobRecord = Readonly<{ digest: string; media: string; payload: string }>
 
 /** One original acceptance of an input by an open or a submit (the reverse input directory). */
 export type ExecutionAdmissionRecord = Readonly<{
@@ -289,23 +294,18 @@ export type ExecutionAdmissionRecord = Readonly<{
   attempt?: string
 }>
 
-/** One named part of the opaque state of a session's records; `state` null drops the part. */
-export type ExecutionRecordPart = Readonly<{ part: string; state: JsonValue | null }>
-
 /**
- * One write of the execution record provider. The participant does six things in the commit
- * transaction: it finds the execution row by tenant and execution; it updates the head revision
- * only when it is `expected`; it inserts the original answer under the unique (tenant, operation);
- * it replaces the opaque state of the session's records; it writes the index rows; and it adds one
- * to the publication count of the session, only when the count is `published`.
+ * One publication of the execution record provider: one batch of facts. The participant does six
+ * things in the commit transaction. It finds the original batch of `operation`. It compares the
+ * publication count of the session with `published` and the head revision of `execution` with
+ * `expected` (the first gate). It appends `facts` at publication `published + 1`, the first fact
+ * at place 0 as the envelope of the batch, which alone names `operation` (the primary key is the
+ * second gate). It stores `blobs`, once per tenant and digest. It writes the operation key, the
+ * head rows and the admissions. It adds one to the publication count.
  *
- * The state travels whole (`state`: it replaces the whole state and drops every part) or in parts
- * (`parts`: each named part is replaced or, with a null state, dropped; the rest stay). With
- * `replace` the parts are the whole state: the whole state and every part not named go first.
- * A write with `parts` travels in parts; without, it travels whole (`state`, null when absent).
- *
- * `revision` equal to `expected` is a write that establishes no new revision of the execution.
- * `state`, each part and `answer` are opaque: the participant stores them and never decodes them.
+ * A batch holds one to `EXECUTION_BATCH_MAX_FACTS` facts. `revision` equal to `expected` is a
+ * write that establishes no new revision of the execution. No answer is stored: the provider
+ * derives the answer of an operation from its batch.
  */
 export type ExecutionRecordWrite = Readonly<{
   tenant: TenantId
@@ -316,68 +316,98 @@ export type ExecutionRecordWrite = Readonly<{
   published: string
   operation: string
   digest: string
-  answer: JsonValue
-  boundaries: readonly ExecutionBoundaryRecord[]
   facts: readonly ExecutionFactRecord[]
-  batches: readonly ExecutionBatchRecord[]
+  blobs: readonly ExecutionBlobRecord[]
+  boundaries: readonly ExecutionBoundaryRecord[]
   admissions: readonly ExecutionAdmissionRecord[]
-  /** The whole state; ignored when `parts` is given (a write carries one form). */
-  state?: JsonValue
-  parts?: readonly ExecutionRecordPart[]
-  replace?: boolean
 }>
 
-/** The opaque members (`state`, each part, `answer`, each `batch`) travel as they are. */
+/** The opaque members (each `body`, the event `consequences`, `control` and `batch`) pass as given. */
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
-  const { state, parts, replace, answer, batches, facts, ...rest } = write
+  const { facts, blobs, ...rest } = write
   const encoded = encodeValue(rest) as Readonly<Record<string, JsonValue>>
-  const opaque: Readonly<Record<string, JsonValue>> =
-    parts === undefined
-      ? { state: state ?? null }
-      : {
-          parts: parts.map(({ part, state: body }) => ({ part, state: body })),
-          replace: replace ?? false,
-        }
   return {
     participant: EXECUTION_RECORD_PARTICIPANT,
     facts: {
       intent: 'publish',
       write: {
         ...encoded,
-        ...opaque,
-        answer,
-        // The fact bodies are JSON already; they pass as given, as the batches do.
-        facts: facts.map(({ consequences, control, ...index }) => ({
-          ...(encodeValue(index) as Readonly<Record<string, JsonValue>>),
-          ...(consequences === undefined ? {} : { consequences }),
-          ...(control === undefined ? {} : { control }),
+        facts: facts.map(({ execution, kind, event, body }) => ({
+          ...(execution === undefined ? {} : { execution }),
+          kind,
+          body,
+          ...(event === undefined
+            ? {}
+            : {
+                event: {
+                  ...(encodeValue({
+                    sequence: event.sequence,
+                    source: event.source,
+                    kinds: event.kinds,
+                  }) as Readonly<Record<string, JsonValue>>),
+                  ...(event.consequences === undefined ? {} : { consequences: event.consequences }),
+                  ...(event.control === undefined ? {} : { control: event.control }),
+                  ...(event.batch === undefined ? {} : { batch: event.batch }),
+                },
+              }),
         })),
-        batches: batches.map(({ batch, ...index }) => ({
-          ...(encodeValue(index) as Readonly<Record<string, JsonValue>>),
-          batch,
-        })),
+        blobs: blobs.map(({ digest, media, payload }) => ({ digest, media, payload })),
       },
     },
   }
 }
 
 /**
- * The reply of the `execution-record` participant, decoded.
+ * Content blocks alone, before the facts that refer to them: for a block that does not fit one
+ * command with its facts. A block without a fact that refers to it is not a fact.
+ */
+export type ExecutionBlobsWrite = Readonly<{
+  tenant: TenantId
+  blobs: readonly ExecutionBlobRecord[]
+}>
+
+export function executionRecordBlobFacts(write: ExecutionBlobsWrite): FactCommandV2 {
+  return {
+    participant: EXECUTION_RECORD_PARTICIPANT,
+    facts: {
+      intent: 'blobs',
+      write: {
+        tenant: encodeValue(write.tenant),
+        blobs: write.blobs.map(({ digest, media, payload }) => ({ digest, media, payload })),
+      },
+    },
+  }
+}
+
+/**
+ * The reply of the `execution-record` participant to a publication, decoded.
  *
- * - `published`: the write is saved; `published` is the new publication count of the session and
- *   `digest` the digest of the write's operation, so a recalled receipt tells its operation.
+ * - `published`: the batch is saved; `published` is its publication (the new count of the session)
+ *   and `digest` the digest of the write's operation, so a recalled receipt tells its operation.
  * - `revision-conflict`: the head revision of the execution is not `expected`, or the publication
  *   count is not `published`. `revision` is the current head (null: no such execution) and
  *   `published` the current count.
- * - `operation-conflict`: the operation already has an original answer. `digest` and `answer` are
- *   the original ones: an equal digest is the recall of the same operation.
+ * - `operation-conflict`: the operation already has a batch. `digest` is its digest, `published`
+ *   its publication: an equal digest is the recall of the same operation, whose answer the
+ *   provider derives from that batch.
  */
 export type ExecutionRecordParticipation =
   | Readonly<{ kind: 'published'; published: string; digest: string }>
   | Readonly<{ kind: 'revision-conflict'; revision: string | null; published: string }>
-  | Readonly<{ kind: 'operation-conflict'; digest: string; answer: JsonValue }>
+  | Readonly<{ kind: 'operation-conflict'; digest: string; published: string }>
   | Readonly<{ kind: 'failed'; diagnostic: string }>
   | Readonly<{ kind: 'unsupported'; reason: string }>
+
+function otherReply(
+  reply: Extract<RecordedReply, { kind: 'unsupported' | 'failed' }>,
+):
+  | Readonly<{ kind: 'failed'; diagnostic: string }>
+  | Readonly<{ kind: 'unsupported'; reason: string }> {
+  if (reply.kind === 'failed')
+    return { kind: 'failed', diagnostic: `${reply.category}: ${reply.diagnostic}` }
+  const reason = recordOf(reply.basis)?.['reason']
+  return { kind: 'unsupported', reason: typeof reason === 'string' ? reason : 'unsupported' }
+}
 
 export function decodeExecutionRecordReply(reply: RecordedReply): ExecutionRecordParticipation {
   switch (reply.kind) {
@@ -393,85 +423,352 @@ export function decodeExecutionRecordReply(reply: RecordedReply): ExecutionRecor
       const basis = recordOf(reply.basis)
       const published = basis?.['published']
       const revision = basis?.['revision']
-      if (
-        basis?.['kind'] === 'revision' &&
-        typeof published === 'string' &&
-        (typeof revision === 'string' || revision === null)
-      )
+      if (typeof published !== 'string')
+        return { kind: 'failed', diagnostic: 'an execution-record conflict without a basis' }
+      if (basis?.['kind'] === 'revision' && (typeof revision === 'string' || revision === null))
         return { kind: 'revision-conflict', revision, published }
       const digest = basis?.['digest']
       if (basis?.['kind'] === 'operation' && typeof digest === 'string')
-        return { kind: 'operation-conflict', digest, answer: basis['answer'] ?? null }
+        return { kind: 'operation-conflict', digest, published }
       return { kind: 'failed', diagnostic: 'an execution-record conflict without a basis' }
     }
-    case 'unsupported': {
-      const reason = recordOf(reply.basis)?.['reason']
-      return { kind: 'unsupported', reason: typeof reason === 'string' ? reason : 'unsupported' }
-    }
+    case 'unsupported':
     case 'failed':
-      return { kind: 'failed', diagnostic: `${reply.category}: ${reply.diagnostic}` }
+      return otherReply(reply)
   }
 }
 
+/** The reply to a write of blocks alone: the digests stored or already held. */
+export type ExecutionBlobsParticipation =
+  | Readonly<{ kind: 'stored'; digests: readonly string[] }>
+  | Readonly<{ kind: 'failed'; diagnostic: string }>
+  | Readonly<{ kind: 'unsupported'; reason: string }>
+
+export function decodeExecutionBlobsReply(reply: RecordedReply): ExecutionBlobsParticipation {
+  switch (reply.kind) {
+    case 'participated': {
+      const stored = recordOf(reply.response)?.['stored']
+      return Array.isArray(stored) && stored.every(item => typeof item === 'string')
+        ? { kind: 'stored', digests: stored as string[] }
+        : { kind: 'failed', diagnostic: 'a blocks reply without its digests' }
+    }
+    case 'conflict':
+      return { kind: 'failed', diagnostic: 'a blocks write does not conflict' }
+    case 'unsupported':
+    case 'failed':
+      return otherReply(reply)
+  }
+}
+
+/** One fact as the reads of the fact family give it. `event` and `body` are the JSON written. */
+export type ExecutionFact = Readonly<{
+  /** The place of the fact in its batch; 0 is the envelope. */
+  ord: number
+  execution: string
+  kind: string
+  /** The event sequence; null for a fact that is not an event. */
+  sequence: string | null
+  kinds: readonly string[]
+  event: JsonValue
+  body: JsonValue
+}>
+
+/** One batch: its publication, the operation its envelope names (null when not read) and facts. */
+export type ExecutionBatch = Readonly<{
+  published: string
+  operation: string | null
+  facts: readonly ExecutionFact[]
+}>
+
+/** A session or execution that is not of the tenant of the call, or does not exist. */
+export type ExecutionRecordDenied = Readonly<{ kind: 'denied' }>
 /**
- * The input of `execution-record.parts`: `after` the last part of the previous page (null: the first
- * page), `parts` the names to read (absent or null: every part), `since` a publication count (absent
- * or null: every part that is there; given: only the parts a later publication wrote or dropped).
+ * The records of a session that are not all there: a session published before the fact family
+ * (0.0.x moved no old record), or a gap after `after`. The reader answers `unavailable`.
  */
-export type ExecutionRecordPartsRead = Readonly<{
+export type ExecutionRecordMissing = Readonly<{ kind: 'missing'; published: string }>
+
+/**
+ * The input of `execution-record.facts`: the batches after publication `after` ('0': all). With
+ * `execution`, only the facts of that execution (a batch may then be part of its publication).
+ */
+export type ExecutionRecordFactsRead = Readonly<{
+  tenant: string
+  session: string
+  after: string
+  execution?: string | null
+}>
+/**
+ * One page of `execution-record.facts`: the publication count of the snapshot, whole batches in
+ * publication order, and the `after` of the next page (null: none). A read without `execution`
+ * gives every publication after `after` through `published`, or answers `missing`.
+ */
+export type ExecutionRecordFactsPage =
+  | Readonly<{
+      kind: 'facts'
+      published: string
+      batches: readonly ExecutionBatch[]
+      next: string | null
+    }>
+  | ExecutionRecordMissing
+  | ExecutionRecordDenied
+
+const isTextOrNull = (value: JsonValue | undefined): value is string | null =>
+  value === null || typeof value === 'string'
+
+function factOf(value: JsonValue): ExecutionFact | null {
+  const fact = recordOf(value)
+  if (fact === null) return null
+  const { ord, execution, kind, sequence, kinds } = fact
+  return typeof ord === 'number' &&
+    typeof execution === 'string' &&
+    typeof kind === 'string' &&
+    isTextOrNull(sequence) &&
+    Array.isArray(kinds) &&
+    kinds.every(item => typeof item === 'string') &&
+    'body' in fact
+    ? {
+        ord,
+        execution,
+        kind,
+        sequence,
+        kinds: kinds as string[],
+        event: fact['event'] ?? null,
+        body: fact['body'] ?? null,
+      }
+    : null
+}
+
+function listDecoded<T>(
+  value: JsonValue | undefined,
+  decode: (item: JsonValue) => T | null,
+): T[] | null {
+  if (!Array.isArray(value)) return null
+  const out: T[] = []
+  for (const item of value as readonly JsonValue[]) {
+    const decoded = decode(item)
+    if (decoded === null) return null
+    out.push(decoded)
+  }
+  return out
+}
+
+function batchOf(value: JsonValue): ExecutionBatch | null {
+  const batch = recordOf(value)
+  const facts = listDecoded(batch?.['facts'], factOf)
+  return batch !== null &&
+    typeof batch['published'] === 'string' &&
+    isTextOrNull(batch['operation'] ?? null) &&
+    facts !== null
+    ? {
+        published: batch['published'],
+        operation: (batch['operation'] ?? null) as string | null,
+        facts,
+      }
+    : null
+}
+
+/** The `denied` and `missing` answers every session read of the fact family shares. */
+function refusalOf(
+  value: Readonly<{ readonly [key: string]: JsonValue }>,
+): ExecutionRecordDenied | ExecutionRecordMissing | null {
+  if (value['kind'] === 'denied') return { kind: 'denied' }
+  const published = value['published']
+  return value['kind'] === 'missing' && typeof published === 'string'
+    ? { kind: 'missing', published }
+    : null
+}
+
+export function decodeExecutionRecordFacts(output: JsonValue): ExecutionRecordFactsPage | null {
+  const value = recordOf(output)
+  if (value === null) return null
+  if (value['kind'] !== 'facts') return refusalOf(value)
+  const batches = listDecoded(value['batches'], batchOf)
+  const { published, next } = value
+  return typeof published === 'string' && isTextOrNull(next ?? null) && batches !== null
+    ? { kind: 'facts', published, batches, next: (next ?? null) as string | null }
+    : null
+}
+
+/** The input of `execution-record.open-executions`: `after` the last execution of the last page. */
+export type ExecutionRecordOpenRead = Readonly<{
   tenant: string
   session: string
   after?: string | null
-  parts?: readonly string[] | null
-  since?: string | null
 }>
-/**
- * One page of `execution-record.parts`: the publication count when the page was read, the whole
- * state of a writer that does not split it (first page only; null otherwise or when there is
- * none), the parts in ascending part order (a dropped part, read with `since`, has a null state),
- * and the `after` of the next page (null: none).
- */
-export type ExecutionRecordPartsPage = Readonly<{
-  published: string
-  state: JsonValue | null
-  parts: readonly Readonly<{ part: string; state: JsonValue }>[]
-  next: string | null
+/** One open execution: its head revision, the evidence of its head and its last event. */
+export type ExecutionOpenHead = Readonly<{
+  execution: string
+  revision: string
+  receipt: JsonValue
+  emittedThrough: string
 }>
+export type ExecutionRecordOpenPage =
+  | Readonly<{
+      kind: 'open'
+      published: string
+      executions: readonly ExecutionOpenHead[]
+      next: string | null
+    }>
+  | ExecutionRecordMissing
+  | ExecutionRecordDenied
 
-export function decodeExecutionRecordParts(output: JsonValue): ExecutionRecordPartsPage | null {
-  const value = recordOf(output)
-  const published = value?.['published']
-  const next = value?.['next'] ?? null
-  const parts = value?.['parts']
-  if (
-    value === null ||
-    typeof published !== 'string' ||
-    !(next === null || typeof next === 'string') ||
-    !Array.isArray(parts)
-  )
-    return null
-  const decoded: { part: string; state: JsonValue }[] = []
-  for (const item of parts as readonly JsonValue[]) {
-    const part = recordOf(item)
-    if (part === null || typeof part['part'] !== 'string' || !('state' in part)) return null
-    decoded.push({ part: part['part'], state: part['state'] ?? null })
-  }
-  return { published, state: value['state'] ?? null, parts: decoded, next }
+function openHeadOf(value: JsonValue): ExecutionOpenHead | null {
+  const head = recordOf(value)
+  return head !== null &&
+    typeof head['execution'] === 'string' &&
+    typeof head['revision'] === 'string' &&
+    typeof head['emittedThrough'] === 'string'
+    ? {
+        execution: head['execution'],
+        revision: head['revision'],
+        receipt: head['receipt'] ?? null,
+        emittedThrough: head['emittedThrough'],
+      }
+    : null
 }
 
-/** The input of `execution-record.operation` and the output it gives (null: no original). */
+export function decodeExecutionRecordOpen(output: JsonValue): ExecutionRecordOpenPage | null {
+  const value = recordOf(output)
+  if (value === null) return null
+  if (value['kind'] !== 'open') return refusalOf(value)
+  const executions = listDecoded(value['executions'], openHeadOf)
+  const { published, next } = value
+  return typeof published === 'string' && isTextOrNull(next ?? null) && executions !== null
+    ? { kind: 'open', published, executions, next: (next ?? null) as string | null }
+    : null
+}
+
+/** The input of `execution-record.events`: the events of `execution` after sequence `after`. */
+export type ExecutionRecordEventsRead = Readonly<{
+  tenant: string
+  session: string
+  execution: string
+  after: string
+}>
+/** One event as `execution-record.events` gives it: its projection beside the opaque body. */
+export type ExecutionEvent = Readonly<{
+  sequence: string
+  published: string
+  ord: number
+  kind: string
+  kinds: readonly string[]
+  source: JsonValue
+  /** The normalized consequences; null: not decided. */
+  consequences: JsonValue
+  /** The deferred control evidence; null: none. */
+  control: JsonValue
+  /** The batch of an input-taken event; null: not one. */
+  batch: JsonValue
+  body: JsonValue
+}>
+/** One page of events with the head row of the execution, and the `after` of the next page. */
+export type ExecutionRecordEventsPage =
+  | Readonly<{
+      kind: 'events'
+      revision: string
+      receipt: JsonValue
+      emittedThrough: string
+      ended: JsonValue
+      events: readonly ExecutionEvent[]
+      next: string | null
+    }>
+  | ExecutionRecordMissing
+  | ExecutionRecordDenied
+
+function eventOf(value: JsonValue): ExecutionEvent | null {
+  const event = recordOf(value)
+  if (event === null) return null
+  const { sequence, published, ord, kind, kinds } = event
+  return typeof sequence === 'string' &&
+    typeof published === 'string' &&
+    typeof ord === 'number' &&
+    typeof kind === 'string' &&
+    Array.isArray(kinds) &&
+    kinds.every(item => typeof item === 'string')
+    ? {
+        sequence,
+        published,
+        ord,
+        kind,
+        kinds: kinds as string[],
+        source: event['source'] ?? null,
+        consequences: event['consequences'] ?? null,
+        control: event['control'] ?? null,
+        batch: event['batch'] ?? null,
+        body: event['body'] ?? null,
+      }
+    : null
+}
+
+export function decodeExecutionRecordEvents(output: JsonValue): ExecutionRecordEventsPage | null {
+  const value = recordOf(output)
+  if (value === null) return null
+  if (value['kind'] !== 'events') return refusalOf(value)
+  const events = listDecoded(value['events'], eventOf)
+  const { revision, emittedThrough, next } = value
+  return typeof revision === 'string' &&
+    typeof emittedThrough === 'string' &&
+    isTextOrNull(next ?? null) &&
+    events !== null
+    ? {
+        kind: 'events',
+        revision,
+        receipt: value['receipt'] ?? null,
+        emittedThrough,
+        ended: value['ended'] ?? null,
+        events,
+        next: (next ?? null) as string | null,
+      }
+    : null
+}
+
+/** The input of `execution-record.blob`, and its output: the block, or `denied`. */
+export type ExecutionRecordBlobRead = Readonly<{ tenant: string; digest: string }>
+export type ExecutionRecordBlob =
+  | Readonly<{ kind: 'blob'; digest: string; media: string; size: string; payload: string }>
+  | ExecutionRecordDenied
+
+export function decodeExecutionRecordBlob(output: JsonValue): ExecutionRecordBlob | null {
+  const value = recordOf(output)
+  if (value?.['kind'] === 'denied') return { kind: 'denied' }
+  const { digest, media, size, payload } = value ?? {}
+  return value?.['kind'] === 'blob' &&
+    typeof digest === 'string' &&
+    typeof media === 'string' &&
+    typeof size === 'string' &&
+    typeof payload === 'string'
+    ? { kind: 'blob', digest, media, size, payload }
+    : null
+}
+
+/**
+ * The input of `execution-record.operation` and its output: the operation key and the facts of its
+ * batch, or null when the tenant has no batch of the operation.
+ */
 export type ExecutionRecordOperationRead = Readonly<{ tenant: string; operation: string }>
-export type ExecutionRecordOperation = Readonly<{ digest: string; answer: JsonValue }>
+export type ExecutionRecordOperation = Readonly<{
+  digest: string
+  session: string
+  execution: string
+  published: string
+  facts: readonly ExecutionFact[]
+}>
 
 export function decodeExecutionRecordOperation(
   output: JsonValue,
 ): ExecutionRecordOperation | null | 'malformed' {
   if (output === null) return null
   const value = recordOf(output)
-  const digest = value?.['digest']
-  return value === null || typeof digest !== 'string'
-    ? 'malformed'
-    : { digest, answer: value['answer'] ?? null }
+  const facts = listDecoded(value?.['facts'], factOf)
+  const { digest, session, execution, published } = value ?? {}
+  return typeof digest === 'string' &&
+    typeof session === 'string' &&
+    typeof execution === 'string' &&
+    typeof published === 'string' &&
+    facts !== null
+    ? { digest, session, execution, published, facts }
+    : 'malformed'
 }
 
 // ---------------------------------------------------------------------------------------------

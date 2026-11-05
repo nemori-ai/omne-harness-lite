@@ -5,12 +5,15 @@
 // 登记规则：session-storage-sql 在每次读与提交都 `resolve` 租户的域（XP-6），而目录的 `resolve` 只查快照；
 // 只有访问裁定放行的 `create` 让本行登记该租户。公开端口在 `create` 提交前登记；委派视图绑定到一次放行的 `create`
 // 时，视图解析该租户的域就登记（Session 核心先经视图 `queryOperation` 再提交，登记必须在第一次读之前）。
-// 读与被拒的 `create` 不登记。
+// 读与被拒的 `create` 不登记，所以目录没有的租户没有会话：委派视图对它的会话读与提交答 `denied`（同「会话不存在」），不答
+// session-storage-sql 的 `unavailable`（`unregisteredTenantIsAbsent`）。
 // 已知限制：换 `combinationVersion` 不会为已登记的租户补登记（登记表不记版本），换版本需要另有拥有者定补登记的时机。
 // 游标签名按调用现取 `sessionCursorSigning`（IC-9），不在 inject 里；入口对象缺席时五种读答 `unavailable`。
+// 部署枚举 `tenantDomains.enumerate` 每次调用都按调用现取受信键 `systemActionAuthorization`（`authorization` 行提供，
+// R2-D245），由它按发行授予表与运维者的收回、到期判断；本行不持有授予表。键缺席或答 `unavailable` 时枚举答
+// `unavailable`，不放行。
 import type { Context } from '@deepseek-ai/cordis'
-import { referenceSystemActionAuthorization } from '@omne-harness/authorization'
-import { principalVerifierKey } from '@omne-harness/identity/cordis'
+import type { SystemActionAuthorization } from '@omne-harness/authorization'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -34,7 +37,11 @@ import {
   sessionPrincipalBindingsKey,
   sessionTransactionsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
-import { createSessionStorage, type SessionStorageOptions } from '@omne-harness/session-storage-sql'
+import {
+  createSessionPrincipalBindings,
+  createSessionStorage,
+  type SessionStorageOptions,
+} from '@omne-harness/session-storage-sql'
 import type {
   CombinationRegistrationV2,
   SqlStorage,
@@ -51,7 +58,7 @@ import {
 } from '@omne-harness/sql-contract/cordis'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { storageCatalog } from '../storage/catalog.ts'
-import { releaseMaintenanceGrants } from '../authorization/grants.ts'
+import { systemActionAuthorizationKey } from '../authorization/system-action-service.ts'
 import { boundAccessCheck } from './bound.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS, compositeManifestDigest } from './composite.ts'
 import { sessionStorageRowConfigSchema, type SessionStorageRowConfig } from './config.ts'
@@ -167,7 +174,60 @@ function registeringAccess(directory: TenantDirectory, tenantText: string): Tena
   }
 }
 
-const DENIED_IN_VIEW = ['commitEntries', 'pending', 'references', 'releasedScopes'] as const
+// Like the member's own delegated view (session-storage-sql `delegated.ts`): `commitEntries` and
+// `commitLog` ask no access on the port, and the other three name no session (R2-D256).
+const DENIED_IN_VIEW = [
+  'commitEntries',
+  'commitLog',
+  'pending',
+  'references',
+  'releasedScopes',
+] as const
+
+/** 绑定所指名的租户文本；绑定不指名单一租户或文本不合法时给 `null`。 */
+function boundTenantText<P>(request: SessionAccessRequest<P>): string | null {
+  if (request.target.kind !== 'session' || !('tenant' in request.access)) return null
+  const text = tenantCodec.encode(request.access.tenant)
+  return text.ok ? text.value : null
+}
+
+/**
+ * 目录里没有的租户没有会话：登记只由放行的 `create` 触发，读与被拒的 `create` 不登记（见文件头）。对外这与「会话不存在」
+ * 是同一个结局，即 `denied`（public-contract「会话判断次序」第 6 步：主体没有资格与会话不存在不能区分）。
+ * session-storage-sql 对目录缺项答 `unavailable`（它把缺项当作装配故障），经公开契约成为 `basis-unavailable`，
+ * 调用者就能凭它区分「租户从未建过会话」与「租户有会话」，也会被引去无意义的重试。本包装只在视图里、访问裁定已放行
+ * 之后生效：裁定的 `denied` 与 `unavailable` 仍在它之前。绑定是 `create` 时租户由 `registeringAccess` 登记，不包装。
+ */
+function unregisteredTenantIsAbsent<P>(
+  view: SessionTransactionPort<P>,
+  directory: TenantDirectory,
+  tenantText: string | null,
+): SessionTransactionPort<P> {
+  if (tenantText === null) return view
+  const absent = (action: string) =>
+    Promise.resolve(fail<SessionFailure>({ kind: 'denied', action }))
+  const guard =
+    <A extends unknown[], R>(action: string, call: (...args: A) => Promise<R>) =>
+    (...args: A): Promise<R> =>
+      directory.holds(tenantText) ? call(...args) : (absent(action) as Promise<R>)
+  const commit = async (input: CommitInput<P>): Promise<Outcome<unknown, SessionFailure>> =>
+    directory.holds(tenantText) ? view.commit(input) : absent('commit')
+  return {
+    ...view,
+    commit: commit as SessionTransactionPort<P>['commit'],
+    readWork: guard('readWork', view.readWork),
+    readInput: guard('readInput', view.readInput),
+    queryOperation: guard('queryOperation', view.queryOperation),
+    queryControlOperation: guard('queryControlOperation', view.queryControlOperation),
+    readModelSelection: guard('readModelSelection', view.readModelSelection),
+    history: {
+      begin: guard('history.begin', view.history.begin),
+      next: guard('history.next', view.history.next),
+      since: guard('history.since', view.history.since),
+      readModelView: guard('history.readModelView', view.history.readModelView),
+    },
+  }
+}
 
 function delegatedView<P>(
   base: SessionStorageOptions<P>,
@@ -182,13 +242,17 @@ function delegatedView<P>(
   })
   const denied = (action: (typeof DENIED_IN_VIEW)[number]) => () =>
     Promise.resolve(fail<SessionFailure>({ kind: 'denied', action }))
-  return {
+  const bound: SessionTransactionPort<P> = {
     ...view,
     commitEntries: denied('commitEntries'),
+    commitLog: denied('commitLog'),
     pending: denied('pending'),
     references: denied('references'),
     releasedScopes: denied('releasedScopes'),
   }
+  return creating === null
+    ? unregisteredTenantIsAbsent(bound, directory, boundTenantText(checked.request))
+    : bound
 }
 
 class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
@@ -199,6 +263,8 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
   readonly queryControlOperation: SessionTransactionPort<unknown>['queryControlOperation']
   readonly readModelSelection: SessionTransactionPort<unknown>['readModelSelection']
   readonly commitEntries: SessionTransactionPort<unknown>['commitEntries']
+  /** Optional on the port: forwarded when the storage port offers it (AD-02 commits through it). */
+  declare readonly commitLog?: NonNullable<SessionTransactionPort<unknown>['commitLog']>
   readonly history: SessionTransactionPort<unknown>['history']
   readonly pending: SessionTransactionPort<unknown>['pending']
   readonly references: SessionTransactionPort<unknown>['references']
@@ -213,6 +279,7 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
     this.queryControlOperation = port.queryControlOperation
     this.readModelSelection = port.readModelSelection
     this.commitEntries = port.commitEntries
+    if (port.commitLog !== undefined) this.commitLog = port.commitLog
     this.history = port.history
     this.pending = port.pending
     this.references = port.references
@@ -228,20 +295,23 @@ class DelegatedTransactionsImpl extends SessionDelegatedTransactionsService<unkn
   }
 }
 
+/** 按调用现取 `systemActionAuthorization`。缺席时答 `unavailable`，不放行。 */
+function lateBoundSystemActions(ctx: Context): SystemActionAuthorization {
+  return {
+    check: input =>
+      ctx.get(systemActionAuthorizationKey)?.check(input) ??
+      Promise.resolve({
+        kind: 'unavailable',
+        diagnostic: 'systemActionAuthorization is not provided',
+      }),
+  }
+}
+
 class TenantDomainsImpl extends TenantDomainsService<unknown> {
   readonly enumerate: TenantDomains<unknown>['enumerate']
   constructor(ctx: Context, directory: TenantDomainAccess) {
     super(ctx)
-    const authorization = referenceSystemActionAuthorization({
-      verifier: {
-        verify: principal =>
-          ctx.get(principalVerifierKey)?.verify(principal) ??
-          Promise.resolve({ kind: 'unavailable', diagnostic: 'principal verifier is unavailable' }),
-      },
-      grants: releaseMaintenanceGrants(),
-      clock: null,
-    })
-    this.enumerate = createTenantEnumeration(authorization, directory).enumerate
+    this.enumerate = createTenantEnumeration(lateBoundSystemActions(ctx), directory).enumerate
   }
 }
 
@@ -253,16 +323,18 @@ class TenantDomainLookupImpl extends TenantDomainLookupService {
   }
 }
 
-/** 会话归属读口。session-storage-sql 没有受信的归属读路径（公开读都经访问裁定），所以答 `unavailable`（已知限制）。 */
+/**
+ * 会话归属读口（受信）：session-storage-sql 的 `createSessionPrincipalBindings`，与公开端口同一存储、同一目录快照。
+ * 它窄读取（不读工作快照，不共用工作缓存），已成立的归属在进程内记住。它不问访问裁定，只答租户、会话与建立证据；
+ * 目录没有该租户（未登记）或存储读失败答 `unavailable`，行停止后一律答 `unavailable`（诊断含 `closing`），
+ * 未知会话与别的租户的会话都答 `not-bound`。读不登记租户。
+ */
 class PrincipalBindingsImpl extends SessionPrincipalBindingsService {
-  readonly read: SessionPrincipalBindingSource['read'] = () =>
-    Promise.resolve(
-      fail<Extract<SessionFailure, { kind: 'unavailable' }>>({
-        kind: 'unavailable',
-        owner: OWNER,
-        diagnostic: 'session ownership read is not implemented in the session storage composite',
-      }),
-    )
+  readonly read: SessionPrincipalBindingSource['read']
+  constructor(ctx: Context, source: SessionPrincipalBindingSource) {
+    super(ctx)
+    this.read = input => source.read(input)
+  }
 }
 
 async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
@@ -298,8 +370,15 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   new DelegatedTransactionsImpl(ctx, checked => delegatedView(base, directory, checked))
   new TenantDomainsImpl(ctx, directory.access)
   new TenantDomainLookupImpl(ctx, directory.lookup)
-  new PrincipalBindingsImpl(ctx)
-  return { stop: deadline => directory.close(deadline) }
+  const bindings = createSessionPrincipalBindings({ storage, domains: directory.access })
+  new PrincipalBindingsImpl(ctx, bindings)
+  return {
+    stop: deadline => {
+      // 读口记住了已成立的归属，不再读存储，所以关闭要显式告诉它：此后一律答 `unavailable`。
+      bindings.stop()
+      return directory.close(deadline)
+    },
+  }
 }
 
 export const sessionStorageRow = defineRow({
@@ -313,7 +392,7 @@ export const sessionStorageRow = defineRow({
       tenantDomainLookupKey,
       sessionPrincipalBindingsKey,
     ],
-    injects: [storageKey, sessionAccessCheckKey, principalVerifierKey],
+    injects: [storageKey, sessionAccessCheckKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },

@@ -134,13 +134,9 @@ async function observeRetained(journal: AgentJournal<string>, execution: Recordi
 }
 
 describe('public retained invocation faults', () => {
-  const faults = [
-    { kind: 'malformed' },
-    {
-      kind: 'foreign-tenant',
-      reference: ok(tools.encodeToolInvocationRef({ ...parts, tenant: otherTenant.tenant })),
-    },
-  ] as const
+  // A retained reference of another tenant cannot be written since R2-D357: the text carries no
+  // tenant. Only the malformed fault remains.
+  const faults = [{ kind: 'malformed' }] as const
 
   describe.each(['interrupt-tool', 'background-tool'] as const)('%s', kind => {
     describe.each(faults)('$kind', fault => {
@@ -170,10 +166,7 @@ describe('public retained invocation faults', () => {
         expect(memory.setRetainedToolInvocationFault({ ...selector, fault })).toEqual({
           kind: 'applied',
         })
-        const badReference =
-          fault.kind === 'malformed'
-            ? 'memory-journal:malformed-retained-tool-invocation'
-            : fault.reference
+        const badReference = 'memory-journal:malformed-retained-tool-invocation'
         const s1 = await observeRetained(journal, opened.execution)
         expect(await observeRetained(journal, other.execution)).toEqual(otherBefore)
         expect(ok(await journal.query(otherQuery))).toEqual({
@@ -214,29 +207,17 @@ describe('public retained invocation faults', () => {
             { ...recording, toolOperation: 'invalid' },
           ]),
         ).toEqual({ failure: { kind: 'conflict', operation: recording.operation } })
-        expect(
-          failure(
-            await journal.recordControl({
-              ...recording,
-              toolOperation: operationRef({ tenant: otherTenant.tenant }),
-            }),
-          ),
-        ).toEqual({ kind: 'denied', action: 'recordControl' })
 
         const next = {
           ...recording,
           operation: operation('new-R'),
           ...(attachment ? { toolOperation } : {}),
         }
-        expect(failure(await journal.recordControl(next))).toEqual(
-          fault.kind === 'malformed'
-            ? {
-                kind: 'unavailable',
-                owner: 'agentJournal',
-                diagnostic: 'invalid-retained-tool-invocation',
-              }
-            : { kind: 'denied', action: 'recordControl' },
-        )
+        expect(failure(await journal.recordControl(next))).toEqual({
+          kind: 'unavailable',
+          owner: 'agentJournal',
+          diagnostic: 'invalid-retained-tool-invocation',
+        })
         expect(await observeRetained(journal, opened.execution)).toEqual(s1)
         expect(await observeRetained(journal, other.execution)).toEqual(otherBefore)
         expect(ok(await journal.query(otherQuery))).toEqual({
@@ -407,21 +388,13 @@ describe('pending control operation custody', () => {
     const held = await observe(journal, opened.execution)
     const equivalent = ` ${toolOperation} ` as tools.ToolOperationRef
     expect(tools.resolveToolOperationRef(equivalent, access.tenant)).toEqual({
-      ok: tools.readToolOperationRef(toolOperation),
+      ok: { ...tools.readToolOperationRef(toolOperation), tenant: access.tenant },
     })
     expect(await journal.recordControl({ ...original, toolOperation: equivalent })).toEqual(unknown)
     expect(failure(await journal.recordControl({ ...original, ...otherTenant }))).toEqual({
       kind: 'denied',
       action: 'recordControl',
     })
-    expect(
-      failure(
-        await journal.recordControl({
-          ...original,
-          toolOperation: operationRef({ tenant: otherTenant.tenant }),
-        }),
-      ),
-    ).toEqual({ kind: 'denied', action: 'recordControl' })
     expect(
       failure(await journal.recordControl({ ...original, target: operation('absent') })),
     ).toEqual({
@@ -847,11 +820,6 @@ describe('Tool control association', () => {
       'invalid' as tools.ToolInvocationRef,
       { kind: 'invalid', field: 'command.call', reason: 'invalid-tool-invocation-reference' },
     ],
-    [
-      'foreign',
-      ok(tools.encodeToolInvocationRef({ ...parts, tenant: otherTenant.tenant })),
-      { kind: 'denied', action: 'control' },
-    ],
   ])('rejects a %s associated reference without mutation', async (_, reference, expected) => {
     const { journal, opened, control } = await setup([{ ...associated, reference }])
     const before = await observe(journal, opened.execution)
@@ -903,11 +871,6 @@ describe('Tool operation attachment', () => {
       { kind: 'invalid', field: 'toolOperation', reason: 'malformed-tool-operation-reference' },
     ],
     [
-      'foreign',
-      operationRef({ tenant: otherTenant.tenant }),
-      { kind: 'denied', action: 'recordControl' },
-    ],
-    [
       'wrong call',
       operationRef({ call: ok(tools.decodeToolCallId('other-call')) }),
       { kind: 'conflict', operation: operation('R') },
@@ -929,41 +892,15 @@ describe('Tool operation attachment', () => {
     expect(ok(await journal.query(recording))).toEqual({ kind: 'unknown' })
   })
 
-  it('rejects foreign input before target lookup and before original operation recognition', async () => {
+  it('rejects a caller of another tenant before target lookup and before original operation recognition', async () => {
+    // An attachment cannot name another tenant since R2-D357 (the text carries no tenant); the
+    // caller's tenant is the only tenant check.
     const { journal, opened, control, recording } = await setup()
     ok(await journal.control(control))
     ok(await journal.recordControl(recording))
     const before = await observe(journal, opened.execution)
-    for (const target of [control.operation, operation('missing')]) {
-      expect(
-        failure(
-          await journal.recordControl({
-            ...recording,
-            target,
-            toolOperation: operationRef({ tenant: otherTenant.tenant }),
-          }),
-        ),
-      ).toEqual({ kind: 'denied', action: 'recordControl' })
-    }
     expect(
       failure(await journal.recordControl({ ...recording, ...otherTenant, toolOperation })),
-    ).toEqual({ kind: 'denied', action: 'recordControl' })
-    const unread = () => {
-      throw new Error('foreign input read the operation or target')
-    }
-    expect(
-      failure(
-        await journal.recordControl({
-          ...recording,
-          get operation() {
-            return unread()
-          },
-          get target() {
-            return unread()
-          },
-          toolOperation: operationRef({ tenant: otherTenant.tenant }),
-        }),
-      ),
     ).toEqual({ kind: 'denied', action: 'recordControl' })
     expect(
       failure(
@@ -1082,7 +1019,6 @@ describe('Tool operation attachment', () => {
       'another local operation',
       operationRef({ operation: ok(tools.decodeToolOperationId('changed')) }),
     ],
-    ['foreign operation', operationRef({ tenant: otherTenant.tenant })],
   ])(
     'retains the validated attachment when the caller replaces it with %s before settlement',
     async (_, replacement) => {
@@ -1261,11 +1197,6 @@ describe('Tool operation attachment', () => {
         diagnostic: 'invalid-retained-tool-invocation',
       },
     ],
-    [
-      'foreign',
-      ok(tools.encodeToolInvocationRef({ ...parts, tenant: otherTenant.tenant })),
-      { kind: 'denied', action: 'recordControl' },
-    ],
   ])(
     'contains injected %s retained-snapshot corruption at a new R',
     async (_, reference, expected) => {
@@ -1339,11 +1270,6 @@ describe('retained Tool operation corruption', () => {
   const retainedParts = ok(resolve(toolOperation, access.tenant))
   const damages = [
     ['malformed', resolve('invalid', access.tenant), unavailable],
-    [
-      'foreign',
-      resolve(operationRef({ tenant: otherTenant.tenant }), access.tenant),
-      { kind: 'denied', action: 'recordControl' },
-    ],
     [
       'another call',
       { ok: { ...retainedParts, call: ok(tools.decodeToolCallId('another-call')) } },
@@ -1433,10 +1359,7 @@ describe('scripted faults on recordControl', () => {
     })
   })
 
-  it.each([
-    ['a foreign attachment', { toolOperation: operationRef({ tenant: otherTenant.tenant }) }],
-    ['a caller of another tenant', otherTenant],
-  ] as const)(
+  it.each([['a caller of another tenant', otherTenant]] as const)(
     'lets %s use up the queued fault, answers denied and holds nothing',
     async (_, change) => {
       const { memory, journal, opened, control, recording } = await setup()

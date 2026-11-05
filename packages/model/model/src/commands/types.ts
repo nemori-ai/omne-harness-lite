@@ -16,6 +16,7 @@ import type {
   MaterializationReceipt,
   ModelCallId,
   ModelFailure,
+  ModelInvocationRef,
   ModelOperationId,
   OutputCursor,
   ReadId,
@@ -70,6 +71,17 @@ export type EvidenceContext = Readonly<{
   request: FixedModelRequest
 }> &
   Pick<ExecutionRef, 'tenant'>
+/** What the commands give the consumer owner's evidence adapter for one ACK. */
+export type HandoffEvidenceInput = Omit<EvidenceContext, 'request'> &
+  Readonly<{
+    result: ResultVersion
+    evidence: Handoff
+    reference: ModelInvocationRef
+    principal: unknown
+  }>
+export type HandoffEvidenceAnswer =
+  | Outcome<DurableEvidence, ModelFailure>
+  | Promise<Outcome<DurableEvidence, ModelFailure>>
 export interface ModelCommandsEvidence {
   readonly adoption: Adoption
   continuity(
@@ -92,10 +104,14 @@ export interface ModelCommandsEvidence {
     input: EvidenceContext &
       Readonly<{ position: RetryPosition; decision: RetryDecision; source: DurableEvidence }>,
   ): Outcome<DurableEvidence, ModelFailure>
-  handoff(
-    input: Omit<EvidenceContext, 'request'> &
-      Readonly<{ result: ResultVersion; evidence: Handoff }>,
-  ): Outcome<DurableEvidence, ModelFailure>
+  /**
+   * The consumer owner's confirmation of an ACK's evidence. It may answer later: the commands read
+   * it before the write fence, because the owner reads its own durable record, and the write then
+   * keeps it only for the same call, consumer, result and evidence. `reference` is the call's
+   * invocation reference, by which the owner names the delivery it saved; `principal` is the access
+   * of the ACK. A failure that cannot be read stays a failure, never a confirmation.
+   */
+  handoff(input: HandoffEvidenceInput): HandoffEvidenceAnswer
   receive(
     input: EvidenceContext &
       Readonly<{

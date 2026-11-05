@@ -26,11 +26,16 @@ const action = { ...parts, operation: operation('ack-saved') }
 const operationReference = must(encodeModelOperationRef(action))
 const tenantText = tenantCodec.encode(tenantA)
 if (!tenantText.ok) throw new Error('minted fixture tenant')
-const tuple = ['model-invocation', 1, tenantText.value, parts.call, parts.admission]
+const tuple = ['model-invocation', 2, parts.call, parts.admission]
 
 describe('saveable Model references', () => {
   it('encodes canonical tuples before any admission and resolves the current tenant object', () => {
     expect(reference).toBe(JSON.stringify(tuple))
+    // R2-D357: the text carries no tenant; the caller's Access supplies it.
+    expect(reference).not.toContain(tenantText.value)
+    expect(operationReference).toBe(
+      JSON.stringify(['model-operation', 2, parts.call, parts.admission, action.operation]),
+    )
     expect(must(decodeModelInvocationRef(JSON.stringify(tuple, null, 1)))).toBe(reference)
     const current = tenantCodec.parse(tenantText.value)
     if (!current.ok) throw new Error('current tenant')
@@ -61,17 +66,18 @@ describe('saveable Model references', () => {
     [new String(reference), 'type'],
     ['{', 'syntax'],
     ['null', 'shape'],
-    [JSON.stringify(['tool-invocation', 1]), 'domain'],
-    [JSON.stringify(['model-invocation', 2]), 'version'],
-    [JSON.stringify([...tuple, 'extra']), 'shape'],
-    [JSON.stringify(tuple.slice(0, 4)), 'shape'],
-    [JSON.stringify(['model-invocation', 1, '{}', parts.call, parts.admission]), 'identity'],
-    [JSON.stringify(['model-invocation', 1, tenantText.value, 'bad', parts.admission]), 'identity'],
-    [JSON.stringify(['model-invocation', 1, tenantText.value, parts.call, 'bad']), 'identity'],
+    [JSON.stringify(['tool-invocation', 2]), 'domain'],
+    [JSON.stringify(['model-invocation', 3]), 'version'],
+    // A version 1 text (it carried the tenant) is refused, not read.
     [
-      JSON.stringify(['model-invocation', 1, tenantText.value, parts.call, 'mop_--reserved']),
-      'reserved',
+      JSON.stringify(['model-invocation', 1, tenantText.value, parts.call, parts.admission]),
+      'version',
     ],
+    [JSON.stringify([...tuple, 'extra']), 'shape'],
+    [JSON.stringify(tuple.slice(0, 3)), 'shape'],
+    [JSON.stringify(['model-invocation', 2, 'bad', parts.admission]), 'identity'],
+    [JSON.stringify(['model-invocation', 2, parts.call, 'bad']), 'identity'],
+    [JSON.stringify(['model-invocation', 2, parts.call, 'mop_--reserved']), 'reserved'],
   ])('rejects malformed invocation text %# without coercion', (text, reason) => {
     expect(decodeModelInvocationRef(text)).toEqual({
       failure: { field: 'ModelInvocationRef', reason },
@@ -89,14 +95,7 @@ describe('saveable Model references', () => {
     expect(decodeModelOperationRef(reference)).toMatchObject({ failure: { reason: 'domain' } })
     expect(
       decodeModelOperationRef(
-        JSON.stringify([
-          'model-operation',
-          1,
-          tenantText.value,
-          parts.call,
-          parts.admission,
-          'mop_--guard',
-        ]),
+        JSON.stringify(['model-operation', 2, parts.call, parts.admission, 'mop_--guard']),
       ),
     ).toMatchObject({ failure: { reason: 'reserved' } })
   })
@@ -191,12 +190,17 @@ describe('saveable Model references', () => {
     }
   })
 
-  it('checks the current minted tenant before parsing and rejects cross-tenant resolution', () => {
-    expect(resolveModelInvocationRef(reference, tenantB)).toEqual({
-      failure: { kind: 'foreign-tenant' },
+  it('checks the current minted tenant before parsing and locates in the presented tenant', () => {
+    // R2-D357: a reference of tenant A, presented by tenant B, names B's call of the same identity;
+    // B's store has none, so the store-backed entry answers as for a call that never existed.
+    expect(must(resolveModelInvocationRef(reference, tenantB))).toEqual({
+      ...parts,
+      tenant: tenantB,
     })
-    expect(resolveModelOperationRef(operationReference, tenantB)).toEqual({
-      failure: { kind: 'foreign-tenant' },
+    expect(must(resolveModelInvocationRef(reference, tenantB)).tenant).toBe(tenantB)
+    expect(must(resolveModelOperationRef(operationReference, tenantB))).toEqual({
+      ...action,
+      tenant: tenantB,
     })
     expect(resolveModelInvocationRef('malformed', structuredClone(tenantA))).toEqual({
       failure: { kind: 'invalid-tenant' },

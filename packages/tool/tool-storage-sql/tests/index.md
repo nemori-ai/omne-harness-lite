@@ -12,6 +12,7 @@
 - [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：租户隔离
 - [reopen.spec.ts](reopen.spec.ts)：关闭再打开数据库文件
 - [atomic-commit.spec.ts](atomic-commit.spec.ts)：原子提交与修订号冲突
+- [guarded-host-commit.spec.ts](guarded-host-commit.spec.ts)：原调用终局与 host 许可同序、两连接竞争、隔离与丢答
 - [start-coordinator.spec.ts](start-coordinator.spec.ts)：启动协调器在本仓上的三组套件与重建
 - [materials.spec.ts](materials.spec.ts)：材料与组合有效性
 - [participant.spec.ts](participant.spec.ts)：参加者模块自身的守卫

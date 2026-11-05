@@ -14,7 +14,7 @@
 
 ### 兼容期资格凭据路径
 
-`LocalCustodian` 与 `LocalCredentialPlugin` 实现同步 `presentFor`、`resolveFor`。旧 `present`、`resolve` 保留原行为。新方法只从 `access.tenant` 取租户，复用合法租户、用途、绑定寿命与工厂选择的判定。同一凭据身份由其他租户持有且本租户没有对应绑定时，两个新方法都返回 `denied`；只有官方档案且该租户没有任何绑定时，解析才可返回工厂值。撤销或不可读的绑定不回退工厂。文件不可用返回 `unavailable`，句柄关闭后返回 `denied`。
+`LocalCustodian` 与 `LocalCredentialPlugin` 实现同步 `presentFor`、`resolveFor`。旧 `present`、`resolve` 保留原行为。新方法只从 `access.tenant` 取租户，复用合法租户、用途、绑定寿命与工厂选择的判定。同一凭据身份由其他租户持有且本租户没有对应绑定时，两个新方法都返回 `denied`；只有官方档案且该租户没有任何绑定时，解析才可返回工厂值。撤销或不可读的绑定不回退工厂。工厂秘密是空字符串时，部署没有提供默认凭据：解析在这个位置返回 `absent`，不返回空值。文件不可用返回 `unavailable`，句柄关闭后返回 `denied`。
 
 只有受信发送边界注入凭据服务，`access` 已在受理点 C 核验。提供者不核主体铸造来源，也不核 `official` 的来源，不读取 `SendFace`。新方法不增加管理能力，保管库与诊断仍只在插件闭包中。
 
@@ -22,7 +22,7 @@
 
 ### 保管库文件
 
-保管库文件包含工厂秘密和绑定列表。绑定寿命是 `active`、`revoked` 或 `unreadable`。
+保管库文件包含工厂秘密和绑定列表。绑定寿命是 `active`、`revoked` 或 `unreadable`。绑定可以带 `configuredAt`，它是最近一次 `bind` 的时刻文本。没有这个键的旧快照照常读出。这个键存在但不是字符串时，快照按损坏处理。
 
 - `createLocalCustodian({ path, factorySecret, lock?, diagnosticsCapacity? })`：路径上没有文件时新建保管库；已有可读文件时在锁内直接采用它（不覆盖，不用本次的工厂秘密）；文件存在但不可读时抛出异常，异常的 `cause` 是读不出的原因（文件系统错误、解析错误或形状错误）。先检查再创建都在同一把锁内完成，两个进程同时在空路径上启动不会互相抹掉绑定。
 - `openLocalCustodian({ path, lock?, diagnosticsCapacity? })` 打开已有保管库，返回 `{ kind: 'open', custodian }`。文件缺失返回 `{ kind: 'unavailable', cause: 'missing' }`；损坏、形状不对或同一持有者多行冲突返回 `cause: 'corrupt'`；其他文件系统错误返回 `cause: 'io'`。不新建、不修改文件。
@@ -41,9 +41,20 @@
 - 租户未经铸造（例如复制出的对象）时，`put`、`rotate`、`revoke`、`markUnreadable` 都先抛出异常，不取锁、不读盘也不写盘。`put` 若放行，磁盘记录读回时会按文本重新铸造，复制出的租户会变成真实租户的绑定；其余三个操作对这样的租户匹配不到任何行，放行只会空跑一次取锁与发布，并让调用者以为已经生效。
 - `put` 把该持有者写成 `active`，可以盖过已撤销或读不出的行。
 - `rotate` 只换秘密，不改寿命；已撤销的行轮换后 `resolve` 仍是 `denied`。
+- `replaceFactorySecret(secret)` 只换工厂秘密。绑定、它们的秘密与寿命都不变。它不带租户，所以没有铸造检查。运行中的句柄与插件在下一次解析时读到新值，因为每次解析都从磁盘刷新。
 - `revoke` 把该持有者标成 `revoked`。
 - `markUnreadable` 只把 `active` 改成 `unreadable`。
 - 其他租户持有同一身份时，对它的 `put`、`rotate` 不替换也不改动本租户的行。
+
+### 绑定管理
+
+`bind`、`unbind` 与 `describe` 是给装配的绑定管理。它们与上一节的操作不同：存储失败是结果，不是异常。结果不带秘密，也不带异常文本。
+
+- `bind({ reference, secret, configuredAt })` 把该持有者写成 `active`，秘密与时刻都换成本次的值。结果是 `written`、`not-written`（旧快照仍在盘上）、`unconfirmed`（新快照可能已发布，重试前先读回）或 `denied`。
+- `unbind({ reference })` 删除该持有者的行。之后这个租户按从未绑定处理：`presentFor` 答不存在，工厂选择照常适用。没有这一行时结果是 `absent`，不写盘。其余结果同 `bind`。
+- `describe({ reference })` 每次从磁盘读，结果是 `unbound`、`bound`（带寿命与可选的 `configuredAt`）、`denied` 或 `unavailable`。
+- 租户未经铸造、保管已关闭，或同一凭据身份由其他租户持有时，三个操作都答 `denied`，不改文件。
+- 写入沿用同一把文件锁、唯一临时文件与重命名。锁等待超时、读不出与发布前失败都是 `not-written`。重命名之后的确认失败是 `unconfirmed`。
 
 文件锁不按时间过期，因此持锁进程活着时其他写者只能等待，等满 `lock.waitMs` 仍未取得锁时抛出 `ELOCKED`；`waitMs` 为 0 时第一次取不到锁就抛出。持锁进程崩溃后残留的 `${path}.lock` 须在所有写者停止后手工删除。
 
@@ -53,10 +64,44 @@
 
 - 发布前失败（锁等待超时、临时文件写入失败、`fsync` 失败或重命名失败）时抛出异常，异常的 `cause` 是原始错误，不发布新状态，已确认的旧快照保持不变。短写会重试到整份快照写完；写入没有进展时中止。
 - 重命名成功后确认失败（如父目录 `fsync`）时，新状态可能已发布，抛出 `confirmation incomplete; verify state before retry`。调用方必须核实当前文件状态后再决定重试。
+- 临时文件名是 `<保管库文件名>.<pid>.<毫秒>.<序号>.tmp`，与保管库在同一目录。进程在写完临时文件之后、重命名之前结束时，这个文件留在目录里，里面是整份快照。每次取得文件锁之后（`createLocalCustodian`、四个管理操作与 `replaceFactorySecret`、`inspectLocalCustodian`），先删除同目录下名字完全符合这个模式、且属于这份保管库的文件。持锁时没有别的写者正在写它自己的临时文件，所以删除是安全的。其他文件（别的保管库的临时文件、`.bak`、名字不完全符合模式的文件）不动。删除失败不报错，下一个持锁者再试。`openLocalCustodian` 与插件装载不取锁，所以不清理。
 
 ### 保管库初始化命令
 
 `src/vault-init.ts` 的核心 `initVault(path, deps)` 与 `src/vault-init-cli.ts` 的命令行外壳，让人在宿主上从终端把一个密钥写成保管库的工厂秘密。命令不是插件，不属于 `LocalCredentialPlugin`，不从根入口导出。它只经 `createLocalCustodian` 建库，所以沿用文件锁与原子发布；只建工厂秘密，不写任何租户绑定，也不在别处另存密钥。保管库记录格式与 `store.ts` 的行为不变。
+
+主机配置命令（例如 harness-server 的 `setup`）经子路径 `@omne-harness/model-host-local/vault` 复用同一组操作。这个子路径不是插件，根入口不导出它。它导出：
+
+| 导出 | 作用 |
+| --- | --- |
+| `initVault` | 在空路径上新建保管库，见本节下文 |
+| `replaceVaultSecret` | 替换已有保管库的工厂秘密；可选重建读不出的保管库文件，见下文 |
+| `inspectLocalCustodian` | 持文件锁检查路径上的保管库能否读出，见下文 |
+| `readSecretFromTerminal` | 终端读取器，见[输入](#输入)。可选参数 `prompt` 换掉提示文字 |
+| `createPosixGuard`、`defaultGuard` | 权限护栏，见[权限](#权限) |
+| `SecretInputError` 与各结果、原因、依赖的类型 | 读取器放弃时抛出的错误与类型 |
+
+`inspectLocalCustodian({ path, lock?, diagnosticsCapacity? })` 只读不写保管库本身：路径上什么都没有时答 `{ kind: 'unavailable', cause: 'missing' }`，不取锁。否则取文件锁，清理残留临时文件（见[发布与确认未知](#发布与确认未知)），再读文件。可读时答 `{ kind: 'readable' }`。不可读时答 `unavailable`，原因是 `corrupt`（不是快照，例如不是 JSON）或 `io`（例如路径上是目录）。等满锁等待仍未取得锁时原因是 `locked`。
+
+
+`replaceVaultSecret(path, deps)` 替换已有保管库的工厂秘密，次序如下，任一步失败即停止：
+
+1. 路径为空或含 NUL 时返回 `path-invalid`。
+2. 路径上必须有可读的保管库，否则返回 `vault-unavailable`，不调用读密钥函数，也不建文件。例外是 `deps.rebuildUnreadable` 为真时的重建，见下文。
+3. 调用读密钥函数一次。输入规则与 `initVault` 第 4 步相同：`secret-empty`、`secret-malformed`、`input-not-terminal`、`input-cancelled`、`input-failed`。
+4. 在权限护栏内持文件锁写入（`replaceFactorySecret`）。锁等待超时返回 `lock-timeout`。写入抛出而读回不是新密钥时返回 `write-failed`，文件保持旧值。写入抛出而读回已是新密钥时（发布后确认失败），按成功继续。
+5. 读回文件，工厂秘密不是新密钥时返回 `write-unconfirmed`。
+6. 收窄并读回文件权限。失败时返回 `written-not-private`。这时文件已经是新密钥，旧密钥已不在，命令不回滚。调用方不能把这个结果报告成「没有存下」。
+
+成功时结果是 `{ ok: true, path, rebuilt }`。原因代码的集合是 `initVault` 的原因加上 `vault-unavailable` 与 `written-not-private`。结果只有原因代码、路径与 `rebuilt`，不含密钥。
+
+重建：`deps.rebuildUnreadable` 为真，而第 2 步打开失败的原因不是 `missing` 时，命令按下面的次序用新保管库替换读不出的文件。
+
+1. 路径上必须是普通文件。目录、链接（含悬空链接）返回 `vault-unavailable`，不读密钥，不删除任何东西。
+2. 调用读密钥函数一次，按 `initVault` 的输入规则校验。不合格时返回对应原因，旧文件留在原处。
+3. 删除这个文件。删除失败返回 `write-failed`。旧文件的内容不读。
+4. 按 `initVault` 的全部规则新建保管库（用户目录规则用 `deps.home`，默认 `os.homedir()`），密钥是第 2 步读到的那个。失败时返回 `initVault` 的原因，这时旧文件已经删除。
+5. 成功时 `rebuilt` 为真。重建后的保管库只有工厂秘密，旧文件里的租户绑定不再存在。
 
 运行责任在人：密钥由 PanQiWei 或该宿主的操作人在自己的终端输入，每台要发真实请求的宿主运行一次。Reduce、写者与其他 agent 不取密钥值，也不代为运行。
 
@@ -113,7 +158,8 @@
 - 第 2 步校验之后，路径上的目录若被换成指向目录外的符号链接，命令不再发现。同样是本机单人运行下接受的窗口。
 - Windows 的访问控制只靠继承（见上），不读回。
 - 命令自己刚建的文件在第 6 步读回时若碰上瞬时 I/O 故障（例如 Windows 上杀毒软件临时占用文件，读回抛 `EBUSY`），`openLocalCustodian` 返回读不出，命令报告 `write-unconfirmed` 并保留那份带密钥的文件。原因代码分不出「采用了别人的文件」与「自己的文件暂时读不了」，两者的处置都落在文件内容上：操作者先打开该文件检查它的工厂秘密是不是自己刚输入的密钥，再决定保留还是手工删除后重跑。命令自身此时不删文件，因为删掉可能是别人的库。
-- 命令只建新库，不提供轮换、撤销与租户绑定。
+- `initVault` 只建新库。换工厂秘密用 `replaceVaultSecret`。命令行外壳不提供轮换、撤销与租户绑定。
+- 重建删除旧文件之后、新库写成之前失败时，路径上什么都没有。调用方再运行一次新建即可，原因代码写明是哪一步。
 
 ### 关闭
 
@@ -144,6 +190,8 @@ reader 只有 `prove`，没有任意 register 或 sign 操作。它每次先核�
 - 配置项是 `credentials`（`CredentialPort`，如本地保管库）、`commands`（`ModelCommands`）、`coordinator`（`SendCoordinator`）、`families`（组合后的 `PiFamilyContributions`）、`network`（`NetworkConfig`，含代理与 TLS）、`routes`、`transportLimits`、`maxRetainedAttempts`、`materialization` 与 `preparation`。`preparation` 有两项：`maxCitedCalls`（一个 lineage 最多引用的不同调用数）与 `supplierOf`（model 的 `SupplierPort`，为档案供应商补上凭据引用）。
 - 本包不写任何路由地址、代理、限额或余量的默认值。OpenRouter 的地址必须由配置的 `routes` 给出。计量余量是家族配置的一部分，由调用方组合家族时给出。
 - `materialization` 必须显式提供当前 execution 核验函数与正安全整数 `maxRecords`，且 `maxRecords >= maxRetainedAttempts`。不满足时在创建网络前抛出 `RangeError`，不使用夹具数值作为生产默认值。
+- `transportLimits` 原样交给传输，含可选的 `connectRetry`（请求发出之前的连接失败的有界重试，见 [pi-ai-transport 的 SPEC](../pi-ai-transport/SPEC.md#请求发出之前的重试)）。本包不重试，也不加默认值：非法的 `connectRetry` 使装配抛出 `RangeError`；次数与退避由运维者层给出。
+- 连接重试的可见性：`LocalModelConfig.onConnectRetry`（可选）在每次重试之前收到 `{ call, dispatch, attempt, delayMs, reason }`。发送资源为每次发送建一个传输，并把该发送的 `call` 与 `dispatch` 补进传输级的 `onConnectRetry` 事件；探针传输没有这个观察者。观察者抛出的异常被丢弃。send-stage 插件（`ModelSendStagePlugin`）把它接到 Cordis logger：每次重试写一条 `warn`，文字含调用标识、第几次重试、延迟与原因，不含 URL、凭据或请求体。重试全部失败时的 `failed` 由 Run 的失败路径记录，本插件不重复写。重试次数不进入调用记录或模型账目：`ProviderDiagnostic` 的封闭词表在 model-contract，尚无对应成员，这是已知限制。
 - 装配从 `network` 创建网络资源，用它们与 `families`、`routes`、`transportLimits` 建发送资源，再用 `commands`、`coordinator`、`credentials`、发送资源与 `maxRetainedAttempts` 建 model 的发送边界 `send`。
 - 装配用 model 的 `createModelPreparationResources` 建 `preparation`：绑定来源是 `families`，调用事实经同一个 `commands` 的 `dispatches` 读取，`supplierOf` 与 `maxCitedCalls` 取自 `preparation` 配置。租约的取得、读取、判决与释放归 [model 的 SPEC](../model/SPEC.md)。
 - 网络、传输、发送边界或准备资源拒绝配置时（`preparation` 不是对象也算），装配抛出 `RangeError`，并关闭它已创建的网络资源。
@@ -155,7 +203,7 @@ reader 只有 `prove`，没有任意 register 或 sign 操作。它每次先核�
 宿主与目录插件从 `./cordis` 导出。名称、注入键与责任以 [model 的装配设计](../model/docs/cordis.md#单机提供者的插件划分)为准，本包实现它。
 
 - `ModelInstancesLocalPlugin` 与 `ModelConvertersLocalPlugin` 分别继承契约包的目录服务，静态注入 `modelPublicationAuthority` 与 `modelConverterAuthority`。权威缺席时 fiber 停在等待，不发布服务。权威换代或撤除时 Cordis 连同目录一起卸载再装载，后继目录从空开始，旧目录登记的 handle 不由它服务。非解析器租户的 `connect` 返回 `invalid`，字段为 `tenant`。
-- 宿主部分由 `createModelRuntimeLocalPlugin(options)` 造出的类装载，静态注入 `modelCommands`、`modelClock`、`modelHostAuthority`，发布 `modelInstanceHost`；提供者带 `runtime` 时同时发布 `modelRuntime`，见[运行门面与结果推送](#运行门面与结果推送)。配置是 `concurrencyLimit`、`wakeCapacity`、`scanBatchSize` 与 `scanIntervalMs`，四项必需，正整数（`scanIntervalMs` 为非负整数），其余取值让加载失败，不取默认值。`scanBatchSize` 与 `scanIntervalMs` 由恢复扫描消费，宿主本身不用。
+- 宿主部分由 `createModelRuntimeLocalPlugin(options)` 造出的类装载，静态注入 `modelCommands`、`modelClock`、`modelHostAuthority`，发布 `modelInstanceHost`；提供者带 `runtime` 时同时发布 `modelRuntime`，见[运行门面与结果推送](#运行门面与结果推送)。配置是 `concurrencyLimit`、`wakeCapacity`、`scanBatchSize` 与 `scanIntervalMs`，四项必需，正整数（`scanIntervalMs` 为非负整数），其余取值让加载失败，不取默认值。宿主本身不用 `scanBatchSize` 与 `scanIntervalMs`。结果推送的启动扫描用 `scanBatchSize` 作页长，见[运行门面与结果推送](#运行门面与结果推送)。`scanIntervalMs` 留给周期恢复扫描，目前没有消费者。
 - `bind` 是插件与本域执行宿主之间的装配操作，不在服务面上。同一宿主只认一个 driver：同一对象重复绑定认回原 binding，其他对象返回 `conflict`，已关闭的宿主拒绝新绑定。未绑定或已关闭时 `schedule` 返回 `unavailable`。
 - `schedule` 只置唤醒位：同一 tenant/call 已有位时不再入队；等待中的不同调用最多 `wakeCapacity` 个，满了返回 `unavailable`、诊断 `queue-full`，不为它建 Promise。最多 `concurrencyLimit` 个 drive 同时运行，由宿主自己的闭包启动，不挂在调用方 fiber 上。一个正在运行的调用被再次唤醒时保留其位，drive 交还后重跑一次。成功只表示本地唤醒被接受，不是耐久入队。
 - drive 输入由 `modelHostAuthority.resolve` 取得。它答失败时（例如取不到旧进程终止证据）宿主不驱动该调用，报告一条诊断；原待办仍在 `ModelCommands` 里，查询与保管由别的服务继续，宿主不把它们算作完成。
@@ -179,7 +227,7 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 
 这是入口运行级组合保证，单个宿主 fiber 或 Cordis 的多个独立 effect 不自动保证跨 fiber 次序。异常依赖撤除与入口失效时的立即撤权仍由入口绑定拥有者承担。正文释放不撤 channel，以便原绑定继续处理晚账。`createConfiguredModelRuntimeLocalPlugin` 原样转发 channel、releaseExecution 和 observation 对象选项。
 
-本成员没有新增生产 ActorRef 映射、SQL 接管表或重启恢复。完整撤权、E7 与跨进程保证仍未闭合。真实签发来源缺失时保持 unavailable，AD-05 之前不 ACK。发行接线与跨装配行的相等约束归应用拥有者，成员支持不表示发行已经安装。验证入口为 [plugins-host.spec.ts](tests/plugins-host.spec.ts)、[send-stage.spec.ts](tests/send-stage.spec.ts)与[materialization-proof.spec.ts](tests/materialization-proof.spec.ts)。
+本成员没有新增生产 ActorRef 映射、SQL 接管表或执行的重启恢复。重启后只有结果推送由启动扫描接续。完整撤权、E7 与跨进程保证仍未闭合。真实签发来源缺失时保持 unavailable。ACK 取决于冻结 owner 的证据适配器：适配器答 `unavailable` 时推送保留 saved 的结果与原 ACK operation，不释放份额，下一次唤醒以同一 operation 再交接；发行的 Agent owner 适配器按耐久接收记录核验，见[应用的 Model 行页](../../../apps/harness-server/docs/rows/model-release.md)。发行接线与跨装配行的相等约束归应用拥有者，成员支持不表示发行已经安装。验证入口为 [plugins-host.spec.ts](tests/plugins-host.spec.ts)、[send-stage.spec.ts](tests/send-stage.spec.ts)与[materialization-proof.spec.ts](tests/materialization-proof.spec.ts)。
 
 ### 运行门面与结果推送
 
@@ -188,23 +236,33 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 - **发布。** 提供者带 `runtime` 时，插件在发布 `modelInstanceHost` 的同一个子插件里发布 `modelRuntime`，同样在 bind 之后。`modelRuntime` 是 `ModelRuntimeService` 的子类，四个调用、四个消费方法与 `connect` 转给提供者的 runtime，runtime 只在闭包里。带 `runtime` 而缺 `results` 选项，或有 `results` 而提供者不带 `runtime`，插件加载失败。
 - **推送从哪里知道结果。** 插件把自己的命令端口交给提供者。提供者的 `settle` 提交成功后，推送唤醒该调用。推送不从读取推断提交。每个调用有一个唤醒位，同时处理的调用最多 `maxConcurrentCalls` 个，等待的调用不建 Promise。
 - **冻结。** 推送以 `modelHostAuthority` 给出的主体读取该调用一次：受理事实、全部发出记录与全部结果页。结果交付的键是规范调用引用与 `Settlement.version`，载荷是冻结的 consumer、真实 Settlement、全部有序结果项与冻结时每个发出的账目快照（没有账目的写 `null`）。冻结后的交付深冻结，此后每次推送与重投都发送同一个值。读取用记录里固定的读操作，ACK 用记录里固定的 ACK 操作。
-- **推送与回执。** 接收方按冻结的 `consumer.owner` 从本插件的登记表解析，不重新选择 owner。没有登记时交付保持等待，诊断 `no-receiver`，该 owner 登记时重推。回执的键必须与原键相同，证据的 owner 必须是冻结的 consumer owner，否则不算 saved，交付记为失败并报告 `receipt-mismatch`。`outcome-unknown` 与抛出都算结果未知：用原键与原载荷立即重投，最多 `maxRedeliveries` 次，之后保持未知，下一次唤醒再重投。`unavailable`、`backpressured` 与 `cancelled-before-accept` 使交付等待下一次唤醒。`denied`、`invalid` 与 `conflict` 使交付失败，不自动重推。已经 saved 的交付不被后来的回答改写；未知只被 saved 取代。
+- **推送与回执。** 接收方按冻结的 `consumer.owner` 从本插件的登记表解析，不重新选择 owner。没有登记时交付保持等待，诊断 `no-receiver`，日志级别是 warn（R2-D237），该 owner 登记时重推。回执的键必须与原键相同，证据的 owner 必须是冻结的 consumer owner，否则不算 saved，交付记为失败并报告 `receipt-mismatch`。`outcome-unknown` 与抛出都算结果未知：用原键与原载荷立即重投，最多 `maxRedeliveries` 次，之后保持未知，下一次唤醒再重投。`unavailable`、`backpressured` 与 `cancelled-before-accept` 使交付等待下一次唤醒。`denied`、`invalid` 与 `conflict` 使交付失败，不自动重推。已经 saved 的交付不被后来的回答改写；未知只被 saved 取代。
 - **ACK。** ACK 只接受推送接受过的 saved 回执，这是唯一能到达交接的路径：以固定的 ACK 操作和回执证据调用 `ModelCommands.handoff`，证据种类为 retained。`commit-unknown` 时用同一操作与同一输入重发，最多 `maxRedeliveries` 次，之后记为未知，下一次唤醒继续认回，不换操作，不清理。
 - **清理。** ACK 成立后推送推进清理，每轮最多 `maxCleanupSteps` 步。清理失败或受阻时保持已确认，报告 `cleanup-pending`，下一次唤醒或后继插件继续，不撤回确认，不再 ACK。清理释放后推送只留结果键与回执，丢掉正文。
 - **晚到账目。** 晚到账目经插件交给提供者的同一个命令端口进入。账目被接受之前先占一个名额：租户待交付账目达到 `maxPendingAccountsPerTenant`，或全部租户达到 `maxPendingAccounts` 时，`recordLateFact` 不提交，返回 `unavailable`（dependency `model-result-push`，诊断 `late-account-capacity`），并报告一条警告。来源仍持有它的报告，有名额后用同一操作重交。同一操作重交不另占名额。接受的结果是 `commit-unknown` 或 `unavailable` 时，账目可能已经提交，名额不归还。接受后推送立即读回这次提交的修订并冻结一个账目交付：键是调用引用、发出与修订，载荷是冻结的 consumer 与账目。同一调用的晚到账目一个接一个接受，每个修订一个交付，不合并。结果冻结时已在快照里的修订不另推。账目交付只在结果 saved 之后推送，正文释放后照常推送，名额在交付 saved 后归还。账目的未知项保持未知，不写零。
 - **登记。** 登记规则由契约包的登记表实现：两个存活 fiber 争同一 owner 时后来者 `FAILED`；旧登记属于已卸载或正在卸载的 fiber 时被直接取代，所以插件因别的依赖重跑后重新登记不失败。本插件在每次登记成功后唤醒该 owner 的未完成交付。
-- **推送状态的存放。** 推送记录放在装配给出的 `ResultPushLedger` 里，记录里有冻结交付、回执、ACK 与清理状态和待交付账目。账本同一时刻只有一个写者：`claim` 拒绝第二个。`createMemoryResultPushLedger` 是进程内的实现。耐久账本从这个端口接入，本包尚未提供。
+- **推送状态的存放。** 推送记录放在装配给出的 `ResultPushLedger` 里，记录里有冻结交付、回执、ACK 与清理状态和待交付账目。账本同一时刻只有一个写者：`claim` 拒绝第二个。`createMemoryResultPushLedger` 是进程内的实现。本包不提供耐久账本，也不需要它：还欠什么由 `ModelCommands` 的耐久 custody 回答，见下一条。
+- **启动扫描（R2-D260）。** 装配给出 `results.recovery` 时，推送在启动时扫描一次。它从 `recovery.scopes()` 取每个租户和该租户的恢复主体。它以 `scanBatchSize` 为页长逐页调用 `scanPending`，再对每个调用调用 `loadRecovery`。已收场、且 custody 仍在 producer 或清理还没释放的调用被唤醒。尚未收场的调用不唤醒，它由自己的 `settle` 唤醒。唤醒之后照常冻结、推送、ACK 与清理，账本为空也一样：
+  - 结果收场后不再变化，所以从耐久记录重新冻结的交付与原交付同键同内容。接收方按同 key 同内容认回原回执，不另存一份。
+  - Model 用新的 ACK 操作和这份回执的证据交接。早先的 ACK 如果已经提交，custody 已是 acknowledged，推送不再推送，只续做清理。
+  - 扫描失败时报告一条警告（`start scan stopped at` 加 `scopes`、`scan` 或 `load`），停止这个租户的扫描，不重试。没扫到的调用等下一次启动。
+  - 扫描结束时报告一条信息，写出唤醒的调用数。撤除时先等扫描停下，扫描停下后唤醒的调用不推送。
+  - 没有 `recovery` 时不扫描。账本里没有的已收场调用就一直欠着。
 - **生命周期。** 撤除时先关闭本代公共观察，再 quiesce、停派发并等待 drive 交还、停推送（此后 `recordLateFact` 对账目返回 `unavailable`，dependency `model-result-push`，诊断 `result-push-stopped`，来源向后继重交；中止在途推送并等待它们结束；等正在接纳的晚到账目冻结完；未接收的账目写入账本；释放账本）。采用首次通道时随后等待入口 releaseExecution，最后撤发布服务的子插件。未完成的推送、ACK、清理与晚到账目留在账本里。拿同一账本装载的后继插件用原键与原载荷继续。启动窗口里插件被卸载时，已绑定的宿主关闭，服务不发布。
 
 已知限制：
 
 - 推送的界从插件选项 `results.limits` 读取，在插件启动时校验，不在插件配置 `Config` 里：`Config` 目前只校验宿主的四项上限。
-- 进程内账本随进程消失。进程重启后，已收场而未确认的调用由恢复扫描接续，恢复扫描尚未实现。插件不在时收场的调用不在账本里，也由恢复扫描接续。
+- 进程内账本随进程消失。已收场而未确认的结果交付由启动扫描接续，插件不在时收场的调用也一样。下面两种情形启动扫描接续不了：
+  - 重启前已接受、还没 saved 的晚到账目交付。结果已经 ACK 时，这些交付只在账本里，重启后丢失。
+  - 结果冻结之后、重启之前接受了晚到账目的调用。重新冻结的结果带着新的账目修订，与原交付内容不同。接收方答 `conflict`，交付记为失败，不 ACK，份额不归还。
+  - M2 没有晚到账目的来源，这两种情形在发行里不出现。
+- 启动扫描需要装配给出每个租户的恢复主体，还需要 `modelHostAuthority.resolve` 对重启前受理的调用给出主体。发行目前两样都没有，所以发行不传 `recovery`，见[应用的 Model 行页](../../../apps/harness-server/docs/rows/model-release.md)。
 - 账本为每个调用留一条小记录（调用引用、consumer 与已交付的账目修订），不逐出。
 - 推送不发出 `model-cordis-contract/call-changed` 事件。
 - model 运行时的 `quiesce` 停止新受理并报告本进程的 pending 与 running（#446 阶段 5.5，C-QUIESCE）；进程外或重启前的耐久待办不计入，归 5.4 恢复。
 - 模型发送没有重试策略（M2 范围）。
-- 进程内没有再驱动等待（`waiting`）或未知（`unknown`）的交付。只有四个唤醒来源：`settle` 提交、晚到账目接受、owner 登记、后继插件启动。没有计时器，也不扫描。波 C 的恢复扫描接续这些交付。
+- 进程内没有再驱动等待（`waiting`）或未知（`unknown`）的交付。只有五个唤醒来源：`settle` 提交、晚到账目接受、owner 登记、后继插件启动与启动扫描。没有计时器，运行期间不再扫描。波 C 的周期恢复扫描接续这些交付。
 - 被接收方以 `denied`、`invalid` 或 `conflict` 拒绝的晚到账目一直占着名额，不自动重推。租户份额因此可能被耗尽。波 C 的恢复扫描收场这些账目。
 - 停推送等正在接纳的晚到账目，不设超时。命令端口一直不答时，卸载不返回。这与宿主关闭时的排空相同。
 - `runtime.ts` 里有四个函数的圈复杂度高于 warn 线 10，不超 alert 线 12，保留不拆：`freeze`（12）按契约顺序读受理事实、引用、发出记录与结果页，每一步失败各自报告并返回；`push`（12）的分支逐个对应「推送与回执」的回答分类与重投上界；`hold`（12）是读回修订前后的顺序检查，每一项提前返回；`reportRuntimeEvent`（11）为 `RuntimeEvent` 的每个种类写一个分支，种类增加时它随之增加。拆开会把一个按顺序的决定分到几个函数里，读者要跨函数核对次序。
@@ -269,12 +327,14 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 
 ### 插件
 
-`LocalCredentialPlugin` 继承 model-cordis-contract 的 `ModelCredentialService`，不另写键。配置是 `path`（非空字符串）、`factorySecret`（字符串，空字符串合法），以及可选的 `lock`（`waitMs`、`backoffMs`）与 `diagnosticsCapacity`；三个数值的取值规则与保管库相同。配置不合格时插件加载失败：缺项、类型不对与取值不合格都是不合格，不会被静默丢弃后按默认值加载。回调和已打开的存储对象不进配置。
+`LocalCredentialPlugin` 继承 model-cordis-contract 的 `ModelCredentialService`，不另写键。配置是 `path`（非空字符串）、可选的 `factorySecret`（给出时必须是字符串，空字符串合法），以及可选的 `lock`（`waitMs`、`backoffMs`）与 `diagnosticsCapacity`；三个数值的取值规则与保管库相同。配置不合格时插件加载失败：缺项、类型不对与取值不合格都是不合格，不会被静默丢弃后按默认值加载。回调和已打开的存储对象不进配置。
 
-- 路径上没有文件：用配置里的工厂秘密新建保管库。新建等待文件锁，超过 `lock.waitMs` 时插件加载失败。
+- 路径上没有文件、配置给出 `factorySecret`：用它新建保管库。新建等待文件锁，超过 `lock.waitMs` 时插件加载失败。
+- 路径上没有文件、配置没有 `factorySecret`：不建文件。插件照常注册 `modelCredential`，四个方法都返回 `unavailable`，与文件读不出时相同。这让由配置命令建好保管库的宿主不在可序列化配置里放秘密（[可序列化配置与秘密材料分开](../../../docs/architecture/cross-cutting-concepts.md)）。
 - 路径上已有文件：打开并使用文件里的工厂秘密，不用本次配置里的值。
 - 文件损坏或读不出：插件仍然注册 `modelCredential`，`present` 和 `resolve` 返回 `unavailable`，不改文件；撤除时没有可关闭的保管库。打开失败的原因不经插件报告：服务面只有 `present` 与 `resolve`，诊断不转发（见[读取与刷新](#读取与刷新)），本包也没有采用别的观测通道；运维在同一路径上调用 `openLocalCustodian` 即得到 `missing`、`corrupt` 或 `io`。
 - 保管库只存在于构造时创建的闭包里，不是实例属性，经 `ctx.modelCredential` 取不到保管库及其管理操作。
+- `createLocalCredentialPlugin()` 返回 `{ plugin, custody }`。`plugin` 与 `LocalCredentialPlugin` 提供同样的 `modelCredential`。`custody` 是该插件当前存活的保管库的 `bind`、`unbind` 与 `describe`，留在建它的装配手里，不在服务上。插件未装载、已撤除或保管库打不开时，写操作答 `not-written`，`describe` 答 `unavailable`。`custody` 不核调用者资格，持有它的装配负责准入。
 - 插件撤除时关闭保管库。关闭挂在装载插件的 fiber 上，没有额外等待在途解析。
 
 插件不从 `ctx`、实例或谁装了它推断租户；租户、用途和发送资格是 `resolve` 的参数，由受信的发送边界提供。
@@ -309,6 +369,7 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 持续验证在 [tests](tests/index.md)。各测试覆盖的义务如下：
 
 - [credential.spec.ts](tests/credential.spec.ts)：五种结果、租户隔离、轮换与撤销、文件损坏、关闭、跨进程更新、文件锁、保存确认未知，以及发布路径关闭文件描述符。
+- [credential-management.spec.ts](tests/credential-management.spec.ts)：`bind` 后发送解析到租户秘密、再绑定替换秘密与时刻、绑定后不再给工厂值、他租户持有与未铸造租户得到 `denied`、读不出的文件不改字节、`unbind` 后按缺失处理、空工厂秘密答 `absent`、不可读绑定不回退工厂、旧快照与损坏的时刻，以及受管插件的 `custody` 只在插件存活时可写。每条都扫描可见结果里的秘密哨兵。
 - [custodian-options.spec.ts](tests/custodian-options.spec.ts)：建库采用已有文件、诊断容量、锁等待上限与超时的 `ELOCKED` 代码、非锁错误、三种不可用原因及其 `cause`、快照字段类型不对判为损坏，以及选项取值的拒绝。
 - [credential-service.spec.ts](tests/credential-service.spec.ts)：在真实 Cordis 4.0.4 下，服务实例只暴露 `present` 与 `resolve`。
 - [cordis-entry.spec.ts](tests/cordis-entry.spec.ts)：插件的发布、空路径建库并服务、撤除、损坏文件上撤除不报错、配置校验，以及损坏文件上的不可用服务。
@@ -316,20 +377,22 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 - [profiles-plugin.spec.ts](tests/profiles-plugin.spec.ts)：在真实 Cordis 4.0.4 下，`ModelProfilesLocalPlugin` 发布 `modelProfiles`，每条路由的档案定义与 `officialOpenAiProfiles` 逐字段相同，`list` 与 `resolve` 的答案，撤除后旧句柄返回 `unavailable`，非法配置使加载失败，并与档案替身对拍。
 - [deliver-injected.spec.ts](tests/deliver-injected.spec.ts)：在真实 Cordis 4.0.4 下，注入发送的模块边界、提供者缺席、恢复、重装后结果不变、更替与非服务对象。
 - [vault-init.spec.ts](tests/vault-init.spec.ts)：保管库初始化命令：新建与读回、五种已有对象的拒绝、密钥不外泄的各失败点、输入规则、用户目录规则、POSIX 权限与失败时清理、终端回显关闭与还原、命令行参数与退出码。
-- [send-resources.spec.ts](tests/send-resources.spec.ts)：用观察凭据槽的传输工厂核对，槽只在 `start` 期间有值，正常返回与抛出后都为空，两个资源互不见对方的值，异物与释放后的物化传输被拒绝且不填槽，`release` 与 `close` 幂等。它还用真实 pi 传输核对异物物化传输被拒绝，以及传输拒绝的配置在构造时抛出。
+- [vault-replace.spec.ts](tests/vault-replace.spec.ts)：替换工厂秘密：绑定不变、读回、没有保管库或保管库损坏时不读密钥、输入规则、权限护栏的次序、读回失败答 `written-not-private` 且文件已是新密钥；重建读不出的文件（目录不删、密钥不合格时旧文件保留）；`inspectLocalCustodian` 的四种答复；持锁时清理本保管库的残留临时文件而不动其他文件（不持锁的打开不清理）；以及插件配置不带工厂秘密时的两种情形（有保管库照常服务、没有保管库答 `unavailable` 且不建文件）。
+- [send-resources.spec.ts](tests/send-resources.spec.ts)：用观察凭据槽的传输工厂核对，槽只在 `start` 期间有值，正常返回与抛出后都为空，两个资源互不见对方的值，异物与释放后的物化传输被拒绝且不填槽，`release` 与 `close` 幂等。它还核对连接重试的报告带出每次发送各自的 `call` 与 `dispatch`、探针传输没有观察者；并用真实 pi 传输核对异物物化传输被拒绝，以及传输拒绝的配置在构造时抛出。
 - [assembly.spec.ts](tests/assembly.spec.ts)：装配对路由、网络、尝试容量与准备配置的拒绝。`preparation` 的租约经配置的家族取得绑定，并调用配置的 `supplierOf`。`close` 开始后的取得返回具名为 `model-host-local`、`assembly-closed` 的不可用，且不调用 `supplierOf`。关闭前取得的租约在关闭后计量结果不变并能释放。`close` 幂等。
 - [plugins-instances.spec.ts](tests/plugins-instances.spec.ts)：真实 Cordis 4.0.4 下两个目录插件的等待、发布、登记与释放、非解析器租户、授权方拒绝、后继目录、失去权威与转换目录的独立。
 - [plugins-host.spec.ts](tests/plugins-host.spec.ts)：真实 Cordis 4.0.4 下宿主部分的绑定后发布、四项配置的拒绝、并发上限、唤醒容量满、重复唤醒、调用方 fiber 退出、无可信输入时不驱动、有序关闭的次序与未派发唤醒、后继宿主不接管旧引用、失去依赖、启动窗口卸载时宿主关闭、观察资格与换代路由。
-- [runtime-push.spec.ts](tests/runtime-push.spec.ts)：真实 Cordis 4.0.4、真实 model 运行时与内存 `ModelCommands`、脚本传输与脚本接收方（代 agent-host-local 的接收方）。核对：冻结的结果交付与 retained ACK；saved 的四项事实各缺一项时不 ACK；键或证据 owner 不符的回执不算 saved；未知时用原键原载荷重投；ACK 未知时以原操作认回；清理失败保持确认、后继完成清理；没有接收方时等待、登记后推送；正文释放后每个晚到修订一个账目交付；账目在结果 saved 之后；晚到账目超界被拒并可观察、有名额后接受；未知后被拒的重投保持未知；晚到账目接受未知时不归还名额、同一操作重交不另占；卸载等正在接纳的晚到账目并交给后继、停后拒收；两个存活 fiber 争同一 owner；因别的依赖重跑后重新登记；撤除时未完成推送交给后继。
+- [runtime-push-bounds.spec.ts](tests/runtime-push-bounds.spec.ts)：同一推送场景。核对每次唤醒的推送上限（R2-D273）：接收方一直答 unavailable 或 backpressured 时一次唤醒只推一次，一直答 outcome-unknown 时推 `1 + maxRedeliveries` 次。性质见 model-contract 的 [formal-mapping.md](../model-contract/verification/models/formal-mapping.md)。
+- [runtime-push.spec.ts](tests/runtime-push.spec.ts)：真实 Cordis 4.0.4、真实 model 运行时与内存 `ModelCommands`、脚本传输与脚本接收方（代 agent-host-local 的接收方）。核对：冻结的结果交付与 retained ACK；saved 的四项事实各缺一项时不 ACK；键或证据 owner 不符的回执不算 saved；未知时用原键原载荷重投；ACK 未知时以原操作认回；清理失败保持确认、后继完成清理；没有接收方时等待、登记后推送；正文释放后每个晚到修订一个账目交付；账目在结果 saved 之后；晚到账目超界被拒并可观察、有名额后接受；未知后被拒的重投保持未知；晚到账目接受未知时不归还名额、同一操作重交不另占；卸载等正在接纳的晚到账目并交给后继、停后拒收；两个存活 fiber 争同一 owner；因别的依赖重跑后重新登记；撤除时未完成推送交给后继。启动扫描（模拟重启：新插件类与空账本，同一份内存 `ModelCommands`）：saved 未 ACK 的结果以原键原载荷再推、ACK 并归还份额；已提交而回包丢失的 ACK 只续做清理、不再推送；已结清的调用下次启动不唤醒；未收场的调用不唤醒；扫描被拒时报告警告、custody 不变。
 - [runtime-cancel.spec.ts](tests/runtime-cancel.spec.ts)（慢层）：本地 HTTPS 流进行中的 `calls.cancel`。核对：终止在传输报告物理停止之后，已交付内容保留，费用不写零；同租户另一调用照常完成；取消与自然完成同时到达时只有一个终止。
 - [runtime-host.spec.ts](tests/runtime-host.spec.ts)（慢层）：真实 Cordis 4.0.4 上的整装配（运行时插件、发送阶段插件、真实 model 运行时、model-storage-sql 的耐久 `ModelCommands` 与协调器）跑 model-contract 的 53 项提供者义务；每项出现一次，失败只允许显式的已知失败表，not-applicable 只允许显式允许表（两张表目前都为空）；`assembly.json` 的实现描述取自实际装出的后端。见[53 项提供者义务](#53-项提供者义务)。
 - [line-e2e.spec.ts](tests/line-e2e.spec.ts)（慢层）：线内贯通。一个进程、一个真实 Cordis 4.0.4 根 Context 装出保管库、官方档案、请求准备、发送阶段、运行门面与推送，耐久 `ModelCommands` 用 model-storage-sql 的 `createSqlModelCommands`（命令与发送协调器共核）；走完 准备 → 发送（回放 `openai-tool-call` 合成件，请求摘要等于旁注）→ 持久（关掉并重开 SQLite 文件后新命令读出终态与结果页）→ 推送（接收方替身先 saved，生产方才 ACK，之后清理 released）→ 取消（`exchange-stopped` 先于 settle，终止为该取消的 interrupted）。SQL 提供者是 node:sqlite 文件替身，不覆盖 sqlite-provider 的 Worker、队列与耐久；接收方是脚本替身。设 `OMNE_EVIDENCE_OUT` 时写脱敏 `line-e2e.json`。
 - [plugins-preparation.spec.ts](tests/plugins-preparation.spec.ts)：真实 Cordis 4.0.4 下无运行面与网络时的 `prepare`、档案拒绝、租约交还、卸载后查询仍可用、同一命令上的第 2 轮锚点与另一份命令的读不到、卸载后的租约、命令换代。`modelPreparationResources`：经键取得的租约读到注入命令里的调用，键随插件撤除，旧引用拒绝新租约，重装后键恢复；真实插件跑契约成员的两条符合性用例。
 - [local-model.spec.ts](tests/local-model.spec.ts)（慢层）：本地 HTTPS 服务回放 OpenAI 与 Anthropic 两个家族录制的 SSE 正文，两家各有一条回复含推理续接状态部件。调用经本地保管库、装配的发送边界、真实 pi 传输、两个家族与 model 运行时。测试核对：请求带保管库解析出的 `Bearer` 占位值；事实以唯一的 `ended` 结束；调用收场，发出记录的终局与之相同；物化回执带该家族记录产出的 `replayFormat`；账目带本次调用的 `subject` 与 `receipt: 'received'` 到达内存 `ModelCommands`，并经 `dispatches` 读回；`payableAmount` 得到已知的 `openrouter-credit` 金额；占位值不出现在事实与发出记录中。
 - [continuation.spec.ts](tests/continuation.spec.ts)（慢层）：两家各让一次带推理状态的调用 X 经装配收场、读取、确认并释放请求材料，再用 `preparation` 的真实租约与真实家族计量器计量延续 X 的下一次请求。测试核对：锚点命中；金额等于 X 的 `input`、`cache-read` 与 `cache-write` 之和加新增部分的估算；余量只按估算部分计算；方法名以 `+continuation-anchored/1` 结尾；带 X 回复的请求比不带时恰好多 X 的输出 token 数。另一租户声明 X 时，计量结果与声明一个不存在的调用逐字节相同。
-- [send-stage.spec.ts](tests/send-stage.spec.ts)：真实 Cordis 4.0.4 下发送阶段插件的装载与卸载（服务发布与撤回，缺凭据服务时等待，随凭据服务卸载，配置与装配被拒时什么都不建）、凭据槽、退出后的发送、退出时在途的发送，以及卸载等发送路径关闭。慢层用例把四份真实回放件经插件的 `modelSendBoundary` 回放，并与装配路径在同一用例里对比事实、请求与发出记录。
+- [send-stage.spec.ts](tests/send-stage.spec.ts)：真实 Cordis 4.0.4 下发送阶段插件的装载与卸载（服务发布与撤回，缺凭据服务时等待，随凭据服务卸载，配置与装配被拒时什么都不建）、凭据槽、退出后的发送、退出时在途的发送，以及卸载等发送路径关闭。慢层用例把四份真实回放件经插件的 `modelSendBoundary` 回放，并与装配路径在同一用例里对比事实、请求与发出记录。另有一条慢层用例：本地前置 TCP 端口丢弃第一条连接（请求字节未发出），经插件重试后调用 completed，Cordis logger 恰好收到一条含调用标识、重试序号、延迟与原因的 `warn`。
 - [recording-replay.spec.ts](tests/recording-replay.spec.ts)（慢层，门禁）：把 pi-ai-transport 的四份真实回放件逐一经装配路径回放，核对收场、唯一终止、推理状态与回放格式、请求摘要可复现、账目经真实路径到达，以及占位凭据只出现在 `Authorization` 头里。它还回放两个工具调用用例的合成回放件：请求带 function 形状的工具、`tool_choice` 为 `auto`、推理档位为 `medium`，首轮以工具建议收场；延续轮带首轮回复里的工具调用与推理状态，再带工具结果；录制器把合成流原样写出，旁注摘要等于发出请求体的摘要，密钥模式命中时不写文件，回复没有工具调用时不写文件。合成回放件是手写数据，不证明真实模型的输出。
 - [recording-c9.spec.ts](tests/recording-c9.spec.ts)（慢层）：两家各计量一次延续真实首轮的请求，再回放延续轮，记录发送前计量与真实输入合计之差。差值只记录，不是门槛。
 - [recorder.spec.ts](tests/recorder.spec.ts)（慢层）与 [secret-scan.spec.ts](tests/secret-scan.spec.ts)（快层）：录制器写出的字节与旁注、不写文件的情形，以及密钥扫描。录制器的规则见 [tests/README.md](tests/README.md)。
 
-未覆盖：网络文件系统与跨机器的锁语义，崩溃后残留锁的自动恢复，耐久推送账本与进程重启后的推送恢复，以及本包以外的宿主能力。经真实厂商或代理的发送只经手动录制器验证。证据是 [`pi-ai-transport/tests/fixtures/recordings/`](../pi-ai-transport/tests/fixtures/README.md) 的四份回放件，门禁回放（[recording-replay.spec.ts](tests/recording-replay.spec.ts)）走同一装配路径。耐久的 `ModelCommands` 不在本包；本包在整装配上跑它的 53 项义务（[runtime-host.spec.ts](tests/runtime-host.spec.ts)），SQL 存储是 node:sqlite 测试提供者，不覆盖真实 sqlite-provider 的 Worker、耐久性与关闭。
+未覆盖：网络文件系统与跨机器的锁语义，崩溃后残留锁的自动恢复，进程重启后的推送恢复只在同一进程内模拟（新插件类、空账本、同一份内存 `ModelCommands`），没有在真实进程重启和 SQL `ModelCommands` 的 `pending` 分页上验证，以及本包以外的宿主能力。经真实厂商或代理的发送只经手动录制器验证。证据是 [`pi-ai-transport/tests/fixtures/recordings/`](../pi-ai-transport/tests/fixtures/README.md) 的四份回放件，门禁回放（[recording-replay.spec.ts](tests/recording-replay.spec.ts)）走同一装配路径。耐久的 `ModelCommands` 不在本包；本包在整装配上跑它的 53 项义务（[runtime-host.spec.ts](tests/runtime-host.spec.ts)），SQL 存储是 node:sqlite 测试提供者，不覆盖真实 sqlite-provider 的 Worker、耐久性与关闭。

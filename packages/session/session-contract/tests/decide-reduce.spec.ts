@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import { accountCodec, workspaceEquals } from '@omne-harness/legal-identity'
 import {
+  expectedRevision,
   decide,
   deriveDriveOperation,
   deriveSessionOperation,
@@ -31,7 +32,6 @@ import {
   memoryAccess,
   memoryOtherAccess,
   operationId,
-  createMemorySessionEvidenceBridge,
   guard,
   ordinaryInput,
   testingWorkspace,
@@ -46,11 +46,16 @@ const historyRows: HistoryEntry[] = []
 const base = { tenant: access.tenant, session: access.session }
 
 /** Commits `command` on `previous` through decide and reduce, as a storage participant would. */
+/** The stored first input of a start, as a provider reads it: every input here came through the login. */
+function loginRead(previous: WorkSnapshot | null) {
+  const first = previous?.pending[0]
+  return first === undefined
+    ? {}
+    : { firstInput: { input: first, origin: ordinaryInput(first).origin } }
+}
+
 function commit(previous: WorkSnapshot | null, command: SessionCommand): WorkSnapshot {
-  const guards =
-    command.kind === 'startRun'
-      ? [guard('evidence-bridge', 'login-entry', 'login')]
-      : initializationGuards(command, previous)
+  const guards = command.kind === 'startRun' ? [] : initializationGuards(command, previous)
   if (previous === null) historyRows.length = 0
   const material =
     previous === null
@@ -69,6 +74,7 @@ function commit(previous: WorkSnapshot | null, command: SessionCommand): WorkSna
   const decision = decide(previous, command, guards, null, {
     compaction: null,
     ...(material === undefined ? {} : { history: material.reads }),
+    ...(command.kind === 'startRun' ? loginRead(previous) : {}),
   })
   if (decision.kind !== 'entries') throw new Error(`decide: ${JSON.stringify(decision)}`)
   const revision = String(
@@ -603,18 +609,24 @@ describe('the pure judgments at their edges', () => {
     const active = started()
     if (active.run.kind !== 'active' || active.run.advance === null) throw new Error('no advance')
     const { advance } = active.run
-    expect(judgeAdvance(active, { kind: 'attempt', advance, expected: active.revision })).toEqual({
+    expect(
+      judgeAdvance(active, {
+        kind: 'attempt',
+        advance,
+        expected: expectedRevision(active, 'release'),
+      }),
+    ).toEqual({
       kind: 'ok',
     })
     expect(judgeAdvance(active, { kind: 'attempt', advance, expected: '0' as never })).toEqual({
       kind: 'changed',
-      revision: active.revision,
+      revision: expectedRevision(active, 'release'),
     })
     expect(
       judgeAdvance(active, {
         kind: 'attempt',
         advance: { ...advance, attempt: 'other' as never },
-        expected: active.revision,
+        expected: expectedRevision(active, 'release'),
       }),
     ).toEqual({ kind: 'stale-advance', current: advance })
     expect(
@@ -629,7 +641,7 @@ describe('the pure judgments at their edges', () => {
         ...base,
         operation: operationId('finish'),
         run: advance.run,
-        expected: active.revision,
+        expected: expectedRevision(active, 'finishRun'),
         bounded: { kind: 'uninterpretable', evidence: evidence('u') },
       },
     })
@@ -675,31 +687,42 @@ describe('the pure judgments at their edges', () => {
     expect(judgeCompletion(dormant(), 'none')).toEqual({ kind: 'allowed' })
   })
 
-  it('the evidence bridge double hands the login-entry material to startRun unless scripted out, and decide follows it', async () => {
+  it('an interactive startRun reads the login gate from the stored first input, not from the guards', () => {
     const previous = accepted()
-    const command: SessionCommand = {
+    const first = previous.pending[0]!
+    const command = (entry: 'interactive' | 'dispatch'): SessionCommand => ({
       kind: 'startRun',
       input: {
         ...base,
-        operation: operationId('start-bridge'),
-        entry: 'interactive',
+        operation: operationId('start-gate'),
+        entry,
         candidate: creation().definition.candidate,
         instance: { owner: 'agent', id: 'i' },
       },
-    }
-    const bridge = createMemorySessionEvidenceBridge()
-    const withLogin = await bridge.prepare(command)
-    if (!('ok' in withLogin)) throw new Error('prepare failed')
-    expect(withLogin.ok.map(material => material.owner)).toContain('login-entry')
-    expect(decide(previous, command, withLogin.ok, null, { compaction: null }).kind).toBe('entries')
-    bridge.controls.loginEntry(false)
-    const without = await bridge.prepare(command)
-    if (!('ok' in without)) throw new Error('prepare failed')
-    expect(without.ok.map(material => material.owner)).not.toContain('login-entry')
-    expect(decide(previous, command, without.ok, null, { compaction: null })).toEqual({
-      kind: 'rejected',
-      failure: { kind: 'login-required' },
     })
+    const login = ordinaryInput(first).origin
+    const decided = (entry: 'interactive' | 'dispatch', reads: object, guards = []) =>
+      decide(previous, command(entry), guards, null, { compaction: null, ...reads })
+    const refusal = { kind: 'rejected', failure: { kind: 'login-required' } }
+    expect(decided('interactive', { firstInput: { input: first, origin: login } }).kind).toBe(
+      'entries',
+    )
+    // No read, another origin, or a read of another input: no login is confirmed.
+    expect(decided('interactive', {})).toEqual(refusal)
+    expect(
+      decided('interactive', { firstInput: { input: first, origin: evidence('intake') } }),
+    ).toEqual(refusal)
+    expect(decided('interactive', { firstInput: { input: 'other-input', origin: login } })).toEqual(
+      refusal,
+    )
+    // A guard named after the login entry confirms nothing: the gate is the stored input fact.
+    expect(
+      decide(previous, command('interactive'), [guard('bridge', 'login-entry', 'x')], null, {
+        compaction: null,
+      }),
+    ).toEqual(refusal)
+    // A dispatch start asks for no login.
+    expect(decided('dispatch', {}).kind).toBe('entries')
   })
 
   it('disabled idle and empty cascade have explicit decisions', () => {
@@ -808,7 +831,7 @@ describe('the pure judgments at their edges', () => {
         ...base,
         operation: operationId('finish-before-exit'),
         run: advance.run,
-        expected: active.revision,
+        expected: expectedRevision(active, 'finishRun'),
         bounded: { kind: 'uninterpretable', evidence: evidence('u') },
       },
     })

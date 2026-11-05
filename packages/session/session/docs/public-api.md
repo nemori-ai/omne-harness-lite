@@ -20,6 +20,8 @@
 | `SessionInstance`、`MaintenanceHandle` | 类型 | [instance.ts](../src/instance.ts)、[scan.ts](../src/scan.ts) |
 | `SessionDependencies`、`Current`、`BeforeAdmitSlot` | 类型 | [dependencies.ts](../src/dependencies.ts) |
 | `SchedulingPolicy`、`SessionConfiguration` | 类型 | [policy.ts](../src/policy.ts) |
+| `SessionInstanceOptions` | 类型 | [instance.ts](../src/instance.ts)。可选的 `measure` 与 `diagnose` 观察者，见 SPEC 的[测量事件](../SPEC.md#测量事件)与[诊断出口](../SPEC.md#诊断出口) |
+| `SessionMeasure` 及其事件类型、`SessionDiagnose`、`SessionDiagnostic` | 类型 | [measure.ts](../src/measure.ts)、[diagnostics.ts](../src/diagnostics.ts) |
 | `defaultSchedulingPolicy` | 常量 | [policy.ts](../src/policy.ts) |
 
 ### 随实现进入的导出

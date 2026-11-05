@@ -4,7 +4,11 @@ import {
   createGovernanceClient,
   createHttpTransport,
   createSessionClient,
+  encodeLoginStateIdText,
   parseTenantText,
+  readAccountIdText,
+  readLoginStateIdText,
+  readOrganizationIdText,
   tenantText as renderTenant,
   userTextMessage,
 } from '@omne-harness/sdk'
@@ -240,6 +244,134 @@ function responseFor(messageId: string, outcome = 'denied'): TransportReport {
   }
 }
 
+describe('governance client and a declared-unprovided operation', () => {
+  const login = { kind: 'present', value: proofValue } as const
+  const declared = [
+    {
+      protocolVersion: 'governance-public/1',
+      messageId: 'm-health',
+      operation: 'public-health',
+      body: {},
+    } satisfies GovernanceRequest<'public-health'>,
+    {
+      protocolVersion: 'governance-public/1',
+      messageId: 'm-replace',
+      operation: 'replace-credential',
+      proof: login,
+      body: { currentCredential: 'old', newCredential: 'new' },
+    } satisfies GovernanceRequest<'replace-credential'>,
+    {
+      protocolVersion: 'governance-public/1',
+      messageId: 'm-org',
+      operation: 'query-organization',
+      proof: login,
+      actingTenant: tenant,
+      body: { organizationId: tenant.organization },
+    } satisfies GovernanceRequest<'query-organization'>,
+  ] as const
+  const refusal = (messageId: string | undefined, body: unknown = {}): TransportReport => ({
+    kind: 'response',
+    bytes: encoder.encode(
+      JSON.stringify({
+        protocolVersion: 'governance-public/1',
+        ...(messageId === undefined ? {} : { messageId }),
+        outcome: 'stage-not-provided',
+        body,
+      }),
+    ),
+  })
+
+  it.each(declared)(
+    'declared-unprovided-not-uncertain: $operation answers with the response, sent once',
+    async request => {
+      const transport = scripted(bytes => refusal(messageIdOf(bytes)))
+      const result = await createGovernanceClient({ transport }).submit(request)
+      expect(result).toEqual({
+        kind: 'response',
+        message: {
+          protocolVersion: 'governance-public/1',
+          messageId: request.messageId,
+          outcome: 'stage-not-provided',
+          body: {},
+        },
+      })
+      expect(transport.sent).toHaveLength(1)
+      expect(JSON.stringify(result)).not.toContain(proofValue)
+    },
+  )
+
+  it('declared-unprovided-not-uncertain: reads the status 501 answer of the HTTP binding', async () => {
+    const server = await serve(received => ({
+      ...jsonReply(501, {
+        protocolVersion: 'governance-public/1',
+        messageId: wireOf(received)['messageId'],
+        outcome: 'stage-not-provided',
+        body: {},
+      }),
+    }))
+    const client = createGovernanceClient({
+      transport: createHttpTransport({ origin: server.origin, location: 'governance' }),
+    })
+    const result = await client.submit(declared[1])
+    expect(result.kind === 'response' && result.message.outcome).toBe('stage-not-provided')
+  })
+
+  it('stays uncertain when the declared answer is not this call, or has a body', async () => {
+    const answers = [
+      refusal('other'),
+      refusal(undefined),
+      refusal('m-health', { protocolVersion: 'governance-public/1' }),
+    ]
+    for (const answer of answers) {
+      const transport = scripted(() => answer)
+      expect(await createGovernanceClient({ transport }).submit(declared[0])).toEqual({
+        kind: 'uncertain',
+      })
+    }
+  })
+
+  it('hands the optional loginId of an issue-login success to the caller', async () => {
+    const issued = {
+      loginIdentifier: 'alice',
+      issuedAt: '2026-11-01T12:00:00Z',
+      tenantId: tenantText,
+      loginProof: 'fresh-proof',
+    }
+    const request = {
+      protocolVersion: 'governance-public/1',
+      messageId: 'm-login',
+      operation: 'issue-login',
+      body: { loginIdentifier: 'alice', credential: 'pw' },
+    } satisfies GovernanceRequest<'issue-login'>
+    const answer =
+      (body: unknown): Script =>
+      () => ({
+        kind: 'response',
+        bytes: encoder.encode(
+          JSON.stringify({
+            protocolVersion: 'governance-public/1',
+            messageId: 'm-login',
+            outcome: 'succeeded',
+            body,
+          }),
+        ),
+      })
+    const loginId = 'lgn_00000000000000000000000000'
+    const withId = await createGovernanceClient({
+      transport: scripted(answer({ ...issued, loginId })),
+    }).submit(request)
+    expect(withId.kind === 'response' && withId.message.body).toEqual({ ...issued, loginId })
+    const without = await createGovernanceClient({ transport: scripted(answer(issued)) }).submit(
+      request,
+    )
+    expect(without.kind).toBe('response')
+    const malformed = await createGovernanceClient({
+      transport: scripted(answer({ ...issued, loginId: 'not-a-login-id' })),
+    }).submit(request)
+    expect(malformed).toEqual({ kind: 'uncertain' })
+  })
+})
+
 describe('resend and correlation', () => {
   it('resends the same bytes once when the transport proves nothing was sent', async () => {
     const transport = scripted(
@@ -346,6 +478,18 @@ describe('tenant text and user messages', () => {
     expect(parseTenantText('{"organization":"x"}')).toBeUndefined()
     expect(parseTenantText('')).toBeUndefined()
     expect(parseTenantText('plain')).toBeUndefined()
+  })
+
+  it('passes the identity text functions of the contract through', () => {
+    const login = readLoginStateIdText('lgn_00000000000000000000000002')
+    expect(login).toBeDefined()
+    expect(encodeLoginStateIdText(login as NonNullable<typeof login>)).toBe(
+      'lgn_00000000000000000000000002',
+    )
+    expect(readLoginStateIdText('org_00000000000000000000000000')).toBeUndefined()
+    expect(readOrganizationIdText('org_00000000000000000000000000')).toBeDefined()
+    expect(readAccountIdText('acc_00000000000000000000000001')).toBeDefined()
+    expect(readAccountIdText('')).toBeUndefined()
   })
 
   it('builds the same user message for the same input id and a different one for another', () => {

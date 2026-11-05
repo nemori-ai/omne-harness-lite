@@ -4,7 +4,7 @@
 
 CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md#阶段与版本支持承诺)为准。技术缺项和未运行的验证不改变产品正文规定的范围。
 
-当前只有验证要求与前提说明，没有本目录可执行的协议模型或证明。具体运行、临时探针和逐轮评审证据归任务 tmp。后续资源须记录真实依赖、性质、命令、覆盖及限制，不能用静态类型或模型枚举替代提供者故障验证。
+[有限模型](models/index.md) 有受理与结果推送两个可执行的 TLA+ 模型，[证明](proofs/README.md) 有两条手写推广。ModelHandoff 与 FirstContent 仍只有设计前提。具体运行、临时探针和逐轮评审证据归任务 tmp。后续资源须记录真实依赖、性质、命令、覆盖及限制，不能用静态类型或模型枚举替代提供者故障验证。
 
 目录导航见 [index](index.md)。独立验收归 [acceptance](../acceptance/index.md)。
 
@@ -536,4 +536,4 @@ ResultPage.parts 包含完整 sealed 块或 partial 累计值及真实 trims。�
 
 `mixed-partial-result-readable` 经现有 startRun/settleCall 准备预先确定的混合结果，再从普通 consumption 遍历，比较完整值、顺序、终局与真实提醒。有必要钩子却丢项、丢 trim 或改变类型属于 fail；缺钩子才是不适用。scripted 的显式结果不证明传输到最终页的映射，该映射由 [Model 内存行为测试](../../model/tests/memory-partial.spec.ts) 实际驱动 preserve、settle 和 acquireRead 验证。独立安装的 independent-caller、result-consumer 只通过发布入口消费此协议，不引入生产运行证明。
 
-[reference.spec.ts](../tests/reference.spec.ts) 黑盒核对引用编解码、预算、反射拒绝和租户解析。真实入口与撤权由 [runtime-reference.spec.ts](../../model/tests/runtime-reference.spec.ts) 核对。替代提供者不证明生产后端或跨进程恢复。
+[reference.spec.ts](../tests/reference.spec.ts) 黑盒核对引用编解码、预算、反射拒绝和租户解析。[reference-cost.spec.ts](../tests/reference-cost.spec.ts) 是慢层测量：一次调用引用的解析与会话日志里生产者摘要的耗时，同时打印引用长度（R2-D353、R2-D357）；它只断言宽松上界。真实入口与撤权由 [runtime-reference.spec.ts](../../model/tests/runtime-reference.spec.ts) 核对。替代提供者不证明生产后端或跨进程恢复。

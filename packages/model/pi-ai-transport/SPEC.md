@@ -41,7 +41,7 @@
 - `config.network` 是装配创建并拥有的网络资源。多个传输可以共享同一网络资源。传输不创建也不关闭它。
 - `config.families` 是家族贡献，`config.credential` 是凭据槽。两者都由装配注入。
 - `config.routes` 按 `supplier.recipient` 查找路由。本包只查对象自身的属性，不查原型链。每个路由给出完整的 endpoint（`url`）与协议的 end-marker 文本（`endMarker`，协议没有 end-marker 时为 `null`）。
-- `config.limits` 给出 `connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与单个事件 JSON 的 `json` 限额，另有可选的 `streamStallTimeoutMs`（见[“流停顿上界”](#流停顿上界)）。本包不设默认值。
+- `config.limits` 给出 `connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与单个事件 JSON 的 `json` 限额，另有可选的 `streamStallTimeoutMs`（见[“流停顿上界”](#流停顿上界)）与可选的 `connectRetry`（见[“请求发出之前的重试”](#请求发出之前的重试)）。本包不设默认值。
 
 下列情况下，`createPiTransport` 同步抛出 `RangeError`。消息只写字段名与规则，不含 URL：
 
@@ -49,6 +49,8 @@
 - 路由的 `endMarker` 既不是字符串也不是 `null`；
 - `connectTimeoutMs` 既不是 `null` 也不是 1 到 2147483647 之间的整数；
 - `streamStallTimeoutMs` 存在，但不是 1 到 2147483647 之间的整数（`null`、0、负数与小数都被拒绝；消息指向 `limits.streamStallTimeoutMs`）；
+- `onConnectRetry` 存在，但不是函数；
+- `connectRetry` 存在，但不是对象，或其 `backoffMs` 不是列表，或列表多于 8 项，或某项不是 1 到 2147483647 之间的整数（空位也被拒绝；消息指向 `limits.connectRetry.backoffMs`）；
 - `maxErrorBodyBytes`、`maxEventBytes` 或 `json` 的任一限额不是正的安全整数；
 - `families` 或 `credential` 不是对象，或 `families.acquire`、`credential.read` 不是函数；
 - `network` 不是 `createNetworkResources` 返回的句柄，含结构相同的其他对象。
@@ -229,7 +231,7 @@
   - 新建的直连：TLS 握手完成时。计时覆盖 TCP 连接与 TLS 握手。
   - 经代理新建的连接：连接池把套接字交给请求时。连接池在 CONNECT、隧道与经隧道的 TLS 握手都完成之后才交出套接字，所以计时覆盖这三步。
   - 复用的连接：连接池把套接字交给请求时，即发起后的下一个 tick。
-- 连接超时后，本包销毁请求。结果是 `connect-failed`，`timeout` 为 `true`。
+- 连接超时后，本包销毁请求。结果是 `connect-failed`，`timeout` 为 `true`。单次交换不重试；一次发送在请求发出之前的失败后的重试见[“请求发出之前的重试”](#请求发出之前的重试)。
 - 同时进行的交换数只由容量限制。连接池不设套接字上限：没有每个接收方的上限（`maxSockets`），也没有总上限（`maxTotalSockets`）。连接池只负责复用连接与关闭空闲连接。
 - 本包不用 `maxSockets` 对齐容量，原因是两者的计数时刻不同。本包在请求与响应关闭时归还名额，等待者随即发起。Node 对不保留的套接字（例如服务端声明 `Keep-Alive: timeout=1`，或套接字已不可写）在请求关闭时销毁它，但要到该套接字自己的 `close` 事件到达时才把它移出连接池的计数，这是事件循环的下一轮。套接字上限等于容量时，这一轮之内发起的请求会进入等待队列，尽管它持有名额。
 - 连接池没有套接字上限，所以持有名额的请求不在连接池中排队。
@@ -239,6 +241,19 @@
   - 空闲连接。
   - 交换已停止、但直连仍在握手的连接。例如交换在发起的同一 tick 内停止，连接池收回仍在握手的套接字。这种连接按 `idleConnectionTimeoutMs` 结束，不按 `connectTimeoutMs` 结束。经代理正在建立的连接不属于这一种，见“代理”。
   - 正在关闭、尚未移出连接池的套接字。它们让物理连接数短暂超过容量。
+
+### 请求发出之前的重试
+
+偶发的连接失败发生在请求字节发出之前，供应商没有收到任何东西，重发没有重复计费或重复效果的风险。所以 `limits.connectRetry` 让一次发送在这类失败后按有界退避重发。它是 `limits` 的可选成员（增量加入，已有字段不变）。
+
+- 形状：`connectRetry: { backoffMs: readonly number[] }`。`backoffMs[i]` 是第 `i + 1` 次重试之前的等待毫秒数，列表长度就是最多的重试次数，至多 8。空列表表示不重试。缺省（成员不存在）表示不重试：本包不给默认值，次数与退避由运维者层给出。装配（运维者层）把它设为必填，缺失或非法时配置被拒绝，不静默退回默认。
+- 只重试请求字节发出之前的失败：交换的结果是 `connect-failed`，且 `HttpExchange.requestMaySent()` 为 `false`。这包括连接超时、连接被拒绝、DNS 失败、新建直连的 TLS 握手失败，以及经代理时 CONNECT 或隧道内握手的失败。`requestMaySent()` 在请求可能已写入已连接的套接字时变为 `true`，之后不再变回：新建直连在 TLS 握手完成时，复用或经隧道交出的套接字在交给请求时。判断偏向保守：发出之后的任何失败（含复用连接上被重置、`http-error`、`stalled`、响应体失败与 `stopped`）都不重试。
+- 每次重试是同一请求体、同一请求头的新交换。凭据只在 `start` 的同步调用中读取一次，重试沿用那次组装的请求头。每次重试按 FIFO 重新预约容量名额：失败的交换在物理关闭时已归还名额，退避期间不占名额。
+- 退避可被取消。`signal` 中止、materialized 或 prepared 的 `close()`、外层 `close()`，在退避期间或等待名额期间立即结束重试，不发出新请求，流以 `interrupted`（`stop: 'confirmed'`）结束。退避的计时器随之清除。网络资源关闭时，退避期间的重试在退避结束后发现并结束（至多一个退避的时长），不发出新请求。
+- 所有重试都失败后，终止保持原来的形状：`failed`，`upstream-unavailable`，`diagnostic` 取最后一次尝试的 `connect-failed` 或 `connect-timeout`，状态码为 `null`。
+- 可见性：每次重试之前，诊断观察者收到一条 `connect-retry` 事件（`level` 为 `info`），带 `attempt`（从 1 起）、`delayMs` 与 `reason`（`connect-failed` 或 `connect-timeout`，即上一次尝试的失败原因）。事件只含计数与封闭词，不含 URL、头或体。每次尝试照常产生 `exchange-started` 与 `connect-failed` 事件，所以一次发送的尝试次数可由 `exchange-started` 数出。
+- 传输级观察者：`PiTransportConfig.onConnectRetry`（可选函数）在每次重试之前同步收到同一个事件（冻结的副本）。网络资源由多个传输共享，网络的诊断观察者分不清是哪一次发送在重试；装配每次发送建一个传输，所以由它把调用标识补上。观察者抛出的异常被丢弃，不进入发送。`onConnectRetry` 存在但不是函数时，`createPiTransport` 抛出 `RangeError`。
+- 已知限制：`connect-retry` 只进两类观察者（网络的诊断观察者与传输级的 `onConnectRetry`），不进入调用记录。`ProviderDiagnostic` 属 model-contract，它的封闭词表尚没有对应成员；要让重试次数进入调用记录，须由 model-contract 与 model 增加该成员。
 
 ### 流停顿上界
 
@@ -257,7 +272,7 @@
   - 响应体已完整收到（Node 已持有整个响应体）之后不再有停顿，只等待连接关闭。
 - Node 已收到而读者尚未读取的字节不算停顿：到期时响应还有未读字节，说明慢的是读者，本包只重新计时，不失败。
 - 计时器只有一个，由交换持有。交换进入 `closed` 时清除它，停止、取消、连接超时、错误体读完与网络资源关闭都使交换进入 `closed`。交换还从连接的套接字上移除它为计时挂上的 `data` 监听器，连接留在连接池中时不残留监听器。
-- 已知限制：本包不重试，到期之后由调用方决定是否再发一次。到期不能撤回已发出的请求，供应商可能已经收到并开始计费。
+- 已知限制：到期之后本包不重试（流停顿发生在请求发出之后，见[“请求发出之前的重试”](#请求发出之前的重试)），由调用方决定是否再发一次。到期不能撤回已发出的请求，供应商可能已经收到并开始计费。
 - 已知限制：M2 没有重试策略。经 `model-host-local` 的本地装配与 Model 运行时调用时，收到响应头之前到期的 `upstream-unavailable` 属于首内容之前的可重试失败，调用以 `retry-not-decided` 被拒绝，仍处于 `running`，不形成 Settlement，见 [Model 已实现的调用收场](../model/SPEC.md#已实现的调用收场)。首内容之后到期的 `stream-lost` 正常收场，Settlement 可读。这是 M2 无重试的限制，不是停顿上界的缺陷。
 
 ### 代理
@@ -330,13 +345,14 @@
 
 `createDiagnosticSink(observer, { maxPending })` 隔离调用方的诊断观察者。`maxPending` 必须是正的安全整数，否则函数同步抛出 `RangeError`。
 
-- 诊断事件只含种类与级别，不含 URL、头或体。观察者收到的是冻结的副本。
+- 诊断事件只含种类、级别与 `connect-retry` 的三个计数或封闭词成员，不含 URL、头或体。观察者收到的是冻结的副本。
 - 当前的事件种类是封闭集合：
 
   | 种类 | 级别 | 时刻 |
   | --- | --- | --- |
   | `exchange-started` | `info` | 交换发起之后 |
   | `connect-failed` | `error` | 收到响应之前连接关闭或连接超时 |
+  | `connect-retry` | `info` | 请求发出之前的失败之后、退避之前；带 `attempt`、`delayMs`、`reason`，见[“请求发出之前的重试”](#请求发出之前的重试) |
   | `error-body-too-large` | `error` | 错误体超过上限 |
   | `exchange-stopped` | `info` | 交换物理关闭时，不论结果 |
 
@@ -406,7 +422,7 @@ Model runtime 不读家族表。家族在绑定的 `replayFormat` 中给出这�
 - `replayFormat` 是记录的 `replay.formats.produces`。
 - `counting` 是 `meter.instance.basis`，`meter` 是 `meter.instance`。它实现 `CalibratedInputMeter`：`measureCalibrated` 接收准备租约交来的 `MeterCalibration`，`measure` 是同一算法加空校准（没有锚点、没有来源）。
 - `rules.plan`、`tools`、`encode` 都是纯计算，不读环境、秘密、网络或文件。
-- `createDecoder()` 每次返回一个新的解码器，按 `limits` 限制缓冲，见“网关引擎：流解释”。
+- `createDecoder({ request })` 每次返回一个新的解码器，按 `limits` 限制缓冲，见“网关引擎：流解释”。`request` 是本次 encode 的同一请求：解码器用它的工具名表把上游的函数名映射回工具名，见下文“工具名”。这个请求的工具名不能写出时（encode 对它返回 `unsupported`），`createDecoder` 抛出 `RangeError`：没有发出的请求没有解码器。
 - `release` 包一层家族的 `release`：第一次调用调用它，之后每次调用返回第一次的 Promise。
 
 下列情况下，`bindChatCompletions` 同步抛出 `RangeError`。这些是家族包的缺陷：
@@ -426,7 +442,7 @@ Model runtime 不读家族表。家族在绑定的 `replayFormat` 中给出这�
 - `serving.order` 写入请求体的 `provider.order`。`serving.reports` 供解码器核对流中报告的服务方。
 - `wire.roles.instruction` 是系统指令的角色。`wire.roles.reminder` 是 system reminder 的角色。压缩摘要的角色是 `user`。
 - `wire.content` 为 `compact` 时，只有一个文本部件的内容写成字符串，其他内容写成部件数组。为 `parts` 时，所有内容都写成部件数组。
-- `wire.cache`、`wire.image`、`wire.fixed` 见下文“请求体”。`wire.usageTail` 归解码器。
+- `wire.cache`、`wire.image`、`wire.fixed` 见下文“请求体”。`wire.usageTail` 归解码器。`wire.toolNames` 见下文“工具名”。
 - `parameters` 按契约 `Parameter` 的全部 kind（`extension` 除外）给出规则：`unsupported`，或 `supported` 加取值范围（`accept`）、默认值（`default`）与网关字段（`wire`）。`reasoning-effort` 按值映射，可以映射为 `unsupported`。
 - `extensions` 按 `definition` 采用的全部四项匹配扩展参数，匹配到时写入规则的网关字段。
 - `replay.declaration` 是本记录的官方回放声明，只供官方档案使用。plan 与 encode 不读它。`replay.formats` 是回放格式。
@@ -471,7 +487,7 @@ plan 不返回诊断。
 
 #### 投影
 
-投影把系统指令、消息与工具声明映射为网关消息。失败的 `field` 是安全路径：`/system/<i>`、`/messages/<i>/blocks/<j>`、`/messages/<i>`、`/tools/<k>/<hook 的字段>` 或 `toolChoice`。
+投影把系统指令、消息与工具声明映射为网关消息。失败的 `field` 是安全路径：`/system/<i>`、`/messages/<i>/blocks/<j>`、`/messages/<i>`、`/tools/<k>/name`、`/tools/<k>/<hook 的字段>` 或 `toolChoice`。
 
 - `visibility.toModel` 为假的块不写出。空文本块照原样写成文本部件：引擎不删除它，也不改写历史（组架构“不得悄悄删工具、改历史”）。`tool_internal` 消息不写出。所有块都对模型不可见的 user、reminder 与压缩消息不写出。
 - 系统指令只含文本。模型可见的非文本块返回 `unsupported`。
@@ -480,8 +496,21 @@ plan 不返回诊断。
 - 工具消息：角色为 `tool`，`tool_call_id` 为规范化的调用 id，内容是结果中的文本。结果中的图片不写进工具消息。连续的一串工具消息的全部图片在这串之后写成一条 user 消息。引擎不写占位文本，不插入桥接的 assistant 消息。
 - 工具调用 id：符合 `^[A-Za-z0-9_-]{1,64}$` 时保留，否则为 `call_` 加该 id 的 SHA-256 base64url 的前 32 个字符。
 - 孤立的调用（之后没有对应结果）返回 `invalid`，`reason` 为 `orphan-tool-call`。没有对应调用的结果返回 `invalid`，`reason` 为 `orphan-tool-result`。
-- 工具：`{ type: 'function', function: { name, description, parameters } }`，`parameters` 经 `hooks.toolSchema`。`binding.tools.convertToModelPayload` 给出同一形式。
-- `tool_choice`：没有工具时，`none` 与 `auto` 不写出，`required` 或指名返回 `invalid`（`reason` 为 `no-tools`）。指名的工具不在工具中时返回 `invalid`（`reason` 为 `unknown-tool`）。
+- 工具：`{ type: 'function', function: { name, description, parameters } }`，`name` 是网关名（见下文“工具名”），`parameters` 经 `hooks.toolSchema`。`binding.tools.convertToModelPayload` 给出同一形式；它只看一项声明，所以只核长度，名字写不出时返回 `unsupported`，`field` 为 `name`。
+- `tool_choice`：没有工具时，`none` 与 `auto` 不写出，`required` 或指名返回 `invalid`（`reason` 为 `no-tools`）。指名的工具不在工具中时返回 `invalid`（`reason` 为 `unknown-tool`）。指名写网关名。
+
+<a id="工具名"></a>
+工具名：工具名是 Tool 领域给出的身份，日志、历史与工具声明都保存这个名字。网关只接受字符为 `[A-Za-z0-9_-]`、长度有上限的函数名（OpenRouter 对带点的名字返回 400）。这项编码约束属于请求表示，由记录的 `wire.toolNames` 固定：`rule` 是映射规则，`maxLength` 是供应商的最大长度。规则名与长度在记录摘要内，所以改规则就改变采用，也改变 `<记录名>#representation`。
+
+- `underscore/1`：每个不在 `[A-Za-z0-9_-]` 中的码点写成 `_`，其他字符不变。本来就合格的名字原样写出，例如 `Files.read` 写成 `Files_read`，`lookup__exact` 不变。
+- 一次请求的名字表：先按顺序取工具声明的名字，再按消息顺序取历史中模型可见的 `tool_call` 与 `tool_call_unparsed` 的名字。同一名字只取一次。投影第一步建这张表，表的失败先于消息的失败返回：
+  - 网关名为空或长于 `maxLength`：`unsupported`，`field` 为 `/tools/<k>/name` 或 `/messages/<i>/blocks/<j>`；
+  - 两个不同的名字得到同一网关名（例如 `a.b` 与 `a_b`）：在后出现的那一项返回 `unsupported`，路径同上。
+  引擎不截断名字，也不为了避开冲突改动别的名字。
+- 写出：工具的 `function.name`、指名的 `tool_choice` 与历史调用的 `function.name` 都写网关名。工具消息只写 `tool_call_id`，不写名字。
+- 交给计量器的投影也用网关名（工具、工具选择与 turns 中的调用块），所以计量看到的就是发出的形状。
+- 解码：解码器用同一请求的表把上游函数名映射回工具名，见“封口”。表里没有的上游名字原样保留。
+- 来源：pi 1.0.0 与 deepseek-harness 都没有可逆的工具名映射。pi 只对调用 id 做有损替换（`id.replace(/[^a-zA-Z0-9_-]/g, "_")`）；deepseek-harness 的 `publicToolName`（`packages/mcp/mcp-client/src/tools.ts`，提交 8bd07339）在注册时用同一字符替换，改动名字时追加哈希，靠注册表还原。本规则沿用这一字符替换，用请求内的名字表还原，冲突与超长返回 `unsupported`。
 
 回放按 model-contract 的 `projectReplay` 投影。`declaration` 在 plan 中是档案声明展开后的值，在 encode 中是 encode 的输入。`formats` 取记录的 `replay.formats.accepts`。请求关闭回放时 `off` 为真。`resent` 在 plan 中为空，在 encode 中是 encode 的输入：
 
@@ -596,7 +625,7 @@ flowchart LR
 #### 封口
 
 - 文本块与思考块封为 `text` 与 `thinking`，内容是累计值。块的身份是 `b<序号>`，可见性对人与模型都可见。
-- 工具参数块封为 `tool_call`：`callId` 是上游的调用 `id`，`name` 是上游的名字，`arguments` 是参数文本按 `limits.toolArguments` 解码的值。空参数文本是空对象。没有 `id` 为 `tool-call-without-id`，不能解码为 `tool-arguments-invalid`。
+- 工具参数块封为 `tool_call`：`callId` 是上游的调用 `id`，`name` 是上游名字经本请求工具名表还原的工具名（见“工具名”），`arguments` 是参数文本按 `limits.toolArguments` 解码的值。空参数文本是空对象。没有 `id` 为 `tool-call-without-id`，不能解码为 `tool-arguments-invalid`。
 - 记录有推理编解码器且缓存了推理项时，解码器把全部拼接后的项交给 `hooks.reasoning.seal` 一次。hook 失败时，解码器以该 fault 失败。hook 给出的每个载荷在新的序号上整块封为推理续接状态部件，不先开块：可见性对人不可见、对模型可见，`pairs` 指向思考块（没有思考块时为空）。空载荷不产生部件。长度超过 message 成员 `REASONING_STATE_PAYLOAD_MAX_LENGTH`（1048576）的载荷不产生部件，解码器在原位置给出一条 `diagnostic` 事实：`reasoning-state-dropped`，`reason` 为 `payload-too-long`，`length` 为载荷长度。
 
 #### 失败与阶段
@@ -639,7 +668,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 
 - `request.json`：恰好两个成员的对象。`request` 是一个 `FixedModelRequest` 的普通 JSON，经契约的 `judgeFixedModelRequest` 读入。它的供应商采用必须是该记录的采用，参数采用只取这个供应商的项。`body` 是期望的请求体。检查把 `request` 交给 `encode`（媒体为空），把结果与 `body` 按排序键无损 JSON 比较。
 - `stream.sse`：一个响应体的 SSE 字节，以 `data: [DONE]` 结束。
-- `facts.json`：期望的事实数组，最后一项是 `ended`。事实按 `JSON.stringify` 写出：块与工具参数中的 JSON 值是 `json-text` 值树。检查让绑定的新解码器经与发送相同的主体解码（含唯一 `ended` 的守护与终止映射）回放 `stream.sse`，再按值比较。
+- `facts.json`：期望的事实数组，最后一项是 `ended`。事实按 `JSON.stringify` 写出：块与工具参数中的 JSON 值是 `json-text` 值树。检查让绑定为 `request` 新建的解码器经与发送相同的主体解码（含唯一 `ended` 的守护与终止映射）回放 `stream.sse`，再按值比较。`request.json` 不合格、契约拒绝其请求或编码失败时，不回放 `stream.sse`：解码器要读这个请求的工具名。
 
 绑定由 `composeFamilies([family])` 以工厂凭据的供应商取得，检查之后释放。回放的 SSE 与 JSON 预算取文件大小，所以限额不会截断夹具。
 
@@ -746,6 +775,8 @@ hook 成功时，`end()` 按下列次序给出事实：
 | 发送的 start：同步发出（包内计数与服务端一致）、请求头与请求体、编码诊断在发出之后先于响应事实（含 HTTP 失败）、解码器的终止排在最后、在 end-marker 处结束读取（响应不结束时也是如此，之后的事件不解码，响应随 end-marker 结束时连接留在连接池）、失败映射表各行对真实响应、流中取消与关闭在物理停止之后以 `interrupted` 结束、读入 end-marker 之后的取消保留解码器的终止、读者提前结束、外层关闭、真实发送下的容量等待与取消、close 归还名额 | [transport-exchange.spec.ts](tests/transport-exchange.spec.ts) | 慢 |
 | model-contract 符合性套件 transport 组的六条义务 | [conformance.spec.ts](tests/conformance.spec.ts) | 慢 |
 | 连接容量 | [capacity.spec.ts](tests/capacity.spec.ts) | 快 |
+| 请求发出之前的重试：对注入的交换（假计时器、真实容量）：退避次序与事件、用尽后保持最后一次的结果、请求可能已发出时不重试、2xx、`http-error`、`stalled`、`stopped` 与空列表不重试、退避期间不占名额、`stop()` 与取消在退避与等待名额期间立即结束且计时器清除、停止到达运行中的重试 | [retry.spec.ts](tests/retry.spec.ts) | 快 |
+| 请求发出之前的重试，对真实套接字：被拒绝的连接按退避重试并以原 fault 结束、传输级观察者在每次重试前收到事件且抛出不影响发送、缺省时只发一次、请求已到服务端后的断开不重试、取消与 materialized 的 `close()` 立即结束长退避 | [transport-retry.spec.ts](tests/transport-retry.spec.ts) | 慢 |
 | 诊断隔离 | [diagnostics.spec.ts](tests/diagnostics.spec.ts)；交换中的隔离见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
 | SSE 分帧 | [sse.spec.ts](tests/sse.spec.ts) | 快 |
 | 协议帧 | [frames.spec.ts](tests/frames.spec.ts) | 快 |

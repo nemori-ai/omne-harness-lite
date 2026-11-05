@@ -4,9 +4,10 @@
 // is the empty status 500 and a closed connection.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type {
+  ActingForTenantPrincipal,
+  IdentityGovernance,
   IdentityOperations,
   PrincipalIssuer,
-  ActingForTenantPrincipal,
 } from '@omne-harness/identity'
 import type { Answer, JsonAnswer } from './answers.ts'
 import {
@@ -20,6 +21,7 @@ import { emit, type DiagnosticSink } from './diagnostics.ts'
 import type { DefinitionResolver, SessionIngressFaces } from './faces.ts'
 import { governanceProtocolRejected, handleGovernance } from './governance.ts'
 import { createIdentitySteps } from './identity-steps.ts'
+import type { ModelCredentialCustody } from './model-credentials.ts'
 import { createObservationRegistry } from './observation.ts'
 import { handleSession } from './session.ts'
 import { sessionProtocolRejected } from './session-codec.ts'
@@ -30,9 +32,21 @@ export const SESSION_PATH = '/session-public/1'
 
 export type ServerEntryDependencies = Readonly<{
   identity: IdentityOperations
+  /**
+   * Identity's governance port over the same records as `identity`, so a revocation or a switch is
+   * what the next login recognition reads. The eighteen governed operations and the report of a
+   * successful business access go to it. An assembly that reads the provider per call answers
+   * `basis-unavailable` from the port while the provider is absent (R2-D235 S1).
+   */
+  governance: IdentityGovernance
   issuer: PrincipalIssuer
   session: SessionIngressFaces<ActingForTenantPrincipal>
   resolveDefinition: DefinitionResolver
+  /**
+   * The model credential binding of the acting tenant (SPEC「模型凭据」). Absent: the three model
+   * credential operations answer `stage-not-provided`.
+   */
+  modelCredentials?: ModelCredentialCustody
   diagnostics?: DiagnosticSink
 }>
 
@@ -147,8 +161,18 @@ export function createServerEntry(input: {
   const config = checkConfig(input.config)
   const { dependencies } = input
   const diagnostics = dependencies.diagnostics
-  const steps = createIdentitySteps(dependencies.identity, dependencies.issuer, diagnostics)
-  const registry = createObservationRegistry(config.observation, diagnostics)
+  const steps = createIdentitySteps({
+    identity: dependencies.identity,
+    governance: dependencies.governance,
+    issuer: dependencies.issuer,
+    diagnostics,
+  })
+  const registry = createObservationRegistry({
+    limits: config.observation,
+    // This stage has no locate or refresh round: one round is one heartbeat interval (docs/internals.md).
+    loginCheckIntervalMs: config.heartbeatIntervalMs,
+    diagnostics,
+  })
   const locations: readonly Location[] = [
     {
       path: GOVERNANCE_PATH,
@@ -177,6 +201,10 @@ export function createServerEntry(input: {
     location.path === GOVERNANCE_PATH
       ? handleGovernance(bytes, {
           identity: dependencies.identity,
+          governance: dependencies.governance,
+          steps,
+          endObservationsOf: loginText => registry.endLogin(loginText, 'denied'),
+          modelCredentials: dependencies.modelCredentials,
           readLimits: readLimits(config, location.maxBytes),
           diagnostics,
         })
@@ -194,6 +222,9 @@ export function createServerEntry(input: {
     switch (answer.kind) {
       case 'json':
         writeJson(res, answer, answer.close === true)
+        // The answer is out before any follow-up starts, so a follow-up that never settles cannot
+        // hold the answer or `stop()` (SPEC「成功业务访问的报告」).
+        answer.afterWrite?.()
         return
       case 'no-answer':
         writeNoAnswer(res)

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { maintenanceGrantsSchema } from './grant-tightening.ts'
 
 const text = z.string().min(1)
 const adoption = z
@@ -25,5 +26,8 @@ export const actionRulesSchema = z
   })
   .readonly()
 
-export const authorizationConfig = z.strictObject({ actionRules: actionRulesSchema.optional() })
+export const authorizationConfig = z.strictObject({
+  actionRules: actionRulesSchema.optional(),
+  maintenanceGrants: maintenanceGrantsSchema.optional(),
+})
 export type ActionRules = z.output<typeof actionRulesSchema>

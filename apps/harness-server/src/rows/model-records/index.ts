@@ -7,8 +7,9 @@
 // - the first-execution run (`createModelInitialRun`) with the origin read check of the composition;
 // - the qualification registry over `principalVerifier` and `tenantStanding` (the synchronous
 //   `authority`, `execution` and `current` read what the admission points captured);
-// - one evidence adapter per consumer owner adoption, over the `initial` of this activation and the
-//   materialization reader the send stage installs;
+// - one evidence adapter per consumer owner adoption, over the `initial` of this activation, the
+//   materialization reader the send stage installs, and the custody evidence of the Agent owner read
+//   per call from the trusted `agentReceivedRecords` of the `agent-journal` row (R2-D257);
 // - the trusted send sources of the official OpenAI profiles with the factory credential;
 // - the combination: the configured `combinationVersion` and the digest of the same catalog the
 //   `session-storage` row registers.
@@ -19,7 +20,11 @@
 import type { Context, Fiber, Plugin } from '@deepseek-ai/cordis'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
-import { decodeCredentialId, type ModelClock } from '@omne-harness/model-contract/provider'
+import {
+  decodeCredentialId,
+  type CredentialPort,
+  type ModelClock,
+} from '@omne-harness/model-contract/provider'
 import {
   modelClockKey,
   modelCommandsKey,
@@ -40,12 +45,12 @@ import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-a
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import { createModelEvidence } from '../../model/evidence.ts'
+import { agentCustodyOf, createModelEvidence } from '../../model/evidence.ts'
 import { modelRecordsPortOf } from '../../model/ports.ts'
 import { createModelQualification } from '../../model/qualification.ts'
 import { officialSendSources } from '../../model/sources.ts'
 import { defineRow } from '../../row.ts'
-import { factorySupplier } from '../model-request-preparation/supplier.ts'
+import { tenantCredentialSupplier } from '../../model/tenant-credential.ts'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { modelRecordsConfig, type ModelRecordsConfig } from './config.ts'
@@ -120,6 +125,9 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
     checkOriginRead: target => port.checkOriginRead(target),
   })
   const { sendStage } = config.app
+  // The credential port the send child injects. The stage's own preparation leases complete a
+  // supplier through it, like the preparation row; outside the child's life there is none.
+  const sendCredential: { port: CredentialPort | undefined } = { port: undefined }
   const Records = createSqlModelRecordsPlugin<unknown, ModelSendStageSettings>({
     inject: [...INJECT],
     resolve: () => ({
@@ -129,6 +137,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
       evidence: evidenceOf(config.member, {
         initial: () => live.initial,
         reader: () => live.reader,
+        custody: () => agentCustodyOf(ctx),
       }),
       clock: given.modelClock,
       manifestDigest: manifest.digest,
@@ -170,6 +179,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         routes: sendStage.routes,
         transportLimits: {
           connectTimeoutMs: sendStage.transportLimits.connectTimeoutMs,
+          connectRetry: sendStage.transportLimits.connectRetry,
           maxErrorBodyBytes: sendStage.transportLimits.maxErrorBodyBytes,
           maxEventBytes: sendStage.transportLimits.maxEventBytes,
           json: sendStage.transportLimits.json,
@@ -179,7 +189,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         },
         preparation: {
           maxCitedCalls: sendStage.preparation.maxCitedCalls,
-          supplierOf: factorySupplier,
+          supplierOf: tenantCredentialSupplier(() => sendCredential.port),
         },
         executionChannel: () => handle.executionChannel(),
         installMaterialization: reader => {
@@ -196,6 +206,11 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         Config: Stage.Config,
         apply(child: Context, settings: ModelSendStageSettings) {
           handle.captureSendChild(child.fiber as Fiber)
+          const port: CredentialPort | undefined = child.modelCredential
+          sendCredential.port = port
+          child.effect(() => () => {
+            if (sendCredential.port === port) sendCredential.port = undefined
+          })
           new Stage(child, settings)
         },
       }

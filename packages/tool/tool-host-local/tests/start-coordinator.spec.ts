@@ -1,6 +1,7 @@
 // The local start coordinator (G5) as the start ordering domain of P04: permits, consume,
 // inspect, invalidate and exclude over the `host` domain of a non-durable ledger store.
 import type { ContentBlock } from '@omne-harness/content-block'
+import type { ToolLedgerStore } from '@omne-harness/tool'
 import { describe, expect, it } from 'vitest'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import type { StartGuard, StartPermit } from '@omne-harness/tool-contract/provider'
@@ -86,18 +87,48 @@ describe('G5 the start ordering domain', () => {
 
   it('G5 order: a concurrent invalidation and consume are decided in one order, and the answer agrees with it', async () => {
     const seen = new Set<string>()
-    for (let delay = 0; delay < 8; delay += 1) {
-      const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>())
-      const permit = await permitFor(authority, 'c1')
-      const later = async () => {
-        for (let turn = 0; turn < delay; turn += 1) await Promise.resolve()
+    for (const invalidationFirst of [true, false]) {
+      const memory = createMemoryToolLedgerStore<ContentBlock>()
+      let entered = () => {}
+      let resume = () => {}
+      const firstRead = new Promise<void>(resolve => {
+        entered = resolve
+      })
+      const releaseRead = new Promise<void>(resolve => {
+        resume = resolve
+      })
+      let block = false
+      const store: ToolLedgerStore<ContentBlock> = {
+        durability: 'none',
+        read: async domain => {
+          if (block) {
+            block = false
+            entered()
+            await releaseRead
+          }
+          return memory.read(domain)
+        },
+        commit: input => memory.commit(input),
       }
-      const [invalidated, consumed] = await Promise.all([
-        later().then(() => authority.invalidate(invalidation('revoke-1'))),
-        authority.consume(consumeWith(permit)),
-      ])
+      const authority = coordinator(store)
+      const permit = await permitFor(authority, 'c1')
+      block = true
+      let invalidationPending: ReturnType<typeof authority.invalidate>
+      let consumePending: ReturnType<typeof authority.consume>
+      if (invalidationFirst) {
+        invalidationPending = authority.invalidate(invalidation('revoke-1'))
+        await firstRead
+        consumePending = authority.consume(consumeWith(permit))
+      } else {
+        consumePending = authority.consume(consumeWith(permit))
+        await firstRead
+        invalidationPending = authority.invalidate(invalidation('revoke-1'))
+      }
+      resume()
+      const [invalidated, consumed] = await Promise.all([invalidationPending, consumePending])
       const guard = BigInt(ok(invalidated).revision)
       const answer = ok(consumed)
+      expect(answer.kind).toBe(invalidationFirst ? 'rejected' : 'started')
       if (answer.kind === 'rejected')
         expect(BigInt(answer.exclusion.revision)).toBeGreaterThan(guard)
       else if (answer.kind === 'started')
@@ -610,5 +641,83 @@ describe('G5 tenants and qualification', () => {
           commitAttempts,
         }),
       ).toThrow('commitAttempts: range')
+  })
+
+  it('G5 construction: a turn timeout outside its range is an assembly defect', () => {
+    for (const turnTimeoutMs of [0, -1, 1.5])
+      expect(() =>
+        createLocalStartCoordinator({
+          store: createMemoryToolLedgerStore<ContentBlock>(),
+          access: access(),
+          guardsOf: () => [],
+          commitAttempts: 4,
+          turnTimeoutMs,
+        }),
+      ).toThrow('turnTimeoutMs: range')
+  })
+
+  // A store whose read never settles stands for a turn that holds the tenant section without ever
+  // finishing. Every caller of that tenant must still answer within its bound: an answer that never
+  // arrives is a silent failure, whatever holds the store.
+  const neverSettles = (): ToolLedgerStore<ContentBlock> => ({
+    durability: 'none',
+    read: () => new Promise(() => {}),
+    commit: () => new Promise(() => {}),
+  })
+
+  it('G5 bound: a turn that never settles expires its caller as unavailable, in time', async () => {
+    const authority = createLocalStartCoordinator({
+      store: neverSettles(),
+      access: access(),
+      guardsOf: () => [],
+      commitAttempts: 4,
+      turnTimeoutMs: 60,
+    })
+    const started = Date.now()
+    const first = await authority.prepare({
+      ...callAccess('c1'),
+      start: startOf('c1'),
+      request: request(),
+    })
+    const elapsed = Date.now() - started
+    expect(first).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'start-ledger',
+        diagnostic: expect.stringContaining('did not settle within 60 ms'),
+      },
+    })
+    // The bound is what ends the wait, not a store answer: it must fire near its own value.
+    expect(elapsed).toBeLessThan(2_000)
+  })
+
+  it('G5 bound: a later caller behind a stuck turn also answers unavailable, in time', async () => {
+    const authority = createLocalStartCoordinator({
+      store: neverSettles(),
+      access: access(),
+      guardsOf: () => [],
+      commitAttempts: 4,
+      turnTimeoutMs: 60,
+    })
+    const first = authority.prepare({
+      ...callAccess('c1'),
+      start: startOf('c1'),
+      request: request(),
+    })
+    const started = Date.now()
+    const second = await authority.prepare({
+      ...callAccess('c2'),
+      start: startOf('c2'),
+      request: request(),
+    })
+    expect(second).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'start-ledger',
+        diagnostic: expect.stringContaining('did not settle within 60 ms'),
+      },
+    })
+    expect(Date.now() - started).toBeLessThan(2_000)
+    expect(await first).toMatchObject({ failure: { kind: 'unavailable' } })
   })
 })

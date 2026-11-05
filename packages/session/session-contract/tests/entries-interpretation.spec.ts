@@ -3,6 +3,7 @@
 // and asserts the failure kind and its field. The reduction cases replay the progress rows of the
 // channel and quarantine a broken chain.
 import { describe, expect, it, beforeAll } from 'vitest'
+import { expectedRevision } from '@omne-harness/session-contract'
 import type {
   CommitReceipt,
   Decision,
@@ -70,7 +71,7 @@ async function sigma0(): Promise<Context> {
         ...s.base,
         operation: operationId('finish-0'),
         run: first.run.run,
-        expected: (await s.read()).revision,
+        expected: expectedRevision(await s.read(), 'finishRun'),
         bounded: { kind: 'uninterpretable', evidence: evidence('agent/uninterpretable') },
       },
     }),

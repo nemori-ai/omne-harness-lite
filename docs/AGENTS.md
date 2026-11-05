@@ -15,7 +15,7 @@
 
 | 本次工作 | 触发判断与必要源 |
 | --- | --- |
-| 使用、租户管理或部署运维 | 判断当前操作是否支持时，读实际[CLI](../apps.0.0.1.legacy/cli/README.md)或[宿主](../apps.0.0.1.legacy/tenancy-host/README.md)说明。完整阅读路径归[读者入口](README.md)；目标拓扑与指南中的未完成操作范围不代替实际支持 |
+| 使用、租户管理或部署运维 | 判断当前操作是否支持时，读固定提交中封存版[CLI](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/cli/README.md)或[宿主](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md)的说明，它们已从仓库删除。完整阅读路径归[读者入口](README.md)；目标拓扑与指南中的未完成操作范围不代替实际支持 |
 | 消费独立包、集成或扩展SDK | 从[实际包入口](../packages/README.md)找成员公开契约；改变客户端、协议或服务端接入边界时读[系统分层](architecture/layers-and-dependencies.md)。精确语义不足时交契约拥有者，不以内部深层导入绕过边界 |
 | 局部实现或修复 | 按[源码归属](workspace.md)找到成员局部约定、公开承诺和受影响检查，验证范围由[验证说明](verification.md)解释。已有承诺足够时无需展开全部产品与架构；出现新公开保证再走设计路径 |
 | 系统或领域设计 | 目标变化读[项目要求](requirements.md)，全系统关系读[架构](architecture/README.md)，责任划分读[领域](domains/README.md)。新增模块或类别再读[扩展指导](domains/extending-the-system.md)，不从现有包树决定应然分解 |

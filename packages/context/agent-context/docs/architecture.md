@@ -10,7 +10,8 @@
 | `src/records.ts`        | 规范文本与摘要、记录键的铸造与读取                                                            |
 | `src/materials.ts`      | 材料库：读取记录、最近读取与计划三张有界表                                                    |
 | `src/staging.ts`        | 暂存表与组读口                                                                                |
-| `src/translate.ts`      | 端口与 Request Context 之间的纯翻译：第五组、失败映射、第六组与步骤结果的读口类型及第一波实现 |
+| `src/translate.ts`      | 端口与 Request Context 之间的纯翻译：第五组、失败映射、第六组与步骤结果的读口类型、定义读口 |
+| `src/tools.ts`          | 组六：工具读口 `ToolLookup`、`toolsSourceOf` 与 `absentToolLookup`                            |
 | `src/model-context.ts`  | `agentModelContext` 的工厂                                                                    |
 | `src/requests.ts`       | `agentRequests` 的工厂与登记表                                                                |
 | `src/cordis.ts`         | 两个插件：`AgentAccountOutletProvider` 与 `AgentContextProvider`。根入口不导入 Cordis         |
@@ -51,7 +52,7 @@
 - 令牌带登记代次。同一组值在新登记下得到新令牌，Request Context 的缓存不会把上一代的派生结果当成这一代的。
 - 登记懒执行，失败不记下。本包收到调用才知道目标，第一次调用时登记。授权或冲突的答复可能随时间改变，所以下一次调用再登记，不缓存失败。
 - 结算按拉取进行。插件取租借时交出结算函数，持有者在租借结束时调用它。结算函数撤除全部登记并等各代结算，持有者因此在借用方的操作结束之后才关读口。
-- 第六组与步骤结果以读口参数进入工厂。本波没有它们的来源契约，插件传第一波的实现，测试可以注入读口来走完压缩路径（[COMPACTION-PATH](../SPEC.md#已知限制)）。
+- 第六组与步骤结果以读口参数进入工厂。第六组的规则是 `src/tools.ts` 的 `toolsSourceOf`，工具本身经需求端口 `ToolLookup` 读取，实现由装配者交入。步骤结果没有来源契约，插件传缺席读口，测试可以注入读口来走完压缩路径（[COMPACTION-PATH](../SPEC.md#已知限制)）。
 
 ## 验证与维护
 

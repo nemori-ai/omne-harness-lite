@@ -34,7 +34,6 @@ export type StreamValueRejection = Readonly<{
 export type StreamCallFailure =
   | Readonly<{ kind: 'malformed' }>
   | Readonly<{ kind: 'invalid-tenant' }>
-  | Readonly<{ kind: 'foreign-tenant' }>
 export type StreamCallCodec = Readonly<{
   producer: StreamProducer
   resolve(input: Readonly<{ text: unknown; tenant: TenantId }>): Outcome<string, StreamCallFailure>

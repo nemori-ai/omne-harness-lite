@@ -44,7 +44,7 @@ const requests = createAgentRequests({
   conversions,
   model,
   resultCapacity,
-  tools: firstWaveTools,
+  tools: toolsSourceOf(toolLookup),
   stepResults: absentStepResults,
 })
 ```
@@ -61,7 +61,7 @@ const requests = createAgentRequests({
 
 ## 配置与运行
 
-出站插件的配置只有一个字段 `sender`，是出站给每条事实的采用身份。上下文插件的配置有 `owner`、`resultCapacity` 与可选的 `materials` 容量（初值 256）。不合的配置使加载失败。第一波传缺席解析器、第一波的工具规则与缺席的步骤结果读口。
+出站插件的配置只有一个字段 `sender`，是出站给每条事实的采用身份。上下文插件的配置有 `owner`、`resultCapacity` 与可选的 `materials` 容量（初值 256）。不合的配置使加载失败。插件传缺席解析器与缺席的步骤结果读口。组六是 `toolsSourceOf(toolLookup)`：装配者把工具读口交给 `createAgentContextPlugin({ toolLookup })`，不交时，绑定非空就答 `tool-lookup-absent`。
 
 ## 验证
 

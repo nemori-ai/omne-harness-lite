@@ -20,7 +20,7 @@
 
 ## 配置与运行
 
-resultMaxBytes 必填。Shell 另需 executable、argsPrefix、cwd 与 env。调用者提供当前授权和落点事实。作者不读取宿主默认值。
+resultMaxBytes 必填。Shell 另需 executable、argsPrefix、cwd 与 env。Files 可选绝对路径 cwd，相对路径在调用设施之前按它解析（R2-D290）。调用者提供当前授权和落点事实。作者不读取宿主默认值。
 
 ## 验证
 

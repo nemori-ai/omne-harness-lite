@@ -47,7 +47,6 @@ import type {
 } from './passages.ts'
 
 type Judged<T> = Outcome<T, StructureFailure>
-type InvokeEntry = Extract<InputEntry, { kind: 'invoke' }>
 
 /** A nested structure judged under its path; a structure-name failure becomes the member itself. */
 function nested<T>(
@@ -437,9 +436,7 @@ function judgeInputEntry(value: unknown): Judged<InputEntry> {
   if (kind.ok === 'invoke') {
     const initial = nested(members, 'initial', 'AcceptedInput', judgeAcceptedInput)
     if ('failure' in initial) return initial
-    const checkpoint = plainMember(members, 'checkpoint')
-    if ('failure' in checkpoint) return checkpoint
-    const extra = closed(members, ['kind', 'operation', 'execution', 'initial', 'checkpoint'])
+    const extra = closed(members, ['kind', 'operation', 'execution', 'initial'])
     if (extra !== undefined) return fail(extra)
     return succeed(
       Object.freeze({
@@ -447,7 +444,6 @@ function judgeInputEntry(value: unknown): Judged<InputEntry> {
         operation: operation.ok,
         execution: execution.ok,
         initial: initial.ok,
-        checkpoint: checkpoint.ok as InvokeEntry['checkpoint'],
       }),
     )
   }

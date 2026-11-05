@@ -24,6 +24,7 @@ import {
 } from '@omne-harness/pi-ai-transport'
 import {
   createPiSendResources,
+  type ConnectRetryReport,
   type PiSendResources,
   type PiSendResourcesConfig,
 } from './send-resources.ts'
@@ -57,6 +58,12 @@ export type LocalModelConfig<P> = Readonly<{
   transportLimits: PiTransportLimits
   maxRetainedAttempts: number
   materialization: PiMaterializationOptions
+  /**
+   * Told before each retry of a send whose request bytes had not left (`transportLimits.connectRetry`),
+   * with the call, the dispatch, which retry it is, the wait before it and why. A throw is dropped.
+   * Absent: nobody is told.
+   */
+  onConnectRetry?: (retry: ConnectRetryReport) => void
   /**
    * The preparation resources: the leases read call facts from `commands` and take bindings from
    * `families`. The margin is the family's own configuration; this package adds no default.
@@ -167,6 +174,7 @@ export function assembleOver<P, N extends ClosableNetwork>(
       routes: config.routes,
       limits: config.transportLimits,
       materialization: config.materialization,
+      ...(config.onConnectRetry === undefined ? {} : { onConnectRetry: config.onConnectRetry }),
     })
     send = createModelSendBoundary<P>({
       commands: config.commands,

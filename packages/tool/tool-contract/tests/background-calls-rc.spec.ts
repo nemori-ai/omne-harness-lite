@@ -83,6 +83,7 @@ async function setup(source: ToolBackgroundCallsSource = complete()) {
       await context.applyCommit(input.principal, {
         kind: 'registration',
         commit: { commit: 'register-tool-background' },
+        after: null,
         change: {
           kind: 'add',
           creating: true,

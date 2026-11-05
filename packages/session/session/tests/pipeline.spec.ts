@@ -2,10 +2,16 @@
 // material owners, the `changed` retry and its limit, unknown outcomes and the notice.
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
-import type { SessionFailure, StartedRun } from '@omne-harness/session-contract'
+import {
+  expectedRevision,
+  type SessionFailure,
+  type StartedRun,
+} from '@omne-harness/session-contract'
 import {
   creation,
+  evidence,
   operationId,
+  intakeInput,
   ordinaryInput,
   succeeded,
 } from '@omne-harness/session-contract/testing'
@@ -55,6 +61,32 @@ function finishRun(h: Harness, started: StartedRun, expected: string, name = 'fi
       rejection: started.receipt.source,
     },
   })
+}
+
+/**
+ * Gives the advance of the started attempt back through the public port: a commit that moves the
+ * Run-layer revision, which an advance command's `expected` names (contract I-R2, R2-D327).
+ */
+async function releaseDirectly(h: Harness, started: StartedRun, name = 'release-concurrent') {
+  const now = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
+  succeeded(
+    await h.backend.transactions.commit({
+      access: h.access(),
+      command: {
+        kind: 'release',
+        input: {
+          tenant: h.access().tenant,
+          session: h.access().session,
+          operation: operationId(name),
+          advance: started.advance,
+          expected: expectedRevision(now, 'release'),
+          handover: evidence('handover-concurrent'),
+        },
+      },
+      guards: [],
+    }),
+    'concurrent release',
+  )
 }
 
 /** Moves the tail through the public port before every commit of the face operation. */
@@ -141,11 +173,17 @@ describe('step 3: a refusal that the snapshot decides', () => {
     expect(h.view.calls().map(call => call.method)).toEqual(['queryOperation', 'readWork'])
   })
 
-  it('a refusal that needs material is left to the commit: startRun without the login confirmation is login-required', async () => {
+  it('a refusal that needs the stored input is left to the commit: a first input from another origin is login-required', async () => {
     const h = await service()
     await h.create()
-    await h.accept('input-1')
-    h.baseEvidence.controls.loginEntry(false)
+    expect(
+      'ok' in
+        (await h.faces('intake').work.accept({
+          ...h.access(),
+          operation: operationId('accept-input-1'),
+          value: intakeInput('input-1'),
+        })),
+    ).toBe(true)
     const answer = await h.faces('coordinator').work.startRun({
       ...h.access(),
       operation: operationId('start'),
@@ -239,8 +277,8 @@ describe('step 5: the commit', () => {
     await h.accept('input-1')
     const started = await startRun(h)
     const stale = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    // Another writer moves the tail before the caller acts on its old revision.
-    await h.accept('input-2')
+    // Another writer moves the Run layer before the caller acts on its old revision.
+    await releaseDirectly(h, started)
     const current = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
     expect(current.revision).not.toBe(stale.revision)
     h.view.reset()
@@ -259,15 +297,37 @@ describe('step 5: the commit', () => {
     await h.accept('input-1')
     const started = await startRun(h)
     const snapshot = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    const moves = moveTailBeforeEachCommit(h)
+    // The Run layer moves between the read of the pipeline and its commit.
+    let moves = 0
+    h.view.onCommit(async (_input, next) => {
+      moves += 1
+      await releaseDirectly(h, started, `release-concurrent-${String(moves)}`)
+      return next()
+    })
     h.view.reset()
     const answer = await finishRun(h, started, snapshot.revision)
     expect(failureOf(answer)).toMatchObject({ kind: 'changed' })
-    expect(moves()).toBe(1)
+    expect(moves).toBe(1)
     expect(h.view.calls().filter(call => call.method === 'readWork')).toHaveLength(1)
     expect(h.view.calls().filter(call => call.method === 'commit')).toHaveLength(1)
     const after = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
     expect(after.run.kind).toBe('active')
+  })
+
+  it('an unrelated commit after the read does not make the Run-layer expected stale (R2-D327)', async () => {
+    const h = await service({ policy: { command: { retriesOnChanged: 1 } } })
+    await h.create()
+    await h.accept('input-1')
+    const started = await startRun(h)
+    const read = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
+    // Accepts and their notices move the snapshot revision, not the Run layer.
+    await h.accept('input-2')
+    await h.accept('input-3')
+    const finished = succeeded(
+      await finishRun(h, started, expectedRevision(read, 'finishRun')),
+      'finishRun',
+    )
+    expect(finished.terminal.outcome).toBe('failed')
   })
 
   it('the revision the caller holds commits as before', async () => {
