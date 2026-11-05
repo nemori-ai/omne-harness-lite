@@ -143,7 +143,7 @@ TLC 负控与变异的对应：`bad-no-absorb-close` 与 M1，`bad-forget-open`�
 
 修改连接表的源码、端口替身或性质时，同步更新 [ConnectionTable.tla](models/ConnectionTable.tla)、`tests/model/` 与本页的映射，再重跑两种证据。新加一条性质时，同时在模型里加一个负控、在探索器上做一个变异，证明两边都能变红。单次运行的原始输出留任务 `tmp/`，不进本目录。
 
-## 调用口闭包 `w3-mcp-call` 的变异记录
+## 调用口闭包的变异记录
 
 手工变异（2026-11-05，基线 `b2ba7dc89` 之上的闭包提交），每条改源码一处、跑所列用例、按字节还原；记录与日志在任务过程目录 `tmp/closures/w3-mcp-call/red/`。契约样本构造器的变异先重建契约 `dist` 再跑（用例经 `dist` 导入）。
 
