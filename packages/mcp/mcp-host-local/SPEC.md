@@ -38,11 +38,11 @@
 
 <a id="h1"></a>
 
-- **H1 一张表一份实现**（契约 T1、T2、T8）：`Session`（`src/session.ts`）把线路报告的每一次交换与事件翻成契约的 `WireEvent`，交给契约根导出的 `classifyWireEvent` 归类，再按 T8 的行得出结论。请求的组成（`_meta`、MCP 头、`Mcp-Name` 编码）、页的剔除、授权发现的组装、各结果与错误对象的读法都调用契约根导出的函数，本包不另写一份。反例：线路自己判断一行是不是 JSON；会话用自己的正则读 `-32022` 的 `data.supported`。变异：`conclude` 把 `http:2xx` 当作 `not-sent` → `session.spec.ts` D15/O05/C04 行变红；`answerWireOf` 对探测的 5xx 不答 `server-error` → D16 行变红。
+- **H1 一张表一份实现**（契约 T1、T2、T8）：`Session`（`src/session.ts`）把线路报告的每一次交换与事件翻成契约的 `WireEvent`，交给契约根导出的 `classifyWireEvent` 归类，再按 T8 的行得出结论。请求的组成（`_meta`、MCP 头、`Mcp-Name` 编码）、页的剔除、授权发现的组装、各结果与错误对象的读法都调用契约根导出的函数，本包不另写一份。反例：线路自己判断一行是不是 JSON；会话用自己的正则读 `-32022` 的 `data.supported`。变异：`conclude` 不再把 `http:2xx` 当流断开 → `session.spec.ts` D15、I06、O05、O06 行变红；`answerWireOf` 对探测的「5xx+码」不答 `server-error` → D16 行变红。
 
 <a id="h2"></a>
 
-- **H2 线路不分类**（契约 T2）：`Line`（`src/line.ts`）只报告 `unsent`、`sent`、`status`（状态、头、整个正文）、`stream`（头、逐条消息、`abort`）、`aborted`，以及共用流的 `line`、`ended`、`broken` 事件。线路不看消息的内容，不看状态码的含义，不核 `id`。反例：HTTP 线路把 404 读成「会话结束」；stdio 线路丢掉一行「不是 JSON」的文本。变异：`StdioLine.deliver` 跳过不以 `{` 开头的行 → `stdio.spec.ts`「drops the lines that are not JSON」不变红但 `session.spec.ts` F4 用例仍绿，所以另有 `conformance.spec.ts` 的 T2 用例「call 收到读不懂的错误对象时原样交出」变红。
+- **H2 线路不分类**（契约 T2）：`Line`（`src/line.ts`）只报告 `unsent`、`sent`、`status`（状态、头、整个正文）、`stream`（头、逐条消息、`abort`）、`aborted`，以及共用流的 `line`、`ended`、`broken` 事件。线路不看消息的内容，不看状态码的含义，不核 `id`。反例：HTTP 线路把 404 读成「会话结束」；stdio 线路丢掉一行「不是 JSON」的文本。变异：HTTP 线路丢掉 POST 错误状态的正文（`status` 交换的 `body` 为空） → `conformance.spec.ts` 两遍各 11 个用例变红（D04–D08、D12、I03、O01–O03、C02 等按正文分类的行）。stdio 线路丢掉非 JSON 行是等价变异：契约把这样的行归为 `other`，结局相同。
 
 <a id="h3"></a>
 
@@ -50,11 +50,11 @@
 
 <a id="h4"></a>
 
-- **H4 凭据只在发请求时用**（契约 T4、T9）：每个出站请求与通知在写出之前经 `credential.authorize(headers)`；句柄 reject、抛出或答失败时请求不发出，答 `not-sent`（`connection-unavailable`）。授权之后、写出之前传输被关闭的请求同样不发出。对端答 401 或带 `insufficient_scope` 的 403 时，只对曾用这个句柄授权的请求调用 `reportRejection()` 恰好一次，然后取回授权发现；其他 403 不调用。旧 HTTP+SSE 回退的 GET 也经句柄授权。授权发现的 well-known 取回不经句柄：元数据是公开的。反例：`reportRejection()` 在每个 401 上都调用，包括没有句柄的材料；元数据取回带着 `Authorization`。变异：`authorizationRequired` 去掉 `authorized` 条件 → `conformance.spec.ts` T4「401 on a request that no handle authorized」不变红但 S05 行的 `reportRejection` 计数变红。
+- **H4 凭据只在发请求时用**（契约 T4、T9）：每个出站请求与通知在写出之前经 `credential.authorize(headers)`；句柄 reject、抛出或答失败时请求不发出，答 `not-sent`（`connection-unavailable`）。授权之后、写出之前传输被关闭的请求同样不发出。对端答 401 或带 `insufficient_scope` 的 403 时，只对曾用这个句柄授权的请求调用 `reportRejection()` 恰好一次，然后取回授权发现；其他 403 不调用。旧 HTTP+SSE 回退的 GET 也经句柄授权。授权发现的 well-known 取回不经句柄：元数据是公开的。反例：`reportRejection()` 在每个 401 上都调用，包括没有句柄的材料；元数据取回带着 `Authorization`。变异：带 `insufficient_scope` 的 403 不再按 S05 处理 → `session.spec.ts` S05 行（16 格）变红。`reportRejection()` 只对授权过的请求调用：没有句柄的材料没有可调用的对象，`conformance.spec.ts` T4「401 on a request that no handle authorized」核对不调用。
 
 <a id="h5"></a>
 
-- **H5 不代调用方重发**（契约 T8 D15、O05、C04、O06、O07）：只在 Streamable HTTP 材料、不在旧 HTTP+SSE 模式、请求是 `server/discover`、`tools/list` 或 `tasks/get`、第一次的结论是流断开或「2xx 而没有应答」时，以新的请求号再发一次；再发的结论不再触发再发。`tools/call`、`tasks/update`、`tasks/cancel` 不再发；`5xx+纯` 不再发。反例：`tools/call` 的流断开后静默重试。变异：`request` 的 `READ_METHODS` 加入 `tools/call` → `http.spec.ts`「tools/call … are not sent again」变红。
+- **H5 不代调用方重发**（契约 T8 D15、O05、C04、O06、O07）：只在 Streamable HTTP 材料、不在旧 HTTP+SSE 模式、请求是 `server/discover`、`tools/list` 或 `tasks/get`、第一次的结论是流断开或「2xx 而没有应答」时，以新的请求号再发一次；再发的结论不再触发再发。`tools/call`、`tasks/update`、`tasks/cancel` 不再发；`5xx+纯` 不再发。反例：`tools/call` 的流断开后静默重试。变异：`request` 对写类请求也再发（`READ_METHODS` 条件改为恒真） → `http.spec.ts`「tools/call, tasks/update and tasks/cancel are not sent again」变红。`tools/call` 不经 `request()`，没有再发的代码路径；同一用例按对端收到的请求数核对它。
 
 <a id="h6"></a>
 
@@ -78,11 +78,11 @@
 
 <a id="h11"></a>
 
-- **H11 没有自己的超时**：HTTP 线路对 `fetch` 不设超时；等待应答由调用方的 `signal`、`cancelRequest` 与 `close()` 结束（T8 D14、I05、O04、C03「等到 `close()`」）。stdio 上只有探测时限（`probeTimeoutMs`），只在等待 `server/discover` 的应答时计时；到时后迟到的应答按无关的行丢弃。反例：会话 60 s 后自己发取消并报超时。变异：`dispatch` 对每个请求都起探测计时 → `session.spec.ts` O04 行（`silent` 等到 `close()`）变红。
+- **H11 没有自己的超时**：HTTP 线路对 `fetch` 不设超时；等待应答由调用方的 `signal`、`cancelRequest` 与 `close()` 结束（T8 D14、I05、O04、C03「等到 `close()`」）。stdio 上只有探测时限（`probeTimeoutMs`），只在等待 `server/discover` 的应答时计时；到时后迟到的应答按无关的行丢弃。反例：会话 60 s 后自己发取消并报超时。变异：`PROBES` 加入 `tools/list`（它也起探测计时并按探测归类） → `session.spec.ts` O01、O03、O08 行变红。
 
 <a id="h12"></a>
 
-- **H12 退出窗口**（契约 T8 进程退出）：stdout 先结束时线路最多等 `PROCESS_EXIT_WINDOW_MS` 的退出再宣告 `ended`，之后的退出不改变已归类的结论；进程先退出时线路最多再读 `PROCESS_EXIT_WINDOW_MS` 的 stdout（期内读到的行照常投递），然后宣告并取消读取。两个时刻取同一时钟。退出的观察直接挂在句柄的 `exited` 上，先于任何在它之后 `await` 这个 promise 的调用方。反例：观察挂在派生 promise 的第二跳上，先等过 `exited` 的调用方还能写出一个请求（第一次实现的缺陷）。变异：`onExited` 不等 stdout → `stdio.spec.ts`「a process that answers and exits」仍绿但 `conformance.spec.ts` S02 行（答复先于退出到达）变红。
+- **H12 退出窗口**（契约 T8 进程退出）：stdout 先结束时线路最多等 `PROCESS_EXIT_WINDOW_MS` 的退出再宣告 `ended`，之后的退出不改变已归类的结论；进程先退出时线路最多再读 `PROCESS_EXIT_WINDOW_MS` 的 stdout（期内读到的行照常投递），然后宣告并取消读取。两个时刻取同一时钟。退出的观察直接挂在句柄的 `exited` 上，先于任何在它之后 `await` 这个 promise 的调用方。反例：观察挂在派生 promise 的第二跳上，先等过 `exited` 的调用方还能写出一个请求（第一次实现的缺陷）。变异：`onExited` 直接挂在派生 promise 的第二跳上 → `stdio.spec.ts`「a process that answers and exits」变红（施工时的真实缺陷）。进程先退出后继续读窗口内 stdout 这一半没有能让它变红的用例：Linux 上子进程对管道的写是同步的，应答总在退出之前被读到；它按契约 T8 的窗口实现，列为未覆盖。
 
 <a id="h13"></a>
 
@@ -154,4 +154,5 @@
 - 真实远程对端、TLS、代理与 DNS 失败只按 `cause.code` 的集合分类（H10），没有在真实网络上验证；远程目标归 `w3-mcp-e2e`。
 - `x-mcp-header` 的剔除只在 A 层验证：SDK 的 `McpServer` 不能登记带非法声明的工具。
 - `DELETE` 不发（H7）没有用例核对，因为契约不核它。
+- H12 里「进程先退出后仍读窗口内的 stdout」没有能变红的用例（见 H12）。
 - 调用方（`@omne-harness/mcp`）与本包的真实组合没有在本包验证；组合归组设计与集成任务。
