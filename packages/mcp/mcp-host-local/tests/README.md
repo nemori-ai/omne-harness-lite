@@ -4,7 +4,7 @@
 
 ## 允许的内容
 
-`*.spec.ts` 测试文件、测试辅助代码（`memory-line.ts`），以及 `fixtures/` 下的对端夹具。
+`*.spec.ts` 测试文件、测试辅助代码（`memory-line.ts`、`unhandled.ts`），以及 `fixtures/` 下的对端夹具。
 
 ## 边界
 

@@ -1258,7 +1258,11 @@ describe('closing and the credential handle (T5, T9)', () => {
   })
 })
 
-/** A gate that holds every authorization after the first `free` ones until `release()`. */
+/**
+ * A gate that holds every authorization after the first `free` ones until `release()`. On a
+ * connection that entered the SSE fallback, `discover()` asks for five: the probe, `initialize`,
+ * the fallback GET, `initialize` again, and `notifications/initialized`; a `call` is the sixth.
+ */
 function holdAfter(free: number): Readonly<{ gate: Gate; release: () => void }> {
   let release = (): void => undefined
   const open = new Promise<void>(resolve => {
