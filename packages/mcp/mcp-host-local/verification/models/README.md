@@ -103,7 +103,7 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp-host-local/verification
 | `bad-resend` | `V5_NoResendForCaller` 被违反 | 58 | 100 | 8 | 1.0 s | 符合判读 |
 | `bad-close-not-sent` | `V6_ByPhase` 被违反 | 75 | 106 | 7 | 0.9 s | 符合判读 |
 
-运行于 2026-11-05（UTC 19:19），`run.py` 退出码 0，12 个配置用时约 12 秒。深度是 TLC 状态图的深度，含内部步。
+运行于 2026-11-05（UTC 19:19），`run.py` 退出码 0，12 个配置用时约 12 秒。深度是 TLC 状态图的深度，含内部步。正控的状态数是完整穷举，两次运行相同。负控与变异的状态数是 TLC 找到第一条反例时的计数，随工作线程的调度在两次运行之间略有不同。
 
 变异（同一环境，同一模型）：14 个变异各自只违反目标不变式，`run.py --mutations` 退出码 0，用时约 15 秒。每个变异的不同状态数在 30 到 292 之间，深度 4 到 10。
 
