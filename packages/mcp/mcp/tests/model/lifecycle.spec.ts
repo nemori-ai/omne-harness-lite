@@ -2,10 +2,10 @@
 // table at the bounds of `scenarios.ts`: no scenario reaches a violation. A violation fails its
 // case with the shortest schedule that showed it. A1, the known limitation, is witnessed: once
 // every bound fired, `closeAll` still waits behind a teardown port that hangs.
-// The wide and two-key bounds are CPU-heavy (tens of thousands of states, each a replay).
+// The bounds, wide and two-key scenarios are CPU-heavy (tens of thousands of states, each a replay).
 import { beforeAll, describe, expect, it } from 'vitest'
 import { explore, type Exploration } from './explore.ts'
-import { FAULTS, REBUILD, THROWS, TWO_ACCOUNTS, TWO_KEYS, WIDE } from './scenarios.ts'
+import { BOUNDS, FAULTS, REBUILD, THROWS, TWO_ACCOUNTS, TWO_KEYS, WIDE } from './scenarios.ts'
 
 function violations(result: Exploration): readonly string[] {
   return result.violations.map(
@@ -77,6 +77,21 @@ describe('the projection: merging states of equal projection loses no violation'
     EXPLORE_MS,
   )
 })
+
+describe(
+  'bounds: as rebuild, with bounds of different lengths that fire in any order',
+  { tags: ['slow'] },
+  () => {
+    let result: Exploration
+    beforeAll(async () => {
+      result = await explore(BOUNDS)
+    }, EXPLORE_MS)
+
+    it('P1–P8 hold, P8 T2 above all', { tags: ['slow'] }, () => {
+      expect(violations(result)).toEqual([])
+    })
+  },
+)
 
 describe(
   'wide: one key, two ensure, release, lose, closeAll, lawful ports',

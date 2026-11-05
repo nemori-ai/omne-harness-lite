@@ -8,6 +8,7 @@ import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/p
 import { admit } from '../src/internal/gate.ts'
 import { createConnectionTable } from '../src/internal/table.ts'
 import { between } from './doubles/calls.ts'
+import { manualBounds } from './doubles/bounds.ts'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import {
@@ -624,5 +625,48 @@ describe('two tokens of two revisions at the re-read (observation)', () => {
     expect(table.current(connectionKeyOf(alice.tenant, old.endpoint, anonymous))).toBeUndefined()
     expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'ready' })
     expect(await table.closeAll()).toHaveLength(1)
+  })
+})
+
+describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
+  const REFUSED = { failure: { kind: 'connection-unavailable' } }
+
+  it('a call queued behind one that holds the critical section answers at its own bound, and asks no port after', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files)
+    // Calls 1 and 2 are the gates of the two refreshes; call 3, the re-read of the first in the
+    // critical section, never answers.
+    const silent = silentAdoption(w.ports.adoption, between(3, 4))
+    const bounds = manualBounds()
+    const c = core({ ...w, ports: { ...w.ports, adoption: silent.port } }, bounds.runtime)
+    const first = c.discovery.refresh(alice, { ref: files })
+    const second = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    expect(silent.calls()).toBe(3)
+    bounds.fire('section', 1)
+    expect(await second).toEqual(REFUSED)
+    bounds.fire('section', 0)
+    expect(await first).toEqual(REFUSED)
+    await settled()
+    expect(silent.calls()).toBe(3)
+    expect(w.transports.calls).toHaveLength(0)
+  })
+
+  it('a call that joins the build of another answers at its own bound; the build goes on for the call that began it', async () => {
+    const w = world({ script: usualScript() })
+    adoptStdio(w, files)
+    const stalled = stallingLanding(w.landing)
+    const bounds = manualBounds()
+    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } }, bounds.runtime)
+    const first = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    const second = c.discovery.refresh(alice, { ref: files })
+    await settled()
+    expect(bounds.started()).toEqual(['section', 'build', 'section', 'join'])
+    bounds.fire('join')
+    expect(await second).toEqual(REFUSED)
+    expect(stalled.calls()).toBe(1)
+    stalled.gate.resolve()
+    expect(await first).toMatchObject({ ok: { kind: 'published' } })
   })
 })

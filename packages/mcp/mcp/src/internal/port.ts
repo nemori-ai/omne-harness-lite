@@ -17,6 +17,17 @@ export function ask<T>(call: () => Promise<T>, whenBreached: T): Promise<T> {
   }
 }
 
+/**
+ * What a bound is for: the critical section of an `ensure`, a build, a wait on the build of
+ * another call (`join`), or a listing (SPEC MC-5, invariant 5).
+ */
+export type BoundKind = 'section' | 'build' | 'join' | 'listing'
+
+/** Starts a bound of `milliseconds`. The table's one source of bounds, so a test can fire them. */
+export type StartBound = (milliseconds: number, kind: BoundKind) => AbortSignal
+
+export const startTimeout: StartBound = milliseconds => AbortSignal.timeout(milliseconds)
+
 export type Bounded<T> = Readonly<{ kind: 'answered'; value: T }> | Readonly<{ kind: 'expired' }>
 
 const EXPIRED: Bounded<never> = { kind: 'expired' }

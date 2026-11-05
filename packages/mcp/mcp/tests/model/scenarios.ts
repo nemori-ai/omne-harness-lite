@@ -14,6 +14,12 @@ export const REBUILD: Scenario = {
   budget: 0,
 }
 
+/**
+ * As `rebuild`, with bounds of different lengths: any bound may fire next, so the bound of the
+ * second `ensure` can fire while the first holds the critical section or the build it joined.
+ */
+export const BOUNDS: Scenario = { ...REBUILD, name: 'bounds', anyBound: true }
+
 /** One key; `ensure`, `release`, `lose`, `closeAll`; one port call fails, rejects or answers `unconfirmed`. */
 export const FAULTS: Scenario = {
   name: 'faults',

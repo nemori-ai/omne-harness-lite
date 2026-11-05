@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import type { Access } from '@omne-harness/legal-identity'
 import {
   catalogKeyOf,
+  isCatalogRevision,
   type AuthorizationDiscovery,
   type EndpointRef,
   type PeerAccount,
@@ -220,6 +221,31 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     return catalogKeyOf(alice.tenant, adopted, account)
   }
   const credentialAccount: PeerAccount = { kind: 'credential', binding: MAIN }
+
+  it('an error of this package while marking reaches the caller; it is not read as a store breach (MC-5, MC-15)', async () => {
+    const w = world()
+    const adopted = adoptStdio(w, files, {
+      auth: 'static',
+      env: [{ name: 'TOKEN', source: 'credential' }],
+    })
+    w.credentials.reject(alice.tenant, MAIN)
+    const record = await storedRecord(w, await keyOf(w, adopted, credentialAccount), ['read'])
+    // A record at the last revision: the next one cannot be counted (contract `nextRevision`).
+    const last = Number.MAX_SAFE_INTEGER
+    if (!isCatalogRevision(last)) throw new TypeError('not a catalog revision')
+    let writes = 0
+    const store = {
+      ...w.ports.store,
+      read: async () => ({ ok: { ...record, revision: last } }),
+      write: async (...args: Parameters<typeof w.ports.store.write>) => {
+        writes += 1
+        return w.ports.store.write(...args)
+      },
+    }
+    const table = createConnectionTable({ ...w.ports, store }, w.config)
+    await expect(table.ensure(await admitted(w, files), alice)).rejects.toThrow(RangeError)
+    expect(writes).toBe(0)
+  })
 
   it('credential rejected: credential-unavailable (rejected), actions marked, revision one higher', async () => {
     const w = world()
@@ -491,9 +517,9 @@ describe('ensure: the connection bound', () => {
 })
 
 describe('ensure: the connection key (invariant 1)', () => {
-  it('does not share a connection between two tenants with the same holding', async () => {
+  it('does not share a connection between two tenants with the same holding and adoption revision', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
-    adoptStdio(w, files)
+    const { revision } = adoptStdio(w, files)
     w.adoption.adopt({
       tenant: away,
       scope: 'ws',
@@ -506,10 +532,25 @@ describe('ensure: the connection key (invariant 1)', () => {
       },
     })
     w.eligibility.grant(mallory, files)
-    const table = tableOf(w)
-    const ours = await table.ensure(await admitted(w, files), alice)
-    const theirs = await table.ensure(await admitted(w, files, mallory), mallory)
+    // The double gives every adoption its own revision. Here both tenants read one revision, so
+    // the tenant is the only part of the two connection keys that differs.
+    const adoption: AdoptionView<Principal, string> = {
+      endpoints: (access, scope) => w.ports.adoption.endpoints(access, scope),
+      endpoint: async (access, endpoint) => {
+        const read = await w.ports.adoption.endpoint(access, endpoint)
+        return 'ok' in read && read.ok !== 'not-adopted' ? { ok: { ...read.ok, revision } } : read
+      },
+    }
+    const ports = { ...w.ports, adoption }
+    const table = createConnectionTable(ports, w.config)
+    const ourToken = await admit(ports, alice, files)
+    const theirToken = await admit(ports, mallory, files)
+    if (ourToken.kind !== 'admitted' || theirToken.kind !== 'admitted')
+      throw new Error('not admitted')
+    const ours = await table.ensure(ourToken.endpoint, alice)
+    const theirs = await table.ensure(theirToken.endpoint, mallory)
     if (!('ok' in ours) || !('ok' in theirs)) throw new Error('ensure failed')
+    expect(theirs.ok.adoptionRevision).toBe(ours.ok.adoptionRevision)
     expect(theirs.ok.transport).not.toBe(ours.ok.transport)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
   })

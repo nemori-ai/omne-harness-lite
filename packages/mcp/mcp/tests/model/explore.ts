@@ -25,6 +25,8 @@ import {
   createMemoryUseEligibility,
 } from '@omne-harness/mcp-contract/testing'
 import { admit } from '../../src/internal/gate.ts'
+import type { BoundKind } from '../../src/internal/port.ts'
+import { createTaskScope } from '../../src/internal/scope.ts'
 import { prepareSettings } from '../../src/internal/settings.ts'
 import {
   createConnectionTable,
@@ -106,6 +108,11 @@ export type Scenario = Readonly<{
   maxDepth?: number
   /** Explore every schedule, without merging states of equal projection (a cross-check). */
   exhaustivePaths?: boolean
+  /**
+   * Any bound may fire next, not only the oldest: calls with bounds of different lengths. Off,
+   * the bounds fire in the order they started, as bounds of one length do.
+   */
+  anyBound?: boolean
 }>
 
 /** One choice of a schedule: the action, and which calls made during it throw when called. */
@@ -236,7 +243,8 @@ function coreOf(state: ConnectionState): string {
   return JSON.stringify(state, (name, value: unknown) => (name === 'residual' ? undefined : value))
 }
 
-type Timer = Readonly<{ name: string; controller: AbortController }>
+/** A bound of the table, with the client operation it was started for. */
+type Timer = Readonly<{ name: string; controller: AbortController; op: string | undefined }>
 
 type PendingCall = Readonly<{
   call: ScriptedPortCall
@@ -293,6 +301,8 @@ class Run implements RunView, CallDesk {
   private handlingLate = false
   private timers: Timer[] = []
   private readonly fired = new Set<string>()
+  /** Per client operation: how many bounds were started for it, and how many fired. */
+  private readonly opBounds = new Map<string, { started: number; fired: number }>()
   private readonly builds = new Map<string, number>()
   private readonly reported = new Set<string>()
   private readonly unhandled: unknown[] = []
@@ -313,7 +323,17 @@ class Run implements RunView, CallDesk {
       loses: scenario.loses,
       deviations: scenario.budget,
     }
-    this.table = createConnectionTable(scriptedPorts(this, keys, this.ledger), CONFIG)
+    // The table's runtime is the explorer's: its bounds fire as steps, and an error of the table
+    // that comes after `closeAll` answered is reported like a rejection nobody handled (P7).
+    this.table = createConnectionTable(scriptedPorts(this, keys, this.ledger), CONFIG, {
+      scope: createTaskScope(error => this.rejectedUnhandled(error)),
+      startBound: (_milliseconds, kind) => this.startBound(kind),
+    })
+  }
+
+  /** How many bounds were started for `op`, and how many of them fired. */
+  boundsOf(op: string): Readonly<{ started: number; fired: number }> {
+    return this.opBounds.get(op) ?? { started: 0, fired: 0 }
   }
 
   get pending(): readonly ScriptedPortCall[] {
@@ -396,8 +416,8 @@ class Run implements RunView, CallDesk {
     if (this.left.closeAll > 0) acts.push('closeAll')
     if (this.left.loses > 0)
       for (const op of this.ops) if (op.ensured !== undefined) acts.push(`lose ${op.name}`)
-    const oldest = this.timers[0]
-    if (oldest !== undefined) acts.push(`fire ${oldest.name}`)
+    const fireable = this.scenario.anyBound === true ? this.timers : this.timers.slice(0, 1)
+    for (const timer of fireable) acts.push(`fire ${timer.name}`)
     for (const [label, { call }] of this.labelled())
       for (const answer of PORT_ANSWERS[call.port])
         if (answer === 'ok' || this.mayDeviate(answer)) acts.push(`answer ${label} ${answer}`)
@@ -426,7 +446,7 @@ class Run implements RunView, CallDesk {
         await this.lose(first)
         return
       case 'fire':
-        this.fire()
+        this.fire(first)
         break
       case 'answer':
         await this.answer(first, second)
@@ -457,20 +477,42 @@ class Run implements RunView, CallDesk {
     }
   }
 
-  /** Called by the replaced `AbortSignal.timeout` inside the table: a bound the explorer fires. */
-  timeout(): AbortSignal {
+  /**
+   * The table's source of bounds: a bound the explorer fires, named by its kind and the operation
+   * it was started for. The calls made after it in the same operation are made under it.
+   */
+  private startBound(kind: BoundKind): AbortSignal {
     const store = contexts.getStore()
-    let name = `T(${store?.op ?? '?'})`
-    if (store?.timer !== undefined) {
-      const key = this.ops.find(op => op.name === store.op)?.key ?? '?'
-      const count = (this.builds.get(key) ?? 0) + 1
-      this.builds.set(key, count)
-      name = `T(b${key}${count})`
-    }
+    const op = store?.op
+    const name = this.boundName(kind, op)
     const controller = new AbortController()
-    this.timers.push({ name, controller })
+    this.timers.push({ name, controller, op })
+    if (op !== undefined) {
+      const counts = this.boundsOf(op)
+      this.opBounds.set(op, { started: counts.started + 1, fired: counts.fired })
+    }
     if (store !== undefined) contexts.enterWith({ ...store, timer: name })
     return controller.signal
+  }
+
+  private boundName(kind: BoundKind, op: string | undefined): string {
+    switch (kind) {
+      case 'build': {
+        const key = this.ops.find(item => item.name === op)?.key ?? '?'
+        const count = (this.builds.get(key) ?? 0) + 1
+        this.builds.set(key, count)
+        return `T(b${key}${count})`
+      }
+      case 'join':
+        return `T(j${op ?? '?'})`
+      case 'section':
+      case 'listing':
+        return `T(${op ?? '?'})`
+      default: {
+        const exhaustive: never = kind
+        return exhaustive
+      }
+    }
   }
 
   rejectedUnhandled(reason: unknown): void {
@@ -632,10 +674,17 @@ class Run implements RunView, CallDesk {
     this.afterStep()
   }
 
-  private fire(): void {
-    const timer = this.timers.shift()
-    if (timer === undefined) throw new Nondeterminism('no bound to fire')
+  /** Fires the bound named `name`, or the oldest one. */
+  private fire(name?: string): void {
+    const index = name === undefined ? 0 : this.timers.findIndex(timer => timer.name === name)
+    const timer = this.timers[index]
+    if (timer === undefined) throw new Nondeterminism(`no bound ${name ?? ''} to fire`)
+    this.timers.splice(index, 1)
     this.fired.add(timer.name)
+    if (timer.op !== undefined) {
+      const counts = this.boundsOf(timer.op)
+      this.opBounds.set(timer.op, { started: counts.started, fired: counts.fired + 1 })
+    }
     timer.controller.abort()
   }
 
@@ -725,28 +774,21 @@ let active: Run | undefined
 const stray: unknown[] = []
 
 /**
- * Replaces, for the duration of `body`, what makes a run deterministic and observable:
- * `AbortSignal.timeout` inside the table becomes a bound the explorer fires, and rejections that
- * nobody handled go to the active run instead of the test runner.
+ * For the duration of `body`, rejections that nobody handled go to the active run instead of the
+ * test runner. The bounds need no hook: each run gives the table its own source of bounds.
  */
 async function withHooks<T>(body: () => Promise<T>): Promise<T> {
-  const timeout = AbortSignal.timeout
   const listeners = process.listeners('unhandledRejection')
   const onUnhandled = (reason: unknown) => {
     if (active === undefined) stray.push(reason)
     else active.rejectedUnhandled(reason)
   }
-  AbortSignal.timeout = (milliseconds: number) =>
-    active !== undefined && contexts.getStore() !== undefined
-      ? active.timeout()
-      : timeout.call(AbortSignal, milliseconds)
   process.removeAllListeners('unhandledRejection')
   process.on('unhandledRejection', onUnhandled)
   try {
     return await body()
   } finally {
     active = undefined
-    AbortSignal.timeout = timeout
     process.off('unhandledRejection', onUnhandled)
     for (const listener of listeners) process.on('unhandledRejection', listener)
   }

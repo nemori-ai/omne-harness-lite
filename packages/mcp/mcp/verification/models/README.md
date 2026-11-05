@@ -33,7 +33,7 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 | `bad-abandon-landed`   | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | `closeAll` 也释放已交来进程的落点的句柄。`P1_ReleasedAfterStop` 须违反      |
 | `bad-unbounded-wrap`   | 负控                 | A    | 1        | 0         | 0          | 0      | 无                                          | 失败的建连等收场与标记时不受时限。`P8_BoundedEnsure` 须违反                 |
 
-`valid-two-keys` 不触发时限，迟到路径只在一个键的配置里检查：不加这个约束时，两个键的状态空间相乘，TLC 运行 17 分钟仍未完成。`valid-throws` 的上限与原先的已知反例 B1、N2、N3 的配置相同，`valid-rebuild` 覆盖原先 P2、N1 的配置（同样的常量，另多一次 `ensure`）。负控与探索器的变异的对应见 [../README.md](../README.md#两种证据能变红)。
+`valid-two-keys` 不触发时限，迟到路径只在一个键的配置里检查：不加这个约束时，两个键的状态空间相乘，TLC 运行 17 分钟仍未完成。各配置的时限上界相同、先建先到期；`P8_BoundedEnsure` 是 P8 T2 的全局形式，逐个 `ensure` 的形式归探索器（[../README.md](../README.md#状态映射)「模型的抽象」）。负控与探索器的变异的对应见 [../README.md](../README.md#两种证据能变红)。
 
 ## 运行与判读
 
@@ -53,33 +53,33 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 
 ## 运行记录
 
-运行环境：TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)，tla2tools.jar SHA-256 `936a262061c91469…`，6 个工作线程。模型 SHA-256 `1c91485e70ce9bab…`。
+运行环境：TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)，tla2tools.jar SHA-256 `936a262061c91469…`，6 个工作线程。模型 SHA-256 `b14f3711fe731cc4…`（第 1 轮评审裁定 F2、F3 之后：落点从开始起就在途，关停开始之后的失败按关停收场）。
 
 | 配置                   | 结论                                      | 不同状态数 | 生成状态数 | 深度 | 耗时    | 判读     |
 | ---------------------- | ----------------------------------------- | ---------- | ---------- | ---- | ------- | -------- |
-| `valid-faults`         | 完成，没有错误                            | 64188      | 81390      | 59   | 5.1 s   | 符合判读 |
-| `valid-rebuild`        | 完成，没有错误                            | 1738319    | 2551913    | 92   | 153.6 s | 符合判读 |
-| `valid-two-keys`       | 完成，没有错误                            | 2211676    | 3053118    | 88   | 186.9 s | 符合判读 |
-| `valid-throws`         | 完成，没有错误                            | 5213       | 6651       | 52   | 1.7 s   | 符合判读 |
-| `live`                 | 完成，没有错误                            | 58176      | 73799      | 59   | 9.1 s   | 符合判读 |
-| `probe-a1`             | `P8_BoundedClose` 被违反                  | 670        | 1004       | 30   | 1.4 s   | 符合判读 |
-| `probe-live-hang`      | 时序性质被违反（`P8_EveryCallerAnswers`） | 10862      | 14633      |      | 2.6 s   | 符合判读 |
-| `bad-no-absorb-close`  | `P2_NoneHoldsNothing` 被违反              | 1941       | 2504       | 33   | 1.8 s   | 符合判读 |
-| `bad-forget-open`      | `P2_ForgetHoldsNothing` 被违反            | 47159      | 65989      | 48   | 4.4 s   | 符合判读 |
-| `bad-forget-open-late` | `P6_LateInvisible` 被违反                 | 240        | 290        | 41   | 1.3 s   | 符合判读 |
-| `bad-no-shut`          | `P4_NoConnectAfterShut` 被违反            | 97         | 100        | 20   | 1.2 s   | 符合判读 |
-| `bad-ok-after-shut`    | `P4_NoOkAfterShut` 被违反                 | 353        | 493        | 28   | 1.2 s   | 符合判读 |
-| `bad-abandon-landed`   | `P1_ReleasedAfterStop` 被违反             | 675        | 969        | 32   | 1.5 s   | 符合判读 |
+| `valid-faults`         | 完成，没有错误                            | 57316      | 72036      | 59   | 5.2 s   | 符合判读 |
+| `valid-rebuild`        | 完成，没有错误                            | 1541306    | 2219825    | 92   | 134.5 s | 符合判读 |
+| `valid-two-keys`       | 完成，没有错误                            | 2279460    | 3153840    | 88   | 202.5 s | 符合判读 |
+| `valid-throws`         | 完成，没有错误                            | 4428       | 5469       | 52   | 2.2 s   | 符合判读 |
+| `live`                 | 完成，没有错误                            | 51304      | 64445      | 59   | 7.5 s   | 符合判读 |
+| `probe-a1`             | `P8_BoundedClose` 被违反                  | 666        | 996        | 31   | 1.6 s   | 符合判读 |
+| `probe-live-hang`      | 时序性质被违反（`P8_EveryCallerAnswers`） | 9261       | 12138      |      | 3.0 s   | 符合判读 |
+| `bad-no-absorb-close`  | `P2_NoneHoldsNothing` 被违反              | 2048       | 2640       | 34   | 1.9 s   | 符合判读 |
+| `bad-forget-open`      | `P2_ForgetHoldsNothing` 被违反            | 44252      | 60392      | 47   | 4.8 s   | 符合判读 |
+| `bad-forget-open-late` | `P6_LateInvisible` 被违反                 | 240        | 290        | 41   | 1.5 s   | 符合判读 |
+| `bad-no-shut`          | `P4_NoConnectAfterShut` 被违反            | 95         | 98         | 20   | 1.2 s   | 符合判读 |
+| `bad-ok-after-shut`    | `P4_NoOkAfterShut` 被违反                 | 372        | 511        | 30   | 1.5 s   | 符合判读 |
+| `bad-abandon-landed`   | `P1_ReleasedAfterStop` 被违反             | 785        | 1054       | 36   | 1.8 s   | 符合判读 |
 | `bad-unbounded-wrap`   | `P8_BoundedEnsure` 被违反                 | 66         | 70         | 25   | 1.3 s   | 符合判读 |
 
-运行于 2026-11-05（UTC 08:36 起），`run.py` 退出码 0，全部 14 个配置用时 6 分 13 秒。深度是 TLC 状态图的深度，含内部步，所以比探索器调度的步数大。活性配置不报告深度。
+运行于 2026-11-05（UTC 10:07 起），`run.py` 退出码 0，全部 14 个配置用时 11 分 11 秒，其中约 5 分钟在等运行名额；同一时段本机另有一个会话在跑差分变异，所以耗时偏长。深度是 TLC 状态图的深度，含内部步，所以比探索器调度的步数大。活性配置不报告深度。
 
 负控的反例（外部动作）：
 
-- `bad-ok-after-shut`：ensure、answer adoption ok、answer acquire ok、answer start ok、closeAll、answer open ok、answer discover ok。
+- `bad-ok-after-shut`：ensure、answer adoption ok、answer acquire ok、answer start ok、answer open ok、closeAll、answer discover ok。
 - `bad-abandon-landed`：ensure、answer adoption ok、answer acquire ok、fire、fire、answer start ok（迟到）、closeAll。
-- `bad-unbounded-wrap`：ensure、answer adoption ok、fire、answer acquire ok（迟到）、fire；建连在等失败后的收场。
-- `bad-forget-open-late`：ensure、answer adoption ok、fire、answer acquire ok、fire、answer start ok（迟到）、answer stop ok、answer release ok；`lost` 的条目离开表，状态变成 `none`。
+- `bad-unbounded-wrap`：ensure、answer adoption ok、fire、fire；取凭据不答复，两个时限都到期之后建连仍在等失败后的收场。
+- `bad-forget-open-late`：ensure、answer adoption ok、answer acquire ok、fire、fire、answer store ok、answer start ok（迟到）、answer stop ok、answer release ok；`lost` 的条目离开表，状态变成 `none`。
 
 ## 本包事实
 

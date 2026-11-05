@@ -27,7 +27,6 @@ import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/p
 import { sameJson } from './internal/canonical.ts'
 import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
 import { ask, within } from './internal/port.ts'
-import type { TaskScope } from './internal/scope.ts'
 import { readAccountOf } from './internal/settings.ts'
 import type { CatalogMark, ConnectionTable, Ensured } from './internal/table.ts'
 
@@ -55,8 +54,6 @@ export type DiscoveryDependencies<P, S> = Readonly<{
   table: ConnectionTable<P>
   /** The time a listing is acquired at; a listing's freshness carries it. */
   now: () => Date
-  /** The table's scope: what a refresh stops waiting for goes on there. */
-  scope: TaskScope
 }>
 
 const SUPERSEDED: RefreshResult = { kind: 'kept', reason: { kind: 'superseded' } }
@@ -97,6 +94,7 @@ type Pages = readonly Outcome<ListingPage, TransportFailure>[]
 
 export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDiscovery<P> {
   const { ports, config, table } = deps
+  const { scope, startBound } = table.runtime
   const gate: UseGate<P, S> = { ports, table }
 
   /**
@@ -108,13 +106,13 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     ensured: Ensured,
     signal: AbortSignal | undefined,
   ): Promise<Pages | 'cancelled'> {
-    const bound = AbortSignal.timeout(ensured.bound)
+    const bound = startBound(ensured.bound, 'listing')
     const limit = signal === undefined ? bound : AbortSignal.any([signal, bound])
     const pages: Outcome<ListingPage, TransportFailure>[] = []
     let cursor: string | undefined
     for (let count = 0; count < config.maxListingPages; count += 1) {
       const page = ask(() => ensured.transport.listActions(cursor), fail(ABANDONED))
-      const asked = await within(page, limit, deps.scope)
+      const asked = await within(page, limit, scope)
       if (asked.kind === 'expired') {
         if (signal?.aborted === true) return 'cancelled'
         pages.push({ failure: ABANDONED })
@@ -211,11 +209,7 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     // The build is shared by every caller of the key and bounded by the connection bound; the
     // caller's abort ends only this refresh.
     const options = request.connectBound === undefined ? {} : { connectBound: request.connectBound }
-    const asked = await within(
-      table.ensure(admitted.ok, access, options),
-      request.signal,
-      deps.scope,
-    )
+    const asked = await within(table.ensure(admitted.ok, access, options), request.signal, scope)
     if (asked.kind === 'expired') return succeed(CANCELLED)
     const ensured = asked.value
     if ('failure' in ensured)

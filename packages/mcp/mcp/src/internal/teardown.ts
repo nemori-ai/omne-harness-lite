@@ -10,20 +10,20 @@
 // teardown asked while one is in flight joins it.
 import type { StopScope } from '@omne-harness/mcp-contract'
 import type { ProcessHandle } from '@omne-harness/mcp-contract/provider'
-import { recordStop, type Entry, type Landing, type Scope } from './entry.ts'
+import { recordStop, type Entry, type Landing, type StopRange } from './entry.ts'
 import { ask } from './port.ts'
 
 const STOP_ORDER: readonly StopScope[] = ['unconfirmed', 'root-only', 'tree-confirmed']
 
 /** The less confirmed of two ranges; `no-process` yields to any process. */
-export function narrowest(left: Scope, right: Scope): Scope {
+export function narrowest(left: StopRange, right: StopRange): StopRange {
   if (left === 'no-process') return right
   if (right === 'no-process') return left
   return STOP_ORDER.indexOf(left) <= STOP_ORDER.indexOf(right) ? left : right
 }
 
 /** The one entry point of the close order; answers the range it confirmed. */
-export function teardown(entry: Entry): Promise<Scope> {
+export function teardown(entry: Entry): Promise<StopRange> {
   if (entry.tearing !== undefined) return entry.tearing
   const tearing = closeOrder(entry)
   entry.tearing = tearing
@@ -36,15 +36,15 @@ export function teardown(entry: Entry): Promise<Scope> {
  * What the teardown confirmed: its stops, narrowed by every process still lingering and, when a
  * landing is still in flight, to `unconfirmed`: a process may still come (decision 5).
  */
-function confirmedOf(entry: Entry, stopped: Scope): Scope {
-  const stops = entry.lingering.reduce<Scope>(
+function confirmedOf(entry: Entry, stopped: StopRange): StopRange {
+  const stops = entry.lingering.reduce<StopRange>(
     (narrowed, { confirmed }) => narrowest(narrowed, confirmed),
     stopped,
   )
   return entry.landings.length > 0 ? narrowest(stops, 'unconfirmed') : stops
 }
 
-async function closeOrder(entry: Entry): Promise<Scope> {
+async function closeOrder(entry: Entry): Promise<StopRange> {
   await closeTransport(entry)
   const stopped = await stopProcesses(entry)
   await releaseHeld(entry)
@@ -60,13 +60,13 @@ async function closeTransport(entry: Entry): Promise<void> {
 }
 
 /** Step 2. The entry's own process, then every lingering one; each is asked, whatever the others answer. */
-async function stopProcesses(entry: Entry): Promise<Scope> {
+async function stopProcesses(entry: Entry): Promise<StopRange> {
   const own = entry.process
   const handles = [
     ...(own === undefined ? [] : [own]),
     ...entry.lingering.map(({ handle }) => handle),
   ]
-  let stopped: Scope = 'no-process'
+  let stopped: StopRange = 'no-process'
   for (const handle of handles) stopped = narrowest(stopped, await stopOne(entry, handle))
   return stopped
 }

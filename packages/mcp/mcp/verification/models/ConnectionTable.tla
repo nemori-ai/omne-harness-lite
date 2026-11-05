@@ -340,22 +340,32 @@ BuildStep(i) ==
              ELSE IF ans = "ok"
              THEN LET x1 == [s EXCEPT !.ents[e].cr = s.calls[c].made]
                   IN IF x1.shut THEN s' = [x1 EXCEPT !.fib[i].pc = "shut"]
-                     ELSE \E y \in Ask(x1, i, "start", s.calls[c].made, f.t, "startW") : s' = y
+                     ELSE
+                       (* `handOverToLanding`: from its start the landing is in flight and *)
+                       (* carries the handle, so `closeAll` releases it within the bound. *)
+                       LET l == Len(x1.lands) + 1
+                           x2 == [x1 EXCEPT !.lands = Append(@, [ent |-> e, cr |-> x1.ents[e].cr,
+                                                                 landed |-> FALSE]),
+                                            !.ents[e].cr = 0, !.ents[e].lands = @ \cup {l},
+                                            !.fib[i].land = l]
+                       IN \E y \in Ask(x2, i, "start", s.calls[c].made, f.t, "startW") : s' = y
              ELSE s' = [s EXCEPT !.fib[i].pc = "failLose"]
           [] f.pc = "startW" ->
-             IF Aborted(s, c)
-             THEN LET l == Len(s.lands) + 1
-                      x1 == [s EXCEPT !.lands = Append(@, [ent |-> e, cr |-> en.cr,
-                                                           landed |-> FALSE]),
-                                      !.ents[e].cr = 0, !.ents[e].lands = @ \cup {l}]
-                      x2 == [SpawnLate(x1, "landLate", e, l, c) EXCEPT !.fib[i].pc = "failLose"]
-                  IN IF x2.shut THEN \E y \in ReleaseLandingVoid(x2, l) : s' = y
-                     ELSE s' = x2
-             ELSE IF ans = "ok"
-             THEN LET x1 == [s EXCEPT !.ents[e].pr = s.calls[c].made]
-                  IN IF x1.shut THEN s' = [x1 EXCEPT !.fib[i].pc = "shut"]
-                     ELSE \E y \in Ask(x1, i, "open", s.calls[c].made, f.t, "openW") : s' = y
-             ELSE s' = [s EXCEPT !.fib[i].pc = "failLose"]
+             LET l == f.land
+             IN IF Aborted(s, c)
+                THEN LET x2 == [SpawnLate(s, "landLate", e, l, c) EXCEPT !.fib[i].pc = "failLose"]
+                     IN IF x2.shut THEN \E y \in ReleaseLandingVoid(x2, l) : s' = y
+                        ELSE s' = x2
+                ELSE
+                  (* `takeBackFromLanding`: the landing answered within the bound; the *)
+                  (* handle, if the shutdown did not release it, returns to the entry. *)
+                  LET x0 == [s EXCEPT !.ents[e].cr = IF s.lands[l].cr # 0 THEN s.lands[l].cr ELSE @,
+                                      !.lands[l].cr = 0, !.ents[e].lands = @ \ {l}]
+                  IN IF ans = "ok"
+                     THEN LET x1 == [x0 EXCEPT !.ents[e].pr = s.calls[c].made]
+                          IN IF x1.shut THEN s' = [x1 EXCEPT !.fib[i].pc = "shut"]
+                             ELSE \E y \in Ask(x1, i, "open", s.calls[c].made, f.t, "openW") : s' = y
+                     ELSE s' = [x0 EXCEPT !.fib[i].pc = "failLose"]
           [] f.pc = "openW" ->
              IF Aborted(s, c)
              THEN s' = [SpawnLate(s, "closeLate", e, 0, c) EXCEPT !.fib[i].pc = "failLose"]
@@ -368,8 +378,10 @@ BuildStep(i) ==
              ELSE IF s.shut /\ "ok-after-shut" \notin Bugs THEN s' = [s EXCEPT !.fib[i].pc = "shut"]
              ELSE s' = BuildDone([s EXCEPT !.ents[e].st = "ready"], i, "ok")
           [] f.pc = "failLose" ->
-             LET r == MarkLost([s EXCEPT !.ents[e].st = "lost"], e)
-             IN s' = [r.st EXCEPT !.fib[i].pc = "failW", !.fib[i].wf = r.f]
+             (* `failed`: after the shutdown began, wrapped up as the shutdown, no mark. *)
+             IF s.shut THEN s' = [s EXCEPT !.fib[i].pc = "shut"]
+             ELSE LET r == MarkLost([s EXCEPT !.ents[e].st = "lost"], e)
+                  IN s' = [r.st EXCEPT !.fib[i].pc = "failW", !.fib[i].wf = r.f]
           [] f.pc \in {"failW", "shutTearW"} ->
              \/ /\ waited.pc = "done"
                 /\ s' = IF waited.res = "err" THEN [s EXCEPT !.fib[i].pc = "catch"]

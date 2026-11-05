@@ -32,6 +32,8 @@ export interface RunView {
   /** Bounds not fired yet. */
   readonly bounds: number
   readonly shutAsked: boolean
+  /** How many bounds were started for the client operation `op`, and how many of them fired. */
+  boundsOf(op: string): Readonly<{ started: number; fired: number }>
   observe(): readonly KeyObservation[]
 }
 
@@ -256,18 +258,22 @@ function describePending(pending: readonly ScriptedPortCall[]): string {
 }
 
 /**
- * P8 theorem T2 (`P8_BoundedEnsure`): once every bound fired, every `ensure` has answered,
- * whatever the ports still pending do (they may hang).
+ * P8 theorem T2 (`P8_BoundedEnsure`): an `ensure` whose own bounds all fired has answered,
+ * whatever the ports still pending do (they may hang) and whatever bounds of other calls are
+ * left. Every `ensure` that waits started at least its section bound.
  */
 function ensureUnbounded(view: RunView): Found[] {
-  if (view.bounds > 0) return []
-  const waiting = view.ops.filter(op => op.kind === 'ensure' && op.status === 'waiting')
+  const waiting = view.ops.filter(op => {
+    if (op.kind !== 'ensure' || op.status !== 'waiting') return false
+    const { started, fired } = view.boundsOf(op.name)
+    return started > 0 && fired === started
+  })
   if (waiting.length === 0) return []
   return [
     {
       property: 'P8',
       signature: stuckSignature(view.pending),
-      detail: `${waiting.map(op => op.name).join(', ')} waiting after every bound fired; pending: ${describePending(view.pending)}`,
+      detail: `${waiting.map(op => op.name).join(', ')} waiting after its own bounds fired; pending: ${describePending(view.pending)}`,
     },
   ]
 }

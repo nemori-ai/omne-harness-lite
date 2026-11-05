@@ -12,7 +12,6 @@ import { validateConfig } from './config.ts'
 import { createConnections } from './connections.ts'
 import { createDiscovery, type McpDiscovery } from './discovery.ts'
 import { createInspection } from './inspection.ts'
-import { createTaskScope } from './internal/scope.ts'
 import { createConnectionTable } from './internal/table.ts'
 import { createStatus } from './status.ts'
 
@@ -51,9 +50,8 @@ export function createMcpCore<P, S>(
   options: McpCoreOptions = {},
 ): McpCore<P, S> {
   const checked = validateConfig<P>(config)
-  const scope = createTaskScope()
-  const table = createConnectionTable(ports, checked, scope)
-  const deps = { ports, config: checked, table, scope, now: options.now ?? localNow }
+  const table = createConnectionTable(ports, checked)
+  const deps = { ports, config: checked, table, now: options.now ?? localNow }
   return {
     inspection: createInspection(),
     discovery: createDiscovery(deps),

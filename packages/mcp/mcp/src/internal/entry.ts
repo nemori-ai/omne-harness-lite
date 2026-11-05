@@ -79,19 +79,16 @@ export type UnavailableMark = Exclude<UnavailableReason, 'no-longer-offered'>
 export type CredentialHandle = ProcessCredentialHandle | HttpCredentialHandle
 
 /** What a teardown confirmed: the stop range of the processes, or that there was none. */
-export type Scope = StopScope | 'no-process'
+export type StopRange = StopScope | 'no-process'
 
 /** A process whose stop confirmed less than the whole tree. Stopped again at every close. */
 export type Lingering = Readonly<{ handle: ProcessHandle; confirmed: StopScope }>
 
 /**
- * A landing still pending after its bound. The process it may hand over carries `credential` in
- * its environment; the handle is released once: after that process's stop (S9), or at the
- * shutdown (the exception of S9, decision 6), whichever comes first.
- */
-/**
- * A landing the entry waits for after its bound, with the handle the process may carry. `landed`
- * once it handed over a process: from then on the handle waits for that process's stop (S9).
+ * A landing in flight, with the handle the process it may hand over carries in its environment.
+ * The handle is released once: after that process's stop (S9), or at the shutdown while the
+ * landing is in flight (decision 6). `landed` once a landing past its bound handed over a
+ * process: from then on the handle waits for that process's stop.
  */
 export type Landing = { credential: ProcessCredentialHandle | undefined; landed: boolean }
 
@@ -118,9 +115,9 @@ export type Entry = Resources & {
   view: ConnectionView
   pending: Promise<Outcome<Ensured, EnsureFailure>> | undefined
   /** The teardown in flight, shared by a lose, a failed build, a rebuild and a close. */
-  tearing: Promise<Scope> | undefined
+  tearing: Promise<StopRange> | undefined
   /** The close in flight: refuse requests, wait for the build, tear down, forget. */
-  closing: Promise<Scope> | undefined
+  closing: Promise<StopRange> | undefined
 }
 
 /**
@@ -163,9 +160,9 @@ export function adoptLingering(held: Resources, from: Resources): void {
 }
 
 /**
- * A landing outlived its bound: a new landing in flight goes on the entry, and the process
- * credential handle goes with it, because the process that may land carries it in its
- * environment. The handle is in the entry or in one landing, never in both (S9).
+ * A landing starts: it goes on the entry as a landing in flight, and the process credential
+ * handle goes with it, because the process that may land carries it in its environment. The
+ * handle is in the entry or in one landing, never in both (S9).
  */
 export function handOverToLanding(held: Resources): Landing {
   const { credential } = held
@@ -181,6 +178,16 @@ export function handOverToLanding(held: Resources): Landing {
 /** The landing answered: it leaves the entry. */
 export function landingAnswered(held: Resources, landing: Landing): void {
   held.landings = held.landings.filter(pending => pending !== landing)
+}
+
+/**
+ * The landing answered within its bound: it leaves the entry, and the handle it carried comes
+ * back to the entry, which releases it at its teardown, unless the shutdown released it already.
+ */
+export function takeBackFromLanding(held: Resources, landing: Landing): void {
+  if (landing.credential !== undefined) held.credential = landing.credential
+  landing.credential = undefined
+  landingAnswered(held, landing)
 }
 
 export function viewOf(connection: Connection): ConnectionView {

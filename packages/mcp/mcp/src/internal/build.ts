@@ -31,15 +31,17 @@ import type {
 import {
   CONNECTION_UNAVAILABLE,
   handOverToLanding,
+  takeBackFromLanding,
   type CatalogMark,
   type CredentialHandle,
   type Ensured,
   type EnsureFailure,
   type Entry,
+  type Landing,
   type UnavailableMark,
 } from './entry.ts'
 import { closeArrived, landArrived, releaseArrived, type LandingFailure } from './late.ts'
-import { ask, within, type Settle } from './port.ts'
+import { ask, within, type Settle, type StartBound } from './port.ts'
 import type { TaskScope } from './scope.ts'
 import type { PreparedSettings } from './settings.ts'
 import { releaseLanding, teardown } from './teardown.ts'
@@ -62,6 +64,8 @@ export type BuilderDependencies = Readonly<{
   shut(): boolean
   /** Where the work a build stops waiting for goes on. */
   scope: TaskScope
+  /** The source of the connection bound. */
+  startBound: StartBound
 }>
 
 type Failed = Readonly<{
@@ -137,8 +141,10 @@ export function createBuilder<P, S>(
     if ('failure' in read) return 'unavailable'
     if (read.ok === 'absent') return 'not-acquired'
     const record = read.ok
+    // Computed outside `ask`: an error of this package here is not a breach of the store.
+    const marked = markUnavailable(record, reason)
     const written = await ask(
-      () => ports.store.write(key, markUnavailable(record, reason), record.revision),
+      () => ports.store.write(key, marked, record.revision),
       fail('unavailable'),
     )
     if ('failure' in written)
@@ -160,22 +166,24 @@ export function createBuilder<P, S>(
   /**
    * A preparation failed: refuse requests, close what was taken (S9 handle included), mark,
    * report. Within the bound only: past it the wrap-up goes on in the scope, and the report says
-   * the mark is `pending`.
+   * the mark is `pending`. A build that fails after the shutdown began is wrapped up like one the
+   * shutdown stopped, without a mark (takeover ruling K3).
    */
   async function failed(
     entry: Entry,
     how: Failed,
     bound: AbortSignal,
   ): Promise<Outcome<never, EnsureFailure>> {
+    if (deps.shut()) return shutDown(entry, bound)
     const marked = await within(markLost(entry, how.lost, how.mark), bound, scope)
     const catalog = marked.kind === 'answered' ? marked.value : 'pending'
     return fail({ stage: 'connect', reason: how.reason, catalog })
   }
 
   /**
-   * The table shut while the build was under way (decisions 5, K3): wrapped up as a failed
-   * preparation (requests refused, the handle released, a started process stopped), but nothing
-   * is marked: the shutdown is a fact of this instance, not of the endpoint.
+   * The table shut while the build was under way (decision 5, takeover ruling K3): wrapped up as
+   * a failed preparation (requests refused, the handle released, a started process stopped), but
+   * nothing is marked: the shutdown is a fact of this instance, not of the endpoint.
    */
   async function shutDown(
     entry: Entry,
@@ -219,13 +227,15 @@ export function createBuilder<P, S>(
   }
 
   /**
-   * A landing still pending at its bound: at that moment the handle goes with the landing,
-   * because the process that may land carries it in its environment. It is released after that
-   * process's stop (S9), or at the shutdown (decision 6); a landing that outlives its bound after
-   * the shutdown began keeps no handle. The entry holds the landing until it answers (decision 20).
+   * A landing still pending at its bound: the entry keeps it, with the handle it carries, until
+   * it answers (decision 20). The handle is released after the stop of the process that lands
+   * (S9), or at the shutdown (decision 6); a landing that outlives its bound after the shutdown
+   * began keeps no handle.
    */
-  function landingOutlived(entry: Entry): Settle<Outcome<ProcessHandle, LandingFailure>> {
-    const landing = handOverToLanding(entry)
+  function landingOutlived(
+    entry: Entry,
+    landing: Landing,
+  ): Settle<Outcome<ProcessHandle, LandingFailure>> {
     if (deps.shut()) scope.spawn(releaseLanding(landing))
     const arrived = landArrived(entry, landing)
     return async started => {
@@ -259,9 +269,13 @@ export function createBuilder<P, S>(
           ? transport.credentialVariables.map(name => ({ name, handle: credential }))
           : [],
     }
+    // From its start the landing is in flight: the handle goes with it, so a shutdown releases
+    // the handle at once, within the bound too (decision 6).
+    const landing = handOverToLanding(entry)
     const asked = ask(() => ports.landing.start(access, transport.launch, env), LANDING_BREACH)
-    const started = await within(asked, bound, scope, () => landingOutlived(entry))
+    const started = await within(asked, bound, scope, () => landingOutlived(entry, landing))
     if (started.kind === 'expired') return fail(PREPARATION_FAILED)
+    takeBackFromLanding(entry, landing)
     if ('failure' in started.value)
       return fail({
         reason: { kind: 'landing-unavailable' },
@@ -300,7 +314,7 @@ export function createBuilder<P, S>(
     prepared: PreparedSettings,
   ): Promise<Outcome<Ensured, EnsureFailure>> {
     const generation = entry.connection.attempt()
-    const bound = AbortSignal.timeout(prepared.bound)
+    const bound = deps.startBound(prepared.bound, 'build')
     try {
       // What the key's earlier connection left is stopped again before the new attempt.
       const leftovers = await within(teardown(entry), bound, scope)

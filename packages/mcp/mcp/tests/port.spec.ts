@@ -39,7 +39,7 @@ describe('within', () => {
     expect(await within(work.promise, bound, scope)).toEqual({ kind: 'expired' })
     work.reject(new Error('late bug'))
     await settled()
-    expect(scope.defects()).toEqual([new Error('late bug')])
+    expect(scope.exit()).toEqual([new Error('late bug')])
   })
 
   it('answers expired when the bound fires first; a late value goes to the settle taken at expiry', async () => {
@@ -60,7 +60,7 @@ describe('within', () => {
     work.resolve(7)
     await settled()
     expect(settledLate).toEqual([7])
-    expect(scope.defects()).toEqual([])
+    expect(scope.exit()).toEqual([])
   })
 
   it('answers the work when it ends before the bound', async () => {
@@ -70,5 +70,20 @@ describe('within', () => {
       kind: 'answered',
       value: 'done',
     })
+  })
+})
+
+describe('the task scope (SPEC P7)', () => {
+  it('hands the errors kept so far to its exit once; an error after the exit goes to afterExit', async () => {
+    const afterExit: unknown[] = []
+    const scope = createTaskScope(error => afterExit.push(error))
+    scope.spawn(Promise.reject(new Error('before')))
+    await settled()
+    expect(scope.exit()).toEqual([new Error('before')])
+    expect(scope.exit()).toEqual([])
+    scope.spawn(Promise.reject(new Error('after')))
+    await settled()
+    expect(afterExit).toEqual([new Error('after')])
+    expect(scope.exit()).toEqual([])
   })
 })

@@ -41,11 +41,11 @@ import {
   type EnsureFailure,
   type EnsureRefusal,
   type Entry,
-  type Scope,
+  type StopRange,
   type UnavailableMark,
 } from './entry.ts'
 import { admitWithoutEligibility, assertAdmitted, type AdmittedEndpoint } from './gate.ts'
-import { within } from './port.ts'
+import { startTimeout, within, type StartBound } from './port.ts'
 import { createTaskScope, type TaskScope } from './scope.ts'
 import { prepareSettings, type PreparedSettings } from './settings.ts'
 import { abandonLandings, narrowest, teardown } from './teardown.ts'
@@ -63,7 +63,13 @@ export type {
 
 export type EnsureOptions = Readonly<{ connectBound?: Millis }>
 
-export type ClosedEndpoint = Readonly<{ ref: EndpointRef; process: Scope }>
+/**
+ * What the table runs on besides its ports: the scope of its background work and its source of
+ * bounds. The services that wait on the table's connections use the same ones.
+ */
+export type TableRuntime = Readonly<{ scope: TaskScope; startBound: StartBound }>
+
+export type ClosedEndpoint = Readonly<{ ref: EndpointRef; process: StopRange }>
 
 export interface ConnectionTable<P> {
   /** A usable connection for the admitted endpoint: reused, or built in the order of SPEC S4–S9. */
@@ -99,18 +105,23 @@ export interface ConnectionTable<P> {
    * background work of the table raised errors of this package, after every entry is closed.
    */
   closeAll(): Promise<readonly ClosedEndpoint[]>
+  /** The scope and the source of bounds the table runs on. */
+  readonly runtime: TableRuntime
 }
 
-/** What the critical section of a holding started: an answer, or the build it joined or began. */
-type Started = Readonly<{ outcome: Promise<Outcome<Ensured, EnsureFailure>> }>
+/**
+ * What the critical section of a holding started: an answer, the build it began, or the build
+ * of another call that it joined. `joined` decides whose bound the caller waits under.
+ */
+type Started = Readonly<{ outcome: Promise<Outcome<Ensured, EnsureFailure>>; joined: boolean }>
 
 function answered(outcome: Outcome<Ensured, EnsureFailure>): Started {
-  return { outcome: Promise.resolve(outcome) }
+  return { outcome: Promise.resolve(outcome), joined: false }
 }
 
 /** The existing entry's build in flight, joined, or its usable connection, reused. */
 function reuseOf(existing: Entry): Started | undefined {
-  if (existing.pending !== undefined) return { outcome: existing.pending }
+  if (existing.pending !== undefined) return { outcome: existing.pending, joined: true }
   if (!isUsable(existing)) return undefined
   const usable = ensuredOf(existing)
   return usable === undefined ? undefined : answered(succeed(usable))
@@ -133,8 +144,9 @@ function later(left: Generation, right: Generation | undefined): Generation {
 export function createConnectionTable<P, S>(
   ports: McpPorts<P, S>,
   config: McpConfig<P>,
-  scope: TaskScope = createTaskScope(),
+  runtime: TableRuntime = { scope: createTaskScope(), startBound: startTimeout },
 ): ConnectionTable<P> {
+  const { scope, startBound } = runtime
   const entries = new Map<string, Entry>()
   const byView = new WeakMap<ConnectionView, Entry>()
   // The generation a forgotten connection of each key reached: a new connection of the key
@@ -144,7 +156,12 @@ export function createConnectionTable<P, S>(
   const turns = createTurns()
   // Set by `closeAll`: from then on nothing connects (SPEC decision 5).
   let shut = false
-  const builder = createBuilder(ports, config, { afterLanding: forget, shut: () => shut, scope })
+  const builder = createBuilder(ports, config, {
+    afterLanding: forget,
+    shut: () => shut,
+    scope,
+    startBound,
+  })
 
   const entriesOf = (tenantText: string, holding: EndpointHolding): Entry[] =>
     [...entries.values()].filter(
@@ -166,15 +183,15 @@ export function createConnectionTable<P, S>(
   }
 
   /** Closes one entry, once: a second close of the same entry joins the first. */
-  function closeEntry(entry: Entry): Promise<Scope> {
+  function closeEntry(entry: Entry): Promise<StopRange> {
     if (entry.closing !== undefined) return entry.closing
     const closing = (async () => {
       // A build in flight ends within its bound; the close takes its connection afterwards.
       while (entry.pending !== undefined) await entry.pending.catch(() => undefined)
       if (entry.connection.state.kind !== 'closed') entry.connection.close()
-      const scope = await teardown(entry)
+      const range = await teardown(entry)
       forget(entry)
-      return scope
+      return range
     })()
     entry.closing = closing
     return closing.finally(() => {
@@ -258,7 +275,7 @@ export function createConnectionTable<P, S>(
     holding: EndpointHolding,
     keyText: string,
     ofOtherRevision: (entry: Entry) => boolean,
-  ): Promise<Scope> | undefined {
+  ): Promise<StopRange> | undefined {
     const other = entriesOf(tenantText, holding).find(
       entry => ofOtherRevision(entry) && !isSettled(entry),
     )
@@ -272,7 +289,8 @@ export function createConnectionTable<P, S>(
    * caller's bound (decision 22), the connections of other revisions closed (invariant 6), the
    * key's close or teardown in flight waited for under the same bound, then the connection
    * reused, joined or built. The build itself runs outside the section. A table that is shut
-   * refuses here.
+   * refuses here, and so does a call whose bound fired while it waited for its turn: its caller
+   * has its answer, and it asks no port.
    */
   async function begin(
     admitted: AdmittedEndpoint,
@@ -285,13 +303,13 @@ export function createConnectionTable<P, S>(
   ): Promise<Started> {
     const refused = (reason: EnsureRefusal): Started =>
       answered(fail({ stage: 'settings', reason }))
-    if (shut) return refused(CONNECTION_UNAVAILABLE)
+    if (shut || bound.aborted) return refused(CONNECTION_UNAVAILABLE)
     const read = await readAgain(admitted, access, bound)
     if (read !== 'current') return refused(read)
     const { holding } = admitted.ref
     const ofOtherRevision = (entry: Entry) => entry.adoptionRevision !== admitted.revision
     for (;;) {
-      if (shut) return refused(CONNECTION_UNAVAILABLE)
+      if (shut || bound.aborted) return refused(CONNECTION_UNAVAILABLE)
       const blocking = blockingOf(tenantText, holding, keyText, ofOtherRevision)
       if (blocking !== undefined) {
         // At most to this call's bound (decision 22): a close or teardown that does not end
@@ -314,8 +332,30 @@ export function createConnectionTable<P, S>(
       }
       entry.pending = pending
       void pending.then(done, done)
-      return { outcome: pending }
+      return { outcome: pending, joined: false }
     }
+  }
+
+  /**
+   * A call that joined the build of another call waits for it at most to its own connection
+   * bound (SPEC P8 T2). Past it, the build goes on for the call that began it, and this call
+   * answers with the mark `pending`. An error of this package in the build reaches the call that
+   * began it, and this call too while it still waits.
+   */
+  async function join(
+    build: Promise<Outcome<Ensured, EnsureFailure>>,
+    connectBound: number,
+  ): Promise<Outcome<Ensured, EnsureFailure>> {
+    const read = build.then(
+      outcome => () => outcome,
+      (error: unknown) => (): never => {
+        throw error
+      },
+    )
+    const waited = await within(read, startBound(connectBound, 'join'), scope)
+    if (waited.kind === 'expired')
+      return fail({ stage: 'connect', reason: CONNECTION_UNAVAILABLE, catalog: 'pending' })
+    return waited.value()
   }
 
   async function ensure(
@@ -330,13 +370,18 @@ export function createConnectionTable<P, S>(
     const key = connectionKeyOf(access.tenant, admitted, prepared.ok.account)
     const keyText = connectionKeyTextOf(key)
     const tenantText = tenantTextOf(access.tenant)
-    // This call's connection bound, for the critical section; the build keeps its own, from the
-    // credential on (MC-5), as the listing keeps its own.
-    const bound = AbortSignal.timeout(prepared.ok.bound)
-    const started = await turns.inTurn(holdingTextOf(tenantText, admitted.ref.holding), () =>
+    // This call's bounds (SPEC P8 T2): one for the critical section, the wait for its turn
+    // included; one for the build it begins, from the start of the build (MC-5), or for the
+    // build of another call that it joins, from the join.
+    const bound = startBound(prepared.ok.bound, 'section')
+    const turn = turns.inTurn(holdingTextOf(tenantText, admitted.ref.holding), () =>
       begin(admitted, access, prepared.ok, key, keyText, tenantText, bound),
     )
-    return started.outcome
+    const started = await within(turn, bound, scope)
+    if (started.kind === 'expired')
+      return fail({ stage: 'settings', reason: CONNECTION_UNAVAILABLE })
+    const { outcome, joined } = started.value
+    return joined ? join(outcome, prepared.ok.bound) : outcome
   }
 
   function settle(
@@ -388,9 +433,9 @@ export function createConnectionTable<P, S>(
   async function close(tenant: TenantId, holding: EndpointHolding): Promise<ReleaseReport> {
     const found = entriesOf(tenantTextOf(tenant), holding)
     if (found.length === 0) return { kind: 'no-connection' }
-    let scope: Scope = 'no-process'
-    for (const entry of found) scope = narrowest(scope, await closeEntry(entry))
-    return { kind: 'released', process: scope }
+    let range: StopRange = 'no-process'
+    for (const entry of found) range = narrowest(range, await closeEntry(entry))
+    return { kind: 'released', process: range }
   }
 
   /**
@@ -412,12 +457,12 @@ export function createConnectionTable<P, S>(
       ...[...abandoned, ...closing].flatMap(item =>
         item.status === 'rejected' ? [item.reason as unknown] : [],
       ),
-      ...scope.defects(),
+      ...scope.exit(),
     ]
     if (defects.length > 0)
       throw new AggregateError(defects, 'the MCP connection table did not close cleanly')
     return closing.flatMap(item => (item.status === 'fulfilled' ? [item.value] : []))
   }
 
-  return { ensure, settle, lose, current, stateOf, close, closeAll }
+  return { ensure, settle, lose, current, stateOf, close, closeAll, runtime }
 }
