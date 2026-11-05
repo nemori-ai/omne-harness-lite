@@ -18,7 +18,7 @@ import {
 } from '@omne-harness/mcp-contract/testing'
 import { manualBounds } from './doubles/bounds.ts'
 import { settled } from './doubles/deferred.ts'
-import { alice, bob, mallory } from './doubles/identities.ts'
+import { alice, aliceAway, bob, mallory } from './doubles/identities.ts'
 import { listing, peer, services, taskHandle, taskStatus, text, type Peer } from './doubles/peer.ts'
 import { MAIN, adoptStdio, storedRecord } from './doubles/world.ts'
 
@@ -99,9 +99,11 @@ describe('the task table opens the operations to the initiator only (SPEC S2)', 
     const asked = portCalls(c.p)
     const other = await c.invoker.queryTask(bob, task)
     const elsewhere = await c.invoker.queryTask(mallory, task)
+    const sameText = await c.invoker.queryTask(aliceAway, task)
     const absent = await c.invoker.queryTask(alice, { ...task, taskId: taskIdOf('t9') })
     expect(other).toStrictEqual(UNKNOWN)
     expect(elsewhere).toStrictEqual(other)
+    expect(sameText).toStrictEqual(other)
     expect(absent).toStrictEqual(other)
     expect(await c.invoker.taskResult(bob, task)).toStrictEqual(UNKNOWN)
     expect(await c.invoker.provideTaskInput(bob, task, jsonOf({}))).toStrictEqual(UNKNOWN)
@@ -247,7 +249,9 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     adoptStdio(p, files)
     const bounds = manualBounds()
     const { services: s } = services(p, bounds.runtime)
-    expect(await s.discovery.refresh(alice, { ref: files })).toMatchObject({ ok: { kind: 'published' } })
+    expect(await s.discovery.refresh(alice, { ref: files })).toMatchObject({
+      ok: { kind: 'published' },
+    })
     const current = await s.discovery.current(alice, files)
     if (!('ok' in current) || current.ok.kind !== 'acquired') throw new Error('not acquired')
     const digest = current.ok.actions[0]?.definitionDigest
@@ -258,7 +262,9 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     expect(p.requests('tasks/get')).toHaveLength(1)
     bounds.fire('task')
     expect(await query).toEqual({ failure: { kind: 'effect-unknown', cause: 'abandoned' } })
-    expect(await s.status.inspect(alice, files)).toMatchObject({ ok: { connection: { kind: 'ready' } } })
+    expect(await s.status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'ready' } },
+    })
   })
 
   it('a JSON-RPC error and an unreadable answer are passed on as they are', async () => {

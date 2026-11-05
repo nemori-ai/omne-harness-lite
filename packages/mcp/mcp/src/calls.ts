@@ -29,7 +29,7 @@ import type { CallRequest, SentCall } from '@omne-harness/mcp-contract/provider'
 import type { Ensured, EnsureFailure } from './internal/entry.ts'
 import { admitForUse, type UseGate } from './internal/guard.ts'
 import { InFlightCalls, type InFlightKey } from './internal/in-flight.ts'
-import { connectionFailureOf, lostOfNoAnswer, lostOfNotSent } from './internal/lost.ts'
+import { connectionFailureOf, lostOfNoAnswer, lostOfNotSent, type Lost } from './internal/lost.ts'
 import { ask, waitAtMost, within } from './internal/port.ts'
 import { prepareSettings } from './internal/settings.ts'
 import type { ConnectionTable } from './internal/table.ts'
@@ -138,10 +138,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
   }
 
   /** A connection the transport reported gone under a sent or unsent request (S7). */
-  async function lose(
-    ensured: Ensured,
-    lost: ReturnType<typeof lostOfNotSent> | undefined,
-  ): Promise<void> {
+  async function lose(ensured: Ensured, lost: Lost | undefined): Promise<void> {
     if (lost === undefined) return
     await table.lose(ensured.connection, ensured.generation, lost.reason, lost.mark)
   }

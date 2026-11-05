@@ -3,7 +3,7 @@
 // from a `PeerScript` and records what the peer received. Cases of the call port and the task
 // operations script what the peer says; cases of the connection table keep `world.ts`, which
 // scripts what the transport object does.
-import type { McpConfig, McpPorts } from '@omne-harness/mcp-contract'
+import type { McpConfig, McpPorts, PeerNotification } from '@omne-harness/mcp-contract'
 import type { McpTransport, McpTransportFactory } from '@omne-harness/mcp-contract/provider'
 import {
   createMemoryCatalogStore,
@@ -55,8 +55,16 @@ export type Peer = Readonly<{
   cancels: () => number
 }>
 
-/** Where a transport's `call` waits on the case: before it sends, or after it sent, before it answers. */
-export type CallGate = Readonly<{ before?: () => Promise<void>; after?: () => Promise<void> }>
+/**
+ * Where a transport's `call` waits on the case: before it sends, or after it sent, before it
+ * answers. `notify` is handed to the observer as given, outside the scripted transport, which
+ * catches an observer's error itself.
+ */
+export type CallGate = Readonly<{
+  before?: () => Promise<void>
+  after?: () => Promise<void>
+  notify?: PeerNotification
+}>
 
 /** A factory whose transports' `call` waits on the gate; the test orders a cancel with it. */
 function gatedCalls(factory: McpTransportFactory, gate: CallGate): McpTransportFactory {
@@ -68,6 +76,7 @@ function gatedCalls(factory: McpTransportFactory, gate: CallGate): McpTransportF
     listActions: cursor => transport.listActions(cursor),
     async call(request, signal, observe) {
       await gate.before?.()
+      if (gate.notify !== undefined) observe?.(gate.notify)
       const called = await transport.call(request, signal, observe)
       await gate.after?.()
       return called

@@ -548,15 +548,24 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
   )
 
   it('progress notifications reach the observer as untrusted values; an observer that throws changes nothing (S6)', async () => {
-    const c = arrange({
-      calls: {
-        read: {
-          kind: 'result',
-          result: { resultType: 'complete', content: [text('hi')] },
-          notifications: [{ method: 'notifications/progress', params: { progress: 1 } }],
+    // The scripted transport catches an observer's error itself; the gate hands one notification
+    // to the observer directly, so the throw reaches this package's wrapper.
+    const c = arrange(
+      {
+        calls: {
+          read: {
+            kind: 'result',
+            result: { resultType: 'complete', content: [text('hi')] },
+            notifications: [{ method: 'notifications/progress', params: { progress: 1 } }],
+          },
         },
       },
-    })
+      {
+        callGate: {
+          notify: { kind: 'log', notification: { untrusted: jsonOf({ level: 'info' }) } },
+        },
+      },
+    )
     const digest = await published(c)
     const seen: unknown[] = []
     expect(
@@ -570,8 +579,9 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
         }),
       ),
     ).toMatchObject({ kind: 'sent', outcome: { kind: 'complete' } })
-    expect(seen).toHaveLength(1)
-    expect(seen[0]).toMatchObject({
+    expect(seen).toHaveLength(2)
+    expect(seen[0]).toMatchObject({ kind: 'log' })
+    expect(seen[1]).toMatchObject({
       kind: 'progress',
       notification: { untrusted: { kind: 'object' } },
     })

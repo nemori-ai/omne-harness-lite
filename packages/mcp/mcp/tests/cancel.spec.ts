@@ -12,7 +12,7 @@ import {
   type Replies,
 } from '@omne-harness/mcp-contract/testing'
 import { deferred, settled } from './doubles/deferred.ts'
-import { alice, bob, mallory } from './doubles/identities.ts'
+import { alice, aliceAway, bob, mallory } from './doubles/identities.ts'
 import { completed, listing, peer, services, text, type Peer } from './doubles/peer.ts'
 import { stallingEligibility } from './doubles/stalls.ts'
 import { adoptStdio, storedRecord } from './doubles/world.ts'
@@ -62,6 +62,7 @@ describe('cancel reads the in-flight table only (SPEC S2)', () => {
     const asked = portCalls(p)
     expect(await s.invoker.cancel(bob, c1)).toBe('unknown')
     expect(await s.invoker.cancel(mallory, c1)).toBe('unknown')
+    expect(await s.invoker.cancel(aliceAway, c1)).toBe('unknown')
     expect(portCalls(p)).toEqual(asked)
     expect(p.cancels()).toBe(0)
     expect(await s.invoker.cancel(alice, c1)).toBe('signalled')

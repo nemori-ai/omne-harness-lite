@@ -24,4 +24,4 @@
 
 ## 本包事实
 
-六个专题都已写成：`architecture.md`、`flows.md`、`object-model.md`、`public-api.md`、`context.md`；`cordis.md` 写明不适用并在 `documentation.json` 记为 `not-applicable`。缺口：下一波加调用口后，`flows.md` 的 `invoke` 次序从「不实现」改为实际流程。
+六个专题都已写成：`architecture.md`、`flows.md`、`object-model.md`、`public-api.md`、`context.md`；`cordis.md` 写明不适用并在 `documentation.json` 记为 `not-applicable`。`flows.md` 含调用口的实际流程。

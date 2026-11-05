@@ -24,4 +24,6 @@ export const away = tenantOf('t')
 export const alice: Access<Principal> = access({ id: 'alice' }, home)
 export const bob: Access<Principal> = access({ id: 'bob' }, home)
 export const mallory: Access<Principal> = access({ id: 'mallory' }, away)
+/** The same principal text as alice, in the other tenant: what a tenant-blind key would merge. */
+export const aliceAway: Access<Principal> = access({ id: 'alice' }, away)
 export const principalKey = (principal: Principal): string => principal.id

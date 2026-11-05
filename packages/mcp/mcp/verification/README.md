@@ -142,3 +142,46 @@ TLC 负控与变异的对应：`bad-no-absorb-close` 与 M1，`bad-forget-open`�
 ## 维护
 
 修改连接表的源码、端口替身或性质时，同步更新 [ConnectionTable.tla](models/ConnectionTable.tla)、`tests/model/` 与本页的映射，再重跑两种证据。新加一条性质时，同时在模型里加一个负控、在探索器上做一个变异，证明两边都能变红。单次运行的原始输出留任务 `tmp/`，不进本目录。
+
+## 调用口闭包 `w3-mcp-call` 的变异记录
+
+手工变异（2026-11-05，基线 `b2ba7dc89` 之上的闭包提交），每条改源码一处、跑所列用例、按字节还原；记录与日志在任务过程目录 `tmp/closures/w3-mcp-call/red/`。契约样本构造器的变异先重建契约 `dist` 再跑（用例经 `dist` 导入）。
+
+| 编号 | 改了什么（文件与位置）                                                     | 哪条用例变红                                                                                                                     | 退出码 |
+| ---- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| M01  | `in-flight.ts` `reserve` 不查重                                            | `invoke.spec.ts`「step 1」                                                                                                       | 1      |
+| M02  | `in-flight.ts` `release` 不删占位                                          | 「step 2: not adopted … free again」等 4 条                                                                                      | 1      |
+| M03  | `calls.ts` 关口拒绝一律答 `unknown`                                        | 「step 2: blocked」                                                                                                              | 1      |
+| M04  | `calls.ts` 配值拒绝一律答 `unknown`                                        | 「step 3」两条                                                                                                                   | 1      |
+| M05  | `calls.ts` 不核动作可用性                                                  | 「step 4: … marked unavailable」                                                                                                 | 1      |
+| M06  | `calls.ts` 不核摘要                                                        | 「step 4: definition-changed」                                                                                                   | 1      |
+| M07  | `calls.ts` `effect-unknown` 原样交出                                       | 「step 5: … effect-unknown」                                                                                                     | 1      |
+| M08  | `calls.ts` `not-sent` 不经 `table.lose`                                    | 「step 7」三条                                                                                                                   | 1      |
+| M09  | `lost.ts` `session-ended` 记成 `stream-broken`                             | 「step 7: session-ended」                                                                                                        | 1      |
+| M10  | `calls.ts` 不调用 `cancelRequest`                                          | 「step 8: the signal after the send」与 `cancel.spec.ts` 共 5 条                                                                 | 1      |
+| M11  | `calls.ts` 发出前取消删除占位而不是结束                                    | 「signal before the send」「makes the call answer not sent」                                                                     | 1      |
+| M12  | `calls.ts` 观察函数的错误不吞                                              | 「observer that throws」                                                                                                         | 1      |
+| M13  | `calls.ts` 结局 `unknown` 不经 `table.lose`                                | 「unknown (stream-breaks)」「unknown (process-exits)」                                                                           | 1      |
+| M14  | `calls.ts` 不把 `ports.checkOutput` 交给 `classifyOutcome`                 | 「declared output schema」                                                                                                       | 1      |
+| M15  | `calls.ts` `task` 结局不登记                                               | `tasks.spec.ts` 15 条                                                                                                            | 1      |
+| M16a | `in-flight.ts` 键文本去掉主体                                              | `cancel.spec.ts`「another principal」                                                                                            | 1      |
+| M16b | `in-flight.ts` 键文本去掉租户                                              | `cancel.spec.ts`「another tenant」与 `in-flight.spec.ts` 两条                                                                    | 1      |
+| M17  | `in-flight.ts` `markSent` 不看取消标记                                     | 存活：服务层由停止信号到期殊途同归（SPEC 未覆盖一节）；聚合由 `in-flight.spec.ts`「keeps a call reserved … from being sent」覆盖 | 0      |
+| M18  | `in-flight.ts` `cancel` 对已发出的键不核当前代际                           | `in-flight.spec.ts`「generation has changed」                                                                                    | 1      |
+| M19  | `calls.ts` `continueWithInput` 不核代际                                    | `continue.spec.ts`「changed generation」                                                                                         | 1      |
+| M20  | `calls.ts` 请求不带 `continuation`                                         | 「completes on the same generation」「request state alone」                                                                      | 1      |
+| M21a | `task-table.ts` 键文本去掉主体                                             | `tasks.spec.ts`「another principal」                                                                                             | 1      |
+| M21b | `task-table.ts` 键文本去掉租户                                             | 「another tenant」（同主体文本的另一租户）                                                                                       | 1      |
+| M22  | `tasks.ts` 不比较对端账号                                                  | 「another peer account」两条                                                                                                     | 1      |
+| M23  | `tasks.ts` 不复用现有连接                                                  | 「reuses the existing connection」                                                                                               | 1      |
+| M24  | `tasks.ts` 采用不可读也答 `no-connection`                                  | 「unreadable is unknown」                                                                                                        | 1      |
+| M25  | `tasks.ts` 去掉关停检查                                                    | 「after closeAll」                                                                                                               | 1      |
+| M26  | `tasks.ts` `no-answer` 子因改成 `abandoned`                                | 「no answer is effect-unknown」                                                                                                  | 1      |
+| M27  | `tasks.ts` 任务请求不受时限                                                | 「bound cuts off」                                                                                                               | 1      |
+| M28  | `tasks.ts` 表外任务也发请求                                                | 「task not in the table」「after closeAll」                                                                                      | 1      |
+| M29  | `assembly.ts` 不读 `ports.clock`                                           | `mcp.spec.ts`「clock of the ports」                                                                                              | 1      |
+| M30  | `tasks.ts` 资格非 `granted` 也建连                                         | 「eligibility granted」两条                                                                                                      | 1      |
+| M31  | `calls.ts` 取消赛跑的 `not-sent` 不答 `cancelled`                          | `cancel.spec.ts`「races the send」                                                                                               | 1      |
+| M32  | `table.ts` `isShut` 恒假                                                   | 「after closeAll」                                                                                                               | 1      |
+| M33  | `calls.ts` `authorization-required` 改答 `connection-unavailable`          | 「refused for authorization」                                                                                                    | 1      |
+| M34  | 契约 `testing-values.ts` `endpointRefOf` 缺省持有改为 `ws/`（重建 `dist`） | 契约 `testing-values.spec.ts`「endpointRefOf」                                                                                   | 1      |
