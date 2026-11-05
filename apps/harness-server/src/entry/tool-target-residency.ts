@@ -4,10 +4,11 @@ import { sameBindingKey } from '@omne-harness/tool-contract/provider'
 import type { LocalToolCatalogViewSource } from '@omne-harness/tool-host-local'
 
 /** A current disclosure view does not grant execution; this check only narrows the target set. */
-export async function nonresidentTarget(
+export async function targetResidency(
   source: LocalToolCatalogViewSource<unknown> | undefined,
   access: Access<unknown>,
   target: ToolAvailability,
+  required: 'resident' | 'nonresident',
 ): Reply<void> {
   if (target.kind !== 'available') return fail({ kind: 'denied', action: 'target-unavailable' })
   if (source === undefined)
@@ -24,10 +25,12 @@ export async function nonresidentTarget(
       asset: { name: target.definition.name, adoption: target.definition.adoption },
     }),
   )
-  return entry === undefined || entry.resident
-    ? fail({
-        kind: 'denied',
-        action: entry?.resident ? 'resident-tools-require-direct-call' : 'target-not-included',
-      })
-    : succeed(undefined)
+  if (entry === undefined) return fail({ kind: 'denied', action: 'target-not-included' })
+  if (entry.resident === (required === 'resident')) return succeed(undefined)
+  return fail({
+    kind: 'denied',
+    action: entry.resident
+      ? 'resident-tools-require-direct-call'
+      : 'nonresident-tools-require-forwarding',
+  })
 }

@@ -5,7 +5,7 @@ import {
   TOOL_FORWARDING_OWNER,
   type LocalToolCatalogViewSource,
 } from '@omne-harness/tool-host-local'
-import { nonresidentTarget } from '../../entry/tool-target-residency.ts'
+import { targetResidency } from '../../entry/tool-target-residency.ts'
 import type { ToolTargetPolicy } from '../authorization/tool-target-policy.ts'
 
 /** Admission policy does not withdraw custody or maintenance of an already admitted call. */
@@ -56,13 +56,19 @@ export function currentTargetPolicy(
           diagnostic: 'The current target authorization row is absent.',
         }
       const authorized = await policy.qualify(input)
-      if (authorized.kind !== 'allowed' || input.request.consumer.owner !== TOOL_FORWARDING_OWNER)
-        return authorized
-      const target = await nonresidentTarget(ports.view(), input, input.request.availability)
+      if (authorized.kind !== 'allowed') return authorized
+      const owner = input.request.consumer.owner
+      if (owner !== TOOL_FORWARDING_OWNER && owner !== '@omne-harness/agent') return authorized
+      const target = await targetResidency(
+        ports.view(),
+        input,
+        input.request.availability,
+        owner === TOOL_FORWARDING_OWNER ? 'nonresident' : 'resident',
+      )
       if ('ok' in target) return authorized
       return target.failure.kind === 'denied'
         ? { kind: 'denied', reason: target.failure.action }
-        : { kind: 'unavailable', diagnostic: 'The current nonresident target cannot be verified.' }
+        : { kind: 'unavailable', diagnostic: 'The current target residency cannot be verified.' }
     },
   }
 }

@@ -11,7 +11,7 @@ import {
 } from '@omne-harness/tool-contract'
 import { encodeCommandCall, type ToolForwardParent } from '@omne-harness/tool-contract/provider'
 import type { LocalToolCatalogViewSource } from '@omne-harness/tool-host-local'
-import { nonresidentTarget } from './tool-target-residency.ts'
+import { targetResidency } from './tool-target-residency.ts'
 import type { ToolRelease } from './tool-release.ts'
 
 type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
@@ -84,7 +84,7 @@ export function createForwardTargetRequests(ports: ForwardRequestPorts) {
       canonicalDigest(availability.executor) !== canonicalDigest(entry.module.executor)
     )
       return unavailable('The exact target release adoption is unavailable.')
-    const nonresident = await nonresidentTarget(ports.view(), parent, availability)
+    const nonresident = await targetResidency(ports.view(), parent, availability, 'nonresident')
     if ('failure' in nonresident) return nonresident
     const definition = availability.definition
     let effective: string

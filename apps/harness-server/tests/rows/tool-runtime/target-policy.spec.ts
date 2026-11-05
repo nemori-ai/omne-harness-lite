@@ -141,13 +141,29 @@ it('rechecks residency at start without withdrawing custody or restricting direc
       },
     }
     expect(await policy.qualify(forwarded)).toEqual({ kind: 'allowed' })
+    expect(await policy.qualify(direct)).toEqual({
+      kind: 'denied',
+      reason: 'nonresident-tools-require-forwarding',
+    })
     w.setToyResident(true)
     expect(await policy.qualify(forwarded)).toEqual({
       kind: 'denied',
       reason: 'resident-tools-require-direct-call',
     })
     expect(await policy.qualify(direct)).toEqual({ kind: 'allowed' })
+    w.setToyResident(false)
+    expect(await policy.qualify(direct)).toMatchObject({ kind: 'denied' })
+    expect(
+      await policy.qualify({
+        ...direct,
+        request: {
+          ...direct.request,
+          consumer: { ...direct.request.consumer, owner: 'trusted-maintainer' },
+        },
+      }),
+    ).toEqual({ kind: 'allowed' })
     disclose = false
+    expect(await policy.qualify(direct)).toMatchObject({ kind: 'unavailable' })
     expect(await policy.qualify(forwarded)).toMatchObject({ kind: 'unavailable' })
     allow = false
     const before = viewReads
