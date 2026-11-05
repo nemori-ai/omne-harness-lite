@@ -143,9 +143,12 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
     }
   })
 
-  it('the release gives agent-journal the combination that the session-storage row registers', () => {
-    const row = release.rows.find(r => r.id === 'agent-journal')
-    expect(row).toMatchObject({ plugin: 'agentJournalRow', config: agentJournalCombination() })
+  it.each([
+    ['agent-journal', 'agentJournalRow'],
+    ['session-handoff', 'sessionHandoffRow'],
+  ])('the release gives %s the combination that session-storage registers', (id, plugin) => {
+    const row = release.rows.find(r => r.id === id)
+    expect(row).toMatchObject({ plugin, config: agentJournalCombination() })
   })
 
   it('R1-1: only s0.assemblyLifecycle carries the s0. prefix', async () => {

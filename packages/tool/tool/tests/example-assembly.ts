@@ -1,13 +1,12 @@
+import { createReaderFixture, type ReaderFixture } from './reader-fixture.ts'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   createIndependentToolScope,
   createToolRuntime,
-  createTools,
   executeTool,
   type AccessVerdict,
   type ToolConfiguration,
-  type Tools,
 } from '@omne-harness/tool'
 import {
   createTestInvocationSource,
@@ -74,7 +73,7 @@ export function createDemo() {
     },
   })
   const report = createReportTool()
-  let registeredTools: Tools<string> | undefined
+  let registeredTools: ReaderFixture<string> | undefined
   let driver: ToolDriver<string> | null = null
   const scheduled = new Set<ToolCallId>()
   const instances = new Map<ToolCallId, Awaited<ReturnType<typeof instanceFor>>>()
@@ -345,7 +344,7 @@ export function createDemo() {
     },
     configuration,
   )
-  const tools = createTools<string>(
+  const tools = createReaderFixture<string>(
     {
       queries: {
         readResult: async input => {

@@ -525,6 +525,24 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     const verifier = root.toolContributionAuthority
     const Bindings = createLocalToolBindingsPlugin<unknown, Environment, ToolMessageContentBlock>({
       authority: root.toolStartAuthority,
+      view: {
+        async read(access) {
+          if (
+            !tenantEquals(access.tenant, authority.tenant) ||
+            'failure' in (await authority.project(access.principal))
+          )
+            return fail({ kind: 'denied', action: 'catalog-view' })
+          return succeed({
+            scope: evidence('windows-catalog-scope', authority.tenant),
+            revision: '1',
+            entries: Object.values(authors.authorities).map(({ layer, asset }) => ({
+              key: { layer, asset },
+              resident: true,
+            })),
+          })
+        },
+      },
+      search: { k1: 1.2, b: 0.75, maxCachedCorpora: 2 },
       availability: {
         judge: async input => {
           if ('failure' in (await authority.project(input.principal)))

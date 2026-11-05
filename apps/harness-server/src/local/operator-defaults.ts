@@ -158,7 +158,7 @@ function storage(storageRoot: string, shutdownDeadlineMs: number) {
     maxRequestBytes: 4_194_304,
     globalInFlightWriteBytes: 67_108_864,
     maxJsonMembers: 65_536,
-    maxResponseBytes: 65_536,
+    maxResponseBytes: 131_072,
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,
     maxDiagnosticBytes: 4096,
@@ -407,10 +407,23 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           },
           // Files resolves a relative path against its own working directory (R2-D295).
           Files: { resultMaxBytes: TOOL_RESULT_BYTES, cwd: settings.workspace },
+          Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
+          TodoItems: { resultMaxBytes: 1_048_576 },
         },
       },
     ],
     ['tool-records', toolRecords(settings.workspace, combinationVersion)],
+    [
+      'tool-bindings',
+      {
+        tools: {
+          attemptMs: 250,
+          resultPageBytes: 65_536,
+          replyMaxBytes: 65_536,
+          contentPageBytes: 4096,
+        },
+      },
+    ],
     ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
     [
       'request-context',

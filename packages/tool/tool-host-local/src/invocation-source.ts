@@ -11,6 +11,7 @@ import {
   createInvocationForwarding,
   TOOL_FORWARDING_OWNER,
   isPrincipalJson,
+  parseForward,
 } from './invocation-forwarding.ts'
 import { createForwardingReceiver } from './forwarding-receiver.ts'
 import { fail } from '@omne-harness/operation-result'
@@ -101,6 +102,7 @@ export type LocalInvocationSource<P, B extends ContentBlock = ContentBlock> = Re
   guard: ToolSourceGuard<P>
   forwarding: ToolForwardSource<P>
   receiver: ToolResultReceiver<P, B>
+  /** Reads only the persisted subject projection; the caller must reissue and run guard.verify. */
   recoverBinding(
     input: Omit<CallAccess<P>, 'principal'> &
       Readonly<{ admission: ToolOperationId; request: FixedToolRequest }>,
@@ -482,10 +484,18 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
       )
         return unavailable()
       const encoded = row.host.value.principal
-      const principal = decodePrincipal(encoded)
-      if (principal === null) return unavailable()
-      if (access.request.consumer.owner === TOOL_FORWARDING_OWNER)
-        return forwards.recoverBinding({ ...access, principal })
+      if (decodePrincipal(encoded) === null) return unavailable()
+      if (access.request.consumer.owner === TOOL_FORWARDING_OWNER) {
+        const stored = parseForward(row.host.value)
+        if (
+          stored === null ||
+          stored.call !== access.call ||
+          stored.admission !== access.admission ||
+          canonicalDigest(stored.request) !== canonicalDigest(access.request)
+        )
+          return unavailable()
+        return succeed({ principal: encoded })
+      }
       const stored = parseBinding(row.host.value)
       if (
         stored === null ||
@@ -510,12 +520,7 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
         canonicalDigest(source) !== canonicalDigest(invocation.source)
       )
         return unavailable()
-      const verified = await directGuard.verify({
-        ...access,
-        principal,
-        operation: access.admission,
-      })
-      return verified.kind === 'trusted' ? succeed({ principal: encoded }) : unavailable()
+      return succeed({ principal: encoded })
     } catch {
       return unavailable()
     }

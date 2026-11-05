@@ -110,6 +110,9 @@ const business = { value: { kind: 'business', owner: 'o', input: 'i', destinatio
 
 /** The operations that carry a command. The others are reads on a session or on the tenant. */
 const MUTATING = new Set([
+  'addTodo',
+  'removeTodo',
+  'markTodoComplete',
   'accept',
   'startRun',
   'claim',

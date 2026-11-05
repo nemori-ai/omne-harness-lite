@@ -47,6 +47,7 @@ import {
   systemActionAuthorizationKey,
 } from './system-action-service.ts'
 import { authorizationConfig } from './action-rules.ts'
+import { createToolTargetPolicy, installToolTargetPolicy } from './tool-target-policy.ts'
 
 // The services keep closures only: no `#` private field, because a method reached through a caller
 // proxy has a `this` that is not the instance (docs/real-mode.md).
@@ -127,6 +128,10 @@ const plugin: Plugin.Object = {
       'authorization.active',
     )
     const ports = portsOf(ctx, grants)
+    installToolTargetPolicy(
+      ctx,
+      createToolTargetPolicy(actionRules, () => (active ? ports.admission : undefined)),
+    )
     new SystemActionAuthorizationImpl(ctx, ports.systemActions, () => active)
     new SessionAccessCheckImpl(ctx, createSessionAccessCheck(ports))
     new AgentAccessCheckImpl(ctx, createAgentAccessCheck(ports))

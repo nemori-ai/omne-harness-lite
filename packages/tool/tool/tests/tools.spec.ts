@@ -1,6 +1,7 @@
+import { createReaderFixture } from './reader-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { createTools, type ToolsReadRuntime } from '@omne-harness/tool'
+import { type ToolsReadRuntime } from '@omne-harness/tool'
 import { type ToolResult } from '@omne-harness/tool-contract'
 import { projectToolResult } from '@omne-harness/tool-contract/provider'
 import { judgeContentBlock } from '@omne-harness/content-block'
@@ -44,8 +45,8 @@ function decode(text: string): unknown[] {
 }
 const size = (value: unknown) => Buffer.byteLength(JSON.stringify(value))
 
-describe('Tools real author registration and presentation', () => {
-  it('registers two structured nonprogrammable commands with closed declared schemas and real codecs', async () => {
+describe('fixed reader with a test-only command transport', () => {
+  it('uses two structured fixture commands with closed declared schemas and real codecs', async () => {
     const f = await sourceFixture()
     const definition = f.tools.definition
     expect(definition.name).toBe('Tools')
@@ -77,7 +78,7 @@ describe('Tools real author registration and presentation', () => {
     '{"kind":"result","kind":"attachment","reference":"x","after":null}',
     '{"kind":"result"',
   ])('rejects invalid or incomplete parameters before reading %s', async args => {
-    const tools = createTools(
+    const tools = createReaderFixture(
       provider(async () => {
         throw new Error('must not read')
       }),
@@ -86,7 +87,7 @@ describe('Tools real author registration and presentation', () => {
     expect(await authorRun(tools, 'read_result', args)).toHaveProperty('failure')
   })
   it('uses parameter completeness and strict help schema and input budgets', async () => {
-    const tools = createTools(
+    const tools = createReaderFixture(
       provider(async () => {
         throw new Error('must not read')
       }),
@@ -178,7 +179,7 @@ describe('Tools real author registration and presentation', () => {
     expect(reply.state.terminal.kind).toBe('completed')
   })
   it('distinguishes source failure, read denial, byte failures and meta completion without disclosing partial source', async () => {
-    const failedSource = createTools(
+    const failedSource = createReaderFixture(
       provider(async () =>
         succeed({
           ...page(result([visible('body', 'source')])),
@@ -191,7 +192,7 @@ describe('Tools real author registration and presentation', () => {
     expect(body(first)).toContain('failed')
     expect(body(first)).toContain('reading')
     expect(body(first)).not.toContain('secret-diagnostic')
-    const denied = createTools(
+    const denied = createReaderFixture(
       provider(async () => fail({ kind: 'denied', action: 'read-result' })),
       options,
     )
@@ -217,7 +218,7 @@ describe('Tools real author registration and presentation', () => {
 
 describe('Tools canonical references and attachment bytes', () => {
   it('rejects reference versions, noncanonical encodings and cursor identity or projection changes', async () => {
-    const tools = createTools(
+    const tools = createReaderFixture(
       provider(async input =>
         succeed(
           page(result([visible('body', 'source')]), input.after === null ? 'position-one' : null),
@@ -327,7 +328,7 @@ describe('Tools canonical references and attachment bytes', () => {
     ).toContain('ERROR:')
   })
   it('does not catch unexpected provider faults or report them as success', async () => {
-    const tools = createTools(
+    const tools = createReaderFixture(
       provider(async () => {
         throw new Error('unexpected provider fault')
       }),
@@ -373,7 +374,7 @@ describe('Tools bounded response collection', () => {
     const total = size(value)
     for (const maxBytes of [total, total - 1]) {
       let reads = 0
-      const tools = createTools(
+      const tools = createReaderFixture(
         provider(async () => {
           reads += 1
           return succeed(
@@ -427,7 +428,7 @@ describe('Tools bounded response collection', () => {
     },
   ])('rejects $fault without handing partial content to its consumer', async scenario => {
     let reads = 0
-    const tools = createTools(
+    const tools = createReaderFixture(
       provider(async () => {
         const next = scenario.pages[reads++]
         if (next === undefined) throw new Error('read beyond the finite page sequence')
@@ -444,7 +445,7 @@ describe('Tools bounded response collection', () => {
     'rejects %s without handing partial content to its consumer',
     async fault => {
       let count = 0
-      const tools = createTools(
+      const tools = createReaderFixture(
         provider(async () => {
           count += 1
           if (fault === 'read-failure' && count === 2)
@@ -473,7 +474,7 @@ describe('Tools bounded response collection', () => {
   it('returns unsupported instead of truncating a source block, credential or schema and rejects unusable configurations', async () => {
     const f = await sourceFixture(result([visible('large', 'x'.repeat(5000))]))
     expect(body(await f.tools.present(f.access))).toContain('unsupported')
-    const small = createTools(
+    const small = createReaderFixture(
       provider(async () => succeed(page(result()))),
       { ...options, resultPageBytes: 250, replyMaxBytes: 500 },
     )
@@ -487,7 +488,7 @@ describe('Tools bounded response collection', () => {
       { replyMaxBytes: Number.MAX_SAFE_INTEGER + 1 },
       { arguments: { ...options.arguments, maxBytes: 0 } },
     ])
-      expect(() => createTools(empty, { ...options, ...overrides })).toThrow(TypeError)
+      expect(() => createReaderFixture(empty, { ...options, ...overrides })).toThrow(TypeError)
   })
 })
 
@@ -602,10 +603,10 @@ it('reports byte provider failure without byte payload, attachments or next', as
 
 it('uses exact emission JSON budgets and rejects oversized protocol credentials without truncation', async () => {
   const read = provider(async () => succeed(page(result([visible('body', '中\\"source')]))))
-  const baseline = createTools(read, options)
+  const baseline = createReaderFixture(read, options)
   const first = await baseline.present(access)
   for (const extra of [0, -1]) {
-    const tools = createTools(read, { ...options, replyMaxBytes: size(first) + extra })
+    const tools = createReaderFixture(read, { ...options, replyMaxBytes: size(first) + extra })
     const actual = await tools.present(access)
     if (extra === 0) expect(actual).toEqual(first)
     else {
@@ -613,7 +614,7 @@ it('uses exact emission JSON budgets and rejects oversized protocol credentials 
       expect(actual.content).toHaveLength(1)
     }
   }
-  const credentialBound = createTools(read, {
+  const credentialBound = createReaderFixture(read, {
     ...options,
     arguments: { ...options.arguments, maxStringLength: 8 },
   })
@@ -626,46 +627,49 @@ it('validates every configuration field and derived read-count overflow while ac
   const runtime = provider(async () => succeed(page(result())))
   for (const field of ['resultPageBytes', 'replyMaxBytes', 'contentPageBytes'] as const) {
     for (const bad of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])
-      expect(() => createTools(runtime, { ...options, [field]: bad })).toThrow(
+      expect(() => createReaderFixture(runtime, { ...options, [field]: bad })).toThrow(
         'Invalid Tools byte budget',
       )
   }
   expect(() =>
-    createTools(runtime, {
+    createReaderFixture(runtime, {
       ...options,
       resultPageBytes: 1,
       replyMaxBytes: Number.MAX_SAFE_INTEGER,
     }),
   ).toThrow('Invalid Tools reply read limit')
-  expect(() => createTools(runtime, { ...options, resultPageBytes: 1 })).toThrow(
+  expect(() => createReaderFixture(runtime, { ...options, resultPageBytes: 1 })).toThrow(
     'Tools fixed error cannot fit one page',
   )
   expect(() =>
-    createTools(runtime, {
+    createReaderFixture(runtime, {
       ...options,
       replyMaxBytes: Number.MAX_SAFE_INTEGER,
       contentPageBytes: Number.MAX_SAFE_INTEGER,
     }),
   ).not.toThrow()
   expect(() =>
-    createTools(runtime, { ...options, resultPageBytes: Number.MAX_SAFE_INTEGER }),
+    createReaderFixture(runtime, { ...options, resultPageBytes: Number.MAX_SAFE_INTEGER }),
   ).not.toThrow()
 })
 
 it('refuses unusable complete continuation and attachment arguments even when each encoded token fits', async () => {
   const runtime = provider(async () => succeed(page(result(), 'provider-cursor')))
-  const first = await createTools(runtime, options).present(access)
+  const first = await createReaderFixture(runtime, options).present(access)
   const reference = token(first, 'reference'),
     after = token(first, 'next')
   const maxBytes = Math.max(Buffer.byteLength(reference), Buffer.byteLength(after)) + 10
-  const tools = createTools(runtime, { ...options, arguments: { ...options.arguments, maxBytes } })
+  const tools = createReaderFixture(runtime, {
+    ...options,
+    arguments: { ...options.arguments, maxBytes },
+  })
   expect(Buffer.byteLength(reference)).toBeLessThan(maxBytes)
   expect(Buffer.byteLength(after)).toBeLessThan(maxBytes)
   expect(
     await authorRun(tools, 'read_result', JSON.stringify({ kind: 'result', reference, after })),
   ).toMatchObject({ failure: { kind: 'invalid' } })
   expect(body(await tools.present(access))).toContain('unsupported')
-  const fewMembers = createTools(runtime, {
+  const fewMembers = createReaderFixture(runtime, {
     ...options,
     arguments: { ...options.arguments, maxMembers: 2 },
   })
@@ -678,9 +682,9 @@ it('refuses unusable complete continuation and attachment arguments even when ea
     mediaType: 'application/octet-stream',
   }
   const files = provider(async () => succeed(page(result([], [attachment]))))
-  const initial = await createTools(files, options).present(access)
+  const initial = await createReaderFixture(files, options).present(access)
   const ta = encode('ta1', [1, token(initial, 'reference'), 0])
-  const limited = createTools(files, {
+  const limited = createReaderFixture(files, {
     ...options,
     arguments: { ...options.arguments, maxBytes: Buffer.byteLength(ta) + 10 },
   })
@@ -696,13 +700,13 @@ it('refuses unusable complete continuation and attachment arguments even when ea
 
 it('applies the emission boundary through real author codecs and runtime collection at the exact JSON byte limit', async () => {
   const source = provider(async () => succeed(page(result([visible('body', '中\\"source')]))))
-  const baseline = createTools(source, options)
+  const baseline = createReaderFixture(source, options)
   const initial = await baseline.present(access)
   const args = { kind: 'result', reference: token(initial, 'reference'), after: null }
   const full = ok(await authorRun(baseline, 'read_result', JSON.stringify(args)))
   for (const delta of [0, -1]) {
     const config = { ...options, replyMaxBytes: size(full) + delta }
-    const registered = registeredFixture(createTools(source, config), config)
+    const registered = registeredFixture(createReaderFixture(source, config), config)
     const received = ok((await registered.invoke('read_result', args)).full)
     if (delta === 0) expect(received).toEqual(full)
     else expect(body(received)).toContain('unsupported')
@@ -752,7 +756,7 @@ it.each([4, 5])(
       ),
     )
     const limited = { ...options, arguments: { ...options.arguments, maxItems } }
-    const tools = createTools(source, limited)
+    const tools = createReaderFixture(source, limited)
     const initial = await tools.present(access)
     if (!body(initial).includes('ERROR:')) {
       const response = await registeredFixture(tools).invoke('read_result', {
@@ -772,7 +776,7 @@ it('accepts a continuation at the six-item protocol boundary and rejects an unpa
       page(result([visible('body', 'source')]), input.after === null ? 'position-one' : null),
     ),
   )
-  const tools = createTools(runtime, {
+  const tools = createReaderFixture(runtime, {
     ...options,
     arguments: { ...options.arguments, maxItems: 6 },
   })
@@ -790,7 +794,7 @@ it('accepts a continuation at the six-item protocol boundary and rejects an unpa
     bytes: '0',
     digest: 'sha256:empty',
   }))
-  const files = createTools(
+  const files = createReaderFixture(
     provider(async () => succeed(page(result([], attachments)))),
     { ...options, arguments: { ...options.arguments, maxNumberLength: 1 } },
   )

@@ -105,3 +105,5 @@ export type { LocalToolCatalogSearchConfiguration } from './catalog-ranking.ts'
 
 export { createLocalToolForwarding } from './tool-forwarding.ts'
 export type { LocalToolForwarding, LocalToolForwardingInput } from './tool-forwarding.ts'
+
+export { TOOL_FORWARDING_OWNER } from './invocation-forwarding.ts'

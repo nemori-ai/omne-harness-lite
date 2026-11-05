@@ -36,9 +36,7 @@ export async function qualifyRequestAccess<P>(
       )
         return { kind: 'unavailable', diagnostic: result.diagnostic }
     }
-  } catch {
-    // Provider exceptions cannot expose policy data or become permission.
-  }
+  } catch {}
   return { kind: 'unavailable', diagnostic: 'request-access unavailable' }
 }
 

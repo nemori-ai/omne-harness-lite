@@ -28,7 +28,6 @@ export function decideTodos(
           reason: 'expected nonblank text of at most 4096 UTF-8 bytes',
         },
       }
-    // This constructor alone mints the domain identity, from canonical tenant and original operation.
     const item =
       `todo_${digestOf(['todo-item/1', tenantText(snapshot.tenant), snapshot.session, command.input.operation])}` as TodoItemId
     return {

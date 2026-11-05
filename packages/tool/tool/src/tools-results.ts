@@ -118,6 +118,8 @@ export function checkMessage(value: unknown): Outcome<MessageResult, Readonly<{ 
   return succeed({ content, attachments, data: { kind: 'none' }, original: { kind: 'none' } })
 }
 export function outputCodec(maxBytes: number): OutputCodec<MessageResult> {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1)
+    throw new TypeError('Invalid result codec byte budget')
   const check = (value: unknown) => {
     const checked = checkMessage(value)
     return 'ok' in checked && jsonBytes(checked.ok) > maxBytes

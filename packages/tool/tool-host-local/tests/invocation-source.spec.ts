@@ -630,3 +630,35 @@ describe('TL-11 operation identities', () => {
     expect('ok' in a && 'ok' in b && a.ok !== b.ok).toBe(true)
   })
 })
+
+it('recovers a stored subject projection before reissuing live credentials, then still verifies current authority', async () => {
+  const memory = observed()
+  const live = new WeakSet<object>([alice])
+  const current: ToolInvokeAuthority<P> = {
+    qualify: async ({ principal }) =>
+      live.has(principal) ? { kind: 'allowed' } : { kind: 'denied', reason: 'not-live' },
+    samePrincipal: async ({ current, original }) =>
+      live.has(current) && current.subject === original.subject
+        ? { kind: 'allowed' }
+        : { kind: 'denied', reason: 'not-live-or-different' },
+  }
+  const s = source(memory.store, current)
+  const issued = await bound(s.issuer)
+  const access = verifyInput(issued)
+  const input = {
+    tenant: access.tenant,
+    call: access.call,
+    admission: access.operation,
+    request: access.request,
+  }
+  expect(await s.recoverBinding(input)).toEqual({ ok: { principal: codec.encode(alice) } })
+  expect(await s.guard.verify(access)).toEqual({ kind: 'trusted' })
+  const decoded = codec.decode(codec.encode(alice))
+  if ('failure' in decoded) throw new Error('fixture decode')
+  expect(await s.guard.verify({ ...access, principal: decoded.ok })).toMatchObject({
+    kind: 'forged',
+  })
+  expect(
+    await s.recoverBinding({ ...input, request: { ...input.request, command: 'substituted' } }),
+  ).toMatchObject({ failure: { kind: 'unavailable' } })
+})

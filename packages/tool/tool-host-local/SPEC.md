@@ -259,7 +259,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 同一父调用只有 execute 槽。consumer owner 固定为 `@omne-harness/tool-host-local/tools-forwarding`，work 是父 call，position 为 execute，purpose 为 tools-target。普通 issuer 在读取关联前拒绝该 owner。来源自己生成 consumer；应用 prepareTarget 只提供业务目标。目标 scope、requesterScope、context、workspace、resources、limits 与 mode 继承父请求，batchDecision 为 null。目标 settings 和 environment 来自目标采用。
 
-原槽、父证明、完整固定目标与 principal 在既有 invocation-source host 域同一次 CAS 提交。已存槽优先认回，不以最新设置替换。received 更新保留全部原字段。recoverBinding 与 guard 配对核 direct 原 mint 或 forwarded 父证明，不把转发恢复成 direct。当前 programmatic 启动仍受 M2 拒绝限制。
+原槽、父证明、完整固定目标与 principal 在既有 invocation-source host 域同一次 CAS 提交。已存槽优先认回，不以最新设置替换。received 更新保留全部原字段。recoverBinding 只读取与 tenant/call/admission/完整固定请求匹配的持久主体投影，核 direct 原 mint 或 forwarded 记录摘要；它不返回活凭据，不做当前资格授予。运行时据该投影向身份拥有者重新取得会话工作主体，再调用 guard 核原主体、direct 来源或 forwarded 父证明及当前资格。任何一步失败均不启动 driver；不把转发恢复成 direct。当前 programmatic 启动仍受 M2 拒绝限制。
 
 source.receiver 在同一关联内保存完整交付和 saved 证据。接收先核当前资格、原目标引用、完整 consumer 与交付关系。只有 durable store 确认提交后才 saved。提交未知回复 outcome-unknown，生产者保留 owed。读回比较实际 payload 摘要和原键，并核 receiver evidence，不能只相信 stored digest。result、late version 与 account 的键分开。
 

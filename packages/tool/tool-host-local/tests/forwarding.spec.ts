@@ -135,3 +135,27 @@ describe('trusted forwarding association', () => {
     ).toBe(canonicalDigest(before))
   })
 })
+
+it('reads a forwarded subject projection without granting current authority', async () => {
+  const f = await forwardingFixture()
+  const issued = await f.source.forwarding.resolve({
+    ...f.parent,
+    intent: f.intent,
+    target: f.target,
+  })
+  if (issued.kind !== 'bound') throw new Error('expected bound')
+  const access = {
+    tenant: f.parent.tenant,
+    call: issued.call,
+    admission: issued.admission,
+    request: issued.request,
+  }
+  f.revoke()
+  expect(await f.source.recoverBinding(access)).toEqual({ ok: { principal: 'alice' } })
+  expect(
+    await f.source.guard.verify({ ...access, principal: 'alice', operation: issued.admission }),
+  ).toMatchObject({ kind: 'forged' })
+  expect(await f.source.recoverBinding({ ...access, call: f.parent.call })).toMatchObject({
+    failure: { kind: 'unavailable' },
+  })
+})

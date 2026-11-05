@@ -25,7 +25,6 @@ function validCursor(cursor: TodoPageCursor): boolean {
   )
 }
 
-/** One authorized delegated read, with no page cache or second Todo authority. */
 export async function listTodos<P>(
   view: SessionTransactionPort<P>,
   input: Parameters<SessionTodos<P>['listTodos']>[0],

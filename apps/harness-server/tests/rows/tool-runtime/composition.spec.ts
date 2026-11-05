@@ -78,6 +78,7 @@ import { defineRow } from '../../../src/row.ts'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
 import { toolRowsOperatorConfig } from '../../r9/support.ts'
+import { compositionAuthority } from './composition-authority.ts'
 import { withLiveRows } from '../model/support.ts'
 import {
   TENANT_A,
@@ -225,7 +226,7 @@ function rowsOf(storageRoot: string) {
         id: 'session-storage',
         plugin: 'sessionStorageRow',
         config: {
-          combinationVersion: 'session-composite/4',
+          combinationVersion: 'session-composite/5',
           directoryFile: join(storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },
@@ -253,6 +254,7 @@ function rowsOf(storageRoot: string) {
 const entryObjects = (work: EntryObjectModule): readonly EntryObjectModule[] => [
   principalVerifier,
   principalIssuer,
+  compositionAuthority,
   toolReleaseRegistrant,
   toolContributionAuthority,
   toolClock,

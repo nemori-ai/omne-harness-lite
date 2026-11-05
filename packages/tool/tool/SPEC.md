@@ -451,9 +451,9 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 
 ## 28. Tools 固定结果适配器
 
-根入口的 `createTools` 消费普通 runtime 的 `queries.readResult` 和 `content.read`。它不取得 invoke、control、release 或 raw。工厂提供真实 `Tools` 作者、`present` 和受信消费侧的 `readReply`。作者只有 `help`、`read_result`，显式 `programmable:false`，两操作都是 structured、program:none。输入模态为 text。直接输出可能保留源 text、image、voice 或 video 内容，因此声明四种输出模态。file ref 依其媒体类型承载内容，普通 attachments 的地址仍是文本。
+根入口的 `createToolResultReader` 消费普通 runtime 的 `queries.readResult` 和 `content.read`。它不取得 invoke、control、release 或 raw。工厂提供 `present`、固定引用的 `read` 和受信消费侧的 `readReply`，不注册工具作者或生成工具定义。完整 Tools 作者由独立的 `tool-definitions` 成员拥有。reader 直接内容可保留源 text、image、voice 或 video 内容；作者和消费者须按实际输出能力作兼容裁定，不能仅凭使用 reader 宣称支持所有模态。
 
-`help` 的闭合对象只有可选 string command。因为有这个名为 `command` 的字段，Tools 以 `wrapped` 编码登记，调用形如 `{"command": "help", "params": {"command": "search"}}`；`flat` 会与调用层的 `command` 冲突。Tools 的 help 仍是本成员自写的文本，不来自 `commandGuide`，阅读规则也没有登记为定义的 `guide`，这是已知限制。未知名称形成具名错误。`read_result` 的闭合 oneOf 分支为 result 和 attachment，kind、非空 reference、null 或非空 after 都必填。参数、注册声明和帮助从同一命令描述生成。作者先使用 ParameterCodec 的完整 JSON、重复键及预算检查，再核字段。模型不能提供 tenant、principal、路径、maxBytes 或 raw selector。
+`read` 消费当前 Access 和固定读取参数：kind 为 result 或 attachment，非空 reference，after 为 null 或非空游标。调用者负责按已采用的工具参数契约完成 wire 解码，身份由受信宿主绑定。reader 不接收模型自报身份、文件路径、maxBytes 或 raw selector。工厂检查 JSON 参数预算和结果页预算。`createToolMessageResultCodec` 提供同一结构化结果的有界 codec；字节预算必须为正安全整数。
 
 ### 引用与调用
 
@@ -463,7 +463,7 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 - `ta1` 包含 `[1, tr1, selector]`。selector 为非负安全整数索引或字符串 original。索引对应该固定版本的 attachments，original 对应卸载原文。
 - `tc1` 包含 `[1, kind, completeReference, projection, internalAfter]`。result 的 projection 为 full，attachment 为 bytes。读取前逐项比较分支、完整引用及投影。
 
-解码核协议、字段数、类型、规范编码及参数预算。所有发出的开始和续读提示还使用真实参数 codec 检查整份调用 JSON，并用同一预算实际解码内部引用及 cursor。单个凭据、组合参数或内部 tuple 超限都不能发出可续读提示。引用不授予权限，没有 TTL，也不依赖适配器内存表。releaseDelivery 不使引用失效。未知版本、不可定位版本或错误游标不能换成最新结果或首屏。
+解码核协议、字段数、类型、规范编码及参数预算。所有发出的开始和续读提示检查整份调用 JSON 的预算，并用同一预算实际解码内部引用及 cursor。单个凭据、组合参数或内部 tuple 超限都不能发出可续读提示。引用不授予权限，没有 TTL，也不依赖适配器内存表。releaseDelivery 不使引用失效。未知版本、不可定位版本或错误游标不能换成最新结果或首屏。
 
 ### 模型内容与失败
 
