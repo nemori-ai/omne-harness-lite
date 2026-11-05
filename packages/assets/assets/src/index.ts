@@ -14,3 +14,11 @@ export {
 export { isReadBody, readBodyText, readSnapshot } from './read-body.ts'
 export { createCategoryRegistry, unknownCategory } from './registry.ts'
 export { pinBody, type PinnedBody } from './adoption.ts'
+export { projectAssetSettings, type AssetSettingsProjection } from './settings.ts'
+export {
+  decideAssetHoldingChange,
+  type AssetHolding,
+  type AssetHoldingChange,
+  type AssetHoldingDecision,
+  type AssetVersionSelection,
+} from './holding.ts'

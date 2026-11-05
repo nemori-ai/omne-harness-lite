@@ -1,6 +1,6 @@
 # 资产组成员与协作
 
-状态为待审技术设计。正式维护位置不授予技术接受、实施或支持；精确公开形状仍待定义。
+本页维护成员责任与长期阶段目标。当前源码已实现设置核心及本地资产—设置组合，精确支持范围沿各成员 SPEC；阶段目标表不等同于已交付能力。
 
 ## 阶段范围
 
@@ -30,7 +30,9 @@ CAP-AR06、11、12、13、14、15、16 没有该阶段的独立能力交付承�
 
 组织、成员、登录和角色归identity；工作区身份、实例及参与关系归workspace；装配清单与安全采用交接归assembly；AgentDefinition、类别形状及业务分别归各类别。assets只通过公开契约消费这些事实，不收回各类别的完整实现，也不发明统一执行runtime。
 
-设置和权限是资产的不同属性。配值依附持有，形状随有效定义。能力组目录不是共享数据库、运行服务或共同提交边界。三成员在工程上相近，但各自求值规则不能合成一套通用覆盖算法。
+资产通过组合使用设置与权限。资产设置配值依附持有，形状随有效定义；Settings 本身也可独立使用，独立目标不伪造资产持有。能力组目录不是共享数据库、运行服务或共同提交边界。三成员在工程上相近，但各自求值规则不能合成一套通用覆盖算法。
+
+设置核心、目标策略、应用服务及对象协作的详细责任见[设置组合设计](settings-composition.md)。它细化声明与配值的组合，不将整个领域建成一个资产聚合或共享事务。
 
 ## 安全、观测与依赖方向
 
@@ -65,3 +67,11 @@ assets 拥有共同资产事实与管理结果，settings 拥有设置配值和�
 旅程对应的持久验证义务就近维护在 [assets](../assets/SPEC.md#journey-verification)、[settings](../settings/SPEC.md#journey-verification)及 [permissions](../permissions/SPEC.md#journey-verification)。文档覆盖记录只连接位置，实际行为证据须由成员和 assembly、身份、类别等真实协调者取得。
 
 所有流程的操作身份、版本、共同完成、结果查询与恢复接口沿 [ASSET-M01](../assets/docs/internals.md#asset-m01-完成与来源协议)。公开类型、扩展契约、类别兼容、来源版本与刷新、权限分档比较及缓存条件沿相应 SPEC 的未覆盖段落。AR-F09 的直接来源核实和接收协议不得被笼统的协调箭头当作已实现，AR-F01 的组织创作委托沿 ASSET-N01。没有新增产品待裁决，也没有在本页选择这些机制。
+
+## 当前本地组合
+
+settings 核心通过读取和条件提交端口表达行为，不导入 Assets 或 Identity。settings-local 消费公共 sql-contract，并由部署端注入 sqlite-provider。assets-local 只读取自己的发布、版本与持有表，通过公开 SettingsOwnerProjection 提供当前目标事实。两个目标拥有者分别提供唯一事实，settings-local 的目标 guard 合成后再提交配置。
+
+独立目标无需资产包。此时部署端提供 settingsWithoutAssetsMaterials 的空资产投影。两类真实目标采用同一查询和命令应用服务，不能把贡献注册解释为配置权。
+
+Identity 的资格预留与目标终态协调跨 system.identity 和租户事务域。业务配值、目标当前性和终态在租户事务内共同确认。完整流程和持久层边界见 [本地架构](../settings-local/docs/architecture.md)。受信部署端的发布、持有管理和显式 rebase 不直接暴露为普通租户 API。

@@ -2,4 +2,4 @@
 
 与 [README.md](README.md) 是同一成员。README.md 是中文正文；本页不另写一份承诺。
 
-`./cordis` 的六个抽象服务定义（四个原接口、注入时钟 `identityClock` 与治理端口 `identityGovernance`）、键、受控测试示例和支持范围见 [Cordis 消费说明](docs/cordis.md)。根入口保持独立消费。生产签发者持有边界与原身份行为仍沿 [SPEC](SPEC.md)。
+`./cordis` 的九个抽象服务定义（四个原接口、注入时钟、治理、预留、目标 resolver 与治理恢复）、键、受控测试示例和支持范围见 [Cordis 消费说明](docs/cordis.md)。根入口保持独立消费。生产签发者持有边界与原身份行为仍沿 [SPEC](SPEC.md)。

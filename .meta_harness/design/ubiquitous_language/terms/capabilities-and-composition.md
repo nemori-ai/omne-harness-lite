@@ -52,46 +52,35 @@
 
 ### UL-setting · 设置 · Setting
 
-> **中**：[资产](#ul-asset--资产--asset)的一种属性，约束 agent **以什么配置、什么参数去做**。
-> **资产定形状**（有哪些项、什么含义、取值域是什么），**持有它的各层配值**，
-> 运行时按[覆盖](scope-and-resolution.md#ul-scope-composition-semantics--作用域合成语义--scope-composition-semantics)求值。
+> **中**：由功能拥有者声明、用于决定该功能怎样工作的可配置事项。设置可以独立使用，也可以作为资产声明的一部分组合使用。定义规定含义及合法值；配值受其配置目标的管理资格、来源和生命周期约束，求值不授予动作许可。
 >
-> **EN**: A kind of attribute on an asset, constraining **with what configuration and
-> parameters** the agent acts. **The asset defines the shape** (which entries exist,
-> what they mean, what values they admit), **each layer holding it supplies values**,
-> and at run time they resolve by **override**.
+> **EN**: A configurable aspect of how a capability works, declared by its owner. A setting can be used independently or composed into an asset definition. Its declaration defines meaning and valid values. Assignments follow the management authority, sources and lifetime of their target; evaluation does not authorize an action.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 设置、权限、资产](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 26） · [PF-002 §5.2](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)（rev 32）
-- **注意 ①**：配值的资格来自**持有**——**没有这个工具，就配不了它的执行权限**。
-  配下的那一格叫[属性配值](scope-and-resolution.md#ul-attribute-assignment--属性配值--attribute-assignment)，
-  **挂在那份持有上**
-- **注意 ②**：**配值的不只组织与租户**——[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)那一级也配得了，
-  且[它配的值压过租户](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#58-三条层序各答一个问题)，
-  **除非上层加了 `immutable`**
-- **注意 ③**：[禁用](circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable)是一项**特殊的布尔设置**——
-  **任一层为真即为真**，那等价于「覆盖 ＋ 真即 `immutable`」
-- **注意 ④**：**每一项设置带一个[设置项类别](#ul-setting-category--设置项类别--setting-category)**，
-  类别决定这项值能从哪些层来——**落点与身份类不从工作区来**
-- **注意 ⑤**：**同标识替换之后，设置按资产取值**——外层给原来那一份配的值（连锁住的在内）不落到替换它的那一份上（[PF-002 §5.5](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#替换是一条路径不是一扇后门)）；与[权限](#ul-permission--权限--permission)相反
+- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 5）
+- **注意 ①**：资产设置的配值依附合法持有；独立设置不要求创建资产或持有。两者复用设置契约，不复用未经采用的资格或来源链。
+- **注意 ②**：资产声明哪些部分可配置。未声明部分仍按资产编辑与发布规则维护；配值不改写已发布定义。
+- **注意 ③**：属性锁、持有替换锁和定义的不可替换声明分别处理；不得因同名而合并。
+- **注意 ④**：设置项类别规定允许来源，专有含义及采用时点由功能拥有者维护。
+- **注意 ⑤**：资产替换不转移原资产配值和秘密；持久配值不随运行提供者撤除而删除。
 
 ### UL-setting-category · 设置项类别 · Setting Category
 
-> **中**：[资产](#ul-asset--资产--asset)声明一项[设置](#ul-setting--设置--setting)时**必须标上的那个类别**，
+> **中**：功能拥有者声明一项[设置](#ul-setting--设置--setting)时**必须标上的那个类别**，
 > 取值恰为四个：**偏好**（改错顶多难用）、**绑定**（指向本系统内另一份资产或一个位置）、
 > **落点与身份**（东西在哪执行、连到哪、送到哪、以谁的名义、用哪把凭据）、**治理**（管别的设置与权限怎么起作用：禁用、`immutable`、连接件的触发会话的默认运行模式）。
-> 它决定**这项值能从哪些归属层来**：落点与身份类、以及治理类里除禁用之外的项，
+> 类别参与确定允许来源。对资产设置，落点与身份类、以及治理类里除禁用之外的项，
 > [工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)那一级一概配不了，加载时与权限一起滤掉。
 > 判一项归哪类问两句：**改了会不会换掉这次运行要过的那道权限门、或改变一道已放行的权限实际放出去的是什么——会，就是落点与身份**；
 > **改的若是那道门自己怎么判**（锁不锁得住、「本该问人」的那一刻是拒、是算、还是放）**——就是治理**。
 >
-> **EN**: The class an asset **must assign to each setting entry it declares**, drawn from
+> **EN**: The class a capability owner **must assign to each setting entry it declares**, drawn from
 > exactly four values: **preference** (a wrong value is at worst inconvenient), **binding**
 > (points at another asset or a position inside this system), **placement and identity**
 > (where something runs, connects or delivers, on whose behalf, with which credential), and
 > **governance** (how other settings and permissions take effect: disable, `immutable`, a
-> connector's default run mode for triggered sessions). It decides **from which ownership
-> layers a value may come**: placement-and-identity entries and every governance entry other
+> connector's default run mode for triggered sessions). The category constrains permitted sources.
+> For asset settings, placement-and-identity entries and every governance entry other
 > than disable can never be set by the workspace level; they are filtered at load time together
 > with permissions. Two tests classify an entry: **would changing it change which permission
 > gate this run passes through, or what an already-granted permission actually lets out — if so,
@@ -99,10 +88,10 @@
 > holds, what happens at the moment a person should be asked) **— if so, governance**.
 
 - **形态**：属性
-- **出处**：[PF-002 §5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
+- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 5）；[PF-002 §5.2 设置项分四类](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
 - **别混**：与[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)里的「类别」不是一回事——
   那是**资产**的八类之一，这是**设置项**的四类之一；正文里裸写「类别」指前者
-- **注意**：工作区**自己带来的**资产，其落点类设置随资产一起来——这条限定挡的是**改别人资产的落点**
+- **注意**：工作区**自己带来的**资产，其落点类声明随资产一起来——这条限定挡的是**改别人资产的落点**。独立设置按其目标策略确定来源，不自动继承资产层序。
 
 ### UL-permission · 权限 · Permission
 
