@@ -7,7 +7,7 @@
 | 依据                                                                               | 修订                | 本页采用的范围                                                                                                                            |
 | ---------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | [契约 SPEC](../mcp-contract/SPEC.md)                                               | `96576e628`         | T1–T9 与 R4 作为被兑现的条款；[真实传输兑现时的裁定](../mcp-contract/SPEC.md#decisions-host) 1–9 是本包提出、契约接受的可加决定           |
-| [组工程设计](../docs/architecture.md)                                              | `21175c9f9`         | 本成员的位置：两个 `McpTransport` 实现、官方 SDK 只出现在本成员；协议基线与兼容                                                           |
+| [组工程设计](../docs/architecture.md)                                              | `03505c68f`         | 本成员的位置：两个 `McpTransport` 实现、官方 SDK 只出现在本成员；协议基线与兼容                                                           |
 | 闭包 `w3-mcp-host` 的设计与 reduce 裁定（2026-11-05，任务材料）                    | 本地                | 复用决定表、模块分法、F4–F8 的裁定、旧 HTTP+SSE 的事件映射、夹具分两层、依赖 `eventsource-parser`，以及 `open` 不调用凭据句柄的义务（T9） |
 | 官方 TypeScript SDK `@modelcontextprotocol/client` 与 `@modelcontextprotocol/core` | 2.4.0               | 只作对照与不复用的证据；本包的产品源码不导入它们，见[与 SDK 的复用关系](#sdk-reuse)                                                       |
 | `@modelcontextprotocol/server`、`@modelcontextprotocol/node`、`server-everything`  | 2.4.0、2.1.2、2.1.0 | 只在测试里作对端（B 层夹具）                                                                                                              |
@@ -82,7 +82,7 @@
 
 <a id="h12"></a>
 
-- **H12 退出窗口**（契约 T8 进程退出）：stdout 先结束时线路最多等 `PROCESS_EXIT_WINDOW_MS` 的退出再宣告 `ended`，之后的退出不改变已归类的结论；进程先退出时线路最多再读 `PROCESS_EXIT_WINDOW_MS` 的 stdout（期内读到的行照常投递），然后宣告并取消读取。两个时刻取同一时钟。退出的观察直接挂在句柄的 `exited` 上，先于任何在它之后 `await` 这个 promise 的调用方。反例：观察挂在派生 promise 的第二跳上，先等过 `exited` 的调用方还能写出一个请求（第一次实现的缺陷）。变异：`onExited` 直接挂在派生 promise 的第二跳上 → `stdio.spec.ts`「a process that answers and exits」变红（施工时的真实缺陷）。进程先退出后继续读窗口内 stdout 这一半没有能让它变红的用例：Linux 上子进程对管道的写是同步的，应答总在退出之前被读到；它按契约 T8 的窗口实现，列为未覆盖。
+- **H12 退出窗口**（契约 T8 进程退出）：stdout 先结束时线路最多等 `PROCESS_EXIT_WINDOW_MS` 的退出再宣告 `ended`，之后的退出不改变已归类的结论；进程先退出时线路最多再读 `PROCESS_EXIT_WINDOW_MS` 的 stdout（期内读到的行照常投递），然后宣告并取消读取。两个时刻取同一时钟。退出的观察直接挂在句柄的 `exited` 上，先于任何在它之后 `await` 这个 promise 的调用方。反例：观察挂在派生 promise 的第二跳上，先等过 `exited` 的调用方还能写出一个请求（第一次实现的缺陷）。变异：`onExited` 挂在派生 promise 的第二跳上 → `stdio.spec.ts`「a process that answers and exits」变红（施工时的真实缺陷）。进程先退出后继续读窗口内 stdout 这一半，本机 `stdio.spec.ts` 与 `conformance.spec.ts` 都没有让它变红（立即宣告的变异全绿）；它按契约 T8 的窗口实现，列为未覆盖。
 
 <a id="h13"></a>
 
