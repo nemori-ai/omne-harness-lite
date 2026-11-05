@@ -1,5 +1,6 @@
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type {
+  CommandRetentionOperation,
   EnvironmentFacilities,
   EnvironmentLease,
   FacilityGuard,
@@ -11,6 +12,7 @@ import type {
   LeaseRelease,
   Placement,
   OriginRef,
+  TerminalRetentionOperation,
 } from '@omne-harness/execution-environment-contract'
 import { sameBinding } from './compare.ts'
 
@@ -79,11 +81,18 @@ function requiresRetention(key: FacilityKey, operation: string, request: unknown
   return operation === 'create' && isRecord(request) && request['retain'] === 'session'
 }
 
-/** The retention extensions the registry hands out, and the operations each one must provide. */
+/**
+ * The retention extensions the registry hands out, and the operations each one must provide. Each
+ * entry names every operation of its contract extension, so an operation added to the contract fails
+ * to compile here instead of going missing from the extension the registry hands out.
+ */
 const retentionOperations = {
-  terminal: ['attach', 'detach'],
-  command: ['list'],
-} as const satisfies Partial<Record<FacilityKey, readonly string[]>>
+  terminal: Object.keys({ attach: true, detach: true } satisfies Record<
+    TerminalRetentionOperation,
+    true
+  >),
+  command: Object.keys({ list: true } satisfies Record<CommandRetentionOperation, true>),
+} satisfies Partial<Record<FacilityKey, readonly string[]>>
 type RetainingKey = keyof typeof retentionOperations
 
 function isRetainingKey(key: FacilityKey): key is RetainingKey {
@@ -163,8 +172,11 @@ export function createLeaseView<P>(
     return 'pass'
   }
 
-  const retentionEnabled = (key: RetainingKey) =>
-    key === 'terminal' ? hooks.retentionEnabled : hooks.processRetentionEnabled
+  const retentionEnabledBy: Readonly<Record<RetainingKey, () => boolean>> = {
+    terminal: () => hooks.retentionEnabled,
+    command: () => hooks.processRetentionEnabled,
+  }
+  const retentionEnabled = (key: RetainingKey) => retentionEnabledBy[key]()
 
   function retentionMethod(
     key: RetainingKey,
