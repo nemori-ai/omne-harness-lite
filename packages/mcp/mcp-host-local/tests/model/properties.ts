@@ -35,6 +35,7 @@ export type Phase = 'authorizing' | 'sent' | 'discovery' | 'none'
 export interface RunView {
   readonly ledger: Ledger
   readonly ops: readonly OpView[]
+  /** The port calls not answered yet, the hung ones included. */
   readonly pending: readonly PortCall[]
   readonly timers: number
   /** `close()` was called. */
@@ -45,6 +46,8 @@ export interface RunView {
   readonly lineCloseAnswered: boolean
   /** The phase of each operation's current request when `close()` was called. */
   readonly phasesAtClose: ReadonlyMap<string, Phase> | undefined
+  /** The phase of each call's current request when its signal fired. */
+  readonly phasesAtSignal: ReadonlyMap<string, Phase>
 }
 
 const DISCOVERY_PORTS: ReadonlySet<PortName> = new Set<PortName>([
@@ -140,39 +143,29 @@ export function rejectionsBounded(view: RunView, refusals: number, hasHandle: bo
   return []
 }
 
-/** Whether the discovery ports of `op` are at rest: `reportRejection` answered, `fetchMetadata` done. */
-function discoveryAtRest(view: RunView, op: string): boolean {
-  return !view.pending.some(
-    call =>
-      call.context?.op === op &&
-      (call.port === 'credential.reportRejection' ||
-        (call.port === 'fetchMetadata' && call.signal?.aborted !== true)),
-  )
-}
-
 /**
- * V4: once the caller's signal fired, or `close()` was called, the request in flight settles
- * without waiting for the wire. A request that reached the wire (`sent`) must be settled at the
- * next quiescent state: the signal, or `close()`, abandons it there and then, even while the
- * answer stream or the write stays pending (SPEC V4). A request still discovering authorization
- * settles once its discovery ports come to rest. A request still authorizing is blocked on the
- * credential handle, which takes no signal: that handle may hang and is carried by its holder
- * (SPEC V4「端口调用本身可以挂着，由拥有者承接」), so it is not flagged here.
+ * V4: every promise a caller can see settles once the caller's signal fired or `close()` was
+ * called: the result of `discover`, `listActions`, `updateTask` and `cancelRequest`, `call()`
+ * and its `answer`. At the next quiescent state they have all settled, whatever port call is
+ * still pending or hung: the credential handle, the metadata fetch, the line and the peer may
+ * hang; the caller does not wait for them (SPEC V4, contract T5). `close()` itself is held by
+ * `closeOrder`: the one thing it still waits for is the line's `close`.
  */
 export function unsettledAfterStop(view: RunView): Found[] {
   const found: Found[] = []
   for (const op of view.ops) {
-    if (op.kind === 'close' || op.kind === 'cancel') continue
+    if (op.kind === 'close') continue
     const stopped = view.closeCalled || op.signalled
     if (!stopped) continue
     if (op.status === 'answered' || op.status === 'rejected') continue
-    const phase = phaseOf(view.pending, op.name)
-    if (phase === 'sent' || (phase === 'discovery' && discoveryAtRest(view, op.name)))
-      found.push({
-        property: 'V4',
-        signature: `V4-unsettled-${phase}`,
-        detail: `${op.name} is ${op.status} in phase ${phase} after ${view.closeCalled ? 'close()' : 'its signal'}`,
-      })
+    const pending = view.pending
+      .filter(call => call.context?.op === op.name)
+      .map(call => `${call.port} ${call.subject}`)
+    found.push({
+      property: 'V4',
+      signature: `V4-unsettled-${op.kind}-${phaseOf(view.pending, op.name)}`,
+      detail: `${op.name} is ${op.status} after ${view.closeCalled ? 'close()' : 'its signal'}; pending: ${pending.join(', ') || 'nothing'}`,
+    })
   }
   return found
 }
@@ -200,19 +193,16 @@ export function closeOrder(view: RunView): Found[] {
 }
 
 /**
- * V4: after `close()`, once every pending port call is aborted (its signal fired) or there is
- * none, the line's `close` has been called: nothing the session waits for can still answer.
+ * V4: `close()` reaches the line at once: at the quiescent state after it was called, the
+ * line's `close` has been called, whatever else is pending. Nothing the session waits for
+ * stands between `close()` and the line (SPEC「关闭」).
  */
 export function closeReachesLine(view: RunView): Found[] {
   if (!view.closeCalled || view.ledger.lineCloses > 0) return []
-  // A call the session may still settle through: one with no signal (a credential call it awaits),
-  // or one whose signal has not fired. Only when none is left should the line have been closed.
-  const live = view.pending.filter(call => call.signal === undefined || !call.signal.aborted)
-  if (live.length > 0) return []
   return [
     {
       property: 'V4',
-      signature: 'V4-close-waits-aborted-port',
+      signature: 'V4-close-waits-port',
       detail: `close() has not closed the line; pending: ${view.pending.map(call => `${call.port} ${call.subject}`).join(', ')}`,
     },
   ]
@@ -253,29 +243,47 @@ export function resendBounded(view: RunView): Found[] {
   return found
 }
 
+/** What a stop (the signal, or `close()`) answers a request in each phase (contract T5). */
+function stopAnswerOf(phase: Exclude<Phase, 'none'>): string {
+  switch (phase) {
+    case 'authorizing':
+      return 'not-sent/connection-unavailable'
+    case 'sent':
+      return 'no-answer/abandoned'
+    case 'discovery':
+      return 'not-sent/authorization-required'
+    default: {
+      const exhaustive: never = phase
+      return exhaustive
+    }
+  }
+}
+
 /**
- * V6: what `close()` answers a request in flight: `not-sent` while authorizing, `abandoned` once
- * sent, `authorization-required` once the discovery it entered ends.
+ * V6: what the signal or `close()` answers a request in flight, by the phase it was in when the
+ * stop came: `not-sent` (`connection-unavailable`) while authorizing, `abandoned` once handed to
+ * the line, `authorization-required` with what was fetched by then while discovering (contract
+ * T5). A call's signal and `close()` answer alike; the first of the two decides.
  */
-export function closeAnswers(view: RunView): Found[] {
-  const phases = view.phasesAtClose
-  if (phases === undefined) return []
+export function stopAnswers(view: RunView): Found[] {
   const found: Found[] = []
-  for (const op of view.ops) {
-    const phase = phases.get(op.name)
-    if (phase === undefined || phase === 'none' || op.status !== 'answered') continue
-    const expected =
-      phase === 'authorizing'
-        ? 'not-sent/connection-unavailable'
-        : phase === 'sent'
-          ? 'no-answer/abandoned'
-          : 'not-sent/authorization-required'
-    if (!op.result.includes(expected))
-      found.push({
-        property: 'V6',
-        signature: `V6-${phase}`,
-        detail: `${op.name} was ${phase} at close() and answered ${op.result}, not ${expected}`,
-      })
+  const stops: readonly (readonly [string, ReadonlyMap<string, Phase> | undefined])[] = [
+    ['its signal', view.phasesAtSignal],
+    ['close()', view.phasesAtClose],
+  ]
+  for (const [stop, phases] of stops) {
+    if (phases === undefined) continue
+    for (const op of view.ops) {
+      const phase = phases.get(op.name)
+      if (phase === undefined || phase === 'none' || op.status !== 'answered') continue
+      const expected = stopAnswerOf(phase)
+      if (!op.result.includes(expected))
+        found.push({
+          property: 'V6',
+          signature: `V6-${phase}`,
+          detail: `${op.name} was ${phase} at ${stop} and answered ${op.result}, not ${expected}`,
+        })
+    }
   }
   return found
 }

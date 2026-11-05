@@ -28,7 +28,6 @@ import { actionNameOf, generationOf, jsonOf, taskIdOf } from '@omne-harness/mcp-
 import { Session } from '../../src/session.ts'
 import {
   callAfterSettled,
-  closeAnswers,
   closeOrder,
   closeReachesLine,
   contextLabel,
@@ -38,6 +37,7 @@ import {
   phaseOf,
   rejectionsBounded,
   resendBounded,
+  stopAnswers,
   unhandledRejection,
   unsettledAfterStop,
   type Found,
@@ -49,6 +49,7 @@ import {
 import {
   BREACHES,
   ExplorerLine,
+  HANG,
   PORT_ANSWERS,
   PortFault,
   TARGET,
@@ -123,11 +124,6 @@ export type Exploration = Readonly<{
   violations: readonly Violation[]
   /** Every distinct action some schedule took, sorted: what the bounds actually reached. */
   actions: readonly string[]
-  /**
-   * The shortest schedule after which `discover` still waits, after `close()`, behind the
-   * authorization of `notifications/initialized` that hangs: the notification is not a request.
-   */
-  notificationWaits: readonly string[] | undefined
 }>
 
 /** The same schedule replayed differently: a stop condition of the closure spec. */
@@ -261,13 +257,17 @@ class Run implements RunView, CallDesk {
   closeReturned = false
   lineCloseAnswered = false
   phasesAtClose: Map<string, Phase> | undefined
+  readonly phasesAtSignal = new Map<string, Phase>()
   /** Set when the run is driven to rest: no breaches, no wire faults from then on. */
   private resting = false
   private readonly scenario: Scenario
   private readonly session: Session
   private readonly line: ExplorerLine
   private readonly hasHandle: boolean
+  /** The port calls the explorer may still answer. */
   private calls: PendingCall[] = []
+  /** The port calls answered `hang`: pending for ever, not answered even at rest. */
+  private readonly hung: PendingCall[] = []
   private readonly timerList: Timer[] = []
   /** The requests whose answer the explorer delivered as a result. */
   private readonly delivered = new Set<string>()
@@ -279,7 +279,6 @@ class Run implements RunView, CallDesk {
   private refusals = 0
   private seq = 0
   private steps = 0
-  private notificationWaitsSeen = false
 
   constructor(scenario: Scenario) {
     this.scenario = scenario
@@ -321,15 +320,11 @@ class Run implements RunView, CallDesk {
   }
 
   get pending(): readonly PortCall[] {
-    return this.calls.map(item => item.call)
+    return [...this.calls, ...this.hung].map(item => item.call)
   }
 
   get timers(): number {
     return this.timerList.length
-  }
-
-  get notificationWaits(): boolean {
-    return this.notificationWaitsSeen
   }
 
   /**
@@ -353,6 +348,9 @@ class Run implements RunView, CallDesk {
           ].join('|'),
         )
         .sort(),
+      hung: this.hung
+        .map(({ call }) => [call.port, call.subject, contextLabel(call.context)].join('|'))
+        .sort(),
       streams: [...this.line.streams].map(
         ([id, stream]) =>
           `${id}:${stream.aborted ? 'aborted' : 'open'}:${this.streamsAnswered.has(id) ? 'answered' : ''}`,
@@ -373,6 +371,7 @@ class Run implements RunView, CallDesk {
       },
       flags: [this.closeCalled, this.closeReturned, this.lineCloseAnswered, this.refusals],
       atClose: this.phasesAtClose === undefined ? undefined : [...this.phasesAtClose],
+      atSignal: [...this.phasesAtSignal],
       delivered: [...this.delivered],
       left: this.left,
     })
@@ -525,7 +524,7 @@ class Run implements RunView, CallDesk {
         {
           property: 'V4',
           signature: 'V4-no-rest',
-          detail: `${waiting.map(op => op.name).join(', ')} still waiting after every port answered lawfully`,
+          detail: `${waiting.map(op => op.name).join(', ')} still waiting after every port answered lawfully; hung: ${this.hung.map(item => `${item.call.port} ${item.call.subject}`).join(', ') || 'none'}`,
         },
       ])
   }
@@ -567,8 +566,9 @@ class Run implements RunView, CallDesk {
     }
     this.calls.push(pending)
     // A signal-bearing port honours an abort at once, as the real lines and `fetch` do (`line.ts`:
-    // the signal ends the wait). A port with no signal (the credential handle, a stream read) can
-    // hang; the explorer answers it, or leaves it pending (SPEC V4「端口调用本身可以挂着」).
+    // the signal ends the wait), unless the explorer answered it `hang` first: a hung call left
+    // the answerable calls and stays pending. A port with no signal (the credential handle, a
+    // stream read) is answered by the explorer, left pending, or hung.
     if (request.signal !== undefined) {
       const honour = () => this.honourAbort(pending)
       if (request.signal.aborted) queueMicrotask(honour)
@@ -692,19 +692,26 @@ class Run implements RunView, CallDesk {
     )
   }
 
+  /**
+   * The phase of the operation's request when a stop comes, for V6; `none` when the request was
+   * settled already by a line end (S01–S04: not in flight any more) or waits on no port.
+   */
+  private phaseAtStop(op: Op): Phase {
+    if (op.status !== 'waiting' && op.status !== 'sent') return 'none'
+    const lineEnded = this.ledger.events.some(event => event === 'ended' || event === 'broken')
+    const phase = phaseOf(this.pending, op.name)
+    return lineEnded && phase === 'sent' ? 'none' : phase
+  }
+
   private close(): void {
     this.closeCalled = true
-    // A request a line end already settled (S01–S04) is not in flight at close(); what close()
-    // answers is checked on the requests still waiting for the wire.
-    const lineEnded = this.ledger.events.some(event => event === 'ended' || event === 'broken')
     const phases = new Map<string, Phase>()
     for (const op of this.ops) {
       if (op.kind === 'close' || op.kind === 'cancel') continue
-      if (op.status !== 'waiting' && op.status !== 'sent') continue
       // A call whose signal fired is settled by the signal, not by close() (T5: first come).
       if (op.signalled) continue
-      const phase = this.requestPhaseOf(op)
-      if (!(lineEnded && phase === 'sent')) phases.set(op.name, phase)
+      const phase = this.phaseAtStop(op)
+      if (phase !== 'none') phases.set(op.name, phase)
     }
     this.phasesAtClose = phases
     this.invoke(
@@ -721,6 +728,8 @@ class Run implements RunView, CallDesk {
     const op = this.opNamed(name)
     if (op.signalled) throw new Nondeterminism(`${name} was signalled already`)
     op.signalled = true
+    const phase = this.phaseAtStop(op)
+    if (phase !== 'none') this.phasesAtSignal.set(op.name, phase)
     contexts.run({ op: op.name }, () => op.controller.abort())
   }
 
@@ -802,8 +811,12 @@ class Run implements RunView, CallDesk {
     this.calls = this.calls.filter(item => item !== pending)
     if (BREACHES.has(answer)) this.left.breaches -= 1
     else if (WIRE_FAULTS.has(answer)) this.left.wireFaults -= 1
-    this.account(pending.call, answer)
-    pending.settle(answer)
+    // A hung call never settles: it is kept so the properties still see what it waits for.
+    if (answer === HANG) this.hung.push(pending)
+    else {
+      this.account(pending.call, answer)
+      pending.settle(answer)
+    }
     await drain()
     this.afterStep()
   }
@@ -886,49 +899,11 @@ class Run implements RunView, CallDesk {
     for (const reason of this.unhandled.splice(0)) this.report([unhandledRejection(reason)])
     this.report(credentialAfterClose(this))
     this.report(rejectionsBounded(this, this.refusals, this.hasHandle))
-    this.report(this.boundedness())
+    this.report(unsettledAfterStop(this))
     this.report(closeOrder(this))
     this.report(closeReachesLine(this))
     this.report(resendBounded(this))
-    this.report(closeAnswers(this))
-  }
-
-  /**
-   * Whether `discover` read the answer to `initialize`: the authorization it waits for after that
-   * is the one of `notifications/initialized`, which is not a request.
-   */
-  private initialized(op: Op): boolean {
-    return (
-      op.kind === 'discover' &&
-      this.ledger.sent.some(
-        sent =>
-          sent.method === 'initialize' &&
-          sent.id !== undefined &&
-          op.requests.includes(sent.id) &&
-          this.delivered.has(sent.id),
-      )
-    )
-  }
-
-  /** The phase of the operation's request in flight, `none` when what it waits on is no request. */
-  private requestPhaseOf(op: Op): Phase {
-    const phase = phaseOf(this.pending, op.name)
-    return phase === 'authorizing' && this.initialized(op) ? 'none' : phase
-  }
-
-  /**
-   * V4 on the requests; `discover` waiting behind the authorization of `notifications/initialized`
-   * is a witness, not a violation: the notification is not a request (SPEC V4).
-   */
-  private boundedness(): Found[] {
-    const found: Found[] = []
-    for (const item of unsettledAfterStop(this)) {
-      const op = this.ops.find(candidate => item.detail.startsWith(`${candidate.name} `))
-      if (op !== undefined && item.signature === 'V4-unsettled-authorizing' && this.initialized(op))
-        this.notificationWaitsSeen = true
-      else found.push(item)
-    }
-    return found
+    this.report(stopAnswers(this))
   }
 
   private report(found: readonly Found[]): void {
@@ -988,7 +963,6 @@ export async function explore(
   const started = performance.now()
   const seen = new Set<string>()
   const found = new Map<string, Violation>()
-  let notificationWaits: readonly string[] | undefined
   const actions = new Set<string>()
   let runs = 0
   let depth = 0
@@ -1017,7 +991,6 @@ export async function explore(
       states += 1
       depth = Math.max(depth, path.length)
       if (states % 5000 === 0) progress(states, runs, depth)
-      if (notificationWaits === undefined && run.notificationWaits) notificationWaits = [...run.log]
       if (path.length === scenario.maxDepth) {
         frontier += 1
         await run.rest()
@@ -1064,6 +1037,5 @@ export async function explore(
     elapsedMs: Math.round(performance.now() - started),
     violations: [...found.values()],
     actions: [...actions].sort(),
-    notificationWaits,
   }
 }

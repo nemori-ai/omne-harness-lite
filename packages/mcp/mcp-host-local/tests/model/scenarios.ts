@@ -5,7 +5,8 @@ import type { Scenario } from './explore.ts'
 
 /**
  * The smallest scenario: Streamable HTTP with a handle, one `call` whose signal may fire, one
- * `close()`; the line answers or hangs, the handle authorizes or hangs, the line closes or hangs.
+ * `close()`; the line answers or is left pending, the handle authorizes or hangs for ever, the
+ * line closes or is left pending.
  */
 export const MINIMAL: Scenario = {
   name: 'minimal',
@@ -15,16 +16,16 @@ export const MINIMAL: Scenario = {
   lists: 0,
   close: true,
   signals: true,
-  answers: {},
-  breaches: 0,
+  answers: { 'credential.authorize': ['hang'] },
+  breaches: 1,
   wireFaults: 0,
 }
 
 /**
  * Streamable HTTP with a handle: one `call` with its signal, `close()`; the wire may refuse the
  * request (401, scoped 403, plain 403), fail before or after it left, or hold the answer stream
- * open and break it; the handle may fail, reject or hang; the metadata fetch may answer, miss or
- * reject. One wire fault and one breach per schedule.
+ * open and break it; the handle may fail, reject or hang for ever on either method; the metadata
+ * fetch may answer, miss, reject or hang for ever. One wire fault and one breach per schedule.
  */
 export const HTTP_CALL: Scenario = {
   name: 'http-call',
@@ -37,9 +38,9 @@ export const HTTP_CALL: Scenario = {
   answers: {
     'line.send': ['401', '403+scope', '403', '4xx', '5xx', 'unsent', 'aborted', 'stream', 'empty'],
     'stream.next': ['end', 'break'],
-    'credential.authorize': ['fail', 'reject'],
-    'credential.reportRejection': ['reject'],
-    fetchMetadata: ['none', 'reject'],
+    'credential.authorize': ['fail', 'reject', 'hang'],
+    'credential.reportRejection': ['reject', 'hang'],
+    fetchMetadata: ['none', 'reject', 'hang'],
   },
   breaches: 1,
   wireFaults: 1,

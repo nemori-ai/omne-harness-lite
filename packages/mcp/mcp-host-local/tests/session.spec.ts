@@ -1327,7 +1327,7 @@ describe('what the signal of a call and close() end (T5)', () => {
     await transport.close()
   })
 
-  it('does not send a call whose signal fired before it began, or one that fires while it is authorized', async () => {
+  it('does not send a call whose signal fired before it began; one that fires while it is authorized is not-sent, no SentCall (T5)', async () => {
     const early = open('streamable-http', {})
     expect(await early.transport.call(echo, AbortSignal.abort())).toEqual({ failure: NOT_SENT })
     expect(early.line.sent).toEqual([])
@@ -1338,11 +1338,9 @@ describe('what the signal of a call and close() end (T5)', () => {
     const controller = new AbortController()
     const calling = transport.call(echo, controller.signal)
     controller.abort()
+    expect(await settledWithin(calling)).toEqual({ settled: { failure: NOT_SENT } })
     held.release()
-    expect(await ok(await calling, 'call').answer).toEqual({
-      kind: 'no-answer',
-      cause: 'abandoned',
-    })
+    await tick()
     expect(line.sent).toEqual([])
     await transport.close()
   })
@@ -1553,6 +1551,190 @@ describe('a session that cannot be used any more sends nothing and asks no crede
     await transport.close()
     expect(await other.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
     expect(line.requests('tools/list')).toHaveLength(1)
+  })
+})
+
+/**
+ * A gate that never opens: the port hangs. The caller must not wait for it (T5): the signal and
+ * `close()` settle what the caller can see; the hung port call is the session's background work.
+ */
+const HANG: Gate = () => new Promise<void>(() => undefined)
+
+describe('the caller waits on the settlement, never on a port (T5): hung credential handle and metadata', () => {
+  it("authorize never answers: the call's signal settles call() with not-sent, and nothing reaches the line", async () => {
+    const { line, transport } = open('streamable-http', {}, { gate: HANG })
+    const controller = new AbortController()
+    const calling = transport.call(echo, controller.signal)
+    await tick()
+    controller.abort()
+    expect(await settledWithin(calling)).toEqual({ settled: { failure: NOT_SENT } })
+    expect(line.sent).toEqual([])
+    expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
+  })
+
+  it('authorize never answers: close() settles listActions() with not-sent and returns', async () => {
+    const { line, transport, credential } = open('streamable-http', {}, { gate: HANG })
+    const listing = transport.listActions()
+    await tick()
+    expect(credential.authorizations()).toBe(1)
+    expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
+    expect(await settledWithin(listing)).toEqual({ settled: { failure: NOT_SENT } })
+    expect(line.sent).toEqual([])
+  })
+
+  it('reportRejection never answers after a 401: close() returns at once and the request is authorization-required with what was fetched', async () => {
+    const credential = countingCredential()
+    const hanging: HttpCredentialHandle & typeof credential = {
+      ...credential,
+      reportRejection: () => {
+        credential.reportRejection()
+        return new Promise<void>(() => undefined)
+      },
+    }
+    const line = new MemoryLine('streamable-http', {
+      'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })],
+    })
+    const transport = new Session(
+      line,
+      {
+        kind: 'streamable-http',
+        target,
+        credential: hanging,
+        generation: generationOf(1),
+        instructionsByteLimit: 4096,
+      },
+      {
+        clientInfo: { name: 'host', version: '1' },
+        versions: VERSIONS,
+        probeTimeoutMs: 50,
+        fetchMetadata: async () => undefined,
+        schedule,
+      },
+    )
+    const listing = transport.listActions()
+    await untilSent(line, 'tools/list')
+    for (let round = 0; round < 50 && credential.rejections() === 0; round += 1) await tick()
+    expect(credential.rejections()).toBe(1)
+    expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
+    expect(await settledWithin(listing)).toEqual({
+      settled: {
+        failure: {
+          kind: 'not-sent',
+          cause: 'authorization-required',
+          discovery: {
+            resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
+            metadata: 'unavailable',
+            issuers: [],
+            scopes: [],
+          },
+        },
+      },
+    })
+  })
+
+  it("reportRejection never answers after a 401 to a call: the call's signal settles call() with authorization-required", async () => {
+    const credential = countingCredential()
+    const hanging: HttpCredentialHandle & typeof credential = {
+      ...credential,
+      reportRejection: () => {
+        credential.reportRejection()
+        return new Promise<void>(() => undefined)
+      },
+    }
+    const line = new MemoryLine('streamable-http', {
+      'tools/call': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })],
+    })
+    const transport = new Session(
+      line,
+      {
+        kind: 'streamable-http',
+        target,
+        credential: hanging,
+        generation: generationOf(1),
+        instructionsByteLimit: 4096,
+      },
+      {
+        clientInfo: { name: 'host', version: '1' },
+        versions: VERSIONS,
+        probeTimeoutMs: 50,
+        fetchMetadata: async () => undefined,
+        schedule,
+      },
+    )
+    const controller = new AbortController()
+    const calling = transport.call(echo, controller.signal)
+    await untilSent(line, 'tools/call')
+    for (let round = 0; round < 50 && credential.rejections() === 0; round += 1) await tick()
+    controller.abort()
+    expect(await settledWithin(calling)).toMatchObject({
+      settled: { failure: { kind: 'not-sent', cause: 'authorization-required' } },
+    })
+    expect(credential.rejections()).toBe(1)
+    await transport.close()
+  })
+
+  it('authorize never answers: cancelRequest on a legacy Streamable HTTP connection returns at once', async () => {
+    // The legacy path authorizes the probe, `initialize` and `notifications/initialized`; the call
+    // is the fourth authorization; the cancel notification, the fifth, hangs.
+    const held = holdAfter(4)
+    const { line, transport } = open(
+      'streamable-http',
+      {
+        'server/discover': [METHOD_NOT_FOUND],
+        initialize: [LEGACY],
+        'tools/call': [{ kind: 'silent' }],
+      },
+      { gate: held.gate },
+    )
+    ok(await transport.discover(), 'discover')
+    const sent = ok(await transport.call(echo, never), 'call')
+    expect(await settledWithin(transport.cancelRequest(sent.requestId))).toEqual({
+      settled: undefined,
+    })
+    expect(line.requests('notifications/cancelled')).toEqual([])
+    await transport.close()
+    expect(await sent.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
+  })
+
+  it('authorize never answers: close() settles a discover that waits to authorize the fallback GET', async () => {
+    // The probe and `initialize` are authorized; the GET of the fallback, the third, hangs.
+    const held = holdAfter(2)
+    const { line, transport } = open(
+      'streamable-http',
+      {
+        'server/discover': [METHOD_NOT_FOUND],
+        initialize: [status(404, '<html>not found</html>')],
+      },
+      { sse: { kind: 'entered' }, gate: held.gate },
+    )
+    const discovering = transport.discover()
+    await untilSent(line, 'initialize')
+    for (let round = 0; round < 20; round += 1) await tick()
+    expect(line.sseAttempts).toEqual([])
+    expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
+    expect(await settledWithin(discovering)).toEqual({ settled: { failure: NOT_SENT } })
+    expect(line.sseAttempts).toEqual([])
+  })
+
+  it('two callers closing at once both return after the line closed, from the one close', async () => {
+    const { line, transport } = open('stdio', {})
+    let release = (): void => undefined
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const closeLine = line.close.bind(line)
+    line.close = async () => {
+      await gate
+      await closeLine()
+    }
+    const first = transport.close()
+    const second = transport.close()
+    expect(await settledWithin(first, 30)).toBe('pending')
+    expect(await settledWithin(second, 30)).toBe('pending')
+    release()
+    expect(await settledWithin(first)).toEqual({ settled: undefined })
+    expect(await settledWithin(second)).toEqual({ settled: undefined })
+    expect(line.closeCount).toBe(1)
   })
 })
 

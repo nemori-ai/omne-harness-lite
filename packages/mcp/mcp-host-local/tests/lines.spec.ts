@@ -13,6 +13,7 @@ import { metadataFetcher } from '../src/authorization.ts'
 import { HttpLine } from '../src/http-line.ts'
 import type { LineEvent } from '../src/line.ts'
 import { StdioLine } from '../src/stdio-line.ts'
+import { settledWithin } from './fixtures/settle.ts'
 import { failOnUnhandledErrors } from './unhandled.ts'
 
 failOnUnhandledErrors()
@@ -194,6 +195,140 @@ describe('the stdio line and the signals it is given', () => {
       expect(exchange.kind).toBe('sent')
     }
     expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0)
+    await line.close()
+  })
+})
+
+/**
+ * A process whose stdin takes the first write and never completes the second (a full pipe at a
+ * peer that stopped reading), and records whether the write end was aborted.
+ */
+function stuckOnSecondWrite(): Readonly<{ handle: ProcessHandle; aborted: () => boolean }> {
+  let writes = 0
+  let aborted = false
+  const handle: ProcessHandle = {
+    stdin: new WritableStream<Uint8Array>(
+      {
+        write() {
+          writes += 1
+          return writes === 1 ? Promise.resolve() : new Promise<void>(() => undefined)
+        },
+        abort() {
+          aborted = true
+        },
+      },
+      { highWaterMark: 1 },
+    ),
+    stdout: new ReadableStream<Uint8Array>(),
+    stderr: new ReadableStream<string>(),
+    exited: new Promise<void>(() => undefined),
+    stop: async () => 'root-only',
+  }
+  return { handle, aborted: () => aborted }
+}
+
+describe('the stdio line and close() with writes in flight (T5, SPEC H6)', () => {
+  it('two overlapping writes, the first completes, then close(): close() returns at once and aborts the write end', async () => {
+    const process = stuckOnSecondWrite()
+    const line = new StdioLine(process.handle)
+    const never = new AbortController().signal
+    const first = line.send({ text: '{"small":1}', headers: new Headers() }, never)
+    const second = line.send({ text: '{"big":2}', headers: new Headers() }, never)
+    expect(await first).toEqual({ kind: 'sent' })
+    expect(await settledWithin(second, 30)).toBe('pending')
+    expect(await settledWithin(line.close())).toEqual({ settled: undefined })
+    expect(process.aborted()).toBe(true)
+  })
+})
+
+/** A process whose stdout is fed by the test, chunk by chunk, and records whether it was cancelled. */
+function fedProcess(): Readonly<{
+  handle: ProcessHandle
+  feed: (chunk: Uint8Array) => void
+  end: () => void
+  cancelled: () => boolean
+}> {
+  let out: ReadableStreamDefaultController<Uint8Array> | undefined
+  let cancelled = false
+  const handle: ProcessHandle = {
+    stdin: new WritableStream<Uint8Array>(),
+    stdout: new ReadableStream<Uint8Array>({
+      start(controller) {
+        out = controller
+      },
+      cancel() {
+        cancelled = true
+      },
+    }),
+    stderr: new ReadableStream<string>(),
+    exited: new Promise<void>(() => undefined),
+    stop: async () => 'root-only',
+  }
+  return {
+    handle,
+    feed: chunk => out?.enqueue(chunk),
+    end: () => out?.close(),
+    cancelled: () => cancelled,
+  }
+}
+
+/** The next event of the line, or `pending` when none came within the bound. */
+async function nextEvent(
+  events: AsyncIterator<LineEvent>,
+  bound?: number,
+): Promise<Readonly<{ settled: IteratorResult<LineEvent> }> | 'pending'> {
+  return settledWithin(events.next(), bound)
+}
+
+describe('the stdio line reads stdout by lines (T2, SPEC H8)', () => {
+  it('a line that spans many chunks and passes the byte bound before any newline breaks the stream and stops reading', async () => {
+    const process = fedProcess()
+    const line = new StdioLine(process.handle)
+    const events = line.events[Symbol.asyncIterator]()
+    const chunk = new Uint8Array(65_536).fill(0x78)
+    // 16 MiB is 256 chunks of 64 KiB; the 257th takes the line in progress above the bound.
+    for (let count = 0; count < 257; count += 1) process.feed(chunk)
+    expect(await nextEvent(events)).toEqual({
+      settled: { value: { kind: 'ended', stdoutEndedAt: expect.any(Number) }, done: false },
+    })
+    expect(process.cancelled()).toBe(true)
+    await line.close()
+  })
+
+  it('a write the process rejects is unsent, and so is every write after it (T8 X02)', async () => {
+    const line = new StdioLine({
+      stdin: new WritableStream<Uint8Array>({
+        write() {
+          return Promise.reject(new Error('EPIPE'))
+        },
+      }),
+      stdout: new ReadableStream<Uint8Array>(),
+      stderr: new ReadableStream<string>(),
+      exited: new Promise<void>(() => undefined),
+      stop: async () => 'root-only',
+    })
+    const never = new AbortController().signal
+    expect(await line.send({ text: '{"a":1}', headers: new Headers() }, never)).toEqual({
+      kind: 'unsent',
+    })
+    expect(await line.send({ text: '{"b":2}', headers: new Headers() }, never)).toEqual({
+      kind: 'unsent',
+    })
+    await line.close()
+  })
+
+  it('the last line of stdout is delivered when stdout ends without a newline after it', async () => {
+    const process = fedProcess()
+    const line = new StdioLine(process.handle)
+    const events = line.events[Symbol.asyncIterator]()
+    process.feed(new TextEncoder().encode('{"first":1}\n{"last":2}'))
+    process.end()
+    expect(await nextEvent(events)).toEqual({
+      settled: { value: { kind: 'line', text: '{"first":1}' }, done: false },
+    })
+    expect(await nextEvent(events)).toEqual({
+      settled: { value: { kind: 'line', text: '{"last":2}' }, done: false },
+    })
     await line.close()
   })
 })

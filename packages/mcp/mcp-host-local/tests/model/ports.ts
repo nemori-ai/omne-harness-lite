@@ -1,10 +1,12 @@
 // The ports of the explorer: the line, the credential handle, the metadata fetch and the
 // scheduler that `Session` is driven on. Every call the session makes on a port is a
-// `PortCall` that stays pending until the explorer settles it with one of the port's answers,
-// or leaves it pending forever (a hang). A port call that was given a signal does not settle by
-// itself when the signal fires: the explorer chooses whether the port honours the abort, answers
-// late, or hangs. The ports also keep the ledger of what went out and what came in, which the
-// properties read; none of them reads the session.
+// `PortCall` that stays pending until the explorer settles it with one of the port's answers.
+// The credential handle and the metadata fetch may also be answered `hang`: the call never
+// settles, not even when the run is driven to rest; the session must not make a caller wait for
+// it. A port call that was given a signal does not settle by itself when the signal fires: the
+// explorer chooses whether the port honours the abort, answers late, or hangs. The ports also
+// keep the ledger of what went out and what came in, which the properties read; none of them
+// reads the session.
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Ack } from '@omne-harness/operation-result'
@@ -34,17 +36,23 @@ export const PORT_ANSWERS = {
   'stream.next': ['result', 'ping', 'end', 'break'],
   'line.openGet': ['entered', '401', '403', '4xx', 'unsent', 'unavailable', 'reject'],
   'line.close': ['ok', 'reject'],
-  'credential.authorize': ['ok', 'fail', 'reject'],
-  'credential.reportRejection': ['ok', 'reject'],
-  fetchMetadata: ['ok', 'none', 'reject'],
+  'credential.authorize': ['ok', 'fail', 'reject', 'hang'],
+  'credential.reportRejection': ['ok', 'reject', 'hang'],
+  fetchMetadata: ['ok', 'none', 'reject', 'hang'],
 } as const
 
 export type PortName = keyof typeof PORT_ANSWERS
 export type AnswerOf<P extends PortName> = (typeof PORT_ANSWERS)[P][number]
 export type Answer = AnswerOf<PortName>
 
-/** A port answer that breaks the port's contract: a reject, a refused authorization. */
-export const BREACHES: ReadonlySet<Answer> = new Set<Answer>(['reject', 'fail'])
+/**
+ * A port answer that breaks the port's contract: a reject, a refused authorization, or a call
+ * that never answers (`hang`). Each spends the breach budget of the scenario.
+ */
+export const BREACHES: ReadonlySet<Answer> = new Set<Answer>(['reject', 'fail', 'hang'])
+
+/** The answer that never comes: the call is taken out of the answerable calls and stays pending. */
+export const HANG: Answer = 'hang'
 
 /**
  * A wire answer other than the lawful one: what the peer, the network or the process may do.
