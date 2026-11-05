@@ -1,8 +1,11 @@
-// The in-flight table of calls (SPEC S2): keyed by tenant, principal and correlation key. The
-// reservation is the duplicate check and the placeholder in one step. Entries stay for the run;
-// an ended key is not deleted. Each reservation carries the signal that a `cancel` fires, so the
-// call port stops waiting for the peer when the call is cancelled; the call port keeps the
-// request identifier itself, the table only answers whether the call is still current.
+// The in-flight table of calls (SPEC S2, MC-12): keyed by tenant, principal and correlation key.
+// The reservation is the duplicate check and the placeholder in one step, and it hands out the
+// one stop signal of the call: the caller's signal and this table's `cancel`, as one. The call
+// port waits under it from the reservation to the answer and concludes the key once, by the phase
+// the call reached: a sent call has ended; a call not sent has ended when its stop signal fired,
+// else it gives its place back. Entries stay for the run; an ended key is not deleted. The call
+// port keeps the request identifier itself; the table only answers whether a sent call is still
+// current.
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { CancelAnswer, CorrelationKey, Generation } from '@omne-harness/mcp-contract'
 import type { ConnectionView } from './entry.ts'
@@ -15,14 +18,15 @@ export type InFlightKey = Readonly<{
   correlationKey: CorrelationKey
 }>
 
+/** How far a call got when it concludes: not sent, or sent to the peer. */
+export type CallPhase = 'unsent' | 'sent'
+
+/** The stop signal of a call, and the controller `cancel` fires into it. */
+type Stopping = Readonly<{ stop: AbortSignal; cancel: AbortController }>
+
 type Entry =
-  | Readonly<{ phase: 'reserved'; cancelled: boolean; stop: AbortController }>
-  | Readonly<{
-      phase: 'sent'
-      generation: Generation
-      connection: ConnectionView
-      stop: AbortController
-    }>
+  | (Readonly<{ phase: 'reserved' }> & Stopping)
+  | (Readonly<{ phase: 'sent'; generation: Generation; connection: ConnectionView }> & Stopping)
   | Readonly<{ phase: 'ended' }>
 
 function textOf(key: InFlightKey): string {
@@ -32,56 +36,42 @@ function textOf(key: InFlightKey): string {
 export class InFlightCalls {
   readonly #entries = new Map<string, Entry>()
 
-  /** Checks for a duplicate and takes the place in one step. An ended key is free again. */
-  reserve(key: InFlightKey): 'reserved' | 'in-use' {
+  /**
+   * Checks for a duplicate and takes the place in one step; an ended key is free again. Answers
+   * the stop signal of the call: the caller's `signal` and this table's `cancel`, as one.
+   */
+  reserve(key: InFlightKey, signal: AbortSignal): AbortSignal | 'in-use' {
     const text = textOf(key)
     const existing = this.#entries.get(text)
     if (existing !== undefined && existing.phase !== 'ended') return 'in-use'
-    this.#entries.set(text, { phase: 'reserved', cancelled: false, stop: new AbortController() })
-    return 'reserved'
+    const cancel = new AbortController()
+    const stop = AbortSignal.any([signal, cancel.signal])
+    this.#entries.set(text, { phase: 'reserved', stop, cancel })
+    return stop
   }
 
-  /**
-   * The signal that `cancel` fires for a reserved or sent call: the call port waits under it.
-   * Undefined for a key that is not in flight.
-   */
-  stopOf(key: InFlightKey): AbortSignal | undefined {
-    const entry = this.#entries.get(textOf(key))
-    return entry === undefined || entry.phase === 'ended' ? undefined : entry.stop.signal
-  }
-
-  /**
-   * The call left on `connection`, at its generation of this moment. A cancel that came while the
-   * key was only reserved makes the answer `cancelled`: the call is on the wire, and the caller
-   * treats it as cancelled after the send; the key ends.
-   */
-  markSent(key: InFlightKey, connection: ConnectionView): 'sent' | 'cancelled' {
+  /** The call left on `connection` at `generation`: the generation the request was sent on. */
+  markSent(key: InFlightKey, connection: ConnectionView, generation: Generation): void {
     const text = textOf(key)
     const entry = this.#entries.get(text)
     if (entry?.phase !== 'reserved')
       throw new TypeError('markSent needs a reserved key; reserve it first')
-    if (entry.cancelled) {
-      this.#entries.set(text, { phase: 'ended' })
-      return 'cancelled'
-    }
-    this.#entries.set(text, {
-      phase: 'sent',
-      generation: connection.generation,
-      connection,
-      stop: entry.stop,
-    })
-    return 'sent'
+    const { stop, cancel } = entry
+    this.#entries.set(text, { phase: 'sent', generation, connection, stop, cancel })
   }
 
-  /** The call has its outcome. The key stays, as ended, for the rest of the run. */
-  markEnded(key: InFlightKey): void {
-    this.#entries.set(textOf(key), { phase: 'ended' })
-  }
-
-  /** Withdraws a reservation that a check before the send refused. A sent entry stays. */
-  release(key: InFlightKey): void {
+  /**
+   * The one conclusion of a call (MC-16 step 13). A sent call has ended. A call not sent has
+   * ended when its stop signal fired: the call existed and was cancelled, so a later `cancel`
+   * answers `no-call-in-flight`. A call not sent otherwise gives its place back: a later `cancel`
+   * answers `unknown`. A key that is not in flight is left as it is.
+   */
+  conclude(key: InFlightKey, phase: CallPhase): void {
     const text = textOf(key)
-    if (this.#entries.get(text)?.phase === 'reserved') this.#entries.delete(text)
+    const entry = this.#entries.get(text)
+    if (entry === undefined || entry.phase === 'ended') return
+    if (phase === 'sent' || entry.stop.aborted) this.#entries.set(text, { phase: 'ended' })
+    else this.#entries.delete(text)
   }
 
   /**
@@ -91,19 +81,17 @@ export class InFlightCalls {
    * signal fires: a reserved call is not sent, a sent call stops waiting for the peer.
    */
   cancel(key: InFlightKey): CancelAnswer {
-    const text = textOf(key)
-    const entry = this.#entries.get(text)
+    const entry = this.#entries.get(textOf(key))
     if (entry === undefined) return 'unknown'
     switch (entry.phase) {
       case 'ended':
         return 'no-call-in-flight'
       case 'reserved':
-        this.#entries.set(text, { ...entry, cancelled: true })
-        entry.stop.abort()
+        entry.cancel.abort()
         return 'signalled'
       case 'sent':
         if (!entry.connection.isCurrent(entry.generation)) return 'unknown'
-        entry.stop.abort()
+        entry.cancel.abort()
         return 'signalled'
       default: {
         const exhaustive: never = entry
