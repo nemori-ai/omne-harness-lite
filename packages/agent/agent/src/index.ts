@@ -9,6 +9,7 @@ export type {
   AgentRuntimeBinding,
   AgentRuntimeOptions,
   ToolCallAnswer,
+  ToolCallDescription,
 } from './construction.ts'
 
 export type {

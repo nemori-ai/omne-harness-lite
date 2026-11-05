@@ -804,7 +804,7 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 
 可信 Tool 请求来源可以不运行工具而直接作答一个调用（R2-D399）。本节把来源给出的文本称为作答正文，它与人对卡片的答复（`CardAnswer`）无关。
 
-- 来源的 `describe` 成功值是工具定义的采用 `Adoption`，或者作答 `{kind: 'answered', text}`；`text` 是作答正文。
+- 来源的 `describe` 成功值带种类标记：`{kind: 'tool', definition}` 给出要准入的工具定义的采用，`{kind: 'answered', text}` 给出作答正文 `text`。Agent 按 `kind` 分支，不按值的结构猜。
 - Agent 先把作答正文保存为 facts 材料，schema 是 `agent:tool-call-answer/1`，值是一个 JSON 字符串；材料标识带正文摘要。然后以 `denied` 判定这个动作：`evidence` 是 Agent 记录的作答证据，不是官方准入的拒绝证据；`answer` 指向这份材料。
 - 保存材料之后、提交判定之前进程崩溃时，A0 重新判断这个动作。来源再次作答，正文相同就认回同一份材料，正文不同就保存另一份。
 - 这只拒绝这一个动作，不是准入不可用；本批其他动作照常判断。全部动作都被作答时，按全部拒绝处置。
