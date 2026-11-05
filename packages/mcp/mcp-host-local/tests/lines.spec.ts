@@ -8,6 +8,9 @@ import { generationOf } from '@omne-harness/mcp-contract/testing'
 import { createLocalTransportFactory } from '@omne-harness/mcp-host-local'
 import { HttpLine } from '../src/http-line.ts'
 import { StdioLine } from '../src/stdio-line.ts'
+import { failOnUnhandledErrors } from './unhandled.ts'
+
+failOnUnhandledErrors()
 
 const BYTE_LIMIT = 16_777_216
 const NOT_SENT = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
