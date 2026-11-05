@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   originRef,
@@ -408,8 +408,15 @@ it('N2: a handover committed for an interrupted domain is held as stopping: it c
   expect(await stopping).toBe('unconfirmed')
   expect(f.stub.stops).toEqual([{ unit: unitOf(key), bootId }])
   expect(ledger.stopped).toEqual([[key, 'unconfirmed']])
-  // No marker: the stop is this process's to confirm; a crash leaves the unit to the closure sweep.
-  expect(await readdir(join(state, 'retained-processes')).catch(() => [])).toEqual([])
+  // The marker stays until the stop is confirmed: a restart now still lists the domain and counts it.
+  await vi.waitFor(async () =>
+    expect(await readdir(join(state, 'retained-processes'))).toEqual([`${key}.json`]),
+  )
+  const restarted = supervisor()
+  restarted.members(unitOf(key), [gatePid, 100])
+  const second = await indexWith(state, restarted, { capacity: 1 })
+  expect(await second.index.list(scope, tenant)).toMatchObject([{ process: { id: key } }])
+  expect(second.index.reserve(scope, tenant, 'another')).toBe('capacity')
   // Unconfirmed: the maintenance stops it again until the supervisor confirms.
   f.stub.answerStops({ status: 'confirmed' })
   expect(await f.index.maintain()).toBe(0)
@@ -419,7 +426,62 @@ it('N2: a handover committed for an interrupted domain is held as stopping: it c
     [key, 'confirmed'],
   ])
   expect(await f.index.list(scope, tenant)).toEqual([])
+  expect(await readdir(join(state, 'retained-processes'))).toEqual([])
   expect(typeof f.index.reserve(scope, tenant, 'another')).toBe('object')
+})
+
+it('keeps the marker of a domain whose stop began while the marker was written and is not confirmed', async () => {
+  const state = await stateDirectory()
+  const f = await indexWith(state, supervisor(), { capacity: 1 })
+  const scope = scopeOf('scope-a')
+  const ledger = ledgerStub()
+  f.stub.answerStops({ status: 'unconfirmed' })
+  const key = randomUUID()
+  const reservation = f.index.reserve(scope, tenant, key)
+  if (typeof reservation === 'string') throw new Error(`expected a reservation: ${reservation}`)
+  f.stub.members(unitOf(key), [gatePid, 100])
+  const committing = f.index.commit(reservation, {
+    unit: unitOf(key),
+    bootId,
+    origin: originRef('call-1'),
+    gatePid,
+    members: 1,
+    ledger: ledger.ledger,
+  })
+  // The scope closes while the marker write is in flight, and the supervisor does not confirm.
+  expect(await f.index.closeScope(scope, ledger.ledger)).toHaveLength(1)
+  expect((await committing).marker).toBe('written')
+  expect(await readdir(join(state, 'retained-processes'))).toEqual([`${key}.json`])
+  const restarted = supervisor()
+  restarted.members(unitOf(key), [gatePid, 100])
+  const second = await indexWith(state, restarted, { capacity: 1 })
+  expect(second.index.resources(scope)).toHaveLength(1)
+  expect(second.index.reserve(scope, tenant, 'another')).toBe('capacity')
+})
+
+it('rewrites the marker of a stopping domain that could not be written, while its stop is not confirmed', async () => {
+  const state = await stateDirectory()
+  const f = await indexWith(state)
+  const scope = scopeOf('scope-a')
+  await writeFile(join(state, 'retained-processes'), 'in the way')
+  f.stub.answerStops({ status: 'unconfirmed' })
+  const key = randomUUID()
+  const reservation = f.index.reserve(scope, tenant, key)
+  if (typeof reservation === 'string') throw new Error(`expected a reservation: ${reservation}`)
+  const ledger = ledgerStub()
+  const stopping = f.index.commitStopping(reservation, {
+    unit: unitOf(key),
+    bootId,
+    origin: originRef('call-1'),
+    gatePid,
+    members: 1,
+    ledger: ledger.ledger,
+  })
+  expect(await stopping).toBe('unconfirmed')
+  await vi.waitFor(() => expect(f.facts).toEqual([{ key, unit: unitOf(key), issue: 'notWritten' }]))
+  await rm(join(state, 'retained-processes'))
+  await f.index.maintain()
+  expect(await readdir(join(state, 'retained-processes'))).toEqual([`${key}.json`])
 })
 
 it('N2: a stop the acquisition already issued is the one the index waits for, recorded once', async () => {

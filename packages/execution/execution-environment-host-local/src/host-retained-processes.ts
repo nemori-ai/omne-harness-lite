@@ -94,8 +94,9 @@ export type RetainedProcessIndex = Readonly<{
    * The commit took effect, but the domain was stopped, released or its scope closed meanwhile:
    * the retention scope owns it, so the index holds it as stopping (synchronously: it keeps its
    * place and is listed), stops it or waits for the stop already issued, records the stop on
-   * `details.ledger`, and lets it go once confirmed. No marker is written: the stop is this
-   * process's to confirm, and after a crash the closure sweep of the scope finds the unit.
+   * `details.ledger`, and lets it go once confirmed. The marker is written as for any handover, so
+   * a stop not confirmed before a crash is listed again after it (as running: the marker does not
+   * carry the stop).
    */
   commitStopping(
     reservation: RetainedReservation,
@@ -144,7 +145,7 @@ type Entry = {
   stopping: Promise<StopStatus> | undefined
   /**
    * The marker on disk: `written` or loaded; `notWritten` when the write failed and the
-   * maintenance writes it again; `none` for a domain that is stopping from its commit on.
+   * maintenance writes it again; `none` for a reservation, before the commit.
    */
   marker: 'written' | 'notWritten' | 'none'
 }
@@ -250,12 +251,23 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     }
   }
 
-  /** Writes again a marker whose write failed; a domain stopped meanwhile gets no marker left behind. */
-  const rewriteMarker = async (entry: Entry): Promise<void> => {
-    if (entry.state !== 'running' || entry.marker !== 'notWritten') return
-    if (!(await writeMarker(entry))) return
+  /**
+   * Writes the marker of a handed-over entry. The marker stays from the commit until the entry left
+   * the index (its stop confirmed and recorded), running or stopping alike; a write that lands after
+   * the entry left is removed again.
+   */
+  const persist = async (entry: Entry): Promise<boolean> => {
+    entry.marker = 'notWritten'
+    if (!(await writeMarker(entry))) return false
     entry.marker = 'written'
-    if (entry.state !== 'running' || !entries.has(entry.key)) await removeMarker(entry)
+    if (!entries.has(entry.key)) await removeMarker(entry)
+    return true
+  }
+
+  /** Writes again a marker whose write failed, for an entry the index still holds. */
+  const rewriteMarker = async (entry: Entry): Promise<void> => {
+    if (entry.marker !== 'notWritten' || !entries.has(entry.key)) return
+    await persist(entry)
   }
 
   const discardMarker = async (name: string, key: string, unit: string): Promise<void> => {
@@ -386,8 +398,9 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       }
       const recorded = await recordStop(entry, reading.status)
       if (reading.status === 'confirmed' && recorded) {
-        await removeMarker(entry)
+        // Out of the index first: a marker write landing from now on removes itself.
         entries.delete(entry.key)
+        await removeMarker(entry)
       }
       return reading.status
     })().finally(() => {
@@ -417,9 +430,12 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     if (supervision === undefined) return entries.size
     await Promise.all(
       [...entries.values()].map(entry =>
-        entry.state === 'stopping' && entry.stopping === undefined
-          ? stop(entry).then(() => undefined)
-          : Promise.all([rewriteMarker(entry), observe(entry, supervision)]),
+        Promise.all([
+          rewriteMarker(entry),
+          entry.state === 'stopping' && entry.stopping === undefined
+            ? stop(entry)
+            : observe(entry, supervision),
+        ]),
       ),
     )
     return [...entries.values()].filter(entry => entry.state === 'stopping').length
@@ -514,13 +530,7 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     async commit(reservation, details) {
       const entry = committed(reservation, details)
       entry.state = 'running'
-      // Not durable until the write lands; a domain stopped meanwhile gets no marker left behind.
-      entry.marker = 'notWritten'
-      const written = await writeMarker(entry)
-      if (written) {
-        entry.marker = 'written'
-        if (entry.state !== 'running' || !entries.has(entry.key)) await removeMarker(entry)
-      }
+      const written = await persist(entry)
       startPolling()
       return {
         process: { id: entry.key, generation: entry.generation },
@@ -530,6 +540,8 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     commitStopping(reservation, details) {
       const entry = committed(reservation, details)
       const stopping = stop(entry, details.issued)
+      // Durable like any handover: a stop not confirmed before a crash is found again after it.
+      void persist(entry)
       startPolling()
       return stopping
     },
