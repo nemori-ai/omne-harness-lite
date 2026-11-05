@@ -65,7 +65,7 @@ it('reads frames split at any byte boundary, in order, with the data bytes intac
     { kind: 'started' },
     { kind: 'data', stream: 'stdout', bytes: encoder.encode('one\r\n') },
     { kind: 'data', stream: 'stderr', bytes: encoder.encode('\u001b[31mtwo') },
-    { kind: 'exit', exit: { kind: 'code', code: 3 } },
+    { kind: 'exit', exit: { kind: 'code', code: 3 }, members: null },
   ])
 })
 
@@ -81,7 +81,7 @@ it('reports a signal exit and a spawn failure', () => {
         ),
       ),
     ).at(-1),
-  ).toEqual({ kind: 'exit', exit: { kind: 'signal', signal: 'SIGTERM' } })
+  ).toEqual({ kind: 'exit', exit: { kind: 'signal', signal: 'SIGTERM' }, members: null })
   const failed = createGateReader({ maxChunkBytes: 64 })
   expect(
     framesOf(failed.push(joined(line({ t: 'ready' }), line({ t: 'spawnFailed', code: 'ENOENT' })))),

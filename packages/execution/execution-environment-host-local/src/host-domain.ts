@@ -20,6 +20,7 @@ import {
   createRetainedTerminalIndex,
   type RetainedTerminalIndex,
 } from './host-retained-terminals.ts'
+import type { RetainedProcessIndex } from './host-retained-processes.ts'
 import { hostFilesLimits } from './host-file-tree.ts'
 import {
   createHostFilesEngine,
@@ -125,6 +126,12 @@ export type EngineMembership = Readonly<{
 /** The domain's internal surface for its providers. It is not part of the package's public entry. */
 export type DomainInternals = Readonly<{
   retainedTerminals: RetainedTerminalIndex
+  /**
+   * The retained-process index of one state directory: the first provider of that directory makes
+   * it with `make`, every later one shares it, so their generations count one capacity and poll
+   * one set of units.
+   */
+  retainedProcesses(stateDirectory: string, make: () => RetainedProcessIndex): RetainedProcessIndex
   windowsCapacity(): WindowsTerminalCapacity
   /**
    * The engine for `settings`: the first request makes it, every later request with the same
@@ -354,6 +361,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
   const generations = new Set<string>()
   const records = new Map<string, DomainRecord>()
   const retainedTerminals = createRetainedTerminalIndex()
+  const retainedProcesses = new Map<string, RetainedProcessIndex>()
   let windowsCapacity: WindowsTerminalCapacity | undefined
   let nextOwner = 1
 
@@ -413,6 +421,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
     durability: 'process',
     async maintain() {
       let pending = await retainedTerminals.maintain()
+      for (const index of retainedProcesses.values()) pending += await index.maintain()
       for (const record of records.values())
         if (record.state === 'releasing' && (await drain(record, 0)).kind === 'pending') pending++
       return { pending }
@@ -421,6 +430,14 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
 
   internals.set(domain, {
     retainedTerminals,
+    retainedProcesses(stateDirectory, make) {
+      let index = retainedProcesses.get(stateDirectory)
+      if (index === undefined) {
+        index = make()
+        retainedProcesses.set(stateDirectory, index)
+      }
+      return index
+    },
     windowsCapacity: () => (windowsCapacity ??= createWindowsTerminalCapacity()),
     joinEngine: createEngineRegistry(),
     quota,
