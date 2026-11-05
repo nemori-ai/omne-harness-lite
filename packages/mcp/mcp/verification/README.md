@@ -68,14 +68,14 @@
 
 调用口的状态映射：
 
-| 模型变量（Calls.tla）                                                         | 探索器观察                                                                                                                 | 实现                          |
-| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `conn[k]`（`st`、`gen`）                                                      | `table.current(key)` 与它的代际                                                                                            | 连接表的条目                  |
-| `inflight[slot]`（`phase`、`cancelled`、`stopFired`、`gen`、`fib`）           | 在途表的计数视图：每次 `reserve`、`markSent`、`markEnded`、`release` 的调用与答复，归属于发起它的操作（`ReservationView`） | `in-flight.ts` 的 `#entries`  |
-| `tasks[slot]`（`account`、`owner`）                                           | `invoke` 答 `task` 结局的键（`tasksOf`）                                                                                   | `task-table.ts` 的 `#entries` |
-| `reqs[r].cancels`                                                             | 账本 `requests`：传输交出的每个请求号与它收到的 `cancelRequest` 次数                                                       | 传输                          |
-| `fib[i]` 的 `aborted`、`stopEarly`、`sends`、`sentOk`、`afterShut`、`cancels` | `OpView` 的 `aborted`、`stopped`、`stoppedBeforeSend`、`sends`、`sentOk`、`afterShut`、`cancelRequests`                    | 无（只为性质）                |
-| `timers`、`fired`（任务时限）                                                 | 探索器注入的时限 `T(k<op>)`，起在任务请求发出之后，附到那次请求上                                                          | `startBound(bound, 'task')`   |
+| 模型变量（Calls.tla）                                                         | 探索器观察                                                                                                                                                                                     | 实现                          |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `conn[k]`（`st`、`gen`）                                                      | `table.current(key)` 与它的代际                                                                                                                                                                | 连接表的条目                  |
+| `inflight[slot]`（`phase`、`cancelled`、`stopFired`、`gen`、`fib`）           | 在途表的计数视图：每次 `reserve`、`markSent`、`markEnded`、`release` 的调用与答复，归属于发起它的操作（`ReservationView`）；键的身份由探索器按（租户、主体文本、关联键）给出，不读实现的键文本 | `in-flight.ts` 的 `#entries`  |
+| `tasks[slot]`（`account`、`owner`）                                           | `invoke` 答 `task` 结局的键（`tasksOf`）                                                                                                                                                       | `task-table.ts` 的 `#entries` |
+| `reqs[r].cancels`                                                             | 账本 `requests`：传输交出的每个请求号与它收到的 `cancelRequest` 次数                                                                                                                           | 传输                          |
+| `fib[i]` 的 `aborted`、`stopEarly`、`sends`、`sentOk`、`afterShut`、`cancels` | `OpView` 的 `aborted`、`stopped`、`stoppedBeforeSend`、`sends`、`sentOk`、`afterShut`、`cancelRequests`                                                                                        | 无（只为性质）                |
+| `timers`、`fired`（任务时限）                                                 | 探索器注入的时限 `T(k<op>)`，起在任务请求发出之后，附到那次请求上                                                                                                                              | `startBound(bound, 'task')`   |
 
 两边的端口失败模型一一对应：答复、失败、reject、`unconfirmed`、同步抛出、挂起（永不选择答复）、迟到（先选 `fire` 再选答复）。
 
@@ -169,7 +169,7 @@ TLC 的配置、上限与结果见 [models/README.md](models/README.md#运行记
 
   TLA+ 的探针 `calls-probe-stop` 给出同一条最短反例（关口挂起）。P14 T1（静止时都已答复；模型里带 WF4 的活性）通过。
 
-- **F2 被放弃的调用的应答没有人读（P7）**。占位期间 `cancel`，`transport.call` 答 `ok` 之后 `markSent` 答 `cancelled`，`abandon` 走 `cancelRequest`，而 `called.ok.answer` 从未被 `ask` 读取；它 reject（契约 T9 允许，服务应读成 `no-answer` `abandoned`）时成为未处理的拒绝，缺省模式下使宿主崩溃。最短调度：`invoke A`，建连的端口各答 `ok`，`cancel A`，`answer transport.call:tA1 ok`，`answer transport.answer:r1 reject`。场景 `call-faults`。等待分支（`waitAtMost(ask(() => answer, …), stop)`）没有这个问题：`ask` 先挂上处理。
+- **F2 被放弃的调用的应答没有人读（P7）**。占位期间 `cancel`，`transport.call` 答 `ok` 之后 `markSent` 答 `cancelled`，`abandon` 走 `cancelRequest`，而 `called.ok.answer` 从未被 `ask` 读取；它 reject（契约 T9 允许，服务应读成 `no-answer` `abandoned`）时成为未处理的拒绝，缺省模式下使宿主崩溃。最短调度：`invoke A`，建连的端口各答 `ok`，`cancel A`，`answer transport.call:tA1 ok`，`answer transport.answer:r1 reject`。场景 `call-faults`。等待分支（`waitAtMost(ask(() => answer, …), stop)`）没有这个问题：`ask` 先挂上处理。修复轮要的事实：`markSent` 答 `cancelled` 的分支里，`called.ok.answer` 是一个没有处理函数的 promise，契约 T9 允许传输 reject 它；`abandon` 之前对它挂一个空处理（或经 `ask` 读它）就够，本页不定做法。
 
 M17（`markSent` 不看取消标记）在探索器与模型里都是等价变异：取消在占位期间到达时停止信号已经触发，`waitAtMost` 当即到期，同样走 `abandon`，`cancelRequest` 一次。外部动作只在静止时到达，所以「发出与登记之间」在探索器里没有可插入的点。
 

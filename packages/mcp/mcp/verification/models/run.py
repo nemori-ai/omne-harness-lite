@@ -59,6 +59,7 @@ CASES = {
     'calls-valid-task': None,
     'calls-valid-isolation': None,
     'calls-live': None,
+    # An equivalence record: a mutation that violates nothing, judged like a positive control.
     'calls-equiv-marksent-blind': None,
     'calls-probe-stop': 'P14_BoundedAfterStop',
     'calls-bad-send-despite-stop': 'P9_NotSentNotSent',
