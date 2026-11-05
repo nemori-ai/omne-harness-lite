@@ -4,17 +4,26 @@
 // one of the port's answers (`ok`, a failure, `reject`, or `unconfirmed` for `stop()`), or leaves
 // it pending forever (a hang). A call answered after its bound fired is a late answer. The ports
 // also keep the ledger of every resource they hand out, which the properties read.
+//
+// The call port (SPEC MC-16, MC-17) adds the transport's `call`, the peer's answer to a sent
+// call (`SentCall.answer`, a pending call of its own), `cancelRequest`, the four task methods,
+// the eligibility check of the gate, and the store's write that marking a catalog reaches once
+// the store holds one. A scenario with call operations gets a catalog of one action.
 import type { Access } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
+  ActionCatalogRecord,
   CatalogKey,
   ConnectionKey,
   CredentialBinding,
+  DefinitionDigest,
   EndpointHolding,
   Generation,
   McpPorts,
+  PeerAnswer,
   PeerIdentity,
   StopScope,
+  TaskReport,
 } from '@omne-harness/mcp-contract'
 import type {
   AdoptedEndpoint,
@@ -25,17 +34,20 @@ import type {
   ProcessCredentialHandle,
   ProcessHandle,
   ProcessPurpose,
+  SentCall,
+  TaskAnswer,
   TransportFailure,
   TransportMaterial,
 } from '@omne-harness/mcp-contract/provider'
 import type { AdmittedEndpoint } from '../../src/internal/gate.ts'
 import { catalogKeyTextOf } from '../../src/internal/text.ts'
-import { peerIdentityOf } from '@omne-harness/mcp-contract/testing'
+import { jsonOf, peerIdentityOf } from '@omne-harness/mcp-contract/testing'
 import { type Principal } from '../doubles/identities.ts'
 
 /** The answers of each port, the lawful one first. The closure phases answer with the first. */
 export const PORT_ANSWERS = {
   'adoption.endpoint': ['ok', 'fail', 'reject'],
+  'eligibility.check': ['ok', 'fail', 'reject'],
   'credentials.acquire': ['ok', 'fail', 'reject'],
   'landing.start': ['ok', 'fail', 'reject'],
   'transports.open': ['ok', 'fail', 'reject'],
@@ -44,6 +56,16 @@ export const PORT_ANSWERS = {
   'process.stop': ['ok', 'unconfirmed', 'reject'],
   'credential.release': ['ok', 'reject'],
   'store.read': ['ok', 'fail', 'reject'],
+  'store.write': ['ok', 'fail', 'reject'],
+  /** `ok`: sent, with a request id; `fail`: `not-sent` (`connection-unavailable`). */
+  'transport.call': ['ok', 'fail', 'reject'],
+  /** The peer's answer to a sent call. `ok`: the scenario's peer reply; `fail`: `no-answer`. */
+  'transport.answer': ['ok', 'fail', 'reject'],
+  'transport.cancelRequest': ['ok', 'reject'],
+  'transport.getTask': ['ok', 'fail', 'reject'],
+  'transport.getTaskResult': ['ok', 'fail', 'reject'],
+  'transport.updateTask': ['ok', 'fail', 'reject'],
+  'transport.cancelTask': ['ok', 'fail', 'reject'],
 } as const
 
 export type PortName = keyof typeof PORT_ANSWERS
@@ -52,13 +74,22 @@ export type Answer = (typeof PORT_ANSWERS)[PortName][number]
 /** A way a call can go other than its lawful answer; each one spends the deviation budget. */
 export type Deviation = Exclude<Answer, 'ok'> | 'throw'
 
-/** The ports whose calls the connection table waits for under a bound (MC-5). */
+/** The ports the task operations wait for under the task bound (MC-17). */
+export const TASK_PORTS: ReadonlySet<PortName> = new Set<PortName>([
+  'transport.getTask',
+  'transport.getTaskResult',
+  'transport.updateTask',
+  'transport.cancelTask',
+])
+
+/** The ports whose calls are waited for under a bound (MC-5 for the build, MC-17 for a task). */
 export const BOUNDED_PORTS: ReadonlySet<PortName> = new Set<PortName>([
   'adoption.endpoint',
   'credentials.acquire',
   'landing.start',
   'transports.open',
   'transport.discover',
+  ...TASK_PORTS,
 ])
 
 /** The three steps of the close order (MC-14). */
@@ -67,6 +98,22 @@ export const TEARDOWN_PORTS: ReadonlySet<PortName> = new Set<PortName>([
   'process.stop',
   'credential.release',
 ])
+
+/** The four task operations and the transport method each one sends. */
+export const TASK_METHODS = {
+  get: 'transport.getTask',
+  result: 'transport.getTaskResult',
+  input: 'transport.updateTask',
+  cancel: 'transport.cancelTask',
+} as const satisfies Record<string, PortName>
+
+export type TaskMethod = keyof typeof TASK_METHODS
+
+/** What the peer answers to a sent call when the answer is lawful. */
+export type PeerReply = 'complete' | 'task'
+
+/** The one task id of the model: the task the peer answers with when the reply is `task`. */
+export const TASK_ID = 't1'
 
 /** One connection key of the scenario: who asks, for what, and the token the gate gave. */
 export type ModelKey = Readonly<{
@@ -77,6 +124,8 @@ export type ModelKey = Readonly<{
   admitted: AdmittedEndpoint
   connectionKey: ConnectionKey
   catalogKeyText: string
+  /** The digest of the one action in the catalog, for `expectedDefinition`. */
+  digest: DefinitionDigest
 }>
 
 /** What a call was made under: the client operation it descends from, and its bound. */
@@ -112,10 +161,12 @@ export type CallRequest<T> = Readonly<{
   port: PortName
   key: string
   subject: string
-  /** The value of an answer that does not reject. */
-  value: (answer: Exclude<Answer, 'reject'>) => T
+  /** The value of an answer that does not reject, given the call as it was made. */
+  value: (answer: Exclude<Answer, 'reject'>, call: ScriptedPortCall) => T
   /** Told how the call ended: an answer, or that it threw when it was made. */
   ended?: (how: Answer | 'throw') => void
+  /** The context the call belongs to, for a call made outside the operation's async context. */
+  context?: Context
 }>
 
 /** The explorer side of the ports: it registers each call and decides whether it throws now. */
@@ -141,11 +192,23 @@ export type TransportRecord = {
   closes: number
 }
 
+/** A request the transport sent: who sent it, and how often it was told to cancel it (P10). */
+export type RequestRecord = {
+  readonly id: string
+  readonly key: string
+  readonly op: string | undefined
+  cancels: number
+}
+
 /** Every resource the ports handed out, with what was asked of it. */
 export type Ledger = Readonly<{
   handles: HandleRecord[]
   processes: ProcessRecord[]
   transports: TransportRecord[]
+  /** The requests sent, in order; the peer's answer to each is a pending call. */
+  requests: RequestRecord[]
+  /** `cancelRequest` for a request id the transport never handed out (P10). */
+  strayCancels: string[]
   /** Arguments of one call that name two keys (P5). */
   crossings: string[]
   /** Handles released while a process that carries them had no answer to `stop()` (P1, S9). */
@@ -159,19 +222,39 @@ export function emptyLedger(): Ledger {
     handles: [],
     processes: [],
     transports: [],
+    requests: [],
+    strayCancels: [],
     crossings: [],
     earlyReleases: [],
     names: new WeakMap(),
   }
 }
 
+/** What the ports answer besides the lifecycle: the catalog, and the peer's reply to a call. */
+export type PortOptions = Readonly<{
+  /** The catalog the store holds for every key; absent in the lifecycle scenarios. */
+  catalog?: ActionCatalogRecord
+  peer?: PeerReply
+}>
+
 function notModelled(member: string): never {
   throw new TypeError(`${member} is outside the lifecycle model`)
 }
 
 const PEER: PeerIdentity = peerIdentityOf()
-const NOT_SENT: TransportFailure = { kind: 'not-sent', cause: 'connection-unavailable' }
-const STREAM_BROKEN: TransportFailure = { kind: 'no-answer', cause: 'stream-broken' }
+type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
+type NoAnswer = Extract<PeerAnswer, { kind: 'no-answer' }>
+const NOT_SENT: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
+const STREAM_BROKEN: NoAnswer = { kind: 'no-answer', cause: 'stream-broken' }
+const WORKING: TaskReport = { status: 'working' }
+const NOT_FINISHED: TaskAnswer = { kind: 'not-finished' }
+
+/** The peer's lawful reply to a call: a complete result with no content, or the task handle. */
+function replyOf(peer: PeerReply): PeerAnswer {
+  return peer === 'task'
+    ? { kind: 'result', result: jsonOf({ resultType: 'task', taskId: TASK_ID }) }
+    : { kind: 'result', result: jsonOf({ resultType: 'complete', content: [] }) }
+}
 
 function stopScopeOf(answer: Exclude<Answer, 'reject'>): StopScope {
   return answer === 'ok' ? 'tree-confirmed' : 'unconfirmed'
@@ -183,15 +266,17 @@ function nameOf(prefix: string, key: ModelKey, records: readonly { key: string }
 
 /**
  * The MCP ports on `desk`, for `keys`. Stdio with a process credential only: the HTTP purpose,
- * eligibility, the listing and the store's write are not reached by the connection table.
+ * the listing and the output check are not reached by the connection table or the call port.
  */
 export function scriptedPorts(
   desk: CallDesk,
   keys: readonly ModelKey[],
   ledger: Ledger,
+  options: PortOptions = {},
 ): McpPorts<Principal, string> {
   const handleOf = new WeakMap<object, HandleRecord>()
   const processOf = new WeakMap<object, ProcessRecord>()
+  const peer = options.peer ?? 'complete'
 
   const keyOfAccess = (access: Access<Principal>): ModelKey =>
     keys.find(item => item.access === access) ?? notModelled('an access outside the scenario')
@@ -258,6 +343,38 @@ export function scriptedPorts(
     return process
   }
 
+  /**
+   * A call the transport sent: the request is recorded, and the peer's answer is a pending call
+   * of its own, under the context of the call that sent it (made outside that context, at the
+   * moment the explorer answers `transport.call`).
+   */
+  function sentCallFor(key: ModelKey, context: Context | undefined): SentCall {
+    const record: RequestRecord = {
+      id: `r${ledger.requests.length + 1}`,
+      key: key.name,
+      op: context?.op,
+      cancels: 0,
+    }
+    ledger.requests.push(record)
+    const answer = desk.open<PeerAnswer>({
+      port: 'transport.answer',
+      key: key.name,
+      subject: record.id,
+      value: how => (how === 'ok' ? replyOf(peer) : STREAM_BROKEN),
+      ...(context === undefined ? {} : { context }),
+    })
+    return { requestId: record.id, answer }
+  }
+
+  function taskCall<T>(key: ModelKey, port: PortName, subject: string, value: T) {
+    return desk.open<Outcome<T, TransportFailure>>({
+      port,
+      key: key.name,
+      subject,
+      value: answer => (answer === 'ok' ? { ok: value } : { failure: NOT_SENT }),
+    })
+  }
+
   function transportFor(key: ModelKey, generation: Generation): McpTransport {
     const record: TransportRecord = {
       name: nameOf('t', key, ledger.transports),
@@ -285,12 +402,32 @@ export function scriptedPorts(
         })
       },
       listActions: () => notModelled('transport.listActions'),
-      call: () => notModelled('transport.call'),
-      cancelRequest: () => notModelled('transport.cancelRequest'),
-      getTask: () => notModelled('transport.getTask'),
-      updateTask: () => notModelled('transport.updateTask'),
-      getTaskResult: () => notModelled('transport.getTaskResult'),
-      cancelTask: () => notModelled('transport.cancelTask'),
+      // The stop signal is not read: the explorer decides whether the call was sent (T5).
+      call: () =>
+        desk.open<Outcome<SentCall, NotSent>>({
+          port: 'transport.call',
+          key: key.name,
+          subject: record.name,
+          value: (answer, call) =>
+            answer === 'ok' ? { ok: sentCallFor(key, call.context) } : { failure: NOT_SENT },
+        }),
+      cancelRequest(requestId) {
+        const request = ledger.requests.find(item => item.id === requestId)
+        if (request === undefined) ledger.strayCancels.push(requestId)
+        else request.cancels += 1
+        return desk.open({
+          port: 'transport.cancelRequest',
+          key: key.name,
+          subject: requestId,
+          value: () => undefined,
+        })
+      },
+      getTask: taskId =>
+        taskCall<TaskReport | 'expired'>(key, 'transport.getTask', taskId, WORKING),
+      updateTask: taskId => taskCall<'accepted'>(key, 'transport.updateTask', taskId, 'accepted'),
+      getTaskResult: taskId =>
+        taskCall<TaskAnswer>(key, 'transport.getTaskResult', taskId, NOT_FINISHED),
+      cancelTask: taskId => taskCall<'requested'>(key, 'transport.cancelTask', taskId, 'requested'),
     }
     ledger.names.set(transport, record.name)
     return transport
@@ -324,6 +461,11 @@ export function scriptedPorts(
     })
   }
 
+  const keyOfCatalog = (catalogKey: CatalogKey): ModelKey => {
+    const text = catalogKeyTextOf(catalogKey)
+    return keys.find(item => item.catalogKeyText === text) ?? notModelled('a foreign catalog key')
+  }
+
   return {
     adoption: {
       endpoint(access, ref) {
@@ -340,7 +482,20 @@ export function scriptedPorts(
       },
       endpoints: () => notModelled('adoption.endpoints'),
     },
-    eligibility: { check: () => notModelled('eligibility.check') },
+    eligibility: {
+      check(access, endpoint) {
+        const key = keyOfAccess(access)
+        if (endpoint.holding !== key.holding)
+          ledger.crossings.push(`eligibility for ${key.name} names ${endpoint.holding}`)
+        return desk.open({
+          port: 'eligibility.check',
+          key: key.name,
+          subject: key.name,
+          value: answer =>
+            answer === 'ok' ? { kind: 'granted' } : { kind: 'refused', reason: 'not-eligible' },
+        })
+      },
+    },
     credentials: { acquire },
     landing: {
       start(access, _launch, env) {
@@ -379,18 +534,25 @@ export function scriptedPorts(
       },
     },
     store: {
-      read(catalogKey: CatalogKey) {
-        const text = catalogKeyTextOf(catalogKey)
-        const key =
-          keys.find(item => item.catalogKeyText === text) ?? notModelled('a foreign catalog key')
-        return desk.open<Outcome<'absent', 'unavailable'>>({
+      read(catalogKey) {
+        const key = keyOfCatalog(catalogKey)
+        return desk.open<Outcome<ActionCatalogRecord | 'absent', 'unavailable'>>({
           port: 'store.read',
           key: key.name,
           subject: key.name,
-          value: answer => (answer === 'ok' ? { ok: 'absent' } : { failure: 'unavailable' }),
+          value: answer =>
+            answer === 'ok' ? { ok: options.catalog ?? 'absent' } : { failure: 'unavailable' },
         })
       },
-      write: () => notModelled('store.write'),
+      write(catalogKey) {
+        const key = keyOfCatalog(catalogKey)
+        return desk.open<Outcome<true, 'unavailable' | 'revision-conflict'>>({
+          port: 'store.write',
+          key: key.name,
+          subject: key.name,
+          value: answer => (answer === 'ok' ? { ok: true } : { failure: 'revision-conflict' }),
+        })
+      },
     },
     checkOutput: () => notModelled('checkOutput'),
   }
