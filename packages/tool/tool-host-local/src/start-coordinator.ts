@@ -49,6 +49,8 @@ import {
   REQUIREMENTS_UNAVAILABLE,
   type StartPermitRequirements,
 } from './start-permit-requirements.ts'
+import type { ToolRequestAccess } from './ledger-guards.ts'
+import { qualifyRequestAccess } from './start-guard.ts'
 
 type TenantId = LedgerDomain['tenant']
 
@@ -92,6 +94,7 @@ export type LocalStartCoordinatorInput<P, B extends ContentBlock = ContentBlock>
   store: ToolLedgerStore<B>
   /** Proves the principal, the tenant and the call; a forged tenant is denied. */
   access: StartCoordinatorAccess<P>
+  requestAccess?: ToolRequestAccess<P>
   /** Required for new starts. Omission fails closed while existing acceptances remain readable. */
   permitRequirements?: StartPermitRequirements<P>
   /** The guard resources that apply to a request; each becomes one guard of its permit. */
@@ -663,7 +666,7 @@ function snapshotOf<B extends ContentBlock>(
 export function createLocalStartCoordinator<P, B extends ContentBlock = ContentBlock>(
   input: LocalStartCoordinatorInput<P, B>,
 ): ToolStartAuthority<P> {
-  const { store, access, guardsOf, commitAttempts, permitRequirements } = input
+  const { store, access, guardsOf, commitAttempts, permitRequirements, requestAccess } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
   const turnTimeoutMs = input.turnTimeoutMs ?? commitAttempts * TURN_MS_PER_ATTEMPT
@@ -829,6 +832,12 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
         }
         const currentAccess = await qualify(principal, tenant, call, 'start')
         if ('failure' in currentAccess) return reply(currentAccess)
+        const policy = await qualifyRequestAccess(requestAccess, {
+          ...checked.ok,
+          request: request.ok,
+        })
+        if (policy.kind === 'denied') return reply(fail({ kind: 'denied', action: 'start' }))
+        if (policy.kind === 'unavailable') return reply(unavailable(policy.diagnostic))
         const requirement = await checkStartPermitRequirement(
           permitRequirements,
           Object.freeze({ ...checked.ok, start: start.ok, request: request.ok }),
@@ -928,6 +937,10 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
             return rejectStart(tenant, stored, revision, 'access-denied-before-start')
           return reply(unknownProgress('access-guard unavailable'))
         }
+        const policy = await qualifyRequestAccess(requestAccess, { ...checked.ok, request })
+        if (policy.kind === 'denied')
+          return rejectStart(tenant, stored, revision, 'request-access-denied-before-start')
+        if (policy.kind === 'unavailable') return reply(unknownProgress(policy.diagnostic))
         const requirement = await checkStartPermitRequirement(
           permitRequirements,
           Object.freeze({ ...checked.ok, start: permit.ok.start, request }),

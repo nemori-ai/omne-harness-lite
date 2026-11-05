@@ -39,3 +39,32 @@ it('reports unavailable at host capacity one without running a target effect', a
     await world.close()
   }
 })
+
+it('does not run a forwarded target when its current policy denies after preparation', async () => {
+  let targetChecks = 0
+  const world = await fixture(undefined, undefined, 2, true, {
+    qualify: async ({ request }) => {
+      if (request.availability.definition.name === 'Tools') return { kind: 'allowed' }
+      targetChecks++
+      return targetChecks < 3
+        ? { kind: 'allowed' }
+        : { kind: 'denied', reason: 'target-rule-revoked' }
+    },
+  })
+  try {
+    const parent = accepted(await world.api.invoke(world.forwardInvocation('policy-target')))
+    await world.settled(parent)
+    const answer = world.forwarded[0]
+    if (answer?.kind !== 'pending') throw new Error(JSON.stringify(answer))
+    await world.settled(answer.reference)
+    expect(targetChecks).toBeGreaterThanOrEqual(3)
+    expect(world.launches()).toBe(0)
+    expect(unbox(await world.api.queries.lookup(world.query(answer.reference)))).toMatchObject({
+      kind: 'found',
+      state: { execution: { kind: 'not-started' } },
+    })
+    await expect.poll(() => world.plugins.diagnostics().executor?.knownCalls).toBe(0)
+  } finally {
+    await world.close()
+  }
+})

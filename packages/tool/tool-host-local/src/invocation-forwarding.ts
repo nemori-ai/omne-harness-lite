@@ -225,7 +225,7 @@ export function createInvocationForwarding<P, B extends ContentBlock>(
       operation: row.admission,
       request: row.request,
     })
-    if (source.kind === 'forged') return denied()
+    if (source.kind === 'forged' || source.kind === 'denied') return denied()
     if (source.kind !== 'trusted') return unavailable()
     const qualified = await input.authority.qualify({ ...parent, consumer: row.request.consumer })
     if (qualified.kind === 'denied') return denied()

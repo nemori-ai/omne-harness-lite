@@ -62,6 +62,7 @@ export {
   localArgumentLimits,
   type LocalToolLedgerGuardsInput,
   type ToolHostAccess,
+  type ToolRequestAccess,
 } from './ledger-guards.ts'
 export {
   createLocalInvocationSource,

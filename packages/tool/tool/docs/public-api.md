@@ -68,3 +68,5 @@ The cases have stable `name` and `clause` fields. Direct consumption and the evi
 ## 受信转发工厂
 
 [createToolForwardRuntime](../src/runtime-forwarding.ts) 接收窄准入依赖与 provider `ToolForwardSource`，返回独立 `ToolForwardRuntime`。普通 invoke 与该工厂共用 [runtime-admission.ts](../src/runtime-admission.ts)。来源、容量预约与结果接收责任见 [单目标转发准入](../SPEC.md#单目标转发准入)。
+
+`SourceVerdict.denied` 在 [ledger-guards.ts](../src/ledger-guards.ts) 区分真实来源的当前策略拒绝与 forged。准入拒绝和 fact acknowledgement 拒绝均保留原责任，见同节行为约定。

@@ -268,3 +268,11 @@ source.receiver 在同一关联内保存完整交付和 saved 证据。接收先
 运行时 composition 对普通和 forwarded source 共用 known-call 预约，并在 provider facade 注册独立 receiver。host capacity 至少 2 才能同时拥有父与目标；capacity 为 1 明确 unavailable。资源并发为 1 时目标可排队，父返回 pending 后释放资源，目标继续推进。全局重启扫描仍未支持，恢复限于已知原引用。
 
 验证资源是 [来源反例](tests/forwarding.spec.ts)、[接收故障](tests/forwarding-receiver.spec.ts)、[能力收场](tests/forwarding-capability.spec.ts) 和 [组合验证](tests/runtime-composition/forwarding.spec.ts)。组合测试使用真实 Cordis、ledger、启动协调器和执行绑定，存储及外部环境是显式替身，不证明真实耐久或跨进程运行。
+
+## 目标请求当前资格
+
+host-only `ToolRequestAccess.qualify` 接收真实 CallAccess 与完整 FixedToolRequest，返回当前 AccessVerdict。应用拥有规则解释和当前代次。ToolHostAccess.request 可配置该端口，装配将同一端口传给 local start guard 与 coordinator 的 requestAccess。未配置时保留独立提供者的既有行为。配置后缺答复、坏答复或抛错均为 unavailable，不获得启动资格。
+
+start guard 先保留 M2 programmatic 围栏，再核当前调用身份，最后核目标策略。策略 denied 为 refused。coordinator 在 prepare 和 consume 的每次 CAS 重试中，于当前调用身份核验后、permitRequirements 前重问目标策略。prepare 的 denied 直接拒绝；consume 的 denied 用既有 rejected 与 exclusion 保存未启动事实，unavailable 保留 unknown，不写 acceptance。
+
+consume 与 inspect 先认回原 started 或 rejected 历史，不用新规则改写既成事实。新增策略不撤销已发生副作用，也不提供外部撤权与存储提交原子同步的保证。验证见 [请求策略反例](tests/request-access.spec.ts) 和 [真实执行绑定组合](tests/runtime-composition/forwarding.spec.ts)。

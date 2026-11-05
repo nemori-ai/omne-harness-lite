@@ -158,13 +158,13 @@
 
 本包铸造的每种证据都定位租户与调用（P01 的身份是 `(tenant, call, operation)`）。`record` 是种类加定位值的规范 JSON，租户写成两段身份文本；`digest` 覆盖种类、定位值与内容。各种类的定位值如下：
 
-| 种类 | 定位值 |
-| --- | --- |
-| `state` | 租户、调用 |
-| `result` | 租户、调用、版本、交付号、产生该版本的操作（ResultPage.source 的"实际来源"） |
-| `delivery` | 租户、调用、版本、交付号 |
-| `operation` | 租户、调用、操作 |
-| `account` | 租户、调用、账目事件 |
+| 种类        | 定位值                                                                       |
+| ----------- | ---------------------------------------------------------------------------- |
+| `state`     | 租户、调用                                                                   |
+| `result`    | 租户、调用、版本、交付号、产生该版本的操作（ResultPage.source 的"实际来源"） |
+| `delivery`  | 租户、调用、版本、交付号                                                     |
+| `operation` | 租户、调用、操作                                                             |
+| `account`   | 租户、调用、账目事件                                                         |
 
 所以两个租户用同一调用号时，每种证据的 `record` 与 `digest` 都不同。
 
@@ -506,3 +506,5 @@ release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送
 `createToolForwardRuntime(dependencies, source)` 是受信 provider 工厂。它与普通 invoke 共用来源解析之后的准入、未知映射、原调用查询和调度路径。forwarding 不调用普通 invoke，也不直接启动 executor。source 的完整固定请求原样进入 admissions，programmatic 许可及现有启动围栏继续生效。
 
 resume 只查询来源已有槽。槽未确认时回复 association-unknown，不推断历史准入未发生。目标 identities 已知而写入回执未知时回复 commit-unknown，引用保持不变。此工厂不扩大普通 ToolRuntime 接口；宿主还须提供相同的容量预约与独立结果接收者。
+
+SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 将其映射为 denied admit，不写入新准入。forged 继续表示来源证明不匹配。共用此判定的 fact acknowledgement 对 denied 返回 denied write，保留原待确认责任，不把拒绝当作可信来源或暂时不可读。

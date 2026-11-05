@@ -143,3 +143,5 @@ Configure `createLocalInvocationSource` with optional `forwarding: { authority, 
 Use `createLocalToolForwarding` with lazy runtime, catalog, consumer profile, target preparation and result reader functions. Pass its `bind` method as the execution bindings' optional `capability` hook. Call its `close` during provider shutdown and inspect the returned unknown count. A parent finishing does not cancel its fixed target. Set host known-call capacity to at least two; resource concurrency may remain one.
 
 The [member specification](SPEC.md#单目标转发来源与保管) defines the current guarantees and test scope. Programmatic start and global restart discovery retain their existing restrictions. Protocol tests over an in-memory store do not establish durability.
+
+`ToolHostAccess.request` accepts an optional `ToolRequestAccess` for current target policy. The assembly passes it to the start guard and coordinator as `requestAccess`. A configured policy must answer on every preparation and consume attempt. Unavailable or malformed answers cannot authorize a start. See [request policy](SPEC.md#目标请求当前资格).

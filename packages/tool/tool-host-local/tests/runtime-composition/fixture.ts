@@ -48,6 +48,7 @@ import { createLocalToolLoader } from '../../src/author-loader.ts'
 import { createLocalToolBindingRegistry } from '../../src/bindings.ts'
 import { createLocalToolCatalog } from '../../src/catalog.ts'
 import { createLocalToolClock } from '../../src/clock.ts'
+import type { ToolRequestAccess } from '@omne-harness/tool-host-local'
 import { createLocalGrantVerifiers } from '../../src/grant-verifiers.ts'
 import { createLocalInvocationSource } from '../../src/invocation-source.ts'
 import type { ToolEnvironmentValue } from '../../src/author-environment.ts'
@@ -87,6 +88,7 @@ export async function fixture(
   receiver?: ToolResultReceiver<unknown, ToolMessageContentBlock>,
   capacity = 32,
   enableForwarding = false,
+  requestAccess?: ToolRequestAccess<unknown>,
 ) {
   const root = new Context()
   const memory = createMemoryToolLedgerStore<ToolMessageContentBlock>()
@@ -133,7 +135,11 @@ export async function fixture(
     input.principal === principal(input.tenant)
       ? { kind: 'allowed' as const }
       : { kind: 'denied' as const, reason: 'fixture-denied' }
-  const access = { guard: { qualify }, start: { qualify } }
+  const access = {
+    guard: { qualify },
+    start: { qualify },
+    ...(requestAccess === undefined ? {} : { request: requestAccess }),
+  }
   const sources = createLocalInvocationSource({
     store,
     ...(enableForwarding

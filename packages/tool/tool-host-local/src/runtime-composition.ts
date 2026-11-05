@@ -336,7 +336,8 @@ export function createRuntimeSourceAccess(
         operation: call.admission,
         request: call.request,
       })
-      if (verified.kind === 'forged') return fail({ kind: 'denied', action: 'recover' })
+      if (verified.kind === 'forged' || verified.kind === 'denied')
+        return fail({ kind: 'denied', action: 'recover' })
       if (verified.kind !== 'trusted') return runtimeUnavailable('invocation-source')
       for (const action of ['recover', 'write'] as const) {
         const verdict = await input.access.guard.qualify({ ...access, action })

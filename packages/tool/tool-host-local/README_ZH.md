@@ -140,3 +140,5 @@ view 为 null 时返回 unavailable。search 显式配置，例如 `{ k1: 1.2, b
 `createLocalToolForwarding` 接收惰性 runtime、catalog、consumer profile、目标 prepare 和 reader。把 bind 交给执行绑定的可选 capability 接缝。提供者退出时等待 close，并核对返回的 unknown 数。父调用结束不取消已固定目标。host known-call 容量至少为 2，资源并发仍可为 1。
 
 精确行为和验证边界见[成员规格](SPEC.md#单目标转发来源与保管)。programmatic 启动和全局重启发现保持既有限制。内存存储上的协议测试不能证明耐久性。
+
+`ToolHostAccess.request` 可选配置当前目标策略 `ToolRequestAccess`。装配将其作为 requestAccess 传给 start guard 与 coordinator。配置后每次 prepare 和 consume 尝试都重问策略。不可用或坏答复不能授予启动资格。精确结果见[目标请求当前资格](SPEC.md#目标请求当前资格)。
