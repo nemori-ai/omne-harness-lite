@@ -265,6 +265,13 @@ function scopeOf(text: string): ListedScope {
   return { ref: text }
 }
 
+/** A stand-in `systemctl` script that prints `text` as it is. */
+const printing = (text: string) => `cat <<'OMNE_EOF'\n${text}\nOMNE_EOF`
+
+/** `systemctl show -p Id -p Description` output: one key=value block per unit. */
+const shown = (blocks: readonly (readonly string[])[]) =>
+  blocks.map(lines => lines.join('\n')).join('\n\n')
+
 /** Runs `check` with a stand-in `systemctl` that answers the listing with `body` (a shell script). */
 async function withSystemctl(body: string, check: (systemctl: string) => Promise<void>) {
   const directory = await realpath(await mkdtemp(join(tmpdir(), 'omne-host-systemctl-')))
@@ -284,41 +291,51 @@ const listing = (systemctl: string, scope: ListedScope) =>
 it.skipIf(!onLinux)('lists the scopes whose description names the requester scope', async () => {
   const scope = scopeOf('scope-listing-a')
   const key = '0b9c3a2e-5f0d-4d7e-9c51-2a0e6c1d4b7f'
-  const failedKey = '3e8a1f60-2c4b-4d9e-a7f1-5b6c8d0e2f43'
+  const secondKey = '3e8a1f60-2c4b-4d9e-a7f1-5b6c8d0e2f43'
   const otherKey = '6d1c0f4a-7a2b-4f19-8f3c-9b0a5e2d7c11'
-  const lines = [
-    `omne-host-${key}.scope   loaded active running ${scopeDescription(scope, key)}`,
-    `● omne-host-${failedKey}.scope loaded failed failed  ${scopeDescription(scope, failedKey)}`,
-    `omne-host-${otherKey}.scope loaded active running ${scopeDescription(scopeOf('scope-listing-b'), otherKey)}`,
-    'omne-host-probe-1b2c3d4e-0000-4000-8000-000000000000.scope loaded active running omne-host probe',
-  ]
-  await withSystemctl(
-    `printf '%s\\n' ${lines.map(line => `'${line}'`).join(' ')}`,
-    async systemctl => {
-      const answer = await listing(systemctl, scope)
-      if (answer.kind !== 'listed') throw new Error(`expected a listing: ${JSON.stringify(answer)}`)
-      expect(answer.resources.map(resource => resource.key)).toEqual([key, failedKey])
-    },
-  )
+  const output = shown([
+    [`Id=omne-host-${key}.scope`, `Description=${scopeDescription(scope, key)}`],
+    // systemd prints the properties in its own order, not in the order of `-p`.
+    [`Description=${scopeDescription(scope, secondKey)}`, `Id=omne-host-${secondKey}.scope`],
+    [
+      `Id=omne-host-${otherKey}.scope`,
+      `Description=${scopeDescription(scopeOf('scope-listing-b'), otherKey)}`,
+    ],
+    [
+      'Id=omne-host-probe-1b2c3d4e-0000-4000-8000-000000000000.scope',
+      'Description=omne-host probe',
+    ],
+  ])
+  await withSystemctl(printing(output), async systemctl => {
+    const answer = await listing(systemctl, scope)
+    if (answer.kind !== 'listed') throw new Error(`expected a listing: ${JSON.stringify(answer)}`)
+    expect(answer.resources.map(resource => resource.key)).toEqual([key, secondKey])
+  })
   await withSystemctl('exit 0', async systemctl => {
     expect(await listing(systemctl, scope)).toEqual({ kind: 'listed', resources: [] })
   })
 })
 
 it.skipIf(!onLinux)(
-  'answers unavailable, not an empty list, when the listing command fails or does not answer a list',
+  'answers unavailable, not an empty list, when the listing command fails or prints what it cannot read',
   async () => {
     const scope = scopeOf('scope-listing-a')
-    const failing = 'echo "Failed to connect to bus" >&2; exit 1'
-    await withSystemctl(failing, async systemctl => {
-      expect(await listing(systemctl, scope)).toEqual({ kind: 'unavailable' })
-    })
-    await withSystemctl('echo "not json"', async systemctl => {
-      expect(await listing(systemctl, scope)).toEqual({ kind: 'unavailable' })
-    })
-    await withSystemctl('echo "{}"', async systemctl => {
-      expect(await listing(systemctl, scope)).toEqual({ kind: 'unavailable' })
-    })
+    const key = '0b9c3a2e-5f0d-4d7e-9c51-2a0e6c1d4b7f'
+    const ours = [`Id=omne-host-${key}.scope`, `Description=${scopeDescription(scope, key)}`]
+    const unreadable = [
+      'echo "Failed to connect to bus" >&2; exit 1',
+      printing('not a property'),
+      printing(shown([ours, [`Id=omne-host-${key}.scope`]])),
+      printing(shown([ours, [`Description=${scopeDescription(scope, key)}`]])),
+      printing(shown([ours, ['Id=omne-other.service', 'Description=omne-host']])),
+      printing(
+        `omne-host-${key}.scope loaded deactivating stop-sigterm stop ${scopeDescription(scope, key)}`,
+      ),
+    ]
+    for (const body of unreadable)
+      await withSystemctl(body, async systemctl => {
+        expect(await listing(systemctl, scope)).toEqual({ kind: 'unavailable' })
+      })
     expect(await listing('/nonexistent/omne-systemctl', scope)).toEqual({ kind: 'unavailable' })
   },
 )

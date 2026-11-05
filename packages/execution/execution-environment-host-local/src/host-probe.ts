@@ -9,8 +9,10 @@ import {
   readBootId,
   runTool,
   type ScopeTools,
+  type StopStatus,
   type Supervisor,
 } from './host-scope.ts'
+import { noUnifiedHierarchyExit } from './scope-cgroup.ts'
 
 /** Milliseconds on the monotonic clock, for the age of a probe answer. */
 const monotonicMs = () =>
@@ -18,9 +20,9 @@ const monotonicMs = () =>
 
 /**
  * The platform prerequisites of the host `command` facility: P1 Linux, P3 `systemd-run` and
- * `systemctl` on PATH, P4 a running user manager, P5 a process in a scope finds the unified cgroup
- * directory of its unit and is listed there, P6 a probe scope that starts and whose forced stop the
- * supervisor confirms.
+ * `systemctl` on PATH, P4 a running user manager, P5 a process in a scope sees the unified cgroup
+ * hierarchy, P6 the process finds itself listed in its unit's directory and the supervisor confirms
+ * the forced stop of the probe scope.
  */
 export type HostCommandPrerequisite =
   | 'linux'
@@ -84,16 +86,27 @@ const scopeProbeScript = fileURLToPath(
   ),
 )
 
+type ScopeProbeItem = 'cgroup-v2' | 'scope-round-trip'
+
 /**
- * P5 and P6 in one probe scope: the program in it finds itself in the unified cgroup directory of
- * its unit (P5), exits 0, and the forced stop of the scope is confirmed (P6).
+ * The items a probe scope leaves unsatisfied: P5 when its program saw no unified hierarchy, P6 when
+ * the program failed otherwise, did not exit in time, or the forced stop is not confirmed.
  */
-async function scopeRoundTrip(
-  tools: ScopeTools,
-  boundMs: number,
-): Promise<'cgroup-v2' | 'scope-round-trip' | undefined> {
+export function scopeProbeMissing(
+  code: number | null | 'late',
+  stop: StopStatus,
+): readonly ScopeProbeItem[] {
+  const missing: ScopeProbeItem[] = []
+  if (code === noUnifiedHierarchyExit) missing.push('cgroup-v2')
+  if ((code !== 0 && code !== noUnifiedHierarchyExit) || stop !== 'confirmed')
+    missing.push('scope-round-trip')
+  return missing
+}
+
+/** P5 and P6 in one probe scope that runs the scope probe program. */
+async function probeScope(tools: ScopeTools, boundMs: number): Promise<readonly ScopeProbeItem[]> {
   const bootId = await readBootId()
-  if (bootId === undefined) return 'scope-round-trip'
+  if (bootId === undefined) return ['scope-round-trip']
   const unit = `omne-host-probe-${randomUUID()}.scope`
   const launcher = launchScope({
     tools,
@@ -118,8 +131,7 @@ async function scopeRoundTrip(
     boundMs,
     launcherExited: exited.then(() => undefined),
   })
-  if (code === 3) return 'cgroup-v2'
-  return code === 0 && stop.status === 'confirmed' ? undefined : 'scope-round-trip'
+  return scopeProbeMissing(code, stop.status)
 }
 
 /** P3 and P4: the tools by absolute path and a running user manager, or the item that is missing. */
@@ -140,10 +152,8 @@ export async function probeCommandPrerequisites(boundMs: number): Promise<Prereq
   if (process.platform !== 'linux') return { kind: 'unsatisfied', missing: ['linux'] }
   const tools = await resolveScopeTools(boundMs)
   if (typeof tools === 'string') return { kind: 'unsatisfied', missing: [tools] }
-  const failed = await scopeRoundTrip(tools, boundMs)
-  return failed === undefined
-    ? { kind: 'satisfied', tools }
-    : { kind: 'unsatisfied', missing: [failed] }
+  const missing = await probeScope(tools, boundMs)
+  return missing.length === 0 ? { kind: 'satisfied', tools } : { kind: 'unsatisfied', missing }
 }
 
 /** The probe of one provider generation: started at creation, a satisfied answer kept for the generation. */

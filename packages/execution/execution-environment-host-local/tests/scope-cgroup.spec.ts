@@ -1,11 +1,17 @@
 // Where the unified cgroup hierarchy keeps a scope, read from `/proc/self/cgroup` and
 // `/proc/self/mountinfo` text: unified, hybrid and legacy systemd layouts, a mount that shows only
-// a subtree, and escaped mount points. The last test runs the probe program outside its own unit.
+// a subtree, and escaped mount points; then where a process stands for one unit. The last test runs
+// the probe program outside its own unit.
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
-import { unifiedCgroupDirectory } from '../src/scope-cgroup.ts'
+import {
+  noUnifiedHierarchyExit,
+  ownUnitPlacement,
+  unifiedCgroupDirectory,
+  unitPlacement,
+} from '../src/scope-cgroup.ts'
 
 const unit = 'omne-host-0b9c3a2e-5f0d-4d7e-9c51-2a0e6c1d4b7f.scope'
 const scopePath = `/user.slice/user-1001.slice/user@1001.service/${unit}`
@@ -48,6 +54,42 @@ it('maps the path below the root of a mount that shows only a subtree, and skips
   expect(
     unifiedCgroupDirectory(`0::${scopePath}\n`, [elsewhere, unifiedAt('/mnt/cg2')].join('\n')),
   ).toBe(`/mnt/cg2${scopePath}`)
+  // A root is a whole path segment: `/user.slice/user-10` does not contain `user-1001.slice`.
+  const prefix = unifiedAt('/sys/fs/cgroup', '/user.slice/user-10')
+  expect(unifiedCgroupDirectory(`0::${scopePath}\n`, prefix)).toBeUndefined()
+  expect(unifiedCgroupDirectory(`0::${scopePath}\n`, unifiedAt('/mnt', scopePath))).toBe('/mnt')
+  expect(unifiedCgroupDirectory(`0::${scopePath}\n`, unifiedAt('/', '/user.slice'))).toBe(
+    `/user-1001.slice/user@1001.service/${unit}`,
+  )
+  expect(unifiedCgroupDirectory(`0::/user.slice\n`, unifiedAt('/', '/user.slice'))).toBe('/')
+})
+
+it('places a process in its unit only on its own cgroup path, even where the mount root is that path', () => {
+  const hybrid = [tmpfsV1, unifiedAt('/sys/fs/cgroup/unified'), systemdV1].join('\n')
+  expect(unitPlacement(unit, `0::${scopePath}\n`, hybrid)).toEqual({
+    kind: 'inUnit',
+    directory: `/sys/fs/cgroup/unified${scopePath}`,
+  })
+  expect(unitPlacement(unit, `0::${scopePath}\n`, unifiedAt('/mnt', scopePath))).toEqual({
+    kind: 'inUnit',
+    directory: '/mnt',
+  })
+  const otherScope = `/user.slice/user-1001.slice/user@1001.service/omne-host-other.scope`
+  expect(unitPlacement(unit, `0::${otherScope}\n`, hybrid)).toEqual({ kind: 'otherUnit' })
+  expect(unitPlacement('', `0::/\n`, unifiedAt('/sys/fs/cgroup'))).toEqual({ kind: 'otherUnit' })
+  expect(unitPlacement(`x/${unit}`, `0::/x/${unit}\n`, unifiedAt('/sys/fs/cgroup'))).toEqual({
+    kind: 'otherUnit',
+  })
+})
+
+it('sees no unified hierarchy on a legacy host, where the kernel still prints a 0:: line', () => {
+  const legacy = [tmpfsV1, systemdV1].join('\n')
+  expect(unitPlacement(unit, `1:name=systemd:${scopePath}\n0::/\n`, legacy)).toEqual({
+    kind: 'noUnifiedHierarchy',
+  })
+  expect(unitPlacement(unit, `1:name=systemd:${scopePath}\n`, legacy)).toEqual({
+    kind: 'noUnifiedHierarchy',
+  })
 })
 
 it('decodes the octal escapes of a mount point', () => {
@@ -57,13 +99,15 @@ it('decodes the octal escapes of a mount point', () => {
 })
 
 it(
-  'exits 3 when the probe program does not run in the unit it is named for',
+  'fails when the probe program does not run in the unit it is named for',
   // Slow: starts a Node process.
   { tags: ['slow'], skip: process.platform !== 'linux' },
   async () => {
     const program = fileURLToPath(new URL('../dist/scope-probe.js', import.meta.url))
     const child = spawn(process.execPath, [program, unit], { stdio: 'ignore' })
     const [code] = await once(child, 'exit')
-    expect(code).toBe(3)
+    // The probe program reads the same host as this test process.
+    const visible = ownUnitPlacement(unit).kind !== 'noUnifiedHierarchy'
+    expect(code).toBe(visible ? 1 : noUnifiedHierarchyExit)
   },
 )

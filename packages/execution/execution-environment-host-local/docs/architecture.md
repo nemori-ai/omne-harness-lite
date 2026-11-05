@@ -21,7 +21,9 @@ Linux 的 `retainedHostTerminalFactory` 在 `host-terminal.ts` 复用原 PTY gat
 | 同上                                                    | `src/host-domain.ts`                                            | 宿主文件责任域 `createHostFilesDomain`：获取记录、门面、配额与排空                                                                            |
 | 同上                                                    | `src/host-provider.ts`                                          | 宿主文件提供者 `createHostFilesProvider`                                                                                                      |
 | 同上                                                    | `src/host-command.ts`、`src/host-scope.ts`、`src/host-probe.ts` | 宿主命令设施、systemd 用户 scope 与平台前提探测，见[宿主命令机制](#宿主命令机制)                                                              |
+| 同上                                                    | `src/scope-cgroup.ts`                                           | 进程在 cgroup v2 统一层级里的位置与单元成员，只用 Node 的内置模块；平台前提探测、探测程序与终端 gate 共用（不从根入口导出）                   |
 | 门进程脚本，不是入口                                    | `src/command-gate.ts`                                           | 命令的门进程，由宿主命令设施按文件路径起                                                                                                      |
+| 探测程序脚本，不是入口                                  | `src/scope-probe.ts`                                            | 平台前提 P5 与 P6 的探测程序，由平台前提探测按文件路径在探测单元里起                                                                          |
 | `@omne-harness/execution-environment-host-local/cordis` | `src/cordis.ts`                                                 | Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin`、插件工厂 `createHostFilesPlugin`、空配置 Schema                      |
 
 | 模块                       | 持有的状态                                                                                                                                                                           | 承担的 SPEC 行为                                                                     |
@@ -51,6 +53,10 @@ flowchart LR
   Command --> Scope[host-scope.ts]
   Probe --> Scope
   Command -. 起门进程 .-> Gate[command-gate.ts]
+  Probe --> Cgroup[scope-cgroup.ts]
+  Probe -. 在探测单元里起 .-> ScopeProbe[scope-probe.ts]
+  ScopeProbe --> Cgroup
+  TerminalGate[terminal-gate.ts] --> Cgroup
   Cordis[./cordis] --> Provider
   Cordis --> EE[execution-environment]
   Cordis --> EECC[execution-environment-cordis-contract]
@@ -192,8 +198,8 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 | 模块                  | 承担                                                                     |
 | --------------------- | ------------------------------------------------------------------------ |
 | `src/host-probe.ts`   | 平台前提 P1、P3～P6 的探测与这一代的探测结果                             |
-| `src/scope-probe.ts`  | 探测单元里运行的程序脚本：P5 成立时以 0 退出，否则以 3 退出，不被任何模块导入 |
-| `src/scope-cgroup.ts` | 从 `/proc/self/cgroup` 与 `/proc/self/mountinfo` 解析单元在统一层级里的目录与成员。只用 Node 的内置模块，探测程序与终端 gate 共用 |
+| `src/scope-probe.ts`  | 探测单元里运行的程序脚本：看不到统一层级时以 3 退出，被自己单元的目录列出时以 0 退出，其余以 1 退出。不被任何模块导入 |
+| `src/scope-cgroup.ts` | 从 `/proc/self/cgroup` 与 `/proc/self/mountinfo` 判断进程在统一层级里的位置（在单元里、看不到层级、在别的单元、读不到）与单元成员。只用 Node 的内置模块，平台前提探测、探测程序与终端 gate 共用 |
 | `src/host-scope.ts`   | systemd 用户 scope：起单元、强制停止与确认、按描述列举、引用的读写       |
 | `src/command-gate.ts` | 门进程脚本。它在命令的单元里运行，只用 Node 的内置模块，不被任何模块导入 |
 | `src/host-command.ts` | 每份获取的命令门面：前置检查、启动、帧的读取、有界缓冲、进程句柄与停止   |
@@ -209,8 +215,8 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 | 结局               | 门在主进程退出后等两条管道关闭，或者等输出安静 100 毫秒，再发退出帧。命令留在后台的进程可能占着管道，所以不能只等管道关闭。只有收到退出帧才是 `completed`，其余是 `failed`（`effectUnknown`）。不写回执文件，也没有身份目录                                                                                 |
 | 停止与确认         | 强制停止：`systemctl --user kill --kill-whom=all --signal=SIGKILL`，再 `stop`（退出码 5 按已不在），等门进程退出，最后用 `systemctl --user show -p LoadState -p ActiveState` 读到 `inactive` 或 `not-found` 才报 `confirmed`，上界内会再读。平和停止只把 `SIGTERM` 发给主进程，超时报 `unconfirmed`，不升级 |
 | 超时               | 启动、平和停止与强制停止都有上界。启动超时答 `unknown`，资源留在这份获取，由释放、结清或退役停止                                                                                                                                                                                                            |
-| 平台前提           | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 探测单元里的程序在 cgroup v2 统一层级里找到自己的单元目录、P6 探测单元往返。P5 不检查固定的挂载点，层级的位置只取内核对本进程的报告，所以 systemd 的统一模式与混合模式都满足。提供者创建时在后台探测。不满足时启动答 `unavailable`，`files` 照常可用。不用猜测的进程号或假后端顶替                                                                                                               |
-| 冷恢复             | 列举读 `omne-host-*.scope` 单元的描述，选出这个作用域的单元。列举读 `systemctl list-units --plain --no-legend --full` 的文本行，不用 `--output=json`，因为较旧的 systemctl 对这项列举忽略它。恢复只接受本提供者写下的单元名。启动身份变了直接视为已停止，否则按强制停止序列停止并核对。它不重启命令，也不接回输出                                                                                                                           |
+| 平台前提           | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 探测单元里的程序看得到 cgroup v2 统一层级、P6 同一个探测单元里的程序被自己单元的目录列出，单元的强制停止得到确认。探测程序是 `scope-probe.ts`，看不到统一层级时以 3 退出。提供者创建时在后台探测。不满足时启动答 `unavailable`，`files` 照常可用。不用猜测的进程号或假后端顶替                                                                                                               |
+| 冷恢复             | 列举用 `systemctl --user show -p Id -p Description 'omne-host-*.scope'` 读各单元的 key=value 块，选出描述属于这个作用域的单元。读不懂的块、缺属性的块与别的单元名使整个列举答 `unavailable`。恢复只接受本提供者写下的单元名。启动身份变了直接视为已停止，否则按强制停止序列停止并核对。它不重启命令，也不接回输出                                                                                                                           |
 
 理由：
 
@@ -218,6 +224,8 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 - 每个进程一个单元，所以停止只作用于这一次调用。同一份获取的另一个进程照常运行。
 - 门一侧的暂停与管理端的丢弃分开处理两种压力：前者限制门的内存，后者限制管理端的内存，命令不会因为没有读者而被永远阻塞。
 - 退役强制停止这一代仍在运行的命令。把它们列为待处置资源再交给后继的一代需要更多机制，M2 没有这个需求（D1 结论第 3 条）。代价：配置重载以 `effectUnknown` 结束这些命令。
+- 统一层级的位置取单元里的进程从内核读到的报告：`/proc/self/cgroup` 的 `0::` 行给路径，`/proc/self/mountinfo` 里包含该路径的 `cgroup2` 挂载给目录。systemd 在统一模式下把层级挂在 `/sys/fs/cgroup`，在混合模式下挂在 `/sys/fs/cgroup/unified`，所以固定路径只在一种布局下成立。探测程序与终端 gate 用同一份解析（`scope-cgroup.ts`），所以 P5 与 P6 满足时，gate 的核对也找得到同一个目录。
+- 列举读 `systemctl show`，不读 `list-units`。`list-units` 的文本只在有单元带着待执行的任务（例如正在停止）时多出一列 JOB，列数随单元状态变化。systemd 245 对 `list-units` 忽略 `--output=json`。`show` 的 key=value 块在这些版本上格式相同，正在停止的单元也照常列出。
 
 下图是一次命令的时序：管理端在宿主提供者里，门进程与命令在执行域里。
 
@@ -294,7 +302,7 @@ sequenceDiagram
 | 登记表与提供者经契约套件                                                                   | [contract-conformance.spec.ts](../tests/contract-conformance.spec.ts)                                                                                                                                                                                                                                                                           | 无                                                                                                                        |
 | 根入口不导入 Cordis                                                                        | [public-entry.spec.ts](../tests/public-entry.spec.ts)                                                                                                                                                                                                                                                                                           | 新增根入口模块时加入文件清单                                                                                              |
 | 两条块的发布                                                                               | 没有                                                                                                                                                                                                                                                                                                                                            | 随 Runtime Context 生产者插件进入                                                                                         |
-| `command` 的宿主机制                                                                       | [host-command.spec.ts](../tests/host-command.spec.ts)（真实 `systemd-run`、门进程与 `systemctl`，只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行）、[host-command-frames.spec.ts](../tests/host-command-frames.spec.ts)（帧读取、缓冲与确认判断，两个平台）、[host-probe.spec.ts](../tests/host-probe.spec.ts)（改变真实环境后的前提探测） | 真实的 `failed` 单元状态未验证；Windows 上的 `unavailable` 由派发者在 Windows 复跑；终端验证单列于下行                    |
+| `command` 的宿主机制                                                                       | [host-command.spec.ts](../tests/host-command.spec.ts)（真实 `systemd-run`、门进程与 `systemctl`，只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行）、[host-command-frames.spec.ts](../tests/host-command-frames.spec.ts)（帧读取、缓冲与确认判断，两个平台）、[host-probe.spec.ts](../tests/host-probe.spec.ts)（改变真实环境后的前提探测）、[scope-cgroup.spec.ts](../tests/scope-cgroup.spec.ts)（统一层级的位置，用文本样本） | 真实的 `failed` 单元状态未验证；Windows 上的 `unavailable` 由派发者在 Windows 复跑；终端验证单列于下行                    |
 
 维护规则：
 

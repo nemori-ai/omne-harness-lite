@@ -3,7 +3,7 @@ import { closeSync, constants, mkdirSync, openSync, readSync, writeSync } from '
 import { createRequire } from 'node:module'
 import { Socket } from 'node:net'
 import { join } from 'node:path'
-import { ownScopeDirectory, scopeMembers } from './scope-cgroup.ts'
+import { ownUnitPlacement, scopeMembers } from './scope-cgroup.ts'
 
 type Initial = {
   generation: string
@@ -94,13 +94,13 @@ function writeAvailable(fd: number, bytes: Buffer): Buffer {
 }
 
 function inOwnScope(): boolean {
-  return ownScopeDirectory(unit) !== undefined
+  return ownUnitPlacement(unit).kind === 'inUnit'
 }
 
 function noOtherWriters(): boolean {
   if (pty === undefined) return false
-  const directory = ownScopeDirectory(unit)
-  const members = directory === undefined ? undefined : scopeMembers(directory)
+  const placement = ownUnitPlacement(unit)
+  const members = placement.kind === 'inUnit' ? scopeMembers(placement.directory) : undefined
   if (members === undefined) return false
   return (
     members.includes(process.pid) &&
