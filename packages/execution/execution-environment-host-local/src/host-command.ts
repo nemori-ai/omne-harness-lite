@@ -377,7 +377,7 @@ export type DispositionInput = Readonly<{
 
 export type Disposition =
   /** The domain stays with the acquisition and is stopped; `residue` says why. */
-  | Readonly<{ kind: 'stop'; residue: ResidueReport }>
+  | Readonly<{ kind: 'stop'; residue: Extract<ResidueReport, { kind: 'none' | 'stopping' }> }>
   /** The commit took effect: the retention scope owns the domain. */
   | Readonly<{ kind: 'retained'; reservation: RetainedReservation }>
   /** The commit took effect, but the domain was released, stopped or its scope closed meanwhile. */
@@ -493,7 +493,7 @@ export type HostCommandsInput = Readonly<{
   /** The requester scope of the acquisition; the scope unit's description records it for the listing. */
   scope: ScopeRef
   /** The tenant of the acquisition; the retained-process index files its entries by it. */
-  tenant?: TenantId | undefined
+  tenant: TenantId
   settings: CommandSettings
   prerequisites: PrerequisiteProbe
   /** The retention binding of the acquisition, when the integrator gave one. */
@@ -687,7 +687,6 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     retention !== undefined &&
     processes !== undefined &&
     retained !== undefined &&
-    tenant !== undefined &&
     retention.scope.ref === input.scope.ref
       ? { scope: retention.scope, released: retention.released, processes, index: retained, tenant }
       : undefined
@@ -776,7 +775,7 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     if (retentionBinding === undefined) return 'policy'
     const { scope, released, processes: view, index } = retentionBinding
     return {
-      closed: () => released.aborted || view.closed.aborted,
+      closed: scopeClosed,
       reserve: () => index.reserve(scope, retentionBinding.tenant, entry.resource.key),
       plan: () => view.plan(entry.resource),
       adopt: () => view.adopt(entry.resource.key),

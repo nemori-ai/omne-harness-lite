@@ -415,6 +415,55 @@ describe('the acquisition ledger keeps a handed-over key handed over', () => {
   })
 })
 
+describe('a stop of a handed-over key is the retention scope\'s to record', () => {
+  /** Another call's view of the same retention scope, as a provider has after a restart. */
+  async function otherCallView(f: Awaited<ReturnType<typeof fixture>>) {
+    const other = { ...preparation, call: callId('call-b'), operation: operationId('prepare-b') }
+    const state = createEnvironmentStateStore({ store: f.store, guarded: f.guarded, mode: 'test' })
+    await state.update(other, () =>
+      succeed({
+        preparation: other,
+        original: {
+          ...original,
+          acquisition: acquisitionRef('original-b'),
+          retentionScope: preparation.request.requesterScope,
+        },
+        digest: canonicalDigest(other),
+        allocation: { kind: 'sent' },
+        closed: false,
+        evidence: evidence('original-b'),
+        release: null,
+        resources: [],
+      }),
+    )
+    return createRetainedTerminalLedger({
+      state,
+      address: other,
+      scope: preparation.request.requesterScope,
+      authorize: async () => 'authorized',
+    })
+  }
+
+  it('another call of the scope records the stop of a key handed over by the first', async () => {
+    const f = await fixture()
+    await f.reserved()
+    expect(await f.processes.adopt(resource.key)).toBe('confirmed')
+    const view = await otherCallView(f)
+    expect(await view.stopped(resource.key, 'confirmed')).toBe('recorded')
+    expect((await f.domain()).retainedFact).toMatchObject({ adopted: true, stop: 'confirmed' })
+  })
+
+  it('another call cannot record a stop of a reservation not handed over', async () => {
+    const f = await fixture()
+    await f.reserved()
+    const view = await otherCallView(f)
+    const before = await f.domain()
+    expect(await view.stopped(resource.key, 'confirmed')).toBe('unavailable')
+    expect(await f.domain()).toEqual(before)
+    expect(before.retainedFact).toMatchObject({ adopted: false, stop: 'active' })
+  })
+})
+
 describe('the environment plan hands processes to acquire', () => {
   function environment(retentions: () => EnvironmentRetention) {
     const store = createMemoryToolLedgerStore<ContentBlock>()
@@ -491,7 +540,7 @@ describe('the environment plan hands processes to acquire', () => {
       call: preparation.call,
       preparation,
     }
-    return { env, acquire, prepare }
+    return { env, acquire, prepare, state }
   }
   const view = () => {
     const ledger = {
@@ -512,6 +561,39 @@ describe('the environment plan hands processes to acquire', () => {
     expect(f.acquire.mock.calls[0]?.[1].retention?.processes).toBe(processes)
     expect(await f.env.prepare(f.prepare)).toMatchObject({ ok: { kind: 'prepared' } })
     expect(f.acquire).toHaveBeenCalledTimes(1)
+  })
+
+  it('a confirmed release keeps a handed-over fact handed over and confirms the rest', async () => {
+    const f = environment(() => ({ scope: original.scope, ledger: view(), processes: view() }))
+    const prepared = await f.env.prepare(f.prepare)
+    if (!('ok' in prepared) || prepared.ok.kind !== 'prepared') throw new Error('not prepared')
+    const other: ManagedResource = { ...resource, key: 'other' }
+    await f.state.update(preparation, record => {
+      if (!record) throw new Error('no acquisition record')
+      return succeed({
+        ...record,
+        resources: [
+          { resource, permitted: true, adopted: false, stop: 'handedOver' as const },
+          { resource: other, permitted: true, adopted: false, stop: 'active' as const },
+        ],
+      })
+    })
+    const release = {
+      ...preparation,
+      operation: operationId('release'),
+      preparation: preparation.operation,
+      resource: prepared.ok.environment.evidence,
+      custody: evidence('output-custody'),
+    }
+    expect(await f.env.release({ ...f.prepare, release })).toMatchObject({
+      ok: { kind: 'released' },
+    })
+    const after = await f.state.read(preparation)
+    if (!('ok' in after) || !after.ok) throw new Error('no acquisition record')
+    expect(after.ok.resources.map(item => [item.resource.key, item.stop])).toEqual([
+      [resource.key, 'handedOver'],
+      [other.key, 'confirmed'],
+    ])
   })
 
   it('refuses the same preparation with another processes object, as with another ledger', async () => {

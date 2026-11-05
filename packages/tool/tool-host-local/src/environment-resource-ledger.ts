@@ -302,16 +302,23 @@ export async function createRetainedTerminalLedger(
       if ('ok' in result) return 'confirmed'
       return result.failure.kind === 'not-settled' ? 'closed' : 'unavailable'
     },
+    /**
+     * A handed-over key belongs to the retention scope, so any view of the scope records its stop:
+     * after a provider restart no view of the creating call exists. A reservation not handed over
+     * stays the creating call's.
+     */
     async stopped(key, status) {
       const bound = await binding()
       if (!bound) return 'unavailable'
+      const records = (item: RetainedResourceFact) =>
+        item.adopted ? item.resource.key === key : owns(item, key)
       const result = await input.state.updateRetention(input.address, input.scope, state => {
-        if (!state || !state.resources.some(item => owns(item, key)))
+        if (!state || !state.resources.some(records))
           return environmentFailure('retained resource plan is missing')
         return succeed({
           ...state,
           resources: state.resources.map(item =>
-            owns(item, key) ? { ...item, stop: settledStop(item.stop, status) } : item,
+            records(item) ? { ...item, stop: settledStop(item.stop, status) } : item,
           ),
         })
       })

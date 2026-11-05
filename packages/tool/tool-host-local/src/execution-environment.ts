@@ -553,7 +553,11 @@ export function createLocalExecutionEnvironment<P>(
         ...record,
         closed: true,
         release: { record: record.release.record, confirmed: true },
-        resources: record.resources.map(resource => ({ ...resource, stop: 'confirmed' })),
+        // A handed-over resource belongs to its retention scope; this release did not stop it.
+        resources: record.resources.map(resource => ({
+          ...resource,
+          stop: resource.stop === 'handedOver' ? 'handedOver' : 'confirmed',
+        })),
         evidence: record.release.confirmed
           ? record.evidence
           : receipt({ release: record.release.record, original: record.original, released: true }),
