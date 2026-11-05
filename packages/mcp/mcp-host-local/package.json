@@ -28,9 +28,11 @@
     "@modelcontextprotocol/client": "catalog:",
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/mcp-contract": "workspace:*",
-    "@omne-harness/operation-result": "workspace:*"
+    "@omne-harness/operation-result": "workspace:*",
+    "eventsource-parser": "catalog:"
   },
   "devDependencies": {
+    "@modelcontextprotocol/node": "catalog:",
     "@modelcontextprotocol/server": "catalog:",
     "@modelcontextprotocol/server-everything": "catalog:",
     "@modelcontextprotocol/server-filesystem": "catalog:",

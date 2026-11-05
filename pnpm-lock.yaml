@@ -18,6 +18,9 @@ catalogs:
     '@modelcontextprotocol/client':
       specifier: 2.4.0
       version: 2.4.0
+    '@modelcontextprotocol/node':
+      specifier: 2.1.2
+      version: 2.1.2
     '@modelcontextprotocol/server':
       specifier: 2.4.0
       version: 2.4.0
@@ -78,6 +81,9 @@ catalogs:
     esbuild:
       specifier: 0.28.2
       version: 0.28.2
+    eventsource-parser:
+      specifier: 3.1.1
+      version: 3.1.1
     js-tiktoken:
       specifier: 1.0.21
       version: 1.0.21
@@ -1570,7 +1576,13 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      eventsource-parser:
+        specifier: 'catalog:'
+        version: 3.1.1
     devDependencies:
+      '@modelcontextprotocol/node':
+        specifier: 'catalog:'
+        version: 2.1.2(@modelcontextprotocol/server@2.4.0)
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
         version: 2.4.0
