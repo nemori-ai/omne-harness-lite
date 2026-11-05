@@ -94,7 +94,7 @@ OpKinds == {"invoke", "continue", "cancel", "task"}
 NotSentResults == {"in-use", "refused", "cancelled"}
 SentResults == {"sent", "sent-unknown", "abandoned"}
 
-NoEntry == [phase |-> "free", cancelled |-> FALSE, stopFired |-> FALSE, gen |-> 0, fib |-> 0]
+NoEntry == [phase |-> "free", stopFired |-> FALSE, gen |-> 0, fib |-> 0]
 NoTask == [account |-> "none", owner |-> "none"]
 
 (* One async chain: a call, a cancel, a task operation. `pc` is where it   *)
@@ -258,9 +258,11 @@ CallStep(i) ==
      /\ CASE f.pc = "start" ->
              IF s.inflight[slot].phase \in {"reserved", "sent"}
              THEN s' = Done(s, i, "in-use")
-             ELSE \E y \in Ask([s EXCEPT !.inflight[slot] = [NoEntry EXCEPT !.phase = "reserved",
-                                                                              !.fib = i]],
-                               i, "gate", 0, "gateW") : s' = y
+             ELSE LET x1 == [s EXCEPT !.inflight[slot] = [NoEntry EXCEPT !.phase = "reserved",
+                                                                          !.fib = i]]
+                  IN (* S8: after `closeAll` the call is refused before any port is asked. *)
+                     IF s.shut /\ "send-after-shut" \notin Bugs THEN s' = Refused(x1, i)
+                     ELSE \E y \in Ask(x1, i, "gate", 0, "gateW") : s' = y
           [] f.pc = "gateW" ->
              (* `under(stop, gate)`: the stop first answers `cancelled`; the gate goes on. *)
              IF StopEnds(i) THEN s' = Cancelled(s, i)
@@ -372,8 +374,7 @@ Cancel(k) ==
      IN CASE en.phase = "free" -> s' = AddFiber(x0, [f EXCEPT !.res = "unknown"])
           [] en.phase = "ended" -> s' = AddFiber(x0, [f EXCEPT !.res = "no-call-in-flight"])
           [] en.phase = "reserved" ->
-               s' = AddFiber([x0 EXCEPT !.inflight[slot].cancelled = TRUE,
-                                        !.inflight[slot].stopFired = TRUE,
+               s' = AddFiber([x0 EXCEPT !.inflight[slot].stopFired = TRUE,
                                         !.fib[en.fib].stopEarly = @ \/ s.fib[en.fib].sends = 0],
                              [f EXCEPT !.res = "signalled", !.target = en.fib])
           [] OTHER ->

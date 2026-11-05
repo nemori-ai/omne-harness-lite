@@ -36,7 +36,7 @@
 | 模型动作（Calls.tla）                                              | 探索器的调度选择（`tests/model/explore.ts`）                                            | 实现                                                                                                                            |
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `Invoke(k)`、`Continue(k)`                                         | `invoke A`、`continue A`（代际取调用开始时 `current` 的，没有时取 1）                   | `calls.ts` `createCalls` 的 `invoke`、`continueWithInput`，`perform` 的同步部分                                                 |
-| `CallStep` 的 `start` | 同一步的 `drain()` | `perform`：`checkRequest`、`inFlight.reserve(key, signal)`（交出调用唯一的停止信号） |
+| `CallStep` 的 `start`（关停之后直接 `Refused`） | 同一步的 `drain()` | `perform`：`checkRequest`、`inFlight.reserve(key, signal)`（交出调用唯一的停止信号）；`prepare` 开头的 `table.isShut()`（S8） |
 | `Ask gate`、`gateW`（停止信号先到则 `cancelled`） | `answer adoption.endpoint:A …`、`answer eligibility.check:A …`、`answer store.read:A …` | `prepare`：`under(stop, () => admitForUse(…))`、`prepareSettings`、`under(stop, () => knownActionOf(…))` |
 | `Ask ensure`、`ensW`（`ok` 使连接可用，`fail` 拒绝；停止信号先到则 `cancelled`） | 连接表的全部端口与时限，同生命周期的映射 | `prepare` 里 `under(stop, () => table.ensure(…))`；`table.ts` `ensure` |
 | `AfterEnsure`：继续的代际核对 | `drain()` | `prepare` 的 `issuedOn` |
@@ -137,31 +137,31 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 
 「状态数」是去重后的投影数，「重放数」是从头重放的调度数。每个场景都没有违例，也没有一次重放偏离。有 `closeAll` 或 `release` 的场景都找到反定理 P8 A1 的见证（全部时限到期后关闭仍等挂起的端口）。
 
-调用口的场景（`tests/model/calls.spec.ts`，同一环境，2026-11-05，在合并头 `630d95dc7` 的源码上；基线 `7d91a330c` 上同一组场景的反例在「发现」一节）。每个场景持有一份一个动作的清单，没有 `ensure`，调用自己建连；每个场景也照常检查 P1–P8：
+调用口的场景（`tests/model/calls.spec.ts`，同一环境，2026-11-05，在合并头 `a446c2b9b` 的源码上，即调用口分支头 `2678b21b5` 含 S8 的关停先判；基线 `7d91a330c` 上同一组场景的反例在「发现」一节）。每个场景持有一份一个动作的清单，没有 `ensure`，调用自己建连；每个场景也照常检查 P1–P8：
 
 | 场景             | 上限                                                                                            | 偏离与预算                      | 状态数 | 重放数 | 最深调度 | 耗时    | 层  | 结果           |
 | ---------------- | ----------------------------------------------------------------------------------------------- | ------------------------------- | ------ | ------ | -------- | ------- | --- | -------------- |
-| `call` | 1 个键；`invoke`、`cancel` 各 1 次 | 无（端口可挂起、迟到） | 257 | 442 | 16 | 1.1 s | 快 | 无反例 |
-| `abort` | 1 个键；`invoke` 1 次、调用方中止 1 次 | 无 | 142 | 229 | 16 | 0.5 s | 快 | 无反例 |
-| `call-faults` | 同 `call` | 失败、reject、同步抛出，共 1 次 | 905 | 2249 | 19 | 4.8 s | 快 | 无反例 |
-| `continue` | 1 个键；`invoke`、`continueWithInput`、`drop` 各 1 次 | 无 | 1078 | 2380 | 34 | 7.6 s | 快 | 无反例 |
-| `call-shutdown` | 同 `call`，加 `closeAll` | 无 | 1039 | 2229 | 19 | 4.2 s | 快 | 无反例 |
-| `foreign-cancel` | 3 个键（A、C、D）；A `invoke` 1 次；C、D 各 `cancel` 1 次 | 无 | 731 | 1473 | 17 | 2.7 s | 快 | 无反例 |
-| `foreign-task` | 2 个键（A、C）；A `invoke` 1 次（对端答任务）；C 的任务操作 1 次 | 无 | 200 | 361 | 16 | 0.7 s | 快 | 无反例 |
-| `call-twice` | 1 个键；`invoke` 2 次（同一关联键）、`cancel` 1 次 | 无 | 18139 | 53629 | 31 | 183.8 s | 慢 | 无反例 |
-| `task` | 1 个键；`invoke` 1 次（对端答任务）、任务操作 1 次、`drop` 1 次、`closeAll` | 无 | 2433 | 6273 | 34 | 17.4 s | 慢 | 无反例 |
-| `task-methods` | 同 `task`，四个任务操作各 1 次，没有 `drop` 与 `closeAll` | 无 | 7775 | 33625 | 24 | 83.9 s | 慢 | 无反例 |
-| `task-account` | 2 个键（A、C）；C 的连接在前奏里建好；A `invoke` 1 次（对端答任务）、任务操作 1 次、`drop` 1 次 | 无 | 5555 | 14666 | 35 | 100.6 s | 慢 | 无反例 |
+| `call` | 1 个键；`invoke`、`cancel` 各 1 次 | 无（端口可挂起、迟到） | 257 | 442 | 16 | 1.8 s | 快 | 无反例 |
+| `abort` | 1 个键；`invoke` 1 次、调用方中止 1 次 | 无 | 142 | 229 | 16 | 0.7 s | 快 | 无反例 |
+| `call-faults` | 同 `call` | 失败、reject、同步抛出，共 1 次 | 905 | 2249 | 19 | 7.0 s | 快 | 无反例 |
+| `continue` | 1 个键；`invoke`、`continueWithInput`、`drop` 各 1 次 | 无 | 1078 | 2380 | 34 | 8.7 s | 快 | 无反例 |
+| `call-shutdown` | 同 `call`，加 `closeAll` | 无 | 1026 | 2214 | 19 | 5.7 s | 快 | 无反例 |
+| `foreign-cancel` | 3 个键（A、C、D）；A `invoke` 1 次；C、D 各 `cancel` 1 次 | 无 | 731 | 1473 | 17 | 3.0 s | 快 | 无反例 |
+| `foreign-task` | 2 个键（A、C）；A `invoke` 1 次（对端答任务）；C 的任务操作 1 次 | 无 | 200 | 361 | 16 | 0.6 s | 快 | 无反例 |
+| `call-twice` | 1 个键；`invoke` 2 次（同一关联键）、`cancel` 1 次 | 无 | 18139 | 53629 | 31 | 256.0 s | 慢 | 无反例 |
+| `task` | 1 个键；`invoke` 1 次（对端答任务）、任务操作 1 次、`drop` 1 次、`closeAll` | 无 | 2421 | 6258 | 34 | 20.8 s | 慢 | 无反例 |
+| `task-methods` | 同 `task`，四个任务操作各 1 次，没有 `drop` 与 `closeAll` | 无 | 7775 | 33625 | 24 | 116.1 s | 慢 | 无反例 |
+| `task-account` | 2 个键（A、C）；C 的连接在前奏里建好；A `invoke` 1 次（对端答任务）、任务操作 1 次、`drop` 1 次 | 无 | 5555 | 14666 | 35 | 52.9 s | 慢 | 无反例 |
 
 「前奏」是每次运行开始前走完的固定调度（`Scenario.prelude`），不参与分支。调用口场景的耗时在本机另有 TLC 或慢层场景同时运行时量得，偏长。
 
-慢层四个场景与快层分开运行，各自运行时本机没有别的重负载。
+本表的读数来自包的 `test` 入口一次运行（快层与慢层同一进程，`VITEST_MAX_WORKERS=4`）；在合并头 `630d95dc7`（没有 S8 先判）上的一轮读数只在 `call-shutdown`（1039 状态、2229 重放）与 `task`（2433 状态、6273 重放）上不同，结论相同。别的工作树的负载不在本任务的掌握之内。
 
 TLC 的配置、上限与结果见 [models/README.md](models/README.md#运行记录)。
 
 ## 发现
 
-探索器在基线 `7d91a330c`（闭包 `w3-mcp-call` 交回的调用口）上找到的反例，与各自的处置。两条都已在合进本分支的调用口分支头 `1a143a4d4`（修复轮 `w3-mcp-call-fix1` 的 `1d158cba9`…`67b653a7f`，加 F1(d) 的修复 `1a143a4d4`；合并头 `630d95dc7`）上由探索器与 TLC 重跑确认消失：全部调用口场景没有违例，没有一条签名带 `transport.answer`；读数见上表与 [models/README.md](models/README.md#运行记录)。
+探索器在基线 `7d91a330c`（闭包 `w3-mcp-call` 交回的调用口）上找到的反例，与各自的处置。两条都已在合进本分支的调用口分支头 `1a143a4d4`（修复轮 `w3-mcp-call-fix1` 的 `1d158cba9`…`67b653a7f`，加 F1(d) 的修复 `1a143a4d4`；合并头 `630d95dc7`）上由探索器与 TLC 重跑确认消失，之后在含 S8 修复的 `2678b21b5`（合并头 `a446c2b9b`）上再跑一遍，结论不变：全部调用口场景没有违例，没有一条签名带 `transport.answer`；读数见上表与 [models/README.md](models/README.md#运行记录)。
 
 - **F1 停止之后仍等无时限的端口（P14 T2 调用一句）**。`cancel` 或调用方中止之后，调用仍等下面的端口，它们既没有时限，也不看停止信号。最短调度 `invoke A`、`cancel A`（或 `abort iA1`），采用读取挂起。
   - (a) 关口的三个端口（旧 `perform` 第 3–5 步：`admitForUse`、`knownActionOf`）：已修，`prepare` 的每次等待经 `under(stop, …)`（修复轮 `0d7aeb133`）。
@@ -213,7 +213,7 @@ TLC 的配置、上限与结果见 [models/README.md](models/README.md#运行记
 
 TLC 负控与变异的对应：`bad-no-absorb-close` 与 M1，`bad-forget-open`、`bad-forget-open-late` 与 M2，`bad-no-shut` 与 M3，`bad-abandon-landed` 与 M7，`bad-unbounded-wrap` 与 M6，`bad-ok-after-shut` 与 M8。M5（`ask` 不吸收同步抛出）在模型里没有负控：模型按 `ask` 把抛出写成答复。M9、M10 在模型里没有负控：模型的键是抽象的。
 
-调用口的变异 N 序列（闭包 `w3-mcp-call-model` 追加 1，2026-11-05，在合并头 `630d95dc7` 的源码上）：每个变异改源码一处，用探索器跑所列场景，比较变异前后的违例签名（合并头上全部场景没有违例，所以下面的签名都是新增），然后按字节还原（`git checkout`，`git status` 干净）。调度、日志与签名留任务 `tmp/closures/w3-mcp-call-model/mutations/merged/`：
+调用口的变异 N 序列（闭包 `w3-mcp-call-model` 追加 1，2026-11-05，在合并头 `630d95dc7` 的源码上；S8 的修复 `2678b21b5` 只改 `prepare` 开头的关停先判，受它影响的 N5 与 C50 在合并头 `a446c2b9b` 上又跑了一遍，签名相同，记录在 `mutations/merged-s8/`）：每个变异改源码一处，用探索器跑所列场景，比较变异前后的违例签名（合并头上全部场景没有违例，所以下面的签名都是新增），然后按字节还原（`git checkout`，`git status` 干净）。调度、日志与签名留任务 `tmp/closures/w3-mcp-call-model/mutations/merged/`：
 
 | 变异 | 源码 | 缺陷 | 场景 | 新增的签名（探索器报的性质） |
 | --- | --- | --- | --- | --- |
@@ -302,7 +302,7 @@ TLC 负控与变异的对应：`bad-no-absorb-close` 与 M1，`bad-forget-open`�
 | C47  | `calls.ts` 存储违约答 `action-unavailable`（自裁 6）                                                         | 「step 5: a catalog store that breaches」                                                                     | 1      | `e510d444f`   |
 | C48  | `calls.ts` 已触发的停止信号仍起等待（自裁 2）                                                                | `cancel.spec.ts`「a signal that fired before the call starts no wait」                                        | 1      | `e510d444f`   |
 | C49  | `tasks.ts` 分类放回 `ask` 的闭包，配合 C23 去掉契约的吸收                                                    | `tasks.spec.ts`「a checkOutput that throws」（答 `effect-unknown`）                                           | 1      | `e510d444f`   |
-| C50  | `calls.ts` `under` 在等待答复之后不再核停止信号                                                              | 存活：答复与停止信号落在同一轮事件循环的交错没有服务层用例，交给 `w3-mcp-call-model` 的探索器负控             | 0      | `e510d444f`   |
+| C50  | `calls.ts` `under` 在等待答复之后不再核停止信号                                                              | 存活：答复与停止信号落在同一轮事件循环的交错没有服务层用例，交给 `w3-mcp-call-model` 的探索器负控（结果：表达不了，见「发现」与 N 序列表的 C50 行）             | 0      | `e510d444f`   |
 | C51  | `tasks.ts` 任务请求 `not-sent` 答 `effect-unknown` 而不是 `ConnectionFailure`                                | `tasks.spec.ts`「a task request the transport could not send」「refused for authorization」                   | 1      | `da392b283`   |
 | C52  | `calls.ts` T9 的 `call` 违约按未发出收口（占位撤销）                                                         | `invoke.spec.ts`「a call that breaches its contract (T9)」                                                    | 1      | `da392b283`   |
 
