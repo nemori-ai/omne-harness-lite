@@ -21,9 +21,21 @@ export type OutputPolicy = {
 
 export type OutputCount = { readonly observedBytes: number; readonly discardedBytes: number }
 
+/** Bytes the terminal received after the previous segment ended and before this one began. */
+export type BetweenSegments = {
+  /** Kept bytes in arrival order, at most the provider's between-segment bound. */
+  readonly data: Uint8Array
+  readonly count: OutputCount
+}
+
 export type OutputSummary =
   | { readonly mode: 'separate'; readonly stdout: OutputCount; readonly stderr: OutputCount }
-  | { readonly mode: 'terminal'; readonly terminal: OutputCount }
+  | {
+      readonly mode: 'terminal'
+      readonly terminal: OutputCount
+      /** Only from a terminal provider that attributes bytes by segment sentinels. */
+      readonly between?: BetweenSegments
+    }
 
 export type CommandOutcome =
   | {

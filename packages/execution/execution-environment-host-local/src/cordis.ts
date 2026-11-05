@@ -100,6 +100,7 @@ const terminalFields = [
   'columns',
   'rows',
   'retainedCapacity',
+  'betweenSegmentBytes',
 ] as const
 
 function terminalConfig(value: unknown): ConfigResult<HostTerminalOptions> {

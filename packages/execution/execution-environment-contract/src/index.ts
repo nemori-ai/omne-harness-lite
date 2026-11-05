@@ -36,6 +36,7 @@ export type {
 
 export { commandFacility } from './facilities/command.ts'
 export type {
+  BetweenSegments,
   CommandFacility,
   CommandOutcome,
   OutputChunk,

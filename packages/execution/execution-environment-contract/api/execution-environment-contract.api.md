@@ -17,6 +17,7 @@
 - `AcquisitionState` · `lease.d.ts`
 - `AllocationCleanup` · `lease.d.ts`
 - `AllocationFailed` · `lease.d.ts`
+- `BetweenSegments` · `facilities/command.d.ts`
 - `BindingKind` · `binding.d.ts`
 - `CommandFacility` · `facilities/command.d.ts`
 - `CommandOutcome` · `facilities/command.d.ts`
@@ -549,6 +550,10 @@ export type OutputCount = {
     readonly observedBytes: number;
     readonly discardedBytes: number;
 };
+export type BetweenSegments = {
+    readonly data: Uint8Array;
+    readonly count: OutputCount;
+};
 export type OutputSummary = {
     readonly mode: 'separate';
     readonly stdout: OutputCount;
@@ -556,6 +561,7 @@ export type OutputSummary = {
 } | {
     readonly mode: 'terminal';
     readonly terminal: OutputCount;
+    readonly between?: BetweenSegments;
 };
 export type CommandOutcome = {
     readonly kind: 'completed';
@@ -884,7 +890,7 @@ export type { EnvironmentFacilities, FacilityDescriptor, FacilityKey, FacilityOp
 export { filesFacility } from './facilities/files.ts';
 export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileEntry, FileIdentity, FileInformation, FileRequest, FileSystemFacility, FileTarget, FileVersion, FileWriteResult, HandleGeneration, ObjectToken, } from './facilities/files.ts';
 export { commandFacility } from './facilities/command.ts';
-export type { CommandFacility, CommandOutcome, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, } from './facilities/command.ts';
+export type { BetweenSegments, CommandFacility, CommandOutcome, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, } from './facilities/command.ts';
 export { terminalFacility } from './facilities/terminal.ts';
 export type { TerminalFacility, TerminalInformation, TerminalRef, TerminalRetention, TerminalRetentionOperation, } from './facilities/terminal.ts';
 export { createRecoveryAccess } from './ports.ts';

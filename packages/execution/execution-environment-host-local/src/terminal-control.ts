@@ -2,6 +2,10 @@ export type TerminalFrame =
   | Readonly<{ kind: 'ready' }>
   | Readonly<{ kind: 'opened'; cwd: string }>
   | Readonly<{ kind: 'started'; leg: string }>
+  /** Between-segment bytes the gate kept before it read this leg's begin sentinel. */
+  | Readonly<{ kind: 'between'; leg: string; bytes: Uint8Array }>
+  /** The gate read this leg's begin sentinel; `discarded` between-segment bytes did not fit the bound. */
+  | Readonly<{ kind: 'begun'; leg: string; discarded: number }>
   | Readonly<{ kind: 'data'; leg: string; bytes: Uint8Array }>
   | Readonly<{ kind: 'finished'; leg: string; code: number; cwd: string }>
   | Readonly<{ kind: 'fault' }>
@@ -30,6 +34,12 @@ function decode(
   const leg: unknown = Reflect.get(value, 'leg')
   if (typeof leg !== 'string' || leg === '') return undefined
   if (kind === 'started') return { kind, leg }
+  if (kind === 'begun') {
+    const discarded: unknown = Reflect.get(value, 'discarded')
+    return typeof discarded === 'number' && Number.isSafeInteger(discarded) && discarded >= 0
+      ? { kind, leg, discarded }
+      : undefined
+  }
   if (kind === 'finished') {
     const code: unknown = Reflect.get(value, 'code')
     return typeof code === 'number' &&
@@ -41,7 +51,7 @@ function decode(
       ? { kind, leg, code, cwd }
       : undefined
   }
-  if (kind !== 'data') return undefined
+  if (kind !== 'data' && kind !== 'between') return undefined
   const text: unknown = Reflect.get(value, 'b')
   if (typeof text !== 'string' || !base64.test(text)) return undefined
   const bytes = new Uint8Array(Buffer.from(text, 'base64'))
@@ -52,10 +62,15 @@ export function createTerminalReader(input: {
   generation: string
   maxChunkBytes: number
   maxControlBytes: number
+  betweenSegmentBytes: number
 }) {
   let pending = Buffer.alloc(0)
   let state: 'launching' | 'ready' | 'idle' | 'starting' | 'running' | 'fault' = 'launching'
   let leg: string | undefined
+  // The PTY and the observation FIFO are not ordered against each other, so the begin
+  // sentinel may be read before or after the started observation.
+  let begun = false
+  let between = 0
   const fault = (): FrameStep => {
     state = 'fault'
     return { kind: 'fault' }
@@ -75,8 +90,18 @@ export function createTerminalReader(input: {
       state = 'running'
       return true
     }
-    if (frame.kind === 'data') return state === 'running'
-    if (frame.kind === 'finished' && state === 'running') {
+    const inLeg = state === 'starting' || state === 'running'
+    if (frame.kind === 'between') {
+      between += frame.bytes.length
+      return inLeg && !begun && between <= input.betweenSegmentBytes
+    }
+    if (frame.kind === 'begun') {
+      if (!inLeg || begun) return false
+      begun = true
+      return true
+    }
+    if (frame.kind === 'data') return inLeg && begun
+    if (frame.kind === 'finished' && state === 'running' && begun) {
       state = 'idle'
       leg = undefined
       return true
@@ -91,6 +116,8 @@ export function createTerminalReader(input: {
       }
       state = 'starting'
       leg = id
+      begun = false
+      between = 0
     },
     push(bytes: Uint8Array): FrameStep {
       if (state === 'fault') return fault()
