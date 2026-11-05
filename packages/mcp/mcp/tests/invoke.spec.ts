@@ -395,7 +395,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(await state(c)).toEqual({ kind: 'lost', reason: 'authorization-required' })
   })
 
-  it('step 11: the signal after the send: the peer is told once, the outcome is unknown (abandoned), the key ends', async () => {
+  it('step 11: the signal after the send: the peer is told once, the outcome is unknown (abandoned), the key ends, nothing is sent again', async () => {
     const c = arrange({ calls: { read: { kind: 'silent' } } })
     const digest = await published(c)
     const controller = new AbortController()
@@ -404,7 +404,9 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(c.p.requests('tools/call')).toHaveLength(1)
     controller.abort()
     expect(await call).toEqual({ kind: 'sent', outcome: { kind: 'unknown', cause: 'abandoned' } })
+    await settled()
     expect(c.p.cancels()).toBe(1)
+    expect(c.p.requests('tools/call')).toHaveLength(1)
     expect(await c.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
     expect(await state(c)).toEqual({ kind: 'ready' })
   })
