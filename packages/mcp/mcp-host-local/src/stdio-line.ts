@@ -27,8 +27,10 @@ export class StdioLine implements Line {
   private announced = false
   private window: ReturnType<typeof setTimeout> | undefined
   private writable = true
-  /** A write that has not completed: `close()` aborts it instead of waiting on the peer. */
-  private writing = false
+  /** The writes that have not completed: `close()` aborts the write end while there is one. */
+  private writes = 0
+  /** Fires on `close()`: a `send` still waiting on the pipe reports `aborted` then. */
+  private readonly closing = new AbortController()
   private closed = false
 
   constructor(process: ProcessHandle) {
@@ -166,23 +168,24 @@ export class StdioLine implements Line {
     if (this.closed || !this.writable || this.exitedAt !== undefined) return { kind: 'unsent' }
     if (signal.aborted) return { kind: 'aborted' }
     // The write to a full pipe does not reject when the write end is aborted; it settles only when
-    // the peer reads or ends. So the wait is raced against the signal, and the listener is removed
-    // whichever wins, so a write nobody waits for leaves none behind (N1).
+    // the peer reads or ends. So the wait is raced against the signal and against `close()`, and
+    // the listener is removed whichever wins, so a write nobody waits for leaves none behind (N1).
+    const ended = AbortSignal.any([signal, this.closing.signal])
     let onAbort: () => void = () => undefined
     const aborted = new Promise<'aborted'>(resolve => {
       onAbort = () => resolve('aborted')
-      signal.addEventListener('abort', onAbort, { once: true })
+      ended.addEventListener('abort', onAbort, { once: true })
     })
-    // `writing` stays true until the write itself settles: an aborted write to a full pipe is still
+    // The write counts until it settles itself: an aborted write to a full pipe is still
     // outstanding, so `close()` aborts the write end rather than waiting for the peer to read it.
-    this.writing = true
+    this.writes += 1
     const written = this.writer.write(encoder.encode(`${outbound.text}\n`)).then(
       () => {
-        this.writing = false
+        this.writes -= 1
         return 'written' as const
       },
       () => {
-        this.writing = false
+        this.writes -= 1
         return 'failed' as const
       },
     )
@@ -201,21 +204,22 @@ export class StdioLine implements Line {
           return { kind: 'aborted' }
       }
     } finally {
-      signal.removeEventListener('abort', onAbort)
+      ended.removeEventListener('abort', onAbort)
     }
   }
 
   /**
-   * T5: the stdin write end first, then the stdout read; the process is left alone. A write that
-   * has not completed is aborted, not waited for: the peer may never read it. The read loops of
-   * stdout and standard error have ended when this returns.
+   * T5: the stdin write end first, then the stdout read; the process is left alone. While any
+   * write has not completed the write end is aborted, not waited for: the peer may never read it.
+   * The read loops of stdout and standard error have ended when this returns.
    */
   async close(): Promise<void> {
     if (this.closed) return
     this.closed = true
     clearTimeout(this.window)
     this.writable = false
-    if (this.writing) void this.writer.abort(new Error('the line closed')).catch(() => undefined)
+    this.closing.abort()
+    if (this.writes > 0) void this.writer.abort(new Error('the line closed')).catch(() => undefined)
     else await this.writer.close().catch(() => undefined)
     await this.stdout.cancel().catch(() => undefined)
     await this.stderr.cancel().catch(() => undefined)

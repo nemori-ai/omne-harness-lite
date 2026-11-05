@@ -909,6 +909,7 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
     ok(await transport.discover(), 'discover')
     const sent = ok(await transport.call(echo, never), 'call')
     await transport.cancelRequest(sent.requestId)
+    await untilSent(line, 'notifications/cancelled')
     expect(line.requests('notifications/cancelled')[0]?.message['params']).toMatchObject({
       requestId: sent.requestId,
     })
@@ -1382,7 +1383,7 @@ describe('what the signal of a call and close() end (T5)', () => {
     expect(line.hungAborted).toEqual(['notifications/cancelled'])
   })
 
-  it('returns from close() only after the authorization discovery it ended has settled, and before the line is closed', async () => {
+  it('close() settles a request in the authorization discovery there and then, closes the line, and does not wait for the metadata fetch it ended', async () => {
     const order: string[] = []
     const { line, transport } = open(
       'streamable-http',
@@ -1412,8 +1413,15 @@ describe('what the signal of a call and close() end (T5)', () => {
     await tick()
     await tick()
     await transport.close()
-    expect(order).toEqual(['metadata-ended', 'line-closed'])
-    expect(await listing).toMatchObject({ failure: { cause: 'authorization-required' } })
+    expect(order).toEqual(['line-closed'])
+    expect(await settledWithin(listing)).toMatchObject({
+      settled: {
+        failure: { cause: 'authorization-required', discovery: { metadata: 'unavailable' } },
+      },
+    })
+    // The fetch the signal ended comes back later; its result has nowhere to go.
+    await new Promise<void>(resolve => setTimeout(resolve, 60))
+    expect(order).toEqual(['line-closed', 'metadata-ended'])
   })
 })
 
@@ -1749,6 +1757,7 @@ describe('cancelling a request, and the probe timer (T3, T5)', () => {
       ok(await transport.discover(), 'discover')
       const sent = ok(await transport.call(echo, never), 'call')
       await transport.cancelRequest(sent.requestId)
+      await untilSent(line, 'notifications/cancelled')
       expect(line.requests('notifications/cancelled')[0]?.message['params'], kind).toMatchObject({
         requestId: sent.requestId,
       })
@@ -1764,6 +1773,7 @@ describe('cancelling a request, and the probe timer (T3, T5)', () => {
     ok(await transport.discover(), 'discover')
     const sent = ok(await transport.call(echo, never), 'call')
     await transport.cancelRequest(sent.requestId)
+    await untilSent(line, 'notifications/cancelled')
     expect(line.requests('notifications/cancelled')[0]?.message['params']).toMatchObject({
       requestId: sent.requestId,
       _meta: { 'io.modelcontextprotocol/protocolVersion': HIGHEST },

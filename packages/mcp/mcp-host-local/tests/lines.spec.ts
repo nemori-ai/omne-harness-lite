@@ -200,21 +200,18 @@ describe('the stdio line and the signals it is given', () => {
 })
 
 /**
- * A process whose stdin takes the first write and never completes the second (a full pipe at a
- * peer that stopped reading), and records whether the write end was aborted.
+ * A process whose stdin takes the first write and never completes the second: a full pipe at a
+ * peer that stopped reading. (The sink's `abort` is not observable here: a `WritableStream`
+ * calls it only once the write in flight settled, which this one never does.)
  */
-function stuckOnSecondWrite(): Readonly<{ handle: ProcessHandle; aborted: () => boolean }> {
+function stuckOnSecondWrite(): ProcessHandle {
   let writes = 0
-  let aborted = false
-  const handle: ProcessHandle = {
+  return {
     stdin: new WritableStream<Uint8Array>(
       {
         write() {
           writes += 1
           return writes === 1 ? Promise.resolve() : new Promise<void>(() => undefined)
-        },
-        abort() {
-          aborted = true
         },
       },
       { highWaterMark: 1 },
@@ -224,20 +221,18 @@ function stuckOnSecondWrite(): Readonly<{ handle: ProcessHandle; aborted: () => 
     exited: new Promise<void>(() => undefined),
     stop: async () => 'root-only',
   }
-  return { handle, aborted: () => aborted }
 }
 
 describe('the stdio line and close() with writes in flight (T5, SPEC H6)', () => {
-  it('two overlapping writes, the first completes, then close(): close() returns at once and aborts the write end', async () => {
-    const process = stuckOnSecondWrite()
-    const line = new StdioLine(process.handle)
+  it('two overlapping writes, the first completes, then close(): close() returns at once, the write still in flight is aborted', async () => {
+    const line = new StdioLine(stuckOnSecondWrite())
     const never = new AbortController().signal
     const first = line.send({ text: '{"small":1}', headers: new Headers() }, never)
     const second = line.send({ text: '{"big":2}', headers: new Headers() }, never)
     expect(await first).toEqual({ kind: 'sent' })
     expect(await settledWithin(second, 30)).toBe('pending')
     expect(await settledWithin(line.close())).toEqual({ settled: undefined })
-    expect(process.aborted()).toBe(true)
+    expect(await settledWithin(second)).toEqual({ settled: { kind: 'aborted' } })
   })
 })
 
