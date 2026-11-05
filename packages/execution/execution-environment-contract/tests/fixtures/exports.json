@@ -245,6 +245,11 @@
               "pending": false
             },
             {
+              "name": "BetweenSegments",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "CommandFacility",
               "kind": "type",
               "pending": false
