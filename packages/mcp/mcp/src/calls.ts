@@ -161,19 +161,23 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
   })
 
   /**
-   * A wait of the send order under the call's stop signal (MC-16 step 2). A stop that fired
-   * already starts nothing. One that fires first ends the wait: the work goes on in the table's
-   * scope. An answer that arrives once the stop fired is not read either. All three are
-   * `stopped`.
+   * A wait of the send order under the call's stop signal and the table's shutdown (MC-16 steps
+   * 2 and 3), both read before the wait and again after it. A stop that fired starts nothing,
+   * ends the wait when it fires first (the work goes on in the table's scope), and drops an
+   * answer that arrived with it: all three are `stopped`. A shutdown that began is S8's refusal,
+   * `connection-unavailable`, and asks no port after it: a call in flight at `closeAll` answers
+   * as one that started after it.
    */
   async function under<T>(
     stop: AbortSignal,
     work: () => Promise<Outcome<T, NotSentReason>>,
   ): Promise<Outcome<T, NotSentReason> | Stopped> {
     if (stop.aborted) return STOPPED
+    if (table.isShut()) return fail(CONNECTION_UNAVAILABLE)
     const waited = await within(work(), stop, scope)
     // An expired wait has a fired stop; the first test keeps the type of `waited` honest.
     if (waited.kind === 'expired' || stop.aborted) return STOPPED
+    if (table.isShut()) return fail(CONNECTION_UNAVAILABLE)
     return waited.value
   }
 
@@ -224,10 +228,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     stop: AbortSignal,
   ): Promise<Outcome<Prepared, NotSentReason> | Stopped> {
     const { request } = send
-    if (stop.aborted) return STOPPED
-    // S8: after `closeAll` nothing connects, for a first call and a continuation alike; no port
-    // is asked.
-    if (table.isShut()) return fail(CONNECTION_UNAVAILABLE)
+    // Step 3: the shutdown first, read by `under` before the gate is asked (S8), then the gate.
     const admitted = await under(stop, () => admitForUse(gate, access, request.ref))
     if (admitted === STOPPED || 'failure' in admitted) return admitted
     const endpoint = admitted.ok
@@ -320,6 +321,9 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     if (prepared === STOPPED) return STOPPED
     if ('failure' in prepared) return notSent(prepared.failure)
     const { ensured, known } = prepared.ok
+    // Step 8: the last look at the stop signal, in the same synchronous run as the send: a stop
+    // that fired by now keeps the call off the transport.
+    if (stop.aborted) return STOPPED
     const called = await ask<Outcome<SentCall, NotSent> | CallBreached>(
       () => ensured.transport.call(callRequestOf(send), stop, observerOf(send.request.observe)),
       CALL_BREACHED,

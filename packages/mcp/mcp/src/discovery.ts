@@ -25,6 +25,7 @@ import {
   type Refusal,
 } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
+import { CONNECTION_UNAVAILABLE } from './internal/entry.ts'
 import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
 import { connectionFailureOf, loseOn, lostOfNotSent, type NotSent } from './internal/lost.ts'
 import { ask, within } from './internal/port.ts'
@@ -180,6 +181,8 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     access: Access<P>,
     request: RefreshRequest,
   ): Promise<Outcome<RefreshResult, OperationFailure>> {
+    // S8: after `closeAll` nothing connects; no port is asked, the gate included (MC-7).
+    if (table.isShut()) return fail(CONNECTION_UNAVAILABLE)
     const admitted = await admitForUse(gate, access, request.ref)
     if ('failure' in admitted) return admitted
     // The build is shared by every caller of the key and bounded by the connection bound; the

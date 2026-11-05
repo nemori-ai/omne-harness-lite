@@ -377,9 +377,10 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     const query = c.invoker.queryTask(alice, task)
     await gate.reached
     await c.connections.closeAll()
-    const asked = portCalls(c.p)
     gate.release()
     expect(await query).toEqual(NO_CONNECTION)
+    // The check the gate was waiting on is counted when it is let go; nothing is asked after it.
+    const asked = portCalls(c.p)
     expect(await c.invoker.queryTask(alice, task)).toEqual(NO_CONNECTION)
     expect(portCalls(c.p)).toEqual(asked)
     expect(c.p.opens()).toBe(1)

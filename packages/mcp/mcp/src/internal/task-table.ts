@@ -2,11 +2,13 @@
 // records what the task was started with: the connection generation it was issued at, the peer
 // account of the connection (with the tenant and the holding of the key, the connection identity
 // without the adoption revision), and the output schema of the action, for the result's output
-// check. Entries stay for the run; the table does not survive a restart (a known limitation).
+// check. The key has no peer account, so a task id the peer gives again on another account of the
+// same holding lands on the same key: that key is then ambiguous, and stays so (MC-17 step 1).
+// Entries stay for the run; the table does not survive a restart (a known limitation).
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { EndpointHolding, Generation, PeerAccount, TaskId } from '@omne-harness/mcp-contract'
-import { tenantTextOf } from './text.ts'
+import { accountTextOf, tenantTextOf } from './text.ts'
 
 export type TaskKey = Readonly<{
   tenant: TenantId
@@ -22,20 +24,31 @@ export type TaskRecord = Readonly<{
   outputSchema?: JsonValue
 }>
 
+/** A key two peer accounts answered the same task id on: no reference of it names one task. */
+export type Ambiguous = 'ambiguous'
+
 function textOf(key: TaskKey): string {
   return JSON.stringify([tenantTextOf(key.tenant), key.principalKey, key.holding, key.taskId])
 }
 
 export class TaskTable {
-  readonly #entries = new Map<string, TaskRecord>()
+  readonly #entries = new Map<string, TaskRecord | Ambiguous>()
 
-  /** A task the peer answered with, recorded for its initiator. */
+  /**
+   * A task the peer answered with, recorded for its initiator. The same account answering the
+   * id again (a later generation) replaces the record; another account makes the key ambiguous.
+   */
   record(key: TaskKey, task: TaskRecord): void {
-    this.#entries.set(textOf(key), task)
+    const text = textOf(key)
+    const existing = this.#entries.get(text)
+    const collides =
+      existing !== undefined &&
+      (existing === 'ambiguous' || accountTextOf(existing.account) !== accountTextOf(task.account))
+    this.#entries.set(text, collides ? 'ambiguous' : task)
   }
 
   /** The record of a task by its full key; undefined for anyone but the initiator. */
-  get(key: TaskKey): TaskRecord | undefined {
+  get(key: TaskKey): TaskRecord | Ambiguous | undefined {
     return this.#entries.get(textOf(key))
   }
 }

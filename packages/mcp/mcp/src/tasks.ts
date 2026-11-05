@@ -95,6 +95,8 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
     const decision = await decideForUse(gate, access, task.ref)
     if (decision.kind !== 'admitted')
       return fail(decision.kind === 'adoption-unknown' ? UNKNOWN : NO_CONNECTION)
+    // S8 once more after the gate's wait: a shutdown that landed meanwhile builds nothing.
+    if (table.isShut()) return fail(NO_CONNECTION)
     const prepared = prepareSettings(decision.endpoint, task.connectBound)
     if ('failure' in prepared) return fail(NO_CONNECTION)
     if (accountTextOf(prepared.ok.account) !== accountTextOf(record.account))
@@ -152,8 +154,8 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
 
   /**
    * One task request of the initiator (S2, S8, MC-17): the initiator and the task as it was
-   * issued first (a reference with another generation is not this task), then the connection,
-   * then the request under the connection bound. A request the bound cuts off has no answer; a
+   * issued first (a reference with another generation is not this task; a key two accounts
+   * answered on names none), then the connection, then the request under the connection bound. A request the bound cuts off has no answer; a
    * transport that breaches its contract gave none either (T9). `send` is the port call alone;
    * `read` turns the transport's answer into the operation's outside `ask` (MC-15).
    */
@@ -164,7 +166,8 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
     read: (answer: T, on: OnConnection) => R,
   ): Promise<Outcome<R, OperationFailure>> {
     const record = tasks.get(keyOf(access, task))
-    if (record === undefined || record.issuedAt !== task.issuedAt) return fail(UNKNOWN)
+    if (record === undefined || record === 'ambiguous' || record.issuedAt !== task.issuedAt)
+      return fail(UNKNOWN)
     const connection = await connectionOf(access, task, record)
     if ('failure' in connection) return connection
     const ensured = connection.ok
