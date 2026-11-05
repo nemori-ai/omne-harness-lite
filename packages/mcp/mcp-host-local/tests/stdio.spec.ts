@@ -21,6 +21,9 @@ import { leftover } from './fixtures/scripted/children.ts'
 import { stdioPeer, type StdioPeer } from './fixtures/scripted/stdio.ts'
 import { everythingStdio } from './fixtures/sdk/everything.ts'
 import { settledWithin } from './fixtures/settle.ts'
+import { failOnUnhandledErrors } from './unhandled.ts'
+
+failOnUnhandledErrors()
 
 const VERSIONS = ['2026-07-28']
 const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS

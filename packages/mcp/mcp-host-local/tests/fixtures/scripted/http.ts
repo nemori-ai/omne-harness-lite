@@ -90,6 +90,10 @@ type Picked = Readonly<{ key: string; replies: readonly PeerReply[] }>
 /** How the peer answers; the same choice rule as the contract's in-memory scripted peer. */
 class Peer {
   readonly log: PeerReceived[] = []
+  /** The method and path of every request, in order: what the log does not say about where it went. */
+  readonly requestLines: string[] = []
+  /** The bytes of the endless metadata document that were written before the client gave up. */
+  endlessWritten = 0
   private readonly consumed = new Map<string, number>()
   private peerRequestCount = 0
   /** The open streams of the legacy HTTP+SSE mode, by session. */
@@ -247,6 +251,7 @@ class Peer {
   async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     response.setHeader('connection', 'close')
     const url = new URL(request.url ?? '/', this.target)
+    this.requestLines.push(`${request.method ?? ''} ${url.pathname}`)
     if (request.method === 'GET' && url.pathname.startsWith(METADATA_PATH)) {
       this.log.push({ kind: 'fetch', url: url.href })
       if (this.options.metadata === 'hangs') return
@@ -275,6 +280,7 @@ class Peer {
     const chunk = 'x'.repeat(65_536)
     const more = () => {
       if (response.destroyed) return
+      this.endlessWritten += chunk.length
       if (response.write(chunk)) setImmediate(more)
       else response.once('drain', more)
     }
@@ -504,6 +510,10 @@ class Peer {
 export type HttpPeer = Readonly<{
   material: TransportMaterial
   received(): Promise<readonly PeerReceived[]>
+  /** The method and path of every request the peer got, in order. */
+  requestLines(): readonly string[]
+  /** The bytes of the endless metadata document written before the client stopped reading. */
+  endlessBytes(): number
   /** The legacy HTTP+SSE mode: destroys every open stream. */
   breakStreams(): void
   /** The legacy HTTP+SSE mode: forgets every session, so that its endpoint answers 404. */
@@ -573,6 +583,8 @@ export async function httpPeer(
   const built = peer
   return {
     material,
+    requestLines: () => [...built.requestLines],
+    endlessBytes: () => built.endlessWritten,
     breakStreams: () => built.breakStreams(),
     endSessions: () => built.endSessions(),
     async received() {

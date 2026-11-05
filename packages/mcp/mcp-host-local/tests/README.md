@@ -4,11 +4,11 @@
 
 ## 允许的内容
 
-`*.spec.ts` 测试文件、测试辅助代码（`memory-line.ts`），以及 `fixtures/` 下的对端夹具。
+`*.spec.ts` 测试文件、测试辅助代码（`memory-line.ts`、`unhandled.ts`），以及 `fixtures/` 下的对端夹具。
 
 ## 边界
 
-快层（`public-entry.spec.ts`、`session.spec.ts`、`lines.spec.ts`）只用内存线路、内存进程句柄与 `fetch` 的替身，不起进程、不开端口。慢层（文件头 `@module-tag slow`：`conformance.spec.ts`、`stdio.spec.ts`、`http.spec.ts`）起真实子进程与本机 HTTP 服务端：A 层是真实线路上的脚本化对端，B 层是 SDK 的真实服务端与 `server-everything`。每个用例结束时核对没有遗留的子进程与监听端口。真实依赖：Node 的 `child_process`、`node:http`、全局 `fetch`、`@modelcontextprotocol/server`、`@modelcontextprotocol/node`、`@modelcontextprotocol/server-everything`、`zod`。测试通过不代替规格或验收。
+快层（`public-entry.spec.ts`、`session.spec.ts`、`lines.spec.ts`）只用内存线路、内存进程句柄与 `fetch` 的替身，不起进程、不开端口。慢层（文件头 `@module-tag slow`：`conformance.spec.ts`、`stdio.spec.ts`、`http.spec.ts`）起真实子进程与本机 HTTP 服务端：A 层是真实线路上的脚本化对端，B 层是 SDK 的真实服务端与 `server-everything`。每个用例结束时核对没有遗留的子进程与监听端口；每个用例文件还核对没有未处理的拒绝或未捕获的异常（`unhandled.ts`）。真实依赖：Node 的 `child_process`、`node:http`、全局 `fetch`、`@modelcontextprotocol/server`、`@modelcontextprotocol/node`、`@modelcontextprotocol/server-everything`、`zod`。测试通过不代替规格或验收。
 
 ## 维护
 

@@ -502,6 +502,38 @@ describe('the scripted transport factory', () => {
     await transport.close()
   })
 
+  it('delivers arguments of every JSON type to the peer as written, on both material kinds', async () => {
+    const args = {
+      text: 'Paris',
+      count: 3,
+      ratio: -0.5,
+      yes: true,
+      no: false,
+      nothing: null,
+      none: [],
+      empty: {},
+      mixed: [1, 'two', null, false, [], {}, { deep: [{ deeper: null }] }],
+      nested: { a: { b: { c: [true] } } },
+    }
+    for (const kind of ['streamable-http', 'stdio'] as const) {
+      const { factory, transport } = await open(
+        { calls: { echo: { kind: 'result', result: { content: [] } } } },
+        kind,
+      )
+      const sent = await transport.call(
+        { action: actionNameOf('echo'), args: json(args) },
+        new AbortController().signal,
+      )
+      if ('failure' in sent) throw new Error(`not sent on ${kind}`)
+      await sent.ok.answer
+      const [call] = factory.received()
+      expect(call?.kind === 'request' ? call.params : undefined, kind).toMatchObject({
+        arguments: args,
+      })
+      await transport.close()
+    }
+  })
+
   it('holds the answer until the pace hook lets the peer answer', async () => {
     let release = (): void => undefined
     const gate = new Promise<void>(resolve => {
