@@ -248,7 +248,7 @@
 - 门一侧：门写帧的管道写满时（写端返回 false），门暂停读命令的两条管道，`drain` 之后恢复。所以命令在提供者读得慢时被阻塞在自己的输出管道上，字节不丢，门的内存也不随输出增长。提供者总是立刻读帧，所以缓冲满时丢弃，不阻塞命令。
 - 命令的主进程退出后，门等两条管道关闭，或者等输出连续 100 毫秒没有新字节，再发退出帧。命令留在后台的进程可能还占着管道，所以不能只等管道关闭。
 - 收到退出帧时，`result` 答 `completed`，带退出码或信号、时长与两条流的计数。没有收到退出帧时答 `failed`（`effectUnknown`），带观察到的时长与计数。强制停止时门与命令在同一个单元里被杀，所以强制停止的结局是 `failed`（`effectUnknown`）。
-- 主进程退出之后，提供者强制停止这个单元，清掉命令留在后台的进程，并把结果记入账本。这一步不推迟 `result`。这是现行行为，将被契约的[一次性命令留下的进程](../execution-environment-contract/SPEC.md#一次性命令留下的进程未实现)取代，见下文[留下的进程与终端字节归属的兑现](#留下的进程与终端字节归属的兑现未实现)。
+- 主进程退出之后，提供者强制停止这个单元，清掉命令留在后台的进程，并把结果记入账本。这一步不推迟 `result`。这是现行行为，将被契约的[一次性命令留下的进程](../execution-environment-contract/SPEC.md#一次性命令留下的进程未实现)取代，见下文[留下的进程与终端字节归属的兑现](#留下的进程的兑现)。
 
 停止两态：
 
@@ -297,7 +297,18 @@
 
 一个终端只有一段运行中。同终端的重叠 `execute` 返回 `busy`，另一个终端仍可运行。普通 `cd` 留在持久 shell 中。临时 `cwd` 执行后恢复原物理目录，恢复失败使终端失效。临时环境变量在 shell 函数内局部导出，函数返回后恢复。环境变量名采用 Bash 标识符，`__omne_` 前缀留给驱动。路径、脚本与环境变量值不能含空字节。单次输入字节写进 PTY，按该终端当前的行规处理。
 
-控制观察走独立 FIFO，带终端代与执行段身份。用户 PTY 输出从不用于识别完成。驱动完成后，gate 核对原 scope 的进程集合只剩 gate 与 shell，再将独占的非阻塞 PTY 描述符读到 `EAGAIN`，最后交出终局。额外后台写者、控制格式错误、错误代或失联均使结果为 `failed(effectUnknown)`，终端转为 `invalid`。不使用静默时长作为输出完成证据，不自动重放脚本或重建 shell。「只剩 gate 与 shell」与「读到 `EAGAIN` 即交出」是现行行为，将被契约的[终端段的完成与字节归属](../execution-environment-contract/SPEC.md#终端段的完成与字节归属未实现)取代，见下文[留下的进程与终端字节归属的兑现](#留下的进程与终端字节归属的兑现未实现)。
+控制观察走独立 FIFO，带终端代与执行段身份。段的完成只看控制 FIFO 上本段的完成观察。用户 PTY 输出与静默时长都不判完成。Linux 上，本提供者这样兑现契约的[终端段的完成与字节归属](../execution-environment-contract/SPEC.md#终端段的完成与字节归属)：
+
+- 每段开始时，gate 取一个 128 位随机数，只经命令 FIFO 交给驱动，不经 PTY 输入，所以不被回显。
+- 驱动在段首、段尾用 Bash 内建 `printf` 向 `/dev/tty` 写 OSC 私有序列 `ESC ] 7770 ; omne-b|omne-e ; <随机数> BEL`。哨兵与脚本的字节共用 PTY 的一个有序缓冲。脚本重定向了 shell 的标准输出，也挡不住哨兵。
+- gate 只认本段随机数的哨兵，并从输出里删去它们。段首与段尾之间的字节是段输出。哨兵可以跨两次读取，gate 暂存可能是哨兵开头的流尾。
+- 交出段结果要同时有两样：本段的完成观察，以及读到本段段尾哨兵。读到暂时无数据（`EAGAIN`）不交出。
+- 终端里的后台进程不使终端失效。段进行期间它们写出的字节属于这一段。
+- 没有段运行时，gate 也持续读 PTY。段间字节进有界缓冲，上界是 `betweenSegmentBytes`。下一段的结局在 `OutputSummary.between` 里带上保留的字节与计数，超出上界的字节只计入丢弃数。段间字节不混入段输出。
+
+控制格式错误、错误代、失联、哨兵顺序不可能（重复的段首、段首之前的段尾、段尾之后又有段内字节）都使结果为 `failed(effectUnknown)`，终端转为 `invalid`。不自动重放脚本或重建 shell。输出处理 `onlcr` 不改写 OSC 序列，这一点由真实 PTY 用例确认。
+
+已知限制：脚本可以读到本段的随机数（例如 `declare -f` 显示驱动函数），从而伪造哨兵。后果只限这个终端：字节归属错乱，或因顺序不可能而失效。随机数防的是无意的字节冲突，不防同一脚本破坏自己的终端。
 
 node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口，运行时核验接口与返回形状。这一接口没有公共 TypeScript 声明，升级 node-pty 时必须复跑真实 PTY 用例。字节不经过文本解码，保留内核交出的 ANSI、CRLF 和任意非 UTF-8 字节。输出只允许一个读者，缓冲溢出与读者放弃都计入丢弃数。
 
@@ -307,9 +318,9 @@ node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口
 
 资源级冷恢复复用命令的 `{ unit, bootId }` 坐标与作用域描述。新进程只枚举、停止和结清原 scope，不执行旧脚本，不恢复交互 shell。监督者确认停止后尝试清除 gate 的两个私有 FIFO。清理不会递归遍历用户目录。
 
-提供者选项 `terminal` 与插件配置 `terminal` 同形。命令已有的六个界值也适用于终端，初值相同。另有 `maxControlBytes`，初值 1 MiB，约束控制帧大小；`columns` 与 `rows` 的初值为 80 和 24。请求的 `geometry` 覆盖尺寸初值。控制上界必须容纳一块 base64 输出及 256 字节帧头。所有数值为可覆盖的实现配置，不是工具结果的产品上限。
+提供者选项 `terminal` 与插件配置 `terminal` 同形。命令已有的六个界值也适用于终端，初值相同。另有 `maxControlBytes`，初值 1 MiB，约束控制帧大小；`betweenSegmentBytes`，初值 256 KiB，是段间字节缓冲的上界；`columns` 与 `rows` 的初值为 80 和 24。请求的 `geometry` 覆盖尺寸初值。控制上界必须容纳一块 base64 输出及 256 字节帧头。所有数值为可覆盖的实现配置，不是工具结果的产品上限。
 
-本实现是有权限的 `host_machine`，不承诺同 UID 恶意程序隔离。Bash 驱动与 scope 观察的真实覆盖见[终端测试](tests/host-terminal-recovery.spec.ts)。Windows 的协议测试通过不能证明此 Linux 路径。
+本实现是有权限的 `host_machine`，不承诺同 UID 恶意程序隔离。Bash 驱动与 scope 观察的真实覆盖见[终端测试](tests/host-terminal-recovery.spec.ts)。段的字节归属在真实 PTY 上的覆盖见[段测试](tests/host-terminal-segments.spec.ts)，哨兵扫描的快层覆盖见 [terminal-sentinels.spec.ts](tests/terminal-sentinels.spec.ts)。段测试不能区分「读到 `EAGAIN` 即交出」：驱动先向 PTY 写段尾哨兵，再向 FIFO 写完成观察，本机上交出时段尾哨兵总已可读。这条规则的反例由形式模型的负控 N7 给出。Windows 的协议测试通过不能证明此 Linux 路径。
 
 #### Session 保留终端
 
@@ -325,13 +336,13 @@ node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口
 
 共享索引与交错验证见 [host-terminal-retention.spec.ts](tests/host-terminal-retention.spec.ts)。Linux 真件验证见 [host-terminal-recovery.spec.ts](tests/host-terminal-recovery.spec.ts)。两种证据分别报告，Windows 平台接口接线不代表真实 ConPTY 已验证。
 
-<a id="留下的进程与终端字节归属的兑现未实现"></a>
+<a id="留下的进程的兑现"></a>
 
-### 留下的进程与终端字节归属的兑现（未实现）
+### 一次性命令留下的进程的兑现（未实现）
 
-本节是宿主提供者对契约两节的兑现目标：[一次性命令留下的进程](../execution-environment-contract/SPEC.md#一次性命令留下的进程未实现)与[终端段的完成与字节归属](../execution-environment-contract/SPEC.md#终端段的完成与字节归属未实现)。两者现在都没有实现，实现由 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 承担。实现之前，上文的现行行为不变。
+本节是宿主提供者对契约[一次性命令留下的进程](../execution-environment-contract/SPEC.md#一次性命令留下的进程未实现)的兑现目标。它现在没有实现，实现由 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 承担。实现之前，上文的现行行为不变。契约的[终端段的完成与字节归属](../execution-environment-contract/SPEC.md#终端段的完成与字节归属)在 Linux 上已经兑现，见[持久终端](#持久终端)。
 
-取代的依据：上文「主进程退出之后，提供者强制停止这个单元」与持久终端的「只剩 gate 与 shell」两条，依据是 GATE-EE 候选第 3、4 节。D1 决策记录没有涉及它们，本节所在的「宿主命令与终端」也没有经过独立技术接受。取代它们的是 #1137 卡正文的「总体设计」：调用方与人一样能让自己起的进程活下去，同时每个活着的进程都恰好有一个归属方，能被列出，能被确认停止，宿主崩溃后能被找回。
+取代的依据：上文「主进程退出之后，提供者强制停止这个单元」与持久终端原来的「只剩 gate 与 shell」两条，依据是 GATE-EE 候选第 3、4 节。D1 决策记录没有涉及它们，本节所在的「宿主命令与终端」也没有经过独立技术接受。取代它们的是 #1137 卡正文的「总体设计」：调用方与人一样能让自己起的进程活下去，同时每个活着的进程都恰好有一个归属方，能被列出，能被确认停止，宿主崩溃后能被找回。
 
 Linux 的兑现：
 
@@ -340,8 +351,6 @@ Linux 的兑现：
 - 移交之后，门留在单元里，继续读命令原来的两条管道，读出即丢弃，只计字节数。这样做只为了让留下的进程不因管道关闭而收到 `SIGPIPE`。保存输出不在本次范围。
 - 变空检测：门在委派的子 cgroup 上监听 `cgroup.events` 的 `populated`，或者定时读单元的 `cgroup.procs`。两种做法的取舍尚未定。门自己在单元里，所以单元自己的 `cgroup.events` 不会变空。
 - 提供者重启之后，用 `systemctl --user show -p ControlGroup` 取单元的 cgroup 路径，经 `scope-cgroup.ts` 换算成目录，再读 `cgroup.procs`。只剩门时停止并结清。不用 `TasksCurrent`，因为它数的是线程，而门是带线程池的 Node 进程。
-- 终端哨兵：驱动在段首、段尾向 PTY 写 OSC 私有序列 `ESC ] 7770 ; omne-b|omne-e ; <段随机数> BEL`。随机数经控制 FIFO 交给驱动，不经 PTY 输入，所以不被回显。门只认本段随机数的哨兵，并从输出里删去哨兵。输出处理（`onlcr`）不改写 OSC 序列，这一点由真实 PTY 的用例确认。
-- 段间字节：没有段运行时，门也持续读 PTY。段间字节进有界缓冲，下一段的结果带上它们与丢弃数。
 
 新配置项（初值可覆盖）：
 
@@ -349,13 +358,17 @@ Linux 的兑现：
 | --- | --- | --- |
 | `command.residuePolicy` | `retain` | `retain` 或 `stop`。`stop` 使处置一律走停止，原因 `policy` |
 | `command.retainedPerScope` | 8 | 每个保留范围的保留进程上界 |
-| `terminal.betweenSegmentBytes` | 256 KiB | 段间字节缓冲的上界 |
 
-Windows 的兑现（需要 Windows 宿主验证）：根进程退出时，可以保留就不终止 Job，bridge 继续持有 Job 句柄并读管道。变空检测用 Job 完成端口的 `JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO`。bridge 意外退出时，`KILL_ON_JOB_CLOSE` 停止留下的进程，这是保守方向。冷恢复按保留账本里的原 Job 名重开。ConPTY 会重绘输出，可能吞掉未知的 OSC 序列，这一点尚未在真实 ConPTY 上验证。不成立时，Windows 终端保留现行的「按观察窗口归属」。
+Windows 的兑现（需要 Windows 宿主验证）：根进程退出时，可以保留就不终止 Job，bridge 继续持有 Job 句柄并读管道。变空检测用 Job 完成端口的 `JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO`。bridge 意外退出时，`KILL_ON_JOB_CLOSE` 停止留下的进程，这是保守方向。冷恢复按保留账本里的原 Job 名重开。
 
 macOS 没有命令后端。将来的提供者若只能按进程组或会话收纳，就不满足封闭收纳，不提供保留进程。
 
-已知偏离：契约的两节已经写入，本提供者仍按上文的现行行为运行。具体是：主进程退出后一律停止单元，命令结局没有 `residue`；终端在段结束时有额外进程就失效；段结果读到 `EAGAIN` 即交出。收敛计划：#1137 先实现 Linux 终端的字节归属，再实现 Linux 一次性命令的处置、移交与 `list`；Windows 的兑现需要 Windows 宿主验证。负责人是 #1137 的执行者。
+已知偏离：
+
+- 一次性命令：契约一节已经写入，本提供者仍按上文的现行行为运行，主进程退出后一律停止单元，命令结局没有 `residue`。收敛计划：#1137 实现 Linux 一次性命令的处置、移交与 `list`。
+- Windows 终端：段的字节归属只在 Linux 兑现。Windows 终端仍按观察窗口归属字节，结局不带 `between`。ConPTY 会重绘输出，可能吞掉未知的 OSC 序列，这一点尚未在真实 ConPTY 上验证。收敛计划：在 Windows 宿主上验证 ConPTY 是否保留哨兵，成立就按 Linux 的做法兑现，不成立就保留按观察窗口归属，并写明这条限制。Windows 一次性命令的处置同样需要 Windows 宿主验证。
+
+负责人是 #1137 的执行者。
 
 ### 撤除顺序
 

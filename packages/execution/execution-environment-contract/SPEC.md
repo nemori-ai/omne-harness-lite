@@ -6,7 +6,7 @@
 
 保留终端和写入效果增量依据 [R2-D37 与 R2-D38](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6579990443)采用。保留终端是逐获取归属规则的明确例外，范围见[保留终端](#保留终端)。其余身份、授权和普通终端行为保持原承诺。
 
-[终端段的完成与字节归属](#终端段的完成与字节归属未实现)与[一次性命令留下的进程](#一次性命令留下的进程未实现)两节依据 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 卡正文的「总体设计」写入，未经技术接受。两节标「未实现」，实现由 #1137 承担。保留进程的 `stop` 条款冻结，它的实现不在 #1137。两节的形式依据在 [verification/](verification/README.md)。
+[终端段的完成与字节归属](#终端段的完成与字节归属)与[一次性命令留下的进程](#一次性命令留下的进程未实现)两节依据 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 卡正文的「总体设计」写入，未经技术接受。前一节由宿主提供者在 Linux 上兑现。后一节标「未实现」，实现由 #1137 承担。保留进程的 `stop` 条款冻结，它的实现不在 #1137。两节的形式依据在 [verification/](verification/README.md)。
 
 ## 范围与依据
 
@@ -191,11 +191,13 @@
 
 Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本地表丢失不授予复活。跨进程只接续资源枚举与停止，不恢复附着或 shell 连续性。真实 Session 权威、耐久账本与真实提供者的组合由受信装配负责，本成员的替身测试不能证明这些前提成立。
 
-<a id="终端段的完成与字节归属未实现"></a>
+<a id="终端段的完成与字节归属"></a>
 
-### 终端段的完成与字节归属（未实现）
+### 终端段的完成与字节归属
 
-本节现在没有提供者兑现，实现由 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 承担。依据是 #1137 卡正文的「总体设计」，未经技术接受。形式依据是 [TerminalSegments](verification/models/README.md#terminalsegments)。
+依据是 [#1137](https://github.com/nemori-ai/omne-harness-lite/issues/1137) 卡正文的「总体设计」，未经技术接受。形式依据是 [TerminalSegments](verification/models/README.md#terminalsegments)。宿主提供者在 Linux 上兑现本节，见 [execution-environment-host-local 的持久终端](../execution-environment-host-local/SPEC.md#持久终端)。Windows 终端还没有兑现，仍按观察窗口归属字节，见该 SPEC 的已知偏离。
+
+终端段的结局在 `OutputSummary` 的 terminal 分支带可选的 `between`（`BetweenSegments`）：保留的段间字节，以及观察字节数与丢弃字节数。不按哨兵归属字节的提供者不带它。
 
 1. 段的完成只看控制通道上本段的结束帧。静默时长与屏幕内容都不判完成。
 2. 终端里的后台进程不使终端失效。终端只在下列情况失效：shell 死亡、控制帧格式错误、代不符、与控制通道失联。
@@ -602,7 +604,7 @@ Session 持久保存结束事实。维护者重启后补调 `releaseScope`，本
 | V-EE26 | 获取路已结清而资源路缺方法、失败或未就绪时记已释放；完整空资源枚举被当作没有获取或文件描述符；同一资源被两路重复停止；获取枚举失败被当空表                                                                                                                                  |
 | V-EE27 | 没有域外退出证据时新进程对旧容量答未分配或已结清；热重载被当作进程退出；未知的文件效果因容量结清被改写、重写或回滚                                                                                                                                                          |
 | V-EE28 | 主进程退出后执行域里有活着的进程却没有归属方；可以保留时被停止；满额时停止已保留的进程；范围封闭之后仍有执行域被移交进来；同一执行域既被移交又被停止；停止未经监督者确认就报告已停；枚举读不全时答空列表或使恢复前进；不满足封闭收纳的提供者交出保留进程扩展；保留进程的 `list` 跨保留范围或跨租户（[一次性命令留下的进程](#一次性命令留下的进程未实现)；模型 [ProcessCustody](verification/models/README.md#processcustody)） |
-| V-EE29 | 段的完成由静默或屏幕判定；读到暂时无数据就交出段结果，使本段前台字节落到段外；段间字节丢失或混入段内输出；终端因后台进程而失效；关闭终端后仍有进程活着（[终端段的完成与字节归属](#终端段的完成与字节归属未实现)；模型 [TerminalSegments](verification/models/README.md#terminalsegments)） |
+| V-EE29 | 段的完成由静默或屏幕判定；读到暂时无数据就交出段结果，使本段前台字节落到段外；段间字节丢失或混入段内输出；终端因后台进程而失效；关闭终端后仍有进程活着（[终端段的完成与字节归属](#终端段的完成与字节归属)；模型 [TerminalSegments](verification/models/README.md#terminalsegments)） |
 
 `./testing` 的两个套件把部分义务写成可运行用例，用例名以义务编号为前缀。V-EE23 至 V-EE26 的用例如下；其余反例仍需机制成员、提供者与真实集成方的组合证据。套件用替身端口，不证明真实授权、真实绑定来源或耐久。`./testing` 另有内存文件设施与脚本命令设施两个替身。它们只证明契约形状与判据，不证明真实进程、文件系统、授予根核对或隔离。
 

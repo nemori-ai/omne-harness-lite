@@ -56,7 +56,7 @@ TerminalSegments 的性质：
 
 | 模型中的名字 | 编号 | 命题 | SPEC 条款 | 违反的后果 | 守卫（负控） |
 | --- | --- | --- | --- | --- | --- |
-| `CompletionTruth` | S1 | 报告完成的段，前台进程已经退出 | [终端段的完成与字节归属](../SPEC.md#终端段的完成与字节归属未实现)第 1 项 | 前台还在运行就报告完成 | N8（静默即完成） |
+| `CompletionTruth` | S1 | 报告完成的段，前台进程已经退出 | [终端段的完成与字节归属](../SPEC.md#终端段的完成与字节归属)第 1 项 | 前台还在运行就报告完成 | N8（静默即完成） |
 | `FgInSegment` | S2 | 前台进程写出的每个字节都归本段 | 同节第 3 项 | 本段输出缺最后几个字节，它们落进下一段 | N7（读到暂时无数据即交出） |
 | `Monotone`、`NothingLost` | S3 | 每个读出的字节恰有一个归属，归属沿读出次序单调；没有字节丢失 | 同节第 3、4 项 | 字节被重复归属、乱序或丢失 | 由正控支持 |
 | `StaysValid` | S4 | 后台写入不使终端失效 | 同节第 2 项 | `cmd &` 之后终端不可用 | N9（多出进程即失效） |
@@ -92,7 +92,7 @@ TerminalSegments 的性质：
 - P4：平台满足封闭收纳；不满足时，提供者不声称保留与完整停止。
 - P5：控制通道与哨兵不被同一用户的恶意进程伪造。宿主提供者不声称同一用户之间的隔离。
 
-各平台怎样满足 P3、P4 与冷索引、活过提供者崩溃、变空通知这几项原语，归宿主提供者的 SPEC，见 [host-local 的兑现](../../execution-environment-host-local/SPEC.md#留下的进程与终端字节归属的兑现未实现)。
+各平台怎样满足 P3、P4 与冷索引、活过提供者崩溃、变空通知这几项原语，归宿主提供者的 SPEC，见 [host-local 的兑现](../../execution-environment-host-local/SPEC.md#留下的进程的兑现)。
 
 ## 未覆盖
 
@@ -106,7 +106,33 @@ TerminalSegments 的性质：
 
 ## 实现对应
 
-本表在实现时填写：每个模型动作对应哪段代码，以及实现里有哪些模型没有的行为。两节都还没有实现，所以本表现在为空。实现里出现模型没有的行为时，先记为差距，再决定改模型还是改实现。
+本节记每个模型动作对应哪段代码，以及实现里有哪些模型没有的行为。实现里出现模型没有的行为时，先记为差距，再决定改模型还是改实现。
+
+### TerminalSegments
+
+实现是宿主提供者的 Linux 终端（`execution-environment-host-local`）。路径相对该包的 `src/`。
 
 | 模型动作 | 实现位置 | 说明 |
 | --- | --- | --- |
+| `GateStart` | `host-terminal.ts` 的 `execute`；`terminal-gate.ts` 的 `message()` 的 execute 分支 | gate 设当前段并开始按本段随机数扫描 |
+| `ShellBegin` | `terminal-gate.ts` 的 `legSource()`：段首哨兵，再报告开始 | 哨兵由 Bash 内建 `printf` 写到 `/dev/tty` |
+| `FgWrite`、`BgWrite` | 脚本与后台进程自己的写入 | 不在提供者代码里 |
+| `FgExit` | `legSource()`：脚本返回、恢复临时目录之后写段尾哨兵，再报告完成 | |
+| `Deliver` | 内核的 PTY 缓冲 | |
+| `GateRead` | `terminal-gate.ts` 的 `readPty()` → `terminal-sentinels.ts` 的 `scanSentinels()` → `attribute()` | |
+| `GateEnd` | `terminal-gate.ts` 的 `observe()` 收到完成观察 | |
+| `GateComplete` | `terminal-gate.ts` 的 `poll()`：完成观察与段尾哨兵都到之后交出 | 对应 `Drain = "sentinel"` |
+| `Finish` | `host-terminal.ts` 的帧处理与 `settleLeg()` | |
+
+实现里有、模型里没有的行为：
+
+- 段间缓冲有上界，超出的字节只计入丢弃数。模型的段间字节没有上界。
+- gate 暂存可能是哨兵开头的流尾，下一次读取再判定。
+- 哨兵用随机数区分各段，模型用段号。脚本能读到本段的随机数，这落在前提 P5 之外。
+- gate 与管理器之间的 `between`、`begun` 帧，以及管理器对帧顺序的校验。
+- 哨兵顺序不可能时终端失效。模型里这种顺序不可达。
+- 段内字节按 `maxChunkBytes` 分块交出。
+
+### ProcessCustody
+
+一次性命令留下的进程还没有实现，本表在实现时填写。
