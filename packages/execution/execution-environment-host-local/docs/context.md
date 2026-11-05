@@ -79,7 +79,7 @@ flowchart LR
 
 ### 现在的真实消费者
 
-应用 `apps/harness-server` 装配本成员：入口创建并保管责任域，工厂行装载 `./cordis` 的插件（见[宿主文件工厂行](../../../../apps/harness-server/docs/rows/execution-host.md)）。除该应用之外，没有包在 `package.json` 里依赖本成员。
+应用 `apps/harness-server` 装配本成员：入口创建并保管责任域，工厂行装载 `./cordis` 的插件（见[宿主文件工厂行](../../../../apps/harness-server/docs/rows/execution-host.md)）。包 `tool-storage-sql` 在 `package.json` 的 `devDependencies` 里依赖本成员（测试用）。
 
 ### 上层页面
 
