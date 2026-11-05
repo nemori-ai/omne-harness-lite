@@ -21,3 +21,5 @@ Node >=24，ESM。工厂依赖类型从根入口导出。预测和查询要求�
 ## 维护
 
 同步行为、公开设计、流程、登记及双语 README。公开定义实现后成为类型唯一源。保留历史、原操作身份和明确 unknown，全部源验收义务见[完整映射](SPEC.md#来源与目标验收映射)。
+
+函数语义与证明义务见[函数契约](docs/functions-and-coordination.md)。按 [verification](verification/README.md) 准备工具后执行 `pnpm --filter @omne-harness/schedule verify:formal`。这是显式成员守护入口，尚未接入根 check；有限模型通过不代表生产实现精化已获证明。

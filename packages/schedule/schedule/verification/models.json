@@ -1,0 +1,91 @@
+{
+  "member": "schedule",
+  "model": "models/CalendarScheduleBoundary.tla",
+  "scope": "finite abstract safety model; no implementation refinement or liveness proof",
+  "cases": [
+    {
+      "name": "follow-latest",
+      "config": "models/follow-latest.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "follow-pinned",
+      "config": "models/follow-pinned.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "explicit-latest",
+      "config": "models/explicit-latest.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "explicit-pinned",
+      "config": "models/explicit-pinned.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "negative-owner",
+      "config": "models/negative-owner.cfg",
+      "expected": "TenantIsolation"
+    },
+    {
+      "name": "negative-environment",
+      "config": "models/negative-environment.cfg",
+      "expected": "EnvironmentCoherence"
+    },
+    {
+      "name": "negative-publication",
+      "config": "models/negative-publication.cfg",
+      "expected": "LatestAtAcceptance"
+    },
+    {
+      "name": "negative-authority",
+      "config": "models/negative-authority.cfg",
+      "expected": "AuthorityAtAcceptance"
+    },
+    {
+      "name": "negative-control",
+      "config": "models/negative-control.cfg",
+      "expected": "ControlAtAcceptance"
+    },
+    {
+      "name": "negative-dedupe",
+      "config": "models/negative-dedupe.cfg",
+      "expected": "AtMostOneJob"
+    },
+    {
+      "name": "negative-freeze",
+      "config": "models/negative-freeze.cfg",
+      "expected": "FrozenBasis"
+    },
+    {
+      "name": "negative-pinned",
+      "config": "models/negative-pinned.cfg",
+      "expected": "PinnedVersionIdentity"
+    },
+    {
+      "name": "clock-positive",
+      "model": "models/ScheduleClockBoundary.tla",
+      "config": "models/clock-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "clock-negative-epoch",
+      "model": "models/ScheduleClockBoundary.tla",
+      "config": "models/clock-negative-epoch.cfg",
+      "expected": "NoEpochReuse"
+    },
+    {
+      "name": "clock-negative-deadline",
+      "model": "models/ScheduleClockBoundary.tla",
+      "config": "models/clock-negative-deadline.cfg",
+      "expected": "NoExpiredRead"
+    },
+    {
+      "name": "clock-negative-close",
+      "model": "models/ScheduleClockBoundary.tla",
+      "config": "models/clock-negative-close.cfg",
+      "expected": "NoClosedRead"
+    }
+  ]
+}

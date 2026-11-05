@@ -21,3 +21,5 @@ Node >=24 and ESM. Factory dependency types are exported from the root. Predicti
 ## Maintenance
 
 Update the behavior, public design, flows, metadata, and both README files together. Implemented public definitions must become the single type source. Keep immutable historical facts, original operation identities, and explicit unknown outcomes. Source acceptance obligations remain in the [complete mapping](SPEC.md#来源与目标验收映射).
+
+Formal function semantics and proof obligations are in [the function contract](docs/functions-and-coordination.md). Run `pnpm --filter @omne-harness/schedule verify:formal` with the tools described in [verification](verification/README.md). This is an explicit member gate, not part of the root check command; bounded model success does not prove production refinement.

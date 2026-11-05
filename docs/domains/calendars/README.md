@@ -50,3 +50,5 @@ Schedule 区分 `followUserEnvironment` 与 `explicit`。follow 原子采用用�
 ## 正式产品与技术承接导航
 
 [产品正文](../../../.meta_harness/design/product/calendars/design.md)维护能力和来源范围，[能力组](../../../packages/calendar/README.md)维护工程关系，[成员规格](../../../packages/calendar/calendar/SPEC.md)与[内部设计](../../../packages/calendar/calendar/docs/internals.md)承接完整行为和技术方案。已确认规则沿唯一终态实施，具体提供者及依赖采用仍须履约证据。
+
+计算定义域、全化与证明义务见[成员函数契约](../../../packages/calendar/calendar/docs/functions-and-totalization.md)及 [verification](../../../packages/calendar/calendar/verification/README.md)。供应、发布和健康仍是有状态责任，纯计算模型不代替这些责任的验证。

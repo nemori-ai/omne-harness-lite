@@ -536,3 +536,7 @@ UI 流程：查看列表/agenda → 选择/编辑意图 → 预览与同意 → 
 
 | N26 | JobCommands、可信 host/Tool、持久接受 participant 与原 operation 恢复 |
 | N27 | 结果准备/发布适配器、MasterReturn、归档/通知与本域聚合 |
+
+## 函数与形式守护
+
+本成员的函数定义域、全化结果、证明前提及持续守护见[函数说明](docs/functions-and-coordination.md)。公开类型仍以契约包源码为准；模型的有界结果不替代源码符合性和真实部署验证。修改相关语义前先更新[verification](verification/README.md) 的模型、负控及实现映射，再推进依赖实现。

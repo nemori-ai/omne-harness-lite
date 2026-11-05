@@ -47,8 +47,10 @@ Schedule 消费[日历](../calendars/README.md)的版本、覆盖和计算，消
 
 已确认规则沿唯一终态实施：follow/explicit 与冻结 Job 分开；eligibleLimit/jobLimit 独立且合取；draft/promote/discard 和原子 replace 保留；周期 execution 补跑只用 none/latestN，不保留 pending-first 兼容策略。精确规则与例外见[关键流程](key-flows.md)。
 
-成员须兑现同提交 participant、当前资格守卫、执行查询与真实停止、通知承接、恢复和背压。storage 已有真实 sql-contract/sqlite-provider，调度领域仍须实现自己的表、命令与恢复；提供者限制不能被同进程调用或 Cordis 注入掩盖。当前 Schedule 根入口仍为空导出，不宣称服务、工具、新依赖或 Node 24 验证已经交付。
+成员须兑现同提交 participant、当前资格守卫、执行查询与真实停止、通知承接、恢复和背压。storage 已有真实 sql-contract/sqlite-provider。Schedule 管理、预测、查询及本地持久化已有实现，Job 接受、扫描、执行与结果协调仍待兑现。提供者限制不能被同进程调用或 Cordis 注入掩盖。实际公开能力与验证边界以[成员入口](../../../packages/schedule/schedule/README.md)为准。
 
 ## 正式产品与技术承接导航
 
 [产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)维护来源范围与规则，[能力组](../../../packages/schedule/README.md)维护工程关系，[成员规格](../../../packages/schedule/schedule/SPEC.md)及[内部设计](../../../packages/schedule/schedule/docs/internals.md)承接可实现行为。外部 self-wake 和 handoff 的组合责任见[协作设计](architecture.md#外部产品组合)，不成为核心强制依赖。
+
+函数、并发与时钟消费的守护见[成员函数契约](../../../packages/schedule/schedule/docs/functions-and-coordination.md)及 [verification](../../../packages/schedule/schedule/verification/README.md)。有限模型检查不代替真实执行与协调验证。

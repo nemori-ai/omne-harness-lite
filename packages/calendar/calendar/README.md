@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-This member implements Calendar A1 without Cordis. It exports five pure date functions, source parsing and validation, query and supply applications, and the combined application factory. The package remains private at `0.0.0`. Schedule and Job remain A2 work. Real cross-domain assembly follows M2.
+This member implements Calendar A1 without Cordis. It exports five pure date functions, source parsing and validation, query and supply applications, and the combined application factory. The package remains private at `0.0.0`. Schedule management and prediction exist in their own members; Job execution remains target behavior. Actual cross-domain assembly requires evidence from the participating providers.
 
 Public protocols belong to [calendar-contract](../calendar-contract/README.md). Service definitions belong to [calendar-cordis-contract](../calendar-cordis-contract/README.md). SQL persistence, source acquisition, seeds and the runner belong to [calendar-local](../calendar-local/README.md). Tool contributions belong to [calendar-tools](../calendar-tools/README.md).
 
@@ -25,3 +25,5 @@ Run `pnpm --filter @omne-harness/calendar build`, `pnpm --filter @omne-harness/c
 ## Maintenance
 
 Keep the contract, public source, flows and both entry files consistent. Source schemas own public shapes. Preserve immutable history, original operations and explicit unknown results. See the [complete obligation mapping](../../schedule/schedule/SPEC.md#来源与目标验收映射).
+
+Formal function semantics and proof obligations are in [the function contract](docs/functions-and-totalization.md). Run `pnpm --filter @omne-harness/calendar verify:formal` with the tools described in [verification](verification/README.md). This is an explicit member gate, not part of the root check command; bounded model success does not prove production refinement.

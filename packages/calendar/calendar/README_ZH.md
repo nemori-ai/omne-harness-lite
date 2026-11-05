@@ -1,6 +1,6 @@
 # @omne-harness/calendar
 
-本成员提供无 Cordis 的 Calendar A1 实现，含五个纯日期函数、三历解析校验、查询与供应应用以及总工厂。版本仍为 `0.0.0`、private。Schedule/Job 属于 A2，真实跨域装配属于 M2 之后。
+本成员提供无 Cordis 的 Calendar A1 实现，含五个纯日期函数、三历解析校验、查询与供应应用以及总工厂。版本仍为 `0.0.0`、private。Schedule 管理与预测已有本域实现，Job 执行仍为目标行为。真实跨域装配须由具名提供者给出证据。
 
 公开协议由 [calendar-contract](../calendar-contract/README.md)拥有，服务定义由 [calendar-cordis-contract](../calendar-cordis-contract/README.md)拥有。SQL、来源获取、种子和运行器归 [calendar-local](../calendar-local/README.md)，工具贡献归 [calendar-tools](../calendar-tools/README.md)。
 
@@ -23,3 +23,5 @@ Node >=24，ESM。纯计算无需配置。查询需要可信资格与同 revisio
 ## 维护
 
 同步行为、公开定义、流程及双语入口。公开类型/schema 是形状唯一源。保留不可变历史、原操作和 unknown，不把本域通过扩展成系统接受。全部源义务见[完整映射](../../schedule/schedule/SPEC.md#来源与目标验收映射)。
+
+函数语义与证明义务见[函数契约](docs/functions-and-totalization.md)。按 [verification](verification/README.md) 准备工具后执行 `pnpm --filter @omne-harness/calendar verify:formal`。这是显式成员守护入口，尚未接入根 check；有限模型通过不代表生产实现精化已获证明。
