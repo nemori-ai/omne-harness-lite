@@ -138,7 +138,7 @@ describe('the resolution suite goes red on a reference to other material', () =>
     }
   }
 
-  it('fails PR1 and the two PR3 cases of the adopted material when the reference names another identity', async () => {
+  it('fails PR1 and the three PR3 cases of adopted material when the reference names another identity', async () => {
     const misdirecting = rewriting(given => ({
       ...given,
       ref: { ...given.ref, capability: missingCapability },
@@ -148,6 +148,7 @@ describe('the resolution suite goes red on a reference to other material', () =>
       'resolves an adopted identity to its material and declarations',
       'resolves a basis of the adopted material to that material',
       'gives back the digest of the basis without comparing it',
+      'gives back the digest of the basis for material without a readable package',
     ])
   })
 

@@ -12,7 +12,7 @@
 | [Skill 契约规格](../skill-contract/SPEC.md) | `bf1544e91` | [需求端口](../skill-contract/SPEC.md#ports)、[快照](../skill-contract/SPEC.md#snapshot)、[来源失败的集合](../skill-contract/SPEC.md#set-source-failures)、[符合性套件](../skill-contract/SPEC.md#conformance) |
 | W2 领域设计裁定                             | 2026-11-03  | 工厂与文件系统接缝的形状；定位的种类；失败映射；快照的条目集合；取快照后改文件时 `open` 交出新字节；无类、无类型断言                                                                                          |
 | W3 Skill 线实施规格已定事项 12 与第 2 轮裁定 R6 | 2026-11-04 | 真实目录示例 `examples/directory-journey.ts` 与它的测试；示例不是产品装配 |
-| w3-skill-fix 裁定 5 与第 2 轮裁定 N1（生态兼容） | 2026-11-05 | 示例里 name 与目录名不同的包被接受并带兼容提示 |
+| w3-skill-fix 裁定 5 与第 2 轮裁定 N1（生态兼容） | 2026-11-04 | 示例里 name 与目录名不同的包被接受并带兼容提示 |
 
 各裁定的内容写在下文对应的条款里。
 

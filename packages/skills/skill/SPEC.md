@@ -29,7 +29,7 @@
 | `pin(ports, gated, material, moved, signal?)` | 7 | 快照映射的三种、`aborted`，以及调用方交来的 `moved`（`adopted-material-changed` 或 `basis-unavailable`） | `list` |
 | `verifiedBytes(ports, pinned, entry, signal?)` | 10 | `open` 映射的五种、`version-changed`、`aborted` | `read`、`export` |
 
-- 第 4 步（`describe` 的结果）、第 6 步（`read` 的路径校验）、第 8 步（`list` 的结果）、第 9 步（条目查找）与第 11 步（字节范围）在 `service.ts` 的操作里。`read` 的次序是：范围校验（抛 `TypeError`）→ 第 1–3 步 → 第 5 步 → 第 6 步 → 第 7 步 → 第 9 步 → 第 10 步 → 第 11 步，与组页一致：没有可读的包加坏路径答 `unsupported`，无权主体加坏路径答 `not-available-to-you`，坏路径加材料已变答 `bad-path`。
+- 第 4 步（`describe` 的结果）、第 6 步（`read` 的路径校验）、第 8 步（`list` 的结果）、第 9 步（条目查找）与第 11 步（字节范围）在 `service.ts` 的操作里。`read` 的次序是：范围校验（抛 `TypeError`）→ 第 1–3 步 → 第 5 步 → 第 6 步 → 第 7 步 → 第 9 步 → 第 10 步 → 第 11 步，与组页一致：不带依据时，没有可读的包加坏路径答 `unsupported`。带依据时第 5 步总是通过（端口带回依据的内容摘要，PR3），所以没有可读包的材料加坏路径答 `bad-path`；这一处取代组页第 5 步「带不带依据都答 `unsupported`」，见契约[与组页的差异](../skill-contract/SPEC.md#group-differences)。无权主体加坏路径答 `not-available-to-you`，坏路径加材料已变答 `bad-path`。
 - 「材料已变」的失败值由操作交给 `pin`：`read`、`list` 不带依据时是 `adopted-material-changed`，带依据时是 `basis-unavailable`；`export` 总是 `basis-unavailable`。编译器据此证明 `export` 不会答 `adopted-material-changed`。
 - 每次操作新调用各阶段，调用之间不保留任何判定结果。
 
@@ -125,6 +125,7 @@
 | 字节范围六条规则、请求终点、正文起点 | `tests/range.spec.ts` | 终点不前移（M4）；请求终点按实际起点算（P5） |
 | `read` 与 `list` 的次序（第 5 步在第 6 步前、范围校验在端口前）、失败、不缓存 | `tests/read.spec.ts` | 第 6 步提到第 5 步前；忽略正文起点（M10）；不过滤控制文件（M9） |
 | `export` 整包或失败 | `tests/export.spec.ts` | 跳过失败条目（M8） |
+| 没有可读包的材料带依据（PR3）：`describe` 交回依据，`read`、`list`、`export` 取快照后答 `basis-unavailable` 且不 `open`，坏路径答 `bad-path` | `tests/no-package.spec.ts` | 内存解析对无包材料不带回依据的内容摘要（第 3 轮手工变异 R3-2，5 例变红） |
 | `skillAccessConformance()` 在本实现上、在两个世界（对应端口对 stranger 隐藏 / 对所有人作答）全绿；跳过第 2 步的服务在后者恰好 A1–A3 变红 | `tests/conformance.spec.ts` | 第 2 步注释掉（M5） |
 | `skillCatalogConformance()` 在本实现上全绿（`NotApplicable` 计为失败）。把 `refused` 也列出的实现恰好红四条：SC3「lists a granted identity and not a refused one」、SC5「filters to the identities of the request that are lawful and granted」与 SC7 的两条。把 `unknown` 压成空列表的实现恰好红两条：SC2「answers unknown when the lawful set is unknown」与 SC3「answers unknown when the read check of one identity is unknown」。核验按两种完成次序释放时答复相同 | `tests/catalog.spec.ts`、`tests/catalog-world.ts` | 过滤 `granted` 改成过滤非 `unknown`（W3-M1）；任一 `unknown` 改答空列表（W3-M2）；去掉排序（W3-M5）；匹配忽略说明（W3-M13）；只规范化查询一侧（W3-M14） |
 | 空的 `capabilities` 不调用任何端口；合法集合里重复的身份保留第一条 | `tests/catalog.spec.ts` | 去掉空请求的直接作答（W3-M23）；保留最后一条（W3-M24） |

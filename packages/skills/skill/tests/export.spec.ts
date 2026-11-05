@@ -12,7 +12,6 @@ import {
   failureOf,
   mallory,
   missing,
-  noPackage,
   okOf,
   path,
   review,
@@ -76,14 +75,5 @@ describe('export fails as one, without entries', () => {
     expect(failureOf(await access.export(alice, scope, review, earlierBasis))).toStrictEqual({
       kind: 'basis-unavailable',
     })
-  })
-
-  it('answers basis-unavailable for an identity without a readable package: the source has none where the reference points', async () => {
-    const { access, controls } = createWorld()
-    const basis = { capability: noPackage, layer: 'workspace' as const, digest: currentDigest }
-    expect(failureOf(await access.export(alice, scope, noPackage, basis))).toStrictEqual({
-      kind: 'basis-unavailable',
-    })
-    expect(controls.calls().open).toBe(0)
   })
 })

@@ -17,6 +17,7 @@
 - [range.spec.ts](range.spec.ts)：字节范围六条规则与正文起点
 - [read.spec.ts](read.spec.ts)：`read` 与 `list` 的组合、路径校验、不缓存、没有合法头部的正文
 - [export.spec.ts](export.spec.ts)：`export` 整包或失败
+- [no-package.spec.ts](no-package.spec.ts)：没有可读包的材料带依据时（PR3）：`describe` 交回依据，`read`、`list`、`export` 答 `basis-unavailable`，坏路径答 `bad-path`
 - [conformance.spec.ts](conformance.spec.ts)：`skillAccessConformance()` 与进程内的变红证明
 - [catalog.spec.ts](catalog.spec.ts)：`skillCatalogConformance()`、两个违约目录的变红证明、核验完成次序、空请求不调用端口、重复身份保留第一条
 - [match.spec.ts](match.spec.ts)：`matches` 的穷举

@@ -45,11 +45,15 @@ export type Pinned = Readonly<{
   snapshot: SkillPackageSnapshot
 }>
 
-/** Step 5: the material to pin. A reference without a digest has no readable package. */
+/**
+ * Step 5: the material to pin. With a basis it is the basis: the port answered with a reference
+ * that carries the digest of the basis (S7, PR3). Without one, a reference without a digest has
+ * no readable package.
+ */
 export function materialOf(gated: Gated): Outcome<SkillMaterialBasis, Unsupported> {
   const { ref, basis } = gated
-  if (ref.digest === undefined) return fail(UNSUPPORTED)
   if (basis !== undefined) return succeed(basis)
+  if (ref.digest === undefined) return fail(UNSUPPORTED)
   return succeed({
     capability: ref.capability,
     layer: ref.layer,

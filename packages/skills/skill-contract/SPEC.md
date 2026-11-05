@@ -82,6 +82,7 @@
 | `resolve` 答 `adopted` 时，引用必须指向所请求的身份；带依据时，引用的来源层、资产版本（依据带资产版本时）与内容摘要必须等于依据的。`known-unavailable` 的能力标识必须是所请求的身份。不合即没有作答。组页只写了「包定位只取自 `SkillRef`」 | [端口答复的统一处置](#port-answer-closed) | w3-skill-fix 裁定 1（GS-06） |
 | 来源在快照阶段答 `bytes-mismatch` 时，检查也答 `source-unavailable`。组页的映射表让检查答 `version-changed`，检查不分调用点 | [需求端口](#ports) | w3-skill-fix 裁定 2（GS-02） |
 | 所钉材料的 `SKILL.md` 没有合法的头部定界时，`read` 的正文答 `source-unavailable`，不交内容。组页第 11 步把整个条目当作正文 | [读取的形状规则](#read-shape) | w3-skill-fix 裁定 3（GS-04） |
+| 带依据时，`read`、`list` 与 `export` 不答 `unsupported`：端口带回依据的内容摘要（PR3），没有可读包的材料也一样，第 5 步总是通过；结果由第 6 步的路径校验、第 7 步的快照与内容摘要的核对决定，来源在引用的定位处没有包时答 `basis-unavailable`。组页第 5 步写不带内容摘要答 `unsupported`，带不带依据都一样 | [读取的形状规则](#read-shape)、[需求端口](#ports) | w3-skill-fix 第 2 轮裁定 B1 |
 | 头部 YAML 读不出、但能逐行读出 name 与说明时接受；说明超过 1024 个字符时接受；`metadata` 不是文本映射时接受；name 与包根目录名不同时接受。四种都带兼容提示。组页的包格式规则拒绝这四种 | [`SKILL.md`](#manifest)、[兼容提示](#compatibility-hints) | w3-skill-fix 裁定 5（生态兼容）与第 2 轮裁定 N1 |
 | 说明的上限是 16384 个字符，在检查、资产正文、声明投影、替换件与读取的边界解析中都一样。组页与 Agent Skills 规格写 1024 | [值与守卫](#values) | w3-skill-fix 第 2 轮裁定 N2 |
 
@@ -111,7 +112,7 @@
 - 说明的上限 `DESCRIPTION_LIMIT` 是 16384，公开根导出。这有意偏离 Agent Skills 规格的 1024：主流宿主接受更长的说明，社区 Skill 也在用（例如 `anthropics/skills` 的 `claude-api` 有 1077 个字符）。Skill 加载的包必须能用，所以检查、资产正文、声明投影、替换件与读取的边界解析共用这一个上限。上限仍然有限，防止滥用。清单的说明超过 1024 个字符时，检查带兼容提示 `description-over-limit`。
 - 常量：`MANIFEST_PATH` 为 `SKILL.md`，`DECLARATION_PATH` 为 `.omne/skill.json`，`PAGE_LIMIT` 为 65536（每页的最多字节数，见[读取的形状规则](#read-shape)）。
 - `SkillMaterialBasis` 只指明一份材料，不授予访问，不含包定位。
-- `SkillRef` 只在 Skill 与 `SkillResolution` 之间传递。`SkillRef` 没有内容摘要表示资产正文没有 `package.digest`，也就是没有可读的包。
+- `SkillRef` 只在 Skill 与 `SkillResolution` 之间传递。不带依据时，`SkillRef` 没有内容摘要表示资产正文没有 `package.digest`，也就是没有可读的包。带依据时，引用总带依据的内容摘要（PR3），没有可读包的材料也一样；所以那时不带内容摘要的引用不是依据所指的材料（S7）。
 
 <a id="digest"></a>
 
@@ -251,7 +252,7 @@ malformed
   - 值也可以是单行的引号标量：双引号按 JSON 字符串读，单引号里的 `''` 读作 `'`。闭合引号之后只能有空白或注释。
   - 块标量（`|`、`>`）与其他写法读不出。
   - `name` 合 `SkillName` 的词法、`description` 是长 1 到 `DESCRIPTION_LIMIT` 个字符的文本时，检查接受这个包，带兼容提示 `frontmatter-read-by-line`；说明超过 1024 个字符时另带 `description-over-limit`。清单只有这两个字段，`extra` 为空：其他字段不读。否则为 `malformed`。
-  - 这些是逐字的规则，不按 YAML 的语义读：逐行读取是对已经读不出的头部的尽力读取，不经过读取关口。
+  - 这些是逐字的规则，不按 YAML 的语义读：逐行读取是对已经读不出的头部的尽力读取。
 - 头部必须是映射。整个图中的映射键都必须是文本标量。标量只能是 null、布尔值、有限数或文本。`!!binary`、`.inf` 与 `.nan` 为 `malformed`。
 - 别名按所指节点展开。展开后的图最多 4096 个节点：映射、序列与标量各算一个，键不算。映射与序列最多嵌套 16 层，头部的根映射算第 1 层。超出为 `malformed`。
 - 重复键在整个图中都是解析错误，包括 Skill 原样保留、不解释的值内部。这时检查按上面的规则逐行读取。
@@ -365,7 +366,7 @@ metadata-not-text-map
 - `complete` 为真，当且仅当实际范围的终点（起点加长度）不小于总长，也就是这一页之后没有剩余字节。部分结果不是失败。
 - `read`、`list` 与 `export` 在每次调用端口之前与每次端口返回之后各检查一次 `signal`。任一次发现已中止，操作答 `aborted`，不再调用端口，也不交部分内容。`describe` 不收 `signal`。
 - 中止的活性有一个前提：每次端口调用都会结束（返回或 reject）。端口收不到 `signal`，已经发出的端口调用由端口跑完，所以中止的响应时间受端口时间限制。端口不结束时，操作不答复。
-- `unsupported` 本版本只有 `no-readable-package` 一种：不带依据的 `read` 与 `list` 遇到资产正文缺 `package.digest` 的材料时答它。带依据时（`export` 总带依据），端口带回依据的内容摘要（PR3），来源在引用的定位处没有包，操作按映射表答 `basis-unavailable`。
+- `unsupported` 本版本只有 `no-readable-package` 一种：不带依据的 `read` 与 `list` 遇到资产正文缺 `package.digest` 的材料时答它。带依据时（`export` 总带依据）不答 `unsupported`：端口带回依据的内容摘要（PR3），结果由快照与内容摘要的核对决定；来源在引用的定位处没有包时，操作按映射表答 `basis-unavailable`。
 - `export` 不分批：一次结果交出所钉快照的全部条目，或者一个失败，不交部分包。本版本的 `export` 没有总量上限。以后增加上限是破坏性改动，需要另行裁定。
 
 失败种类的集合（每一种何时出现见[组工程设计「失败种类」](../docs/architecture.md#失败种类)，`aborted` 见上文）：
@@ -468,7 +469,7 @@ no-readable-package
 - 没有已知集合的实现，对已不在当前集合里的身份不答 `known-unavailable`，这时不出现替换件。「资产版本不可表示」是例外（见下文）：这时身份仍在集合里、name 已知，任何实现都答 `known-unavailable`。
 - 带依据时，`resolve` 不比较内容摘要：内容摘要由 Skill 在读取时与当前快照比较。依据带资产版本时，`resolve` 核对该资产版本是不是这个主体在此作用域可读的、该能力的合法版本。依据不带资产版本时，`resolve` 核对该能力在依据的来源层对这个主体合法可读。
 - 身份对该主体合法对应时：依据合法就答 `adopted`，其中的内部引用（包定位与内容摘要）指向依据所指的材料，而不是当前采用的材料（PR3）；依据不合法就答 `basis-not-lawful`（PR4）。
-- 带依据答 `adopted` 时，引用的能力标识是所请求的身份，来源层等于依据的，依据带资产版本时资产版本也等于依据的。引用的内容摘要就是依据的内容摘要：端口不比较内容摘要，原样带回（PR3），所指材料没有包时也一样。所指材料没有包时，来源在引用的定位处也没有包，读取按映射表答 `basis-unavailable`。Skill 在边界上核对这些字段，不合就当作没有作答，见[端口答复的统一处置](#port-answer-closed)。
+- 带依据答 `adopted` 时，引用的能力标识是所请求的身份，来源层等于依据的，依据带资产版本时资产版本也等于依据的。引用的内容摘要就是依据的内容摘要：端口不比较内容摘要，原样带回（PR3），所指材料没有包时也一样。这时读取的结果仍由快照与内容摘要的核对决定：来源在引用的定位处没有包时，按映射表答 `basis-unavailable`。Skill 在边界上核对这些字段，不合就当作没有作答，见[端口答复的统一处置](#port-answer-closed)。
 - 资产版本不合 `AssetVersion` 的词法时，Skill 无法表示这份材料。这时端口答 `known-unavailable`，原因是「资产版本不可表示」。
 - `known-unavailable` 带的原因必须可以向该主体说明：它不含秘密，也不披露该主体无权知道的内容。这一义务归端口的实现，`isSafeReason` 只核对词形。
 - `adopted` 只交 `adopted` 与 `known-unavailable` 两种答复，每个身份一个（PR6）。集合为空时答空数组，不是失败。
@@ -570,13 +571,13 @@ prefix-conflict
 
 - 实现方为每个用例新建一份夹具，在自己的测试框架里逐个登记并运行 `run(fixture)`。`runConformanceCase` 运行一个用例并答结果。
 - 用例失败时抛出 `node:assert` 的 `AssertionError`。
-- 夹具缺少用例需要的东西时，用例抛出 `NotApplicable`。这不算通过，也不算失败，实现方要单独计数。来源不按内容摘要存放时，PS7 不适用。夹具没有 `escaping` 时，PS8 不适用。夹具没有 `earlier` 时，PR3 的早先版本一例不适用。所采用材料没有资产版本时，PR4 的资产版本一例不适用；所采用材料没有内容摘要时，PR3 的内容摘要一例不适用；夹具没有 `unlawfulLayer` 时，PR4 的来源层一例不适用。夹具没有 `standIn` 时，PR7 不适用。
+- 夹具缺少用例需要的东西时，用例抛出 `NotApplicable`。这不算通过，也不算失败，实现方要单独计数。来源不按内容摘要存放时，PS7 不适用。夹具没有 `escaping` 时，PS8 不适用。夹具没有 `earlier` 时，PR3 的早先版本一例不适用。所采用材料没有资产版本时，PR4 的资产版本一例不适用；所采用材料没有内容摘要时，PR3 的内容摘要一例不适用；夹具没有 `noPackage` 时，PR3 的无包材料一例不适用；夹具没有 `unlawfulLayer` 时，PR4 的来源层一例不适用。夹具没有 `standIn` 时，PR7 不适用。
 - 本成员对内存替身的测试把 `NotApplicable` 当作失败：替身必须覆盖全部用例。
 
 | 套件 | 夹具 | 用例 |
 | --- | --- | --- |
 | `skillPackageSourceConformance` | `source`；`present`：来源持有、用例运行期间不变的包；`absent`：不对应任何包的定位；`addressing`：是否按内容摘要存放；`escaping`：可选，有一个链接解析后落在根外的包 | PS1–PS8 |
-| `skillResolutionConformance` | `resolution`；`permitted`、`refused` 两个主体与作用域；`adopted`：对 `permitted` 已采用的身份；`missing`：对谁都不存在的身份；`standIn`：可选，对 `permitted` 合法已知、此刻不可用的身份；`earlier`：可选，`adopted` 的一个早先合法版本的依据；`unlawfulLayer`：可选，`adopted` 对 `permitted` 不合法的来源层 | PR1–PR7 |
+| `skillResolutionConformance` | `resolution`；`permitted`、`refused` 两个主体与作用域；`adopted`：对 `permitted` 已采用的身份；`missing`：对谁都不存在的身份；`standIn`：可选，对 `permitted` 合法已知、此刻不可用的身份；`earlier`：可选，`adopted` 的一个早先合法版本的依据；`unlawfulLayer`：可选，`adopted` 对 `permitted` 不合法的来源层；`noPackage`：可选，对 `permitted` 已采用、资产正文无 `package.digest` 的身份 | PR1–PR7 |
 | `skillReadCheckConformance` | `readCheck`；`permitted`、`refused`；`readable`：`permitted` 能读的身份；`missing` | PC1–PC3 |
 | `skillCatalogConformance` | `catalog`；`reader`：合法集合恰好是 `granted`、`refused` 与 `standIn` 的主体；`nobody`：合法集合为空的主体；`granted`：`reader` 能读的已采用身份，写成目录必须交出的 `adopted` 条目，必须带说明；`refused`：`reader` 的被拒的身份（在合法集合里、读取判定对 `reader` 答 `refused`），写成它的能力标识，以及合法集合答复中它的 name 与说明；`standIn`：`reader` 能读、此刻不可用的身份，写成目录必须交出的 `stand-in` 条目；`missing`：对谁都不存在的身份；`world`：`lawfulSetUnknown`、`verdictUnknown(capability)`、`repeatGranted`、`removeRefused` 改变端口背后的世界并对之后的调用生效，`checks()` 交出读取判定被调用的次数 | SC2–SC7 |
 | `skillAccessConformance` | `access`；`principals`：`reader`（能读 `adopted`）与 `stranger`（对夹具里的身份都无权）；`capability`：`adopted`（对 `reader` 已采用、有可读的包）、`missing`、`checkedOnly`（读取判定准许、对应端口不认识），可选的 `standIn`、`noPackage`（已采用、资产正文无 `package.digest`）、`large`（正文长于 65536 字节）；`world`：`replaceAdopted`、`changeEntry`、`breakOpen`、`abortAfterSnapshot` 改变端口背后的世界并对之后的调用生效，`calls()` 交出四个端口各被调用的次数 | A1–A11、A12a、A12b、A13、A14 |

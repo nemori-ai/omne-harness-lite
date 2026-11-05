@@ -115,6 +115,11 @@ export type ResolutionFixture<P, S> = Readonly<{
   earlier?: SkillMaterialBasis
   /** A source layer in which `adopted` is not lawful for `permitted`, if there is one. */
   unlawfulLayer?: SourceLayer
+  /**
+   * An identity adopted for `permitted` whose material has no readable package (its asset body
+   * has no `package.digest`), if there is one.
+   */
+  noPackage?: CapabilityId
 }>
 
 /** The name of the non-disclosure case. */
@@ -213,6 +218,26 @@ export function skillResolutionConformance<P, S>(): ConformanceCase<ResolutionFi
       if (answer.kind !== 'adopted') assert.fail(`expected adopted, got ${answer.kind}`)
       assert.equal(answer.ref.digest, digest, 'the ref does not carry the digest of the basis')
     }),
+    conformanceCase(
+      'PR3',
+      'gives back the digest of the basis for material without a readable package',
+      async f => {
+        const identity = handle(f.noPackage, 'noPackage')
+        const plain = await f.resolution.resolve(f.permitted.access, f.permitted.scope, identity)
+        if (plain.kind !== 'adopted') assert.fail(`the noPackage sample answered ${plain.kind}`)
+        assert.equal(plain.ref.digest, undefined, 'the noPackage sample has a readable package')
+        const basis = basisOf(plain.ref)
+        const answer = await f.resolution.resolve(f.permitted.access, f.permitted.scope, identity, {
+          basis,
+        })
+        if (answer.kind !== 'adopted') assert.fail(`expected adopted, got ${answer.kind}`)
+        assert.equal(
+          answer.ref.digest,
+          basis.digest,
+          'the ref does not carry the digest of the basis',
+        )
+      },
+    ),
     conformanceCase(
       'PR3',
       'resolves a basis of an earlier lawful version to the earlier material',

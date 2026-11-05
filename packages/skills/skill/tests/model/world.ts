@@ -297,15 +297,15 @@ export type Fault =
  * must take each of them for no answer when it names another identity, or, with a basis, other
  * material than the basis: a basis names material with a digest.
  */
-export type Misdirection = 'misdirect' | 'mislayer' | 'misversion' | 'misdigest' | 'undigest'
-
-export const MISDIRECTIONS: readonly Misdirection[] = [
+export const MISDIRECTIONS = [
   'misdirect',
   'mislayer',
   'misversion',
   'misdigest',
   'undigest',
-]
+] as const
+
+export type Misdirection = (typeof MISDIRECTIONS)[number]
 
 /** Which call a fault replaces. `item` replaces one item of the lawful set by a malformed one. */
 export type FaultSite =

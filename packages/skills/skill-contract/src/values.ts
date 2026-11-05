@@ -137,7 +137,8 @@ export type SkillMaterialBasis = Readonly<{
 
 /**
  * The internal reference to one material. It passes only between Skill and `SkillResolution`.
- * An absent digest means that the asset body has no `package.digest`: there is no readable package.
+ * Without a basis, an absent digest means that the asset body has no `package.digest`: there is no
+ * readable package. With a basis the reference carries the digest of the basis (PR3).
  */
 export type SkillRef = Readonly<{
   capability: CapabilityId
