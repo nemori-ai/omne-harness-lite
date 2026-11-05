@@ -30,7 +30,8 @@
     "canonicalize": "5.1.0",
     "zod": "catalog:",
     "@omne-harness/assets": "workspace:*",
-    "@omne-harness/settings-local": "workspace:*"
+    "@omne-harness/settings-local": "workspace:*",
+    "@omne-harness/json-text": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/sqlite-provider": "workspace:*",

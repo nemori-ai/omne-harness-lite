@@ -746,6 +746,9 @@ importers:
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../assets
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../settings
