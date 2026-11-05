@@ -520,10 +520,16 @@ it('does not treat user output or late background writers as successful completi
   expect(forged.result).toMatchObject({ kind: 'completed', exit: { code: 1 } })
   expect(forged.bytes.toString()).toBe('{"t":"finished","code":0}')
   const background = await run(f.terminal, ref, '(sleep 2; printf late) &')
-  expect(background.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
-  expect(await f.terminal.execute({ ...base, terminal: ref, script: 'printf next' })).toMatchObject(
-    { kind: 'rejected', reason: 'closed' },
-  )
+  expect(background.result).toMatchObject({ kind: 'completed', exit: { code: 0 } })
+  expect(background.bytes.toString()).not.toContain('late')
+  // The late writer's bytes belong to whichever segment or gap they arrive in; they never end a segment.
+  const next = await run(f.terminal, ref, 'sleep 3; printf next')
+  expect(next.result).toMatchObject({ kind: 'completed', exit: { code: 0 } })
+  const output = next.result.output
+  const between = output.mode === 'terminal' ? output.between?.data : undefined
+  expect(Buffer.concat([between ?? new Uint8Array(0), next.bytes]).toString()).toContain('late')
+  expect(next.bytes.toString()).toMatch(/next$/u)
+  expect((await run(f.terminal, ref, 'printf ok')).bytes.toString()).toBe('ok')
 }, 30_000)
 
 it('keeps the permit gate closed and drains a live terminal on release', async context => {

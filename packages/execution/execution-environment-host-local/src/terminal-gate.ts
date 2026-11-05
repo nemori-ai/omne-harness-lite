@@ -1,9 +1,17 @@
 import { execFileSync } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import { closeSync, constants, mkdirSync, openSync, readSync, writeSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { Socket } from 'node:net'
 import { join } from 'node:path'
-import { ownUnitPlacement, scopeMembers } from './scope-cgroup.ts'
+import { ownUnitPlacement } from './scope-cgroup.ts'
+import {
+  idleSentinels,
+  releaseSentinels,
+  scanSentinels,
+  watchSentinels,
+  type SentinelPiece,
+} from './terminal-sentinels.ts'
 
 type Initial = {
   generation: string
@@ -13,8 +21,10 @@ type Initial = {
   rows: number
   maxChunkBytes: number
   maxControlBytes: number
+  betweenSegmentBytes: number
 }
 type Leg = { id: string; script: string; cwd?: string; env?: Record<string, string>; stdin: Buffer }
+type ActiveLeg = Leg & { nonce: string; begun: boolean; sawEnd: boolean }
 type Pty = { fd: number; pid: number }
 
 const unit = process.argv[2] ?? ''
@@ -31,8 +41,13 @@ let pending = Buffer.alloc(0)
 let observed = Buffer.alloc(0)
 let queued: Buffer = Buffer.alloc(0)
 let stdin: Buffer = Buffer.alloc(0)
-let active: Leg | undefined
+let active: ActiveLeg | undefined
 let completion: { code: number; cwd: string } | undefined
+let sentinels = idleSentinels
+// Bytes read outside any segment, kept for the next segment's result up to the configured bound.
+let between: Buffer[] = []
+let betweenKept = 0
+let betweenDiscarded = 0
 let opened = false
 let blocked = false
 let detached = false
@@ -97,16 +112,52 @@ function inOwnScope(): boolean {
   return ownUnitPlacement(unit).kind === 'inUnit'
 }
 
-function noOtherWriters(): boolean {
-  if (pty === undefined) return false
-  const placement = ownUnitPlacement(unit)
-  const members = placement.kind === 'inUnit' ? scopeMembers(placement.directory) : undefined
-  if (members === undefined) return false
-  return (
-    members.includes(process.pid) &&
-    members.includes(pty.pid) &&
-    members.every(pid => pid === process.pid || pid === pty?.pid)
-  )
+function sendBytes(t: 'data' | 'between', leg: string, bytes: Uint8Array, bound: number): void {
+  for (let at = 0; at < bytes.length; at += bound)
+    send({ t, leg, b: Buffer.from(bytes.subarray(at, at + bound)).toString('base64') })
+}
+
+function keepBetween(bytes: Uint8Array, bound: number): void {
+  const kept = Math.min(bytes.length, bound - betweenKept)
+  if (kept > 0) between.push(Buffer.from(bytes.subarray(0, kept)))
+  betweenKept += kept
+  betweenDiscarded += bytes.length - kept
+}
+
+/** Applies one attributed piece of PTY output; false when the sentinel order is impossible. */
+function attribute(piece: SentinelPiece, config: Initial): boolean {
+  switch (piece.kind) {
+    case 'between':
+      keepBetween(piece.bytes, config.betweenSegmentBytes)
+      return true
+    case 'segment':
+      if (active?.begun !== true || active.sawEnd) return false
+      sendBytes('data', active.id, piece.bytes, config.maxChunkBytes)
+      return true
+    case 'begin':
+      if (active === undefined || active.begun) return false
+      sendBytes('between', active.id, Buffer.concat(between), config.maxChunkBytes)
+      send({ t: 'begun', leg: active.id, discarded: betweenDiscarded })
+      between = []
+      betweenKept = 0
+      betweenDiscarded = 0
+      active.begun = true
+      return true
+    case 'end':
+      if (active?.begun !== true || active.sawEnd) return false
+      active.sawEnd = true
+      return true
+    default: {
+      const exhaustive: never = piece
+      return exhaustive
+    }
+  }
+}
+
+function readPty(bytes: Buffer, config: Initial): void {
+  const step = scanSentinels(sentinels, bytes)
+  sentinels = step.scan
+  for (const piece of step.pieces) if (!attribute(piece, config)) return fail()
 }
 
 function observe(bytes: Buffer): void {
@@ -138,7 +189,7 @@ function observe(bytes: Buffer): void {
       /^\d{1,3}$/u.test(code) &&
       Number(code) <= 255
     ) {
-      if (!noOtherWriters()) return fail()
+      // Other processes left in the scope do not veto completion; only the control channel decides.
       completion = { code: Number(code), cwd }
     } else return fail()
   }
@@ -151,11 +202,13 @@ function poll(): void {
     if (pty !== undefined) stdin = writeAvailable(pty.fd, stdin)
     if (observations !== undefined) readAvailable(observations, initial.maxControlBytes, observe)
     if (pty === undefined) return
-    const drained = readAvailable(pty.fd, initial.maxChunkBytes, bytes => {
-      if (active === undefined) return fail()
-      send({ t: 'data', leg: active.id, b: bytes.toString('base64') })
-    })
-    if (drained && completion !== undefined && active !== undefined && !ended) {
+    const config = initial
+    readAvailable(pty.fd, config.maxChunkBytes, bytes => readPty(bytes, config))
+    // The finished observation and the end sentinel arrive on two unordered channels; both are needed.
+    if (completion !== undefined && active?.sawEnd === true && !ended) {
+      const released = releaseSentinels(sentinels)
+      sentinels = released.scan
+      for (const piece of released.pieces) if (!attribute(piece, config)) return fail()
       send({ t: 'finished', leg: active.id, ...completion })
       completion = undefined
       active = undefined
@@ -214,7 +267,16 @@ function start(config: Initial): void {
 }
 
 function parseInitial(value: Record<string, unknown>): Initial | undefined {
-  const { generation, cwd, env, columns, rows, maxChunkBytes, maxControlBytes } = value
+  const {
+    generation,
+    cwd,
+    env,
+    columns,
+    rows,
+    maxChunkBytes,
+    maxControlBytes,
+    betweenSegmentBytes,
+  } = value
   if (
     typeof generation !== 'string' ||
     typeof cwd !== 'string' ||
@@ -222,10 +284,20 @@ function parseInitial(value: Record<string, unknown>): Initial | undefined {
     !positive(columns) ||
     !positive(rows) ||
     !positive(maxChunkBytes) ||
-    !positive(maxControlBytes)
+    !positive(maxControlBytes) ||
+    !positive(betweenSegmentBytes)
   )
     return undefined
-  return { generation, cwd, env, columns, rows, maxChunkBytes, maxControlBytes }
+  return {
+    generation,
+    cwd,
+    env,
+    columns,
+    rows,
+    maxChunkBytes,
+    maxControlBytes,
+    betweenSegmentBytes,
+  }
 }
 
 function parseLeg(value: Record<string, unknown>): Leg | undefined {
@@ -247,7 +319,16 @@ function parseLeg(value: Record<string, unknown>): Leg | undefined {
   }
 }
 
-function legSource(leg: Leg): string {
+/**
+ * The driver writes the sentinels with the shell's builtin printf to the controlling terminal,
+ * so they share the PTY's one ordered buffer with the script's bytes even after the script
+ * redirected the shell's own output. The nonce reaches the shell through the command FIFO only.
+ */
+function sentinelWrite(mark: 'b' | 'e', nonce: string): string {
+  return `builtin printf '\\033]7770;omne-${mark};%s\\a' ${quote(nonce)} >/dev/tty || return 125`
+}
+
+function legSource(leg: ActiveLeg): string {
   const environment = Object.entries(leg.env ?? {})
     .map(([key, value]) => `local -x ${key}=${quote(value)} || return 125`)
     .join('\n')
@@ -264,12 +345,14 @@ builtin cd -- ${quote(leg.cwd)} || return 125`
 builtin eval ${quote(leg.script)}
 }
 __omne_leg() {
+${sentinelWrite('b', leg.nonce)}
 ${environment}
 ${cwd}
 __omne_report ${quote(leg.id)} started 0 || return 125
 __omne_script
 local __omne_code=$?
 ${restore}
+${sentinelWrite('e', leg.nonce)}
 __omne_report ${quote(leg.id)} finished "$__omne_code" || return 125
 }
 __omne_leg
@@ -299,8 +382,9 @@ function message(value: unknown): void {
   if (value['c'] !== 'execute' || !opened || active !== undefined) return fail()
   const leg = parseLeg(value)
   if (leg === undefined) return fail()
-  active = leg
-  queued = Buffer.from(`${legSource(leg)}\0`)
+  active = { ...leg, nonce: randomBytes(16).toString('hex'), begun: false, sawEnd: false }
+  sentinels = watchSentinels(sentinels, active.nonce)
+  queued = Buffer.from(`${legSource(active)}\0`)
   poll()
 }
 

@@ -10,6 +10,7 @@ import type {
   FacilityReason,
   FacilityResult,
   ManagedResource,
+  OutputSummary,
   ProcessHandle,
   ResourceLedger,
   RetainedTerminalLedger,
@@ -49,9 +50,17 @@ export type HostTerminalOptions = HostCommandOptions &
     rows?: number
     /** Domain-wide retained shell capacity. Initial 64; unresolved reservations consume capacity. */
     retainedCapacity?: number
+    /** Bytes kept between two segments for the next result; later bytes are counted as discarded. Initial 256 KiB. */
+    betweenSegmentBytes?: number
   }>
 export type TerminalSettings = CommandSettings &
-  Readonly<{ maxControlBytes: number; columns: number; rows: number; retainedCapacity: number }>
+  Readonly<{
+    maxControlBytes: number
+    columns: number
+    rows: number
+    retainedCapacity: number
+    betweenSegmentBytes: number
+  }>
 
 export function terminalSettings(options: HostTerminalOptions = {}): TerminalSettings {
   const settings = {
@@ -60,8 +69,15 @@ export function terminalSettings(options: HostTerminalOptions = {}): TerminalSet
     columns: options.columns ?? 80,
     rows: options.rows ?? 24,
     retainedCapacity: options.retainedCapacity ?? 64,
+    betweenSegmentBytes: options.betweenSegmentBytes ?? 256 * 1024,
   }
-  for (const name of ['maxControlBytes', 'columns', 'rows', 'retainedCapacity'] as const)
+  for (const name of [
+    'maxControlBytes',
+    'columns',
+    'rows',
+    'retainedCapacity',
+    'betweenSegmentBytes',
+  ] as const)
     if (!Number.isSafeInteger(settings[name]) || settings[name] < 1)
       throw new RangeError(`${name} must be a positive safe integer`)
   if (settings.columns > 65535 || settings.rows > 65535)
@@ -103,6 +119,9 @@ type Leg = {
   started: Deferred<boolean>
   result: Deferred<CommandOutcome>
   output: TerminalOutput
+  /** Between-segment bytes delivered before the begin sentinel; set once the gate read it. */
+  between: Uint8Array[]
+  begun: { discarded: number } | undefined
   startedAt: number
   done: boolean
 }
@@ -181,21 +200,22 @@ function settleLeg(entry: Entry, code?: number): void {
   leg.started.settle(false)
   leg.output.close()
   const durationMs = Math.round(monotonicMs() - leg.startedAt)
+  const output = summary(leg)
   leg.result.settle(
     code === undefined
-      ? {
-          kind: 'failed',
-          reason: 'effectUnknown',
-          observedDurationMs: durationMs,
-          output: leg.output.summary(),
-        }
-      : {
-          kind: 'completed',
-          exit: { kind: 'code', code },
-          durationMs,
-          output: leg.output.summary(),
-        },
+      ? { kind: 'failed', reason: 'effectUnknown', observedDurationMs: durationMs, output }
+      : { kind: 'completed', exit: { kind: 'code', code }, durationMs, output },
   )
+}
+/** The segment counts, with the between-segment bytes once the gate attributed them to this leg. */
+function summary(leg: Leg): Extract<OutputSummary, { mode: 'terminal' }> {
+  if (leg.begun === undefined) return leg.output.summary()
+  const data = new Uint8Array(Buffer.concat(leg.between))
+  const discardedBytes = leg.begun.discarded
+  return {
+    ...leg.output.summary(),
+    between: { data, count: { observedBytes: data.length + discardedBytes, discardedBytes } },
+  }
 }
 
 export function createHostTerminals(input: Input): HostTerminals {
@@ -253,6 +273,12 @@ export function createHostTerminals(input: Input): HostTerminals {
         return
       case 'started':
         entry.leg?.started.settle(true)
+        return
+      case 'between':
+        entry.leg?.between.push(value.bytes)
+        return
+      case 'begun':
+        if (entry.leg !== undefined) entry.leg.begun = { discarded: value.discarded }
         return
       case 'data':
         entry.leg?.output.push(value.bytes)
@@ -328,6 +354,7 @@ export function createHostTerminals(input: Input): HostTerminals {
       rows: request.geometry?.rows ?? settings.rows,
       maxChunkBytes: settings.maxChunkBytes,
       maxControlBytes: settings.maxControlBytes,
+      betweenSegmentBytes: settings.betweenSegmentBytes,
     })
     return entry
   }
@@ -493,6 +520,8 @@ export function createHostTerminals(input: Input): HostTerminals {
       started: deferred(),
       result: deferred(),
       output: createTerminalOutput(settings),
+      between: [],
+      begun: undefined,
       startedAt: monotonicMs(),
       done: false,
     }

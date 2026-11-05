@@ -29,3 +29,4 @@
 - [terminal-control.ts](terminal-control.ts)：有界控制帧与代际核验
 - [terminal-output.ts](terminal-output.ts)：单读者原始字节缓冲
 - [terminal-gate.ts](terminal-gate.ts)：scope 内的持久 Bash 与 PTY 驱动
+- [terminal-sentinels.ts](terminal-sentinels.ts)：PTY 字节流里的段首、段尾哨兵，以及段内字节与段间字节的归属

@@ -27,3 +27,5 @@
 
 - [host-terminal.spec.ts](host-terminal.spec.ts)：原始字节、控制协议与 Cordis 增量
 - [host-terminal-recovery.spec.ts](host-terminal-recovery.spec.ts)：真实 Linux PTY、分段与新进程资源恢复
+- [host-terminal-segments.spec.ts](host-terminal-segments.spec.ts)：真实 Linux PTY 上段的完成与字节归属：后台进程、前台字节、段间字节、关闭终端与哨兵；归慢层
+- [terminal-sentinels.spec.ts](terminal-sentinels.spec.ts)：哨兵的识别与跨块拼接，不起进程
