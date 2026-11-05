@@ -6,7 +6,8 @@ import type { ListingPage } from '@omne-harness/mcp-contract/provider'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import type { Step } from './doubles/scripted-transport.ts'
-import { alice, bob, json, mallory, peerIdentity, ref } from './doubles/values.ts'
+import { jsonOf, peerIdentityOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { alice, bob, mallory } from './doubles/identities.ts'
 import {
   MAIN,
   adoptHttp,
@@ -18,8 +19,8 @@ import {
   type World,
 } from './doubles/world.ts'
 
-const files = ref('files')
-const peer = peerIdentity()
+const files = endpointRefOf('files')
+const peer = peerIdentityOf()
 const anonymousKey: CatalogKey = {
   tenant: alice.tenant,
   account: { kind: 'anonymous' },
@@ -181,7 +182,7 @@ describe('refresh keeps the earlier adoption', () => {
       ],
     ],
     ['duplicate-action-name', [{ listActions: page(['a', 'a']) }]],
-    ['action-invalid', [{ listActions: { tools: [json({ inputSchema: {} })] } }]],
+    ['action-invalid', [{ listActions: { tools: [jsonOf({ inputSchema: {} })] } }]],
     ['action-limit-exceeded', [{ listActions: page(['a', 'b', 'c']) }]],
   ] as const)(
     'listing-incomplete (%s): the listing is not adopted',
@@ -493,7 +494,7 @@ describe('current and peer do not connect', () => {
     if (stored === 'absent') throw new Error('nothing stored')
     const rebased = {
       ...stored,
-      basis: { ...stored.basis, capabilities: json({ tools: { listChanged: true } }) },
+      basis: { ...stored.basis, capabilities: jsonOf({ tools: { listChanged: true } }) },
     }
     expect(await w.store.write(anonymousKey, rebased, stored.revision)).toEqual({ ok: true })
     expect(await discovery.current(alice, files)).toMatchObject({
@@ -502,7 +503,7 @@ describe('current and peer do not connect', () => {
     // Member order of the capabilities does not make the basis differ.
     const reordered = {
       ...stored,
-      basis: { ...stored.basis, capabilities: json({ tools: {} }) },
+      basis: { ...stored.basis, capabilities: jsonOf({ tools: {} }) },
     }
     expect(await w.store.write(anonymousKey, reordered, stored.revision)).toEqual({ ok: true })
     expect(await discovery.current(alice, files)).toMatchObject({

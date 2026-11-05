@@ -4,11 +4,12 @@
 import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import { core } from './doubles/core.ts'
-import { alice, bob, mallory, ref } from './doubles/values.ts'
+import { endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { alice, bob, mallory } from './doubles/identities.ts'
 import { INVALID, adoptHttp, adoptStdio, usualScript, world } from './doubles/world.ts'
 
-const files = ref('files')
-const nowhere = ref('nowhere')
+const files = endpointRefOf('files')
+const nowhere = endpointRefOf('nowhere')
 
 describe('status.inspect', () => {
   it.each([
@@ -128,9 +129,9 @@ describe('status.inspect', () => {
 describe('status.list', () => {
   it('lists the usable and the blocked endpoints of the scope, not the ones without eligibility', async () => {
     const { w, status } = core(world())
-    const shell = ref('shell')
-    const vault = ref('vault')
-    const elsewhere = ref('elsewhere')
+    const shell = endpointRefOf('shell')
+    const vault = endpointRefOf('vault')
+    const elsewhere = endpointRefOf('elsewhere')
     adoptStdio(w, files)
     adoptStdio(w, shell)
     adoptHttp(w, vault)
@@ -160,8 +161,8 @@ describe('status.list', () => {
   it('answers unknown for the whole list when any eligibility is unknown', async () => {
     const { w, status } = core(world())
     adoptStdio(w, files)
-    adoptStdio(w, ref('shell'))
-    w.eligibility.setUnreadable(alice, ref('shell'), true)
+    adoptStdio(w, endpointRefOf('shell'))
+    w.eligibility.setUnreadable(alice, endpointRefOf('shell'), true)
     expect(await status.list(alice, 'ws')).toEqual({ failure: 'unknown' })
   })
 

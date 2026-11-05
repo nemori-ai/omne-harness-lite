@@ -13,6 +13,12 @@ export type TaskScope = Readonly<{
   exit(): readonly unknown[]
 }>
 
+/**
+ * The view of the scope that the table hands out: work can be handed to it, its errors cannot be
+ * taken from it. Only the table's `closeAll` exits the scope.
+ */
+export type Spawn = Pick<TaskScope, 'spawn'>
+
 /** Throws `error` outside any promise, where the host's handler of uncaught exceptions sees it. */
 function throwUncaught(error: unknown): void {
   queueMicrotask(() => {

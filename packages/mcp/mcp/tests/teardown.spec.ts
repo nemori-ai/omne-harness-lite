@@ -8,10 +8,11 @@ import { core, type Core } from './doubles/core.ts'
 import { settled, type Deferred } from './doubles/deferred.ts'
 import { faulty, landingStoppingAs, type Fault, type StopAnswer } from './doubles/faults.ts'
 import { stallingLanding, stallingReleases, stallingStops } from './doubles/stalls.ts'
-import { alice, millis, ref } from './doubles/values.ts'
+import { millisOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { alice } from './doubles/identities.ts'
 import { VALUE, adoptStdio, usualScript, world, type World } from './doubles/world.ts'
 
-const files = ref('files')
+const files = endpointRefOf('files')
 const WITH_CREDENTIAL = {
   auth: 'static',
   env: [{ name: 'TOKEN', source: 'credential' }],
@@ -183,7 +184,7 @@ describe('every process is asked to stop, whichever stop rejects (decision 4)', 
 describe('the entry stays while its teardown waits on a port (decision 20)', () => {
   // A resource leaves the entry only after its port answered. A late landing that answers in the
   // meantime makes the table look at the entry again; it has to find the entry still holding.
-  const SHORT = { settings: { connectTimeout: VALUE(millis(50)) } }
+  const SHORT = { settings: { connectTimeout: VALUE(millisOf(50)) } }
   const RELEASED = { ok: { kind: 'released', process: 'tree-confirmed' } }
 
   /**
@@ -263,7 +264,7 @@ describe('a landing still in flight at the close (decisions 5, 6)', () => {
 
   it('release and closeAll report unconfirmed, not no-process; after closeAll nothing connects', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
     const { stalled, c } = stalledLanding(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'connection-unavailable' },
@@ -285,7 +286,7 @@ describe('a landing still in flight at the close (decisions 5, 6)', () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files, {
       ...WITH_CREDENTIAL,
-      settings: { connectTimeout: VALUE(millis(50)) },
+      settings: { connectTimeout: VALUE(millisOf(50)) },
     })
     const { stalled, c } = stalledLanding(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({

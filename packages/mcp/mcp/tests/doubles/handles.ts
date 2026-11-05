@@ -13,7 +13,7 @@ import type {
   ProcessCredentialHandle,
   ProcessPurpose,
 } from '@omne-harness/mcp-contract/provider'
-import type { Principal } from './values.ts'
+import type { Principal } from './identities.ts'
 
 export type AnyHandle = ProcessCredentialHandle | HttpCredentialHandle
 

@@ -9,11 +9,12 @@ import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import { stallingCredentials, stallingLanding, stallingStops } from './doubles/stalls.ts'
 import type { PeerIdentity } from '@omne-harness/mcp-contract'
-import { alice, millis, peerIdentity, ref } from './doubles/values.ts'
+import { millisOf, peerIdentityOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { alice } from './doubles/identities.ts'
 import { VALUE, adoptStdio, usualScript, world, type World } from './doubles/world.ts'
 
-const files = ref('files')
-const notes = ref('notes')
+const files = endpointRefOf('files')
+const notes = endpointRefOf('notes')
 const WITH_CREDENTIAL = {
   auth: 'static',
   env: [{ name: 'TOKEN', source: 'credential' }],
@@ -36,7 +37,7 @@ describe('closeAll releases the handles of the landings in flight at once (decis
     adoptStdio(w, files)
     adoptStdio(w, notes, {
       ...WITH_CREDENTIAL,
-      settings: { connectTimeout: VALUE(millis(50)) },
+      settings: { connectTimeout: VALUE(millisOf(50)) },
     })
     // The start for `files` is call 1 and lands; the start for `notes` is call 2 and never does.
     const stalled = stallingLanding(w.landing, only(2))
@@ -60,7 +61,7 @@ describe('closeAll releases the handles of the landings in flight at once (decis
     const w = world({ script: usualScript() })
     adoptStdio(w, files, {
       ...WITH_CREDENTIAL,
-      settings: { connectTimeout: VALUE(millis(50)) },
+      settings: { connectTimeout: VALUE(millisOf(50)) },
     })
     const stalled = stallingLanding(w.landing)
     const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
@@ -101,7 +102,7 @@ describe('closeAll releases the handles of the landings in flight at once (decis
     const w = world({ script: usualScript() })
     adoptStdio(w, files, {
       ...WITH_CREDENTIAL,
-      settings: { connectTimeout: VALUE(millis(50)) },
+      settings: { connectTimeout: VALUE(millisOf(50)) },
     })
     const stops = stallingStops(w.landing, only(1))
     const landing = stallingLanding(stops.port)
@@ -166,7 +167,7 @@ describe('a build under way when the table shuts goes no further (decision 5)', 
     await settled()
     const all = c.connections.closeAll()
     await settled()
-    discover.resolve(peerIdentity())
+    discover.resolve(peerIdentityOf())
     expect(await refreshed).toEqual(REFUSED)
     await all
     expect(w.trace).toEqual(['transport.close', 'process.stop', 'credential.release'])
@@ -232,7 +233,7 @@ describe('closeAll hands the errors of the background work to its caller (SPEC P
     const bounds = manualBounds(error => late.push(error))
     const c = core(w, bounds.runtime)
     const bug = new Error('an error of this package in the background')
-    bounds.runtime.scope.spawn(Promise.reject(bug))
+    c.table.runtime.scope.spawn(Promise.reject(bug))
     await settled()
     const thrown = await c.connections.closeAll().then(
       () => undefined,
@@ -242,7 +243,7 @@ describe('closeAll hands the errors of the background work to its caller (SPEC P
     expect(thrown instanceof AggregateError ? thrown.errors : []).toEqual([bug])
     expect(await c.connections.closeAll()).toEqual([])
     const after = new Error('after the exit')
-    bounds.runtime.scope.spawn(Promise.reject(after))
+    c.table.runtime.scope.spawn(Promise.reject(after))
     await settled()
     expect(late).toEqual([after])
   })

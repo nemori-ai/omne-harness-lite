@@ -18,7 +18,7 @@ import {
   type MemoryUseEligibility,
 } from '@omne-harness/mcp-contract/testing'
 import { releasing, reshapedCredentials } from './handles.ts'
-import { principalKey, type Principal } from './values.ts'
+import { principalKey, type Principal } from './identities.ts'
 
 export type Counted<T> = T & Readonly<{ calls: () => number }>
 

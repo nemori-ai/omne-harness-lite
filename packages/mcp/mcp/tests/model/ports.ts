@@ -30,7 +30,8 @@ import type {
 } from '@omne-harness/mcp-contract/provider'
 import type { AdmittedEndpoint } from '../../src/internal/gate.ts'
 import { catalogKeyTextOf } from '../../src/internal/text.ts'
-import { peerIdentity, type Principal } from '../doubles/values.ts'
+import { peerIdentityOf } from '@omne-harness/mcp-contract/testing'
+import { type Principal } from '../doubles/identities.ts'
 
 /** The answers of each port, the lawful one first. The closure phases answer with the first. */
 export const PORT_ANSWERS = {
@@ -168,7 +169,7 @@ function notModelled(member: string): never {
   throw new TypeError(`${member} is outside the lifecycle model`)
 }
 
-const PEER: PeerIdentity = peerIdentity()
+const PEER: PeerIdentity = peerIdentityOf()
 const NOT_SENT: TransportFailure = { kind: 'not-sent', cause: 'connection-unavailable' }
 const STREAM_BROKEN: TransportFailure = { kind: 'no-answer', cause: 'stream-broken' }
 

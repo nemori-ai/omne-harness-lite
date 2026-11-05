@@ -8,6 +8,7 @@ import type {
   AdoptionRevision,
   CatalogKey,
   ConnectionFailure,
+  ConnectionKey,
   EffectUnknown,
   EndpointRef,
   Generation,
@@ -34,10 +35,12 @@ export type ConnectionView = Readonly<{
 }>
 
 /**
- * A usable connection, as it was when `ensure` answered: the transport, the generation and the
- * peer of that moment, the adoption revision it was built under, and the bound its requests use.
+ * A usable connection, as it was when `ensure` answered: its key, the transport, the generation
+ * and the peer of that moment, the adoption revision it was built under, and the bound its
+ * requests use.
  */
 export type Ensured = Readonly<{
+  key: ConnectionKey
   transport: McpTransport
   generation: Generation
   connection: ConnectionView
@@ -218,6 +221,7 @@ export function ensuredOf(entry: Entry & { transport: McpTransport }): Ensured |
   const peer = entry.connection.peer
   if (peer === undefined) return undefined
   return {
+    key: entry.connection.key,
     transport: entry.transport,
     generation: entry.connection.generation,
     connection: entry.view,

@@ -1,7 +1,6 @@
 // Test helper: a table runtime whose bounds fire when the case says so, not on a clock. Each bound
 // is recorded with its kind, oldest first, so a case fires the bound of one call and not another.
 import type { BoundKind } from '../../src/internal/port.ts'
-import { createTaskScope } from '../../src/internal/scope.ts'
 import type { TableRuntime } from '../../src/internal/table.ts'
 
 export type ManualBounds = Readonly<{
@@ -16,7 +15,7 @@ export function manualBounds(afterExit?: (error: unknown) => void): ManualBounds
   const bounds: { kind: BoundKind; controller: AbortController }[] = []
   return {
     runtime: {
-      scope: createTaskScope(afterExit),
+      ...(afterExit === undefined ? {} : { afterExit }),
       startBound: (_milliseconds, kind) => {
         const controller = new AbortController()
         bounds.push({ kind, controller })

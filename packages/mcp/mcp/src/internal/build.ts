@@ -42,7 +42,7 @@ import {
 } from './entry.ts'
 import { closeArrived, landArrived, releaseArrived, type LandingFailure } from './late.ts'
 import { ask, within, type Settle, type StartBound } from './port.ts'
-import type { TaskScope } from './scope.ts'
+import type { Spawn } from './scope.ts'
 import type { PreparedSettings } from './settings.ts'
 import { teardown } from './teardown.ts'
 
@@ -63,7 +63,7 @@ export type BuilderDependencies = Readonly<{
   /** True once `closeAll` began: a build goes no further than the step it is in (decision 5). */
   shut(): boolean
   /** Where the work a build stops waiting for goes on. */
-  scope: TaskScope
+  scope: Spawn
   /** The source of the connection bound. */
   startBound: StartBound
 }>
@@ -333,6 +333,7 @@ export function createBuilder<P, S>(
       const { transport, peer } = negotiated.ok
       entry.connection.ready(peer)
       return succeed({
+        key: entry.connection.key,
         transport,
         generation: entry.connection.generation,
         connection: entry.view,

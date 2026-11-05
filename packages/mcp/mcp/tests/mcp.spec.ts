@@ -1,31 +1,33 @@
-// `createMcpCore`: the configuration is checked at construction (SPEC S3), the four services share
-// one connection table, and the inspection port is the category port plus the two readers.
+// `createMcp`: the configuration is checked at construction (SPEC S3), the services share one
+// connection table, the clock of the ports stamps the listings, and the inspection port is the
+// category port plus the two readers.
 import { describe, expect, it } from 'vitest'
 import { readBodyText } from '@omne-harness/assets'
 import type { McpServices } from '@omne-harness/mcp-contract'
-import { createInMemoryCatalogStore, createMcpCore, type McpCore } from '../src/index.ts'
-import { alice, json, ref, type Principal } from './doubles/values.ts'
+import { createInMemoryCatalogStore, createMcp } from '../src/index.ts'
+import { jsonOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { alice, type Principal } from './doubles/identities.ts'
 import { CONFIG, adoptStdio, usualScript, world } from './doubles/world.ts'
 
-const files = ref('files')
+const files = endpointRefOf('files')
 
-describe('createMcpCore', () => {
+describe('createMcp', () => {
   it('throws RangeError for an unlawful configuration and builds nothing', () => {
     const w = world()
-    expect(() => createMcpCore(w.ports, { ...CONFIG, maxListingPages: 0 })).toThrow(RangeError)
-    expect(() => createMcpCore(w.ports, { ...CONFIG, maxActions: 1.5 })).toThrow(RangeError)
-    expect(() => createMcpCore(w.ports, { ...CONFIG, instructionsByteLimit: -1 })).toThrow(
+    expect(() => createMcp(w.ports, { ...CONFIG, maxListingPages: 0 })).toThrow(RangeError)
+    expect(() => createMcp(w.ports, { ...CONFIG, maxActions: 1.5 })).toThrow(RangeError)
+    expect(() => createMcp(w.ports, { ...CONFIG, instructionsByteLimit: -1 })).toThrow(
       RangeError,
     )
     const broken: unknown = { ...CONFIG, principalKey: 'alice' }
-    expect(() => createMcpCore(w.ports, broken as typeof CONFIG)).toThrow(RangeError)
+    expect(() => createMcp(w.ports, broken as typeof CONFIG)).toThrow(RangeError)
     expect(w.adoption.calls()).toBe(0)
   })
 
-  it('gives the four core services, which share one connection table', async () => {
+  it('gives the services, which share one connection table', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files)
-    const mcp = createMcpCore(w.ports, CONFIG)
+    const mcp = createMcp(w.ports, CONFIG)
     expect(Object.keys(mcp).sort()).toEqual(['connections', 'discovery', 'inspection', 'status'])
     expect(await mcp.discovery.refresh(alice, { ref: files })).toEqual({
       ok: { kind: 'published', revision: 1 },
@@ -41,10 +43,11 @@ describe('createMcpCore', () => {
     })
   })
 
-  it('stamps the acquisition time from the clock it is given', async () => {
+  it('stamps the acquisition time from the clock of the ports (SPEC S3)', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files)
-    const mcp = createMcpCore(w.ports, CONFIG, { now: () => new Date('2026-11-03T08:00:00Z') })
+    const clock = { now: () => new Date('2026-11-03T08:00:00Z') }
+    const mcp = createMcp({ ...w.ports, clock }, CONFIG)
     await mcp.discovery.refresh(alice, { ref: files })
     const read = await w.store.read({
       tenant: alice.tenant,
@@ -54,11 +57,13 @@ describe('createMcpCore', () => {
     expect(read).toMatchObject({ ok: { freshness: { acquiredAt: '2026-11-03T08:00:00.000Z' } } })
   })
 
-  it('is the service set of the contract without the invoker', () => {
+  it('is the service set of the contract', () => {
     const w = world()
-    const mcp: McpCore<Principal, string> = createMcpCore(w.ports, CONFIG)
-    const services: Omit<McpServices<Principal, string>, 'invoker'> = mcp
-    expect(services.discovery).toBe(mcp.discovery)
+    const services: Omit<McpServices<Principal, string>, 'invoker'> = createMcp<Principal, string>(
+      w.ports,
+      CONFIG,
+    )
+    expect(typeof services.discovery.refresh).toBe('function')
   })
 })
 
@@ -75,23 +80,23 @@ describe('inspection', () => {
   const http = { name: 'files', transport: 'streamable-http', auth: 'oauth' }
 
   it('is the category port mcp with inspect and launchesLocalCommand', () => {
-    const { inspection } = createMcpCore(world().ports, CONFIG)
+    const { inspection } = createMcp(world().ports, CONFIG)
     expect(inspection.category).toBe('mcp')
-    expect(inspection.inspect(json(stdio))).toMatchObject({
+    expect(inspection.inspect(jsonOf(stdio))).toMatchObject({
       ok: { name: 'files', auth: 'none', transport: { kind: 'stdio' } },
     })
-    expect(inspection.launchesLocalCommand(json(stdio))).toEqual({ ok: true })
-    expect(inspection.launchesLocalCommand(json(http))).toEqual({ ok: false })
-    expect(inspection.inspect(json({ name: 'files' }))).toEqual({ failure: 'malformed' })
+    expect(inspection.launchesLocalCommand(jsonOf(stdio))).toEqual({ ok: true })
+    expect(inspection.launchesLocalCommand(jsonOf(http))).toEqual({ ok: false })
+    expect(inspection.inspect(jsonOf({ name: 'files' }))).toEqual({ failure: 'malformed' })
     expect(inspection.launchesLocalCommand('nonsense')).toEqual({ failure: 'malformed' })
   })
 
   it('judges a read body like the contract and refuses other input', () => {
-    const { inspection } = createMcpCore(world().ports, CONFIG)
+    const { inspection } = createMcp(world().ports, CONFIG)
     const read = readBodyText(JSON.stringify(stdio), LIMITS)
     if (read.kind !== 'ok') throw new Error('body did not read')
     expect(inspection.judge(read.value, { capabilityName: 'files' })).toEqual({ ok: true })
-    expect(inspection.judge(json(stdio))).toMatchObject({ ok: false })
+    expect(inspection.judge(jsonOf(stdio))).toMatchObject({ ok: false })
     expect(inspection.deriveDeclarations(read.value)).toEqual({
       entries: ['setting:preference:connect-timeout'],
     })

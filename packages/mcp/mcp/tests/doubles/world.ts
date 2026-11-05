@@ -34,17 +34,15 @@ import {
 import { scriptedTransports, type ScriptedTransports, type Step } from './scripted-transport.ts'
 import type { MemoryAdoptionView, MemoryUseEligibility } from '@omne-harness/mcp-contract/testing'
 import {
-  alice,
-  binding,
-  generation,
-  home,
-  json,
-  millis,
-  peerIdentity,
-  principalKey,
-  target,
-} from './values.ts'
-import type { Principal } from './values.ts'
+  credentialBindingOf,
+  generationOf,
+  jsonOf,
+  millisOf,
+  peerIdentityOf,
+  connectionTargetOf,
+} from '@omne-harness/mcp-contract/testing'
+import { alice, home, principalKey } from './identities.ts'
+import type { Principal } from './identities.ts'
 
 export type World = Readonly<{
   ports: McpPorts<Principal, string>
@@ -61,9 +59,9 @@ export type World = Readonly<{
   trace: readonly string[]
 }>
 
-export const TARGET: ConnectionTarget = target('https://files.example.test/mcp')
-export const MAIN: CredentialBinding = binding('main')
-export const TIMEOUT: Millis = millis(30_000)
+export const TARGET: ConnectionTarget = connectionTargetOf('https://files.example.test/mcp')
+export const MAIN: CredentialBinding = credentialBindingOf('main')
+export const TIMEOUT: Millis = millisOf(30_000)
 
 export const CONFIG: McpConfig<Principal> = {
   principalKey,
@@ -104,6 +102,7 @@ export function world(
       store,
       transports,
       checkOutput: checks.check,
+      clock: { now: () => new Date('2026-11-03T12:00:00Z') },
     },
     config: { ...CONFIG, ...options.config },
     adoption,
@@ -150,7 +149,7 @@ export function adoptStdio(
     tenant: home,
     scope: options.scope ?? 'ws',
     ref,
-    body: json({
+    body: jsonOf({
       name: ref.name,
       transport: 'stdio',
       auth,
@@ -188,7 +187,7 @@ export function adoptHttp(
     tenant: home,
     scope: options.scope ?? 'ws',
     ref,
-    body: json({ name: ref.name, transport: 'streamable-http', auth }),
+    body: jsonOf({ name: ref.name, transport: 'streamable-http', auth }),
     settings: settingsOf({
       target: VALUE(TARGET),
       connectTimeout: VALUE(TIMEOUT),
@@ -204,13 +203,13 @@ export function adoptHttp(
 
 /** One `tools/list` page with the named tools. */
 export function page(names: readonly string[], nextCursor?: string) {
-  const tools = names.map(name => json({ name, inputSchema: { type: 'object' } }))
+  const tools = names.map(name => jsonOf({ name, inputSchema: { type: 'object' } }))
   return nextCursor === undefined ? { tools } : { tools, nextCursor }
 }
 
 /** The usual lawful script: open, discover, one page. */
 export function usualScript(names: readonly string[] = ['read']): Step[] {
-  return [{ discover: peerIdentity() }, { listActions: page(names) }]
+  return [{ discover: peerIdentityOf() }, { listActions: page(names) }]
 }
 
 /** A record of revision `revision` built by the public functions, written into the store. */
@@ -224,9 +223,9 @@ export async function storedRecord(
     basedOn: 'absent',
     pages: [{ ok: page(names) }],
     basis: {
-      generation: generation(1),
-      protocolVersion: peerIdentity().protocolVersion,
-      capabilities: json({ tools: {} }),
+      generation: generationOf(1),
+      protocolVersion: peerIdentityOf().protocolVersion,
+      capabilities: jsonOf({ tools: {} }),
     },
     acquiredAt: '2026-11-03T00:00:00Z',
     limits: { maxPages: 1, maxActions: names.length },

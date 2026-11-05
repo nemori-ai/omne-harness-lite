@@ -8,15 +8,16 @@ import {
   completeListing,
   connectionKeyOf,
   mergeListing,
+  sameJson,
   type ActionCatalogRecord,
   type ActionDiscovery,
   type CatalogState,
   type CatalogView,
   type EndpointRef,
   type Generation,
+  type McpClock,
   type McpConfig,
   type McpPorts,
-  type Millis,
   type OperationFailure,
   type PeerIdentity,
   type ReadFailure,
@@ -24,36 +25,20 @@ import {
   type Refusal,
 } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
-import { sameJson } from './internal/canonical.ts'
 import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
 import { ask, within } from './internal/port.ts'
 import { readAccountOf } from './internal/settings.ts'
 import type { CatalogMark, ConnectionTable, Ensured } from './internal/table.ts'
 
-/**
- * The refresh request, with the abort signal of the caller. The contract's request has no
- * signal; this member accepts one in addition (SPEC deviation table). An abort makes the refresh
- * answer `kept` (`cancelled`); it does not stop a build that other callers share.
- */
-export type RefreshRequest = Readonly<{
-  ref: EndpointRef
-  connectBound?: Millis
-  signal?: AbortSignal
-}>
-
-export interface McpDiscovery<P> extends ActionDiscovery<P> {
-  refresh(
-    access: Access<P>,
-    request: RefreshRequest,
-  ): Promise<Outcome<RefreshResult, OperationFailure>>
-}
+/** The refresh request of the contract: the caller's signal belongs to this refresh alone (S5). */
+type RefreshRequest = Parameters<ActionDiscovery<unknown>['refresh']>[1]
 
 export type DiscoveryDependencies<P, S> = Readonly<{
   ports: McpPorts<P, S>
   config: McpConfig<P>
   table: ConnectionTable<P>
-  /** The time a listing is acquired at; a listing's freshness carries it. */
-  now: () => Date
+  /** The clock that stamps the time a listing is acquired at (SPEC S3): `McpPorts.clock` or the host's. */
+  clock: McpClock
 }>
 
 const SUPERSEDED: RefreshResult = { kind: 'kept', reason: { kind: 'superseded' } }
@@ -92,7 +77,7 @@ function stateOf(record: ActionCatalogRecord | 'absent'): CatalogState {
 
 type Pages = readonly Outcome<ListingPage, TransportFailure>[]
 
-export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDiscovery<P> {
+export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): ActionDiscovery<P> {
   const { ports, config, table } = deps
   const { scope, startBound } = table.runtime
   const gate: UseGate<P, S> = { ports, table }
@@ -170,7 +155,7 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): McpDis
     const listing = completeListing({
       pages,
       basis: { generation, protocolVersion: peer.protocolVersion, capabilities: peer.capabilities },
-      acquiredAt: deps.now().toISOString(),
+      acquiredAt: deps.clock.now().toISOString(),
       limits: { maxPages: config.maxListingPages, maxActions: config.maxActions },
       basedOn,
     })

@@ -12,7 +12,7 @@ import type {
 import { from, only, picker, type Which } from './calls.ts'
 import { deferred, type Deferred } from './deferred.ts'
 import { releasing, reshapedCredentials, type AnyHandle } from './handles.ts'
-import type { Principal } from './values.ts'
+import type { Principal } from './identities.ts'
 
 /** The eligibility port whose `which`-th call waits on `gate` before it answers. */
 export function stallingEligibility(

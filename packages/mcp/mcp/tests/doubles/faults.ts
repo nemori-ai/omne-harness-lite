@@ -10,7 +10,7 @@ import type {
   ProcessLanding,
 } from '@omne-harness/mcp-contract/provider'
 import { releasing, reshapedCredentials } from './handles.ts'
-import type { Principal } from './values.ts'
+import type { Principal } from './identities.ts'
 import type { World } from './world.ts'
 
 /** The close-order step that rejects after it ran. */

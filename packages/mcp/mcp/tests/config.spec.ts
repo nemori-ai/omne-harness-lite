@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import type { McpConfig } from '@omne-harness/mcp-contract'
 import { validateConfig } from '../src/config.ts'
-import { principalKey, type Principal } from './doubles/values.ts'
+import { principalKey, type Principal } from './doubles/identities.ts'
 
 const lawful: McpConfig<Principal> = {
   principalKey,

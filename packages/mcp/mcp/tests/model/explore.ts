@@ -26,7 +26,6 @@ import {
 } from '@omne-harness/mcp-contract/testing'
 import { admit } from '../../src/internal/gate.ts'
 import type { BoundKind } from '../../src/internal/port.ts'
-import { createTaskScope } from '../../src/internal/scope.ts'
 import { prepareSettings } from '../../src/internal/settings.ts'
 import {
   createConnectionTable,
@@ -38,15 +37,12 @@ import {
 import { catalogKeyTextOf } from '../../src/internal/text.ts'
 import { CONFIG, VALUE, settingsOf } from '../doubles/world.ts'
 import {
-  binding,
-  home,
-  json,
-  millis,
-  principalKey,
-  ref,
-  tenantOf,
-  type Principal,
-} from '../doubles/values.ts'
+  credentialBindingOf,
+  jsonOf,
+  millisOf,
+  endpointRefOf,
+} from '@omne-harness/mcp-contract/testing'
+import { home, principalKey, tenantOf, type Principal } from '../doubles/identities.ts'
 import {
   closeWaitsUnbounded,
   connectedAfterShutdown,
@@ -145,7 +141,7 @@ export class Nondeterminism extends Error {
 const contexts = new AsyncLocalStorage<Context>()
 
 /** The connection bound of every key. The explorer fires bounds; it never waits for one. */
-const BOUND = millis(1000)
+const BOUND = millisOf(1000)
 
 /** Lawful steps after which a run driven to rest is taken as not coming to rest. */
 const REST_STEPS = 200
@@ -164,7 +160,7 @@ const KEY_OWNERS = {
 /** One stdio endpoint with a process credential per key, adopted and admitted. */
 export async function modelKeys(names: readonly KeyName[]): Promise<readonly ModelKey[]> {
   const eligibility = createMemoryUseEligibility<Principal>({ principalKey })
-  const endpoint = ref('files')
+  const endpoint = endpointRefOf('files')
   const keys: ModelKey[] = []
   for (const name of names) {
     const owner = KEY_OWNERS[name]
@@ -174,7 +170,7 @@ export async function modelKeys(names: readonly KeyName[]): Promise<readonly Mod
       tenant: owner.tenant,
       scope: 'ws',
       ref: endpoint,
-      body: json({
+      body: jsonOf({
         name: endpoint.name,
         transport: 'stdio',
         auth: 'static',
@@ -185,7 +181,7 @@ export async function modelKeys(names: readonly KeyName[]): Promise<readonly Mod
         },
       }),
       settings: settingsOf({
-        credential: VALUE(binding(owner.credential)),
+        credential: VALUE(credentialBindingOf(owner.credential)),
         connectTimeout: VALUE(BOUND),
       }),
     })
@@ -326,8 +322,8 @@ class Run implements RunView, CallDesk {
     // The table's runtime is the explorer's: its bounds fire as steps, and an error of the table
     // that comes after `closeAll` answered is reported like a rejection nobody handled (P7).
     this.table = createConnectionTable(scriptedPorts(this, keys, this.ledger), CONFIG, {
-      scope: createTaskScope(error => this.rejectedUnhandled(error)),
       startBound: (_milliseconds, kind) => this.startBound(kind),
+      afterExit: error => this.rejectedUnhandled(error),
     })
   }
 

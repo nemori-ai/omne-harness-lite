@@ -14,7 +14,14 @@ import type { AdoptedEndpoint, AdoptionView } from '@omne-harness/mcp-contract/p
 import { admit, admitWithoutEligibility, type AdmittedEndpoint } from '../src/internal/gate.ts'
 import { createConnectionTable, type ConnectionTable } from '../src/internal/table.ts'
 import { deferred, settled } from './doubles/deferred.ts'
-import { alice, binding, json, mallory, millis, peerIdentity, ref, away } from './doubles/values.ts'
+import {
+  credentialBindingOf,
+  jsonOf,
+  millisOf,
+  peerIdentityOf,
+  endpointRefOf,
+} from '@omne-harness/mcp-contract/testing'
+import { alice, mallory, away } from './doubles/identities.ts'
 import {
   INVALID,
   MAIN,
@@ -27,8 +34,8 @@ import {
   type World,
 } from './doubles/world.ts'
 
-const files = ref('files')
-const peer = peerIdentity()
+const files = endpointRefOf('files')
+const peer = peerIdentityOf()
 
 async function admitted(w: World, endpoint: EndpointRef, access: Access<Principal> = alice) {
   const decision = await admit(w.ports, access, endpoint)
@@ -180,7 +187,7 @@ describe('ensure: setting defects (S4)', () => {
     adoptStdio(w, files, { settings: { connectTimeout: { kind: 'absent' } } })
     const table = tableOf(w)
     const answer = await table.ensure(await admitted(w, files), alice, {
-      connectBound: millis(5_000),
+      connectBound: millisOf(5_000),
     })
     expect('ok' in answer).toBe(true)
   })
@@ -190,7 +197,7 @@ describe('ensure: setting defects (S4)', () => {
     adoptStdio(w, files, { settings: { connectTimeout: INVALID } })
     const table = tableOf(w)
     const answer = await table.ensure(await admitted(w, files), alice, {
-      connectBound: millis(5_000),
+      connectBound: millisOf(5_000),
     })
     expect(answer).toEqual({
       failure: { stage: 'settings', reason: { kind: 'config-invalid', item: 'connect-timeout' } },
@@ -209,7 +216,12 @@ describe('ensure: setting defects (S4)', () => {
 
   it('an adopted body it cannot read is refused at the gate: no token, nothing to ensure', async () => {
     const w = world()
-    w.adoption.adopt({ tenant: alice.tenant, scope: 'ws', ref: files, body: json({ nonsense: 1 }) })
+    w.adoption.adopt({
+      tenant: alice.tenant,
+      scope: 'ws',
+      ref: files,
+      body: jsonOf({ nonsense: 1 }),
+    })
     w.eligibility.grant(alice, files)
     expect(await admit(w.ports, alice, files)).toEqual({ kind: 'body-unreadable' })
     expect(w.eligibility.calls()).toBe(0)
@@ -514,7 +526,7 @@ describe('ensure: the connection bound', () => {
   it('answers connection-unavailable at the bound with the mark pending; the started process is stopped after', async () => {
     const never = deferred<'opened'>()
     const w = world({ script: [{ open: never }] })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(1)) } })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(1)) } })
     const table = tableOf(w)
     const token = await admitted(w, files)
     const answer = await table.ensure(token, alice)
@@ -536,7 +548,7 @@ describe('ensure: the connection bound', () => {
   it('records a residual when the stopped process confirms only the root', async () => {
     const never = deferred<'opened'>()
     const w = world({ script: [{ open: never }], stop: 'root-only' })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(1)) } })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(1)) } })
     const table = tableOf(w)
     const token = await admitted(w, files)
     await table.ensure(token, alice)
@@ -557,11 +569,11 @@ describe('ensure: the connection key (invariant 1)', () => {
       tenant: away,
       scope: 'ws',
       ref: files,
-      body: json({ name: 'files', transport: 'stdio', auth: 'none', launch: { command: 'x' } }),
+      body: jsonOf({ name: 'files', transport: 'stdio', auth: 'none', launch: { command: 'x' } }),
       settings: {
         target: { kind: 'absent' },
         credential: { kind: 'absent' },
-        connectTimeout: VALUE(millis(1000)),
+        connectTimeout: VALUE(millisOf(1000)),
       },
     })
     w.eligibility.grant(mallory, files)
@@ -596,7 +608,7 @@ describe('ensure: the connection key (invariant 1)', () => {
     w.credentials.store({
       tenant: alice.tenant,
       holding: files.holding,
-      binding: binding('other'),
+      binding: credentialBindingOf('other'),
       secret: 's2',
     })
     let current: AdoptedEndpoint = base
@@ -609,7 +621,10 @@ describe('ensure: the connection key (invariant 1)', () => {
     const first = await admit(ports, alice, files)
     if (first.kind !== 'admitted') throw new Error('not admitted')
     const ours = await table.ensure(first.endpoint, alice)
-    current = { ...base, settings: { ...base.settings, credential: VALUE(binding('other')) } }
+    current = {
+      ...base,
+      settings: { ...base.settings, credential: VALUE(credentialBindingOf('other')) },
+    }
     const second = await admit(ports, alice, files)
     if (second.kind !== 'admitted') throw new Error('not admitted')
     const theirs = await table.ensure(second.endpoint, alice)

@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest'
 import { isCorrelationKey, type CorrelationKey } from '@omne-harness/mcp-contract'
 import { InFlightCalls, type InFlightKey } from '../src/internal/in-flight.ts'
 import { settled } from './doubles/deferred.ts'
-import { away, generation, home } from './doubles/values.ts'
+import { generationOf } from '@omne-harness/mcp-contract/testing'
+import { away, home } from './doubles/identities.ts'
 
 function correlation(text: string): CorrelationKey {
   if (!isCorrelationKey(text)) throw new TypeError('bad correlation key sample')
@@ -57,7 +58,7 @@ describe('InFlightCalls.reserve', () => {
   it('lets an ended key be reserved again, and a released reservation too', () => {
     const calls = new InFlightCalls()
     calls.reserve(aliceCall)
-    calls.markSent(aliceCall, 'req-1', generation(1))
+    calls.markSent(aliceCall, 'req-1', generationOf(1))
     calls.markEnded(aliceCall)
     expect(calls.reserve(aliceCall)).toBe('reserved')
     calls.release(aliceCall)
@@ -68,70 +69,70 @@ describe('InFlightCalls.reserve', () => {
 describe('InFlightCalls.cancel', () => {
   it('answers unknown for a key not in the table', () => {
     const calls = new InFlightCalls()
-    expect(calls.cancel(aliceCall, generation(1))).toBe('unknown')
+    expect(calls.cancel(aliceCall, generationOf(1))).toBe('unknown')
   })
 
   it('answers unknown to another principal and to another tenant of the same correlation key', () => {
     const calls = new InFlightCalls()
     calls.reserve(aliceCall)
-    calls.markSent(aliceCall, 'req-1', generation(1))
-    expect(calls.cancel(bobCall, generation(1))).toBe('unknown')
-    expect(calls.cancel(malloryCall, generation(1))).toBe('unknown')
-    expect(calls.cancel(aliceCall, generation(1))).toBe('signalled')
+    calls.markSent(aliceCall, 'req-1', generationOf(1))
+    expect(calls.cancel(bobCall, generationOf(1))).toBe('unknown')
+    expect(calls.cancel(malloryCall, generationOf(1))).toBe('unknown')
+    expect(calls.cancel(aliceCall, generationOf(1))).toBe('signalled')
   })
 
   it('signals a sent call of the current generation and keeps its request identifier', () => {
     const calls = new InFlightCalls()
     calls.reserve(aliceCall)
-    expect(calls.markSent(aliceCall, 'req-7', generation(3))).toBe('sent')
+    expect(calls.markSent(aliceCall, 'req-7', generationOf(3))).toBe('sent')
     expect(calls.requestIdOf(aliceCall)).toBe('req-7')
-    expect(calls.cancel(aliceCall, generation(3))).toBe('signalled')
+    expect(calls.cancel(aliceCall, generationOf(3))).toBe('signalled')
     expect(calls.requestIdOf(aliceCall)).toBe('req-7')
   })
 
   it('answers unknown once the connection generation has changed', () => {
     const calls = new InFlightCalls()
     calls.reserve(aliceCall)
-    calls.markSent(aliceCall, 'req-7', generation(3))
-    expect(calls.cancel(aliceCall, generation(4))).toBe('unknown')
+    calls.markSent(aliceCall, 'req-7', generationOf(3))
+    expect(calls.cancel(aliceCall, generationOf(4))).toBe('unknown')
   })
 
   it('answers no-call-in-flight for an ended key', () => {
     const calls = new InFlightCalls()
     calls.reserve(aliceCall)
-    calls.markSent(aliceCall, 'req-7', generation(3))
+    calls.markSent(aliceCall, 'req-7', generationOf(3))
     calls.markEnded(aliceCall)
-    expect(calls.cancel(aliceCall, generation(3))).toBe('no-call-in-flight')
+    expect(calls.cancel(aliceCall, generationOf(3))).toBe('no-call-in-flight')
     expect(calls.requestIdOf(aliceCall)).toBeUndefined()
   })
 
   it('keeps a call reserved but not yet sent from being sent', () => {
     const calls = new InFlightCalls()
     calls.reserve(aliceCall)
-    expect(calls.cancel(aliceCall, generation(1))).toBe('signalled')
-    expect(calls.markSent(aliceCall, 'req-1', generation(1))).toBe('cancelled')
+    expect(calls.cancel(aliceCall, generationOf(1))).toBe('signalled')
+    expect(calls.markSent(aliceCall, 'req-1', generationOf(1))).toBe('cancelled')
     expect(calls.requestIdOf(aliceCall)).toBeUndefined()
-    expect(calls.cancel(aliceCall, generation(1))).toBe('no-call-in-flight')
+    expect(calls.cancel(aliceCall, generationOf(1))).toBe('no-call-in-flight')
   })
 
   it('answers unknown after a reservation is released', () => {
     const calls = new InFlightCalls()
     calls.reserve(aliceCall)
     calls.release(aliceCall)
-    expect(calls.cancel(aliceCall, generation(1))).toBe('unknown')
+    expect(calls.cancel(aliceCall, generationOf(1))).toBe('unknown')
   })
 })
 
 describe('InFlightCalls precondition', () => {
   it('refuses markSent for a key that is not reserved', () => {
     const calls = new InFlightCalls()
-    expect(() => calls.markSent(aliceCall, 'req-1', generation(1))).toThrow(TypeError)
+    expect(() => calls.markSent(aliceCall, 'req-1', generationOf(1))).toThrow(TypeError)
   })
 
   it('leaves a sent entry alone on release', () => {
     const calls = new InFlightCalls()
     calls.reserve(aliceCall)
-    calls.markSent(aliceCall, 'req-1', generation(1))
+    calls.markSent(aliceCall, 'req-1', generationOf(1))
     calls.release(aliceCall)
     expect(calls.requestIdOf(aliceCall)).toBe('req-1')
   })

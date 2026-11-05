@@ -9,7 +9,7 @@
 <!-- documentation:placeholder -->
 
 - [README.md](README.md)：源码目录的职责
-- [index.ts](index.ts)：根入口，`createMcpCore`、`createInMemoryCatalogStore`、`McpCore`
+- [index.ts](index.ts)：根入口，`createMcp`、`createInMemoryCatalogStore`
 - [config.ts](config.ts)：`McpConfig` 校验
 - [inspection.ts](inspection.ts)：类别端口与两个正文读取
 - [discovery.ts](discovery.ts)：读口 `refresh`、`current`、`peer`
@@ -20,8 +20,9 @@
 - [internal/in-flight.ts](internal/in-flight.ts)：`InFlightCalls` 聚合
 - [internal/gate.ts](internal/gate.ts)：S1 唯一的裁决、`AdoptedOnly` 与 `AdmittedEndpoint`
 - [internal/guard.ts](internal/guard.ts)：使用边界与发布边界上的关口，不变式 6 的关闭
-- [internal/port.ts](internal/port.ts)：唯一的端口适配器 `ask`（同步抛出与 reject 读成违约答复）；时限下的等待 `within`
-- [internal/scope.ts](internal/scope.ts)：连接表的任务作用域：时限之后继续的工作与其中的编程错误
+- [internal/port.ts](internal/port.ts)：唯一的端口适配器 `ask`（同步抛出与 reject 读成违约答复）；时限下的等待 `waitAtMost`（别人拥有的工作）与 `within`（自己拥有的工作，到期交给作用域）
+- [internal/scope.ts](internal/scope.ts)：连接表的任务作用域：时限之后继续的工作与其中的编程错误；对外只有 `Spawn` 视图
+- [internal/assembly.ts](internal/assembly.ts)：唯一的装配：建表与各服务，`createMcp` 与测试都经它
 - [internal/table.ts](internal/table.ts)：连接表，只编排
 - [internal/entry.ts](internal/entry.ts)：条目的资源与视图；谓词 `holdsNothing`、`forgettable`；资源的搬移 `recordStop`、`adoptLingering`、`handOverToLanding`、`landingAnswered`
 - [internal/teardown.ts](internal/teardown.ts)：唯一的关闭次序 `teardown`；每一步经 `ask` 问端口（`closeTransport`、`stopOne`、`releaseHeld`）；在途落点的句柄 `releaseLanding`、`abandonLandings`
@@ -29,4 +30,4 @@
 - [internal/build.ts](internal/build.ts)：时限下的建连，含失败与关停之后的收场
 - [internal/turns.ts](internal/turns.ts)：每个持有一次只跑一个
 - [internal/settings.ts](internal/settings.ts)：S4 配值检查
-- [internal/text.ts](internal/text.ts)、[internal/canonical.ts](internal/canonical.ts)：键文本与 JSON 规范化
+- [internal/text.ts](internal/text.ts)：键文本
