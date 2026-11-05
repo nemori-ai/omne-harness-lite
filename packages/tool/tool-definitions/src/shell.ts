@@ -53,11 +53,11 @@ export function createShellAuthor(
   return succeed(
     createAuthor<ShellAuthorEnvironment>(
       'Shell',
-      'Run shell commands and manage persistent terminals in the authorized execution environment. The info command names the platform and shell.',
+      'Run shell commands and manage persistent terminals in the authorized execution environment. The info command names the platform and shell and lists terminals and retained processes.',
       shellCommands,
       ['command', 'terminal'],
       maximum,
-      'run_in_background=true is unsupported and starts nothing. Sessions require session retention and a fresh authorized attachment for each call. Invalid or closed terminal references never fall back to one-shot execution. cwd and env execution overrides apply to one call. Only the current ProcessHandle receives stop on cancellation. unconfirmed does not mean stopped. Placement facts come from the injected environment. Facility discards and tool byte truncation are reported separately. Windows terminal output uses observation windows: even foreground bytes not yet read may appear later; an empty script does not guarantee draining; close may release undelivered idle bytes. completed does not prove shell exit or business success.',
+      'run_in_background=true is unsupported and starts nothing. Sessions require session retention and a fresh authorized attachment for each call. Invalid or closed terminal references never fall back to one-shot execution. cwd and env execution overrides apply to one call. Only the current ProcessHandle receives stop on cancellation. unconfirmed does not mean stopped. Placement facts come from the injected environment. Facility discards and tool byte truncation are reported separately. Windows terminal output uses observation windows: even foreground bytes not yet read may appear later; an empty script does not guarantee draining; close may release undelivered idle bytes. completed does not prove shell exit or business success. Process lifetime, one-shot execution: a process left running in the background by a one-shot command (for example cmd &) stays running after the call returns as a retained process; info lists retained processes; it runs until it exits or the execution environment closes its retention scope; a process is stopped when it cannot be retained; the residue line gives the reason. Background execution: run_in_background is not supported now: a one-shot command waits until the main process exits and output is quiet. Terminals: background tasks in a terminal live as long as the terminal; close_session stops every process in the terminal. Long-running services: a service that must run long and is not managed by this tool belongs to the host service manager (for example systemd-run --user); starting it is an external effect of the command itself.',
       (command, args, environment, execution) =>
         executeShell(command, args, environment, execution, config),
     ),
@@ -89,7 +89,7 @@ async function executeShell(
   const terminal = args.terminal()
   switch (command) {
     case 'info':
-      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${JSON.stringify(config.text('cwd'))}\n${confirmation(await environment.terminal.list({}), value => value.map(item => `terminal=${JSON.stringify(item.terminal)} state=${item.state} observed_cwd=${JSON.stringify(item.observedCwd)}`).join('\n'))}`
+      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${JSON.stringify(config.text('cwd'))}\n${await terminalLines(environment)}${await retainedProcessLines(environment)}`
     case 'create_session': {
       if (environment.terminal.retention === undefined)
         return 'rejected reason=unavailable session retention unavailable zero starts'
@@ -123,6 +123,34 @@ async function executeShell(
       // The command table names exactly these commands, so a miss is a defect, not a result.
       throw new Error(`Shell has no operation for command ${command}`)
   }
+}
+
+async function terminalLines(environment: ShellAuthorEnvironment): Promise<string> {
+  const terminals = confirmation(await environment.terminal.list({}), value =>
+    value
+      .map(
+        item =>
+          `terminal=${JSON.stringify(item.terminal)} state=${item.state} observed_cwd=${JSON.stringify(item.observedCwd)}`,
+      )
+      .join('\n'),
+  )
+  return terminals.endsWith('\n') ? terminals : `${terminals}\n`
+}
+
+/** An unreadable list is reported as unavailable; it is never written as none. */
+async function retainedProcessLines(environment: ShellAuthorEnvironment): Promise<string> {
+  const retention = environment.command.retention
+  if (retention === undefined) return 'retained_processes=unavailable'
+  const listed = await retention.list({})
+  if (listed.kind !== 'done')
+    return `retained_processes=unavailable reason=${listed.kind === 'rejected' ? listed.reason : listed.kind}`
+  if (listed.value.length === 0) return 'retained_processes=none'
+  return listed.value
+    .map(
+      item =>
+        `retained_process=${JSON.stringify(item.process)} state=${item.state} processes=${item.processes} origin=${JSON.stringify(item.origin)} handed_over_at=${new Date(item.handedOverAtMs).toISOString()}`,
+    )
+    .join('\n')
 }
 
 async function executeScript(

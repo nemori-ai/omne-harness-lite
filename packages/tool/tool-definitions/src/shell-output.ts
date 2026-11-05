@@ -3,6 +3,7 @@ import type {
   CommandOutcome,
   OutputChunk,
   ProcessHandle,
+  ResidueReport,
 } from '@omne-harness/execution-environment-contract'
 import { bounded, TextWindow, utf8Length } from './text.ts'
 
@@ -91,12 +92,14 @@ function outcomeText(outcome: CommandOutcome | undefined): string {
       ? `completed exit=${JSON.stringify(outcome.exit)} duration_ms=${outcome.durationMs}`
       : `unknown reason=${outcome.reason} observed_duration_ms=${outcome.observedDurationMs}`
   const summary = outcome.output
+  const residue = outcome.kind === 'completed' ? residueLine(outcome.residue) : undefined
   const streams =
     summary.mode === 'terminal'
       ? [['terminal', summary.terminal] as const]
       : [['stdout', summary.stdout] as const, ['stderr', summary.stderr] as const]
   const between = betweenOf(outcome)
   const lines = [
+    ...(residue === undefined ? [] : [residue]),
     ...streams.map(
       ([name, count]) =>
         `${name} observed_bytes=${count.observedBytes} facility_discarded_bytes=${count.discardedBytes}`,
@@ -108,6 +111,21 @@ function outcomeText(outcome: CommandOutcome | undefined): string {
         ]),
   ]
   return `${ending}\n${lines.join('\n')}`
+}
+/** What the main process left behind; absent when the provider does not dispose. */
+function residueLine(residue: ResidueReport | undefined): string | undefined {
+  switch (residue?.kind) {
+    case undefined:
+      return undefined
+    case 'none':
+      return 'residue=none'
+    case 'retained':
+      return `residue=retained process=${JSON.stringify(residue.process)} processes=${residue.processes}`
+    case 'stopping':
+      return `residue=stopping reason=${residue.reason}`
+    case 'unknown':
+      return 'residue=unknown'
+  }
 }
 /** Bytes the terminal received after the previous segment ended; reported only when there were some. */
 function betweenOf(outcome: CommandOutcome | undefined): BetweenSegments | undefined {
