@@ -513,7 +513,7 @@ describe('what a reader leaves out when the peer did not send it (T2, T3, T6)', 
     const page = (fields: Record<string, unknown>) =>
       readListingPage(json({ tools: [], ...fields }), false)
     expect(page({})).toStrictEqual({ ok: { tools: [] } })
-    for (const ttlMs of [-1, 1.5, '3', null, true, {}, [], 1e400])
+    for (const ttlMs of [-1, 1.5, '3', null, true, {}, [], Number.MAX_SAFE_INTEGER + 2])
       expect(page({ ttlMs }), JSON.stringify(ttlMs)).toStrictEqual({ ok: { tools: [] } })
     expect(readListingPage(jsonText('{"tools":[],"ttlMs":9007199254740993}'), false)).toStrictEqual(
       {
