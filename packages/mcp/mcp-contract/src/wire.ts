@@ -153,15 +153,27 @@ export type WireContext = Readonly<{
 }>
 
 /**
- * The classification of an event. `answer`: the event is this answer class for the request.
+ * The classification of an event. `answer`: the event is this answer class for the request;
+ * `message` is the parsed message the class was read from, when the class has one: the answer
+ * to the request (a result or error class), or the JSON-RPC error body of an HTTP error status.
  * `other`: a stdio line that is not about this request (the answer to another request, a
  * request or notification of the peer, other JSON). `waiting`: a 2xx stream that is still open
  * without an answer to the request; it is no class yet.
  */
 export type WireClassification =
-  | Readonly<{ kind: 'answer'; answer: AnswerClass }>
+  | Readonly<{ kind: 'answer'; answer: AnswerClass; message?: JsonObject }>
   | Readonly<{ kind: 'other' }>
   | Readonly<{ kind: 'waiting' }>
+
+/**
+ * A request or notification of the peer, as T3 reads it: a JSON object with a text `method`; a
+ * request when it carries an `id` (echoed as written in the response), a notification
+ * otherwise. `progressToken` is the token of a progress notification as text: a string value or
+ * a number lexeme.
+ */
+export type PeerMessage =
+  | Readonly<{ kind: 'request'; id: JsonValue; method: string }>
+  | Readonly<{ kind: 'notification'; method: string; params?: JsonValue; progressToken?: string }>
 
 const LIMITS = {
   maxBytes: 16_777_216,
@@ -182,11 +194,42 @@ const STATUS_CLASSES: Readonly<{ [status: number]: HttpStatusClass }> = {
   429: '429',
 }
 
-const answer = (value: AnswerClass): WireClassification => ({ kind: 'answer', answer: value })
+const answer = (value: AnswerClass, message?: JsonObject): WireClassification =>
+  message === undefined
+    ? { kind: 'answer', answer: value }
+    : { kind: 'answer', answer: value, message }
 
 function parse(text: string): JsonValue | undefined {
   const read = readJsonText(text, LIMITS)
   return read.kind === 'ok' ? read.value : undefined
+}
+
+/** The progress token of a notification's `params` as text, when it has one. */
+function progressTokenOf(params: JsonValue | undefined): string | undefined {
+  const token = isObject(params) ? member(params, 'progressToken') : undefined
+  if (token?.kind === 'string') return token.value
+  return token?.kind === 'number' ? token.lexeme : undefined
+}
+
+/**
+ * Reads one line or stream message as a request or notification of the peer (T3), with the
+ * limits of `classifyWireEvent`. Undefined for anything else: an answer, or text that is not a
+ * JSON object with a text `method`.
+ */
+export function readPeerMessage(text: string): PeerMessage | undefined {
+  const message = parse(text)
+  const method = isObject(message) ? textOf(member(message, 'method')) : undefined
+  if (!isObject(message) || method === undefined) return undefined
+  const id = member(message, 'id')
+  if (id !== undefined) return { kind: 'request', id, method }
+  const params = member(message, 'params')
+  const progressToken = progressTokenOf(params)
+  return {
+    kind: 'notification',
+    method,
+    ...(params === undefined ? {} : { params }),
+    ...(progressToken === undefined ? {} : { progressToken }),
+  }
 }
 
 /** The id of a message as text for comparison, or undefined when it has no string or number id. */
@@ -205,7 +248,7 @@ function sameId(message: JsonObject, id: string | number): boolean {
  * The JSON-RPC envelope of an answer: `jsonrpc` is `"2.0"` and exactly one of `result` and
  * `error` is present (SPEC T2).
  */
-function envelopeOf(
+export function envelopeOf(
   message: JsonObject,
 ): Readonly<{ result: JsonValue }> | Readonly<{ error: JsonValue }> | undefined {
   if (textOf(member(message, 'jsonrpc')) !== '2.0') return undefined
@@ -216,8 +259,8 @@ function envelopeOf(
   return undefined
 }
 
-/** The modern versions a `-32022` lists, or undefined when `data.supported` is no non-empty text list. */
-function supportedOf(data: JsonValue | undefined): readonly string[] | undefined {
+/** The versions a `-32022` lists, or undefined when `data.supported` is no non-empty text list. */
+export function supportedOf(data: JsonValue | undefined): readonly string[] | undefined {
   const items = isObject(data) ? itemsOf(member(data, 'supported')) : undefined
   if (items === undefined || items.length === 0) return undefined
   const texts = items.flatMap(item => (item.kind === 'string' ? [item.value] : []))
@@ -297,12 +340,16 @@ function answers(message: JsonValue | undefined, context: WireContext): message 
   return isObject(message) && member(message, 'method') === undefined && sameId(message, context.id)
 }
 
-/** The body class of an HTTP error answer. Its id is not checked (SPEC T2). */
-function bodyClassOf(body: string, versions: readonly string[]): BodyClass {
+/** The body class of an HTTP error answer, with the message it was read from. Its id is not checked (SPEC T2). */
+function bodyClassOf(
+  body: string,
+  versions: readonly string[],
+): Readonly<{ body: BodyClass; message?: JsonObject }> {
   const message = parse(body)
   const envelope = isObject(message) ? envelopeOf(message) : undefined
-  if (envelope === undefined || !('error' in envelope)) return 'plain'
-  return errorClassOf(envelope.error, versions)
+  if (!isObject(message) || envelope === undefined || !('error' in envelope))
+    return { body: 'plain' }
+  return { body: errorClassOf(envelope.error, versions), message }
 }
 
 function statusClassOf(status: number): HttpStatusClass {
@@ -313,16 +360,17 @@ function statusClassOf(status: number): HttpStatusClass {
 function httpStatusOf(
   event: Extract<WireEvent, { kind: 'http-status' }>,
   context: WireContext,
-): AnswerClass {
+): WireClassification {
   const { status } = event
-  if (status >= 200 && status < 300) return 'http:2xx'
-  if (status === 401) return 'http:401'
+  if (status >= 200 && status < 300) return answer('http:2xx')
+  if (status === 401) return answer('http:401')
   if (status === 403) {
     const challenge = event.headers['www-authenticate'] ?? ''
-    return /error="insufficient_scope"/iu.test(challenge) ? 'http:403+scope' : 'http:403'
+    return answer(/error="insufficient_scope"/iu.test(challenge) ? 'http:403+scope' : 'http:403')
   }
-  if (status === 404 && context.session) return 'http:404+session'
-  return `http:${statusClassOf(status)}+${bodyClassOf(event.body, context.versions)}`
+  if (status === 404 && context.session) return answer('http:404+session')
+  const read = bodyClassOf(event.body, context.versions)
+  return answer(`http:${statusClassOf(status)}+${read.body}`, read.message)
 }
 
 /**
@@ -342,7 +390,7 @@ export function classifyWireEvent(event: WireEvent, context: WireContext): WireC
     case 'line': {
       const message = parse(event.text)
       return message !== undefined && answers(message, context)
-        ? answer(messageClassOf(message, context))
+        ? answer(messageClassOf(message, context), message)
         : { kind: 'other' }
     }
     case 'stdio-ended': {
@@ -355,11 +403,11 @@ export function classifyWireEvent(event: WireEvent, context: WireContext): WireC
     case 'http-aborted':
       return answer('stream-broken')
     case 'http-status':
-      return answer(httpStatusOf(event, context))
+      return httpStatusOf(event, context)
     case 'http-stream': {
       for (const text of event.messages) {
         const message = parse(text)
-        if (answers(message, context)) return answer(messageClassOf(message, context))
+        if (answers(message, context)) return answer(messageClassOf(message, context), message)
       }
       return event.ended && context.mode !== 'sse' ? answer('http:2xx') : { kind: 'waiting' }
     }

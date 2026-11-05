@@ -1238,14 +1238,15 @@ function tableCases(): readonly Case[] {
         for (const cell of cells)
           for (const reply of repliesOf(cell, fixture))
             try {
-              assert.deepStrictEqual(
-                classifyWireEvent(eventOf(reply, cell), {
-                  id: 'x',
-                  request: cell.request,
-                  session: cell.answer === 'http:404+session',
-                  versions: fixture.protocolVersions,
-                }),
-                { kind: 'answer', answer: cell.answer },
+              const classified = classifyWireEvent(eventOf(reply, cell), {
+                id: 'x',
+                request: cell.request,
+                session: cell.answer === 'http:404+session',
+                versions: fixture.protocolVersions,
+              })
+              assert.strictEqual(
+                classified.kind === 'answer' ? classified.answer : classified.kind,
+                cell.answer,
                 'classifyWireEvent puts the sample into another class',
               )
               await checkCell(fixture, cell, reply, row.conclusion)

@@ -19,8 +19,38 @@ const BRAND_GUARDS = [
   'isTaskId',
 ]
 
+/** The decision layer of T8 (one implementation for every transport) and what a transport writes. */
+const DECISIONS = [
+  'ABANDONED',
+  'METHOD_NOT_FOUND',
+  'NOT_SENT_FAILURE',
+  'OFFERED_LEGACY_VERSION',
+  'PROBE_REQUESTS',
+  'RESENT_REQUESTS',
+  'callAnswerOf',
+  'concludeAnswer',
+  'concludeProbe',
+  'discoverAuthorization',
+  'discoverWith',
+  'interpretAnswer',
+  'legacyIdentityOf',
+  'legacyInitializeParamsOf',
+  'listingPageOf',
+  'notificationTextOf',
+  'peerRequestAnswerOf',
+  'readPeerMessage',
+  'readerOf',
+  'requestClassOf',
+  'requestTextOf',
+  'responseTextOf',
+  'retryVersionOf',
+  'taskAnswerOf',
+  'taskReportOf',
+]
+
 const ROOT = [
   ...BRAND_GUARDS,
+  ...DECISIONS,
   'FIRST_MODERN_PROTOCOL_VERSION',
   'LEGACY_PROTOCOL_VERSIONS',
   'PROCESS_EXIT_WINDOW_MS',

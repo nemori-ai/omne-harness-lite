@@ -7,8 +7,8 @@ import { isProtocolVersion, type Generation, type ProtocolVersion } from './bran
 import { countOf, taskHintsOf } from './classify.ts'
 import { SERVER_INFO_KEY } from './envelope.ts'
 import { boundInstructions } from './instructions.ts'
-import { isObject, itemsOf, member, textOf } from './json.ts'
-import type { ErrorAnswer, TaskReport, TaskStatus } from './outcomes.ts'
+import { isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
+import type { ErrorAnswer, TaskHints, TaskReport, TaskStatus } from './outcomes.ts'
 import { isLegacyProtocolVersion, isModernProtocolVersion } from './revisions.ts'
 import type { ListingPage, TaskAnswer } from './transport.ts'
 import type { PeerIdentity } from './values.ts'
@@ -137,56 +137,86 @@ export type TaskReadDefect =
   | 'result-missing'
   | 'error-missing'
 
-/** The status read of a `tasks/get` result (T6), with the input requests of an `input_required` task. */
-export function readTaskReport(result: JsonValue): Outcome<TaskReport, TaskReadDefect> {
+/** A `tasks/get` result as read (T6): the status with what that status must carry. */
+type TaskRead =
+  | Readonly<{ status: 'working' | 'cancelled' }>
+  | Readonly<{ status: 'input_required'; inputRequests: JsonValue }>
+  | Readonly<{ status: 'completed'; result: JsonValue }>
+  | Readonly<{ status: 'failed'; error: JsonValue }>
+
+/** The status of a `tasks/get` result and what it carries, with the hints (T6). */
+function readTask(
+  result: JsonValue,
+): Outcome<Readonly<{ read: TaskRead; hints: TaskHints }>, TaskReadDefect> {
   if (!isObject(result)) return { failure: 'status-unknown' }
   const written = textOf(member(result, 'status'))
   const status = TASK_STATUSES.find(known => known === written)
   const taskId = textOf(member(result, 'taskId'))
   if (status === undefined || taskId === undefined || taskId === '')
     return { failure: 'status-unknown' }
-  const inputRequests = member(result, 'inputRequests')
-  if (status === 'input_required' && !isObject(inputRequests))
-    return { failure: 'input-requests-missing' }
-  if (status === 'completed' && member(result, 'result') === undefined)
-    return { failure: 'result-missing' }
-  if (status === 'failed' && !isObject(member(result, 'error'))) return { failure: 'error-missing' }
+  const read = taskReadOf(status, result)
+  return 'failure' in read ? read : { ok: { read: read.ok, hints: taskHintsOf(result) } }
+}
+
+function taskReadOf(status: TaskStatus, result: JsonObject): Outcome<TaskRead, TaskReadDefect> {
+  switch (status) {
+    case 'input_required': {
+      const inputRequests = member(result, 'inputRequests')
+      return isObject(inputRequests)
+        ? { ok: { status, inputRequests } }
+        : { failure: 'input-requests-missing' }
+    }
+    case 'completed': {
+      const value = member(result, 'result')
+      return value === undefined ? { failure: 'result-missing' } : { ok: { status, result: value } }
+    }
+    case 'failed': {
+      const error = member(result, 'error')
+      return isObject(error) ? { ok: { status, error } } : { failure: 'error-missing' }
+    }
+    case 'working':
+    case 'cancelled':
+      return { ok: { status } }
+    default: {
+      const exhaustive: never = status
+      return exhaustive
+    }
+  }
+}
+
+/** The status read of a `tasks/get` result (T6), with the input requests of an `input_required` task. */
+export function readTaskReport(result: JsonValue): Outcome<TaskReport, TaskReadDefect> {
+  const task = readTask(result)
+  if ('failure' in task) return task
+  const { read, hints } = task.ok
   return {
     ok: {
-      status,
-      ...(status === 'input_required' && inputRequests !== undefined
-        ? { inputRequests: { untrusted: inputRequests } }
+      status: read.status,
+      ...(read.status === 'input_required'
+        ? { inputRequests: { untrusted: read.inputRequests } }
         : {}),
-      ...taskHintsOf(result),
+      ...hints,
     },
   }
 }
 
 /** The answer read of a `tasks/get` result (T6): the result or error of a finished task. */
 export function readTaskAnswer(result: JsonValue): Outcome<TaskAnswer, TaskReadDefect> {
-  const report = readTaskReport(result)
-  if ('failure' in report) return report
-  if (!isObject(result)) return { failure: 'status-unknown' }
-  switch (report.ok.status) {
-    case 'completed': {
-      const value = member(result, 'result')
-      return value === undefined
-        ? { failure: 'result-missing' }
-        : { ok: { kind: 'finished', answer: { kind: 'result', result: value } } }
-    }
-    case 'failed': {
-      const error = member(result, 'error')
-      return error === undefined
-        ? { failure: 'error-missing' }
-        : { ok: { kind: 'finished', answer: { kind: 'error', error } } }
-    }
+  const task = readTask(result)
+  if ('failure' in task) return task
+  const { read } = task.ok
+  switch (read.status) {
+    case 'completed':
+      return { ok: { kind: 'finished', answer: { kind: 'result', result: read.result } } }
+    case 'failed':
+      return { ok: { kind: 'finished', answer: { kind: 'error', error: read.error } } }
     case 'cancelled':
       return { ok: { kind: 'cancelled' } }
     case 'working':
     case 'input_required':
       return { ok: { kind: 'not-finished' } }
     default: {
-      const exhaustive: never = report.ok.status
+      const exhaustive: never = read
       return exhaustive
     }
   }
