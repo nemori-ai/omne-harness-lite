@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type {
   CommandFacility,
+  CommandRetention,
   EnvironmentBinding,
   EnvironmentLease,
   FacilityKey,
@@ -39,7 +40,9 @@ export type EnvironmentFacts = Readonly<{
 }>
 export type ToolEnvironmentValue = Readonly<{
   files: AuthorFacility<FileSystemFacility<unknown>>
-  command: AuthorFacility<CommandFacility<unknown>>
+  command: Omit<AuthorFacility<CommandFacility<unknown>>, 'retention'> & {
+    readonly retention?: AuthorFacility<CommandRetention<unknown>>
+  }
   terminal: Omit<AuthorFacility<TerminalFacility<unknown>>, 'retention'> & {
     readonly retention?: AuthorFacility<TerminalRetention<unknown>>
   }
@@ -169,6 +172,19 @@ export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): To
   }
 
   const command: ToolEnvironmentValue['command'] = {
+    ...(input.lease.facility('command')?.retention === undefined
+      ? {}
+      : {
+          retention: Object.freeze({
+            async list(request: BusinessRequest<Parameters<CommandRetention<unknown>['list']>[0]>) {
+              const common = base()
+              const retention = input.lease.facility('command')?.retention
+              return retention
+                ? retention.list({ ...request, ...common })
+                : absent(common.requestId)
+            },
+          }),
+        }),
     async start(request) {
       const common = base()
       const facility = input.lease.facility('command')
