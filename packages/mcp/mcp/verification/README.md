@@ -201,5 +201,7 @@ TLC 负控与变异的对应：`bad-no-absorb-close` 与 M1，`bad-forget-open`�
 | C48  | `calls.ts` 已触发的停止信号仍起等待（自裁 2）                                                                | `cancel.spec.ts`「a signal that fired before the call starts no wait」                                        | 1      | `e510d444f`   |
 | C49  | `tasks.ts` 分类放回 `ask` 的闭包，配合 C23 去掉契约的吸收                                                    | `tasks.spec.ts`「a checkOutput that throws」（答 `effect-unknown`）                                           | 1      | `e510d444f`   |
 | C50  | `calls.ts` `under` 在等待答复之后不再核停止信号                                                              | 存活：答复与停止信号落在同一轮事件循环的交错没有服务层用例，交给 `w3-mcp-call-model` 的探索器负控             | 0      | `e510d444f`   |
+| C51  | `tasks.ts` 任务请求 `not-sent` 答 `effect-unknown` 而不是 `ConnectionFailure`                                | `tasks.spec.ts`「a task request the transport could not send」「refused for authorization」                   | 1      | `da392b283`   |
+| C52  | `calls.ts` T9 的 `call` 违约按未发出收口（占位撤销）                                                         | `invoke.spec.ts`「a call that breaches its contract (T9)」                                                    | 1      | `da392b283`   |
 
-52 条（C30、C32 各两条）里 50 条变红，2 条存活（C37 等价，C50 交探索器）。第 1 轮的 M17（`markSent` 不看取消标记）在新结构下不存在：占位项没有 `cancelled` 字段，取消落在发出与登记之间时由停止信号在第 11 步到期处理（C15、C18 覆盖那条路）。
+54 条（C30、C32 各两条）里 52 条变红，2 条存活（C37 等价，C50 交探索器）。第 1 轮的 M17（`markSent` 不看取消标记）在新结构下不存在：占位项没有 `cancelled` 字段，取消落在发出与登记之间时由停止信号在第 11 步到期处理（C15、C18 覆盖那条路）。 C51、C52 的 head `da392b283` 与 `e510d444f` 之间只有文档提交，`src/` 没有差异，`tests/` 只有 `tests/README.md`。
