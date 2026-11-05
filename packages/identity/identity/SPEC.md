@@ -300,11 +300,11 @@
 
 本发行有三个代租户行事主体的持有者。每个持有者在签发之前核对原工作关系。应用装配页登记同一张表，见[持有者与关系核对位置](../../../docs/architecture/runtime/application-assembly.md#principal-holders)。
 
-| 持有者 | 位置 | 关系核对 |
-| --- | --- | --- |
-| server-entry 的登录步骤 | `packages/access/server-entry/src/identity-steps.ts` | 账号相等：识别出的账号等于目标租户的账号，见上一段 |
-| 会话工作主体的签发者 `sessionWorkPrincipals` | `apps/harness-server/src/entry/session-work-principals.ts` | 会话的归属读口 |
-| Model 宿主权威 | `apps/harness-server/src/entry/model-authorities.ts` | 原受理记录 |
+| 持有者                                       | 位置                                                       | 关系核对                                           |
+| -------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------- |
+| server-entry 的登录步骤                      | `packages/access/server-entry/src/identity-steps.ts`       | 账号相等：识别出的账号等于目标租户的账号，见上一段 |
+| 会话工作主体的签发者 `sessionWorkPrincipals` | `apps/harness-server/src/entry/session-work-principals.ts` | 会话的归属读口                                     |
+| Model 宿主权威                               | `apps/harness-server/src/entry/model-authorities.ts`       | 原受理记录                                         |
 
 进程内参考件不实现持有约束。在本发行里，装配用两样东西兑现这项约束：
 
@@ -586,12 +586,12 @@ ID-17 的三项操作不变。治理操作放在独立端口 `IdentityGovernance
 
 `@omne-harness/identity/testing` 增加下列导出。
 
-| 导出 | 用途 |
-| --- | --- |
-| `checkIdentityGovernanceContract(fixture, options)` | 治理契约套件。对 `fixture` 产生的提供者逐项运行用例，返回逐项报告。它不依赖测试框架 |
-| `IDENTITY_GOVERNANCE_CONTRACT_CASES` | 套件的用例清单，报告按此顺序列出 |
-| `inProcessIdentity({ clock, terms, invitationTerms, faults })` | 进程内参考替身。返回共用记录的 `operations` 与 `governance`，以及 `restart()` |
-| `adjustableInvitationTerms(initial)` | 可控邀请期限配置：改值、置为不可得 |
+| 导出                                                           | 用途                                                                                |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `checkIdentityGovernanceContract(fixture, options)`            | 治理契约套件。对 `fixture` 产生的提供者逐项运行用例，返回逐项报告。它不依赖测试框架 |
+| `IDENTITY_GOVERNANCE_CONTRACT_CASES`                           | 套件的用例清单，报告按此顺序列出                                                    |
+| `inProcessIdentity({ clock, terms, invitationTerms, faults })` | 进程内参考替身。返回共用记录的 `operations` 与 `governance`，以及 `restart()`       |
+| `adjustableInvitationTerms(initial)`                           | 可控邀请期限配置：改值、置为不可得                                                  |
 
 `fixture.create(options)` 每次产生一个新的空部署，返回同一部署的 `operations` 与 `governance`。两者须共用记录：经 `governance` 的撤销与切换对 `operations.recognizeLogin` 生效。
 
@@ -649,3 +649,19 @@ stateDiagram-v2
 账号、组织和租户的停用、恢复与终结不是本阶段操作。调用这些操作不能按创建、读取、更新或删除补出结果。本阶段提供创建、登录退出、成员变更和隶属解除。
 
 接收方处理隶属请求之前，系统检查发起组织仍然存在。发起组织不存在时，该请求失效。失效是这份请求的一个终结结果。它不能建立关系，之后也不能被接受、拒绝或撤回覆盖。检查发生在处理当时。目标组织不存在时，邀约仍按既有规则过期。成员邀请所属组织不存在时，邀请仍按既有规则过期。
+
+## ID-19 成员资格预留与治理恢复
+
+公开定义归 [reservations.ts](src/reservations.ts) 与 [governance.ts](src/governance.ts)。预留只协调 acting-for-tenant 主体的当前成员关系及既有具名资格。原工作资格继续归原工作拥有者。它不增加登录有效期租约或 permit 消耗规则。
+
+`reserve` 核验主体确由注入权威签发，绑定中的租户及主体引用与其一致，再在同一身份事务中核验成员事实与所需资格。空资格集合表示成员关系。绑定包含操作拥有者、原操作标识、主体、目的地、租户、目标与输入摘要，没有业务值或 SQL 命令。绑定版本固定为 `standing/1`；文本上界由公开校验器维护。消费者使用 `standingPrincipalRef` 与 `standingReservationId`，不得自行定义另一种摘要算法。同一拥有者、租户、主体、目标与操作标识换绑定或资格集合，答 `operation-conflict`。
+
+`held` 没有到期时刻。成员写者必须与预留互斥。已有成员变更意图先阻止该成员的新预留，再排空已有预留；成员变更真正提交后才可报告成功。排空后重新检查原登录、当前选择、原治理资格、预期角色与最后管理员规则。最终拒绝也结束自己的意图，后续意图继续按持久顺序推进。
+
+`settle` 不接收调用方断言的终态。它只调用受信装配注入的 `StandingDestinationResolver.seal`。目标在自己的事务内建立不可逆的 aborted，或返回已有 committed。Identity 核对完整预留绑定后才结束预留。目标不可用、未找到、取消、超时与实例停止均不能代替这项证明。此协议仅供本地受信装配使用；远程 DTO 的认证没有实现。
+
+成员变更结果未知时，持久提供者须在拒绝 Promise 的错误中暴露原逻辑操作引用，并提供 `IdentityGovernanceRecovery`。恢复不得新建同义操作。`resume` 接受原发起账号的当前有效登录，重新核验当前选择及治理资格后读回或继续；其他账号不得读取。最终变更仍核验持久保存的原发起登录，新登录不能续接已过期或撤销的原授权。受信装配的有界 `recover` 同样以原登录核验并终结拒绝，不能换成系统授权。恢复枚举仅交给受信持有者。SQL 阶段身份与逻辑身份分开，每个 SQL 身份的原封套固定，结果未知时不能换时刻重送。
+
+预留和治理恢复每次处理有界分页与有限次数。失败保留持久记录，后续调用或重启可继续；不存在按等待时间强制释放的路径。长期失联可能长期阻止成员变更。本成员不承诺单凭该协议完成任一外域的业务写入。
+
+已完成结果的稳定保存不授予新上下文披露资格。本人退出成功后，新登录不能再选择已退出的租户，因此恢复读口可答 `not-visible`，后端仍保留原结果。本协议不提供跨租户的历史操作中心，也不豁免当前选择与披露规则。

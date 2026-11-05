@@ -273,3 +273,31 @@ export type InvitationTermsReading =
 export interface InvitationTermsSource {
   read(): Promise<InvitationTermsReading>
 }
+
+/** Provider-owned identity of one durable membership mutation. */
+export type GovernanceOperationRef = Readonly<{ operationId: string }>
+
+export type GovernanceRecoveryOutcome =
+  | Readonly<{
+      kind: 'finished'
+      operation: GovernanceOperationRef
+      outcome: LeaveOrganizationOutcome | MemberChangeOutcome | InvitationDispositionOutcome
+    }>
+  | Readonly<{ kind: 'pending'; operation: GovernanceOperationRef }>
+  | GovernanceDenied
+  | GovernanceNotVisible
+  | GovernanceBasisUnavailable
+
+export interface IdentityGovernanceRecovery {
+  /** The caller uses a valid login of the initiating account. Applying still checks the original login. */
+  resume(
+    input: GovernanceLogin & Readonly<{ operation: GovernanceOperationRef }>,
+  ): Promise<GovernanceRecoveryOutcome>
+  /** Bounded trusted recovery uses each intent's original initiating login. */
+  recover(
+    input?: Readonly<{ after?: string; limit?: number }>,
+  ): Promise<
+    | Readonly<{ kind: 'recovered'; examined: number; finished: number; next: string | null }>
+    | GovernanceBasisUnavailable
+  >
+}

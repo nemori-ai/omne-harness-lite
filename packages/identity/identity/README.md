@@ -4,7 +4,7 @@
 
 本成员拥有主体、组织成员、租户、登录与当前租户选择的事实，以及治理模型给出的可解释资格。业务规则的采用范围见 [SPEC](SPEC.md)。首批公开形状由 [#659](https://github.com/nemori-ai/omne-harness-lite/issues/659) 交付，依据是 [#638 的 2026-10-23 决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)：两种主体与复合主体、具名资格「组织成本账目读取」。
 
-已实现的部分：两种主体的类型、签发与核验接口、进程内权威；具名资格与角色映射；当前资格读口的类型。注册并激活、签发登录与识别登录三项操作的契约类型，条款见 SPEC ID-17。治理端口 `IdentityGovernance` 的契约类型：组织与成员关系、当前租户切换、登录查询与撤销，以及成功业务访问报告，条款见 SPEC ID-18。测试入口 `./testing` 提供两组操作的进程内参考替身与两份契约测试套件。持久提供者：账号、组织、成员关系与登录的持久存储，以及读口和三项操作的真实实现，由 [`@omne-harness/identity-sql`](../identity-sql/README.md) 提供（SPEC ID-11）。尚未实现的部分：治理端口的持久兑现（identity-sql 的后续交付）、组织隶属与更换凭据。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)判断。
+已实现的部分：两种主体的类型、签发与核验接口、进程内权威；具名资格与角色映射；当前资格读口的类型。注册并激活、签发登录与识别登录三项操作的契约类型，条款见 SPEC ID-17。治理端口 `IdentityGovernance` 的契约类型：组织与成员关系、当前租户切换、登录查询与撤销，以及成功业务访问报告，条款见 SPEC ID-18。测试入口 `./testing` 提供两组操作的进程内参考替身与两份契约测试套件。持久提供者：账号、组织、成员关系与登录的持久存储，以及读口和三项操作的真实实现，由 [`@omne-harness/identity-sql`](../identity-sql/README.md) 提供（SPEC ID-11）。治理端口、成员资格预留与恢复的持久兑现同样归 identity-sql。尚未实现的部分：组织隶属与更换凭据。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)判断。
 
 ## 使用
 
@@ -29,22 +29,22 @@ const acting = authority.issuer.issueActingForTenant({
 
 应用装配创建一个权威，把 `verifier` 交给授权与其他消费方，把 `issuer` 只交给装配声明的受信具名持有者。持有者在签发前须向原工作拥有者核对原主体、目标租户与原工作的关系。核对失败、依据不可得或能力未安装时不得签发。签发的主体放进 `Access<Principal>` 的 `principal`。消费方在实际操作点还须核当前成员关系及原工作资格，缺少必要守卫时不得推进业务。责任与有限采用依据见 [SPEC ID-16](SPEC.md)。`inProcessPrincipalAuthority` 只提供进程内来源核验，不实现上述真实提供者能力。
 
-| 导出                                                                                          | 用途                                                         |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `SystemPrincipal`、`ActingForTenantPrincipal`、`Principal`、`WorkRef`                         | 两种主体与原工作关联                                         |
-| `PrincipalIssuer`、`PrincipalVerifier`、`PrincipalAuthority`、`inProcessPrincipalAuthority()` | 签发与核验接口，以及进程内权威                               |
-| `scopeOf(principal)`                                                                          | 主体的行事作用域（`ActingScope`）                            |
-| `QUALIFICATIONS`、`Qualification`、`isQualification`                                          | 具名资格                                                     |
-| `RoleMapping`、`RoleRef`、`GovernanceModelRef`、`qualificationsOf`、`governanceModelEquals`   | 治理模型的角色到资格映射                                     |
-| `DEFAULT_TEAM_MODEL`、`DEFAULT_TEAM_ROLES`、`DEFAULT_TEAM_ROLE_MAPPING`                       | 默认团队方案的映射                                           |
-| `TenantStandingSource`、`TenantStandingReading`、`StandingEvidence`                           | 当前资格读口                                                 |
-| `IdentityOperations`、`IdentityOperationsOptions`                                             | 注册并激活、签发登录与识别登录的操作端口，以及提供者的注入项 |
-| `RegisterAndActivateInput`、`RegisterAndActivateOutcome`、`LoginCredentialInput`              | 注册并激活的输入与结果                                       |
-| `IssueLoginInput`、`IssueLoginOutcome`、`IssuedLogin`                                         | 签发登录的输入与结果                                         |
-| `RecognizeLoginInput`、`LoginRecognition`                                                     | 识别登录的输入与结果                                         |
-| `IdentityClock`、`ClockReading`、`LoginTermsSource`、`LoginTermsReading`、`LoginTerms`        | 注入的时钟与登录期限配置                                     |
+| 导出                                                                                          | 用途                                                             |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `SystemPrincipal`、`ActingForTenantPrincipal`、`Principal`、`WorkRef`                         | 两种主体与原工作关联                                             |
+| `PrincipalIssuer`、`PrincipalVerifier`、`PrincipalAuthority`、`inProcessPrincipalAuthority()` | 签发与核验接口，以及进程内权威                                   |
+| `scopeOf(principal)`                                                                          | 主体的行事作用域（`ActingScope`）                                |
+| `QUALIFICATIONS`、`Qualification`、`isQualification`                                          | 具名资格                                                         |
+| `RoleMapping`、`RoleRef`、`GovernanceModelRef`、`qualificationsOf`、`governanceModelEquals`   | 治理模型的角色到资格映射                                         |
+| `DEFAULT_TEAM_MODEL`、`DEFAULT_TEAM_ROLES`、`DEFAULT_TEAM_ROLE_MAPPING`                       | 默认团队方案的映射                                               |
+| `TenantStandingSource`、`TenantStandingReading`、`StandingEvidence`                           | 当前资格读口                                                     |
+| `IdentityOperations`、`IdentityOperationsOptions`                                             | 注册并激活、签发登录与识别登录的操作端口，以及提供者的注入项     |
+| `RegisterAndActivateInput`、`RegisterAndActivateOutcome`、`LoginCredentialInput`              | 注册并激活的输入与结果                                           |
+| `IssueLoginInput`、`IssueLoginOutcome`、`IssuedLogin`                                         | 签发登录的输入与结果                                             |
+| `RecognizeLoginInput`、`LoginRecognition`                                                     | 识别登录的输入与结果                                             |
+| `IdentityClock`、`ClockReading`、`LoginTermsSource`、`LoginTermsReading`、`LoginTerms`        | 注入的时钟与登录期限配置                                         |
 | `IdentityGovernance`、`GovernanceLogin`、`GovernanceActing` 及各操作的输入与结果类型          | 治理端口：组织与成员、当前租户、登录查询与撤销、成功业务访问报告 |
-| `InvitationTermsSource`、`InvitationTermsReading`、`InvitationTerms`                          | 注入的邀请期限配置                                           |
+| `InvitationTermsSource`、`InvitationTermsReading`、`InvitationTerms`                          | 注入的邀请期限配置                                               |
 
 ### 测试入口 `./testing`
 
@@ -79,7 +79,7 @@ if (login.kind === 'succeeded') await identity.recognizeLogin({ loginProof: logi
 | `manualIdentityClock(start)`、`ManualIdentityClock`                                                                                             | 可控时钟：前进、后退、置为不可得                                            |
 | `adjustableLoginTerms(initial)`、`AdjustableLoginTerms`                                                                                         | 可控期限配置：改值、置为不可得                                              |
 | `recordStoreFaults()`、`RecordStoreFaultControl`、`RecordStoreFaults`、`RecordStore`                                                            | 可控记录库故障：使账号、登录或组织记录库对查询不作答                        |
-| `inProcessIdentity({ clock, terms, invitationTerms, faults })`、`InProcessIdentity`、`InProcessIdentityGovernanceOptions`                        | 共用记录的三项操作与治理端口参考替身，带 `restart()`                        |
+| `inProcessIdentity({ clock, terms, invitationTerms, faults })`、`InProcessIdentity`、`InProcessIdentityGovernanceOptions`                       | 共用记录的三项操作与治理端口参考替身，带 `restart()`                        |
 | `adjustableInvitationTerms(initial)`、`AdjustableInvitationTerms`                                                                               | 可控邀请期限配置：改值、置为不可得                                          |
 | `checkIdentityGovernanceContract(fixture, options)`、`IDENTITY_GOVERNANCE_CONTRACT_CASES` 及其输入与报告类型                                    | 治理契约测试套件与用例清单                                                  |
 | `checkIdentityOperationsContract(fixture, options)`、`IDENTITY_CONTRACT_CASES`                                                                  | 契约测试套件与用例清单。真实提供者用同一套件检查自己                        |
@@ -101,28 +101,32 @@ if (login.kind === 'succeeded') await identity.recognizeLogin({ loginProof: logi
 
 ## 验证
 
-单元与契约测试从包名导入公开入口，所以同时检查 `dist` 能被独立消费。Cordis 测试使用真实 Context 和测试子类，另用打包制品验证消费隔离。本包没有存储、应用服务或用户旅程，未进行完整服务端端到端验证。`TenantStandingSource` 没有生产实现，测试仅检查读数委托，真实提供者须自测。
+单元与契约测试从包名导入公开入口，所以同时检查 `dist` 能被独立消费。Cordis 测试使用真实 Context 和测试子类，另用打包制品验证消费隔离。本包没有存储、应用服务或用户旅程，未进行完整服务端端到端验证。本包的 `TenantStandingSource` 测试只检查读数委托；identity-sql 对真实持久提供者另行测试。
 
-| 文件                                                             | 覆盖                                                                                           |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `tests/principal.spec.ts`                                        | 签发两种主体、拒绝的输入、畸形输入不抛出、核验、手写副本与 JSON 往返                           |
-| `tests/principal.spec-d.ts`                                      | 不带租户的代租户行事主体、带租户的系统主体是类型错误                                           |
-| `tests/qualification.spec.ts`                                    | 具名资格清单、默认团队映射、别的模型与未列出的角色                                             |
-| `tests/public-entry.spec.ts`                                     | 公开导出清单                                                                                   |
-| `tests/testing-entry.spec.ts`                                    | `./testing` 的导出清单                                                                         |
-| `tests/operations-contract.spec.ts`                              | 契约测试套件在两组配置下对参考替身全部通过，套件对逐条故意违反的提供者报告失败                 |
-| `tests/operations-double.spec.ts`                                | 替身的截止时刻来自注入的时长、闰秒限制、失效登录不恢复、端口抛出与诊断不含秘密、可控时钟       |
-| `tests/operations-scenario.spec.ts`                              | 只经包入口完成注册、登录与识别                                                                 |
-| `tests/operations.spec-d.ts`                                     | 三项操作结果种类的类型正反例                                                                   |
+| 文件                                                             | 覆盖                                                                                                                                    |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/principal.spec.ts`                                        | 签发两种主体、拒绝的输入、畸形输入不抛出、核验、手写副本与 JSON 往返                                                                    |
+| `tests/principal.spec-d.ts`                                      | 不带租户的代租户行事主体、带租户的系统主体是类型错误                                                                                    |
+| `tests/qualification.spec.ts`                                    | 具名资格清单、默认团队映射、别的模型与未列出的角色                                                                                      |
+| `tests/public-entry.spec.ts`                                     | 公开导出清单                                                                                                                            |
+| `tests/testing-entry.spec.ts`                                    | `./testing` 的导出清单                                                                                                                  |
+| `tests/operations-contract.spec.ts`                              | 契约测试套件在两组配置下对参考替身全部通过，套件对逐条故意违反的提供者报告失败                                                          |
+| `tests/operations-double.spec.ts`                                | 替身的截止时刻来自注入的时长、闰秒限制、失效登录不恢复、端口抛出与诊断不含秘密、可控时钟                                                |
+| `tests/operations-scenario.spec.ts`                              | 只经包入口完成注册、登录与识别                                                                                                          |
+| `tests/operations.spec-d.ts`                                     | 三项操作结果种类的类型正反例                                                                                                            |
 | `tests/cordis.spec.ts`、`tests/cordis.spec-d.ts`                 | 六个定义的导出清单，四个原接口定义的真实注册、委托、撤除及原接口类型，复用 Operations 契约套件；治理定义经真实 Context 运行治理契约套件 |
-| `tests/governance-contract.spec.ts`                              | 治理契约套件在两组配置下对参考替身全部通过，用例名覆盖交付规格的验收名，共用记录的三项操作仍过操作契约套件 |
-| `tests/governance-negative.spec.ts`                              | 负控：逐项关掉替身的一项核对，对应用例变红                                                     |
-| `tests/governance.spec-d.ts`                                     | 治理端口、Cordis 定义与结果种类的类型正反例；三项操作的形状不变                                |
-| `tests/identity-clock.spec.ts`、`tests/identity-clock.spec-d.ts` | `identityClock` 定义的注册、委托、撤除、消费者的 inject 等待及原接口类型                       |
-| `tests/cordis-package.spec.ts`                                   | 打包制品的根入口隔离、`./cordis` 实际消费及类型正反例                                          |
+| `tests/governance-contract.spec.ts`                              | 治理契约套件在两组配置下对参考替身全部通过，用例名覆盖交付规格的验收名，共用记录的三项操作仍过操作契约套件                              |
+| `tests/governance-negative.spec.ts`                              | 负控：逐项关掉替身的一项核对，对应用例变红                                                                                              |
+| `tests/governance.spec-d.ts`                                     | 治理端口、Cordis 定义与结果种类的类型正反例；三项操作的形状不变                                                                         |
+| `tests/identity-clock.spec.ts`、`tests/identity-clock.spec-d.ts` | `identityClock` 定义的注册、委托、撤除、消费者的 inject 等待及原接口类型                                                                |
+| `tests/cordis-package.spec.ts`                                   | 打包制品的根入口隔离、`./cordis` 实际消费及类型正反例                                                                                   |
 
 在仓库根运行 `pnpm turbo run test --filter=@omne-harness/identity`。turbo 先构建依赖与 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。
 
 ## 维护
 
 改公开形状先改 `src/`，再同步 SPEC ID-16、ID-17 或 ID-18、本页与消费者。三项操作的真实提供者用 `checkIdentityOperationsContract` 检查自己，治理端口的真实提供者用 `checkIdentityGovernanceContract` 检查自己，并各自另行证明持久与恢复。当前消费者是 `packages/identity/authorization`。实现当前资格读口的提供者按 SPEC 的条款写自己的资源、失败与持久责任，不另写一份公共保证。
+
+## 成员资格预留
+
+[公开定义](src/reservations.ts)提供 `StandingReservations`、受信 `StandingDestinationResolver` 与绑定校验。消费者使用 `standingPrincipalRef` 和 `standingReservationId` 固定引用。[治理定义](src/governance.ts)提供 `IdentityGovernanceRecovery`，以原发起账号的当前登录认回逻辑变更，最终变更仍检查原登录。行为归 [ID-19](SPEC.md#id-19-成员资格预留与治理恢复)，实现和真实 SQLite 验证归 identity-sql。

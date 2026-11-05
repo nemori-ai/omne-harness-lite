@@ -1,0 +1,41 @@
+{
+  "name": "@omne-harness/assets-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local persistent asset holdings and settings projection authority",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/settings": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*",
+    "canonicalize": "5.1.0",
+    "zod": "catalog:",
+    "@omne-harness/assets": "workspace:*",
+    "@omne-harness/settings-local": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/sqlite-provider": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -25,7 +25,8 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
-    "@omne-harness/json-text": "workspace:*"
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/settings": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

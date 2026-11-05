@@ -9,9 +9,21 @@ import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import { StorageService } from '@omne-harness/sql-contract/cordis'
-import type { IdentityClock } from '@omne-harness/identity'
+import {
+  inProcessPrincipalAuthority,
+  standingPrincipalRef,
+  type IdentityClock,
+  type StandingDestinationResolver,
+} from '@omne-harness/identity'
+import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   IdentityClockService,
+  PrincipalVerifierService,
+  StandingDestinationResolverService,
+  StandingReservationsService,
+  IdentityGovernanceRecoveryService,
+  standingReservationsKey,
+  identityGovernanceRecoveryKey,
   IdentityGovernanceService,
   IdentityOperationsService,
   TenantStandingSourceService,
@@ -122,7 +134,7 @@ describe('IdentitySqlPlugin', () => {
   })
 
   it(
-    'provides three keys over one provider, issues at the injected clock reading, revokes through governance, invalidates when the clock passes the idle deadline, then stops on disposal',
+    'provides five keys over one provider, issues at the injected clock reading, revokes through governance, invalidates when the clock passes the idle deadline, then stops on disposal',
     { tags: ['slow'], timeout: 120_000 },
     async () => {
       const { ctx, storage, clock } = await hostContext()
@@ -158,6 +170,65 @@ describe('IdentitySqlPlugin', () => {
       const recognized = await operations.recognizeLogin({ loginProof: issued.loginProof })
       expect(recognized.kind).toBe('recognized')
       expect((await standing.read({ tenant: registered.tenant })).kind).toBe('member')
+
+      const reservations = ctx.get(standingReservationsKey)
+      const recovery = ctx.get(identityGovernanceRecoveryKey)
+      expect(reservations).toBeInstanceOf(StandingReservationsService)
+      expect(recovery).toBeInstanceOf(IdentityGovernanceRecoveryService)
+      if (reservations === undefined || recovery === undefined) throw new Error('coordination keys')
+      const authority = inProcessPrincipalAuthority()
+      const actor = authority.issuer.issueSystem({ component: 'cordis-test' })
+      if (!('ok' in actor)) throw new Error('actor')
+      const principal = authority.issuer.issueActingForTenant({
+        actor: actor.ok,
+        tenant: registered.tenant,
+        work: { owner: 'test', work: '1' },
+      })
+      const scope = tenantCodec.encode(registered.tenant)
+      if (!('ok' in principal) || !scope.ok) throw new Error('principal')
+      const reserveInput = {
+        principal: principal.ok,
+        binding: {
+          version: 'standing/1' as const,
+          owner: 'test',
+          operationId: 'cordis-1',
+          principalRef: standingPrincipalRef(principal.ok),
+          destination: 'test',
+          scopeRef: scope.value,
+          targetRef: 'target',
+          inputDigest: 'input',
+        },
+        required: [],
+      }
+      expect((await reservations.reserve(reserveInput)).kind).toBe('unavailable')
+      class Verifier extends PrincipalVerifierService {
+        readonly verify = authority.verifier.verify
+      }
+      const verifierFiber = await ctx.plugin(Verifier)
+      const held = await reservations.reserve(reserveInput)
+      if (held.kind !== 'held') throw new Error('held')
+      expect((await reservations.settle(held.reservation.id)).kind).toBe('unavailable')
+      class Resolver extends StandingDestinationResolverService {
+        readonly seal: StandingDestinationResolver['seal'] = async reservation => ({
+          kind: 'terminal',
+          reservation,
+          outcome: 'aborted',
+        })
+      }
+      const resolverFiber = await ctx.plugin(Resolver)
+      expect(await reservations.settle(held.reservation.id)).toMatchObject({
+        kind: 'terminal',
+        outcome: 'aborted',
+      })
+      await resolverFiber.dispose()
+      const secondHold = await reservations.reserve({
+        ...reserveInput,
+        binding: { ...reserveInput.binding, operationId: 'cordis-2' },
+      })
+      if (secondHold.kind !== 'held') throw new Error('second hold')
+      expect((await reservations.settle(secondHold.reservation.id)).kind).toBe('unavailable')
+      await verifierFiber.dispose()
+      expect((await reservations.reserve(reserveInput)).kind).toBe('unavailable')
 
       // The governance key works over the same records: a revocation ends the other login, and
       // the invitation terms come from the configuration's initial values (7 days).
@@ -221,6 +292,8 @@ describe('IdentitySqlPlugin', () => {
       expect(ctx.get(identityOperationsKey)).toBeUndefined()
       expect(ctx.get(tenantStandingKey)).toBeUndefined()
       expect(ctx.get(identityGovernanceKey)).toBeUndefined()
+      expect(ctx.get(standingReservationsKey)).toBeUndefined()
+      expect(ctx.get(identityGovernanceRecoveryKey)).toBeUndefined()
       expect(await governance.queryCurrentTenant({ login: issued.login })).toEqual({
         kind: 'basis-unavailable',
         diagnostic: 'provider-stopped',

@@ -8,10 +8,10 @@
 
 本成员拥有四类东西：
 
-1. 十张表的形状与两个迁移。迁移 `identity/001-identity` 建 `id_account`、`id_credential`、`id_organization`、`id_tenant`、`id_membership`、`id_login`。迁移 `identity/002-governance` 建 `id_organization_profile`、`id_invitation`、`id_create_receipt`、`id_login_revocation`。
-2. 存储契约的参加者 `identity` 与四个读 handler `identity.issue-basis`、`identity.login-by-proof`、`identity.standing`、`identity.governance`。
+1. 十二张表的形状与三个迁移。迁移 `identity/001-identity` 建 `id_account`、`id_credential`、`id_organization`、`id_tenant`、`id_membership`、`id_login`。迁移 `identity/002-governance` 建 `id_organization_profile`、`id_invitation`、`id_create_receipt`、`id_login_revocation`。
+2. 存储契约的参加者 `identity` 与五个读 handler `identity.issue-basis`、`identity.login-by-proof`、`identity.standing`、`identity.governance`、`identity.coordination`。
 3. 纯工厂 `createIdentitySql`：注册激活、签发登录、识别登录、资格读口与治理端口的实现，以及 scrypt 结果、提交结果与读结果到契约结果的映射。
-4. `./cordis` 插件 `IdentitySqlPlugin`：配置校验、scrypt 打开、组合登记、三个服务键与停止语义。
+4. `./cordis` 插件 `IdentitySqlPlugin`：配置校验、scrypt 打开、组合登记、五个服务键与停止语义。
 
 本成员不拥有：identity 的产品规则与结果类型（归 [identity SPEC](../identity/SPEC.md)）、SQL 提交、查询与读取的行为（归 [sql-contract](../../storage/sql-contract/SPEC.md) 与 [sqlite-provider](../../storage/sqlite-provider/SPEC.md)）、口令派生的强度与队列（归 [scrypt](../scrypt/SPEC.md)）、主体签发与核验（线包 R3）、更换凭据与组织隶属（R2-D204 第 6 条，本阶段不提供）、公开协议到治理端口的映射（归服务端接入）、应用行与材料目录的聚合（`apps/harness-server`）。
 
@@ -36,9 +36,9 @@
 
 ### IS-01 记录位置与组合
 
-全部记录落在作用域 `{ kind: 'system' }`、事务域 `system.identity`。十张表都归参加者 `identity`，分组声明是 `singleton`。`identitySqlCombination()` 用本成员自己的材料计算清单摘要与组合版本。同一构建每次算出同一组值。参加者做的事改变时，版本随之改变，新登记不覆盖旧登记。
+全部记录落在作用域 `{ kind: 'system' }`、事务域 `system.identity`。十二张表都归参加者 `identity`，分组声明是 `singleton`。`identitySqlCombination()` 用本成员自己的材料计算清单摘要与组合版本。同一构建每次算出同一组值。参加者做的事改变时，版本随之改变，新登记不覆盖旧登记。
 
-清单含参加者的代码摘要、它拥有的表与两个迁移。所以加入 002 的构建登记一个新版本，001 构建的旧登记留在域里。参加者的代码摘要只覆盖 `participant` 文件本身。参加者还执行它导入的模块：`schema` 与 `support`，`support` 里有发起登录、成员资格与组织种类的核对 SQL。所以组合版本不直接用清单摘要。版本是 `identity-sql/<版本摘要>`。版本摘要是 SHA-256，输入是清单摘要，加上参加者按相对路径导入的全部模块（含它自己）的相对路径与文件摘要。改 `participant`、`schema` 或 `support` 中的任一文件，版本都会改变。版本摘要不含文件所在的目录。登记里的 `manifestDigest` 仍是清单摘要。
+清单含参加者的代码摘要、它拥有的表与三个迁移。所以加入 002 的构建登记一个新版本，001 构建的旧登记留在域里。参加者的代码摘要只覆盖 `participant` 文件本身。参加者还执行它导入的模块：`schema` 与 `support`，`support` 里有发起登录、成员资格与组织种类的核对 SQL。所以组合版本不直接用清单摘要。版本是 `identity-sql/<版本摘要>`。版本摘要是 SHA-256，输入是清单摘要，加上参加者按相对路径导入的全部模块（含它自己）的相对路径与文件摘要。改 `participant`、`schema` 或 `support` 中的任一文件，版本都会改变。版本摘要不含文件所在的目录。登记里的 `manifestDigest` 仍是清单摘要。
 
 `system.` 前缀保留给系统作用域的事务域。租户事务域的推导规则不得产出以它开头的标识。
 
@@ -150,12 +150,12 @@ scrypt `derive` 的任何计算前拒绝，以及 `done` 得到 `unavailable`，
 
 迁移 `identity/002-governance` 要求 `identity/001-identity`，在同一个事务里建四张 STRICT 表：
 
-| 表                        | 主键                          | 其他列                                                                                       | 写入者                         |
-| ------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------ |
-| `id_organization_profile` | `organization`                | `name`、`model`、`model_revision`                                                            | 创建团队                       |
-| `id_invitation`           | `invitation`（`inv_` 文本）   | `organization`、`invited_account`、`tenant_text`、`expires_at`、`state`、`revision` 整数     | 发出邀请、接受、拒绝、撤回、过期 |
-| `id_create_receipt`       | `(account, create_call_id)`   | `name`、`governance_model_id`、`outcome`，以及可空的 `organization` 与 `tenant_text`          | 创建团队                       |
-| `id_login_revocation`     | `login`                       | `revoked_at`                                                                                 | 撤销登录                       |
+| 表                        | 主键                        | 其他列                                                                                   | 写入者                           |
+| ------------------------- | --------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------- |
+| `id_organization_profile` | `organization`              | `name`、`model`、`model_revision`                                                        | 创建团队                         |
+| `id_invitation`           | `invitation`（`inv_` 文本） | `organization`、`invited_account`、`tenant_text`、`expires_at`、`state`、`revision` 整数 | 发出邀请、接受、拒绝、撤回、过期 |
+| `id_create_receipt`       | `(account, create_call_id)` | `name`、`governance_model_id`、`outcome`，以及可空的 `organization` 与 `tenant_text`     | 创建团队                         |
+| `id_login_revocation`     | `login`                     | `revoked_at`                                                                             | 撤销登录                         |
 
 002 不改 001 的表。新的事实放进新表，键写成列内约束，与 001 相同（已知限制 10）。001 的字节保持发布时的值：迁移标记里的校验和不同时，存储提供者隔离该域。`migration` 文件读取的表名与语句在 `schema` 文件里，不在校验和之内，所以测试把它们钉在发布值上。002 的语句写在它自己的模块里。
 
@@ -163,14 +163,16 @@ scrypt `derive` 的任何计算前拒绝，以及 `done` 得到 `unavailable`，
 
 <a id="is-10"></a>
 
-### IS-10 治理写操作是一次提交
+### IS-10 治理写操作与结果映射
 
-一次治理写操作是一次 `commit`，只有一条 `identity` 命令。写操作是：创建组织、发出邀请、接受、拒绝、撤回、退出、移除成员、调整角色、切换当前租户、撤销登录与成功业务访问报告。
+退出、移除、角色变化及邀请接受采用 [IS-16](#is-16) 的持久意图协议。每个最终成员变更及其治理核对仍在一个事务内；下文的一次提交映射适用于其他治理写入。
+
+创建组织、发出邀请、拒绝、撤回、切换当前租户、撤销登录与成功业务访问报告各是一次 `commit`，只有一条 `identity` 命令。成员协调路径见 IS-16。
 
 提供者在提交之前在主线程做完以下各项：
 
 1. 已停止时答 `basis-unavailable`，诊断 `provider-stopped`。
-2. 读一次时钟，按 ID-17 的规则采用。这次读数是整个调用的「当前」。
+2. 读一次时钟，按 ID-17 的规则采用。本节单次提交路径以这次读数为「当前」；成员协调路径在排空后读取新的时刻。
 3. 发起登录 `login` 不能编码时答 `denied`。行事操作的 `actingTenant` 不能编码时答 `denied`。
 4. 产生新标识（`org_`、`inv_`），计算租户文本、截止时刻与它们的排序键，并判断输入形状。按标识查找的输入不能编码时，事实里写 `null`，由参加者在核对发起登录之后答 `not-visible` 或 `denied`。
 5. 发出邀请与成功业务访问报告各先做一次读（IS-11 的预读）。预读只给提供者计算所需的值，不决定答复。
@@ -185,13 +187,13 @@ scrypt `derive` 的任何计算前拒绝，以及 `done` 得到 `unavailable`，
 
 `system.identity` 的写是串行的，一组只有这一个操作（`singleton`）。两次并发调用不能都通过同一项核对再各自写入。两位超级管理员并发移除或降级对方时，后提交的一方在核对时已不是有效超级管理员，答 `denied`。
 
-| `commit` 结果            | 治理结果                                                                                                       |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `committed`              | 参加者响应里的结果。响应不能解析时拒绝 Promise：写入可能已经发生                                               |
-| `rolled_back`            | `basis-unavailable`，诊断 `governance-rolled-back:<类别>`。没有写入任何东西                                    |
-| `rejected_before_accept` | `basis-unavailable`，诊断 `governance-store-unavailable:<原因>`                                                |
+| `commit` 结果            | 治理结果                                                                                                                                     |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `committed`              | 参加者响应里的结果。响应不能解析时拒绝 Promise：写入可能已经发生                                                                             |
+| `rolled_back`            | `basis-unavailable`，诊断 `governance-rolled-back:<类别>`。没有写入任何东西                                                                  |
+| `rejected_before_accept` | `basis-unavailable`，诊断 `governance-store-unavailable:<原因>`                                                                              |
 | `unknown`                | 用同一身份 `query`，最多三次。`committed` 按响应作答。`rolled_back` 或 `not_committed` 答 `basis-unavailable`。仍为 `unknown` 时拒绝 Promise |
-| `identity_conflict`      | 拒绝 Promise                                                                                                   |
+| `identity_conflict`      | 拒绝 Promise                                                                                                                                 |
 
 拒绝 Promise 的错误类型是 `IdentitySqlResultUnknown`。调用方不自动重做。`createOrganization` 用 `queryCreateOrganization` 认回。
 
@@ -205,13 +207,13 @@ scrypt `derive` 的任何计算前拒绝，以及 `done` 得到 `unavailable`，
 
 handler 在同一个快照里先核对发起登录，规则同 IS-10 第 1 步，再读对象。拒绝答 `denied` 或 `not-visible`，不读对象的记录。读数早于发起登录的 `issued_at` 时，提供者答 `basis-unavailable`，诊断 `clock-earlier-than-record`。本人有效登录的名单还要求：本账号未撤销的登录里，没有一份的 `issued_at` 晚于本次读数。有这样一份时，名单不完整，同样答 `basis-unavailable`。可见性按 identity ID-18「可见性」：曾经是成员的账号看得见组织，从未成为成员的账号得到 `not-visible`。
 
-| 读结果                        | 治理结果                                                                                    |
-| ----------------------------- | ------------------------------------------------------------------------------------------- |
-| 读到，结果是 `denied`、`not-visible` | 同名结果                                                                              |
-| 读到，结果是 `clock-earlier-than-record` | `basis-unavailable`，同一诊断。`queryCreateOrganization` 也是这个结果，不答 `unknown` |
-| 读到，输出能解析              | `succeeded`，或 ID-18 规定的结果                                                            |
-| 读到，输出不能解析            | `basis-unavailable`，诊断 `governance-read-malformed`                                       |
-| `unavailable`、`cancelled`    | `basis-unavailable`，诊断 `governance-read-unavailable:<原因>`。`queryCreateOrganization` 答 `unknown`，带同一诊断 |
+| 读结果                                   | 治理结果                                                                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 读到，结果是 `denied`、`not-visible`     | 同名结果                                                                                                           |
+| 读到，结果是 `clock-earlier-than-record` | `basis-unavailable`，同一诊断。`queryCreateOrganization` 也是这个结果，不答 `unknown`                              |
+| 读到，输出能解析                         | `succeeded`，或 ID-18 规定的结果                                                                                   |
+| 读到，输出不能解析                       | `basis-unavailable`，诊断 `governance-read-malformed`                                                              |
+| `unavailable`、`cancelled`               | `basis-unavailable`，诊断 `governance-read-unavailable:<原因>`。`queryCreateOrganization` 答 `unknown`，带同一诊断 |
 
 `queryCreateOrganization` 没有该账号的回执时答 `unknown`，诊断 `no-receipt-of-this-account`。`queryOwnValidLogins` 的名单为空时答 `basis-unavailable`，诊断 `valid-login-list-empty`。
 
@@ -263,7 +265,7 @@ handler 另有两个预读，它们不核对发起登录：
 
 | 事项                             | 拥有者                                                                                     |
 | -------------------------------- | ------------------------------------------------------------------------------------------ |
-| 十张表与两个迁移的字节           | 本成员的参加者 `identity`。迁移发布后不改字节，表结构的变化写成新迁移                      |
+| 十二张表与三个迁移的字节         | 本成员的参加者 `identity`。迁移发布后不改字节，表结构的变化写成新迁移                      |
 | 组合登记                         | 插件体在提供服务之前调用 `registerCombination`。登记是持久的协议元数据，不随 fiber 撤除    |
 | 停止标志与最晚时钟读数           | 一个提供者实例。插件重跑产生新实例                                                         |
 | scrypt 模块与假材料              | 插件体。工厂只接收已打开的模块，不关闭它                                                   |
@@ -289,14 +291,14 @@ handler 另有两个预读，它们不核对发起登录：
 1. 校验配置的两个登录时长与两个邀请时长（IS-15）。解析失败、不大于零或默认邀请时长长于最长时长时插件抛错，该行 `FAILED`。
 2. 用 `SCRYPT_PROFILE` 调 `openScrypt`，再 `derive` 假材料。派生失败时关闭模块并抛错，诊断 `decoy-derive-failed:<code>`。
 3. `registerCombination`。结果不是 `registered` 时关闭模块并抛错。
-4. 用注入的 `identityClock` 与邀请时长构造提供者，在同一插件体内各 `new` 一个 `IdentityOperationsService`、`TenantStandingSourceService` 与 `IdentityGovernanceService` 子类实例。三个实例共用一个提供者，所以治理端口的撤销与切换对识别生效。
+4. 用注入的 `identityClock` 与邀请时长构造提供者，在同一插件体内各 `new` 一个 `IdentityOperationsService`、`TenantStandingSourceService` 、`IdentityGovernanceService`、`StandingReservationsService` 与 `IdentityGovernanceRecoveryService` 子类实例。这些实例共用一个提供者，所以治理端口的撤销与切换对识别生效。
 5. 登记一个受管 effect。撤除函数先调用提供者的 `stop()`，再 `await` scrypt 的 `close()`。
 
 `storage` 或 `identityClock` 换代时插件体重跑：重开 scrypt、重派生假材料、`registerCombination` 幂等认回，产生新实例。旧实例的调用按 IS-07 作答。撤除不撤销已提交的事实。
 
 ### 时钟来源
 
-插件 inject identity `./cordis` 的 `identityClock` 键（R1-D27）。装配入口提供 `IdentityClockService` 的子类，本成员不读墙钟，也不自建时钟。`identityClock` 缺席时 fiber 停在 PENDING，三个键都不提供。时钟换代时插件体重跑，实例内的最晚读数重新开始。期限类用例因此用可控时钟拨过截止时刻，不等待真实时间。
+插件 inject identity `./cordis` 的 `identityClock` 键（R1-D27）。装配入口提供 `IdentityClockService` 的子类，本成员不读墙钟，也不自建时钟。`identityClock` 缺席时 fiber 停在 PENDING，五个键都不提供。时钟换代时插件体重跑，实例内的最晚读数重新开始。期限类用例因此用可控时钟拨过截止时刻，不等待真实时间。
 
 ### 已知限制
 
@@ -316,6 +318,7 @@ handler 另有两个预读，它们不核对发起登录：
     - `governance.ts` 的 `governanceOver.write` CC 13。每个分支对应 IS-10 映射表里的一种提交结果。
 
     `registerAndActivate`、`parseIdentitySqlConfig`、`governanceOver.changeMember` 与治理读 handler 的 `answer` 都是 CC 12，超 warn，未超 alert。退出条件：把 `provider.ts` 的结果映射提成独立函数后重新度量。参加者的核对次序仍留在一个函数里。
+
 12. **「登录表可读」的探读没有独立用例。** `read-issue-basis.ts` 的探读与账号表的读取在同一个读 handler、同一个 SQLite 文件里，不能独立于账号表失败。现有用例只让整个 `identity.issue-basis` 读失败，没有「账号表可读、登录表不可读」的用例。本提供者答 `basis-unavailable` 的条件因此是 ID-17 条件的子集。
 13. **治理名单最多 1000 项。** 收到的邀请、发出的邀请、本人成员资格、组织成员与本人有效登录，任一份超过 1000 项时答 `basis-unavailable`，直到项数回落。本阶段没有分页。邀请的终结不删除，所以一个账号收到或一个组织发出的邀请累计超过 1000 份之后，对应名单一直答 `basis-unavailable`。退出条件：identity 契约定义分页或留存期之后，按它修订 IS-13。
 14. **发出邀请与注册并发时可能答 `not-visible`。** 预读没有找到被邀请标识，而提交之前该标识注册成功时，参加者答 `not-visible`，不发出邀请。调用方再发一次即可。
@@ -326,40 +329,40 @@ handler 另有两个预读，它们不核对发起登录：
 
 ### 消费的承诺
 
-| 承诺                                                        | 本成员怎样消费                                                                       |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| identity ID-17 契约套件 `checkIdentityOperationsContract`   | 在真实 sqlite-provider 上运行，用例集与参考替身相同，`login-inactive-uniform` 不适用 |
-| identity ID-18 治理契约套件 `checkIdentityGovernanceContract` | 在真实 sqlite-provider 上运行，接入记录库故障与重启，没有不适用的用例            |
-| sql-contract §6 登记幂等、§7 提交结果、§8 查询认回、§9 读取 | IS-01、IS-02、IS-04、IS-05、IS-06 的映射                                             |
-| sqlite-provider §5.3 DO-1、`synchronous=FULL` 与 WAL        | IS-08 的持久性                                                                       |
-| scrypt 的结果种类、`close` 让等候者得到 `stopped`           | IS-02、IS-04、IS-07 的映射                                                           |
-| identity `./cordis` 的三个抽象类与键                        | 插件体的三个子类实例                                                                 |
-| identity `./cordis` 的 `identityClock` 键                   | 插件 inject 它，交给工厂作时钟                                                       |
+| 承诺                                                          | 本成员怎样消费                                                                       |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| identity ID-17 契约套件 `checkIdentityOperationsContract`     | 在真实 sqlite-provider 上运行，用例集与参考替身相同，`login-inactive-uniform` 不适用 |
+| identity ID-18 治理契约套件 `checkIdentityGovernanceContract` | 在真实 sqlite-provider 上运行，接入记录库故障与重启，没有不适用的用例                |
+| sql-contract §6 登记幂等、§7 提交结果、§8 查询认回、§9 读取   | IS-01、IS-02、IS-04、IS-05、IS-06 的映射                                             |
+| sqlite-provider §5.3 DO-1、`synchronous=FULL` 与 WAL          | IS-08 的持久性                                                                       |
+| scrypt 的结果种类、`close` 让等候者得到 `stopped`             | IS-02、IS-04、IS-07 的映射                                                           |
+| identity `./cordis` 的五个抽象类与键                          | 插件体的五个子类实例                                                                 |
+| identity `./cordis` 的 `identityClock` 键                     | 插件 inject 它，交给工厂作时钟                                                       |
 
 ### 验证资源
 
-| 义务                                                           | 资源                                                                             | 真实依赖                       |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------ |
-| R4-1 契约套件对持久实现通过                                    | `tests/operations-contract.spec.ts`（慢层）                                      | sqlite-provider、scrypt 小配置 |
-| R4-2 重启后账号与登录仍在                                      | `tests/restart.spec.ts` 与 `tests/fixtures/restart-child.ts`（慢层，两个子进程） | 同上                           |
-| R4-3 凭据只存 scrypt 材料                                      | `tests/credential-storage.spec.ts`                                               | 同上，另读数据库文件字节       |
-| R4-4 注册单事务与结果未知                                      | `tests/register-transaction.spec.ts`                                             | 同上，标识生成器与存储包装注入 |
-| R4-5 读口不区分未知租户与非成员                                | `tests/standing.spec.ts`                                                         | 同上                           |
-| IS-07 停止后                                                   | `tests/stopped.spec.ts`                                                          | 同上，门控 scrypt 计算         |
-| IS-04 的 scrypt 映射与假材料                                   | `tests/scrypt-mapping.spec.ts`                                                   | 同上                           |
-| IS-02 输入上界                                                 | `tests/register-transaction.spec.ts`                                             | 同上                           |
-| 公开入口、材料与组合                                           | `tests/public-entry.spec.ts`                                                     | 无                             |
-| IS-01：组合版本覆盖参加者的导入闭包；负控：版本只取清单时，`support` 的改动不改变版本 | `tests/combination-version.spec.ts` 与 `tests/fixtures/mutants.ts` | `dist` 副本 |
-| IS-12：撤销已到期、未撤销的目标答 `no-change`，不写撤销行；IS-10、IS-11：读数早于 `issued_at` 时治理调用答 `basis-unavailable`，不写入；两项各有负控 | `tests/governance-login-bounds.spec.ts`（慢层）与 `tests/fixtures/mutants.ts` | sqlite-provider、scrypt 小配置、`dist` 副本 |
-| 插件：配置失败、缺邀请时长时失败、缺时钟 PENDING、三键、注入时钟与截止时刻、撤销、邀请时长、撤除 | `tests/cordis-entry.spec.ts`（端到端用例在慢层，用 `SCRYPT_PROFILE`） | Cordis 4.0.4、sqlite-provider  |
-| AC-1：治理契约套件对持久实现通过，两组配置                     | `tests/governance-contract.spec.ts`（慢层）                                      | sqlite-provider、scrypt 小配置 |
-| 负控：去掉最后管理员、预期角色、撤销后识别失效、名单完整性四项核对之一，对应用例变红；未改动的副本全部通过 | `tests/governance-negative.spec.ts`（慢层）与 `tests/fixtures/mutants.ts` | 同上，`dist` 副本 |
-| AC-2：两位管理员互相移除或降级，50 次，每次至多一方成功，至少留一位超级管理员 | `tests/last-admin-concurrent.spec.ts`（慢层）                     | 同上                           |
-| AC-2：撤销跨进程保留；IS-09 从 001 升到 002                    | `tests/governance-restart.spec.ts` 与 `tests/fixtures/governance-child.ts`（慢层，子进程） | 同上，`tests/fixtures/identity-001/` 是 001 构建参加者的冻结副本 |
-| IS-13：名单到上限时完整，超过时 `basis-unavailable`            | `tests/list-limit.spec.ts`（慢层）                                               | 同上                           |
-| IS-10：回滚、回复丢失、结果未知的映射；IS-14 不提前空闲截止时刻 | `tests/governance-mapping.spec.ts`                                               | 同上                           |
-| IS-10 的排序键与 `compareInstants` 同序，JavaScript 与 SQL 一致 | `tests/order-key.spec.ts`                                                        | `node:sqlite` 内存库           |
-| IS-09：迁移 001 的字节与语句保持发布值                         | `tests/public-entry.spec.ts`                                                     | 无                             |
+| 义务                                                                                                                                                 | 资源                                                                                       | 真实依赖                                                         |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| R4-1 契约套件对持久实现通过                                                                                                                          | `tests/operations-contract.spec.ts`（慢层）                                                | sqlite-provider、scrypt 小配置                                   |
+| R4-2 重启后账号与登录仍在                                                                                                                            | `tests/restart.spec.ts` 与 `tests/fixtures/restart-child.ts`（慢层，两个子进程）           | 同上                                                             |
+| R4-3 凭据只存 scrypt 材料                                                                                                                            | `tests/credential-storage.spec.ts`                                                         | 同上，另读数据库文件字节                                         |
+| R4-4 注册单事务与结果未知                                                                                                                            | `tests/register-transaction.spec.ts`                                                       | 同上，标识生成器与存储包装注入                                   |
+| R4-5 读口不区分未知租户与非成员                                                                                                                      | `tests/standing.spec.ts`                                                                   | 同上                                                             |
+| IS-07 停止后                                                                                                                                         | `tests/stopped.spec.ts`                                                                    | 同上，门控 scrypt 计算                                           |
+| IS-04 的 scrypt 映射与假材料                                                                                                                         | `tests/scrypt-mapping.spec.ts`                                                             | 同上                                                             |
+| IS-02 输入上界                                                                                                                                       | `tests/register-transaction.spec.ts`                                                       | 同上                                                             |
+| 公开入口、材料与组合                                                                                                                                 | `tests/public-entry.spec.ts`                                                               | 无                                                               |
+| IS-01：组合版本覆盖参加者的导入闭包；负控：版本只取清单时，`support` 的改动不改变版本                                                                | `tests/combination-version.spec.ts` 与 `tests/fixtures/mutants.ts`                         | `dist` 副本                                                      |
+| IS-12：撤销已到期、未撤销的目标答 `no-change`，不写撤销行；IS-10、IS-11：读数早于 `issued_at` 时治理调用答 `basis-unavailable`，不写入；两项各有负控 | `tests/governance-login-bounds.spec.ts`（慢层）与 `tests/fixtures/mutants.ts`              | sqlite-provider、scrypt 小配置、`dist` 副本                      |
+| 插件：配置失败、缺邀请时长时失败、缺时钟 PENDING、五键、注入时钟与截止时刻、撤销、邀请时长、撤除                                                     | `tests/cordis-entry.spec.ts`（端到端用例在慢层，用 `SCRYPT_PROFILE`）                      | Cordis 4.0.4、sqlite-provider                                    |
+| AC-1：治理契约套件对持久实现通过，两组配置                                                                                                           | `tests/governance-contract.spec.ts`（慢层）                                                | sqlite-provider、scrypt 小配置                                   |
+| 负控：去掉最后管理员、预期角色、撤销后识别失效、名单完整性四项核对之一，对应用例变红；未改动的副本全部通过                                           | `tests/governance-negative.spec.ts`（慢层）与 `tests/fixtures/mutants.ts`                  | 同上，`dist` 副本                                                |
+| AC-2：两位管理员互相移除或降级，50 次，每次至多一方成功，至少留一位超级管理员                                                                        | `tests/last-admin-concurrent.spec.ts`（慢层）                                              | 同上                                                             |
+| AC-2：撤销跨进程保留；IS-09 从 001 升到 002                                                                                                          | `tests/governance-restart.spec.ts` 与 `tests/fixtures/governance-child.ts`（慢层，子进程） | 同上，`tests/fixtures/identity-001/` 是 001 构建参加者的冻结副本 |
+| IS-13：名单到上限时完整，超过时 `basis-unavailable`                                                                                                  | `tests/list-limit.spec.ts`（慢层）                                                         | 同上                                                             |
+| IS-10：回滚、回复丢失、结果未知的映射；IS-14 不提前空闲截止时刻                                                                                      | `tests/governance-mapping.spec.ts`                                                         | 同上                                                             |
+| IS-10 的排序键与 `compareInstants` 同序，JavaScript 与 SQL 一致                                                                                      | `tests/order-key.spec.ts`                                                                  | `node:sqlite` 内存库                                             |
+| IS-09：迁移 001 的字节与语句保持发布值                                                                                                               | `tests/public-entry.spec.ts`                                                               | 无                                                               |
 
 命令：成员目录运行 `pnpm run build`、`pnpm run typecheck`、`NO_COLOR=1 pnpm exec vitest run --mode fast` 与 `--mode slow`。用例经 `dist` 导入本成员，改源码后先构建。慢层设 `IDENTITY_SQL_EVIDENCE_DIR` 时，负控与 50 次并发用例把逐项结果写进该目录。
 
@@ -370,3 +373,23 @@ handler 另有两个预读，它们不核对发起登录：
 - 多进程并发写同一个域、介质损毁、闰秒附近的截止时刻、时序侧信道。
 - 真实 `SCRYPT_PROFILE` 只在插件端到端用例里运行一次，其他用例用较小的 N。
 - 个人组织治理模型的产品确认（DP-3 第三层第二项）。
+
+<a id="is-16"></a>
+
+### IS-16 持久预留与成员变更意图
+
+本实现兑现 identity ID-19。迁移 `identity/003-standing` 在原系统域增加 `id_standing_reservation` 与 `id_membership_intent`，不改 001 或 002 的字节。`identity.coordination` 读 handler 在快照中读回原记录及有界分页。声明 `singleton` 保持，它限制分组提交，不禁止组合其他参加者。
+
+`createIdentitySql` 接收可选 `principalVerifier` 与 `destinationResolver`，提供 `reservations` 与 `governanceRecovery`。没有核验器时 reserve 拒绝；没有目标 resolver 时已有预留保持 held。普通调用方没有可提交终态的 finish 端口。resolver 由装配固定路由，不从客户端载入模块。目标实现必须使 consume、业务写入及终态记录同事务，使 seal 与它们竞争且永不重开终态。
+
+`worker/standing.ts` 的共同门保护注册、建组织、邀请接受与重新加入、退出、移除、角色变化的全部成员写入。注册和建组织只创建新成员，仍经过同一门。退出、移除、改角色及邀请接受先持久登记原逻辑命令；同一成员的 pending 意图按入库 sequence 排序。任何 pending 意图阻止新预留，只有队首可以提交。原治理核对保持既有次序，最终结果与清门同事务保存。
+
+每个意图保存原命令、原登录、目标成员、最终响应和当前 SQL 尝试。准备尝试时先排空预留，读取新的时间，再在事务内核对共同门并持久保存尝试号与时刻。apply 使用这份不可变封套，并重新执行原治理核对。恢复先查询原 apply 身份；unknown 保留原封套。已知未提交或回滚后，新的准备事务才可退役旧尝试。退役与旧 apply 在同一域竞争：旧 apply 已完成则返回原终态；退役先完成则晚到的旧封套不能写成员。新尝试使用新 SQL 身份与新的时间，不能把新 nowKey 填进旧身份。
+
+`IdentitySqlResultUnknown.operation` 暴露成员变更的原逻辑身份。调用方不能通过重进原 API 声称恢复同一操作；使用 `governanceRecovery.resume({ login, operation })`。已完成响应保存不变；读取检查当前登录属于原发起账号，且当前有效、选择及治理资格满足披露规则；最终变更始终检查持久保存的原登录。受信 `recover` 每次最多处理 100 个意图，每个意图每次最多处理 100 个预留，每次 SQL 结果查询最多三次，逐项执行。默认分页为 32。大绑定还受响应字节预算限制，实际返回数可更少，仍提供 continuation cursor。目标失败时保留记录，调用方用返回的 cursor 继续一轮；以后从头开始下一轮可重试失败项。
+
+`stop()` 只停止新调用，不释放预留或删除意图。已接纳调用可继续到确定终态；实例停止不证明外部作用可逆。运行方负责有界重试调度，永久不可用的目标没有强制清门路径。资格映射更新必须保留已有预留的解释或先排空预留。
+
+部署须采用含 003 的完整材料目录。当前 sqlite-provider 在重开域时推进写代际，旧 writer 的后续提交被拒绝；已记录而目录缺少的迁移使旧目录不能重开域。Identity 不读取这些存储私表。`tests/standing-reservations.spec.ts` 用真实文件和 Worker 检查旧目录拒绝、重启、晚到封套、目标不可用、原登录重检与三项负控。目标 resolver 在这些测试中是符合性夹具，真实跨域组合另行验证。
+
+本人退出成功后，新登录无法选择原租户，`resume` 因当前披露资格答 `not-visible`。这不会改写持久终态，也不表示原变更结果丢失。没有单独的历史回执披露例外。

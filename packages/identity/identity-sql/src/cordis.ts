@@ -9,11 +9,17 @@ import type { Context } from '@deepseek-ai/cordis'
 import { randomBytes } from 'node:crypto'
 import type {
   IdentityGovernance,
+  IdentityGovernanceRecovery,
+  StandingReservations,
   IdentityOperations,
   TenantStandingSource,
 } from '@omne-harness/identity'
 import {
   IdentityGovernanceService,
+  IdentityGovernanceRecoveryService,
+  StandingReservationsService,
+  standingDestinationResolverKey,
+  principalVerifierKey,
   IdentityOperationsService,
   TenantStandingSourceService,
   identityClockKey,
@@ -97,6 +103,28 @@ class IdentitySqlGovernanceService extends IdentityGovernanceService {
   }
 }
 
+class SqlReservationsService extends StandingReservationsService {
+  readonly reserve: StandingReservations['reserve']
+  readonly settle: StandingReservations['settle']
+  readonly recover: StandingReservations['recover']
+  constructor(ctx: Context, port: StandingReservations) {
+    super(ctx)
+    this.reserve = input => port.reserve(input)
+    this.settle = id => port.settle(id)
+    this.recover = input => port.recover(input)
+  }
+}
+
+class SqlGovernanceRecoveryService extends IdentityGovernanceRecoveryService {
+  readonly resume: IdentityGovernanceRecovery['resume']
+  readonly recover: IdentityGovernanceRecovery['recover']
+  constructor(ctx: Context, port: IdentityGovernanceRecovery) {
+    super(ctx)
+    this.resume = input => port.resume(input)
+    this.recover = input => port.recover(input)
+  }
+}
+
 const configSchema: StandardSchema<IdentitySqlConfig> = {
   '~standard': {
     version: 1,
@@ -146,10 +174,28 @@ export const IdentitySqlPlugin = definePlugin({
       invitationTerms: constantInvitationTerms(judged.invitationTerms),
       scrypt,
       decoyMaterial: derived.material,
+      principalVerifier: {
+        async verify(value) {
+          const verifier = ctx.get(principalVerifierKey)
+          return verifier === undefined
+            ? { kind: 'unavailable', diagnostic: 'principal-verifier-missing' }
+            : verifier.verify(value)
+        },
+      },
+      destinationResolver: {
+        async seal(reservation) {
+          const resolver = ctx.get(standingDestinationResolverKey)
+          return resolver === undefined
+            ? { kind: 'unavailable', diagnostic: 'destination-resolver-missing' }
+            : resolver.seal(reservation)
+        },
+      },
     })
     new IdentitySqlOperationsService(ctx, provider.operations)
     new IdentitySqlStandingService(ctx, provider.standing)
     new IdentitySqlGovernanceService(ctx, provider.governance)
+    new SqlReservationsService(ctx, provider.reservations)
+    new SqlGovernanceRecoveryService(ctx, provider.governanceRecovery)
     // One effect, so the order holds: stop new calls first, then wait for scrypt to finish.
     ctx.effect(() => async () => {
       provider.stop()
