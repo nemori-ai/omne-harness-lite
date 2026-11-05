@@ -18,7 +18,6 @@ export const MINIMAL: Scenario = {
   answers: {},
   breaches: 0,
   wireFaults: 0,
-  portsHonourAbort: true,
 }
 
 /**
@@ -44,17 +43,6 @@ export const HTTP_CALL: Scenario = {
   },
   breaches: 1,
   wireFaults: 1,
-  portsHonourAbort: true,
-}
-
-/**
- * As `http-call`, with ports that may stay pending after their signal fired: the line keeps the
- * exchange open, the metadata fetch keeps running. SPEC V4 asks that the requests settle anyway.
- */
-export const HTTP_CALL_HANGING: Scenario = {
-  ...HTTP_CALL,
-  name: 'http-call-hanging',
-  portsHonourAbort: false,
 }
 
 /**
@@ -75,7 +63,6 @@ export const HTTP_RESEND: Scenario = {
   },
   breaches: 0,
   wireFaults: 2,
-  portsHonourAbort: true,
 }
 
 /**
@@ -97,7 +84,6 @@ export const HTTP_BARE: Scenario = {
   },
   breaches: 0,
   wireFaults: 1,
-  portsHonourAbort: true,
 }
 
 /**
@@ -118,7 +104,6 @@ export const STDIO_DISCOVER: Scenario = {
   },
   breaches: 1,
   wireFaults: 1,
-  portsHonourAbort: true,
 }
 
 /**
@@ -140,7 +125,6 @@ export const STDIO_CALL: Scenario = {
   },
   breaches: 1,
   wireFaults: 1,
-  portsHonourAbort: true,
 }
 
 /**
@@ -164,5 +148,4 @@ export const SSE_FALLBACK: Scenario = {
   },
   breaches: 0,
   wireFaults: 3,
-  portsHonourAbort: true,
 }

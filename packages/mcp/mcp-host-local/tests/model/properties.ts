@@ -140,33 +140,39 @@ export function rejectionsBounded(view: RunView, refusals: number, hasHandle: bo
   return []
 }
 
-/** Whether every pending port call is aborted: the quiescent point of SPEC V4. */
-export function portsAtRest(view: RunView): boolean {
-  return view.pending.every(call => call.signal?.aborted === true)
+/** Whether the discovery ports of `op` are at rest: `reportRejection` answered, `fetchMetadata` done. */
+function discoveryAtRest(view: RunView, op: string): boolean {
+  return !view.pending.some(
+    call =>
+      call.context?.op === op &&
+      (call.port === 'credential.reportRejection' ||
+        (call.port === 'fetchMetadata' && call.signal?.aborted !== true)),
+  )
 }
 
 /**
- * V4: after `close()` was called, or after an operation's own signal fired, the operation's
- * request is settled once every pending port call is answered or aborted, whether or not the
- * aborted calls ever answer.
+ * V4: once the caller's signal fired, or `close()` was called, the request in flight settles
+ * without waiting for the wire. A request that reached the wire (`sent`) must be settled at the
+ * next quiescent state: the signal, or `close()`, abandons it there and then, even while the
+ * answer stream or the write stays pending (SPEC V4). A request still discovering authorization
+ * settles once its discovery ports come to rest. A request still authorizing is blocked on the
+ * credential handle, which takes no signal: that handle may hang and is carried by its holder
+ * (SPEC V4「端口调用本身可以挂着，由拥有者承接」), so it is not flagged here.
  */
 export function unsettledAfterStop(view: RunView): Found[] {
   const found: Found[] = []
-  if (!portsAtRest(view)) return found
   for (const op of view.ops) {
     if (op.kind === 'close' || op.kind === 'cancel') continue
     const stopped = view.closeCalled || op.signalled
     if (!stopped) continue
     if (op.status === 'answered' || op.status === 'rejected') continue
-    // An operation still before its first request, or between two, holds no request; it is not
-    // settled by close() but by what it waits for. Only a request in flight must be settled.
     const phase = phaseOf(view.pending, op.name)
-    if (phase === 'none' && op.status === 'waiting') continue
-    found.push({
-      property: 'V4',
-      signature: `V4-unsettled-${phase}`,
-      detail: `${op.name} is ${op.status} in phase ${phase} after ${view.closeCalled ? 'close()' : 'its signal'}`,
-    })
+    if (phase === 'sent' || (phase === 'discovery' && discoveryAtRest(view, op.name)))
+      found.push({
+        property: 'V4',
+        signature: `V4-unsettled-${phase}`,
+        detail: `${op.name} is ${op.status} in phase ${phase} after ${view.closeCalled ? 'close()' : 'its signal'}`,
+      })
   }
   return found
 }
@@ -199,6 +205,8 @@ export function closeOrder(view: RunView): Found[] {
  */
 export function closeReachesLine(view: RunView): Found[] {
   if (!view.closeCalled || view.ledger.lineCloses > 0) return []
+  // A call the session may still settle through: one with no signal (a credential call it awaits),
+  // or one whose signal has not fired. Only when none is left should the line have been closed.
   const live = view.pending.filter(call => call.signal === undefined || !call.signal.aborted)
   if (live.length > 0) return []
   return [

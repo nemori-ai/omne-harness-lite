@@ -9,7 +9,6 @@ import { explore, type Exploration, type Scenario } from './explore.ts'
 import {
   HTTP_BARE,
   HTTP_CALL,
-  HTTP_CALL_HANGING,
   HTTP_RESEND,
   MINIMAL,
   SSE_FALLBACK,
@@ -96,21 +95,11 @@ describe('stdio-discover: discover with the probe timer, a peer ping, close(); t
 })
 
 describe('the projection: merging states of equal projection loses no violation', () => {
-  it(
-    'finds on http-call-hanging what every schedule of it shows',
-    { timeout: EXPLORE_MS },
-    async () => {
-      const merged = await explore(HTTP_CALL_HANGING)
-      const every = await explore({ ...HTTP_CALL_HANGING, exhaustivePaths: true })
-      expect(every.states).toBeGreaterThan(merged.states)
-      expect(kinds(merged)).toEqual(kinds(every))
-    },
-  )
-})
-
-describe('http-call-hanging: as http-call, with ports that may stay pending after their signal fired', () => {
-  it('V1–V6 hold, V4 with hanging ports above all', { timeout: EXPLORE_MS }, async () => {
-    expect(violations(await explore(HTTP_CALL_HANGING))).toEqual([])
+  it('finds on http-call what every schedule of it shows', { timeout: EXPLORE_MS }, async () => {
+    const merged = await explore(HTTP_CALL)
+    const every = await explore({ ...HTTP_CALL, exhaustivePaths: true })
+    expect(every.states).toBeGreaterThan(merged.states)
+    expect(kinds(merged)).toEqual(kinds(every))
   })
 })
 

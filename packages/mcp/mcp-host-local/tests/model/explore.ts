@@ -97,12 +97,6 @@ export type Scenario = Readonly<{
   breaches: number
   /** How many wire faults (statuses, broken streams, unsent, aborted, ping) one schedule may take. */
   wireFaults: number
-  /**
-   * The ports honour an abort: a pending call whose signal fires answers at once (`aborted`,
-   * `unavailable`, a rejected fetch), as the real lines and `fetch` do. Off, such a call stays
-   * pending until the explorer answers it, or forever.
-   */
-  portsHonourAbort?: boolean
   /** Schedules longer than this are not extended; their last states are driven to rest. */
   maxDepth?: number
   /** Explore every schedule, without merging states of equal projection (a cross-check). */
@@ -551,6 +545,9 @@ class Run implements RunView, CallDesk {
       site: siteOf(),
     }
     this.seq += 1
+    // A closed line settles its outstanding I/O at once: both real lines abort their writes,
+    // streams and GET inside `close()`, so a send or a stream read no longer hangs behind it.
+    if (request.port === 'line.close') this.settleLineCalls()
     const op = this.ops.find(item => item.name === context?.op)
     if (op !== undefined) {
       if (request.port === 'line.send') {
@@ -569,7 +566,10 @@ class Run implements RunView, CallDesk {
       },
     }
     this.calls.push(pending)
-    if (this.scenario.portsHonourAbort === true && request.signal !== undefined) {
+    // A signal-bearing port honours an abort at once, as the real lines and `fetch` do (`line.ts`:
+    // the signal ends the wait). A port with no signal (the credential handle, a stream read) can
+    // hang; the explorer answers it, or leaves it pending (SPEC V4「端口调用本身可以挂着」).
+    if (request.signal !== undefined) {
       const honour = () => this.honourAbort(pending)
       if (request.signal.aborted) queueMicrotask(honour)
       else request.signal.addEventListener('abort', honour, { once: true })
@@ -739,13 +739,36 @@ class Run implements RunView, CallDesk {
   private event(end: string): void {
     switch (end) {
       case 'ended':
-        return this.line.push({ kind: 'ended', stdoutEndedAt: 0 })
+        this.line.push({ kind: 'ended', stdoutEndedAt: 0 })
+        break
       case 'exited':
-        return this.line.push({ kind: 'ended', stdoutEndedAt: 0, exitedAt: 0 })
+        this.line.push({ kind: 'ended', stdoutEndedAt: 0, exitedAt: 0 })
+        break
       case 'broken':
-        return this.line.push({ kind: 'broken' })
+        this.line.push({ kind: 'broken' })
+        break
       default:
         throw new Nondeterminism(`unknown line end ${end}`)
+    }
+    // The shared stream is gone: a write to a broken pipe fails, a read of it breaks. The write a
+    // caller can no longer reach is carried by the line and aborted on `close()` (SPEC V4); the
+    // common case a gone process shows is the pipe breaking, which the explorer takes here.
+    this.settleGoneLineIo()
+  }
+
+  /** Settles the stdio line's outstanding I/O after the shared stream is gone. */
+  private settleGoneLineIo(): void {
+    for (const pending of this.calls.slice()) {
+      const answer: Answer | undefined =
+        pending.call.port === 'line.send'
+          ? 'unsent'
+          : pending.call.port === 'stream.next'
+            ? 'break'
+            : undefined
+      if (answer === undefined) continue
+      this.calls = this.calls.filter(item => item !== pending)
+      this.account(pending.call, answer)
+      pending.settle(answer)
     }
   }
 
@@ -783,6 +806,24 @@ class Run implements RunView, CallDesk {
     pending.settle(answer)
     await drain()
     this.afterStep()
+  }
+
+  /** Settles the line's outstanding I/O as a closed line does: writes abort, streams break. */
+  private settleLineCalls(): void {
+    for (const pending of this.calls.slice()) {
+      const answer: Answer | undefined =
+        pending.call.port === 'line.send'
+          ? 'aborted'
+          : pending.call.port === 'stream.next'
+            ? 'break'
+            : pending.call.port === 'line.openGet'
+              ? 'unavailable'
+              : undefined
+      if (answer === undefined) continue
+      this.calls = this.calls.filter(item => item !== pending)
+      this.account(pending.call, answer)
+      pending.settle(answer)
+    }
   }
 
   /** What the explorer delivered: refusals the handle may hear of, results, line closes. */
