@@ -32,7 +32,15 @@ export const SHELL_ENVIRONMENT_ALLOWLIST: Readonly<Record<'windows' | 'posix', r
       'ProgramFiles',
       'ProgramFiles(x86)',
     ],
-    posix: ['PATH', 'HOME', 'USER', 'LANG', 'LC_ALL', 'XDG_RUNTIME_DIR', 'DBUS_SESSION_BUS_ADDRESS'],
+    posix: [
+      'PATH',
+      'HOME',
+      'USER',
+      'LANG',
+      'LC_ALL',
+      'XDG_RUNTIME_DIR',
+      'DBUS_SESSION_BUS_ADDRESS',
+    ],
   }
 
 /**
