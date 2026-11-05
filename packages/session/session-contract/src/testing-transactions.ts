@@ -401,6 +401,17 @@ function publishedLog(
 function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | null {
   const kind = command.kind
   switch (command.kind) {
+    case 'addTodo':
+    case 'removeTodo':
+    case 'markTodoComplete': {
+      const item = snapshot.todos?.find(todo =>
+        command.kind === 'addTodo'
+          ? todo.createdAt === snapshot.revision
+          : todo.id === command.input.item,
+      )
+      if (item === undefined) return null
+      return receipt => ({ receipt, item: Object.freeze({ ...item }) })
+    }
     case 'create':
       return receipt => ({ receipt, state: snapshot })
     case 'startRun': {

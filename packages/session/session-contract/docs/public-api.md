@@ -191,3 +191,7 @@ SessionCreation.initialization 是可选来源包，包含 sources 和 results�
 | `SessionTransactionsFixture.askedAccessChecks` | `./testing` | [src/testing-transactions.ts](../src/testing-transactions.ts) | 可选。返回端口到目前为止问过访问检查的次数 |
 
 `WorkSnapshot` 只加了一个可选字段，是 additive 变化。新行种类 `entries.interpreted` 不改公开类型：`SessionEntry` 不从根入口导出。
+
+## Session Todo
+
+[Todo 行为](../SPEC.md#session-todo-状态与操作)归契约正文。根入口导出 TodoItemId，以及 [todos.ts](../src/todos.ts) 的 TodoItem、VisibleTodoItem、TodoMutationReceipt、TodoPageCursor、TodoPage 与 SessionTodos。四方法加入现有 SessionWork，命令和访问操作同步其名称。WorkSnapshot.todos 为可选归约集合，缺席表示此前没有 Todo 事实。失败只新增 todo-not-found，不放宽其他拒绝语义。

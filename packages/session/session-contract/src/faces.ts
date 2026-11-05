@@ -1,3 +1,4 @@
+import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts'
 // The four caller faces and their results (SPEC「四个面与公开操作」). Behavior, eligibility and
 // recall are in the SPEC; this file gives the shapes only.
 import type { JsonValue } from '@omne-harness/json-text'
@@ -19,6 +20,7 @@ import type {
   SessionId,
   SessionOperationId,
   SessionRevision,
+  TodoItemId,
 } from './identity.ts'
 import type {
   ControlOperationResolution,
@@ -52,6 +54,7 @@ import type {
 export type SessionFailure =
   | Readonly<{ kind: 'denied'; action: string }>
   | Readonly<{ kind: 'invalid'; field: string; reason: string }>
+  | Readonly<{ kind: 'todo-not-found'; item: TodoItemId }>
   | Readonly<{ kind: 'conflict'; operation: SessionOperationId }>
   | Readonly<{ kind: 'changed'; revision: SessionRevision }>
   | Readonly<{ kind: 'commit-unknown'; operation: SessionOperationId }>
@@ -113,6 +116,12 @@ export type AdmittedMessage = Readonly<{
 export type StartAdoption = ResidentAdoption & Readonly<{ verdict?: FreezeVerdict }>
 
 export interface SessionWork<P> {
+  addTodo(input: Mutation<P> & Readonly<{ text: string }>): Reply<TodoMutationReceipt>
+  removeTodo(input: Mutation<P> & Readonly<{ item: TodoItemId }>): Reply<TodoMutationReceipt>
+  markTodoComplete(input: Mutation<P> & Readonly<{ item: TodoItemId }>): Reply<TodoMutationReceipt>
+  listTodos(
+    input: SessionAccess<P> & Readonly<{ after: TodoPageCursor | null; limit: number }>,
+  ): Reply<TodoPage>
   accept(input: Mutation<P> & Readonly<{ value: RoutedInput }>): Reply<CommitReceipt>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
   readInput(

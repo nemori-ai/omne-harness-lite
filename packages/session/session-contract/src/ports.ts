@@ -150,6 +150,9 @@ export type SessionBlockDeclaration = Readonly<{
 }>
 
 export type MutationName =
+  | 'addTodo'
+  | 'removeTodo'
+  | 'markTodoComplete'
   | 'accept'
   | 'startRun'
   | 'claim'
