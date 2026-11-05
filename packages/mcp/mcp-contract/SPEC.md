@@ -51,7 +51,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### 2026-07-28 核对后的裁定
 
-本页在 2026-11-04 对照 2026-07-28 修订作出下列可加决定。每条只加字段、导出或条款，不删导出，不把可选改为必填。只有一处改了已有签名的必填性：第 15 条把 `CallRequest.continuation.inputResponses` 从必填放宽为可选；这是放宽，已有调用方照常成立。每条只指向条款，条款是唯一的规则。
+本页在 2026-11-04 对照 2026-07-28 修订作出下列决定。第 1 至 25 条每条只加字段、导出或条款，不删导出，不把可选改为必填。这 25 条里只有一处改了已有签名的必填性：第 15 条把 `CallRequest.continuation.inputResponses` 从必填放宽为可选；这是放宽，已有调用方照常成立。第 26、27 条是调用口闭包随后加的两处：第 26 条给 `McpPorts` 加必填字段，对构造 `McpPorts` 的宿主不是可加的改动；第 27 条同样放宽一个字段。每条只指向条款，条款是唯一的规则。
 
 1. `ActionDiscovery.refresh` 的请求带 `signal?`，只属于这一次刷新。见 S5。
 2. `McpClock` 与 `McpPorts.clock?`：清单的 `acquiredAt` 取自它。见 S3。
@@ -78,6 +78,8 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 23. 传输夹具的 `protocolVersions` 只列现代修订。见[组合与验证](#composition)。
 24. 线上事件归入应答类别的纯全函数 `classifyWireEvent`，进程退出的时间窗 `PROCESS_EXIT_WINDOW_MS`，请求离开之前的失败。见 T2、T8。
 25. 传输不再可用时连接的状态，以及 `cancelTask` 的建连条件。见 S1、S2、S5、S7。
+26. `McpPorts.checkOutput` 必填：服务实现把它交给 `classifyOutcome`。出处：W3 调用口闭包（`w3-mcp-call`，任务材料，2026-11-05）已定事项 7。见 S3、O1。
+27. `ContinueRequest.inputResponses` 可选，与 S2 的「各自可选」一致；两个字段都缺是前提违反。出处：W3 调用口闭包已定事项 4，及修复轮（`w3-mcp-call-fix1`）自裁第 3 条的采纳。见 S2。
 
 <a id="entries"></a>
 
@@ -262,7 +264,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 - **R2** `NotSentReason` 是「未发出」的原因，「未发出」没有对端效果。除 `Refusal` 与 `ConnectionFailure` 的各项外：
   - `correlation-key-in-use`：同一（租户、主体、关联键）已在途。
-  - `cancelled`：占位后、发出前收到了 `cancel`。
+  - `cancelled`：占位后、发出前，这次调用的停止信号已触发：收到了 `cancel`，或调用方的 `signal` 中止。
   - `definition-changed`：调用方预期的定义摘要与当前摘要不同。
   - `action-unavailable`：已知动作不可用，或不在清单里。
 
@@ -297,6 +299,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **S1** 除 `ActionInvoker.cancel` 与 `Connections.closeAll` 以外，每个操作先经 `AdoptionView.endpoint` 核采用，再经 `UseEligibility.check` 核资格。四个任务操作例外，按 S2 的建连规则核。未采用时答 `not-available-to-you`，不再问资格。`AdoptionView` 不可读时答 `unknown`。资格答 `not-eligible` 时答 `not-available-to-you`，答被设置挡下时给出该原因，答 `unknown` 时答 `unknown`。`EndpointStatus.list` 经 `AdoptionView.endpoints` 取列表，再逐项核资格，只列出有资格的接入点；任一项资格答 `unknown`，整次答 `unknown`。接入点被撤采用或被禁用后，`Connections` 在下一次使用边界之前自行关闭它的连接，stdio 时一并停止进程。所以 `release` 对被禁用的接入点答 `blocked` 是可接受的：连接不靠 `release` 释放。
 - **S2** 调用与任务的控制：
   - `cancel` 只按（租户、主体、关联键）在本次运行的在途表里定位，不核采用与资格。在途时答 `signalled`；关联键已结束时答 `no-call-in-flight`；表里没有时答 `unknown`。占位后、发出前收到的 `cancel` 使原调用答「未发出：`cancelled`」。
+  - `continueWithInput` 的请求 `requestState` 与 `inputResponses` 两个字段都缺时，是前提违反：返回的 Promise 以 `TypeError` reject，不占位（同 R2 对 `args` 的规定）。
   - 连接换代之后，`continueWithInput` 在旧代际上的在途状态无法证明时答「未发出：`unknown`」，不在新代际上重发。它发出的 `CallRequest` 带 `continuation`：`requestState` 与 `inputResponses` 各自可选，只带 `requestState` 的重试合法。
   - 服务在本次运行内保存已发出的任务表，键是（租户、主体、持有、任务号）。表项在本次运行内不删除；任务的终态交出之后再查询，仍转发给对端。任务表不跨重启，这是已知限制。
   - `queryTask`、`taskResult`、`provideTaskInput`、`cancelTask` 只对发起者开放：非发起者、重启之后和表里没有的任务一律答 `unknown`，不随任务是否存在而变。
