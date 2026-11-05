@@ -412,7 +412,10 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     expect(await reachable(first.port)).toBe(true)
     expect(await unitState(first.handle.process.id)).toMatchObject({ activeState: 'active' })
     expect(f.processes.stopped).toEqual([])
-    expect(f.own.stopped).toContainEqual([second.handle.process.id.slice(10, -6), 'confirmed'])
+    const secondKey = second.handle.process.id.slice('omne-host-'.length, -'.scope'.length)
+    await vi.waitFor(() => expect(f.own.stopped).toContainEqual([secondKey, 'confirmed']), {
+      timeout: 15_000,
+    })
     f.released.abort()
     await unitGone(first.handle.process.id)
   })
