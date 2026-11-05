@@ -393,7 +393,7 @@ node-pty 只提供 PTY fork 和原始描述符。门采用 1.1.0 的原生接口
 
 - PanQiWei 接受时，包测试只在 Node v26.0.0、darwin 上运行过。
 - 2026-11-02 在 Node v26.12.0、WSL2（Ubuntu-24.04，内核 6.18.33.2-microsoft-standard-WSL2）上，本成员目录的快层 `vitest run --mode fast`：15 个测试文件、254 个测试，249 个通过、5 个跳过，退出码 0。跳过的 5 个中，4 个属于慢层，1 个只在非 Linux 宿主上运行（host-probe）。同一环境、同一提交上的慢层 `OMNE_HOST_COMMAND_LINUX=1 vitest run --mode slow`：4 个测试文件里的 20 个慢层测试通过，其中 16 个起真实的 systemd 用户 scope，运行后 `systemctl --user list-units 'omne-*'` 没有残留。两层合计 16 个测试文件、270 个测试。`typecheck` 无错误。本成员 `package.json` 声明的引擎是 `>=24`。
-- 2026-11-05 在 Node v26.12.0、Ubuntu 20.04（systemd 245，cgroup 混合模式，统一层级挂在 `/sys/fs/cgroup/unified`，内核 5.15.0-1084-aws，node-pty 用 g++-10 在本机编译）上：快层 30 个测试文件，309 个通过、36 个跳过，连续 3 次退出码 0。慢层设 `OMNE_HOST_COMMAND_LINUX=1 OMNE_HOST_TERMINAL_LINUX=1`：24 个测试文件，45 个测试通过，运行后 `systemctl --user list-units 'omne-*'` 没有残留。
+- 2026-11-05 在 Node v26.12.0、Ubuntu 20.04（systemd 245，cgroup 混合模式，统一层级挂在 `/sys/fs/cgroup/unified`，内核 5.15.0-1084-aws，node-pty 用 g++-10 在本机编译），代码与提交 `005cb80e3` 相同：快层 30 个测试文件，311 个通过、36 个跳过，连续 3 次退出码 0。慢层设 `OMNE_HOST_COMMAND_LINUX=1 OMNE_HOST_TERMINAL_LINUX=1`：24 个测试文件，45 个测试通过，运行后 `systemctl --user list-units 'omne-*'` 没有残留。
 - 以上运行都不在 Windows 上。只在 Linux 运行的用例在 Windows 上显示为跳过，跳过不是通过。
 
 本成员不覆盖：契约意义的授予根（宿主提供者不声称它）、cgroup v2 纯统一模式宿主上的真实运行（P5 与 P6 的解析只由文本样本覆盖）、systemd 245 以外版本上 `systemctl show` 的列举输出（glob 无匹配时输出为空、退出码为 0，只在 245 上核实）、根内的绑定挂载（同一文件系统上设备号相同，核对挡不住）、macOS 上的 `files` 八项与 `command`（Windows 的后端与验证范围见 [Windows 说明](docs/windows-execution.md)）、真实的 `failed` 单元状态（只有判断函数的测试）、Runtime Context 块的发布、调用方类核对、同一 isolate 标签下重复装载的失败、配置校验失败时 fiber 进入 `FAILED`，以及真实进程退出之后的冷恢复结清。慢层的真实进程用例要设 `OMNE_HOST_COMMAND_LINUX=1` 才运行，准入不设它，所以准入不覆盖它们。持久化、真实端口适配与真实集成方的端到端组合也不在本成员。独立验收场景尚未形成。
