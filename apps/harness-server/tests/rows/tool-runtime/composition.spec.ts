@@ -345,10 +345,10 @@ async function requestFor(ctx: Context, principal: unknown, command: string, par
   } as unknown as Parameters<ReturnType<typeof createReleaseToolRequests>['describe']>[0]
   const described = await source.describe(input)
   if ('failure' in described) throw new Error(`describe: ${JSON.stringify(described.failure)}`)
-  if ('kind' in described.ok) throw new Error(`describe answered: ${described.ok.text}`)
+  if (described.ok.kind === 'answered') throw new Error(`describe answered: ${described.ok.text}`)
   const prepared = await source.prepare({
     ...input,
-    definition: described.ok,
+    definition: described.ok.definition,
     admission: { owner: 'test', record: `admission-${positions}`, revision: '1', digest: 'd' },
   })
   if ('failure' in prepared) throw new Error(`prepare: ${JSON.stringify(prepared.failure)}`)

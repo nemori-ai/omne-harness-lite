@@ -242,7 +242,9 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     const availability = await availabilityOf(ports, release.ok, input)
     if ('failure' in availability) return availability
     return succeed(
-      availability.ok.kind === 'answered' ? availability.ok : availability.ok.definition.adoption,
+      availability.ok.kind === 'answered'
+        ? availability.ok
+        : { kind: 'tool', definition: availability.ok.definition.adoption },
     )
   }
 

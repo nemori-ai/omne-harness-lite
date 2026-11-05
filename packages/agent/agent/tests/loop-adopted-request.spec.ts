@@ -102,7 +102,7 @@ async function toolRound(
       ...dependencies,
       toolRequests: {
         async describe() {
-          return { ok: adoption('read_file') }
+          return { ok: { kind: 'tool', definition: adoption('read_file') } }
         },
         async prepare(input: Readonly<{ consumer: Parameters<typeof fixedToolRequest>[0] }>) {
           return { ok: fixedToolRequest(input.consumer) }

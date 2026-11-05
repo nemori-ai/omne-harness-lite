@@ -369,7 +369,7 @@ describe('tool result round', () => {
         async describe(request) {
           return request.original.callId === 'call-a'
             ? { ok: { kind: 'answered', text: answer } }
-            : { ok: adoption('read_file') }
+            : { ok: { kind: 'tool', definition: adoption('read_file') } }
         },
       },
     )
