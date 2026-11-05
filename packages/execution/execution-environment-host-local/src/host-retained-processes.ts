@@ -426,6 +426,8 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
   }
 
   const tick = async (): Promise<number> => {
+    // Nothing held: asking for the supervisor would start the platform probe for no reading.
+    if (entries.size === 0) return 0
     const supervision = await input.supervision()
     if (supervision === undefined) return entries.size
     await Promise.all(

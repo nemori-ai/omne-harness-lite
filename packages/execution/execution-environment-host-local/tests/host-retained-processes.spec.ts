@@ -183,6 +183,24 @@ it('counts reservations and stopping entries against the scope capacity, and nev
   expect(await f.index.list(scopeOf('scope-c'), tenant)).toMatchObject([{ state: 'stopping' }])
 })
 
+it('does not ask for the supervisor when it holds nothing, so an idle maintenance starts no probe', async () => {
+  let asked = 0
+  const index = createRetainedProcessIndex({
+    stateDirectory: await stateDirectory(),
+    provider: 'host-files',
+    capacityPerScope: 8,
+    pollMs: 60_000,
+    supervision: async () => {
+      asked++
+      return supervisor().supervision
+    },
+  })
+  index.join('generation-1')
+  expect(await index.ready()).toBe(true)
+  expect(await index.maintain()).toBe(0)
+  expect(asked).toBe(0)
+})
+
 it('answers unavailable to a reservation before the markers were read', async () => {
   const stub = supervisor()
   const index = createRetainedProcessIndex({
