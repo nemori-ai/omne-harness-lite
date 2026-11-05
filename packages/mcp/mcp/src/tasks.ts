@@ -16,15 +16,19 @@ import {
   type TaskReport,
 } from '@omne-harness/mcp-contract'
 import type { TaskAnswer, TransportFailure } from '@omne-harness/mcp-contract/provider'
-import type { CallsDependencies } from './calls.ts'
 import type { Ensured, EnsureFailure } from './internal/entry.ts'
-import { admit } from './internal/gate.ts'
-import { withdraws } from './internal/guard.ts'
-import { lostOfNoAnswer, lostOfNotSent, type Lost } from './internal/lost.ts'
+import { decideForUse, type UseGate } from './internal/guard.ts'
+import { connectionFailureOf, loseOn, lostOfNoAnswer, lostOfNotSent } from './internal/lost.ts'
 import { ask, within } from './internal/port.ts'
 import { prepareSettings } from './internal/settings.ts'
 import type { TaskKey, TaskRecord } from './internal/task-table.ts'
 import { accountTextOf } from './internal/text.ts'
+import type { InvokerDependencies } from './invoker.ts'
+
+export type TasksDependencies<P, S> = Pick<
+  InvokerDependencies<P, S>,
+  'ports' | 'config' | 'table' | 'tasks'
+>
 
 const UNKNOWN: Refusal = { kind: 'unknown' }
 const NO_CONNECTION: OperationFailure = { kind: 'effect-unknown', cause: 'no-connection' }
@@ -43,9 +47,10 @@ function failureOfEnsure(failure: EnsureFailure): OperationFailure {
   return failure.reason.kind === 'unknown' ? UNKNOWN : NO_CONNECTION
 }
 
-export function createTasks<P, S>(deps: CallsDependencies<P, S>): TaskControl<P> {
+export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P> {
   const { ports, config, table, tasks } = deps
   const { scope, startBound } = table.runtime
+  const gate: UseGate<P, S> = { ports, table }
 
   const keyOf = (access: Access<P>, task: TaskRef): TaskKey => ({
     tenant: access.tenant,
@@ -70,12 +75,9 @@ export function createTasks<P, S>(deps: CallsDependencies<P, S>): TaskControl<P>
       .find(ensured => accountTextOf(ensured.key.account) === account)
     if (reused !== undefined) return succeed(reused)
     if (table.isShut()) return fail(NO_CONNECTION)
-    const decision = await admit(ports, access, task.ref)
-    if (decision.kind !== 'admitted') {
-      // Invariant 6 at this use: a withdrawn or blocked endpoint does not keep its connection.
-      if (withdraws(decision)) await table.close(access.tenant, task.ref.holding)
+    const decision = await decideForUse(gate, access, task.ref)
+    if (decision.kind !== 'admitted')
       return fail(decision.kind === 'adoption-unknown' ? UNKNOWN : NO_CONNECTION)
-    }
     const prepared = prepareSettings(decision.endpoint, task.connectBound)
     if ('failure' in prepared) return fail(NO_CONNECTION)
     // The task was started on one peer account; another account's credentials do not act on it.
@@ -85,26 +87,21 @@ export function createTasks<P, S>(deps: CallsDependencies<P, S>): TaskControl<P>
     return 'failure' in ensured ? fail(failureOfEnsure(ensured.failure)) : ensured
   }
 
-  /** A transport answer that says the connection is gone goes to the table first (S7). */
-  async function losing(ensured: Ensured, lost: Lost | undefined): Promise<void> {
-    if (lost === undefined) return
-    await table.lose(ensured.connection, ensured.generation, lost.reason, lost.mark)
-  }
-
   /**
    * The failure of a task request (S2, R7): `not-sent` is the connection failure, `no-answer` is
    * `effect-unknown` with the same cause, a JSON-RPC error and an unreadable answer are passed on.
+   * A transport answer that says the connection is gone goes to the table first (S7).
    */
   async function failureOf(ensured: Ensured, failure: TransportFailure): Promise<OperationFailure> {
     switch (failure.kind) {
       case 'not-sent':
-        await losing(ensured, lostOfNotSent(failure))
-        return failure.cause === 'authorization-required'
-          ? { kind: 'authorization-required', discovery: failure.discovery }
-          : { kind: 'connection-unavailable' }
-      case 'no-answer':
-        await losing(ensured, lostOfNoAnswer(failure.cause))
+        await loseOn(table, ensured, lostOfNotSent(failure))
+        return connectionFailureOf(failure)
+      case 'no-answer': {
+        const lost = lostOfNoAnswer(failure.cause)
+        if (lost !== undefined) await loseOn(table, ensured, lost)
         return { kind: 'effect-unknown', cause: failure.cause }
+      }
       case 'error-answer':
       case 'answer-malformed':
         return failure

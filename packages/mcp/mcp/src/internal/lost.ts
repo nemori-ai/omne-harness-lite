@@ -1,13 +1,27 @@
 // How a request on an established connection reports that the transport is no longer usable
 // (SPEC S7, "传输不再可用"): the lost reason and the catalog mark of each such transport answer.
-// The services hand both to `table.lose`, which acts only on the current generation.
+// The transport's answer does not carry the "no longer usable" mark of contract T8, so this
+// module judges by the cause, on the safe side: a `not-sent` of any cause and a `no-answer` of
+// a broken stream or an exited process take the connection down, which can cost one connection
+// more than needed, never a dead transport kept as usable (member SPEC, deviations). The services
+// hand the judgment to `table.lose` through `loseOn`, which acts only on the current generation.
 import type { ConnectionFailure, LostReason, NoAnswerCause } from '@omne-harness/mcp-contract'
 import type { TransportFailure } from '@omne-harness/mcp-contract/provider'
-import type { UnavailableMark } from './entry.ts'
+import type { CatalogMark, Ensured, UnavailableMark } from './entry.ts'
+import type { ConnectionTable } from './table.ts'
 
 export type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
 
 export type Lost = Readonly<{ reason: LostReason; mark: UnavailableMark }>
+
+/** The one report of a lost connection: `ensured` is gone, as `lost` says (S7). */
+export function loseOn(
+  table: Pick<ConnectionTable<unknown>, 'lose'>,
+  ensured: Ensured,
+  lost: Lost,
+): Promise<CatalogMark | 'not-current'> {
+  return table.lose(ensured.connection, ensured.generation, lost.reason, lost.mark)
+}
 
 const CONNECTION_UNAVAILABLE: ConnectionFailure = { kind: 'connection-unavailable' }
 

@@ -19,8 +19,6 @@ import {
   type InvokeRequest,
   type InvokeResult,
   type KnownAction,
-  type McpConfig,
-  type McpPorts,
   type NotSentReason,
   type PeerAnswer,
   type PeerNotification,
@@ -28,20 +26,16 @@ import {
 import type { CallRequest, SentCall } from '@omne-harness/mcp-contract/provider'
 import type { Ensured, EnsureFailure } from './internal/entry.ts'
 import { admitForUse, type UseGate } from './internal/guard.ts'
-import { InFlightCalls, type InFlightKey } from './internal/in-flight.ts'
-import { connectionFailureOf, lostOfNoAnswer, lostOfNotSent, type Lost } from './internal/lost.ts'
+import type { InFlightKey } from './internal/in-flight.ts'
+import { connectionFailureOf, loseOn, lostOfNoAnswer, lostOfNotSent } from './internal/lost.ts'
 import { ask, waitAtMost, within } from './internal/port.ts'
 import { prepareSettings } from './internal/settings.ts'
-import type { ConnectionTable } from './internal/table.ts'
-import { TaskTable } from './internal/task-table.ts'
+import type { InvokerDependencies } from './invoker.ts'
 
-export type CallsDependencies<P, S> = Readonly<{
-  ports: McpPorts<P, S>
-  config: McpConfig<P>
-  table: ConnectionTable<P>
-  inFlight: InFlightCalls
-  tasks: TaskTable
-}>
+export type CallsDependencies<P, S> = Pick<
+  InvokerDependencies<P, S>,
+  'ports' | 'config' | 'table' | 'inFlight' | 'tasks'
+>
 
 const CORRELATION_KEY_IN_USE: NotSentReason = { kind: 'correlation-key-in-use' }
 const CANCELLED: NotSentReason = { kind: 'cancelled' }
@@ -137,12 +131,6 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     return notSent(CANCELLED)
   }
 
-  /** A connection the transport reported gone under a sent or unsent request (S7). */
-  async function lose(ensured: Ensured, lost: Lost | undefined): Promise<void> {
-    if (lost === undefined) return
-    await table.lose(ensured.connection, ensured.generation, lost.reason, lost.mark)
-  }
-
   /**
    * Step 8 after a cancel or the caller's abort: the peer is told once, the answer is not waited
    * for, and the outcome is `unknown` (`abandoned`) (O6, S2).
@@ -185,7 +173,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       // T5: a transport answers `not-sent` to a signal that fired before the send. A cancel or
       // abort that raced the send is a cancel before the send, not a lost connection.
       if (called.failure.cause === 'connection-unavailable' && stop.aborted) return cancelled(key)
-      await lose(ensured, lostOfNotSent(called.failure))
+      await loseOn(table, ensured, lostOfNotSent(called.failure))
       inFlight.release(key)
       return notSent(connectionFailureOf(called.failure))
     }
@@ -204,7 +192,8 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
         : { outputSchema: known.lastLawful.outputSchema }),
       checkOutput: ports.checkOutput,
     })
-    if (outcome.kind === 'unknown') await lose(ensured, lostOfNoAnswer(outcome.cause))
+    const lost = outcome.kind === 'unknown' ? lostOfNoAnswer(outcome.cause) : undefined
+    if (lost !== undefined) await loseOn(table, ensured, lost)
     if (outcome.kind === 'task')
       tasks.record(
         {
