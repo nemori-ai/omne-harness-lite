@@ -503,6 +503,7 @@ class Run implements RunView, CallDesk {
         return `T(j${op ?? '?'})`
       case 'section':
       case 'listing':
+      case 'task':
         return `T(${op ?? '?'})`
       default: {
         const exhaustive: never = kind

@@ -1,7 +1,7 @@
 // The public root of @omne-harness/mcp: the services of the contract on the five requirement
 // ports, and the production in-memory catalog store. The aggregates, the gate, the tables and
 // the assembly are internal.
-import type { ActionCalls, McpConfig, McpPorts, McpServices } from '@omne-harness/mcp-contract'
+import type { McpConfig, McpPorts, McpServices } from '@omne-harness/mcp-contract'
 import { validateConfig } from './config.ts'
 import { assemble } from './internal/assembly.ts'
 
@@ -13,9 +13,6 @@ export { createInMemoryCatalogStore } from './store/memory.ts'
  * until an operation asks for it. The host that holds the instance calls `connections.closeAll()`
  * at exit.
  */
-export function createMcp<P, S>(
-  ports: McpPorts<P, S>,
-  config: McpConfig<P>,
-): Omit<McpServices<P, S>, 'invoker'> & Readonly<{ invoker: ActionCalls<P> }> {
+export function createMcp<P, S>(ports: McpPorts<P, S>, config: McpConfig<P>): McpServices<P, S> {
   return assemble(ports, validateConfig<P>(config)).services
 }

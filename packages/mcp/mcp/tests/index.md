@@ -16,6 +16,8 @@
 - [in-flight.spec.ts](in-flight.spec.ts)：`InFlightCalls` 的性质：占位一步、隔离、代际、发出前的取消、取消信号
 - [invoke.spec.ts](invoke.spec.ts)：`invoke` 的次序每步一例、R2 每个原因、连接表答复的映射、发出后的 `signal`、结局
 - [cancel.spec.ts](cancel.spec.ts)：`cancel` 只查在途表：另一主体或租户、发出前、发出后、发出与登记之间
+- [continue.spec.ts](continue.spec.ts)：`continueWithInput` 同代际完成、换代不发、只带 `requestState`
+- [tasks.spec.ts](tasks.spec.ts)：四个任务操作：发起者、复用不问端口、新建要资格与同一账户、答复的映射、`closeAll` 之后
 - [gate.spec.ts](gate.spec.ts)、[types.spec-d.ts](types.spec-d.ts)：关口的六种答复与能力令牌
 - [ensure.spec.ts](ensure.spec.ts)：连接表的复用、重建、单飞、配值缺陷、连接失败、句柄释放、连接时限与键
 - [entry.spec.ts](entry.spec.ts)：`holdsNothing` 五种资源各一例；删除条件 `forgettable`（已关闭且什么也不持有）

@@ -63,11 +63,9 @@ describe('createMcp', () => {
 
   it('is the service set of the contract', () => {
     const w = world()
-    const services: Omit<McpServices<Principal, string>, 'invoker'> = createMcp<Principal, string>(
-      w.ports,
-      CONFIG,
-    )
+    const services: McpServices<Principal, string> = createMcp<Principal, string>(w.ports, CONFIG)
     expect(typeof services.discovery.refresh).toBe('function')
+    expect(typeof services.invoker.queryTask).toBe('function')
   })
 })
 

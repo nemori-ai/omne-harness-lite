@@ -4,8 +4,8 @@
 import { assemble } from '../../src/internal/assembly.ts'
 import type { ConnectionTable, TableRuntime } from '../../src/internal/table.ts'
 import type {
-  ActionCalls,
   ActionDiscovery,
+  ActionInvoker,
   Connections,
   EndpointStatus,
 } from '@omne-harness/mcp-contract'
@@ -16,7 +16,7 @@ export type Core = Readonly<{
   w: World
   table: ConnectionTable<Principal>
   discovery: ActionDiscovery<Principal>
-  invoker: ActionCalls<Principal>
+  invoker: ActionInvoker<Principal>
   status: EndpointStatus<Principal, string>
   connections: Connections<Principal>
 }>

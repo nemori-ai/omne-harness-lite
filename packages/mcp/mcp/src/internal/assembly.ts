@@ -1,24 +1,18 @@
 // The one assembly of the services on a connection table: the table, then the services that
 // share it. `createMcp` (the public root) and the member tests both assemble here, so neither
 // repeats the wiring. The configuration comes validated: `createMcp` validates it (SPEC S3).
-import type {
-  ActionCalls,
-  McpClock,
-  McpConfig,
-  McpPorts,
-  McpServices,
-} from '@omne-harness/mcp-contract'
-import { createCalls } from '../calls.ts'
+import type { McpClock, McpConfig, McpPorts, McpServices } from '@omne-harness/mcp-contract'
 import { createConnections } from '../connections.ts'
 import { createDiscovery } from '../discovery.ts'
 import { createInspection } from '../inspection.ts'
+import { createInvoker } from '../invoker.ts'
 import { createStatus } from '../status.ts'
 import { InFlightCalls } from './in-flight.ts'
 import { createConnectionTable, type ConnectionTable, type TableRuntime } from './table.ts'
 import { TaskTable } from './task-table.ts'
 
 export type Assembled<P, S> = Readonly<{
-  services: Omit<McpServices<P, S>, 'invoker'> & Readonly<{ invoker: ActionCalls<P> }>
+  services: McpServices<P, S>
   table: ConnectionTable<P>
 }>
 
@@ -53,7 +47,7 @@ export function assemble<P, S>(
     services: {
       inspection: createInspection(),
       discovery: createDiscovery(deps),
-      invoker: createCalls(deps),
+      invoker: createInvoker(deps),
       status: createStatus(deps),
       connections: createConnections(deps),
     },

@@ -13,7 +13,9 @@
 - [config.ts](config.ts)：`McpConfig` 校验
 - [inspection.ts](inspection.ts)：类别端口与两个正文读取
 - [discovery.ts](discovery.ts)：读口 `refresh`、`current`、`peer`
-- [calls.ts](calls.ts)：调用口 `invoke`、`continueWithInput`、`cancel`
+- [invoker.ts](invoker.ts)：调用口 `ActionInvoker`，由下面两个组成
+- [calls.ts](calls.ts)：`invoke`、`continueWithInput`、`cancel`
+- [tasks.ts](tasks.ts)：四个任务操作
 - [status.ts](status.ts)：状态口 `inspect`、`list`
 - [connections.ts](connections.ts)：连接口 `release`、`closeAll`
 - [store/memory.ts](store/memory.ts)：内存清单存储
