@@ -76,6 +76,7 @@ TLC 在第一个违反处停止，所以下表的状态数随 worker 数与调�
 | `TerminalSegments-witness-NeverAllCompleted` | 被违反，可达 |
 | `TerminalSegments-witness-NeverFgInLaterSegment` | 被违反，可达 |
 
-### 更早的运行
+### 复跑与更早的运行
 
-同日在提交 `2959f5d2c`（还没有 N4b）上跑过 26 项，全部符合预期，正控读数与上表相同。
+- 同日在提交 `2959f5d2c`（还没有 N4b）上跑过 26 项，全部符合预期，正控读数与上表相同。
+- 同日在提交 `0c3330e8c`（终端段在宿主实现之后）上复跑，输入摘要与上表相同，27 项全部符合预期，正控读数与上表相同。
