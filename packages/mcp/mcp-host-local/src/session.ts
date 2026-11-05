@@ -1,40 +1,56 @@
 // The protocol session: one `McpTransport` over one line. It composes the requests of contract
 // T3 with the contract's functions, turns what the line reports into contract wire events,
-// classifies them with `classifyWireEvent`, and draws the conclusion of the T8 row. It owns the
-// in-flight requests, the stdio probe time, the re-send of a read request, cancellation and
-// closing (T5), the credential handle (T4, T9), and the legacy HTTP+SSE fallback (T3). The line
-// does not classify; the session does not touch a wire.
+// classifies them with `classifyWireEvent`, and draws the conclusion of the decision layer
+// (`concludeAnswer`, `discoverWith`). It owns the in-flight requests, the stdio probe time, the
+// re-send of a read request, cancellation and closing (T5), the credential handle (T4, T9), and
+// the legacy HTTP+SSE fallback (T3). The line does not classify; the session does not touch a wire.
+//
+// Every effect of the session goes through an injected port: the line, the credential handle of
+// the material, the metadata fetch, and the scheduler. It reads no global clock and arms no global
+// timer itself, so a test can drive it and order every line reply, credential call and timer fire.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
-  FIRST_MODERN_PROTOCOL_VERSION,
-  LEGACY_PROTOCOL_VERSIONS,
+  ABANDONED,
+  NOT_SENT_FAILURE,
+  OFFERED_LEGACY_VERSION,
+  PROBE_REQUESTS,
   authorizationChallengeOf,
-  authorizationDiscoveryOf,
+  callAnswerOf,
   classifyWireEvent,
   clientEnvelopeOf,
-  errorAnswerOf,
+  concludeAnswer,
+  discoverAuthorization,
+  discoverWith,
+  interpretAnswer,
+  legacyIdentityOf,
+  legacyInitializeParamsOf,
+  listingPageOf,
   mcpRequestHeadersOf,
-  metadataCandidatesOf,
-  peerIdentityOf,
-  readDiscoverResult,
-  readInitializeResult,
-  readListingPage,
-  readTaskAnswer,
-  readTaskReport,
-  type AnswerClass,
-  type AnswerMalformed,
-  type AuthorizationDiscovery,
+  notificationTextOf,
+  peerRequestAnswerOf,
+  readPeerMessage,
+  requestClassOf,
+  requestTextOf,
+  responseTextOf,
+  taskAnswerOf,
+  taskReportOf,
+  type AnswerConclusion,
   type ClientInfo,
   type Generation,
-  type NoAnswerCause,
+  type IdentityBound,
+  type MetadataFetch,
+  type NotificationMethod,
   type PeerAnswer,
   type PeerIdentity,
+  type PeerMessage,
   type PeerNotification,
   type PlainRecord,
-  type RequestClass,
+  type ProtocolVersions,
+  type RequestMethod,
   type TaskId,
   type TaskReport,
+  type WireAnswer,
   type WireContext,
   type WireEvent,
 } from '@omne-harness/mcp-contract'
@@ -48,57 +64,35 @@ import type {
   TransportFailure,
   TransportMaterial,
 } from '@omne-harness/mcp-contract/provider'
-import type { Exchange, Line, LineEvent, Outbound } from './line.ts'
-import {
-  memberOf,
-  messageText,
-  parseMessage,
-  plainIdOf,
-  plainOf,
-  textOf,
-  type JsonObject,
-} from './message.ts'
+import type { AnswerHeaders, Exchange, GetOpened, Line, LineEvent, Outbound } from './line.ts'
+
+/** Arms a one-shot timer; the returned function cancels it. The factory gives the default. */
+export type Scheduler = (delayMs: number, fire: () => void) => () => void
 
 export type SessionOptions = Readonly<{
   clientInfo: ClientInfo
-  /** The modern versions the transport speaks on `server/discover`, highest first. */
-  versions: readonly string[]
+  /** The modern versions the transport speaks on `server/discover`, highest first: at least one. */
+  versions: ProtocolVersions
   /** stdio: how long a `server/discover` waits for its answer (contract T3). */
   probeTimeoutMs: number
   /** Fetches the protected resource metadata at one address (R4); undefined when it cannot. */
-  fetchMetadata: (url: string, signal: AbortSignal) => Promise<JsonValue | undefined>
+  fetchMetadata: MetadataFetch
+  /** Arms the stdio probe time. Injected so a test drives when it fires. */
+  schedule: Scheduler
 }>
 
-type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
+/** What one request settled with: the decision-layer answer, and the headers of an HTTP answer. */
+type Answered = Readonly<{ wire: WireAnswer; headers?: AnswerHeaders }>
 
-/** What came back for one request, before the session reads it. */
-type Wire =
-  | Readonly<{ kind: 'result'; result: JsonValue; session?: string }>
-  | Readonly<{ kind: 'error'; error: JsonValue }>
-  | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause }>
-  /** `legacyHttp`: a 4xx with a plain body to `initialize` (T8 I07): the HTTP+SSE fallback may follow. */
-  | Readonly<{ kind: 'not-sent'; failure: NotSent; legacyHttp?: true }>
-  | Readonly<{ kind: 'legacy-signal' }>
-  | Readonly<{ kind: 'probe-timeout' }>
-  /** An HTTP 5xx without a JSON-RPC answer: `no-answer` (`stream-broken`), never re-sent. */
-  | Readonly<{ kind: 'server-error' }>
-
-/**
- * What the modern path makes of one answer to `server/discover`. `fallback` tries the legacy path
- * and reports this failure if that fails too; `legacy-peer` tries it and reports its failure.
- */
-type Probe =
-  | Readonly<{ kind: 'identity'; identity: PeerIdentity }>
-  | Readonly<{ kind: 'retry'; version: string }>
-  | Readonly<{ kind: 'final'; failure: TransportFailure }>
-  | Readonly<{ kind: 'fallback'; failure: TransportFailure }>
-  | Readonly<{ kind: 'legacy-peer' }>
-
-/** What the session knows about one answer when it draws the conclusion. */
-type Payload = Readonly<{
-  message?: JsonObject | undefined
-  headers?: Readonly<{ [name: string]: string }>
-  body?: string
+/** How one request is sent: the `_meta` version, the request class, the call observer and signal. */
+type Dispatch = Readonly<{
+  version?: string
+  request?: WireContext['request']
+  observe?: (notification: PeerNotification) => void
+  /** Params the caller wrote as value trees, written as they are (RFC-0010). */
+  values?: Readonly<{ [key: string]: JsonValue }>
+  /** Wires the caller's signal to the entry, once it is registered. */
+  wire?: (entry: Pending) => void
 }>
 
 class Deferred<T> {
@@ -118,131 +112,23 @@ class Deferred<T> {
   }
 }
 
-/** One request in flight. */
+/**
+ * One request in flight. `phase` says what a close does with it: a request still authorizing never
+ * left (`not-sent`); one that left is abandoned; one discovering authorization finishes that flow.
+ */
 type Pending = {
   readonly id: string
   readonly context: WireContext
   readonly controller: AbortController
-  readonly deferred: Deferred<Wire>
+  readonly deferred: Deferred<Answered>
   readonly authorized: boolean
   readonly observe?: (notification: PeerNotification) => void
-  probe?: ReturnType<typeof setTimeout>
+  phase: 'authorizing' | 'sent' | 'discovery'
+  cancelProbe?: () => void
   stream?: Readonly<{ abort(): void }>
 }
 
-const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
-const MODERN_ERROR_CODES: readonly number[] = [-32022, -32021, -32020]
-const METHOD_NOT_FOUND = -32601
-const READ_METHODS: readonly string[] = ['server/discover', 'tools/list', 'tasks/get']
-const PROBES: readonly RequestClass[] = ['discover', 'discover-retry']
-const HTTP_CLASS = /^http:([^+]+)\+(.+)$/u
-const DATE = /^\d{4}-\d{2}-\d{2}$/u
-
-const notSent: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
-const NOT_SENT: Wire = { kind: 'not-sent', failure: notSent }
-const ABANDONED: Wire = { kind: 'no-answer', cause: 'abandoned' }
-const malformed = (what: AnswerMalformed['what']): TransportFailure => ({
-  kind: 'answer-malformed',
-  what,
-})
-
-/** A reader of the contract as a reader of the transport: its defect is the `what` of T7. */
-function reading<T, W extends AnswerMalformed['what']>(
-  read: (result: JsonValue) => Outcome<T, W>,
-): (result: JsonValue) => Outcome<T, TransportFailure> {
-  return result => {
-    const outcome = read(result)
-    return 'ok' in outcome ? outcome : { failure: malformed(outcome.failure) }
-  }
-}
-
-const readTask = reading(readTaskReport)
-const readAnswer = reading(readTaskAnswer)
-
-/** Reads an answer to a non-call request with the reader of that request. */
-function interpret<T>(
-  wire: Wire,
-  read: (result: JsonValue) => Outcome<T, TransportFailure>,
-): Outcome<T, TransportFailure> {
-  switch (wire.kind) {
-    case 'result':
-      return read(wire.result)
-    case 'error': {
-      const answer = errorAnswerOf(wire.error)
-      return answer === undefined ? { failure: malformed('error-shape') } : { failure: answer }
-    }
-    case 'no-answer':
-      return { failure: { kind: 'no-answer', cause: wire.cause } }
-    case 'server-error':
-      return { failure: { kind: 'no-answer', cause: 'stream-broken' } }
-    case 'not-sent':
-      return { failure: wire.failure }
-    case 'legacy-signal':
-    case 'probe-timeout':
-      return { failure: malformed('discover-shape') }
-    default: {
-      const exhaustive: never = wire
-      return exhaustive
-    }
-  }
-}
-
-/** `expired` for the `-32602` error of a task operation that reads a task. */
-function expiredOf<T>(wire: Wire): Outcome<T | 'expired', TransportFailure> | undefined {
-  if (wire.kind !== 'error') return undefined
-  return errorAnswerOf(wire.error)?.code === -32602 ? { ok: 'expired' } : undefined
-}
-
-/** The answer of a sent call (T8 C01–C05, S03, S04). */
-function answerOf(wire: Wire): PeerAnswer {
-  switch (wire.kind) {
-    case 'result':
-      return { kind: 'result', result: wire.result }
-    case 'error':
-      return { kind: 'error', error: wire.error }
-    case 'no-answer':
-      return { kind: 'no-answer', cause: wire.cause }
-    case 'server-error':
-      return { kind: 'no-answer', cause: 'stream-broken' }
-    case 'not-sent':
-    case 'legacy-signal':
-    case 'probe-timeout':
-      return { kind: 'no-answer', cause: 'abandoned' }
-    default: {
-      const exhaustive: never = wire
-      return exhaustive
-    }
-  }
-}
-
-function interpretFailure(
-  wire: Extract<Wire, { kind: 'no-answer' | 'not-sent' | 'server-error' }>,
-): TransportFailure {
-  if (wire.kind === 'not-sent') return wire.failure
-  return { kind: 'no-answer', cause: wire.kind === 'no-answer' ? wire.cause : 'stream-broken' }
-}
-
-/** `data.supported` of a `-32022` error: a non-empty list of texts, or undefined. */
-function supportedOf(data: JsonValue | undefined): readonly string[] | undefined {
-  if (data?.kind !== 'object') return undefined
-  const supported = memberOf(data, 'supported')
-  if (supported?.kind !== 'array' || supported.items.length === 0) return undefined
-  const texts = supported.items.flatMap(item => (item.kind === 'string' ? [item.value] : []))
-  return texts.length === supported.items.length ? texts : undefined
-}
-
-/** The error object of a message whose envelope carries `error`, else the whole message (T2, C02). */
-function errorPayloadOf(message: JsonObject): JsonValue {
-  const error = memberOf(message, 'error')
-  return error !== undefined && memberOf(message, 'result') === undefined ? error : message
-}
-
-/** The error object in an HTTP body that the contract classified as a JSON-RPC error. */
-function bodyErrorOf(body: string | undefined): JsonValue {
-  const message = body === undefined ? undefined : parseMessage(body)
-  const error = message === undefined ? undefined : memberOf(message, 'error')
-  return error ?? { kind: 'null' }
-}
+const NOT_SENT: Answered = { wire: { kind: 'not-sent', failure: NOT_SENT_FAILURE } }
 
 /** Reads a stream to its end in the background: an answer nobody waits for (T8 N01). */
 function drain(exchange: Exchange): void {
@@ -254,18 +140,6 @@ function drain(exchange: Exchange): void {
       // The body of an answer nobody waits for may break; nothing depends on it.
     }
   })()
-}
-
-/** The cause an `ended` event stands for, by the contract's rule on the exit window (T8). */
-function causeOfEnded(
-  event: Extract<LineEvent, { kind: 'ended' }>,
-  versions: readonly string[],
-): NoAnswerCause {
-  const anyRequest: WireContext = { id: '', request: 'tools/list', session: false, versions }
-  const classified = classifyWireEvent({ ...event, kind: 'stdio-ended' }, anyRequest)
-  return classified.kind === 'answer' && classified.answer === 'process-exited'
-    ? 'process-exited'
-    : 'stream-broken'
 }
 
 /** One transport over one line. */
@@ -295,12 +169,6 @@ export class Session implements McpTransport {
     void this.pump()
   }
 
-  private get highest(): string {
-    const highest = this.options.versions[0]
-    if (highest === undefined) throw new TypeError('the transport speaks no protocol version')
-    return highest
-  }
-
   private get usable(): boolean {
     return !this.closed && this.dead === undefined
   }
@@ -313,6 +181,17 @@ export class Session implements McpTransport {
     return this.line.kind === 'stdio'
   }
 
+  private get target(): string | undefined {
+    return this.material.kind === 'streamable-http' ? this.material.target : undefined
+  }
+
+  private get bound(): IdentityBound {
+    return {
+      generation: this.generation,
+      instructionsByteLimit: this.material.instructionsByteLimit,
+    }
+  }
+
   private envelope(version: string): PlainRecord {
     return clientEnvelopeOf(version, this.options.clientInfo)
   }
@@ -322,17 +201,32 @@ export class Session implements McpTransport {
     return `r${this.nextId}`
   }
 
-  /** The stream or the process is gone: every pending request answers with the cause. */
-  private die(cause: NoAnswerCause): void {
+  /**
+   * The stream or the process is gone (T8 S rows): every request that left answers with the cause.
+   * A request still authorizing never reached the wire; it becomes `not-sent` where it stands.
+   */
+  private die(cause: NoAnswerCause | 'session-ended'): void {
     this.dead ??= cause
-    for (const entry of this.pending.values()) this.settle(entry, { kind: 'no-answer', cause })
+    if (cause === 'session-ended') return
+    for (const entry of this.pending.values())
+      if (entry.phase === 'sent')
+        this.settle(entry, { wire: { kind: 'no-answer', cause, resend: false } })
   }
 
-  private settle(entry: Pending, wire: Wire): void {
+  private settle(entry: Pending, answered: Answered): void {
     if (entry.deferred.settled) return
-    clearTimeout(entry.probe)
+    entry.cancelProbe?.()
     this.pending.delete(entry.id)
-    entry.deferred.resolve(wire)
+    entry.deferred.resolve(answered)
+  }
+
+  /** The caller's signal fired (T5): stop waiting. A discovery in flight only ends its fetch. */
+  private abandon(entry: Pending): void {
+    if (entry.deferred.settled) return
+    entry.controller.abort()
+    if (entry.phase === 'discovery') return
+    entry.stream?.abort()
+    this.settle(entry, { wire: ABANDONED })
   }
 
   /** Reads the events of the line until it closes. */
@@ -347,20 +241,14 @@ export class Session implements McpTransport {
   private onEvent(event: LineEvent): void {
     switch (event.kind) {
       case 'line': {
-        const message = parseMessage(event.text)
-        if (message !== undefined && memberOf(message, 'method') !== undefined)
-          return this.onPeerMessage(message)
-        for (const entry of this.pending.values()) {
-          const classified = classifyWireEvent({ kind: 'line', text: event.text }, entry.context)
-          if (classified.kind === 'answer') {
-            void this.conclude(entry, classified.answer, { message })
-            return
-          }
-        }
+        const peer = readPeerMessage(event.text)
+        if (peer !== undefined) return this.onPeerMessage(peer)
+        for (const entry of this.pending.values())
+          if (this.classify(entry, { kind: 'line', text: event.text }, {})) return
         return
       }
       case 'ended':
-        return this.die(causeOfEnded(event, this.options.versions))
+        return this.die(this.causeOfEnded(event))
       case 'broken':
         return this.die('stream-broken')
       default: {
@@ -370,31 +258,32 @@ export class Session implements McpTransport {
     }
   }
 
+  /** The cause an `ended` event stands for, by the contract's rule on the exit window (T8). */
+  private causeOfEnded(event: Extract<LineEvent, { kind: 'ended' }>): NoAnswerCause {
+    const context: WireContext = {
+      id: '',
+      request: 'tools/list',
+      session: false,
+      versions: this.options.versions,
+    }
+    const classified = classifyWireEvent({ ...event, kind: 'stdio-ended' }, context)
+    return classified.kind === 'answer' && classified.answer === 'process-exited'
+      ? 'process-exited'
+      : 'stream-broken'
+  }
+
   /**
    * A request or notification of the peer (T3): `ping` answers an empty result, every other
    * request `-32601`; a progress notification whose token is the token of a call in flight goes
    * to its observer, as written and untrusted (S6); every other notification is dropped.
    */
-  private onPeerMessage(message: JsonObject): void {
-    const method = textOf(memberOf(message, 'method'))
-    const id = plainIdOf(message)
-    if (id !== undefined) {
-      void this.respond(
-        method === 'ping'
-          ? { id, result: {} }
-          : { id, error: { code: METHOD_NOT_FOUND, message: 'Method not found' } },
-      )
-      return
-    }
-    if (method !== 'notifications/progress') return
-    const params = memberOf(message, 'params')
-    const token = params?.kind === 'object' ? memberOf(params, 'progressToken') : undefined
-    const tokenText =
-      token?.kind === 'string' ? token.value : token?.kind === 'number' ? token.lexeme : undefined
-    const entry = tokenText === undefined ? undefined : this.pending.get(tokenText)
-    if (entry?.observe === undefined || params === undefined) return
+  private onPeerMessage(message: PeerMessage): void {
+    if (message.kind === 'request') return void this.respond(message)
+    if (message.method !== 'notifications/progress' || message.progressToken === undefined) return
+    const entry = this.pending.get(message.progressToken)
+    if (entry?.observe === undefined || message.params === undefined) return
     try {
-      entry.observe({ kind: 'progress', notification: { untrusted: params } })
+      entry.observe({ kind: 'progress', notification: { untrusted: message.params } })
     } catch {
       // S6: an observer that throws does not change the outcome.
     }
@@ -403,15 +292,20 @@ export class Session implements McpTransport {
   /** The headers of a message that is not a request: the protocol version and the session. */
   private plainHeaders(): Headers {
     const headers = new Headers()
-    headers.set('mcp-protocol-version', this.version ?? this.highest)
+    headers.set('mcp-protocol-version', this.version ?? this.options.versions[0])
     if (this.session !== undefined && !this.sse) headers.set('mcp-session-id', this.session)
     return headers
   }
 
-  /** Writes a response to a request of the peer. What the wire answers has no outcome (N01). */
-  private async respond(response: PlainRecord): Promise<void> {
+  /** Writes a response to a request of the peer (T3, P7): the POST is authorized; none after close. */
+  private async respond(request: Extract<PeerMessage, { kind: 'request' }>): Promise<void> {
     if (!this.usable) return
-    await this.write({ text: messageText(response), headers: this.plainHeaders() })
+    const headers = new Headers()
+    if (!(await this.authorize(headers))) return
+    if (!this.usable) return
+    for (const [name, value] of this.plainHeaders().entries()) headers.set(name, value)
+    const answer = peerRequestAnswerOf(request)
+    await this.write({ text: responseTextOf({ id: request.id, ...answer }), headers })
   }
 
   /** Writes a message nobody waits for. Whatever the wire does with it has no outcome (N01). */
@@ -424,13 +318,17 @@ export class Session implements McpTransport {
   }
 
   /** Sends a notification (T3). Whatever the peer answers to it does not change any outcome (N01). */
-  private async sendNotification(method: string, params: PlainRecord): Promise<void> {
+  private async sendNotification(method: NotificationMethod, params: PlainRecord): Promise<void> {
     if (!this.usable) return
-    const version = this.version ?? this.highest
+    const version = this.version ?? this.options.versions[0]
     const headers = new Headers()
     if (!(await this.authorize(headers))) return
+    if (!this.usable) return
     this.setMcpHeaders(headers, method, params, version)
-    const text = messageText({ method, params: { ...params, _meta: this.envelope(version) } })
+    const text = notificationTextOf({
+      method,
+      params: { ...params, _meta: this.envelope(version) },
+    })
     await this.write({ text, headers })
   }
 
@@ -460,67 +358,67 @@ export class Session implements McpTransport {
     return answer !== undefined && !('failure' in answer)
   }
 
+  private makeEntry(id: string, context: WireContext, how: Dispatch): Pending {
+    return {
+      id,
+      context,
+      controller: new AbortController(),
+      deferred: new Deferred<Answered>(),
+      authorized: this.credential !== undefined,
+      phase: 'authorizing',
+      ...(how.observe === undefined ? {} : { observe: how.observe }),
+    }
+  }
+
   /**
-   * Composes one request (T3) and hands it to the line. Undefined when it is not sent: the
-   * transport is unusable or the credential handle did not authorize it. Otherwise the pending
-   * request, settled already when the wire answered at once.
+   * Composes one request (T3), registers it, authorizes it and hands it to the line. The pending
+   * request, settled already when it did not go out or the wire answered at once; undefined only
+   * when the transport was unusable before it began.
    */
   private async send(
-    method: string,
+    method: RequestMethod,
     params: PlainRecord,
-    how: Readonly<{
-      version?: string
-      retry?: boolean
-      observe?: (notification: PeerNotification) => void
-    }>,
+    how: Dispatch,
   ): Promise<Pending | undefined> {
     if (!this.usable) return undefined
     const id = this.reserveId()
+    const version = how.version ?? this.version ?? this.options.versions[0]
+    const context: WireContext = {
+      id,
+      request: how.request ?? requestClassOf(method, false),
+      session: (this.session !== undefined || this.sse) && method !== 'initialize',
+      versions: this.options.versions,
+      ...(this.sse ? { mode: 'sse' } : {}),
+    }
+    const entry = this.makeEntry(id, context, how)
+    this.pending.set(id, entry)
+    how.wire?.(entry)
     const headers = new Headers()
-    const authorized = this.credential !== undefined
-    if (!(await this.authorize(headers))) return undefined
-    // The transport may have closed while the handle was authorizing (T5).
-    if (!this.usable) return undefined
-    const version = how.version ?? this.version ?? this.highest
+    if (!(await this.authorize(headers))) {
+      this.settle(entry, NOT_SENT)
+      return entry
+    }
+    // The transport may have closed (not-sent) or the signal fired (abandoned) while authorizing.
+    if (entry.deferred.settled) return entry
+    // It may also have died while authorizing: a request that never left is not sent (T8 S, X).
+    if (!this.usable) {
+      this.settle(entry, NOT_SENT)
+      return entry
+    }
     this.setMcpHeaders(headers, method, params, version)
     const meta: PlainRecord =
       method === 'tools/call'
         ? { ...this.envelope(version), progressToken: id }
         : this.envelope(version)
-    const text = messageText({ id, method, params: { ...params, _meta: meta } })
-    const entry: Pending = {
+    const text = requestTextOf({
       id,
-      context: {
-        id,
-        request: this.classOf(method, how.retry === true),
-        session: (this.session !== undefined || this.sse) && method !== 'initialize',
-        versions: this.options.versions,
-        ...(this.sse ? { mode: 'sse' } : {}),
-      },
-      controller: new AbortController(),
-      deferred: new Deferred<Wire>(),
-      authorized,
-      ...(how.observe === undefined ? {} : { observe: how.observe }),
-    }
-    this.pending.set(id, entry)
+      method,
+      params: { ...params, _meta: meta },
+      values: how.values ?? {},
+    })
+    entry.phase = 'sent'
     await this.dispatch(entry, { text, headers })
     return entry
-  }
-
-  private classOf(method: string, retry: boolean): RequestClass {
-    switch (method) {
-      case 'server/discover':
-        return retry ? 'discover-retry' : 'discover'
-      case 'initialize':
-      case 'tools/list':
-      case 'tools/call':
-      case 'tasks/get':
-      case 'tasks/update':
-      case 'tasks/cancel':
-        return method
-      default:
-        throw new TypeError(`${method} is not a request the session sends`)
-    }
   }
 
   /** Hands one request to the line and settles it from what the wire did at once. */
@@ -534,26 +432,29 @@ export class Session implements McpTransport {
     if (entry.deferred.settled) return drain(exchange)
     switch (exchange.kind) {
       case 'unsent':
-        return this.conclude(entry, 'unsent', {})
+        return void this.classify(entry, { kind: 'unsent' }, {})
       case 'sent':
-        if (this.stdio && PROBES.includes(entry.context.request))
-          entry.probe = setTimeout(
-            () => this.settle(entry, { kind: 'probe-timeout' }),
-            this.options.probeTimeoutMs,
+        if (this.stdio && PROBE_REQUESTS.includes(entry.context.request))
+          entry.cancelProbe = this.options.schedule(this.options.probeTimeoutMs, () =>
+            this.classify(entry, { kind: 'nothing' }, {}),
           )
         return
       case 'aborted':
-        if (entry.controller.signal.aborted) return this.settle(entry, ABANDONED)
-        return this.conclude(entry, 'stream-broken', {})
-      case 'status': {
-        const classified = classifyWireEvent({ ...exchange, kind: 'http-status' }, entry.context)
-        if (classified.kind === 'answer')
-          return this.conclude(entry, classified.answer, {
+        // On stdio an aborted write is the signal ending it: `abandon` already settled this entry
+        // and the line reported the broken stream. On HTTP it is a reset before the answer head.
+        if (entry.controller.signal.aborted) return
+        return void this.classify(entry, { kind: 'http-aborted' }, {})
+      case 'status':
+        return void this.classify(
+          entry,
+          {
+            kind: 'http-status',
+            status: exchange.status,
             headers: exchange.headers,
             body: exchange.body,
-          })
-        return
-      }
+          },
+          exchange.headers,
+        )
       case 'stream':
         entry.stream = exchange
         void this.consume(entry, exchange)
@@ -570,289 +471,180 @@ export class Session implements McpTransport {
     entry: Pending,
     exchange: Extract<Exchange, { kind: 'stream' }>,
   ): Promise<void> {
-    const seen: string[] = []
     try {
       for await (const text of exchange.messages) {
-        seen.push(text)
-        const message = parseMessage(text)
-        if (message !== undefined && memberOf(message, 'method') !== undefined) {
-          this.onPeerMessage(message)
+        const peer = readPeerMessage(text)
+        if (peer !== undefined) {
+          this.onPeerMessage(peer)
           continue
         }
         if (entry.deferred.settled) continue
-        const event: WireEvent = { kind: 'http-stream', messages: [text], ended: false }
-        const classified = classifyWireEvent(event, entry.context)
-        if (classified.kind === 'answer')
-          await this.conclude(entry, classified.answer, { message, headers: exchange.headers })
-      }
-      if (entry.deferred.settled) return
-      const ended: WireEvent = { kind: 'http-stream', messages: seen, ended: true }
-      const classified = classifyWireEvent(ended, entry.context)
-      // `waiting` (the legacy HTTP+SSE mode): the answer comes on the shared stream.
-      if (classified.kind === 'answer')
-        await this.conclude(entry, classified.answer, { headers: exchange.headers })
-    } catch {
-      if (entry.deferred.settled) return
-      if (entry.controller.signal.aborted) return this.settle(entry, ABANDONED)
-      await this.conclude(entry, 'stream-broken', {})
-    }
-  }
-
-  /** Settles a request from its answer class (T8) and applies what the row says of the transport. */
-  private async conclude(entry: Pending, answer: AnswerClass, payload: Payload): Promise<void> {
-    switch (answer) {
-      case 'unsent':
-        this.settle(entry, NOT_SENT)
-        if (this.stdio) this.die('stream-broken')
-        return
-      case 'silent':
-        return this.settle(entry, ABANDONED)
-      case 'stream-broken':
-      case 'http:2xx':
-        return this.settle(entry, { kind: 'no-answer', cause: 'stream-broken' })
-      case 'process-exited':
-        this.settle(entry, { kind: 'no-answer', cause: 'process-exited' })
-        return this.die('process-exited')
-      case 'http:401':
-      case 'http:403+scope':
-        return this.settle(
+        this.classify(
           entry,
-          await this.authorizationRequired(entry.authorized, payload.headers ?? {}),
+          { kind: 'http-stream', messages: [text], ended: false },
+          exchange.headers,
         )
-      case 'http:403':
-        return this.settle(entry, NOT_SENT)
-      case 'http:404+session':
-        this.dead = 'session-ended'
+      }
+      // The body ended with no answer: `http:2xx` on a modern connection, `waiting` in the SSE mode.
+      this.classify(entry, { kind: 'http-stream', messages: [], ended: true }, exchange.headers)
+    } catch {
+      if (entry.deferred.settled || entry.controller.signal.aborted) return
+      this.classify(entry, { kind: 'http-aborted' }, {})
+    }
+  }
+
+  /**
+   * Classifies one wire event for the entry and applies the T8 conclusion. True when the event was
+   * the answer (settled or entered a flow); false when it was no answer to this request.
+   */
+  private classify(entry: Pending, event: WireEvent, headers: AnswerHeaders): boolean {
+    if (entry.deferred.settled) return true
+    const classified = classifyWireEvent(event, entry.context)
+    if (classified.kind !== 'answer') return false
+    void this.apply(entry, concludeAnswer(classified, entry.context, this.line.kind), headers)
+    return true
+  }
+
+  /** Settles a request from its T8 conclusion and applies what the row says of the transport. */
+  private async apply(
+    entry: Pending,
+    conclusion: AnswerConclusion,
+    headers: AnswerHeaders,
+  ): Promise<void> {
+    switch (conclusion.kind) {
+      case 'wait':
+        return
+      case 'settle':
+        this.settle(entry, { wire: conclusion.wire, headers })
+        if (conclusion.unusable !== undefined) this.die(conclusion.unusable)
+        return
+      case 'authorization-required':
+        entry.phase = 'discovery'
         return this.settle(entry, {
-          kind: 'not-sent',
-          failure: { kind: 'not-sent', cause: 'session-ended' },
+          wire: await this.authorizationRequired(
+            entry.authorized,
+            headers,
+            entry.controller.signal,
+          ),
+          headers,
         })
-      default:
-        return this.settle(entry, this.answerWireOf(entry, answer, payload))
+      default: {
+        const exhaustive: never = conclusion
+        return exhaustive
+      }
     }
   }
 
-  /** The wire of a JSON-RPC answer, direct or in an HTTP error body. */
-  private answerWireOf(entry: Pending, answer: AnswerClass, payload: Payload): Wire {
-    const { message } = payload
-    if (answer.startsWith('result')) {
-      const result = message === undefined ? undefined : memberOf(message, 'result')
-      const session =
-        entry.context.request === 'initialize' ? payload.headers?.['mcp-session-id'] : undefined
-      return {
-        kind: 'result',
-        result: result ?? { kind: 'null' },
-        ...(session === undefined ? {} : { session }),
-      }
-    }
-    if (answer.startsWith('error:'))
-      return {
-        kind: 'error',
-        error: message === undefined ? { kind: 'null' } : errorPayloadOf(message),
-      }
-    const match = HTTP_CLASS.exec(answer)
-    const status = match?.[1]
-    const body = match?.[2]
-    const probe = PROBES.includes(entry.context.request)
-    if (body === 'plain') {
-      if (status === '5xx') return { kind: 'server-error' }
-      if (probe) return { kind: 'legacy-signal' }
-      if (entry.context.request === 'initialize' && !this.sse)
-        return { kind: 'not-sent', failure: notSent, legacyHttp: true }
-      return NOT_SENT
-    }
-    const error = bodyErrorOf(payload.body)
-    if (!probe) return { kind: 'error', error }
-    // A probe: 5xx is final (D16); a modern code in a 4xx body is the answer (D04–D08); the rest
-    // is a legacy peer (D12).
-    if (status === '5xx') return { kind: 'server-error' }
-    const code = errorAnswerOf(error)?.code
-    return code !== undefined && MODERN_ERROR_CODES.includes(code)
-      ? { kind: 'error', error }
-      : { kind: 'legacy-signal' }
-  }
-
-  /** T4: reports the rejection to the handle that authorized the request, then discovers. */
+  /** T4: reports the rejection to the handle that authorized the request, then discovers (R4). */
   private async authorizationRequired(
     authorized: boolean,
-    headers: Readonly<{ [name: string]: string }>,
-  ): Promise<Wire> {
+    headers: AnswerHeaders,
+    signal: AbortSignal,
+  ): Promise<WireAnswer> {
     const credential = this.credential
     if (credential !== undefined && authorized)
       // A handle whose reportRejection rejects or throws is ignored (T9).
       await Promise.resolve()
         .then(() => credential.reportRejection())
         .catch(() => undefined)
+    const target = this.target
+    if (target === undefined) return NOT_SENT.wire
     const challenge = authorizationChallengeOf(headers['www-authenticate'])
-    const discovery = await this.discoverAuthorization(challenge)
+    const discovery = await discoverAuthorization(
+      target,
+      challenge,
+      this.options.fetchMetadata,
+      AbortSignal.any([this.closing.signal, signal]),
+    )
     return {
       kind: 'not-sent',
       failure: { kind: 'not-sent', cause: 'authorization-required', discovery },
     }
   }
 
-  private async discoverAuthorization(
-    challenge: ReadonlyMap<string, string>,
-  ): Promise<AuthorizationDiscovery> {
-    const target =
-      this.material.kind === 'streamable-http' ? this.material.target : 'https://invalid.test/'
-    const candidates = metadataCandidatesOf(target, challenge)
-    const fetched: (JsonValue | undefined)[] = []
-    for (const url of candidates) {
-      const metadata = await this.options
-        .fetchMetadata(url, this.closing.signal)
-        .catch(() => undefined)
-      fetched.push(metadata)
-      // A document that is not a JSON object counts as not fetched (R4): the next address is tried.
-      if (metadata?.kind === 'object') break
-    }
-    return authorizationDiscoveryOf(challenge, candidates, fetched)
-  }
-
-  /** Sends one non-call request; on Streamable HTTP a read request is re-sent once after a broken stream (D15, O05). */
+  /** Sends one non-call request; a read request is re-sent once after a broken stream (D15, O05). */
   private async request(
-    method: string,
+    method: RequestMethod,
     params: PlainRecord,
-    how: Readonly<{ version?: string; retry?: boolean }> = {},
-  ): Promise<Wire> {
+    how: Dispatch = {},
+  ): Promise<Answered> {
     const first = await this.once(method, params, how)
-    const read = this.line.kind === 'streamable-http' && !this.sse && READ_METHODS.includes(method)
-    if (read && first.kind === 'no-answer' && first.cause === 'stream-broken')
-      return this.once(method, params, how)
+    if (first.wire.kind === 'no-answer' && first.wire.resend) return this.once(method, params, how)
     return first
   }
 
-  private async once(
-    method: string,
-    params: PlainRecord,
-    how: Readonly<{ version?: string; retry?: boolean }>,
-  ): Promise<Wire> {
+  private async once(method: RequestMethod, params: PlainRecord, how: Dispatch): Promise<Answered> {
     const entry = await this.send(method, params, how)
     return entry === undefined ? NOT_SENT : entry.deferred.promise
   }
 
   async discover(): Promise<Outcome<PeerIdentity, TransportFailure>> {
-    const modern = await this.modernPath()
-    if (modern.kind === 'identity') return { ok: modern.identity }
-    if (modern.kind === 'final') return { failure: modern.failure }
-    const legacy = await this.legacyPath()
-    if ('ok' in legacy || modern.kind === 'legacy-peer') return legacy
-    return { failure: modern.failure }
-  }
-
-  /** The modern path: `server/discover`, once more after a `-32022` that names a version in common. */
-  private async modernPath(): Promise<Exclude<Probe, Readonly<{ kind: 'retry' }>>> {
-    let version = this.highest
-    let retried = false
-    for (;;) {
-      const wire = await this.request('server/discover', {}, { version, retry: retried })
-      const probe = this.probeOf(wire, retried)
-      if (probe.kind !== 'retry') return probe
-      retried = true
-      version = probe.version
-    }
-  }
-
-  /** What one answer to `server/discover` means (T3, T8 D rows). */
-  private probeOf(wire: Wire, retried: boolean): Probe {
-    switch (wire.kind) {
-      case 'result': {
-        const read = readDiscoverResult(wire.result, this.options.versions)
-        if ('ok' in read) {
-          this.version = read.ok.protocolVersion
-          return { kind: 'identity', identity: peerIdentityOf(read.ok, this.bound) }
-        }
-        if (read.failure === 'no-common-version') return { kind: 'legacy-peer' }
-        return { kind: 'fallback', failure: malformed('discover-shape') }
-      }
-      case 'error':
-        return this.probeErrorOf(wire.error, retried)
-      case 'no-answer':
-      case 'not-sent':
-      case 'server-error':
-        return { kind: 'final', failure: interpretFailure(wire) }
-      case 'legacy-signal':
-      case 'probe-timeout':
-        return { kind: 'legacy-peer' }
-      default: {
-        const exhaustive: never = wire
-        return exhaustive
-      }
-    }
-  }
-
-  /** A JSON-RPC error on `server/discover`: the modern codes are final, `-32601` is a legacy peer. */
-  private probeErrorOf(error: JsonValue, retried: boolean): Probe {
-    const answer = errorAnswerOf(error)
-    if (answer === undefined) return { kind: 'fallback', failure: malformed('error-shape') }
-    if (answer.code === -32022 && !retried) return this.versionRetryOf(answer.data)
-    if (MODERN_ERROR_CODES.includes(answer.code)) return { kind: 'final', failure: answer }
-    if (answer.code === METHOD_NOT_FOUND) return { kind: 'legacy-peer' }
-    return { kind: 'fallback', failure: answer }
-  }
-
-  /** The first `-32022` (D04–D06): a version in common is retried; modern versions with none in common are final. */
-  private versionRetryOf(data: JsonValue | undefined): Probe {
-    const modern = (supportedOf(data) ?? []).filter(isModern)
-    if (modern.length === 0) return { kind: 'legacy-peer' }
-    const common = this.options.versions.find(version => modern.includes(version))
-    return common === undefined
-      ? { kind: 'final', failure: malformed('discover-shape') }
-      : { kind: 'retry', version: common }
-  }
-
-  private get bound(): Readonly<{ generation: Generation; instructionsByteLimit: number }> {
-    return {
-      generation: this.generation,
-      instructionsByteLimit: this.material.instructionsByteLimit,
-    }
+    const discovered = await discoverWith(
+      {
+        probe: async (version, request) =>
+          (await this.request('server/discover', {}, { version, request })).wire,
+        legacy: () => this.legacyPath(),
+      },
+      this.options.versions,
+      this.bound,
+    )
+    if ('ok' in discovered) this.version ??= discovered.ok.protocolVersion
+    return discovered
   }
 
   /** The legacy path (T3): `initialize` with the highest legacy version, then `notifications/initialized`. */
   private async legacyPath(): Promise<Outcome<PeerIdentity, TransportFailure>> {
-    const params: PlainRecord = {
-      protocolVersion: OFFERED_LEGACY_VERSION,
-      capabilities: {},
-      clientInfo: { ...this.options.clientInfo },
-    }
-    const how = { version: OFFERED_LEGACY_VERSION }
-    let wire = await this.request('initialize', params, how)
-    if (wire.kind === 'not-sent' && wire.legacyHttp === true) {
+    const params = legacyInitializeParamsOf(this.options.clientInfo)
+    const how: Dispatch = { version: OFFERED_LEGACY_VERSION }
+    let answered = await this.request('initialize', params, how)
+    if (answered.wire.kind === 'legacy-http') {
       // T8 I07: the peer may speak the legacy HTTP+SSE transport (T3).
       const entered = await this.enterSse()
-      wire = entered === undefined ? await this.request('initialize', params, how) : entered
+      answered = entered ?? (await this.request('initialize', params, how))
     }
-    const read = interpret(wire, (result): Outcome<PeerIdentity, TransportFailure> => {
-      const legacy = readInitializeResult(result)
-      if ('failure' in legacy) return { failure: malformed('discover-shape') }
-      this.version = legacy.ok.protocolVersion
-      this.legacy = true
-      return { ok: peerIdentityOf(legacy.ok, this.bound) }
-    })
+    const read = legacyIdentityOf(answered.wire, this.bound)
     if ('failure' in read) return read
-    if (wire.kind === 'result') this.session = wire.session
+    this.version = read.ok.protocolVersion
+    this.legacy = true
+    if (answered.wire.kind === 'result') this.session = answered.headers?.['mcp-session-id']
     await this.sendNotification('notifications/initialized', {})
     return read
   }
 
   /**
    * Tries the legacy HTTP+SSE fallback (T3). Undefined when the line entered the SSE mode;
-   * otherwise the wire that `initialize` reports: a refused authorization of the GET (S05, S06),
+   * otherwise the answer that `initialize` reports: a refused authorization of the GET (S05, S06),
    * or `not-sent` (I07).
    */
-  private async enterSse(): Promise<Wire | undefined> {
-    const enter = this.line.enterSse?.bind(this.line)
-    if (enter === undefined || this.sse || !this.usable) return NOT_SENT
+  private async enterSse(): Promise<Answered | undefined> {
+    const openGet = this.line.openGet?.bind(this.line)
+    if (openGet === undefined || this.sse || !this.usable) return NOT_SENT
     const headers = new Headers()
     const authorized = this.credential !== undefined
     if (!(await this.authorize(headers))) return NOT_SENT
     if (!this.usable) return NOT_SENT
     headers.set('mcp-protocol-version', OFFERED_LEGACY_VERSION)
-    const entry = await enter(headers, this.closing.signal)
-    switch (entry.kind) {
-      case 'entered':
+    const opened = await openGet(headers, this.closing.signal)
+    if (!this.usable) {
+      if (opened.kind === 'stream') opened.discard()
+      return NOT_SENT
+    }
+    return this.enterFrom(opened, authorized)
+  }
+
+  /** Judges the GET the line reported (T3): the fallback holds, or it is read as a refusal or not-sent. */
+  private async enterFrom(opened: GetOpened, authorized: boolean): Promise<Answered | undefined> {
+    switch (opened.kind) {
+      case 'stream': {
+        const endpoint = this.heldEndpoint(opened)
+        if (endpoint === undefined) {
+          opened.discard()
+          return NOT_SENT
+        }
+        opened.enter(endpoint)
         this.sse = true
         return undefined
+      }
       case 'status': {
         const context: WireContext = {
           id: '',
@@ -860,32 +652,53 @@ export class Session implements McpTransport {
           session: false,
           versions: this.options.versions,
         }
-        const classified = classifyWireEvent({ ...entry, kind: 'http-status' }, context)
-        if (
-          classified.kind === 'answer' &&
-          (classified.answer === 'http:401' || classified.answer === 'http:403+scope')
+        const classified = classifyWireEvent(
+          {
+            kind: 'http-status',
+            status: opened.status,
+            headers: opened.headers,
+            body: opened.body,
+          },
+          context,
         )
-          return this.authorizationRequired(authorized, entry.headers)
+        if (
+          concludeAnswer(classified, context, 'streamable-http').kind === 'authorization-required'
+        )
+          return {
+            wire: await this.authorizationRequired(authorized, opened.headers, this.closing.signal),
+          }
         return NOT_SENT
       }
       case 'unsent':
       case 'unavailable':
         return NOT_SENT
       default: {
-        const exhaustive: never = entry
+        const exhaustive: never = opened
         return exhaustive
       }
     }
   }
 
+  /** Whether the GET stream holds the legacy HTTP+SSE fallback (T3): 200, event-stream, same-origin endpoint. */
+  private heldEndpoint(opened: Extract<GetOpened, { kind: 'stream' }>): string | undefined {
+    const target = this.target
+    const type = (opened.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase()
+    if (opened.status !== 200 || type !== 'text/event-stream' || target === undefined)
+      return undefined
+    const first = opened.first
+    if (first?.event !== 'endpoint') return undefined
+    try {
+      const url = new URL(first.data, target)
+      return url.origin === new URL(target).origin ? url.href : undefined
+    } catch {
+      return undefined
+    }
+  }
+
   async listActions(cursor?: string): Promise<Outcome<ListingPage, TransportFailure>> {
-    const wire = await this.request('tools/list', cursor === undefined ? {} : { cursor })
+    const answered = await this.request('tools/list', cursor === undefined ? {} : { cursor })
     // SEP-2243 belongs to the modern revision: a legacy connection is not checked (T2).
-    const checked = this.line.kind === 'streamable-http' && !this.legacy
-    return interpret(
-      wire,
-      reading(result => readListingPage(result, checked)),
-    )
+    return listingPageOf(answered.wire, this.line.kind === 'streamable-http' && !this.legacy)
   }
 
   async call(
@@ -893,48 +706,44 @@ export class Session implements McpTransport {
     signal: AbortSignal,
     observe?: (notification: PeerNotification) => void,
   ): Promise<Outcome<SentCall, Extract<TransportFailure, { kind: 'not-sent' }>>> {
-    if (!this.usable || signal.aborted) return { failure: notSent }
+    if (!this.usable || signal.aborted) return { failure: NOT_SENT_FAILURE }
     const continuation = request.continuation
     const params: PlainRecord = {
       name: request.action,
-      arguments: plainOf(request.args),
       ...(continuation?.requestState === undefined
         ? {}
         : { requestState: continuation.requestState }),
+    }
+    const values: Readonly<{ [key: string]: JsonValue }> = {
+      arguments: request.args,
       ...(continuation?.inputResponses === undefined
         ? {}
-        : { inputResponses: plainOf(continuation.inputResponses) }),
+        : { inputResponses: continuation.inputResponses }),
     }
-    const entry = await this.sendCall(params, signal, observe)
-    if (entry === undefined) return { failure: notSent }
-    const wire = entry.deferred.value
-    if (wire?.kind === 'not-sent') return { failure: wire.failure }
-    return { ok: { requestId: entry.id, answer: entry.deferred.promise.then(answerOf) } }
+    const entry = await this.send('tools/call', params, {
+      values,
+      wire: pending => this.wireSignal(pending, signal),
+      ...(observe === undefined ? {} : { observe }),
+    })
+    if (entry === undefined) return { failure: NOT_SENT_FAILURE }
+    // A 401 or scoped 403 enters the discovery flow before it settles (T8 S05): the call's own
+    // outcome is `not-sent`, so it is awaited rather than carried on the answer.
+    const settled =
+      entry.phase === 'discovery' ? await entry.deferred.promise : entry.deferred.value
+    if (settled?.wire.kind === 'not-sent') return { failure: settled.wire.failure }
+    return {
+      ok: { requestId: entry.id, answer: entry.deferred.promise.then(this.answerOf) },
+    }
   }
 
-  /** Sends `tools/call`; the caller's signal, once it fires, abandons the answer (T5). */
-  private async sendCall(
-    params: PlainRecord,
-    signal: AbortSignal,
-    observe: ((notification: PeerNotification) => void) | undefined,
-  ): Promise<Pending | undefined> {
-    let entry: Pending | undefined
-    const abandon = (): void => {
-      if (entry === undefined) return
-      entry.controller.abort()
-      entry.stream?.abort()
-      this.settle(entry, ABANDONED)
-    }
-    signal.addEventListener('abort', abandon, { once: true })
-    entry = await this.send('tools/call', params, observe === undefined ? {} : { observe })
-    if (entry === undefined) {
-      signal.removeEventListener('abort', abandon)
-      return undefined
-    }
-    // A signal that fired while the line was writing finds the request now.
-    if (signal.aborted) abandon()
-    void entry.deferred.promise.then(() => signal.removeEventListener('abort', abandon))
-    return entry
+  private readonly answerOf = (answered: Answered): PeerAnswer => callAnswerOf(answered.wire)
+
+  /** Wires the call's signal to the entry: once it fires, the answer is abandoned (T5). */
+  private wireSignal(entry: Pending, signal: AbortSignal): void {
+    const onAbort = () => this.abandon(entry)
+    if (signal.aborted) return onAbort()
+    signal.addEventListener('abort', onAbort, { once: true })
+    void entry.deferred.promise.then(() => signal.removeEventListener('abort', onAbort))
   }
 
   /**
@@ -947,54 +756,46 @@ export class Session implements McpTransport {
       return
     }
     const entry = this.pending.get(requestId)
-    if (entry === undefined) return
-    entry.controller.abort()
-    entry.stream?.abort()
-    this.settle(entry, ABANDONED)
+    if (entry !== undefined) this.abandon(entry)
   }
 
   async getTask(taskId: TaskId): Promise<Outcome<TaskReport | 'expired', TransportFailure>> {
-    const wire = await this.request('tasks/get', { taskId })
-    return expiredOf<TaskReport>(wire) ?? interpret(wire, readTask)
+    return taskReportOf((await this.request('tasks/get', { taskId })).wire)
   }
 
   async getTaskResult(taskId: TaskId): Promise<Outcome<TaskAnswer, TransportFailure>> {
-    const wire = await this.request('tasks/get', { taskId })
-    if (expiredOf(wire) !== undefined) return { ok: { kind: 'expired' } }
-    return interpret(wire, readAnswer)
+    return taskAnswerOf((await this.request('tasks/get', { taskId })).wire)
   }
 
   async updateTask(
     taskId: TaskId,
     inputResponses: JsonValue,
   ): Promise<Outcome<'accepted', TransportFailure>> {
-    const wire = await this.request('tasks/update', {
-      taskId,
-      inputResponses: plainOf(inputResponses),
-    })
-    return interpret(wire, () => ({ ok: 'accepted' }))
+    const answered = await this.request('tasks/update', { taskId }, { values: { inputResponses } })
+    return interpretAnswer(answered.wire, () => ({ ok: 'accepted' }))
   }
 
   async cancelTask(taskId: TaskId): Promise<Outcome<'requested', TransportFailure>> {
-    const wire = await this.request('tasks/cancel', { taskId })
-    return interpret(wire, () => ({ ok: 'requested' }))
+    const answered = await this.request('tasks/cancel', { taskId })
+    return interpretAnswer(answered.wire, () => ({ ok: 'requested' }))
   }
 
   /** Closes the transport (T5): the requests in flight are abandoned, then the line closes. */
   async close(): Promise<void> {
     if (this.closed) return
     this.closed = true
+    const flows: Promise<unknown>[] = []
     for (const entry of this.pending.values()) {
       entry.controller.abort()
       entry.stream?.abort()
-      this.settle(entry, ABANDONED)
+      if (entry.phase === 'discovery') flows.push(entry.deferred.promise)
+      // A request still authorizing never left (not-sent); one that left is abandoned.
+      else this.settle(entry, entry.phase === 'authorizing' ? NOT_SENT : { wire: ABANDONED })
     }
     this.closing.abort()
+    await Promise.all(flows)
     await this.line.close()
   }
 }
 
-/** A modern revision: a date not before `FIRST_MODERN_PROTOCOL_VERSION` (T3). */
-function isModern(version: string): boolean {
-  return DATE.test(version) && version >= FIRST_MODERN_PROTOCOL_VERSION
-}
+type NoAnswerCause = Extract<PeerAnswer, { kind: 'no-answer' }>['cause']

@@ -1,19 +1,25 @@
 // The transport factory: opens the line that the material names and hands over a session. It
 // sends nothing and calls no credential handle (contract T9): `open` only starts the readers of a
 // stdio process, and it re-checks the signal before it answers.
-import { FIRST_MODERN_PROTOCOL_VERSION } from '@omne-harness/mcp-contract'
+import { FIRST_MODERN_PROTOCOL_VERSION, type ProtocolVersions } from '@omne-harness/mcp-contract'
 import type { McpTransportFactory, TransportFailure } from '@omne-harness/mcp-contract/provider'
 import { metadataFetcher } from './authorization.ts'
 import { HttpLine } from './http-line.ts'
 import type { Line } from './line.ts'
 import { checkOptions, type LocalTransportOptions } from './options.ts'
-import { Session } from './session.ts'
+import { Session, type Scheduler } from './session.ts'
 import { StdioLine } from './stdio-line.ts'
 
 /** The modern revisions this transport speaks on `server/discover`, highest first. */
-const VERSIONS: readonly string[] = [FIRST_MODERN_PROTOCOL_VERSION]
+const VERSIONS: ProtocolVersions = [FIRST_MODERN_PROTOCOL_VERSION]
 
 const NOT_SENT: TransportFailure = { kind: 'not-sent', cause: 'connection-unavailable' }
+
+/** The default scheduler: one real timer per probe. A test injects its own instead. */
+const schedule: Scheduler = (delayMs, fire) => {
+  const timer = setTimeout(fire, delayMs)
+  return () => clearTimeout(timer)
+}
 
 export function createLocalTransportFactory(options: LocalTransportOptions): McpTransportFactory {
   checkOptions(options)
@@ -23,6 +29,7 @@ export function createLocalTransportFactory(options: LocalTransportOptions): Mcp
     versions: VERSIONS,
     probeTimeoutMs: options.probeTimeoutMs,
     fetchMetadata: metadataFetcher(fetchFn),
+    schedule,
   }
   return {
     async open(material, signal) {

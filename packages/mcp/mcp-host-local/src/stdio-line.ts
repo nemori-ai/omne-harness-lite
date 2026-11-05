@@ -1,15 +1,24 @@
 // The stdio line: one process handle's stdin and stdout. It writes one JSON-RPC message per line
-// and reads one per line; it reports when stdout ended and when the process exited, with the two
-// instants on one clock, so that the contract's exit window (T8, `PROCESS_EXIT_WINDOW_MS`) can
-// tell a crash from a closed pipe. It reads standard error and discards it. It never stops the
-// process: the holder of the handle does.
+// and reads one per line, holding every line to the byte bound; it reports when stdout ended and
+// when the process exited, with the two instants on one clock, so that the contract's exit window
+// (T8, `PROCESS_EXIT_WINDOW_MS`) can tell a crash from a closed pipe. It reads standard error and
+// discards it. It never stops the process: the holder of the handle does.
 import { PROCESS_EXIT_WINDOW_MS } from '@omne-harness/mcp-contract'
 import type { ProcessHandle } from '@omne-harness/mcp-contract/provider'
 import { BYTE_LIMIT } from './limits.ts'
 import type { Exchange, Line, LineEvent, Outbound } from './line.ts'
 import { AsyncQueue } from './queue.ts'
 
+const NEWLINE = 0x0a
 const encoder = new TextEncoder()
+
+/** Settles with `aborted` when the signal fires; `undefined` when it never does. */
+function abortOf(signal: AbortSignal): Promise<'aborted'> {
+  return new Promise(resolve => {
+    if (signal.aborted) resolve('aborted')
+    else signal.addEventListener('abort', () => resolve('aborted'), { once: true })
+  })
+}
 
 export class StdioLine implements Line {
   readonly kind = 'stdio'
@@ -19,11 +28,15 @@ export class StdioLine implements Line {
   private readonly stdout: ReadableStreamDefaultReader<Uint8Array>
   private readonly stderr: ReadableStreamDefaultReader<string>
   private readonly exited: Promise<void>
+  private readonly reading: Promise<void>
+  private readonly draining: Promise<void>
   private stdoutEndedAt: number | undefined
   private exitedAt: number | undefined
   private announced = false
   private window: ReturnType<typeof setTimeout> | undefined
   private writable = true
+  /** A write that has not completed: `close()` aborts it instead of waiting on the peer. */
+  private writing = false
   private closed = false
 
   constructor(process: ProcessHandle) {
@@ -37,16 +50,16 @@ export class StdioLine implements Line {
       () => this.onExited(),
       () => this.onExited(),
     )
-    void this.readStdout()
-    void this.drainStderr()
+    this.reading = this.readStdout()
+    this.draining = this.drainStderr()
   }
 
   /**
    * Settles what is already observable before the transport is handed over: a process that has
-   * exited, a stdout that has ended. It waits for nothing that has not happened yet.
+   * exited, a stdout that has ended. One turn of the loop lets their reactions run; it waits for
+   * nothing that has not happened yet.
    */
   async ready(): Promise<void> {
-    await Promise.race([this.exited, Promise.resolve()])
     await new Promise<void>(resolve => setImmediate(resolve))
   }
 
@@ -55,38 +68,42 @@ export class StdioLine implements Line {
     return /* wall-clock: operation-timing -- the exit window of contract T8 compares stdout's end and the exit on one clock */ performance.now()
   }
 
+  /**
+   * Reads stdout line by line. Each line is measured in bytes, wherever it starts in a chunk; a
+   * line above the byte bound breaks the stream (contract T2).
+   */
   private async readStdout(): Promise<void> {
     const decoder = new TextDecoder('utf-8', { fatal: false })
+    /** The line in progress: its text so far and its bytes so far. */
     let buffered = ''
-    /** The bytes of `buffered`: the line in progress. */
     let pendingBytes = 0
     let broken = false
     try {
       for (;;) {
         const next = await this.stdout.read()
         if (next.done) break
-        buffered += decoder.decode(next.value, { stream: true })
-        let newline = buffered.indexOf('\n')
-        if (newline < 0) {
-          pendingBytes += next.value.byteLength
-          if (pendingBytes <= BYTE_LIMIT) continue
+        const chunk = next.value
+        let start = 0
+        for (let at = chunk.indexOf(NEWLINE); at >= 0; at = chunk.indexOf(NEWLINE, start)) {
+          if (pendingBytes + (at - start) > BYTE_LIMIT) {
+            broken = true
+            break
+          }
+          this.deliver(buffered + decoder.decode(chunk.subarray(start, at)))
+          buffered = ''
+          pendingBytes = 0
+          start = at + 1
+        }
+        if (broken) break
+        pendingBytes += chunk.byteLength - start
+        if (pendingBytes > BYTE_LIMIT) {
           broken = true
           break
         }
-        // The first line of the chunk may have been in progress; its bytes are measured exactly.
-        if (encoder.encode(buffered.slice(0, newline)).byteLength > BYTE_LIMIT) {
-          broken = true
-          break
-        }
-        while (newline >= 0) {
-          this.deliver(buffered.slice(0, newline))
-          buffered = buffered.slice(newline + 1)
-          newline = buffered.indexOf('\n')
-        }
-        pendingBytes = encoder.encode(buffered).byteLength
+        buffered += decoder.decode(chunk.subarray(start), { stream: true })
       }
       const tail = buffered + decoder.decode()
-      if (!broken && tail !== '' && pendingBytes <= BYTE_LIMIT) this.deliver(tail)
+      if (!broken && tail !== '') this.deliver(tail)
     } catch {
       // stdout errored or was cancelled: it ended either way.
     }
@@ -146,27 +163,56 @@ export class StdioLine implements Line {
     })
   }
 
-  /** Writes one line. A write to a process that exited, or a write that fails, is `unsent` (X02). */
-  async send(outbound: Outbound): Promise<Exchange> {
+  /**
+   * Writes one line. A write to a process that exited, or a write that fails, is `unsent` (X02).
+   * The signal ends the wait for a write that has not completed: the line is not writable any
+   * more, the shared stream counts as broken, and the exchange is `aborted`. The write itself is
+   * aborted on the stream; that takes effect when the process reads or ends, which the holder of
+   * the handle decides.
+   */
+  async send(outbound: Outbound, signal: AbortSignal): Promise<Exchange> {
     if (this.closed || !this.writable || this.exitedAt !== undefined) return { kind: 'unsent' }
-    try {
-      await this.writer.write(encoder.encode(`${outbound.text}\n`))
-    } catch {
-      this.writable = false
-      return { kind: 'unsent' }
+    this.writing = true
+    const written = this.writer.write(encoder.encode(`${outbound.text}\n`)).then(
+      () => 'written' as const,
+      () => 'failed' as const,
+    )
+    const outcome = await Promise.race([written, abortOf(signal)])
+    if (outcome === 'written') this.writing = false
+    switch (outcome) {
+      case 'written':
+        return { kind: 'sent' }
+      case 'failed':
+        this.writing = false
+        this.writable = false
+        return { kind: 'unsent' }
+      case 'aborted':
+        this.writable = false
+        void this.writer.abort(new Error('the write was abandoned')).catch(() => undefined)
+        if (!this.closed) this.queue.push({ kind: 'broken' })
+        return { kind: 'aborted' }
+      default: {
+        const exhaustive: never = outcome
+        return exhaustive
+      }
     }
-    return { kind: 'sent' }
   }
 
-  /** T5: the stdin write end first, then the stdout read; the process is left alone. */
+  /**
+   * T5: the stdin write end first, then the stdout read; the process is left alone. A write that
+   * has not completed is aborted, not waited for: the peer may never read it. The read loops of
+   * stdout and standard error have ended when this returns.
+   */
   async close(): Promise<void> {
     if (this.closed) return
     this.closed = true
     clearTimeout(this.window)
     this.writable = false
-    await this.writer.close().catch(() => undefined)
+    if (this.writing) void this.writer.abort(new Error('the line closed')).catch(() => undefined)
+    else await this.writer.close().catch(() => undefined)
     await this.stdout.cancel().catch(() => undefined)
     await this.stderr.cancel().catch(() => undefined)
+    await Promise.all([this.reading, this.draining])
     this.queue.end()
   }
 }

@@ -30,13 +30,18 @@ import {
   type TableCell,
   type TableConclusion,
 } from '@omne-harness/mcp-contract/testing'
-import type { SseEntry } from '../src/line.ts'
 import { Session, type SessionOptions } from '../src/session.ts'
 import { settledWithin } from './fixtures/settle.ts'
-import { MemoryLine, type Reply, type Script } from './memory-line.ts'
+import { MemoryLine, type Reply, type Script, type SseConfig } from './memory-line.ts'
+
+/** The default scheduler for the unit tests: one real timer per probe. */
+const schedule: SessionOptions['schedule'] = (delayMs, fire) => {
+  const timer = setTimeout(fire, delayMs)
+  return () => clearTimeout(timer)
+}
 
 const HIGHEST = '2026-07-28'
-const VERSIONS = [HIGHEST]
+const VERSIONS = [HIGHEST] as const
 const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
 const SESSION = 'session-1'
 const target = (() => {
@@ -90,7 +95,7 @@ const metadata = new Map<string, PlainJson>()
 function open(
   kind: TransportMaterial['kind'],
   script: Script,
-  options: Partial<SessionOptions> & Readonly<{ sse?: SseEntry }> = {},
+  options: Partial<SessionOptions> & Readonly<{ sse?: SseConfig }> = {},
 ): Opened {
   const credential = countingCredential()
   const line = new MemoryLine(
@@ -110,6 +115,7 @@ function open(
       const document = metadata.get(url)
       return document === undefined ? undefined : jsonOf(document)
     },
+    schedule,
     ...options,
   })
   return { line, transport, credential }
@@ -1159,6 +1165,7 @@ describe('closing and the credential handle (T5, T9)', () => {
         versions: VERSIONS,
         probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
+        schedule,
       },
     )
     const pending = transport.call(echo, never)
@@ -1192,6 +1199,7 @@ describe('closing and the credential handle (T5, T9)', () => {
         versions: VERSIONS,
         probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
+        schedule,
       },
     )
     expect(await transport.discover()).toEqual({ failure: NOT_SENT })

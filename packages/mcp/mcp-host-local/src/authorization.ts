@@ -1,13 +1,23 @@
 // The fetch of protected resource metadata (contract R4, T4): one GET per address, the JSON
-// document when the answer is 200 and parses, else nothing. The session chooses the addresses
-// with the contract's `metadataCandidatesOf` and assembles the discovery with
-// `authorizationDiscoveryOf`. The credential handle is not involved: the metadata is public.
-import { readJsonText, type JsonValue } from '@omne-harness/json-text'
-import { JSON_LIMITS } from './limits.ts'
+// document when the answer is 200 and parses within the byte bound, else nothing. The session
+// runs the contract's `discoverAuthorization` with it. The credential handle is not involved:
+// the metadata is public.
+import { readJsonText } from '@omne-harness/json-text'
+import type { MetadataFetch } from '@omne-harness/mcp-contract'
+import { bodyOf } from './body.ts'
+import { BYTE_LIMIT } from './limits.ts'
 
 type Fetch = typeof fetch
 
-export type MetadataFetch = (url: string, signal: AbortSignal) => Promise<JsonValue | undefined>
+/** The limits of a metadata document: the byte bound of a body, and the contract's shape limits. */
+const METADATA_LIMITS = {
+  maxBytes: BYTE_LIMIT,
+  maxDepth: 128,
+  maxItems: 1_000_000,
+  maxMembers: 100_000,
+  maxStringLength: BYTE_LIMIT,
+  maxNumberLength: 100,
+} as const
 
 export function metadataFetcher(fetchFn: Fetch): MetadataFetch {
   return async (url, signal) => {
@@ -28,11 +38,12 @@ export function metadataFetcher(fetchFn: Fetch): MetadataFetch {
     }
     let text: string
     try {
-      text = await response.text()
+      text = await bodyOf(response)
     } catch {
+      // Above the byte bound, or broken: nothing was fetched at this address.
       return undefined
     }
-    const read = readJsonText(text, JSON_LIMITS)
+    const read = readJsonText(text, METADATA_LIMITS)
     return read.kind === 'ok' ? read.value : undefined
   }
 }

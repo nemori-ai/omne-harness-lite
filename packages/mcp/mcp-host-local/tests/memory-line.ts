@@ -2,8 +2,24 @@
 // of replies by method, records what went out, and lets a test push events of the shared stream.
 // It is not a wire; the real lines are tested on real wires in `conformance.spec.ts`.
 import type { PlainJson, PlainRecord } from '@omne-harness/mcp-contract'
-import type { Exchange, Line, LineEvent, Outbound, SseEntry } from '../src/line.ts'
+import type { Exchange, GetOpened, Line, LineEvent, Outbound } from '../src/line.ts'
 import { AsyncQueue } from '../src/queue.ts'
+
+/**
+ * What the fallback GET gives back in a unit test. `entered` is a held fallback: a 200
+ * `text/event-stream` whose first event is a same-origin `endpoint`. The others are the GET that
+ * does not hold: a non-2xx status, a connection that was not made, or a stream without the endpoint.
+ */
+export type SseConfig =
+  | Readonly<{ kind: 'entered' }>
+  | Readonly<{
+      kind: 'status'
+      status: number
+      headers?: Readonly<{ [name: string]: string }>
+      body?: string
+    }>
+  | Readonly<{ kind: 'unsent' }>
+  | Readonly<{ kind: 'unavailable' }>
 
 /**
  * How the line answers one message. `message` answers with a JSON-RPC message that gets the
@@ -58,29 +74,52 @@ export class MemoryLine implements Line {
   sse = false
   private readonly script: Script
   private readonly consumed = new Map<string, number>()
-  private readonly sseEntry: SseEntry | undefined
-  private readonly ssePeer: Readonly<{ endpoint: string }> | undefined
+  private readonly sseConfig: SseConfig | undefined
 
   constructor(
     kind: 'stdio' | 'streamable-http',
     script: Script,
-    sse?: Readonly<{ entry: SseEntry }>,
+    sse?: Readonly<{ entry: SseConfig }>,
   ) {
     this.kind = kind
     this.script = script
     this.events = this.queue
-    this.sseEntry = sse?.entry
-    this.ssePeer = sse === undefined ? undefined : { endpoint: '/message?sessionId=1' }
-    if (kind === 'streamable-http' && sse !== undefined) this.enterSse = this.tryEnterSse
+    this.sseConfig = sse?.entry
+    if (kind === 'streamable-http' && sse !== undefined) this.openGet = this.getStream.bind(this)
   }
 
-  enterSse: ((headers: Headers, signal: AbortSignal) => Promise<SseEntry>) | undefined
+  openGet: ((headers: Headers, signal: AbortSignal) => Promise<GetOpened>) | undefined
 
-  private async tryEnterSse(headers: Headers): Promise<SseEntry> {
+  private async getStream(headers: Headers): Promise<GetOpened> {
     this.sseAttempts.push(headers)
-    const entry = this.sseEntry ?? { kind: 'unavailable' }
-    if (entry.kind === 'entered') this.sse = true
-    return entry
+    const config = this.sseConfig ?? { kind: 'unavailable' }
+    switch (config.kind) {
+      case 'entered':
+        return {
+          kind: 'stream',
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+          first: { event: 'endpoint', data: '/message?sessionId=1' },
+          enter: () => {
+            this.sse = true
+          },
+          discard: () => undefined,
+        }
+      case 'status':
+        return {
+          kind: 'status',
+          status: config.status,
+          headers: config.headers ?? {},
+          body: config.body ?? '',
+        }
+      case 'unsent':
+      case 'unavailable':
+        return { kind: config.kind }
+      default: {
+        const exhaustive: never = config
+        return exhaustive
+      }
+    }
   }
 
   /** Pushes a message of the peer on the shared stream (stdio, or the SSE mode). */
