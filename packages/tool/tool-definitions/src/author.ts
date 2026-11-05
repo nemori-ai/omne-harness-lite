@@ -4,13 +4,9 @@ import {
   environmentNeedAdoption,
   type FacilityKey,
 } from '@omne-harness/execution-environment-contract'
+import { type CommandCallEncoding, type CommandTable } from '@omne-harness/tool-contract'
 import {
-  commandMenu,
-  type CommandCallEncoding,
-  type CommandTable,
-} from '@omne-harness/tool-contract'
-import {
-  commandExample,
+  commandGuide,
   defineCommandTool,
   defineToolOperation,
   type ToolExecutionContext,
@@ -23,7 +19,6 @@ import {
   adoption,
   contract,
   parameterCodec,
-  schemaText,
   tree,
   type Arguments,
   type Command,
@@ -51,6 +46,7 @@ export function createAuthor<E>(
   const menu: CommandTable = {
     name,
     encoding: ENCODING,
+    guide: rules,
     commands: commands.map(command => ({
       name: command.name,
       summary: command.summary,
@@ -74,13 +70,13 @@ export function createAuthor<E>(
       returns,
       author: {
         kind: 'ordinary',
-        parameters: parameterCodec(command, commandExample(menu, command.name)),
+        parameters: parameterCodec(command),
         waits: [],
         executor: {
           execute: async (args: Arguments, environment: E, execution: ToolExecutionContext) =>
             bounded(
               command.name === 'help'
-                ? help(menu, commands, args, rules)
+                ? help(menu, args)
                 : await execute(command.name, args, environment, execution),
               maximum,
             ),
@@ -131,29 +127,18 @@ export function createAuthor<E>(
       },
     },
     encoding: ENCODING,
+    guide: rules,
     commands: table,
   })
   if ('failure' in result) throw new TypeError(JSON.stringify(result.failure))
   return result.ok
 }
 /**
- * Help answers one command in full, or the menu and the rules. The codec already checked that a
- * given name is a command, so an unknown name never reaches here.
+ * Help answers the guide of one command, or of the whole tool: the same text a wrong call reads.
+ * The codec already checked that a given name is a command, so an unknown name never reaches here.
  */
-function help(
-  menu: CommandTable,
-  commands: readonly Command[],
-  args: Arguments,
-  rules: string,
-): string {
-  const selected = commands.find(item => item.name === args.optionalText('name'))
-  if (selected === undefined) return [`done ${menu.name} help`, commandMenu(menu), rules].join('\n')
-  return [
-    `done ${menu.name} help ${selected.name}`,
-    `Usage: ${commandExample(menu, selected.name)}`,
-    selected.summary,
-    `JSON Schema: ${schemaText(selected)}`,
-    ...selected.fields.map(field => `${field.name}: ${field.description}`),
-    rules,
-  ].join('\n')
+function help(menu: CommandTable, args: Arguments): string {
+  const name = args.optionalText('name')
+  const done = `done ${menu.name} help${name === undefined ? '' : ` ${name}`}`
+  return `${done}\n${commandGuide(menu, name)}`
 }

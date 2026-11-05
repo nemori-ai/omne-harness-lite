@@ -291,6 +291,7 @@
 - `WriteContext` · `execution.d.ts`
 - `commandArguments` · `command-call.d.ts`
 - `commandExample` · `command-call.d.ts`
+- `commandGuide` · `command-call.d.ts`
 - `commandSignature` · `command-call.d.ts`
 - `createDefaultParameterCodec` · `parameter-codec.d.ts`
 - `decodeCommandCall` · `command-call.d.ts`
@@ -310,6 +311,7 @@
 - `defineToolOperation` · `registration.d.ts`
 - `defineToolWaitContract` · `wait-contract.d.ts`
 - `deriveDefinition` · `dynamics.d.ts`
+- `describeCommandArgumentsRejection` · `command-call.d.ts`
 - `describedAdoption` · `adoption.d.ts`
 - `encodeCommandCall` · `command-call.d.ts`
 - `evaluateToolAvailability` · `catalog.d.ts`
@@ -991,7 +993,7 @@ type JsonObject = Extract<JsonValue, {
 }>;
 export type CommandTable = Pick<Extract<ToolDefinition, {
     kind: 'commands';
-}>, 'name' | 'encoding' | 'commands'>;
+}>, 'name' | 'encoding' | 'commands' | 'guide'>;
 export type CommandCall = Readonly<{
     command: string;
     params: JsonObject;
@@ -1029,7 +1031,9 @@ export declare function commandSignature(parameters: ToolCommandDeclaration['par
 export declare function commandExample(definition: CommandTable, command: string): string;
 export declare function commandMenu(definition: CommandTable): string;
 export declare function commandCallSchema(definition: CommandTable): JsonValue;
+export declare function commandGuide(definition: CommandTable, command?: string): string;
 export declare function describeCommandCallRejection(definition: CommandTable, rejection: CommandCallRejection): string;
+export declare function describeCommandArgumentsRejection(definition: CommandTable, command: string, reason: string): string;
 export declare function flatConflict(commands: readonly ToolCommandDeclaration[]): string | undefined;
 export {};
 ```
@@ -1264,6 +1268,7 @@ export type ToolImplementationShape = Readonly<{
     kind: 'commands';
     encoding: CommandCallEncoding;
     commands: readonly ToolCommandDeclaration[];
+    guide?: string;
 }>;
 export type ToolImplementationFacts = Readonly<{
     implements: ToolImplementationShape;
@@ -2501,7 +2506,7 @@ export type { AccountScope, ToolAccounts, ToolContentReader, ToolOffloader, Tool
 export type { ChildPosition, ChildReservation, ChildState, ProgramClosure, ProgramEnd, ProgramToolResult, ProgramTools, ToolChildren, } from './program.ts';
 export { projectToolBackgroundCalls } from './background-calls-projection.ts';
 export type { ToolBackgroundCallSource, ToolBackgroundCallsSource, } from './background-calls-projection.ts';
-export { COMMAND_CALL_ENCODINGS, commandArguments, commandExample, commandSignature, decodeCommandCall, encodeCommandCall, } from './command-call.ts';
+export { COMMAND_CALL_ENCODINGS, commandArguments, commandExample, commandGuide, commandSignature, decodeCommandCall, describeCommandArgumentsRejection, encodeCommandCall, } from './command-call.ts';
 ```
 
 ## 声明文件 `records.d.ts`
@@ -3046,6 +3051,7 @@ export declare function defineFunctionTool<E, B extends ContentBlock>(input: Rea
 export declare function defineCommandTool<E, B extends ContentBlock>(input: Readonly<{
     implementation: ToolImplementationDeclaration;
     encoding: CommandCallEncoding;
+    guide?: string;
     commands: Readonly<Record<string, Readonly<{
         summary: string;
         operation: ToolOperation<E, B>;

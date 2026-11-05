@@ -12,8 +12,8 @@
 
 Files 与 Shell 用 `wrapped` 编码登记，对模型各是一个工具（D-94）。作者描述只写用途与固定事实，命令菜单由声明一侧加入。描述不含运维构造值，例如 shell 可执行文件或工作区根，所以发行清单能固定定义摘要。
 
-- help 用 `name` 选一个命令，`name` 的取值限于命令名。带 `name` 时答该命令的用法行、完整 JSON Schema、字段说明与规则；不带时答命令菜单与规则。命令没有名为 `command` 的字段，所以 `flat` 编码对这两个工具也成立。
-- 参数无效时，失败原因后附该命令的用法行，例如 `invalid-field:mode. Usage: Files {"command": "write", "params": {…}}`。未知命令由参数解析拒绝，不作为成功结果返回；执行表缺少某个命令是缺陷，抛出错误。
+- 每个工具的规则作为定义的 `guide` 登记。help 用 `name` 选一个命令，`name` 的取值限于命令名。help 的答复是首行 `done <工具> help[ <命令>]`，后接 tool-contract 的 `commandGuide`：带 `name` 时是该命令的完整 guide，不带时是工具的 guide。出错的调用读到的是同一段文本。命令没有名为 `command` 的字段，所以 `flat` 编码对这两个工具也成立。
+- 参数无效时，命令编解码器只答原因，例如 `invalid-field:mode`。该命令的 guide 由工具宿主附上（D-104）。未知的 help 主题也由参数解析拒绝，不作为成功结果返回。执行表缺少某个命令是缺陷，抛出错误。
 - Files 的 write 接受 `parents`：为真时先以 `mkdir {parents: true}` 建出缺失的父目录。目录已存在时设施答 `conflict`，写入照常进行，其他失败原样返回。它与 mkdir 走同一放置与授权检查。
 - Shell 的 info 除平台事实外，写出一次性脚本的调用 `shell=[可执行文件, …参数前缀]` 与起始目录 `cwd`（D-96 的放置部分）。
 

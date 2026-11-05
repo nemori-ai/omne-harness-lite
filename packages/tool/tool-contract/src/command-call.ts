@@ -26,7 +26,7 @@ type JsonObject = Extract<JsonValue, { kind: 'object' }>
 /** What the menu, the examples and the call schema read from a multi-command definition. */
 export type CommandTable = Pick<
   Extract<ToolDefinition, { kind: 'commands' }>,
-  'name' | 'encoding' | 'commands'
+  'name' | 'encoding' | 'commands' | 'guide'
 >
 /** One decoded call: the selected command and its parameter object. */
 export type CommandCall = Readonly<{ command: string; params: JsonObject }>
@@ -267,12 +267,43 @@ function rejectionText(rejection: CommandCallRejection): string {
   }
 }
 
-/** The reason of a rejection, followed by the menu so the next call can be right. */
+/**
+ * The guide the model reads of a multi-command tool, derived from its definition. Without a known
+ * command it is the menu. With one it is that command in full: its call, summary, JSON Schema and
+ * field descriptions. The guide of the whole tool follows either. `help` answers the same text.
+ */
+export function commandGuide(definition: CommandTable, command?: string): string {
+  const found = definition.commands.find(item => item.name === command)
+  const body = found === undefined ? [commandMenu(definition)] : commandUsage(definition, found)
+  return [...body, ...(definition.guide === undefined ? [] : [definition.guide])].join('\n')
+}
+
+function commandUsage(definition: CommandTable, command: ToolCommandDeclaration): string[] {
+  const lines = [`Usage: ${commandExample(definition, command.name)}`, command.summary]
+  if (command.parameters.kind === 'executor-owned') return lines
+  const { schema, descriptions } = command.parameters.value
+  return [
+    ...lines,
+    `JSON Schema: ${writeJsonText(schema)}`,
+    ...descriptions.map(item => `${item.path}: ${item.text}`),
+  ]
+}
+
+/** A call that names no command: the reason, then the guide of the tool (D-104). */
 export function describeCommandCallRejection(
   definition: CommandTable,
   rejection: CommandCallRejection,
 ): string {
-  return `${definition.name}: ${rejectionText(rejection)}.\n${commandMenu(definition)}`
+  return `${definition.name}: ${rejectionText(rejection)}.\n${commandGuide(definition)}`
+}
+
+/** Arguments that the named command does not take: the reason, then the guide of that command. */
+export function describeCommandArgumentsRejection(
+  definition: CommandTable,
+  command: string,
+  reason: string,
+): string {
+  return `${definition.name} ${command}: ${reason}.\n${commandGuide(definition, command)}`
 }
 
 /** Whether a flat definition declares a field that the call itself uses. */

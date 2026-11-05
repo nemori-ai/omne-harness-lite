@@ -81,20 +81,21 @@ type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
 
 /**
  * 模型看到的声明名就是工具名（D-94）。多命令工具从生效参数里选命令：点名已知命令的调用都送到该命令，
- * 由它的编解码器判整次调用并答出原因与用法；没点名已知命令的调用答 unavailable，诊断附命令菜单。
+ * 参数不合由工具宿主答出原因与该命令的 guide；没点名已知命令的调用不运行，来源直接作答，
+ * 答复是原因与工具的 guide（D-104）。
  */
 function commandOf(
   definition: ToolAvailability['definition'],
   effectiveArguments: string,
-): Outcome<string | null, Failure> {
-  if (definition.kind === 'function') return succeed(null)
+): Readonly<{ command: string | null }> | Readonly<{ answer: string }> {
+  if (definition.kind === 'function') return { command: null }
   const selected = selectCommandText(
     definition.commands.map(command => command.name),
     effectiveArguments,
   )
   return 'failure' in selected
-    ? unavailable(describeCommandCallRejection(definition, selected.failure))
-    : selected
+    ? { answer: describeCommandCallRejection(definition, selected.failure) }
+    : { command: selected.ok }
 }
 
 /** 主体经核验是这个租户的会话工作主体时给出会话 id（判定只有 `session-work.ts` 一份）。 */
@@ -126,7 +127,11 @@ async function availabilityOf(
   release: Trusted,
   input: DescribeInput,
 ): Promise<
-  Outcome<Extract<ToolAvailability, { kind: 'available' }> & { command: string | null }, Failure>
+  Outcome<
+    | (Extract<ToolAvailability, { kind: 'available' }> & { command: string | null })
+    | Readonly<{ kind: 'answered'; text: string }>,
+    Failure
+  >
 > {
   const catalog = ports.catalog()
   if (catalog === undefined) return unavailable('tool catalog absent')
@@ -152,8 +157,12 @@ async function availabilityOf(
   const availability = answer.ok
   if (availability.kind !== 'available' || availability.layer.kind !== 'official')
     return unavailable(`${name} is not available`)
-  const command = commandOf(availability.definition, input.effectiveArguments)
-  return 'failure' in command ? command : succeed({ ...availability, command: command.ok })
+  const selected = commandOf(availability.definition, input.effectiveArguments)
+  return succeed(
+    'answer' in selected
+      ? { kind: 'answered', text: selected.answer }
+      : { ...availability, command: selected.command },
+  )
 }
 
 /** 会话快照里当前（最后一个、未结束的）Context 作用域。 */
@@ -231,7 +240,9 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     if ('failure' in session) return session
     const availability = await availabilityOf(ports, release.ok, input)
     if ('failure' in availability) return availability
-    return succeed(availability.ok.definition.adoption)
+    return succeed(
+      availability.ok.kind === 'answered' ? availability.ok : availability.ok.definition.adoption,
+    )
   }
 
   const prepare: ReleaseToolRequests['prepare'] = async (input: PrepareInput) => {
@@ -241,6 +252,8 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     if ('failure' in session) return session
     const found = await availabilityOf(ports, release.ok, input)
     if ('failure' in found) return found
+    // An answered call is never prepared: describe answered it already.
+    if (found.ok.kind === 'answered') return unavailable('the call names no command of the tool')
     const { command, ...availability } = found.ok
     if (canonicalDigest(availability.definition.adoption) !== canonicalDigest(input.definition))
       return unavailable('the current definition differs from the described one')

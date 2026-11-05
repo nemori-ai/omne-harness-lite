@@ -213,6 +213,8 @@ const commandsShapeFields = {
   encoding: literal(...COMMAND_CALL_ENCODINGS),
   commands: unique(nonEmpty(list(command)), entry => entry.name, 'name'),
 }
+/** `guide` is optional; a given guide is not blank. */
+const commandsShapeOptional = { guide: nonBlank }
 
 /** A flat call shares its object with the fields, so no command may declare `command` itself. */
 function flatCallable<
@@ -230,7 +232,12 @@ function flatCallable<
 /** The closed shape of a complete definition, shared with the fixed-request judgment. */
 export const toolDefinition: Check<ToolDefinition> = variant('kind', {
   function: record({ ...metadataFields, ...functionShapeFields }, metadataOptional),
-  commands: flatCallable(record({ ...metadataFields, ...commandsShapeFields }, metadataOptional)),
+  commands: flatCallable(
+    record(
+      { ...metadataFields, ...commandsShapeFields },
+      { ...metadataOptional, ...commandsShapeOptional },
+    ),
+  ),
 })
 
 /** The closed shape of the implementation facts: the declaration and the projected shape. */
@@ -238,7 +245,7 @@ const implementationFacts: Check<ToolImplementationFacts> = record({
   ...declarationFields,
   implements: variant('kind', {
     function: record(functionShapeFields),
-    commands: flatCallable(record(commandsShapeFields)),
+    commands: flatCallable(record(commandsShapeFields, commandsShapeOptional)),
   }),
 })
 

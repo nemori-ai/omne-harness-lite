@@ -15,6 +15,7 @@ import {
   type ToolState,
 } from '@omne-harness/tool-contract'
 import {
+  adoption,
   evidence,
   execution,
   ok,
@@ -356,6 +357,47 @@ describe('tool result round', () => {
     expect(assembly.controls.admission.admit.calls).toHaveLength(0)
     expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
     expect(toolMessages(await events(assembly))).toHaveLength(1)
+  })
+
+  it('denies only an action the source answered, and the model reads the answer as its result', async () => {
+    const answer = 'Files: there is no command "nope".\nCall with {"command": <name>, …}'
+    const assembly = await toolAssembly(
+      {},
+      {},
+      {
+        async describe(request) {
+          return request.original.callId === 'call-a'
+            ? { ok: { kind: 'answered', text: answer } }
+            : { ok: adoption('read_file') }
+        },
+      },
+    )
+    acceptEach(assembly)
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'allow', evidence: evidence('allowed') },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    const [called] = await associatedTools(assembly, 1)
+    if (called === undefined) throw new Error('call-b not associated')
+    // The answered action is not admitted or sent; the other action of the batch runs.
+    expect(assembly.controls.admission.admit.calls).toHaveLength(1)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+    const [denied] = (await snapshot(assembly)).checkpoint.batch?.actions ?? []
+    expect(denied?.judgment).toMatchObject({ kind: 'denied', answer: expect.anything() })
+    expect(
+      await pushToolResult(
+        toolReceiver(assembly),
+        toolDelivery(called, { name: 'b', content: [textBlock('result b', 'blk_b')] }),
+      ),
+    ).toHaveProperty('ok')
+    await secondModelCall(assembly)
+    const [first, second] = toolMessages(await events(assembly))
+    expect(first?.blocks).toEqual([
+      expect.objectContaining({ kind: 'tool_result', callId: 'call-a' }),
+      expect.objectContaining({ kind: 'text', text: answer }),
+    ])
+    expect(second?.blocks[0]).toEqual(expect.objectContaining({ callId: 'call-b' }))
   })
 
   it('denies the batch when the source refuses to prepare an allowed action', async () => {

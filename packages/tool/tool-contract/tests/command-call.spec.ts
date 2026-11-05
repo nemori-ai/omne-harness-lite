@@ -15,9 +15,11 @@ import { readToolOperation, readToolRegistration } from '@omne-harness/tool-cont
 import {
   COMMAND_CALL_ENCODINGS,
   commandArguments,
+  commandGuide,
   commandExample,
   commandSignature,
   decodeCommandCall,
+  describeCommandArgumentsRejection,
   defineCommandTool,
   defineToolOperation,
   encodeCommandCall,
@@ -327,6 +329,51 @@ describe('the exact texts of a call', () => {
     expect(writeJsonText(commandCallSchema(flat))).toBe(
       '{"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":["read","shell"]}},"additionalProperties":true}',
     )
+  })
+
+  it('writes the guide of the tool, or of one command in full, each followed by the tool guide', () => {
+    const guided = { ...wrapped, guide: 'Paths are absolute.' }
+    expect(commandGuide(wrapped)).toBe(commandMenu(wrapped))
+    expect(commandGuide(guided)).toBe(`${commandMenu(wrapped)}\nPaths are absolute.`)
+    // A name that is no command reads the guide of the tool.
+    expect(commandGuide(guided, 'nope')).toBe(commandGuide(guided))
+    expect(commandGuide(guided, 'shell')).toBe(
+      'Usage: files {"command": "shell", "params": {…}}\nRun a command.\nPaths are absolute.',
+    )
+    const read = commandGuide(guided, 'read').split('\n')
+    expect(read.slice(0, 2)).toEqual([
+      'Usage: files {"command": "read", "params": {path?}}',
+      'Read a file.',
+    ])
+    expect(read[2]).toMatch(/^JSON Schema: \{"type":"object"/)
+    expect(read.at(-1)).toBe('Paths are absolute.')
+  })
+
+  it('names an arguments rejection by tool and command, then gives the guide of the command', () => {
+    expect(describeCommandArgumentsRejection(wrapped, 'shell', 'missing-field:x')).toBe(
+      `files shell: missing-field:x.\n${commandGuide(wrapped, 'shell')}`,
+    )
+  })
+
+  it('takes a guide only when it is not blank, and carries it from registration to the facts', () => {
+    expect(judgeToolDefinition({ ...wrapped, guide: 'Rules.' })).toHaveProperty('ok')
+    expect(judgeToolDefinition({ ...wrapped, guide: ' ' })).toMatchObject({
+      failure: { field: 'guide' },
+    })
+    const operation = defineToolOperation({
+      parameters: { kind: 'declared', value: parameters() },
+      returns: ordinaryReturns,
+      author: ordinaryAuthor(),
+    })
+    if ('failure' in operation) throw new Error(operation.failure.reason)
+    const tool = defineCommandTool({
+      implementation: declaration(),
+      encoding: 'wrapped',
+      guide: 'Rules.',
+      commands: { read: { summary: 'Read.', operation: operation.ok } },
+    })
+    if ('failure' in tool) throw new Error(tool.failure.reason)
+    expect(tool.ok.facts.implements).toMatchObject({ kind: 'commands', guide: 'Rules.' })
   })
 
   it('names every rejection with its fixed reason', () => {

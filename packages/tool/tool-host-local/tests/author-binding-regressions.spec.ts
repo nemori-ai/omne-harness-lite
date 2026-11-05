@@ -337,7 +337,15 @@ describe('author binding command selection', () => {
     unbox(await binding.start(await fixture.input(fixed), {}))
     await new Promise<void>(resolve => setImmediate(resolve))
     expect(events).toEqual(['parse-second'])
-    expect(fixture.settlements[0]?.outcome).toEqual({ kind: 'failed', reason: 'expected second' })
+    // The reason of the codec comes with the guide of the admitted command (D-104).
+    expect(fixture.settlements[0]?.outcome).toEqual({
+      kind: 'failed',
+      reason: [
+        'read_file second: expected second.',
+        'Usage: read_file {"command": "second", "params": {…}}',
+        'Second command',
+      ].join('\n'),
+    })
     expect(fixture.settlements[0]?.operation.author.parameters.adoption.name).toBe(
       'parameters-second',
     )
@@ -360,9 +368,10 @@ describe('author binding command selection', () => {
     await new Promise<void>(resolve => setImmediate(resolve))
     // The failure is a result the model reads, not a silent run of the other command.
     expect(events).toEqual([])
-    expect(fixture.settlements[0]?.outcome).toEqual({
-      kind: 'failed',
-      reason: 'the call names "first" but "second" was admitted',
-    })
+    const outcome = fixture.settlements[0]?.outcome
+    if (outcome?.kind !== 'failed') throw new Error('the call did not fail')
+    expect(outcome.reason.split('\n')[0]).toBe(
+      'read_file second: the call names "first" but "second" was admitted.',
+    )
   })
 })

@@ -313,27 +313,33 @@ export function defineCommandTool<E, B extends ContentBlock>(
     implementation: ToolImplementationDeclaration
     /** How the model names a command inside the tool's one declaration (D-94). */
     encoding: CommandCallEncoding
+    /** The rules of the whole tool, which follow every guide the model reads of it. */
+    guide?: string
     commands: Readonly<
       Record<string, Readonly<{ summary: string; operation: ToolOperation<E, B> }>>
     >
   }>,
 ): Outcome<ToolImplementation<E, B>, Rejection> {
   const checked = judgeUnknown(
-    record({
-      implementation: implementationDeclaration,
-      encoding: literal(...COMMAND_CALL_ENCODINGS),
-      commands: commandTable,
-    }),
+    record(
+      {
+        implementation: implementationDeclaration,
+        encoding: literal(...COMMAND_CALL_ENCODINGS),
+        commands: commandTable,
+      },
+      { guide: nonBlank },
+    ),
     input,
     'input',
   )
   if ('failure' in checked) return checked
-  const { implementation, encoding, commands } = checked.ok
+  const { implementation, encoding, guide, commands } = checked.ok
   return implement(
     implementation,
     {
       kind: 'commands',
       encoding,
+      ...(guide === undefined ? {} : { guide }),
       commands: commands.map(([name, { summary, operation }]) => ({
         name,
         summary,

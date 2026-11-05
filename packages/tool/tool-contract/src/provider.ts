@@ -210,7 +210,9 @@ export {
   COMMAND_CALL_ENCODINGS,
   commandArguments,
   commandExample,
+  commandGuide,
   commandSignature,
   decodeCommandCall,
+  describeCommandArgumentsRejection,
   encodeCommandCall,
 } from './command-call.ts'

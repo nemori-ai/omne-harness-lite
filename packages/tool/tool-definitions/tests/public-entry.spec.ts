@@ -1,6 +1,10 @@
 import { expect, it } from 'vitest'
 import { createFilesAuthor } from '@omne-harness/tool-definitions'
-import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
+import {
+  commandGuide,
+  deriveDefinition,
+  judgeToolDefinition,
+} from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { run, value } from './run-author.ts'
 import { filesFixture } from './fixtures/files.ts'
@@ -52,17 +56,20 @@ it('publishes declared commands and the same complete help table', async () => {
   expect(write.startsWith('done Files help write\nUsage: ')).toBe(true)
   expect(write).toContain('\nparents: Create missing parent directories first. Omit for false.\n')
   expect(write).toContain('JSON Schema')
-  // A help topic that is not a command is a failed call with the usage, never a done answer.
+  // Help answers the guide of the definition: the same text a wrong call reads (D-104).
+  if (definition.kind !== 'commands') throw new Error('commands')
+  expect(menu).toBe(`done Files help\n${commandGuide(definition)}`)
+  expect(write).toBe(`done Files help write\n${commandGuide(definition, 'write')}`)
+  // A help topic that is not a command is a failed call with the reason only; the tool host adds
+  // the guide of the command, never a done answer.
   await expect(run(author, 'help', { name: 'nope' }, filesFixture().environment)).rejects.toThrow(
-    /"kind":"invalid","reason":"invalid-field:name\. Usage: Files .*name\?=read\|open\|/,
+    /"kind":"invalid","reason":"invalid-field:name"/,
   )
-  // An incomplete block is not a usage error: it keeps its own answer without the usage line.
   const registration = readToolRegistration(author)
   if (registration?.kind !== 'commands') throw new Error('commands')
   const codec = registration.operations.find(([name]) => name === 'write')![1].author.parameters
   const partial = codec.parse({ original: '{"pa', effective: '{"pa', complete: false })
   expect(partial).toMatchObject({ failure: { kind: 'incomplete' } })
-  expect(JSON.stringify(partial)).not.toContain('Usage')
 })
 
 it('creates missing parents before a write only when asked', async () => {

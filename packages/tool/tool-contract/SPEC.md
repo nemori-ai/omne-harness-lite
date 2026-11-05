@@ -522,7 +522,20 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 `decodeCommandCall` 是 `encodeCommandCall` 的偏逆：编码出的调用总能解回同一命令与参数；其余输入得到封闭的拒绝类别（`unreadable`、`not-object`、`command-missing`、`command-unknown`、`extra-field`、`params-not-object`、`command-mismatch`），不猜测命令。`selectCommand` 只读 `command` 字段，供路由在执行前选命令；其余缺陷由命令的参数解析答出原因。
 
-紧凑清单由 `commandMenu` 从定义机械派生：首行写调用形式，之后每个命令一行 `<命令> <签名> - <摘要>`。签名由 `commandSignature` 从参数 schema 派生：必填字段写名字，可选字段加 `?`，封闭取值写 `=a|b`，不写类型与字段说明。`commandCallSchema` 给出这一声明的参数 schema，`command` 的取值恰为命令表。字段说明、完整 schema 与规则由各工具的 help 按命令给出。提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，不熟命令的动作前取得详细用法。
+紧凑清单由 `commandMenu` 从定义机械派生：首行写调用形式，之后每个命令一行 `<命令> <签名> - <摘要>`。签名由 `commandSignature` 从参数 schema 派生：必填字段写名字，可选字段加 `?`，封闭取值写 `=a|b`，不写类型与字段说明。`commandCallSchema` 给出这一声明的参数 schema，`command` 的取值恰为命令表。字段说明、完整 schema 与规则不进入声明。
+
+guide 是定义的投影，由 `commandGuide` 机械派生（D-104）。多命令定义可以带 `guide`，即整个工具的规则，给出时不得为空白。
+
+- 不带命令时，guide 是命令清单。
+- 带一个已知命令时，guide 依次写：调用示例 `Usage: …`、摘要、`JSON Schema: …`，以及每个字段一行 `<字段>: <说明>`。executor-owned 参数只写前两项。
+- 两种 guide 后面都接定义的 `guide`。
+
+工具的 help 答同一段文本。调用出错时，系统按出错的层次把 guide 交给模型，作者不拼出错文本：
+
+- 调用没点名已知命令（`unreadable`、`not-object`、`command-missing`、`command-unknown`）时，`describeCommandCallRejection` 写原因行，后接工具的 guide。
+- 调用点名了已知命令，但整次调用或参数不被该命令接受（`extra-field`、`params-not-object`、`command-mismatch`，或命令编解码器答 `invalid`）时，`describeCommandArgumentsRejection` 写 `<工具> <命令>: <原因>.`，后接该命令的 guide。编解码器答 `incomplete` 时只写原因。
+
+提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，不熟命令的动作前取得详细用法。
 
 呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是调用方不经 Tools 元工具发现即可调用的工具。常驻集合的规则见[常驻持有者规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
 

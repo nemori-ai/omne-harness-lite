@@ -145,6 +145,7 @@ async function preparedBy(source: ReleaseToolRequests, principal: unknown, tenan
   const input = actionInput(principal, tenant)
   const described = await source.describe(input)
   if ('failure' in described) return described
+  if ('kind' in described.ok) throw new Error(`describe answered: ${described.ok.text}`)
   return source.prepare({
     ...input,
     definition: described.ok,
@@ -153,14 +154,14 @@ async function preparedBy(source: ReleaseToolRequests, principal: unknown, tenan
 }
 
 describe('the trusted Tool request source', () => {
-  it('selects the command from the call: a known command routes there, any other call is unavailable with the menu', async () => {
+  it('selects the command from the call: a known command routes there, any other call is answered with the guide', async () => {
     const { ports, principalA } = await world()
     const source = createReleaseToolRequests(ports)
     const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
     const request = async (args: string) => {
       const input = actionInput(principalA, TENANT_A, 'Shell', args)
       const described = await source.describe(input)
-      if ('failure' in described) return described
+      if ('failure' in described || 'kind' in described.ok) return described
       return source.prepare({ ...input, definition: described.ok, admission })
     }
     // The command codec judges the rest of the call when the tool runs, so a bad call still routes.
@@ -170,13 +171,18 @@ describe('the trusted Tool request source', () => {
     expect(await request('{"command":"info","params":[]}')).toMatchObject({
       ok: { command: 'info' },
     })
+    // A call that names no command is not run: the source answers it with the guide (D-104).
     const unknown = await request('{"command":"nope"}')
-    expect(unknown).toMatchObject({ failure: { kind: 'unavailable' } })
-    const diagnostic =
-      'failure' in unknown && 'diagnostic' in unknown.failure ? unknown.failure.diagnostic : ''
-    expect(diagnostic).toContain('Shell: there is no command "nope".')
-    expect(diagnostic).toContain('\nexecute {script, terminal?')
-    expect(await request('{"script":"echo"}')).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(unknown).toMatchObject({ ok: { kind: 'answered' } })
+    const text = 'ok' in unknown && 'text' in unknown.ok ? unknown.ok.text : ''
+    expect(text.split('\n')[0]).toBe('Shell: there is no command "nope".')
+    expect(text).toContain('\nexecute {script, terminal?')
+    expect(await request('{"script":"echo"}')).toMatchObject({
+      ok: {
+        kind: 'answered',
+        text: expect.stringMatching(/^Shell: the arguments name no command\./),
+      },
+    })
     // A command is never read from the declared name.
     expect(await source.describe(actionInput(principalA, TENANT_A, 'Shell.execute'))).toMatchObject(
       {

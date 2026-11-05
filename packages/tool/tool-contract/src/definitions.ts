@@ -64,6 +64,8 @@ export type ToolImplementationShape =
       /** How the model names a command inside the arguments of the tool's one declaration. */
       encoding: CommandCallEncoding
       commands: readonly ToolCommandDeclaration[]
+      /** The rules of the whole tool, which follow every guide the model reads of it. */
+      guide?: string
     }>
 /** The implementation side of a definition: its shape and what the author declares about it. */
 export type ToolImplementationFacts = Readonly<{

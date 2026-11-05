@@ -187,18 +187,18 @@ export function parseConstruction(value: JsonValue, fields: readonly Field[]) {
     ? fail({ kind: 'invalid', reason: `construction-json:${checked.rejected}` } as const)
     : parseFields(checked.ok, fields)
 }
-/** The codec of one command. An invalid value is answered with the reason and the usage line. */
-export function parameterCodec(command: Command, usage: string): ParameterCodec<Arguments> {
+/**
+ * The codec of one command. An invalid value is answered with its reason only; the tool host adds
+ * the guide of the command, which the model reads with it (D-104).
+ */
+export function parameterCodec(command: Command): ParameterCodec<Arguments> {
   const base = createDefaultParameterCodec(limits)
   if ('failure' in base) throw new TypeError(base.failure.reason)
   return {
     adoption,
     parse: input => {
       const parsed = base.ok.parse(input)
-      const fields = 'failure' in parsed ? parsed : parseFields(parsed.ok, command.fields)
-      return 'failure' in fields && fields.failure.kind === 'invalid'
-        ? fail({ kind: 'invalid', reason: `${fields.failure.reason}. Usage: ${usage}` })
-        : fields
+      return 'failure' in parsed ? parsed : parseFields(parsed.ok, command.fields)
     },
   }
 }
@@ -265,12 +265,4 @@ export function contract(command: Command): ParameterContract {
     }),
     descriptions: command.fields.map(field => ({ path: field.name, text: field.description })),
   }
-}
-export function schemaText(command: Command): string {
-  return JSON.stringify({
-    type: 'object',
-    additionalProperties: false,
-    required: command.fields.filter(field => field.required).map(field => field.name),
-    properties: Object.fromEntries(command.fields.map(field => [field.name, fieldSchema(field)])),
-  })
 }

@@ -157,11 +157,13 @@ export type PendingCall = PendingCommon &
 /**
  * The judgment of one action. `allowed.request` is the evidence of the preserved `ToolInvokeRequest`:
  * the request body lives in the material, not in the judgment (SPEC "工具执行与结果承接").
+ * `denied.answer` is the preserved text that the trusted Tool request source answered the call
+ * with instead of running a tool; the model reads it in place of the generic denial (D-104).
  */
 export type ActionJudgment =
   | Readonly<{ kind: 'pending'; passage: PassageId }>
   | Readonly<{ kind: 'waiting'; passage: PassageId; cards: readonly DurableEvidence[] }>
-  | Readonly<{ kind: 'denied'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'denied'; evidence: DurableEvidence; answer?: DurableEvidence }>
   | Readonly<{ kind: 'allowed'; evidence: DurableEvidence; request: DurableEvidence }>
 /** The `tool_call` part of the reply that an action comes from, as the ports that judge it take it. */
 export type ActionToolCall = ToolCallPart
