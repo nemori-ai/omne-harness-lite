@@ -1573,6 +1573,19 @@ describe('cancelling a request, and the probe timer (T3, T5)', () => {
     }
   })
 
+  it('sends notifications/cancelled on stdio on the modern revision too, with the _meta of the revision', async () => {
+    const { line, transport } = open('stdio', { 'tools/call': [{ kind: 'silent' }] })
+    ok(await transport.discover(), 'discover')
+    const sent = ok(await transport.call(echo, never), 'call')
+    await transport.cancelRequest(sent.requestId)
+    expect(line.requests('notifications/cancelled')[0]?.message['params']).toMatchObject({
+      requestId: sent.requestId,
+      _meta: { 'io.modelcontextprotocol/protocolVersion': HIGHEST },
+    })
+    expect(await settledWithin(sent.answer, 30)).toBe('pending')
+    await transport.close()
+  })
+
   it('starts a probe timer for the probe only, and clears it when the probe is answered', async () => {
     const timers: { delayMs: number; cleared: boolean }[] = []
     const { line, transport } = open(
