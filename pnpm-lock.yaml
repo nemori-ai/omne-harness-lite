@@ -782,6 +782,9 @@ importers:
 
   packages/assets/assets-local:
     dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../assets
