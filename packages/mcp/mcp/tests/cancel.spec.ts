@@ -126,6 +126,37 @@ describe('a cancel before the send (SPEC S2, MC-16 steps 2–8)', () => {
     expect(p.cancels()).toBe(0)
     expect(await s.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
   })
+
+  it('step 8: at whichever microtask the cancel lands, the transport is never called with a stop signal that fired', async () => {
+    // The cancel lands k microtasks after the invoke, for every k up to the one at which the call
+    // has concluded already (the cancel answers no-call-in-flight). The last wait of the send
+    // order and `transport.call` are a few microtasks apart; a stop that lands in between must
+    // keep the call off the transport, not be left to the transport's own T5 answer.
+    const LIMIT = 400
+    let concluded = false
+    for (let k = 0; k < LIMIT && !concluded; k += 1) {
+      const { p, digest } = await arranged(completed([text('hi')]))
+      const stopsSeen: boolean[] = []
+      const transports = reshapedTransports(p.ports.transports, transport => ({
+        call(request, signal, observe) {
+          stopsSeen.push(signal.aborted)
+          return transport.call(request, signal, observe)
+        },
+      }))
+      const { services: s } = services({ ...p, ports: { ...p.ports, transports } })
+      const call = s.invoker.invoke(alice, request(digest))
+      for (let i = 0; i < k; i += 1) await Promise.resolve()
+      const answer = await s.invoker.cancel(alice, c1)
+      const result = await call
+      expect(stopsSeen, `k=${k}: transport.call entered with the stop fired`).not.toContain(true)
+      if (result.kind === 'not-sent') {
+        expect(result.reason, `k=${k}`).toEqual({ kind: 'cancelled' })
+        expect(p.requests('tools/call'), `k=${k}`).toHaveLength(0)
+      }
+      concluded = answer === 'no-call-in-flight'
+    }
+    expect(concluded).toBe(true)
+  })
 })
 
 describe('a cancel after the send (SPEC S2, MC-16 step 11)', () => {

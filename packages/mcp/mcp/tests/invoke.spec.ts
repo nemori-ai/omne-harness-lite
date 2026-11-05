@@ -31,8 +31,9 @@ import { only } from './doubles/calls.ts'
 import { manualBounds } from './doubles/bounds.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import { alice, type Principal } from './doubles/identities.ts'
-import { completed, listing, peer, services, taskHandle, text } from './doubles/peer.ts'
-import { silentAdoption, stallingLanding } from './doubles/stalls.ts'
+import { completed, listing, peer, services, taskHandle, text, type Peer } from './doubles/peer.ts'
+import { countedReads } from './doubles/ports.ts'
+import { armedEligibility, silentAdoption, stallingLanding } from './doubles/stalls.ts'
 import { never, reshapedTransports } from './doubles/transports.ts'
 import { INVALID, MAIN, adoptHttp, adoptStdio, storedRecord } from './doubles/world.ts'
 
@@ -76,15 +77,22 @@ function arrange(
       adopt?: 'stdio' | 'http' | 'none'
       runtime?: TableRuntime
       ports?: Partial<McpPorts<Principal, string>>
+      /** Ports shaped on the peer's own: a port that counts, stalls or answers otherwise. */
+      shape?: (p: Peer) => Partial<McpPorts<Principal, string>>
     }> = {},
 ) {
   const p = peer({ listing: { '': TOOLS }, calls: { read: HI }, ...script }, options)
   const adopt = options.adopt ?? 'stdio'
   if (adopt === 'stdio') adoptStdio(p, files)
   if (adopt === 'http') adoptHttp(p, files)
-  const ports = { ...p.ports, ...options.ports }
+  const ports = { ...p.ports, ...options.ports, ...options.shape?.(p) }
   const { services: s, table } = services({ ...p, ports }, options.runtime)
   return { p, table, ...s }
+}
+
+/** The calls of the gate's two ports, which no step after a shutdown may add to. */
+function gateCalls(p: Peer) {
+  return { adoption: p.adoption.calls(), eligibility: p.eligibility.calls() }
 }
 
 type Arranged = ReturnType<typeof arrange>
@@ -258,12 +266,42 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     )
   })
 
-  it('step 7: after closeAll nothing connects: not sent, connection-unavailable (S8)', async () => {
-    const c = arrange()
+  it('step 3: after closeAll nothing is asked: not sent, connection-unavailable; the gate, the store and the build are left alone (S8)', async () => {
+    let store: ReturnType<typeof countedReads> | undefined
+    const c = arrange({}, { shape: p => ({ store: (store = countedReads(p.store)) }) })
+    if (store === undefined) throw new Error('not shaped')
     const digest = await published(c)
     await c.connections.closeAll()
+    const asked = { ...gateCalls(c.p), reads: store.reads() }
     expect(await c.invoker.invoke(alice, request(digest))).toEqual(CONNECTION_UNAVAILABLE)
+    expect({ ...gateCalls(c.p), reads: store.reads() }).toEqual(asked)
     expect(c.p.opens()).toBe(1)
+  })
+
+  it('step 3: closeAll while the call waits on the gate: not sent, connection-unavailable; the store is not read and nothing is built after it (S8)', async () => {
+    let store: ReturnType<typeof countedReads> | undefined
+    let armed: ReturnType<typeof armedEligibility> | undefined
+    const c = arrange(
+      {},
+      {
+        shape: p => ({
+          store: (store = countedReads(p.store)),
+          eligibility: (armed = armedEligibility(p.eligibility)).port,
+        }),
+      },
+    )
+    if (store === undefined || armed === undefined) throw new Error('not shaped')
+    const digest = await published(c)
+    const gate = armed.arm()
+    const call = c.invoker.invoke(alice, request(digest))
+    await gate.reached
+    await c.connections.closeAll()
+    const reads = store.reads()
+    gate.release()
+    expect(await call).toEqual(CONNECTION_UNAVAILABLE)
+    expect(store.reads()).toBe(reads)
+    expect(c.p.opens()).toBe(1)
+    expect(c.p.requests('tools/call')).toHaveLength(0)
   })
 
   it('step 7: a connection failure of the build is the reason as it is: credential-unavailable, landing-unavailable, authorization-required', async () => {

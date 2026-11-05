@@ -2,6 +2,7 @@
 // a scripted stop range. Tests assert on these counts; the doubles keep their contract behavior.
 import type {
   AdoptionView,
+  CatalogStore,
   ProcessHandle,
   ProcessLanding,
   UseEligibility,
@@ -48,6 +49,21 @@ export function countedEligibility(): Counted<MemoryUseEligibility<Principal>> {
     },
   }
   return { ...memory, ...port, calls: () => count }
+}
+
+/** The catalog store with its reads counted: a case asserts that a step did not read it. */
+export function countedReads<T extends CatalogStore>(
+  store: T,
+): T & Readonly<{ reads: () => number }> {
+  let count = 0
+  return {
+    ...store,
+    read: key => {
+      count += 1
+      return store.read(key)
+    },
+    reads: () => count,
+  }
 }
 
 /** One credential handle the test can count: how often it was acquired and released. */

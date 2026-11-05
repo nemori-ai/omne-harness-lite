@@ -22,7 +22,7 @@ import { only } from './doubles/calls.ts'
 import { settled } from './doubles/deferred.ts'
 import { alice, aliceAway, bob, mallory, type Principal } from './doubles/identities.ts'
 import { listing, peer, services, taskHandle, taskStatus, text, type Peer } from './doubles/peer.ts'
-import { stallingLanding } from './doubles/stalls.ts'
+import { armedEligibility, stallingLanding } from './doubles/stalls.ts'
 import { reshapedTransports } from './doubles/transports.ts'
 import { MAIN, adoptHttp, adoptStdio, storedRecord } from './doubles/world.ts'
 
@@ -77,19 +77,25 @@ async function started(
   return { p, digest, table, ...s }
 }
 
+/** Alice's call that the peer answers with the task `t1`, issued at `issuedAt`. */
 async function invokeTask(
   invoker: Awaited<ReturnType<typeof started>>['invoker'],
   digest: DefinitionDigest,
+  correlationKey = correlationKeyOf('c1'),
+  issuedAt = generationOf(1),
 ) {
   const result = await invoker.invoke(alice, {
     ref: files,
     action: READ,
     args: jsonOf({}),
     expectedDefinition: digest,
-    correlationKey: correlationKeyOf('c1'),
+    correlationKey,
     signal: new AbortController().signal,
   })
-  expect(result).toMatchObject({ kind: 'sent', outcome: { kind: 'task', taskId: 't1' } })
+  expect(result).toMatchObject({
+    kind: 'sent',
+    outcome: { kind: 'task', taskId: 't1', issuedAt },
+  })
 }
 
 const task: TaskRef = { ref: files, taskId: T1, issuedAt: generationOf(1) }
@@ -358,6 +364,27 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     expect(portCalls(c.p)).toEqual(asked)
     expect(c.p.opens()).toBe(1)
   })
+
+  it('closeAll while the operation waits on the gate: effect-unknown (no-connection), the same as after closeAll; nothing is built (S8)', async () => {
+    let armed: ReturnType<typeof armedEligibility> | undefined
+    const c = await started(undefined, {}, undefined, p => {
+      armed = armedEligibility(p.eligibility)
+      return { ports: { eligibility: armed.port } }
+    })
+    if (armed === undefined) throw new Error('not shaped')
+    await c.connections.release(alice, files)
+    const gate = armed.arm()
+    const query = c.invoker.queryTask(alice, task)
+    await gate.reached
+    await c.connections.closeAll()
+    const asked = portCalls(c.p)
+    gate.release()
+    expect(await query).toEqual(NO_CONNECTION)
+    expect(await c.invoker.queryTask(alice, task)).toEqual(NO_CONNECTION)
+    expect(portCalls(c.p)).toEqual(asked)
+    expect(c.p.opens()).toBe(1)
+    expect(c.p.requests('tasks/get')).toHaveLength(0)
+  })
 })
 
 describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step 3)', () => {
@@ -467,6 +494,60 @@ describe('the task reference names the task it was issued as (SPEC S2, MC-17 ste
     expect(portCalls(c.p)).toEqual(asked)
     expect(c.p.requests('tasks/get')).toHaveLength(0)
     expect(await c.invoker.queryTask(alice, task)).toEqual({ ok: { status: 'working' } })
+  })
+})
+
+describe('the task table keys by tenant, principal, holding and task id; the peer account is recorded, not keyed (SPEC S2, MC-17)', () => {
+  /** The adoption of `files` changed to a credential account, with the credential stored and the catalog published. */
+  async function movedToCredentialAccount(c: Awaited<ReturnType<typeof started>>) {
+    c.p.adoption.update(alice.tenant, files, {
+      body: jsonOf({
+        name: 'files',
+        transport: 'stdio',
+        auth: 'static',
+        launch: { command: 'mcp' },
+      }),
+      settings: {
+        target: { kind: 'absent' },
+        credential: { kind: 'value', value: MAIN },
+        connectTimeout: { kind: 'value', value: millisOf(30_000) },
+      },
+    })
+    c.p.credentials.store({
+      tenant: alice.tenant,
+      holding: files.holding,
+      binding: MAIN,
+      secret: 's',
+    })
+    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({ ok: {} })
+  }
+
+  it('a task id the peer gave again on another peer account makes the key ambiguous: both references are unknown, no port asked, no request sent', async () => {
+    const c = await started()
+    await movedToCredentialAccount(c)
+    // The second connection has its own key, so its generation starts at 1 again: the two
+    // references of `t1` are told apart by nothing but the peer account, which the key lacks.
+    await invokeTask(c.invoker, c.digest, correlationKeyOf('c2'))
+    expect(c.p.opens()).toBe(2)
+    const asked = portCalls(c.p)
+    expect(await c.invoker.queryTask(alice, task)).toStrictEqual(UNKNOWN)
+    expect(await c.invoker.taskResult(alice, task)).toStrictEqual(UNKNOWN)
+    expect(await c.invoker.provideTaskInput(alice, task, jsonOf({}))).toStrictEqual(UNKNOWN)
+    expect(await c.invoker.cancelTask(alice, task)).toStrictEqual(UNKNOWN)
+    expect(portCalls(c.p)).toEqual(asked)
+    expect(c.p.requests('tasks/get')).toHaveLength(0)
+    expect(c.p.opens()).toBe(2)
+  })
+
+  it('a task id the peer gave again on the same account is the newer record: the earlier reference is unknown, the newer one is answered', async () => {
+    const c = await started()
+    expect(await c.connections.release(alice, files)).toMatchObject({ ok: {} })
+    await invokeTask(c.invoker, c.digest, correlationKeyOf('c2'), generationOf(2))
+    expect(await c.invoker.queryTask(alice, task)).toStrictEqual(UNKNOWN)
+    expect(await c.invoker.queryTask(alice, { ...task, issuedAt: generationOf(2) })).toEqual({
+      ok: { status: 'working' },
+    })
+    expect(c.p.requests('tasks/get')).toHaveLength(1)
   })
 })
 

@@ -3,7 +3,12 @@
 // sent, and nothing is sent on the new generation; the request state alone is a lawful
 // continuation.
 import { describe, expect, it } from 'vitest'
-import type { DefinitionDigest, Generation, RequestState } from '@omne-harness/mcp-contract'
+import type {
+  DefinitionDigest,
+  Generation,
+  McpPorts,
+  RequestState,
+} from '@omne-harness/mcp-contract'
 import {
   actionNameOf,
   correlationKeyOf,
@@ -14,9 +19,10 @@ import {
   type PeerReply,
 } from '@omne-harness/mcp-contract/testing'
 import { settled } from './doubles/deferred.ts'
-import { alice } from './doubles/identities.ts'
-import { completed, listing, peer, services, text } from './doubles/peer.ts'
-import { stallingAdoption } from './doubles/stalls.ts'
+import { alice, type Principal } from './doubles/identities.ts'
+import { completed, listing, peer, services, text, type Peer } from './doubles/peer.ts'
+import { countedReads } from './doubles/ports.ts'
+import { armedEligibility, stallingAdoption } from './doubles/stalls.ts'
 import { adoptStdio, storedRecord } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
@@ -33,8 +39,11 @@ const ASKS: PeerReply = {
   result: { resultType: 'input_required', requestState: 's1', inputRequests: { q: 1 } },
 }
 
-/** A peer whose `read` first asks for input, then completes; adopted, with the catalog stored. */
-async function arranged() {
+/**
+ * A peer whose `read` first asks for input, then completes; adopted, with the catalog stored.
+ * `shape` replaces ports with ones shaped on the peer's own.
+ */
+async function arranged(shape: (p: Peer) => Partial<McpPorts<Principal, string>> = () => ({})) {
   const p = peer({
     listing: { '': listing([{ name: 'read' }]) },
     calls: { read: [ASKS, completed([text('done')])] },
@@ -43,7 +52,7 @@ async function arranged() {
   const stored = await storedRecord(p, anonymousKey, ['read'])
   const digest = stored.actions[0]?.definitionDigest
   if (digest === undefined) throw new Error('no digest')
-  const { services: s, table } = services(p)
+  const { services: s, table } = services({ ...p, ports: { ...p.ports, ...shape(p) } })
   return { p, digest, table, ...s }
 }
 
@@ -124,6 +133,30 @@ describe('continueWithInput (SPEC S2)', () => {
         continuation(issuedAt, { requestState: requestStateOf('s1'), inputResponses: { q: 'a' } }),
       ),
     ).toEqual({ kind: 'not-sent', reason: { kind: 'connection-unavailable' } })
+    expect(c.p.requests('tools/call')).toHaveLength(1)
+    expect(c.p.opens()).toBe(1)
+  })
+
+  it('closeAll while the continuation waits on the gate: the same not sent, connection-unavailable, as a first call; the store is not read after it (S8)', async () => {
+    let store: ReturnType<typeof countedReads> | undefined
+    let armed: ReturnType<typeof armedEligibility> | undefined
+    const c = await arranged(p => ({
+      store: (store = countedReads(p.store)),
+      eligibility: (armed = armedEligibility(p.eligibility)).port,
+    }))
+    if (store === undefined || armed === undefined) throw new Error('not shaped')
+    const issuedAt = await asked(c, c.digest)
+    const gate = armed.arm()
+    const call = c.invoker.continueWithInput(
+      alice,
+      continuation(issuedAt, { requestState: requestStateOf('s1') }),
+    )
+    await gate.reached
+    await c.connections.closeAll()
+    const reads = store.reads()
+    gate.release()
+    expect(await call).toEqual({ kind: 'not-sent', reason: { kind: 'connection-unavailable' } })
+    expect(store.reads()).toBe(reads)
     expect(c.p.requests('tools/call')).toHaveLength(1)
     expect(c.p.opens()).toBe(1)
   })

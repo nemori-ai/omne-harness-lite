@@ -390,6 +390,17 @@ describe('refresh fails', () => {
     })
     expect(w.transports.calls).toHaveLength(0)
   })
+
+  it('after closeAll: connection-unavailable before the gate, for an endpoint not adopted too; no port is asked (S8)', async () => {
+    const { w, discovery, connections } = core(world({ script: usualScript() }))
+    expect(await connections.closeAll()).toEqual([])
+    const asked = { adoption: w.adoption.calls(), eligibility: w.eligibility.calls() }
+    expect(await discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'connection-unavailable' },
+    })
+    expect({ adoption: w.adoption.calls(), eligibility: w.eligibility.calls() }).toEqual(asked)
+    expect(w.transports.calls).toHaveLength(0)
+  })
 })
 
 describe('refresh publish boundary: eligibility', () => {

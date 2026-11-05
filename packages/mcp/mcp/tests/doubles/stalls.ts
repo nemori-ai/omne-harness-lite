@@ -34,6 +34,36 @@ export function stallingEligibility(
 }
 
 /**
+ * The eligibility port whose next `check` after `arm()` waits on the gate armed then, and tells
+ * the case when that check was reached: the case orders a `closeAll` or a `cancel` against an
+ * operation that is waiting on the gate, by what has happened.
+ */
+export function armedEligibility(port: UseEligibility<Principal>): Readonly<{
+  port: UseEligibility<Principal>
+  arm(): Readonly<{ reached: Promise<void>; release: () => void }>
+}> {
+  let armed: Readonly<{ reached: Deferred<void>; held: Deferred<void> }> | undefined
+  return {
+    arm() {
+      const next = { reached: deferred<void>(), held: deferred<void>() }
+      armed = next
+      return { reached: next.reached.promise, release: () => next.held.resolve() }
+    },
+    port: {
+      async check(access: Access<Principal>, endpoint: EndpointRef) {
+        const hold = armed
+        if (hold !== undefined) {
+          armed = undefined
+          hold.reached.resolve()
+          await hold.held.promise
+        }
+        return port.check(access, endpoint)
+      },
+    },
+  }
+}
+
+/**
  * The landing whose `start` calls picked by `which` (every call unless given) wait on `gate`
  * before they start the process; `calls` counts the asks.
  */
