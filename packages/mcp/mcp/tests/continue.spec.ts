@@ -114,6 +114,20 @@ describe('continueWithInput (SPEC S2)', () => {
     expect(await c.invoker.cancel(alice, c2)).toBe('unknown')
   })
 
+  it('after closeAll is not sent: connection-unavailable, and nothing connects (S8)', async () => {
+    const c = await arranged()
+    const issuedAt = await asked(c, c.digest)
+    await c.connections.closeAll()
+    expect(
+      await c.invoker.continueWithInput(
+        alice,
+        continuation(issuedAt, { requestState: requestStateOf('s1'), inputResponses: { q: 'a' } }),
+      ),
+    ).toEqual({ kind: 'not-sent', reason: { kind: 'connection-unavailable' } })
+    expect(c.p.requests('tools/call')).toHaveLength(1)
+    expect(c.p.opens()).toBe(1)
+  })
+
   it('is not sent on a generation other than the one given, even while a connection is up', async () => {
     const c = await arranged()
     const issuedAt = await asked(c, c.digest)

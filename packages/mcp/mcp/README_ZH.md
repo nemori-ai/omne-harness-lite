@@ -61,7 +61,7 @@ if (result.kind === 'sent') consume(result.outcome)
 const closed = await mcp.connections.closeAll()
 ```
 
-`refresh`、`invoke`、`continueWithInput` 与任务操作要连接时才建立连接。`current`、`peer`、`inspect`、`list` 与 `cancel` 从不连接。持有实例的宿主在退出时调用 `closeAll()`。不合法的配置在构造时抛出 `RangeError`。`clock` 是唯一可选的端口：不给时本机时钟给清单打时间戳。本包不需要 Cordis，见 [docs/context.md](docs/context.md)。
+`refresh`、`invoke` 与任务操作需要连接而没有可用连接时，才建立连接。任务操作先找任务的对端账号下的连接（SPEC [MC-17](SPEC.md#mc-17) 第 3 步）。`continueWithInput` 只在发出它时的代际的连接上继续：它不为了证明这一点而建连，也不在更晚的代际上发出（SPEC [MC-16](SPEC.md#mc-16) 第 6、7 步）。`current`、`peer`、`inspect`、`list` 与 `cancel` 从不连接。持有实例的宿主在退出时调用 `closeAll()`。不合法的配置在构造时抛出 `RangeError`。`clock` 是唯一可选的端口：不给时本机时钟给清单打时间戳。本包不需要 Cordis，见 [docs/context.md](docs/context.md)。
 
 ## 契约
 
@@ -92,11 +92,11 @@ SPEC MC-14 怎样兑现：
 
 ## 验证
 
-运行 `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`。测试运行在契约的内存替身与两个脚本化传输（`tests/doubles/`）上：成员自己的脚本化「传输对象做什么」，给连接表用；契约的 `createScriptedTransportFactory` 脚本化「对端说什么」，给调用口用（`tests/invoke.spec.ts`、`tests/cancel.spec.ts`、`tests/continue.spec.ts`、`tests/tasks.spec.ts`）。它们穷举两个聚合，覆盖服务实际走的关口的六种答复、`ensure` 的每种配值缺陷与连接失败、`refresh` 的发布边界（并发与迟到结果用 deferred 排次序）、`tests/races.spec.ts` 的交错（旧代际迟到的页、关闭对建连、永不返回或抛出的端口、建连与取页期间的中止、永不答复的临界区重读、排在挂起的调用后面或加入挂起的建连的调用，时限由测试逐个触发）、状态视图、关闭次序、`close()`／`stop()`／`release()` reject 每种组合下的拆除与几个进程中一个 `stop()` reject 的拆除（`tests/teardown.spec.ts`，在 `tests/doubles/faults.ts` 的端口上）、遗忘的条件（`tests/entry.spec.ts`）、关停对另一条目的关闭与对途中建连（`tests/shutdown.spec.ts`）、reject 或被调用时同步抛出的端口（`tests/port-breach.spec.ts`）、任务作用域（`tests/port.spec.ts`），以及存储的符合性套件。下面每条性质都有具名变异让用例变红：发出次序的每一步拒绝并撤销占位、连接失败映射表的每一行、在途表与任务表按租户与主体隔离、任务只在发起时的对端账号上操作、连接键含对端账号、凭据句柄取一次释放一次、迟到的清单不发布、前一步 reject 时拆除的每一步仍执行、每个进程都被要求停止、持有在途落点的条目不被遗忘、`closeAll` 先释放在途落点的句柄、表关停时建连停下、关停开始之后失败的建连不标记清单、每个 `ensure` 在自己的时限答复、任务作用域的错误交到 `closeAll` 或作用域的事后出口。SPEC.md 列出未覆盖项：没有真实传输、进程、对端与耐久存储。连接表生命周期的性质 P1–P8 另有用 TLC 检查的 TLA+ 模型与驱动真实连接表的有界穷举探索器（`tests/model/`），两者的范围、与代码的映射，以及让每条性质变红的负控与变异见 [verification/README.md](verification/README.md)。
+运行 `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`。测试运行在契约的内存替身与两个脚本化传输（`tests/doubles/`）上：成员自己的脚本化「传输对象做什么」，给连接表用；契约的 `createScriptedTransportFactory` 脚本化「对端说什么」，给调用口用（`tests/invoke.spec.ts`、`tests/cancel.spec.ts`、`tests/continue.spec.ts`、`tests/tasks.spec.ts`）。它们穷举两个聚合，覆盖服务实际走的关口的六种答复、`ensure` 的每种配值缺陷与连接失败、`refresh` 的发布边界（并发与迟到结果用 deferred 排次序）、`tests/races.spec.ts` 的交错（旧代际迟到的页、关闭对建连、永不返回或抛出的端口、建连与取页期间的中止、永不答复的临界区重读、排在挂起的调用后面或加入挂起的建连的调用，时限由测试逐个触发）、状态视图、关闭次序、`close()`／`stop()`／`release()` reject 每种组合下的拆除与几个进程中一个 `stop()` reject 的拆除（`tests/teardown.spec.ts`，在 `tests/doubles/faults.ts` 的端口上）、遗忘的条件（`tests/entry.spec.ts`）、关停对另一条目的关闭与对途中建连（`tests/shutdown.spec.ts`）、reject 或被调用时同步抛出的端口（`tests/port-breach.spec.ts`）、任务作用域（`tests/port.spec.ts`），以及存储的符合性套件。下面每条性质都有具名变异让用例变红：发出次序的每一步拒绝并按 SPEC MC-12 收口键、连接失败映射表的每一行、在途表与任务表按租户与主体隔离、任务只在发起时的对端账号上操作、连接键含对端账号、凭据句柄取一次释放一次、迟到的清单不发布、前一步 reject 时拆除的每一步仍执行、每个进程都被要求停止、持有在途落点的条目不被遗忘、`closeAll` 先释放在途落点的句柄、表关停时建连停下、关停开始之后失败的建连不标记清单、每个 `ensure` 在自己的时限答复、任务作用域的错误交到 `closeAll` 或作用域的事后出口。SPEC.md 列出未覆盖项：没有真实传输、进程、对端与耐久存储。连接表生命周期的性质 P1–P8 另有用 TLC 检查的 TLA+ 模型与驱动真实连接表的有界穷举探索器（`tests/model/`），两者的范围、与代码的映射，以及让每条性质变红的负控与变异见 [verification/README.md](verification/README.md)。
 
 ## 维护
 
-契约 SPEC 的服务条款一变，这里同名的模块随之变：S2 是 `calls.ts`、`tasks.ts` 与 `internal/in-flight.ts`，S5 是 `discovery.ts`，S7 是 `status.ts` 与 `internal/lost.ts`，S8 是 `connections.ts` 与 `internal/table.ts`，S9 是 `internal/teardown.ts`、`internal/late.ts` 与 `internal/build.ts`。新增一种传输只加一个 `GenerationPolicy` 取值和 `internal/settings.ts` 的一个分支。消费者：`@omne-harness/mcp-host-local`（端口与传输）与组设计。
+契约 SPEC 的服务条款一变，这里同名的模块随之变：S2 是 `calls.ts`、`tasks.ts`、`internal/in-flight.ts` 与 `internal/task-table.ts`，S5 是 `discovery.ts`，S7 是 `status.ts` 与 `internal/lost.ts`，S8 是 `connections.ts` 与 `internal/table.ts`，S9 是 `internal/teardown.ts`、`internal/late.ts` 与 `internal/build.ts`。新增一种传输只加一个 `GenerationPolicy` 取值和 `internal/settings.ts` 的一个分支。消费者：`@omne-harness/mcp-host-local`（端口与传输）与组设计。
 
 ## 目录结构与文档职责
 

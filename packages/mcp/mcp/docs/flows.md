@@ -59,39 +59,42 @@ sequenceDiagram
 
 关闭（`connections.release` 与 `closeAll`，SPEC MC-10）：一个键同时只有一次关闭：拒新请求（`Connection.close()`）→ 等在途的建连结束 → `transport.close()` → `process.stop()`（自己的与上次未确认停止的，每个都问）→ 释放凭据句柄 → 报告确认范围。端口违约不跳过后一步，也不跳过其余进程（SPEC MC-14）。拆除（后三步）是条目唯一的，`lose` 与准备失败先同步转 `lost` 再走同一个拆除；拆除途中的关闭等它完成，`ensure` 至多等到自己的临界区时限。
 
-关停（`closeAll`）：置已关停 → 同步发起全部在途落点句柄的释放（已交来进程的落点除外） → 并发关闭各条目 → 等全部拆除与释放结束 → 任务作用域记下了本包的错误时以 `AggregateError` 抛出，否则报告每条连接的确认范围。之后要连接的操作答 `connection-unavailable`。
+关停（`closeAll`）：置已关停 → 同步发起全部在途落点句柄的释放（已交来进程的落点除外） → 并发关闭各条目 → 等全部拆除与释放结束 → 任务作用域记下了本包的错误时以 `AggregateError` 抛出，否则报告每条连接的确认范围。之后本实例不再建连（S8）：`refresh` 答 `connection-unavailable`，`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」，任务操作答 `effect-unknown`（`no-connection`）（SPEC [MC-16](../SPEC.md#mc-16)、[MC-17](../SPEC.md#mc-17)）。
 
-调用（`invoker.invoke`，SPEC MC-16；`continueWithInput` 相同，另核代际）：
+调用（`invoker.invoke`，SPEC [MC-16](../SPEC.md#mc-16)；`continueWithInput` 相同，另核代际）：
 
 ```mermaid
 sequenceDiagram
     participant C as 调用方
-    participant I as calls
+    participant I as calls（perform）
     participant F as 在途表
     participant G as guard/gate
     participant S as CatalogStore
     participant T as 连接表
     participant X as McpTransport
     C->>I: invoke(access, { ref, action, args, expectedDefinition, correlationKey, signal })
-    I->>F: reserve(租户、主体、关联键)
-    F-->>I: reserved（停止信号 = signal + 取消信号）或 in-use
+    I->>I: 前提（R2）：args 不是 JSON 对象则 TypeError reject，不占位
+    I->>F: reserve(key, signal)
+    F-->>I: 停止信号（signal 与 cancel 合成）或 in-use
+    note over I: 从这里到发出，每次等待都在停止信号下
     I->>G: admitForUse
     I->>I: prepareSettings（S4）
     I->>S: read(catalogKey)：动作存在、可用、摘要相同
-    I->>T: ensure(admitted, access, { connectBound })（在 signal 下等）
+    I->>T: ensure(admitted, access, { connectBound })
     I->>I: 停止信号已触发？是则「未发出：cancelled」
     I->>X: call({ action, args, continuation? }, 停止信号, observe)
-    I->>F: markSent(连接视图)
-    I->>X: 在停止信号下等应答；触发时 cancelRequest 一次
-    I->>I: classifyOutcome → 任务结局登记任务表 → markEnded
+    I->>F: markSent(key, 连接视图, 发出代际)
+    I->>X: 在停止信号下等应答；触发时 cancelRequest 一次，交给作用域
+    I->>I: classifyOutcome；任务结局登记任务表；转 lost 时拆除交给作用域
+    I->>F: conclude(key, phase)（perform 的 finally，唯一出口）
     I-->>C: not-sent（原因）或 sent（结局）
 ```
 
-每步失败的原因、建连失败与 `not-sent` 的映射表、取消的接线见 SPEC MC-16；任务操作的次序（发起者 → 关停 → 复用或新建连接 → 一个请求）见 MC-17。
+每步失败的原因、建连失败与 `not-sent` 的映射表、取消的接线见 SPEC [MC-16](../SPEC.md#mc-16)；任务操作的次序（发起者 → 关停 → 复用或新建连接 → 一个请求）见 [MC-17](../SPEC.md#mc-17)。
 
 ## 失败与生命周期
 
-- 关口拒绝或配值缺陷时没有连接、没有外部效果。调用「未发出」时没有对端效果，占位撤销；发出后无应答时效果未知，不重发。
+- 关口拒绝或配值缺陷时没有连接、没有外部效果。调用「未发出」时没有对端效果。键怎样收口见 SPEC [MC-16](../SPEC.md#mc-16) 第 13 步：停止信号已触发的未发出调用转为已结束，其余未发出的调用撤销占位；发出后无应答时效果未知，不重发。
 - 建立连接的任一步失败、超时或端口违约：连接转 `lost`、传输关闭、已起的进程 `stop()`、凭据句柄释放、清单 `markUnavailable`；时限到期时建连立即答复，这些收场在任务作用域里继续，答复的 `catalog` 是 `pending`；迟到交来的句柄与传输同样收口，迟到交来的进程停止一次、未确认的范围记为 `residual`，它的凭据句柄在这次 `stop()` 之后释放。答复与原因表见 SPEC MC-5。
 - 调用方中止：等建连时答 `kept(cancelled)`（建连留给其他调用方），取页时答 `kept(cancelled)`，发布边界上答 `kept(cancelled)`；都不标记清单。
 - 页取得失败：`not-sent` 使连接 `lost` 并标记清单；其他失败与取页超时使连接 `degraded`，刷新答 `kept(listing-incomplete)`，原采用不变。旧代际迟到的页不改变重建后的连接，刷新答 `kept(superseded)`。

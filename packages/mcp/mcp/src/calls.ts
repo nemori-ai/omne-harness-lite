@@ -204,6 +204,9 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     stop: AbortSignal,
   ): Promise<Outcome<Prepared, NotSentReason>> {
     const { request } = send
+    // S8: after `closeAll` nothing connects, for a first call and a continuation alike; no port
+    // is asked.
+    if (table.isShut()) return fail(CONNECTION_UNAVAILABLE)
     const admitted = await under(stop, () => admitForUse(gate, access, request.ref))
     if ('failure' in admitted) return admitted
     const endpoint = admitted.ok
