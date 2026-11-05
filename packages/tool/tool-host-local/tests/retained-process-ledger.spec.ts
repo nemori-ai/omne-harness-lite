@@ -415,7 +415,7 @@ describe('the acquisition ledger keeps a handed-over key handed over', () => {
   })
 })
 
-describe('a stop of a handed-over key is the retention scope\'s to record', () => {
+describe("a stop of a handed-over key is the retention scope's to record", () => {
   /** Another call's view of the same retention scope, as a provider has after a restart. */
   async function otherCallView(f: Awaited<ReturnType<typeof fixture>>) {
     const other = { ...preparation, call: callId('call-b'), operation: operationId('prepare-b') }

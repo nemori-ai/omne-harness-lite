@@ -12,7 +12,10 @@ import { createOutputBuffer, type HostCommands, type HostCommandsInput } from '.
 import { deferred, startBridge, within, type BridgeFrame } from './bridge.ts'
 import { windowsBridgeExecutable } from './compile.ts'
 
-export type WindowsCommandsInput = Omit<HostCommandsInput, 'prerequisites' | 'unavailable' | 'tenant'>
+export type WindowsCommandsInput = Omit<
+  HostCommandsInput,
+  'prerequisites' | 'unavailable' | 'tenant'
+>
 type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
 type StopStatus = 'confirmed' | 'unconfirmed'
 type LiveCommand = { readonly resource: ManagedResource; stop(): Promise<StopStatus> }

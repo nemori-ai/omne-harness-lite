@@ -773,7 +773,7 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     if (settings.residuePolicy === 'stop') return 'policy'
     if (processes === undefined) return 'unbound'
     if (retentionBinding === undefined) return 'policy'
-    const { scope, released, processes: view, index } = retentionBinding
+    const { scope, processes: view, index } = retentionBinding
     return {
       closed: scopeClosed,
       reserve: () => index.reserve(scope, retentionBinding.tenant, entry.resource.key),
