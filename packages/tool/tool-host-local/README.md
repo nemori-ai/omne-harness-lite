@@ -122,3 +122,16 @@ tool-host-local/
 The public contract of this provider belongs to the contract package [`@omne-harness/tool-contract`](../tool-contract/README.md). The full file navigation is in [index](index.md). The topic responsibilities are in [docs/README](docs/README.md).
 
 The runtime composition test submits an ordinary payload through invoke with paired source issuance and verification. The test host passes its instance identity explicitly to driver.run. This package supplies no production instance host, source issuer, identity issuer, claim or takeover protocol. See [the host boundary](SPEC.md#实例宿主与普通调用的边界).
+
+### Constructing a catalog
+
+`createLocalToolCatalog` requires `registry`, `availability`, `view`, and `search`.
+The assembly supplies a `LocalToolCatalogViewSource` with trusted scope evidence,
+an inclusion revision, and exact binding keys with `resident` flags. A null view
+returns unavailable. Search configuration is explicit, for example
+`{ k1: 1.2, b: 0.75, maxCachedCorpora: 8 }`.
+
+The catalog ranks the legal corpus with BM25 and checks the view again after
+asynchronous judgments. Versioned cursors reject changed search or disclosure
+inputs. The bounded cache retains only text indexes. See the
+[behavior and limits](SPEC.md#登记表与-catalog-的实现范围).

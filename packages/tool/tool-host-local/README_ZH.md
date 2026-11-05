@@ -122,3 +122,13 @@ tool-host-local/
 本提供者的公共契约归契约包 [`@omne-harness/tool-contract`](../tool-contract/README_ZH.md)。完整文件导航见 [index](index.md)。主题职责见 [docs/README](docs/README.md)。
 
 runtime 组合测试以 invoke 提交普通 payload，并配对来源签发器与核验器。测试宿主向 driver.run 显式提供 instance。本包不提供生产实例宿主、来源或身份签发器、claim 及接管协议。见 [SPEC 的宿主边界](SPEC.md#实例宿主与普通调用的边界)。
+
+### 构造目录
+
+`createLocalToolCatalog` 必须提供 registry、availability、view 与 search。
+应用注入 `LocalToolCatalogViewSource`，给出受信范围证据、纳入版本，以及带 resident 标记的精确绑定键。
+view 为 null 时返回 unavailable。search 显式配置，例如 `{ k1: 1.2, b: 0.75, maxCachedCorpora: 8 }`。
+
+目录只对合法语料做 BM25 排名，在异步判断后重读视图。
+搜索条件或披露材料变化会使游标失效。有界缓存只保存文本索引。
+完整行为与限制见[实现范围](SPEC.md#登记表与-catalog-的实现范围)。

@@ -1,3 +1,4 @@
+import { catalogSearch, fixedCatalogView } from '../catalog-view-fixture.ts'
 import { Context } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail } from '@omne-harness/operation-result'
@@ -22,6 +23,8 @@ async function assembly(grants: readonly ToolAuthority[]) {
   await root.plugin(Authority)
   const provider = root.plugin(
     createLocalToolBindingsPlugin<string, unknown, ContentBlock>({
+      view: fixedCatalogView(grants.map(grant => ({ layer: grant.layer, asset: grant.asset }))),
+      search: catalogSearch,
       availability: {
         judge: async () =>
           fail({ kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' }),

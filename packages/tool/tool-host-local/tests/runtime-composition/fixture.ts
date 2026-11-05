@@ -1,3 +1,4 @@
+import { catalogSearch, catalogView } from '../catalog-view-fixture.ts'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { expect } from 'vitest'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -170,6 +171,8 @@ export async function fixture(
   >({ verifier, fiber: () => (authorFiber === null ? null : String(authorFiber.uid)) })
   const catalog = createLocalToolCatalog({
     registry,
+    view: catalogView(registry),
+    search: catalogSearch,
     availability: {
       judge: async () =>
         succeed({

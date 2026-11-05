@@ -100,6 +100,7 @@ export type { ToolExecutionRef } from './execution.ts'
 export type { DecisionValue, ToolStartRecord } from './ports.ts'
 export type {
   ToolCatalog,
+  ToolCatalogSearchEntry,
   ToolConsumerProfile,
   ToolDeclarations,
   ToolInspection,

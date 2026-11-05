@@ -98,3 +98,6 @@ export {
   type LocalToolControlSubject,
   type LocalToolControlSubjectsInput,
 } from './control-subject-adapter.ts'
+
+export type { LocalToolCatalogView, LocalToolCatalogViewSource } from './catalog-view.ts'
+export type { LocalToolCatalogSearchConfiguration } from './catalog-ranking.ts'
