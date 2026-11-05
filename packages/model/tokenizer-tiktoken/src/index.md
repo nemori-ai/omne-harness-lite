@@ -8,5 +8,6 @@
 - [index.ts](index.ts)：根入口与公开定义
 - [resources.ts](resources.ts)：资源类型 `TiktokenRanks` 与 `TiktokenResources`
 - [tokenizer.ts](tokenizer.ts)：`createTiktokenTokenizer`：初始化核对与 `count`
+- [ordinary-counter.ts](ordinary-counter.ts)：普通文本预切分、固定引擎适配与局部 BPE 计数
 - [digest.ts](digest.ts)：资源的规范 JSON 与 SHA-256 摘要
 - [engine-version.ts](engine-version.ts)：实际安装的 js-tiktoken 版本

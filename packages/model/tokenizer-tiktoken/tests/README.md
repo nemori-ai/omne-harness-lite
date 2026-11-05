@@ -26,7 +26,11 @@
 - o200k 的普通文本计数与完整 js-tiktoken 的 `o200k_base` 编码器比较。
 - 摘要常量在本包以外独立算出，见 [fixtures/README.md](fixtures/README.md)。所以测试核对的是规范 JSON 的写法，不只是本包自身的一致。
 
-慢层（`published.spec.ts`）：
+`differential.spec.ts` 直接导入本包 `src/tokenizer.ts`。它用未修改的 js-tiktoken 1.0.21 作 oracle，穷举 32 份稀疏、同 rank、非单调合成词表上的 364 个文本。另以固定 seed 比较 o200k 和家族拥有的 Claude 词表。具名小例覆盖最左优先、左右更新、失效边、整块捷径、缺 rank、NaN 与 Infinity、正则间隙及零宽、相邻段、显式特殊段与 Unicode。测试只比较公开计数；计数相等可能掩盖分区差异，具名反例保证关键调度错误会改变结果。另以只有单字节 token 的 131072 字节片段核对已知计数，排除对展开参数上限的依赖；不声称旧引擎能完成该输入。
+
+`engine-shape.spec.ts` 直接消费包内私有模块，核对未声明运行时成员不兼容时的错误。它没有新增包导出。
+
+慢层（`published.spec.ts` 与 `performance.spec.ts`）：
 
 - 文件第一行写 `// @module-tag slow`，理由是它启动子进程。
 - 子进程从 `realpathSync(mkdtempSync(...))` 得到的临时目录启动，不继承 `BASELINE` 环境变量。
@@ -34,8 +38,10 @@
 - 子进程中实现版本失配同样返回 `unavailable`。
 - 运行慢层之前必须先构建本包。经 turbo 运行时，turbo 先构建。
 
+`performance.spec.ts` 给子进程设置 8 秒外部截止和 SIGKILL，避免同步计算阻塞测试进程。它加载重建后的 dist，计数 24 KiB 空白。该回归只排除已知全扫描退化；不把这个时限提升为跨环境 SLA，也不证明完整请求或服务关闭流程。
+
 未覆盖：
 
-- Anthropic 的 `claude.json` 不在本包测试。它随 `pi-ai-anthropic` 迁入。该成员的 `meter.spec.ts` 核对文件的 SHA-256，并核对经本包的计数等于参考值 150。
+- Anthropic 的采用值和参考 150 由家族 `meter.spec.ts` 核对。算法差分只读取它现有的 `claude.json`，不复制或改写资源。
 - 本包不测试家族成员给出的具体采用值是否与厂商的实际 tokenizer 一致。这项责任归家族成员。
 - `count` 不读文件、不访问网络，这一点由源码结构保证，没有专门的运行时探测。

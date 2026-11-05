@@ -22,6 +22,7 @@ sequenceDiagram
     T-->>F: failure unavailable
   else 三项都成立
     T->>E: new Tiktoken(ranks)
+    T->>T: 核对私有运行时形状，建立普通文本计数闭包
     T-->>F: ok tokenizer
   end
 ```
@@ -32,7 +33,7 @@ sequenceDiagram
 2. `special-token` 段查固定表。查不到时立即返回 `unsupported-token`。查到时，先编码当前文本，再加 1，并清空当前文本。
 3. 读完后编码剩下的文本，返回总数的十进制串。
 
-计数不改变任何状态，不读文件，不访问网络。
+计数只改变当次调用的局部节点与候选堆，不改变 tokenizer 的共享状态，不读文件，不访问网络。普通文本调度与异常词表兼容路径见[内部架构](architecture.md#关键机制与理由)。
 
 ## 失败与生命周期
 

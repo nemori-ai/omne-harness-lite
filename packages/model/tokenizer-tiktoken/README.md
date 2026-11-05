@@ -6,7 +6,7 @@
 
 This member is the tiktoken engine adapter for `ModelTextTokenizer`. A family meter passes its own vocabulary and special-token table to it and gets a tokenizer. The group architecture defines the responsibility in [members and conditions](../docs/architecture.md#成员与新增条件) and [tokenizer resources and metering](../docs/architecture.md#tokenizer-的资源与计量分工).
 
-This package only wraps the engine. It checks the resources at initialization. `count` is a pure computation. This package holds no vendor vocabulary. `pi-ai-openai` consumes this package with the o200k vocabulary. `pi-ai-anthropic` consumes it with the `claude.json` vocabulary that it publishes.
+This package adapts the engine and schedules ordinary BPE merges locally. It checks the resources at initialization. `count` is a pure computation. This package holds no vendor vocabulary. `pi-ai-openai` consumes this package with the o200k vocabulary. `pi-ai-anthropic` consumes it with the `claude.json` vocabulary that it publishes.
 
 ### Support levels
 
