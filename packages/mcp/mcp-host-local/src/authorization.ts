@@ -3,22 +3,12 @@
 // runs the contract's `discoverAuthorization` with it. The credential handle is not involved:
 // the metadata is public.
 import { readJsonText } from '@omne-harness/json-text'
-import type { MetadataFetch } from '@omne-harness/mcp-contract'
+import { WIRE_LIMITS, type MetadataFetch } from '@omne-harness/mcp-contract'
 import { bodyOf } from './body.ts'
-import { BYTE_LIMIT } from './limits.ts'
 
 type Fetch = typeof fetch
 
-/** The limits of a metadata document: the byte bound of a body, and the contract's shape limits. */
-const METADATA_LIMITS = {
-  maxBytes: BYTE_LIMIT,
-  maxDepth: 128,
-  maxItems: 1_000_000,
-  maxMembers: 100_000,
-  maxStringLength: BYTE_LIMIT,
-  maxNumberLength: 100,
-} as const
-
+/** A metadata document is read with the contract's wire limits: the byte bound and the JSON shape limits. */
 export function metadataFetcher(fetchFn: Fetch): MetadataFetch {
   return async (url, signal) => {
     let response: Response
@@ -43,7 +33,7 @@ export function metadataFetcher(fetchFn: Fetch): MetadataFetch {
       // Above the byte bound, or broken: nothing was fetched at this address.
       return undefined
     }
-    const read = readJsonText(text, METADATA_LIMITS)
+    const read = readJsonText(text, WIRE_LIMITS)
     return read.kind === 'ok' ? read.value : undefined
   }
 }

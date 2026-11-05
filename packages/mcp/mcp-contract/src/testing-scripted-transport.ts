@@ -6,30 +6,36 @@
 // not speak a protocol and is not a product transport.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
-import {
-  callAnswerOf,
-  interpretAnswer,
-  legacyIdentityOf,
-  listingPageOf,
-  taskAnswerOf,
-  taskReportOf,
-} from './answer-readings.ts'
+import { callAnswerOf, legacyIdentityOf } from './answer-readings.ts'
 import { authorizationChallengeOf, discoverAuthorization } from './authorization.ts'
 import type { Generation, TaskId } from './brands.ts'
 import {
+  callRequestOf,
+  cancelTaskRequest,
+  getTaskRequest,
+  getTaskResultRequest,
   legacyInitializeParamsOf,
+  listActionsRequest,
   notificationTextOf,
   peerRequestAnswerOf,
+  requestMetaOf,
   requestTextOf,
   responseTextOf,
+  updateTaskRequest,
+  type ComposedRequest,
 } from './composition.ts'
 import {
   ABANDONED,
   NOT_SENT_FAILURE,
   OFFERED_LEGACY_VERSION,
+  authorizationRequiredAnswerOf,
+  cancelsByNotification,
   concludeAnswer,
   requestClassOf,
+  streamGoneAnswerOf,
+  withOneResend,
   type AnswerConclusion,
+  type ConnectionView,
   type NotificationMethod,
   type ProtocolVersions,
   type RequestMethod,
@@ -317,13 +323,12 @@ class ScriptedTransport implements McpTransport {
   private unusable(cause: NoAnswerCause | 'session-ended'): void {
     this.dead = cause
     if (cause === 'session-ended') return
-    for (const entry of this.pending.values())
-      entry.settle({ wire: { kind: 'no-answer', cause, resend: false } })
+    for (const entry of this.pending.values()) entry.settle({ wire: streamGoneAnswerOf(cause) })
   }
 
-  /** True when the connection speaks a legacy revision. */
-  private get legacy(): boolean {
-    return this.version !== undefined && !isModernProtocolVersion(this.version)
+  /** The connection as the T2 and T5 rules see it. */
+  private get connection(): ConnectionView {
+    return { kind: this.material.kind, version: this.version }
   }
 
   private reserveId(): string {
@@ -345,10 +350,7 @@ class ScriptedTransport implements McpTransport {
     how: Dispatch = {},
   ): Readonly<{ reply: PeerReply | undefined; answered: Promise<Answered> }> {
     const version = how.version ?? this.version ?? this.versions[0]
-    const meta: PlainRecord =
-      method === 'tools/call'
-        ? { ...this.envelope(version), progressToken: id }
-        : this.envelope(version)
+    const meta = requestMetaOf(method, id, version, this.clientInfo)
     const written = plainRecordOf(
       requestTextOf({ id, method, params: { ...params, _meta: meta }, values: how.values ?? {} }),
     )
@@ -500,11 +502,7 @@ class ScriptedTransport implements McpTransport {
         .then(() => this.credential?.reportRejection())
         .catch(() => undefined)
     const challenge = authorizationChallengeOf(headers['www-authenticate'])
-    const discovery = await this.discoverAuthorization(challenge)
-    return {
-      kind: 'not-sent',
-      failure: { kind: 'not-sent', cause: 'authorization-required', discovery },
-    }
+    return authorizationRequiredAnswerOf(await this.discoverAuthorization(challenge))
   }
 
   private get credential(): HttpCredentialHandle | undefined {
@@ -543,14 +541,18 @@ class ScriptedTransport implements McpTransport {
   }
 
   /** Sends one non-call request; the row may send it once more after a broken stream (D15, O05). */
-  private async request(
+  private request(
     method: RequestMethod,
     params: PlainRecord,
     how: Dispatch = {},
   ): Promise<Answered> {
-    const first = await this.once(method, params, how)
-    if (first.wire.kind === 'no-answer' && first.wire.resend) return this.once(method, params, how)
-    return first
+    return withOneResend(() => this.once(method, params, how))
+  }
+
+  /** Sends the request an operation composed and reads its answer the way the operation does. */
+  private async perform<T>(composed: ComposedRequest<T>): Promise<Outcome<T, TransportFailure>> {
+    const how: Dispatch = composed.values === undefined ? {} : { values: composed.values }
+    return composed.read((await this.request(composed.method, composed.params, how)).wire)
   }
 
   private async once(method: RequestMethod, params: PlainRecord, how: Dispatch): Promise<Answered> {
@@ -636,9 +638,7 @@ class ScriptedTransport implements McpTransport {
   }
 
   async listActions(cursor?: string): Promise<Outcome<ListingPage, TransportFailure>> {
-    const answered = await this.request('tools/list', cursor === undefined ? {} : { cursor })
-    // SEP-2243 belongs to the modern revision: a legacy connection sends no `Mcp-Param` header.
-    return listingPageOf(answered.wire, this.material.kind === 'streamable-http' && !this.legacy)
+    return this.perform(listActionsRequest(cursor, this.connection))
   }
 
   async call(
@@ -649,21 +649,9 @@ class ScriptedTransport implements McpTransport {
     if (!this.usable || signal.aborted) return { failure: NOT_SENT_FAILURE }
     const id = this.reserveId()
     if (!(await this.authorize(id))) return { failure: NOT_SENT_FAILURE }
-    const continuation = request.continuation
-    const params: PlainRecord = {
-      name: request.action,
-      ...(continuation?.requestState === undefined
-        ? {}
-        : { requestState: continuation.requestState }),
-    }
-    const values = {
-      arguments: request.args,
-      ...(continuation?.inputResponses === undefined
-        ? {}
-        : { inputResponses: continuation.inputResponses }),
-    }
-    const sent = this.dispatch(id, 'tools/call', params, {
-      values,
+    const composed = callRequestOf(request)
+    const sent = this.dispatch(id, composed.method, composed.params, {
+      values: composed.values,
       ...(observe === undefined ? {} : { observe }),
     })
     // An HTTP-level answer settles before the call returns: a refusal is a failure of the call
@@ -682,12 +670,9 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
-  /**
-   * stdio, and Streamable HTTP on a legacy revision, send `notifications/cancelled`; Streamable
-   * HTTP on a modern revision ends the answer stream (T5).
-   */
+  /** T5, by the contract's `cancelsByNotification`: the notification, or the end of the answer stream. */
   async cancelRequest(requestId: string): Promise<void> {
-    if (this.stdio || this.legacy) {
+    if (cancelsByNotification(this.connection)) {
       this.sendNotification('notifications/cancelled', { requestId })
       return
     }
@@ -697,25 +682,23 @@ class ScriptedTransport implements McpTransport {
     entry.settle({ wire: ABANDONED })
   }
 
-  async getTask(taskId: TaskId): Promise<Outcome<TaskReport | 'expired', TransportFailure>> {
-    return taskReportOf((await this.request('tasks/get', { taskId })).wire)
+  getTask(taskId: TaskId): Promise<Outcome<TaskReport | 'expired', TransportFailure>> {
+    return this.perform(getTaskRequest(taskId))
   }
 
-  async getTaskResult(taskId: TaskId): Promise<Outcome<TaskAnswer, TransportFailure>> {
-    return taskAnswerOf((await this.request('tasks/get', { taskId })).wire)
+  getTaskResult(taskId: TaskId): Promise<Outcome<TaskAnswer, TransportFailure>> {
+    return this.perform(getTaskResultRequest(taskId))
   }
 
-  async updateTask(
+  updateTask(
     taskId: TaskId,
     inputResponses: JsonValue,
   ): Promise<Outcome<'accepted', TransportFailure>> {
-    const answered = await this.request('tasks/update', { taskId }, { values: { inputResponses } })
-    return interpretAnswer(answered.wire, () => ({ ok: 'accepted' }))
+    return this.perform(updateTaskRequest(taskId, inputResponses))
   }
 
-  async cancelTask(taskId: TaskId): Promise<Outcome<'requested', TransportFailure>> {
-    const answered = await this.request('tasks/cancel', { taskId })
-    return interpretAnswer(answered.wire, () => ({ ok: 'requested' }))
+  cancelTask(taskId: TaskId): Promise<Outcome<'requested', TransportFailure>> {
+    return this.perform(cancelTaskRequest(taskId))
   }
 
   async close(): Promise<void> {

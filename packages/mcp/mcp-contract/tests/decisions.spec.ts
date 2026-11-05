@@ -8,28 +8,46 @@ import {
   ABANDONED,
   LEGACY_PROTOCOL_VERSIONS,
   OFFERED_LEGACY_VERSION,
+  PROCESS_EXIT_WINDOW_MS,
+  authorizationRequiredAnswerOf,
   callAnswerOf,
+  callRequestOf,
+  cancelTaskRequest,
+  cancelsByNotification,
+  checksListingHeaders,
   classifyWireEvent,
+  clientEnvelopeOf,
   concludeAnswer,
   concludeProbe,
   discoverAuthorization,
   discoverWith,
+  endedCauseOf,
+  getTaskRequest,
+  getTaskResultRequest,
   interpretAnswer,
+  isLegacyConnection,
   legacyIdentityOf,
   legacyInitializeParamsOf,
+  listActionsRequest,
   listingPageOf,
   notificationTextOf,
   peerRequestAnswerOf,
   readPeerMessage,
   readerOf,
   requestClassOf,
+  requestMetaOf,
   requestTextOf,
   responseTextOf,
   retryVersionOf,
+  startAuthorizationDiscovery,
+  streamGoneAnswerOf,
   taskAnswerOf,
   taskReportOf,
+  updateTaskRequest,
+  withOneResend,
   type AnswerClass,
   type AnswerConclusion,
+  type ConnectionView,
   type ErrorClass,
   type RequestClass,
   type WireAnswer,
@@ -40,11 +58,14 @@ import {
 import type { TransportFailure } from '@omne-harness/mcp-contract/provider'
 import {
   TRANSPORT_TABLE,
+  actionNameOf,
   cellsOf,
   generationOf,
   jsonOf,
   jsonTextOf,
   protocolVersionOf,
+  requestStateOf,
+  taskIdOf,
   type TableCell,
   type TableConclusion,
 } from '@omne-harness/mcp-contract/testing'
@@ -638,6 +659,180 @@ describe('the authorization discovery (T4, R4)', () => {
     )
     expect(seen).toHaveLength(1)
     expect(discovery).toMatchObject({ metadata: 'unavailable', issuers: [] })
+  })
+})
+
+describe('the rules a transport applies by its connection (T2, T5) and the requests its operations send (T3, T6)', () => {
+  const http = (version: string | undefined, mode?: 'sse'): ConnectionView =>
+    mode === undefined
+      ? { kind: 'streamable-http', version }
+      : { kind: 'streamable-http', version, mode }
+
+  it('a connection is legacy once it negotiated a legacy revision, not before', () => {
+    expect(isLegacyConnection(http(undefined))).toBe(false)
+    expect(isLegacyConnection(http(HIGHEST))).toBe(false)
+    expect(isLegacyConnection(http(LEGACY_PROTOCOL_VERSIONS[0]))).toBe(true)
+    expect(isLegacyConnection({ kind: 'stdio', version: LEGACY_PROTOCOL_VERSIONS[1] })).toBe(true)
+  })
+
+  it('checks the listing headers on modern Streamable HTTP only; cancels by notification on stdio, legacy and the SSE mode', () => {
+    expect(checksListingHeaders(http(undefined))).toBe(true)
+    expect(checksListingHeaders(http(HIGHEST))).toBe(true)
+    expect(checksListingHeaders(http(LEGACY_PROTOCOL_VERSIONS[0]))).toBe(false)
+    expect(checksListingHeaders(http(undefined, 'sse'))).toBe(false)
+    expect(checksListingHeaders({ kind: 'stdio', version: HIGHEST })).toBe(false)
+    expect(cancelsByNotification(http(undefined))).toBe(false)
+    expect(cancelsByNotification(http(HIGHEST))).toBe(false)
+    expect(cancelsByNotification(http(LEGACY_PROTOCOL_VERSIONS[0]))).toBe(true)
+    expect(cancelsByNotification(http(undefined, 'sse'))).toBe(true)
+    expect(cancelsByNotification({ kind: 'stdio', version: undefined })).toBe(true)
+  })
+
+  it('a gone stream settles every request with no-answer and no re-send; a refusal settles with its discovery', () => {
+    expect(streamGoneAnswerOf('process-exited')).toEqual({
+      kind: 'no-answer',
+      cause: 'process-exited',
+      resend: false,
+    })
+    const discovery = {
+      resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
+      metadata: 'unavailable',
+      issuers: [],
+      scopes: [],
+    } as const
+    expect(authorizationRequiredAnswerOf(discovery)).toEqual({
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'authorization-required', discovery },
+    })
+  })
+
+  it('sends once more only after a conclusion that says resend, and never a third time', async () => {
+    const answers: WireAnswer[] = [
+      { kind: 'no-answer', cause: 'stream-broken', resend: true },
+      { kind: 'no-answer', cause: 'stream-broken', resend: true },
+      { kind: 'result', result: jsonOf({}) },
+    ]
+    let sends = 0
+    const send = async () => {
+      sends += 1
+      return { wire: answers[sends - 1] ?? ABANDONED }
+    }
+    expect(await withOneResend(send)).toEqual({ wire: answers[1] })
+    expect(sends).toBe(2)
+    sends = 0
+    answers.splice(0, 1)
+    expect(await withOneResend(send)).toEqual({ wire: answers[1] })
+    expect(sends).toBe(2)
+    sends = 0
+    answers.splice(0, 1)
+    expect(await withOneResend(send)).toEqual({ wire: answers[0] })
+    expect(sends).toBe(1)
+  })
+
+  it('composes the _meta of a request: the envelope, and on tools/call the progress token', () => {
+    const clientInfo = { name: 'c', version: '1' }
+    expect(requestMetaOf('tools/list', 'r1', HIGHEST, clientInfo)).toEqual(
+      clientEnvelopeOf(HIGHEST, clientInfo),
+    )
+    expect(requestMetaOf('tools/call', 'r2', HIGHEST, clientInfo)).toEqual({
+      ...clientEnvelopeOf(HIGHEST, clientInfo),
+      progressToken: 'r2',
+    })
+  })
+
+  it('composes tools/call from the call request: the action and continuation as params, the values as written', () => {
+    const args = jsonTextOf('{"n":1234567890123456789}')
+    const inputResponses = jsonOf({ a: 1 })
+    expect(callRequestOf({ action: actionNameOf('echo'), args })).toEqual({
+      method: 'tools/call',
+      params: { name: 'echo' },
+      values: { arguments: args },
+    })
+    expect(
+      callRequestOf({
+        action: actionNameOf('echo'),
+        args,
+        continuation: { requestState: requestStateOf('s1'), inputResponses },
+      }),
+    ).toEqual({
+      method: 'tools/call',
+      params: { name: 'echo', requestState: 's1' },
+      values: { arguments: args, inputResponses },
+    })
+  })
+
+  it('composes the listing and the task requests, each reading its answer the way the operation does', async () => {
+    const taskId = taskIdOf('t1')
+    expect(listActionsRequest(undefined, http(HIGHEST))).toMatchObject({
+      method: 'tools/list',
+      params: {},
+    })
+    const listing = listActionsRequest('c2', http(HIGHEST))
+    expect(listing.params).toEqual({ cursor: 'c2' })
+    expect(listing.read({ kind: 'result', result: jsonOf({ tools: [] }) })).toEqual({
+      ok: { tools: [] },
+    })
+    expect(getTaskRequest(taskId)).toMatchObject({ method: 'tasks/get', params: { taskId: 't1' } })
+    expect(
+      getTaskRequest(taskId).read({
+        kind: 'result',
+        result: jsonOf({ taskId: 't1', status: 'working' }),
+      }),
+    ).toEqual({ ok: { status: 'working' } })
+    expect(
+      getTaskResultRequest(taskId).read({
+        kind: 'result',
+        result: jsonOf({ taskId: 't1', status: 'cancelled' }),
+      }),
+    ).toEqual({ ok: { kind: 'cancelled' } })
+    const update = updateTaskRequest(taskId, jsonOf({ a: 1 }))
+    expect(update).toMatchObject({
+      method: 'tasks/update',
+      params: { taskId: 't1' },
+      values: { inputResponses: jsonOf({ a: 1 }) },
+    })
+    expect(update.read({ kind: 'result', result: jsonOf({}) })).toEqual({ ok: 'accepted' })
+    expect(update.read(ABANDONED)).toEqual({ failure: { kind: 'no-answer', cause: 'abandoned' } })
+    const cancel = cancelTaskRequest(taskId)
+    expect(cancel).toMatchObject({ method: 'tasks/cancel', params: { taskId: 't1' } })
+    expect(cancel.read({ kind: 'result', result: jsonOf({}) })).toEqual({ ok: 'requested' })
+    await Promise.resolve()
+  })
+
+  it('the exit window decides the cause of a stdio end: the exit within the window, else the stream', () => {
+    expect(endedCauseOf({ stdoutEndedAt: 100 })).toBe('stream-broken')
+    expect(endedCauseOf({ exitedAt: 100 })).toBe('process-exited')
+    expect(endedCauseOf({ stdoutEndedAt: 100, exitedAt: 100 + PROCESS_EXIT_WINDOW_MS })).toBe(
+      'process-exited',
+    )
+    expect(endedCauseOf({ stdoutEndedAt: 100, exitedAt: 101 + PROCESS_EXIT_WINDOW_MS })).toBe(
+      'stream-broken',
+    )
+  })
+
+  it('a discovery in progress reports what was fetched so far, and its end when the loop ended', async () => {
+    const challenge = new Map<string, string>()
+    let release = (value: JsonValue | undefined): void => void value
+    const run = startAuthorizationDiscovery(
+      'https://peer.test/mcp',
+      challenge,
+      () =>
+        new Promise<JsonValue | undefined>(resolve => {
+          release = resolve
+        }),
+      new AbortController().signal,
+    )
+    expect(run.soFar()).toMatchObject({
+      resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
+      metadata: 'unavailable',
+    })
+    release(jsonOf({ authorization_servers: ['https://issuer.test'] }))
+    expect(await run.done).toMatchObject({
+      resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource/mcp',
+      metadata: 'fetched',
+      issuers: ['https://issuer.test'],
+    })
+    expect(run.soFar()).toEqual(await run.done)
   })
 })
 

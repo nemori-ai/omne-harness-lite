@@ -7,7 +7,7 @@
 // in-flight table.
 import type { JsonValue } from '@omne-harness/json-text'
 import { isObject, member, type JsonObject } from './json.ts'
-import type { AnswerMalformed, NoAnswerCause } from './outcomes.ts'
+import type { AnswerMalformed, AuthorizationDiscovery, NoAnswerCause } from './outcomes.ts'
 import { errorAnswerOf, peerIdentityOf, readDiscoverResult, type IdentityBound } from './readers.ts'
 import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
 import type { TransportFailure, TransportMaterial } from './transport.ts'
@@ -389,4 +389,69 @@ export function concludeProbe(
       return exhaustive
     }
   }
+}
+
+// ---- The rules a transport applies by its connection (T2, T5) and after a stream is gone (T8) ----
+
+/**
+ * The connection as the T2 and T5 rules see it: the material, the revision the connection
+ * negotiated (undefined before `discover` read an answer), and the legacy HTTP+SSE mode (T3).
+ */
+export type ConnectionView = Readonly<{
+  kind: TransportMaterial['kind']
+  version: string | undefined
+  mode?: 'sse'
+}>
+
+/** A connection speaks a legacy revision once it negotiated one that is not modern (T3). */
+export function isLegacyConnection(connection: ConnectionView): boolean {
+  return connection.version !== undefined && !isModernProtocolVersion(connection.version)
+}
+
+/**
+ * T2: the `x-mcp-header` declarations of a listing are checked on Streamable HTTP on the modern
+ * revision only; stdio, a legacy revision and the legacy HTTP+SSE mode are not checked.
+ */
+export function checksListingHeaders(connection: ConnectionView): boolean {
+  return (
+    connection.kind === 'streamable-http' &&
+    connection.mode !== 'sse' &&
+    !isLegacyConnection(connection)
+  )
+}
+
+/**
+ * T5: stdio, Streamable HTTP on a legacy revision and the legacy HTTP+SSE mode cancel a request
+ * with `notifications/cancelled`; Streamable HTTP on the modern revision ends its answer stream.
+ */
+export function cancelsByNotification(connection: ConnectionView): boolean {
+  return connection.kind === 'stdio' || connection.mode === 'sse' || isLegacyConnection(connection)
+}
+
+/**
+ * T8 S01–S04 and the SSE mode: what every request handed to a shared stream settles with when the
+ * stream is gone (`stream-broken`, `process-exited`): `no-answer` with the cause, never sent again.
+ */
+export function streamGoneAnswerOf(cause: NoAnswerCause): WireAnswer {
+  return { kind: 'no-answer', cause, resend: false }
+}
+
+/** T4: what a request refused with 401 or a scoped 403 settles with, given its discovery (R4). */
+export function authorizationRequiredAnswerOf(discovery: AuthorizationDiscovery): WireAnswer {
+  return {
+    kind: 'not-sent',
+    failure: { kind: 'not-sent', cause: 'authorization-required', discovery },
+  }
+}
+
+/**
+ * T8 D15, O05: sends a request once, and once more when the conclusion of the first says so
+ * (`resend`); the conclusion of the second is final. The transport composes each sending anew:
+ * a new id, its own authorization.
+ */
+export async function withOneResend<A extends Readonly<{ wire: WireAnswer }>>(
+  send: () => Promise<A>,
+): Promise<A> {
+  const first = await send()
+  return first.wire.kind === 'no-answer' && first.wire.resend ? send() : first
 }

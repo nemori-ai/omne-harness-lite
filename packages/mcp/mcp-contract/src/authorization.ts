@@ -80,23 +80,49 @@ export function authorizationDiscoveryOf(
 export type MetadataFetch = (url: string, signal: AbortSignal) => Promise<JsonValue | undefined>
 
 /**
- * The discovery of T4 after a refused authorization (R4): the candidate addresses are fetched
- * in order until one gives a JSON object; a fetch that rejects counts as nothing fetched. The
- * signal ends the loop: what was not fetched by then is unavailable.
+ * One discovery in progress (R4, T4). `done` is the discovery when the fetch loop ended;
+ * `soFar()` is the discovery from what was fetched by now: what a transport reports when it
+ * stops waiting (the caller's signal, `close()`) before the loop ended (T5). The addresses not
+ * fetched by then are unavailable.
  */
-export async function discoverAuthorization(
+export type AuthorizationDiscoveryRun = Readonly<{
+  soFar(): AuthorizationDiscovery
+  done: Promise<AuthorizationDiscovery>
+}>
+
+/**
+ * Starts the discovery of T4 after a refused authorization (R4): the candidate addresses are
+ * fetched in order until one gives a JSON object; a fetch that rejects counts as nothing fetched.
+ * The signal ends the loop: what was not fetched by then is unavailable. The loop runs in the
+ * background from the call on; the run reports its progress.
+ */
+export function startAuthorizationDiscovery(
+  target: string,
+  challenge: ReadonlyMap<string, string>,
+  fetchMetadata: MetadataFetch,
+  signal: AbortSignal,
+): AuthorizationDiscoveryRun {
+  const candidates = metadataCandidatesOf(target, challenge)
+  const fetched: (JsonValue | undefined)[] = []
+  const soFar = () => authorizationDiscoveryOf(challenge, candidates, fetched)
+  const done = (async () => {
+    for (const url of candidates) {
+      if (signal.aborted) break
+      const metadata = await fetchMetadata(url, signal).catch(() => undefined)
+      fetched.push(metadata)
+      if (isObject(metadata)) break
+    }
+    return soFar()
+  })()
+  return { soFar, done }
+}
+
+/** The discovery of T4 after a refused authorization (R4), when its fetch loop ended. */
+export function discoverAuthorization(
   target: string,
   challenge: ReadonlyMap<string, string>,
   fetchMetadata: MetadataFetch,
   signal: AbortSignal,
 ): Promise<AuthorizationDiscovery> {
-  const candidates = metadataCandidatesOf(target, challenge)
-  const fetched: (JsonValue | undefined)[] = []
-  for (const url of candidates) {
-    if (signal.aborted) break
-    const metadata = await fetchMetadata(url, signal).catch(() => undefined)
-    fetched.push(metadata)
-    if (isObject(metadata)) break
-  }
-  return authorizationDiscoveryOf(challenge, candidates, fetched)
+  return startAuthorizationDiscovery(target, challenge, fetchMetadata, signal).done
 }

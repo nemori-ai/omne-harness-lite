@@ -19,7 +19,11 @@ const BRAND_GUARDS = [
   'isTaskId',
 ]
 
-/** The decision layer of T8 (one implementation for every transport) and what a transport writes. */
+/**
+ * The decision layer of T8 (one implementation for every transport), the readings of a settled
+ * answer, what a transport writes and the requests its operations send, the rules by connection,
+ * and the authorization discovery.
+ */
 const DECISIONS = [
   'ABANDONED',
   'METHOD_NOT_FOUND',
@@ -27,25 +31,41 @@ const DECISIONS = [
   'OFFERED_LEGACY_VERSION',
   'PROBE_REQUESTS',
   'RESENT_REQUESTS',
+  'WIRE_LIMITS',
+  'authorizationRequiredAnswerOf',
   'callAnswerOf',
+  'callRequestOf',
+  'cancelTaskRequest',
+  'cancelsByNotification',
+  'checksListingHeaders',
   'concludeAnswer',
   'concludeProbe',
   'discoverAuthorization',
   'discoverWith',
+  'endedCauseOf',
+  'getTaskRequest',
+  'getTaskResultRequest',
   'interpretAnswer',
+  'isLegacyConnection',
   'legacyIdentityOf',
   'legacyInitializeParamsOf',
+  'listActionsRequest',
   'listingPageOf',
   'notificationTextOf',
   'peerRequestAnswerOf',
   'readPeerMessage',
   'readerOf',
   'requestClassOf',
+  'requestMetaOf',
   'requestTextOf',
   'responseTextOf',
   'retryVersionOf',
+  'startAuthorizationDiscovery',
+  'streamGoneAnswerOf',
   'taskAnswerOf',
   'taskReportOf',
+  'updateTaskRequest',
+  'withOneResend',
 ]
 
 const ROOT = [

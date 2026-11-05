@@ -175,7 +175,12 @@ export type PeerMessage =
   | Readonly<{ kind: 'request'; id: JsonValue; method: string }>
   | Readonly<{ kind: 'notification'; method: string; params?: JsonValue; progressToken?: string }>
 
-const LIMITS = {
+/**
+ * The limits of what a transport reads from the wire (SPEC T2): the byte bound of one stdio line,
+ * one HTTP body or one SSE event (16 MiB), and the JSON limits a message is parsed with. A
+ * transport reads with these and parses nothing with others.
+ */
+export const WIRE_LIMITS = {
   maxBytes: 16_777_216,
   maxDepth: 128,
   maxItems: 1_000_000,
@@ -200,7 +205,7 @@ const answer = (value: AnswerClass, message?: JsonObject): WireClassification =>
     : { kind: 'answer', answer: value, message }
 
 function parse(text: string): JsonValue | undefined {
-  const read = readJsonText(text, LIMITS)
+  const read = readJsonText(text, WIRE_LIMITS)
   return read.kind === 'ok' ? read.value : undefined
 }
 
@@ -374,12 +379,53 @@ function httpStatusOf(
 }
 
 /**
- * Puts one wire event into its T8 answer class for one request (SPEC T2, T8). A stdio line that
- * is not JSON is dropped (`other`); the stream goes on. A line or a 2xx message that carries the
- * request's id and no method is the answer; its envelope and content decide the class. When stdout
- * ended and the process exited, the exit is the cause when it came within `PROCESS_EXIT_WINDOW_MS`
- * after stdout ended. In the legacy HTTP+SSE mode a 2xx body that ended with no answer is still
- * `waiting`: the answer comes on the shared stream.
+ * The cause the end of a stdio shared stream stands for (SPEC T8): stdout ended, the root process
+ * exited, or both. The exit is the cause when it came, and came no later than
+ * `PROCESS_EXIT_WINDOW_MS` after stdout ended; otherwise the stream broke.
+ */
+export function endedCauseOf(
+  event: Readonly<{ stdoutEndedAt?: number; exitedAt?: number }>,
+): 'process-exited' | 'stream-broken' {
+  const { stdoutEndedAt, exitedAt } = event
+  if (exitedAt === undefined) return 'stream-broken'
+  const exitFirst =
+    stdoutEndedAt === undefined || exitedAt - stdoutEndedAt <= PROCESS_EXIT_WINDOW_MS
+  return exitFirst ? 'process-exited' : 'stream-broken'
+}
+
+/** A stdio line: the answer when it carries the request's id and no method; `other` for the rest. */
+function lineOf(
+  event: Extract<WireEvent, { kind: 'line' }>,
+  context: WireContext,
+): WireClassification {
+  const message = parse(event.text)
+  return message !== undefined && answers(message, context)
+    ? answer(messageClassOf(message, context), message)
+    : { kind: 'other' }
+}
+
+/**
+ * A 2xx answer: the first message that answers the request; else `http:2xx` once the body ended,
+ * or `waiting` while it is open, and in the legacy HTTP+SSE mode even when it ended.
+ */
+function httpStreamOf(
+  event: Extract<WireEvent, { kind: 'http-stream' }>,
+  context: WireContext,
+): WireClassification {
+  for (const text of event.messages) {
+    const message = parse(text)
+    if (answers(message, context)) return answer(messageClassOf(message, context), message)
+  }
+  return event.ended && context.mode !== 'sse' ? answer('http:2xx') : { kind: 'waiting' }
+}
+
+/**
+ * Puts one wire event into its T8 answer class for one request (SPEC T2, T8), one function per
+ * event kind. A stdio line that is not JSON is dropped (`other`); the stream goes on. A line or a
+ * 2xx message that carries the request's id and no method is the answer; its envelope and content
+ * decide the class. When stdout ended and the process exited, the exit is the cause when it came
+ * within `PROCESS_EXIT_WINDOW_MS` after stdout ended (`endedCauseOf`). In the legacy HTTP+SSE mode
+ * a 2xx body that ended with no answer is still `waiting`: the answer comes on the shared stream.
  */
 export function classifyWireEvent(event: WireEvent, context: WireContext): WireClassification {
   switch (event.kind) {
@@ -387,30 +433,16 @@ export function classifyWireEvent(event: WireEvent, context: WireContext): WireC
       return answer('unsent')
     case 'nothing':
       return answer('silent')
-    case 'line': {
-      const message = parse(event.text)
-      return message !== undefined && answers(message, context)
-        ? answer(messageClassOf(message, context), message)
-        : { kind: 'other' }
-    }
-    case 'stdio-ended': {
-      const { stdoutEndedAt, exitedAt } = event
-      if (exitedAt === undefined) return answer('stream-broken')
-      const exitFirst =
-        stdoutEndedAt === undefined || exitedAt - stdoutEndedAt <= PROCESS_EXIT_WINDOW_MS
-      return answer(exitFirst ? 'process-exited' : 'stream-broken')
-    }
+    case 'line':
+      return lineOf(event, context)
+    case 'stdio-ended':
+      return answer(endedCauseOf(event))
     case 'http-aborted':
       return answer('stream-broken')
     case 'http-status':
       return httpStatusOf(event, context)
-    case 'http-stream': {
-      for (const text of event.messages) {
-        const message = parse(text)
-        if (answers(message, context)) return answer(messageClassOf(message, context), message)
-      }
-      return event.ended && context.mode !== 'sse' ? answer('http:2xx') : { kind: 'waiting' }
-    }
+    case 'http-stream':
+      return httpStreamOf(event, context)
     default: {
       const exhaustive: never = event
       return exhaustive

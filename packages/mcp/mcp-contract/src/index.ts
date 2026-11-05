@@ -97,6 +97,8 @@ export {
   authorizationDiscoveryOf,
   discoverAuthorization,
   metadataCandidatesOf,
+  startAuthorizationDiscovery,
+  type AuthorizationDiscoveryRun,
   type MetadataFetch,
 } from './authorization.ts'
 export {
@@ -113,7 +115,9 @@ export {
 } from './readers.ts'
 export {
   PROCESS_EXIT_WINDOW_MS,
+  WIRE_LIMITS,
   classifyWireEvent,
+  endedCauseOf,
   readPeerMessage,
   type AnswerClass,
   type ErrorClass,
@@ -130,11 +134,18 @@ export {
   OFFERED_LEGACY_VERSION,
   PROBE_REQUESTS,
   RESENT_REQUESTS,
+  authorizationRequiredAnswerOf,
+  cancelsByNotification,
+  checksListingHeaders,
   concludeAnswer,
   concludeProbe,
+  isLegacyConnection,
   requestClassOf,
   retryVersionOf,
+  streamGoneAnswerOf,
+  withOneResend,
   type AnswerConclusion,
+  type ConnectionView,
   type NotificationMethod,
   type ProbeConclusion,
   type ProtocolVersions,
@@ -151,11 +162,20 @@ export {
   taskReportOf,
 } from './answer-readings.ts'
 export {
+  callRequestOf,
+  cancelTaskRequest,
+  getTaskRequest,
+  getTaskResultRequest,
   legacyInitializeParamsOf,
+  listActionsRequest,
   notificationTextOf,
   peerRequestAnswerOf,
+  requestMetaOf,
   requestTextOf,
   responseTextOf,
+  updateTaskRequest,
+  type ComposedRequest,
+  type RequestValues,
 } from './composition.ts'
 export { discoverWith, type DiscoverPaths } from './discovery.ts'
 export { catalogKeyOf, connectionKeyOf, peerAccountOf } from './keys.ts'
