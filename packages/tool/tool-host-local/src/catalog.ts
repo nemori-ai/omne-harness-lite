@@ -205,12 +205,13 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
     for (const name of names) {
       const listing = choose(listings, name)
       if (listing === undefined) continue
+      const resident = visible.find(entry => entry.listing === listing)?.resident ?? false
+      if (resident) continue
       if (request.invocation === 'programmatic' && listing.definition.programmable !== true)
         continue
       const one = await judged(request, listing, request.consumer)
       if ('failure' in one) return one
       if (request.invocation === 'programmatic' && one.ok.kind !== 'available') continue
-      const resident = visible.find(entry => entry.listing === listing)?.resident ?? false
       entries.push({ ...one.ok, resident })
     }
     return succeed(entries)

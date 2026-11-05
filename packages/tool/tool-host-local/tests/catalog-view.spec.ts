@@ -155,7 +155,10 @@ describe('legal catalog view and BM25', () => {
       scope: evidence('session-B'),
       entries: [{ key: w.rows[1]!.entry.key, resident: true }],
     }
-    expect(await names(w.catalog)).toEqual(['bravo'])
+    expect(await names(w.catalog)).toEqual([])
+    expect(
+      await w.catalog.inspect({ ...access, consumer, name: 'bravo', command: null }),
+    ).toMatchObject({ ok: { kind: 'available', definition: { name: 'bravo' } } })
     expect(
       await w.catalog.inspect({ ...access, consumer, name: 'alpha', command: null }),
     ).toMatchObject({ failure: { reason: 'unknown-tool' } })
@@ -198,29 +201,75 @@ describe('legal catalog view and BM25', () => {
       failure: { kind: 'invalid-cursor' },
     })
   })
-  it('metadata replacement returns fresh definition, executor and resident and rejects old cursor', async () => {
+  it('metadata replacement removes resident search entries while inspect and usage keep fresh metadata', async () => {
     const w = setup()
     const first = await page(w.catalog, { limit: 1 })
-    if ('failure' in first) throw new Error('page')
+    if ('failure' in first || first.ok.next === null) throw new Error('page')
     w.rows = w.rows.map(r => row(r.definition.name, r.definition.description, '2'))
     w.view = { ...w.view, entries: w.rows.map(r => ({ key: r.entry.key, resident: true })) }
     const fresh = await page(w.catalog)
-    expect(fresh).toMatchObject({
+    expect(fresh).toEqual({ ok: { entries: [], next: null } })
+    expect(await page(w.catalog, { query: '  ' })).toEqual({ ok: { entries: [], next: null } })
+    expect(
+      await w.catalog.inspect({ ...access, consumer, name: 'alpha', command: null }),
+    ).toMatchObject({
       ok: {
-        entries: expect.arrayContaining([
-          expect.objectContaining({
-            resident: true,
-            definition: expect.objectContaining({
-              adoption: expect.objectContaining({ revision: '2' }),
-            }),
-            executor: expect.objectContaining({ revision: '2' }),
-          }),
-        ]),
+        kind: 'available',
+        definition: { adoption: { revision: '2' } },
+        executor: { revision: '2' },
       },
+    })
+    const alpha = w.rows.find(r => r.definition.name === 'alpha')
+    if (alpha === undefined) throw new Error('missing alpha')
+    expect(
+      await w.catalog.usage({
+        ...access,
+        consumer,
+        name: 'alpha',
+        command: null,
+        adoption: alpha.definition.adoption,
+      }),
+    ).toMatchObject({
+      ok: { definition: { revision: '2' } },
     })
     expect(await page(w.catalog, { after: first.ok.next })).toMatchObject({
       failure: { kind: 'invalid-cursor' },
     })
+  })
+
+  it('resident matches cannot change non-resident BM25 statistics, top-k or ranked pages', async () => {
+    const w = setup()
+    const expected = await names(w.catalog)
+    const residents = Array.from({ length: 100 }, (_, i) => row(`resident${i}`, 'pear'))
+    w.rows = [...w.rows, ...residents]
+    w.view = {
+      ...w.view,
+      entries: [...w.view.entries, ...residents.map(r => ({ key: r.entry.key, resident: true }))],
+    }
+    expect(await names(w.catalog)).toEqual(expected)
+    expect(await names(w.catalog, { limit: 1 })).toEqual(expected.slice(0, 1))
+    expect(await names(w.catalog, { query: 'resident0' })).toEqual([])
+    let after: string | null = null
+    const paged: string[] = []
+    do {
+      const result = await page(w.catalog, { limit: 1, after })
+      if ('failure' in result) throw new Error('page')
+      expect(result.ok.entries.every(entry => entry.resident === false)).toBe(true)
+      paged.push(...result.ok.entries.map(entry => entry.definition.name))
+      after = result.ok.next
+    } while (after !== null)
+    expect(paged).toEqual(expected)
+  })
+
+  it('reads changed resident facts without a revision change and rejects the old cursor', async () => {
+    const w = setup()
+    const first = await page(w.catalog, { limit: 1 })
+    if ('failure' in first || first.ok.next === null) throw new Error('page')
+    w.view = { ...w.view, entries: w.view.entries.map(entry => ({ ...entry, resident: true })) }
+    expect(await page(w.catalog, { after: first.ok.next })).toMatchObject({
+      failure: { kind: 'invalid-cursor' },
+    })
+    expect(await page(w.catalog)).toEqual({ ok: { entries: [], next: null } })
   })
   it('rechecks after async judgments and keeps missing, throwing and unknown sources as failures', async () => {
     const w = setup()
