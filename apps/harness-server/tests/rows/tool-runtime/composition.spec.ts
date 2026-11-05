@@ -10,6 +10,7 @@
 // 请求由生产的 Tool 请求供给者构造（`createReleaseToolRequests`），会话快照读口给出那个作用域。
 // 用例：Shell.execute 一次、Files.write 加 Files.read 各一次，读回原结果；外租户的同一调用被拒。
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -502,10 +503,18 @@ async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
 function expectRan(ran: Ran): void {
   const { value } = ran
   expect(value.shell.state.terminal).toMatchObject({ kind: 'completed' })
-  expect(value.shell.text).toContain('tool-b-shell')
-  expect(value.write.text).toMatch(/^done request=/u)
-  expect(value.read.text).toContain('tool-b-files')
-  expect(readFileSync(join(ran.filesRoot, 'tool-b.txt'), 'utf8')).toBe('tool-b-files')
+  if (process.platform === 'linux' || process.platform === 'win32') {
+    expect(value.shell.text).toContain('tool-b-shell')
+    expect(value.write.text).toMatch(/^done request=/u)
+    expect(value.read.text).toContain('tool-b-files')
+    expect(readFileSync(join(ran.filesRoot, 'tool-b.txt'), 'utf8')).toBe('tool-b-files')
+  } else {
+    for (const result of [value.shell, value.write, value.read]) {
+      expect(result.state.terminal).toMatchObject({ kind: 'completed' })
+      expect(result.text).toMatch(/^rejected request="[^"]+" reason=unavailable$/u)
+    }
+    expect(existsSync(join(ran.filesRoot, 'tool-b.txt'))).toBe(false)
+  }
   expect(value.foreign).toMatchObject({ kind: 'rejected', failure: { kind: 'denied' } })
   expect(ran.saved.length).toBeGreaterThanOrEqual(3)
   expect(ran.exitCode).toBe(0)
@@ -513,7 +522,7 @@ function expectRan(ran: Ran): void {
 
 describe('Tool segment B: the release rows in one process composition', () => {
   it(
-    'runs Shell once and Files twice through the production request source; another tenant is refused',
+    'settles Shell and Files according to host support through the production request source; another tenant is refused',
     { timeout: 180_000 },
     async () => {
       expectRan(await shellAndFiles(workPrincipalsOverStandIn))
@@ -651,7 +660,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
   )
 
   it(
-    'with the release session ownership read and the release work principals, Shell and Files run; another tenant is refused',
+    'with release session ownership and work principals, Shell and Files respect host support; another tenant is refused',
     { timeout: 180_000 },
     async () => {
       expectRan(await shellAndFiles(sessionWorkPrincipals))
