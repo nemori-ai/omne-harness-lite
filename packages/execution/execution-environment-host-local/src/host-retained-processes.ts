@@ -514,10 +514,13 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     async commit(reservation, details) {
       const entry = committed(reservation, details)
       entry.state = 'running'
-      // Not durable until the write lands: a stop confirmed meanwhile removes what landed.
+      // Not durable until the write lands; a domain stopped meanwhile gets no marker left behind.
       entry.marker = 'notWritten'
       const written = await writeMarker(entry)
-      if (written) entry.marker = 'written'
+      if (written) {
+        entry.marker = 'written'
+        if (entry.state !== 'running' || !entries.has(entry.key)) await removeMarker(entry)
+      }
       startPolling()
       return {
         process: { id: entry.key, generation: entry.generation },
