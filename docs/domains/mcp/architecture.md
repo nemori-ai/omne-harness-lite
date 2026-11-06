@@ -1,6 +1,6 @@
 # MCP领域交接设计
 
-状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)。本页只维护事实拥有者、端口的实现方和跨领域交接。`@omne-harness/mcp-contract` 已有实现（候选，尚未取得技术接受）。`@omne-harness/mcp` 已实现（候选，尚未取得技术接受）：`EndpointInspection`、`ActionDiscovery`、`ActionInvoker`、`EndpointStatus`、`Connections` 与 `CatalogStore` 的内存实现，行为正文是它的 [SPEC](../../../packages/mcp/mcp/SPEC.md)。`@omne-harness/mcp-host-local` 已实现两种传输（候选，尚未取得技术接受），行为正文是它的 [SPEC](../../../packages/mcp/mcp-host-local/SPEC.md)。mcp-cordis-contract 尚未建立。成员分解、端口操作、对外接口和失败种类见[组工程设计](../../../packages/mcp/docs/architecture.md)，精确公开行为见各成员的候选 SPEC。
+状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)。本页只维护事实拥有者、端口的实现方和跨领域交接。`@omne-harness/mcp-contract` 已有实现（候选，尚未取得技术接受）。`@omne-harness/mcp` 已实现（候选，尚未取得技术接受）：`EndpointInspection`、`ActionDiscovery`、`ActionInvoker`、`EndpointStatus`、`Connections` 与 `CatalogStore` 的内存实现，行为正文是它的 [SPEC](../../../packages/mcp/mcp/SPEC.md)。`@omne-harness/mcp-host-local` 已实现两种传输与 Cordis 插件（候选，尚未取得技术接受），行为正文是它的 [SPEC](../../../packages/mcp/mcp-host-local/SPEC.md)。`@omne-harness/mcp-cordis-contract` 已实现服务定义与服务键（候选，尚未取得技术接受），行为正文是它的 [SPEC](../../../packages/mcp/mcp-cordis-contract/SPEC.md)。成员分解、端口操作、对外接口和失败种类见[组工程设计](../../../packages/mcp/docs/architecture.md)，精确公开行为见各成员的候选 SPEC。
 
 用词沿统一语言：[MCP 连接](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection)、[MCP 动作清单](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog)、[MCP 已知动作](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action)、[凭据保管方](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-credential-custodian--凭据保管方--credential-custodian)。接入点指 MCP 资产。
 
@@ -31,6 +31,8 @@ MCP 是需求方。它用自己的词声明下面四个跨领域端口，由集�
 | `UseEligibility` | [身份与授权](../identity-and-authorization/README.md)                                                               | 本次使用这个接入点的当前资格：`granted`、`refused`（带原因）或 `unknown`。`refused` 的原因分两类：无使用资格（`not-eligible`）；有资格但被设置挡下（`local-command-not-enabled`，即本机命令型接入点未由使用租户开启；或 `disabled`）。MCP 在 `ProcessLanding.start` 之前必须得到 `granted`                                                                                                                                                                                                                                    | 缓存的结论，撤权在下一次使用时生效；接入点是否存在（对无权主体，答复不随它变）；对无使用资格的主体，被设置挡下的原因 |
 
 `AdoptionView` 只回答采用，`UseEligibility` 只回答接入点这一级的使用资格，两者各自交出结论。逐动作的权限项由 MCP 声明，判定不在 MCP。
+
+在 Cordis 装配里，这四个端口的实现方把实现包成 `@omne-harness/mcp-cordis-contract` 的抽象 Service 的子类，在键 `mcpAdoptionView`、`mcpUseEligibility`、`mcpCredentialUse`、`mcpProcessLanding` 上提供。插件每次调用都从键现取。键缺席时的答复见 [mcp-host-local 成员规格](../../../packages/mcp/mcp-host-local/SPEC.md#port-absent)。目前这四个端口在 Cordis 装配里都没有他域的提供者，实现方见上表「实现方」列。
 
 本组自己的 `McpTransport` 由组内的本地宿主成员实现，不是跨领域端口。
 
