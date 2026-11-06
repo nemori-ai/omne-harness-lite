@@ -49,7 +49,7 @@ cordis.ts ──► factory.ts、options.ts（类型）
 - **`fetch` 直接用（SPEC「与 SDK 的复用关系」）。** SDK 的两个 HTTP 传输类在 401/403、非 400 的错误正文与读不懂的 2xx 消息上都丢失契约要交出的事实，只能在 `fetch` 钩子里自己读应答；读了之后那两个类没有剩余价值。每次交换一个 `AbortController`，它随调用方的 `signal` 与关闭中止，交换结束时移除监听；`redirect: 'manual'`；不设超时。
 - **`open` 不发请求（SPEC H3）。** 持有者在时限到期后释放凭据句柄；`open` 不调用句柄、答复前再核 `signal`，于是没有它授权过的传输还会调用它。
 - **Cordis 插件是传输之上的一层装配（SPEC [Cordis 插件](../SPEC.md#cordis-plugin)）。** `cordis.ts` 把本包的传输工厂与 `@omne-harness/mcp` 的 `createMcp` 装在一起，在一条 fiber 上提供三个服务。传输模块不认识它。理由：插件只做装配，服务的行为归 `@omne-harness/mcp`，端口的答复归端口的实现方；四个端口适配器每次调用现取，所以端口换代不使插件重跑。
-- **边界与重新判断的条件。** 本包按 SDK 2.4.0 的行为对照；SDK 改变探测、回退或头的规则时，重跑 `tests/probes/` 的探针并重核 SPEC 的复用表。`fetch` 的实现换成非 undici 时，重核 H10 的错误码集合。契约 T8 加行时，决策层在契约里随之变，`tests/session.spec.ts` 自动覆盖新行。
+- **边界与重新判断的条件。** 传输按 SDK 2.4.0 的行为对照；SDK 改变探测、回退或头的规则时，重跑 `tests/probes/` 的探针并重核 SPEC 的复用表。`fetch` 的实现换成非 undici 时，重核 H10 的错误码集合。契约 T8 加行时，决策层在契约里随之变，`tests/session.spec.ts` 自动覆盖新行。插件依据的条款（SPEC「维护」列出的 S1、S2、S8、R6、AV6、UE5、CU6、PL4、MC-5、MC-10）变化，或 Cordis 升版时，重核 SPEC「Cordis 插件」与 [cordis.md](cordis.md)，重跑两个 `cordis` 用例文件。
 
 ## 验证与维护
 
@@ -62,4 +62,4 @@ cordis.ts ──► factory.ts、options.ts（类型）
 | 复用表的证据                     | `tests/probes/` 的探针                                                                                                                                                            |
 | Cordis 插件                      | `tests/cordis-entry.spec.ts`（快层，不起进程）、`tests/cordis-journey.spec.ts`（慢层，脚本化 stdio 对端）；判据见 SPEC [Cordis 插件的验证](../SPEC.md#cordis-plugin-verification) |
 
-设计变化时同步：`src/line.ts` 改了端口 → 两条线路、`tests/memory-line.ts`；契约的决策层改了导出 → `session.ts` 与本页「关键机制」；SDK 升级 → 重跑 `tests/probes/` 的探针，重核 SPEC 复用表的 `文件:行` 与 `tests/fixtures/sdk/`。
+设计变化时同步：`src/line.ts` 改了端口 → 两条线路、`tests/memory-line.ts`；契约的决策层改了导出 → `session.ts` 与本页「关键机制」；SDK 升级 → 重跑 `tests/probes/` 的探针，重核 SPEC 复用表的 `文件:行` 与 `tests/fixtures/sdk/`；插件的键、配置、适配器或撤除函数改了 → SPEC「Cordis 插件」、[cordis.md](cordis.md) 与 `tests/cordis-entry.spec.ts`、`tests/cordis-journey.spec.ts`。

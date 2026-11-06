@@ -12,8 +12,8 @@
 
 ## 维护
 
-公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。改了会话的等待点或结算次序时，同步 `model/` 的端口替身、性质与 `mutants.ts` 的负控，并用 `node tests/model/mutate.ts` 复跑负控。契约 `TRANSPORT_TABLE` 加行时 `session.spec.ts` 自动覆盖；契约套件加用例时 `conformance.spec.ts` 自动运行，若新用例在真实线路上不适用，把名字与理由加进 `NOT_APPLICABLE`。SDK 升级时核对 `fixtures/sdk/` 的 API。
+公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。改了会话的等待点或结算次序时，同步 `model/` 的端口替身、性质与 `mutants.ts` 的负控，并用 `node tests/model/mutate.ts` 复跑负控。契约 `TRANSPORT_TABLE` 加行时 `session.spec.ts` 自动覆盖；契约套件加用例时 `conformance.spec.ts` 自动运行，若新用例在真实线路上不适用，把名字与理由加进 `NOT_APPLICABLE`。SDK 升级时核对 `fixtures/sdk/` 的 API。契约的 S1、S2、S8、R6、AV6、UE5、CU6、PL4，`@omne-harness/mcp` 的 MC-5、MC-10 或 Cordis 的版本变化时，核对 `cordis-entry.spec.ts` 与 `cordis-journey.spec.ts`。
 
 ## 本包事实
 
-测试文件与两层夹具见 [index.md](index.md)。负责人：本成员的维护者。当前缺口：远程对端、TLS 与真实网络失败没有测试；`x-mcp-header` 的剔除只在 A 层验证。
+测试文件与两层夹具见 [index.md](index.md)。负责人：本成员的维护者。当前缺口：远程对端、TLS 与真实网络失败没有测试；`x-mcp-header` 的剔除只在 A 层验证；插件在 Streamable HTTP 上的旅程、真实的四个端口实现与撤除期限没有测试。

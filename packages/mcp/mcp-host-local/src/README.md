@@ -12,7 +12,7 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 维护
 
-新增或改名公开入口时，同步 `package.json` 的 `exports`、`docs/public-api.md`、`tests/public-entry.spec.ts` 与本目录 `index.md`。改 `line.ts` 的端口时同步两条线路与 `tests/memory-line.ts`。
+新增或改名公开入口时，同步 `package.json` 的 `exports`、`docs/public-api.md`、`tests/public-entry.spec.ts` 与本目录 `index.md`。改 `line.ts` 的端口时同步两条线路与 `tests/memory-line.ts`。改插件的键、配置、适配器或撤除函数时，同步包根 `SPEC.md` 的「Cordis 插件」、`docs/cordis.md`、`tests/cordis-entry.spec.ts` 与 `tests/cordis-journey.spec.ts`。
 
 ## 本包事实
 
