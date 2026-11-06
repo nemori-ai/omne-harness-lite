@@ -71,12 +71,18 @@ const alive = (pid: number) => {
   }
 }
 
+/**
+ * `vi.waitFor` with a bound that holds while the stand-in gate and tools run as processes on a
+ * loaded machine. It only guards against a hang.
+ */
+const eventually = <T>(check: () => T | Promise<T>) => vi.waitFor(check, { timeout: 10_000 })
+
 afterEach(async () => {
   vi.restoreAllMocks()
   for (const terminals of terminalsOpened.splice(0)) await terminals.stopAll()
   const pids = gatePids.splice(0)
   // The stand-in gate is killed through the stand-in `systemctl`, as the real gate is.
-  for (const pid of pids) await vi.waitFor(() => expect(alive(pid), `gate ${pid}`).toBe(false))
+  for (const pid of pids) await eventually(() => expect(alive(pid), `gate ${pid}`).toBe(false))
   for (const directory of directories.splice(0))
     await rm(directory, { recursive: true, force: true })
 })
@@ -439,7 +445,7 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
           { t: 'fault', delayMs: 300 },
         ],
       })
-      await vi.waitFor(() => expect(f.state()).toBe('invalid'))
+      await eventually(() => expect(f.state()).toBe('invalid'))
       expect(await f.execute()).toMatchObject({ kind: 'rejected', reason: 'closed' })
     })
   })
@@ -455,7 +461,7 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
       terminal: f.terminal satisfies TerminalRef,
     })
     expect(closed).toMatchObject({ kind: 'done', value: { status: 'confirmed' } })
-    await vi.waitFor(() => expect(pid !== undefined && alive(pid)).toBe(false))
+    await eventually(() => expect(pid !== undefined && alive(pid)).toBe(false))
     expect(f.state()).toBe('closed')
   })
 })
