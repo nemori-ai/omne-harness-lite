@@ -25,8 +25,14 @@ import {
 
 afterEach(cleanup)
 
-async function acquisition(provider: ReturnType<typeof hostProvider>, cwd: string): Promise<TerminalConformanceAcquisition> {
-  const lease = await leaseOf(provider, acquisitionLedger().ledger, { scope: freshScope(), terminal: true })
+async function acquisition(
+  provider: ReturnType<typeof hostProvider>,
+  cwd: string,
+): Promise<TerminalConformanceAcquisition> {
+  const lease = await leaseOf(provider, acquisitionLedger().ledger, {
+    scope: freshScope(),
+    terminal: true,
+  })
   const facility = lease.facility('terminal')
   if (facility === undefined) throw new Error('terminal facility missing')
   let count = 0
@@ -44,7 +50,10 @@ for (const test of terminalFacilityConformance({
   async subject() {
     const provider = hostProvider(undefined)
     const cwd = await workDirectory('omne-terminal-suite-')
-    const acquisitions = [await acquisition(provider, cwd), await acquisition(provider, cwd)] as const
+    const acquisitions = [
+      await acquisition(provider, cwd),
+      await acquisition(provider, cwd),
+    ] as const
     const finishing = new Map<object, string>()
     let legs = 0
     return {
