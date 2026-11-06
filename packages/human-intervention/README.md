@@ -1,6 +1,6 @@
 # 人在回路能力组
 
-本组的HITL公共协议已按HJ0接受。公共成员提供严格数据解析、应用服务接口及纯卡片决策。local 已实现请求/等待持久事务及 Identity 成员资格协调，完整应用服务尚未完成。模型证据和纯函数测试不代替真实组合验收。
+本组的HITL公共协议已按HJ0接受。公共成员提供严格数据解析、应用服务接口及纯卡片决策。local 已实现独立等待的命令、查询和恢复应用服务，消费 Identity 成员资格协调与 SQL 持久事务。独立验收尚未完成；真实 Agent、Tool 等待与完整权限组合仍待接入。模型证据和纯函数测试不代替真实组合验收。
 
 ## 责任与范围
 
@@ -10,8 +10,8 @@
 
 | 文档目标 | 责任及状态 |
 | --- | --- |
-| [human-intervention-local](human-intervention-local/README_ZH.md) | Node 单机 SQL 提供者；已实现请求/等待事务、结果回查及 Identity 成员资格协调，完整应用服务实施中 |
-| [human-intervention](human-intervention/README.md) | 公开模型和纯卡片规则已实现，持久服务实施中；[SPEC](human-intervention/SPEC.md)拥有完整义务，[内部设计](human-intervention/docs/internals.md)指向已采用的HJ0协议 |
+| [human-intervention-local](human-intervention-local/README_ZH.md) | Node 单机 SQL 提供者；已实现独立等待的应用服务、结果回查及 Identity 成员资格协调，独立验收待完成 |
+| [human-intervention](human-intervention/README.md) | 公开模型、应用服务接口和纯卡片规则；[SPEC](human-intervention/SPEC.md)拥有完整义务，[内部设计](human-intervention/docs/internals.md)指向已采用的HJ0协议 |
 
 本组将公共模型与 Node 单机提供者分开，纯根不引入 SQL 或 Node 依赖。独立消费从成员行为及公开定义开始；Cordis 消费另核对已采用集成约定，不以 runtime 对象充当数据契约。
 
@@ -21,7 +21,7 @@
 
 ## 组合验证
 
-完整验证义务见[成员 SPEC](human-intervention/SPEC.md#持续验证义务)。公共模型与 local 通过公开值契约衔接；与相邻能力的组合仍需真实协调者验证，目录、源 SHA 和图语法不能代替实际隔离、同提交、故障与恢复证据。当前已有公开形状、形式验证入口，以及真实 SQLite 和 IdentitySql 的请求/原等待组合测试。完整运行时、权限和公开应用服务组合仍待完成。
+完整验证义务见[成员 SPEC](human-intervention/SPEC.md#持续验证义务)。公共模型与 local 通过公开值契约衔接；与相邻能力的组合仍需真实协调者验证，目录、源 SHA 和图语法不能代替实际隔离、同提交、故障与恢复证据。当前已有公开形状、形式验证入口，以及真实 SQLite 和 IdentitySql 的独立应用服务测试。[本机交互验证台](human-intervention-local/verification/workbench/README.md)提供手动验证入口。完整运行时与权限组合仍待完成。
 
 ## 维护
 

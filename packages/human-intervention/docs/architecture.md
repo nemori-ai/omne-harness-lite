@@ -10,7 +10,7 @@ HITL 验证关联、一次有效处理和披露；原 Tool/Run 验证批次、�
 
 ## 本组工程分解与公开依赖
 
-原 Tool/Run 提供请求与等待位置，身份/授权与设置提供当前资格及合法授权事实；交付面只呈现有权内容，正式通知承接实际形成的提示。HITL 不依赖消费者内部存储，也不接管原执行。 当前human-intervention成员拥有公开形状、纯卡片规则和命令/查询接口。它只依赖Schema库，不导入Session、Agent、Tool或Cordis。[human-intervention-local](../human-intervention-local/README_ZH.md) 已按 C2 建立，消费 SQL 公共参与者/读口合同，目前实现操作终态。完整服务的 Identity 保护与独立 WaitOwner 仍在实施，不将终态材料注册视为完整业务闭环。
+原 Tool/Run 提供请求与等待位置，身份/授权与设置提供当前资格及合法授权事实；交付面只呈现有权内容，正式通知承接实际形成的提示。HITL 不依赖消费者内部存储，也不接管原执行。当前 human-intervention 成员拥有公开形状、纯卡片规则和命令/查询接口。它只依赖 Schema 库，不导入 Session、Agent、Tool 或 Cordis。[human-intervention-local](../human-intervention-local/README_ZH.md) 消费 SQL 公共参与者/读口合同，已实现独立 WaitOwner、Identity 成员资格协调及独立等待的命令、查询和恢复应用服务。其[内部架构](../human-intervention-local/docs/architecture.md)说明实际持久化分工。独立验收仍待完成；该独立装配不代表真实 Tool/Run 及完整授权组合已经接通。
 
 ## 机制与流程导航
 
