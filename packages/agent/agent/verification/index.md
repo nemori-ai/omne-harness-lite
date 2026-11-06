@@ -17,3 +17,5 @@
 - [run-lifecycle/](run-lifecycle/README.md)：Run 驱动生命周期的有限模型、[运行记录](run-lifecycle/formal-runs.md)、[手写证明](run-lifecycle/proofs.md)与[机读守卫](run-lifecycle/guards/run-lifecycle.spec.ts)
 
 - [reservation/](reservation/README.md)：执行槽预占与本地宿主空闲回收的有限模型及运行守护
+
+- [failure-closure/](failure-closure/README.md)：节点故障收尾的有限安全性、有条件活性与具名负控
