@@ -8,7 +8,7 @@
 
 ## 边界
 
-快层（`public-entry.spec.ts`、`session.spec.ts`、`lines.spec.ts`）只用内存线路、内存进程句柄与 `fetch` 的替身，不起进程、不开端口。慢层（文件头 `@module-tag slow`：`conformance.spec.ts`、`stdio.spec.ts`、`http.spec.ts`、`e2e/journey.spec.ts`）起真实子进程与本机 HTTP 服务端：A 层是真实线路上的脚本化对端，B 层是 SDK 的真实服务端与 `server-everything`。A 层与 B 层的三个慢层文件在每个用例结束时核对没有遗留的子进程与监听端口；`e2e/` 的用例在每个用例结束时核对没有遗留的子进程，HTTP 目标由旅程自己关闭；`vitest.config.ts` 的 setup 文件 `unhandled.ts` 对每个用例文件生效：用例里没人处理的拒绝或未捕获的异常使该用例失败。真实依赖：Node 的 `child_process`、`node:http`、全局 `fetch`、`@modelcontextprotocol/server`、`@modelcontextprotocol/node`、`@modelcontextprotocol/server-everything`、`zod`。`e2e/` 的慢层用例把调用方 `createMcp` 与本包的传输装在一起，对 `server-everything`（三种传输）、`server-filesystem` 与 `mcp-server-fetch`（Python）走同一条旅程；它是本包与调用方的真实组合的证据，范围见 [e2e/README.md](e2e/README.md)。测试通过不代替规格或验收。
+快层（`public-entry.spec.ts`、`session.spec.ts`、`lines.spec.ts`）只用内存线路、内存进程句柄与 `fetch` 的替身，不起进程、不开端口。慢层（文件头 `@module-tag slow`：`conformance.spec.ts`、`stdio.spec.ts`、`http.spec.ts`、`cordis-entry.spec.ts`、`e2e/journey.spec.ts`）起真实子进程与本机 HTTP 服务端：A 层是真实线路上的脚本化对端，B 层是 SDK 的真实服务端与 `server-everything`。A 层与 B 层的三个慢层文件在每个用例结束时核对没有遗留的子进程与监听端口；`e2e/` 的用例在每个用例结束时核对没有遗留的子进程，`cordis-entry.spec.ts` 在每个用例结束时先撤除它装载的插件，再核对没有遗留的子进程，HTTP 目标由旅程自己关闭；`vitest.config.ts` 的 setup 文件 `unhandled.ts` 对每个用例文件生效：用例里没人处理的拒绝或未捕获的异常使该用例失败。真实依赖：Node 的 `child_process`、`node:http`、全局 `fetch`、`@modelcontextprotocol/server`、`@modelcontextprotocol/node`、`@modelcontextprotocol/server-everything`、`zod`。`e2e/` 的慢层用例把调用方 `createMcp` 与本包的传输装在一起，对 `server-everything`（三种传输）、`server-filesystem` 与 `mcp-server-fetch`（Python）走同一条旅程；它是本包与调用方的真实组合的证据，范围见 [e2e/README.md](e2e/README.md)。测试通过不代替规格或验收。
 
 ## 维护
 

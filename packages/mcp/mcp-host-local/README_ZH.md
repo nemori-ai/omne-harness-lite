@@ -37,11 +37,28 @@ const identity = await transport.discover()
 await transport.close() // 关闭传输；进程由它的持有者停止
 ```
 
-依赖：`@omne-harness/mcp-contract`（端口与协议函数）、`@omne-harness/json-text`、`@omne-harness/operation-result`、`eventsource-parser`。运行环境：Node ≥ 24，全局 `fetch`（可经 `options.fetch` 注入）。本包是 `module` 变体，没有 Cordis 绑定，见 [docs/cordis.md](docs/cordis.md)。初始化只是建工厂；释放是每个传输的 `close()`，没有全局状态。
+依赖：`@omne-harness/mcp-contract`（端口与协议函数）、`@omne-harness/json-text`、`@omne-harness/operation-result`、`eventsource-parser`。运行环境：Node ≥ 24，全局 `fetch`（可经 `options.fetch` 注入）。初始化只是建工厂；释放是每个传输的 `close()`，没有全局状态。
+
+`./cordis` 入口是给 Cordis 宿主的 MCP 插件。`createMcpPlugin(parts)` 收函数与本地对象（`principalKey`、`checkOutput`，可选的 `clock` 与 `fetch`）；插件配置收五项可序列化的上界，全部必填。插件装载时提供 `mcpActionDiscovery`、`mcpActionInvoker` 与 `mcpEndpointStatus`；它每次调用时从上下文现取四个需求端口，端口缺席答 `unknown`。插件撤除时等 `connections.closeAll()` 结算。这个入口另依赖 `@omne-harness/mcp`、`@omne-harness/mcp-cordis-contract`、`@omne-harness/kernel-basis` 与 `@deepseek-ai/cordis`。见 [docs/cordis.md](docs/cordis.md)。
+
+```ts
+import { createMcpPlugin } from '@omne-harness/mcp-host-local/cordis'
+import { mcpActionDiscoveryKey } from '@omne-harness/mcp-cordis-contract/cordis'
+
+const fiber = await ctx.plugin(createMcpPlugin({ principalKey, checkOutput }), {
+  maxListingPages: 5,
+  maxActions: 100,
+  instructionsByteLimit: 4096,
+  probeTimeoutMs: 2_000,
+  clientInfo: { name: 'my-host', version: '1.0.0' },
+})
+const discovery = ctx.get(mcpActionDiscoveryKey) // 服务，或 undefined
+await fiber.dispose() // 关闭每条连接并停止进程
+```
 
 ## 契约
 
-公开类型在 [src/index.ts](src/index.ts)（`createLocalTransportFactory`、`LocalTransportOptions`）；端口类型是契约的 `@omne-harness/mcp-contract/provider`，本包不导出 SDK 的类型。类型以外的行为由 [SPEC.md](SPEC.md) 拥有：它写明本包兑现契约的哪些条款、本包自定的事项、说明怎样兑现的 H 条目、与官方 SDK 的复用关系，以及与协议和契约的偏离。选项不合法时 `createLocalTransportFactory` 抛出 `RangeError`；传输方法以 `Outcome` 答复，不 reject。错误、生命周期与资源的拥有者见 SPEC「所有权、失败与生命周期」。
+公开类型在 [src/index.ts](src/index.ts)（`createLocalTransportFactory`、`LocalTransportOptions`），`./cordis` 入口的在 [src/cordis.ts](src/cordis.ts)（`createMcpPlugin`、`McpPluginParts`、`McpPluginConfig`）；端口类型是契约的 `@omne-harness/mcp-contract/provider`，本包不导出 SDK 的类型。类型以外的行为由 [SPEC.md](SPEC.md) 拥有：它写明本包兑现契约的哪些条款、本包自定的事项、说明怎样兑现的 H 条目、与官方 SDK 的复用关系，以及与协议和契约的偏离。选项不合法时 `createLocalTransportFactory` 抛出 `RangeError`；传输方法以 `Outcome` 答复，不 reject。错误、生命周期与资源的拥有者见 SPEC「所有权、失败与生命周期」。
 
 ## 设计
 

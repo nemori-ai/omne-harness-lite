@@ -11,6 +11,7 @@
 - [memory-line.ts](memory-line.ts)：内存线路替身：按方法脚本答复（含等 `signal` 才返回的写、忽略 `signal` 的答复流），记录发出的消息、被 `signal` 或 `abort()` 中止的写与流、被拒绝的回退 GET，推送共用流的事件
 - [unhandled.ts](unhandled.ts)：`vitest.config.ts` 的 setup 文件，对每个用例文件生效：用例里没人处理的拒绝或未捕获的异常使该用例失败
 - `model/`：会话的有界穷举探索器（SPEC「性质与证据」）：`explore.ts` 引擎、`ports.ts` 端口替身（线路、可挂起的凭据句柄与元数据取回、计时）、`properties.ts` V1–V6 的可观察形式（V4 看调用方的 promise）、`scenarios.ts` 上限、`session-model.spec.ts` 用例；`mutants.ts` 列负控，`mutate.ts` 把负控逐个放进 `src/`、跑对应用例并按字节还原（在包根运行 `node tests/model/mutate.ts [名字…] [--out 目录]`）
+- [cordis-entry.spec.ts](cordis-entry.spec.ts)（慢层）：`./cordis` 的插件在真实 Cordis `Context` 上：完整合法配置装载后三个键取得到服务，在脚本化 stdio 对端进程上走「刷新 → 调用」；三个服务的每个方法经插件调用一次；四个端口逐个缺席时依赖它的操作答契约的 `unknown` 一类答复且不起进程；资格与采用端口换代后下一次操作用新的端口；撤除后对端进程已退出、三个键取不到、在途调用答 `unknown`（`abandoned`）；`AggregateError` 撤除的 Cordis 机制探针；配置形状的接受与拒绝，越界值的 `RangeError`
 - [conformance.spec.ts](conformance.spec.ts)（慢层）：契约 `mcpTransportConformance()` 在 A 层对端上跑两遍（stdio 优先、HTTP 优先），通过/不适用/失败分开计数，不适用集合钉死
 - [stdio.spec.ts](stdio.spec.ts)（慢层）：契约 T2、T3、T5 与 T8 的 S、X 行在真实管道上：不是 JSON 的行、16 MiB 行上界、进程退出的时序、SDK 旧对端、探测时限、不读 stdin 的对端（含缓冲里还有已出发的小写时 `close()` 在界内返回）、取消通知、`server-everything stdio`
 - [http.spec.ts](http.spec.ts)（慢层）：契约 T2–T5、R4 与 T8 的 HTTP 行在本机端口上：SDK bearer 网关与授权发现、凭据不泄漏、`signal` 与 `close()` 管辖的等待、再发规则、离开前失败与头前重置、重定向、`x-mcp-header`、2025 会话与 `DELETE`、现代取消、旧 HTTP+SSE 回退（含 GET 的 401）、应答流里先到的非 `message` 事件只当噪声、`server-everything sse`/`streamableHttp`

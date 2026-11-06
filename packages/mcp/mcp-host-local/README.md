@@ -38,11 +38,28 @@ const identity = await transport.discover()
 await transport.close() // closes the transport; the holder of the process stops it
 ```
 
-Dependencies: `@omne-harness/mcp-contract` (the ports and the protocol functions), `@omne-harness/json-text`, `@omne-harness/operation-result`, `eventsource-parser`. Runtime: Node >= 24 with a global `fetch` (an own one goes in through `options.fetch`). The package is a `module` variant with no Cordis binding, see [docs/cordis.md](docs/cordis.md). Initialization is building the factory; disposal is each transport's `close()`; there is no global state.
+Dependencies: `@omne-harness/mcp-contract` (the ports and the protocol functions), `@omne-harness/json-text`, `@omne-harness/operation-result`, `eventsource-parser`. Runtime: Node >= 24 with a global `fetch` (an own one goes in through `options.fetch`). Initialization is building the factory; disposal is each transport's `close()`; there is no global state.
+
+The `./cordis` entry has the MCP plugin for a Cordis host. `createMcpPlugin(parts)` takes the functions and local objects (`principalKey`, `checkOutput`, and optional `clock` and `fetch`); the plugin configuration holds the five serializable bounds, all required. On load the plugin provides `mcpActionDiscovery`, `mcpActionInvoker` and `mcpEndpointStatus`; it reads the four demand ports from the context on each call, and an absent port answers `unknown`. On unload it awaits `connections.closeAll()`. It also depends on `@omne-harness/mcp`, `@omne-harness/mcp-cordis-contract`, `@omne-harness/kernel-basis` and `@deepseek-ai/cordis`. See [docs/cordis.md](docs/cordis.md).
+
+```ts
+import { createMcpPlugin } from '@omne-harness/mcp-host-local/cordis'
+import { mcpActionDiscoveryKey } from '@omne-harness/mcp-cordis-contract/cordis'
+
+const fiber = await ctx.plugin(createMcpPlugin({ principalKey, checkOutput }), {
+  maxListingPages: 5,
+  maxActions: 100,
+  instructionsByteLimit: 4096,
+  probeTimeoutMs: 2_000,
+  clientInfo: { name: 'my-host', version: '1.0.0' },
+})
+const discovery = ctx.get(mcpActionDiscoveryKey) // the service, or undefined
+await fiber.dispose() // closes every connection and stops the processes
+```
 
 ## Contracts
 
-The public types are in [src/index.ts](src/index.ts) (`createLocalTransportFactory`, `LocalTransportOptions`); the port types are the contract's `@omne-harness/mcp-contract/provider`, and no SDK type is exported. Behavior beyond the types is owned by [SPEC.md](SPEC.md): which contract clauses this package honours, what this package decides itself, the H entries that say how, the reuse relation with the official SDK, and the deviations from the protocol and the contract. Invalid options throw `RangeError`; the transport methods answer `Outcome` and do not reject. The owners of errors, lifecycle and resources are in the SPEC section on ownership.
+The public types are in [src/index.ts](src/index.ts) (`createLocalTransportFactory`, `LocalTransportOptions`) and in [src/cordis.ts](src/cordis.ts) for the `./cordis` entry (`createMcpPlugin`, `McpPluginParts`, `McpPluginConfig`); the port types are the contract's `@omne-harness/mcp-contract/provider`, and no SDK type is exported. Behavior beyond the types is owned by [SPEC.md](SPEC.md): which contract clauses this package honours, what this package decides itself, the H entries that say how, the reuse relation with the official SDK, and the deviations from the protocol and the contract. Invalid options throw `RangeError`; the transport methods answer `Outcome` and do not reject. The owners of errors, lifecycle and resources are in the SPEC section on ownership.
 
 ## Design
 
