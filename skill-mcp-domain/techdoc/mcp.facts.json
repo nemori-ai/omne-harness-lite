@@ -12,6 +12,120 @@
     ],
     "files": [
       {
+        "file": "src/calls.ts",
+        "decls": [
+          {
+            "name": "CallsDependencies",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "McpPorts",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "McpConfig",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionTable",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "InFlightCalls"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskTable"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "McpPorts",
+              "P",
+              "S",
+              "McpConfig",
+              "ConnectionTable",
+              "InFlightCalls",
+              "TaskTable"
+            ]
+          },
+          {
+            "name": "createCalls",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CallsDependencies",
+              "P",
+              "S",
+              "ActionCalls",
+              "UseGate",
+              "Access",
+              "CorrelationKey",
+              "InFlightKey",
+              "AbortSignal",
+              "Promise",
+              "Outcome",
+              "T",
+              "NotSentReason",
+              "Halted",
+              "Send",
+              "CatalogKey",
+              "KnownAction",
+              "ActionName",
+              "Generation",
+              "AdmittedEndpoint",
+              "Ensured",
+              "Prepared",
+              "Sent",
+              "PeerAnswer",
+              "CallOutcome",
+              "InvokeResult",
+              "Reservation",
+              "SentCall",
+              "NotSent",
+              "CallBreached",
+              "CancelAnswer"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./internal/caller-values.ts",
+          "./internal/classification.ts",
+          "./internal/entry.ts",
+          "./internal/gate.ts",
+          "./internal/guard.ts",
+          "./internal/in-flight.ts",
+          "./internal/lost.ts",
+          "./internal/port.ts",
+          "./internal/settings.ts",
+          "./internal/table.ts",
+          "./internal/task-table.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createCalls",
+          "lines": 227
+        },
+        "lines": 401
+      },
+      {
         "file": "src/config.ts",
         "decls": [
           {
@@ -105,63 +219,6 @@
         "file": "src/discovery.ts",
         "decls": [
           {
-            "name": "RefreshRequest",
-            "kind": "record",
-            "fields": [
-              {
-                "refs": [
-                  "EndpointRef"
-                ]
-              },
-              {
-                "refs": [
-                  "Millis"
-                ]
-              },
-              {
-                "refs": [
-                  "AbortSignal"
-                ]
-              }
-            ],
-            "variants": [],
-            "refs": [
-              "EndpointRef",
-              "Millis",
-              "AbortSignal"
-            ]
-          },
-          {
-            "name": "McpDiscovery",
-            "kind": "interface",
-            "fields": [
-              {
-                "refs": [
-                  "Access",
-                  "P",
-                  "RefreshRequest",
-                  "Promise",
-                  "Outcome",
-                  "RefreshResult",
-                  "OperationFailure"
-                ]
-              }
-            ],
-            "refs": [
-              "ActionDiscovery",
-              "P",
-              "Access",
-              "RefreshRequest",
-              "Promise",
-              "Outcome",
-              "RefreshResult",
-              "OperationFailure"
-            ],
-            "extends": [
-              "ActionDiscovery"
-            ]
-          },
-          {
             "name": "DiscoveryDependencies",
             "kind": "record",
             "fields": [
@@ -186,7 +243,7 @@
               },
               {
                 "refs": [
-                  "Date"
+                  "McpClock"
                 ]
               }
             ],
@@ -197,7 +254,7 @@
               "S",
               "McpConfig",
               "ConnectionTable",
-              "Date"
+              "McpClock"
             ]
           },
           {
@@ -208,21 +265,25 @@
               "DiscoveryDependencies",
               "P",
               "S",
-              "McpDiscovery",
+              "ActionDiscovery",
               "UseGate",
               "Ensured",
               "AbortSignal",
               "Promise",
               "Pages",
+              "Shut",
               "Outcome",
               "ListingPage",
               "TransportFailure",
-              "Extract",
+              "LostPage",
               "RefreshResult",
               "OperationFailure",
               "Access",
               "RefreshRequest",
               "ActionCatalogRecord",
+              "CatalogRevision",
+              "Refreshed",
+              "Extract",
               "CatalogView",
               "EndpointRef",
               "ReadFailure",
@@ -237,9 +298,10 @@
           "@omne-harness/operation-result",
           "@omne-harness/mcp-contract",
           "@omne-harness/mcp-contract/provider",
-          "./internal/abort.ts",
-          "./internal/canonical.ts",
+          "./internal/entry.ts",
           "./internal/guard.ts",
+          "./internal/lost.ts",
+          "./internal/port.ts",
           "./internal/settings.ts",
           "./internal/table.ts"
         ],
@@ -248,69 +310,15 @@
         "anyCount": 0,
         "longest": {
           "name": "createDiscovery",
-          "lines": 175
+          "lines": 223
         },
-        "lines": 249
+        "lines": 311
       },
       {
         "file": "src/index.ts",
         "decls": [
           {
-            "name": "McpCore",
-            "kind": "record",
-            "fields": [
-              {
-                "refs": [
-                  "EndpointInspection"
-                ]
-              },
-              {
-                "refs": [
-                  "McpDiscovery",
-                  "P"
-                ]
-              },
-              {
-                "refs": [
-                  "EndpointStatus",
-                  "P",
-                  "S"
-                ]
-              },
-              {
-                "refs": [
-                  "Connections",
-                  "P"
-                ]
-              }
-            ],
-            "variants": [],
-            "refs": [
-              "EndpointInspection",
-              "McpDiscovery",
-              "P",
-              "EndpointStatus",
-              "S",
-              "Connections"
-            ]
-          },
-          {
-            "name": "McpCoreOptions",
-            "kind": "record",
-            "fields": [
-              {
-                "refs": [
-                  "Date"
-                ]
-              }
-            ],
-            "variants": [],
-            "refs": [
-              "Date"
-            ]
-          },
-          {
-            "name": "createMcpCore",
+            "name": "createMcp",
             "kind": "function",
             "fields": [],
             "refs": [
@@ -318,21 +326,15 @@
               "P",
               "S",
               "McpConfig",
-              "McpCoreOptions",
-              "McpCore"
+              "McpServices"
             ]
           }
         ],
         "imports": [
           "@omne-harness/mcp-contract",
           "./config.ts",
-          "./connections.ts",
-          "./discovery.ts",
-          "./inspection.ts",
-          "./internal/table.ts",
-          "./status.ts",
-          "./store/memory.ts",
-          "./discovery.ts"
+          "./internal/assembly.ts",
+          "./store/memory.ts"
         ],
         "reexports": [
           {
@@ -340,22 +342,15 @@
             "names": [
               "createInMemoryCatalogStore"
             ]
-          },
-          {
-            "from": "./discovery.ts",
-            "names": [
-              "McpDiscovery",
-              "RefreshRequest"
-            ]
           }
         ],
         "asCount": 0,
         "anyCount": 0,
         "longest": {
-          "name": "createMcpCore",
-          "lines": 11
+          "name": "createMcp",
+          "lines": 3
         },
-        "lines": 55
+        "lines": 16
       },
       {
         "file": "src/inspection.ts",
@@ -385,58 +380,225 @@
         "lines": 21
       },
       {
-        "file": "src/internal/abort.ts",
+        "file": "src/internal/assembly.ts",
         "decls": [
           {
-            "name": "Bounded",
-            "kind": "union",
-            "fields": [],
-            "variants": [
-              "answered",
-              "aborted"
+            "name": "Assembled",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "McpServices",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionTable",
+                  "P"
+                ]
+              }
             ],
+            "variants": [],
             "refs": [
-              "Readonly",
-              "T",
-              "Promise"
+              "McpServices",
+              "P",
+              "S",
+              "ConnectionTable"
             ]
           },
           {
-            "name": "untilAborted",
+            "name": "assemble",
             "kind": "function",
             "fields": [],
             "refs": [
-              "Promise",
-              "T",
-              "AbortSignal",
-              "Bounded"
-            ]
-          },
-          {
-            "name": "afterwards",
-            "kind": "function",
-            "fields": [],
-            "refs": [
-              "Promise",
-              "T"
+              "McpPorts",
+              "P",
+              "S",
+              "McpConfig",
+              "TableRuntime",
+              "Assembled"
             ]
           }
         ],
-        "imports": [],
+        "imports": [
+          "@omne-harness/mcp-contract",
+          "../connections.ts",
+          "../discovery.ts",
+          "../inspection.ts",
+          "../invoker.ts",
+          "../status.ts",
+          "./in-flight.ts",
+          "./table.ts",
+          "./task-table.ts"
+        ],
         "reexports": [],
         "asCount": 0,
         "anyCount": 0,
         "longest": {
-          "name": "untilAborted",
-          "lines": 25
+          "name": "assemble",
+          "lines": 22
         },
-        "lines": 42
+        "lines": 52
       },
       {
-        "file": "src/internal/canonical.ts",
+        "file": "src/internal/build.ts",
         "decls": [
           {
-            "name": "sameJson",
+            "name": "Builder",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Entry",
+                  "Access",
+                  "P",
+                  "PreparedSettings",
+                  "Promise",
+                  "Outcome",
+                  "Ensured",
+                  "EnsureFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Entry",
+                  "LostReason",
+                  "UnavailableMark",
+                  "Losing"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Entry",
+              "Access",
+              "P",
+              "PreparedSettings",
+              "Promise",
+              "Outcome",
+              "Ensured",
+              "EnsureFailure",
+              "LostReason",
+              "UnavailableMark",
+              "Losing"
+            ]
+          },
+          {
+            "name": "Losing",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Promise",
+                  "CatalogMark"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Promise",
+              "CatalogMark"
+            ]
+          },
+          {
+            "name": "BuilderDependencies",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Entry"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Spawn"
+                ]
+              },
+              {
+                "refs": [
+                  "StartBound"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Entry",
+              "Spawn",
+              "StartBound"
+            ]
+          },
+          {
+            "name": "createBuilder",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "McpPorts",
+              "P",
+              "S",
+              "McpConfig",
+              "BuilderDependencies",
+              "Builder",
+              "CatalogKey",
+              "UnavailableMark",
+              "Promise",
+              "CatalogMark",
+              "Entry",
+              "LostReason",
+              "Losing",
+              "Failed",
+              "AbortSignal",
+              "Outcome",
+              "EnsureFailure",
+              "Access",
+              "PreparedSettings",
+              "CredentialHandle",
+              "CredentialFailure",
+              "Landing",
+              "Settle",
+              "ProcessHandle",
+              "LandingFailure",
+              "Generation",
+              "TransportMaterial",
+              "ProcessEnvironment",
+              "Readonly",
+              "McpTransport",
+              "PeerIdentity",
+              "Ensured"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./entry.ts",
+          "./late.ts",
+          "./lost.ts",
+          "./port.ts",
+          "./scope.ts",
+          "./settings.ts",
+          "./teardown.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createBuilder",
+          "lines": 215
+        },
+        "lines": 342
+      },
+      {
+        "file": "src/internal/caller-values.ts",
+        "decls": [
+          {
+            "name": "judgedTree",
             "kind": "function",
             "fields": [],
             "refs": [
@@ -451,10 +613,38 @@
         "asCount": 0,
         "anyCount": 0,
         "longest": {
-          "name": "canonical",
-          "lines": 22
+          "name": "judgedTree",
+          "lines": 8
         },
-        "lines": 33
+        "lines": 13
+      },
+      {
+        "file": "src/internal/classification.ts",
+        "decls": [
+          {
+            "name": "classificationOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Generation",
+              "JsonValue",
+              "OutputValidator",
+              "ClassifyContext"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/mcp-contract"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "classificationOf",
+          "lines": 3
+        },
+        "lines": 12
       },
       {
         "file": "src/internal/connection.ts",
@@ -567,6 +757,406 @@
           "lines": 8
         },
         "lines": 103
+      },
+      {
+        "file": "src/internal/entry.ts",
+        "decls": [
+          {
+            "name": "ConnectionView",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Generation"
+            ]
+          },
+          {
+            "name": "Ensured",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ConnectionKey"
+                ]
+              },
+              {
+                "refs": [
+                  "McpTransport"
+                ]
+              },
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionView"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerIdentity"
+                ]
+              },
+              {
+                "refs": [
+                  "CatalogKey"
+                ]
+              },
+              {
+                "refs": [
+                  "AdoptionRevision"
+                ]
+              },
+              {
+                "refs": [
+                  "Millis"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ConnectionKey",
+              "McpTransport",
+              "Generation",
+              "ConnectionView",
+              "PeerIdentity",
+              "CatalogKey",
+              "AdoptionRevision",
+              "Millis"
+            ]
+          },
+          {
+            "name": "CatalogMark",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "marked",
+              "revision-conflict",
+              "unavailable",
+              "not-acquired",
+              "pending"
+            ],
+            "refs": []
+          },
+          {
+            "name": "ConnectionUnavailable",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "ConnectionFailure"
+            ]
+          },
+          {
+            "name": "CONNECTION_UNAVAILABLE",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "EnsureRefusal",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "SettingsFailure",
+              "AdoptionRefusal",
+              "ConnectionUnavailable"
+            ],
+            "refs": [
+              "SettingsFailure",
+              "AdoptionRefusal",
+              "ConnectionUnavailable"
+            ]
+          },
+          {
+            "name": "EnsureFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "{…}",
+              "{…}"
+            ],
+            "refs": [
+              "Readonly",
+              "EnsureRefusal",
+              "ConnectionFailure",
+              "EffectUnknown",
+              "CatalogMark"
+            ]
+          },
+          {
+            "name": "UnavailableMark",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Exclude",
+              "UnavailableReason"
+            ]
+          },
+          {
+            "name": "CredentialHandle",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "ProcessCredentialHandle",
+              "HttpCredentialHandle"
+            ],
+            "refs": [
+              "ProcessCredentialHandle",
+              "HttpCredentialHandle"
+            ]
+          },
+          {
+            "name": "StopRange",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "StopScope",
+              "no-process"
+            ],
+            "refs": [
+              "StopScope"
+            ]
+          },
+          {
+            "name": "Lingering",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ProcessHandle"
+                ]
+              },
+              {
+                "refs": [
+                  "StopScope"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ProcessHandle",
+              "StopScope"
+            ]
+          },
+          {
+            "name": "Landing",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ProcessCredentialHandle"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ProcessCredentialHandle"
+            ]
+          },
+          {
+            "name": "Resources",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "McpTransport"
+                ]
+              },
+              {
+                "refs": [
+                  "ProcessHandle"
+                ]
+              },
+              {
+                "refs": [
+                  "CredentialHandle"
+                ]
+              },
+              {
+                "refs": [
+                  "Lingering"
+                ]
+              },
+              {
+                "refs": [
+                  "Landing"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "McpTransport",
+              "ProcessHandle",
+              "CredentialHandle",
+              "Lingering",
+              "Landing"
+            ]
+          },
+          {
+            "name": "Entry",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Resources",
+              "EndpointRef",
+              "CatalogKey",
+              "AdoptionRevision",
+              "Millis",
+              "Connection",
+              "ConnectionView",
+              "Promise",
+              "Outcome",
+              "Ensured",
+              "EnsureFailure",
+              "StopRange"
+            ]
+          },
+          {
+            "name": "holdsNothing",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Resources"
+            ]
+          },
+          {
+            "name": "forgettable",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Resources",
+              "Readonly",
+              "Connection"
+            ]
+          },
+          {
+            "name": "recordStop",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Resources",
+              "ProcessHandle",
+              "StopScope"
+            ]
+          },
+          {
+            "name": "adoptLingering",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Resources"
+            ]
+          },
+          {
+            "name": "handOverToLanding",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Resources",
+              "Landing"
+            ]
+          },
+          {
+            "name": "landingAnswered",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Resources",
+              "Landing"
+            ]
+          },
+          {
+            "name": "takeBackFromLanding",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Resources",
+              "Landing"
+            ]
+          },
+          {
+            "name": "viewOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Connection",
+              "ConnectionView",
+              "Generation"
+            ]
+          },
+          {
+            "name": "isUsable",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Entry",
+              "McpTransport"
+            ]
+          },
+          {
+            "name": "isSettled",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Entry"
+            ]
+          },
+          {
+            "name": "ensuredOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Entry",
+              "McpTransport",
+              "Ensured"
+            ]
+          },
+          {
+            "name": "residualOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Entry",
+              "Residual"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./connection.ts",
+          "./gate.ts",
+          "./settings.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "ensuredOf",
+          "lines": 14
+        },
+        "lines": 214
       },
       {
         "file": "src/internal/gate.ts",
@@ -776,16 +1366,17 @@
           "@omne-harness/legal-identity",
           "@omne-harness/operation-result",
           "@omne-harness/mcp-contract",
-          "@omne-harness/mcp-contract/provider"
+          "@omne-harness/mcp-contract/provider",
+          "./port.ts"
         ],
         "reexports": [],
         "asCount": 0,
         "anyCount": 0,
         "longest": {
           "name": "judge",
-          "lines": 22
+          "lines": 24
         },
-        "lines": 175
+        "lines": 184
       },
       {
         "file": "src/internal/guard.ts",
@@ -821,7 +1412,21 @@
             "kind": "function",
             "fields": [],
             "refs": [
-              "GateRefused"
+              "GateDecision"
+            ]
+          },
+          {
+            "name": "decideForUse",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "UseGate",
+              "P",
+              "S",
+              "Access",
+              "EndpointRef",
+              "Promise",
+              "GateDecision"
             ]
           },
           {
@@ -871,7 +1476,7 @@
           "name": "stillAdmitted",
           "lines": 7
         },
-        "lines": 58
+        "lines": 80
       },
       {
         "file": "src/internal/in-flight.ts",
@@ -901,47 +1506,55 @@
             ]
           },
           {
+            "name": "Reservation",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "AbortSignal"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionView",
+                  "Generation"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "AbortSignal",
+              "ConnectionView",
+              "Generation"
+            ]
+          },
+          {
             "name": "InFlightCalls",
             "kind": "class",
             "fields": [
               {
                 "refs": [
-                  "InFlightKey"
+                  "InFlightKey",
+                  "AbortSignal",
+                  "Reservation",
+                  "Cell"
                 ]
               },
               {
                 "refs": [
                   "InFlightKey",
-                  "Generation"
-                ]
-              },
-              {
-                "refs": [
-                  "InFlightKey"
-                ]
-              },
-              {
-                "refs": [
-                  "InFlightKey"
-                ]
-              },
-              {
-                "refs": [
-                  "InFlightKey",
-                  "Generation",
                   "CancelAnswer"
-                ]
-              },
-              {
-                "refs": [
-                  "InFlightKey"
                 ]
               }
             ],
             "refs": [
-              "Entry",
+              "Cell",
               "InFlightKey",
-              "Generation",
+              "AbortSignal",
+              "Reservation",
               "CancelAnswer"
             ],
             "implements": []
@@ -950,16 +1563,349 @@
         "imports": [
           "@omne-harness/legal-identity",
           "@omne-harness/mcp-contract",
+          "./entry.ts",
           "./text.ts"
         ],
         "reexports": [],
         "asCount": 0,
         "anyCount": 0,
         "longest": {
-          "name": "cancel",
+          "name": "reserve",
+          "lines": 22
+        },
+        "lines": 107
+      },
+      {
+        "file": "src/internal/late.ts",
+        "decls": [
+          {
+            "name": "LandingFailure",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "landing-invalid",
+              "facility-missing",
+              "unknown"
+            ],
+            "refs": []
+          },
+          {
+            "name": "closeArrived",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Outcome",
+              "McpTransport",
+              "TransportFailure",
+              "Promise"
+            ]
+          },
+          {
+            "name": "releaseArrived",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Outcome",
+              "CredentialHandle",
+              "CredentialFailure",
+              "Promise"
+            ]
+          },
+          {
+            "name": "landArrived",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Entry",
+              "Landing",
+              "Outcome",
+              "ProcessHandle",
+              "LandingFailure",
+              "Promise"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract/provider",
+          "./entry.ts",
+          "./port.ts",
+          "./teardown.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "landArrived",
+          "lines": 10
+        },
+        "lines": 45
+      },
+      {
+        "file": "src/internal/lost.ts",
+        "decls": [
+          {
+            "name": "NotSent",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Extract",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "Lost",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "LostReason"
+                ]
+              },
+              {
+                "refs": [
+                  "UnavailableMark"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "LostReason",
+              "UnavailableMark"
+            ]
+          },
+          {
+            "name": "loseOn",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Pick",
+              "ConnectionTable",
+              "Ensured",
+              "Lost",
+              "Promise",
+              "CatalogMark"
+            ]
+          },
+          {
+            "name": "loseInScope",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Pick",
+              "ConnectionTable",
+              "Ensured",
+              "Lost"
+            ]
+          },
+          {
+            "name": "loseIfLost",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Pick",
+              "ConnectionTable",
+              "Ensured",
+              "TransportFailure",
+              "PeerAnswer"
+            ]
+          },
+          {
+            "name": "connectionFailureOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "NotSent",
+              "ConnectionFailure"
+            ]
+          },
+          {
+            "name": "connectionFailureOfBuild",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Extract",
+              "EnsureFailure",
+              "ConnectionFailure"
+            ]
+          },
+          {
+            "name": "lostOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TransportFailure",
+              "PeerAnswer",
+              "Lost"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./entry.ts",
+          "./table.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "lostOf",
           "lines": 18
         },
-        "lines": 83
+        "lines": 126
+      },
+      {
+        "file": "src/internal/port.ts",
+        "decls": [
+          {
+            "name": "ask",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Promise",
+              "T"
+            ]
+          },
+          {
+            "name": "BoundKind",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "section",
+              "build",
+              "join",
+              "listing",
+              "task"
+            ],
+            "refs": []
+          },
+          {
+            "name": "StartBound",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "BoundKind",
+              "AbortSignal"
+            ]
+          },
+          {
+            "name": "startTimeout",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "Bounded",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "answered",
+              "expired"
+            ],
+            "refs": [
+              "Readonly",
+              "T"
+            ]
+          },
+          {
+            "name": "Settle",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "T",
+              "Promise"
+            ]
+          },
+          {
+            "name": "waitAtMost",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Promise",
+              "T",
+              "AbortSignal",
+              "Bounded"
+            ]
+          },
+          {
+            "name": "within",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Promise",
+              "T",
+              "AbortSignal",
+              "Spawn",
+              "Settle",
+              "Bounded"
+            ]
+          }
+        ],
+        "imports": [
+          "./scope.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "race",
+          "lines": 23
+        },
+        "lines": 89
+      },
+      {
+        "file": "src/internal/scope.ts",
+        "decls": [
+          {
+            "name": "TaskScope",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Promise"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Promise"
+            ]
+          },
+          {
+            "name": "Spawn",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Pick",
+              "TaskScope"
+            ]
+          },
+          {
+            "name": "createTaskScope",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TaskScope"
+            ]
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createTaskScope",
+          "lines": 16
+        },
+        "lines": 40
       },
       {
         "file": "src/internal/settings.ts",
@@ -1113,113 +2059,51 @@
             ]
           },
           {
-            "name": "ConnectionView",
+            "name": "ensureOptionsOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Millis",
+              "EnsureOptions"
+            ]
+          },
+          {
+            "name": "TableRuntime",
             "kind": "record",
             "fields": [
               {
                 "refs": [
-                  "Generation"
+                  "StartBound"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "StartBound"
+            ]
+          },
+          {
+            "name": "SharedRuntime",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Spawn"
                 ]
               },
               {
                 "refs": [
-                  "Generation"
+                  "StartBound"
                 ]
               }
             ],
             "variants": [],
             "refs": [
-              "Generation"
-            ]
-          },
-          {
-            "name": "Ensured",
-            "kind": "record",
-            "fields": [
-              {
-                "refs": [
-                  "McpTransport"
-                ]
-              },
-              {
-                "refs": [
-                  "Generation"
-                ]
-              },
-              {
-                "refs": [
-                  "ConnectionView"
-                ]
-              },
-              {
-                "refs": [
-                  "PeerIdentity"
-                ]
-              },
-              {
-                "refs": [
-                  "CatalogKey"
-                ]
-              },
-              {
-                "refs": [
-                  "AdoptionRevision"
-                ]
-              },
-              {
-                "refs": [
-                  "Millis"
-                ]
-              }
-            ],
-            "variants": [],
-            "refs": [
-              "McpTransport",
-              "Generation",
-              "ConnectionView",
-              "PeerIdentity",
-              "CatalogKey",
-              "AdoptionRevision",
-              "Millis"
-            ]
-          },
-          {
-            "name": "CatalogMark",
-            "kind": "enum",
-            "fields": [],
-            "variants": [
-              "marked",
-              "revision-conflict",
-              "unavailable",
-              "not-acquired"
-            ],
-            "refs": []
-          },
-          {
-            "name": "EnsureFailure",
-            "kind": "union",
-            "fields": [],
-            "variants": [
-              "{…}",
-              "{…}"
-            ],
-            "refs": [
-              "Readonly",
-              "SettingsFailure",
-              "AdoptionRefusal",
-              "ConnectionFailure",
-              "EffectUnknown",
-              "CatalogMark"
-            ]
-          },
-          {
-            "name": "UnavailableMark",
-            "kind": "alias",
-            "fields": [],
-            "variants": [],
-            "refs": [
-              "Exclude",
-              "UnavailableReason"
+              "Spawn",
+              "StartBound"
             ]
           },
           {
@@ -1233,14 +2117,14 @@
               },
               {
                 "refs": [
-                  "StopScope"
+                  "StopRange"
                 ]
               }
             ],
             "variants": [],
             "refs": [
               "EndpointRef",
-              "StopScope"
+              "StopRange"
             ]
           },
           {
@@ -1271,13 +2155,19 @@
                   "Generation",
                   "LostReason",
                   "UnavailableMark",
-                  "Promise",
-                  "CatalogMark"
+                  "Losing"
                 ]
               },
               {
                 "refs": [
                   "ConnectionKey",
+                  "Ensured"
+                ]
+              },
+              {
+                "refs": [
+                  "TenantId",
+                  "EndpointHolding",
                   "Ensured"
                 ]
               },
@@ -1301,6 +2191,14 @@
                   "Promise",
                   "ClosedEndpoint"
                 ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "SharedRuntime"
+                ]
               }
             ],
             "refs": [
@@ -1316,13 +2214,14 @@
               "Generation",
               "LostReason",
               "UnavailableMark",
-              "CatalogMark",
+              "Losing",
               "ConnectionKey",
               "TenantId",
               "EndpointHolding",
               "ConnectionState",
               "ReleaseReport",
-              "ClosedEndpoint"
+              "ClosedEndpoint",
+              "SharedRuntime"
             ],
             "extends": []
           },
@@ -1335,36 +2234,29 @@
               "P",
               "S",
               "McpConfig",
+              "TableRuntime",
               "ConnectionTable",
               "Entry",
               "ConnectionView",
               "Generation",
-              "Promise",
               "EndpointHolding",
-              "T",
-              "ProcessHandle",
-              "StopScope",
-              "Scope",
-              "CatalogKey",
-              "UnavailableMark",
-              "CatalogMark",
-              "Failed",
-              "Outcome",
-              "EnsureFailure",
+              "Promise",
+              "StopRange",
+              "AdmittedEndpoint",
               "Access",
               "PreparedSettings",
-              "AbortSignal",
-              "CredentialHandle",
-              "CredentialFailure",
-              "TransportMaterial",
-              "ProcessEnvironment",
-              "Ensured",
-              "AdmittedEndpoint",
               "ConnectionKey",
+              "AbortSignal",
+              "EnsureRefusal",
+              "Readonly",
               "Started",
-              "AdoptionRefusal",
+              "Outcome",
+              "Ensured",
+              "EnsureFailure",
               "EnsureOptions",
               "LostReason",
+              "UnavailableMark",
+              "Losing",
               "TenantId",
               "ConnectionState",
               "ReleaseReport",
@@ -1376,21 +2268,204 @@
           "@omne-harness/legal-identity",
           "@omne-harness/operation-result",
           "@omne-harness/mcp-contract",
-          "@omne-harness/mcp-contract/provider",
-          "./abort.ts",
+          "./build.ts",
           "./connection.ts",
+          "./entry.ts",
           "./gate.ts",
+          "./port.ts",
+          "./scope.ts",
           "./settings.ts",
+          "./teardown.ts",
+          "./text.ts",
+          "./turns.ts",
+          "./entry.ts"
+        ],
+        "reexports": [
+          {
+            "from": "./entry.ts",
+            "names": [
+              "CatalogMark",
+              "ConnectionView",
+              "Ensured",
+              "EnsureFailure",
+              "EnsureRefusal",
+              "UnavailableMark"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createConnectionTable",
+          "lines": 340
+        },
+        "lines": 472
+      },
+      {
+        "file": "src/internal/task-table.ts",
+        "decls": [
+          {
+            "name": "TaskKey",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "TenantId"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "EndpointHolding"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TenantId",
+              "EndpointHolding",
+              "TaskId"
+            ]
+          },
+          {
+            "name": "TaskRecord",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "PeerAccount"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Generation",
+              "PeerAccount",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "TaskTable",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": [
+                  "TaskKey",
+                  "TaskRecord"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskKey",
+                  "TaskRecord"
+                ]
+              }
+            ],
+            "refs": [
+              "TaskRecord",
+              "Ambiguous",
+              "TaskKey"
+            ],
+            "implements": []
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/legal-identity",
+          "@omne-harness/mcp-contract",
           "./text.ts"
         ],
         "reexports": [],
         "asCount": 0,
         "anyCount": 0,
         "longest": {
-          "name": "createConnectionTable",
-          "lines": 462
+          "name": "record",
+          "lines": 8
         },
-        "lines": 684
+        "lines": 51
+      },
+      {
+        "file": "src/internal/teardown.ts",
+        "decls": [
+          {
+            "name": "narrowest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "StopRange"
+            ]
+          },
+          {
+            "name": "teardown",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Entry",
+              "Promise",
+              "StopRange"
+            ]
+          },
+          {
+            "name": "stopOne",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Entry",
+              "ProcessHandle",
+              "Promise",
+              "StopScope"
+            ]
+          },
+          {
+            "name": "releaseLanding",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Landing",
+              "Promise"
+            ]
+          },
+          {
+            "name": "abandonLandings",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Entry",
+              "Promise"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./entry.ts",
+          "./port.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "stopProcesses",
+          "lines": 10
+        },
+        "lines": 101
       },
       {
         "file": "src/internal/text.ts",
@@ -1401,6 +2476,14 @@
             "fields": [],
             "refs": [
               "TenantId"
+            ]
+          },
+          {
+            "name": "accountTextOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PeerAccount"
             ]
           },
           {
@@ -1431,7 +2514,89 @@
           "name": "connectionKeyTextOf",
           "lines": 8
         },
-        "lines": 24
+        "lines": 25
+      },
+      {
+        "file": "src/internal/turns.ts",
+        "decls": [
+          {
+            "name": "Turns",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Promise",
+                  "T"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Promise",
+              "T"
+            ]
+          },
+          {
+            "name": "createTurns",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Turns",
+              "Promise",
+              "T"
+            ]
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createTurns",
+          "lines": 19
+        },
+        "lines": 23
+      },
+      {
+        "file": "src/invoker.ts",
+        "decls": [
+          {
+            "name": "InvokerDependencies",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "CallsDependencies",
+              "P",
+              "S",
+              "TasksDependencies"
+            ]
+          },
+          {
+            "name": "createInvoker",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "InvokerDependencies",
+              "P",
+              "S",
+              "ActionInvoker"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/mcp-contract",
+          "./calls.ts",
+          "./tasks.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createInvoker",
+          "lines": 3
+        },
+        "lines": 10
       },
       {
         "file": "src/status.ts",
@@ -1494,9 +2659,9 @@
         "anyCount": 0,
         "longest": {
           "name": "createStatus",
-          "lines": 50
+          "lines": 49
         },
-        "lines": 108
+        "lines": 107
       },
       {
         "file": "src/store/memory.ts",
@@ -1524,43 +2689,171 @@
           "lines": 15
         },
         "lines": 21
+      },
+      {
+        "file": "src/tasks.ts",
+        "decls": [
+          {
+            "name": "TasksDependencies",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "McpPorts",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "McpConfig",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "ConnectionTable",
+                  "P"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskTable"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "McpPorts",
+              "P",
+              "S",
+              "McpConfig",
+              "ConnectionTable",
+              "TaskTable"
+            ]
+          },
+          {
+            "name": "createTasks",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TasksDependencies",
+              "P",
+              "S",
+              "TaskControl",
+              "UseGate",
+              "Access",
+              "TaskRef",
+              "TaskKey",
+              "TaskRecord",
+              "Promise",
+              "Outcome",
+              "Ensured",
+              "OperationFailure",
+              "OnConnection",
+              "T",
+              "TransportFailure",
+              "Answered",
+              "Unsent",
+              "Shut",
+              "R",
+              "TaskAnswer",
+              "CallOutcome",
+              "TaskReport",
+              "JsonValue"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./internal/classification.ts",
+          "./internal/entry.ts",
+          "./internal/guard.ts",
+          "./internal/lost.ts",
+          "./internal/caller-values.ts",
+          "./internal/port.ts",
+          "./internal/settings.ts",
+          "./internal/table.ts",
+          "./internal/task-table.ts",
+          "./internal/text.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createTasks",
+          "lines": 173
+        },
+        "lines": 232
       }
     ],
-    "testFiles": 20,
-    "testCases": 156,
+    "testFiles": 45,
+    "testCases": 372,
     "draft": [],
     "entries": [
       {
         "sub": ".",
         "names": [
           {
-            "name": "McpCore",
-            "kind": "record"
-          },
-          {
-            "name": "McpCoreOptions",
-            "kind": "record"
-          },
-          {
-            "name": "createMcpCore",
+            "name": "createMcp",
             "kind": "function"
           },
           {
             "name": "createInMemoryCatalogStore",
             "kind": "function"
-          },
-          {
-            "name": "McpDiscovery",
-            "kind": "interface"
-          },
-          {
-            "name": "RefreshRequest",
-            "kind": "record"
           }
         ]
       }
     ],
     "modEdges": [
+      [
+        "src/calls.ts",
+        "src/internal/caller-values.ts"
+      ],
+      [
+        "src/calls.ts",
+        "src/internal/classification.ts"
+      ],
+      [
+        "src/calls.ts",
+        "src/internal/entry.ts"
+      ],
+      [
+        "src/calls.ts",
+        "src/internal/gate.ts"
+      ],
+      [
+        "src/calls.ts",
+        "src/internal/guard.ts"
+      ],
+      [
+        "src/calls.ts",
+        "src/internal/in-flight.ts"
+      ],
+      [
+        "src/calls.ts",
+        "src/internal/lost.ts"
+      ],
+      [
+        "src/calls.ts",
+        "src/internal/port.ts"
+      ],
+      [
+        "src/calls.ts",
+        "src/internal/settings.ts"
+      ],
+      [
+        "src/calls.ts",
+        "src/internal/table.ts"
+      ],
+      [
+        "src/calls.ts",
+        "src/internal/task-table.ts"
+      ],
       [
         "src/connections.ts",
         "src/internal/gate.ts"
@@ -1575,15 +2868,19 @@
       ],
       [
         "src/discovery.ts",
-        "src/internal/abort.ts"
-      ],
-      [
-        "src/discovery.ts",
-        "src/internal/canonical.ts"
+        "src/internal/entry.ts"
       ],
       [
         "src/discovery.ts",
         "src/internal/guard.ts"
+      ],
+      [
+        "src/discovery.ts",
+        "src/internal/lost.ts"
+      ],
+      [
+        "src/discovery.ts",
+        "src/internal/port.ts"
       ],
       [
         "src/discovery.ts",
@@ -1599,31 +2896,87 @@
       ],
       [
         "src/index.ts",
-        "src/connections.ts"
-      ],
-      [
-        "src/index.ts",
-        "src/discovery.ts"
-      ],
-      [
-        "src/index.ts",
-        "src/inspection.ts"
-      ],
-      [
-        "src/index.ts",
-        "src/internal/table.ts"
-      ],
-      [
-        "src/index.ts",
-        "src/status.ts"
+        "src/internal/assembly.ts"
       ],
       [
         "src/index.ts",
         "src/store/memory.ts"
       ],
       [
-        "src/index.ts",
+        "src/internal/assembly.ts",
+        "src/connections.ts"
+      ],
+      [
+        "src/internal/assembly.ts",
         "src/discovery.ts"
+      ],
+      [
+        "src/internal/assembly.ts",
+        "src/inspection.ts"
+      ],
+      [
+        "src/internal/assembly.ts",
+        "src/invoker.ts"
+      ],
+      [
+        "src/internal/assembly.ts",
+        "src/status.ts"
+      ],
+      [
+        "src/internal/assembly.ts",
+        "src/internal/in-flight.ts"
+      ],
+      [
+        "src/internal/assembly.ts",
+        "src/internal/table.ts"
+      ],
+      [
+        "src/internal/assembly.ts",
+        "src/internal/task-table.ts"
+      ],
+      [
+        "src/internal/build.ts",
+        "src/internal/entry.ts"
+      ],
+      [
+        "src/internal/build.ts",
+        "src/internal/late.ts"
+      ],
+      [
+        "src/internal/build.ts",
+        "src/internal/lost.ts"
+      ],
+      [
+        "src/internal/build.ts",
+        "src/internal/port.ts"
+      ],
+      [
+        "src/internal/build.ts",
+        "src/internal/scope.ts"
+      ],
+      [
+        "src/internal/build.ts",
+        "src/internal/settings.ts"
+      ],
+      [
+        "src/internal/build.ts",
+        "src/internal/teardown.ts"
+      ],
+      [
+        "src/internal/entry.ts",
+        "src/internal/connection.ts"
+      ],
+      [
+        "src/internal/entry.ts",
+        "src/internal/gate.ts"
+      ],
+      [
+        "src/internal/entry.ts",
+        "src/internal/settings.ts"
+      ],
+      [
+        "src/internal/gate.ts",
+        "src/internal/port.ts"
       ],
       [
         "src/internal/guard.ts",
@@ -1635,7 +2988,35 @@
       ],
       [
         "src/internal/in-flight.ts",
+        "src/internal/entry.ts"
+      ],
+      [
+        "src/internal/in-flight.ts",
         "src/internal/text.ts"
+      ],
+      [
+        "src/internal/late.ts",
+        "src/internal/entry.ts"
+      ],
+      [
+        "src/internal/late.ts",
+        "src/internal/port.ts"
+      ],
+      [
+        "src/internal/late.ts",
+        "src/internal/teardown.ts"
+      ],
+      [
+        "src/internal/lost.ts",
+        "src/internal/entry.ts"
+      ],
+      [
+        "src/internal/lost.ts",
+        "src/internal/table.ts"
+      ],
+      [
+        "src/internal/port.ts",
+        "src/internal/scope.ts"
       ],
       [
         "src/internal/settings.ts",
@@ -1643,7 +3024,7 @@
       ],
       [
         "src/internal/table.ts",
-        "src/internal/abort.ts"
+        "src/internal/build.ts"
       ],
       [
         "src/internal/table.ts",
@@ -1651,7 +3032,19 @@
       ],
       [
         "src/internal/table.ts",
+        "src/internal/entry.ts"
+      ],
+      [
+        "src/internal/table.ts",
         "src/internal/gate.ts"
+      ],
+      [
+        "src/internal/table.ts",
+        "src/internal/port.ts"
+      ],
+      [
+        "src/internal/table.ts",
+        "src/internal/scope.ts"
       ],
       [
         "src/internal/table.ts",
@@ -1659,7 +3052,39 @@
       ],
       [
         "src/internal/table.ts",
+        "src/internal/teardown.ts"
+      ],
+      [
+        "src/internal/table.ts",
         "src/internal/text.ts"
+      ],
+      [
+        "src/internal/table.ts",
+        "src/internal/turns.ts"
+      ],
+      [
+        "src/internal/table.ts",
+        "src/internal/entry.ts"
+      ],
+      [
+        "src/internal/task-table.ts",
+        "src/internal/text.ts"
+      ],
+      [
+        "src/internal/teardown.ts",
+        "src/internal/entry.ts"
+      ],
+      [
+        "src/internal/teardown.ts",
+        "src/internal/port.ts"
+      ],
+      [
+        "src/invoker.ts",
+        "src/calls.ts"
+      ],
+      [
+        "src/invoker.ts",
+        "src/tasks.ts"
       ],
       [
         "src/status.ts",
@@ -1676,13 +3101,53 @@
       [
         "src/store/memory.ts",
         "src/internal/text.ts"
+      ],
+      [
+        "src/tasks.ts",
+        "src/internal/classification.ts"
+      ],
+      [
+        "src/tasks.ts",
+        "src/internal/entry.ts"
+      ],
+      [
+        "src/tasks.ts",
+        "src/internal/guard.ts"
+      ],
+      [
+        "src/tasks.ts",
+        "src/internal/lost.ts"
+      ],
+      [
+        "src/tasks.ts",
+        "src/internal/caller-values.ts"
+      ],
+      [
+        "src/tasks.ts",
+        "src/internal/port.ts"
+      ],
+      [
+        "src/tasks.ts",
+        "src/internal/settings.ts"
+      ],
+      [
+        "src/tasks.ts",
+        "src/internal/table.ts"
+      ],
+      [
+        "src/tasks.ts",
+        "src/internal/task-table.ts"
+      ],
+      [
+        "src/tasks.ts",
+        "src/internal/text.ts"
       ]
     ],
     "pkgEdges": [
-      "@omne-harness/mcp-contract",
+      "@omne-harness/json-text",
       "@omne-harness/legal-identity",
       "@omne-harness/operation-result",
-      "@omne-harness/json-text"
+      "@omne-harness/mcp-contract"
     ]
   },
   {
@@ -1697,6 +3162,250 @@
       "@omne-harness/operation-result"
     ],
     "files": [
+      {
+        "file": "src/answer-readings.ts",
+        "decls": [
+          {
+            "name": "readerOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "AnswerMalformed",
+              "JsonValue",
+              "Outcome",
+              "T",
+              "W",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "interpretAnswer",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "WireAnswer",
+              "JsonValue",
+              "Outcome",
+              "T",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "callAnswerOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "WireAnswer",
+              "PeerAnswer"
+            ]
+          },
+          {
+            "name": "listingPageOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "WireAnswer",
+              "Outcome",
+              "ListingPage",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "taskReportOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "WireAnswer",
+              "Outcome",
+              "TaskReport",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "taskAnswerOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "WireAnswer",
+              "Outcome",
+              "TaskAnswer",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "legacyIdentityOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "WireAnswer",
+              "IdentityBound",
+              "Outcome",
+              "PeerIdentity",
+              "TransportFailure"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/operation-result",
+          "./decisions.ts",
+          "./outcomes.ts",
+          "./readers.ts",
+          "./transport.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "callAnswerOf",
+          "lines": 23
+        },
+        "lines": 119
+      },
+      {
+        "file": "src/args.ts",
+        "decls": [
+          {
+            "name": "ActionArgs",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "JsonObject"
+            ]
+          },
+          {
+            "name": "isActionArgs",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "ActionArgs"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "./json.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "isActionArgs",
+          "lines": 3
+        },
+        "lines": 10
+      },
+      {
+        "file": "src/authorization.ts",
+        "decls": [
+          {
+            "name": "METADATA_PATH",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "authorizationChallengeOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ReadonlyMap"
+            ]
+          },
+          {
+            "name": "metadataCandidatesOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ReadonlyMap"
+            ]
+          },
+          {
+            "name": "authorizationDiscoveryOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ReadonlyMap",
+              "JsonValue",
+              "AuthorizationDiscovery",
+              "Readonly"
+            ]
+          },
+          {
+            "name": "MetadataFetch",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "AbortSignal",
+              "Promise",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "AuthorizationDiscoveryRun",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "AuthorizationDiscovery"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "AuthorizationDiscovery"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "AuthorizationDiscovery",
+              "Promise"
+            ]
+          },
+          {
+            "name": "startAuthorizationDiscovery",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ReadonlyMap",
+              "MetadataFetch",
+              "AbortSignal",
+              "AuthorizationDiscoveryRun",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "discoverAuthorization",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ReadonlyMap",
+              "MetadataFetch",
+              "AbortSignal",
+              "Promise",
+              "AuthorizationDiscovery"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "./json.ts",
+          "./outcomes.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "authorizationDiscoveryOf",
+          "lines": 20
+        },
+        "lines": 135
+      },
       {
         "file": "src/brands.ts",
         "decls": [
@@ -1965,7 +3674,7 @@
           "name": "isConnectionTarget",
           "lines": 13
         },
-        "lines": 122
+        "lines": 124
       },
       {
         "file": "src/catalog.ts",
@@ -2218,6 +3927,23 @@
             ]
           },
           {
+            "name": "countOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "taskHintsOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonObject",
+              "TaskHints"
+            ]
+          },
+          {
             "name": "classifyOutcome",
             "kind": "function",
             "fields": [],
@@ -2242,7 +3968,291 @@
           "name": "classifyResult",
           "lines": 18
         },
-        "lines": 109
+        "lines": 148
+      },
+      {
+        "file": "src/composition.ts",
+        "decls": [
+          {
+            "name": "RequestMethod",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "server/discover",
+              "initialize",
+              "tools/list",
+              "tools/call",
+              "tasks/get",
+              "tasks/update",
+              "tasks/cancel"
+            ],
+            "refs": []
+          },
+          {
+            "name": "NotificationMethod",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "notifications/initialized",
+              "notifications/cancelled"
+            ],
+            "refs": []
+          },
+          {
+            "name": "[OFFERED_LEGACY_VERSION]",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "METHOD_NOT_FOUND",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "legacyInitializeParamsOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ClientInfo",
+              "PlainRecord"
+            ]
+          },
+          {
+            "name": "peerRequestAnswerOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Extract",
+              "PeerMessage",
+              "Readonly",
+              "PlainRecord"
+            ]
+          },
+          {
+            "name": "requestTextOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "RequestMethod",
+              "PlainRecord",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "notificationTextOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "NotificationMethod",
+              "PlainRecord"
+            ]
+          },
+          {
+            "name": "responseTextOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "JsonValue",
+              "PlainRecord",
+              "Member"
+            ]
+          },
+          {
+            "name": "requestMetaOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "RequestMethod",
+              "ClientInfo",
+              "PlainRecord"
+            ]
+          },
+          {
+            "name": "RequestValues",
+            "kind": "record",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "ComposedRequest",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "RequestMethod"
+                ]
+              },
+              {
+                "refs": [
+                  "PlainRecord"
+                ]
+              },
+              {
+                "refs": [
+                  "RequestValues"
+                ]
+              },
+              {
+                "refs": [
+                  "WireAnswer",
+                  "Outcome",
+                  "T",
+                  "TransportFailure"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "RequestMethod",
+              "PlainRecord",
+              "RequestValues",
+              "WireAnswer",
+              "Outcome",
+              "T",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "callRequestOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CallRequest",
+              "Readonly",
+              "PlainRecord",
+              "RequestValues"
+            ]
+          },
+          {
+            "name": "listActionsRequest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConnectionView",
+              "ComposedRequest",
+              "ListingPage"
+            ]
+          },
+          {
+            "name": "getTaskRequest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TaskId",
+              "ComposedRequest",
+              "TaskReport"
+            ]
+          },
+          {
+            "name": "getTaskResultRequest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TaskId",
+              "ComposedRequest",
+              "TaskAnswer"
+            ]
+          },
+          {
+            "name": "updateTaskRequest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TaskId",
+              "JsonValue",
+              "ComposedRequest"
+            ]
+          },
+          {
+            "name": "cancelTaskRequest",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TaskId",
+              "ComposedRequest"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/operation-result",
+          "./answer-readings.ts",
+          "./brands.ts",
+          "./connection.ts",
+          "./decisions.ts",
+          "./envelope.ts",
+          "./outcomes.ts",
+          "./plain.ts",
+          "./revisions.ts",
+          "./transport.ts",
+          "./wire.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "callRequestOf",
+          "lines": 18
+        },
+        "lines": 204
+      },
+      {
+        "file": "src/connection.ts",
+        "decls": [
+          {
+            "name": "ConnectionView",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "stdio",
+              "streamable-http"
+            ],
+            "refs": [
+              "Readonly"
+            ]
+          },
+          {
+            "name": "isLegacyConnection",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConnectionView"
+            ]
+          },
+          {
+            "name": "checksListingHeaders",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConnectionView"
+            ]
+          },
+          {
+            "name": "cancelsByNotification",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConnectionView"
+            ]
+          }
+        ],
+        "imports": [
+          "./revisions.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "checksListingHeaders",
+          "lines": 7
+        },
+        "lines": 34
       },
       {
         "file": "src/content.ts",
@@ -2273,6 +4283,267 @@
         "lines": 113
       },
       {
+        "file": "src/decisions.ts",
+        "decls": [
+          {
+            "name": "ProtocolVersions",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "PROBE_REQUESTS",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "RESENT_REQUESTS",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "WireAnswer",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "result",
+              "error",
+              "no-answer",
+              "not-sent",
+              "legacy-peer",
+              "legacy-http"
+            ],
+            "refs": [
+              "Readonly",
+              "JsonValue",
+              "ErrorClass",
+              "NoAnswerCause",
+              "UnusableCause",
+              "NotSent"
+            ]
+          },
+          {
+            "name": "AnswerConclusion",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "settle",
+              "authorization-required",
+              "wait"
+            ],
+            "refs": [
+              "Readonly",
+              "WireAnswer",
+              "UnusableCause"
+            ]
+          },
+          {
+            "name": "ProbeConclusion",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "identity",
+              "retry",
+              "final",
+              "fallback",
+              "legacy-peer"
+            ],
+            "refs": [
+              "Readonly",
+              "PeerIdentity",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "NOT_SENT_FAILURE",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "ABANDONED",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "malformed",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "notSentFailureOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "UnusableCause",
+              "NotSent"
+            ]
+          },
+          {
+            "name": "unusableAnswerOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "WireAnswer",
+              "UnusableCause"
+            ]
+          },
+          {
+            "name": "requestClassOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "RequestMethod",
+              "RequestClass"
+            ]
+          },
+          {
+            "name": "concludeAnswer",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "WireClassification",
+              "WireContext",
+              "TransportMaterial",
+              "AnswerConclusion"
+            ]
+          },
+          {
+            "name": "errorFailureOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Extract",
+              "WireAnswer",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "retryVersionOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "noAnswerFailureOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Extract",
+              "WireAnswer",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "concludeProbe",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "WireAnswer",
+              "IdentityBound",
+              "ProbeConclusion"
+            ]
+          },
+          {
+            "name": "streamGoneAnswerOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Exclude",
+              "UnusableCause",
+              "WireAnswer"
+            ]
+          },
+          {
+            "name": "authorizationRequiredAnswerOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "AuthorizationDiscovery",
+              "WireAnswer"
+            ]
+          },
+          {
+            "name": "InFlightPhase",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "authorizing",
+              "sent",
+              "discovery"
+            ],
+            "refs": [
+              "Readonly",
+              "AuthorizationDiscovery"
+            ]
+          },
+          {
+            "name": "stopAnswerOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "InFlightPhase",
+              "WireAnswer"
+            ]
+          },
+          {
+            "name": "lineGoneAnswerOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "InFlightPhase",
+              "UnusableCause",
+              "WireAnswer"
+            ]
+          },
+          {
+            "name": "fallbackGetConclusionOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "ProtocolVersions",
+              "Extract",
+              "AnswerConclusion",
+              "WireContext"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "./composition.ts",
+          "./json.ts",
+          "./outcomes.ts",
+          "./readers.ts",
+          "./transport.ts",
+          "./values.ts",
+          "./wire.ts",
+          "./outcomes.ts"
+        ],
+        "reexports": [
+          {
+            "from": "./outcomes.ts",
+            "names": [
+              "UnusableCause"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "unusableAnswerOf",
+          "lines": 30
+        },
+        "lines": 516
+      },
+      {
         "file": "src/digest.ts",
         "decls": [
           {
@@ -2295,6 +4566,79 @@
           "lines": 5
         },
         "lines": 8
+      },
+      {
+        "file": "src/discovery.ts",
+        "decls": [
+          {
+            "name": "DiscoverPaths",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Promise",
+                  "WireAnswer"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "Outcome",
+                  "PeerIdentity",
+                  "TransportFailure"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Promise",
+              "WireAnswer",
+              "Outcome",
+              "PeerIdentity",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "discoverWith",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "DiscoverPaths",
+              "ProtocolVersions",
+              "IdentityBound",
+              "Promise",
+              "Outcome",
+              "PeerIdentity",
+              "TransportFailure"
+            ]
+          },
+          {
+            "name": "withOneResend",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "WireAnswer",
+              "Promise",
+              "A"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "./decisions.ts",
+          "./readers.ts",
+          "./transport.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "discoverWith",
+          "lines": 28
+        },
+        "lines": 63
       },
       {
         "file": "src/endpoint-schema.ts",
@@ -2379,6 +4723,117 @@
         "lines": 230
       },
       {
+        "file": "src/envelope.ts",
+        "decls": [
+          {
+            "name": "PROTOCOL_VERSION_KEY",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "CLIENT_CAPABILITIES_KEY",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "CLIENT_INFO_KEY",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "SERVER_INFO_KEY",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "LOG_LEVEL_KEY",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "TASKS_EXTENSION",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "ClientInfo",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "clientEnvelopeOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ClientInfo",
+              "PlainRecord"
+            ]
+          },
+          {
+            "name": "McpRequestHeaders",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "encodeMcpHeaderValue",
+            "kind": "function",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "mcpRequestHeadersOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PlainRecord",
+              "McpRequestHeaders"
+            ]
+          }
+        ],
+        "imports": [
+          "./plain.ts",
+          "./revisions.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "mcpRequestHeadersOf",
+          "lines": 10
+        },
+        "lines": 88
+      },
+      {
         "file": "src/index.ts",
         "decls": [],
         "imports": [
@@ -2387,10 +4842,25 @@
           "./endpoint.ts",
           "./listing.ts",
           "./catalog.ts",
+          "./args.ts",
           "./classify.ts",
+          "./json.ts",
           "./content.ts",
           "./instructions.ts",
+          "./revisions.ts",
+          "./plain.ts",
+          "./envelope.ts",
+          "./withheld.ts",
+          "./authorization.ts",
+          "./readers.ts",
+          "./wire.ts",
+          "./decisions.ts",
+          "./connection.ts",
+          "./answer-readings.ts",
+          "./composition.ts",
+          "./discovery.ts",
           "./keys.ts",
+          "./outcomes.ts",
           "./outcomes.ts",
           "./services.ts",
           "./ports.ts",
@@ -2491,10 +4961,24 @@
             ]
           },
           {
+            "from": "./args.ts",
+            "names": [
+              "isActionArgs",
+              "ActionArgs"
+            ]
+          },
+          {
             "from": "./classify.ts",
             "names": [
               "classifyOutcome",
               "ClassifyContext"
+            ]
+          },
+          {
+            "from": "./json.ts",
+            "names": [
+              "canonical",
+              "sameJson"
             ]
           },
           {
@@ -2510,11 +4994,169 @@
             ]
           },
           {
+            "from": "./revisions.ts",
+            "names": [
+              "FIRST_MODERN_PROTOCOL_VERSION",
+              "LEGACY_PROTOCOL_VERSIONS"
+            ]
+          },
+          {
+            "from": "./plain.ts",
+            "names": [
+              "PlainJson",
+              "PlainRecord"
+            ]
+          },
+          {
+            "from": "./envelope.ts",
+            "names": [
+              "clientEnvelopeOf",
+              "mcpRequestHeadersOf",
+              "ClientInfo",
+              "McpRequestHeaders"
+            ]
+          },
+          {
+            "from": "./withheld.ts",
+            "names": [
+              "withheldTools"
+            ]
+          },
+          {
+            "from": "./authorization.ts",
+            "names": [
+              "authorizationChallengeOf",
+              "authorizationDiscoveryOf",
+              "discoverAuthorization",
+              "metadataCandidatesOf",
+              "startAuthorizationDiscovery",
+              "AuthorizationDiscoveryRun",
+              "MetadataFetch"
+            ]
+          },
+          {
+            "from": "./readers.ts",
+            "names": [
+              "errorAnswerOf",
+              "peerIdentityOf",
+              "readDiscoverResult",
+              "readInitializeResult",
+              "readListingPage",
+              "readTaskAnswer",
+              "readTaskReport",
+              "IdentityBound",
+              "PeerRead",
+              "TaskReadDefect"
+            ]
+          },
+          {
+            "from": "./wire.ts",
+            "names": [
+              "PROCESS_EXIT_WINDOW_MS",
+              "WIRE_LIMITS",
+              "classifyWireEvent",
+              "endedCauseOf",
+              "readPeerMessage",
+              "AnswerClass",
+              "ErrorClass",
+              "PeerMessage",
+              "RequestClass",
+              "WireClassification",
+              "WireContext",
+              "WireEvent"
+            ]
+          },
+          {
+            "from": "./decisions.ts",
+            "names": [
+              "ABANDONED",
+              "NOT_SENT_FAILURE",
+              "PROBE_REQUESTS",
+              "RESENT_REQUESTS",
+              "authorizationRequiredAnswerOf",
+              "concludeAnswer",
+              "concludeProbe",
+              "fallbackGetConclusionOf",
+              "lineGoneAnswerOf",
+              "notSentFailureOf",
+              "requestClassOf",
+              "retryVersionOf",
+              "stopAnswerOf",
+              "streamGoneAnswerOf",
+              "unusableAnswerOf",
+              "AnswerConclusion",
+              "InFlightPhase",
+              "ProbeConclusion",
+              "ProtocolVersions",
+              "UnusableCause",
+              "WireAnswer"
+            ]
+          },
+          {
+            "from": "./connection.ts",
+            "names": [
+              "cancelsByNotification",
+              "checksListingHeaders",
+              "isLegacyConnection",
+              "ConnectionView"
+            ]
+          },
+          {
+            "from": "./answer-readings.ts",
+            "names": [
+              "callAnswerOf",
+              "interpretAnswer",
+              "legacyIdentityOf",
+              "listingPageOf",
+              "readerOf",
+              "taskAnswerOf",
+              "taskReportOf"
+            ]
+          },
+          {
+            "from": "./composition.ts",
+            "names": [
+              "METHOD_NOT_FOUND",
+              "OFFERED_LEGACY_VERSION",
+              "callRequestOf",
+              "cancelTaskRequest",
+              "getTaskRequest",
+              "getTaskResultRequest",
+              "legacyInitializeParamsOf",
+              "listActionsRequest",
+              "notificationTextOf",
+              "peerRequestAnswerOf",
+              "requestMetaOf",
+              "requestTextOf",
+              "responseTextOf",
+              "updateTaskRequest",
+              "ComposedRequest",
+              "NotificationMethod",
+              "RequestMethod",
+              "RequestValues"
+            ]
+          },
+          {
+            "from": "./discovery.ts",
+            "names": [
+              "discoverWith",
+              "withOneResend",
+              "DiscoverPaths"
+            ]
+          },
+          {
             "from": "./keys.ts",
             "names": [
               "catalogKeyOf",
               "connectionKeyOf",
               "peerAccountOf"
+            ]
+          },
+          {
+            "from": "./outcomes.ts",
+            "names": [
+              "OUTPUT_CHECK_FAILED",
+              "STRUCTURED_CONTENT_MISSING"
             ]
           },
           {
@@ -2540,6 +5182,7 @@
               "ProtocolFault",
               "ReadFailure",
               "Refusal",
+              "TaskHints",
               "TaskReport",
               "TaskStatus"
             ]
@@ -2575,6 +5218,7 @@
           {
             "from": "./ports.ts",
             "names": [
+              "McpClock",
               "StopScope"
             ]
           },
@@ -2591,7 +5235,7 @@
           "name": "",
           "lines": 0
         },
-        "lines": 135
+        "lines": 242
       },
       {
         "file": "src/instructions.ts",
@@ -2689,6 +5333,14 @@
             "refs": [
               "JsonValue"
             ]
+          },
+          {
+            "name": "sameJson",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue"
+            ]
           }
         ],
         "imports": [
@@ -2702,7 +5354,7 @@
           "name": "canonical",
           "lines": 22
         },
-        "lines": 57
+        "lines": 62
       },
       {
         "file": "src/keys.ts",
@@ -2967,6 +5619,18 @@
             ]
           },
           {
+            "name": "STRUCTURED_CONTENT_MISSING",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "OUTPUT_CHECK_FAILED",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
             "name": "OutputValidator",
             "kind": "alias",
             "fields": [],
@@ -2988,6 +5652,17 @@
             "refs": []
           },
           {
+            "name": "UnusableCause",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "stream-broken",
+              "process-exited",
+              "session-ended"
+            ],
+            "refs": []
+          },
+          {
             "name": "PeerAnswer",
             "kind": "union",
             "fields": [],
@@ -2999,7 +5674,8 @@
             "refs": [
               "Readonly",
               "JsonValue",
-              "NoAnswerCause"
+              "NoAnswerCause",
+              "UnusableCause"
             ]
           },
           {
@@ -3025,7 +5701,7 @@
               "complete",
               "toolError",
               "inputRequired",
-              "task",
+              "Readonly<{ kind: 'task'; taskId: TaskId;",
               "protocolError",
               "unknown"
             ],
@@ -3038,6 +5714,7 @@
               "RequestState",
               "Generation",
               "TaskId",
+              "TaskHints",
               "ProtocolFault",
               "NoAnswerCause"
             ]
@@ -3056,26 +5733,37 @@
             "refs": []
           },
           {
-            "name": "TaskReport",
+            "name": "TaskHints",
             "kind": "record",
             "fields": [
               {
-                "refs": [
-                  "TaskStatus"
-                ]
+                "refs": []
+              },
+              {
+                "refs": []
               },
               {
                 "refs": [
-                  "Untrusted",
-                  "JsonValue"
+                  "Untrusted"
                 ]
               }
             ],
             "variants": [],
             "refs": [
+              "Untrusted"
+            ]
+          },
+          {
+            "name": "TaskReport",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Readonly",
               "TaskStatus",
               "Untrusted",
-              "JsonValue"
+              "JsonValue",
+              "TaskHints"
             ]
           },
           {
@@ -3294,7 +5982,62 @@
           "name": "",
           "lines": 0
         },
-        "lines": 166
+        "lines": 195
+      },
+      {
+        "file": "src/plain.ts",
+        "decls": [
+          {
+            "name": "PlainJson",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "string",
+              "number",
+              "boolean",
+              "null",
+              "readonly PlainJson[]",
+              "{…}"
+            ],
+            "refs": [
+              "PlainJson",
+              "Readonly"
+            ]
+          },
+          {
+            "name": "PlainRecord",
+            "kind": "record",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "isPlainJson",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PlainJson"
+            ]
+          },
+          {
+            "name": "isPlainRecord",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PlainJson",
+              "PlainRecord"
+            ]
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "isPlainJson",
+          "lines": 5
+        },
+        "lines": 19
       },
       {
         "file": "src/ports.ts",
@@ -3575,6 +6318,21 @@
             "extends": []
           },
           {
+            "name": "McpClock",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": [
+                  "Date"
+                ]
+              }
+            ],
+            "refs": [
+              "Date"
+            ],
+            "extends": []
+          },
+          {
             "name": "StopScope",
             "kind": "enum",
             "fields": [],
@@ -3726,7 +6484,7 @@
           "name": "",
           "lines": 0
         },
-        "lines": 125
+        "lines": 129
       },
       {
         "file": "src/provider.ts",
@@ -3767,7 +6525,8 @@
               "SentCall",
               "TaskAnswer",
               "TransportFailure",
-              "TransportMaterial"
+              "TransportMaterial",
+              "WithheldReason"
             ]
           }
         ],
@@ -3777,7 +6536,202 @@
           "name": "",
           "lines": 0
         },
-        "lines": 30
+        "lines": 31
+      },
+      {
+        "file": "src/readers.ts",
+        "decls": [
+          {
+            "name": "PeerRead",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ProtocolVersion"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": [
+                  "JsonValue"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ProtocolVersion",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "IdentityBound",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Generation"
+            ]
+          },
+          {
+            "name": "readDiscoverResult",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "Outcome",
+              "PeerRead"
+            ]
+          },
+          {
+            "name": "readInitializeResult",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "Outcome",
+              "PeerRead"
+            ]
+          },
+          {
+            "name": "peerIdentityOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PeerRead",
+              "IdentityBound",
+              "PeerIdentity"
+            ]
+          },
+          {
+            "name": "readListingPage",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "Outcome",
+              "ListingPage"
+            ]
+          },
+          {
+            "name": "TaskReadDefect",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "status-unknown",
+              "input-requests-missing",
+              "result-missing",
+              "error-missing"
+            ],
+            "refs": []
+          },
+          {
+            "name": "readTaskReport",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "Outcome",
+              "TaskReport",
+              "TaskReadDefect"
+            ]
+          },
+          {
+            "name": "readTaskAnswer",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "Outcome",
+              "TaskAnswer",
+              "TaskReadDefect"
+            ]
+          },
+          {
+            "name": "errorAnswerOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "ErrorAnswer"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/operation-result",
+          "./brands.ts",
+          "./classify.ts",
+          "./envelope.ts",
+          "./instructions.ts",
+          "./json.ts",
+          "./outcomes.ts",
+          "./revisions.ts",
+          "./transport.ts",
+          "./values.ts",
+          "./withheld.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "taskReadOf",
+          "lines": 25
+        },
+        "lines": 225
+      },
+      {
+        "file": "src/revisions.ts",
+        "decls": [
+          {
+            "name": "FIRST_MODERN_PROTOCOL_VERSION",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "isModernProtocolVersion",
+            "kind": "function",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "LEGACY_PROTOCOL_VERSIONS",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "isLegacyProtocolVersion",
+            "kind": "function",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "isModernProtocolVersion",
+          "lines": 3
+        },
+        "lines": 28
       },
       {
         "file": "src/services.ts",
@@ -3876,6 +6830,7 @@
                   "Readonly",
                   "EndpointRef",
                   "Millis",
+                  "AbortSignal",
                   "Promise",
                   "Outcome",
                   "RefreshResult",
@@ -3906,6 +6861,7 @@
               "ReadFailure",
               "Readonly",
               "Millis",
+              "AbortSignal",
               "RefreshResult",
               "OperationFailure",
               "PeerIdentity",
@@ -4420,6 +7376,16 @@
                 "refs": [
                   "McpTransportFactory"
                 ]
+              },
+              {
+                "refs": [
+                  "OutputValidator"
+                ]
+              },
+              {
+                "refs": [
+                  "McpClock"
+                ]
               }
             ],
             "variants": [],
@@ -4431,7 +7397,9 @@
               "CredentialUse",
               "ProcessLanding",
               "CatalogStore",
-              "McpTransportFactory"
+              "McpTransportFactory",
+              "OutputValidator",
+              "McpClock"
             ]
           },
           {
@@ -4526,7 +7494,7 @@
           "name": "",
           "lines": 0
         },
-        "lines": 224
+        "lines": 243
       },
       {
         "file": "src/testing-adoption.ts",
@@ -5398,7 +8366,597 @@
           "name": "peerError",
           "lines": 11
         },
-        "lines": 314
+        "lines": 382
+      },
+      {
+        "file": "src/testing-scripted-transport.ts",
+        "decls": [
+          {
+            "name": "ScriptedTransportOptions",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Readonly"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "PeerReceived",
+                  "Promise"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Readonly",
+              "PeerReceived",
+              "Promise"
+            ]
+          },
+          {
+            "name": "ScriptedTransportFactory",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "McpTransportFactory",
+              "Readonly",
+              "PeerReceived"
+            ]
+          },
+          {
+            "name": "createScriptedTransportFactory",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PeerScript",
+              "ScriptedTransportOptions",
+              "ScriptedTransportFactory"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/operation-result",
+          "./answer-readings.ts",
+          "./authorization.ts",
+          "./brands.ts",
+          "./composition.ts",
+          "./connection.ts",
+          "./decisions.ts",
+          "./discovery.ts",
+          "./envelope.ts",
+          "./outcomes.ts",
+          "./plain.ts",
+          "./ports.ts",
+          "./readers.ts",
+          "./revisions.ts",
+          "./testing-transport.ts",
+          "./testing-values.ts",
+          "./transport.ts",
+          "./values.ts",
+          "./wire.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "reply",
+          "lines": 42
+        },
+        "lines": 812
+      },
+      {
+        "file": "src/testing-transport-table.ts",
+        "decls": [
+          {
+            "name": "TableKind",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "TransportMaterial"
+            ]
+          },
+          {
+            "name": "ExpectedFailure",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "error-answer",
+              "answer-malformed",
+              "not-sent",
+              "not-sent",
+              "no-answer"
+            ],
+            "refs": [
+              "Readonly",
+              "NoAnswerCause"
+            ]
+          },
+          {
+            "name": "TableConclusion",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Readonly",
+              "ExpectedFailure",
+              "NoAnswerCause"
+            ]
+          },
+          {
+            "name": "TableRow",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "TableKind"
+                ]
+              },
+              {
+                "refs": [
+                  "RequestClass"
+                ]
+              },
+              {
+                "refs": [
+                  "AnswerClass"
+                ]
+              },
+              {
+                "refs": [
+                  "TableConclusion"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TableKind",
+              "RequestClass",
+              "AnswerClass",
+              "TableConclusion"
+            ]
+          },
+          {
+            "name": "TableCell",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "TableKind"
+                ]
+              },
+              {
+                "refs": [
+                  "RequestClass"
+                ]
+              },
+              {
+                "refs": [
+                  "AnswerClass"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TableKind",
+              "RequestClass",
+              "AnswerClass"
+            ]
+          },
+          {
+            "name": "TRANSPORT_TABLE",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "answersOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TableKind",
+              "RequestClass",
+              "AnswerClass"
+            ]
+          },
+          {
+            "name": "transportCells",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TableCell",
+              "TableKind"
+            ]
+          },
+          {
+            "name": "rowsOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TableCell",
+              "TableRow"
+            ]
+          },
+          {
+            "name": "cellsOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "TableRow",
+              "TableCell"
+            ]
+          }
+        ],
+        "imports": [
+          "./outcomes.ts",
+          "./transport.ts",
+          "./wire.ts",
+          "./wire.ts"
+        ],
+        "reexports": [
+          {
+            "from": "./wire.ts",
+            "names": [
+              "AnswerClass",
+              "RequestClass"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "answersOf",
+          "lines": 28
+        },
+        "lines": 566
+      },
+      {
+        "file": "src/testing-transport.ts",
+        "decls": [
+          {
+            "name": "PeerNotificationScript",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "PlainJson"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "PlainJson"
+            ]
+          },
+          {
+            "name": "PeerReply",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "result",
+              "error",
+              "unsent",
+              "silent",
+              "stream-breaks",
+              "process-exits",
+              "http"
+            ],
+            "refs": [
+              "Readonly",
+              "PlainJson",
+              "PeerNotificationScript"
+            ]
+          },
+          {
+            "name": "Replies",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "PeerReply",
+              "readonly PeerReply[]"
+            ],
+            "refs": [
+              "PeerReply"
+            ]
+          },
+          {
+            "name": "TaskScript",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Replies"
+                ]
+              },
+              {
+                "refs": [
+                  "Replies"
+                ]
+              },
+              {
+                "refs": [
+                  "Replies"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Replies"
+            ]
+          },
+          {
+            "name": "PeerScript",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Replies"
+                ]
+              },
+              {
+                "refs": [
+                  "Replies"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Replies"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Replies"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "TaskScript"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "PlainJson"
+                ]
+              },
+              {
+                "refs": [
+                  "Replies"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "PlainJson"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Replies",
+              "Readonly",
+              "TaskScript",
+              "PlainJson"
+            ]
+          },
+          {
+            "name": "PeerRequestHeaders",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "PeerReceived",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "request",
+              "notification",
+              "response",
+              "stream-aborted",
+              "fetch"
+            ],
+            "refs": [
+              "Readonly",
+              "PlainJson",
+              "PeerRequestHeaders"
+            ]
+          },
+          {
+            "name": "TransportKind",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "TransportMaterial"
+            ]
+          },
+          {
+            "name": "PeerNeeds",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "TransportKind"
+                ]
+              },
+              {
+                "refs": [
+                  "HttpCredentialHandle"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TransportKind",
+              "HttpCredentialHandle"
+            ]
+          },
+          {
+            "name": "ScriptedPeer",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "McpTransportFactory"
+                ]
+              },
+              {
+                "refs": [
+                  "TransportMaterial"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "PeerReceived"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "McpTransportFactory",
+              "TransportMaterial",
+              "Promise",
+              "PeerReceived"
+            ]
+          },
+          {
+            "name": "ScriptSource",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "PeerScript",
+              "(target: string) => PeerScript"
+            ],
+            "refs": [
+              "PeerScript"
+            ]
+          },
+          {
+            "name": "TransportFixture",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "TransportKind"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "ScriptSource",
+                  "PeerNeeds",
+                  "Promise",
+                  "ScriptedPeer"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "TransportKind",
+              "ScriptSource",
+              "PeerNeeds",
+              "Promise",
+              "ScriptedPeer"
+            ]
+          },
+          {
+            "name": "mcpTransportConformance",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "TransportFixture"
+            ]
+          }
+        ],
+        "imports": [
+          "node:assert/strict",
+          "@omne-harness/operation-result",
+          "./brands.ts",
+          "./envelope.ts",
+          "./instructions.ts",
+          "./outcomes.ts",
+          "./plain.ts",
+          "./ports.ts",
+          "./revisions.ts",
+          "./testing-transport-table.ts",
+          "./wire.ts",
+          "./testing-case.ts",
+          "./testing-values.ts",
+          "./transport.ts",
+          "./plain.ts",
+          "./envelope.ts"
+        ],
+        "reexports": [
+          {
+            "from": "./plain.ts",
+            "names": [
+              "PlainJson"
+            ]
+          },
+          {
+            "from": "./envelope.ts",
+            "names": [
+              "CLIENT_CAPABILITIES_KEY",
+              "CLIENT_INFO_KEY",
+              "LOG_LEVEL_KEY",
+              "PROTOCOL_VERSION_KEY",
+              "SERVER_INFO_KEY",
+              "TASKS_EXTENSION"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "(匿名)",
+          "lines": 395
+        },
+        "lines": 2557
       },
       {
         "file": "src/testing-values.ts",
@@ -5466,11 +9024,68 @@
             "refs": [
               "TaskId"
             ]
+          },
+          {
+            "name": "adoptionRevisionOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "AdoptionRevision"
+            ]
+          },
+          {
+            "name": "credentialBindingOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CredentialBinding"
+            ]
+          },
+          {
+            "name": "connectionTargetOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConnectionTarget"
+            ]
+          },
+          {
+            "name": "correlationKeyOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CorrelationKey"
+            ]
+          },
+          {
+            "name": "millisOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Millis"
+            ]
+          },
+          {
+            "name": "endpointRefOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "EndpointRef"
+            ]
+          },
+          {
+            "name": "peerIdentityOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PeerIdentity"
+            ]
           }
         ],
         "imports": [
           "@omne-harness/json-text",
-          "./brands.ts"
+          "./brands.ts",
+          "./values.ts"
         ],
         "reexports": [],
         "asCount": 0,
@@ -5479,7 +9094,7 @@
           "name": "jsonTextOf",
           "lines": 5
         },
-        "lines": 61
+        "lines": 104
       },
       {
         "file": "src/testing.ts",
@@ -5491,8 +9106,12 @@
           "./testing-credentials.ts",
           "./testing-landing.ts",
           "./testing-catalog-store.ts",
+          "./testing-values.ts",
           "./testing-outcome-cases.ts",
-          "./testing-listing-cases.ts"
+          "./testing-listing-cases.ts",
+          "./testing-transport.ts",
+          "./testing-transport-table.ts",
+          "./testing-scripted-transport.ts"
         ],
         "reexports": [
           {
@@ -5552,6 +9171,26 @@
             ]
           },
           {
+            "from": "./testing-values.ts",
+            "names": [
+              "actionNameOf",
+              "adoptionRevisionOf",
+              "connectionTargetOf",
+              "correlationKeyOf",
+              "credentialBindingOf",
+              "endpointRefOf",
+              "generationOf",
+              "jsonOf",
+              "jsonTextOf",
+              "millisOf",
+              "peerIdentityOf",
+              "protocolVersionOf",
+              "requestStateOf",
+              "revisionOf",
+              "taskIdOf"
+            ]
+          },
+          {
             "from": "./testing-outcome-cases.ts",
             "names": [
               "classifyOutcomeCases",
@@ -5564,6 +9203,49 @@
               "mergeListingCases",
               "MergeListingCase"
             ]
+          },
+          {
+            "from": "./testing-transport.ts",
+            "names": [
+              "mcpTransportConformance",
+              "PeerNeeds",
+              "PeerNotificationScript",
+              "PeerReceived",
+              "PeerReply",
+              "PeerRequestHeaders",
+              "PeerScript",
+              "PlainJson",
+              "Replies",
+              "ScriptSource",
+              "ScriptedPeer",
+              "TaskScript",
+              "TransportFixture",
+              "TransportKind"
+            ]
+          },
+          {
+            "from": "./testing-transport-table.ts",
+            "names": [
+              "TRANSPORT_TABLE",
+              "cellsOf",
+              "rowsOf",
+              "transportCells",
+              "AnswerClass",
+              "ExpectedFailure",
+              "RequestClass",
+              "TableCell",
+              "TableConclusion",
+              "TableKind",
+              "TableRow"
+            ]
+          },
+          {
+            "from": "./testing-scripted-transport.ts",
+            "names": [
+              "createScriptedTransportFactory",
+              "ScriptedTransportFactory",
+              "ScriptedTransportOptions"
+            ]
           }
         ],
         "asCount": 0,
@@ -5572,7 +9254,7 @@
           "name": "",
           "lines": 0
         },
-        "lines": 44
+        "lines": 95
       },
       {
         "file": "src/transport.ts",
@@ -5584,17 +9266,26 @@
             "variants": [
               "not-sent",
               "not-sent",
+              "not-sent",
               "no-answer",
               "ErrorAnswer",
               "AnswerMalformed"
             ],
             "refs": [
               "Readonly",
+              "UnusableCause",
               "AuthorizationDiscovery",
               "NoAnswerCause",
               "ErrorAnswer",
               "AnswerMalformed"
             ]
+          },
+          {
+            "name": "WithheldReason",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
           },
           {
             "name": "ListingPage",
@@ -5610,11 +9301,21 @@
               },
               {
                 "refs": []
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "Untrusted",
+                  "WithheldReason"
+                ]
               }
             ],
             "variants": [],
             "refs": [
-              "JsonValue"
+              "JsonValue",
+              "Readonly",
+              "Untrusted",
+              "WithheldReason"
             ]
           },
           {
@@ -5861,7 +9562,7 @@
           "name": "",
           "lines": 0
         },
-        "lines": 112
+        "lines": 134
       },
       {
         "file": "src/values.ts",
@@ -6240,10 +9941,298 @@
           "lines": 0
         },
         "lines": 103
+      },
+      {
+        "file": "src/wire.ts",
+        "decls": [
+          {
+            "name": "REQUEST_CLASSES",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "RequestClass",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "ERROR_CLASSES",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "ErrorClass",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "HTTP_STATUS_CLASSES",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "HttpStatusClass",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "BodyClass",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "ErrorClass",
+              "plain"
+            ],
+            "refs": [
+              "ErrorClass"
+            ]
+          },
+          {
+            "name": "RESULT_CLASSES",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "ResultClass",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "RequestClass"
+            ]
+          },
+          {
+            "name": "AnswerClass",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "ResultClass",
+              "`error:${ErrorClass}`",
+              "unsent",
+              "stream-broken",
+              "silent",
+              "process-exited",
+              "http:401",
+              "http:403+scope",
+              "http:403",
+              "http:2xx",
+              "http:404+session",
+              "`http:${HttpStatusClass}+${BodyClass}`"
+            ],
+            "refs": [
+              "ResultClass",
+              "ErrorClass",
+              "HttpStatusClass",
+              "BodyClass"
+            ]
+          },
+          {
+            "name": "PROCESS_EXIT_WINDOW_MS",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "WireEvent",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "unsent",
+              "nothing",
+              "line",
+              "stdio-ended",
+              "http-aborted",
+              "http-status",
+              "http-stream"
+            ],
+            "refs": [
+              "Readonly"
+            ]
+          },
+          {
+            "name": "WireContext",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "RequestClass"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "RequestClass"
+            ]
+          },
+          {
+            "name": "WireClassification",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "answer",
+              "other",
+              "waiting"
+            ],
+            "refs": [
+              "Readonly",
+              "AnswerClass",
+              "JsonObject"
+            ]
+          },
+          {
+            "name": "PeerMessage",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "request",
+              "notification"
+            ],
+            "refs": [
+              "Readonly",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "WIRE_LIMITS",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "readPeerMessage",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "PeerMessage"
+            ]
+          },
+          {
+            "name": "envelopeOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonObject",
+              "Readonly",
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "supportedOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue"
+            ]
+          },
+          {
+            "name": "errorClassOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "ErrorClass"
+            ]
+          },
+          {
+            "name": "resultClassOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "RequestClass",
+              "JsonValue",
+              "ResultClass"
+            ]
+          },
+          {
+            "name": "endedCauseOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly"
+            ]
+          },
+          {
+            "name": "classifyWireEvent",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "WireEvent",
+              "WireContext",
+              "WireClassification"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "./json.ts",
+          "./readers.ts",
+          "./revisions.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "resultClassOf",
+          "lines": 29
+        },
+        "lines": 415
+      },
+      {
+        "file": "src/withheld.ts",
+        "decls": [
+          {
+            "name": "withheldTools",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "JsonValue",
+              "Pick",
+              "ListingPage",
+              "Readonly",
+              "Untrusted"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "./json.ts",
+          "./transport.ts",
+          "./values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "headerDeclarationInvalid",
+          "lines": 15
+        },
+        "lines": 120
       }
     ],
-    "testFiles": 14,
-    "testCases": 113,
+    "testFiles": 22,
+    "testCases": 243,
     "draft": [],
     "entries": [
       {
@@ -6522,6 +10511,14 @@
             "kind": "enum"
           },
           {
+            "name": "isActionArgs",
+            "kind": "function"
+          },
+          {
+            "name": "ActionArgs",
+            "kind": "alias"
+          },
+          {
             "name": "classifyOutcome",
             "kind": "function"
           },
@@ -6530,12 +10527,384 @@
             "kind": "record"
           },
           {
+            "name": "canonical",
+            "kind": "function"
+          },
+          {
+            "name": "sameJson",
+            "kind": "function"
+          },
+          {
             "name": "toContentBlocks",
             "kind": "function"
           },
           {
             "name": "boundInstructions",
             "kind": "function"
+          },
+          {
+            "name": "FIRST_MODERN_PROTOCOL_VERSION",
+            "kind": "const"
+          },
+          {
+            "name": "LEGACY_PROTOCOL_VERSIONS",
+            "kind": "const"
+          },
+          {
+            "name": "PlainJson",
+            "kind": "union"
+          },
+          {
+            "name": "PlainRecord",
+            "kind": "record"
+          },
+          {
+            "name": "clientEnvelopeOf",
+            "kind": "function"
+          },
+          {
+            "name": "mcpRequestHeadersOf",
+            "kind": "function"
+          },
+          {
+            "name": "ClientInfo",
+            "kind": "record"
+          },
+          {
+            "name": "McpRequestHeaders",
+            "kind": "record"
+          },
+          {
+            "name": "withheldTools",
+            "kind": "function"
+          },
+          {
+            "name": "authorizationChallengeOf",
+            "kind": "function"
+          },
+          {
+            "name": "authorizationDiscoveryOf",
+            "kind": "function"
+          },
+          {
+            "name": "discoverAuthorization",
+            "kind": "function"
+          },
+          {
+            "name": "metadataCandidatesOf",
+            "kind": "function"
+          },
+          {
+            "name": "startAuthorizationDiscovery",
+            "kind": "function"
+          },
+          {
+            "name": "AuthorizationDiscoveryRun",
+            "kind": "record"
+          },
+          {
+            "name": "MetadataFetch",
+            "kind": "alias"
+          },
+          {
+            "name": "errorAnswerOf",
+            "kind": "function"
+          },
+          {
+            "name": "peerIdentityOf",
+            "kind": "function"
+          },
+          {
+            "name": "readDiscoverResult",
+            "kind": "function"
+          },
+          {
+            "name": "readInitializeResult",
+            "kind": "function"
+          },
+          {
+            "name": "readListingPage",
+            "kind": "function"
+          },
+          {
+            "name": "readTaskAnswer",
+            "kind": "function"
+          },
+          {
+            "name": "readTaskReport",
+            "kind": "function"
+          },
+          {
+            "name": "IdentityBound",
+            "kind": "record"
+          },
+          {
+            "name": "PeerRead",
+            "kind": "record"
+          },
+          {
+            "name": "TaskReadDefect",
+            "kind": "enum"
+          },
+          {
+            "name": "PROCESS_EXIT_WINDOW_MS",
+            "kind": "const"
+          },
+          {
+            "name": "WIRE_LIMITS",
+            "kind": "const"
+          },
+          {
+            "name": "classifyWireEvent",
+            "kind": "function"
+          },
+          {
+            "name": "endedCauseOf",
+            "kind": "function"
+          },
+          {
+            "name": "readPeerMessage",
+            "kind": "function"
+          },
+          {
+            "name": "AnswerClass",
+            "kind": "union"
+          },
+          {
+            "name": "ErrorClass",
+            "kind": "alias"
+          },
+          {
+            "name": "PeerMessage",
+            "kind": "union"
+          },
+          {
+            "name": "RequestClass",
+            "kind": "alias"
+          },
+          {
+            "name": "WireClassification",
+            "kind": "union"
+          },
+          {
+            "name": "WireContext",
+            "kind": "record"
+          },
+          {
+            "name": "WireEvent",
+            "kind": "union"
+          },
+          {
+            "name": "ABANDONED",
+            "kind": "const"
+          },
+          {
+            "name": "NOT_SENT_FAILURE",
+            "kind": "const"
+          },
+          {
+            "name": "PROBE_REQUESTS",
+            "kind": "const"
+          },
+          {
+            "name": "RESENT_REQUESTS",
+            "kind": "const"
+          },
+          {
+            "name": "authorizationRequiredAnswerOf",
+            "kind": "function"
+          },
+          {
+            "name": "concludeAnswer",
+            "kind": "function"
+          },
+          {
+            "name": "concludeProbe",
+            "kind": "function"
+          },
+          {
+            "name": "fallbackGetConclusionOf",
+            "kind": "function"
+          },
+          {
+            "name": "lineGoneAnswerOf",
+            "kind": "function"
+          },
+          {
+            "name": "notSentFailureOf",
+            "kind": "function"
+          },
+          {
+            "name": "requestClassOf",
+            "kind": "function"
+          },
+          {
+            "name": "retryVersionOf",
+            "kind": "function"
+          },
+          {
+            "name": "stopAnswerOf",
+            "kind": "function"
+          },
+          {
+            "name": "streamGoneAnswerOf",
+            "kind": "function"
+          },
+          {
+            "name": "unusableAnswerOf",
+            "kind": "function"
+          },
+          {
+            "name": "AnswerConclusion",
+            "kind": "union"
+          },
+          {
+            "name": "InFlightPhase",
+            "kind": "union"
+          },
+          {
+            "name": "ProbeConclusion",
+            "kind": "union"
+          },
+          {
+            "name": "ProtocolVersions",
+            "kind": "alias"
+          },
+          {
+            "name": "UnusableCause",
+            "kind": "enum"
+          },
+          {
+            "name": "WireAnswer",
+            "kind": "union"
+          },
+          {
+            "name": "cancelsByNotification",
+            "kind": "function"
+          },
+          {
+            "name": "checksListingHeaders",
+            "kind": "function"
+          },
+          {
+            "name": "isLegacyConnection",
+            "kind": "function"
+          },
+          {
+            "name": "ConnectionView",
+            "kind": "union"
+          },
+          {
+            "name": "callAnswerOf",
+            "kind": "function"
+          },
+          {
+            "name": "interpretAnswer",
+            "kind": "function"
+          },
+          {
+            "name": "legacyIdentityOf",
+            "kind": "function"
+          },
+          {
+            "name": "listingPageOf",
+            "kind": "function"
+          },
+          {
+            "name": "readerOf",
+            "kind": "function"
+          },
+          {
+            "name": "taskAnswerOf",
+            "kind": "function"
+          },
+          {
+            "name": "taskReportOf",
+            "kind": "function"
+          },
+          {
+            "name": "METHOD_NOT_FOUND",
+            "kind": "const"
+          },
+          {
+            "name": "OFFERED_LEGACY_VERSION",
+            "kind": "?"
+          },
+          {
+            "name": "callRequestOf",
+            "kind": "function"
+          },
+          {
+            "name": "cancelTaskRequest",
+            "kind": "function"
+          },
+          {
+            "name": "getTaskRequest",
+            "kind": "function"
+          },
+          {
+            "name": "getTaskResultRequest",
+            "kind": "function"
+          },
+          {
+            "name": "legacyInitializeParamsOf",
+            "kind": "function"
+          },
+          {
+            "name": "listActionsRequest",
+            "kind": "function"
+          },
+          {
+            "name": "notificationTextOf",
+            "kind": "function"
+          },
+          {
+            "name": "peerRequestAnswerOf",
+            "kind": "function"
+          },
+          {
+            "name": "requestMetaOf",
+            "kind": "function"
+          },
+          {
+            "name": "requestTextOf",
+            "kind": "function"
+          },
+          {
+            "name": "responseTextOf",
+            "kind": "function"
+          },
+          {
+            "name": "updateTaskRequest",
+            "kind": "function"
+          },
+          {
+            "name": "ComposedRequest",
+            "kind": "record"
+          },
+          {
+            "name": "NotificationMethod",
+            "kind": "enum"
+          },
+          {
+            "name": "RequestMethod",
+            "kind": "enum"
+          },
+          {
+            "name": "RequestValues",
+            "kind": "record"
+          },
+          {
+            "name": "discoverWith",
+            "kind": "function"
+          },
+          {
+            "name": "withOneResend",
+            "kind": "function"
+          },
+          {
+            "name": "DiscoverPaths",
+            "kind": "record"
           },
           {
             "name": "catalogKeyOf",
@@ -6550,92 +10919,104 @@
             "kind": "function"
           },
           {
+            "name": "OUTPUT_CHECK_FAILED",
+            "kind": "?"
+          },
+          {
+            "name": "STRUCTURED_CONTENT_MISSING",
+            "kind": "?"
+          },
+          {
             "name": "AuthorizationDiscovery",
-            "kind": "record"
+            "kind": "?"
           },
           {
             "name": "BlockedReason",
-            "kind": "enum"
+            "kind": "?"
           },
           {
             "name": "CallOutcome",
-            "kind": "union"
+            "kind": "?"
           },
           {
             "name": "ConfigItem",
-            "kind": "union"
+            "kind": "?"
           },
           {
             "name": "ConnectionFailure",
-            "kind": "union"
+            "kind": "?"
           },
           {
             "name": "ContentDefect",
-            "kind": "enum"
+            "kind": "?"
           },
           {
             "name": "AnswerMalformed",
-            "kind": "record"
+            "kind": "?"
           },
           {
             "name": "EffectUnknown",
-            "kind": "record"
+            "kind": "?"
           },
           {
             "name": "ErrorAnswer",
-            "kind": "record"
+            "kind": "?"
           },
           {
             "name": "DeliveredContent",
-            "kind": "union"
+            "kind": "?"
           },
           {
             "name": "InvokeResult",
-            "kind": "union"
+            "kind": "?"
           },
           {
             "name": "NoAnswerCause",
-            "kind": "enum"
+            "kind": "?"
           },
           {
             "name": "NotSentReason",
-            "kind": "union"
+            "kind": "?"
           },
           {
             "name": "OperationFailure",
-            "kind": "union"
+            "kind": "?"
           },
           {
             "name": "OutputCheck",
-            "kind": "union"
+            "kind": "?"
           },
           {
             "name": "OutputValidator",
-            "kind": "alias"
+            "kind": "?"
           },
           {
             "name": "PeerAnswer",
-            "kind": "union"
+            "kind": "?"
           },
           {
             "name": "ProtocolFault",
-            "kind": "union"
+            "kind": "?"
           },
           {
             "name": "ReadFailure",
-            "kind": "alias"
+            "kind": "?"
           },
           {
             "name": "Refusal",
-            "kind": "union"
+            "kind": "?"
+          },
+          {
+            "name": "TaskHints",
+            "kind": "?"
           },
           {
             "name": "TaskReport",
-            "kind": "record"
+            "kind": "?"
           },
           {
             "name": "TaskStatus",
-            "kind": "enum"
+            "kind": "?"
           },
           {
             "name": "ActionCalls",
@@ -6728,6 +11109,10 @@
           {
             "name": "TaskRef",
             "kind": "record"
+          },
+          {
+            "name": "McpClock",
+            "kind": "interface"
           },
           {
             "name": "StopScope",
@@ -6837,6 +11222,10 @@
           {
             "name": "TransportMaterial",
             "kind": "union"
+          },
+          {
+            "name": "WithheldReason",
+            "kind": "alias"
           }
         ]
       },
@@ -6948,6 +11337,66 @@
             "kind": "brand"
           },
           {
+            "name": "actionNameOf",
+            "kind": "function"
+          },
+          {
+            "name": "adoptionRevisionOf",
+            "kind": "function"
+          },
+          {
+            "name": "connectionTargetOf",
+            "kind": "function"
+          },
+          {
+            "name": "correlationKeyOf",
+            "kind": "function"
+          },
+          {
+            "name": "credentialBindingOf",
+            "kind": "function"
+          },
+          {
+            "name": "endpointRefOf",
+            "kind": "function"
+          },
+          {
+            "name": "generationOf",
+            "kind": "function"
+          },
+          {
+            "name": "jsonOf",
+            "kind": "function"
+          },
+          {
+            "name": "jsonTextOf",
+            "kind": "function"
+          },
+          {
+            "name": "millisOf",
+            "kind": "function"
+          },
+          {
+            "name": "peerIdentityOf",
+            "kind": "function"
+          },
+          {
+            "name": "protocolVersionOf",
+            "kind": "function"
+          },
+          {
+            "name": "requestStateOf",
+            "kind": "function"
+          },
+          {
+            "name": "revisionOf",
+            "kind": "function"
+          },
+          {
+            "name": "taskIdOf",
+            "kind": "function"
+          },
+          {
             "name": "classifyOutcomeCases",
             "kind": "const"
           },
@@ -6962,11 +11411,155 @@
           {
             "name": "MergeListingCase",
             "kind": "record"
+          },
+          {
+            "name": "mcpTransportConformance",
+            "kind": "function"
+          },
+          {
+            "name": "PeerNeeds",
+            "kind": "record"
+          },
+          {
+            "name": "PeerNotificationScript",
+            "kind": "record"
+          },
+          {
+            "name": "PeerReceived",
+            "kind": "union"
+          },
+          {
+            "name": "PeerReply",
+            "kind": "union"
+          },
+          {
+            "name": "PeerRequestHeaders",
+            "kind": "record"
+          },
+          {
+            "name": "PeerScript",
+            "kind": "record"
+          },
+          {
+            "name": "PlainJson",
+            "kind": "union"
+          },
+          {
+            "name": "Replies",
+            "kind": "union"
+          },
+          {
+            "name": "ScriptSource",
+            "kind": "union"
+          },
+          {
+            "name": "ScriptedPeer",
+            "kind": "record"
+          },
+          {
+            "name": "TaskScript",
+            "kind": "record"
+          },
+          {
+            "name": "TransportFixture",
+            "kind": "record"
+          },
+          {
+            "name": "TransportKind",
+            "kind": "alias"
+          },
+          {
+            "name": "TRANSPORT_TABLE",
+            "kind": "const"
+          },
+          {
+            "name": "cellsOf",
+            "kind": "function"
+          },
+          {
+            "name": "rowsOf",
+            "kind": "function"
+          },
+          {
+            "name": "transportCells",
+            "kind": "function"
+          },
+          {
+            "name": "AnswerClass",
+            "kind": "union"
+          },
+          {
+            "name": "ExpectedFailure",
+            "kind": "union"
+          },
+          {
+            "name": "RequestClass",
+            "kind": "alias"
+          },
+          {
+            "name": "TableCell",
+            "kind": "record"
+          },
+          {
+            "name": "TableConclusion",
+            "kind": "brand"
+          },
+          {
+            "name": "TableKind",
+            "kind": "alias"
+          },
+          {
+            "name": "TableRow",
+            "kind": "record"
+          },
+          {
+            "name": "createScriptedTransportFactory",
+            "kind": "function"
+          },
+          {
+            "name": "ScriptedTransportFactory",
+            "kind": "brand"
+          },
+          {
+            "name": "ScriptedTransportOptions",
+            "kind": "record"
           }
         ]
       }
     ],
     "modEdges": [
+      [
+        "src/answer-readings.ts",
+        "src/decisions.ts"
+      ],
+      [
+        "src/answer-readings.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/answer-readings.ts",
+        "src/readers.ts"
+      ],
+      [
+        "src/answer-readings.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/answer-readings.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/args.ts",
+        "src/json.ts"
+      ],
+      [
+        "src/authorization.ts",
+        "src/json.ts"
+      ],
+      [
+        "src/authorization.ts",
+        "src/outcomes.ts"
+      ],
       [
         "src/catalog.ts",
         "src/brands.ts"
@@ -7000,12 +11593,104 @@
         "src/brands.ts"
       ],
       [
+        "src/composition.ts",
+        "src/answer-readings.ts"
+      ],
+      [
+        "src/composition.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/composition.ts",
+        "src/connection.ts"
+      ],
+      [
+        "src/composition.ts",
+        "src/decisions.ts"
+      ],
+      [
+        "src/composition.ts",
+        "src/envelope.ts"
+      ],
+      [
+        "src/composition.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/composition.ts",
+        "src/plain.ts"
+      ],
+      [
+        "src/composition.ts",
+        "src/revisions.ts"
+      ],
+      [
+        "src/composition.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/composition.ts",
+        "src/wire.ts"
+      ],
+      [
+        "src/connection.ts",
+        "src/revisions.ts"
+      ],
+      [
         "src/content.ts",
         "src/json.ts"
       ],
       [
         "src/content.ts",
         "src/outcomes.ts"
+      ],
+      [
+        "src/decisions.ts",
+        "src/composition.ts"
+      ],
+      [
+        "src/decisions.ts",
+        "src/json.ts"
+      ],
+      [
+        "src/decisions.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/decisions.ts",
+        "src/readers.ts"
+      ],
+      [
+        "src/decisions.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/decisions.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/decisions.ts",
+        "src/wire.ts"
+      ],
+      [
+        "src/decisions.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/discovery.ts",
+        "src/decisions.ts"
+      ],
+      [
+        "src/discovery.ts",
+        "src/readers.ts"
+      ],
+      [
+        "src/discovery.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/discovery.ts",
+        "src/values.ts"
       ],
       [
         "src/endpoint.ts",
@@ -7022,6 +11707,14 @@
       [
         "src/endpoint.ts",
         "src/values.ts"
+      ],
+      [
+        "src/envelope.ts",
+        "src/plain.ts"
+      ],
+      [
+        "src/envelope.ts",
+        "src/revisions.ts"
       ],
       [
         "src/index.ts",
@@ -7045,7 +11738,15 @@
       ],
       [
         "src/index.ts",
+        "src/args.ts"
+      ],
+      [
+        "src/index.ts",
         "src/classify.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/json.ts"
       ],
       [
         "src/index.ts",
@@ -7057,7 +11758,59 @@
       ],
       [
         "src/index.ts",
+        "src/revisions.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/plain.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/envelope.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/withheld.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/authorization.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/readers.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/wire.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/decisions.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/connection.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/answer-readings.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/composition.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/discovery.ts"
+      ],
+      [
+        "src/index.ts",
         "src/keys.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/outcomes.ts"
       ],
       [
         "src/index.ts",
@@ -7160,6 +11913,46 @@
         "src/transport.ts"
       ],
       [
+        "src/readers.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/readers.ts",
+        "src/classify.ts"
+      ],
+      [
+        "src/readers.ts",
+        "src/envelope.ts"
+      ],
+      [
+        "src/readers.ts",
+        "src/instructions.ts"
+      ],
+      [
+        "src/readers.ts",
+        "src/json.ts"
+      ],
+      [
+        "src/readers.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/readers.ts",
+        "src/revisions.ts"
+      ],
+      [
+        "src/readers.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/readers.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/readers.ts",
+        "src/withheld.ts"
+      ],
+      [
         "src/services.ts",
         "src/brands.ts"
       ],
@@ -7304,8 +12097,156 @@
         "src/brands.ts"
       ],
       [
+        "src/testing-scripted-transport.ts",
+        "src/answer-readings.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/authorization.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/composition.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/connection.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/decisions.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/discovery.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/envelope.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/plain.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/readers.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/revisions.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/testing-transport.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/testing-values.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/values.ts"
+      ],
+      [
+        "src/testing-scripted-transport.ts",
+        "src/wire.ts"
+      ],
+      [
+        "src/testing-transport-table.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/testing-transport-table.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/testing-transport-table.ts",
+        "src/wire.ts"
+      ],
+      [
+        "src/testing-transport-table.ts",
+        "src/wire.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/brands.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/envelope.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/instructions.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/outcomes.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/plain.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/ports.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/revisions.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/testing-transport-table.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/wire.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/testing-values.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/plain.ts"
+      ],
+      [
+        "src/testing-transport.ts",
+        "src/envelope.ts"
+      ],
+      [
         "src/testing-values.ts",
         "src/brands.ts"
+      ],
+      [
+        "src/testing-values.ts",
+        "src/values.ts"
       ],
       [
         "src/testing.ts",
@@ -7333,11 +12274,27 @@
       ],
       [
         "src/testing.ts",
+        "src/testing-values.ts"
+      ],
+      [
+        "src/testing.ts",
         "src/testing-outcome-cases.ts"
       ],
       [
         "src/testing.ts",
         "src/testing-listing-cases.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-transport.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-transport-table.ts"
+      ],
+      [
+        "src/testing.ts",
+        "src/testing-scripted-transport.ts"
       ],
       [
         "src/transport.ts",
@@ -7358,6 +12315,30 @@
       [
         "src/values.ts",
         "src/brands.ts"
+      ],
+      [
+        "src/wire.ts",
+        "src/json.ts"
+      ],
+      [
+        "src/wire.ts",
+        "src/readers.ts"
+      ],
+      [
+        "src/wire.ts",
+        "src/revisions.ts"
+      ],
+      [
+        "src/withheld.ts",
+        "src/json.ts"
+      ],
+      [
+        "src/withheld.ts",
+        "src/transport.ts"
+      ],
+      [
+        "src/withheld.ts",
+        "src/values.ts"
       ]
     ],
     "pkgEdges": [
@@ -7372,11 +12353,352 @@
     ]
   },
   {
-    "dir": "packages/mcp/mcp-host-local",
-    "name": "@omne-harness/mcp-host-local",
-    "description": "Local MCP host: the stdio and Streamable HTTP McpTransport implementations and authorization discovery",
-    "deps": [],
+    "dir": "packages/mcp/mcp-cordis-contract",
+    "name": "@omne-harness/mcp-cordis-contract",
+    "description": "Cordis service definitions of MCP: abstract Services and keys for the three services and the four demand ports",
+    "deps": [
+      "@deepseek-ai/cordis",
+      "@omne-harness/mcp-contract"
+    ],
     "files": [
+      {
+        "file": "src/cordis.ts",
+        "decls": [
+          {
+            "name": "ActionDiscoveryService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "ActionDiscovery",
+                  "P",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "ActionDiscovery",
+                  "P",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "ActionDiscovery",
+                  "P",
+                  "ReturnType"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "ActionDiscovery",
+              "P",
+              "Context",
+              "Parameters",
+              "ReturnType"
+            ],
+            "implements": [
+              "ActionDiscovery"
+            ]
+          },
+          {
+            "name": "mcpActionDiscoveryKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "ActionInvokerService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "ActionInvoker",
+                  "P",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "ActionInvoker",
+                  "P",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "ActionInvoker",
+                  "P",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "ActionInvoker",
+                  "P",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "ActionInvoker",
+                  "P",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "ActionInvoker",
+                  "P",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "ActionInvoker",
+                  "P",
+                  "ReturnType"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "ActionInvoker",
+              "P",
+              "Context",
+              "Parameters",
+              "ReturnType"
+            ],
+            "implements": [
+              "ActionInvoker"
+            ]
+          },
+          {
+            "name": "mcpActionInvokerKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "EndpointStatusService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "EndpointStatus",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "EndpointStatus",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "EndpointStatus",
+              "P",
+              "S",
+              "Context",
+              "Parameters",
+              "ReturnType"
+            ],
+            "implements": [
+              "EndpointStatus"
+            ]
+          },
+          {
+            "name": "mcpEndpointStatusKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "AdoptionViewService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "AdoptionView",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "AdoptionView",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "AdoptionView",
+              "P",
+              "S",
+              "Context",
+              "Parameters",
+              "ReturnType"
+            ],
+            "implements": [
+              "AdoptionView"
+            ]
+          },
+          {
+            "name": "mcpAdoptionViewKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "UseEligibilityService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "UseEligibility",
+                  "P",
+                  "ReturnType"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "UseEligibility",
+              "P",
+              "Context",
+              "Parameters",
+              "ReturnType"
+            ],
+            "implements": [
+              "UseEligibility"
+            ]
+          },
+          {
+            "name": "mcpUseEligibilityKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "CredentialUseService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "CredentialUse",
+                  "P"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "CredentialUse",
+              "P",
+              "Context"
+            ],
+            "implements": [
+              "CredentialUse"
+            ]
+          },
+          {
+            "name": "mcpCredentialUseKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "ProcessLandingService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "ProcessLanding",
+                  "P",
+                  "ReturnType"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "ProcessLanding",
+              "P",
+              "Context",
+              "Parameters",
+              "ReturnType"
+            ],
+            "implements": [
+              "ProcessLanding"
+            ]
+          },
+          {
+            "name": "mcpProcessLandingKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [
+          "@deepseek-ai/cordis",
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 166
+      },
       {
         "file": "src/index.ts",
         "decls": [],
@@ -7395,20 +12717,1003 @@
         "lines": 2
       }
     ],
-    "testFiles": 1,
-    "testCases": 1,
-    "draft": [
-      "README.md",
-      "README_ZH.md",
-      "src/index.ts"
-    ],
+    "testFiles": 2,
+    "testCases": 6,
+    "draft": [],
     "entries": [
       {
         "sub": ".",
         "names": []
+      },
+      {
+        "sub": "./cordis",
+        "names": [
+          {
+            "name": "ActionDiscoveryService",
+            "kind": "class"
+          },
+          {
+            "name": "mcpActionDiscoveryKey",
+            "kind": "const"
+          },
+          {
+            "name": "ActionInvokerService",
+            "kind": "class"
+          },
+          {
+            "name": "mcpActionInvokerKey",
+            "kind": "const"
+          },
+          {
+            "name": "EndpointStatusService",
+            "kind": "class"
+          },
+          {
+            "name": "mcpEndpointStatusKey",
+            "kind": "const"
+          },
+          {
+            "name": "AdoptionViewService",
+            "kind": "class"
+          },
+          {
+            "name": "mcpAdoptionViewKey",
+            "kind": "const"
+          },
+          {
+            "name": "UseEligibilityService",
+            "kind": "class"
+          },
+          {
+            "name": "mcpUseEligibilityKey",
+            "kind": "const"
+          },
+          {
+            "name": "CredentialUseService",
+            "kind": "class"
+          },
+          {
+            "name": "mcpCredentialUseKey",
+            "kind": "const"
+          },
+          {
+            "name": "ProcessLandingService",
+            "kind": "class"
+          },
+          {
+            "name": "mcpProcessLandingKey",
+            "kind": "const"
+          }
+        ]
       }
     ],
     "modEdges": [],
-    "pkgEdges": []
+    "pkgEdges": [
+      "@deepseek-ai/cordis",
+      "@omne-harness/mcp-contract"
+    ]
+  },
+  {
+    "dir": "packages/mcp/mcp-host-local",
+    "name": "@omne-harness/mcp-host-local",
+    "description": "Local MCP host: the stdio and Streamable HTTP McpTransport implementations with authorization discovery, and the MCP Cordis plugin that provides the three MCP services",
+    "deps": [
+      "@deepseek-ai/cordis",
+      "@omne-harness/json-text",
+      "@omne-harness/kernel-basis",
+      "@omne-harness/mcp",
+      "@omne-harness/mcp-contract",
+      "@omne-harness/mcp-cordis-contract",
+      "@omne-harness/operation-result",
+      "eventsource-parser"
+    ],
+    "files": [
+      {
+        "file": "src/authorization.ts",
+        "decls": [
+          {
+            "name": "metadataFetcher",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Fetch",
+              "MetadataFetch",
+              "Response"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/mcp-contract",
+          "./body.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "metadataFetcher",
+          "lines": 28
+        },
+        "lines": 37
+      },
+      {
+        "file": "src/body.ts",
+        "decls": [
+          {
+            "name": "bodyOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Response",
+              "Promise"
+            ]
+          }
+        ],
+        "imports": [
+          "./limits.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "bodyOf",
+          "lines": 16
+        },
+        "lines": 21
+      },
+      {
+        "file": "src/cordis.ts",
+        "decls": [
+          {
+            "name": "McpPluginParts",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Pick",
+              "McpConfig",
+              "McpPorts",
+              "LocalTransportOptions"
+            ]
+          },
+          {
+            "name": "McpPluginConfig",
+            "kind": "brand",
+            "fields": [],
+            "variants": [],
+            "refs": [
+              "Omit",
+              "McpConfig",
+              "LocalTransportOptions"
+            ]
+          },
+          {
+            "name": "createMcpPlugin",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "McpPluginParts",
+              "McpPluginConfig",
+              "McpPorts"
+            ]
+          }
+        ],
+        "imports": [
+          "@deepseek-ai/cordis",
+          "@omne-harness/mcp",
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "@omne-harness/mcp-cordis-contract/cordis",
+          "@omne-harness/kernel-basis/cordis",
+          "@omne-harness/operation-result",
+          "./factory.ts",
+          "./options.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createMcpPlugin",
+          "lines": 41
+        },
+        "lines": 317
+      },
+      {
+        "file": "src/factory.ts",
+        "decls": [
+          {
+            "name": "createLocalTransportFactory",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "LocalTransportOptions",
+              "McpTransportFactory",
+              "Line"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./authorization.ts",
+          "./http-line.ts",
+          "./line.ts",
+          "./options.ts",
+          "./session.ts",
+          "./stdio-line.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "createLocalTransportFactory",
+          "lines": 29
+        },
+        "lines": 57
+      },
+      {
+        "file": "src/http-line.ts",
+        "decls": [
+          {
+            "name": "HttpLine",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "AsyncIterable",
+                  "LineEvent"
+                ]
+              },
+              {
+                "refs": [
+                  "Headers",
+                  "AbortSignal",
+                  "Promise",
+                  "GetOpened"
+                ]
+              },
+              {
+                "refs": [
+                  "Outbound",
+                  "AbortSignal",
+                  "Promise",
+                  "Exchange",
+                  "Response"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              }
+            ],
+            "refs": [
+              "Line",
+              "AsyncIterable",
+              "LineEvent",
+              "Headers",
+              "AbortSignal",
+              "Promise",
+              "GetOpened",
+              "Fetch",
+              "AbortController",
+              "Linked",
+              "Outbound",
+              "Exchange",
+              "Response",
+              "ReadableStreamDefaultReader",
+              "EventSourceMessage"
+            ],
+            "implements": [
+              "Line"
+            ]
+          }
+        ],
+        "imports": [
+          "eventsource-parser/stream",
+          "./body.ts",
+          "./limits.ts",
+          "./line.ts",
+          "./queue.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "send",
+          "lines": 32
+        },
+        "lines": 267
+      },
+      {
+        "file": "src/index.ts",
+        "decls": [],
+        "imports": [
+          "./factory.ts",
+          "./options.ts"
+        ],
+        "reexports": [
+          {
+            "from": "./factory.ts",
+            "names": [
+              "createLocalTransportFactory"
+            ]
+          },
+          {
+            "from": "./options.ts",
+            "names": [
+              "LocalTransportOptions"
+            ]
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 5
+      },
+      {
+        "file": "src/limits.ts",
+        "decls": [
+          {
+            "name": "BYTE_LIMIT",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [
+          "@omne-harness/mcp-contract"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 10
+      },
+      {
+        "file": "src/line.ts",
+        "decls": [
+          {
+            "name": "Outbound",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Headers"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Headers"
+            ]
+          },
+          {
+            "name": "AnswerHeaders",
+            "kind": "record",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "Exchange",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "unsent",
+              "sent",
+              "status",
+              "stream",
+              "aborted"
+            ],
+            "refs": [
+              "Readonly",
+              "AnswerHeaders",
+              "AsyncIterable"
+            ]
+          },
+          {
+            "name": "LineEvent",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "line",
+              "ended",
+              "broken"
+            ],
+            "refs": [
+              "Readonly"
+            ]
+          },
+          {
+            "name": "FirstEvent",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "GetOpened",
+            "kind": "union",
+            "fields": [],
+            "variants": [
+              "stream",
+              "status",
+              "unsent",
+              "unavailable"
+            ],
+            "refs": [
+              "Readonly",
+              "AnswerHeaders",
+              "FirstEvent"
+            ]
+          },
+          {
+            "name": "Line",
+            "kind": "interface",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Outbound",
+                  "AbortSignal",
+                  "Promise",
+                  "Exchange"
+                ]
+              },
+              {
+                "refs": [
+                  "AsyncIterable",
+                  "LineEvent"
+                ]
+              },
+              {
+                "refs": [
+                  "Headers",
+                  "AbortSignal",
+                  "Promise",
+                  "GetOpened"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              }
+            ],
+            "refs": [
+              "Outbound",
+              "AbortSignal",
+              "Promise",
+              "Exchange",
+              "AsyncIterable",
+              "LineEvent",
+              "Headers",
+              "GetOpened"
+            ],
+            "extends": []
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 91
+      },
+      {
+        "file": "src/options.ts",
+        "decls": [
+          {
+            "name": "LocalTransportOptions",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "Readonly"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "Readonly"
+            ]
+          },
+          {
+            "name": "checkOptions",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "LocalTransportOptions"
+            ]
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "checkOptions",
+          "lines": 10
+        },
+        "lines": 20
+      },
+      {
+        "file": "src/queue.ts",
+        "decls": [
+          {
+            "name": "AsyncQueue",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": [
+                  "T"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "AsyncIterator",
+                  "T"
+                ]
+              }
+            ],
+            "refs": [
+              "AsyncIterable",
+              "T",
+              "Readonly",
+              "IteratorResult",
+              "AsyncIterator"
+            ],
+            "implements": [
+              "AsyncIterable"
+            ]
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "[Symbol.asyncIterator]",
+          "lines": 17
+        },
+        "lines": 53
+      },
+      {
+        "file": "src/session.ts",
+        "decls": [
+          {
+            "name": "Scheduler",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "SessionOptions",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "ClientInfo"
+                ]
+              },
+              {
+                "refs": [
+                  "ProtocolVersions"
+                ]
+              },
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "MetadataFetch"
+                ]
+              },
+              {
+                "refs": [
+                  "Scheduler"
+                ]
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "ClientInfo",
+              "ProtocolVersions",
+              "MetadataFetch",
+              "Scheduler"
+            ]
+          },
+          {
+            "name": "Session",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": [
+                  "Generation"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "Outcome",
+                  "PeerIdentity",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise",
+                  "Outcome",
+                  "ListingPage",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "CallRequest",
+                  "AbortSignal",
+                  "PeerNotification",
+                  "Promise",
+                  "Outcome",
+                  "SentCall",
+                  "Extract",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId",
+                  "Promise",
+                  "Outcome",
+                  "TaskReport",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId",
+                  "Promise",
+                  "Outcome",
+                  "TaskAnswer",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId",
+                  "JsonValue",
+                  "Promise",
+                  "Outcome",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "TaskId",
+                  "Promise",
+                  "Outcome",
+                  "TransportFailure"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              }
+            ],
+            "refs": [
+              "McpTransport",
+              "Generation",
+              "Line",
+              "TransportMaterial",
+              "SessionOptions",
+              "Pending",
+              "Connection",
+              "Promise",
+              "UnusableCause",
+              "HttpCredentialHandle",
+              "IdentityBound",
+              "ConnectionView",
+              "Answered",
+              "Extract",
+              "TransportFailure",
+              "IteratorResult",
+              "LineEvent",
+              "PeerMessage",
+              "T",
+              "Headers",
+              "AnswerHeaders",
+              "AbortSignal",
+              "Refusal",
+              "AuthorizationDiscoveryRun",
+              "PlainRecord",
+              "Outbound",
+              "NotificationMethod",
+              "Sending",
+              "WireContext",
+              "RequestMethod",
+              "Exchange",
+              "WireEvent",
+              "AnswerConclusion",
+              "ComposedRequest",
+              "Outcome",
+              "PeerIdentity",
+              "GetOpened",
+              "ListingPage",
+              "CallRequest",
+              "PeerNotification",
+              "SentCall",
+              "TaskId",
+              "TaskReport",
+              "TaskAnswer",
+              "JsonValue"
+            ],
+            "implements": [
+              "McpTransport"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/json-text",
+          "@omne-harness/operation-result",
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./line.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "dispatch",
+          "lines": 32
+        },
+        "lines": 963
+      },
+      {
+        "file": "src/stdio-line.ts",
+        "decls": [
+          {
+            "name": "StdioLine",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "AsyncIterable",
+                  "LineEvent"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              },
+              {
+                "refs": [
+                  "Outbound",
+                  "AbortSignal",
+                  "Promise",
+                  "Exchange",
+                  "const"
+                ]
+              },
+              {
+                "refs": [
+                  "Promise"
+                ]
+              }
+            ],
+            "refs": [
+              "Line",
+              "AsyncIterable",
+              "LineEvent",
+              "WritableStreamDefaultWriter",
+              "Uint8Array",
+              "ReadableStreamDefaultReader",
+              "Promise",
+              "ReturnType",
+              "ProcessHandle",
+              "Outbound",
+              "AbortSignal",
+              "Exchange",
+              "const"
+            ],
+            "implements": [
+              "Line"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/mcp-contract",
+          "@omne-harness/mcp-contract/provider",
+          "./limits.ts",
+          "./line.ts",
+          "./queue.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "readStdout",
+          "lines": 45
+        },
+        "lines": 217
+      }
+    ],
+    "testFiles": 29,
+    "testCases": 191,
+    "draft": [],
+    "entries": [
+      {
+        "sub": ".",
+        "names": [
+          {
+            "name": "createLocalTransportFactory",
+            "kind": "function"
+          },
+          {
+            "name": "LocalTransportOptions",
+            "kind": "record"
+          }
+        ]
+      },
+      {
+        "sub": "./cordis",
+        "names": [
+          {
+            "name": "McpPluginParts",
+            "kind": "brand"
+          },
+          {
+            "name": "McpPluginConfig",
+            "kind": "brand"
+          },
+          {
+            "name": "createMcpPlugin",
+            "kind": "function"
+          }
+        ]
+      }
+    ],
+    "modEdges": [
+      [
+        "src/authorization.ts",
+        "src/body.ts"
+      ],
+      [
+        "src/body.ts",
+        "src/limits.ts"
+      ],
+      [
+        "src/cordis.ts",
+        "src/factory.ts"
+      ],
+      [
+        "src/cordis.ts",
+        "src/options.ts"
+      ],
+      [
+        "src/factory.ts",
+        "src/authorization.ts"
+      ],
+      [
+        "src/factory.ts",
+        "src/http-line.ts"
+      ],
+      [
+        "src/factory.ts",
+        "src/line.ts"
+      ],
+      [
+        "src/factory.ts",
+        "src/options.ts"
+      ],
+      [
+        "src/factory.ts",
+        "src/session.ts"
+      ],
+      [
+        "src/factory.ts",
+        "src/stdio-line.ts"
+      ],
+      [
+        "src/http-line.ts",
+        "src/body.ts"
+      ],
+      [
+        "src/http-line.ts",
+        "src/limits.ts"
+      ],
+      [
+        "src/http-line.ts",
+        "src/line.ts"
+      ],
+      [
+        "src/http-line.ts",
+        "src/queue.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/factory.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/options.ts"
+      ],
+      [
+        "src/session.ts",
+        "src/line.ts"
+      ],
+      [
+        "src/stdio-line.ts",
+        "src/limits.ts"
+      ],
+      [
+        "src/stdio-line.ts",
+        "src/line.ts"
+      ],
+      [
+        "src/stdio-line.ts",
+        "src/queue.ts"
+      ]
+    ],
+    "pkgEdges": [
+      "@omne-harness/json-text",
+      "@omne-harness/mcp-contract",
+      "@deepseek-ai/cordis",
+      "@omne-harness/mcp",
+      "@omne-harness/mcp-cordis-contract",
+      "@omne-harness/kernel-basis",
+      "@omne-harness/operation-result",
+      "eventsource-parser"
+    ]
   }
 ]

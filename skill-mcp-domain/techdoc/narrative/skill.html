@@ -1,40 +1,109 @@
-<h3>W1 之后源码里有什么（父分支 aafc0cdc9；W2 增量见文末）</h3>
-<p>Skill 组仍是三个成员，只有 <code>@omne-harness/skill-contract</code> 有实现：22 个源文件、约 2400 个非空行、13 个测试文件 364 例。另外两个成员仍是模板草稿。读这个成员时按三个入口分开读，三者在 <code>package.json</code> 的 <code>exports</code> 里各占一条。</p>
+<h3>成员、入口与模块分工</h3>
+<p>依赖只朝一个方向：<code>skill-contract</code> 在最底层，<code>skill</code> 与 <code>skill-cordis-contract</code> 在组内只依赖它，<code>skill-host-local</code> 依赖其余三个。下文的来源指 <code>SkillPackageSource</code>，读取判定端口指 <code>SkillReadCheck</code>，对应端口指 <code>SkillResolution</code>，依据指 <code>SkillMaterialBasis</code>。</p>
 <ul>
-<li><strong>公开根 <code>.</code>（给调用方）</strong>：<code>index.ts</code> 只做重导出。值与品牌在 <code>values.ts</code>、<code>names.ts</code>、<code>digest.ts</code>、<code>media.ts</code>；失败联合在 <code>failures.ts</code>；三个应用服务接口在 <code>services.ts</code>；包检查纯函数在 <code>parse/</code>；类别端口在 <code>contract.ts</code>；资产正文投影在 <code>project.ts</code>。</li>
-<li><strong><code>./provider</code>（给端口实现方）</strong>：<code>provider.ts</code> 只重导出 <code>ports.ts</code> 的三个端口类型、<code>PackageInspection</code>、<code>SkillRef</code>、<code>PackageLocator</code>，以及唯一的运行时导出 <code>sealSnapshot</code>。公开根拿不到这些名字，所以调用方无法构造快照、也看不到包定位。</li>
-<li><strong><code>./testing</code>（给实现方自测）</strong>：<code>testing.ts</code> 聚合三个套件与三个内存替身。套件返回 <code>ConformanceCase[]</code>，用例用 <code>node:assert/strict</code> 失败，与 tool-contract 同形，不依赖测试框架。</li>
+<li><strong><code>skill-contract</code></strong>：纯契约，有三个入口。公开根给调用方：值、守卫、失败、两个服务接口、<code>parseSkillPackage</code> 等纯函数与类别端口 <code>skillBodyContract</code>。<code>./provider</code> 给端口实现方：三个需求端口、<code>PackageInspection</code>、<code>SkillRef</code>、<code>PackageLocator</code>、<code>sealSnapshot</code> 与 <code>isSealedSnapshot</code>。<code>./testing</code> 有五个符合性套件与三个内存替身，套件不依赖测试框架。包检查在 <code>parse/</code>。<code>contract.ts</code> 复用 <code>parse/shape.ts</code> 的 <code>readScripts</code> 与 <code>readSettings</code>，所以 <code>.omne/skill.json</code> 与资产正文的脚本、设置规则只有一份。</li>
+<li><strong><code>skill</code></strong>：三个服务的实现。公开根只有三个工厂与类型 <code>SkillPorts</code>。<code>inspection.ts</code> 是检查，<code>catalog.ts</code> 与 <code>match.ts</code> 是目录，<code>access/</code> 是读取的各段。<code>port-answer.ts</code>、<code>answer-values.ts</code> 与 <code>source-answer.ts</code> 解析端口答复。<code>mapping.ts</code> 是唯一的失败映射表。</li>
+<li><strong><code>skill-host-local</code></strong>：公开根导出 <code>createDirectorySource</code>。<code>fs.ts</code> 是文件系统接缝，<code>walk.ts</code> 做全部判定，<code>directory-source.ts</code> 把两者接到来源端口。<code>./cordis</code> 导出插件 <code>skillPlugin</code>。</li>
+<li><strong><code>skill-cordis-contract</code></strong>：根入口没有运行导出，不加载 Cordis。<code>./cordis</code> 导出五个抽象 Service 与五个键常量。</li>
 </ul>
 
-<h3>依赖方向</h3>
-<p>模块图是一棵严格的 DAG，根是 <code>values.ts</code>（只有类型，没有导入）。往上一层是品牌授予与纯函数（<code>names</code>、<code>digest</code>、<code>media</code>），再上一层是 <code>snapshot.ts</code>（用这三者算条目事实）和 <code>parse/</code>（<code>shape</code> → <code>declaration</code>/<code>manifest</code> → <code>package</code>）。<code>contract.ts</code> 复用 <code>parse/shape.ts</code> 的读取器，所以资产正文和 <code>.omne/skill.json</code> 对 <code>scripts</code>、<code>settings</code> 的规则只有一份。<code>testing-*</code> 只依赖端口与值，不被任何非测试模块导入——<code>public-entry.spec.ts</code> 沿 <code>src</code> 的导入图核对这一点。</p>
+<h3>关键类型之间的关系</h3>
+<ul>
+<li><code>sealSnapshot</code> 造出 <code>SkillPackageSnapshot</code>：根名、按路径排序的 <code>PackageEntry</code> 与快照的内容摘要。快照不存字节。</li>
+<li><code>SkillDefinition</code> 是检查的结果：<code>SkillManifest</code>、<code>SkillDeclaration</code>、快照与可选的兼容提示。它不含正文。<code>projectAssetBody</code> 把它投影成资产正文，对应端口以 <code>DeclaredProjection</code> 交回这份投影。</li>
+<li><code>SkillRef</code> 带包定位，只在 Skill 与对应端口之间传递。依据没有包定位，只指名材料：能力标识、来源层、可选的资产版本与内容摘要。</li>
+<li><code>Resolution</code> 有五种答复。<code>CatalogResolution</code> 是其中的 <code>adopted</code> 与 <code>known-unavailable</code> 两种。</li>
+<li><code>skill</code> 内部，<code>gate</code> 交出 <code>Gated</code>，<code>pin</code> 交出 <code>Pinned</code>（定位、所钉材料与快照）。<code>read</code>、<code>list</code> 与 <code>export</code> 的结果都以 <code>basis</code> 写出所钉材料。</li>
+</ul>
 
-<h3>两条真实的调用路径</h3>
-<ol>
-<li><strong>检查一个包。</strong>来源把文件字节交给 <code>sealSnapshot(rootName, files)</code>：它逐条算编码、大小、媒体类型与条目摘要，按 UTF-16 码元排序，拒绝重复路径与「文件同时是目录」的前缀冲突，再把快照登记进模块私有的 <code>WeakSet</code> 并以断言式守卫收窄成品牌类型。然后 <code>parseSkillPackage({ snapshot, control, expectedName? })</code>：先 <code>assertSealed</code>（伪造快照抛 <code>TypeError</code>，这是调用方的编程错误），再核对两份控制文件字节的摘要（不符答 <code>version-changed</code>，这是竞争，不是错误），然后 <code>readManifest</code> 解析 <code>SKILL.md</code> 头部（<code>frontmatterOf</code> 逐行找定界，<code>yaml-value.ts</code> 把 YAML 节点转成带预算的纯值）、<code>readDeclaration</code> 解析 <code>.omne/skill.json</code>，所有发现攒进一个列表，最后 <code>firstFinding</code> 按封闭次序（<code>INSPECT_REJECTIONS</code>）取第一条拒绝。名字必须逐字等于包根目录名。</li>
-<li><strong>类别端口。</strong><code>skillBodyContract()</code> 返回 assets 的 <code>BodyContract</code>。<code>judge</code> 的次序是：是真实读取 → 有 name → 等于能力名 → 合 <code>SkillName</code> 词法（<code>name-invalid</code>，本波新增）→ 工具引用合法 → 四个可加字段（<code>description</code>、<code>scripts</code>、<code>settings</code>、<code>package.digest</code>）合形。<code>deriveDeclarations</code> 对每项设置声明产出 <code>setting:&lt;类别&gt;:&lt;名字&gt;</code>。</li>
-</ol>
+<h3>检查一个包</h3>
+<p><code>inspect</code> 收包定位与可选的 <code>expectedName</code>。它调用一次 <code>source.snapshot</code>，再对快照列出的每个控制文件调用一次 <code>source.open</code>。来源失败经 <code>sourceFailureTo</code> 的 <code>inspect</code> 一列按调用点映射。之后 <code>parseSkillPackage</code> 按下列次序判断：</p>
+<ul>
+<li><code>assertSealed</code>：伪造的快照抛 <code>TypeError</code>。</li>
+<li>控制字节的内容摘要或在场情况与快照不一致：答 <code>version-changed</code>，不做其余判断。</li>
+<li>没有 <code>SKILL.md</code>：答 <code>manifest-missing</code>。</li>
+<li><code>readManifest</code> 按字节找头部定界，用严格的 YAML 1.2 解析。YAML 有错误或警告时，<code>readByLine</code> 只逐行读 name 与说明。</li>
+<li>调用方给了 <code>expectedName</code> 且 name 与它不同：答 <code>name-mismatch</code>。name 与包根目录名不同只带提示 <code>name-differs-from-root</code>。</li>
+<li><code>readDeclaration</code> 读 <code>.omne/skill.json</code>。<code>formatVersion</code> 的词形不是 <code>1</code> 时答 <code>declaration-format-unsupported</code>，不做声明的其余判断。</li>
+<li><code>firstFinding</code> 按 <code>INSPECT_REJECTIONS</code> 取最前的一条声明发现，之后才是头部的 <code>malformed</code>。通过时，<code>orderedHints</code> 按固定次序写出兼容提示。</li>
+</ul>
+<p>资产一侧，<code>skillBodyContract</code> 的 <code>judge</code> 依次查正文与 name、<code>name-mismatch</code>、<code>name-invalid</code>、工具引用，最后查四个可加字段。</p>
 
-<h3>怎样保证「只能由构造器造出」</h3>
-<p>两层。类型层：<code>SkillPackageSnapshot</code> 的品牌键是 <code>values.ts</code> 里模块私有的 <code>unique symbol</code>，三个入口都不导出它，不写 <code>as</code> 就造不出这个类型；<code>types.spec-d.ts</code> 证明字面量赋不进去。运行时：<code>{ ...snapshot }</code> 能骗过类型检查，所以 <code>parseSkillPackage</code> 再查 <code>WeakSet</code>。代价写在 SPEC：这是进程内凭证，不可序列化，同一成员被加载成两份实例时互不承认。</p>
+<h3>端口答复的解析与 <code>describe</code></h3>
+<p>端口答复是外来数据。<code>answered(call, parse)</code> 在同一个 <code>try</code> 里调用端口并解析答复。端口 reject、同步抛出、答复不合与读取答复时抛出，都算没有作答。</p>
+<ul>
+<li><code>parseResolution(request)</code> 只放行关于所请求身份的答复。带依据时，<code>adopted</code> 引用的来源层、内容摘要与资产版本（依据带资产版本时）还必须等于依据的。</li>
+<li><code>parseLawfulSet</code> 遇到一项不合时，整个答复算没有作答。</li>
+<li><code>answer-values.ts</code> 经契约守卫与 <code>capabilityId</code> 重新构造每个值，只读自有属性。</li>
+</ul>
+<p><code>describe</code> 只走 <code>gate</code>（第 1 到 3 步），不收 <code>signal</code>。依据指向别的身份、读取判定答 <code>refused</code>、对应端口答 <code>none</code>：三种情形交出同一个冻结对象 <code>NOT_AVAILABLE</code>。读取判定或对应端口答 <code>unknown</code> 或没有作答时，答 <code>unknown</code>。<code>known-unavailable</code> 答 <code>unavailable-stand-in</code>，<code>basis-not-lawful</code> 答 <code>basis-unavailable</code>。通过后，<code>descriptionOf</code> 写出 <code>pinned</code> 或 <code>no-readable-package</code>，不读字节。</p>
+
+<h3><code>read</code> 与关口</h3>
+<ul>
+<li><code>assertByteRange</code>：范围的起点或长度不是非负整数时抛 <code>TypeError</code>，这时还没有调用端口。</li>
+<li>第 1 到 3 步：<code>gate</code>。</li>
+<li>第 5 步 <code>materialOf</code>：带依据时，所钉材料就是依据。不带依据且引用没有内容摘要时，答 <code>unsupported</code>。</li>
+<li>第 6 步 <code>partOf</code>：资源路径经 <code>toPackagePath</code> 校验。不合法的路径与控制文件都答 <code>bad-path</code>。</li>
+<li>第 7 步 <code>pin</code>：快照的内容摘要不等于所钉材料时，交出调用方给的 <code>moved</code>。不带依据时它是 <code>adopted-material-changed</code>，带依据时是 <code>basis-unavailable</code>。</li>
+<li>第 9 步 <code>entryAt</code>：条目不在快照中时答 <code>resource-missing</code>。</li>
+<li>第 10 步 <code>verifiedBytes</code>：字节的内容摘要不等于条目的内容摘要时，答 <code>version-changed</code>。</li>
+<li>第 11 步：读正文时，<code>bodyOffsetOf</code> 给出正文起点。它答 <code>undefined</code> 时，操作答 <code>source-unavailable</code>。<code>sliceRange</code> 每页最多 <code>PAGE_LIMIT</code>（65536）字节，文本的两端落在 UTF-8 字符边界上。</li>
+</ul>
+<p><code>checkpoint(signal)</code> 在每次端口调用之前与之后各查一次。已中止时答 <code>aborted</code>，不再调用端口，也不交部分内容。</p>
+
+<h3><code>summaries</code>、<code>search</code>、<code>list</code> 与 <code>export</code></h3>
+<ul>
+<li><code>summaries</code> 收到空的 <code>capabilities</code> 时答空列表，不调用端口。</li>
+<li>其他情形先调用对应端口的 <code>adopted</code>。它答 <code>unknown</code> 或没有作答时，整次答 <code>unknown</code>。同一能力标识只留第一条，条目按类别与名字排序。</li>
+<li>过滤先于核验。<code>search</code> 用 <code>matches</code>：先做 NFKC 与小写，查询按空白切词，每个词都是「name、换行、说明」拼成的文本的子串时匹配。</li>
+<li><code>grantedOf</code> 用 <code>Promise.all</code> 发出读取判定，按条目次序读答复。任一答复是 <code>unknown</code> 或没有作答时，整次答 <code>unknown</code>。否则只交 <code>granted</code> 的条目。</li>
+</ul>
+<p><code>list</code> 在 <code>pin</code> 之后结束，交出除控制文件以外的条目，不读字节。<code>export</code> 总带依据，向 <code>pin</code> 交 <code>BASIS_UNAVAILABLE</code>，所以 <code>ExportFailure</code> 不含 <code>adopted-material-changed</code>。它逐个核对全部条目（含控制文件）。一个条目失败，整次导出就失败。</p>
+
+<h3>目录来源</h3>
+<p><code>createDirectorySource</code> 只有一个选项 <code>fs</code>，没有索引与缓存。定位不是 <code>directory</code> 时答 <code>package-not-found</code>。<code>open</code> 不看 <code>digest</code> 参数，字节由调用方核对。</p>
+<ul>
+<li><code>DirectoryFs</code> 只有四个读操作：<code>readdir</code>、<code>lstat</code>、<code>realpath</code>、<code>readFile</code>。名字以字节交出。<code>readFile</code> 以 <code>O_NOFOLLOW</code> 与 <code>O_NONBLOCK</code> 打开。</li>
+<li><code>collect</code> 深度优先遍历。每次列出先严格解码全部名字，再按 UTF-16 码元序访问，所以有多处缺陷时答复固定。</li>
+<li><code>visit</code> 对每个名字走同一条路：计入 <code>VISIT_BUDGET</code>（65536），解析链接，<code>isWithin</code> 按整段判断是否在根内，<code>lstat</code> 读种类，再进入目录或读文件。目录按祖先集合查环。</li>
+<li>错误码只在 <code>walk.ts</code> 分类，共有 <code>ROOT</code>、<code>RESOLVE</code>、<code>READ</code>、<code>OPEN</code> 四张表。表外的码答 <code>unavailable</code>，不带 <code>code</code> 的错误原样抛出。</li>
+</ul>
+<p><code>directory-source.ts</code> 把遍历结果交给 <code>sealSnapshot</code>。重复路径与前缀冲突答 <code>entry-unreadable</code>。</p>
+
+<h3>Cordis 插件：从装载到撤除</h3>
+<p><code>skill-cordis-contract</code> 的每个抽象类继承 <code>Service</code>。键只写在 <code>static readonly provide</code> 中，键常量取自它。类不写 <code>inject</code>。<code>Context</code> 增补五个属性，泛型取 <code>unknown</code>。</p>
+<ul>
+<li><strong>装载</strong>：<code>skillPlugin</code> 经 <code>definePlugin</code> 定义。<code>emptyConfig</code> 只接受缺席、<code>null</code> 与没有字段的普通对象，其他值使加载失败。<code>apply(ctx)</code> 用三个工厂造出服务，再 <code>new</code> 出三个转发子类，例如 <code>HostSkillAccess</code>。</li>
+<li><strong>取服务</strong>：消费者用 <code>ctx.get(skillAccessKey)</code> 这类调用取实例。</li>
+<li><strong>端口缺席</strong>：<code>readCheckOf</code> 与 <code>resolutionOf</code> 每次调用都执行 <code>ctx.get</code>。取不到时答 <code>unknown</code>。调用了缺席端口的那一步得到 <code>unknown</code>，操作再按上文的规则答复，不交受保护的内容。检查不用端口，照常工作。</li>
+<li><strong>换代</strong>：适配器不缓存引用。端口插件换成新实例后，下一次调用就用新实例。</li>
+<li><strong>撤除</strong>：插件不登记撤除函数。三个服务属于装载插件的 fiber。fiber 卸载后，三个键上的 <code>ctx.get</code> 答 <code>undefined</code>。</li>
+</ul>
+
+<h3>值只能由构造器造出</h3>
+<ul>
+<li><strong>类型层</strong>：<code>values.ts</code> 的品牌键是模块私有的 <code>unique symbol</code>。不写类型断言，就写不出 <code>SkillName</code>、<code>PackagePath</code>、<code>SkillPackageSnapshot</code> 等类型。每个品牌只有一个授予处，例如 <code>isSkillName</code>、<code>isPackagePath</code>、<code>sealSnapshot</code>。</li>
+<li><strong>运行层</strong>：<code>sealSnapshot</code> 把快照登记在模块私有的 <code>WeakSet</code> 中。<code>assertSealed</code> 对复制品抛 <code>TypeError</code>，<code>isSealedSnapshot</code> 对它答假。这是进程内的凭证：快照不能序列化，两份模块实例互不承认。</li>
+<li><strong>边界层</strong>：对读取判定端口与对应端口的答复，<code>skill</code> 重新构造并冻结每个值，端口事后改不了已解析的值。来源交来的快照必须通过 <code>isSealedSnapshot</code>。</li>
+</ul>
+
+<h3>失败怎样分层</h3>
+<ul>
+<li><strong>文件系统到来源</strong>：<code>walk.ts</code> 把错误码收进 <code>SourceFailure</code> 的封闭集合。</li>
+<li><strong>来源到服务</strong>：只经 <code>mapping.ts</code>。<code>inspect</code> 一列按 <code>snapshot</code> 与 <code>open</code> 两个调用点各有一格。另两列看是否带依据，例如 <code>package-not-found</code> 带依据时是 <code>basis-unavailable</code>，否则是 <code>source-unavailable</code>。</li>
+<li><strong>没有作答</strong>：读取判定端口与对应端口当作 <code>unknown</code>，来源当作 <code>unavailable</code>。方向是拒绝，服务不抛出。</li>
+<li><strong>按操作收窄</strong>：<code>SkillFailure</code> 是唯一的联合。<code>GateFailure</code>、<code>DescribeFailure</code>、<code>PinFailure</code>、<code>ReadFailure</code> 逐层加种类。<code>ExportFailure</code> 从 <code>PinFailure</code> 去掉 <code>adopted-material-changed</code>，再加路径与字节类失败。检查另有 <code>InspectFailure</code>。</li>
+<li><strong>抛出</strong>：契约与服务只在调用方出错时抛出。三种情形是伪造的快照、非法的字节范围、判断失败后仍调用 <code>deriveDeclarations</code> 或 <code>references</code>。</li>
+</ul>
 
 <h3>还没有的东西</h3>
-<p>三个应用服务只有接口：<code>PackageInspection</code>（在 <code>./provider</code>，因为它的调用方是来源与资产登记一侧）、<code>SkillCatalog</code>、<code>SkillAccess</code>。它们的实现、读取 11 步、目录来源都在 W2。</p>
-
-<h3>W2 增量 1：<code>@omne-harness/skill-host-local</code>（父分支 478e56381）</h3>
-<p>第一个真实的端口实现方。4 个源文件 341 行、10 个测试文件 54 例，公开根只有 <code>createDirectorySource(options?)</code> 与三个类型（<code>DirectoryFs</code>、<code>Opened</code>、<code>EntryKind</code>）。三层：</p>
 <ul>
-<li><strong><code>fs.ts</code></strong> 是文件系统接缝：四个方法（<code>readdir</code>、<code>lstat</code>、<code>realpath</code>、<code>readFile</code>），名字以<em>字节</em>交出（不是字符串），<code>readFile</code> 交出「打开结果」——普通文件的字节，或「这是目录」「这是别的对象」两种种类。默认实现 <code>nodeFs()</code> 用 <code>O_RDONLY|O_NOFOLLOW|O_NONBLOCK</code> 打开再 <code>fstat</code>，所以最后一段链接不被跟随、FIFO 不会卡住。接缝只做 IO，不分类错误。</li>
-<li><strong><code>walk.ts</code></strong> 拥有全部判定：四张错误码表（ROOT/RESOLVE/READ/OPEN，表外一律 <code>unavailable</code>，不带 code 的错误原样抛出）；<code>resolveRoot</code>（<code>realpath</code> + 必须是目录）；<code>collect</code> 的遍历——每个条目一律走同一条路 <code>realpath → isWithin（按路径段比较解析后的根）→ lstat 判种类</code>，不再按 <code>readdir</code> 报告的种类分叉，所以列出之后被换成根外链接的条目拿不到根外字节；目录按祖先集合查环；每次列出先把全部名字严格 UTF-8 解码再按码元序排，所以多处缺陷时答复不随文件系统的列出次序而变；遍历预算 <code>VISIT_BUDGET = 65536</code> 次名字访问，超出按包缺陷答 <code>entry-unreadable</code>。<code>readEntry</code> 给 <code>open</code> 用：同一个 <code>resolveRoot</code>，解析目标后再判根内。</li>
-<li><strong><code>directory-source.ts</code></strong> 只把 <code>collect</code> 的结果交给契约的 <code>sealSnapshot</code>，把 <code>readEntry</code> 包成 <code>open</code>；<code>content-store</code> 定位答 <code>package-not-found</code>；<code>open</code> 忽略 <code>digest</code>（本来源不按内容存放，字节是否变了由 Skill 核对）。</li>
+<li>没有按内容摘要存放包的来源。<code>content-store</code> 定位答 <code>package-not-found</code>。</li>
+<li>四个成员中没有真实的读取判定端口与对应端口，测试只用内存替身。真实提供者与 <code>skillPlugin</code> 的组合没有执行。</li>
+<li>端口收不到 <code>signal</code>。端口调用不结束时，操作不答复。</li>
+<li><code>answered</code> 吞掉的异常没有诊断出口。</li>
+<li><code>PAGE_LIMIT</code> 不可配置，<code>export</code> 没有总量上限。声明只支持 <code>formatVersion</code> 为 1，没有方言。</li>
+<li>目录来源的快照不是原子的。<code>O_NOFOLLOW</code> 只管最后一段：核对之后、打开之前被换成链接的中间目录会被跟随。</li>
+<li>插件撤除时在途操作的答复没有规定。同一 isolate 重复装载没有验证。</li>
+<li><code>skill-cordis-contract</code> 不增补 <code>Events</code>，没有 <code>./testing</code> 入口。读取资产正文时的字符串预算还没有读取方，契约只写了它与 <code>DESCRIPTION_LIMIT</code> 相关的下限。</li>
 </ul>
-<p>它通过契约 <code>./testing</code> 的 <code>skillPackageSourceConformance()</code>（PS7「按摘要找包」不适用）。权限类失败全部经注入的 <code>DirectoryFs</code> 制造，因为容器以 root 运行，<code>chmod</code> 造不出 EACCES。</p>
-
-<h3>W2 增量 2：<code>@omne-harness/skill</code>（父分支 0956ccf01）</h3>
-<p>通用实现落地：10 个源文件 596 行、11 个测试文件 195 例；契约可加了 475 行的 <code>skillAccessConformance()</code>（15 条，两个夹具世界各跑一遍）与 <code>bodyOffsetOf</code>。公开根只有两个工厂与 <code>SkillPorts</code>：</p>
-<ul>
-<li><strong><code>inspection.ts</code></strong>：<code>createPackageInspection(source)</code>——<code>snapshot</code> → 用 <code>open</code> 读两份控制文件 → 交给契约的 <code>parseSkillPackage</code>（它自己核对控制字节的摘要）。来源失败怎样变成服务失败只在 <code>mapping.ts</code> 一张表里，三列：<code>inspect</code>、<code>snapshot</code>、<code>open</code>——第 1 轮它只有两列，<code>pin.ts</code> 里悄悄做了第二次映射，评审抓住后改成了三列。</li>
-<li><strong><code>access/</code></strong> 把组页「读取」的 11 步写成四段函数，失败类型逐段收窄：<code>gate</code>（第 1–3 步：依据身份、读取权、对应；失败是 <code>DescribeFailure</code>）→ <code>materialOf</code>（第 5 步：钉住材料，带依据时就是依据本身）→ <code>pin</code>（第 7 步：取快照比摘要；<code>pin(ports, gated, material, moved, signal?)</code> 由调用方给「材料已变」的失败值，<code>export</code> 传 <code>basis-unavailable</code>，所以编译器证明它不会答 <code>adopted-material-changed</code>）→ <code>verifiedBytes</code>（第 9–10 步：按条目摘要核字节）。<code>describe</code> 在 <code>gate</code> 后结束，<code>list</code> 在 <code>pin</code> 后结束，<code>read</code>/<code>export</code> 走完。<code>checkpoint(signal)</code> 在四个端口调用的前后各查一次，已中止就答 <code>aborted</code>、不再调端口、不交部分内容。</li>
-<li><strong><code>access/range.ts</code></strong>：纯函数 <code>sliceRange</code>——页上限 65536、UTF-8 续字节判字符边界、保留 BOM、请求终点 = 请求起点 + 长度、正文范围相对 <code>bodyOffsetOf</code> 给出的闭合定界行之后。</li>
-</ul>
-<p>无披露的三条路径（依据不是本身份、读取判定 <code>refused</code>、对应答 <code>none</code>）返回同一个冻结对象；读取判定的答复不在 <code>granted/refused/unknown</code> 里时一律 <code>unknown</code>，不放行。<code>SkillCatalog</code> 仍是接口，W3。</p>

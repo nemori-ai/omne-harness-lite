@@ -4,9 +4,9 @@
 
 执行范式仍是 `waves/operating-model.md` r3（下称范式），变化只有两处：写者主要是本会话自己；评审仍派独立子代理（自审不算评审）。
 
-## 进度总览（2026-11-06 11:17 UTC）
+## 进度总览（2026-11-06 12:19 UTC）
 
-**当前状态。** W3 五段的实现与写回全部合入父分支并推送（`706152690`，11:10 UTC），PR #1149、#1151、#1152 显示 MERGED。W3-D、W3-E 的证据已贴卡（评论 6683488904），卡正文已写回（C4 达到）。剩下父分支头准入（在跑）、三张小卡（起草中）、交接报告补准入读数、W3 报告评论、记录分支与清理。W4 的两线 spec、plan 已按模板写好，写者档位已按负责人分档改正，计划类评审在跑；轨道无新提交，W4 的 F 即 `706152690`。
+**当前状态。W3 完成。** 五段的实现与写回全部合入父分支并推送（`706152690`），PR #1149、#1151、#1152 显示 MERGED。证据卡评论 6683488904；W3 报告卡评论 6684636018（准入读数、小卡、请负责人复核的项）；卡正文已写回（C4 达到）。准入：快层 11 处失败都在别组成员，隔离重跑全过，基线既有；acceptance 与 loop:status 退出 0。小卡按负责人「做完关卡」只发 #1155、#1156，W4 期间做完关卡；测试运行器那张留草稿。15 棵 W3 工作树已删（tmp 归档 `tmp/archive/w3-closure-worktrees-tmp-20261106.tar.gz`，`bacd032986b03fc9`），`/tmp` 副本已删，记录分支 `5664a5538`。负责人 12:15 指示：Skill、MCP 已交给本会话，不写交接文档；`handoff.md` 已写的那份留在 tmp，不再维护。下一步在 W4 的两线 `plan.md`。
 
 | 阶段 | 状态 | 证据 | 下一步 |
 | --- | --- | --- | --- |
@@ -14,12 +14,10 @@
 | W3-B call 收口 | 完成 | PR #1141；卡评论 6681108939 | — |
 | W3-C 合入与组合 | 完成，父分支 `3289bee2f` 已推送 | 卡评论 6681699320 | — |
 | W3-D 端到端 | 完成，父分支 `706152690` 已推送 | PR #1149（MERGED）；卡评论 6683488904 | — |
-| W3-E 波末 | 写回合入并推送（`74511e1ff`、`203cde80e`）；合并结果门禁全绿；卡正文已写回；`handoff.md` 已写（准入一节待补）；准入在跑；三张小卡起草中 | PR #1151、#1152（MERGED）；`tmp/closures/w3e-merge/`；卡评论 6683488904；`handoff.md` | 准入读数补进 `handoff.md`；小卡发布；W3 报告评论；记录分支；清理工作树与 `/tmp` 副本 |
-| W4 | 两条线的 `spec.md`、`plan.md` 已按 `claim` 模板与 Matt `to-spec`／`to-tickets` 写成（Opus high 起草，11:10 交回）；写者档位已改为负责人分档（Opus high、Sonnet high）；计划类设计评审在跑；F = `706152690`（轨道无新提交） | `waves/w4/{mcp,skill}/{spec,plan}.md` | 评审闭合后开波：共享写、派 MCP 01 与 Skill 01 |
+| W3-E 波末 | 完成 | PR #1151、#1152（MERGED）；`tmp/closures/w3e-merge/`、`tmp/closures/w3-admission/`；卡评论 6683488904、6684636018；#1155、#1156 | — |
+| W4 | 开波中：两线 spec、plan 写成并过计划类评审（`waves/w4/reviews/plan-r1.md`、`plan-r2-recheck.md`）；两份闭包规格已起草；下一步 reduce 共享写、定 F、派 MCP 01 与 Skill 01 | `waves/w4/` | 见 W4 两线 `plan.md` |
 
-在跑：父分支头准入（`tmp/closures/w3-admission/`，11:13 起）；W4 计划类评审（design-reviewer，Opus high）；小卡起草（Sonnet high）。
-
-交接时单列给负责人：GS-05、GM-P3 按卡拥有者已选方向写回或不写，可收回；G1–G8 原文未留存，以现行对照取代；卡评论 6657905811 的加注被权限检查拒绝；判据 C3 加了并发守护一句（依据负责人 2026-11-05 指示，W4 方案原写「C3 不变」）。
+已在 W3 报告评论 6684636018 第 3 节列给负责人：GS-05、GM-P3 按卡拥有者已选方向写回或不写，可收回；G1–G8 原文未留存，以现行对照取代；卡评论 6657905811 的加注被权限检查拒绝；判据 C3 加了并发守护一句（依据负责人 2026-11-05 指示，W4 方案原写「C3 不变」）。
 
 ### 时间线
 
@@ -253,13 +251,13 @@
   - 卡正文 W3 行与 I-04 的「SDK 2.3.1、只用 Transport 层」改为现行依据（波段 MCP 规格第 28 行、SDK 2.4.0 按硬承诺例外自写）；「契约变更：additive」加限定：指公开形状，F4 由 Q1 关闭，`McpPorts.checkOutput` 必填与 `inputResponses` 可选按 0.x 同步真实消费者（host 第 1 轮裁定 1、2；call 第 1 轮 E 冲突 1）
   - 卡正文「测试/验证拥有者」与 C3–C4 判据加「新代码的并发在探索器与 TLA+ 模型的守护之内」（负责人 2026-11-05）；W3 行的闭包分法与「当前执行与交接」按实际更新（call 第 1 轮 E 冲突 5、6）
   - [x] 波段规格 `waves/w3/mcp/spec.md` 同步：已定事项 19、27（脚本化传输的收窄）、31 与 MC3-7（`cancelTask` 按契约 S2）、MC3-10（F4）。完成：五处各加「2026-11-05 同步」说明与出处
-- [ ] 父分支头 `admission` + `acceptance` + `loop:status --strict --base <F>`
+- [x] （11:13–11:31；快层 11 处失败都在别组成员，隔离重跑全过，基线既有；卡评论 6684636018）父分支头 `admission` + `acceptance` + `loop:status --strict --base <F>`
 - [x] （11:01 完成：追加 105 行，写者 40、评审者 65；W2 旧行 30 处既有格式错误由派发者按口径改正——`reviewer`、`researcher` 记伪角色 `read-only`，纯文档写者记 `docs`，伪角色的 `work` 为 `none`、`role_source_tree` 为 `null`，第 42 行 `escalation` 改用 `to_model`、`to_effort`、`trigger_report` 与 `takeover`；`ledger.py check --flows` 156 行退出 0。未写行的派发与取不到的字段见回填交回）派发流水回填：`delegate/flow.jsonl` 停在 W2（2026-11-03），本会话接手 W3 之后的写者闭包都没有记行。用脚本从会话记录取每次派发的模型、档位、起止时刻与完成通知里的 token 与工具调用数，缺陷从各轮评审记录与卡评论归属（写者、规格、环境）；`ledger.py check --flows` 退出 0；之后每次独立验收当场追加一行
 - [-] （改旧评论被权限检查拒绝，改在 W3 报告评论与 `handoff.md` 里写明）卡评论 6657905811（host 第二段证据）顶部注明「未覆盖」一节已被 6666088522 更新（host 第 3 轮 E 冲突 8）
 - [x] （`3289bee2f`）host 合入父分支之后：调用口 SPEC 与 `verification/README.md` 里 WF5「出处在途」改为契约 T5 的条款链接（call 第 3 轮 E 冲突 6）
 - [x] （11:12 写回并读回，填父分支头 `706152690`，C4 改为达到并加 r20）卡正文写回 call 第 3 轮 E 冲突 1、4、7 与第 2 轮冲突 1、4、5、10、11：第 8 步发出前取消答 `cancelled`、`closeAll` 之后先判关停、形式化义务的出处、R1 与 S2 的不一致、「当前执行与交接」更新
-- [ ] `waves/w3/handoff.md`；卡 #1119 正文与 W3 报告评论；记录分支推送
-- [ ] （草稿在 `small-cards.md` 第 2 张，另两张：RFC-0001 的 SDK 版本、12 ms 静默窗口）测试运行器缺陷建卡（按卡流程）：差分变异把「工厂返回 `{}`」这类使整个成员失效的变异体记成「没跑测试」，成员测量因此无效；直接跑 vitest 是 176 条失败（lifecycle 第 3 次提交的证据，卡评论 6657605963）。另一个来源（host 第 1 轮与 call 第 2 轮的 D 面）：Stryker 的 vitest runner 在 `errorToString` 上对序列化后无原型的错误对象调用 `String()`，抛 `TypeError: Cannot convert object to primitive value`，变异体记为运行错误；成员侧的规避是让未处理拒绝作为用例失败的 setup 文件，长期归属是 `vitest.tiers.mts` 或 test-runner。host 第 3 轮 D 面（账本 `tmp/mutation-ledger/720a5d08a/20261106-022559/`）再添两例：契约没有 setup 守卫时 `testing-scripted-transport.ts:439` 的变异体只靠未处理拒绝让 vitest 非 0 退出，被记成运行错误；`options.ts:17` 的变异体让每个构造工厂的用例在构造时抛 `RangeError`，被记成「存活、10 条覆盖、0 条跑完」（构造时抛出的最小复现）。两类都让「超时未复核」整批不能计分（本卡第三次）
+- [x] （负责人 12:15：不写交接文档，已写的一份留 tmp 不再维护；W3 报告评论 6684636018；记录分支 `5664a5538`）`waves/w3/handoff.md`；卡 #1119 正文与 W3 报告评论；记录分支推送
+- [x] （负责人选「做完关卡」：发 #1155、#1156，W4 期间做完关卡；本条测试运行器那张不发，草稿留 `cards/card-2-test-runner-mutation.md`）（草稿在 `small-cards.md` 第 2 张，另两张：RFC-0001 的 SDK 版本、12 ms 静默窗口）测试运行器缺陷建卡（按卡流程）：差分变异把「工厂返回 `{}`」这类使整个成员失效的变异体记成「没跑测试」，成员测量因此无效；直接跑 vitest 是 176 条失败（lifecycle 第 3 次提交的证据，卡评论 6657605963）。另一个来源（host 第 1 轮与 call 第 2 轮的 D 面）：Stryker 的 vitest runner 在 `errorToString` 上对序列化后无原型的错误对象调用 `String()`，抛 `TypeError: Cannot convert object to primitive value`，变异体记为运行错误；成员侧的规避是让未处理拒绝作为用例失败的 setup 文件，长期归属是 `vitest.tiers.mts` 或 test-runner。host 第 3 轮 D 面（账本 `tmp/mutation-ledger/720a5d08a/20261106-022559/`）再添两例：契约没有 setup 守卫时 `testing-scripted-transport.ts:439` 的变异体只靠未处理拒绝让 vitest 非 0 退出，被记成运行错误；`options.ts:17` 的变异体让每个构造工厂的用例在构造时抛 `RangeError`，被记成「存活、10 条覆盖、0 条跑完」（构造时抛出的最小复现）。两类都让「超时未复核」整批不能计分（本卡第三次）
 - [ ] （S5 两句并入 W4-1，其余已由 lifecycle 与 call fix3 兑现的波末核对后删）K7 小卡：契约 S5 的 `pending` 与 `degraded`、`closeAll` 可以 `AggregateError` 拒绝、K2 的同步抛出、S8 对已在途 `refresh` 的适用（`reviews/mcp-lifecycle-r1.md`「不在本轮修」）；mcp SPEC 偏离表的两行随它删除
 - [ ] （停放，0.1.0 公开形状评估时再看）0.1.0 公开形状项并入 K7（host 第 2 轮 C 非阻断 3、4）：`WireClassification.message?` 与模板字面量 `AnswerClass` 改判别联合；`WireAnswer` 不让 `legacy-*` 出现在每个请求上，`discoverWith` 的不可达分支；`AnswerConclusion.unusable` 的类型去掉 `abandoned`（`streamGoneAnswerOf` 因此暂收 `abandoned`，host fix2 自裁 5）
 - [ ] （停放，出现第三个使用者时再看）探索器引擎抽成 `tools/` 下不发布的开发期包（host 第 2 轮 C 设计问题 1）：只抽 BFS 驱动，`Run`、端口与性质留在各成员；`mcp` 与 `mcp-host-local` 两份迁过去

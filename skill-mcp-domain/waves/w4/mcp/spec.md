@@ -45,7 +45,7 @@ M2 之后的消费者还不能用 MCP 领域。原因有两件。
 1. **标记的位置。** 契约给传输交出的每一种答复加可选字段 `unusable?: UnusableCause`。范围是 `discover`、`listActions`、`call` 的 `not-sent` 与 `SentCall.answer`，以及四个任务操作的答复与失败。字段出现，表示传输在交出这个答复时已经不再可用。字段不出现，表示传输仍可用。这是可加改动。
 2. **语义。** 「不再可用」单调：传输一旦在某个答复上标出，之后的每个答复都标出（T8 的「之后每个请求」）。T8 表里写「传输不再可用」的行（S01–S04、S07、X02 等）与 `lineGoneAnswerOf` 结算的其他在途请求，都带标记。单个请求失败而线路仍在时不带标记，例如 HTTP 上一个 POST 的流断开、400、5xx。
 3. **两种传输给出它。** `mcp-host-local` 把决策层已算出的 `unusable` 填进答复。契约的脚本化传输同样填。符合性套件加条款：带「传输不再可用」的行，答复带标记。其余行不带。
-4. **调用口按标记转 `lost`。** 适用范围是就绪连接上的请求：`refresh` 的 `discover` 与 `listActions`、调用口、四个任务操作。答复对连接的后果是下面这个全函数，按序取第一条成立的：
+4. **调用口按标记转 `lost`。** 适用范围是就绪连接上的请求：`refresh` 的 `listActions`（页请求）、调用口、四个任务操作。（2026-11-06 15:51 更正：原写「`refresh` 的 `discover` 与 `listActions`」。本包只在建连中调用 `discover`（`internal/build.ts`），就绪连接由 `ensure` 复用、不重新 `discover`，所以就绪连接上没有 `discover` 请求；建连中的 `discover` 按下文「建连不在此列」与第 5 条。依据：产品闭包规格 `w4-mcp-unusable` 追加 1 第 2 项。）答复对连接的后果是下面这个全函数，按序取第一条成立的：
    1. 答复带 `unusable: c`：连接转 `lost`，原因是 `c`，清单标记 `connection-unavailable`（契约 S7「传输不再可用」，本条先于按失败种类的规则）。
    2. 否则，答复是 `not-sent` 且原因是 `authorization-required`：连接转 `lost`（`authorization-required`），清单标记 `authorization-required`。这是 S7 自己的一行，凭据被拒对这条连接上之后的每个请求都成立，不是按原因猜传输。
    3. 否则：连接不变。包括不带标记的 `not-sent`（`connection-unavailable`）、不带标记的 `no-answer`（单个请求的流断开）、`abandoned`（本端的决定，T5 的停止信号也在此）以及每一种有答复的结局。
@@ -54,11 +54,11 @@ M2 之后的消费者还不能用 MCP 领域。原因有两件。
 
    `refresh` 上的后果随之改。契约 S5 现在写「某页或 `discover` 的传输答 `not-sent`（`connection-unavailable`）时连接转 `lost`」，与第 3 条冲突。改为与 S5 对 `no-answer` 的写法对称：不带标记的 `not-sent`（`connection-unavailable`）在页请求上算这一页失败，`kept`（`listing-incomplete`，缺陷 `page-failed`），连接转 `degraded`（`list-failed`）；在 `discover` 上 `refresh` 答 `connection-unavailable`，连接转 `degraded`（`discover-failed`）。带标记时仍按 S5 首句转 `lost`。契约里其他按失败种类写连接后果的句子（S2 等），闭包规格逐条列出并对齐这个全函数。
 
-   建连不在此列：建连中 `open` 或 `discover` 失败，无论带不带标记，建连都失败并按 MC-5 处置（第 5 条）。`internal/build.ts` 只给失败的建连标 `LostReason`，本节不改它。
+   建连不在此列：建连中 `open` 或 `discover` 失败，无论带不带标记，建连都失败并按 MC-5 处置（第 5 条）。`internal/build.ts` 只给失败的建连标 `LostReason`，本节不改它。（2026-11-06 16:06 更正：「不改它」撤回。建连失败时 `refresh` 答什么仍归 MC-5；但 `lost` 原因的词义归契约 S7，必须在两个阶段都成立。`build.ts` 的 `lostOfNoAnswer` 按失败原因给原因，会让 HTTP 建连中一次 5xx 报成 `stream-broken`（通道断了），让 stdio 建连中的 X02 报成 `preparation-failed`。改为：建连失败的原因先取 `lostOf(failure)?.reason`，没有再按后备规则取（`error-answer`、`answer-malformed` 取 `discover-failed`，其余取 `preparation-failed`），清单标记同理；删 `lostOfNoAnswer`。依据：关口 B 面 B-1，分析见 `reviews/mcp-unusable-r1-analysis.md` 轴 C。）
    
    **`UnusableCause` 去掉 `abandoned`。** 现行类型是 `NoAnswerCause | 'session-ended'`，`abandoned` 没有生产者（决策层只给 `process-exited`、`session-ended`，两种传输的线路结束只给 `stream-broken`、`process-exited`）。本节把这个类型放进每个公开答复，所以改为 `'stream-broken' | 'process-exited' | 'session-ended'`，上面的全函数不需要为一个不会出现的值定后果。这把 W3 停放的一项 0.1.0 形状项提前（[W4 方案](../plan.md) §2.4），只做这一项。
 5. **`discover` 的偏离。** 建连中 `discover` 答 `no-answer` 时，连接还不是 `ready`，建连失败，按 MC-5 的表处置。它不是 S5 写的「就绪连接的 `discover` 失败」。契约 S5 加一句，写明建连中的 `discover` 失败归建连失败。删偏离表第 1 行。
-6. **契约 S5 的两句。** 时限先于清单标记到期时，`ensure` 答 `pending`。`closeAll` 有本包错误时以 `AggregateError` 拒绝，不交出确认范围。删偏离表第 2 行。
+6. **契约 S5 的两句。** 时限先于清单标记到期时，`ensure` 答 `pending`。（2026-11-06 15:56 更正：这一句不进契约。`ensure` 与 `pending` 是成员内部的词，而建连中的失败按第 5 条与 S5 首句归实现的建连规则，成员 MC-7 已写这一情形；契约写进去就替实现定了建连规则。偏离表第 2 行照样删除，理由改为「建连失败归实现」。依据：关口 B 面 B-3，裁定见 `reviews/mcp-unusable-r1.md`。）`closeAll` 有本包错误时以 `AggregateError` 拒绝，不交出确认范围。删偏离表第 2 行。
 7. **冲突句。** 契约 R1 与 S2 关于「资格非 `granted` 时任务操作」的冲突句，按现行实现改为同一句。R7 的 `no-connection` 定义写明含「资格不是 `granted`」。
 8. **守护。** 连接表的 TLA+ 模型或探索器加一条性质：单个请求失败而传输仍可用时，连接不转 `lost`。正控无违例。一个有效动作变异（不带标记也转 `lost`）报违例。
 
@@ -85,7 +85,7 @@ M2 之后的消费者还不能用 MCP 领域。原因有两件。
 
 | ub-mode 条目 | 本卡的取舍或偏离、理由 |
 | --- | --- |
-| Model the Domain／Type System Discipline（让非法值写不出来） | 偏离：标记用可选字段 `unusable?`，不把答复改成「可用答复｜不可用答复」的判别联合。判别联合能让「标了不可用却仍可用」写不出来，但它对读方是破坏性改动。契约成员合入后只做可加改动（[范式 §2 第 10 条](../../operating-model.md#2-照守的规则)），`integration.md`「可加改动」表里「加可选字段」对写方与读方都不破坏。单调性改由符合性条款与探索器的性质守住 |
+| Model the Domain／Type System Discipline（让非法值写不出来） | 偏离：标记用可选字段 `unusable?`，不把答复改成「可用答复｜不可用答复」的判别联合。理由只有一条：契约成员合入后只做可加改动（[范式 §2 第 10 条](../../operating-model.md#2-照守的规则)），`integration.md`「可加改动」表里「加可选字段」对写方与读方都不破坏，给联合加成员则破坏读方。类型能排除的只是「标记出现在不该有它的变体上」，按变体放置字段已经做到；判别联合也挡不住错标，因为可用与否是运行时的事实。代价：编译器看不见漏传，拆开重组答复或交出预先造好的常量都能编译通过，所以每个承载标记的位置都要有能让它变红的用例；照抄字段处有存在性分支；传输一侧的单调性只由符合性条款的「之后一个请求」守住，探索器的 P15 守的是消费方「不带标记不转 `lost`」。（2026-11-06 16:06 更正：原写「判别联合能让『标了不可用却仍可用』写不出来」与「单调性改由符合性条款与探索器的性质守住」，两句都不成立。依据：关口 C 面 F1。） |
 | Redesign From First Principles | 考虑过传输级的单调信号：一个在传输不再可用时兑现的 Promise，由连接表订阅。它把「传输状态」与「请求结局」分得更开，也能发现空闲连接的线路断开。不采用：它给连接表的生命周期加一条随时可能到来的异步边，TLA+ 模型与探索器都要加一个环境动作。已要求的需求（偏离表第 3 行）只要求不因单个请求失败而误拆连接，答复上的标记已经满足。重开条件：消费者要求空闲连接的状态及时反映线路断开 |
 | Subtract Before You Add | 删掉按原因判断 `lost` 的映射，不在旁边再加一条标记判断。偏离表三行随改动删空 |
 | Separate Before Serializing Shared State | 三个服务共用一张连接表、在途表与任务表，所以三者共一条 fiber、同生同灭（决定 3），不按服务分 fiber |
@@ -115,7 +115,7 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
 3. **采用哪种表示，放在哪个包或接口。** 消费公开契约：接口在 `mcp-contract`（`./provider`），服务键与抽象 Service 在 `mcp-cordis-contract` 的 `./cordis`。装配或适配器成员装载子类提供端口键，插件按键现取。M2 之前由测试用契约 `./testing` 的内存替身包成 Service 子类提供。
 4. **正常、失败、未知、撤权和恢复怎样交接，共同保证由谁保护、怎样验证。**
    - 正常：每次调用，适配器从插件装载时的 `ctx` 取键（`ctx.get`），取到就转给提供者，答复原样交回 `mcp`。不取服务方法里调用方的上下文，否则调用方可以自己给自己授权（先例 `execution-environment` SPEC 性质 9）。
-   - 失败与未知：提供者的失败原样交回。键缺席时，适配器答该端口已有的 `unknown`：`AdoptionView` 答 `'unknown'`，`UseEligibility` 答 `{ kind: 'unknown' }`，`CredentialUse` 答 `CredentialFailure` 的 `'unknown'`，`ProcessLanding` 答 `'unknown'`。`mcp` 已经按默认拒绝处理 `unknown`（不建连、不发出，答 `unknown`），不新增机制。
+   - 失败与未知：提供者的失败原样交回。键缺席时，适配器答该端口已有的 `unknown`：`AdoptionView` 答 `'unknown'`，`UseEligibility` 答 `{ kind: 'unknown' }`，`CredentialUse` 答 `CredentialFailure` 的 `'unknown'`，`ProcessLanding` 答 `'unknown'`。`mcp` 已经按默认拒绝处理 `unknown`，不新增机制：实际调用了缺席端口的那一步得到 `unknown`，操作按契约 S1、S2、R6 的规则答复（例如落点缺席时 `refresh` 答 `landing-unavailable`；复用现有连接的任务操作不问采用与资格），不放行。（2026-11-06 14:50 更正，原写「不建连、不发出，答 `unknown`」，全称有反例。）
    - 撤权：提供者的 fiber 撤除后，下一次 `ctx.get` 取不到，依赖它的操作答 `unknown`。资格本身的撤权由 `UseEligibility` 在下一次使用时答出（领域页：不缓存结论）。
    - 恢复：新提供者装载后，下一次调用取到新的。适配器不持有旧引用。
    - 共同保证的承担者：「缺席不放行」由插件的适配器承担；「`unknown` 不压成拒绝、空集合或成功」由 `mcp` 承担。验证见「Testing Decisions」的端口缺席用例。
@@ -125,10 +125,10 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
 
 | 情形 | 行为 | 由谁负责 | 怎样验证 |
 | --- | --- | --- | --- |
-| 正常 | 带标记的答复转 `lost`，不带的不转。插件装载后按三个键取到服务，刷新与调用照常答复 | `mcp`；插件 | 调用、任务、建连各一组用例；装配用例 |
+| 正常 | 带标记的答复转 `lost`，不带的不转。插件装载后按三个键取到服务，刷新与调用照常答复 | `mcp`；插件 | 调用、任务、`refresh` 的页请求各一组用例；建连中的 `discover` 一组（带不带标记，建连都失败）；装配用例（2026-11-06 15:51 更正：原写「建连各一组」，与第 4 条「建连不在此列」矛盾） |
 | 失败 | 单个请求失败而传输仍可用（HTTP 5xx、400、单个流断开）：本次请求答原失败，连接不转 `lost`，清单不标记。错误不变成成功 | 传输给标记；`mcp` 按标记判断 | `mcp` 用例：HTTP 5xx 与流断开各一例；探索器的新性质 |
 | 失败：配置不合法 | 插件配置按 Standard Schema 校验，不合法时加载失败。`createMcp` 对不合法配置抛 `RangeError` | 插件；`mcp` | 装配用例给一份缺字段的配置。fiber 进入 `FAILED` 的路径先例没有单独核验，未覆盖时记「未验证」 |
-| 未知：端口键缺席 | 适配器答该端口的 `unknown`。依赖它的操作按 `mcp` 现行规则答 `unknown`，不建连、不发出、不放行 | 插件的适配器；`mcp` | 装配用例：四个键逐个缺席，依赖它的操作答 `unknown`，其余服务照常取得 |
+| 未知：端口键缺席 | 适配器答该端口的 `unknown`。实际调用了缺席端口的那一步得到 `unknown`，操作按契约 S1、S2、R6 的规则答复，不放行（2026-11-06 14:50 更正，原写「依赖它的操作答 `unknown`」） | 插件的适配器；`mcp` | 装配用例：四个键逐个缺席，操作按上述规则答复、不建连，其余服务照常取得 |
 | 未知：W4-1 标记缺失或错标 | 传输该标而没标：连接不转 `lost`，下一次请求再遇线路不可用时，传输仍须在那次答复上标出（单调）。传输不该标而标了：连接被多拆一次，只损失可用性，不给出错误结局。两种都是传输违约 | 传输（`mcp-host-local` 与脚本化传输）；契约的符合性条款 | 符合性套件按「条款 × 违约」组织：给一个漏标与一个错标的违约实现，证明条款会变红 |
 | 取消与清理：插件撤除 | 撤除函数 `await connections.closeAll()`。`closeAll` 先把表置为已关停（S8），再并发关闭每条连接。`dispose()` 在 `closeAll` 结算之后才返回 | 插件登记撤除函数；关停语义归 `mcp` MC-10 | 撤除用例断言 `dispose()` 返回时 `closeAll` 已结算、脚本化对端进程已停、句柄已释放、三个键取不到 |
 | 取消与清理：撤除时的在途调用 | 置为关停之后到达或等待中的调用按 S8 答复。服务键的撤回与 `closeAll` 谁先谁后，不改变答复（决定 4） | `mcp` 的出口判定 | 撤除用例：撤除时有一个在途调用，它得到 S8 的答复，不挂起 |
@@ -183,7 +183,7 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
   - 第 1 节：契约符合性套件（传输的写方）；`mcp` 的服务层用例（读方）；`mcp` 的有界穷举探索器（性质，见 D-W4M-2）。
   - 第 2 节：一个接缝，`mcp-host-local` 的 Cordis 入口用例。它在真实 Cordis `Context` 上装插件，四个端口键用契约 `./testing` 的内存替身包成 Service 子类提供，按三个服务键取服务，在本地传输与脚本化对端进程上走「刷新 → 调用」（D-W4M-3）。同一文件覆盖撤除、`AggregateError`、端口缺席与配置不合法。
   - `mcp-cordis-contract`：根入口无 Cordis；键常量等于类的 `provide`；导出集合恰为公开名单。
-- 第 1 节的用例：符合性套件加「标记」条款，按「条款 × 违约」组织。`mcp` 的调用、任务、建连各有用例：带标记转 `lost`，不带不转（HTTP 的 5xx 与流断开各一例）。
+- 第 1 节的用例：符合性套件加「标记」条款，按「条款 × 违约」组织。`mcp` 的调用、任务、`refresh` 的页请求各有用例：带标记转 `lost`，不带不转（HTTP 的 5xx 与流断开各一例）；建连中的 `discover` 带不带标记，建连都失败（2026-11-06 15:51 更正：原写「建连各有用例：带标记转 `lost`，不带不转」，与第 4 条「建连不在此列」矛盾）。
 - 被测成员与先例：`packages/execution/execution-environment-host-local/tests/cordis-entry.spec.ts`（撤除完成的断言写法，`dispose()` 之后取不到键，`recordErrors(ctx)` 收到撤除错误）；`execution-environment-cordis-contract` 的 `tests/public-entry.spec.ts` 与 `tests/cordis-entry.spec.ts`；`mcp` 的 `tests/model/` 探索器与 `verification/README.md`「两种证据能变红」。
 - 判据与切片（命令写在 [plan.md](plan.md)）：
 

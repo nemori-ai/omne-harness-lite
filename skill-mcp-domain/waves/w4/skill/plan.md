@@ -4,17 +4,40 @@
 
 ## 进度总览
 
-进度：[□□□□□□□□□□] 0/2 切片已完成 · 更新 2026-11-06 11:28 UTC · head 706152690
-当前：切片 01 第 2 步。计划类评审已闭合；第 1 步上下文由本会话直接补完（三个工厂签名、目录来源选项、契约接口出处、先例的键名写法）；闭包规格 `delegate/closures/w4-skill-cordis.md` 已起草，基线等 reduce 共享写之后的 F。
+进度：[■■■■■■■■■■] 2/2 切片已完成 · 更新 2026-11-06 14:12 UTC · 父分支 head 84db0bace
+当前：Skill 线 W4 完成。波末读数、W4 报告与 D-01、D-02 的请求随 MCP 线切片 03 一起做。
+
+切片 02 已完成：写回 `fa572db49`；`review-docs`（14:09 交回）阻断 1（`skill-contract/docs/cordis.md:3` 仍写「具名文档目标」）、非阻断 7，全部在 `84db0bace` 处置，阻断用 grep 读数复核；`check:docs` PASS；已推送。报告 `reviews/skill-writeback-r1.md`，证据 #1119 评论 6686828234。
+
+切片 01 已合入（13:59，合并提交时间）：PR #1157，父分支合并提交 `4a8e8bbf0`，闭包最终 head `33ea4d16e`。关口结果贴卡 #1119 评论 6686573784（含对 6685796575 的更正）。经过：
+
+- 修复轮交回 `af00fe8aa`（十六项都做，R1–R15 变红验证）。派发者核对写范围与 B1 五处原句已不在。
+- B 窄复审：B1 闭合，没有新阻断；4 处非阻断由派发者直接改（`33ea4d16e`）。`acceptance/` 占位写成现状（`19a87df1a`）。
+- D 差分变异（`af00fe8aa`）：`skill-cordis-contract` 5/5 被杀；`skill-host-local` 72 个存活 11 个，逐个判为组合后等价或不在契约里，没有缺陷类存活。
+- 最终 head 复跑 typecheck、lint:rules、lint:oxlint 退出 0；证据归档到 `tmp/closures/w4-skill-cordis/`，闭包工作树已清理，台账 +7 行（166 行 ok）。
+
+以下是切片 01 关口期间的记录：
+
+- 关口：派发者在 `835d4982e` 上复跑 typecheck、lint:rules、lint:oxlint、lint:deps 全部退出 0；证据评论 #1119 6685796575。四面评审都已交回，报告与裁定在 `reviews/skill-cordis-r1.md`：
+  - E 交付边界（13:25）：验收 1–6、S4-1、性质义务都达到。
+  - C 设计与实践（13:27）：非阻断。F1 插件没有经 `definePlugin`（IC-14）；F2–F5 用例缺口。
+  - A 正确性（13:28）：无阻断。`list`、`export`、`search`、配置接受 `{}`、`adopted` 换代各缺会变红的用例（手工变异存活）。
+  - B 表达（13:32）：阻断 1（B1：`skill-host-local` 几页现行文档仍写「没有类、不依赖 `skill`」），非阻断 9。
+- 裁定：
+  - C-F1 按 IC-14 改，不登记偏离。共享写 `9a1089645`（两个 host-local 依赖 kernel-basis）已推送父分支，并合进闭包分支（`9817e28d9`）。
+  - B1 扩大写范围一并改。
+  - N2 缺席答法归 `skill-host-local` 的 SPEC。
+- 修复轮：13:33 新开写者（Sonnet 5.5 high），十六项写在闭包规格追加 2。13:38 已提交 `e0d2be00c`（`definePlugin`、配置判据、逐方法用例），文档部分进行中。
+- 修复之后：B1 由派发者逐文件核对，再派一次窄范围表达复审；D 差分变异在最终 head 上跑热点；然后合入父分支。
 
 | 切片 | 交付的行为 | 对应判据 | 状态 |
 | --- | --- | --- | --- |
-| 01 | 宿主在真实 Cordis `Context` 上装 Skill 插件，消费者按键取服务，在目录来源上走「描述 → 读」；端口缺席时依赖它的操作答 `unknown` | C5 第 1–3 条的 Skill 部分（S4-1、S4-2） | 待做 |
-| 02 | Skill 组页与领域页按实际成员写回 | C5 第 5 条的 Skill 部分；W4-4 的 Skill 部分（S4-3） | 待做 |
+| 01 | 宿主在真实 Cordis `Context` 上装 Skill 插件，消费者按键取服务，在目录来源上走「描述 → 读」；端口缺席时依赖它的操作答 `unknown` | C5 第 1–3 条的 Skill 部分（S4-1、S4-2） | 已合入 `4a8e8bbf0` |
+| 02 | Skill 组页与领域页按实际成员写回 | C5 第 5 条的 Skill 部分；W4-4 的 Skill 部分（S4-3） | 已完成 `84db0bace` |
 
 | 闭包 | 写者模型@档位 | 清晰度 | 工作树 | 分支 | 状态 | 轮次 | 追加 | 验收报告 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `w4-skill-cordis` | Sonnet 5.5@high | 定 | `.worktrees/w4-skill-cordis` | `PanQiWei/skill-mcp-w4-skill-cordis` | 待派 | 0 | 0 | — |
+| `w4-skill-cordis` | Sonnet 5.5@high | 定 | `.worktrees/w4-skill-cordis` | `PanQiWei/skill-mcp-w4-skill-cordis` | 已合回 `4a8e8bbf0`（12:36 派出；13:04 交回；13:06 追加 1；13:13 交回 `835d4982e`；PR #1157；关口 A、B、C、E 13:25–13:32 交回；13:33 追加 2 修复轮；`af00fe8aa` 交回；B 窄复审闭合；派发者 `19a87df1a`、`33ea4d16e`；工作树已清理） | 2 | 2 | `reviews/skill-cordis-r1.md`；#1119 评论 6686573784 |
 
 ## 角色与模型分配
 
@@ -46,12 +69,12 @@ uv run --locked python .meta_harness/agents/skills/design-subagents/canonical/sc
 - **被谁阻塞：** W4-0 开波同步与冻结 F（[方案](../plan.md) §4.4 W4-0）；reduce 共享写（下面第一项）。之后无，可立即开始。
 - **对应判据：** C5 第 1–3 条的 Skill 部分（S4-1）；S4-2。
 - **成员与文件：**
-  - reduce 共享写（派发任何闭包之前，与 MCP 线切片 02 的一次做完，见 MCP 线 [plan.md](../mcp/plan.md)「顺序与并行」）：`pnpm package:template create --group skills --name skill-cordis-contract --variant service-contract --write`，`scan` 读数记下；`skill-cordis-contract` 的依赖段加 `@omne-harness/skill-contract`（spec 的抽象 Service `implements` 契约接口），用例要用契约 `./testing` 时同时进 devDependencies；`skill-host-local` 的依赖段（加 `@deepseek-ai/cordis`、`skill-cordis-contract`；`skill` 从 devDependencies 移到 dependencies）与 `exports` 的 `./cordis`；一次 `pnpm install` 更新锁文件。写者不改锁文件与依赖段。
+  - reduce 共享写（派发任何闭包之前，与 MCP 线切片 02 的一次做完，见 MCP 线 [plan.md](../mcp/plan.md)「顺序与并行」）：`pnpm package:template create --group skills --name skill-cordis-contract --variant service-contract --write`，`scan` 读数记下；`skill-cordis-contract` 的依赖段加 `@omne-harness/skill-contract`（spec 的抽象 Service `implements` 契约接口），用例要用契约 `./testing` 时同时进 devDependencies；`skill-host-local` 的依赖段（加 `@deepseek-ai/cordis`、`skill-cordis-contract`；`skill` 从 devDependencies 移到 dependencies）；一次 `pnpm install` 更新锁文件。写者不改锁文件与依赖段；`exports` 的 `./cordis` 一项由写者与 `src/cordis.ts` 同一提交加（见波包 §3.3）。
   - `packages/skills/skill-cordis-contract/`（新成员，写者填内容）：`src/cordis.ts` 三个服务键与两个端口键的抽象 Service、`Context` 增补；`src/index.ts` 根入口；`SPEC.md`、`docs/cordis.md`（依赖分类表、IC 符合性映射、验证义务）；`tests/public-entry.spec.ts`、`tests/cordis-entry.spec.ts`（spec 第 1、2 条）。
   - `packages/skills/skill-host-local/`：变体清点（spec 第 4 条），读数写进闭包规格；`src/cordis.ts` 插件与两个端口适配器（spec 第 3 条）；`tests/cordis-entry.spec.ts`；`docs/cordis.md` 改写。
 - **验收：**
   - [ ] C5 第 1 条：`pnpm package:template scan --member packages/skills/skill-cordis-contract --json` 报完整结构 `pass`、集成无 `deviation`（D-W4S-1）。读数贴卡。
-  - [ ] C5 第 2 条：`skill-cordis-contract` 的 `tests/cordis-entry.spec.ts` 断言每个键常量等于类的 `provide`，导出集合恰为三个服务类与两个端口类；`tests/public-entry.spec.ts` 断言根入口无运行导出、不导入 Cordis。同一 `scan` 读数里 IC-2、IC-4 无 `deviation`。
+  - [ ] C5 第 2 条：`skill-cordis-contract` 的 `tests/cordis-entry.spec.ts` 断言每个键常量等于类的 `provide`，导出集合恰为三个服务类、两个端口类与五个键常量（取自各类的 `provide`，IC-2）；`tests/public-entry.spec.ts` 断言根入口无运行导出、不导入 Cordis。同一 `scan` 读数里 IC-2、IC-4 无 `deviation`。
   - [ ] C5 第 3 条：`skill-host-local` 的 `tests/cordis-entry.spec.ts` 在真实 `Context` 上装插件，按三个服务键取到服务，在目录来源上走通「描述 → 读」。两个端口键逐个缺席时，依赖它的操作答 `unknown`，`PackageInspection` 照常取得。`dispose()` 之后三个键为 `undefined`。
   - [ ] S4-2：`pnpm turbo run build typecheck test --filter=@omne-harness/skill-contract --filter=@omne-harness/skill --filter=@omne-harness/skill-host-local --filter=@omne-harness/skill-cordis-contract` 退出 0；同一组 `--filter` 的 `pnpm turbo run test:slow` 退出 0；`pnpm run lint:deps` 无违规。
   - [ ] 七项轻门禁退出 0：`pnpm run typecheck`、`pnpm run lint:rules`、`pnpm run lint:oxlint`、`pnpm run lint:deps`、`pnpm run format:check`、`pnpm run check:docs`，加上一条成员门禁。

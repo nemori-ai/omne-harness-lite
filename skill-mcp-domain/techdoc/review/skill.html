@@ -1,3 +1,14 @@
+<h3>W4 合入：Cordis 服务定义与本机插件（2026-11-06，父分支 41d7b6529）</h3>
+<p><strong>交付了什么。</strong>新成员 <code>skill-cordis-contract</code> 给出五个抽象 Service 与五个键常量（三个服务键、两个端口键）。<code>skill-host-local</code> 的 <code>./cordis</code> 交出插件 <code>skillPlugin</code>：不收配置，三个服务共一条 fiber，两个端口适配器每次调用从装载时的 <code>ctx</code> 取键，取不到答该端口的 <code>unknown</code>（PR #1157）。组页与领域页写回（<code>fa572db49</code>、<code>84db0bace</code>），波末又对齐了定义成员与阶段函数的说法（<code>41d7b6529</code>）。</p>
+<p><strong>读数（终头度量 <code>7e2e9e2df</code>）。</strong><code>skill</code> 覆盖 99%。Skill 的变更函数没有超线的。波中预读里 <code>isEmptyConfiguration</code>（CC 6）的覆盖读成 0%、CRAP 42，那是父分支工作树的 <code>dist</code> 停在草稿状态造成的假读数。重建后终头上它覆盖 100%、CRAP 6。</p>
+<p><strong>优雅之处。</strong>闭包规格原写「只导出抽象类」，与 IC-2「键常量取自 <code>provide</code>」相反，派发者当场更正为同时导出键常量，插件与用例都改用常量。插件不登记撤除函数：服务属于装载它的 fiber，卸载后三个键自然取不到，没有多余的生命周期代码。</p>
+<p><strong>异味与代价。</strong>撤除插件时在途操作的答复没有规定，同一 isolate 重复装载没有验证，两项都写在成员的「没有覆盖」里。<code>skill</code> 的 README 曾把阶段函数写成三个，落后于 SPEC 的四个，波末对齐。</p>
+
+<h3>W3 合入：目录服务、端口答复的边界解析与生态兼容（2026-11-04 至 11-05 合入，W3 末父分支 706152690）</h3>
+<p><strong>交付了什么。</strong><code>skill</code> 加了 <code>createSkillCatalog</code>（<code>summaries</code>、<code>search</code>）（PR #1122）。端口答复在边界上一次完整解析并冻结，不合就当「没有作答」，判定端口答 <code>unknown</code>，不抛出。<code>skill-host-local</code> 的真实目录示例作为测试运行。修复闭包（PR #1135）放宽了生态兼容的解析，加了引用身份一致与带依据时的内容摘要。</p>
+<p><strong>优雅之处。</strong>边界解析只做一次，内部只信类型，不再处处防御。目录服务对被拒与不存在的身份给出深度相等的答复，披露规则由类型与用例一起守住。</p>
+<p><strong>异味与代价。</strong>修复闭包走了三轮，根源是「带依据时引用要不要带内容摘要」这条规则在规格里没有写死，第二轮评审裁定后才收敛。GS-05「调用方中止后答 <code>aborted</code>」有一个前提：每次端口调用都会结束；端口不结束时操作不答复。这条前提已写进契约与成员 SPEC，请负责人复核。</p>
+
 <h3>W2 增量 2：skill 合入（2026-11-03，父分支 0956ccf01）</h3>
 <p><strong>读数。</strong>10 源文件 596 行、195 例；契约 +34 例（398）。无 <code>as</code>/<code>any</code>/类。变更函数超 alert 的只在契约套件代码（<code>skillAccessConformance</code> CC 11，用例表，契约自己的测试不跑它所以覆盖 0%——这是套件代码的固有读数）。Stryker：skill 393 个变异体、被杀 377、存活 13（散在 gate/inspection/mapping 各 3）、测量有效，96.4%；契约 346、无覆盖 298 全在套件代码；W1 记下的 <code>manifest.ts:47–55</code> 边界已被字节扫描 <code>frontmatterBounds</code> 替换，存活只剩类型守卫与消息文本。</p>
 <p><strong>两轮评审改掉了什么。</strong>第 1 轮三面共 3 处阻断，全是真问题：L3 探针证明已中止的 signal 下 <code>gate</code> 仍调用读取判定与对应两个端口（契约要求每次端口调用前后都查）；读取次序把第 6 步（路径校验）放到了第 5 步（没有可读的包）之前，写者还在成员 SPEC 里自称「偏离」；映射在两处。第 2 轮修完并重放探针确认。顺带裁定了两处契约措辞歧义（「请求终点」取字面；<code>describe</code> 带依据时 basis 取依据本身）。</p>

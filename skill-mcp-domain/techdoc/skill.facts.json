@@ -46,6 +46,7 @@
           "@omne-harness/skill-contract",
           "../mapping.ts",
           "../ports.ts",
+          "../source-answer.ts",
           "./checkpoint.ts",
           "./pin.ts"
         ],
@@ -54,9 +55,9 @@
         "anyCount": 0,
         "longest": {
           "name": "verifiedBytes",
-          "lines": 8
+          "lines": 11
         },
-        "lines": 41
+        "lines": 45
       },
       {
         "file": "src/access/checkpoint.ts",
@@ -152,6 +153,7 @@
           "@omne-harness/operation-result",
           "@omne-harness/skill-contract",
           "@omne-harness/skill-contract/provider",
+          "../port-answer.ts",
           "../ports.ts",
           "./checkpoint.ts"
         ],
@@ -160,9 +162,9 @@
         "anyCount": 0,
         "longest": {
           "name": "gatedOf",
-          "lines": 28
+          "lines": 32
         },
-        "lines": 104
+        "lines": 103
       },
       {
         "file": "src/access/pin.ts",
@@ -288,6 +290,7 @@
           "@omne-harness/skill-contract/provider",
           "../mapping.ts",
           "../ports.ts",
+          "../source-answer.ts",
           "./checkpoint.ts",
           "./gate.ts"
         ],
@@ -298,17 +301,11 @@
           "name": "materialOf",
           "lines": 11
         },
-        "lines": 69
+        "lines": 74
       },
       {
         "file": "src/access/range.ts",
         "decls": [
-          {
-            "name": "PAGE_LIMIT",
-            "kind": "const",
-            "fields": [],
-            "refs": []
-          },
           {
             "name": "Sliced",
             "kind": "record",
@@ -366,7 +363,7 @@
           "name": "sliceRange",
           "lines": 20
         },
-        "lines": 68
+        "lines": 72
       },
       {
         "file": "src/access/service.ts",
@@ -398,15 +395,125 @@
         "anyCount": 0,
         "longest": {
           "name": "createSkillAccess",
-          "lines": 77
+          "lines": 79
         },
-        "lines": 145
+        "lines": 148
+      },
+      {
+        "file": "src/answer-values.ts",
+        "decls": [
+          {
+            "name": "has",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "K",
+              "Readonly",
+              "Record"
+            ]
+          },
+          {
+            "name": "fieldOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "K"
+            ]
+          },
+          {
+            "name": "listOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "T"
+            ]
+          },
+          {
+            "name": "capabilityOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CapabilityId"
+            ]
+          },
+          {
+            "name": "adoptedOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Readonly",
+              "SkillRef",
+              "DeclaredProjection"
+            ]
+          },
+          {
+            "name": "standInOf",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "StandIn",
+              "Readonly"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets",
+          "@omne-harness/skill-contract",
+          "@omne-harness/skill-contract/provider"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "jsonTreeOf",
+          "lines": 31
+        },
+        "lines": 243
+      },
+      {
+        "file": "src/catalog.ts",
+        "decls": [
+          {
+            "name": "createSkillCatalog",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Pick",
+              "SkillPorts",
+              "P",
+              "S",
+              "SkillCatalog",
+              "Access",
+              "CatalogEntry",
+              "Promise",
+              "Listing"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/legal-identity",
+          "@omne-harness/operation-result",
+          "@omne-harness/skill-contract",
+          "@omne-harness/skill-contract/provider",
+          "./match.ts",
+          "./port-answer.ts",
+          "./ports.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "entryOf",
+          "lines": 29
+        },
+        "lines": 124
       },
       {
         "file": "src/index.ts",
         "decls": [],
         "imports": [
           "./access/service.ts",
+          "./catalog.ts",
           "./inspection.ts",
           "./ports.ts"
         ],
@@ -415,6 +522,12 @@
             "from": "./access/service.ts",
             "names": [
               "createSkillAccess"
+            ]
+          },
+          {
+            "from": "./catalog.ts",
+            "names": [
+              "createSkillCatalog"
             ]
           },
           {
@@ -436,7 +549,7 @@
           "name": "",
           "lines": 0
         },
-        "lines": 5
+        "lines": 6
       },
       {
         "file": "src/inspection.ts",
@@ -463,16 +576,17 @@
           "@omne-harness/operation-result",
           "@omne-harness/skill-contract",
           "@omne-harness/skill-contract/provider",
-          "./mapping.ts"
+          "./mapping.ts",
+          "./source-answer.ts"
         ],
         "reexports": [],
         "asCount": 0,
         "anyCount": 0,
         "longest": {
           "name": "createPackageInspection",
-          "lines": 32
+          "lines": 35
         },
-        "lines": 51
+        "lines": 56
       },
       {
         "file": "src/mapping.ts",
@@ -498,11 +612,30 @@
             ]
           },
           {
+            "name": "SourceCall",
+            "kind": "enum",
+            "fields": [],
+            "variants": [
+              "snapshot",
+              "open"
+            ],
+            "refs": []
+          },
+          {
+            "name": "isSourceFailure",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SourceFailure"
+            ]
+          },
+          {
             "name": "sourceFailureTo",
             "kind": "function",
             "fields": [],
             "refs": [
               "SourceFailure",
+              "SourceCall",
               "InspectFailure"
             ]
           },
@@ -530,6 +663,7 @@
             "fields": [],
             "refs": [
               "SourceFailure",
+              "SourceCall",
               "InspectFailure",
               "SnapshotSourceFailure",
               "OpenSourceFailure"
@@ -545,9 +679,105 @@
         "anyCount": 0,
         "longest": {
           "name": "sourceFailureTo",
-          "lines": 4
+          "lines": 5
         },
-        "lines": 96
+        "lines": 114
+      },
+      {
+        "file": "src/match.ts",
+        "decls": [
+          {
+            "name": "matches",
+            "kind": "function",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "matches",
+          "lines": 8
+        },
+        "lines": 15
+      },
+      {
+        "file": "src/port-answer.ts",
+        "decls": [
+          {
+            "name": "answered",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Promise",
+              "T"
+            ]
+          },
+          {
+            "name": "parseVerdict",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ReadVerdict"
+            ]
+          },
+          {
+            "name": "ResolveRequest",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "SkillMaterialBasis"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "CapabilityId",
+              "SkillMaterialBasis"
+            ]
+          },
+          {
+            "name": "parseResolution",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ResolveRequest",
+              "Resolution"
+            ]
+          },
+          {
+            "name": "parseLawfulSet",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Outcome",
+              "CatalogResolution"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets",
+          "@omne-harness/operation-result",
+          "@omne-harness/skill-contract",
+          "@omne-harness/skill-contract/provider",
+          "./answer-values.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "parseResolution",
+          "lines": 18
+        },
+        "lines": 123
       },
       {
         "file": "src/ports.ts",
@@ -597,10 +827,50 @@
           "lines": 0
         },
         "lines": 12
+      },
+      {
+        "file": "src/source-answer.ts",
+        "decls": [
+          {
+            "name": "isBytes",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Bytes"
+            ]
+          },
+          {
+            "name": "sourceAnswer",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Promise",
+              "T",
+              "Outcome",
+              "SourceFailure"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/operation-result",
+          "@omne-harness/skill-contract",
+          "@omne-harness/skill-contract/provider",
+          "./answer-values.ts",
+          "./mapping.ts",
+          "./port-answer.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "sourceOutcomeOf",
+          "lines": 8
+        },
+        "lines": 36
       }
     ],
-    "testFiles": 13,
-    "testCases": 118,
+    "testFiles": 31,
+    "testCases": 188,
     "draft": [],
     "entries": [
       {
@@ -608,6 +878,10 @@
         "names": [
           {
             "name": "createSkillAccess",
+            "kind": "function"
+          },
+          {
+            "name": "createSkillCatalog",
             "kind": "function"
           },
           {
@@ -632,11 +906,19 @@
       ],
       [
         "src/access/bytes.ts",
+        "src/source-answer.ts"
+      ],
+      [
+        "src/access/bytes.ts",
         "src/access/checkpoint.ts"
       ],
       [
         "src/access/bytes.ts",
         "src/access/pin.ts"
+      ],
+      [
+        "src/access/gate.ts",
+        "src/port-answer.ts"
       ],
       [
         "src/access/gate.ts",
@@ -653,6 +935,10 @@
       [
         "src/access/pin.ts",
         "src/ports.ts"
+      ],
+      [
+        "src/access/pin.ts",
+        "src/source-answer.ts"
       ],
       [
         "src/access/pin.ts",
@@ -683,8 +969,24 @@
         "src/access/range.ts"
       ],
       [
+        "src/catalog.ts",
+        "src/match.ts"
+      ],
+      [
+        "src/catalog.ts",
+        "src/port-answer.ts"
+      ],
+      [
+        "src/catalog.ts",
+        "src/ports.ts"
+      ],
+      [
         "src/index.ts",
         "src/access/service.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/catalog.ts"
       ],
       [
         "src/index.ts",
@@ -697,6 +999,26 @@
       [
         "src/inspection.ts",
         "src/mapping.ts"
+      ],
+      [
+        "src/inspection.ts",
+        "src/source-answer.ts"
+      ],
+      [
+        "src/port-answer.ts",
+        "src/answer-values.ts"
+      ],
+      [
+        "src/source-answer.ts",
+        "src/answer-values.ts"
+      ],
+      [
+        "src/source-answer.ts",
+        "src/mapping.ts"
+      ],
+      [
+        "src/source-answer.ts",
+        "src/port-answer.ts"
       ]
     ],
     "pkgEdges": [
@@ -718,6 +1040,30 @@
       "yaml"
     ],
     "files": [
+      {
+        "file": "src/capability.ts",
+        "decls": [
+          {
+            "name": "sameCapability",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "CapabilityId"
+            ]
+          }
+        ],
+        "imports": [
+          "@omne-harness/assets"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "sameCapability",
+          "lines": 3
+        },
+        "lines": 7
+      },
       {
         "file": "src/contract.ts",
         "decls": [
@@ -744,7 +1090,7 @@
           "name": "skillBodyContract",
           "lines": 28
         },
-        "lines": 147
+        "lines": 151
       },
       {
         "file": "src/digest.ts",
@@ -945,21 +1291,68 @@
         "lines": 64
       },
       {
+        "file": "src/hints.ts",
+        "decls": [
+          {
+            "name": "COMPATIBILITY_HINTS",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "CompatibilityHint",
+            "kind": "alias",
+            "fields": [],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "orderedHints",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "Iterable",
+              "CompatibilityHint"
+            ]
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "orderedHints",
+          "lines": 4
+        },
+        "lines": 16
+      },
+      {
         "file": "src/index.ts",
         "decls": [],
         "imports": [
+          "./capability.ts",
           "./contract.ts",
           "./digest.ts",
           "./media.ts",
           "./names.ts",
+          "./page-limit.ts",
+          "./parse/declaration.ts",
           "./parse/manifest.ts",
           "./parse/package.ts",
+          "./parse/shape.ts",
           "./project.ts",
           "./services.ts",
           "./failures.ts",
+          "./hints.ts",
           "./values.ts"
         ],
         "reexports": [
+          {
+            "from": "./capability.ts",
+            "names": [
+              "sameCapability"
+            ]
+          },
           {
             "from": "./contract.ts",
             "names": [
@@ -982,12 +1375,26 @@
           {
             "from": "./names.ts",
             "names": [
+              "DECLARATION_PATH",
               "isAssetVersion",
               "isControlFile",
               "isPackagePath",
               "isSafeReason",
               "isSkillName",
+              "MANIFEST_PATH",
               "toPackagePath"
+            ]
+          },
+          {
+            "from": "./page-limit.ts",
+            "names": [
+              "PAGE_LIMIT"
+            ]
+          },
+          {
+            "from": "./parse/declaration.ts",
+            "names": [
+              "DECLARATION_LIMITS"
             ]
           },
           {
@@ -1002,6 +1409,13 @@
               "parseSkillPackage",
               "ParseFailure",
               "ParseInput"
+            ]
+          },
+          {
+            "from": "./parse/shape.ts",
+            "names": [
+              "DESCRIPTION_LIMIT",
+              "isSkillDescription"
             ]
           },
           {
@@ -1044,6 +1458,12 @@
             ]
           },
           {
+            "from": "./hints.ts",
+            "names": [
+              "CompatibilityHint"
+            ]
+          },
+          {
             "from": "./values.ts",
             "names": [
               "AssetVersion",
@@ -1077,7 +1497,7 @@
           "name": "",
           "lines": 0
         },
-        "lines": 65
+        "lines": 72
       },
       {
         "file": "src/media.ts",
@@ -1198,6 +1618,62 @@
         "lines": 65
       },
       {
+        "file": "src/page-limit.ts",
+        "decls": [
+          {
+            "name": "PAGE_LIMIT",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 3
+      },
+      {
+        "file": "src/parse/by-line.ts",
+        "decls": [
+          {
+            "name": "LineFields",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": []
+              }
+            ],
+            "variants": [],
+            "refs": []
+          },
+          {
+            "name": "readByLine",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "LineFields"
+            ]
+          }
+        ],
+        "imports": [],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "readByLine",
+          "lines": 27
+        },
+        "lines": 88
+      },
+      {
         "file": "src/parse/declaration.ts",
         "decls": [
           {
@@ -1268,7 +1744,8 @@
             ],
             "refs": [
               "Readonly",
-              "SkillManifest"
+              "SkillManifest",
+              "CompatibilityHint"
             ]
           },
           {
@@ -1291,8 +1768,10 @@
         ],
         "imports": [
           "yaml",
+          "../hints.ts",
           "../names.ts",
           "../values.ts",
+          "./by-line.ts",
           "./shape.ts",
           "./yaml-value.ts"
         ],
@@ -1301,9 +1780,9 @@
         "anyCount": 0,
         "longest": {
           "name": "readManifest",
-          "lines": 17
+          "lines": 16
         },
-        "lines": 148
+        "lines": 189
       },
       {
         "file": "src/parse/package.ts",
@@ -1362,7 +1841,8 @@
               "Outcome",
               "SkillDefinition",
               "ParseFailure",
-              "Finding"
+              "Finding",
+              "const"
             ]
           }
         ],
@@ -1371,6 +1851,7 @@
           "@omne-harness/operation-result",
           "../digest.ts",
           "../failures.ts",
+          "../hints.ts",
           "../names.ts",
           "../snapshot.ts",
           "../values.ts",
@@ -1383,9 +1864,9 @@
         "anyCount": 0,
         "longest": {
           "name": "parseSkillPackage",
-          "lines": 32
+          "lines": 47
         },
-        "lines": 95
+        "lines": 100
       },
       {
         "file": "src/parse/shape.ts",
@@ -1438,8 +1919,20 @@
             ]
           },
           {
-            "name": "DESCRIPTION_MAX",
+            "name": "DESCRIPTION_LIMIT",
             "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "SPECIFICATION_DESCRIPTION_LIMIT",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "isSkillDescription",
+            "kind": "function",
             "fields": [],
             "refs": []
           },
@@ -1509,7 +2002,7 @@
           "name": "readScripts",
           "lines": 32
         },
-        "lines": 192
+        "lines": 204
       },
       {
         "file": "src/parse/yaml-value.ts",
@@ -1797,6 +2290,7 @@
           {
             "from": "./snapshot.ts",
             "names": [
+              "isSealedSnapshot",
               "sealSnapshot"
             ]
           },
@@ -2273,6 +2767,14 @@
             ]
           },
           {
+            "name": "isSealedSnapshot",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "SkillPackageSnapshot"
+            ]
+          },
+          {
             "name": "assertSealed",
             "kind": "function",
             "fields": [],
@@ -2308,7 +2810,7 @@
           "name": "sealSnapshot",
           "lines": 20
         },
-        "lines": 85
+        "lines": 95
       },
       {
         "file": "src/testing-access.ts",
@@ -2399,6 +2901,7 @@
           "@omne-harness/operation-result",
           "./digest.ts",
           "./failures.ts",
+          "./page-limit.ts",
           "./services.ts",
           "./testing-case.ts",
           "./testing-resolution.ts",
@@ -2411,7 +2914,7 @@
           "name": "skillAccessConformance",
           "lines": 332
         },
-        "lines": 460
+        "lines": 459
       },
       {
         "file": "src/testing-case.ts",
@@ -2511,6 +3014,116 @@
           "lines": 9
         },
         "lines": 57
+      },
+      {
+        "file": "src/testing-catalog.ts",
+        "decls": [
+          {
+            "name": "CatalogFixture",
+            "kind": "record",
+            "fields": [
+              {
+                "refs": [
+                  "SkillCatalog",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "PrincipalSample",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "PrincipalSample",
+                  "P",
+                  "S"
+                ]
+              },
+              {
+                "refs": [
+                  "AdoptedEntry"
+                ]
+              },
+              {
+                "refs": [
+                  "Listed"
+                ]
+              },
+              {
+                "refs": [
+                  "StandInEntry"
+                ]
+              },
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
+              },
+              {
+                "refs": [
+                  "Readonly",
+                  "CapabilityId"
+                ]
+              }
+            ],
+            "variants": [],
+            "refs": [
+              "SkillCatalog",
+              "P",
+              "S",
+              "PrincipalSample",
+              "AdoptedEntry",
+              "Listed",
+              "StandInEntry",
+              "CapabilityId",
+              "Readonly"
+            ]
+          },
+          {
+            "name": "CATALOG_NO_DISCLOSURE_LISTING",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "CATALOG_NO_DISCLOSURE_FILTER",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "skillCatalogConformance",
+            "kind": "function",
+            "fields": [],
+            "refs": [
+              "ConformanceCase",
+              "CatalogFixture",
+              "P",
+              "S"
+            ]
+          }
+        ],
+        "imports": [
+          "node:assert/strict",
+          "@omne-harness/assets",
+          "@omne-harness/operation-result",
+          "./capability.ts",
+          "./services.ts",
+          "./testing-case.ts",
+          "./testing-resolution.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "skillCatalogConformance",
+          "lines": 160
+        },
+        "lines": 281
       },
       {
         "file": "src/testing-read-check.ts",
@@ -2618,6 +3231,7 @@
           "node:assert/strict",
           "@omne-harness/assets",
           "@omne-harness/legal-identity",
+          "./capability.ts",
           "./ports.ts",
           "./testing-case.ts",
           "./testing-resolution.ts"
@@ -2629,7 +3243,7 @@
           "name": "skillReadCheckConformance",
           "lines": 19
         },
-        "lines": 58
+        "lines": 59
       },
       {
         "file": "src/testing-resolution.ts",
@@ -2690,14 +3304,6 @@
               "MemoryMaterial",
               "SkillName",
               "SafeReason"
-            ]
-          },
-          {
-            "name": "sameCapability",
-            "kind": "function",
-            "fields": [],
-            "refs": [
-              "CapabilityId"
             ]
           },
           {
@@ -2786,6 +3392,11 @@
                 "refs": [
                   "SourceLayer"
                 ]
+              },
+              {
+                "refs": [
+                  "CapabilityId"
+                ]
               }
             ],
             "variants": [],
@@ -2825,6 +3436,7 @@
           "@omne-harness/assets",
           "@omne-harness/legal-identity",
           "@omne-harness/operation-result",
+          "./capability.ts",
           "./digest.ts",
           "./names.ts",
           "./ports.ts",
@@ -2836,9 +3448,9 @@
         "anyCount": 0,
         "longest": {
           "name": "skillResolutionConformance",
-          "lines": 150
+          "lines": 180
         },
-        "lines": 286
+        "lines": 332
       },
       {
         "file": "src/testing-source.ts",
@@ -2958,6 +3570,7 @@
         "imports": [
           "./testing-case.ts",
           "./testing-access.ts",
+          "./testing-catalog.ts",
           "./testing-read-check.ts",
           "./testing-resolution.ts",
           "./testing-source.ts"
@@ -2978,6 +3591,13 @@
             "names": [
               "skillAccessConformance",
               "AccessFixture"
+            ]
+          },
+          {
+            "from": "./testing-catalog.ts",
+            "names": [
+              "skillCatalogConformance",
+              "CatalogFixture"
             ]
           },
           {
@@ -3016,7 +3636,7 @@
           "name": "",
           "lines": 0
         },
-        "lines": 28
+        "lines": 29
       },
       {
         "file": "src/values.ts",
@@ -3357,13 +3977,19 @@
                 "refs": [
                   "SkillPackageSnapshot"
                 ]
+              },
+              {
+                "refs": [
+                  "CompatibilityHint"
+                ]
               }
             ],
             "variants": [],
             "refs": [
               "SkillManifest",
               "SkillDeclaration",
-              "SkillPackageSnapshot"
+              "SkillPackageSnapshot",
+              "CompatibilityHint"
             ]
           },
           {
@@ -3527,7 +4153,8 @@
           }
         ],
         "imports": [
-          "@omne-harness/assets"
+          "@omne-harness/assets",
+          "./hints.ts"
         ],
         "reexports": [],
         "asCount": 0,
@@ -3536,16 +4163,20 @@
           "name": "",
           "lines": 0
         },
-        "lines": 132
+        "lines": 136
       }
     ],
-    "testFiles": 17,
-    "testCases": 116,
+    "testFiles": 19,
+    "testCases": 149,
     "draft": [],
     "entries": [
       {
         "sub": ".",
         "names": [
+          {
+            "name": "sameCapability",
+            "kind": "function"
+          },
           {
             "name": "skillBodyContract",
             "kind": "function"
@@ -3561,6 +4192,10 @@
           {
             "name": "inferMediaType",
             "kind": "function"
+          },
+          {
+            "name": "DECLARATION_PATH",
+            "kind": "const"
           },
           {
             "name": "isAssetVersion",
@@ -3583,8 +4218,20 @@
             "kind": "function"
           },
           {
+            "name": "MANIFEST_PATH",
+            "kind": "const"
+          },
+          {
             "name": "toPackagePath",
             "kind": "function"
+          },
+          {
+            "name": "PAGE_LIMIT",
+            "kind": "const"
+          },
+          {
+            "name": "DECLARATION_LIMITS",
+            "kind": "const"
           },
           {
             "name": "bodyOffsetOf",
@@ -3601,6 +4248,14 @@
           {
             "name": "ParseInput",
             "kind": "record"
+          },
+          {
+            "name": "DESCRIPTION_LIMIT",
+            "kind": "const"
+          },
+          {
+            "name": "isSkillDescription",
+            "kind": "function"
           },
           {
             "name": "projectAssetBody",
@@ -3696,6 +4351,10 @@
           },
           {
             "name": "UnsupportedWhat",
+            "kind": "alias"
+          },
+          {
+            "name": "CompatibilityHint",
             "kind": "alias"
           },
           {
@@ -3832,6 +4491,10 @@
             "kind": "union"
           },
           {
+            "name": "isSealedSnapshot",
+            "kind": "?"
+          },
+          {
             "name": "sealSnapshot",
             "kind": "?"
           },
@@ -3874,6 +4537,14 @@
           },
           {
             "name": "AccessFixture",
+            "kind": "record"
+          },
+          {
+            "name": "skillCatalogConformance",
+            "kind": "function"
+          },
+          {
+            "name": "CatalogFixture",
             "kind": "record"
           },
           {
@@ -3962,6 +4633,10 @@
       ],
       [
         "src/index.ts",
+        "src/capability.ts"
+      ],
+      [
+        "src/index.ts",
         "src/contract.ts"
       ],
       [
@@ -3978,11 +4653,23 @@
       ],
       [
         "src/index.ts",
+        "src/page-limit.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/parse/declaration.ts"
+      ],
+      [
+        "src/index.ts",
         "src/parse/manifest.ts"
       ],
       [
         "src/index.ts",
         "src/parse/package.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/parse/shape.ts"
       ],
       [
         "src/index.ts",
@@ -3995,6 +4682,10 @@
       [
         "src/index.ts",
         "src/failures.ts"
+      ],
+      [
+        "src/index.ts",
+        "src/hints.ts"
       ],
       [
         "src/index.ts",
@@ -4022,11 +4713,19 @@
       ],
       [
         "src/parse/manifest.ts",
+        "src/hints.ts"
+      ],
+      [
+        "src/parse/manifest.ts",
         "src/names.ts"
       ],
       [
         "src/parse/manifest.ts",
         "src/values.ts"
+      ],
+      [
+        "src/parse/manifest.ts",
+        "src/parse/by-line.ts"
       ],
       [
         "src/parse/manifest.ts",
@@ -4043,6 +4742,10 @@
       [
         "src/parse/package.ts",
         "src/failures.ts"
+      ],
+      [
+        "src/parse/package.ts",
+        "src/hints.ts"
       ],
       [
         "src/parse/package.ts",
@@ -4142,6 +4845,10 @@
       ],
       [
         "src/testing-access.ts",
+        "src/page-limit.ts"
+      ],
+      [
+        "src/testing-access.ts",
         "src/services.ts"
       ],
       [
@@ -4157,6 +4864,26 @@
         "src/values.ts"
       ],
       [
+        "src/testing-catalog.ts",
+        "src/capability.ts"
+      ],
+      [
+        "src/testing-catalog.ts",
+        "src/services.ts"
+      ],
+      [
+        "src/testing-catalog.ts",
+        "src/testing-case.ts"
+      ],
+      [
+        "src/testing-catalog.ts",
+        "src/testing-resolution.ts"
+      ],
+      [
+        "src/testing-read-check.ts",
+        "src/capability.ts"
+      ],
+      [
         "src/testing-read-check.ts",
         "src/ports.ts"
       ],
@@ -4167,6 +4894,10 @@
       [
         "src/testing-read-check.ts",
         "src/testing-resolution.ts"
+      ],
+      [
+        "src/testing-resolution.ts",
+        "src/capability.ts"
       ],
       [
         "src/testing-resolution.ts",
@@ -4226,6 +4957,10 @@
       ],
       [
         "src/testing.ts",
+        "src/testing-catalog.ts"
+      ],
+      [
+        "src/testing.ts",
         "src/testing-read-check.ts"
       ],
       [
@@ -4235,6 +4970,10 @@
       [
         "src/testing.ts",
         "src/testing-source.ts"
+      ],
+      [
+        "src/values.ts",
+        "src/hints.ts"
       ]
     ],
     "pkgEdges": [
@@ -4249,14 +4988,373 @@
     ]
   },
   {
-    "dir": "packages/skills/skill-host-local",
-    "name": "@omne-harness/skill-host-local",
-    "description": "Local Skill host: the DirectorySource local directory source",
+    "dir": "packages/skills/skill-cordis-contract",
+    "name": "@omne-harness/skill-cordis-contract",
+    "description": "Cordis service definitions of Skill: abstract Services and keys for the three services and the two demand ports",
     "deps": [
-      "@omne-harness/operation-result",
+      "@deepseek-ai/cordis",
       "@omne-harness/skill-contract"
     ],
     "files": [
+      {
+        "file": "src/cordis.ts",
+        "decls": [
+          {
+            "name": "PackageInspectionService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "PackageInspection",
+                  "ReturnType"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "PackageInspection",
+              "Context",
+              "Parameters",
+              "ReturnType"
+            ],
+            "implements": [
+              "PackageInspection"
+            ]
+          },
+          {
+            "name": "skillPackageInspectionKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "SkillCatalogService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "SkillCatalog",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "SkillCatalog",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "SkillCatalog",
+              "P",
+              "S",
+              "Context",
+              "Parameters",
+              "ReturnType"
+            ],
+            "implements": [
+              "SkillCatalog"
+            ]
+          },
+          {
+            "name": "skillCatalogKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "SkillAccessService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "SkillAccess",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "SkillAccess",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "SkillAccess",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "SkillAccess",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "SkillAccess",
+              "P",
+              "S",
+              "Context",
+              "Parameters",
+              "ReturnType"
+            ],
+            "implements": [
+              "SkillAccess"
+            ]
+          },
+          {
+            "name": "skillAccessKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "SkillReadCheckService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "SkillReadCheck",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "SkillReadCheck",
+              "P",
+              "S",
+              "Context",
+              "Parameters",
+              "ReturnType"
+            ],
+            "implements": [
+              "SkillReadCheck"
+            ]
+          },
+          {
+            "name": "skillReadCheckKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          },
+          {
+            "name": "SkillResolutionService",
+            "kind": "class",
+            "fields": [
+              {
+                "refs": []
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "SkillResolution",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              },
+              {
+                "refs": [
+                  "Parameters",
+                  "SkillResolution",
+                  "P",
+                  "S",
+                  "ReturnType"
+                ]
+              }
+            ],
+            "refs": [
+              "Service",
+              "SkillResolution",
+              "P",
+              "S",
+              "Context",
+              "Parameters",
+              "ReturnType"
+            ],
+            "implements": [
+              "SkillResolution"
+            ]
+          },
+          {
+            "name": "skillResolutionKey",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [
+          "@deepseek-ai/cordis",
+          "@omne-harness/skill-contract",
+          "@omne-harness/skill-contract/provider"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 120
+      },
+      {
+        "file": "src/index.ts",
+        "decls": [],
+        "imports": [],
+        "reexports": [
+          {
+            "names": []
+          }
+        ],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "",
+          "lines": 0
+        },
+        "lines": 2
+      }
+    ],
+    "testFiles": 2,
+    "testCases": 5,
+    "draft": [],
+    "entries": [
+      {
+        "sub": ".",
+        "names": []
+      },
+      {
+        "sub": "./cordis",
+        "names": [
+          {
+            "name": "PackageInspectionService",
+            "kind": "class"
+          },
+          {
+            "name": "skillPackageInspectionKey",
+            "kind": "const"
+          },
+          {
+            "name": "SkillCatalogService",
+            "kind": "class"
+          },
+          {
+            "name": "skillCatalogKey",
+            "kind": "const"
+          },
+          {
+            "name": "SkillAccessService",
+            "kind": "class"
+          },
+          {
+            "name": "skillAccessKey",
+            "kind": "const"
+          },
+          {
+            "name": "SkillReadCheckService",
+            "kind": "class"
+          },
+          {
+            "name": "skillReadCheckKey",
+            "kind": "const"
+          },
+          {
+            "name": "SkillResolutionService",
+            "kind": "class"
+          },
+          {
+            "name": "skillResolutionKey",
+            "kind": "const"
+          }
+        ]
+      }
+    ],
+    "modEdges": [],
+    "pkgEdges": [
+      "@deepseek-ai/cordis",
+      "@omne-harness/skill-contract"
+    ]
+  },
+  {
+    "dir": "packages/skills/skill-host-local",
+    "name": "@omne-harness/skill-host-local",
+    "description": "Local Skill host: the DirectorySource local directory source and the Skill Cordis plugin",
+    "deps": [
+      "@deepseek-ai/cordis",
+      "@omne-harness/kernel-basis",
+      "@omne-harness/operation-result",
+      "@omne-harness/skill",
+      "@omne-harness/skill-contract",
+      "@omne-harness/skill-cordis-contract"
+    ],
+    "files": [
+      {
+        "file": "src/cordis.ts",
+        "decls": [
+          {
+            "name": "skillPlugin",
+            "kind": "const",
+            "fields": [],
+            "refs": []
+          }
+        ],
+        "imports": [
+          "@deepseek-ai/cordis",
+          "@omne-harness/kernel-basis/cordis",
+          "@omne-harness/operation-result",
+          "@omne-harness/skill",
+          "@omne-harness/skill-contract",
+          "@omne-harness/skill-contract/provider",
+          "@omne-harness/skill-cordis-contract/cordis",
+          "./directory-source.ts"
+        ],
+        "reexports": [],
+        "asCount": 0,
+        "anyCount": 0,
+        "longest": {
+          "name": "resolutionOf",
+          "lines": 14
+        },
+        "lines": 124
+      },
       {
         "file": "src/directory-source.ts",
         "decls": [
@@ -4498,8 +5596,8 @@
         "lines": 234
       }
     ],
-    "testFiles": 13,
-    "testCases": 57,
+    "testFiles": 15,
+    "testCases": 75,
     "draft": [],
     "entries": [
       {
@@ -4522,9 +5620,22 @@
             "kind": "union"
           }
         ]
+      },
+      {
+        "sub": "./cordis",
+        "names": [
+          {
+            "name": "skillPlugin",
+            "kind": "const"
+          }
+        ]
       }
     ],
     "modEdges": [
+      [
+        "src/cordis.ts",
+        "src/directory-source.ts"
+      ],
       [
         "src/directory-source.ts",
         "src/fs.ts"
@@ -4547,8 +5658,12 @@
       ]
     ],
     "pkgEdges": [
+      "@deepseek-ai/cordis",
+      "@omne-harness/kernel-basis",
       "@omne-harness/operation-result",
+      "@omne-harness/skill",
       "@omne-harness/skill-contract",
+      "@omne-harness/skill-cordis-contract",
       "node:fs",
       "node:path"
     ]

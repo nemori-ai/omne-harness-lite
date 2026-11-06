@@ -5,7 +5,7 @@
 - 卡与修订：#1119 r1，波段 W4
 - 工作树：/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable
 - 分支：PanQiWei/skill-mcp-w4-mcp-unusable
-- 基线：<F>
+- 基线：60acfc28b640a1535585df1ebccd22bdc87e4d7c
 - 清晰度：定
 
 基线是 W4 的冻结输入 F：父分支 `PanQiWei/skill-mcp` 在 W3 全部合入（`706152690`）与 reduce 共享写之后的头。共享写只加两个 Cordis 草稿成员与依赖，不碰本闭包的文件。
@@ -26,7 +26,7 @@ developer，implementation_kind product，Claude Opus 5.5（claude-opus-5-5）�
    - `PeerAnswer`（`outcomes.ts`）的 `no-answer` 变体加同一个可选字段（`SentCall.answer` 与 `TaskAnswer` 的 `finished` 经它带标记）。
    - 决策层的 `WireAnswer`（`decisions.ts`）中对应的 `not-sent` 与 `no-answer` 同样带这个字段。
    - 字段出现表示传输在交出这个答复时已经不再可用；不出现表示仍可用。这是可加改动（0.x，`UnusableCause` 的收窄没有外部消费者）。
-2. **标记只由决策层写。** `settle(wire, unusable)` 把 `unusable` 写进交出的 `wire`；`lineGoneAnswerOf(phase, cause)` 交出的答复带 `unusable: cause`；传输进入「不再可用」状态之后，对之后每个请求的答复带它记下的原因（T8「之后每个请求」）。两种传输（`mcp-host-local` 的 `session.ts` 一带）与脚本化传输（`testing-scripted-transport.ts`）只把决策层的答复原样交出，不自己判断。符合 T 段前言「实现……不归类」。`AnswerConclusion` 上现有的 `unusable` 保留，传输仍用它进入「不再可用」状态。本端调用 `close()` 之后的答复不带标记：关闭是本端的决定（同 `abandoned`），这条连接的结束由连接表负责。
+2. **标记只由决策层写。** `settle(wire, unusable)` 把 `unusable` 写进交出的 `wire`，所以让线路结束的那个请求本身的答复就带标记（例如 X02：stdio 写不进去，该请求答 `not-sent`（`connection-unavailable`）且 `unusable: 'stream-broken'`；S07：HTTP 对旧会话答 404，该请求答 `not-sent`（`session-ended`）且 `unusable: 'session-ended'`）；`lineGoneAnswerOf(phase, cause)` 交出的其他在途请求的答复带 `unusable: cause`；传输进入「不再可用」状态之后，对之后每个请求的答复带它记下的原因（T8「之后每个请求」）。（`endedCauseOf` 只返回 `process-exited` 或 `stream-broken`，已核。）两种传输（`mcp-host-local` 的 `session.ts` 一带）与脚本化传输（`testing-scripted-transport.ts`）只把决策层的答复原样交出，不自己判断。符合 T 段前言「实现……不归类」。`AnswerConclusion` 上现有的 `unusable` 保留，传输仍用它进入「不再可用」状态。本端调用 `close()` 之后的答复不带标记：关闭是本端的决定（同 `abandoned`），这条连接的结束由连接表负责。
 3. **全函数。** 在 `packages/mcp/mcp/src/internal/lost.ts` 用一个函数取代 `lostOfNotSent`、`lostOfNoAnswer`、`lostOfOutcome`。它对就绪连接上一个请求的答复给出后果，按序取第一条成立的：
    1. 答复带 `unusable: c`：`lost`，原因 `c`，清单标记 `connection-unavailable`。
    2. 答复是 `not-sent`（`authorization-required`）：`lost`，原因 `authorization-required`，清单标记 `authorization-required`。
@@ -52,25 +52,34 @@ developer，implementation_kind product，Claude Opus 5.5（claude-opus-5-5）�
 - `packages/mcp/mcp-contract/src/decisions.ts` — 第 1、2 条：`UnusableCause`、`WireAnswer`、`settle`、`lineGoneAnswerOf`、`streamGoneAnswerOf`
 - `packages/mcp/mcp-contract/src/testing-scripted-transport.ts` — 第 2 条：原样交出、不再可用之后的答复带标记
 - `packages/mcp/mcp-contract/src/index.ts` — 仅当导出名变化
+- `packages/mcp/mcp-contract/src/answer-readings.ts` — 仅限随 `UnusableCause` 收窄必需的改动
+- `packages/mcp/mcp-contract/src/composition.ts` — 同上
+- `packages/mcp/mcp-contract/src/discovery.ts` — 同上
+- `packages/mcp/mcp-contract/src/testing.ts` — 同上
 - `packages/mcp/mcp-contract/tests/` — 现有用例随形状更新；`toEqual` 精确形状的断言加上标记
 - `packages/mcp/mcp-contract/SPEC.md` — 第 7 条列出的条款
 - `packages/mcp/mcp-contract/docs/public-api.md` — `UnusableCause` 一行与答复类型的说明随第 1 条更新
 - `packages/mcp/mcp-host-local/src/` — 第 2、9 条：`session.ts` 及交出答复的文件
-- `packages/mcp/mcp-host-local/tests/`（含 `fixtures/`、`model/`） — 断言答复精确形状的用例更新（如 `stdio.spec.ts:153`、`session.spec.ts:1532`）
-- `packages/mcp/mcp-host-local/SPEC.md`、`packages/mcp/mcp-host-local/verification/` — 写到答复形状处
+- `packages/mcp/mcp-host-local/tests/` — 断言答复精确形状的用例更新，含 `fixtures/` 与 `model/`（如 `stdio.spec.ts:153`、`session.spec.ts:1532`）
+- `packages/mcp/mcp-host-local/SPEC.md` — 写到答复形状处
+- `packages/mcp/mcp-host-local/verification/` — 写到答复形状处
 - `packages/mcp/mcp/src/internal/lost.ts` — 第 3 条
-- `packages/mcp/mcp/src/calls.ts`、`packages/mcp/mcp/src/tasks.ts`、`packages/mcp/mcp/src/discovery.ts` — 第 4、5 条
+- `packages/mcp/mcp/src/calls.ts` — 第 4 条
+- `packages/mcp/mcp/src/tasks.ts` — 第 4 条
+- `packages/mcp/mcp/src/discovery.ts` — 第 4、5 条
 - `packages/mcp/mcp/tests/` — 第 3–5 条的用例；现有用例随行为更新（不含 `tests/model/`，归守护写者）
-- `packages/mcp/mcp/SPEC.md`、`packages/mcp/mcp/verification/README.md` — 第 8 条（`verification/README.md` 的「两种证据能变红」一节归守护写者，本闭包只改变异表里随行为变的行）
+- `packages/mcp/mcp/SPEC.md` — 第 8 条
+- `packages/mcp/mcp/verification/README.md` — 第 8 条；「两种证据能变红」一节归守护写者，本闭包只改变异表里随行为变的行
 
 ### 仓库之外的任务产物
 无。
 
 ### 排除的调用方
 - `packages/mcp/mcp/src/internal/build.ts`：建连路径，第 6 条。它有一个同名私有函数 `lostOfNoAnswer`，与 `lost.ts` 的导出无关，不改。
-- `packages/mcp/mcp-contract/src/testing-transport.ts`、`testing-transport-table.ts`：符合性套件与表，归守护写者。本闭包改形状后若它们编译失败，只做让它们编译通过的最小改动（字段透传），在交回逐处列出；条款本身不加。
+- `packages/mcp/mcp-contract/src/testing-transport.ts`、`testing-transport-table.ts`：符合性套件与表，归守护写者。注意同名：`testing-transport-table.ts` 第 63 行起的期望结论上已有 `unusable?: true`（第 117、446、453、460、467、502 行用到），那是表里「这一行让传输不再可用」的期望，不是本闭包加在答复上的新字段，不要改它；守护写者会拿它作「答复带标记」的判据。本闭包改形状后若它们编译失败，只做让它们编译通过的最小改动（字段透传），在交回逐处列出；条款本身不加。
 - `packages/mcp/mcp/tests/model/`、探索器：归守护写者。本闭包的行为改动若让现有性质或场景失败，停下（停止条件第 2 条）。
 - 其他组：`git grep -l "@omne-harness/mcp" -- '*/package.json'` 在 MCP 组外没有命中，不受影响。
+- 简报检查对 `never`、`as` 报的 `caller-outside-scope`（约 3.8 万条）是通用词的同名匹配，与本闭包要改的符号无关。`UnusableCause` 的调用方都已在写范围（`mcp-host-local` 的 `src/`、`tests/` 与上面列出的契约文件）。
 - `packages/mcp/docs/`、`docs/domains/mcp/`：组页与领域页由 reduce 在切片 03 写回。
 
 ## 验收清单
@@ -78,9 +87,13 @@ developer，implementation_kind product，Claude Opus 5.5（claude-opus-5-5）�
 2. `grep -nE 'export function (lostOfNotSent|lostOfNoAnswer|lostOfOutcome)' packages/mcp/mcp/src/internal/lost.ts` 无输出；`grep -nE 'lostOfNotSent|lostOfNoAnswer|lostOfOutcome' packages/mcp/mcp/src/calls.ts packages/mcp/mcp/src/tasks.ts packages/mcp/mcp/src/discovery.ts` 无输出。`git grep -n -E 'loseOn\(|loseInScope\(' -- packages/mcp/mcp/src ':!packages/mcp/mcp/src/internal/lost.ts'` 的每个调用点之前的判断来自第 3 条的函数（交回列出调用点清单）。
 3. `awk '/^### 与已定事项和契约的偏离/{f=1;print;next} f&&/^##/{exit} f' packages/mcp/mcp/SPEC.md` 的输出里表格没有数据行，或整节是「没有偏离」。`grep -c '比契约 S7 宽\|波末小卡 K7' packages/mcp/mcp/SPEC.md` 输出 `0`。
 4. `mcp` 的新用例（标题写出条号）：调用、任务、`refresh` 的页请求、`refresh` 的 `discover` 各有「带标记转 `lost`、不带不转」；全函数第 2 条一例；HTTP 的 5xx 与单个 POST 流断开各一例（经脚本化传输或 `mcp-host-local` 的用例，答复不带标记，连接不变）；`refresh` 上不带标记的 `not-sent` 答 `kept`（`page-failed`）与 `degraded`（第 5 条）。每条新用例在交回里写一处让它变红的源码改动（例如全函数第 1 条改成忽略标记），在副本上做，不提交。
-5. `mcp-host-local`：一条用例断言 stdio 进程退出之后，在途请求与之后的请求的答复都带 `unusable: 'process-exited'`；一条断言 HTTP 上单个 POST 失败（5xx）的答复不带标记，下一个请求照常发出。
+5. `mcp-host-local` 的用例，各一条：
+   - stdio 进程退出之后，在途请求与之后的请求的答复都带 `unusable: 'process-exited'`（S02、S04）。
+   - stdio 写不进去时，失败的那个请求本身答 `not-sent`（`connection-unavailable`）且带 `unusable: 'stream-broken'`，之后的请求同样带（X02）。
+   - HTTP 对旧会话答 404 时，该请求答 `not-sent`（`session-ended`）且带 `unusable: 'session-ended'`，同一会话上的下一个请求同样带（S07）。
+   - HTTP 上单个 POST 失败（5xx）的答复不带标记，下一个请求照常发出。
 6. `pnpm run typecheck`、`lint:rules`、`lint:oxlint`、`lint:deps`、`format:check`、`check:docs` 退出 0；输出尾部与日志哈希。
-7. `git diff --name-only <F>..HEAD` 只含写范围内的文件。
+7. `git diff --name-only 60acfc28b640a1535585df1ebccd22bdc87e4d7c..HEAD` 只含写范围内的文件。
 
 ## 实施规格
 - 先改类型（第 1 条），让编译器列出每个要处理的地方，再按第 2–5 条改。不加 `as` 断言绕过类型。
@@ -135,3 +148,11 @@ developer，implementation_kind product，Claude Opus 5.5（claude-opus-5-5）�
 - 基线上的用例在本工作树失败。
 
 ## 追加记录
+
+- 2026-11-06 12:50 追加 1（写者 12:48 按停止条件第 1 条停下，已提交 `71a0fe978`：契约类型、决策层、脚本化传输；契约快层 17 条红，日志 `tmp/closures/w4-mcp-unusable/logs/contract-fast-2.log`）。卡拥有者裁定：
+  1. **符合性套件选 (a)。** 本闭包可以改 `packages/mcp/mcp-contract/src/testing-transport.ts` 里比较完整形状的三处（`assertFailure` 约第 815 行、`checkCall` 约第 1132 行、`afterwards` 约第 950 行），让期望值带上标记。规则：表里 `conclusion.unusable === true` 的行，期望答复带 `unusable`，原因按行推出：`no-answer` 取它的 `cause`；`not-sent`（`session-ended`）取 `session-ended`；`not-sent`（`connection-unavailable`，X02）取 `stream-broken`；不再可用之后的请求带传输记下的原因。其余行期望答复不带 `unusable` 字段（字段不存在，不是 `undefined`）。把这条推导写成套件里的一个小函数，不在三处各写一遍。`testing-transport-table.ts` 不改。漏标、错标两个违约实现与「条款 × 违约」用例仍归守护写者。「the suite fails a transport that breaks the contract」两条用例的期望随之更新（契约 `tests/` 在写范围内）。
+  2. **验收第 4 条的 `refresh` 的 `discover`。** 本实现只在建连中调用 `discover`（`internal/build.ts:308`），就绪连接由 `ensure` 复用，不重新 `discover`，这条路径不存在。改为一条用例：建连中 `discover` 答带标记与不带标记的失败，建连都失败（第 6 条）。契约 S5 仍按第 5、7 条写，约束每个实现方。交回把这一项写明。
+  3. 认可写者的解读：`answer-readings.ts` 透传标记是第 1 条的必经之路，在写范围内；`UnusableCause` 定义移到 `outcomes.ts`、由 `decisions.ts` 再导出；关闭与不再可用同时成立时关闭优先、不带标记；新导出 `notSentFailureOf`、`unusableAnswerOf`。
+  4. MC-16 第 9 步的跳过分支删去（写者已核实两种停止答复都不带标记）。
+  5. `session.ts` 中被 `tests/model/mutants.ts` 按原文定位的行逐字节不变，按写者的方案只改 `settle`、`once` 的返回、`call` 的两处 `NOT_SENT_FAILURE` 与 `enterSse`。
+  6. 恢复后先跑 `packages/mcp/mcp/tests/model/`。`tests/model/ports.ts` 等替身按新形状做最小改动（让线路已结束的答复带标记），算在本闭包写范围内；不加新性质（归守护写者）。现有性质的含义若与全函数矛盾（不是形状问题），停下报告。

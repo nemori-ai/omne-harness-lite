@@ -1,3 +1,16 @@
+<h3>W4 合入：传输不再可用的标记、Cordis 插件与夹具的完成信号（2026-11-06，父分支 41d7b6529）</h3>
+<p><strong>交付了什么。</strong>契约的答复带上「传输不再可用」标记，转 <code>lost</code> 只由 <code>lostOf</code> 一处判断、<code>loseIfLost</code> 一处组合，偏离表删空（PR #1159）。新成员 <code>mcp-cordis-contract</code> 给出七个抽象 Service 与键；<code>mcp-host-local</code> 的 <code>./cordis</code> 交出 <code>createMcpPlugin</code>：每次调用从键现取四个端口，缺席答该端口的 <code>unknown</code>，撤除经 <code>closeAll</code> 收口（PR #1158）。测试夹具改为单一写入方：对端回报读过的字节数，夹具等它追上父进程这一端写出的字节数（#1156）。</p>
+<p><strong>读数（终头度量 <code>7e2e9e2df</code>）。</strong>变更函数 109 个，超 alert 2、超 warn 4。<code>unusableAnswerOf</code> CC 12、覆盖 67%：没覆盖的只有两个 <code>default: never</code> 分支，圈复杂度来自对封闭联合的穷尽 <code>switch</code>。<code>checkOperation</code> CC 13 在符合性套件里。覆盖 <code>mcp</code> 98%、<code>mcp-contract</code> 97%、<code>mcp-cordis-contract</code> 100%、<code>mcp-host-local</code> 98%。严格的回路状态四条硬线都过。</p>
+<p><strong>优雅之处。</strong>标记是传输状态的投影（<code>dead ??= cause</code>），<code>close()</code> 是本方决定，之后的答复不带标记：一个事实、一个写入点、一个读取点。插件不缓存端口，换代与缺席都落在同一条读法上。</p>
+<p><strong>异味与代价。</strong>W4-1 先走了两轮修补，评审仍有同类阻断，第三轮按六条轴做结构分析才收口（<code>mcp-unusable-r1-analysis.md</code>）。夹具的完成信号也走了三轮：同步行让夹具成了对端 stdin 的第二个写入方，背压下会越过调用方排队的行，还会让 <code>Writable.toWeb</code> 静默丢块，最后改成单一写入方。</p>
+<p><strong>偏离与处置。</strong>新记一条已知限制：建连在途时 <code>closeEntry</code> 先等建连结束再 <code>close()</code>，没有按 MC-10 先拒新请求。两条已核路径上没有请求发出，但这依赖 <code>await</code> 的先后。收口做法写在 SPEC 里，列为后续候选。<code>wide</code> 场景在覆盖插桩加并行负载下会超过 600 秒时限，状态数从 F 起没变，属于原有的验证成本。</p>
+
+<h3>W3 合入：调用口、两种真实传输与端到端（2026-11-06，父分支 706152690）</h3>
+<p><strong>交付了什么。</strong><code>mcp</code> 加了调用口 <code>ActionInvoker</code> 与任务的四个操作（PR #1141）。新成员 <code>mcp-host-local</code> 实现 stdio 与 Streamable HTTP 两种传输，含旧 HTTP+SSE 的回退与授权发现（PR #1138）。<code>tests/e2e/</code> 在本机真实服务端上走「协商 → 刷新 → 调用 → 取消」（PR #1149）。</p>
+<p><strong>优雅之处。</strong>传输契约套件 <code>mcpTransportConformance</code> 由契约成员导出，两种真实线路跑同一份套件，替身与真实实现受同一组条款约束。<code>mcp-host-local</code> 的产品源码不导入官方 SDK：协议层按块决定复用与否，凡复用会违反「结局如实分类、进程归落点、不代调用方重发」三条硬承诺的块就自写，SDK 只作测试对端与对照。</p>
+<p><strong>异味与代价。</strong>调用口走了四轮关口。第四轮仍有一条阻断：边界上的访问器字段被读了两次，修法是每个字段只读一次并补两条缺口用例。端到端旅程有一个「进度通知早于 <code>recordSent</code>」的竞争，用只对已发分支的变异核过三条 S6 都会变红。测试夹具用 12 ms 静默窗口判断对端已记完，负载下偶发漏记，另立小卡 #1156。</p>
+<p><strong>偏离与处置。</strong>契约偏离表里「S7 比契约宽」等项移到 W4-1 处置。GM-P3（关停落在 <code>discover</code> 途中时 <code>ensure</code> 仍答 ok）按卡拥有者的选择保持现行行为，请负责人复核。</p>
+
 <h3>W2 合入：mcp 核心（2026-11-03，父分支 ff17f7701）</h3>
 <p><strong>读数。</strong>16 源文件 2014 行、254 例。无 <code>as</code>（一处 <code>as const</code>）、无 <code>any</code>、类只有两个聚合。变更函数超 alert 5：<code>discovery.publish</code> CC 17（发布边界四项核对 + 三种 kept）、<code>table.begin</code> CC 13（临界区）、<code>prepareSettings</code> CC 15、<code>afterMarking</code>、<code>lostOfNoAnswer</code>（覆盖 33%）。Stryker 1420 个变异体：被杀 1104、存活 172（<code>table.ts</code> 89）、超时 63、2 个静态变异致「测量无效」。</p>
 <p><strong>三轮评审改掉了什么。</strong>这是本波最难的一块，也是评审最值钱的一块。第 1 轮 L3 逐行用 9 个探针实跑出 5 个并发缺陷：发布边界的核对与写入之间隔着一个 await（迟到的旧代际清单被发布）、旧代际迟到的页把重建后的新连接打成 lost、取页不受时限、close 与 ensure 竞争遗弃活连接、时限不覆盖取凭据与进程启动；设计面又抓到 S1 写了四份、规格点名的 <code>admit</code> 不在生产路径。第 2 轮修完后复审重放探针，原问题全闭合，但同一类问题（条目归属与拆除次序）又出两个：<code>lose</code> 的拆除不在关闭单飞里、迟到进程的 stop 范围被丢。第 3 轮换写者，把拆除收成一份、迟到资源全部收口、加了每持有临界区，复审重放 27 个探针无阻断。</p>

@@ -9,7 +9,7 @@
 | 仓库、里程碑、reduce | `nemori-ai/omne-harness-lite`；M2「端到端多轮闭合」完结为边界；reduce 与两条线的负责人是本会话 |
 | 卡 | #1119 交付修订 1；W1–W3 报告在卡的评论 |
 | 当前波 | W4，两条线都 active |
-| 父分支与冻结输入 | `PanQiWei/skill-mcp`。F = W3-E 完成、开波同步与 reduce 共享写（§3.3）之后的父分支头，开波时写进本格。开波同步：2026-11-06 11:17 UTC `integration/mainline` 相对 `706152690` 没有新提交，同步为空 |
+| 父分支与冻结输入 | `PanQiWei/skill-mcp`。F = `60acfc28b640a1535585df1ebccd22bdc87e4d7c`（2026-11-06，W3-E 完成、开波同步与 reduce 共享写（§3.3）之后的父分支头，已推送）。开波同步：2026-11-06 11:17 UTC `integration/mainline` 相对 `706152690` 没有新提交，同步为空 |
 | 开波同步 | 开波时把 `origin/integration/mainline` 普通合并进父分支（范式 §3 最后一行） |
 | 上下文 | [W4 上下文包](context-pack.md)（只读调研，先例与待定项）；[W4 方案](plan.md)（评估、交付边界、判据改写、停放清单） |
 
@@ -44,7 +44,7 @@ C5 原文见方案 §3「C5（改写）」。
 | `w4-skill-cordis` | 新成员 `packages/skills/skill-cordis-contract/`；`packages/skills/skill-host-local/` 的 `./cordis` 入口、插件、用例与文档 | 无 |
 | `w4-mcp-cordis` | 新成员 `packages/mcp/mcp-cordis-contract/`；`packages/mcp/mcp-host-local/` 的 `./cordis` 入口、插件、用例与文档 | `w4-mcp-unusable` 合入之后开（两者都写 `mcp-host-local`） |
 
-reduce 共享写（派发任何闭包之前一次做完，作为一个提交进父分支；F 是这个提交之后的父分支头）：用 `pnpm package:template create` 生成两个新成员并记下 `scan` 读数；两个新成员的依赖段各加自己的契约成员（`mcp-cordis-contract` → `@omne-harness/mcp-contract`，`skill-cordis-contract` → `@omne-harness/skill-contract`；用例要用契约 `./testing` 时同时进 devDependencies）；`skill-host-local`、`mcp-host-local` 的 `package.json` 依赖段（加 `@deepseek-ai/cordis`、对应的 `*-cordis-contract`；`skill-host-local` 把 `skill` 从 devDependencies 移到 dependencies；`mcp-host-local` 把 `mcp` 从 devDependencies 移到 dependencies）与 `exports` 的 `./cordis`；`pnpm install` 一次更新锁文件。草稿中间态的 `scan` 与 preflight 读数失败归 reduce 处置。组页与领域页（W4-4）。写者只填成员内容，不改锁文件与依赖段。
+reduce 共享写（派发任何闭包之前一次做完，作为一个提交进父分支；F 是这个提交之后的父分支头）：用 `pnpm package:template create` 生成两个新成员并记下 `scan` 读数；两个新成员的依赖段各加自己的契约成员（`mcp-cordis-contract` → `@omne-harness/mcp-contract`，`skill-cordis-contract` → `@omne-harness/skill-contract`；用例要用契约 `./testing` 时同时进 devDependencies）；`skill-host-local`、`mcp-host-local` 的 `package.json` 依赖段（加 `@deepseek-ai/cordis`、对应的 `*-cordis-contract`；`skill-host-local` 把 `skill` 从 devDependencies 移到 dependencies；`mcp-host-local` 把 `mcp` 从 devDependencies 移到 dependencies）；`pnpm install` 一次更新锁文件。草稿中间态的 `scan` 与 preflight 读数失败归 reduce 处置。两个 host-local 的 `exports` 加 `./cordis` 一项由写者在写 `src/cordis.ts` 的同一提交里做（2026-11-06 改：共享写里先加会让父分支带一个指向不存在文件的导出；`exports` 不影响锁文件）。组页与领域页（W4-4）。写者只填成员内容，不改锁文件与依赖段。
 
 ### 3.4 停止条件
 

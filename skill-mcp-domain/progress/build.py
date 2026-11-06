@@ -49,7 +49,9 @@ def link(item):
 def build(data):
     check(data)
     pending = [d for d in data.get("decisions", []) if d.get("status") != "answered"]
-    current = next((w for w in data["waves"] if w["state"] in {"准备中", "进行中", "波末核对"}), data["waves"][0])
+    active = [w for w in data["waves"] if w["state"] in {"准备中", "进行中", "波末核对"}]
+    released = [w for w in data["waves"] if w["state"] == "已放行"]
+    current = (active or released[-1:] or data["waves"])[0]
     closures = current.get("closures", [])
     merged = sum(1 for c in closures if c["state"] == "已合入")
     met = sum(1 for k in current.get("criteria", []) if k["state"] == "met")

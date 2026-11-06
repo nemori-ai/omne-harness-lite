@@ -95,7 +95,7 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
 | --- | --- | --- | --- |
 | 正常 | 插件装载后按三个键取到服务，在目录来源上走「描述 → 读」 | 插件；`skill` | 装配用例 |
 | 失败 | 提供者与目录来源的失败原样交回，`skill` 按现行规则答复。错误不变成成功 | `skill`；`skill-host-local` 的目录来源 | 现有 `skill` 与 `skill-host-local` 的用例不改 |
-| 未知：端口键缺席 | 适配器答 `Reply` 的 `unknown`。依赖它的操作答 `unknown`，不放行，不交内容。`PackageInspection` 不依赖这两个端口，照常可用 | 插件的适配器；`skill` | 装配用例：两个键逐个缺席，依赖它的操作答 `unknown`，`PackageInspection` 照常取得 |
+| 未知：端口键缺席 | 适配器按端口方法的返回类型答 `unknown`（`check`、`resolve` 答 `{ kind: 'unknown' }`，`adopted` 答 `fail('unknown')`；2026-11-06 13:33 更正，原写「`Reply` 的 `unknown`」）。实际调用了缺席端口的那一步得到 `unknown`，操作按 `skill` SPEC 的规则答复（例如空的能力集合直接答空列表，不调端口），不放行，不交受该端口保护的内容。`PackageInspection` 不依赖这两个端口，照常可用 | 插件的适配器；`skill` | 装配用例：两个键逐个缺席，依赖它的操作答 `unknown`，`PackageInspection` 照常取得 |
 | 未知：W4-1 标记缺失或错标 | 不适用：W4-1 只改 MCP 的传输答复，Skill 没有传输 | — | — |
 | 取消与清理：插件撤除 | 插件不登记撤除函数，没有资源要收口。撤除之后三个键取不到 | Cordis 的 fiber 撤除 | 装配用例：`dispose()` 之后三个键为 `undefined` |
 | 取消与清理：`closeAll` 以 `AggregateError` 拒绝 | 不适用：Skill 的服务没有 `closeAll`、`close` 或 `dispose`（[上下文包](../context-pack.md) §5.1） | — | — |

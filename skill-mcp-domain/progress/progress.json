@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-11-04T05:55:00Z",
-  "head": "05f281394",
+  "updatedAt": "2026-11-06T21:36:01Z",
+  "head": "41d7b6529",
   "links": [
     {
       "text": "波段计划",
@@ -20,6 +20,21 @@
       "question": "W2 收波；W3 是否开工",
       "status": "answered",
       "answer": "负责人 2026-11-04：建卡 #1119 并自主推进 W3"
+    },
+    {
+      "question": "W3 收波；W4 是否开工",
+      "status": "answered",
+      "answer": "负责人 2026-11-06：W3 合入父分支后自主推进 W4"
+    },
+    {
+      "question": "D-01：两组组页、领域页与八个成员 SPEC 的技术接受",
+      "status": "open",
+      "context": "请在卡评论里接受或指出不接受的项；固定版本 41d7b6529。https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6696179052"
+    },
+    {
+      "question": "D-02：#1119 revision 1 的整卡接受",
+      "status": "open",
+      "context": "以 D-01 的结论为前提；C1–C6 证据入口见请求。https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6696183666"
     }
   ],
   "waves": [
@@ -653,62 +668,288 @@
     {
       "id": "W3",
       "title": "调用、传输与目录",
-      "state": "进行中",
+      "state": "已放行",
+      "criteria": [
+        {
+          "id": "C4",
+          "text": "调用口与任务操作在两种真实传输上端到端走通",
+          "state": "met",
+          "evidence": [
+            {
+              "text": "端到端、兼容对照与写回",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6683488904"
+            }
+          ]
+        },
+        {
+          "id": "C6-W3",
+          "text": "父分支头准入与回路硬线（准入 17 步过 16 步，11 处失败是基线既有的、不在两组成员，隔离复跑都通过）",
+          "state": "met",
+          "evidence": [
+            {
+              "text": "W3 波末",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6684636018"
+            }
+          ]
+        }
+      ],
       "closures": [
         {
           "id": "w3-skill-catalog",
           "line": "Skill",
-          "state": "进行中",
+          "state": "已合入",
           "round": 1,
-          "note": "A 段：SkillCatalog、契约回写（导出、统一处置、entry-unreadable 条款、search 规则）、真实目录示例。fable@high",
-          "links": []
+          "note": "SkillCatalog（summaries、search），端口答复的边界解析，真实目录示例",
+          "links": [
+            {
+              "text": "PR #1122",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1122"
+            }
+          ]
+        },
+        {
+          "id": "w3-skill-fix",
+          "line": "Skill",
+          "state": "已合入",
+          "round": 3,
+          "note": "生态兼容放宽、引用身份一致、带依据时的内容摘要",
+          "links": [
+            {
+              "text": "PR #1135",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1135"
+            }
+          ]
         },
         {
           "id": "w3-mcp-contract",
           "line": "MCP",
-          "state": "进行中",
+          "state": "已合入",
           "round": 1,
-          "note": "A 段：契约可加回写（2026-07-28 修订与 W2 带回）、传输符合性套件、脚本化传输。fable@high",
-          "links": []
+          "note": "契约 T8 决策表、线上归类与服务条款衔接",
+          "links": [
+            {
+              "text": "PR #1132",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1132"
+            }
+          ]
         },
         {
           "id": "w3-mcp-table",
           "line": "MCP",
-          "state": "进行中",
+          "state": "已丢弃",
           "round": 1,
-          "note": "A 段：连接表收口（遗忘谓词、拆除每步执行、临界区时限、关停例外、模块拆分）。fable@xhigh",
+          "note": "第 1 轮评审后改为按结构化并发重做（w3-mcp-lifecycle），本分支不合回",
           "links": []
+        },
+        {
+          "id": "w3-mcp-lifecycle",
+          "line": "MCP",
+          "state": "已合入",
+          "round": 2,
+          "note": "连接表结构化并发：端口适配器 ask、任务作用域、时限 within",
+          "links": [
+            {
+              "text": "PR #1134",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1134"
+            }
+          ]
         },
         {
           "id": "w3-mcp-call",
           "line": "MCP",
-          "state": "待派",
-          "round": 0,
-          "note": "B 段（等 A 段合入）：ActionInvoker、任务表、createMcp",
-          "links": []
+          "state": "已合入",
+          "round": 4,
+          "note": "调用口与任务操作，createMcp 交出五个服务；探索器与 TLA+ P9–P14",
+          "links": [
+            {
+              "text": "PR #1141",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1141"
+            }
+          ]
         },
         {
           "id": "w3-mcp-host",
           "line": "MCP",
-          "state": "待派",
-          "round": 0,
-          "note": "B 段（等 A 段合入）：stdio 与 Streamable HTTP 本地传输、真实 SDK 服务端夹具",
-          "links": []
+          "state": "已合入",
+          "round": 4,
+          "note": "stdio 与 Streamable HTTP 本地传输（含旧 HTTP+SSE 回退）、授权发现；会话探索器与 TLA+ V1–V6",
+          "links": [
+            {
+              "text": "PR #1138",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1138"
+            }
+          ]
         },
         {
           "id": "w3-mcp-e2e",
           "line": "MCP",
-          "state": "待派",
-          "round": 0,
-          "note": "C 段：两种传输上的端到端旅程",
-          "links": []
+          "state": "已合入",
+          "round": 2,
+          "note": "本机真实服务端上的端到端旅程与兼容对照",
+          "links": [
+            {
+              "text": "PR #1149",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1149"
+            }
+          ]
+        },
+        {
+          "id": "w3-docs-skill",
+          "line": "Skill",
+          "state": "已合入",
+          "round": 2,
+          "note": "组页与领域页写回",
+          "links": [
+            {
+              "text": "PR #1151",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1151"
+            }
+          ]
+        },
+        {
+          "id": "w3-docs-mcp",
+          "line": "MCP",
+          "state": "已合入",
+          "round": 2,
+          "note": "组页、领域页与成员 README 写回",
+          "links": [
+            {
+              "text": "PR #1152",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1152"
+            }
+          ]
         }
       ]
     },
     {
       "id": "W4",
-      "title": "Cordis 服务键与加固",
-      "state": "预案"
+      "title": "契约偏离对齐与 Cordis 服务键",
+      "state": "已放行",
+      "criteria": [
+        {
+          "id": "W4-1",
+          "text": "传输答复带不再可用标记，连接按标记转 lost，偏离表删空",
+          "state": "met",
+          "evidence": [
+            {
+              "text": "MCP 01 关口结果",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6692490293"
+            }
+          ]
+        },
+        {
+          "id": "C5",
+          "text": "两组 Cordis 定义成员与插件，组页写回无阻断",
+          "state": "met",
+          "evidence": [
+            {
+              "text": "W4 波末",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6696174914"
+            }
+          ]
+        },
+        {
+          "id": "C6-W4",
+          "text": "父分支头准入与回路硬线",
+          "state": "met",
+          "evidence": [
+            {
+              "text": "W4 波末",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6696174914"
+            }
+          ]
+        },
+        {
+          "id": "D-01",
+          "text": "负责人对组页与成员 SPEC 做技术接受",
+          "state": "open"
+        },
+        {
+          "id": "D-02",
+          "text": "负责人整卡接受",
+          "state": "open"
+        }
+      ],
+      "closures": [
+        {
+          "id": "w4-skill-cordis",
+          "line": "Skill",
+          "state": "已合入",
+          "round": 1,
+          "note": "skill-cordis-contract 五个抽象 Service 与键；skill-host-local 的 ./cordis 插件",
+          "links": [
+            {
+              "text": "PR #1157",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1157"
+            }
+          ]
+        },
+        {
+          "id": "w4-mcp-unusable",
+          "line": "MCP",
+          "state": "已合入",
+          "round": 2,
+          "note": "传输答复的不再可用标记，lostOf 唯一判断；第 2 轮按六条轴结构修复",
+          "links": [
+            {
+              "text": "PR #1159",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1159"
+            }
+          ]
+        },
+        {
+          "id": "w4-mcp-cordis",
+          "line": "MCP",
+          "state": "已合入",
+          "round": 2,
+          "note": "mcp-cordis-contract 七个抽象 Service 与键；mcp-host-local 的 createMcpPlugin，撤除经 closeAll",
+          "links": [
+            {
+              "text": "PR #1158",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/pull/1158"
+            }
+          ]
+        },
+        {
+          "id": "w4-writeback",
+          "line": "两线",
+          "state": "已合入",
+          "round": 2,
+          "note": "两组组页与领域页写回；MCP review-docs 阻断 3 条处置后窄复核闭合；波末文档对齐 41d7b6529",
+          "links": [
+            {
+              "text": "W4 波末",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6696174914"
+            }
+          ]
+        },
+        {
+          "id": "card-1155",
+          "line": "MCP",
+          "state": "已合入",
+          "round": 1,
+          "note": "SDK 版本行更正标注",
+          "links": [
+            {
+              "text": "#1155",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/1155"
+            }
+          ]
+        },
+        {
+          "id": "card-1156",
+          "line": "MCP",
+          "state": "已合入",
+          "round": 3,
+          "note": "夹具改为单一写入方，对端回报读过的字节数；负载对照 20/20",
+          "links": [
+            {
+              "text": "#1156",
+              "url": "https://github.com/nemori-ai/omne-harness-lite/issues/1156"
+            }
+          ]
+        }
+      ]
     }
   ],
   "log": [
@@ -883,6 +1124,54 @@
     {
       "at": "2026-11-04T05:55:00Z",
       "text": "W3 A 段三个闭包并行派发：w3-skill-catalog、w3-mcp-contract、w3-mcp-table"
+    },
+    {
+      "at": "2026-11-04T11:00:55Z",
+      "text": "w3-skill-catalog 合入 PR #1122 → e0b68a7c3"
+    },
+    {
+      "at": "2026-11-05T08:14:30Z",
+      "text": "w3-mcp-contract 合入 PR #1132 → 92a8e3cdf"
+    },
+    {
+      "at": "2026-11-05T11:05:12Z",
+      "text": "w3-skill-fix 合入 PR #1135 → 8b0317ef3"
+    },
+    {
+      "at": "2026-11-05T12:13:05Z",
+      "text": "w3-mcp-lifecycle 合入 PR #1134 → b2ba7dc89（取代 w3-mcp-table）"
+    },
+    {
+      "at": "2026-11-06T09:29:52Z",
+      "text": "w3-mcp-host 合入 PR #1138、w3-mcp-call 合入 PR #1141"
+    },
+    {
+      "at": "2026-11-06T11:08:40Z",
+      "text": "w3-mcp-e2e 合入 PR #1149，两份写回合入 PR #1151、#1152 → 706152690"
+    },
+    {
+      "at": "2026-11-06T12:18:10Z",
+      "text": "W3 波末报告；W3 收波，W4 开波"
+    },
+    {
+      "at": "2026-11-06T13:59:23Z",
+      "text": "w4-skill-cordis 合入 PR #1157 → 4a8e8bbf0"
+    },
+    {
+      "at": "2026-11-06T18:40:58Z",
+      "text": "w4-mcp-unusable 合入 PR #1159 → b7005bdc2"
+    },
+    {
+      "at": "2026-11-06T18:47:26Z",
+      "text": "w4-mcp-cordis 合入 PR #1158 → 8078ad6ec"
+    },
+    {
+      "at": "2026-11-06T20:21:29Z",
+      "text": "#1156 夹具改为单一写入方，三轮评审后关卡"
+    },
+    {
+      "at": "2026-11-06T21:32:05Z",
+      "text": "W4 波末报告，D-01、D-02 接受请求；W4 收波，父分支头 41d7b6529"
     }
   ]
 }

@@ -1,33 +1,94 @@
-<h3>W1 之后源码里有什么（父分支 c247b873a；W2 增量见文末）</h3>
-<p>MCP 组三个成员，只有 <code>@omne-harness/mcp-contract</code> 有实现：29 个源文件、约 3700 个非空行、12 个测试文件 298 例（其中两张用例表 <code>classifyOutcomeCases</code>、<code>mergeListingCases</code> 由 <code>./testing</code> 导出，成员自己的测试与未来实现方共用）。比 Skill 大一半，因为它一边要对协议线（2026-07-28 修订）做分类，一边要给五个端口写符合性套件。三个入口：</p>
+<h3>成员分工与入口</h3>
+<p>MCP 组有四个成员。<code>mcp</code> 不导入 Cordis，也不导入任何传输。真实传输与 Cordis 插件都在 <code>mcp-host-local</code>。下文「清单」指一次取得的工具列表，「动作目录」指存储里的整份记录 <code>ActionCatalogRecord</code>。</p>
 <ul>
-<li><strong>公开根 <code>.</code>（给调用方）</strong>：<code>index.ts</code> 从 13 个模块重导出，没有自己的函数。值与品牌在 <code>brands.ts</code>、<code>values.ts</code>；接入点正文在 <code>endpoint.ts</code>（<code>parseEndpointBody</code>、<code>launchesLocalCommand</code>、<code>mcpEndpointBodyContract</code>）；清单在 <code>listing.ts</code>（<code>completeListing</code>、<code>digestDefinition</code>）与 <code>catalog.ts</code>（<code>mergeListing</code>、<code>markUnavailable</code>、<code>actionPermissionItems</code>）；结局在 <code>classify.ts</code>（<code>classifyOutcome</code>）与 <code>content.ts</code>（<code>toContentBlocks</code>）；键在 <code>keys.ts</code>；六个应用服务接口在 <code>services.ts</code>。</li>
-<li><strong><code>./provider</code>（给端口与传输实现方）</strong>：<code>provider.ts</code> 只有类型——五个端口（<code>AdoptionView</code>、<code>UseEligibility</code>、<code>CredentialUse</code>、<code>ProcessLanding</code>、<code>CatalogStore</code>）、两类凭据句柄（Http/Process）与 <code>McpTransport</code>/<code>McpTransportFactory</code>。没有运行时导出：与 Skill 不同，MCP 的唯一构造器 <code>completeListing</code> 留在公开根，因为它的调用方是本组的应用服务而不是外部实现方。</li>
-<li><strong><code>./testing</code>（给实现方自测）</strong>：五个套件 <code>mcp&lt;Port&gt;Conformance()</code> 配五个内存替身 <code>createMemory&lt;Port&gt;()</code>，加 <code>runConformanceCase</code>/<code>NotApplicable</code>。替身自己也要过套件，这是 <code>conformance.spec.ts</code> 做的事。</li>
+<li><strong><code>mcp-contract</code>：契约，以及每条规则的唯一实现。</strong>公开根 <code>.</code> 有值、纯函数、失败类型、服务接口与传输决策层。<code>./provider</code> 只有端口类型。<code>./testing</code> 有端口与传输的符合性套件、内存替身和脚本化传输，产品代码不导入它。</li>
+<li><strong><code>mcp</code>：服务实现。</strong><code>createMcp(ports, config)</code> 用 <code>validateConfig</code> 核配置，再由 <code>internal/assembly.ts</code> 的 <code>assemble</code> 建一张连接表、一个在途表与一个任务表。服务共用这三张表，不各建一份。</li>
+<li><strong><code>mcp-host-local</code>：本地宿主。</strong>根入口的 <code>createLocalTransportFactory</code> 实现传输端口。线路（<code>Line</code>，实现是 <code>StdioLine</code> 与 <code>HttpLine</code>）只搬字节，不做分类。会话 <code>Session</code> 是一个 <code>McpTransport</code>，它用契约的函数组请求、分类、下结论。<code>./cordis</code> 入口导出插件工厂 <code>createMcpPlugin</code>。</li>
+<li><strong><code>mcp-cordis-contract</code>：Cordis 服务定义。</strong>根入口是 <code>export {}</code>。<code>./cordis</code> 有三个服务与四个需求端口的抽象 Service。每个类只在静态字段 <code>provide</code> 写一次键，键常量取自它。</li>
 </ul>
 
-<h3>依赖方向</h3>
-<p>根是 <code>brands.ts</code>（零导入，15 个 <code>isX</code> 守卫），<code>values.ts</code> 在它之上——与 Skill 相反，因为 MCP 的值类型大多就是品牌本身。<code>json.ts</code>（在 json-text 的 JSON 树上找成员、取文本、算规范字节）与 <code>order.ts</code>（码元比较）是两个无依赖的小工具层。往上：<code>endpoint</code>、<code>listing</code>、<code>classify</code>、<code>content</code> 各自只依赖值与工具；<code>ports</code> 依赖 <code>catalog</code> 与 <code>outcomes</code>；<code>services</code> 与 <code>transport</code> 在最顶上。<code>listing.ts</code> 与 <code>catalog.ts</code> 之间有一条类型环：<code>listing</code> 以 <code>import type</code> 取 <code>catalog</code> 的三个类型，<code>catalog</code> 运行时调用 <code>listing</code> 的 <code>assertComplete</code>。dependency-cruiser 不报，但它说明「清单」与「目录」的切分线还没切干净（见评述）。</p>
+<h3>模块分工</h3>
+<ul>
+<li><strong>契约的领域函数。</strong><code>parseEndpointBody</code> 解析接入点正文。<code>completeListing</code> 把各页收成完整清单。<code>mergeListing</code> 与 <code>markUnavailable</code> 是动作目录仅有的两种转移。<code>classifyOutcome</code> 把对端答复收成结局。<code>keys.ts</code> 推导对端账号与两种键。</li>
+<li><strong>契约的传输决策层。</strong>每种传输都用这一份规则。<code>wire.ts</code> 的 <code>classifyWireEvent</code> 把线路事件归入 T8 的应答类。<code>decisions.ts</code> 的 <code>concludeAnswer</code> 得出结论，结论里的 <code>WireAnswer</code> 是传输结算请求的词表。</li>
+<li><strong>实现的服务。</strong><code>discovery.ts</code>、<code>calls.ts</code>、<code>tasks.ts</code>、<code>status.ts</code>、<code>connections.ts</code>、<code>inspection.ts</code>。<code>invoker.ts</code> 把调用与任务操作合成 <code>ActionInvoker</code>。</li>
+<li><strong>实现的关口。</strong><code>internal/gate.ts</code> 是采用与资格的唯一判定，先问采用，再问资格。<code>internal/guard.ts</code> 在它上面加两件事：接入点被撤采用或被挡下时关闭连接，以及发布边界的复核。</li>
+<li><strong>实现的连接表。</strong><code>internal/table.ts</code> 只做编排。建连在 <code>build.ts</code>，拆除在 <code>teardown.ts</code>，失联判定在 <code>lost.ts</code>。三个类都不做 IO：<code>Connection</code>（状态机与代际），<code>InFlightCalls</code>（在途调用），<code>TaskTable</code>（本次运行的任务）。</li>
+</ul>
 
-<h3>三条真实的调用路径</h3>
-<ol>
-<li><strong>读接入点正文。</strong><code>parseEndpointBody(body, capabilityName?)</code> 在 json-text 的树上按 SPEC E2 的次序拒绝：结构缺陷 → 名字不符 → 传输未知 → 认证方式未知 → 组合不合法 → 启动声明多了或少了。最后一格交给 <code>transportOf(transport, launch)</code>。<code>isConnectionTarget</code> 用 WHATWG <code>URL</code> 解析：只认小写 <code>https</code>，或回环主机上的小写 <code>http</code>（<code>LOOPBACK_HOSTS</code>），带用户名口令的一律拒绝。</li>
-<li><strong>清单从对端到目录。</strong>传输交回的 <code>ListingPage</code> 是 <code>Untrusted</code>；<code>completeListing(pages, basedOn)</code> 逐项核形、算 <code>digestDefinition</code>（规范 JSON 字节的摘要）、按码元排序，然后登记进模块私有 <code>WeakSet</code>。<code>mergeListing(current, listing, expected)</code> 先 <code>assertComplete</code>（伪造抛 <code>TypeError</code>），再只按修订合并：修订不等答 <code>stale</code>，不比内容。<code>markUnavailable</code> 是目录在连接丢失后的降级写法。</li>
-<li><strong>结局分类。</strong><code>classifyOutcome(answer)</code> 把一次 <code>tools/call</code> 的应答收成判别联合：<code>complete</code> / <code>toolError</code>（<code>isError</code> 为真）/ <code>inputRequired</code>（<code>inputRequests</code> 与 <code>requestState</code> 至少一项）/ <code>protocolError</code>（<code>resultType</code> 不认识）。内容由 <code>toContentBlocks</code> 按 <code>type</code> 的读取表转换：text/image/audio 各一函数，resource_link/resource 走协议类型表，不在表里即 <code>type-unknown</code>。任务路径（<code>tasks/get</code>）走同一分类函数，所以两条路径的 <code>inputRequests</code> 形状只有一份。</li>
-</ol>
+<h3>关键类型怎样相连</h3>
+<ul>
+<li><strong>接入点到连接。</strong>采用端口交出 <code>AdoptedEndpoint</code>。关口把它铸成令牌：<code>AdoptedOnly</code> 已解析正文，<code>AdmittedEndpoint</code> 资格也已通过。令牌登记在 <code>gate.ts</code> 私有的 <code>WeakSet</code> 里，副本不被承认。<code>prepareSettings</code> 从令牌得出凭据绑定、对端账号、传输材料与连接时限。</li>
+<li><strong>两种键。</strong><code>connectionKeyOf</code> 含租户、持有、采用修订与对端账号，新的采用修订就是新连接。<code>catalogKeyOf</code> 不含采用修订，采用变化不丢动作目录。</li>
+<li><strong>条目与视图。</strong>连接表每个键一个 <code>Entry</code>，持有 <code>Connection</code>、传输、进程句柄、凭据句柄、未确认停止的进程（<code>lingering</code>）与在途落点。服务拿到 <code>Ensured</code>：建连答复那一刻的传输、代际、对端与只读视图。服务不写聚合，只经 <code>table.settle</code> 与 <code>table.lose</code> 报告。</li>
+<li><strong>答复到结局。</strong>传输把 <code>tools/call</code> 的答复交成 <code>PeerAnswer</code>，其他请求交成 <code>Outcome&lt;T, TransportFailure&gt;</code>。<code>classifyOutcome</code> 得出 <code>CallOutcome</code>，调用口再包成 <code>InvokeResult</code>：<code>not-sent</code> 或 <code>sent</code>。</li>
+</ul>
+
+<h3>路径一：发现与整份发布</h3>
+<p><code>discovery.ts</code> 的 <code>refresh</code> 先走 <code>refreshOrder</code>，再由 <code>answerAtExit</code> 决定答复。</p>
+<ul>
+<li>表已关停就不问端口。否则过关口 <code>admitForUse</code>，再用 <code>within</code> 等 <code>table.ensure</code>。调用方的 <code>signal</code> 只结束这次等待，共享的建连继续，这次刷新答 <code>kept</code>（<code>cancelled</code>）。</li>
+<li><code>publish</code> 读存储得 <code>basedOn</code>。<code>listPages</code> 在 <code>listing</code> 时限下逐页取，每页之前核一次关停。</li>
+<li><code>published</code> 先找让连接失联的页，再调 <code>completeListing</code>，向表报告 <code>page-failed</code> 或 <code>listed</code>，然后调 <code>mergeListing</code>。</li>
+<li><code>written</code> 是发布边界。先异步调 <code>stillAdmitted</code>，重判资格并重读采用修订。再紧挨写入同步核对：代际仍是当前代际，信号没有中止。写入以 <code>basedOn</code> 作期望修订，冲突时答 <code>kept</code>（<code>superseded</code>）。</li>
+</ul>
+<p>读法：先读 <code>answerAtExit</code>。已发布的结果不改。没有发布时，调用方中止优先于关停，关停优先于这一步本来的答复。</p>
+
+<h3>路径二：调用与结局分类</h3>
+<p><code>calls.ts</code> 的 <code>perform</code> 是一次调用从占位到答复的唯一拥有者。</p>
+<ul>
+<li><code>checkedSend</code> 把请求字段各读一次，用 <code>judgedTree</code> 判值树。参数不是 JSON 对象时抛 <code>TypeError</code>。</li>
+<li><code>inFlight.reserve</code> 在一步里查重并占位。占位的 <code>stop</code> 合并调用方的信号与 <code>cancel</code>。</li>
+<li><code>prepare</code> 依次走关口、配值、<code>knownActionOf</code> 与 <code>ensure</code>，每次等待都经 <code>under</code>。首次调用要求定义摘要等于 <code>expectedDefinition</code>。续调用只在 <code>issuedAt</code> 那一代连接上发，不为此建连。</li>
+<li>发出前在同一段同步执行里再看停止与关停，然后调 <code>transport.call</code> 与 <code>recordSent</code>。</li>
+<li><code>answerOf</code> 在 <code>stop</code> 下等答复。停止先到时答 <code>unknown</code>（<code>abandoned</code>），未关停时在作用域里发一次 <code>cancelRequest</code>。答复先到时 <code>applyAnswer</code> 调 <code>classifyOutcome</code> 与 <code>loseIfLost</code>，结局是 <code>task</code> 时记进 <code>TaskTable</code>。</li>
+</ul>
+<p><code>classifyOutcome</code> 按 <code>resultType</code> 分类。缺省或 <code>complete</code> 时看 <code>isError</code>，得 <code>complete</code> 或 <code>toolError</code>。<code>input_required</code> 与 <code>task</code> 各自核必需字段。其他值是 <code>protocolError</code>，没有答复是 <code>unknown</code>。输出校验函数抛出时，结论是 <code>violates</code>（<code>output-check-failed</code>）。</p>
+<p>任务操作在 <code>tasks.ts</code>。<code>request</code> 按租户、主体、持有与任务号查表，只有发起者取得到记录。<code>exchange</code> 优先复用同一对端账号的连接，没有时经关口新建。<code>outcomeOf</code> 决定答复。</p>
+
+<h3>路径三：连接建立、换代与转 lost</h3>
+<p><code>table.ts</code> 的 <code>ensure</code> 先调 <code>assertAdmitted</code> 与 <code>prepareSettings</code>，起 <code>section</code> 时限，再经 <code>turns.inTurn</code> 进入该持有的临界区 <code>begin</code>。<code>begin</code> 重读采用，修订与令牌不同时答 <code>unknown</code>。它关掉同持有下其他采用修订的连接，等同键在途的关闭或拆除。然后它加入在途建连，或复用可用连接，或开始 <code>builder.build</code>。旧连接已 <code>closed</code> 时，新 <code>Connection</code> 的代际从 <code>lastGeneration</code> 接续。</p>
+<p><code>build.ts</code> 的 <code>build</code> 在 <code>build</code> 时限下按次序走：<code>attempt()</code>，拆除旧连接的遗留，取凭据，落点启动进程（只在 stdio），<code>open</code>，<code>discover</code>，<code>ready()</code>。端口调用都经 <code>port.ts</code> 的 <code>ask</code> 与 <code>within</code>。时限之后才交来的传输、凭据句柄与进程，由 <code>late.ts</code> 在作用域里关闭、释放或停止。</p>
+<p>代际策略在 <code>Connection</code> 上。stdio 是 <code>on-attempt</code>，失败的尝试也加一。HTTP 是 <code>on-negotiation</code>，<code>ready()</code> 时加一。<code>isCurrent(g)</code> 只在代际相等且状态是 <code>ready</code> 或 <code>degraded</code> 时为真，迟到结果按它丢弃。</p>
+<p>转 <code>lost</code> 并标记动作目录只经 <code>build.ts</code> 的 <code>markLost</code>。表关停时的 <code>shutDown</code> 只拆除，不标记。它先同步调 <code>connection.lose(reason)</code>，连接立即拒绝新请求。然后它在 <code>done</code> 里拆除，并用 <code>markUnavailable</code> 标记动作目录。建连失败经 <code>build.ts</code> 的 <code>failed</code> 到这里。服务经 <code>table.lose</code> 到这里：<code>refresh</code> 用 <code>loseOn</code> 等标记结果，调用与任务操作用 <code>loseInScope</code>，不等拆除。</p>
+<p>拆除只有 <code>teardown</code> 一份：关传输，停进程，释放凭据句柄。停止范围不是 <code>tree-confirmed</code> 的进程留在 <code>lingering</code>，下次拆除再停。<code>closeEntry</code> 先等在途建连结束，再调 <code>connection.close()</code> 与 <code>teardown</code>。条目只在 <code>forget</code> 一处离表，条件是 <code>forgettable</code>：状态是 <code>closed</code>，并且什么也不持有。</p>
+
+<h3>路径四：传输答复与「传输不再可用」标记</h3>
+<p><code>Session</code> 先把请求登记成在途项 <code>Pending</code>，相是 <code>authorizing</code>。后台的 <code>sendOut</code> 让凭据句柄授权，组请求，把相改为 <code>sent</code>，交给线路。线路的回报变成契约的 <code>WireEvent</code>，<code>classify</code> 调 <code>classifyWireEvent</code>，<code>apply</code> 执行 <code>concludeAnswer</code> 的结论。</p>
+<ul>
+<li>结论是 <code>settle</code> 时结算这个请求。结论带 <code>unusable</code> 时再调 <code>die(cause)</code>：字段 <code>dead</code> 记下第一个原因，其余在途项按相由 <code>lineGoneAnswerOf</code> 结算。</li>
+<li>结论是 <code>authorization-required</code> 时，<code>enterDiscovery</code> 调一次句柄的 <code>reportRejection</code>，并开始授权发现。</li>
+<li>调用方的信号或 <code>close()</code> 经 <code>stop</code> 按相结算（<code>stopAnswerOf</code>）：授权中答 <code>not-sent</code>，已交线路答 <code>no-answer</code>（<code>abandoned</code>），发现中答 <code>authorization-required</code>。</li>
+</ul>
+<p>标记有两个写入点。<code>die</code> 之后才开始的请求由 <code>refused</code> 答带标记的 <code>not-sent</code>。<code>handedOver</code> 在 <code>dead</code> 有值且没有调过 <code>close()</code> 时，用 <code>unusableAnswerOf</code> 给 <code>no-answer</code> 与授权以外的 <code>not-sent</code> 加 <code>unusable</code>。<code>close()</code> 是本方的决定，之后的答复不带标记。</p>
+<p><code>mcp</code> 一侧只读这个标记。<code>lost.ts</code> 的 <code>lostOf</code> 按次序判定：带 <code>unusable</code> 时转 <code>lost</code>，动作目录标 <code>connection-unavailable</code>。是 <code>not-sent</code>（<code>authorization-required</code>）时转 <code>lost</code>，动作目录标 <code>authorization-required</code>。其余答复不改变连接。<code>lostOf</code> 不读失败本身的原因。</p>
+
+<h3>路径五：Cordis 插件从装载到撤除</h3>
+<p><code>createMcpPlugin(parts)</code> 经 <code>definePlugin</code> 返回名为 <code>mcp</code> 的插件。</p>
+<ul>
+<li><strong>装载。</strong>配置 Schema <code>mcpPluginConfig</code> 只查形状。取值范围由 <code>createLocalTransportFactory</code> 与 <code>createMcp</code> 在 <code>apply</code> 里检查，不合法时抛 <code>RangeError</code>。函数与本地对象由工厂参数 <code>McpPluginParts</code> 给出，不进配置。</li>
+<li><strong>建服务。</strong><code>apply</code> 组 <code>McpPorts</code>：四个需求端口用适配器，存储用 <code>createInMemoryCatalogStore</code>，传输用 <code>createLocalTransportFactory</code>。它调一次 <code>createMcp</code>。</li>
+<li><strong>按键提供。</strong><code>HostActionDiscovery</code>、<code>HostActionInvoker</code>、<code>HostEndpointStatus</code> 继承抽象 Service，构造时以类上的 <code>provide</code> 键在装载的 fiber 上提供服务。</li>
+<li><strong>每次调用现取端口。</strong><code>adoptionOf</code> 等四个适配器在每次调用时用 <code>ctx.get</code> 按键取端口。端口缺席时答该端口的 <code>unknown</code>，操作不放行。提供者换代后，下一次端口调用用新实例，连接表不重建。</li>
+<li><strong>撤除。</strong><code>ctx.effect</code> 登记标签为 <code>mcp.closeAll</code> 的撤除函数。它等 <code>connections.closeAll()</code>，对停止范围是 <code>root-only</code> 或 <code>unconfirmed</code> 的端点写 <code>warn</code>，不捕获 <code>AggregateError</code>。</li>
+</ul>
+<p>连接表的 <code>closeAll</code> 先把 <code>shut</code> 置真，之后不再建连。然后它同时做两件事：<code>abandonLandings</code> 释放在途落点带着的凭据句柄，<code>closeEntry</code> 关闭每个条目。两件事都结束后，它收集两者的失败，再调 <code>scope.exit()</code> 取出后台错误。有错误时以 <code>AggregateError</code> 拒绝，没有时交出各端点确认的停止范围。</p>
 
 <h3>失败怎样分层</h3>
-<p>四层，每层一个联合，在 <code>outcomes.ts</code> 与 <code>transport.ts</code>：<code>TransportFailure</code>（not-sent / no-answer / error-answer / answer-malformed）是线上的事实；<code>OperationFailure</code> 在它之上加 <code>Refusal</code>、<code>ConnectionFailure</code> 与 <code>effect-unknown</code>；<code>ReadFailure</code> 只给 <code>current</code>/<code>peer</code> 两个读操作；<code>LostReason</code>/<code>DegradedReason</code> 是连接状态的说明。<code>residual</code> 只在 <code>lost</code> 上出现——这是第 4 轮加进来的：关闭未确认时调用方要知道对端可能还在跑。</p>
+<ul>
+<li><strong>调用方缺陷：抛出。</strong>配置不合法抛 <code>RangeError</code>。值树不过 <code>judgeJsonValue</code>、令牌不是关口铸的、清单不是 <code>completeListing</code> 造的、聚合的非法转移，都抛 <code>TypeError</code>。</li>
+<li><strong>端口违约：读成答复。</strong><code>ask</code> 把端口的拒绝与同步抛出读成该端口的违约答复。例如存储读成 <code>unavailable</code>，<code>stop()</code> 读成 <code>unconfirmed</code>。会话对凭据句柄用 <code>callHandle</code> 做同样的处理。</li>
+<li><strong>线上事实。</strong><code>TransportFailure</code> 按对端效果分四种：<code>not-sent</code>（对端没有生效），<code>no-answer</code>（效果未知），<code>error-answer</code>，<code>answer-malformed</code>。<code>unusable</code> 只出现在前两种上。</li>
+<li><strong>操作答复。</strong><code>Refusal</code> 是使用连接之前的拒绝。<code>ConnectionFailure</code> 是请求没能到达对端的连接条件。调用口把这两类与停止、定义变化、动作不可用合成 <code>NotSentReason</code>。<code>refresh</code> 与任务操作用 <code>OperationFailure</code>。<code>current</code> 与 <code>peer</code> 不发请求，用 <code>ReadFailure</code>。</li>
+<li><strong>状态说明。</strong><code>ConnectionState</code> 的 <code>lost</code> 带 <code>LostReason</code> 与可选的 <code>residual</code>。动作的不可用原因是 <code>UnavailableReason</code>。</li>
+<li><strong>本包的编程错误。</strong>作用域保存后台错误，<code>closeAll</code> 把它们交给调用方，之后的错误交 <code>TableRuntime</code> 的 <code>afterExit</code>。会话的缺陷交 <code>SessionOptions</code> 的 <code>reportDefect</code>，对应的在途项按相结算。</li>
+</ul>
 
 <h3>还没有的东西</h3>
-<p>六个应用服务（<code>EndpointInspection</code>、<code>ActionDiscovery</code>、<code>ActionCalls</code>、<code>TaskControl</code>、<code>EndpointStatus</code>、<code>Connections</code>）只有接口，<code>McpServices&lt;P, S&gt;</code> 把它们与 <code>McpPorts</code>/<code>McpConfig</code> 绑在一起。实现、stdio/http 传输、连接表都在 W2。</p>
-
-<h3>W2 增量：<code>@omne-harness/mcp</code> 核心（父分支 ff17f7701）</h3>
-<p>通用实现的下半部分：16 个源文件 2014 行、12 个测试文件 254 例（其中 <code>races.spec.ts</code> 13 条用 deferred 排并发次序）。公开根只有 <code>createMcpCore(ports, config, { now }?)</code>、<code>createInMemoryCatalogStore()</code> 与几个类型；<code>ActionInvoker</code> 与 <code>createMcp</code> 在 W3。四层：</p>
 <ul>
-<li><strong>聚合</strong>（<code>internal/connection.ts</code>、<code>in-flight.ts</code>）：仅有的两个类，只做状态转移不做 IO。<code>Connection</code> 带代际策略（stdio 每次尝试加一，HTTP 协商成功加一），非法转移抛 <code>TypeError</code>；<code>InFlightCalls</code> 的占位查重是一步。</li>
-<li><strong>关口</strong>（<code>internal/gate.ts</code> + <code>guard.ts</code>）：S1 只有一份——<code>admit</code> 先采用后资格，交出 <code>GateDecision</code>；两个品牌 <code>AdoptedOnly</code>（只核过采用）与 <code>AdmittedEndpoint</code>（过了资格），需要连接的函数只收后者，伪造或改过正文的令牌被 <code>judge</code> 用 <code>WeakSet</code> 拒绝。<code>guard.ts</code> 在其上组合 <code>admitForUse</code>（未采用或被挡下时顺手关闭该接入点的连接，不变式 6）与 <code>stillAdmitted</code>（发布边界用）。</li>
-<li><strong>连接表</strong>（<code>internal/table.ts</code>，684 行，整个成员的复杂度都在这里）：键是 <code>JSON.stringify([租户, 持有, 采用修订, 对端账号])</code>。<code>ensure</code> 的次序：每持有一个临界区（<code>inTurn</code>）里重读采用、关掉其他修订的条目、等同键的关闭或拆除、复用或建条目；临界区外建连——取凭据 → 进程落点（stdio）→ 打开传输 → <code>discover</code>，四步都经 <code>untilAborted</code> 受同一个连接时限约束，迟到的句柄/进程/传输由 <code>afterwards</code> 收口（迟到进程先 <code>stop()</code> 再释放句柄，范围不是 <code>tree-confirmed</code> 就进 <code>lingering</code>）。拆除只有一份 <code>teardown</code>（关传输 → 停进程 → 释放句柄），<code>lose</code>、准备失败、重建、关闭都走它；同键同时只有一次关闭、一次拆除、一次建连。</li>
-<li><strong>服务</strong>（<code>discovery.ts</code>、<code>status.ts</code>、<code>connections.ts</code>、<code>inspection.ts</code>）：工厂返回对象字面量。<code>refresh</code> 是最长的一条路：关口 → <code>ensure</code>（调用方的 <code>signal</code> 不进共享建连，中止只让自己答 <code>kept(cancelled)</code>）→ 读存储得 <code>basedOn</code> → 取页（另起同一上界的时限）→ <code>completeListing</code> → <code>mergeListing</code> → 发布边界：<code>await stillAdmitted</code>（资格 + 重读采用修订）之后，同步核对代际仍当前、未中止，紧挨 <code>store.write(expected = basedOn)</code>，写入冲突答 <code>kept(superseded)</code>。<code>current</code>/<code>peer</code> 只读表，替身计数证明它们不碰传输工厂。</li>
+<li>四个需求端口没有真实提供者。继承这四个抽象 Service 的类只在测试与 README 示例里，测试用 <code>./testing</code> 的内存替身。</li>
+<li>插件没有进应用插件树，也没有产品消费者。同一 isolate 重复装载（IC-6）没有决定。撤除没有期限：<code>stop()</code> 或 <code>release()</code> 不答复时，<code>closeAll</code> 也不答复。Streamable HTTP 上的插件旅程没有执行。</li>
+<li>没有耐久的 <code>CatalogStore</code>。动作目录、<code>InFlightCalls</code> 与 <code>TaskTable</code> 都只保存一次运行。</li>
+<li>不订阅列表变化：传输套件核对没有发出 <code>subscriptions/listen</code>，<code>changedNotified</code> 总是 <code>false</code>。失联的连接不在后台重连，下次使用时重建。</li>
+<li>清单不容错：一个不合法的工具让整次取得失败（<code>action-invalid</code>）。</li>
 </ul>
-<p>内存存储按清单键文本隔离租户、对端账号、持有；它是生产内存实现，不是 <code>./testing</code> 的替身。</p>
