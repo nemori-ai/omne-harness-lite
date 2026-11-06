@@ -25,7 +25,7 @@
 | `defaultSchedulingPolicy` | 常量 | [policy.ts](../src/policy.ts) |
 | `createSessionTelemetry` | 函数 | [telemetry.ts](../src/telemetry.ts)。把测量事件与具名诊断投影为 telemetry-contract 的记录，见 SPEC 的[遥测投影](../SPEC.md#遥测投影) |
 | `sessionRoundCompleteEvent`、`sessionDiagnosticEvent` | 常量 | [telemetry.ts](../src/telemetry.ts)。两个事件定义，供采集者按 `(owner, name)` 识别 |
-| `SessionTelemetry`、`SessionTelemetryBase`、`TelemetryDropped` | 类型 | [telemetry.ts](../src/telemetry.ts) |
+| `SessionTelemetry`、`SessionTelemetryBase` | 类型 | [telemetry.ts](../src/telemetry.ts) |
 
 ### 随实现进入的导出
 

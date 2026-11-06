@@ -6,7 +6,7 @@
 
 ```mermaid
 classDiagram
-  class TelemetryPort { bind(binding) Emitter }
+  class TelemetryPort { bind(binding) Emitter; discard(definition, reason) }
   class Emitter { event() record() startSegment() bind(patch) }
   class Segment { carrier; event(); end(outcome) }
   class Binding { scope; component; instance; work; attempt; call; adopted; links }
@@ -33,6 +33,7 @@ classDiagram
 - `Binding` 是一份关联值。`scope` 是 legal-identity 铸造的 `ActingScope`，其余成员是 `OwnedRef` 或 `Carrier`。
 - 定义是冻结的值，由各领域在代码里声明。本包不登记它们。`schema` 的每条 `FieldRule` 可以带 `optional: true`，`Fields<S>` 随之把该键变成可省略。
 - `Emitter` 持有一份绑定快照。`bind(patch)` 产生新的 `Emitter`，不改原对象。
+- `TelemetryPort.discard(definition, reason)` 不产生对象：它只让提供者按 `reason` 计一条调用方没能组成的记录（SPEC.md TC-15）。
 - `Segment` 由 `startSegment` 产生，持有自己的 `Carrier`。
 - `TelemetryService` 是唯一的 Cordis 服务定义，归 `telemetry-cordis-contract`；提供者继承它。本包只给它实现的端口类型。
 

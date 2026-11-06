@@ -27,43 +27,36 @@ export const agentPassSegments: Readonly<Record<AgentSegmentEvent['pass'], Segme
     run: defineSegment({ owner: OWNER, name: 'omne.agent.pass.run', version: 1 }),
   })
 
-/** What the facade dropped itself, before the port: by reason, never by record. */
-export type TelemetryDropped = Readonly<{
-  /** No tenant on the event: such a record is never scoped to `system` (TC-4). */
-  invalid: number
-  /** The open-segment table was full. */
-  capacity: number
-}>
-
 export type AgentTelemetryBase = Readonly<{
   /** The instance of the binding: the row or process that runs this Agent runtime. */
   instance: OwnedRef
-  /** The most segments open at once. A start over it is dropped and counted (G7). */
-  maxOpenSegments: number
 }>
 
 export type AgentTelemetry = Readonly<{
   measure: AgentMeasure
-  dropped(): TelemetryDropped
 }>
 
 /**
  * Creates the facade. Every record is bound on its own, because the scope of a binding cannot be
- * patched (TC-15) and each event names its own tenant. Throws TypeError for a `maxOpenSegments`
- * that is not a positive integer; nothing else here throws.
+ * patched (TC-15) and each event names its own tenant. A pass without a tenant is handed to
+ * `port.discard` as `invalid` (TC-4), so the provider counts it. Nothing here throws.
+ *
+ * The open-segment table holds only the segments the provider admitted, and the provider admits a
+ * start only within its own `maxOpenSegments`, so the table never grows past the provider's bound.
  */
 export function createAgentTelemetry(
   port: TelemetryPort,
   base: AgentTelemetryBase,
 ): AgentTelemetry {
-  const { instance, maxOpenSegments } = base
-  if (!Number.isSafeInteger(maxOpenSegments) || maxOpenSegments < 1)
-    throw new TypeError('agent telemetry: maxOpenSegments is a positive integer')
+  const { instance } = base
   const open = new Map<number, Segment>()
-  const dropped = { invalid: 0, capacity: 0 }
 
   /** The binding of one record, or undefined for a tenant that legal-identity did not mint. */
-  function bindingOf(tenant: TenantId, execution: AgentExecutionId): Binding | undefined {
+  function bindingOf(
+    tenant: TenantId | undefined,
+    execution: AgentExecutionId,
+  ): Binding | undefined {
+    if (tenant === undefined) return undefined
     try {
       return {
         scope: tenantScope(tenant),
@@ -77,25 +70,18 @@ export function createAgentTelemetry(
   }
 
   function start(event: Extract<AgentSegmentEvent, { phase: 'start' }>): void {
-    if (event.tenant === undefined) {
-      dropped.invalid += 1
-      return
-    }
-    if (open.size >= maxOpenSegments) {
-      dropped.capacity += 1
-      return
-    }
+    const definition = agentPassSegments[event.pass]
     const binding = bindingOf(event.tenant, event.execution)
     if (binding === undefined) {
-      dropped.invalid += 1
+      port.discard(definition, 'invalid')
       return
     }
-    const segment = port.bind(binding).startSegment(agentPassSegments[event.pass])
+    const segment = port.bind(binding).startSegment(definition)
     // A dropped start is the provider's count; there is nothing to pair the end with.
     if (isSegment(segment)) open.set(event.span, segment)
   }
 
-  /** An end without an open start (dropped, or over the limit) ends nothing and counts nothing. */
+  /** An end without an open start (dropped by the provider, or never started) ends nothing. */
   function end(event: Extract<AgentSegmentEvent, { phase: 'end' }>): void {
     const segment = open.get(event.span)
     if (segment === undefined) return
@@ -108,6 +94,5 @@ export function createAgentTelemetry(
       if (event.phase === 'start') start(event)
       else end(event)
     },
-    dropped: () => ({ ...dropped }),
   })
 }

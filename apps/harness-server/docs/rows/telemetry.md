@@ -27,7 +27,7 @@
 | `budgets.maxRecordBytes`   | 正整数                                                       | 一条记录序列化后的最大字节数                                           |
 | `budgets.maxQueueItems`    | 正整数                                                       | 等待出口的记录数上限                                                   |
 | `budgets.maxQueueBytes`    | 正整数                                                       | 等待出口的字节数上限                                                   |
-| `budgets.maxOpenSegments`  | 正整数                                                       | 同时打开的段数上限。它也是发射行 facade 的实际上界，见[发射行怎样接入](#发射行怎样接入) |
+| `budgets.maxOpenSegments`  | 正整数                                                       | 同时打开的段数上限。它也界定发射行 facade 的配对表，见[发射行怎样接入](#发射行怎样接入) |
 | `budgets.maxLogTextLength` | 正整数                                                       | `log` 记录 `text` 的最长字符数                                         |
 | `budgets.summaryIntervalMs`| 正整数                                                       | 两条自监控摘要行之间的最短间隔                                         |
 
@@ -126,15 +126,15 @@ CLI/Server 工作重构 `apps/harness-server` 时按这张表带走。表外没�
 
 `session-provider`：
 
-- 行体用 `@omne-harness/session` 的 `createSessionTelemetry(ctx.telemetry, { instance: processInstance, maxOpenSegments })` 构造 facade，把 `measure` 与 `diagnose` 经 `createSessionProviderPlugin` 交给插件。facade 的记录定义归 Session 的 SPEC「遥测投影」。
-- 每个面操作是段 `omne.session.<操作>`（owner `session`），Run 到达终态是事件 `omne.session.round-complete`，协调器步骤停在失败上是事件 `omne.session.diagnostic`（字段 `owner`、`step`、`reason`，不带 `detail` 正文）。每条记录按访问的租户作用域，`work` 是会话引用，Run 已知时 `attempt` 是 Run 引用。没有租户的事件（目录读取）facade 丢弃，不落到 `system` 作用域（TC-4）。
+- 行体用 `@omne-harness/session` 的 `createSessionTelemetry(ctx.telemetry, { instance: processInstance })` 构造 facade，把 `measure` 与 `diagnose` 经 `createSessionProviderPlugin` 交给插件。facade 的记录定义归 Session 的 SPEC「遥测投影」。
+- 每个面操作是段 `omne.session.<操作>`（owner `session`），Run 到达终态是事件 `omne.session.round-complete`，协调器步骤停在失败上是事件 `omne.session.diagnostic`（字段 `owner`、`step`、`reason`，不带 `detail` 正文）。每条记录按它所属工作的租户作用域，`work` 是会话引用，Run 已知时 `attempt` 是 Run 引用。目录读取没有 `work`。目录读取 `pending`（含恢复扫描器的）按输入的租户作用域。`references` 与 `releasedScopes` 在契约里是系统作用域，它们的段按 `system` 作用域、`component` 为 `session`，记录里没有租户标识（TC-4）。没有租户、也不是系统作用域的事件 facade 不发记录。它经 `telemetry.discard` 交给本行的提供者按 `invalid` 计数，不落到 `system` 作用域（TC-4）。这个计数出现在摘要行的 `dropped.invalid` 与 `shutdown-result` 的 `telemetry.droppedBy.invalid`。正常运行的扫描器不产生这个计数。
 
 `agent-host`：
 
-- `createAgentHostRow` 缺省用 `@omne-harness/agent` 的 `createAgentTelemetry(ctx.telemetry, { instance: processInstance, maxOpenSegments }).measure` 作为每个运行时的 `measure`。构造输入 `measure` 给出时替代它，这是测试用的替代观察者。
-- 每个执行的 pass 是段 `omne.agent.pass.accept` 或 `omne.agent.pass.run`（owner `agent`），按执行的租户作用域，`attempt` 是执行引用。
+- `createAgentHostRow` 缺省用 `@omne-harness/agent` 的 `createAgentTelemetry(ctx.telemetry, { instance: processInstance }).measure` 作为每个运行时的 `measure`。构造输入 `measure` 给出时替代它，这是测试用的替代观察者。
+- 每个执行的 pass 是段 `omne.agent.pass.accept` 或 `omne.agent.pass.run`（owner `agent`），按执行的租户作用域，`attempt` 是执行引用。没有租户的 pass 同样经 `telemetry.discard` 计入 `invalid`。
 
-两个 facade 的 `maxOpenSegments` 都是 `FACADE_MAX_OPEN_SEGMENTS`（`src/rows/telemetry/config.ts`，`Number.MAX_SAFE_INTEGER`）。facade 只保存提供者受理的段，提供者只在本行 `budgets.maxOpenSegments` 之内受理段的开始，`disabled` 实现不受理任何段，所以 facade 持有的段数由运维者的那个数界定。发行层不另写一个数：那会盖过运维者的数（R2-D229）。代价是 facade 自己的 `capacity` 丢弃计数恒为 0，超额丢弃只在运行时侧计数（摘要行与关闭报告）。
+两个 facade 都没有自己的段上限，也没有自己的丢弃计数。facade 的配对表只保存提供者受理的段，提供者只在本行 `budgets.maxOpenSegments` 之内受理段的开始，`disabled` 实现不受理任何段，所以 facade 持有的段数由运维者的那个数界定（两个成员的 SPEC「遥测投影」写明这条推理）。发行层不另写一个数：那会盖过运维者的数（R2-D229）。全部丢弃只在运行时侧计数（摘要行与关闭报告）。
 
 ## 测试
 
@@ -142,7 +142,7 @@ CLI/Server 工作重构 `apps/harness-server` 时按这张表带走。表外没�
 | --------------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/rows/telemetry/row.spec.ts`   | fast      | 桥的三个状态，抛错的写函数，关闭报告，禁用实现，运维者层的预算与工厂绑定，配置边界 |
 | `tests/rows/telemetry/serve.spec.ts` | fast、slow | 真实 `server-entry` 的诊断记录、缺本行时 `server-entry` PENDING、发行层的行；慢层起 `dist/bin.js serve`，逐行解析 stdout，`shutdown-result` 最后 |
-| `tests/rows/telemetry/measure.spec.ts` | slow     | 发行树在本进程跑一次 Run：Session 操作段与 Agent pass 段带租户作用域、`summarizeTelemetry` 按操作给 count 与 p50/p95；去掉 `session-ad14` 后 `omne.session.diagnostic` 记 `agent-absent` 且不带 detail；缺本行时两行 PENDING、禁用实现下 ACTIVE。`support.ts` 给单独装行的树一个禁用实现的本行 |
+| `tests/rows/telemetry/measure.spec.ts` | slow     | 发行树在本进程跑一次 Run：Session 操作段与 Agent pass 段带租户作用域、`summarizeTelemetry` 按操作给 count 与 p50/p95；去掉 `session-ad14` 后 `omne.session.diagnostic` 记 `agent-absent` 且不带 detail；缺本行时两行 PENDING、禁用实现下 ACTIVE。真件上的三个目录读取：`pending` 的段带输入的租户作用域，`references` 与 `releasedScopes` 的段是 `system` 作用域，关闭报告没有 `invalid`；没有租户的 Session 段经本行的端口 `discard`，关闭报告计 `droppedBy.invalid` 为 1。`support.ts` 给单独装行的树一个禁用实现的本行 |
 | `tests/shutdown-steps.spec.ts`       | fast      | 关闭步骤的次序、期限、抛出与迟到                                                                                                                                                    |
 | `tests/local/operator-defaults.spec.ts` | fast   | 本机单用户档给出六项预算，不覆盖发行层的实现与出口                                                                                                                                  |
 

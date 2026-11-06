@@ -39,12 +39,3 @@ export const telemetryRowConfig = z.strictObject({
 
 export type TelemetryRowConfig = z.infer<typeof telemetryRowConfig>
 export type TelemetryOutletConfig = z.infer<typeof telemetryOutletConfig>
-
-/**
- * The open-segment bound that the emitting rows (`session-provider`, `agent-host`) give their
- * facades. A facade stores only the segments the provider admitted, and the provider admits a start
- * only within `budgets.maxOpenSegments` of this row (the disabled implementation admits none), so
- * the segments a facade holds are bounded by the operator's number. The facades carry no second
- * number: a release value here would override the operator's (R2-D229).
- */
-export const FACADE_MAX_OPEN_SEGMENTS = Number.MAX_SAFE_INTEGER

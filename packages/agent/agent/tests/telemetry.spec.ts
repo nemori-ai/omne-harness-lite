@@ -1,8 +1,10 @@
 // SPEC「测量事件」and「遥测投影」: the Agent segment names the tenant of the runtime binding, and the
 // facade over the telemetry port turns each pass into a telemetry segment of that tenant with the
 // execution as attempt. The port is the capturing double of telemetry-contract, so what it admits
-// is what a provider would admit (TC-2, TC-4).
+// is what a provider would admit (TC-2, TC-4). A pass without a tenant goes to the port's
+// `discard`, so the provider counts it; the test records each discard by name and reason.
 import { actingScopeEquals, tenantScope } from '@omne-harness/legal-identity'
+import type { TelemetryPort } from '@omne-harness/telemetry-contract'
 import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentMeasureEvent } from '@omne-harness/agent'
@@ -12,10 +14,19 @@ import { eventsOf, invoke, loopAssembly } from './loop-support.ts'
 
 const instance = { owner: '@omne-harness/harness-server', ref: 'agent-host' }
 
-function facade(maxOpenSegments = 8) {
-  const capture = createCapturingTelemetry()
-  const telemetry = createAgentTelemetry(capture.port, { instance, maxOpenSegments })
-  return { capture, telemetry }
+/** The facade over the capturing double, with every `discard` the facade makes, by name and reason. */
+function facade(options: Readonly<{ capacity?: number }> = {}) {
+  const capture = createCapturingTelemetry(options)
+  const discards: Array<readonly [string, string]> = []
+  const port: TelemetryPort = {
+    bind: binding => capture.port.bind(binding),
+    discard: (definition, reason) => {
+      discards.push([definition.name, reason])
+      return capture.port.discard(definition, reason)
+    },
+  }
+  const telemetry = createAgentTelemetry(port, { instance })
+  return { capture, discards, telemetry }
 }
 
 /** The execution and, unless a case leaves it out, the tenant of the binding. */
@@ -67,7 +78,7 @@ describe('the tenant of the Agent segment', () => {
 
 describe('the Agent pass as a telemetry segment', () => {
   it('start and end become one segment named after the pass, scoped to the tenant, with the execution as attempt', () => {
-    const { capture, telemetry } = facade()
+    const { capture, discards, telemetry } = facade()
     telemetry.measure(start(1, 'accept'))
     telemetry.measure(end(1, 'ok', 'accept'))
     telemetry.measure(start(2, 'run'))
@@ -91,45 +102,32 @@ describe('the Agent pass as a telemetry segment', () => {
     expect(first.binding.work).toBeUndefined()
     expect(actingScopeEquals(first.binding.scope, tenantScope(tenantA))).toBe(true)
     expect(records[3]).toMatchObject({ kind: 'segment-end', outcome: 'failure' })
-    expect(telemetry.dropped()).toEqual({ invalid: 0, capacity: 0 })
-  })
-
-  it('an event without a tenant makes no record and counts as invalid; it is never scoped to system', () => {
-    const { capture, telemetry } = facade()
-    telemetry.measure(start(1, 'accept', false))
-    telemetry.measure(end(1, 'ok', 'accept', false))
-    expect(capture.records()).toEqual([])
     expect(capture.dropped()).toBe(0)
-    expect(telemetry.dropped()).toEqual({ invalid: 1, capacity: 0 })
+    expect(discards).toEqual([])
   })
 
-  it('the open-segment table is bounded: a start over the limit is dropped and counted, an end frees its entry', () => {
-    const { capture, telemetry } = facade(1)
+  it('a pass without a tenant is discarded through the port as invalid, under the segment it would have been; its end does nothing', () => {
+    const { capture, discards, telemetry } = facade()
+    telemetry.measure(start(1, 'run', false))
+    telemetry.measure(end(1, 'ok', 'run', false))
+    expect(capture.records()).toEqual([])
+    expect(discards).toEqual([['omne.agent.pass.run', 'invalid']])
+    expect(capture.dropped()).toBe(1)
+  })
+
+  it('a start the provider drops is not paired: its end ends nothing and counts nothing', () => {
+    const { capture, telemetry } = facade({ capacity: 1 })
     telemetry.measure(start(1))
     telemetry.measure(start(2))
-    expect(telemetry.dropped()).toEqual({ invalid: 0, capacity: 1 })
+    expect(capture.dropped()).toBe(1)
     telemetry.measure(end(2, 'ok'))
-    telemetry.measure(end(1, 'ok'))
-    telemetry.measure(start(3))
-    telemetry.measure(end(3, 'failure'))
-    expect(
-      capture
-        .records()
-        .map(record => (record.kind === 'segment-end' ? record.outcome : record.kind)),
-    ).toEqual(['segment-start', 'ok', 'segment-start', 'failure'])
-    expect(telemetry.dropped()).toEqual({ invalid: 0, capacity: 1 })
-  })
-
-  it('refuses a maxOpenSegments that is not a positive integer', () => {
-    const { capture } = facade()
-    expect(() => createAgentTelemetry(capture.port, { instance, maxOpenSegments: 1.5 })).toThrow(
-      TypeError,
-    )
+    expect(capture.records().map(record => record.kind)).toEqual(['segment-start'])
+    expect(capture.dropped()).toBe(1)
   })
 
   it('over the real runtime, one invoke is captured as the accept pass then the run passes of the tenant', async () => {
     const capture = createCapturingTelemetry()
-    const telemetry = createAgentTelemetry(capture.port, { instance, maxOpenSegments: 16 })
+    const telemetry = createAgentTelemetry(capture.port, { instance })
     const assembly = await loopAssembly([execution()], d => d, undefined, undefined, {
       measure: telemetry.measure,
     })
@@ -152,6 +150,6 @@ describe('the Agent pass as a telemetry segment', () => {
       expect(actingScopeEquals(record.binding.scope, tenantScope(tenantA))).toBe(true)
       expect(record.binding.attempt).toEqual({ owner: '@omne-harness/agent', ref: 'exec-1' })
     }
-    expect(telemetry.dropped()).toEqual({ invalid: 0, capacity: 0 })
+    expect(capture.dropped()).toBe(0)
   })
 })

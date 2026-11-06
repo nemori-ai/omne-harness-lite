@@ -125,14 +125,23 @@
 | ------- | ---------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------- |
 | Session | `history.begin`，`reader` 类，反向，种类取 `diagnosticsKinds`；页内续读用 `history.next` | `session.history`，必需                | Run 的骨架、调用登记、控制、终态与消息计数           |
 | Agent   | `readFinish`                                                                             | `agentJournal`，可选；读口本身也可选   | 以 `failed` 或 `cancelled` 终结的 Run 的结束候选     |
-| Model   | `inspect`，然后 `list`                                                                   | `modelCalls`、`modelDiagnostics`，可选 | `call.bound` 的 Model 引用解析到的调用与它的派发诊断 |
-| Tool    | `lookup` 与 `account`                                                                    | `toolQueries`，可选                    | `call.bound` 的 Tool 引用的状态与账目                |
+| Model   | `inspect`，然后 `list`，再 `dispatches`                                                  | `modelCalls`、`modelDiagnostics`，可选 | `call.bound` 的 Model 引用解析到的调用、它的派发诊断与每次派发的账目 |
+| Tool    | `lookup`、`account` 与 `readDiagnostics`                                                 | `toolQueries`，可选                    | `call.bound` 的 Tool 引用的状态、账目与诊断页第一页  |
 
 组合规则：
 
 1. Run 的骨架只来自 Session。接入从最新一条反向读历史，按 `run.started` 划分 Run：两个 `run.started` 之间的条目属于较新的那个 Run。`run` 为 null 时每页至多 `maxRuns` 个 Run；给了 `run` 时只投影那个 Run，扫到它就停。
 2. 每个 Run 至多 `maxCallsPerRun` 次调用进入扇出，按日志顺序取前面的。超出的只计数，并记缺口 `truncated`，`subject` 是 Run。一次 Tool 调用可以有两条 `call.bound`：先是没有生产者的 `tool-intent` 登记，再是关联登记。投影把它们算作同一个调用，只计一次：以带生产者的那条为准，位置取首次登记的位置。所以这样的调用不会被多计，也不会提前触发 `truncated`。
-3. Model 分支先 `inspect`。解析到调用才 `list` 它的派发，一次最多 64 条；还有下一页时记缺口 `truncated`；`coverage` 为 `expired-prefix` 时记缺口 `retention-expired`。`not-accepted` 写成 `unknown`，原因 `not-accepted`。Tool 分支的 `lookup` 与 `account` 各自独立；一个的缺口不影响另一个。
+3. Model 分支先 `inspect`。解析到调用才 `list` 它的派发，一次最多 64 条；还有下一页时记缺口 `truncated`；`coverage` 为 `expired-prefix` 时记缺口 `retention-expired`。`not-accepted` 写成 `unknown`，原因 `not-accepted`。`list` 给出至少一条派发时，再读同一调用的 `dispatches`，按派发标识把记录对到诊断条目上，给每次派发写 `account`：记录的 `account` 为 null 时写 `unknown`，原因 `not-recorded`；诊断条目的派发在记录里找不到时写 `unknown`，原因 `not-found`；`dispatches` 读失败时每次派发都写 `unknown` 带该读的原因，并只记一条缺口，对象是该调用引用。没有派发条目时不读 `dispatches`。Tool 分支的 `lookup`、`account` 与 `readDiagnostics` 各自独立；一个的缺口不影响另一个。`readDiagnostics` 只读第一页（`after` 为 null）：条目只取 `operation`、`phase`、`code`，不带证据；`next` 不为 null 时不读下一页，记缺口 `truncated`；读失败时 `diagnostics` 写 `unknown` 带原因并记缺口。
+   Session 骨架另有两类计数：`run.attempt-started`、`run.attempt-released`（按载荷 `reason` 分计五种）与 `run.attempt-exited` 计入 `attempts`；`call.execution-fact` 按载荷 `fact.kind` 计数。`reason` 不在五种之内，或没有 `fact.kind` 的条目不计。
+
+   一条 `call.execution-fact` 的归属只用这条条目自身的字段，按下面的次序找它指向的调用：
+
+   - 先取载荷顶层的 `consumption`。观察路径这样写。
+   - 顶层没有时，取 `fact.consumption`。`release` 事实这样写。
+   - 两处都没有、且条目带 `fact.producer` 时，取生产者。接收路径的 `execution` 事实只带生产者。
+
+   条目有消费标识时，它等于某次进入扇出的调用的消费标识，事实就计入该调用的 `facts`。这时不再按生产者找。条目只有生产者时，某次进入扇出的调用在 `call.bound` 登记的生产者（`registration.binding.producer`，或旧形状的 `binding.producer`）的 `kind` 与 `call` 都与它相同，事实就计入该调用的 `facts`；有几次调用相同时取日志中最先登记的那次。其余事实计入 Run 的 `facts`。计数与条目在日志中的先后无关。
 4. 只对 `failed` 或 `cancelled` 的 Run 读 Agent 的 `readFinish`。`completed` 的 Run 的 `structured` 是 `none`。读到的结束候选只取闭合字段；没有候选时是 `unknown`，原因 `not-recorded`。
 5. 每个来源的拒绝、不可用、不支持、找不到都成为缺口，带来源、对象与原因；对应的值写 `unknown` 并带同一原因。端口缺席或 `readFinish` 缺席是 `unsupported`。端口抛出异常是 `unavailable`，页照常返回。同一（来源、对象、原因）只记一条。 来源失败到缺口原因的映射：`denied`、`unavailable`、`unsupported` 照原名；`invalid` 出在引用字段上时是 `not-found`，出在其他字段（例如 limit、租户）上时是 `unavailable`；`not-settled` 是 `not-recorded`；其余失败种类（容量、冲突、提交未知、过期游标等）是 `unavailable`。只有 `modelCalls` 没有 `modelDiagnostics` 时，派发的缺口是 `unsupported`。
 6. 投影不跨来源推断：Session 没有登记的调用不出现；Model 或 Tool 的空答复不说明调用不存在。
@@ -145,7 +154,8 @@
 - 游标由本实例用随机密钥封印，绑定租户文本、会话、`run` 过滤、`pageBytes` 与本页的 `basis.upper`。被篡改、另一会话、另一实例签发或不是本实例形状的游标都是 `invalid`。接入不按猜测的位置继续。
 - 续页重新经 Session 核资格。撤权后续页是 `denied`，与首页一样逐字节相同。
 - `exhausted` 为真表示没有更多 Run 可读；给了 `run` 时扫到那个 Run 或读完历史都是真。`scannedThrough` 是停下的 `run.started` 条目标识，或 Session 最后一页的 `scannedThrough`。
-- 时刻只在载荷带发生时间时显示。Session 的历史载荷不带发生时间，所以在 RFC-0013 DA7 采用之前，`started.at` 恒为 `unknown`。`timing` 的三项按 Model 诊断原样给出。`ModelDiagnostics` 不带账目，而 `dispatches` 不是诊断读口（RFC-0013「实质备选」），所以 `usage` 恒为 `unknown`，原因 `unsupported`。
+- 时刻只在载荷带发生时间时显示。Session 的历史载荷不带发生时间，所以在 RFC-0013 DA7 采用之前，`started.at` 恒为 `unknown`。`timing` 的三项按 Model 诊断原样给出。
+- 续页的 `basis.upper` 是游标里封存的首页上界，不是续页这次读到的当前上界。续页向更早的位置读，读不到首页上界之后追加的条目，所以整轮遍历的依据是首页的上界（Session 契约 SL10「固定读取上界」）。续页签发的下一个游标封存同一个上界。新的首页读当前上界。
 
 授权：取数按调用方的租户。Session 的资格判断先于一切，`denied` 不披露会话是否存在。Agent、Model 与 Tool 各自核资格，它们的 `denied` 只成为缺口。
 
@@ -159,7 +169,7 @@ flowchart TD
   R --> CB["每个 Run 的 call.bound<br/>同一调用合并，至多 maxCallsPerRun 次"]
   CB -->|Model 引用| MI["Model inspect"]
   MI -->|解析到调用| ML["Model list：派发诊断"]
-  CB -->|Tool 引用| TL["Tool lookup 与 account"]
+  CB -->|Tool 引用| TL["Tool lookup、account 与 readDiagnostics"]
   R -->|failed 或 cancelled| AF["Agent readFinish"]
   MI --> P["SessionDiagnosticsPage：视图值与缺口"]
   ML --> P

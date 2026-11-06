@@ -26,8 +26,13 @@ export type SessionSegmentEvent =
       operation: string
       /** Null for a directory read, which names no session. */
       session: SessionId | null
-      /** The tenant of the access. Absent for a directory read, whose access the measurer does not see. */
+      /** The tenant whose work this is: of the access, or the tenant input of `pending`. */
       tenant?: TenantId
+      /**
+       * `system` for a read that the contract puts in system scope (`references`, `releasedScopes`):
+       * a fact of the service itself, which spans tenants. Never present together with `tenant`.
+       */
+      scope?: 'system'
     }>
   | Readonly<{
       kind: 'segment'
@@ -37,6 +42,7 @@ export type SessionSegmentEvent =
       operation: string
       session: SessionId | null
       tenant?: TenantId
+      scope?: 'system'
       /** `failure` for any answer that carries a failure and for a thrown error. */
       outcome: 'ok' | 'failure'
     }>
@@ -66,6 +72,9 @@ export type SessionMeasureEvent = SessionSegmentEvent | SessionRoundCompleteEven
 /** Receives each event synchronously. It must not call back into the instance. */
 export type SessionMeasure = (event: SessionMeasureEvent) => void
 
+/** Whose fact a segment measures: one tenant's work, or the service itself. */
+export type SegmentOwner = TenantId | 'system'
+
 export type SessionMeasurer = Readonly<{
   /** Whether an observer was given. Work that only measurement needs is skipped without one. */
   active: boolean
@@ -74,8 +83,11 @@ export type SessionMeasurer = Readonly<{
     session: SessionId | null,
     run: () => Promise<T>,
     failed: (answer: T) => boolean,
-    /** Given when the call site knows the tenant: every mutation and single-session read does. */
-    tenant?: TenantId,
+    /**
+     * Whose fact the segment measures: the tenant of the work, or `system` for a system-scope read.
+     * Every call site gives one; an absent value leaves the event with neither.
+     */
+    whose?: SegmentOwner,
   ): Promise<T>
   roundComplete(event: Omit<SessionRoundCompleteEvent, 'kind'>): void
 }>
@@ -99,10 +111,15 @@ export function createSessionMeasurer(measure: SessionMeasure | undefined): Sess
   }
   return {
     active: true,
-    async segment(operation, session, run, failed, tenant) {
+    async segment(operation, session, run, failed, whose) {
       const span = (spans += 1)
-      // An absent tenant stays absent: an `undefined` member would still be a key of the event.
-      const where = tenant === undefined ? { session } : { session, tenant }
+      // An absent owner stays absent: an `undefined` member would still be a key of the event.
+      const where =
+        whose === undefined
+          ? { session }
+          : whose === 'system'
+            ? { session, scope: whose }
+            : { session, tenant: whose }
       emit({ kind: 'segment', segment: 'session', phase: 'start', span, operation, ...where })
       let outcome: 'ok' | 'failure' = 'failure'
       try {

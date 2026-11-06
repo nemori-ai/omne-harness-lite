@@ -407,6 +407,71 @@ describe('bind derivation (TC-15)', () => {
   })
 })
 
+describe('discard', () => {
+  it('counts a record the caller could not form under its reason, writes nothing, and leaves admitted unchanged', async () => {
+    const { runtime, written } = harness()
+
+    expect(runtime.port.discard(handling, 'invalid')).toEqual({
+      kind: 'dropped',
+      reason: 'invalid',
+    })
+    expect(runtime.port.discard(loginFailed, 'invalid')).toEqual({
+      kind: 'dropped',
+      reason: 'invalid',
+    })
+    expect(runtime.port.discard(requests, 'capacity')).toEqual({
+      kind: 'dropped',
+      reason: 'capacity',
+    })
+    runtime.port.bind(systemBinding()).event(loginFailed, FIELDS)
+    const report = await runtime.close(1000)
+
+    expect(written.map(record => record.signal)).toEqual(['event'])
+    expect(report).toMatchObject({
+      admitted: 1,
+      dropped: 3,
+      droppedBy: { invalid: 2, capacity: 1 },
+    })
+  })
+
+  it('answers dropped(invalid) for a reason the caller cannot claim, a definition the contract refuses, and an input that throws while it is read', async () => {
+    const { runtime } = harness()
+    const hostile = new Proxy(
+      {},
+      {
+        ownKeys() {
+          throw new Error('trap')
+        },
+      },
+    )
+
+    expect(runtime.port.discard(handling, bypass('closed'))).toEqual({
+      kind: 'dropped',
+      reason: 'invalid',
+    })
+    expect(runtime.port.discard(bypass({ ...handling, name: 'bad name' }), 'policy')).toEqual({
+      kind: 'dropped',
+      reason: 'invalid',
+    })
+    expect(runtime.port.discard(bypass(hostile), 'policy')).toEqual({
+      kind: 'dropped',
+      reason: 'invalid',
+    })
+    expect(await runtime.close(1000)).toMatchObject({ dropped: 3, droppedBy: { invalid: 3 } })
+  })
+
+  it('answers dropped(closed) once the runtime closes', async () => {
+    const { runtime } = harness()
+    const closing = runtime.close(1000)
+
+    expect(runtime.port.discard(handling, 'invalid')).toEqual({
+      kind: 'dropped',
+      reason: 'closed',
+    })
+    expect(await closing).toMatchObject({ dropped: 1, droppedBy: { closed: 1 } })
+  })
+})
+
 describe('close (CloseReport)', () => {
   it('stops admission, drains to the local sink and reports the boundary', async () => {
     const { runtime, written } = harness()

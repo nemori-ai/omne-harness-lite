@@ -384,7 +384,17 @@ async function readHistory(
 }
 
 type DiagnosticsRequest = SessionRequest<'read-session-diagnostics'>
-type DiagnosticsStart = Readonly<{ run: string | null; pageBytes: number; from: string | null }>
+/**
+ * Where a read starts. `upper` is the Session upper bound the first page of this scan read, sealed
+ * in the cursor; null on a first page. A continued page reads toward older entries and sees nothing
+ * appended after that bound, so the basis of the whole scan is the first page's (SL10).
+ */
+type DiagnosticsStart = Readonly<{
+  run: string | null
+  pageBytes: number
+  from: string | null
+  upper: string | null
+}>
 
 /** The configured projection: the three fields come together (`checkConfig`), so one decides. */
 function diagnosticsConfig(
@@ -410,7 +420,7 @@ function diagnosticsStart(
 ): DiagnosticsStart | 'invalid' {
   if (body.cursor === null)
     return withinPageBound(body.pageBytes, context.config.maxPageBytes)
-      ? { run: body.run, pageBytes: Number(body.pageBytes), from: null }
+      ? { run: body.run, pageBytes: Number(body.pageBytes), from: null, upper: null }
       : 'invalid'
   const state = context.cursors.open(
     { tenant: target.tenantText, session: target.session },
@@ -449,24 +459,20 @@ async function readSessionDiagnostics(
   if (result === 'basis-unavailable') return answer('basis-unavailable', {})
   if (result.kind === 'failure') return answer(failureOutcome(result.failure), {})
   const { page } = result
+  const upper = start.upper ?? page.upper
   const next =
     page.continueFrom === null
       ? null
       : context.cursors.seal(
           { tenant: target.tenantText, session: target.session },
-          {
-            from: page.continueFrom,
-            run: start.run,
-            pageBytes: start.pageBytes,
-            upper: page.upper,
-          },
+          { from: page.continueFrom, run: start.run, pageBytes: start.pageBytes, upper },
         )
   const body: SessionSuccessBodies['read-session-diagnostics'] = {
     runs: page.runs,
     next,
     exhausted: page.exhausted,
     scannedThrough: page.scannedThrough,
-    basis: { upper: page.upper },
+    basis: { upper },
     gaps: page.gaps,
   }
   return answer('succeeded', body)

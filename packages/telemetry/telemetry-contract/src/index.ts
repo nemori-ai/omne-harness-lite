@@ -19,11 +19,14 @@ export {
 export { validateFields } from './fields.ts'
 export { TELEMETRY_LIMITS, type ValidationResult } from './limits.ts'
 export {
+  DISCARD_REASONS,
   isSegment,
   type Admission,
   type CloseReport,
+  type DiscardReason,
   type DropReason,
   type Emitter,
   type Segment,
+  type TelemetryDefinition,
   type TelemetryPort,
 } from './port.ts'

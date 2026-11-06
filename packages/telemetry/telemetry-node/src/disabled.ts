@@ -6,8 +6,10 @@ import type {
 } from '@omne-harness/telemetry-contract'
 import type { TelemetryRuntime } from './runtime.ts'
 
-const DISABLED: Admission = Object.freeze({ kind: 'dropped', reason: 'disabled' })
-const CLOSED: Admission = Object.freeze({ kind: 'dropped', reason: 'closed' })
+type Dropped = Extract<Admission, { kind: 'dropped' }>
+
+const DISABLED: Dropped = Object.freeze({ kind: 'dropped', reason: 'disabled' })
+const CLOSED: Dropped = Object.freeze({ kind: 'dropped', reason: 'closed' })
 
 /**
  * The explicit disabled implementation, with the shape of a runtime. Every call answers
@@ -18,7 +20,7 @@ export function createDisabledTelemetry(): TelemetryRuntime {
   let disabled = 0
   let closing: Promise<CloseReport> | undefined
 
-  function answer(): Admission {
+  function answer(): Dropped {
     if (closing !== undefined) return CLOSED
     disabled += 1
     return DISABLED
@@ -27,10 +29,10 @@ export function createDisabledTelemetry(): TelemetryRuntime {
   const emitter: Emitter = Object.freeze({
     event: answer,
     record: answer,
-    startSegment: () => answer() as Extract<Admission, { kind: 'dropped' }>,
+    startSegment: answer,
     bind: () => emitter,
   })
-  const port: TelemetryPort = Object.freeze({ bind: () => emitter })
+  const port: TelemetryPort = Object.freeze({ bind: () => emitter, discard: answer })
 
   return Object.freeze({
     port,

@@ -48,6 +48,13 @@ const account = {
   duration: { kind: 'known', value: 'PT1.5S' },
   receipt: 'received',
 } as const
+const unsupported = { kind: 'unknown', reason: 'unsupported' } as const
+const toolDiagnostic = { operation: 'shell', phase: 'execute', code: 'exit-1' } as const
+const noAttempts = {
+  started: '0',
+  released: { ended: '0', bounded: '0', cancelled: '0', released: '0', superseded: '0' },
+  exited: '0',
+} as const
 const page: SessionDiagnosticsPage = {
   runs: [
     {
@@ -55,7 +62,11 @@ const page: SessionDiagnosticsPage = {
       entry: 'interactive',
       execution: 'exec-2',
       started: { position: 'e10', at: { kind: 'unknown' } },
-      attempts: '2',
+      attempts: {
+        started: '2',
+        released: { ended: '0', bounded: '0', cancelled: '1', released: '0', superseded: '1' },
+        exited: '1',
+      },
       controls: [
         {
           position: 'e14',
@@ -92,6 +103,7 @@ const page: SessionDiagnosticsPage = {
                 sendToFirstContent: { kind: 'known', milliseconds: '120' },
                 execution: { kind: 'unknown' },
               },
+              account,
             },
             {
               dispatch: 'd2',
@@ -105,10 +117,11 @@ const page: SessionDiagnosticsPage = {
                 sendToFirstContent: { kind: 'unknown' },
                 execution: { kind: 'unknown' },
               },
+              account: { kind: 'unknown', reason: 'not-recorded' },
             },
           ],
           coverage: 'complete-through-snapshot',
-          usage: { kind: 'unknown', reason: 'unsupported' },
+          facts: [{ kind: 'sent', count: '2' }],
         },
         {
           reference: 'model-ref-2',
@@ -116,7 +129,7 @@ const page: SessionDiagnosticsPage = {
           call: { kind: 'unknown', reason: 'not-accepted' },
           dispatches: [],
           coverage: 'unknown',
-          usage: { kind: 'unknown', reason: 'unsupported' },
+          facts: [],
         },
       ],
       toolCalls: [
@@ -130,26 +143,29 @@ const page: SessionDiagnosticsPage = {
             terminal: { kind: 'failed', cause: 'executor' },
           },
           account,
-          diagnostics: 'unsupported',
+          facts: [{ kind: 'settled', count: '1' }],
+          diagnostics: [toolDiagnostic, { operation: 'shell', phase: 'release', code: 'released' }],
         },
         {
           reference: 'tool-ref-2',
           state: { kind: 'unknown', reason: 'denied' },
           account: { kind: 'unknown', reason: 'denied' },
-          diagnostics: 'unsupported',
+          facts: [],
+          diagnostics: unsupported,
         },
       ],
       messages: [
         { kind: 'message.user', count: '1' },
         { kind: 'message.assistant', count: '2' },
       ],
+      facts: [{ kind: 'account.linked', count: '1' }],
     },
     {
       run: 'run-1',
       entry: 'dispatch',
       execution: 'exec-1',
       started: { position: 'e1', at: { kind: 'known', instant: '2026-11-05T00:00:00Z' } },
-      attempts: '1',
+      attempts: { ...noAttempts, started: '1' },
       controls: [],
       terminal: {
         outcome: 'failed',
@@ -159,19 +175,21 @@ const page: SessionDiagnosticsPage = {
       modelCalls: [],
       toolCalls: [],
       messages: [],
+      facts: [],
     },
     {
       run: 'run-0',
       entry: 'interactive',
       execution: 'exec-0',
       started: { position: 'e0', at: { kind: 'unknown' } },
-      attempts: '1',
+      attempts: { ...noAttempts, started: '1' },
       controls: [],
       terminal: null,
       calls: { registered: '0', projected: '0' },
       modelCalls: [],
       toolCalls: [],
       messages: [],
+      facts: [],
     },
   ],
   next: 'cursor-2',
@@ -192,9 +210,11 @@ const structuredCauses = [
   { kind: 'none' },
   { kind: 'no-failure', conclusion: 'cancelled' },
   { kind: 'model-refused', failure: 'denied' },
+  { kind: 'model-refused', failure: unsupported },
   { kind: 'no-reply', cause: null, upstreamStatus: null },
   { kind: 'request-rejected' },
   { kind: 'cannot-fit', reason: 'after-compaction' },
+  { kind: 'cannot-fit', reason: { kind: 'unknown', reason: 'not-recorded' } },
   { kind: 'compaction-invalid' },
   { kind: 'message-rejected' },
   { kind: 'extension-stop' },
@@ -219,6 +239,14 @@ const withRun = (overrides: Record<string, unknown>) => ({
   ...page,
   runs: [{ ...page.runs[0], ...overrides }],
 })
+const run = page.runs[0]!
+const modelCall = run.modelCalls[0]!
+const dispatch = modelCall.dispatches[0]!
+const toolCall = run.toolCalls[0]!
+const withDispatch = (overrides: Record<string, unknown>) =>
+  withRun({ modelCalls: [{ ...modelCall, dispatches: [{ ...dispatch, ...overrides }] }] })
+const withTerminalCause = (structured: unknown) =>
+  withRun({ terminal: { outcome: 'failed', cause: { record: null, structured } } })
 
 describe('read-session-diagnostics requests', () => {
   it.each([
@@ -273,6 +301,21 @@ describe('read-session-diagnostics responses', () => {
     expect(encodeSuccess(body).kind).toBe('encoded')
   })
 
+  it('round trips a tool diagnostics entry whose phase and code are empty', () => {
+    // Tool's DiagnosticPage gives phase and code as plain strings; an empty one is a value.
+    const body = withRun({
+      toolCalls: [{ ...toolCall, diagnostics: [{ ...toolDiagnostic, phase: '', code: '' }] }],
+    })
+    const wire = wireOf('succeeded', body)
+    const read = readResponse(wire)
+    expect(read.kind).toBe('response')
+    if (read.kind !== 'response' || read.response.outcome !== 'succeeded') return
+    expect(read.response.body).toEqual(body)
+    const encoded = encodeSuccess(body)
+    expect(encoded.kind).toBe('encoded')
+    if (encoded.kind === 'encoded') expect(decode(encoded.bytes)).toEqual(wire)
+  })
+
   it.each(['succeeded', 'denied', 'invalid', 'basis-unavailable'])(
     'has the %s outcome',
     outcome => {
@@ -296,43 +339,85 @@ describe('read-session-diagnostics responses', () => {
     ['a page without gaps', omit(page, 'gaps')],
     ['a gap with an unknown reason', { ...page, gaps: [{ ...page.gaps[0], reason: 'lost' }] }],
     ['a gap with an unknown source', { ...page, gaps: [{ ...page.gaps[0], source: 'cli' }] }],
-    ['a numeric attempts count', withRun({ attempts: 2 })],
+    ['the attempts as one count text', withRun({ attempts: '2' })],
+    ['a numeric attempts count', withRun({ attempts: { ...noAttempts, started: 2 } })],
+    [
+      'attempts without a released kind',
+      withRun({ attempts: { ...noAttempts, released: omit(noAttempts.released, 'superseded') } }),
+    ],
+    ['a Run without facts', { ...page, runs: [omit(run, 'facts')] }],
+    ['a fact with an empty kind', withRun({ facts: [{ kind: '', count: '1' }] })],
+    ['a fact with a numeric count', withRun({ facts: [{ kind: 'sent', count: 1 }] })],
+    ['a fact with an empty count', withRun({ facts: [{ kind: 'sent', count: '' }] })],
     [
       'a structured cause that carries a diagnostic text',
-      withRun({
-        terminal: {
-          outcome: 'failed',
-          cause: {
-            record: null,
-            structured: {
-              kind: 'no-reply',
-              cause: 'upstream-unavailable',
-              upstreamStatus: null,
-              diagnostic: 'in-band-error',
-            },
-          },
-        },
+      withTerminalCause({
+        kind: 'no-reply',
+        cause: 'upstream-unavailable',
+        upstreamStatus: null,
+        diagnostic: 'in-band-error',
       }),
     ],
     [
       'a model-refused cause outside the closed set',
-      withRun({
-        terminal: {
-          outcome: 'failed',
-          cause: { record: null, structured: { kind: 'model-refused', failure: 'capacityy' } },
-        },
+      withTerminalCause({ kind: 'model-refused', failure: 'capacityy' }),
+    ],
+    [
+      'a model-refused unknown failure whose reason is not-disclosed',
+      withTerminalCause({
+        kind: 'model-refused',
+        failure: { kind: 'unknown', reason: 'not-disclosed' },
       }),
     ],
     [
-      'a tool diagnostics value other than unsupported',
-      withRun({ toolCalls: [{ ...page.runs[0]!.toolCalls[1], diagnostics: 'supported' }] }),
+      'a cannot-fit reason outside the closed set',
+      withTerminalCause({ kind: 'cannot-fit', reason: 'fixedd' }),
     ],
+    [
+      'a model call that still carries usage',
+      withRun({ modelCalls: [{ ...modelCall, usage: unsupported }] }),
+    ],
+    ['a model call without facts', withRun({ modelCalls: [omit(modelCall, 'facts')] })],
+    [
+      'a dispatch without an account',
+      withRun({ modelCalls: [{ ...modelCall, dispatches: [omit(dispatch, 'account')] }] }),
+    ],
+    ['a dispatch whose account is a text', withDispatch({ account: 'unsupported' })],
+    [
+      'the old unsupported tool diagnostics literal',
+      withRun({ toolCalls: [{ ...toolCall, diagnostics: 'unsupported' }] }),
+    ],
+    [
+      'a tool diagnostics entry with evidence',
+      withRun({
+        toolCalls: [
+          { ...toolCall, diagnostics: [{ ...toolDiagnostic, evidence: { digest: 'x' } }] },
+        ],
+      }),
+    ],
+    [
+      'a tool diagnostics entry with an empty operation',
+      withRun({
+        toolCalls: [{ ...toolCall, diagnostics: [{ ...toolDiagnostic, operation: '' }] }],
+      }),
+    ],
+    [
+      'a tool diagnostics entry with a numeric code',
+      withRun({
+        toolCalls: [{ ...toolCall, diagnostics: [{ ...toolDiagnostic, code: 1 }] }],
+      }),
+    ],
+    [
+      'a tool diagnostics entry without a code',
+      withRun({
+        toolCalls: [{ ...toolCall, diagnostics: [omit(toolDiagnostic, 'code')] }],
+      }),
+    ],
+    ['a tool call without facts', withRun({ toolCalls: [omit(toolCall, 'facts')] })],
     [
       'a model call whose unknown reason is truncated',
       withRun({
-        modelCalls: [
-          { ...page.runs[0]!.modelCalls[1], call: { kind: 'unknown', reason: 'truncated' } },
-        ],
+        modelCalls: [{ ...run.modelCalls[1], call: { kind: 'unknown', reason: 'truncated' } }],
       }),
     ],
   ])('rejects %s on both sides', (_name, body) => {

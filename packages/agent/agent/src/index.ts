@@ -23,7 +23,6 @@ export {
   createAgentTelemetry,
   type AgentTelemetry,
   type AgentTelemetryBase,
-  type TelemetryDropped,
 } from './telemetry.ts'
 export type {
   AgentRunEndedFailed,

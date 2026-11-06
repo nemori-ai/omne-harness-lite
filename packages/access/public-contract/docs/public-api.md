@@ -21,7 +21,7 @@
 | `TenantId`、`OrganizationId`、`AccountId`、`LoginStateId` | 类型 | [src/identity-text.ts](../src/identity-text.ts)，legal-identity 同名类型的转出 |
 | `SessionOperation`、`SessionRequestBodies`、`SessionRequest`、`SessionOutcomes`、`SessionSuccessBodies`、`SessionResponse` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
 | `SessionProtocolRejected`、`SessionHistoryEntry`、`SessionHistoryPage`、`SessionProducerRef`、`SessionTerminalSource` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
-| `SessionDiagnosticsPage`、`SessionRunDiagnostic`、`SessionRunTerminal`、`SessionRunCause`、`SessionRunControl`、`SessionModelCallDiagnostic`、`SessionModelAttemptDiagnostic`、`SessionToolCallDiagnostic`、`SessionCallAccountView` | 类型 | [src/session-messages.ts](../src/session-messages.ts)，`read-session-diagnostics` 的成功正文 |
+| `SessionDiagnosticsPage`、`SessionRunDiagnostic`、`SessionRunAttempts`、`SessionRunTerminal`、`SessionRunCause`、`SessionRunControl`、`SessionModelCallDiagnostic`、`SessionModelAttemptDiagnostic`、`SessionToolCallDiagnostic`、`SessionToolDiagnosticEntry`、`SessionFactCount`、`SessionCallAccountView` | 类型 | [src/session-messages.ts](../src/session-messages.ts)，`read-session-diagnostics` 的成功正文 |
 | `SessionDiagnosticGap`、`SessionDiagnosticGapSource`、`SessionDiagnosticGapReason`、`SessionDiagnosticUnknown`、`SessionDiagnosticInstant`、`SessionDiagnosticMilliseconds`、`SessionAdoptionRef` | 类型 | [src/session-messages.ts](../src/session-messages.ts)，诊断页的缺口与未知值 |
 | `SessionCodecLimits`、`SessionDiagnostic`、`SessionRequestRead`、`SessionResponseRead`、`SessionEncodeResult`、`SessionResponseEncodeInput` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
 

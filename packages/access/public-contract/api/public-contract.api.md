@@ -37,6 +37,7 @@
 - `SessionDiagnosticUnknown` · `session-messages.d.ts`
 - `SessionDiagnosticsPage` · `session-messages.d.ts`
 - `SessionEncodeResult` · `session-messages.d.ts`
+- `SessionFactCount` · `session-messages.d.ts`
 - `SessionHistoryEntry` · `session-messages.d.ts`
 - `SessionHistoryPage` · `session-messages.d.ts`
 - `SessionModelAttemptDiagnostic` · `session-messages.d.ts`
@@ -51,6 +52,7 @@
 - `SessionResponse` · `session-messages.d.ts`
 - `SessionResponseEncodeInput` · `session-messages.d.ts`
 - `SessionResponseRead` · `session-messages.d.ts`
+- `SessionRunAttempts` · `session-messages.d.ts`
 - `SessionRunCause` · `session-messages.d.ts`
 - `SessionRunControl` · `session-messages.d.ts`
 - `SessionRunDiagnostic` · `session-messages.d.ts`
@@ -58,6 +60,7 @@
 - `SessionSuccessBodies` · `session-messages.d.ts`
 - `SessionTerminalSource` · `session-messages.d.ts`
 - `SessionToolCallDiagnostic` · `session-messages.d.ts`
+- `SessionToolDiagnosticEntry` · `session-messages.d.ts`
 - `TenantId` · 包 `@omne-harness/legal-identity`
 - `encodeAccountIdText` · `identity-text.d.ts`
 - `encodeGovernanceRequest` · `codec.d.ts`
@@ -170,7 +173,7 @@ export declare function encodeLoginStateIdText(value: LoginStateId): string;
 export { readGovernanceRequest, readGovernanceResponse, encodeGovernanceRequest, encodeGovernanceResponse, } from './codec.ts';
 export { readSessionRequest, readSessionResponse, encodeSessionRequest, encodeSessionResponse, } from './session-codec.ts';
 export type { GovernanceProvidedOperation, GovernanceStageOperation, GovernanceOperation, GovernanceRequest, GovernanceResponse, GovernanceCodecLimits, ProofInput, GovernanceProtocolRejected, GovernanceStageNotProvided, GovernanceProtocolResult, GovernanceDiagnostic, GovernanceRequestRead, GovernanceResponseRead, GovernanceEncodeResult, GovernanceResponseEncodeInput, ModelCredentialState, } from './messages.ts';
-export type { SessionOperation, SessionRequestBodies, SessionProducerRef, SessionTerminalSource, SessionRequest, SessionOutcomes, SessionSuccessBodies, SessionResponse, SessionProtocolRejected, SessionHistoryEntry, SessionHistoryPage, SessionDiagnosticsPage, SessionDiagnosticGap, SessionDiagnosticGapSource, SessionDiagnosticGapReason, SessionDiagnosticUnknown, SessionDiagnosticInstant, SessionDiagnosticMilliseconds, SessionAdoptionRef, SessionRunDiagnostic, SessionRunTerminal, SessionRunCause, SessionRunControl, SessionModelCallDiagnostic, SessionModelAttemptDiagnostic, SessionToolCallDiagnostic, SessionCallAccountView, SessionCodecLimits, SessionDiagnostic, SessionRequestRead, SessionResponseRead, SessionEncodeResult, SessionResponseEncodeInput, } from './session-messages.ts';
+export type { SessionOperation, SessionRequestBodies, SessionProducerRef, SessionTerminalSource, SessionRequest, SessionOutcomes, SessionSuccessBodies, SessionResponse, SessionProtocolRejected, SessionHistoryEntry, SessionHistoryPage, SessionDiagnosticsPage, SessionDiagnosticGap, SessionDiagnosticGapSource, SessionDiagnosticGapReason, SessionDiagnosticUnknown, SessionDiagnosticInstant, SessionDiagnosticMilliseconds, SessionAdoptionRef, SessionRunDiagnostic, SessionRunAttempts, SessionRunTerminal, SessionRunCause, SessionRunControl, SessionModelCallDiagnostic, SessionModelAttemptDiagnostic, SessionToolCallDiagnostic, SessionToolDiagnosticEntry, SessionFactCount, SessionCallAccountView, SessionCodecLimits, SessionDiagnostic, SessionRequestRead, SessionResponseRead, SessionEncodeResult, SessionResponseEncodeInput, } from './session-messages.ts';
 export { readTenantText, encodeTenantText, readOrganizationIdText, encodeOrganizationIdText, readAccountIdText, encodeAccountIdText, readLoginStateIdText, encodeLoginStateIdText, } from './identity-text.ts';
 export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
 ```
@@ -827,7 +830,7 @@ export type SessionRunCause = SessionDiagnosticUnknown | {
     readonly conclusion: 'complete' | 'fail' | 'cancelled';
 } | {
     readonly kind: 'model-refused';
-    readonly failure: 'denied' | 'invalid' | 'unsupported' | 'capacity';
+    readonly failure: 'denied' | 'invalid' | 'unsupported' | 'capacity' | SessionDiagnosticUnknown;
 } | {
     readonly kind: 'no-reply';
     readonly cause: string | null;
@@ -836,7 +839,7 @@ export type SessionRunCause = SessionDiagnosticUnknown | {
     readonly kind: 'request-rejected';
 } | {
     readonly kind: 'cannot-fit';
-    readonly reason: 'fixed' | 'after-compaction';
+    readonly reason: 'fixed' | 'after-compaction' | SessionDiagnosticUnknown;
 } | {
     readonly kind: 'compaction-invalid';
 } | {
@@ -859,6 +862,48 @@ export type SessionRunControl = {
     readonly target: 'run' | 'producer' | 'session' | null;
     readonly intent: 'control' | 'interrupt' | 'auto-archive' | null;
     readonly state: 'committed' | 'propagating' | 'reconciled' | null;
+};
+export type SessionRunAttempts = {
+    readonly started: string;
+    readonly released: {
+        readonly ended: string;
+        readonly bounded: string;
+        readonly cancelled: string;
+        readonly released: string;
+        readonly superseded: string;
+    };
+    readonly exited: string;
+};
+export type SessionFactCount = {
+    readonly kind: string;
+    readonly count: string;
+};
+export type SessionToolDiagnosticEntry = {
+    readonly operation: string;
+    readonly phase: string;
+    readonly code: string;
+};
+export type SessionCallAccountView = {
+    readonly kind: 'account';
+    readonly usage: readonly {
+        readonly name: string;
+        readonly unit: string;
+        readonly state: 'unknown' | 'known' | 'provisional';
+        readonly lexeme: string | null;
+    }[];
+    readonly cost: readonly {
+        readonly source: string;
+        readonly unit: string;
+        readonly state: 'unknown' | 'known' | 'provisional';
+        readonly lexeme: string | null;
+    }[];
+    readonly duration: {
+        readonly kind: 'known';
+        readonly value: string;
+    } | {
+        readonly kind: 'unknown';
+    };
+    readonly receipt: 'received' | 'late';
 };
 export type SessionModelAttemptDiagnostic = {
     readonly dispatch: string;
@@ -883,28 +928,7 @@ export type SessionModelAttemptDiagnostic = {
         readonly sendToFirstContent: SessionDiagnosticMilliseconds;
         readonly execution: SessionDiagnosticMilliseconds;
     };
-};
-export type SessionCallAccountView = {
-    readonly kind: 'account';
-    readonly usage: readonly {
-        readonly name: string;
-        readonly unit: string;
-        readonly state: 'unknown' | 'known' | 'provisional';
-        readonly lexeme: string | null;
-    }[];
-    readonly cost: readonly {
-        readonly source: string;
-        readonly unit: string;
-        readonly state: 'unknown' | 'known' | 'provisional';
-        readonly lexeme: string | null;
-    }[];
-    readonly duration: {
-        readonly kind: 'known';
-        readonly value: string;
-    } | {
-        readonly kind: 'unknown';
-    };
-    readonly receipt: 'received' | 'late';
+    readonly account: SessionCallAccountView | SessionDiagnosticUnknown;
 };
 export type SessionModelCallDiagnostic = {
     readonly reference: string;
@@ -916,7 +940,7 @@ export type SessionModelCallDiagnostic = {
     } | SessionDiagnosticUnknown;
     readonly dispatches: readonly SessionModelAttemptDiagnostic[];
     readonly coverage: 'complete-through-snapshot' | 'expired-prefix' | 'unknown';
-    readonly usage: SessionCallAccountView | SessionDiagnosticUnknown;
+    readonly facts: readonly SessionFactCount[];
 };
 export type SessionToolCallDiagnostic = {
     readonly reference: string;
@@ -931,7 +955,8 @@ export type SessionToolCallDiagnostic = {
         } | null;
     } | SessionDiagnosticUnknown;
     readonly account: SessionCallAccountView | SessionDiagnosticUnknown;
-    readonly diagnostics: 'unsupported';
+    readonly facts: readonly SessionFactCount[];
+    readonly diagnostics: readonly SessionToolDiagnosticEntry[] | SessionDiagnosticUnknown;
 };
 export type SessionRunDiagnostic = {
     readonly run: string;
@@ -941,7 +966,7 @@ export type SessionRunDiagnostic = {
         readonly position: string;
         readonly at: SessionDiagnosticInstant;
     };
-    readonly attempts: string;
+    readonly attempts: SessionRunAttempts;
     readonly controls: readonly SessionRunControl[];
     readonly terminal: SessionRunTerminal | null;
     readonly calls: {
@@ -954,6 +979,7 @@ export type SessionRunDiagnostic = {
         readonly kind: string;
         readonly count: string;
     }[];
+    readonly facts: readonly SessionFactCount[];
 };
 export type SessionDiagnosticsPage = {
     readonly runs: readonly SessionRunDiagnostic[];

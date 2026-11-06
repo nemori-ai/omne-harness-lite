@@ -48,6 +48,8 @@
 
 读取时抛错的输入答 `dropped(invalid)`。每个丢弃都按原因计数。
 
+`TelemetryPort.discard(definition, reason)`（契约 TC-15）不组成记录，只计数：运行时已开始关闭时答 `dropped(closed)`；`definition` 不是契约接受的三种定义之一，或 `reason` 不在 `DISCARD_REASONS` 里时答 `dropped(invalid)`；其余按 `reason` 计数并答 `dropped(reason)`。它不进入队列，不计入 `admitted`，与其他丢弃一样触发限频摘要（[TN-5](#tn-5-计数与限频摘要)）并进入 `CloseReport.droppedBy`。
+
 ### TN-3 记录形状
 
 运行时把每条记录作为一个 `TelemetryRecord` 对象交给出口，由出口序列化。共同成员如下：
@@ -128,7 +130,7 @@
 
 `createDisabledTelemetry()` 返回与运行时同形的对象。它是在场的提供者，不是缺席（IC-9）：
 
-- 关闭之前，每次端口操作与 `ingestLog` 答 `dropped(disabled)`，并计入 `droppedBy.disabled`。
+- 关闭之前，每次端口操作（含 `discard`）与 `ingestLog` 答 `dropped(disabled)`，并计入 `droppedBy.disabled`。
 - 关闭之后，每次调用答 `dropped(closed)`，不再计数。
 - 关闭报告：`generation` 是 `disabled`，`admitted` 是 0，`dropped` 等于 `droppedBy.disabled`，`flush` 是 `unconfirmed`，`boundary` 是 `none`，`transport` 是 `closed`。禁用实现没有写出任何记录，所以报告不声称任何边界。
 
@@ -218,7 +220,7 @@
 | 条款                        | 持续验证                                                                                      |
 | --------------------------- | --------------------------------------------------------------------------------------------- |
 | TN-1                        | `tests/runtime.spec.ts`「options」；`tests/file-outlet.spec.ts` 的打不开的文件                |
-| TN-2、TN-3                  | `tests/runtime.spec.ts`：记录形状、无效字段与绑定、超长记录、代理对象、指标、秘密样式的输入   |
+| TN-2、TN-3                  | `tests/runtime.spec.ts`：记录形状、无效字段与绑定、超长记录、代理对象、指标、秘密样式的输入；「discard」三例：按原因计数且不写出、不可声称的原因与非定义答 `invalid`、关闭后答 `closed` |
 | TN-4                        | `tests/runtime.spec.ts`「outlet failures」；`tests/file-outlet.spec.ts` 的真实文件            |
 | TN-5                        | `tests/runtime.spec.ts`：写函数持续抛错时的摘要条数与计数，摘要出口抛错                       |
 | TN-6                        | `tests/runtime.spec.ts`「segments」                                                           |

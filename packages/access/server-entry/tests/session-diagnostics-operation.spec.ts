@@ -87,6 +87,8 @@ type Doubles = Readonly<{
   writes: () => number
   entries: HistoryEntry[]
   begins: unknown[]
+  /** Moves the Session upper bound the next page reports, as an append after the first page would. */
+  setUpper: (upper: string) => void
 }>
 
 /**
@@ -105,12 +107,13 @@ async function diagnosticsFixture(
   let target: SessionIngressFaces<P> | undefined
   const entries: HistoryEntry[] = []
   const begins: unknown[] = []
+  let upper = '7'
   const page = (from: string | null): HistoryPage => {
     const end = from === null ? entries.length : entries.findIndex(item => item.id === from)
     return {
       source: 'double',
       interpreter: adoption,
-      upper: '7' as never,
+      upper: upper as never,
       entries: entries.slice(0, end).reverse(),
       scannedThrough: 'pos:0',
       next: null,
@@ -194,7 +197,17 @@ async function diagnosticsFixture(
     dependencies: { session: faces, ...ports },
   })
   target = fixture.session.faces
-  return { ...fixture, doubles: { writes: () => writes, entries, begins } }
+  return {
+    ...fixture,
+    doubles: {
+      writes: () => writes,
+      entries,
+      begins,
+      setUpper: next => {
+        upper = next
+      },
+    },
+  }
 }
 
 let fixture: (Fixture & { doubles: Doubles }) | undefined
@@ -426,6 +439,36 @@ describe('the judgment order of read-history', () => {
 })
 
 describe('the cursor', () => {
+  it('keeps the basis of the first page on a continued page: an append after the first page does not move basis.upper', async () => {
+    fixture = await diagnosticsFixture()
+    const who = await login(fixture, 'alice')
+    const session = await createSession(fixture, who)
+    fixture.doubles.entries.push(
+      ...runEntries('r1', 1),
+      ...runEntries('r2', 4),
+      ...runEntries('r3', 7),
+    )
+    const first = bodyOf((await firstPage(who, session)).json)
+    expect(first.basis).toEqual({ upper: '7' })
+    if (first.next === null) throw new Error('expected a cursor')
+    // Entries appended after the first page move the Session upper bound; the scan reads older entries.
+    fixture.doubles.setUpper('8')
+    const second = bodyOf(
+      (await diagnostics(who, { tenant: who.tenantText, session, cursor: first.next })).json,
+    )
+    expect(second.runs.map(run => run.run)).toEqual(['r2'])
+    expect(second.basis).toEqual({ upper: '7' })
+    if (second.next === null) throw new Error('expected a second cursor')
+    const third = bodyOf(
+      (await diagnostics(who, { tenant: who.tenantText, session, cursor: second.next })).json,
+    )
+    expect(third.runs.map(run => run.run)).toEqual(['r1'])
+    expect(third.basis).toEqual({ upper: '7' })
+    expect(third.exhausted).toBe(true)
+    // A new first page reads the current bound.
+    expect(bodyOf((await firstPage(who, session)).json).basis).toEqual({ upper: '8' })
+  })
+
   it('answers invalid to a tampered cursor and to the cursor of another session, and re-judges eligibility when continuing', async () => {
     fixture = await diagnosticsFixture()
     const who = await login(fixture, 'alice')

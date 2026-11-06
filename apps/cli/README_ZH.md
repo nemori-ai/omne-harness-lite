@@ -54,7 +54,7 @@ node apps/cli/dist/bin.js stop-call --session <id> --producer-kind model --call 
 
 `read-history` 按页读完整个历史。缺省每个条目打印一段：文本、工具调用、工具结果，以及每个 Run 的开始与终结。加 `--json` 时，原始条目在 `body.entries` 里。读不到末尾时，命令仍打印已经读到的条目，在标准错误写原因，并以非零退出（`denied` 为 `3`，`basis-unavailable` 为 `4`，结果不确定为 `5`，读到不可用的页为 `1`）。规则见 [SPEC.md](SPEC.md#读历史)。
 
-`read-session-diagnostics` 按页读完一个会话各 Run 的诊断：每个 Run 怎样开始与结束、失败的原因（用拥有者自己的词，例如 `reason: model-refused capacity`）、每次模型派发的时长与用量、每次工具调用，以及来源没有给出答案的缺口。缺省每个 Run 打印一段。加 `--json` 时，Run 与缺口在 `body.runs` 与 `body.gaps` 里。`--run <id>` 只读一个 Run。缺口是结果的一部分，不改变退出码。读不完整时的退出方式同 `read-history`。规则与文本格式见 [SPEC.md](SPEC.md#读诊断投影)。
+`read-session-diagnostics` 按页读完一个会话各 Run 的诊断：每个 Run 怎样开始与结束、它的 attempt 计数、失败的原因（用拥有者自己的词，例如 `reason: model-refused capacity`）、每次模型派发的时长与账目、每次工具调用的账目与 Tool 的诊断、执行事实的计数，以及来源没有给出答案的缺口。缺省每个 Run 打印一段。加 `--json` 时，Run 与缺口在 `body.runs` 与 `body.gaps` 里。`--run <id>` 只读一个 Run。缺口是结果的一部分，不改变退出码。读不完整时的退出方式同 `read-history`。规则与文本格式见 [SPEC.md](SPEC.md#读诊断投影)。
 
 其余命令和 `read-history --json`、`read-session-diagnostics --json` 向标准输出写一个 JSON 对象，含四个键：
 
@@ -177,7 +177,7 @@ pnpm turbo run typecheck --filter=@omne-harness/cli
 - 本进程内的命令测试。`tests/governance-commands.spec.ts` 覆盖 18 个治理命令：每个命令一条机读结果用例、`stage-not-provided` 应答、用法错误、`login` 保存的 `loginId`、`switch-current-tenant` 之后的登录文件，以及 `revoke-login` 的删除。`tests/commands.spec.ts` 用生产目录和真实的 SDK HTTP 传输适配，对 `127.0.0.1` 上的真实 HTTP 服务器（`tests/support/fake-service.ts`）运行。服务器按公开契约的线上形状答复每个操作。用例覆盖每个命令、退出码表、用法错误、状态目录规则、服务地址次序和不回显规则。
 - `tests/credential-command.spec.ts` 覆盖 `credential` 的三个子命令：每个子命令发出的请求、各结果的输出与退出码、用法错误，以及秘密不出现在标准输出、标准错误和状态目录里。秘密是哨兵值，进程测试经管道读入它。
 - `tests/read-history.spec.ts` 覆盖 `read-history`。测试服务按公开契约答复：首页请求带 `direction` 和 `pageBytes`，带游标的请求两者都不带，带游标又带这两个字段的请求答 `protocol-rejected`。用例覆盖三页翻页、每页请求的形状、文本、工具调用、工具结果与 Run 开始和终结的人读渲染、`--json`、每种 outcome 的退出码，以及读不完整的各种原因。
-- `tests/read-session-diagnostics.spec.ts` 以同样的方式覆盖 `read-session-diagnostics`：首页请求带 `run` 和 `pageBytes`，带游标的请求两者都不带。用例覆盖翻页并收齐每页的缺口、带与不带 `--run` 的请求形状、两个失败 Run（`model-refused capacity` 与 `no-reply upstream-unavailable 504`）连同派发、时长、用量与缺口的人读文本、已完成与未终结的 Run、`--json`、每种 outcome 的退出码、带缺口的完整页退出 `0`，以及读不完整的各种原因。
+- `tests/read-session-diagnostics.spec.ts` 以同样的方式覆盖 `read-session-diagnostics`：首页请求带 `run` 和 `pageBytes`，带游标的请求两者都不带。用例覆盖翻页并收齐每页的缺口、带与不带 `--run` 的请求形状、两个失败 Run（`model-refused capacity` 与 `no-reply upstream-unavailable 504`）连同派发、时长、账目与缺口的人读文本、已完成与未终结的 Run、按种类计的 attempt、Run 与每次调用的执行事实、工具调用的诊断条目、读作 `unknown` 的失败种类与原因、`--json`、每种 outcome 的退出码、带缺口的完整页退出 `0`，以及读不完整的各种原因。
 - 构建产物的进程测试。它们从仓库外的临时目录启动 `node dist/bin.js`，每个子进程使用新的环境，含 `PATH`、临时 `HOME`，以及可选的 `OMNE_HOME` 和 `OMNE_SERVER`。每个用例都起子进程，所以归慢层。
 - 单元测试覆盖凭据读取与行编辑、登录状态文件、`parseArgv`、目录和状态目录函数。
 - `tests/support/expected.ts` 从 SPEC.md 读两份帮助文本，测试拿构建结果与规格的原话比较。

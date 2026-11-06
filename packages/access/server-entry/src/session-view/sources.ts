@@ -9,6 +9,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import type { Access } from '@omne-harness/legal-identity'
 import type {
+  DispatchRecord,
   Lookup,
   ModelCalls,
   ModelDiagnostics,
@@ -16,14 +17,23 @@ import type {
   ModelFailure,
 } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
-import type { ToolFailure, ToolInvocationQueries, ToolLookup } from '@omne-harness/tool-contract'
+import type {
+  DiagnosticPage,
+  ToolFailure,
+  ToolInvocationQueries,
+  ToolLookup,
+} from '@omne-harness/tool-contract'
 import type { SessionDiagnosticUnknown } from '@omne-harness/public-contract'
 
 /** The finish read of Agent; `readFinish` stays optional, as the Agent contract declares it. */
 export type AgentFinishReader<P> = Pick<AgentJournalReading<P>, 'readFinish'>
-export type ModelCallInspector<P> = Pick<ModelCalls<P>, 'inspect'>
+/** The reference resolution and the dispatch records of Model's calls: the records carry the account of each dispatch. */
+export type ModelCallInspector<P> = Pick<ModelCalls<P>, 'inspect' | 'dispatches'>
 export type ModelAttemptReader<P> = ModelDiagnostics<P>
-export type ToolCallReader<P> = Pick<ToolInvocationQueries<P, never>, 'lookup' | 'account'>
+export type ToolCallReader<P> = Pick<
+  ToolInvocationQueries<P, never>,
+  'lookup' | 'account' | 'readDiagnostics'
+>
 export type CallAccount = Extract<
   Awaited<ReturnType<ToolCallReader<unknown>['account']>>,
   { ok: unknown }
@@ -113,8 +123,11 @@ export interface DiagnosticSources {
   readFinish(execution: string): Promise<SourceAnswer<FinishIntent | null>>
   inspectModelCall(reference: string): Promise<SourceAnswer<Lookup>>
   listModelAttempts(call: string): Promise<SourceAnswer<ModelDiagnosticsPage>>
+  listModelDispatches(call: string): Promise<SourceAnswer<readonly DispatchRecord[]>>
   lookupToolCall(reference: string): Promise<SourceAnswer<ToolLookup>>
   readToolAccount(reference: string): Promise<SourceAnswer<CallAccount>>
+  /** The first page of Tool's diagnostics of the call. */
+  readToolDiagnostics(reference: string): Promise<SourceAnswer<DiagnosticPage>>
 }
 
 /** Binds the ports to one caller's access. Each read carries the acting principal and the tenant. */
@@ -146,6 +159,10 @@ export function sourcesOf<P>(access: Access<P>, ports: DiagnosticPorts<P>): Diag
               }),
             'call',
           ),
+    listModelDispatches: call =>
+      modelCalls === undefined
+        ? Promise.resolve(UNSUPPORTED)
+        : answerOf(() => modelCalls.dispatches({ ...access, call: call as never }), 'call'),
     lookupToolCall: reference =>
       toolQueries === undefined
         ? Promise.resolve(UNSUPPORTED)
@@ -158,6 +175,18 @@ export function sourcesOf<P>(access: Access<P>, ports: DiagnosticPorts<P>): Diag
         ? Promise.resolve(UNSUPPORTED)
         : answerOf(
             () => toolQueries.account({ ...access, reference: reference as never }),
+            'reference',
+          ),
+    readToolDiagnostics: reference =>
+      toolQueries === undefined
+        ? Promise.resolve(UNSUPPORTED)
+        : answerOf(
+            () =>
+              toolQueries.readDiagnostics({
+                ...access,
+                reference: reference as never,
+                after: null,
+              }),
             'reference',
           ),
   }

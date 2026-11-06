@@ -5,6 +5,7 @@
 import type { FinishIntent } from '@omne-harness/agent-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
+  DispatchRecord,
   Lookup,
   ModelAttemptDiagnostic,
   ModelDiagnosticsPage,
@@ -14,15 +15,17 @@ import type {
   SessionDiagnosticGap,
   SessionDiagnosticMilliseconds,
   SessionDiagnosticUnknown,
+  SessionFactCount,
   SessionModelAttemptDiagnostic,
   SessionModelCallDiagnostic,
+  SessionRunAttempts,
   SessionRunCause,
   SessionRunControl,
   SessionRunDiagnostic,
   SessionToolCallDiagnostic,
 } from '@omne-harness/public-contract'
 import type { HistoryEntry } from '@omne-harness/session-contract'
-import type { ToolLookup } from '@omne-harness/tool-contract'
+import type { DiagnosticPage, ToolLookup } from '@omne-harness/tool-contract'
 import type { CallAccount, SourceAnswer } from './sources.ts'
 
 /** The entry kinds the projection reads (RFC-0013「数据来源与读取路径」). A deployment discloses a subset. */
@@ -52,6 +55,7 @@ const CONTROL_STATES = ['committed', 'propagating', 'reconciled'] as const
 const CALL_KINDS = ['model', 'tool'] as const
 const REFUSALS = ['denied', 'invalid', 'unsupported', 'capacity'] as const
 const FIT_REASONS = ['fixed', 'after-compaction'] as const
+const RELEASE_REASONS = ['ended', 'bounded', 'cancelled', 'released', 'superseded'] as const
 
 // ---- reading the stored payload of an entry ----
 
@@ -70,25 +74,50 @@ function oneOf<T extends string>(value: string | undefined, set: readonly T[]): 
   return set.find(item => item === value)
 }
 
+function producerOf(value: JsonValue | undefined): Producer | null {
+  const kind = oneOf(textAt(value, 'kind'), CALL_KINDS)
+  const call = textAt(value, 'call')
+  return kind === undefined || call === undefined ? null : { kind, call }
+}
+
 // ---- the Run skeleton ----
 
+/** The producer a `call.bound` registers or a `call.execution-fact` names (Session `ProducerRef`). */
+export type Producer = Readonly<{ kind: 'model' | 'tool'; call: string }>
 /**
  * One call of a Run, in log order of its first `call.bound`. `reference` is null for a registration
  * without one. `consumption` is the identity Session gives the call; null when the entry has none.
+ * `producer` is the registered producer; null for a registration without one.
  */
 export type CallRegistration = Readonly<{
   position: string
   consumption: string | null
+  producer: Producer | null
   kind: 'model' | 'tool'
   reference: string | null
   purpose: string
 }>
+/** The attempt counts of a Run: `run.attempt-started`, `run.attempt-released` by its `reason`, `run.attempt-exited`. */
+export type AttemptCounts = Readonly<{
+  started: number
+  released: Readonly<Record<(typeof RELEASE_REASONS)[number], number>>
+  exited: number
+}>
+/**
+ * What a `call.execution-fact` names to find its call: a consumption, else its producer. Null when
+ * it names neither.
+ */
+export type FactSubject =
+  | Readonly<{ by: 'consumption'; consumption: string }>
+  | Readonly<{ by: 'producer'; producer: Producer }>
+/** One `call.execution-fact` of a Run: its `fact.kind` and what it names. */
+export type ExecutionFact = Readonly<{ kind: string; subject: FactSubject | null }>
 export type RunSkeleton = Readonly<{
   run: string
   execution: string
   entry: 'interactive' | 'dispatch'
   position: string
-  attempts: number
+  attempts: AttemptCounts
   controls: readonly SessionRunControl[]
   terminal: Readonly<{
     outcome: 'completed' | 'failed' | 'cancelled'
@@ -96,6 +125,8 @@ export type RunSkeleton = Readonly<{
   }> | null
   calls: readonly CallRegistration[]
   messages: ReadonlyMap<string, number>
+  /** In log order. The view attributes them to the projected calls, so the skeleton keeps them raw. */
+  facts: readonly ExecutionFact[]
 }>
 
 function controlOf(entry: HistoryEntry, kind: 'requested' | 'progress'): SessionRunControl {
@@ -124,6 +155,7 @@ function callOf(entry: HistoryEntry): CallRegistration | undefined {
   return {
     position: entry.id,
     consumption: textAt(payload, 'consumption') ?? null,
+    producer: producerOf(producer),
     kind,
     reference: textAt(payload, 'reference') ?? textAt(producer, 'call') ?? null,
     purpose:
@@ -135,11 +167,16 @@ function callOf(entry: HistoryEntry): CallRegistration | undefined {
 }
 
 type Draft = {
-  attempts: number
+  attempts: {
+    started: number
+    released: Record<(typeof RELEASE_REASONS)[number], number>
+    exited: number
+  }
   controls: SessionRunControl[]
   terminal: RunSkeleton['terminal']
   calls: CallRegistration[]
   messages: Map<string, number>
+  facts: ExecutionFact[]
 }
 
 /**
@@ -162,11 +199,41 @@ function registerCall(calls: CallRegistration[], entry: HistoryEntry): void {
     }
 }
 
+/**
+ * The subject of a `call.execution-fact` (SPEC「会话诊断投影」rule 3). Session writes the
+ * consumption at the top on the observation path and under `fact` for a `release`; an `execution`
+ * received from a producer names only `fact.producer`.
+ */
+function factSubjectOf(payload: JsonValue): FactSubject | null {
+  const consumption = textAt(payload, 'consumption') ?? textAt(payload, 'fact', 'consumption')
+  if (consumption !== undefined) return { by: 'consumption', consumption }
+  const producer = producerOf(member(member(payload, 'fact'), 'producer'))
+  return producer === null ? null : { by: 'producer', producer }
+}
+
+/**
+ * Folds one entry into the draft. A `run.attempt-released` whose `reason` is outside the Session
+ * contract's five is not counted: the public counts are closed by reason. A `call.execution-fact`
+ * without a `fact.kind` is not counted either: the counts are keyed by that kind.
+ */
 function fold(draft: Draft, entry: HistoryEntry): void {
   switch (entry.kind) {
     case 'run.attempt-started':
-      draft.attempts += 1
+      draft.attempts.started += 1
       return
+    case 'run.attempt-released': {
+      const reason = oneOf(textAt(entry.payload, 'reason'), RELEASE_REASONS)
+      if (reason !== undefined) draft.attempts.released[reason] += 1
+      return
+    }
+    case 'run.attempt-exited':
+      draft.attempts.exited += 1
+      return
+    case 'call.execution-fact': {
+      const kind = textAt(entry.payload, 'fact', 'kind')
+      if (kind !== undefined) draft.facts.push({ kind, subject: factSubjectOf(entry.payload) })
+      return
+    }
     case 'run.terminal': {
       const outcome = oneOf(textAt(entry.payload, 'terminal', 'outcome'), RUN_OUTCOMES)
       if (outcome !== undefined)
@@ -195,11 +262,16 @@ function skeletonOf(
   later: readonly HistoryEntry[],
 ): RunSkeleton {
   const draft: Draft = {
-    attempts: 0,
+    attempts: {
+      started: 0,
+      released: { ended: 0, bounded: 0, cancelled: 0, released: 0, superseded: 0 },
+      exited: 0,
+    },
     controls: [],
     terminal: null,
     calls: [],
     messages: new Map(),
+    facts: [],
   }
   for (const entry of later) fold(draft, entry)
   return {
@@ -256,10 +328,13 @@ export type ModelAnswers = Readonly<{
   lookup: SourceAnswer<Lookup>
   /** Null when no call was found to list the attempts of. */
   attempts: SourceAnswer<ModelDiagnosticsPage> | null
+  /** The dispatch records of the same call, read for their accounts; null when no attempt was listed. */
+  dispatches: SourceAnswer<readonly DispatchRecord[]> | null
 }>
 export type ToolAnswers = Readonly<{
   lookup: SourceAnswer<ToolLookup>
   account: SourceAnswer<CallAccount>
+  diagnostics: SourceAnswer<DiagnosticPage>
 }>
 export type RunAnswers = Readonly<{
   /** Null when the projection did not read the finish: the Run completed or has not ended. */
@@ -283,7 +358,10 @@ function causeOf(finish: RunAnswers['finish']): SessionRunCause {
   if (failure === null) return { kind: 'no-failure', conclusion: intent.conclusion.kind }
   switch (failure.kind) {
     case 'model-refused':
-      return { kind: 'model-refused', failure: oneOf(failure.failure.kind, REFUSALS) ?? 'invalid' }
+      return {
+        kind: 'model-refused',
+        failure: oneOf(failure.failure.kind, REFUSALS) ?? unknown('unsupported'),
+      }
     case 'no-reply':
       return {
         kind: 'no-reply',
@@ -291,7 +369,10 @@ function causeOf(finish: RunAnswers['finish']): SessionRunCause {
         upstreamStatus: failure.fault?.upstreamStatus ?? null,
       }
     case 'cannot-fit':
-      return { kind: 'cannot-fit', reason: oneOf(failure.reason, FIT_REASONS) ?? 'fixed' }
+      return {
+        kind: 'cannot-fit',
+        reason: oneOf(failure.reason, FIT_REASONS) ?? unknown('unsupported'),
+      }
     default:
       return { kind: failure.kind }
   }
@@ -304,7 +385,40 @@ const millisecondsOf = (
     ? { kind: 'known', milliseconds: duration.milliseconds }
     : { kind: 'unknown' }
 
-function attemptOf(attempt: ModelAttemptDiagnostic): SessionModelAttemptDiagnostic {
+/** The account of one dispatch, by its identity among the dispatch records of the call. */
+type DispatchAccounts = (dispatch: string) => SessionModelAttemptDiagnostic['account']
+
+/**
+ * The accounts of the dispatches of one call, from `ModelCalls.dispatches` (SPEC「会话诊断投影」
+ * rule 3). A failed read makes every account `unknown` with its reason and one gap of the call.
+ * A record without an account is `not-recorded`; a dispatch the records do not list is `not-found`.
+ */
+function dispatchAccountsOf(
+  reference: string,
+  dispatches: ModelAnswers['dispatches'],
+): Projected<DispatchAccounts> {
+  if (dispatches === null || dispatches.kind === 'gap') {
+    const reason = dispatches === null ? 'not-recorded' : dispatches.reason
+    return {
+      value: () => unknown(reason),
+      gaps: dispatches === null ? [] : [{ source: 'model', subject: reference, reason }],
+    }
+  }
+  const records = new Map(dispatches.value.map(record => [record.dispatch as string, record]))
+  return {
+    value: dispatch => {
+      const record = records.get(dispatch)
+      if (record === undefined) return unknown('not-found')
+      return record.account === null ? unknown('not-recorded') : accountViewOf(record.account)
+    },
+    gaps: [],
+  }
+}
+
+function attemptOf(
+  attempt: ModelAttemptDiagnostic,
+  accounts: DispatchAccounts,
+): SessionModelAttemptDiagnostic {
   const { adapter, outcome } = attempt
   return {
     dispatch: attempt.dispatch,
@@ -326,13 +440,15 @@ function attemptOf(attempt: ModelAttemptDiagnostic): SessionModelAttemptDiagnost
       sendToFirstContent: millisecondsOf(attempt.timing.sendToFirstContent),
       execution: millisecondsOf(attempt.timing.execution),
     },
+    account: accounts(attempt.dispatch),
   }
 }
 
 function attemptsOf(
   reference: string,
-  attempts: ModelAnswers['attempts'],
+  answers: Pick<ModelAnswers, 'attempts' | 'dispatches'>,
 ): Projected<Pick<SessionModelCallDiagnostic, 'dispatches' | 'coverage'>> {
+  const { attempts } = answers
   if (attempts === null) return { value: { dispatches: [], coverage: 'unknown' }, gaps: [] }
   if (attempts.kind === 'gap')
     return {
@@ -344,15 +460,24 @@ function attemptsOf(
   if (page.coverage === 'expired-prefix')
     gaps.push({ source: 'model', subject: reference, reason: 'retention-expired' })
   if (page.next !== null) gaps.push({ source: 'model', subject: reference, reason: 'truncated' })
-  return { value: { dispatches: page.entries.map(attemptOf), coverage: page.coverage }, gaps }
+  const accounts = dispatchAccountsOf(reference, answers.dispatches)
+  gaps.push(...accounts.gaps)
+  return {
+    value: {
+      dispatches: page.entries.map(attempt => attemptOf(attempt, accounts.value)),
+      coverage: page.coverage,
+    },
+    gaps,
+  }
 }
 
 function modelCallOf(
   call: CallRegistration,
   answers: ModelAnswers | undefined,
+  facts: readonly SessionFactCount[],
 ): Projected<SessionModelCallDiagnostic> {
   const reference = call.reference ?? call.position
-  const base = { reference, purpose: call.purpose, usage: unknown('unsupported') } as const
+  const base = { reference, purpose: call.purpose, facts } as const
   const lookup = answers?.lookup ?? { kind: 'gap', reason: 'not-recorded' }
   if (lookup.kind === 'gap')
     return {
@@ -365,7 +490,7 @@ function modelCallOf(
       gaps: [{ source: 'model', subject: reference, reason: 'not-accepted' }],
     }
   const { state } = lookup.value
-  const attempts = attemptsOf(reference, answers?.attempts ?? null)
+  const attempts = attemptsOf(reference, answers ?? { attempts: null, dispatches: null })
   return {
     value: {
       ...base,
@@ -416,13 +541,35 @@ function toolStateOf(lookup: ToolAnswers['lookup']): SessionToolCallDiagnostic['
   }
 }
 
+/** The first page of Tool's diagnostics without its evidence; a next page is a `truncated` gap, not read. */
+function toolDiagnosticsOf(
+  reference: string,
+  diagnostics: SourceAnswer<DiagnosticPage>,
+): Projected<SessionToolCallDiagnostic['diagnostics']> {
+  if (diagnostics.kind === 'gap')
+    return {
+      value: unknown(diagnostics.reason),
+      gaps: [{ source: 'tool', subject: reference, reason: diagnostics.reason }],
+    }
+  const page = diagnostics.value
+  return {
+    value: page.entries.map(({ operation, phase, code }) => ({ operation, phase, code })),
+    gaps: page.next === null ? [] : [{ source: 'tool', subject: reference, reason: 'truncated' }],
+  }
+}
+
 function toolCallOf(
   call: CallRegistration,
   answers: ToolAnswers | undefined,
+  facts: readonly SessionFactCount[],
 ): Projected<SessionToolCallDiagnostic> {
   const reference = call.reference ?? call.position
   const lookup = answers?.lookup ?? { kind: 'gap', reason: 'not-recorded' }
   const account = answers?.account ?? { kind: 'gap', reason: 'not-recorded' }
+  const diagnostics = toolDiagnosticsOf(
+    reference,
+    answers?.diagnostics ?? { kind: 'gap', reason: 'not-recorded' },
+  )
   const gaps: SessionDiagnosticGap[] = []
   if (lookup.kind === 'gap')
     gaps.push({ source: 'tool', subject: reference, reason: lookup.reason })
@@ -430,16 +577,75 @@ function toolCallOf(
     gaps.push({ source: 'tool', subject: reference, reason: 'not-accepted' })
   if (account.kind === 'gap')
     gaps.push({ source: 'tool', subject: reference, reason: account.reason })
+  gaps.push(...diagnostics.gaps)
   return {
     value: {
       reference,
       state: toolStateOf(lookup),
       account: account.kind === 'gap' ? unknown(account.reason) : accountViewOf(account.value),
-      diagnostics: 'unsupported',
+      facts,
+      diagnostics: diagnostics.value,
     },
     gaps,
   }
 }
+
+const factCountsOf = (facts: readonly ExecutionFact[]): SessionFactCount[] => {
+  const counts = new Map<string, number>()
+  for (const fact of facts) counts.set(fact.kind, (counts.get(fact.kind) ?? 0) + 1)
+  return [...counts].map(([kind, count]) => ({ kind, count: String(count) }))
+}
+
+const sameProducer = (left: Producer, right: Producer): boolean =>
+  left.kind === right.kind && left.call === right.call
+
+/** The position of the projected call a fact names; undefined when it names none of them. */
+function ownerOf(
+  subject: FactSubject | null,
+  calls: readonly CallRegistration[],
+): string | undefined {
+  if (subject === null) return undefined
+  const owner =
+    subject.by === 'consumption'
+      ? calls.find(call => call.consumption === subject.consumption)
+      : calls.find(call => call.producer !== null && sameProducer(call.producer, subject.producer))
+  return owner?.position
+}
+
+/**
+ * The execution facts of a Run by owner (SPEC「会话诊断页」): a fact whose consumption is that of a
+ * projected call, or, without a consumption, whose producer is the one a projected call registered,
+ * belongs to that call, keyed by the call's position; every other fact belongs to the Run. Log
+ * order between a fact and the `call.bound` it names does not matter.
+ */
+function attributeFacts(
+  skeleton: RunSkeleton,
+  calls: readonly CallRegistration[],
+): Readonly<{ run: SessionFactCount[]; byCall: ReadonlyMap<string, SessionFactCount[]> }> {
+  const run: ExecutionFact[] = []
+  const byCall = new Map<string, ExecutionFact[]>()
+  for (const fact of skeleton.facts) {
+    const position = ownerOf(fact.subject, calls)
+    if (position === undefined) run.push(fact)
+    else byCall.set(position, [...(byCall.get(position) ?? []), fact])
+  }
+  return {
+    run: factCountsOf(run),
+    byCall: new Map([...byCall].map(([position, facts]) => [position, factCountsOf(facts)])),
+  }
+}
+
+const attemptsViewOf = (attempts: AttemptCounts): SessionRunAttempts => ({
+  started: String(attempts.started),
+  released: {
+    ended: String(attempts.released.ended),
+    bounded: String(attempts.released.bounded),
+    cancelled: String(attempts.released.cancelled),
+    released: String(attempts.released.released),
+    superseded: String(attempts.released.superseded),
+  },
+  exited: String(attempts.exited),
+})
 
 /** The view of one Run. `projected` is how many of its calls entered the fan-out (the Run's `maxCallsPerRun` prefix). */
 export function projectRun(
@@ -452,15 +658,18 @@ export function projectRun(
     gaps.push({ source: 'agent', subject: skeleton.execution, reason: answers.finish.reason })
   else if (answers.finish?.kind === 'value' && answers.finish.value === null)
     gaps.push({ source: 'agent', subject: skeleton.execution, reason: 'not-recorded' })
+  const calls = skeleton.calls.slice(0, projected)
+  const facts = attributeFacts(skeleton, calls)
   const modelCalls: SessionModelCallDiagnostic[] = []
   const toolCalls: SessionToolCallDiagnostic[] = []
-  for (const call of skeleton.calls.slice(0, projected)) {
+  for (const call of calls) {
+    const own = facts.byCall.get(call.position) ?? []
     if (call.kind === 'model') {
-      const one = modelCallOf(call, answers.models.get(call.position))
+      const one = modelCallOf(call, answers.models.get(call.position), own)
       modelCalls.push(one.value)
       gaps.push(...one.gaps)
     } else {
-      const one = toolCallOf(call, answers.tools.get(call.position))
+      const one = toolCallOf(call, answers.tools.get(call.position), own)
       toolCalls.push(one.value)
       gaps.push(...one.gaps)
     }
@@ -474,7 +683,7 @@ export function projectRun(
       entry: skeleton.entry,
       execution: skeleton.execution,
       started: { position: skeleton.position, at: { kind: 'unknown' } },
-      attempts: String(skeleton.attempts),
+      attempts: attemptsViewOf(skeleton.attempts),
       controls: skeleton.controls,
       terminal:
         terminal === null
@@ -487,6 +696,7 @@ export function projectRun(
       modelCalls,
       toolCalls,
       messages: [...skeleton.messages].map(([kind, count]) => ({ kind, count: String(count) })),
+      facts: facts.run,
     },
     gaps,
   }

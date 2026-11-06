@@ -42,7 +42,6 @@ import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { S0_ASSEMBLY_LIFECYCLE_KEY } from '../../lifecycle.ts'
 import { defineRow } from '../../row.ts'
 import type { LifecycleHandle } from '../../types.ts'
-import { FACADE_MAX_OPEN_SEGMENTS } from '../telemetry/config.ts'
 import { processInstance } from '../telemetry/instance.ts'
 
 type Registered = Pick<LifecycleHandle, 'phase' | 'row' | 'stop'>
@@ -77,10 +76,7 @@ export const sessionProviderRealRow = defineRow({
   lifecycle: { kind: 'body', phase: 'business' },
   Config: SessionProvider.Config,
   async body(ctx, config) {
-    const telemetry = createSessionTelemetry(ctx.telemetry, {
-      instance: processInstance,
-      maxOpenSegments: FACADE_MAX_OPEN_SEGMENTS,
-    })
+    const telemetry = createSessionTelemetry(ctx.telemetry, { instance: processInstance })
     const Plugin = createSessionProviderPlugin({
       measure: telemetry.measure,
       diagnose: telemetry.diagnose,

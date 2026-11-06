@@ -20,6 +20,10 @@ class ProbeTelemetry extends TelemetryService {
     bound.push(binding)
     return emitter
   }
+
+  discard(): ReturnType<TelemetryService['discard']> {
+    return { kind: 'dropped', reason: 'invalid' }
+  }
 }
 
 const binding: Binding = {

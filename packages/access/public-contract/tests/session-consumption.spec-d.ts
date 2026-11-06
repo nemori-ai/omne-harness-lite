@@ -8,15 +8,25 @@ import {
   readSessionRequest,
   readSessionResponse,
   type GovernanceRequest,
+  type SessionCallAccountView,
   type SessionDiagnosticsPage,
+  type SessionDiagnosticUnknown,
+  type SessionFactCount,
   type SessionHistoryPage,
+  type SessionModelAttemptDiagnostic,
+  type SessionModelCallDiagnostic,
   type SessionOperation,
   type SessionOutcomes,
   type SessionRequest,
   type SessionRequestRead,
   type SessionResponse,
   type SessionResponseEncodeInput,
+  type SessionRunAttempts,
+  type SessionRunCause,
+  type SessionRunDiagnostic,
   type SessionSuccessBodies,
+  type SessionToolCallDiagnostic,
+  type SessionToolDiagnosticEntry,
 } from '@omne-harness/public-contract'
 
 declare const tenant: TenantId
@@ -161,6 +171,24 @@ test('read-session-diagnostics has exactly two body shapes chosen by cursor', ()
     run: null,
   }
   void mixed
+})
+
+test('the diagnostics page counts attempts by kind and holds unknowns, never a plausible value', () => {
+  expectTypeOf<SessionRunDiagnostic['attempts']>().toEqualTypeOf<SessionRunAttempts>()
+  expectTypeOf<SessionRunDiagnostic['facts']>().toEqualTypeOf<readonly SessionFactCount[]>()
+  expectTypeOf<SessionModelCallDiagnostic>().not.toHaveProperty('usage')
+  expectTypeOf<SessionModelAttemptDiagnostic['account']>().toEqualTypeOf<
+    SessionCallAccountView | SessionDiagnosticUnknown
+  >()
+  expectTypeOf<SessionToolCallDiagnostic['diagnostics']>().toEqualTypeOf<
+    readonly SessionToolDiagnosticEntry[] | SessionDiagnosticUnknown
+  >()
+  expectTypeOf<Extract<SessionRunCause, { kind: 'model-refused' }>['failure']>().toEqualTypeOf<
+    'denied' | 'invalid' | 'unsupported' | 'capacity' | SessionDiagnosticUnknown
+  >()
+  expectTypeOf<Extract<SessionRunCause, { kind: 'cannot-fit' }>['reason']>().toEqualTypeOf<
+    'fixed' | 'after-compaction' | SessionDiagnosticUnknown
+  >()
 })
 
 test('responses keep outcome and body correlated to the operation', () => {

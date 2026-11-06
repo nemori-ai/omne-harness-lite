@@ -1,7 +1,7 @@
 // SPEC「测量事件」: the Session segment of each face operation, the round-complete fact of a Run
 // terminal, and the absence of any change when no observer is given.
 import { afterEach, describe, expect, it } from 'vitest'
-import type { StartedRun } from '@omne-harness/session-contract'
+import type { ResidentKey, StartedRun } from '@omne-harness/session-contract'
 import { creation, operationId, succeeded } from '@omne-harness/session-contract/testing'
 import type { SessionMeasure, SessionMeasureEvent } from '../src/index.ts'
 import { memoryBackend } from './fixtures/backends.ts'
@@ -252,6 +252,55 @@ describe('the tenant of the events', () => {
     succeeded(await h.faces('coordinator').work.readWork(h.access()), 'readWork')
     expect(events).toHaveLength(2)
     for (const event of events) expect(event.tenant).toEqual(h.access().tenant)
+  })
+
+  it('a `pending` directory read carries the tenant of its input and no system scope', async () => {
+    const { h, events } = await service()
+    await h.create()
+    events.length = 0
+    succeeded(
+      await h.faces('maintainer').reconciliation.pending({
+        principal: 'a:tester',
+        tenant: h.access().tenant,
+        after: null,
+        limit: 10,
+      }),
+      'pending',
+    )
+    expect(events).toHaveLength(2)
+    for (const event of events) {
+      expect(event.tenant).toEqual(h.access().tenant)
+      expect(event).not.toHaveProperty('scope')
+    }
+  })
+
+  it('`references` and `releasedScopes` are system-scope reads: their segments carry `system` and no tenant', async () => {
+    const { h, events } = await service()
+    await h.create()
+    events.length = 0
+    const maintainer = h.faces('maintainer').reconciliation
+    await maintainer.references({
+      principal: 'a:tester',
+      scope: 'system',
+      key: 'resident-1' as ResidentKey,
+      after: null,
+      limit: 10,
+    })
+    await maintainer.releasedScopes({
+      principal: 'a:tester',
+      scope: 'system',
+      after: null,
+      limit: 10,
+    })
+    expect(
+      events.map(event => event.kind === 'segment' && [event.operation, event.phase, event.scope]),
+    ).toEqual([
+      ['references', 'start', 'system'],
+      ['references', 'end', 'system'],
+      ['releasedScopes', 'start', 'system'],
+      ['releasedScopes', 'end', 'system'],
+    ])
+    for (const event of events) expect(event).not.toHaveProperty('tenant')
   })
 
   it('the round-complete event carries the tenant of the finishing access', async () => {

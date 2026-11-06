@@ -1,15 +1,28 @@
 // SPEC「遥测投影」: the facade over the telemetry port. A measurement event becomes a telemetry
-// segment or event of the tenant whose work it measures; a diagnostic becomes an event without its
-// text. The port is the capturing double of telemetry-contract, so what it admits is what a
-// provider would admit (TC-2, TC-4).
-import { actingScopeEquals, tenantScope, type TenantId } from '@omne-harness/legal-identity'
-import type { EntryId, RunId, SessionId, SessionRevision } from '@omne-harness/session-contract'
+// segment or event of the tenant whose work it measures, or of the system for a system-scope read; a
+// diagnostic becomes an event without its text. The port is the capturing double of telemetry-contract, so what it admits is what a
+// provider would admit (TC-2, TC-4). A record of tenant work without a tenant goes to the port's
+// `discard`, so the provider counts it; the test records each discard by name and reason.
+import {
+  actingScopeEquals,
+  systemScope,
+  tenantScope,
+  type TenantId,
+} from '@omne-harness/legal-identity'
+import type {
+  EntryId,
+  ResidentKey,
+  RunId,
+  SessionId,
+  SessionRevision,
+} from '@omne-harness/session-contract'
 import {
   memoryAccess,
   operationId,
   sessionId,
   succeeded,
 } from '@omne-harness/session-contract/testing'
+import type { TelemetryPort } from '@omne-harness/telemetry-contract'
 import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SessionDiagnostic, SessionMeasureEvent } from '../src/index.ts'
@@ -27,10 +40,19 @@ const session: SessionId = sessionId('session-1')
 const run = 'run_abc' as RunId
 const instance = { owner: '@omne-harness/harness-server', ref: 'session-provider' }
 
-function facade(maxOpenSegments = 8) {
-  const capture = createCapturingTelemetry()
-  const telemetry = createSessionTelemetry(capture.port, { instance, maxOpenSegments })
-  return { capture, telemetry }
+/** The facade over the capturing double, with every `discard` the facade makes, by name and reason. */
+function facade(options: Readonly<{ capacity?: number }> = {}) {
+  const capture = createCapturingTelemetry(options)
+  const discards: Array<readonly [string, string]> = []
+  const port: TelemetryPort = {
+    bind: binding => capture.port.bind(binding),
+    discard: (definition, reason) => {
+      discards.push([definition.name, reason])
+      return capture.port.discard(definition, reason)
+    },
+  }
+  const telemetry = createSessionTelemetry(port, { instance })
+  return { capture, discards, telemetry }
 }
 
 /** The parts of an event a case varies: the tenant (absent for the no-tenant cases) and the session. */
@@ -92,7 +114,7 @@ const diagnostic: SessionDiagnostic = {
 
 describe('the Session segment', () => {
   it('start and end become one segment named after the operation, scoped to the tenant, with the session as work', () => {
-    const { capture, telemetry } = facade()
+    const { capture, discards, telemetry } = facade()
     telemetry.measure(start(1))
     telemetry.measure(end(1, 'ok'))
     const records = capture.records()
@@ -108,7 +130,8 @@ describe('the Session segment', () => {
     expect(first.binding.work).toEqual({ owner: '@omne-harness/session', ref: 'session-1' })
     expect(first.binding.attempt).toBeUndefined()
     expect(actingScopeEquals(first.binding.scope, tenantScope(tenant))).toBe(true)
-    expect(telemetry.dropped()).toEqual({ invalid: 0, capacity: 0 })
+    expect(capture.dropped()).toBe(0)
+    expect(discards).toEqual([])
   })
 
   it('a failure outcome ends the segment with failure; the same definition serves the same operation again', () => {
@@ -133,65 +156,106 @@ describe('the Session segment', () => {
     expect(first?.binding.work).toBeUndefined()
   })
 
-  it('an event without a tenant makes no record and counts as invalid; it is never scoped to system', () => {
-    const { capture, telemetry } = facade()
-    telemetry.measure(start(1, 'accept', { tenant: undefined }))
-    telemetry.measure(end(1, 'ok', 'accept', { tenant: undefined }))
+  it('a start without a tenant is discarded through the port as invalid, under the segment it would have been; its end does nothing', () => {
+    const { capture, discards, telemetry } = facade()
+    telemetry.measure(start(1, 'pending', { tenant: undefined, session: null }))
+    telemetry.measure(end(1, 'ok', 'pending', { tenant: undefined, session: null }))
     expect(capture.records()).toEqual([])
-    expect(capture.dropped()).toBe(0)
-    expect(telemetry.dropped()).toEqual({ invalid: 1, capacity: 0 })
+    expect(discards).toEqual([['omne.session.pending', 'invalid']])
+    expect(capture.dropped()).toBe(1)
   })
 
-  it('an operation name outside the contract character set makes no record and counts as invalid', () => {
-    const { capture, telemetry } = facade()
+  it('a segment of a system-scope read is a fact of the service: scope `system`, component `session`, no work, nothing discarded', () => {
+    const { capture, discards, telemetry } = facade()
+    const system = { session: null, scope: 'system' } as const
+    telemetry.measure({
+      kind: 'segment',
+      segment: 'session',
+      phase: 'start',
+      span: 1,
+      operation: 'references',
+      ...system,
+    })
+    telemetry.measure({
+      kind: 'segment',
+      segment: 'session',
+      phase: 'end',
+      span: 1,
+      operation: 'references',
+      ...system,
+      outcome: 'ok',
+    })
+    const records = capture.records()
+    expect(records.map(record => record.kind)).toEqual(['segment-start', 'segment-end'])
+    const [first] = records
+    expect(first?.definition.name).toBe('omne.session.references')
+    expect(first?.binding.component).toBe('session')
+    expect(first?.binding.instance).toEqual(instance)
+    expect(first?.binding.work).toBeUndefined()
+    expect(actingScopeEquals(first!.binding.scope, systemScope())).toBe(true)
+    expect(capture.dropped()).toBe(0)
+    expect(discards).toEqual([])
+  })
+
+  it('a start that names both a tenant and the system scope is discarded as invalid, never bound to `system`', () => {
+    const { capture, discards, telemetry } = facade()
+    telemetry.measure({
+      kind: 'segment',
+      segment: 'session',
+      phase: 'start',
+      span: 1,
+      operation: 'releasedScopes',
+      session: null,
+      tenant,
+      scope: 'system',
+    })
+    expect(capture.records()).toEqual([])
+    expect(discards).toEqual([['omne.session.releasedScopes', 'invalid']])
+    expect(capture.dropped()).toBe(1)
+  })
+
+  it('an operation name the contract refuses is discarded through the port as invalid and makes no record', () => {
+    const { capture, discards, telemetry } = facade()
     telemetry.measure(start(1, 'bad name'))
     telemetry.measure(end(1, 'ok', 'bad name'))
     expect(capture.records()).toEqual([])
-    expect(telemetry.dropped()).toEqual({ invalid: 1, capacity: 0 })
+    expect(discards).toEqual([['omne.session.bad name', 'invalid']])
+    expect(capture.dropped()).toBe(1)
   })
 
-  it('the open-segment table is bounded: a start over the limit is dropped and counted, an end frees its entry', () => {
-    const { capture, telemetry } = facade(1)
+  it('a start the provider drops is not paired: its end ends nothing and counts nothing', () => {
+    const { capture, telemetry } = facade({ capacity: 1 })
     telemetry.measure(start(1))
     telemetry.measure(start(2))
-    expect(telemetry.dropped()).toEqual({ invalid: 0, capacity: 1 })
+    expect(capture.dropped()).toBe(1)
     telemetry.measure(end(2, 'ok'))
-    telemetry.measure(end(1, 'ok'))
-    telemetry.measure(start(3))
-    telemetry.measure(end(3, 'failure'))
-    expect(
-      capture
-        .records()
-        .map(record => (record.kind === 'segment-end' ? record.outcome : record.kind)),
-    ).toEqual(['segment-start', 'ok', 'segment-start', 'failure'])
-    expect(telemetry.dropped()).toEqual({ invalid: 0, capacity: 1 })
+    expect(capture.records().map(record => record.kind)).toEqual(['segment-start'])
+    expect(capture.dropped()).toBe(1)
   })
 
   it('an end without an open start makes no record and is not counted', () => {
-    const { capture, telemetry } = facade()
+    const { capture, discards, telemetry } = facade()
     telemetry.measure(end(9, 'ok'))
     expect(capture.records()).toEqual([])
-    expect(telemetry.dropped()).toEqual({ invalid: 0, capacity: 0 })
+    expect(capture.dropped()).toBe(0)
+    expect(discards).toEqual([])
   })
 
-  it('the definition cache is bounded: an operation over the limit is dropped and counted as capacity', () => {
-    const { capture, telemetry } = facade(SESSION_SEGMENT_DEFINITION_LIMIT + 2)
+  it('the definition cache is bounded: an operation over the limit still gets its segment, made again each time', () => {
+    const { capture, telemetry } = facade()
     for (let i = 0; i < SESSION_SEGMENT_DEFINITION_LIMIT; i += 1)
       telemetry.measure(start(i + 1, `op${i}`))
-    expect(telemetry.dropped()).toEqual({ invalid: 0, capacity: 0 })
     telemetry.measure(start(1000, 'one-more'))
-    expect(telemetry.dropped()).toEqual({ invalid: 0, capacity: 1 })
-    expect(capture.records()).toHaveLength(SESSION_SEGMENT_DEFINITION_LIMIT)
-    // A known operation still goes through.
-    telemetry.measure(start(1001, 'op0'))
-    expect(capture.records()).toHaveLength(SESSION_SEGMENT_DEFINITION_LIMIT + 1)
-  })
-
-  it('refuses a maxOpenSegments that is not a positive integer', () => {
-    const { capture } = facade()
-    expect(() => createSessionTelemetry(capture.port, { instance, maxOpenSegments: 0 })).toThrow(
-      TypeError,
-    )
+    telemetry.measure(start(1001, 'one-more'))
+    telemetry.measure(start(1002, 'op0'))
+    const starts = capture.records().filter(record => record.kind === 'segment-start')
+    expect(starts).toHaveLength(SESSION_SEGMENT_DEFINITION_LIMIT + 3)
+    expect(capture.dropped()).toBe(0)
+    const [uncachedFirst, uncachedSecond, cached] = starts.slice(-3)
+    expect(uncachedFirst?.definition.name).toBe('omne.session.one-more')
+    expect(uncachedSecond?.definition).toEqual(uncachedFirst?.definition)
+    expect(uncachedSecond?.definition).not.toBe(uncachedFirst?.definition)
+    expect(cached?.definition).toBe(starts[0]?.definition)
   })
 })
 
@@ -210,15 +274,16 @@ describe('the round-complete event', () => {
     expect(actingScopeEquals(record.binding.scope, tenantScope(tenant))).toBe(true)
   })
 
-  it('an unknown or absent outcome is `unknown`; an absent run leaves no attempt; no tenant counts as invalid', () => {
-    const { capture, telemetry } = facade()
+  it('an unknown or absent outcome is `unknown`; an absent run leaves no attempt; no tenant is discarded through the port as invalid', () => {
+    const { capture, discards, telemetry } = facade()
     telemetry.measure(round({ run: null, outcome: null }))
     telemetry.measure(round({ run, outcome: 'something-else' }))
     telemetry.measure(round({ run, outcome: 'completed', tenant: undefined }))
     const events = capture.records().filter(record => record.kind === 'event')
     expect(events.map(record => record.fields.outcome)).toEqual(['unknown', 'unknown'])
     expect(events[0]?.binding.attempt).toBeUndefined()
-    expect(telemetry.dropped()).toEqual({ invalid: 1, capacity: 0 })
+    expect(discards).toEqual([['omne.session.round-complete', 'invalid']])
+    expect(capture.dropped()).toBe(1)
   })
 })
 
@@ -246,6 +311,15 @@ describe('the diagnostic event', () => {
     expect(record.fields).toEqual({ owner: 'S1', step: 'read', reason: 'other' })
     expect(record.binding.attempt).toBeUndefined()
   })
+
+  it('a tenant that legal-identity did not mint is discarded through the port as invalid; the detail text never reaches the port', () => {
+    const { capture, discards, telemetry } = facade()
+    const unminted = { organization: 'org_x', account: 'acc_y' } as unknown as TenantId
+    telemetry.diagnose({ ...diagnostic, tenant: unminted })
+    expect(capture.records()).toEqual([])
+    expect(discards).toEqual([['omne.session.diagnostic', 'invalid']])
+    expect(capture.dropped()).toBe(1)
+  })
 })
 
 describe('over the real instance', () => {
@@ -256,7 +330,7 @@ describe('over the real instance', () => {
 
   it('an accept through the instance is captured as one segment of the tenant, with its outcome', async () => {
     const capture = createCapturingTelemetry()
-    const telemetry = createSessionTelemetry(capture.port, { instance, maxOpenSegments: 16 })
+    const telemetry = createSessionTelemetry(capture.port, { instance })
     const h = await harness({ backend: memoryBackend, measure: telemetry.measure })
     open.push(h)
     await h.create()
@@ -272,6 +346,39 @@ describe('over the real instance', () => {
     ])
     for (const record of capture.records())
       expect(actingScopeEquals(record.binding.scope, tenantScope(h.access().tenant))).toBe(true)
-    expect(telemetry.dropped()).toEqual({ invalid: 0, capacity: 0 })
+    expect(capture.dropped()).toBe(0)
+  })
+
+  it('directory reads through the instance: `pending` is scoped to its tenant, `references` to the system; nothing is discarded', async () => {
+    const capture = createCapturingTelemetry()
+    const telemetry = createSessionTelemetry(capture.port, { instance })
+    const h = await harness({ backend: memoryBackend, measure: telemetry.measure })
+    open.push(h)
+    await h.create()
+    capture.clear()
+    const maintainer = h.faces('maintainer').reconciliation
+    await maintainer.pending({
+      principal: 'a:tester',
+      tenant: h.access().tenant,
+      after: null,
+      limit: 10,
+    })
+    await maintainer.references({
+      principal: 'a:tester',
+      scope: 'system',
+      key: 'resident-1' as ResidentKey,
+      after: null,
+      limit: 10,
+    })
+    const starts = capture.records().filter(record => record.kind === 'segment-start')
+    expect(starts.map(record => record.definition.name)).toEqual([
+      'omne.session.pending',
+      'omne.session.references',
+    ])
+    const [pending, references] = starts
+    expect(actingScopeEquals(pending!.binding.scope, tenantScope(h.access().tenant))).toBe(true)
+    expect(actingScopeEquals(references!.binding.scope, systemScope())).toBe(true)
+    expect(capture.records().filter(record => record.kind === 'segment-end')).toHaveLength(2)
+    expect(capture.dropped()).toBe(0)
   })
 })

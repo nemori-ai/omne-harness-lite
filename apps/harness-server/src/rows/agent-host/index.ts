@@ -72,7 +72,6 @@ import { modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { defineRow, type RowBody, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
-import { FACADE_MAX_OPEN_SEGMENTS } from '../telemetry/config.ts'
 import { processInstance } from '../telemetry/instance.ts'
 
 /** The host maintenance principal: a root object of the assembly entry with no service definition. */
@@ -91,10 +90,7 @@ export type AgentHostRowInput = Readonly<{
 
 /** The row's own observer: the Agent telemetry facade over the injected `telemetry`. */
 function agentMeasureOf(ctx: Context): AgentMeasure {
-  return createAgentTelemetry(ctx.telemetry, {
-    instance: processInstance,
-    maxOpenSegments: FACADE_MAX_OPEN_SEGMENTS,
-  }).measure
+  return createAgentTelemetry(ctx.telemetry, { instance: processInstance }).measure
 }
 
 /** The joint commit the session-log Journal needs to put Agent messages into the history. */

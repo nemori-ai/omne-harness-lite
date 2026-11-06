@@ -16,7 +16,7 @@
 | `SessionIngressFaces`                   | `src/faces.ts`       | Session 四个面中本成员实际调用的子集：`management.create`、`work.accept`、`work.queryOperation`、`work.cancelRun`、`work.stopCall`、`history.begin`、`history.next`。真实 `SessionService` 按结构满足它 |
 | `DefinitionResolver`                    | `src/faces.ts`       | 定义名到 `SessionCreation` 采用字段的解析函数。映射数据归 `definition-mappings`，装配注入函数                                                                                                           |
 | `DiagnosticSink`                        | `src/diagnostics.ts` | 结构化诊断。事件只有 code、path 与 operation，没有正文、证明、凭据、主体或依赖的错误文本                                                                                                                |
-| `AgentFinishReader`、`ModelCallInspector`、`ModelAttemptReader`、`ToolCallReader` | `src/session-view/sources.ts` | 会话诊断投影的四个读端口：Agent 的 `readFinish`、Model 的 `inspect` 与 `ModelDiagnostics`、Tool 的 `lookup` 与 `account`。都可选；缺席是 `unsupported` 缺口 |
+| `AgentFinishReader`、`ModelCallInspector`、`ModelAttemptReader`、`ToolCallReader` | `src/session-view/sources.ts` | 会话诊断投影的四个读端口：Agent 的 `readFinish`、Model 的 `inspect` 与 `dispatches` 及 `ModelDiagnostics`、Tool 的 `lookup`、`account` 与 `readDiagnostics`。都可选；缺席是 `unsupported` 缺口 |
 
 本成员不调用 authorization。会话操作的资格由 Session 面在访问裁定里判断（handoff「登录到 Access」第 3 点）。治理操作的资格由 identity 在提交时判断（identity ID-18）。模型凭据操作的资格由 `modelCredentials` 端口判断。
 

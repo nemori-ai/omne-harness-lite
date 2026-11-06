@@ -3,7 +3,7 @@
 // hands `measure` and `diagnose` to the factory. The facade keeps no clock: the provider times a
 // segment between `startSegment` and `end`. It depends on the root entry of telemetry-contract
 // only, never on a provider or on Cordis.
-import { tenantScope, type TenantId } from '@omne-harness/legal-identity'
+import { systemScope, tenantScope, type TenantId } from '@omne-harness/legal-identity'
 import type { RunId, SessionId } from '@omne-harness/session-contract'
 import {
   defineEvent,
@@ -25,8 +25,9 @@ const REF_OWNER = '@omne-harness/session'
 const SEGMENT_PREFIX = 'omne.session.'
 
 /**
- * How many distinct operation names get a segment definition. The face operations are a closed
- * set well under this; the bound only keeps an unexpected name from growing the cache.
+ * How many distinct operation names get a cached segment definition. The face operations are a
+ * closed set well under this; the bound only keeps an unexpected name from growing the cache. An
+ * operation over it gets its definition made again on each start.
  */
 export const SESSION_SEGMENT_DEFINITION_LIMIT = 64
 
@@ -67,25 +68,14 @@ export const sessionDiagnosticEvent = defineEvent({
   },
 })
 
-/** What the facade dropped itself, before the port: by reason, never by record. */
-export type TelemetryDropped = Readonly<{
-  /** No tenant on the event (TC-4: such a record is never scoped to `system`), or a name the contract refuses. */
-  invalid: number
-  /** The open-segment table or the definition cache was full. */
-  capacity: number
-}>
-
 export type SessionTelemetryBase = Readonly<{
   /** The instance of the binding: the row or process that runs this session instance. */
   instance: OwnedRef
-  /** The most segments open at once. A start over it is dropped and counted (G7). */
-  maxOpenSegments: number
 }>
 
 export type SessionTelemetry = Readonly<{
   measure: SessionMeasure
   diagnose: SessionDiagnose
-  dropped(): TelemetryDropped
 }>
 
 function roundOutcome(outcome: string | null): (typeof ROUND_OUTCOMES)[number] {
@@ -98,26 +88,28 @@ function diagnosticReason(reason: string): (typeof DIAGNOSTIC_REASONS)[number] {
 
 /**
  * Creates the facade. Every record is bound on its own, because the scope of a binding cannot be
- * patched (TC-15) and each event names its own tenant. Throws TypeError for a `maxOpenSegments`
- * that is not a positive integer; nothing else here throws.
+ * patched (TC-15) and each event names its own tenant. A segment of a system-scope read is a fact of
+ * the service and is bound to the `system` scope. A record of tenant work without a tenant is handed
+ * to `port.discard` as `invalid` (TC-4), so the provider counts it. Nothing here throws.
+ *
+ * The open-segment table holds only the segments the provider admitted, and the provider admits a
+ * start only within its own `maxOpenSegments`, so the table never grows past the provider's bound.
  */
 export function createSessionTelemetry(
   port: TelemetryPort,
   base: SessionTelemetryBase,
 ): SessionTelemetry {
-  const { instance, maxOpenSegments } = base
-  if (!Number.isSafeInteger(maxOpenSegments) || maxOpenSegments < 1)
-    throw new TypeError('session telemetry: maxOpenSegments is a positive integer')
+  const { instance } = base
   const open = new Map<number, Segment>()
   const definitions = new Map<string, SegmentDefinition>()
-  const dropped = { invalid: 0, capacity: 0 }
 
   /** The binding of one record, or undefined for a tenant that legal-identity did not mint. */
   function bindingOf(
-    tenant: TenantId,
+    tenant: TenantId | undefined,
     session: SessionId | null,
     run: RunId | null = null,
   ): Binding | undefined {
+    if (tenant === undefined) return undefined
     try {
       return {
         scope: tenantScope(tenant),
@@ -131,42 +123,43 @@ export function createSessionTelemetry(
     }
   }
 
-  /** The segment definition of an operation, made once per name; undefined when dropped. */
-  function definitionOf(operation: string): SegmentDefinition | undefined {
+  /**
+   * The segment definition of an operation, cached up to the limit. `checked` is false when the
+   * contract refuses the name: the definition then only names the record for `discard`.
+   */
+  function definitionOf(
+    operation: string,
+  ): Readonly<{ definition: SegmentDefinition; checked: boolean }> {
     const known = definitions.get(operation)
-    if (known !== undefined) return known
-    if (definitions.size >= SESSION_SEGMENT_DEFINITION_LIMIT) {
-      dropped.capacity += 1
-      return undefined
-    }
+    if (known !== undefined) return { definition: known, checked: true }
+    const name = SEGMENT_PREFIX + operation
     try {
-      const definition = defineSegment({
-        owner: OWNER,
-        name: SEGMENT_PREFIX + operation,
-        version: 1,
-      })
-      definitions.set(operation, definition)
-      return definition
+      const definition = defineSegment({ owner: OWNER, name, version: 1 })
+      if (definitions.size < SESSION_SEGMENT_DEFINITION_LIMIT)
+        definitions.set(operation, definition)
+      return { definition, checked: true }
     } catch {
-      dropped.invalid += 1
-      return undefined
+      return { definition: { signal: 'segment', owner: OWNER, name, version: 1 }, checked: false }
     }
   }
 
+  /** The binding of a system-scope read: no tenant and no work, since such a read names no session. */
+  function systemBinding(): Binding {
+    return { scope: systemScope(), component: COMPONENT, instance }
+  }
+
   function start(event: Extract<SessionSegmentEvent, { phase: 'start' }>): void {
-    if (event.tenant === undefined) {
-      dropped.invalid += 1
-      return
-    }
-    const definition = definitionOf(event.operation)
-    if (definition === undefined) return
-    if (open.size >= maxOpenSegments) {
-      dropped.capacity += 1
-      return
-    }
-    const binding = bindingOf(event.tenant, event.session)
-    if (binding === undefined) {
-      dropped.invalid += 1
+    const { definition, checked } = definitionOf(event.operation)
+    // An event that names both a tenant and the system scope is malformed: tenant work is never
+    // relabelled as `system` (TC-4), so it is discarded like a record without a tenant.
+    const binding =
+      event.scope !== 'system'
+        ? bindingOf(event.tenant, event.session)
+        : event.tenant === undefined
+          ? systemBinding()
+          : undefined
+    if (!checked || binding === undefined) {
+      port.discard(definition, 'invalid')
       return
     }
     const segment = port.bind(binding).startSegment(definition)
@@ -174,7 +167,7 @@ export function createSessionTelemetry(
     if (isSegment(segment)) open.set(event.span, segment)
   }
 
-  /** An end without an open start (dropped, or over the limit) ends nothing and counts nothing. */
+  /** An end without an open start (dropped by the provider, or never started) ends nothing. */
   function end(event: Extract<SessionSegmentEvent, { phase: 'end' }>): void {
     const segment = open.get(event.span)
     if (segment === undefined) return
@@ -183,10 +176,9 @@ export function createSessionTelemetry(
   }
 
   function roundComplete(event: SessionRoundCompleteEvent): void {
-    const binding =
-      event.tenant === undefined ? undefined : bindingOf(event.tenant, event.session, event.run)
+    const binding = bindingOf(event.tenant, event.session, event.run)
     if (binding === undefined) {
-      dropped.invalid += 1
+      port.discard(sessionRoundCompleteEvent, 'invalid')
       return
     }
     port.bind(binding).event(sessionRoundCompleteEvent, {
@@ -198,7 +190,7 @@ export function createSessionTelemetry(
   function diagnose(diagnostic: SessionDiagnostic): void {
     const binding = bindingOf(diagnostic.tenant, diagnostic.session, diagnostic.run)
     if (binding === undefined) {
-      dropped.invalid += 1
+      port.discard(sessionDiagnosticEvent, 'invalid')
       return
     }
     port.bind(binding).event(sessionDiagnosticEvent, {
@@ -215,6 +207,5 @@ export function createSessionTelemetry(
       else end(event)
     },
     diagnose,
-    dropped: () => ({ ...dropped }),
   })
 }

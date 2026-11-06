@@ -15,7 +15,7 @@
 
 真件的清单与 `src/s0/stubs.ts` 的同一行相同，含阶段；替身的清单除阶段与 `telemetry` 外相同。`tests/rows/session-provider/manifest.spec.ts` 与 `real.spec.ts` 比较两者。
 
-真件注入 `telemetry`（D04 必需），在行体里构造 Session 遥测 facade，把 `measure` 与 `diagnose` 经 `createSessionProviderPlugin` 交给插件：面操作成为段 `omne.session.<操作>`，Run 终态成为事件 `omne.session.round-complete`，协调器的具名诊断成为事件 `omne.session.diagnostic`（不带 detail 正文），都按访问的租户作用域。记录形状与 facade 的上界见 [telemetry 行](telemetry.md#发射行怎样接入)。替身不发任何记录，所以不注入 `telemetry`。
+真件注入 `telemetry`（D04 必需），在行体里构造 Session 遥测 facade，把 `measure` 与 `diagnose` 经 `createSessionProviderPlugin` 交给插件：面操作成为段 `omne.session.<操作>`，Run 终态成为事件 `omne.session.round-complete`，协调器的具名诊断成为事件 `omne.session.diagnostic`（不带 detail 正文），都按所属工作的租户作用域。目录读取 `pending` 按输入的租户作用域，`references` 与 `releasedScopes` 按 `system` 作用域。没有租户、也不是系统作用域的记录经 `telemetry.discard` 计入提供者的 `invalid`。记录形状与 facade 配对表的上界见 [telemetry 行](telemetry.md#发射行怎样接入)。替身不发任何记录，所以不注入 `telemetry`。
 
 真件按调用现取 `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionNotifier` 与 `sessionTransactions`（session-cordis 的端口接线）。某个端口缺席或是 S0 替身时，需要它的操作答 `unavailable`，`owner` 是该端口的服务键。发行树里 `create` 经过的端口都是真件：`session-ad09`、`session-ad10`（采用来源是 `adoption-sources` 行，它对 `create` 出具 Session 的初始化守卫，内容来自部署映射条目）、`session-ad12`（接在真件 `runtime-context` 与入口对象 `runtimeContextTrust` 上）。新租户经发行树的首个 `create` 成功，见 `tests/r9/` 与 `create-release.spec.ts`；`create.spec.ts` 的替身用例保留 S0 替身换回 `session-ad12` 时点名 `sessionContextInput` 的答法。
 

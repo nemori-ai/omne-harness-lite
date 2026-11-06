@@ -1,5 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { Binding, Emitter } from '@omne-harness/telemetry-contract'
+import type {
+  Binding,
+  DiscardReason,
+  Emitter,
+  TelemetryDefinition,
+  TelemetryPort,
+} from '@omne-harness/telemetry-contract'
 import { TelemetryService } from '@omne-harness/telemetry-cordis-contract/cordis'
 import type { TelemetryRuntime } from './runtime.ts'
 
@@ -39,6 +45,13 @@ export function createTelemetryNodePlugin(
     bind(binding: Binding): Emitter {
       return runtime.port.bind(binding)
     }
+
+    discard(
+      definition: TelemetryDefinition,
+      reason: DiscardReason,
+    ): ReturnType<TelemetryPort['discard']> {
+      return runtime.port.discard(definition, reason)
+    }
   }
 }
 
@@ -59,6 +72,13 @@ export function createDisabledTelemetryPlugin(
 
     bind(binding: Binding): Emitter {
       return runtime.port.bind(binding)
+    }
+
+    discard(
+      definition: TelemetryDefinition,
+      reason: DiscardReason,
+    ): ReturnType<TelemetryPort['discard']> {
+      return runtime.port.discard(definition, reason)
     }
   }
 }

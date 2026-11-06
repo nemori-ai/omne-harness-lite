@@ -14,6 +14,7 @@ describe('the disabled implementation', () => {
       emitter.record(requests, 1, { outcome: 'ok' }),
       emitter.startSegment(handling),
       emitter.bind({ call: { owner: 'access', ref: 'c' } }).event(loginFailed, FIELDS),
+      telemetry.port.discard(handling, 'invalid'),
       telemetry.ingestLog({ time: 't', level: 'warn', component: 'app', text: 'x' }),
     ]
 
@@ -26,8 +27,8 @@ describe('the disabled implementation', () => {
       generation: 'disabled',
       admission: 'closed',
       admitted: 0,
-      dropped: 5,
-      droppedBy: { disabled: 5 },
+      dropped: 6,
+      droppedBy: { disabled: 6 },
       pending: 0,
       flush: 'unconfirmed',
       boundary: 'none',
@@ -44,5 +45,10 @@ describe('the disabled implementation', () => {
       kind: 'dropped',
       reason: 'closed',
     })
+    expect(telemetry.port.discard(handling, 'invalid')).toEqual({
+      kind: 'dropped',
+      reason: 'closed',
+    })
+    expect(await telemetry.close(0)).toMatchObject({ dropped: 0, droppedBy: {} })
   })
 })

@@ -56,6 +56,7 @@ describe('public entries', () => {
     const root = await import('@omne-harness/telemetry-contract')
 
     expect(Object.keys(root).sort()).toEqual([
+      'DISCARD_REASONS',
       'TELEMETRY_LIMITS',
       'decodeCarrier',
       'defineEvent',

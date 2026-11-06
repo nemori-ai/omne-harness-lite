@@ -6,7 +6,7 @@
 
 ## 职责与状态
 
-本包拥有遥测唯一的 Cordis 接缝。提供者继承 `TelemetryService` 并实现 `bind`。消费者注入 `telemetryKey`。服务不授权任何事：绑定里的 scope 说明记录属于谁，不说明调用方可以做什么。
+本包拥有遥测唯一的 Cordis 接缝。提供者继承 `TelemetryService` 并实现 `bind` 与 `discard`。消费者注入 `telemetryKey`。服务不授权任何事：绑定里的 scope 说明记录属于谁，不说明调用方可以做什么。
 
 状态：候选，第一版。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 的 D02（三个成员，照 `model-contract` 与 `model-cordis-contract` 的先例）。RFC 还没有接受，所以 [SPEC.md](SPEC.md) 的全部条款都是候选。纯契约与 Cordis 定义分成两个成员，是为了让只依赖纯契约的领域成员的生产安装闭包里没有 Cordis；Agent 的公开入口测试守着这一条。
 
@@ -28,6 +28,8 @@ export function createTelemetryPlugin(port: TelemetryPort): new (ctx: Context) =
     bind(binding: Binding): Emitter {
       return port.bind(binding)
     }
+
+    discard: TelemetryPort['discard'] = (definition, reason) => port.discard(definition, reason)
   }
 }
 ```

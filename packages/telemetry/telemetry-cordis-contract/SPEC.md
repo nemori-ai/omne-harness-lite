@@ -18,7 +18,7 @@
 
 ### TS-2 服务实现端口
 
-`TelemetryService implements TelemetryPort`。第一版的端口只有 `bind(binding): Emitter`，由子类实现。`bind` 的行为归 telemetry-contract 的 TC-1、TC-2 与 TC-4：同步、不抛错、无效绑定得到答 `dropped(invalid)` 的 emitter。本包不在服务上加端口以外的方法。
+`TelemetryService implements TelemetryPort`。第一版的端口有 `bind(binding): Emitter` 与 `discard(definition, reason)`，都由子类实现。`bind` 的行为归 telemetry-contract 的 TC-1、TC-2 与 TC-4：同步、不抛错、无效绑定得到答 `dropped(invalid)` 的 emitter。`discard` 的行为归 TC-15：登记调用方没能组成的一条记录，由提供者按原因计数。本包不在服务上加端口以外的方法。
 
 ### TS-3 注入与在场
 
@@ -45,7 +45,7 @@
 
 | 条款       | 持续验证                                                                                                          |
 | ---------- | ----------------------------------------------------------------------------------------------------------------- |
-| TS-1、TS-3 | `tests/cordis-entry.spec.ts`：真实 `Context` 上，子类提供键，消费者按 `telemetryKey` 注入并调用 `bind`            |
+| TS-1、TS-3 | `tests/cordis-entry.spec.ts`：真实 `Context` 上，子类提供键，消费者按 `telemetryKey` 注入并调用 `bind`；探针子类同时实现 `discard`            |
 | TS-2       | 类型层：`TelemetryService implements TelemetryPort`，由 `pnpm run typecheck` 核对                                 |
 | TS-5       | `tests/public-entry.spec.ts`：根入口不导出值、构建产物不到达任何模块；`./cordis` 导出两个名字并到达 Cordis        |
 | 撤除后缺席 | `tests/cordis-entry.spec.ts`：`dispose` 后 `ctx.get(telemetryKey)` 为 `undefined`                                 |

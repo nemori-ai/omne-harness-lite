@@ -4,7 +4,7 @@
 
 ## 集成入口
 
-`@omne-harness/telemetry-cordis-contract/cordis` 导出抽象类 `TelemetryService` 和键常量 `telemetryKey`，并把 `Context.telemetry` 增补为 `TelemetryService`。键只写一次：`static readonly provide = 'telemetry'`，`telemetryKey` 取自它。`TelemetryService` `implements` 纯契约的 `TelemetryPort`，第一版只有 `bind`。本包不提供具体插件，不登记事件，也不 `inject` 任何服务。根入口不导出值。
+`@omne-harness/telemetry-cordis-contract/cordis` 导出抽象类 `TelemetryService` 和键常量 `telemetryKey`，并把 `Context.telemetry` 增补为 `TelemetryService`。键只写一次：`static readonly provide = 'telemetry'`，`telemetryKey` 取自它。`TelemetryService` `implements` 纯契约的 `TelemetryPort`，第一版有 `bind` 与 `discard`，都是抽象方法。本包不提供具体插件，不登记事件，也不 `inject` 任何服务。根入口不导出值。
 
 逐条对照 IC：
 

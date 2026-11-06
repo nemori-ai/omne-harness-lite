@@ -8,18 +8,39 @@
 // and the Agent pass segment of that tenant. W3 removes `session-ad14` from the tree, so the Run's
 // invoke finds no Agent drive port and the coordinator reports `agent-absent`. W4 and W5 load each
 // row alone: without `telemetry` it stays PENDING, over the disabled implementation it is ACTIVE.
+// W6 loads the real `session-provider` over the node implementation and makes the three directory
+// reads of the recovery scanner: `pending` writes segments of its tenant, `references` and
+// `releasedScopes` segments of the system scope, and the close report counts no `invalid` drop. A
+// probe row then hands the test the port, and a Session segment without a tenant goes through the
+// facade to `discard`, which the close report counts under `droppedBy.invalid` (TC-4).
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { actingScopeCodec, tenantCodec, tenantScope } from '@omne-harness/legal-identity'
-import { summarizeTelemetry } from '@omne-harness/telemetry-node'
+import type { Context, Plugin } from '@deepseek-ai/cordis'
+import {
+  actingScopeCodec,
+  systemScope,
+  tenantCodec,
+  tenantScope,
+  type ActingScope,
+} from '@omne-harness/legal-identity'
+import { createSessionTelemetry } from '@omne-harness/session'
+import type { ResidentKey } from '@omne-harness/session-contract'
+import { testingTenant } from '@omne-harness/session-contract/testing'
+import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
+import type { TelemetryPort } from '@omne-harness/telemetry-contract'
+import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
+import { summarizeTelemetry, type TelemetryRecord } from '@omne-harness/telemetry-node'
 import * as cordis from '../../../src/cordis.ts'
 import { runServe, type S0Record, type ServeResult } from '../../../src/run.ts'
 import { agentHostRow } from '../../../src/rows/agent-host/index.ts'
+import { defineRow } from '../../../src/row.ts'
 import { sessionProviderRealRow } from '../../../src/rows/session-provider/real.ts'
+import { createTelemetryBinding, processInstance } from '../../../src/rows/telemetry/index.ts'
+import type { RowId } from '../../../src/types.ts'
 import { startModelGateway } from '../../fixtures/model-gateway.ts'
 import { hostConfig, hostDoubles, principalObject } from '../agent-host/doubles.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import { TELEMETRY_ROW_CONFIG, connectable, until } from '../server-entry/support.ts'
 import { declared, loadTree, makeBase, storageRows } from '../session-fixtures/tree.ts'
 import { disabledTelemetryRow } from './support.ts'
 import {
@@ -314,4 +335,171 @@ describe('W4, W5: the `telemetry` row is required, and disabled is present', () 
     live.push(() => agent.dispose())
     expect(agent.state('agent-host')).toMatchObject({ state: 'ACTIVE', missing: [] })
   })
+})
+
+/** The row id of the W6 probe that hands the test the `telemetry` port of its tree. */
+const PORT_PROBE = 'telemetry-port-probe' as RowId
+
+/** A row that injects `telemetry` and hands its port to `seen`, so a test can measure over it. */
+function portProbeRow(seen: (port: TelemetryPort) => void): Plugin.Object {
+  return defineRow({
+    row: PORT_PROBE,
+    implementation: 'real',
+    manifest: { provides: [], injects: [telemetryKey], sameProviderGroup: null },
+    lifecycle: { kind: 'none' },
+    plugin: {
+      name: PORT_PROBE,
+      inject: [telemetryKey],
+      apply(ctx: Context) {
+        seen(ctx.telemetry)
+      },
+    },
+  })
+}
+
+/** The JSON form a record carries for `scope`: the text of `actingScopeCodec.encode`, parsed. */
+function recordScope(scope: ActingScope): unknown {
+  const encoded = actingScopeCodec.encode(scope)
+  if (!encoded.ok) throw new Error('the scope does not encode')
+  return JSON.parse(encoded.value) as unknown
+}
+
+describe('W6: the directory reads of the scanner, and a record without a tenant', () => {
+  it(
+    'over the real row, `pending` writes segments of its tenant and `references`, `releasedScopes` segments of the system; the close report has no invalid drop',
+    { timeout: 60_000 },
+    async () => {
+      const base = makeBase()
+      live.push(() => base.release())
+      const written: TelemetryRecord[] = []
+      const telemetry = createTelemetryBinding({
+        write: record => written.push(record),
+        stderr: () => {},
+      })
+      const tree = await loadTree({
+        base,
+        rows: [
+          declared(telemetry.plugin, TELEMETRY_ROW_CONFIG),
+          ...storageRows(base).specs,
+          declared(sessionProviderRealRow, { admission: 'none' }),
+        ],
+      })
+      live.push(() => tree.dispose())
+      expect(tree.state('session-provider')).toMatchObject({ state: 'ACTIVE', missing: [] })
+
+      // The recovery scanner's reads: `pending` names its tenant; the other two are system scope
+      // in the contract (session-contract `SessionReconciliation`).
+      const maintainer: SessionService<unknown> | undefined = tree.root.intercept(sessionKey, {
+        caller: 'maintainer',
+      }).session
+      if (maintainer === undefined) throw new Error('the tree provides no session')
+      const organization = 'org_app8c0pr0v1der000000000000'
+      const tenant = testingTenant(organization, 'acc_app8c0pr0v1der000000000000')
+      // The storage answers for a tenant nobody registered; the read ran through the measurer
+      // either way, and only the row's own refusal (`denied`) would have stopped it before that.
+      const pending = await maintainer.reconciliation.pending({
+        principal: 'maintenance',
+        tenant,
+        after: null,
+        limit: 10,
+      })
+      expect('failure' in pending ? pending.failure.kind : 'ok').not.toBe('denied')
+      await maintainer.reconciliation.references({
+        principal: 'maintenance',
+        scope: 'system',
+        key: 'resident-1' as ResidentKey,
+        after: null,
+        limit: 10,
+      })
+      await maintainer.reconciliation.releasedScopes({
+        principal: 'maintenance',
+        scope: 'system',
+        after: null,
+        limit: 10,
+      })
+
+      // The application closes the runtime before the fibers end (`run.ts`, after the storage
+      // phase); ending the fiber first would close it with no time to drain the six records.
+      const report = await telemetry.close(1000)
+      await tree.shutdown()
+      if (report.kind !== 'closed') throw new Error(`telemetry close: ${report.kind}`)
+      expect(report.droppedBy).not.toHaveProperty('invalid')
+      expect(report.dropped).toBe(0)
+
+      const segments = written.filter(record => record.signal !== 'log')
+      expect(segments.map(record => `${record.signal}:${String(record['name'])}`)).toEqual([
+        'segment-start:omne.session.pending',
+        'segment-end:omne.session.pending',
+        'segment-start:omne.session.references',
+        'segment-end:omne.session.references',
+        'segment-start:omne.session.releasedScopes',
+        'segment-end:omne.session.releasedScopes',
+      ])
+      const tenantScoped = recordScope(tenantScope(tenant))
+      const systemScoped = recordScope(systemScope())
+      for (const record of segments) {
+        expect(record).toMatchObject({ owner: 'session', component: 'session' })
+        expect(record).not.toHaveProperty('work')
+        const name = String(record['name'])
+        if (name === 'omne.session.pending') expect(record['scope']).toEqual(tenantScoped)
+        else {
+          expect(record['scope']).toEqual(systemScoped)
+          // A fact of the service carries no tenant identity (TC-4).
+          expect(JSON.stringify(record)).not.toContain(organization)
+        }
+      }
+    },
+  )
+
+  it(
+    'a Session segment that names no tenant goes to `discard` over the real port, and the close report counts it under droppedBy.invalid',
+    { timeout: 60_000 },
+    async () => {
+      const base = makeBase()
+      live.push(() => base.release())
+      const written: TelemetryRecord[] = []
+      const telemetry = createTelemetryBinding({
+        write: record => written.push(record),
+        stderr: () => {},
+      })
+      let port: TelemetryPort | undefined
+      const tree = await loadTree({
+        base,
+        rows: [
+          declared(telemetry.plugin, TELEMETRY_ROW_CONFIG),
+          declared(portProbeRow(seen => (port = seen))),
+        ],
+      })
+      live.push(() => tree.dispose())
+      if (port === undefined) throw new Error('the probe row did not run')
+
+      // The Session facade the row builds, over the same port: a segment with neither a tenant nor
+      // the system scope is tenant work without its tenant, so it is not written (TC-4).
+      const { measure } = createSessionTelemetry(port, { instance: processInstance })
+      measure({
+        kind: 'segment',
+        segment: 'session',
+        phase: 'start',
+        span: 1,
+        operation: 'pending',
+        session: null,
+      })
+      measure({
+        kind: 'segment',
+        segment: 'session',
+        phase: 'end',
+        span: 1,
+        operation: 'pending',
+        session: null,
+        outcome: 'ok',
+      })
+
+      await tree.shutdown()
+      const report = await telemetry.close(1000)
+      if (report.kind !== 'closed') throw new Error(`telemetry close: ${report.kind}`)
+      expect(report.droppedBy).toEqual({ invalid: 1 })
+      expect(report.dropped).toBe(1)
+      expect(written.filter(record => record.signal !== 'log')).toEqual([])
+    },
+  )
 })

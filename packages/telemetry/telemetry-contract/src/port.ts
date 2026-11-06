@@ -23,6 +23,24 @@ export type Admission =
   | { readonly kind: 'admitted' }
   | { readonly kind: 'dropped'; readonly reason: DropReason }
 
+/** Any of the three definitions. */
+export type TelemetryDefinition =
+  | EventDefinition<FieldSchema>
+  | MetricDefinition<LabelSchema>
+  | SegmentDefinition
+
+/**
+ * The reasons a caller may give for a record it could not form. The other reasons are facts of the
+ * provider, which a caller cannot claim.
+ */
+export type DiscardReason = Extract<DropReason, 'invalid' | 'policy' | 'capacity'>
+
+export const DISCARD_REASONS: readonly DiscardReason[] = Object.freeze([
+  'invalid',
+  'policy',
+  'capacity',
+])
+
 export interface Segment {
   readonly carrier: Carrier
   event<S extends FieldSchema>(
@@ -51,9 +69,18 @@ export interface Emitter {
   bind(patch: Partial<Pick<Binding, 'work' | 'attempt' | 'call' | 'adopted' | 'links'>>): Emitter
 }
 
-/** The telemetry port. Slice 1 exposes `bind` only; `health()` comes with slice 2. */
+/** The telemetry port. Slice 1 exposes `bind` and `discard`; `health()` comes with slice 2. */
 export interface TelemetryPort {
   bind(binding: Binding): Emitter
+  /**
+   * Registers one record that the caller could not form, so that the provider counts it as dropped
+   * with `reason` (TC-4: a fact of tenant work without a tenant). `definition` names the record
+   * that was not formed. Nothing is written.
+   */
+  discard(
+    definition: TelemetryDefinition,
+    reason: DiscardReason,
+  ): Extract<Admission, { kind: 'dropped' }>
 }
 
 /** Tells a started segment from the dropped answer of `startSegment`. */

@@ -1,4 +1,5 @@
 import {
+  DISCARD_REASONS,
   TELEMETRY_LIMITS,
   decodeCarrier,
   defineEvent,
@@ -10,6 +11,7 @@ import {
   type Admission,
   type Binding,
   type Carrier,
+  type DiscardReason,
   type Emitter,
   type EventDefinition,
   type FieldSchema,
@@ -27,6 +29,7 @@ type Bound = Readonly<{ binding: Binding; scope: RecordScope }>
 
 const PATCH_KEYS = ['work', 'attempt', 'call', 'adopted', 'links'] as const
 const OUTCOMES: readonly unknown[] = ['ok', 'failure', 'unknown']
+const DISCARDABLE: readonly unknown[] = DISCARD_REASONS
 // A list longer than any binding limit is not copied: validation rejects it as it is.
 const COPY_LIMIT = Math.max(TELEMETRY_LIMITS.maxLinks, TELEMETRY_LIMITS.maxAdopted)
 
@@ -140,6 +143,15 @@ function checker<D extends object>(
 const eventDefinition = checker<EventDefinition<FieldSchema>>('event', defineEvent)
 const metricDefinition = checker<MetricDefinition<LabelSchema>>('metric', defineMetric)
 const segmentDefinition = checker<SegmentDefinition>('segment', defineSegment)
+
+/** True for a definition of any of the three signals that the contract accepts. */
+function isDefinition(value: unknown): boolean {
+  return (
+    eventDefinition(value) !== undefined ||
+    metricDefinition(value) !== undefined ||
+    segmentDefinition(value) !== undefined
+  )
+}
 
 export type EmitterDeps = Readonly<{
   pipeline: Pipeline
@@ -332,6 +344,15 @@ export function createPort(deps: EmitterDeps): TelemetryPort {
       } catch {
         return invalidEmitter
       }
+    },
+    /** A record the caller could not form: counted under its reason, never queued (TN-2). */
+    discard(definition: unknown, reason: unknown): Dropped {
+      return admitting(() => {
+        if (!isDefinition(definition) || !DISCARDABLE.includes(reason))
+          return pipeline.drop('invalid')
+        // DISCARDABLE holds exactly the discard reasons.
+        return pipeline.drop(reason as DiscardReason)
+      })
     },
   })
 }

@@ -6,9 +6,9 @@
 //
 // The session diagnostics projection (#1140 A5, RFC-0013 A line) reads four ports. Three are
 // injected, as the assembly page lists them: `agentJournal` (the finish read), `modelRuntime`
-// (only `calls.inspect`) and `modelDiagnostics`. `toolRuntime` is a local dependency, read on
-// every call: absent, the tool reads of the projection answer `unavailable`, which the member
-// writes as a gap, and the entry serves the rest.
+// (only `calls.inspect` and `calls.dispatches`) and `modelDiagnostics`. `toolRuntime` is a local
+// dependency, read on every call: absent, the tool reads of the projection answer `unavailable`,
+// which the member writes as a gap, and the entry serves the rest.
 import type { Context } from '@deepseek-ai/cordis'
 import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
@@ -69,6 +69,10 @@ function toolQueriesOfCall(ctx: Context): ToolQueries {
       const runtime = current()
       return runtime === undefined ? fail(TOOL_RUNTIME_ABSENT) : runtime.account(input)
     },
+    async readDiagnostics(input) {
+      const runtime = current()
+      return runtime === undefined ? fail(TOOL_RUNTIME_ABSENT) : runtime.readDiagnostics(input)
+    },
   }
   return queries
 }
@@ -80,7 +84,10 @@ function diagnosticPorts(
   const runtime = ctx.modelRuntime
   return {
     agentJournal: ctx.agentJournal,
-    modelCalls: { inspect: input => runtime.calls.inspect(input) },
+    modelCalls: {
+      inspect: input => runtime.calls.inspect(input),
+      dispatches: input => runtime.calls.dispatches(input),
+    },
     modelDiagnostics: ctx.modelDiagnostics,
   }
 }

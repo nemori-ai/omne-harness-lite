@@ -130,6 +130,8 @@ export type SessionAdoptionRef = {
  * The closed fields of Agent's finish candidate. `none`: a completed Run, whose finish the
  * projection does not read. `no-failure`: a finish read without a failure candidate. `cause` of
  * `no-reply` and `failure` of `model-refused` are the owner's closed kinds; no diagnostic text.
+ * A `failure` or `reason` outside the closed set is an `unknown` with its reason, never a
+ * plausible member of the set.
  */
 export type SessionRunCause =
   | SessionDiagnosticUnknown
@@ -137,7 +139,7 @@ export type SessionRunCause =
   | { readonly kind: 'no-failure'; readonly conclusion: 'complete' | 'fail' | 'cancelled' }
   | {
       readonly kind: 'model-refused'
-      readonly failure: 'denied' | 'invalid' | 'unsupported' | 'capacity'
+      readonly failure: 'denied' | 'invalid' | 'unsupported' | 'capacity' | SessionDiagnosticUnknown
     }
   | {
       readonly kind: 'no-reply'
@@ -145,7 +147,10 @@ export type SessionRunCause =
       readonly upstreamStatus: string | null
     }
   | { readonly kind: 'request-rejected' }
-  | { readonly kind: 'cannot-fit'; readonly reason: 'fixed' | 'after-compaction' }
+  | {
+      readonly kind: 'cannot-fit'
+      readonly reason: 'fixed' | 'after-compaction' | SessionDiagnosticUnknown
+    }
   | { readonly kind: 'compaction-invalid' }
   | { readonly kind: 'message-rejected' }
   | { readonly kind: 'extension-stop' }
@@ -162,22 +167,25 @@ export type SessionRunControl = {
   readonly intent: 'control' | 'interrupt' | 'auto-archive' | null
   readonly state: 'committed' | 'propagating' | 'reconciled' | null
 }
-export type SessionModelAttemptDiagnostic = {
-  readonly dispatch: string
-  readonly revision: string
-  readonly adapter: SessionAdoptionRef
-  readonly send: 'not-sent' | 'sent' | 'unknown'
-  readonly firstContent: 'none-proven' | 'observed' | 'uncertain'
-  readonly outcome:
-    | { readonly kind: 'pending' }
-    | { readonly kind: 'completed'; readonly reason: 'stop' | 'limit' | 'tool-suggestions' }
-    | { readonly kind: 'interrupted' }
-    | { readonly kind: 'failed'; readonly cause: string; readonly upstreamStatus: string | null }
-  readonly timing: {
-    readonly materialize: SessionDiagnosticMilliseconds
-    readonly sendToFirstContent: SessionDiagnosticMilliseconds
-    readonly execution: SessionDiagnosticMilliseconds
+/** The attempt counts of a Run, each a decimal text, from the `run.attempt-*` entries. */
+export type SessionRunAttempts = {
+  readonly started: string
+  readonly released: {
+    readonly ended: string
+    readonly bounded: string
+    readonly cancelled: string
+    readonly released: string
+    readonly superseded: string
   }
+  readonly exited: string
+}
+/** The `call.execution-fact` entries of one owner, counted by `fact.kind`. */
+export type SessionFactCount = { readonly kind: string; readonly count: string }
+/** One entry of the first page of Tool's diagnostics, without its evidence. */
+export type SessionToolDiagnosticEntry = {
+  readonly operation: string
+  readonly phase: string
+  readonly code: string
 }
 /** The usage and cost items of a call account: their source and numeric state, never a converted amount. */
 export type SessionCallAccountView = {
@@ -199,6 +207,25 @@ export type SessionCallAccountView = {
     | { readonly kind: 'unknown' }
   readonly receipt: 'received' | 'late'
 }
+export type SessionModelAttemptDiagnostic = {
+  readonly dispatch: string
+  readonly revision: string
+  readonly adapter: SessionAdoptionRef
+  readonly send: 'not-sent' | 'sent' | 'unknown'
+  readonly firstContent: 'none-proven' | 'observed' | 'uncertain'
+  readonly outcome:
+    | { readonly kind: 'pending' }
+    | { readonly kind: 'completed'; readonly reason: 'stop' | 'limit' | 'tool-suggestions' }
+    | { readonly kind: 'interrupted' }
+    | { readonly kind: 'failed'; readonly cause: string; readonly upstreamStatus: string | null }
+  readonly timing: {
+    readonly materialize: SessionDiagnosticMilliseconds
+    readonly sendToFirstContent: SessionDiagnosticMilliseconds
+    readonly execution: SessionDiagnosticMilliseconds
+  }
+  /** The account of this dispatch. */
+  readonly account: SessionCallAccountView | SessionDiagnosticUnknown
+}
 export type SessionModelCallDiagnostic = {
   readonly reference: string
   readonly purpose: string
@@ -211,7 +238,7 @@ export type SessionModelCallDiagnostic = {
     | SessionDiagnosticUnknown
   readonly dispatches: readonly SessionModelAttemptDiagnostic[]
   readonly coverage: 'complete-through-snapshot' | 'expired-prefix' | 'unknown'
-  readonly usage: SessionCallAccountView | SessionDiagnosticUnknown
+  readonly facts: readonly SessionFactCount[]
 }
 export type SessionToolCallDiagnostic = {
   readonly reference: string
@@ -235,14 +262,15 @@ export type SessionToolCallDiagnostic = {
       }
     | SessionDiagnosticUnknown
   readonly account: SessionCallAccountView | SessionDiagnosticUnknown
-  readonly diagnostics: 'unsupported'
+  readonly facts: readonly SessionFactCount[]
+  readonly diagnostics: readonly SessionToolDiagnosticEntry[] | SessionDiagnosticUnknown
 }
 export type SessionRunDiagnostic = {
   readonly run: string
   readonly entry: 'interactive' | 'dispatch'
   readonly execution: string
   readonly started: { readonly position: string; readonly at: SessionDiagnosticInstant }
-  readonly attempts: string
+  readonly attempts: SessionRunAttempts
   readonly controls: readonly SessionRunControl[]
   readonly terminal: SessionRunTerminal | null
   /** `registered` counts every `call.bound` of the Run; `projected` counts those that entered the fan-out. */
@@ -250,6 +278,8 @@ export type SessionRunDiagnostic = {
   readonly modelCalls: readonly SessionModelCallDiagnostic[]
   readonly toolCalls: readonly SessionToolCallDiagnostic[]
   readonly messages: readonly { readonly kind: string; readonly count: string }[]
+  /** The execution facts not attributed to a projected call of the Run. */
+  readonly facts: readonly SessionFactCount[]
 }
 export type SessionDiagnosticsPage = {
   readonly runs: readonly SessionRunDiagnostic[]

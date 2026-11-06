@@ -60,14 +60,14 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 
 ### 遥测投影
 
-<a id="遥测投影"></a>本段是候选，待 RFC-0013 接受。设计依据是 [RFC-0013「计时记录与离线聚合」](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)。根入口的 `createAgentTelemetry(port, { instance, maxOpenSegments })` 把测量事件投影为 `@omne-harness/telemetry-contract` 的记录，返回 `{ measure, dropped }`。装配者把 `measure` 交给工厂的第三个参数。facade 只依赖 telemetry-contract 的根入口，不依赖提供者，不依赖 Cordis。源码在 [telemetry.ts](src/telemetry.ts)。
+<a id="遥测投影"></a>本段是候选，待 RFC-0013 接受。设计依据是 [RFC-0013「计时记录与离线聚合」](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)。根入口的 `createAgentTelemetry(port, { instance })` 把测量事件投影为 `@omne-harness/telemetry-contract` 的记录，返回 `{ measure }`。装配者把 `measure` 交给工厂的第三个参数。facade 只依赖 telemetry-contract 的根入口，不依赖提供者，不依赖 Cordis。源码在 [telemetry.ts](src/telemetry.ts)。
 
 - 一次通过是一个遥测段：`accept` 是 `omne.agent.pass.accept`，`run` 是 `omne.agent.pass.run`（owner `agent`，定义在 `agentPassSegments`）。start 开段，end 以 `outcome` 结束。
 - 关联：`component` 是 `agent`，`instance` 由装配者给出，`attempt` 是执行（owner `@omne-harness/agent`，ref 为 execution id）。没有 `work`：Agent 不认识 Session。
-- 作用域：`scope` 是 `tenantScope(tenant)`。事件没有 `tenant` 时 facade 不发记录，计入 `dropped().invalid`；不改标为 `system`（telemetry-contract TC-4）。每条记录各自 `port.bind`，不缓存 emitter（TC-15）。
-- 有界：同时打开的段最多 `maxOpenSegments` 个，超过的 start 丢弃并计入 `dropped().capacity`；end 结束段后删除配对表条目。没有 start 的 end 什么也不做。
+- 作用域：`scope` 是 `tenantScope(tenant)`。事件没有 `tenant`，或 `tenant` 不是 legal-identity 铸造的值时，facade 不发记录，把该 pass 的段定义交给 `port.discard(definition, 'invalid')`，由提供者按 `invalid` 计数（进 `CloseReport.droppedBy.invalid`）；不改标为 `system`（telemetry-contract TC-4、TC-15）。每条记录各自 `port.bind`，不缓存 emitter（TC-15）。
+- 有界：facade 没有自己的段上限。配对表只保存提供者受理的段：被 `startSegment` 丢弃的 start 不进配对表，而提供者只在它自己的 `maxOpenSegments` 之内受理 start（telemetry-node TN-6），所以配对表的大小不超过提供者的上限。end 结束段后删除配对表条目；没有 start 的 end 什么也不做。
 - 计时：facade 不读时钟。段的时长由提供者在 `startSegment` 与 `end` 之间计算。
-- 不抛错：`maxOpenSegments` 不是正整数时构造抛 `TypeError`；此外 facade 不抛错。
+- 不抛错：facade 不抛错，也不保有任何计数。
 
 ## 资源与替换
 
@@ -75,7 +75,7 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 
 ## 验证
 
-测量事件的测试在 `tests/measure.spec.ts`：受理与驱动两类通过的起止成对、观察者缺省与抛出时执行的结果不变。`tests/telemetry.spec.ts` 核对每个事件带绑定的租户，并用 telemetry-contract 的捕获替身核对[遥测投影](#遥测投影)：段的名字、作用域、`attempt` 与结局，缺租户不发记录并计入 `invalid`，配对表上限，以及经真实 runtime 的一次 invoke。
+测量事件的测试在 `tests/measure.spec.ts`：受理与驱动两类通过的起止成对、观察者缺省与抛出时执行的结果不变。`tests/telemetry.spec.ts` 核对每个事件带绑定的租户，并用 telemetry-contract 的捕获替身核对[遥测投影](#遥测投影)：段的名字、作用域、`attempt` 与结局，缺租户不发记录而经 `port.discard` 以 `invalid` 交给提供者计数，提供者丢弃的 start 不配对，以及经真实 runtime 的一次 invoke。
 
 以失败终结的测试在 `tests/run-ended-failed.spec.ts`：主调用以 connect-timeout 失败收场时，终态结论原因为 `<execution>/step-1/model-failed/upstream-unavailable/connect-timeout`，接收者恰好收到一次报告；诊断中的 `/` 被编码；负控为正常完成而没有内容时原因仍是 `no-reply`；正常完成不报告；接收者抛出时执行照样终结。只覆盖内存 Journal 与脚本化 Model。
 

@@ -4,7 +4,7 @@
 
 ## 使用方式
 
-- **提供者**从 `./cordis` 导入 `TelemetryService`，继承它并实现 `bind`。运行时资源在提供者自己的插件上下文创建。
+- **提供者**从 `./cordis` 导入 `TelemetryService`，继承它并实现 `bind` 与 `discard`。运行时资源在提供者自己的插件上下文创建。
 - **发射方的行**从 `./cordis` 导入 `telemetryKey`，写进 `inject` 数组字面量，在行体里用 `ctx.telemetry.bind(binding)` 取得 emitter，再交给成员工厂已有的可选参数。
 - **领域实现成员**不依赖本包。它只依赖 `telemetry-contract` 的根入口，经回调参数接收 emitter。
 - **领域测试**不依赖本包。它用 `telemetry-contract/testing` 的捕获替身。

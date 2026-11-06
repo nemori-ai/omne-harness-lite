@@ -27,9 +27,9 @@
 | `identity`          | 每次调用时 `ctx.get('identityOperations')`     | 提供者重载后下一次请求就用新的。提供者不在树里时，`issueLogin` 与 `recognizeLogin` 答 `basis-unavailable`。`registerAndActivate` 没有这种结局，所以抛出，接入答空的 500 |
 | `modelCredentials`  | 每次调用时 `ctx.get('modelCredentialCustody')` | 受信名，只有本行与提供它的 `model-credential` 行看见。提供者不在树里时，3 个方法都答 `basis-unavailable`，不抛出。准入在提供者里，见[模型凭据](model-release.md#模型凭据) |
 | `agentJournal`      | `ctx.agentJournal`                             | 会话诊断投影的结束原因读口。成员只调用 `readFinish`。提供者没有实现它时，成员记缺口 `unsupported` |
-| `modelCalls`        | `ctx.modelRuntime.calls`，只包 `inspect`       | 会话诊断投影的调用查找。成员拿不到运行时的其他成员 |
+| `modelCalls`        | `ctx.modelRuntime.calls`，只包 `inspect` 与 `dispatches` | 会话诊断投影的调用查找与派发记录（每次派发的账目）。成员拿不到运行时的其他成员 |
 | `modelDiagnostics`  | `ctx.modelDiagnostics`                         | 会话诊断投影的派发读口。`model-records` 行提供 |
-| `toolQueries`       | 每次调用时 `ctx.get('toolRuntime')` 的 `queries`，只包 `lookup` 与 `account` | 局部依赖。提供者不在树里时，两个方法答 `unavailable`，成员记缺口；入口照常接收其他操作 |
+| `toolQueries`       | 每次调用时 `ctx.get('toolRuntime')` 的 `queries`，只包 `lookup`、`account` 与 `readDiagnostics` | 局部依赖。提供者不在树里时，三个方法答 `unavailable`，成员记缺口；入口照常接收其他操作 |
 | `diagnostics`       | `entryDiagnostics(ctx.telemetry)`              | 成员的每个 `ServerEntryDiagnostic` 成为事件 `omne.entry.diagnostic`（owner `server-entry`，version 1，级别 `warn`），`system` 作用域，部件 `server-entry`，经 `telemetry` 行的出口写出。记录里只有 `code` 与诊断带的 `path` 或 `operation`，没有租户、请求正文、凭据或错误原文。`path` 只取请求 URL 的路径部分，不带查询串与片段。见 [telemetry 行](telemetry.md#发射行怎样接入) |
 
 ### Session 的两个调用方类

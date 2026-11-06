@@ -53,6 +53,7 @@ const dispatch = (fields: Record<string, unknown>) => ({
   firstContent: 'none-proven',
   outcome: { kind: 'pending' },
   timing: unknownTiming,
+  account: { kind: 'unknown', reason: 'not-recorded' },
   ...fields,
 })
 const modelCall = (fields: Record<string, unknown>) => ({
@@ -61,7 +62,7 @@ const modelCall = (fields: Record<string, unknown>) => ({
   call: { kind: 'found', call: 'call-1', phase: 'settled' },
   dispatches: [dispatch({})],
   coverage: 'complete-through-snapshot',
-  usage: { kind: 'unknown', reason: 'not-recorded' },
+  facts: [],
   ...fields,
 })
 const run = (fields: Record<string, unknown>) => ({
@@ -69,13 +70,18 @@ const run = (fields: Record<string, unknown>) => ({
   entry: 'interactive',
   execution: 'exec-1',
   started: { position: '2', at: { kind: 'unknown' } },
-  attempts: '1',
+  attempts: {
+    started: '1',
+    released: { ended: '0', bounded: '0', cancelled: '0', released: '0', superseded: '0' },
+    exited: '0',
+  },
   controls: [],
   terminal: null,
   calls: { registered: '1', projected: '1' },
   modelCalls: [],
   toolCalls: [],
   messages: [{ kind: 'message.user', count: '1' }],
+  facts: [],
   ...fields,
 })
 
@@ -118,18 +124,18 @@ const noReply = run({
             sendToFirstContent: { kind: 'unknown' },
             execution: { kind: 'known', milliseconds: '1500' },
           },
+          account: {
+            kind: 'account',
+            usage: [
+              { name: 'input_tokens', unit: 'token', state: 'known', lexeme: '120' },
+              { name: 'output_tokens', unit: 'token', state: 'unknown', lexeme: null },
+            ],
+            cost: [{ source: 'provider', unit: 'USD', state: 'provisional', lexeme: '0.002' }],
+            duration: { kind: 'known', value: '1500' },
+            receipt: 'received',
+          },
         }),
       ],
-      usage: {
-        kind: 'account',
-        usage: [
-          { name: 'input_tokens', unit: 'token', state: 'known', lexeme: '120' },
-          { name: 'output_tokens', unit: 'token', state: 'unknown', lexeme: null },
-        ],
-        cost: [{ source: 'provider', unit: 'USD', state: 'provisional', lexeme: '0.002' }],
-        duration: { kind: 'known', value: '1500' },
-        receipt: 'received',
-      },
     }),
   ],
   toolCalls: [
@@ -143,7 +149,8 @@ const noReply = run({
         terminal: { kind: 'completed', cause: null },
       },
       account: { kind: 'unknown', reason: 'not-recorded' },
-      diagnostics: 'unsupported',
+      facts: [],
+      diagnostics: { kind: 'unknown', reason: 'unsupported' },
     },
   ],
   messages: [
@@ -284,7 +291,7 @@ describe('read-session-diagnostics', () => {
   })
 
   describe('text output', () => {
-    it('shows the reason of each failed run, the dispatches, usage, timing and the gaps', async () => {
+    it('shows the reason of each failed run, the dispatches with timing and account, and the gaps', async () => {
       const service = await serve(diagnosticsService([page([refused, noReply], null, gaps)]))
       await loginOwningSession(service)
       const result = await cli([name, '--session', sessionId])
@@ -294,27 +301,30 @@ describe('read-session-diagnostics', () => {
         [
           'Run run-1 (entry interactive, execution exec-1): failed',
           '  started: position 2 at unknown',
+          '  attempts: 1',
           '  cause: exec-1/step-1/model-refused',
           '  reason: model-refused capacity',
           '  model calls: 1',
           '    main ref-1 -> call call-1 (settled), 1 dispatch, coverage complete-through-snapshot',
           '      d-1 openai-compatible: not-sent, first content none-proven, pending',
           '        timing: materialize unknown, send to first content unknown, execution unknown',
-          '      usage: unknown not-recorded',
+          '        account: unknown (not-recorded)',
           '  tool calls: 0',
           '  messages: message.user 1',
           'Run run-2 (entry interactive, execution exec-2): failed',
           '  started: position 7 at 2026-11-05T08:00:00Z',
+          '  attempts: 1',
           '  cause: exec-2/step-1/model-failed/upstream-unavailable/http-504',
           '  reason: no-reply upstream-unavailable 504',
           '  model calls: 1',
           '    main ref-2 -> call call-2 (settled), 1 dispatch, coverage complete-through-snapshot',
           '      d-2 openai-compatible: sent, first content none-proven, failed upstream-unavailable http 504',
           '        timing: materialize 12 ms, send to first content unknown, execution 1500 ms',
-          '      usage: input_tokens 120 token, output_tokens unknown; cost: provider 0.002 USD provisional; duration 1500; receipt received',
+          '        account: input_tokens 120 token known, output_tokens unknown token unknown; cost: provider 0.002 USD provisional; duration 1500; receipt received',
           '  tool calls: 1',
           '    tref-1 -> call tcall-1 (settled, foreground), completed',
-          '      account: unknown not-recorded',
+          '      account: unknown (not-recorded)',
+          '      diagnostics: unknown (unsupported)',
           '  messages: message.user 1, message.assistant 2',
           'gaps: 2',
           '  model ref-1: not-recorded',
@@ -349,7 +359,8 @@ describe('read-session-diagnostics', () => {
             reference: 'tref-2',
             state: { kind: 'unknown', reason: 'not-found' },
             account: { kind: 'unknown', reason: 'not-found' },
-            diagnostics: 'unsupported',
+            facts: [],
+            diagnostics: { kind: 'unknown', reason: 'not-found' },
           },
         ],
         messages: [],
@@ -362,18 +373,20 @@ describe('read-session-diagnostics', () => {
         [
           'Run run-3 (entry interactive, execution exec-1): completed',
           '  started: position 2 at unknown',
+          '  attempts: 1',
           '  model calls: 0',
           '  tool calls: 0',
           '  messages: message.user 1',
           'Run run-4 (entry interactive, execution exec-1): not ended',
           '  started: position 2 at unknown',
+          '  attempts: 1',
           '  control requested at 9: run interrupt -',
           '  model calls: 1',
-          '    main ref-1 -> call unknown unavailable, 0 dispatches, coverage unknown',
-          '      usage: unknown not-recorded',
+          '    main ref-1 -> call unknown (unavailable), 0 dispatches, coverage unknown',
           '  tool calls: 1',
-          '    tref-2 -> call unknown not-found',
-          '      account: unknown not-found',
+          '    tref-2 -> call unknown (not-found)',
+          '      account: unknown (not-found)',
+          '      diagnostics: unknown (not-found)',
           '',
         ].join('\n'),
       )
@@ -424,7 +437,7 @@ describe('read-session-diagnostics', () => {
       expect(result.code).toBe(0)
       const reasons = result.stdout.split('\n').filter(line => line.startsWith('  reason: '))
       expect(reasons).toEqual([
-        '  reason: unknown denied',
+        '  reason: unknown (denied)',
         '  reason: no-failure fail',
         '  reason: no-reply unknown unknown',
         '  reason: cannot-fit after-compaction',
@@ -436,11 +449,150 @@ describe('read-session-diagnostics', () => {
         [
           '      d-1 openai-compatible: not-sent, first content none-proven, interrupted',
           '        timing: materialize unknown, send to first content unknown, execution unknown',
+          '        account: unknown (not-recorded)',
           '      d-2 openai-compatible: not-sent, first content none-proven, completed limit',
           '        timing: materialize unknown, send to first content unknown, execution unknown',
+          '        account: unknown (not-recorded)',
           '      d-3 openai-compatible: not-sent, first content none-proven, failed stream-lost http unknown',
         ].join('\n'),
       )
+    })
+
+    it('shows the attempts by kind, the account of each dispatch, the execution facts and the tool diagnostics', async () => {
+      const busy = run({
+        run: 'run-5',
+        attempts: {
+          started: '2',
+          released: { ended: '1', bounded: '0', cancelled: '0', released: '0', superseded: '1' },
+          exited: '1',
+        },
+        modelCalls: [
+          modelCall({
+            dispatches: [
+              dispatch({
+                account: {
+                  kind: 'account',
+                  usage: [
+                    { name: 'output_tokens', unit: 'token', state: 'provisional', lexeme: '7' },
+                  ],
+                  cost: [],
+                  duration: { kind: 'unknown' },
+                  receipt: 'late',
+                },
+              }),
+            ],
+            facts: [{ kind: 'model.retry', count: '2' }],
+          }),
+        ],
+        toolCalls: [
+          {
+            reference: 'tref-3',
+            state: { kind: 'unknown', reason: 'unavailable' },
+            account: {
+              kind: 'account',
+              usage: [],
+              cost: [{ source: 'ledger', unit: 'USD', state: 'known', lexeme: '0.10' }],
+              duration: { kind: 'known', value: '40' },
+              receipt: 'received',
+            },
+            facts: [
+              { kind: 'tool.exit', count: '1' },
+              { kind: 'tool.signal', count: '3' },
+            ],
+            diagnostics: [
+              { operation: 'exec', phase: 'start', code: 'spawn-failed' },
+              { operation: 'exec', phase: 'wait', code: 'timeout' },
+            ],
+          },
+          {
+            reference: 'tref-4',
+            state: { kind: 'unknown', reason: 'unavailable' },
+            account: { kind: 'unknown', reason: 'unavailable' },
+            facts: [],
+            diagnostics: [],
+          },
+        ],
+        messages: [],
+        facts: [{ kind: 'sandbox.denied', count: '1' }],
+      })
+      const exitedOnly = run({
+        run: 'run-6',
+        attempts: {
+          started: '1',
+          released: { ended: '0', bounded: '0', cancelled: '0', released: '0', superseded: '0' },
+          exited: '1',
+        },
+        messages: [],
+      })
+      const service = await serve(diagnosticsService([page([busy, exitedOnly], null)]))
+      await loginOwningSession(service)
+      const result = await cli([name, '--session', sessionId])
+      expect(result.code).toBe(0)
+      expect(result.stdout).toBe(
+        [
+          'Run run-5 (entry interactive, execution exec-1): not ended',
+          '  started: position 2 at unknown',
+          '  attempts: 2 (released: ended 1, superseded 1; exited 1)',
+          '  model calls: 1',
+          '    main ref-1 -> call call-1 (settled), 1 dispatch, coverage complete-through-snapshot',
+          '      d-1 openai-compatible: not-sent, first content none-proven, pending',
+          '        timing: materialize unknown, send to first content unknown, execution unknown',
+          '        account: output_tokens 7 token provisional; cost: none; duration unknown; receipt late',
+          '      facts: model.retry 2',
+          '  tool calls: 2',
+          '    tref-3 -> call unknown (unavailable)',
+          '      account: none; cost: ledger 0.10 USD known; duration 40; receipt received',
+          '      facts: tool.exit 1, tool.signal 3',
+          '      diagnostics: 2',
+          '        exec start spawn-failed',
+          '        exec wait timeout',
+          '    tref-4 -> call unknown (unavailable)',
+          '      account: unknown (unavailable)',
+          '      diagnostics: 0',
+          '  facts: sandbox.denied 1',
+          'Run run-6 (entry interactive, execution exec-1): not ended',
+          '  started: position 2 at unknown',
+          '  attempts: 1 (exited 1)',
+          '  model calls: 0',
+          '  tool calls: 0',
+          '',
+        ].join('\n'),
+      )
+    })
+
+    it('shows a closed failure or reason that the source gave outside its set as unknown with the reason', async () => {
+      const ended = (id: string, structured: unknown) =>
+        run({
+          run: id,
+          terminal: { outcome: 'failed', cause: { record: null, structured } },
+          messages: [],
+        })
+      const service = await serve(
+        diagnosticsService([
+          page(
+            [
+              ended('run-r', {
+                kind: 'model-refused',
+                failure: { kind: 'unknown', reason: 'unsupported' },
+              }),
+              ended('run-s', {
+                kind: 'cannot-fit',
+                reason: { kind: 'unknown', reason: 'not-recorded' },
+              }),
+              ended('run-t', { kind: 'cannot-fit', reason: 'fixed' }),
+            ],
+            null,
+          ),
+        ]),
+      )
+      await loginOwningSession(service)
+      const result = await cli([name, '--session', sessionId])
+      expect(result.code).toBe(0)
+      expect(result.stdout.split('\n').filter(line => line.startsWith('  reason: '))).toEqual([
+        '  reason: model-refused unknown (unsupported)',
+        '  reason: cannot-fit unknown (not-recorded)',
+        '  reason: cannot-fit fixed',
+      ])
     })
 
     it('prints nothing for a session without runs and exits 0', async () => {

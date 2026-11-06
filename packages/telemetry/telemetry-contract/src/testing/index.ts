@@ -1,6 +1,7 @@
 // The bounded capturing double of the telemetry port, for tests of the emitting domains. It does
 // not import Cordis.
 import {
+  DISCARD_REASONS,
   TELEMETRY_LIMITS,
   decodeCarrier,
   encodeCarrier,
@@ -66,12 +67,18 @@ const DEFAULT_CAPACITY = 1024
 const ADMITTED: Admission = Object.freeze({ kind: 'admitted' })
 const PATCH_KEYS = ['work', 'attempt', 'call', 'adopted', 'links'] as const
 const OUTCOMES: readonly unknown[] = ['ok', 'failure', 'unknown']
+const SIGNALS: readonly unknown[] = ['event', 'metric', 'segment']
+const DISCARDABLE: readonly unknown[] = DISCARD_REASONS
 // A list longer than any binding limit is not copied: validation rejects it as it is.
 const COPY_LIMIT = Math.max(TELEMETRY_LIMITS.maxLinks, TELEMETRY_LIMITS.maxAdopted)
 
-function hasSignal(definition: unknown, signal: string): boolean {
+function signalOf(definition: unknown): unknown {
   const read = dataMembers(definition)
-  return read.kind === 'members' && read.members.get('signal') === signal
+  return read.kind === 'members' ? read.members.get('signal') : undefined
+}
+
+function hasSignal(definition: unknown, signal: string): boolean {
+  return signalOf(definition) === signal
 }
 
 /** A frozen copy of plain data, so that later changes by the caller do not reach a record. */
@@ -126,8 +133,8 @@ function copyValues(values: unknown): CapturedValues {
  * Creates a capturing double of the telemetry port. It admits records in call order up to
  * `capacity` (default 1024) and drops the rest with `capacity`. It checks bindings with
  * `validateBinding` and fields with `validateFields`: an invalid record is dropped with `invalid`
- * and is not captured. `dropped()` counts every dropped record. No operation throws.
- * Throws TypeError for a capacity that is not a positive integer.
+ * and is not captured. `dropped()` counts every dropped record, including each `discard`. No
+ * operation throws. Throws TypeError for a capacity that is not a positive integer.
  */
 export function createCapturingTelemetry(options: Readonly<{ capacity?: number }> = {}): {
   readonly port: TelemetryPort
@@ -277,8 +284,18 @@ export function createCapturingTelemetry(options: Readonly<{ capacity?: number }
     })
   }
 
+  /** A record the caller could not form: counted under its reason; nothing is captured. */
+  function discard(definition: unknown, reason: unknown): Dropped {
+    return guarded(() => {
+      if (!SIGNALS.includes(signalOf(definition)) || !DISCARDABLE.includes(reason))
+        return drop('invalid')
+      // DISCARDABLE holds exactly the discard reasons.
+      return drop(reason as Dropped['reason'])
+    })
+  }
+
   return Object.freeze({
-    port: Object.freeze({ bind: (binding: Binding) => emitter(snapshot(binding)) }),
+    port: Object.freeze({ bind: (binding: Binding) => emitter(snapshot(binding)), discard }),
     records: () => Object.freeze([...records]),
     dropped: () => dropped,
     clear: () => {

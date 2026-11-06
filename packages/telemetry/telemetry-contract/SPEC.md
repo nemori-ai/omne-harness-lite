@@ -24,7 +24,7 @@
 
 ### TC-1 端口操作同步、有界、不抛错
 
-`Emitter.event`、`Emitter.record`、`Emitter.startSegment`、`Emitter.bind`、`Segment.event`、`Segment.end` 和 `TelemetryPort.bind` 必须同步返回，不等待网络，不抛错。每次调用的工作量以本文件的结构上限为界。调用方不需要对 `Admission` 分支，但可以读它。输入在读取时抛错（例如代理对象），实现答 `dropped(invalid)`。
+`Emitter.event`、`Emitter.record`、`Emitter.startSegment`、`Emitter.bind`、`Segment.event`、`Segment.end`、`TelemetryPort.bind` 和 `TelemetryPort.discard` 必须同步返回，不等待网络，不抛错。每次调用的工作量以本文件的结构上限为界。调用方不需要对 `Admission` 分支，但可以读它。输入在读取时抛错（例如代理对象），实现答 `dropped(invalid)`。
 
 `TelemetryPort.bind` 收到无效绑定时不抛错。它返回一个 emitter，这个 emitter 对每次记录都答 `dropped(invalid)`。
 
@@ -52,7 +52,7 @@ metric 的值必须是有限数。counter 的值必须不小于 0。
 
 `Binding.scope` 表达记录的事实属于谁：某个租户的工作，或者服务进程自身。它不表达调用方是否知道租户，也不授予任何权限（IC-18）。
 
-- 记录某个租户的工作时，scope 必须是该租户。调用方拿不到租户时，不能发这条记录。
+- 记录某个租户的工作时，scope 必须是该租户。调用方拿不到租户时，不能发这条记录；它把记录的定义交给 `TelemetryPort.discard(definition, 'invalid')`，提供者按 `invalid` 计数（[TC-7](#tc-7-提供者保有独立计数)、[TC-15](#tc-15-端口与关闭报告)），不写出任何记录。
 - 记录服务进程自身的事实时，scope 是 `system`，`component` 写明部件，记录里不带任何租户标识。
 - 不能把属于某租户工作的事实改标为 `system`。
 
@@ -90,7 +90,8 @@ scope 必须由 `@omne-harness/legal-identity` 铸造。`validateBinding` 用 `a
 
 - 它用 `validateBinding` 与 `validateFields` 判定准入。无效记录答 `dropped(invalid)`，不进入捕获列表。
 - 捕获数达到 `capacity`（默认 1024）后，新记录答 `dropped(capacity)`。
-- `dropped()` 计数每一条被丢弃的记录，不区分原因。
+- `discard(definition, reason)` 按 `reason` 答 `dropped`，不捕获任何记录。`definition` 不带三种 `signal` 之一，或 `reason` 不是 `DiscardReason` 时，答 `dropped(invalid)`。
+- `dropped()` 计数每一条被丢弃的记录，含每次 `discard`，不区分原因。
 - `clear()` 清空捕获列表并把丢弃计数归零。
 - 它不导入 Cordis，任何输入都不使它抛错。
 
@@ -142,7 +143,9 @@ carrier 文本是 W3C traceparent 的子集：`00-<trace>-<span>-<flags>`。
 
 ### TC-15 端口与关闭报告
 
-第一版的 `TelemetryPort` 只有 `bind(binding)`，不公开 `health()`。`Emitter.record` 是预留的指标入口，第一版没有消费者。`Emitter.bind(patch)` 派生一个新的 emitter，原 emitter 不变。派生只改 `work`、`attempt`、`call`、`adopted`、`links`。补丁里的其他成员不生效，补丁中值为 `undefined` 的成员也不生效。派生出的绑定仍按 TC-2 校验。
+第一版的 `TelemetryPort` 有 `bind(binding)` 与 `discard(definition, reason)`，不公开 `health()`。`Emitter.record` 是预留的指标入口，第一版没有消费者。
+
+`discard(definition, reason)` 登记一条调用方没能组成的记录：`definition` 是它本来会是的事件、指标或段定义，`reason` 是 `DiscardReason`，即 `DropReason` 中调用方可以声称的三个值 `invalid`、`policy`、`capacity`（其余四个是提供者自己的事实）。提供者按 `reason` 计数并答 `dropped(reason)`，不写出任何记录，不计入 `admitted`。`definition` 不是契约接受的定义，或 `reason` 不在 `DISCARD_REASONS` 里时，答 `dropped(invalid)` 并按 `invalid` 计数。提供者关闭后答 `dropped(closed)`。第一版的调用方是 Session 与 Agent 的 facade：属于租户工作却拿不到租户的记录（[TC-4](#tc-4-作用域只表达事实属于谁)）。`Emitter.bind(patch)` 派生一个新的 emitter，原 emitter 不变。派生只改 `work`、`attempt`、`call`、`adopted`、`links`。补丁里的其他成员不生效，补丁中值为 `undefined` 的成员也不生效。派生出的绑定仍按 TC-2 校验。
 
 `CloseReport` 报告提供者关闭时的事实。`dropped` 是总数，`droppedBy` 按 `DropReason` 分项。下面四个确认边界互不相同，报告不得混同：
 
@@ -174,7 +177,7 @@ carrier 文本是 W3C traceparent 的子集：`00-<trace>-<span>-<flags>`。
 | TC-5、TC-12                 | `tests/binding.spec.ts`、`tests/definitions.spec.ts`：上限处有效，超出一个无效 |
 | TC-6、TC-11                 | `tests/carrier.spec.ts`                                                        |
 | TC-8                        | `tests/definitions.spec.ts`、`tests/fields.spec.ts`（`optional` 标记）；类型层见 `tests/types.spec-d.ts` |
-| TC-14、TC-15                | `tests/capturing.spec.ts`                                                      |
+| TC-14、TC-15                | `tests/capturing.spec.ts`；`discard` 的计数、不可声称的原因与非定义见同文件「discard」两例 |
 | 安装闭包里没有 Cordis（IC-4） | `tests/public-entry.spec.ts` 遍历构建产物的导入，读 `package.json` 的依赖并沿 workspace 依赖找 Cordis；`pnpm run lint:deps` |
 
 未覆盖：TC-7 的计数与 `CloseReport` 的内容由提供者兑现，本包只给形状，验证归 `telemetry-node`。真实提供者对 TC-1、TC-2 的兑现也归 `telemetry-node` 的测试。`TelemetryService` 在真实 `Context` 上的提供、注入与撤除归 `telemetry-cordis-contract` 的测试。

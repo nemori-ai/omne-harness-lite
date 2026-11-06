@@ -181,6 +181,11 @@ const known = (field: string): Rule => ({
   ],
 })
 const adoptionRef = fieldsOf({ owner: text, name: text, revision: text, digest: text })
+/** A closed set, or an `unknown` with its reason. A literal and an object are disjoint. */
+const closedOrUnknown = (...values: string[]): Rule => ({
+  kind: 'one-of',
+  rules: [literal(...values), unknownValue],
+})
 const runCause: Rule = {
   kind: 'one-of',
   rules: [
@@ -189,11 +194,11 @@ const runCause: Rule = {
     fieldsOf({ kind: literal('no-failure'), conclusion: literal('complete', 'fail', 'cancelled') }),
     fieldsOf({
       kind: literal('model-refused'),
-      failure: literal('denied', 'invalid', 'unsupported', 'capacity'),
+      failure: closedOrUnknown('denied', 'invalid', 'unsupported', 'capacity'),
     }),
     fieldsOf({ kind: literal('no-reply'), cause: nullable(text), upstreamStatus: nullable(text) }),
     fieldsOf({ kind: literal('request-rejected') }),
-    fieldsOf({ kind: literal('cannot-fit'), reason: literal('fixed', 'after-compaction') }),
+    fieldsOf({ kind: literal('cannot-fit'), reason: closedOrUnknown('fixed', 'after-compaction') }),
     fieldsOf({ kind: literal('compaction-invalid') }),
     fieldsOf({ kind: literal('message-rejected') }),
     fieldsOf({ kind: literal('extension-stop') }),
@@ -207,6 +212,21 @@ const runControl = fieldsOf({
   intent: nullable(literal('control', 'interrupt', 'auto-archive')),
   state: nullable(literal('committed', 'propagating', 'reconciled')),
 })
+const amountState = literal('unknown', 'known', 'provisional')
+const accountView = fieldsOf({
+  kind: literal('account'),
+  usage: {
+    kind: 'array',
+    item: fieldsOf({ name: text, unit: anyText, state: amountState, lexeme: nullable(text) }),
+  },
+  cost: {
+    kind: 'array',
+    item: fieldsOf({ source: text, unit: anyText, state: amountState, lexeme: nullable(text) }),
+  },
+  duration: known('value'),
+  receipt: literal('received', 'late'),
+})
+const accountOrUnknown: Rule = { kind: 'one-of', rules: [accountView, unknownValue] }
 const attempt = fieldsOf({
   dispatch: text,
   revision: text,
@@ -230,21 +250,10 @@ const attempt = fieldsOf({
     sendToFirstContent: known('milliseconds'),
     execution: known('milliseconds'),
   }),
+  account: accountOrUnknown,
 })
-const amountState = literal('unknown', 'known', 'provisional')
-const accountView = fieldsOf({
-  kind: literal('account'),
-  usage: {
-    kind: 'array',
-    item: fieldsOf({ name: text, unit: anyText, state: amountState, lexeme: nullable(text) }),
-  },
-  cost: {
-    kind: 'array',
-    item: fieldsOf({ source: text, unit: anyText, state: amountState, lexeme: nullable(text) }),
-  },
-  duration: known('value'),
-  receipt: literal('received', 'late'),
-})
+// Counts are decimal texts, checked as non-empty text like every other count of the page.
+const counted: Rule = { kind: 'array', item: fieldsOf({ kind: text, count: text }) }
 const modelCall = fieldsOf({
   reference: text,
   purpose: text,
@@ -261,8 +270,10 @@ const modelCall = fieldsOf({
   },
   dispatches: { kind: 'array', item: attempt },
   coverage: literal('complete-through-snapshot', 'expired-prefix', 'unknown'),
-  usage: { kind: 'one-of', rules: [accountView, unknownValue] },
+  facts: counted,
 })
+// Tool's `DiagnosticPage` gives `phase` and `code` as plain strings, which can be empty.
+const toolDiagnosticEntry = fieldsOf({ operation: text, phase: anyText, code: anyText })
 const toolCall = fieldsOf({
   reference: text,
   state: {
@@ -291,15 +302,31 @@ const toolCall = fieldsOf({
       unknownValue,
     ],
   },
-  account: { kind: 'one-of', rules: [accountView, unknownValue] },
-  diagnostics: literal('unsupported'),
+  account: accountOrUnknown,
+  facts: counted,
+  // An array and an object are disjoint.
+  diagnostics: {
+    kind: 'one-of',
+    rules: [{ kind: 'array', item: toolDiagnosticEntry }, unknownValue],
+  },
+})
+const runAttempts = fieldsOf({
+  started: text,
+  released: fieldsOf({
+    ended: text,
+    bounded: text,
+    cancelled: text,
+    released: text,
+    superseded: text,
+  }),
+  exited: text,
 })
 const runDiagnostic = fieldsOf({
   run: text,
   entry: literal('interactive', 'dispatch'),
   execution: text,
   started: fieldsOf({ position: text, at: known('instant') }),
-  attempts: text,
+  attempts: runAttempts,
   controls: { kind: 'array', item: runControl },
   terminal: nullable(
     fieldsOf({
@@ -310,7 +337,8 @@ const runDiagnostic = fieldsOf({
   calls: fieldsOf({ registered: text, projected: text }),
   modelCalls: { kind: 'array', item: modelCall },
   toolCalls: { kind: 'array', item: toolCall },
-  messages: { kind: 'array', item: fieldsOf({ kind: text, count: text }) },
+  messages: counted,
+  facts: counted,
 })
 const diagnosticsPage = fieldsOf({
   runs: { kind: 'array', item: runDiagnostic },

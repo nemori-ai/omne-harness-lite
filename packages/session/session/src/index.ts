@@ -26,5 +26,4 @@ export {
   sessionRoundCompleteEvent,
   type SessionTelemetry,
   type SessionTelemetryBase,
-  type TelemetryDropped,
 } from './telemetry.ts'

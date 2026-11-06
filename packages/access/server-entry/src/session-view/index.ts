@@ -134,6 +134,10 @@ async function scan<P>(input: ProjectionInput<P>): Promise<Scan | SessionFailure
   return scanOf(input.run, collector, page, stoppedIn)
 }
 
+/**
+ * The Model branch of one call: `inspect` resolves the reference; a found call lists its attempts;
+ * the dispatch records, which carry the accounts, are read only when there is an attempt to account.
+ */
 async function modelAnswersOf(
   sources: DiagnosticSources,
   reference: string,
@@ -141,15 +145,19 @@ async function modelAnswersOf(
   const lookup = await sources.inspectModelCall(reference)
   const call =
     lookup.kind === 'value' && lookup.value.kind === 'found' ? lookup.value.state.call : null
-  return { lookup, attempts: call === null ? null : await sources.listModelAttempts(call) }
+  if (call === null) return { lookup, attempts: null, dispatches: null }
+  const attempts = await sources.listModelAttempts(call)
+  const listed = attempts.kind === 'value' && attempts.value.entries.length > 0
+  return { lookup, attempts, dispatches: listed ? await sources.listModelDispatches(call) : null }
 }
 
 async function toolAnswersOf(sources: DiagnosticSources, reference: string): Promise<ToolAnswers> {
-  const [lookup, account] = await Promise.all([
+  const [lookup, account, diagnostics] = await Promise.all([
     sources.lookupToolCall(reference),
     sources.readToolAccount(reference),
+    sources.readToolDiagnostics(reference),
   ])
-  return { lookup, account }
+  return { lookup, account, diagnostics }
 }
 
 /** Reads what the other sources know of one Run: its finish when it did not complete, and its first `projected` calls. */

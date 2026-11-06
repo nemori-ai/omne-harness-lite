@@ -36,7 +36,7 @@ OTel 链路与指标、Collector、运行中换输出、出口分区与撤权围
 
 不处理的后果：开发者和 agent 无法从记录判断一次工作在哪里失败、为什么失败、花了多少时间与 token；SYS-OBSERVABILITY 的「缺口可见」与「获准主体可查询」没有兑现；后续每个领域会各自发明日志格式与输出方式。
 
-推断与未知：`CallAccount.duration` 的测量者与语义没有核对，它能不能充当 `timing.execution` 待写者核对；生产预算数值、两套后端的产品版本和保留政策没有输入（D11）；「租户可以逐个拒绝遥测外传」是不是产品要求没有人回答（D06 的前提）；macOS 上能否执行形式模型工具没有核对。读口对 `server-entry` 行的可见性已经核对：`agentJournal`、`modelRuntime`、`modelDiagnostics` 在根上可见，作为普通 `inject` 接上；`toolRuntime` 按调用现取；[受信可见性表](../architecture/runtime/application-assembly.md#受信子树)不变。
+推断与未知：`CallAccount.duration` 已核对，生产中唯一的产生者 `pi-ai-transport` 的解码器是纯函数，没有时钟，恒写 `unknown`，所以它现在不能充当 `timing.execution`；要变成已知值，需要 model 线决定由谁、用哪个时钟测量（DA6）；生产预算数值、两套后端的产品版本和保留政策没有输入（D11）；「租户可以逐个拒绝遥测外传」是不是产品要求没有人回答（D06 的前提）；macOS 上能否执行形式模型工具没有核对。读口对 `server-entry` 行的可见性已经核对：`agentJournal`、`modelRuntime`、`modelDiagnostics` 在根上可见，作为普通 `inject` 接上；`toolRuntime` 按调用现取；[受信可见性表](../architecture/runtime/application-assembly.md#受信子树)不变。
 
 | 当前要求或承诺 | 核对修订与条款 | 本提案受什么约束 |
 | --- | --- | --- |
@@ -79,21 +79,21 @@ OTel 链路与指标、Collector、运行中换输出、出口分区与撤权围
 
 - **组合承担者是服务端接入** `packages/access/server-entry`。它已经是 Session 调用的唯一调用方，已经组合 Model 的 `current` 与 stream-arrival 的观察；`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL` 只禁止 public-contract、sdk 与 stream-arrival 依赖 Model 与 Tool 契约，不限制 server-entry。
 - **纯投影是一个可独立测试的模块** `server-entry/src/session-view/`：输入是各来源的页与答复，输出是视图值与缺口清单。它不认识 HTTP、Cordis 或 CLI。CLI/Server 工作以后要让 Web UI、Desktop 或 ACP 复用它时，可以把这个模块提成 `packages/access/` 的成员；本提案不预先建包（DA1）。
-- **公开操作、SDK 方法与 CLI 命令各一个**，沿现有的 `session-public/1` 位置、SDK 会话客户端与 CLI 命令目录加入。
+- **公开操作与 CLI 命令各一个**，沿现有的 `session-public/1` 位置与 CLI 命令目录加入。SDK 不加专门方法：SDK 的会话客户端对每个会话操作只有一个 `submit`，`read-history` 也没有专门方法，所以调用者同样用 `submit` 发 `read-session-diagnostics`；SDK 只转出诊断页的类型。
 
 ```mermaid
 flowchart LR
   subgraph Sources["各拥有者的公开只读接口"]
     SH["Session<br/>SessionHistory.begin/next<br/>reader 类"]
-    AJ["Agent<br/>AgentJournalReading.load<br/>readFinish（新增，可选）"]
-    MD["Model<br/>ModelCalls.inspect<br/>ModelDiagnostics.list（实现）"]
-    TR["Tool<br/>queries.lookup / account<br/>readDiagnostics 答 unsupported"]
+    AJ["Agent<br/>AgentJournalReading.readFinish<br/>（新增，可选）"]
+    MD["Model<br/>ModelCalls.inspect / dispatches<br/>ModelDiagnostics.list（实现）"]
+    TR["Tool<br/>queries.lookup / account<br/>readDiagnostics"]
   end
   subgraph Entry["packages/access/server-entry"]
     V["session-view：纯投影<br/>视图值 + 缺口清单"]
     OP["read-session-diagnostics<br/>session-public/1"]
   end
-  SDK["access/sdk<br/>readSessionDiagnostics"]
+  SDK["access/sdk<br/>submit + 诊断页类型"]
   CLI["apps/cli<br/>omne read-session-diagnostics"]
   SH --> V
   AJ --> V
@@ -107,12 +107,12 @@ flowchart LR
 
 | 要回答的问题 | 来源与读取路径 | 现状 | 授权 |
 | --- | --- | --- | --- |
-| Run 时间线：开始、attempt、控制、终态 | `SessionHistory.begin({ kinds, from: null, direction, pageBytes })` 与 `next`，种类取 `run.started`、`run.attempt-started`、`run.attempt-released`、`run.attempt-exited`、`control.requested`、`control.progress`、`run.terminal`、`call.bound`、`call.execution-fact`、`message.*`（只计数） | 已实现。条目按日志位置排序；`HistoryEntry` 不公开提交时间，载荷带拥有者报告的发生时间时才显示时刻 | Session 的读取资格，`reader` 类，租户为目标会话的租户 |
+| Run 时间线：开始、attempt、控制、终态 | `SessionHistory.begin({ kinds, from: null, direction, pageBytes })` 与 `next`，种类取 `run.started`、`run.attempt-started`、`run.attempt-released`、`run.attempt-exited`、`control.requested`、`control.progress`、`run.terminal`、`call.bound`、`call.execution-fact`、`message.*`（只计数） | 已实现。attempt 按开始、按原因的释放与退出分别计数；`call.execution-fact` 按事实种类计数，带 `consumption` 且与某次投影调用相同的归到该调用，其余归到 Run。条目按日志位置排序；`HistoryEntry` 不公开提交时间，载荷带拥有者报告的发生时间时才显示时刻 | Session 的读取资格，`reader` 类，租户为目标会话的租户 |
 | 调用登记与稳定引用 | `call.bound` 载荷的 `kind`、`reference`、`purpose`（SE18） | 已实现 | 同上 |
 | Run 怎样结束、为什么 | `run.terminal` 的 `outcome` 与 `cause.record`；结构化原因经 Agent 的 `readFinish`（新增，见下节） | 记录已实现；结构化原因经 `readFinish` 读到（本提案新增，已实现，候选） | Agent Journal 的读取资格 |
-| 每次模型调用：发出、首内容、结局、原因、状态码、用量、耗时 | `ModelCalls.inspect(reference)` 解析稳定引用，得到调用；`ModelDiagnostics.list({ call, after, limit })` 给出每次派发的白名单字段 | `inspect` 已实现；`ModelDiagnostics` 由本提案实现（已实现，候选） | Model 的调用访问与诊断读取资格 |
+| 每次模型调用：发出、首内容、结局、原因、状态码、用量、耗时 | `ModelCalls.inspect(reference)` 解析稳定引用，得到调用；`ModelDiagnostics.list({ call, after, limit })` 给出每次派发的白名单字段；`ModelCalls.dispatches(call)` 给出每次派发记录的 `CallAccount`（用量、费用、时长），按派发身份与诊断条目对上 | `inspect`、`dispatches` 已在 mainline；`ModelDiagnostics` 由本提案实现（已实现，候选）。耗时见 DA6 | Model 的调用访问与诊断读取资格 |
 | 每次工具调用：状态、账目 | `ToolInvocationQueries.lookup(reference)`、`account(reference)` | 已实现 | Tool 的调用访问资格 |
-| 工具调用的诊断 | `readDiagnostics` | 账本答 `unsupported`；投影写 `unsupported` | 同上 |
+| 工具调用的诊断 | `readDiagnostics({ after: null })`，只读第一页 | 已接上。账本现在答 `unsupported`，投影写 `unknown` 与缺口；有下一页时另写缺口 `truncated`；条目只取 `operation`、`phase`、`code`，不带证据 | 同上 |
 
 组合规则：
 
@@ -131,7 +131,7 @@ flowchart LR
 - `AgentJournalReading` 增加可选方法 `readFinish?(input: Access<P> & { execution }): Reply<FinishIntent | null>`。执行处于 `settling` 或 `ended` 时返回当前或最终的 `FinishIntent`（含 `candidate`、`conclusion`、`failure`）；没有结束候选时返回 `null`。
 - 资格沿 Journal 已有的读取资格；另一租户的执行答 `denied`，与不存在不区分。
 - 旧提供者可以不实现。消费者把缺席当作 `unknown`，原因 `unsupported`。这符合 CLI/Server 交接包 §2.2 对可加的定义：既有构造者、读取者与实现者不变。
-- 投影只取 `failure` 的闭合字段：`kind`、`model-refused.failure.kind`、`no-reply.fault.cause`、`no-reply.fault.upstreamStatus`、`request-rejected`、`cannot-fit.reason`、`compaction-invalid`。`fault.diagnostic` 是自由文本，不进投影；`cause.record` 已经带它的前 120 个字符，照原样显示。
+- 投影只取 `failure` 的闭合字段：`kind`、`model-refused.failure.kind`、`no-reply.fault.cause`、`no-reply.fault.upstreamStatus`、`request-rejected`、`cannot-fit.reason`、`compaction-invalid`、`message-rejected`、`extension-stop`、`guard`。`model-refused.failure.kind` 或 `cannot-fit.reason` 出现投影不认识的值时写 `{ kind: 'unknown', reason: 'unsupported' }`，不改写成表内的值。`fault.diagnostic` 是自由文本，不进投影；`cause.record` 已经带它的前 120 个字符，照原样显示。
 
 备选是让 Session 的 `run.terminal` 载荷带结构化摘要。Session 从 Agent 的 `ended` 事件派生 SE26，而该事件只带 `conclusion.cause`，所以这条路要同时改 Agent 事件与 Session 载荷，不是最小改动。见「实质备选」。
 
@@ -185,11 +185,11 @@ flowchart LR
 | `basis` | `{ upper }`：本页依据的 Session 修订 |
 | `gaps` | `Gap[]`：`{ source: 'session' \| 'agent' \| 'model' \| 'tool', subject, reason }`。`reason` 取 `unsupported`、`unavailable`、`denied`、`not-disclosed`、`not-accepted`、`not-found`、`not-recorded`、`retention-expired`、`truncated` |
 
-`RunDiagnostic`：`run`、`entry`、`execution`、`started`（位置与可选时刻）、`attempts`（计数）、`controls`（`control.requested` 与 `control.progress` 的闭合字段）、`terminal`（`null` 表示未终结；否则 `{ outcome, cause: { record, structured } }`，`structured` 是上一节的闭合字段或 `{ kind: 'unknown', reason }`）、`modelCalls`、`toolCalls`、`messages`（按种类计数）。
+`RunDiagnostic`：`run`、`entry`、`execution`、`started`（位置与可选时刻）、`attempts`（开始数、按原因的释放数、退出数）、`facts`（没有归到投影调用的执行事实，按种类计数）、`controls`（`control.requested` 与 `control.progress` 的闭合字段）、`terminal`（`null` 表示未终结；否则 `{ outcome, cause: { record, structured } }`，`structured` 是上一节的闭合字段或 `{ kind: 'unknown', reason }`）、`modelCalls`、`toolCalls`、`messages`（按种类计数）。
 
-`ModelCallDiagnostic`：`reference`、`purpose`、`call`（解析到的调用或 `unknown`）、`dispatches: ModelAttemptDiagnostic[]`、`usage`（每次派发的 `CallAccount.usage` 与 `cost` 的来源与数值状态，不折算金额）、`coverage`。`ToolCallDiagnostic`：`reference`、`state`（`lookup` 的结果或 `unknown`）、`account`（`CallAccount` 或 `unknown`）、`diagnostics: 'unsupported'`。
+`ModelCallDiagnostic`：`reference`、`purpose`、`call`（解析到的调用或 `unknown`）、`dispatches`（每次派发的诊断字段，加该次派发的 `account`：`CallAccount` 的用量、费用与时长的来源与数值状态，不折算金额，读不到写 `unknown`）、`coverage`、`facts`。`ToolCallDiagnostic`：`reference`、`state`（`lookup` 的结果或 `unknown`）、`account`（`CallAccount` 或 `unknown`）、`diagnostics`（诊断页第一页的条目或 `unknown`）、`facts`。
 
-分页与上限：每页至多 `maxRuns` 个 Run，每个 Run 至多 `maxCallsPerRun` 次调用进入扇出，超出的调用计数并写缺口 `truncated`；两项是部署配置。游标不可猜测，绑定租户、会话、`run` 过滤、`basis.upper` 与扫描位置，规则同 SL10、SL11。续页重新核每个来源的资格。
+分页与上限：每页至多 `maxRuns` 个 Run，每个 Run 至多 `maxCallsPerRun` 次调用进入扇出，超出的调用计数并写缺口 `truncated`；两项是部署配置。游标不可猜测，绑定租户、会话、`run` 过滤、`basis.upper` 与扫描位置，规则同 SL10、SL11。续页重新核每个来源的资格。续页从封存的位置向更早处读，读不到上界之后的新追加，所以续页响应的 `basis.upper` 取封存的上界，整轮遍历只有一个依据。
 
 完整性：缺少记录时写 `unknown` 与原因，不写「没有发生」。`exhausted` 为假的空页不表示没有 Run。投影不从 Model 或 Tool 的空页推断调用不存在。时刻只在载荷带发生时间时显示，否则写 `unknown`；要显示提交时间需要 Session 在 `HistoryEntry` 增加可选的提交时间（DA7，session-run 线，可选）。
 
@@ -241,7 +241,7 @@ Run <run> (entry <entry>, execution <execution>): failed
 其他验收：
 
 - 另一租户读这个会话：`denied`，响应逐字节同其他 `denied`。
-- Tool 调用的 `diagnostics` 写 `unsupported`，不写空数组。
+- 账本答 `unsupported` 时，Tool 调用的 `diagnostics` 写 `unknown`（原因 `unsupported`），不写空数组。
 - `readFinish` 缺席的 Journal 替身：`cause.structured` 为 `unknown`，原因 `unsupported`，命令退出 `0`。
 - `ModelDiagnostics` 的 `retention` 没有采用时：模型调用整体写缺口 `unavailable`，Run 骨架照常显示。
 - 超过 `maxCallsPerRun` 的 Run：计数正确，缺口 `truncated`。
@@ -301,7 +301,7 @@ flowchart TB
 - **作用域与绑定**：`Binding` 带 `scope`（`ActingScope`：某个租户，或 `system`）、`component`、`instance`，以及可缺席的 `work`、`attempt`、`call`、`adopted`、`links`。
 - **声明式定义**：`defineEvent`、`defineMetric`、`defineSegment`。字段规则只有枚举、布尔值、有界有限数、不透明引用四种。没有自由文本入口。
 - **准入结果**：`admitted`，或带原因的 `dropped`（`disabled`、`sampled`、`invalid`、`policy`、`capacity`、`expired`、`closed`）。`admitted` 只是本地准入。
-- **端口**：`TelemetryPort.bind(binding)` 返回 `Emitter`；`Emitter` 有 `event`、`record`、`startSegment`、派生 `bind(patch)`；`Segment` 有 `carrier`、`event`、幂等的 `end(outcome?)`。
+- **端口**：`TelemetryPort.bind(binding)` 返回 `Emitter`；`TelemetryPort.discard(definition, reason)` 登记一条调用方没能组成的记录被丢弃（例如 TC-4 拿不到租户），只计入关闭报告，不写出，调用方只能声称 `invalid`、`policy`、`capacity`；`Emitter` 有 `event`、`record`、`startSegment`、派生 `bind(patch)`；`Segment` 有 `carrier`、`event`、幂等的 `end(outcome?)`。
 - **关闭报告**：`CloseReport` 写准入数、按原因分列的丢弃数、未决数、flush 结果、确认边界与 transport 结果。四个确认边界不混同。
 - **预留**：`Carrier`（W3C traceparent 子集）与 `defineMetric`、`Emitter.record` 有形状、有校验、有测试，第一版没有消费者。它们为后续的 OTel 链路与指标预留，第一版不扩展也不删除。成员文档标为「预留」。
 - **作用域规则**（TC-4）：`scope` 表达事实属于谁。属于某租户工作的事实拿不到租户就丢弃并计数，不改标 `system`；服务进程自身的事实用 `system` 加 `component`。
@@ -325,7 +325,7 @@ flowchart TB
 
 两项新增，都在 B 线（已实现，候选）：
 
-- **计时记录。** `SessionMeasure` 与 `AgentMeasure` 的事件增加可选字段 `tenant`，产生事件的位置知道租户时填上。Session 的 facade 把段开始与结束投影为遥测段 `omne.session.operation`，`round-complete` 为事件 `omne.session.round-complete`，`diagnose` 为事件 `omne.session.diagnostic`（`owner`、`step`、`reason` 是枚举，不输出 `detail` 文本）。Agent 的 facade 把 pass 投影为段 `omne.agent.pass`。没有租户的事件按 TC-4 丢弃并计数。`session-cordis` 的插件输入增加可选的 `diagnose`。改动都是兼容的加法。段的时长由提供者用单调时钟计算，facade 不自己计时。配对表有界，段结束后删除条目。
+- **计时记录。** `SessionMeasure` 与 `AgentMeasure` 的事件增加可选字段 `tenant`，产生事件的位置知道租户时填上。Session 的 facade 把段开始与结束投影为遥测段 `omne.session.<操作>`（每种操作一个定义；facade 至多缓存 64 个定义，超出的不缓存、照常发出；聚合时按操作分组），`round-complete` 为事件 `omne.session.round-complete`，`diagnose` 为事件 `omne.session.diagnostic`（`owner`、`step`、`reason` 是枚举，不输出 `detail` 文本）。Agent 的 facade 把 pass 投影为段 `omne.agent.pass.accept` 与 `omne.agent.pass.run`。目录读里，`pending` 的输入带租户，段按该租户作用域；`references` 与 `releasedScopes` 在 Session 契约里是系统作用域，段按 `system` 加 `component: 'session'` 记录。其余拿不到租户的事件按 TC-4 丢弃，经遥测端口计入关闭报告的 `droppedBy.invalid`，正常运行时这个计数应为 0。`session-cordis` 的插件输入增加可选的 `diagnose`。改动都是兼容的加法。段的时长由提供者用单调时钟计算，facade 不自己计时。配对表只放提供者已准入的段，所以它的大小不超过提供者的 `maxOpenSegments`；段结束后删除条目。
 - **离线聚合。** `telemetry-node` 增加纯函数 `summarizeTelemetry` 与命令行 `omne-telemetry-summary`：读 JSON Lines（`serve` 的 stdout 抓取或 `file` 出口的文件），按 `(owner, name)` 统计 `segment-end` 的计数、结局分布与 `durationMs` 的 min、p50、p95、p99、max（最近秩法）；只有开始没有结束的段计为 `unfinished`；事件与 `log` 按种类与级别计数；非法行跳过并计数；可以按租户文本与时间窗过滤；`--json` 输出机读报告，缺省输出按 p95 降序的人读表格。
 - **CPU profile。** 成员文档写明用 Node 自带的 `--cpu-prof` 对 `serve` 取样，与计时记录对照定位热点。它不是遥测记录，不经本管线。
 
@@ -433,7 +433,7 @@ flowchart TB
 | 系统负责人：跨系统技术约定 | [当前承接与后续设计](../architecture/cross-cutting-concepts.md#当前承接与后续设计)的「观测基础契约」待承接 | 改为由 `telemetry-contract` 承接，指向成员 SPEC | 不建全局事件流；OTel 不取得事实权威 |
 | 联调轨道：应用装配 | [插件树](../architecture/runtime/application-assembly.md#插件树)没有 `telemetry` 行 | 新增 `telemetry` 行与遥测关闭步骤；`server-entry` 行新增注入；`model-records` 行提供 `modelDiagnostics` | 运行时对象不进树；受信可见性表同步 |
 | 包组织拥有者 | [目标目录](../package-organization.md#目标目录)的 `telemetry/` 组 | `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node` 三个成员；`diagnostic` 已删除 | 新成员有具名消费者 |
-| app-access 线 | [harness-server 进程输出](../../apps/harness-server/SPEC.md#进程输出与退出码)；[服务端接入会话位置](../../packages/access/server-entry/SPEC.md#会话位置)；[公开契约会话操作](../../packages/access/public-contract/SPEC.md#会话公开操作)；[CLI 命令](../../apps/cli/SPEC.md#命令) | 三态日志桥、`telemetry` 行、关闭步骤；新操作 `read-session-diagnostics`、SDK 方法、CLI 命令；`session-view` 模块 | stdout 唯一写者；`denied` 不披露存在性；只做加法 |
+| app-access 线 | [harness-server 进程输出](../../apps/harness-server/SPEC.md#进程输出与退出码)；[服务端接入会话位置](../../packages/access/server-entry/SPEC.md#会话位置)；[公开契约会话操作](../../packages/access/public-contract/SPEC.md#会话公开操作)；[CLI 命令](../../apps/cli/SPEC.md#命令) | 三态日志桥、`telemetry` 行、关闭步骤；新操作 `read-session-diagnostics`、SDK 转出诊断页类型、CLI 命令；`session-view` 模块 | stdout 唯一写者；`denied` 不披露存在性；只做加法 |
 | session-run 线（Session、Agent） | 各成员已有的诊断与测量回调；[Agent Journal 读面](../../packages/agent/agent-contract/SPEC.md#托管协调与运行实例) | measure 事件加可选 `tenant`，facade；`AgentJournalReading.readFinish?` | 回调形状不变；只做可加改动；失败诊断不带正文 |
 | model 线 | [诊断查询与保留](../../packages/model/model-contract/SPEC.md#诊断查询与保留)已接受字段与协议 | 实现 `ModelDiagnostics`；采用诊断读取资格映射与保留；可选的阶段时长 | 白名单字段；`timing` 证据不足时 `unknown`；游标不代替权限 |
 | tool-exec 线 | 账本对 `diagnostics` 答 `unsupported` | 不改 | 投影如实写 `unsupported` |

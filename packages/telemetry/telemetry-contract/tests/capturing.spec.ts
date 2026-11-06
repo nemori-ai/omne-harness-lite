@@ -256,11 +256,38 @@ describe('createCapturingTelemetry', () => {
       expect(() => good.startSegment(value as never, value as never)).not.toThrow()
       expect(() => good.bind(value as never)).not.toThrow()
       expect(() => good.bind(value as never).event(failed, { code: 'timeout' })).not.toThrow()
+      expect(() => telemetry.port.discard(value as never, value as never)).not.toThrow()
       const segment = started(good.startSegment(turn))
       expect(() => segment.event(value as never, value as never)).not.toThrow()
       expect(() => segment.end(value as never)).not.toThrow()
     }
     expect(telemetry.records().every(record => record.binding.component === 'session')).toBe(true)
+  })
+
+  it('discard counts a record the caller could not form under its reason and captures nothing', () => {
+    const telemetry = createCapturingTelemetry()
+
+    expect(telemetry.port.discard(turn, 'invalid')).toEqual(invalid)
+    expect(telemetry.port.discard(failed, 'capacity')).toEqual({
+      kind: 'dropped',
+      reason: 'capacity',
+    })
+    expect(telemetry.port.discard(calls, 'policy')).toEqual({ kind: 'dropped', reason: 'policy' })
+
+    expect(telemetry.records()).toEqual([])
+    expect(telemetry.dropped()).toBe(3)
+  })
+
+  it('discard answers dropped(invalid) for a reason the caller cannot claim and for a value that is not a definition', () => {
+    const telemetry = createCapturingTelemetry()
+
+    expect(telemetry.port.discard(turn, 'closed' as never)).toEqual(invalid)
+    expect(telemetry.port.discard(turn, 'disabled' as never)).toEqual(invalid)
+    expect(telemetry.port.discard(undefined as never, 'invalid')).toEqual(invalid)
+    expect(telemetry.port.discard({ signal: 'log' } as never, 'invalid')).toEqual(invalid)
+
+    expect(telemetry.records()).toEqual([])
+    expect(telemetry.dropped()).toBe(4)
   })
 
   it('answers dropped(invalid) for invalid startSegment links and an invalid end outcome', () => {

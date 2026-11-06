@@ -7,16 +7,16 @@
 ```mermaid
 classDiagram
   class Service["Service（@deepseek-ai/cordis）"]
-  class TelemetryPort["TelemetryPort（telemetry-contract）"] { bind(binding) Emitter }
-  class TelemetryService { provide$ = 'telemetry'; bind(binding)* Emitter }
-  class Provider["提供者插件（telemetry-node）"] { bind(binding) Emitter }
+  class TelemetryPort["TelemetryPort（telemetry-contract）"] { bind(binding) Emitter; discard(definition, reason) }
+  class TelemetryService { provide$ = 'telemetry'; bind(binding)* Emitter; discard(definition, reason)* }
+  class Provider["提供者插件（telemetry-node）"] { bind(binding) Emitter; discard(definition, reason) }
   TelemetryService --|> Service
   TelemetryService ..|> TelemetryPort
   Provider --|> TelemetryService
 ```
 
 - `TelemetryService` 是抽象类。它的身份是键 `telemetry`，由静态字段 `provide` 给出，`telemetryKey` 取自它。
-- `bind` 是抽象方法，由提供者实现。`Context.telemetry` 的类型是 `TelemetryService`，所以消费者看到的形状与 `TelemetryPort` 相同。
+- `bind` 与 `discard` 是抽象方法，由提供者实现。`Context.telemetry` 的类型是 `TelemetryService`，所以消费者看到的形状与 `TelemetryPort` 相同。
 - 本包没有别的对象，也没有状态。
 
 ## 生命周期
