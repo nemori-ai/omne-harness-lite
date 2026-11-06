@@ -168,3 +168,33 @@ SPEC [保留进程的恢复](../SPEC.md#保留进程的恢复)的已知限制所
 - 只有保留范围与请求方作用域相同的获取才能保留。其他获取的处置原因是 `policy`。标记文件读不全时，预留答不可用，处置原因也是 `policy`。
 - 一个状态目录一个索引，同一状态目录的各代提供者共用名额。
 - 提供者重启之后，加载的保留进程在有获取给出该范围的保留进程账本视图之前没有账本可记。这期间它们自行结清时，提供者删去标记，但没有记 `stopped`。
+
+### macOS 的 ProcessCustody
+
+实现是宿主提供者的 macOS 一次性命令与终端（`execution-environment-host-local` 的 `src/macos-execution/`）。执行域是 POSIX 会话。进程可以用 `setsid` 离开会话，所以 macOS 不满足前提 P4（封闭收纳，原语 Π1）。这对应模型里 `Containment = "pgroup"` 的情形：`Escape` 可用。提供者因此不声称保留，命令设施没有 `retention` 扩展，没有执行域进入保留范围。机制见 host-local 的 [macOS 的兑现](../../execution-environment-host-local/SPEC.md#macos-的兑现)。测试路径相对 host-local 包的 `tests/macos-execution/`。
+
+适用的性质与钉住它的测试：
+
+| 性质 | 在 macOS 上的含义 | 测试 |
+| --- | --- | --- |
+| `StopTruth`（T4） | 报告已停的会话里没有活成员：连续两次读到空才答 `confirmed`，读不出时答 `unconfirmed` | `commands.spec.ts` 的「leftovers are stopped: StopTruth and the reasons」（四种原因下按进程号核对每个留下的进程都已不在）；`primitives.spec.ts` 的 Π3；`session.spec.ts` 的读取失败按未知处理 |
+| `OneDisposition`（T3） | 主进程退出后执行域只被停止，从不被移交 | `commands.spec.ts` 的 C11 与「leftovers are stopped」；`decisions.spec.ts` 的 `residue` 判定只有 `none` 与 `stopping` |
+| `UniqueOwner`（T2） | 每个活着的执行域归本次获取，停止未确认时留在获取的待停止集合 | `commands.spec.ts` 的释放与强制停止 |
+| `SettleTruth`（T8） | 获取结清时，名下的执行域都已停止；提供者崩溃后冷恢复按标记停止 | `commands.spec.ts` 的「the release of the acquisition stops what it still runs before it settles」与「a provider killed with SIGKILL leaves nothing running; a fresh provider lists and recovers」；`terminals.spec.ts` 的释放与提供者被 `SIGKILL` 之后的恢复；`domain-index.spec.ts` 的完整或 `unavailable` 列举 |
+| `CompletionTruth`、`FgInSegment`、`Monotone`、`NothingLost`、`StaysValid`、`OneSegment`（S1 至 S5） | Linux 的 Bash 驱动与分段源码不改动，在 `/bin/bash` 3.2.57 上运行，`TerminalSegments` 的实现对应同上一节 | `terminals.spec.ts` 的 C7、C8（200 段）、C9 与哨兵用例；`primitives.spec.ts` 的 Πt；`terminal-conformance.spec.ts` |
+
+不适用的性质。前提 P4 不成立，所以没有执行域被保留：
+
+| 性质 | 不适用的理由 |
+| --- | --- |
+| `KeepWhenPermitted`（T10） | 本提供者从不保留。可以保留的条件都成立时，`residue` 是 `stopping`，原因 `uncontained`（`commands.spec.ts` 与 `decisions.spec.ts`） |
+| `NoEntryAfterClose`（T5）、`ClosureTruth`（T5、T8）、`NoEviction`（T6）、`ReservedFromAcq`（I8）、`OwnerOnlyForward`（I2）、`RetainedSurvivesRelease`（T7） | 都关于保留范围里的执行域、预留、名额或移交。macOS 上没有移交，这些性质空洞成立 |
+| `ClosureEnds`（L1）、`RetainedSettles`（L3） | 同上，没有保留执行域 |
+
+`NoLeak`（T1）在 macOS 上不成立。调用 `setsid` 的进程离开执行域，它不被停止，也不被列出，终端的 `close` 仍答 `confirmed`。这是 host-local 记下的已知偏离（[已知偏离](../../execution-environment-host-local/SPEC.md#留下的进程的兑现)），`terminals.spec.ts` 的用例「known deviation: a process that called setsid outlives the close, which still confirms」断言它。这与负控 N2（`Containment = "pgroup"` 违反 `NoLeak`）的结论一致。所以上表的 `StopTruth` 只对仍在会话里的成员成立。
+
+实现里有、模型里没有的行为：
+
+- 提供者走掉时（GO 之后控制通道结束），门停止自己的会话。模型的 `Crash` 之后执行域仍在，由 `Recover` 认回。
+- 停止一个记下的执行域之前核对会话首进程的身份，首进程号被重用的会话被跳过。
+- 冷索引的标记在 GO 之前写，确认的停止记入账本之后删去。

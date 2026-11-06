@@ -35,6 +35,15 @@
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：服务、端口服务、两个声明插件与宿主文件插件的装载、卸载与恢复，以及插件配置
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出集合与 Cordis 边界
 - [fixtures/](fixtures/index.md)：测试固定输入：假监督工具与假终端门进程脚本
+- [macos-execution/](macos-execution/)：macOS 的命令与终端后端，清单与运行方式见 [README.md](README.md#macos-验证)
+  - [session.spec.ts](macos-execution/session.spec.ts)：会话读取程序的答复，读取失败按未知处理；快层
+  - [domain-index.spec.ts](macos-execution/domain-index.spec.ts)：冷索引的标记，列举要么完整要么答 `unavailable`；快层
+  - [decisions.spec.ts](macos-execution/decisions.spec.ts)：`residue` 的原因、启动请求的检查、前提项名与门的环境；快层
+  - [primitives.spec.ts](macos-execution/primitives.spec.ts)：Π2、fork 下的 Π3、执行域身份、Πt；慢层，只在 macOS
+  - [commands.spec.ts](macos-execution/commands.spec.ts)：真实会话里的一次性命令；慢层，只在 macOS
+  - [terminals.spec.ts](macos-execution/terminals.spec.ts)：真实 PTY 与 Bash 3.2 上的终端；慢层，只在 macOS
+  - [terminal-conformance.spec.ts](macos-execution/terminal-conformance.spec.ts)：契约的终端套件，7 条用例；慢层，只在 macOS
+  - [fixture.ts](macos-execution/fixture.ts)：测试辅助：慢层共用的提供者、账本替身、获取与按进程号的核对
 
 - [host-terminal.spec.ts](host-terminal.spec.ts)：原始字节、控制协议与 Cordis 增量
 - [host-terminal-recovery.spec.ts](host-terminal-recovery.spec.ts)：真实 Linux PTY、分段与新进程资源恢复
