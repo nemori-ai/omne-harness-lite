@@ -106,9 +106,10 @@ export type SessionOptions = Readonly<{
   /** Arms the stdio probe time. Injected so a test drives when it fires. */
   schedule: Scheduler
   /**
-   * Where a defect of the session's own work goes: a reject nobody expected, or a throw on the
-   * way an event is read. The entry it was for is stopped by its phase as well (DP-06). The factory
-   * throws it outside any promise, so the host's uncaught-exception handling sees it.
+   * Where a defect of the session's own work goes: a reject nobody expected, a throw on the way
+   * an event is read, or events of the line that reject (read as a broken stream). The entry it
+   * was for is stopped by its phase as well (DP-06). The factory throws it outside any promise,
+   * so the host's uncaught-exception handling sees it.
    */
   reportDefect: (defect: unknown) => void
 }>
@@ -351,9 +352,10 @@ export class Session implements McpTransport {
   }
 
   /**
-   * Reads the events of the line until it closes. A line whose events reject is gone: the
-   * pending requests settle through `die` or `close`. A throw on reading one event is a defect
-   * of the session: it goes to the outlet, and the reading goes on.
+   * Reads the events of the line until it closes. Events that reject are a line that broke its
+   * port: the shared stream is gone, so the session dies as on a broken stream (`die`, the
+   * requests in flight settle by their phase), and the reason goes to the outlet. A throw on
+   * reading one event is a defect of the session: it goes to the outlet, and the reading goes on.
    */
   private async pump(): Promise<void> {
     const events = this.line.events[Symbol.asyncIterator]()
@@ -361,7 +363,9 @@ export class Session implements McpTransport {
       let next: IteratorResult<LineEvent>
       try {
         next = await events.next()
-      } catch {
+      } catch (broken) {
+        this.die('stream-broken')
+        this.options.reportDefect(broken)
         return
       }
       if (next.done) return

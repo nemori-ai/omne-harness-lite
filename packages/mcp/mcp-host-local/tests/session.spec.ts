@@ -1982,6 +1982,30 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     await transport.close()
   })
 
+  it('the events of the line rejecting is a broken stream: a sent call answers stream-broken, one still being authorized is not-sent, and the reason goes to the defect outlet', async () => {
+    const seen: unknown[] = []
+    // The fifth authorization is the first call's; the second call, the sixth, is held.
+    const held = holdAfter(6)
+    const { line, transport } = open('streamable-http', sseScripts, {
+      sse: { kind: 'entered' },
+      gate: held.gate,
+      reportDefect: defect => seen.push(defect),
+    })
+    ok(await transport.discover(), 'discover')
+    const sent = ok(await transport.call(echo, never), 'call')
+    const calling = transport.call(echo, never)
+    await held.reached
+    line.queue.fail(new Error('the events of the line broke'))
+    await tick()
+    held.release()
+    expect(await settledWithin(sent.answer)).toEqual({ settled: STREAM_BROKEN })
+    expect(await settledWithin(calling)).toEqual({ settled: { failure: NOT_SENT } })
+    expect(line.requests('tools/call')).toHaveLength(1)
+    expect(seen.map(describeDefect)).toEqual(['Error: the events of the line broke'])
+    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    await transport.close()
+  })
+
   it('a request in the authorization discovery is not settled by the shared stream breaking: it ends authorization-required when the discovery ends', async () => {
     const fetching = deferred<string>()
     const found = deferred<PlainJson | undefined>()
