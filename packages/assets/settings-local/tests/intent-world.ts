@@ -149,7 +149,7 @@ export async function openIntentWorld(
         input: json({ kind: 'standing', identity, attemptId }),
       })
     },
-    write(input: IntentAllocation, key = randomUUID(), rollback = false) {
+    write(input: IntentAllocation, key: string = randomUUID(), rollback = false) {
       return made.storage.commit({
         identity: {
           ...domain,

@@ -6,6 +6,7 @@ import {
   standingReservationId,
   type Qualification,
   type StandingBinding,
+  type StandingReservation,
 } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { SettingsIdSchema, SettingsReferenceSchema } from '@omne-harness/settings'
@@ -35,9 +36,13 @@ export const standingReceiptInputSchema = referenceSchema.extend({ reservation: 
 export const standingSettlementInputSchema = standingReceiptInputSchema.extend({
   outcome: z.enum(['committed', 'aborted']),
 })
-export type StandingPlanInput = z.input<typeof standingPlanInputSchema>
-export type StandingReceiptInput = z.input<typeof standingReceiptInputSchema>
-export type StandingSettlementInput = z.input<typeof standingSettlementInputSchema>
+export type StandingPlanInput = Omit<z.input<typeof standingPlanInputSchema>, 'required'> & {
+  required: readonly Qualification[]
+}
+export type StandingReceiptInput = z.input<typeof referenceSchema> & {
+  reservation: StandingReservation
+}
+export type StandingSettlementInput = StandingReceiptInput & { outcome: 'committed' | 'aborted' }
 type Attempt = Extract<ReturnType<typeof readSettingsAttempt>, { kind: 'found' }>
 const conflict = () => ({ kind: 'rejected' as const, reason: 'operation_conflict' as const })
 
