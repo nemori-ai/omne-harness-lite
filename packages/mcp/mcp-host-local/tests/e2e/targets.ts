@@ -15,7 +15,7 @@ export type TargetId = 'E-stdio' | 'E-http' | 'E-sse' | 'F' | 'P'
 
 export type Call = Readonly<{ tool: string; args: unknown }>
 
-/** What a target offers to the steps. A step the target lacks a call for does not apply to it. */
+/** What a target offers to the steps. A step that needs a call the target lacks stops with an error. */
 export type TargetCalls = Readonly<{
   /** S1: a tool name the listing must contain. */
   known: string
@@ -27,7 +27,7 @@ export type TargetCalls = Readonly<{
   input?: Readonly<{ call: Call; answer: unknown; expectedText: string }>
   /** S5: a call that the server answers with a task; `answer` goes to `provideTaskInput`. */
   task?: Readonly<{ call: Call; answer: unknown }>
-  /** S6: a call that runs long enough to be cancelled. */
+  /** S6: a call that runs long enough to be cancelled and sends a progress notification early. */
   long?: Call
 }>
 
@@ -44,6 +44,8 @@ export type StartedTarget = Readonly<{
 export type Target = Readonly<{
   id: TargetId
   title: string
+  /** The step numbers the journey must run on this target, in order. */
+  steps: readonly string[]
   /** The reason the target cannot run here, or undefined when it can. */
   unavailable?: string
   start(): Promise<StartedTarget>
@@ -63,6 +65,12 @@ const FETCH_BIN = fileURLToPath(
 export const FETCH_MISSING =
   'mcp-server-fetch not installed: run uv sync --locked --group mcp-fixtures'
 
+/** One progress notification per second, so that S6 sees the request arrive in a second. */
+const LONG_CALL: Call = {
+  tool: 'trigger-long-running-operation',
+  args: { duration: 60, steps: 60 },
+}
+
 const EVERYTHING_CALLS: TargetCalls = {
   known: 'echo',
   readOnly: { tool: 'echo', args: { message: 'hi' }, text: 'Echo: hi' },
@@ -77,7 +85,7 @@ const EVERYTHING_CALLS: TargetCalls = {
     call: { tool: 'simulate-research-query', args: { topic: 'python', ambiguous: true } },
     answer: { clarification: { action: 'accept', content: { interpretation: 'programming' } } },
   },
-  long: { tool: 'trigger-long-running-operation', args: { duration: 60, steps: 1 } },
+  long: LONG_CALL,
 }
 
 /** The legacy revision has no task extension and no form input in this client (S4 and S5 do not apply). */
@@ -85,7 +93,7 @@ const EVERYTHING_LEGACY_CALLS: TargetCalls = {
   known: EVERYTHING_CALLS.known,
   readOnly: EVERYTHING_CALLS.readOnly,
   toolError: EVERYTHING_CALLS.toolError,
-  long: { tool: 'trigger-long-running-operation', args: { duration: 60, steps: 1 } },
+  long: LONG_CALL,
 }
 
 /** A TCP port that nothing listens on now, in the range the fixtures use. */
@@ -123,9 +131,12 @@ async function pageServer(): Promise<Readonly<{ url: string; close(): Promise<vo
   }
 }
 
+const ALL_STEPS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7']
+
 export const TARGETS: readonly Target[] = [
   {
     id: 'E-stdio',
+    steps: ALL_STEPS,
     title: 'server-everything 2.1.0 on stdio, revision 2026-07-28',
     async start() {
       return {
@@ -142,6 +153,7 @@ export const TARGETS: readonly Target[] = [
   },
   {
     id: 'E-http',
+    steps: ALL_STEPS,
     title: 'server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28',
     async start() {
       const server = await everythingHttp('streamableHttp')
@@ -156,6 +168,7 @@ export const TARGETS: readonly Target[] = [
   },
   {
     id: 'E-sse',
+    steps: ['S1', 'S2', 'S3', 'S6', 'S7'],
     title: 'server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25',
     async start() {
       const server = await everythingHttp('sse')
@@ -170,6 +183,7 @@ export const TARGETS: readonly Target[] = [
   },
   {
     id: 'F',
+    steps: ['S1', 'S2', 'S3', 'S7'],
     title: 'server-filesystem 2.1.0 on stdio, revision 2026-07-28',
     async start() {
       const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-e2e-fs-')))
@@ -192,6 +206,7 @@ export const TARGETS: readonly Target[] = [
   },
   {
     id: 'P',
+    steps: ['S1', 'S2', 'S3', 'S7'],
     title: 'mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28',
     ...(existsSync(FETCH_BIN) ? {} : { unavailable: FETCH_MISSING }),
     async start() {

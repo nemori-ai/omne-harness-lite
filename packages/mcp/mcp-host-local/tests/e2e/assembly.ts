@@ -1,6 +1,6 @@
 // The assembly of the e2e journey: `createMcp` on the five requirement ports and the local
 // transport factory. Four ports are the contract's in-memory doubles; the landing starts real
-// processes; the output validator answers `conforms` to every pair and counts its calls.
+// processes; the output validator answers `conforms` to every pair.
 import { createMcp } from '@omne-harness/mcp'
 import type {
   ConnectionTarget,
@@ -63,8 +63,6 @@ const landing: ProcessLanding<Principal> = {
 
 export type Assembly = Readonly<{
   services: McpServices<Principal, string>
-  /** How often the output validator was asked. */
-  outputChecks: () => number
   /** Adopts one endpoint for alice and grants her the use eligibility. */
   adopt(ref: EndpointRef, endpoint: Adoption): void
 }>
@@ -79,11 +77,7 @@ const PROBE_TIMEOUT_MS = 10_000
 export function assemble(): Assembly {
   const adoption = createMemoryAdoptionView<Principal, string>({ scopeKey: scope => scope })
   const eligibility = createMemoryUseEligibility<Principal>({ principalKey: CONFIG.principalKey })
-  let checks = 0
-  const checkOutput: OutputValidator = () => {
-    checks += 1
-    return { kind: 'conforms' }
-  }
+  const checkOutput: OutputValidator = () => ({ kind: 'conforms' })
   const ports: McpPorts<Principal, string> = {
     adoption,
     eligibility,
@@ -99,7 +93,6 @@ export function assemble(): Assembly {
   const absent: SettingValue<never> = { kind: 'absent' }
   return {
     services: createMcp(ports, CONFIG),
-    outputChecks: () => checks,
     adopt(ref, endpoint) {
       const body =
         endpoint.transport === 'stdio'

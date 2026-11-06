@@ -1,7 +1,7 @@
 // @module-tag slow — every case starts a real MCP server (a Node or Python process, or a local
 // HTTP server) and drives it through `createMcp` and the local transport.
-// C4 and MC3-12: the journey S1–S7 is a table; each target runs the steps that apply to it, and
-// the kinds of outcome of the two modern transports on server-everything are compared whole.
+// The journey S1–S7 is a table; each target runs the steps that apply to it, and the kinds of
+// outcome of the two modern transports on server-everything are compared whole.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -27,8 +27,8 @@ import { TARGETS, type StartedTarget, type Target, type TargetId } from './targe
 const CASE_TIMEOUT_MS = 100_000
 const TASK_POLLS = 40
 const TASK_POLL_INTERVAL_MS = 500
-/** How long S6 lets the request travel before it cancels. */
-const SEND_GRACE_MS = 300
+/** How long S6 waits for the first progress notification of the long call before it fails. */
+const PROGRESS_BOUND_MS = 20_000
 
 type StepId = 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7'
 
@@ -72,6 +72,28 @@ function textOf(content: readonly DeliveredContent[]): string {
 }
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
+
+type Race = 'progress' | 'ended' | 'timeout'
+
+/** Waits for the first of: the progress notification, the end of the call, or the bound. */
+async function firstOf(progress: Promise<void>, ended: Promise<unknown>): Promise<Race> {
+  let timer: NodeJS.Timeout | undefined
+  const bound = new Promise<Race>(resolve => {
+    timer = setTimeout(() => resolve('timeout'), PROGRESS_BOUND_MS)
+  })
+  try {
+    return await Promise.race([
+      progress.then((): Race => 'progress'),
+      ended.then(
+        (): Race => 'ended',
+        (): Race => 'ended',
+      ),
+      bound,
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 async function digestOf(context: Context, tool: string): Promise<DefinitionDigest> {
   const view = ok(await context.assembly.services.discovery.current(ALICE, context.ref), 'current')
@@ -218,7 +240,7 @@ const JOURNEY: readonly JourneyStep[] = [
   },
   {
     id: 'S6',
-    does: 'cancel after the request left is signalled, and the call ends as unknown (abandoned)',
+    does: 'cancel after the first progress notification is signalled, and the call ends as unknown (abandoned)',
     expected: 'signalled>unknown:abandoned',
     applies: ['E-stdio', 'E-http', 'E-sse'],
     async run(context) {
@@ -226,6 +248,10 @@ const JOURNEY: readonly JourneyStep[] = [
       if (long === undefined) throw new Error('the target has no long call')
       const key = context.nextKey()
       const digest = await digestOf(context, long.tool)
+      let progressed: () => void = () => undefined
+      const progress = new Promise<void>(resolve => {
+        progressed = resolve
+      })
       const invoking = context.assembly.services.invoker.invoke(ALICE, {
         ref: context.ref,
         action: actionNameOf(long.tool),
@@ -233,10 +259,17 @@ const JOURNEY: readonly JourneyStep[] = [
         expectedDefinition: digest,
         correlationKey: key,
         signal: new AbortController().signal,
+        observe: notification => {
+          if (notification.kind === 'progress') progressed()
+        },
       })
-      await sleep(SEND_GRACE_MS)
+      // A progress notification proves that the request reached the peer.
+      const race = await firstOf(progress, invoking)
+      if (race === 'ended')
+        throw new Error(`S6: the call ended before any progress: ${JSON.stringify(await invoking)}`)
       const answer = await context.assembly.services.invoker.cancel(ALICE, key)
       const result = await invoking
+      if (race === 'timeout') throw new Error('S6: no progress notification was received')
       const outcome = sentOutcome(result, 'S6')
       return `${answer}>${outcome.kind}${outcome.kind === 'unknown' ? `:${outcome.cause}` : ''}`
     },
@@ -275,20 +308,30 @@ async function journey(target: Target): Promise<void> {
       started,
       nextKey: () => correlationKeyOf(`${target.id}-${(counter += 1)}`),
     }
+    // The readings are published before the first assertion: the comparison of the two modern
+    // transports then names the step where they differ, whatever failed first.
     const taken: Reading[] = []
+    readings.set(target.id, taken)
     for (const step of JOURNEY.filter(candidate => candidate.applies.includes(target.id))) {
       const kind = await step.run(context)
       taken.push({ step: step.id, kind })
       expect(kind, `${step.id} on ${target.id}: ${step.does}`).toBe(step.expected)
     }
-    readings.set(target.id, taken)
+    expect(
+      taken.map(reading => reading.step),
+      `${target.id}: the steps that ran`,
+    ).toEqual(target.steps)
     console.info(
       `journey ${target.id}: ${taken.map(reading => `${reading.step}=${reading.kind}`).join(' ')}`,
     )
   } finally {
     // A step that failed leaves its connection open; closing it keeps the failure the only one.
-    await assembly.services.connections.closeAll()
-    await started.close()
+    // The target closes even when `closeAll` rejects.
+    try {
+      await assembly.services.connections.closeAll()
+    } finally {
+      await started.close()
+    }
   }
 }
 
