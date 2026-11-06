@@ -84,7 +84,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### 真实传输兑现时的裁定
 
-`@omne-harness/mcp-host-local` 在 2026-11-05 兑现真实传输时，本页按它的设计（闭包 `w3-mcp-host` 第一段，reduce 裁定）作出下列可加决定。每条只加导出、字段或条款；`classifyWireEvent` 对不是 JSON 的 stdio 行的归类是唯一的行为改动（第 1 条）。
+`@omne-harness/mcp-host-local` 在 2026-11-05 兑现真实传输时，本页按它的设计（闭包 `w3-mcp-host` 第一段，reduce 裁定）作出下列决定。1–9 条在第一段作出，10–14 条在之后的两轮评审修复里作出；每条写明它加了什么或改了什么。
 
 1. stdio 上解析不了的一行丢弃，流继续；由行内容引起的断流只有一种：一行超过行缓冲上界。见 T2。
 2. stdio 上探测在途时 `close()` 按 T5 答 `no-answer`（`abandoned`），不走旧一路。见 T5。
@@ -95,8 +95,13 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 7. `Mcp-Name` 的值按 SEP-2243 编码。见 T3。
 8. 公开根导出每个传输都要用的纯函数：请求的组成（`clientEnvelopeOf`、`mcpRequestHeadersOf`）、页的剔除（`withheldTools`）、授权发现（`authorizationChallengeOf`、`metadataCandidatesOf`、`authorizationDiscoveryOf`）与应答的读法（`readDiscoverResult`、`readInitializeResult`、`peerIdentityOf`、`readListingPage`、`readTaskReport`、`readTaskAnswer`、`errorAnswerOf`）。一份规则只有一份实现：脚本化传输也用它们。见[三个入口](#entries)。
 9. 传输只在发出 HTTP 请求与处理它的应答时调用凭据句柄；`open` 不发请求，答复之前再核一次 `signal`。见 T9。
+10. T8 的决策层是契约的根导出（第 1 轮评审后）：`classifyWireEvent` 给类别，`concludeAnswer`、`concludeProbe`、`discoverWith` 给结论，`interpretAnswer` 一类的函数读已结算的应答，`requestTextOf` 一类的函数写出文本。每个传输只保留自己的线路与在途表。见 T8、[公开接口导航](docs/public-api.md)。
+11. 行为改动（第 1 轮评审后）：T3 调用方写的值按原词形写出（RFC-0010）；T5 `signal` 触发后传输按传输与修订释放交换；T9 答复对端请求的 POST 也经 `authorize`。连同第 1 条，这些是本表里改变传输行为的条款；其余只加导出、字段或条款。
+12. T5 的结局按相（第 2 轮评审后）：请求已登记、还没有交给线路时，`signal` 与 `close()` 都答 `not-sent`（`connection-unavailable`）；已交给线路之后，`call` 交出 `SentCall`，`answer` 以 `no-answer`（`abandoned`）兑现；授权发现中答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出。`call` 在 `signal` 触发后结算，不等凭据句柄或对端；`close()` 不等发现结束。调用口的端口前提 WF5 依据这一句。见 T5。
+13. 元数据取回不经凭据句柄、不带凭据写入的头（第 2 轮评审后）。见 T9、R4。
+14. 两个传输共用的规则各一处实现，由根导出（第 2 轮评审后）：各操作的请求组成（`requestMetaOf`、`callRequestOf`、`listActionsRequest`、`getTaskRequest`、`getTaskResultRequest`、`updateTaskRequest`、`cancelTaskRequest`）、按连接的规则（`isLegacyConnection`、`checksListingHeaders`、`cancelsByNotification`）、读类再发一次（`withOneResend`）、流断开与授权拒绝的结算（`streamGoneAnswerOf`、`authorizationRequiredAnswerOf`）、取回进度（`startAuthorizationDiscovery`）、退出窗口（`endedCauseOf`）与线上上限（`WIRE_LIMITS`）。见 T2、T5、T8、[公开接口导航](docs/public-api.md)。
 
-这些裁定关闭了线上事件归类的边界：解析不了的行与行缓冲上界（T2）、探测在途时的 `close()`（T5）、`stdio-ended` 的组成、HTTP 上请求离开之前的失败与 2xx 正文的中断（T8）、1xx（T2）。
+这些裁定关闭了线上事件归类的边界：解析不了的行与行缓冲上界（T2）、探测在途时的 `close()`（T5）、`stdio-ended` 的组成、HTTP 上请求离开之前的失败与 2xx 正文的中断（T8）、1xx（T2）；以及取消与关闭对每一相的结局（T5）。
 
 <a id="entries"></a>
 
@@ -471,12 +476,12 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **T4** T8 S05 的授权失败：失败是 `not-sent`（`authorization-required`），带授权发现（R4）。这个请求曾用凭据句柄授权时，传输先调用该句柄的 `reportRejection()` 恰好一次，再报这个失败。T8 S06 的 403 不调用 `reportRejection()`。
 - **T5** 取消与关闭。这些事件与 T8 的应答事件落在同一个请求上时，先发生的那个决定结论，后来的丢弃：
   - `cancelRequest` 不证明对端已停止。stdio 上，以及 Streamable HTTP 旧修订上，它发 `notifications/cancelled`，带 `requestId` 与每请求 `_meta`，`answer` 继续等应答。Streamable HTTP 现代修订上，它中止该请求的应答流，不另发通知，`answer` 以 `no-answer`（`abandoned`）兑现。
-  - `call` 的 `signal` 在调用前已触发时，`call` 答 `not-sent`（`connection-unavailable`）。在发出后触发时，传输不再等待：`answer` 以 `no-answer`（`abandoned`）兑现。取消由调用方经 `cancelRequest` 发出。`signal` 触发后传输释放这次交换。对端看到什么按传输与修订分：
+  - `call` 的 `signal` 在调用前已触发时，`call` 答 `not-sent`（`connection-unavailable`）。请求已登记、还没有交给线路时（授权中）触发，`call` 同样答 `not-sent`（`connection-unavailable`），不交出 `SentCall`：对端没有见过这个请求。已交给线路之后触发，`call` 交出 `SentCall`，传输不再等待：`answer` 以 `no-answer`（`abandoned`）兑现。两种情形 `call` 都在 `signal` 触发后结算，不等凭据句柄，也不等对端。请求处在授权发现中时（T4）触发，`call` 答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出，没取到的地址按 R4 是 `unavailable`。取消由调用方经 `cancelRequest` 发出。`signal` 触发后传输释放这次交换。对端看到什么按传输与修订分：
     - 现代修订的 Streamable HTTP：释放就是中止应答流，对端可能把它读成取消。
     - 旧修订的 Streamable HTTP：释放同样中止应答流，对端看到流断开。按旧修订的协议，断开不表示取消。
     - SSE 模式：请求没有自己的应答流，对端看不到释放。
     - stdio：请求已经写出时，对端看不到释放。写还没有完成时，传输中止 stdin 写端，这是流断开（S01、S03）：其他在途请求答 `no-answer`（`stream-broken`），传输不再可用。
-  - `close()` 只关闭传输，不停止进程。进程由进程句柄的持有者停止。stdio 的关闭次序：先关 stdin 写端，再取消 stdout 读取。关闭时在途的请求答 `no-answer`（`abandoned`），调用的 `answer` 同样兑现；stdio 上探测在途时也如此，不走旧一路（D13 只对探测时限到成立）。关闭后的请求答 `not-sent`（`connection-unavailable`）。`close()` 可以重复调用。旧修订的 Streamable HTTP 会话在 `close()` 时不发 DELETE：契约只说关闭传输，DELETE 是对端效果。
+  - `close()` 只关闭传输，不停止进程。进程由进程句柄的持有者停止。stdio 的关闭次序：先关 stdin 写端，再取消 stdout 读取。关闭时在途的请求按所处的相结算，与 `signal` 同形：已登记、还没有交给线路的答 `not-sent`（`connection-unavailable`）；已交给线路的答 `no-answer`（`abandoned`），调用的 `answer` 同样兑现；授权发现中的答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出。`close()` 不等凭据句柄、元数据取回或对端：它们挂起时也在线路关闭后返回。stdio 上探测在途时同样答 `abandoned`，不走旧一路（D13 只对探测时限到成立）。关闭后的请求答 `not-sent`（`connection-unavailable`）。`close()` 可以重复调用，每次调用都在同一次关闭完成后返回。`close()` 不要求旧修订的 Streamable HTTP 会话发 DELETE：契约只说关闭传输，DELETE 是对端效果；发不发由实现登记。
 - **T6** 任务操作：
   - `getTask` 与 `getTaskResult` 都发 `tasks/get`。结果读得懂：是对象，`taskId` 是非空文本，`status` 是 `TaskStatus` 的五个值之一；`input_required` 带 `inputRequests` 对象；`completed` 带 `result`；`failed` 带 `error` 对象（形状不核，原样交出）。任务形状按 SEP-2663 2026-07-28：结果在顶层带 `taskId`、`status`；`tasks/update` 的参数是 `taskId` 与 `inputResponses`；`tasks/cancel` 的参数是 `taskId`；没有 `tasks/list`。
   - `getTask` 交出 `status`、`input_required` 时的 `inputRequests`（不可信值），以及提示 `pollIntervalMs`、`ttlMs`、`statusMessage`（各自如有，规则同 O2）。它不交出任务的结果。
@@ -571,7 +576,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **T9** 端口失败。传输的方法应以 `Outcome` 答复；以 reject 失败或同步抛出都违反契约，两者按同一规则处置：
   - 服务的处置：`open` 失败当作 `not-sent`（`connection-unavailable`）；`discover`、`listActions`、任务操作、`call` 与 `SentCall.answer` 失败当作该请求效果未知，`no-answer`（`abandoned`）；`cancelRequest` 失败忽略；`close` 失败当作已关闭，继续拆除，见[端口 reject 的处置](#ownership-rejects)。
   - 传输对凭据句柄的处置：`authorize` 失败时请求不发出，答 `not-sent`（`connection-unavailable`）；`reportRejection` 失败时忽略，仍报 `authorization-required`。
-  - 传输只在两种时候调用凭据句柄：发出 HTTP 请求时调用 `authorize`，含答复对端请求的 POST；处理这个请求的应答时调用 `reportRejection`（T4）。`open` 不发请求，不调用句柄；它在答复之前再核一次 `signal`，已中止就关闭线路、答 `not-sent`（`connection-unavailable`），不交出传输。于是持有者在时限到期后释放句柄时，没有一个它授权过的传输还会调用它。
+  - 传输只在两种时候调用凭据句柄：发出 HTTP 请求时调用 `authorize`，含答复对端请求的 POST；处理这个请求的应答时调用 `reportRejection`（T4）。R4 的元数据取回不经凭据句柄，不带凭据写入的头：元数据是公开的，取回的地址可以由对端指定。`open` 不发请求，不调用句柄；它在答复之前再核一次 `signal`，已中止就关闭线路、答 `not-sent`（`connection-unavailable`），不交出传输。于是持有者在时限到期后释放句柄时，没有一个它授权过的传输还会调用它。
 
 <a id="sdk-2-4-0"></a>
 
@@ -604,7 +609,7 @@ T3 与 T8 引用的 SDK 行为，按仓库采用的 `@modelcontextprotocol/clien
 | 协议要求                                                                                 | 本页的做法                                                                                                                              | 理由                   |
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
 | Streamable HTTP 应答流断开时，客户端必须用新的请求号重发（2026-07-28 changelog 第 9 项） | 只对 `server/discover`、`tools/list`、`tasks/get` 重发一次（D15、O05）；`tools/call`、`tasks/update`、`tasks/cancel` 不重发（C04、O06） | 见[理由](#t-rationale) |
-| 客户端不再需要旧修订的会话时 SHOULD 发 `DELETE`（2025-03-26 起的 Streamable HTTP）       | `close()` 不发 DELETE（T5）                                                                                                             | 见[理由](#t-rationale) |
+| 客户端不再需要旧修订的会话时 SHOULD 发 `DELETE`（2025-03-26 起的 Streamable HTTP）       | T5 不要求 `close()` 发 DELETE；本组的传输实现不发，登记在各自的偏离表                                                                   | 见[理由](#t-rationale) |
 
 <a id="t-rationale"></a>
 
@@ -624,7 +629,7 @@ T3 与 T8 引用的 SDK 行为，按仓库采用的 `@modelcontextprotocol/clien
 - 请求离开之前的失败答 `not-sent`：请求没有到达对端。stdio 上写不进去说明管道已断，传输不再可用；HTTP 上下一个请求可以再连。
 - 3xx 归入「4xx」：传输不跟随重定向，重定向的目标不在本组核过的连接目标之内。
 - `cancelTask` 复用连接时不核：取消只减少效果。
-- `close()` 不发 DELETE：T5 不要求 DELETE，套件不核。DELETE 是一个对端效果；对端在空闲后自己回收会话。官方 SDK 的 `close()` 也不发 DELETE，SDK 另有 `terminateSession()`。
+- T5 不要求 `close()` 发 DELETE，套件不核。DELETE 是一个对端效果；对端在空闲后自己回收会话。官方 SDK 的 `close()` 也不发 DELETE，SDK 另有 `terminateSession()`。
 - 解析不了的 stdio 行丢弃：把日志写进 stdout 的服务端是常见的互通失败，断流会让它们一个也连不上；丢弃不改变任何已归类的结局，若那一行本是应答，请求照常等到 `close()` 或 `signal`。
 - 旧 HTTP+SSE 在同一传输内回退：旧一路的 `initialize` 已经是回退，对端拒绝 POST 时传输仍持有连接目标与凭据句柄；另建传输会让持有者认识传输的内部。
 

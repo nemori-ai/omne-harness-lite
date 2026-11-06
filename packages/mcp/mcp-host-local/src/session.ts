@@ -720,9 +720,14 @@ export class Session implements McpTransport {
     return withOneResend(() => this.once(method, params, sending))
   }
 
-  private once(method: RequestMethod, params: PlainRecord, sending: Sending): Promise<Answered> {
+  /** Registers one request and waits on its settlement only: never on its workflow. */
+  private async once(
+    method: RequestMethod,
+    params: PlainRecord,
+    sending: Sending,
+  ): Promise<Answered> {
     const entry = this.begin(method, params, sending)
-    return entry === undefined ? Promise.resolve(NOT_SENT) : entry.answered
+    return entry === undefined ? NOT_SENT : entry.answered
   }
 
   /** Sends the request an operation composed and reads its answer the way the operation does. */

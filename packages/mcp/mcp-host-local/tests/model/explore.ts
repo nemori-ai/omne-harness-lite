@@ -693,14 +693,33 @@ class Run implements RunView, CallDesk {
   }
 
   /**
+   * Whether `discover` read the answer to `initialize`: the authorization it waits on after that
+   * is the one of `notifications/initialized`, which is not a request and has no settlement.
+   */
+  private initialized(op: Op): boolean {
+    return (
+      op.kind === 'discover' &&
+      this.ledger.sent.some(
+        sent =>
+          sent.method === 'initialize' &&
+          sent.id !== undefined &&
+          op.requests.includes(sent.id) &&
+          this.delivered.has(sent.id),
+      )
+    )
+  }
+
+  /**
    * The phase of the operation's request when a stop comes, for V6; `none` when the request was
-   * settled already by a line end (S01–S04: not in flight any more) or waits on no port.
+   * settled already by a line end (S01–S04: not in flight any more), when what the operation
+   * waits on is no request, or when it waits on no port.
    */
   private phaseAtStop(op: Op): Phase {
     if (op.status !== 'waiting' && op.status !== 'sent') return 'none'
     const lineEnded = this.ledger.events.some(event => event === 'ended' || event === 'broken')
     const phase = phaseOf(this.pending, op.name)
-    return lineEnded && phase === 'sent' ? 'none' : phase
+    if (lineEnded && phase === 'sent') return 'none'
+    return phase === 'authorizing' && this.initialized(op) ? 'none' : phase
   }
 
   private close(): void {
