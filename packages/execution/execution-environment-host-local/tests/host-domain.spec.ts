@@ -39,6 +39,7 @@ import {
   type HostFilesDomain as SourceDomain,
 } from '../src/host-domain.ts'
 import { createHostFilesProvider as createSourceProvider } from '../src/host-provider.ts'
+import type { RetainedProcessIndex } from '../src/host-retained-processes.ts'
 
 const control = vi.hoisted(() => ({
   marker: 'held-by-test',
@@ -639,4 +640,66 @@ it('gives providers of one files configuration one engine, and another configura
   expect(await engineOf({ filesRoot: state, limits: { listPageLimit: 5 } }, 'rooted-3')).not.toBe(
     rooted,
   )
+})
+
+/** An index that holds nothing and reports `pending` retained processes at each maintenance. */
+function countingIndex(pending: number, maintained: string[], name: string): RetainedProcessIndex {
+  const unused = async (): Promise<never> => {
+    throw new Error('not used by this test')
+  }
+  return {
+    ready: async () => true,
+    reserve: () => 'unavailable',
+    commit: unused,
+    commitStopping: unused,
+    list: async () => [],
+    resources: () => [],
+    stop: async () => 'confirmed',
+    closeScope: async () => [],
+    watchClosure: () => undefined,
+    recover: async () => undefined,
+    maintain: async () => {
+      maintained.push(name)
+      return pending
+    },
+    join: () => undefined,
+    retire: () => undefined,
+  }
+}
+
+function internalsOf(domain: SourceDomain) {
+  const internals = domainInternals(domain)
+  if (internals === undefined) throw new Error('missing domain internals')
+  return internals
+}
+
+it('gives every provider of one state directory the same retained-process index, and another directory its own', () => {
+  const internals = internalsOf(createSourceDomain())
+  const made: string[] = []
+  const make = (name: string) => () => {
+    made.push(name)
+    return countingIndex(0, [], name)
+  }
+  const first = internals.retainedProcesses('/state/a', make('first'))
+  expect(internals.retainedProcesses('/state/a', make('again'))).toBe(first)
+  expect(made).toEqual(['first'])
+  const other = internals.retainedProcesses('/state/b', make('other'))
+  expect(other).not.toBe(first)
+  expect(made).toEqual(['first', 'other'])
+})
+
+it('adds up what every retained-process index still holds at a maintenance', async () => {
+  const domain = createSourceDomain()
+  const internals = internalsOf(domain)
+  const maintained: string[] = []
+  internals.retainedProcesses('/state/a', () => countingIndex(2, maintained, 'a'))
+  internals.retainedProcesses('/state/b', () => countingIndex(3, maintained, 'b'))
+  expect(await domain.maintain()).toEqual({ pending: 5 })
+  expect(maintained.sort()).toEqual(['a', 'b'])
+})
+
+it('answers no pending work at a maintenance when no retained-process index holds any', async () => {
+  const domain = createSourceDomain()
+  internalsOf(domain).retainedProcesses('/state/a', () => countingIndex(0, [], 'a'))
+  expect(await domain.maintain()).toEqual({ pending: 0 })
 })
