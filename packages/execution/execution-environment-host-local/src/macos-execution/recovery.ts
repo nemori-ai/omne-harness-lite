@@ -13,15 +13,21 @@ export type MacosRecovery = Readonly<{
 }>
 
 /**
- * The macOS domains of a scope from the cold index. Without a state directory there is no index,
- * and a listing that cannot be complete is `unavailable`, not empty.
+ * The macOS domains of a scope from the cold index, with the retained terminals the caller holds
+ * (read after the index, so a reservation made meanwhile is listed). Without a state directory
+ * there is no index, and a listing that cannot be complete is `unavailable`, not empty.
  */
 export async function listMacosResources(
   recovery: MacosRecovery,
   scope: ScopeRef,
+  retainedTerminals: () => readonly ManagedResource[] = () => [],
 ): Promise<readonly ManagedResource[] | 'unavailable'> {
   if (recovery.domains === undefined) return 'unavailable'
-  return recovery.domains.list(scope)
+  const domains = await recovery.domains.list(scope)
+  if (domains === 'unavailable') return 'unavailable'
+  const resources = new Map(domains.map(resource => [resource.key, resource]))
+  for (const resource of retainedTerminals()) resources.set(resource.key, resource)
+  return [...resources.values()]
 }
 
 export type MacosRecoverStatus = 'confirmedStopped' | 'pending' | 'unsupported'

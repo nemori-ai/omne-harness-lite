@@ -540,12 +540,10 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       const retainedShells = internals.retainedTerminals.resources(scope)
       if (execution.macos !== undefined) {
         // The cold index lists every domain whose marker exists; an unread marker makes no list.
-        const domains = await listMacosResources(execution.macos, scope)
-        if (domains === 'unavailable') return { kind: 'unavailable' }
-        const resources = new Map(domains.map(resource => [resource.key, resource]))
-        for (const resource of internals.retainedTerminals.resources(scope))
-          resources.set(resource.key, resource)
-        return { kind: 'listed', resources: [...resources.values()] }
+        const resources = await listMacosResources(execution.macos, scope, () =>
+          internals.retainedTerminals.resources(scope),
+        )
+        return resources === 'unavailable' ? { kind: 'unavailable' } : { kind: 'listed', resources }
       }
       if (process.platform !== 'linux') return { kind: 'listed', resources: retainedShells }
       const systemctl = (await execution.supervisor())?.systemctl

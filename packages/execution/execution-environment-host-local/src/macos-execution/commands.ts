@@ -377,6 +377,22 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
         mode === 'graceful' ? gracefulStop(entry) : forceStop(entry),
     })
 
+  /** The checks before anything exists, in the order of the Linux facility: request, platform, facade. */
+  const admit = async (
+    request: StartRequest,
+  ): Promise<FacilityReason | Readonly<{ reader: string; bootId: string }>> => {
+    const issue = macosRequestIssue(request)
+    if (issue !== undefined) return issue
+    const reading = await input.reader()
+    if (reading.kind !== 'ready') {
+      input.unavailable([readerMissing(reading)])
+      return 'unavailable'
+    }
+    if (sealed) return 'closed'
+    const bootId = await bootIdOf()
+    return bootId === undefined ? 'unavailable' : { reader: reading.path, bootId }
+  }
+
   const start = async (request: StartRequest): Promise<FacilityResult<ProcessHandle>> => {
     const requestId = request.requestId
     const rejected = (reason: FacilityReason): FacilityResult<never> => ({
@@ -384,16 +400,9 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
       requestId,
       reason,
     })
-    const issue = macosRequestIssue(request)
-    if (issue !== undefined) return rejected(issue)
-    const reading = await input.reader()
-    if (reading.kind !== 'ready') {
-      input.unavailable([readerMissing(reading)])
-      return rejected('unavailable')
-    }
-    if (sealed) return rejected('closed')
-    const bootId = await bootIdOf()
-    if (bootId === undefined) return rejected('unavailable')
+    const admitted = await admit(request)
+    if (typeof admitted === 'string') return rejected(admitted)
+    const { reader, bootId } = admitted
     const key = randomUUID()
     const resource: ManagedResource = {
       key,
@@ -408,7 +417,7 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
     }
     if (planned !== 'recorded') return rejected(planned)
     const deadline = monotonicMs() + settings.startBoundMs
-    const entry = launch(resource, request, reading.path)
+    const entry = launch(resource, request, reader)
     const refuse = async (reason: FacilityReason) => {
       await forceStop(entry)
       return rejected(sealed ? 'closed' : reason)
@@ -421,7 +430,7 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
     }
     if (ready !== 'ready' || entry.gate.pid === undefined) return refuse('unavailable')
     const identity = await readIdentity({
-      reader: reading.path,
+      reader,
       pid: entry.gate.pid,
       boundMs: Math.max(1, deadline - monotonicMs()),
     })
