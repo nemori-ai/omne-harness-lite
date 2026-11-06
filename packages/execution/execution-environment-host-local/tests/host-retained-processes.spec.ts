@@ -4,6 +4,7 @@
 // scope. Then the disposition itself with controllable ledgers: the rechecks around the commit
 // (C5), the unknown commit and its resolution, and the reasons a domain is stopped instead.
 import { randomUUID } from 'node:crypto'
+import { existsSync, readdirSync } from 'node:fs'
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -211,6 +212,15 @@ it('answers unavailable to a reservation before the markers were read', async ()
     supervision: async () => stub.supervision,
   })
   expect(index.reserve(scopeOf('scope-a'), tenant, 'k1')).toBe('unavailable')
+})
+
+it.skipIf(!existsSync('/dev/fd'))('leaves no descriptor open after writing markers', async () => {
+  const f = await indexWith(await stateDirectory())
+  const scope = scopeOf('scope-descriptors')
+  const descriptors = () => readdirSync('/dev/fd').length
+  const before = descriptors()
+  for (let n = 0; n < 4; n++) expect((await handOver(f, scope)).handed.marker).toBe('written')
+  expect(descriptors()).toBeLessThan(before + 4)
 })
 
 it('writes the marker on commit with the fields a restart needs, and lists by scope and tenant only', async () => {

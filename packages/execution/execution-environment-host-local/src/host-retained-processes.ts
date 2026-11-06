@@ -5,7 +5,8 @@
 // included, and never evicts. Every reading of a unit's members comes from the supervisor; a
 // reading that fails is never an empty unit.
 import { randomUUID } from 'node:crypto'
-import { mkdir, open, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { closeSync, fsyncSync, openSync } from 'node:fs'
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
@@ -228,12 +229,7 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       await mkdir(directory, { recursive: true })
       await writeFile(temporary, JSON.stringify(marker), { flush: true })
       await rename(temporary, markerPath(entry.key))
-      const handle = await open(directory, 'r')
-      try {
-        await handle.sync()
-      } finally {
-        await handle.close()
-      }
+      syncDirectory(directory)
       return true
     } catch {
       await rm(temporary, { force: true }).catch(() => undefined)
@@ -605,4 +601,14 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       if (generations.size === 0) stopPolling()
     },
   })
+}
+
+/** Flushes the directory after a marker was renamed into it, so the new name survives a host crash. */
+function syncDirectory(directory: string): void {
+  const descriptor = openSync(directory, 'r')
+  try {
+    fsyncSync(descriptor)
+  } finally {
+    closeSync(descriptor)
+  }
 }

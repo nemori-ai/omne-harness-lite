@@ -10,9 +10,9 @@ import {
 } from '../src/terminal-sentinels.ts'
 
 const nonce = '0123456789abcdef0123456789abcdef'
-const begin = Buffer.from(sentinel('begin', nonce))
-const end = Buffer.from(sentinel('end', nonce))
 const text = (value: string) => Buffer.from(value, 'latin1')
+const begin = text(`\u001b]7770;omne-b;${nonce}\u0007`)
+const end = text(`\u001b]7770;omne-e;${nonce}\u0007`)
 
 /** Adjacent byte pieces of the same attribution, merged, so chunk boundaries do not show. */
 function attribution(pieces: readonly SentinelPiece[]): string[] {
@@ -47,12 +47,8 @@ function feed(
 
 describe('terminal sentinels', () => {
   it('writes the OSC private sequence with the segment nonce', () => {
-    expect(Buffer.from(sentinel('begin', nonce)).toString('latin1')).toBe(
-      `\u001b]7770;omne-b;${nonce}\u0007`,
-    )
-    expect(Buffer.from(sentinel('end', nonce)).toString('latin1')).toBe(
-      `\u001b]7770;omne-e;${nonce}\u0007`,
-    )
+    expect(Buffer.from(sentinel('begin', nonce))).toEqual(begin)
+    expect(Buffer.from(sentinel('end', nonce))).toEqual(end)
   })
 
   it('attributes bytes around two sentinels in one chunk and removes the sentinels', () => {
