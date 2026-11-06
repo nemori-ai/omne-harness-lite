@@ -67,7 +67,7 @@ const closed = await mcp.connections.closeAll()
 
 - 公开类型与运行时校验：[src/](src/README.md)，导航在 [docs/public-api.md](docs/public-api.md)。
 - 类型以外的行为：[SPEC.md](SPEC.md)。它引用本包兑现的[契约 SPEC](../mcp-contract/SPEC.md) 条款（列在它开头的依据表里），并列出本包自己的决定。
-- 错误、生命周期与资源：拒绝与连接失败是 `Outcome` 的失败。前提违反抛出 `TypeError` 或 `RangeError`。连接表拥有每条连接的传输、进程句柄与凭据句柄。错误、关停与资源释放的规则见 [SPEC.md](SPEC.md#所有权失败与生命周期) 的 MC-10 与 MC-14。
+- 错误、生命周期与资源：拒绝与连接失败是 `Outcome` 的失败。前提违反抛出 `TypeError` 或 `RangeError`。连接表拥有每条连接的传输、进程句柄与凭据句柄。错误、关停与资源释放的规则见条款 [MC-10](SPEC.md#mc-10) 与 [MC-14](SPEC.md#mc-14)，以及 SPEC 的「[所有权、失败与生命周期](SPEC.md#所有权失败与生命周期)」一节。
 
 ## 设计
 
@@ -87,7 +87,7 @@ const closed = await mcp.connections.closeAll()
 
 ## 维护
 
-契约 SPEC 的服务条款一变，这里同名的模块随之变：S2 是 `calls.ts`、`tasks.ts`、`internal/in-flight.ts` 与 `internal/task-table.ts`，S5 是 `discovery.ts`，S7 是 `status.ts` 与 `internal/lost.ts`，S8 是 `calls.ts`、`tasks.ts`、`discovery.ts` 与 `internal/table.ts`，S9 是 `internal/teardown.ts`、`internal/late.ts` 与 `internal/build.ts`。新增一种传输只加一个 `GenerationPolicy` 取值和 `internal/settings.ts` 的一个分支。消费者：`@omne-harness/mcp-host-local`（端口与传输）与组设计。
+契约 SPEC 的服务条款一变，这里对应的模块随之变。模块与它们兑现的条款见 [docs/architecture.md](docs/architecture.md)。消费者：`@omne-harness/mcp-host-local`（端口与传输）与组设计。
 
 ## 目录结构与文档职责
 

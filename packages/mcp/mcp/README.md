@@ -67,7 +67,7 @@ Nothing connects until a `refresh`, an `invoke` or a task operation needs a conn
 
 - Public types and runtime checks: [src/](src/README.md), indexed in [docs/public-api.md](docs/public-api.md).
 - Behavior beyond the types: [SPEC.md](SPEC.md). It cites the clauses of the [contract SPEC](../mcp-contract/SPEC.md) that this package fulfils (its basis table lists them) and lists the decisions of its own.
-- Errors, lifecycle and resources: a refusal or a connection failure is an `Outcome` failure. A broken precondition is a thrown `TypeError` or `RangeError`. The connection table owns the transport, the process handle and the credential handle of each connection. The rules for errors, shutdown and resource release are in [SPEC.md](SPEC.md#所有权失败与生命周期), clauses MC-10 and MC-14.
+- Errors, lifecycle and resources: a refusal or a connection failure is an `Outcome` failure. A broken precondition is a thrown `TypeError` or `RangeError`. The connection table owns the transport, the process handle and the credential handle of each connection. The rules for errors, shutdown and resource release are in the clauses [MC-10](SPEC.md#mc-10) and [MC-14](SPEC.md#mc-14), and in the SPEC section [Ownership, failure and lifecycle](SPEC.md#所有权失败与生命周期).
 
 ## Design
 
@@ -87,7 +87,7 @@ Run `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`. The tests 
 
 ## Maintenance
 
-A change to a service clause of the contract SPEC changes a module here, in the same name: S2 is `calls.ts`, `tasks.ts`, `internal/in-flight.ts` and `internal/task-table.ts`, S5 is `discovery.ts`, S7 is `status.ts` and `internal/lost.ts`, S8 is `calls.ts`, `tasks.ts`, `discovery.ts` and `internal/table.ts`, S9 is `internal/teardown.ts`, `internal/late.ts` and `internal/build.ts`. A new transport kind adds a `GenerationPolicy` value and a branch in `internal/settings.ts`. Consumers: `@omne-harness/mcp-host-local` (the ports and the transports) and the group design.
+A change to a service clause of the contract SPEC changes a module here. The modules and the clauses they fulfil are in [docs/architecture.md](docs/architecture.md). Consumers: `@omne-harness/mcp-host-local` (the ports and the transports) and the group design.
 
 ## Directory structure and documentation roles
 

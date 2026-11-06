@@ -16,7 +16,7 @@
 8. `McpTransport.discover` 判定对端时代并协商。成功后 MCP 连接进入 `ready`，不等 MCP 动作清单。Streamable HTTP 在这时代际加一。首次发现由调用方经 `ActionDiscovery.refresh` 触发，见 F-MC02。
 9. Streamable HTTP 上对端答需要授权时，MCP 读取受保护资源元数据，交出签发者与 scope，结局是 `authorization-required`。MCP 不发起授权流程。
 
-建连时限从这次建连的 `attempt()` 之后起计时，覆盖其后对这个键上一条连接遗留进程的再停、第 6 步到第 8 步，以及建连失败之后的收场。每次 `ensure` 另有一个从入口起计时的临界区时限，加入在途建连的调用另有一个从加入起计时的时限。端口不理会中止信号时，`Connections` 自己停止等待，并收口迟到交来的结果，见[工程设计的 MCP 连接](architecture.md#mcp-连接)不变式 5。部分创建或取消后，依原准备身份查询及清理。资源关闭失败时保留下一处置者。首次失败不造合法清单。代际何时加一与状态转移见[工程设计](architecture.md#mcp-连接)。
+建连时限从这次建连开始（连接进入 `preparing`）起计时，覆盖其后对这个键上一条连接遗留进程的再停、第 6 步到第 8 步，以及建连失败之后的收场。每次 `ensure` 另有一个从入口起计时的临界区时限，加入在途建连的调用另有一个从加入起计时的时限。端口不理会中止信号时，`Connections` 自己停止等待，并收口迟到交来的结果，见[工程设计的 MCP 连接](architecture.md#mcp-连接)不变式 5。部分创建或取消后，依原准备身份查询及清理。资源关闭失败时保留下一处置者。首次失败不造合法清单。代际何时加一与状态转移见[工程设计](architecture.md#mcp-连接)。
 
 ```mermaid
 flowchart TD
