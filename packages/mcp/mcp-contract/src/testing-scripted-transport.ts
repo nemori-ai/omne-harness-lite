@@ -30,7 +30,6 @@ import {
 } from './composition.ts'
 import { cancelsByNotification, type ConnectionView } from './connection.ts'
 import {
-  ABANDONED,
   NOT_SENT_FAILURE,
   authorizationRequiredAnswerOf,
   concludeAnswer,
@@ -388,7 +387,7 @@ class ScriptedTransport implements McpTransport {
     entry.resolve(answered)
   }
 
-  /** Stops a request where it stands (T5): the caller's signal fired, or `close()` ran. */
+  /** Stops a request where it stands (T5): the caller's signal fired, `cancelRequest` or `close()` ran. */
   private stop(entry: Pending): void {
     if (!this.pending.has(entry.id)) return
     const phase = entry.phase
@@ -786,16 +785,20 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
-  /** T5, by the contract's `cancelsByNotification`: the notification, or the end of the answer stream. */
+  /**
+   * T5, by the contract's `cancelsByNotification`: the notification, or the request is stopped by
+   * its phase with the contract's one rule (`stopAnswerOf`), as the caller's signal and `close()`
+   * stop it. Only a request handed to the peer has an answer stream to end.
+   */
   async cancelRequest(requestId: string): Promise<void> {
     if (cancelsByNotification(this.connection)) {
       this.sendNotification('notifications/cancelled', { requestId })
       return
     }
     const entry = this.pending.get(requestId)
-    if (entry === undefined || entry.phase.kind !== 'sent') return
-    this.peer.log.push({ kind: 'stream-aborted', id: requestId })
-    this.settle(entry, { wire: ABANDONED })
+    if (entry === undefined) return
+    if (entry.phase.kind === 'sent') this.peer.log.push({ kind: 'stream-aborted', id: requestId })
+    this.stop(entry)
   }
 
   getTask(taskId: TaskId): Promise<Outcome<TaskReport | 'expired', TransportFailure>> {

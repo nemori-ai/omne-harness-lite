@@ -10,6 +10,7 @@ import {
   type Generation,
 } from '@omne-harness/mcp-contract'
 import type {
+  HttpCredentialHandle,
   McpTransport,
   McpTransportFactory,
   ProcessHandle,
@@ -581,5 +582,88 @@ describe('the scripted transport factory', () => {
         new AbortController().signal,
       ),
     ).rejects.toThrow(TypeError)
+  })
+})
+
+describe('the scripted transport stops a request by its phase on every stop (T5, stopAnswerOf)', () => {
+  /** A handle that authorizes every request and never answers reportRejection: the refused request stays discovering. */
+  const holdingDiscovery = (): HttpCredentialHandle & Readonly<{ reached: Promise<void> }> => {
+    let reach = (): void => undefined
+    const reached = new Promise<void>(resolve => {
+      reach = resolve
+    })
+    return {
+      purpose: 'http-authorization',
+      async authorize(headers) {
+        headers.set('authorization', 'Bearer test-token')
+        return { ok: true }
+      },
+      reportRejection() {
+        reach()
+        return new Promise<void>(() => undefined)
+      },
+      async release() {},
+      reached,
+    }
+  }
+
+  /** A call refused with 401, held in the authorization discovery; the id from what the peer received. */
+  const discovering = async () => {
+    const credential = holdingDiscovery()
+    const factory = createScriptedTransportFactory({
+      calls: {
+        echo: {
+          kind: 'http',
+          status: 401,
+          headers: { 'www-authenticate': 'Bearer scope="files"' },
+        },
+      },
+    })
+    const opened = await factory.open(
+      materialOf({ kind: 'streamable-http', credential }),
+      new AbortController().signal,
+    )
+    if ('failure' in opened) throw new Error('did not open')
+    const transport = opened.ok
+    const call = transport.call(
+      { action: actionNameOf('echo'), args: json({}) },
+      new AbortController().signal,
+    )
+    await credential.reached
+    const [request] = factory.received()
+    if (request?.kind !== 'request') throw new Error('the call did not reach the peer')
+    return { factory, transport, call, id: request.id }
+  }
+
+  /** The value `promise` settled with, or `pending` when it had not settled within a second. */
+  const settledWithin = async <T>(promise: Promise<T>) => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const late = new Promise<'pending'>(resolve => {
+      timer = setTimeout(() => resolve('pending'), 1_000)
+    })
+    try {
+      return await Promise.race([promise.then(settled => ({ settled })), late])
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  it('cancelRequest on a modern Streamable HTTP request in the authorization discovery settles it as close() does: authorization-required with what was fetched, and no answer stream is ended', async () => {
+    const closed = await discovering()
+    void closed.transport.close()
+    const byClose = await settledWithin(closed.call)
+
+    const cancelled = await discovering()
+    await cancelled.transport.cancelRequest(cancelled.id)
+    const byCancel = await settledWithin(cancelled.call)
+
+    expect(byClose).toMatchObject({
+      settled: { failure: { kind: 'not-sent', cause: 'authorization-required' } },
+    })
+    expect(byCancel).toEqual(byClose)
+    expect(cancelled.factory.received().filter(entry => entry.kind === 'stream-aborted')).toEqual(
+      [],
+    )
+    await cancelled.transport.close()
   })
 })
