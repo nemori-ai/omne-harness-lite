@@ -97,7 +97,7 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp-host-local/verification
 
 状态的词按 [docs/verification.md](../../../../docs/verification.md#分别表述这六种状态)「分别表述这六种状态」。每种状态对每条性质的结论在 [SPEC.md「性质与证据」](../SPEC.md#properties)。本节记录范围与运行。
 
-探索器（Node v26.12.0，2026-11-06 UTC 05:02，提交 `72f977c81`，单线程测量，耗时只作量级；日志 `tmp/closures/w3-mcp-host/docs3/model/explore-counts-72f977c81.log`，SHA-256 前 16 位 `3e577b54f24e131a`）：
+探索器（Node v26.12.0，2026-11-06 UTC 05:02，提交 `72f977c81`，单线程测量，耗时只作量级；日志 `explore-counts-72f977c81.log`，SHA-256 前 16 位 `3e577b54f24e131a`，保存在任务过程目录，不入库）：
 
 | 场景             | 上限                                                                                                                                                              | 状态数 | 重放数 | 最深调度 | 耗时   | 层  |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------ | -------- | ------ | --- |
@@ -114,9 +114,9 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp-host-local/verification
 
 取数的做法：对 `scenarios.ts` 的每个场景调用 `explore(scenario)`（`tests/model/explore.ts`），读返回值的 `states`、`runs`、`depth` 与 `elapsedMs`。用例 `session-model.spec.ts` 只断言没有违例，不打印这些数。快层与慢层的用例在同一个提交 `72f977c81` 上各通过一次：快层 8 条通过、3 条被慢层标签排除（日志 `explorer-fast-72f977c81.log`，`bae289f9f65055f0`），慢层 3 条通过、8 条被快层标签排除（`explorer-slow-72f977c81.log`，`7e49b8c6d7edb23b`）。
 
-TLC（`72f977c81` 上重跑，2026-11-06 UTC 05:02，TLC2 2.19，4 个工作线程，jar SHA-256 前 16 位 `936a262061c91469`，模型 `3915573bc0e87f8a`，`run.py` `2f1fc35ee9f1c89b`）：13 份配置都符合判读，退出 0（`tmp/closures/w3-mcp-host/docs3/tlc/run-72f977c81.log`，`e472fec0f6fab6ed`）；正控 `valid-close` 9922 个不同状态、深度 16，`valid-signal` 与 `valid-no-handle` 各 315 个、深度 11；22 个有效动作的变异都符合判读，退出 0（`mutations-72f977c81.log`，`aadf75fc4f21c4dd`）。负控与变异的状态数是 TLC 找到第一条反例时的计数，随线程调度在两次运行之间略有不同。配置、上限与逐项结果见 [models/README.md](models/README.md#运行记录)。
+TLC（`72f977c81` 上重跑，2026-11-06 UTC 05:02，TLC2 2.19，4 个工作线程，jar SHA-256 前 16 位 `936a262061c91469`，模型 `3915573bc0e87f8a`，`run.py` `2f1fc35ee9f1c89b`）：13 份配置都符合判读，退出 0（日志 `run-72f977c81.log`，`e472fec0f6fab6ed`）；正控 `valid-close` 9922 个不同状态、深度 16，`valid-signal` 与 `valid-no-handle` 各 315 个、深度 11；22 个有效动作的变异都符合判读，退出 0（日志 `mutations-72f977c81.log`，`aadf75fc4f21c4dd`）。负控与变异的状态数是 TLC 找到第一条反例时的计数，随线程调度在两次运行之间略有不同。配置、上限与逐项结果见 [models/README.md](models/README.md#运行记录)。
 
-探索器的负控（`72f977c81` 上，`node tests/model/mutate.ts`，2026-11-06 UTC 05:03）：23 个负控全部变红，退出 0，源码按字节还原（`git status` 干净）；汇总 `tmp/closures/w3-mcp-host/docs3/mutants-run-72f977c81.log`，`ac51935251bd09c8`，每个负控的输出在 `docs3/mutants/<负控名>.log`。这些日志在任务过程目录，不入库。
+探索器的负控（`72f977c81` 上，`node tests/model/mutate.ts`，2026-11-06 UTC 05:03）：23 个负控全部变红，退出 0，源码按字节还原（`git status` 干净）；汇总日志 `mutants-run-72f977c81.log`，`ac51935251bd09c8`；每个负控一份日志 `<负控名>.log`。所有日志都保存在任务过程目录，不入库。
 
 <a id="两种证据能变红"></a>
 
