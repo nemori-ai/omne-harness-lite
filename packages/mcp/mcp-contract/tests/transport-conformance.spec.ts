@@ -8,14 +8,19 @@ import {
   isGeneration,
   isProtocolVersion,
   type Generation,
+  type PeerAnswer,
+  type UnusableCause,
 } from '@omne-harness/mcp-contract'
 import type {
   HttpCredentialHandle,
   McpTransport,
   McpTransportFactory,
   ProcessHandle,
+  TaskAnswer,
+  TransportFailure,
   TransportMaterial,
 } from '@omne-harness/mcp-contract/provider'
+import type { Outcome } from '@omne-harness/operation-result'
 import {
   actionNameOf,
   createScriptedTransportFactory,
@@ -241,6 +246,132 @@ describe('the suite fails a transport that breaks the contract', () => {
           : material,
         signal,
       ),
+  })
+
+  /**
+   * The mark a transport hands over (T1), given the answer it was handed by the decision layer:
+   * `unusable` is the field as it was, absent when it was absent.
+   */
+  type Remark = (
+    answer: Readonly<{ kind: 'not-sent' | 'no-answer'; cause: string; unusable?: UnusableCause }>,
+  ) => UnusableCause | undefined
+
+  type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
+
+  function remarkNotSent(failure: NotSent, remark: Remark): NotSent {
+    if (failure.cause === 'authorization-required') return failure
+    const unusable = remark(failure)
+    return unusable === undefined
+      ? { kind: 'not-sent', cause: failure.cause }
+      : { kind: 'not-sent', cause: failure.cause, unusable }
+  }
+
+  function remarkFailure(failure: TransportFailure, remark: Remark): TransportFailure {
+    if (failure.kind === 'not-sent') return remarkNotSent(failure, remark)
+    if (failure.kind !== 'no-answer') return failure
+    const unusable = remark(failure)
+    return unusable === undefined
+      ? { kind: 'no-answer', cause: failure.cause }
+      : { kind: 'no-answer', cause: failure.cause, unusable }
+  }
+
+  function remarkAnswer(answer: PeerAnswer, remark: Remark): PeerAnswer {
+    if (answer.kind !== 'no-answer') return answer
+    const unusable = remark(answer)
+    return unusable === undefined
+      ? { kind: 'no-answer', cause: answer.cause }
+      : { kind: 'no-answer', cause: answer.cause, unusable }
+  }
+
+  function remarkOutcome<T>(
+    outcome: Outcome<T, TransportFailure>,
+    remark: Remark,
+  ): Outcome<T, TransportFailure> {
+    return 'failure' in outcome ? { failure: remarkFailure(outcome.failure, remark) } : outcome
+  }
+
+  function remarkTaskAnswer(answer: TaskAnswer, remark: Remark): TaskAnswer {
+    return answer.kind === 'finished'
+      ? { kind: 'finished', answer: remarkAnswer(answer.answer, remark) }
+      : answer
+  }
+
+  /**
+   * Hands over every answer of the transport with the mark `remark` gives: each failure of every
+   * method and of `open`, the failure of `call`, `SentCall.answer`, and the answer in a finished
+   * `getTaskResult`. Everything else passes through.
+   */
+  const remarking =
+    (remark: Remark): Wrap =>
+    factory => ({
+      open: async (material, signal) => {
+        const opened = await factory.open(material, signal)
+        if ('failure' in opened) return { failure: remarkFailure(opened.failure, remark) }
+        const inner = opened.ok
+        const transport: McpTransport = {
+          generation: inner.generation,
+          discover: async () => remarkOutcome(await inner.discover(), remark),
+          listActions: async cursor => remarkOutcome(await inner.listActions(cursor), remark),
+          cancelRequest: id => inner.cancelRequest(id),
+          getTask: async id => remarkOutcome(await inner.getTask(id), remark),
+          updateTask: async (id, responses) =>
+            remarkOutcome(await inner.updateTask(id, responses), remark),
+          getTaskResult: async id => {
+            const result = await inner.getTaskResult(id)
+            return 'failure' in result
+              ? { failure: remarkFailure(result.failure, remark) }
+              : { ok: remarkTaskAnswer(result.ok, remark) }
+          },
+          cancelTask: async id => remarkOutcome(await inner.cancelTask(id), remark),
+          close: () => inner.close(),
+          call: async (request, signal, observe) => {
+            const sent = await inner.call(request, signal, observe)
+            if ('failure' in sent) return { failure: remarkNotSent(sent.failure, remark) }
+            const answer = sent.ok.answer.then(peerAnswer => remarkAnswer(peerAnswer, remark))
+            return { ok: { requestId: sent.ok.requestId, answer } }
+          },
+        }
+        return { ok: transport }
+      },
+    })
+
+  /** Drops the mark: the transport never says it is not usable any more (T1). */
+  const droppingMarks: Wrap = remarking(() => undefined)
+
+  /**
+   * Marks a `no-answer` (`stream-broken`) that the decision layer left unmarked: on Streamable HTTP
+   * one request's stream broke or the peer answered 5xx, and the transport says it is not usable
+   * any more, while T8 leaves it usable. A mark already there stays as it was.
+   */
+  const markingUsableBreaks: Wrap = remarking(answer =>
+    answer.unusable === undefined && answer.kind === 'no-answer' && answer.cause === 'stream-broken'
+      ? 'stream-broken'
+      : answer.unusable,
+  )
+
+  it('a transport that drops the mark of a row that ends the transport (T1, T8)', async () => {
+    expect(await failing(() => fixtureOf(['streamable-http', 'stdio'], droppingMarks))).toEqual([
+      '[S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable',
+      '[S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable',
+      '[S03] tools/call × stream-broken → sent, answer stream-broken, unusable',
+      '[S04] tools/call × process-exited → sent, answer process-exited, unusable',
+      '[S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable',
+      '[X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable',
+    ])
+  })
+
+  it('a transport that marks a broken stream on Streamable HTTP, which leaves it usable (T1, T8)', async () => {
+    expect(
+      await failing(() => fixtureOf(['streamable-http', 'stdio'], markingUsableBreaks)),
+    ).toEqual([
+      '[D15] discover, discover-retry × stream-broken, http:2xx → resend',
+      '[D16] discover, discover-retry × http:5xx+-32020, http:5xx+-32021, http:5xx+-32022+common … (10) → no-answer (stream-broken)',
+      '[I06] initialize × stream-broken, http:2xx, http:5xx+plain → no-answer (stream-broken)',
+      '[O05] tools/list, tasks/get × stream-broken, http:2xx → resend',
+      '[O06] tasks/update, tasks/cancel × stream-broken, http:2xx → no-answer (stream-broken)',
+      '[O07] tools/list, tasks/get, tasks/update … (4) × http:5xx+plain → no-answer (stream-broken)',
+      '[C04] tools/call × stream-broken, http:2xx, http:5xx+plain → sent, answer stream-broken',
+    ])
   })
 
   it('a transport that re-sends tools/call after a broken stream', async () => {
