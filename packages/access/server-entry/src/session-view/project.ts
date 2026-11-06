@@ -216,43 +216,45 @@ function factSubjectOf(payload: JsonValue): FactSubject | null {
  * contract's five is not counted: the public counts are closed by reason. A `call.execution-fact`
  * without a `fact.kind` is not counted either: the counts are keyed by that kind.
  */
+type Folder = (draft: Draft, entry: HistoryEntry) => void
+
+/** One folder per Run entry kind the projection reads; `message.*` entries are counted apart. */
+const FOLDERS: Readonly<Record<string, Folder>> = {
+  'run.attempt-started': draft => {
+    draft.attempts.started += 1
+  },
+  'run.attempt-released': (draft, entry) => {
+    const reason = oneOf(textAt(entry.payload, 'reason'), RELEASE_REASONS)
+    if (reason !== undefined) draft.attempts.released[reason] += 1
+  },
+  'run.attempt-exited': draft => {
+    draft.attempts.exited += 1
+  },
+  'call.execution-fact': (draft, entry) => {
+    const kind = textAt(entry.payload, 'fact', 'kind')
+    if (kind !== undefined) draft.facts.push({ kind, subject: factSubjectOf(entry.payload) })
+  },
+  'run.terminal': (draft, entry) => {
+    const outcome = oneOf(textAt(entry.payload, 'terminal', 'outcome'), RUN_OUTCOMES)
+    if (outcome !== undefined)
+      draft.terminal = { outcome, record: textAt(entry.payload, 'cause', 'record') ?? null }
+  },
+  'control.requested': (draft, entry) => {
+    draft.controls.push(controlOf(entry, 'requested'))
+  },
+  'control.progress': (draft, entry) => {
+    draft.controls.push(controlOf(entry, 'progress'))
+  },
+  'call.bound': (draft, entry) => {
+    registerCall(draft.calls, entry)
+  },
+}
+
 function fold(draft: Draft, entry: HistoryEntry): void {
-  switch (entry.kind) {
-    case 'run.attempt-started':
-      draft.attempts.started += 1
-      return
-    case 'run.attempt-released': {
-      const reason = oneOf(textAt(entry.payload, 'reason'), RELEASE_REASONS)
-      if (reason !== undefined) draft.attempts.released[reason] += 1
-      return
-    }
-    case 'run.attempt-exited':
-      draft.attempts.exited += 1
-      return
-    case 'call.execution-fact': {
-      const kind = textAt(entry.payload, 'fact', 'kind')
-      if (kind !== undefined) draft.facts.push({ kind, subject: factSubjectOf(entry.payload) })
-      return
-    }
-    case 'run.terminal': {
-      const outcome = oneOf(textAt(entry.payload, 'terminal', 'outcome'), RUN_OUTCOMES)
-      if (outcome !== undefined)
-        draft.terminal = { outcome, record: textAt(entry.payload, 'cause', 'record') ?? null }
-      return
-    }
-    case 'control.requested':
-      draft.controls.push(controlOf(entry, 'requested'))
-      return
-    case 'control.progress':
-      draft.controls.push(controlOf(entry, 'progress'))
-      return
-    case 'call.bound':
-      registerCall(draft.calls, entry)
-      return
-    default:
-      if (entry.kind.startsWith('message.'))
-        draft.messages.set(entry.kind, (draft.messages.get(entry.kind) ?? 0) + 1)
-  }
+  const folder = Object.hasOwn(FOLDERS, entry.kind) ? FOLDERS[entry.kind] : undefined
+  if (folder !== undefined) folder(draft, entry)
+  else if (entry.kind.startsWith('message.'))
+    draft.messages.set(entry.kind, (draft.messages.get(entry.kind) ?? 0) + 1)
 }
 
 /** The skeleton of the Run that `started` opens, from the entries after it in log order. */
