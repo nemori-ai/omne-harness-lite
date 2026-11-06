@@ -5,15 +5,15 @@
 ## 包根
 
 - [README_ZH.md](README_ZH.md)、[README.md](README.md)：用途、状态、目录结构与文档职责
-- [SPEC.md](SPEC.md)：兑现的契约条款、结果与不变量 H1–H14、与 SDK 的复用关系、与协议的偏离、[与契约的已知偏离](SPEC.md#contract-deviations)、验证、[性质与证据](SPEC.md#properties)（V1–V6 与它们的证据状态）
+- [SPEC.md](SPEC.md)：根入口的传输兑现的契约条款、结果与不变量 H1–H14、与 SDK 的复用关系、与协议的偏离、[与契约的已知偏离](SPEC.md#contract-deviations)、[Cordis 插件](SPEC.md#cordis-plugin)与[它的验证](SPEC.md#cordis-plugin-verification)、验证、[性质与证据](SPEC.md#properties)（V1–V6 与它们的证据状态）
 - `documentation.json`：本包的文档登记
 - `package.json`：公开入口、脚本与依赖
 
 ## 目录
 
 - [docs/](docs/index.md)：内部设计、公开使用与集成说明
-- [src/](src/index.md)：公开入口、协议会话、两条线路与辅助模块
-- [tests/](tests/index.md)：快层（内存线路）与慢层（真实进程、本机端口）的测试，以及 A/B 两层对端夹具
+- [src/](src/index.md)：两个公开入口（根入口与 `./cordis`）、协议会话、两条线路、Cordis 插件与辅助模块
+- [tests/](tests/index.md)：快层（内存线路、`fetch` 替身）与慢层（真实进程、本机端口）的测试，含 Cordis 插件的两个用例文件（快层不起进程，慢层起脚本化 stdio 对端），以及 A/B 两层对端夹具
 - [schema/](schema/index.md)：对外 Schema（本包没有）
 - [verification/](verification/index.md)：性质 V1–V6 的 TLA+ 模型、模型与实现的映射、运行记录；`proofs/sdk/` 是 SPEC 复用表的论证与探针输出摘录
 - [adr/](adr/index.md)：实现取舍与理由（本包没有）
@@ -23,4 +23,4 @@
 
 ## 阅读路径
 
-使用本包：README、[docs/context.md](docs/context.md)、[docs/public-api.md](docs/public-api.md)。修改本包：[SPEC.md](SPEC.md)、[docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md)、[docs/object-model.md](docs/object-model.md)，然后 `src/session.ts` 与两条线路，最后 `tests/`。核对与 SDK 的关系：SPEC「与 SDK 的复用关系」。
+使用本包：README、[docs/context.md](docs/context.md)、[docs/public-api.md](docs/public-api.md)。修改本包：[SPEC.md](SPEC.md)、[docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md)、[docs/object-model.md](docs/object-model.md)，然后 `src/session.ts` 与两条线路，最后 `tests/`。修改插件：SPEC「Cordis 插件」、[docs/cordis.md](docs/cordis.md)、`src/cordis.ts`、`tests/cordis-entry.spec.ts` 与 `tests/cordis-journey.spec.ts`。核对与 SDK 的关系：SPEC「与 SDK 的复用关系」。
