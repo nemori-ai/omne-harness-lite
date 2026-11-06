@@ -24,7 +24,7 @@ Node >=24，ESM。宿主提供worker容量、SqlStorage、固定scope、组合�
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/schedule-local build`、`typecheck` 和 `test`。fast覆盖公开边界及真实SQLite；slow覆盖线程终止与进程崩溃。Calendar 组合测试使用真实 CalendarQueries、SQLite、Cordis 与已发布节假日种子。其中身份、设置、权威、同意与额度仍为明确标注的夹具，不代表生产跨域联调通过。
+运行 `pnpm --filter @omne-harness/schedule-local build`、`typecheck` 和 `test`。fast覆盖公开边界及真实SQLite；slow覆盖线程终止与进程崩溃。Calendar 组合测试使用真实 CalendarQueries、SQLite、Cordis 与已发布节假日种子。设置管理组合还使用真实 Identity 与 Settings 提供者；领域权威、同意、额度和提交守卫仍为明确夹具。工具组合使用真实 host、bindings、loader 与两域插件，其上下文/启动来源受控，ledger store 为内存实现。这些测试不证明生产授权、Tool 进程重启耐久或最终应用接入。各装配边界见[可运行示例](examples/README.md)。
 
 ## 维护
 

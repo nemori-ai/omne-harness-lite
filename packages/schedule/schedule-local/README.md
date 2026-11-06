@@ -24,7 +24,7 @@ Node >=24 and ESM. The host supplies worker capacity, SqlStorage, a fixed scope,
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/schedule-local build`, `typecheck` and `test`. Fast tests cover public boundaries and real SQLite behavior. Slow tests exercise worker termination and process crashes. Calendar integration tests use real CalendarQueries, SQLite, Cordis and released holiday seeds. Identity, settings, authority, consent and quota remain explicit fixtures in those tests. Production cross-domain integration remains unverified.
+Run `pnpm --filter @omne-harness/schedule-local build`, `typecheck` and `test`. Fast tests cover public boundaries and real SQLite behavior. Slow tests exercise worker termination and process crashes. Calendar integration tests use real CalendarQueries, SQLite, Cordis and released holiday seeds. The Settings management assembly also uses real Identity and Settings providers. Its domain authority, consent, quota and commit guards remain explicit fixtures. The Tool assembly uses the real host, bindings, loader and domain plugins, with controlled context and start sources and an in-memory ledger store. These tests do not prove production authorization, Tool process-restart durability or final application integration. See the [runnable examples](examples/README.md) for each assembly boundary.
 
 ## Maintenance
 

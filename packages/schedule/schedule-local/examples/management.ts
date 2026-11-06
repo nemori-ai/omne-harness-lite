@@ -69,15 +69,21 @@ try {
         process.exitCode = 1
       } else {
         let view = created.result.value
-        steps.push({
+        const operationCall = await host.invoke('Schedule', {
           action: 'queryOperation',
-          result: (
-            await host.invoke('Schedule', {
-              action: 'queryOperation',
-              input: created.operation,
-            })
-          ).returned,
+          input: created.operation,
         })
+        if (operationCall.terminal.kind !== 'completed')
+          throw new Error(JSON.stringify(operationCall.terminal))
+        const operation = scheduleToolResultSchema.parse(operationCall.returned)
+        steps.push({ action: 'queryOperation', result: operation })
+        if (
+          operation.kind !== 'result' ||
+          operation.action !== 'queryOperation' ||
+          operation.result.kind !== 'ok' ||
+          operation.result.value.kind !== 'committed'
+        )
+          throw new Error(JSON.stringify(operation))
         for (const requested of input.commands) {
           const command = ScheduleCommandSchema.parse({
             ...requested,
@@ -108,15 +114,16 @@ try {
           }
           view = result.result.value
         }
-        steps.push({
+        const finalCall = await host.invoke('Schedule', {
           action: 'get',
-          result: (
-            await host.invoke('Schedule', {
-              action: 'get',
-              input: { scheduleId: view.scheduleId },
-            })
-          ).returned,
+          input: { scheduleId: view.scheduleId },
         })
+        if (finalCall.terminal.kind !== 'completed')
+          throw new Error(JSON.stringify(finalCall.terminal))
+        const final = scheduleToolResultSchema.parse(finalCall.returned)
+        steps.push({ action: 'get', result: final })
+        if (final.kind !== 'result' || final.action !== 'get' || final.result.kind !== 'ok')
+          throw new Error(JSON.stringify(final))
       }
     }
     process.stdout.write(

@@ -1,6 +1,6 @@
 # 日历约束下的日程预览与管理
 
-本例读取已发布的中国节假日种子，通过真实 Calendar、Schedule 应用服务和 Cordis 提供者计算候选时间。它只预览，不创建日程或 Job。
+本页提供预览与管理两个示例。`calendar-preview.ts` 读取已发布的中国节假日种子，通过真实 Calendar、Schedule 应用服务和 Cordis 提供者计算候选时间。该预览程序不创建日程或 Job。
 
 ## 运行
 
