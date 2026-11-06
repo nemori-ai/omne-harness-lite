@@ -71,7 +71,6 @@ export const CONFIG: OpenAiFamilyConfig = {
   margin: { percent: '10', source: MARGIN_SOURCE },
 }
 
-/** One family borrows the shared test executor. Each binding owns its tokenizer lease. */
 export const FAMILY = createOpenAiFamily(CONFIG)
 
 export function recordNamed(name: string): OpenAiRecord {

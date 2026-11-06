@@ -29,7 +29,6 @@ function unavailable(diagnostic: string): MeasurementFailure {
   return { kind: 'unavailable', owner: 'preparation', diagnostic }
 }
 
-/** The retained entries own their first facts snapshot until this one plan finishes. */
 class MeasurementSession<P> {
   private readonly entries = new Map<string, Entry>()
   private readonly pending = new Set<Promise<unknown>>()
@@ -154,7 +153,6 @@ class MeasurementSession<P> {
   }
 }
 
-/** Cleanup completes before the operation publishes any result, including policy failures. */
 export async function withMeasurementSession<P, R extends { kind: string }>(
   context: MeasureContext<P>,
   operation: (measure: CandidateMeasure) => Promise<R>,

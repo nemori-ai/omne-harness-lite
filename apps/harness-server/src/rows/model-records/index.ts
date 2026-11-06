@@ -43,6 +43,7 @@ import {
 } from '@omne-harness/model/commands'
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
+import { modelTokenizersKey, type ModelTokenizers } from '@omne-harness/tokenizer-tiktoken/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { agentCustodyOf, createModelEvidence } from '../../model/evidence.ts'
@@ -128,6 +129,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
   // The credential port the send child injects. The stage's own preparation leases complete a
   // supplier through it, like the preparation row; outside the child's life there is none.
   const sendCredential: { port: CredentialPort | undefined } = { port: undefined }
+  const sendTokenizers: { port: ModelTokenizers | undefined } = { port: undefined }
   const Records = createSqlModelRecordsPlugin<unknown, ModelSendStageSettings>({
     inject: [...INJECT],
     resolve: () => ({
@@ -166,6 +168,13 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         families: composeFamilies([
           createOpenAiFamily({
             tokenizer: openAiTokenizerResources(),
+            executor: {
+              acquire: (definition, signal) =>
+                sendTokenizers.port?.acquire(definition, signal) ?? {
+                  failure: { kind: 'unavailable', diagnostic: 'tokenizer-provider-unavailable' },
+                },
+            },
+            maxSerializedBytes: sendStage.preparation.openai.maxSerializedBytes,
             limits: sendStage.preparation.openai.limits,
             margin: sendStage.preparation.openai.margin,
           }),
@@ -202,14 +211,17 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
       // The child's fiber is captured here, before the stage constructs, so the host can release it.
       const plugin: Plugin.Object = {
         name: 'model-send-stage',
-        inject: [...Stage.inject],
+        inject: [...Stage.inject, modelTokenizersKey],
         Config: Stage.Config,
         apply(child: Context, settings: ModelSendStageSettings) {
           handle.captureSendChild(child.fiber as Fiber)
           const port: CredentialPort | undefined = child.modelCredential
           sendCredential.port = port
+          const tokenizers = child.get(modelTokenizersKey)
+          sendTokenizers.port = tokenizers
           child.effect(() => () => {
             if (sendCredential.port === port) sendCredential.port = undefined
+            if (sendTokenizers.port === tokenizers) sendTokenizers.port = undefined
           })
           new Stage(child, settings)
         },

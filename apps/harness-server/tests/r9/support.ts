@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
+import { LOCAL_TOKENIZERS } from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
 
 export const memberDir = fileURLToPath(new URL('../..', import.meta.url))
@@ -93,6 +94,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
   const preparation = {
     maxCitedCalls: 8,
     openai: {
+      maxSerializedBytes: 4 * 1024 * 1024,
       limits: {
         toolArguments: {
           maxBytes: 65_536,
@@ -179,6 +181,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     },
   }
   return {
+    tokenizers: LOCAL_TOKENIZERS,
     profiles,
     preparation,
     host,
@@ -315,6 +318,7 @@ export function operatorLayer(options: {
       // 模型侧五行的配置是机器级参数与运维者的数值：保管库路径、官方档案快照、宿主与记录仓的上限、准备行的家族配置。
       // 写进运维层，不写进发行配置（R2-D6：发行层不写数值默认值）。
       { kind: 'replace', id: 'model-credential', config: model.credential },
+      { kind: 'replace', id: 'model-tokenizers', config: model.tokenizers },
       { kind: 'replace', id: 'model-profiles', config: model.profiles },
       { kind: 'replace', id: 'model-request-preparation', config: model.preparation },
       { kind: 'replace', id: 'model-host', config: model.host },

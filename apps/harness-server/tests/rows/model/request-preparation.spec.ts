@@ -1,3 +1,5 @@
+import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
+import { LOCAL_TOKENIZERS } from '../../../src/local/operator-defaults.ts'
 // `model-request-preparation` row: the model-host-local preparation plugin over the real OpenAI
 // family. The row injects `modelCommands`, and the real `model-records` row has no member yet, so the
 // tests load a named stand-in row of that name (support.ts). A lease without a lineage never reads
@@ -33,6 +35,7 @@ const count = 65_536
 const config = {
   maxCitedCalls: 8,
   openai: {
+    maxSerializedBytes: 4 * 1024 * 1024,
     limits: {
       toolArguments: {
         maxBytes: count,
@@ -53,6 +56,7 @@ const profilesConfig = {
   updatedAt: '2026-11-02T00:00:00Z',
 }
 const plugins = {
+  modelTokenizersRow,
   modelProfilesRow,
   modelRequestPreparationRow,
   commandsStandIn,
@@ -74,7 +78,8 @@ function credentialRow(path: string) {
   }
 }
 const rows = [
-  { id: 'model-records', plugin: 'commandsStandIn' },
+  { id: 'model-tokenizers', plugin: 'modelTokenizersRow', config: LOCAL_TOKENIZERS },
+  { id: 'model-records', plugin: 'commandsStandIn', config: {} },
   { id: 'model-profiles', plugin: 'modelProfilesRow', config: profilesConfig },
   { id: 'model-request-preparation', plugin: 'modelRequestPreparationRow', config },
   credentialRow(vaultPath()),
@@ -112,7 +117,7 @@ describe('the model-request-preparation row', () => {
       implementation: 'real',
       manifest: {
         provides: ['modelRequestPreparation'],
-        injects: ['modelCommands'],
+        injects: ['modelCommands', 'modelTokenizers'],
         phase: null,
         sameProviderGroup: null,
       },
@@ -221,7 +226,10 @@ describe('the model-request-preparation row', () => {
       configuredAt: '2026-11-04T00:00:00Z',
     })
     seeded.close()
-    const value = await leaseCredentials([...rows.slice(0, 3), credentialRow(path)])
+    const value = await leaseCredentials([
+      ...rows.filter(row => row.id !== 'model-credential'),
+      credentialRow(path),
+    ])
     expect(value).toMatchObject({ credentials: [{ kind: 'tenant', id }] })
     expect(JSON.stringify(value)).not.toContain('synth-tenant-secret')
   })
@@ -235,21 +243,27 @@ describe('the model-request-preparation row', () => {
     seeded.bind({ reference, secret: 'synth-tenant-secret', configuredAt: '2026-11-04T00:00:00Z' })
     seeded.markUnreadable(reference)
     seeded.close()
-    const value = await leaseCredentials([...rows.slice(0, 3), credentialRow(path)])
+    const value = await leaseCredentials([
+      ...rows.filter(row => row.id !== 'model-credential'),
+      credentialRow(path),
+    ])
     expect(value).toMatchObject({ credentials: [{ kind: 'tenant', id }] })
   })
 
   it('a vault that cannot be read refuses the lease instead of the factory reference', async () => {
     const path = vaultPath()
     writeFileSync(path, 'not-json')
-    const value = await leaseCredentials([...rows.slice(0, 3), credentialRow(path)])
+    const value = await leaseCredentials([
+      ...rows.filter(row => row.id !== 'model-credential'),
+      credentialRow(path),
+    ])
     expect(value).toMatchObject({
       failure: { kind: 'unavailable', dependency: 'model-credential' },
     })
   })
 
   it('without the credential row the lease is refused, never completed with the factory', async () => {
-    const value = await leaseCredentials(rows.slice(0, 3))
+    const value = await leaseCredentials(rows.filter(row => row.id !== 'model-credential'))
     expect(value).toEqual({
       failure: {
         kind: 'unavailable',
@@ -261,7 +275,7 @@ describe('the model-request-preparation row', () => {
 
   it('stays PENDING without modelCommands and names the missing key', async () => {
     const run = await serveOnce({
-      distribution: { rows: rows.slice(2) },
+      distribution: { rows: rows.filter(row => row.id !== 'model-records') },
       plugins,
     })
     expect(run.result.exitCode).toBe(4)
@@ -271,11 +285,25 @@ describe('the model-request-preparation row', () => {
     })
   })
 
+  it('stays PENDING without the shared tokenizer provider', async () => {
+    const run = await serveOnce({
+      distribution: { rows: rows.filter(row => row.id !== 'model-tokenizers') },
+      plugins,
+    })
+    expect(run.result.exitCode, JSON.stringify(run.stderr)).toBe(4)
+    expect(run.state('model-request-preparation')).toMatchObject({
+      state: 'PENDING',
+      missing: ['modelTokenizers'],
+    })
+  })
+
   it('does not start when a configured bound is missing', async () => {
     const { maxCitedCalls: _omitted, ...incomplete } = config
     const run = await serveOnce({
       distribution: {
-        rows: [rows[0]!, { ...rows[2]!, config: incomplete }].map(row => ({ config: {}, ...row })),
+        rows: rows.map(row =>
+          row.id === 'model-request-preparation' ? { ...row, config: incomplete } : row,
+        ),
       },
       plugins,
     })

@@ -47,9 +47,27 @@ const PROFILES = {
   updatedAt: '2026-11-02T00:00:00Z',
 } as const
 
+export const LOCAL_TOKENIZERS = {
+  workers: 2,
+  maxLeases: 256,
+  maxQueuedJobs: 256,
+  maxQueuedBytes: 32 * 1024 * 1024,
+  maxInputBytes: 8 * 1024 * 1024,
+  maxLeaseQueuedJobs: 4,
+  maxCacheBytes: 16 * 1024 * 1024,
+  maxCacheEntries: 65_536,
+  maxLeaseCacheBytes: 256 * 1024,
+  maxLeaseCacheEntries: 8_192,
+  maxPieceBytes: 4_096,
+  jobTimeoutMs: 10_000,
+  maxWorkerOldSpaceMb: 768,
+  maxReplacementsPerMinute: 2,
+} as const
+
 const PREPARATION = {
   maxCitedCalls: 8,
   openai: {
+    maxSerializedBytes: 4 * 1024 * 1024,
     limits: {
       toolArguments: {
         maxBytes: 65_536,
@@ -390,6 +408,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       },
     ],
     ['model-credential', { path: locations.vaultFile }],
+    ['model-tokenizers', LOCAL_TOKENIZERS],
     ['model-profiles', PROFILES],
     ['model-request-preparation', PREPARATION],
     ['model-host', MODEL_HOST],

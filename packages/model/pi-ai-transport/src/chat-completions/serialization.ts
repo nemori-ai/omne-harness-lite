@@ -17,7 +17,6 @@ function quotedCharacterBytes(character: string): number {
   return 3
 }
 
-/** The exact UTF-8 size of JSON.stringify(text), stopping when the budget is exceeded. */
 function quotedBytes(text: string, remaining: number): number {
   let bytes = 2
   for (const character of text) {
@@ -62,7 +61,6 @@ function advance(
     : { node: entry.value, bytes: quotedBytes(entry.key, remaining) + 1 }
 }
 
-/** Preflight the judged tree without allocating its text or a list of all its children. */
 export function fitsSerializedBytes(value: JsonValue, maximum: number): boolean {
   let bytes = 0
   let next: JsonValue | undefined = value

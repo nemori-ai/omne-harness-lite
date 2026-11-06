@@ -360,6 +360,11 @@
       "config": {}
     },
     {
+      "id": "model-tokenizers",
+      "plugin": "modelTokenizersRow",
+      "config": {}
+    },
+    {
       "id": "model-profiles",
       "plugin": "modelProfilesRow",
       "config": {}

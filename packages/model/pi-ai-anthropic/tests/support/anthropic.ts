@@ -71,7 +71,6 @@ export const CONFIG: AnthropicFamilyConfig = {
   margin: { percent: '10', source: MARGIN_SOURCE },
 }
 
-/** One family borrows the shared test executor. Each binding owns its tokenizer lease. */
 export const FAMILY = createAnthropicFamily(CONFIG)
 
 /** The current record of the name: the only revision that profiles publish. */
