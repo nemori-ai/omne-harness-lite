@@ -446,6 +446,24 @@ function countingCredential(
   }
 }
 
+/** A handle whose `authorize` never answers; `reached` resolves once it was asked. */
+function heldCredential(): HttpCredentialHandle & Readonly<{ reached: Promise<void> }> {
+  let asked = (): void => undefined
+  const reached = new Promise<void>(resolve => {
+    asked = resolve
+  })
+  return {
+    purpose: 'http-authorization',
+    authorize() {
+      asked()
+      return new Promise(() => undefined)
+    },
+    async reportRejection() {},
+    async release() {},
+    reached,
+  }
+}
+
 const bearer = (parameters: string) => `Bearer ${parameters}`
 const METADATA_PATH = '/.well-known/oauth-protected-resource'
 
@@ -2226,22 +2244,40 @@ const t5Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T5',
-    'a call still being authorized when close() ran is not-sent and never reaches the peer',
+    'a call still being authorized when close() ran is not-sent and never reaches the peer; close() does not wait for the handle',
     async fixture => {
-      let open = (): void => undefined
-      const credential = countingCredential(
-        new Promise<void>(resolve => {
-          open = resolve
-        }),
-      )
+      // The gate never opens: the handle hangs for ever, and the caller must not wait for it.
+      const handle = heldCredential()
       await withPeer(
         fixture,
         { calls: { echo: result(DONE) } },
-        { kind: 'streamable-http', credential },
+        { kind: 'streamable-http', credential: handle },
         async (peer, transport) => {
           const pending = transport.call(echo, never)
+          await handle.reached
           await transport.close()
-          open()
+          assert.deepStrictEqual(await pending, {
+            failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+          })
+          assert.deepStrictEqual(requests(await peer.received(), 'tools/call'), [])
+        },
+      )
+    },
+  ),
+  conformanceCase(
+    'T5',
+    'a call still being authorized when its signal fires is not-sent and never reaches the peer; call() does not wait for the handle',
+    async fixture => {
+      const handle = heldCredential()
+      await withPeer(
+        fixture,
+        { calls: { echo: result(DONE) } },
+        { kind: 'streamable-http', credential: handle },
+        async (peer, transport) => {
+          const controller = new AbortController()
+          const pending = transport.call(echo, controller.signal)
+          await handle.reached
+          controller.abort()
           assert.deepStrictEqual(await pending, {
             failure: { kind: 'not-sent', cause: 'connection-unavailable' },
           })

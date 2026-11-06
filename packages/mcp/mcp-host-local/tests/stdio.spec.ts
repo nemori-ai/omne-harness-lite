@@ -231,6 +231,28 @@ describe('a peer that does not read stdin (T5)', () => {
     expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
     await peer.close()
   })
+
+  it('small calls that departed sit in the buffer to a peer that does not read stdin: close() returns within the bound, before the process stops', async () => {
+    const spawned = spawnHandle([SPECIAL, 'deaf'])
+    try {
+      const transport = await open(materialOf(spawned.handle))
+      const stdin = spawned.child.stdin
+      if (stdin === null) throw new Error('the child has no stdin')
+      // 4 KB calls: the pipe takes 64 KiB before a write must wait; the first one Node keeps in
+      // its own buffer is still accepted (below the 16 KiB high-water mark), so the call departs.
+      let calls = 0
+      for (; calls < 200 && stdin.writableLength === 0; calls += 1) {
+        const sent = await settledWithin(transport.call(echo('x'.repeat(4000)), never))
+        expect(sent, `call ${calls + 1}`).not.toBe('pending')
+        if (sent === 'pending') return
+      }
+      expect(stdin.writableLength).toBeGreaterThan(0)
+      expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
+      expect(spawned.child.exitCode).toBeNull()
+    } finally {
+      await spawned.handle.stop()
+    }
+  })
 })
 
 describe('cancellation (T5)', () => {

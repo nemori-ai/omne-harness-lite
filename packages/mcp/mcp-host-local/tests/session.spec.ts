@@ -70,9 +70,15 @@ type Gate = (authorization: number) => Promise<void> | undefined
 
 function countingCredential(
   gate?: Gate,
-): HttpCredentialHandle & Readonly<{ rejections(): number; authorizations(): number }> {
+): HttpCredentialHandle &
+  Readonly<{ rejections(): number; authorizations(): number; rejected: Promise<void> }> {
   let rejections = 0
   let authorizations = 0
+  // Resolves on the first `reportRejection`: a case waits for the port to be reached, not for time.
+  let firstRejection = (): void => undefined
+  const rejected = new Promise<void>(resolve => {
+    firstRejection = resolve
+  })
   return {
     purpose: 'http-authorization',
     async authorize(headers) {
@@ -83,10 +89,12 @@ function countingCredential(
     },
     async reportRejection() {
       rejections += 1
+      firstRejection()
     },
     async release() {},
     rejections: () => rejections,
     authorizations: () => authorizations,
+    rejected,
   }
 }
 
@@ -1261,12 +1269,27 @@ describe('closing and the credential handle (T5, T9)', () => {
  * connection that entered the SSE fallback, `discover()` asks for five: the probe, `initialize`,
  * the fallback GET, `initialize` again, and `notifications/initialized`; a `call` is the sixth.
  */
-function holdAfter(free: number): Readonly<{ gate: Gate; release: () => void }> {
+function holdAfter(
+  free: number,
+): Readonly<{ gate: Gate; release: () => void; reached: Promise<void> }> {
   let release = (): void => undefined
   const open = new Promise<void>(resolve => {
     release = resolve
   })
-  return { gate: authorization => (authorization > free ? open : undefined), release }
+  // Resolves once the first held authorization arrived: the port was reached, not a timer.
+  let arrived = (): void => undefined
+  const reached = new Promise<void>(resolve => {
+    arrived = resolve
+  })
+  return {
+    gate: authorization => {
+      if (authorization <= free) return undefined
+      arrived()
+      return open
+    },
+    release,
+    reached,
+  }
 }
 
 describe('what the signal of a call and close() end (T5)', () => {
@@ -1829,6 +1852,243 @@ describe('cancelling a request, and the probe timer (T3, T5)', () => {
     await untilSent(line, 'tools/call')
     expect(timers).toHaveLength(1)
     await transport.cancelRequest(sent.requestId)
+    await transport.close()
+  })
+})
+
+/** A promise and the function that resolves it. */
+function deferred<T = void>(): Readonly<{ promise: Promise<T>; resolve: (value: T) => void }> {
+  const { promise, resolve } = Promise.withResolvers<T>()
+  return { promise, resolve }
+}
+
+describe('the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode)', () => {
+  const sseScripts: Script = {
+    'server/discover': [METHOD_NOT_FOUND],
+    initialize: [status(404, '<html>not found</html>'), LEGACY],
+    'tools/call': [{ kind: 'silent' }],
+  }
+
+  it('a request still being authorized when the session ended (S07) is not-sent and never reaches the line', async () => {
+    // The legacy path authorizes the probe, `initialize` and `notifications/initialized`; the
+    // listing is the fourth authorization; the call, the fifth, is held until the 404 came back.
+    const held = holdAfter(4)
+    const { line, transport } = open(
+      'streamable-http',
+      {
+        ...SESSION_SCRIPT,
+        'tools/list': [status(404, 'gone')],
+        'tools/call': [{ kind: 'silent' }],
+      },
+      { gate: held.gate },
+    )
+    ok(await transport.discover(), 'discover')
+    const listing = transport.listActions()
+    const calling = transport.call(echo, never)
+    await held.reached
+    expect(await listing).toEqual({ failure: { kind: 'not-sent', cause: 'session-ended' } })
+    held.release()
+    expect(await settledWithin(calling)).toEqual({ settled: { failure: NOT_SENT } })
+    expect(line.requests('tools/call')).toEqual([])
+    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    await transport.close()
+  })
+
+  it('the process exiting settles a request still being authorized with not-sent, and never sends it', async () => {
+    const held = holdAfter(5)
+    const { line, transport } = open('streamable-http', sseScripts, {
+      sse: { kind: 'entered' },
+      gate: held.gate,
+    })
+    ok(await transport.discover(), 'discover')
+    const calling = transport.call(echo, never)
+    await held.reached
+    // The session settles by the event, whichever line reported it.
+    line.queue.push({ kind: 'ended', stdoutEndedAt: 0, exitedAt: 0 })
+    await tick()
+    held.release()
+    expect(await settledWithin(calling)).toEqual({ settled: { failure: NOT_SENT } })
+    expect(line.requests('tools/call')).toEqual([])
+    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    await transport.close()
+  })
+
+  it('a request in the authorization discovery is not settled by the shared stream breaking: it ends authorization-required when the discovery ends', async () => {
+    const root = 'https://peer.test/.well-known/oauth-protected-resource'
+    const fetching = deferred<string>()
+    const found = deferred<PlainJson | undefined>()
+    const { line, transport, credential } = open(
+      'streamable-http',
+      { ...sseScripts, 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer' })] },
+      {
+        sse: { kind: 'entered' },
+        fetchMetadata: url => {
+          fetching.resolve(url)
+          return found.promise.then(document =>
+            document === undefined ? undefined : jsonOf(document),
+          )
+        },
+      },
+    )
+    ok(await transport.discover(), 'discover')
+    const listing = transport.listActions()
+    await credential.rejected
+    await fetching.promise
+    line.queue.push({ kind: 'broken' })
+    await tick()
+    found.resolve({ authorization_servers: ['https://issuer.test'] })
+    expect(await settledWithin(listing)).toMatchObject({
+      settled: {
+        failure: {
+          kind: 'not-sent',
+          cause: 'authorization-required',
+          discovery: { metadata: 'fetched', issuers: ['https://issuer.test'] },
+        },
+      },
+    })
+    expect(credential.rejections()).toBe(1)
+    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
+    void root
+  })
+})
+
+describe('an answer on the shared stream reaches a request only once it was handed to the line (T5: the first event decides)', () => {
+  const sseScripts: Script = {
+    'server/discover': [METHOD_NOT_FOUND],
+    initialize: [status(404, '<html>not found</html>'), LEGACY],
+  }
+
+  it('an answer for a request number that was not written yet does not settle it: the request goes out and waits for its own answer', async () => {
+    const held = holdAfter(5)
+    const { line, transport } = open(
+      'streamable-http',
+      { ...sseScripts, 'tools/call': [{ kind: 'silent' }] },
+      { sse: { kind: 'entered' }, gate: held.gate },
+    )
+    ok(await transport.discover(), 'discover')
+    const calling = transport.call(echo, never)
+    await held.reached
+    // The ids are predictable: the probe, two `initialize`s, then this call: `r4`.
+    line.push({ jsonrpc: '2.0', id: 'r4', result: { content: [] } })
+    await tick()
+    held.release()
+    await untilSent(line, 'tools/call')
+    const sent = ok(await calling, 'call')
+    expect(sent.requestId).toBe('r4')
+    expect(line.requests('tools/call')).toHaveLength(1)
+    line.push({ jsonrpc: '2.0', id: 'r4', result: { content: [{ type: 'text', text: 'late' }] } })
+    expect(await settledWithin(sent.answer)).toEqual({
+      settled: { kind: 'result', result: jsonOf({ content: [{ type: 'text', text: 'late' }] }) },
+    })
+    await transport.close()
+  })
+
+  it('a request refused with 401 keeps that conclusion when the shared stream later carries an answer with its id', async () => {
+    const fetching = deferred<string>()
+    const found = deferred<undefined>()
+    const { line, transport, credential } = open(
+      'streamable-http',
+      { ...sseScripts, 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer' })] },
+      {
+        sse: { kind: 'entered' },
+        fetchMetadata: url => {
+          fetching.resolve(url)
+          return found.promise
+        },
+      },
+    )
+    ok(await transport.discover(), 'discover')
+    const listing = transport.listActions()
+    await credential.rejected
+    await fetching.promise
+    const id = line.requests('tools/list')[0]?.message['id']
+    line.push({ jsonrpc: '2.0', id: id ?? null, result: { tools: [] } })
+    await tick()
+    found.resolve(undefined)
+    expect(await settledWithin(listing)).toMatchObject({
+      settled: { failure: { kind: 'not-sent', cause: 'authorization-required' } },
+    })
+    expect(credential.rejections()).toBe(1)
+    await transport.close()
+  })
+})
+
+describe('the metadata fetch of a refused authorization (R4, T9)', () => {
+  const path = 'https://peer.test/.well-known/oauth-protected-resource/mcp'
+  const root = 'https://peer.test/.well-known/oauth-protected-resource'
+  const refused: Script = {
+    'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })],
+  }
+
+  it('a fetch that throws at one address counts as nothing fetched there; the next address is tried', async () => {
+    const fetched: string[] = []
+    const { transport } = open('streamable-http', refused, {
+      fetchMetadata: url => {
+        fetched.push(url)
+        if (url === path) throw new Error('the fetch port broke')
+        return Promise.resolve(jsonOf({ authorization_servers: ['https://issuer.test'] }))
+      },
+    })
+    expect(await settledWithin(transport.listActions())).toMatchObject({
+      settled: {
+        failure: {
+          kind: 'not-sent',
+          cause: 'authorization-required',
+          discovery: {
+            resourceMetadataUrl: root,
+            metadata: 'fetched',
+            issuers: ['https://issuer.test'],
+          },
+        },
+      },
+    })
+    expect(fetched).toEqual([path, root])
+    await transport.close()
+  })
+
+  it("no fetch starts after the call's signal fired; the one in flight is let go and its result dropped", async () => {
+    const fetched: string[] = []
+    const started = deferred()
+    const ended = deferred()
+    const { transport } = open(
+      'streamable-http',
+      { 'tools/call': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
+      {
+        fetchMetadata: (url, signal) => {
+          fetched.push(url)
+          started.resolve()
+          // A fetch that honours the abort late: it answers after the signal, with a document.
+          return new Promise(resolve => {
+            signal.addEventListener(
+              'abort',
+              () =>
+                setTimeout(() => {
+                  resolve(jsonOf({ authorization_servers: ['https://late.test'] }))
+                  ended.resolve()
+                }, 10),
+              { once: true },
+            )
+          })
+        },
+      },
+    )
+    const controller = new AbortController()
+    const calling = transport.call(echo, controller.signal)
+    await started.promise
+    controller.abort()
+    expect(await settledWithin(calling)).toMatchObject({
+      settled: {
+        failure: {
+          kind: 'not-sent',
+          cause: 'authorization-required',
+          discovery: { metadata: 'unavailable', issuers: [] },
+        },
+      },
+    })
+    await ended.promise
+    await tick()
+    expect(fetched).toEqual([path])
     await transport.close()
   })
 })
