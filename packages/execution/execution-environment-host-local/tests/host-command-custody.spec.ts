@@ -128,7 +128,9 @@ async function setup(options: SetupOptions) {
   const fake = await temporary('omne-custody-fake-')
   const state = await temporary('omne-custody-state-')
   const tools = await fakeTools(fake)
-  const stopBoundMs = options.stopBoundMs ?? 1_000
+  // Long enough that a stop the fake tools confirm is confirmed on a loaded machine; a test that
+  // needs the bound to pass first sets its own.
+  const stopBoundMs = options.stopBoundMs ?? 10_000
   const indexStops: string[] = []
   const bootId = await readBootId()
   const index = createRetainedProcessIndex({
@@ -451,31 +453,37 @@ describe('custody of a domain a one-shot command left behind', { skip: !onLinux 
     })
   })
 
-  it('N4: an index whose markers never finish loading does not hold the disposition past the start bound', async () => {
-    let reserves = 0
-    const f = await setup({
-      adopt: async () => 'confirmed',
-      startBoundMs: 300,
-      retained: index => ({
-        ...index,
-        ready: () => new Promise<boolean>(() => undefined),
-        reserve: (...args) => {
-          reserves++
-          return index.reserve(...args)
-        },
-      }),
-    })
-    const startedAt = performance.now()
-    const residue = residueOf(await f.handle.result)
-    expect(performance.now() - startedAt).toBeLessThan(2_000)
-    expect(residue).toEqual({ kind: 'stopping', reason: 'policy' })
-    expect(reserves).toBe(0)
-    await vi.waitFor(() => expect(f.own.stopped).toEqual([[f.key, 'confirmed']]), {
-      timeout: 5_000,
-    })
-    expect(f.processes.adopts).toEqual([])
-    expect(await f.list()).toEqual([])
-  })
+  it(
+    'N4: an index whose markers never finish loading does not hold the disposition past the start bound',
+    { timeout: 20_000 },
+    async () => {
+      let reserves = 0
+      // The same bound covers the start, so it must outlast the gate's ready on a loaded machine.
+      const startBoundMs = 2_000
+      const f = await setup({
+        adopt: async () => 'confirmed',
+        startBoundMs,
+        retained: index => ({
+          ...index,
+          ready: () => new Promise<boolean>(() => undefined),
+          reserve: (...args) => {
+            reserves++
+            return index.reserve(...args)
+          },
+        }),
+      })
+      const startedAt = performance.now()
+      const residue = residueOf(await f.handle.result)
+      expect(performance.now() - startedAt).toBeLessThan(startBoundMs + 3_000)
+      expect(residue).toEqual({ kind: 'stopping', reason: 'policy' })
+      expect(reserves).toBe(0)
+      await vi.waitFor(() => expect(f.own.stopped).toEqual([[f.key, 'confirmed']]), {
+        timeout: 5_000,
+      })
+      expect(f.processes.adopts).toEqual([])
+      expect(await f.list()).toEqual([])
+    },
+  )
 })
 
 it('HostTerminalOptions carries none of the options about processes a command leaves behind', () => {

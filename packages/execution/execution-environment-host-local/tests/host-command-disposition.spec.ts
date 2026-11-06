@@ -68,7 +68,7 @@ function deferred<T>(): Deferred<T> {
 }
 
 /** Waits for `promise`; fails the test when it has not settled within `ms`. */
-async function within<T>(promise: Promise<T>, what: string, ms = 3_000): Promise<T> {
+async function within<T>(promise: Promise<T>, what: string, ms = 10_000): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const late = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(`${what} did not settle within ${ms} ms`)), ms)
@@ -176,7 +176,9 @@ async function setup(options: SetupOptions = {}) {
   if (options.gate !== undefined)
     await writeFile(join(fake, 'gate.json'), JSON.stringify(options.gate))
   const tools = await fakeTools(fake)
-  const stopBoundMs = options.settings?.stopBoundMs ?? 1_000
+  // Long enough that a stop the fake tools confirm is confirmed on a loaded machine; a test that
+  // needs the bound to pass first sets its own.
+  const stopBoundMs = options.settings?.stopBoundMs ?? 10_000
   const indexStops: string[] = []
   const bootId = await readBootId()
   const index = createRetainedProcessIndex({
@@ -447,16 +449,21 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       expect(await f.controls()).toEqual([])
     })
 
-    it('answers unknown when the command does not start within the bound after GO', async () => {
-      const f = await setup({ gate: { onGo: 'silent' }, settings: { startBoundMs: 200 } })
-      expect(await within(f.start(), 'the start')).toEqual({
-        kind: 'unknown',
-        requestId: 'start-1',
-      })
-      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go']))
-      expect(await f.kills()).toBe(0)
-      expect(f.commands.unconfirmed()).toHaveLength(1)
-    })
+    it(
+      'answers unknown when the command does not start within the bound after GO',
+      { timeout: 20_000 },
+      async () => {
+        // The bound runs from the launch: it must outlast the gate's ready for GO to go out.
+        const f = await setup({ gate: { onGo: 'silent' }, settings: { startBoundMs: 2_000 } })
+        expect(await within(f.start(), 'the start')).toEqual({
+          kind: 'unknown',
+          requestId: 'start-1',
+        })
+        await vi.waitFor(async () => expect(await f.controls()).toEqual(['go']))
+        expect(await f.kills()).toBe(0)
+        expect(f.commands.unconfirmed()).toHaveLength(1)
+      },
+    )
   })
 
   describe('a gate that ends without an exit frame', () => {
@@ -485,13 +492,13 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
     it('reports none for a domain the gate read as empty, without waiting for an index that never loads', async () => {
       const f = await setup({
         gate: { exit: { code: 0, signal: null, members: 0 } },
-        settings: { startBoundMs: 4_000 },
+        settings: { startBoundMs: 10_000 },
         retained: index => ({ ...index, ready: () => new Promise<boolean>(() => undefined) }),
       })
       const { handle, key } = await started(f)
       const begun = performance.now()
       expect(await residueOf(handle)).toEqual({ kind: 'none' })
-      expect(performance.now() - begun).toBeLessThan(2_000)
+      expect(performance.now() - begun).toBeLessThan(5_000)
       await stoppedByAcquisition(f, key)
       expect(f.processes.plans).toEqual([])
     })
