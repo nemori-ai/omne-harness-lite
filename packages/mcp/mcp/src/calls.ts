@@ -162,11 +162,12 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
 
   /**
    * A wait of the send order under the call's stop signal and the table's shutdown (MC-16 steps
-   * 2 and 3), both read before the wait and again after it. A stop that fired starts nothing,
-   * ends the wait when it fires first (the work goes on in the table's scope), and drops an
-   * answer that arrived with it: all three are `stopped`. A shutdown that began is S8's refusal,
-   * `connection-unavailable`, and asks no port after it: a call in flight at `closeAll` answers
-   * as one that started after it.
+   * 2 and 3), both read before the wait: a stop that fired starts nothing, and one that fires
+   * first ends the wait (the work goes on in the table's scope), both `stopped`; a shutdown that
+   * began is S8's refusal, `connection-unavailable`, and asks no port after it, so a call in
+   * flight at `closeAll` answers as one that started after it. An answer that arrived together
+   * with a stop or a shutdown is read by the next decision: the next wait, the send (step 8), or
+   * the answer of `perform`.
    */
   async function under<T>(
     stop: AbortSignal,
@@ -175,10 +176,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     if (stop.aborted) return STOPPED
     if (table.isShut()) return fail(CONNECTION_UNAVAILABLE)
     const waited = await within(work(), stop, scope)
-    // An expired wait has a fired stop; the first test keeps the type of `waited` honest.
-    if (waited.kind === 'expired' || stop.aborted) return STOPPED
-    if (table.isShut()) return fail(CONNECTION_UNAVAILABLE)
-    return waited.value
+    return waited.kind === 'expired' ? STOPPED : waited.value
   }
 
   /**
@@ -321,9 +319,11 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     if (prepared === STOPPED) return STOPPED
     if ('failure' in prepared) return notSent(prepared.failure)
     const { ensured, known } = prepared.ok
-    // Step 8: the last look at the stop signal, in the same synchronous run as the send: a stop
-    // that fired by now keeps the call off the transport.
+    // Step 8: the last look at the stop signal and the shutdown, in the same synchronous run as
+    // the send: a stop that fired by now keeps the call off the transport, and so does a
+    // shutdown that began since the last wait answered (P13).
     if (stop.aborted) return STOPPED
+    if (table.isShut()) return notSent(CONNECTION_UNAVAILABLE)
     const called = await ask<Outcome<SentCall, NotSent> | CallBreached>(
       () => ensured.transport.call(callRequestOf(send), stop, observerOf(send.request.observe)),
       CALL_BREACHED,
@@ -335,7 +335,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     }
     if ('failure' in called) {
       loseUnlessStopReply(ensured, called.failure, stop)
-      return stop.aborted ? STOPPED : notSent(connectionFailureOf(called.failure))
+      return notSent(connectionFailureOf(called.failure))
     }
     place.sent(ensured.connection, ensured.generation)
     return answerOf({ send, key, stop, ensured, known, call: called.ok })
@@ -344,8 +344,10 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
   /**
    * The one owner of a call (MC-16): the reservation hands out the stop signal; the send order
    * runs under it; and the place is concluded once, in one `finally`, by the phase the table
-   * recorded. A call not sent whose stop signal fired is `cancelled`, whatever the step it fired
-   * in refused (S2): `stopped` becomes `cancelled` here and nowhere else.
+   * recorded. A call not sent whose stop signal fired by the time it answers is `cancelled`,
+   * whatever the step it fired in refused (S2): decided here and nowhere else, in the same
+   * synchronous run as the conclusion, so a `cancel` that answered `signalled` makes the call
+   * answer `cancelled`.
    */
   async function perform(send: Send, access: Access<P>): Promise<InvokeResult> {
     checkRequest(send)
@@ -354,7 +356,8 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     if (place === 'in-use') return notSent(CORRELATION_KEY_IN_USE)
     try {
       const result = await sendOrder(send, access, key, place)
-      return result === STOPPED ? notSent(CANCELLED) : result
+      const stopped = result === STOPPED || (result.kind === 'not-sent' && place.stop.aborted)
+      return stopped ? notSent(CANCELLED) : result
     } finally {
       place.conclude()
     }

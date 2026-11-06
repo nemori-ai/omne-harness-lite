@@ -175,6 +175,20 @@ describe('continueWithInput (SPEC S2)', () => {
     expect(c.p.requests('tools/call')).toHaveLength(1)
   })
 
+  it('with the input responses alone is lawful too: the continuation carries no request state', async () => {
+    const c = await arranged()
+    const issuedAt = await asked(c, c.digest)
+    expect(
+      await c.invoker.continueWithInput(
+        alice,
+        continuation(issuedAt, { inputResponses: { q: 'a' } }),
+      ),
+    ).toMatchObject({ kind: 'sent', outcome: { kind: 'complete' } })
+    const second = c.p.requests('tools/call')[1]
+    expect(second?.params).toMatchObject({ name: 'read', inputResponses: { q: 'a' } })
+    expect(second?.params).not.toHaveProperty('requestState')
+  })
+
   it('with the request state alone is lawful: the continuation carries no input responses', async () => {
     const c = await arranged()
     const issuedAt = await asked(c, c.digest)

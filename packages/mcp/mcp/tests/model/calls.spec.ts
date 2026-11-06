@@ -18,6 +18,7 @@ import {
   FOREIGN_TASK,
   TASK,
   TASK_ACCOUNT,
+  TASK_COLLISION,
   TASK_METHODS_ALL,
 } from './scenarios.ts'
 
@@ -84,5 +85,11 @@ describe('foreign-task: another principal of the tenant queries the task alice s
 describe('task-account: a task operation never reuses the connection of another peer account', () => {
   it('P1–P14 hold, P12 above all', { tags: ['slow'], timeout: EXPLORE_MS }, () =>
     holds(TASK_ACCOUNT),
+  )
+})
+
+describe('task-collision: the peer gives the task id again on another peer account of the same principal', () => {
+  it('P1–P14 hold, P12 above all', { tags: ['slow'], timeout: EXPLORE_MS }, () =>
+    holds(TASK_COLLISION),
   )
 })

@@ -264,9 +264,12 @@ CallStep(i) ==
                      IF s.shut /\ "send-after-shut" \notin Bugs THEN s' = Refused(x1, i)
                      ELSE \E y \in Ask(x1, i, "gate", 0, "gateW") : s' = y
           [] f.pc = "gateW" ->
-             (* `under(stop, gate)`: the stop first answers `cancelled`; the gate goes on. *)
+             (* `under(stop, gate)`: the stop first answers `cancelled`; the gate goes on. The  *)
+             (* shutdown is read again after the wait (S8): a call in flight at `closeAll`    *)
+             (* answers as one that started after it, and asks `ensure` nothing.             *)
              IF StopEnds(i) THEN s' = Cancelled(s, i)
              ELSE IF ans # "ok" THEN s' = Refused(s, i)
+             ELSE IF s.shut /\ "send-after-shut" \notin Bugs THEN s' = Refused(s, i)
              ELSE IF f.kind = "continue"
                      /\ (s.conn[k].st # "ready" \/ s.conn[k].gen # f.issued)
              THEN s' = Refused(s, i)
@@ -326,7 +329,9 @@ TaskStep(i) ==
                         ELSE IF s.shut THEN s' = Done(x1, i, "no-connection")
                         ELSE \E y \in Ask(x1, i, "gate", 0, "tgateW") : s' = y
           [] f.pc = "tgateW" ->
+             (* The shutdown read again after the gate's wait (S8, MC-17 step 3): nothing built. *)
              IF ans # "ok" THEN s' = Done(s, i, IF ans = "reject" THEN "unknown" ELSE "no-connection")
+             ELSE IF s.shut THEN s' = Done(s, i, "no-connection")
              ELSE IF Account(k) # f.rec.account THEN s' = Done(s, i, "no-connection")
              ELSE \E y \in Ask(s, i, "ensure", 0, "tensW") : s' = y
           [] f.pc = "tensW" ->

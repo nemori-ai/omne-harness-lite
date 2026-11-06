@@ -27,6 +27,7 @@ import {
   type PeerScript,
 } from '@omne-harness/mcp-contract/testing'
 import { loseOn } from '../src/internal/lost.ts'
+import type { CallRequest } from '@omne-harness/mcp-contract/provider'
 import type { TableRuntime } from '../src/internal/table.ts'
 import { only } from './doubles/calls.ts'
 import { manualBounds } from './doubles/bounds.ts'
@@ -207,6 +208,80 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(
       await c.invoker.invoke(alice, request(digest, { connectBound: millisOf(1_000) })),
     ).toEqual(NOT_SENT({ kind: 'config-invalid', item: 'connect-timeout' }))
+  })
+
+  it('step 3: at whichever microtask closeAll lands, the transport is not called after it: a shutdown between the last wait and the send is read before the send', async () => {
+    const LIMIT = 400
+    let sentBefore = false
+    for (let k = 0; k < LIMIT && !sentBefore; k += 1) {
+      let shut = false
+      const afterShut: boolean[] = []
+      const c = arrange(
+        {},
+        {
+          shape: p => ({
+            transports: reshapedTransports(p.ports.transports, transport => ({
+              call(request, signal, observe) {
+                afterShut.push(shut)
+                return transport.call(request, signal, observe)
+              },
+            })),
+          }),
+        },
+      )
+      const digest = await published(c)
+      const call = c.invoker.invoke(alice, request(digest))
+      for (let i = 0; i < k; i += 1) await Promise.resolve()
+      shut = true
+      const closing = c.connections.closeAll()
+      const result = await call
+      await closing
+      expect(afterShut, `k=${k}: transport.call entered after closeAll`).not.toContain(true)
+      if (result.kind === 'not-sent')
+        expect(result.reason, `k=${k}`).toEqual({ kind: 'connection-unavailable' })
+      sentBefore = afterShut.includes(false)
+    }
+    expect(sentBefore).toBe(true)
+  })
+
+  it('step 4 and 7: the request connectBound stands in for a missing connect-timeout, and bounds the build: without it the call is not sent (config-missing), with 1 ms a landing that does not answer is connection-unavailable at that bound', async () => {
+    let stalled: ReturnType<typeof stallingLanding> | undefined
+    const c = arrange(
+      {},
+      { adopt: 'none', shape: p => ({ landing: (stalled = stallingLanding(p.landing)).port }) },
+    )
+    if (stalled === undefined) throw new Error('not shaped')
+    adoptStdio(c.p, files, { settings: { connectTimeout: ABSENT } })
+    const digest = digestOf(await storedRecord(c.p, anonymousKey, ['read']))
+    expect(await c.invoker.invoke(alice, request(digest))).toEqual(
+      NOT_SENT({ kind: 'config-missing', item: 'connect-timeout' }),
+    )
+    expect(stalled.calls()).toBe(0)
+    expect(await c.invoker.invoke(alice, request(digest, { connectBound: millisOf(1) }))).toEqual(
+      CONNECTION_UNAVAILABLE,
+    )
+    expect(stalled.calls()).toBe(1)
+    stalled.gate.resolve()
+  })
+
+  it('step 9: a first call carries no continuation on the wire; the transport gets the action and the arguments only', async () => {
+    const requests: CallRequest[] = []
+    const c = arrange(
+      {},
+      {
+        shape: p => ({
+          transports: reshapedTransports(p.ports.transports, transport => ({
+            call(request, signal, observe) {
+              requests.push(request)
+              return transport.call(request, signal, observe)
+            },
+          })),
+        }),
+      },
+    )
+    const digest = await published(c)
+    expect(await c.invoker.invoke(alice, request(digest))).toMatchObject({ kind: 'sent' })
+    expect(requests).toEqual([{ action: READ, args: jsonOf({}) }])
   })
 
   it('step 4: a missing credential of an authenticated endpoint is credential-unavailable (missing), K1', async () => {
@@ -475,7 +550,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
 })
 
 describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
-  it('complete: the content through toContentBlocks, no schema means no-schema and no validator call', async () => {
+  it('step 12: complete: the content through toContentBlocks, no schema means no-schema and no validator call', async () => {
     const c = arrange()
     const digest = await published(c)
     expect(await c.invoker.invoke(alice, request(digest))).toEqual({
@@ -490,7 +565,7 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
     expect(await c.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
   })
 
-  it('complete with a declared output schema: the validator is called once with structured content, not called without it', async () => {
+  it('step 12: complete with a declared output schema: the validator is called once with structured content, not called without it', async () => {
     const schema = { type: 'object' }
     const withStructured = arrange({
       listing: { '': listing([{ name: 'read', outputSchema: schema }]) },
@@ -513,7 +588,7 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
     expect(without.p.checks.calls()).toBe(0)
   })
 
-  it('toolError: the action failed; no validator call even with a schema', async () => {
+  it('step 12: toolError: the action failed; no validator call even with a schema', async () => {
     const c = arrange({
       listing: { '': listing([{ name: 'read', outputSchema: { type: 'object' } }]) },
       calls: { read: completed([text('no')], { isError: true, structuredContent: { e: 1 } }) },
@@ -530,7 +605,7 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
     expect(c.p.checks.calls()).toBe(0)
   })
 
-  it('inputRequired carries the requests, the state and the generation it was issued at', async () => {
+  it('step 12: inputRequired carries the requests, the state and the generation it was issued at', async () => {
     const c = arrange({
       calls: {
         read: {
@@ -551,7 +626,7 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
     })
   })
 
-  it('task carries the task id, the generation and the hints', async () => {
+  it('step 12: task carries the task id, the generation and the hints', async () => {
     const c = arrange({ calls: { read: taskHandle('t1', { pollIntervalMs: 500 }) } })
     const digest = await published(c)
     expect(await c.invoker.invoke(alice, request(digest))).toEqual({
@@ -560,7 +635,7 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
     })
   })
 
-  it('protocolError: a JSON-RPC error of the peer as it is', async () => {
+  it('step 12: protocolError: a JSON-RPC error of the peer as it is', async () => {
     const c = arrange({
       calls: { read: { kind: 'error', error: { code: -32602, message: 'bad' } } },
     })
@@ -667,7 +742,7 @@ describe('the call keeps its one exit whatever the peer or the host does (SPEC M
     throw new Error('schema engine: unsupported keyword')
   }
 
-  it('a checkOutput that throws is absorbed: the call answers sent with violates (output-check-failed), the key is free again, and a task that follows is recorded', async () => {
+  it('step 13: a checkOutput that throws is absorbed: the call answers sent with violates (output-check-failed), the key is free again, and a task that follows is recorded', async () => {
     const c = arrange(
       {
         listing: { '': listing([{ name: 'read', outputSchema: { type: 'object' } }]) },
@@ -702,7 +777,7 @@ describe('the call keeps its one exit whatever the peer or the host does (SPEC M
     expect(await state(c)).toEqual({ kind: 'ready' })
   })
 
-  it('a call that breaches its contract (T9) is sent with an unknown effect: unknown (abandoned), no cancel, the key has ended and is free again', async () => {
+  it('step 13: a call that breaches its contract (T9) is sent with an unknown effect: unknown (abandoned), no cancel, the key has ended and is free again', async () => {
     const base = peer({ listing: { '': TOOLS }, calls: { read: { kind: 'silent' } } })
     adoptStdio(base, files)
     let breached = 0
@@ -731,7 +806,7 @@ describe('the call keeps its one exit whatever the peer or the host does (SPEC M
     expect(await next).toEqual({ kind: 'sent', outcome: { kind: 'unknown', cause: 'abandoned' } })
   })
 
-  it('a call sent on one generation, whose connection is lost and rebuilt before call returns: a later cancel answers unknown and tells no peer (MC-12)', async () => {
+  it('step 13: a call sent on one generation, whose connection is lost and rebuilt before call returns: a later cancel answers unknown and tells no peer (MC-12)', async () => {
     const gate = deferred<void>()
     let calls = 0
     const base = peer({ listing: { '': TOOLS }, calls: { read: { kind: 'silent' } } })

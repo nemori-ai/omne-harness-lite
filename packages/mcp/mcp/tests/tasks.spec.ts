@@ -22,7 +22,7 @@ import { only } from './doubles/calls.ts'
 import { settled } from './doubles/deferred.ts'
 import { alice, aliceAway, bob, mallory, type Principal } from './doubles/identities.ts'
 import { listing, peer, services, taskHandle, taskStatus, text, type Peer } from './doubles/peer.ts'
-import { armedEligibility, stallingLanding } from './doubles/stalls.ts'
+import { adoptionBefore, armedEligibility, stallingLanding } from './doubles/stalls.ts'
 import { reshapedTransports } from './doubles/transports.ts'
 import { MAIN, adoptHttp, adoptStdio, storedRecord } from './doubles/world.ts'
 
@@ -444,6 +444,40 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
     await closing
     expect(c.p.requests('tasks/get')).toHaveLength(0)
   })
+
+  it.each([
+    [
+      'cannot be read again: unknown',
+      (_p: Peer) => {
+        throw new Error('adoption unreadable')
+      },
+      UNKNOWN,
+    ],
+    [
+      'is withdrawn by then: effect-unknown (no-connection)',
+      (p: Peer) => p.adoption.withdraw(alice.tenant, files),
+      NO_CONNECTION,
+    ],
+  ] as const)(
+    'the adoption passed the gate but, read again before the build, %s; nothing is built',
+    async (_name, change, failure) => {
+      // The gate reads the adoption once; the critical section reads it again before the build
+      // (MC-5). The change lands between the two reads of the one query.
+      let readAgain = Number.POSITIVE_INFINITY
+      const c = await started(undefined, {}, undefined, p => ({
+        ports: {
+          adoption: adoptionBefore(p.adoption, call => {
+            if (call === readAgain) change(p)
+          }),
+        },
+      }))
+      await c.connections.release(alice, files)
+      readAgain = c.p.adoption.calls() + 2
+      expect(await c.invoker.queryTask(alice, task)).toEqual(failure)
+      expect(c.p.opens()).toBe(1)
+      expect(c.p.requests('tasks/get')).toHaveLength(0)
+    },
+  )
 
   it('a task request the transport could not send is the connection failure, and the connection is lost (S7)', async () => {
     const c = await started({ get: { kind: 'unsent' } })

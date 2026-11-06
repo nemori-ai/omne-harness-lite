@@ -203,6 +203,29 @@ describe('a cancel after the send (SPEC S2, MC-16 step 11)', () => {
     })
   })
 
+  it('that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: only connection-unavailable is the reply to a fired signal (T5)', async () => {
+    const hold = holdingAt('before')
+    const base = await arranged(completed([text('hi')]), { callGate: hold.callGate })
+    // The scripted transport answers a fired signal with connection-unavailable (T5); this one
+    // reports an ended legacy session instead, which no fired signal explains.
+    const transports = reshapedTransports(base.p.ports.transports, transport => ({
+      async call(request, signal, observe) {
+        await transport.call(request, signal, observe)
+        return { failure: { kind: 'not-sent', cause: 'session-ended' } }
+      },
+    }))
+    const { services: s } = services({ ...base.p, ports: { ...base.p.ports, transports } })
+    const call = s.invoker.invoke(alice, request(base.digest))
+    await hold.reached
+    expect(await s.invoker.cancel(alice, c1)).toBe('signalled')
+    hold.release()
+    expect(await call).toEqual({ kind: 'not-sent', reason: { kind: 'cancelled' } })
+    expect(base.p.cancels()).toBe(0)
+    expect(await s.status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'lost', reason: 'session-ended' } },
+    })
+  })
+
   it('with the caller abort too tells the peer once only', async () => {
     const hold = holdingAt('after')
     const { p, digest } = await arranged({ kind: 'silent' }, { callGate: hold.callGate })
@@ -276,6 +299,37 @@ describe('one stop signal from the reservation on (SPEC S2, MC-16 step 2)', () =
     expect(await call).toEqual(CANCELLED)
     expect(p.requests('tools/call')).toHaveLength(0)
     expect(await s.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
+  })
+
+  it('a cancel the call answers signalled, at whichever microtask it lands, makes the call answer cancelled, not the setting defect that refuses it in the same turn', async () => {
+    // No connect-timeout and no connectBound: step 4 refuses with config-missing in the same
+    // synchronous run as the gate's answer. The cancel lands k microtasks after the invoke; one
+    // k falls between the gate's answer and the resumption of the wait, where only the look at
+    // the stop signal after the wait tells the two apart.
+    const LIMIT = 400
+    let concluded = false
+    for (let k = 0; k < LIMIT && !concluded; k += 1) {
+      const p = peer({
+        listing: { '': listing([{ name: 'read' }]) },
+        calls: { read: completed([]) },
+      })
+      adoptStdio(p, files, { settings: { connectTimeout: { kind: 'absent' } } })
+      await storedRecord(p, anonymousKey, ['read'])
+      const { services: s } = services(p)
+      const digest = digestDefinition({ name: READ, definition: jsonOf({ name: 'read' }) })
+      const call = s.invoker.invoke(alice, request(digest))
+      for (let i = 0; i < k; i += 1) await Promise.resolve()
+      const answer = await s.invoker.cancel(alice, c1)
+      const result = await call
+      if (answer === 'signalled') expect(result, `k=${k}`).toEqual(CANCELLED)
+      else
+        expect(result, `k=${k}`).toEqual({
+          kind: 'not-sent',
+          reason: { kind: 'config-missing', item: 'connect-timeout' },
+        })
+      concluded = answer !== 'signalled'
+    }
+    expect(concluded).toBe(true)
   })
 
   it.each(['cancel', 'abort'] as const)(

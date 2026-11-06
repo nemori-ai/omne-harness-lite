@@ -117,7 +117,7 @@ import {
   type TaskMethod,
 } from './ports.ts'
 
-export type KeyName = 'A' | 'B' | 'C' | 'D'
+export type KeyName = 'A' | 'B' | 'C' | 'D' | 'E'
 
 /** The operations of the call port one key's principal may start (SPEC MC-16, MC-17). */
 export type CallBudget = Readonly<{
@@ -136,7 +136,8 @@ export type Scenario = Readonly<{
   name: string
   /**
    * On the same holding and revision: `A`, alice of one tenant; `B`, mallory of another tenant;
-   * `C`, bob of A's tenant with another peer account; `D`, alice's principal text in B's tenant.
+   * `C`, bob of A's tenant with another peer account; `D`, alice's principal text in B's tenant;
+   * `E`, alice of A's tenant on C's peer account (the same principal as A, another connection).
    */
   keys: readonly KeyName[]
   /** `ensure` calls per key, for the keys of `ensurers` (every key when absent). */
@@ -226,16 +227,19 @@ const STREAM_BROKEN: Lost = { reason: 'stream-broken', mark: 'connection-unavail
 const DEFAULT_TASK_METHODS: readonly TaskMethod[] = ['get']
 
 /**
- * The owner of each key. A and B differ in the tenant only; A and C in the peer account only (the
- * credential binding); A and D in the tenant only, with the same principal text. Every key has
- * its own adoption view, so all of them adopt at the same revision and the connection keys differ
- * in nothing else (SPEC P5).
+ * The owner of each key. A and B differ in the tenant and the principal; A and C in the principal
+ * and the peer account (the credential binding); A and D in the tenant only, with the same
+ * principal text; A and E in the peer account only, with the same tenant and principal, so their
+ * calls share one place of the in-flight table and their tasks one key of the task table. Every
+ * key has its own adoption view, so all of them adopt at the same revision and the connection
+ * keys differ in nothing else (SPEC P5).
  */
 const KEY_OWNERS = {
   A: { principal: { id: 'alice' }, tenant: home, credential: 'main' },
   B: { principal: { id: 'mallory' }, tenant: tenantOf('t'), credential: 'main' },
   C: { principal: { id: 'bob' }, tenant: home, credential: 'other' },
   D: { principal: { id: 'alice' }, tenant: tenantOf('t'), credential: 'main' },
+  E: { principal: { id: 'alice' }, tenant: home, credential: 'other' },
 } as const
 
 /** The catalog of one available action, `read`, without an output schema. */

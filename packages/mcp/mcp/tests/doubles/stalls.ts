@@ -187,6 +187,26 @@ export function silentAdoption(
 }
 
 /**
+ * The adoption view whose `endpoint` reads run `before(call)` first (the first read is 1): a case
+ * changes the adoption, or throws so the read breaches, between two reads of one operation, such
+ * as the gate's read and the critical section's read again.
+ */
+export function adoptionBefore(
+  port: AdoptionView<Principal, string>,
+  before: (call: number) => void,
+): AdoptionView<Principal, string> {
+  let count = 0
+  return {
+    endpoints: (access, scope) => port.endpoints(access, scope),
+    async endpoint(access, ref) {
+      count += 1
+      before(count)
+      return port.endpoint(access, ref)
+    },
+  }
+}
+
+/**
  * The adoption view whose `which`-th `endpoint` call asks the port at once but hands the answer
  * over only after `gate`: a read that answered early and is delivered late.
  */

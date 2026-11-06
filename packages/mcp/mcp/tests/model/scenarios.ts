@@ -223,3 +223,37 @@ export const TASK_ACCOUNT: Scenario = {
   deviations: [],
   budget: 0,
 }
+
+/** Alice's call answered with the task `t1`, as a prelude: every port answers in the send order. */
+const A_STARTED_TASK: readonly string[] = [
+  'invoke A',
+  'answer adoption.endpoint:A ok',
+  'answer eligibility.check:A ok',
+  'answer store.read:A ok',
+  'answer adoption.endpoint:A ok',
+  'answer credentials.acquire:A ok',
+  'answer landing.start:A ok',
+  'answer transports.open:pA1 ok',
+  'answer transport.discover:tA1 ok',
+  'answer transport.call:tA1 ok',
+  'answer transport.answer:r1 ok',
+]
+
+/**
+ * The task id given again on another peer account (P12, MC-17 step 1): alice's task `t1` is on
+ * her first account (A); the peer answers `t1` again to her call on another account (E), which
+ * lands on the same key of the task table. Her task operation must not act through E's
+ * connection on a task A started: the key is ambiguous and the operation answers `unknown`.
+ */
+export const TASK_COLLISION: Scenario = {
+  name: 'task-collision',
+  keys: ['A', 'E'],
+  ...NO_LIFECYCLE,
+  prelude: A_STARTED_TASK,
+  // A's one `invoke` is the prelude's; the exploration branches over E's call and A's query.
+  ops: { A: { invokes: 1, tasks: 1 }, E: { invokes: 1 } },
+  peer: 'task',
+  taskMethods: ['get'],
+  deviations: [],
+  budget: 0,
+}
