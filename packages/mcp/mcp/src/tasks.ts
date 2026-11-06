@@ -224,8 +224,7 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
     read: (answer: T, on: OnConnection) => R,
   ): Promise<Outcome<R, OperationFailure>> {
     const record = tasks.get(keyOf(access, task))
-    if (record === undefined || record === 'ambiguous' || record.issuedAt !== task.issuedAt)
-      return fail(UNKNOWN)
+    if (record === undefined || record.issuedAt !== task.issuedAt) return fail(UNKNOWN)
     return outcomeOf(await exchange(access, task, record, send), read)
   }
 

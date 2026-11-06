@@ -255,7 +255,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     ).toEqual(NOT_SENT({ kind: 'config-invalid', item: 'connect-timeout' }))
   })
 
-  it('step 3: at whichever microtask closeAll lands, the transport is not called after it: a shutdown between the last wait and the send is read before the send', async () => {
+  it('step 8: at whichever microtask closeAll lands, the transport is not called after it: a shutdown between the last wait and the send is read before the send', async () => {
     const LIMIT = 400
     let sentBefore = false
     for (let k = 0; k < LIMIT && !sentBefore; k += 1) {
@@ -1015,7 +1015,7 @@ describe('the call keeps its one exit whatever the peer or the host does (SPEC M
     expect(await next).toEqual({ kind: 'sent', outcome: { kind: 'unknown', cause: 'abandoned' } })
   })
 
-  it('step 13: a call sent on one generation, whose connection is lost and rebuilt before call returns: a later cancel answers unknown and tells no peer (MC-12)', async () => {
+  it('step 10: a call sent on one generation, whose connection is lost and rebuilt before call returns: a later cancel answers unknown and tells no peer (MC-12)', async () => {
     const gate = deferred<void>()
     let calls = 0
     const base = peer({ listing: { '': TOOLS }, calls: { read: { kind: 'silent' } } })

@@ -343,14 +343,14 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     )
     if (called === CALL_BREACHED) {
       // T9: a `call` that breached left with an unknown effect; the place is a sent one.
-      place.sent(ensured.connection, ensured.generation)
+      place.recordSent(ensured.connection, ensured.generation)
       return sent(UNKNOWN_ABANDONED)
     }
     if ('failure' in called) {
       loseUnlessStopReply(ensured, called.failure, stop)
       return notSent(connectionFailureOf(called.failure))
     }
-    place.sent(ensured.connection, ensured.generation)
+    place.recordSent(ensured.connection, ensured.generation)
     return answerOf({ send, key, stop, ensured, known, call: called.ok })
   }
 

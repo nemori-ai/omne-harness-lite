@@ -31,7 +31,7 @@ export type Reservation = Readonly<{
    * (MC-16 step 10). A `call` that breached its contract counts as sent (T9). Only a place still
    * reserved records it; after the conclusion it changes nothing.
    */
-  sent(connection: ConnectionView, generation: Generation): void
+  recordSent(connection: ConnectionView, generation: Generation): void
   /**
    * The one conclusion of the call (MC-16 step 13). A sent call has ended. A call not sent has
    * ended when its stop signal fired: the call existed and was cancelled, so a later `cancel`
@@ -75,7 +75,7 @@ export class InFlightCalls {
     this.#cells.set(text, cell)
     return {
       stop,
-      sent: (connection, generation) => {
+      recordSent: (connection, generation) => {
         if (cell.place.phase !== 'reserved') return
         cell.place = { phase: 'sent', generation, connection, stop, cancel }
       },

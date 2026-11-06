@@ -35,11 +35,7 @@ import {
 } from '@omne-harness/mcp-contract/testing'
 import { createCalls } from '../../src/calls.ts'
 import { admit } from '../../src/internal/gate.ts'
-import {
-  InFlightCalls,
-  type InFlightKey,
-  type Reservation as Place,
-} from '../../src/internal/in-flight.ts'
+import { InFlightCalls, type InFlightKey, type Reservation } from '../../src/internal/in-flight.ts'
 import { loseOn, type Lost } from '../../src/internal/lost.ts'
 import type { BoundKind } from '../../src/internal/port.ts'
 import { prepareSettings } from '../../src/internal/settings.ts'
@@ -395,7 +391,7 @@ type Op = {
   cancelRequests: number
 }
 
-type Reservation = {
+type ReservationRecord = {
   readonly text: string
   readonly key: string
   readonly op: string
@@ -451,14 +447,14 @@ class CountedInFlight extends InFlightCalls {
     this.#desk = desk
   }
 
-  override reserve(key: InFlightKey, signal: AbortSignal): Place | 'in-use' {
+  override reserve(key: InFlightKey, signal: AbortSignal): Reservation | 'in-use' {
     const place = super.reserve(key, signal)
     this.#desk.reserved(key, place === 'in-use' ? 'in-use' : 'reserved')
     if (place === 'in-use') return place
     return {
       stop: place.stop,
-      sent: (connection, generation) => {
-        place.sent(connection, generation)
+      recordSent: (connection, generation) => {
+        place.recordSent(connection, generation)
         this.#desk.marked(key)
       },
       conclude: () => {
@@ -486,8 +482,8 @@ class Run implements RunView, CallDesk, ReservationDesk {
   private readonly table: ConnectionTable<Principal>
   private readonly calls_: ReturnType<typeof createCalls<Principal, string>>
   private readonly tasks_: ReturnType<typeof createTasks<Principal, string>>
-  private readonly records: Reservation[] = []
-  private readonly open_ = new Map<string, Reservation>()
+  private readonly records: ReservationRecord[] = []
+  private readonly open_ = new Map<string, ReservationRecord>()
   private calls: PendingCall[] = []
   /** True while the reactions to a late answer run: the calls they make answer late too. */
   private handlingLate = false
@@ -869,7 +865,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
             detail: `${op?.name ?? '?'} reserved the place ${holder.op} holds`,
           },
         ])
-      const record: Reservation = {
+      const record: ReservationRecord = {
         text,
         key: op?.key ?? '?',
         op: op?.name ?? '?',
@@ -926,7 +922,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
   }
 
   /** P11: an operation acts on the place of another operation. */
-  private foreignReservation(record: Reservation, how: string): Found[] {
+  private foreignReservation(record: ReservationRecord, how: string): Found[] {
     const op = this.currentOp()
     if (op === undefined || op.name === record.op) return []
     return [
@@ -938,7 +934,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
     ]
   }
 
-  private closeReservation(record: Reservation): void {
+  private closeReservation(record: ReservationRecord): void {
     record.phase = 'closed'
     record.endings += 1
     this.open_.delete(record.text)

@@ -62,8 +62,10 @@ export type Builder<P> = Readonly<{
 
 /**
  * A loss under way: the connection refuses requests already; `done` ends when the entry is
- * torn down and the catalog marked. A function that answers it does its marking synchronously:
- * one that awaited first could not answer this shape.
+ * torn down and the catalog marked. The shape holds the synchronous part at the level of the
+ * signature only: an `async` function, or one that awaits first, cannot answer it, but a
+ * synchronous one could still defer the marking into `done`. `markLost` marks first, on its first
+ * line; a case that reads the state in the call's own continuation guards it.
  */
 export type Losing = Readonly<{ done: Promise<CatalogMark> }>
 

@@ -54,7 +54,7 @@ function reserved(
 /** A reservation whose call left on a connection of generation 1. */
 function sentOn(calls: InFlightCalls, key: InFlightKey, generation = generationOf(1)) {
   const { place } = reserved(calls, key)
-  place.sent(connectionAt(generation), generation)
+  place.recordSent(connectionAt(generation), generation)
   return place
 }
 
@@ -133,7 +133,7 @@ describe('InFlightCalls.cancel', () => {
     const calls = new InFlightCalls()
     const { place } = reserved(calls, aliceCall)
     const connection = connectionAt(generationOf(3))
-    place.sent(connection, generationOf(3))
+    place.recordSent(connection, generationOf(3))
     connection.current = generationOf(4)
     expect(calls.cancel(aliceCall)).toBe('unknown')
     expect(place.stop.aborted).toBe(false)
@@ -142,7 +142,7 @@ describe('InFlightCalls.cancel', () => {
   it('judges a sent call by the generation it was sent on, not by the generation of the view when it was recorded', () => {
     const calls = new InFlightCalls()
     const { place } = reserved(calls, aliceCall)
-    place.sent(connectionAt(generationOf(2)), generationOf(1))
+    place.recordSent(connectionAt(generationOf(2)), generationOf(1))
     expect(calls.cancel(aliceCall)).toBe('unknown')
     expect(place.stop.aborted).toBe(false)
   })
@@ -190,7 +190,7 @@ describe('Reservation.conclude', () => {
     sentOn(calls, aliceCall).conclude()
     expect(calls.cancel(aliceCall)).toBe('no-call-in-flight')
     const { place, controller } = reserved(calls, bobCall)
-    place.sent(connectionAt(generationOf(1)), generationOf(1))
+    place.recordSent(connectionAt(generationOf(1)), generationOf(1))
     controller.abort()
     place.conclude()
     expect(calls.cancel(bobCall)).toBe('no-call-in-flight')
@@ -216,12 +216,12 @@ describe('Reservation.conclude', () => {
     const { place: ended, controller } = reserved(calls, aliceCall)
     controller.abort()
     ended.conclude()
-    ended.sent(connectionAt(generationOf(1)), generationOf(1))
+    ended.recordSent(connectionAt(generationOf(1)), generationOf(1))
     expect(calls.cancel(aliceCall)).toBe('no-call-in-flight')
     expect(calls.reserve(aliceCall, new AbortController().signal)).not.toBe('in-use')
     const { place: givenBack } = reserved(calls, bobCall)
     givenBack.conclude()
-    givenBack.sent(connectionAt(generationOf(1)), generationOf(1))
+    givenBack.recordSent(connectionAt(generationOf(1)), generationOf(1))
     expect(calls.cancel(bobCall)).toBe('unknown')
   })
 })

@@ -25,7 +25,7 @@ export type TaskRecord = Readonly<{
 }>
 
 /** A key two peer accounts answered the same task id on: no reference of it names one task. */
-export type Ambiguous = 'ambiguous'
+type Ambiguous = 'ambiguous'
 
 function textOf(key: TaskKey): string {
   return JSON.stringify([tenantTextOf(key.tenant), key.principalKey, key.holding, key.taskId])
@@ -47,8 +47,12 @@ export class TaskTable {
     this.#entries.set(text, collides ? 'ambiguous' : task)
   }
 
-  /** The record of a task by its full key; undefined for anyone but the initiator. */
-  get(key: TaskKey): TaskRecord | Ambiguous | undefined {
-    return this.#entries.get(textOf(key))
+  /**
+   * The record of a task by its full key; undefined for anyone but the initiator, and for a key
+   * that is ambiguous: no reference of it names one task, so it names none.
+   */
+  get(key: TaskKey): TaskRecord | undefined {
+    const entry = this.#entries.get(textOf(key))
+    return entry === 'ambiguous' ? undefined : entry
   }
 }
