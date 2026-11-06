@@ -40,5 +40,5 @@
 - [host-terminal-recovery.spec.ts](host-terminal-recovery.spec.ts)：真实 Linux PTY、分段与新进程资源恢复
 - [host-terminal-segments.spec.ts](host-terminal-segments.spec.ts)：真实 Linux PTY 上段的完成与字节归属：后台进程、前台字节、段间字节、关闭终端与哨兵；归慢层
 - [terminal-sentinels.spec.ts](terminal-sentinels.spec.ts)：哨兵的识别与跨块拼接，读缓冲复用时保留的半个哨兵不被覆盖，不起进程
-- [terminal-control.spec.ts](terminal-control.spec.ts)：终端门控制帧读取器的状态转移与帧解码，不起进程
-- [host-terminal-frames.spec.ts](host-terminal-frames.spec.ts)：门进程回的段间字节与 `begun` 帧在宿主一侧的处理，用假终端门进程；快层，只在 Linux
+- [terminal-control.spec.ts](terminal-control.spec.ts)：终端门控制帧读取器的状态转移与帧解码，故障带出同一次读取里先被接受的帧，分块方式不改变结果；不起进程
+- [host-terminal-frames.spec.ts](host-terminal-frames.spec.ts)：门进程回的段间字节与 `begun` 帧在宿主一侧的处理，与故障同一次读取的帧照常生效，用假终端门进程；快层，只在 Linux

@@ -464,15 +464,69 @@ describe('bytes of the control channel', () => {
       expect(newReader().push(text).kind).toBe('fault')
   })
 
-  it('is a fault when a later line of the same push is refused, and gives no frames', () => {
-    const result = newReader().push(Buffer.concat([line(wire.ready()), line(wire.ready())]))
-    expect(result.kind).toBe('fault')
+  it('gives the frames accepted before a refused line of the same push with the fault, and none after it', () => {
+    const result = newReader().push(
+      Buffer.concat([
+        line(wire.ready()),
+        line(wire.opened()),
+        line(wire.ready()),
+        line(wire.opened()),
+      ]),
+    )
+    expect(result).toEqual({
+      kind: 'fault',
+      frames: [{ kind: 'ready' }, { kind: 'opened', cwd: '/w' }],
+    })
   })
 
-  it('puts the frames read before a bad line out of reach: the reader is in fault', () => {
+  it('gives the frames accepted before a line that is not JSON, or one over the bound', () => {
+    const notJson = newReader().push(Buffer.concat([line(wire.ready()), Buffer.from('nope\n')]))
+    expect(notJson).toEqual({ kind: 'fault', frames: [{ kind: 'ready' }] })
+    const long = newReader({ maxControlBytes: 100 }).push(
+      Buffer.concat([line(wire.ready()), Buffer.from('x'.repeat(101))]),
+    )
+    expect(long).toEqual({ kind: 'fault', frames: [{ kind: 'ready' }] })
+  })
+
+  it('stays in fault after a bad line, and gives no frame again', () => {
     const reader = newReader()
     reader.push(Buffer.concat([line(wire.ready()), Buffer.from('nope\n')]))
-    expect(reader.push(line(wire.opened())).kind).toBe('fault')
+    expect(reader.push(line(wire.opened()))).toEqual({ kind: 'fault', frames: [] })
+  })
+
+  it('gives the same frames and the same end however the bytes of a leg are cut', () => {
+    const stream = Buffer.concat(
+      [
+        wire.started(),
+        wire.between(),
+        wire.begun(),
+        wire.data(),
+        wire.finished(),
+        wire.fault(),
+      ].map(line),
+    )
+    const run = (cuts: readonly number[]) => {
+      const reader = situations.starting()
+      const kinds: string[] = []
+      let end = 'frames'
+      let from = 0
+      for (const at of [...cuts, stream.length]) {
+        const result = reader.push(stream.subarray(from, at))
+        kinds.push(...result.frames.map(frame => frame.kind))
+        end = result.kind
+        from = at
+      }
+      return { kinds, end }
+    }
+    const whole = run([])
+    expect(whole).toEqual({
+      kinds: ['started', 'between', 'begun', 'data', 'finished'],
+      end: 'fault',
+    })
+    for (let at = 1; at < stream.length; at++) expect(run([at]), `cut at ${at}`).toEqual(whole)
+    for (let a = 7; a < stream.length; a += 13)
+      for (let b = a + 5; b < stream.length; b += 17)
+        expect(run([a, b]), `cuts at ${a} and ${b}`).toEqual(whole)
   })
 
   describe('the bound of one line', () => {
