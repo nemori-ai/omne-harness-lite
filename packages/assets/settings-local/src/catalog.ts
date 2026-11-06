@@ -81,6 +81,7 @@ const BasisSchema = z.strictObject({
     .array(
       z.strictObject({
         target: SettingsTargetSchema,
+        enabled: z.boolean(),
         definition: SettingDefinitionsSchema,
         definitionRef: SettingsDefinitionRefSchema,
         state: SettingsStateSchema,

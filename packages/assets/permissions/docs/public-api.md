@@ -51,3 +51,19 @@ Settings 中只存一份 `{pick, allowedSet}` JSON 配值。Settings 的通用�
 C3b 使用现有 Settings 注册端口，核验真实声明、主体与目标资格，在共同事务域内发布采用集和保护写入。调用方须在原动作点重新核对 revisionVector，并把 `permitsOperation` 与后续授权、环境守卫共同消费。Runtime Context 只能按资格投影结果。
 
 本包不实现贡献租约、ActivationFence、持久配值数据库、SQL 事务、使用资格筛选或执行器。HJ0 的 DG3/DG6/DG8 在本包只覆盖固定材料的绑定与规则性质，完整动态保证仍依赖组合交付。
+
+## 当前来源消费口
+
+`PermissionBasisSource<Context>` 提供 `readCurrent(context, request)`。受信上下文与可序列化请求分开传递。精确形状归 [source.ts](../src/source.ts)。目前只交付协议和结构守护，尚无本包自带的真实来源提供者。
+
+请求固定原操作、实际实现引用、有效参数摘要、能力与关口、具体权限定义以及完整作用域。implementationRef 必须对应受信发行映射中的精确实现，不能从工具名称或模型文本推断。提供者验证实际主体与目标资格，并核对该实现当前采用的定义、真实关口及适用约束。客户端提供的字段不是这些事实的证明。
+
+请求不接收 adoptionRevision、targetRevision、sources 或 requiredConstraintIds。提供者收集这些事实，保持来源缺席与不可读取的区别。调用方不能通过删去约束或自填来源决定允许。来源完整性与当前性仍归提供者，而不是Schema或纯求值函数。
+
+current 结果绑定原请求及 PermissionEvaluation。Schema核对两者的完整scope、具体定义、capabilityId和enforcementKey一致。消费方还必须核对结果中的request与自己发出的原请求完全相同，包括操作、实现和参数摘要。绑定字段回显不能代替来源真实性。current表示取得了本次求值材料，不表示所有材料可用，也不授予未来执行许可。
+
+当某个来源不可读但已有合法禁止事实时，提供者保留该禁止和unavailable来源，交给纯求值器得出拒绝。不能把整份材料丢成默认允许。失败按下述顺序分类。请求不符合Schema时返回invalid-input/structure。随后核验上下文和披露资格；明确主体未获资格或目标不在其范围内时返回denied，资格核验依赖不可用或事实未知时返回unavailable。仅在已有资格读取该原操作后，确认请求的实现、参数、具体定义或关口与真实原动作绑定不一致，才返回invalid-input/binding。不能向无权调用者用绑定错误泄露目标事实。
+
+已建立合法原动作绑定后，提供者收集本次材料。可核实的局部来源失败写入相应unavailable槽，连同已知禁止一起返回current，由求值器决定拒绝或不可用。原动作绑定事实仍未知、或无法建立任何受保护读取依据时返回unavailable，不能假称已确认无权。source端口的denied只表示读取资格已确认不成立；业务规则的denied由evaluatePermission产生。缺少来源实现时不能回退旧静态allow。
+
+原动作的实际启动或写入仍须按对应拥有者的协议重核来源，或取得与精确目的绑定的保留。一次读取、旧Context材料和历史current结果均不能免除该义务。C6的持久grant与同提交消费尚未由此接口交付。

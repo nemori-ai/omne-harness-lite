@@ -5,6 +5,7 @@ import { GUARD_FACT } from './schema.ts'
 import { settingsStandaloneProjectionFact } from './projection.ts'
 import {
   STANDALONE_MIGRATION,
+  STANDALONE_ENABLEMENT_MIGRATION,
   STANDALONE_PARTICIPANT,
   STANDALONE_PROTOCOL,
   STANDALONE_TABLES,
@@ -23,7 +24,8 @@ export function settingsStandaloneMaterials(
     }
   }
   const participant = file('standalone-participant'),
-    migration = file('standalone-migration')
+    migration = file('standalone-migration'),
+    enablement = file('standalone-enablement-migration')
   return {
     participants: [
       {
@@ -47,6 +49,12 @@ export function settingsStandaloneMaterials(
         moduleUrl: migration.moduleUrl,
         checksum: migration.codeDigest,
         requires: [],
+      },
+      {
+        ...STANDALONE_ENABLEMENT_MIGRATION,
+        moduleUrl: enablement.moduleUrl,
+        checksum: enablement.codeDigest,
+        requires: [STANDALONE_MIGRATION],
       },
     ],
     readHandlers: [],

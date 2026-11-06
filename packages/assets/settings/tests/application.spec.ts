@@ -80,6 +80,7 @@ function fixture() {
     views: [
       {
         target,
+        enabled: true,
         definitionRef,
         definition,
         state: { revision: 0, sources: [{ id: 'tenant', values: [] }] },

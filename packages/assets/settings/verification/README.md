@@ -26,11 +26,11 @@ python3 packages/assets/settings/verification/check.py --self-test
 python3 packages/assets/settings/verification/check.py
 ```
 
-复用项目已安装的 TLC，通过 `TLA2TOOLS_JAR`、可选 `JAVA_BIN` 定位。每例 45 秒、单 worker、512 MiB；工具缺失、超时、解析失败都不是通过。检查器要求正控完成标识，各负控分别命中 models.json 指定的 invariant。输入/JAR 摘要、Java/TLC 输出、命令与判读写到执行树 `tmp/formal/settings/<时间与进程>/`，不把运行日志写入正式文档。
+复用项目已安装的 TLC，通过 `TLA2TOOLS_JAR`、可选 `JAVA_BIN` 定位。每例 45 秒、单 worker、512 MiB；工具缺失、超时、解析失败都不是通过。检查器要求正控完成标识，安全负控必须退出12并命中 models.json 指定的 invariant；活性负控只配置一个具名PROPERTY，必须退出13并输出Temporal properties were violated。输入/JAR 摘要、Java/TLC 输出、命令与判读写到执行树 `tmp/formal/settings/<时间与进程>/`，不把运行日志写入正式文档。
 
 ## 结论边界与后续映射
 
-有限检查是模型检查，不是机器归纳证明，也不是实际源码符合性。没有检查 liveness、目录分页、租户非干扰、Schema 完整性、覆盖算法、秘密保管、操作幂等、真实跨进程事务、物理断电或最终 UI。
+有限检查是模型检查，不是机器归纳证明，也不是实际源码符合性。SettingsComposition 和 StandingCommit 没有检查 liveness。新增来源模型的条件进展范围见下节。所有模型均不验证目录分页、租户非干扰、Schema 完整性、覆盖算法、秘密保管、操作幂等、真实跨进程事务、物理断电或最终 UI。
 
 实现时必须把每项性质对应到公开命令、参与者和真实采用入口，并运行反例。纯全化用有界性质测试验证；分页绑定、撤权后续页、分组冲突、必要语义元数据用目录契约测试验证。未建立映射前，不能把此模型结果写成 真实 Settings 联调完成。
 
@@ -65,3 +65,27 @@ FreshGovernanceAuthorization 检查的是等待期间资格变化后重新取依
 | 当前目标拥有者事实 | assets-local/projection.ts 与 settings-local/standalone-participant.ts | assets-local/settings-governance.spec.ts 的真实三域组合 |
 
 FreshPublication 的最终消费者采用仍由消费者负责。目录返回有限依据并拒绝过期续页，不代表最终 UI 或执行实例已经采用。显式维护 rebase 不属于租户资格模型，部署拥有者应保护其能力引用。表内位置省略各成员的 src/ 或 tests/ 前缀，精确测试命令见各成员 README。
+
+
+## 组织来源保留与源修改恢复
+
+`SettingsSourceRetention.tla` 是 [动态治理共同协议](../../docs/governance-contributions.md#组织来源与原修改终结) 的有限行为守护。可用 `python3 packages/assets/settings/verification/check.py --models SettingsSourceRetention` 只运行这一模型；不带选择参数仍运行全部登记模型。
+
+模型有两个目的操作、两个源修改和一次崩溃。revision=0包括尚无配值的来源，首次设置仍经过保留门。Reserve共同记录当前来源和held；目的Commit与Seal竞争唯一终态；Settle按终态释放。源修改先关门，排空held后同事务写配值、原结果及清门。最终拒绝或外部SealUpdate终结根操作并清精确门。Crash不改持久事实，Restart重新枚举pending，包含零held的源。
+
+| 性质 | 必须保护的动作 | 负控 |
+| --- | --- | --- |
+| SourceHoldsProtectRevision / CurrentAtDestinationCommit | held期间不修改来源，目的提交仍受保留 | ignore-source-holds |
+| NoNewReservationsDuringDrain | 源修改关门后不增加重叠held | admit-during-drain |
+| TerminalBeforeRelease / SealedDestinationCannotCommit | 只有目的终态可释放，sealed不晚交 | release-without-terminal / ignore-destination-seal |
+| GateHasPendingOwner / PendingHasGate | 根终态与门释放共同成立 | leave-pending-gate |
+| ExactGateRelease | 旧根收尾不能清后继修改的门 | inexact-clear |
+| CurrentManagementAuthority | 源写仍受原管理资格约束 | ignore-admin |
+| CurrentWriteConditions | 已确认业务条件失效时终结待决根，不再写值 | ignore-write-conditions |
+| PendingProgress | 可恢复时持续推进，零held的pending不能遗漏 | scan-held-only |
+
+归纳依据是只有Reserve增加held并记录当前revision，只有Apply改revision且要求held空。目的提交要求原terminal开放，而释放前先不可逆终结，所以来源变化后迟到目的不能写入。根终结与精确清门共同提交，故已终结根不占门，旧根不能释放新根的门。
+
+PendingProgress以数据库最终可用、重启恢复与相应步骤弱公平为前提；不要求永久失联时仍可更新组织规则。身份绑定在模型中固定，单次源SQL提交抽象为原子动作。模型不证明真实参与者组合、任意规模、网络认证、Cordis收尾或物理断电。实现必须将settings.terminal、intent-plan、source-retention和persistence映射到同一次真实提交，并验证登记途中卸载、SQL依赖消失与旧引用调用。模型和负控通过不代表这些生产义务已完成。
+
+来源模型的conditions位抽象已确认的最终业务条件。InvalidateConditions可在等待期间使其失效；Apply要求其成立，Reject与清门共同提交。它不代表来源暂时不可读，也不证明定义、修订、锁或动作资格的实际SQL判断。具体失败分类归[准备协议](../docs/protocol.md#失败对请求attempt及根的后果)，提供者须逐项验证，并保留unknown与rejected的观察边界。

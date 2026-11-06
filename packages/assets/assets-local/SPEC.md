@@ -32,6 +32,18 @@ Each currentness change obtains a new durable owner sequence number. The project
 
 Capture accepts at most 128 targets. Management enumeration reads at most 129 holding identities and refuses overflow. It never truncates an oversized set into success. Commands and individual records have a 1 MiB text budget, a depth limit of 32 and a 50,000-node limit. Aggregate projections obey the same budget. Malformed persisted data does not become an empty or successful result.
 
+## Holding enablement
+
+A new holding is enabled. `changeHolding` accepts `setEnabled` with a boolean and the expected holding revision. The operation changes only that holding's enabled state. An effective change advances both holding and owner revisions in the same transaction. A repeated value leaves the revisions unchanged. Removal remains irreversible, including through `setEnabled`.
+
+Disabling retains the holding, selected release, Settings values and original receipts. Management capture includes disabled targets and reports `enabled: false`. Runtime capture of a disabled target refuses with `forbidden`. The Settings catalog exposes `targetEnabled` separately from configurable item values. Authorized Settings management can still change a disabled target's configuration. Enabling permits a new current read; it does not grant an execution permit or bypass outer governance.
+
+The owner capability decides which holdings callers may manage. This provider does not infer official capabilities, organization policy or user authorization from an asset name. Runtime adoption and action admission must consume the current owner fact at their own boundary; a historical catalog result is not permission to execute.
+
+The new enablement migrations retain the old meaning that existing holdings were enabled. They add the explicit field without changing identities, revisions, selection or retirement. Migrations use primary-key pages of at most 64 rows. Existing explicit booleans are preserved. A malformed explicit field fails verification rather than becoming enabled. No compatibility default is applied when reading current records.
+
+For the local lifecycle, let H mean held and E mean enabled. Management visibility requires H. Runtime eligibility requires H and E. `setEnabled` preserves H and Settings values; remove makes H false irreversibly. Each mutation requires the current revision. Induction over these transitions preserves values across enablement changes and prevents reactivation after removal. SQL transaction ordering gives concurrent changes one order; this argument does not prove a later external action rechecks eligibility. The runtime integration owns that obligation.
+
 ## Results and lifetime
 
 Mutation operation IDs identify the original request across restarts. A duplicate identical operation returns its original result. Reusing the ID for different command content returns `operation_conflict`. A revision conflict is a durable original rejection. A lost response returns `unknown`; callers recover with the original operation ID rather than inventing a new request.

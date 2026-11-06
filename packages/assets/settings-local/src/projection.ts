@@ -29,6 +29,7 @@ export const SettingsProjectionBindingSchema = z.strictObject({
 })
 export const SettingsTargetProjectionSchema = z.strictObject({
   target: SettingsTargetSchema,
+  enabled: z.boolean(),
   definitionRef: SettingsDefinitionRefSchema,
   definition: SettingDefinitionsSchema,
   sourceIds: z

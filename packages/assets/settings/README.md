@@ -10,6 +10,8 @@
 
 独立消费从 [SPEC](SPEC.md)读取行为，从 [公开入口](src/index.ts)读取精确类型。`defineSettings` 校验声明，`evaluateSettings` 处理已合法化的有序来源，`decideSettingsChange` 产生纯变更决定。`createSettingsQueries` 与 `createSettingsCommands` 消费注入端口；提供者必须兑现一致读取、当前资格及原子提交，空实现不构成真实集成。Cordis 装配沿[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)，运行对象不进入业务 DTO。
 
+准备式提交的类型与Schema归 `SettingsPreparationPort`，行为见[准备协议](docs/protocol.md#准备提交与根操作结果)。现行本地提供者和命令工厂仍待切换，不能把这个接口当作已运行的持久服务。
+
 ## 契约与设计
 
 [SPEC](SPEC.md)维护非类型行为，[内部设计](docs/internals.md)维护机制与未完成义务；[组合模型](../docs/settings-composition.md)维护独立使用与资产组合的 DDD/OOP 和数学分解。[组入口](../README.md)维护依赖及协作。精确类型归公开源码。

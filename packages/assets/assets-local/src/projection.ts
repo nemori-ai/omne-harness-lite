@@ -26,6 +26,7 @@ function targetView(
   const { definition, definitionRef } = selected.version.declaration
   return SettingsTargetProjectionSchema.parse({
     target,
+    enabled: holding.enabled,
     definition,
     definitionRef,
     sourceIds: holding.sourceIds,
@@ -71,6 +72,30 @@ function captureTargets(port: ParticipantPort, binding: SettingsProjectionBindin
       : targets.filter(target => target.policyId === 'asset')
   return selected
 }
+function currentViews(
+  port: ParticipantPort,
+  binding: SettingsProjectionBinding,
+  selected: readonly SettingsTargetProjection['target'][],
+): SettingsTargetProjection[] | undefined {
+  const views: SettingsTargetProjection[] = []
+  const seen = new Set<string>()
+  for (const target of selected) {
+    const key = canonical(target)
+    if (seen.has(key)) continue
+    seen.add(key)
+    const view = targetView(port, binding, target)
+    if (
+      view === 'undeclared' &&
+      binding.request.targets.length === 0 &&
+      binding.request.mode === 'management'
+    )
+      continue
+    if (!view || view === 'undeclared') return undefined
+    if (binding.request.mode === 'runtime' && !view.enabled) return undefined
+    views.push(view)
+  }
+  return views
+}
 export function capture(port: ParticipantPort, binding: SettingsProjectionBinding) {
   const fail = (reason: 'forbidden' | 'limit_exceeded') => ({
     kind: 'conflict' as const,
@@ -80,21 +105,10 @@ export function capture(port: ParticipantPort, binding: SettingsProjectionBindin
   const scope = scopeRef(binding.domain)
   if (scope === null || (current && !equal(current.domain, binding.domain)))
     return fail('forbidden')
-  const targets = binding.request.targets
   const selected = captureTargets(port, binding, scope)
   if (selected.length > 128) return fail('limit_exceeded')
-  const views: SettingsTargetProjection[] = []
-  const seen = new Set<string>()
-  for (const target of selected) {
-    const key = canonical(target)
-    if (seen.has(key)) continue
-    seen.add(key)
-    const view = targetView(port, binding, target)
-    if (view === 'undeclared' && targets.length === 0 && binding.request.mode === 'management')
-      continue
-    if (!view || view === 'undeclared') return fail('forbidden')
-    views.push(view)
-  }
+  const views = currentViews(port, binding, selected)
+  if (!views) return fail('forbidden')
   const projection = { binding, views }
   if (!withinBudget(projection)) return fail('limit_exceeded')
   const fact = json(SettingsOwnerProjectionSchema.parse(projection))

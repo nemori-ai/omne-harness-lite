@@ -16,6 +16,7 @@ export const PARTICIPANT = 'assets.settings'
 export const PROTOCOL = 'assets-local/1'
 export const HANDLER = 'assets.read'
 export const MIGRATION = { owner: PARTICIPANT, id: 'assets-local-1' }
+export const ENABLEMENT_MIGRATION = { owner: PARTICIPANT, id: 'assets-enablement-1' }
 export const TABLES = ['al_domain', 'al_assets', 'al_versions', 'al_holdings']
 export const domainSchema = SettingsProjectionBindingSchema.shape.domain
 export const revisionSchema = z
@@ -72,6 +73,7 @@ export const holdingSchema = z
     revision: revisionSchema,
     ownerRevision: revisionSchema,
     state: z.enum(['held', 'removed']),
+    enabled: z.boolean(),
     selection: selectionSchema,
     sourceIds: sourceIdsSchema,
     grants: grantsSchema,
@@ -109,6 +111,7 @@ export const changeHoldingSchema = z.strictObject({
   expectedRevision: revisionSchema,
   change: z.discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('remove') }),
+    z.strictObject({ kind: z.literal('setEnabled'), enabled: z.boolean() }),
     z.strictObject({ kind: z.literal('selectVersion'), selection: selectionSchema }),
     z.strictObject({
       kind: z.literal('updateSources'),

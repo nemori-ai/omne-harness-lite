@@ -16,7 +16,7 @@ function projectedState(
   input: ReturnType<typeof SnapshotInputSchema.parse>,
   projection: ReturnType<typeof targetViews>[number],
 ): SettingsTargetView | SettingsFailure {
-  const { target, definition, definitionRef, grants, sourceIds } = projection
+  const { target, enabled, definition, definitionRef, grants, sourceIds } = projection
   const fail = (reason: SettingsFailure['reason']): SettingsFailure => ({
     kind: 'rejected',
     reason,
@@ -37,7 +37,7 @@ function projectedState(
   }
   if (evaluateSettings({ definition, sources: state.sources }).kind !== 'complete')
     return fail('incompatible')
-  return { target, definition, definitionRef, grants, state }
+  return { target, enabled, definition, definitionRef, grants, state }
 }
 function captureValues(
   port: ParticipantPort,

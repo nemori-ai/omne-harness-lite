@@ -44,6 +44,7 @@ function fixture() {
     views: [
       {
         target,
+        enabled: true,
         definitionRef,
         grants: [],
         state: { revision: 4, sources: [] },

@@ -1,6 +1,6 @@
 {
   "model": "models/SettingsComposition.tla",
-  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof",
+  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof; SettingsSourceRetention: two destinations, two source updates, one crash; safety and conditional progress under eventual storage availability and weakly fair recovery; fixed identity bindings, abstract atomic source transactions, no production refinement proof; source write conditions abstract confirmed final business validity as a monotone boolean, not a schema or original binding proof",
   "cases": [
     {
       "name": "positive",
@@ -72,6 +72,66 @@
       "model": "models/StandingCommit.tla",
       "config": "models/standing-negative-authorization.cfg",
       "expected": "FreshGovernanceAuthorization"
+    },
+    {
+      "name": "source-positive",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "source-admit-during-drain",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-admit-during-drain.cfg",
+      "expected": "NoNewReservationsDuringDrain"
+    },
+    {
+      "name": "source-ignore-destination-seal",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-ignore-destination-seal.cfg",
+      "expected": "SealedDestinationCannotCommit"
+    },
+    {
+      "name": "source-release-without-terminal",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-release-without-terminal.cfg",
+      "expected": "TerminalBeforeRelease"
+    },
+    {
+      "name": "source-ignore-source-holds",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-ignore-source-holds.cfg",
+      "expected": "SourceHoldsProtectRevision"
+    },
+    {
+      "name": "source-ignore-admin",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-ignore-admin.cfg",
+      "expected": "CurrentManagementAuthority"
+    },
+    {
+      "name": "source-leave-pending-gate",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-leave-pending-gate.cfg",
+      "expected": "GateHasPendingOwner"
+    },
+    {
+      "name": "source-inexact-clear",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-inexact-clear.cfg",
+      "expected": "ExactGateRelease"
+    },
+    {
+      "name": "source-scan-held-only",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-scan-held-only.cfg",
+      "expected": "temporal:PendingProgress"
+    },
+    {
+      "name": "source-ignore-write-conditions",
+      "model": "models/SettingsSourceRetention.tla",
+      "config": "models/source-ignore-write-conditions.cfg",
+      "expected": "CurrentWriteConditions"
     }
   ]
 }

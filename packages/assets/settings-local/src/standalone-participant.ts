@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { defineSettings } from '@omne-harness/settings'
+import { defineSettings, type SettingsTarget } from '@omne-harness/settings'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import {
   canonical,
@@ -59,16 +59,18 @@ function adoptDefinition(
   )
   return { definition, definitionRef }
 }
+function isIndependentTargetInDomain(domain: z.infer<typeof domainSchema>, target: SettingsTarget) {
+  return (
+    domain.scope.kind === 'tenant' &&
+    target.scopeRef === domain.scope.tenant &&
+    target.policyId === 'independent'
+  )
+}
 function mutate(facts: Readonly<Record<string, unknown>>, port: ParticipantPort) {
   const domain = domainSchema.parse(facts['domain'])
   const command = StandaloneMutationSchema.parse(facts['command'])
   const target = command.kind === 'provision' ? command.record.target : command.target
-  if (
-    domain.scope.kind !== 'tenant' ||
-    target.scopeRef !== domain.scope.tenant ||
-    target.policyId !== 'independent'
-  )
-    return fail('forbidden')
+  if (!isIndependentTargetInDomain(domain, target)) return fail('forbidden')
   const key = stateKey(domain.scope, target)
   const previous = row(port, key)
   if (previous?.projection.ownerRevision !== (command.expectedRevision ?? undefined))
@@ -94,6 +96,7 @@ function mutate(facts: Readonly<Record<string, unknown>>, port: ParticipantPort)
       retired: false,
       projection: {
         target,
+        enabled: true,
         definition,
         definitionRef,
         sourceIds: record.sourceIds,
@@ -139,12 +142,7 @@ function guard(facts: Readonly<Record<string, unknown>>, port: ParticipantPort) 
       failure: { kind: 'rejected', reason },
     }),
   })
-  if (
-    binding.domain.scope.kind !== 'tenant' ||
-    target.scopeRef !== binding.domain.scope.tenant ||
-    target.policyId !== 'independent'
-  )
-    return reject('forbidden')
+  if (!isIndependentTargetInDomain(binding.domain, target)) return reject('forbidden')
   const current = row(port, stateKey(binding.domain.scope, target))
   if (!current || current.retired) return reject('forbidden')
   const { definition, definitionRef, grants, sourceIds } = current.projection

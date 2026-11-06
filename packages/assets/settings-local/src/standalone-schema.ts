@@ -9,6 +9,10 @@ export const STANDALONE_PARTICIPANT = 'settings.targets'
 export const STANDALONE_PROTOCOL = 'settings-targets/1'
 export const STANDALONE_TABLES = ['st_targets', 'st_definitions']
 export const STANDALONE_MIGRATION = { owner: STANDALONE_PARTICIPANT, id: 'settings-targets-1' }
+export const STANDALONE_ENABLEMENT_MIGRATION = {
+  owner: STANDALONE_PARTICIPANT,
+  id: 'settings-target-enablement-1',
+}
 export const StandaloneTargetSchema = z.strictObject({
   target: SettingsTargetSchema,
   definition: SettingDefinitionsSchema,

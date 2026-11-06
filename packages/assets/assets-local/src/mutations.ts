@@ -116,6 +116,7 @@ function hold(
     revision: 1,
     ownerRevision: 0,
     state: 'held',
+    enabled: true,
     selection: command.selection,
     sourceIds: command.sourceIds,
     grants: command.grants,
@@ -132,6 +133,8 @@ function changedHolding(
   switch (change.kind) {
     case 'remove':
       return { ...holding, state: 'removed' }
+    case 'setEnabled':
+      return { ...holding, enabled: change.enabled }
     case 'selectVersion':
       return { ...holding, selection: change.selection }
     case 'updateSources':

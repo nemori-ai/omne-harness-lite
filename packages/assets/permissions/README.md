@@ -4,7 +4,7 @@
 
 `@omne-harness/permissions` 提供权限声明校验、Settings 投影和固定材料的纯规则求值。采用依据是用户于 2026-11-06 验收的 [HJ0 治理贡献协议](../docs/governance-contributions.md)与[权限组合协议](../../human-intervention/human-intervention/docs/permission-composition.md)。[SPEC](SPEC.md)维护业务规则，[公开源码](src/index.ts)维护精确类型。
 
-当前实现是 C3a。动态注册、持有资格、Settings 受保护提交、采用围栏和 Runtime Context 接线属于后续组合交付。纯函数通过不表示整个 C3 已完成，也不表示动作已获准或执行成功。
+当前规则实现是 C3a，并新增 `PermissionBasisSource` 的来源消费协议及绑定Schema；真实来源提供者仍未交付。动态注册、持有资格、Settings 受保护提交、采用围栏和 Runtime Context 接线属于后续组合交付。纯函数通过不表示整个 C3 已完成，也不表示动作已获准或执行成功。
 
 ## 使用与集成
 

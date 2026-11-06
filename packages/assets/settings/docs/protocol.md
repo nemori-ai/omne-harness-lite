@@ -59,3 +59,53 @@ createSettingsCatalog 每次读取都重验 Identity 资格，在一个租户事
 运行视图必须带与主体、部署和明确目标绑定的选择引用。createSettingsSelections 提供有容量与寿命上限的本地选择来源，它不授予目标权限，也不是执行实例采用回执。卸载贡献使目录报告不可用并保留配值。配置权由真实目标拥有者控制，撤除声明不能冒充原子撤权。
 
 重新采用通过受信部署端 createSettingsMaintenance.rebase 进行。该端口不是租户命令或 agent tool。每个旧配值和锁必须明确保留或丢弃，保留值在新定义下重新验证。定义/来源变化不会自动迁移同名值。具体条件和事务归 [本地行为](../../settings-local/SPEC.md)。
+
+## 准备、提交与根操作结果
+
+`SettingsPreparationPort` 是动态治理提交的消费协议。精确输入与结果归 [preparation.ts](../src/preparation.ts)。当前提供者及 `createSettingsCommands` 尚未采用它；下面是提供者必须兑现的义务，不是已完成的持久实现声明。
+
+prepareChange 先验证实际主体及合法目标，再持久保存不可变根命令和至多一个活跃 attempt。准备不写配值。引用绑定完整目标、根 operationId、精确 attemptId 与根命令摘要；摘要继续排除传输 requestId。它不含主体凭据、替换命令、SQL 目的地或当前允许结果，不构成授权。
+
+commitChange 根据持久准备取得原命令。提供者核对调用主体、引用完整绑定和当前事实，在同一目的提交中建立业务结果与 attempt 终态。参数不能替换命令。旧 attempt 的 unknown 未认回前不能产生新 attempt。明确 aborted 的旧 attempt 只在根仍 pending 时允许重新准备，且 expectedRevision、定义、目标、来源、动作和根摘要均不改变。每根最多分配64个 attempt；耗尽返回 limit_exceeded，不自动取消根，合法调用者仍可取消。
+
+prepared 表示持久准备存在。committed 与 aborted 是不可改写的根终态。unknown 表示观察者未取得权威结果，不是第三种持久终态。它们携带完整原操作引用，使相同 operationId 在不同目标下仍可区分。pending 是已存在但未终结的根，其 attempt 为 null 表示当前无活跃准备，不表示允许调用方自行选择后继身份。
+
+rejected 仅拒绝本次请求，不能被解释为某个 pending 根已经终结。依据失效、依赖不可用、关闭中或绑定冲突不自动变为根 aborted。cancelChange 只取消尚未成功的根，已 committed 时返回原成功结果。根不存在时返回 not_found；这只是本次观察，不能阻止尚未受理的未来 prepare，也不能冒充取消成功。取消与提交竞争必须由同一目的排序边界决定。
+
+getOperation 每次重新检查披露资格，只读取原根及精确attempt的持久状态。它不发起seal、不改变根或attempt、不释放源门，也不分配后继。尚无根结果时返回pending或unknown，重复轮询不会取消业务。主动封口仅由cancelChange、可信Identity目的resolver或提供者负责的故障恢复执行。恢复器根据精确目的身份取得已有结果，或通过不可逆seal阻止该attempt继续提交；它不得把无记录、超时或调用方不再等待当作终结证据。not_found 不证明永久不会提交，unknown 不能触发换业务身份重试。持久根被取消或最终封口后不得重开。
+
+普通 change 的最终应用入口只准备一次并提交一次。受信应用可拆开准备和提交，但没有绕过当前检查的入口。提供者切换时同步现有 SettingsCommitPort、应用工厂、维护 rebase 与所有真实消费者，删除被替代的直接提交路径，不保留缺治理来源的成功回退。准备协议的类型发布不完成这项切换。精确恢复分派与同提交义务归 [本地协调](../../settings-local/docs/coordination.md#已采用的准备操作恢复边界)。
+
+## 具名来源布局
+
+`SettingsSourceDescriptor` 描述一个目标中来源的位置、拥有者、作用域主体和资格修订。精确形状归 [sources.ts](../src/sources.ts)。有序布局中的sourceId唯一，并与目标配值来源逐项对应。提供者不得按字符串名称猜来源层级；名为organization的sourceId也可以属于显式owner作用域。
+
+organization、tenant、session表示系统已知治理作用域。owner表示独立目标拥有者自己定义的作用域，不隐式套入资产层序。Permission来源适配器只消费经过具名映射的治理来源，不能把owner或未知主体当作缺省tenant。scope中的subjectRef是引用，不是主体授权证明；真实绑定由来源拥有者验证。
+
+authorityRevision表示来源资格及布局事实的修订，不是配值版本。配值变化仍由Settings状态revision及外部具名来源自己的值修订表示。提供者准备和提交都应核对二者；只保持来源布局不变不能证明值未变化。来源不适用、明确无配值和提供者不可用必须保留不同事实，不能因没有描述符就合成absent。
+
+当前只落下共享描述符。后续提供者将SettingsTargetProjection的sourceIds替换为sources布局，并在拥有者输入、持久记录、中央guard、snapshot及公开目录视图中贯通。配值算法仍消费有序id及values，不接管来源资格。目标guard必须核对投影布局与实际状态一致，旧的sourceIds旁路在同批迁移中退出。该投影切换尚未完成。
+
+### 失败对请求、attempt及根的后果
+
+以下规则区分准入拒绝与已接受原命令的条件执行。所有需要终结的状态变化由可信提供者在原目的排序边界完成。没有取得该提交结果时，对外返回unknown，不提前报告aborted。
+
+| 触发条件 | 当前attempt与根 | 返回结果 |
+| --- | --- | --- |
+| 输入无效、上下文未验证、调用者无权访问目标或原操作、引用与持久绑定不符 | 不以此请求修改已有根或attempt；没有根时不创建 | rejected，保留具体输入/资格/绑定失败 |
+| 已接受且绑定正确的命令，在受保护提交中确认revision_conflict、definition_changed、locked、incompatible或业务目标动作forbidden | 当前attempt不可逆终结，根aborted；若持有源门，同提交清自己的门 | aborted及对应原因；后续重传返回原终态 |
+| 当前采用/来源依据变化，普通根的attempt尚未提交 | 先取得原结果或封口该attempt；明确aborted后根仍pending、当前活跃attempt为空 | rejected/basis_changed；允许沿不变原命令重新准备 |
+| 持有组织源门的根遇到上述依据变化，当前attempt须封口 | 封口同时使根aborted并清自己的门，不隐式换attempt继续占门 | aborted/sealed；新的业务意图必须使用新operationId |
+| 操作已经受理，可能改变持久事实，但依赖不可用或提交答复丢失而无法认回 | 不凭未知事实终结；保留原根、attempt和来源保管 | unknown；由可信恢复沿精确原身份处理 |
+| 根pending且无活跃attempt，已耗尽64次准备预算 | 保留根pending，不再分配attempt；仍允许合法取消 | rejected/limit_exceeded |
+
+准入或披露检查本身因依赖不可用而无法完成时，返回rejected/unavailable，不声称任何根状态。它不取消先前可能存在的操作。
+
+表中的业务forbidden是已核验原命令在同提交目标/动作政策下被拒绝，与未获访问权的调用请求不同。撤权后的调用者不能通过查询或伪造取消触发另一原操作的终结，也不因此获准读取其结果。已确认原管理资格最终丧失的组织源修改，由可信恢复按原协议终结并清门；普通未经验证的拒绝不承担这项恢复职责。
+
+上述业务条件失败一经持久终结，后来解锁或恢复定义不重开该根。调用方重新取得当前条件后，必须提出新的业务operationId。纯准备依据变化只终结attempt的规则不能用来忽略原命令的expectedRevision或定义条件。
+
+
+### 目标启禁与配值分开
+
+SettingsTargetView.enabled 是目标拥有者的运行启禁事实，不是某个配置项的值。公开目录条目用 targetEnabled 表达它。禁用资产仍可在有权的管理视图读取和配置，配值与回执保留；运行视图拒绝禁用目标。重新启用需要重新取得当前事实，旧目录结果不授予执行权。独立目标的退役、贡献卸载和当前采用仍分别核验。

@@ -28,6 +28,7 @@ export type SettingsGrant = Readonly<{
 }>
 export type SettingsTargetView = Readonly<{
   target: SettingsTarget
+  enabled: boolean
   definitionRef: SettingsDefinitionRef
   definition: SettingDefinitions
   state: SettingsState

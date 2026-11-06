@@ -65,3 +65,30 @@ Registry 卸载影响声明可读性并保留配值。它不与设置写入共�
 本包已有真实 Identity SQL 与 Settings 两域组合场景，也有持久独立目标、目录和终态的真实 SQLite/Worker 场景。默认 guard 夹具与真实目标拥有者须分开判断；真实资产、设置、Identity 三者组合的场景由 assets-local 拥有。命令、资源和限制见 [测试说明](../tests/README.md)。
 
 上述资源不授予独立接受、系统采用或轨道集成。最终 UI、tools 与 Cordis 插件、Calendar 消费、远程认证和物理断电恢复不在本包交付声明内。
+
+## 已采用的准备操作恢复边界
+
+本节规定动态治理提交需要满足的恢复边界。上文描述的现行提供者尚未实现根操作与准备 attempt 分离，不能据本节声称该保证已经可用。动态采用与来源保留的共同责任归[治理贡献协议](../../docs/governance-contributions.md)。
+
+Settings 区分目录捕获、业务根命令和一次准备 attempt。目录捕获只取得受保护读数，不创建配值根或源修改门。change 与维护 rebase 都必须绑定一个不可变根命令，并通过精确 attempt 提交。维护主体仍归部署拥有者；维护能力不能绕过当前目标、采用与来源事实。
+
+Settings-local 在 Identity 的 opaque targetRef 中编码版本化恢复引用。引用使用封闭种类区分 capture 和 attempt。Identity 只保存、核对和交回该引用，不拥有 Settings 操作种类。普通目标可以合法使用 catalog 这个 policyId，因此 resolver 不得从 policyId 或 ID 前缀推断操作。
+
+capture 的外层 operationId 是 captureId。attempt 的外层 operationId 是提供者分配并持久保存的精确 attempt ID，其引用还绑定根操作、根命令摘要、命令种类及目标。values 与 authority 的区别由捕获输入摘要绑定。重新准备不得改变原命令的 expectedRevision、来源、目标或内容。
+
+Identity 的去重身份不含 destination。因此单独注册两个 destination 不能证明两个操作已经隔离。Settings 的逻辑终态键必须区分域、主体、操作种类和精确操作身份。同键异绑定应当冲突；存储缩短为摘要时仍核对保存的完整绑定。这个约束同时作用于正常提交、封口、原操作查询和重启恢复。
+
+恢复入口只接受匹配固定装配的持久预留。合法 capture 进入独立捕获封口，合法 attempt 进入根操作终结组合。未知协议或种类、额外字段、非规范编码、不一致绑定及不可用存储均不能转入旧封口作为回退。入口返回 unavailable 时，Identity 继续保留 held。
+
+attempt 封口必须在一次物理提交中组合 terminal、只读 intent-plan、source-retention 和 persistence。持有组织源门的修改被封口时，其根和 attempt 共同终结，并清除精确属于该根的门。源修改身份来自持久根及目标拥有者事实，不能由客户端布尔参数决定。旧 attempt 或旧 resolver 不能释放后继根的门。普通根的旧 attempt 明确 aborted 且根仍 pending 后，可以沿原命令重新准备。unknown 不授予分配后继 attempt 的依据。
+
+组织目的域固定为 system.settings 时，StandingBinding.scopeRef 仍保持真实主体的 tenantCodec 编码。组织适配器核验当前 organization-settings-manage 资格及目标所属组织。resolver 按持久绑定核对组织关系，不要求已撤权成员重新取得资格才允许封口。它是可信恢复能力，不能交给普通客户端。
+
+切换恢复格式前，旧提供者必须停止受理，并由原 resolver 排空仍由它负责的 held。未能证明终结时不得宣称切换完成。不得猜测旧裸 targetRef 的操作种类，不得把旧终态改写为新 attempt，也不得删除仍有责任的记录。已确认业务结果和配值的迁移需单独验证。当前阶段不因此引入长期双协议兼容路径。
+
+逻辑键的不同分量保证不同种类、主体、域和 attempt 不混同。该论证依赖规范编码、摘要抗碰撞、完整绑定核对和可信路由。既有来源保留模型固定了身份；它不能替代上述绑定精化义务。实现验收应分别制造去掉 kind、换 attempt、跨域、同名 catalog 目标、旧 resolver 清新门和 unknown 分配后继的反例，并用真实数据库观察效果。
+
+
+恢复引用的内部编解码现位于 recovery-reference.ts。它严格接受 settings-recovery/1 的 capture/attempt 形状，要求规范 JSON，并按 Identity 的16384 UTF-8字节上限拒绝超限输入。恢复键区分完整域、主体、种类及精确操作身份。当前 resolver 与 terminal 仍使用旧路径，新编码尚未接入完整准备提供者；解码成功不证明资格或持久尝试存在。
+
+目标投影现携带 enabled。Assets 的禁用目标保留管理读取及配值管理能力，运行捕获拒绝该目标。独立 Settings 目标在现行提供者中投影 enabled=true；retire、声明撤除和运行采用仍由各自状态决定，不能以该字段替代。snapshot 和 catalog 保留字段，公共条目以 targetEnabled 展示，避免与同名配置项混淆。

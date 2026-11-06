@@ -203,3 +203,60 @@ it('omits legitimately undeclared assets from management without denying unrelat
     await owner.close()
   }
 })
+
+it('shows disabled asset settings through the public catalog but refuses runtime selection', async () => {
+  const w = await open()
+  opened.push(w)
+  const selected = await w.selections.select(w.principal, [w.target])
+  if (selected.kind !== 'selected') throw new Error('selection failed')
+  const runtime = {
+    ...w.view,
+    mode: 'runtime' as const,
+    targets: [w.target],
+    selectionRef: selected.selectionRef,
+  }
+  expect(
+    await w.assets.changeHolding({
+      operationId: 'disable',
+      holdingRef: w.target.targetRef,
+      scopeRef: w.target.scopeRef,
+      expectedRevision: 1,
+      change: { kind: 'setEnabled', enabled: false },
+    }),
+  ).toMatchObject({ kind: 'committed', revision: 2 })
+  const command = {
+    ...w.change,
+    operationId: 'configure-disabled',
+    target: w.target,
+    definitionRef: definitionRef(),
+  }
+  expect(await w.service.commands.change(w.principal, command)).toMatchObject({ kind: 'committed' })
+  const page = await w.service.queries.readCatalog(w.principal, {
+    view: { ...w.view, targets: [w.target] },
+    filter: '',
+    locale: 'en',
+    pageSize: 10,
+    cursor: null,
+  })
+  expect(page).toMatchObject({
+    kind: 'catalog',
+    entries: [{ target: w.target, targetEnabled: false, revision: 1 }],
+  })
+  expect(await w.service.queries.evaluate(w.principal, runtime)).toEqual({
+    kind: 'rejected',
+    reason: 'forbidden',
+  })
+  expect(
+    await w.assets.changeHolding({
+      operationId: 'enable',
+      holdingRef: w.target.targetRef,
+      scopeRef: w.target.scopeRef,
+      expectedRevision: 2,
+      change: { kind: 'setEnabled', enabled: true },
+    }),
+  ).toMatchObject({ kind: 'committed', revision: 3 })
+  expect(await w.service.queries.evaluate(w.principal, runtime)).toMatchObject({
+    kind: 'complete',
+    entries: [{ target: w.target, targetEnabled: true, revision: 1 }],
+  })
+})

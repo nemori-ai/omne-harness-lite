@@ -171,3 +171,17 @@ sequenceDiagram
 模块修改按拥有者推进。配值与求值规则先改纯 Settings，目标生命周期改真实目标拥有者，捕获绑定同时核对两个投影生产者与中央消费者。源码入口为 [catalog.ts](../src/catalog.ts)、[target-guard.ts](../src/target-guard.ts)、[snapshot-participant.ts](../src/snapshot-participant.ts)、[standalone-participant.ts](../src/standalone-participant.ts)和 [maintenance.ts](../src/maintenance.ts)。
 
 [测试说明](../tests/README.md)给出真实 SQLite、真实 Identity、独立目标和资产组合的归属。图解释当前实现，不证明独立接受或最终系统采用。本包没有最终 UI、tools 或 Cordis 插件，也没有 Calendar 消费证明。秘密项只提供安全元数据，值保持 absent，普通秘密配值不支持，目录与回执不返回秘密明文。
+
+
+## 目标启禁的实际投影
+
+```mermaid
+flowchart LR
+  A["Assets 持有<br/>held/removed 与 enabled"] --> P["SettingsTargetProjection<br/>enabled + ownerRevision"]
+  S["独立目标<br/>现行 enabled=true + retired"] --> P
+  P --> M["管理目录<br/>保留禁用目标及配值"]
+  P --> R["运行捕获<br/>拒绝禁用资产"]
+  M --> C["公开条目 targetEnabled<br/>与配置项的值分开"]
+```
+
+启禁由 Assets 持有拥有者写入，Settings 不创建另一份启禁配置。snapshot 和 catalog 保留投影字段。禁用不改变 st_states 或原业务回执；真实 SQL 测试覆盖禁用、关闭重开、重新启用后的值保留。此图只描述已接入的目录路径。运行采用和实际动作仍须在 C3b/C4/C5 的当前性关口消费拥有者事实。
