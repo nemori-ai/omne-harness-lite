@@ -85,7 +85,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### 调用口闭包的裁定
 
-调用口的实现与它的两轮修复在 2026-11-05 带出下列契约改动，延续上面的编号。第 26 条给 `McpPorts` 加必填字段，对构造 `McpPorts` 的宿主不是可加的改动；第 27、29 条放宽一个字段或一个原因的定义；第 28 条把 O1 加强为全函数并加两个契约值；第 30 条改变关停之后 `refresh` 对未采用接入点的答复，第 31 条改变调用方已中止时 `refresh` 对被拒绝的接入点的答复，都是行为改动。每条只指向条款，条款是唯一的规则。
+调用口的实现与它的两轮修复在 2026-11-05 带出下列契约改动，延续上面的编号。第 26 条给 `McpPorts` 加必填字段，对构造 `McpPorts` 的宿主不是可加的改动；第 27、29 条放宽一个字段或一个原因的定义；第 28 条把 O1 加强为全函数并加两个契约值；第 30 条改变关停之后 `refresh` 对未采用接入点的答复，第 31 条改变调用方已中止时 `refresh` 对被拒绝的接入点的答复，都是行为改动。第 32 条在 2026-11-06 由 W4 的「传输不再可用」标记带出，改动 T1、S5、S7 的写法，见它的「性质」。每条只指向条款，条款是唯一的规则。
 
 26. `McpPorts.checkOutput` 必填：服务实现把它交给 `classifyOutcome`。出处：闭包规格 `w3-mcp-call`「reduce 已定的事」第 7 条（任务材料，2026-11-05）。见 S3、O1。
 27. `ContinueRequest.inputResponses` 可选，与 S2 的「各自可选」一致；两个字段都缺是前提违反。出处：闭包规格 `w3-mcp-call`「reduce 已定的事」第 4 条，及修复轮（`w3-mcp-call-fix1`）自裁第 3 条的采纳。见 S2。
@@ -93,6 +93,8 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 29. R2 的 `cancelled` 放宽为「占位后、发出前，这次调用的停止信号已触发」，不论触发的是 `cancel` 还是调用方的 `signal`，也不论那一步本来会以什么原因拒绝。出处：修复轮（`w3-mcp-call-fix1`）自裁第 2 条的采纳。见 R2。
 30. `closeAll` 之后的次序：要连接的操作先判关停、不问端口，先于 S1 的采用核对；在途的操作（调用与任务操作在发出之前，`refresh` 在发布之前）不再开始下一步，答同样的结果，已发出的请求的结局不改，已发布的清单不改；任务操作仍先按 S2 判发起者。出处：调用口第 2 轮评审裁定（关停是本实例生命周期的事实，之后不再问宿主端口）与修复轮 `w3-mcp-call-fix2`；「在途」限于发出之前、「下一步」的粒度与已发出不改出自调用口第 3 轮评审的处置与修复轮 `w3-mcp-call-fix3`。性质：行为改动。`closeAll` 之后对未采用的接入点，`refresh` 由 `not-available-to-you` 变为 `connection-unavailable`；调用与任务操作在关停之后只答关停的答复（见 S8）。读 `refresh` 在关停之后的答复的消费者要按它适配。见 S8。
 31. `refresh` 的出口与调用口同一次序：已发布的清单不改；没有发布时，调用方的 `signal` 已中止就答 `kept`（`cancelled`），不论哪一步本来会以什么原因拒绝；其次是关停的答复；其余照那一步的答复。这与第 29 条对调用口的放宽是同一条规则。出处：调用口第 3 轮评审的处置与派发者对修复轮 `w3-mcp-call-fix3` 自裁第 3 条的改正，第 4 轮评审 A 面指出契约没有写它，卡拥有者 2026-11-06 裁定写入。性质：行为改动。调用方的 `signal` 在答复之前已中止时，被关口拒绝的 `refresh` 由 `not-available-to-you` 变为 `kept`（`cancelled`）；`signal` 没有中止时不变。见 S5、S8。
+
+32. 答复带「传输不再可用」的标记。`TransportFailure` 的 `not-sent`（`connection-unavailable`、`session-ended`）与 `no-answer`、`PeerAnswer` 的 `no-answer` 与决策层 `WireAnswer` 的对应变体加可选字段 `unusable`；标记由决策层写入，根导出加 `unusableAnswerOf` 与 `notSentFailureOf`。`UnusableCause` 收窄为 `stream-broken`、`process-exited`、`session-ended`，去掉没有生产者的 `abandoned`，定义移到 `outcomes.ts`，导出名不变。服务按标记与 `authorization-required` 判断连接是否转为 `lost`，不再按失败的原因判断。出处：#1119 W4 MCP 规格第 1 节，闭包规格 `w4-mcp-unusable` 已定的事第 1–7 条与追加 1（卡拥有者 2026-11-06）。性质：类型是可加改动，新字段可选；`UnusableCause` 的收窄在 0.x，没有外部消费者。行为改动：传输交出的答复带标记；就绪连接上单个请求失败而传输仍可用时（HTTP 上的流断开、5xx，不带标记的 `not-sent`），连接不再转为 `lost`，页请求改为 `page-failed` 与 `degraded`（`list-failed`），就绪连接上的 `discover` 失败改为 `degraded`（`discover-failed`）。见 T1、T8、S5、S7、S8、R1、R7。
 
 <a id="decisions-host"></a>
 
@@ -284,7 +286,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - `config-missing`：操作需要的配值缺失，带配置项：`connect-timeout`、`target`、`credential` 或 `env.<NAME>`。
   - `config-invalid`：配值存在但它的守卫拒绝了它，带配置项 `connect-timeout`、`target` 或 `credential`。变量值只有缺失一种配置失败，所以没有 `env.<NAME>` 一项。
 
-  控制操作在资格不是 `granted` 时只答 `Refusal`。
+  控制操作在资格不是 `granted` 时只答 `Refusal`。四个任务操作例外，按 S2：复用现有连接时不核资格；要新建连接而资格不是 `granted` 时，不建连接，答 `effect-unknown`（`no-connection`）。
 
 - **R2** `NotSentReason` 是「未发出」的原因，「未发出」没有对端效果。除 `Refusal` 与 `ConnectionFailure` 的各项外：
   - `correlation-key-in-use`：同一（租户、主体、关联键）已在途。
@@ -310,7 +312,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - `landing-unavailable`：进程落点或设施不成立，或落点不可读。
   - `connection-unavailable`：传输打不开，协商失败，或请求没有产生对端效果（`not-sent`）。
 - **R7** `OperationFailure` 是读口、状态口与任务操作的失败，由 `Refusal`、`ConnectionFailure` 与下面三项组成。`current` 与 `peer` 不发请求，它们的失败 `ReadFailure` 不含这三项：
-  - `effect-unknown`：请求已发出而没有应答，带 `NoAnswerCause` 的子因；或任务操作既没有现有连接、也没有可重建连接的采用材料，子因是 `no-connection`。效果未知，不压成失败，不重发。
+  - `effect-unknown`：请求已发出而没有应答，带 `NoAnswerCause` 的子因；或任务操作既没有现有连接、也不能新建连接，子因是 `no-connection`：未采用、资格不是 `granted`（含 `unknown` 与被挡下）或没有可以建连的材料（S2）。效果未知，不压成失败，不重发。
   - `error-answer`：请求已发出，对端答 JSON-RPC 错误，带错误码、消息与 `data`（如有），原样交出。
   - `answer-malformed`：请求已发出，应答不是 T2、T6 为这个请求点名的形状，带 `what`（见 T7）。
 
@@ -357,22 +359,23 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
   `invoke` 与 `continueWithInput` 把这些答复作为「未发出」的原因。四个任务操作按 S2 答 `effect-unknown`（`no-connection`）。其他操作把它们作为失败。
 
-- **S5** 某页或 `discover` 的 T8 结论带「传输不再可用」时，连接按 S7 转为 `lost`，`refresh` 答 `connection-unavailable`。其余结论下，`refresh` 答下列之一：
+- **S5** 某页或 `discover` 的答复带 `unusable`（T1）时，连接按 S7 转为 `lost`，`refresh` 答 `connection-unavailable`。本条的 `discover` 指就绪连接上的 `discover`。建连中的 `open` 或 `discover` 失败归建连失败：不论答复带不带 `unusable`，建连都失败，按服务实现的建连规则处置，不是本条的「`discover` 失败」。其余答复下，`refresh` 答下列之一：
   - `published`：清单已整份发布，带新的修订。
   - `kept`，原因是 `superseded`：`CatalogStore` 写入时答修订冲突，`mergeListing` 答 `stale-revision`，或产出清单的那一代连接在发布前已不是当前连接。原采用不变。
   - `kept`，原因是 `cancelled`：本次刷新已被取消。请求的 `signal` 只属于这一次刷新。实现在等待建连、取每一页与发布边界各自核对它；它已触发时答 `cancelled`，不发布。答复在出口决定：没有发布时，`signal` 已触发就答 `cancelled`，不论哪一步本来会以什么原因拒绝（裁定第 31 条）。原采用不变。`signal` 触发只结束本次刷新对建连的等待，不中止同一连接键上共享的建连：那次建连照常完成或失败，结果留给其他等待者。
-  - `kept`，原因是 `listing-incomplete`：`completeListing` 答了缺陷，带这个缺陷。某页的传输答 `no-answer`、`error-answer` 或 `answer-malformed` 时，这一页算失败，缺陷是 `page-failed`，连接转为 `degraded`（`list-failed`）。原采用不变。
-  - 失败：某页或 `discover` 的传输答 `not-sent`（`authorization-required` 或 `connection-unavailable`）时，答对应的 `ConnectionFailure`，连接按 S7 转为 `lost`，并用对应原因调用 `markUnavailable`。写入这份记录时 `CatalogStore` 答修订冲突，`refresh` 答 `kept`（`superseded`）；答不可用时答 `unknown`。`discover` 答 `no-answer` 时答 `effect-unknown`，连接转为 `degraded`（`discover-failed`）；答 `error-answer` 或 `answer-malformed` 时答 `connection-unavailable`，连接转为 `lost`（`discover-failed`）。发布边界核对当前授权失败时，答对应的 `Refusal`，不发布。`CatalogStore` 读取或写入不可用时答 `unknown`，不报告新修订。
+  - `kept`，原因是 `listing-incomplete`：`completeListing` 答了缺陷，带这个缺陷。某页的传输答不带 `unusable` 的 `no-answer` 或 `not-sent`（`connection-unavailable`、`session-ended`），或答 `error-answer`、`answer-malformed` 时，这一页算失败，缺陷是 `page-failed`，连接转为 `degraded`（`list-failed`）。原采用不变。
+  - 失败：某页或 `discover` 的传输答 `not-sent`（`authorization-required`）时，答 `authorization-required`，连接按 S7 转为 `lost`，并用同一原因调用 `markUnavailable`。答复带 `unusable` 时按本条首句，`markUnavailable` 的原因是 `connection-unavailable`。这两种情形下，写入这份记录时 `CatalogStore` 答修订冲突，`refresh` 答 `kept`（`superseded`）；答不可用时答 `unknown`。`discover` 答不带 `unusable` 的 `not-sent`（`connection-unavailable`、`session-ended`）时答 `connection-unavailable`，连接转为 `degraded`（`discover-failed`）；答不带 `unusable` 的 `no-answer` 时答 `effect-unknown`，连接转为 `degraded`（`discover-failed`）；答 `error-answer` 或 `answer-malformed` 时答 `connection-unavailable`，连接转为 `degraded`（`discover-failed`）。发布边界核对当前授权失败时，答对应的 `Refusal`，不发布。`CatalogStore` 读取或写入不可用时答 `unknown`，不报告新修订。
+  - 建连的时限先于清单标记到期时，`ensure` 的失败带的清单标记是 `pending`：标记还在进行，`refresh` 答这次连接失败本身。
 - **S6** 进度与日志通知经调用方给出的观察函数交出，标为不可信，不代替结局。观察函数抛出不影响调用的结局。本组不把通知写进自己的日志：对端日志不经过 `ProcessLanding`，MCP 无法按值遮盖其中的秘密。
 - **S7** `EndpointStatusView` 的连接状态：
   - `none`：本次运行没有这个接入点的连接。`preparing`：正在准备。`ready`：`discover` 已成立。2026-07-28 没有握手与会话：「协商」只指旧对端的 `initialize`，「会话」只对旧对端成立。
   - `degraded`：最近一次非调用请求暂时失败，原因 `discover-failed`（`discover`，含旧一路的 `initialize`）或 `list-failed`（`tools/list`）。
-  - `lost`：连接不再成立，原因如下：`preparation-failed`，准备失败且不属于其他几种；`discover-failed`，`discover` 已发出而最终报出的失败是 `error-answer` 或 `answer-malformed`，按 T8 它可能来自现代一路的 `server/discover`，也可能来自走旧一路后的 `initialize`；`close-unconfirmed`，`release`、`closeAll` 或自动关闭时进程的 `stop()` 答 `root-only` 或 `unconfirmed`；`authorization-required`，对端答需要授权；`process-exited`，stdio 进程退出；`stream-broken`，到对端的通道断了：管道或流断开且传输不再可用（T8 S01、S03），stdio 上请求写不进去（T8 X02），或已成立的连接上某页的请求答 `not-sent`（`connection-unavailable`）；`negotiation-invalid`，已记录的 `discover` 或旧对端 `initialize` 的结果不再成立；`session-ended`，传输对旧对端会话上的请求答 `not-sent`（`session-ended`）（T8 S07）。
-  - 传输不再可用：任何请求（`discover`、页请求、调用与任务请求）的 T8 结论带「传输不再可用」时，连接转为 `lost`，服务以 `connection-unavailable` 调用 `markUnavailable`。原因取结论的子因：`no-answer` 的 `stream-broken` 或 `process-exited`，`not-sent` 的 `session-ended`；X02 的 `not-sent`（`connection-unavailable`）记为 `stream-broken`。本条先于 S2、S5 按失败种类给出的连接状态。
+  - `lost`：连接不再成立，原因如下：`preparation-failed`，准备失败且不属于其他几种；`discover-failed`，`discover` 已发出而最终报出的失败是 `error-answer` 或 `answer-malformed`，按 T8 它可能来自现代一路的 `server/discover`，也可能来自走旧一路后的 `initialize`；`close-unconfirmed`，`release`、`closeAll` 或自动关闭时进程的 `stop()` 答 `root-only` 或 `unconfirmed`；`authorization-required`，对端答需要授权；`process-exited`，stdio 进程退出；`stream-broken`，到对端的通道断了：答复带 `unusable`（`stream-broken`），即管道或流断开且传输不再可用（T8 S01、S03、SSE 模式），或 stdio 上请求写不进去（T8 X02）；`negotiation-invalid`，已记录的 `discover` 或旧对端 `initialize` 的结果不再成立；`session-ended`，答复带 `unusable`（`session-ended`）：传输对旧对端会话上的请求答 `not-sent`（`session-ended`）（T8 S07）。`discover-failed` 的 `lost` 只出现在建连中；就绪连接上的 `discover` 失败按 S5 转为 `degraded`。
+  - 传输不再可用：就绪连接上任何请求（`discover`、页请求、调用与任务请求）的答复带 `unusable`（T1）时，连接转为 `lost`，服务以 `connection-unavailable` 调用 `markUnavailable`。原因取答复的标记，不取失败的原因：X02 的 `not-sent`（`connection-unavailable`）由决策层标为 `stream-broken`，`not-sent`（`session-ended`）标为 `session-ended`。答复是 `not-sent`（`authorization-required`）时，连接转为 `lost`（`authorization-required`），清单标记同名。其余答复不使连接转为 `lost`：不带 `unusable` 的 `not-sent`（`connection-unavailable`）、不带 `unusable` 的 `no-answer`（例如 HTTP 上一个请求的流断开、5xx）、`abandoned`（本端的决定）与每一种有应答的结局。本条先于 S2、S5 按失败种类给出的连接状态。
 
   「确认停止」指 `stop()` 答 `tree-confirmed`。准备失败或关闭后留下的进程与它确认的停止范围只记在 `lost` 状态的 `residual` 上，视图原样反映状态。关闭时确认停止，状态回到 `none`；否则状态是 `lost`（`close-unconfirmed`）并带 `residual`。重建成功或之后确认停止时，`residual` 清除。凭据在视图里报告为：`not-required`，`auth` 是 `none`；`absent`，配值缺失；`invalid`，配值被守卫拒绝；`present`，配值存在。视图不报告凭据值。
 
-- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「不建连接」相同。`closeAll` 之后，要连接的操作先判关停、不问端口，先于 S1 的采用核对。在途的操作（调用与任务操作在发出之前：等关口、读存储、建连的等待；`refresh` 在发布之前：读存储、取页、发布边界）不再开始下一步，答同样的结果；已发出的请求的结局不改，已发布的清单不改。「下一步」指操作次序里的一步（关口，采用与资格两问算一步；读存储；建连；取页；发布边界；发出）：已开始的一步照常走完，包括这一步内部的端口调用，以及建连这一步里向对端的协商；关停之后不开始新的一步。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
+- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 有本包自己的错误时，以 `AggregateError` 拒绝，不交出确认范围；其余连接照常关闭。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「不建连接」相同。`closeAll` 之后，要连接的操作先判关停、不问端口，先于 S1 的采用核对。在途的操作（调用与任务操作在发出之前：等关口、读存储、建连的等待；`refresh` 在发布之前：读存储、取页、发布边界）不再开始下一步，答同样的结果；已发出的请求的结局不改，已发布的清单不改。「下一步」指操作次序里的一步（关口，采用与资格两问算一步；读存储；建连；取页；发布边界；发出）：已开始的一步照常走完，包括这一步内部的端口调用，以及建连这一步里向对端的协商；关停之后不开始新的一步。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
 - **S9** 凭据句柄的取得与释放：每条连接按凭据配值调用一次 `CredentialUse.acquire`，所有 `credential` 来源变量共用这一个进程凭据句柄。进程凭据句柄在进程的 `stop()` 返回之后释放，不论它答哪种范围；准备失败时立即释放。HTTP 凭据句柄随连接关闭释放。关停例外：`closeAll` 时落点仍在途的连接，进程凭据句柄立即释放。之后迟到的进程照样停止一次，句柄不再释放第二次。
 
 ## 所有权、失败与生命周期
@@ -455,6 +458,8 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 传输对一个请求得到什么、交出什么，由两步决定：`classifyWireEvent` 把读到的线上事件归入 T8 的应答类别，T8 的决策表给出这一类的结论。T1–T7 定义两步用到的词与请求的组成，T5 是取消与关闭的时序，T9 是端口失败的处置。表外不另立结局规则。
 
 - **T1** 传输失败按对端效果分四种：`not-sent`，请求没有对端效果；`no-answer`，请求已交出（对端可能已收到它的任何部分，未必已离开本进程）而没有应答，效果未知；`error-answer`，请求已离开，对端答 JSON-RPC 错误，带错误码、消息与 `data`（如有）；`answer-malformed`，请求已离开，应答读不懂，见 T7。`not-sent` 的原因有三个：`connection-unavailable`；`authorization-required`，带授权发现（R4）；`session-ended`，Streamable HTTP 旧修订上对端结束了会话：只有被告知的那次请求答它，之后的请求答 `connection-unavailable`。`call` 的失败只会是 `not-sent`；调用已发出后，结局经 `answer` 交出。「传输不再可用」指之后的每个请求答 `not-sent`（`connection-unavailable`）；T8 中没有写「传输不再可用」的行，传输照常可用。
+
+  传输交出的答复用可选字段 `unusable` 标出这个事实，值是 `UnusableCause`：`stream-broken`、`process-exited` 或 `session-ended`。字段出现，表示传输交出这个答复时已经不再可用，值是原因；字段不出现，表示传输仍可用。带这个字段的只有 `not-sent`（`connection-unavailable`、`session-ended`）与 `no-answer`；`SentCall.answer` 与 `TaskAnswer` 的 `finished` 经 `PeerAnswer` 的 `no-answer` 带它。`not-sent`（`authorization-required`）、`error-answer` 与 `answer-malformed` 不带：线路结束不产生它们。标记只由决策层写入（`settle`、`lineGoneAnswerOf`、`streamGoneAnswerOf`、`unusableAnswerOf`、`notSentFailureOf`），传输原样交出决策层的答复，不自己判断哪种失败使它不再可用。标记是单调的：传输一旦在一个答复上标出，之后交出的每个答复都带它记下的原因。本端调用 `close()` 之后的答复不带标记：关闭是本端的决定，不是线路的事实，连接的结束由连接表负责。
 - **T2** 应答的判据。这些判据由 `classifyWireEvent` 实现，传输用它归类：
   - 对本请求的 JSON-RPC 应答：一条 stdio 行或 2xx 正文里的一条消息，是 JSON 对象，`id` 等于本请求的 id，不带 `method`。它的信封合格指 `jsonrpc` 是 `"2.0"`，且恰好带 `result` 与 `error` 之一；信封不合格的应答算读不懂的错误对象。T8 里写「直接」的应答就是这样的应答。
   - stdio 上解析不了的一行丢弃，流继续。解析不了指：不是 JSON、空行、带 BOM、重复键，或超出 `@omne-harness/json-text` 的大小、深度与数字词形上限；`classifyWireEvent` 对这样的行都答 `other`。它与 T7 的「读不懂」不同：读不懂的应答已解析，结局是 `answer-malformed`。本组不比官方 SDK 更严（SDK 2.4.0 跳过解析不了的行，client `dist/src-CeKsbNLO.mjs:6773`）。行尾的 `\r` 去掉。请求 `id` 的比较：文本按值，数字按词形。由行内容引起的断流只有一种：一行超过传输的行缓冲上界（16 MiB），传输答 `stream-broken`，不再可用。stdout 结束是另一种流断开，见 T8。一次写在完成之前被它的 `signal` 中止也是流断开，见 T5。是 JSON 但不是对本请求的应答的行：对端的请求按 T3 作答，对端的通知按 T3 处理，其余丢弃。
@@ -515,7 +520,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
     - 通知没有 JSON-RPC 应答。
   - 记号：「直接」指 T2 的对本请求的应答；`E(码)` 指该码的 JSON-RPC 错误；「4xx」指 400、404、405、406、415、429 与其余 3xx、4xx，不含 401、403 与带旧会话的 404；「5xx」指 500 及以上；「4xx+码」「5xx+码」指正文是该码的 JSON-RPC 错误；「+纯」指正文按 T2 是「纯」。「旧一路，报旧」指走旧一路，旧一路也失败时报旧一路的失败；「旧一路，报本行」指旧一路也失败时报本行写的失败。
   - 走旧一路时，`initialize` 按 I 行与 S、X 行得出结论；那一行写的 `reportRejection()` 与「传输不再可用」照样生效，以那一行为准。
-  - 写「传输不再可用」的行（S01–S04、S07、X02）同时结算其他在途请求，按 T5 的相，规则是根导出的 `lineGoneAnswerOf`：授权中的答 `not-sent`（`connection-unavailable`），对端没有见过它；已交给线路的在流断开与 X02 下答 `no-answer`（`stream-broken`），在进程退出下答 `no-answer`（`process-exited`），都不再发，在会话结束（S07）下由各自的应答决定；授权发现中的不动，它的结论已由先到的 401 定下，发现不经线路，做完照常以 `authorization-required` 结束。
+  - 写「传输不再可用」的行（S01–S04、S07、X02）同时结算其他在途请求，按 T5 的相，规则是根导出的 `lineGoneAnswerOf`：授权中的答 `not-sent`（`connection-unavailable`），对端没有见过它；已交给线路的在流断开与 X02 下答 `no-answer`（`stream-broken`），在进程退出下答 `no-answer`（`process-exited`），都不再发，在会话结束（S07）下由各自的应答决定；授权发现中的不动，它的结论已由先到的 401 定下，发现不经线路，做完照常以 `authorization-required` 结束。这些行的请求本身与 `lineGoneAnswerOf` 结算的请求，答复带 `unusable`（T1），值是该行的原因：S01、S03、X02 与 SSE 模式的共用流断开是 `stream-broken`，S02、S04 是 `process-exited`，S07 是 `session-ended`。传输记下这个原因，之后的每个请求的答复同样带它。
   - D15、O05 再发的请求保持原来的请求类别，它的应答重新归类；再发的请求不再适用 D15、O05，再断开时是 `no-answer`（`stream-broken`）。SSE 模式下不再发（见下）。
   - SSE 模式（T3 的回退成立之后，`WireContext.mode` 是 `sse`）：POST 答 2xx 而正文没有应答是常态，`classifyWireEvent` 答 `waiting`，不是「2xx 而没有应答」；应答在共用的流上到达，归类照常。共用的流结束或断开是每个已交给线路的请求的流断开：读类与写类都 `no-answer`（`stream-broken`），不再发（D15、O05 不适用），传输不再可用，与 stdio 的 S01、S03 相同；授权中的请求答 `not-sent`（`connection-unavailable`），授权发现中的不动（`lineGoneAnswerOf`）。`initialize` 之后的请求与通知带着 endpoint 的会话：它们的 404 是「404，请求带着旧会话」，按 S07。endpoint 上的 `initialize` 自己不带会话，它的 404 按「4xx」归类。SSE 模式下不发探测，D 行不出现。POST 的其他应答只落在下列行：401 与带 `insufficient_scope` 的 403 按 S05，其他 403 按 S06；4xx、5xx 正文里的 JSON-RPC 错误与读不懂的错误对象按 I03、I04、O01、O02、O03、G06、C02；4xx+纯按 O08、C05，`initialize` 的 4xx+纯答 `not-sent`（`connection-unavailable`），不再试回退；5xx+纯与 POST 的流断开答 `no-answer`（`stream-broken`），读类也不再发（I06、O06、O07、C04 的结论）；请求离开之前失败按 X01。`cancelRequest` 发 `notifications/cancelled`（T5 的旧修订）。
 
