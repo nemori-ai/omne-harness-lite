@@ -168,6 +168,14 @@ export function commandOf(lease: EnvironmentLease): CommandFacility<unknown> {
   return command
 }
 
+/** The fields every terminal operation of these tests shares. */
+export const operationBase = {
+  access: { principal: 'subject-a', tenant },
+  binding: host,
+  origin: originRef('call-1'),
+  requestId: 'operation',
+}
+
 export type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
 
 export function request(

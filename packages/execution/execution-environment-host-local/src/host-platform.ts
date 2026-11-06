@@ -18,6 +18,9 @@ import { createMacosHostCommands, type MacosPrerequisite } from './macos-executi
 import { sessionReader } from './macos-execution/compile.ts'
 import { createDomainIndex } from './macos-execution/domain-index.ts'
 import type { MacosRecovery } from './macos-execution/recovery.ts'
+import { readBootIdNow } from './macos-execution/session.ts'
+import { macosTerminalAdmission, macosTerminalPlatform } from './macos-execution/terminals.ts'
+import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import { windowsBridgeExecutable, windowsTerminalExecutable } from './windows-execution/compile.ts'
 import { createWindowsHostCommands } from './windows-execution/index.ts'
 import {
@@ -31,7 +34,7 @@ type Prerequisite = ProviderFacts['prerequisites']
 export type CommandPrerequisite = HostCommandPrerequisite | MacosPrerequisite
 type CommandInput = Omit<HostCommandsInput, 'prerequisites' | 'unavailable'> &
   Readonly<{ unavailable(missing: readonly CommandPrerequisite[]): void }>
-type TerminalInput = Omit<Parameters<typeof createHostTerminals>[0], 'prerequisites'>
+type TerminalInput = Omit<Parameters<typeof createHostTerminals>[0], 'prerequisites' | 'platform'>
 
 /** Installation facts only; a successful compile does not prove a command or terminal run. */
 export async function probeWindowsExecution(): Promise<Prerequisite> {
@@ -84,19 +87,38 @@ export function createHostPlatform(input: {
       retryMs: input.terminal.probeRetryMs,
       boundMs: input.terminal.stopBoundMs,
     })
+    const terminalPlatform = (scope: ScopeRef) =>
+      macosTerminalPlatform({
+        scope,
+        stopBoundMs: input.terminal.stopBoundMs,
+        startBoundMs: input.terminal.startBoundMs,
+        reader: sessionReader,
+        domains: macos.domains,
+      })
     return {
       macos,
       async prerequisites(): Promise<readonly Prerequisite[]> {
-        const reading = await sessionReader()
-        return [reading.kind === 'ready' ? 'satisfied' : 'unsatisfied', 'unsatisfied']
+        const [reading, terminal] = await Promise.all([
+          sessionReader(),
+          macosTerminalAdmission(sessionReader),
+        ])
+        return [
+          reading.kind === 'ready' ? 'satisfied' : 'unsatisfied',
+          'reader' in terminal ? 'satisfied' : 'unsatisfied',
+        ]
       },
       commands: (options: CommandInput) =>
         createMacosHostCommands({ ...options, reader: sessionReader, domains: macos.domains }),
       terminals(options: TerminalInput) {
+        // The Linux probe stays unread: the platform below admits macOS terminals.
         const shared = { ...options, prerequisites: terminalProbe }
         return {
-          ordinary: createHostTerminals(shared),
-          reserve: retainedHostTerminalFactory(shared),
+          ordinary: createHostTerminals({ ...shared, platform: terminalPlatform(options.scope) }),
+          reserve: retainedHostTerminalFactory({
+            ...shared,
+            platform: terminalPlatform,
+            bootIdNow: readBootIdNow,
+          }),
         }
       },
       supervisor: async () => undefined,

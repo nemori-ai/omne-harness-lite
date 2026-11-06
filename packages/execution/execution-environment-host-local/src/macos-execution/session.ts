@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 
 /** One POSIX session of a domain: its id (the leader's pid) and the leader's start time. */
 export type RecordedSession = Readonly<{ sid: number; start: string }>
@@ -120,6 +120,22 @@ export async function stopSessions(input: {
   return (out === undefined ? undefined : parseStop(out)) ?? 'unconfirmed'
 }
 
+const bootIdPattern = /^[0-9A-F-]{36}$/iu
+
+/** This boot's identity, read at once, for a reservation taken before its first wait. */
+export function readBootIdNow(): string | undefined {
+  try {
+    const value = execFileSync('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid'], {
+      timeout: 5_000,
+      env: {},
+      encoding: 'utf8',
+    }).trim()
+    return bootIdPattern.test(value) ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /** This boot's identity; `kern.boottime` is not used because a clock step changes it. */
 export function readBootId(): Promise<string | undefined> {
   return new Promise(resolve => {
@@ -129,7 +145,7 @@ export function readBootId(): Promise<string | undefined> {
       { timeout: 5_000, env: {} },
       (error, stdout) => {
         const value = stdout.trim()
-        resolve(error === null && /^[0-9A-F-]{36}$/iu.test(value) ? value : undefined)
+        resolve(error === null && bootIdPattern.test(value) ? value : undefined)
       },
     )
   })

@@ -1,10 +1,11 @@
 /**
  * The session reader of the macOS backend, compiled on the host with the Command Line Tools.
- * It uses public interfaces only: `proc_listpids`, `getsid`, `getpgid`, `kill` and the
+ * It uses public interfaces only: `proc_listpids` (all pids, or the children of one), `getsid`, `getpgid`, `kill` and the
  * `PROC_PIDT_SHORTBSDINFO` and `PROC_PIDTBSDINFO` flavors of `proc_pidinfo` from <libproc.h>.
  *
  *   members <except> <sid>...            one line `pid pgid sid` per live process of the sessions
  *   identity <pid>                       `sid start_sec start_usec`, or `gone`
+ *   children <pid>                       one line `pid` per live child of the process
  *   stop <bound_ms> <except> <sid>...    kills every live member and its process group until two
  *                                        readings in a row are empty: `confirmed`; at the bound:
  *                                        `unconfirmed <count>`
@@ -124,6 +125,23 @@ static int identity_command(int argc, char **argv) {
   return 0;
 }
 
+static int children_command(int argc, char **argv) {
+  pid_t parent;
+  if (argc != 3 || parse_pid(argv[2], &parent) != 0 || parent <= 1) return 2;
+  int bytes = proc_listpids(PROC_PPID_ONLY, (uint32_t)parent, NULL, 0);
+  if (bytes < 0) return 1;
+  /* PROC_PPID_ONLY answers bytes, like the listing of members. */
+  int capacity = bytes / (int)sizeof(pid_t) + 64;
+  pid_t *pids = calloc((size_t)capacity, sizeof(pid_t));
+  if (pids == NULL) return 1;
+  bytes = proc_listpids(PROC_PPID_ONLY, (uint32_t)parent, pids, capacity * (int)sizeof(pid_t));
+  if (bytes < 0) { free(pids); return 1; }
+  for (int i = 0; i < bytes / (int)sizeof(pid_t); i++)
+    if (pids[i] > 1 && !zombie(pids[i])) printf("%d\n", pids[i]);
+  free(pids);
+  return 0;
+}
+
 static int stop_command(int argc, char **argv) {
   pid_t bound, except, *sids;
   if (argc < 5 || parse_pid(argv[2], &bound) != 0 || parse_pid(argv[3], &except) != 0) return 2;
@@ -159,6 +177,7 @@ int main(int argc, char **argv) {
   if (strcmp(argv[1], "members") == 0) return members_command(argc, argv);
   if (strcmp(argv[1], "identity") == 0) return identity_command(argc, argv);
   if (strcmp(argv[1], "stop") == 0) return stop_command(argc, argv);
+  if (strcmp(argv[1], "children") == 0) return children_command(argc, argv);
   return 2;
 }
 `
