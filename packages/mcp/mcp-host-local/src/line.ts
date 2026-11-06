@@ -24,6 +24,8 @@ export type AnswerHeaders = Readonly<{ [name: string]: string }>
  * - `stream`: a 2xx HTTP answer: its headers, the JSON-RPC messages of the body one by one (the
  *   JSON body as one message, or the data of each SSE event), and `abort` to end it. The
  *   iteration ends when the body ended as the peer meant it to, and rejects when it broke.
+ *   `abort` releases local resources only and does not throw: the session calls it while it
+ *   settles a request, and a throw there is a defect of the line.
  * - `aborted`: the exchange ended before an answer head: on HTTP the request failed after it
  *   started to go out, or the signal ended it; on stdio the signal ended the write before it
  *   completed, and the line is not writable any more.

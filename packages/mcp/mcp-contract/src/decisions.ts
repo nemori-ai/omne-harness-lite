@@ -436,7 +436,7 @@ export function stopAnswerOf(phase: InFlightPhase): WireAnswer {
 }
 
 /**
- * T8 S01–S04, the SSE mode and S07: what a request in flight settles with when the line is gone,
+ * T8 S01–S04, X02, the SSE mode and S07: what a request in flight settles with when the line is gone,
  * by its phase. Only the two phases that depend on the line settle: one still authorizing never
  * reached the wire and is `not-sent` (`connection-unavailable`); one sent answers `no-answer` with
  * the cause, except when the peer ended the session (S07): the request that was told so settled

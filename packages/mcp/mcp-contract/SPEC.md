@@ -473,7 +473,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - 「走旧一路」指发 `initialize`。T8 的结论写明旧一路也失败时 `discover` 报哪一个失败。S5、S7 的「`discover` 失败 → `lost`（`discover-failed`）」按 `discover` 最终报出的失败成立。
   - 对端发来的请求：`ping` 答空结果，其余请求一律答 JSON-RPC 错误 `-32601`。不分修订，也不分 `notifications/initialized` 之前或之后。
   - `call` 的 `_meta` 另带 `progressToken`，每请求唯一。对端的 `notifications/progress` 带着在途调用的 `progressToken` 时，传输把这条通知的 `params` 原样放进 `untrusted`，经该调用的 `observe` 交出（S6）；`progressToken` 对不上在途调用的通知丢弃。其他通知丢弃。
-  - 调用方写的值按原词形写出：`call` 的 `arguments` 与 `continuation.inputResponses`、`updateTask` 的 `inputResponses`。传输答复对端请求时回显的请求 id 同样按原词形写出。规则见 [RFC-0010](../../../docs/rfcs/RFC-0010-json-text-lossless-writer.md)；根导出的 `requestTextOf` 与 `responseTextOf` 这样写出。`McpTransport.call` 的前提：参数（`arguments`）与输入答复（`continuation.inputResponses`）的值树已经判定（[`@omne-harness/json-text`](../../common/json-text/README.md) 的 `judgeJsonValue`），违反是调用方的缺陷。
+  - 调用方写的值按原词形写出：`call` 的 `arguments` 与 `continuation.inputResponses`、`updateTask` 的 `inputResponses`。传输答复对端请求时回显的请求 id 同样按原词形写出。规则见 [RFC-0010](../../../docs/rfcs/RFC-0010-json-text-lossless-writer.md)；根导出的 `requestTextOf` 与 `responseTextOf` 这样写出。`McpTransport.call` 与 `updateTask` 的前提：参数（`arguments`）与输入答复（`continuation.inputResponses`、`updateTask` 的 `inputResponses`）的值树已经判定（[`@omne-harness/json-text`](../../common/json-text/README.md) 的 `judgeJsonValue`），违反是调用方的缺陷。
 - **T4** T8 S05 的授权失败：失败是 `not-sent`（`authorization-required`），带授权发现（R4）。这个请求曾用凭据句柄授权时，传输先调用该句柄的 `reportRejection()` 恰好一次，再报这个失败。T8 S06 的 403 不调用 `reportRejection()`。
 - **T5** 取消与关闭。这些事件与 T8 的应答事件落在同一个请求上时，先发生的那个决定结论，后来的丢弃：
   - `cancelRequest` 不证明对端已停止。stdio 上，以及 Streamable HTTP 旧修订上，它发 `notifications/cancelled`，带 `requestId` 与每请求 `_meta`，`answer` 继续等应答。Streamable HTTP 现代修订上，它中止该请求的应答流，不另发通知，`answer` 以 `no-answer`（`abandoned`）兑现。
@@ -706,7 +706,7 @@ T3 与 T8 引用的 SDK 行为，按仓库采用的 `@modelcontextprotocol/clien
     - T3 的探测时限取自传输配置、时限到了以后迟到的应答丢弃。
     - T3 的旧 HTTP+SSE 回退成立的一支，与 T8 的 SSE 模式。套件的对端不提供旧一路，所以套件只核 I07 不成立的一支。`@omne-harness/mcp-host-local` 另有用例核对成立的一支与 SSE 模式。
     - T5 的 `signal` 在调用前已触发时答 `not-sent`。
-    - T5 授权发现中的结局：`signal` 或 `close()` 答 `authorization-required`，带已取到的部分；`close()` 不等挂起的 `reportRejection` 与元数据取回。套件的脚本化传输与对端不产生授权发现。`@omne-harness/mcp-host-local` 另有用例（`tests/session.spec.ts` 与 `tests/http.spec.ts` 里按授权发现命名的用例）。
+    - T5 授权发现中的结局：`signal` 或 `close()` 答 `authorization-required`，带已取到的部分；`close()` 不等挂起的 `reportRejection` 与元数据取回。套件生成的用例不在授权发现途中停止请求。脚本化传输的 `cancelRequest` 落在授权发现中时按相结算，这一点由本包 `tests/transport-conformance.spec.ts` 的一条用例覆盖。`@omne-harness/mcp-host-local` 另有用例（`tests/session.spec.ts` 与 `tests/http.spec.ts` 里按授权发现命名的用例）。
     - T8 前言的按相结算其他在途请求（S01–S04、S07、X02 与 SSE 模式的共用流）。生成的 T8 用例每格只跑一个请求。`@omne-harness/mcp-host-local` 另有用例：`tests/session.spec.ts` 里「the line going away settles a request by its phase」一组，与「leaves another request of the session in flight when one is told the session ended (S07)」。
     - T9 中元数据取回不带凭据写入的头。`@omne-harness/mcp-host-local` 的 `tests/lines.spec.ts`「the fetch of protected resource metadata」核对取回只带 `accept`。
     - T5 不要求 DELETE，套件不核 `close()` 是否发 DELETE。

@@ -92,7 +92,10 @@ import type {
 } from '@omne-harness/mcp-contract/provider'
 import type { AnswerHeaders, Exchange, GetOpened, Line, LineEvent, Outbound } from './line.ts'
 
-/** Arms a one-shot timer; the returned function cancels it. The factory gives the default. */
+/**
+ * Arms a one-shot timer; the returned function cancels it and does not throw. The factory gives
+ * the default.
+ */
 export type Scheduler = (delayMs: number, fire: () => void) => () => void
 
 export type SessionOptions = Readonly<{
