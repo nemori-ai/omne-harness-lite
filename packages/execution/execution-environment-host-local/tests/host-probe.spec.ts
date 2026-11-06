@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   acquisitionRef,
@@ -165,8 +165,14 @@ async function prerequisitesSettle(provider: ReturnType<typeof createHostFilesPr
 
 it(
   'answers unavailable on an unsupported execution platform, and files of the same acquisition still work',
-  { skip: linux || process.platform === 'win32' },
+  { skip: process.platform === 'win32' },
   async () => {
+    // macOS and Linux have backends; another POSIX platform falls to the Linux probe and misses it.
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+    Object.defineProperty(process, 'platform', { value: 'freebsd', configurable: true })
+    onTestFinished(() => {
+      if (platform) Object.defineProperty(process, 'platform', platform)
+    })
     const diagnostics: HostFilesDiagnostic[] = []
     const provider = hostProvider(diagnostics)
     const recorded = recordingLedger()
