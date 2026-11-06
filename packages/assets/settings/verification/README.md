@@ -178,3 +178,6 @@ source-snapshot的真实读取增量验证了模型中源快照的部分精化�
 
 
 `SettingsIntentAttempts` 的普通 seal、根取消、终态不复活与旧 attempt 隔离，现由 settings-local 私有 `intent-settlement.ts` 落实关系写入，测试入口为 `intent-settlement.spec.ts`。`SettingsPreparationBootstrap` 的 preparing 禁止成功也有对应反例。最终当前依据检查、terminal 原子组合及源门同提交仍由未完成的生产协调负责；模型通过和私有关系测试通过不能替代这些义务。
+
+
+`SettingsSourceRetention` 的源根封口及精确清门同提交，现有 `settings-local/tests/recovery-combination.spec.ts` 使用实际六参与者组合验证。来源保留仍为held时可以取消源修改，但不得顺便结算这些保留；下游失败须回滚terminal、门和根。初始准入与来源门使用夹具，实际业务成功提交、Identity恢复装配和物理断电仍不在这组证据内。

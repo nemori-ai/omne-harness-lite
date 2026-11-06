@@ -186,3 +186,18 @@ ready的终态动作仅观察，不写committed；来源动作为none，不清�
 源修改根还要求来源写者的 finished 结果。结果必须匹配完整来源、原主体、根操作、命令摘要及终态，且根保存的 sourceKey 必须一致。这个形状检查不证明清门已经发生。生产持久参与者必须通过声明的事务 fact 取得结果，不能从客户端输入构造它；terminal、精确清门及本写者必须在同一 SQL 提交内完成。
 
 当前关系测试通过真实 Worker 调用该私有写者，覆盖竞争顺序、旧 attempt、回滚及重开。prepared 状态和来源 finished 结果仍由具名夹具构造。因此这些测试只证明根与 attempt 的关系变迁，不证明真实 ready、来源清门、业务写入或恢复路由已经接通。
+
+
+### 精确恢复封口组合
+
+私有 `settingsRecoveryMaterials` 为准备提供者选择唯一的 terminal 和 persistence 写者，取代同目录旧材料中的对应描述符。它不把两个写者同时登记到同一个表上。当前默认公开工厂仍走原路径；只有完整提供者切换并排空旧 held 后才能退出旧实现。
+
+实际依赖链为 terminal-observation、recovery-plan、terminal、source-finalization、source-retention、persistence。观察者只读取终态表，计划者只读取持久根和尝试。该组合不要求当前治理、来源快照或再次取得资格。SqlStorage依据事实依赖排序，调用数组顺序不构成正确性前提。
+
+attempt终态仍由st_terminals承载，但新记录带attempt标签与完整绑定，键采用包含域、主体、种类和精确attempt ID的恢复身份。查询后再次核对完整绑定。当前模块只实现attempt恢复，不猜测capture或旧记录的含义。根终态和精确attempt终态不是同一个结果；恢复调用者必须使用精确attempt终态回应其外部保留，不能把后继已提交的根结果当成旧attempt提交成功。
+
+内部取消请求携带受保护读回的当前attempt选择。没有活跃尝试时可以传null；若选择已过期，整个事务拒绝且不清门。协调器应重新读回同一根并重试取消，不能替换原业务操作。seal则始终绑定精确attempt，重复旧seal只认回原终态。
+
+来源终结投影验证计划与terminal结果，随后向唯一来源写者发出精确动作。其finalized结果不满足直接写入所需的open事实。持久写者核验来源finished结果后再修改根和attempt。源根取消允许仍有held，但不释放这些保留；它们须由各自目的终态另行结算。
+
+真实组合测试覆盖封口认回、当前选择冲突、旧attempt隔离、根和精确门共同终结以及下游故障后的整组回滚。根分配和起始来源门由夹具设置，六个恢复参与者采用生产模块。公共prepare/commit、可信resolver装配、capture路径和旧held排空尚未完成。

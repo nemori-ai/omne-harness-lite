@@ -101,3 +101,6 @@ pnpm --filter @omne-harness/assets-local run test:fast
 
 
 `intent-settlement.spec.ts` 经真实 SQLite Worker 验证私有根终结写者。场景包含旧 attempt 与后继隔离、preparing 禁止成功、原绑定核对、提交与取消双顺序和并发、无活跃 attempt 的根取消、业务拒绝、精确来源结果、事务回滚和重开。prepared 状态及来源 finished 结果使用夹具；这些场景不替代最终参与者组合与公开准备接口验收。
+
+
+`recovery-combination.spec.ts` 使用六个实际恢复参与者，在真实SQLite上验证普通seal、来源根和精确门同提交、held保留、下游失败整组回滚、重开认回、旧attempt不改后继、取消选择冲突和绑定拒绝。命令数组反序提交，用于检查事实依赖排序。根分配与起始门是具名夹具；测试不证明公开准入或完整准备提交。材料检查同时拒绝把source-snapshot和source-finalization两个事实生产者选进同一个组合。

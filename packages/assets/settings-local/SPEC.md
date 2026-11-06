@@ -213,3 +213,6 @@ Ready, commit and seal use separate fixed combinations with exactly one finaliza
 
 
 私有根终结写者必须核对精确 attempt 与原命令绑定。成功不能从 preparing 直接发生。普通 seal 保持根开放，源修改 seal 终结根，取消可作用于没有活跃 attempt 的开放根。旧 aborted attempt 不得修改后继，已终结根不得复活。源修改的根终结须消费同事务来源写者的精确 finished 结果；形状相符不构成来源权威。所有 SQL 异常向事务拥有者传播，根和 attempt 不得部分提交。该私有模块尚不构成公开准备提供者。
+
+
+准备提供者的私有恢复组合必须在一次物理事务内执行terminal观察、原根计划、精确terminal记录、来源动作和持久终结。封口不得要求当前资格或来源快照。重复旧attempt只认回自己的终态，不能借根的后继结果改变其外部保留结果。内部取消选择与当前活跃attempt不符时整组拒绝；无活跃attempt的根可取消。空动作、finalized与直接写入open事实不可互换。该组合的实际参与者已实现；公共准备服务和resolver切换仍未完成。
