@@ -248,6 +248,23 @@ export const MUTANTS: readonly Mutant[] = [
     expect: 'V6-lineend-authorizing',
   },
   {
+    name: 'mV6-lineend-settles-discovery',
+    breaks: 'V6, T8',
+    defect:
+      'the line going away settles a request in the authorization discovery with what was fetched so far, as a stop would',
+    file: 'src/session.ts',
+    replacements: [
+      {
+        find: '      const wire = lineGoneAnswerOf(entry.phase, cause)\n',
+        replace: '      const wire = stopAnswerOf(entry.phase)\n',
+      },
+    ],
+    spec: SESSION,
+    mode: 'fast',
+    filter: 'is not settled by the shared stream breaking',
+    expect: "to be 'pending'",
+  },
+  {
     name: 'mStdio-close-flushes',
     breaks: 'SPEC H6',
     defect:

@@ -1965,7 +1965,6 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
   })
 
   it('a request in the authorization discovery is not settled by the shared stream breaking: it ends authorization-required when the discovery ends', async () => {
-    const root = 'https://peer.test/.well-known/oauth-protected-resource'
     const fetching = deferred<string>()
     const found = deferred<PlainJson | undefined>()
     const { line, transport, credential } = open(
@@ -1986,7 +1985,8 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     await credential.rejected
     await fetching.promise
     line.queue.push({ kind: 'broken' })
-    await tick()
+    // The break settles nothing in the discovery: the listing waits on the fetch it is in.
+    expect(await settledWithin(listing, 30)).toBe('pending')
     found.resolve({ authorization_servers: ['https://issuer.test'] })
     expect(await settledWithin(listing)).toMatchObject({
       settled: {
@@ -2000,7 +2000,6 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     expect(credential.rejections()).toBe(1)
     expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
     expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
-    void root
   })
 })
 
