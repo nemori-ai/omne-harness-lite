@@ -80,3 +80,6 @@ pnpm --filter @omne-harness/assets-local run test:fast
 恢复测试检查100与28行键集页不重不漏，且返回形状没有快照值。另检查零held待决门仍可枚举。关闭存储后检查实际SQLite约束及查询计划。源与目的的真实服务组合、所有失效写者围栏和生产恢复路由仍须单独验收。
 
 运行显式typecheck检查全部测试辅助文件。Vitest界面的Type Errors行不替代该命令。
+
+
+[source-snapshot.spec.ts](source-snapshot.spec.ts)使用真实独立目标、配值写者和只读source-snapshot参与者。它验证实际值/锁、明确无配值、退休和声明漂移拒绝、完整目的绑定，以及事实依赖排序。具名消费夹具可把真实快照交给保留写者并重开认回。该夹具替代准入和生产保留协调，没有证明所有源失效写者已经受到held约束。

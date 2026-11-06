@@ -167,3 +167,6 @@ Seal可以终结preparing、prepared或submitted。不可逆终态阻止迟到Pu
 
 
 来源保留模型的关系实现入口现为settings-local的source-retention-schema、source-retention-migration与source-retention-records。门和held通过真实SQL测试装配持久化，具名夹具提供快照及目的终态。持有上限、精确清门和独立pending枚举已有关系测试，模型中的真实来源快照、全部失效写者、目的封口和根终结原子性仍须生产组合兑现。该增量不把完整SourceHoldsProtectRevision视为已接受的运行保证。
+
+
+source-snapshot的真实读取增量验证了模型中源快照的部分精化。实际拥有者、配值及锁来自同一SQL事务，事实绑定完整目的请求。消费协调仍由测试夹具提供，全部失效写者、目的终态和完整根提交组合尚未完成，不能由该读取测试推出保留期间来源始终稳定。

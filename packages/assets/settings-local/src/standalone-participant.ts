@@ -1,4 +1,7 @@
-import { projectSettingsSources } from './source-layout.ts'
+import {
+  readStandaloneSettingsRecord as row,
+  projectStandaloneSettingsRecord as projection,
+} from './standalone-records.ts'
 import { z } from 'zod'
 import { defineSettings, type SettingsTarget } from '@omne-harness/settings'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
@@ -22,11 +25,6 @@ const fail = (reason: string) => ({
   kind: 'conflict' as const,
   basis: { kind: 'rejected', reason },
 })
-function row(port: ParticipantPort, key: string) {
-  const raw = port.execute('SELECT record FROM st_targets WHERE target_key = ? LIMIT 1', [key])
-    .rows[0]?.[0]
-  return raw === undefined ? null : StandaloneRecordSchema.parse(JSON.parse(z.string().parse(raw)))
-}
 function adoptDefinition(
   port: ParticipantPort,
   record: Extract<
@@ -112,12 +110,6 @@ function mutate(facts: Readonly<Record<string, unknown>>, port: ParticipantPort)
     [key, target.scopeRef, next.retired ? 1 : 0, canonical(next)],
   )
   return { kind: 'participated' as const, response: { kind: 'changed', revision } }
-}
-function projection(record: ReturnType<typeof StandaloneRecordSchema.parse>) {
-  const { sourceLayout, ...view } = record.projection
-  return sourceLayout.kind === 'bound'
-    ? { ...view, sources: projectSettingsSources(sourceLayout.sources, view.ownerRevision) }
-    : null
 }
 function capture(facts: Readonly<Record<string, unknown>>, port: ParticipantPort) {
   const binding = SettingsProjectionBindingSchema.parse(facts['binding'])

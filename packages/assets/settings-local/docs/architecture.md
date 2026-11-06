@@ -260,7 +260,7 @@ erDiagram
 
 ```mermaid
 flowchart LR
-  Snapshot[待接线：真实Settings源快照] -.-> Holds[已有私有保留记录写者]
+  Snapshot[已有：只读Settings源快照] -.-> Holds[已有私有保留记录写者]
   Gate[已有私有待决门写者] --> Holds
   Gate -.-> Writers[待接线：配值、声明与布局失效写者]
   Resolver[待接线：可信目的终态resolver] -.-> Holds
@@ -269,3 +269,20 @@ flowchart LR
 ```
 
 实线仅表示已实现的私有关系操作。测试装配提供快照和终态夹具。图中的生产适配及当前来源保证尚未交付。恢复索引只枚举元数据，实际保留快照在按需精确认回时读取。
+
+
+只读source-snapshot现在直接读取本成员的st_targets和st_states。standalone-records与projected-state分别复用目标解码/投影和配值相容性检查，普通目录也使用同一条配值读取逻辑。事实携带完整目的请求，消费者必须核对绑定。
+
+```mermaid
+flowchart TB
+  Snapshot[只读source-snapshot] --> OwnerRead[standalone-records]
+  Snapshot --> Values[projected-state]
+  TargetOwner[独立目标参与者] --> OwnerRead
+  Catalog[目录快照参与者] --> Values
+  OwnerRead --> Targets[st_targets]
+  Values --> States[st_states]
+  Snapshot --> Fact[绑定完整请求的snapshot fact]
+  Fact -.-> Reserve[尚待生产接线的保留协调]
+```
+
+source-snapshot不拥有表，也不依赖写者产生的fact。登记组合必须包含实际表拥有者。该结构允许先读取，再由来源门和写者推进事务，避免读者等待写者、写者又等待来源门。当前测试通过具名消费者使用该事实，真实资格和全部写者围栏仍未交付。

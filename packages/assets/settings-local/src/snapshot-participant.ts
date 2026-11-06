@@ -1,10 +1,9 @@
-import { matchesSettingsSources } from './source-layout.ts'
-import { defineSettings, evaluateSettings } from '@omne-harness/settings'
+import { readProjectedSettingsState } from './projected-state.ts'
+import { defineSettings } from '@omne-harness/settings'
 import type { SettingsBasis, SettingsTargetView, SettingsFailure } from '@omne-harness/settings'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { targetViews } from './target-guard.ts'
 import { canonical, digest, equal, json, withinBudget } from './encoding.ts'
-import { readStateRecord } from './records.ts'
 import { TERMINAL_FACT } from './terminal-schema.ts'
 import {
   SNAPSHOT_PARTICIPANT,
@@ -12,28 +11,6 @@ import {
   SnapshotInputSchema,
   snapshotOperation,
 } from './snapshot-schema.ts'
-function projectedState(
-  port: ParticipantPort,
-  input: ReturnType<typeof SnapshotInputSchema.parse>,
-  projection: ReturnType<typeof targetViews>[number],
-): SettingsTargetView | SettingsFailure {
-  const { target, enabled, definition, definitionRef, grants, sources } = projection
-  const fail = (reason: SettingsFailure['reason']): SettingsFailure => ({
-    kind: 'rejected',
-    reason,
-  })
-  const current = readStateRecord(port, input.binding.domain.scope, target)
-  if (current && !equal(current.definitionRef, definitionRef)) return fail('definition_changed')
-  if (current && !matchesSettingsSources(current.sourceLayout, sources))
-    return fail('basis_changed')
-  const state = current?.state ?? {
-    revision: 0,
-    sources: sources.map(({ sourceId: id }) => ({ id, values: [] })),
-  }
-  if (evaluateSettings({ definition, sources: state.sources }).kind !== 'complete')
-    return fail('incompatible')
-  return { target, enabled, definition, definitionRef, grants, state, sources }
-}
 function captureValues(
   port: ParticipantPort,
   input: ReturnType<typeof SnapshotInputSchema.parse>,
@@ -55,9 +32,9 @@ function captureValues(
       unavailableProviders.push(definitionRef.providerId)
       continue
     }
-    const value = projectedState(port, input, projection)
+    const value = readProjectedSettingsState(port, input.binding.domain.scope, projection)
     if ('kind' in value) return value
-    views.push(value)
+    views.push(value.view)
   }
   if (input.binding.request.mode === 'runtime' && unavailableProviders.length)
     return rejected('unavailable')

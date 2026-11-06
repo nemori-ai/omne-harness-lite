@@ -161,3 +161,13 @@ Settlement consumes a confirmed, matching destination terminal from the trusted 
 Recovery reads held reservations and pending gates through separate partial indexes. It returns bounded keyset pages of at most100 records. Hold recovery returns binding and route metadata, without copying snapshot values into each page. Pending recovery includes gates with zero holds. Per-source held counts use a partial source index. Exact lookup, identity validation and SQL row budgets apply on readback.
 
 Tests use real SqlStorage and SQLite with a named fixture replacing trusted admission, snapshot production and terminal resolution. They exercise persistence, isolation between source targets, competing updates, exact cleanup, capacity, rollback and indexed recovery. They do not establish production invalidation coverage or cross-domain release ordering.
+
+## Transactional source snapshot
+
+`source-snapshot.ts` supplies a read-only participant and a bound snapshot fact. It reads independent target ownership and Settings assignments in the source transaction. Its material descriptor reads st_targets and st_states, owns no tables, and requires no upstream facts. The combination must register the actual table owners. The private material factory is not exported as a public source reservation service.
+
+The fact binds the complete source request, including its destination owner and exact attempt. A consumer must compare this binding before using the observation. Captured observations contain the current owner projection, state and explicit absent/present marker. Missing or retired targets, unmapped source layouts, conflicting definitions and incompatible state do not become empty snapshots. Asset targets are unsupported by this participant.
+
+The participant reuses standalone-records and projected-state with the ordinary owner and catalog paths. It validates the full definition reference against the normalized declaration. It preserves actual values, locks, source descriptors and revisions. Caller-supplied snapshot content is never read. Snapshot production does not authenticate the principal or keep the source stable after the transaction.
+
+Source-snapshot tests combine the real target owner, assignment writer and snapshot participant with a named fact-consumer fixture. They verify absence, real values and locks, retirement, definition drift, complete destination binding, dependency ordering and snapshot retention across reopen. These tests do not complete the organization source adapter or invalidation gates. Recovery and settlement must remain independent of obtaining a fresh source snapshot.
