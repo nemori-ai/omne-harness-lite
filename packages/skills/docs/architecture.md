@@ -1,6 +1,6 @@
 # Skill能力组工程设计
 
-状态：工程设计草案。本页的成员、模型、端口、应用服务、失败种类与技术处置都是候选决定，尚未取得技术接受。`@omne-harness/skill-contract`、`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 都已有实现（候选，尚未取得技术接受）。各成员的行为以成员规格为准：[skill-contract](../skill-contract/SPEC.md)、[skill](../skill/SPEC.md)、[skill-host-local](../skill-host-local/SPEC.md)。`@omne-harness/skill` 实现 `PackageInspection`、`SkillCatalog` 与 `SkillAccess`。三个服务只对内存替身与 `SkillAccess`、`SkillCatalog` 的符合性套件验证过。另有有限范围的模型与探索器结果，见[性质账本](../skill/verification/README.md#ledger)。`DirectorySource` 在真实临时目录上通过来源的符合性套件。真实的读取判定与对应都还没有验证过。新公开承诺在实施交付时走技术接受。
+状态：工程设计草案。本页的成员、模型、端口、应用服务、失败种类与技术处置都是候选决定，尚未取得技术接受。`@omne-harness/skill-contract`、`@omne-harness/skill`、`@omne-harness/skill-host-local` 与 `@omne-harness/skill-cordis-contract` 都已有实现（候选，尚未取得技术接受）。各成员的行为以成员规格为准：[skill-contract](../skill-contract/SPEC.md)、[skill](../skill/SPEC.md)、[skill-host-local](../skill-host-local/SPEC.md)、[skill-cordis-contract](../skill-cordis-contract/SPEC.md)。`@omne-harness/skill` 实现 `PackageInspection`、`SkillCatalog` 与 `SkillAccess`。三个服务只对内存替身与 `SkillAccess`、`SkillCatalog` 的符合性套件验证过。另有有限范围的模型与探索器结果，见[性质账本](../skill/verification/README.md#ledger)。`DirectorySource` 在真实临时目录上通过来源的符合性套件。真实的读取判定与对应都还没有验证过。新公开承诺在实施交付时走技术接受。
 
 本页只写组内的分解、模型、端口形状、应用服务、失败种类与技术处置。跨领域交接见[领域交接设计](../../../docs/domains/skills/architecture.md)。成员与允许依赖见[组入口](../README.md#成员与依赖)。
 
@@ -62,7 +62,7 @@
 - 值：见[模型](#模型)。
 - 纯函数：见[应用服务](#应用服务)末尾。
 - 服务：`PackageInspection`、`SkillCatalog` 与 `SkillAccess`，见[应用服务](#应用服务)。
-- Cordis 服务键：`skill-cordis-contract` 的 `./cordis` 为三个服务给出键 `skillPackageInspection`、`skillCatalog`、`skillAccess`，为两个他域端口给出键 `skillReadCheck`、`skillResolution`，每个键一个抽象 Service 与一个键常量（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。`skill-host-local` 的 `./cordis` 插件 `skillPlugin` 在三个服务键上提供服务，每次端口调用从两个端口键现取。见各自的成员规格。
+- Cordis 服务键：`@omne-harness/skill-cordis-contract` 的 `./cordis` 为三个服务给出键 `skillPackageInspection`、`skillCatalog`、`skillAccess`，为两个他域端口给出键 `skillReadCheck`、`skillResolution`，每个键一个抽象 Service 与一个键常量（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。`skill-host-local` 的 `./cordis` 插件 `skillPlugin` 在三个服务键上提供服务，从两个端口键取用端口，规则见各自的成员规格。
 - 实现方入口：`@omne-harness/skill-contract/provider` 导出三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot` 与 `SnapshotDefect`。公开根不导出这些。调用方用公开根，拿不到 `SkillRef` 与包定位。这沿 `tool-contract` 的先例。各入口的内容见成员规格[入口](../skill-contract/SPEC.md#entries)。
 - 符合性设施：`@omne-harness/skill-contract/testing` 导出 `SkillPackageSource`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及这三个端口的内存替身。`SkillReadCheck` 与 `SkillResolution` 的套件核对：对无权主体，答复不随该身份是否存在而变。`./testing` 另有 `SkillAccess` 与 `SkillCatalog` 的符合性套件。每个套件是不依赖测试框架的用例列表，实现方在自己的测试框架里逐个登记并运行。夹具缺少用例需要的东西时，用例抛出 `NotApplicable`，这不算通过也不算失败，实现方单独计数。套件见成员规格[符合性套件](../skill-contract/SPEC.md#conformance)。
 
