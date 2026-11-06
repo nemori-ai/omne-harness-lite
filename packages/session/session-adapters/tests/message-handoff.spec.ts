@@ -7,11 +7,14 @@
 // is recalled before the advance is judged; the outcome is fixed once; lookup reads and writes
 // nothing; a forged scope, another tenant's scope, an execution of no Run and a denied qualification
 // are refused with nothing written; another tenant does not read the record.
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   decodeAgentExecutionId,
   decodeInputId,
   decodeActionId,
+  judgeEvidence,
+  judgeHandoffPrepare,
+  judgeInputOrigin,
   type AgentAccessCheck,
   type ExecutionSnapshot,
   type HandoffOutcome,
@@ -23,6 +26,7 @@ import {
   agentMessageHandoffKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { decodeModelCallId } from '@omne-harness/model-contract'
+import * as messageContract from '@omne-harness/message'
 import { succeed } from '@omne-harness/operation-result'
 import { assistantMessage, memoryOtherAccess } from '@omne-harness/session-contract/testing'
 import {
@@ -56,6 +60,7 @@ const agentAccess = (s: SqlScene) => ({ principal: s.access.principal, tenant: s
 const scenes: SqlScene[] = []
 const disposers: (() => Promise<unknown>)[] = []
 afterEach(async () => {
+  vi.restoreAllMocks()
   for (const dispose of disposers.splice(0).reverse()) await dispose()
   for (const s of scenes.splice(0)) await s.close()
 })
@@ -299,6 +304,69 @@ describe('the invoke and submit branches', () => {
     expect(ok(await f.handoff().prepare(input))).toEqual(first)
     expect(writes(f.s)).toBe(before)
   })
+
+  for (const field of ['request', 'origin', 'qualification', 'record', 'message'] as const)
+    it(`refuses a legacy outcome whose ${field} differs from its intent without judging or writing`, async () => {
+      const f = await provided(`handoff-legacy-damaged-${field}`)
+      const input = submit(f.s)
+      const judge = vi.spyOn(messageContract, 'judgeMessage')
+      const first = ok(await f.handoff().prepare(input))
+      expect(judge).toHaveBeenCalled()
+      if (
+        first.request.kind !== 'input' ||
+        first.request.entry.kind !== 'submit' ||
+        first.origin?.kind !== 'submit' ||
+        first.decision.kind !== 'prepared'
+      )
+        throw new Error('a prepared submit outcome is expected')
+      const damaged: HandoffOutcome = {
+        ...first,
+        ...{
+          request: {
+            request: {
+              ...first.request,
+              entry: {
+                ...first.request.entry,
+                value: {
+                  ...first.request.entry.value,
+                  content: assistantMessage('another request'),
+                },
+              },
+            },
+          },
+          origin: { origin: { ...first.origin, executionBinding: evidence('another binding') } },
+          qualification: { qualification: evidence('another qualification') },
+          record: { record: evidence('another record') },
+          message: {
+            decision: { ...first.decision, message: assistantMessage('another message') },
+          },
+        }[field],
+      }
+      expect(judgeHandoffPrepare({ kind: 'submit', request: damaged.request })).toHaveProperty('ok')
+      expect(judgeInputOrigin(damaged.origin)).toHaveProperty('ok')
+      expect(judgeEvidence(damaged.qualification)).toHaveProperty('ok')
+      expect(judgeEvidence(damaged.record)).toHaveProperty('ok')
+      if (damaged.decision.kind !== 'prepared') throw new Error('a prepared decision is expected')
+      expect(messageContract.judgeMessage(damaged.decision.message)).toHaveProperty('ok')
+      rewriteOutcome(f, { kind: damaged.decision.kind, outcome: damaged })
+      const before = writes(f.s)
+      const refusal = {
+        failure: {
+          kind: 'unavailable',
+          diagnostic: expect.stringContaining(
+            field === 'message'
+              ? 'the prepared preadmission outcome is malformed'
+              : 'the preadmission outcome does not match its intent',
+          ),
+        },
+      }
+      judge.mockClear()
+      expect(await f.handoff().lookup(lookupInput(f.s, input))).toMatchObject(refusal)
+      expect(judge).not.toHaveBeenCalled()
+      judge.mockRestore()
+      expect(await f.handoff().prepare(input)).toMatchObject(refusal)
+      expect(writes(f.s)).toBe(before)
+    })
 
   it('does not interpret an explicit unknown format as a legacy outcome', async () => {
     const f = await provided('handoff-future-format')
