@@ -275,6 +275,8 @@ const STREAM_BROKEN: NoAnswer = {
 // read the mark, never the material.
 const NOT_SENT_USABLE: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
 const STREAM_BROKEN_USABLE: NoAnswer = { kind: 'no-answer', cause: 'stream-broken' }
+// A failed `open` hands over no transport, so its failure carries no mark (contract T1).
+const OPEN_FAILED: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
 const WORKING: TaskReport = { status: 'working' }
 const NOT_FINISHED: TaskAnswer = { kind: 'not-finished' }
 
@@ -570,7 +572,7 @@ export function scriptedPorts(
           value: answer =>
             answer === 'ok'
               ? { ok: transportFor(key, material.generation) }
-              : { failure: NOT_SENT },
+              : { failure: OPEN_FAILED },
         })
       },
     },

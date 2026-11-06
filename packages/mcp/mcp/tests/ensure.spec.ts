@@ -439,13 +439,15 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
   })
 
   it.each([
-    ['process-exited', 'process-exited'],
-    ['stream-broken', 'stream-broken'],
-    ['abandoned', 'preparation-failed'],
+    [{ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, 'process-exited'],
+    [{ kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' }, 'stream-broken'],
+    [{ kind: 'no-answer', cause: 'stream-broken', unusable: 'session-ended' }, 'session-ended'],
+    [{ kind: 'no-answer', cause: 'stream-broken' }, 'preparation-failed'],
+    [{ kind: 'no-answer', cause: 'abandoned' }, 'preparation-failed'],
   ] as const)(
-    'discover without an answer (%s): effect-unknown with the cause, lost (%s)',
-    async (cause, lost) => {
-      const w = world({ script: [{ discover: { kind: 'no-answer', cause } }] })
+    'discover without an answer (%o): effect-unknown with the cause, lost for the mark, else preparation-failed (%s) (S7, MC-5)',
+    async (failure, lost) => {
+      const w = world({ script: [{ discover: failure }] })
       adoptStdio(w, files)
       const table = tableOf(w)
       const token = await admitted(w, files)
@@ -453,13 +455,41 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
       expect(answer).toEqual({
         failure: {
           stage: 'connect',
-          reason: { kind: 'effect-unknown', cause },
+          reason: { kind: 'effect-unknown', cause: failure.cause },
           catalog: 'not-acquired',
         },
       })
       expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({ kind: 'lost', reason: lost })
     },
   )
+
+  it('discover not sent on a line that ended (X02, marked stream-broken): connection-unavailable, lost (stream-broken) (S7, MC-5)', async () => {
+    const w = world({
+      script: [
+        {
+          discover: {
+            kind: 'not-sent',
+            cause: 'connection-unavailable',
+            unusable: 'stream-broken',
+          },
+        },
+      ],
+    })
+    adoptStdio(w, files)
+    const table = tableOf(w)
+    const token = await admitted(w, files)
+    expect(await table.ensure(token, alice)).toEqual({
+      failure: {
+        stage: 'connect',
+        reason: { kind: 'connection-unavailable' },
+        catalog: 'not-acquired',
+      },
+    })
+    expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
+      kind: 'lost',
+      reason: 'stream-broken',
+    })
+  })
 
   it('a failed stdio attempt still counts a generation; a failed HTTP attempt does not', async () => {
     const stdio = world({

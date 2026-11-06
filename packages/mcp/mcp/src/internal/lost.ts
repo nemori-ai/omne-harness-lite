@@ -84,8 +84,8 @@ const AUTHORIZATION_REQUIRED: Lost = {
 }
 
 /**
- * What one answer of the transport to a request on a ready connection means for the connection
- * (S5, S7; member SPEC MC-16, MC-17, MC-7), the first rule that holds:
+ * What one answer of the transport says about the transport and the connection (S5, S7; member
+ * SPEC MC-5, MC-16, MC-17, MC-7), the first rule that holds:
  * 1. the answer carries `unusable`: the transport is not usable any more; the connection is lost
  *    for that cause, the catalog is marked `connection-unavailable`;
  * 2. the answer is `not-sent` (`authorization-required`): the connection is lost for it, the
@@ -93,7 +93,9 @@ const AUTHORIZATION_REQUIRED: Lost = {
  * 3. otherwise the connection stays as it is: one request failed and the transport is still
  *    usable, or the peer answered.
  * The two rules do not overlap: the contract gives a refused authorization no mark. Undefined is
- * rule 3. A build does not ask it: a failed build is lost by MC-5.
+ * rule 3. On a ready connection it decides whether the connection is lost. When a build fails, it
+ * gives the reason when the transport is not usable any more or the authorization was refused;
+ * the build rule of MC-5 gives every other reason.
  */
 export function lostOf(answer: TransportFailure | PeerAnswer): Lost | undefined {
   switch (answer.kind) {

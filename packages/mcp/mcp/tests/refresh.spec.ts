@@ -366,7 +366,7 @@ describe('refresh fails', () => {
 
   it.each([
     [
-      { kind: 'no-answer', cause: 'process-exited' },
+      { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' },
       { kind: 'effect-unknown', cause: 'process-exited' },
     ],
     [{ kind: 'error-answer', code: -32600, message: 'bad' }, { kind: 'connection-unavailable' }],
@@ -383,27 +383,34 @@ describe('refresh fails', () => {
   })
 
   it.each([
-    [{ kind: 'not-sent', cause: 'connection-unavailable' }, { kind: 'connection-unavailable' }],
+    [
+      { kind: 'not-sent', cause: 'connection-unavailable' },
+      { kind: 'connection-unavailable' },
+      'preparation-failed',
+    ],
     [
       { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' },
       { kind: 'connection-unavailable' },
+      'stream-broken',
     ],
     [
       { kind: 'no-answer', cause: 'stream-broken' },
       { kind: 'effect-unknown', cause: 'stream-broken' },
+      'preparation-failed',
     ],
     [
       { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' },
       { kind: 'effect-unknown', cause: 'stream-broken' },
+      'stream-broken',
     ],
   ] as const)(
-    'a discover that fails during the build with %o fails the build, with or without the mark: refresh answers %o, the connection is lost (S5, MC-5)',
-    async (failure, expected) => {
+    'a discover that fails during the build with %o fails the build, with or without the mark: refresh answers %o, the connection is lost for the mark, else by the build rule (%s) (S5, S7, MC-5)',
+    async (failure, expected, reason) => {
       const { w, discovery, status } = core(world({ script: [{ discover: failure }] }))
       adoptStdio(w, files)
       expect(await discovery.refresh(alice, { ref: files })).toEqual({ failure: expected })
       expect(await status.inspect(alice, files)).toMatchObject({
-        ok: { connection: { kind: 'lost' } },
+        ok: { connection: { kind: 'lost', reason } },
       })
       expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(0)
     },

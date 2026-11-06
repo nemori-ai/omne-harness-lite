@@ -519,7 +519,11 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
       ports: {
         transports: reshapedTransports(p.ports.transports, (_transport, opened) =>
           opened === 2
-            ? { discover: async () => ({ failure: { kind: 'no-answer', cause: 'stream-broken' } }) }
+            ? {
+                discover: async () => ({
+                  failure: { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' },
+                }),
+              }
             : {},
         ),
       },

@@ -17,7 +17,6 @@ import {
   type LostReason,
   type McpConfig,
   type McpPorts,
-  type NoAnswerCause,
   type PeerIdentity,
 } from '@omne-harness/mcp-contract'
 import type {
@@ -41,6 +40,7 @@ import {
   type UnavailableMark,
 } from './entry.ts'
 import { closeArrived, landArrived, releaseArrived, type LandingFailure } from './late.ts'
+import { connectionFailureOf, lostOf } from './lost.ts'
 import { ask, within, type Settle, type StartBound } from './port.ts'
 import type { Spawn } from './scope.ts'
 import type { PreparedSettings } from './settings.ts'
@@ -98,46 +98,47 @@ const LANDING_BREACH = fail<LandingFailure>('unknown')
 const OPEN_BREACH = fail<TransportFailure>({ kind: 'not-sent', cause: 'connection-unavailable' })
 const DISCOVER_BREACH = fail<TransportFailure>({ kind: 'no-answer', cause: 'abandoned' })
 
-function lostOfNoAnswer(cause: NoAnswerCause): LostReason {
-  switch (cause) {
-    case 'stream-broken':
-      return 'stream-broken'
-    case 'process-exited':
-      return 'process-exited'
-    case 'abandoned':
-      return 'preparation-failed'
-    default: {
-      const exhaustive: never = cause
-      return exhaustive
-    }
+/**
+ * How a failure of `open` or `discover` is reported (SPEC R6, S5, S7, MC-5): the connection
+ * failure for the caller, by the kind of the failure; the `lost` reason and the catalog mark from
+ * `lostOf` first, as on a ready connection, and from the build rule when it gives none.
+ */
+function failedOf(failure: TransportFailure): Failed {
+  const lost = lostOf(failure)
+  return {
+    reason: connectionFailureOfBuildStep(failure),
+    lost: lost?.reason ?? buildLostReasonOf(failure),
+    mark: lost?.mark ?? 'connection-unavailable',
   }
 }
 
-/** How a failure of `open` or `discover` is reported (SPEC R6, S5, S7). */
-function failedOf(failure: TransportFailure): Failed {
+/** The connection failure of a failed `open` or `discover` (SPEC R6). */
+function connectionFailureOfBuildStep(
+  failure: TransportFailure,
+): ConnectionFailure | EffectUnknown {
   switch (failure.kind) {
     case 'not-sent':
-      return failure.cause === 'authorization-required'
-        ? {
-            reason: { kind: 'authorization-required', discovery: failure.discovery },
-            lost: 'authorization-required',
-            mark: 'authorization-required',
-          }
-        : PREPARATION_FAILED
+      return connectionFailureOf(failure)
     case 'no-answer':
-      return {
-        reason: { kind: 'effect-unknown', cause: failure.cause },
-        lost: lostOfNoAnswer(failure.cause),
-        mark: 'connection-unavailable',
-      }
+      return { kind: 'effect-unknown', cause: failure.cause }
     case 'error-answer':
     case 'answer-malformed':
-      return { ...PREPARATION_FAILED, lost: 'discover-failed' }
+      return CONNECTION_UNAVAILABLE
     default: {
       const exhaustive: never = failure
       return exhaustive
     }
   }
+}
+
+/**
+ * The build rule (MC-5) for a failure `lostOf` gives no reason for: an answer of the peer that is
+ * an error or unreadable is `discover-failed`; anything else is `preparation-failed`.
+ */
+function buildLostReasonOf(failure: TransportFailure): LostReason {
+  return failure.kind === 'error-answer' || failure.kind === 'answer-malformed'
+    ? 'discover-failed'
+    : 'preparation-failed'
 }
 
 export function createBuilder<P, S>(
