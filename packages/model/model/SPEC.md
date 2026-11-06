@@ -305,6 +305,8 @@ Q 里还带执行代次（`execution`），所以比较比五项更严。栅栏�
 
 `createModelPreparationResources(options)` 实现共同 [`ModelPreparationResources`](../model-contract/SPEC.md#档案和准备提供者的组合协议)。构造声明归 [preparation/resources.ts](src/preparation/resources.ts)。`options.commands` 只用 `dispatches`；`options.bindings` 是结构化端口，pi 家族贡献（`PiFamilyContributions`）直接满足它，本包不导入 pi-ai-transport；`options.supplierOf` 为每个档案供应商给出带凭据引用的 `Supplier`，与请求准备使用同一推导；`options.maxCitedCalls` 是一份 lineage 最多引用的调用数，来自配置，没有包默认值。`maxCitedCalls` 不是正安全整数时构造抛 `RangeError`。
 
+取得准备租约时，在第一次异步获取家族绑定前复制完整 ModelProfile；后续供应商枚举始终读取该快照，调用方修改原档案不能省掉供应商。访问主体保持原拥有者提供的对象身份，不复制或序列化泛型主体。
+
 `acquire(access & { profile, lineage? })` 按下列顺序执行：
 
 1. 解析 lineage。以下情形返回 `invalid`：

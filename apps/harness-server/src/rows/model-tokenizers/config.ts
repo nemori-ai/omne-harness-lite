@@ -15,6 +15,7 @@ export const modelTokenizersConfig = z.strictObject({
   maxLeaseCacheEntries: count,
   maxPieceBytes: count,
   jobTimeoutMs: count,
+  cancellationGraceMs: z.number().int().nonnegative().max(2147483647),
   maxWorkerOldSpaceMb: count,
   maxReplacementsPerMinute: count,
 })

@@ -85,9 +85,9 @@
 
 `release()` 同步停止本租约的新计数，取消等待和在途调用，并返回同一份幂等 Promise。调用者可先收到 `unavailable`。取消不归还物理槽；release 等待在途计算结束，再等待 worker 的缓存清除确认。线程故障时，实际 exit 同时确认该线程中的缓存和在途计算已销毁。释放后迟到结果不能成为成功。
 
-取消会设置共享原子标志。普通 BPE 内循环与每片计数检查该标志。regex 和非有限 rank fallback 可能无法及时检查，25ms 后仍未结清则终止 worker。终止请求不等于退出确认。
+取消会设置共享原子标志。普通 BPE 内循环与每片计数检查该标志。regex 和非有限 rank fallback 可能无法及时检查，达到显式配置的 `cancellationGraceMs` 后仍未结清则终止 worker；此值是0至2147483647的整数毫秒，应用默认25ms。终止请求不等于退出确认。
 
-worker 消息必须匹配当前代际、任务和租约。旧代际消息被忽略；当前代际的错误任务身份导致 worker 停止。故障使当次 count 失败，不隐式重试。槽只有在实际 exit 后才能建立替换线程。每槽滚动一分钟内的替换次数受 `maxReplacementsPerMinute` 限制，等待任务也有原截止时间。替换额度耗尽或替换无法初始化时，无可用槽的等待任务全部失败，不无限等待。
+worker 消息必须匹配当前代际、任务和租约。旧代际消息被忽略；当前代际的错误任务身份导致 worker 停止。故障使当次 count 失败，不隐式重试。租约和任务标识达到 JavaScript 安全整数上限后拒绝新准入；代际达到该上限后不再替换线程，不能回绕或复用旧身份。槽只有在实际 exit 后才能建立替换线程。每槽滚动一分钟内的替换次数受 `maxReplacementsPerMinute` 限制，等待任务也有原截止时间。替换额度耗尽或替换无法初始化时，无可用槽的等待任务全部失败，不无限等待。
 
 `close()` 同步关闭准入并取消全部租约，停止所有线程，再等实际 exit 后返回。重复调用返回同一 Promise。close 完成后，snapshot 的 workers、leases、queuedJobs、queuedBytes、runningJobs、cacheBytes、cacheEntries 都为零。
 

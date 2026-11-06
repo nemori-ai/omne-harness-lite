@@ -82,6 +82,7 @@ const limitKeys = [
   'maxLeaseCacheEntries',
   'maxPieceBytes',
   'jobTimeoutMs',
+  'cancellationGraceMs',
   'maxWorkerOldSpaceMb',
   'maxReplacementsPerMinute',
 ] as const
@@ -100,7 +101,8 @@ export function validInput(value: unknown): value is ExecutorInput {
     ['workers', 'maxLeases', 'maxInputBytes', 'jobTimeoutMs', 'maxWorkerOldSpaceMb'].every(
       key => typeof limits[key] === 'number' && limits[key] > 0,
     ) &&
-    Number(limits.jobTimeoutMs) <= 2147483647
+    Number(limits.jobTimeoutMs) <= 2147483647 &&
+    Number(limits.cancellationGraceMs) <= 2147483647
   )
 }
 function segment(value: unknown): value is TokenizationSegment {

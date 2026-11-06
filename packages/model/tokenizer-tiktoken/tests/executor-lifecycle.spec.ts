@@ -131,6 +131,7 @@ it('expires queued work and terminates a non-cooperative count without returning
   vi.useFakeTimers()
   const { executor, lease, worker } = await controlled({
     jobTimeoutMs: 100,
+    cancellationGraceMs: 73,
     maxReplacementsPerMinute: 0,
   })
   const acquired = lease()
@@ -140,7 +141,9 @@ it('expires queued work and terminates a non-cooperative count without returning
   expect(await first).toHaveProperty('failure')
   expect(await second).toHaveProperty('failure')
   expect(executor.snapshot()).toMatchObject({ runningJobs: 1, queuedJobs: 0, queuedBytes: 0 })
-  await vi.advanceTimersByTimeAsync(25)
+  await vi.advanceTimersByTimeAsync(72)
+  expect(worker().terminated).toBe(false)
+  await vi.advanceTimersByTimeAsync(1)
   expect(worker().terminated).toBe(true)
   const closing = executor.close()
   let closed = false

@@ -259,6 +259,7 @@ export function createModelPreparationResources<P>(
       const lineage = parseLineage(input.lineage, options.maxCitedCalls)
       if (!('ok' in lineage)) return lineage
       const access: Access<P> = { principal: input.principal, tenant: input.tenant }
+      const profile = structuredClone(input.profile)
       const acquired: PreparationBinding[] = []
       const controller = new AbortController()
       let facts: Outcome<CallFactsView, ModelFailure>
@@ -266,7 +267,7 @@ export function createModelPreparationResources<P>(
         facts = await bindThenRead({
           options,
           access,
-          profile: input.profile,
+          profile,
           lineage: lineage.ok,
           acquired,
           signal: controller.signal,

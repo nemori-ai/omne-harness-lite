@@ -48,7 +48,12 @@ class MeasurementSession<P> {
       this.failure ??= failure
       return Promise.resolve(failure)
     }
-    const task = this.use(selection, lineage, assembled)
+    const snapshot = structuredClone({ profile: selection.profile, lineage, assembled })
+    const task = this.use(
+      { ...selection, profile: snapshot.profile },
+      snapshot.lineage,
+      snapshot.assembled,
+    )
     this.pending.add(task)
     const finished = () => this.pending.delete(task)
     void task.then(finished, finished)

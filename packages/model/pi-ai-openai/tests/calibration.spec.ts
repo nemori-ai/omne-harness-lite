@@ -4,6 +4,7 @@
 // port answers with dispatch records, denials or unavailability; the lease and the meter are real.
 // Every expected amount is computed here with the o200k encoding over the token input.
 import { describe, expect, it } from 'vitest'
+import { sortedJsonText } from './support/sorted-json.ts'
 import { getEncoding } from 'js-tiktoken'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { createModelPreparationResources } from '@omne-harness/model'
@@ -49,7 +50,7 @@ import {
 const SOL = recordNamed('openai/gpt-5.6-sol')
 const ASTRA = recordNamed('openai/gpt-6-astra')
 const o200k = getEncoding('o200k_base')
-const count = (json: JsonValue): bigint => BigInt(o200k.encode(writeJsonText(json), [], []).length)
+const count = (json: JsonValue): bigint => BigInt(o200k.encode(sortedJsonText(json), [], []).length)
 const ceil10 = (amount: bigint): bigint => (amount * 10n + 99n) / 100n
 
 function unbox<T>(outcome: { ok: T } | { failure: unknown }): T {

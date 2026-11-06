@@ -1,6 +1,7 @@
 // The meter: the three image patch rules with the sealed goldens, the o200k proxy estimate of the
 // visible projection with the configured margin, and the requests that have no estimate.
 import { describe, expect, it } from 'vitest'
+import { sortedJsonText } from './support/sorted-json.ts'
 import { getEncoding } from 'js-tiktoken'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { MeterRepresentation, ModelInputMeter } from '@omne-harness/model-contract'
@@ -148,7 +149,7 @@ describe('measure', () => {
       parameters: [{ kind: 'max-output-tokens', value: '128' }],
     })
     if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
-    const amount = o200k.encode(writeJsonText(tokenInput), [], []).length
+    const amount = o200k.encode(sortedJsonText(tokenInput), [], []).length
     expect(measured.ok.kind).toBe('complete')
     expect(measured.ok.counting).toHaveLength(1)
     expect(measured.ok.checks).toEqual([
@@ -281,7 +282,7 @@ describe('measure', () => {
     }))
     if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
     const [input, image] = measured.ok.checks
-    const text = o200k.encode(writeJsonText(tokenInput), [], []).length
+    const text = o200k.encode(sortedJsonText(tokenInput), [], []).length
     expect(input?.measurement).toMatchObject({ kind: 'estimate', amount: String(text + 1229) })
     expect(image).toMatchObject({
       metric: 'image-bytes',
@@ -304,7 +305,7 @@ describe('measure', () => {
       media: [fact, second],
     }))
     if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
-    const text = o200k.encode(writeJsonText(tokenInput), [], []).length
+    const text = o200k.encode(sortedJsonText(tokenInput), [], []).length
     expect(measured.ok.checks[0]?.measurement).toMatchObject({
       kind: 'estimate',
       amount: String(text + 2 * 1229),

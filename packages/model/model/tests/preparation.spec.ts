@@ -1559,6 +1559,37 @@ describe('options and routes', () => {
 })
 
 describe('asynchronous preparation release', () => {
+  it('owns the full supplier list before the first binding waits', async () => {
+    const f = fixture()
+    const family = stubFamily()
+    const gate = Promise.withResolvers<void>()
+    const suppliers: [typeof profileSupplier, ...(typeof profileSupplier)[]] = [
+      { ...profileSupplier, model: 'first' },
+      { ...profileSupplier, model: 'second' },
+    ]
+    const bound: string[] = []
+    const resources = createModelPreparationResources<Principal>({
+      commands: stubStore(new Map()),
+      maxCitedCalls: 8,
+      supplierOf,
+      bindings: {
+        async acquire(supplier, signal) {
+          bound.push(supplier.model)
+          if (supplier.model === 'first') await gate.promise
+          return family.bindings.acquire(supplier, signal)
+        },
+      },
+    })
+    const changing = { ...profile, definition: { ...profile.definition, suppliers } }
+    const pending = resources.acquire({ ...f.admit, profile: changing })
+    changing.definition.suppliers.pop()
+    gate.resolve()
+    const lease = unbox(await pending)
+    expect(bound).toEqual(['first', 'second'])
+    expect(lease.bindings).toHaveLength(2)
+    await lease.release()
+  })
+
   it.each([undefined, { continues: X }])(
     'aborts and drains a pending measurement before release completes (%j)',
     async lineage => {

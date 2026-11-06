@@ -54,6 +54,55 @@ describe('bounded measurement lease lifetime', () => {
     expect(preparation.outstanding()).toBe(0)
   })
 
+  it('keeps the cache key and acquired profile consistent while eviction awaits release', async () => {
+    const f = fixture()
+    const selectionFor = (name: string) => ({
+      ...f.selection,
+      profile: { ...f.selection.profile, adoption: { ...f.selection.profile.adoption, name } },
+    })
+    const gate = Promise.withResolvers<void>()
+    const acquisitions: string[] = []
+    const pairs: string[][] = []
+    const preparation: M.ModelPreparationResources<string> = {
+      async acquire(input) {
+        const name = input.profile.adoption.name
+        acquisitions.push(name)
+        const resource = createScriptedPreparationResources<string>({
+          meter: createScriptedInputMeter(countingBasis, measured => {
+            pairs.push([name, measured.profile.name])
+            return { ok: fixtureBudget() }
+          }),
+        })
+        const acquired = await resource.acquire(input)
+        if ('failure' in acquired) return acquired
+        return {
+          ok: {
+            ...acquired.ok,
+            release: async () => {
+              if (name === 'A') await gate.promise
+              return acquired.ok.release()
+            },
+          },
+        }
+      },
+    }
+    await withMeasurementSession({ ...f.context, preparation }, async measure => {
+      for (const name of ['A', 'B', 'C', 'D']) await measure(selectionFor(name), {}, f.assembled)
+      const mutable = selectionFor('E')
+      const pending = measure(mutable, {}, f.assembled)
+      mutable.profile.adoption.name = 'F'
+      gate.resolve()
+      expect((await pending).kind).toBe('complete')
+      expect((await measure(selectionFor('E'), {}, f.assembled)).kind).toBe('complete')
+      return success
+    })
+    expect(acquisitions).toEqual(['A', 'B', 'C', 'D', 'E'])
+    expect(pairs.slice(-2)).toEqual([
+      ['E', 'E'],
+      ['E', 'E'],
+    ])
+  })
+
   it('holds the first acquired facts snapshot only until this operation ends', async () => {
     const f = fixture()
     let facts = '1'

@@ -5,6 +5,7 @@
 // adoptions, how to read the units of its token input, its image rules, its tokenizer, the name of
 // its output-group method and the diagnostic of an uncountable reasoning unit.
 import { fitsSerializedBytes } from './serialization.ts'
+import { sorted } from './json.ts'
 import { createHash } from 'node:crypto'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type {
@@ -61,7 +62,7 @@ export function calibratedMethod(
  */
 export function calibratedDigest(
   input: Readonly<{
-    measure: Parameters<ModelInputMeter['measure']>[0]
+    measure: MeterFacts
     calibration: MeterCalibration
   }>,
 ): string {
@@ -74,7 +75,7 @@ export function calibratedDigest(
     parameters: measure.parameters,
     representation: {
       adoption: measure.representation.adoption,
-      tokenInput: writeJsonText(measure.representation.tokenInput),
+      tokenInput: writeJsonText(sorted(measure.representation.tokenInput)),
       media: measure.representation.media,
     },
     calibration:
@@ -142,6 +143,7 @@ export type CalibratedMeterRules<U extends MeteredUnit> = Readonly<{
 }>
 
 type MeasureInput = Parameters<ModelInputMeter['measure']>[0]
+type MeterFacts = Omit<MeasureInput, 'assembled'>
 
 function sameAdoption(left: Adoption, right: Adoption): boolean {
   return (
@@ -159,7 +161,7 @@ function upstreamOf(entries: ModelLimit['upstream'], supplier: Adoption): Upstre
 /** The input bound: the separate input limit, else the window less the output limit. */
 function inputCheck<U extends MeteredUnit>(
   input: Readonly<{
-    measure: MeasureInput
+    measure: MeterFacts
     rules: CalibratedMeterRules<U>
     amount: CalibratedAmount
   }>,
@@ -194,7 +196,7 @@ function inputCheck<U extends MeteredUnit>(
 }
 
 /** The exact byte and count checks of the profile limits that apply to this request. */
-function exactChecks(measure: MeasureInput, method: Adoption): readonly BudgetCheck[] {
+function exactChecks(measure: MeterFacts, method: Adoption): readonly BudgetCheck[] {
   const supplier = measure.supplier.adoption
   const images = measure.representation.media.filter(fact => fact.kind === 'image')
   const checks: BudgetCheck[] = []
@@ -245,7 +247,7 @@ async function countWith(
         diagnostic: 'serialized-input-too-large',
       },
     }
-  const written = writeJsonText(tokenInput)
+  const written = writeJsonText(sorted(tokenInput))
   const text = tokens.form === 'nfkc' ? written.normalize('NFKC') : written
   const counted = await tokens.tokenizer.count([{ kind: 'text', text }])
   if (!('ok' in counted))
@@ -262,11 +264,11 @@ async function measureCalibrated<U extends MeteredUnit>(
     calibration: MeterCalibration
   }>,
 ): Promise<Outcome<RequestBudget, TransportFailure>> {
-  const { rules, measure, calibration } = input
+  const { rules, measure: submitted } = input
   const adapter = rules.adoptions.meter
-  if (!sameAdoption(measure.supplier.adoption, rules.supplier))
+  if (!sameAdoption(submitted.supplier.adoption, rules.supplier))
     return { failure: { kind: 'invalid', field: 'supplier', reason: 'not-this-meter' } }
-  const { representation } = measure
+  const representation = submitted.representation
   if (!sameAdoption(representation.adoption, rules.adoptions.representation))
     return { failure: { kind: 'unsupported', field: 'representation', adapter } }
   // Media that is not read yet has no pixels here; the media path is not part of this meter.
@@ -280,15 +282,19 @@ async function measureCalibrated<U extends MeteredUnit>(
         diagnostic: 'serialized-input-too-large',
       },
     }
-  const units = rules.contentOf(representation.tokenInput)
+  const { assembled: _assembled, ...facts } = submitted
+  const measure = structuredClone(facts)
+  const calibration = structuredClone(input.calibration)
+  const owned = measure.representation
+  const units = rules.contentOf(owned.tokenInput)
   if (units === null) return { failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' } }
   const amount = await calibratedAmount({
-    tokenInput: representation.tokenInput,
-    units: representation.units,
+    tokenInput: owned.tokenInput,
+    units: owned.units,
     reasoning: units.map(unit => unit.reasoning),
     calibration,
     count: body => countWith(rules.tokens, body, rules.maxSerializedBytes),
-    extra: unitExtras(() => rules.imageTokens({ units, media: representation.media })),
+    extra: unitExtras(() => rules.imageTokens({ units, media: owned.media })),
     uncountable: rules.uncountable,
     dependency: rules.owner,
     marginPercent: rules.margin.percent,

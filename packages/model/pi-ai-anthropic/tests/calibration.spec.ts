@@ -4,6 +4,7 @@
 // the meter are real. Expected amounts are computed here with the legacy Claude BPE over the NFKC
 // form of the token input, as the meter counts.
 import { describe, expect, it } from 'vitest'
+import { sortedJsonText } from './support/sorted-json.ts'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { createModelPreparationResources } from '@omne-harness/model'
 import {
@@ -47,7 +48,7 @@ const OPUS = recordNamed('anthropic/claude-opus-5')
 const claude = TOKENIZER
 const count = async (json: JsonValue): Promise<bigint> => {
   const counted = await claude.count([
-    { kind: 'text', text: writeJsonText(json).normalize('NFKC') },
+    { kind: 'text', text: sortedJsonText(json).normalize('NFKC') },
   ])
   if (!('ok' in counted)) throw new Error(JSON.stringify(counted.failure))
   return BigInt(counted.ok.tokens)

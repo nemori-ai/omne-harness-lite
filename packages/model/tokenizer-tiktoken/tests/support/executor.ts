@@ -21,6 +21,7 @@ export const limits: TiktokenExecutorLimits = {
   jobTimeoutMs: 10000,
   maxWorkerOldSpaceMb: 256,
   maxReplacementsPerMinute: 2,
+  cancellationGraceMs: 25,
 }
 const executors: TiktokenExecutor[] = []
 afterEach(async () => {

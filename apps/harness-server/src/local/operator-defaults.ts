@@ -62,6 +62,7 @@ export const LOCAL_TOKENIZERS = {
   jobTimeoutMs: 10_000,
   maxWorkerOldSpaceMb: 768,
   maxReplacementsPerMinute: 2,
+  cancellationGraceMs: 25,
 } as const
 
 const PREPARATION = {

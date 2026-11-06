@@ -309,6 +309,89 @@ describe('createCalibratedMeter', () => {
     })
   })
 
+  it('sorts every object key before counting the family token input', async () => {
+    const seen: string[] = []
+    const observed: ModelTextTokenizer = {
+      ...tokenizer,
+      count: async segments => {
+        for (const segment of segments) if (segment.kind === 'text') seen.push(segment.text)
+        return tokenizer.count(segments)
+      },
+    }
+    const value: JsonValue = {
+      kind: 'object',
+      entries: [
+        { key: 'z', value: { kind: 'string', value: 'last' } },
+        {
+          key: 'messages',
+          value: {
+            kind: 'array',
+            items: [
+              {
+                kind: 'object',
+                entries: [
+                  { key: 'z', value: { kind: 'string', value: 'tail' } },
+                  { key: 'a', value: { kind: 'string', value: 'first' } },
+                ],
+              },
+            ],
+          },
+        },
+        { key: 'a', value: { kind: 'string', value: 'head' } },
+      ],
+    }
+    const result = await createCalibratedMeter(
+      rules({ tokens: { tokenizer: observed, form: 'as-written' } }),
+    ).measure({ ...metered, representation: { ...metered.representation, tokenInput: value } })
+    expect(result).toHaveProperty('ok.kind', 'complete')
+    expect(seen).toEqual(['{"a":"head","messages":[{"a":"first","z":"tail"}],"z":"last"}'])
+  })
+
+  it.each([false, true])('owns the counted input across awaits (anchored=%s)', async anchored => {
+    const text = { kind: 'string' as const, value: 'small' }
+    const input = {
+      ...metered,
+      context: { ...metered.context, window: { ...metered.context.window } },
+      representation: {
+        kind: 'materialized' as const,
+        adoption: REPRESENTATION,
+        tokenInput: {
+          kind: 'object' as const,
+          entries: [{ key: 'messages', value: { kind: 'array' as const, items: [text] } }],
+        },
+        media: [],
+        units: [U1],
+        requestBytes: '22',
+      },
+    }
+    const anchor = { covered: [U1], inputTotal: '100' }
+    const calibration: MeterCalibration = { anchor: anchored ? anchor : null, outputs: [] }
+    const expected = await createCalibratedMeter(
+      rules({ maxSerializedBytes: 64 }),
+    ).measureCalibrated(input, calibration)
+    const gate = Promise.withResolvers<void>()
+    let calls = 0
+    const delayed: ModelTextTokenizer = {
+      ...tokenizer,
+      count: async segments => {
+        calls++
+        if (calls === 1) await gate.promise
+        return tokenizer.count(segments)
+      },
+    }
+    const pending = createCalibratedMeter(
+      rules({ maxSerializedBytes: 64, tokens: { tokenizer: delayed, form: 'as-written' } }),
+    ).measureCalibrated(input, calibration)
+    expect(calls).toBe(1)
+    text.value = 'L'.repeat(100_000)
+    input.context.window.provided = '999999'
+    input.representation.requestBytes = '100000'
+    anchor.inputTotal = '999999'
+    anchor.covered.length = 0
+    gate.resolve()
+    expect(await pending).toEqual(expected)
+  })
+
   it('counts the text as written, or its NFKC form when the family asks for it', async () => {
     const written = writeJsonText(units)
     expect(written.normalize('NFKC').length).toBe(written.length + 1)

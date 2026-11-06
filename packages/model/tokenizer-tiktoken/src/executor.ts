@@ -132,6 +132,8 @@ class Executor implements TiktokenExecutor {
       return unavailable('tokenizer executor or acquisition signal is closed')
     if (this.leases.size >= this.input.limits.maxLeases)
       return unavailable('tokenizer live lease limit exceeded')
+    if (this.sequence >= Number.MAX_SAFE_INTEGER)
+      return unavailable('tokenizer identity space exhausted')
     const resource = this.resources.get(definitionKey(definition))
     if (resource === undefined)
       return unavailable('tokenizer definition is not an exact initialized resource')
@@ -213,6 +215,8 @@ class Executor implements TiktokenExecutor {
     if (this.phase !== 'open' || lease.phase !== 'active')
       return reject('tokenizer lease is released')
     if (lease.slot.phase.kind === 'dead') return reject('tokenizer worker is unavailable')
+    if (this.sequence >= Number.MAX_SAFE_INTEGER)
+      return reject('tokenizer identity space exhausted')
     const bytes = this.retainedInputBytes(input)
     if (bytes > this.input.limits.maxInputBytes)
       return reject('tokenizer retained input limit exceeded')
@@ -342,7 +346,10 @@ class Executor implements TiktokenExecutor {
     Atomics.store(job.cancellation, 0, 1)
     clearTimeout(job.timer)
     // A regex or reference fallback can block between cooperative cancellation checks.
-    job.timer = setTimeout(() => this.stop(slot, 'tokenizer cancellation did not settle'), 25)
+    job.timer = setTimeout(
+      () => this.stop(slot, 'tokenizer cancellation did not settle'),
+      this.input.limits.cancellationGraceMs,
+    )
   }
 
   private releaseLease(lease: Lease): Promise<Cleanup> {
@@ -523,7 +530,7 @@ class Executor implements TiktokenExecutor {
   }
 
   private replace(slot: Slot, previous: SlotPhase): boolean {
-    if (this.phase !== 'open') return false
+    if (this.phase !== 'open' || slot.generation >= Number.MAX_SAFE_INTEGER) return false
     if (previous.kind === 'starting' && slot.generation === 1) return false
     const now =
       /* wall-clock: operation-timing -- Bound worker replacements in a rolling minute. */ performance.now()

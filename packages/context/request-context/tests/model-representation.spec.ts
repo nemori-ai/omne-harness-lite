@@ -83,6 +83,7 @@ beforeAll(async () => {
       jobTimeoutMs: 10_000,
       maxWorkerOldSpaceMb: 256,
       maxReplacementsPerMinute: 2,
+      cancellationGraceMs: 25,
     },
   })
   if ('failure' in created) throw new Error(`executor: ${JSON.stringify(created.failure)}`)

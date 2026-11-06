@@ -51,17 +51,18 @@ export async function measureCandidate<P>(
   lineage: M.PreparationLineage,
   assembled: M.AssembledModelInput,
 ): Promise<M.RequestBudget | Failure> {
-  const profile = selection.profile
+  const snapshot = structuredClone({ profile: selection.profile, lineage, assembled })
+  const profile = snapshot.profile
   const acquired = await context.preparation.acquire({
     ...context.access,
     profile,
-    lineage,
+    lineage: snapshot.lineage,
   })
   if ('failure' in acquired) return leaseFailure(acquired.failure)
   const lease = acquired.ok
   let outcome: M.RequestBudget | Failure | undefined
   try {
-    outcome = await measureWithLease(lease, profile, assembled)
+    outcome = await measureWithLease(lease, profile, snapshot.assembled)
   } finally {
     const released = await lease.release()
     if (released.failure !== undefined && outcome !== undefined && !isFailure(outcome))

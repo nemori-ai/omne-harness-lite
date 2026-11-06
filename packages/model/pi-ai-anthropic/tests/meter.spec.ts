@@ -3,6 +3,7 @@
 // projection with the configured margin, and the requests that have no estimate.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { sortedJsonText } from './support/sorted-json.ts'
 import { Tiktoken } from 'js-tiktoken/lite'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { MeterRepresentation, ModelInputMeter } from '@omne-harness/model-contract'
@@ -147,7 +148,7 @@ const claude = TOKENIZER
 
 async function tokensOf(tokenInput: JsonValue): Promise<number> {
   const counted = await claude.count([
-    { kind: 'text', text: writeJsonText(tokenInput).normalize('NFKC') },
+    { kind: 'text', text: sortedJsonText(tokenInput).normalize('NFKC') },
   ])
   if (!('ok' in counted)) throw new Error(JSON.stringify(counted.failure))
   return Number(counted.ok.tokens)
@@ -200,7 +201,7 @@ describe('measure', () => {
       },
     ])
     // NFKC: the full-width letters count as ASCII letters.
-    const raw = await claude.count([{ kind: 'text', text: writeJsonText(tokenInput) }])
+    const raw = await claude.count([{ kind: 'text', text: sortedJsonText(tokenInput) }])
     if ('failure' in raw) throw new Error(JSON.stringify(raw.failure))
     expect(amount).toBeLessThan(Number(raw.ok.tokens))
   })

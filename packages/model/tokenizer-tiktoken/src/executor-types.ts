@@ -15,6 +15,7 @@ export type TiktokenExecutorLimits = Readonly<{
   maxLeaseCacheBytes: number
   maxLeaseCacheEntries: number
   maxPieceBytes: number
+  cancellationGraceMs: number
   jobTimeoutMs: number
   maxWorkerOldSpaceMb: number
   maxReplacementsPerMinute: number

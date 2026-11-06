@@ -400,6 +400,7 @@ export async function openTokenizerExecutor(resources: readonly TiktokenResource
       jobTimeoutMs: 10000,
       maxWorkerOldSpaceMb: 128,
       maxReplacementsPerMinute: 2,
+      cancellationGraceMs: 25,
     },
   })
   if ('failure' in created) throw new Error(JSON.stringify(created.failure))
