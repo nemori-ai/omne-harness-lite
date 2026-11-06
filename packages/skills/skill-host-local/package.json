@@ -25,13 +25,15 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/operation-result": "workspace:*",
-    "@omne-harness/skill-contract": "workspace:*"
+    "@omne-harness/skill": "workspace:*",
+    "@omne-harness/skill-contract": "workspace:*",
+    "@omne-harness/skill-cordis-contract": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/assets": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
-    "@omne-harness/skill": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

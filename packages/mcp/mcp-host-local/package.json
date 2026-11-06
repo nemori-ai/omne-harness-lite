@@ -25,8 +25,11 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/mcp": "workspace:*",
     "@omne-harness/mcp-contract": "workspace:*",
+    "@omne-harness/mcp-cordis-contract": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "eventsource-parser": "catalog:"
   },
@@ -37,7 +40,6 @@
     "@modelcontextprotocol/server-everything": "catalog:",
     "@modelcontextprotocol/server-filesystem": "catalog:",
     "@omne-harness/legal-identity": "workspace:*",
-    "@omne-harness/mcp": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
