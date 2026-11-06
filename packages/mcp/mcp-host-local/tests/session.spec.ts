@@ -1679,7 +1679,7 @@ describe('a session that cannot be used any more sends nothing and asks no crede
     expect(line.sse).toBe(false)
   })
 
-  it('leaves another request of the session in flight when one is told the session ended (S07)', async () => {
+  it('leaves another request of the session in flight when one is told the session ended (S07); after close() no answer carries the mark (T1)', async () => {
     const { line, transport } = open(
       'streamable-http',
       { ...scripts, 'tools/list': [status(404, 'gone')] },
@@ -1692,8 +1692,30 @@ describe('a session that cannot be used any more sends nothing and asks no crede
     })
     expect(await settledWithin(other.answer, 30)).toBe('pending')
     await transport.close()
-    expect(await other.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
+    expect(await other.answer).toStrictEqual({ kind: 'no-answer', cause: 'abandoned' })
+    expect(await transport.listActions()).toStrictEqual({ failure: NOT_SENT })
     expect(line.requests('tools/list')).toHaveLength(1)
+  })
+
+  it('a request in flight that settles after the session ended carries the mark, whatever settles it (T1, S07)', async () => {
+    const { transport } = open(
+      'streamable-http',
+      { ...scripts, 'tools/list': [status(404, 'gone')] },
+      { sse: { kind: 'entered' } },
+    )
+    ok(await transport.discover(), 'discover')
+    const controller = new AbortController()
+    const other = ok(await transport.call(echo, controller.signal), 'call')
+    expect(await transport.listActions()).toStrictEqual({
+      failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+    })
+    controller.abort()
+    expect(await other.answer).toStrictEqual({
+      kind: 'no-answer',
+      cause: 'abandoned',
+      unusable: 'session-ended',
+    })
+    await transport.close()
   })
 })
 
