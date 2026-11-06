@@ -71,6 +71,20 @@ describe('bounded JSON command boundary', () => {
     expect(HitlIdentifierSchema.safeParse('🕑'.repeat(256)).success).toBe(true)
     expect(HitlIdentifierSchema.safeParse('🕑'.repeat(257)).success).toBe(false)
   })
+  it('enforces code point limits even when ASCII text fits the byte budget', () => {
+    expect(HitlIdentifierSchema.safeParse('a'.repeat(256)).success).toBe(true)
+    expect(HitlIdentifierSchema.safeParse('a'.repeat(257)).success).toBe(false)
+    const atLimit = { ...reply, reply: { kind: 'text', text: 'a'.repeat(8192) } }
+    expect(decodeHitlCommand('submitReply', JSON.stringify(atLimit))).toMatchObject({
+      kind: 'decoded',
+      command: atLimit,
+    })
+    const overLimit = { ...reply, reply: { kind: 'text', text: 'a'.repeat(8193) } }
+    expect(decodeHitlCommand('submitReply', JSON.stringify(overLimit))).toEqual({
+      kind: 'invalid-input',
+      reason: 'shape',
+    })
+  })
 })
 
 describe('request source and question contracts', () => {
