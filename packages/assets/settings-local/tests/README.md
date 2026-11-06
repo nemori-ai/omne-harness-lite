@@ -66,3 +66,9 @@ pnpm --filter @omne-harness/assets-local run test:fast
 [source-provenance.spec.ts](source-provenance.spec.ts)用真实独立目标、Identity和SQLite验证同ID换拥有者、换主体、换作用域、重排、空值重整和修订耗尽。它也检查当前资格修订进入公开目录，而稳定身份未变的值可继续读取。待映射历史夹具通过测试直接写入磁盘库，仅用于模拟具名迁移的产物，不代表旧二进制升级验收。
 
 [source-layout-migration.spec.ts](source-layout-migration.spec.ts)分别对目标与配值迁移验证64行键集分页、重复执行、关闭后重开、原回执保留，以及 malformed provenance拒绝。原始配值不因缺少身份而自动附着到新来源。准备依据守护的完整提供者仍需单独验证。
+
+## 准备尝试与Identity保管
+
+[intent-allocation.spec.ts](intent-allocation.spec.ts)通过真实SQLite Worker调用私有分配写者。测试覆盖并发认回、命令不变、事务回滚、数据库重开、终态识别和尝试预算。准入由测试参与者替代，终态及历史记录由夹具设置。
+
+[standing-custody.spec.ts](standing-custody.spec.ts)验证完整请求先保存、请求不被替换、错绑定回执拒绝，以及settled不被迟到held覆盖。真实Identity场景先取得held，丢弃本地回执检查点，再重开Settings数据库并用原请求认回。旧attempt回包场景直接设置历史终态，验证它不能修改新attempt。它不证明生产seal写者或真实settlement恢复组合。

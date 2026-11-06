@@ -147,3 +147,20 @@ Seal可以终结preparing、prepared或submitted。不可逆终态阻止迟到Pu
 | OneBusinessEffect | 与不可逆终态共同检查，无单独负控 |
 
 本模型只检查有限安全性。外部拥有者的reserve/settle原子性、真实资格、来源绑定、SQL隔离和固定恢复地址是前提；它不证明这些提供者实现、完整跨模型精化、清理最终完成或任意规模。SourceRetention负责来源版本保持，IntentAttempts负责根命令、预算和后继身份。提供者还必须验证准备中取消、迟到保留回包、答复丢失和数据库重开。当前关系表与私有分配写者已经保存preparing身份，实际资格和来源保留、ready及恢复组合仍未完成。不能将模型或分配测试通过报告为完整运行时完成。
+
+## 外部请求与保管回执
+
+`SettingsReservationCustody.tla`进一步展开Identity保留请求。模型固定一个目的操作和两个候选请求身份。Plan保存原请求，Start记录可能已发起调用，Reserve建立外部held。LoseReply丢弃未保存的回包，Retry仍使用原请求。目的终态不可逆，只有该终态存在时Settle才能结束外部保留。ReceiveHeld不得覆盖已settled的本地检查点。
+
+| 不变量 | 具名负控 |
+| --- | --- |
+| RequestDurableBeforeCall | reserve-before-request在请求检查点前实际发起保留 |
+| ImmutableReservationRequest | replace-request替换已经保存的请求 |
+| ReceiptBindsOriginalRequest | misbound-receipt接受另一请求的回包 |
+| SettledCannotBecomeHeld | late-held-revives把settled退回held |
+| TerminalBeforeRelease | release-before-terminal在目的终态前释放 |
+| OneReservationIdentity | 与不可变请求、先持久后调用共同检查，无单独负控 |
+
+`standing-custody.ts`及其具名迁移保存完整请求、requested检查点及回执。实际reserve和settle仍由Identity服务负责，调用顺序由后续准备协调器兑现。`standing-custody.spec.ts`包含真实Identity认回与SQLite重开，也包含合成终态回执。两类证据不能互换。
+
+模型把外部回包真实性、Identity幂等性、目的终态和持久存储原子性作为前提。它只检查有限安全性，不证明任意规模、活性、生产调用顺序或完整恢复提供者。保管关系的存在不表示当前公共准备服务已经接线。

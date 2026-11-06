@@ -118,14 +118,32 @@ function readRoot(port: ReadPort, identity: IntentIdentity) {
   const status = decodeIntentStatus(state, result, reason, operation)
   return { intent, purpose, status, nextAttempt }
 }
-function readActiveAttempt(port: ReadPort, identity: IntentIdentity, nextAttempt: number) {
+function readAttempt(
+  port: ReadPort,
+  identity: IntentIdentity,
+  nextAttempt: number,
+  attemptId: string | null,
+) {
+  const condition =
+    attemptId === null
+      ? "AND state IN ('preparing', 'prepared', 'submitted')"
+      : 'AND attempt_id = ?'
   const row = port.execute(
     `SELECT attempt, attempt_id, plan_json, basis_digest, basis_json, sql_identity_json, state
       FROM st_governance_attempt WHERE operation_key = ?
-      AND state IN ('preparing', 'prepared', 'submitted') LIMIT 1`,
-    [intentKey(identity)],
+      ${condition} LIMIT 1`,
+    attemptId === null ? [intentKey(identity)] : [intentKey(identity), attemptId],
   ).rows[0]
   if (!row) return null
+  const decoded = decodeAttempt(row, identity)
+  if (
+    decoded.sequence >= nextAttempt ||
+    (attemptId === null && decoded.sequence !== nextAttempt - 1)
+  )
+    throw new Error('Invalid persisted Settings attempt sequence')
+  return decoded
+}
+function decodeAttempt(row: readonly unknown[], identity: IntentIdentity) {
   const [sequence, attemptId, planJson, basisDigest, basisJson, sqlIdentityJson, state] =
     attemptRowSchema.parse(row)
   const plan = SettingsCurrentBasisSchema.parse(JSON.parse(planJson))
@@ -133,7 +151,6 @@ function readActiveAttempt(port: ReadPort, identity: IntentIdentity, nextAttempt
   const status = attemptStatusSchema.parse({ state, basis })
   const sqlIdentity = intentAttemptIdentity(identity, attemptId)
   if (
-    sequence !== nextAttempt - 1 ||
     !equal(plan.target, identity.operation.target) ||
     !equal(JSON.parse(sqlIdentityJson), sqlIdentity) ||
     (basis !== null && !equal(basis.target, identity.operation.target)) ||
@@ -147,10 +164,20 @@ export function readSettingsIntent(port: ReadPort, input: IntentIdentity) {
   const identity = intentIdentitySchema.parse(input)
   const root = readRoot(port, identity)
   if (!root) return { kind: 'not_found' as const }
-  const attempt = readActiveAttempt(port, identity, root.nextAttempt)
+  const attempt = readAttempt(port, identity, root.nextAttempt, null)
   if (root.status.state !== 'open' && attempt !== null)
     throw new Error('Terminal Settings intent retains a live attempt')
   return { kind: 'found' as const, identity, ...root, attempt }
+}
+
+export function readSettingsAttempt(port: ReadPort, input: IntentIdentity, id: string) {
+  const identity = intentIdentitySchema.parse(input)
+  const root = readRoot(port, identity)
+  if (!root) return { kind: 'not_found' as const }
+  const attempt = readAttempt(port, identity, root.nextAttempt, SettingsIdSchema.parse(id))
+  return attempt
+    ? { kind: 'found' as const, identity, ...root, attempt }
+    : { kind: 'not_found' as const }
 }
 
 function insertRoot(port: ParticipantPort, input: IntentAllocation) {

@@ -1,5 +1,9 @@
 import { SETTINGS_INTENT_MIGRATION, SETTINGS_INTENT_TABLES } from './intent-migration.ts'
 import { SETTINGS_PREPARING_MIGRATION } from './preparing-migration.ts'
+import {
+  SETTINGS_STANDING_CUSTODY_MIGRATION,
+  SETTINGS_STANDING_CUSTODY_TABLE,
+} from './standing-custody-migration.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
@@ -38,6 +42,7 @@ export function settingsSqlMaterials(): Pick<
   const migration = file('migration')
   const intentMigration = file('intent-migration')
   const preparingMigration = file('preparing-migration')
+  const standingCustody = file('standing-custody-migration')
   const sources = file('source-layout-migration')
   const reader = file('read')
   const terminal = file('terminal-participant')
@@ -62,7 +67,7 @@ export function settingsSqlMaterials(): Pick<
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: [...TABLES, ...SETTINGS_INTENT_TABLES],
+        ownedTables: [...TABLES, ...SETTINGS_INTENT_TABLES, SETTINGS_STANDING_CUSTODY_TABLE],
         readTables: [],
         requiresFacts: [GUARD_FACT, TERMINAL_FACT],
         providesFacts: [RESULT_FACT],
@@ -71,6 +76,12 @@ export function settingsSqlMaterials(): Pick<
       },
     ],
     migrations: [
+      {
+        ...SETTINGS_STANDING_CUSTODY_MIGRATION,
+        moduleUrl: standingCustody.moduleUrl,
+        checksum: standingCustody.digest,
+        requires: [SETTINGS_PREPARING_MIGRATION],
+      },
       {
         ...SETTINGS_PREPARING_MIGRATION,
         moduleUrl: preparingMigration.moduleUrl,

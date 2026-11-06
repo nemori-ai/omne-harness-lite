@@ -130,4 +130,16 @@ Allocation preserves the full original command. A different transport requestId 
 
 Reads use two indexed point queries, each with LIMIT 1. They validate the stored command binding, attempt sequence, plan target, ready-basis digest, and exact SQL destination identity. They do not write or settle anything. The plan stores a SettingsCurrentBasis comparison projection. External reservation requests and custody checkpoints remain separate obligations and are not implemented by allocation.
 
-Tests exercise this writer through the real SQLite Worker with a test participant replacing admission. They cover concurrent allocation, rollback, reopen, immutable commands, exact-ID collisions, terminal recognition, and budget boundaries. Seeded terminal/history records test recognition; they do not prove the production seal service. Current admission, custody, ready/commit plans, recovery routing, and the public preparation backend remain incomplete.
+Tests exercise this writer through the real SQLite Worker with a test participant replacing admission. They cover concurrent allocation, rollback, reopen, immutable commands, exact-ID collisions, terminal recognition, and budget boundaries. Seeded terminal/history records test recognition; they do not prove the production seal service. Current admission, external custody orchestration, ready/commit plans, recovery routing, and the public preparation backend remain incomplete.
+
+## Identity reservation custody
+
+`standing-custody.ts` supplies private persistence operations for an attempt's Identity request and receipt. `st_intent_standing` belongs to settings.persistence and references that owner's attempt relation. Its primary key permits one request per exact attempt. Its unique reservation ID prevents two custody records from claiming the same Identity reservation. State constraints require receipts for held and settled records, and an outcome only for settled records.
+
+The plan stores the complete StandingBinding and normalized qualifications before an external reserve call. The binding includes the original principal, canonical tenant, fixed destination, exact attempt ID, recovery envelope and command digest. An existing plan cannot change destination, scope or qualifications. A requested checkpoint means the call may have happened. A lost reply must be recovered using this original request.
+
+New plans and request admission require an open root and a preparing attempt. Receipt recording can address an exact historical attempt after it becomes terminal. It validates the full request and reservation ID. A held reply cannot replace a settled receipt. A contradictory terminal outcome returns operation_conflict. A receipt for an old attempt does not change its successor or the root result.
+
+These functions accept receipts only from the trusted owning participant. Shape validation and a deterministic reservation ID do not authenticate a caller or prove an external hold. The future coordinator must obtain actual results from Identity's public reservation service. Identity and the destination terminal enforce release ordering. Recording a settlement receipt does not itself release a reservation, seal an attempt, or publish a ready basis.
+
+Custody readback uses indexed root, exact-attempt and custody lookups, each with LIMIT 1. It reads at most three rows and performs no writes. Private allocation/custody helpers are not exported through the package entry. Current production tenant commands do not use this new preparation path yet.

@@ -6,10 +6,17 @@ import {
   combinationManifest,
   manifestDigest,
   type SqlMaterialCatalog,
+  type DomainRef,
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { settingsSqlMaterials } from '../src/materials.ts'
 import { SETTINGS_PREPARING_MIGRATION } from '../src/preparing-migration.ts'
+import { SETTINGS_STANDING_CUSTODY_MIGRATION } from '../src/standing-custody-migration.ts'
+import type {
+  StandingPlanInput,
+  StandingReceiptInput,
+  StandingSettlementInput,
+} from '../src/standing-custody.ts'
 import { json } from '../src/encoding.ts'
 import type { IntentAllocation, IntentIdentity } from '../src/intent-schema.ts'
 import { config } from './config.ts'
@@ -63,7 +70,15 @@ function moduleFile(name: string) {
     codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
   }
 }
-export async function openIntentWorld(existingRoot?: string) {
+type StandingCommand =
+  | { kind: 'plan'; input: StandingPlanInput }
+  | { kind: 'request'; input: { identity: IntentIdentity; attemptId: string } }
+  | { kind: 'held'; input: StandingReceiptInput }
+  | { kind: 'settled'; input: StandingSettlementInput }
+export async function openIntentWorld(
+  existingRoot?: string,
+  domain: DomainRef = allocation().identity.domain,
+) {
   const parent = fileURLToPath(
     new URL('../../../../tmp/closures/settings-intent/databases/', import.meta.url),
   )
@@ -85,15 +100,14 @@ export async function openIntentWorld(existingRoot?: string) {
         protocol: 'fixture-settings-intent/1',
         ...moduleFile('intent-reader'),
         ordering: 'snapshot',
-        readTables: ['st_governance_intent', 'st_governance_attempt'],
-        requiresMigrations: [SETTINGS_PREPARING_MIGRATION],
-        maxRowsRead: 2,
+        readTables: ['st_governance_intent', 'st_governance_attempt', 'st_intent_standing'],
+        requiresMigrations: [SETTINGS_PREPARING_MIGRATION, SETTINGS_STANDING_CUSTODY_MIGRATION],
+        maxRowsRead: 3,
         maxOutputBytes: 2 * 1024 * 1024,
       },
     ],
     declaredCombinations: { tenant: null, system: null },
   }
-  const domain = allocation().identity.domain
   const participants = ['settings.persistence']
   const manifest = combinationManifest({ catalog: materials, participants })
   if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
@@ -113,6 +127,28 @@ export async function openIntentWorld(existingRoot?: string) {
   if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
   return {
     root,
+    standing(command: StandingCommand) {
+      return made.storage.commit({
+        identity: {
+          ...domain,
+          operation: 'fixture.intent.standing',
+          protocolVersion: '2',
+          operationKey: randomUUID(),
+        },
+        combinationVersion: combination.combinationVersion,
+        manifestDigest: combination.manifestDigest,
+        commands: [{ participant: 'settings.persistence', facts: { standing: json(command) } }],
+      })
+    },
+    readStanding(identity: IntentIdentity, attemptId: string) {
+      return made.storage.read({
+        domain,
+        handler: 'fixture.settings.intent-read',
+        protocol: 'fixture-settings-intent/1',
+        requestKey: randomUUID(),
+        input: json({ kind: 'standing', identity, attemptId }),
+      })
+    },
     write(input: IntentAllocation, key = randomUUID(), rollback = false) {
       return made.storage.commit({
         identity: {

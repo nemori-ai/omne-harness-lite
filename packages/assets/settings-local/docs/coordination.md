@@ -101,4 +101,12 @@ ready只读检查业务terminal仍开放，不能复用consume写入committed。
 
 来源门的只读readiness投影先进入commit-plan，实际检查和清门由后续source-retention负责。同一事务内不允许它们之间插入另一写入。外部seal继续使用terminal、intent-plan、source-retention和persistence的既定组合。两种plan分开登记材料依赖，可共享纯读取/决定代码；不能用命令分支隐藏requiresFacts反向成环。数组排列不等于SqlStorage执行顺序。
 
-当前这部分是持久提供者的实现义务。intent-migration与preparing-migration已安装基础关系及preparing字段，intent-records提供私有分配/读取写者。完整外部保留请求计划、保管记录、ready/commit组合和生产接线尚未完成。
+当前这部分是持久提供者的实现义务。intent-migration与preparing-migration已安装基础关系及preparing字段，intent-records提供私有分配/读取写者。standing-custody已提供Identity完整请求和回执的私有保管写者。真实协调调用、来源保留、ready/commit组合和生产接线尚未完成。
+
+### Identity请求与回执的持久保管
+
+准备计划保存Settings比较依据。保管记录另保存完整Identity请求，包含固定destination、真实tenant scope、原principal、精确attempt、恢复封套、命令摘要和资格集合。两者不能互相替代。planned表示请求已保存，requested表示外部调用可能已经发生。持久化requested成功后，协调器才能发出reserve。
+
+回包丢失后，协调器读回并重试同一个请求。Identity决定它是原held、已settled还是拒绝。Settings只核对并保存该结果。旧attempt结束后仍能接收其迟到回执，但不能恢复准备、修改后继attempt或重新授予权限。已有settled记录不接受迟到held回退，也不接受矛盾的终态。
+
+保管模块不对外暴露客户端写接口。它消费可信参与者从Identity实际取得的回执；回执形状和可计算ID都不是授权证据。Identity的释放动作仍要求目的终态，保管写入不能替代该验证。当前测试覆盖真实reserve与丢失回包后的重试，终态回执和旧attempt场景使用夹具。完整终态路由与生产协调尚须组合验收。

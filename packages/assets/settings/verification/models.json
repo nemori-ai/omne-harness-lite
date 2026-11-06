@@ -1,6 +1,6 @@
 {
   "model": "models/SettingsComposition.tla",
-  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof; SettingsSourceRetention: two destinations, two source updates, one crash; safety and conditional progress under eventual storage availability and weakly fair recovery; fixed identity bindings, abstract atomic source transactions, no production refinement proof; source write conditions abstract confirmed final business validity as a monotone boolean, not a schema or original binding proof; SettingsSourceIdentity: two ordered sources, four identity/layout replacements, one authority refresh, one prepare/write/rebase; finite safety only, authenticated ownership and SQL isolation are assumptions SettingsIntentAttempts checks finite root/attempt safety with two allowed attempts, immutable commands, exact current attempt, read-only queries and distinct ordinary/source sealing. No liveness or real provider guarantee. SettingsPreparationBootstrap models one durable attempt, two external reservations and one restart; safety only. External owners serialize reserve/settle and validate exact reservation bindings; SQL transactions and authentic providers are assumptions, not proved implementations.",
+  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof; SettingsSourceRetention: two destinations, two source updates, one crash; safety and conditional progress under eventual storage availability and weakly fair recovery; fixed identity bindings, abstract atomic source transactions, no production refinement proof; source write conditions abstract confirmed final business validity as a monotone boolean, not a schema or original binding proof; SettingsSourceIdentity: two ordered sources, four identity/layout replacements, one authority refresh, one prepare/write/rebase; finite safety only, authenticated ownership and SQL isolation are assumptions SettingsIntentAttempts checks finite root/attempt safety with two allowed attempts, immutable commands, exact current attempt, read-only queries and distinct ordinary/source sealing. No liveness or real provider guarantee. SettingsPreparationBootstrap models one durable attempt, two external reservations and one restart; safety only. External owners serialize reserve/settle and validate exact reservation bindings; SQL transactions and authentic providers are assumptions, not proved implementations. SettingsReservationCustody models one destination and two candidate request identities with lost/delayed replies; finite safety only. Authentic external replies, external idempotent reserve, and atomic journal writes are assumptions.",
   "cases": [
     {
       "name": "positive",
@@ -288,6 +288,42 @@
       "model": "models/SettingsPreparationBootstrap.tla",
       "config": "models/preparation-bootstrap-commit.cfg",
       "expected": "OnlyReadyAttemptCommits"
+    },
+    {
+      "name": "reservation-custody-positive",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "reservation-custody-durable",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-durable.cfg",
+      "expected": "RequestDurableBeforeCall"
+    },
+    {
+      "name": "reservation-custody-immutable",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-immutable.cfg",
+      "expected": "ImmutableReservationRequest"
+    },
+    {
+      "name": "reservation-custody-binding",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-binding.cfg",
+      "expected": "ReceiptBindsOriginalRequest"
+    },
+    {
+      "name": "reservation-custody-revival",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-revival.cfg",
+      "expected": "SettledCannotBecomeHeld"
+    },
+    {
+      "name": "reservation-custody-release",
+      "model": "models/SettingsReservationCustody.tla",
+      "config": "models/reservation-custody-release.cfg",
+      "expected": "TerminalBeforeRelease"
     }
   ]
 }

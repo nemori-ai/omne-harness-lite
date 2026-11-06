@@ -185,3 +185,50 @@ flowchart LR
 ```
 
 启禁由 Assets 持有拥有者写入，Settings 不创建另一份启禁配置。snapshot 和 catalog 保留投影字段。禁用不改变 st_states 或原业务回执；真实 SQL 测试覆盖禁用、关闭重开、重新启用后的值保留。此图只描述已接入的目录路径。运行采用和实际动作仍须在 C3b/C4/C5 的当前性关口消费拥有者事实。
+
+## 准备保管的私有实现
+
+准备流程先保存根命令和一次attempt，再保存完整Identity请求。Settings负责请求与回执的本地记录，Identity负责资格和保留的实际有效性。当前私有模块通过真实SQL测试使用，公共准备服务尚未接线。来源保留和ready提交仍待实现。
+
+```mermaid
+classDiagram
+  class IntentRecord {
+    originalCommand
+    principalRef
+    status
+  }
+  class AttemptRecord {
+    attemptId
+    comparisonPlan
+    status
+    readyBasis
+  }
+  class StandingCustody {
+    immutableRequest
+    reservationId
+    state
+    receipt
+    outcome
+  }
+  class IdentityReservations {
+    reserve()
+    settle()
+  }
+  IntentRecord "1" *-- "0..64" AttemptRecord
+  AttemptRecord "1" *-- "0..1" StandingCustody
+  StandingCustody ..> IdentityReservations : records public results
+```
+
+图中的对象是持久记录，不要求运行时class。三张关系表同属settings.persistence。外键只连接同一拥有者的表；Settings不读取Identity私表。保管查询按根、精确attempt和保管主键查找，最多读取三行。
+
+```mermaid
+stateDiagram-v2
+  [*] --> planned : persist original request
+  planned --> requested : persist before reserve call
+  requested --> held : matching Identity reply
+  requested --> settled : recognized terminal reply
+  held --> settled : confirmed settlement
+  settled --> settled : ignore late held reply
+```
+
+requested表达不确定的调用进度，不能推断外部没有held。settled是已确认结果的保管事实，不能据此绕过Identity的释放前提。迟到回执按原attempt归档，不改变后继attempt。测试中的终态夹具不授予生产恢复已完成的结论。
