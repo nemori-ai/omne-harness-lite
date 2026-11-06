@@ -79,7 +79,7 @@ The call port is in `src/calls.ts` and `src/tasks.ts`, on the gate, the connecti
 
 ## Configuration and operation
 
-`McpConfig` has four required fields and no default. The rules are in contract SPEC [S3](../mcp-contract/SPEC.md#services) and S4. `McpPorts.clock` is optional, and `McpPorts.checkOutput` is required. The departures from the contract, with their exit conditions, are in [SPEC.md](SPEC.md#deviations). Everything else comes from the ports. The package keeps no durable state. The in-memory store, the in-flight table and the task table last for one run.
+`McpConfig` has four required fields and no default. The rules are in contract SPEC [S3](../mcp-contract/SPEC.md#services) and S4. `McpPorts.clock` is optional, and `McpPorts.checkOutput` is required. The package has no departure from the contract. [SPEC.md](SPEC.md#deviations) records this. Everything else comes from the ports. The package keeps no durable state. The in-memory store, the in-flight table and the task table last for one run.
 
 ## Verification
 
