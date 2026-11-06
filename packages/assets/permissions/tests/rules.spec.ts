@@ -185,6 +185,24 @@ it('rejects forged tenant, target, service, definition and capability bindings',
   ).toMatchObject({ kind: 'invalid-input' })
 })
 
+it('rejects a constraint borrowed from another scope or capability', () => {
+  const input = evaluation()
+  for (const field of Object.keys(input.scope)) {
+    expect(
+      evaluatePermission({
+        ...input,
+        constraints: [{ ...input.constraints[0], scope: { ...input.scope, [field]: 'other' } }],
+      }),
+    ).toEqual({ kind: 'invalid-input', reason: 'binding' })
+  }
+  expect(
+    evaluatePermission({
+      ...input,
+      constraints: [{ ...input.constraints[0], capabilityId: 'other' }],
+    }),
+  ).toEqual({ kind: 'invalid-input', reason: 'binding' })
+})
+
 it('rejects undeclared values, invalid comparisons, duplicate identities and workspace assignments', () => {
   const input = evaluation()
   expect(
