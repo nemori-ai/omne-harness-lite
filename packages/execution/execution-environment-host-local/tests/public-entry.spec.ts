@@ -31,6 +31,7 @@ const reachable = [
   'host-scope',
   'host-probe',
   'command-gate',
+  'command-gate-core',
   'scope-probe',
   'scope-cgroup',
   'root-segments',
