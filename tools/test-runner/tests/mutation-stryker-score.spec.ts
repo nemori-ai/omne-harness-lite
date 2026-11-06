@@ -203,4 +203,33 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     expect(member?.counts['Survived']).toBe(0)
     expect(member?.counts['Killed']).toBeGreaterThan(0)
   })
+
+  it('reused workers execute covered tests after earlier mutants fail', () => {
+    const { root, memberDir } = fixture()
+    const functions = Array.from(
+      { length: 8 },
+      (_, index) => `export function above${index}(n: number): boolean { return n > ${index} }`,
+    )
+    writeFileSync(
+      join(memberDir, 'src/sign.ts'),
+      ['export const zero = 0', ...functions].join('\n'),
+    )
+    for (let index = 0; index < 8; index++) {
+      writeFileSync(
+        join(memberDir, `tests/above${index}.spec.ts`),
+        [
+          `import { above${index} } from '../src/sign.ts'`,
+          `it.each([[${index - 1}, false], [${index}, false], [${index + 1}, true]])('boundary %i = %s', (n, want) => { expect(above${index}(n)).toBe(want) })`,
+        ].join('\n'),
+      )
+    }
+    const result = mutate(root, join(root, 'out-reused-workers'), '2')
+    expect(result.ran.status, `${result.ran.stdout}${result.ran.stderr}`).toBe(0)
+    expect(result.summary?.errors).toEqual([])
+    const [member] = result.summary?.members ?? []
+    expect(member?.valid).toBe(true)
+    expect(member?.counts['Survived'] ?? 0).toBe(0)
+    expect(member?.counts['NoCoverage'] ?? 0).toBe(0)
+    expect(member?.counts['Killed']).toBeGreaterThan(20)
+  })
 })

@@ -88,6 +88,8 @@ export function strykerConfig(
   return {
     testRunner: 'omne-vitest',
     plugins: [GUARDED_VITEST],
+    // Reused Vitest workers can retain bail state and skip covered tests on the next mutant.
+    disableBail: true,
     // 不按「直接导入了被变异文件」挑测试：不少成员的测试按自己的包名导入，走的是 sandbox 里重新构建的 dist，
     // vitest 认不出它们与 src 的关系，挑出来就漏了（只用包名导入的成员一条测试都不跑）。初跑跑全部快层，
     // 每个变异体该跑哪些测试仍由逐条覆盖决定。
