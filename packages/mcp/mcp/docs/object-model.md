@@ -51,7 +51,7 @@ classDiagram
     }
     class Reservation {
         stop
-        sent(connection, generation)
+        recordSent(connection, generation)
         conclude()
     }
     InFlightCalls --> Reservation : 占位时交出
@@ -85,6 +85,6 @@ classDiagram
 - `Connection` 由连接表在第一次 `ensure` 时创建，`lost` 后在同一对象上重建，`closed` 后由新对象延续代际；只有连接表与它发起的建连写它。
 - `Entry` 随第一次 `ensure` 创建；已关闭且五项资源都不持有时删除（`forgettable`）；进程未确认停止时保留，带未确认的进程句柄。条目的拆除同时只有一次，`lose`、准备失败、重建与关闭共用。
 - 传输、进程句柄、凭据句柄由条目持有，在关闭次序里释放，每一项在它的端口答复之后才离开条目；准备失败时在同一次调用里释放。落点在时限内未答时进程凭据句柄移到这个落点上：进程交来则在它停止之后释放，`closeAll` 先到则立即释放，只释放一次。
-- `InFlightCalls` 的表项在一次运行内保留，`ended` 不删除，撤销的占位除外；占位交出一个 `Reservation` 句柄：这次调用的停止信号（调用方的 `signal` 与 `cancel` 合成一个）、发出时记下连接视图与发出代际的 `sent`，以及唯一的收口 `conclude`；阶段只存在表里（SPEC [MC-12](../SPEC.md#mc-12)）。
-- `TaskTable` 的表项在一次运行内保留，不删除；记发出代际、对端账号与输出 schema。
+- `InFlightCalls` 的表项在一次运行内保留，`ended` 不删除，撤销的占位除外；占位交出一个 `Reservation` 句柄：这次调用的停止信号（调用方的 `signal` 与 `cancel` 合成一个）、发出时记下连接视图与发出代际的 `recordSent`（只在占位阶段迁移），以及唯一的收口 `conclude`；阶段只存在表里（SPEC [MC-12](../SPEC.md#mc-12)）。
+- `TaskTable` 的表项在一次运行内保留，不删除；记发出代际、对端账号与输出 schema，或「有歧义」：同一个键上对端账户不同时，该键一直保持有歧义。歧义只在表内，`get` 只交出任务记录或 `undefined`，歧义与表外任务对调用方是同一个答复 `unknown`（SPEC [MC-17](../SPEC.md#mc-17) 第 1 步）。
 - 内存存储的记录在一次运行内保留。

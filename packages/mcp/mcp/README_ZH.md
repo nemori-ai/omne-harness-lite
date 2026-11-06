@@ -96,7 +96,7 @@ SPEC MC-14 怎样兑现：
 
 ## 维护
 
-契约 SPEC 的服务条款一变，这里同名的模块随之变：S2 是 `calls.ts`、`tasks.ts`、`internal/in-flight.ts` 与 `internal/task-table.ts`，S5 是 `discovery.ts`，S7 是 `status.ts` 与 `internal/lost.ts`，S8 是 `connections.ts` 与 `internal/table.ts`，S9 是 `internal/teardown.ts`、`internal/late.ts` 与 `internal/build.ts`。新增一种传输只加一个 `GenerationPolicy` 取值和 `internal/settings.ts` 的一个分支。消费者：`@omne-harness/mcp-host-local`（端口与传输）与组设计。
+契约 SPEC 的服务条款一变，这里同名的模块随之变：S2 是 `calls.ts`、`tasks.ts`、`internal/in-flight.ts` 与 `internal/task-table.ts`，S5 是 `discovery.ts`，S7 是 `status.ts` 与 `internal/lost.ts`，S8 是 `calls.ts`、`tasks.ts`、`discovery.ts` 与 `internal/table.ts`，S9 是 `internal/teardown.ts`、`internal/late.ts` 与 `internal/build.ts`。新增一种传输只加一个 `GenerationPolicy` 取值和 `internal/settings.ts` 的一个分支。消费者：`@omne-harness/mcp-host-local`（端口与传输）与组设计。
 
 ## 目录结构与文档职责
 

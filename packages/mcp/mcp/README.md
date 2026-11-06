@@ -96,7 +96,7 @@ Run `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`. The tests 
 
 ## Maintenance
 
-A change to a service clause of the contract SPEC changes a module here, in the same name: S2 is `calls.ts`, `tasks.ts`, `internal/in-flight.ts` and `internal/task-table.ts`, S5 is `discovery.ts`, S7 is `status.ts` and `internal/lost.ts`, S8 is `connections.ts` and `internal/table.ts`, S9 is `internal/teardown.ts`, `internal/late.ts` and `internal/build.ts`. A new transport kind adds a `GenerationPolicy` value and a branch in `internal/settings.ts`. Consumers: `@omne-harness/mcp-host-local` (the ports and the transports) and the group design.
+A change to a service clause of the contract SPEC changes a module here, in the same name: S2 is `calls.ts`, `tasks.ts`, `internal/in-flight.ts` and `internal/task-table.ts`, S5 is `discovery.ts`, S7 is `status.ts` and `internal/lost.ts`, S8 is `calls.ts`, `tasks.ts`, `discovery.ts` and `internal/table.ts`, S9 is `internal/teardown.ts`, `internal/late.ts` and `internal/build.ts`. A new transport kind adds a `GenerationPolicy` value and a branch in `internal/settings.ts`. Consumers: `@omne-harness/mcp-host-local` (the ports and the transports) and the group design.
 
 ## Directory structure and documentation roles
 
