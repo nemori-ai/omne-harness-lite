@@ -1,7 +1,9 @@
 // A scripted MCP peer on real stdio, for the transport conformance suite. It reads one JSON-RPC
 // message per line on stdin, answers as the `PeerScript` (argv[2]) says, and reports what it
 // received on stderr as lines that start with `@omne `. It picks replies as the contract's
-// in-memory scripted peer does: in order per method, the last one repeating.
+// in-memory scripted peer does: in order per method, the last one repeating. A line
+// `{"@omne":"sync","n":<n>}` from the fixture is not a message: the peer answers it with the
+// record `{"kind":"synced","n":<n>}`.
 import { writeSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 
@@ -9,9 +11,13 @@ const script = JSON.parse(process.argv[2] ?? '{}')
 const versions = JSON.parse(process.argv[3] ?? '["2026-07-28"]')
 const consumed = new Map()
 let peerRequestCount = 0
+// A slow peer for the fixture's own cases: every record goes out this many milliseconds late.
+const recordDelay = Number(process.env.OMNE_PEER_RECORD_DELAY_MS ?? '0')
 
 function record(entry) {
-  writeSync(2, `@omne ${JSON.stringify(entry)}\n`)
+  const line = `@omne ${JSON.stringify(entry)}\n`
+  if (recordDelay > 0) setTimeout(() => writeSync(2, line), recordDelay)
+  else writeSync(2, line)
 }
 
 function write(message) {
@@ -120,6 +126,11 @@ lines.on('line', line => {
     return
   }
   if (message === null || typeof message !== 'object') return
+  if (message['@omne'] === 'sync') {
+    // stdin is read in order: every line written before this one is recorded already.
+    record({ kind: 'synced', n: message.n })
+    return
+  }
   if (message.method === undefined) {
     record({
       kind: 'response',

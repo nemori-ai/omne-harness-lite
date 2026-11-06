@@ -353,3 +353,28 @@ describe('the reference server (B layer)', () => {
     await peer.close()
   })
 })
+
+describe('the scripted peer fixture: received() waits until the peer confirms its records', () => {
+  it('returns a record the peer writes 50 ms late, longer than a 12 ms quiet window waits', async () => {
+    const peer = await stdioPeer({}, { kind: 'stdio' }, VERSIONS, { recordDelayMs: 50 })
+    const transport = await open(peer.material)
+    ok(await transport.discover(), 'discover')
+    const methods = (await peer.received()).flatMap(entry =>
+      entry.kind === 'request' ? [entry.method] : [],
+    )
+    expect(methods).toEqual(['server/discover'])
+    await transport.close()
+    await peer.close()
+  })
+
+  it('fails with the bound in its message when the peer does not confirm within it', async () => {
+    const peer = await stdioPeer({}, { kind: 'stdio' }, VERSIONS, {
+      recordDelayMs: 1_000,
+      confirmWithinMs: 100,
+    })
+    await expect(peer.received()).rejects.toThrow(
+      'the stdio peer did not confirm its records within 100 ms',
+    )
+    await peer.close()
+  })
+})

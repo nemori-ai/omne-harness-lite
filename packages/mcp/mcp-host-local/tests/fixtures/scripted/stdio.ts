@@ -12,6 +12,7 @@ import {
 } from '@omne-harness/mcp-contract/testing'
 import { generationOf } from '@omne-harness/mcp-contract/testing'
 import { spawnHandle } from '../process.ts'
+import { settledWithin } from '../settle.ts'
 
 const PEER = fileURLToPath(new URL('./stdio-peer.mjs', import.meta.url))
 const RECORD = '@omne '
@@ -61,26 +62,51 @@ type Spawned = Readonly<{
   handle: ProcessHandle
   log: PeerReceived[]
   ready: Promise<void>
-  exited: Promise<void>
+  /** Settles once every record the peer wrote for the lines sent so far is in `log`. */
+  recorded(): Promise<void>
 }>
 
-function spawnPeer(args: readonly string[]): Spawned {
+function spawnPeer(args: readonly string[], env?: Readonly<{ [name: string]: string }>): Spawned {
   const log: PeerReceived[] = []
+  const synced = new Map<number, () => void>()
+  let syncs = 0
   let markReady = (): void => undefined
   const ready = new Promise<void>(resolve => {
     markReady = resolve
   })
-  const spawned = spawnHandle(args, {
+  const { child, handle } = spawnHandle(args, {
+    ...(env === undefined ? {} : { env }),
     onStderrLine: line => {
       if (!line.startsWith(RECORD)) return false
       const entry: unknown = JSON.parse(line.slice(RECORD.length))
       if (typeof entry !== 'object' || entry === null || !('kind' in entry)) return true
       if (entry.kind === 'ready') markReady()
-      else log.push(entry as PeerReceived)
+      else if (entry.kind === 'synced') {
+        if ('n' in entry && typeof entry.n === 'number') {
+          synced.get(entry.n)?.()
+          synced.delete(entry.n)
+        }
+      } else log.push(entry as PeerReceived)
       return true
     },
   })
-  return { handle: spawned.handle, log, ready, exited: spawned.exited }
+  const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
+  async function recorded(): Promise<void> {
+    // A write the caller started without waiting for it (a notification, `cancelRequest`) reaches
+    // the pipe within this turn of the event loop: let it go first, so the sync line follows it.
+    await new Promise(resolve => setImmediate(resolve))
+    const stdin = child.stdin
+    // A peer that exited, or whose stdin is closed, reads no more lines: its last records are in
+    // once its pipes close.
+    if (child.exitCode !== null || child.signalCode !== null || stdin === null || !stdin.writable)
+      return closed
+    syncs += 1
+    const n = syncs
+    const confirmed = new Promise<void>(resolve => synced.set(n, resolve))
+    stdin.write(`${JSON.stringify({ '@omne': 'sync', n })}\n`)
+    return Promise.race([confirmed, closed])
+  }
+  return { handle, log, ready, recorded }
 }
 
 export type StdioPeer = Readonly<{
@@ -89,17 +115,32 @@ export type StdioPeer = Readonly<{
   close(): Promise<void>
 }>
 
+export type StdioPeerOptions = Readonly<{
+  /** The peer writes each record this many milliseconds late, as a peer under load may. */
+  recordDelayMs?: number
+  /** How long `received()` waits for the peer to confirm its records before it fails. */
+  confirmWithinMs?: number
+}>
+
+/** Far above a loaded machine's scheduling noise; a peer that does not confirm by then is stuck. */
+const CONFIRM_WITHIN_MS = 10_000
+
 /** Spawns the scripted peer for one case. The transport factory is the caller's. */
 export async function stdioPeer(
   script: PeerScript,
   needs: PeerNeeds,
   versions: readonly string[],
+  options: StdioPeerOptions = {},
 ): Promise<StdioPeer> {
   const plan = unsentPlan(script)
+  const env =
+    options.recordDelayMs === undefined
+      ? undefined
+      : { OMNE_PEER_RECORD_DELAY_MS: String(options.recordDelayMs) }
   const spawned =
     plan === 'unreachable'
       ? spawnPeer(['-e', CLOSED_STDIN])
-      : spawnPeer([PEER, JSON.stringify(script), JSON.stringify(versions)])
+      : spawnPeer([PEER, JSON.stringify(script), JSON.stringify(versions)], env)
   await spawned.ready
   const material: TransportMaterial = {
     kind: 'stdio',
@@ -110,13 +151,11 @@ export async function stdioPeer(
   return {
     material,
     async received() {
-      // The peer records on stderr after it read the pipe: wait until the records stop coming.
-      let seen = spawned.log.length
-      for (;;) {
-        await new Promise(resolve => setTimeout(resolve, 12))
-        if (spawned.log.length === seen) break
-        seen = spawned.log.length
-      }
+      // A peer with no script records nothing, and its stdin is closed: there is nothing to wait for.
+      if (plan === 'unreachable') return [...spawned.log]
+      const within = options.confirmWithinMs ?? CONFIRM_WITHIN_MS
+      if ((await settledWithin(spawned.recorded(), within)) === 'pending')
+        throw new Error(`the stdio peer did not confirm its records within ${within} ms`)
       return [...spawned.log]
     },
     async close() {
