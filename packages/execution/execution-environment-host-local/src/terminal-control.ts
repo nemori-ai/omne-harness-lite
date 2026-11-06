@@ -10,6 +10,7 @@ export type TerminalFrame =
   | Readonly<{ kind: 'finished'; leg: string; code: number; cwd: string }>
   | Readonly<{ kind: 'fault' }>
 
+type FrameOf<K extends TerminalFrame['kind']> = Extract<TerminalFrame, { kind: K }>
 type FrameStep =
   | Readonly<{ kind: 'frames'; frames: readonly TerminalFrame[] }>
   | Readonly<{ kind: 'fault' }>
@@ -75,39 +76,38 @@ export function createTerminalReader(input: {
     state = 'fault'
     return { kind: 'fault' }
   }
-  function apply(frame: TerminalFrame): boolean {
-    if (frame.kind === 'fault') return false
-    if (frame.kind === 'ready' && state === 'launching') {
-      state = 'ready'
-      return true
-    }
-    if (frame.kind === 'opened' && state === 'ready') {
-      state = 'idle'
-      return true
-    }
-    if (!('leg' in frame) || frame.leg !== leg) return false
-    if (frame.kind === 'started' && state === 'starting') {
-      state = 'running'
-      return true
-    }
-    const inLeg = state === 'starting' || state === 'running'
-    if (frame.kind === 'between') {
+  const inLeg = () => state === 'starting' || state === 'running'
+  const enter = (from: typeof state, to: typeof state): boolean => {
+    if (state !== from) return false
+    state = to
+    return true
+  }
+  const ofLeg = (id: string) => id === leg
+  // One transition per frame kind: the answer is whether the frame is accepted in the current state.
+  const transitions: { [K in TerminalFrame['kind']]: (frame: FrameOf<K>) => boolean } = {
+    fault: () => false,
+    ready: () => enter('launching', 'ready'),
+    opened: () => enter('ready', 'idle'),
+    started: frame => ofLeg(frame.leg) && enter('starting', 'running'),
+    between(frame) {
+      if (!ofLeg(frame.leg)) return false
       between += frame.bytes.length
-      return inLeg && !begun && between <= input.betweenSegmentBytes
-    }
-    if (frame.kind === 'begun') {
-      if (!inLeg || begun) return false
+      return inLeg() && !begun && between <= input.betweenSegmentBytes
+    },
+    begun(frame) {
+      if (!ofLeg(frame.leg) || !inLeg() || begun) return false
       begun = true
       return true
-    }
-    if (frame.kind === 'data') return inLeg && begun
-    if (frame.kind === 'finished' && state === 'running' && begun) {
-      state = 'idle'
+    },
+    data: frame => ofLeg(frame.leg) && inLeg() && begun,
+    finished(frame) {
+      if (!ofLeg(frame.leg) || !begun || !enter('running', 'idle')) return false
       leg = undefined
       return true
-    }
-    return false
+    },
   }
+  const apply = <K extends TerminalFrame['kind']>(frame: FrameOf<K>): boolean =>
+    transitions[frame.kind](frame)
   return Object.freeze({
     expectLeg(id: string) {
       if (state !== 'idle') {

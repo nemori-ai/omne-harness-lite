@@ -82,32 +82,46 @@ export const commandDefaults: CommandSettings = Object.freeze({
   retainedPollMs: 1_000,
 })
 
-const byteBounds = ['maxBufferedBytes', 'maxChunkBytes'] as const
-const timeBounds = ['startBoundMs', 'graceMs', 'stopBoundMs', 'probeRetryMs'] as const
-const countBounds = ['retainedPerScope', 'retainedPollMs'] as const
+/** What one option must be: a test of a present value, and the words the issue ends with. */
+type OptionRule = Readonly<{ accepts(value: unknown): boolean; mustBe: string }>
+
+const wholeOneOrMore = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 1
+
+const byteRule: OptionRule = {
+  accepts: wholeOneOrMore,
+  mustBe: 'a whole number of bytes, one or more',
+}
+const timeRule: OptionRule = {
+  accepts: value => typeof value === 'number' && Number.isFinite(value) && value >= 0,
+  mustBe: 'a finite number of milliseconds, zero or more',
+}
+const countRule: OptionRule = { accepts: wholeOneOrMore, mustBe: 'a whole number, one or more' }
+const policyRule: OptionRule = {
+  accepts: value => value === 'retain' || value === 'stop',
+  mustBe: "'retain' or 'stop'",
+}
+
+/** Every option's rule, in the order of the checks: bytes, then times, then counts, then the policy. */
+const optionRules: Readonly<Record<keyof HostCommandOptions, OptionRule>> = {
+  maxBufferedBytes: byteRule,
+  maxChunkBytes: byteRule,
+  startBoundMs: timeRule,
+  graceMs: timeRule,
+  stopBoundMs: timeRule,
+  probeRetryMs: timeRule,
+  retainedPerScope: countRule,
+  retainedPollMs: countRule,
+  residuePolicy: policyRule,
+}
 
 /** The one check of the command bounds; the provider and the plugin configuration both use it. */
 export function commandOptionsIssue(
   options: Readonly<Record<string, unknown>>,
 ): string | undefined {
-  for (const name of byteBounds) {
+  for (const [name, rule] of Object.entries(optionRules)) {
     const value = options[name]
-    if (value !== undefined && !(Number.isSafeInteger(value) && Number(value) >= 1))
-      return `${name} must be a whole number of bytes, one or more`
+    if (value !== undefined && !rule.accepts(value)) return `${name} must be ${rule.mustBe}`
   }
-  for (const name of timeBounds) {
-    const value = options[name]
-    if (value !== undefined && !(typeof value === 'number' && Number.isFinite(value) && value >= 0))
-      return `${name} must be a finite number of milliseconds, zero or more`
-  }
-  for (const name of countBounds) {
-    const value = options[name]
-    if (value !== undefined && !(Number.isSafeInteger(value) && Number(value) >= 1))
-      return `${name} must be a whole number, one or more`
-  }
-  const policy = options['residuePolicy']
-  if (policy !== undefined && policy !== 'retain' && policy !== 'stop')
-    return "residuePolicy must be 'retain' or 'stop'"
   const buffered = options['maxBufferedBytes'] ?? commandDefaults.maxBufferedBytes
   const chunk = options['maxChunkBytes'] ?? commandDefaults.maxChunkBytes
   if (Number(chunk) > Number(buffered)) return 'maxChunkBytes must not exceed maxBufferedBytes'

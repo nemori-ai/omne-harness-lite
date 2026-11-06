@@ -2,7 +2,7 @@ import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context, type Message } from '@deepseek-ai/cordis'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   acquisitionRef,
@@ -33,6 +33,26 @@ import {
   filesFacilityPlugin,
 } from '@omne-harness/execution-environment-host-local/cordis'
 import { testPorts } from './ports.ts'
+import {
+  ExecutionEnvironmentRegistry as SourceRegistry,
+  createHostFilesPlugin as createSourcePlugin,
+} from '../src/cordis.ts'
+import { createHostFilesDomain as createSourceDomain } from '../src/host-domain.ts'
+import type { HostFilesProviderOptions } from '../src/host-provider.ts'
+
+// Records the options each host files provider is created with; the provider itself is the real one.
+const created = vi.hoisted((): { options: unknown[] } => ({ options: [] }))
+
+vi.mock('../src/host-provider.ts', async importOriginal => {
+  const actual = await importOriginal<typeof import('../src/host-provider.ts')>()
+  return {
+    ...actual,
+    createHostFilesProvider(options: HostFilesProviderOptions) {
+      created.options.push(options)
+      return actual.createHostFilesProvider(options)
+    },
+  }
+})
 
 /** A host files plugin over a fresh domain, as an assembly root would create once. */
 function hostPlugin() {
@@ -610,3 +630,65 @@ it('accepts only an empty configuration on the command declaration plugin', () =
     issues: [{ message: 'configuration accepts no fields' }],
   })
 })
+
+it('accepts the residue policy and the retained-process counts of the command, and nothing else for them', () => {
+  const validate = createSourcePlugin(createSourceDomain()).Config['~standard'].validate
+  for (const policy of ['retain', 'stop'])
+    expect(validate({ residuePolicy: policy })).toStrictEqual({ value: { residuePolicy: policy } })
+  const counted = { retainedPerScope: 3, retainedPollMs: 500 }
+  expect(validate(counted)).toStrictEqual({ value: counted })
+  // A configuration without a policy carries no `residuePolicy` key, not even an undefined one.
+  expect(validate({ stopBoundMs: 100 })).toStrictEqual({ value: { stopBoundMs: 100 } })
+  expect(validate({ ...counted, residuePolicy: 'stop', stopBoundMs: 100 })).toEqual({
+    value: { ...counted, residuePolicy: 'stop', stopBoundMs: 100 },
+  })
+  for (const refused of [
+    { residuePolicy: 'keep' },
+    { residuePolicy: 7 },
+    { residuePolicy: null },
+    { retainedPerScope: 0 },
+    { retainedPerScope: 1.5 },
+    { retainedPollMs: 0 },
+    { retainedPollMs: '5' },
+    { residualPolicy: 'stop' },
+  ])
+    expect(validate(refused), JSON.stringify(refused)).toMatchObject({
+      issues: [{ message: expect.any(String) }],
+    })
+})
+
+it('hands the residue policy and the retained-process counts to the provider as command options', async () => {
+  created.options.length = 0
+  // No tool on PATH: the platform probe of each provider stops at once and starts no scope.
+  const realPath = process.env['PATH']
+  const empty = await realpath(await mkdtemp(join(tmpdir(), 'omne-no-tools-')))
+  roots.push(empty)
+  process.env['PATH'] = empty
+  try {
+    await handsOver()
+  } finally {
+    if (realPath === undefined) delete process.env['PATH']
+    else process.env['PATH'] = realPath
+  }
+})
+
+async function handsOver() {
+  const ctx = new Context()
+  await testPorts(tenant).load(ctx)
+  await ctx.plugin(SourceRegistry)
+  const loaded: { dispose(): unknown }[] = []
+  const config = {
+    residuePolicy: 'stop' as const,
+    retainedPerScope: 3,
+    retainedPollMs: 500,
+    stopBoundMs: 200,
+  }
+  loaded.push(await ctx.plugin(createSourcePlugin(createSourceDomain()), config))
+  expect(created.options).toMatchObject([{ command: config }])
+  // A field the configuration leaves out is not handed over as an option of its own.
+  created.options.length = 0
+  loaded.push(await ctx.plugin(createSourcePlugin(createSourceDomain()), {}))
+  expect(created.options).toHaveLength(1)
+  expect(Object.keys(Reflect.get(created.options[0] ?? {}, 'command'))).toEqual([])
+  for (const plugin of loaded) await plugin.dispose()
+}

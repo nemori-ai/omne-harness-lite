@@ -98,7 +98,11 @@ export function scanSentinels(scan: SentinelScan, chunk: Uint8Array): SentinelSt
     }
     if (prefixOf(data, at, begin) || prefixOf(data, at, end)) {
       emit(at)
-      return { scan: { nonce: scan.nonce, inSegment, held: data.slice(at) }, pieces }
+      // A copy: the caller may read its next chunk into the buffer `data` views.
+      return {
+        scan: { nonce: scan.nonce, inSegment, held: Uint8Array.from(data.subarray(at)) },
+        pieces,
+      }
     }
     // Not a sentinel here; the next one may start at the very next byte.
     at += 1

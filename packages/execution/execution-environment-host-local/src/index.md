@@ -18,6 +18,7 @@
 - [host-retained-processes.ts](host-retained-processes.ts)：保留进程索引：按保留范围计容量、标记文件、变空检测与自行结清、范围封闭、重启后从标记恢复
 - [host-probe.ts](host-probe.ts)：`command` 的平台前提探测（P1、P3～P6）
 - [command-gate.ts](command-gate.ts)：命令的门进程脚本，在命令的单元里运行，不被导入；退出帧带单元成员数，之后留在单元里读管道
+- [command-gate-core.ts](command-gate-core.ts)：命令门进程不碰 I/O 的判断：请求解析、控制行的动作、数据帧的切分、退出之后的静默判定
 - [scope-probe.ts](scope-probe.ts)：P5 与 P6 的探测程序脚本，在探测单元里运行，不被导入
 - [scope-cgroup.ts](scope-cgroup.ts)：进程在 cgroup v2 统一层级里的位置与单元成员，取自进程从内核读到的报告
 - [cordis.ts](cordis.ts)：`./cordis` 入口：Service 子类、两个声明插件、宿主文件插件与两份配置 Schema
@@ -29,5 +30,6 @@
 - [host-terminal.ts](host-terminal.ts)：终端准入、状态、分段与停止
 - [terminal-control.ts](terminal-control.ts)：有界控制帧与代际核验
 - [terminal-output.ts](terminal-output.ts)：单读者原始字节缓冲
-- [terminal-gate.ts](terminal-gate.ts)：scope 内的持久 Bash 与 PTY 驱动
+- [terminal-gate.ts](terminal-gate.ts)：scope 内的持久 Bash 与 PTY 驱动，gate 进程的 I/O 外壳
+- [terminal-gate-core.ts](terminal-gate-core.ts)：gate 不碰 I/O 的判断：消息解析、控制行的分行与上界、驱动与分段源码的文本、段归属的状态机
 - [terminal-sentinels.ts](terminal-sentinels.ts)：PTY 字节流里的段首、段尾哨兵，以及段内字节与段间字节的归属
