@@ -52,43 +52,60 @@ function snapshotPinnedEngine(engine: unknown): EngineSnapshot {
   }
 }
 
-export function createOrdinaryCounter(engine: Tiktoken): (text: string) => number {
+type ReusePiece = (piece: Readonly<{ text: string; calculate: () => number }>) => number
+export function createOrdinaryCounter(
+  engine: Tiktoken,
+): (text: string, reuse?: ReusePiece, cancelled?: () => void) => number {
   const snapshot = snapshotPinnedEngine(engine)
   if (!snapshot.finite) return text => (text === '' ? 0 : engine.encode(text, [], []).length)
-  return text => countOrdinary(snapshot, text)
+  return (text, reuse, cancelled = () => {}) => countOrdinary(snapshot, text, reuse, cancelled)
 }
 
-function countOrdinary(snapshot: EngineSnapshot, text: string): number {
+function countOrdinary(
+  snapshot: EngineSnapshot,
+  text: string,
+  reuse: ReusePiece | undefined,
+  cancelled: () => void,
+): number {
   if (text === '') return 0
   const pattern = new RegExp(snapshot.pattern, 'ug')
   const encoder = new TextEncoder()
   let count = 0
-  for (const match of text.matchAll(pattern))
-    count += countPiece(snapshot, encoder.encode(match[0]))
+  for (const match of text.matchAll(pattern)) {
+    cancelled()
+    const calculate = () => countPiece(snapshot, encoder.encode(match[0]), cancelled)
+    count += reuse === undefined ? calculate() : reuse({ text: match[0], calculate })
+  }
   return count
 }
 
-function countPiece(snapshot: EngineSnapshot, bytes: Uint8Array): number {
+function countPiece(snapshot: EngineSnapshot, bytes: Uint8Array, cancelled: () => void): number {
   if (snapshot.lookup(bytes, 0, bytes.length) !== undefined || bytes.length === 1) return 1
-  const state = newMergeState(bytes.length)
-  for (let part = state.head; part !== undefined; part = part.next)
+  const state = newMergeState(bytes.length, cancelled)
+  for (let part = state.head; part !== undefined; part = part.next) {
+    cancelled()
     enqueuePair(snapshot, bytes, state, part)
+  }
   for (let edge = heapPop(state.heap); edge !== undefined; edge = heapPop(state.heap)) {
+    cancelled()
     if (!isCurrent(edge)) continue
     mergeEdge(edge)
     enqueuePair(snapshot, bytes, state, edge.left.previous)
     enqueuePair(snapshot, bytes, state, edge.left)
   }
   let count = 0
-  for (let part = state.head; part !== undefined; part = part.next)
+  for (let part = state.head; part !== undefined; part = part.next) {
+    cancelled()
     if (snapshot.lookup(bytes, part.start, part.end) !== undefined) count++
+  }
   return count
 }
 
-function newMergeState(length: number): MergeState {
+function newMergeState(length: number, cancelled: () => void): MergeState {
   const state: MergeState = { head: undefined, heap: [] }
   let previous: Part | undefined
   for (let start = 0; start < length; start++) {
+    cancelled()
     const part: Part = { start, end: start + 1, previous, next: undefined, epoch: 0, alive: true }
     if (previous === undefined) state.head = part
     else previous.next = part

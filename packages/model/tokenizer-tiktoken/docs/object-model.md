@@ -1,45 +1,46 @@
 # 对象模型
 
-本文件描述本包内部对象的职责、身份、状态、关联、组合、继承与生命周期，配类图。它不强迫实现改成 class；纯函数或值包写实际模型与不适用项。
-
 ## 对象与关系
-
-本包没有类层次。对象都是普通值与闭包：
 
 ```mermaid
 classDiagram
-  class TiktokenResources {
-    definition: TokenizerDefinition
-    ranks: TiktokenRanks
-    specialTokens: Record~string, number~
+  class TiktokenExecutor {
+    acquire(definition, signal)
+    snapshot()
+    close()
   }
-  class TiktokenRanks {
-    patStr: string
-    specialTokens: Record~string, number~
-    bpeRanks: string
+  class TiktokenLease {
+    tokenizer
+    release()
   }
-  class ModelTextTokenizer {
-    definition: TokenizerDefinition
-    count(segments)
+  class WorkerSlot {
+    generation
+    phase
   }
-  class Tiktoken
-  class OrdinaryCounter
-  class EngineSnapshot
-  TiktokenResources --> TiktokenRanks
-  ModelTextTokenizer --> OrdinaryCounter : 闭包持有
-  OrdinaryCounter --> EngineSnapshot : 有限 rank
-  OrdinaryCounter --> Tiktoken : 非有限 rank 兼容路径
-  ModelTextTokenizer --> "特殊 token 名集合" : 闭包持有
+  class Job {
+    lease
+    cancellation
+    result
+    deadline
+  }
+  class PieceCache {
+    lease entries
+    global LRU
+  }
+  TiktokenExecutor *-- WorkerSlot
+  TiktokenExecutor *-- TiktokenLease
+  TiktokenLease --> WorkerSlot : 固定一个槽
+  TiktokenLease *-- Job
+  WorkerSlot *-- PieceCache
+  WorkerSlot --> TiktokenResources : 固定快照
 ```
 
-- `TiktokenResources` 与 `TiktokenRanks` 归调用方。本包只在初始化时读取它们。
-- 返回的 tokenizer 是冻结的普通对象。`definition` 是传入定义的冻结副本。`count` 是闭包，持有普通文本计数闭包与特殊 token 名集合。tokenizer 没有身份字段，两个 tokenizer 用 `definition` 区分。
-
-普通文本计数闭包持有初始化时核对的词表与正则模式。每次调用创建自己的正则和邻接节点。节点保存稳定的字节起点、当前终点、前后邻居、版本与存活状态。候选堆中的边保存两端节点和各自的版本，不能跨调用复用。
+公开 definition 表示采用身份，内部租约编号只隔离任务和缓存，不表示业务 principal。任务编号、槽代际和租约编号一起核验异步回复。worker 不持有 Session、Agent、tenant 或 lineage。
 
 ## 生命周期
 
-- 创建：`createTiktokenTokenizer` 在三项核对成立后创建引擎与 tokenizer。
-- 变化：tokenizer 创建之后不变。调用方修改传入的资源，不影响它。
-- 销毁：没有需要释放的资源。调用方丢弃引用后，由垃圾回收释放内存。
-- 进程级状态：`engine-version.ts` 缓存一次读取结果，进程结束时消失。
+executor 从 open 变为 closing，实际线程全部退出后变为 closed。租约从 active 变为 releasing，物理结清且缓存删除后变为 released。
+
+槽的状态是 starting、idle、counting、clearing、stopping 或 dead。stopping 保留之前的物理工作，因此停止请求不会提前减少 runningJobs。每次替换增加代际，并初始化新的词表和空缓存。
+
+调用结果可以早于物理结清。release Promise 与 close Promise 各自只创建一次，重复调用取得同一个结果。资源和 limits 在创建调用时复制；调用方后续修改不能改变实例身份和限额。

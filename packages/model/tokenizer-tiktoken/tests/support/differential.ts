@@ -1,7 +1,8 @@
 import { Tiktoken } from 'js-tiktoken/lite'
 import type { TiktokenRanks, TiktokenResources } from '../../src/resources.ts'
 import { ranksDigest, resourceDigest } from '../../src/digest.ts'
-import { createTiktokenTokenizer } from '../../src/tokenizer.ts'
+import { executorOf } from './executor.ts'
+import type { TiktokenExecutor } from '../../src/index.ts'
 import { syntheticResources } from './resources.ts'
 
 export function ranksOf(
@@ -34,11 +35,16 @@ export function resourcesOf(ranks: TiktokenRanks): TiktokenResources {
   }
 }
 
-export function pairOf(ranks: TiktokenRanks) {
-  const result = createTiktokenTokenizer(resourcesOf(ranks))
+let previous: TiktokenExecutor | undefined
+export async function pairOf(ranks: TiktokenRanks) {
+  await previous?.close()
+  const resources = resourcesOf(ranks)
+  const executor = await executorOf([resources])
+  previous = executor
+  const result = executor.acquire(resources.definition, new AbortController().signal)
   if ('failure' in result) throw new Error(JSON.stringify(result.failure))
   return {
-    tokenizer: result.ok,
+    tokenizer: result.ok.tokenizer,
     oracle: new Tiktoken({
       pat_str: ranks.patStr,
       bpe_ranks: ranks.bpeRanks,

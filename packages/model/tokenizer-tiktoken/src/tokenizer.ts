@@ -1,7 +1,6 @@
 import { Tiktoken } from 'js-tiktoken/lite'
 import type { TokenizerDefinition } from '@omne-harness/model-contract'
 import type {
-  ModelTextTokenizer,
   TokenizationFailure,
   TokenizationSegment,
 } from '@omne-harness/model-contract/provider'
@@ -10,8 +9,20 @@ import { ranksDigest, resourceDigest, ResourceShapeError } from './digest.ts'
 import { installedEngineVersion } from './engine-version.ts'
 import { createOrdinaryCounter } from './ordinary-counter.ts'
 import type { TiktokenResources } from './resources.ts'
+import type { PieceCache } from './piece-cache.ts'
+import { frozenDefinition } from './definition.ts'
 
 type Count = Outcome<Readonly<{ tokens: string }>, TokenizationFailure>
+
+export type WorkerTokenizer = Readonly<{
+  definition: TokenizerDefinition
+  count(
+    input: readonly TokenizationSegment[],
+    lease: number,
+    cache: PieceCache,
+    cancelled: () => void,
+  ): Count
+}>
 
 function unavailable(diagnostic: string): Outcome<never, TokenizationFailure> {
   return fail({ kind: 'unavailable', diagnostic })
@@ -65,22 +76,13 @@ function countSegments(
   return succeed({ tokens: String(total) })
 }
 
-function frozenDefinition(definition: TokenizerDefinition): TokenizerDefinition {
-  return Object.freeze({
-    adoption: Object.freeze({ ...definition.adoption }),
-    implementation: Object.freeze({ ...definition.implementation }),
-    vocabulary: Object.freeze({ ...definition.vocabulary }),
-    configuration: Object.freeze({ ...definition.configuration }),
-  })
-}
-
 /**
  * Checks the family-supplied resources once and returns a tokenizer that counts with them.
  * Any failed adoption check returns `unavailable`; no other encoding replaces the resources.
  */
-export function createTiktokenTokenizer(
+export function createWorkerTokenizer(
   resources: TiktokenResources,
-): Outcome<ModelTextTokenizer, TokenizationFailure> {
+): Outcome<WorkerTokenizer, TokenizationFailure> {
   let mismatch: string | undefined
   try {
     mismatch = adoptionMismatch(resources)
@@ -95,12 +97,17 @@ export function createTiktokenTokenizer(
     special_tokens: { ...specialTokens },
     bpe_ranks: bpeRanks,
   })
-  const textTokens = createOrdinaryCounter(engine)
+  const ordinary = createOrdinaryCounter(engine)
   // Own keys only, copied now: later changes to the caller's table do not change any count.
   const allowed: ReadonlySet<string> = new Set(Object.keys(resources.specialTokens))
-  const tokenizer: ModelTextTokenizer = {
+  const tokenizer: WorkerTokenizer = {
     definition: frozenDefinition(resources.definition),
-    count: input => countSegments(textTokens, allowed, input),
+    count: (input, lease, cache, cancelled) =>
+      countSegments(
+        text => ordinary(text, piece => cache.count(lease, piece.text, piece.calculate), cancelled),
+        allowed,
+        input,
+      ),
   }
   return succeed(Object.freeze(tokenizer))
 }

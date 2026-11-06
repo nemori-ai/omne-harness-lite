@@ -1,42 +1,43 @@
 # 关键流程
 
-本文件用可维护的文本图源描述本包的关键业务流程与数据流：参与者、调用时序、数据来源与去向、状态变化、失败分支与生命周期。图旁写前提与边界，不编造流程。
+本文件描述 [SPEC](../SPEC.md) 的计数、释放和关闭时序。
 
 ## 流程
 
-**初始化**：家族成员调用 `createTiktokenTokenizer`。
-
 ```mermaid
 sequenceDiagram
-  participant F as 家族成员
-  participant T as createTiktokenTokenizer
-  participant V as engine-version
-  participant D as digest
-  participant E as js-tiktoken/lite
-  F->>T: resources（definition、ranks、specialTokens）
-  T->>V: 实际安装的版本（每个进程读一次清单）
-  V-->>T: 版本或缺失
-  T->>D: ranks 的规范 JSON 摘要
-  T->>D: specialTokens 的规范 JSON 摘要
-  alt 任一项不符
-    T-->>F: failure unavailable
-  else 三项都成立
-    T->>E: new Tiktoken(ranks)
-    T->>T: 核对私有运行时形状，建立普通文本计数闭包
-    T-->>F: ok tokenizer
-  end
+  participant H as 宿主 owner
+  participant F as 家族计量器
+  participant P as Executor
+  participant W as Worker 槽
+  H->>P: createTiktokenExecutor(resources, limits)
+  P->>W: initialize 固定资源
+  W->>W: 三项采用核对、构造词表
+  W-->>P: ready
+  P-->>H: ok executor
+  F->>P: acquire(exact definition, signal)
+  P-->>F: 私有 lease
+  F->>P: await tokenizer.count(segments)
+  P->>P: retained UTF16 准入与租约轮转
+  P->>W: count(generation, job, lease)
+  W->>W: 相邻文本合并、完整 regex match 缓存与 BPE
+  W-->>P: counted(result, 数量统计)
+  P->>P: 核对任务身份和租约状态
+  P-->>F: 完整计数结果
+  F->>P: await lease.release()
+  P->>W: cancel 后等待物理结清、clear lease
+  W-->>P: cleared
+  P-->>F: ok
+  H->>P: await executor.close()
+  P->>W: terminate
+  W-->>P: actual exit
+  P-->>H: ok
 ```
 
-**计数**：计量器调用 `count(segments)`。
-
-1. 依次读段。`text` 段先检查是否良构的 Unicode，再接到当前文本之后。
-2. `special-token` 段查固定表。查不到时立即返回 `unsupported-token`。查到时，先编码当前文本，再加 1，并清空当前文本。
-3. 读完后编码剩下的文本，返回总数的十进制串。
-
-计数只改变当次调用的局部节点与候选堆，不改变 tokenizer 的共享状态，不读文件，不访问网络。普通文本调度与异常词表兼容路径见[内部架构](architecture.md#关键机制与理由)。
+计数按段序处理。普通文本先验证 Unicode，连接相邻文本后按原 regex 扫描。显式特殊 token 查固定表，文本字样不激活特殊 token。缓存只复用完整 match 的 countPiece，失败立即结束当前计数。
 
 ## 失败与生命周期
 
-- 初始化：三项核对任一不符，或找不到 js-tiktoken 的清单，返回 `unavailable`。没有规范 JSON 形式的 id 也返回 `unavailable`。其他错误原样抛出。
-- 计数：未知的特殊 token 返回 `unsupported-token`；非良构的 Unicode 返回 `invalid`。第一个失败结束计数。
-- 生命周期：tokenizer 没有需要释放的资源，没有取消或恢复的流程。调用方丢弃它即可。
+准入、过载、取消、截止和线程失败返回 `unavailable`。排队取消直接移除保留输入。在途取消先结束调用者等待，物理槽继续占用。原子检查不能结清时，25ms 后请求终止，仍等实际退出。
+
+线程失败不重试失败 count。替换只能发生在 exit 后，并消耗该槽的一分钟替换额度。槽不可恢复时，等待任务全部失败。release 和 close 都幂等，成功表示各自负责的物理清理已经确认。
