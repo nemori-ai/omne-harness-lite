@@ -288,7 +288,8 @@ class HostEndpointStatus extends EndpointStatusService<unknown, unknown> {
  * share one connection table, one in-flight table and one task table. A configuration that is not
  * of the shape fails the load; a value out of range fails it with the `RangeError` of
  * `createLocalTransportFactory` or `createMcp`. When the fiber unloads, one removal awaits
- * `connections.closeAll()`; an `AggregateError` from it is not caught, and Cordis writes it to
+ * `connections.closeAll()` and warns of each endpoint whose process stop was `root-only` or
+ * `unconfirmed`; an `AggregateError` from `closeAll` is not caught, and Cordis writes it to
  * `ctx.logger`.
  */
 export function createMcpPlugin(parts: McpPluginParts) {
@@ -316,9 +317,13 @@ export function createMcpPlugin(parts: McpPluginParts) {
         maxActions: config.maxActions,
         instructionsByteLimit: config.instructionsByteLimit,
       })
+      const logger = ctx.logger('mcp')
       ctx.effect(
         () => async () => {
-          await services.connections.closeAll()
+          const report = await services.connections.closeAll()
+          for (const closed of report)
+            if (closed.process === 'root-only' || closed.process === 'unconfirmed')
+              logger.warn('the stop of the process was not confirmed', closed.ref, closed.process)
         },
         'mcp.closeAll',
       )
