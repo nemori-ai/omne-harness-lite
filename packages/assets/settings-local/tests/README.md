@@ -104,3 +104,6 @@ pnpm --filter @omne-harness/assets-local run test:fast
 
 
 `recovery-combination.spec.ts` 使用六个实际恢复参与者，在真实SQLite上验证普通seal、来源根和精确门同提交、held保留、下游失败整组回滚、重开认回、旧attempt不改后继、取消选择冲突和绑定拒绝。命令数组反序提交，用于检查事实依赖排序。根分配与起始门是具名夹具；测试不证明公开准入或完整准备提交。材料检查同时拒绝把source-snapshot和source-finalization两个事实生产者选进同一个组合。
+
+
+`intent-ready.spec.ts` 通过真实Worker验证私有prepared发布：必需Identity/source保管、空集合与缺清单的差异、全部成员held、原绑定及basis、回滚与重开、封口后不复活，以及展开请求预算。当前依据、终态观察和held回执为具名夹具，不能替代实际生产者验收。

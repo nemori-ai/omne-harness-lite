@@ -201,3 +201,14 @@ attempt终态仍由st_terminals承载，但新记录带attempt标签与完整绑
 来源终结投影验证计划与terminal结果，随后向唯一来源写者发出精确动作。其finalized结果不满足直接写入所需的open事实。持久写者核验来源finished结果后再修改根和attempt。源根取消允许仍有held，但不释放这些保留；它们须由各自目的终态另行结算。
 
 真实组合测试覆盖封口认回、当前选择冲突、旧attempt隔离、根和精确门共同终结以及下游故障后的整组回滚。根分配和起始来源门由夹具设置，六个恢复参与者采用生产模块。公共prepare/commit、可信resolver装配、capture路径和旧held排空尚未完成。
+
+
+### preparing发布为prepared
+
+私有 `intent-ready.ts` 只更新精确attempt的basis及prepared状态。它核对原命令、活跃attempt、准备计划和当前basis相等，以及绑定相同attempt的开放终态观察。它不写业务值或terminal，不清来源门，也不释放外部保留。当前事实与开放观察必须由可信事务生产者提供；当前模块尚未接入完整生产ready组合。
+
+普通change要求完整Identity请求及回执仍为held，destination、真实scope和资格集合须匹配当前要求。受信维护rebase使用显式维护权威分支，普通change不能以该分支跳过Identity。该分支的权威真实性归维护适配器，Schema不授予资格。
+
+来源必须有明确的完整清单。缺失清单不等于空集合；planned、requested或settled成员均不满足held要求。读取者核对清单摘要、完整请求向量和全部成员状态。一次主键范围查询最多返回1025条请求元数据，不加载快照，也不为每个来源重复读取根。展开后的请求向量同样受现有节点和字符串字节预算约束。空集合没有外部请求，改变空集合的路由不改变语义；非空集合的完整请求包含路由。
+
+当前真实Worker关系测试覆盖缺保留、部分保留、settled、显式空集合、绑定或basis变化、回滚、重开及封口后迟到ready。当前依据、开放终态观察和外部回执由具名夹具提供。这些测试不是动态治理current事实、真实外部保留或公开prepareChange的验收。

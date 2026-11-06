@@ -216,3 +216,6 @@ Ready, commit and seal use separate fixed combinations with exactly one finaliza
 
 
 准备提供者的私有恢复组合必须在一次物理事务内执行terminal观察、原根计划、精确terminal记录、来源动作和持久终结。封口不得要求当前资格或来源快照。重复旧attempt只认回自己的终态，不能借根的后继结果改变其外部保留结果。内部取消选择与当前活跃attempt不符时整组拒绝；无活跃attempt的根可取消。空动作、finalized与直接写入open事实不可互换。该组合的实际参与者已实现；公共准备服务和resolver切换仍未完成。
+
+
+preparing发布为prepared之前，必须确认原命令及精确活跃attempt、可信当前依据、开放终态观察和全部必需held。缺少来源清单不得解释为空清单，settled不得解释为held。basis一经保存不能由重传替换，已终结或历史attempt不能重新发布。ready不产生业务或terminal效果。展开后的完整来源请求集合也必须满足本成员预算，不能只检查紧凑来源列表。私有关系写者已实现，生产current与ready组合尚未接通。

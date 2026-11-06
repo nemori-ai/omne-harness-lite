@@ -114,6 +114,13 @@ function sourceRequests(attempt: Attempt, route: string, sources: SourceReferenc
   const requests: SourceRequest[] = ordered.map(entry => entry.request)
   return requests
 }
+function matchesPlan(
+  plan: { count: number; requestDigest: string },
+  count: number,
+  requestDigest: string,
+) {
+  return plan.count === count && plan.requestDigest === requestDigest
+}
 export function planSourceCustody(port: ParticipantPort, raw: SourceCustodyPlan) {
   if (!withinBudget(raw)) return { kind: 'rejected' as const, reason: 'limit_exceeded' as const }
   const input = sourceCustodyPlanSchema.safeParse(raw)
@@ -122,12 +129,12 @@ export function planSourceCustody(port: ParticipantPort, raw: SourceCustodyPlan)
   const attempt = readSettingsAttempt(port, identity, attemptId)
   if (attempt.kind !== 'found') return attempt
   const requests = sourceRequests(attempt, route, sources)
+  if (!withinBudget(requests))
+    return { kind: 'rejected' as const, reason: 'limit_exceeded' as const }
   const requestDigest = digest(requests)
   const previous = readPlan(port, attemptId)
   if (previous.kind !== 'not_found')
-    return previous.requestDigest === requestDigest && previous.count === requests.length
-      ? previous
-      : conflict()
+    return matchesPlan(previous, requests.length, requestDigest) ? previous : conflict()
   if (attempt.status.state !== 'open' || attempt.attempt.status.state !== 'preparing')
     return conflict()
   port.execute(
@@ -215,4 +222,25 @@ export function listSourceCustody(port: ReadPort, raw: SourceCustodyPage) {
     state: stateSchema.parse(row[3]),
   }))
   return { kind: 'page' as const, plan, items, after: items.at(-1)?.sourceKey ?? null }
+}
+
+/** Checks this owner's immutable manifest and member states; snapshots stay with their readers. */
+export function sourceCustodyReadiness(port: ReadPort, raw: SourceCustodyPlan) {
+  const input = sourceCustodyPlanSchema.parse(raw)
+  const attempt = readSettingsAttempt(port, input.identity, input.attemptId)
+  if (attempt.kind !== 'found') return attempt
+  const expected = sourceRequests(attempt, input.route, input.sources)
+  if (!withinBudget(expected))
+    return { kind: 'rejected' as const, reason: 'limit_exceeded' as const }
+  const plan = readPlan(port, input.attemptId)
+  if (plan.kind === 'not_found') return plan
+  if (!matchesPlan(plan, expected.length, digest(expected))) return conflict()
+  const rows = port.execute(
+    'SELECT source_key, request_json, reservation_id, state FROM st_intent_source WHERE attempt_id = ? ORDER BY source_key LIMIT 1025',
+    [input.attemptId],
+  ).rows
+  const requests = rows.map(row => decodeRequest(row[1], row[0], row[2], attempt))
+  if (!equal(requests, expected)) return conflict()
+  const allHeld = rows.every(row => stateSchema.parse(row[3]) === 'held')
+  return { kind: allHeld ? ('held' as const) : ('pending' as const), count: rows.length }
 }

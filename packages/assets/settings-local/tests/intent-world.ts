@@ -1,3 +1,4 @@
+import type { ReadySettingsIntent } from '../src/intent-ready.ts'
 import type { IntentSettlement } from '../src/intent-settlement.ts'
 import {
   SETTINGS_SOURCE_CUSTODY_MIGRATION,
@@ -147,6 +148,21 @@ export async function openIntentWorld(
   if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
   return {
     root,
+    ready(input: ReadySettingsIntent, rollback = false) {
+      return made.storage.commit({
+        identity: {
+          ...domain,
+          operation: 'fixture.intent.ready',
+          protocolVersion: '2',
+          operationKey: randomUUID(),
+        },
+        combinationVersion: combination.combinationVersion,
+        manifestDigest: combination.manifestDigest,
+        commands: [
+          { participant: 'settings.persistence', facts: { ready: json(input), rollback } },
+        ],
+      })
+    },
     settle(input: IntentSettlement, rollback = false) {
       return made.storage.commit({
         identity: {
