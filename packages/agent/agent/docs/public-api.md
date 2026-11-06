@@ -103,6 +103,8 @@ export declare function createAgentRuntime<P, B extends ContentBlock>(
 - `failed`：运行失败的接收者，事件类型是 `AgentRunFailed`，行为见 SPEC 的[运行失败](../SPEC.md#运行失败)。缺省时执行槽照样改为 failed，只是不报告。
 - `endedFailed`：以 `fail` 结论终结的接收者，事件类型是 `AgentRunEndedFailed`，行为见 SPEC 的[以失败终结](../SPEC.md#以失败终结)。缺省时执行照样终结，只是不报告。
 
+确定节点故障会先进入 [F1/F2/F3 收尾](../SPEC.md#确定节点故障的收尾)。只有 Journal ended 才报告 endedFailed 并释放槽；暂时等待不报告 failed。仍无法继续的资格、依赖或责任按原 failed 与 quiesce unresolved 规则保留。接收者继续处理原 execution 的结果。
+
 创建先校验配置、安全作用域、精确采用和提供者能力，成功得到 idle 实例。提供者能力包括三项：Journal 绑定声明的 `capabilities.coordination` 与配置 `coordination` 严格相等；Journal 提供者对配置 `jointCommits` 中每一种共同提交声明了参加者；Journal 绑定已固定消息准入的历史组合登记。三项核对都在创建 runtime、登记或写状态之前完成。
 
 历史组合登记由 Journal 绑定在工厂开始之前固定，含历史拥有者的精确 Adoption、原准入记录 resolver、实际共享事务域身份，以及 message 与 context-transition 两个提交处理器。standalone 与 coordinated 两种绑定都需要它，`jointCommits` 为空的独立装配也需要它。工厂从可信的绑定构造结果核对这份登记，不从配置取得。它不是 AgentConfiguration 的取值项，因为 resolver 与提交处理器不是可序列化数据。规则见 SPEC 的“[真实历史的提交点](../../agent-contract/SPEC.md#真实历史的提交点)”。发布由宿主完成。失败撤除本次创建的临时资源，不能返回半就绪实例。提供登记句柄时，句柄的 instance 必须等于绑定的 instance。配置不能覆盖绑定。纯工厂没有自己的全局注册表。

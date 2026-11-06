@@ -35,3 +35,4 @@
 [执行槽预占模型](reservation/README.md) 检查本地同步预占报告与空闲回收的交错。运行守护使用真实 runtime 与 host，外部 report 失败及无限系统活性不在模型范围。
 
 [节点失败收尾模型](failure-closure/README.md) 检查原写、故障保持、责任收场和旧结果隔离。有条件活性只覆盖已列出的有限责任与公平性前提。
+[故障来源隔离](failure-provenance/README.md) 说明共享 Failure 的来源隔离性质、归纳前提、有限正负控和真实 coordinator 配对守护。

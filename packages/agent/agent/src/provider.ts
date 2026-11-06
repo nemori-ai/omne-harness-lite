@@ -13,8 +13,8 @@
 // occupied, and the next invoke answers busy (S-14 of #558). A run whose drive stopped on a
 // failure moves the slot to `failed` and is reported once through `failed` (SPEC「运行失败」,
 // R2-D282). Its responsibility is not handed over, so quiesce still counts it as remaining
-// (R2-D285): the ordered stop answers unresolved for it. Ending such a Run as failed and releasing
-// its attachment is not implemented yet, planned for wave 3 (R2-D285). The
+// (R2-D285): the ordered stop answers unresolved for it. Determinate node failures continue through
+// settlement and release the slot only after the Journal records ended. The
 // registration handle only receives a projection: a report that throws is dropped, because `report`
 // returns void and the contract gives its failure no channel (待拥有者); the slot and `observe` stay
 // authoritative.
