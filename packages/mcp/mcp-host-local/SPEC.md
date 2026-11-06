@@ -6,7 +6,7 @@
 
 | 依据                                                                               | 修订                | 本页采用的范围                                                                                                                                   |
 | ---------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [契约 SPEC](../mcp-contract/SPEC.md)                                               | `51bb48168`         | T1–T9 与 R4 作为被兑现的条款；[真实传输兑现时的裁定](../mcp-contract/SPEC.md#decisions-host) 1–9 由本包提出、契约接受；T8 的决策层是契约的根导出 |
+| [契约 SPEC](../mcp-contract/SPEC.md)                                               | `06b98034d`         | T1–T9 与 R4 作为被兑现的条款；[真实传输兑现时的裁定](../mcp-contract/SPEC.md#decisions-host) 1–14（1–9 由本包提出、契约接受，10–14 是之后的评审修复）；T8 的决策层与两个传输共用的规则是契约的根导出 |
 | [组工程设计](../docs/architecture.md)                                              | `03505c68f`         | 本成员的位置：两个 `McpTransport` 实现、官方 SDK 只出现在本成员；协议基线与兼容                                                                  |
 | 闭包 `w3-mcp-host` 的设计与裁定（2026-11-05，任务材料）                            | 本地                | 只作出处：本页的复用表、模块分法与「本包自定」最初在那里提出。规则以本页与契约 SPEC 为准                                                         |
 | 官方 TypeScript SDK `@modelcontextprotocol/client` 与 `@modelcontextprotocol/core` | 2.4.0               | 只作对照与不复用的证据；本包的产品源码不导入它们，见[与 SDK 的复用关系](#sdk-reuse)                                                              |
@@ -32,7 +32,7 @@
 | [T8](../mcp-contract/SPEC.md#t8) X01、X02 与 D14、I05、O04、C03                         | H10、H11           |
 | [T8](../mcp-contract/SPEC.md#t8) 的进程退出与 `PROCESS_EXIT_WINDOW_MS`                  | H12                |
 | [T9](../mcp-contract/SPEC.md#t8-end) 的凭据句柄、`open` 与元数据取回不经句柄            | H3、H4、H11        |
-| [真实传输兑现时的裁定](../mcp-contract/SPEC.md#decisions-host) 1–9                      | 同上各条           |
+| [真实传输兑现时的裁定](../mcp-contract/SPEC.md#decisions-host) 1–14                     | 同上各条           |
 
 <a id="decisions"></a>
 
@@ -247,12 +247,12 @@
 
 | 性质 | 探索器（真实 `Session`，有限范围） | TLA+ 模型（TLC，有限范围） | 真实组合 |
 | --- | --- | --- | --- |
-| V1 | 可观察形式：有限范围通过。负控：结构上由 `Deferred` 与 `settle` 的删除双重保证，单点源码变异不足以变红，见 [verification/README.md](verification/README.md#两种证据能变红) | 有限范围通过（`valid-*`）；负控 `bad-resettle` 找到反例；变异 `V1-close-resettles-done`、`V1-late-answer-resettles` 变红 | 真实组合未验证 |
-| V2 | 有限范围通过；负控 `mV2-send-after-close` 找到反例 | 有限范围通过（`valid-*`）；负控 `bad-cred-after-close` 找到反例；变异 `V2-begin-ignores-closed`、`V2-late-refusal-reports` 变红 | 真实组合未验证 |
+| V1 | 可观察形式：有限范围通过。负控：手工变异 `sendOut` 去掉授权返回之后的 `inFlight` 核对，`V1-line.send-after-settle` 找到反例；该变异未入 `mutants.ts`，见 [verification/README.md](verification/README.md#两种证据能变红) | 有限范围通过（`valid-*`）；负控 `bad-resettle` 找到反例；变异 `V1-close-resettles-done`、`V1-late-answer-resettles` 变红 | 真实组合未验证 |
+| V2 | 有限范围通过；负控 `mV2-forgets-close`（两处守卫）找到反例 | 有限范围通过（`valid-*`）；负控 `bad-cred-after-close` 找到反例；变异 `V2-begin-ignores-closed`、`V2-late-refusal-reports` 变红 | 真实组合未验证 |
 | V3 | 有限范围通过；负控 `mV3-report-twice` 找到反例 | 有限范围通过（`valid-*`）；负控 `bad-report-twice` 找到反例；变异 `V3-discovery-reports-again`、`V3-report-without-handle` 变红 | 真实组合未验证 |
-| V4 | 有限范围通过；负控 `mV4-signal-dead`、`mV4-close-after-line` 找到反例 | 有限范围通过（`valid-*`）；负控 `bad-signal-dead`、`bad-close-settles-after-line`、`bad-caller-waits-workflow-close`、`bad-caller-waits-workflow-signal` 找到反例；变异 `V4-close-keeps-caller`、`V4-close-waits-discovery`、`V4-signal-leaves-discovery` 变红 | 真实组合未验证 |
+| V4 | 有限范围通过；负控 `mV4-signal-dead`、`mV4-close-settles-after-line`、`mV4-caller-follows-workflow` 找到反例 | 有限范围通过（`valid-*`）；负控 `bad-signal-dead`、`bad-close-settles-after-line`、`bad-caller-waits-workflow-close`、`bad-caller-waits-workflow-signal` 找到反例；变异 `V4-close-keeps-caller`、`V4-close-waits-discovery`、`V4-signal-leaves-discovery` 变红 | 真实组合未验证 |
 | V5 | 有限范围通过；负控 `mV5-resend-any` 找到反例 | 有限范围通过（`valid-*`）；负控 `bad-resend` 找到反例；变异 `V5-write-resends`、`V5-read-resends-twice` 变红 | 真实组合未验证 |
-| V6 | 有限范围通过；负控 `mV6-close-not-sent` 找到反例 | 有限范围通过（`valid-*`）；负控 `bad-close-not-sent` 找到反例；变异 `V6-close-auth-abandoned`、`V6-close-disc-not-sent`、`V6-signal-sent-not-sent` 变红 | 真实组合未验证 |
+| V6 | 有限范围通过；负控 `mV6-close-not-sent`、`mV6-authorizing-abandoned` 找到反例 | 有限范围通过（`valid-*`）；负控 `bad-close-not-sent` 找到反例；变异 `V6-close-auth-abandoned`、`V6-close-disc-not-sent`、`V6-signal-sent-not-sent` 变红 | 真实组合未验证 |
 
 未覆盖（探索器与模型都不覆盖，由既有用例或后续任务承担）：
 
