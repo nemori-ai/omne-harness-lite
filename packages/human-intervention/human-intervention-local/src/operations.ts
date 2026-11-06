@@ -6,6 +6,7 @@ import type {
 import { equal, operationKey } from './encoding.ts'
 import { StoredOperationSchema } from './operation-schema.ts'
 import { REQUEST_WRITER } from './request-schema.ts'
+import { WAIT_WRITER } from './wait-schema.ts'
 import { WAIT_CONTROL } from './independent-schema.ts'
 import { HitlSqlBindingSchema, type HitlSqlBinding } from './terminal-schema.ts'
 import { createHitlSqlTerminals, type HitlSqlTerminalOptions } from './terminals.ts'
@@ -15,7 +16,12 @@ export type HitlSqlOperationInspection = OperationInspection | RecoveryOperation
 function originalResult(stored: CommittedV2, binding: HitlSqlBinding): HitlSqlOperationInspection {
   const operationRef = binding.operationRef
   const candidates = stored.responses
-    .filter(item => item.participant === REQUEST_WRITER || item.participant === WAIT_CONTROL)
+    .filter(
+      item =>
+        item.participant === REQUEST_WRITER ||
+        item.participant === WAIT_CONTROL ||
+        item.participant === WAIT_WRITER,
+    )
     .map(item => StoredOperationSchema.safeParse(item.reply.response))
     .filter(item => item.success)
   const candidate = candidates.length === 1 ? candidates[0] : undefined

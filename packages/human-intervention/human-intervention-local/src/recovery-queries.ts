@@ -21,8 +21,8 @@ type Snapshot = Extract<z.infer<typeof IndependentSnapshotSchema>, { kind: 'snap
 function waitSnapshot(snapshot: Snapshot): WaitSnapshot {
   const state = snapshot.state
   const base = {
-    waitRef: state.preparation.registration.origin.wait,
-    adoptionRef: state.preparation.registration.origin.adoptionRef,
+    waitRef: state.preparation.waitRef,
+    adoptionRef: state.preparation.origin.adoptionRef,
     receiverGeneration: state.receiver.generation,
     deliveryCursor: null,
   }
@@ -30,7 +30,7 @@ function waitSnapshot(snapshot: Snapshot): WaitSnapshot {
     return { ...base, state: 'terminal', terminalEvidenceRef: state.lifecycle.evidenceRef }
   if (state.checkpoint === 'resume-ready')
     return { ...base, state: 'accepted', receipts: state.receipts }
-  return { ...base, state: snapshot.decisions.length ? 'replied' : 'waiting' }
+  return { ...base, state: snapshot.hasDecisions ? 'replied' : 'waiting' }
 }
 export function createIndependentRecoveryQueries(
   options: IndependentHitlQueryOptions,
@@ -79,6 +79,7 @@ export function createIndependentRecoveryQueries(
           after: cursor?.after ?? '0',
           limit: query.limit,
         })
+        if (result.kind !== 'page') return result
         return {
           kind: 'page',
           items: result.items,
@@ -93,6 +94,7 @@ export function createIndependentRecoveryQueries(
         if (!parsed.success) return { kind: 'invalid-input', reason: 'query' }
         const snapshot = await reads.snapshot(qualified, parsed.data.waitRef)
         if (snapshot.kind === 'denied') return { kind: 'denied', reason: 'wait-access' }
+        if (snapshot.kind === 'limited') return snapshot
         return snapshot.active
           ? { kind: 'found', wait: waitSnapshot(snapshot) }
           : { kind: 'not-found' }
@@ -112,17 +114,19 @@ export function createIndependentRecoveryQueries(
         ])
         const cursor = query.cursor ? cursors.decode(query.cursor, context) : undefined
         if (query.cursor && !cursor) return { kind: 'invalid-input', reason: 'inbox-cursor' }
-        const result = await reads.inbox(qualified, query.waitRef, query.receiverGeneration)
+        const result = await reads.inbox(
+          qualified,
+          query.waitRef,
+          query.receiverGeneration,
+          cursor?.after ?? 0,
+          query.limit,
+        )
         if (result.kind === 'denied') return { kind: 'denied', reason: 'wait-access' }
-        if (result.kind === 'stale-generation') return result
-        const after = cursor?.after ?? 0
-        if (after > result.decisions.length) return { kind: 'conflict', reason: 'inbox-position' }
-        const decisions = result.decisions.slice(after, after + query.limit)
-        const next = after + decisions.length
+        if (result.kind !== 'page') return result
         return {
           kind: 'page',
-          decisions,
-          next: next < result.decisions.length ? cursors.encode({ after: next }, context) : null,
+          decisions: result.decisions,
+          next: result.next === null ? null : cursors.encode({ after: result.next }, context),
         }
       })
     },

@@ -1,3 +1,5 @@
+import { WaitControlSchema } from './wait-schema.ts'
+import { ReadLimitedSchema } from './pool-schema.ts'
 import { z } from 'zod'
 import {
   BindReceiverSchema,
@@ -15,7 +17,7 @@ import { SqlCommandSchema } from './request-schema.ts'
 
 export const WAIT_CONTROL = 'hitl.independent-control'
 export const WAIT_ACCEPT = 'hitl.independent-inbox'
-export const WAIT_PROTOCOL = 'independent-wait/1'
+export const WAIT_PROTOCOL = 'independent-wait/2'
 export const WAIT_HANDLER = 'hitl.independent-read'
 export const CONTROL_MIGRATION = { owner: WAIT_CONTROL, id: 'independent-control-1' }
 export const INBOX_MIGRATION = { owner: WAIT_ACCEPT, id: 'independent-inbox-1' }
@@ -90,20 +92,28 @@ export type InboxEntry = z.infer<typeof InboxEntrySchema>
 export type IndependentCommand = z.infer<typeof IndependentCommandSchema>
 
 export const IndependentSnapshotSchema = z.discriminatedUnion('kind', [
+  ReadLimitedSchema,
   z.strictObject({ kind: z.literal('denied') }),
   z.strictObject({
     kind: z.literal('snapshot'),
-    state: IndependentControlSchema,
-    active: ActiveWaitSchema.nullable(),
-    decisions: z.array(InboxEntrySchema).max(64).readonly(),
+    state: z.strictObject({
+      ...WaitControlSchema.unwrap().shape,
+      receipts: z.array(ConsumerReceiptSchema).max(64).readonly(),
+    }),
+    active: z
+      .strictObject({ requestRef: RequestRefSchema, cardCount: z.number().int().min(1).max(64) })
+      .nullable(),
+    hasDecisions: z.boolean(),
   }),
 ])
 export const IndependentInboxSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('denied') }),
   z.strictObject({ kind: z.literal('stale-generation') }),
+  z.strictObject({ kind: z.literal('conflict'), reason: z.string() }),
+  ReadLimitedSchema,
   z.strictObject({
     kind: z.literal('page'),
     decisions: z.array(InboxEntrySchema).max(64).readonly(),
-    next: z.null(),
+    next: z.number().int().min(0).max(64).nullable(),
   }),
 ])

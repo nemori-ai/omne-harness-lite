@@ -3,7 +3,7 @@ import { hitlSqlMaterials } from '@omne-harness/human-intervention-local'
 it('exposes registered SQL materials without a global service instance', () => {
   const materials = hitlSqlMaterials()
   expect(materials.participants.map(item => item.participant)).toEqual([
-    'hitl.plan',
+    'hitl.local-plan',
     'hitl.requests',
     'hitl.terminal',
   ])

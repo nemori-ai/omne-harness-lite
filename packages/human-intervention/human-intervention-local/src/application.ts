@@ -4,7 +4,6 @@ import {
   HitlCommandSchemas,
   RecoveryCommandSchemas,
   GetOperationSchema,
-  GetRequestSchema,
   HITL_COMMAND_MAX_BYTES,
   type HumanInterventionCommands,
   type RecoveryCommands,
@@ -19,7 +18,7 @@ import {
   type RecoveryWrites,
 } from '@omne-harness/human-intervention'
 import { createIdentityQualifiedHitl, type IdentityHitlCommand } from './identity.ts'
-import { createIndependentHitlQueries, type IndependentHitlQueryOptions } from './queries.ts'
+import { createIndependentHitlQueryRuntime, type IndependentHitlQueryOptions } from './queries.ts'
 import { CommandResultSchemas, RecoveryResultSchemas } from './operation-schema.ts'
 import { canonical } from './encoding.ts'
 import { SqlCommandSchema, type SqlCommand } from './request-schema.ts'
@@ -37,7 +36,7 @@ export function createIndependentHitlApplication(
   options: IndependentHitlQueryOptions,
 ): Application & { close(): Promise<void> } {
   const identity = createIdentityQualifiedHitl(options)
-  const queries = createIndependentHitlQueries(options)
+  const queries = createIndependentHitlQueryRuntime(options)
   const recovery = createIndependentRecoveryQueries(options, identity)
   const active = new Set<Promise<unknown>>()
   let closing = false,
@@ -60,15 +59,8 @@ export function createIndependentHitlApplication(
         return { kind: 'routed', wait: input.command.waitRef } as const
       case 'acknowledgeDelivery':
         return { kind: 'routed', wait: input.command.consumerReceipt.wait } as const
-      case 'submitReply': {
-        const found = await queries.getRequest(
-          access,
-          GetRequestSchema.parse({ protocol: 'hitl/1', requestRef: input.command.cardRef.request }),
-        )
-        return found.kind === 'found'
-          ? ({ kind: 'routed', wait: found.request.origin.wait } as const)
-          : found
-      }
+      case 'submitReply':
+        return queries.route(access, input.command.cardRef.request)
     }
   }
   async function execute<T>(
@@ -89,15 +81,15 @@ export function createIndependentHitlApplication(
     const operationRef = input.operation
     return run(
       async (): Promise<CommandResult<M>> => {
-        if (Buffer.byteLength(canonical(input), 'utf8') > HITL_COMMAND_MAX_BYTES)
+        const parsed = HitlCommandSchemas[method].safeParse(input)
+        if (!parsed.success) return { kind: 'invalid-input', reason: 'command', operationRef }
+        if (Buffer.byteLength(canonical(parsed.data), 'utf8') > HITL_COMMAND_MAX_BYTES)
           return {
             kind: 'limited',
             resource: 'command-bytes',
             limit: HITL_COMMAND_MAX_BYTES,
             operationRef,
           }
-        const parsed = HitlCommandSchemas[method].safeParse(input)
-        if (!parsed.success) return { kind: 'invalid-input', reason: 'command', operationRef }
         const command = SqlCommandSchema.parse({ method, command: parsed.data })
         const routed = await route(access, command)
         if (routed.kind !== 'routed') return { ...routed, operationRef }

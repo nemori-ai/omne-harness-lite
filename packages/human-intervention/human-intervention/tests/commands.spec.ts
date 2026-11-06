@@ -71,6 +71,20 @@ describe('bounded JSON command boundary', () => {
     expect(HitlIdentifierSchema.safeParse('🕑'.repeat(256)).success).toBe(true)
     expect(HitlIdentifierSchema.safeParse('🕑'.repeat(257)).success).toBe(false)
   })
+  it('enforces code point limits even when ASCII text fits the byte budget', () => {
+    expect(HitlIdentifierSchema.safeParse('a'.repeat(256)).success).toBe(true)
+    expect(HitlIdentifierSchema.safeParse('a'.repeat(257)).success).toBe(false)
+    const atLimit = { ...reply, reply: { kind: 'text', text: 'a'.repeat(8192) } }
+    expect(decodeHitlCommand('submitReply', JSON.stringify(atLimit))).toMatchObject({
+      kind: 'decoded',
+      command: atLimit,
+    })
+    const overLimit = { ...reply, reply: { kind: 'text', text: 'a'.repeat(8193) } }
+    expect(decodeHitlCommand('submitReply', JSON.stringify(overLimit))).toEqual({
+      kind: 'invalid-input',
+      reason: 'shape',
+    })
+  })
 })
 
 describe('request source and question contracts', () => {
@@ -119,4 +133,22 @@ describe('request source and question contracts', () => {
       }).success,
     ).toBe(false)
   })
+})
+
+it.each(['\ud800', '\udfff', 'before\ud800after'])(
+  'rejects malformed Unicode at the public schema and decoder: %j',
+  text => {
+    expect(HitlIdentifierSchema.safeParse(text).success).toBe(false)
+    expect(
+      decodeHitlCommand('submitReply', JSON.stringify({ ...reply, reply: { kind: 'text', text } })),
+    ).toEqual({ kind: 'invalid-input', reason: 'shape' })
+  },
+)
+
+it('keeps NUL, controls, spaces and valid surrogate pairs in the public text domain', () => {
+  const text = '\0\u0001\t\n \ud83d\ude00'
+  expect(HitlIdentifierSchema.parse(text)).toBe(text)
+  expect(
+    decodeHitlCommand('submitReply', JSON.stringify({ ...reply, reply: { kind: 'text', text } })),
+  ).toMatchObject({ kind: 'decoded', command: { reply: { kind: 'text', text } } })
 })

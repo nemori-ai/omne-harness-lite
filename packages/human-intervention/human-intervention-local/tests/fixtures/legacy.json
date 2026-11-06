@@ -1,0 +1,2174 @@
+{
+  "cases": [
+    {
+      "scenario": "prepared",
+      "registration": {
+        "protocol": "hitl/1",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "prepared-register"
+        },
+        "preparationRef": "preparation-prepared",
+        "displayContext": "Original prepared",
+        "origin": {
+          "kind": "independent",
+          "originRef": "origin-prepared",
+          "wait": {
+            "owner": "independent",
+            "waitId": "prepared",
+            "incarnation": "one",
+            "destination": "inbox"
+          },
+          "positionRef": "position-prepared",
+          "adoptionRef": "v1"
+        },
+        "questions": [
+          {
+            "kind": "question",
+            "cardId": "first",
+            "title": "first",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          },
+          {
+            "kind": "question",
+            "cardId": "second",
+            "title": "second",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          }
+        ]
+      },
+      "prepare": {
+        "kind": "prepare",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "prepared-prepare"
+        },
+        "preparation": {
+          "registration": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "prepared-register"
+            },
+            "origin": {
+              "originRef": "origin-prepared",
+              "wait": {
+                "owner": "independent",
+                "waitId": "prepared",
+                "incarnation": "one",
+                "destination": "inbox"
+              },
+              "positionRef": "position-prepared",
+              "adoptionRef": "v1",
+              "kind": "independent"
+            },
+            "questions": [
+              {
+                "cardId": "first",
+                "title": "first",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              },
+              {
+                "cardId": "second",
+                "title": "second",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              }
+            ],
+            "displayContext": "Original prepared",
+            "preparationRef": "preparation-prepared"
+          },
+          "readers": [
+            "owner",
+            "reader"
+          ],
+          "responders": [
+            "owner"
+          ],
+          "compatibleImplementations": [
+            "v1"
+          ]
+        }
+      },
+      "decisions": [],
+      "receipts": []
+    },
+    {
+      "scenario": "active",
+      "registration": {
+        "protocol": "hitl/1",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "active-register"
+        },
+        "preparationRef": "preparation-active",
+        "displayContext": "Original active",
+        "origin": {
+          "kind": "independent",
+          "originRef": "origin-active",
+          "wait": {
+            "owner": "independent",
+            "waitId": "active",
+            "incarnation": "one",
+            "destination": "inbox"
+          },
+          "positionRef": "position-active",
+          "adoptionRef": "v1"
+        },
+        "questions": [
+          {
+            "kind": "question",
+            "cardId": "first",
+            "title": "first",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          },
+          {
+            "kind": "question",
+            "cardId": "second",
+            "title": "second",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          }
+        ]
+      },
+      "prepare": {
+        "kind": "prepare",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "active-prepare"
+        },
+        "preparation": {
+          "registration": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "active-register"
+            },
+            "origin": {
+              "originRef": "origin-active",
+              "wait": {
+                "owner": "independent",
+                "waitId": "active",
+                "incarnation": "one",
+                "destination": "inbox"
+              },
+              "positionRef": "position-active",
+              "adoptionRef": "v1",
+              "kind": "independent"
+            },
+            "questions": [
+              {
+                "cardId": "first",
+                "title": "first",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              },
+              {
+                "cardId": "second",
+                "title": "second",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              }
+            ],
+            "displayContext": "Original active",
+            "preparationRef": "preparation-active"
+          },
+          "readers": [
+            "owner",
+            "reader"
+          ],
+          "responders": [
+            "owner"
+          ],
+          "compatibleImplementations": [
+            "v1"
+          ]
+        }
+      },
+      "decisions": [],
+      "receipts": [],
+      "registered": {
+        "cards": [
+          {
+            "cardId": "first",
+            "request": {
+              "requestId": "request-08c86742f3f3ca90ba16c37463a416422c4467e9c45993ea2205039bc0bbcfbb",
+              "tenantRef": "tenant-a"
+            }
+          },
+          {
+            "cardId": "second",
+            "request": {
+              "requestId": "request-08c86742f3f3ca90ba16c37463a416422c4467e9c45993ea2205039bc0bbcfbb",
+              "tenantRef": "tenant-a"
+            }
+          }
+        ],
+        "kind": "registered",
+        "operationRef": {
+          "actorRef": "owner",
+          "operationId": "active-register",
+          "tenantRef": "tenant-a"
+        },
+        "requestRef": {
+          "requestId": "request-08c86742f3f3ca90ba16c37463a416422c4467e9c45993ea2205039bc0bbcfbb",
+          "tenantRef": "tenant-a"
+        },
+        "revision": "0"
+      }
+    },
+    {
+      "scenario": "partial-answer",
+      "registration": {
+        "protocol": "hitl/1",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "partial-answer-register"
+        },
+        "preparationRef": "preparation-partial-answer",
+        "displayContext": "Original partial-answer",
+        "origin": {
+          "kind": "independent",
+          "originRef": "origin-partial-answer",
+          "wait": {
+            "owner": "independent",
+            "waitId": "partial-answer",
+            "incarnation": "one",
+            "destination": "inbox"
+          },
+          "positionRef": "position-partial-answer",
+          "adoptionRef": "v1"
+        },
+        "questions": [
+          {
+            "kind": "question",
+            "cardId": "first",
+            "title": "first",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          },
+          {
+            "kind": "question",
+            "cardId": "second",
+            "title": "second",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          }
+        ]
+      },
+      "prepare": {
+        "kind": "prepare",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "partial-answer-prepare"
+        },
+        "preparation": {
+          "registration": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "partial-answer-register"
+            },
+            "origin": {
+              "originRef": "origin-partial-answer",
+              "wait": {
+                "owner": "independent",
+                "waitId": "partial-answer",
+                "incarnation": "one",
+                "destination": "inbox"
+              },
+              "positionRef": "position-partial-answer",
+              "adoptionRef": "v1",
+              "kind": "independent"
+            },
+            "questions": [
+              {
+                "cardId": "first",
+                "title": "first",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              },
+              {
+                "cardId": "second",
+                "title": "second",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              }
+            ],
+            "displayContext": "Original partial-answer",
+            "preparationRef": "preparation-partial-answer"
+          },
+          "readers": [
+            "owner",
+            "reader"
+          ],
+          "responders": [
+            "owner"
+          ],
+          "compatibleImplementations": [
+            "v1"
+          ]
+        }
+      },
+      "decisions": [
+        {
+          "input": {
+            "method": "submitReply",
+            "command": {
+              "protocol": "hitl/1",
+              "operation": {
+                "tenantRef": "tenant-a",
+                "actorRef": "owner",
+                "operationId": "partial-answer-reply-0"
+              },
+              "cardRef": {
+                "request": {
+                  "tenantRef": "tenant-a",
+                  "requestId": "request-2cbfaf0bd27bfa3441a56f3ae38d2293154783177a3c632c66425402dba9e3a7"
+                },
+                "cardId": "first"
+              },
+              "expectedRevision": "0",
+              "reply": {
+                "kind": "text",
+                "text": " preserved partial-answer 0 😀 "
+              }
+            }
+          },
+          "result": {
+            "decisionRef": {
+              "card": {
+                "cardId": "first",
+                "request": {
+                  "requestId": "request-2cbfaf0bd27bfa3441a56f3ae38d2293154783177a3c632c66425402dba9e3a7",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-94bb81958631d5a13a6350184f6e8d5dd835c4c10068a16f11ee8937b8ad148b",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "partial-answer-reply-0",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "delivery": "pending",
+            "kind": "decided",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "partial-answer-reply-0",
+              "tenantRef": "tenant-a"
+            },
+            "revision": "1"
+          }
+        }
+      ],
+      "receipts": [],
+      "registered": {
+        "cards": [
+          {
+            "cardId": "first",
+            "request": {
+              "requestId": "request-2cbfaf0bd27bfa3441a56f3ae38d2293154783177a3c632c66425402dba9e3a7",
+              "tenantRef": "tenant-a"
+            }
+          },
+          {
+            "cardId": "second",
+            "request": {
+              "requestId": "request-2cbfaf0bd27bfa3441a56f3ae38d2293154783177a3c632c66425402dba9e3a7",
+              "tenantRef": "tenant-a"
+            }
+          }
+        ],
+        "kind": "registered",
+        "operationRef": {
+          "actorRef": "owner",
+          "operationId": "partial-answer-register",
+          "tenantRef": "tenant-a"
+        },
+        "requestRef": {
+          "requestId": "request-2cbfaf0bd27bfa3441a56f3ae38d2293154783177a3c632c66425402dba9e3a7",
+          "tenantRef": "tenant-a"
+        },
+        "revision": "0"
+      }
+    },
+    {
+      "scenario": "unconsumed",
+      "registration": {
+        "protocol": "hitl/1",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "unconsumed-register"
+        },
+        "preparationRef": "preparation-unconsumed",
+        "displayContext": "Original unconsumed",
+        "origin": {
+          "kind": "independent",
+          "originRef": "origin-unconsumed",
+          "wait": {
+            "owner": "independent",
+            "waitId": "unconsumed",
+            "incarnation": "one",
+            "destination": "inbox"
+          },
+          "positionRef": "position-unconsumed",
+          "adoptionRef": "v1"
+        },
+        "questions": [
+          {
+            "kind": "question",
+            "cardId": "first",
+            "title": "first",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          },
+          {
+            "kind": "question",
+            "cardId": "second",
+            "title": "second",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          }
+        ]
+      },
+      "prepare": {
+        "kind": "prepare",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "unconsumed-prepare"
+        },
+        "preparation": {
+          "registration": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "unconsumed-register"
+            },
+            "origin": {
+              "originRef": "origin-unconsumed",
+              "wait": {
+                "owner": "independent",
+                "waitId": "unconsumed",
+                "incarnation": "one",
+                "destination": "inbox"
+              },
+              "positionRef": "position-unconsumed",
+              "adoptionRef": "v1",
+              "kind": "independent"
+            },
+            "questions": [
+              {
+                "cardId": "first",
+                "title": "first",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              },
+              {
+                "cardId": "second",
+                "title": "second",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              }
+            ],
+            "displayContext": "Original unconsumed",
+            "preparationRef": "preparation-unconsumed"
+          },
+          "readers": [
+            "owner",
+            "reader"
+          ],
+          "responders": [
+            "owner"
+          ],
+          "compatibleImplementations": [
+            "v1"
+          ]
+        }
+      },
+      "decisions": [
+        {
+          "input": {
+            "method": "submitReply",
+            "command": {
+              "protocol": "hitl/1",
+              "operation": {
+                "tenantRef": "tenant-a",
+                "actorRef": "owner",
+                "operationId": "unconsumed-reply-0"
+              },
+              "cardRef": {
+                "request": {
+                  "tenantRef": "tenant-a",
+                  "requestId": "request-ba8191f886f1bfabd3667cb9cee6092c14e01a9a92767c77a4c485a36c5d9ee6"
+                },
+                "cardId": "first"
+              },
+              "expectedRevision": "0",
+              "reply": {
+                "kind": "text",
+                "text": " preserved unconsumed 0 😀 "
+              }
+            }
+          },
+          "result": {
+            "decisionRef": {
+              "card": {
+                "cardId": "first",
+                "request": {
+                  "requestId": "request-ba8191f886f1bfabd3667cb9cee6092c14e01a9a92767c77a4c485a36c5d9ee6",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-763571b99f1f071b1e03bc1e2fe84bdd63ab0b1f262a0796a9658d8983a7944b",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "unconsumed-reply-0",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "delivery": "pending",
+            "kind": "decided",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "unconsumed-reply-0",
+              "tenantRef": "tenant-a"
+            },
+            "revision": "1"
+          }
+        },
+        {
+          "input": {
+            "method": "submitReply",
+            "command": {
+              "protocol": "hitl/1",
+              "operation": {
+                "tenantRef": "tenant-a",
+                "actorRef": "owner",
+                "operationId": "unconsumed-reply-1"
+              },
+              "cardRef": {
+                "request": {
+                  "tenantRef": "tenant-a",
+                  "requestId": "request-ba8191f886f1bfabd3667cb9cee6092c14e01a9a92767c77a4c485a36c5d9ee6"
+                },
+                "cardId": "second"
+              },
+              "expectedRevision": "0",
+              "reply": {
+                "kind": "text",
+                "text": " preserved unconsumed 1 😀 "
+              }
+            }
+          },
+          "result": {
+            "decisionRef": {
+              "card": {
+                "cardId": "second",
+                "request": {
+                  "requestId": "request-ba8191f886f1bfabd3667cb9cee6092c14e01a9a92767c77a4c485a36c5d9ee6",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-3c65c54fa561a70f42c0238dda8932cb6cba5b922532494e97868eebe180afa8",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "unconsumed-reply-1",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "delivery": "pending",
+            "kind": "decided",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "unconsumed-reply-1",
+              "tenantRef": "tenant-a"
+            },
+            "revision": "1"
+          }
+        }
+      ],
+      "receipts": [],
+      "registered": {
+        "cards": [
+          {
+            "cardId": "first",
+            "request": {
+              "requestId": "request-ba8191f886f1bfabd3667cb9cee6092c14e01a9a92767c77a4c485a36c5d9ee6",
+              "tenantRef": "tenant-a"
+            }
+          },
+          {
+            "cardId": "second",
+            "request": {
+              "requestId": "request-ba8191f886f1bfabd3667cb9cee6092c14e01a9a92767c77a4c485a36c5d9ee6",
+              "tenantRef": "tenant-a"
+            }
+          }
+        ],
+        "kind": "registered",
+        "operationRef": {
+          "actorRef": "owner",
+          "operationId": "unconsumed-register",
+          "tenantRef": "tenant-a"
+        },
+        "requestRef": {
+          "requestId": "request-ba8191f886f1bfabd3667cb9cee6092c14e01a9a92767c77a4c485a36c5d9ee6",
+          "tenantRef": "tenant-a"
+        },
+        "revision": "0"
+      }
+    },
+    {
+      "scenario": "partial-consume",
+      "registration": {
+        "protocol": "hitl/1",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "partial-consume-register"
+        },
+        "preparationRef": "preparation-partial-consume",
+        "displayContext": "Original partial-consume",
+        "origin": {
+          "kind": "independent",
+          "originRef": "origin-partial-consume",
+          "wait": {
+            "owner": "independent",
+            "waitId": "partial-consume",
+            "incarnation": "one",
+            "destination": "inbox"
+          },
+          "positionRef": "position-partial-consume",
+          "adoptionRef": "v1"
+        },
+        "questions": [
+          {
+            "kind": "question",
+            "cardId": "first",
+            "title": "first",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          },
+          {
+            "kind": "question",
+            "cardId": "second",
+            "title": "second",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          }
+        ]
+      },
+      "prepare": {
+        "kind": "prepare",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "partial-consume-prepare"
+        },
+        "preparation": {
+          "registration": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "partial-consume-register"
+            },
+            "origin": {
+              "originRef": "origin-partial-consume",
+              "wait": {
+                "owner": "independent",
+                "waitId": "partial-consume",
+                "incarnation": "one",
+                "destination": "inbox"
+              },
+              "positionRef": "position-partial-consume",
+              "adoptionRef": "v1",
+              "kind": "independent"
+            },
+            "questions": [
+              {
+                "cardId": "first",
+                "title": "first",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              },
+              {
+                "cardId": "second",
+                "title": "second",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              }
+            ],
+            "displayContext": "Original partial-consume",
+            "preparationRef": "preparation-partial-consume"
+          },
+          "readers": [
+            "owner",
+            "reader"
+          ],
+          "responders": [
+            "owner"
+          ],
+          "compatibleImplementations": [
+            "v1"
+          ]
+        }
+      },
+      "decisions": [
+        {
+          "input": {
+            "method": "submitReply",
+            "command": {
+              "protocol": "hitl/1",
+              "operation": {
+                "tenantRef": "tenant-a",
+                "actorRef": "owner",
+                "operationId": "partial-consume-reply-0"
+              },
+              "cardRef": {
+                "request": {
+                  "tenantRef": "tenant-a",
+                  "requestId": "request-b38db32072546c2ccfb32cdd5a33b387821042a60c2252aebd97b385f258c8a6"
+                },
+                "cardId": "first"
+              },
+              "expectedRevision": "0",
+              "reply": {
+                "kind": "text",
+                "text": " preserved partial-consume 0 😀 "
+              }
+            }
+          },
+          "result": {
+            "decisionRef": {
+              "card": {
+                "cardId": "first",
+                "request": {
+                  "requestId": "request-b38db32072546c2ccfb32cdd5a33b387821042a60c2252aebd97b385f258c8a6",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-265b09ab200a3327731783a3e473c43e627ed9c20153069e5686649b1231d0dd",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "partial-consume-reply-0",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "delivery": "pending",
+            "kind": "decided",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "partial-consume-reply-0",
+              "tenantRef": "tenant-a"
+            },
+            "revision": "1"
+          }
+        },
+        {
+          "input": {
+            "method": "submitReply",
+            "command": {
+              "protocol": "hitl/1",
+              "operation": {
+                "tenantRef": "tenant-a",
+                "actorRef": "owner",
+                "operationId": "partial-consume-reply-1"
+              },
+              "cardRef": {
+                "request": {
+                  "tenantRef": "tenant-a",
+                  "requestId": "request-b38db32072546c2ccfb32cdd5a33b387821042a60c2252aebd97b385f258c8a6"
+                },
+                "cardId": "second"
+              },
+              "expectedRevision": "0",
+              "reply": {
+                "kind": "text",
+                "text": " preserved partial-consume 1 😀 "
+              }
+            }
+          },
+          "result": {
+            "decisionRef": {
+              "card": {
+                "cardId": "second",
+                "request": {
+                  "requestId": "request-b38db32072546c2ccfb32cdd5a33b387821042a60c2252aebd97b385f258c8a6",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-4e6b4388b5a0ee059d3c9bd7c0288988ea950406d3ef4cce7758432576fe6119",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "partial-consume-reply-1",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "delivery": "pending",
+            "kind": "decided",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "partial-consume-reply-1",
+              "tenantRef": "tenant-a"
+            },
+            "revision": "1"
+          }
+        }
+      ],
+      "receipts": [
+        {
+          "command": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "partial-consume-consume-0"
+            },
+            "waitRef": {
+              "owner": "independent",
+              "waitId": "partial-consume",
+              "incarnation": "one",
+              "destination": "inbox"
+            },
+            "receiverGeneration": "1",
+            "decisionRef": {
+              "card": {
+                "cardId": "first",
+                "request": {
+                  "requestId": "request-b38db32072546c2ccfb32cdd5a33b387821042a60c2252aebd97b385f258c8a6",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-265b09ab200a3327731783a3e473c43e627ed9c20153069e5686649b1231d0dd",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "partial-consume-reply-0",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "consumeOperationId": "partial-consume-consume-0"
+          },
+          "result": {
+            "kind": "accepted",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "partial-consume-consume-0",
+              "tenantRef": "tenant-a"
+            },
+            "receipt": {
+              "consumeOperationId": "partial-consume-consume-0",
+              "decision": {
+                "card": {
+                  "cardId": "first",
+                  "request": {
+                    "requestId": "request-b38db32072546c2ccfb32cdd5a33b387821042a60c2252aebd97b385f258c8a6",
+                    "tenantRef": "tenant-a"
+                  }
+                },
+                "decisionId": "decision-265b09ab200a3327731783a3e473c43e627ed9c20153069e5686649b1231d0dd",
+                "submission": {
+                  "actorRef": "owner",
+                  "operationId": "partial-consume-reply-0",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "evidenceRef": "consume-6346ec5cec9bb594c38bd02d77ae72bfea3d08668409809d8cd54da6f8279ea7",
+              "outcome": "accepted",
+              "receiverGeneration": "1",
+              "wait": {
+                "destination": "inbox",
+                "incarnation": "one",
+                "owner": "independent",
+                "waitId": "partial-consume"
+              }
+            }
+          }
+        }
+      ],
+      "registered": {
+        "cards": [
+          {
+            "cardId": "first",
+            "request": {
+              "requestId": "request-b38db32072546c2ccfb32cdd5a33b387821042a60c2252aebd97b385f258c8a6",
+              "tenantRef": "tenant-a"
+            }
+          },
+          {
+            "cardId": "second",
+            "request": {
+              "requestId": "request-b38db32072546c2ccfb32cdd5a33b387821042a60c2252aebd97b385f258c8a6",
+              "tenantRef": "tenant-a"
+            }
+          }
+        ],
+        "kind": "registered",
+        "operationRef": {
+          "actorRef": "owner",
+          "operationId": "partial-consume-register",
+          "tenantRef": "tenant-a"
+        },
+        "requestRef": {
+          "requestId": "request-b38db32072546c2ccfb32cdd5a33b387821042a60c2252aebd97b385f258c8a6",
+          "tenantRef": "tenant-a"
+        },
+        "revision": "0"
+      },
+      "bound": {
+        "kind": "bound",
+        "operationRef": {
+          "actorRef": "owner",
+          "operationId": "partial-consume-bind",
+          "tenantRef": "tenant-a"
+        },
+        "receiverGeneration": "1",
+        "waitRef": {
+          "destination": "inbox",
+          "incarnation": "one",
+          "owner": "independent",
+          "waitId": "partial-consume"
+        }
+      }
+    },
+    {
+      "scenario": "unacked",
+      "registration": {
+        "protocol": "hitl/1",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "unacked-register"
+        },
+        "preparationRef": "preparation-unacked",
+        "displayContext": "Original unacked",
+        "origin": {
+          "kind": "independent",
+          "originRef": "origin-unacked",
+          "wait": {
+            "owner": "independent",
+            "waitId": "unacked",
+            "incarnation": "one",
+            "destination": "inbox"
+          },
+          "positionRef": "position-unacked",
+          "adoptionRef": "v1"
+        },
+        "questions": [
+          {
+            "kind": "question",
+            "cardId": "first",
+            "title": "first",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          },
+          {
+            "kind": "question",
+            "cardId": "second",
+            "title": "second",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          }
+        ]
+      },
+      "prepare": {
+        "kind": "prepare",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "unacked-prepare"
+        },
+        "preparation": {
+          "registration": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "unacked-register"
+            },
+            "origin": {
+              "originRef": "origin-unacked",
+              "wait": {
+                "owner": "independent",
+                "waitId": "unacked",
+                "incarnation": "one",
+                "destination": "inbox"
+              },
+              "positionRef": "position-unacked",
+              "adoptionRef": "v1",
+              "kind": "independent"
+            },
+            "questions": [
+              {
+                "cardId": "first",
+                "title": "first",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              },
+              {
+                "cardId": "second",
+                "title": "second",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              }
+            ],
+            "displayContext": "Original unacked",
+            "preparationRef": "preparation-unacked"
+          },
+          "readers": [
+            "owner",
+            "reader"
+          ],
+          "responders": [
+            "owner"
+          ],
+          "compatibleImplementations": [
+            "v1"
+          ]
+        }
+      },
+      "decisions": [
+        {
+          "input": {
+            "method": "submitReply",
+            "command": {
+              "protocol": "hitl/1",
+              "operation": {
+                "tenantRef": "tenant-a",
+                "actorRef": "owner",
+                "operationId": "unacked-reply-0"
+              },
+              "cardRef": {
+                "request": {
+                  "tenantRef": "tenant-a",
+                  "requestId": "request-a9ef5becbf79d281ed57a0501cb06fdea14a9a984cd3a63b720c86d97c9b7d36"
+                },
+                "cardId": "first"
+              },
+              "expectedRevision": "0",
+              "reply": {
+                "kind": "text",
+                "text": " preserved unacked 0 😀 "
+              }
+            }
+          },
+          "result": {
+            "decisionRef": {
+              "card": {
+                "cardId": "first",
+                "request": {
+                  "requestId": "request-a9ef5becbf79d281ed57a0501cb06fdea14a9a984cd3a63b720c86d97c9b7d36",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-36bac75ec091b4166ed092749220788116114978046a0a729c3f49f16c75b68c",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "unacked-reply-0",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "delivery": "pending",
+            "kind": "decided",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "unacked-reply-0",
+              "tenantRef": "tenant-a"
+            },
+            "revision": "1"
+          }
+        },
+        {
+          "input": {
+            "method": "submitReply",
+            "command": {
+              "protocol": "hitl/1",
+              "operation": {
+                "tenantRef": "tenant-a",
+                "actorRef": "owner",
+                "operationId": "unacked-reply-1"
+              },
+              "cardRef": {
+                "request": {
+                  "tenantRef": "tenant-a",
+                  "requestId": "request-a9ef5becbf79d281ed57a0501cb06fdea14a9a984cd3a63b720c86d97c9b7d36"
+                },
+                "cardId": "second"
+              },
+              "expectedRevision": "0",
+              "reply": {
+                "kind": "text",
+                "text": " preserved unacked 1 😀 "
+              }
+            }
+          },
+          "result": {
+            "decisionRef": {
+              "card": {
+                "cardId": "second",
+                "request": {
+                  "requestId": "request-a9ef5becbf79d281ed57a0501cb06fdea14a9a984cd3a63b720c86d97c9b7d36",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-9f66784cb0a401aa8bd5b27240eb677294e7ca23b87f59e26fb763fc0d6540eb",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "unacked-reply-1",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "delivery": "pending",
+            "kind": "decided",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "unacked-reply-1",
+              "tenantRef": "tenant-a"
+            },
+            "revision": "1"
+          }
+        }
+      ],
+      "receipts": [
+        {
+          "command": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "unacked-consume-0"
+            },
+            "waitRef": {
+              "owner": "independent",
+              "waitId": "unacked",
+              "incarnation": "one",
+              "destination": "inbox"
+            },
+            "receiverGeneration": "1",
+            "decisionRef": {
+              "card": {
+                "cardId": "first",
+                "request": {
+                  "requestId": "request-a9ef5becbf79d281ed57a0501cb06fdea14a9a984cd3a63b720c86d97c9b7d36",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-36bac75ec091b4166ed092749220788116114978046a0a729c3f49f16c75b68c",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "unacked-reply-0",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "consumeOperationId": "unacked-consume-0"
+          },
+          "result": {
+            "kind": "accepted",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "unacked-consume-0",
+              "tenantRef": "tenant-a"
+            },
+            "receipt": {
+              "consumeOperationId": "unacked-consume-0",
+              "decision": {
+                "card": {
+                  "cardId": "first",
+                  "request": {
+                    "requestId": "request-a9ef5becbf79d281ed57a0501cb06fdea14a9a984cd3a63b720c86d97c9b7d36",
+                    "tenantRef": "tenant-a"
+                  }
+                },
+                "decisionId": "decision-36bac75ec091b4166ed092749220788116114978046a0a729c3f49f16c75b68c",
+                "submission": {
+                  "actorRef": "owner",
+                  "operationId": "unacked-reply-0",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "evidenceRef": "consume-b8fd87c69e22883f807fc5bb107e56268ee13e71f92dafad181a20dea93b01d9",
+              "outcome": "accepted",
+              "receiverGeneration": "1",
+              "wait": {
+                "destination": "inbox",
+                "incarnation": "one",
+                "owner": "independent",
+                "waitId": "unacked"
+              }
+            }
+          }
+        },
+        {
+          "command": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "unacked-consume-1"
+            },
+            "waitRef": {
+              "owner": "independent",
+              "waitId": "unacked",
+              "incarnation": "one",
+              "destination": "inbox"
+            },
+            "receiverGeneration": "1",
+            "decisionRef": {
+              "card": {
+                "cardId": "second",
+                "request": {
+                  "requestId": "request-a9ef5becbf79d281ed57a0501cb06fdea14a9a984cd3a63b720c86d97c9b7d36",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-9f66784cb0a401aa8bd5b27240eb677294e7ca23b87f59e26fb763fc0d6540eb",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "unacked-reply-1",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "consumeOperationId": "unacked-consume-1"
+          },
+          "result": {
+            "kind": "accepted",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "unacked-consume-1",
+              "tenantRef": "tenant-a"
+            },
+            "receipt": {
+              "consumeOperationId": "unacked-consume-1",
+              "decision": {
+                "card": {
+                  "cardId": "second",
+                  "request": {
+                    "requestId": "request-a9ef5becbf79d281ed57a0501cb06fdea14a9a984cd3a63b720c86d97c9b7d36",
+                    "tenantRef": "tenant-a"
+                  }
+                },
+                "decisionId": "decision-9f66784cb0a401aa8bd5b27240eb677294e7ca23b87f59e26fb763fc0d6540eb",
+                "submission": {
+                  "actorRef": "owner",
+                  "operationId": "unacked-reply-1",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "evidenceRef": "consume-7040c1084a73ecb3690bab49eac051de4bf141b0352c46e54ce79cd47d31a0e4",
+              "outcome": "accepted",
+              "receiverGeneration": "1",
+              "wait": {
+                "destination": "inbox",
+                "incarnation": "one",
+                "owner": "independent",
+                "waitId": "unacked"
+              }
+            }
+          }
+        }
+      ],
+      "registered": {
+        "cards": [
+          {
+            "cardId": "first",
+            "request": {
+              "requestId": "request-a9ef5becbf79d281ed57a0501cb06fdea14a9a984cd3a63b720c86d97c9b7d36",
+              "tenantRef": "tenant-a"
+            }
+          },
+          {
+            "cardId": "second",
+            "request": {
+              "requestId": "request-a9ef5becbf79d281ed57a0501cb06fdea14a9a984cd3a63b720c86d97c9b7d36",
+              "tenantRef": "tenant-a"
+            }
+          }
+        ],
+        "kind": "registered",
+        "operationRef": {
+          "actorRef": "owner",
+          "operationId": "unacked-register",
+          "tenantRef": "tenant-a"
+        },
+        "requestRef": {
+          "requestId": "request-a9ef5becbf79d281ed57a0501cb06fdea14a9a984cd3a63b720c86d97c9b7d36",
+          "tenantRef": "tenant-a"
+        },
+        "revision": "0"
+      },
+      "bound": {
+        "kind": "bound",
+        "operationRef": {
+          "actorRef": "owner",
+          "operationId": "unacked-bind",
+          "tenantRef": "tenant-a"
+        },
+        "receiverGeneration": "1",
+        "waitRef": {
+          "destination": "inbox",
+          "incarnation": "one",
+          "owner": "independent",
+          "waitId": "unacked"
+        }
+      }
+    },
+    {
+      "scenario": "terminal",
+      "registration": {
+        "protocol": "hitl/1",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "terminal-register"
+        },
+        "preparationRef": "preparation-terminal",
+        "displayContext": "Original terminal",
+        "origin": {
+          "kind": "independent",
+          "originRef": "origin-terminal",
+          "wait": {
+            "owner": "independent",
+            "waitId": "terminal",
+            "incarnation": "one",
+            "destination": "inbox"
+          },
+          "positionRef": "position-terminal",
+          "adoptionRef": "v1"
+        },
+        "questions": [
+          {
+            "kind": "question",
+            "cardId": "first",
+            "title": "first",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          },
+          {
+            "kind": "question",
+            "cardId": "second",
+            "title": "second",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          }
+        ]
+      },
+      "prepare": {
+        "kind": "prepare",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "terminal-prepare"
+        },
+        "preparation": {
+          "registration": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "terminal-register"
+            },
+            "origin": {
+              "originRef": "origin-terminal",
+              "wait": {
+                "owner": "independent",
+                "waitId": "terminal",
+                "incarnation": "one",
+                "destination": "inbox"
+              },
+              "positionRef": "position-terminal",
+              "adoptionRef": "v1",
+              "kind": "independent"
+            },
+            "questions": [
+              {
+                "cardId": "first",
+                "title": "first",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              },
+              {
+                "cardId": "second",
+                "title": "second",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              }
+            ],
+            "displayContext": "Original terminal",
+            "preparationRef": "preparation-terminal"
+          },
+          "readers": [
+            "owner",
+            "reader"
+          ],
+          "responders": [
+            "owner"
+          ],
+          "compatibleImplementations": [
+            "v1"
+          ]
+        }
+      },
+      "decisions": [
+        {
+          "input": {
+            "method": "submitReply",
+            "command": {
+              "protocol": "hitl/1",
+              "operation": {
+                "tenantRef": "tenant-a",
+                "actorRef": "owner",
+                "operationId": "terminal-reply-0"
+              },
+              "cardRef": {
+                "request": {
+                  "tenantRef": "tenant-a",
+                  "requestId": "request-da111db517c95b3c24f60f666f1df17d9b00a60b803fe70d657777091eb86127"
+                },
+                "cardId": "first"
+              },
+              "expectedRevision": "0",
+              "reply": {
+                "kind": "text",
+                "text": " preserved terminal 0 😀 "
+              }
+            }
+          },
+          "result": {
+            "decisionRef": {
+              "card": {
+                "cardId": "first",
+                "request": {
+                  "requestId": "request-da111db517c95b3c24f60f666f1df17d9b00a60b803fe70d657777091eb86127",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-eec79f7c1a26595283ce34d5e7da26784c03be1dcdacf05dab38c8cf741eeb19",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "terminal-reply-0",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "delivery": "pending",
+            "kind": "decided",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "terminal-reply-0",
+              "tenantRef": "tenant-a"
+            },
+            "revision": "1"
+          }
+        },
+        {
+          "input": {
+            "method": "submitReply",
+            "command": {
+              "protocol": "hitl/1",
+              "operation": {
+                "tenantRef": "tenant-a",
+                "actorRef": "owner",
+                "operationId": "terminal-reply-1"
+              },
+              "cardRef": {
+                "request": {
+                  "tenantRef": "tenant-a",
+                  "requestId": "request-da111db517c95b3c24f60f666f1df17d9b00a60b803fe70d657777091eb86127"
+                },
+                "cardId": "second"
+              },
+              "expectedRevision": "0",
+              "reply": {
+                "kind": "text",
+                "text": " preserved terminal 1 😀 "
+              }
+            }
+          },
+          "result": {
+            "decisionRef": {
+              "card": {
+                "cardId": "second",
+                "request": {
+                  "requestId": "request-da111db517c95b3c24f60f666f1df17d9b00a60b803fe70d657777091eb86127",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-abdb534039869d26e0989c7b41526a6b82e535eed672cad65b137000b42b1534",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "terminal-reply-1",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "delivery": "pending",
+            "kind": "decided",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "terminal-reply-1",
+              "tenantRef": "tenant-a"
+            },
+            "revision": "1"
+          }
+        }
+      ],
+      "receipts": [],
+      "registered": {
+        "cards": [
+          {
+            "cardId": "first",
+            "request": {
+              "requestId": "request-da111db517c95b3c24f60f666f1df17d9b00a60b803fe70d657777091eb86127",
+              "tenantRef": "tenant-a"
+            }
+          },
+          {
+            "cardId": "second",
+            "request": {
+              "requestId": "request-da111db517c95b3c24f60f666f1df17d9b00a60b803fe70d657777091eb86127",
+              "tenantRef": "tenant-a"
+            }
+          }
+        ],
+        "kind": "registered",
+        "operationRef": {
+          "actorRef": "owner",
+          "operationId": "terminal-register",
+          "tenantRef": "tenant-a"
+        },
+        "requestRef": {
+          "requestId": "request-da111db517c95b3c24f60f666f1df17d9b00a60b803fe70d657777091eb86127",
+          "tenantRef": "tenant-a"
+        },
+        "revision": "0"
+      }
+    },
+    {
+      "scenario": "generation",
+      "registration": {
+        "protocol": "hitl/1",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "generation-register"
+        },
+        "preparationRef": "preparation-generation",
+        "displayContext": "Original generation",
+        "origin": {
+          "kind": "independent",
+          "originRef": "origin-generation",
+          "wait": {
+            "owner": "independent",
+            "waitId": "generation",
+            "incarnation": "one",
+            "destination": "inbox"
+          },
+          "positionRef": "position-generation",
+          "adoptionRef": "v1"
+        },
+        "questions": [
+          {
+            "kind": "question",
+            "cardId": "first",
+            "title": "first",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          },
+          {
+            "kind": "question",
+            "cardId": "second",
+            "title": "second",
+            "description": "Original question",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes",
+                "description": "Continue"
+              }
+            ]
+          }
+        ]
+      },
+      "prepare": {
+        "kind": "prepare",
+        "operation": {
+          "tenantRef": "tenant-a",
+          "actorRef": "owner",
+          "operationId": "generation-prepare"
+        },
+        "preparation": {
+          "registration": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "generation-register"
+            },
+            "origin": {
+              "originRef": "origin-generation",
+              "wait": {
+                "owner": "independent",
+                "waitId": "generation",
+                "incarnation": "one",
+                "destination": "inbox"
+              },
+              "positionRef": "position-generation",
+              "adoptionRef": "v1",
+              "kind": "independent"
+            },
+            "questions": [
+              {
+                "cardId": "first",
+                "title": "first",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              },
+              {
+                "cardId": "second",
+                "title": "second",
+                "description": "Original question",
+                "kind": "question",
+                "options": [
+                  {
+                    "id": "yes",
+                    "label": "Yes",
+                    "description": "Continue"
+                  }
+                ]
+              }
+            ],
+            "displayContext": "Original generation",
+            "preparationRef": "preparation-generation"
+          },
+          "readers": [
+            "owner",
+            "reader"
+          ],
+          "responders": [
+            "owner"
+          ],
+          "compatibleImplementations": [
+            "v1"
+          ]
+        }
+      },
+      "decisions": [
+        {
+          "input": {
+            "method": "submitReply",
+            "command": {
+              "protocol": "hitl/1",
+              "operation": {
+                "tenantRef": "tenant-a",
+                "actorRef": "owner",
+                "operationId": "generation-reply-0"
+              },
+              "cardRef": {
+                "request": {
+                  "tenantRef": "tenant-a",
+                  "requestId": "request-84a0559e734fa156a49af73054f0486f4fa560519500147b76bc9eb0e9af02ab"
+                },
+                "cardId": "first"
+              },
+              "expectedRevision": "0",
+              "reply": {
+                "kind": "text",
+                "text": " preserved generation 0 😀 "
+              }
+            }
+          },
+          "result": {
+            "decisionRef": {
+              "card": {
+                "cardId": "first",
+                "request": {
+                  "requestId": "request-84a0559e734fa156a49af73054f0486f4fa560519500147b76bc9eb0e9af02ab",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-69a7b22e2214863274bcc75df1eaa454b3cc4fe085633b0446a80453ad7d7205",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "generation-reply-0",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "delivery": "pending",
+            "kind": "decided",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "generation-reply-0",
+              "tenantRef": "tenant-a"
+            },
+            "revision": "1"
+          }
+        },
+        {
+          "input": {
+            "method": "submitReply",
+            "command": {
+              "protocol": "hitl/1",
+              "operation": {
+                "tenantRef": "tenant-a",
+                "actorRef": "owner",
+                "operationId": "generation-reply-1"
+              },
+              "cardRef": {
+                "request": {
+                  "tenantRef": "tenant-a",
+                  "requestId": "request-84a0559e734fa156a49af73054f0486f4fa560519500147b76bc9eb0e9af02ab"
+                },
+                "cardId": "second"
+              },
+              "expectedRevision": "0",
+              "reply": {
+                "kind": "text",
+                "text": " preserved generation 1 😀 "
+              }
+            }
+          },
+          "result": {
+            "decisionRef": {
+              "card": {
+                "cardId": "second",
+                "request": {
+                  "requestId": "request-84a0559e734fa156a49af73054f0486f4fa560519500147b76bc9eb0e9af02ab",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-017d9fcb3da6d22ec0529657e4d10dde397199c9245fb10170903501df566ae4",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "generation-reply-1",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "delivery": "pending",
+            "kind": "decided",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "generation-reply-1",
+              "tenantRef": "tenant-a"
+            },
+            "revision": "1"
+          }
+        }
+      ],
+      "receipts": [
+        {
+          "command": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "generation-consume-0"
+            },
+            "waitRef": {
+              "owner": "independent",
+              "waitId": "generation",
+              "incarnation": "one",
+              "destination": "inbox"
+            },
+            "receiverGeneration": "1",
+            "decisionRef": {
+              "card": {
+                "cardId": "first",
+                "request": {
+                  "requestId": "request-84a0559e734fa156a49af73054f0486f4fa560519500147b76bc9eb0e9af02ab",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-69a7b22e2214863274bcc75df1eaa454b3cc4fe085633b0446a80453ad7d7205",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "generation-reply-0",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "consumeOperationId": "generation-consume-0"
+          },
+          "result": {
+            "kind": "accepted",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "generation-consume-0",
+              "tenantRef": "tenant-a"
+            },
+            "receipt": {
+              "consumeOperationId": "generation-consume-0",
+              "decision": {
+                "card": {
+                  "cardId": "first",
+                  "request": {
+                    "requestId": "request-84a0559e734fa156a49af73054f0486f4fa560519500147b76bc9eb0e9af02ab",
+                    "tenantRef": "tenant-a"
+                  }
+                },
+                "decisionId": "decision-69a7b22e2214863274bcc75df1eaa454b3cc4fe085633b0446a80453ad7d7205",
+                "submission": {
+                  "actorRef": "owner",
+                  "operationId": "generation-reply-0",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "evidenceRef": "consume-4dd1ed5c855ae645241b5149b9922adc5cc49cb90532e11d1aeb8348ce0ba31b",
+              "outcome": "accepted",
+              "receiverGeneration": "1",
+              "wait": {
+                "destination": "inbox",
+                "incarnation": "one",
+                "owner": "independent",
+                "waitId": "generation"
+              }
+            }
+          }
+        },
+        {
+          "command": {
+            "protocol": "hitl/1",
+            "operation": {
+              "tenantRef": "tenant-a",
+              "actorRef": "owner",
+              "operationId": "generation-consume-1"
+            },
+            "waitRef": {
+              "owner": "independent",
+              "waitId": "generation",
+              "incarnation": "one",
+              "destination": "inbox"
+            },
+            "receiverGeneration": "1",
+            "decisionRef": {
+              "card": {
+                "cardId": "second",
+                "request": {
+                  "requestId": "request-84a0559e734fa156a49af73054f0486f4fa560519500147b76bc9eb0e9af02ab",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "decisionId": "decision-017d9fcb3da6d22ec0529657e4d10dde397199c9245fb10170903501df566ae4",
+              "submission": {
+                "actorRef": "owner",
+                "operationId": "generation-reply-1",
+                "tenantRef": "tenant-a"
+              }
+            },
+            "consumeOperationId": "generation-consume-1"
+          },
+          "result": {
+            "kind": "accepted",
+            "operationRef": {
+              "actorRef": "owner",
+              "operationId": "generation-consume-1",
+              "tenantRef": "tenant-a"
+            },
+            "receipt": {
+              "consumeOperationId": "generation-consume-1",
+              "decision": {
+                "card": {
+                  "cardId": "second",
+                  "request": {
+                    "requestId": "request-84a0559e734fa156a49af73054f0486f4fa560519500147b76bc9eb0e9af02ab",
+                    "tenantRef": "tenant-a"
+                  }
+                },
+                "decisionId": "decision-017d9fcb3da6d22ec0529657e4d10dde397199c9245fb10170903501df566ae4",
+                "submission": {
+                  "actorRef": "owner",
+                  "operationId": "generation-reply-1",
+                  "tenantRef": "tenant-a"
+                }
+              },
+              "evidenceRef": "consume-b07ec5d7856c030e2aa84b3e4116c19ae9bb88d27f3e5942695d9c7d8807a755",
+              "outcome": "accepted",
+              "receiverGeneration": "1",
+              "wait": {
+                "destination": "inbox",
+                "incarnation": "one",
+                "owner": "independent",
+                "waitId": "generation"
+              }
+            }
+          }
+        }
+      ],
+      "registered": {
+        "cards": [
+          {
+            "cardId": "first",
+            "request": {
+              "requestId": "request-84a0559e734fa156a49af73054f0486f4fa560519500147b76bc9eb0e9af02ab",
+              "tenantRef": "tenant-a"
+            }
+          },
+          {
+            "cardId": "second",
+            "request": {
+              "requestId": "request-84a0559e734fa156a49af73054f0486f4fa560519500147b76bc9eb0e9af02ab",
+              "tenantRef": "tenant-a"
+            }
+          }
+        ],
+        "kind": "registered",
+        "operationRef": {
+          "actorRef": "owner",
+          "operationId": "generation-register",
+          "tenantRef": "tenant-a"
+        },
+        "requestRef": {
+          "requestId": "request-84a0559e734fa156a49af73054f0486f4fa560519500147b76bc9eb0e9af02ab",
+          "tenantRef": "tenant-a"
+        },
+        "revision": "0"
+      },
+      "bound": {
+        "kind": "bound",
+        "operationRef": {
+          "actorRef": "owner",
+          "operationId": "generation-bind",
+          "tenantRef": "tenant-a"
+        },
+        "receiverGeneration": "1",
+        "waitRef": {
+          "destination": "inbox",
+          "incarnation": "one",
+          "owner": "independent",
+          "waitId": "generation"
+        }
+      },
+      "rebound": {
+        "kind": "bound",
+        "operationRef": {
+          "actorRef": "owner",
+          "operationId": "generation-rebind",
+          "tenantRef": "tenant-a"
+        },
+        "receiverGeneration": "2",
+        "waitRef": {
+          "destination": "inbox",
+          "incarnation": "one",
+          "owner": "independent",
+          "waitId": "generation"
+        }
+      }
+    }
+  ],
+  "sealed": {
+    "operationRef": {
+      "tenantRef": "tenant-a",
+      "actorRef": "owner",
+      "operationId": "aborted-original"
+    },
+    "inputDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

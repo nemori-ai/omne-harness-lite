@@ -1,11 +1,7 @@
-# tests/fixtures 索引
+# 固定输入索引
 
-<!-- documentation:placeholder -->
+来源与维护规则见[README](README.md)。
 
-本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
-
-## 内容
-
-<!-- documentation:placeholder -->
-
-- [README.md](README.md)：固定输入的来源与约束
+- [legacy.json](legacy.json)：原命令、决定、消费及封口结果。
+- [legacy.sqlite](legacy.sqlite)：关闭后的旧版本真实SQLite数据库。
+- [reject.mjs](reject.mjs)、[late-reject.mjs](late-reject.mjs)：具名事务故障材料。

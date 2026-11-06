@@ -5,25 +5,23 @@ import {
   RequestRefSchema,
   RevisionSchema,
   decideReply,
-  invalidateCard,
   nextRevision,
   type AcknowledgeDelivery,
   type InvalidateWait,
   type RegisterRequest,
   type SubmitReply,
 } from '@omne-harness/human-intervention'
-import type { ParticipantModule, ReadPort } from '@omne-harness/sql-contract/worker'
-import { digest, equal, json, operationKey } from './encoding.ts'
-import { readRequest } from './request-record.ts'
-import { TERMINAL_FACT } from './terminal-schema.ts'
+import type { ReadPort } from '@omne-harness/sql-contract/worker'
+import { digest, equal, operationKey } from './encoding.ts'
 import {
-  PLAN_FACT,
-  REQUEST_PLANNER,
-  REQUEST_PROTOCOL,
-  RequestPlanSchema,
+  readRequestIdentity,
+  readCard,
+  readCardIdentity,
+  readPendingCards,
+  type RequestIdentity,
+} from './request-record.ts'
+import {
   SqlCommandSchema,
-  WAIT_BASIS_FACT,
-  WaitBasisSchema,
   type RequestPlan,
   type RequestRecord,
   type WaitBasis,
@@ -35,7 +33,7 @@ function noChange(basis: WaitBasis, result: RequestPlan['result']): RequestPlan 
     method: basis.method,
     waitRef: basis.origin.wait,
     result,
-    update: null,
+    update: { kind: 'none' },
     effect: { kind: 'none' },
   }
 }
@@ -50,6 +48,7 @@ function register(command: RegisterRequest, basis: WaitBasis): RequestPlan {
     !equal(command.origin, basis.origin)
   )
     return conflict(basis, 'registration-changed')
+  if (!basis.readAudience) throw new TypeError('Missing original read audience')
   const ref = RequestRefSchema.parse({
     tenantRef: command.operation.tenantRef,
     requestId: `request-${operationKey(command.operation)}`,
@@ -75,7 +74,7 @@ function register(command: RegisterRequest, basis: WaitBasis): RequestPlan {
     binding: basis.binding,
     method: basis.method,
     waitRef: basis.origin.wait,
-    update,
+    update: { kind: 'register', record: update, audience: basis.readAudience },
     result: {
       kind: 'registered',
       operationRef: command.operation,
@@ -86,10 +85,16 @@ function register(command: RegisterRequest, basis: WaitBasis): RequestPlan {
     effect: { kind: 'register', requestRef: ref, cardIds: cards.map(card => card.ref.cardId) },
   }
 }
-function submit(command: SubmitReply, basis: WaitBasis, current: RequestRecord): RequestPlan {
+function submit(
+  command: SubmitReply,
+  basis: WaitBasis,
+  current: RequestIdentity,
+  port: ReadPort,
+): RequestPlan {
   if (!equal(command.cardRef.request, current.ref)) return conflict(basis, 'request-mismatch')
-  const card = current.cards.find(card => card.ref.cardId === command.cardRef.cardId)
-  if (!card) return conflict(basis, 'card-missing')
+  const loaded = readCard(port, current, command.cardRef.cardId)
+  if (!loaded) return conflict(basis, 'card-missing')
+  const { card, ordinal } = loaded
   const planned = decideReply({
     card,
     command,
@@ -127,9 +132,13 @@ function submit(command: SubmitReply, basis: WaitBasis, current: RequestRecord):
       delivery: 'pending',
     },
     update: {
-      ...current,
-      revision: nextRevision(current.revision),
-      cards: current.cards.map(item => (item.ref.cardId === card.ref.cardId ? decided : item)),
+      kind: 'decide',
+      ref: current.ref,
+      sequence: current.sequence,
+      expectedRevision: current.revision,
+      ordinal,
+      expectedCardRevision: card.revision,
+      cardRevision: decided.revision,
     },
     effect: { kind: 'deliver', decision },
   }
@@ -137,43 +146,43 @@ function submit(command: SubmitReply, basis: WaitBasis, current: RequestRecord):
 function invalidate(
   command: InvalidateWait,
   basis: WaitBasis,
-  current: RequestRecord,
+  current: RequestIdentity,
+  port: ReadPort,
 ): RequestPlan {
   if (basis.state !== 'terminal') return conflict(basis, 'wait-not-terminal')
-  const affected = current.cards.filter(card => card.kind === 'pending').length
-  const revision = affected ? nextRevision(current.revision) : current.revision
-  const update = affected
-    ? {
-        ...current,
-        revision,
-        cards: current.cards.map(card =>
-          invalidateCard({
-            card,
-            reason: command.reason,
-            terminalEvidenceRef: command.terminalEvidenceRef,
-          }),
-        ),
-      }
-    : null
+  const cards = readPendingCards(port, current)
+  const revision = cards.length ? nextRevision(current.revision) : current.revision
   return {
-    binding: basis.binding,
-    method: basis.method,
-    waitRef: basis.origin.wait,
-    effect: { kind: 'none' },
-    update,
-    result: { kind: 'invalidated', operationRef: command.operation, affected, revision },
+    ...noChange(basis, {
+      kind: 'invalidated',
+      operationRef: command.operation,
+      affected: cards.length,
+      revision,
+    }),
+    update: cards.length
+      ? {
+          kind: 'invalidate',
+          ref: current.ref,
+          sequence: current.sequence,
+          expectedRevision: current.revision,
+          cards,
+          reason: command.reason,
+          evidenceRef: command.terminalEvidenceRef,
+        }
+      : { kind: 'none' },
   }
 }
 function acknowledge(
   command: AcknowledgeDelivery,
   basis: WaitBasis,
-  current: RequestRecord,
+  current: RequestIdentity,
+  port: ReadPort,
 ): RequestPlan {
   const receipt = command.consumerReceipt
   if (!basis.receipt || !equal(basis.receipt, receipt))
     return conflict(basis, 'receipt-not-established')
-  const card = current.cards.find(card => card.ref.cardId === receipt.decision.card.cardId)
-  if (!card || card.kind !== 'decided' || !equal(card.decision.ref, receipt.decision))
+  const card = readCardIdentity(port, current, receipt.decision.card.cardId)
+  if (!card || card.state !== 'decided' || !equal(card.decision, receipt.decision))
     return conflict(basis, 'decision-mismatch')
   const result: RequestPlan['result'] = {
     kind: 'acknowledged',
@@ -181,25 +190,26 @@ function acknowledge(
     decisionRef: receipt.decision,
     outcome: receipt.outcome,
   }
-  if (card.delivery.kind !== 'pending')
-    return card.delivery.kind === receipt.outcome
+  if (card.delivery !== 'pending')
+    return card.delivery === receipt.outcome
       ? noChange(basis, result)
       : conflict(basis, 'delivery-mismatch')
-  const updated = CardSchema.parse({
-    ...card,
-    revision: nextRevision(card.revision),
-    delivery: { kind: receipt.outcome, receiptRef: receipt.evidenceRef },
-  })
   return {
     ...noChange(basis, result),
     update: {
-      ...current,
-      revision: nextRevision(current.revision),
-      cards: current.cards.map(item => (item.ref.cardId === card.ref.cardId ? updated : item)),
+      kind: 'acknowledge',
+      ref: current.ref,
+      sequence: current.sequence,
+      expectedRevision: current.revision,
+      ordinal: card.ordinal,
+      expectedCardRevision: card.revision,
+      outcome: receipt.outcome,
+      receiptRef: receipt.evidenceRef,
     },
   }
 }
-function plan(
+
+export function planRequest(
   input: ReturnType<typeof SqlCommandSchema.parse>,
   basis: WaitBasis,
   port: ReadPort,
@@ -215,32 +225,15 @@ function plan(
         })
       : conflict(basis, 'request-not-registered')
   }
-  const current = readRequest(port, basis.requestRef)
+  const current = readRequestIdentity(port, basis.requestRef)
   if (!current || !equal(current.origin, basis.origin))
     throw new TypeError('Registered wait has no matching HITL request')
   switch (input.method) {
     case 'submitReply':
-      return submit(input.command, basis, current)
+      return submit(input.command, basis, current, port)
     case 'invalidateWait':
-      return invalidate(input.command, basis, current)
+      return invalidate(input.command, basis, current, port)
     case 'acknowledgeDelivery':
-      return acknowledge(input.command, basis, current)
+      return acknowledge(input.command, basis, current, port)
   }
 }
-export default {
-  participant: REQUEST_PLANNER,
-  protocol: REQUEST_PROTOCOL,
-  execute(facts, port) {
-    const input = SqlCommandSchema.parse(facts['input'])
-    const basis = WaitBasisSchema.parse(port.requireFact(WAIT_BASIS_FACT))
-    const binding = { operationRef: input.command.operation, inputDigest: digest(input) }
-    if (
-      !equal(binding, basis.binding) ||
-      !equal(port.requireFact(TERMINAL_FACT), { kind: 'consume', binding })
-    )
-      return { kind: 'failed', diagnostic: 'hitl_command_binding' }
-    const planned = RequestPlanSchema.parse(plan(input, basis, port))
-    port.provideFact(PLAN_FACT, json(planned))
-    return { kind: 'participated', response: json({ binding, planDigest: digest(planned) }) }
-  },
-} satisfies ParticipantModule

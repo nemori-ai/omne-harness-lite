@@ -9,7 +9,9 @@ function text(maxCodePoints: number) {
     .min(1)
     .refine(
       value =>
-        [...value].length <= maxCodePoints && encoder.encode(value).byteLength <= maxCodePoints * 4,
+        value.isWellFormed() &&
+        [...value].length <= maxCodePoints &&
+        encoder.encode(value).byteLength <= maxCodePoints * 4,
     )
 }
 

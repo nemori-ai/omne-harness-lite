@@ -1,84 +1,46 @@
-# 对象模型
+# 对象与关系
 
-## 对象与关系
-
-```mermaid
-classDiagram
-  class HitlSqlBinding {
-    OperationRef operationRef
-    string inputDigest
-  }
-  class StoredOperation {
-    method
-    result
-    commitReceipt
-  }
-  class RequestRecord {
-    ref
-    revision
-    origin
-    cards
-  }
-  class IndependentControl {
-    preparation
-    receiver
-    lifecycle
-    receipts
-    checkpoint
-  }
-  class ActiveWait {
-    requestRef
-    cardIds
-  }
-  class InboxEntry {
-    decision
-    wait
-    positionRef
-    adoptionRef
-  }
-  StoredOperation *-- HitlSqlBinding
-  IndependentControl --> ActiveWait : 原等待
-  ActiveWait --> RequestRecord : 注册同提交
-  InboxEntry --> RequestRecord : 原决定
-  IndependentControl --> InboxEntry : 代次核验后消费
-```
-
-Binding 是原操作值，不是权限凭据。StoredOperation 保存可重放的业务结果，方法与结果以联合类型关联。RequestRecord 的全部卡片属于该请求，卡片身份不能重复。
-
-IndependentControl 保存逻辑等待与接收权。receiverGeneration 表示谁可以继续消费，卡片 revision 表示答复竞争条件，两者不能互换。InboxEntry 保存答复要回到的原位置和采用引用，不能因进程重启改投其他工作。
-
-## 生命周期
-
-prepared 只是耐久调用材料。注册共同建立 active 等待与请求。决定进入收件箱后，当前接收者逐项消费，完整批次才能转成 resume-ready。业务终局把 checkpoint 固定为 terminal，保留决定历史。
-
-工厂丢弃不删除数据，不关闭调用者提供的 SqlStorage。runtime 卸载不构成业务终局。原操作查不到仍可能在途，必须通过封口排除迟到提交才能认定 not-committed。
-
-
-## 池游标与投影
+## 独立身份及持久对象
 
 ```mermaid
-classDiagram
-  class IndependentHitlQueries {
-    getRequest()
-    getCard()
-    listPool()
-    close()
-  }
-  class PoolCursor {
-    string snapshot
-    string after
-    number offset
-  }
-  class PoolPage {
-    items
-    next
-    snapshotRef
-    completeness
-  }
-  IndependentHitlQueries --> RequestRecord : 获准投影
-  IndependentHitlQueries --> IndependentControl : 原拥有者读口
-  IndependentHitlQueries --> PoolCursor : 签名续页
-  PoolPage o-- RequestRecord : 卡片投影
+erDiagram
+  REQUEST ||--|| REQUEST_STATE : revision
+  REQUEST ||--|{ QUESTION : ordinal
+  QUESTION ||--|| CARD_STATE : transition
+  CARD_STATE ||--o| DECISION : immutable
+  REQUEST ||--|{ REQUEST_READER : audience
+  REQUEST_READER ||--|{ POOL_BUCKET : nonempty
+  PREPARATION ||--|| WAIT_CONTROL : lifecycle
+  PREPARATION ||--|{ WAIT_AUDIENCE : immutable
+  PREPARATION ||--|{ IMPLEMENTATION : compatible
+  PREPARATION ||--o| ACTIVE_WAIT : registration
+  ACTIVE_WAIT ||--|{ WAIT_CARD : ordinal
+  WAIT_CARD ||--o| INBOX_DECISION : custody
+  INBOX_DECISION ||--o| CONSUMER_RECEIPT : consumed
+  INBOX_DECISION ||--o| PENDING_DELIVERY : unconsumed
+  DECISION ||--|| INBOX_DECISION : same_decision_identity
 ```
 
-PoolCursor 的 after 表示已完整扫描的最后请求，offset 表示下一请求内已扫描的卡片数。它不是业务实体，也没有独立持久生命周期。PoolPage 中的卡片仍以 RequestRecord 为权威；读取不会确认决定接手。
+图中的 DECISION 与 INBOX_DECISION 关系表示完整稳定身份的逻辑匹配，不是跨拥有者外键。HITL 不读取 WaitOwner 私表。
+
+关系键均包含租户。请求与 inbox 的顺序是 SQLite int64，边界以十进制字符串传递；revision、receiverGeneration 是任意长度规范非负十进制文本。请求内 cardId 与 ordinal 分别唯一，ordinal 连续且最多64项。每卡最多一个 Decision、inbox 项及 receipt。外键和联合 CHECK 约束非法状态组合；跨行精确集合由唯一写者维护，独立 SQL 守护反向计算。
+
+RequestRecord 是读回的一致快照形状，不是持久聚合 JSON。不可变请求头保管 origin、题序、displayContext 和 actionBasis；单独状态行保管修订。题目 JSON 仅表示不可变题目值；Decision 的 Reply 联合拆为列，原文本逐字保留。自由文本与标识在各自单列内采用 JSON 字符串表示，外键及查询绑定使用相同表示。
+
+WaitControl 保管接收权和业务终局。receiverGeneration 决定谁可消费，卡片 revision 决定答复竞争，两者不能互换。准备摘要用于认回同一准备；登记摘要用于核验原登记；迁移导出证明只在迁移合同内出现，不扩充运行时受众协议。
+
+## 转换及派生关系
+
+prepared 尚未成为有效人工等待。共同注册建立 active、完整卡片关联与 HITL 请求。答复在同一提交生成卡片决定、原位置 inbox 和 pending。消费在同一提交生成 receipt、删除 pending 并增加 receipt_count。live 等待仅全批卡片已消费才成为 resume-ready；终局永久固定 terminal，已有决定仍可按 superseded 接手。从未绑定的终局等待允许原 owner 按当前代次结算，不创建接收者，也不进入 resume-ready。
+
+PoolExact 要求每个获准读者、请求与实际非空 bucket 恰好对应一行。五个 bucket 是 pending、invalidated、decided-pending、decided-accepted、decided-superseded。卡片转换时只添加第一个新桶或删除最后一个旧桶，不改写其他卡片和读者。
+
+PendingExact 要求每个无 receipt 的 inbox 恰好对应一行，并保留原 owner、destination、sequence。receipt_count 必须等于 receipt 实数，checkpoint 从该数和终局推导。独立检查见 [relations.ts](../verification/relations.ts)。发现不一致后的停用、维护和恢复读取按[投影失效与受管恢复](../SPEC.md#投影失效与受管恢复)执行。
+
+## 操作和游标
+
+HitlSqlBinding 是原 OperationRef 与输入摘要，不是权限凭据。StoredOperation 关联原方法、完整结果与提交凭据，由 SqlStorage journal 保管。原结果缺失仍可能在途，不能从 absent 推导 not-committed；只有封口认回的 durable aborted 能排除迟到提交。
+
+PoolCursor 的 after 表示已完整经过的最后请求序号，offset 表示其后第一个请求内的卡片位置；序号可有间隙。它还绑定快照摘要、过滤、actor、租户和位置。目录只改变查找路径，不改变这个顺序含义。游标无业务生命周期，不授予当前读取资格。
+
+工厂关闭不删除持久对象，不关闭注入的 SqlStorage。runtime 卸载不是业务终局，重新装配必须沿原等待、原代次和原操作继续。

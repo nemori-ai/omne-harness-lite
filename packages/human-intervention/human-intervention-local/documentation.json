@@ -186,11 +186,11 @@
         },
         {
           "id": "mechanisms",
-          "anchor": "关键机制与理由"
+          "anchor": "状态所有权"
         },
         {
           "id": "verification",
-          "anchor": "验证与维护"
+          "anchor": "迁移与生命周期"
         }
       ]
     },
@@ -210,11 +210,11 @@
       "requiredSections": [
         {
           "id": "flows",
-          "anchor": "流程"
+          "anchor": "答复与恢复"
         },
         {
           "id": "failure",
-          "anchor": "失败与生命周期"
+          "anchor": "未知结果"
         }
       ]
     },
@@ -238,7 +238,7 @@
         },
         {
           "id": "lifecycle",
-          "anchor": "生命周期"
+          "anchor": "转换及派生关系"
         }
       ]
     },
@@ -286,7 +286,7 @@
         },
         {
           "id": "consumers",
-          "anchor": "消费者与定位"
+          "anchor": "消费者与边界"
         }
       ]
     },

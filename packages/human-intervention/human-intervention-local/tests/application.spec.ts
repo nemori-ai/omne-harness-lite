@@ -14,6 +14,7 @@ import {
   ListDeliveriesSchema,
   ListPoolSchema,
   HITL_COMMAND_MAX_BYTES,
+  GetCardSchema,
 } from '@omne-harness/human-intervention'
 import {
   createIndependentHitlApplication,
@@ -30,8 +31,12 @@ afterEach(async () => {
   for (const app of applications.splice(0)) await app.close()
   for (const world of worlds.splice(0)) await world.close()
 })
-async function open(wrap?: (storage: SqlStorage) => SqlStorage, cards = 1) {
-  const w = await openIdentityWorld({ cards })
+async function open(
+  wrap?: (storage: SqlStorage) => SqlStorage,
+  cards = 1,
+  options: Parameters<typeof openIdentityWorld>[0] = {},
+) {
+  const w = await openIdentityWorld({ ...options, cards })
   worlds.push(w)
   const app = createIndependentHitlApplication({
     ...w.terminalOptions,
@@ -526,3 +531,296 @@ it('keeps all cards answerable and recoverable when a legal batch accumulates la
     ),
   ).toMatchObject({ kind: 'found', wait: { state: 'replied' } })
 }, 30000)
+
+it('settles a terminal decision before the first receiver binding at the current generation', async () => {
+  const w = await open(),
+    registered = await register(w)
+  const decided = await w.app.submitReply(
+    w.principal,
+    SubmitReplySchema.parse({
+      protocol: 'hitl/1',
+      operation: w.operation('reply-before-bind'),
+      cardRef: registered.cards[0],
+      expectedRevision: registered.revision,
+      reply: { kind: 'text', text: 'saved before cancellation' },
+    }),
+  )
+  if (decided.kind !== 'decided') throw new Error(JSON.stringify(decided))
+  const consume = ConsumeDecisionSchema.parse({
+    protocol: 'hitl/1',
+    operation: w.operation('live-unbound'),
+    waitRef: w.request.origin.wait,
+    receiverGeneration: '0',
+    decisionRef: decided.decisionRef,
+    consumeOperationId: 'live-unbound',
+  })
+  expect(await w.app.consumeDecision(w.principal, consume)).toMatchObject({
+    kind: 'stale-generation',
+  })
+  expect(
+    await w.app.invalidateWait(
+      w.principal,
+      InvalidateWaitSchema.parse({
+        protocol: 'hitl/1',
+        operation: w.operation('cancel-before-bind'),
+        waitRef: w.request.origin.wait,
+        terminalEvidenceRef: 'owner-cancel',
+        reason: 'cancelled',
+      }),
+    ),
+  ).toMatchObject({ kind: 'invalidated' })
+  expect(await w.app.bindReceiver(w.principal, bind(w))).toMatchObject({ kind: 'terminal' })
+  const wrongGeneration = ConsumeDecisionSchema.parse({
+    ...consume,
+    operation: w.operation('wrong-generation'),
+    consumeOperationId: 'wrong-generation',
+    receiverGeneration: '1',
+  })
+  expect(await w.app.consumeDecision(w.principal, wrongGeneration)).toMatchObject({
+    kind: 'stale-generation',
+  })
+  const wrongDecision = ConsumeDecisionSchema.parse({
+    ...consume,
+    operation: w.operation('wrong-decision'),
+    consumeOperationId: 'wrong-decision',
+    decisionRef: { ...consume.decisionRef, decisionId: 'not-original' },
+  })
+  expect(await w.app.consumeDecision(w.principal, wrongDecision)).toMatchObject({
+    kind: 'conflict',
+    reason: 'decision-not-delivered',
+  })
+  const outsider = w.authority.issuer.issueActingForTenant({
+    actor: w.principal.actor,
+    tenant: w.principal.tenant,
+    work: { owner: 'human-intervention', work: 'outsider' },
+  })
+  if (!('ok' in outsider)) throw new Error('Fixture principal')
+  expect(await w.app.consumeDecision(outsider.ok, consume)).toMatchObject({ kind: 'denied' })
+  const terminalConsume = ConsumeDecisionSchema.parse({
+    ...consume,
+    operation: w.operation('terminal-unbound'),
+    consumeOperationId: 'terminal-unbound',
+  })
+  const accepted = await w.app.consumeDecision(w.principal, terminalConsume)
+  expect(accepted.kind).toBe('superseded')
+  if (accepted.kind !== 'superseded') throw new Error(JSON.stringify(accepted))
+  expect(await w.app.consumeDecision(w.principal, terminalConsume)).toEqual(accepted)
+  expect(
+    await w.app.getRecoveryOperation(
+      w.principal,
+      operationQuery(recoveryCommandBinding('consumeDecision', terminalConsume)),
+    ),
+  ).toMatchObject({ kind: 'committed', method: 'consumeDecision', result: accepted })
+  expect(
+    await w.app.getWait(
+      w.principal,
+      GetWaitSchema.parse({
+        protocol: 'hitl/1',
+        waitRef: w.request.origin.wait,
+      }),
+    ),
+  ).toMatchObject({
+    kind: 'found',
+    wait: {
+      state: 'terminal',
+      receiverGeneration: '0',
+      terminalEvidenceRef: 'owner-cancel',
+    },
+  })
+  expect(
+    await w.app.listDeliveries(
+      w.principal,
+      ListDeliveriesSchema.parse({
+        protocol: 'hitl/1',
+        destination: w.destination,
+        limit: 10,
+      }),
+    ),
+  ).toMatchObject({ kind: 'page', items: [], next: null })
+})
+
+it.each([
+  ['leading NUL', '\0start'],
+  ['middle NUL', 'mid\0dle'],
+  ['trailing NUL', 'end\0'],
+  ['NUL boundary', '\0'.repeat(8192)],
+  ['escapes and Unicode', '"\\\n\t😀'],
+])('preserves legal reply text through SQLite: %s', async (_name, text) => {
+  const w = await open(),
+    registered = await register(w)
+  const decided = await w.app.submitReply(
+    w.principal,
+    SubmitReplySchema.parse({
+      protocol: 'hitl/1',
+      operation: w.operation('reply'),
+      cardRef: registered.cards[0],
+      expectedRevision: registered.revision,
+      reply: { kind: 'text', text },
+    }),
+  )
+  expect(decided.kind).toBe('decided')
+  expect(
+    await w.app.getRequest(
+      w.principal,
+      GetRequestSchema.parse({
+        protocol: 'hitl/1',
+        requestRef: registered.requestRef,
+      }),
+    ),
+  ).toMatchObject({
+    kind: 'found',
+    request: { cards: [{ kind: 'decided', decision: { reply: { kind: 'text', text } } }] },
+  })
+  expect(
+    await w.app.listDeliveries(
+      w.principal,
+      ListDeliveriesSchema.parse({
+        protocol: 'hitl/1',
+        destination: w.destination,
+        limit: 10,
+      }),
+    ),
+  ).toMatchObject({ kind: 'page', items: [{ decision: { reply: { kind: 'text', text } } }] })
+})
+
+it.each(['\ud800', '\udfff'])(
+  'returns invalid-input for parsed malformed Unicode before canonical encoding: %j',
+  async text => {
+    const w = await open(),
+      registered = await register(w)
+    const cardRef = registered.cards[0]
+    if (!cardRef) throw new Error('Missing card')
+    expect(
+      await w.app.submitReply(w.principal, {
+        protocol: 'hitl/1',
+        operation: w.operation('invalid-unicode'),
+        cardRef,
+        expectedRevision: registered.revision,
+        reply: { kind: 'text', text },
+      }),
+    ).toMatchObject({ kind: 'invalid-input' })
+    expect(
+      await w.app.getRequest(
+        w.principal,
+        GetRequestSchema.parse({
+          protocol: 'hitl/1',
+          requestRef: registered.requestRef,
+        }),
+      ),
+    ).toMatchObject({ kind: 'found', request: { cards: [{ kind: 'pending' }] } })
+  },
+)
+
+it('keeps NUL identifiers distinct across register, query, selection, consumption and acknowledgement', async () => {
+  const cardIds = ['card\0a', 'card\0b']
+  const w = await open(undefined, 2, {
+    destination: 'inbox\0destination',
+    transformRegistration(request) {
+      return RegisterRequestSchema.parse({
+        ...request,
+        operation: { ...request.operation, operationId: 'register\0original' },
+        preparationRef: 'prepared\0original',
+        displayContext: '\0display \n😀',
+        origin: {
+          ...request.origin,
+          originRef: 'origin\0ref',
+          positionRef: 'step\0ref',
+          adoptionRef: 'adoption\0ref',
+          wait: {
+            ...request.origin.wait,
+            owner: 'owner\0name',
+            waitId: 'wait\0id',
+            incarnation: 'incarnation\0one',
+          },
+        },
+        questions: request.questions.map((question, index) => ({
+          ...question,
+          cardId: cardIds[index],
+          title: '\0title',
+          description: 'description\0',
+          options: [{ id: 'option\0yes', label: 'label\0', description: 'description\0' }],
+        })),
+      })
+    },
+  })
+  const registered = await register(w)
+  expect(registered.cards.map(card => card.cardId)).toEqual(cardIds)
+  for (const card of registered.cards) {
+    expect(
+      await w.app.getCard(w.principal, GetCardSchema.parse({ protocol: 'hitl/1', cardRef: card })),
+    ).toMatchObject({ kind: 'found', item: { card: { ref: card } } })
+    const reply = SubmitReplySchema.parse({
+      protocol: 'hitl/1',
+      operation: w.operation(`reply\0${card.cardId}`),
+      cardRef: card,
+      expectedRevision: registered.revision,
+      reply: { kind: 'selection', optionId: 'option\0yes' },
+    })
+    const decided = await w.app.submitReply(w.principal, reply)
+    if (decided.kind !== 'decided') throw new Error(JSON.stringify(decided))
+    expect(decided.decisionRef.submission).toEqual(reply.operation)
+  }
+  const bound = await w.app.bindReceiver(w.principal, bind(w, 'instance\0id'))
+  if (bound.kind !== 'bound') throw new Error(JSON.stringify(bound))
+  const deliveryQuery = ListDeliveriesSchema.parse({
+    protocol: 'hitl/1',
+    destination: w.destination,
+    limit: 10,
+  })
+  const pending = await w.app.listDeliveries(w.principal, deliveryQuery)
+  if (pending.kind !== 'page') throw new Error(JSON.stringify(pending))
+  expect(pending.items.map(item => item.decision.ref.card.cardId)).toEqual(cardIds)
+  for (const item of pending.items) {
+    expect(item).toMatchObject({
+      wait: w.request.origin.wait,
+      positionRef: w.request.origin.positionRef,
+      adoptionRef: w.request.origin.adoptionRef,
+      decision: { reply: { kind: 'selection', optionId: 'option\0yes' } },
+    })
+    const operation = w.operation(`consume\0${item.decision.ref.card.cardId}`)
+    const accepted = await w.app.consumeDecision(
+      w.principal,
+      ConsumeDecisionSchema.parse({
+        protocol: 'hitl/1',
+        operation,
+        consumeOperationId: operation.operationId,
+        waitRef: w.request.origin.wait,
+        receiverGeneration: bound.receiverGeneration,
+        decisionRef: item.decision.ref,
+      }),
+    )
+    if (accepted.kind !== 'accepted') throw new Error(JSON.stringify(accepted))
+    expect(accepted.receipt.consumeOperationId).toBe(operation.operationId)
+    expect(
+      await w.app.acknowledgeDelivery(
+        w.principal,
+        AcknowledgeDeliverySchema.parse({
+          protocol: 'hitl/1',
+          operation: w.operation(`ack\0${item.decision.ref.card.cardId}`),
+          consumerReceipt: accepted.receipt,
+        }),
+      ),
+    ).toMatchObject({ kind: 'acknowledged' })
+  }
+  expect(await w.app.listDeliveries(w.principal, deliveryQuery)).toMatchObject({
+    kind: 'page',
+    items: [],
+  })
+  expect(
+    await w.app.getRequest(
+      w.principal,
+      GetRequestSchema.parse({ protocol: 'hitl/1', requestRef: registered.requestRef }),
+    ),
+  ).toMatchObject({
+    kind: 'found',
+    request: {
+      origin: w.request.origin,
+      displayContext: w.request.displayContext,
+      cards: cardIds.map(cardId => ({
+        ref: { cardId },
+        kind: 'decided',
+        delivery: { kind: 'accepted' },
+      })),
+    },
+  })
+})
