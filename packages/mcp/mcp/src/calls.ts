@@ -4,6 +4,7 @@
 // call has one owner, `perform`: every wait before the send is under the call's one stop signal
 // (the caller's signal and `cancel` as one), the place is concluded in one spot by the phase the
 // table recorded, and after the send the peer is told once and not waited for.
+import type { JsonValue } from '@omne-harness/json-text'
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -11,6 +12,7 @@ import {
   classifyOutcome,
   connectionKeyOf,
   isActionArgs,
+  type ActionArgs,
   type ActionCalls,
   type ActionName,
   type CallOutcome,
@@ -118,31 +120,61 @@ function notSentOfEnsure(failure: EnsureFailure): NotSentReason {
 }
 
 /**
- * The preconditions of a send (R2, MC-16 step 1), checked before any place is taken: a caller
- * defect is a `TypeError`, not a "not sent" reason. Each value tree the caller gives passes
- * `judgeJsonValue`, the precondition of `McpTransport.call`, and the arguments are a JSON object.
- * A continuation carries its request state or its input responses, each optional (S2): one with
- * neither continues nothing. The send that comes back carries the judged copies, so the
- * transport writes the trees that were judged.
+ * The send as this package keeps it (R2, MC-16 step 1), made before any place is taken. Each field
+ * of the caller's request is read once, here, into a new record, and every later step reads that
+ * record: a field that is an accessor answers once, so what was judged is what goes out. Each
+ * value tree passes `judgeJsonValue`, the precondition of `McpTransport.call`, and the arguments
+ * are a JSON object. A continuation carries its request state or its input responses, each
+ * optional (S2): one with neither continues nothing. A caller defect is a `TypeError`, not a
+ * "not sent" reason.
  */
-function checkedSend(send: Send): Send {
-  const args = judgedTree(send.request.args, 'the arguments of an MCP action')
-  if (!isActionArgs(args))
-    throw new TypeError('the arguments of an MCP action are a JSON object (isActionArgs)')
-  if (send.kind === 'invoke') return { kind: 'invoke', request: { ...send.request, args } }
-  const { requestState, inputResponses } = send.request
+function checkedSend(given: Send): Send {
+  if (given.kind === 'invoke') {
+    const { ref, action, args, expectedDefinition, correlationKey, signal, connectBound, observe } =
+      given.request
+    return {
+      kind: 'invoke',
+      request: {
+        ref,
+        action,
+        args: judgedArgs(args),
+        expectedDefinition,
+        correlationKey,
+        signal,
+        ...(connectBound === undefined ? {} : { connectBound }),
+        ...(observe === undefined ? {} : { observe }),
+      },
+    }
+  }
+  const { ref, action, args, requestState, inputResponses, issuedAt, correlationKey, signal } =
+    given.request
+  const { connectBound, observe } = given.request
   if (requestState === undefined && inputResponses === undefined)
     throw new TypeError('a continuation carries the request state or the input responses')
   return {
     kind: 'continue',
     request: {
-      ...send.request,
-      args,
+      ref,
+      action,
+      args: judgedArgs(args),
+      issuedAt,
+      correlationKey,
+      signal,
+      ...(requestState === undefined ? {} : { requestState }),
       ...(inputResponses === undefined
         ? {}
         : { inputResponses: judgedTree(inputResponses, 'the input responses of an MCP action') }),
+      ...(connectBound === undefined ? {} : { connectBound }),
+      ...(observe === undefined ? {} : { observe }),
     },
   }
+}
+
+function judgedArgs(args: JsonValue): ActionArgs {
+  const judged = judgedTree(args, 'the arguments of an MCP action')
+  if (!isActionArgs(judged))
+    throw new TypeError('the arguments of an MCP action are a JSON object (isActionArgs)')
+  return judged
 }
 
 function continuationOf(request: ContinueRequest): Continuation {

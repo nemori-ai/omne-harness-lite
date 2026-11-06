@@ -380,6 +380,17 @@ describe('refresh fails', () => {
     expect(await pending).toEqual({ failure: { kind: 'unknown' } })
   })
 
+  it('a caller that stopped before the refresh answered is told cancelled, whatever a step refused, as the exit of a call (MC-7, contract decision 31)', async () => {
+    const { w, discovery } = core(world({ script: usualScript() }))
+    adoptStdio(w, files)
+    const controller = new AbortController()
+    controller.abort()
+    expect(await discovery.refresh(bob, { ref: files, signal: controller.signal })).toEqual({
+      ok: { kind: 'kept', reason: { kind: 'cancelled' } },
+    })
+    expect(w.transports.calls).toHaveLength(0)
+  })
+
   it('the refusals of the gate and of the settings come first, without a transport', async () => {
     const { w, discovery } = core(world({ script: usualScript() }))
     adoptStdio(w, files)

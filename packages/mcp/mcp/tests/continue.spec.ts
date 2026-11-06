@@ -272,6 +272,33 @@ describe('continueWithInput (SPEC S2)', () => {
     expect(c.p.requests('tools/call')).toHaveLength(1)
   })
 
+  it('reads each field of the request once: input responses that are an accessor answer once, and that answer is what goes out (R2)', async () => {
+    const c = await arranged()
+    const issuedAt = await asked(c, c.digest)
+    let reads = 0
+    const unjudged: JsonValue = { kind: 'number', lexeme: 'NaN' }
+    // The accessor answers nothing first and a tree that fails judgeJsonValue after.
+    const request = Object.defineProperty(
+      continuation(issuedAt, { requestState: requestStateOf('s1') }),
+      'inputResponses',
+      {
+        enumerable: true,
+        get(): JsonValue | undefined {
+          reads += 1
+          return reads === 1 ? undefined : unjudged
+        },
+      },
+    )
+    expect(await c.invoker.continueWithInput(alice, request)).toMatchObject({
+      kind: 'sent',
+      outcome: { kind: 'complete' },
+    })
+    expect(reads).toBe(1)
+    const second = c.p.requests('tools/call')[1]
+    expect(second?.params).toMatchObject({ requestState: 's1' })
+    expect(second?.params).not.toHaveProperty('inputResponses')
+  })
+
   it('rejects input responses whose value tree fails judgeJsonValue with TypeError before any place is taken (R2)', async () => {
     const c = await arranged()
     const issuedAt = await asked(c, c.digest)

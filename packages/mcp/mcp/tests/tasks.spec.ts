@@ -425,6 +425,17 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     expect(c.p.requests('tasks/get')).toHaveLength(0)
   })
 
+  it('a request already sent when closeAll lands keeps its outcome: effect-unknown with the cause of no answer, not no-connection (S8, MC-17)', async () => {
+    const c = await started({ get: { kind: 'silent' } })
+    const query = c.invoker.queryTask(alice, task)
+    for (let round = 0; round < 50 && c.p.requests('tasks/get').length === 0; round += 1)
+      await settled()
+    expect(c.p.requests('tasks/get')).toHaveLength(1)
+    const closing = c.connections.closeAll()
+    expect(await query).toEqual({ failure: { kind: 'effect-unknown', cause: 'abandoned' } })
+    await closing
+  })
+
   it('closeAll in the same synchronous run as a task operation on a reused connection: effect-unknown (no-connection), and the transport is not asked after closeAll (S8)', async () => {
     const entered = enteredAfterShut()
     const c = await started(undefined, {}, undefined, entered.shape)
@@ -676,6 +687,17 @@ describe('the task table keys by tenant, principal, holding and task id; the pee
     expect(portCalls(c.p)).toEqual(asked)
     expect(c.p.requests('tasks/get')).toHaveLength(0)
     expect(c.p.opens()).toBe(2)
+  })
+
+  it('an ambiguous key stays ambiguous: the id given once more, on either account, names no task (MC-17 step 1)', async () => {
+    const c = await started()
+    await movedToCredentialAccount(c)
+    await invokeTask(c.invoker, c.digest, correlationKeyOf('c2'))
+    await invokeTask(c.invoker, c.digest, correlationKeyOf('c3'))
+    const asked = portCalls(c.p)
+    expect(await c.invoker.queryTask(alice, task)).toStrictEqual(UNKNOWN)
+    expect(portCalls(c.p)).toEqual(asked)
+    expect(c.p.requests('tasks/get')).toHaveLength(0)
   })
 
   it('a task id the peer gave again on the same account is the newer record: the earlier reference is unknown, the newer one is answered', async () => {
