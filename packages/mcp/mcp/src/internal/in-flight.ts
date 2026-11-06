@@ -28,14 +28,15 @@ export type Reservation = Readonly<{
   stop: AbortSignal
   /**
    * The call left on `connection` at `generation`: the generation the request was sent on
-   * (MC-16 step 10). A `call` that breached its contract counts as sent (T9).
+   * (MC-16 step 10). A `call` that breached its contract counts as sent (T9). Only a place still
+   * reserved records it; after the conclusion it changes nothing.
    */
   sent(connection: ConnectionView, generation: Generation): void
   /**
    * The one conclusion of the call (MC-16 step 13). A sent call has ended. A call not sent has
    * ended when its stop signal fired: the call existed and was cancelled, so a later `cancel`
    * answers `no-call-in-flight`. A call not sent otherwise gives its place back: a later
-   * `cancel` answers `unknown`.
+   * `cancel` answers `unknown`. Either way the handle's place is ended from then on.
    */
   conclude(): void
 }>
@@ -75,12 +76,14 @@ export class InFlightCalls {
     return {
       stop,
       sent: (connection, generation) => {
+        if (cell.place.phase !== 'reserved') return
         cell.place = { phase: 'sent', generation, connection, stop, cancel }
       },
       conclude: () => {
+        // A cell not ended is the one its key holds: `reserve` replaces ended cells only.
         if (cell.place.phase === 'ended') return
-        if (cell.place.phase === 'sent' || stop.aborted) cell.place = ENDED
-        else if (this.#cells.get(text) === cell) this.#cells.delete(text)
+        if (cell.place.phase === 'reserved' && !stop.aborted) this.#cells.delete(text)
+        cell.place = ENDED
       },
     }
   }
