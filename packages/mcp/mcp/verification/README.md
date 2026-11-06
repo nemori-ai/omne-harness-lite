@@ -92,7 +92,7 @@
 
 - 连接表只剩每个键的「可用、代际」与关停。`ensure` 是一个端口：`ok` 使连接可用（建连给下一个代际，复用保持代际），`fail` 是任何拒绝或时限到期，关停之后只答 `fail`。它的内部步骤、时限与五项资源归生命周期模型；两个模型之间没有组合证明。
 - 关口的采用读取、资格核对、配值与清单读取合为一个端口 `gate`。`lose` 立即生效，实现里拆除交作用域（`loseInScope`），两边都不让调用等它；`closeAll` 只置关停并清空连接。`cancelRequest` 在模型里是无人等的待决调用（`owner = 0`），对应 `scope.spawn`。
-- 传输的 `call` 在停止信号触发之后最终答复是前提（WF5）：`P14_BoundedAfterStop` 不把等在 `callW` 的调用算作卡住；探索器同样不把只等自己 `transport.call` 的已停止调用算作违例。WF5 是对传输的前提，依据契约 T5「`call` 在信号触发后结算」一句；这一句由 `w3-mcp-host` 第 2 轮补入契约，在它合入父分支之前，出处在途（成员 SPEC [WF5](../SPEC.md#properties) 同此）。
+- 传输的 `call` 在停止信号触发之后最终答复是前提（WF5）：`P14_BoundedAfterStop` 不把等在 `callW` 的调用算作卡住；探索器同样不把只等自己 `transport.call` 的已停止调用算作违例。WF5 是对传输的前提，依据契约 [T5](../../mcp-contract/SPEC.md#port-transport)「`call` 在 `signal` 触发后结算」一句（成员 SPEC [WF5](../SPEC.md#properties) 同此）。
 - 关停的读取点：模型在 `gateW`、`tgateW` 的关口答复之后读 `shut`；代码在下一次等待之前（`under`）、发出之前（第 8 步）、任务操作的入口与发请求之前、`refresh` 的入口、读存储之前、取每一页之前与发布边界之前读它，并在三个出口各读一次来决定答复（[关停与停止的判定点](#关停与停止的判定点)）。两边对「关停之后不问端口」的可观察结果相同，对答复不相同：模型的 `Refused` 不带原因，只覆盖「不问端口」，答复一侧由探索器（P13 的 `P13-answer-after-closeAll`，负控 N9、N10）与服务层用例守住。第 8 步的 `shut` 读取，模型按构造不覆盖（外部动作只在静止时到达，答复与 `closeAll` 不落在同一轮），由 `invoke.spec.ts`「step 8: at whichever microtask closeAll lands」守住（变异 F3）。
 - 任务键碰撞（同主体在同一持有的两个账户上得到同一个任务号）模型写不出来：四个键里没有两个同租户同主体的键。P12 的这一句由探索器的 `task-collision` 场景承担（模型未覆盖）。
 - 键、租户、主体与账户是常量表，不建它们怎样推导。关联键只有一个 `c`，任务只有一个 `t1`，每个键的调用与任务操作的次数是常量。
@@ -177,7 +177,7 @@ TLC 的配置、上限与结果见 [models/README.md](models/README.md#运行记
 
 - **F1 停止之后仍等无时限的端口（P14 T2 调用一句）**。`cancel` 或调用方中止之后，调用仍等下面的端口，它们既没有时限，也不看停止信号。最短调度 `invoke A`、`cancel A`（或 `abort iA1`），采用读取挂起。
   - (a) 关口的三个端口（旧 `perform` 第 3–5 步：`admitForUse`、`knownActionOf`）：已修，`prepare` 的每次等待经 `under(stop, …)`（修复轮 `0d7aeb133`）。
-  - (b) 传输的 `call`：不算缺陷，是端口前提（卡拥有者裁定）。调用在传输报告「没有发出」之前不能答「未发出」；信号触发后 `call` 有界结束是对传输的前提，写成 WF5：依据契约 T5「`call` 在信号触发后结算」一句，这一句由 `w3-mcp-host` 第 2 轮补入，在它合入父分支之前出处在途。P14 T2 的「无时限端口」集合不含它。
+  - (b) 传输的 `call`：不算缺陷，是端口前提（卡拥有者裁定）。调用在传输报告「没有发出」之前不能答「未发出」；信号触发后 `call` 有界结束是对传输的前提，写成 WF5：依据契约 [T5](../../mcp-contract/SPEC.md#port-transport)「`call` 在 `signal` 触发后结算」一句。P14 T2 的「无时限端口」集合不含它。
   - (c) `cancelRequest`（旧 `abandon` 等它返回）：已修，`answerOf` 以 `scope.spawn` 发出，不等（修复轮 `0d7aeb133`）。
   - (d) `not-sent` 或 `no-answer` 之后 `lose` 发起的拆除与标记清单（旧 `sendOn` 等 `table.lose`；P8 A1 的同类）：已修，调用与任务操作经 `loseInScope` 把拆除交给表的作用域，`discovery` 照旧等 `loseOn`（`1a143a4d4`）。
 - **F2 被放弃的调用的应答没有人读（P7）**。占位期间 `cancel`，`transport.call` 答 `ok` 之后旧实现的 `markSent` 答 `cancelled`，`abandon` 走 `cancelRequest`，而 `called.ok.answer` 从未被 `ask` 读取；它 reject（契约 T9 允许）时是未处理的拒绝。最短调度：`invoke A`，建连各答 `ok`，`cancel A`，`answer transport.call:tA1 ok`，`answer transport.answer:r1 reject`。已修：占位不再答 `cancelled`（`markSent` 随后由占位句柄的 `sent` 取代，修复轮 `w3-mcp-call-fix2`），`answerOf` 无论停止是否先到都经 `ask` 读 `answer`（修复轮 `0d7aeb133`）。
