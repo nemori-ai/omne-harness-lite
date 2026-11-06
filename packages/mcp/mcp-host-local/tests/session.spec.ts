@@ -2267,6 +2267,54 @@ describe('a defect of the session goes to the defect outlet (DP-06): the request
     await transport.close()
   })
 
+  it('a defect of a workflow whose stop throws too (the exchange abort breaks): the defect still reaches the outlet, and nothing is left unhandled', async () => {
+    const outlet = defects()
+    let aborts = 0
+    const line: Line = {
+      kind: 'streamable-http',
+      events: new AsyncQueue<LineEvent>(),
+      async send() {
+        const messages = new AsyncQueue<string>()
+        messages.push(notAText())
+        return {
+          kind: 'stream',
+          headers: {},
+          messages,
+          // The line breaks its port once: the first abort throws, the next one ends the stream.
+          abort: () => {
+            aborts += 1
+            if (aborts === 1) throw new Error('the exchange abort broke')
+          },
+        }
+      },
+      async close() {},
+    }
+    const transport = new Session(
+      line,
+      {
+        kind: 'stdio',
+        process: idleProcess(),
+        generation: generationOf(1),
+        instructionsByteLimit: 4096,
+      },
+      {
+        clientInfo: { name: 'host', version: '1' },
+        versions: VERSIONS,
+        probeTimeoutMs: 50,
+        fetchMetadata: async () => undefined,
+        schedule,
+        reportDefect: outlet.reportDefect,
+      },
+    )
+    const listing = transport.listActions()
+    for (let round = 0; round < 50 && aborts === 0; round += 1) await tick()
+    expect(aborts).toBe(1)
+    await tick()
+    expect(outlet.seen.map(describeDefect)).toContain('TypeError: text must be a string')
+    await transport.close()
+    await listing
+  })
+
   it('an event of the shared stream that is not a text: the throw is reported, the reading goes on, and the next line still answers', async () => {
     const outlet = defects()
     const { line, transport } = open(

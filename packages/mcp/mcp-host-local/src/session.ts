@@ -107,7 +107,7 @@ export type SessionOptions = Readonly<{
   schedule: Scheduler
   /**
    * Where a defect of the session's own work goes: a reject nobody expected, or a throw on the
-   * way an event is read. The entry it was for is stopped by its phase first (DP-06). The factory
+   * way an event is read. The entry it was for is stopped by its phase as well (DP-06). The factory
    * throws it outside any promise, so the host's uncaught-exception handling sees it.
    */
   reportDefect: (defect: unknown) => void
@@ -294,14 +294,20 @@ export class Session implements McpTransport {
 
   /**
    * Starts background work the session owns. The caller does not wait for it: it waits on the
-   * settlement of its entry. A reject the work did not expect is a defect of the session: the
-   * entry it was for is stopped where it stands (DP-06), and the defect goes to the outlet; work
+   * settlement of its entry. A reject the work did not expect is a defect of the session: it goes
+   * to the outlet first, so that a stop that throws cannot lose it; then the entry it was for is
+   * stopped where it stands (DP-06), and a throw of that stop goes to the outlet too. Work
    * without an entry has no outcome.
    */
   private work(flow: () => Promise<void>, entry?: Pending): void {
     void flow().catch((defect: unknown) => {
-      if (entry !== undefined) this.stop(entry)
       this.options.reportDefect(defect)
+      if (entry === undefined) return
+      try {
+        this.stop(entry)
+      } catch (stopDefect) {
+        this.options.reportDefect(stopDefect)
+      }
     })
   }
 
