@@ -27,12 +27,14 @@
 (* The line can go away under the session (the session is then dead):      *)
 (* `LineGone` is a broken stream, an exited process or the end of the      *)
 (* shared stream of the old HTTP+SSE mode; `SessionEnded(r)` is the peer's  *)
-(* 404 to a request that carries an old session (T8 S07). Both settle the   *)
-(* in-flight entries by phase, like the signal and close(): authorizing ->  *)
-(* notSent, discovering -> authReq; handed to the line -> broken after      *)
-(* `LineGone`, and left to its own answer after `SessionEnded` (only the    *)
-(* request that got the 404 answers `ended`). A dead session hands nothing  *)
-(* more to the line and asks the handle for nothing more.                   *)
+(* 404 to a request that carries an old session (T8 S07). Both settle, by  *)
+(* the phase rule of the signal and close(), only the entries whose fate    *)
+(* depends on the line: authorizing -> notSent; handed to the line ->       *)
+(* broken after `LineGone`, and left to its own answer after                *)
+(* `SessionEnded` (only the request that got the 404 answers `ended`). An   *)
+(* entry in authorization discovery is not touched: its answer is already   *)
+(* authReq and the discovery does not use the line. A dead session hands    *)
+(* nothing more to the line and asks the handle for nothing more.           *)
 (*                                                                          *)
 (* The properties are state assertions over snapshots the valid actions     *)
 (* take: the phase an entry was cut at (`cutAt`), its first answer          *)
@@ -313,18 +315,19 @@ LineClosed ==
   /\ UNCHANGED <<wf, sends, signalled, refusals, cred, credAtClose, closed, deadVars>>
 
 (* The settlement of a disconnect. The entries of `own` got the 404 of T8 S07   *)
-(* and answer `ended`. The entries of `cut` settle by phase: authorizing ->      *)
-(* notSent and discovering -> authReq, as for the signal and close(); handed to  *)
-(* the line -> `sentAnswer`, or they stay in flight when it is "none". The       *)
-(* snapshot records each entry of `cut`: its phase, the cause and its answer     *)
-(* after this step. `sends` and `cred.auth` are recorded when the session        *)
-(* becomes dead.                                                                 *)
+(* and answer `ended`. The entries of `cut` settle by phase where the line      *)
+(* decides their fate: authorizing -> notSent, as for the signal and close();   *)
+(* handed to the line -> `sentAnswer`, or they stay in flight when it is        *)
+(* "none". A discovering entry stays in flight: the discovery finishes it, or   *)
+(* the signal or close() settles it. The snapshot records each entry of `cut`:  *)
+(* its phase, the cause and its answer after this step. `sends` and            *)
+(* `cred.auth` are recorded when the session becomes dead.                      *)
 DeadSettles(own, cut, cause, sentAnswer) ==
   LET given == [r \in Reqs |->
                   IF r \in own THEN "ended"
                   ELSE IF r \notin cut THEN out[r]
                   ELSE IF st[r] = "auth" THEN "notSent"
-                  ELSE IF st[r] = "disc" THEN "authReq"
+                  ELSE IF st[r] = "disc" THEN "none"
                   ELSE sentAnswer]
       stops == {r \in cut : given[r] # "none"}
       settled == own \cup stops
@@ -341,10 +344,10 @@ DeadSettles(own, cut, cause, sentAnswer) ==
   /\ authAtDead' = IF Dead THEN authAtDead ELSE cred.auth
 
 (* The line went away: a broken stream, an exited process, or the end of the    *)
-(* shared stream of the old HTTP+SSE mode (T8 S01-S04, the SSE mode). Every      *)
-(* in-flight entry settles in the same step: authorizing -> notSent, handed to   *)
-(* the line -> broken (no-answer with the cause, never sent again),              *)
-(* discovering -> authReq. The handle and the discovery may hang on.             *)
+(* shared stream of the old HTTP+SSE mode (T8 S01-S04, the SSE mode). In the   *)
+(* same step, authorizing -> notSent and handed to the line -> broken (no-answer *)
+(* with the cause, never sent again). A discovering entry is not touched. The    *)
+(* handle may hang on.                                                           *)
 LineGone ==
   /\ ~gone
   /\ gone' = TRUE
@@ -358,9 +361,9 @@ EndedCuts == IF "ended-leaves-authorizing" \in Bugs THEN {"sent", "disc"} ELSE I
 
 (* The peer answered the request with 404 for an old session (T8 S07). An open  *)
 (* entry answers `ended` (not-sent, session-ended) and the session is dead: the *)
-(* other entries settle by phase in the same step, authorizing -> notSent,      *)
-(* discovering -> authReq; the other entries handed to the line stay in flight  *)
-(* and their own answers decide. A late 404 to a settled entry is dropped.      *)
+(* other authorizing entries settle notSent in the same step. The other        *)
+(* entries handed to the line and the discovering entries stay in flight: their *)
+(* own answers decide. A late 404 to a settled entry is dropped.                *)
 SessionEnded(r) ==
   /\ wf[r] = "line"
   /\ wf' = [wf EXCEPT ![r] = "end"]
@@ -442,14 +445,15 @@ V4_CloseBounded ==
   closed => \A r \in Reqs : st[r] \in {"init", "done"} /\ cw[r] # "waiting"
 
 \* V4 有界 (disconnect): once the session is dead, no entry is authorizing, and
-\* after LineGone none is handed to the line or discovering either; every entry
-\* a disconnect settled no longer keeps its caller waiting, whatever the handle
-\* and the discovery do. Entries SessionEnded left in flight wait for their own
-\* answers, as before it.
+\* after LineGone none is handed to the line either; every entry a disconnect
+\* settled no longer keeps its caller waiting, whatever the handle does. Only
+\* the two phases whose fate depends on the line are covered: a discovering
+\* entry is released by the discovery, the signal or close(), as before the
+\* disconnect. Entries SessionEnded left on the line wait for their own answers.
 V4_DeadBounded ==
   Dead => \A r \in Reqs :
             /\ st[r] # "auth"
-            /\ gone => st[r] \in {"init", "done"}
+            /\ gone => st[r] # "sent"
             /\ st[r] = "done" => cw[r] # "waiting"
 
 \* V5 不代调用方重发: a write goes out once, a read at most twice.
@@ -457,9 +461,10 @@ V5_NoResendForCaller == \A r \in Reqs : sends[r] =< SendLimit(r)
 
 \* V6 三相的去向: the signal and close() answer an entry by the phase they cut
 \* it at; a request begun after close(), after its signal or on a dead session
-\* is notSent. A disconnect answers an entry by the phase it found it at, the
-\* same way for authorizing and discovering; an entry handed to the line is
-\* broken after LineGone and is not settled by SessionEnded.
+\* is notSent. A disconnect answers an authorizing entry notSent; an entry
+\* handed to the line is broken after LineGone and is not settled by
+\* SessionEnded; a discovering entry is not settled by either, and its answer
+\* stays authReq when something else settles it.
 V6_ByPhase ==
   \A r \in Reqs :
     /\ cutAt[r] # "none" =>
@@ -469,7 +474,7 @@ V6_ByPhase ==
                     [] cutAt[r] = "disc" -> "authReq"
     /\ deadAt[r] # "none" =>
          CASE deadAt[r] = "auth" -> out[r] = "notSent"
-           [] deadAt[r] = "disc" -> out[r] = "authReq"
+           [] deadAt[r] = "disc" -> deadOut[r] = "none" /\ out[r] \in {"none", "authReq"}
            [] deadAt[r] = "sent" -> IF deadBy[r] = "gone" THEN out[r] = "broken"
                                     ELSE deadOut[r] = "none"
 

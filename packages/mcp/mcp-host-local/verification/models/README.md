@@ -26,12 +26,12 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 
 结算规则，`signal` 与 `close()` 相同：`auth` → `notSent`，`sent` → `abandoned`，`disc` → `authReq`。两者都当场结算，不等句柄、线路或发现。`close()` 在线路的 `close` 答复之后返回（`LineClosed`）。
 
-两种断开也按相当场结算，`auth` 与 `disc` 的去向与 `signal`、`close()` 相同：
+两种断开也按相当场结算，但只结算命运取决于线路的两相。`auth` 的去向与 `signal`、`close()` 相同。`disc` 不被断开结算：它的答复已由先到的拒绝定为 `authReq`，发现不经线路，断开不是这个请求上的事件。发现做完照常结算它，`signal` 或 `close()` 也可以当场结算它（调用方放弃）：
 
-- `LineGone`：流断开、进程退出、旧 HTTP+SSE 的共用流结束或断开，三者在模型里是同一个动作。`auth` → `notSent`，`sent` → `broken`，`disc` → `authReq`。
-- `SessionEnded(r)`：对端对带旧会话的请求 `r` 答 404（契约 T8 S07）。`r` 答 `ended`。其余项：`auth` → `notSent`，`disc` → `authReq`，`sent` 不结算，由各自的应答决定。在途项已结算时，迟到的 404 被丢弃，会话不转为不可用。
+- `LineGone`：流断开、进程退出、旧 HTTP+SSE 的共用流结束或断开，三者在模型里是同一个动作。`auth` → `notSent`，`sent` → `broken`，`disc` 不动。
+- `SessionEnded(r)`：对端对带旧会话的请求 `r` 答 404（契约 T8 S07）。`r` 答 `ended`。其余项：`auth` → `notSent`，`sent` 与 `disc` 不结算，由各自的应答或发现决定。在途项已结算时，迟到的 404 被丢弃，会话不转为不可用。
 - 会话不可用之后，`Begin` 当场答 `notSent`，不调用句柄。读类的再发与新请求相同：流断开之后，读类当场答 `notSent`，不调用句柄，不交给线路（`Broken(r)`）。这一支只在 `SessionEnded` 之后可达：那时其余已交给线路的项还在途。
-- 两种断开都不等凭据句柄或元数据取回。它们可以一直挂着。
+- 两种断开都不等凭据句柄。它可以一直挂着。
 
 断开在实现里的对应按目标结构写：线路级的断开与会话结束都经同一个按相结算的入口（现行代码是 `Session.die`），`begin` 在会话不可用时不登记。实现里的名字以 `w3-mcp-host-fix3` 的交回为准，映射表见 [../README.md](../README.md#动作映射)。
 
@@ -58,8 +58,8 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 断开的三条不变式：
 
 - `V2_NoWireAfterDead`：会话不可用之后，`sends` 与 `cred.auth` 不再变化。也就是不再交给线路，也不再调用 `authorize`。`reportRejection` 不在其内：会话结束之后仍在途的项可以被拒绝，按 T4 报告一次。
-- `V4_DeadBounded`：会话不可用之后，没有授权中的项。`LineGone` 之后也没有已交给线路或授权发现中的项。被断开结算的项不再让调用方等待。会话结束之后仍在途的 `sent` 项等它自己的应答，与会话结束之前相同。
-- `V6_ByPhase` 的断开部分：`deadAt[r]` 是 `auth` 时答复是 `notSent`，是 `disc` 时是 `authReq`。是 `sent` 时，`LineGone` 之后答复是 `broken`，`SessionEnded` 之后 `deadOut[r]` 是 `none`（这一步没有结算它）。
+- `V4_DeadBounded`：会话不可用之后，没有授权中的项。`LineGone` 之后也没有已交给线路的项。被断开结算的项不再让调用方等待。它只覆盖依赖线路的两相：授权发现中的项与断开之前一样，由发现、`signal` 或 `close()` 放开。会话结束之后仍在途的 `sent` 项等它自己的应答，与会话结束之前相同。
+- `V6_ByPhase` 的断开部分：`deadAt[r]` 是 `auth` 时答复是 `notSent`。是 `disc` 时 `deadOut[r]` 是 `none`（断开这一步没有结算它），答复是 `none` 或 `authReq`。是 `sent` 时，`LineGone` 之后答复是 `broken`，`SessionEnded` 之后 `deadOut[r]` 是 `none`。
 
 性质 V1–V6 与不变式名字、负控与探索器变异的对应见 [../README.md](../README.md#两种证据能变红)。编号与名字在 [SPEC.md](../../SPEC.md#properties)、[../README.md](../README.md) 与本页三处相同。
 
@@ -86,8 +86,8 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 | `V2-begin-ignores-dead` | `Begin` 不核对 `Dead`，会话不可用之后开始的请求走正常的授权路径 | `valid-close` | `V2_NoWireAfterDead` |
 | `V2-dead-read-resends` | 会话不可用之后，流断开的读类照旧重新授权并再发 | `valid-close` | `V2_NoWireAfterDead` |
 | `V4-ended-leaves-authorizing` | 会话结束时不结算授权中的请求（评审 B1：`die` 对会话结束提前返回） | `valid-close` | `V4_DeadBounded` |
-| `V4-gone-leaves-discovery` | 线路断开时不结算授权发现中的请求 | `valid-close` | `V4_DeadBounded` |
 | `V4-dead-keeps-caller` | 断开结算了在途项，但不放开调用方的等待 | `valid-close` | `V4_DeadBounded` |
+| `V6-dead-settles-discovery` | 断开把授权发现中的请求当场结算为 `authReq` | `valid-close` | `V6_ByPhase` |
 | `V6-gone-auth-broken` | 线路断开把授权中的请求答成 `broken`（`no-answer`） | `valid-close` | `V6_ByPhase` |
 | `V6-gone-sent-abandoned` | 线路断开把已交给线路的请求答成 `abandoned`，不是按原因的 `no-answer` | `valid-close` | `V6_ByPhase` |
 | `V6-ended-abandons-sent` | 会话结束把其余已交给线路的请求答成 `abandoned` | `valid-close` | `V6_ByPhase` |
@@ -111,29 +111,29 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp-host-local/verification
 
 ## 运行记录
 
-运行环境：TLC2 Version 2.19 of 08 August 2024（tla2tools v1.7.4，`tla2tools.jar` SHA-256 `936a262061c91469…`），4 个工作线程。模型 SHA-256 `9197d239f328affe…`。
+运行环境：TLC2 Version 2.19 of 08 August 2024（tla2tools v1.7.4，`tla2tools.jar` SHA-256 `936a262061c91469…`），4 个工作线程。模型 SHA-256 `3915573bc0e87f8a…`。
 
 | 配置 | 结论 | 不同状态数 | 生成状态数 | 深度 | 耗时 | 判读 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `valid-close` | 完成，没有错误 | 9262 | 29306 | 16 | 1.6 s | 符合判读 |
-| `valid-signal` | 完成，没有错误 | 305 | 676 | 11 | 1.1 s | 符合判读 |
-| `valid-no-handle` | 完成，没有错误 | 305 | 676 | 11 | 1.1 s | 符合判读 |
-| `bad-resettle` | `V1_SettleOnce` 被违反 | 82 | 109 | 6 | 1.0 s | 符合判读 |
-| `bad-cred-after-close` | `V2_NoCredentialAfterClose` 被违反 | 96 | 116 | 5 | 1.1 s | 符合判读 |
-| `bad-report-twice` | `V3_RejectAtMostOnce` 被违反 | 52 | 81 | 6 | 1.0 s | 符合判读 |
-| `bad-signal-dead` | `V4_SignalBounded` 被违反 | 32 | 44 | 5 | 1.0 s | 符合判读 |
-| `bad-close-settles-after-line` | `V4_CloseBounded` 被违反 | 40 | 49 | 5 | 1.1 s | 符合判读 |
-| `bad-caller-waits-workflow-close` | `V4_CloseBounded` 被违反 | 31 | 34 | 5 | 1.0 s | 符合判读 |
-| `bad-caller-waits-workflow-signal` | `V4_SignalBounded` 被违反 | 26 | 27 | 5 | 1.0 s | 符合判读 |
-| `bad-resend` | `V5_NoResendForCaller` 被违反 | 91 | 135 | 6 | 1.0 s | 符合判读 |
-| `bad-close-not-sent` | `V6_ByPhase` 被违反 | 76 | 106 | 6 | 1.1 s | 符合判读 |
-| `bad-ended-sends-authorizing` | `V2_NoWireAfterDead` 被违反 | 447 | 770 | 6 | 1.1 s | 符合判读 |
+| `valid-close` | 完成，没有错误 | 9922 | 30649 | 16 | 1.6 s | 符合判读 |
+| `valid-signal` | 完成，没有错误 | 315 | 686 | 11 | 1.1 s | 符合判读 |
+| `valid-no-handle` | 完成，没有错误 | 315 | 686 | 11 | 1.2 s | 符合判读 |
+| `bad-resettle` | `V1_SettleOnce` 被违反 | 86 | 112 | 6 | 1.1 s | 符合判读 |
+| `bad-cred-after-close` | `V2_NoCredentialAfterClose` 被违反 | 79 | 94 | 5 | 1.1 s | 符合判读 |
+| `bad-report-twice` | `V3_RejectAtMostOnce` 被违反 | 56 | 95 | 6 | 1.1 s | 符合判读 |
+| `bad-signal-dead` | `V4_SignalBounded` 被违反 | 24 | 25 | 5 | 1.1 s | 符合判读 |
+| `bad-close-settles-after-line` | `V4_CloseBounded` 被违反 | 39 | 44 | 5 | 1.1 s | 符合判读 |
+| `bad-caller-waits-workflow-close` | `V4_CloseBounded` 被违反 | 33 | 37 | 5 | 1.1 s | 符合判读 |
+| `bad-caller-waits-workflow-signal` | `V4_SignalBounded` 被违反 | 27 | 30 | 5 | 1.1 s | 符合判读 |
+| `bad-resend` | `V5_NoResendForCaller` 被违反 | 80 | 112 | 6 | 1.1 s | 符合判读 |
+| `bad-close-not-sent` | `V6_ByPhase` 被违反 | 100 | 131 | 6 | 1.1 s | 符合判读 |
+| `bad-ended-sends-authorizing` | `V2_NoWireAfterDead` 被违反 | 451 | 785 | 7 | 1.1 s | 符合判读 |
 
-运行于 2026-11-06（UTC 03:16），`run.py` 退出码 0，13 个配置用时约 14 秒。深度是 TLC 状态图的深度，含内部步。正控的状态数是完整穷举，两次运行相同。加入两种断开之后，`valid-close` 从 2230 个不同状态增加到 9262 个，`valid-signal` 与 `valid-no-handle` 从 107 个增加到 305 个。负控与变异的状态数是 TLC 找到第一条反例时的计数，随工作线程的调度在两次运行之间略有不同。
+运行于 2026-11-06（UTC 03:22），`run.py` 退出码 0，13 个配置用时约 15 秒。深度是 TLC 状态图的深度，含内部步。正控的状态数是完整穷举，两次运行相同。加入两种断开之后，`valid-close` 从 2230 个不同状态增加到 9922 个，`valid-signal` 与 `valid-no-handle` 从 107 个增加到 315 个。负控与变异的状态数是 TLC 找到第一条反例时的计数，随工作线程的调度在两次运行之间略有不同。
 
 `bad-ended-sends-authorizing` 的反例有 6 个状态：`r1`（读类）开始并交给线路，`r2`（写类，`tools/call`）开始并在授权中，`r1` 收到旧会话的 404（`SessionEnded(r1)`），会话转为不可用而 `r2` 没有被结算。随后句柄放行，`AuthDone(r2)` 把 `r2` 交给线路。
 
-变异（同一环境，同一模型）：22 个变异各自只违反目标不变式，`run.py --mutations` 退出码 0，用时约 23 秒。每个变异的不同状态数在 39 到 1295 之间，深度 4 到 8。
+变异（同一环境，同一模型）：22 个变异各自只违反目标不变式，`run.py --mutations` 退出码 0，用时约 23 秒。每个变异的不同状态数在 32 到 1096 之间，深度 4 到 8。
 
 ## 本包事实
 

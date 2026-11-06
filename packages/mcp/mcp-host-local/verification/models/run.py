@@ -126,14 +126,14 @@ MUTATIONS = {
         'valid-close', 'V4_DeadBounded',
         'THEN {"sent", "disc"} ELSE InFlightPhases',
         'THEN {"sent", "disc"} ELSE {"sent", "disc"}'),
-    'V4-gone-leaves-discovery': (
-        'valid-close', 'V4_DeadBounded',
-        'DeadSettles({}, {q \\in Reqs : st[q] \\in InFlightPhases}, "gone", "broken")',
-        'DeadSettles({}, {q \\in Reqs : st[q] \\in {"auth", "sent"}}, "gone", "broken")'),
     'V4-dead-keeps-caller': (
         'valid-close', 'V4_DeadBounded',
         'IF r \\in own \\/ (r \\in stops /\\ ~CallerFollows)',
         'IF r \\in own'),
+    'V6-dead-settles-discovery': (
+        'valid-close', 'V6_ByPhase',
+        'ELSE IF st[r] = "disc" THEN "none"',
+        'ELSE IF st[r] = "disc" THEN "authReq"'),
     'V6-gone-auth-broken': (
         'valid-close', 'V6_ByPhase',
         'ELSE IF st[r] = "auth" THEN "notSent"',
