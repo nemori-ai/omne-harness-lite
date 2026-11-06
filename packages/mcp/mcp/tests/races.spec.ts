@@ -113,6 +113,13 @@ describe('publish boundary (B1): the checks sit next to the write', () => {
   })
 })
 
+/** A page answer of a transport that is not usable any more: the connection is lost (T1, S7). */
+const GONE: TransportFailure = {
+  kind: 'not-sent',
+  cause: 'connection-unavailable',
+  unusable: 'stream-broken',
+}
+
 describe('late results (B2): a page from an earlier generation does not touch the new connection', () => {
   it('keeps the rebuilt connection ready, its transport open and its process running', async () => {
     const first = deferred<ListingPage | TransportFailure>()
@@ -120,7 +127,7 @@ describe('late results (B2): a page from an earlier generation does not touch th
       script: [
         { discover: peer },
         { listActions: first },
-        { listActions: { kind: 'not-sent', cause: 'connection-unavailable' } },
+        { listActions: GONE },
         { discover: peer },
         { listActions: page(['fresh']) },
       ],
@@ -137,7 +144,7 @@ describe('late results (B2): a page from an earlier generation does not touch th
       ok: { kind: 'published', revision: 1 },
     })
     const closesBefore = w.transports.calls.filter(call => call.kind === 'close').length
-    first.resolve({ kind: 'not-sent', cause: 'connection-unavailable' })
+    first.resolve(GONE)
     expect(await late).toEqual({ ok: { kind: 'kept', reason: { kind: 'superseded' } } })
     expect(await c.status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'ready' } },
@@ -324,7 +331,7 @@ describe('the gate the services walk through (D1)', () => {
   })
 })
 
-const NOT_SENT: TransportFailure = { kind: 'not-sent', cause: 'connection-unavailable' }
+const NOT_SENT = GONE
 
 describe('lose shares the close (R3-1): one teardown per entry, in the close order', () => {
   it('a release during the teardown of a lost connection waits for it; the next refresh builds', async () => {

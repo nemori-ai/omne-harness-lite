@@ -218,15 +218,15 @@ describe('a cancel after the send (SPEC S2, MC-16 step 11)', () => {
     expect(p.cancels()).toBe(0)
   })
 
-  it('that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: only connection-unavailable is the reply to a fired signal (T5)', async () => {
+  it('that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: the answer carries the mark that the transport is not usable any more (T1, S7)', async () => {
     const hold = holdingAt('before')
     const base = await arranged(completed([text('hi')]), { callGate: hold.callGate })
-    // The scripted transport answers a fired signal with connection-unavailable (T5); this one
-    // reports an ended legacy session instead, which no fired signal explains.
+    // The scripted transport answers a fired signal with an unmarked connection-unavailable (T5);
+    // this one reports an ended legacy session instead, marked as the decision layer marks it.
     const transports = reshapedTransports(base.p.ports.transports, transport => ({
       async call(request, signal, observe) {
         await transport.call(request, signal, observe)
-        return { failure: { kind: 'not-sent', cause: 'session-ended' } }
+        return { failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' } }
       },
     }))
     const { services: s } = services({ ...base.p, ports: { ...base.p.ports, transports } })

@@ -244,8 +244,18 @@ function notModelled(member: string): never {
 const PEER: PeerIdentity = peerIdentityOf()
 type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
 type NoAnswer = Extract<PeerAnswer, { kind: 'no-answer' }>
-const NOT_SENT: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
-const STREAM_BROKEN: NoAnswer = { kind: 'no-answer', cause: 'stream-broken' }
+// A failing transport method in this model is a line that ended (X02, S01, S03): the transport
+// marks the answer as not usable any more (contract T1), so the connection is lost as before.
+const NOT_SENT: NotSent = {
+  kind: 'not-sent',
+  cause: 'connection-unavailable',
+  unusable: 'stream-broken',
+}
+const STREAM_BROKEN: NoAnswer = {
+  kind: 'no-answer',
+  cause: 'stream-broken',
+  unusable: 'stream-broken',
+}
 const WORKING: TaskReport = { status: 'working' }
 const NOT_FINISHED: TaskAnswer = { kind: 'not-finished' }
 

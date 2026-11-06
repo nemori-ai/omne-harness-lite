@@ -1,19 +1,16 @@
 // How a request reports that it did not reach the peer, or that the transport is no longer usable
-// (SPEC S7, "传输不再可用", R6): the connection failure of a request that was not sent, the lost
-// reason and the catalog mark of each such transport answer, and the report of the loss to the
-// table. The transport's answer does not carry the "no longer usable" mark of contract T8, so
-// this module judges by the cause, on the safe side: a `not-sent` of any cause and a `no-answer`
-// of a broken stream or an exited process take the connection down, which can cost one
-// connection more than needed, never a dead transport kept as usable (member SPEC, deviations).
-// The call port skips this judgment for the transport's answer to a stop signal that fired (T5).
-// The services hand the judgment to `table.lose` through `loseOn` (discovery, which reports the
-// mark) or `loseInScope` (calls and task operations, which do not wait for the teardown). Both
-// act only on the current generation.
+// (SPEC S7, "传输不再可用", R6): the connection failure of a request that was not sent, what one
+// answer of the transport means for its ready connection (`lostOf`), and the report of the loss
+// to the table. The transport marks an answer it hands over once it is not usable any more
+// (contract T1, `unusable`); `lostOf` reads that mark and the refused authorization, never the
+// cause of a failure. The services hand the loss to `table.lose` through `loseOn` (discovery,
+// which reports the mark) or `loseInScope` (calls and task operations, which do not wait for the
+// teardown). Both act only on the current generation.
 import type {
-  CallOutcome,
   ConnectionFailure,
   LostReason,
-  NoAnswerCause,
+  PeerAnswer,
+  UnusableCause,
 } from '@omne-harness/mcp-contract'
 import type { TransportFailure } from '@omne-harness/mcp-contract/provider'
 import {
@@ -81,55 +78,42 @@ export function connectionFailureOfBuild(
   return failure.reason.kind === 'effect-unknown' ? CONNECTION_UNAVAILABLE : failure.reason
 }
 
+const AUTHORIZATION_REQUIRED: Lost = {
+  reason: 'authorization-required',
+  mark: 'authorization-required',
+}
+
 /**
- * A request the transport could not send: the connection is judged lost by the cause, on the
- * safe side (S7, deviations). One case is not judged here: the transport's answer to a stop signal
- * that fired (T5) does not take the connection down, and the call port skips this function for it
- * (SPEC MC-16 step 9).
+ * What one answer of the transport to a request on a ready connection means for the connection
+ * (S5, S7; member SPEC MC-16, MC-17, MC-7), the first rule that holds:
+ * 1. the answer carries `unusable`: the transport is not usable any more; the connection is lost
+ *    for that cause, the catalog is marked `connection-unavailable`;
+ * 2. the answer is `not-sent` (`authorization-required`): the connection is lost for it, the
+ *    catalog is marked `authorization-required`;
+ * 3. otherwise the connection stays as it is: one request failed and the transport is still
+ *    usable, or the peer answered.
+ * The two rules do not overlap: the contract gives a refused authorization no mark. Undefined is
+ * rule 3. A build does not ask it: a failed build is lost by MC-5.
  */
-export function lostOfNotSent(failure: NotSent): Lost {
-  switch (failure.cause) {
-    case 'authorization-required':
-      return { reason: 'authorization-required', mark: 'authorization-required' }
-    case 'session-ended':
-      return { reason: 'session-ended', mark: 'connection-unavailable' }
-    case 'connection-unavailable':
-      return { reason: 'stream-broken', mark: 'connection-unavailable' }
+export function lostOf(answer: TransportFailure | PeerAnswer): Lost | undefined {
+  switch (answer.kind) {
+    case 'not-sent':
+      if (answer.cause === 'authorization-required') return AUTHORIZATION_REQUIRED
+      return unusableOf(answer.unusable)
+    case 'no-answer':
+      return unusableOf(answer.unusable)
+    case 'error-answer':
+    case 'answer-malformed':
+    case 'result':
+    case 'error':
+      return undefined
     default: {
-      const exhaustive: never = failure
+      const exhaustive: never = answer
       return exhaustive
     }
   }
 }
 
-/**
- * A sent request without an answer: a broken channel or an exited process is judged as the
- * transport no longer usable (S7, deviations). `abandoned` is this side's decision, not a fact
- * about the transport.
- */
-export function lostOfNoAnswer(cause: NoAnswerCause): Lost | undefined {
-  switch (cause) {
-    case 'stream-broken':
-    case 'process-exited':
-      return { reason: cause, mark: 'connection-unavailable' }
-    case 'abandoned':
-      return undefined
-    default: {
-      const exhaustive: never = cause
-      return exhaustive
-    }
-  }
-}
-
-/**
- * What the outcome of a call says about its connection (MC-16 step 12): an `unknown` outcome is
- * a sent request without an answer; every answered outcome leaves the connection as it is.
- */
-export function lostOfOutcome(outcome: CallOutcome): Lost | undefined {
-  switch (outcome.kind) {
-    case 'unknown':
-      return lostOfNoAnswer(outcome.cause)
-    default:
-      return undefined
-  }
+function unusableOf(unusable: UnusableCause | undefined): Lost | undefined {
+  return unusable === undefined ? undefined : { reason: unusable, mark: 'connection-unavailable' }
 }
