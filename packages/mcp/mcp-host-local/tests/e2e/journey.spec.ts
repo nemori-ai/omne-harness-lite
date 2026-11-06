@@ -264,8 +264,8 @@ const readings = new Map<TargetId, readonly Reading[]>()
 
 async function journey(target: Target): Promise<void> {
   const started = await target.start()
+  const assembly = assemble()
   try {
-    const assembly = assemble()
     const ref = endpointRefOf(`e2e-${target.id.toLowerCase()}`)
     assembly.adopt(ref, started.adoption)
     let counter = 0
@@ -286,6 +286,8 @@ async function journey(target: Target): Promise<void> {
       `journey ${target.id}: ${taken.map(reading => `${reading.step}=${reading.kind}`).join(' ')}`,
     )
   } finally {
+    // A step that failed leaves its connection open; closing it keeps the failure the only one.
+    await assembly.services.connections.closeAll()
     await started.close()
   }
 }
