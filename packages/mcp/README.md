@@ -55,7 +55,7 @@ flowchart LR
 - 证据须绑定成员、需求端口提供者及调用方的精确版本与故障前提。
 - `CatalogStore` 的内存实现只覆盖一次运行。MCP 已知动作跨进程重启保留，须等耐久实现交付后另行验证。
 
-mcp-contract 的纯函数，以及五个符合性套件对内存替身的运行有测试，范围与未覆盖项见它的 [SPEC](mcp-contract/SPEC.md)。mcp 的核心在契约的内存替身与脚本化传输上有测试，范围与未覆盖项见它的 [SPEC](mcp/SPEC.md#组合与验证)。mcp-host-local 的 `tests/e2e/` 在本机真实服务端上验证它与 `@omne-harness/mcp` 的组合行为（PR #1149）。mcp-host-local 的 Cordis 插件在真实 Cordis `Context` 上有用例：快层不起进程，慢层在脚本化 stdio 对端上走「刷新 → 调用」与撤除；Streamable HTTP 上的插件旅程与应用插件树中的装配没有执行，见它的 [SPEC](mcp-host-local/SPEC.md#cordis-plugin-verification)。攻击、资源与耐久没有证据。替身通过与文档结构检查都不代替真实组合验证。
+mcp-contract 的纯函数，以及五个符合性套件对内存替身的运行有测试，范围与未覆盖项见它的 [SPEC](mcp-contract/SPEC.md)。mcp 的核心在契约的内存替身与脚本化传输上有测试，范围与未覆盖项见它的 [SPEC](mcp/SPEC.md#组合与验证)。mcp-host-local 的两种传输在真实线路上跑 mcp-contract 导出的传输契约套件（`tests/conformance.spec.ts`），见它的 [SPEC](mcp-host-local/SPEC.md#组合与验证)。mcp-host-local 的 `tests/e2e/` 在本机真实服务端上验证它与 `@omne-harness/mcp` 的组合行为（PR #1149）。mcp-host-local 的 Cordis 插件在真实 Cordis `Context` 上有用例：快层不起进程，慢层在脚本化 stdio 对端上走「刷新 → 调用」与撤除；Streamable HTTP 上的插件旅程与应用插件树中的装配没有执行，见它的 [SPEC](mcp-host-local/SPEC.md#cordis-plugin-verification)。攻击、资源与耐久没有证据。替身通过与文档结构检查都不代替真实组合验证。
 
 ## 维护
 
