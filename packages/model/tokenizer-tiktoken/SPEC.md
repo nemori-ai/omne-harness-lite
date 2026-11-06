@@ -102,6 +102,8 @@ snapshot 只返回冻结的数量和累计时延。workers 包含正在停止但
 
 ## 组合与验证
 
+并发状态与缓存隔离的形式资源见 [verification](verification/index.md)。其中参数化安全性采用人工归纳论证，TLC 检查具名有限配置及故障负控。代码动作映射和行为守护是实现符合性证据，不构成 TypeScript 全程序精化证明。
+
 本包消费 model-contract 的 tokenizer 类型与 `@omne-harness/operation-result` 的 `Outcome`，以及 js-tiktoken `1.0.21` 的 `js-tiktoken/lite` 入口。
 
 每项义务的持续验证见 [tests/README.md](tests/README.md)：

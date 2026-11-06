@@ -572,6 +572,8 @@ flowchart LR
 
 #### 共用计量规则
 
+异步计量快照的一致性模型、人工归纳论证与有限 TLC 正负控见 [verification](verification/index.md)。模型不证明 BPE 算法或 TypeScript 全程序。源码守护独立验证输入在等待期间发生修改的场景。
+
 `measure`、`measureCalibrated` 与校准算术等待全部所需计数后才返回结果。包络两项、负差回退及完整预算都不得省略 await。`CalibratedMeterRules.maxSerializedBytes` 是正安全整数。完整输入及每个计数输入在 writeJsonText 前检查 JSON UTF-8 字节上限。超限返回 unavailable，dependency 为 tokenizer，diagnostic 为 serialized-input-too-large，不截断 JSON。通过检查后，计数和摘要均按既有排序键契约序列化 token 输入；Anthropic 的 NFKC 仍作用于完整序列化文本。首个异步计数之前复制本次计量实际消费的字段及校准数据，后续计数、摘要、限额检查使用同一自有快照。未消费的 assembled 不复制到计量快照。调用方在等待期间修改原值不能改变本次预算或绕过已检查的大小上限。这个限制只约束 token 输入序列化，不替代 executor 自己的输入、队列与缓存限额。
 
 两个家族计量器在校准算术之外共用一个计量器外壳与以下纯规则，都在 [chat-completions/measurement.ts](src/chat-completions/measurement.ts)。家族只给出自己的部分：内容提取（哪个单元带推理状态、怎样计数）、图片规则、owner、输出组方法名，以及不可计数时的诊断名。

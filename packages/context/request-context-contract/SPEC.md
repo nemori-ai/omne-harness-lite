@@ -560,6 +560,8 @@ flowchart LR
 
 ### RQ-11 持续验证与未覆盖
 
+同次规划的快照、复用、容量和关闭义务见 [计量会话形式映射](verification/measurement-session-mapping.md)。人工归纳证明、有限 TLC 检查与 TypeScript 行为守护分别保留前提和范围。
+
 后续成员和真实组合至少持续验证以下行为。这是义务，不是本次已执行的测试。
 
 | 场景 | 必须检查的结果 | 条款 |
