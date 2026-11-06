@@ -123,7 +123,7 @@ head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义�
 | `commit_seq`                     | INTEGER | 该操作提交的批次                                                                                                                                        |
 | `receipt`                        | TEXT    | `CommitReceipt`，JSON：`operation`、`revision`、`first`、`last`、`source`                                                                               |
 
-一个批次恰对应一行。尝试代次不进本表：提供者的回执表按存储操作身份 `<operation>#<代次>` 保存每次尝试的回执与存储输入摘要，不在本包。
+一个批次恰对应一行。尝试代次不进本表：提供者的回执表按存储操作身份 `JSON.stringify([SessionId, SessionOperationId, attempt])` 保存每次尝试的回执与存储输入摘要，不在本包。
 
 **`sl_state`** 每会话一行。
 

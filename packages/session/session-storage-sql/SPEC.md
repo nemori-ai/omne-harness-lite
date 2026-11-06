@@ -187,7 +187,7 @@ K-n 编号是 Session 组各成员共用的一套序列：本页用 K-1 至 K-5 
 
 `session` 在三种提交里出现：
 
-- Session 为提交方的命令（JC-01 至 JC-05、JC-07、JC-08、JC-10、JC-13 至 JC-24、JC-28，以及 JC-11 的「Agent 记录已删除」分支）：本成员的 `commit` 把 `SessionCommand` 与全部 `GuardCommand` 放进同一条 `FactCommand`，`participant` 为 `session`，`facts` 为 `{ intent: 'command', command, guards }`。桥交来的材料由 `session` 模块在事务里核对，不翻译成各自独立的存储参加者。
+- Session 为提交方的命令（JC-01 至 JC-05、JC-07、JC-08、JC-10、JC-13 至 JC-24、JC-28，以及 JC-11 的「Agent 记录已删除」分支）：本成员的 `commit` 把 `SessionCommand` 与全部 `GuardCommand` 放进同一条 `FactCommand`，`participant` 为 `session`，`facts` 为 `{ intent: 'command', command, guards, intakeLimits }`，其中预算来自可信装配。桥交来的材料由 `session` 模块在事务里核对，不翻译成各自独立的存储参加者。
 - 执行记录提供者为提交方的四种交接（JC-06、JC-09、JC-11、JC-12）：执行记录提供者的提交里有一条 `participant` 为 `session` 的命令，`facts` 与上一项相同，用 `./participants` 的 `sessionCommandFacts` 构造。
 - 执行记录提供者为提交方的两个只读参加（JC-26、JC-27）：`facts` 为 `{ intent: 'check', check }`，用 `sessionCheckFacts` 构造。行为见[只读核对](#只读核对)。
 
@@ -598,7 +598,7 @@ queryOperation(access, operation):
     命中: 返回 committed，带原回执
     未命中且 operation 是参加操作: 返回 unknown，不查存储
     未命中且 operation 是 Session 提交的操作:
-        对 k = 1, 2, …（不超过尝试代次上限）: q ← 存储契约 query(<operation>#k)
+        对 k = 1, 2, …（不超过尝试代次上限）: q ← 存储契约 query(JSON.stringify([SessionId, SessionOperationId, k]))
             q 为 committed: 返回 unavailable。存储有回执而本成员没有行，这是存储缺陷，见 C-01
             q 为 unknown（含在途尝试）: 返回 unknown
             q 为 rolled_back: 继续 k + 1
