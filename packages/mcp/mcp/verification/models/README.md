@@ -106,6 +106,8 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 
 运行于 2026-11-05（UTC 19:41 起），早于提交 `f34077cec`（2026-11-06 01:17 UTC）。两个 `.tla` 与 29 个 `.cfg` 的 SHA-256 与 `0b84a0bec` 上的文件逐个相同（运行的汇总记了每个配置的 SHA-256，本闭包在 `0b84a0bec` 的树上逐个核对过），所以读数对应 `0b84a0bec` 上的模型与配置。模型不读源码，实现与模型之间没有精化证明。`run.py` 退出码 0，29 个配置都符合判读，证据目录 `tmp/closures/w3-mcp-call/fix2/model/tlc/20261105T194113Z`，汇总 `tmp/closures/w3-mcp-call/fix2/model/tlc-all.log`（sha256 前 16 位 `e61f1a2f61787715`）。同一时段本机另有会话在运行，耗时偏长。深度是 TLC 状态图的深度，含内部步，所以比探索器调度的步数大。活性配置不报告深度。负控与探针的不同状态数随 TLC 的并行调度而略有不同，不是模型变化。
 
+之后只改了 `Calls.tla` 文件头讲四个键差别的注释，模型的 SHA-256 变为 `720a4d7a22ce6dcf…`。同一套 29 个配置在 2026-11-06 UTC 03:44 起重跑，`run.py` 退出码 0，全部符合判读：正控（含活性配置）的不同状态数、生成状态数与深度与本节两张表逐项相同；负控与探针的不同状态数随并行调度略有不同。证据目录 `tmp/closures/w3-mcp-call/owner-docs2/tlc/20261106T034439Z`，汇总 `tmp/closures/w3-mcp-call/owner-docs2/tlc-all.log`（sha256 前 16 位 `8ac2d3ac5401be7c`）。
+
 `Calls.tla` 的运行记录（同一次运行，模型 SHA-256 `096a2c50ced5b2e2…`，含 S8 的关停先判与关口之后读 `shut`）：
 
 | 配置                          | 结论                                     | 不同状态数 | 生成状态数 | 深度 | 耗时  | 判读     |

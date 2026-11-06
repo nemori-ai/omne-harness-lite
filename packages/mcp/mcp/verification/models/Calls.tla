@@ -66,8 +66,8 @@ ASSUME {Invokes, Continues, Cancels, Tasks, Aborts, Drops, Budget} \subseteq Nat
 ASSUME CloseAlls \in 0..1 /\ Peer \in {"complete", "task"} /\ Observe \in BOOLEAN
 
 (* The owners of the keys, as in tests/model/explore.ts `KEY_OWNERS`: A and B *)
-(* differ in the tenant, A and C in the peer account, A and D in the tenant  *)
-(* with the same principal text.                                             *)
+(* differ in the tenant and the principal, A and C in the principal and the  *)
+(* peer account, A and D only in the tenant (the same principal text).      *)
 Tenant(k) == IF k \in {"A", "C"} THEN "home" ELSE "away"
 Principal(k) == CASE k = "A" -> "alice" [] k = "B" -> "mallory" [] k = "C" -> "bob" [] OTHER -> "alice"
 Account(k) == IF k = "C" THEN "other" ELSE "main"
