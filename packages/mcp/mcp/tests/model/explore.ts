@@ -74,9 +74,11 @@ import {
   connectsAfterShutdown,
   crossesKeys,
   describeReason,
+  failureEnding,
   foreignTransport,
   internalError,
   lateChanged,
+  lostOnUsableFailure,
   sendsAfterShutdown,
   sentAfterShutdown,
   sentMismatch,
@@ -100,6 +102,7 @@ import {
   TASK_ID,
   TASK_METHODS,
   TASK_PORTS,
+  USABLE_FAILURE,
   emptyLedger,
   scriptedPorts,
   type Answer,
@@ -197,6 +200,11 @@ export type Exploration = Readonly<{
   violations: readonly Violation[]
   /** The shortest schedule after which a `release` or `closeAll` still waits once every bound fired (A1). */
   closeWaits: readonly string[] | undefined
+  /**
+   * How the failures of requests on a ready connection ended, sorted (`failureEnding`): the
+   * witness that P15 was reached and that a marked failure still loses the connection.
+   */
+  failureEndings: readonly string[]
 }>
 
 /** The same schedule replayed differently: a stop condition of the closure spec. */
@@ -475,6 +483,8 @@ class Run implements RunView, CallDesk, ReservationDesk {
   readonly log: string[] = []
   readonly reports: Report[] = []
   readonly tasksOf = new Set<string>()
+  /** How the failures of requests on a ready connection ended (`failureEnding`). */
+  readonly failureEndings = new Set<string>()
   shutAsked = false
   /** Indices of the calls made during the current step that were allowed to throw. */
   offered: number[] = []
@@ -851,8 +861,13 @@ class Run implements RunView, CallDesk, ReservationDesk {
         if (answer === 'reject') reject(new PortFault(call, 'rejected'))
         else {
           if (call.port === 'transport.call' && answer === 'ok' && op !== undefined) op.sentOk += 1
-          // A task method's `fail` is `not-sent` (`ports.ts`): the request did not leave.
-          if (TASK_PORTS.has(call.port) && answer === 'fail' && op !== undefined) op.taskUnsent += 1
+          // A task method's `fail` and `fail-usable` are `not-sent` (`ports.ts`): the request did not leave.
+          if (
+            TASK_PORTS.has(call.port) &&
+            (answer === 'fail' || answer === USABLE_FAILURE) &&
+            op !== undefined
+          )
+            op.taskUnsent += 1
           resolve(request.value(answer, call))
         }
       },
@@ -1246,11 +1261,18 @@ class Run implements RunView, CallDesk, ReservationDesk {
     if (answer !== 'ok') this.left.deviations -= 1
     const late = this.isLate(pending)
     const before = this.observe()
+    const firstMade = this.seq
     this.handlingLate = late
     pending.settle(answer)
     await drain()
     this.handlingLate = false
-    if (late) this.report(lateChanged(pending.call, before, this.observe()))
+    const after = this.observe()
+    if (late) this.report(lateChanged(pending.call, before, after))
+    const made = this.pending.filter(call => call.seq >= firstMade)
+    this.report(lostOnUsableFailure(pending.call, answer, before, after, made))
+    // A late answer reaches no operation that still waits: what it changes is P6's.
+    const ending = late ? undefined : failureEnding(pending.call, answer, before, after)
+    if (ending !== undefined) this.failureEndings.add(ending)
     this.afterStep()
   }
 
@@ -1349,6 +1371,7 @@ export async function explore(
   const seen = new Set<string>()
   const found = new Map<string, Violation>()
   let closeWaits: readonly string[] | undefined
+  const failureEndings = new Set<string>()
   let runs = 0
   let depth = 0
   let states = 0
@@ -1373,6 +1396,7 @@ export async function explore(
       await run.perform(step)
     }
     runs += 1
+    for (const ending of run.failureEndings) failureEndings.add(ending)
     const projection = run.projection()
     const fresh = scenario.exhaustivePaths === true || !seen.has(projection)
     const visited: Visit = { projection, fresh, enabled: run.enabled(), offered: [...run.offered] }
@@ -1438,5 +1462,6 @@ export async function explore(
     elapsedMs: Math.round(performance.now() - started),
     violations: [...found.values()],
     closeWaits,
+    failureEndings: [...failureEndings].sort(),
   }
 }

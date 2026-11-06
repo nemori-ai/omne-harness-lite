@@ -57,16 +57,29 @@ export const PORT_ANSWERS = {
   'credential.release': ['ok', 'reject'],
   'store.read': ['ok', 'fail', 'reject'],
   'store.write': ['ok', 'fail', 'reject'],
-  /** `ok`: sent, with a request id; `fail`: `not-sent` (`connection-unavailable`). */
-  'transport.call': ['ok', 'fail', 'reject'],
-  /** The peer's answer to a sent call. `ok`: the scenario's peer reply; `fail`: `no-answer`. */
-  'transport.answer': ['ok', 'fail', 'reject'],
+  /**
+   * `ok`: sent, with a request id; `fail`: `not-sent` (`connection-unavailable`) marked as not
+   * usable any more; `fail-usable`: the same failure without the mark (`USABLE_FAILURE`).
+   */
+  'transport.call': ['ok', 'fail', 'fail-usable', 'reject'],
+  /**
+   * The peer's answer to a sent call. `ok`: the scenario's peer reply; `fail`: `no-answer` marked
+   * as not usable any more; `fail-usable`: `no-answer` without the mark.
+   */
+  'transport.answer': ['ok', 'fail', 'fail-usable', 'reject'],
   'transport.cancelRequest': ['ok', 'reject'],
-  'transport.getTask': ['ok', 'fail', 'reject'],
-  'transport.getTaskResult': ['ok', 'fail', 'reject'],
-  'transport.updateTask': ['ok', 'fail', 'reject'],
-  'transport.cancelTask': ['ok', 'fail', 'reject'],
+  'transport.getTask': ['ok', 'fail', 'fail-usable', 'reject'],
+  'transport.getTaskResult': ['ok', 'fail', 'fail-usable', 'reject'],
+  'transport.updateTask': ['ok', 'fail', 'fail-usable', 'reject'],
+  'transport.cancelTask': ['ok', 'fail', 'fail-usable', 'reject'],
 } as const
+
+/**
+ * The answer of a transport method that fails while the transport stays usable: the failure
+ * carries no `unusable` mark (contract T1). Only the methods a ready connection sends on offer
+ * it; a build fails on any failure of `discover`, marked or not.
+ */
+export const USABLE_FAILURE = 'fail-usable'
 
 export type PortName = keyof typeof PORT_ANSWERS
 export type Answer = (typeof PORT_ANSWERS)[PortName][number]
@@ -256,6 +269,12 @@ const STREAM_BROKEN: NoAnswer = {
   cause: 'stream-broken',
   unusable: 'stream-broken',
 }
+// The failures of one request while the transport stays usable: no mark (contract T1), so the
+// connection stays as it is (contract S7). Streamable HTTP gives them (T8 X01, S06, C05, O08 for
+// `not-sent`; C04, O06, O07 for `no-answer`); the model's transport is stdio, and the services
+// read the mark, never the material.
+const NOT_SENT_USABLE: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
+const STREAM_BROKEN_USABLE: NoAnswer = { kind: 'no-answer', cause: 'stream-broken' }
 const WORKING: TaskReport = { status: 'working' }
 const NOT_FINISHED: TaskAnswer = { kind: 'not-finished' }
 
@@ -370,7 +389,12 @@ export function scriptedPorts(
       port: 'transport.answer',
       key: key.name,
       subject: record.id,
-      value: how => (how === 'ok' ? replyOf(peer) : STREAM_BROKEN),
+      value: how =>
+        how === 'ok'
+          ? replyOf(peer)
+          : how === USABLE_FAILURE
+            ? STREAM_BROKEN_USABLE
+            : STREAM_BROKEN,
       ...(context === undefined ? {} : { context }),
     })
     return { requestId: record.id, answer }
@@ -381,8 +405,13 @@ export function scriptedPorts(
       port,
       key: key.name,
       subject,
-      value: answer => (answer === 'ok' ? { ok: value } : { failure: NOT_SENT }),
+      value: answer => (answer === 'ok' ? { ok: value } : { failure: notSentOf(answer) }),
     })
+  }
+
+  /** The `not-sent` of a failing call or task method: marked, unless the answer is `fail-usable`. */
+  function notSentOf(answer: Exclude<Answer, 'reject'>): NotSent {
+    return answer === USABLE_FAILURE ? NOT_SENT_USABLE : NOT_SENT
   }
 
   function transportFor(key: ModelKey, generation: Generation): McpTransport {
@@ -419,7 +448,9 @@ export function scriptedPorts(
           key: key.name,
           subject: record.name,
           value: (answer, call) =>
-            answer === 'ok' ? { ok: sentCallFor(key, call.context) } : { failure: NOT_SENT },
+            answer === 'ok'
+              ? { ok: sentCallFor(key, call.context) }
+              : { failure: notSentOf(answer) },
         }),
       cancelRequest(requestId) {
         const request = ledger.requests.find(item => item.id === requestId)

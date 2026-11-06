@@ -1,11 +1,13 @@
-// The observable projections of P1–P14 (SPEC「性质与证据」) on one run of the explorer. Each check
-// reads only what a consumer or a port can see: the ledger of the port doubles (what was acquired,
-// released, stopped, closed, sent, told to cancel), the answers of the operations, `stateOf` and
-// `current`, the pending port calls and bounds, the rejections nobody handled, and the counting
-// view of the in-flight table (P11). None reads the table's entries. Each state check names the
-// invariant of `verification/models/ConnectionTable.tla` or `Calls.tla` it projects.
-import type { Ledger, ScriptedPortCall } from './ports.ts'
-import { PortFault, TASK_PORTS, TEARDOWN_PORTS } from './ports.ts'
+// The observable projections of P1–P14 (SPEC「性质与证据」) on one run of the explorer, and P15,
+// which projects contract S7 (a failure without the `unusable` mark leaves the connection as it
+// is). Each check reads only what a consumer or a port can see: the ledger of the port doubles
+// (what was acquired, released, stopped, closed, sent, told to cancel), the answers of the
+// operations, `stateOf` and `current`, the pending port calls and bounds, the rejections nobody
+// handled, and the counting view of the in-flight table (P11). None reads the table's entries.
+// Each state check names the invariant of `verification/models/ConnectionTable.tla` or
+// `Calls.tla` it projects; P15 has none (`verification/README.md`).
+import type { Answer, Ledger, PortName, ScriptedPortCall } from './ports.ts'
+import { PortFault, TASK_PORTS, TEARDOWN_PORTS, USABLE_FAILURE } from './ports.ts'
 
 export type Property =
   | 'P1'
@@ -22,6 +24,7 @@ export type Property =
   | 'P12'
   | 'P13'
   | 'P14'
+  | 'P15'
 
 /** One violation of a property: which check, and what it saw. */
 export type Found = Readonly<{ property: Property; signature: string; detail: string }>
@@ -438,6 +441,77 @@ export function answeredOtherwiseAfterShutdown(view: RunView, op: OpView): Found
       detail: `${op.name} answered ${op.result} after closeAll; expected ${allowed.join(' or ')}`,
     },
   ]
+}
+
+/** The transport methods a request on a ready connection waits for: the call port's and the task operations'. */
+export const REQUEST_PORTS: ReadonlySet<PortName> = new Set<PortName>([
+  'transport.call',
+  'transport.answer',
+  ...TASK_PORTS,
+])
+
+const READY = '{"kind":"ready"}'
+const LOST = '{"kind":"lost"'
+
+/** The ports a loss reaches first: the teardown, and the store for the catalog mark (S7). */
+function lossPort(port: PortName): boolean {
+  return TEARDOWN_PORTS.has(port) || port === 'store.read' || port === 'store.write'
+}
+
+/**
+ * P15 (contract S7, T1; member `lostOf` rule 3): a request on a ready connection whose transport
+ * answers a failure without the `unusable` mark (`not-sent` (`connection-unavailable`) or
+ * `no-answer`) leaves the connection as it is. After the step that hands the answer over, the
+ * key's state is not `lost`, and the step made no call that a loss makes first: no teardown port
+ * and no store call for the catalog mark of that key. `call` is the answered port call, `made`
+ * the port calls the step made. The rule's other exception, `not-sent` (`authorization-required`),
+ * loses the connection; the model's stdio transport never answers it, so the check needs no case
+ * for it.
+ */
+export function lostOnUsableFailure(
+  call: ScriptedPortCall,
+  answer: Answer,
+  before: readonly KeyObservation[],
+  after: readonly KeyObservation[],
+  made: readonly ScriptedPortCall[],
+): Found[] {
+  if (answer !== USABLE_FAILURE || !REQUEST_PORTS.has(call.port)) return []
+  const was = before.find(item => item.key === call.key)
+  if (was?.state !== READY) return []
+  const found: Found[] = []
+  const now = after.find(item => item.key === call.key)
+  if (now?.state.startsWith(LOST) === true)
+    found.push({
+      property: 'P15',
+      signature: 'P15-lost-on-usable-failure',
+      detail: `${call.port} ${call.subject} failed without the mark and key ${call.key} became ${now.state}`,
+    })
+  const losing = made.filter(item => item.key === call.key && lossPort(item.port))
+  if (losing.length > 0)
+    found.push({
+      property: 'P15',
+      signature: 'P15-teardown-on-usable-failure',
+      detail: `${call.port} ${call.subject} failed without the mark and the step made ${losing.map(item => `${item.port} ${item.subject}`).join(', ')}`,
+    })
+  return found
+}
+
+/**
+ * The witness of P15 and of its marked counterpart: how a failure of a request on a ready
+ * connection ended, as `<port> <answer> <state kind after the step>` (`transport.call fail lost`).
+ * Undefined for any other answer or port, or when the connection was not ready.
+ */
+export function failureEnding(
+  call: ScriptedPortCall,
+  answer: Answer,
+  before: readonly KeyObservation[],
+  after: readonly KeyObservation[],
+): string | undefined {
+  if ((answer !== 'fail' && answer !== USABLE_FAILURE) || !REQUEST_PORTS.has(call.port))
+    return undefined
+  if (before.find(item => item.key === call.key)?.state !== READY) return undefined
+  const state = after.find(item => item.key === call.key)?.state ?? ''
+  return `${call.port} ${answer} ${/^\{"kind":"([a-z-]+)"/.exec(state)?.[1] ?? '?'}`
 }
 
 /** Nothing can happen any more without a client call: no port call pending, no bound left. */
