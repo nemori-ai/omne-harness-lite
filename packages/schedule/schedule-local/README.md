@@ -55,3 +55,5 @@ acceptance/               Independent acceptance; fixtures/ holds its inputs
 ```
 
 Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths. A docs topic can grow into a directory of the same name with README.md and index.md. Keep this map current when a topic moves.
+
+Use createScheduleCalendarEnvironment to share a Calendar environment reader with follow predictions. It preserves the captured revision and does not guard later commands.

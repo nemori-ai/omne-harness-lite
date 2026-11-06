@@ -17,3 +17,9 @@ owned provider 负责停止其供应应用或 runner；borrowed 不停止借入�
 ## 组合与验证
 
 公开服务不要求 Session/Agent 同机、同进程或同库。外域当前资格、有效环境、通知和 Tool 宿主仍是具名前提，M2 前本域夹具不证明真实采用。SQL L-1/L-4 和介质耐久不因同进程消失。持续入口见[测试](tests/README.md)，独立验收不由作者绿测代替。
+
+## 设置环境投影
+
+`createCalendarSettingsEnvironment` 消费公开 Settings 读取与求值协议。宿主从原调用恢复受信主体及已采用的目标/定义映射；模型参数不能提供这份绑定。适配器核对 owner、唯一目标和定义身份，一次读取同时取得时区与日历，并保留 Settings basis 的修订。缺值保持 missing，partial、错配、非法值和依赖异常返回 unavailable。显式 null 日历不被默认日历替代。
+
+Settings 仍验证读取资格；Calendar 的 authority 仍独立判断日历使用权。环境映射不发行主体、不修改偏好、不提供后续 Schedule 写入的原子当前性保证。宿主不得将普通 context DTO 当成真实主体，或将可读设置解释成可用日历。

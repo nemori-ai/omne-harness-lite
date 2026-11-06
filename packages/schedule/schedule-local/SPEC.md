@@ -45,3 +45,7 @@ completed包含纯枚举结果；unavailable保留deadline、aborted、capacity�
 ## 验证与边界
 
 持续测试覆盖真实worker退出与替换、真实SQLite管理、重开、回执损坏和事务内/提交后SIGKILL。权威守卫使用具名符合性夹具。它们不证明生产授权、Calendar或quota联调，也不证明物理断电、跨进程多writer或分布式事务。底层耐久与排除前提沿sql-contract及采用提供者。`./cordis`提供本地组合，持续测试覆盖注入、依赖撤除/恢复和旧引用拒绝。无后台调度循环。
+
+## 共享环境读取
+
+`createScheduleCalendarEnvironment` 消费 Calendar 的环境读取端口，将同一 owner、timezone、calendarId 与 revision 投影为 Schedule 预测环境。非空日历采用 latest 选择，空日历保持 null。missing 与 unavailable 分别保留为 absent 与有类型依赖错误，提供者异常不泄出。explicit/pinned 仍由 Schedule 意图直接决定，不读取该投影。适配不产生写入当前性守卫。

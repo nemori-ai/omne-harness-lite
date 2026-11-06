@@ -55,3 +55,5 @@ acceptance/               独立验收；fixtures/ 存放验收输入
 ```
 
 每个目录的 README.md 说明职责，index.md 负责导航。阅读路径见 [index.md](index.md)。docs 专题可以升级为同名目录，目录内须有 README.md 与 index.md；专题移动时同步本结构图。
+
+设置环境由根入口 `createCalendarSettingsEnvironment` 适配。宿主恢复原调用的受信主体及目标映射，Settings 验证读取资格；适配器一次读取时区和日历并保留同一修订。缺值不默认补齐，失败不当作完整环境。该读取不保护后续日程提交。

@@ -55,3 +55,5 @@ acceptance/               独立验收；fixtures/ 存放验收输入
 ```
 
 每个目录的 README.md 说明职责，index.md 负责导航。阅读路径见 [index.md](index.md)。docs 专题可以升级为同名目录，目录内须有 README.md 与 index.md；专题移动时同步本结构图。
+
+`createScheduleCalendarEnvironment` 将 Calendar 环境读取适配给 follow 预测，保留原修订与空日历。它不为后续命令提供当前性守卫。

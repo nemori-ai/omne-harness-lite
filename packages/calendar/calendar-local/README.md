@@ -4,11 +4,11 @@
 
 ## Responsibility and status
 
-This member provides SQL publication persistence, supply custody and journals, bounded source acquisition, shipped seed access, the supply runner and Cordis providers. It uses calendar for domain rules and sql-contract for storage. The package remains private at `0.0.0`. Real cross-domain assembly follows M2. Schedule and Job remain A2 work.
+This member provides SQL publication persistence, supply custody and journals, bounded source acquisition, shipped seed access, the supply runner and Cordis providers. It uses calendar for domain rules and sql-contract for storage. The package remains private at `0.0.0`. The Settings environment adapter consumes public reads and preserves one basis revision. Schedule and Job have separate owners.
 
 ## Usage
 
-Construct createCalendarSqlPersistence, createCalendarSqlSupplyStorage and createCalendarSourceAdapters from the root, then supply them to the application factories. Connect createShippedCalendarSeedRegistry and shippedCalendarSeedRelease explicitly for offline initialization. See [usage](docs/context.md).
+Construct createCalendarSqlPersistence, createCalendarSqlSupplyStorage and createCalendarSourceAdapters from the root, then supply them to the application factories. Connect createShippedCalendarSeedRegistry and shippedCalendarSeedRelease explicitly for offline initialization. Use createCalendarSettingsEnvironment with a trusted original-call resolver and a SettingsReadPort to read date preferences. This read does not guard a later write. See [usage](docs/context.md).
 
 ## Contracts
 

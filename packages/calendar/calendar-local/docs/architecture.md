@@ -19,3 +19,20 @@
 ## 验证与维护
 
 持续资源见[测试](../tests/README.md)。公开形状修改时同步真实消费者，行为修改回 [SPEC](../SPEC.md)。本域验证、独立接受和 M2 后真实跨域装配分别取证。
+
+## 读取设置环境
+
+`settings-environment` 是本地消费适配，纯 Calendar 核心保持原环境端口。宿主恢复受信主体及固定目标映射，Settings 提供经授权的完整快照。适配器只解释时区、日历和修订，不建立第二份偏好存储。
+
+```mermaid
+flowchart LR
+  Context[原调用] --> Host[宿主恢复主体和绑定]
+  Host --> Adapter[Calendar设置环境适配]
+  Adapter --> Settings[SettingsReadPort]
+  Settings --> Eval[evaluateSettings]
+  Eval --> Environment[同一修订的时区和日历]
+  Environment --> Calendar[Calendar查询]
+  Environment --> Schedule[Schedule follow投影]
+```
+
+图中的读取没有为后续命令预留依据。提交时当前性由写入协调协议负责。日历使用授权继续归 Calendar authority。

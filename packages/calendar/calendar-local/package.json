@@ -37,12 +37,19 @@
     "@omne-harness/calendar-cordis-contract": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*",
     "canonicalize": "5.1.0",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness/settings": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "@omne-harness/sqlite-provider": "workspace:*"
+    "@omne-harness/sqlite-provider": "workspace:*",
+    "@omne-harness/settings-local": "workspace:*",
+    "@omne-harness/identity": "workspace:*",
+    "@omne-harness/identity-sql": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/scrypt": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
   }
 }

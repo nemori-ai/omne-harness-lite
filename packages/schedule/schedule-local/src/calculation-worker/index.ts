@@ -121,14 +121,24 @@ export function createScheduleCalculationWorker(options: {
     },
   }
 
+  async function destroyAfterRetiredExits(): Promise<void> {
+    for (;;) {
+      observeThreads()
+      const current = new Set(pool.threads)
+      const retired = [...exits].filter(([thread]) => !current.has(thread)).map(([, exit]) => exit)
+      if (retired.length === 0) break
+      await Promise.all(retired)
+    }
+    await pool.destroy()
+  }
+
   function dispose(): Promise<void> {
     if (shutdown) return shutdown
     const completion = Promise.withResolvers<void>()
     shutdown = completion.promise
     for (const stop of pending) stop('disposed')
-    // Aborted threads leave Piscina's pool before their physical exit.
-    const stopped = [...exits.values()]
-    Promise.all([pool.destroy(), ...stopped]).then(() => completion.resolve(), completion.reject)
+    // Piscina can replace a retired worker if it exits after destroy resets its shutdown flag.
+    destroyAfterRetiredExits().then(() => completion.resolve(), completion.reject)
     return shutdown
   }
 

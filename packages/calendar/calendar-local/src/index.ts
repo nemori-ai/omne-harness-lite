@@ -58,3 +58,9 @@ export type {
   CalendarRunnerStop,
   CalendarRunnerPhase,
 } from './runner/index.ts'
+
+export { createCalendarSettingsEnvironment } from './settings-environment.ts'
+export type {
+  CalendarSettingsBinding,
+  CalendarSettingsEnvironmentOptions,
+} from './settings-environment.ts'

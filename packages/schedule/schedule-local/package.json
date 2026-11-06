@@ -38,14 +38,14 @@
     "canonicalize": "5.1.0",
     "piscina": "5.3.2",
     "zod": "catalog:",
-    "@omne-harness/calendar-cordis-contract": "workspace:*"
+    "@omne-harness/calendar-cordis-contract": "workspace:*",
+    "@omne-harness/calendar": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/sqlite-provider": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "@omne-harness/calendar": "workspace:*",
     "@omne-harness/calendar-contract": "workspace:*",
     "@omne-harness/calendar-local": "workspace:*"
   }

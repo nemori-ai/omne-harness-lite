@@ -2,7 +2,7 @@
 // Real worker threads and bounded waits verify interruption, replacement, and physical exit.
 import { setTimeout as delay } from 'node:timers/promises'
 import type { Worker } from 'node:worker_threads'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { enumerateScheduleRecurrence } from '@omne-harness/schedule'
 import { createScheduleCalculationWorker } from '@omne-harness/schedule-local'
 import { blockingInput, calculationInput } from './inputs.ts'
@@ -206,6 +206,54 @@ describe('real calculation lifecycle', () => {
         await disposal
         expect(observed.exited.size).toBe(observed.threads.length)
       } finally {
+        await worker.dispose()
+        observed.stop()
+      }
+    },
+  )
+
+  it(
+    'does not replace an aborted worker after its replacement has exited during disposal',
+    { timeout: 15000 },
+    async () => {
+      const observed = observeThreads()
+      const worker = createScheduleCalculationWorker({ maxConcurrent: 1, maxQueued: 0 })
+      const exitGate = Promise.withResolvers<void>()
+      const controller = new AbortController()
+      let terminateSpy: ReturnType<typeof vi.spyOn> | undefined
+      try {
+        await warm(worker.calculator)
+        const thread = observed.threads[0]
+        if (!thread) throw new Error('The calculation worker was not created')
+        const terminate = thread.terminate.bind(thread)
+        terminateSpy = vi.spyOn(thread, 'terminate').mockImplementation(async () => {
+          await exitGate.promise
+          return terminate()
+        })
+        const running = worker.calculator.enumerate(blockingInput(), {
+          timeoutMs: 10000,
+          signal: controller.signal,
+        })
+        await observeBusy(thread)
+        controller.abort()
+        await expect(running).resolves.toEqual({ kind: 'unavailable', reason: 'aborted' })
+        await expect
+          .poll(() => observed.threads.length, { timeout: 5000 })
+          .toBeGreaterThanOrEqual(2)
+        const replacement = observed.threads[1]
+        if (!replacement) throw new Error('The replacement worker was not created')
+        const disposal = worker.dispose()
+        await replacement.terminate()
+        await delay(10)
+        exitGate.resolve()
+        await disposal
+        expect(observed.exited.size).toBe(observed.threads.length)
+        const count = observed.threads.length
+        await delay(20)
+        expect(observed.threads).toHaveLength(count)
+      } finally {
+        exitGate.resolve()
+        terminateSpy?.mockRestore()
         await worker.dispose()
         observed.stop()
       }
