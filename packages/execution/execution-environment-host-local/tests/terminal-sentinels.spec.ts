@@ -266,3 +266,17 @@ describe('terminal sentinels', () => {
     })
   })
 })
+
+it('keeps a held sentinel prefix when the caller reads the next chunk into the same buffer', () => {
+  // The terminal gate reads the PTY into one buffer and reuses it for every read of a poll. It
+  // consumes the pieces of a read before the next read, so only the held bytes must outlive it.
+  const buffer = Buffer.alloc(64)
+  const read = (bytes: Buffer) => buffer.subarray(0, bytes.copy(buffer))
+  const one = scanSentinels(
+    watchSentinels(idleSentinels, nonce),
+    read(Buffer.concat([text('x'), begin.subarray(0, 10)])),
+  )
+  const first = attribution(one.pieces)
+  const two = scanSentinels(one.scan, read(Buffer.concat([begin.subarray(10), text('y')])))
+  expect([...first, ...attribution(two.pieces)]).toEqual(['between:x', 'begin', 'segment:y'])
+})
