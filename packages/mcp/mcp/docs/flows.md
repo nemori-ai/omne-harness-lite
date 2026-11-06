@@ -75,18 +75,18 @@ sequenceDiagram
     C->>I: invoke(access, { ref, action, args, expectedDefinition, correlationKey, signal })
     I->>I: 前提（R2）：args 不是 JSON 对象则 TypeError reject，不占位
     I->>F: reserve(key, signal)
-    F-->>I: 停止信号（signal 与 cancel 合成）或 in-use
-    note over I: 从这里到发出，每次等待都在停止信号下
+    F-->>I: 占位句柄（带停止信号：signal 与 cancel 合成）或 in-use
+    note over I: 从这里到发出，每次等待都在停止信号下；每次等待之前先读关停（S8）
     I->>G: admitForUse
     I->>I: prepareSettings（S4）
     I->>S: read(catalogKey)：动作存在、可用、摘要相同
     I->>T: ensure(admitted, access, { connectBound })
-    I->>I: 停止信号已触发？是则「未发出：cancelled」
+    I->>I: 第 8 步：停止信号已触发？是则「未发出：cancelled」；已关停？是则「未发出：connection-unavailable」
     I->>X: call({ action, args, continuation? }, 停止信号, observe)
-    I->>F: markSent(key, 连接视图, 发出代际)
+    I->>F: 句柄的 sent(连接视图, 发出代际)
     I->>X: 在停止信号下等应答；触发时 cancelRequest 一次，交给作用域
     I->>I: classifyOutcome；任务结局登记任务表；转 lost 时拆除交给作用域
-    I->>F: conclude(key, phase)（perform 的 finally，唯一出口）
+    I->>F: 句柄的 conclude()（perform 的 finally，唯一出口；按表里记下的阶段判）
     I-->>C: not-sent（原因）或 sent（结局）
 ```
 

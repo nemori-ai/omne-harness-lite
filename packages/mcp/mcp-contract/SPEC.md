@@ -10,7 +10,8 @@
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [组工程设计](../docs/architecture.md)                                                                                                                                                      | `21175c9f9`                                | 边界、协议基线、模型、值对象、MCP 连接、动作清单、设置声明、端口、应用服务、调用结果、内容交付、失败种类                                                                                              |
 | 领域设计裁定（2026-11-03）                                                                                                                                                                 | 见[领域设计裁定](#decisions)               | 本页每一条与组页不同或组页未定的决定                                                                                                                                                                  |
-| 2026-07-28 核对后的决定（2026-11-04）                                                                                                                                                      | 见[2026-07-28 核对后的裁定](#decisions-w3) | 对照 2026-07-28 修订核对后的调整：新字段、新导出、新条款与措辞；第 26 条给 `McpPorts` 加必填字段，不是可加的改动                                                                                      |
+| 2026-07-28 核对后的决定（2026-11-04）                                                                                                                                                      | 见[2026-07-28 核对后的裁定](#decisions-w3) | 对照 2026-07-28 修订核对后的调整：新字段、新导出、新条款与措辞（第 1–25 条）                                                                                                                          |
+| 调用口闭包的决定（2026-11-05）                                                                                                                                                             | 见[调用口闭包的裁定](#decisions-w3-call)   | 调用口实现（`w3-mcp-call`）、第 1 轮修复（`w3-mcp-call-fix1`）与第 2 轮修复（`w3-mcp-call-fix2`）带出的契约改动（第 26–30 条）；第 26 条给 `McpPorts` 加必填字段，不是可加的改动                      |
 | [资产成员 SPEC](../../assets/assets/SPEC.md#accepted-public-types)                                                                                                                         | `21175c9f9`                                | `BodyContract` 的字段与判断规则                                                                                                                                                                       |
 | [MCP 协议修订 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28)                                                                                                        | 2026-07-28                                 | 结果形状、`resultType`、多轮输入、内容类型、JSON-RPC 错误码、授权                                                                                                                                     |
 | [MCP 任务扩展](https://modelcontextprotocol.github.io/ext-tasks/specification/2026-07-28/tasks.html)（[SEP-2663](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2663)） | 2026-07-28                                 | 任务句柄、`tasks/get`、`tasks/update`、`tasks/cancel`；[Streamable HTTP 路由头](https://modelcontextprotocol.github.io/ext-tasks/specification/2026-07-28/tasks.html#streamable-http-routing-headers) |
@@ -51,7 +52,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### 2026-07-28 核对后的裁定
 
-本页在 2026-11-04 对照 2026-07-28 修订作出下列决定。第 1 至 25 条每条只加字段、导出或条款，不删导出，不把可选改为必填。这 25 条里只有一处改了已有签名的必填性：第 15 条把 `CallRequest.continuation.inputResponses` 从必填放宽为可选；这是放宽，已有调用方照常成立。第 26、27 条是调用口闭包随后加的两处：第 26 条给 `McpPorts` 加必填字段，对构造 `McpPorts` 的宿主不是可加的改动；第 27 条同样放宽一个字段。每条只指向条款，条款是唯一的规则。
+本页在 2026-11-04 对照 2026-07-28 修订作出下列决定。第 1 至 25 条每条只加字段、导出或条款，不删导出，不把可选改为必填。这 25 条里只有一处改了已有签名的必填性：第 15 条把 `CallRequest.continuation.inputResponses` 从必填放宽为可选；这是放宽，已有调用方照常成立。每条只指向条款，条款是唯一的规则。调用口闭包随后带出的第 26–30 条另列在[调用口闭包的裁定](#decisions-w3-call)。
 
 1. `ActionDiscovery.refresh` 的请求带 `signal?`，只属于这一次刷新。见 S5。
 2. `McpClock` 与 `McpPorts.clock?`：清单的 `acquiredAt` 取自它。见 S3。
@@ -78,8 +79,18 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 23. 传输夹具的 `protocolVersions` 只列现代修订。见[组合与验证](#composition)。
 24. 线上事件归入应答类别的纯全函数 `classifyWireEvent`，进程退出的时间窗 `PROCESS_EXIT_WINDOW_MS`，请求离开之前的失败。见 T2、T8。
 25. 传输不再可用时连接的状态，以及 `cancelTask` 的建连条件。见 S1、S2、S5、S7。
+
+<a id="decisions-w3-call"></a>
+
+### 调用口闭包的裁定
+
+调用口的实现与它的两轮修复在 2026-11-05 带出下列契约改动，延续上面的编号。第 26 条给 `McpPorts` 加必填字段，对构造 `McpPorts` 的宿主不是可加的改动；第 27、29 条放宽一个字段或一个原因的定义。每条只指向条款，条款是唯一的规则。
+
 26. `McpPorts.checkOutput` 必填：服务实现把它交给 `classifyOutcome`。出处：W3 调用口闭包（`w3-mcp-call`，任务材料，2026-11-05）已定事项 7。见 S3、O1。
 27. `ContinueRequest.inputResponses` 可选，与 S2 的「各自可选」一致；两个字段都缺是前提违反。出处：W3 调用口闭包已定事项 4，及修复轮（`w3-mcp-call-fix1`）自裁第 3 条的采纳。见 S2。
+28. `classifyOutcome` 吸收校验函数的抛出：O1 是全函数、不抛出，校验函数抛出时 O3 的结论是 `violates`，原因是新的契约值 `output-check-failed`。两个原因常量 `OUTPUT_CHECK_FAILED` 与 `STRUCTURED_CONTENT_MISSING` 从根入口导出。出处：调用口第 1 轮评审裁定 6，及修复轮（`w3-mcp-call-fix1`）已定的事第 6 条。见 O1、O3。
+29. R2 的 `cancelled` 放宽为「占位后、发出前，这次调用的停止信号已触发」，不论触发的是 `cancel` 还是调用方的 `signal`，也不论那一步本来会以什么原因拒绝。出处：修复轮（`w3-mcp-call-fix1`）自裁第 2 条的采纳。见 R2。
+30. `closeAll` 之后的次序：要连接的操作先判关停、不问端口，先于 S1 的采用核对；在途的操作在下一步之前判关停，答同样的结果；任务操作仍先按 S2 判发起者。出处：调用口第 2 轮评审裁定（关停是本实例生命周期的事实，之后不再问宿主端口）与修复轮 `w3-mcp-call-fix2`。见 S8。
 
 <a id="entries"></a>
 
@@ -87,7 +98,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 | 入口         | 给谁                   | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.`          | 调用方与实现方         | 值、品牌守卫、结局、失败、五个服务接口与结果值、纯函数、`mcpEndpointBodyContract()`、`isActionArgs`、`canonical`、`sameJson`、`McpClock`、`LEGACY_PROTOCOL_VERSIONS`、`FIRST_MODERN_PROTOCOL_VERSION`、`classifyWireEvent` 与 `PROCESS_EXIT_WINDOW_MS`                                                                                                                                                                                                                                                                                                                                  |
+| `.`          | 调用方与实现方         | 值、品牌守卫、结局、失败、五个服务接口与结果值、纯函数、`mcpEndpointBodyContract()`、`isActionArgs`、`canonical`、`sameJson`、`McpClock`、`OUTPUT_CHECK_FAILED`、`STRUCTURED_CONTENT_MISSING`、`LEGACY_PROTOCOL_VERSIONS`、`FIRST_MODERN_PROTOCOL_VERSION`、`classifyWireEvent` 与 `PROCESS_EXIT_WINDOW_MS`                                                                                                                                                                                                                                                                             |
 | `./provider` | 端口的实现方           | 五个需求端口、`McpTransport`、`McpTransportFactory` 及其答复类型。只有类型，不重复根入口已导出的类型                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `./testing`  | 端口的实现方，用于自测 | 五个需求端口与传输的符合性套件、各自的内存替身（传输的是 `createScriptedTransportFactory`）、`classifyOutcomeCases`、`mergeListingCases`、样本构造器（`jsonOf`、`jsonTextOf`、`generationOf`、`revisionOf`、`actionNameOf`、`protocolVersionOf`、`requestStateOf`、`taskIdOf`、`adoptionRevisionOf`、`credentialBindingOf`、`connectionTargetOf`、`correlationKeyOf`、`millisOf`、`endpointRefOf`、`peerIdentityOf`），传输决策表 `TRANSPORT_TABLE` 与它的输入域（`transportCells`、`rowsOf`、`cellsOf`），以及 `runConformanceCase`、`isNotApplicable`、`NotApplicable`、`CaseVerdict` |
 
@@ -348,7 +359,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
   「确认停止」指 `stop()` 答 `tree-confirmed`。准备失败或关闭后留下的进程与它确认的停止范围只记在 `lost` 状态的 `residual` 上，视图原样反映状态。关闭时确认停止，状态回到 `none`；否则状态是 `lost`（`close-unconfirmed`）并带 `residual`。重建成功或之后确认停止时，`residual` 清除。凭据在视图里报告为：`not-required`，`auth` 是 `none`；`absent`，配值缺失；`invalid`，配值被守卫拒绝；`present`，配值存在。视图不报告凭据值。
 
-- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「不建连接」相同。`closeAll` 之后，要连接的操作先判关停、不问端口，先于 S1 的采用核对；在途的操作在下一步之前判关停，答同样的结果；任务操作仍先按 S2 判发起者。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
+- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「不建连接」相同。`closeAll` 之后，要连接的操作先判关停、不问端口，先于 S1 的采用核对；在途的操作在下一步之前判关停，答同样的结果。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
 - **S9** 凭据句柄的取得与释放：每条连接按凭据配值调用一次 `CredentialUse.acquire`，所有 `credential` 来源变量共用这一个进程凭据句柄。进程凭据句柄在进程的 `stop()` 返回之后释放，不论它答哪种范围；准备失败时立即释放。HTTP 凭据句柄随连接关闭释放。关停例外：`closeAll` 时落点仍在途的连接，进程凭据句柄立即释放。之后迟到的进程照样停止一次，句柄不再释放第二次。
 
 ## 所有权、失败与生命周期

@@ -5,6 +5,7 @@
 // this module judges by the cause, on the safe side: a `not-sent` of any cause and a `no-answer`
 // of a broken stream or an exited process take the connection down, which can cost one
 // connection more than needed, never a dead transport kept as usable (member SPEC, deviations).
+// The call port skips this judgment for the transport's answer to a stop signal that fired (T5).
 // The services hand the judgment to `table.lose` through `loseOn` (discovery, which reports the
 // mark) or `loseInScope` (calls and task operations, which do not wait for the teardown). Both
 // act only on the current generation.
@@ -80,7 +81,12 @@ export function connectionFailureOfBuild(
   return failure.reason.kind === 'effect-unknown' ? CONNECTION_UNAVAILABLE : failure.reason
 }
 
-/** A request the transport could not send: the connection is gone, judged by the cause (S7, deviations). */
+/**
+ * A request the transport could not send: the connection is judged lost by the cause, on the
+ * safe side (S7, deviations). One case is not judged here: the transport's answer to a stop signal
+ * that fired (T5) does not take the connection down, and the call port skips this function for it
+ * (SPEC MC-16 step 9).
+ */
 export function lostOfNotSent(failure: NotSent): Lost {
   switch (failure.cause) {
     case 'authorization-required':
