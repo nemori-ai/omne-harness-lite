@@ -408,7 +408,7 @@ describe('the MCP plugin on a Cordis context', () => {
     expect(await invoker.cancel(ALICE, CALL_1)).toBe('no-call-in-flight')
   })
 
-  it('answers unknown, and connects to nothing, while the adoption view is absent', async () => {
+  it('answers unknown, and connects to nothing, while the adoption view is absent, and publishes once it is provided', async () => {
     const { ctx, provided } = await assembled({ script: ANSWERING }, 'adoption')
     expect(await refreshed(ctx)).toEqual({ failure: { kind: 'unknown' } })
     expect(await service(ctx, mcpEndpointStatusKey).list(ALICE, SCOPE)).toEqual({
@@ -419,9 +419,10 @@ describe('the MCP plugin on a Cordis context', () => {
     expect(await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)).toEqual({
       ok: { kind: 'not-acquired' },
     })
+    expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
   })
 
-  it('answers unknown, and connects to nothing, while the use eligibility is absent', async () => {
+  it('answers unknown, and connects to nothing, while the use eligibility is absent, and publishes once it is provided', async () => {
     const { ctx, provided } = await assembled({ script: ANSWERING }, 'eligibility')
     expect(await refreshed(ctx)).toEqual({ failure: { kind: 'unknown' } })
     expect(await service(ctx, mcpEndpointStatusKey).inspect(ALICE, FILES)).toEqual({
@@ -432,9 +433,10 @@ describe('the MCP plugin on a Cordis context', () => {
     expect(await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)).toEqual({
       ok: { kind: 'not-acquired' },
     })
+    expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
   })
 
-  it('answers an unknown credential, and starts no process, while the credential use is absent', async () => {
+  it('answers an unknown credential, and starts no process, while the credential use is absent, and publishes once it is provided', async () => {
     const { ctx, provided } = await assembled(
       { script: ANSWERING, credential: true },
       'credentials',
@@ -447,9 +449,10 @@ describe('the MCP plugin on a Cordis context', () => {
     expect(await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)).toEqual({
       ok: { kind: 'not-acquired' },
     })
+    expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
   })
 
-  it('answers landing-unavailable, and starts no process, while the process landing is absent', async () => {
+  it('answers landing-unavailable, and starts no process, while the process landing is absent, and publishes once it is provided', async () => {
     const { ctx, provided } = await assembled({ script: ANSWERING }, 'landing')
     expect(await refreshed(ctx)).toEqual({ failure: { kind: 'landing-unavailable' } })
     expect(provided.landed).toHaveLength(0)
@@ -457,6 +460,7 @@ describe('the MCP plugin on a Cordis context', () => {
     expect(await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)).toEqual({
       ok: { kind: 'not-acquired' },
     })
+    expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
   })
 
   it('uses the replacement eligibility at the next operation after a swap', async () => {
