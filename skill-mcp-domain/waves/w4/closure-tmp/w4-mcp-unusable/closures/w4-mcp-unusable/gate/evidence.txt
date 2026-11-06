@@ -1,0 +1,21 @@
+head 559be1514  15:52:24
+$ awk M4-1 section
+### 与已定事项和契约的偏离
+
+没有偏离。
+
+$ grep -c 比契约 S7 宽|波末小卡 K7
+0
+$ grep export lostOf* in lost.ts
+exit=1
+$ grep lostOf* in calls/tasks/discovery
+exit=1
+$ git grep loseOn(|loseInScope( outside lost.ts
+packages/mcp/mcp/src/calls.ts:311:    if (lost !== undefined) loseInScope(table, ensured, lost)
+packages/mcp/mcp/src/discovery.ts:154:    const catalog = await loseOn(table, ensured, page.lost)
+packages/mcp/mcp/src/tasks.ts:152:    if (lost !== undefined) loseInScope(table, ensured, lost)
+$ git grep lostOf(
+packages/mcp/mcp/src/calls.ts:310:    const lost = lostOf(answer)
+packages/mcp/mcp/src/discovery.ts:106:  const lost = lostOf(failure)
+packages/mcp/mcp/src/internal/lost.ts:98:export function lostOf(answer: TransportFailure | PeerAnswer): Lost | undefined {
+packages/mcp/mcp/src/tasks.ts:151:    const lost = lostOf(failure)

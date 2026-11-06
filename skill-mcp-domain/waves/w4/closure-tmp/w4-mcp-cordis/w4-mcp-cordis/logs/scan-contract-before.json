@@ -1,0 +1,301 @@
+
+> omne-harness-lite-workspace@ package:template /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis
+> node --experimental-strip-types tools/dev-flow/src/package-template/cli.ts scan --member packages/mcp/mcp-cordis-contract --json
+
+{
+  "template": "typescript-package@3.0.0",
+  "packages": [
+    {
+      "path": "packages/mcp/mcp-cordis-contract",
+      "name": "@omne-harness/mcp-cordis-contract",
+      "adoption": "unmarked",
+      "variant": "cordis-module",
+      "structure": "fail",
+      "acceptance": "none",
+      "tree": [
+        {
+          "path": "README.md",
+          "kind": "file"
+        },
+        {
+          "path": "README_ZH.md",
+          "kind": "file"
+        },
+        {
+          "path": "SPEC.md",
+          "kind": "file"
+        },
+        {
+          "path": "acceptance",
+          "kind": "directory"
+        },
+        {
+          "path": "acceptance/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "acceptance/fixtures",
+          "kind": "directory"
+        },
+        {
+          "path": "acceptance/fixtures/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "acceptance/fixtures/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "acceptance/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "adr",
+          "kind": "directory"
+        },
+        {
+          "path": "adr/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "adr/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs",
+          "kind": "directory"
+        },
+        {
+          "path": "docs/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/architecture.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/context.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/cordis.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/flows.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/object-model.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/public-api.md",
+          "kind": "file"
+        },
+        {
+          "path": "documentation.json",
+          "kind": "file"
+        },
+        {
+          "path": "examples",
+          "kind": "directory"
+        },
+        {
+          "path": "examples/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "examples/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "index.md",
+          "kind": "file"
+        },
+        {
+          "path": "package.json",
+          "kind": "file"
+        },
+        {
+          "path": "resources",
+          "kind": "directory"
+        },
+        {
+          "path": "resources/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "resources/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "schema",
+          "kind": "directory"
+        },
+        {
+          "path": "schema/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "schema/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "src",
+          "kind": "directory"
+        },
+        {
+          "path": "src/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "src/cordis.ts",
+          "kind": "file"
+        },
+        {
+          "path": "src/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "src/index.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests",
+          "kind": "directory"
+        },
+        {
+          "path": "tests/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "tests/cordis-entry.spec.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/fixtures",
+          "kind": "directory"
+        },
+        {
+          "path": "tests/fixtures/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "tests/fixtures/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "tests/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "tests/public-entry.spec.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tsconfig.build.json",
+          "kind": "file"
+        },
+        {
+          "path": "tsconfig.test.json",
+          "kind": "file"
+        },
+        {
+          "path": "verification",
+          "kind": "directory"
+        },
+        {
+          "path": "verification/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "verification/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "verification/models",
+          "kind": "directory"
+        },
+        {
+          "path": "verification/models/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "verification/models/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "verification/proofs",
+          "kind": "directory"
+        },
+        {
+          "path": "verification/proofs/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "verification/proofs/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "kind": "file"
+        }
+      ],
+      "excludedDirectories": [
+        ".turbo",
+        "dist",
+        "node_modules"
+      ],
+      "integration": "unknown",
+      "findings": [
+        {
+          "code": "draft",
+          "path": "packages/mcp/mcp-cordis-contract/src/index.ts",
+          "reason": "Complete the accepted contract and remove the draft placeholder before adoption"
+        },
+        {
+          "code": "draft",
+          "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+          "reason": "Complete the accepted contract and remove the draft placeholder before adoption"
+        },
+        {
+          "code": "draft",
+          "path": "packages/mcp/mcp-cordis-contract/README.md",
+          "reason": "Complete the accepted contract and remove the draft placeholder before adoption"
+        },
+        {
+          "code": "draft",
+          "path": "packages/mcp/mcp-cordis-contract/README_ZH.md",
+          "reason": "Complete the accepted contract and remove the draft placeholder before adoption"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "[\"ROLE\",\"packages/mcp/mcp-cordis-contract/src/\"]",
+          "rule": "ROLE",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "packages/mcp/mcp-cordis-contract/src/",
+          "reason": "入口责任未采用、冲突或未映射；不作为分层符合证据",
+          "expected": "docs/architecture/constraints.json",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/",
+              "line": 1
+            }
+          ]
+        }
+      ],
+      "architectureUnknowns": 1,
+      "bindingUnknowns": []
+    }
+  ],
+  "domains": [],
+  "limits": "Complete declared package tree comparison; integration facts remain a static subset and require manual qualification before adoption. No business or lifecycle proof."
+}

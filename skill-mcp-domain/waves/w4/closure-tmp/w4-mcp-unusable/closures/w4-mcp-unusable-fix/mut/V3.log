@@ -1,0 +1,31 @@
+id: V3
+head: 0961b30e9
+time: 2026-11-06T16:59:10Z
+file: packages/mcp/mcp/src/internal/lost.ts
+--- diff
+diff --git a/packages/mcp/mcp/src/internal/lost.ts b/packages/mcp/mcp/src/internal/lost.ts
+index 1203ee06c..4ce0ab186 100644
+--- a/packages/mcp/mcp/src/internal/lost.ts
++++ b/packages/mcp/mcp/src/internal/lost.ts
+@@ -66,8 +66,10 @@ export function loseIfLost(
+   ensured: Ensured,
+   answer: TransportFailure | PeerAnswer,
+ ): void {
+-  const lost = lostOf(answer)
+-  if (lost !== undefined) loseInScope(table, ensured, lost)
++  void lostOf(answer)
++  void loseInScope
++  void table
++  void ensured
+ }
+ 
+ /**
+build after change: 0
+--- command: (cd packages/mcp/mcp && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/lost.spec.ts --reporter=default --reporter=json --outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable-fix/mut/V3.json)
+exit: 1
+--- failed (from JSON report)
+loseIfLost: the one place a request hands what lostOf found to the table { kind: 'no-answer', cause: 'abandoned', unusable: 'process-exited' } loses the ready connection for process-exited
+loseIfLost: the one place a request hands what lostOf found to the table { kind: 'not-sent', cause: 'authorization-required', discovery: { resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource', metadata: 'unavailable', issuers: [], scopes: [] } } loses the ready connection for authorization-required
+restored: byte-identical
+git diff --quiet: clean
+build after restore: 0

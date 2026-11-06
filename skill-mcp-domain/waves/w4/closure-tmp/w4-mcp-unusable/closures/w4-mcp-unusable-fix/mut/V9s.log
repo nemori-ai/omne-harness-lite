@@ -1,0 +1,30 @@
+id: V9s
+head: 0961b30e9
+time: 2026-11-06T16:59:41Z
+file: packages/mcp/mcp-contract/src/testing-scripted-transport.ts
+--- diff
+diff --git a/packages/mcp/mcp-contract/src/testing-scripted-transport.ts b/packages/mcp/mcp-contract/src/testing-scripted-transport.ts
+index b4edcc593..59b0a5e68 100644
+--- a/packages/mcp/mcp-contract/src/testing-scripted-transport.ts
++++ b/packages/mcp/mcp-contract/src/testing-scripted-transport.ts
+@@ -389,7 +389,7 @@ class ScriptedTransport implements McpTransport {
+    * decision, not a fact about the line.
+    */
+   private handedOver(answered: Answered): Answered {
+-    if (this.closed || this.dead === undefined) return answered
++    if (this.dead === undefined) return answered
+     return { ...answered, wire: unusableAnswerOf(answered.wire, this.dead) }
+   }
+ 
+build after change: 0
+--- command: (cd packages/mcp/mcp-contract && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/transport-conformance.spec.ts --reporter=default --reporter=json --outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable-fix/mut/V9s.json)
+exit: 1
+--- failed (from JSON report)
+McpTransport conformance on the scripted transport stdio material first T1 Streamable HTTP: close() after the session ended (S07): the call still in flight and a later request carry no unusable
+McpTransport conformance on the scripted transport streamable-http material first T1 Streamable HTTP: close() after the session ended (S07): the call still in flight and a later request carry no unusable
+the suite fails a transport that breaks the contract a transport that marks a broken stream on Streamable HTTP, which leaves it usable (T1, T8)
+the suite fails a transport that breaks the contract a transport that re-sends tools/call after a broken stream
+the suite fails a transport that breaks the contract a transport that does not report a refused authorization to the handle
+restored: byte-identical
+git diff --quiet: clean
+build after restore: 0

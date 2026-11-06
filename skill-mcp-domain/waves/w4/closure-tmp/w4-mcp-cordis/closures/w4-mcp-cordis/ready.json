@@ -1,0 +1,37 @@
+{
+  "base": "8446c4588f0e2400f2e905179ec252473f7b1066",
+  "branch": "PanQiWei/skill-mcp-w4-mcp-cordis",
+  "key": {
+    "base": "8446c4588f0e2400f2e905179ec252473f7b1066",
+    "lock": "172c6e3146efab166bec93e6caa749b84f917d5aa1709f65046a58893a797410",
+    "agents": "2bd7142b84026a49cbbb8e625e01e0b233b0cc0c",
+    "agentsChanges": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "builds": [
+      "@omne-harness/mcp-cordis-contract",
+      "@omne-harness/mcp-host-local"
+    ]
+  },
+  "steps": [
+    {
+      "name": "install",
+      "ok": true,
+      "ms": 2539
+    },
+    {
+      "name": "projections",
+      "ok": true,
+      "ms": 2127
+    },
+    {
+      "name": "build @omne-harness/mcp-cordis-contract",
+      "ok": true,
+      "ms": 553
+    },
+    {
+      "name": "build @omne-harness/mcp-host-local",
+      "ok": true,
+      "ms": 511
+    }
+  ],
+  "completedAt": "2026-11-06T13:14:01.424Z"
+}

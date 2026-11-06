@@ -1,0 +1,135 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+
+ ❯ tests/decisions.spec.ts (92 tests | 1 failed) 102ms
+     ✓ D01: 4 cells 4ms
+     ✓ D02: 4 cells 1ms
+     ✓ D03: 4 cells 1ms
+     ✓ D04: 9 cells 2ms
+     ✓ D05: 9 cells 1ms
+     ✓ D06: 9 cells 1ms
+     ✓ D07: 27 cells 3ms
+     ✓ D08: 36 cells 3ms
+     ✓ D09: 4 cells 1ms
+     ✓ D10: 8 cells 1ms
+     ✓ D11: 4 cells 0ms
+     ✓ D12: 70 cells 4ms
+     ✓ D13: 2 cells 0ms
+     ✓ D14: 2 cells 0ms
+     ✓ D15: 4 cells 0ms
+     ✓ D16: 20 cells 1ms
+     ✓ I01: 2 cells 1ms
+     ✓ I02: 2 cells 0ms
+     ✓ I03: 80 cells 7ms
+     ✓ I04: 10 cells 1ms
+     ✓ I05: 2 cells 0ms
+     ✓ I06: 3 cells 0ms
+     ✓ I07: 7 cells 0ms
+     ✓ L01: 2 cells 0ms
+     ✓ L02: 2 cells 0ms
+     ✓ L03: 2 cells 0ms
+     ✓ G01: 2 cells 1ms
+     ✓ G02: 2 cells 0ms
+     ✓ G03: 2 cells 0ms
+     ✓ G04: 2 cells 0ms
+     ✓ G05: 2 cells 0ms
+     ✓ G06: 10 cells 1ms
+     ✓ W01: 4 cells 0ms
+     ✓ O01: 240 cells 12ms
+     ✓ O02: 70 cells 3ms
+     ✓ O03: 40 cells 2ms
+     ✓ O04: 8 cells 0ms
+     ✓ O05: 4 cells 0ms
+     ✓ O06: 4 cells 0ms
+     ✓ O07: 4 cells 0ms
+     ✓ O08: 28 cells 1ms
+     ✓ C01: 2 cells 1ms
+     ✓ C02: 90 cells 4ms
+     ✓ C03: 2 cells 0ms
+     ✓ C04: 3 cells 0ms
+     ✓ C05: 7 cells 0ms
+     ✓ S01: 7 cells 1ms
+     ✓ S02: 7 cells 0ms
+     ✓ S03: 1 cells 0ms
+     ✓ S04: 1 cells 0ms
+     ✓ S05: 16 cells 0ms
+     ✓ S06: 8 cells 0ms
+     ✓ S07: 5 cells 0ms
+     ✓ X01: 8 cells 0ms
+     ✓ X02: 8 cells 0ms
+     ✓ the rows that end the transport say so: stdio unsent and broken streams, the exit, the ended session 0ms
+     ✓ the answer of a row that ends the transport carries its cause as the mark; the answer of any other row carries no mark (T1, X02, S03, S04, S07) 0ms
+     × a transport that is not usable any more marks what it hands over with the cause it recorded; a refusal and an answer of the peer stay as they are (T1) 11ms
+     ✓ a reading of a marked answer keeps the mark: the failure of an operation and the answer of a call (T1) 1ms
+     ✓ re-sends a read request on Streamable HTTP after a broken stream, not a write, not on stdio, not in the SSE mode 1ms
+     ✓ reads the error as written: the error member of a good envelope, the whole message of a bad one (C02) 1ms
+     ✓ initialize answered 4xx+plain outside the SSE mode is the chance of the fallback; in the SSE mode it is not sent (I07) 0ms
+     ✓ a result or error class without its message is a defect of the caller, not a fabricated answer 1ms
+     ✓ an event that is no answer is wait 0ms
+     ✓ a readable error is error-answer with its data; an unreadable one is error-shape 0ms
+     ✓ a reader's defect is the what of T7 0ms
+     ✓ the other wires read as their failures 0ms
+     ✓ tasks/get: -32602 is expired for both readings, anywhere it came from (G06) 1ms
+     ✓ the answer of a call: the result or error as written, the cause of no answer, abandoned for the rest 1ms
+     ✓ retryVersionOf names the highest version in common with the modern ones the peer supports 2ms
+     ✓ a -32022 on the second probe is final whatever its class (D07); on the first, the class decides (D04–D06) 1ms
+     ✓ every error class of a probe answer has its conclusion, on the first probe and on the retry (D07–D11) 1ms
+     ✓ discoverWith: identity on the modern path; the retry; the legacy path and which failure it reports 1ms
+     ✓ the legacy path: the params it offers and the identity it reads 0ms
+     ✓ requestClassOf: the second server/discover is discover-retry 0ms
+     ✓ fetches the candidates in order until one is an object; a fetch that rejects is nothing 1ms
+     ✓ stops at the signal: what was not fetched is unavailable 1ms
+     ✓ a connection is legacy once it negotiated a legacy revision, not before 0ms
+     ✓ checks the listing headers on modern Streamable HTTP only; cancels by notification on stdio, legacy and the SSE mode 0ms
+     ✓ a gone stream settles every request with no-answer, no re-send and the cause as the mark; a refusal settles with its discovery 0ms
+     ✓ a stop (the signal, close()) settles a request by its phase: not-sent while authorizing, abandoned once sent, authorization-required with what was fetched while discovering (T5) 0ms
+     ✓ the line going away settles only the phases that depend on it, marked with the cause: authorizing is not-sent for every cause, sent answers the cause except session-ended, discovery goes on (T8 S01–S04, S07) 1ms
+     ✓ the status of the fallback GET is read as an answer to initialize outside the SSE mode: 401 and a scoped 403 are authorization-required, any other status is not-sent (T3, S05, I07) 1ms
+     ✓ sends once more only after a conclusion that says resend, and never a third time 0ms
+     ✓ composes the _meta of a request: the envelope, and on tools/call the progress token 0ms
+     ✓ composes tools/call from the call request: the action and continuation as params, the values as written 0ms
+     ✓ composes the listing and the task requests, each reading its answer the way the operation does 1ms
+     ✓ the exit window decides the cause of a stdio end: the exit within the window, else the stream 0ms
+     ✓ a discovery in progress reports what was fetched so far, and its end when the loop ended 0ms
+     ✓ reads a request with its id as written, a notification with its progress token as text 1ms
+     ✓ answers ping with an empty result and any other request with -32601 0ms
+     ✓ writes jsonrpc first, the value trees as written, and the echoed id as written 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/decisions.spec.ts > concludeAnswer holds every cell of T8 > a transport that is not usable any more marks what it hands over with the cause it recorded; a refusal and an answer of the peer stay as they are (T1)
+AssertionError: expected { kind: 'not-sent', failure: { …(3) } } to deeply equal { kind: 'not-sent', failure: { …(3) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "connection-unavailable",
+      "kind": "not-sent",
+-     "unusable": "process-exited",
++     "unusable": "stream-broken",
+    },
+    "kind": "not-sent",
+  }
+
+ ❯ tests/decisions.spec.ts:407:63
+    405|       failure: { kind: 'not-sent', cause: 'connection-unavailable', un…
+    406|     }
+    407|     expect(unusableAnswerOf(markedNotSent, 'process-exited')).toEqual({
+       |                                                               ^
+    408|       kind: 'not-sent',
+    409|       failure: { kind: 'not-sent', cause: 'connection-unavailable', un…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 91 passed (92)
+Type Errors  no errors
+   Start at  16:59:40
+   Duration  840ms (transform 360ms, setup 17ms, import 566ms, tests 102ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable-fix/mut/V15.json

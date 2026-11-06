@@ -1,0 +1,26 @@
+id: V7
+head: 0961b30e9
+time: 2026-11-06T17:00:26Z
+diff --git a/packages/mcp/mcp-contract/src/transport.ts b/packages/mcp/mcp-contract/src/transport.ts
+index 211a4dd17..9783996db 100644
+--- a/packages/mcp/mcp-contract/src/transport.ts
++++ b/packages/mcp/mcp-contract/src/transport.ts
+@@ -30,7 +30,7 @@ import type { Outcome } from '@omne-harness/operation-result'
+ export type TransportFailure =
+   | Readonly<{ kind: 'not-sent'; cause: 'connection-unavailable'; unusable?: UnusableCause }>
+   /** Streamable HTTP, legacy revision: the peer answered 404 to the session of the connection. */
+-  | Readonly<{ kind: 'not-sent'; cause: 'session-ended'; unusable?: 'session-ended' }>
++  | Readonly<{ kind: 'not-sent'; cause: 'session-ended'; unusable?: UnusableCause }>
+   | Readonly<{
+       kind: 'not-sent'
+       cause: 'authorization-required'
+--- command: (cd packages/mcp/mcp-contract && pnpm run typecheck)
+
+> @omne-harness/mcp-contract@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+> tsc -p tsconfig.test.json
+
+tests/public-entry.spec.ts(307,5): error TS2578: Unused '@ts-expect-error' directive.
+ ELIFECYCLE  Command failed with exit code 1.
+exit: 1
+restored: byte-identical
+git diff --quiet: clean

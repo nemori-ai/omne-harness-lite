@@ -1,0 +1,15 @@
+[
+ {
+  "id": "BASE-HL-FAST",
+  "name": "unmutated",
+  "expect": "green",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 0,
+  "total": 41,
+  "failed": [],
+  "fileErrors": [],
+  "log": "logs/BASE-HL-FAST.log",
+  "sha": "beb9dfec5723"
+ }
+]

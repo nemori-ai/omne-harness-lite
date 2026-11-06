@@ -1,0 +1,174 @@
+## mcp
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+
+ ❯ tests/refresh.spec.ts (49 tests | 5 failed) 126ms
+     ✓ connects, lists one page and publishes revision 1 with the whole listing 14ms
+     ✓ reads every page up to the bound, with the cursor of the page before 2ms
+     ✓ publishes revision 2 on a second refresh and keeps a withdrawn action as unavailable 3ms
+     ✓ superseded: another writer published between the read and the write 2ms
+     ✓ superseded: the connection that produced the listing is no longer the current one (invariant 2) 3ms
+     ✓ cancelled: the refresh was aborted before the publish boundary 2ms
+     ✓ listing-incomplete (page-limit-exceeded): the listing is not adopted 2ms
+     ✓ listing-incomplete (duplicate-action-name): the listing is not adopted 1ms
+     ✓ listing-incomplete (action-invalid): the listing is not adopted 1ms
+     ✓ listing-incomplete (action-limit-exceeded): the listing is not adopted 1ms
+     ✓ listing-incomplete (page-failed) on { kind: 'no-answer', cause: 'stream-broken' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 4ms
+     × listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'connection-unavailable' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 10ms
+     × listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'session-ended' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 2ms
+     ✓ listing-incomplete (page-failed) on { kind: 'error-answer', code: -32603, message: 'internal' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 2ms
+     ✓ listing-incomplete (page-failed) on { kind: 'answer-malformed', what: 'tools-missing' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 1ms
+     ✓ a page answered { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' }, with the mark: connection-unavailable, the connection lost for stream-broken and the record marked (S5, S7, T1) 1ms
+     × a page answered { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }, with the mark: connection-unavailable, the connection lost for session-ended and the record marked (S5, S7, T1) 3ms
+     × a page answered { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, with the mark: connection-unavailable, the connection lost for process-exited and the record marked (S5, S7, T1) 2ms
+     × a page refused with authorization-required: the discovery is carried 2ms
+     ✓ marking after a connection failure meets a revision conflict: kept (superseded) 1ms
+     ✓ marking after a connection failure meets an unavailable store: unknown 1ms
+     ✓ discover answers { kind: 'no-answer', cause: 'process-exited' }: refresh answers { kind: 'effect-unknown', cause: 'process-exited' } 1ms
+     ✓ discover answers { kind: 'error-answer', code: -32600, message: 'bad' }: refresh answers { kind: 'connection-unavailable' } 1ms
+     ✓ discover answers { kind: 'answer-malformed', what: 'discover-shape' }: refresh answers { kind: 'connection-unavailable' } 1ms
+     ✓ discover answers { kind: 'not-sent', cause: 'authorization-required', discovery: { resourceMetadataUrl: 'https://files.example.test/.well-known/oauth-protected-resource', metadata: 'unavailable', issuers: [], scopes: [] } }: refresh answers { kind: 'authorization-required', discovery: { resourceMetadataUrl: 'https://files.example.test/.well-known/oauth-protected-resource', metadata: 'unavailable', issuers: [], scopes: [] } } 1ms
+     ✓ a discover that fails during the build with { kind: 'not-sent', cause: 'connection-unavailable' } fails the build, with or without the mark: refresh answers { kind: 'connection-unavailable' }, the connection is lost (S5, MC-5) 1ms
+     ✓ a discover that fails during the build with { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'connection-unavailable' }, the connection is lost (S5, MC-5) 1ms
+     ✓ a discover that fails during the build with { kind: 'no-answer', cause: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'effect-unknown', cause: 'stream-broken' }, the connection is lost (S5, MC-5) 1ms
+     ✓ a discover that fails during the build with { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'effect-unknown', cause: 'stream-broken' }, the connection is lost (S5, MC-5) 1ms
+     ✓ the store cannot be read: unknown, and no page is asked for 1ms
+     ✓ the store cannot be written: unknown, no revision reported 1ms
+     ✓ a caller that stopped before the refresh answered is told cancelled, whatever a step refused, as the exit of a call (MC-7, contract decision 31) 1ms
+     ✓ the refusals of the gate and of the settings come first, without a transport 1ms
+     ✓ after closeAll: connection-unavailable before the gate, for an endpoint not adopted too; no port is asked (S8) 1ms
+     ✓ closeAll while the refresh waits on the store before the listing: connection-unavailable, as a refresh that starts after closeAll; no page is asked after it, nothing is published (S8, MC-7) 1ms
+     ✓ closeAll while a page is asked: connection-unavailable, not the listing-incomplete the page failure would give, and nothing is published (S8, MC-7) 1ms
+     ✓ at whichever microtask closeAll lands, the refresh starts no step after it: no gate or store port and no page, and it answers connection-unavailable unless it published (S8, MC-7) 34ms
+     ✓ the caller aborts and closeAll begins while a page is asked: kept (cancelled), the stop ranks before the shutdown as at the exit of a call (S8, MC-7, MC-16) 1ms
+     ✓ closeAll while the store writes the listing: the refresh that published stays published (S8) 1ms
+     ✓ revoked while listing: not-available-to-you, nothing published 1ms
+     ✓ blocked while listing: blocked, nothing published, the connection closed 1ms
+     ✓ publishes exactly once (first-then-second) and keeps the listing that was published 1ms
+     ✓ publishes exactly once (second-then-first) and keeps the listing that was published 1ms
+     ✓ current: not-acquired before any refresh, with no transport opened 1ms
+     ✓ current: basisCurrent is no-connection, then matches, then differs 2ms
+     ✓ peer: the negotiated facts and the generation once connected 1ms
+     ✓ current and peer: a missing credential is config-missing (credential), not a connection failure 0ms
+     ✓ current: an unavailable store is unknown, not not-acquired 0ms
+     ✓ current and peer: the gate answers first 0ms
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 44 passed (49)
+   Start at  13:18:14
+   Duration  1.07s (transform 528ms, setup 19ms, import 782ms, tests 126ms, environment 0ms)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/refresh.spec.ts > refresh keeps the earlier adoption > listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'connection-unavailable' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1)
+ FAIL  tests/refresh.spec.ts > refresh keeps the earlier adoption > listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'session-ended' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1)
+AssertionError: expected { Object (failure) } to deeply equal { ok: { kind: 'kept', …(1) } }
+
+- Expected
++ Received
+
+  {
+-   "ok": {
+-     "kind": "kept",
+-     "reason": {
+-       "defect": "page-failed",
+-       "kind": "listing-incomplete",
+-     },
++   "failure": {
++     "kind": "connection-unavailable",
+    },
+  }
+
+ ❯ tests/refresh.spec.ts:230:62
+    228|       adoptStdio(w, files)
+    229|       const before = await storedRecord(w, anonymousKey, ['old'])
+    230|       expect(await discovery.refresh(alice, { ref: files })).toEqual({
+       |                                                              ^
+    231|         ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defe…
+    232|       })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/refresh.spec.ts > refresh fails > a page answered { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }, with the mark: connection-unavailable, the connection lost for session-ended and the record marked (S5, S7, T1)
+AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { ok: { connection: { …(2) } } }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "connection": {
+        "kind": "lost",
+-       "reason": "session-ended",
++       "reason": "stream-broken",
+      },
+    },
+  }
+
+ ❯ tests/refresh.spec.ts:268:50
+    266|         failure: { kind: 'connection-unavailable' },
+    267|       })
+    268|       expect(await status.inspect(alice, files)).toMatchObject({
+       |                                                  ^
+    269|         ok: { connection: { kind: 'lost', reason } },
+    270|       })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/refresh.spec.ts > refresh fails > a page answered { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, with the mark: connection-unavailable, the connection lost for process-exited and the record marked (S5, S7, T1)
+AssertionError: expected { ok: { kind: 'kept', …(1) } } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+-   "failure": {
+-     "kind": "connection-unavailable",
++   "ok": {
++     "kind": "kept",
++     "reason": {
++       "defect": "page-failed",
++       "kind": "listing-incomplete",
++     },
+    },
+  }
+
+ ❯ tests/refresh.spec.ts:265:62
+    263|       adoptStdio(w, files)
+    264|       const before = await storedRecord(w, anonymousKey, ['old'])
+    265|       expect(await discovery.refresh(alice, { ref: files })).toEqual({
+       |                                                              ^
+    266|         failure: { kind: 'connection-unavailable' },
+    267|       })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/refresh.spec.ts > refresh fails > a page refused with authorization-required: the discovery is carried
+AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { ok: { connection: { …(2) } } }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "connection": {
+        "kind": "lost",
+-       "reason": "authorization-required",
++       "reason": "stream-broken",
+      },
+    },
+  }
+
+ ❯ tests/refresh.spec.ts:307:48
+    305|       failure: { kind: 'authorization-required', discovery: DISCOVERY …
+    306|     })
+    307|     expect(await status.inspect(alice, files)).toMatchObject({
+       |                                                ^
+    308|       ok: { connection: { kind: 'lost', reason: 'authorization-require…
+    309|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+

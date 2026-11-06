@@ -1,0 +1,76 @@
+# K10 an extra runtime export
+# expect: red
+# edits: [{"from":"export const mcpProcessLandingKey = ProcessLandingService.provide","to":"export const mcpProcessLandingKey = ProcessLandingService.provide\nexport const mcpExtraKey = 'mcpExtra'"}]
+$ (cd packages/mcp/mcp-cordis-contract && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-cordis-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-cordis-contract && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)
+exit 1
+seconds 1.0
+total 10
+failed [
+ "exports exactly the seven abstract Service classes and the seven key constants"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract
+
+ ❯ tests/cordis-entry.spec.ts (10 tests | 1 failed) 23ms
+   ✓ writes each service key once, on its abstract Service, and exports a constant equal to it 2ms
+   ✓ gives the seven services seven different keys 0ms
+   × exports exactly the seven abstract Service classes and the seven key constants 8ms
+   ✓ provides a loaded subclass of ActionDiscoveryService under its key and removes it when the fiber unloads 5ms
+   ✓ provides a loaded subclass of ActionInvokerService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of EndpointStatusService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of AdoptionViewService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of UseEligibilityService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of CredentialUseService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of ProcessLandingService under its key and removes it when the fiber unloads 1ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+Type Errors  no errors
+   Start at  15:37:33
+   Duration  210ms (transform 14ms, setup 0ms, import 31ms, tests 23ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-K10/packages__mcp__mcp-cordis-contract.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-entry.spec.ts > exports exactly the seven abstract Service classes and the seven key constants
+AssertionError: expected [ 'ActionDiscoveryService', …(14) ] to deeply equal [ 'ActionDiscoveryService', …(13) ]
+
+- Expected
++ Received
+
+@@ -9,8 +9,9 @@
+    "mcpActionDiscoveryKey",
+    "mcpActionInvokerKey",
+    "mcpAdoptionViewKey",
+    "mcpCredentialUseKey",
+    "mcpEndpointStatusKey",
++   "mcpExtraKey",
+    "mcpProcessLandingKey",
+    "mcpUseEligibilityKey",
+  ]
+
+ ❯ tests/cordis-entry.spec.ts:43:38
+     41| it('exports exactly the seven abstract Service classes and the seven k…
+     42|   const cordis: Record<string, unknown> = await import('@omne-harness/…
+     43|   expect(Object.keys(cordis).sort()).toEqual([
+       |                                      ^
+     44|     'ActionDiscoveryService',
+     45|     'ActionInvokerService',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+

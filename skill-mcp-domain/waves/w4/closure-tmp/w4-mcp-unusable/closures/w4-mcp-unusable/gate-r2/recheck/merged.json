@@ -1,0 +1,158 @@
+{
+  "ledger": "/data/qiwei/repos/omne-harness-lite/tmp/mutation-ledger/4209b33a7/20261106-180843",
+  "head": "4209b33a767001c62bf45d3eaf05fa3eaf6b20da",
+  "members": [
+    {
+      "member": "packages/mcp/mcp",
+      "counts": {
+        "Killed": 66,
+        "Timeout": 0,
+        "Survived": 3,
+        "NoCoverage": 0,
+        "CompileError": 0,
+        "RuntimeError": 0,
+        "Ignored": 0,
+        "Pending": 0
+      },
+      "score": 95.65217391304348,
+      "rechecked": [
+        {
+          "file": "packages/mcp/mcp/src/discovery.ts",
+          "line": 104,
+          "mutator": "ConditionalExpression",
+          "original": "!('failure' in page)",
+          "replacement": "false",
+          "static": false,
+          "reason": "notRun",
+          "recheck": "Killed"
+        },
+        {
+          "file": "packages/mcp/mcp/src/internal/lost.ts",
+          "line": 118,
+          "mutator": "ConditionalExpression",
+          "original": "answer.cause === 'authorization-required'",
+          "replacement": "true",
+          "static": false,
+          "reason": "notRun",
+          "recheck": "Killed"
+        },
+        {
+          "file": "packages/mcp/mcp/src/internal/lost.ts",
+          "line": 118,
+          "mutator": "StringLiteral",
+          "original": "'authorization-required'",
+          "replacement": "\"\"",
+          "static": false,
+          "reason": "notRun",
+          "recheck": "Killed"
+        }
+      ]
+    },
+    {
+      "member": "packages/mcp/mcp-contract",
+      "counts": {
+        "Killed": 199,
+        "Timeout": 0,
+        "Survived": 24,
+        "NoCoverage": 11,
+        "CompileError": 0,
+        "RuntimeError": 0,
+        "Ignored": 0,
+        "Pending": 0
+      },
+      "score": 85.04273504273505,
+      "rechecked": [
+        {
+          "file": "packages/mcp/mcp-contract/src/decisions.ts",
+          "line": 125,
+          "mutator": "ObjectLiteral",
+          "original": "{ kind: 'settle', wire: unusableAnswerOf(wire, unusable), unusable }",
+          "replacement": "{}",
+          "static": false,
+          "reason": "notRun",
+          "recheck": "Killed"
+        },
+        {
+          "file": "packages/mcp/mcp-contract/src/decisions.ts",
+          "line": 165,
+          "mutator": "ConditionalExpression",
+          "original": "case 'connection-unavailable': return { kind: 'not-sent', failure: { ...failure,…",
+          "replacement": "case 'connection-unavailable':",
+          "static": false,
+          "reason": "notRun",
+          "recheck": "Killed"
+        },
+        {
+          "file": "packages/mcp/mcp-contract/src/decisions.ts",
+          "line": 165,
+          "mutator": "StringLiteral",
+          "original": "'connection-unavailable'",
+          "replacement": "\"\"",
+          "static": false,
+          "reason": "notRun",
+          "recheck": "Killed"
+        },
+        {
+          "file": "packages/mcp/mcp-contract/src/decisions.ts",
+          "line": 425,
+          "mutator": "ObjectLiteral",
+          "original": "{ kind: 'no-answer', cause, unusable }",
+          "replacement": "{}",
+          "static": false,
+          "reason": "notRun",
+          "recheck": "Killed"
+        },
+        {
+          "file": "packages/mcp/mcp-contract/src/testing-scripted-transport.ts",
+          "line": 404,
+          "mutator": "CallExpression",
+          "original": "entry.resolve(this.handedOver(answered))",
+          "replacement": ";",
+          "static": false,
+          "reason": "timeoutUnchecked",
+          "recheck": "Killed"
+        },
+        {
+          "file": "packages/mcp/mcp-contract/src/testing-transport.ts",
+          "line": 1410,
+          "mutator": "ObjectLiteral",
+          "original": "{ kind: 'http', status: 404 }",
+          "replacement": "{}",
+          "static": false,
+          "reason": "timeoutUnchecked",
+          "recheck": "Killed"
+        },
+        {
+          "file": "packages/mcp/mcp-contract/src/testing-transport.ts",
+          "line": 1410,
+          "mutator": "StringLiteral",
+          "original": "'http'",
+          "replacement": "\"\"",
+          "static": false,
+          "reason": "timeoutUnchecked",
+          "recheck": "Killed"
+        },
+        {
+          "file": "packages/mcp/mcp-contract/src/testing-transport.ts",
+          "line": 1435,
+          "mutator": "ObjectLiteral",
+          "original": "{ kind: 'process-exits' }",
+          "replacement": "{}",
+          "static": false,
+          "reason": "timeoutUnchecked",
+          "recheck": "Killed"
+        },
+        {
+          "file": "packages/mcp/mcp-contract/src/testing-transport.ts",
+          "line": 1435,
+          "mutator": "StringLiteral",
+          "original": "'process-exits'",
+          "replacement": "\"\"",
+          "static": false,
+          "reason": "timeoutUnchecked",
+          "recheck": "Killed"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,195 @@
+# S04 invoke is not forwarded
+# expect: red
+# edits: [{"from":"return this.invoker.invoke(...args)","to":"void args\n    return Promise.resolve({ kind: 'not-sent' as const, reason: { kind: 'unknown' as const } })"}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)
+exit 1
+seconds 242.3
+total 13
+failed [
+ "the MCP plugin on a Cordis context, with a scripted peer process loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer",
+ "the MCP plugin on a Cordis context, with a scripted peer process answers each operation of the three services through the plugin",
+ "the MCP plugin on a Cordis context, with a scripted peer process signals a call in flight that cancel names",
+ "the MCP plugin on a Cordis context, with a scripted peer process removes the three services, stops the peer process and releases the credential handle when the plugin unloads",
+ "the MCP plugin on a Cordis context, with a scripted peer process settles a call in flight with an unknown effect when the plugin unloads",
+ "the MCP plugin on a Cordis context, with a scripted peer process warns of the endpoint and the scope when the stop of its process is root-only at unload",
+ "the MCP plugin on a Cordis context, with a scripted peer process warns of the endpoint and the scope when the stop of its process is unconfirmed at unload",
+ "the MCP plugin on a Cordis context, with a scripted peer process does not warn when the stop of the process is tree-confirmed at unload"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-journey.spec.ts (13 tests | 8 failed) 240654ms
+     × loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer 83ms
+     × answers each operation of the three services through the plugin 60ms
+     × signals a call in flight that cancel names 120007ms
+     ✓ publishes the catalog of a stdio peer once the absent adoption port is provided 52ms
+     ✓ publishes the catalog of a stdio peer once the absent eligibility port is provided 52ms
+     ✓ publishes the catalog of a stdio peer once the absent credentials port is provided 49ms
+     ✓ publishes the catalog of a stdio peer once the absent landing port is provided 49ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 99ms
+     × removes the three services, stops the peer process and releases the credential handle when the plugin unloads 50ms
+     × settles a call in flight with an unknown effect when the plugin unloads 120005ms
+     × warns of the endpoint and the scope when the stop of its process is root-only at unload 51ms
+     × warns of the endpoint and the scope when the stop of its process is unconfirmed at unload 50ms
+     × does not warn when the stop of the process is tree-confirmed at unload 46ms
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 5 passed (13)
+   Start at  15:30:21
+   Duration  241.50s (transform 469ms, setup 15ms, import 689ms, tests 240.65s, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-S04/packages__mcp__mcp-host-local.json
+
+--- stderr
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer
+AssertionError: expected { kind: 'not-sent', …(1) } to match object { kind: 'sent', outcome: { …(2) } }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "kind": "sent",
+-   "outcome": {
+-     "content": [
+-       {
+-         "block": {
+-           "kind": "text",
+-           "text": "hello",
+-         },
+-         "kind": "block",
+-       },
+-     ],
+-     "kind": "complete",
+-   },
++   "kind": "not-sent",
+  }
+
+ ❯ tests/cordis-journey.spec.ts:406:21
+    404|     const { ctx, provided } = await assembled({ script: ANSWERING })
+    405|     const invoked = await invokeEcho(ctx)
+    406|     expect(invoked).toMatchObject({
+       |                     ^
+    407|       kind: 'sent',
+    408|       outcome: {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > answers each operation of the three services through the plugin
+Error: ask did not ask for input: {"kind":"not-sent","reason":{"kind":"unknown"}}
+ ❯ tests/cordis-journey.spec.ts:431:13
+    429|     const asked = await invoke(ctx, 'ask', CALL_1)
+    430|     if (asked.kind !== 'sent' || asked.outcome.kind !== 'inputRequired…
+    431|       throw new Error(`ask did not ask for input: ${JSON.stringify(ask…
+       |             ^
+    432|     const { requestState, issuedAt } = asked.outcome
+    433|     const continued = await invoker.continueWithInput(ALICE, {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > signals a call in flight that cancel names
+Error: Test timed out in 120000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/cordis-journey.spec.ts:467:3
+    465|   })
+    466|
+    467|   it('signals a call in flight that cancel names', async () => {
+       |   ^
+    468|     const { ctx, provided } = await assembled({ script: SILENT })
+    469|     const invoking = invokeEcho(ctx)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > removes the three services, stops the peer process and releases the credential handle when the plugin unloads
+AssertionError: expected { kind: 'not-sent', …(1) } to match object { kind: 'sent' }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "kind": "sent",
++   "kind": "not-sent",
+  }
+
+ ❯ tests/cordis-journey.spec.ts:518:35
+    516|   it('removes the three services, stops the peer process and releases …
+    517|     const { ctx, fiber, provided } = await assembled({ script: ANSWERI…
+    518|     expect(await invokeEcho(ctx)).toMatchObject({ kind: 'sent' })
+       |                                   ^
+    519|     const [peer] = provided.landed
+    520|     if (peer === undefined) throw new Error('no process was started')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > settles a call in flight with an unknown effect when the plugin unloads
+Error: Test timed out in 120000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/cordis-journey.spec.ts:535:3
+    533|   })
+    534|
+    535|   it('settles a call in flight with an unknown effect when the plugin …
+       |   ^
+    536|     const { ctx, fiber, provided } = await assembled({ script: SILENT …
+    537|     const invoking = invokeEcho(ctx)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > warns of the endpoint and the scope when the stop of its process is root-only at unload
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > warns of the endpoint and the scope when the stop of its process is unconfirmed at unload
+AssertionError: expected { kind: 'not-sent', …(1) } to match object { kind: 'sent' }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "kind": "sent",
++   "kind": "not-sent",
+  }
+
+ ❯ tests/cordis-journey.spec.ts:554:37
+    552|       const { ctx, fiber } = await assembled({ script: ANSWERING, stop…
+    553|       const warnings = recordWarnings(ctx)
+    554|       expect(await invokeEcho(ctx)).toMatchObject({ kind: 'sent' })
+       |                                     ^
+    555|       await fiber.dispose()
+    556|       expect(warnings).toEqual([['the stop of the process was not conf…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > does not warn when the stop of the process is tree-confirmed at unload
+AssertionError: expected { kind: 'not-sent', …(1) } to match object { kind: 'sent' }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "kind": "sent",
++   "kind": "not-sent",
+  }
+
+ ❯ tests/cordis-journey.spec.ts:566:35
+    564|     })
+    565|     const warnings = recordWarnings(ctx)
+    566|     expect(await invokeEcho(ctx)).toMatchObject({ kind: 'sent' })
+       |                                   ^
+    567|     await fiber.dispose()
+    568|     expect(provided.stops).toEqual(['tree-confirmed'])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+

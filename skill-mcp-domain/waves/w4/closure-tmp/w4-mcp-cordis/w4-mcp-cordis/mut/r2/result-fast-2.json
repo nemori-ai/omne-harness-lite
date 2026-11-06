@@ -1,0 +1,713 @@
+[
+ {
+  "id": "F01",
+  "name": "eligibility absent answers granted",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided"
+  ],
+  "fileErrors": [],
+  "log": "logs/F01.log",
+  "sha": "a139d2818b1c"
+ },
+ {
+  "id": "F02",
+  "name": "adoption endpoint absent answers not-adopted",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided"
+  ],
+  "fileErrors": [],
+  "log": "logs/F02.log",
+  "sha": "67dfd63ab84b"
+ },
+ {
+  "id": "F03",
+  "name": "adoption endpoints absent answers an empty list",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided"
+  ],
+  "fileErrors": [],
+  "log": "logs/F03.log",
+  "sha": "4065e0f12eb8"
+ },
+ {
+  "id": "F04",
+  "name": "credential absent answers missing",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers an unknown credential, and asks no landing, while the credential use is absent, and acquires once it is provided"
+  ],
+  "fileErrors": [],
+  "log": "logs/F04.log",
+  "sha": "589ba7c2040d"
+ },
+ {
+  "id": "F05",
+  "name": "landing absent answers facility-missing",
+  "expect": "equivalent",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 0,
+  "total": 41,
+  "failed": [],
+  "fileErrors": [],
+  "log": "logs/F05.log",
+  "sha": "988e40981090"
+ },
+ {
+  "id": "F06",
+  "name": "eligibility adapter reads the port at apply",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided",
+   "the MCP plugin on a Cordis context, without a process uses the replacement eligibility at the next port call after a swap"
+  ],
+  "fileErrors": [],
+  "log": "logs/F06.log",
+  "sha": "ee14653e7f0d"
+ },
+ {
+  "id": "F07",
+  "name": "eligibility adapter caches the first reference",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process uses the replacement eligibility at the next port call after a swap"
+  ],
+  "fileErrors": [],
+  "log": "logs/F07.log",
+  "sha": "5996ad017f9a"
+ },
+ {
+  "id": "F08",
+  "name": "adoption adapter reads the port at apply",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided",
+   "the MCP plugin on a Cordis context, without a process reads the replacement adoption view at the next refresh after a swap"
+  ],
+  "fileErrors": [],
+  "log": "logs/F08.log",
+  "sha": "1c4084643684"
+ },
+ {
+  "id": "F09",
+  "name": "adoption adapter caches the first reference",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process reads the replacement adoption view at the next refresh after a swap"
+  ],
+  "fileErrors": [],
+  "log": "logs/F09.log",
+  "sha": "2f408f6f5509"
+ },
+ {
+  "id": "F10",
+  "name": "credential adapter reads the port at apply",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers an unknown credential, and asks no landing, while the credential use is absent, and acquires once it is provided",
+   "the MCP plugin on a Cordis context, without a process uses the replacement credential use at the next port call after a swap"
+  ],
+  "fileErrors": [],
+  "log": "logs/F10.log",
+  "sha": "9496de4173c7"
+ },
+ {
+  "id": "F11",
+  "name": "landing adapter reads the port at apply",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers landing-unavailable while the process landing is absent, and asks the landing once it is provided",
+   "the MCP plugin on a Cordis context, without a process uses the replacement process landing at the next port call after a swap"
+  ],
+  "fileErrors": [],
+  "log": "logs/F11.log",
+  "sha": "b8677b15d9fb"
+ },
+ {
+  "id": "F42",
+  "name": "credential adapter caches the first reference",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process uses the replacement credential use at the next port call after a swap"
+  ],
+  "fileErrors": [],
+  "log": "logs/F42.log",
+  "sha": "1e221f0f16e8"
+ },
+ {
+  "id": "F43",
+  "name": "landing adapter caches the first reference",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process uses the replacement process landing at the next port call after a swap"
+  ],
+  "fileErrors": [],
+  "log": "logs/F43.log",
+  "sha": "a8703bb59dd4"
+ },
+ {
+  "id": "F12",
+  "name": "the endpoint status service is not provided",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process provides the three services on load with a complete lawful configuration and removes them when the plugin unloads",
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection",
+   "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided",
+   "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided",
+   "the MCP plugin on a Cordis context, without a process uses the replacement eligibility at the next port call after a swap"
+  ],
+  "fileErrors": [],
+  "log": "logs/F12.log",
+  "sha": "8acfaa373d64"
+ },
+ {
+  "id": "F13",
+  "name": "current is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F13.log",
+  "sha": "fd6ada81aa20"
+ },
+ {
+  "id": "F14",
+  "name": "refresh is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection",
+   "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided",
+   "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided",
+   "the MCP plugin on a Cordis context, without a process answers an unknown credential, and asks no landing, while the credential use is absent, and acquires once it is provided",
+   "the MCP plugin on a Cordis context, without a process answers landing-unavailable while the process landing is absent, and asks the landing once it is provided",
+   "the MCP plugin on a Cordis context, without a process uses the replacement eligibility at the next port call after a swap",
+   "the MCP plugin on a Cordis context, without a process reads the replacement adoption view at the next refresh after a swap",
+   "the MCP plugin on a Cordis context, without a process uses the replacement credential use at the next port call after a swap",
+   "the MCP plugin on a Cordis context, without a process uses the replacement process landing at the next port call after a swap"
+  ],
+  "fileErrors": [],
+  "log": "logs/F14.log",
+  "sha": "fbc1b4209f82"
+ },
+ {
+  "id": "F15",
+  "name": "peer is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F15.log",
+  "sha": "984a8b570c25"
+ },
+ {
+  "id": "F16",
+  "name": "invoke is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F16.log",
+  "sha": "20083590a539"
+ },
+ {
+  "id": "F17",
+  "name": "continueWithInput is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F17.log",
+  "sha": "19e1526c8938"
+ },
+ {
+  "id": "F18",
+  "name": "cancel is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F18.log",
+  "sha": "80eb5b4b6450"
+ },
+ {
+  "id": "F19",
+  "name": "queryTask is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F19.log",
+  "sha": "469d4f25d2b8"
+ },
+ {
+  "id": "F20",
+  "name": "taskResult is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F20.log",
+  "sha": "be9b7e8e4fa7"
+ },
+ {
+  "id": "F21",
+  "name": "provideTaskInput is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F21.log",
+  "sha": "1e291b04af5e"
+ },
+ {
+  "id": "F22",
+  "name": "cancelTask is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F22.log",
+  "sha": "b0864021a618"
+ },
+ {
+  "id": "F23",
+  "name": "inspect is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection",
+   "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided",
+   "the MCP plugin on a Cordis context, without a process uses the replacement eligibility at the next port call after a swap"
+  ],
+  "fileErrors": [],
+  "log": "logs/F23.log",
+  "sha": "6968f7b58057"
+ },
+ {
+  "id": "F24",
+  "name": "list is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F24.log",
+  "sha": "ec1687150b6a"
+ },
+ {
+  "id": "F25",
+  "name": "plain record does not check the prototype",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is a Date",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is a Date, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that inherits every field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that inherits every field, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F25.log",
+  "sha": "dde8df24b9de"
+ },
+ {
+  "id": "F26",
+  "name": "plain record refuses a null prototype",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration accepts a configuration without a prototype"
+  ],
+  "fileErrors": [],
+  "log": "logs/F26.log",
+  "sha": "8946b0bbe834"
+ },
+ {
+  "id": "F27",
+  "name": "extra keys found with Object.keys",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that has a symbol key",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that has a symbol key, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F27.log",
+  "sha": "abf6567d10b7"
+ },
+ {
+  "id": "F28",
+  "name": "an extra field is not reported",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that has an extra field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that has an extra field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that has a symbol key",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that has a symbol key, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo has an extra field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F28.log",
+  "sha": "39ad3d9a696d"
+ },
+ {
+  "id": "F29",
+  "name": "a missing field is not reported",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that lacks a field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that lacks a field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo lacks a field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo lacks a field, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F29.log",
+  "sha": "49ecc5fcf9c9"
+ },
+ {
+  "id": "F30",
+  "name": "clientInfo is not checked for extra fields",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo has an extra field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F30.log",
+  "sha": "6ac49fef0322"
+ },
+ {
+  "id": "F31",
+  "name": "the message of maxListingPages names another field",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose bound is not a number",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose bound is not a number, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F31.log",
+  "sha": "3bfc1a68faba"
+ },
+ {
+  "id": "F32",
+  "name": "the message of probeTimeoutMs names another field",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose probeTimeoutMs is not a number",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose probeTimeoutMs is not a number, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F32.log",
+  "sha": "40c60da87ee0"
+ },
+ {
+  "id": "F33",
+  "name": "two bounds swap their values",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration accepts a complete lawful configuration as a copy",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration accepts a configuration without a prototype"
+  ],
+  "fileErrors": [],
+  "log": "logs/F33.log",
+  "sha": "7e40a033fa45"
+ },
+ {
+  "id": "F34",
+  "name": "clientInfo.name has the message of version",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo.name is not a text",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo.name is not a text, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F34.log",
+  "sha": "af083340e75b"
+ },
+ {
+  "id": "F35",
+  "name": "clientInfo.version has the message of name",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo.version is not a text",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo.version is not a text, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F35.log",
+  "sha": "d37fe266991d"
+ },
+ {
+  "id": "F36",
+  "name": "clientInfo that is not an object has another message",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo is not an object",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo is not an object, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F36.log",
+  "sha": "e9a57ae3dbdd"
+ },
+ {
+  "id": "F37",
+  "name": "a configuration that is not an object has another message",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is not an object",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is not an object, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is a Date",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is a Date, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that inherits every field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that inherits every field, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F37.log",
+  "sha": "2c3d1ac4bdd9"
+ },
+ {
+  "id": "F38",
+  "name": "the schema accepts any value",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration accepts a complete lawful configuration as a copy",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is not an object",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is not an object, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is a Date",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is a Date, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that inherits every field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that inherits every field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that lacks a field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that lacks a field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that has an extra field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that has an extra field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that has a symbol key",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that has a symbol key, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose bound is not a number",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose bound is not a number, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose probeTimeoutMs is not a number",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose probeTimeoutMs is not a number, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo is not an object",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo is not an object, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo lacks a field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo lacks a field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo has an extra field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo.name is not a text",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo.name is not a text, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo.version is not a text",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo.version is not a text, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F38.log",
+  "sha": "dbc796e330aa"
+ },
+ {
+  "id": "F39",
+  "name": "the plugin replaces a zero maxActions",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load when maxActions is 0, with the RangeError of createMcp"
+  ],
+  "fileErrors": [],
+  "log": "logs/F39.log",
+  "sha": "27321b3ef94b"
+ },
+ {
+  "id": "F40",
+  "name": "the plugin replaces a zero probe timeout",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load when probeTimeoutMs is 0, with the RangeError of the transport factory"
+  ],
+  "fileErrors": [],
+  "log": "logs/F40.log",
+  "sha": "bdb388494c58"
+ },
+ {
+  "id": "F41",
+  "name": "test-side: the probe removal resolves instead of throwing (the probe tests Cordis)",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 41,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes"
+  ],
+  "fileErrors": [],
+  "log": "logs/F41.log",
+  "sha": "dac719ce5e9a"
+ }
+]

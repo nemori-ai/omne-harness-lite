@@ -1,0 +1,6 @@
+head 0961b30e9 start 2026-11-06T17:41:57Z cmd: pnpm run lint:oxlint
+
+> omne-harness-lite-workspace@ lint:oxlint /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable
+> oxlint -c .oxlintrc.json --report-unused-disable-directives tools scripts packages apps
+
+exit 0 end 2026-11-06T17:41:58Z

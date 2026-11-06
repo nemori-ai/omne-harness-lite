@@ -1,0 +1,1 @@
+{"files":[{"file":"/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract/tests/public-entry.spec.ts","collectSeconds":0.012,"tests":[{"fullName":"keeps the root entry free of runtime values","timeoutSeconds":5,"tags":[]},{"fullName":"keeps the root entry source and built file free of Cordis","timeoutSeconds":5,"tags":[]}]}]}

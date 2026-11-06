@@ -1,0 +1,6 @@
+  const lost = lostOf(answer)
+  if (lost !== undefined) loseInScope(table, ensured, lost)
+}
+
+/**
+ * The connection failure a request that was not sent

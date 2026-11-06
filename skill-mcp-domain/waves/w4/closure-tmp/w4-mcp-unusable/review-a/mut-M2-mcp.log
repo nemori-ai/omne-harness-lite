@@ -1,0 +1,39 @@
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/review-a/mut/packages/mcp/mcp
+
+ ❯ tests/public-entry.spec.ts (2 tests | 2 failed) 21ms
+   × exports the two factories from the public root 14ms
+   × does not export the aggregates, the gate or the connection table 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/public-entry.spec.ts > exports the two factories from the public root
+Error: Failed to resolve entry for package "@omne-harness/mcp". The package may have incorrect main/module/exports specified in its package.json.
+ ❯ tests/public-entry.spec.ts:5:41
+      3|
+      4| it('exports the two factories from the public root', async () => {
+      5|   const root: Record<string, unknown> = await import('@omne-harness/mc…
+       |                                         ^
+      6|   expect(Object.keys(root).sort()).toEqual(['createInMemoryCatalogStor…
+      7|   expect(typeof root['createMcp']).toBe('function')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/public-entry.spec.ts > does not export the aggregates, the gate or the connection table
+Error: Failed to resolve entry for package "@omne-harness/mcp". The package may have incorrect main/module/exports specified in its package.json.
+ ❯ tests/public-entry.spec.ts:12:41
+     10|
+     11| it('does not export the aggregates, the gate or the connection table',…
+     12|   const root: Record<string, unknown> = await import('@omne-harness/mc…
+       |                                         ^
+     13|   for (const internal of [
+     14|     'Connection',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 24 passed (25)
+      Tests  2 failed | 483 passed | 10 skipped (495)
+   Start at  16:15:29
+   Duration  52.83s (transform 1.28s, setup 341ms, import 6.70s, tests 79.28s, environment 4ms)
+

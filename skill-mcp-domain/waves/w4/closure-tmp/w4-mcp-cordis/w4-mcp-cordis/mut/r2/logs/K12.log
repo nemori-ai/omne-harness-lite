@@ -1,0 +1,62 @@
+# K12 the root entry has a runtime value
+# expect: red
+# edits: [{"from":"export {}","to":"export const root = 1"}]
+$ (cd packages/mcp/mcp-cordis-contract && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-cordis-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-cordis-contract && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/public-entry.spec.ts)
+exit 1
+seconds 1.0
+total 2
+failed [
+ "keeps the root entry free of runtime values"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract
+
+ ❯ tests/public-entry.spec.ts (2 tests | 1 failed) 17ms
+   × keeps the root entry free of runtime values 14ms
+   ✓ keeps the root entry source and built file free of Cordis 1ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+Type Errors  no errors
+   Start at  15:37:37
+   Duration  177ms (transform 7ms, setup 0ms, import 12ms, tests 17ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-K12/packages__mcp__mcp-cordis-contract.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/public-entry.spec.ts > keeps the root entry free of runtime values
+AssertionError: expected [ 'root' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "root",
++ ]
+
+ ❯ tests/public-entry.spec.ts:6:29
+      4| it('keeps the root entry free of runtime values', async () => {
+      5|   const root: Record<string, unknown> = await import('@omne-harness/mc…
+      6|   expect(Object.keys(root)).toEqual([])
+       |                             ^
+      7| })
+      8|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+

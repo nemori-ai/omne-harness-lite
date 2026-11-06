@@ -1,0 +1,26 @@
+id: V5c
+head: 0961b30e9
+time: 2026-11-06T16:59:24Z
+file: packages/mcp/mcp-contract/src/decisions.ts
+--- diff
+diff --git a/packages/mcp/mcp-contract/src/decisions.ts b/packages/mcp/mcp-contract/src/decisions.ts
+index 94f405fbd..aa91f4efc 100644
+--- a/packages/mcp/mcp-contract/src/decisions.ts
++++ b/packages/mcp/mcp-contract/src/decisions.ts
+@@ -154,7 +154,7 @@ export function notSentFailureOf(unusable: UnusableCause | undefined): NotSent {
+ export function unusableAnswerOf(wire: WireAnswer, cause: UnusableCause): WireAnswer {
+   switch (wire.kind) {
+     case 'no-answer':
+-      return { ...wire, unusable: cause }
++      return { ...wire, unusable: wire.unusable ?? cause }
+     case 'not-sent': {
+       const failure = wire.failure
+       switch (failure.cause) {
+build after change: 0
+--- command: (cd packages/mcp/mcp-contract && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/decisions.spec.ts --reporter=default --reporter=json --outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable-fix/mut/V5c.json)
+exit: 1
+--- failed (from JSON report)
+concludeAnswer holds every cell of T8 a transport that is not usable any more marks what it hands over with the cause it recorded; a refusal and an answer of the peer stay as they are (T1)
+restored: byte-identical
+git diff --quiet: clean
+build after restore: 0

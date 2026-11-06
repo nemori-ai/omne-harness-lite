@@ -1,0 +1,17 @@
+
+> @omne-harness/mcp-host-local@0.0.0 test:fast /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> vitest run --mode fast
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+
+ Test Files  5 passed | 1 skipped (6)
+      Tests  203 passed | 201 skipped (404)
+Type Errors  no errors
+   Start at  16:06:00
+   Duration  5.80s (transform 1.13s, setup 83ms, import 3.10s, tests 7.62s, environment 1ms)
+
+exit 0

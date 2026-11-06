@@ -1,0 +1,647 @@
+## mcp
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+
+ ❯ tests/cancel.spec.ts (19 tests | 1 failed) 165ms
+     ✓ answers unknown to another principal and to another tenant on the same correlation key, and asks no port 24ms
+     ✓ answers unknown for a key never used, and no-call-in-flight for a call that ended 3ms
+     ✓ makes the call answer not sent (cancelled) with no call on the wire; the key has ended 3ms
+     ✓ step 8: at whichever microtask the cancel lands, the transport is never called with a stop signal that fired 86ms
+     ✓ tells the peer once and ends the call as unknown (abandoned), without waiting for the peer 2ms
+     ✓ that lands between the send and its record is the same: the call is on the wire, so the peer is told once 2ms
+     ✓ that races the send, which the transport then refuses, is a cancel before the send: nothing is lost 3ms
+     ✓ that races the send, followed by closeAll, which the transport then refuses: cancelled, not connection-unavailable; the stop signal is read before the shutdown (S2, S8) 4ms
+     × that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: the answer carries the mark that the transport is not usable any more (T1, S7) 16ms
+     ✓ with the caller abort too tells the peer once only 2ms
+     ✓ after the send, a cancel does not wait for cancelRequest: the call answers unknown (abandoned) within a few turns 2ms
+     ✓ after the send, a abort does not wait for cancelRequest: the call answers unknown (abandoned) within a few turns 1ms
+     ✓ a cancel while the gate is asked, followed by a refusing step, answers cancelled, and the key has ended 1ms
+     ✓ a cancel the call answers signalled, at whichever microtask it lands, makes the call answer cancelled, not the setting defect that refuses it in the same turn 5ms
+     ✓ a store read that never answers: a cancel ends the wait, the call answers cancelled, and the key has ended 1ms
+     ✓ a store read that never answers: a abort ends the wait, the call answers cancelled, and the key has ended 1ms
+     ✓ while the build is under way, a cancel answers the call cancelled at once; the build goes on for the key and nothing is sent 2ms
+     ✓ while the build is under way, a abort answers the call cancelled at once; the build goes on for the key and nothing is sent 1ms
+     ✓ a signal that fired before the call starts no wait: no port is asked, the call answers cancelled 1ms
+ ❯ tests/refresh.spec.ts (49 tests | 4 failed) 161ms
+     ✓ connects, lists one page and publishes revision 1 with the whole listing 19ms
+     ✓ reads every page up to the bound, with the cursor of the page before 3ms
+     ✓ publishes revision 2 on a second refresh and keeps a withdrawn action as unavailable 5ms
+     ✓ superseded: another writer published between the read and the write 3ms
+     ✓ superseded: the connection that produced the listing is no longer the current one (invariant 2) 5ms
+     ✓ cancelled: the refresh was aborted before the publish boundary 3ms
+     ✓ listing-incomplete (page-limit-exceeded): the listing is not adopted 3ms
+     ✓ listing-incomplete (duplicate-action-name): the listing is not adopted 2ms
+     ✓ listing-incomplete (action-invalid): the listing is not adopted 2ms
+     ✓ listing-incomplete (action-limit-exceeded): the listing is not adopted 2ms
+     ✓ listing-incomplete (page-failed) on { kind: 'no-answer', cause: 'stream-broken' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 8ms
+     ✓ listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'connection-unavailable' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 2ms
+     ✓ listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'session-ended' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 2ms
+     ✓ listing-incomplete (page-failed) on { kind: 'error-answer', code: -32603, message: 'internal' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 2ms
+     ✓ listing-incomplete (page-failed) on { kind: 'answer-malformed', what: 'tools-missing' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 2ms
+     × a page answered { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' }, with the mark: connection-unavailable, the connection lost for stream-broken and the record marked (S5, S7, T1) 11ms
+     × a page answered { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }, with the mark: connection-unavailable, the connection lost for session-ended and the record marked (S5, S7, T1) 2ms
+     × a page answered { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, with the mark: connection-unavailable, the connection lost for process-exited and the record marked (S5, S7, T1) 2ms
+     ✓ a page refused with authorization-required: the discovery is carried 2ms
+     × marking after a connection failure meets a revision conflict: kept (superseded) 2ms
+     ✓ marking after a connection failure meets an unavailable store: unknown 1ms
+     ✓ discover answers { kind: 'no-answer', cause: 'process-exited' }: refresh answers { kind: 'effect-unknown', cause: 'process-exited' } 1ms
+     ✓ discover answers { kind: 'error-answer', code: -32600, message: 'bad' }: refresh answers { kind: 'connection-unavailable' } 1ms
+     ✓ discover answers { kind: 'answer-malformed', what: 'discover-shape' }: refresh answers { kind: 'connection-unavailable' } 1ms
+     ✓ discover answers { kind: 'not-sent', cause: 'authorization-required', discovery: { resourceMetadataUrl: 'https://files.example.test/.well-known/oauth-protected-resource', metadata: 'unavailable', issuers: [], scopes: [] } }: refresh answers { kind: 'authorization-required', discovery: { resourceMetadataUrl: 'https://files.example.test/.well-known/oauth-protected-resource', metadata: 'unavailable', issuers: [], scopes: [] } } 1ms
+     ✓ a discover that fails during the build with { kind: 'not-sent', cause: 'connection-unavailable' } fails the build, with or without the mark: refresh answers { kind: 'connection-unavailable' }, the connection is lost (S5, MC-5) 1ms
+     ✓ a discover that fails during the build with { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'connection-unavailable' }, the connection is lost (S5, MC-5) 1ms
+     ✓ a discover that fails during the build with { kind: 'no-answer', cause: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'effect-unknown', cause: 'stream-broken' }, the connection is lost (S5, MC-5) 1ms
+     ✓ a discover that fails during the build with { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'effect-unknown', cause: 'stream-broken' }, the connection is lost (S5, MC-5) 2ms
+     ✓ the store cannot be read: unknown, and no page is asked for 1ms
+     ✓ the store cannot be written: unknown, no revision reported 1ms
+     ✓ a caller that stopped before the refresh answered is told cancelled, whatever a step refused, as the exit of a call (MC-7, contract decision 31) 1ms
+     ✓ the refusals of the gate and of the settings come first, without a transport 1ms
+     ✓ after closeAll: connection-unavailable before the gate, for an endpoint not adopted too; no port is asked (S8) 1ms
+     ✓ closeAll while the refresh waits on the store before the listing: connection-unavailable, as a refresh that starts after closeAll; no page is asked after it, nothing is published (S8, MC-7) 2ms
+     ✓ closeAll while a page is asked: connection-unavailable, not the listing-incomplete the page failure would give, and nothing is published (S8, MC-7) 1ms
+     ✓ at whichever microtask closeAll lands, the refresh starts no step after it: no gate or store port and no page, and it answers connection-unavailable unless it published (S8, MC-7) 43ms
+     ✓ the caller aborts and closeAll begins while a page is asked: kept (cancelled), the stop ranks before the shutdown as at the exit of a call (S8, MC-7, MC-16) 1ms
+     ✓ closeAll while the store writes the listing: the refresh that published stays published (S8) 1ms
+     ✓ revoked while listing: not-available-to-you, nothing published 1ms
+     ✓ blocked while listing: blocked, nothing published, the connection closed 1ms
+     ✓ publishes exactly once (first-then-second) and keeps the listing that was published 2ms
+     ✓ publishes exactly once (second-then-first) and keeps the listing that was published 1ms
+     ✓ current: not-acquired before any refresh, with no transport opened 1ms
+     ✓ current: basisCurrent is no-connection, then matches, then differs 2ms
+     ✓ peer: the negotiated facts and the generation once connected 1ms
+     ✓ current and peer: a missing credential is config-missing (credential), not a connection failure 1ms
+     ✓ current: an unavailable store is unknown, not not-acquired 0ms
+     ✓ current and peer: the gate answers first 0ms
+ ❯ tests/invoke.spec.ts (48 tests | 10 failed) 347ms
+     ✓ step 2: a second call on the same tenant, principal and correlation key is correlation-key-in-use while the first is in flight; another key is not 28ms
+     ✓ step 3: not adopted is not-available-to-you, and the key is free again at once 4ms
+     ✓ step 3: an endpoint blocked by a setting is blocked with the reason, and its connection is closed 5ms
+     ✓ step 3: eligibility that cannot be read is unknown 3ms
+     ✓ step 4: the setting defects of S4 are the reasons, in the order of S4, before any catalog read 3ms
+     ✓ step 8: at whichever microtask closeAll lands, the transport is not called after it: a shutdown between the last wait and the send is read before the send 78ms
+     ✓ step 3: at whichever microtask closeAll lands, a call that step 4 would refuse for a setting defect answers connection-unavailable, not the defect 10ms
+     ✓ step 3: at whichever microtask closeAll lands, a continuation that is not sent answers connection-unavailable, as a first call, not the unknown of step 6 56ms
+     ✓ step 3: closeAll while the call waits on the gate, where step 4 then finds no connect-timeout: connection-unavailable, as a call that starts after closeAll, not config-missing 2ms
+     ✓ step 4 and 7: the request connectBound stands in for a missing connect-timeout, and bounds the build: without it the call is not sent (config-missing), with 1 ms a landing that does not answer is connection-unavailable at that bound 4ms
+     ✓ step 9: a first call carries no continuation on the wire; the transport gets the action and the arguments only 2ms
+     ✓ step 4: a missing credential of an authenticated endpoint is credential-unavailable (missing), K1 1ms
+     ✓ step 5: no catalog, an action not listed, and an action marked unavailable are action-unavailable; nothing connects 2ms
+     ✓ step 5: an expected definition that is not the current one is definition-changed 2ms
+     ✓ step 5: a catalog store that breaches its contract is unknown (MC-15) 1ms
+     ✓ step 3: after closeAll nothing is asked: not sent, connection-unavailable; the gate, the store and the build are left alone (S8) 2ms
+     ✓ step 3: closeAll while the call waits on the gate: not sent, connection-unavailable; the store is not read and nothing is built after it (S8) 2ms
+     ✓ step 7: a connection failure of the build is the reason as it is: credential-unavailable, landing-unavailable, authorization-required 37ms
+     ✓ step 7: a discover that fails on both paths is connection-unavailable; one without an answer (effect-unknown) is connection-unavailable too 5ms
+     ✓ step 7: a call that joins a build past its join bound, and one queued past its section bound, are both connection-unavailable (the table answers pending and settings) 4ms
+     × step 9: a call the transport could not send is connection-unavailable and the connection is lost (S7); the catalog is marked 15ms
+     × step 9 (S7, T1): a call not sent with the mark loses the connection; one not sent without it (HTTP, before it left) leaves the connection ready 4ms
+     ✓ step 12 (S7, T1): a 5xx on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call 5ms
+     ✓ step 12 (S7, T1): a broken answer stream on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call 3ms
+     × step 9: an ended legacy session is connection-unavailable and the connection is lost (session-ended) 5ms
+     ✓ step 9: a call refused for authorization is authorization-required with the discovery, and the connection is lost 8ms
+     ✓ step 11: the signal after the send: the peer is told once, the outcome is unknown (abandoned), the key ends, nothing is sent again 4ms
+     ✓ step 11: the signal after the send, once closeAll began: unknown (abandoned), and the peer is not told; the transport closing settles its own requests (S8, T5) 2ms
+     ✓ step 2: a signal that fired before the call is a cancel before the send: not sent, cancelled, no call on the wire 1ms
+     ✓ arguments that are not a JSON object reject with TypeError before any place is taken (R2) 2ms
+     ✓ arguments whose value tree fails judgeJsonValue reject with TypeError before any place is taken, not as a connection failure (R2) 2ms
+     ✓ step 12: complete: the content through toContentBlocks, no schema means no-schema and no validator call 2ms
+     ✓ step 12: complete with a declared output schema: the validator is called once with structured content, not called without it 3ms
+     ✓ step 12: toolError: the action failed; no validator call even with a schema 2ms
+     ✓ step 12: inputRequired carries the requests, the state and the generation it was issued at 1ms
+     ✓ step 12: task carries the task id, the generation and the hints 1ms
+     ✓ step 12: protocolError: a JSON-RPC error of the peer as it is 2ms
+     × unknown (stream-breaks): the answer never came on stdio, it carries the mark, the outcome is unknown with the cause, the connection is lost with it (S7, T1) 2ms
+     × unknown (process-exits): the answer never came on stdio, it carries the mark, the outcome is unknown with the cause, the connection is lost with it (S7, T1) 2ms
+     × a lost connection whose close() never answers: the call (unsent) answers within a few turns, and the connection refuses requests at once (P14) 2ms
+     × a lost connection whose close() never answers: the call (stream-breaks) answers within a few turns, and the connection refuses requests at once (P14) 2ms
+     × a call (unsent) whose answer loses the connection: in the run that hands over the answer the table already reports the connection lost (the synchronous part of lose, P14) 2ms
+     × a call (stream-breaks) whose answer loses the connection: in the run that hands over the answer the table already reports the connection lost (the synchronous part of lose, P14) 2ms
+     × closeAll joins the teardown that a call started on the connection it lost: it answers after that teardown, which closes the transport once; the catalog mark of the loss may come after closeAll (MC-10, MC-14) 2ms
+     ✓ progress notifications reach the observer as untrusted values; an observer that throws changes nothing (S6) 2ms
+     ✓ step 13: a checkOutput that throws is absorbed: the call answers sent with violates (output-check-failed), the key is free again, and a task that follows is recorded 3ms
+     ✓ step 13: a call that breaches its contract (T9) is sent with an unknown effect: unknown (abandoned), no cancel, the key has ended and is free again 2ms
+     ✓ step 10: a call sent on one generation, whose connection is lost and rebuilt before call returns: a later cancel answers unknown and tells no peer (MC-12) 4ms
+ ❯ tests/tasks.spec.ts (39 tests | 4 failed) 331ms
+     ✓ answers the initiator from the task on the connection it was started on 30ms
+     ✓ answers another principal, another tenant, and a task not in the table, with the same unknown, asking no port 5ms
+     ✓ reuses the existing connection without asking adoption or eligibility 4ms
+     ✓ queryTask: a new connection needs eligibility granted; otherwise effect-unknown (no-connection) and no transport is opened 11ms
+     ✓ cancelTask: a new connection needs eligibility granted; otherwise effect-unknown (no-connection) and no transport is opened 5ms
+     ✓ a new connection needs the adoption: withdrawn is effect-unknown (no-connection), unreadable is unknown 3ms
+     ✓ a new connection needs the setting values of S4: a missing one is effect-unknown (no-connection) 3ms
+     ✓ does not act on the task through another peer account: no request, effect-unknown (no-connection) 4ms
+     ✓ a connection on another peer account is not reused either 10ms
+     × no answer is effect-unknown with the same cause, and the connection is lost 22ms
+     × a task request answered { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' } answers { kind: 'effect-unknown', cause: 'stream-broken' }; the connection follows the mark only: { kind: 'lost', reason: 'stream-broken' } (S2, S7, T1) 6ms
+     ✓ a task request answered { kind: 'no-answer', cause: 'stream-broken' } answers { kind: 'effect-unknown', cause: 'stream-broken' }; the connection follows the mark only: { kind: 'ready' } (S2, S7, T1) 3ms
+     × a task request answered { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' } answers { kind: 'connection-unavailable' }; the connection follows the mark only: { kind: 'lost', reason: 'session-ended' } (S2, S7, T1) 5ms
+     ✓ a task request answered { kind: 'not-sent', cause: 'connection-unavailable' } answers { kind: 'connection-unavailable' }; the connection follows the mark only: { kind: 'ready' } (S2, S7, T1) 3ms
+     ✓ a request the connection bound cuts off has no answer: effect-unknown (abandoned); the connection stays 5ms
+     ✓ a JSON-RPC error and an unreadable answer are passed on as they are 10ms
+     ✓ queryTask reports the status with the input requests and hints; a -32602 is expired 3ms
+     ✓ taskResult: not finished, cancelled, expired, and a finished result classified on the task's output schema 6ms
+     ✓ provideTaskInput hands the responses to the peer and answers accepted; cancelTask answers requested 4ms
+     ✓ provideTaskInput rejects responses whose value tree fails judgeJsonValue with TypeError and sends nothing (R2) 9ms
+     ✓ after closeAll: the initiator check first, then effect-unknown (no-connection), with no port asked (S8) 3ms
+     ✓ closeAll while the operation waits on the gate: effect-unknown (no-connection), the same as after closeAll; nothing is built (S8) 3ms
+     ✓ a request already sent when closeAll lands keeps its outcome: effect-unknown with the cause of no answer, not no-connection (S8, MC-17) 3ms
+     ✓ closeAll in the same synchronous run as a task operation on a reused connection: effect-unknown (no-connection), and the transport is not asked after closeAll (S8) 3ms
+     ✓ at whichever microtask closeAll lands, a task operation on a connection reused answers effect-unknown (no-connection) and does not ask the transport after it (S8, MC-17 step 4) 3ms
+     ✓ at whichever microtask closeAll lands, a task operation on a connection built through the gate answers effect-unknown (no-connection) and does not ask the transport after it (S8, MC-17 step 4) 103ms
+     ✓ a discover without an answer on the new connection is connection-unavailable, not effect-unknown 2ms
+     ✓ a build bound that fires first is connection-unavailable 2ms
+     ✓ a critical section bound that fires first, with no shutdown, is connection-unavailable: the build answered it, and nothing is sent 2ms
+     ✓ a shutdown under way while the connection is built is effect-unknown (no-connection), the same as after closeAll (S8) 3ms
+     ✓ the adoption passed the gate but, read again before the build, cannot be read again: unknown; nothing is built 2ms
+     ✓ the adoption passed the gate but, read again before the build, is withdrawn by then: effect-unknown (no-connection); nothing is built 2ms
+     × a task request the transport could not send is the connection failure, and the connection is lost (S7) 4ms
+     ✓ a task request refused for authorization is authorization-required with the discovery, and the connection is lost 25ms
+     ✓ an issuedAt other than the recorded one is unknown: not this task, no port asked, no request 2ms
+     ✓ a task id the peer gave again on another peer account makes the key ambiguous: both references are unknown, no port asked, no request sent 3ms
+     ✓ an ambiguous key stays ambiguous: the id given once more, on either account, names no task (MC-17 step 1) 2ms
+     ✓ a task id the peer gave again on the same account is the newer record: the earlier reference is unknown, the newer one is answered 2ms
+     ✓ a checkOutput that throws is absorbed: the result carries violates (output-check-failed), not effect-unknown 2ms
+ ❯ tests/lost.spec.ts (14 tests | 4 failed) 17ms
+     × rule 1: an answer with the mark ({ kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' }) loses the connection for the mark, not the cause (stream-broken), and marks the catalog connection-unavailable 7ms
+     × rule 1: an answer with the mark ({ kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }) loses the connection for the mark, not the cause (session-ended), and marks the catalog connection-unavailable 1ms
+     × rule 1: an answer with the mark ({ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }) loses the connection for the mark, not the cause (process-exited), and marks the catalog connection-unavailable 1ms
+     × rule 1: an answer with the mark ({ kind: 'no-answer', cause: 'abandoned', unusable: 'stream-broken' }) loses the connection for the mark, not the cause (stream-broken), and marks the catalog connection-unavailable 2ms
+     ✓ rule 2: not-sent (authorization-required) loses the connection for it and marks the catalog with it 1ms
+     ✓ rule 3: { kind: 'not-sent', cause: 'connection-unavailable' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'not-sent', cause: 'session-ended' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'no-answer', cause: 'stream-broken' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'no-answer', cause: 'process-exited' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'no-answer', cause: 'abandoned' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'error-answer', code: -32603, message: 'internal' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'answer-malformed', what: 'tools-missing' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'result', result: { kind: 'object', entries: [] } } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'error', error: { kind: 'object', entries: [ { key: 'code', value: { kind: 'number', lexeme: '-32603' } }, { key: 'message', value: { kind: 'string', value: 'internal' } } ] } } without the mark leaves the connection as it is 0ms
+
+ Test Files  5 failed (5)
+      Tests  23 failed | 146 passed (169)
+   Start at  13:18:08
+   Duration  1.35s (transform 1.42s, setup 79ms, import 2.93s, tests 1.02s, environment 1ms)
+
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 23 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cancel.spec.ts > a cancel after the send (SPEC S2, MC-16 step 11) > that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: the answer carries the mark that the transport is not usable any more (T1, S7)
+AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { ok: { connection: { …(2) } } }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "connection": {
+-       "kind": "lost",
+-       "reason": "session-ended",
++       "kind": "ready",
+      },
+    },
+  }
+
+ ❯ tests/cancel.spec.ts:239:50
+    237|     expect(await call).toEqual({ kind: 'not-sent', reason: { kind: 'ca…
+    238|     expect(base.p.cancels()).toBe(0)
+    239|     expect(await s.status.inspect(alice, files)).toMatchObject({
+       |                                                  ^
+    240|       ok: { connection: { kind: 'lost', reason: 'session-ended' } },
+    241|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/23]⎯
+
+ FAIL  tests/invoke.spec.ts > the send order: each step refuses with the place given back (SPEC MC-16) > step 9: a call the transport could not send is connection-unavailable and the connection is lost (S7); the catalog is marked
+AssertionError: expected { kind: 'ready' } to match object { kind: 'lost', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "kind": "lost",
+-   "reason": "stream-broken",
++   "kind": "ready",
+  }
+
+ ❯ tests/invoke.spec.ts:586:28
+    584|     const digest = await published(c)
+    585|     expect(await c.invoker.invoke(alice, request(digest))).toEqual(CON…
+    586|     expect(await state(c)).toMatchObject({ kind: 'lost', reason: 'stre…
+       |                            ^
+    587|     expect(c.p.requests('tools/call')).toHaveLength(0)
+    588|     expect(await c.invoker.invoke(alice, request(digest))).toEqual(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/23]⎯
+
+ FAIL  tests/invoke.spec.ts > the send order: each step refuses with the place given back (SPEC MC-16) > step 9 (S7, T1): a call not sent with the mark loses the connection; one not sent without it (HTTP, before it left) leaves the connection ready
+AssertionError: expected { kind: 'ready' } to match object { kind: 'lost', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "kind": "lost",
+-   "reason": "stream-broken",
++   "kind": "ready",
+  }
+
+ ❯ tests/invoke.spec.ts:599:33
+    597|       CONNECTION_UNAVAILABLE,
+    598|     )
+    599|     expect(await state(marked)).toMatchObject({ kind: 'lost', reason: …
+       |                                 ^
+    600|
+    601|     const unmarked = arrange({ calls: { read: { kind: 'unsent' } } }, …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/23]⎯
+
+ FAIL  tests/invoke.spec.ts > the send order: each step refuses with the place given back (SPEC MC-16) > step 9: an ended legacy session is connection-unavailable and the connection is lost (session-ended)
+AssertionError: expected { kind: 'ready' } to deeply equal { kind: 'lost', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "kind": "lost",
+-   "reason": "session-ended",
++   "kind": "ready",
+  }
+
+ ❯ tests/invoke.spec.ts:643:28
+    641|     const digest = await published(c)
+    642|     expect(await c.invoker.invoke(alice, request(digest))).toEqual(CON…
+    643|     expect(await state(c)).toEqual({ kind: 'lost', reason: 'session-en…
+       |                            ^
+    644|   })
+    645|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/23]⎯
+
+ FAIL  tests/invoke.spec.ts > the outcome of a sent call (SPEC R5, O1–O6, D1–D5) > unknown (stream-breaks): the answer never came on stdio, it carries the mark, the outcome is unknown with the cause, the connection is lost with it (S7, T1)
+AssertionError: expected { kind: 'ready' } to match object { kind: 'lost', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "kind": "lost",
+-   "reason": "stream-broken",
++   "kind": "ready",
+  }
+
+ ❯ tests/invoke.spec.ts:856:30
+    854|         outcome: { kind: 'unknown', cause },
+    855|       })
+    856|       expect(await state(c)).toMatchObject({ kind: 'lost', reason: cau…
+       |                              ^
+    857|       expect(c.p.cancels()).toBe(0)
+    858|     },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/23]⎯
+
+ FAIL  tests/invoke.spec.ts > the outcome of a sent call (SPEC R5, O1–O6, D1–D5) > unknown (process-exits): the answer never came on stdio, it carries the mark, the outcome is unknown with the cause, the connection is lost with it (S7, T1)
+AssertionError: expected { kind: 'ready' } to match object { kind: 'lost', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "kind": "lost",
+-   "reason": "process-exited",
++   "kind": "ready",
+  }
+
+ ❯ tests/invoke.spec.ts:856:30
+    854|         outcome: { kind: 'unknown', cause },
+    855|       })
+    856|       expect(await state(c)).toMatchObject({ kind: 'lost', reason: cau…
+       |                              ^
+    857|       expect(c.p.cancels()).toBe(0)
+    858|     },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/23]⎯
+
+ FAIL  tests/invoke.spec.ts > the outcome of a sent call (SPEC R5, O1–O6, D1–D5) > a lost connection whose close() never answers: the call (unsent) answers within a few turns, and the connection refuses requests at once (P14)
+ FAIL  tests/invoke.spec.ts > the outcome of a sent call (SPEC R5, O1–O6, D1–D5) > a lost connection whose close() never answers: the call (stream-breaks) answers within a few turns, and the connection refuses requests at once (P14)
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/invoke.spec.ts:885:22
+    883|       for (let turn = 0; turn < 5; turn += 1) await settled()
+    884|       expect(answer).toEqual(expected)
+    885|       expect(closes).toBe(1)
+       |                      ^
+    886|       expect(await state(c)).toMatchObject({ kind: 'lost' })
+    887|     },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/23]⎯
+
+ FAIL  tests/invoke.spec.ts > the outcome of a sent call (SPEC R5, O1–O6, D1–D5) > a call (unsent) whose answer loses the connection: in the run that hands over the answer the table already reports the connection lost (the synchronous part of lose, P14)
+AssertionError: expected { …(2) } to deeply equal { …(2) }
+
+- Expected
++ Received
+
+@@ -3,7 +3,7 @@
+      "kind": "not-sent",
+      "reason": {
+        "kind": "connection-unavailable",
+      },
+    },
+-   "state": "lost",
++   "state": "ready",
+  }
+
+ ❯ tests/invoke.spec.ts:902:20
+    900|         state: c.table.stateOf(alice.tenant, files.holding).kind,
+    901|       }))
+    902|       expect(seen).toEqual({ result: expected, state: 'lost' })
+       |                    ^
+    903|     },
+    904|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/23]⎯
+
+ FAIL  tests/invoke.spec.ts > the outcome of a sent call (SPEC R5, O1–O6, D1–D5) > a call (stream-breaks) whose answer loses the connection: in the run that hands over the answer the table already reports the connection lost (the synchronous part of lose, P14)
+AssertionError: expected { Object (result, state) } to deeply equal { Object (result, state) }
+
+- Expected
++ Received
+
+@@ -4,7 +4,7 @@
+      "outcome": {
+        "cause": "stream-broken",
+        "kind": "unknown",
+      },
+    },
+-   "state": "lost",
++   "state": "ready",
+  }
+
+ ❯ tests/invoke.spec.ts:902:20
+    900|         state: c.table.stateOf(alice.tenant, files.holding).kind,
+    901|       }))
+    902|       expect(seen).toEqual({ result: expected, state: 'lost' })
+       |                    ^
+    903|     },
+    904|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/23]⎯
+
+ FAIL  tests/invoke.spec.ts > the outcome of a sent call (SPEC R5, O1–O6, D1–D5) > closeAll joins the teardown that a call started on the connection it lost: it answers after that teardown, which closes the transport once; the catalog mark of the loss may come after closeAll (MC-10, MC-14)
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/invoke.spec.ts:953:20
+    951|     expect(closes).toBe(1)
+    952|     await settled()
+    953|     expect(writes).toBe(1)
+       |                    ^
+    954|     writeHeld.resolve()
+    955|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/23]⎯
+
+ FAIL  tests/lost.spec.ts > lostOf: what one answer of the transport means for a ready connection > rule 1: an answer with the mark ({ kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' }) loses the connection for the mark, not the cause (stream-broken), and marks the catalog connection-unavailable
+ FAIL  tests/lost.spec.ts > lostOf: what one answer of the transport means for a ready connection > rule 1: an answer with the mark ({ kind: 'no-answer', cause: 'abandoned', unusable: 'stream-broken' }) loses the connection for the mark, not the cause (stream-broken), and marks the catalog connection-unavailable
+AssertionError: expected undefined to deeply equal { reason: 'stream-broken', …(1) }
+
+- Expected:
+{
+  "mark": "connection-unavailable",
+  "reason": "stream-broken",
+}
+
++ Received:
+undefined
+
+ ❯ tests/lost.spec.ts:28:30
+     26|     'rule 1: an answer with the mark (%o) loses the connection for the…
+     27|     (answer, reason) => {
+     28|       expect(lostOf(answer)).toEqual({ reason, mark: 'connection-unava…
+       |                              ^
+     29|     },
+     30|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/23]⎯
+
+ FAIL  tests/lost.spec.ts > lostOf: what one answer of the transport means for a ready connection > rule 1: an answer with the mark ({ kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }) loses the connection for the mark, not the cause (session-ended), and marks the catalog connection-unavailable
+AssertionError: expected undefined to deeply equal { reason: 'session-ended', …(1) }
+
+- Expected:
+{
+  "mark": "connection-unavailable",
+  "reason": "session-ended",
+}
+
++ Received:
+undefined
+
+ ❯ tests/lost.spec.ts:28:30
+     26|     'rule 1: an answer with the mark (%o) loses the connection for the…
+     27|     (answer, reason) => {
+     28|       expect(lostOf(answer)).toEqual({ reason, mark: 'connection-unava…
+       |                              ^
+     29|     },
+     30|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/23]⎯
+
+ FAIL  tests/lost.spec.ts > lostOf: what one answer of the transport means for a ready connection > rule 1: an answer with the mark ({ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }) loses the connection for the mark, not the cause (process-exited), and marks the catalog connection-unavailable
+AssertionError: expected undefined to deeply equal { reason: 'process-exited', …(1) }
+
+- Expected:
+{
+  "mark": "connection-unavailable",
+  "reason": "process-exited",
+}
+
++ Received:
+undefined
+
+ ❯ tests/lost.spec.ts:28:30
+     26|     'rule 1: an answer with the mark (%o) loses the connection for the…
+     27|     (answer, reason) => {
+     28|       expect(lostOf(answer)).toEqual({ reason, mark: 'connection-unava…
+       |                              ^
+     29|     },
+     30|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/23]⎯
+
+ FAIL  tests/refresh.spec.ts > refresh fails > a page answered { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' }, with the mark: connection-unavailable, the connection lost for stream-broken and the record marked (S5, S7, T1)
+ FAIL  tests/refresh.spec.ts > refresh fails > a page answered { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }, with the mark: connection-unavailable, the connection lost for session-ended and the record marked (S5, S7, T1)
+ FAIL  tests/refresh.spec.ts > refresh fails > a page answered { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, with the mark: connection-unavailable, the connection lost for process-exited and the record marked (S5, S7, T1)
+AssertionError: expected { ok: { kind: 'kept', …(1) } } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+-   "failure": {
+-     "kind": "connection-unavailable",
++   "ok": {
++     "kind": "kept",
++     "reason": {
++       "defect": "page-failed",
++       "kind": "listing-incomplete",
++     },
+    },
+  }
+
+ ❯ tests/refresh.spec.ts:265:62
+    263|       adoptStdio(w, files)
+    264|       const before = await storedRecord(w, anonymousKey, ['old'])
+    265|       expect(await discovery.refresh(alice, { ref: files })).toEqual({
+       |                                                              ^
+    266|         failure: { kind: 'connection-unavailable' },
+    267|       })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/23]⎯
+
+ FAIL  tests/refresh.spec.ts > refresh fails > marking after a connection failure meets a revision conflict: kept (superseded)
+AssertionError: expected { ok: { kind: 'kept', …(1) } } to deeply equal { ok: { kind: 'kept', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "kind": "kept",
+      "reason": {
+-       "kind": "superseded",
++       "defect": "page-failed",
++       "kind": "listing-incomplete",
+      },
+    },
+  }
+
+ ❯ tests/refresh.spec.ts:340:56
+    338|     }
+    339|     const { discovery: other } = core(conflicting)
+    340|     expect(await other.refresh(alice, { ref: files })).toEqual({
+       |                                                        ^
+    341|       ok: { kind: 'kept', reason: { kind: 'superseded' } },
+    342|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/23]⎯
+
+ FAIL  tests/tasks.spec.ts > the answers of the task operations (SPEC S2, T6) > no answer is effect-unknown with the same cause, and the connection is lost
+AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { ok: { connection: { …(2) } } }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "connection": {
+-       "kind": "lost",
+-       "reason": "stream-broken",
++       "kind": "ready",
+      },
+    },
+  }
+
+ ❯ tests/tasks.spec.ts:281:50
+    279|       failure: { kind: 'effect-unknown', cause: 'stream-broken' },
+    280|     })
+    281|     expect(await c.status.inspect(alice, files)).toMatchObject({
+       |                                                  ^
+    282|       ok: { connection: { kind: 'lost', reason: 'stream-broken' } },
+    283|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/23]⎯
+
+ FAIL  tests/tasks.spec.ts > the answers of the task operations (SPEC S2, T6) > a task request answered { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' } answers { kind: 'effect-unknown', cause: 'stream-broken' }; the connection follows the mark only: { kind: 'lost', reason: 'stream-broken' } (S2, S7, T1)
+AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { ok: { connection: { …(2) } } }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "connection": {
+-       "kind": "lost",
+-       "reason": "stream-broken",
++       "kind": "ready",
+      },
+    },
+  }
+
+ ❯ tests/tasks.spec.ts:319:52
+    317|       }))
+    318|       expect(await c.invoker.queryTask(alice, task)).toEqual({ failure…
+    319|       expect(await c.status.inspect(alice, files)).toMatchObject({ ok:…
+       |                                                    ^
+    320|     },
+    321|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/23]⎯
+
+ FAIL  tests/tasks.spec.ts > the answers of the task operations (SPEC S2, T6) > a task request answered { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' } answers { kind: 'connection-unavailable' }; the connection follows the mark only: { kind: 'lost', reason: 'session-ended' } (S2, S7, T1)
+AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { ok: { connection: { …(2) } } }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "connection": {
+-       "kind": "lost",
+-       "reason": "session-ended",
++       "kind": "ready",
+      },
+    },
+  }
+
+ ❯ tests/tasks.spec.ts:319:52
+    317|       }))
+    318|       expect(await c.invoker.queryTask(alice, task)).toEqual({ failure…
+    319|       expect(await c.status.inspect(alice, files)).toMatchObject({ ok:…
+       |                                                    ^
+    320|     },
+    321|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/23]⎯
+
+ FAIL  tests/tasks.spec.ts > a task request the build does not get to send (SPEC S2, R7, MC-17 step 3) > a task request the transport could not send is the connection failure, and the connection is lost (S7)
+AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { ok: { connection: { …(2) } } }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "connection": {
+-       "kind": "lost",
+-       "reason": "stream-broken",
++       "kind": "ready",
+      },
+    },
+  }
+
+ ❯ tests/tasks.spec.ts:636:50
+    634|     const c = await started({ get: { kind: 'unsent' } })
+    635|     expect(await c.invoker.queryTask(alice, task)).toEqual(CONNECTION_…
+    636|     expect(await c.status.inspect(alice, files)).toMatchObject({
+       |                                                  ^
+    637|       ok: { connection: { kind: 'lost', reason: 'stream-broken' } },
+    638|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/23]⎯
+

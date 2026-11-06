@@ -1,0 +1,339 @@
+## mcp-contract
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+
+ ❯ tests/decisions.spec.ts (92 tests | 1 failed) 95ms
+     ✓ D01: 4 cells 4ms
+     ✓ D02: 4 cells 1ms
+     ✓ D03: 4 cells 1ms
+     ✓ D04: 9 cells 2ms
+     ✓ D05: 9 cells 1ms
+     ✓ D06: 9 cells 1ms
+     ✓ D07: 27 cells 3ms
+     ✓ D08: 36 cells 2ms
+     ✓ D09: 4 cells 1ms
+     ✓ D10: 8 cells 1ms
+     ✓ D11: 4 cells 0ms
+     ✓ D12: 70 cells 4ms
+     ✓ D13: 2 cells 0ms
+     ✓ D14: 2 cells 0ms
+     ✓ D15: 4 cells 0ms
+     ✓ D16: 20 cells 1ms
+     ✓ I01: 2 cells 1ms
+     ✓ I02: 2 cells 0ms
+     ✓ I03: 80 cells 5ms
+     ✓ I04: 10 cells 2ms
+     ✓ I05: 2 cells 0ms
+     ✓ I06: 3 cells 0ms
+     ✓ I07: 7 cells 0ms
+     ✓ L01: 2 cells 1ms
+     ✓ L02: 2 cells 0ms
+     ✓ L03: 2 cells 0ms
+     ✓ G01: 2 cells 1ms
+     ✓ G02: 2 cells 0ms
+     ✓ G03: 2 cells 0ms
+     ✓ G04: 2 cells 0ms
+     ✓ G05: 2 cells 0ms
+     ✓ G06: 10 cells 1ms
+     ✓ W01: 4 cells 0ms
+     ✓ O01: 240 cells 12ms
+     ✓ O02: 70 cells 4ms
+     ✓ O03: 40 cells 2ms
+     ✓ O04: 8 cells 0ms
+     ✓ O05: 4 cells 0ms
+     ✓ O06: 4 cells 0ms
+     ✓ O07: 4 cells 0ms
+     ✓ O08: 28 cells 1ms
+     ✓ C01: 2 cells 0ms
+     ✓ C02: 90 cells 4ms
+     ✓ C03: 2 cells 0ms
+     ✓ C04: 3 cells 0ms
+     ✓ C05: 7 cells 0ms
+     ✓ S01: 7 cells 1ms
+     ✓ S02: 7 cells 0ms
+     ✓ S03: 1 cells 0ms
+     ✓ S04: 1 cells 0ms
+     ✓ S05: 16 cells 0ms
+     ✓ S06: 8 cells 0ms
+     ✓ S07: 5 cells 0ms
+     ✓ X01: 8 cells 0ms
+     ✓ X02: 8 cells 0ms
+     ✓ the rows that end the transport say so: stdio unsent and broken streams, the exit, the ended session 0ms
+     × the answer of a row that ends the transport carries its cause as the mark; the answer of any other row carries no mark (T1, X02, S03, S04, S07) 9ms
+     ✓ a transport that is not usable any more marks what it hands over with the cause it recorded; a refusal and an answer of the peer stay as they are (T1) 1ms
+     ✓ a reading of a marked answer keeps the mark: the failure of an operation and the answer of a call (T1) 0ms
+     ✓ re-sends a read request on Streamable HTTP after a broken stream, not a write, not on stdio, not in the SSE mode 0ms
+     ✓ reads the error as written: the error member of a good envelope, the whole message of a bad one (C02) 1ms
+     ✓ initialize answered 4xx+plain outside the SSE mode is the chance of the fallback; in the SSE mode it is not sent (I07) 0ms
+     ✓ a result or error class without its message is a defect of the caller, not a fabricated answer 1ms
+     ✓ an event that is no answer is wait 0ms
+     ✓ a readable error is error-answer with its data; an unreadable one is error-shape 0ms
+     ✓ a reader's defect is the what of T7 0ms
+     ✓ the other wires read as their failures 0ms
+     ✓ tasks/get: -32602 is expired for both readings, anywhere it came from (G06) 1ms
+     ✓ the answer of a call: the result or error as written, the cause of no answer, abandoned for the rest 0ms
+     ✓ retryVersionOf names the highest version in common with the modern ones the peer supports 1ms
+     ✓ a -32022 on the second probe is final whatever its class (D07); on the first, the class decides (D04–D06) 1ms
+     ✓ every error class of a probe answer has its conclusion, on the first probe and on the retry (D07–D11) 2ms
+     ✓ discoverWith: identity on the modern path; the retry; the legacy path and which failure it reports 1ms
+     ✓ the legacy path: the params it offers and the identity it reads 1ms
+     ✓ requestClassOf: the second server/discover is discover-retry 0ms
+     ✓ fetches the candidates in order until one is an object; a fetch that rejects is nothing 1ms
+     ✓ stops at the signal: what was not fetched is unavailable 1ms
+     ✓ a connection is legacy once it negotiated a legacy revision, not before 0ms
+     ✓ checks the listing headers on modern Streamable HTTP only; cancels by notification on stdio, legacy and the SSE mode 0ms
+     ✓ a gone stream settles every request with no-answer, no re-send and the cause as the mark; a refusal settles with its discovery 0ms
+     ✓ a stop (the signal, close()) settles a request by its phase: not-sent while authorizing, abandoned once sent, authorization-required with what was fetched while discovering (T5) 0ms
+     ✓ the line going away settles only the phases that depend on it, marked with the cause: authorizing is not-sent for every cause, sent answers the cause except session-ended, discovery goes on (T8 S01–S04, S07) 1ms
+     ✓ the status of the fallback GET is read as an answer to initialize outside the SSE mode: 401 and a scoped 403 are authorization-required, any other status is not-sent (T3, S05, I07) 1ms
+     ✓ sends once more only after a conclusion that says resend, and never a third time 0ms
+     ✓ composes the _meta of a request: the envelope, and on tools/call the progress token 0ms
+     ✓ composes tools/call from the call request: the action and continuation as params, the values as written 0ms
+     ✓ composes the listing and the task requests, each reading its answer the way the operation does 1ms
+     ✓ the exit window decides the cause of a stdio end: the exit within the window, else the stream 0ms
+     ✓ a discovery in progress reports what was fetched so far, and its end when the loop ended 0ms
+     ✓ reads a request with its id as written, a notification with its progress token as text 1ms
+     ✓ answers ping with an empty result and any other request with -32601 0ms
+     ✓ writes jsonrpc first, the value trees as written, and the echoed id as written 1ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 91 passed (92)
+   Start at  13:18:58
+   Duration  911ms (transform 402ms, setup 20ms, import 626ms, tests 95ms, environment 0ms)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/decisions.spec.ts > concludeAnswer holds every cell of T8 > the answer of a row that ends the transport carries its cause as the mark; the answer of any other row carries no mark (T1, X02, S03, S04, S07)
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/decisions.spec.ts:380:37
+    378|       answer: 'http:5xx+plain',
+    379|     })
+    380|     expect('unusable' in status5xx).toBe(false)
+       |                                     ^
+    381|   })
+    382|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+## mcp-host-local
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-host-local
+
+ ❯ tests/http.spec.ts (26 tests | 2 failed) 1840ms
+     ✓ the SDK's bearer gate: a wrong token is authorization-required with the metadata it names; reportRejection once; the right token works 104ms
+     ✓ 403 with insufficient_scope: authorization-required with the scope of the header; another 403: connection-unavailable without reportRejection 14ms
+     ✓ without resource_metadata the path address is tried before the root; with neither the root is reported unavailable 27ms
+     ✓ with resource_metadata in the challenge only the address it names is fetched 17ms
+     ✓ the credential value appears in no answer, failure or discovery 22ms
+     ✓ the peer takes the request and sends no answer head: the call's signal settles the answer within the bound 53ms
+     ✓ 401 whose metadata fetch hangs: the call's signal ends the discovery within the bound; authorization-required, metadata unavailable, reportRejection once 52ms
+     ✓ 401 whose metadata fetch hangs: close() ends the discovery within the bound with the same conclusion, reportRejection once before close() returned 26ms
+     ✓ a metadata document that never ends counts as not fetched: the discovery settles with metadata unavailable 125ms
+     ✓ the fallback GET answered 401 with its body still to come when close() runs: reportRejection is not called 163ms
+     ✓ tools/list is sent once more with a new id after a broken stream; a second break is stream-broken 65ms
+     × tools/call, tasks/update and tasks/cancel are not sent again; 5xx with a plain body is not either 30ms
+     × a single POST answered 5xx fails that request without the mark, and the next request goes out and is answered (T1) 4ms
+     ✓ a connection refused is not-sent; a reset before the answer head is stream-broken (X01 versus a broken stream) 4ms
+     ✓ a redirect is not followed: a 302 to tools/list is not-sent and the peer saw one request 14ms
+     ✓ an SSE body whose first event is not a message event: only message events are read as answers 3ms
+     ✓ on the modern revision a tool with an invalid x-mcp-header declaration is withheld; on a legacy revision it is not checked 10ms
+     ✓ every request carries the version in _meta and in MCP-Protocol-Version alike: the reference server answers no -32020  454ms
+     ✓ the SDK's 2025 transport with sessions: the session id is carried back; after DELETE the next request is session-ended, and it and every later request carry the mark (T1, S07) 50ms
+     ✓ on the modern revision cancelRequest ends the answer stream and sends no notification 28ms
+     ✓ after initialize is refused with a plain 4xx, the GET stream and its endpoint carry initialize, the listing and a call 27ms
+     ✓ the stream breaking fails every request in flight with stream-broken, re-sends nothing, and leaves the transport unusable 74ms
+     ✓ a 404 from the endpoint after initialize ends the session (S07) 11ms
+     ✓ the fallback that does not hold reports connection-unavailable: no stream, a cross-origin endpoint 24ms
+     ✓ the fallback GET refused with 401: discover is authorization-required with the metadata the peer serves, reportRejection once 8ms
+     ✓ the reference server in its sse mode: the tools are listed and echo answers on the stream  427ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 24 passed (26)
+   Start at  13:18:59
+   Duration  2.72s (transform 451ms, setup 18ms, import 716ms, tests 1.84s, environment 0ms)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/http.spec.ts > broken streams and re-sending (T8 D15, O05, O06, C04, O07) > tools/call, tasks/update and tasks/cancel are not sent again; 5xx with a plain body is not either
+AssertionError: expected { Object (failure) } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "stream-broken",
+      "kind": "no-answer",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/http.spec.ts:477:56
+    475|       failure: STREAM_BROKEN,
+    476|     })
+    477|     expect(await transport.cancelTask(taskIdOf('t1'))).toEqual({ failu…
+       |                                                        ^
+    478|     const received = await peer.received()
+    479|     expect(requestsOf(received, 'tools/call')).toHaveLength(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/http.spec.ts > broken streams and re-sending (T8 D15, O05, O06, C04, O07) > tools/call, tasks/update and tasks/cancel are not sent again; 5xx with a plain body is not either
+AssertionError: servers left listening: expected [ 44162 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   44162,
++ ]
+
+ ❯ tests/http.spec.ts:135:61
+    133| afterEach(async () => {
+    134|   expect(await leftover(), 'child processes left alive').toEqual([])
+    135|   expect(await leftoverServers(), 'servers left listening').toEqual([])
+       |                                                             ^
+    136| })
+    137|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/http.spec.ts > broken streams and re-sending (T8 D15, O05, O06, C04, O07) > a single POST answered 5xx fails that request without the mark, and the next request goes out and is answered (T1)
+AssertionError: expected { kind: 'no-answer', …(2) } to strictly equal { kind: 'no-answer', …(1) }
+
+- Expected
++ Received
+
+  {
+    "cause": "stream-broken",
+    "kind": "no-answer",
++   "unusable": "stream-broken",
+  }
+
+ ❯ tests/http.spec.ts:492:33
+    490|     const transport = await open(materialOf(targetOf(peer)))
+    491|     const failed = ok(await transport.call(echo, never), 'call')
+    492|     expect(await failed.answer).toStrictEqual(STREAM_BROKEN)
+       |                                 ^
+    493|     const next = ok(await transport.call(echo, never), 'call')
+    494|     expect(await next.answer).toStrictEqual({ kind: 'result', result: …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/http.spec.ts > broken streams and re-sending (T8 D15, O05, O06, C04, O07) > a single POST answered 5xx fails that request without the mark, and the next request goes out and is answered (T1)
+AssertionError: servers left listening: expected [ 45576 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   45576,
++ ]
+
+ ❯ tests/http.spec.ts:135:61
+    133| afterEach(async () => {
+    134|   expect(await leftover(), 'child processes left alive').toEqual([])
+    135|   expect(await leftoverServers(), 'servers left listening').toEqual([])
+       |                                                             ^
+    136| })
+    137|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+## mcp
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+
+ ❯ tests/invoke.spec.ts (48 tests | 1 failed) 293ms
+     ✓ step 2: a second call on the same tenant, principal and correlation key is correlation-key-in-use while the first is in flight; another key is not 23ms
+     ✓ step 3: not adopted is not-available-to-you, and the key is free again at once 4ms
+     ✓ step 3: an endpoint blocked by a setting is blocked with the reason, and its connection is closed 4ms
+     ✓ step 3: eligibility that cannot be read is unknown 3ms
+     ✓ step 4: the setting defects of S4 are the reasons, in the order of S4, before any catalog read 3ms
+     ✓ step 8: at whichever microtask closeAll lands, the transport is not called after it: a shutdown between the last wait and the send is read before the send 64ms
+     ✓ step 3: at whichever microtask closeAll lands, a call that step 4 would refuse for a setting defect answers connection-unavailable, not the defect 8ms
+     ✓ step 3: at whichever microtask closeAll lands, a continuation that is not sent answers connection-unavailable, as a first call, not the unknown of step 6 62ms
+     ✓ step 3: closeAll while the call waits on the gate, where step 4 then finds no connect-timeout: connection-unavailable, as a call that starts after closeAll, not config-missing 1ms
+     ✓ step 4 and 7: the request connectBound stands in for a missing connect-timeout, and bounds the build: without it the call is not sent (config-missing), with 1 ms a landing that does not answer is connection-unavailable at that bound 3ms
+     ✓ step 9: a first call carries no continuation on the wire; the transport gets the action and the arguments only 2ms
+     ✓ step 4: a missing credential of an authenticated endpoint is credential-unavailable (missing), K1 1ms
+     ✓ step 5: no catalog, an action not listed, and an action marked unavailable are action-unavailable; nothing connects 2ms
+     ✓ step 5: an expected definition that is not the current one is definition-changed 1ms
+     ✓ step 5: a catalog store that breaches its contract is unknown (MC-15) 1ms
+     ✓ step 3: after closeAll nothing is asked: not sent, connection-unavailable; the gate, the store and the build are left alone (S8) 1ms
+     ✓ step 3: closeAll while the call waits on the gate: not sent, connection-unavailable; the store is not read and nothing is built after it (S8) 2ms
+     ✓ step 7: a connection failure of the build is the reason as it is: credential-unavailable, landing-unavailable, authorization-required 23ms
+     ✓ step 7: a discover that fails on both paths is connection-unavailable; one without an answer (effect-unknown) is connection-unavailable too 4ms
+     ✓ step 7: a call that joins a build past its join bound, and one queued past its section bound, are both connection-unavailable (the table answers pending and settings) 3ms
+     ✓ step 9: a call the transport could not send is connection-unavailable and the connection is lost (S7); the catalog is marked 2ms
+     ✓ step 9 (S7, T1): a call not sent with the mark loses the connection; one not sent without it (HTTP, before it left) leaves the connection ready 3ms
+     × step 12 (S7, T1): a 5xx on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call 12ms
+     ✓ step 12 (S7, T1): a broken answer stream on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call 3ms
+     ✓ step 9: an ended legacy session is connection-unavailable and the connection is lost (session-ended) 3ms
+     ✓ step 9: a call refused for authorization is authorization-required with the discovery, and the connection is lost 3ms
+     ✓ step 11: the signal after the send: the peer is told once, the outcome is unknown (abandoned), the key ends, nothing is sent again 3ms
+     ✓ step 11: the signal after the send, once closeAll began: unknown (abandoned), and the peer is not told; the transport closing settles its own requests (S8, T5) 3ms
+     ✓ step 2: a signal that fired before the call is a cancel before the send: not sent, cancelled, no call on the wire 2ms
+     ✓ arguments that are not a JSON object reject with TypeError before any place is taken (R2) 3ms
+     ✓ arguments whose value tree fails judgeJsonValue reject with TypeError before any place is taken, not as a connection failure (R2) 2ms
+     ✓ step 12: complete: the content through toContentBlocks, no schema means no-schema and no validator call 2ms
+     ✓ step 12: complete with a declared output schema: the validator is called once with structured content, not called without it 3ms
+     ✓ step 12: toolError: the action failed; no validator call even with a schema 2ms
+     ✓ step 12: inputRequired carries the requests, the state and the generation it was issued at 2ms
+     ✓ step 12: task carries the task id, the generation and the hints 2ms
+     ✓ step 12: protocolError: a JSON-RPC error of the peer as it is 2ms
+     ✓ unknown (stream-breaks): the answer never came on stdio, it carries the mark, the outcome is unknown with the cause, the connection is lost with it (S7, T1) 2ms
+     ✓ unknown (process-exits): the answer never came on stdio, it carries the mark, the outcome is unknown with the cause, the connection is lost with it (S7, T1) 2ms
+     ✓ a lost connection whose close() never answers: the call (unsent) answers within a few turns, and the connection refuses requests at once (P14) 2ms
+     ✓ a lost connection whose close() never answers: the call (stream-breaks) answers within a few turns, and the connection refuses requests at once (P14) 2ms
+     ✓ a call (unsent) whose answer loses the connection: in the run that hands over the answer the table already reports the connection lost (the synchronous part of lose, P14) 2ms
+     ✓ a call (stream-breaks) whose answer loses the connection: in the run that hands over the answer the table already reports the connection lost (the synchronous part of lose, P14) 2ms
+     ✓ closeAll joins the teardown that a call started on the connection it lost: it answers after that teardown, which closes the transport once; the catalog mark of the loss may come after closeAll (MC-10, MC-14) 2ms
+     ✓ progress notifications reach the observer as untrusted values; an observer that throws changes nothing (S6) 3ms
+     ✓ step 13: a checkOutput that throws is absorbed: the call answers sent with violates (output-check-failed), the key is free again, and a task that follows is recorded 4ms
+     ✓ step 13: a call that breaches its contract (T9) is sent with an unknown effect: unknown (abandoned), no cancel, the key has ended and is free again 2ms
+     ✓ step 10: a call sent on one generation, whose connection is lost and rebuilt before call returns: a later cancel answers unknown and tells no peer (MC-12) 3ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 47 passed (48)
+   Start at  13:19:03
+   Duration  1.26s (transform 570ms, setup 18ms, import 799ms, tests 293ms, environment 0ms)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/invoke.spec.ts > the send order: each step refuses with the place given back (SPEC MC-16) > step 12 (S7, T1): a 5xx on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call
+AssertionError: expected { kind: 'lost', …(1) } to deeply equal { kind: 'ready' }
+
+- Expected
++ Received
+
+  {
+-   "kind": "ready",
++   "kind": "lost",
++   "reason": "stream-broken",
+  }
+
+ ❯ tests/invoke.spec.ts:619:30
+    617|         outcome: { kind: 'unknown', cause: 'stream-broken' },
+    618|       })
+    619|       expect(await state(c)).toEqual({ kind: 'ready' })
+       |                              ^
+    620|       expect(await c.invoker.invoke(alice, request(digest, { correlati…
+    621|         kind: 'sent',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

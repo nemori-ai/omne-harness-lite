@@ -1,0 +1,381 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-host-local
+
+ ❯ tests/session.spec.ts (123 tests | 10 failed) 1034ms
+     ✓ D01: 4 cells 32ms
+     ✓ D02: 4 cells 9ms
+     ✓ D03: 4 cells 8ms
+     ✓ D04: 9 cells 6ms
+     ✓ D05: 9 cells 6ms
+     ✓ D06: 9 cells 16ms
+     ✓ D07: 27 cells 15ms
+     ✓ D08: 36 cells 14ms
+     ✓ D09: 4 cells 3ms
+     ✓ D10: 8 cells 7ms
+     ✓ D11: 4 cells 3ms
+     ✓ D12: 70 cells 46ms
+     ✓ D13: 2 cells 203ms
+     ✓ D14: 2 cells 4ms
+     ✓ D15: 4 cells 3ms
+     ✓ D16: 20 cells 7ms
+     ✓ I01: 2 cells 1ms
+     ✓ I02: 2 cells 1ms
+     ✓ I03: 80 cells 28ms
+     ✓ I04: 10 cells 3ms
+     ✓ I05: 2 cells 3ms
+     ✓ I06: 3 cells 1ms
+     ✓ I07: 7 cells 2ms
+     ✓ L01: 2 cells 2ms
+     ✓ L02: 2 cells 1ms
+     ✓ L03: 2 cells 1ms
+     ✓ G01: 2 cells 1ms
+     ✓ G02: 2 cells 1ms
+     ✓ G03: 2 cells 1ms
+     ✓ G04: 2 cells 1ms
+     ✓ G05: 2 cells 1ms
+     ✓ G06: 10 cells 3ms
+     ✓ W01: 4 cells 1ms
+     ✓ O01: 240 cells 58ms
+     ✓ O02: 70 cells 16ms
+     ✓ O03: 40 cells 8ms
+     ✓ O04: 8 cells 11ms
+     ✓ O05: 4 cells 2ms
+     ✓ O06: 4 cells 1ms
+     ✓ O07: 4 cells 1ms
+     ✓ O08: 28 cells 5ms
+     ✓ C01: 2 cells 2ms
+     ✓ C02: 90 cells 21ms
+     ✓ C03: 2 cells 1ms
+     ✓ C04: 3 cells 1ms
+     ✓ C05: 7 cells 1ms
+     ✓ S01: 7 cells 3ms
+     ✓ S02: 7 cells 2ms
+     ✓ S03: 1 cells 0ms
+     ✓ S04: 1 cells 0ms
+     ✓ S05: 16 cells 6ms
+     ✓ S06: 8 cells 2ms
+     ✓ S07: 5 cells 2ms
+     ✓ X01: 8 cells 2ms
+     ✓ X02: 8 cells 2ms
+     ✓ N01: 92 cells 32ms
+     ✓ falls back to initialize when the probe time runs out, and drops the late discover answer 73ms
+     ✓ close() while the probe is in flight answers no-answer (abandoned) and sends no initialize (F5) 2ms
+     ✓ a probe answer that comes before the time ran out clears it 0ms
+     ✓ answers ping with an empty result and any other request with -32601, with the version header 2ms
+     ✓ routes a progress notification to the observer of the call whose token it carries, untrusted as written 2ms
+     ✓ an observer that throws does not change the outcome (S6) 1ms
+     ✓ drops a stdio line that is not JSON and the answer still arrives (F4) 2ms
+     ✓ after initialize is answered 4xx+plain, enters the SSE mode, sends initialize again, and reads the answer from the stream 1ms
+     × in the SSE mode a 2xx POST without an answer waits for the stream; the stream breaking fails every request in flight, no re-send, unusable 14ms
+     × in the SSE mode a 404 to a request after initialize ends the session (S07); initialize itself carries no session 3ms
+     ✓ in the SSE mode cancelRequest sends notifications/cancelled 3ms
+     ✓ the GET answered 401 is authorization-required with reportRejection once; another 403 is connection-unavailable 2ms
+     ✓ a fallback that does not hold reports I07: not-sent (connection-unavailable), initialize sent once 2ms
+     ✓ a GET stream that does not hold the fallback is let go and reports I07: a status other than 200, another content type, a first event that is not the endpoint 3ms
+     ✓ initialize answered 401, 5xx or 4xx with a JSON-RPC error does not try the fallback 1ms
+     ✓ a -32022 whose supported list names a modern-looking text that is no date: answer-malformed (discover-shape), no legacy path (D05) 1ms
+     ✓ a -32022 without the jsonrpc member is an unreadable error: the legacy path, no second probe, error-shape when the legacy path fails too (D11) 2ms
+     ✓ tools/list answered an error without the jsonrpc member: answer-malformed (error-shape) (O03) 0ms
+     ✓ a call answered an error without the jsonrpc member: the whole message is the error (C02) 0ms
+     ✓ writes the caller's values and the peer's request id as they are: an integer beyond 2^53 keeps its digits 2ms
+     ✓ answers a request of a protected peer with the credential on the response (T9) 2ms
+     ✓ close() while the metadata of a 401 is being fetched: the fetch ends, authorization-required with metadata unavailable, reportRejection once before close() returned 1ms
+     ✓ the call's signal while the metadata of a 401 is being fetched: the same conclusion, the fetch ended by the signal 1ms
+     ✓ a call still being authorized when close() ran is not-sent and never reaches the line 0ms
+     ✓ a credential handle whose authorize rejects leaves the request not sent 1ms
+     ✓ a modern Streamable HTTP cancelRequest aborts the answer stream and sends no notification 0ms
+     ✓ the metadata of a refused authorization is fetched at the path address first, then the root 1ms
+     ✓ ends the write of a request whose answer head has not come, and the answer is abandoned 2ms
+     ✓ ends the answer stream of a request through the stream, whether the line watches the signal or not 1ms
+     ✓ reads to its end the answer of a request that was abandoned while its write was in flight 3ms
+     ✓ does not send a call whose signal fired before it began; one that fires while it is authorized is not-sent, no SentCall (T5) 2ms
+     ✓ leaves no listener on the signal of a call once the call has its answer 2ms
+     ✓ closes the line once however often close() runs 0ms
+     ✓ ends a notification that is still being written when close() runs 2ms
+     ✓ close() settles a request in the authorization discovery there and then, closes the line, and does not wait for the metadata fetch it ended 31ms
+     ✓ does not send a request after close(), whichever request it is 2ms
+     × does not answer the peer or notify it once the shared stream is gone, and does not ask the credential 1ms
+     ✓ writes no answer to the peer and no notification when the stream is gone while the credential is being asked 4ms
+     × answers a request that was being authorized when the stream died with not-sent, and never sends it 3ms
+     ✓ does not open the fallback stream when close() ran while its authorization was being asked 4ms
+     ✓ turns down the fallback stream that came back after close() ran 1ms
+     × leaves another request of the session in flight when one is told the session ended (S07) 1ms
+     ✓ authorize never answers: the call's signal settles call() with not-sent, and nothing reaches the line 2ms
+     ✓ authorize never answers: close() settles listActions() with not-sent and returns 1ms
+     ✓ reportRejection never answers after a 401: close() returns at once and the request is authorization-required with what was fetched 1ms
+     ✓ reportRejection never answers after a 401 to a call: the call's signal settles call() with authorization-required 1ms
+     ✓ authorize never answers: cancelRequest on a legacy Streamable HTTP connection returns at once 1ms
+     ✓ authorize never answers: close() settles a discover that waits to authorize the fallback GET 1ms
+     ✓ a metadata fetch that throws at every address counts as nothing fetched (R4): authorization-required with the metadata unavailable, reportRejection once 1ms
+     ✓ two callers closing at once both return after the line closed, from the one close 61ms
+     ✓ sends notifications/cancelled on stdio and on a legacy Streamable HTTP connection and leaves the request waiting for its answer 65ms
+     ✓ sends notifications/cancelled on stdio on the modern revision too, with the _meta of the revision 32ms
+     ✓ starts a probe timer for the probe only, and clears it when the probe is answered 1ms
+     × a request still being authorized when the session ended (S07) is not-sent and never reaches the line 1ms
+     × the process exiting settles a request still being authorized with not-sent, and never sends it 3ms
+     × the shared stream of the SSE mode breaking settles a request still being authorized with not-sent, and never sends it 2ms
+     × the events of the line rejecting is a broken stream: a sent call answers stream-broken, one still being authorized is not-sent, and the reason goes to the defect outlet 2ms
+     × a request in the authorization discovery is not settled by the shared stream breaking: it ends authorization-required when the discovery ends 32ms
+     ✓ an answer for a request number that was not written yet does not settle it: the request goes out and waits for its own answer 2ms
+     ✓ a request refused with 401 keeps that conclusion when the shared stream later carries an answer with its id 2ms
+     ✓ a fetch that throws at one address counts as nothing fetched there; the next address is tried 1ms
+     ✓ no fetch starts after the call's signal fired; the one in flight is let go and its result dropped 12ms
+     ✓ a fetch that answers nothing after the signal is not followed by the next address: the loop ended with the signal 12ms
+     ✓ a scheduler that throws: the probe it was armed for is abandoned, discover reports no-answer, and the throw is reported once 1ms
+     ✓ a 2xx body that yields something that is not a message: the request is abandoned, not re-sent as a broken stream, and the throw is reported 1ms
+     ✓ a defect of a workflow whose stop throws too (the exchange abort breaks): the defect still reaches the outlet, and nothing is left unhandled 2ms
+     ✓ an event of the shared stream that is not a text: the throw is reported, the reading goes on, and the next line still answers 2ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/session.spec.ts > the legacy HTTP+SSE mode (T3) > in the SSE mode a 2xx POST without an answer waits for the stream; the stream breaking fails every request in flight, no re-send, unusable
+AssertionError: expected { Object (failure) } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "stream-broken",
+      "kind": "no-answer",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/session.spec.ts:950:27
+    948|     await tick()
+    949|     line.queue.push({ kind: 'broken' })
+    950|     expect(await listing).toEqual({ failure: STREAM_BROKEN })
+       |                           ^
+    951|     expect(line.requests('tools/list')).toHaveLength(1)
+    952|     expect(await transport.listActions()).toEqual({ failure: NOT_SENT …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  tests/session.spec.ts > the legacy HTTP+SSE mode (T3) > in the SSE mode a 404 to a request after initialize ends the session (S07); initialize itself carries no session
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "session-ended",
+      "kind": "not-sent",
++     "unusable": "session-ended",
+    },
+  }
+
+ ❯ tests/session.spec.ts:963:43
+    961|     )
+    962|     ok(await transport.discover(), 'discover')
+    963|     expect(await transport.listActions()).toEqual({
+       |                                           ^
+    964|       failure: { kind: 'not-sent', cause: 'session-ended' },
+    965|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  tests/session.spec.ts > a session that cannot be used any more sends nothing and asks no credential (T5, T9) > does not answer the peer or notify it once the shared stream is gone, and does not ask the credential
+AssertionError: expected { kind: 'no-answer', …(2) } to deeply equal { kind: 'no-answer', …(1) }
+
+- Expected
++ Received
+
+  {
+    "cause": "stream-broken",
+    "kind": "no-answer",
++   "unusable": "stream-broken",
+  }
+
+ ❯ tests/session.spec.ts:1585:31
+    1583|     const sent = ok(await transport.call(echo, never), 'call')
+    1584|     line.queue.push({ kind: 'broken' })
+    1585|     expect(await sent.answer).toEqual({ kind: 'no-answer', cause: 'str…
+       |                               ^
+    1586|     const sentBefore = line.sent.length
+    1587|     const authorizedBefore = credential.authorizations()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  tests/session.spec.ts > a session that cannot be used any more sends nothing and asks no credential (T5, T9) > answers a request that was being authorized when the stream died with not-sent, and never sends it
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "connection-unavailable",
+      "kind": "not-sent",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/session.spec.ts:1630:27
+    1628|     await tick()
+    1629|     held.release()
+    1630|     expect(await calling).toEqual({ failure: NOT_SENT })
+       |                           ^
+    1631|     expect(line.requests('tools/call')).toEqual([])
+    1632|     await transport.close()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+ FAIL  tests/session.spec.ts > a session that cannot be used any more sends nothing and asks no credential (T5, T9) > leaves another request of the session in flight when one is told the session ended (S07)
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "session-ended",
+      "kind": "not-sent",
++     "unusable": "session-ended",
+    },
+  }
+
+ ❯ tests/session.spec.ts:1680:43
+    1678|     ok(await transport.discover(), 'discover')
+    1679|     const other = ok(await transport.call(echo, never), 'call')
+    1680|     expect(await transport.listActions()).toEqual({
+       |                                           ^
+    1681|       failure: { kind: 'not-sent', cause: 'session-ended' },
+    1682|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯
+
+ FAIL  tests/session.spec.ts > the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode) > a request still being authorized when the session ended (S07) is not-sent and never reaches the line
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "session-ended",
+      "kind": "not-sent",
++     "unusable": "session-ended",
+    },
+  }
+
+ ❯ tests/session.spec.ts:1993:27
+    1991|     const calling = transport.call(echo, never)
+    1992|     await held.reached
+    1993|     expect(await listing).toEqual({ failure: { kind: 'not-sent', cause…
+       |                           ^
+    1994|     held.release()
+    1995|     expect(await settledWithin(calling)).toEqual({ settled: { failure:…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯
+
+ FAIL  tests/session.spec.ts > the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode) > the process exiting settles a request still being authorized with not-sent, and never sends it
+AssertionError: expected { settled: { failure: { …(3) } } } to deeply equal { settled: { failure: { …(2) } } }
+
+- Expected
++ Received
+
+  {
+    "settled": {
+      "failure": {
+        "cause": "connection-unavailable",
+        "kind": "not-sent",
++       "unusable": "process-exited",
+      },
+    },
+  }
+
+ ❯ tests/session.spec.ts:2014:42
+    2012|     await tick()
+    2013|     held.release()
+    2014|     expect(await settledWithin(calling)).toEqual({ settled: { failure:…
+       |                                          ^
+    2015|     expect(line.requests('tools/call')).toEqual([])
+    2016|     expect(await transport.listActions()).toEqual({ failure: NOT_SENT …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯
+
+ FAIL  tests/session.spec.ts > the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode) > the shared stream of the SSE mode breaking settles a request still being authorized with not-sent, and never sends it
+AssertionError: expected { settled: { failure: { …(3) } } } to deeply equal { settled: { failure: { …(2) } } }
+
+- Expected
++ Received
+
+  {
+    "settled": {
+      "failure": {
+        "cause": "connection-unavailable",
+        "kind": "not-sent",
++       "unusable": "stream-broken",
+      },
+    },
+  }
+
+ ❯ tests/session.spec.ts:2032:42
+    2030|     await tick()
+    2031|     held.release()
+    2032|     expect(await settledWithin(calling)).toEqual({ settled: { failure:…
+       |                                          ^
+    2033|     expect(line.requests('tools/call')).toEqual([])
+    2034|     expect(await transport.listActions()).toEqual({ failure: NOT_SENT …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+ FAIL  tests/session.spec.ts > the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode) > the events of the line rejecting is a broken stream: a sent call answers stream-broken, one still being authorized is not-sent, and the reason goes to the defect outlet
+AssertionError: expected { Object (settled) } to deeply equal { Object (settled) }
+
+- Expected
++ Received
+
+  {
+    "settled": {
+      "cause": "stream-broken",
+      "kind": "no-answer",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/session.spec.ts:2054:46
+    2052|     await tick()
+    2053|     held.release()
+    2054|     expect(await settledWithin(sent.answer)).toEqual({ settled: STREAM…
+       |                                              ^
+    2055|     expect(await settledWithin(calling)).toEqual({ settled: { failure:…
+    2056|     expect(line.requests('tools/call')).toHaveLength(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯
+
+ FAIL  tests/session.spec.ts > the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode) > a request in the authorization discovery is not settled by the shared stream breaking: it ends authorization-required when the discovery ends
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "connection-unavailable",
+      "kind": "not-sent",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/session.spec.ts:2096:43
+    2094|     })
+    2095|     expect(credential.rejections()).toBe(1)
+    2096|     expect(await transport.listActions()).toEqual({ failure: NOT_SENT …
+       |                                           ^
+    2097|     expect(await settledWithin(transport.close())).toEqual({ settled: …
+    2098|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  10 failed | 113 passed (123)
+Type Errors  no errors
+   Start at  12:53:26
+   Duration  1.85s (transform 433ms, setup 14ms, import 649ms, tests 1.03s, environment 0ms)
+

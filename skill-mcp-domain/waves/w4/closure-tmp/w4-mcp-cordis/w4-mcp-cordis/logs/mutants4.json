@@ -1,0 +1,72 @@
+[
+ {
+  "name": "H22 current not forwarded",
+  "exit": 1,
+  "failed": [
+   "loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer",
+   "answers each operation of the three services through the plugin",
+   "signals a call in flight that cancel names",
+   "reads the replacement adoption view at the next refresh after a swap",
+   "removes the three services and stops the peer process when the plugin unloads",
+   "settles a call in flight with an unknown effect when the plugin unloads"
+  ]
+ },
+ {
+  "name": "H23 refresh not forwarded",
+  "exit": 1,
+  "failed": [
+   "loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer",
+   "answers each operation of the three services through the plugin",
+   "signals a call in flight that cancel names",
+   "answers unknown, and connects to nothing, while the adoption view is absent, and publishes once it is provided",
+   "answers unknown, and connects to nothing, while the use eligibility is absent, and publishes once it is provided",
+   "answers an unknown credential, and starts no process, while the credential use is absent, and publishes once it is provided",
+   "answers landing-unavailable, and starts no process, while the process landing is absent, and publishes once it is provided",
+   "reads the replacement adoption view at the next refresh after a swap",
+   "removes the three services and stops the peer process when the plugin unloads",
+   "settles a call in flight with an unknown effect when the plugin unloads"
+  ]
+ },
+ {
+  "name": "H24 invoke not forwarded",
+  "exit": 1,
+  "failed": [
+   "loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer",
+   "answers each operation of the three services through the plugin",
+   "signals a call in flight that cancel names",
+   "removes the three services and stops the peer process when the plugin unloads",
+   "settles a call in flight with an unknown effect when the plugin unloads"
+  ]
+ },
+ {
+  "name": "H25 inspect not forwarded",
+  "exit": 1,
+  "failed": [
+   "answers each operation of the three services through the plugin",
+   "uses the replacement eligibility at the next operation after a swap"
+  ]
+ },
+ {
+  "name": "H26 schema needs a sixth field",
+  "exit": 1,
+  "failed": [
+   "loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer",
+   "answers each operation of the three services through the plugin",
+   "signals a call in flight that cancel names",
+   "answers unknown, and connects to nothing, while the adoption view is absent, and publishes once it is provided",
+   "answers unknown, and connects to nothing, while the use eligibility is absent, and publishes once it is provided",
+   "answers an unknown credential, and starts no process, while the credential use is absent, and publishes once it is provided",
+   "answers landing-unavailable, and starts no process, while the process landing is absent, and publishes once it is provided",
+   "uses the replacement eligibility at the next operation after a swap",
+   "reads the replacement adoption view at the next refresh after a swap",
+   "removes the three services and stops the peer process when the plugin unloads",
+   "settles a call in flight with an unknown effect when the plugin unloads",
+   "accepts a complete lawful configuration as a copy",
+   "refuses a configuration whose bound is not a number",
+   "refuses a configuration whose clientInfo lacks a field",
+   "refuses a configuration whose clientInfo.name is not a text",
+   "fails to load when maxActions is 0, with the RangeError of createMcp",
+   "fails to load when probeTimeoutMs is 0, with the RangeError of the transport factory"
+  ]
+ }
+]

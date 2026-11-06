@@ -1,0 +1,6 @@
+[
+ {"id":"BASE-HL-FAST","name":"unmutated","member":"packages/mcp/mcp-host-local","file":"packages/mcp/mcp-host-local/src/cordis.ts","test":"tests/cordis-entry.spec.ts","mode":"fast","edits":[],"expect":"green"},
+ {"id":"BASE-HL-SLOW","name":"unmutated","member":"packages/mcp/mcp-host-local","file":"packages/mcp/mcp-host-local/src/cordis.ts","test":"tests/cordis-journey.spec.ts","mode":"slow","edits":[],"expect":"green"},
+ {"id":"BASE-CC-ENTRY","name":"unmutated","member":"packages/mcp/mcp-cordis-contract","file":"packages/mcp/mcp-cordis-contract/src/cordis.ts","test":"tests/cordis-entry.spec.ts","mode":"fast","edits":[],"expect":"green"},
+ {"id":"BASE-CC-ROOT","name":"unmutated","member":"packages/mcp/mcp-cordis-contract","file":"packages/mcp/mcp-cordis-contract/src/index.ts","test":"tests/public-entry.spec.ts","mode":"fast","edits":[],"expect":"green"}
+]

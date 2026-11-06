@@ -1,0 +1,652 @@
+
+   • turbo 2.11.7
+   • Packages in scope: @omne-harness/mcp
+   • Running test in 1 package
+   • Remote caching disabled, using shared worktree cache
+
+@omne-harness/json-text:build: cache bypass, force executing 1083ecb6d3cb9528
+@omne-harness/operation-result:build: cache bypass, force executing 7b090f47e0dc0b38
+@omne-harness/content-block:build: cache bypass, force executing 0f0fbb244a6d6788
+@omne-harness/settings:build: cache bypass, force executing 3480c46c9d29987f
+@omne-harness/legal-identity:build: cache bypass, force executing ee982a7601f3e3e7
+@omne-harness/content-block:build: 
+@omne-harness/content-block:build: > @omne-harness/content-block@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/content-block
+@omne-harness/content-block:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/content-block:build: 
+@omne-harness/legal-identity:build: 
+@omne-harness/legal-identity:build: > @omne-harness/legal-identity@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/legal-identity
+@omne-harness/legal-identity:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/legal-identity:build: 
+@omne-harness/settings:build: 
+@omne-harness/settings:build: > @omne-harness/settings@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/settings
+@omne-harness/settings:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/settings:build: 
+@omne-harness/json-text:build: 
+@omne-harness/json-text:build: > @omne-harness/json-text@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/json-text
+@omne-harness/json-text:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/json-text:build: 
+@omne-harness/operation-result:build: 
+@omne-harness/operation-result:build: > @omne-harness/operation-result@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/operation-result
+@omne-harness/operation-result:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/operation-result:build: 
+@omne-harness/assets:build: cache bypass, force executing c7c38375dd45e536
+@omne-harness/assets:build: 
+@omne-harness/assets:build: > @omne-harness/assets@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/assets
+@omne-harness/assets:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/assets:build: 
+@omne-harness/mcp-contract:build: cache bypass, force executing 7ba30ee3c1cdcb3b
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp-contract:build: > @omne-harness/mcp-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp:build: cache bypass, force executing b20eb967b7681223
+@omne-harness/mcp:build: 
+@omne-harness/mcp:build: > @omne-harness/mcp@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+@omne-harness/mcp:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp:build: 
+@omne-harness/mcp:test: cache bypass, force executing ba8bfef5787910ab
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: > @omne-harness/mcp@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+@omne-harness/mcp:test: > vitest run
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: Testing types with tsc and vue-tsc is an experimental feature.
+@omne-harness/mcp:test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ✓ tests/public-entry.spec.ts (2 tests) 656ms
+@omne-harness/mcp:test:    ✓ exports the two factories from the public root  651ms
+@omne-harness/mcp:test:  ❯ tests/races.spec.ts (29 tests | 2 failed) 637ms
+@omne-harness/mcp:test:      ✓ a connection replaced while the boundary waits on eligibility: kept (superseded) 18ms
+@omne-harness/mcp:test:      ✓ aborted while the boundary waits on eligibility: kept (cancelled) 3ms
+@omne-harness/mcp:test:      ✓ the adoption revision changed while the boundary waits on eligibility: kept (superseded) 2ms
+@omne-harness/mcp:test:      ✓ keeps the rebuilt connection ready, its transport open and its process running 6ms
+@omne-harness/mcp:test:      × a page that never comes: listing-incomplete (page-failed) at the bound, connection degraded 72ms
+@omne-harness/mcp:test:      ✓ aborted while a page is pending: kept (cancelled) at once, the connection untouched 3ms
+@omne-harness/mcp:test:      ✓ a refresh during a slow release waits for the close; the new connection is closable 18ms
+@omne-harness/mcp:test:      ✓ a landing that never answers: connection-unavailable at the bound; release returns 53ms
+@omne-harness/mcp:test:      ✓ a rejected discover answers effect-unknown (abandoned) and is torn down; the next ensure builds again 4ms
+@omne-harness/mcp:test:      ✓ answers kept (cancelled), marks nothing, and leaves the shared build to the other caller 3ms
+@omne-harness/mcp:test:      ✓ ensure with a token of an earlier revision answers unknown and leaves the new connection alone 2ms
+@omne-harness/mcp:test:      ✓ does not ask eligibility for an endpoint that is not adopted 1ms
+@omne-harness/mcp:test:      ✓ another principal without eligibility does not close the connection of the tenant (O1) 2ms
+@omne-harness/mcp:test:      ✓ a release during the teardown of a lost connection waits for it; the next refresh builds 5ms
+@omne-harness/mcp:test:      ✓ a refresh during the teardown of a lost connection waits for it, then builds 4ms
+@omne-harness/mcp:test:      ✓ is stopped on arrival; a stop that is not tree-confirmed is a residual that release and closeAll report 54ms
+@omne-harness/mcp:test:      ✓ the process credential handle is released after the late stop() returned (S9) 52ms
+@omne-harness/mcp:test:      ✓ a landing that fails after the bound: no process, the handle released on the answer 53ms
+@omne-harness/mcp:test:      ✓ a landing that rejects after the bound: no process, the handle released, the entry forgotten 52ms
+@omne-harness/mcp:test:      ✓ a credential handle that arrives after the bound is released; a release that rejects is dropped, not unhandled 52ms
+@omne-harness/mcp:test:      ✓ a re-read that never answers: connection-unavailable at the bound, and the next ensure of the holding answers within its own bound 52ms
+@omne-harness/mcp:test:      ✓ the close of an earlier revision hangs: two refreshes of the new revision answer connection-unavailable, then the close ends on its own 55ms
+@omne-harness/mcp:test:      ✓ a release of the same key still closing the transport: a refresh answers connection-unavailable within its bound 54ms
+@omne-harness/mcp:test:      ✓ leaves one entry, on the newer revision; the older build is closed, the newer one is not 3ms
+@omne-harness/mcp:test:      ✓ a call queued behind one that holds the critical section answers at its own bound, and asks no port after 2ms
+@omne-harness/mcp:test:      ✓ a call that joins the build of another answers at its own bound; the build goes on for the call that began it 2ms
+@omne-harness/mcp:test:      ✓ at the table, a call queued past its section bound answers at the settings stage 1ms
+@omne-harness/mcp:test:      ✓ at the table, a call that joins past its own bound answers at the connect stage with the mark pending 2ms
+@omne-harness/mcp:test:      × a refresh stops reading pages at its listing bound: the cut-off page has no answer 3ms
+@omne-harness/mcp:test:  ❯ tests/tasks.spec.ts (39 tests | 3 failed) 346ms
+@omne-harness/mcp:test:      ✓ answers the initiator from the task on the connection it was started on 36ms
+@omne-harness/mcp:test:      ✓ answers another principal, another tenant, and a task not in the table, with the same unknown, asking no port 5ms
+@omne-harness/mcp:test:      ✓ reuses the existing connection without asking adoption or eligibility 4ms
+@omne-harness/mcp:test:      ✓ queryTask: a new connection needs eligibility granted; otherwise effect-unknown (no-connection) and no transport is opened 8ms
+@omne-harness/mcp:test:      ✓ cancelTask: a new connection needs eligibility granted; otherwise effect-unknown (no-connection) and no transport is opened 10ms
+@omne-harness/mcp:test:      ✓ a new connection needs the adoption: withdrawn is effect-unknown (no-connection), unreadable is unknown 5ms
+@omne-harness/mcp:test:      ✓ a new connection needs the setting values of S4: a missing one is effect-unknown (no-connection) 4ms
+@omne-harness/mcp:test:      ✓ does not act on the task through another peer account: no request, effect-unknown (no-connection) 4ms
+@omne-harness/mcp:test:      ✓ a connection on another peer account is not reused either 7ms
+@omne-harness/mcp:test:      ✓ no answer is effect-unknown with the same cause, and the connection is lost 6ms
+@omne-harness/mcp:test:      ✓ a task request answered { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' } answers { kind: 'effect-unknown', cause: 'stream-broken' }; the connection follows the mark only: { kind: 'lost', reason: 'stream-broken' } (S2, S7, T1) 3ms
+@omne-harness/mcp:test:      × a task request answered { kind: 'no-answer', cause: 'stream-broken' } answers { kind: 'effect-unknown', cause: 'stream-broken' }; the connection follows the mark only: { kind: 'ready' } (S2, S7, T1) 13ms
+@omne-harness/mcp:test:      ✓ a task request answered { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' } answers { kind: 'connection-unavailable' }; the connection follows the mark only: { kind: 'lost', reason: 'session-ended' } (S2, S7, T1) 4ms
+@omne-harness/mcp:test:      × a task request answered { kind: 'not-sent', cause: 'connection-unavailable' } answers { kind: 'connection-unavailable' }; the connection follows the mark only: { kind: 'ready' } (S2, S7, T1) 5ms
+@omne-harness/mcp:test:      × a request the connection bound cuts off has no answer: effect-unknown (abandoned); the connection stays 6ms
+@omne-harness/mcp:test:      ✓ a JSON-RPC error and an unreadable answer are passed on as they are 5ms
+@omne-harness/mcp:test:      ✓ queryTask reports the status with the input requests and hints; a -32602 is expired 2ms
+@omne-harness/mcp:test:      ✓ taskResult: not finished, cancelled, expired, and a finished result classified on the task's output schema 7ms
+@omne-harness/mcp:test:      ✓ provideTaskInput hands the responses to the peer and answers accepted; cancelTask answers requested 3ms
+@omne-harness/mcp:test:      ✓ provideTaskInput rejects responses whose value tree fails judgeJsonValue with TypeError and sends nothing (R2) 3ms
+@omne-harness/mcp:test:      ✓ after closeAll: the initiator check first, then effect-unknown (no-connection), with no port asked (S8) 2ms
+@omne-harness/mcp:test:      ✓ closeAll while the operation waits on the gate: effect-unknown (no-connection), the same as after closeAll; nothing is built (S8) 2ms
+@omne-harness/mcp:test:      ✓ a request already sent when closeAll lands keeps its outcome: effect-unknown with the cause of no answer, not no-connection (S8, MC-17) 2ms
+@omne-harness/mcp:test:      ✓ closeAll in the same synchronous run as a task operation on a reused connection: effect-unknown (no-connection), and the transport is not asked after closeAll (S8) 2ms
+@omne-harness/mcp:test:      ✓ at whichever microtask closeAll lands, a task operation on a connection reused answers effect-unknown (no-connection) and does not ask the transport after it (S8, MC-17 step 4) 2ms
+@omne-harness/mcp:test:      ✓ at whichever microtask closeAll lands, a task operation on a connection built through the gate answers effect-unknown (no-connection) and does not ask the transport after it (S8, MC-17 step 4) 102ms
+@omne-harness/mcp:test:      ✓ a discover without an answer on the new connection is connection-unavailable, not effect-unknown 5ms
+@omne-harness/mcp:test:      ✓ a build bound that fires first is connection-unavailable 5ms
+@omne-harness/mcp:test:      ✓ a critical section bound that fires first, with no shutdown, is connection-unavailable: the build answered it, and nothing is sent 15ms
+@omne-harness/mcp:test:      ✓ a shutdown under way while the connection is built is effect-unknown (no-connection), the same as after closeAll (S8) 3ms
+@omne-harness/mcp:test:      ✓ the adoption passed the gate but, read again before the build, cannot be read again: unknown; nothing is built 3ms
+@omne-harness/mcp:test:      ✓ the adoption passed the gate but, read again before the build, is withdrawn by then: effect-unknown (no-connection); nothing is built 2ms
+@omne-harness/mcp:test:      ✓ a task request the transport could not send is the connection failure, and the connection is lost (S7) 4ms
+@omne-harness/mcp:test:      ✓ a task request refused for authorization is authorization-required with the discovery, and the connection is lost 37ms
+@omne-harness/mcp:test:      ✓ an issuedAt other than the recorded one is unknown: not this task, no port asked, no request 3ms
+@omne-harness/mcp:test:      ✓ a task id the peer gave again on another peer account makes the key ambiguous: both references are unknown, no port asked, no request sent 4ms
+@omne-harness/mcp:test:      ✓ an ambiguous key stays ambiguous: the id given once more, on either account, names no task (MC-17 step 1) 4ms
+@omne-harness/mcp:test:      ✓ a task id the peer gave again on the same account is the newer record: the earlier reference is unknown, the newer one is answered 3ms
+@omne-harness/mcp:test:      ✓ a checkOutput that throws is absorbed: the result carries violates (output-check-failed), not effect-unknown 3ms
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call: one key, invoke and cancel, lawful ports that may hang or answer late > P1–P14 hold
+@omne-harness/mcp:test: call: 263 states, 455 runs, depth 16, 1475 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/invoke.spec.ts (48 tests | 3 failed) 276ms
+@omne-harness/mcp:test:      ✓ step 2: a second call on the same tenant, principal and correlation key is correlation-key-in-use while the first is in flight; another key is not 35ms
+@omne-harness/mcp:test:      ✓ step 3: not adopted is not-available-to-you, and the key is free again at once 4ms
+@omne-harness/mcp:test:      ✓ step 3: an endpoint blocked by a setting is blocked with the reason, and its connection is closed 4ms
+@omne-harness/mcp:test:      ✓ step 3: eligibility that cannot be read is unknown 2ms
+@omne-harness/mcp:test:      ✓ step 4: the setting defects of S4 are the reasons, in the order of S4, before any catalog read 3ms
+@omne-harness/mcp:test:      ✓ step 8: at whichever microtask closeAll lands, the transport is not called after it: a shutdown between the last wait and the send is read before the send 67ms
+@omne-harness/mcp:test:      ✓ step 3: at whichever microtask closeAll lands, a call that step 4 would refuse for a setting defect answers connection-unavailable, not the defect 7ms
+@omne-harness/mcp:test:      ✓ step 3: at whichever microtask closeAll lands, a continuation that is not sent answers connection-unavailable, as a first call, not the unknown of step 6 36ms
+@omne-harness/mcp:test:      ✓ step 3: closeAll while the call waits on the gate, where step 4 then finds no connect-timeout: connection-unavailable, as a call that starts after closeAll, not config-missing 1ms
+@omne-harness/mcp:test:      ✓ step 4 and 7: the request connectBound stands in for a missing connect-timeout, and bounds the build: without it the call is not sent (config-missing), with 1 ms a landing that does not answer is connection-unavailable at that bound 3ms
+@omne-harness/mcp:test:      ✓ step 9: a first call carries no continuation on the wire; the transport gets the action and the arguments only 2ms
+@omne-harness/mcp:test:      ✓ step 4: a missing credential of an authenticated endpoint is credential-unavailable (missing), K1 1ms
+@omne-harness/mcp:test:      ✓ step 5: no catalog, an action not listed, and an action marked unavailable are action-unavailable; nothing connects 2ms
+@omne-harness/mcp:test:      ✓ step 5: an expected definition that is not the current one is definition-changed 1ms
+@omne-harness/mcp:test:      ✓ step 5: a catalog store that breaches its contract is unknown (MC-15) 1ms
+@omne-harness/mcp:test:      ✓ step 3: after closeAll nothing is asked: not sent, connection-unavailable; the gate, the store and the build are left alone (S8) 1ms
+@omne-harness/mcp:test:      ✓ step 3: closeAll while the call waits on the gate: not sent, connection-unavailable; the store is not read and nothing is built after it (S8) 1ms
+@omne-harness/mcp:test:      ✓ step 7: a connection failure of the build is the reason as it is: credential-unavailable, landing-unavailable, authorization-required 25ms
+@omne-harness/mcp:test:      ✓ step 7: a discover that fails on both paths is connection-unavailable; one without an answer (effect-unknown) is connection-unavailable too 3ms
+@omne-harness/mcp:test:      ✓ step 7: a call that joins a build past its join bound, and one queued past its section bound, are both connection-unavailable (the table answers pending and settings) 3ms
+@omne-harness/mcp:test:      ✓ step 9: a call the transport could not send is connection-unavailable and the connection is lost (S7); the catalog is marked 2ms
+@omne-harness/mcp:test:      × step 9 (S7, T1): a call not sent with the mark loses the connection; one not sent without it (HTTP, before it left) leaves the connection ready 13ms
+@omne-harness/mcp:test:      × step 12 (S7, T1): a 5xx on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call 4ms
+@omne-harness/mcp:test:      × step 12 (S7, T1): a broken answer stream on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call 2ms
+@omne-harness/mcp:test:      ✓ step 9: an ended legacy session is connection-unavailable and the connection is lost (session-ended) 2ms
+@omne-harness/mcp:test:      ✓ step 9: a call refused for authorization is authorization-required with the discovery, and the connection is lost 2ms
+@omne-harness/mcp:test:      ✓ step 11: the signal after the send: the peer is told once, the outcome is unknown (abandoned), the key ends, nothing is sent again 2ms
+@omne-harness/mcp:test:      ✓ step 11: the signal after the send, once closeAll began: unknown (abandoned), and the peer is not told; the transport closing settles its own requests (S8, T5) 2ms
+@omne-harness/mcp:test:      ✓ step 2: a signal that fired before the call is a cancel before the send: not sent, cancelled, no call on the wire 1ms
+@omne-harness/mcp:test:      ✓ arguments that are not a JSON object reject with TypeError before any place is taken (R2) 2ms
+@omne-harness/mcp:test:      ✓ arguments whose value tree fails judgeJsonValue reject with TypeError before any place is taken, not as a connection failure (R2) 2ms
+@omne-harness/mcp:test:      ✓ step 12: complete: the content through toContentBlocks, no schema means no-schema and no validator call 3ms
+@omne-harness/mcp:test:      ✓ step 12: complete with a declared output schema: the validator is called once with structured content, not called without it 3ms
+@omne-harness/mcp:test:      ✓ step 12: toolError: the action failed; no validator call even with a schema 1ms
+@omne-harness/mcp:test:      ✓ step 12: inputRequired carries the requests, the state and the generation it was issued at 2ms
+@omne-harness/mcp:test:      ✓ step 12: task carries the task id, the generation and the hints 2ms
+@omne-harness/mcp:test:      ✓ step 12: protocolError: a JSON-RPC error of the peer as it is 1ms
+@omne-harness/mcp:test:      ✓ unknown (stream-breaks): the answer never came on stdio, it carries the mark, the outcome is unknown with the cause, the connection is lost with it (S7, T1) 2ms
+@omne-harness/mcp:test:      ✓ unknown (process-exits): the answer never came on stdio, it carries the mark, the outcome is unknown with the cause, the connection is lost with it (S7, T1) 2ms
+@omne-harness/mcp:test:      ✓ a lost connection whose close() never answers: the call (unsent) answers within a few turns, and the connection refuses requests at once (P14) 2ms
+@omne-harness/mcp:test:      ✓ a lost connection whose close() never answers: the call (stream-breaks) answers within a few turns, and the connection refuses requests at once (P14) 2ms
+@omne-harness/mcp:test:      ✓ a call (unsent) whose answer loses the connection: in the run that hands over the answer the table already reports the connection lost (the synchronous part of lose, P14) 1ms
+@omne-harness/mcp:test:      ✓ a call (stream-breaks) whose answer loses the connection: in the run that hands over the answer the table already reports the connection lost (the synchronous part of lose, P14) 1ms
+@omne-harness/mcp:test:      ✓ closeAll joins the teardown that a call started on the connection it lost: it answers after that teardown, which closes the transport once; the catalog mark of the loss may come after closeAll (MC-10, MC-14) 2ms
+@omne-harness/mcp:test:      ✓ progress notifications reach the observer as untrusted values; an observer that throws changes nothing (S6) 2ms
+@omne-harness/mcp:test:      ✓ step 13: a checkOutput that throws is absorbed: the call answers sent with violates (output-check-failed), the key is free again, and a task that follows is recorded 3ms
+@omne-harness/mcp:test:      ✓ step 13: a call that breaches its contract (T9) is sent with an unknown effect: unknown (abandoned), no cancel, the key has ended and is free again 2ms
+@omne-harness/mcp:test:      ✓ step 10: a call sent on one generation, whose connection is lost and rebuilt before call returns: a later cancel answers unknown and tells no peer (MC-12) 3ms
+@omne-harness/mcp:test:  ✓ tests/teardown.spec.ts (15 tests) 273ms
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > abort: one key, invoke and the caller's abort > P1–P14 hold
+@omne-harness/mcp:test: abort: 148 states, 242 runs, depth 16, 593 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/refresh.spec.ts (49 tests | 3 failed) 140ms
+@omne-harness/mcp:test:      ✓ connects, lists one page and publishes revision 1 with the whole listing 18ms
+@omne-harness/mcp:test:      ✓ reads every page up to the bound, with the cursor of the page before 2ms
+@omne-harness/mcp:test:      ✓ publishes revision 2 on a second refresh and keeps a withdrawn action as unavailable 3ms
+@omne-harness/mcp:test:      ✓ superseded: another writer published between the read and the write 2ms
+@omne-harness/mcp:test:      ✓ superseded: the connection that produced the listing is no longer the current one (invariant 2) 4ms
+@omne-harness/mcp:test:      ✓ cancelled: the refresh was aborted before the publish boundary 2ms
+@omne-harness/mcp:test:      ✓ listing-incomplete (page-limit-exceeded): the listing is not adopted 2ms
+@omne-harness/mcp:test:      ✓ listing-incomplete (duplicate-action-name): the listing is not adopted 2ms
+@omne-harness/mcp:test:      ✓ listing-incomplete (action-invalid): the listing is not adopted 1ms
+@omne-harness/mcp:test:      ✓ listing-incomplete (action-limit-exceeded): the listing is not adopted 1ms
+@omne-harness/mcp:test:      × listing-incomplete (page-failed) on { kind: 'no-answer', cause: 'stream-broken' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 14ms
+@omne-harness/mcp:test:      × listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'connection-unavailable' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 2ms
+@omne-harness/mcp:test:      × listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'session-ended' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 2ms
+@omne-harness/mcp:test:      ✓ listing-incomplete (page-failed) on { kind: 'error-answer', code: -32603, message: 'internal' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 2ms
+@omne-harness/mcp:test:      ✓ listing-incomplete (page-failed) on { kind: 'answer-malformed', what: 'tools-missing' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 1ms
+@omne-harness/mcp:test:      ✓ a page answered { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' }, with the mark: connection-unavailable, the connection lost for stream-broken and the record marked (S5, S7, T1) 1ms
+@omne-harness/mcp:test:      ✓ a page answered { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }, with the mark: connection-unavailable, the connection lost for session-ended and the record marked (S5, S7, T1) 1ms
+@omne-harness/mcp:test:      ✓ a page answered { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, with the mark: connection-unavailable, the connection lost for process-exited and the record marked (S5, S7, T1) 1ms
+@omne-harness/mcp:test:      ✓ a page refused with authorization-required: the discovery is carried 1ms
+@omne-harness/mcp:test:      ✓ marking after a connection failure meets a revision conflict: kept (superseded) 1ms
+@omne-harness/mcp:test:      ✓ marking after a connection failure meets an unavailable store: unknown 1ms
+@omne-harness/mcp:test:      ✓ discover answers { kind: 'no-answer', cause: 'process-exited' }: refresh answers { kind: 'effect-unknown', cause: 'process-exited' } 1ms
+@omne-harness/mcp:test:      ✓ discover answers { kind: 'error-answer', code: -32600, message: 'bad' }: refresh answers { kind: 'connection-unavailable' } 1ms
+@omne-harness/mcp:test:      ✓ discover answers { kind: 'answer-malformed', what: 'discover-shape' }: refresh answers { kind: 'connection-unavailable' } 1ms
+@omne-harness/mcp:test:      ✓ discover answers { kind: 'not-sent', cause: 'authorization-required', discovery: { resourceMetadataUrl: 'https://files.example.test/.well-known/oauth-protected-resource', metadata: 'unavailable', issuers: [], scopes: [] } }: refresh answers { kind: 'authorization-required', discovery: { resourceMetadataUrl: 'https://files.example.test/.well-known/oauth-protected-resource', metadata: 'unavailable', issuers: [], scopes: [] } } 1ms
+@omne-harness/mcp:test:      ✓ a discover that fails during the build with { kind: 'not-sent', cause: 'connection-unavailable' } fails the build, with or without the mark: refresh answers { kind: 'connection-unavailable' }, the connection is lost (S5, MC-5) 1ms
+@omne-harness/mcp:test:      ✓ a discover that fails during the build with { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'connection-unavailable' }, the connection is lost (S5, MC-5) 1ms
+@omne-harness/mcp:test:      ✓ a discover that fails during the build with { kind: 'no-answer', cause: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'effect-unknown', cause: 'stream-broken' }, the connection is lost (S5, MC-5) 1ms
+@omne-harness/mcp:test:      ✓ a discover that fails during the build with { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'effect-unknown', cause: 'stream-broken' }, the connection is lost (S5, MC-5) 1ms
+@omne-harness/mcp:test:      ✓ the store cannot be read: unknown, and no page is asked for 1ms
+@omne-harness/mcp:test:      ✓ the store cannot be written: unknown, no revision reported 1ms
+@omne-harness/mcp:test:      ✓ a caller that stopped before the refresh answered is told cancelled, whatever a step refused, as the exit of a call (MC-7, contract decision 31) 1ms
+@omne-harness/mcp:test:      ✓ the refusals of the gate and of the settings come first, without a transport 1ms
+@omne-harness/mcp:test:      ✓ after closeAll: connection-unavailable before the gate, for an endpoint not adopted too; no port is asked (S8) 1ms
+@omne-harness/mcp:test:      ✓ closeAll while the refresh waits on the store before the listing: connection-unavailable, as a refresh that starts after closeAll; no page is asked after it, nothing is published (S8, MC-7) 1ms
+@omne-harness/mcp:test:      ✓ closeAll while a page is asked: connection-unavailable, not the listing-incomplete the page failure would give, and nothing is published (S8, MC-7) 1ms
+@omne-harness/mcp:test:      ✓ at whichever microtask closeAll lands, the refresh starts no step after it: no gate or store port and no page, and it answers connection-unavailable unless it published (S8, MC-7) 35ms
+@omne-harness/mcp:test:      ✓ the caller aborts and closeAll begins while a page is asked: kept (cancelled), the stop ranks before the shutdown as at the exit of a call (S8, MC-7, MC-16) 2ms
+@omne-harness/mcp:test:      ✓ closeAll while the store writes the listing: the refresh that published stays published (S8) 2ms
+@omne-harness/mcp:test:      ✓ revoked while listing: not-available-to-you, nothing published 1ms
+@omne-harness/mcp:test:      ✓ blocked while listing: blocked, nothing published, the connection closed 2ms
+@omne-harness/mcp:test:      ✓ publishes exactly once (first-then-second) and keeps the listing that was published 3ms
+@omne-harness/mcp:test:      ✓ publishes exactly once (second-then-first) and keeps the listing that was published 6ms
+@omne-harness/mcp:test:      ✓ current: not-acquired before any refresh, with no transport opened 1ms
+@omne-harness/mcp:test:      ✓ current: basisCurrent is no-connection, then matches, then differs 2ms
+@omne-harness/mcp:test:      ✓ peer: the negotiated facts and the generation once connected 1ms
+@omne-harness/mcp:test:      ✓ current and peer: a missing credential is config-missing (credential), not a connection failure 0ms
+@omne-harness/mcp:test:      ✓ current: an unavailable store is unknown, not not-acquired 0ms
+@omne-harness/mcp:test:      ✓ current and peer: the gate answers first 0ms
+@omne-harness/mcp:test:  ✓ tests/shutdown.spec.ts (10 tests) 204ms
+@omne-harness/mcp:test:  ✓ tests/ensure.spec.ts (38 tests) 67ms
+@omne-harness/mcp:test:  ❯ tests/cancel.spec.ts (19 tests | 1 failed) 159ms
+@omne-harness/mcp:test:      ✓ answers unknown to another principal and to another tenant on the same correlation key, and asks no port 19ms
+@omne-harness/mcp:test:      ✓ answers unknown for a key never used, and no-call-in-flight for a call that ended 3ms
+@omne-harness/mcp:test:      ✓ makes the call answer not sent (cancelled) with no call on the wire; the key has ended 3ms
+@omne-harness/mcp:test:      ✓ step 8: at whichever microtask the cancel lands, the transport is never called with a stop signal that fired 88ms
+@omne-harness/mcp:test:      ✓ tells the peer once and ends the call as unknown (abandoned), without waiting for the peer 2ms
+@omne-harness/mcp:test:      ✓ that lands between the send and its record is the same: the call is on the wire, so the peer is told once 2ms
+@omne-harness/mcp:test:      × that races the send, which the transport then refuses, is a cancel before the send: nothing is lost 12ms
+@omne-harness/mcp:test:      ✓ that races the send, followed by closeAll, which the transport then refuses: cancelled, not connection-unavailable; the stop signal is read before the shutdown (S2, S8) 3ms
+@omne-harness/mcp:test:      ✓ that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: the answer carries the mark that the transport is not usable any more (T1, S7) 2ms
+@omne-harness/mcp:test:      ✓ with the caller abort too tells the peer once only 2ms
+@omne-harness/mcp:test:      ✓ after the send, a cancel does not wait for cancelRequest: the call answers unknown (abandoned) within a few turns 3ms
+@omne-harness/mcp:test:      ✓ after the send, a abort does not wait for cancelRequest: the call answers unknown (abandoned) within a few turns 5ms
+@omne-harness/mcp:test:      ✓ a cancel while the gate is asked, followed by a refusing step, answers cancelled, and the key has ended 1ms
+@omne-harness/mcp:test:      ✓ a cancel the call answers signalled, at whichever microtask it lands, makes the call answer cancelled, not the setting defect that refuses it in the same turn 5ms
+@omne-harness/mcp:test:      ✓ a store read that never answers: a cancel ends the wait, the call answers cancelled, and the key has ended 1ms
+@omne-harness/mcp:test:      ✓ a store read that never answers: a abort ends the wait, the call answers cancelled, and the key has ended 1ms
+@omne-harness/mcp:test:      ✓ while the build is under way, a cancel answers the call cancelled at once; the build goes on for the key and nothing is sent 2ms
+@omne-harness/mcp:test:      ✓ while the build is under way, a abort answers the call cancelled at once; the build goes on for the key and nothing is sent 1ms
+@omne-harness/mcp:test:      ✓ a signal that fired before the call starts no wait: no port is asked, the call answers cancelled 1ms
+@omne-harness/mcp:test:  ✓ tests/continue.spec.ts (13 tests) 76ms
+@omne-harness/mcp:test:  ✓ tests/mcp.spec.ts (7 tests) 41ms
+@omne-harness/mcp:test:  ✓ tests/port.spec.ts (9 tests) 70ms
+@omne-harness/mcp:test:  ✓ tests/release.spec.ts (10 tests) 41ms
+@omne-harness/mcp:test:  ✓ tests/status.spec.ts (15 tests) 54ms
+@omne-harness/mcp:test:  ✓ tests/gate.spec.ts (20 tests) 43ms
+@omne-harness/mcp:test:  ✓ tests/connection.spec.ts (74 tests) 30ms
+@omne-harness/mcp:test:  ✓ tests/port-breach.spec.ts (9 tests) 36ms
+@omne-harness/mcp:test:  ✓ tests/memory-store.spec.ts (12 tests) 17ms
+@omne-harness/mcp:test:  ❯ tests/lost.spec.ts (14 tests | 5 failed) 20ms
+@omne-harness/mcp:test:      ✓ rule 1: an answer with the mark ({ kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' }) loses the connection for the mark, not the cause (stream-broken), and marks the catalog connection-unavailable 2ms
+@omne-harness/mcp:test:      ✓ rule 1: an answer with the mark ({ kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }) loses the connection for the mark, not the cause (session-ended), and marks the catalog connection-unavailable 1ms
+@omne-harness/mcp:test:      ✓ rule 1: an answer with the mark ({ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }) loses the connection for the mark, not the cause (process-exited), and marks the catalog connection-unavailable 0ms
+@omne-harness/mcp:test:      ✓ rule 1: an answer with the mark ({ kind: 'no-answer', cause: 'abandoned', unusable: 'stream-broken' }) loses the connection for the mark, not the cause (stream-broken), and marks the catalog connection-unavailable 0ms
+@omne-harness/mcp:test:      ✓ rule 2: not-sent (authorization-required) loses the connection for it and marks the catalog with it 0ms
+@omne-harness/mcp:test:      × rule 3: { kind: 'not-sent', cause: 'connection-unavailable' } without the mark leaves the connection as it is 6ms
+@omne-harness/mcp:test:      × rule 3: { kind: 'not-sent', cause: 'session-ended' } without the mark leaves the connection as it is 1ms
+@omne-harness/mcp:test:      × rule 3: { kind: 'no-answer', cause: 'stream-broken' } without the mark leaves the connection as it is 2ms
+@omne-harness/mcp:test:      × rule 3: { kind: 'no-answer', cause: 'process-exited' } without the mark leaves the connection as it is 1ms
+@omne-harness/mcp:test:      × rule 3: { kind: 'no-answer', cause: 'abandoned' } without the mark leaves the connection as it is 1ms
+@omne-harness/mcp:test:      ✓ rule 3: { kind: 'error-answer', code: -32603, message: 'internal' } without the mark leaves the connection as it is 0ms
+@omne-harness/mcp:test:      ✓ rule 3: { kind: 'answer-malformed', what: 'tools-missing' } without the mark leaves the connection as it is 0ms
+@omne-harness/mcp:test:      ✓ rule 3: { kind: 'result', result: { kind: 'object', entries: [] } } without the mark leaves the connection as it is 0ms
+@omne-harness/mcp:test:      ✓ rule 3: { kind: 'error', error: { kind: 'object', entries: [ { key: 'code', value: { kind: 'number', lexeme: '-32603' } }, { key: 'message', value: { kind: 'string', value: 'internal' } } ] } } without the mark leaves the connection as it is 0ms
+@omne-harness/mcp:test:  ✓ tests/turns.spec.ts (3 tests) 9ms
+@omne-harness/mcp:test:  ✓ tests/entry.spec.ts (9 tests) 12ms
+@omne-harness/mcp:test:  ✓ tests/in-flight.spec.ts (19 tests) 24ms
+@omne-harness/mcp:test:  ✓ tests/config.spec.ts (9 tests) 8ms
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call-faults: invoke and cancel, one port failing, rejecting or throwing > P1–P14 hold
+@omne-harness/mcp:test: call-faults: 923 states, 2297 runs, depth 19, 5024 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > marks: invoke and getTask, one request failing with or without the unusable mark > P1–P15 hold: a failure without the mark leaves the ready connection ready (P15, S7, T1); a marked one loses it
+@omne-harness/mcp:test: marks: 572 states, 1201 runs, depth 21, 2280 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > continue: invoke, then continueWithInput at the generation of that moment, drop > P1–P14 hold
+@omne-harness/mcp:test: continue: 1070 states, 2366 runs, depth 34, 6732 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call-shutdown: invoke, cancel and closeAll > P1–P14 hold, P13 above all
+@omne-harness/mcp:test: call-shutdown: 1018 states, 2205 runs, depth 19, 4254 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > continue-shutdown: invoke, then continueWithInput, drop, closeAll > P1–P14 hold, P13 at the answer above all
+@omne-harness/mcp:test: continue-shutdown: 2989 states, 7655 runs, depth 34, 21369 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call-twice: two invoke on one correlation key, cancel > P1–P14 hold, P11 above all
+@omne-harness/mcp:test: call-twice: 18481 states, 54849 runs, depth 31, 174343 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > task: the peer answers a task, the initiator queries it, drop, closeAll > P1–P14 hold
+@omne-harness/mcp:test: task: 2325 states, 6002 runs, depth 36, 17080 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ✓ tests/model/lifecycle.spec.ts (9 tests) 657610ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  32480ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  9121ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  725ms
+@omne-harness/mcp:test:      ✓ finds on throws what every schedule of throws shows  8763ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold, P8 T2 above all  117256ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  353275ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold, P5 above all  74512ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold, P5 above all  61471ms
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > foreign-cancel: another principal, and the same principal text in another tenant, cancel > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: foreign-cancel: 731 states, 1473 runs, depth 17, 3289 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > foreign-task: another principal of the tenant queries the task alice started > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: foreign-task: 200 states, 361 runs, depth 16, 590 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > task-account: a task operation never reuses the connection of another peer account > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: task-account: 5810 states, 15193 runs, depth 38, 50523 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > task-collision: the peer gives the task id again on another peer account of the same principal > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: task-collision: 2177 states, 5791 runs, depth 25, 29655 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/model/calls.spec.ts (14 tests | 2 failed) 917252ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  1485ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  594ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  5026ms
+@omne-harness/mcp:test:      × P1–P15 hold: a failure without the mark leaves the ready connection ready (P15, S7, T1); a marked one loses it 2288ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  6734ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P13 above all  4256ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P13 at the answer above all  21371ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P11 above all  174346ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  17082ms
+@omne-harness/mcp:test:      × P1–P14 hold 600002ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  3292ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  591ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  50524ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  29656ms
+@omne-harness/mcp:test:  ✓  TS  tests/types.spec-d.ts (7 tests)
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯ Failed Tests 19 ⎯⎯⎯⎯⎯⎯⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  FAIL  tests/cancel.spec.ts > a cancel after the send (SPEC S2, MC-16 step 11) > that races the send, which the transport then refuses, is a cancel before the send: nothing is lost
+@omne-harness/mcp:test: AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { Object (ok) }
+@omne-harness/mcp:test: (7 matching properties omitted from actual)
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: - Expected
+@omne-harness/mcp:test: + Received
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:   {
+@omne-harness/mcp:test:     "ok": {
+@omne-harness/mcp:test:       "connection": {
+@omne-harness/mcp:test: -       "kind": "ready",
+@omne-harness/mcp:test: +       "kind": "lost",
+@omne-harness/mcp:test:       },
+@omne-harness/mcp:test:     },
+@omne-harness/mcp:test:   }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/cancel.spec.ts:201:50
+@omne-harness/mcp:test:     199|     expect(p.requests('tools/call')).toHaveLength(0)
+@omne-harness/mcp:test:     200|     expect(p.cancels()).toBe(0)
+@omne-harness/mcp:test:     201|     expect(await s.status.inspect(alice, files)).toMatchObject({
+@omne-harness/mcp:test:        |                                                  ^
+@omne-harness/mcp:test:     202|       ok: { connection: { kind: 'ready' } },
+@omne-harness/mcp:test:     203|     })
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/19]⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  FAIL  tests/invoke.spec.ts > the send order: each step refuses with the place given back (SPEC MC-16) > step 9 (S7, T1): a call not sent with the mark loses the connection; one not sent without it (HTTP, before it left) leaves the connection ready
+@omne-harness/mcp:test: AssertionError: expected { kind: 'lost', …(1) } to deeply equal { kind: 'ready' }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: - Expected
+@omne-harness/mcp:test: + Received
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:   {
+@omne-harness/mcp:test: -   "kind": "ready",
+@omne-harness/mcp:test: +   "kind": "lost",
+@omne-harness/mcp:test: +   "reason": "stream-broken",
+@omne-harness/mcp:test:   }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/invoke.spec.ts:604:35
+@omne-harness/mcp:test:     602|     const digest = await published(unmarked)
+@omne-harness/mcp:test:     603|     expect(await unmarked.invoker.invoke(alice, request(digest))).toEq…
+@omne-harness/mcp:test:     604|     expect(await state(unmarked)).toEqual({ kind: 'ready' })
+@omne-harness/mcp:test:        |                                   ^
+@omne-harness/mcp:test:     605|   })
+@omne-harness/mcp:test:     606|
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/19]⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  FAIL  tests/invoke.spec.ts > the send order: each step refuses with the place given back (SPEC MC-16) > step 12 (S7, T1): a 5xx on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call
+@omne-harness/mcp:test:  FAIL  tests/invoke.spec.ts > the send order: each step refuses with the place given back (SPEC MC-16) > step 12 (S7, T1): a broken answer stream on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call
+@omne-harness/mcp:test: AssertionError: expected { kind: 'lost', …(1) } to deeply equal { kind: 'ready' }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: - Expected
+@omne-harness/mcp:test: + Received
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:   {
+@omne-harness/mcp:test: -   "kind": "ready",
+@omne-harness/mcp:test: +   "kind": "lost",
+@omne-harness/mcp:test: +   "reason": "stream-broken",
+@omne-harness/mcp:test:   }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/invoke.spec.ts:619:30
+@omne-harness/mcp:test:     617|         outcome: { kind: 'unknown', cause: 'stream-broken' },
+@omne-harness/mcp:test:     618|       })
+@omne-harness/mcp:test:     619|       expect(await state(c)).toEqual({ kind: 'ready' })
+@omne-harness/mcp:test:        |                              ^
+@omne-harness/mcp:test:     620|       expect(await c.invoker.invoke(alice, request(digest, { correlati…
+@omne-harness/mcp:test:     621|         kind: 'sent',
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/19]⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  FAIL  tests/lost.spec.ts > lostOf: what one answer of the transport means for a ready connection > rule 3: { kind: 'not-sent', cause: 'connection-unavailable' } without the mark leaves the connection as it is
+@omne-harness/mcp:test:  FAIL  tests/lost.spec.ts > lostOf: what one answer of the transport means for a ready connection > rule 3: { kind: 'not-sent', cause: 'session-ended' } without the mark leaves the connection as it is
+@omne-harness/mcp:test:  FAIL  tests/lost.spec.ts > lostOf: what one answer of the transport means for a ready connection > rule 3: { kind: 'no-answer', cause: 'stream-broken' } without the mark leaves the connection as it is
+@omne-harness/mcp:test:  FAIL  tests/lost.spec.ts > lostOf: what one answer of the transport means for a ready connection > rule 3: { kind: 'no-answer', cause: 'process-exited' } without the mark leaves the connection as it is
+@omne-harness/mcp:test:  FAIL  tests/lost.spec.ts > lostOf: what one answer of the transport means for a ready connection > rule 3: { kind: 'no-answer', cause: 'abandoned' } without the mark leaves the connection as it is
+@omne-harness/mcp:test: AssertionError: expected { reason: 'stream-broken', …(1) } to be undefined
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: - Expected:
+@omne-harness/mcp:test: undefined
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: + Received:
+@omne-harness/mcp:test: {
+@omne-harness/mcp:test:   "mark": "connection-unavailable",
+@omne-harness/mcp:test:   "reason": "stream-broken",
+@omne-harness/mcp:test: }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/lost.spec.ts:49:28
+@omne-harness/mcp:test:      47|     { kind: 'error', error: jsonOf({ code: -32603, message: 'internal'…
+@omne-harness/mcp:test:      48|   ])('rule 3: %o without the mark leaves the connection as it is', ans…
+@omne-harness/mcp:test:      49|     expect(lostOf(answer)).toBeUndefined()
+@omne-harness/mcp:test:        |                            ^
+@omne-harness/mcp:test:      50|   })
+@omne-harness/mcp:test:      51| })
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/19]⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  FAIL  tests/races.spec.ts > listing bound (B3): reading pages is bounded like the build > a page that never comes: listing-incomplete (page-failed) at the bound, connection degraded
+@omne-harness/mcp:test: AssertionError: expected { Object (failure) } to deeply equal { ok: { kind: 'kept', …(1) } }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: - Expected
+@omne-harness/mcp:test: + Received
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:   {
+@omne-harness/mcp:test: -   "ok": {
+@omne-harness/mcp:test: -     "kind": "kept",
+@omne-harness/mcp:test: -     "reason": {
+@omne-harness/mcp:test: -       "defect": "page-failed",
+@omne-harness/mcp:test: -       "kind": "listing-incomplete",
+@omne-harness/mcp:test: -     },
+@omne-harness/mcp:test: +   "failure": {
+@omne-harness/mcp:test: +     "kind": "connection-unavailable",
+@omne-harness/mcp:test:     },
+@omne-harness/mcp:test:   }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/races.spec.ts:168:62
+@omne-harness/mcp:test:     166|     adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(…
+@omne-harness/mcp:test:     167|     const c = core(w)
+@omne-harness/mcp:test:     168|     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+@omne-harness/mcp:test:        |                                                              ^
+@omne-harness/mcp:test:     169|       ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defect…
+@omne-harness/mcp:test:     170|     })
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/19]⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  FAIL  tests/races.spec.ts > each ensure waits at most to its own bounds (SPEC P8 T2) > a refresh stops reading pages at its listing bound: the cut-off page has no answer
+@omne-harness/mcp:test: AssertionError: expected { Object (failure) } to deeply equal { ok: { kind: 'kept', …(1) } }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: - Expected
+@omne-harness/mcp:test: + Received
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:   {
+@omne-harness/mcp:test: -   "ok": {
+@omne-harness/mcp:test: -     "kind": "kept",
+@omne-harness/mcp:test: -     "reason": {
+@omne-harness/mcp:test: -       "defect": "page-failed",
+@omne-harness/mcp:test: -       "kind": "listing-incomplete",
+@omne-harness/mcp:test: -     },
+@omne-harness/mcp:test: +   "failure": {
+@omne-harness/mcp:test: +     "kind": "connection-unavailable",
+@omne-harness/mcp:test:     },
+@omne-harness/mcp:test:   }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/races.spec.ts:733:30
+@omne-harness/mcp:test:     731|     await settled()
+@omne-harness/mcp:test:     732|     bounds.fire('listing')
+@omne-harness/mcp:test:     733|     expect(await refreshing).toEqual({
+@omne-harness/mcp:test:        |                              ^
+@omne-harness/mcp:test:     734|       ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defect…
+@omne-harness/mcp:test:     735|     })
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/19]⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  FAIL  tests/refresh.spec.ts > refresh keeps the earlier adoption > listing-incomplete (page-failed) on { kind: 'no-answer', cause: 'stream-broken' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1)
+@omne-harness/mcp:test:  FAIL  tests/refresh.spec.ts > refresh keeps the earlier adoption > listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'connection-unavailable' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1)
+@omne-harness/mcp:test:  FAIL  tests/refresh.spec.ts > refresh keeps the earlier adoption > listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'session-ended' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1)
+@omne-harness/mcp:test: AssertionError: expected { Object (failure) } to deeply equal { ok: { kind: 'kept', …(1) } }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: - Expected
+@omne-harness/mcp:test: + Received
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:   {
+@omne-harness/mcp:test: -   "ok": {
+@omne-harness/mcp:test: -     "kind": "kept",
+@omne-harness/mcp:test: -     "reason": {
+@omne-harness/mcp:test: -       "defect": "page-failed",
+@omne-harness/mcp:test: -       "kind": "listing-incomplete",
+@omne-harness/mcp:test: -     },
+@omne-harness/mcp:test: +   "failure": {
+@omne-harness/mcp:test: +     "kind": "connection-unavailable",
+@omne-harness/mcp:test:     },
+@omne-harness/mcp:test:   }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/refresh.spec.ts:230:62
+@omne-harness/mcp:test:     228|       adoptStdio(w, files)
+@omne-harness/mcp:test:     229|       const before = await storedRecord(w, anonymousKey, ['old'])
+@omne-harness/mcp:test:     230|       expect(await discovery.refresh(alice, { ref: files })).toEqual({
+@omne-harness/mcp:test:        |                                                              ^
+@omne-harness/mcp:test:     231|         ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defe…
+@omne-harness/mcp:test:     232|       })
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/19]⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  FAIL  tests/tasks.spec.ts > the answers of the task operations (SPEC S2, T6) > a task request answered { kind: 'no-answer', cause: 'stream-broken' } answers { kind: 'effect-unknown', cause: 'stream-broken' }; the connection follows the mark only: { kind: 'ready' } (S2, S7, T1)
+@omne-harness/mcp:test:  FAIL  tests/tasks.spec.ts > the answers of the task operations (SPEC S2, T6) > a task request answered { kind: 'not-sent', cause: 'connection-unavailable' } answers { kind: 'connection-unavailable' }; the connection follows the mark only: { kind: 'ready' } (S2, S7, T1)
+@omne-harness/mcp:test: AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { Object (ok) }
+@omne-harness/mcp:test: (7 matching properties omitted from actual)
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: - Expected
+@omne-harness/mcp:test: + Received
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:   {
+@omne-harness/mcp:test:     "ok": {
+@omne-harness/mcp:test:       "connection": {
+@omne-harness/mcp:test: -       "kind": "ready",
+@omne-harness/mcp:test: +       "kind": "lost",
+@omne-harness/mcp:test:       },
+@omne-harness/mcp:test:     },
+@omne-harness/mcp:test:   }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/tasks.spec.ts:319:52
+@omne-harness/mcp:test:     317|       }))
+@omne-harness/mcp:test:     318|       expect(await c.invoker.queryTask(alice, task)).toEqual({ failure…
+@omne-harness/mcp:test:     319|       expect(await c.status.inspect(alice, files)).toMatchObject({ ok:…
+@omne-harness/mcp:test:        |                                                    ^
+@omne-harness/mcp:test:     320|     },
+@omne-harness/mcp:test:     321|   )
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/19]⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  FAIL  tests/tasks.spec.ts > the answers of the task operations (SPEC S2, T6) > a request the connection bound cuts off has no answer: effect-unknown (abandoned); the connection stays
+@omne-harness/mcp:test: AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { Object (ok) }
+@omne-harness/mcp:test: (7 matching properties omitted from actual)
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: - Expected
+@omne-harness/mcp:test: + Received
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:   {
+@omne-harness/mcp:test:     "ok": {
+@omne-harness/mcp:test:       "connection": {
+@omne-harness/mcp:test: -       "kind": "ready",
+@omne-harness/mcp:test: +       "kind": "lost",
+@omne-harness/mcp:test:       },
+@omne-harness/mcp:test:     },
+@omne-harness/mcp:test:   }
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/tasks.spec.ts:345:50
+@omne-harness/mcp:test:     343|     bounds.fire('task')
+@omne-harness/mcp:test:     344|     expect(await query).toEqual({ failure: { kind: 'effect-unknown', c…
+@omne-harness/mcp:test:     345|     expect(await s.status.inspect(alice, files)).toMatchObject({
+@omne-harness/mcp:test:        |                                                  ^
+@omne-harness/mcp:test:     346|       ok: { connection: { kind: 'ready' } },
+@omne-harness/mcp:test:     347|     })
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/19]⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  FAIL  tests/model/calls.spec.ts > marks: invoke and getTask, one request failing with or without the unusable mark > P1–P15 hold: a failure without the mark leaves the ready connection ready (P15, S7, T1); a marked one loses it
+@omne-harness/mcp:test: AssertionError: expected [ …(2) ] to deeply equal []
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: - Expected
+@omne-harness/mcp:test: + Received
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: - []
+@omne-harness/mcp:test: + [
+@omne-harness/mcp:test: +   "P15 P15-lost-on-usable-failure: transport.call tA1 failed without the mark and key A became {\"kind\":\"lost\",\"reason\":\"stream-broken\"}
+@omne-harness/mcp:test: +   invoke A
+@omne-harness/mcp:test: +   answer adoption.endpoint:A ok
+@omne-harness/mcp:test: +   answer eligibility.check:A ok
+@omne-harness/mcp:test: +   answer store.read:A ok
+@omne-harness/mcp:test: +   answer adoption.endpoint:A ok
+@omne-harness/mcp:test: +   answer credentials.acquire:A ok
+@omne-harness/mcp:test: +   answer landing.start:A ok
+@omne-harness/mcp:test: +   answer transports.open:pA1 ok
+@omne-harness/mcp:test: +   answer transport.discover:tA1 ok
+@omne-harness/mcp:test: +   answer transport.call:tA1 fail-usable",
+@omne-harness/mcp:test: +   "P15 P15-teardown-on-usable-failure: transport.call tA1 failed without the mark and the step made transport.close tA1
+@omne-harness/mcp:test: +   invoke A
+@omne-harness/mcp:test: +   answer adoption.endpoint:A ok
+@omne-harness/mcp:test: +   answer eligibility.check:A ok
+@omne-harness/mcp:test: +   answer store.read:A ok
+@omne-harness/mcp:test: +   answer adoption.endpoint:A ok
+@omne-harness/mcp:test: +   answer credentials.acquire:A ok
+@omne-harness/mcp:test: +   answer landing.start:A ok
+@omne-harness/mcp:test: +   answer transports.open:pA1 ok
+@omne-harness/mcp:test: +   answer transport.discover:tA1 ok
+@omne-harness/mcp:test: +   answer transport.call:tA1 fail-usable",
+@omne-harness/mcp:test: + ]
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ❯ tests/model/calls.spec.ts:66:34
+@omne-harness/mcp:test:      64|       const result = await explore(MARKS)
+@omne-harness/mcp:test:      65|       console.info(readings(result))
+@omne-harness/mcp:test:      66|       expect(violations(result)).toEqual([])
+@omne-harness/mcp:test:        |                                  ^
+@omne-harness/mcp:test:      67|       // Each request port reaches both endings on a ready connection:…
+@omne-harness/mcp:test:      68|       expect(result.failureEndings).toEqual([
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/19]⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  FAIL  tests/model/calls.spec.ts > task-methods: each of the four task operations once > P1–P14 hold
+@omne-harness/mcp:test: Error: Test timed out in 600000ms.
+@omne-harness/mcp:test: If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+@omne-harness/mcp:test:  ❯ tests/model/calls.spec.ts:104:3
+@omne-harness/mcp:test:     102|
+@omne-harness/mcp:test:     103| describe('task-methods: each of the four task operations once', () => {
+@omne-harness/mcp:test:     104|   it('P1–P14 hold', { tags: ['slow'], timeout: EXPLORE_MS }, () => hol…
+@omne-harness/mcp:test:        |   ^
+@omne-harness/mcp:test:     105| })
+@omne-harness/mcp:test:     106|
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/19]⎯
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  Test Files  7 failed | 19 passed (26)
+@omne-harness/mcp:test:       Tests  19 failed | 483 passed (502)
+@omne-harness/mcp:test: Type Errors  no errors
+@omne-harness/mcp:test:    Start at  14:18:51
+@omne-harness/mcp:test:    Duration  918.57s (transform 2.33s, setup 327ms, import 7.24s, tests 1578.10s, environment 4ms, typecheck 269ms)
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ELIFECYCLE  Test failed. See above for more details.
+@omne-harness/mcp#test:  ERROR  command (/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp) /run/user/1001/fnm_multishells/50867_1793713184071/bin/pnpm run test exited (1)
+
+ Tasks:    8 successful, 9 total
+Cached:    0 cached, 9 total
+  Time:    15m22.597s 
+Failed:    @omne-harness/mcp#test
+
+ ERROR  run failed: command  exited (1)

@@ -1,0 +1,6 @@
+
+> omne-harness-lite-workspace@ package:template /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis
+> node --experimental-strip-types tools/dev-flow/src/package-template/cli.ts scan --member packages/mcp/mcp-cordis-contract --json
+
+Product discovery and source inventory disagree: scan is uncovered
+ ELIFECYCLE  Command failed with exit code 2.

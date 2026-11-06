@@ -1,0 +1,4 @@
+== fast
+     41 tests/cordis-entry.spec.ts
+== slow
+     13 tests/cordis-journey.spec.ts

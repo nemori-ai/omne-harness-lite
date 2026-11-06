@@ -1,0 +1,33 @@
+[
+ {
+  "id": "U12",
+  "codes": [
+   1
+  ],
+  "fails": [
+   "tests/refresh.spec.ts > refresh fails > a discover that fails during the build with { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'effect-unknown', cause: 'stream-broken' }, the connection is lost (S5, MC-5)",
+   "tests/refresh.spec.ts > refresh fails > a discover that fails during the build with { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'connection-unavailable' }, the connection is lost (S5, MC-5)"
+  ],
+  "log": "6ab9611fc45a55f7"
+ },
+ {
+  "id": "U13",
+  "codes": [
+   1
+  ],
+  "fails": [
+   "tests/decisions.spec.ts > concludeAnswer holds every cell of T8 > a reading of a marked answer keeps the mark: the failure of an operation and the answer of a call (T1)"
+  ],
+  "log": "8fd56815a67014ed"
+ },
+ {
+  "id": "U14",
+  "codes": [
+   1
+  ],
+  "fails": [
+   "tests/decisions.spec.ts > concludeAnswer holds every cell of T8 > a reading of a marked answer keeps the mark: the failure of an operation and the answer of a call (T1)"
+  ],
+  "log": "75e9c137c1d005f1"
+ }
+]

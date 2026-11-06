@@ -1,0 +1,18 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+
+ ✓ tests/public-entry.spec.ts (10 tests) 537ms
+   ✓ the root entry exports the values and pure functions of the contract  337ms
+ ✓ tests/decisions.spec.ts (92 tests) 106ms
+ ✓ tests/transport-conformance.spec.ts (219 tests) 2100ms
+     ✓ a transport that drops the mark of a row that ends the transport (T1, T8)  321ms
+     ✓ a transport that re-sends tools/call after a broken stream  332ms
+
+ Test Files  3 passed (3)
+      Tests  321 passed (321)
+Type Errors  no errors
+   Start at  16:31:29
+   Duration  2.86s (transform 903ms, setup 48ms, import 1.18s, tests 2.74s, environment 0ms)
+

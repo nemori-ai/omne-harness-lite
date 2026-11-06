@@ -1,0 +1,63 @@
+head 4209b33a7
+== M4-1 awk
+### 与已定事项和契约的偏离
+
+没有偏离。
+
+== M4-1 grep -c
+0
+== M4-2 a
+exit 1
+== M4-2 b
+exit 1
+== M4-2 c call sites
+packages/mcp/mcp/src/calls.ts:316:    loseIfLost(table, on.ensured, answer)
+packages/mcp/mcp/src/calls.ts:387:      loseIfLost(table, ensured, called.failure)
+packages/mcp/mcp/src/discovery.ts:154:    const catalog = await loseOn(table, ensured, page.lost)
+packages/mcp/mcp/src/tasks.ts:146:    loseIfLost(table, ensured, failure)
+== scope 60acfc28b..HEAD
+packages/mcp/mcp-contract/SPEC.md
+packages/mcp/mcp-contract/docs/public-api.md
+packages/mcp/mcp-contract/src/answer-readings.ts
+packages/mcp/mcp-contract/src/decisions.ts
+packages/mcp/mcp-contract/src/index.ts
+packages/mcp/mcp-contract/src/outcomes.ts
+packages/mcp/mcp-contract/src/testing-scripted-transport.ts
+packages/mcp/mcp-contract/src/testing-transport.ts
+packages/mcp/mcp-contract/src/transport.ts
+packages/mcp/mcp-contract/tests/decisions.spec.ts
+packages/mcp/mcp-contract/tests/public-entry.spec.ts
+packages/mcp/mcp-contract/tests/transport-conformance.spec.ts
+packages/mcp/mcp-host-local/SPEC.md
+packages/mcp/mcp-host-local/src/session.ts
+packages/mcp/mcp-host-local/tests/fixtures/scripted/stdio.ts
+packages/mcp/mcp-host-local/tests/http.spec.ts
+packages/mcp/mcp-host-local/tests/lines.spec.ts
+packages/mcp/mcp-host-local/tests/session.spec.ts
+packages/mcp/mcp-host-local/tests/stdio.spec.ts
+packages/mcp/mcp-host-local/verification/README.md
+packages/mcp/mcp/README.md
+packages/mcp/mcp/README_ZH.md
+packages/mcp/mcp/SPEC.md
+packages/mcp/mcp/docs/architecture.md
+packages/mcp/mcp/docs/flows.md
+packages/mcp/mcp/src/calls.ts
+packages/mcp/mcp/src/discovery.ts
+packages/mcp/mcp/src/index.md
+packages/mcp/mcp/src/internal/build.ts
+packages/mcp/mcp/src/internal/lost.ts
+packages/mcp/mcp/src/tasks.ts
+packages/mcp/mcp/tests/cancel.spec.ts
+packages/mcp/mcp/tests/ensure.spec.ts
+packages/mcp/mcp/tests/index.md
+packages/mcp/mcp/tests/invoke.spec.ts
+packages/mcp/mcp/tests/lost.spec.ts
+packages/mcp/mcp/tests/model/calls.spec.ts
+packages/mcp/mcp/tests/model/explore.ts
+packages/mcp/mcp/tests/model/ports.ts
+packages/mcp/mcp/tests/model/properties.ts
+packages/mcp/mcp/tests/model/scenarios.ts
+packages/mcp/mcp/tests/races.spec.ts
+packages/mcp/mcp/tests/refresh.spec.ts
+packages/mcp/mcp/tests/tasks.spec.ts
+packages/mcp/mcp/verification/README.md

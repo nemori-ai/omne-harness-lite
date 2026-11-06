@@ -1,0 +1,7 @@
+positive build exit 0
+positive test exit 0 sha256 d7ffc82b07d0785a head 06773cbcb
+mutated build exit 0
+mutated test exit 1 sha256 b2008c83416844fc head 06773cbcb
+restored byte for byte
+restored build exit 0
+restored test exit 1 sha256 79cdbe00dc2e07bc head 06773cbcb

@@ -1,0 +1,9 @@
+{"mode":"dry-run","typeTests":9,"typecheck":true}
+{"mode":"mutant","activeMutant":"0","typeTests":0,"typecheck":true}
+{"mode":"mutant","activeMutant":"1","typeTests":0,"typecheck":true}
+{"mode":"mutant","activeMutant":"2","typeTests":0,"typecheck":true}
+{"mode":"mutant","activeMutant":"3","typeTests":0,"typecheck":true}
+{"mode":"mutant","activeMutant":"4","typeTests":0,"typecheck":true}
+{"mode":"mutant","activeMutant":"5","typeTests":0,"typecheck":true}
+{"mode":"mutant","activeMutant":"6","typeTests":0,"typecheck":true}
+{"mode":"mutant","activeMutant":"7","typeTests":0,"typecheck":true}

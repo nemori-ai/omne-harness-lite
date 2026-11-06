@@ -1,0 +1,12 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+
+ Test Files  4 passed | 1 skipped (5)
+      Tests  162 passed | 201 skipped (363)
+Type Errors  no errors
+   Start at  13:27:01
+   Duration  7.47s (transform 3.21s, setup 97ms, import 5.29s, tests 9.07s, environment 1ms)
+

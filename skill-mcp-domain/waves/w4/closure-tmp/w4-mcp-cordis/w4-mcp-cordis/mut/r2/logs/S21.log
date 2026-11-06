@@ -1,0 +1,104 @@
+# S21 the warning does not name the endpoint
+# expect: red
+# edits: [{"from":"logger.warn('the stop of the process was not confirmed', closed.ref, closed.process)","to":"logger.warn('the stop of the process was not confirmed', closed.process)"}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)
+exit 1
+seconds 2.6
+total 13
+failed [
+ "the MCP plugin on a Cordis context, with a scripted peer process warns of the endpoint and the scope when the stop of its process is root-only at unload",
+ "the MCP plugin on a Cordis context, with a scripted peer process warns of the endpoint and the scope when the stop of its process is unconfirmed at unload"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-journey.spec.ts (13 tests | 2 failed) 782ms
+     ✓ loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer 87ms
+     ✓ answers each operation of the three services through the plugin 66ms
+     ✓ signals a call in flight that cancel names 58ms
+     ✓ publishes the catalog of a stdio peer once the absent adoption port is provided 57ms
+     ✓ publishes the catalog of a stdio peer once the absent eligibility port is provided 54ms
+     ✓ publishes the catalog of a stdio peer once the absent credentials port is provided 54ms
+     ✓ publishes the catalog of a stdio peer once the absent landing port is provided 51ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 98ms
+     ✓ removes the three services, stops the peer process and releases the credential handle when the plugin unloads 50ms
+     ✓ settles a call in flight with an unknown effect when the plugin unloads 50ms
+     × warns of the endpoint and the scope when the stop of its process is root-only at unload 59ms
+     × warns of the endpoint and the scope when the stop of its process is unconfirmed at unload 44ms
+     ✓ does not warn when the stop of the process is tree-confirmed at unload 50ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 11 passed (13)
+   Start at  15:37:15
+   Duration  1.68s (transform 493ms, setup 15ms, import 737ms, tests 782ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-S21/packages__mcp__mcp-host-local.json
+
+--- stderr
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > warns of the endpoint and the scope when the stop of its process is root-only at unload
+AssertionError: expected [ [ …(2) ] ] to deeply equal [ [ …(3) ] ]
+
+- Expected
++ Received
+
+  [
+    [
+      "the stop of the process was not confirmed",
+-     {
+-       "holding": "tenant/files",
+-       "name": "files",
+-     },
+      "root-only",
+    ],
+  ]
+
+ ❯ tests/cordis-journey.spec.ts:556:24
+    554|       expect(await invokeEcho(ctx)).toMatchObject({ kind: 'sent' })
+    555|       await fiber.dispose()
+    556|       expect(warnings).toEqual([['the stop of the process was not conf…
+       |                        ^
+    557|     },
+    558|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > warns of the endpoint and the scope when the stop of its process is unconfirmed at unload
+AssertionError: expected [ [ …(2) ] ] to deeply equal [ [ …(3) ] ]
+
+- Expected
++ Received
+
+  [
+    [
+      "the stop of the process was not confirmed",
+-     {
+-       "holding": "tenant/files",
+-       "name": "files",
+-     },
+      "unconfirmed",
+    ],
+  ]
+
+ ❯ tests/cordis-journey.spec.ts:556:24
+    554|       expect(await invokeEcho(ctx)).toMatchObject({ kind: 'sent' })
+    555|       await fiber.dispose()
+    556|       expect(warnings).toEqual([['the stop of the process was not conf…
+       |                        ^
+    557|     },
+    558|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+

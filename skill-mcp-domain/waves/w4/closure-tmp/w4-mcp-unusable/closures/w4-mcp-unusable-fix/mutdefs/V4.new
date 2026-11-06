@@ -1,0 +1,6 @@
+  const lost = lostOf(answer)
+  loseInScope(table, ensured, lost ?? { reason: 'stream-broken', mark: 'connection-unavailable' })
+}
+
+/**
+ * The connection failure a request that was not sent

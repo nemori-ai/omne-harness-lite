@@ -1,0 +1,19 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+
+ ✓ tests/ensure.spec.ts (38 tests) 74ms
+ ✓ tests/refresh.spec.ts (49 tests) 178ms
+ ✓ tests/invoke.spec.ts (48 tests) 353ms
+ ✓ tests/tasks.spec.ts (39 tests) 368ms
+ ✓ tests/status.spec.ts (15 tests) 61ms
+ ✓ tests/lost.spec.ts (14 tests) 18ms
+ ✓ tests/port-breach.spec.ts (9 tests) 57ms
+
+ Test Files  7 passed (7)
+      Tests  212 passed (212)
+Type Errors  no errors
+   Start at  16:31:26
+   Duration  1.64s (transform 1.16s, setup 97ms, import 3.31s, tests 1.11s, environment 1ms)
+

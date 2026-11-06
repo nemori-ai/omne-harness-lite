@@ -1,0 +1,1217 @@
+[
+ {
+  "id": "F01",
+  "name": "eligibility absent answers granted",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (port === undefined) return { kind: 'unknown' }",
+    "to": "if (port === undefined) return { kind: 'granted' }"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F02",
+  "name": "adoption endpoint absent answers not-adopted",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (port === undefined) return fail('unknown')\n      return port.endpoint(",
+    "to": "if (port === undefined) return { ok: 'not-adopted' as const }\n      return port.endpoint("
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F03",
+  "name": "adoption endpoints absent answers an empty list",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (port === undefined) return fail('unknown')\n      return port.endpoints(",
+    "to": "if (port === undefined) return { ok: [] }\n      return port.endpoints("
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F04",
+  "name": "credential absent answers missing",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (port === undefined) return fail('unknown')\n    // Each branch",
+    "to": "if (port === undefined) return fail('missing')\n    // Each branch"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F05",
+  "name": "landing absent answers facility-missing",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (port === undefined) return fail('unknown')\n      return port.start(",
+    "to": "if (port === undefined) return fail('facility-missing')\n      return port.start("
+   }
+  ],
+  "expect": "equivalent"
+ },
+ {
+  "id": "F06",
+  "name": "eligibility adapter reads the port at apply",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "function eligibilityOf(ctx: Context): UseEligibility<unknown> {\n",
+    "to": "function eligibilityOf(ctx: Context): UseEligibility<unknown> {\n  const loaded = ctx.get(mcpUseEligibilityKey)\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpUseEligibilityKey)",
+    "to": "const port = loaded",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F07",
+  "name": "eligibility adapter caches the first reference",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "function eligibilityOf(ctx: Context): UseEligibility<unknown> {\n",
+    "to": "function eligibilityOf(ctx: Context): UseEligibility<unknown> {\n  let cached: UseEligibility<unknown> | undefined\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpUseEligibilityKey)",
+    "to": "const port = (cached ??= ctx.get(mcpUseEligibilityKey))",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F08",
+  "name": "adoption adapter reads the port at apply",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "function adoptionOf(ctx: Context): AdoptionView<unknown, unknown> {\n",
+    "to": "function adoptionOf(ctx: Context): AdoptionView<unknown, unknown> {\n  const loaded = ctx.get(mcpAdoptionViewKey)\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpAdoptionViewKey)",
+    "to": "const port = loaded",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F09",
+  "name": "adoption adapter caches the first reference",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "function adoptionOf(ctx: Context): AdoptionView<unknown, unknown> {\n",
+    "to": "function adoptionOf(ctx: Context): AdoptionView<unknown, unknown> {\n  let cached: AdoptionView<unknown, unknown> | undefined\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpAdoptionViewKey)",
+    "to": "const port = (cached ??= ctx.get(mcpAdoptionViewKey))",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F10",
+  "name": "credential adapter reads the port at apply",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "function credentialsOf(ctx: Context): CredentialUse<unknown> {\n",
+    "to": "function credentialsOf(ctx: Context): CredentialUse<unknown> {\n  const loaded = ctx.get(mcpCredentialUseKey)\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpCredentialUseKey)",
+    "to": "const port = loaded",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F11",
+  "name": "landing adapter reads the port at apply",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "function landingOf(ctx: Context): ProcessLanding<unknown> {\n",
+    "to": "function landingOf(ctx: Context): ProcessLanding<unknown> {\n  const loaded = ctx.get(mcpProcessLandingKey)\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpProcessLandingKey)",
+    "to": "const port = loaded",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F42",
+  "name": "credential adapter caches the first reference",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "function credentialsOf(ctx: Context): CredentialUse<unknown> {\n",
+    "to": "function credentialsOf(ctx: Context): CredentialUse<unknown> {\n  let cached: CredentialUse<unknown> | undefined\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpCredentialUseKey)",
+    "to": "const port = (cached ??= ctx.get(mcpCredentialUseKey))",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F43",
+  "name": "landing adapter caches the first reference",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "function landingOf(ctx: Context): ProcessLanding<unknown> {\n",
+    "to": "function landingOf(ctx: Context): ProcessLanding<unknown> {\n  let cached: ProcessLanding<unknown> | undefined\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpProcessLandingKey)",
+    "to": "const port = (cached ??= ctx.get(mcpProcessLandingKey))",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F12",
+  "name": "the endpoint status service is not provided",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "new HostEndpointStatus(ctx, services.status)",
+    "to": "void services.status"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F13",
+  "name": "current is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.discovery.current(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F14",
+  "name": "refresh is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.discovery.refresh(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F15",
+  "name": "peer is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.discovery.peer(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F16",
+  "name": "invoke is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.invoker.invoke(...args)",
+    "to": "void args\n    return Promise.resolve({ kind: 'not-sent' as const, reason: { kind: 'unknown' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F17",
+  "name": "continueWithInput is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.invoker.continueWithInput(...args)",
+    "to": "void args\n    return Promise.resolve({ kind: 'not-sent' as const, reason: { kind: 'unknown' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F18",
+  "name": "cancel is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.invoker.cancel(...args)",
+    "to": "void args\n    return Promise.resolve('no-call-in-flight' as const)"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F19",
+  "name": "queryTask is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.invoker.queryTask(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'effect-unknown' as const, cause: 'no-connection' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F20",
+  "name": "taskResult is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.invoker.taskResult(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'effect-unknown' as const, cause: 'no-connection' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F21",
+  "name": "provideTaskInput is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.invoker.provideTaskInput(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'effect-unknown' as const, cause: 'no-connection' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F22",
+  "name": "cancelTask is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.invoker.cancelTask(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'effect-unknown' as const, cause: 'no-connection' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F23",
+  "name": "inspect is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.status.inspect(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'not-available-to-you' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F24",
+  "name": "list is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return this.status.list(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: 'unknown' as const })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F25",
+  "name": "plain record does not check the prototype",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return prototype === Object.prototype || prototype === null",
+    "to": "return !Array.isArray(value)"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F26",
+  "name": "plain record refuses a null prototype",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return prototype === Object.prototype || prototype === null",
+    "to": "return prototype === Object.prototype"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F27",
+  "name": "extra keys found with Object.keys",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "Reflect.ownKeys(record).find(",
+    "to": "Object.keys(record).find("
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F28",
+  "name": "an extra field is not reported",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (extra !== undefined) return `${what} has no field ${String(extra)}`",
+    "to": "void extra"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F29",
+  "name": "a missing field is not reported",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (missing !== undefined) return `${what} needs the field ${missing}`",
+    "to": "void missing"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F30",
+  "name": "clientInfo is not checked for extra fields",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "const fields = fieldsIssue(value, CLIENT_INFO_FIELDS, 'clientInfo')\n  if (fields !== undefined) return fields",
+    "to": "const fields = Object.keys(CLIENT_INFO_FIELDS).find(field => !Object.hasOwn(value, field))\n  if (fields !== undefined) return `clientInfo needs the field ${fields}`"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F31",
+  "name": "the message of maxListingPages names another field",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (typeof maxListingPages !== 'number') return 'maxListingPages'",
+    "to": "if (typeof maxListingPages !== 'number') return 'maxActions'"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F32",
+  "name": "the message of probeTimeoutMs names another field",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (typeof probeTimeoutMs !== 'number') return 'probeTimeoutMs'",
+    "to": "if (typeof probeTimeoutMs !== 'number') return 'maxListingPages'"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F33",
+  "name": "two bounds swap their values",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return { maxListingPages, maxActions, instructionsByteLimit, probeTimeoutMs }",
+    "to": "return { maxListingPages: maxActions, maxActions: maxListingPages, instructionsByteLimit, probeTimeoutMs }"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F34",
+  "name": "clientInfo.name has the message of version",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (typeof name !== 'string') return 'clientInfo.name must be a text'",
+    "to": "if (typeof name !== 'string') return 'clientInfo.version must be a text'"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F35",
+  "name": "clientInfo.version has the message of name",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (typeof version !== 'string') return 'clientInfo.version must be a text'",
+    "to": "if (typeof version !== 'string') return 'clientInfo.name must be a text'"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F36",
+  "name": "clientInfo that is not an object has another message",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return 'clientInfo must be an object'",
+    "to": "return 'clientInfo must be a record'"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F37",
+  "name": "a configuration that is not an object has another message",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "return issue('configuration must be an object')",
+    "to": "return issue('configuration must be a record')"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F38",
+  "name": "the schema accepts any value",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "Config: mcpPluginConfig,",
+    "to": "Config: { '~standard': { version: 1, vendor: 'omne-harness', validate: (value: unknown) => ({ value: Object(value) }) } },"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F39",
+  "name": "the plugin replaces a zero maxActions",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "maxActions: config.maxActions,",
+    "to": "maxActions: config.maxActions || 100,"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F40",
+  "name": "the plugin replaces a zero probe timeout",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "probeTimeoutMs: config.probeTimeoutMs,",
+    "to": "probeTimeoutMs: config.probeTimeoutMs || 1,"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "F41",
+  "name": "test-side: the probe removal resolves instead of throwing (the probe tests Cordis)",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/tests/cordis-entry.spec.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "            throw failure\n",
+    "to": "            void failure\n"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S01",
+  "name": "current is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.discovery.current(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S02",
+  "name": "refresh is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.discovery.refresh(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S03",
+  "name": "peer is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.discovery.peer(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S04",
+  "name": "invoke is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.invoker.invoke(...args)",
+    "to": "void args\n    return Promise.resolve({ kind: 'not-sent' as const, reason: { kind: 'unknown' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S05",
+  "name": "continueWithInput is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.invoker.continueWithInput(...args)",
+    "to": "void args\n    return Promise.resolve({ kind: 'not-sent' as const, reason: { kind: 'unknown' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S06",
+  "name": "cancel is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.invoker.cancel(...args)",
+    "to": "void args\n    return Promise.resolve('no-call-in-flight' as const)"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S07",
+  "name": "queryTask is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.invoker.queryTask(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'effect-unknown' as const, cause: 'no-connection' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S08",
+  "name": "taskResult is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.invoker.taskResult(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'effect-unknown' as const, cause: 'no-connection' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S09",
+  "name": "provideTaskInput is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.invoker.provideTaskInput(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'effect-unknown' as const, cause: 'no-connection' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S10",
+  "name": "cancelTask is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.invoker.cancelTask(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'effect-unknown' as const, cause: 'no-connection' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S11",
+  "name": "inspect is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.status.inspect(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: { kind: 'not-available-to-you' as const } })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S12",
+  "name": "list is not forwarded",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "return this.status.list(...args)",
+    "to": "void args\n    return Promise.resolve({ failure: 'unknown' as const })"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S13",
+  "name": "eligibility adapter reads the port at apply",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "function eligibilityOf(ctx: Context): UseEligibility<unknown> {\n",
+    "to": "function eligibilityOf(ctx: Context): UseEligibility<unknown> {\n  const loaded = ctx.get(mcpUseEligibilityKey)\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpUseEligibilityKey)",
+    "to": "const port = loaded",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S14",
+  "name": "adoption adapter caches the first reference",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "function adoptionOf(ctx: Context): AdoptionView<unknown, unknown> {\n",
+    "to": "function adoptionOf(ctx: Context): AdoptionView<unknown, unknown> {\n  let cached: AdoptionView<unknown, unknown> | undefined\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpAdoptionViewKey)",
+    "to": "const port = (cached ??= ctx.get(mcpAdoptionViewKey))",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S15",
+  "name": "credential adapter reads the port at apply",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "function credentialsOf(ctx: Context): CredentialUse<unknown> {\n",
+    "to": "function credentialsOf(ctx: Context): CredentialUse<unknown> {\n  const loaded = ctx.get(mcpCredentialUseKey)\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpCredentialUseKey)",
+    "to": "const port = loaded",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S16",
+  "name": "landing adapter reads the port at apply",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "function landingOf(ctx: Context): ProcessLanding<unknown> {\n",
+    "to": "function landingOf(ctx: Context): ProcessLanding<unknown> {\n  const loaded = ctx.get(mcpProcessLandingKey)\n"
+   },
+   {
+    "from": "const port = ctx.get(mcpProcessLandingKey)",
+    "to": "const port = loaded",
+    "all": true
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S17",
+  "name": "the removal does not await closeAll",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "          const report = await services.connections.closeAll()\n",
+    "to": "          void services.connections.closeAll()\n          const report: readonly Readonly<{ ref: unknown; process: string }>[] = []\n"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S18",
+  "name": "the removal does not call closeAll",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "          const report = await services.connections.closeAll()\n",
+    "to": "          const report: readonly Readonly<{ ref: unknown; process: string }>[] = []\n"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S19",
+  "name": "the removal warns only of unconfirmed",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "if (closed.process === 'root-only' || closed.process === 'unconfirmed')",
+    "to": "if (closed.process === 'unconfirmed')"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S20",
+  "name": "the removal warns of every scope but no-process",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "if (closed.process === 'root-only' || closed.process === 'unconfirmed')",
+    "to": "if (closed.process !== 'no-process')"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "S21",
+  "name": "the warning does not name the endpoint",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "logger.warn('the stop of the process was not confirmed', closed.ref, closed.process)",
+    "to": "logger.warn('the stop of the process was not confirmed', closed.process)"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K01",
+  "name": "ActionDiscoveryService registers under the key of ActionInvokerService",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "super(ctx, ActionDiscoveryService.provide)",
+    "to": "super(ctx, ActionInvokerService.provide)"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K02",
+  "name": "ActionInvokerService registers under the key of EndpointStatusService",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "super(ctx, ActionInvokerService.provide)",
+    "to": "super(ctx, EndpointStatusService.provide)"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K03",
+  "name": "EndpointStatusService registers under the key of AdoptionViewService",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "super(ctx, EndpointStatusService.provide)",
+    "to": "super(ctx, AdoptionViewService.provide)"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K04",
+  "name": "AdoptionViewService registers under the key of UseEligibilityService",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "super(ctx, AdoptionViewService.provide)",
+    "to": "super(ctx, UseEligibilityService.provide)"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K05",
+  "name": "UseEligibilityService registers under the key of CredentialUseService",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "super(ctx, UseEligibilityService.provide)",
+    "to": "super(ctx, CredentialUseService.provide)"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K06",
+  "name": "CredentialUseService registers under the key of ProcessLandingService",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "super(ctx, CredentialUseService.provide)",
+    "to": "super(ctx, ProcessLandingService.provide)"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K07",
+  "name": "ProcessLandingService registers under the key of ActionDiscoveryService",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "super(ctx, ProcessLandingService.provide)",
+    "to": "super(ctx, ActionDiscoveryService.provide)"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K08",
+  "name": "a key literal changes",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "static readonly provide = 'mcpActionDiscovery'",
+    "to": "static readonly provide = 'mcpDiscovery'"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K09",
+  "name": "two Services share a key",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "static readonly provide = 'mcpCredentialUse'",
+    "to": "static readonly provide = 'mcpUseEligibility'"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K10",
+  "name": "an extra runtime export",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "export const mcpProcessLandingKey = ProcessLandingService.provide",
+    "to": "export const mcpProcessLandingKey = ProcessLandingService.provide\nexport const mcpExtraKey = 'mcpExtra'"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K11",
+  "name": "a key constant differs from its provide",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "export const mcpAdoptionViewKey = AdoptionViewService.provide",
+    "to": "export const mcpAdoptionViewKey = 'mcpAdoptionViews'"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K12",
+  "name": "the root entry has a runtime value",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/index.ts",
+  "test": "tests/public-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "export {}",
+    "to": "export const root = 1"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "K13",
+  "name": "the root entry loads Cordis",
+  "member": "packages/mcp/mcp-cordis-contract",
+  "file": "packages/mcp/mcp-cordis-contract/src/index.ts",
+  "test": "tests/public-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "export {}",
+    "to": "import '@deepseek-ai/cordis'\nexport {}"
+   }
+  ],
+  "expect": "red"
+ }
+]

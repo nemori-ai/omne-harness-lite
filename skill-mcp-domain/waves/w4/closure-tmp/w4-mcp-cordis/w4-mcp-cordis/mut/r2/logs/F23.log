@@ -1,0 +1,167 @@
+# F23 inspect is not forwarded
+# expect: red
+# edits: [{"from":"return this.status.inspect(...args)","to":"void args\n    return Promise.resolve({ failure: { kind: 'not-available-to-you' as const } })"}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)
+exit 1
+seconds 1.8
+total 41
+failed [
+ "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection",
+ "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided",
+ "the MCP plugin on a Cordis context, without a process uses the replacement eligibility at the next port call after a swap"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-entry.spec.ts (41 tests | 3 failed) 122ms
+     ✓ provides the three services on load with a complete lawful configuration and removes them when the plugin unloads 13ms
+     × answers each operation of the three services while there is no connection 24ms
+     ✓ answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided 7ms
+     × answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided 3ms
+     ✓ answers an unknown credential, and asks no landing, while the credential use is absent, and acquires once it is provided 5ms
+     ✓ answers landing-unavailable while the process landing is absent, and asks the landing once it is provided 4ms
+     × uses the replacement eligibility at the next port call after a swap 3ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 4ms
+     ✓ uses the replacement credential use at the next port call after a swap 5ms
+     ✓ uses the replacement process landing at the next port call after a swap 5ms
+     ✓ Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes 3ms
+       ✓ accepts a complete lawful configuration as a copy 1ms
+       ✓ accepts a configuration without a prototype 0ms
+       ✓ refuses a configuration that is not an object 0ms
+       ✓ fails to load with a configuration that is not an object, with the ValidationError of Cordis 6ms
+       ✓ refuses a configuration that is a Date 1ms
+       ✓ fails to load with a configuration that is a Date, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that inherits every field 0ms
+       ✓ fails to load with a configuration that inherits every field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that lacks a field 0ms
+       ✓ fails to load with a configuration that lacks a field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that has an extra field 0ms
+       ✓ fails to load with a configuration that has an extra field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that has a symbol key 0ms
+       ✓ fails to load with a configuration that has a symbol key, with the ValidationError of Cordis 5ms
+       ✓ refuses a configuration whose bound is not a number 0ms
+       ✓ fails to load with a configuration whose bound is not a number, with the ValidationError of Cordis 3ms
+       ✓ refuses a configuration whose probeTimeoutMs is not a number 0ms
+       ✓ fails to load with a configuration whose probeTimeoutMs is not a number, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration whose clientInfo is not an object 0ms
+       ✓ fails to load with a configuration whose clientInfo is not an object, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration whose clientInfo lacks a field 0ms
+       ✓ fails to load with a configuration whose clientInfo lacks a field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration whose clientInfo has an extra field 0ms
+       ✓ fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration whose clientInfo.name is not a text 0ms
+       ✓ fails to load with a configuration whose clientInfo.name is not a text, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo.version is not a text 0ms
+       ✓ fails to load with a configuration whose clientInfo.version is not a text, with the ValidationError of Cordis 1ms
+       ✓ fails to load when maxActions is 0, with the RangeError of createMcp 3ms
+       ✓ fails to load when probeTimeoutMs is 0, with the RangeError of the transport factory 2ms
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 38 passed (41)
+Type Errors  no errors
+   Start at  15:40:42
+   Duration  960ms (transform 456ms, setup 14ms, import 680ms, tests 122ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-F23/packages__mcp__mcp-host-local.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > answers each operation of the three services while there is no connection
+AssertionError: expected { Object (failure) } to match object { ok: { ref: { …(2) }, …(2) } }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "ok": {
+-     "connection": {
+-       "kind": "lost",
+-       "reason": "preparation-failed",
+-     },
+-     "ref": {
+-       "holding": "tenant/files",
+-       "name": "files",
+-     },
+-     "use": {
+-       "kind": "usable",
+-     },
++   "failure": {
++     "kind": "not-available-to-you",
+    },
+  }
+
+ ❯ tests/cordis-entry.spec.ts:268:48
+    266|     expect(await invoker.provideTaskInput(ALICE, task, jsonOf({}))).to…
+    267|     expect(await invoker.cancelTask(ALICE, task)).toEqual(UNKNOWN)
+    268|     expect(await status.inspect(ALICE, FILES)).toMatchObject({
+       |                                                ^
+    269|       ok: {
+    270|         ref: FILES,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided
+AssertionError: expected { Object (failure) } to deeply equal { failure: { kind: 'unknown' } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+-     "kind": "unknown",
++     "kind": "not-available-to-you",
+    },
+  }
+
+ ❯ tests/cordis-entry.spec.ts:296:76
+    294|     const { ctx, provided } = await assembled({ args: ARGS }, 'eligibi…
+    295|     expect(await refreshed(ctx)).toEqual({ failure: { kind: 'unknown' …
+    296|     expect(await service(ctx, mcpEndpointStatusKey).inspect(ALICE, FIL…
+       |                                                                            ^
+    297|       failure: { kind: 'unknown' },
+    298|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > uses the replacement eligibility at the next port call after a swap
+AssertionError: expected { Object (failure) } to match object { ok: { use: { kind: 'usable' } } }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "ok": {
+-     "use": {
+-       "kind": "usable",
+-     },
++   "failure": {
++     "kind": "not-available-to-you",
+    },
+  }
+
+ ❯ tests/cordis-entry.spec.ts:330:76
+    328|     granting.grant(ALICE, FILES)
+    329|     const first = await load(ctx, eligibilityService(granting), undefi…
+    330|     expect(await service(ctx, mcpEndpointStatusKey).inspect(ALICE, FIL…
+       |                                                                            ^
+    331|       ok: { use: { kind: 'usable' } },
+    332|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+

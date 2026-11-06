@@ -1,0 +1,73 @@
+# S09 provideTaskInput is not forwarded
+# expect: red
+# edits: [{"from":"return this.invoker.provideTaskInput(...args)","to":"void args\n    return Promise.resolve({ failure: { kind: 'effect-unknown' as const, cause: 'no-connection' as const } })"}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)
+exit 1
+seconds 2.4
+total 13
+failed [
+ "the MCP plugin on a Cordis context, with a scripted peer process answers each operation of the three services through the plugin"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-journey.spec.ts (13 tests | 1 failed) 745ms
+     ✓ loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer 82ms
+     × answers each operation of the three services through the plugin 67ms
+     ✓ signals a call in flight that cancel names 60ms
+     ✓ publishes the catalog of a stdio peer once the absent adoption port is provided 51ms
+     ✓ publishes the catalog of a stdio peer once the absent eligibility port is provided 51ms
+     ✓ publishes the catalog of a stdio peer once the absent credentials port is provided 45ms
+     ✓ publishes the catalog of a stdio peer once the absent landing port is provided 51ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 90ms
+     ✓ removes the three services, stops the peer process and releases the credential handle when the plugin unloads 48ms
+     ✓ settles a call in flight with an unknown effect when the plugin unloads 51ms
+     ✓ warns of the endpoint and the scope when the stop of its process is root-only at unload 47ms
+     ✓ warns of the endpoint and the scope when the stop of its process is unconfirmed at unload 47ms
+     ✓ does not warn when the stop of the process is tree-confirmed at unload 51ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  15:34:37
+   Duration  1.60s (transform 474ms, setup 14ms, import 701ms, tests 745ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-S09/packages__mcp__mcp-host-local.json
+
+--- stderr
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > answers each operation of the three services through the plugin
+AssertionError: expected { failure: { …(2) } } to deeply equal { ok: 'accepted' }
+
+- Expected
++ Received
+
+  {
+-   "ok": "accepted",
++   "failure": {
++     "cause": "no-connection",
++     "kind": "effect-unknown",
++   },
+  }
+
+ ❯ tests/cordis-journey.spec.ts:456:69
+    454|       ok: { kind: 'complete', content: [{ block: { kind: 'text', text:…
+    455|     })
+    456|     expect(await invoker.provideTaskInput(ALICE, task, jsonOf({}))).to…
+       |                                                                     ^
+    457|     expect(await invoker.cancelTask(ALICE, task)).toEqual({ ok: 'reque…
+    458|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+

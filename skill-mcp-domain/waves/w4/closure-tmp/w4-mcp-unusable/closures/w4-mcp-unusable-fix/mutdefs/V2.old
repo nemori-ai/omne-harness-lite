@@ -1,0 +1,3 @@
+  return failure.kind === 'error-answer' || failure.kind === 'answer-malformed'
+    ? 'discover-failed'
+    : 'preparation-failed'

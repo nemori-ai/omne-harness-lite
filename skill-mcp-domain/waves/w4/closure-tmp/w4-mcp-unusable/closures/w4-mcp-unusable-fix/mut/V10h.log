@@ -1,0 +1,29 @@
+id: V10h
+head: 0961b30e9
+time: 2026-11-06T17:00:11Z
+file: packages/mcp/mcp-host-local/src/session.ts
+--- diff
+diff --git a/packages/mcp/mcp-host-local/src/session.ts b/packages/mcp/mcp-host-local/src/session.ts
+index f0dd7d7f9..76c538b7b 100644
+--- a/packages/mcp/mcp-host-local/src/session.ts
++++ b/packages/mcp/mcp-host-local/src/session.ts
+@@ -329,7 +329,7 @@ export class Session implements McpTransport {
+ 
+   /** The `not-sent` of a request the transport did not take: closed, not usable, or stopped first. */
+   private get refused(): Extract<TransportFailure, { kind: 'not-sent' }> {
+-    return notSentFailureOf(this.closed ? undefined : this.dead)
++    return notSentFailureOf(this.dead)
+   }
+ 
+   private settle(entry: Pending, answered: Answered): void {
+build after change: 0
+--- command: (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/conformance.spec.ts -t close\(\) after --reporter=default --reporter=json --outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable-fix/mut/V10h.json)
+exit: 1
+--- failed (from JSON report)
+stdio first T1 Streamable HTTP: close() after the session ended (S07): the call still in flight and a later request carry no unusable
+stdio first T1 stdio: close() after the process exited (S02): a later request carries no unusable
+streamable-http first T1 Streamable HTTP: close() after the session ended (S07): the call still in flight and a later request carry no unusable
+streamable-http first T1 stdio: close() after the process exited (S02): a later request carries no unusable
+restored: byte-identical
+git diff --quiet: clean
+build after restore: 0

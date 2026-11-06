@@ -1,0 +1,63 @@
+# K13 the root entry loads Cordis
+# expect: red
+# edits: [{"from":"export {}","to":"import '@deepseek-ai/cordis'\nexport {}"}]
+$ (cd packages/mcp/mcp-cordis-contract && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-cordis-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-cordis-contract && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/public-entry.spec.ts)
+exit 1
+seconds 1.0
+total 2
+failed [
+ "keeps the root entry source and built file free of Cordis"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract
+
+ ❯ tests/public-entry.spec.ts (2 tests | 1 failed) 22ms
+   ✓ keeps the root entry free of runtime values 13ms
+   × keeps the root entry source and built file free of Cordis 7ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+Type Errors  no errors
+   Start at  15:37:38
+   Duration  181ms (transform 9ms, setup 0ms, import 12ms, tests 22ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-K13/packages__mcp__mcp-cordis-contract.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/public-entry.spec.ts > keeps the root entry source and built file free of Cordis
+AssertionError: expected '// The root entry has no runtime valu…' not to contain '@deepseek-ai/cordis'
+
+- Expected
++ Received
+
+- @deepseek-ai/cordis
++ // The root entry has no runtime values and loads no Cordis. The definitions are in `./cordis`.
++ import '@deepseek-ai/cordis'
++ export {}
++
+
+ ❯ tests/public-entry.spec.ts:11:22
+      9| it('keeps the root entry source and built file free of Cordis', async …
+     10|   const source = await readFile(new URL('../src/index.ts', import.meta…
+     11|   expect(source).not.toContain('@deepseek-ai/cordis')
+       |                      ^
+     12|   const built = await readFile(new URL('../dist/index.js', import.meta…
+     13|   expect(built).not.toMatch(/\bimport\b/)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+

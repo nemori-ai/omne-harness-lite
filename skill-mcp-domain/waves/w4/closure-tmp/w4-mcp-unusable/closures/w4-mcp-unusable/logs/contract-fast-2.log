@@ -1,0 +1,402 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+
+ ❯ tests/public-entry.spec.ts (10 tests | 1 failed) 893ms
+   × the root entry exports the values and pure functions of the contract 680ms
+ ❯ tests/decisions.spec.ts (89 tests | 2 failed) 144ms
+     × a gone stream settles every request with no-answer and no re-send; a refusal settles with its discovery 15ms
+     × the line going away settles only the phases that depend on it: authorizing is not-sent for every cause, sent answers the cause except session-ended, discovery goes on (T8 S01–S04, S07) 2ms
+ ❯ tests/transport-conformance.spec.ts (217 tests | 14 failed) 1509ms
+       × T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable 14ms
+       × T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable 2ms
+       × T8 [S03] tools/call × stream-broken → sent, answer stream-broken, unusable 2ms
+       × T8 [S04] tools/call × process-exited → sent, answer process-exited, unusable 1ms
+       × T8 [S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable 2ms
+       × T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable 2ms
+       × T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable 1ms
+       × T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable 1ms
+       × T8 [S03] tools/call × stream-broken → sent, answer stream-broken, unusable 1ms
+       × T8 [S04] tools/call × process-exited → sent, answer process-exited, unusable 1ms
+       × T8 [S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable 1ms
+       × T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable 1ms
+     × a transport that re-sends tools/call after a broken stream 296ms
+     × a transport that does not report a refused authorization to the handle 279ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 17 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/decisions.spec.ts > the rules a transport applies by its connection (T2, T5) and the requests its operations send (T3, T6) > a gone stream settles every request with no-answer and no re-send; a refusal settles with its discovery
+AssertionError: expected { kind: 'no-answer', …(3) } to deeply equal { kind: 'no-answer', …(2) }
+
+- Expected
++ Received
+
+  {
+    "cause": "process-exited",
+    "kind": "no-answer",
+    "resend": false,
++   "unusable": "process-exited",
+  }
+
+ ❯ tests/decisions.spec.ts:731:50
+    729|
+    730|   it('a gone stream settles every request with no-answer and no re-sen…
+    731|     expect(streamGoneAnswerOf('process-exited')).toEqual({
+       |                                                  ^
+    732|       kind: 'no-answer',
+    733|       cause: 'process-exited',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/17]⎯
+
+ FAIL  tests/decisions.spec.ts > the rules a transport applies by its connection (T2, T5) and the requests its operations send (T3, T6) > the line going away settles only the phases that depend on it: authorizing is not-sent for every cause, sent answers the cause except session-ended, discovery goes on (T8 S01–S04, S07)
+AssertionError: stream-broken: expected { kind: 'not-sent', failure: { …(3) } } to deeply equal { kind: 'not-sent', failure: { …(2) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "connection-unavailable",
+      "kind": "not-sent",
++     "unusable": "stream-broken",
+    },
+    "kind": "not-sent",
+  }
+
+ ❯ tests/decisions.spec.ts:778:71
+    776|     const discovery = { kind: 'discovery', soFar: () => soFar } as con…
+    777|     for (const cause of ['stream-broken', 'process-exited', 'session-e…
+    778|       expect(lineGoneAnswerOf({ kind: 'authorizing' }, cause), cause).…
+       |                                                                       ^
+    779|       expect(lineGoneAnswerOf(discovery, cause), cause).toBeUndefined()
+    780|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/17]⎯
+
+ FAIL  tests/public-entry.spec.ts > the root entry exports the values and pure functions of the contract
+AssertionError: expected [ 'ABANDONED', …(96) ] to deeply equal [ 'ABANDONED', …(94) ]
+
+- Expected
++ Received
+
+@@ -65,10 +65,11 @@
+    "markUnavailable",
+    "mcpEndpointBodyContract",
+    "mcpRequestHeadersOf",
+    "mergeListing",
+    "metadataCandidatesOf",
++   "notSentFailureOf",
+    "notificationTextOf",
+    "parseEndpointBody",
+    "peerAccountOf",
+    "peerIdentityOf",
+    "peerRequestAnswerOf",
+@@ -89,9 +90,10 @@
+    "stopAnswerOf",
+    "streamGoneAnswerOf",
+    "taskAnswerOf",
+    "taskReportOf",
+    "toContentBlocks",
++   "unusableAnswerOf",
+    "updateTaskRequest",
+    "withOneResend",
+    "withheldTools",
+  ]
+
+ ❯ tests/public-entry.spec.ts:184:36
+    182| it('the root entry exports the values and pure functions of the contra…
+    183|   const root = (await import('@omne-harness/mcp-contract')) as Record<…
+    184|   expect(Object.keys(root).sort()).toEqual(ROOT)
+       |                                    ^
+    185| })
+    186|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/17]⎯
+
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > stdio material first > T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > streamable-http material first > T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable
+AssertionError: stdio discover stream-broken: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+    cause: 'stream-broken',
+    kind: 'no-answer',
++   unusable: 'stream-broken'
+  }
+
+
+- Expected
++ Received
+
+  {
+    "cause": "stream-broken",
+    "kind": "no-answer",
++   "unusable": "stream-broken",
+  }
+
+ ❯ assertFailure src/testing-transport.ts:815:15
+ ❯ src/testing-transport.ts:1062:9
+ ❯ withPeer src/testing-transport.ts:297:14
+ ❯ run src/testing-transport.ts:935:5
+ ❯ Object.run src/testing-transport.ts:1274:15
+ ❯ runConformanceCase src/testing-case.ts:44:5
+ ❯ tests/transport-conformance.spec.ts:111:14
+    109|   for (const conformance of suite)
+    110|     it(`${conformance.clause} ${conformance.name}`, async () => {
+    111|       expect(await runConformanceCase(conformance, fixture())).toEqual…
+       |              ^
+    112|     })
+    113| }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/17]⎯
+
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > stdio material first > T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > streamable-http material first > T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable
+AssertionError: stdio discover process-exited: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+    cause: 'process-exited',
+    kind: 'no-answer',
++   unusable: 'process-exited'
+  }
+
+
+- Expected
++ Received
+
+  {
+    "cause": "process-exited",
+    "kind": "no-answer",
++   "unusable": "process-exited",
+  }
+
+ ❯ assertFailure src/testing-transport.ts:815:15
+ ❯ src/testing-transport.ts:1062:9
+ ❯ withPeer src/testing-transport.ts:297:14
+ ❯ run src/testing-transport.ts:935:5
+ ❯ Object.run src/testing-transport.ts:1274:15
+ ❯ runConformanceCase src/testing-case.ts:44:5
+ ❯ tests/transport-conformance.spec.ts:111:14
+    109|   for (const conformance of suite)
+    110|     it(`${conformance.clause} ${conformance.name}`, async () => {
+    111|       expect(await runConformanceCase(conformance, fixture())).toEqual…
+       |              ^
+    112|     })
+    113| }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/17]⎯
+
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > stdio material first > T8 [S03] tools/call × stream-broken → sent, answer stream-broken, unusable
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > streamable-http material first > T8 [S03] tools/call × stream-broken → sent, answer stream-broken, unusable
+AssertionError: stdio tools/call stream-broken: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+    cause: 'stream-broken',
+    kind: 'no-answer',
++   unusable: 'stream-broken'
+  }
+
+
+- Expected
++ Received
+
+  {
+    "cause": "stream-broken",
+    "kind": "no-answer",
++   "unusable": "stream-broken",
+  }
+
+ ❯ src/testing-transport.ts:1132:21
+ ❯ withPeer src/testing-transport.ts:297:14
+ ❯ run src/testing-transport.ts:935:5
+ ❯ checkCall src/testing-transport.ts:1112:3
+ ❯ Object.run src/testing-transport.ts:1274:15
+ ❯ runConformanceCase src/testing-case.ts:44:5
+ ❯ tests/transport-conformance.spec.ts:111:14
+    109|   for (const conformance of suite)
+    110|     it(`${conformance.clause} ${conformance.name}`, async () => {
+    111|       expect(await runConformanceCase(conformance, fixture())).toEqual…
+       |              ^
+    112|     })
+    113| }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/17]⎯
+
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > stdio material first > T8 [S04] tools/call × process-exited → sent, answer process-exited, unusable
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > streamable-http material first > T8 [S04] tools/call × process-exited → sent, answer process-exited, unusable
+AssertionError: stdio tools/call process-exited: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+    cause: 'process-exited',
+    kind: 'no-answer',
++   unusable: 'process-exited'
+  }
+
+
+- Expected
++ Received
+
+  {
+    "cause": "process-exited",
+    "kind": "no-answer",
++   "unusable": "process-exited",
+  }
+
+ ❯ src/testing-transport.ts:1132:21
+ ❯ withPeer src/testing-transport.ts:297:14
+ ❯ run src/testing-transport.ts:935:5
+ ❯ checkCall src/testing-transport.ts:1112:3
+ ❯ Object.run src/testing-transport.ts:1274:15
+ ❯ runConformanceCase src/testing-case.ts:44:5
+ ❯ tests/transport-conformance.spec.ts:111:14
+    109|   for (const conformance of suite)
+    110|     it(`${conformance.clause} ${conformance.name}`, async () => {
+    111|       expect(await runConformanceCase(conformance, fixture())).toEqual…
+       |              ^
+    112|     })
+    113| }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/17]⎯
+
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > stdio material first > T8 [S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > streamable-http material first > T8 [S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable
+AssertionError: streamable-http tools/list http:404+session: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+    cause: 'session-ended',
+    kind: 'not-sent',
++   unusable: 'session-ended'
+  }
+
+
+- Expected
++ Received
+
+  {
+    "cause": "session-ended",
+    "kind": "not-sent",
++   "unusable": "session-ended",
+  }
+
+ ❯ assertFailure src/testing-transport.ts:815:15
+ ❯ src/testing-transport.ts:1203:9
+ ❯ withPeer src/testing-transport.ts:297:14
+ ❯ run src/testing-transport.ts:935:5
+ ❯ Object.run src/testing-transport.ts:1274:15
+ ❯ runConformanceCase src/testing-case.ts:44:5
+ ❯ tests/transport-conformance.spec.ts:111:14
+    109|   for (const conformance of suite)
+    110|     it(`${conformance.clause} ${conformance.name}`, async () => {
+    111|       expect(await runConformanceCase(conformance, fixture())).toEqual…
+       |              ^
+    112|     })
+    113| }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/17]⎯
+
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > stdio material first > T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable
+ FAIL  tests/transport-conformance.spec.ts > McpTransport conformance on the scripted transport > streamable-http material first > T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable
+AssertionError: stdio discover unsent: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+    cause: 'connection-unavailable',
+    kind: 'not-sent',
++   unusable: 'stream-broken'
+  }
+
+
+- Expected
++ Received
+
+  {
+    "cause": "connection-unavailable",
+    "kind": "not-sent",
++   "unusable": "stream-broken",
+  }
+
+ ❯ assertFailure src/testing-transport.ts:815:15
+ ❯ src/testing-transport.ts:1062:9
+ ❯ withPeer src/testing-transport.ts:297:14
+ ❯ run src/testing-transport.ts:935:5
+ ❯ Object.run src/testing-transport.ts:1274:15
+ ❯ runConformanceCase src/testing-case.ts:44:5
+ ❯ tests/transport-conformance.spec.ts:111:14
+    109|   for (const conformance of suite)
+    110|     it(`${conformance.clause} ${conformance.name}`, async () => {
+    111|       expect(await runConformanceCase(conformance, fixture())).toEqual…
+       |              ^
+    112|     })
+    113| }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/17]⎯
+
+ FAIL  tests/transport-conformance.spec.ts > the suite fails a transport that breaks the contract > a transport that re-sends tools/call after a broken stream
+AssertionError: expected [ …(7) ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
+    "[C04] tools/call × stream-broken, http:2xx, http:5xx+plain → sent, answer stream-broken",
++   "[S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable",
++   "[S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable",
++   "[S03] tools/call × stream-broken → sent, answer stream-broken, unusable",
++   "[S04] tools/call × process-exited → sent, answer process-exited, unusable",
++   "[S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable",
++   "[X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable",
+  ]
+
+ ❯ tests/transport-conformance.spec.ts:247:90
+    245|
+    246|   it('a transport that re-sends tools/call after a broken stream', asy…
+    247|     expect(await failing(() => fixtureOf(['streamable-http', 'stdio'],…
+       |                                                                                          ^
+    248|       '[C04] tools/call × stream-broken, http:2xx, http:5xx+plain → se…
+    249|     ])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/17]⎯
+
+ FAIL  tests/transport-conformance.spec.ts > the suite fails a transport that breaks the contract > a transport that does not report a refused authorization to the handle
+AssertionError: expected [ …(15) ] to deeply equal [ …(9) ]
+
+- Expected
++ Received
+
+@@ -1,7 +1,13 @@
+  [
++   "[S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable",
++   "[S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable",
++   "[S03] tools/call × stream-broken → sent, answer stream-broken, unusable",
++   "[S04] tools/call × process-exited → sent, answer process-exited, unusable",
+    "[S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once",
++   "[S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable",
++   "[X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable",
+    "401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11)",
+    "401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11)",
+    "401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header; reportRejection once (item 11)",
+    "401 on discover: authorization-required with no legacy fallback; reportRejection once (item 11)",
+    "403 insufficient_scope: authorization-required with the scope of the header; reportRejection once (item 11)",
+
+ ❯ tests/transport-conformance.spec.ts:255:7
+    253|     expect(
+    254|       await failing(() => fixtureOf(['streamable-http', 'stdio'], forg…
+    255|     ).toEqual([
+       |       ^
+    256|       '[S05] discover, discover-retry, initialize … (8) × http:401, ht…
+    257|       '401: not-sent authorization-required from WWW-Authenticate and …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/17]⎯
+
+
+ Test Files  3 failed | 16 passed (19)
+      Tests  17 failed | 663 passed (680)
+Type Errors  no errors
+   Start at  12:46:21
+   Duration  4.35s (transform 2.31s, setup 198ms, import 5.16s, tests 3.01s, environment 3ms, typecheck 214ms)
+

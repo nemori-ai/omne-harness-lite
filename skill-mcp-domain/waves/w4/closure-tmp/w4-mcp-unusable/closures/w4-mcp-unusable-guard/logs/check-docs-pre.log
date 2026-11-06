@@ -1,0 +1,6 @@
+
+> omne-harness-lite-workspace@ check:docs /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable
+> uv run --locked omne-docs-check
+
+PASS: 2825 Markdown files; local links and skill mirrors.
+NOTE: Navigation and mirror consistency do not establish semantic correctness.

@@ -1,0 +1,8 @@
+[
+ {"name":"H19 plugin replaces a zero probe timeout","member":"packages/mcp/mcp-host-local","file":"packages/mcp/mcp-host-local/src/cordis.ts","test":"tests/cordis-entry.spec.ts",
+  "edits":[{"from":"probeTimeoutMs: config.probeTimeoutMs,","to":"probeTimeoutMs: config.probeTimeoutMs || 1,"}]},
+ {"name":"H20 plugin replaces a zero maxActions","member":"packages/mcp/mcp-host-local","file":"packages/mcp/mcp-host-local/src/cordis.ts","test":"tests/cordis-entry.spec.ts",
+  "edits":[{"from":"maxActions: config.maxActions,","to":"maxActions: config.maxActions || 100,"}]},
+ {"name":"H21 schema hands back the input clientInfo","member":"packages/mcp/mcp-host-local","file":"packages/mcp/mcp-host-local/src/cordis.ts","test":"tests/cordis-entry.spec.ts",
+  "edits":[{"from":"clientInfo: { name, version },\n        },","to":"clientInfo: typeof clientInfo['name'] === 'string' && typeof clientInfo['version'] === 'string' ? { name: clientInfo['name'], version: clientInfo['version'] } : { name, version },\n        },"}]}
+]

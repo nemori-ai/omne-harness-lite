@@ -1,0 +1,37 @@
+{
+  "base": "60acfc28b640a1535585df1ebccd22bdc87e4d7c",
+  "branch": "PanQiWei/skill-mcp-w4-mcp-unusable",
+  "key": {
+    "base": "60acfc28b640a1535585df1ebccd22bdc87e4d7c",
+    "lock": "172c6e3146efab166bec93e6caa749b84f917d5aa1709f65046a58893a797410",
+    "agents": "2bd7142b84026a49cbbb8e625e01e0b233b0cc0c",
+    "agentsChanges": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "builds": [
+      "@omne-harness/mcp-host-local...",
+      "@omne-harness/skill-host-local..."
+    ]
+  },
+  "steps": [
+    {
+      "name": "install",
+      "ok": true,
+      "ms": 2409
+    },
+    {
+      "name": "projections",
+      "ok": true,
+      "ms": 2030
+    },
+    {
+      "name": "build @omne-harness/mcp-host-local...",
+      "ok": true,
+      "ms": 1738
+    },
+    {
+      "name": "build @omne-harness/skill-host-local...",
+      "ok": true,
+      "ms": 1848
+    }
+  ],
+  "completedAt": "2026-11-06T12:29:49.503Z"
+}

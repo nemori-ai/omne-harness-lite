@@ -1,0 +1,80 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+
+ ❯ tests/tasks.spec.ts (39 tests | 1 failed) 248ms
+     ✓ answers the initiator from the task on the connection it was started on 22ms
+     ✓ answers another principal, another tenant, and a task not in the table, with the same unknown, asking no port 4ms
+     ✓ reuses the existing connection without asking adoption or eligibility 4ms
+     ✓ queryTask: a new connection needs eligibility granted; otherwise effect-unknown (no-connection) and no transport is opened 8ms
+     ✓ cancelTask: a new connection needs eligibility granted; otherwise effect-unknown (no-connection) and no transport is opened 4ms
+     ✓ a new connection needs the adoption: withdrawn is effect-unknown (no-connection), unreadable is unknown 2ms
+     ✓ a new connection needs the setting values of S4: a missing one is effect-unknown (no-connection) 2ms
+     ✓ does not act on the task through another peer account: no request, effect-unknown (no-connection) 2ms
+     ✓ a connection on another peer account is not reused either 4ms
+     ✓ no answer is effect-unknown with the same cause, and the connection is lost 4ms
+     ✓ a task request answered { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' } answers { kind: 'effect-unknown', cause: 'stream-broken' }; the connection follows the mark only: { kind: 'lost', reason: 'stream-broken' } (S2, S7, T1) 3ms
+     ✓ a task request answered { kind: 'no-answer', cause: 'stream-broken' } answers { kind: 'effect-unknown', cause: 'stream-broken' }; the connection follows the mark only: { kind: 'ready' } (S2, S7, T1) 2ms
+     ✓ a task request answered { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' } answers { kind: 'connection-unavailable' }; the connection follows the mark only: { kind: 'lost', reason: 'session-ended' } (S2, S7, T1) 2ms
+     ✓ a task request answered { kind: 'not-sent', cause: 'connection-unavailable' } answers { kind: 'connection-unavailable' }; the connection follows the mark only: { kind: 'ready' } (S2, S7, T1) 2ms
+     ✓ a request the connection bound cuts off has no answer: effect-unknown (abandoned); the connection stays 3ms
+     ✓ a JSON-RPC error and an unreadable answer are passed on as they are 4ms
+     ✓ queryTask reports the status with the input requests and hints; a -32602 is expired 2ms
+     ✓ taskResult: not finished, cancelled, expired, and a finished result classified on the task's output schema 6ms
+     ✓ provideTaskInput hands the responses to the peer and answers accepted; cancelTask answers requested 2ms
+     ✓ provideTaskInput rejects responses whose value tree fails judgeJsonValue with TypeError and sends nothing (R2) 3ms
+     ✓ after closeAll: the initiator check first, then effect-unknown (no-connection), with no port asked (S8) 2ms
+     ✓ closeAll while the operation waits on the gate: effect-unknown (no-connection), the same as after closeAll; nothing is built (S8) 2ms
+     ✓ a request already sent when closeAll lands keeps its outcome: effect-unknown with the cause of no answer, not no-connection (S8, MC-17) 2ms
+     ✓ closeAll in the same synchronous run as a task operation on a reused connection: effect-unknown (no-connection), and the transport is not asked after closeAll (S8) 2ms
+     ✓ at whichever microtask closeAll lands, a task operation on a connection reused answers effect-unknown (no-connection) and does not ask the transport after it (S8, MC-17 step 4) 2ms
+     ✓ at whichever microtask closeAll lands, a task operation on a connection built through the gate answers effect-unknown (no-connection) and does not ask the transport after it (S8, MC-17 step 4) 82ms
+     × a discover without an answer on the new connection is connection-unavailable, not effect-unknown 11ms
+     ✓ a build bound that fires first is connection-unavailable 2ms
+     ✓ a critical section bound that fires first, with no shutdown, is connection-unavailable: the build answered it, and nothing is sent 3ms
+     ✓ a shutdown under way while the connection is built is effect-unknown (no-connection), the same as after closeAll (S8) 3ms
+     ✓ the adoption passed the gate but, read again before the build, cannot be read again: unknown; nothing is built 2ms
+     ✓ the adoption passed the gate but, read again before the build, is withdrawn by then: effect-unknown (no-connection); nothing is built 2ms
+     ✓ a task request the transport could not send is the connection failure, and the connection is lost (S7) 2ms
+     ✓ a task request refused for authorization is authorization-required with the discovery, and the connection is lost 32ms
+     ✓ an issuedAt other than the recorded one is unknown: not this task, no port asked, no request 2ms
+     ✓ a task id the peer gave again on another peer account makes the key ambiguous: both references are unknown, no port asked, no request sent 3ms
+     ✓ an ambiguous key stays ambiguous: the id given once more, on either account, names no task (MC-17 step 1) 3ms
+     ✓ a task id the peer gave again on the same account is the newer record: the earlier reference is unknown, the newer one is answered 2ms
+     ✓ a checkOutput that throws is absorbed: the result carries violates (output-check-failed), not effect-unknown 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks.spec.ts > a task request the build does not get to send (SPEC S2, R7, MC-17 step 3) > a discover without an answer on the new connection is connection-unavailable, not effect-unknown
+AssertionError: expected { failure: { …(2) } } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+-     "kind": "connection-unavailable",
++     "cause": "stream-broken",
++     "kind": "effect-unknown",
+    },
+  }
+
+ ❯ tests/tasks.spec.ts:532:52
+    530|     }))
+    531|     await c.connections.release(alice, files)
+    532|     expect(await c.invoker.queryTask(alice, task)).toEqual(CONNECTION_…
+       |                                                    ^
+    533|     expect(c.p.opens()).toBe(2)
+    534|     expect(c.p.requests('tasks/get')).toHaveLength(0)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 38 passed (39)
+Type Errors  no errors
+   Start at  16:59:19
+   Duration  1.08s (transform 457ms, setup 14ms, import 668ms, tests 248ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable-fix/mut/V11.json

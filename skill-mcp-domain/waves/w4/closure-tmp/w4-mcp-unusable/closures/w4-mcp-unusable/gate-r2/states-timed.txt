@@ -1,0 +1,8 @@
+(node:25275) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable/gate-r2/states-timed.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+REBUILD	states=5714	runs=17466	depth=23	violations=0	seconds=14.0
+FAULTS	states=2829	runs=7567	depth=15	violations=0	seconds=4.4
+THROWS	states=335	runs=701	depth=12	violations=0	seconds=0.4
+THROWS_EXHAUSTIVE	states=6401	runs=6401	depth=13	violations=0	seconds=3.8

@@ -1,0 +1,157 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+
+ ❯ tests/ensure.spec.ts (41 tests | 1 failed) 76ms
+     ✓ opens one transport and reuses it for a second ensure 13ms
+     ✓ rebuilds a lost connection with the next generation and a new transport 4ms
+     ✓ opens once for two concurrent ensures of the same key 3ms
+     ✓ refuses a token that did not pass eligibility at the gate 2ms
+     ✓ answers the refusal for target missing and opens nothing 1ms
+     ✓ answers the refusal for target invalid and opens nothing 1ms
+     ✓ answers the refusal for credential invalid and opens nothing 1ms
+     ✓ answers the refusal for connect-timeout missing without a connectBound and opens nothing 1ms
+     ✓ answers the refusal for connect-timeout invalid and opens nothing 1ms
+     ✓ answers the refusal for a setting variable missing from processEnv and opens nothing 1ms
+     ✓ reports the first defect only, in the order target, credential, connect-timeout 1ms
+     ✓ uses the connectBound of the request when the connect-timeout setting is absent 1ms
+     ✓ does not use the connectBound when the connect-timeout setting is invalid 1ms
+     ✓ answers credential-unavailable (missing) when the credential setting is absent (K1) 0ms
+     ✓ an adopted body it cannot read is refused at the gate: no token, nothing to ensure 0ms
+     ✓ an error of this package while marking reaches the caller; it is not read as a store breach (MC-5, MC-15) 2ms
+     ✓ an error of this package in a build reaches a call that joined it while it still waits (P7) 2ms
+     ✓ credential rejected: credential-unavailable (rejected), actions marked, revision one higher 1ms
+     ✓ credential unreadable: credential-unavailable (unknown) 1ms
+     ✓ landing refused: landing-unavailable, the process credential handle released exactly once 2ms
+     ✓ open refused with authorization-required: the discovery is carried, the HTTP handle released once 1ms
+     ✓ discover refused with connection-unavailable: the process is stopped, the handle released once 2ms
+     ✓ discover answered with an error: connection-unavailable, lost (discover-failed) 1ms
+     ✓ discover without an answer ({ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }): effect-unknown with the cause, lost for the mark, else preparation-failed (process-exited) (S7, MC-5) 1ms
+     ✓ discover without an answer ({ kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' }): effect-unknown with the cause, lost for the mark, else preparation-failed (stream-broken) (S7, MC-5) 1ms
+     ✓ discover without an answer ({ kind: 'no-answer', cause: 'stream-broken', unusable: 'session-ended' }): effect-unknown with the cause, lost for the mark, else preparation-failed (session-ended) (S7, MC-5) 1ms
+     × discover without an answer ({ kind: 'no-answer', cause: 'stream-broken' }): effect-unknown with the cause, lost for the mark, else preparation-failed (preparation-failed) (S7, MC-5) 11ms
+     ✓ discover without an answer ({ kind: 'no-answer', cause: 'abandoned' }): effect-unknown with the cause, lost for the mark, else preparation-failed (preparation-failed) (S7, MC-5) 1ms
+     ✓ discover not sent on a line that ended (X02, marked stream-broken): connection-unavailable, lost (stream-broken) (S7, MC-5) 1ms
+     ✓ a failed stdio attempt still counts a generation; a failed HTTP attempt does not 2ms
+     ✓ reports a revision conflict of the marking write 1ms
+     ✓ reports an unavailable store when marking 1ms
+     ✓ answers connection-unavailable at the bound with the mark pending; the started process is stopped after 2ms
+     ✓ records a residual when the stopped process confirms only the root 2ms
+     ✓ does not share a connection between two tenants with the same holding and adoption revision 1ms
+     ✓ does not share a connection between two peer accounts of the same adoption revision 1ms
+     ✓ closes the connection of an earlier adoption revision before using the new one 2ms
+     ✓ carries the target and the HTTP handle in the material of an HTTP connection 1ms
+     ✓ carries the process in the material of a stdio connection, with the credential variables 1ms
+     ✓ answers not-available-to-you for a token of an endpoint withdrawn after the gate, and builds nothing 1ms
+     ✓ answers unknown when the adoption cannot be read again, and builds nothing 1ms
+ ❯ tests/refresh.spec.ts (49 tests | 1 failed) 126ms
+     ✓ connects, lists one page and publishes revision 1 with the whole listing 14ms
+     ✓ reads every page up to the bound, with the cursor of the page before 2ms
+     ✓ publishes revision 2 on a second refresh and keeps a withdrawn action as unavailable 3ms
+     ✓ superseded: another writer published between the read and the write 2ms
+     ✓ superseded: the connection that produced the listing is no longer the current one (invariant 2) 4ms
+     ✓ cancelled: the refresh was aborted before the publish boundary 2ms
+     ✓ listing-incomplete (page-limit-exceeded): the listing is not adopted 2ms
+     ✓ listing-incomplete (duplicate-action-name): the listing is not adopted 2ms
+     ✓ listing-incomplete (action-invalid): the listing is not adopted 2ms
+     ✓ listing-incomplete (action-limit-exceeded): the listing is not adopted 1ms
+     ✓ listing-incomplete (page-failed) on { kind: 'no-answer', cause: 'stream-broken' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 3ms
+     ✓ listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'connection-unavailable' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 4ms
+     ✓ listing-incomplete (page-failed) on { kind: 'not-sent', cause: 'session-ended' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 2ms
+     ✓ listing-incomplete (page-failed) on { kind: 'error-answer', code: -32603, message: 'internal' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 1ms
+     ✓ listing-incomplete (page-failed) on { kind: 'answer-malformed', what: 'tools-missing' } without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1) 1ms
+     ✓ a page answered { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' }, with the mark: connection-unavailable, the connection lost for stream-broken and the record marked (S5, S7, T1) 2ms
+     ✓ a page answered { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }, with the mark: connection-unavailable, the connection lost for session-ended and the record marked (S5, S7, T1) 2ms
+     ✓ a page answered { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, with the mark: connection-unavailable, the connection lost for process-exited and the record marked (S5, S7, T1) 2ms
+     ✓ a page refused with authorization-required: the discovery is carried 2ms
+     ✓ marking after a connection failure meets a revision conflict: kept (superseded) 1ms
+     ✓ marking after a connection failure meets an unavailable store: unknown 1ms
+     ✓ discover answers { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }: refresh answers { kind: 'effect-unknown', cause: 'process-exited' } 1ms
+     ✓ discover answers { kind: 'error-answer', code: -32600, message: 'bad' }: refresh answers { kind: 'connection-unavailable' } 1ms
+     ✓ discover answers { kind: 'answer-malformed', what: 'discover-shape' }: refresh answers { kind: 'connection-unavailable' } 1ms
+     ✓ discover answers { kind: 'not-sent', cause: 'authorization-required', discovery: { resourceMetadataUrl: 'https://files.example.test/.well-known/oauth-protected-resource', metadata: 'unavailable', issuers: [], scopes: [] } }: refresh answers { kind: 'authorization-required', discovery: { resourceMetadataUrl: 'https://files.example.test/.well-known/oauth-protected-resource', metadata: 'unavailable', issuers: [], scopes: [] } } 1ms
+     ✓ a discover that fails during the build with { kind: 'not-sent', cause: 'connection-unavailable' } fails the build, with or without the mark: refresh answers { kind: 'connection-unavailable' }, the connection is lost for the mark, else by the build rule (preparation-failed) (S5, S7, MC-5) 1ms
+     ✓ a discover that fails during the build with { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'connection-unavailable' }, the connection is lost for the mark, else by the build rule (stream-broken) (S5, S7, MC-5) 1ms
+     × a discover that fails during the build with { kind: 'no-answer', cause: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'effect-unknown', cause: 'stream-broken' }, the connection is lost for the mark, else by the build rule (preparation-failed) (S5, S7, MC-5) 11ms
+     ✓ a discover that fails during the build with { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'effect-unknown', cause: 'stream-broken' }, the connection is lost for the mark, else by the build rule (stream-broken) (S5, S7, MC-5) 1ms
+     ✓ the store cannot be read: unknown, and no page is asked for 1ms
+     ✓ the store cannot be written: unknown, no revision reported 1ms
+     ✓ a caller that stopped before the refresh answered is told cancelled, whatever a step refused, as the exit of a call (MC-7, contract decision 31) 1ms
+     ✓ the refusals of the gate and of the settings come first, without a transport 1ms
+     ✓ after closeAll: connection-unavailable before the gate, for an endpoint not adopted too; no port is asked (S8) 1ms
+     ✓ closeAll while the refresh waits on the store before the listing: connection-unavailable, as a refresh that starts after closeAll; no page is asked after it, nothing is published (S8, MC-7) 1ms
+     ✓ closeAll while a page is asked: connection-unavailable, not the listing-incomplete the page failure would give, and nothing is published (S8, MC-7) 1ms
+     ✓ at whichever microtask closeAll lands, the refresh starts no step after it: no gate or store port and no page, and it answers connection-unavailable unless it published (S8, MC-7) 34ms
+     ✓ the caller aborts and closeAll begins while a page is asked: kept (cancelled), the stop ranks before the shutdown as at the exit of a call (S8, MC-7, MC-16) 1ms
+     ✓ closeAll while the store writes the listing: the refresh that published stays published (S8) 1ms
+     ✓ revoked while listing: not-available-to-you, nothing published 1ms
+     ✓ blocked while listing: blocked, nothing published, the connection closed 1ms
+     ✓ publishes exactly once (first-then-second) and keeps the listing that was published 1ms
+     ✓ publishes exactly once (second-then-first) and keeps the listing that was published 1ms
+     ✓ current: not-acquired before any refresh, with no transport opened 1ms
+     ✓ current: basisCurrent is no-connection, then matches, then differs 2ms
+     ✓ peer: the negotiated facts and the generation once connected 1ms
+     ✓ current and peer: a missing credential is config-missing (credential), not a connection failure 0ms
+     ✓ current: an unavailable store is unknown, not not-acquired 0ms
+     ✓ current and peer: the gate answers first 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/ensure.spec.ts > ensure: connection failures (R6) mark the catalog and release what was taken > discover without an answer ({ kind: 'no-answer', cause: 'stream-broken' }): effect-unknown with the cause, lost for the mark, else preparation-failed (preparation-failed) (S7, MC-5)
+AssertionError: expected { kind: 'lost', …(1) } to deeply equal { kind: 'lost', …(1) }
+
+- Expected
++ Received
+
+  {
+    "kind": "lost",
+-   "reason": "preparation-failed",
++   "reason": "stream-broken",
+  }
+
+ ❯ tests/ensure.spec.ts:462:62
+    460|         },
+    461|       })
+    462|       expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({…
+       |                                                              ^
+    463|     },
+    464|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/refresh.spec.ts > refresh fails > a discover that fails during the build with { kind: 'no-answer', cause: 'stream-broken' } fails the build, with or without the mark: refresh answers { kind: 'effect-unknown', cause: 'stream-broken' }, the connection is lost for the mark, else by the build rule (preparation-failed) (S5, S7, MC-5)
+AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { ok: { connection: { …(2) } } }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "connection": {
+        "kind": "lost",
+-       "reason": "preparation-failed",
++       "reason": "stream-broken",
+      },
+    },
+  }
+
+ ❯ tests/refresh.spec.ts:412:50
+    410|       adoptStdio(w, files)
+    411|       expect(await discovery.refresh(alice, { ref: files })).toEqual({…
+    412|       expect(await status.inspect(alice, files)).toMatchObject({
+       |                                                  ^
+    413|         ok: { connection: { kind: 'lost', reason } },
+    414|       })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 88 passed (90)
+Type Errors  no errors
+   Start at  16:59:08
+   Duration  907ms (transform 769ms, setup 27ms, import 1.24s, tests 202ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable-fix/mut/V2.json

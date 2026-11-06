@@ -1,0 +1,240 @@
+
+> omne-harness-lite-workspace@ mutation /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis
+> ./scripts/slot-unless-plan-only.sh node --experimental-strip-types tools/test-runner/src/mutation/cli.ts run --base 8446c4588f0e2400f2e905179ec252473f7b1066
+
+变异范围：基线 8446c4588f0e2400f2e905179ec252473f7b1066（合并点 8446c4588）以来改动碰到的产品源码行；只跑快层（vitest 的 mode 为 fast）
+  packages/mcp/mcp-cordis-contract：2 个文件，2 段
+  packages/mcp/mcp-host-local：1 个文件，1 段
+Stryker 同时 6 个工作进程（环境变量 VITEST_MAX_WORKERS 指定；预算 5 个进程：本机 8 核、空闲 72%、空闲内存 25 GiB）
+构建 2 个成员及其依赖 … 2 秒
+增量：快照在 /data/qiwei/repos/omne-harness-lite/tmp/mutation-incremental/PanQiWei%2Fskill-mcp-w4-mcp-cordis
+2 个成员并行，合起来不超过 6 个工作进程，没有每个成员上次的记录，平分；工作量大的先开始
+  开始 [2/2] packages/mcp/mcp-host-local：3 个工作进程
+  开始 [1/2] packages/mcp/mcp-cordis-contract：3 个工作进程
+[1/2] packages/mcp/mcp-cordis-contract 10 秒，存活 0、无覆盖 0、没有变异体的改动 1 段
+packages/mcp/mcp-host-local Mutation testing 0% (elapsed: <1m, remaining: n/a) 0/161 tested (0 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 1% (elapsed: <1m, remaining: ~17m) 3/161 tested (3 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 3% (elapsed: <1m, remaining: ~12m) 6/161 tested (6 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 4% (elapsed: <1m, remaining: ~12m) 8/161 tested (8 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 6% (elapsed: <1m, remaining: ~11m) 11/161 tested (11 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 8% (elapsed: ~1m, remaining: ~11m) 13/161 tested (13 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 9% (elapsed: ~1m, remaining: ~11m) 15/161 tested (15 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 11% (elapsed: ~1m, remaining: ~10m) 18/161 tested (18 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 13% (elapsed: ~1m, remaining: ~10m) 21/161 tested (21 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 14% (elapsed: ~1m, remaining: ~10m) 23/161 tested (23 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 16% (elapsed: ~1m, remaining: ~9m) 26/161 tested (26 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 18% (elapsed: ~2m, remaining: ~9m) 29/161 tested (29 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 19% (elapsed: ~2m, remaining: ~8m) 32/161 tested (32 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 21% (elapsed: ~2m, remaining: ~8m) 35/161 tested (35 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 23% (elapsed: ~2m, remaining: ~8m) 38/161 tested (38 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 25% (elapsed: ~2m, remaining: ~7m) 41/161 tested (41 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 27% (elapsed: ~2m, remaining: ~7m) 44/161 tested (44 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 29% (elapsed: ~3m, remaining: ~7m) 47/161 tested (47 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 31% (elapsed: ~3m, remaining: ~7m) 50/161 tested (50 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 32% (elapsed: ~3m, remaining: ~6m) 53/161 tested (53 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 34% (elapsed: ~3m, remaining: ~6m) 56/161 tested (56 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 36% (elapsed: ~3m, remaining: ~6m) 59/161 tested (59 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 38% (elapsed: ~3m, remaining: ~6m) 62/161 tested (62 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 40% (elapsed: ~4m, remaining: ~5m) 65/161 tested (65 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 42% (elapsed: ~4m, remaining: ~5m) 68/161 tested (68 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 44% (elapsed: ~4m, remaining: ~5m) 71/161 tested (71 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 45% (elapsed: ~4m, remaining: ~5m) 74/161 tested (74 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 47% (elapsed: ~4m, remaining: ~5m) 77/161 tested (77 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 49% (elapsed: ~4m, remaining: ~4m) 80/161 tested (80 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 51% (elapsed: ~5m, remaining: ~4m) 83/161 tested (83 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 53% (elapsed: ~5m, remaining: ~4m) 86/161 tested (86 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 55% (elapsed: ~5m, remaining: ~4m) 90/161 tested (90 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 57% (elapsed: ~5m, remaining: ~4m) 93/161 tested (93 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 59% (elapsed: ~5m, remaining: ~3m) 96/161 tested (96 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 61% (elapsed: ~5m, remaining: ~3m) 99/161 tested (99 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 63% (elapsed: ~6m, remaining: ~3m) 102/161 tested (102 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 65% (elapsed: ~6m, remaining: ~3m) 105/161 tested (105 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 65% (elapsed: ~6m, remaining: ~3m) 106/161 tested (106 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 67% (elapsed: ~6m, remaining: ~3m) 108/161 tested (108 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 68% (elapsed: ~6m, remaining: ~3m) 111/161 tested (111 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 70% (elapsed: ~6m, remaining: ~2m) 114/161 tested (114 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 72% (elapsed: ~7m, remaining: ~2m) 117/161 tested (117 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 74% (elapsed: ~7m, remaining: ~2m) 120/161 tested (120 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 76% (elapsed: ~7m, remaining: ~2m) 123/161 tested (123 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 78% (elapsed: ~7m, remaining: ~2m) 126/161 tested (126 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 80% (elapsed: ~7m, remaining: ~1m) 129/161 tested (129 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 81% (elapsed: ~7m, remaining: ~1m) 132/161 tested (132 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 84% (elapsed: ~8m, remaining: ~1m) 136/161 tested (136 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 86% (elapsed: ~8m, remaining: ~1m) 139/161 tested (139 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 88% (elapsed: ~8m, remaining: ~1m) 143/161 tested (143 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 90% (elapsed: ~8m, remaining: <1m) 146/161 tested (146 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 92% (elapsed: ~8m, remaining: <1m) 149/161 tested (149 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 94% (elapsed: ~8m, remaining: <1m) 152/161 tested (152 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 96% (elapsed: ~9m, remaining: <1m) 155/161 tested (155 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 98% (elapsed: ~9m, remaining: <1m) 158/161 tested (158 survived, 0 timed out)
+[2/2] packages/mcp/mcp-host-local 585 秒，存活 161、无覆盖 0
+变异范围：基线 8446c4588f0e2400f2e905179ec252473f7b1066（合并点 8446c4588）以来改动碰到的产品源码行；只跑快层（vitest 的 mode 为 fast）；提交 f5ead35f4
+packages/mcp/mcp-cordis-contract：变异体 7 个——被杀 7、超时 0、存活 0、无覆盖 0、编译错误 0、运行错误 0；分数 100%（只算有变异体的改动段；未覆盖 1 段：改动上没有变异体）
+  类型测试：没测到，static 运行中有没有缺席不明（类型检查开着，初跑却没数到类型测试：成员可能没有类型测试文件，也可能 Vitest 改了类型测试池的名字）
+  没有变异体 packages/mcp/mcp-cordis-contract/src/index.ts:1
+packages/mcp/mcp-host-local：变异体 161 个——被杀 0、超时 0、存活 161、无覆盖 0、编译错误 0、运行错误 0；分数 0%
+  类型测试：没测到，static 运行中有没有缺席不明（类型检查开着，初跑却没数到类型测试：成员可能没有类型测试文件，也可能 Vitest 改了类型测试池的名字）
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:77 ArrayDeclaration `[...BOUNDS, 'clientInfo']` → `[]`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:77 StringLiteral `'clientInfo'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:78 ArrayDeclaration `['name', 'version']` → `[]`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:78 StringLiteral `'name'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:78 StringLiteral `'version'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:80 BlockStatement `{ return typeof value === 'object' && value !== null && !Array.isArray(value) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 ConditionalExpression `typeof value === 'object' && value !== null && !Array.isArray(value)` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 ConditionalExpression `typeof value === 'object' && value !== null && !Array.isArray(value)` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 LogicalOperator `typeof value === 'object' && value !== null && !Array.isArray(value)` → `typeof value === 'object' && value !== null || !Array.isArray(value)`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 ConditionalExpression `typeof value === 'object' && value !== null` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 LogicalOperator `typeof value === 'object' && value !== null` → `typeof value === 'object' || value !== null`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 ConditionalExpression `typeof value === 'object'` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 EqualityOperator `typeof value === 'object'` → `typeof value !== 'object'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 StringLiteral `'object'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 ConditionalExpression `value !== null` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 EqualityOperator `value !== null` → `value === null`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 BooleanLiteral `!Array.isArray(value)` → `Array.isArray(value)`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:84 BlockStatement `{ return { issues: [{ message }] } }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:85 ObjectLiteral `{ issues: [{ message }] }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:85 ArrayDeclaration `[{ message }]` → `[]`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:85 ObjectLiteral `{ message }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:93 BlockStatement `{ const extra = Object.keys(record).find(key => !fields.includes(key)) if (extra…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:94 ArrowFunction `key => !fields.includes(key)` → `() => undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:94 BooleanLiteral `!fields.includes(key)` → `fields.includes(key)`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:95 ConditionalExpression `extra !== undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:95 ConditionalExpression `extra !== undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:95 EqualityOperator `extra !== undefined` → `extra === undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:95 StringLiteral ``${what} has no field ${extra}`` → ````
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:96 ArrowFunction `field => !(field in record)` → `() => undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:96 BooleanLiteral `!(field in record)` → `field in record`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:97 ConditionalExpression `missing !== undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:97 ConditionalExpression `missing !== undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:97 EqualityOperator `missing !== undefined` → `missing === undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:97 StringLiteral ``${what} needs the field ${missing}`` → ````
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:105 ObjectLiteral `{ '~standard': { version: 1, vendor: 'omne-harness', validate(value: unknown): C…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:106 ObjectLiteral `{ version: 1, vendor: 'omne-harness', validate(value: unknown): ConfigResult { i…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:108 StringLiteral `'omne-harness'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:109 BlockStatement `{ if (!isPlainRecord(value)) return issue('configuration must be an object') con…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:110 BooleanLiteral `!isPlainRecord(value)` → `isPlainRecord(value)`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:110 ConditionalExpression `!isPlainRecord(value)` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:110 ConditionalExpression `!isPlainRecord(value)` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:110 StringLiteral `'configuration must be an object'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:111 StringLiteral `'configuration'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:112 ConditionalExpression `fields !== undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:112 ConditionalExpression `fields !== undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:112 EqualityOperator `fields !== undefined` → `fields === undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:114 ArrowFunction `name => value[name]` → `() => undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:117 ConditionalExpression `typeof maxListingPages !== 'number' || typeof maxActions !== 'number' || typeof …` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:117 ConditionalExpression `typeof maxListingPages !== 'number' || typeof maxActions !== 'number' || typeof …` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:117 LogicalOperator `typeof maxListingPages !== 'number' || typeof maxActions !== 'number' || typeof …` → `(typeof maxListingPages !== 'number' || typeof maxActions !== 'number' || typeof…`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:117 ConditionalExpression `typeof maxListingPages !== 'number' || typeof maxActions !== 'number' || typeof …` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:117 LogicalOperator `typeof maxListingPages !== 'number' || typeof maxActions !== 'number' || typeof …` → `(typeof maxListingPages !== 'number' || typeof maxActions !== 'number') && typeo…`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:117 ConditionalExpression `typeof maxListingPages !== 'number' || typeof maxActions !== 'number'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:117 LogicalOperator `typeof maxListingPages !== 'number' || typeof maxActions !== 'number'` → `typeof maxListingPages !== 'number' && typeof maxActions !== 'number'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:117 ConditionalExpression `typeof maxListingPages !== 'number'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:117 EqualityOperator `typeof maxListingPages !== 'number'` → `typeof maxListingPages === 'number'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:117 StringLiteral `'number'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:118 ConditionalExpression `typeof maxActions !== 'number'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:118 EqualityOperator `typeof maxActions !== 'number'` → `typeof maxActions === 'number'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:118 StringLiteral `'number'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:119 ConditionalExpression `typeof instructionsByteLimit !== 'number'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:119 EqualityOperator `typeof instructionsByteLimit !== 'number'` → `typeof instructionsByteLimit === 'number'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:119 StringLiteral `'number'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:120 ConditionalExpression `typeof probeTimeoutMs !== 'number'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:120 EqualityOperator `typeof probeTimeoutMs !== 'number'` → `typeof probeTimeoutMs === 'number'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:120 StringLiteral `'number'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:122 StringLiteral ``${BOUNDS.join(', ')} must be numbers`` → ````
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:122 StringLiteral `', '` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:123 StringLiteral `'clientInfo'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:124 BooleanLiteral `!isPlainRecord(clientInfo)` → `isPlainRecord(clientInfo)`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:124 ConditionalExpression `!isPlainRecord(clientInfo)` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:124 ConditionalExpression `!isPlainRecord(clientInfo)` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:124 StringLiteral `'clientInfo must be an object'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:125 StringLiteral `'clientInfo'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:126 ConditionalExpression `clientFields !== undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:126 ConditionalExpression `clientFields !== undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:126 EqualityOperator `clientFields !== undefined` → `clientFields === undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:128 ConditionalExpression `typeof name !== 'string' || typeof version !== 'string'` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:128 ConditionalExpression `typeof name !== 'string' || typeof version !== 'string'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:128 LogicalOperator `typeof name !== 'string' || typeof version !== 'string'` → `typeof name !== 'string' && typeof version !== 'string'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:128 ConditionalExpression `typeof name !== 'string'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:128 EqualityOperator `typeof name !== 'string'` → `typeof name === 'string'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:128 StringLiteral `'string'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:128 ConditionalExpression `typeof version !== 'string'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:128 EqualityOperator `typeof version !== 'string'` → `typeof version === 'string'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:128 StringLiteral `'string'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:129 StringLiteral `'clientInfo.name and clientInfo.version must be texts'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:130 ObjectLiteral `{ value: { maxListingPages, maxActions, instructionsByteLimit, probeTimeoutMs, c…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:131 ObjectLiteral `{ maxListingPages, maxActions, instructionsByteLimit, probeTimeoutMs, clientInfo…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:136 ObjectLiteral `{ name, version }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:144 BlockStatement `{ return { async endpoints(...args) { const port = ctx.get(mcpAdoptionViewKey) i…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:145 ObjectLiteral `{ async endpoints(...args) { const port = ctx.get(mcpAdoptionViewKey) if (port =…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:146 BlockStatement `{ const port = ctx.get(mcpAdoptionViewKey) if (port === undefined) return fail('…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:148 ConditionalExpression `port === undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:148 ConditionalExpression `port === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:148 EqualityOperator `port === undefined` → `port !== undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:148 StringLiteral `'unknown'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:151 BlockStatement `{ const port = ctx.get(mcpAdoptionViewKey) if (port === undefined) return fail('…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:153 ConditionalExpression `port === undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:153 ConditionalExpression `port === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:153 EqualityOperator `port === undefined` → `port !== undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:153 StringLiteral `'unknown'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:160 BlockStatement `{ return { async check(...args) { const port = ctx.get(mcpUseEligibilityKey) if …` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:161 ObjectLiteral `{ async check(...args) { const port = ctx.get(mcpUseEligibilityKey) if (port ===…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:162 BlockStatement `{ const port = ctx.get(mcpUseEligibilityKey) if (port === undefined) return { ki…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:164 ConditionalExpression `port === undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:164 ConditionalExpression `port === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:164 EqualityOperator `port === undefined` → `port !== undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:164 ObjectLiteral `{ kind: 'unknown' }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:164 StringLiteral `'unknown'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:171 BlockStatement `{ type Access = Parameters<CredentialUse<unknown>['acquire']>[0] type Holding = …` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:192 BlockStatement `{ const port = ctx.get(mcpCredentialUseKey) if (port === undefined) return fail(…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:194 ConditionalExpression `port === undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:194 ConditionalExpression `port === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:194 EqualityOperator `port === undefined` → `port !== undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:194 StringLiteral `'unknown'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:196 ConditionalExpression `purpose.kind === 'process-env'` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:196 ConditionalExpression `purpose.kind === 'process-env'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:196 EqualityOperator `purpose.kind === 'process-env'` → `purpose.kind !== 'process-env'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:196 StringLiteral `'process-env'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:199 ObjectLiteral `{ acquire }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:203 BlockStatement `{ return { async start(...args) { const port = ctx.get(mcpProcessLandingKey) if …` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:204 ObjectLiteral `{ async start(...args) { const port = ctx.get(mcpProcessLandingKey) if (port ===…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:205 BlockStatement `{ const port = ctx.get(mcpProcessLandingKey) if (port === undefined) return fail…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:207 ConditionalExpression `port === undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:207 ConditionalExpression `port === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:207 EqualityOperator `port === undefined` → `port !== undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:207 StringLiteral `'unknown'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:215 BlockStatement `{ super(ctx) this.discovery = discovery }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:219 BlockStatement `{ return this.discovery.current(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:222 BlockStatement `{ return this.discovery.refresh(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:225 BlockStatement `{ return this.discovery.peer(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:232 BlockStatement `{ super(ctx) this.invoker = invoker }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:236 BlockStatement `{ return this.invoker.invoke(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:239 BlockStatement `{ return this.invoker.continueWithInput(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:242 BlockStatement `{ return this.invoker.cancel(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:245 BlockStatement `{ return this.invoker.queryTask(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:248 BlockStatement `{ return this.invoker.taskResult(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:251 BlockStatement `{ return this.invoker.provideTaskInput(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:254 BlockStatement `{ return this.invoker.cancelTask(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:261 BlockStatement `{ super(ctx) this.status = status }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:265 BlockStatement `{ return this.status.inspect(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:268 BlockStatement `{ return this.status.list(...args) }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:282 BlockStatement `{ return definePlugin<McpPluginConfig>({ name: 'mcp', Config: mcpPluginConfig, a…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:283 ObjectLiteral `{ name: 'mcp', Config: mcpPluginConfig, apply(ctx, config) { const ports: McpPor…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:284 StringLiteral `'mcp'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:286 BlockStatement `{ const ports: McpPorts<unknown, unknown> = { adoption: adoptionOf(ctx), eligibi…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:287 ObjectLiteral `{ adoption: adoptionOf(ctx), eligibility: eligibilityOf(ctx), credentials: crede…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:293 ObjectLiteral `{ clientInfo: config.clientInfo, probeTimeoutMs: config.probeTimeoutMs, ...(part…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:296 ConditionalExpression `parts.fetch === undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:296 ConditionalExpression `parts.fetch === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:296 EqualityOperator `parts.fetch === undefined` → `parts.fetch !== undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:296 ObjectLiteral `{ fetch: parts.fetch }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:299 ConditionalExpression `parts.clock === undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:299 ConditionalExpression `parts.clock === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:299 EqualityOperator `parts.clock === undefined` → `parts.clock !== undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:299 ObjectLiteral `{ clock: parts.clock }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:301 ObjectLiteral `{ principalKey: parts.principalKey, maxListingPages: config.maxListingPages, max…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:308 ArrowFunction `() => async () => { await services.connections.closeAll() }` → `() => undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:308 BlockStatement `{ await services.connections.closeAll() }` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:311 StringLiteral `'mcp.closeAll'` → `""`
+增量：复用上次被杀的变异体（不重跑）——packages/mcp/mcp-cordis-contract 0、packages/mcp/mcp-host-local 0；复用只在被变异的代码与杀死它的测试都没变时发生；--no-incremental 或 OMNE_MUTATION_INCREMENTAL=0 关闭，--force 全部重跑
+存活、无覆盖只是线索：判定会抖，要复跑确认；static 变异体只能跑全部测试；没改的代码不在范围内。
+账本与各成员日志：/data/qiwei/repos/omne-harness-lite/tmp/mutation-ledger/f5ead35f4/20261106-143718

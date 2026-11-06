@@ -1,0 +1,397 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-host-local
+
+ ❯ tests/session.spec.ts (123 tests | 16 failed) 1145ms
+     × S01: 7 cells 9ms
+     × S02: 7 cells 1ms
+     × S03: 1 cells 1ms
+     × S04: 1 cells 1ms
+     × S07: 5 cells 1ms
+     × X02: 8 cells 1ms
+     × in the SSE mode a 2xx POST without an answer waits for the stream; the stream breaking fails every request in flight, no re-send, unusable 7ms
+     × in the SSE mode a 404 to a request after initialize ends the session (S07); initialize itself carries no session 2ms
+     × does not answer the peer or notify it once the shared stream is gone, and does not ask the credential 2ms
+     × answers a request that was being authorized when the stream died with not-sent, and never sends it 4ms
+     × leaves another request of the session in flight when one is told the session ended (S07) 1ms
+     × a request still being authorized when the session ended (S07) is not-sent and never reaches the line 1ms
+     × the process exiting settles a request still being authorized with not-sent, and never sends it 2ms
+     × the shared stream of the SSE mode breaking settles a request still being authorized with not-sent, and never sends it 2ms
+     × the events of the line rejecting is a broken stream: a sent call answers stream-broken, one still being authorized is not-sent, and the reason goes to the defect outlet 3ms
+     × a request in the authorization discovery is not settled by the shared stream breaking: it ends authorization-required when the discovery ends 33ms
+ ❯ tests/lines.spec.ts (20 tests | 2 failed) 1079ms
+     × a line above 16 MiB that is not the first of its chunk breaks the stream: stream-broken, then not-sent 63ms
+     × the transport opened on it answers not-sent and nothing reaches the process 3ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 18 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/lines.spec.ts > the stdio line and the byte bound (T2) > a line above 16 MiB that is not the first of its chunk breaks the stream: stream-broken, then not-sent
+AssertionError: expected { Object (failure) } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "stream-broken",
+      "kind": "no-answer",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/lines.spec.ts:70:40
+     68|     const opened = await factory.open(material, new AbortController().…
+     69|     if (!('ok' in opened)) throw new Error('open failed')
+     70|     expect(await opened.ok.discover()).toEqual(STREAM_BROKEN)
+       |                                        ^
+     71|     expect(await opened.ok.listActions()).toEqual(NOT_SENT)
+     72|     await opened.ok.close()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/18]⎯
+
+ FAIL  tests/lines.spec.ts > a stdio process that is gone before the first request (T8 X02) > the transport opened on it answers not-sent and nothing reaches the process
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "connection-unavailable",
+      "kind": "not-sent",
++     "unusable": "process-exited",
+    },
+  }
+
+ ❯ tests/lines.spec.ts:121:40
+    119|     )
+    120|     if (!('ok' in opened)) throw new Error('open failed')
+    121|     expect(await opened.ok.discover()).toEqual(NOT_SENT)
+       |                                        ^
+    122|     expect(await opened.ok.listActions()).toEqual(NOT_SENT)
+    123|     expect(written).toEqual([])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/18]⎯
+
+ FAIL  tests/session.spec.ts > the session holds every row of T8 on a memory line > S01: 7 cells
+Error: stdio discover stream-broken: expected { kind: 'no-answer', …(2) } to deeply equal { kind: 'no-answer', …(1) }
+ ❯ tests/session.spec.ts:729:17
+    727|           await checkCell(cell, row.conclusion)
+    728|         } catch (failure) {
+    729|           throw new Error(
+       |                 ^
+    730|             `${cell.kind} ${cell.request} ${cell.answer}: ${failure in…
+    731|           )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/18]⎯
+
+ FAIL  tests/session.spec.ts > the session holds every row of T8 on a memory line > S02: 7 cells
+Error: stdio discover process-exited: expected { kind: 'no-answer', …(2) } to deeply equal { kind: 'no-answer', …(1) }
+ ❯ tests/session.spec.ts:729:17
+    727|           await checkCell(cell, row.conclusion)
+    728|         } catch (failure) {
+    729|           throw new Error(
+       |                 ^
+    730|             `${cell.kind} ${cell.request} ${cell.answer}: ${failure in…
+    731|           )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/18]⎯
+
+ FAIL  tests/session.spec.ts > the session holds every row of T8 on a memory line > S03: 1 cells
+Error: stdio tools/call stream-broken: expected { kind: 'no-answer', …(2) } to deeply equal { kind: 'no-answer', …(1) }
+ ❯ tests/session.spec.ts:729:17
+    727|           await checkCell(cell, row.conclusion)
+    728|         } catch (failure) {
+    729|           throw new Error(
+       |                 ^
+    730|             `${cell.kind} ${cell.request} ${cell.answer}: ${failure in…
+    731|           )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/18]⎯
+
+ FAIL  tests/session.spec.ts > the session holds every row of T8 on a memory line > S04: 1 cells
+Error: stdio tools/call process-exited: expected { kind: 'no-answer', …(2) } to deeply equal { kind: 'no-answer', …(1) }
+ ❯ tests/session.spec.ts:729:17
+    727|           await checkCell(cell, row.conclusion)
+    728|         } catch (failure) {
+    729|           throw new Error(
+       |                 ^
+    730|             `${cell.kind} ${cell.request} ${cell.answer}: ${failure in…
+    731|           )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/18]⎯
+
+ FAIL  tests/session.spec.ts > the session holds every row of T8 on a memory line > S07: 5 cells
+Error: streamable-http tools/list http:404+session: expected { kind: 'not-sent', …(2) } to deeply equal { kind: 'not-sent', …(1) }
+ ❯ tests/session.spec.ts:729:17
+    727|           await checkCell(cell, row.conclusion)
+    728|         } catch (failure) {
+    729|           throw new Error(
+       |                 ^
+    730|             `${cell.kind} ${cell.request} ${cell.answer}: ${failure in…
+    731|           )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/18]⎯
+
+ FAIL  tests/session.spec.ts > the session holds every row of T8 on a memory line > X02: 8 cells
+Error: stdio discover unsent: expected { kind: 'not-sent', …(2) } to deeply equal { kind: 'not-sent', …(1) }
+ ❯ tests/session.spec.ts:729:17
+    727|           await checkCell(cell, row.conclusion)
+    728|         } catch (failure) {
+    729|           throw new Error(
+       |                 ^
+    730|             `${cell.kind} ${cell.request} ${cell.answer}: ${failure in…
+    731|           )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/18]⎯
+
+ FAIL  tests/session.spec.ts > the legacy HTTP+SSE mode (T3) > in the SSE mode a 2xx POST without an answer waits for the stream; the stream breaking fails every request in flight, no re-send, unusable
+AssertionError: expected { Object (failure) } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "stream-broken",
+      "kind": "no-answer",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/session.spec.ts:897:27
+    895|     await tick()
+    896|     line.queue.push({ kind: 'broken' })
+    897|     expect(await listing).toEqual({ failure: STREAM_BROKEN })
+       |                           ^
+    898|     expect(line.requests('tools/list')).toHaveLength(1)
+    899|     expect(await transport.listActions()).toEqual({ failure: NOT_SENT …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/18]⎯
+
+ FAIL  tests/session.spec.ts > the legacy HTTP+SSE mode (T3) > in the SSE mode a 404 to a request after initialize ends the session (S07); initialize itself carries no session
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "session-ended",
+      "kind": "not-sent",
++     "unusable": "session-ended",
+    },
+  }
+
+ ❯ tests/session.spec.ts:910:43
+    908|     )
+    909|     ok(await transport.discover(), 'discover')
+    910|     expect(await transport.listActions()).toEqual({
+       |                                           ^
+    911|       failure: { kind: 'not-sent', cause: 'session-ended' },
+    912|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/18]⎯
+
+ FAIL  tests/session.spec.ts > a session that cannot be used any more sends nothing and asks no credential (T5, T9) > does not answer the peer or notify it once the shared stream is gone, and does not ask the credential
+AssertionError: expected { kind: 'no-answer', …(2) } to deeply equal { kind: 'no-answer', …(1) }
+
+- Expected
++ Received
+
+  {
+    "cause": "stream-broken",
+    "kind": "no-answer",
++   "unusable": "stream-broken",
+  }
+
+ ❯ tests/session.spec.ts:1532:31
+    1530|     const sent = ok(await transport.call(echo, never), 'call')
+    1531|     line.queue.push({ kind: 'broken' })
+    1532|     expect(await sent.answer).toEqual({ kind: 'no-answer', cause: 'str…
+       |                               ^
+    1533|     const sentBefore = line.sent.length
+    1534|     const authorizedBefore = credential.authorizations()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/18]⎯
+
+ FAIL  tests/session.spec.ts > a session that cannot be used any more sends nothing and asks no credential (T5, T9) > answers a request that was being authorized when the stream died with not-sent, and never sends it
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "connection-unavailable",
+      "kind": "not-sent",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/session.spec.ts:1577:27
+    1575|     await tick()
+    1576|     held.release()
+    1577|     expect(await calling).toEqual({ failure: NOT_SENT })
+       |                           ^
+    1578|     expect(line.requests('tools/call')).toEqual([])
+    1579|     await transport.close()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/18]⎯
+
+ FAIL  tests/session.spec.ts > a session that cannot be used any more sends nothing and asks no credential (T5, T9) > leaves another request of the session in flight when one is told the session ended (S07)
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "session-ended",
+      "kind": "not-sent",
++     "unusable": "session-ended",
+    },
+  }
+
+ ❯ tests/session.spec.ts:1627:43
+    1625|     ok(await transport.discover(), 'discover')
+    1626|     const other = ok(await transport.call(echo, never), 'call')
+    1627|     expect(await transport.listActions()).toEqual({
+       |                                           ^
+    1628|       failure: { kind: 'not-sent', cause: 'session-ended' },
+    1629|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/18]⎯
+
+ FAIL  tests/session.spec.ts > the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode) > a request still being authorized when the session ended (S07) is not-sent and never reaches the line
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "session-ended",
+      "kind": "not-sent",
++     "unusable": "session-ended",
+    },
+  }
+
+ ❯ tests/session.spec.ts:1940:27
+    1938|     const calling = transport.call(echo, never)
+    1939|     await held.reached
+    1940|     expect(await listing).toEqual({ failure: { kind: 'not-sent', cause…
+       |                           ^
+    1941|     held.release()
+    1942|     expect(await settledWithin(calling)).toEqual({ settled: { failure:…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/18]⎯
+
+ FAIL  tests/session.spec.ts > the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode) > the process exiting settles a request still being authorized with not-sent, and never sends it
+AssertionError: expected { settled: { failure: { …(3) } } } to deeply equal { settled: { failure: { …(2) } } }
+
+- Expected
++ Received
+
+  {
+    "settled": {
+      "failure": {
+        "cause": "connection-unavailable",
+        "kind": "not-sent",
++       "unusable": "process-exited",
+      },
+    },
+  }
+
+ ❯ tests/session.spec.ts:1961:42
+    1959|     await tick()
+    1960|     held.release()
+    1961|     expect(await settledWithin(calling)).toEqual({ settled: { failure:…
+       |                                          ^
+    1962|     expect(line.requests('tools/call')).toEqual([])
+    1963|     expect(await transport.listActions()).toEqual({ failure: NOT_SENT …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/18]⎯
+
+ FAIL  tests/session.spec.ts > the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode) > the shared stream of the SSE mode breaking settles a request still being authorized with not-sent, and never sends it
+AssertionError: expected { settled: { failure: { …(3) } } } to deeply equal { settled: { failure: { …(2) } } }
+
+- Expected
++ Received
+
+  {
+    "settled": {
+      "failure": {
+        "cause": "connection-unavailable",
+        "kind": "not-sent",
++       "unusable": "stream-broken",
+      },
+    },
+  }
+
+ ❯ tests/session.spec.ts:1979:42
+    1977|     await tick()
+    1978|     held.release()
+    1979|     expect(await settledWithin(calling)).toEqual({ settled: { failure:…
+       |                                          ^
+    1980|     expect(line.requests('tools/call')).toEqual([])
+    1981|     expect(await transport.listActions()).toEqual({ failure: NOT_SENT …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/18]⎯
+
+ FAIL  tests/session.spec.ts > the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode) > the events of the line rejecting is a broken stream: a sent call answers stream-broken, one still being authorized is not-sent, and the reason goes to the defect outlet
+AssertionError: expected { Object (settled) } to deeply equal { Object (settled) }
+
+- Expected
++ Received
+
+  {
+    "settled": {
+      "cause": "stream-broken",
+      "kind": "no-answer",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/session.spec.ts:2001:46
+    1999|     await tick()
+    2000|     held.release()
+    2001|     expect(await settledWithin(sent.answer)).toEqual({ settled: STREAM…
+       |                                              ^
+    2002|     expect(await settledWithin(calling)).toEqual({ settled: { failure:…
+    2003|     expect(line.requests('tools/call')).toHaveLength(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/18]⎯
+
+ FAIL  tests/session.spec.ts > the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode) > a request in the authorization discovery is not settled by the shared stream breaking: it ends authorization-required when the discovery ends
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "connection-unavailable",
+      "kind": "not-sent",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/session.spec.ts:2043:43
+    2041|     })
+    2042|     expect(credential.rejections()).toBe(1)
+    2043|     expect(await transport.listActions()).toEqual({ failure: NOT_SENT …
+       |                                           ^
+    2044|     expect(await settledWithin(transport.close())).toEqual({ settled: …
+    2045|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/18]⎯
+
+
+ Test Files  2 failed | 2 passed | 1 skipped (5)
+      Tests  18 failed | 144 passed | 201 skipped (363)
+Type Errors  no errors
+   Start at  12:52:39
+   Duration  5.60s (transform 1.51s, setup 72ms, import 3.03s, tests 7.07s, environment 1ms)
+

@@ -1,0 +1,8 @@
+
+> omne-harness-lite-workspace@ format:check /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis
+> ./scripts/format.sh check
+
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 645ms on 4392 files using 8 threads.

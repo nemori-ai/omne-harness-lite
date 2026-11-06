@@ -1,0 +1,306 @@
+# S02 refresh is not forwarded
+# expect: red
+# edits: [{"from":"return this.discovery.refresh(...args)","to":"void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })"}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)
+exit 1
+seconds 241.8
+total 13
+failed [
+ "the MCP plugin on a Cordis context, with a scripted peer process loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer",
+ "the MCP plugin on a Cordis context, with a scripted peer process answers each operation of the three services through the plugin",
+ "the MCP plugin on a Cordis context, with a scripted peer process signals a call in flight that cancel names",
+ "the MCP plugin on a Cordis context, with a scripted peer process publishes the catalog of a stdio peer once the absent adoption port is provided",
+ "the MCP plugin on a Cordis context, with a scripted peer process publishes the catalog of a stdio peer once the absent eligibility port is provided",
+ "the MCP plugin on a Cordis context, with a scripted peer process publishes the catalog of a stdio peer once the absent credentials port is provided",
+ "the MCP plugin on a Cordis context, with a scripted peer process publishes the catalog of a stdio peer once the absent landing port is provided",
+ "the MCP plugin on a Cordis context, with a scripted peer process reads the replacement adoption view at the next refresh after a swap",
+ "the MCP plugin on a Cordis context, with a scripted peer process removes the three services, stops the peer process and releases the credential handle when the plugin unloads",
+ "the MCP plugin on a Cordis context, with a scripted peer process settles a call in flight with an unknown effect when the plugin unloads",
+ "the MCP plugin on a Cordis context, with a scripted peer process warns of the endpoint and the scope when the stop of its process is root-only at unload",
+ "the MCP plugin on a Cordis context, with a scripted peer process warns of the endpoint and the scope when the stop of its process is unconfirmed at unload",
+ "the MCP plugin on a Cordis context, with a scripted peer process does not warn when the stop of the process is tree-confirmed at unload"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-journey.spec.ts (13 tests | 13 failed) 240090ms
+     × loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer 23ms
+     × answers each operation of the three services through the plugin 8ms
+     × signals a call in flight that cancel names 120016ms
+     × publishes the catalog of a stdio peer once the absent adoption port is provided 6ms
+     × publishes the catalog of a stdio peer once the absent eligibility port is provided 6ms
+     × publishes the catalog of a stdio peer once the absent credentials port is provided 4ms
+     × publishes the catalog of a stdio peer once the absent landing port is provided 3ms
+     × reads the replacement adoption view at the next refresh after a swap 3ms
+     × removes the three services, stops the peer process and releases the credential handle when the plugin unloads 4ms
+     × settles a call in flight with an unknown effect when the plugin unloads 120003ms
+     × warns of the endpoint and the scope when the stop of its process is root-only at unload 4ms
+     × warns of the endpoint and the scope when the stop of its process is unconfirmed at unload 4ms
+     × does not warn when the stop of the process is tree-confirmed at unload 3ms
+
+ Test Files  1 failed (1)
+      Tests  13 failed (13)
+   Start at  15:26:16
+   Duration  240.97s (transform 481ms, setup 15ms, import 712ms, tests 240.09s, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-S02/packages__mcp__mcp-host-local.json
+
+--- stderr
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 13 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer
+AssertionError: expected { failure: { kind: 'unknown' } } to match object { ok: { kind: 'published' } }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "ok": {
+-     "kind": "published",
++   "failure": {
++     "kind": "unknown",
+    },
+  }
+
+ ❯ invokeEcho tests/cordis-journey.spec.ts:386:32
+    384| /** Refreshes, then invokes `echo`. */
+    385| async function invokeEcho(ctx: Context) {
+    386|   expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published'…
+       |                                ^
+    387|   return invoke(ctx, 'echo', CALL_1)
+    388| }
+ ❯ tests/cordis-journey.spec.ts:405:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/15]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > answers each operation of the three services through the plugin
+AssertionError: expected { failure: { kind: 'unknown' } } to match object { ok: { kind: 'published' } }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "ok": {
+-     "kind": "published",
++   "failure": {
++     "kind": "unknown",
+    },
+  }
+
+ ❯ tests/cordis-journey.spec.ts:421:60
+    419|     const invoker = service(ctx, mcpActionInvokerKey)
+    420|     const status = service(ctx, mcpEndpointStatusKey)
+    421|     expect(await discovery.refresh(ALICE, { ref: FILES })).toMatchObje…
+       |                                                            ^
+    422|       ok: { kind: 'published' },
+    423|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/15]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > signals a call in flight that cancel names
+Error: Test timed out in 120000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/cordis-journey.spec.ts:467:3
+    465|   })
+    466|
+    467|   it('signals a call in flight that cancel names', async () => {
+       |   ^
+    468|     const { ctx, provided } = await assembled({ script: SILENT })
+    469|     const invoking = invokeEcho(ctx)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/15]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > signals a call in flight that cancel names
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > settles a call in flight with an unknown effect when the plugin unloads
+AssertionError: unhandled rejections or uncaught exceptions during the case: expected [ …(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   AssertionError {
++     "message": "expected { failure: { kind: 'unknown' } } to match object { ok: { kind: 'published' } }
++ (2 matching properties omitted from actual)",
++     "showDiff": true,
++     "expected": {
++       "ok": {
++         "kind": "published",
++       },
++     },
++     "actual": {
++       "failure": {
++         "kind": "unknown",
++       },
++     },
++   },
++ ]
+
+ ❯ tests/unhandled.ts:22:89
+     20|   // A rejection surfaces after the microtasks of the case; one turn o…
+     21|   await new Promise<void>(resolve => setImmediate(resolve))
+     22|   expect(seen.splice(0), 'unhandled rejections or uncaught exceptions …
+       |                                                                                         ^
+     23| })
+     24|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/15]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > publishes the catalog of a stdio peer once the absent adoption port is provided
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > publishes the catalog of a stdio peer once the absent eligibility port is provided
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > publishes the catalog of a stdio peer once the absent credentials port is provided
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > publishes the catalog of a stdio peer once the absent landing port is provided
+AssertionError: expected { failure: { kind: 'unknown' } } to match object { ok: { kind: 'published' } }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "ok": {
+-     "kind": "published",
++   "failure": {
++     "kind": "unknown",
+    },
+  }
+
+ ❯ tests/cordis-journey.spec.ts:488:36
+    486|       expect(provided.landed).toHaveLength(0)
+    487|       await load(ctx, provided[name], undefined)
+    488|       expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'publis…
+       |                                    ^
+    489|       expect(await actionNames(ctx)).toEqual(['echo'])
+    490|       expect(provided.landed).toHaveLength(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/15]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > reads the replacement adoption view at the next refresh after a swap
+AssertionError: expected { failure: { kind: 'unknown' } } to match object { ok: { kind: 'published' } }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "ok": {
+-     "kind": "published",
++   "failure": {
++     "kind": "unknown",
+    },
+  }
+
+ ❯ tests/cordis-journey.spec.ts:497:34
+    495|     const { ctx, provided } = await assembled({ script: ANSWERING }, '…
+    496|     const first = await load(ctx, provided.adoption, undefined)
+    497|     expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'publishe…
+       |                                  ^
+    498|     expect(await actionNames(ctx)).toEqual(['echo'])
+    499|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/15]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > removes the three services, stops the peer process and releases the credential handle when the plugin unloads
+AssertionError: expected { failure: { kind: 'unknown' } } to match object { ok: { kind: 'published' } }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "ok": {
+-     "kind": "published",
++   "failure": {
++     "kind": "unknown",
+    },
+  }
+
+ ❯ invokeEcho tests/cordis-journey.spec.ts:386:32
+    384| /** Refreshes, then invokes `echo`. */
+    385| async function invokeEcho(ctx: Context) {
+    386|   expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published'…
+       |                                ^
+    387|   return invoke(ctx, 'echo', CALL_1)
+    388| }
+ ❯ tests/cordis-journey.spec.ts:518:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/15]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > settles a call in flight with an unknown effect when the plugin unloads
+Error: Test timed out in 120000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/cordis-journey.spec.ts:535:3
+    533|   })
+    534|
+    535|   it('settles a call in flight with an unknown effect when the plugin …
+       |   ^
+    536|     const { ctx, fiber, provided } = await assembled({ script: SILENT …
+    537|     const invoking = invokeEcho(ctx)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/15]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > warns of the endpoint and the scope when the stop of its process is root-only at unload
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > warns of the endpoint and the scope when the stop of its process is unconfirmed at unload
+AssertionError: expected { failure: { kind: 'unknown' } } to match object { ok: { kind: 'published' } }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "ok": {
+-     "kind": "published",
++   "failure": {
++     "kind": "unknown",
+    },
+  }
+
+ ❯ invokeEcho tests/cordis-journey.spec.ts:386:32
+    384| /** Refreshes, then invokes `echo`. */
+    385| async function invokeEcho(ctx: Context) {
+    386|   expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published'…
+       |                                ^
+    387|   return invoke(ctx, 'echo', CALL_1)
+    388| }
+ ❯ tests/cordis-journey.spec.ts:554:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/15]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > does not warn when the stop of the process is tree-confirmed at unload
+AssertionError: expected { failure: { kind: 'unknown' } } to match object { ok: { kind: 'published' } }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "ok": {
+-     "kind": "published",
++   "failure": {
++     "kind": "unknown",
+    },
+  }
+
+ ❯ invokeEcho tests/cordis-journey.spec.ts:386:32
+    384| /** Refreshes, then invokes `echo`. */
+    385| async function invokeEcho(ctx: Context) {
+    386|   expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published'…
+       |                                ^
+    387|   return invoke(ctx, 'echo', CALL_1)
+    388| }
+ ❯ tests/cordis-journey.spec.ts:566:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/15]⎯
+
+

@@ -1,0 +1,159 @@
+
+   • turbo 2.11.7
+   • Packages in scope: @omne-harness/mcp
+   • Running test in 1 package
+   • Remote caching disabled, using shared worktree cache
+
+@omne-harness/content-block:build: cache bypass, force executing 0f0fbb244a6d6788
+@omne-harness/json-text:build: cache bypass, force executing 1083ecb6d3cb9528
+@omne-harness/operation-result:build: cache bypass, force executing 7b090f47e0dc0b38
+@omne-harness/legal-identity:build: cache bypass, force executing ee982a7601f3e3e7
+@omne-harness/settings:build: cache bypass, force executing 3480c46c9d29987f
+@omne-harness/operation-result:build: 
+@omne-harness/operation-result:build: > @omne-harness/operation-result@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/operation-result
+@omne-harness/operation-result:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/operation-result:build: 
+@omne-harness/settings:build: 
+@omne-harness/settings:build: > @omne-harness/settings@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/settings
+@omne-harness/settings:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/settings:build: 
+@omne-harness/content-block:build: 
+@omne-harness/content-block:build: > @omne-harness/content-block@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/content-block
+@omne-harness/content-block:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/content-block:build: 
+@omne-harness/legal-identity:build: 
+@omne-harness/legal-identity:build: > @omne-harness/legal-identity@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/legal-identity
+@omne-harness/legal-identity:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/legal-identity:build: 
+@omne-harness/json-text:build: 
+@omne-harness/json-text:build: > @omne-harness/json-text@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/json-text
+@omne-harness/json-text:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/json-text:build: 
+@omne-harness/assets:build: cache bypass, force executing c7c38375dd45e536
+@omne-harness/assets:build: 
+@omne-harness/assets:build: > @omne-harness/assets@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/assets
+@omne-harness/assets:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/assets:build: 
+@omne-harness/mcp-contract:build: cache bypass, force executing 7ba30ee3c1cdcb3b
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp-contract:build: > @omne-harness/mcp-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp:build: cache bypass, force executing f2f93642ed13a400
+@omne-harness/mcp:build: 
+@omne-harness/mcp:build: > @omne-harness/mcp@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+@omne-harness/mcp:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp:build: 
+@omne-harness/mcp:test: cache bypass, force executing f44c8065197be8ae
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: > @omne-harness/mcp@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+@omne-harness/mcp:test: > vitest run
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: Testing types with tsc and vue-tsc is an experimental feature.
+@omne-harness/mcp:test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ✓ tests/public-entry.spec.ts (2 tests) 810ms
+@omne-harness/mcp:test:    ✓ exports the two factories from the public root  803ms
+@omne-harness/mcp:test:  ✓ tests/races.spec.ts (29 tests) 652ms
+@omne-harness/mcp:test:  ✓ tests/invoke.spec.ts (48 tests) 405ms
+@omne-harness/mcp:test:  ✓ tests/tasks.spec.ts (39 tests) 418ms
+@omne-harness/mcp:test:  ✓ tests/teardown.spec.ts (15 tests) 301ms
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call: one key, invoke and cancel, lawful ports that may hang or answer late > P1–P14 hold
+@omne-harness/mcp:test: call: 263 states, 455 runs, depth 16, 2072 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ✓ tests/refresh.spec.ts (49 tests) 182ms
+@omne-harness/mcp:test:  ✓ tests/cancel.spec.ts (19 tests) 181ms
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > abort: one key, invoke and the caller's abort > P1–P14 hold
+@omne-harness/mcp:test: abort: 148 states, 242 runs, depth 16, 683 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ✓ tests/shutdown.spec.ts (10 tests) 234ms
+@omne-harness/mcp:test:  ✓ tests/ensure.spec.ts (38 tests) 134ms
+@omne-harness/mcp:test:  ✓ tests/release.spec.ts (10 tests) 72ms
+@omne-harness/mcp:test:  ✓ tests/continue.spec.ts (13 tests) 89ms
+@omne-harness/mcp:test:  ✓ tests/port.spec.ts (9 tests) 72ms
+@omne-harness/mcp:test:  ✓ tests/port-breach.spec.ts (9 tests) 34ms
+@omne-harness/mcp:test:  ✓ tests/gate.spec.ts (20 tests) 57ms
+@omne-harness/mcp:test:  ✓ tests/status.spec.ts (15 tests) 64ms
+@omne-harness/mcp:test:  ✓ tests/in-flight.spec.ts (19 tests) 17ms
+@omne-harness/mcp:test:  ✓ tests/mcp.spec.ts (7 tests) 75ms
+@omne-harness/mcp:test:  ✓ tests/connection.spec.ts (74 tests) 53ms
+@omne-harness/mcp:test:  ✓ tests/turns.spec.ts (3 tests) 20ms
+@omne-harness/mcp:test:  ✓ tests/memory-store.spec.ts (12 tests) 25ms
+@omne-harness/mcp:test:  ✓ tests/entry.spec.ts (9 tests) 19ms
+@omne-harness/mcp:test:  ✓ tests/lost.spec.ts (14 tests) 21ms
+@omne-harness/mcp:test:  ✓ tests/config.spec.ts (9 tests) 10ms
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call-faults: invoke and cancel, one port failing, rejecting or throwing > P1–P14 hold
+@omne-harness/mcp:test: call-faults: 932 states, 2306 runs, depth 19, 6445 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > marks: invoke and getTask, one request failing with or without the unusable mark > P1–P15 hold: a failure without the mark leaves the ready connection ready (P15, S7, T1); a marked one loses it
+@omne-harness/mcp:test: marks: 581 states, 1192 runs, depth 21, 2591 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > continue: invoke, then continueWithInput at the generation of that moment, drop > P1–P14 hold
+@omne-harness/mcp:test: continue: 1070 states, 2366 runs, depth 34, 7096 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call-shutdown: invoke, cancel and closeAll > P1–P14 hold, P13 above all
+@omne-harness/mcp:test: call-shutdown: 1018 states, 2205 runs, depth 19, 4418 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > continue-shutdown: invoke, then continueWithInput, drop, closeAll > P1–P14 hold, P13 at the answer above all
+@omne-harness/mcp:test: continue-shutdown: 2989 states, 7655 runs, depth 34, 22022 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call-twice: two invoke on one correlation key, cancel > P1–P14 hold, P11 above all
+@omne-harness/mcp:test: call-twice: 18481 states, 54849 runs, depth 31, 195357 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > task: the peer answers a task, the initiator queries it, drop, closeAll > P1–P14 hold
+@omne-harness/mcp:test: task: 2241 states, 5797 runs, depth 35, 16889 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > task-methods: each of the four task operations once > P1–P14 hold
+@omne-harness/mcp:test: task-methods: 8570 states, 36232 runs, depth 25, 93983 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > foreign-cancel: another principal, and the same principal text in another tenant, cancel > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: foreign-cancel: 731 states, 1473 runs, depth 17, 2872 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > foreign-task: another principal of the tenant queries the task alice started > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: foreign-task: 200 states, 361 runs, depth 16, 726 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > task-account: a task operation never reuses the connection of another peer account > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: task-account: 5568 states, 14666 runs, depth 35, 49951 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > task-collision: the peer gives the task id again on another peer account of the same principal > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: task-collision: 714 states, 1651 runs, depth 20, 6105 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ✓ tests/model/calls.spec.ts (14 tests) 411256ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  2082ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  685ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  6447ms
+@omne-harness/mcp:test:      ✓ P1–P15 hold: a failure without the mark leaves the ready connection ready (P15, S7, T1); a marked one loses it  2592ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  7097ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P13 above all  4419ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P13 at the answer above all  22024ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P11 above all  195368ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  16892ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  93984ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  2873ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  727ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  49953ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  6106ms
+@omne-harness/mcp:test:  ✓ tests/model/lifecycle.spec.ts (9 tests) 687086ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  36112ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  9510ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  789ms
+@omne-harness/mcp:test:      ✓ finds on throws what every schedule of throws shows  9376ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold, P8 T2 above all  134951ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  360417ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold, P5 above all  73245ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold, P5 above all  62679ms
+@omne-harness/mcp:test:  ✓  TS  tests/types.spec-d.ts (7 tests)
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  Test Files  26 passed (26)
+@omne-harness/mcp:test:       Tests  502 passed (502)
+@omne-harness/mcp:test: Type Errors  no errors
+@omne-harness/mcp:test:    Start at  14:07:14
+@omne-harness/mcp:test:    Duration  688.57s (transform 2.76s, setup 364ms, import 9.26s, tests 1102.29s, environment 4ms, typecheck 268ms)
+@omne-harness/mcp:test: 
+
+ Tasks:    9 successful, 9 total
+Cached:    0 cached, 9 total
+  Time:    11m33.214s 
+

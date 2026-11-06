@@ -1,0 +1,36 @@
+{
+  "testRunner": "omne-vitest",
+  "plugins": [
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tools/test-runner/src/mutation/guarded-vitest.ts"
+  ],
+  "vitest": {
+    "configFile": "vitest.stryker-sandbox.config.mts",
+    "related": false
+  },
+  "mutate": [
+    "src/answer-readings.ts:75:13-75:89",
+    "src/answer-readings.ts:75:13-75:89",
+    "src/answer-readings.ts:75:13-75:55",
+    "src/answer-readings.ts:75:31-75:55",
+    "src/answer-readings.ts:75:59-75:89"
+  ],
+  "buildCommand": "node --experimental-strip-types /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tools/test-runner/src/mutation/sandbox-build.ts",
+  "symlinkNodeModules": false,
+  "tempDirName": "/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/.stryker-tmp-rerun-50947",
+  "cleanTempDir": true,
+  "incremental": false,
+  "concurrency": 1,
+  "timeoutMS": 60000,
+  "reporters": [
+    "json",
+    "progress-append-only"
+  ],
+  "jsonReporter": {
+    "fileName": "/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable/gate-r3/pos-contract/mutation.json"
+  },
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  }
+}

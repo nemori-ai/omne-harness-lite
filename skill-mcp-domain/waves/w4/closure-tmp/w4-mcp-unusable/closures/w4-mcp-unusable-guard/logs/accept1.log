@@ -1,0 +1,387 @@
+
+   • turbo 2.11.7
+   • Packages in scope: @omne-harness/mcp, @omne-harness/mcp-contract, @omne-harness/mcp-host-local
+   • Running build, typecheck, test in 3 packages
+   • Remote caching disabled, using shared worktree cache
+
+@omne-harness/settings:build: cache bypass, force executing 3480c46c9d29987f
+@omne-harness/content-block:typecheck: cache bypass, force executing 929ed7469f3ec694
+@omne-harness/legal-identity:typecheck: cache bypass, force executing 8a1bf4eaa6a1fc05
+@omne-harness/json-text:typecheck: cache bypass, force executing 4ee41ffdcb4ecf1a
+@omne-harness/json-text:build: cache bypass, force executing 1083ecb6d3cb9528
+@omne-harness/operation-result:typecheck: cache bypass, force executing 5cafb43bbf644997
+@omne-harness/settings:typecheck: cache bypass, force executing 53e76ba96b5bc2e7
+@omne-harness/content-block:build: cache bypass, force executing 0f0fbb244a6d6788
+@omne-harness/legal-identity:build: cache bypass, force executing ee982a7601f3e3e7
+@omne-harness/operation-result:build: cache bypass, force executing 7b090f47e0dc0b38
+@omne-harness/content-block:typecheck: 
+@omne-harness/content-block:typecheck: > @omne-harness/content-block@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/content-block
+@omne-harness/content-block:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/content-block:typecheck: 
+@omne-harness/legal-identity:build: 
+@omne-harness/legal-identity:build: > @omne-harness/legal-identity@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/legal-identity
+@omne-harness/legal-identity:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/legal-identity:build: 
+@omne-harness/content-block:build: 
+@omne-harness/content-block:build: > @omne-harness/content-block@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/content-block
+@omne-harness/content-block:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/content-block:build: 
+@omne-harness/json-text:typecheck: 
+@omne-harness/json-text:typecheck: > @omne-harness/json-text@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/json-text
+@omne-harness/json-text:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/json-text:typecheck: 
+@omne-harness/settings:typecheck: 
+@omne-harness/settings:typecheck: > @omne-harness/settings@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/settings
+@omne-harness/settings:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/settings:typecheck: 
+@omne-harness/settings:build: 
+@omne-harness/settings:build: > @omne-harness/settings@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/settings
+@omne-harness/settings:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/settings:build: 
+@omne-harness/legal-identity:typecheck: 
+@omne-harness/legal-identity:typecheck: > @omne-harness/legal-identity@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/legal-identity
+@omne-harness/legal-identity:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/legal-identity:typecheck: 
+@omne-harness/operation-result:build: 
+@omne-harness/operation-result:build: > @omne-harness/operation-result@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/operation-result
+@omne-harness/operation-result:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/operation-result:build: 
+@omne-harness/json-text:build: 
+@omne-harness/json-text:build: > @omne-harness/json-text@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/json-text
+@omne-harness/json-text:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/json-text:build: 
+@omne-harness/operation-result:typecheck: 
+@omne-harness/operation-result:typecheck: > @omne-harness/operation-result@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/operation-result
+@omne-harness/operation-result:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/operation-result:typecheck: 
+@omne-harness/assets:typecheck: cache bypass, force executing 7b31b33eaef68187
+@omne-harness/assets:build: cache bypass, force executing c7c38375dd45e536
+@omne-harness/assets:build: 
+@omne-harness/assets:build: > @omne-harness/assets@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/assets
+@omne-harness/assets:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/assets:build: 
+@omne-harness/assets:typecheck: 
+@omne-harness/assets:typecheck: > @omne-harness/assets@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/assets
+@omne-harness/assets:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/assets:typecheck: 
+@omne-harness/mcp-contract:build: cache bypass, force executing 7ba30ee3c1cdcb3b
+@omne-harness/mcp-contract:typecheck: cache bypass, force executing ad60d51b7861b4d8
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp-contract:build: > @omne-harness/mcp-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp-contract:typecheck: 
+@omne-harness/mcp-contract:typecheck: > @omne-harness/mcp-contract@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/mcp-contract:typecheck: 
+@omne-harness/mcp-cordis-contract:build: cache bypass, force executing 73c42f682221fdba
+@omne-harness/mcp-contract:test: cache bypass, force executing bf15b4e0b03f5ad6
+@omne-harness/mcp:build: cache bypass, force executing cf86c3d3bc5babf9
+@omne-harness/mcp-cordis-contract:typecheck: cache bypass, force executing 608b13bd37fd8082
+@omne-harness/mcp:typecheck: cache bypass, force executing 163f74a280ce2fdd
+@omne-harness/mcp:build: 
+@omne-harness/mcp:build: > @omne-harness/mcp@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+@omne-harness/mcp:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp:build: 
+@omne-harness/mcp-cordis-contract:build: 
+@omne-harness/mcp-cordis-contract:build: > @omne-harness/mcp-cordis-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-cordis-contract
+@omne-harness/mcp-cordis-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp-cordis-contract:build: 
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp-contract:test: > @omne-harness/mcp-contract@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:test: > vitest run
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp-cordis-contract:typecheck: 
+@omne-harness/mcp-cordis-contract:typecheck: > @omne-harness/mcp-cordis-contract@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-cordis-contract
+@omne-harness/mcp-cordis-contract:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/mcp-cordis-contract:typecheck: 
+@omne-harness/mcp:typecheck: 
+@omne-harness/mcp:typecheck: > @omne-harness/mcp@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+@omne-harness/mcp:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/mcp:typecheck: 
+@omne-harness/mcp:test: cache bypass, force executing 34336dd7883c2fea
+@omne-harness/mcp-host-local:build: cache bypass, force executing 4d7755b8745a8e40
+@omne-harness/mcp-contract:test: Testing types with tsc and vue-tsc is an experimental feature.
+@omne-harness/mcp-contract:test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp-contract:test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp-host-local:typecheck: cache bypass, force executing f82db83fd2cdb92a
+@omne-harness/mcp-host-local:build: 
+@omne-harness/mcp-host-local:build: > @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-host-local
+@omne-harness/mcp-host-local:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp-host-local:build: 
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: > @omne-harness/mcp@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+@omne-harness/mcp:test: > vitest run
+@omne-harness/mcp:test: 
+@omne-harness/mcp-host-local:typecheck: 
+@omne-harness/mcp-host-local:typecheck: > @omne-harness/mcp-host-local@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-host-local
+@omne-harness/mcp-host-local:typecheck: > tsc -p tsconfig.test.json
+@omne-harness/mcp-host-local:typecheck: 
+@omne-harness/mcp-host-local:test: cache bypass, force executing f252fcf5a1bbcca4
+@omne-harness/mcp:test: Testing types with tsc and vue-tsc is an experimental feature.
+@omne-harness/mcp:test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+@omne-harness/mcp:test: 
+@omne-harness/mcp-contract:test:  ✓ tests/endpoint.spec.ts (60 tests) 85ms
+@omne-harness/mcp-host-local:test: 
+@omne-harness/mcp-host-local:test: > @omne-harness/mcp-host-local@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-host-local
+@omne-harness/mcp-host-local:test: > vitest run
+@omne-harness/mcp-host-local:test: 
+@omne-harness/mcp-contract:test:  ✓ tests/catalog.spec.ts (37 tests) 209ms
+@omne-harness/mcp-contract:test:  ✓ tests/public-entry.spec.ts (10 tests) 1881ms
+@omne-harness/mcp-contract:test:    ✓ the root entry exports the values and pure functions of the contract  1269ms
+@omne-harness/mcp-contract:test:    ✓ the testing entry exports the conformance facilities  544ms
+@omne-harness/mcp-contract:test:  ✓ tests/spec-closed-sets.spec.ts (18 tests) 30ms
+@omne-harness/mcp-contract:test:  ✓ tests/wire.spec.ts (14 tests) 122ms
+@omne-harness/mcp-contract:test:  ✓ tests/decisions.spec.ts (92 tests) 201ms
+@omne-harness/mcp-host-local:test: Testing types with tsc and vue-tsc is an experimental feature.
+@omne-harness/mcp-host-local:test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+@omne-harness/mcp-host-local:test: 
+@omne-harness/mcp-host-local:test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-host-local
+@omne-harness/mcp-host-local:test: 
+@omne-harness/mcp-contract:test:  ✓ tests/protocol-functions.spec.ts (36 tests) 156ms
+@omne-harness/mcp-contract:test:  ✓ tests/keys.spec.ts (7 tests) 15ms
+@omne-harness/mcp-contract:test:  ✓ tests/classify.spec.ts (50 tests) 36ms
+@omne-harness/mcp-contract:test:  ✓ tests/content.spec.ts (27 tests) 51ms
+@omne-harness/mcp-contract:test:  ✓ tests/values.spec.ts (46 tests) 40ms
+@omne-harness/mcp-contract:test:  ✓ tests/json-equality.spec.ts (3 tests) 13ms
+@omne-harness/mcp-contract:test:  ✓ tests/instructions.spec.ts (4 tests) 16ms
+@omne-harness/mcp-contract:test:  ✓ tests/testing-values.spec.ts (7 tests) 16ms
+@omne-harness/mcp-contract:test:  ✓ tests/conformance.spec.ts (46 tests) 108ms
+@omne-harness/mcp:test:  ✓ tests/public-entry.spec.ts (2 tests) 2345ms
+@omne-harness/mcp:test:    ✓ exports the two factories from the public root  2336ms
+@omne-harness/mcp:test:  ✓ tests/invoke.spec.ts (48 tests) 515ms
+@omne-harness/mcp:test:  ✓ tests/tasks.spec.ts (39 tests) 563ms
+@omne-harness/mcp:test:  ✓ tests/races.spec.ts (29 tests) 680ms
+@omne-harness/mcp:test:  ✓ tests/teardown.spec.ts (15 tests) 406ms
+@omne-harness/mcp:test:  ✓ tests/shutdown.spec.ts (10 tests) 236ms
+@omne-harness/mcp:test:  ✓ tests/refresh.spec.ts (49 tests) 299ms
+@omne-harness/mcp:test:  ✓ tests/cancel.spec.ts (19 tests) 516ms
+@omne-harness/mcp:test:      ✓ step 8: at whichever microtask the cancel lands, the transport is never called with a stop signal that fired  323ms
+@omne-harness/mcp:test:  ✓ tests/continue.spec.ts (13 tests) 232ms
+@omne-harness/mcp:test:  ✓ tests/port.spec.ts (9 tests) 158ms
+@omne-harness/mcp:test:  ✓ tests/ensure.spec.ts (38 tests) 161ms
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call: one key, invoke and cancel, lawful ports that may hang or answer late > P1–P14 hold
+@omne-harness/mcp:test: call: 263 states, 455 runs, depth 16, 3288 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ✓ tests/release.spec.ts (10 tests) 163ms
+@omne-harness/mcp-contract:test:  ✓ tests/transport-conformance.spec.ts (219 tests) 5960ms
+@omne-harness/mcp-contract:test:      ✓ a transport that drops the mark of a row that ends the transport (T1, T8)  864ms
+@omne-harness/mcp-contract:test:      ✓ a transport that marks a broken stream on Streamable HTTP, which leaves it usable (T1, T8)  903ms
+@omne-harness/mcp-contract:test:      ✓ a transport that re-sends tools/call after a broken stream  1108ms
+@omne-harness/mcp-contract:test:      ✓ a transport that does not report a refused authorization to the handle  829ms
+@omne-harness/mcp-host-local:test:  ✓ tests/lines.spec.ts (20 tests) 2634ms
+@omne-harness/mcp-host-local:test:      ✓ reads a body of exactly the byte bound and nothing from one byte above it  2052ms
+@omne-harness/mcp:test:  ✓ tests/gate.spec.ts (20 tests) 88ms
+@omne-harness/mcp:test:  ✓ tests/status.spec.ts (15 tests) 106ms
+@omne-harness/mcp:test:  ✓ tests/connection.spec.ts (74 tests) 98ms
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > abort: one key, invoke and the caller's abort > P1–P14 hold
+@omne-harness/mcp:test: abort: 148 states, 242 runs, depth 16, 1261 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ✓ tests/turns.spec.ts (3 tests) 50ms
+@omne-harness/mcp:test:  ✓ tests/port-breach.spec.ts (9 tests) 141ms
+@omne-harness/mcp-contract:test:  ✓  TS  tests/additive-shapes.spec-d.ts (7 tests)
+@omne-harness/mcp-contract:test:  ✓  TS  tests/closed-sets.spec-d.ts (1 test)
+@omne-harness/mcp-contract:test:  ✓  TS  tests/provider-types.spec-d.ts (1 test)
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp-contract:test:  Test Files  19 passed (19)
+@omne-harness/mcp-contract:test:       Tests  685 passed (685)
+@omne-harness/mcp-contract:test: Type Errors  no errors
+@omne-harness/mcp-contract:test:    Start at  15:03:22
+@omne-harness/mcp-contract:test:    Duration  9.74s (transform 5.41s, setup 644ms, import 12.76s, tests 8.94s, environment 3ms, typecheck 1.28s)
+@omne-harness/mcp-contract:test: 
+@omne-harness/mcp:test:  ✓ tests/mcp.spec.ts (7 tests) 52ms
+@omne-harness/mcp:test:  ✓ tests/in-flight.spec.ts (19 tests) 105ms
+@omne-harness/mcp:test:  ✓ tests/lost.spec.ts (14 tests) 18ms
+@omne-harness/mcp:test:  ✓ tests/memory-store.spec.ts (12 tests) 65ms
+@omne-harness/mcp-host-local:test:  ✓ tests/http.spec.ts (26 tests) 4685ms
+@omne-harness/mcp-host-local:test:      ✓ the SDK's bearer gate: a wrong token is authorization-required with the metadata it names; reportRejection once; the right token works  423ms
+@omne-harness/mcp-host-local:test:      ✓ a metadata document that never ends counts as not fetched: the discovery settles with metadata unavailable  412ms
+@omne-harness/mcp-host-local:test:      ✓ every request carries the version in _meta and in MCP-Protocol-Version alike: the reference server answers no -32020  1206ms
+@omne-harness/mcp-host-local:test:      ✓ the reference server in its sse mode: the tools are listed and echo answers on the stream  1228ms
+@omne-harness/mcp:test:  ✓ tests/config.spec.ts (9 tests) 68ms
+@omne-harness/mcp:test:  ✓ tests/entry.spec.ts (9 tests) 22ms
+@omne-harness/mcp-host-local:test:  ✓ tests/stdio.spec.ts (15 tests) 5374ms
+@omne-harness/mcp-host-local:test:      ✓ a line above the 16 MiB byte bound breaks the stream: stream-broken, then not-sent  550ms
+@omne-harness/mcp-host-local:test:      ✓ a process that does not read its stdin any more: the request that cannot be written is not-sent marked stream-broken, and so is the next (T1, X02)  483ms
+@omne-harness/mcp-host-local:test:      ✓ the SDK server's tool that exits the process: the call's answer is process-exited, marked, and so is the next request (T1, S04)  484ms
+@omne-harness/mcp-host-local:test:      ✓ an SDK server that speaks only the 2025 revisions: discover falls back to initialize, then echo works  511ms
+@omne-harness/mcp-host-local:test:      ✓ no answer within the probe time: the legacy path; the late discover answer is dropped  491ms
+@omne-harness/mcp-host-local:test:      ✓ the SDK server's slow tool: the cancel notification does not settle the answer; close() abandons it  956ms
+@omne-harness/mcp-host-local:test:      ✓ server-everything on stdio: the tools are listed and echo answers  559ms
+@omne-harness/mcp-host-local:test:  ✓ tests/public-entry.spec.ts (11 tests) 92ms
+@omne-harness/mcp-host-local:test:  ✓ tests/session.spec.ts (124 tests) 1925ms
+@omne-harness/mcp-host-local:test: stdout | tests/e2e/journey.spec.ts > E-stdio: server-everything 2.1.0 on stdio, revision 2026-07-28 > E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28
+@omne-harness/mcp-host-local:test: journey E-stdio: S1=published S2=complete S3=toolError S4=inputRequired>complete S5=task>completed>complete S6=signalled>unknown:abandoned S7=released
+@omne-harness/mcp-host-local:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call-faults: invoke and cancel, one port failing, rejecting or throwing > P1–P14 hold
+@omne-harness/mcp:test: call-faults: 932 states, 2306 runs, depth 19, 7251 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp-host-local:test: stdout | tests/e2e/journey.spec.ts > E-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 > E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28
+@omne-harness/mcp-host-local:test: journey E-http: S1=published S2=complete S3=toolError S4=inputRequired>complete S5=task>completed>complete S6=signalled>unknown:abandoned S7=released
+@omne-harness/mcp-host-local:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > marks: invoke and getTask, one request failing with or without the unusable mark > P1–P15 hold: a failure without the mark leaves the ready connection ready (P15, S7, T1); a marked one loses it
+@omne-harness/mcp:test: marks: 581 states, 1192 runs, depth 21, 2998 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp-host-local:test: stdout | tests/e2e/journey.spec.ts > E-sse: server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 > E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25
+@omne-harness/mcp-host-local:test: journey E-sse: S1=published S2=complete S3=toolError S6=signalled>unknown:abandoned S7=released
+@omne-harness/mcp-host-local:test: 
+@omne-harness/mcp-host-local:test: stdout | tests/e2e/journey.spec.ts > F: server-filesystem 2.1.0 on stdio, revision 2026-07-28 > F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28
+@omne-harness/mcp-host-local:test: journey F: S1=published S2=complete S3=toolError S7=released
+@omne-harness/mcp-host-local:test: 
+@omne-harness/mcp-host-local:test:  ✓ tests/e2e/journey.spec.ts (6 tests | 1 skipped) 14048ms
+@omne-harness/mcp-host-local:test:      ✓ E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28  6168ms
+@omne-harness/mcp-host-local:test:      ✓ E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28  5927ms
+@omne-harness/mcp-host-local:test:      ✓ E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25  1620ms
+@omne-harness/mcp-host-local:test:      ✓ F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28  327ms
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > continue: invoke, then continueWithInput at the generation of that moment, drop > P1–P14 hold
+@omne-harness/mcp:test: continue: 1070 states, 2366 runs, depth 34, 8708 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call-shutdown: invoke, cancel and closeAll > P1–P14 hold, P13 above all
+@omne-harness/mcp:test: call-shutdown: 1018 states, 2205 runs, depth 19, 5547 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp-host-local:test:  ✓ tests/model/session-model.spec.ts (11 tests) 31206ms
+@omne-harness/mcp-host-local:test:      ✓ V1–V6 hold  950ms
+@omne-harness/mcp-host-local:test:      ✓ V1–V6 hold, V3 above all  1644ms
+@omne-harness/mcp-host-local:test:      ✓ V1–V6 hold  573ms
+@omne-harness/mcp-host-local:test:      ✓ V1–V6 hold  4997ms
+@omne-harness/mcp-host-local:test:      ✓ finds on http-call what every schedule of it shows  1502ms
+@omne-harness/mcp-host-local:test:      ✓ V1–V6 hold, V5 above all  6267ms
+@omne-harness/mcp-host-local:test:      ✓ V1–V6 hold  14939ms
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > continue-shutdown: invoke, then continueWithInput, drop, closeAll > P1–P14 hold, P13 at the answer above all
+@omne-harness/mcp:test: continue-shutdown: 2989 states, 7655 runs, depth 34, 24321 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp-host-local:test: conformance stdio first: passed 98, not-applicable 1, failed 0
+@omne-harness/mcp-host-local:test: conformance streamable-http first: passed 97, not-applicable 2, failed 0
+@omne-harness/mcp-host-local:test:  ✓ tests/conformance.spec.ts (198 tests) 108790ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D01] discover, discover-retry × result → read  1172ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D02] discover, discover-retry × result:no-common → legacy path, reports its failure  925ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D03] discover, discover-retry × result:unreadable → legacy path, reports answer-malformed  2574ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D04] discover × error:-32022+common, http:400+-32022+common, http:404+-32022+common … (8) → retry  478ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D05] discover × error:-32022+modern, http:400+-32022+modern, http:404+-32022+modern … (8) → answer-malformed (discover-shape)  408ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D06] discover × error:-32022+legacy, http:400+-32022+legacy, http:404+-32022+legacy … (8) → legacy path, reports its failure  1152ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D07] discover-retry × error:-32022+common, error:-32022+modern, error:-32022+legacy … (24) → error-answer (as written)  1912ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D08] discover, discover-retry × error:-32020, error:-32021, http:400+-32020 … (16) → error-answer (as written)  1359ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D09] discover, discover-retry × error:-32601 → legacy path, reports its failure  354ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D10] discover, discover-retry × error:-32602, error:other → legacy path, reports error-answer  1000ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D11] discover, discover-retry × error:unreadable → legacy path, reports answer-malformed  1636ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D12] discover, discover-retry × http:400+-32601, http:400+-32602, http:400+other … (35) → legacy path, reports its failure  4257ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D13] discover, discover-retry × silent → legacy path, reports its failure  1086ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D16] discover, discover-retry × http:5xx+-32020, http:5xx+-32021, http:5xx+-32022+common … (10) → no-answer (stream-broken)  2110ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [I02] initialize × result:unreadable → answer-malformed (discover-shape)  563ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [I03] initialize × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written)  2744ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [I04] initialize × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape)  1254ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [I07] initialize × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable)  391ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [G02] tasks/get × result:status-unknown → answer-malformed (status-unknown)  428ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O01] tools/list, tasks/update, tasks/cancel × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written)  7507ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O02] tasks/get × error:-32020, error:-32021, error:-32022+common … (63) → error-answer (as written)  2363ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O03] tools/list, tasks/get, tasks/update … (4) × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape)  4510ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O04] tools/list, tasks/get, tasks/update … (4) × silent → no-answer (abandoned)  519ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O05] tools/list, tasks/get × stream-broken, http:2xx → resend  323ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O07] tools/list, tasks/get, tasks/update … (4) × http:5xx+plain → no-answer (stream-broken)  339ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O08] tools/list, tasks/get, tasks/update … (4) × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable)  1407ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [C01] tools/call × result → sent, answer result  327ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [C02] tools/call × error:-32020, error:-32021, error:-32022+common … (81) → sent, answer error  3509ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [C05] tools/call × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable)  344ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable  1170ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable  437ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once  330ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [N01] notification × unsent, silent, stream-broken … (89) → ignored  3831ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D01] discover, discover-retry × result → read  387ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D03] discover, discover-retry × result:unreadable → legacy path, reports answer-malformed  826ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D04] discover × error:-32022+common, http:400+-32022+common, http:404+-32022+common … (8) → retry  323ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D05] discover × error:-32022+modern, http:400+-32022+modern, http:404+-32022+modern … (8) → answer-malformed (discover-shape)  308ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D06] discover × error:-32022+legacy, http:400+-32022+legacy, http:404+-32022+legacy … (8) → legacy path, reports its failure  822ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D07] discover-retry × error:-32022+common, error:-32022+modern, error:-32022+legacy … (24) → error-answer (as written)  1638ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D08] discover, discover-retry × error:-32020, error:-32021, http:400+-32020 … (16) → error-answer (as written)  1253ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D10] discover, discover-retry × error:-32602, error:other → legacy path, reports error-answer  817ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D11] discover, discover-retry × error:unreadable → legacy path, reports answer-malformed  1400ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D12] discover, discover-retry × http:400+-32601, http:400+-32602, http:400+other … (35) → legacy path, reports its failure  3787ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D13] discover, discover-retry × silent → legacy path, reports its failure  1033ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [D16] discover, discover-retry × http:5xx+-32020, http:5xx+-32021, http:5xx+-32022+common … (10) → no-answer (stream-broken)  2020ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [I02] initialize × result:unreadable → answer-malformed (discover-shape)  442ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [I03] initialize × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written)  2447ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [I04] initialize × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape)  1143ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [I07] initialize × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable)  389ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [G02] tasks/get × result:status-unknown → answer-malformed (status-unknown)  367ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O01] tools/list, tasks/update, tasks/cancel × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written)  6954ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O02] tasks/get × error:-32020, error:-32021, error:-32022+common … (63) → error-answer (as written)  2265ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O03] tools/list, tasks/get, tasks/update … (4) × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape)  4339ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O04] tools/list, tasks/get, tasks/update … (4) × silent → no-answer (abandoned)  527ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O05] tools/list, tasks/get × stream-broken, http:2xx → resend  320ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O07] tools/list, tasks/get, tasks/update … (4) × http:5xx+plain → no-answer (stream-broken)  349ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [O08] tools/list, tasks/get, tasks/update … (4) × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable)  1352ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [C02] tools/call × error:-32020, error:-32021, error:-32022+common … (81) → sent, answer error  3404ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [C05] tools/call × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable)  335ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable  1135ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable  423ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once  323ms
+@omne-harness/mcp-host-local:test:      ✓ T8 [N01] notification × unsent, silent, stream-broken … (89) → ignored  3952ms
+@omne-harness/mcp-host-local:test: 
+@omne-harness/mcp-host-local:test:  Test Files  8 passed (8)
+@omne-harness/mcp-host-local:test:       Tests  410 passed | 1 skipped (411)
+@omne-harness/mcp-host-local:test: Type Errors  no errors
+@omne-harness/mcp-host-local:test:    Start at  15:03:25
+@omne-harness/mcp-host-local:test:    Duration  111.92s (transform 8.93s, setup 496ms, import 16.48s, tests 168.75s, environment 1ms)
+@omne-harness/mcp-host-local:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > call-twice: two invoke on one correlation key, cancel > P1–P14 hold, P11 above all
+@omne-harness/mcp:test: call-twice: 18481 states, 54849 runs, depth 31, 181166 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > task: the peer answers a task, the initiator queries it, drop, closeAll > P1–P14 hold
+@omne-harness/mcp:test: task: 2241 states, 5797 runs, depth 35, 16369 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > task-methods: each of the four task operations once > P1–P14 hold
+@omne-harness/mcp:test: task-methods: 8570 states, 36232 runs, depth 25, 90828 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > foreign-cancel: another principal, and the same principal text in another tenant, cancel > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: foreign-cancel: 731 states, 1473 runs, depth 17, 2692 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > foreign-task: another principal of the tenant queries the task alice started > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: foreign-task: 200 states, 361 runs, depth 16, 646 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > task-account: a task operation never reuses the connection of another peer account > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: task-account: 5568 states, 14666 runs, depth 35, 47302 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test: stdout | tests/model/calls.spec.ts > task-collision: the peer gives the task id again on another peer account of the same principal > P1–P14 hold, P12 above all
+@omne-harness/mcp:test: task-collision: 714 states, 1651 runs, depth 20, 6075 ms
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  ✓ tests/model/calls.spec.ts (14 tests) 398517ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  3302ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  1263ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  7254ms
+@omne-harness/mcp:test:      ✓ P1–P15 hold: a failure without the mark leaves the ready connection ready (P15, S7, T1); a marked one loses it  3000ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  8709ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P13 above all  5549ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P13 at the answer above all  24323ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P11 above all  181177ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  16371ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold  90829ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  2693ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  648ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  47303ms
+@omne-harness/mcp:test:      ✓ P1–P14 hold, P12 above all  6076ms
+@omne-harness/mcp:test:  ✓ tests/model/lifecycle.spec.ts (9 tests) 667315ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  43059ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  9970ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  833ms
+@omne-harness/mcp:test:      ✓ finds on throws what every schedule of throws shows  8972ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold, P8 T2 above all  122861ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold  352401ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold, P5 above all  72136ms
+@omne-harness/mcp:test:      ✓ P1–P8 hold, P5 above all  57076ms
+@omne-harness/mcp:test:  ✓  TS  tests/types.spec-d.ts (7 tests)
+@omne-harness/mcp:test: 
+@omne-harness/mcp:test:  Test Files  26 passed (26)
+@omne-harness/mcp:test:       Tests  502 passed (502)
+@omne-harness/mcp:test: Type Errors  no errors
+@omne-harness/mcp:test:    Start at  15:03:23
+@omne-harness/mcp:test:    Duration  670.96s (transform 8.87s, setup 1.15s, import 23.95s, tests 1072.92s, environment 4ms, typecheck 409ms)
+@omne-harness/mcp:test: 
+
+ Tasks:    23 successful, 23 total
+Cached:    0 cached, 23 total
+  Time:    11m17.432s 
+

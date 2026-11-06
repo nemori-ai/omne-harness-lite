@@ -1,0 +1,77 @@
+# S19 the removal warns only of unconfirmed
+# expect: red
+# edits: [{"from":"if (closed.process === 'root-only' || closed.process === 'unconfirmed')","to":"if (closed.process === 'unconfirmed')"}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)
+exit 1
+seconds 2.7
+total 13
+failed [
+ "the MCP plugin on a Cordis context, with a scripted peer process warns of the endpoint and the scope when the stop of its process is root-only at unload"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-journey.spec.ts (13 tests | 1 failed) 854ms
+     ✓ loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer 92ms
+     ✓ answers each operation of the three services through the plugin 63ms
+     ✓ signals a call in flight that cancel names 55ms
+     ✓ publishes the catalog of a stdio peer once the absent adoption port is provided 53ms
+     ✓ publishes the catalog of a stdio peer once the absent eligibility port is provided 64ms
+     ✓ publishes the catalog of a stdio peer once the absent credentials port is provided 63ms
+     ✓ publishes the catalog of a stdio peer once the absent landing port is provided 55ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 94ms
+     ✓ removes the three services, stops the peer process and releases the credential handle when the plugin unloads 61ms
+     ✓ settles a call in flight with an unknown effect when the plugin unloads 53ms
+     × warns of the endpoint and the scope when the stop of its process is root-only at unload 83ms
+     ✓ warns of the endpoint and the scope when the stop of its process is unconfirmed at unload 59ms
+     ✓ does not warn when the stop of the process is tree-confirmed at unload 56ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  15:37:08
+   Duration  1.79s (transform 508ms, setup 15ms, import 761ms, tests 854ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-S19/packages__mcp__mcp-host-local.json
+
+--- stderr
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > warns of the endpoint and the scope when the stop of its process is root-only at unload
+AssertionError: expected [] to deeply equal [ [ …(3) ] ]
+
+- Expected
++ Received
+
+- [
+-   [
+-     "the stop of the process was not confirmed",
+-     {
+-       "holding": "tenant/files",
+-       "name": "files",
+-     },
+-     "root-only",
+-   ],
+- ]
++ []
+
+ ❯ tests/cordis-journey.spec.ts:556:24
+    554|       expect(await invokeEcho(ctx)).toMatchObject({ kind: 'sent' })
+    555|       await fiber.dispose()
+    556|       expect(warnings).toEqual([['the stop of the process was not conf…
+       |                        ^
+    557|     },
+    558|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+

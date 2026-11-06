@@ -1,0 +1,31 @@
+# BASE-HL-SLOW unmutated slow file
+# expect: green
+# edits: []
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)
+exit 0
+seconds 2.5
+total 14
+failed []
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ✓ tests/cordis-journey.spec.ts (14 tests) 803ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  16:31:07
+   Duration  1.67s (transform 479ms, setup 15ms, import 706ms, tests 803ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r3/logs/report-BASE-HL-SLOW/packages__mcp__mcp-host-local.json
+
+--- stderr
+

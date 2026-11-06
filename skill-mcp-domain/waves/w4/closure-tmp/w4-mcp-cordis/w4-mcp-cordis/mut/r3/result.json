@@ -1,0 +1,152 @@
+[
+ {
+  "id": "BASE-HL-FAST",
+  "name": "unmutated fast file",
+  "expect": "green",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 0,
+  "total": 51,
+  "failed": [],
+  "fileErrors": [],
+  "log": "logs/BASE-HL-FAST.log",
+  "sha": "7f9f556ffc70"
+ },
+ {
+  "id": "BASE-HL-SLOW",
+  "name": "unmutated slow file",
+  "expect": "green",
+  "file": "tests/cordis-journey.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)",
+  "exit": 0,
+  "total": 14,
+  "failed": [],
+  "fileErrors": [],
+  "log": "logs/BASE-HL-SLOW.log",
+  "sha": "e823b3afacc8"
+ },
+ {
+  "id": "M01",
+  "name": "the plugin is named mcp-x",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 51,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process is named mcp"
+  ],
+  "fileErrors": [],
+  "log": "logs/M01.log",
+  "sha": "127237b52113"
+ },
+ {
+  "id": "M02",
+  "name": "a null configuration is not refused as a non-object",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 51,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is null",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is null, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/M02.log",
+  "sha": "6b3767a48ee9"
+ },
+ {
+  "id": "M03",
+  "name": "an undefined configuration is not refused as a non-object",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 51,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is undefined",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is undefined, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/M03.log",
+  "sha": "4d0ff831c323"
+ },
+ {
+  "id": "M04",
+  "name": "the message of maxActions names another field",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 51,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose maxActions is not a number",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose maxActions is not a number, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/M04.log",
+  "sha": "2c5fbbbf5314"
+ },
+ {
+  "id": "M05",
+  "name": "the message of instructionsByteLimit names another field",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 51,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose instructionsByteLimit is not a number",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose instructionsByteLimit is not a number, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/M05.log",
+  "sha": "3ab0d1fe1251"
+ },
+ {
+  "id": "M06",
+  "name": "the plugin never passes fetch to the transport factory",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 51,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process opens a Streamable HTTP endpoint through the fetch of the plugin parts, asking the credential for an http-authorization"
+  ],
+  "fileErrors": [],
+  "log": "logs/M06.log",
+  "sha": "266d659527e9"
+ },
+ {
+  "id": "M07",
+  "name": "the credential adapter does not forward an http-authorization acquire",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 51,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process opens a Streamable HTTP endpoint through the fetch of the plugin parts, asking the credential for an http-authorization"
+  ],
+  "fileErrors": [],
+  "log": "logs/M07.log",
+  "sha": "7f19f71b14ac"
+ },
+ {
+  "id": "M08",
+  "name": "the plugin never passes the clock to the services",
+  "expect": "red",
+  "file": "tests/cordis-journey.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)",
+  "exit": 1,
+  "total": 14,
+  "failed": [
+   "the MCP plugin on a Cordis context, with a scripted peer process stamps the published catalog with the time of the clock in the plugin parts"
+  ],
+  "fileErrors": [],
+  "log": "logs/M08.log",
+  "sha": "cc7c0d46d48c"
+ }
+]

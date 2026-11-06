@@ -1,0 +1,106 @@
+# F41 test-side: the probe removal resolves instead of throwing (the probe tests Cordis)
+# expect: red
+# edits: [{"from":"            throw failure\n","to":"            void failure\n"}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)
+exit 1
+seconds 1.8
+total 41
+failed [
+ "the MCP plugin on a Cordis context, without a process Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-entry.spec.ts (41 tests | 1 failed) 118ms
+     ✓ provides the three services on load with a complete lawful configuration and removes them when the plugin unloads 13ms
+     ✓ answers each operation of the three services while there is no connection 17ms
+     ✓ answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided 6ms
+     ✓ answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided 4ms
+     ✓ answers an unknown credential, and asks no landing, while the credential use is absent, and acquires once it is provided 5ms
+     ✓ answers landing-unavailable while the process landing is absent, and asks the landing once it is provided 4ms
+     ✓ uses the replacement eligibility at the next port call after a swap 4ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 4ms
+     ✓ uses the replacement credential use at the next port call after a swap 5ms
+     ✓ uses the replacement process landing at the next port call after a swap 4ms
+     × Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes 10ms
+       ✓ accepts a complete lawful configuration as a copy 1ms
+       ✓ accepts a configuration without a prototype 3ms
+       ✓ refuses a configuration that is not an object 1ms
+       ✓ fails to load with a configuration that is not an object, with the ValidationError of Cordis 4ms
+       ✓ refuses a configuration that is a Date 0ms
+       ✓ fails to load with a configuration that is a Date, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that inherits every field 0ms
+       ✓ fails to load with a configuration that inherits every field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that lacks a field 0ms
+       ✓ fails to load with a configuration that lacks a field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that has an extra field 0ms
+       ✓ fails to load with a configuration that has an extra field, with the ValidationError of Cordis 5ms
+       ✓ refuses a configuration that has a symbol key 0ms
+       ✓ fails to load with a configuration that has a symbol key, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration whose bound is not a number 0ms
+       ✓ fails to load with a configuration whose bound is not a number, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose probeTimeoutMs is not a number 0ms
+       ✓ fails to load with a configuration whose probeTimeoutMs is not a number, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo is not an object 0ms
+       ✓ fails to load with a configuration whose clientInfo is not an object, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo lacks a field 0ms
+       ✓ fails to load with a configuration whose clientInfo lacks a field, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo has an extra field 0ms
+       ✓ fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo.name is not a text 0ms
+       ✓ fails to load with a configuration whose clientInfo.name is not a text, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo.version is not a text 0ms
+       ✓ fails to load with a configuration whose clientInfo.version is not a text, with the ValidationError of Cordis 1ms
+       ✓ fails to load when maxActions is 0, with the RangeError of createMcp 3ms
+       ✓ fails to load when probeTimeoutMs is 0, with the RangeError of the transport factory 2ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 40 passed (41)
+Type Errors  no errors
+   Start at  15:41:27
+   Duration  953ms (transform 465ms, setup 13ms, import 682ms, tests 118ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-F41/packages__mcp__mcp-host-local.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes
+AssertionError: expected [] to deeply equal [ Error: a defect, …(1) ]
+
+- Expected
++ Received
+
+- [
+-   Error {
+-     "message": "a defect",
+-   },
+-   Error {
+-     "message": "another defect",
+-   },
+- ]
++ []
+
+ ❯ tests/cordis-entry.spec.ts:408:20
+    406|     const fiber = await ctx.plugin(probe)
+    407|     await expect(fiber.dispose()).resolves.toBeUndefined()
+    408|     expect(errors).toEqual(defects)
+       |                    ^
+    409|   })
+    410|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+

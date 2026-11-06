@@ -1,0 +1,142 @@
+[
+ {
+  "id": "BASE-HL-FAST",
+  "name": "unmutated fast file",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [],
+  "expect": "green"
+ },
+ {
+  "id": "BASE-HL-SLOW",
+  "name": "unmutated slow file",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [],
+  "expect": "green"
+ },
+ {
+  "id": "M01",
+  "name": "the plugin is named mcp-x",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "    name: 'mcp',",
+    "to": "    name: 'mcp-x',"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "M02",
+  "name": "a null configuration is not refused as a non-object",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (typeof value !== 'object' || value === null) return false",
+    "to": "if (typeof value !== 'object') return false"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "M03",
+  "name": "an undefined configuration is not refused as a non-object",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (typeof value !== 'object' || value === null) return false",
+    "to": "if (value === null) return false"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "M04",
+  "name": "the message of maxActions names another field",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (typeof maxActions !== 'number') return 'maxActions'",
+    "to": "if (typeof maxActions !== 'number') return 'maxListingPages'"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "M05",
+  "name": "the message of instructionsByteLimit names another field",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "if (typeof instructionsByteLimit !== 'number') return 'instructionsByteLimit'",
+    "to": "if (typeof instructionsByteLimit !== 'number') return 'maxActions'"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "M06",
+  "name": "the plugin never passes fetch to the transport factory",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "          ...(parts.fetch === undefined ? {} : { fetch: parts.fetch }),\n",
+    "to": ""
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "M07",
+  "name": "the credential adapter does not forward an http-authorization acquire",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-entry.spec.ts",
+  "mode": "fast",
+  "edits": [
+   {
+    "from": "    return port.acquire(access, holding, purpose, binding)\n  }\n  return { acquire }",
+    "to": "    return fail('unknown')\n  }\n  return { acquire }"
+   }
+  ],
+  "expect": "red"
+ },
+ {
+  "id": "M08",
+  "name": "the plugin never passes the clock to the services",
+  "member": "packages/mcp/mcp-host-local",
+  "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+  "test": "tests/cordis-journey.spec.ts",
+  "mode": "slow",
+  "edits": [
+   {
+    "from": "        ...(parts.clock === undefined ? {} : { clock: parts.clock }),\n",
+    "to": ""
+   }
+  ],
+  "expect": "red"
+ }
+]

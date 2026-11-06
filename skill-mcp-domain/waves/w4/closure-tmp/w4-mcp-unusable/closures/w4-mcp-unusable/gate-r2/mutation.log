@@ -1,0 +1,152 @@
+
+> omne-harness-lite-workspace@ mutation /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable
+> ./scripts/slot-unless-plan-only.sh node --experimental-strip-types tools/test-runner/src/mutation/cli.ts run --base 60acfc28b640a1535585df1ebccd22bdc87e4d7c
+
+变异范围：基线 60acfc28b640a1535585df1ebccd22bdc87e4d7c（合并点 60acfc28b）以来改动碰到的产品源码行；只跑快层（vitest 的 mode 为 fast）
+  packages/mcp/mcp：5 个文件，35 段
+  packages/mcp/mcp-contract：7 个文件，50 段
+  packages/mcp/mcp-host-local：1 个文件，8 段
+Stryker 同时 6 个工作进程（环境变量 VITEST_MAX_WORKERS 指定；预算 7 个进程：本机 8 核、空闲 100%、空闲内存 27 GiB）
+构建 3 个成员及其依赖 … 1 秒
+增量：快照在 /data/qiwei/repos/omne-harness-lite/tmp/mutation-incremental/PanQiWei%2Fskill-mcp-w4-mcp-unusable
+3 个成员并行，合起来不超过 6 个工作进程，没有每个成员上次的记录，平分；工作量大的先开始
+  开始 [2/3] packages/mcp/mcp-contract：2 个工作进程
+  开始 [1/3] packages/mcp/mcp：2 个工作进程
+  开始 [3/3] packages/mcp/mcp-host-local：2 个工作进程
+packages/mcp/mcp-contract Mutation testing 7% (elapsed: <1m, remaining: ~2m) 36/234 tested (6 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 61% (elapsed: <1m, remaining: <1m) 10/26 tested (0 survived, 0 timed out)
+packages/mcp/mcp-contract Mutation testing 15% (elapsed: <1m, remaining: ~1m) 59/234 tested (8 survived, 0 timed out)
+[3/3] packages/mcp/mcp-host-local 46 秒，存活 1、无覆盖 0、没有变异体的改动 2 段
+packages/mcp/mcp-contract Mutation testing 24% (elapsed: <1m, remaining: ~1m) 80/234 tested (12 survived, 0 timed out)
+packages/mcp/mcp-contract Mutation testing 35% (elapsed: <1m, remaining: ~1m) 99/234 tested (13 survived, 0 timed out)
+packages/mcp/mcp-contract Mutation testing 48% (elapsed: <1m, remaining: <1m) 129/234 tested (16 survived, 1 timed out)
+packages/mcp/mcp-contract Mutation testing 63% (elapsed: ~1m, remaining: <1m) 162/234 tested (18 survived, 1 timed out)
+packages/mcp/mcp-contract Mutation testing 71% (elapsed: ~1m, remaining: <1m) 182/234 tested (23 survived, 1 timed out)
+packages/mcp/mcp-contract Mutation testing 72% (elapsed: ~1m, remaining: <1m) 186/234 tested (23 survived, 1 timed out)
+packages/mcp/mcp-contract Mutation testing 80% (elapsed: ~1m, remaining: <1m) 209/234 tested (25 survived, 3 timed out)
+packages/mcp/mcp-contract Mutation testing 81% (elapsed: ~1m, remaining: <1m) 211/234 tested (25 survived, 5 timed out)
+packages/mcp/mcp-contract Mutation testing 91% (elapsed: ~1m, remaining: <1m) 228/234 tested (26 survived, 5 timed out)
+[2/3] packages/mcp/mcp-contract 141 秒，测量无效，存活 24、无覆盖 11、不计分 9、没有变异体的改动 28 段
+packages/mcp/mcp Mutation testing 3% (elapsed: <1m, remaining: ~4m) 19/69 tested (2 survived, 0 timed out)
+packages/mcp/mcp Mutation testing 29% (elapsed: <1m, remaining: <1m) 33/69 tested (2 survived, 0 timed out)
+packages/mcp/mcp Mutation testing 29% (elapsed: <1m, remaining: ~1m) 33/69 tested (2 survived, 0 timed out)
+packages/mcp/mcp Mutation testing 29% (elapsed: <1m, remaining: ~1m) 33/69 tested (2 survived, 0 timed out)
+packages/mcp/mcp Mutation testing 36% (elapsed: <1m, remaining: ~1m) 36/69 tested (2 survived, 0 timed out)
+packages/mcp/mcp Mutation testing 36% (elapsed: ~1m, remaining: ~1m) 36/69 tested (2 survived, 0 timed out)
+packages/mcp/mcp Mutation testing 53% (elapsed: ~1m, remaining: ~1m) 46/69 tested (4 survived, 0 timed out)
+[1/3] packages/mcp/mcp 228 秒，测量无效，存活 3、无覆盖 0、不计分 3、没有变异体的改动 20 段
+变异范围：基线 60acfc28b640a1535585df1ebccd22bdc87e4d7c（合并点 60acfc28b）以来改动碰到的产品源码行；只跑快层（vitest 的 mode 为 fast）；提交 4209b33a7
+packages/mcp/mcp：变异体 69 个——被杀 63、超时 0、存活 3、无覆盖 0、编译错误 0、运行错误 0、没跑测试 3；分数 —（测量无效；未覆盖 20 段：改动上没有变异体）
+  类型测试：初跑 7 项；static 变异体的运行 2 次，其中 2 次没有跑类型测试（上游复用 Vitest 实例，类型测试不随变异体改变结果）
+  存活 packages/mcp/mcp/src/discovery.ts:108 ConditionalExpression `failure.kind === 'not-sent'` → `true`
+  存活 packages/mcp/mcp/src/internal/build.ts:139 ConditionalExpression `failure.kind === 'answer-malformed'` → `false`
+  存活 packages/mcp/mcp/src/internal/build.ts:139 StringLiteral `'answer-malformed'` → `""`
+  没有变异体 packages/mcp/mcp/src/calls.ts:43
+  没有变异体 packages/mcp/mcp/src/calls.ts:301
+  没有变异体 packages/mcp/mcp/src/calls.ts:304-305
+  没有变异体 packages/mcp/mcp/src/discovery.ts:17
+  没有变异体 packages/mcp/mcp/src/discovery.ts:32
+  没有变异体 packages/mcp/mcp/src/discovery.ts:149-150
+  没有变异体 packages/mcp/mcp/src/discovery.ts:152
+  没有变异体 packages/mcp/mcp/src/discovery.ts:154-155
+  没有变异体 packages/mcp/mcp/src/internal/build.ts:19
+  没有变异体 packages/mcp/mcp/src/internal/build.ts:43
+  没有变异体 packages/mcp/mcp/src/internal/build.ts:115-118
+  没有变异体 packages/mcp/mcp/src/internal/build.ts:121
+  没有变异体 packages/mcp/mcp/src/internal/build.ts:126
+  没有变异体 packages/mcp/mcp/src/internal/lost.ts:2-8
+  没有变异体 packages/mcp/mcp/src/internal/lost.ts:9
+  没有变异体 packages/mcp/mcp/src/internal/lost.ts:12-13
+  没有变异体 packages/mcp/mcp/src/internal/lost.ts:102-113
+  没有变异体 packages/mcp/mcp/src/internal/lost.ts:128
+  没有变异体 packages/mcp/mcp/src/tasks.ts:24
+  没有变异体 packages/mcp/mcp/src/tasks.ts:141-143
+  没跑测试 packages/mcp/mcp/src/discovery.ts:104 ConditionalExpression `!('failure' in page)` → `false`
+  没跑测试 packages/mcp/mcp/src/internal/lost.ts:118 ConditionalExpression `answer.cause === 'authorization-required'` → `true`
+  没跑测试 packages/mcp/mcp/src/internal/lost.ts:118 StringLiteral `'authorization-required'` → `""`
+packages/mcp/mcp-contract：变异体 234 个——被杀 190、超时 0、存活 24、无覆盖 11、编译错误 0、运行错误 0、没跑测试 4、超时未复核 5；分数 —（测量无效；未覆盖 28 段：改动上没有变异体）
+  类型测试：初跑 9 项；static 变异体的运行 9 次，其中 8 次没有跑类型测试（上游复用 Vitest 实例，类型测试不随变异体改变结果）
+  存活 packages/mcp/mcp-contract/src/answer-readings.ts:75 ConditionalExpression `failure.cause === 'authorization-required' || failure.unusable === undefined` → `false`
+  存活 packages/mcp/mcp-contract/src/answer-readings.ts:75 LogicalOperator `failure.cause === 'authorization-required' || failure.unusable === undefined` → `failure.cause === 'authorization-required' && failure.unusable === undefined`
+  存活 packages/mcp/mcp-contract/src/answer-readings.ts:75 ConditionalExpression `failure.cause === 'authorization-required'` → `false`
+  存活 packages/mcp/mcp-contract/src/answer-readings.ts:75 StringLiteral `'authorization-required'` → `""`
+  存活 packages/mcp/mcp-contract/src/answer-readings.ts:75 ConditionalExpression `failure.unusable === undefined` → `false`
+  存活 packages/mcp/mcp-contract/src/decisions.ts:173 StringLiteral `'result'` → `""`
+  存活 packages/mcp/mcp-contract/src/decisions.ts:176 ConditionalExpression `case 'legacy-http': return wire` → `case 'legacy-http':`
+  存活 packages/mcp/mcp-contract/src/testing-scripted-transport.ts:392 ConditionalExpression `this.closed || this.dead === undefined` → `true`
+  存活 packages/mcp/mcp-contract/src/testing-scripted-transport.ts:788 ConditionalExpression `signal.aborted` → `false`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:811 ConditionalExpression `cause === undefined` → `false`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:824 ConditionalExpression `failure.kind !== 'not-sent'` → `false`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:826 ConditionalExpression `failure.cause === 'connection-unavailable'` → `true`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:835 ConditionalExpression `cause === 'stream-broken' || cause === 'process-exited'` → `true`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:841 ConditionalExpression `unusable === undefined` → `false`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:878 ConditionalExpression `expected.cause === 'session-ended'` → `false`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:878 StringLiteral `'session-ended'` → `""`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:1122 StringLiteral `'discover'` → `""`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:1162 StringLiteral `'discover'` → `""`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:1188 StringLiteral `'call'` → `""`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:1402 StringLiteral（static） `'T1'` → `""`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:1414 StringLiteral `'discover'` → `""`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:1416 StringLiteral `'call'` → `""`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:1430 StringLiteral（static） `'T1'` → `""`
+  存活 packages/mcp/mcp-contract/src/testing-transport.ts:1438 StringLiteral `'discover'` → `""`
+  无覆盖 packages/mcp/mcp-contract/src/decisions.ts:167 ConditionalExpression `default: { const exhaustive: never = failure return exhaustive }` → `default:`
+  无覆盖 packages/mcp/mcp-contract/src/decisions.ts:167 BlockStatement `{ const exhaustive: never = failure return exhaustive }` → `{}`
+  无覆盖 packages/mcp/mcp-contract/src/decisions.ts:174 StringLiteral `'error'` → `""`
+  无覆盖 packages/mcp/mcp-contract/src/decisions.ts:175 StringLiteral `'legacy-peer'` → `""`
+  无覆盖 packages/mcp/mcp-contract/src/decisions.ts:176 StringLiteral `'legacy-http'` → `""`
+  无覆盖 packages/mcp/mcp-contract/src/decisions.ts:178 ConditionalExpression `default: { const exhaustive: never = wire return exhaustive }` → `default:`
+  无覆盖 packages/mcp/mcp-contract/src/decisions.ts:178 BlockStatement `{ const exhaustive: never = wire return exhaustive }` → `{}`
+  无覆盖 packages/mcp/mcp-contract/src/testing-scripted-transport.ts:393 ObjectLiteral `{ ...answered, wire: unusableAnswerOf(answered.wire, this.dead) }` → `{}`
+  无覆盖 packages/mcp/mcp-contract/src/testing-scripted-transport.ts:788 ObjectLiteral `{ failure: this.refused }` → `{}`
+  无覆盖 packages/mcp/mcp-contract/src/testing-transport.ts:812 StringLiteral ``a row that ends the transport concludes ${JSON.stringify(conclusion)}`` → ````
+  无覆盖 packages/mcp/mcp-contract/src/testing-transport.ts:828 ConditionalExpression `default: return undefined` → `default:`
+  没有变异体 packages/mcp/mcp-contract/src/answer-readings.ts:5-11
+  没有变异体 packages/mcp/mcp-contract/src/answer-readings.ts:61-64
+  没有变异体 packages/mcp/mcp-contract/src/answer-readings.ts:81
+  没有变异体 packages/mcp/mcp-contract/src/decisions.ts:11-16
+  没有变异体 packages/mcp/mcp-contract/src/decisions.ts:52-53
+  没有变异体 packages/mcp/mcp-contract/src/decisions.ts:63-65
+  没有变异体 packages/mcp/mcp-contract/src/decisions.ts:72
+  没有变异体 packages/mcp/mcp-contract/src/decisions.ts:76
+  没有变异体 packages/mcp/mcp-contract/src/decisions.ts:80
+  没有变异体 packages/mcp/mcp-contract/src/decisions.ts:463-464
+  没有变异体 packages/mcp/mcp-contract/src/decisions.ts:517-520
+  没有变异体 packages/mcp/mcp-contract/src/decisions.ts:528
+  没有变异体 packages/mcp/mcp-contract/src/index.ts:140
+  没有变异体 packages/mcp/mcp-contract/src/index.ts:145
+  没有变异体 packages/mcp/mcp-contract/src/outcomes.ts:65-74
+  没有变异体 packages/mcp/mcp-contract/src/outcomes.ts:78
+  没有变异体 packages/mcp/mcp-contract/src/testing-scripted-transport.ts:37
+  没有变异体 packages/mcp/mcp-contract/src/testing-scripted-transport.ts:40
+  没有变异体 packages/mcp/mcp-contract/src/testing-transport.ts:17
+  没有变异体 packages/mcp/mcp-contract/src/testing-transport.ts:848
+  没有变异体 packages/mcp/mcp-contract/src/testing-transport.ts:854
+  没有变异体 packages/mcp/mcp-contract/src/testing-transport.ts:864-867
+  没有变异体 packages/mcp/mcp-contract/src/testing-transport.ts:871
+  没有变异体 packages/mcp/mcp-contract/src/transport.ts:13
+  没有变异体 packages/mcp/mcp-contract/src/transport.ts:25-28
+  没有变异体 packages/mcp/mcp-contract/src/transport.ts:31
+  没有变异体 packages/mcp/mcp-contract/src/transport.ts:33
+  没有变异体 packages/mcp/mcp-contract/src/transport.ts:39
+  没跑测试 packages/mcp/mcp-contract/src/decisions.ts:125 ObjectLiteral `{ kind: 'settle', wire: unusableAnswerOf(wire, unusable), unusable }` → `{}`
+  没跑测试 packages/mcp/mcp-contract/src/decisions.ts:165 ConditionalExpression `case 'connection-unavailable': return { kind: 'not-sent', failure: { ...failure,…` → `case 'connection-unavailable':`
+  没跑测试 packages/mcp/mcp-contract/src/decisions.ts:165 StringLiteral `'connection-unavailable'` → `""`
+  没跑测试 packages/mcp/mcp-contract/src/decisions.ts:425 ObjectLiteral `{ kind: 'no-answer', cause, unusable }` → `{}`
+  超时未复核 packages/mcp/mcp-contract/src/testing-scripted-transport.ts:404 CallExpression `entry.resolve(this.handedOver(answered))` → `;`
+  超时未复核 packages/mcp/mcp-contract/src/testing-transport.ts:1410 ObjectLiteral `{ kind: 'http', status: 404 }` → `{}`
+  超时未复核 packages/mcp/mcp-contract/src/testing-transport.ts:1410 StringLiteral `'http'` → `""`
+  超时未复核 packages/mcp/mcp-contract/src/testing-transport.ts:1435 ObjectLiteral `{ kind: 'process-exits' }` → `{}`
+  超时未复核 packages/mcp/mcp-contract/src/testing-transport.ts:1435 StringLiteral `'process-exits'` → `""`
+packages/mcp/mcp-host-local：变异体 26 个——被杀 25、超时 0、存活 1、无覆盖 0、编译错误 0、运行错误 0；分数 96.2%（只算有变异体的改动段；未覆盖 2 段：改动上没有变异体）
+  类型测试：没测到，static 运行中有没有缺席不明（类型检查开着，初跑却没数到类型测试：成员可能没有类型测试文件，也可能 Vitest 改了类型测试池的名字）
+  存活 packages/mcp/mcp-host-local/src/session.ts:979 ConditionalExpression `signal.aborted` → `false`
+  没有变异体 packages/mcp/mcp-host-local/src/session.ts:47
+  没有变异体 packages/mcp/mcp-host-local/src/session.ts:57
+出错 packages/mcp/mcp：3 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 /data/qiwei/repos/omne-harness-lite/tmp/mutation-ledger/4209b33a7/20261106-180843/packages__mcp__mcp.log
+出错 packages/mcp/mcp-contract：4 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 /data/qiwei/repos/omne-harness-lite/tmp/mutation-ledger/4209b33a7/20261106-180843/packages__mcp__mcp-contract.log
+出错 packages/mcp/mcp-contract：5 个变异体只因时限到了而超时，没有得到单独复核的判定，没有计分；判为测量无效，没有复核：第一遍已无效，或复核的 Stryker 出错（见上一条），日志 /data/qiwei/repos/omne-harness-lite/tmp/mutation-ledger/4209b33a7/20261106-180843/packages__mcp__mcp-contract.log
+增量：复用上次被杀的变异体（不重跑）——packages/mcp/mcp 0、packages/mcp/mcp-contract 0、packages/mcp/mcp-host-local 0；复用只在被变异的代码与杀死它的测试都没变时发生；--no-incremental 或 OMNE_MUTATION_INCREMENTAL=0 关闭，--force 全部重跑
+存活、无覆盖只是线索：判定会抖，要复跑确认；static 变异体只能跑全部测试；没改的代码不在范围内。
+账本与各成员日志：/data/qiwei/repos/omne-harness-lite/tmp/mutation-ledger/4209b33a7/20261106-180843
+ ELIFECYCLE  Command failed with exit code 1.

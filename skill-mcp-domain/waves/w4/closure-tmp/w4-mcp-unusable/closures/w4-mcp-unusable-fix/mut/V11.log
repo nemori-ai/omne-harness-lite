@@ -1,0 +1,26 @@
+id: V11
+head: 0961b30e9
+time: 2026-11-06T16:59:16Z
+file: packages/mcp/mcp/src/internal/lost.ts
+--- diff
+diff --git a/packages/mcp/mcp/src/internal/lost.ts b/packages/mcp/mcp/src/internal/lost.ts
+index 1203ee06c..01bb07af5 100644
+--- a/packages/mcp/mcp/src/internal/lost.ts
++++ b/packages/mcp/mcp/src/internal/lost.ts
+@@ -90,7 +90,7 @@ export function connectionFailureOf(failure: NotSent): ConnectionFailure {
+ export function connectionFailureOfBuild(
+   failure: Extract<EnsureFailure, { stage: 'connect' }>,
+ ): ConnectionFailure {
+-  return failure.reason.kind === 'effect-unknown' ? CONNECTION_UNAVAILABLE : failure.reason
++  return failure.reason
+ }
+ 
+ const AUTHORIZATION_REQUIRED: Lost = {
+build after change: 1
+--- command: (cd packages/mcp/mcp && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/tasks.spec.ts --reporter=default --reporter=json --outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable-fix/mut/V11.json)
+exit: 1
+--- failed (from JSON report)
+a task request the build does not get to send (SPEC S2, R7, MC-17 step 3) a discover without an answer on the new connection is connection-unavailable, not effect-unknown
+restored: byte-identical
+git diff --quiet: clean
+build after restore: 0

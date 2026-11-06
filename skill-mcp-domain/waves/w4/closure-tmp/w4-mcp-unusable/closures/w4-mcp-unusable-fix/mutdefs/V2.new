@@ -1,0 +1,4 @@
+  if (failure.kind === 'no-answer' && failure.cause !== 'abandoned') return failure.cause
+  return failure.kind === 'error-answer' || failure.kind === 'answer-malformed'
+    ? 'discover-failed'
+    : 'preparation-failed'

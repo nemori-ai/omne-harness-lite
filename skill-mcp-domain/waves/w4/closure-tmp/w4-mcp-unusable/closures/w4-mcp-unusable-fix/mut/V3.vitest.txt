@@ -1,0 +1,80 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+
+ ❯ tests/lost.spec.ts (19 tests | 2 failed) 31ms
+     ✓ rule 1: an answer with the mark ({ kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' }) loses the connection for the mark, not the cause (stream-broken), and marks the catalog connection-unavailable 2ms
+     ✓ rule 1: an answer with the mark ({ kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }) loses the connection for the mark, not the cause (session-ended), and marks the catalog connection-unavailable 0ms
+     ✓ rule 1: an answer with the mark ({ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }) loses the connection for the mark, not the cause (process-exited), and marks the catalog connection-unavailable 0ms
+     ✓ rule 1: an answer with the mark ({ kind: 'no-answer', cause: 'abandoned', unusable: 'stream-broken' }) loses the connection for the mark, not the cause (stream-broken), and marks the catalog connection-unavailable 0ms
+     ✓ rule 2: not-sent (authorization-required) loses the connection for it and marks the catalog with it 0ms
+     ✓ rule 3: { kind: 'not-sent', cause: 'connection-unavailable' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'not-sent', cause: 'session-ended' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'no-answer', cause: 'stream-broken' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'no-answer', cause: 'process-exited' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'no-answer', cause: 'abandoned' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'error-answer', code: -32603, message: 'internal' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'answer-malformed', what: 'tools-missing' } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'result', result: { kind: 'object', entries: [] } } without the mark leaves the connection as it is 0ms
+     ✓ rule 3: { kind: 'error', error: { kind: 'object', entries: [ { key: 'code', value: { kind: 'number', lexeme: '-32603' } }, { key: 'message', value: { kind: 'string', value: 'internal' } } ] } } without the mark leaves the connection as it is 0ms
+     × { kind: 'no-answer', cause: 'abandoned', unusable: 'process-exited' } loses the ready connection for process-exited 17ms
+     × { kind: 'not-sent', cause: 'authorization-required', discovery: { resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource', metadata: 'unavailable', issuers: [], scopes: [] } } loses the ready connection for authorization-required 2ms
+     ✓ { kind: 'no-answer', cause: 'stream-broken' } leaves the ready connection ready 1ms
+     ✓ { kind: 'not-sent', cause: 'connection-unavailable' } leaves the ready connection ready 1ms
+     ✓ { kind: 'error', error: { kind: 'object', entries: [ { key: 'code', value: { kind: 'number', lexeme: '-32603' } }, { key: 'message', value: { kind: 'string', value: 'internal' } } ] } } leaves the ready connection ready 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/lost.spec.ts > loseIfLost: the one place a request hands what lostOf found to the table > { kind: 'no-answer', cause: 'abandoned', unusable: 'process-exited' } loses the ready connection for process-exited
+AssertionError: expected { kind: 'ready' } to match object { kind: 'lost', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "kind": "lost",
+-   "reason": "process-exited",
++   "kind": "ready",
+  }
+
+ ❯ tests/lost.spec.ts:80:50
+     78|     const { table, ensured, holding } = await readyTable()
+     79|     loseIfLost(table, ensured, answer)
+     80|     expect(table.stateOf(alice.tenant, holding)).toMatchObject({ kind:…
+       |                                                  ^
+     81|   })
+     82|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/lost.spec.ts > loseIfLost: the one place a request hands what lostOf found to the table > { kind: 'not-sent', cause: 'authorization-required', discovery: { resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource', metadata: 'unavailable', issuers: [], scopes: [] } } loses the ready connection for authorization-required
+AssertionError: expected { kind: 'ready' } to match object { kind: 'lost', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "kind": "lost",
+-   "reason": "authorization-required",
++   "kind": "ready",
+  }
+
+ ❯ tests/lost.spec.ts:80:50
+     78|     const { table, ensured, holding } = await readyTable()
+     79|     loseIfLost(table, ensured, answer)
+     80|     expect(table.stateOf(alice.tenant, holding)).toMatchObject({ kind:…
+       |                                                  ^
+     81|   })
+     82|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 17 passed (19)
+Type Errors  no errors
+   Start at  16:59:12
+   Duration  786ms (transform 396ms, setup 19ms, import 589ms, tests 31ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable-fix/mut/V3.json

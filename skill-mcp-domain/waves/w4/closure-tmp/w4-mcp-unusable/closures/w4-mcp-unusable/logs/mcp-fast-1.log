@@ -1,0 +1,172 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+
+ ❯ tests/refresh.spec.ts (41 tests | 2 failed) 144ms
+     × a page not sent: connection-unavailable, the connection lost and the record marked 12ms
+     × marking after a connection failure meets a revision conflict: kept (superseded) 2ms
+ ❯ tests/races.spec.ts (29 tests | 3 failed) 616ms
+     × keeps the rebuilt connection ready, its transport open and its process running 15ms
+     × a release during the teardown of a lost connection waits for it; the next refresh builds 3ms
+     × a refresh during the teardown of a lost connection waits for it, then builds 3ms
+ ❯ tests/cancel.spec.ts (19 tests | 1 failed) 169ms
+     × that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: only connection-unavailable is the reply to a fired signal (T5) 15ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cancel.spec.ts > a cancel after the send (SPEC S2, MC-16 step 11) > that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: only connection-unavailable is the reply to a fired signal (T5)
+AssertionError: expected { ok: { ref: { …(2) }, …(3) } } to match object { ok: { connection: { …(2) } } }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "connection": {
+-       "kind": "lost",
+-       "reason": "session-ended",
++       "kind": "ready",
+      },
+    },
+  }
+
+ ❯ tests/cancel.spec.ts:239:50
+    237|     expect(await call).toEqual({ kind: 'not-sent', reason: { kind: 'ca…
+    238|     expect(base.p.cancels()).toBe(0)
+    239|     expect(await s.status.inspect(alice, files)).toMatchObject({
+       |                                                  ^
+    240|       ok: { connection: { kind: 'lost', reason: 'session-ended' } },
+    241|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/races.spec.ts > late results (B2): a page from an earlier generation does not touch the new connection > keeps the rebuilt connection ready, its transport open and its process running
+AssertionError: expected { ok: { kind: 'kept', …(1) } } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+-   "failure": {
+-     "kind": "connection-unavailable",
++   "ok": {
++     "kind": "kept",
++     "reason": {
++       "defect": "page-failed",
++       "kind": "listing-incomplete",
++     },
+    },
+  }
+
+ ❯ tests/races.spec.ts:133:62
+    131|     await settled()
+    132|     // A second refresh on generation 1 finds the connection gone; a t…
+    133|     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
+       |                                                              ^
+    134|       failure: { kind: 'connection-unavailable' },
+    135|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/races.spec.ts > lose shares the close (R3-1): one teardown per entry, in the close order > a release during the teardown of a lost connection waits for it; the next refresh builds
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/races.spec.ts:340:70
+    338|     await settled()
+    339|     // The transport is closing. Nothing else of the close order has h…
+    340|     expect(w.transports.calls.filter(call => call.kind === 'close')).t…
+       |                                                                      ^
+    341|     expect(w.trace).toEqual([])
+    342|     let released = false
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/races.spec.ts > lose shares the close (R3-1): one teardown per entry, in the close order > a refresh during the teardown of a lost connection waits for it, then builds
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/races.spec.ts:382:22
+    380|     })
+    381|     await settled()
+    382|     expect(answered).toBe(false)
+       |                      ^
+    383|     expect(w.transports.calls.filter(call => call.kind === 'open')).to…
+    384|     closing.resolve('closed')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/refresh.spec.ts > refresh fails > a page not sent: connection-unavailable, the connection lost and the record marked
+AssertionError: expected { ok: { kind: 'kept', …(1) } } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+-   "failure": {
+-     "kind": "connection-unavailable",
++   "ok": {
++     "kind": "kept",
++     "reason": {
++       "defect": "page-failed",
++       "kind": "listing-incomplete",
++     },
+    },
+  }
+
+ ❯ tests/refresh.spec.ts:257:60
+    255|     adoptStdio(w, files)
+    256|     const before = await storedRecord(w, anonymousKey, ['old'])
+    257|     expect(await discovery.refresh(alice, { ref: files })).toEqual({
+       |                                                            ^
+    258|       failure: { kind: 'connection-unavailable' },
+    259|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/refresh.spec.ts > refresh fails > marking after a connection failure meets a revision conflict: kept (superseded)
+AssertionError: expected { ok: { kind: 'kept', …(1) } } to deeply equal { ok: { kind: 'kept', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "kind": "kept",
+      "reason": {
+-       "kind": "superseded",
++       "defect": "page-failed",
++       "kind": "listing-incomplete",
+      },
+    },
+  }
+
+ ❯ tests/refresh.spec.ts:325:56
+    323|     }
+    324|     const { discovery: other } = core(conflicting)
+    325|     expect(await other.refresh(alice, { ref: files })).toEqual({
+       |                                                        ^
+    326|       ok: { kind: 'kept', reason: { kind: 'superseded' } },
+    327|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  3 failed | 20 passed (23)
+      Tests  6 failed | 444 passed (450)
+Type Errors  no errors
+   Start at  13:12:44
+   Duration  3.81s (transform 1.17s, setup 254ms, import 5.69s, tests 2.76s, environment 3ms, typecheck 460ms)
+

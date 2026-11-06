@@ -1,0 +1,4 @@
+
+> omne-harness-lite-workspace@ lint:oxlint /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis
+> oxlint -c .oxlintrc.json --report-unused-disable-directives tools scripts packages apps
+

@@ -1,0 +1,51 @@
+
+   • turbo 2.11.7
+   • Packages in scope: @omne-harness/mcp
+   • Running build in 1 package
+   • Remote caching disabled, using shared worktree cache
+
+@omne-harness/content-block:build: cache bypass, force executing 0f0fbb244a6d6788
+@omne-harness/operation-result:build: cache bypass, force executing 7b090f47e0dc0b38
+@omne-harness/json-text:build: cache bypass, force executing 1083ecb6d3cb9528
+@omne-harness/legal-identity:build: cache bypass, force executing ee982a7601f3e3e7
+@omne-harness/settings:build: cache bypass, force executing 3480c46c9d29987f
+@omne-harness/legal-identity:build: 
+@omne-harness/legal-identity:build: > @omne-harness/legal-identity@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/legal-identity
+@omne-harness/legal-identity:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/legal-identity:build: 
+@omne-harness/json-text:build: 
+@omne-harness/json-text:build: > @omne-harness/json-text@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/json-text
+@omne-harness/json-text:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/json-text:build: 
+@omne-harness/operation-result:build: 
+@omne-harness/operation-result:build: > @omne-harness/operation-result@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/operation-result
+@omne-harness/operation-result:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/operation-result:build: 
+@omne-harness/content-block:build: 
+@omne-harness/content-block:build: > @omne-harness/content-block@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/content-block
+@omne-harness/content-block:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/content-block:build: 
+@omne-harness/settings:build: 
+@omne-harness/settings:build: > @omne-harness/settings@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/settings
+@omne-harness/settings:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/settings:build: 
+@omne-harness/assets:build: cache bypass, force executing c7c38375dd45e536
+@omne-harness/assets:build: 
+@omne-harness/assets:build: > @omne-harness/assets@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/assets
+@omne-harness/assets:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/assets:build: 
+@omne-harness/mcp-contract:build: cache bypass, force executing 7ba30ee3c1cdcb3b
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp-contract:build: > @omne-harness/mcp-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp:build: cache bypass, force executing f2f93642ed13a400
+@omne-harness/mcp:build: 
+@omne-harness/mcp:build: > @omne-harness/mcp@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+@omne-harness/mcp:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp:build: 
+
+ Tasks:    8 successful, 8 total
+Cached:    0 cached, 8 total
+  Time:    3.766s 
+

@@ -1,0 +1,19 @@
+== packages/mcp/mcp (5,49,52)
+mutate 3 exit 0
+== packages/mcp/mcp-contract (23,46,47,66,81,198,199,228,229)
+mutate 9 exit 0
+packages/mcp/mcp: 95.7% after recheck (killed 66, timeout 0, survived 3, no coverage 0; rechecked 3, unresolved 0)
+  notRun packages/mcp/mcp/src/discovery.ts:104 ConditionalExpression → Killed
+  notRun packages/mcp/mcp/src/internal/lost.ts:118 ConditionalExpression → Killed
+  notRun packages/mcp/mcp/src/internal/lost.ts:118 StringLiteral → Killed
+packages/mcp/mcp-contract: 85.0% after recheck (killed 199, timeout 0, survived 24, no coverage 11; rechecked 9, unresolved 0)
+  notRun packages/mcp/mcp-contract/src/decisions.ts:125 ObjectLiteral → Killed
+  notRun packages/mcp/mcp-contract/src/decisions.ts:165 ConditionalExpression → Killed
+  notRun packages/mcp/mcp-contract/src/decisions.ts:165 StringLiteral → Killed
+  notRun packages/mcp/mcp-contract/src/decisions.ts:425 ObjectLiteral → Killed
+  timeoutUnchecked packages/mcp/mcp-contract/src/testing-scripted-transport.ts:404 CallExpression → Killed
+  timeoutUnchecked packages/mcp/mcp-contract/src/testing-transport.ts:1410 ObjectLiteral → Killed
+  timeoutUnchecked packages/mcp/mcp-contract/src/testing-transport.ts:1410 StringLiteral → Killed
+  timeoutUnchecked packages/mcp/mcp-contract/src/testing-transport.ts:1435 ObjectLiteral → Killed
+  timeoutUnchecked packages/mcp/mcp-contract/src/testing-transport.ts:1435 StringLiteral → Killed
+packages/mcp/mcp-host-local: 96.2% (valid first pass, no recheck)

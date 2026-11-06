@@ -1,0 +1,54 @@
+[
+ {
+  "id": "BASE-HL-FAST",
+  "name": "unmutated",
+  "expect": "green",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 0,
+  "total": 41,
+  "failed": [],
+  "fileErrors": [],
+  "log": "logs/BASE-HL-FAST.log",
+  "sha": "beb9dfec5723"
+ },
+ {
+  "id": "BASE-HL-SLOW",
+  "name": "unmutated",
+  "expect": "green",
+  "file": "tests/cordis-journey.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)",
+  "exit": 0,
+  "total": 13,
+  "failed": [],
+  "fileErrors": [],
+  "log": "logs/BASE-HL-SLOW.log",
+  "sha": "5a7cc1e7ed1c"
+ },
+ {
+  "id": "BASE-CC-ENTRY",
+  "name": "unmutated",
+  "expect": "green",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-cordis-contract && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 0,
+  "total": 10,
+  "failed": [],
+  "fileErrors": [],
+  "log": "logs/BASE-CC-ENTRY.log",
+  "sha": "e100a1c26282"
+ },
+ {
+  "id": "BASE-CC-ROOT",
+  "name": "unmutated",
+  "expect": "green",
+  "file": "tests/public-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-cordis-contract && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/public-entry.spec.ts)",
+  "exit": 0,
+  "total": 2,
+  "failed": [],
+  "fileErrors": [],
+  "log": "logs/BASE-CC-ROOT.log",
+  "sha": "08204fc06584"
+ }
+]

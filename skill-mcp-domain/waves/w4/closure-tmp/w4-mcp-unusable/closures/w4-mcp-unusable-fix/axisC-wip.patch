@@ -1,0 +1,245 @@
+diff --git a/packages/mcp/mcp/src/internal/build.ts b/packages/mcp/mcp/src/internal/build.ts
+index ef705a541..45984e9b6 100644
+--- a/packages/mcp/mcp/src/internal/build.ts
++++ b/packages/mcp/mcp/src/internal/build.ts
+@@ -17,7 +17,6 @@ import {
+   type LostReason,
+   type McpConfig,
+   type McpPorts,
+-  type NoAnswerCause,
+   type PeerIdentity,
+ } from '@omne-harness/mcp-contract'
+ import type {
+@@ -41,6 +40,7 @@ import {
+   type UnavailableMark,
+ } from './entry.ts'
+ import { closeArrived, landArrived, releaseArrived, type LandingFailure } from './late.ts'
++import { connectionFailureOf, lostOf } from './lost.ts'
+ import { ask, within, type Settle, type StartBound } from './port.ts'
+ import type { Spawn } from './scope.ts'
+ import type { PreparedSettings } from './settings.ts'
+@@ -98,41 +98,32 @@ const LANDING_BREACH = fail<LandingFailure>('unknown')
+ const OPEN_BREACH = fail<TransportFailure>({ kind: 'not-sent', cause: 'connection-unavailable' })
+ const DISCOVER_BREACH = fail<TransportFailure>({ kind: 'no-answer', cause: 'abandoned' })
+ 
+-function lostOfNoAnswer(cause: NoAnswerCause): LostReason {
+-  switch (cause) {
+-    case 'stream-broken':
+-      return 'stream-broken'
+-    case 'process-exited':
+-      return 'process-exited'
+-    case 'abandoned':
+-      return 'preparation-failed'
+-    default: {
+-      const exhaustive: never = cause
+-      return exhaustive
+-    }
++/**
++ * How a failure of `open` or `discover` is reported (SPEC R6, S5, S7, MC-5): the connection
++ * failure for the caller, by the kind of the failure; the `lost` reason and the catalog mark from
++ * `lostOf` first, as on a ready connection, and from the build rule when it gives none.
++ */
++function failedOf(failure: TransportFailure): Failed {
++  const lost = lostOf(failure)
++  return {
++    reason: connectionFailureOfBuildStep(failure),
++    lost: lost?.reason ?? buildLostReasonOf(failure),
++    mark: lost?.mark ?? 'connection-unavailable',
+   }
+ }
+ 
+-/** How a failure of `open` or `discover` is reported (SPEC R6, S5, S7). */
+-function failedOf(failure: TransportFailure): Failed {
++/** The connection failure of a failed `open` or `discover` (SPEC R6). */
++function connectionFailureOfBuildStep(
++  failure: TransportFailure,
++): ConnectionFailure | EffectUnknown {
+   switch (failure.kind) {
+     case 'not-sent':
+-      return failure.cause === 'authorization-required'
+-        ? {
+-            reason: { kind: 'authorization-required', discovery: failure.discovery },
+-            lost: 'authorization-required',
+-            mark: 'authorization-required',
+-          }
+-        : PREPARATION_FAILED
++      return connectionFailureOf(failure)
+     case 'no-answer':
+-      return {
+-        reason: { kind: 'effect-unknown', cause: failure.cause },
+-        lost: lostOfNoAnswer(failure.cause),
+-        mark: 'connection-unavailable',
+-      }
++      return { kind: 'effect-unknown', cause: failure.cause }
+     case 'error-answer':
+     case 'answer-malformed':
+-      return { ...PREPARATION_FAILED, lost: 'discover-failed' }
++      return CONNECTION_UNAVAILABLE
+     default: {
+       const exhaustive: never = failure
+       return exhaustive
+@@ -140,6 +131,16 @@ function failedOf(failure: TransportFailure): Failed {
+   }
+ }
+ 
++/**
++ * The build rule (MC-5) for a failure `lostOf` gives no reason for: an answer of the peer that is
++ * an error or unreadable is `discover-failed`; anything else is `preparation-failed`.
++ */
++function buildLostReasonOf(failure: TransportFailure): LostReason {
++  return failure.kind === 'error-answer' || failure.kind === 'answer-malformed'
++    ? 'discover-failed'
++    : 'preparation-failed'
++}
++
+ export function createBuilder<P, S>(
+   ports: McpPorts<P, S>,
+   config: McpConfig<P>,
+diff --git a/packages/mcp/mcp/src/internal/lost.ts b/packages/mcp/mcp/src/internal/lost.ts
+index e54e79bd2..8000283a0 100644
+--- a/packages/mcp/mcp/src/internal/lost.ts
++++ b/packages/mcp/mcp/src/internal/lost.ts
+@@ -84,8 +84,8 @@ const AUTHORIZATION_REQUIRED: Lost = {
+ }
+ 
+ /**
+- * What one answer of the transport to a request on a ready connection means for the connection
+- * (S5, S7; member SPEC MC-16, MC-17, MC-7), the first rule that holds:
++ * What one answer of the transport says about the transport and the connection (S5, S7; member
++ * SPEC MC-5, MC-16, MC-17, MC-7), the first rule that holds:
+  * 1. the answer carries `unusable`: the transport is not usable any more; the connection is lost
+  *    for that cause, the catalog is marked `connection-unavailable`;
+  * 2. the answer is `not-sent` (`authorization-required`): the connection is lost for it, the
+@@ -93,7 +93,9 @@ const AUTHORIZATION_REQUIRED: Lost = {
+  * 3. otherwise the connection stays as it is: one request failed and the transport is still
+  *    usable, or the peer answered.
+  * The two rules do not overlap: the contract gives a refused authorization no mark. Undefined is
+- * rule 3. A build does not ask it: a failed build is lost by MC-5.
++ * rule 3. On a ready connection it decides whether the connection is lost. When a build fails, it
++ * gives the reason when the transport is not usable any more or the authorization was refused;
++ * the build rule of MC-5 gives every other reason.
+  */
+ export function lostOf(answer: TransportFailure | PeerAnswer): Lost | undefined {
+   switch (answer.kind) {
+diff --git a/packages/mcp/mcp/tests/ensure.spec.ts b/packages/mcp/mcp/tests/ensure.spec.ts
+index 297c510dd..42b16866a 100644
+--- a/packages/mcp/mcp/tests/ensure.spec.ts
++++ b/packages/mcp/mcp/tests/ensure.spec.ts
+@@ -439,13 +439,15 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
+   })
+ 
+   it.each([
+-    ['process-exited', 'process-exited'],
+-    ['stream-broken', 'stream-broken'],
+-    ['abandoned', 'preparation-failed'],
++    [{ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, 'process-exited'],
++    [{ kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' }, 'stream-broken'],
++    [{ kind: 'no-answer', cause: 'stream-broken', unusable: 'session-ended' }, 'session-ended'],
++    [{ kind: 'no-answer', cause: 'stream-broken' }, 'preparation-failed'],
++    [{ kind: 'no-answer', cause: 'abandoned' }, 'preparation-failed'],
+   ] as const)(
+-    'discover without an answer (%s): effect-unknown with the cause, lost (%s)',
+-    async (cause, lost) => {
+-      const w = world({ script: [{ discover: { kind: 'no-answer', cause } }] })
++    'discover without an answer (%o): effect-unknown with the cause, lost for the mark, else preparation-failed (%s) (S7, MC-5)',
++    async (failure, lost) => {
++      const w = world({ script: [{ discover: failure }] })
+       adoptStdio(w, files)
+       const table = tableOf(w)
+       const token = await admitted(w, files)
+@@ -453,7 +455,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
+       expect(answer).toEqual({
+         failure: {
+           stage: 'connect',
+-          reason: { kind: 'effect-unknown', cause },
++          reason: { kind: 'effect-unknown', cause: failure.cause },
+           catalog: 'not-acquired',
+         },
+       })
+@@ -461,6 +463,34 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
+     },
+   )
+ 
++  it('discover not sent on a line that ended (X02, marked stream-broken): connection-unavailable, lost (stream-broken) (S7, MC-5)', async () => {
++    const w = world({
++      script: [
++        {
++          discover: {
++            kind: 'not-sent',
++            cause: 'connection-unavailable',
++            unusable: 'stream-broken',
++          },
++        },
++      ],
++    })
++    adoptStdio(w, files)
++    const table = tableOf(w)
++    const token = await admitted(w, files)
++    expect(await table.ensure(token, alice)).toEqual({
++      failure: {
++        stage: 'connect',
++        reason: { kind: 'connection-unavailable' },
++        catalog: 'not-acquired',
++      },
++    })
++    expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
++      kind: 'lost',
++      reason: 'stream-broken',
++    })
++  })
++
+   it('a failed stdio attempt still counts a generation; a failed HTTP attempt does not', async () => {
+     const stdio = world({
+       script: [
+diff --git a/packages/mcp/mcp/tests/refresh.spec.ts b/packages/mcp/mcp/tests/refresh.spec.ts
+index 810c98e52..a620622f0 100644
+--- a/packages/mcp/mcp/tests/refresh.spec.ts
++++ b/packages/mcp/mcp/tests/refresh.spec.ts
+@@ -366,7 +366,7 @@ describe('refresh fails', () => {
+ 
+   it.each([
+     [
+-      { kind: 'no-answer', cause: 'process-exited' },
++      { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' },
+       { kind: 'effect-unknown', cause: 'process-exited' },
+     ],
+     [{ kind: 'error-answer', code: -32600, message: 'bad' }, { kind: 'connection-unavailable' }],
+@@ -383,27 +383,34 @@ describe('refresh fails', () => {
+   })
+ 
+   it.each([
+-    [{ kind: 'not-sent', cause: 'connection-unavailable' }, { kind: 'connection-unavailable' }],
++    [
++      { kind: 'not-sent', cause: 'connection-unavailable' },
++      { kind: 'connection-unavailable' },
++      'preparation-failed',
++    ],
+     [
+       { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' },
+       { kind: 'connection-unavailable' },
++      'stream-broken',
+     ],
+     [
+       { kind: 'no-answer', cause: 'stream-broken' },
+       { kind: 'effect-unknown', cause: 'stream-broken' },
++      'preparation-failed',
+     ],
+     [
+       { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' },
+       { kind: 'effect-unknown', cause: 'stream-broken' },
++      'stream-broken',
+     ],
+   ] as const)(
+-    'a discover that fails during the build with %o fails the build, with or without the mark: refresh answers %o, the connection is lost (S5, MC-5)',
+-    async (failure, expected) => {
++    'a discover that fails during the build with %o fails the build, with or without the mark: refresh answers %o, the connection is lost for the mark, else by the build rule (%s) (S5, S7, MC-5)',
++    async (failure, expected, reason) => {
+       const { w, discovery, status } = core(world({ script: [{ discover: failure }] }))
+       adoptStdio(w, files)
+       expect(await discovery.refresh(alice, { ref: files })).toEqual({ failure: expected })
+       expect(await status.inspect(alice, files)).toMatchObject({
+-        ok: { connection: { kind: 'lost' } },
++        ok: { connection: { kind: 'lost', reason } },
+       })
+       expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(0)
+     },

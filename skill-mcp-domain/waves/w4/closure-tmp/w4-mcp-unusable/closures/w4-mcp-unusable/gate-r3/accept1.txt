@@ -1,0 +1,14 @@
+--- lostOf(
+packages/mcp/mcp/src/discovery.ts:106:  const lost = lostOf(failure)
+packages/mcp/mcp/src/internal/build.ts:107:  const lost = lostOf(failure)
+packages/mcp/mcp/src/internal/lost.ts:69:  const lost = lostOf(answer)
+packages/mcp/mcp/src/internal/lost.ts:115:export function lostOf(answer: TransportFailure | PeerAnswer): Lost | undefined {
+--- loseIfLost
+packages/mcp/mcp/src/calls.ts:43:  loseIfLost,
+packages/mcp/mcp/src/calls.ts:315:    // more it carries the mark (T1), and the connection is lost by rule 1 of `lostOf`.
+packages/mcp/mcp/src/calls.ts:316:    loseIfLost(table, on.ensured, answer)
+packages/mcp/mcp/src/calls.ts:387:      loseIfLost(table, ensured, called.failure)
+packages/mcp/mcp/src/tasks.ts:24:import { connectionFailureOf, connectionFailureOfBuild, loseIfLost } from './internal/lost.ts'
+packages/mcp/mcp/src/tasks.ts:141:   * A failure that says the connection is lost (`lostOf`: the transport is not usable any more, or
+packages/mcp/mcp/src/tasks.ts:142:   * the authorization was refused) goes to the table first (`loseIfLost`); its teardown goes on in
+packages/mcp/mcp/src/tasks.ts:146:    loseIfLost(table, ensured, failure)

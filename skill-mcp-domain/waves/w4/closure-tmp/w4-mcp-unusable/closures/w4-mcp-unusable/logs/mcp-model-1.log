@@ -1,0 +1,71 @@
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp
+
+stdout | tests/model/calls.spec.ts > call: one key, invoke and cancel, lawful ports that may hang or answer late > P1–P14 hold
+call: 263 states, 455 runs, depth 16, 1178 ms
+
+stdout | tests/model/calls.spec.ts > abort: one key, invoke and the caller's abort > P1–P14 hold
+abort: 148 states, 242 runs, depth 16, 454 ms
+
+stdout | tests/model/calls.spec.ts > call-faults: invoke and cancel, one port failing, rejecting or throwing > P1–P14 hold
+call-faults: 806 states, 2081 runs, depth 17, 3915 ms
+
+stdout | tests/model/calls.spec.ts > continue: invoke, then continueWithInput at the generation of that moment, drop > P1–P14 hold
+continue: 1070 states, 2366 runs, depth 34, 6645 ms
+
+stdout | tests/model/calls.spec.ts > call-shutdown: invoke, cancel and closeAll > P1–P14 hold, P13 above all
+call-shutdown: 1018 states, 2205 runs, depth 19, 6555 ms
+
+stdout | tests/model/calls.spec.ts > continue-shutdown: invoke, then continueWithInput, drop, closeAll > P1–P14 hold, P13 at the answer above all
+continue-shutdown: 2989 states, 7655 runs, depth 34, 23432 ms
+
+stdout | tests/model/calls.spec.ts > call-twice: two invoke on one correlation key, cancel > P1–P14 hold, P11 above all
+call-twice: 18481 states, 54849 runs, depth 31, 184318 ms
+
+stdout | tests/model/calls.spec.ts > task: the peer answers a task, the initiator queries it, drop, closeAll > P1–P14 hold
+task: 2241 states, 5797 runs, depth 35, 17949 ms
+
+stdout | tests/model/calls.spec.ts > task-methods: each of the four task operations once > P1–P14 hold
+task-methods: 8570 states, 36232 runs, depth 25, 93482 ms
+
+stdout | tests/model/calls.spec.ts > foreign-cancel: another principal, and the same principal text in another tenant, cancel > P1–P14 hold, P12 above all
+foreign-cancel: 731 states, 1473 runs, depth 17, 2742 ms
+
+stdout | tests/model/calls.spec.ts > foreign-task: another principal of the tenant queries the task alice started > P1–P14 hold, P12 above all
+foreign-task: 200 states, 361 runs, depth 16, 667 ms
+
+stdout | tests/model/calls.spec.ts > task-account: a task operation never reuses the connection of another peer account > P1–P14 hold, P12 above all
+task-account: 5568 states, 14666 runs, depth 35, 48401 ms
+
+stdout | tests/model/calls.spec.ts > task-collision: the peer gives the task id again on another peer account of the same principal > P1–P14 hold, P12 above all
+task-collision: 714 states, 1651 runs, depth 20, 6411 ms
+
+ ✓ tests/model/calls.spec.ts (13 tests) 396180ms
+     ✓ P1–P14 hold  1186ms
+     ✓ P1–P14 hold  455ms
+     ✓ P1–P14 hold  3917ms
+     ✓ P1–P14 hold  6646ms
+     ✓ P1–P14 hold, P13 above all  6556ms
+     ✓ P1–P14 hold, P13 at the answer above all  23434ms
+     ✓ P1–P14 hold, P11 above all  184321ms
+     ✓ P1–P14 hold  17951ms
+     ✓ P1–P14 hold  93483ms
+     ✓ P1–P14 hold, P12 above all  2744ms
+     ✓ P1–P14 hold, P12 above all  668ms
+     ✓ P1–P14 hold, P12 above all  48402ms
+     ✓ P1–P14 hold, P12 above all  6412ms
+ ✓ tests/model/lifecycle.spec.ts (9 tests) 697365ms
+     ✓ P1–P8 hold  35665ms
+     ✓ P1–P8 hold  9576ms
+     ✓ P1–P8 hold  776ms
+     ✓ finds on throws what every schedule of throws shows  9382ms
+     ✓ P1–P8 hold, P8 T2 above all  127316ms
+     ✓ P1–P8 hold  372312ms
+     ✓ P1–P8 hold, P5 above all  79207ms
+     ✓ P1–P8 hold, P5 above all  63124ms
+
+ Test Files  2 passed (2)
+      Tests  22 passed (22)
+   Start at  13:00:37
+   Duration  698.23s (transform 978ms, setup 37ms, import 1.41s, tests 1093.54s, environment 0ms)
+

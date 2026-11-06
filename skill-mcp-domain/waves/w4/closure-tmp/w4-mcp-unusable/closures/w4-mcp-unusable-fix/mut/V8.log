@@ -1,0 +1,26 @@
+id: V8
+head: 0961b30e9
+time: 2026-11-06T17:00:03Z
+file: packages/mcp/mcp-host-local/src/session.ts
+--- diff
+diff --git a/packages/mcp/mcp-host-local/src/session.ts b/packages/mcp/mcp-host-local/src/session.ts
+index f0dd7d7f9..532c40da1 100644
+--- a/packages/mcp/mcp-host-local/src/session.ts
++++ b/packages/mcp/mcp-host-local/src/session.ts
+@@ -861,7 +861,7 @@ export class Session implements McpTransport {
+       answered =
+         entered === undefined
+           ? await this.request('initialize', params, sending)
+-          : this.handedOver(entered)
++          : entered
+     }
+     const read = legacyIdentityOf(answered.wire, this.bound)
+     if ('failure' in read) return read
+build after change: 0
+--- command: (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/session.spec.ts --reporter=default --reporter=json --outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable-fix/mut/V8.json)
+exit: 1
+--- failed (from JSON report)
+a session that cannot be used any more sends nothing and asks no credential (T5, T9) the events of the line rejecting while the fallback GET is open: discover is not-sent with the mark stream-broken (T1)
+restored: byte-identical
+git diff --quiet: clean
+build after restore: 0

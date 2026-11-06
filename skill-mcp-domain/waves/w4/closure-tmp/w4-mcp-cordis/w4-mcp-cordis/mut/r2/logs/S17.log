@@ -1,0 +1,449 @@
+# S17 the removal does not await closeAll
+# expect: red
+# edits: [{"from":"          const report = await services.connections.closeAll()\n","to":"          void services.connections.closeAll()\n          const report: readonly Readonly<{ ref: unknown; process: string }>[] = []\n"}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)
+exit 1
+seconds 2.5
+total 13
+failed [
+ "the MCP plugin on a Cordis context, with a scripted peer process loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer",
+ "the MCP plugin on a Cordis context, with a scripted peer process answers each operation of the three services through the plugin",
+ "the MCP plugin on a Cordis context, with a scripted peer process signals a call in flight that cancel names",
+ "the MCP plugin on a Cordis context, with a scripted peer process publishes the catalog of a stdio peer once the absent adoption port is provided",
+ "the MCP plugin on a Cordis context, with a scripted peer process publishes the catalog of a stdio peer once the absent eligibility port is provided",
+ "the MCP plugin on a Cordis context, with a scripted peer process publishes the catalog of a stdio peer once the absent credentials port is provided",
+ "the MCP plugin on a Cordis context, with a scripted peer process publishes the catalog of a stdio peer once the absent landing port is provided",
+ "the MCP plugin on a Cordis context, with a scripted peer process reads the replacement adoption view at the next refresh after a swap",
+ "the MCP plugin on a Cordis context, with a scripted peer process removes the three services, stops the peer process and releases the credential handle when the plugin unloads",
+ "the MCP plugin on a Cordis context, with a scripted peer process settles a call in flight with an unknown effect when the plugin unloads",
+ "the MCP plugin on a Cordis context, with a scripted peer process warns of the endpoint and the scope when the stop of its process is root-only at unload",
+ "the MCP plugin on a Cordis context, with a scripted peer process warns of the endpoint and the scope when the stop of its process is unconfirmed at unload",
+ "the MCP plugin on a Cordis context, with a scripted peer process does not warn when the stop of the process is tree-confirmed at unload"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-journey.spec.ts (13 tests | 13 failed) 766ms
+     × loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer 92ms
+     × answers each operation of the three services through the plugin 60ms
+     × signals a call in flight that cancel names 53ms
+     × publishes the catalog of a stdio peer once the absent adoption port is provided 50ms
+     × publishes the catalog of a stdio peer once the absent eligibility port is provided 52ms
+     × publishes the catalog of a stdio peer once the absent credentials port is provided 48ms
+     × publishes the catalog of a stdio peer once the absent landing port is provided 53ms
+     × reads the replacement adoption view at the next refresh after a swap 90ms
+     × removes the three services, stops the peer process and releases the credential handle when the plugin unloads 46ms
+     × settles a call in flight with an unknown effect when the plugin unloads 49ms
+     × warns of the endpoint and the scope when the stop of its process is root-only at unload 51ms
+     × warns of the endpoint and the scope when the stop of its process is unconfirmed at unload 45ms
+     × does not warn when the stop of the process is tree-confirmed at unload 72ms
+
+ Test Files  1 failed (1)
+      Tests  13 failed (13)
+   Start at  15:35:02
+   Duration  1.65s (transform 478ms, setup 15ms, import 711ms, tests 766ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-S17/packages__mcp__mcp-host-local.json
+
+--- stderr
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 13 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer
+AssertionError: expected [ 93359 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93359,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > answers each operation of the three services through the plugin
+AssertionError: expected [ 93367 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93367,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > signals a call in flight that cancel names
+AssertionError: expected [ 93374 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93374,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > publishes the catalog of a stdio peer once the absent adoption port is provided
+AssertionError: expected [ 93381 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93381,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > publishes the catalog of a stdio peer once the absent eligibility port is provided
+AssertionError: expected [ 93388 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93388,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > publishes the catalog of a stdio peer once the absent credentials port is provided
+AssertionError: expected [ 93395 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93395,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > publishes the catalog of a stdio peer once the absent landing port is provided
+AssertionError: expected [ 93402 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93402,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > reads the replacement adoption view at the next refresh after a swap
+AssertionError: expected [ 93416 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93416,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > removes the three services, stops the peer process and releases the credential handle when the plugin unloads
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/cordis-journey.spec.ts:527:27
+    525|
+    526|     await fiber.dispose()
+    527|     expect(peer.exited()).toBe(true)
+       |                           ^
+    528|     expect(provided.stops).toEqual(['root-only'])
+    529|     expect(provided.released).toEqual([MAIN])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > removes the three services, stops the peer process and releases the credential handle when the plugin unloads
+AssertionError: expected [ 93423 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93423,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > settles a call in flight with an unknown effect when the plugin unloads
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/cordis-journey.spec.ts:546:27
+    544|       outcome: { kind: 'unknown', cause: 'abandoned' },
+    545|     })
+    546|     expect(peer.exited()).toBe(true)
+       |                           ^
+    547|   })
+    548|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > settles a call in flight with an unknown effect when the plugin unloads
+AssertionError: expected [ 93430 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93430,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > warns of the endpoint and the scope when the stop of its process is root-only at unload
+AssertionError: expected [] to deeply equal [ [ …(3) ] ]
+
+- Expected
++ Received
+
+- [
+-   [
+-     "the stop of the process was not confirmed",
+-     {
+-       "holding": "tenant/files",
+-       "name": "files",
+-     },
+-     "root-only",
+-   ],
+- ]
++ []
+
+ ❯ tests/cordis-journey.spec.ts:556:24
+    554|       expect(await invokeEcho(ctx)).toMatchObject({ kind: 'sent' })
+    555|       await fiber.dispose()
+    556|       expect(warnings).toEqual([['the stop of the process was not conf…
+       |                        ^
+    557|     },
+    558|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > warns of the endpoint and the scope when the stop of its process is root-only at unload
+AssertionError: expected [ 93437 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93437,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > warns of the endpoint and the scope when the stop of its process is unconfirmed at unload
+AssertionError: expected [] to deeply equal [ [ …(3) ] ]
+
+- Expected
++ Received
+
+- [
+-   [
+-     "the stop of the process was not confirmed",
+-     {
+-       "holding": "tenant/files",
+-       "name": "files",
+-     },
+-     "unconfirmed",
+-   ],
+- ]
++ []
+
+ ❯ tests/cordis-journey.spec.ts:556:24
+    554|       expect(await invokeEcho(ctx)).toMatchObject({ kind: 'sent' })
+    555|       await fiber.dispose()
+    556|       expect(warnings).toEqual([['the stop of the process was not conf…
+       |                        ^
+    557|     },
+    558|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > warns of the endpoint and the scope when the stop of its process is unconfirmed at unload
+AssertionError: expected [ 93444 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93444,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > does not warn when the stop of the process is tree-confirmed at unload
+AssertionError: expected [] to deeply equal [ 'tree-confirmed' ]
+
+- Expected
++ Received
+
+- [
+-   "tree-confirmed",
+- ]
++ []
+
+ ❯ tests/cordis-journey.spec.ts:568:28
+    566|     expect(await invokeEcho(ctx)).toMatchObject({ kind: 'sent' })
+    567|     await fiber.dispose()
+    568|     expect(provided.stops).toEqual(['tree-confirmed'])
+       |                            ^
+    569|     expect(warnings).toEqual([])
+    570|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/18]⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > does not warn when the stop of the process is tree-confirmed at unload
+AssertionError: expected [ 93451 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   93451,
++ ]
+
+ ❯ tests/cordis-journey.spec.ts:121:28
+    119| afterEach(async () => {
+    120|   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
+    121|   expect(await leftover()).toEqual([])
+       |                            ^
+    122| })
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/18]⎯
+
+

@@ -1,0 +1,130 @@
+# F25 plain record does not check the prototype
+# expect: red
+# edits: [{"from":"return prototype === Object.prototype || prototype === null","to":"return !Array.isArray(value)"}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)
+exit 1
+seconds 1.8
+total 41
+failed [
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is a Date",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is a Date, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that inherits every field",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that inherits every field, with the ValidationError of Cordis"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-entry.spec.ts (41 tests | 4 failed) 132ms
+     ✓ provides the three services on load with a complete lawful configuration and removes them when the plugin unloads 13ms
+     ✓ answers each operation of the three services while there is no connection 18ms
+     ✓ answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided 7ms
+     ✓ answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided 4ms
+     ✓ answers an unknown credential, and asks no landing, while the credential use is absent, and acquires once it is provided 5ms
+     ✓ answers landing-unavailable while the process landing is absent, and asks the landing once it is provided 4ms
+     ✓ uses the replacement eligibility at the next port call after a swap 5ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 5ms
+     ✓ uses the replacement credential use at the next port call after a swap 5ms
+     ✓ uses the replacement process landing at the next port call after a swap 5ms
+     ✓ Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes 11ms
+       ✓ accepts a complete lawful configuration as a copy 1ms
+       ✓ accepts a configuration without a prototype 0ms
+       ✓ refuses a configuration that is not an object 0ms
+       ✓ fails to load with a configuration that is not an object, with the ValidationError of Cordis 3ms
+       × refuses a configuration that is a Date 7ms
+       × fails to load with a configuration that is a Date, with the ValidationError of Cordis 5ms
+       × refuses a configuration that inherits every field 1ms
+       × fails to load with a configuration that inherits every field, with the ValidationError of Cordis 3ms
+       ✓ refuses a configuration that lacks a field 0ms
+       ✓ fails to load with a configuration that lacks a field, with the ValidationError of Cordis 6ms
+       ✓ refuses a configuration that has an extra field 0ms
+       ✓ fails to load with a configuration that has an extra field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that has a symbol key 0ms
+       ✓ fails to load with a configuration that has a symbol key, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose bound is not a number 0ms
+       ✓ fails to load with a configuration whose bound is not a number, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose probeTimeoutMs is not a number 0ms
+       ✓ fails to load with a configuration whose probeTimeoutMs is not a number, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo is not an object 0ms
+       ✓ fails to load with a configuration whose clientInfo is not an object, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo lacks a field 0ms
+       ✓ fails to load with a configuration whose clientInfo lacks a field, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo has an extra field 0ms
+       ✓ fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo.name is not a text 0ms
+       ✓ fails to load with a configuration whose clientInfo.name is not a text, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo.version is not a text 0ms
+       ✓ fails to load with a configuration whose clientInfo.version is not a text, with the ValidationError of Cordis 1ms
+       ✓ fails to load when maxActions is 0, with the RangeError of createMcp 2ms
+       ✓ fails to load when probeTimeoutMs is 0, with the RangeError of the transport factory 2ms
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 37 passed (41)
+Type Errors  no errors
+   Start at  15:40:47
+   Duration  974ms (transform 455ms, setup 13ms, import 678ms, tests 132ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-F25/packages__mcp__mcp-host-local.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration that is a Date
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration that inherits every field
+AssertionError: expected { Object (issues) } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+    "issues": [
+      {
+-       "message": "configuration must be an object",
++       "message": "configuration needs the field maxListingPages",
+      },
+    ],
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration that is a Date, with the ValidationError of Cordis
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration that inherits every field, with the ValidationError of Cordis
+AssertionError: expected [Function] to throw error including 'invalid config:\n  - configuration mu…' but got 'invalid config:\n  - configuration ne…'
+
+- Expected
++ Received
+
+  invalid config:
+-   - configuration must be an object
++   - configuration needs the field maxListingPages
+
+ ❯ tests/cordis-entry.spec.ts:519:57
+    517|         const ctx = new Context()
+    518|         await expect(loadUntyped(ctx, config)).rejects.toThrow(Validat…
+    519|         await expect(loadUntyped(new Context(), config)).rejects.toThr…
+       |                                                         ^
+    520|           `invalid config:\n  - ${message}`,
+    521|         )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+

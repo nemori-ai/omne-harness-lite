@@ -1,0 +1,103 @@
+# F02 adoption endpoint absent answers not-adopted
+# expect: red
+# edits: [{"from":"if (port === undefined) return fail('unknown')\n      return port.endpoint(","to":"if (port === undefined) return { ok: 'not-adopted' as const }\n      return port.endpoint("}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)
+exit 1
+seconds 1.9
+total 41
+failed [
+ "the MCP plugin on a Cordis context, without a process answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-entry.spec.ts (41 tests | 1 failed) 127ms
+     ✓ provides the three services on load with a complete lawful configuration and removes them when the plugin unloads 15ms
+     ✓ answers each operation of the three services while there is no connection 17ms
+     × answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided 13ms
+     ✓ answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided 4ms
+     ✓ answers an unknown credential, and asks no landing, while the credential use is absent, and acquires once it is provided 5ms
+     ✓ answers landing-unavailable while the process landing is absent, and asks the landing once it is provided 4ms
+     ✓ uses the replacement eligibility at the next port call after a swap 5ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 4ms
+     ✓ uses the replacement credential use at the next port call after a swap 5ms
+     ✓ uses the replacement process landing at the next port call after a swap 5ms
+     ✓ Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes 3ms
+       ✓ accepts a complete lawful configuration as a copy 1ms
+       ✓ accepts a configuration without a prototype 0ms
+       ✓ refuses a configuration that is not an object 4ms
+       ✓ fails to load with a configuration that is not an object, with the ValidationError of Cordis 3ms
+       ✓ refuses a configuration that is a Date 0ms
+       ✓ fails to load with a configuration that is a Date, with the ValidationError of Cordis 3ms
+       ✓ refuses a configuration that inherits every field 1ms
+       ✓ fails to load with a configuration that inherits every field, with the ValidationError of Cordis 3ms
+       ✓ refuses a configuration that lacks a field 0ms
+       ✓ fails to load with a configuration that lacks a field, with the ValidationError of Cordis 3ms
+       ✓ refuses a configuration that has an extra field 0ms
+       ✓ fails to load with a configuration that has an extra field, with the ValidationError of Cordis 8ms
+       ✓ refuses a configuration that has a symbol key 0ms
+       ✓ fails to load with a configuration that has a symbol key, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration whose bound is not a number 0ms
+       ✓ fails to load with a configuration whose bound is not a number, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose probeTimeoutMs is not a number 0ms
+       ✓ fails to load with a configuration whose probeTimeoutMs is not a number, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo is not an object 0ms
+       ✓ fails to load with a configuration whose clientInfo is not an object, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo lacks a field 0ms
+       ✓ fails to load with a configuration whose clientInfo lacks a field, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo has an extra field 0ms
+       ✓ fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration whose clientInfo.name is not a text 0ms
+       ✓ fails to load with a configuration whose clientInfo.name is not a text, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo.version is not a text 0ms
+       ✓ fails to load with a configuration whose clientInfo.version is not a text, with the ValidationError of Cordis 2ms
+       ✓ fails to load when maxActions is 0, with the RangeError of createMcp 3ms
+       ✓ fails to load when probeTimeoutMs is 0, with the RangeError of the transport factory 2ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 40 passed (41)
+Type Errors  no errors
+   Start at  15:39:42
+   Duration  1.03s (transform 492ms, setup 15ms, import 730ms, tests 127ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-F02/packages__mcp__mcp-host-local.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided
+AssertionError: expected { Object (failure) } to deeply equal { failure: { kind: 'unknown' } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+-     "kind": "unknown",
++     "kind": "not-available-to-you",
+    },
+  }
+
+ ❯ tests/cordis-entry.spec.ts:283:34
+    281|   it('answers unknown, and asks no landing, while the adoption view is…
+    282|     const { ctx, provided } = await assembled({ args: ARGS }, 'adoptio…
+    283|     expect(await refreshed(ctx)).toEqual({ failure: { kind: 'unknown' …
+       |                                  ^
+    284|     expect(await service(ctx, mcpEndpointStatusKey).list(ALICE, SCOPE)…
+    285|       failure: 'unknown',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+

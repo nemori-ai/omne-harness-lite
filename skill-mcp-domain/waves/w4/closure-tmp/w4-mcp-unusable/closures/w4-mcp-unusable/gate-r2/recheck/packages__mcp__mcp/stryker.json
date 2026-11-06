@@ -1,0 +1,34 @@
+{
+  "testRunner": "omne-vitest",
+  "plugins": [
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tools/test-runner/src/mutation/guarded-vitest.ts"
+  ],
+  "vitest": {
+    "configFile": "vitest.stryker-sandbox.config.mts",
+    "related": false
+  },
+  "mutate": [
+    "src/discovery.ts:104:6-104:26",
+    "src/internal/lost.ts:118:10-118:51",
+    "src/internal/lost.ts:118:27-118:51"
+  ],
+  "buildCommand": "node --experimental-strip-types /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tools/test-runner/src/mutation/sandbox-build.ts",
+  "symlinkNodeModules": false,
+  "tempDirName": "/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/.stryker-tmp-rerun-42552",
+  "cleanTempDir": true,
+  "incremental": false,
+  "concurrency": 1,
+  "timeoutMS": 60000,
+  "reporters": [
+    "json",
+    "progress-append-only"
+  ],
+  "jsonReporter": {
+    "fileName": "/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable/gate-r2/recheck/packages__mcp__mcp/mutation.json"
+  },
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  }
+}

@@ -1,0 +1,78 @@
+# K11 a key constant differs from its provide
+# expect: red
+# edits: [{"from":"export const mcpAdoptionViewKey = AdoptionViewService.provide","to":"export const mcpAdoptionViewKey = 'mcpAdoptionViews'"}]
+$ (cd packages/mcp/mcp-cordis-contract && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-cordis-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-cordis-contract && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)
+exit 1
+seconds 1.0
+total 10
+failed [
+ "writes each service key once, on its abstract Service, and exports a constant equal to it",
+ "provides a loaded subclass of AdoptionViewService under its key and removes it when the fiber unloads"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract
+
+ ❯ tests/cordis-entry.spec.ts (10 tests | 2 failed) 22ms
+   × writes each service key once, on its abstract Service, and exports a constant equal to it 8ms
+   ✓ gives the seven services seven different keys 0ms
+   ✓ exports exactly the seven abstract Service classes and the seven key constants 1ms
+   ✓ provides a loaded subclass of ActionDiscoveryService under its key and removes it when the fiber unloads 5ms
+   ✓ provides a loaded subclass of ActionInvokerService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of EndpointStatusService under its key and removes it when the fiber unloads 1ms
+   × provides a loaded subclass of AdoptionViewService under its key and removes it when the fiber unloads 2ms
+   ✓ provides a loaded subclass of UseEligibilityService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of CredentialUseService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of ProcessLandingService under its key and removes it when the fiber unloads 1ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 8 passed (10)
+Type Errors  no errors
+   Start at  15:37:35
+   Duration  207ms (transform 12ms, setup 0ms, import 30ms, tests 22ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-K11/packages__mcp__mcp-cordis-contract.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-entry.spec.ts > writes each service key once, on its abstract Service, and exports a constant equal to it
+AssertionError: expected 'mcpAdoptionViews' to be 'mcpAdoptionView' // Object.is equality
+
+Expected: "mcpAdoptionView"
+Received: "mcpAdoptionViews"
+
+ ❯ tests/cordis-entry.spec.ts:33:17
+     31|   for (const [service, key, name] of KEYS) {
+     32|     expect(service.provide).toBe(name)
+     33|     expect(key).toBe(service.provide)
+       |                 ^
+     34|   }
+     35| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > provides a loaded subclass of AdoptionViewService under its key and removes it when the fiber unloads
+AssertionError: expected undefined to be an instance of Adoption
+ ❯ tests/cordis-entry.spec.ts:145:26
+    143|     const ctx = new Context()
+    144|     const fiber = await ctx.plugin(Sub)
+    145|     expect(ctx.get(key)).toBeInstanceOf(Sub)
+       |                          ^
+    146|     await fiber.dispose()
+    147|     expect(ctx.get(key)).toBeUndefined()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+

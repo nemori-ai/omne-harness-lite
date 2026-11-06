@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+
+
+ Test Files  2 skipped (2)
+      Tests  263 skipped (263)
+   Start at  12:46:09
+   Duration  953ms (transform 1.14s, setup 24ms, import 1.58s, tests 0ms, environment 0ms)
+

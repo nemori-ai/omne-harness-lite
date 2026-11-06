@@ -1,0 +1,653 @@
+# F38 the schema accepts any value
+# expect: red
+# edits: [{"from":"Config: mcpPluginConfig,","to":"Config: { '~standard': { version: 1, vendor: 'omne-harness', validate: (value: unknown) => ({ value: Object(value) }) } },"}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)
+exit 1
+seconds 1.8
+total 41
+failed [
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration accepts a complete lawful configuration as a copy",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is not an object",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is not an object, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is a Date",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is a Date, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that inherits every field",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that inherits every field, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that lacks a field",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that lacks a field, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that has an extra field",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that has an extra field, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that has a symbol key",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that has a symbol key, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose bound is not a number",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose bound is not a number, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose probeTimeoutMs is not a number",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose probeTimeoutMs is not a number, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo is not an object",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo is not an object, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo lacks a field",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo lacks a field, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo has an extra field",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo.name is not a text",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo.name is not a text, with the ValidationError of Cordis",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo.version is not a text",
+ "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo.version is not a text, with the ValidationError of Cordis"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-entry.spec.ts (41 tests | 27 failed) 130ms
+     ✓ provides the three services on load with a complete lawful configuration and removes them when the plugin unloads 13ms
+     ✓ answers each operation of the three services while there is no connection 17ms
+     ✓ answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided 5ms
+     ✓ answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided 6ms
+     ✓ answers an unknown credential, and asks no landing, while the credential use is absent, and acquires once it is provided 5ms
+     ✓ answers landing-unavailable while the process landing is absent, and asks the landing once it is provided 4ms
+     ✓ uses the replacement eligibility at the next port call after a swap 4ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 4ms
+     ✓ uses the replacement credential use at the next port call after a swap 5ms
+     ✓ uses the replacement process landing at the next port call after a swap 4ms
+     ✓ Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes 7ms
+       × accepts a complete lawful configuration as a copy 5ms
+       ✓ accepts a configuration without a prototype 0ms
+       × refuses a configuration that is not an object 3ms
+       × fails to load with a configuration that is not an object, with the ValidationError of Cordis 8ms
+       × refuses a configuration that is a Date 1ms
+       × fails to load with a configuration that is a Date, with the ValidationError of Cordis 2ms
+       × refuses a configuration that inherits every field 1ms
+       × fails to load with a configuration that inherits every field, with the ValidationError of Cordis 4ms
+       × refuses a configuration that lacks a field 1ms
+       × fails to load with a configuration that lacks a field, with the ValidationError of Cordis 2ms
+       × refuses a configuration that has an extra field 1ms
+       × fails to load with a configuration that has an extra field, with the ValidationError of Cordis 3ms
+       × refuses a configuration that has a symbol key 1ms
+       × fails to load with a configuration that has a symbol key, with the ValidationError of Cordis 3ms
+       × refuses a configuration whose bound is not a number 1ms
+       × fails to load with a configuration whose bound is not a number, with the ValidationError of Cordis 1ms
+       × refuses a configuration whose probeTimeoutMs is not a number 1ms
+       × fails to load with a configuration whose probeTimeoutMs is not a number, with the ValidationError of Cordis 1ms
+       × refuses a configuration whose clientInfo is not an object 1ms
+       × fails to load with a configuration whose clientInfo is not an object, with the ValidationError of Cordis 1ms
+       × refuses a configuration whose clientInfo lacks a field 1ms
+       × fails to load with a configuration whose clientInfo lacks a field, with the ValidationError of Cordis 1ms
+       × refuses a configuration whose clientInfo has an extra field 1ms
+       × fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis 2ms
+       × refuses a configuration whose clientInfo.name is not a text 1ms
+       × fails to load with a configuration whose clientInfo.name is not a text, with the ValidationError of Cordis 1ms
+       × refuses a configuration whose clientInfo.version is not a text 1ms
+       × fails to load with a configuration whose clientInfo.version is not a text, with the ValidationError of Cordis 2ms
+       ✓ fails to load when maxActions is 0, with the RangeError of createMcp 1ms
+       ✓ fails to load when probeTimeoutMs is 0, with the RangeError of the transport factory 1ms
+
+ Test Files  1 failed (1)
+      Tests  27 failed | 14 passed (41)
+Type Errors  no errors
+   Start at  15:41:19
+   Duration  1.00s (transform 445ms, setup 13ms, import 664ms, tests 130ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-F38/packages__mcp__mcp-host-local.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 27 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > accepts a complete lawful configuration as a copy
+AssertionError: expected { maxListingPages: 5, …(4) } not to be { maxListingPages: 5, …(4) } // Object.is equality
+
+Compared values have no visual difference.
+
+ ❯ tests/cordis-entry.spec.ts:419:33
+    417|       expect(checked).toEqual({ value: CONFIG })
+    418|       if (!('value' in checked)) throw new Error('the lawful configura…
+    419|       expect(checked.value).not.toBe(CONFIG)
+       |                                 ^
+    420|       expect(checked.value.clientInfo).not.toBe(CONFIG.clientInfo)
+    421|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration that is not an object
+AssertionError: expected { value: 'config' } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "configuration must be an object",
++   "value": String {
++     "0": "c",
++     "1": "o",
++     "2": "n",
++     "3": "f",
++     "4": "i",
++     "5": "g",
+    },
+-   ],
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration that is not an object, with the ValidationError of Cordis
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration that is a Date, with the ValidationError of Cordis
+AssertionError: expected error to be instance of ValidationError
+
+- Expected:
+[Function ValidationError]
+
++ Received:
+TypeError {
+  "message": "Cannot destructure property 'name' of 'options.clientInfo' as it is undefined.",
+}
+
+ ❯ tests/cordis-entry.spec.ts:518:47
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+    517|         const ctx = new Context()
+    518|         await expect(loadUntyped(ctx, config)).rejects.toThrow(Validat…
+       |                                               ^
+    519|         await expect(loadUntyped(new Context(), config)).rejects.toThr…
+    520|           `invalid config:\n  - ${message}`,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration that is a Date
+AssertionError: expected { value: 1970-01-01T00:00:00.000Z } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "configuration must be an object",
+-     },
+-   ],
++   "value": 1970-01-01T00:00:00.000Z,
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration that inherits every field
+AssertionError: expected { value: {} } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "configuration must be an object",
+-     },
+-   ],
++   "value": {},
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration that inherits every field, with the ValidationError of Cordis
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration that has an extra field, with the ValidationError of Cordis
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration that has a symbol key, with the ValidationError of Cordis
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis
+PrettyFormatPluginError: cannot get property "$$typeof" without inject
+ ❯ Object.test ../../../node_modules/.pnpm/@vitest+pretty-format@4.1.11/node_modules/@vitest/pretty-format/dist/index.js:722:34
+ ❯ findPlugin ../../../node_modules/.pnpm/@vitest+pretty-format@4.1.11/node_modules/@vitest/pretty-format/dist/index.js:914:15
+ ❯ printer ../../../node_modules/.pnpm/@vitest+pretty-format@4.1.11/node_modules/@vitest/pretty-format/dist/index.js:925:17
+ ❯ printObjectProperties ../../../node_modules/.pnpm/@vitest+pretty-format@4.1.11/node_modules/@vitest/pretty-format/dist/index.js:138:18
+ ❯ printComplexValue ../../../node_modules/.pnpm/@vitest+pretty-format@4.1.11/node_modules/@vitest/pretty-format/dist/index.js:868:195
+ ❯ format ../../../node_modules/.pnpm/@vitest+pretty-format@4.1.11/node_modules/@vitest/pretty-format/dist/index.js:1057:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration that lacks a field
+AssertionError: expected { value: { maxListingPages: 5, …(3) } } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "configuration needs the field maxActions",
++   "value": {
++     "clientInfo": {
++       "name": "omne-harness-cordis-entry",
++       "version": "0",
+      },
+-   ],
++     "instructionsByteLimit": 4096,
++     "maxListingPages": 5,
++     "probeTimeoutMs": 10000,
++   },
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration that lacks a field, with the ValidationError of Cordis
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration whose bound is not a number, with the ValidationError of Cordis
+AssertionError: expected error to be instance of ValidationError
+
+- Expected:
+[Function ValidationError]
+
++ Received:
+RangeError {
+  "message": "McpConfig needs principalKey (a function) and positive safe integers for maxListingPages, maxActions, instructionsByteLimit",
+}
+
+ ❯ tests/cordis-entry.spec.ts:518:47
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+    517|         const ctx = new Context()
+    518|         await expect(loadUntyped(ctx, config)).rejects.toThrow(Validat…
+       |                                               ^
+    519|         await expect(loadUntyped(new Context(), config)).rejects.toThr…
+    520|           `invalid config:\n  - ${message}`,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration that has an extra field
+AssertionError: expected { value: { maxListingPages: 5, …(5) } } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "configuration has no field retries",
++   "value": {
++     "clientInfo": {
++       "name": "omne-harness-cordis-entry",
++       "version": "0",
++     },
++     "instructionsByteLimit": 4096,
++     "maxActions": 100,
++     "maxListingPages": 5,
++     "probeTimeoutMs": 10000,
++     "retries": 3,
+    },
+-   ],
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration that has a symbol key
+AssertionError: expected { …(1) } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "configuration has no field Symbol(retries)",
++   "value": {
++     "clientInfo": {
++       "name": "omne-harness-cordis-entry",
++       "version": "0",
++     },
++     "instructionsByteLimit": 4096,
++     "maxActions": 100,
++     "maxListingPages": 5,
++     "probeTimeoutMs": 10000,
++     Symbol(retries): 3,
+    },
+-   ],
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration whose bound is not a number
+AssertionError: expected { value: { …(5) } } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "maxListingPages must be a number",
++   "value": {
++     "clientInfo": {
++       "name": "omne-harness-cordis-entry",
++       "version": "0",
++     },
++     "instructionsByteLimit": 4096,
++     "maxActions": 100,
++     "maxListingPages": "5",
++     "probeTimeoutMs": 10000,
+    },
+-   ],
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration whose probeTimeoutMs is not a number
+AssertionError: expected { value: { maxListingPages: 5, …(4) } } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "probeTimeoutMs must be a number",
++   "value": {
++     "clientInfo": {
++       "name": "omne-harness-cordis-entry",
++       "version": "0",
++     },
++     "instructionsByteLimit": 4096,
++     "maxActions": 100,
++     "maxListingPages": 5,
++     "probeTimeoutMs": "5",
+    },
+-   ],
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration whose probeTimeoutMs is not a number, with the ValidationError of Cordis
+AssertionError: expected error to be instance of ValidationError
+
+- Expected:
+[Function ValidationError]
+
++ Received:
+RangeError {
+  "message": "probeTimeoutMs must be a positive integer of milliseconds",
+}
+
+ ❯ tests/cordis-entry.spec.ts:518:47
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+    517|         const ctx = new Context()
+    518|         await expect(loadUntyped(ctx, config)).rejects.toThrow(Validat…
+       |                                               ^
+    519|         await expect(loadUntyped(new Context(), config)).rejects.toThr…
+    520|           `invalid config:\n  - ${message}`,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration whose clientInfo is not an object
+AssertionError: expected { value: { maxListingPages: 5, …(4) } } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "clientInfo must be an object",
++   "value": {
++     "clientInfo": "n",
++     "instructionsByteLimit": 4096,
++     "maxActions": 100,
++     "maxListingPages": 5,
++     "probeTimeoutMs": 10000,
+    },
+-   ],
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration whose clientInfo is not an object, with the ValidationError of Cordis
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration whose clientInfo.name is not a text, with the ValidationError of Cordis
+AssertionError: expected error to be instance of ValidationError
+
+- Expected:
+[Function ValidationError]
+
++ Received:
+RangeError {
+  "message": "clientInfo.name must be a non-empty text",
+}
+
+ ❯ tests/cordis-entry.spec.ts:518:47
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+    517|         const ctx = new Context()
+    518|         await expect(loadUntyped(ctx, config)).rejects.toThrow(Validat…
+       |                                               ^
+    519|         await expect(loadUntyped(new Context(), config)).rejects.toThr…
+    520|           `invalid config:\n  - ${message}`,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration whose clientInfo lacks a field
+AssertionError: expected { value: { maxListingPages: 5, …(4) } } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "clientInfo needs the field version",
++   "value": {
++     "clientInfo": {
++       "name": "n",
++     },
++     "instructionsByteLimit": 4096,
++     "maxActions": 100,
++     "maxListingPages": 5,
++     "probeTimeoutMs": 10000,
+    },
+-   ],
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration whose clientInfo lacks a field, with the ValidationError of Cordis
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > fails to load with a configuration whose clientInfo.version is not a text, with the ValidationError of Cordis
+AssertionError: expected error to be instance of ValidationError
+
+- Expected:
+[Function ValidationError]
+
++ Received:
+RangeError {
+  "message": "clientInfo.version must be a non-empty text",
+}
+
+ ❯ tests/cordis-entry.spec.ts:518:47
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+    517|         const ctx = new Context()
+    518|         await expect(loadUntyped(ctx, config)).rejects.toThrow(Validat…
+       |                                               ^
+    519|         await expect(loadUntyped(new Context(), config)).rejects.toThr…
+    520|           `invalid config:\n  - ${message}`,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration whose clientInfo has an extra field
+AssertionError: expected { value: { maxListingPages: 5, …(4) } } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "clientInfo has no field title",
++   "value": {
++     "clientInfo": {
++       "name": "n",
++       "title": "t",
++       "version": "0",
+      },
+-   ],
++     "instructionsByteLimit": 4096,
++     "maxActions": 100,
++     "maxListingPages": 5,
++     "probeTimeoutMs": 10000,
++   },
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration whose clientInfo.name is not a text
+AssertionError: expected { value: { maxListingPages: 5, …(4) } } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "clientInfo.name must be a text",
++   "value": {
++     "clientInfo": {
++       "name": 1,
++       "version": "0",
++     },
++     "instructionsByteLimit": 4096,
++     "maxActions": 100,
++     "maxListingPages": 5,
++     "probeTimeoutMs": 10000,
+    },
+-   ],
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/27]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > checks the shape of the configuration > refuses a configuration whose clientInfo.version is not a text
+AssertionError: expected { value: { maxListingPages: 5, …(4) } } to deeply equal { Object (issues) }
+
+- Expected
++ Received
+
+  {
+-   "issues": [
+-     {
+-       "message": "clientInfo.version must be a text",
++   "value": {
++     "clientInfo": {
++       "name": "n",
++       "version": 0,
++     },
++     "instructionsByteLimit": 4096,
++     "maxActions": 100,
++     "maxListingPages": 5,
++     "probeTimeoutMs": 10000,
+    },
+-   ],
+  }
+
+ ❯ tests/cordis-entry.spec.ts:514:34
+    512|     for (const [what, config, message] of refused) {
+    513|       it(`refuses a configuration ${what}`, () => {
+    514|         expect(validate(config)).toEqual({ issues: [{ message }] })
+       |                                  ^
+    515|       })
+    516|       it(`fails to load with a configuration ${what}, with the Validat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/27]⎯
+
+

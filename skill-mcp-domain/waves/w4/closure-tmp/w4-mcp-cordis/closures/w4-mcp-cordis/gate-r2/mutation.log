@@ -1,0 +1,83 @@
+
+> omne-harness-lite-workspace@ mutation /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis
+> ./scripts/slot-unless-plan-only.sh node --experimental-strip-types tools/test-runner/src/mutation/cli.ts run --base 8446c4588f0e2400f2e905179ec252473f7b1066
+
+变异范围：基线 8446c4588f0e2400f2e905179ec252473f7b1066（合并点 8446c4588）以来改动碰到的产品源码行；只跑快层（vitest 的 mode 为 fast）
+  packages/mcp/mcp-cordis-contract：2 个文件，2 段
+  packages/mcp/mcp-host-local：1 个文件，1 段
+Stryker 同时 6 个工作进程（环境变量 VITEST_MAX_WORKERS 指定；预算 7 个进程：本机 8 核、空闲 93%、空闲内存 27 GiB）
+构建 2 个成员及其依赖 … 1 秒
+增量：快照在 /data/qiwei/repos/omne-harness-lite/tmp/mutation-incremental/PanQiWei%2Fskill-mcp-w4-mcp-cordis
+  packages/mcp/mcp-cordis-contract：快照之后成员 tests/ 下的夹具与辅助文件变了，整份重跑
+  packages/mcp/mcp-host-local：快照之后成员 tests/ 下的夹具与辅助文件变了；快照之后上游成员的构建产物变了（测试按包名导入上游成员时执行的是它们的 dist/），整份重跑
+2 个成员并行，合起来不超过 6 个工作进程，没有每个成员上次的记录，平分；工作量大的先开始
+  开始 [2/2] packages/mcp/mcp-host-local：3 个工作进程
+  开始 [1/2] packages/mcp/mcp-cordis-contract：3 个工作进程
+[1/2] packages/mcp/mcp-cordis-contract 6 秒，存活 0、无覆盖 0、没有变异体的改动 1 段
+packages/mcp/mcp-host-local Mutation testing 5% (elapsed: <1m, remaining: ~2m) 73/197 tested (7 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 9% (elapsed: <1m, remaining: ~3m) 147/197 tested (19 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 17% (elapsed: <1m, remaining: ~2m) 183/197 tested (38 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 40% (elapsed: <1m, remaining: <1m) 187/197 tested (41 survived, 0 timed out)
+packages/mcp/mcp-host-local Mutation testing 82% (elapsed: <1m, remaining: <1m) 194/197 tested (44 survived, 0 timed out)
+[2/2] packages/mcp/mcp-host-local 73 秒，存活 47、无覆盖 5
+变异范围：基线 8446c4588f0e2400f2e905179ec252473f7b1066（合并点 8446c4588）以来改动碰到的产品源码行；只跑快层（vitest 的 mode 为 fast）；提交 45658242e
+packages/mcp/mcp-cordis-contract：变异体 7 个——被杀 7、超时 0、存活 0、无覆盖 0、编译错误 0、运行错误 0；分数 100%（只算有变异体的改动段；未覆盖 1 段：改动上没有变异体）
+  类型测试：没测到，static 运行中有没有缺席不明（类型检查开着，初跑却没数到类型测试：成员可能没有类型测试文件，也可能 Vitest 改了类型测试池的名字）
+  没有变异体 packages/mcp/mcp-cordis-contract/src/index.ts:1
+packages/mcp/mcp-host-local：变异体 197 个——被杀 145、超时 0、存活 47、无覆盖 5、编译错误 0、运行错误 0；分数 73.6%
+  类型测试：没测到，static 运行中有没有缺席不明（类型检查开着，初跑却没数到类型测试：成员可能没有类型测试文件，也可能 Vitest 改了类型测试池的名字）
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:75 BooleanLiteral（static） `true` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:76 BooleanLiteral（static） `true` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:77 BooleanLiteral（static） `true` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:78 BooleanLiteral（static） `true` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:79 BooleanLiteral（static） `true` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 BooleanLiteral（static） `true` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:81 BooleanLiteral（static） `true` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:85 ConditionalExpression `typeof value !== 'object' || value === null` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:85 LogicalOperator `typeof value !== 'object' || value === null` → `typeof value !== 'object' && value === null`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:85 ConditionalExpression `typeof value !== 'object'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:85 ConditionalExpression `value === null` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:100 ConditionalExpression `typeof key !== 'string'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:112 ConditionalExpression `typeof maxActions !== 'number'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:113 ConditionalExpression `typeof instructionsByteLimit !== 'number'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:141 StringLiteral（static） `'omne-harness'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:160 ConditionalExpression `port === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:160 StringLiteral `'unknown'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:165 ConditionalExpression `port === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:165 StringLiteral `'unknown'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:176 ConditionalExpression `port === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:206 ConditionalExpression `port === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:208 ConditionalExpression `purpose.kind === 'process-env'` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:208 ConditionalExpression `purpose.kind === 'process-env'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:208 EqualityOperator `purpose.kind === 'process-env'` → `purpose.kind !== 'process-env'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:208 StringLiteral `'process-env'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:219 ConditionalExpression `port === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:219 StringLiteral `'unknown'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:297 StringLiteral（static） `'mcp'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:309 ConditionalExpression `parts.fetch === undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:309 ConditionalExpression `parts.fetch === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:309 EqualityOperator `parts.fetch === undefined` → `parts.fetch !== undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:312 ConditionalExpression `parts.clock === undefined` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:312 ConditionalExpression `parts.clock === undefined` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:312 EqualityOperator `parts.clock === undefined` → `parts.clock !== undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:320 StringLiteral `'mcp'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:322 ArrowFunction `() => async () => { const report = await services.connections.closeAll() for (co…` → `() => undefined`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:322 BlockStatement `{ const report = await services.connections.closeAll() for (const closed of repo…` → `{}`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:325 ConditionalExpression `closed.process === 'root-only' || closed.process === 'unconfirmed'` → `true`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:325 ConditionalExpression `closed.process === 'root-only' || closed.process === 'unconfirmed'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:325 LogicalOperator `closed.process === 'root-only' || closed.process === 'unconfirmed'` → `closed.process === 'root-only' && closed.process === 'unconfirmed'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:325 ConditionalExpression `closed.process === 'root-only'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:325 EqualityOperator `closed.process === 'root-only'` → `closed.process !== 'root-only'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:325 StringLiteral `'root-only'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:325 ConditionalExpression `closed.process === 'unconfirmed'` → `false`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:325 EqualityOperator `closed.process === 'unconfirmed'` → `closed.process !== 'unconfirmed'`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:325 StringLiteral `'unconfirmed'` → `""`
+  存活 packages/mcp/mcp-host-local/src/cordis.ts:328 StringLiteral `'mcp.closeAll'` → `""`
+  无覆盖 packages/mcp/mcp-host-local/src/cordis.ts:112 StringLiteral `'maxActions'` → `""`
+  无覆盖 packages/mcp/mcp-host-local/src/cordis.ts:113 StringLiteral `'instructionsByteLimit'` → `""`
+  无覆盖 packages/mcp/mcp-host-local/src/cordis.ts:309 ObjectLiteral `{ fetch: parts.fetch }` → `{}`
+  无覆盖 packages/mcp/mcp-host-local/src/cordis.ts:312 ObjectLiteral `{ clock: parts.clock }` → `{}`
+  无覆盖 packages/mcp/mcp-host-local/src/cordis.ts:326 StringLiteral `'the stop of the process was not confirmed'` → `""`
+增量：复用上次被杀的变异体（不重跑）——packages/mcp/mcp-cordis-contract 0、packages/mcp/mcp-host-local 0；复用只在被变异的代码与杀死它的测试都没变时发生；--no-incremental 或 OMNE_MUTATION_INCREMENTAL=0 关闭，--force 全部重跑
+存活、无覆盖只是线索：判定会抖，要复跑确认；static 变异体只能跑全部测试；没改的代码不在范围内。
+账本与各成员日志：/data/qiwei/repos/omne-harness-lite/tmp/mutation-ledger/45658242e/20261106-162042

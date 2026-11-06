@@ -1,0 +1,73 @@
+[
+ {
+  "id": "F13",
+  "name": "current is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 39,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F13.log",
+  "sha": "e5dba850f6b4"
+ },
+ {
+  "id": "F15",
+  "name": "peer is not forwarded",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 39,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process answers each operation of the three services while there is no connection"
+  ],
+  "fileErrors": [],
+  "log": "logs/F15.log",
+  "sha": "abf8137152e8"
+ },
+ {
+  "id": "F38",
+  "name": "the schema accepts any value",
+  "expect": "red",
+  "file": "tests/cordis-entry.spec.ts",
+  "command": "(cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)",
+  "exit": 1,
+  "total": 39,
+  "failed": [
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration accepts a complete lawful configuration as a copy",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is not an object",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is not an object, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that is a Date",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that is a Date, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that inherits every field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that inherits every field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that lacks a field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that lacks a field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that has an extra field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that has an extra field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration that has a symbol key",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration that has a symbol key, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose bound is not a number",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose bound is not a number, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose probeTimeoutMs is not a number",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose probeTimeoutMs is not a number, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo is not an object",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo is not an object, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo lacks a field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo lacks a field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo has an extra field",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo.name is not a text",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo.name is not a text, with the ValidationError of Cordis",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration refuses a configuration whose clientInfo.version is not a text",
+   "the MCP plugin on a Cordis context, without a process checks the shape of the configuration fails to load with a configuration whose clientInfo.version is not a text, with the ValidationError of Cordis"
+  ],
+  "fileErrors": [],
+  "log": "logs/F38.log",
+  "sha": "63225c7fecf2"
+ }
+]

@@ -1,0 +1,5 @@
+          await untilSent(peer, 'tools/call')
+          assert.deepStrictEqual(await transport.listActions(), {
+            failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+          })
+          await transport.close()

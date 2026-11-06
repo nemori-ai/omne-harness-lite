@@ -1,0 +1,458 @@
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-host-local
+
+ ❯ tests/stdio.spec.ts (14 tests | 7 failed) 2331ms
+     × a line above the 16 MiB byte bound breaks the stream: stream-broken, then not-sent 209ms
+     × a process that exits before it answers: no-answer (process-exited), then not-sent 72ms
+     × a process that ends stdout and stays alive: stream-broken after the exit window, then not-sent 160ms
+     × a process that exited before open: the first request is not-sent, nothing was written 80ms
+     × a process that answers and exits: the answer is read, the next request is not-sent 58ms
+     × the SDK server's tool that exits the process: the call's answer is process-exited 207ms
+     × the pipe is full: the call's signal settles the answer, the transport is unusable, and close() returns, each within the bound 60ms
+ ❯ tests/http.spec.ts (25 tests | 3 failed) 2322ms
+     × the SDK's 2025 transport with sessions: the session id is carried back; after DELETE the next request is session-ended and the transport is unusable 42ms
+     × the stream breaking fails every request in flight with stream-broken, re-sends nothing, and leaves the transport unusable 64ms
+     × a 404 from the endpoint after initialize ends the session (S07) 14ms
+conformance stdio first: passed 98, not-applicable 0, failed 1
+conformance streamable-http first: passed 97, not-applicable 1, failed 1
+ ❯ tests/conformance.spec.ts (198 tests | 2 failed) 100301ms
+     × T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable 47ms
+     × T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable 47ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/conformance.spec.ts > stdio first
+AssertionError: expected [] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+- [
+-   "T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable",
+- ]
++ []
+
+ ❯ tests/conformance.spec.ts:95:55
+     93|         `conformance ${title}: passed ${counts.passed.length}, not-app…
+     94|       )
+     95|       expect([...counts.notApplicable.keys()].sort()).toEqual([...expe…
+       |                                                       ^
+     96|     })
+     97|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/19]⎯
+
+ FAIL  tests/conformance.spec.ts > streamable-http first
+AssertionError: expected [ Array(1) ] to deeply equal [ …(2) ]
+
+- Expected
++ Received
+
+  [
+    "T3 legacy: a ping of the peer gets an empty result and any other request -32601, before initialize is answered and after initialized (item 7)",
+-   "T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable",
+  ]
+
+ ❯ tests/conformance.spec.ts:95:55
+     93|         `conformance ${title}: passed ${counts.passed.length}, not-app…
+     94|       )
+     95|       expect([...counts.notApplicable.keys()].sort()).toEqual([...expe…
+       |                                                       ^
+     96|     })
+     97|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/19]⎯
+
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/conformance.spec.ts > stdio first > T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable
+ FAIL  tests/conformance.spec.ts > streamable-http first > T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable
+AssertionError: stdio discover unsent: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
+    cause: 'connection-unavailable',
+    kind: 'not-sent',
++   unusable: 'process-exited'
+-   unusable: 'stream-broken'
+  }
+
+
+- Expected
++ Received
+
+  {
+    "cause": "connection-unavailable",
+    "kind": "not-sent",
+-   "unusable": "stream-broken",
++   "unusable": "process-exited",
+  }
+
+ ❯ assertFailure ../mcp-contract/src/testing-transport.ts:861:15
+ ❯ ../mcp-contract/src/testing-transport.ts:1114:9
+ ❯ withPeer ../mcp-contract/src/testing-transport.ts:298:14
+ ❯ run ../mcp-contract/src/testing-transport.ts:987:5
+ ❯ Object.run ../mcp-contract/src/testing-transport.ts:1354:15
+ ❯ runConformanceCase ../mcp-contract/src/testing-case.ts:44:5
+ ❯ tests/conformance.spec.ts:74:21
+     72|         let verdict
+     73|         try {
+     74|           verdict = await runConformanceCase(conformance, fixtureOf(ki…
+       |                     ^
+     75|         } catch (failure) {
+     76|           counts.failed.push(name)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/19]⎯
+
+ FAIL  tests/http.spec.ts > the legacy session and cancellation (T3, T5, T8 S07) > the SDK's 2025 transport with sessions: the session id is carried back; after DELETE the next request is session-ended and the transport is unusable
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "session-ended",
+      "kind": "not-sent",
++     "unusable": "session-ended",
+    },
+  }
+
+ ❯ tests/http.spec.ts:591:43
+    589|     })
+    590|     await ended.text()
+    591|     expect(await transport.listActions()).toEqual({
+       |                                           ^
+    592|       failure: { kind: 'not-sent', cause: 'session-ended' },
+    593|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/19]⎯
+
+ FAIL  tests/http.spec.ts > the legacy HTTP+SSE fallback (T3, T8 I07) > the stream breaking fails every request in flight with stream-broken, re-sends nothing, and leaves the transport unusable
+AssertionError: expected { Object (failure) } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "stream-broken",
+      "kind": "no-answer",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/http.spec.ts:667:27
+    665|     await new Promise(resolve => setTimeout(resolve, 50))
+    666|     peer.breakStreams()
+    667|     expect(await listing).toEqual({ failure: STREAM_BROKEN })
+       |                           ^
+    668|     expect(requestsOf(await peer.received(), 'tools/list')).toHaveLeng…
+    669|     expect(await transport.listActions()).toEqual(NOT_SENT)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/19]⎯
+
+ FAIL  tests/http.spec.ts > the legacy HTTP+SSE fallback (T3, T8 I07) > the stream breaking fails every request in flight with stream-broken, re-sends nothing, and leaves the transport unusable
+AssertionError: servers left listening: expected [ 53464 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   53464,
++ ]
+
+ ❯ tests/http.spec.ts:128:61
+    126| afterEach(async () => {
+    127|   expect(await leftover(), 'child processes left alive').toEqual([])
+    128|   expect(await leftoverServers(), 'servers left listening').toEqual([])
+       |                                                             ^
+    129| })
+    130|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/19]⎯
+
+ FAIL  tests/http.spec.ts > the legacy HTTP+SSE fallback (T3, T8 I07) > a 404 from the endpoint after initialize ends the session (S07)
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "session-ended",
+      "kind": "not-sent",
++     "unusable": "session-ended",
+    },
+  }
+
+ ❯ tests/http.spec.ts:679:43
+    677|     ok(await transport.discover(), 'discover')
+    678|     peer.endSessions()
+    679|     expect(await transport.listActions()).toEqual({
+       |                                           ^
+    680|       failure: { kind: 'not-sent', cause: 'session-ended' },
+    681|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/19]⎯
+
+ FAIL  tests/http.spec.ts > the legacy HTTP+SSE fallback (T3, T8 I07) > a 404 from the endpoint after initialize ends the session (S07)
+AssertionError: servers left listening: expected [ 25615 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   25615,
++ ]
+
+ ❯ tests/http.spec.ts:128:61
+    126| afterEach(async () => {
+    127|   expect(await leftover(), 'child processes left alive').toEqual([])
+    128|   expect(await leftoverServers(), 'servers left listening').toEqual([])
+       |                                                             ^
+    129| })
+    130|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/19]⎯
+
+ FAIL  tests/stdio.spec.ts > what the peer writes on stdout (T2, F4) > a line above the 16 MiB byte bound breaks the stream: stream-broken, then not-sent
+AssertionError: expected { Object (failure) } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "stream-broken",
+      "kind": "no-answer",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/stdio.spec.ts:94:40
+     92|     const peer = special('huge-line')
+     93|     const transport = await open(peer.material)
+     94|     expect(await transport.discover()).toEqual({
+       |                                        ^
+     95|       failure: { kind: 'no-answer', cause: 'stream-broken' },
+     96|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/19]⎯
+
+ FAIL  tests/stdio.spec.ts > what the peer writes on stdout (T2, F4) > a line above the 16 MiB byte bound breaks the stream: stream-broken, then not-sent
+AssertionError: child processes left alive: expected [ 78029 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   78029,
++ ]
+
+ ❯ tests/stdio.spec.ts:79:58
+     77|
+     78| afterEach(async () => {
+     79|   expect(await leftover(), 'child processes left alive').toEqual([])
+       |                                                          ^
+     80| })
+     81|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/19]⎯
+
+ FAIL  tests/stdio.spec.ts > the process and the pipe (T8 S01, S02, X02) > a process that exits before it answers: no-answer (process-exited), then not-sent
+AssertionError: expected { Object (failure) } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "process-exited",
+      "kind": "no-answer",
++     "unusable": "process-exited",
+    },
+  }
+
+ ❯ tests/stdio.spec.ts:107:40
+    105|     const peer = special('exit-before-answer')
+    106|     const transport = await open(peer.material)
+    107|     expect(await transport.discover()).toEqual({
+       |                                        ^
+    108|       failure: { kind: 'no-answer', cause: 'process-exited' },
+    109|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/19]⎯
+
+ FAIL  tests/stdio.spec.ts > the process and the pipe (T8 S01, S02, X02) > a process that ends stdout and stays alive: stream-broken after the exit window, then not-sent
+AssertionError: expected { Object (failure) } to deeply equal { Object (failure) }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "stream-broken",
+      "kind": "no-answer",
++     "unusable": "stream-broken",
+    },
+  }
+
+ ❯ tests/stdio.spec.ts:118:40
+    116|     const peer = special('end-stdout')
+    117|     const transport = await open(peer.material)
+    118|     expect(await transport.discover()).toEqual({
+       |                                        ^
+    119|       failure: { kind: 'no-answer', cause: 'stream-broken' },
+    120|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/19]⎯
+
+ FAIL  tests/stdio.spec.ts > the process and the pipe (T8 S01, S02, X02) > a process that ends stdout and stays alive: stream-broken after the exit window, then not-sent
+AssertionError: child processes left alive: expected [ 78051 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   78051,
++ ]
+
+ ❯ tests/stdio.spec.ts:79:58
+     77|
+     78| afterEach(async () => {
+     79|   expect(await leftover(), 'child processes left alive').toEqual([])
+       |                                                          ^
+     80| })
+     81|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/19]⎯
+
+ FAIL  tests/stdio.spec.ts > the process and the pipe (T8 S01, S02, X02) > a process that exited before open: the first request is not-sent, nothing was written
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "connection-unavailable",
+      "kind": "not-sent",
++     "unusable": "process-exited",
+    },
+  }
+
+ ❯ tests/stdio.spec.ts:130:40
+    128|     await peer.exited
+    129|     const transport = await open(peer.material)
+    130|     expect(await transport.discover()).toEqual(NOT_SENT)
+       |                                        ^
+    131|     await transport.close()
+    132|     await peer.close()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/19]⎯
+
+ FAIL  tests/stdio.spec.ts > the process and the pipe (T8 S01, S02, X02) > a process that answers and exits: the answer is read, the next request is not-sent
+AssertionError: expected { failure: { kind: 'not-sent', …(2) } } to deeply equal { failure: { kind: 'not-sent', …(1) } }
+
+- Expected
++ Received
+
+  {
+    "failure": {
+      "cause": "connection-unavailable",
+      "kind": "not-sent",
++     "unusable": "process-exited",
+    },
+  }
+
+ ❯ tests/stdio.spec.ts:140:43
+    138|     expect(ok(await transport.discover(), 'discover').protocolVersion)…
+    139|     await peer.exited
+    140|     expect(await transport.listActions()).toEqual(NOT_SENT)
+       |                                           ^
+    141|     await transport.close()
+    142|     await peer.close()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/19]⎯
+
+ FAIL  tests/stdio.spec.ts > the process and the pipe (T8 S01, S02, X02) > the SDK server's tool that exits the process: the call's answer is process-exited
+AssertionError: expected { kind: 'no-answer', …(2) } to deeply equal { kind: 'no-answer', …(1) }
+
+- Expected
++ Received
+
+  {
+    "cause": "process-exited",
+    "kind": "no-answer",
++   "unusable": "process-exited",
+  }
+
+ ❯ tests/stdio.spec.ts:153:31
+    151|       'call',
+    152|     )
+    153|     expect(await sent.answer).toEqual({ kind: 'no-answer', cause: 'pro…
+       |                               ^
+    154|     await transport.close()
+    155|     await spawned.handle.stop()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/19]⎯
+
+ FAIL  tests/stdio.spec.ts > a peer that does not read stdin (T5) > the pipe is full: the call's signal settles the answer, the transport is unusable, and close() returns, each within the bound
+AssertionError: expected { settled: { failure: { …(3) } } } to deeply equal { settled: { failure: { …(2) } } }
+
+- Expected
++ Received
+
+  {
+    "settled": {
+      "failure": {
+        "cause": "connection-unavailable",
+        "kind": "not-sent",
++       "unusable": "stream-broken",
+      },
+    },
+  }
+
+ ❯ tests/stdio.spec.ts:230:58
+    228|       settled: { kind: 'no-answer', cause: 'abandoned' },
+    229|     })
+    230|     expect(await settledWithin(transport.listActions())).toEqual({ set…
+       |                                                          ^
+    231|     expect(await settledWithin(transport.close())).toEqual({ settled: …
+    232|     await peer.close()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/19]⎯
+
+ FAIL  tests/stdio.spec.ts > a peer that does not read stdin (T5) > the pipe is full: the call's signal settles the answer, the transport is unusable, and close() returns, each within the bound
+AssertionError: child processes left alive: expected [ 78101 ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   78101,
++ ]
+
+ ❯ tests/stdio.spec.ts:79:58
+     77|
+     78| afterEach(async () => {
+     79|   expect(await leftover(), 'child processes left alive').toEqual([])
+       |                                                          ^
+     80| })
+     81|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/19]⎯
+
+
+ Test Files  3 failed | 2 passed (5)
+      Tests  12 failed | 233 passed | 9 skipped (254)
+   Start at  12:54:34
+   Duration  104.08s (transform 1.50s, setup 68ms, import 3.42s, tests 136.52s, environment 1ms)
+

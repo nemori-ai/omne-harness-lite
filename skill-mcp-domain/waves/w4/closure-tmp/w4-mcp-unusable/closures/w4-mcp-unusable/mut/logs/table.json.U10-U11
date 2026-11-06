@@ -1,0 +1,27 @@
+[
+ {
+  "id": "U10",
+  "codes": [
+   1,
+   1,
+   1
+  ],
+  "fails": [
+   "tests/decisions.spec.ts > concludeAnswer holds every cell of T8 > the answer of a row that ends the transport carries its cause as the mark; the answer of any other row carries no mark (T1, X02, S03, S04, S07)",
+   "tests/http.spec.ts > broken streams and re-sending (T8 D15, O05, O06, C04, O07) > a single POST answered 5xx fails that request without the mark, and the next request goes out and is answered (T1)",
+   "tests/http.spec.ts > broken streams and re-sending (T8 D15, O05, O06, C04, O07) > tools/call, tasks/update and tasks/cancel are not sent again; 5xx with a plain body is not either",
+   "tests/invoke.spec.ts > the send order: each step refuses with the place given back (SPEC MC-16) > step 12 (S7, T1): a 5xx on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call"
+  ],
+  "log": "621152594264133d"
+ },
+ {
+  "id": "U11",
+  "codes": [
+   1
+  ],
+  "fails": [
+   "tests/decisions.spec.ts > concludeAnswer holds every cell of T8 > a transport that is not usable any more marks what it hands over with the cause it recorded; a refusal and an answer of the peer stay as they are (T1)"
+  ],
+  "log": "7939ee6d2565242a"
+ }
+]

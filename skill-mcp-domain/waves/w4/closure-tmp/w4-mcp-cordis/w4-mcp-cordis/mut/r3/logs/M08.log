@@ -1,0 +1,77 @@
+# M08 the plugin never passes the clock to the services
+# expect: red
+# edits: [{"from":"        ...(parts.clock === undefined ? {} : { clock: parts.clock }),\n","to":""}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)
+exit 1
+seconds 2.8
+total 14
+failed [
+ "the MCP plugin on a Cordis context, with a scripted peer process stamps the published catalog with the time of the clock in the plugin parts"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-journey.spec.ts (14 tests | 1 failed) 831ms
+     ✓ loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer 93ms
+     × stamps the published catalog with the time of the clock in the plugin parts 62ms
+     ✓ answers each operation of the three services through the plugin 61ms
+     ✓ signals a call in flight that cancel names 66ms
+     ✓ publishes the catalog of a stdio peer once the absent adoption port is provided 47ms
+     ✓ publishes the catalog of a stdio peer once the absent eligibility port is provided 47ms
+     ✓ publishes the catalog of a stdio peer once the absent credentials port is provided 51ms
+     ✓ publishes the catalog of a stdio peer once the absent landing port is provided 47ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 91ms
+     ✓ removes the three services, stops the peer process and releases the credential handle when the plugin unloads 55ms
+     ✓ settles a call in flight with an unknown effect when the plugin unloads 51ms
+     ✓ warns of the endpoint and the scope when the stop of its process is root-only at unload 56ms
+     ✓ warns of the endpoint and the scope when the stop of its process is unconfirmed at unload 53ms
+     ✓ does not warn when the stop of the process is tree-confirmed at unload 47ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 passed (14)
+   Start at  16:31:29
+   Duration  1.90s (transform 594ms, setup 16ms, import 863ms, tests 831ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r3/logs/report-M08/packages__mcp__mcp-host-local.json
+
+--- stderr
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > stamps the published catalog with the time of the clock in the plugin parts
+AssertionError: expected { ok: { kind: 'acquired', …(5) } } to match object { ok: { kind: 'acquired', …(1) } }
+(8 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "ok": {
+      "freshness": {
+-       "acquiredAt": "2026-01-02T03:04:05.000Z",
++       "acquiredAt": "2026-11-06T16:31:30.240Z",
+      },
+      "kind": "acquired",
+    },
+  }
+
+ ❯ tests/cordis-journey.spec.ts:423:77
+    421|     const { ctx } = await assembled({ script: ANSWERING }, undefined, …
+    422|     expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'publishe…
+    423|     expect(await service(ctx, mcpActionDiscoveryKey).current(ALICE, FI…
+       |                                                                             ^
+    424|       ok: { kind: 'acquired', freshness: { acquiredAt: acquiredAt.toIS…
+    425|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+

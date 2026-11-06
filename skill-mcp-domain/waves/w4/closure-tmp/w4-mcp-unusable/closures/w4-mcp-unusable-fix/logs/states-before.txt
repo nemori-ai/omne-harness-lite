@@ -1,0 +1,16 @@
+(node:196033) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable-fix/states.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+REBUILD	states=5714	runs=17466	depth=23	violations=0	endings=[]
+FAULTS	states=2829	runs=7567	depth=15	violations=0	endings=[]
+THROWS	states=335	runs=701	depth=12	violations=0	endings=[]
+THROWS_EXHAUSTIVE	states=6401	runs=6401	depth=13	violations=0	endings=[]
+CALL	states=263	runs=455	depth=16	violations=0	endings=[]
+ABORT	states=148	runs=242	depth=16	violations=0	endings=[]
+CALL_FAULTS	states=932	runs=2306	depth=19	violations=0	endings=["transport.answer fail lost","transport.answer fail ready","transport.call fail lost"]
+MARKS	states=581	runs=1192	depth=21	violations=0	endings=["transport.answer fail lost","transport.answer fail-usable ready","transport.call fail lost","transport.call fail-usable ready","transport.getTask fail lost","transport.getTask fail-usable ready"]
+CONTINUE	states=1070	runs=2366	depth=34	violations=0	endings=[]
+CALL_SHUTDOWN	states=1018	runs=2205	depth=19	violations=0	endings=[]
+FOREIGN_CANCEL	states=731	runs=1473	depth=17	violations=0	endings=[]
+FOREIGN_TASK	states=200	runs=361	depth=16	violations=0	endings=[]

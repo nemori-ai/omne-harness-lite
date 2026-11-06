@@ -1,0 +1,169 @@
+[
+  {
+    "name": "H1 eligibility absent answers granted",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "if (port === undefined) return { kind: 'unknown' }", "to": "if (port === undefined) return { kind: 'granted' }" }]
+  },
+  {
+    "name": "H2 adoption endpoint absent answers not-adopted",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "if (port === undefined) return fail('unknown')\n      return port.endpoint(", "to": "if (port === undefined) return { ok: 'not-adopted' as const }\n      return port.endpoint(" }]
+  },
+  {
+    "name": "H2b adoption endpoints absent answers an empty list",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "if (port === undefined) return fail('unknown')\n      return port.endpoints(", "to": "if (port === undefined) return { ok: [] }\n      return port.endpoints(" }]
+  },
+  {
+    "name": "H3 credential absent answers missing",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "if (port === undefined) return fail('unknown')\n    // Each branch", "to": "if (port === undefined) return fail('missing')\n    // Each branch" }]
+  },
+  {
+    "name": "H4 landing absent answers facility-missing",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "if (port === undefined) return fail('unknown')\n      return port.start(", "to": "if (port === undefined) return fail('facility-missing')\n      return port.start(" }]
+  },
+  {
+    "name": "H5 eligibility adapter caches the first reference",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [
+      { "from": "function eligibilityOf(ctx: Context): UseEligibility<unknown> {\n  return {", "to": "function eligibilityOf(ctx: Context): UseEligibility<unknown> {\n  let cached: UseEligibility<unknown> | undefined\n  return {" },
+      { "from": "const port = ctx.get(mcpUseEligibilityKey)", "to": "const port = (cached ??= ctx.get(mcpUseEligibilityKey))" }
+    ]
+  },
+  {
+    "name": "H6 adoption adapter caches the first reference",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [
+      { "from": "function adoptionOf(ctx: Context): AdoptionView<unknown, unknown> {\n  return {", "to": "function adoptionOf(ctx: Context): AdoptionView<unknown, unknown> {\n  let cached: AdoptionView<unknown, unknown> | undefined\n  return {" },
+      { "from": "const port = ctx.get(mcpAdoptionViewKey)\n      if (port === undefined) return fail('unknown')\n      return port.endpoint(", "to": "const port = (cached ??= ctx.get(mcpAdoptionViewKey))\n      if (port === undefined) return fail('unknown')\n      return port.endpoint(" }
+    ]
+  },
+  {
+    "name": "H7 removal does not await closeAll",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "await services.connections.closeAll()", "to": "void services.connections.closeAll()" }]
+  },
+  {
+    "name": "H8 no removal",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "await services.connections.closeAll()", "to": "" }]
+  },
+  {
+    "name": "H9 peer not forwarded",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "return this.discovery.peer(...args)", "to": "void args\n    return Promise.resolve({ failure: { kind: 'not-connected' as const } })" }]
+  },
+  {
+    "name": "H10 continueWithInput not forwarded",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "return this.invoker.continueWithInput(...args)", "to": "void args\n    return Promise.resolve({ kind: 'not-sent' as const, reason: { kind: 'unknown' as const } })" }]
+  },
+  {
+    "name": "H11 cancel not forwarded",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "return this.invoker.cancel(...args)", "to": "void args\n    return Promise.resolve('unknown' as const)" }]
+  },
+  {
+    "name": "H12 queryTask not forwarded",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "return this.invoker.queryTask(...args)", "to": "void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })" }]
+  },
+  {
+    "name": "H13 taskResult not forwarded",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "return this.invoker.taskResult(...args)", "to": "void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })" }]
+  },
+  {
+    "name": "H14 provideTaskInput not forwarded",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "return this.invoker.provideTaskInput(...args)", "to": "void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })" }]
+  },
+  {
+    "name": "H15 cancelTask not forwarded",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "return this.invoker.cancelTask(...args)", "to": "void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })" }]
+  },
+  {
+    "name": "H16 list not forwarded",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "return this.status.list(...args)", "to": "void args\n    return Promise.resolve({ failure: 'unknown' as const })" }]
+  },
+  {
+    "name": "H17 schema accepts an extra field",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "if (extra !== undefined) return `${what} has no field ${extra}`", "to": "void extra" }]
+  },
+  {
+    "name": "H18 schema does not report a missing field by name",
+    "member": "packages/mcp/mcp-host-local",
+    "file": "packages/mcp/mcp-host-local/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "if (missing !== undefined) return `${what} needs the field ${missing}`", "to": "void missing" }]
+  },
+  {
+    "name": "C1 two Services share a key",
+    "member": "packages/mcp/mcp-cordis-contract",
+    "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "static readonly provide = 'mcpCredentialUse'", "to": "static readonly provide = 'mcpUseEligibility'" }]
+  },
+  {
+    "name": "C2 an extra runtime export",
+    "member": "packages/mcp/mcp-cordis-contract",
+    "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "export const mcpProcessLandingKey = ProcessLandingService.provide", "to": "export const mcpProcessLandingKey = ProcessLandingService.provide\nexport const mcpExtraKey = 'mcpExtra'" }]
+  },
+  {
+    "name": "C3 the root entry loads Cordis",
+    "member": "packages/mcp/mcp-cordis-contract",
+    "file": "packages/mcp/mcp-cordis-contract/src/index.ts",
+    "test": "tests/public-entry.spec.ts",
+    "edits": [{ "from": "export {}", "to": "import '@deepseek-ai/cordis'\nexport {}" }]
+  },
+  {
+    "name": "C4 a key constant differs from its provide",
+    "member": "packages/mcp/mcp-cordis-contract",
+    "file": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+    "test": "tests/cordis-entry.spec.ts",
+    "edits": [{ "from": "export const mcpAdoptionViewKey = AdoptionViewService.provide", "to": "export const mcpAdoptionViewKey = 'mcpAdoptionViews'" }]
+  }
+]

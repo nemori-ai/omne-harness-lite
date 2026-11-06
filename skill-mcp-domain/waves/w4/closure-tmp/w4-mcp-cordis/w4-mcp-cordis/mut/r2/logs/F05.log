@@ -1,0 +1,34 @@
+# F05 landing absent answers facility-missing
+# expect: equivalent
+# edits: [{"from":"if (port === undefined) return fail('unknown')\n      return port.start(","to":"if (port === undefined) return fail('facility-missing')\n      return port.start("}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)
+exit 0
+seconds 1.9
+total 41
+failed []
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ✓ tests/cordis-entry.spec.ts (41 tests) 124ms
+
+ Test Files  1 passed (1)
+      Tests  41 passed (41)
+Type Errors  no errors
+   Start at  15:39:50
+   Duration  1.06s (transform 522ms, setup 19ms, import 761ms, tests 124ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-F05/packages__mcp__mcp-host-local.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+

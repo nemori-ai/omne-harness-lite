@@ -1,0 +1,16 @@
+diff --git a/packages/mcp/mcp/src/internal/lost.ts b/packages/mcp/mcp/src/internal/lost.ts
+index e54e79bd2..80cc2691b 100644
+--- a/packages/mcp/mcp/src/internal/lost.ts
++++ b/packages/mcp/mcp/src/internal/lost.ts
+@@ -99,9 +99,9 @@ export function lostOf(answer: TransportFailure | PeerAnswer): Lost | undefined
+   switch (answer.kind) {
+     case 'not-sent':
+       if (answer.cause === 'authorization-required') return AUTHORIZATION_REQUIRED
+-      return unusableOf(answer.unusable)
++      return unusableOf(answer.unusable ?? 'stream-broken')
+     case 'no-answer':
+-      return unusableOf(answer.unusable)
++      return unusableOf(answer.unusable ?? 'stream-broken')
+     case 'error-answer':
+     case 'answer-malformed':
+     case 'result':

@@ -1,0 +1,146 @@
+head 0961b30e9 start 2026-11-06T17:42:40Z cmd: build agent settings-local identity-sql, then pnpm run lint:deps
+
+   • turbo 2.11.7
+   • Packages in scope: @omne-harness/agent, @omne-harness/identity-sql, @omne-harness/settings-local
+   • Running build in 3 packages
+   • Remote caching disabled, using shared worktree cache
+
+@omne-harness/legal-identity:build: cache hit, replaying logs ee982a7601f3e3e7
+@omne-harness/legal-identity:build: 
+@omne-harness/legal-identity:build: > @omne-harness/legal-identity@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/legal-identity
+@omne-harness/legal-identity:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/legal-identity:build: 
+@omne-harness/scrypt:build: cache hit, replaying logs 62e0e63943c51a33
+@omne-harness/scrypt:build: 
+@omne-harness/scrypt:build: > @omne-harness/scrypt@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/identity/scrypt
+@omne-harness/scrypt:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/scrypt:build: 
+@omne-harness/exchange-refs:build: cache hit, replaying logs 6f8631656c2c37ea
+@omne-harness/exchange-refs:build: 
+@omne-harness/exchange-refs:build: > @omne-harness/exchange-refs@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/common/exchange-refs
+@omne-harness/exchange-refs:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/exchange-refs:build: 
+@omne-harness/utc-instant:build: cache hit, replaying logs ecb37bd0399eb91c
+@omne-harness/utc-instant:build: 
+@omne-harness/utc-instant:build: > @omne-harness/utc-instant@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/common/utc-instant
+@omne-harness/utc-instant:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/utc-instant:build: 
+@omne-harness/operation-result:build: cache hit, replaying logs 7b090f47e0dc0b38
+@omne-harness/operation-result:build: 
+@omne-harness/operation-result:build: > @omne-harness/operation-result@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/operation-result
+@omne-harness/operation-result:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/operation-result:build: 
+@omne-harness/json-text:build: cache hit, replaying logs 1083ecb6d3cb9528
+@omne-harness/settings:build: cache hit, replaying logs 3480c46c9d29987f
+@omne-harness/settings:build: 
+@omne-harness/settings:build: > @omne-harness/settings@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/settings
+@omne-harness/settings:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/settings:build: 
+@omne-harness/kernel-basis:build: cache hit, replaying logs 68480501b59d7451
+@omne-harness/kernel-basis:build: 
+@omne-harness/kernel-basis:build: > @omne-harness/kernel-basis@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/assembly/kernel-basis
+@omne-harness/kernel-basis:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/kernel-basis:build: 
+@omne-harness/sql-contract:build: cache hit, replaying logs c4d18bb4f2bf94d7
+@omne-harness/sql-contract:build: 
+@omne-harness/sql-contract:build: > @omne-harness/sql-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/storage/sql-contract
+@omne-harness/sql-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/sql-contract:build: 
+@omne-harness/json-text:build: 
+@omne-harness/json-text:build: > @omne-harness/json-text@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/json-text
+@omne-harness/json-text:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/json-text:build: 
+@omne-harness/call-account:build: cache hit, replaying logs 1ce46f05343a5276
+@omne-harness/call-account:build: 
+@omne-harness/call-account:build: > @omne-harness/call-account@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/common/call-account
+@omne-harness/call-account:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/call-account:build: 
+@omne-harness/modality:build: cache hit, replaying logs d6b15f60359c1635
+@omne-harness/modality:build: 
+@omne-harness/modality:build: > @omne-harness/modality@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/common/modality
+@omne-harness/modality:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/modality:build: 
+@omne-harness/content-block:build: cache hit, replaying logs 0f0fbb244a6d6788
+@omne-harness/content-block:build: 
+@omne-harness/content-block:build: > @omne-harness/content-block@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/common/content-block
+@omne-harness/content-block:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/content-block:build: 
+@omne-harness/identity:build: cache hit, replaying logs 4a1183f2f520ca92
+@omne-harness/identity:build: 
+@omne-harness/identity:build: > @omne-harness/identity@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/identity/identity
+@omne-harness/identity:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/identity:build: 
+@omne-harness/message:build: cache hit, replaying logs de6b94b97f72fa3e
+@omne-harness/message:build: 
+@omne-harness/message:build: > @omne-harness/message@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/common/message
+@omne-harness/message:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/message:build: 
+@omne-harness/assets:build: cache hit, replaying logs c7c38375dd45e536
+@omne-harness/assets:build: 
+@omne-harness/assets:build: > @omne-harness/assets@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/assets/assets
+@omne-harness/assets:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/assets:build: 
+@omne-harness/schema-provider:build: cache hit, replaying logs 2c9123a34cebced4
+@omne-harness/schema-provider:build: 
+@omne-harness/schema-provider:build: > @omne-harness/schema-provider@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/schema/schema-provider
+@omne-harness/schema-provider:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/schema-provider:build: 
+@omne-harness/stream-arrival:build: cache hit, replaying logs a9bb7104d67628da
+@omne-harness/sqlite-provider:build: cache hit, replaying logs 83a002f5aa83f918
+@omne-harness/runtime-context-contract:build: cache hit, replaying logs ac676e31379758d8
+@omne-harness/stream-arrival:build: 
+@omne-harness/sqlite-provider:build: 
+@omne-harness/stream-arrival:build: > @omne-harness/stream-arrival@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/common/stream-arrival
+@omne-harness/sqlite-provider:build: > @omne-harness/sqlite-provider@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/storage/sqlite-provider
+@omne-harness/runtime-context-contract:build: 
+@omne-harness/runtime-context-contract:build: > @omne-harness/runtime-context-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/context/runtime-context-contract
+@omne-harness/stream-arrival:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/stream-arrival:build: 
+@omne-harness/sqlite-provider:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/sqlite-provider:build: 
+@omne-harness/runtime-context-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/runtime-context-contract:build: 
+@omne-harness/identity-sql:build: cache hit, replaying logs c75e7ef5831f62e8
+@omne-harness/identity-sql:build: 
+@omne-harness/identity-sql:build: > @omne-harness/identity-sql@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/identity/identity-sql
+@omne-harness/identity-sql:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/identity-sql:build: 
+@omne-harness/tool-contract:build: cache hit, replaying logs a276820fe3a8f694
+@omne-harness/tool-contract:build: 
+@omne-harness/tool-contract:build: > @omne-harness/tool-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/tool/tool-contract
+@omne-harness/tool-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/tool-contract:build: 
+@omne-harness/settings-local:build: cache hit, replaying logs dd06bd10469cff3b
+@omne-harness/settings-local:build: 
+@omne-harness/settings-local:build: > @omne-harness/settings-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/assets/settings-local
+@omne-harness/settings-local:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/settings-local:build: 
+@omne-harness/model-contract:build: cache hit, replaying logs 436316b6f7581a4c
+@omne-harness/model-contract:build: 
+@omne-harness/model-contract:build: > @omne-harness/model-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/model/model-contract
+@omne-harness/model-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/model-contract:build: 
+@omne-harness/agent-contract:build: cache hit, replaying logs 5321e7ca210e13ca
+@omne-harness/agent-contract:build: 
+@omne-harness/agent-contract:build: > @omne-harness/agent-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/agent/agent-contract
+@omne-harness/agent-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/agent-contract:build: 
+@omne-harness/agent:build: cache hit, replaying logs 865013b71948e38c
+@omne-harness/agent:build: 
+@omne-harness/agent:build: > @omne-harness/agent@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-skill-cordis/packages/agent/agent
+@omne-harness/agent:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/agent:build: 
+
+ Tasks:    25 successful, 25 total
+Cached:    25 cached, 25 total
+  Time:    71ms >>> FULL TURBO
+
+build exit 0
+
+> omne-harness-lite-workspace@ lint:deps /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable
+> omne-deps
+
+  excepted 组环 packages/agent、packages/context、packages/execution、packages/tool 按例外 GCX-AGENT-CONTEXT（裁定 https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6562280172）放行 packages/agent/agent → packages/tool/tool-contract、packages/agent/agent-contract → packages/tool/tool-contract、packages/agent/agent-host-local → packages/tool/tool-contract、packages/agent/agent-host-local → packages/tool/tool-cordis-contract、packages/context/agent-context → packages/agent/agent-contract、packages/context/agent-context → packages/agent/agent-cordis-contract：agent-context 实现 Agent 的请求与账目出站端口，Agent 要用工具，工具要感知运行时上下文（Reduce 裁定）；例外 GCX-CONTEXT-TOOL（裁定 https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6480475331）放行 packages/context/request-context-contract → packages/tool/tool-contract、packages/tool/tool → packages/context/runtime-context-contract、packages/tool/tool-contract → packages/context/runtime-context-contract：上下文组装要感知工具，工具要感知运行时上下文（PanQiWei 裁定）；例外 GCX-TOOL-EXECUTION（裁定 https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6593090424）放行 packages/execution/execution-environment → packages/context/runtime-context-contract、packages/execution/execution-environment-contract → packages/context/runtime-context-contract、packages/execution/execution-environment-cordis-contract → packages/context/runtime-context-contract、packages/execution/execution-environment-host-local → packages/context/runtime-context-contract、packages/tool/tool-definitions → packages/execution/execution-environment-contract：Tool 作者消费 Execution 的公开设施与环境声明，Execution 要感知运行时上下文（Reduce 裁定）；例外 GCX-TOOL-HOST-EXECUTION（裁定 https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6602975605）放行 packages/tool/tool-host-local → packages/context/runtime-context-contract、packages/tool/tool-host-local → packages/execution/execution-environment-contract、packages/tool/tool-host-local → packages/execution/execution-environment-cordis-contract：本地 Tool 宿主经 Execution 的公开契约与 Cordis 服务获取执行环境，并感知运行时上下文（Reduce 裁定 R2-D142 第 8 项）
+依赖方向：检查了 9 条方向行、40 个成员对，命中 0 处
+✔ 没有依赖违规、方向命中、成员之间的环，也没有未放行的组环（85 个成员、352 条成员边；1 个组环按具名例外放行）
+exit 0 end 2026-11-06T17:42:41Z

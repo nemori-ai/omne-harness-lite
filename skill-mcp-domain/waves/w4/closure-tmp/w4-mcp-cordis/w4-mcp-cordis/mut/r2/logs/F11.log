@@ -1,0 +1,119 @@
+# F11 landing adapter reads the port at apply
+# expect: red
+# edits: [{"from":"function landingOf(ctx: Context): ProcessLanding<unknown> {\n","to":"function landingOf(ctx: Context): ProcessLanding<unknown> {\n  const loaded = ctx.get(mcpProcessLandingKey)\n"},{"from":"const port = ctx.get(mcpProcessLandingKey)","to":"const port = loaded","all":true}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)
+exit 1
+seconds 2.1
+total 41
+failed [
+ "the MCP plugin on a Cordis context, without a process answers landing-unavailable while the process landing is absent, and asks the landing once it is provided",
+ "the MCP plugin on a Cordis context, without a process uses the replacement process landing at the next port call after a swap"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-entry.spec.ts (41 tests | 2 failed) 126ms
+     ✓ provides the three services on load with a complete lawful configuration and removes them when the plugin unloads 14ms
+     ✓ answers each operation of the three services while there is no connection 17ms
+     ✓ answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided 7ms
+     ✓ answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided 4ms
+     ✓ answers an unknown credential, and asks no landing, while the credential use is absent, and acquires once it is provided 5ms
+     × answers landing-unavailable while the process landing is absent, and asks the landing once it is provided 12ms
+     ✓ uses the replacement eligibility at the next port call after a swap 5ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 4ms
+     ✓ uses the replacement credential use at the next port call after a swap 5ms
+     × uses the replacement process landing at the next port call after a swap 4ms
+     ✓ Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes 6ms
+       ✓ accepts a complete lawful configuration as a copy 1ms
+       ✓ accepts a configuration without a prototype 0ms
+       ✓ refuses a configuration that is not an object 0ms
+       ✓ fails to load with a configuration that is not an object, with the ValidationError of Cordis 3ms
+       ✓ refuses a configuration that is a Date 0ms
+       ✓ fails to load with a configuration that is a Date, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that inherits every field 0ms
+       ✓ fails to load with a configuration that inherits every field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that lacks a field 0ms
+       ✓ fails to load with a configuration that lacks a field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that has an extra field 0ms
+       ✓ fails to load with a configuration that has an extra field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration that has a symbol key 0ms
+       ✓ fails to load with a configuration that has a symbol key, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration whose bound is not a number 0ms
+       ✓ fails to load with a configuration whose bound is not a number, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration whose probeTimeoutMs is not a number 0ms
+       ✓ fails to load with a configuration whose probeTimeoutMs is not a number, with the ValidationError of Cordis 10ms
+       ✓ refuses a configuration whose clientInfo is not an object 0ms
+       ✓ fails to load with a configuration whose clientInfo is not an object, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration whose clientInfo lacks a field 0ms
+       ✓ fails to load with a configuration whose clientInfo lacks a field, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo has an extra field 0ms
+       ✓ fails to load with a configuration whose clientInfo has an extra field, with the ValidationError of Cordis 2ms
+       ✓ refuses a configuration whose clientInfo.name is not a text 0ms
+       ✓ fails to load with a configuration whose clientInfo.name is not a text, with the ValidationError of Cordis 1ms
+       ✓ refuses a configuration whose clientInfo.version is not a text 0ms
+       ✓ fails to load with a configuration whose clientInfo.version is not a text, with the ValidationError of Cordis 1ms
+       ✓ fails to load when maxActions is 0, with the RangeError of createMcp 3ms
+       ✓ fails to load when probeTimeoutMs is 0, with the RangeError of the transport factory 2ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 39 passed (41)
+Type Errors  no errors
+   Start at  15:40:06
+   Duration  1.16s (transform 613ms, setup 14ms, import 877ms, tests 126ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-F11/packages__mcp__mcp-host-local.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > answers landing-unavailable while the process landing is absent, and asks the landing once it is provided
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/cordis-entry.spec.ts:322:31
+    320|     await load(ctx, provided.landing, undefined)
+    321|     expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
+    322|     expect(provided.launches).toHaveLength(1)
+       |                               ^
+    323|   })
+    324|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > the MCP plugin on a Cordis context, without a process > uses the replacement process landing at the next port call after a swap
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/cordis-entry.spec.ts:379:28
+    377|     const firstFiber = await load(ctx, landingService(first.port), und…
+    378|     expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
+    379|     expect(first.launches).toHaveLength(1)
+       |                            ^
+    380|
+    381|     await firstFiber.dispose()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+

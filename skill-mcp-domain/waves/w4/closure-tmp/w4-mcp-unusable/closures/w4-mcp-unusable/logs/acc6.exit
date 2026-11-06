@@ -1,0 +1,6 @@
+typecheck exit 0 start 2026-11-06T13:45:22Z end 2026-11-06T13:45:24Z
+lint:rules exit 0 start 2026-11-06T13:45:24Z end 2026-11-06T13:46:04Z
+lint:oxlint exit 0 start 2026-11-06T13:46:04Z end 2026-11-06T13:46:06Z
+lint:deps exit 1 start 2026-11-06T13:46:06Z end 2026-11-06T13:47:04Z
+format:check exit 0 start 2026-11-06T13:47:04Z end 2026-11-06T13:47:06Z
+check:docs exit 0 start 2026-11-06T13:47:06Z end 2026-11-06T13:47:57Z

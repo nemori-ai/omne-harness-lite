@@ -1,0 +1,11 @@
+progress HEAD states=5000 runs=10306 depth=11 t=6s
+progress HEAD states=10000 runs=22674 depth=12 t=14s
+progress HEAD states=15000 runs=36678 depth=14 t=24s
+progress HEAD states=20000 runs=51881 depth=15 t=36s
+progress HEAD states=25000 runs=67369 depth=16 t=50s
+progress HEAD states=30000 runs=83244 depth=17 t=64s
+progress HEAD states=35000 runs=100416 depth=17 t=80s
+progress HEAD states=40000 runs=118311 depth=18 t=97s
+progress HEAD states=45000 runs=136912 depth=19 t=116s
+progress HEAD states=50000 runs=155771 depth=21 t=136s
+progress HEAD states=55000 runs=175208 depth=24 t=158s

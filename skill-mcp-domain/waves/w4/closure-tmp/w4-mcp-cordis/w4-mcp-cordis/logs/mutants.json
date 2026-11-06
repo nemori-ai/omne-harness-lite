@@ -1,0 +1,165 @@
+[
+ {
+  "name": "H1 eligibility absent answers granted",
+  "exit": 1,
+  "failed": [
+   "answers unknown, and connects to nothing, while the use eligibility is absent"
+  ]
+ },
+ {
+  "name": "H2 adoption endpoint absent answers not-adopted",
+  "exit": 1,
+  "failed": [
+   "answers unknown, and connects to nothing, while the adoption view is absent"
+  ]
+ },
+ {
+  "name": "H2b adoption endpoints absent answers an empty list",
+  "exit": 1,
+  "failed": [
+   "answers unknown, and connects to nothing, while the adoption view is absent"
+  ]
+ },
+ {
+  "name": "H3 credential absent answers missing",
+  "exit": 1,
+  "failed": [
+   "answers an unknown credential, and starts no process, while the credential use is absent"
+  ]
+ },
+ {
+  "name": "H4 landing absent answers facility-missing",
+  "exit": 0,
+  "failed": []
+ },
+ {
+  "name": "H5 eligibility adapter caches the first reference",
+  "exit": 1,
+  "failed": [
+   "uses the replacement eligibility at the next operation after a swap"
+  ]
+ },
+ {
+  "name": "H6 adoption adapter caches the first reference",
+  "exit": 1,
+  "failed": [
+   "reads the replacement adoption view at the next refresh after a swap"
+  ]
+ },
+ {
+  "name": "H7 removal does not await closeAll",
+  "exit": 1,
+  "failed": [
+   "loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer",
+   "answers each operation of the three services through the plugin",
+   "signals a call in flight that cancel names",
+   "reads the replacement adoption view at the next refresh after a swap",
+   "removes the three services and stops the peer process when the plugin unloads",
+   "settles a call in flight with an unknown effect when the plugin unloads"
+  ]
+ },
+ {
+  "name": "H8 no removal",
+  "exit": 1,
+  "failed": [
+   "loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer",
+   "answers each operation of the three services through the plugin",
+   "signals a call in flight that cancel names",
+   "reads the replacement adoption view at the next refresh after a swap",
+   "removes the three services and stops the peer process when the plugin unloads",
+   "settles a call in flight with an unknown effect when the plugin unloads"
+  ]
+ },
+ {
+  "name": "H9 peer not forwarded",
+  "exit": 1,
+  "failed": [
+   "answers each operation of the three services through the plugin"
+  ]
+ },
+ {
+  "name": "H10 continueWithInput not forwarded",
+  "exit": 1,
+  "failed": [
+   "answers each operation of the three services through the plugin"
+  ]
+ },
+ {
+  "name": "H11 cancel not forwarded",
+  "exit": 1,
+  "failed": [
+   "signals a call in flight that cancel names"
+  ]
+ },
+ {
+  "name": "H12 queryTask not forwarded",
+  "exit": 1,
+  "failed": [
+   "answers each operation of the three services through the plugin"
+  ]
+ },
+ {
+  "name": "H13 taskResult not forwarded",
+  "exit": 1,
+  "failed": [
+   "answers each operation of the three services through the plugin"
+  ]
+ },
+ {
+  "name": "H14 provideTaskInput not forwarded",
+  "exit": 1,
+  "failed": [
+   "answers each operation of the three services through the plugin"
+  ]
+ },
+ {
+  "name": "H15 cancelTask not forwarded",
+  "exit": 1,
+  "failed": [
+   "answers each operation of the three services through the plugin"
+  ]
+ },
+ {
+  "name": "H16 list not forwarded",
+  "exit": 1,
+  "failed": [
+   "answers each operation of the three services through the plugin"
+  ]
+ },
+ {
+  "name": "H17 schema accepts an extra field",
+  "exit": 1,
+  "failed": [
+   "refuses a configuration that has an extra field",
+   "fails to load with a configuration that has an extra field"
+  ]
+ },
+ {
+  "name": "H18 schema does not report a missing field by name",
+  "exit": 1,
+  "failed": [
+   "refuses a configuration that lacks a field",
+   "refuses a configuration whose clientInfo lacks a field"
+  ]
+ },
+ {
+  "name": "C1 two Services share a key",
+  "exit": 1,
+  "failed": []
+ },
+ {
+  "name": "C2 an extra runtime export",
+  "exit": 1,
+  "failed": []
+ },
+ {
+  "name": "C3 the root entry loads Cordis",
+  "exit": 1,
+  "failed": []
+ },
+ {
+  "name": "C4 a key constant differs from its provide",
+  "exit": 1,
+  "failed": []
+ }
+]

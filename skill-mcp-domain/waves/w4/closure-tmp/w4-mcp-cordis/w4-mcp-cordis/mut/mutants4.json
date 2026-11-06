@@ -1,0 +1,12 @@
+[
+ {"name":"H22 current not forwarded","member":"packages/mcp/mcp-host-local","file":"packages/mcp/mcp-host-local/src/cordis.ts","test":"tests/cordis-entry.spec.ts",
+  "edits":[{"from":"return this.discovery.current(...args)","to":"void args\n    return Promise.resolve({ ok: { kind: 'not-acquired' as const } })"}]},
+ {"name":"H23 refresh not forwarded","member":"packages/mcp/mcp-host-local","file":"packages/mcp/mcp-host-local/src/cordis.ts","test":"tests/cordis-entry.spec.ts",
+  "edits":[{"from":"return this.discovery.refresh(...args)","to":"void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })"}]},
+ {"name":"H24 invoke not forwarded","member":"packages/mcp/mcp-host-local","file":"packages/mcp/mcp-host-local/src/cordis.ts","test":"tests/cordis-entry.spec.ts",
+  "edits":[{"from":"return this.invoker.invoke(...args)","to":"void args\n    return Promise.resolve({ kind: 'not-sent' as const, reason: { kind: 'unknown' as const } })"}]},
+ {"name":"H25 inspect not forwarded","member":"packages/mcp/mcp-host-local","file":"packages/mcp/mcp-host-local/src/cordis.ts","test":"tests/cordis-entry.spec.ts",
+  "edits":[{"from":"return this.status.inspect(...args)","to":"void args\n    return Promise.resolve({ failure: { kind: 'unknown' as const } })"}]},
+ {"name":"H26 schema needs a sixth field","member":"packages/mcp/mcp-host-local","file":"packages/mcp/mcp-host-local/src/cordis.ts","test":"tests/cordis-entry.spec.ts",
+  "edits":[{"from":"const missing = fields.find(field => !(field in record))","to":"const missing = [...fields, 'retries'].find(field => !(field in record))"}]}
+]

@@ -1,0 +1,85 @@
+# K09 two Services share a key
+# expect: red
+# edits: [{"from":"static readonly provide = 'mcpCredentialUse'","to":"static readonly provide = 'mcpUseEligibility'"}]
+$ (cd packages/mcp/mcp-cordis-contract && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-cordis-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-cordis-contract && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode fast tests/cordis-entry.spec.ts)
+exit 1
+seconds 1.1
+total 10
+failed [
+ "writes each service key once, on its abstract Service, and exports a constant equal to it",
+ "gives the seven services seven different keys"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract
+
+ ❯ tests/cordis-entry.spec.ts (10 tests | 2 failed) 25ms
+   × writes each service key once, on its abstract Service, and exports a constant equal to it 9ms
+   × gives the seven services seven different keys 2ms
+   ✓ exports exactly the seven abstract Service classes and the seven key constants 1ms
+   ✓ provides a loaded subclass of ActionDiscoveryService under its key and removes it when the fiber unloads 5ms
+   ✓ provides a loaded subclass of ActionInvokerService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of EndpointStatusService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of AdoptionViewService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of UseEligibilityService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of CredentialUseService under its key and removes it when the fiber unloads 1ms
+   ✓ provides a loaded subclass of ProcessLandingService under its key and removes it when the fiber unloads 1ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 8 passed (10)
+Type Errors  no errors
+   Start at  15:37:32
+   Duration  203ms (transform 12ms, setup 0ms, import 28ms, tests 25ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-K09/packages__mcp__mcp-cordis-contract.json
+
+--- stderr
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-entry.spec.ts > writes each service key once, on its abstract Service, and exports a constant equal to it
+AssertionError: expected 'mcpUseEligibility' to be 'mcpCredentialUse' // Object.is equality
+
+Expected: "mcpCredentialUse"
+Received: "mcpUseEligibility"
+
+ ❯ tests/cordis-entry.spec.ts:32:29
+     30| it('writes each service key once, on its abstract Service, and exports…
+     31|   for (const [service, key, name] of KEYS) {
+     32|     expect(service.provide).toBe(name)
+       |                             ^
+     33|     expect(key).toBe(service.provide)
+     34|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/cordis-entry.spec.ts > gives the seven services seven different keys
+AssertionError: expected 6 to be 7 // Object.is equality
+
+- Expected
++ Received
+
+- 7
++ 6
+
+ ❯ tests/cordis-entry.spec.ts:38:52
+     36|
+     37| it('gives the seven services seven different keys', () => {
+     38|   expect(new Set(KEYS.map(([, key]) => key)).size).toBe(7)
+       |                                                    ^
+     39| })
+     40|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+

@@ -1,0 +1,9 @@
+[32m18:13:40 (42560) INFO ProjectReader[39m Found 2 of 265 file(s) to be mutated.
+[32m18:13:40 (42560) INFO Instrumenter[39m Instrumented 2 source file(s) with 8 mutant(s)
+[32m18:13:40 (42560) INFO ConcurrencyTokenProvider[39m Creating 1 test runner process(es).
+[32m18:13:41 (42560) INFO Sandbox[39m Running build command "node --experimental-strip-types /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tools/test-runner/src/mutation/sandbox-build.ts" in "/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/.stryker-tmp-rerun-42552/sandbox-kE8J7n".
+[32m18:14:37 (42560) INFO DryRunExecutor[39m Starting initial test run (omne-vitest test runner with "perTest" coverage analysis). This may take a while.
+[32m18:15:28 (42560) INFO DryRunExecutor[39m Initial test run succeeded. Ran 500 tests in 51 seconds (net 77897.06026200012 ms, overhead 0 ms).
+[32m18:15:34 (42560) INFO JsonReporter[39m Your report can be found at: file:///data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/tmp/closures/w4-mcp-unusable/gate-r2/recheck/packages__mcp__mcp/mutation.json
+[32m18:15:34 (42560) INFO MutationTestExecutor[39m Done in 1 minute and 54 seconds.
+

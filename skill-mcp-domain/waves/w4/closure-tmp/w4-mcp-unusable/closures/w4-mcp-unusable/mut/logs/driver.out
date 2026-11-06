@@ -1,0 +1,16 @@
+U1 [1] 23
+U2 [1] 17
+U3 [1] 4
+U4 [1] 5
+U5 [1] 6
+U6 [1] 20
+U7 [1] 1
+U8 [1] 1
+U9 [1, 1] 4
+build mcp-contract failed: 
+> @omne-harness/mcp-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable/packages/mcp/mcp-contract
+> rm -rf dist && tsc -p tsconfig.build.json
+
+src/decisions.ts(291,89): error TS2353: Object literal may only specify known properties, and 'unusable' does not exist in type 'Readonly<{ kind: "result"; result: JsonValue; }>'.
+ ELIFECYCLE  Command failed with exit code 1.
+

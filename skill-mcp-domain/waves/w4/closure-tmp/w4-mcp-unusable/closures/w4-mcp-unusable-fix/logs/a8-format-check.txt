@@ -1,0 +1,10 @@
+head 0961b30e9 start 2026-11-06T17:41:58Z cmd: pnpm run format:check
+
+> omne-harness-lite-workspace@ format:check /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-unusable
+> ./scripts/format.sh check
+
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 562ms on 4390 files using 8 threads.
+exit 0 end 2026-11-06T17:42:00Z

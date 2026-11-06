@@ -1,0 +1,74 @@
+# S13 eligibility adapter reads the port at apply
+# expect: red
+# edits: [{"from":"function eligibilityOf(ctx: Context): UseEligibility<unknown> {\n","to":"function eligibilityOf(ctx: Context): UseEligibility<unknown> {\n  const loaded = ctx.get(mcpUseEligibilityKey)\n"},{"from":"const port = ctx.get(mcpUseEligibilityKey)","to":"const port = loaded","all":true}]
+$ (cd packages/mcp/mcp-host-local && pnpm run build)
+exit 0
+
+> @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+> rm -rf dist && tsc -p tsconfig.build.json
+
+
+$ (cd packages/mcp/mcp-host-local && NO_COLOR=1 VITEST_MAX_WORKERS=4 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/cordis-journey.spec.ts)
+exit 1
+seconds 2.5
+total 13
+failed [
+ "the MCP plugin on a Cordis context, with a scripted peer process publishes the catalog of a stdio peer once the absent eligibility port is provided"
+]
+fileErrors []
+--- stdout
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+
+ ❯ tests/cordis-journey.spec.ts (13 tests | 1 failed) 767ms
+     ✓ loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer 128ms
+     ✓ answers each operation of the three services through the plugin 62ms
+     ✓ signals a call in flight that cancel names 61ms
+     ✓ publishes the catalog of a stdio peer once the absent adoption port is provided 54ms
+     × publishes the catalog of a stdio peer once the absent eligibility port is provided 15ms
+     ✓ publishes the catalog of a stdio peer once the absent credentials port is provided 57ms
+     ✓ publishes the catalog of a stdio peer once the absent landing port is provided 50ms
+     ✓ reads the replacement adoption view at the next refresh after a swap 92ms
+     ✓ removes the three services, stops the peer process and releases the credential handle when the plugin unloads 52ms
+     ✓ settles a call in flight with an unknown effect when the plugin unloads 50ms
+     ✓ warns of the endpoint and the scope when the stop of its process is root-only at unload 46ms
+     ✓ warns of the endpoint and the scope when the stop of its process is unconfirmed at unload 52ms
+     ✓ does not warn when the stop of the process is tree-confirmed at unload 45ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  15:34:49
+   Duration  1.63s (transform 474ms, setup 15ms, import 704ms, tests 767ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/tmp/w4-mcp-cordis/mut/r2/logs/report-S13/packages__mcp__mcp-host-local.json
+
+--- stderr
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/cordis-journey.spec.ts > the MCP plugin on a Cordis context, with a scripted peer process > publishes the catalog of a stdio peer once the absent eligibility port is provided
+AssertionError: expected { failure: { kind: 'unknown' } } to match object { ok: { kind: 'published' } }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "ok": {
+-     "kind": "published",
++   "failure": {
++     "kind": "unknown",
+    },
+  }
+
+ ❯ tests/cordis-journey.spec.ts:488:36
+    486|       expect(provided.landed).toHaveLength(0)
+    487|       await load(ctx, provided[name], undefined)
+    488|       expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'publis…
+       |                                    ^
+    489|       expect(await actionNames(ctx)).toEqual(['echo'])
+    490|       expect(provided.landed).toHaveLength(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+

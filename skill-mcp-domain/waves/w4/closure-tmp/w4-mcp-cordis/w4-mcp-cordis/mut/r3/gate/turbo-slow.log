@@ -1,0 +1,172 @@
+
+   • turbo 2.11.7
+   • Packages in scope: @omne-harness/mcp-host-local
+   • Running test:slow in 1 package
+   • Remote caching disabled, using shared worktree cache
+
+@omne-harness/operation-result:build: cache hit, replaying logs 8a67c3c86612cb65
+@omne-harness/content-block:build: cache hit, replaying logs ec24595fe781b2a3
+@omne-harness/operation-result:build: 
+@omne-harness/content-block:build: 
+@omne-harness/content-block:build: > @omne-harness/content-block@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/packages/common/content-block
+@omne-harness/legal-identity:build: cache hit, replaying logs 55ac1738341c143a
+@omne-harness/settings:build: cache hit, replaying logs d8ca84a227d7de9b
+@omne-harness/legal-identity:build: 
+@omne-harness/content-block:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/content-block:build: 
+@omne-harness/operation-result:build: > @omne-harness/operation-result@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/packages/common/operation-result
+@omne-harness/operation-result:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/legal-identity:build: > @omne-harness/legal-identity@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/packages/common/legal-identity
+@omne-harness/legal-identity:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/settings:build: 
+@omne-harness/settings:build: > @omne-harness/settings@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/packages/assets/settings
+@omne-harness/operation-result:build: 
+@omne-harness/legal-identity:build: 
+@omne-harness/settings:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/settings:build: 
+@omne-harness/json-text:build: cache hit, replaying logs 5fb7bf170e5f2bf3
+@omne-harness/json-text:build: 
+@omne-harness/json-text:build: > @omne-harness/json-text@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/packages/common/json-text
+@omne-harness/json-text:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/json-text:build: 
+@omne-harness/kernel-basis:build: cache hit, replaying logs 6299c65628684450
+@omne-harness/kernel-basis:build: 
+@omne-harness/kernel-basis:build: > @omne-harness/kernel-basis@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/packages/assembly/kernel-basis
+@omne-harness/kernel-basis:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/kernel-basis:build: 
+@omne-harness/assets:build: cache hit, replaying logs 94c7d036116f237b
+@omne-harness/assets:build: 
+@omne-harness/assets:build: > @omne-harness/assets@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/packages/assets/assets
+@omne-harness/assets:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/assets:build: 
+@omne-harness/mcp-contract:build: cache hit, replaying logs 728726a5de26996a
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp-contract:build: > @omne-harness/mcp-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/packages/mcp/mcp-contract
+@omne-harness/mcp-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp-contract:build: 
+@omne-harness/mcp-cordis-contract:build: cache hit, replaying logs 68de0491dd62f658
+@omne-harness/mcp-cordis-contract:build: 
+@omne-harness/mcp-cordis-contract:build: > @omne-harness/mcp-cordis-contract@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-cordis-contract
+@omne-harness/mcp-cordis-contract:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp-cordis-contract:build: 
+@omne-harness/mcp:build: cache hit, replaying logs 3805d8c6cf4d3cf5
+@omne-harness/mcp:build: 
+@omne-harness/mcp:build: > @omne-harness/mcp@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/packages/mcp/mcp
+@omne-harness/mcp:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp:build: 
+@omne-harness/mcp-host-local:build: cache hit, replaying logs d509ede4f8d00b8c
+@omne-harness/mcp-host-local:build: 
+@omne-harness/mcp-host-local:build: > @omne-harness/mcp-host-local@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+@omne-harness/mcp-host-local:build: > rm -rf dist && tsc -p tsconfig.build.json
+@omne-harness/mcp-host-local:build: 
+@omne-harness/mcp-host-local:test:slow: cache bypass, force executing a6a4267a179160f3
+@omne-harness/mcp-host-local:test:slow: 
+@omne-harness/mcp-host-local:test:slow: > @omne-harness/mcp-host-local@0.0.0 test:slow /data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local
+@omne-harness/mcp-host-local:test:slow: > vitest run --mode slow --typecheck.enabled=false
+@omne-harness/mcp-host-local:test:slow: 
+@omne-harness/mcp-host-local:test:slow: 
+@omne-harness/mcp-host-local:test:slow: [1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/data/qiwei/repos/omne-harness-lite/.worktrees/w4-mcp-cordis/packages/mcp/mcp-host-local[39m
+@omne-harness/mcp-host-local:test:slow: 
+@omne-harness/mcp-host-local:test:slow:  [32m✓[39m tests/stdio.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 2140[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m no answer within the probe time: the legacy path; the late discover answer is dropped [33m 359[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m the SDK server's slow tool: the cancel notification does not settle the answer; close() abandons it [33m 317[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:  [32m✓[39m tests/http.spec.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 1871[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m every request carries the version in _meta and in MCP-Protocol-Version alike: the reference server answers no -32020 [33m 454[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m the reference server in its sse mode: the tools are listed and echo answers on the stream [33m 428[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow: [90mstdout[2m | tests/e2e/journey.spec.ts[2m > [22m[2mE-stdio: server-everything 2.1.0 on stdio, revision 2026-07-28[2m > [22m[2mE-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28
+@omne-harness/mcp-host-local:test:slow: [22m[39mjourney E-stdio: S1=published S2=complete S3=toolError S4=inputRequired>complete S5=task>completed>complete S6=signalled>unknown:abandoned S7=released
+@omne-harness/mcp-host-local:test:slow: 
+@omne-harness/mcp-host-local:test:slow:  [32m✓[39m tests/cordis-journey.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 907[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow: [90mstdout[2m | tests/e2e/journey.spec.ts[2m > [22m[2mE-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28[2m > [22m[2mE-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28
+@omne-harness/mcp-host-local:test:slow: [22m[39mjourney E-http: S1=published S2=complete S3=toolError S4=inputRequired>complete S5=task>completed>complete S6=signalled>unknown:abandoned S7=released
+@omne-harness/mcp-host-local:test:slow: 
+@omne-harness/mcp-host-local:test:slow: [90mstdout[2m | tests/e2e/journey.spec.ts[2m > [22m[2mE-sse: server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25[2m > [22m[2mE-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25
+@omne-harness/mcp-host-local:test:slow: [22m[39mjourney E-sse: S1=published S2=complete S3=toolError S6=signalled>unknown:abandoned S7=released
+@omne-harness/mcp-host-local:test:slow: 
+@omne-harness/mcp-host-local:test:slow: [90mstdout[2m | tests/e2e/journey.spec.ts[2m > [22m[2mF: server-filesystem 2.1.0 on stdio, revision 2026-07-28[2m > [22m[2mF: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28
+@omne-harness/mcp-host-local:test:slow: [22m[39mjourney F: S1=published S2=complete S3=toolError S7=released
+@omne-harness/mcp-host-local:test:slow: 
+@omne-harness/mcp-host-local:test:slow:  [32m✓[39m tests/e2e/journey.spec.ts [2m([22m[2m6 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 12715[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28 [33m 5438[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 [33m 5598[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 [33m 1438[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:  [32m✓[39m tests/model/session-model.spec.ts [2m([22m[2m11 tests[22m[2m | [22m[33m8 skipped[39m[2m)[22m[33m 17736[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m V1–V6 hold, V5 above all [33m 5364[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m V1–V6 hold [33m 12365[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow: conformance stdio first: passed 98, not-applicable 1, failed 0
+@omne-harness/mcp-host-local:test:slow: conformance streamable-http first: passed 97, not-applicable 2, failed 0
+@omne-harness/mcp-host-local:test:slow:  [32m✓[39m tests/conformance.spec.ts [2m([22m[2m198 tests[22m[2m)[22m[33m 98318[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D01] discover, discover-retry × result → read [33m 562[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D02] discover, discover-retry × result:no-common → legacy path, reports its failure [33m 336[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D03] discover, discover-retry × result:unreadable → legacy path, reports answer-malformed [33m 876[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D04] discover × error:-32022+common, http:400+-32022+common, http:404+-32022+common … (8) → retry [33m 336[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D05] discover × error:-32022+modern, http:400+-32022+modern, http:404+-32022+modern … (8) → answer-malformed (discover-shape) [33m 323[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D06] discover × error:-32022+legacy, http:400+-32022+legacy, http:404+-32022+legacy … (8) → legacy path, reports its failure [33m 1013[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D07] discover-retry × error:-32022+common, error:-32022+modern, error:-32022+legacy … (24) → error-answer (as written) [33m 1686[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D08] discover, discover-retry × error:-32020, error:-32021, http:400+-32020 … (16) → error-answer (as written) [33m 1275[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D10] discover, discover-retry × error:-32602, error:other → legacy path, reports error-answer [33m 866[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D11] discover, discover-retry × error:unreadable → legacy path, reports answer-malformed [33m 1389[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D12] discover, discover-retry × http:400+-32601, http:400+-32602, http:400+other … (35) → legacy path, reports its failure [33m 3694[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D13] discover, discover-retry × silent → legacy path, reports its failure [33m 1042[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D16] discover, discover-retry × http:5xx+-32020, http:5xx+-32021, http:5xx+-32022+common … (10) → no-answer (stream-broken) [33m 2050[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [I02] initialize × result:unreadable → answer-malformed (discover-shape) [33m 433[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [I03] initialize × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written) [33m 2389[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [I04] initialize × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape) [33m 1087[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [I07] initialize × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) [33m 371[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [G02] tasks/get × result:status-unknown → answer-malformed (status-unknown) [33m 353[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O01] tools/list, tasks/update, tasks/cancel × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written) [33m 6769[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O02] tasks/get × error:-32020, error:-32021, error:-32022+common … (63) → error-answer (as written) [33m 2166[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O03] tools/list, tasks/get, tasks/update … (4) × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape) [33m 4174[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O04] tools/list, tasks/get, tasks/update … (4) × silent → no-answer (abandoned) [33m 518[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O05] tools/list, tasks/get × stream-broken, http:2xx → resend [33m 303[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O07] tools/list, tasks/get, tasks/update … (4) × http:5xx+plain → no-answer (stream-broken) [33m 326[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O08] tools/list, tasks/get, tasks/update … (4) × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) [33m 1319[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [C02] tools/call × error:-32020, error:-32021, error:-32022+common … (81) → sent, answer error [33m 3286[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [C05] tools/call × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) [33m 324[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable [33m 1131[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable [33m 426[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once [33m 302[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [N01] notification × unsent, silent, stream-broken … (89) → ignored [33m 3590[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D01] discover, discover-retry × result → read [33m 376[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D03] discover, discover-retry × result:unreadable → legacy path, reports answer-malformed [33m 808[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D04] discover × error:-32022+common, http:400+-32022+common, http:404+-32022+common … (8) → retry [33m 313[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D05] discover × error:-32022+modern, http:400+-32022+modern, http:404+-32022+modern … (8) → answer-malformed (discover-shape) [33m 301[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D06] discover × error:-32022+legacy, http:400+-32022+legacy, http:404+-32022+legacy … (8) → legacy path, reports its failure [33m 815[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D07] discover-retry × error:-32022+common, error:-32022+modern, error:-32022+legacy … (24) → error-answer (as written) [33m 1550[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D08] discover, discover-retry × error:-32020, error:-32021, http:400+-32020 … (16) → error-answer (as written) [33m 1219[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D10] discover, discover-retry × error:-32602, error:other → legacy path, reports error-answer [33m 790[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D11] discover, discover-retry × error:unreadable → legacy path, reports answer-malformed [33m 1289[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D12] discover, discover-retry × http:400+-32601, http:400+-32602, http:400+other … (35) → legacy path, reports its failure [33m 3512[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D13] discover, discover-retry × silent → legacy path, reports its failure [33m 1034[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [D16] discover, discover-retry × http:5xx+-32020, http:5xx+-32021, http:5xx+-32022+common … (10) → no-answer (stream-broken) [33m 2002[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [I02] initialize × result:unreadable → answer-malformed (discover-shape) [33m 428[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [I03] initialize × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written) [33m 2376[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [I04] initialize × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape) [33m 1088[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [I07] initialize × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) [33m 377[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [G02] tasks/get × result:status-unknown → answer-malformed (status-unknown) [33m 358[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O01] tools/list, tasks/update, tasks/cancel × error:-32020, error:-32021, error:-32022+common … (72) → error-answer (as written) [33m 6851[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O02] tasks/get × error:-32020, error:-32021, error:-32022+common … (63) → error-answer (as written) [33m 2168[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O03] tools/list, tasks/get, tasks/update … (4) × error:unreadable, http:400+unreadable, http:404+unreadable … (9) → answer-malformed (error-shape) [33m 4155[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O04] tools/list, tasks/get, tasks/update … (4) × silent → no-answer (abandoned) [33m 505[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O05] tools/list, tasks/get × stream-broken, http:2xx → resend [32m 300[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O07] tools/list, tasks/get, tasks/update … (4) × http:5xx+plain → no-answer (stream-broken) [33m 332[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [O08] tools/list, tasks/get, tasks/update … (4) × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) [33m 1324[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [C01] tools/call × result → sent, answer result [33m 331[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [C02] tools/call × error:-32020, error:-32021, error:-32022+common … (81) → sent, answer error [33m 3257[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [C05] tools/call × http:400+plain, http:404+plain, http:405+plain … (7) → not-sent (connection-unavailable) [33m 324[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable [33m 1115[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable [33m 412[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow:      [33m[2m✓[22m[39m T8 [N01] notification × unsent, silent, stream-broken … (89) → ignored [33m 3521[2mms[22m[39m
+@omne-harness/mcp-host-local:test:slow: 
+@omne-harness/mcp-host-local:test:slow: [2m Test Files [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+@omne-harness/mcp-host-local:test:slow: [2m      Tests [22m [1m[32m259 passed[39m[22m[2m | [22m[33m9 skipped[39m[90m (268)[39m
+@omne-harness/mcp-host-local:test:slow: [2m   Start at [22m 16:41:56
+@omne-harness/mcp-host-local:test:slow: [2m   Duration [22m 99.24s[2m (transform 1.45s, setup 87ms, import 3.45s, tests 133.69s, environment 1ms)[22m
+@omne-harness/mcp-host-local:test:slow: 
+
+ Tasks:    12 successful, 12 total
+Cached:    11 cached, 12 total
+  Time:    1m40.513s 
+
+exit 0
+2026-11-06T16:43:35Z

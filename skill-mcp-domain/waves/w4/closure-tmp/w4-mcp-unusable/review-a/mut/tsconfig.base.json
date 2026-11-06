@@ -1,0 +1,3 @@
+{
+  "extends": "@omne-harness/repo-config/tsconfig.base.json"
+}

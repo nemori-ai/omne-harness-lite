@@ -1,0 +1,3 @@
+          await untilSent(peer, 'tools/call')
+          await transport.listActions()
+          await transport.close()

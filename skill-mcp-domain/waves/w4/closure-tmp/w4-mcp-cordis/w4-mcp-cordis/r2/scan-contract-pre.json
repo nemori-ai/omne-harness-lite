@@ -1,0 +1,3180 @@
+{
+  "template": "typescript-package@3.0.0",
+  "packages": [
+    {
+      "path": "packages/mcp/mcp-cordis-contract",
+      "name": "@omne-harness/mcp-cordis-contract",
+      "adoption": "unmarked",
+      "variant": "service-contract",
+      "structure": "pass",
+      "acceptance": "none",
+      "tree": [
+        {
+          "path": "README.md",
+          "kind": "file"
+        },
+        {
+          "path": "README_ZH.md",
+          "kind": "file"
+        },
+        {
+          "path": "SPEC.md",
+          "kind": "file"
+        },
+        {
+          "path": "acceptance",
+          "kind": "directory"
+        },
+        {
+          "path": "acceptance/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "acceptance/fixtures",
+          "kind": "directory"
+        },
+        {
+          "path": "acceptance/fixtures/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "acceptance/fixtures/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "acceptance/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "adr",
+          "kind": "directory"
+        },
+        {
+          "path": "adr/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "adr/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs",
+          "kind": "directory"
+        },
+        {
+          "path": "docs/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/architecture.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/context.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/cordis.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/flows.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/object-model.md",
+          "kind": "file"
+        },
+        {
+          "path": "docs/public-api.md",
+          "kind": "file"
+        },
+        {
+          "path": "documentation.json",
+          "kind": "file"
+        },
+        {
+          "path": "examples",
+          "kind": "directory"
+        },
+        {
+          "path": "examples/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "examples/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "index.md",
+          "kind": "file"
+        },
+        {
+          "path": "package.json",
+          "kind": "file"
+        },
+        {
+          "path": "resources",
+          "kind": "directory"
+        },
+        {
+          "path": "resources/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "resources/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "schema",
+          "kind": "directory"
+        },
+        {
+          "path": "schema/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "schema/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "src",
+          "kind": "directory"
+        },
+        {
+          "path": "src/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "src/cordis.ts",
+          "kind": "file"
+        },
+        {
+          "path": "src/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "src/index.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests",
+          "kind": "directory"
+        },
+        {
+          "path": "tests/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "tests/cordis-entry.spec.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tests/fixtures",
+          "kind": "directory"
+        },
+        {
+          "path": "tests/fixtures/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "tests/fixtures/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "tests/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "tests/public-entry.spec.ts",
+          "kind": "file"
+        },
+        {
+          "path": "tsconfig.build.json",
+          "kind": "file"
+        },
+        {
+          "path": "tsconfig.test.json",
+          "kind": "file"
+        },
+        {
+          "path": "verification",
+          "kind": "directory"
+        },
+        {
+          "path": "verification/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "verification/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "verification/models",
+          "kind": "directory"
+        },
+        {
+          "path": "verification/models/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "verification/models/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "verification/proofs",
+          "kind": "directory"
+        },
+        {
+          "path": "verification/proofs/README.md",
+          "kind": "file"
+        },
+        {
+          "path": "verification/proofs/index.md",
+          "kind": "file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "kind": "file"
+        }
+      ],
+      "excludedDirectories": [
+        ".turbo",
+        "dist",
+        "node_modules"
+      ],
+      "integration": "unknown",
+      "findings": [],
+      "dependencies": [
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpActionDiscovery\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpActionDiscovery",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 173,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpActionDiscovery",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 21,
+                "symbol": "ActionDiscoveryService",
+                "offset": 922
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpActionDiscovery|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpActionDiscovery\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpActionDiscovery",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 22,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpActionDiscovery",
+              "expression": "'mcpActionDiscovery'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 21,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "ActionDiscoveryService",
+                "offset": 922
+              },
+              "symbol": "ActionDiscoveryService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpActionDiscovery|||ActionDiscoveryService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpActionInvoker\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpActionInvoker",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 174,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpActionInvoker",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 45,
+                "symbol": "ActionInvokerService",
+                "offset": 1739
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpActionInvoker|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpActionInvoker\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpActionInvoker",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 46,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpActionInvoker",
+              "expression": "'mcpActionInvoker'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 45,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "ActionInvokerService",
+                "offset": 1739
+              },
+              "symbol": "ActionInvokerService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpActionInvoker|||ActionInvokerService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpAdoptionView\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpAdoptionView",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 176,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpAdoptionView",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 103,
+                "symbol": "AdoptionViewService",
+                "offset": 3951
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpAdoptionView|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpAdoptionView\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpAdoptionView",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 104,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpAdoptionView",
+              "expression": "'mcpAdoptionView'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 103,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "AdoptionViewService",
+                "offset": 3951
+              },
+              "symbol": "AdoptionViewService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpAdoptionView|||AdoptionViewService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpCredentialUse\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpCredentialUse",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 178,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpCredentialUse",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 142,
+                "symbol": "CredentialUseService",
+                "offset": 5329
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpCredentialUse|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpCredentialUse\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpCredentialUse",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 143,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpCredentialUse",
+              "expression": "'mcpCredentialUse'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 142,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "CredentialUseService",
+                "offset": 5329
+              },
+              "symbol": "CredentialUseService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpCredentialUse|||CredentialUseService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpEndpointStatus\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpEndpointStatus",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 175,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpEndpointStatus",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 81,
+                "symbol": "EndpointStatusService",
+                "offset": 3116
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpEndpointStatus|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpEndpointStatus\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpEndpointStatus",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 82,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpEndpointStatus",
+              "expression": "'mcpEndpointStatus'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 81,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "EndpointStatusService",
+                "offset": 3116
+              },
+              "symbol": "EndpointStatusService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpEndpointStatus|||EndpointStatusService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpProcessLanding\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpProcessLanding",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 179,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpProcessLanding",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 157,
+                "symbol": "ProcessLandingService",
+                "offset": 5822
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpProcessLanding|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpProcessLanding\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpProcessLanding",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 158,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpProcessLanding",
+              "expression": "'mcpProcessLanding'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 157,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "ProcessLandingService",
+                "offset": 5822
+              },
+              "symbol": "ProcessLandingService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpProcessLanding|||ProcessLandingService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpUseEligibility\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpUseEligibility",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 177,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpUseEligibility",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 123,
+                "symbol": "UseEligibilityService",
+                "offset": 4640
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpUseEligibility|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-1\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpUseEligibility\",\"top\"]",
+          "rule": "IC-1",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpUseEligibility",
+          "reason": "仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 124,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpUseEligibility",
+              "expression": "'mcpUseEligibility'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 123,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "UseEligibilityService",
+                "offset": 4640
+              },
+              "symbol": "UseEligibilityService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpUseEligibility|||UseEligibilityService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpActionDiscovery\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpActionDiscovery",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 173,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpActionDiscovery",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 21,
+                "symbol": "ActionDiscoveryService",
+                "offset": 922
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpActionDiscovery|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpActionDiscovery\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpActionDiscovery",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 22,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpActionDiscovery",
+              "expression": "'mcpActionDiscovery'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 21,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "ActionDiscoveryService",
+                "offset": 922
+              },
+              "symbol": "ActionDiscoveryService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpActionDiscovery|||ActionDiscoveryService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpActionInvoker\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpActionInvoker",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 174,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpActionInvoker",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 45,
+                "symbol": "ActionInvokerService",
+                "offset": 1739
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpActionInvoker|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpActionInvoker\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpActionInvoker",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 46,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpActionInvoker",
+              "expression": "'mcpActionInvoker'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 45,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "ActionInvokerService",
+                "offset": 1739
+              },
+              "symbol": "ActionInvokerService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpActionInvoker|||ActionInvokerService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpAdoptionView\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpAdoptionView",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 176,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpAdoptionView",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 103,
+                "symbol": "AdoptionViewService",
+                "offset": 3951
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpAdoptionView|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpAdoptionView\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpAdoptionView",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 104,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpAdoptionView",
+              "expression": "'mcpAdoptionView'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 103,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "AdoptionViewService",
+                "offset": 3951
+              },
+              "symbol": "AdoptionViewService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpAdoptionView|||AdoptionViewService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpCredentialUse\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpCredentialUse",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 178,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpCredentialUse",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 142,
+                "symbol": "CredentialUseService",
+                "offset": 5329
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpCredentialUse|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpCredentialUse\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpCredentialUse",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 143,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpCredentialUse",
+              "expression": "'mcpCredentialUse'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 142,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "CredentialUseService",
+                "offset": 5329
+              },
+              "symbol": "CredentialUseService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpCredentialUse|||CredentialUseService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpEndpointStatus\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpEndpointStatus",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 175,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpEndpointStatus",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 81,
+                "symbol": "EndpointStatusService",
+                "offset": 3116
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpEndpointStatus|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpEndpointStatus\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpEndpointStatus",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 82,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpEndpointStatus",
+              "expression": "'mcpEndpointStatus'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 81,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "EndpointStatusService",
+                "offset": 3116
+              },
+              "symbol": "EndpointStatusService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpEndpointStatus|||EndpointStatusService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpProcessLanding\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpProcessLanding",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 179,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpProcessLanding",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 157,
+                "symbol": "ProcessLandingService",
+                "offset": 5822
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpProcessLanding|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpProcessLanding\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpProcessLanding",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 158,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpProcessLanding",
+              "expression": "'mcpProcessLanding'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 157,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "ProcessLandingService",
+                "offset": 5822
+              },
+              "symbol": "ProcessLandingService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpProcessLanding|||ProcessLandingService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpUseEligibility\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpUseEligibility",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 177,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpUseEligibility",
+              "definitionForm": "context-augmentation",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 123,
+                "symbol": "UseEligibilityService",
+                "offset": 4640
+              },
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpUseEligibility|||"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-3\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",null,\"defines\",\"mcpUseEligibility\",\"top\"]",
+          "rule": "IC-3",
+          "state": "converged",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "mcpUseEligibility",
+          "reason": "Service 形状及 contract/owner 元数据子集；不证明签名或行为",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 124,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "scope": "top",
+              "kind": "defines",
+              "key": "mcpUseEligibility",
+              "expression": "'mcpUseEligibility'",
+              "expressionShape": "StringLiteral",
+              "owner": "packages/mcp/mcp-cordis-contract",
+              "definitionForm": "service-class",
+              "serviceDefinition": {
+                "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+                "line": 123,
+                "member": "packages/mcp/mcp-cordis-contract",
+                "symbol": "UseEligibilityService",
+                "offset": 4640
+              },
+              "symbol": "UseEligibilityService",
+              "id": "packages/mcp/mcp-cordis-contract||top|defines|mcpUseEligibility|||UseEligibilityService"
+            }
+          ]
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/index.ts\",\"ActionDiscovery\",true,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract#ActionDiscovery",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 7,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract",
+              "symbol": "ActionDiscovery",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionDiscovery\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "ActionDiscovery",
+              "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 7,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract",
+            "symbol": "ActionDiscovery",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionDiscovery\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "ActionDiscovery",
+            "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/index.ts\",\"ActionInvoker\",true,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract#ActionInvoker",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 7,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract",
+              "symbol": "ActionInvoker",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionInvoker\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "ActionInvoker",
+              "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 7,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract",
+            "symbol": "ActionInvoker",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionInvoker\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "ActionInvoker",
+            "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/index.ts\",\"EndpointStatus\",true,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract#EndpointStatus",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 7,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract",
+              "symbol": "EndpointStatus",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"EndpointStatus\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "EndpointStatus",
+              "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 7,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract",
+            "symbol": "EndpointStatus",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"EndpointStatus\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "EndpointStatus",
+            "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"AdoptionView\",true,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#AdoptionView",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 9,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "AdoptionView",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"AdoptionView\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "AdoptionView",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 9,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "AdoptionView",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"AdoptionView\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "AdoptionView",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"CredentialUse\",true,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#CredentialUse",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 10,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "CredentialUse",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"CredentialUse\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "CredentialUse",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 10,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "CredentialUse",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"CredentialUse\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "CredentialUse",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"ProcessLanding\",true,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#ProcessLanding",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 11,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "ProcessLanding",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ProcessLanding\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "ProcessLanding",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 11,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "ProcessLanding",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ProcessLanding\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "ProcessLanding",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"UseEligibility\",true,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#UseEligibility",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 12,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "UseEligibility",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"UseEligibility\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "UseEligibility",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 12,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "UseEligibility",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"UseEligibility\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "UseEligibility",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"ActionDiscoveryService\",false,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#ActionDiscoveryService",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 29,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "ActionDiscoveryService",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionDiscoveryService\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "ActionDiscoveryService",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 29,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "ActionDiscoveryService",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionDiscoveryService\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "ActionDiscoveryService",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"ActionInvokerService\",false,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#ActionInvokerService",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 30,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "ActionInvokerService",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionInvokerService\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "ActionInvokerService",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 30,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "ActionInvokerService",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionInvokerService\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "ActionInvokerService",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"EndpointStatusService\",false,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#EndpointStatusService",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 31,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "EndpointStatusService",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"EndpointStatusService\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "EndpointStatusService",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 31,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "EndpointStatusService",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"EndpointStatusService\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "EndpointStatusService",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpAdoptionViewKey\",false,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpAdoptionViewKey",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 32,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpAdoptionViewKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpAdoptionViewKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpAdoptionViewKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 32,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpAdoptionViewKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpAdoptionViewKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpAdoptionViewKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpCredentialUseKey\",false,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpCredentialUseKey",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 33,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpCredentialUseKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpCredentialUseKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpCredentialUseKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 33,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpCredentialUseKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpCredentialUseKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpCredentialUseKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpProcessLandingKey\",false,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpProcessLandingKey",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 34,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpProcessLandingKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpProcessLandingKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpProcessLandingKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 34,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpProcessLandingKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpProcessLandingKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpProcessLandingKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"IC-5\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpUseEligibilityKey\",false,\"import\"]",
+          "rule": "IC-5",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpUseEligibilityKey",
+          "reason": "没有采用的非装配入口责任；不能给 apps 或候选入口通用豁免",
+          "expected": "docs/architecture/cordis-integration-conventions.md",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 35,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpUseEligibilityKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpUseEligibilityKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpUseEligibilityKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 35,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpUseEligibilityKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpUseEligibilityKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpUseEligibilityKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@deepseek-ai/cordis#Context",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 6,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@deepseek-ai/cordis",
+              "symbol": "Context",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+              "target": {
+                "kind": "external"
+              },
+              "local": "Context"
+            }
+          ],
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 6,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@deepseek-ai/cordis#Service",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 6,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@deepseek-ai/cordis",
+              "symbol": "Service",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+              "target": {
+                "kind": "external"
+              },
+              "local": "Service"
+            }
+          ],
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 6,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Service",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Service"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/index.ts\",\"ActionDiscovery\",true,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract#ActionDiscovery",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 7,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract",
+              "symbol": "ActionDiscovery",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionDiscovery\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "ActionDiscovery",
+              "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 7,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract",
+            "symbol": "ActionDiscovery",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionDiscovery\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "ActionDiscovery",
+            "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/index.ts\",\"ActionInvoker\",true,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract#ActionInvoker",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 7,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract",
+              "symbol": "ActionInvoker",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionInvoker\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "ActionInvoker",
+              "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 7,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract",
+            "symbol": "ActionInvoker",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionInvoker\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "ActionInvoker",
+            "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/index.ts\",\"EndpointStatus\",true,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract#EndpointStatus",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 7,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract",
+              "symbol": "EndpointStatus",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"EndpointStatus\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "EndpointStatus",
+              "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 7,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract",
+            "symbol": "EndpointStatus",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"EndpointStatus\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "EndpointStatus",
+            "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"AdoptionView\",true,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#AdoptionView",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 9,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "AdoptionView",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"AdoptionView\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "AdoptionView",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 9,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "AdoptionView",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"AdoptionView\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "AdoptionView",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"CredentialUse\",true,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#CredentialUse",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 10,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "CredentialUse",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"CredentialUse\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "CredentialUse",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 10,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "CredentialUse",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"CredentialUse\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "CredentialUse",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"ProcessLanding\",true,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#ProcessLanding",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 11,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "ProcessLanding",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ProcessLanding\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "ProcessLanding",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 11,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "ProcessLanding",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ProcessLanding\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "ProcessLanding",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"UseEligibility\",true,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#UseEligibility",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 12,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "UseEligibility",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"UseEligibility\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "UseEligibility",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 12,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "UseEligibility",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"UseEligibility\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "UseEligibility",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"ActionDiscoveryService\",false,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#ActionDiscoveryService",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 29,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "ActionDiscoveryService",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionDiscoveryService\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "ActionDiscoveryService",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 29,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "ActionDiscoveryService",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionDiscoveryService\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "ActionDiscoveryService",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"ActionInvokerService\",false,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#ActionInvokerService",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 30,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "ActionInvokerService",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionInvokerService\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "ActionInvokerService",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 30,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "ActionInvokerService",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionInvokerService\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "ActionInvokerService",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"EndpointStatusService\",false,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#EndpointStatusService",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 31,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "EndpointStatusService",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"EndpointStatusService\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "EndpointStatusService",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 31,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "EndpointStatusService",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"EndpointStatusService\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "EndpointStatusService",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpAdoptionViewKey\",false,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpAdoptionViewKey",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 32,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpAdoptionViewKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpAdoptionViewKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpAdoptionViewKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 32,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpAdoptionViewKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpAdoptionViewKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpAdoptionViewKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpCredentialUseKey\",false,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpCredentialUseKey",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 33,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpCredentialUseKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpCredentialUseKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpCredentialUseKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 33,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpCredentialUseKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpCredentialUseKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpCredentialUseKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpProcessLandingKey\",false,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpProcessLandingKey",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 34,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpProcessLandingKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpProcessLandingKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpProcessLandingKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 34,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpProcessLandingKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpProcessLandingKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpProcessLandingKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-DIP\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpUseEligibilityKey\",false,\"import\"]",
+          "rule": "LAYER-DIP",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpUseEligibilityKey",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 35,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpUseEligibilityKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpUseEligibilityKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpUseEligibilityKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 35,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpUseEligibilityKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpUseEligibilityKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpUseEligibilityKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@deepseek-ai/cordis#Context",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 6,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@deepseek-ai/cordis",
+              "symbol": "Context",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+              "target": {
+                "kind": "external"
+              },
+              "local": "Context"
+            }
+          ],
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 6,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@deepseek-ai/cordis#Service",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 6,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@deepseek-ai/cordis",
+              "symbol": "Service",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+              "target": {
+                "kind": "external"
+              },
+              "local": "Service"
+            }
+          ],
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 6,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Service",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Service"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/index.ts\",\"ActionDiscovery\",true,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract#ActionDiscovery",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 7,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract",
+              "symbol": "ActionDiscovery",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionDiscovery\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "ActionDiscovery",
+              "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 7,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract",
+            "symbol": "ActionDiscovery",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionDiscovery\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "ActionDiscovery",
+            "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/index.ts\",\"ActionInvoker\",true,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract#ActionInvoker",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 7,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract",
+              "symbol": "ActionInvoker",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionInvoker\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "ActionInvoker",
+              "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 7,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract",
+            "symbol": "ActionInvoker",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ActionInvoker\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "ActionInvoker",
+            "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/index.ts\",\"EndpointStatus\",true,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract#EndpointStatus",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 7,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract",
+              "symbol": "EndpointStatus",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"EndpointStatus\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "EndpointStatus",
+              "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 7,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract",
+            "symbol": "EndpointStatus",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"EndpointStatus\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "EndpointStatus",
+            "resolvedPath": "packages/mcp/mcp-contract/src/index.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"AdoptionView\",true,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#AdoptionView",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 9,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "AdoptionView",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"AdoptionView\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "AdoptionView",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 9,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "AdoptionView",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"AdoptionView\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "AdoptionView",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"CredentialUse\",true,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#CredentialUse",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 10,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "CredentialUse",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"CredentialUse\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "CredentialUse",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 10,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "CredentialUse",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"CredentialUse\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "CredentialUse",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"ProcessLanding\",true,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#ProcessLanding",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 11,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "ProcessLanding",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ProcessLanding\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "ProcessLanding",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 11,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "ProcessLanding",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"ProcessLanding\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "ProcessLanding",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"packages/mcp/mcp-contract/src/provider.ts\",\"UseEligibility\",true,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "@omne-harness/mcp-contract/provider#UseEligibility",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 12,
+              "member": "packages/mcp/mcp-cordis-contract",
+              "specifier": "@omne-harness/mcp-contract/provider",
+              "symbol": "UseEligibility",
+              "type": true,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"UseEligibility\",true,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-contract"
+              },
+              "local": "UseEligibility",
+              "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+            "line": 12,
+            "member": "packages/mcp/mcp-cordis-contract",
+            "specifier": "@omne-harness/mcp-contract/provider",
+            "symbol": "UseEligibility",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-cordis-contract\",\"packages/mcp/mcp-contract\",\"UseEligibility\",true,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-contract"
+            },
+            "local": "UseEligibility",
+            "resolvedPath": "packages/mcp/mcp-contract/src/provider.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"ActionDiscoveryService\",false,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#ActionDiscoveryService",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 29,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "ActionDiscoveryService",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionDiscoveryService\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "ActionDiscoveryService",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 29,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "ActionDiscoveryService",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionDiscoveryService\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "ActionDiscoveryService",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"ActionInvokerService\",false,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#ActionInvokerService",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 30,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "ActionInvokerService",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionInvokerService\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "ActionInvokerService",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 30,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "ActionInvokerService",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"ActionInvokerService\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "ActionInvokerService",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"EndpointStatusService\",false,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#EndpointStatusService",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 31,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "EndpointStatusService",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"EndpointStatusService\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "EndpointStatusService",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 31,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "EndpointStatusService",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"EndpointStatusService\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "EndpointStatusService",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpAdoptionViewKey\",false,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpAdoptionViewKey",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 32,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpAdoptionViewKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpAdoptionViewKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpAdoptionViewKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 32,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpAdoptionViewKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpAdoptionViewKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpAdoptionViewKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpCredentialUseKey\",false,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpCredentialUseKey",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 33,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpCredentialUseKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpCredentialUseKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpCredentialUseKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 33,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpCredentialUseKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpCredentialUseKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpCredentialUseKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpProcessLandingKey\",false,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpProcessLandingKey",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 34,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpProcessLandingKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpProcessLandingKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpProcessLandingKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 34,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpProcessLandingKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpProcessLandingKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpProcessLandingKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"LAYER-ENTRY\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-host-local/src/cordis.ts\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\",\"mcpUseEligibilityKey\",false,\"import\"]",
+          "rule": "LAYER-ENTRY",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-host-local",
+          "key": "@omne-harness/mcp-cordis-contract/cordis#mcpUseEligibilityKey",
+          "reason": "源或目标入口责任未采用，不能判分层符合",
+          "expected": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+              "line": 35,
+              "member": "packages/mcp/mcp-host-local",
+              "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+              "symbol": "mcpUseEligibilityKey",
+              "type": false,
+              "form": "import",
+              "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpUseEligibilityKey\",false,\"import\"]",
+              "target": {
+                "kind": "workspace",
+                "member": "packages/mcp/mcp-cordis-contract"
+              },
+              "local": "mcpUseEligibilityKey",
+              "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+            }
+          ],
+          "targetMember": "packages/mcp/mcp-cordis-contract",
+          "relation": {
+            "path": "packages/mcp/mcp-host-local/src/cordis.ts",
+            "line": 35,
+            "member": "packages/mcp/mcp-host-local",
+            "specifier": "@omne-harness/mcp-cordis-contract/cordis",
+            "symbol": "mcpUseEligibilityKey",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/mcp/mcp-host-local\",\"packages/mcp/mcp-cordis-contract\",\"mcpUseEligibilityKey\",false,\"import\"]",
+            "target": {
+              "kind": "workspace",
+              "member": "packages/mcp/mcp-cordis-contract"
+            },
+            "local": "mcpUseEligibilityKey",
+            "resolvedPath": "packages/mcp/mcp-cordis-contract/src/cordis.ts"
+          }
+        },
+        {
+          "id": "[\"ROLE\",\"packages/mcp/mcp-cordis-contract/src/cordis.ts\"]",
+          "rule": "ROLE",
+          "state": "unknown",
+          "age": "unjudged",
+          "member": "packages/mcp/mcp-cordis-contract",
+          "key": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+          "reason": "入口责任未采用、冲突或未映射；不作为分层符合证据",
+          "expected": "docs/architecture/constraints.json",
+          "sites": [
+            {
+              "path": "packages/mcp/mcp-cordis-contract/src/cordis.ts",
+              "line": 1
+            }
+          ]
+        }
+      ],
+      "architectureUnknowns": 40,
+      "bindingUnknowns": []
+    }
+  ],
+  "domains": [],
+  "limits": "Complete declared package tree comparison; integration facts remain a static subset and require manual qualification before adoption. No business or lifecycle proof."
+}
