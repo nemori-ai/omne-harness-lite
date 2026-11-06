@@ -25,7 +25,14 @@ import { settledWithin } from './fixtures/settle.ts'
 const VERSIONS = ['2026-07-28']
 const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
 const never = new AbortController().signal
-const NOT_SENT = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
+/** What a transport that is not usable any more answers, marked with the cause it recorded (T1). */
+const notSentAfter = (unusable: string) => ({
+  failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable },
+})
+/** A request that left and got no answer because the line ended, marked with the same cause (T1). */
+const lineEnded = (cause: 'stream-broken' | 'process-exited') => ({
+  failure: { kind: 'no-answer', cause, unusable: cause },
+})
 const SPECIAL = fileURLToPath(new URL('./fixtures/scripted/special-stdio.mjs', import.meta.url))
 const LEGACY_SDK = fileURLToPath(new URL('./fixtures/sdk/legacy-stdio.mjs', import.meta.url))
 const MODERN_SDK = fileURLToPath(new URL('./fixtures/sdk/modern-stdio.mjs', import.meta.url))
@@ -91,23 +98,19 @@ describe('what the peer writes on stdout (T2, F4)', () => {
   it('a line above the 16 MiB byte bound breaks the stream: stream-broken, then not-sent', async () => {
     const peer = special('huge-line')
     const transport = await open(peer.material)
-    expect(await transport.discover()).toEqual({
-      failure: { kind: 'no-answer', cause: 'stream-broken' },
-    })
-    expect(await transport.listActions()).toEqual(NOT_SENT)
+    expect(await transport.discover()).toStrictEqual(lineEnded('stream-broken'))
+    expect(await transport.listActions()).toStrictEqual(notSentAfter('stream-broken'))
     await transport.close()
     await peer.close()
   }, 60_000)
 })
 
 describe('the process and the pipe (T8 S01, S02, X02)', () => {
-  it('a process that exits before it answers: no-answer (process-exited), then not-sent', async () => {
+  it('a process that exits before it answers: the request in flight is no-answer (process-exited) and the next not-sent, both marked process-exited (T1, S02)', async () => {
     const peer = special('exit-before-answer')
     const transport = await open(peer.material)
-    expect(await transport.discover()).toEqual({
-      failure: { kind: 'no-answer', cause: 'process-exited' },
-    })
-    expect(await transport.listActions()).toEqual(NOT_SENT)
+    expect(await transport.discover()).toStrictEqual(lineEnded('process-exited'))
+    expect(await transport.listActions()).toStrictEqual(notSentAfter('process-exited'))
     await transport.close()
     await peer.close()
   })
@@ -115,10 +118,8 @@ describe('the process and the pipe (T8 S01, S02, X02)', () => {
   it('a process that ends stdout and stays alive: stream-broken after the exit window, then not-sent', async () => {
     const peer = special('end-stdout')
     const transport = await open(peer.material)
-    expect(await transport.discover()).toEqual({
-      failure: { kind: 'no-answer', cause: 'stream-broken' },
-    })
-    expect(await transport.listActions()).toEqual(NOT_SENT)
+    expect(await transport.discover()).toStrictEqual(lineEnded('stream-broken'))
+    expect(await transport.listActions()).toStrictEqual(notSentAfter('stream-broken'))
     await transport.close()
     await peer.close()
   })
@@ -127,22 +128,39 @@ describe('the process and the pipe (T8 S01, S02, X02)', () => {
     const peer = special('exit-at-start')
     await peer.exited
     const transport = await open(peer.material)
-    expect(await transport.discover()).toEqual(NOT_SENT)
+    // The end of the process and the write that finds no reader (X02) race: either is the cause.
+    const discovered = await transport.discover()
+    const cause =
+      'failure' in discovered && 'unusable' in discovered.failure
+        ? discovered.failure.unusable
+        : undefined
+    expect(['stream-broken', 'process-exited']).toContain(cause)
+    expect(discovered).toStrictEqual(notSentAfter(String(cause)))
     await transport.close()
     await peer.close()
   })
 
-  it('a process that answers and exits: the answer is read, the next request is not-sent', async () => {
+  it('a process that does not read its stdin any more: the request that cannot be written is not-sent marked stream-broken, and so is the next (T1, X02)', async () => {
+    const peer = await scripted({ discover: { kind: 'unsent' } })
+    const transport = await open(peer.material)
+    expect(await transport.discover()).toStrictEqual(notSentAfter('stream-broken'))
+    expect(await transport.listActions()).toStrictEqual(notSentAfter('stream-broken'))
+    expect(await peer.received()).toEqual([])
+    await transport.close()
+    await peer.close()
+  })
+
+  it('a process that answers and exits: the answer is read, the next request is not-sent marked process-exited (T1)', async () => {
     const peer = special('answer-then-exit')
     const transport = await open(peer.material)
     expect(ok(await transport.discover(), 'discover').protocolVersion).toBe('2026-07-28')
     await peer.exited
-    expect(await transport.listActions()).toEqual(NOT_SENT)
+    expect(await transport.listActions()).toStrictEqual(notSentAfter('process-exited'))
     await transport.close()
     await peer.close()
   })
 
-  it("the SDK server's tool that exits the process: the call's answer is process-exited", async () => {
+  it("the SDK server's tool that exits the process: the call's answer is process-exited, marked, and so is the next request (T1, S04)", async () => {
     const spawned = spawnHandle([MODERN_SDK])
     const transport = await openSdk(materialOf(spawned.handle))
     ok(await transport.discover(), 'discover')
@@ -150,7 +168,12 @@ describe('the process and the pipe (T8 S01, S02, X02)', () => {
       await transport.call({ action: actionNameOf('crash'), args: jsonOf({}) }, never),
       'call',
     )
-    expect(await sent.answer).toEqual({ kind: 'no-answer', cause: 'process-exited' })
+    expect(await sent.answer).toStrictEqual({
+      kind: 'no-answer',
+      cause: 'process-exited',
+      unusable: 'process-exited',
+    })
+    expect(await transport.listActions()).toStrictEqual(notSentAfter('process-exited'))
     await transport.close()
     await spawned.handle.stop()
   })
@@ -227,7 +250,9 @@ describe('a peer that does not read stdin (T5)', () => {
     expect(await settledWithin(ok(sent.settled, 'call').answer)).toEqual({
       settled: { kind: 'no-answer', cause: 'abandoned' },
     })
-    expect(await settledWithin(transport.listActions())).toEqual({ settled: NOT_SENT })
+    expect(await settledWithin(transport.listActions())).toStrictEqual({
+      settled: notSentAfter('stream-broken'),
+    })
     expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
     await peer.close()
   })

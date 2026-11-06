@@ -41,6 +41,13 @@ const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
 const never = new AbortController().signal
 const NOT_SENT = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
 const STREAM_BROKEN = { kind: 'no-answer', cause: 'stream-broken' }
+/** What a transport that is not usable any more answers, marked with the cause it recorded (T1). */
+const notSentAfter = (unusable: string) => ({
+  failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable },
+})
+const SESSION_ENDED = {
+  failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+}
 const SECRET = 'secret-token-7f3a'
 
 const factory = createLocalTransportFactory({
@@ -476,6 +483,20 @@ describe('broken streams and re-sending (T8 D15, O05, O06, C04, O07)', () => {
     await peer.close()
   })
 
+  it('a single POST answered 5xx fails that request without the mark, and the next request goes out and is answered (T1)', async () => {
+    const peer = await scripted({
+      calls: { echo: [{ kind: 'http', status: 503, body: 'down' }, result(DONE)] },
+    })
+    const transport = await open(materialOf(targetOf(peer)))
+    const failed = ok(await transport.call(echo, never), 'call')
+    expect(await failed.answer).toStrictEqual(STREAM_BROKEN)
+    const next = ok(await transport.call(echo, never), 'call')
+    expect(await next.answer).toStrictEqual({ kind: 'result', result: jsonOf(DONE) })
+    expect(requestsOf(await peer.received(), 'tools/call')).toHaveLength(2)
+    await transport.close()
+    await peer.close()
+  })
+
   it('a connection refused is not-sent; a reset before the answer head is stream-broken (X01 versus a broken stream)', async () => {
     const refused = await scripted({ listing: { '': { kind: 'unsent' } } })
     const transport = await open(materialOf(targetOf(refused)))
@@ -575,7 +596,7 @@ describe('the page and the headers (T2, T3)', () => {
 })
 
 describe('the legacy session and cancellation (T3, T5, T8 S07)', () => {
-  it("the SDK's 2025 transport with sessions: the session id is carried back; after DELETE the next request is session-ended and the transport is unusable", async () => {
+  it("the SDK's 2025 transport with sessions: the session id is carried back; after DELETE the next request is session-ended, and it and every later request carry the mark (T1, S07)", async () => {
     const server = await legacyHttpServer()
     const transport = await open(materialOf(server.target))
     const identity = ok(await transport.discover(), 'discover')
@@ -588,10 +609,8 @@ describe('the legacy session and cancellation (T3, T5, T8 S07)', () => {
       headers: { 'mcp-session-id': session ?? '' },
     })
     await ended.text()
-    expect(await transport.listActions()).toEqual({
-      failure: { kind: 'not-sent', cause: 'session-ended' },
-    })
-    expect(await transport.getTask(taskIdOf('t1'))).toEqual(NOT_SENT)
+    expect(await transport.listActions()).toStrictEqual(SESSION_ENDED)
+    expect(await transport.getTask(taskIdOf('t1'))).toStrictEqual(notSentAfter('session-ended'))
     await transport.close()
     await server.close()
   })
@@ -664,9 +683,11 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
     const listing = transport.listActions()
     await new Promise(resolve => setTimeout(resolve, 50))
     peer.breakStreams()
-    expect(await listing).toEqual({ failure: STREAM_BROKEN })
+    expect(await listing).toStrictEqual({
+      failure: { ...STREAM_BROKEN, unusable: 'stream-broken' },
+    })
     expect(requestsOf(await peer.received(), 'tools/list')).toHaveLength(1)
-    expect(await transport.listActions()).toEqual(NOT_SENT)
+    expect(await transport.listActions()).toStrictEqual(notSentAfter('stream-broken'))
     await transport.close()
     await peer.close()
   })
@@ -676,10 +697,8 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
     const transport = await open(materialOf(targetOf(peer)))
     ok(await transport.discover(), 'discover')
     peer.endSessions()
-    expect(await transport.listActions()).toEqual({
-      failure: { kind: 'not-sent', cause: 'session-ended' },
-    })
-    expect(await transport.getTask(taskIdOf('t1'))).toEqual(NOT_SENT)
+    expect(await transport.listActions()).toStrictEqual(SESSION_ENDED)
+    expect(await transport.getTask(taskIdOf('t1'))).toStrictEqual(notSentAfter('session-ended'))
     await transport.close()
     await peer.close()
   })

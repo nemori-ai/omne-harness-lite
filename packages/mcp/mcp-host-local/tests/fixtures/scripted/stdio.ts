@@ -16,6 +16,13 @@ import { spawnHandle } from '../process.ts'
 const PEER = fileURLToPath(new URL('./stdio-peer.mjs', import.meta.url))
 const RECORD = '@omne '
 
+/** A peer that closes its stdin, says it is ready, and stays alive until it is stopped. */
+const CLOSED_STDIN = [
+  "require('node:fs').closeSync(0)",
+  `process.stderr.write(${JSON.stringify(`${RECORD}{"kind":"ready"}\n`)})`,
+  'setInterval(() => undefined, 1 << 30)',
+].join(';')
+
 function isList(replies: Replies): replies is readonly PeerReply[] {
   return Array.isArray(replies)
 }
@@ -27,9 +34,11 @@ function listOf(replies: Replies | undefined): readonly PeerReply[] {
 
 /**
  * Whether the script's first exchange is `unsent`, and whether a later `unsent` makes the script
- * unrealizable. On stdio the only way a request fails before it leaves is a process that exited
- * before the transport opened; so `unsent` is realizable only as the first exchange of the
- * connection, in protocol order: `server/discover`, then `initialize`, then the rest.
+ * unrealizable. On stdio a request fails before it leaves when the process does not read its
+ * stdin any more; the peer that realizes it closed its stdin before the transport opened, and
+ * stays alive, so the write itself fails (X02) and the line is not ended by an exit first. So
+ * `unsent` is realizable only as the first exchange of the connection, in protocol order:
+ * `server/discover`, then `initialize`, then the rest.
  */
 function unsentPlan(script: PeerScript): 'reachable' | 'unreachable' {
   const ordered: readonly (Replies | undefined)[] = [
@@ -89,10 +98,9 @@ export async function stdioPeer(
   const plan = unsentPlan(script)
   const spawned =
     plan === 'unreachable'
-      ? spawnPeer(['-e', ''])
+      ? spawnPeer(['-e', CLOSED_STDIN])
       : spawnPeer([PEER, JSON.stringify(script), JSON.stringify(versions)])
-  if (plan === 'unreachable') await spawned.exited
-  else await spawned.ready
+  await spawned.ready
   const material: TransportMaterial = {
     kind: 'stdio',
     process: spawned.handle,
