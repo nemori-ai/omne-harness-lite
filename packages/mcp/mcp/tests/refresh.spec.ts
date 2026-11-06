@@ -2,7 +2,7 @@
 // invariant 2; `current` and `peer` answer from what is stored and connected, and never connect.
 import { describe, expect, it } from 'vitest'
 import type { AuthorizationDiscovery, CatalogKey } from '@omne-harness/mcp-contract'
-import type { ListingPage } from '@omne-harness/mcp-contract/provider'
+import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import type { Step } from './doubles/scripted-transport.ts'
@@ -419,6 +419,21 @@ describe('refresh fails', () => {
     read.release()
     expect(await pending).toEqual({ failure: { kind: 'connection-unavailable' } })
     expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(listed)
+    expect(await record(w)).toBe('absent')
+  })
+
+  it('closeAll while a page is asked: connection-unavailable, not the listing-incomplete the page failure would give, and nothing is published (S8, MC-7)', async () => {
+    const listing = deferred<ListingPage | TransportFailure>()
+    const { w, discovery, connections } = core(
+      world({ script: [{ discover: peer }, { listActions: listing }] }),
+    )
+    adoptStdio(w, files)
+    const pending = discovery.refresh(alice, { ref: files })
+    await settled()
+    expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(1)
+    await connections.closeAll()
+    listing.resolve({ kind: 'no-answer', cause: 'stream-broken' })
+    expect(await pending).toEqual({ failure: { kind: 'connection-unavailable' } })
     expect(await record(w)).toBe('absent')
   })
 })
