@@ -22,12 +22,14 @@ import {
   discoverAuthorization,
   discoverWith,
   endedCauseOf,
+  fallbackGetConclusionOf,
   getTaskRequest,
   getTaskResultRequest,
   interpretAnswer,
   isLegacyConnection,
   legacyIdentityOf,
   legacyInitializeParamsOf,
+  lineGoneAnswerOf,
   listActionsRequest,
   listingPageOf,
   notificationTextOf,
@@ -40,6 +42,7 @@ import {
   responseTextOf,
   retryVersionOf,
   startAuthorizationDiscovery,
+  stopAnswerOf,
   streamGoneAnswerOf,
   taskAnswerOf,
   taskReportOf,
@@ -740,6 +743,76 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
       kind: 'not-sent',
       failure: { kind: 'not-sent', cause: 'authorization-required', discovery },
     })
+  })
+
+  it('a stop (the signal, close()) settles a request by its phase: not-sent while authorizing, abandoned once sent, authorization-required with what was fetched while discovering (T5)', () => {
+    const discovery = {
+      resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
+      metadata: 'unavailable',
+      issuers: [],
+      scopes: [],
+    } as const
+    expect(stopAnswerOf({ kind: 'authorizing' })).toEqual({
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+    })
+    expect(stopAnswerOf({ kind: 'sent' })).toEqual(ABANDONED)
+    expect(stopAnswerOf({ kind: 'discovery', soFar: () => discovery })).toEqual(
+      authorizationRequiredAnswerOf(discovery),
+    )
+  })
+
+  it('the line going away settles only the phases that depend on it: authorizing is not-sent for every cause, sent answers the cause except session-ended, discovery goes on (T8 S01–S04, S07)', () => {
+    const notSent = {
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+    }
+    const soFar = {
+      resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
+      metadata: 'unavailable',
+      issuers: [],
+      scopes: [],
+    } as const
+    const discovery = { kind: 'discovery', soFar: () => soFar } as const
+    for (const cause of ['stream-broken', 'process-exited', 'session-ended'] as const) {
+      expect(lineGoneAnswerOf({ kind: 'authorizing' }, cause), cause).toEqual(notSent)
+      expect(lineGoneAnswerOf(discovery, cause), cause).toBeUndefined()
+    }
+    expect(lineGoneAnswerOf({ kind: 'sent' }, 'stream-broken')).toEqual(
+      streamGoneAnswerOf('stream-broken'),
+    )
+    expect(lineGoneAnswerOf({ kind: 'sent' }, 'process-exited')).toEqual(
+      streamGoneAnswerOf('process-exited'),
+    )
+    expect(lineGoneAnswerOf({ kind: 'sent' }, 'session-ended')).toBeUndefined()
+  })
+
+  it('the status of the fallback GET is read as an answer to initialize outside the SSE mode: 401 and a scoped 403 are authorization-required, any other status is not-sent (T3, S05, I07)', () => {
+    expect(
+      fallbackGetConclusionOf(
+        { status: 401, headers: { 'www-authenticate': 'Bearer realm="x"' }, body: '' },
+        VERSIONS,
+      ),
+    ).toEqual({ kind: 'authorization-required' })
+    expect(
+      fallbackGetConclusionOf(
+        {
+          status: 403,
+          headers: { 'www-authenticate': 'Bearer error="insufficient_scope"' },
+          body: '',
+        },
+        VERSIONS,
+      ),
+    ).toEqual({ kind: 'authorization-required' })
+    for (const status of [403, 404, 405, 500, 503]) {
+      expect(
+        fallbackGetConclusionOf({ status, headers: {}, body: 'no' }, VERSIONS),
+        `${status}`,
+      ).toEqual({
+        kind: 'settle',
+        wire: { kind: 'not-sent', failure: { kind: 'not-sent', cause: 'connection-unavailable' } },
+      })
+    }
   })
 
   it('sends once more only after a conclusion that says resend, and never a third time', async () => {
