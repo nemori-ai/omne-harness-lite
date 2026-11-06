@@ -58,7 +58,7 @@ pnpm exec vitest run --mode fast                                   # public-entr
 pnpm exec vitest run --mode slow --typecheck.enabled=false         # conformance、stdio、http（起子进程与本机端口）
 ```
 
-慢层起子进程与本机 HTTP 服务端（随机端口 20000–59999），每个用例结束时核对没有遗留。SPEC 的 SDK 复用表依据 `tests/probes/` 的探针，探针回答的问题与输出摘录在 [verification/proofs/sdk](verification/proofs/sdk/README.md)。性质、前提与未覆盖见 [SPEC「组合与验证」](SPEC.md#组合与验证)。测试通过不等于技术接受。
+慢层起子进程与本机 HTTP 服务端（随机端口 20000–59999），每个用例结束时核对没有遗留。SPEC 的 SDK 复用表依据 `tests/probes/` 的探针，探针回答的问题与输出摘录在 [verification/proofs/sdk](verification/proofs/sdk/README.md)。请求生命周期的性质与每条性质的证据见 [SPEC「性质与证据」](SPEC.md#properties)。测试覆盖什么、没有覆盖什么见 [SPEC「组合与验证」](SPEC.md#组合与验证)。测试通过不等于技术接受。
 
 ## 维护
 
@@ -79,9 +79,9 @@ docs/                     内部设计、公开使用与集成说明
 ├── context.md            消费侧使用与系统定位
 └── cordis.md             Cordis 适用性与集成
 src/                      公开定义、运行时校验与内部实现
-tests/                    持续测试；fixtures/ 存放对端夹具，probes/ 存放 SDK 探针
+tests/                    持续测试；fixtures/ 存放对端夹具，probes/ 存放 SDK 探针，model/ 存放有界穷举探索器与它的负控
 schema/                   对外 Schema（本包没有）
-verification/             持续验证资源；proofs/sdk/ 存放 SDK 复用的论证
+verification/             持续验证资源；models/ 存放 TLA+ 模型，proofs/sdk/ 存放 SDK 复用的论证
 adr/                      有持续消费者的实现取舍（本包没有）
 examples/                 面向公开入口的示例（本包没有）
 resources/                运行所需的非源码资源（本包没有）

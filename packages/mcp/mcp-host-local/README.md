@@ -59,7 +59,7 @@ pnpm exec vitest run --mode fast                                   # public-entr
 pnpm exec vitest run --mode slow --typecheck.enabled=false         # conformance, stdio, http (child processes and local ports)
 ```
 
-The slow tier spawns child processes and local HTTP servers (random ports 20000–59999) and checks after each case that none is left. The SPEC's SDK reuse table rests on the probes in `tests/probes/`; their questions and output excerpts are in [verification/proofs/sdk](verification/proofs/sdk/README.md). Properties, premises and what is not covered: [SPEC, composition and verification](SPEC.md#组合与验证). Passing tests are not technical acceptance.
+The slow tier spawns child processes and local HTTP servers (random ports 20000–59999) and checks after each case that none is left. The SPEC's SDK reuse table rests on the probes in `tests/probes/`; their questions and output excerpts are in [verification/proofs/sdk](verification/proofs/sdk/README.md). The properties of a request's life and the evidence for each: [SPEC, properties and evidence](SPEC.md#properties). What the tests cover and what they leave out: [SPEC, composition and verification](SPEC.md#组合与验证). Passing tests are not technical acceptance.
 
 ## Maintenance
 
@@ -80,9 +80,9 @@ docs/                     Internal design, public use, and integration
 ├── context.md            Consumer use and position in the system
 └── cordis.md             Cordis applicability and integration
 src/                      Public definitions, validation, and implementation
-tests/                    Continuous tests; fixtures/ holds the peer fixtures, probes/ the SDK probes
+tests/                    Continuous tests; fixtures/ holds the peer fixtures, probes/ the SDK probes, model/ the bounded explorer and its negative controls
 schema/                   External schemas (none in this package)
-verification/             Continuous verification resources; proofs/sdk/ holds the SDK reuse argument
+verification/             Continuous verification resources; models/ holds the TLA+ model, proofs/sdk/ the SDK reuse argument
 adr/                      Implementation decisions with continuing consumers (none)
 examples/                 Examples against the public entry (none)
 resources/                Non-source runtime resources (none)

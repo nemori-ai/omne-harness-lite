@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-辅助：`settle.ts`（受管辖的等待落定的上界 `SETTLE_BOUND_MS` 与 `settledWithin`）。A 层：`scripted/stdio-peer.mjs`（按脚本答的 stdio 对端，经 stderr 回报）、`scripted/special-stdio.mjs`（脚本说不出的行为）、`scripted/http.ts`（`node:http` 对端，含旧 HTTP+SSE）、`scripted/stdio.ts`、`scripted/children.ts`、`process.ts`。B 层：`sdk/modern-stdio.mjs`、`sdk/legacy-stdio.mjs`、`sdk/bearer-http.ts`、`sdk/legacy-http.ts`、`sdk/everything.ts`。负责人：本成员的维护者。当前缺口：B 层没有带任务（`tasks/*`）的对端，任务操作只在 A 层验证。
+辅助：`settle.ts`（受管辖的等待落定的上界 `SETTLE_BOUND_MS` 与 `settledWithin`）。A 层：`scripted/stdio-peer.mjs`（按脚本答的 stdio 对端，经 stderr 回报）、`scripted/special-stdio.mjs`（脚本说不出的行为）、`scripted/http.ts`（`node:http` 对端，含旧 HTTP+SSE；`sseNoise` 选项让应答流先送一个带同一请求号的 `ping` 事件作诱饵）、`scripted/stdio.ts`、`scripted/children.ts`、`process.ts`。B 层：`sdk/modern-stdio.mjs`、`sdk/legacy-stdio.mjs`、`sdk/bearer-http.ts`、`sdk/legacy-http.ts`、`sdk/everything.ts`。负责人：本成员的维护者。当前缺口：B 层没有带任务（`tasks/*`）的对端，任务操作只在 A 层验证。
