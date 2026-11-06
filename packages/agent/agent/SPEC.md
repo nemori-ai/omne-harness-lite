@@ -35,19 +35,31 @@ open 尚未认回时，reserved 保存原 coordinator 和 invoke 输入指纹。
 
 ## 运行失败
 
-<a id="运行失败"></a>依据 R2-D282。一次 `runExecution` 在某个节点失败，而 `waitForWake` 不再唤醒驱动，驱动就停止。以前驱动丢掉这个失败后静默退出，执行槽仍是 `running`，没有任何报告。现在的规则如下。
+<a id="运行失败"></a>一次 `runExecution` 返回失败，而 `waitForWake` 不再唤醒驱动，驱动就停止。确定节点故障先按下文尝试合法终结。仍不能继续的依赖、资格或责任保留以下停止规则。
 
 - **何时算停止**：驱动停止，并且最后一次驱动通过带失败，或者 `waitForWake` 本身失败。只是一次通过失败不算停止。例如 commit-unknown 让驱动等待原操作，之后照常推进。驱动抛出也算停止，节点为空，失败是 owner 为 `@omne-harness/agent` 的 unavailable。
 - **执行槽**：仍由这个 execution 持有的 `running` 槽改为 `failed`，带停止的节点与失败。E9 已释放的槽、已由另一个 execution 持有的槽都不改。`failed` 只是内部状态。`observe` 仍显示 occupied，因为 execution 没有终结。新的 invoke 照常答 busy。同一操作、同一输入的 invoke 重试仍取回原句柄。
 - **报告**：执行槽改为 `failed` 之后，runtime 调用一次 `createAgentRuntime` 第三个参数里的 `failed` 接收者。事件是 `{ kind: 'run-failed', tenant, instance, execution, node, failure }`。`failure` 原样取自节点的答复，它的诊断文本只写身份与状态。接收者被同步调用，不得回调本 runtime。接收者抛出不改变任何答复，也不留痕。没有接收者时，执行槽照样改为 `failed`。
 - **停用**：quiesce 把 `failed` 的 execution 算作剩余，答 unresolved，见“[停用](#停用)”。remaining 的契约形状只有 execution 身份，不带节点与失败。调用方要说明原因，就按 execution 对上这次报告。
-- **已知限制**：execution 不终结。Journal 里没有 `ended`，会话历史里也没有 `run.terminal`。它的执行挂接仍是 active，本实现不 detach。因为没有交接，quiesce 对它如实答 unresolved，有序停止对这个实例答 incomplete。节点失败时以失败终结 Run、解除挂接，尚未实现。它要改契约，并要 Session 参加，计划在波 3。实现后，这类 execution 才能收口。
+- **未完成责任**：没有 Journal `ended` 就不释放槽，也不声称 Session 已终结。永久不可用、失权或无法证明保管的责任仍可能阻止收尾。quiesce 对占槽 execution 返回 unresolved。
+
+## 确定节点故障的收尾
+
+已受理 execution 的本地异常、不变量违规、未实现路径及无专门业务出口的确定拒绝形成 node-failed。分类由产生边界的私有来源与结构化 Failure 决定，不解析 diagnostic。Agent 自身 denied、stale-advance、busy、依赖 unavailable，以及原 Journal/Model/Tool 效果未知不构成这个故障。Model 的原确定拒绝继续使用 model-refused。
+
+协调者固定第一故障的 node、category、failureKind、step 和来源。节点尚未取得历史时，来源明确保留空的故障历史；F1 的 origin 则必须来自后来真实读取的 execution history。时间由 AgentClock 首次成功读取后固定。node-failed 不保存 Error、stack、任意 diagnostic 或请求正文。
+
+有原未定写时先查询原 operation。随后依次认回已保存 ended、有效取消与原故障收尾。F1 读取真实 history 和 conditions，F2 保存终态前经过，F3 发行真实责任清单并调用 tryFinish。F1/F3 的暂时 unavailable 只进入内存等待。再次推进时继续收尾，不回 I0、请求准备或新的 Model/Tool 调用。已形成候选的内容、原因与时刻保持。窄内部 continueExecution 可从已保存 node-failed 的 settling 快照恢复相同候选。
+
+node-failed 的原未取入输入按公共 Journal 契约保持可读并记为 held，taken 仍为空。协调者不制造 input-taken、不清 calls、不把输入投给后继执行。已受理 Model/Tool 的结果继续由常驻 receiver 按原 ConsumerRef 与 consumption 保存。普通 Tool associated 引用不是保管依据，仍等待真实 received；已有受信保管记录的清单由 Journal 判断。无来源 Tool unknown、未应用 Passage 和永久材料不可读继续保留原责任。
+
+F3 只有取得 Journal ended 才经 F4/E9 释放槽。有效取消可在终态前转 F0；已经提交的 ended 不被后来的取消覆盖。Session 的终态解释仍归 AD-02。实现守护与有限模型边界见[节点故障验证映射](verification/node-failure.md)。
 
 ## 以失败终结
 
 <a id="以失败终结"></a>执行以 `fail` 结论终结时，结论原因写明为什么失败，宿主据此记一条日志。以前主调用以失败收场时，原因只留在 Model 的账目里，结论原因只写 `no-reply`，会话历史与服务日志都看不到真实原因。
 
-- **原因记录**：结论原因是 Agent 自记的证据，record 为 `<execution>/<step>/<原因>`。主调用首内容前没有有效回复时，失败候选的 kind 仍是 `no-reply`（SC-AG-153）。原调用被 Model 判为失败收场时，原因段是 `model-failed/<故障 cause>/<诊断>`，诊断取 `ModelFault.diagnostic` 的前 120 个字符并做 URI 编码，所以不增加段；诊断为空时写 `-`。原调用正常完成却没有内容时，原因段才是 `no-reply`。Session 的 `run.terminal` 条目把这个原因原样放在 `cause` 字段，CLI 的 `read-history` 显示它。record 是给人看的标识，程序不解析它：失败收场时 `no-reply` 候选另带结构化的 `fault`，与 Settlement 的 `termination.fault` 完全相等（R2-D356，形状见[公共 API](../agent-contract/docs/public-api/README.md)）。
+- **原因记录**：结论原因是 Agent 自记的证据，node-failed 的 record 为 `<execution>/node-failed`，其他失败的 record 为 `<execution>/<step>/<原因>`。主调用首内容前没有有效回复时，失败候选的 kind 仍是 `no-reply`（SC-AG-153）。原调用被 Model 判为失败收场时，原因段是 `model-failed/<故障 cause>/<诊断>`，诊断取 `ModelFault.diagnostic` 的前 120 个字符并做 URI 编码，所以不增加段；诊断为空时写 `-`。原调用正常完成却没有内容时，原因段才是 `no-reply`。Session 的 `run.terminal` 条目把这个原因原样放在 `cause` 字段，CLI 的 `read-history` 显示它。record 是给人看的标识，程序不解析它：失败收场时 `no-reply` 候选另带结构化的 `fault`，与 Settlement 的 `termination.fault` 完全相等（R2-D356，形状见[公共 API](../agent-contract/docs/public-api/README.md)）。
 - **报告**：F4 读到已提交的终态后，结论为 `fail` 时，runtime 调用一次 `createAgentRuntime` 第三个参数里的 `endedFailed` 接收者。事件是 `{ kind: 'run-ended-failed', tenant, instance, execution, cause, failure }`。`cause` 是终态里的结论原因；`failure` 是快照里终结候选的 kind、step 与 `fault`（只有带 `fault` 的 `no-reply` 候选才不为 null），快照不再带候选时为 null。`complete` 与 `cancelled` 结论不报告。同一个驱动的协调者最多报告一次。接收者被同步调用，不得回调本 runtime；抛出不改变任何答复。没有接收者时执行照样终结。
 - **与运行失败的区别**：[运行失败](#运行失败)是驱动停在节点上、execution 没有终结；本节是 execution 已经终结。一次 Run 只会走其中一种。
 - **已知限制**：报告只在本进程 F4 时发出。进程重启后，恢复驱动重新经过 F4 时会再报告一次。
@@ -56,10 +68,10 @@ open 尚未认回时，reserved 保存原 coordinator 和 invoke 输入指纹。
 
 <a id="测量事件"></a>依据 R2-D17（DP1 取 C）与 R2-D49：Agent 把 E9 要用的边界作为结构化事件交给调用工厂的人。参数是 `createAgentRuntime(依赖, 选项, { measure })` 的可选第三个参数，不是服务键，不是配置，不进入 `judgeOptions`，缺省不建任何事件。事件形状不是冻结的产品 API，字段名是 L-RUN 与联调 B 的约定。
 
-| 事件 | 何时发出 | 字段 |
-| --- | --- | --- |
-| `segment`，`phase: 'start'`，`segment: 'agent'` | 一次工作通过开始：`accept`（`invoke` 等待的可靠受理，U0 到 E0，含 `coordinator.accept()`）或 `run`（一次 `runExecution` 驱动，从 E1 或 R0 起，到它结束、停在已保存的等待或终结为止） | `span`（进程内唯一，起止成对）、`pass`、`execution` |
-| `segment`，`phase: 'end'` | 同一通过交回时，含抛出 | 上列字段加 `outcome`：带 `failure` 的答复与抛出为 `failure`，其余为 `ok` |
+| 事件                                            | 何时发出                                                                                                                                                                             | 字段                                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `segment`，`phase: 'start'`，`segment: 'agent'` | 一次工作通过开始：`accept`（`invoke` 等待的可靠受理，U0 到 E0，含 `coordinator.accept()`）或 `run`（一次 `runExecution` 驱动，从 E1 或 R0 起，到它结束、停在已保存的等待或终结为止） | `span`（进程内唯一，起止成对）、`pass`、`execution`                      |
+| `segment`，`phase: 'end'`                       | 同一通过交回时，含抛出                                                                                                                                                               | 上列字段加 `outcome`：带 `failure` 的答复与抛出为 `failure`，其余为 `ok` |
 
 - **时间**：事件不带时间。观察者在被同步调用的那一刻读自己的单调时钟，那一刻就是边界时刻。本成员不读 `Date.now`、`performance.now`，也不用注入的 `AgentClock`：它读 UTC 时刻、异步作答、测试会给它计次，不是单调时钟。
 - **段是包含式的**：一次 `run` 通过包含它等待 Journal、Model、Tool 与其他端口的时间。两次通过之间的等待（`waitForWake`）不在任何段内。采集者按已知的外部等待区间扣除，段之间不能相加。
@@ -81,7 +93,7 @@ open 尚未认回时，reserved 保存原 coordinator 和 invoke 输入指纹。
 
 停用的测试在 `tests/provider-quiesce.spec.ts`：空闲实例 drained 并撤登记一次、draining 之后 invoke 与 resume 返回 unavailable、第一个 `await` 之前已 draining、核验拒绝解除 draining、占槽时 unresolved 且运行照常结束、撤登记失败不报 drained、同一操作认回、另一原因 conflict、停用进行中的新 quiesce 认回原停用。只覆盖内存 Journal 与登记句柄替身。
 
-当前测试核对构造、访问守卫、正常路径、输入承接、请求准备、主调用接缝、回复准入、空动作批、I8 三种去向、原操作认回、等待保存、失通知后的计时重读与等待资源清理，以及终结的候选投影、清单发行与失效、五类 blocked 次序、取消路线的建立、判断与迁移和三个保管变体（内存 Journal 通过 agent-contract 的 Journal 核心一致性套件）。另有一条先等待再收到回复的完整模型请求，核对各节点提交次数、等待内的读取次数、自身 waiting 事件不唤醒与等待期间的重复 invoke。测试使用脚本化 Model 与非耐久内存 Journal，不证明真实提供者或完整恢复。needs-compaction 按 #513 revision 2 保存原结果并返回 unsupported，压缩路径与相应 F1 结果留给 4.5。内部窄接续从同一内存 Journal 的已存 ready/step 或 PendingCall 重建固定帧，并从 received 条目读取完整材料，覆盖意图提交前后与 producer 已提交而尚未完成 I3 的切点，要求原 runtime、Access/Authority 与旧驱动已停；I2 尚须无未决 Journal 操作。它不是公开恢复或进程耐久。现行 Model 交付（`ModelDelivery` 的结果分支、`ResultPart`、`Settlement`）不带原产出 scope/format：它们只随流式到达的 finish 交出（model-contract SPEC「产出」与 finish 映射），不进 Agent 收到的交付与接收方材料。因此 Agent 收到的每个 reasoning_state 都缺 scope/format，回复不能带 `replay`（message SPEC RS-03）。依据 R2-D268（更正 R2-D70 的「一律返回 unsupported」）：M3 解释结果时，已封的 reasoning_state 与已封的 thinking 都不进入回复块，回复由其余块照常组成；去掉后没有块时按 no-reply 处理。这是 message SPEC 的投影规则允许的：去掉全部续接状态部件、也不剩 thinking 时不带 `replay`。去掉签名后的 thinking 能否回传尚未核实，所以一并去掉。未封的 thinking 按普通 partial 处理。已接收材料保持原样可读。后果是下一轮请求没有回放块（KL-66）。R2-D70 曾让这类结果返回 unsupported，M3 因此停住，Run 在 M6 等待中卡住，不终结。交付补上可选的 replay 通道后，接收方保存它，带 scope/format 的封装 reasoning_state 才作为回复块进入 reply（波 3）。
+当前测试核对构造、访问守卫、正常路径、输入承接、请求准备、主调用接缝、回复准入、空动作批、I8 三种去向、原操作认回、等待保存、失通知后的计时重读与等待资源清理，以及终结的候选投影、清单发行与失效、五类 blocked 次序、取消路线的建立、判断与迁移和三个保管变体（内存 Journal 通过 agent-contract 的 Journal 核心一致性套件）。另有一条先等待再收到回复的完整模型请求，核对各节点提交次数、等待内的读取次数、自身 waiting 事件不唤醒与等待期间的重复 invoke。测试使用脚本化 Model 与非耐久内存 Journal，不证明真实提供者或完整恢复。needs-compaction 保留原结果并沿 node-failed 的 unsupported-path 收尾；压缩业务路径仍未实现。内部窄接续从同一内存 Journal 的已存 ready/step 或 PendingCall 重建固定帧，并从 received 条目读取完整材料，覆盖意图提交前后与 producer 已提交而尚未完成 I3 的切点，要求原 runtime、Access/Authority 与旧驱动已停；I2 尚须无未决 Journal 操作。它不是公开恢复或进程耐久。现行 Model 交付（`ModelDelivery` 的结果分支、`ResultPart`、`Settlement`）不带原产出 scope/format：它们只随流式到达的 finish 交出（model-contract SPEC「产出」与 finish 映射），不进 Agent 收到的交付与接收方材料。因此 Agent 收到的每个 reasoning_state 都缺 scope/format，回复不能带 `replay`（message SPEC RS-03）。依据 R2-D268（更正 R2-D70 的「一律返回 unsupported」）：M3 解释结果时，已封的 reasoning_state 与已封的 thinking 都不进入回复块，回复由其余块照常组成；去掉后没有块时按 no-reply 处理。这是 message SPEC 的投影规则允许的：去掉全部续接状态部件、也不剩 thinking 时不带 `replay`。去掉签名后的 thinking 能否回传尚未核实，所以一并去掉。未封的 thinking 按普通 partial 处理。已接收材料保持原样可读。后果是下一轮请求没有回放块（KL-66）。R2-D70 曾让这类结果返回 unsupported，M3 因此停住，Run 在 M6 等待中卡住，不终结。交付补上可选的 replay 通道后，接收方保存它，带 scope/format 的封装 reasoning_state 才作为回复块进入 reply（波 3）。
 
 Model 接收遵守公共 SPEC 的 [J02](../agent-contract/SPEC.md#结果接收)。同一内存 Journal 提供四个视图，joint commit 在单一发布点写入材料、条目、操作结果与 saved。原消费绑定独立于当前 checkpoint 与 attachment 保留。独立接收工厂在当前资格和原 Model 权威核验后才认回或提交；unknown 只查询原 operation，excluded 不换号。账目在共同提交后出站，重试与 blocked 状态跨组件重装配保留。Model 的公开 testing pusher 自行执行其 ACK；Agent loop 不调用 Model consumption。
 

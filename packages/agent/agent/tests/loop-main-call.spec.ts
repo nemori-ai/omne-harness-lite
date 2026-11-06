@@ -394,11 +394,14 @@ describe('received Model result adoption', () => {
       assembly.release.open()
       const c = coordinator(assembly)
       ok(await c.accept())
-      expect(failure(await c.runExecution())).toMatchObject({
+      ok(await c.runExecution())
+      expect((await load(assembly)).settlement.candidate?.failure).toMatchObject({
+        kind: 'node-failed',
         node: 'M3',
-        failure: { kind: 'invalid', field: 'received.material' },
+        category: 'rejected',
+        failureKind: 'invalid',
       })
-      expect(await eventKinds(assembly)).toEqual(['input-taken', 'entry'])
+      expect(await eventKinds(assembly)).toEqual(['input-taken', 'entry', 'ended'])
       expect(
         assembly.controls.handoff.prepare.calls.filter(
           call => call.request.source.kind === 'model-reply',
