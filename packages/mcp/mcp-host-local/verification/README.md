@@ -116,7 +116,7 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp-host-local/verification
 
 TLC（`TransportSession.tla` 的注释修订之后重跑，2026-11-06 UTC 06:55，TLC2 2.19，4 个工作线程，jar SHA-256 前 16 位 `936a262061c91469`，模型 `29eec8af205bca31`，`run.py` `2f1fc35ee9f1c89b`）：13 份配置都符合判读，退出 0（日志 `run.log`，`2975d496e3192163`）；正控 `valid-close` 9922 个不同状态、深度 16，`valid-signal` 与 `valid-no-handle` 各 315 个、深度 11；22 个有效动作的变异都符合判读，退出 0（日志 `mutations.log`，`bcc146c707ec772e`）。负控与变异的状态数是 TLC 找到第一条反例时的计数，随线程调度在两次运行之间略有不同。配置、上限与逐项结果见 [models/README.md](models/README.md#运行记录)。
 
-探索器的负控（`72f977c81` 上，`node tests/model/mutate.ts`，2026-11-06 UTC 05:03）：23 个负控全部变红，退出 0，源码按字节还原（`git status` 干净）；汇总日志 `mutants-run-72f977c81.log`，`ac51935251bd09c8`；每个负控一份日志 `<负控名>.log`。所有日志都保存在任务过程目录，不入库。
+探索器的负控（`3327d8439` 上，`node tests/model/mutate.ts`，2026-11-06 UTC 06:58）：23 个负控全部变红，退出 0，源码按字节还原（`git status` 干净）；汇总日志 `mutants-run.log`，`3206b85acce773b0`；每个负控一份日志 `<负控名>.log`。所有日志都保存在任务过程目录，不入库。
 
 <a id="两种证据能变红"></a>
 
