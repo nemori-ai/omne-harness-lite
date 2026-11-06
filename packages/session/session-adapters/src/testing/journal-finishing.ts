@@ -250,8 +250,8 @@ export type ObligationSource = Readonly<{
   revision: number
   checkpoint: AgentCheckpoint
   inputs: readonly AcceptedInput[]
-  /** The taken batch of the input at `index`, or null when no batch took it. */
-  batchOf: (index: number) => InputBatchId | null
+  /** The committed input-taken batch, or null when no event took the input. */
+  inputBatch: (input: AcceptedInput) => InputBatchId | null
   /** The entry operation that accepted an input, from its external handoff. */
   acceptanceOf: (input: AcceptedInput) => AgentOperationId | undefined
   controls: readonly ControlRecord[]
@@ -358,9 +358,9 @@ const settlesCall = (
 
 /**
  * The obligations of `candidate` from the Journal's own records at the current revision. An
- * ordinary candidate leaves an input no batch took, an unapplied before-terminal passage and a
- * result without custody pending; a cancelled candidate keeps the inputs and the undetermined
- * passages held by the Journal. A control is pending while its intent or revocation is
+ * node-failed or cancelled candidate holds untaken inputs. An unapplied before-terminal passage
+ * and a result without custody remain pending; cancellation holds undetermined passages.
+ * A control is pending while its intent or revocation is
  * unresolved; the three late stages may be carried after the end and are held. A write still
  * undecided is unknown. A call whose result is recorded is settled: its custody is the result's.
  */
@@ -369,11 +369,13 @@ export function buildObligations(
   candidate: FinishCandidate,
 ): Readonly<{ items: readonly FinishObligation[]; coverage: ResponsibilityCoverage }> {
   const cancelled = candidate.conclusion.kind === 'cancelled'
+  const nodeFailed =
+    candidate.conclusion.kind === 'fail' && candidate.failure?.kind === 'node-failed'
   const fixed = (what: string): DurableEvidence =>
     journalEvidence(`${source.execution}/obligation/${what}`, source.revision)
   const items: FinishObligation[] = []
-  source.inputs.forEach((input, index) => {
-    const taken = source.batchOf(index)
+  source.inputs.forEach(input => {
+    const taken = source.inputBatch(input)
     const origin = fixed(`input/${input.id}`)
     const read = (purpose: 'load' | 'submit'): RecoveryContinuation => ({
       kind: 'input-read',
@@ -390,7 +392,7 @@ export function buildObligations(
       disposition:
         taken !== null
           ? settled(fixed(`input/${input.id}/taken/${taken}`))
-          : cancelled
+          : cancelled || nodeFailed
             ? held(origin, read('load'))
             : pending('input-disposition', read('submit')),
       input: input.id,

@@ -1176,13 +1176,17 @@ tryFinish 的结果按下表返回。
 
 | 类别 | terminal 前须成立 | 可合法延续的责任 |
 | --- | --- | --- |
-| inputs | 普通候选不越过待承接输入。取消候选保留所有 accepted input 的身份、内容、原归属及终局处置 | 按原归属供读取或由原拥有者处置。不自动路由到新 execution |
+| inputs | 普通候选不越过待承接输入。结论为 fail 且失败为 node-failed 的候选，以及取消候选，保留所有 accepted input 的身份、内容、原归属及终局处置 | 按原归属供读取或由原拥有者处置。不自动路由到新 execution |
 | controls | 适用的取消与必要撤权已经成立。相关后续职责由合法存续方承接 | “[六个阶段](#六个阶段)”允许的 producer-confirmed、physically-stopped、duty-released 真实迟到阶段 |
 | operations | 可能改变候选的未定操作先恢复，不把 unknown 当未发生 | 已合法发出的调用、结果、费用和回执由原生产者与长期接收者负责 |
 | passages | 必需的终态前判断有真实有效结果：complete 与 failed 候选是落终态之前位置的作者经过，cancelled 候选是当前的判断记录。未定卡片和调用完整保留 | 终态后按原身份 lookup、read、invalidate 和保管，不重跑扩展，不采纳新业务效果 |
 | custody | 每项已收到且须交接的结果有真实完成依据或耐久保管，没有无人保管的窗口 | 原消费、释放确认、费用、未确认输出和固定观察按自身协议接续 |
 
 cancelled 候选的终态前判断由具名、精确版本的受信取消判断承担，complete 与 failed 候选继续使用作者的终态前扩展链。判断的判据、安装、记录与旧取消记录的迁移见“[取消判断与路线](#取消判断与路线)”。判断记录不授予永久许可。
+
+`node-failed` 表达 Agent 在节点推进中确定的本地故障。候选只保存节点标识、故障分类、原 Failure.kind 和共同的 step、时刻与来源，不保存任意错误正文、堆栈、请求或凭据。节点标识是观测值，不把实现的节点类型反向引入契约。来源分类在故障产生边界确定，不能解析 diagnostic 来取得。
+
+只有 conclusion 为 fail 且 failure 为 node-failed 时，Journal 才把尚未取入批次的 accepted input 记为 held。原输入记录是保管依据，处置保留完整 value、acceptance、origin 和 taken=null，并提供原 execution 的 input-read 接续。已取入批次的输入仍为 settled，不制造新的 input-taken。其他普通失败与 complete 的未取入输入仍为 pending。该规则不消除未知原写、Model/Tool 调用、Passage、卡片或其他未完成责任，也不改变当前资格、终态前判断和共同提交的要求。
 
 终结授权有两种。推进授权只用于仍然有效的普通完成或失败。取消授权必须对应已保存且当前适用的取消控制，结论只能是 cancelled，它不恢复旧挂接的推进权，也不允许借取消凭据提交 complete 或发新效果。取消授权不授予取消判断与收束资格，这两项资格由主体资格核验的 settle 操作名承担，见“[commitSettlement 的变体](#commitsettlement-的变体)”。两种资格都取不到时，旧实例停止推进并交接，由合法的恢复者沿原记录收束。取消后未处理的输入保留原归属和处置依据，不静默转入后继 execution。
 

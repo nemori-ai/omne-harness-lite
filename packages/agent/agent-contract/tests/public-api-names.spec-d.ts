@@ -584,6 +584,7 @@ describe('the discriminants of the evaluation chapter', () => {
       | 'message-rejected'
       | 'extension-stop'
       | 'guard'
+      | 'node-failed'
     >()
     expectTypeOf<KindOf<ProducerDecisionView>>().toEqualTypeOf<
       | 'unresolved'

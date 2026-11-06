@@ -914,6 +914,8 @@ AgentJournal、AgentJournalEntries 与 AgentMaterials 操作共用 Session 会�
 
 Agent 规则：判定次序、认回、修订号与条件终结协议是本成员 `src/testing/journal.ts` 的 Journal 核心，与 `./testing` 替身相同。每个会话在进程内有这个核心的一份副本。副本是可丢的派生物（AD-00 第 7 条）。每次调用先读 `session.history-root`，发布计数比视图的 `head` 大时，经 `execution-record.facts` 读 `pub > head` 的批折叠进视图，再从视图重建副本（[事实族存储](#分区存储)）。
 
+终结清单的输入处理事实只来自已提交 input-taken 事件，inputs 的读取缓存不表示已处理。结论为 fail 且失败候选为 node-failed 时，未处理输入按 Agent 契约保留为 held，仍归原 execution。普通 fail 和 complete 保持 pending 规则。该处置不替代 PA-02 核对、不创建 Session 终态，也不清除原调用或其他责任。
+
 一次 Journal 写入按下列次序工作：
 
 1. 经 `tenantDomainLookup` 取事务域。结果为 `unregistered` 或 `unavailable` 时答 `unavailable`，不读、不写，也不触发登记。
