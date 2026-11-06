@@ -34,3 +34,22 @@ reduce 复跑 16/16、四项 lint 与格式退出 0；51 条变异全部变红�
 ## 第 5 轮（head 6c18e83fa）：最终表达评审
 
 T8 抽象表与数据表逐行一致，划分无空格无重叠（人工推算，989 组合）；旧阻断 B1–B8 闭合（B7 表内闭合）。新阻断 A1–A5 在表的两个边上：A1 请求离开前失败与域外 HTTP 状态（1xx/3xx、SSE 未结束）无归类；A2「对本请求的 JSON-RPC 应答」「读不懂的错误对象」「纯」没有信封判据；A3 stdio 崩溃时流断开与进程退出两类都适用；A4 S5 与 S7 对同一个 T8 结论给出不同连接状态，S5 缺 `session-ended`；A5 `cancelTask` 新建连接时核不核采用与资格有三种读法。建议 N1–N9。
+
+## 第 6 轮（head aaa8ba492）：增量表达复审（design-reviewer opus@xhigh，本机会话派发）
+
+A1–A3 闭合；A4、A5 大部分闭合，各留残差。N1、N4、N5、N6 已落实；N2、N3、N7、N8、N9 无法核对（第 5 轮原文在云机会话里）。K5 与 SDK 2.4.0 一致（`src-CeKsbNLO.mjs:4377`）。
+
+阻断（评审者判为都适用停止规则）：
+- F1 S5 总规则写在「下面各条」之后，管不到它上面的页失败条。
+- F2 X02 带「传输不再可用」却没有 `LostReason`；`not-sent`（`connection-unavailable`）在 S7 也没有原因；总规则写在 S5，`invoke` 与任务操作是否适用有两种读法。
+- F3 S2 与 S4 对任务操作缺配值的答法冲突。
+- F4 `classifyWireEvent` 的 JSON 读法比 SPEC 写出来的严（重复键、空行、BOM、上限；id 按词形比较）。
+
+非阻断：F5 探测在途时 `close()` 按 D13 还是 T5；F6 `stdio-ended` 的组成时机；F7 HTTP「应答头之前失败」指哪个超时；F8 应答头之后的流中断没有 `WireEvent`、1xx 的归法；F9 组合数 989 过时（实为 1007）；F10 组合与验证表缺 `wire.spec.ts`；F11 T2 错误对象判据重复；F12 SDK 只在现代修订、非 stdio 上剔除 `x-mcp-header`，T2 在旧修订上也剔除。
+
+### reduce 处置（2026-11-05，本机会话；不开第 7 轮）
+
+- F1、F2、F3、F9、F10、F11 是指到行的表达修正，派发者自己改（delegate「何时不派」）。F2 的取值从应然定：总规则移进 S7，管每个请求；X02 与已成立连接上页请求的 `not-sent`（`connection-unavailable`）记 `stream-broken`（到对端的通道断了），`discover` 上的仍是 `preparation-failed`。与 `@omne-harness/mcp` 的 `pageNotSent` 和脚本化替身一致。F3：任务操作只在要新建连接时核配值，配值缺陷算「没有可以建连的材料」，答 `effect-unknown`（`no-connection`）。任务的状态在对端，连不上时调用方得到的事实就是效果未知。
+- F12 按「本组不比协议与官方 SDK 更严」改：只在说现代修订的 Streamable HTTP 上核。依据：SDK 2.4.0 `public-CvV4ZHkX.mjs:3989` `_excludeInvalidXMcpHeaderTools` 只在 `getProtocolEra() === "modern"` 且非 stdio 时剔除；SEP-2243 属于现代修订，旧修订不发 `Mcp-Param` 头。补套件用例与 M165（变红）。
+- F4–F8 属「线上事件的归类」，按停止规则登记为未封闭项，拥有者 `@omne-harness/mcp-host-local`（`w3-mcp-host` 用真实传输兑现）。F4 已核：SDK 2.4.0 `dist/stdio.mjs:136` `processReadBuffer` 对读不懂的行只报错，不断开流，所以「非 JSON 行使流断开」比 SDK 严，由 `w3-mcp-host` 按生态兼容定。
+- 门禁：`gates-r7/`（两成员 build、typecheck、test 16/16：契约 538、`mcp` 254；`lint:rules`、`lint:oxlint`、`format:check`、`check:docs` 退出 0）；`red-r3/`（M165 KILLED）。提交 `5c26bc3ae`。

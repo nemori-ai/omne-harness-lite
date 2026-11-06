@@ -1,0 +1,2 @@
+P5 discover(): {"kind":"no-answer","cause":"stream-broken"}
+P5 next request after the >16 MiB line: {"kind":"not-sent","cause":"connection-unavailable"}

@@ -1,0 +1,2 @@
+P6 events: authorize > authorize > authorize > close() resolved
+P6 discover(): {"kind":"not-sent","cause":"connection-unavailable"}

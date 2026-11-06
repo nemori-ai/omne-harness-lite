@@ -1,0 +1,31 @@
+
+ RUN  v4.1.11 /tmp/r-a-e2e/packages/mcp/mcp-host-local
+
+stdout | tests/e2e/journey.spec.ts > E-stdio: server-everything 2.1.0 on stdio, revision 2026-07-28 > E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28
+journey E-stdio: S1=published S2=complete S3=toolError S4=inputRequired>complete S5=task>completed>complete S6=signalled>unknown:abandoned S7=released
+
+stdout | tests/e2e/journey.spec.ts > E-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 > E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28
+journey E-http: S1=published S2=complete S3=toolError S4=inputRequired>complete S5=task>completed>complete S6=signalled>unknown:abandoned S7=released
+
+stdout | tests/e2e/journey.spec.ts > E-sse: server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 > E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25
+journey E-sse: S1=published S2=complete S3=toolError S6=signalled>unknown:abandoned S7=released
+
+stdout | tests/e2e/journey.spec.ts > F: server-filesystem 2.1.0 on stdio, revision 2026-07-28 > F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28
+journey F: S1=published S2=complete S3=toolError S7=released
+
+stdout | tests/e2e/journey.spec.ts > P: mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 > P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28
+journey P: S1=published S2=complete S3=toolError S7=released
+
+ ✓ tests/e2e/journey.spec.ts (6 tests) 12007ms
+     ✓ E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28  4698ms
+     ✓ E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28  4936ms
+     ✓ E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25  852ms
+     ✓ F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28  310ms
+     ✓ P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28  1207ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  10:23:19
+   Duration  13.02s (transform 560ms, setup 20ms, import 815ms, tests 12.01s, environment 0ms)
+
+exit 0

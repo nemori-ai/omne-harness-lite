@@ -1,0 +1,75 @@
+
+ RUN  v4.1.11 /tmp/r-a-e2e/packages/mcp/mcp-host-local
+
+stdout | tests/e2e/journey.spec.ts > F: server-filesystem 2.1.0 on stdio, revision 2026-07-28 > F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28
+journey F: S1=published S2=complete S3=toolError S7=released
+
+ ❯ tests/e2e/journey.spec.ts (6 tests | 5 failed) 2248ms
+     × E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28 288ms
+     × E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 406ms
+     × E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 454ms
+     ✓ F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28 238ms
+     × P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 857ms
+     × E-stdio and E-http answer the same kind of outcome at every step S1 to S7 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/journey.spec.ts > E-stdio: server-everything 2.1.0 on stdio, revision 2026-07-28 > E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28
+ FAIL  tests/e2e/journey.spec.ts > E-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 > E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28
+AssertionError: S1: the listing has the known tool: expected [ 'get-annotated-message', …(20) ] to include 'echo'
+ ❯ Object.run tests/e2e/journey.spec.ts:121:59
+    119|       expect(view.kind, 'S1: the catalog is acquired').toBe('acquired')
+    120|       const names = view.kind === 'acquired' ? view.actions.map(action…
+    121|       expect(names, 'S1: the listing has the known tool').toContain(ca…
+       |                                                           ^
+    122|       const { peer } = ok(
+    123|         await context.assembly.services.discovery.peer(ALICE, context.…
+ ❯ journey tests/e2e/journey.spec.ts:280:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > E-sse: server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 > E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25
+AssertionError: S1: the listing has the known tool: expected [ 'get-annotated-message', …(14) ] to include 'echo'
+ ❯ Object.run tests/e2e/journey.spec.ts:121:59
+    119|       expect(view.kind, 'S1: the catalog is acquired').toBe('acquired')
+    120|       const names = view.kind === 'acquired' ? view.actions.map(action…
+    121|       expect(names, 'S1: the listing has the known tool').toContain(ca…
+       |                                                           ^
+    122|       const { peer } = ok(
+    123|         await context.assembly.services.discovery.peer(ALICE, context.…
+ ❯ journey tests/e2e/journey.spec.ts:280:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > P: mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 > P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28
+AssertionError: S1: the listing has the known tool: expected [] to include 'fetch'
+ ❯ Object.run tests/e2e/journey.spec.ts:121:59
+    119|       expect(view.kind, 'S1: the catalog is acquired').toBe('acquired')
+    120|       const names = view.kind === 'acquired' ? view.actions.map(action…
+    121|       expect(names, 'S1: the listing has the known tool').toContain(ca…
+       |                                                           ^
+    122|       const { peer } = ok(
+    123|         await context.assembly.services.discovery.peer(ALICE, context.…
+ ❯ journey tests/e2e/journey.spec.ts:280:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > the two modern transports (MC3-12) > E-stdio and E-http answer the same kind of outcome at every step S1 to S7
+AssertionError: E-stdio journey ran: expected undefined to be defined
+ ❯ tests/e2e/journey.spec.ts:316:42
+    314|     const stdio = readings.get('E-stdio')
+    315|     const http = readings.get('E-http')
+    316|     expect(stdio, 'E-stdio journey ran').toBeDefined()
+       |                                          ^
+    317|     expect(http, 'E-http journey ran').toBeDefined()
+    318|     expect(stdio?.map(reading => `${reading.step}:${reading.kind}`)).t…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 1 passed (6)
+   Start at  10:22:51
+   Duration  3.11s (transform 455ms, setup 14ms, import 692ms, tests 2.25s, environment 0ms)
+
+exit 1

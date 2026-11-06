@@ -1,0 +1,7 @@
+
+> omne-harness-lite-workspace@ check:design /data/qiwei/repos/omne-harness-lite/.worktrees/w3-docs-mcp
+> ./scripts/check-design.sh
+
+PASS: current source links and explicit owners. Not behavior or model verification.
+SEALED PROVENANCE: PF-000、PF-001、PF-002、PF-003、PF-004、PF-005、PF-006、PF-008、PF-009、PF-010、PF-011、PF-012、PF-013、PF-014、PF-015、PF-016、PF-017、PF-020、PF-021（只核出处，不是当前 PD 采用）
+PASS: 354 个词条、69 条对象条目、10 项待裁、17 个当前 PD，对账一致。

@@ -1,8 +1,8 @@
 import sys
 dom, base = sys.argv[1], sys.argv[2]
 name = f'fin-{dom}'
-W = f'/home/user/omne-harness-lite/.worktrees/{name}'
-P = '/home/user/omne-harness-lite/.worktrees/skill-mcp/tmp/skill-mcp-domain'
+W = f'/data/qiwei/repos/omne-harness-lite/.worktrees/{name}'
+P = '/data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/tmp/skill-mcp-domain'
 title = 'Skill' if dom=='skills' else 'MCP'
 dsec = '「Skill」G-10–G-19' if dom=='skills' else '「MCP」H-10–H-15'
 legacy = 'packages.0.0.1.legacy/core/skill-package/' if dom=='skills' else 'packages.0.0.1.legacy/core/mcp-endpoint/ 与 .meta_harness/design/architecture/mcp-bridge/'

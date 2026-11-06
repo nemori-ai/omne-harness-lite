@@ -1,0 +1,22 @@
+
+ RUN  v4.1.11 /tmp/r-a-e2e/packages/mcp/mcp-host-local
+
+ ❯ tests/e2e/journey.spec.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/journey.spec.ts [ tests/e2e/journey.spec.ts ]
+TypeError: the listing has no entry 1
+ ❯ offered ../mcp-contract/src/testing-listing-cases.ts:54:34
+ ❯ ../mcp-contract/src/testing-listing-cases.ts:80:58
+ ❯ ../mcp-contract/src/testing.ts:61:1
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  10:22:32
+   Duration  617ms (transform 280ms, setup 25ms, import 0ms, tests 0ms, environment 0ms)
+
+exit 1

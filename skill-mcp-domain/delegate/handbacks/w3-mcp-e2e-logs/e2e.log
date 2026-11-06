@@ -1,0 +1,31 @@
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e/packages/mcp/mcp-host-local
+
+stdout | tests/e2e/journey.spec.ts > E-stdio: server-everything 2.1.0 on stdio, revision 2026-07-28 > E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28
+journey E-stdio: S1=published S2=complete S3=toolError S4=inputRequired>complete S5=task>completed>complete S6=signalled>unknown:abandoned S7=released
+
+stdout | tests/e2e/journey.spec.ts > E-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 > E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28
+journey E-http: S1=published S2=complete S3=toolError S4=inputRequired>complete S5=task>completed>complete S6=signalled>unknown:abandoned S7=released
+
+ ✓ tests/e2e/journey.spec.ts > E-stdio: server-everything 2.1.0 on stdio, revision 2026-07-28 > E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28 4657ms
+stdout | tests/e2e/journey.spec.ts > E-sse: server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 > E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25
+journey E-sse: S1=published S2=complete S3=toolError S6=signalled>unknown:abandoned S7=released
+
+ ✓ tests/e2e/journey.spec.ts > E-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 > E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 4899ms
+ ✓ tests/e2e/journey.spec.ts > E-sse: server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 > E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 746ms
+stdout | tests/e2e/journey.spec.ts > F: server-filesystem 2.1.0 on stdio, revision 2026-07-28 > F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28
+journey F: S1=published S2=complete S3=toolError S7=released
+
+stdout | tests/e2e/journey.spec.ts > P: mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 > P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28
+journey P: S1=published S2=complete S3=toolError S7=released
+
+ ✓ tests/e2e/journey.spec.ts > F: server-filesystem 2.1.0 on stdio, revision 2026-07-28 > F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28 233ms
+ ✓ tests/e2e/journey.spec.ts > P: mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 > P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 966ms
+ ✓ tests/e2e/journey.spec.ts > the two modern transports (MC3-12) > E-stdio and E-http answer the same kind of outcome at every step S1 to S7 1ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  10:01:04
+   Duration  12.62s (transform 620ms, setup 23ms, import 909ms, tests 11.51s, environment 0ms)
+
+exit 0

@@ -1,5 +1,5 @@
 // Baseline: the official SDK client (lockfile version) against public remote MCP servers over HTTP.
-const { Client, StreamableHTTPClientTransport } = await import('/home/user/omne-harness-lite/.worktrees/skill-mcp/packages/mcp/mcp-host-local/node_modules/@modelcontextprotocol/client/dist/index.mjs')
+const { Client, StreamableHTTPClientTransport } = await import('/data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/packages/mcp/mcp-host-local/node_modules/@modelcontextprotocol/client/dist/index.mjs')
 const targets = [['DeepWiki', 'https://mcp.deepwiki.com/mcp'], ['Context7', 'https://mcp.context7.com/mcp'], ['Microsoft Learn', 'https://learn.microsoft.com/api/mcp']]
 for (const [label, url] of targets) {
   const client = new Client({ name: 'probe', version: '0' }, { versionNegotiation: { mode: 'auto' } })

@@ -1,0 +1,10 @@
+--- /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e/packages/mcp/mcp/src/internal/teardown.ts	2026-11-06 09:35:37.314048427 +0000
++++ /tmp/r-a-e2e/packages/mcp/mcp/src/internal/teardown.ts	2026-11-06 10:23:39.712214412 +0000
+@@ -55,7 +55,6 @@
+ async function closeTransport(entry: Entry): Promise<void> {
+   const { transport } = entry
+   if (transport === undefined) return
+-  await ask(() => transport.close(), undefined)
+   entry.transport = undefined
+ }
+ 

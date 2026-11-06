@@ -1,0 +1,11 @@
+--- /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e/packages/mcp/mcp-contract/src/classify.ts	2026-11-06 09:35:37.286048056 +0000
++++ /tmp/r-a-e2e/packages/mcp/mcp-contract/src/classify.ts	2026-11-06 10:23:04.915752733 +0000
+@@ -52,7 +52,7 @@
+   const withStructured = structured === undefined ? {} : { structured }
+   if (isError?.kind === 'boolean' && isError.value)
+     return { kind: 'toolError', content, ...withStructured }
+-  return { kind: 'complete', content, ...withStructured, output: outputCheck(structured, context) }
++  return { kind: 'complete', content: content.slice(content.length), ...withStructured, output: outputCheck(structured, context) }
+ }
+ 
+ /** At least one of `inputRequests` and `requestState` is present. */

@@ -1,8 +1,8 @@
 import sys
 dom, base = sys.argv[1], sys.argv[2]   # dom: skills|mcp
 name = 'skill-docs' if dom=='skills' else 'mcp-docs'
-W = f'/home/user/omne-harness-lite/.worktrees/{name}'
-P = '/home/user/omne-harness-lite/.worktrees/skill-mcp/tmp/skill-mcp-domain'
+W = f'/data/qiwei/repos/omne-harness-lite/.worktrees/{name}'
+P = '/data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/tmp/skill-mcp-domain'
 title = 'Skill' if dom=='skills' else 'MCP'
 sec = '第四节（4.1–4.7）' if dom=='skills' else '第五节（5.1–5.5）'
 qs = 'Q-SK02、Q-SK03、Q-SK04、Q-SK05、Q-SK06' if dom=='skills' else 'Q-MC02、Q-MC03、Q-MC04、Q-MC05、Q-MC06'

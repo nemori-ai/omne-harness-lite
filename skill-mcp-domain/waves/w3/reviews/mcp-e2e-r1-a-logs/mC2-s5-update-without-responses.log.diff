@@ -1,0 +1,11 @@
+--- /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e/packages/mcp/mcp-contract/src/composition.ts	2026-11-06 09:35:37.286048056 +0000
++++ /tmp/r-a-e2e/packages/mcp/mcp-contract/src/composition.ts	2026-11-06 10:21:44.354683628 +0000
+@@ -214,7 +214,7 @@
+   return {
+     method: 'tasks/update',
+     params: { taskId },
+-    values: { inputResponses },
++    values: {},
+     read: wire => interpretAnswer(wire, () => ({ ok: 'accepted' })),
+   }
+ }

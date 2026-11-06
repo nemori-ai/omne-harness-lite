@@ -1,0 +1,34 @@
+
+ RUN  v4.1.11 /tmp/r4a/probe
+
+C3-1a continueWithInput = {"kind":"not-sent","reason":{"kind":"connection-unavailable"}}
+C3-1b invoke = {"kind":"not-sent","reason":{"kind":"connection-unavailable"}}
+k=0 entered=[false] answer={"failure":{"kind":"effect-unknown","cause":"no-connection"}} tasks/get at peer=0 state={"ok":{"ref":{"name":"files","holding":"tenant/files"},"connection":{"kind":"lost","reason":"close-unconfirmed","residual":[{"kind":"process","confirmed":"unconfirmed"}]},"credential":"not-required","use":{"kind":"usable"}}}
+R3-a continueWithInput = {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} log= listActions shut=false,call shut=false
+R3-b invoke = {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} log= listActions shut=false
+R3-c queryTask in flight = {"failure":{"kind":"effect-unknown","cause":"no-connection"}} tasks/get received by peer= 0 log= listActions shut=false,call shut=false,getTask shut=false
+R3-c queryTask after closeAll = {"failure":{"kind":"effect-unknown","cause":"no-connection"}}
+C3-3 invoke = {"kind":"not-sent","reason":{"kind":"connection-unavailable"}}
+C3-3 invoke started after closeAll = {"kind":"not-sent","reason":{"kind":"connection-unavailable"}}
+R3-d refresh = {"failure":{"kind":"connection-unavailable"}} tools/list received by peer= 0 log= listActions shut=false
+ ✓ r3c.spec.ts > C3-1a: closeAll while a continuation waits on the store read 26ms
+ ✓ r3c.spec.ts > C3-1b: closeAll while a first call waits on the store read (control) 3ms
+ ✓ r3c.spec.ts > C3-2: closeAll at k microtasks after a task operation on a reused connection 6ms
+ ✓ r3c.spec.ts > C3-3: closeAll while a first call waits on the gate, and step 4 refuses with a setting defect 13ms
+R3-e before closeAll log= call returned tools/call= 1
+R3-e invoke = {"kind":"sent","outcome":{"kind":"unknown","cause":"abandoned"}} log= call returned peer cancels= 0
+R3-g invoke = {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} eligibility checks after closeAll = 1
+R3-g refresh = {"failure":{"kind":"connection-unavailable"}} eligibility checks after closeAll = 1
+ ✓ r3a.spec.ts > R3-a: closeAll while a continuation waits on the store read (step 5) 35ms
+ ✓ r3a.spec.ts > R3-b: closeAll while a first call waits on the store read (step 5) 4ms
+ ✓ r3a.spec.ts > R3-c: a task operation on a reused connection; closeAll called in the same turn, right after 6ms
+ ✓ r3a.spec.ts > R3-d: closeAll while a refresh waits on the store read in publish 3ms
+ ✓ r3a.spec.ts > R3-e: a sent call, closeAll, then the caller aborts its signal 9ms
+ ✓ r3a.spec.ts > R3-g: closeAll while the gate waits on the adoption read (eligibility not yet asked) 5ms
+ ↓ r3a.spec.ts > R3-f: closeAll landing k microtasks after invoke / queryTask (sweep)
+
+ Test Files  2 passed (2)
+      Tests  10 passed | 1 skipped (11)
+   Start at  07:57:14
+   Duration  987ms (transform 1.05s, setup 0ms, import 1.38s, tests 116ms, environment 0ms)
+

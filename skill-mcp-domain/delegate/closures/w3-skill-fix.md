@@ -93,3 +93,11 @@ reduce 裁定（Skill 领域负责人）：
   - **N2 说明超长要能用，不只能加载**：生态兼容的目的是「能用」。Skill 自己的契约里，说明长度的上限统一放宽到 16384 个字符（检查、资产正文的声明投影、类别端口、读取关口的边界解析、`isSkillDescription` 共用一个常量，从公开根导出）；1025–16384 字符照常可用并带 `description-over-limit` 提示；超过 16384 仍拒绝（`malformed`，防止滥用）。契约 SPEC 写明：这偏离 Agent Skills 规范的 1024 上限，理由是主流宿主接受更长的说明。用例：claude-api 那个包能加载、`describe` 与 `read` 正文成功；16385 字符拒绝。
   - 两项做完后：社区六类语料加载率 100%，且对每个加载的包 `read` 正文成功（用 `compat/skill-compat.mjs` 复跑，它会读正文）；S1–S7 探索器与 TLC 正控复跑无反例。
   同一写者（opus）续做，轮次记 2。返工原因：规格（两项放宽的范围此前没写全）。
+- 2026-11-05T07:50Z **第 2 轮收尾（本机接手会话，reduce 兼写者）**。云机写者停在两个 WIP（`ab761c7c1` N2、`8f0225d42` N1）。接手做的事：
+  - 闭包分支合入新父分支头 `f79aab4d4`（已同步 `integration/mainline` 799b72395），合并提交 `b0799e2ae`，无冲突。
+  - N2 修正（`3225599f7`）：两条失败说明把 `DESCRIPTION_LIMIT` 写成字面串，改为插值；`contract.ts` 扩展字段改用 `isSkillDescription`，说明长度判据只剩一处。
+  - 差分变异（`--base f79aab4d4`）：skill 88 个变异体杀 82；skill-contract 286 个杀 214、存活 60。工具对两成员标「测量无效」，存活只作线索。逐个用手工变异（打补丁 → 重建 dist → 跑用例 → 按字节还原）核实：`by-line.ts` 大半是工具误报，但 17 条规则里多数确实没有用例钉住。补用例与一处简化（`777abf7eb`）后，手工变异 by-line 17 杀 16（剩 1 个等价），热点 7 杀 7，skill 成员 3 个报存活的是 1 个工具出错（实际被杀）加 2 个等价。`./testing` 的 `otherDigest` 被清空时「原样交回依据摘要」用例退化，但违约矩阵里的「保留自身摘要」违约实现仍被抓，记为已知、不加码。
+  - 负责人 2026-11-05：真实资产测试用本机可用的 Skill。本机十类语料（pstack 0.9.79、Matt 1.3.1、ljg-skills 1.17.41、cc-master 0.21.1、codex 插件 1.0.5、frontend-design 1.1.1、skill-creator fa4eb54、`~/.claude/skills`、`~/.codex/skills`、本仓库项目技能）190 包：闭包上 190/190 加载且读正文成功；父分支上 189/190（Matt `pr` 的 `metadata` 被拒）。云机语料里的其余偏离（说明 1077 字符、name 与目录名不同、严格 YAML 失败）由合成夹具覆盖。
+  - TLC v1.7.4（并排装在用户目录，`check:formal-tools` 校验 SHA 通过）：五个正控无反例，状态数与 README 记录逐个相同；负控 `ReadGate_FlawNoRefCheck` 报 `OwnMaterialOnly` 反例。探索器慢层 7 例通过。
+  - 门禁（`3225599f7` 上）：三成员 build/typecheck/test、`lint:rules`、`lint:oxlint`、`lint:deps`（先构建 agent、identity-sql 的 dist）、`format:check`、`check:docs`、`check:design` 全部退出 0。`check:design` 第一次报 owner id 重复，是同时在跑的变异沙箱副本造成的，变异结束后复跑通过。
+  - 下一步：独立评审两面（L3 逐行 + SPEC 表达），然后 PR 合入。不改写历史：两个 WIP 提交保留，合并提交说明写清。

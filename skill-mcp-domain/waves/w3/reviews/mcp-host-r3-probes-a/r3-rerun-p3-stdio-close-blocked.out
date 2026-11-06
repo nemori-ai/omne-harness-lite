@@ -1,0 +1,3 @@
+P3 call settled 1s after its signal fired: true
+P3 close() settled within 3s: true log: write,stdout-cancel
+P3 call settled after close: true

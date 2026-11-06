@@ -1,0 +1,56 @@
+
+ RUN  v4.1.11 /tmp/r-a-e2e/packages/mcp/mcp-host-local
+
+stdout | tests/e2e/journey.spec.ts > E-sse: server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 > E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25
+journey E-sse: S1=published S2=complete S3=toolError S6=signalled>unknown:abandoned S7=released
+
+stdout | tests/e2e/journey.spec.ts > F: server-filesystem 2.1.0 on stdio, revision 2026-07-28 > F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28
+journey F: S1=published S2=complete S3=toolError S7=released
+
+stdout | tests/e2e/journey.spec.ts > P: mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 > P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28
+journey P: S1=published S2=complete S3=toolError S7=released
+
+ ❯ tests/e2e/journey.spec.ts (6 tests | 3 failed) 6714ms
+     × E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28 2328ms
+     × E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 2480ms
+     ✓ E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25  751ms
+     ✓ F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28 227ms
+     ✓ P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28  924ms
+     × E-stdio and E-http answer the same kind of outcome at every step S1 to S7 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/journey.spec.ts > E-stdio: server-everything 2.1.0 on stdio, revision 2026-07-28 > E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28
+ FAIL  tests/e2e/journey.spec.ts > E-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 > E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28
+Error: provideTaskInput failed: {"failure":{"kind":"error-answer","code":-32602,"message":"Invalid params for tasks/update: inputResponses is required"}}
+ ❯ ok tests/e2e/journey.spec.ts:59:33
+     57|
+     58| function ok<T, F>(outcome: Outcome<T, F>, what: string): T {
+     59|   if (!('ok' in outcome)) throw new Error(`${what} failed: ${JSON.stri…
+       |                                 ^
+     60|   return outcome.ok
+     61| }
+ ❯ Object.run tests/e2e/journey.spec.ts:205:11
+ ❯ journey tests/e2e/journey.spec.ts:280:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > the two modern transports (MC3-12) > E-stdio and E-http answer the same kind of outcome at every step S1 to S7
+AssertionError: E-stdio journey ran: expected undefined to be defined
+ ❯ tests/e2e/journey.spec.ts:316:42
+    314|     const stdio = readings.get('E-stdio')
+    315|     const http = readings.get('E-http')
+    316|     expect(stdio, 'E-stdio journey ran').toBeDefined()
+       |                                          ^
+    317|     expect(http, 'E-http journey ran').toBeDefined()
+    318|     expect(stdio?.map(reading => `${reading.step}:${reading.kind}`)).t…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 3 passed (6)
+   Start at  10:21:45
+   Duration  7.58s (transform 463ms, setup 14ms, import 706ms, tests 6.71s, environment 0ms)
+
+exit 1

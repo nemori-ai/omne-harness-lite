@@ -1,0 +1,8 @@
+Q2a call() returned within 1s after its signal: false
+Q2a close() returned within 1s: true
+Q2a call() returned within 1s after close(): false
+Q2a listActions() returned within 1s after close(): false
+Q2b reportRejection calls: 1
+Q2b close() returned within 2s: false
+Q2b listActions() returned within 1s after close(): false
+Q2c call(): {"ok":{"requestId":"r1","answer":{}}} {"kind":"no-answer","cause":"abandoned"} | peer saw: []

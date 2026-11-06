@@ -138,3 +138,4 @@ developer，implementation_kind product，Claude Fable 5.1（claude-fable-5-1）
   - **R6-7 N1–N9 照评审建议做**；N4：旧一路那一行的 `reportRejection()` 与「不再可用」生效，以旧一路那一行为准；N5：旧修订 HTTP 上的通知带 `Mcp-Session-Id`。
   - **停止规则**：这是契约的第 6 轮。之后的评审若再报同一类阻断（线上事件的归类、表与服务条款的衔接），按 `quality.md` 缩窄承诺：把残留情形登记为未封闭项（拥有者 `w3-mcp-host` 用真实传输兑现），不再开第 7 轮。
   同一写者（opus）续做。返工原因：规格。
+- 2026-11-05 **第 6 轮复审的处置（本机会话，reduce 自改，不开第 7 轮）**：见 `waves/w3/reviews/mcp-contract-r1.md` 第 6 轮。F1–F3、F9–F12 在 `5c26bc3ae` 改完；F4–F8 登记为未封闭项，拥有者 `@omne-harness/mcp-host-local`。下一步：PR，merge commit 合入父分支。

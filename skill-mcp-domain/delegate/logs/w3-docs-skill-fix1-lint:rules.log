@@ -1,0 +1,9 @@
+
+> omne-harness-lite-workspace@ lint:rules /data/qiwei/repos/omne-harness-lite/.worktrees/w3-docs-skill
+> pnpm --filter @omne-harness/product-checks run scan
+
+
+> @omne-harness/product-checks@0.0.0 scan /data/qiwei/repos/omne-harness-lite/.worktrees/w3-docs-skill/tools/product-checks
+> node --conditions=source --experimental-strip-types src/cli.ts ../../packages ../../apps
+
+PASS: product-checks 27 包规则 + 9 仓库路径规则，扫描 /data/qiwei/repos/omne-harness-lite/.worktrees/w3-docs-skill/packages、/data/qiwei/repos/omne-harness-lite/.worktrees/w3-docs-skill/apps 及仓库执行模块，7 份验收的覆盖声明，6200 个提交的署名，无违反。

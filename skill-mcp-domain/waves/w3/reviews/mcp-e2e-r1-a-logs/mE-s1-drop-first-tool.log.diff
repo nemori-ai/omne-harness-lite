@@ -1,0 +1,11 @@
+--- /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e/packages/mcp/mcp-contract/src/listing.ts	2026-11-06 09:35:37.286048056 +0000
++++ /tmp/r-a-e2e/packages/mcp/mcp-contract/src/listing.ts	2026-11-06 10:22:29.483282558 +0000
+@@ -126,7 +126,7 @@
+   const defect = pagesDefect(read.pages, read.limits.maxPages)
+   if (defect !== undefined) return fail(defect)
+   const pages = read.pages.flatMap(page => ('ok' in page ? [page.ok] : []))
+-  const tools = pages.flatMap(page => page.tools)
++  const tools = pages.flatMap(page => page.tools).slice(1)
+   if (tools.length > read.limits.maxActions) return fail('action-limit-exceeded')
+   const actions: ListedAction[] = []
+   for (const tool of tools) {

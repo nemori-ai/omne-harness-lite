@@ -1,0 +1,3 @@
+P3b call settled 1s after signal: true
+P3b close() settled within 3s (teardown would stop() only after this): true
+P3b after SIGKILL: close settled true

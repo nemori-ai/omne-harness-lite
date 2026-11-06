@@ -1,0 +1,51 @@
+
+ RUN  v4.1.11 /tmp/ir-call-r3/r2probes
+
+stdout | step8.spec.ts > STEP8: cancel landing k microtasks after invoke
+k=0 cancel=signalled callEntered=[] result=not-sent/cancelled tools/call=0
+
+stdout | scope.spec.ts > SC-a: state at the moment the call answers, and closeAll against a mark still in the scope
+SC-a answer= {"kind":"sent","outcome":{"kind":"unknown","cause":"stream-broken"}} state at answer= {"kind":"lost","reason":"stream-broken"}
+
+stdout | s8.spec.ts > S8-a: closeAll while a continuation waits on the gate
+S8-a continueWithInput = {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} store reads after closeAll = 0
+
+stdout | scope.spec.ts > SC-a: state at the moment the call answers, and closeAll against a mark still in the scope
+SC-a closeAll resolved while the mark write waits: true log= write asked | closeAll resolved
+
+stdout | scope.spec.ts > SC-a: state at the moment the call answers, and closeAll against a mark still in the scope
+SC-a log after release= write asked | closeAll resolved | write released
+
+stdout | scope.spec.ts > SC-a: state at the moment the call answers, and closeAll against a mark still in the scope
+SC-a catalog after= {"ok":{"kind":"acquired","revision":2,"basis":{"generation":1,"protocolVersion":"2026-07-28","capabilities":{"kind":"object","entries":[{"key":"tools","value":{"kind":"object","entries":[]}}]}},"freshness":{"acquiredAt":"2026-11-05T12:00:00.000Z","changedNotified":false},"basisCurrent":"no-connection","actions":[{"name":"read","lastLawful":{"name":"read","definition":{"kind":"object","entries":[{"key":"name","value":{"kind":"string","value":"read"}},{"key":"inputSchema","value":{"kind":"object","entries":[{"key":"type","value":{"kind":"string","value":"object"}}]}}]}},"definitionDigest":"sha256:b4b4ad9a6dde874d84f42985e5f5f7dd0017700d907a519f8af4253567f5dcc2","availability":{"kind":"unavailable","reason":"connection-unavailable"}}]}}
+
+stdout | account.spec.ts > ACC: account A task ref after account B started a task with the same id
+ACC issuedAt A= 1 B= 1 opens= 2
+
+stdout | account.spec.ts > ACC: account A task ref after account B started a task with the same id
+ACC queryTask(refA)= {"failure":{"kind":"unknown"}} tasks/get sent= 0
+
+stdout | s8.spec.ts > S8-b: closeAll while a first call waits on the gate
+S8-b invoke = {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} store reads after closeAll = 0
+
+ ✓ scope.spec.ts > SC-a: state at the moment the call answers, and closeAll against a mark still in the scope 36ms
+ ✓ account.spec.ts > ACC: account A task ref after account B started a task with the same id 36ms
+stdout | s8.spec.ts > S8-c: closeAll while a task operation (no connection to reuse) waits on the gate
+S8-c queryTask = {"failure":{"kind":"effect-unknown","cause":"no-connection"}} opens= 1 tasks/get= 0
+
+stdout | s8.spec.ts > S8-c: closeAll while a task operation (no connection to reuse) waits on the gate
+S8-c queryTask after closeAll (fresh) = {"failure":{"kind":"effect-unknown","cause":"no-connection"}}
+
+ ✓ s8.spec.ts > S8-a: closeAll while a continuation waits on the gate 34ms
+ ✓ s8.spec.ts > S8-b: closeAll while a first call waits on the gate 4ms
+ ✓ s8.spec.ts > S8-c: closeAll while a task operation (no connection to reuse) waits on the gate 6ms
+stdout | step8.spec.ts > STEP8: cancel landing k microtasks after invoke
+STEP8 rows with call entered on a fired stop: 0
+
+ ✓ step8.spec.ts > STEP8: cancel landing k microtasks after invoke 106ms
+
+ Test Files  4 passed (4)
+      Tests  6 passed (6)
+   Start at  03:58:25
+   Duration  1.04s (transform 1.99s, setup 0ms, import 2.78s, tests 230ms, environment 1ms)
+

@@ -1,0 +1,2 @@
+Q3 call() with signal at 100 ms returned within 1s: true {"kind":"no-answer","cause":"abandoned"}
+Q3 close() with a 401 body open returned within 1s: true | listActions: {"failure":{"kind":"no-answer","cause":"abandoned"}} | reportRejection 0

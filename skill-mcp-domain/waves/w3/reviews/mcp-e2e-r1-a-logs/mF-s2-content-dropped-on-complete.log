@@ -1,0 +1,91 @@
+
+ RUN  v4.1.11 /tmp/r-a-e2e/packages/mcp/mcp-host-local
+
+ ❯ tests/e2e/journey.spec.ts (6 tests | 6 failed) 2920ms
+     × E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28 311ms
+     × E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 595ms
+     × E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 496ms
+     × F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28 338ms
+     × P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 1176ms
+     × E-stdio and E-http answer the same kind of outcome at every step S1 to S7 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/journey.spec.ts > E-stdio: server-everything 2.1.0 on stdio, revision 2026-07-28 > E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28
+ FAIL  tests/e2e/journey.spec.ts > E-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 > E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28
+ FAIL  tests/e2e/journey.spec.ts > E-sse: server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 > E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25
+AssertionError: S2: the content of the answer: expected '' to contain 'Echo: hi'
+
+- Expected
++ Received
+
+- Echo: hi
+
+ ❯ Object.run tests/e2e/journey.spec.ts:139:74
+    137|       const outcome = sentOutcome(await invoke(context, readOnly), 'S2…
+    138|       if (outcome.kind === 'complete')
+    139|         expect(textOf(outcome.content), 'S2: the content of the answer…
+       |                                                                          ^
+    140|       return outcome.kind
+    141|     },
+ ❯ journey tests/e2e/journey.spec.ts:280:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > F: server-filesystem 2.1.0 on stdio, revision 2026-07-28 > F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28
+AssertionError: S2: the content of the answer: expected '' to contain 'hello'
+
+- Expected
++ Received
+
+- hello
+
+ ❯ Object.run tests/e2e/journey.spec.ts:139:74
+    137|       const outcome = sentOutcome(await invoke(context, readOnly), 'S2…
+    138|       if (outcome.kind === 'complete')
+    139|         expect(textOf(outcome.content), 'S2: the content of the answer…
+       |                                                                          ^
+    140|       return outcome.kind
+    141|     },
+ ❯ journey tests/e2e/journey.spec.ts:280:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > P: mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 > P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28
+AssertionError: S2: the content of the answer: expected '' to contain '# Hi'
+
+- Expected
++ Received
+
+- # Hi
+
+ ❯ Object.run tests/e2e/journey.spec.ts:139:74
+    137|       const outcome = sentOutcome(await invoke(context, readOnly), 'S2…
+    138|       if (outcome.kind === 'complete')
+    139|         expect(textOf(outcome.content), 'S2: the content of the answer…
+       |                                                                          ^
+    140|       return outcome.kind
+    141|     },
+ ❯ journey tests/e2e/journey.spec.ts:280:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > the two modern transports (MC3-12) > E-stdio and E-http answer the same kind of outcome at every step S1 to S7
+AssertionError: E-stdio journey ran: expected undefined to be defined
+ ❯ tests/e2e/journey.spec.ts:316:42
+    314|     const stdio = readings.get('E-stdio')
+    315|     const http = readings.get('E-http')
+    316|     expect(stdio, 'E-stdio journey ran').toBeDefined()
+       |                                          ^
+    317|     expect(http, 'E-http journey ran').toBeDefined()
+    318|     expect(stdio?.map(reading => `${reading.step}:${reading.kind}`)).t…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed (6)
+   Start at  10:23:06
+   Duration  3.93s (transform 546ms, setup 15ms, import 808ms, tests 2.92s, environment 0ms)
+
+exit 1

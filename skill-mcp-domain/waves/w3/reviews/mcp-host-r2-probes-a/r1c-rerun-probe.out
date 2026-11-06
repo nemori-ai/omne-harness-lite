@@ -1,0 +1,3 @@
+discover {"ok":{"protocolVersion":"2026-07-28","capabilities":{"kind":"object","entries":
+call() returned after ms 101 signal aborted at 100 ms; fetch signal aborted at ms: 101
+answer {"kind":"no-answer","cause":"abandoned"}

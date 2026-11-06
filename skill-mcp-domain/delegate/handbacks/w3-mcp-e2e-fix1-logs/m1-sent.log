@@ -1,0 +1,98 @@
+
+ RUN  v4.1.11 /tmp/w3-e2e-fix1-mut/packages/mcp/mcp-host-local
+
+stdout | tests/e2e/journey.spec.ts > F: server-filesystem 2.1.0 on stdio, revision 2026-07-28 > F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28
+journey F: S1=published S2=complete S3=toolError S7=released
+
+stdout | tests/e2e/journey.spec.ts > P: mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 > P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28
+journey P: S1=published S2=complete S3=toolError S7=released
+
+ ❯ tests/e2e/journey.spec.ts (6 tests | 4 failed) 190923ms
+     × E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28 64586ms
+     × E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 64645ms
+     × E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 60502ms
+     ✓ F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28 231ms
+     ✓ P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28  949ms
+     × E-stdio and E-http answer the same kind of outcome at every step S1 to S7 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/journey.spec.ts > E-stdio: server-everything 2.1.0 on stdio, revision 2026-07-28 > E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28
+AssertionError: S6 on E-stdio: cancel after the first progress notification is signalled, and the call ends as unknown (abandoned): expected 'signalled>complete' to be 'signalled>unknown:abandoned' // Object.is equality
+
+Expected: "signalled>unknown:abandoned"
+Received: "signalled>complete"
+
+ ❯ journey tests/e2e/journey.spec.ts:318:64
+    316|       const kind = await step.run(context)
+    317|       taken.push({ step: step.id, kind })
+    318|       expect(kind, `${step.id} on ${target.id}: ${step.does}`).toBe(st…
+       |                                                                ^
+    319|     }
+    320|     expect(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > E-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 > E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28
+AssertionError: S6 on E-http: cancel after the first progress notification is signalled, and the call ends as unknown (abandoned): expected 'signalled>complete' to be 'signalled>unknown:abandoned' // Object.is equality
+
+Expected: "signalled>unknown:abandoned"
+Received: "signalled>complete"
+
+ ❯ journey tests/e2e/journey.spec.ts:318:64
+    316|       const kind = await step.run(context)
+    317|       taken.push({ step: step.id, kind })
+    318|       expect(kind, `${step.id} on ${target.id}: ${step.does}`).toBe(st…
+       |                                                                ^
+    319|     }
+    320|     expect(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > E-sse: server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 > E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25
+AssertionError: S6 on E-sse: cancel after the first progress notification is signalled, and the call ends as unknown (abandoned): expected 'signalled>complete' to be 'signalled>unknown:abandoned' // Object.is equality
+
+Expected: "signalled>unknown:abandoned"
+Received: "signalled>complete"
+
+ ❯ journey tests/e2e/journey.spec.ts:318:64
+    316|       const kind = await step.run(context)
+    317|       taken.push({ step: step.id, kind })
+    318|       expect(kind, `${step.id} on ${target.id}: ${step.does}`).toBe(st…
+       |                                                                ^
+    319|     }
+    320|     expect(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > the two modern transports (MC3-12) > E-stdio and E-http answer the same kind of outcome at every step S1 to S7
+AssertionError: expected [ 'S1', 'S2', 'S3', 'S4', 'S5', 'S6' ] to deeply equal [ 'S1', 'S2', 'S3', 'S4', 'S5', …(2) ]
+
+- Expected
++ Received
+
+@@ -3,7 +3,6 @@
+    "S2",
+    "S3",
+    "S4",
+    "S5",
+    "S6",
+-   "S7",
+  ]
+
+ ❯ tests/e2e/journey.spec.ts:364:49
+    362|       http?.map(reading => `${reading.step}:${reading.kind}`),
+    363|     )
+    364|     expect(stdio?.map(reading => reading.step)).toEqual(['S1', 'S2', '…
+       |                                                 ^
+    365|   })
+    366| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 2 passed (6)
+   Start at  10:31:04
+   Duration  192.61s (transform 1.08s, setup 27ms, import 1.45s, tests 190.92s, environment 0ms)
+

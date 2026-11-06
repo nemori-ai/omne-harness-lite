@@ -1,0 +1,64 @@
+
+ RUN  v4.1.11 /tmp/ir-call-r3/probe
+
+stdout | s8r3.spec.ts > R3-a: closeAll while a continuation waits on the store read (step 5)
+R3-a continueWithInput = {"kind":"not-sent","reason":{"kind":"unknown"}} log= listActions shut=false,call shut=false
+
+stdout | s8r3.spec.ts > R3-b: closeAll while a first call waits on the store read (step 5)
+R3-b invoke = {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} log= listActions shut=false
+
+stdout | s8r3.spec.ts > R3-c: a task operation on a reused connection; closeAll called in the same turn, right after
+R3-c queryTask in flight = {"failure":{"kind":"connection-unavailable"}} tasks/get received by peer= 0 log= listActions shut=false,call shut=false,getTask shut=true
+
+stdout | s8r3.spec.ts > R3-c: a task operation on a reused connection; closeAll called in the same turn, right after
+R3-c queryTask after closeAll = {"failure":{"kind":"effect-unknown","cause":"no-connection"}}
+
+stdout | s8r3.spec.ts > R3-d: closeAll while a refresh waits on the store read in publish
+R3-d refresh = {"ok":{"kind":"kept","reason":{"kind":"superseded"}}} tools/list received by peer= 0 log= listActions shut=false,listActions shut=true
+
+ ✓ s8r3.spec.ts > R3-a: closeAll while a continuation waits on the store read (step 5) 22ms
+ ✓ s8r3.spec.ts > R3-b: closeAll while a first call waits on the store read (step 5) 3ms
+ ✓ s8r3.spec.ts > R3-c: a task operation on a reused connection; closeAll called in the same turn, right after 4ms
+ ✓ s8r3.spec.ts > R3-d: closeAll while a refresh waits on the store read in publish 3ms
+stdout | s8r3.spec.ts > R3-f: closeAll landing k microtasks after invoke / queryTask (sweep)
+invoke k=0 result={"kind":"not-sent","reason":{"kind":"connection-unavailable"}} portAfterShut=[]
+
+stdout | s8r3.spec.ts > R3-f: closeAll landing k microtasks after invoke / queryTask (sweep)
+invoke k=20 result={"kind":"not-sent","reason":{"kind":"connection-unavailable"}} portAfterShut=[]
+
+stdout | s8r3.spec.ts > R3-f: closeAll landing k microtasks after invoke / queryTask (sweep)
+invoke sent before closeAll at k=36; stop
+
+stdout | s8r3.spec.ts > R3-f: closeAll landing k microtasks after invoke / queryTask (sweep)
+queryTask k=0 result={"failure":{"kind":"connection-unavailable"}} portAfterShut=["getTask shut=true"]
+
+stdout | s8r3.spec.ts > R3-f: closeAll landing k microtasks after invoke / queryTask (sweep)
+queryTask sent before closeAll at k=1; stop
+R3-f rows with a transport method entered after shut: 1
+
+ × s8r3.spec.ts > R3-e: a sent call, closeAll, then the caller aborts its signal 60005ms
+   → Test timed out in 60000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ s8r3.spec.ts > R3-f: closeAll landing k microtasks after invoke / queryTask (sweep) 113ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  s8r3.spec.ts > R3-e: a sent call, closeAll, then the caller aborts its signal
+Error: Test timed out in 60000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ s8r3.spec.ts:85:1
+     83| })
+     84|
+     85| it('R3-e: a sent call, closeAll, then the caller aborts its signal', a…
+       | ^
+     86|   const hold = deferred<void>()
+     87|   const p = peer({ listing: { '': listing([{ name: 'read' }]) }, calls…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  03:59:04
+   Duration  60.99s (transform 519ms, setup 0ms, import 685ms, tests 60.15s, environment 0ms)
+

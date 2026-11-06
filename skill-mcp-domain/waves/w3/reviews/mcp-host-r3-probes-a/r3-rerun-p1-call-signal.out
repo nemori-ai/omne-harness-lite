@@ -1,0 +1,3 @@
+P1 call settled within 3s after abort at 200ms: true elapsed 207
+P1 after close(): call settled: true ["ok"] close took 1
+P1 answer: {"kind":"no-answer","cause":"abandoned"}

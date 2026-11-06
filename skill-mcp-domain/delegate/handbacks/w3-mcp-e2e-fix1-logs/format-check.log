@@ -1,0 +1,9 @@
+
+> omne-harness-lite-workspace@ format:check /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e
+> ./scripts/format.sh check
+
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 1852ms on 4373 files using 8 threads.
+exit 0

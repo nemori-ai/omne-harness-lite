@@ -1,0 +1,11 @@
+
+ RUN  v4.1.11 /tmp/r4a/probe2
+
+R4-6 invoke args: same object = false frozen = true | continue args same = false frozen = true | inputResponses same = false frozen = true
+ ✓ r4c.spec.ts > R4-6 positive control: transport gets frozen judged copies, not the caller objects 50ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  08:04:34
+   Duration  1.70s (transform 1.06s, setup 0ms, import 1.31s, tests 52ms, environment 0ms)
+

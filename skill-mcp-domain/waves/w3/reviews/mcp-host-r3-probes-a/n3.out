@@ -1,0 +1,3 @@
+N3 discover: {"ok":{"protocolVersion":"2025-11-25","capabilities":{"kind":"object","entries":[]}}}
+N3 tools/list refused; reportRejection calls: 1 | id r4
+N3 listActions(): {"ok":{"tools":[]}}

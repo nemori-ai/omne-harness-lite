@@ -1,0 +1,14 @@
+SDK client: @modelcontextprotocol/client 2.4.0; implementation: 3289bee2f; node v26.12.0
+Excluded: GitHub MCP https://api.githubcopilot.com/mcp/ (OAuth; not in scope).
+
+| row | target | transport | revision (sdk / ours) | tools (sdk / ours), names equal | call | conclusion (sdk / ours) | verdict | date -u (remote) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | server-everything 2.1.0 | stdio | 2026-07-28 / 2026-07-28 | 22 / 22, equal | `echo` {"message":"hi"} | complete / complete | agree |  |
+| 2 | server-filesystem 2.1.0 | stdio | 2026-07-28 / 2026-07-28 | 14 / 14, equal | `read_text_file` {"path":"/tmp/omne-compat-fs-5W6qvA/a.txt"} | complete / complete | agree |  |
+| 3 | mcp-server-fetch 2026.10.28 (Python) | stdio | 2026-07-28 / 2026-07-28 | 1 / 1, equal | `fetch` {"url":"http://127.0.0.1:31035/page"} | complete / complete | agree |  |
+| 4 | DeepWiki https://mcp.deepwiki.com/mcp | Streamable HTTP | 2026-07-28 / 2026-07-28 | 3 / 3, equal | `read_wiki_structure` {"repoName":"modelcontextprotocol/typescript-sdk"} | complete / complete | agree | Fri 06 Nov 2026 10:39:14 AM UTC |
+| 5 | Context7 https://mcp.context7.com/mcp | Streamable HTTP | 2026-07-28 / 2026-07-28 | 2 / 2, equal | `resolve-library-id` {"libraryName":"React","query":"hooks"} | complete / complete | agree | Fri 06 Nov 2026 10:39:15 AM UTC |
+| 6 | Microsoft Learn https://learn.microsoft.com/api/mcp | Streamable HTTP | 2025-06-18 / 2025-06-18 | 3 / 3, equal | `microsoft_docs_search` {"query":"azure functions timer trigger"} | complete / complete | agree | Fri 06 Nov 2026 10:39:18 AM UTC |
+| 7 | server-everything 2.1.0 streamableHttp (local port) | Streamable HTTP | 2026-07-28 / 2026-07-28 | 22 / 22, equal | `echo` {"message":"hi"} | complete / complete | agree |  |
+| 8 | server-everything 2.1.0 sse (local port) | legacy HTTP+SSE | 2025-11-25 / 2025-11-25 | 16 / 16, equal | `echo` {"message":"hi"} | complete / complete | agree |  |
+exit 0

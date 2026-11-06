@@ -1,0 +1,43 @@
+
+ RUN  v4.1.11 /tmp/ir-call-r3/probe
+
+stdout | s8r3.spec.ts > R3-e: a sent call, closeAll, then the caller aborts its signal
+R3-e before closeAll log= call returned tools/call= 1
+
+stdout | s8r3.spec.ts > R3-e: a sent call, closeAll, then the caller aborts its signal
+R3-e invoke = {"kind":"sent","outcome":{"kind":"unknown","cause":"abandoned"}} log= call returned,cancelRequest shut=true peer cancels= 1
+
+stdout | s8r3.spec.ts > R3-g: closeAll while the gate waits on the adoption read (eligibility not yet asked)
+R3-g invoke = {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} eligibility checks after closeAll = 1
+
+ ↓ s8r3.spec.ts > R3-a: closeAll while a continuation waits on the store read (step 5)
+ ↓ s8r3.spec.ts > R3-b: closeAll while a first call waits on the store read (step 5)
+ ↓ s8r3.spec.ts > R3-c: a task operation on a reused connection; closeAll called in the same turn, right after
+ ↓ s8r3.spec.ts > R3-d: closeAll while a refresh waits on the store read in publish
+ ✓ s8r3.spec.ts > R3-e: a sent call, closeAll, then the caller aborts its signal 34ms
+ × s8r3.spec.ts > R3-g: closeAll while the gate waits on the adoption read (eligibility not yet asked) 60005ms
+   → Test timed out in 60000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ↓ s8r3.spec.ts > R3-f: closeAll landing k microtasks after invoke / queryTask (sweep)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  s8r3.spec.ts > R3-g: closeAll while the gate waits on the adoption read (eligibility not yet asked)
+Error: Test timed out in 60000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ s8r3.spec.ts:112:1
+    110| })
+    111|
+    112| it('R3-g: closeAll while the gate waits on the adoption read (eligibil…
+       | ^
+    113|   const p = peer({ listing: { '': listing([{ name: 'read' }]) }, calls…
+    114|   adoptStdio(p, files)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed | 5 skipped (7)
+   Start at  04:00:29
+   Duration  61.04s (transform 595ms, setup 0ms, import 761ms, tests 60.04s, environment 0ms)
+

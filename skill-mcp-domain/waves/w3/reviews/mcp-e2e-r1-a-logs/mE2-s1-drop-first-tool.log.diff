@@ -1,0 +1,11 @@
+--- /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e/packages/mcp/mcp/src/discovery.ts	2026-11-06 09:35:37.310048374 +0000
++++ /tmp/r-a-e2e/packages/mcp/mcp/src/discovery.ts	2026-11-06 10:22:50.127556506 +0000
+@@ -179,7 +179,7 @@
+     if (notSent !== undefined) return pageNotSent(ensured, notSent)
+     const basedOn = stored === 'absent' ? 'absent' : stored.revision
+     const listing = completeListing({
+-      pages,
++      pages: pages.map(page => ('ok' in page ? { ok: { ...page.ok, tools: page.ok.tools.slice(1) } } : page)),
+       basis: { generation, protocolVersion: peer.protocolVersion, capabilities: peer.capabilities },
+       acquiredAt: deps.clock.now().toISOString(),
+       limits: { maxPages: config.maxListingPages, maxActions: config.maxActions },

@@ -1,0 +1,5 @@
+
+> omne-harness-lite-workspace@ lint:oxlint /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e
+> oxlint -c .oxlintrc.json --report-unused-disable-directives tools scripts packages apps
+
+exit 0

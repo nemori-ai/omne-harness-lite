@@ -1,0 +1,3 @@
+N1 calls departed: 26 | node stdin writableLength: 4372 needDrain: false
+N1 close() returned within 3s: false
+N1 after SIGKILL: the same close() returned within 1s: true elapsed ms 3012

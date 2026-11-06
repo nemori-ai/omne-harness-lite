@@ -1,0 +1,4 @@
+format:check exit 0
+check:design exit 0
+lint:rules exit 0
+check:docs exit 0

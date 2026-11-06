@@ -1,0 +1,70 @@
+
+ RUN  v4.1.11 /tmp/r-a-e2e/packages/mcp/mcp-host-local
+
+stdout | tests/e2e/journey.spec.ts > E-sse: server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25 > E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25
+journey E-sse: S1=published S2=complete S3=toolError S6=signalled>unknown:abandoned S7=released
+
+ ❯ tests/e2e/journey.spec.ts (6 tests | 5 failed) 2596ms
+     × E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28 293ms
+     × E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 472ms
+     ✓ E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25  750ms
+     × F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28 216ms
+     × P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 855ms
+     × E-stdio and E-http answer the same kind of outcome at every step S1 to S7 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/journey.spec.ts > E-stdio: server-everything 2.1.0 on stdio, revision 2026-07-28 > E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28
+ FAIL  tests/e2e/journey.spec.ts > E-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 > E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28
+ FAIL  tests/e2e/journey.spec.ts > F: server-filesystem 2.1.0 on stdio, revision 2026-07-28 > F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28
+AssertionError: S1: the negotiated revision: expected '2025-11-25' to be '2026-07-28' // Object.is equality
+
+Expected: "2026-07-28"
+Received: "2025-11-25"
+
+ ❯ Object.run tests/e2e/journey.spec.ts:126:67
+    124|         'peer',
+    125|       )
+    126|       expect(peer.protocolVersion, 'S1: the negotiated revision').toBe…
+       |                                                                   ^
+    127|       return refreshed.kind
+    128|     },
+ ❯ journey tests/e2e/journey.spec.ts:280:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > P: mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28 > P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28
+AssertionError: S1 on P: discovery.refresh publishes a catalog with the known tool: expected 'kept' to be 'published' // Object.is equality
+
+Expected: "published"
+Received: "kept"
+
+ ❯ journey tests/e2e/journey.spec.ts:282:64
+    280|       const kind = await step.run(context)
+    281|       taken.push({ step: step.id, kind })
+    282|       expect(kind, `${step.id} on ${target.id}: ${step.does}`).toBe(st…
+       |                                                                ^
+    283|     }
+    284|     readings.set(target.id, taken)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/e2e/journey.spec.ts > the two modern transports (MC3-12) > E-stdio and E-http answer the same kind of outcome at every step S1 to S7
+AssertionError: E-stdio journey ran: expected undefined to be defined
+ ❯ tests/e2e/journey.spec.ts:316:42
+    314|     const stdio = readings.get('E-stdio')
+    315|     const http = readings.get('E-http')
+    316|     expect(stdio, 'E-stdio journey ran').toBeDefined()
+       |                                          ^
+    317|     expect(http, 'E-http journey ran').toBeDefined()
+    318|     expect(stdio?.map(reading => `${reading.step}:${reading.kind}`)).t…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 1 passed (6)
+   Start at  10:22:21
+   Duration  3.89s (transform 778ms, setup 22ms, import 1.03s, tests 2.60s, environment 0ms)
+
+exit 1

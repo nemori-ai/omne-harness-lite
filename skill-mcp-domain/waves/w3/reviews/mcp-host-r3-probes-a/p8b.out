@@ -1,0 +1,3 @@
+P8b HTTP: abort listeners on teardown after 50 notifications/cancelled: 0
+P8b stdio: abort listeners on the line closing signal after 50 writes: 0 | on teardown: 0
+P8b warnings: none

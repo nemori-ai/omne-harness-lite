@@ -5,8 +5,8 @@ rebuild. Each mutation is a violating transport (or a broken fixture) that a rou
 catch."""
 import json, os, re, subprocess, sys
 
-PKG = '/home/user/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract'
-OUT = '/home/user/omne-harness-lite/.worktrees/w3-mcp-contract/tmp/closures/w3-mcp-contract/red'
+PKG = '/data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-contract/packages/mcp/mcp-contract'
+OUT = '/data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-contract/tmp/closures/w3-mcp-contract/red'
 ST = 'src/testing-scripted-transport.ts'
 TT = 'src/testing-transport.ts'
 CL = 'src/classify.ts'

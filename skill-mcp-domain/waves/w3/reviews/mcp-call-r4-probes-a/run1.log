@@ -1,0 +1,36 @@
+
+ RUN  v4.1.11 /tmp/r4a/probe2
+
+R4-1 invoke-fresh stopped at k=71
+   5x {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} | after=["eligibility.check shut=true"]
+   63x {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} | after=[]
+   4x {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} | after=["transport.discover shut=true"]
+R4-1 invoke-reused stopped at k=42
+   5x {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} | after=["eligibility.check shut=true"]
+   38x {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} | after=[]
+R4-1 continue stopped at k=42
+   5x {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} | after=["eligibility.check shut=true"]
+   38x {"kind":"not-sent","reason":{"kind":"connection-unavailable"}} | after=[]
+R4-1 queryTask-reused stopped at k=0
+   1x {"failure":{"kind":"effect-unknown","cause":"no-connection"}} | after=[]
+R4-1 queryTask-built stopped at k=58
+   5x {"failure":{"kind":"effect-unknown","cause":"no-connection"}} | after=["eligibility.check shut=true"]
+   50x {"failure":{"kind":"effect-unknown","cause":"no-connection"}} | after=[]
+   4x {"failure":{"kind":"effect-unknown","cause":"no-connection"}} | after=["transport.discover shut=true"]
+R4-1 provideTaskInput-reused stopped at k=0
+   1x {"failure":{"kind":"effect-unknown","cause":"no-connection"}} | after=[]
+R4-1 refresh stopped at k=60
+   5x {"failure":{"kind":"connection-unavailable"}} | after=["eligibility.check shut=true"]
+   44x {"failure":{"kind":"connection-unavailable"}} | after=[]
+   5x {"failure":{"kind":"connection-unavailable"}} | after=["eligibility.check shut=true","adoption.endpoint shut=true"]
+   6x {"failure":{"kind":"connection-unavailable"}} | after=["adoption.endpoint shut=true"]
+   1x {"ok":{"kind":"published","revision":2}} | after=[]
+ ✓ r4.spec.ts > R4-1 sweep: closeAll k microtasks after each operation; ports entered after shut, and the answer 411ms
+R4-2 refresh = {"failure":{"kind":"connection-unavailable"}} log= adoption.endpoint shut=false,eligibility.check shut=false,adoption.endpoint shut=false,store.read shut=false,transport.listActions shut=false,adoption.endpoint shut=false,eligibility.check shut=false,adoption.endpoint shut=true
+ ✓ r4.spec.ts > R4-2 publish boundary: closeAll while stillAdmitted asks eligibility; is store.write asked after shut? 2ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  07:59:13
+   Duration  1.53s (transform 687ms, setup 0ms, import 863ms, tests 415ms, environment 0ms)
+

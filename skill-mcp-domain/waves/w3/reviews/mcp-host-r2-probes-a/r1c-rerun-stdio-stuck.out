@@ -1,0 +1,3 @@
+call() (signal fired at 200 ms) returned
+close() returned
+after the process was killed, total ms 206

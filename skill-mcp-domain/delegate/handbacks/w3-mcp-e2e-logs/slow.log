@@ -1,0 +1,16 @@
+
+> @omne-harness/mcp-host-local@0.0.0 test:slow /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e/packages/mcp/mcp-host-local
+> vitest run --mode slow --typecheck.enabled=false
+
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e/packages/mcp/mcp-host-local
+
+conformance stdio first: passed 98, not-applicable 1, failed 0
+conformance streamable-http first: passed 97, not-applicable 2, failed 0
+
+ Test Files  5 passed (5)
+      Tests  246 passed | 8 skipped (254)
+   Start at  09:59:16
+   Duration  101.21s (transform 2.05s, setup 115ms, import 4.72s, tests 134.90s, environment 1ms)
+
+exit 0

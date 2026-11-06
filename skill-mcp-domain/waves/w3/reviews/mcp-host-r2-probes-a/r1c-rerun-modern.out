@@ -1,0 +1,2 @@
+scripted : {"failure":{"kind":"answer-malformed","what":"discover-shape"}}
+session  : {"failure":{"kind":"answer-malformed","what":"discover-shape"}} | methods sent: server/discover

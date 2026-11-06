@@ -1,0 +1,10 @@
+--- /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e/packages/mcp/mcp-host-local/src/session.ts	2026-11-06 09:35:37.298048215 +0000
++++ /tmp/r-a-e2e/packages/mcp/mcp-host-local/src/session.ts	2026-11-06 10:22:18.519137057 +0000
+@@ -813,6 +813,7 @@
+   // ---- The operations (T2, T3, T5, T6) ----
+ 
+   async discover(): Promise<Outcome<PeerIdentity, TransportFailure>> {
++    if (this.options.versions.length > 0) return this.legacyPath()
+     const discovered = await discoverWith(
+       {
+         probe: async (version, request) =>

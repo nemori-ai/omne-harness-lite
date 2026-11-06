@@ -1,0 +1,8 @@
+Q2a call() returned within 1s after its signal: true
+Q2a close() returned within 1s: true
+Q2a call() returned within 1s after close(): true
+Q2a listActions() returned within 1s after close(): true
+Q2b reportRejection calls: 1
+Q2b close() returned within 2s: true
+Q2b listActions() returned within 1s after close(): true
+Q2c call(): {"failure":{"kind":"not-sent","cause":"connection-unavailable"}}  | peer saw: []

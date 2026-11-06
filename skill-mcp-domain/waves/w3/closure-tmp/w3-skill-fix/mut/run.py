@@ -1,7 +1,7 @@
 # Manual mutations: apply one, rebuild the members whose dist the tests import, run the named
 # tests, record the exit code and the red cases, restore the bytes, rebuild.
 import subprocess, sys, json, pathlib
-W = pathlib.Path('/home/user/omne-harness-lite/.worktrees/w3-skill-fix')
+W = pathlib.Path('/data/qiwei/repos/omne-harness-lite/.worktrees/w3-skill-fix')
 SK = W/'packages/skills/skill'; SC = W/'packages/skills/skill-contract'
 HL = W/'packages/skills/skill-host-local'
 M = [

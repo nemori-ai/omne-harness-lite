@@ -1,0 +1,4 @@
+Q1 small call returned within 1s: true
+Q1 large call returned within 1s: false
+Q1 close() returned within 3s: false
+Q1 after SIGKILL: the same close() returned within 1s: true elapsed ms 3009

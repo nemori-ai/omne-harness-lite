@@ -1,0 +1,38 @@
+
+> omne-harness-lite-workspace@ metrics /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-call
+> ./scripts/metrics.sh --coverage --base b2ba7dc89
+
+影响面（基线 b2ba7dc89，合并点 b2ba7dc89，提交 7d91a330c）
+判为按影响面：72 个改动文件，成员 3 个（自己改了 2 个、锁文件里依赖变了 0 个、依赖方 1 个、只因读者规则 0 个）；pytest 不跑
+  成员文件 68 个：packages/mcp/mcp-contract/src/services.ts、packages/mcp/mcp-contract/src/testing-values.ts、packages/mcp/mcp-contract/src/testing.ts 等 68 个（命中 packages/mcp/mcp-contract、packages/mcp/mcp）
+  只需常驻检查 4 个：packages/mcp/mcp-contract/SPEC.md、packages/mcp/mcp/README.md、packages/mcp/mcp/README_ZH.md 等 4 个（命中 packages/*/*/*.md）
+  规则：tools/test-runner/test-runs.config.json 的 affected
+步骤：
+  常驻：check:agents、check:docs、check:design、check:lines、check:journal-facts、change-scope、format:check、test:format、check:declarations、contract-check、lint:rules、lint:oxlint、lint:deps、loop:status（loop:status 带 --strict）
+  pytest：跳过——没有改动命中 Python 工具的路径
+  构建：6 个——被选中的成员 packages/mcp/mcp、packages/mcp/mcp-contract、packages/mcp/mcp-host-local，turbo 先构建它们的上游；另有 packages/agent/agent、packages/common/legal-identity、tools/repo-toolchain——常驻检查需要：lint:rules 经 tools/product-checks/src/rules/identity-shapes.ts 导入它，入口指向 dist；product-checks、dev-flow 与 test-runner 的 CLI 经包入口导入它，入口指向 dist；lint:deps 解析它的验收夹具 acceptance/fixtures/executor.mjs 对 ../../dist/index.js 的导入，没有 dist 就失败
+  类型检查：3 个成员
+  成员测试：3 个成员的快层，快层通过才跑慢层
+  验收：跳过——本次影响面不含带验收的成员
+被选中的成员：
+  packages/mcp/mcp：自己改了 packages/mcp/mcp/docs/README.md、packages/mcp/mcp/docs/architecture.md 等 62 个
+  packages/mcp/mcp-contract：自己改了 packages/mcp/mcp-contract/src/services.ts、packages/mcp/mcp-contract/src/testing-values.ts 等 6 个
+  packages/mcp/mcp-host-local：依赖了改动过代码的成员（turbo --affected）
+预算 4 个进程：本机 8 核、空闲 50%、空闲内存 26 GiB；覆盖率同时 2 个成员，每个至多 2 个工作进程
+覆盖率：3 个成员，同时 2 个，每个至多 2 个工作进程，预计最久的先跑
+覆盖率 1/3 packages/mcp/mcp-host-local 40 秒，退出码 0
+覆盖率 2/3 packages/mcp/mcp-contract 109 秒，退出码 0
+覆盖率 3/3 packages/mcp/mcp 1240 秒，退出码 1
+结构度量 7d91a330c · 分支 PanQiWei/skill-mcp-w3-mcp-call · 基线 b2ba7dc89（函数变化 merge-base b2ba7dc895476a2e133cfb0ac730f9a878f56aee）
+范围：变更 2 个成员、69 个函数；提交 6 个，每提交文件数中位 12、最大 39
+结构：依赖违规 0，环 1，变更触及的跨成员导入 4 条；成员风险 红 1、黄 13、绿 67
+CRAP 或圈复杂度（warn 10／alert 12）：变更函数超 alert 4、超 warn 2；存量超 alert 439、超 warn 250
+覆盖率：mcp 97%、mcp-contract 97%；缺数据 1 个；测试未通过 1 个
+变更函数里超阈值的前 5 个：
+  packages/mcp/mcp/src/calls.ts:229 createCalls.perform CC 17 覆盖 96% CRAP 17.0
+  packages/mcp/mcp/src/discovery.ts:126 createDiscovery.publish CC 17 覆盖 100% CRAP 17
+  packages/mcp/mcp/src/tasks.ts:98 createTasks.failureOf CC 7 覆盖 50% CRAP 13.1
+  packages/mcp/mcp/src/calls.ts:161 createCalls.sendOn CC 12 覆盖 92% CRAP 12.1
+  packages/mcp/mcp/src/internal/table.ts:313 createConnectionTable.begin CC 12 覆盖 100% CRAP 12
+审讯页：/data/qiwei/repos/omne-harness-lite/tmp/metrics/7d91a330c/review.html
+exit 0

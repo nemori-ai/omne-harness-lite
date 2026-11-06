@@ -1,0 +1,118 @@
+
+> omne-harness-lite-workspace@ metrics /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-host
+> ./scripts/metrics.sh --coverage --base 92a8e3cdf
+
+影响面（基线 92a8e3cdf，合并点 92a8e3cdf，提交 db06b5b70）
+判为全量：全局文件 pnpm-workspace.yaml 有改动（命中 pnpm-workspace.yaml），另有 pnpm-lock.yaml
+  全局 1 个：pnpm-workspace.yaml（命中 pnpm-workspace.yaml）
+  锁文件 1 个：pnpm-lock.yaml（命中 pnpm-lock.yaml）
+  读者 1 个：packages/mcp/mcp-host-local/package.json（命中 packages/*/*/package.json）
+  成员文件 91 个：packages/mcp/mcp-contract/docs/public-api.md、packages/mcp/mcp-contract/src/authorization.ts、packages/mcp/mcp-contract/src/decisions.ts 等 91 个（命中 packages/mcp/mcp-contract、packages/mcp/mcp-host-local）
+  只需常驻检查 5 个：packages/mcp/mcp-contract/SPEC.md、packages/mcp/mcp-host-local/README.md、packages/mcp/mcp-host-local/README_ZH.md 等 5 个（命中 packages/*/*/*.md）
+  规则：tools/test-runner/test-runs.config.json 的 affected
+步骤：
+  常驻：check:agents、check:docs、check:design、check:lines、check:journal-facts、change-scope、format:check、test:format、check:declarations、contract-check、lint:rules、lint:oxlint、lint:deps、loop:status（loop:status 带 --strict）
+  pytest：跑——全量
+  构建：86 个计划成员，含必要依赖准备
+  类型检查：全部 86 个在役成员
+  成员测试：全部 86 个成员的快层，快层通过才跑慢层
+  验收：packages/agent/agent、packages/model/model、packages/tool/tool
+with-test-slot: 排队中，前面还有 0 个（共 1 个名额；每 5 秒看一次，最多等 7200 秒）
+with-test-slot:   名额 1/1 正由「node --experimental-strip-types tools/test-runner/src/mutation/cli.ts run --base b2ba7dc89 --since 7d91a330c」占着，已 45 秒（/data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-call，进程 147718，linux@dev-ai-oh-agent-01）
+with-test-slot: 等了 245 秒，拿到名额 1/1
+预算 7 个进程：本机 8 核、空闲 93%、空闲内存 27 GiB；覆盖率同时 3 个成员，每个至多 2 个工作进程
+覆盖率：81 个成员，同时 3 个，每个至多 2 个工作进程，预计最久的先跑
+覆盖率 1/81 apps/harness-server 32 秒，退出码 1
+覆盖率 2/81 packages/mcp/mcp 32 秒，退出码 0
+覆盖率 3/81 packages/execution/execution-environment-contract 32 秒，退出码 1
+覆盖率 4/81 packages/execution/execution-environment-host-local 41 秒，退出码 1
+覆盖率 5/81 packages/identity/identity-sql 71 秒，退出码 0
+覆盖率 6/81 packages/common/json-text 57 秒，退出码 0
+覆盖率 7/81 packages/agent/agent 58 秒，退出码 0
+覆盖率 8/81 packages/model/model-contract 135 秒，退出码 0
+覆盖率 9/81 apps/m2-contract-skeleton 5 秒，退出码 1
+覆盖率 10/81 packages/tool/tool-host-local 12 秒，退出码 1
+覆盖率 11/81 packages/tool/tool-storage-sql 5 秒，退出码 1
+覆盖率 12/81 packages/skills/skill 4 秒，退出码 1
+覆盖率 13/81 packages/storage/sqlite-provider 49 秒，退出码 0
+覆盖率 14/81 packages/mcp/mcp-contract 7 秒，退出码 0
+覆盖率 15/81 packages/model/model-cordis-contract 25 秒，退出码 1
+覆盖率 16/81 packages/tool/tool-contract 26 秒，退出码 0
+覆盖率 17/81 packages/agent/agent-contract 11 秒，退出码 0
+覆盖率 18/81 packages/session/session-adapters 20 秒，退出码 1
+覆盖率 19/81 packages/tool/tool-definitions 3 秒，退出码 1
+覆盖率 20/81 packages/model/model 11 秒，退出码 1
+覆盖率 21/81 packages/model/pi-ai-transport 12 秒，退出码 1
+覆盖率 22/81 packages/execution/execution-environment 3 秒，退出码 1
+覆盖率 23/81 packages/session/session-contract 11 秒，退出码 1
+覆盖率 24/81 packages/tool/tool 10 秒，退出码 1
+覆盖率 25/81 packages/execution/execution-environment-cordis-contract 2 秒，退出码 1
+覆盖率 26/81 packages/agent/agent-host-local 9 秒，退出码 1
+覆盖率 27/81 packages/session/session-storage-sql 8 秒，退出码 1
+覆盖率 28/81 packages/model/model-host-local 7 秒，退出码 1
+覆盖率 29/81 packages/common/message 5 秒，退出码 0
+覆盖率 30/81 packages/context/runtime-context-contract 5 秒，退出码 0
+覆盖率 31/81 packages/context/request-context-contract 4 秒，退出码 1
+覆盖率 32/81 packages/access/server-entry 4 秒，退出码 1
+覆盖率 33/81 packages/access/public-contract 4 秒，退出码 1
+覆盖率 34/81 packages/common/stream-arrival 3 秒，退出码 0
+覆盖率 35/81 packages/context/agent-context 4 秒，退出码 1
+覆盖率 36/81 packages/identity/authorization 3 秒，退出码 1
+覆盖率 37/81 packages/identity/identity 4 秒，退出码 0
+覆盖率 38/81 packages/model/model-storage-sql 3 秒，退出码 1
+覆盖率 39/81 packages/schema/schema-provider 4 秒，退出码 0
+覆盖率 40/81 packages/storage/sql-contract 3 秒，退出码 0
+覆盖率 41/81 packages/tool/tool-cordis-contract 4 秒，退出码 1
+覆盖率 42/81 apps/cli 4 秒，退出码 1
+覆盖率 43/81 packages/agent/agent-cordis-contract 2 秒，退出码 1
+覆盖率 44/81 packages/assembly/kernel-basis 3 秒，退出码 0
+覆盖率 45/81 packages/context/request-context 3 秒，退出码 1
+覆盖率 46/81 packages/context/request-context-cordis-contract 3 秒，退出码 1
+覆盖率 47/81 packages/context/runtime-context 3 秒，退出码 1
+覆盖率 48/81 packages/context/runtime-context-cordis-contract 2 秒，退出码 1
+覆盖率 49/81 packages/mcp/mcp-host-local 121 秒，退出码 0
+覆盖率 50/81 packages/model/pi-ai-anthropic 4 秒，退出码 1
+覆盖率 51/81 packages/model/pi-ai-openai 3 秒，退出码 1
+覆盖率 52/81 packages/session/session 3 秒，退出码 1
+覆盖率 53/81 packages/skills/skill-contract 3 秒，退出码 1
+覆盖率 54/81 packages/skills/skill-host-local 3 秒，退出码 1
+覆盖率 55/81 packages/assets/assets 2 秒，退出码 0
+覆盖率 56/81 packages/assembly/assembly 2 秒，退出码 1
+覆盖率 57/81 packages/common/legal-identity 2 秒，退出码 0
+覆盖率 58/81 packages/common/modality 2 秒，退出码 0
+覆盖率 59/81 packages/common/utc-instant 2 秒，退出码 0
+覆盖率 60/81 packages/context/request-context-cordis 2 秒，退出码 1
+覆盖率 61/81 packages/context/runtime-context-cordis 2 秒，退出码 1
+覆盖率 62/81 packages/execution/image 2 秒，退出码 0
+覆盖率 63/81 packages/identity/scrypt 2 秒，退出码 0
+覆盖率 64/81 packages/model/tokenizer-tiktoken 2 秒，退出码 1
+覆盖率 65/81 packages/session/session-cordis 2 秒，退出码 1
+覆盖率 66/81 packages/session/session-cordis-contract 2 秒，退出码 1
+覆盖率 67/81 packages/telemetry/diagnostic 2 秒，退出码 1
+覆盖率 68/81 packages/workspace/workspace 1 秒，退出码 1
+覆盖率 69/81 packages/util/unix-format 2 秒，退出码 1
+覆盖率 70/81 packages/util/xml-format 2 秒，退出码 1
+覆盖率 71/81 packages/access/sdk 2 秒，退出码 1
+覆盖率 72/81 packages/assets/permissions 1 秒，退出码 1
+覆盖率 73/81 packages/assets/settings 1 秒，退出码 1
+覆盖率 74/81 packages/calendar/calendar 1 秒，退出码 1
+覆盖率 75/81 packages/common/call-account 1 秒，退出码 0
+覆盖率 76/81 packages/common/content-block 1 秒，退出码 0
+覆盖率 77/81 packages/common/exchange-refs 1 秒，退出码 0
+覆盖率 78/81 packages/common/operation-result 1 秒，退出码 0
+覆盖率 79/81 packages/human-intervention/human-intervention 1 秒，退出码 1
+覆盖率 80/81 packages/notification/notification 1 秒，退出码 1
+覆盖率 81/81 packages/schedule/schedule 1 秒，退出码 1
+结构度量 db06b5b70 · 分支 PanQiWei/skill-mcp-w3-mcp-host · 基线 92a8e3cdf（函数变化 merge-base 92a8e3cdf66888890b2ccef9402f299a203858da）
+范围：变更 2 个成员、209 个函数；提交 43 个，每提交文件数中位 2、最大 21
+结构：依赖违规 0，环 1，变更触及的跨成员导入 5 条；成员风险 红 20、黄 6、绿 55
+CRAP 或圈复杂度（warn 10／alert 12）：变更函数超 alert 5、超 warn 9；存量超 alert 2325、超 warn 799
+覆盖率：harness-server 16%、server-entry 3%、agent 92%、agent-contract 43%、agent-host-local 1%、kernel-basis 93% 等 43 个；缺数据 38 个；测试未通过 54 个
+变更函数里超阈值的前 5 个：
+  packages/mcp/mcp-contract/src/withheld.ts:39 headerDeclarationInvalid CC 19 覆盖 100% CRAP 19
+  packages/mcp/mcp-contract/src/wire.ts:384 classifyWireEvent CC 18 覆盖 88% CRAP 18.5
+  packages/mcp/mcp-contract/src/wire.ts:296 resultClassOf CC 16 覆盖 83% CRAP 17.2
+  packages/mcp/mcp-contract/src/decisions.ts:439 probeErrorConclusionOf CC 11 覆盖 71% CRAP 13.8
+  packages/mcp/mcp-host-local/src/session.ts:425 Session.dispatch CC 12 覆盖 94% CRAP 12.0
+审讯页：/data/qiwei/repos/omne-harness-lite/tmp/metrics/db06b5b70/review.html
+exit=0

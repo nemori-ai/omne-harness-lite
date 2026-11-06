@@ -1,0 +1,2 @@
+P2 call settled within 3s after abort at 200ms: true reportRejection calls: 1
+P2 after close: settled true {"failure":{"kind":"not-sent","cause":"authorization-required","discovery":{"resourceMetadataUrl":"http://127.0.0.1:23733/.well-known/oauth-protected-resource/mcp","metadata":"unavailable","issuers":[],"scopes":[]}}}

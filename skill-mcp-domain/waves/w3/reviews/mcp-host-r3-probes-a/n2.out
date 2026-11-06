@@ -1,0 +1,5 @@
+N2 discover: {"ok":{"protocolVersion":"2025-11-25","capabilities":{"kind":"object","entries":[]}}}
+N2 listActions: {"failure":{"kind":"not-sent","cause":"session-ended"}}
+N2 a request begun now: {"failure":{"kind":"not-sent","cause":"connection-unavailable"}}
+N2 the call that was authorizing: {"ok":{"requestId":"r4","answer":{}}}
+N2 tools/call messages the line received after the session ended: 1

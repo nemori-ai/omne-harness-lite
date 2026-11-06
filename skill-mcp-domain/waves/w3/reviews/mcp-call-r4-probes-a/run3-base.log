@@ -1,0 +1,16 @@
+
+ RUN  v4.1.11 /tmp/r4a/probe2
+
+R4-3 answer = {"kind":"sent","outcome":{"kind":"unknown","cause":"abandoned"}} getter reads = 3 transport.call continuation = {"requestState":"s1","inputResponses":{"kind":"number","value":null}} frozen = false
+R4-3 control (plain NaN tree) = {"kind":"sent","outcome":{"kind":"unknown","cause":"abandoned"}}
+R4-5 refresh(not adopted, signal aborted) = {"failure":{"kind":"not-available-to-you"}}
+R4-5 refresh(not adopted, signal live)    = {"failure":{"kind":"not-available-to-you"}}
+ ✓ r4b.spec.ts > R4-3 R2: continuation whose inputResponses getter answers undefined first, then an unjudged tree 31ms
+ ↓ r4b.spec.ts > R4-4 R2 basics: invalid trees reject (not throw), take no place, ask nothing
+ ✓ r4b.spec.ts > R4-5 refresh exit order without a shutdown: signal aborted before refresh, endpoint not adopted 1ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed | 1 skipped (3)
+   Start at  08:00:21
+   Duration  1.16s (transform 702ms, setup 0ms, import 896ms, tests 34ms, environment 0ms)
+

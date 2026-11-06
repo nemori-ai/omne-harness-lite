@@ -64,7 +64,7 @@ MCP 侧的调整见[波包「生态兼容」](../wave-pack.md#生态兼容负责
 16. 措辞：S7 的「协商」「会话」只对旧对端成立处加限定；空串 `requestState` 合法，V1 不再判 malformed（改守卫并加用例）；C1 加「`inputSchema` 必须是 `type` 为 `"object"` 的对象」，不符的工具按 C1 使整份拒绝，缺陷码是现有的 `action-invalid`，不新增码。
 17. `open` 不在 MCP。
 18. 传输符合性套件 `mcpTransportConformance()`（Q-MC06）：从 `./testing` 导出，`ConformanceCase[]` + `node:assert`，与其他五个套件同形。夹具接口由本闭包设计，最低要求：夹具能按用例要求给出一个「脚本化对端」并为它打开传输；脚本至少能表达现代对端、旧对端、`discover` 失败两路、多页清单、`tools/call` 的完成/错误/`input_required`/任务结果、`tasks/get` 的五种状态与 `-32602`、应答流断开、进程退出、401 与两种 403、读不懂的应答（T7 每个 `what` 一例）。套件用例覆盖 T1–T7 与已定事项 7–12、14。
-19. `./testing` 另导出内存脚本化传输 `createScriptedTransportFactory(script)`：它实现 `McpTransportFactory`，按脚本答复，记录收到的请求（含 `_meta` 与 `progressToken`）。它必须过 `mcpTransportConformance()`（全部用例通过或 `not-applicable` 计为失败，同其他替身）。B 段的 `w3-mcp-call` 用它代替 W2 成员内的 `tests/doubles/scripted-transport.ts`。
+19. `./testing` 另导出内存脚本化传输 `createScriptedTransportFactory(script)`：它实现 `McpTransportFactory`，按脚本答复，记录收到的请求（含 `_meta` 与 `progressToken`）。它必须过 `mcpTransportConformance()`（全部用例通过或 `not-applicable` 计为失败，同其他替身）。B 段的 `w3-mcp-call` 用它代替 W2 成员内的 `tests/doubles/scripted-transport.ts`。（2026-11-05 同步：被调用口闭包规格已定事项 9 收窄。用例脚本化的是「对端说什么」时用契约的 `createScriptedTransportFactory`；脚本化的是「传输对象做什么」（`open` 失败、`close` 的延迟、步序）时保留成员的传输替身，不为换替身改写已评审过的生命周期用例。）
 
 ### 连接表收口（`w3-mcp-table`，从 F0，只写 `packages/mcp/mcp/`）
 
@@ -78,7 +78,7 @@ MCP 侧的调整见[波包「生态兼容」](../wave-pack.md#生态兼容负责
 
 ### 调用口（`w3-mcp-call`，从 F1，只写 `packages/mcp/mcp/`）
 
-27. `createMcp(ports, config)` 交出五个服务 `McpServices`，`invoker` 与核心共享同一张连接表、同一个在途表与同一个任务表。`createMcpCore` 删除（只有本成员测试在用，按演进政策同步迁移）。成员内绕道按已定事项 26 删除，改用契约的 `signal?`、`clock?`、`canonical`/`sameJson`、`./testing` 样本构造器与 `createScriptedTransportFactory`。
+27. `createMcp(ports, config)` 交出五个服务 `McpServices`，`invoker` 与核心共享同一张连接表、同一个在途表与同一个任务表。`createMcpCore` 删除（只有本成员测试在用，按演进政策同步迁移）。成员内绕道按已定事项 26 删除，改用契约的 `signal?`、`clock?`、`canonical`/`sameJson`、`./testing` 样本构造器与 `createScriptedTransportFactory`。（2026-11-05 同步：「改用 `createScriptedTransportFactory`」按已定事项 19 的同步说明收窄。）
 28. `invoke` 的次序（每步失败答「未发出」并撤销占位，除非注明）：
     1. 在途表按（租户、主体、关联键）占位，查重与占位一步；重复答 `correlation-key-in-use`。
     2. 关口：采用 → 资格（S1）。
@@ -91,7 +91,7 @@ MCP 侧的调整见[波包「生态兼容」](../wave-pack.md#生态兼容负责
     9. `classifyOutcome` 分类；任务结局在任务表登记（租户、主体、持有、任务号 → 代际与连接键）；`markEnded`。
 29. `continueWithInput`：同 `invoke` 的 1–7，另核发出代际：当前连接的代际与 `inputRequired` 交出的代际不同，答「未发出：`unknown`」，不在新代际上重发（S2）。请求带 `continuation`（`inputResponses` 可选，已定事项 15）。
 30. `cancel`：只查在途表，不核采用与资格（S2 原文）。占位后、发出前的取消使原调用答 `cancelled`。
-31. 四个任务操作按 S2：只对发起者开放（表里没有、非发起者、重启后都答 `unknown`，答复不随任务是否存在而变）；可以复用现有连接（不核资格），要新建连接时资格必须 `granted`，否则 `effect-unknown`（`no-connection`）；`cancelTask` 不为取消启动新进程；`no-answer` → `effect-unknown`，`error-answer`/`answer-malformed` 原样交出；`taskResult` 已取消答 `cancelled`。
+31. 四个任务操作按 S2：只对发起者开放（表里没有、非发起者、重启后都答 `unknown`，答复不随任务是否存在而变）；可以复用现有连接（不核资格），要新建连接时资格必须 `granted`，否则 `effect-unknown`（`no-connection`）；`cancelTask` 不为取消启动新进程；`no-answer` → `effect-unknown`，`error-answer`/`answer-malformed` 原样交出；`taskResult` 已取消答 `cancelled`。（2026-11-05 同步：被契约第 6 轮裁定 R6-6 A5 与契约 S2 现行条文取代，出处是调用口闭包规格已定事项 5、6 与调用口第 1 轮裁定。四个操作（含 `cancelTask`）复用现有连接时不核采用与资格；要新建连接时核采用，资格必须 `granted`，不能新建答 `effect-unknown`（`no-connection`）；「`cancelTask` 不为取消启动新进程」不再成立。新建出的连接的账户与任务记下的不同，也答 `effect-unknown`（`no-connection`）。任务请求因建连失败而没有发出时答 `connection-unavailable`。）
 32. 观察函数（S6）：进度通知标为不可信交给调用方的 `observe`；它抛出时吞掉，不影响结局；本组不记日志。
 33. 内容交付：完成结局经契约的 `toContentBlocks`（D1–D5）转成内容块；本组不改写内容。
 34. 在途表与任务表都不跨重启（已知限制，SPEC 写明）。
@@ -172,10 +172,10 @@ MCP 侧的调整见[波包「生态兼容」](../wave-pack.md#生态兼容负责
 | MC3-4 | `invoke` 次序 1–9 每步的失败各一例，失败时占位撤销；R2 每个原因一例；发出后 `signal` 触发得 `unknown`（`abandoned`）且 `cancelRequest` 被调用 | `invoke.spec.ts` |
 | MC3-5 | 在途表隔离：另一主体或另一租户用同一关联键 `cancel` 得 `unknown`；占位后发出前取消使原调用 `cancelled` 且传输 `call` 计数 0 | `cancel.spec.ts` |
 | MC3-6 | `continueWithInput`：同代际完成；换代后「未发出：`unknown`」且新代际 `call` 计数 0；只带 `requestState` 的继续合法 | `continue.spec.ts` |
-| MC3-7 | 任务四操作：发起者可用；非发起者与表外任务答同一 `unknown`（`deepStrictEqual`）；复用连接不核资格；新建连接资格非 `granted` 得 `effect-unknown`（`no-connection`）且传输工厂计数 0；`cancelTask` 不建连 | `tasks.spec.ts` |
+| MC3-7 | 任务四操作：发起者可用；非发起者与表外任务答同一 `unknown`（`deepStrictEqual`）；复用连接不核资格；新建连接资格非 `granted` 得 `effect-unknown`（`no-connection`）且传输工厂计数 0；`cancelTask` 与其他三个操作同样按契约 S2 新建连接（2026-11-05 同步，取代原「`cancelTask` 不建连」，见已定事项 31 的同步说明） | `tasks.spec.ts` |
 | MC3-8 | `createMcp` 交出五个服务并共享一张表；成员内绕道全部删除（`grep` 为空） | 用例；`grep` |
 | MC3-9 | 本地传输：两种传输都跑 `mcpTransportConformance()`，通过/失败/不适用分开计数，失败为 0，不适用每条有理由 | `conformance.spec.ts` |
-| MC3-10 | stdio：非 JSON 行 → `stream-broken`；进程退出 → `process-exited`；旧对端回退；取消通知带 `_meta`；探测时限内无应答回退 | `stdio.spec.ts` |
+| MC3-10 | stdio：解析不了的行丢弃、流继续，超过行缓冲上界的一行 → `stream-broken`（2026-11-05 同步：裁定 F4 与契约 T2，取代原「非 JSON 行 → `stream-broken`」）；进程退出 → `process-exited`；旧对端回退；取消通知带 `_meta`；探测时限内无应答回退 | `stdio.spec.ts` |
 | MC3-11 | HTTP：401 与 `insufficient_scope` 403 → `authorization-required` 且 `reportRejection()` 恰好一次；其余 403 → `connection-unavailable` 且不调用；授权发现两段 URL；流断开时读类重发一次、调用不重发；`x-mcp-header` 非法工具进 `withheld` | `http.spec.ts` |
 | MC3-12 | 端到端旅程两种传输逐步结局种类一致 | `e2e/journey.spec.ts` |
 

@@ -1,0 +1,5 @@
+
+> @omne-harness/mcp-host-local@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e/packages/mcp/mcp-host-local
+> tsc -p tsconfig.test.json
+
+exit 0

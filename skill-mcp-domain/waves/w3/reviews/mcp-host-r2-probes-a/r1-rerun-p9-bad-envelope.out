@@ -1,0 +1,4 @@
+P9 contract class (tools/list, no jsonrpc): {"kind":"answer","answer":"error:unreadable","message":{"kind":"object","entries":[{"key":"id","value":{"kind":"string","value":"r1"}},{"key":"error","value":{"kind":"object","entries":[{"key":"code","value":{"kind":"number","lexeme":"-32000"}},{"key":"message","value":{"kind":"string","value":"boom"}}]}}]}}
+P9 discover with a -32022 lacking jsonrpc: methods sent server/discover,initialize -> {"kind":"answer-malformed","what":"error-shape"}
+P9 listActions: {"failure":{"kind":"answer-malformed","what":"error-shape"}}
+P9 call answer: {"kind":"error","error":{"kind":"object","entries":[{"key":"id","value":{"kind":"string","value":"r4"}},{"key":"error","value":{"kind":"object","entries":[{"key":"code","value":{"kind":"number","lexeme":"-32000"}},{"key":"message","value":{"kind":"string","value":"boom"}}]}}]}}

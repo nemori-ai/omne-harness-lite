@@ -1,8 +1,8 @@
 import sys
 dom, base = sys.argv[1], sys.argv[2]
 name = f'fix-{dom}'
-W = f'/home/user/omne-harness-lite/.worktrees/{name}'
-P = '/home/user/omne-harness-lite/.worktrees/skill-mcp/tmp/skill-mcp-domain'
+W = f'/data/qiwei/repos/omne-harness-lite/.worktrees/{name}'
+P = '/data/qiwei/repos/omne-harness-lite/.worktrees/skill-mcp/tmp/skill-mcp-domain'
 title = 'Skill' if dom=='skills' else 'MCP'
 dsec = '「共同」D-00–D-02、「Skill」D-10–D-24、G-2 中 Skill 的部分、U-1' if dom=='skills' else '「共同」D-00–D-02、「MCP」D-30–D-41、G-1、G-2 中 MCP 的部分、U-2'
 ul = 'terms/grounding-and-isolation.md' if dom=='skills' else 'terms/reach-and-availability.md'

@@ -1,0 +1,11 @@
+--- /data/qiwei/repos/omne-harness-lite/.worktrees/w3-mcp-e2e/packages/mcp/mcp/src/internal/teardown.ts	2026-11-06 09:35:37.314048427 +0000
++++ /tmp/r-a-e2e/packages/mcp/mcp/src/internal/teardown.ts	2026-11-06 10:20:13.677479851 +0000
+@@ -68,7 +68,7 @@
+   ]
+   let stopped: StopRange = 'no-process'
+   for (const handle of handles) stopped = narrowest(stopped, await stopOne(entry, handle))
+-  return stopped
++  return 'no-process'
+ }
+ 
+ /**

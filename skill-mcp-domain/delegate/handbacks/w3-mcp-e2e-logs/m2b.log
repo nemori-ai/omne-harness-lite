@@ -1,0 +1,41 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /tmp/w3-e2e-mut/packages/mcp/mcp-host-local
+
+stdout | tests/e2e/journey.spec.ts > E-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 > E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28
+S6 wait after cancel ms 59714 {"kind":"sent","outcome":{"kind":"complete","content":[{"kind":"block","block":{"kind":"text","id":"content-0","visibility":{"toHuman":true,"toModel":true},"text":"Long running operation completed. Duration: 60 seconds, Steps: 1."}}],"output":{"kind":"no-schema"}}}
+
+ ❯ tests/e2e/journey.spec.ts (6 tests | 1 failed | 5 skipped) 64550ms
+     ↓ E-stdio: createMcp on the local transport runs the journey on server-everything 2.1.0 on stdio, revision 2026-07-28
+     × E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 64547ms
+     ↓ E-sse: createMcp on the local transport runs the journey on server-everything 2.1.0 on legacy HTTP+SSE, revision 2025-11-25
+     ↓ F: createMcp on the local transport runs the journey on server-filesystem 2.1.0 on stdio, revision 2026-07-28
+     ↓ P: createMcp on the local transport runs the journey on mcp-server-fetch 2026.10.28 (Python) on stdio, revision 2026-07-28
+     ↓ E-stdio and E-http answer the same kind of outcome at every step S1 to S7
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/journey.spec.ts > E-http: server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28 > E-http: createMcp on the local transport runs the journey on server-everything 2.1.0 on Streamable HTTP, revision 2026-07-28
+AssertionError: S6 on E-http: cancel after the request left is signalled, and the call ends as unknown (abandoned): expected 'signalled>complete' to be 'signalled>unknown:abandoned' // Object.is equality
+
+Expected: "signalled>unknown:abandoned"
+Received: "signalled>complete"
+
+ ❯ journey tests/e2e/journey.spec.ts:284:64
+    282|       const kind = await step.run(context)
+    283|       taken.push({ step: step.id, kind })
+    284|       expect(kind, `${step.id} on ${target.id}: ${step.does}`).toBe(st…
+       |                                                                ^
+    285|     }
+    286|     readings.set(target.id, taken)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 skipped (6)
+Type Errors  no errors
+   Start at  09:54:02
+   Duration  65.43s (transform 477ms, setup 18ms, import 714ms, tests 64.55s, environment 0ms)
+

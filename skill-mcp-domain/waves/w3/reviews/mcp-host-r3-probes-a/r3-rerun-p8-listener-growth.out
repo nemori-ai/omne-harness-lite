@@ -1,0 +1,8 @@
+file:///tmp/w3r3-a/out/p8-listener-growth.mjs:4174
+console.log("P8 abort listeners on the closing signal after 50 notifications/cancelled:", getEventListeners(t.closing.signal, "abort").length);
+                                                                                                                      ^
+
+TypeError: Cannot read properties of undefined (reading 'signal')
+    at file:///tmp/w3r3-a/out/p8-listener-growth.mjs:4174:119
+
+Node.js v26.12.0

@@ -1,0 +1,3 @@
+P4 isModernProtocolVersion( DRAFT-2026-v1 ) = true
+P4 contract class: {"kind":"answer","answer":"error:-32022+modern","message":{"kind":"object","entries":[{"key":"jsonrpc","value":{"kind":"string","value":"2.0"}},{"key":"id","value":{"kind":"string","value":"r1"}},{"key":"error","value":{"kind":"object","entries":[{"key":"code","value":{"kind":"number","lexeme":"-32022"}},{"key":"message","value":{"kind":"string","value":"unsupported"}},{"key":"data","value":{"kind":"object","entries":[{"key":"supported","value":{"kind":"array","items":[{"kind":"string","value":"DRAFT-2026-v1"}]}}]}}]}}]}}
+P4 session discover(): {"kind":"answer-malformed","what":"discover-shape"} methods sent: server/discover
