@@ -441,6 +441,22 @@ describe('refresh fails', () => {
     expect(await record(w)).toBe('absent')
   })
 
+  it('the caller aborts and closeAll begins while a page is asked: kept (cancelled), the stop ranks before the shutdown as at the exit of a call (S8, MC-7, MC-16)', async () => {
+    const listing = deferred<ListingPage | TransportFailure>()
+    const { w, discovery, connections } = core(
+      world({ script: [{ discover: peer }, { listActions: listing }] }),
+    )
+    adoptStdio(w, files)
+    const stop = new AbortController()
+    const pending = discovery.refresh(alice, { ref: files, signal: stop.signal })
+    await settled()
+    expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(1)
+    await connections.closeAll()
+    stop.abort()
+    expect(await pending).toEqual({ ok: { kind: 'kept', reason: { kind: 'cancelled' } } })
+    expect(await record(w)).toBe('absent')
+  })
+
   it('closeAll while the store writes the listing: the refresh that published stays published (S8)', async () => {
     const base = world({ script: usualScript() })
     adoptStdio(base, files)

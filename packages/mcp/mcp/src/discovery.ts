@@ -221,8 +221,11 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
    * refused or kept it, so a refresh in flight at `closeAll` answers as one that started after
    * it. A published listing stays published.
    */
-  function answerAtExit(result: Refreshed | Shut): Refreshed {
+  // The same order as the exit of a call (MC-16): what was published stays, the caller's stop
+  // ranks before the shutdown, and the shutdown before what the step would have answered.
+  function answerAtExit(result: Refreshed | Shut, stop: AbortSignal | undefined): Refreshed {
     if (result !== SHUT && 'ok' in result && result.ok.kind === 'published') return result
+    if (stop?.aborted === true) return succeed(CANCELLED)
     return result === SHUT || table.isShut() ? fail(CONNECTION_UNAVAILABLE) : result
   }
 
@@ -230,7 +233,7 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     access: Access<P>,
     request: RefreshRequest,
   ): Promise<Outcome<RefreshResult, OperationFailure>> {
-    return answerAtExit(await refreshOrder(access, request))
+    return answerAtExit(await refreshOrder(access, request), request.signal)
   }
 
   /** The order of MC-7: the shutdown, the gate, the build, then the publish. */
