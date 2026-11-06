@@ -9,4 +9,4 @@
 - [object-model.md](object-model.md)：内部对象模型
 - [public-api.md](public-api.md)：公开边界与定义导航
 - [context.md](context.md)：消费侧使用与系统定位
-- [cordis.md](cordis.md)：Cordis 适用性与集成责任
+- [cordis.md](cordis.md)：Cordis 插件 `skillPlugin`、依赖分类与集成责任

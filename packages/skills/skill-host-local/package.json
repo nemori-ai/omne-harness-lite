@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Local Skill host: the DirectorySource local directory source",
+  "description": "Local Skill host: the DirectorySource local directory source and the Skill Cordis plugin",
   "engines": {
     "node": ">=24"
   },
@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [

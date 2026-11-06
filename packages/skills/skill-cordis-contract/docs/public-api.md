@@ -1,17 +1,32 @@
-# 公开接口导航
+# Skill Cordis 定义的公开接口导航
 
-<!-- documentation:placeholder -->
-
-本文件导航本包的公开边界：导出入口、调用者资格、接口定义索引，以及输入输出与失败行为的定位。精确类型与运行时校验归公开源码，非类型行为的唯一正文是 [SPEC.md](../SPEC.md)。不手写第二套签名。
+本页是导出索引，不是第二套签名。精确类型归 `src/`，非类型行为归 [SPEC](../SPEC.md)，服务定义的正文归 [Cordis 说明](cordis.md)。五个接口的输入、输出与失败归 [skill-contract SPEC](../../skill-contract/SPEC.md)。
 
 ## 导出入口
 
-<!-- documentation:placeholder -->
+| 入口                                         | 源码                              | 发布产物                             | 调用者                                                                                             |
+| -------------------------------------------- | --------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `@omne-harness/skill-cordis-contract`        | [src/index.ts](../src/index.ts)   | `dist/index.js`、`dist/index.d.ts`   | 没有调用者。根入口是空导出                                                                         |
+| `@omne-harness/skill-cordis-contract/cordis` | [src/cordis.ts](../src/cordis.ts) | `dist/cordis.js`、`dist/cordis.d.ts` | 提供三个服务的插件（skill-host-local），提供两个端口的实现方，使用服务的插件，只需要类型增补的一方 |
 
-待补：`package.json` 的每个导出入口、调用者资格与对应源码。
+根入口与 Cordis 无关（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。需要接口类型的一方直接依赖 skill-contract。`./cordis` 只有服务定义，不导入任何提供者（[性质 6](../SPEC.md#结果与不变量)）。只需要 `Context` 增补的一方用 `import type {} from '@omne-harness/skill-cordis-contract/cordis'`（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)）。
 
 ## 定义索引
 
-<!-- documentation:placeholder -->
+### 根入口
 
-待补：公开定义的链接，以及输入输出与失败行为在 SPEC 中的条款。
+没有导出。
+
+### `./cordis`
+
+| 名字                           | 种类     | 键                                                                                                                                  | 接口与行为位置                                                                                                                                |
+| ------------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PackageInspectionService`     | 抽象类   | `skillPackageInspection`                                                                                                            | `PackageInspection`，见 [skill-contract SPEC](../../skill-contract/SPEC.md#parse)                                                             |
+| `SkillCatalogService<P, S>`    | 抽象类   | `skillCatalog`                                                                                                                      | `SkillCatalog<P, S>`，见 [skill SPEC 的目录](../../skill/SPEC.md#catalog)                                                                     |
+| `SkillAccessService<P, S>`     | 抽象类   | `skillAccess`                                                                                                                       | `SkillAccess<P, S>`，见 [skill SPEC 的阶段](../../skill/SPEC.md#stages)                                                                       |
+| `SkillReadCheckService<P, S>`  | 抽象类   | `skillReadCheck`                                                                                                                    | `SkillReadCheck<P, S>`，见 [skill-contract SPEC 的需求端口](../../skill-contract/SPEC.md#ports)                                               |
+| `SkillResolutionService<P, S>` | 抽象类   | `skillResolution`                                                                                                                   | `SkillResolution<P, S>`，见同一节                                                                                                             |
+| 键常量                         | 常量     | `skillPackageInspectionKey`、`skillCatalogKey`、`skillAccessKey`、`skillReadCheckKey`、`skillResolutionKey`，取自对应类的 `provide` | 键 `skillPackageInspection`、`skillCatalog`、`skillAccess`、`skillReadCheck`、`skillResolution` 的值见 [SPEC 性质 1](../SPEC.md#结果与不变量) |
+| `Context` 增补                 | 类型增补 | 五个键                                                                                                                              | [SPEC 性质 4](../SPEC.md#结果与不变量)                                                                                                        |
+
+调用者资格：本成员没有按调用方类分面的方法，不声明 intercept 配置。访问判断归 skill-contract 的两个端口与它们的实现方。

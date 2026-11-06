@@ -6,9 +6,9 @@
 
 ## 职责与状态
 
-本成员拥有 Skill 包字节的一种来源：目录来源。它读目录的当前内容，不建索引，也不缓存。它把每种文件系统拒绝答成 `@omne-harness/skill-contract` 来源失败集合中的一种。它不检查包、不判定访问，也不比较字节与快照。这些工作归 `@omne-harness/skill`。
+本成员拥有 Skill 包字节的一种来源：目录来源。它读目录的当前内容，不建索引，也不缓存。它把每种文件系统拒绝答成 `@omne-harness/skill-contract` 来源失败集合中的一种。它不检查包、不判定访问，也不比较字节与快照。这些工作归 `@omne-harness/skill`。本成员还拥有 Cordis 插件 `skillPlugin`（`./cordis` 入口）：它在目录来源之上构造 `@omne-harness/skill` 的三个服务，并提供在装载它的 fiber 上。
 
-状态：行为是候选，尚未取得技术接受。本来源在真实临时目录上通过契约套件 `skillPackageSourceConformance()`（PS7 不适用）。本成员的 Cordis 插件部分不在本版本。
+状态：行为是候选，尚未取得技术接受。本来源在真实临时目录上通过契约套件 `skillPackageSourceConformance()`（PS7 不适用）。Cordis 插件部分是 `./cordis` 入口，提供插件 `skillPlugin`。
 
 ## 使用
 
@@ -26,7 +26,19 @@ if ('ok' in snapshot)
   }
 ```
 
-示例 [examples/inspect-directory.ts](examples/inspect-directory.ts) 对 [examples/sample-skill/](examples/sample-skill/) 取快照，读两个控制文件，再交给 `parseSkillPackage`。示例 [examples/directory-journey.ts](examples/directory-journey.ts) 检查一个目录下的每个包，再经 `@omne-harness/skill` 列出、检索、描述与读取。读取判定与对应端口由调用方交给它，测试交的是 `@omne-harness/skill-contract/testing` 的内存替身。它作为测试 `tests/examples.spec.ts` 运行，不是产品装配。测试可以给出自己的文件系统接缝：`createDirectorySource({ fs })`。本成员没有 Cordis 入口，需要 Node.js 24 或更高版本。
+示例 [examples/inspect-directory.ts](examples/inspect-directory.ts) 对 [examples/sample-skill/](examples/sample-skill/) 取快照，读两个控制文件，再交给 `parseSkillPackage`。示例 [examples/directory-journey.ts](examples/directory-journey.ts) 检查一个目录下的每个包，再经 `@omne-harness/skill` 列出、检索、描述与读取。读取判定与对应端口由调用方交给它，测试交的是 `@omne-harness/skill-contract/testing` 的内存替身。它作为测试 `tests/examples.spec.ts` 运行，不是产品装配。测试可以给出自己的文件系统接缝：`createDirectorySource({ fs })`。需要 Node.js 24 或更高版本。
+
+`./cordis` 入口（`@omne-harness/skill-host-local/cordis`）导出插件 `skillPlugin`。插件的配置没有字段（类型化的调用方给 `{}`），使用目录来源。它在装载它的 fiber 上提供 `skillPackageInspection`、`skillCatalog` 与 `skillAccess`，并在每次调用时从自己的上下文现取两个端口 `skillReadCheck` 与 `skillResolution`。实际调用了缺席端口的那一步得到 `unknown`，操作按 `skill` SPEC 的规则答复（[目录](../skill/SPEC.md#catalog)与[门禁](../skill/SPEC.md#stages)），不放行，也不交出受该端口保护的内容。见 [docs/cordis.md](docs/cordis.md) 与 [SPEC.md](SPEC.md#cordis-插件)。
+
+```ts
+import { Context } from '@deepseek-ai/cordis'
+import { skillAccessKey } from '@omne-harness/skill-cordis-contract/cordis'
+import { skillPlugin } from '@omne-harness/skill-host-local/cordis'
+
+const ctx = new Context()
+await ctx.plugin(skillPlugin, {})
+const access = ctx.get(skillAccessKey) // 服务；插件卸载后为 undefined
+```
 
 ## 行为
 
@@ -77,7 +89,7 @@ if ('ok' in snapshot)
 
 ## 设计
 
-三个模块完成工作。`fs.ts` 提供文件系统接缝及其基于 `node:fs/promises` 的默认实现。接缝只做读取：它以字节交出名字与路径，并报告打开的对象是什么种类。`walk.ts` 读根目录、遍历目录、解析每个条目、做根内判定、计数访问，并分类每种答复与拒绝。`directory-source.ts` 把遍历接到 `sealSnapshot` 与两个端口操作上。见 [docs/architecture.md](docs/architecture.md)。
+四个模块完成工作。`fs.ts` 提供文件系统接缝及其基于 `node:fs/promises` 的默认实现。接缝只做读取：它以字节交出名字与路径，并报告打开的对象是什么种类。`walk.ts` 读根目录、遍历目录、解析每个条目、做根内判定、计数访问，并分类每种答复与拒绝。`directory-source.ts` 把遍历接到 `sealSnapshot` 与两个端口操作上。`cordis.ts` 是 `./cordis` 入口：它在目录来源之上构造 Skill 的三个服务，并提供为 Cordis 服务。见 [docs/architecture.md](docs/architecture.md)。
 
 ## 配置与运行
 

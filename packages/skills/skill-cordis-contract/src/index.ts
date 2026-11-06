@@ -1,2 +1,2 @@
-// PACKAGE_TEMPLATE_DRAFT: Public operations, outcomes and values; do not import Cordis here.
+// The root entry has no runtime values and loads no Cordis. The definitions are in `./cordis`.
 export {}
