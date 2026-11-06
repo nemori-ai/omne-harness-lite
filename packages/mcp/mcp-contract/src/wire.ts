@@ -3,7 +3,13 @@
 // the outcome. The function is pure and total: every event gets one classification.
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
-import { isLegacyProtocolVersion, isModernProtocolVersion } from './revisions.ts'
+import {
+  readDiscoverResult,
+  readInitializeResult,
+  readListingPage,
+  readTaskReport,
+} from './readers.ts'
+import { isModernProtocolVersion } from './revisions.ts'
 
 /**
  * The request classes. `discover` is the first `server/discover` of a connection; `discover-retry`
@@ -108,12 +114,14 @@ export const PROCESS_EXIT_WINDOW_MS = 100
  * - `line`: one line that stdio delivered.
  * - `stdio-ended`: stdout ended, the root process exited, or both; the times are milliseconds on
  *   one clock, and at least one is present.
- * - `http-aborted`: the HTTP exchange failed after the request started to go out and before the
- *   answer head came (reset, timeout).
+ * - `http-aborted`: the HTTP exchange failed after the request started to go out: before the
+ *   answer head came (reset, timeout), or while a 2xx body was being read and before it ended.
+ *   In the legacy HTTP+SSE mode the end of the shared stream is this event for every request in
+ *   flight.
  * - `http-status`: an answer whose status is not 2xx, with its headers by lower-case name and the
  *   whole body.
  * - `http-stream`: a 2xx answer: the JSON-RPC messages read so far (the JSON body, or the data of
- *   each SSE event), and whether the body ended.
+ *   each SSE event), and whether the body ended as the peer meant it to.
  */
 export type WireEvent =
   | Readonly<{ kind: 'unsent' }>
@@ -131,27 +139,48 @@ export type WireEvent =
 
 /**
  * The request an event is classified for: its JSON-RPC id, its class, and whether it carried the
- * legacy session id. `versions` are the modern versions the transport speaks.
+ * legacy session (the `Mcp-Session-Id` header, or the endpoint of the legacy HTTP+SSE mode).
+ * `versions` are the modern versions the transport speaks. `mode` is `sse` in the legacy HTTP+SSE
+ * mode (SPEC T3): there a 2xx POST body ends with no answer as a matter of course, because the
+ * answer comes on the shared stream.
  */
 export type WireContext = Readonly<{
   id: string | number
   request: RequestClass
   session: boolean
   versions: readonly string[]
+  mode?: 'sse'
 }>
 
 /**
- * The classification of an event. `answer`: the event is this answer class for the request.
+ * The classification of an event. `answer`: the event is this answer class for the request;
+ * `message` is the parsed message the class was read from, when the class has one: the answer
+ * to the request (a result or error class), or the JSON-RPC error body of an HTTP error status.
  * `other`: a stdio line that is not about this request (the answer to another request, a
  * request or notification of the peer, other JSON). `waiting`: a 2xx stream that is still open
  * without an answer to the request; it is no class yet.
  */
 export type WireClassification =
-  | Readonly<{ kind: 'answer'; answer: AnswerClass }>
+  | Readonly<{ kind: 'answer'; answer: AnswerClass; message?: JsonObject }>
   | Readonly<{ kind: 'other' }>
   | Readonly<{ kind: 'waiting' }>
 
-const LIMITS = {
+/**
+ * A request or notification of the peer, as T3 reads it: a JSON object with a text `method`; a
+ * request when it carries an `id` (echoed as written in the response), a notification
+ * otherwise. `progressToken` is the token of a progress notification as text: a string value or
+ * a number lexeme.
+ */
+export type PeerMessage =
+  | Readonly<{ kind: 'request'; id: JsonValue; method: string }>
+  | Readonly<{ kind: 'notification'; method: string; params?: JsonValue; progressToken?: string }>
+
+/**
+ * The limits of what a transport reads from the wire (SPEC T2): the byte bound of one stdio line,
+ * one HTTP body or one SSE event (16 MiB), and the JSON limits a message is parsed with. A
+ * transport reads with these and parses nothing with others.
+ */
+export const WIRE_LIMITS = {
   maxBytes: 16_777_216,
   maxDepth: 128,
   maxItems: 1_000_000,
@@ -161,13 +190,6 @@ const LIMITS = {
 } as const
 
 const INTEGER = /^-?\d+$/u
-const TASK_STATUSES: readonly string[] = [
-  'working',
-  'input_required',
-  'completed',
-  'failed',
-  'cancelled',
-]
 const STATUS_CLASSES: Readonly<{ [status: number]: HttpStatusClass }> = {
   400: '400',
   404: '404',
@@ -177,11 +199,42 @@ const STATUS_CLASSES: Readonly<{ [status: number]: HttpStatusClass }> = {
   429: '429',
 }
 
-const answer = (value: AnswerClass): WireClassification => ({ kind: 'answer', answer: value })
+const answer = (value: AnswerClass, message?: JsonObject): WireClassification =>
+  message === undefined
+    ? { kind: 'answer', answer: value }
+    : { kind: 'answer', answer: value, message }
 
 function parse(text: string): JsonValue | undefined {
-  const read = readJsonText(text, LIMITS)
+  const read = readJsonText(text, WIRE_LIMITS)
   return read.kind === 'ok' ? read.value : undefined
+}
+
+/** The progress token of a notification's `params` as text, when it has one. */
+function progressTokenOf(params: JsonValue | undefined): string | undefined {
+  const token = isObject(params) ? member(params, 'progressToken') : undefined
+  if (token?.kind === 'string') return token.value
+  return token?.kind === 'number' ? token.lexeme : undefined
+}
+
+/**
+ * Reads one line or stream message as a request or notification of the peer (T3), with the
+ * limits of `classifyWireEvent`. Undefined for anything else: an answer, or text that is not a
+ * JSON object with a text `method`.
+ */
+export function readPeerMessage(text: string): PeerMessage | undefined {
+  const message = parse(text)
+  const method = isObject(message) ? textOf(member(message, 'method')) : undefined
+  if (!isObject(message) || method === undefined) return undefined
+  const id = member(message, 'id')
+  if (id !== undefined) return { kind: 'request', id, method }
+  const params = member(message, 'params')
+  const progressToken = progressTokenOf(params)
+  return {
+    kind: 'notification',
+    method,
+    ...(params === undefined ? {} : { params }),
+    ...(progressToken === undefined ? {} : { progressToken }),
+  }
 }
 
 /** The id of a message as text for comparison, or undefined when it has no string or number id. */
@@ -200,7 +253,7 @@ function sameId(message: JsonObject, id: string | number): boolean {
  * The JSON-RPC envelope of an answer: `jsonrpc` is `"2.0"` and exactly one of `result` and
  * `error` is present (SPEC T2).
  */
-function envelopeOf(
+export function envelopeOf(
   message: JsonObject,
 ): Readonly<{ result: JsonValue }> | Readonly<{ error: JsonValue }> | undefined {
   if (textOf(member(message, 'jsonrpc')) !== '2.0') return undefined
@@ -211,8 +264,8 @@ function envelopeOf(
   return undefined
 }
 
-/** The modern versions a `-32022` lists, or undefined when `data.supported` is no non-empty text list. */
-function supportedOf(data: JsonValue | undefined): readonly string[] | undefined {
+/** The versions a `-32022` lists, or undefined when `data.supported` is no non-empty text list. */
+export function supportedOf(data: JsonValue | undefined): readonly string[] | undefined {
   const items = isObject(data) ? itemsOf(member(data, 'supported')) : undefined
   if (items === undefined || items.length === 0) return undefined
   const texts = items.flatMap(item => (item.kind === 'string' ? [item.value] : []))
@@ -253,29 +306,20 @@ export function resultClassOf(
   switch (request) {
     case 'discover':
     case 'discover-retry': {
-      const offered = isObject(result) ? itemsOf(member(result, 'supportedVersions')) : undefined
-      if (!isObject(result) || offered === undefined || !isObject(member(result, 'capabilities')))
-        return 'result:unreadable'
-      const texts = offered.flatMap(item => (item.kind === 'string' ? [item.value] : []))
-      return versions.some(version => texts.includes(version)) ? 'result' : 'result:no-common'
+      const read = readDiscoverResult(result, versions)
+      if ('ok' in read) return 'result'
+      return read.failure === 'no-common-version' ? 'result:no-common' : 'result:unreadable'
     }
-    case 'initialize': {
-      const version = isObject(result) ? textOf(member(result, 'protocolVersion')) : undefined
-      const readable =
-        isObject(result) &&
-        version !== undefined &&
-        isLegacyProtocolVersion(version) &&
-        isObject(member(result, 'capabilities'))
-      return readable ? 'result' : 'result:unreadable'
-    }
+    case 'initialize':
+      return 'ok' in readInitializeResult(result) ? 'result' : 'result:unreadable'
     case 'tools/list': {
-      if (!isObject(result) || itemsOf(member(result, 'tools')) === undefined)
-        return 'result:tools-missing'
-      const cursor = member(result, 'nextCursor')
-      return cursor === undefined || cursor.kind === 'string' ? 'result' : 'result:cursor-invalid'
+      const read = readListingPage(result, false)
+      return 'ok' in read ? 'result' : `result:${read.failure}`
     }
-    case 'tasks/get':
-      return taskResultClassOf(result)
+    case 'tasks/get': {
+      const read = readTaskReport(result)
+      return 'ok' in read ? 'result' : `result:${read.failure}`
+    }
     case 'tools/call':
     case 'tasks/update':
     case 'tasks/cancel':
@@ -286,25 +330,6 @@ export function resultClassOf(
       return exhaustive
     }
   }
-}
-
-function taskResultClassOf(result: JsonValue): ResultClass {
-  if (!isObject(result)) return 'result:status-unknown'
-  const taskId = textOf(member(result, 'taskId'))
-  const status = textOf(member(result, 'status'))
-  if (
-    taskId === undefined ||
-    taskId === '' ||
-    status === undefined ||
-    !TASK_STATUSES.includes(status)
-  )
-    return 'result:status-unknown'
-  if (status === 'input_required' && !isObject(member(result, 'inputRequests')))
-    return 'result:input-requests-missing'
-  if (status === 'completed' && member(result, 'result') === undefined)
-    return 'result:result-missing'
-  if (status === 'failed' && !isObject(member(result, 'error'))) return 'result:error-missing'
-  return 'result'
 }
 
 /** A message that answers the request: its envelope decides the class; a bad envelope is unreadable. */
@@ -320,12 +345,16 @@ function answers(message: JsonValue | undefined, context: WireContext): message 
   return isObject(message) && member(message, 'method') === undefined && sameId(message, context.id)
 }
 
-/** The body class of an HTTP error answer. Its id is not checked (SPEC T2). */
-function bodyClassOf(body: string, versions: readonly string[]): BodyClass {
+/** The body class of an HTTP error answer, with the message it was read from. Its id is not checked (SPEC T2). */
+function bodyClassOf(
+  body: string,
+  versions: readonly string[],
+): Readonly<{ body: BodyClass; message?: JsonObject }> {
   const message = parse(body)
   const envelope = isObject(message) ? envelopeOf(message) : undefined
-  if (envelope === undefined || !('error' in envelope)) return 'plain'
-  return errorClassOf(envelope.error, versions)
+  if (!isObject(message) || envelope === undefined || !('error' in envelope))
+    return { body: 'plain' }
+  return { body: errorClassOf(envelope.error, versions), message }
 }
 
 function statusClassOf(status: number): HttpStatusClass {
@@ -336,23 +365,67 @@ function statusClassOf(status: number): HttpStatusClass {
 function httpStatusOf(
   event: Extract<WireEvent, { kind: 'http-status' }>,
   context: WireContext,
-): AnswerClass {
+): WireClassification {
   const { status } = event
-  if (status >= 200 && status < 300) return 'http:2xx'
-  if (status === 401) return 'http:401'
+  if (status >= 200 && status < 300) return answer('http:2xx')
+  if (status === 401) return answer('http:401')
   if (status === 403) {
     const challenge = event.headers['www-authenticate'] ?? ''
-    return /error="insufficient_scope"/iu.test(challenge) ? 'http:403+scope' : 'http:403'
+    return answer(/error="insufficient_scope"/iu.test(challenge) ? 'http:403+scope' : 'http:403')
   }
-  if (status === 404 && context.session) return 'http:404+session'
-  return `http:${statusClassOf(status)}+${bodyClassOf(event.body, context.versions)}`
+  if (status === 404 && context.session) return answer('http:404+session')
+  const read = bodyClassOf(event.body, context.versions)
+  return answer(`http:${statusClassOf(status)}+${read.body}`, read.message)
 }
 
 /**
- * Puts one wire event into its T8 answer class for one request (SPEC T2, T8). A non-JSON stdio
- * line breaks the stream. A line or a 2xx message that carries the request's id and no method is
- * the answer; its envelope and content decide the class. When stdout ended and the process
- * exited, the exit is the cause when it came within `PROCESS_EXIT_WINDOW_MS` after stdout ended.
+ * The cause the end of a stdio shared stream stands for (SPEC T8): stdout ended, the root process
+ * exited, or both. The exit is the cause when it came, and came no later than
+ * `PROCESS_EXIT_WINDOW_MS` after stdout ended; otherwise the stream broke.
+ */
+export function endedCauseOf(
+  event: Readonly<{ stdoutEndedAt?: number; exitedAt?: number }>,
+): 'process-exited' | 'stream-broken' {
+  const { stdoutEndedAt, exitedAt } = event
+  if (exitedAt === undefined) return 'stream-broken'
+  const exitFirst =
+    stdoutEndedAt === undefined || exitedAt - stdoutEndedAt <= PROCESS_EXIT_WINDOW_MS
+  return exitFirst ? 'process-exited' : 'stream-broken'
+}
+
+/** A stdio line: the answer when it carries the request's id and no method; `other` for the rest. */
+function lineOf(
+  event: Extract<WireEvent, { kind: 'line' }>,
+  context: WireContext,
+): WireClassification {
+  const message = parse(event.text)
+  return message !== undefined && answers(message, context)
+    ? answer(messageClassOf(message, context), message)
+    : { kind: 'other' }
+}
+
+/**
+ * A 2xx answer: the first message that answers the request; else `http:2xx` once the body ended,
+ * or `waiting` while it is open, and in the legacy HTTP+SSE mode even when it ended.
+ */
+function httpStreamOf(
+  event: Extract<WireEvent, { kind: 'http-stream' }>,
+  context: WireContext,
+): WireClassification {
+  for (const text of event.messages) {
+    const message = parse(text)
+    if (answers(message, context)) return answer(messageClassOf(message, context), message)
+  }
+  return event.ended && context.mode !== 'sse' ? answer('http:2xx') : { kind: 'waiting' }
+}
+
+/**
+ * Puts one wire event into its T8 answer class for one request (SPEC T2, T8), one function per
+ * event kind. A stdio line that is not JSON is dropped (`other`); the stream goes on. A line or a
+ * 2xx message that carries the request's id and no method is the answer; its envelope and content
+ * decide the class. When stdout ended and the process exited, the exit is the cause when it came
+ * within `PROCESS_EXIT_WINDOW_MS` after stdout ended (`endedCauseOf`). In the legacy HTTP+SSE mode
+ * a 2xx body that ended with no answer is still `waiting`: the answer comes on the shared stream.
  */
 export function classifyWireEvent(event: WireEvent, context: WireContext): WireClassification {
   switch (event.kind) {
@@ -360,31 +433,16 @@ export function classifyWireEvent(event: WireEvent, context: WireContext): WireC
       return answer('unsent')
     case 'nothing':
       return answer('silent')
-    case 'line': {
-      const message = parse(event.text)
-      if (message === undefined) return answer('stream-broken')
-      return answers(message, context)
-        ? answer(messageClassOf(message, context))
-        : { kind: 'other' }
-    }
-    case 'stdio-ended': {
-      const { stdoutEndedAt, exitedAt } = event
-      if (exitedAt === undefined) return answer('stream-broken')
-      const exitFirst =
-        stdoutEndedAt === undefined || exitedAt - stdoutEndedAt <= PROCESS_EXIT_WINDOW_MS
-      return answer(exitFirst ? 'process-exited' : 'stream-broken')
-    }
+    case 'line':
+      return lineOf(event, context)
+    case 'stdio-ended':
+      return answer(endedCauseOf(event))
     case 'http-aborted':
       return answer('stream-broken')
     case 'http-status':
-      return answer(httpStatusOf(event, context))
-    case 'http-stream': {
-      for (const text of event.messages) {
-        const message = parse(text)
-        if (answers(message, context)) return answer(messageClassOf(message, context))
-      }
-      return event.ended ? answer('http:2xx') : { kind: 'waiting' }
-    }
+      return httpStatusOf(event, context)
+    case 'http-stream':
+      return httpStreamOf(event, context)
     default: {
       const exhaustive: never = event
       return exhaustive

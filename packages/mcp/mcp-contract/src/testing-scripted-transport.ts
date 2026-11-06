@@ -1,40 +1,59 @@
 // An in-memory transport that answers from a `PeerScript`. It composes the JSON-RPC requests that
-// SPEC T3 names (request ids, the `_meta` envelope, the progress token), applies the T1–T7 rules
-// of the transport, and lets a scripted peer answer in memory instead of a wire. It records what
-// the peer received. It does not speak a protocol and is not a product transport.
-import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
+// SPEC T3 names (request ids, the `_meta` envelope, the progress token) with the contract's one
+// implementation, turns each scripted reply into the wire event a real line would report,
+// classifies it with `classifyWireEvent` and takes the conclusion of the decision layer. A request
+// is registered before it is authorized; the caller's signal and `close()` settle it by its phase
+// with the contract's one rule (T5). It keeps only the in-memory wire and its in-flight table, and
+// records what the peer received. It does not speak a protocol and is not a product transport.
+import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
-import { isProtocolVersion, type Generation, type TaskId } from './brands.ts'
-import { countOf, taskHintsOf } from './classify.ts'
-import { boundInstructions } from './instructions.ts'
-import { isObject, itemsOf, member, textOf } from './json.ts'
-import type {
-  AnswerMalformed,
-  AuthorizationDiscovery,
-  NoAnswerCause,
-  PeerAnswer,
-  TaskReport,
-  TaskStatus,
-} from './outcomes.ts'
+import { callAnswerOf, legacyIdentityOf } from './answer-readings.ts'
+import { authorizationChallengeOf, startAuthorizationDiscovery } from './authorization.ts'
+import type { Generation, TaskId } from './brands.ts'
+import {
+  OFFERED_LEGACY_VERSION,
+  callRequestOf,
+  cancelTaskRequest,
+  getTaskRequest,
+  getTaskResultRequest,
+  legacyInitializeParamsOf,
+  listActionsRequest,
+  notificationTextOf,
+  peerRequestAnswerOf,
+  requestMetaOf,
+  requestTextOf,
+  responseTextOf,
+  updateTaskRequest,
+  type ComposedRequest,
+  type NotificationMethod,
+  type RequestMethod,
+} from './composition.ts'
+import { cancelsByNotification, type ConnectionView } from './connection.ts'
+import {
+  NOT_SENT_FAILURE,
+  authorizationRequiredAnswerOf,
+  concludeAnswer,
+  lineGoneAnswerOf,
+  requestClassOf,
+  stopAnswerOf,
+  type AnswerConclusion,
+  type ProtocolVersions,
+  type UnusableCause,
+  type WireAnswer,
+} from './decisions.ts'
+import { discoverWith, withOneResend } from './discovery.ts'
+import { clientEnvelopeOf, mcpRequestHeadersOf, type ClientInfo } from './envelope.ts'
+import type { AuthorizationDiscovery, TaskReport } from './outcomes.ts'
+import { isPlainJson, isPlainRecord, type PlainJson, type PlainRecord } from './plain.ts'
 import type { HttpCredentialHandle } from './ports.ts'
-import {
-  LEGACY_PROTOCOL_VERSIONS,
-  isLegacyProtocolVersion,
-  isModernProtocolVersion,
-} from './revisions.ts'
-import {
-  CLIENT_CAPABILITIES_KEY,
-  CLIENT_INFO_KEY,
-  PROTOCOL_VERSION_KEY,
-  SERVER_INFO_KEY,
-  TASKS_EXTENSION,
-  type PeerNotificationScript,
-  type PeerReceived,
-  type PeerReply,
-  type PeerRequestHeaders,
-  type PeerScript,
-  type PlainJson,
-  type Replies,
+import type { IdentityBound } from './readers.ts'
+import { isModernProtocolVersion } from './revisions.ts'
+import type {
+  PeerNotificationScript,
+  PeerReceived,
+  PeerReply,
+  PeerScript,
+  Replies,
 } from './testing-transport.ts'
 import { jsonOf } from './testing-values.ts'
 import type {
@@ -48,7 +67,8 @@ import type {
   TransportFailure,
   TransportMaterial,
 } from './transport.ts'
-import type { PeerIdentity, Untrusted } from './values.ts'
+import type { PeerIdentity } from './values.ts'
+import { classifyWireEvent, type RequestClass, type WireContext, type WireEvent } from './wire.ts'
 
 export type ScriptedTransportOptions = Readonly<{
   /**
@@ -70,62 +90,16 @@ export type ScriptedTransportFactory = McpTransportFactory &
     received(): readonly PeerReceived[]
   }>
 
-type PlainRecord = Readonly<{ [key: string]: PlainJson }>
 type Request = Extract<PeerReceived, { kind: 'request' }>
+type Headers = Readonly<{ [name: string]: string }>
 
-const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
-const MODERN_ERROR_CODES: readonly number[] = [-32022, -32021, -32020]
-const METHOD_NOT_FOUND = -32601
-const READ_METHODS: readonly string[] = ['server/discover', 'tools/list', 'tasks/get']
-const TASK_STATUSES: readonly TaskStatus[] = [
-  'working',
-  'input_required',
-  'completed',
-  'failed',
-  'cancelled',
-]
-const CLIENT_CAPABILITIES: PlainJson = {
-  elicitation: { form: {} },
-  extensions: { [TASKS_EXTENSION]: {} },
-}
-/**
- * The capabilities on a legacy revision: none. A legacy capability makes the peer send requests
- * to the client, and the client refuses them.
- */
-const LEGACY_CAPABILITIES: PlainJson = {}
-/** The requests whose `Mcp-Name` header carries a parameter, and that parameter. */
-const MCP_NAME_SOURCES: Readonly<{ [method: string]: string }> = {
-  'tools/call': 'name',
-  'tasks/get': 'taskId',
-  'tasks/update': 'taskId',
-  'tasks/cancel': 'taskId',
-}
-const METADATA_PATH = '/.well-known/oauth-protected-resource'
-const INTEGER = /^-?\d+$/u
+const DEFAULT_CLIENT_INFO: ClientInfo = { name: 'scripted-transport', version: '0' }
 
-type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
-const notSent: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
-const malformed = (what: AnswerMalformed['what']): TransportFailure => ({
-  kind: 'answer-malformed',
-  what,
-})
-
-function isPlainJson(value: unknown): value is PlainJson {
-  if (value === null || typeof value === 'string' || typeof value === 'number') return true
-  if (typeof value === 'boolean') return true
-  if (Array.isArray(value)) return value.every(isPlainJson)
-  if (typeof value !== 'object') return false
-  return Object.values(value).every(isPlainJson)
-}
-
-function isPlainRecord(value: PlainJson | undefined): value is PlainRecord {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-/** The plain form of a JSON tree. */
-function plainOf(value: JsonValue): PlainJson {
-  const parsed: unknown = JSON.parse(writeJsonText(value))
-  if (!isPlainJson(parsed)) throw new TypeError('a JSON tree did not write as JSON')
+/** The plain record a message of this side reads as, the way the peer would read it. */
+function plainRecordOf(text: string): PlainRecord {
+  const parsed: unknown = JSON.parse(text)
+  if (!isPlainJson(parsed) || !isPlainRecord(parsed))
+    throw new TypeError('a message of this side did not write as a JSON object')
   return parsed
 }
 
@@ -215,334 +189,121 @@ class ScriptedPeer {
   }
 }
 
-/** What came back for one request, before the transport reads it. */
-type Wire =
-  | Readonly<{ kind: 'result'; result: JsonValue; session?: string }>
-  | Readonly<{ kind: 'error'; error: JsonValue }>
-  | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause }>
-  | Readonly<{ kind: 'not-sent'; failure: NotSent }>
-  | Readonly<{ kind: 'legacy-signal' }>
-  | Readonly<{ kind: 'probe-timeout' }>
-  /** An HTTP 5xx without a JSON-RPC answer: `no-answer` (`stream-broken`), never re-sent. */
-  | Readonly<{ kind: 'server-error' }>
+/** What one request settled with: the wire answer, and the headers of an HTTP answer. */
+type Answered = Readonly<{ wire: WireAnswer; headers?: Headers }>
 
-type Pending = {
-  settle(wire: Wire): void
-  /** Starts the stdio probe time of `server/discover`; an answer before it ends clears it. */
-  startProbe(milliseconds: number): void
-  observe?: (notification: PeerNotification) => void
-  progressToken: string
-}
+const NOT_SENT: Answered = { wire: { kind: 'not-sent', failure: NOT_SENT_FAILURE } }
 
 /**
- * What the modern path makes of one answer to `server/discover`. `fallback` tries the legacy path
- * and reports this failure if that fails too; `legacy-peer` tries it and reports its failure.
+ * The phase of a request in flight (T5), with what each phase holds: the stdio probe time once
+ * sent, and the headers of the refusal with the abort of its discovery once discovering.
  */
-type Probe =
-  | Readonly<{ kind: 'identity'; identity: PeerIdentity }>
-  | Readonly<{ kind: 'retry'; version: string }>
-  | Readonly<{ kind: 'final'; failure: TransportFailure }>
-  | Readonly<{ kind: 'fallback'; failure: TransportFailure }>
-  | Readonly<{ kind: 'legacy-peer' }>
+type Phase =
+  | Readonly<{ kind: 'authorizing' }>
+  | Readonly<{ kind: 'sent'; cancelProbe(): void }>
+  | Readonly<{
+      kind: 'discovery'
+      headers: Headers
+      soFar(): AuthorizationDiscovery
+      abort(): void
+    }>
+
+const AUTHORIZING: Phase = { kind: 'authorizing' }
+
+/**
+ * One request in flight: registered before anything is awaited, with its own settlement (what a
+ * caller waits on) and its departure (when the peer took it: what `call` waits on, with the
+ * settlement, whichever comes first). A defect of the script fails the settlement.
+ */
+type Pending = {
+  readonly id: string
+  readonly context: WireContext
+  readonly answered: Promise<Answered>
+  readonly resolve: (answered: Answered) => void
+  readonly fail: (defect: unknown) => void
+  readonly departed: Promise<void>
+  readonly depart: () => void
+  readonly observe?: (notification: PeerNotification) => void
+  readonly progressToken: string
+  phase: Phase
+}
 
 /** How one request is sent: the observer of a call, the `_meta` version, the probe time. */
 type Dispatch = Readonly<{
   observe?: (notification: PeerNotification) => void
   version?: string
+  request?: RequestClass
   probeTimeoutMs?: number
+  /** Params the caller wrote as value trees, written as they are (RFC-0010). */
+  values?: Readonly<{ [key: string]: JsonValue }>
 }>
 
-class Deferred<T> {
-  settled = false
-  resolve: (value: T) => void = () => undefined
-  readonly promise: Promise<T>
-  constructor() {
-    this.promise = new Promise<T>(resolve => {
-      this.resolve = value => {
-        if (this.settled) return
-        this.settled = true
-        resolve(value)
-      }
-    })
-  }
+/** The headers of an HTTP reply by lower-case name. */
+function lowerCased(headers: Headers | undefined): Headers {
+  return Object.fromEntries(
+    Object.entries(headers ?? {}).map(([name, value]) => [name.toLowerCase(), value]),
+  )
 }
 
-function errorOf(
-  error: JsonValue,
-): Extract<TransportFailure, { kind: 'error-answer' }> | undefined {
-  if (!isObject(error)) return undefined
-  const code = member(error, 'code')
-  const message = textOf(member(error, 'message'))
-  if (code?.kind !== 'number' || !INTEGER.test(code.lexeme) || message === undefined)
-    return undefined
-  const data = member(error, 'data')
-  return {
-    kind: 'error-answer',
-    code: Number(code.lexeme),
-    message,
-    ...(data === undefined ? {} : { data }),
+/** The wire event a reply makes for the request `id` on the material (T8). */
+function eventOf(reply: PeerReply, id: string, stdio: boolean): WireEvent | undefined {
+  const message = (member: Readonly<{ [key: string]: PlainJson }>): WireEvent => {
+    const text = JSON.stringify({ jsonrpc: '2.0', id, ...member })
+    return stdio ? { kind: 'line', text } : { kind: 'http-stream', messages: [text], ended: true }
   }
-}
-
-/** Reads an answer to a non-call request with the reader of that request. */
-function interpret<T>(
-  wire: Wire,
-  read: (result: JsonValue) => Outcome<T, TransportFailure>,
-): Outcome<T, TransportFailure> {
-  switch (wire.kind) {
+  switch (reply.kind) {
     case 'result':
-      return read(wire.result)
-    case 'error': {
-      const answer = errorOf(wire.error)
-      return answer === undefined ? { failure: malformed('error-shape') } : { failure: answer }
-    }
-    case 'no-answer':
-      return { failure: { kind: 'no-answer', cause: wire.cause } }
-    case 'server-error':
-      return { failure: { kind: 'no-answer', cause: 'stream-broken' } }
-    case 'not-sent':
-      return { failure: wire.failure }
-    case 'legacy-signal':
-    case 'probe-timeout':
-      return { failure: malformed('discover-shape') }
+      return message({ result: reply.result })
+    case 'error':
+      return message({ error: reply.error })
+    case 'stream-breaks':
+      return stdio ? { kind: 'stdio-ended', stdoutEndedAt: 0 } : { kind: 'http-aborted' }
+    case 'process-exits':
+      return { kind: 'stdio-ended', stdoutEndedAt: 0, exitedAt: 0 }
+    case 'http':
+      return httpEventOf(reply)
+    case 'silent':
+    case 'unsent':
+      return undefined
     default: {
-      const exhaustive: never = wire
+      const exhaustive: never = reply
       return exhaustive
     }
   }
 }
 
-function readTask(result: JsonValue): Outcome<TaskReport | 'expired', TransportFailure> {
-  if (!isObject(result)) return { failure: malformed('status-unknown') }
-  const written = textOf(member(result, 'status'))
-  const status = TASK_STATUSES.find(known => known === written)
-  const taskId = textOf(member(result, 'taskId'))
-  if (status === undefined || taskId === undefined || taskId === '')
-    return { failure: malformed('status-unknown') }
-  const inputRequests = member(result, 'inputRequests')
-  if (status === 'input_required' && !isObject(inputRequests))
-    return { failure: malformed('input-requests-missing') }
-  if (status === 'completed' && member(result, 'result') === undefined)
-    return { failure: malformed('result-missing') }
-  if (status === 'failed' && !isObject(member(result, 'error')))
-    return { failure: malformed('error-missing') }
-  const report: TaskReport = {
-    status,
-    ...(status === 'input_required' && inputRequests !== undefined
-      ? { inputRequests: { untrusted: inputRequests } }
-      : {}),
-    ...taskHintsOf(result),
-  }
-  return { ok: report }
-}
-
-function readTaskAnswer(result: JsonValue): Outcome<TaskAnswer, TransportFailure> {
-  const report = readTask(result)
-  if ('failure' in report) return report
-  if (report.ok === 'expired' || !isObject(result)) return { ok: { kind: 'expired' } }
-  switch (report.ok.status) {
-    case 'completed': {
-      const value = member(result, 'result')
-      return value === undefined
-        ? { failure: malformed('result-missing') }
-        : { ok: { kind: 'finished', answer: { kind: 'result', result: value } } }
+/** The wire event of an HTTP reply: a 2xx body stream, or an error status with its body. */
+function httpEventOf(reply: Extract<PeerReply, { kind: 'http' }>): WireEvent {
+  if (reply.status < 200)
+    throw new TypeError(`script: an http ${reply.status} reply is not observable`)
+  if (reply.status < 300)
+    return {
+      kind: 'http-stream',
+      messages: reply.body === undefined ? [] : [reply.body],
+      ended: true,
     }
-    case 'failed': {
-      const error = member(result, 'error')
-      return error === undefined
-        ? { failure: malformed('error-missing') }
-        : { ok: { kind: 'finished', answer: { kind: 'error', error } } }
-    }
-    case 'cancelled':
-      return { ok: { kind: 'cancelled' } }
-    case 'working':
-    case 'input_required':
-      return { ok: { kind: 'not-finished' } }
-    default: {
-      const exhaustive: never = report.ok.status
-      return exhaustive
-    }
-  }
-}
-
-/** `expired` for the `-32602` error of a task operation that reads a task. */
-function expiredOf<T>(wire: Wire): Outcome<T | 'expired', TransportFailure> | undefined {
-  if (wire.kind !== 'error') return undefined
-  return errorOf(wire.error)?.code === -32602 ? { ok: 'expired' } : undefined
-}
-
-const RFC9110_TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/u
-const HEADER_TYPES: readonly string[] = ['string', 'integer', 'boolean']
-const NON_REACHABLE: readonly string[] = [
-  'items',
-  'prefixItems',
-  'contains',
-  'additionalProperties',
-  'unevaluatedProperties',
-  'unevaluatedItems',
-  'propertyNames',
-  'patternProperties',
-  'dependentSchemas',
-  'oneOf',
-  'anyOf',
-  'allOf',
-  'not',
-  'if',
-  'then',
-  'else',
-  '$defs',
-  'definitions',
-]
-const NAMED_SUBSCHEMAS: readonly string[] = [
-  'patternProperties',
-  'dependentSchemas',
-  '$defs',
-  'definitions',
-]
-
-/** True when a schema breaks an `x-mcp-header` constraint of SEP-2243. */
-function headerDeclarationInvalid(
-  node: JsonValue | undefined,
-  reachable: boolean,
-  depth: number,
-  seen: Set<string>,
-): boolean {
-  if (!isObject(node)) return false
-  const raw = member(node, 'x-mcp-header')
-  if (raw !== undefined) {
-    const name = textOf(raw)
-    const type = textOf(member(node, 'type'))
-    if (!reachable || depth === 0 || name === undefined || !RFC9110_TOKEN.test(name)) return true
-    if (type === undefined || !HEADER_TYPES.includes(type)) return true
-    const lower = name.toLowerCase()
-    if (seen.has(lower)) return true
-    seen.add(lower)
-  }
-  const properties = member(node, 'properties')
-  if (isObject(properties))
-    for (const entry of properties.entries)
-      if (headerDeclarationInvalid(entry.value, reachable, depth + 1, seen)) return true
-  for (const keyword of NON_REACHABLE) {
-    const sub = member(node, keyword)
-    if (sub === undefined) continue
-    const branches =
-      itemsOf(sub) ??
-      (isObject(sub) && NAMED_SUBSCHEMAS.includes(keyword)
-        ? sub.entries.map(entry => entry.value)
-        : [sub])
-    for (const branch of branches)
-      if (headerDeclarationInvalid(branch, false, depth + 1, seen)) return true
-  }
-  return false
-}
-
-function withheldOf(tools: readonly JsonValue[]): ListingPage {
-  const kept: JsonValue[] = []
-  const withheld: Readonly<{ name: Untrusted<string>; reason: 'header-invalid' }>[] = []
-  for (const tool of tools) {
-    const schema = isObject(tool) ? member(tool, 'inputSchema') : undefined
-    if (headerDeclarationInvalid(schema, true, 0, new Set()))
-      withheld.push({
-        name: { untrusted: (isObject(tool) ? textOf(member(tool, 'name')) : undefined) ?? '' },
-        reason: 'header-invalid',
-      })
-    else kept.push(tool)
-  }
-  return withheld.length === 0 ? { tools: kept } : { tools: kept, withheld }
-}
-
-/** The `WWW-Authenticate` parameters of a Bearer challenge, by name. */
-function challengeOf(header: string | null): ReadonlyMap<string, string> {
-  const parameters = new Map<string, string>()
-  if (header === null) return parameters
-  for (const match of header.matchAll(/([A-Za-z_]+)="([^"]*)"/gu)) {
-    if (match[1] !== undefined && match[2] !== undefined)
-      parameters.set(match[1].toLowerCase(), match[2])
-  }
-  return parameters
-}
-
-/** The error object of an HTTP body that is a JSON-RPC error response, or undefined. */
-function jsonRpcErrorOf(body: string | undefined): JsonValue | undefined {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(body ?? '')
-  } catch {
-    return undefined
-  }
-  if (!isPlainJson(parsed) || !isPlainRecord(parsed)) return undefined
-  // The envelope of T2: `jsonrpc` is "2.0" and exactly one of `result` and `error`, here `error`.
-  const error = parsed['error']
-  if (parsed['jsonrpc'] !== '2.0' || error === undefined || parsed['result'] !== undefined)
-    return undefined
-  return jsonOf(error)
-}
-
-/** HTTP 401, or 403 with `error="insufficient_scope"` (T4). */
-function refusesAuthorization(status: number, challenge: ReadonlyMap<string, string>): boolean {
-  return status === 401 || (status === 403 && challenge.get('error') === 'insufficient_scope')
-}
-
-/** The JSON-RPC error of a modern-revision code in an HTTP body, or undefined. */
-function modernErrorOf(body: string | undefined): JsonValue | undefined {
-  const error = jsonRpcErrorOf(body)
-  const code = error === undefined ? undefined : errorOf(error)?.code
-  return code !== undefined && MODERN_ERROR_CODES.includes(code) ? error : undefined
-}
-
-/**
- * An HTTP error status to `server/discover`, other than a refused authorization (T8 D04–D16):
- * 5xx is final; below 500 a JSON-RPC error of the modern revision in the body is the answer, and
- * anything else is a legacy signal. This is `classifyHttpError` of the official TypeScript SDK.
- */
-function probeAnswerOf(reply: Extract<PeerReply, { kind: 'http' }>): Wire {
-  if (reply.status >= 500) return { kind: 'server-error' }
-  const error = modernErrorOf(reply.body)
-  return error === undefined ? { kind: 'legacy-signal' } : { kind: 'error', error }
-}
-
-/**
- * An HTTP error status to any other request (T8): a JSON-RPC error in the body is the answer; a
- * 5xx without one is a server error; a 4xx without one did not take effect.
- */
-function errorAnswerOf(reply: Extract<PeerReply, { kind: 'http' }>): Wire {
-  const error = jsonRpcErrorOf(reply.body)
-  if (error !== undefined) return { kind: 'error', error }
-  return reply.status >= 500 ? { kind: 'server-error' } : { kind: 'not-sent', failure: notSent }
-}
-
-/** `data.supported` of a `-32022` error: a non-empty list of texts, or undefined. */
-function supportedOf(data: JsonValue | undefined): readonly string[] | undefined {
-  const items = isObject(data) ? itemsOf(member(data, 'supported')) : undefined
-  if (items === undefined || items.length === 0) return undefined
-  const texts = items.flatMap(item => (item.kind === 'string' ? [item.value] : []))
-  return texts.length === items.length ? texts : undefined
-}
-
-/** The MCP request headers of a Streamable HTTP request (T3), with the legacy session if any. */
-function headersOf(
-  method: string,
-  params: PlainRecord,
-  version: string,
-  session: string | undefined,
-): PeerRequestHeaders {
-  const source = MCP_NAME_SOURCES[method]
-  const name = source === undefined ? undefined : params[source]
   return {
-    'mcp-protocol-version': version,
-    'mcp-method': method,
-    ...(typeof name === 'string' ? { 'mcp-name': name } : {}),
-    ...(session === undefined || method === 'initialize' ? {} : { 'mcp-session-id': session }),
+    kind: 'http-status',
+    status: reply.status,
+    headers: lowerCased(reply.headers),
+    body: reply.body ?? '',
   }
 }
 
-function stringsOf(value: PlainJson | undefined): readonly string[] {
-  return Array.isArray(value) ? value.flatMap(item => (typeof item === 'string' ? [item] : [])) : []
+/**
+ * Whether the peer may have received a request answered with `reply`: everything but a request
+ * that fails before it leaves, and an HTTP error status, which settles the request before any
+ * answer stream began (T5: the boundary of `sent`).
+ */
+function departs(reply: PeerReply): boolean {
+  if (reply.kind === 'unsent') return false
+  return reply.kind !== 'http' || reply.status < 300
 }
 
 /** One transport opened on one material, against the scripted peer. */
 class ScriptedTransport implements McpTransport {
   readonly generation: Generation
+  /** The requests in flight: an entry leaves the table when it settles, and only then. */
   private readonly pending = new Map<string, Pending>()
   /** The ids of the requests that the credential handle authorized. */
   private readonly authorized = new Set<string>()
@@ -550,19 +311,19 @@ class ScriptedTransport implements McpTransport {
   private peerRequestCount = 0
   private version: string | undefined
   private closed = false
-  private dead: NoAnswerCause | 'session-ended' | undefined
+  private dead: UnusableCause | undefined
   /** The `Mcp-Session-Id` of a legacy Streamable HTTP connection. */
   private session: string | undefined
   private readonly peer: ScriptedPeer
   private readonly material: TransportMaterial
   private readonly options: ScriptedTransportOptions
-  private readonly versions: readonly string[]
+  private readonly versions: ProtocolVersions
 
   constructor(
     peer: ScriptedPeer,
     material: TransportMaterial,
     options: ScriptedTransportOptions,
-    versions: readonly string[],
+    versions: ProtocolVersions,
   ) {
     this.peer = peer
     this.material = material
@@ -571,20 +332,24 @@ class ScriptedTransport implements McpTransport {
     this.generation = material.generation
   }
 
-  private get highest(): string {
-    const highest = this.versions[0]
-    if (highest === undefined) throw new TypeError('the scripted transport speaks no version')
-    return highest
+  private get stdio(): boolean {
+    return this.material.kind === 'stdio'
   }
 
-  /** The `_meta` envelope. The capabilities follow the version: no tasks extension on a legacy one. */
-  private envelope(version = this.version ?? this.highest): PlainRecord {
+  private get clientInfo(): ClientInfo {
+    return this.options.clientInfo ?? DEFAULT_CLIENT_INFO
+  }
+
+  /** The `_meta` envelope (T3), by the contract's one implementation. */
+  private envelope(version = this.version ?? this.versions[0]): PlainRecord {
+    return clientEnvelopeOf(version, this.clientInfo)
+  }
+
+  /** The material facts that bind the peer instructions (T3, S3). */
+  private get bound(): IdentityBound {
     return {
-      [PROTOCOL_VERSION_KEY]: version,
-      [CLIENT_CAPABILITIES_KEY]: isModernProtocolVersion(version)
-        ? CLIENT_CAPABILITIES
-        : LEGACY_CAPABILITIES,
-      [CLIENT_INFO_KEY]: this.options.clientInfo ?? { name: 'scripted-transport', version: '0' },
+      generation: this.generation,
+      instructionsByteLimit: this.material.instructionsByteLimit,
     }
   }
 
@@ -592,15 +357,15 @@ class ScriptedTransport implements McpTransport {
     return !this.closed && this.dead === undefined
   }
 
-  /** The stream or the process is gone: every pending request answers with the cause. */
-  private die(cause: NoAnswerCause): void {
-    this.dead = cause
-    for (const entry of this.pending.values()) entry.settle({ kind: 'no-answer', cause })
+  private get credential(): HttpCredentialHandle | undefined {
+    return this.material.kind === 'streamable-http' ? this.material.credential : undefined
   }
 
-  /** True when the connection speaks a legacy revision. */
-  private get legacy(): boolean {
-    return this.version !== undefined && !isModernProtocolVersion(this.version)
+  /** The connection as the T2 and T5 rules see it. */
+  private get connection(): ConnectionView {
+    return this.material.kind === 'stdio'
+      ? { kind: 'stdio', version: this.version }
+      : { kind: 'streamable-http', version: this.version, mode: 'streamable' }
   }
 
   private reserveId(): string {
@@ -608,71 +373,174 @@ class ScriptedTransport implements McpTransport {
     return `r${this.nextId}`
   }
 
+  private headersOf(method: string, params: PlainRecord, version: string) {
+    return this.material.kind === 'streamable-http'
+      ? { headers: mcpRequestHeadersOf(method, params, version, this.session) }
+      : {}
+  }
+
+  // ---- The requests in flight: registration, the phases, and what settles them ----
+
+  private settle(entry: Pending, answered: Answered): void {
+    if (!this.pending.delete(entry.id)) return
+    if (entry.phase.kind === 'sent') entry.phase.cancelProbe()
+    entry.resolve(answered)
+  }
+
+  /** Stops a request where it stands (T5): the caller's signal fired, `cancelRequest` or `close()` ran. */
+  private stop(entry: Pending): void {
+    if (!this.pending.has(entry.id)) return
+    const phase = entry.phase
+    if (phase.kind === 'discovery') phase.abort()
+    this.settle(
+      entry,
+      phase.kind === 'discovery'
+        ? { wire: stopAnswerOf(phase), headers: phase.headers }
+        : { wire: stopAnswerOf(phase) },
+    )
+  }
+
+  /** The transport is unusable from now on; every request in flight settles by its phase (T8). */
+  private unusable(cause: UnusableCause): void {
+    this.dead ??= cause
+    for (const entry of this.pending.values()) {
+      const wire = lineGoneAnswerOf(entry.phase, cause)
+      if (wire !== undefined) this.settle(entry, { wire })
+    }
+  }
+
+  /**
+   * Registers one request and starts its sending in the background; the caller waits on the
+   * settlement. Undefined when the transport cannot be used: nothing is registered.
+   */
+  private begin(
+    method: RequestMethod,
+    params: PlainRecord,
+    how: Dispatch,
+    signal?: AbortSignal,
+  ): Pending | undefined {
+    if (!this.usable) return undefined
+    const id = this.reserveId()
+    const context: WireContext = {
+      id,
+      request: how.request ?? requestClassOf(method, false),
+      session: this.session !== undefined && method !== 'initialize',
+      versions: this.versions,
+    }
+    const answered = Promise.withResolvers<Answered>()
+    const departed = Promise.withResolvers<void>()
+    const entry: Pending = {
+      id,
+      context,
+      answered: answered.promise,
+      resolve: answered.resolve,
+      fail: answered.reject,
+      departed: departed.promise,
+      depart: departed.resolve,
+      ...(how.observe === undefined ? {} : { observe: how.observe }),
+      progressToken: id,
+      phase: AUTHORIZING,
+    }
+    this.pending.set(id, entry)
+    if (signal !== undefined) this.wireSignal(entry, signal)
+    void this.send(entry, method, params, how)
+    return entry
+  }
+
+  /** Wires the call's signal to the entry: once it fires, the entry is stopped where it stands (T5). */
+  private wireSignal(entry: Pending, signal: AbortSignal): void {
+    const onAbort = () => this.stop(entry)
+    if (signal.aborted) return onAbort()
+    signal.addEventListener('abort', onAbort, { once: true })
+    const unwire = () => signal.removeEventListener('abort', onAbort)
+    void entry.answered.then(unwire, unwire)
+  }
+
+  /**
+   * The sending of one request: authorizes it, then hands it to the peer. An entry stopped
+   * meanwhile is left as it settled. A defect of the script fails the settlement.
+   */
+  private async send(
+    entry: Pending,
+    method: RequestMethod,
+    params: PlainRecord,
+    how: Dispatch,
+  ): Promise<void> {
+    try {
+      if (!(await this.authorize(entry.id))) return this.settle(entry, NOT_SENT)
+      if (!this.pending.has(entry.id)) return
+      this.dispatch(entry, method, params, how)
+    } catch (defect) {
+      this.pending.delete(entry.id)
+      entry.fail(defect)
+    }
+  }
+
   /** Composes the request, records it, and lets the peer answer after the pace hook. */
   private dispatch(
-    id: string,
-    method: string,
+    entry: Pending,
+    method: RequestMethod,
     params: PlainRecord,
-    how: Dispatch = {},
-  ): Readonly<{ reply: PeerReply | undefined; wire: Promise<Wire> }> {
-    const version = how.version ?? this.version ?? this.highest
-    const meta: PlainRecord =
-      method === 'tools/call'
-        ? { ...this.envelope(version), progressToken: id }
-        : this.envelope(version)
+    how: Dispatch,
+  ): void {
+    const id = entry.id
+    const version = how.version ?? this.version ?? this.versions[0]
+    const meta = requestMetaOf(method, id, version, this.clientInfo)
+    const written = plainRecordOf(
+      requestTextOf({ id, method, params: { ...params, _meta: meta }, values: how.values ?? {} }),
+    )
+    const sent = isPlainRecord(written['params']) ? written['params'] : {}
     const request: Request = {
       kind: 'request',
       id,
       method,
-      params: { ...params, _meta: meta },
-      ...(this.material.kind === 'streamable-http'
-        ? { headers: headersOf(method, params, version, this.session) }
-        : {}),
+      params: sent,
+      ...this.headersOf(method, params, version),
     }
-    const deferred = new Deferred<Wire>()
-    let probe: ReturnType<typeof setTimeout> | undefined
-    const entry: Pending = {
-      settle: wire => {
-        clearTimeout(probe)
-        this.pending.delete(id)
-        deferred.resolve(wire)
-      },
-      startProbe: milliseconds => {
-        probe = setTimeout(() => entry.settle({ kind: 'probe-timeout' }), milliseconds)
-      },
-      ...(how.observe === undefined ? {} : { observe: how.observe }),
-      progressToken: id,
-    }
-    if (!this.usable) {
-      entry.settle({ kind: 'not-sent', failure: notSent })
-      return { reply: undefined, wire: deferred.promise }
-    }
-    const reply = this.peer.reply(method, params)
+    const reply = this.peer.reply(method, sent)
     this.validate(reply, method)
+    entry.phase = { kind: 'sent', cancelProbe: () => undefined }
     if (reply.kind === 'unsent') {
-      // The request fails before it leaves; a broken stdio pipe ends the transport (T8 X01, X02).
-      entry.settle({ kind: 'not-sent', failure: notSent })
-      if (this.material.kind === 'stdio') this.die('stream-broken')
-      return { reply, wire: deferred.promise }
+      // The request fails before it leaves; the peer does not see it (T8 X01, X02).
+      return this.apply(
+        entry,
+        concludeAnswer(
+          classifyWireEvent({ kind: 'unsent' }, entry.context),
+          entry.context,
+          this.material.kind,
+        ),
+        {},
+      )
     }
-    this.pending.set(id, entry)
     this.peer.log.push(request)
+    if (departs(reply)) entry.depart()
     void this.deliver(request, reply, entry, how.probeTimeoutMs)
-    return { reply, wire: deferred.promise }
   }
 
   /** A reply the material cannot carry is a defect of the script, reported at once. */
   private validate(reply: PeerReply, method: string): void {
-    const stdio = this.material.kind === 'stdio'
-    if (reply.kind === 'http' && stdio)
+    if (reply.kind === 'http' && this.stdio)
       throw new TypeError(`script: an http reply to ${method} on stdio material`)
-    if (reply.kind === 'process-exits' && !stdio)
+    if (reply.kind === 'process-exits' && !this.stdio)
       throw new TypeError(`script: a process-exits reply to ${method} on streamable-http material`)
+  }
+
+  /** D13: starts the stdio probe time of `server/discover`; an answer before it ends clears it. */
+  private startProbe(entry: Pending, milliseconds: number): void {
+    const probe = setTimeout(() => {
+      const conclusion = concludeAnswer(
+        classifyWireEvent({ kind: 'nothing' }, entry.context),
+        entry.context,
+        this.material.kind,
+      )
+      this.apply(entry, conclusion, {})
+    }, milliseconds)
+    entry.phase = { kind: 'sent', cancelProbe: () => clearTimeout(probe) }
   }
 
   /**
    * Answers after the pace hook. The probe time starts only then, so a test that holds the answer
-   * does not turn a modern peer into a legacy one.
+   * does not turn a modern peer into a legacy one. A defect of the script fails the settlement.
    */
   private async deliver(
     request: Request,
@@ -680,35 +548,42 @@ class ScriptedTransport implements McpTransport {
     entry: Pending,
     probeTimeoutMs: number | undefined,
   ): Promise<void> {
-    await this.options.pace?.(request)
-    if (!this.pending.has(request.id)) return
-    if (probeTimeoutMs !== undefined) entry.startProbe(probeTimeoutMs)
-    switch (reply.kind) {
-      case 'result': {
+    try {
+      await this.options.pace?.(request)
+      if (!this.pending.has(request.id)) return
+      if (probeTimeoutMs !== undefined) this.startProbe(entry, probeTimeoutMs)
+      if (reply.kind === 'result')
         for (const notification of reply.notifications ?? []) this.notify(notification, entry)
-        const session =
-          this.material.kind === 'streamable-http' ? reply.headers?.['mcp-session-id'] : undefined
-        return entry.settle({
-          kind: 'result',
-          result: jsonOf(reply.result),
-          ...(session === undefined ? {} : { session }),
-        })
-      }
-      case 'error':
-        return entry.settle({ kind: 'error', error: jsonOf(reply.error) })
-      case 'silent':
-        return undefined
-      case 'stream-breaks':
-        if (this.material.kind === 'stdio') return this.die('stream-broken')
-        return entry.settle({ kind: 'no-answer', cause: 'stream-broken' })
-      case 'process-exits':
-        return this.die('process-exited')
-      case 'http':
-        return entry.settle(await this.httpAnswer(request, reply))
-      case 'unsent':
-        return undefined
+      const event = eventOf(reply, request.id, this.stdio)
+      if (event === undefined) return
+      const headers = lowerCased(
+        reply.kind === 'http' || reply.kind === 'result' ? reply.headers : undefined,
+      )
+      const conclusion = concludeAnswer(
+        classifyWireEvent(event, entry.context),
+        entry.context,
+        this.material.kind,
+      )
+      this.apply(entry, conclusion, headers)
+    } catch (defect) {
+      this.pending.delete(entry.id)
+      entry.fail(defect)
+    }
+  }
+
+  /** Settles the request as the T8 row says, and what the row says of the transport. */
+  private apply(entry: Pending, conclusion: AnswerConclusion, headers: Headers): void {
+    switch (conclusion.kind) {
+      case 'wait':
+        return
+      case 'settle':
+        this.settle(entry, { wire: conclusion.wire, headers })
+        if (conclusion.unusable !== undefined) this.unusable(conclusion.unusable)
+        return
+      case 'authorization-required':
+        return this.enterDiscovery(entry, headers)
       default: {
-        const exhaustive: never = reply
+        const exhaustive: never = conclusion
         return exhaustive
       }
     }
@@ -736,82 +611,36 @@ class ScriptedTransport implements McpTransport {
   }
 
   /**
-   * An HTTP-level answer (T8). A 2xx without a JSON-RPC answer is a broken answer stream. A refused
-   * authorization is read by T4; another 403 is not sent. A 404 to the legacy session ends it.
-   * The other error statuses are read by `probeAnswerOf` on `server/discover` and by
-   * `errorAnswerOf` elsewhere.
+   * T4: the request was refused. `reportRejection` once on the handle that authorized it, and the
+   * discovery of R4, run in the background; the request settles when both ended, or by its phase
+   * when it is stopped first (T5).
    */
-  private async httpAnswer(
-    request: Request,
-    reply: Extract<PeerReply, { kind: 'http' }>,
-  ): Promise<Wire> {
-    if (reply.status < 200)
-      throw new TypeError(`script: an http ${reply.status} reply is not observable`)
-    if (reply.status < 300) return { kind: 'no-answer', cause: 'stream-broken' }
-    const challenge = challengeOf(new Headers(reply.headers ?? {}).get('www-authenticate'))
-    if (refusesAuthorization(reply.status, challenge))
-      return this.authorizationRequired(request, challenge)
-    if (reply.status === 403) return { kind: 'not-sent', failure: notSent }
-    if (reply.status === 404 && request.headers?.['mcp-session-id'] !== undefined) {
-      this.dead = 'session-ended'
-      return { kind: 'not-sent', failure: { kind: 'not-sent', cause: 'session-ended' } }
-    }
-    return request.method === 'server/discover' ? probeAnswerOf(reply) : errorAnswerOf(reply)
-  }
-
-  /** T4: reports the rejection to the handle that authorized the request, then discovers. */
-  private async authorizationRequired(
-    request: Request,
-    challenge: ReadonlyMap<string, string>,
-  ): Promise<Wire> {
-    if (this.credential !== undefined && this.authorized.has(request.id))
-      // A handle whose reportRejection rejects or throws is ignored (T9).
-      await Promise.resolve()
-        .then(() => this.credential?.reportRejection())
-        .catch(() => undefined)
-    const discovery = await this.discoverAuthorization(challenge)
-    return {
-      kind: 'not-sent',
-      failure: { kind: 'not-sent', cause: 'authorization-required', discovery },
-    }
-  }
-
-  private get credential(): HttpCredentialHandle | undefined {
-    return this.material.kind === 'streamable-http' ? this.material.credential : undefined
-  }
-
-  private async discoverAuthorization(
-    challenge: ReadonlyMap<string, string>,
-  ): Promise<AuthorizationDiscovery> {
-    const target =
-      this.material.kind === 'streamable-http' ? this.material.target : 'https://invalid.test/'
-    const origin = new URL(target)
-    const path = origin.pathname.replace(/\/$/u, '')
-    const named = challenge.get('resource_metadata')
-    const candidates =
-      named === undefined
-        ? [new URL(`${METADATA_PATH}${path}`, origin).href, new URL(METADATA_PATH, origin).href]
-        : [named]
-    let found: Readonly<{ url: string; metadata: PlainRecord }> | undefined
-    for (const url of candidates) {
-      const metadata = this.peer.wellKnown(url)
-      // A document that is not a JSON object counts as not fetched (R4).
-      if (isPlainRecord(metadata)) {
-        found = { url, metadata }
-        break
-      }
-    }
-    const scope = challenge.get('scope')
-    const headerScopes = scope === undefined ? [] : scope.split(/\s+/u).filter(item => item !== '')
-    const metadata = found?.metadata
-    const fallbackUrl = candidates.at(-1) ?? new URL(METADATA_PATH, origin).href
-    return {
-      resourceMetadataUrl: found?.url ?? fallbackUrl,
-      metadata: found === undefined ? 'unavailable' : 'fetched',
-      ...(found === undefined ? {} : { resourceMetadata: { untrusted: jsonOf(found.metadata) } }),
-      issuers: stringsOf(metadata?.['authorization_servers']),
-      scopes: headerScopes.length > 0 ? headerScopes : stringsOf(metadata?.['scopes_supported']),
-    }
+  private enterDiscovery(entry: Pending, headers: Headers): void {
+    const target = this.material.kind === 'streamable-http' ? this.material.target : undefined
+    if (target === undefined)
+      throw new TypeError('script: a refused authorization on stdio material')
+    const credential = this.credential
+    // A handle whose reportRejection rejects or throws is ignored (T9).
+    const reported =
+      credential !== undefined && this.authorized.has(entry.id)
+        ? Promise.resolve()
+            .then(() => credential.reportRejection())
+            .catch(() => undefined)
+        : Promise.resolve()
+    const controller = new AbortController()
+    const run = startAuthorizationDiscovery(
+      target,
+      authorizationChallengeOf(headers['www-authenticate']),
+      async url => {
+        const metadata = this.peer.wellKnown(url)
+        return metadata === undefined ? undefined : jsonOf(metadata)
+      },
+      controller.signal,
+    )
+    entry.phase = { kind: 'discovery', headers, soFar: run.soFar, abort: () => controller.abort() }
+    void Promise.all([reported, run.done]).then(([, discovery]) =>
+      this.settle(entry, { wire: authorizationRequiredAnswerOf(discovery), headers }),
+    )
   }
 
   /** Authorizes an outgoing request with the credential handle, when the material has one. */
@@ -828,163 +657,61 @@ class ScriptedTransport implements McpTransport {
     return true
   }
 
-  /** Sends one non-call request. On Streamable HTTP a read request is re-sent once after a broken stream. */
-  private async request(method: string, params: PlainRecord, version?: string): Promise<Wire> {
-    const first = await this.once(method, params, version)
-    const readClass = this.material.kind === 'streamable-http' && READ_METHODS.includes(method)
-    if (first.kind === 'no-answer' && first.cause === 'stream-broken' && readClass)
-      return this.once(method, params, version)
-    return first
+  /** Sends one non-call request; the row may send it once more after a broken stream (D15, O05). */
+  private request(
+    method: RequestMethod,
+    params: PlainRecord,
+    how: Dispatch = {},
+  ): Promise<Answered> {
+    return withOneResend(() => this.once(method, params, how))
   }
 
-  private async once(method: string, params: PlainRecord, version?: string): Promise<Wire> {
-    if (!this.usable) return { kind: 'not-sent', failure: notSent }
-    const id = this.reserveId()
-    if (!(await this.authorize(id))) return { kind: 'not-sent', failure: notSent }
-    const probe = method === 'server/discover' && this.material.kind === 'stdio'
-    const sent = this.dispatch(id, method, params, {
-      ...(version === undefined ? {} : { version }),
+  /** Sends the request an operation composed and reads its answer the way the operation does. */
+  private async perform<T>(composed: ComposedRequest<T>): Promise<Outcome<T, TransportFailure>> {
+    const how: Dispatch = composed.values === undefined ? {} : { values: composed.values }
+    return composed.read((await this.request(composed.method, composed.params, how)).wire)
+  }
+
+  /** Registers one request and waits on its settlement only: never on its sending. */
+  private once(method: RequestMethod, params: PlainRecord, how: Dispatch): Promise<Answered> {
+    const probe = method === 'server/discover' && this.stdio
+    const entry = this.begin(method, params, {
+      ...how,
       ...(probe ? { probeTimeoutMs: this.options.probeTimeoutMs ?? 0 } : {}),
     })
-    return sent.wire
+    return entry === undefined ? Promise.resolve(NOT_SENT) : entry.answered
   }
 
   /** Sends a notification. Whatever the peer answers to it does not change any outcome (T8 N01). */
-  private sendNotification(method: string, params: PlainRecord): void {
-    const version = this.version ?? this.highest
+  private sendNotification(method: NotificationMethod, params: PlainRecord): void {
+    const version = this.version ?? this.versions[0]
+    const written = plainRecordOf(
+      notificationTextOf({ method, params: { ...params, _meta: this.envelope() } }),
+    )
     this.peer.log.push({
       kind: 'notification',
       method,
-      params: { ...params, _meta: this.envelope() },
-      ...(this.material.kind === 'streamable-http'
-        ? {
-            headers: {
-              'mcp-protocol-version': version,
-              'mcp-method': method,
-              ...(this.session === undefined ? {} : { 'mcp-session-id': this.session }),
-            },
-          }
-        : {}),
+      params: written['params'] ?? {},
+      ...this.headersOf(method, params, version),
     })
     const reply = this.peer.notificationReply(method)
-    if (reply === undefined || this.material.kind !== 'stdio') return
-    if (reply.kind === 'stream-breaks') this.die('stream-broken')
-    if (reply.kind === 'process-exits') this.die('process-exited')
+    if (reply === undefined || !this.stdio) return
+    if (reply.kind === 'stream-breaks') this.unusable('stream-broken')
+    if (reply.kind === 'process-exits') this.unusable('process-exited')
   }
 
   async discover(): Promise<Outcome<PeerIdentity, TransportFailure>> {
-    const modern = await this.modernPath()
-    if (modern.kind === 'identity') return { ok: modern.identity }
-    if (modern.kind === 'final') return { failure: modern.failure }
-    const legacy = await this.legacyPath()
-    if ('ok' in legacy || modern.kind === 'legacy-peer') return legacy
-    return { failure: modern.failure }
-  }
-
-  /** The modern path: `server/discover`, once more after a `-32022` that names a version in common. */
-  private async modernPath(): Promise<Exclude<Probe, Readonly<{ kind: 'retry' }>>> {
-    let version = this.highest
-    let retried = false
-    for (;;) {
-      const probe = this.probeOf(await this.request('server/discover', {}, version), retried)
-      if (probe.kind !== 'retry') return probe
-      retried = true
-      version = probe.version
-    }
-  }
-
-  /** What one answer to `server/discover` means (T3). */
-  private probeOf(wire: Wire, retried: boolean): Probe {
-    switch (wire.kind) {
-      case 'result': {
-        const read = this.readDiscover(wire.result)
-        if ('ok' in read) return { kind: 'identity', identity: read.ok }
-        // A result without a version in common is a legacy peer, as in the SDK's classifyResult.
-        if (read.failure === 'no-common-version') return { kind: 'legacy-peer' }
-        return { kind: 'fallback', failure: malformed('discover-shape') }
-      }
-      case 'error':
-        return this.probeErrorOf(wire.error, retried)
-      case 'no-answer':
-      case 'not-sent':
-      case 'server-error':
-        return { kind: 'final', failure: interpretFailure(wire) }
-      case 'legacy-signal':
-      case 'probe-timeout':
-        return { kind: 'legacy-peer' }
-      default: {
-        const exhaustive: never = wire
-        return exhaustive
-      }
-    }
-  }
-
-  /** A JSON-RPC error on `server/discover`: the modern codes are final, `-32601` is a legacy peer. */
-  private probeErrorOf(error: JsonValue, retried: boolean): Probe {
-    const answer = errorOf(error)
-    if (answer === undefined) return { kind: 'fallback', failure: malformed('error-shape') }
-    if (answer.code === -32022 && !retried) return this.versionRetryOf(answer.data)
-    if (MODERN_ERROR_CODES.includes(answer.code)) return { kind: 'final', failure: answer }
-    if (answer.code === METHOD_NOT_FOUND) return { kind: 'legacy-peer' }
-    return { kind: 'fallback', failure: answer }
-  }
-
-  /**
-   * The first `-32022`, as the SDK's classifyRpcError reads it: without a list of supported
-   * versions, or with no modern version in it, the peer is a legacy peer; with modern versions but
-   * none in common there is nothing to retry.
-   */
-  private versionRetryOf(data: JsonValue | undefined): Probe {
-    const modern = (supportedOf(data) ?? []).filter(isModernProtocolVersion)
-    if (modern.length === 0) return { kind: 'legacy-peer' }
-    const common = this.commonVersion(modern)
-    return common === undefined
-      ? { kind: 'final', failure: malformed('discover-shape') }
-      : { kind: 'retry', version: common }
-  }
-
-  private commonVersion(offered: readonly string[]): string | undefined {
-    return this.versions.find(version => offered.includes(version))
-  }
-
-  private readDiscover(result: JsonValue): Outcome<PeerIdentity, 'shape' | 'no-common-version'> {
-    if (!isObject(result)) return { failure: 'shape' }
-    const versions = itemsOf(member(result, 'supportedVersions'))
-    const capabilities = member(result, 'capabilities')
-    if (versions === undefined || !isObject(capabilities)) return { failure: 'shape' }
-    const offered = versions.flatMap(item => (item.kind === 'string' ? [item.value] : []))
-    const version = this.commonVersion(offered)
-    if (version === undefined || !isProtocolVersion(version))
-      return { failure: 'no-common-version' }
-    this.version = version
-    const meta = member(result, '_meta')
-    const serverInfo = isObject(meta) ? member(meta, SERVER_INFO_KEY) : undefined
-    return {
-      ok: this.identity(version, capabilities, serverInfo, textOf(member(result, 'instructions'))),
-    }
-  }
-
-  private identity(
-    version: PeerIdentity['protocolVersion'],
-    capabilities: JsonValue,
-    serverInfo: JsonValue | undefined,
-    instructions: string | undefined,
-  ): PeerIdentity {
-    return {
-      protocolVersion: version,
-      capabilities,
-      ...(serverInfo === undefined ? {} : { serverInfo: { untrusted: serverInfo } }),
-      ...(instructions === undefined
-        ? {}
-        : {
-            instructions: {
-              untrusted: {
-                ...boundInstructions(instructions, this.material.instructionsByteLimit),
-                generation: this.generation,
-              },
-            },
-          }),
-    }
+    const discovered = await discoverWith(
+      {
+        probe: async (version, request) =>
+          (await this.request('server/discover', {}, { version, request })).wire,
+        legacy: () => this.legacyPath(),
+      },
+      this.versions,
+      this.bound,
+    )
+    if ('ok' in discovered) this.version = discovered.ok.protocolVersion
+    return discovered
   }
 
   /**
@@ -994,159 +721,110 @@ class ScriptedTransport implements McpTransport {
   private answerPeerRequests(at: 'initialize' | 'initialized'): void {
     for (const request of this.peer.peerRequests(at)) {
       const id = `p${(this.peerRequestCount += 1)}`
-      this.peer.log.push(
-        request.method === 'ping'
-          ? { kind: 'response', id, result: {} }
-          : { kind: 'response', id, error: { code: -32601, message: 'Method not found' } },
-      )
+      const answer = peerRequestAnswerOf({
+        kind: 'request',
+        id: jsonOf(id),
+        method: request.method,
+      })
+      const written = plainRecordOf(responseTextOf({ id: jsonOf(id), ...answer }))
+      this.peer.log.push({
+        kind: 'response',
+        id,
+        ...(written['result'] === undefined ? {} : { result: written['result'] }),
+        ...(written['error'] === undefined ? {} : { error: written['error'] }),
+      })
     }
   }
 
   /** The legacy path: `initialize` with the highest legacy version, then `notifications/initialized`. */
   private async legacyPath(): Promise<Outcome<PeerIdentity, TransportFailure>> {
-    const wire = await this.request(
-      'initialize',
-      {
-        protocolVersion: OFFERED_LEGACY_VERSION,
-        capabilities: LEGACY_CAPABILITIES,
-        clientInfo: this.options.clientInfo ?? { name: 'scripted-transport', version: '0' },
-      },
-      OFFERED_LEGACY_VERSION,
-    )
-    this.answerPeerRequests('initialize')
-    const read = interpret(wire, (result): Outcome<PeerIdentity, TransportFailure> => {
-      const version = isObject(result) ? textOf(member(result, 'protocolVersion')) : undefined
-      const capabilities = isObject(result) ? member(result, 'capabilities') : undefined
-      if (
-        !isObject(result) ||
-        !isProtocolVersion(version) ||
-        !isLegacyProtocolVersion(version) ||
-        !isObject(capabilities)
-      )
-        return { failure: malformed('discover-shape') }
-      this.version = version
-      return {
-        ok: this.identity(
-          version,
-          capabilities,
-          member(result, 'serverInfo'),
-          textOf(member(result, 'instructions')),
-        ),
-      }
+    const answered = await this.request('initialize', legacyInitializeParamsOf(this.clientInfo), {
+      version: OFFERED_LEGACY_VERSION,
     })
+    this.answerPeerRequests('initialize')
+    const read = legacyIdentityOf(answered.wire, this.bound)
     if ('failure' in read) return read
-    if (wire.kind === 'result') this.session = wire.session
+    this.version = read.ok.protocolVersion
+    if (this.material.kind === 'streamable-http')
+      this.session = answered.headers?.['mcp-session-id']
     this.sendNotification('notifications/initialized', {})
     this.answerPeerRequests('initialized')
     return read
   }
 
   async listActions(cursor?: string): Promise<Outcome<ListingPage, TransportFailure>> {
-    const wire = await this.request('tools/list', cursor === undefined ? {} : { cursor })
-    return interpret(wire, result => {
-      const tools = isObject(result) ? itemsOf(member(result, 'tools')) : undefined
-      if (!isObject(result) || tools === undefined) return { failure: malformed('tools-missing') }
-      const cursor = member(result, 'nextCursor')
-      const nextCursor = textOf(cursor)
-      if (cursor !== undefined && nextCursor === undefined)
-        return { failure: malformed('cursor-invalid') }
-      const ttlMs = countOf(member(result, 'ttlMs'))
-      // SEP-2243 belongs to the modern revision: a legacy connection sends no `Mcp-Param` header.
-      const checked = this.material.kind === 'streamable-http' && !this.legacy
-      const page = checked ? withheldOf(tools) : { tools }
-      return {
-        ok: {
-          ...page,
-          ...(nextCursor === undefined ? {} : { nextCursor }),
-          ...(ttlMs === undefined ? {} : { ttlMs }),
-        },
-      }
-    })
+    return this.perform(listActionsRequest(cursor, this.connection))
   }
 
+  /**
+   * `call` waits for the request to reach the peer or to settle, whichever comes first (T5): a
+   * `SentCall` once the peer may have received it, `not-sent` as the call's own failure when it
+   * settled so before.
+   */
   async call(
     request: CallRequest,
     signal: AbortSignal,
     observe?: (notification: PeerNotification) => void,
   ): Promise<Outcome<SentCall, Extract<TransportFailure, { kind: 'not-sent' }>>> {
-    if (!this.usable || signal.aborted) return { failure: notSent }
-    const id = this.reserveId()
-    if (!(await this.authorize(id))) return { failure: notSent }
-    const continuation = request.continuation
-    const params: PlainRecord = {
-      name: request.action,
-      arguments: plainOf(request.args),
-      ...(continuation?.requestState === undefined
-        ? {}
-        : { requestState: continuation.requestState }),
-      ...(continuation?.inputResponses === undefined
-        ? {}
-        : { inputResponses: plainOf(continuation.inputResponses) }),
-    }
-    const sent = this.dispatch(id, 'tools/call', params, observe === undefined ? {} : { observe })
-    // An HTTP-level answer settles before the call returns: a refusal is a failure of the call
-    // itself (T4), a 400 with a JSON-RPC error is the answer of the peer.
-    if (sent.reply === undefined || sent.reply.kind === 'http' || sent.reply.kind === 'unsent') {
-      const wire = await sent.wire
-      if (wire.kind === 'not-sent') return { failure: wire.failure }
-      return { ok: { requestId: id, answer: Promise.resolve(answerOf(wire)) } }
-    }
-    const entry = this.pending.get(id)
-    signal.addEventListener(
-      'abort',
-      () => entry?.settle({ kind: 'no-answer', cause: 'abandoned' }),
-      { once: true },
+    if (signal.aborted) return { failure: NOT_SENT_FAILURE }
+    const composed = callRequestOf(request)
+    const entry = this.begin(
+      composed.method,
+      composed.params,
+      { values: composed.values, ...(observe === undefined ? {} : { observe }) },
+      signal,
     )
-    return { ok: { requestId: id, answer: sent.wire.then(answerOf) } }
+    if (entry === undefined) return { failure: NOT_SENT_FAILURE }
+    const first = await Promise.race([entry.departed.then(() => undefined), entry.answered])
+    if (first?.wire.kind === 'not-sent') return { failure: first.wire.failure }
+    return {
+      ok: {
+        requestId: entry.id,
+        answer: entry.answered.then(answered => callAnswerOf(answered.wire)),
+      },
+    }
   }
 
   /**
-   * stdio, and Streamable HTTP on a legacy revision, send `notifications/cancelled`; Streamable
-   * HTTP on a modern revision ends the answer stream (T5).
+   * T5, by the contract's `cancelsByNotification`: the notification, or the request is stopped by
+   * its phase with the contract's one rule (`stopAnswerOf`), as the caller's signal and `close()`
+   * stop it. Only a request handed to the peer has an answer stream to end.
    */
   async cancelRequest(requestId: string): Promise<void> {
-    if (this.material.kind === 'stdio' || this.legacy) {
+    if (cancelsByNotification(this.connection)) {
       this.sendNotification('notifications/cancelled', { requestId })
       return
     }
     const entry = this.pending.get(requestId)
     if (entry === undefined) return
-    this.peer.log.push({ kind: 'stream-aborted', id: requestId })
-    entry.settle({ kind: 'no-answer', cause: 'abandoned' })
+    if (entry.phase.kind === 'sent') this.peer.log.push({ kind: 'stream-aborted', id: requestId })
+    this.stop(entry)
   }
 
-  async getTask(taskId: TaskId): Promise<Outcome<TaskReport | 'expired', TransportFailure>> {
-    const wire = await this.request('tasks/get', { taskId })
-    return expiredOf<TaskReport>(wire) ?? interpret(wire, readTask)
+  getTask(taskId: TaskId): Promise<Outcome<TaskReport | 'expired', TransportFailure>> {
+    return this.perform(getTaskRequest(taskId))
   }
 
-  async getTaskResult(taskId: TaskId): Promise<Outcome<TaskAnswer, TransportFailure>> {
-    const wire = await this.request('tasks/get', { taskId })
-    if (expiredOf(wire) !== undefined) return { ok: { kind: 'expired' } }
-    return interpret(wire, readTaskAnswer)
+  getTaskResult(taskId: TaskId): Promise<Outcome<TaskAnswer, TransportFailure>> {
+    return this.perform(getTaskResultRequest(taskId))
   }
 
-  async updateTask(
+  updateTask(
     taskId: TaskId,
     inputResponses: JsonValue,
   ): Promise<Outcome<'accepted', TransportFailure>> {
-    const wire = await this.request('tasks/update', {
-      taskId,
-      inputResponses: plainOf(inputResponses),
-    })
-    return interpret(wire, () => ({ ok: 'accepted' }))
+    return this.perform(updateTaskRequest(taskId, inputResponses))
   }
 
-  async cancelTask(taskId: TaskId): Promise<Outcome<'requested', TransportFailure>> {
-    const wire = await this.request('tasks/cancel', { taskId })
-    return interpret(wire, () => ({ ok: 'requested' }))
+  cancelTask(taskId: TaskId): Promise<Outcome<'requested', TransportFailure>> {
+    return this.perform(cancelTaskRequest(taskId))
   }
 
+  /** Closes the transport (T5): every request in flight settles by its phase there and then. */
   async close(): Promise<void> {
     if (this.closed) return
     this.closed = true
-    for (const entry of this.pending.values())
-      entry.settle({ kind: 'no-answer', cause: 'abandoned' })
+    for (const entry of this.pending.values()) this.stop(entry)
     if (this.material.kind !== 'stdio') return
     const { stdin, stdout } = this.material.process
     await stdin.close().catch(() => undefined)
@@ -1154,33 +832,8 @@ class ScriptedTransport implements McpTransport {
   }
 }
 
-/** The answer of a sent call. */
-function answerOf(wire: Wire): PeerAnswer {
-  switch (wire.kind) {
-    case 'result':
-      return { kind: 'result', result: wire.result }
-    case 'error':
-      return { kind: 'error', error: wire.error }
-    case 'no-answer':
-      return { kind: 'no-answer', cause: wire.cause }
-    case 'server-error':
-      return { kind: 'no-answer', cause: 'stream-broken' }
-    case 'not-sent':
-    case 'legacy-signal':
-    case 'probe-timeout':
-      return { kind: 'no-answer', cause: 'abandoned' }
-    default: {
-      const exhaustive: never = wire
-      return exhaustive
-    }
-  }
-}
-
-function interpretFailure(
-  wire: Extract<Wire, { kind: 'no-answer' | 'not-sent' | 'server-error' }>,
-): TransportFailure {
-  if (wire.kind === 'not-sent') return wire.failure
-  return { kind: 'no-answer', cause: wire.kind === 'no-answer' ? wire.cause : 'stream-broken' }
+function isProtocolVersions(versions: readonly string[]): versions is ProtocolVersions {
+  return versions.length > 0
 }
 
 /**
@@ -1193,7 +846,7 @@ export function createScriptedTransportFactory(
   options: ScriptedTransportOptions = {},
 ): ScriptedTransportFactory {
   const versions = options.protocolVersions ?? ['2026-07-28']
-  if (versions.length === 0 || !versions.every(isModernProtocolVersion))
+  if (!isProtocolVersions(versions) || !versions.every(isModernProtocolVersion))
     throw new RangeError(
       'protocolVersions lists the modern versions only; the legacy ones are LEGACY_PROTOCOL_VERSIONS',
     )
@@ -1201,7 +854,7 @@ export function createScriptedTransportFactory(
   return {
     received: () => [...peer.log],
     async open(material, signal) {
-      if (signal.aborted) return { failure: notSent }
+      if (signal.aborted) return { failure: NOT_SENT_FAILURE }
       return { ok: new ScriptedTransport(peer, material, options, versions) }
     },
   }

@@ -2,14 +2,16 @@
 // and every classification is a class of the table's domain for that request and material.
 import { describe, expect, it } from 'vitest'
 import {
+  LEGACY_PROTOCOL_VERSIONS,
   PROCESS_EXIT_WINDOW_MS,
   classifyWireEvent,
   type AnswerClass,
   type RequestClass,
+  type WireClassification,
   type WireContext,
   type WireEvent,
 } from '@omne-harness/mcp-contract'
-import { transportCells } from '@omne-harness/mcp-contract/testing'
+import { jsonTextOf, transportCells } from '@omne-harness/mcp-contract/testing'
 
 const VERSIONS = ['2027-01-01', '2026-07-28']
 
@@ -230,11 +232,62 @@ describe('classifyWireEvent over the domain of the decision table', () => {
   })
 })
 
+/**
+ * The class of an event, without the message the classification carries with a result or error
+ * class: these cases pin the class; `carries the message` below pins the message.
+ */
+function classify(event: WireEvent, ctx: WireContext): WireClassification {
+  const classified = classifyWireEvent(event, ctx)
+  return classified.kind === 'answer' ? { kind: 'answer', answer: classified.answer } : classified
+}
+
+describe('the result class of each request class (T2, T6)', () => {
+  const context = (request: RequestClass): WireContext => ({
+    id: 'r1',
+    request,
+    session: false,
+    versions: VERSIONS,
+  })
+  const classOf = (request: RequestClass, result: unknown): string => {
+    const text = JSON.stringify({ jsonrpc: '2.0', id: 'r1', result })
+    const classified = classifyWireEvent({ kind: 'line', text }, context(request))
+    return classified.kind === 'answer' ? classified.answer : classified.kind
+  }
+
+  it('reads the result by what the request asked for, and anything for the requests that take any result', () => {
+    expect(classOf('discover', { supportedVersions: VERSIONS, capabilities: {} })).toBe('result')
+    expect(classOf('discover', { supportedVersions: ['2099-01-01'], capabilities: {} })).toBe(
+      'result:no-common',
+    )
+    expect(classOf('discover-retry', { hello: 1 })).toBe('result:unreadable')
+    expect(
+      classOf('initialize', { protocolVersion: LEGACY_PROTOCOL_VERSIONS[0], capabilities: {} }),
+    ).toBe('result')
+    expect(classOf('initialize', { protocolVersion: VERSIONS[0], capabilities: {} })).toBe(
+      'result:unreadable',
+    )
+    expect(classOf('tools/list', { tools: [] })).toBe('result')
+    expect(classOf('tools/list', { tools: 'none' })).toBe('result:tools-missing')
+    expect(classOf('tools/list', { tools: [], nextCursor: 7 })).toBe('result:cursor-invalid')
+    expect(classOf('tasks/get', { taskId: 't1', status: 'working' })).toBe('result')
+    expect(classOf('tasks/get', { taskId: 't1', status: 'paused' })).toBe('result:status-unknown')
+    expect(classOf('tasks/get', { taskId: 't1', status: 'input_required' })).toBe(
+      'result:input-requests-missing',
+    )
+    expect(classOf('tasks/get', { taskId: 't1', status: 'completed' })).toBe(
+      'result:result-missing',
+    )
+    expect(classOf('tasks/get', { taskId: 't1', status: 'failed' })).toBe('result:error-missing')
+    for (const request of ['tools/call', 'tasks/update', 'tasks/cancel', 'notification'] as const)
+      expect(classOf(request, 'anything'), request).toBe('result')
+  })
+})
+
 describe('the envelope of an answer (T2)', () => {
   const discover = context('discover')
 
   it('reads a line with the id of the request, jsonrpc "2.0" and exactly one of result and error', () => {
-    const line = (text: string) => classifyWireEvent({ kind: 'line', text }, discover)
+    const line = (text: string) => classify({ kind: 'line', text }, discover)
     expect(
       line(answer({ result: { supportedVersions: ['2026-07-28'], capabilities: {} } })),
     ).toEqual({
@@ -258,13 +311,36 @@ describe('the envelope of an answer (T2)', () => {
       JSON.stringify({ jsonrpc: '2.0', method: 'notifications/progress', params: {} }),
       '[1]',
     ])
-      expect(classifyWireEvent({ kind: 'line', text: other }, discover), other).toEqual({
+      expect(classify({ kind: 'line', text: other }, discover), other).toEqual({
         kind: 'other',
       })
   })
 
-  it('breaks the stdio stream on a line that is not JSON', () => {
-    expect(classifyWireEvent({ kind: 'line', text: 'Listening on stdio' }, discover)).toEqual({
+  it('drops a stdio line that is not JSON and keeps the stream (F4: not stricter than the SDK)', () => {
+    for (const text of [
+      'Listening on stdio',
+      '',
+      '﻿{"jsonrpc":"2.0","id":7,"result":{}}',
+      '{"jsonrpc":"2.0","id":7,"result":{},"result":{}}',
+      '{"jsonrpc":"2.0","id":7,"result":{}',
+    ])
+      expect(classify({ kind: 'line', text }, discover), JSON.stringify(text)).toEqual({
+        kind: 'other',
+      })
+  })
+
+  it('in the legacy HTTP+SSE mode a 2xx body that ended with no answer is still waiting', () => {
+    const sse: WireContext = { ...context('tools/list'), mode: 'sse' }
+    expect(classify({ kind: 'http-stream', messages: [], ended: true }, sse)).toEqual({
+      kind: 'waiting',
+    })
+    expect(
+      classify(
+        { kind: 'http-stream', messages: [answer({ result: { tools: [] } })], ended: false },
+        sse,
+      ),
+    ).toEqual({ kind: 'answer', answer: 'result' })
+    expect(classify({ kind: 'http-aborted' }, sse)).toEqual({
       kind: 'answer',
       answer: 'stream-broken',
     })
@@ -278,11 +354,12 @@ describe('the envelope of an answer (T2)', () => {
       [{ code: '-32602', message: 'x' }, 'error:unreadable'],
       ['x', 'error:unreadable'],
     ] as const)
-      expect(
-        classifyWireEvent({ kind: 'line', text: answer({ error }) }, context('tools/list')),
-      ).toEqual({ kind: 'answer', answer: expected })
+      expect(classify({ kind: 'line', text: answer({ error }) }, context('tools/list'))).toEqual({
+        kind: 'answer',
+        answer: expected,
+      })
     expect(
-      classifyWireEvent(
+      classify(
         { kind: 'line', text: `{"jsonrpc":"2.0","id":7,"error":{"code":-32602.5,"message":"x"}}` },
         context('tools/list'),
       ),
@@ -291,10 +368,7 @@ describe('the envelope of an answer (T2)', () => {
 
   it('reads the body of an HTTP error without its id, and only as an envelope with error', () => {
     const status = (body: string) =>
-      classifyWireEvent(
-        { kind: 'http-status', status: 400, headers: {}, body },
-        context('tools/list'),
-      )
+      classify({ kind: 'http-status', status: 400, headers: {}, body }, context('tools/list'))
     expect(
       status(JSON.stringify({ jsonrpc: '2.0', id: 99, error: { code: -32602, message: 'x' } })),
     ).toEqual({
@@ -318,7 +392,7 @@ describe('the envelope of an answer (T2)', () => {
 describe('the end of a stdio process (T8)', () => {
   const stdio = context('tools/list')
   const ended = (stdoutEndedAt?: number, exitedAt?: number) =>
-    classifyWireEvent(
+    classify(
       {
         kind: 'stdio-ended',
         ...(stdoutEndedAt === undefined ? {} : { stdoutEndedAt }),
@@ -346,12 +420,12 @@ describe('the end of a stdio process (T8)', () => {
 describe('Streamable HTTP outside the error statuses (T8)', () => {
   it('waits on an open 2xx stream without the answer, and reads the answer when it comes', () => {
     const list = context('tools/list')
-    expect(classifyWireEvent({ kind: 'http-stream', messages: [], ended: false }, list)).toEqual({
+    expect(classify({ kind: 'http-stream', messages: [], ended: false }, list)).toEqual({
       kind: 'waiting',
     })
     const progress = JSON.stringify({ jsonrpc: '2.0', method: 'notifications/progress' })
     expect(
-      classifyWireEvent(
+      classify(
         {
           kind: 'http-stream',
           messages: [progress, answer({ result: { tools: [] } })],
@@ -364,7 +438,7 @@ describe('Streamable HTTP outside the error statuses (T8)', () => {
 
   it('reads a 3xx like another 4xx: the transport does not follow redirects', () => {
     expect(
-      classifyWireEvent(
+      classify(
         { kind: 'http-status', status: 307, headers: { location: '/x' }, body: '' },
         context('discover'),
       ),
@@ -373,13 +447,40 @@ describe('Streamable HTTP outside the error statuses (T8)', () => {
 
   it('reads a 404 as the end of the legacy session only when the request carried one', () => {
     const event: WireEvent = { kind: 'http-status', status: 404, headers: {}, body: '' }
-    expect(classifyWireEvent(event, context('tools/call', true))).toEqual({
+    expect(classify(event, context('tools/call', true))).toEqual({
       kind: 'answer',
       answer: 'http:404+session',
     })
-    expect(classifyWireEvent(event, context('tools/call'))).toEqual({
+    expect(classify(event, context('tools/call'))).toEqual({
       kind: 'answer',
       answer: 'http:404+plain',
+    })
+  })
+})
+
+describe('the message a classification carries', () => {
+  it('carries the message of a result or error class, the error body of an HTTP error status, and none for the rest', () => {
+    const list = context('tools/list')
+    const result = answer({ result: { tools: [] } })
+    expect(classifyWireEvent({ kind: 'line', text: result }, list)).toEqual({
+      kind: 'answer',
+      answer: 'result',
+      message: jsonTextOf(result),
+    })
+    const error = JSON.stringify({
+      jsonrpc: '2.0',
+      id: null,
+      error: { code: -32602, message: 'x' },
+    })
+    expect(
+      classifyWireEvent({ kind: 'http-status', status: 400, headers: {}, body: error }, list),
+    ).toEqual({ kind: 'answer', answer: 'http:400+-32602', message: jsonTextOf(error) })
+    expect(
+      classifyWireEvent({ kind: 'http-status', status: 400, headers: {}, body: 'plain' }, list),
+    ).toEqual({ kind: 'answer', answer: 'http:400+plain' })
+    expect(classifyWireEvent({ kind: 'http-aborted' }, list)).toEqual({
+      kind: 'answer',
+      answer: 'stream-broken',
     })
   })
 })

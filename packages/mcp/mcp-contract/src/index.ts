@@ -84,15 +84,106 @@ export { canonical, sameJson } from './json.ts'
 export { toContentBlocks } from './content.ts'
 export { boundInstructions } from './instructions.ts'
 export { FIRST_MODERN_PROTOCOL_VERSION, LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
+export type { PlainJson, PlainRecord } from './plain.ts'
+export {
+  clientEnvelopeOf,
+  mcpRequestHeadersOf,
+  type ClientInfo,
+  type McpRequestHeaders,
+} from './envelope.ts'
+export { withheldTools } from './withheld.ts'
+export {
+  authorizationChallengeOf,
+  authorizationDiscoveryOf,
+  discoverAuthorization,
+  metadataCandidatesOf,
+  startAuthorizationDiscovery,
+  type AuthorizationDiscoveryRun,
+  type MetadataFetch,
+} from './authorization.ts'
+export {
+  errorAnswerOf,
+  peerIdentityOf,
+  readDiscoverResult,
+  readInitializeResult,
+  readListingPage,
+  readTaskAnswer,
+  readTaskReport,
+  type IdentityBound,
+  type PeerRead,
+  type TaskReadDefect,
+} from './readers.ts'
 export {
   PROCESS_EXIT_WINDOW_MS,
+  WIRE_LIMITS,
   classifyWireEvent,
+  endedCauseOf,
+  readPeerMessage,
   type AnswerClass,
+  type ErrorClass,
+  type PeerMessage,
   type RequestClass,
   type WireClassification,
   type WireContext,
   type WireEvent,
 } from './wire.ts'
+export {
+  ABANDONED,
+  NOT_SENT_FAILURE,
+  PROBE_REQUESTS,
+  RESENT_REQUESTS,
+  authorizationRequiredAnswerOf,
+  concludeAnswer,
+  concludeProbe,
+  fallbackGetConclusionOf,
+  lineGoneAnswerOf,
+  requestClassOf,
+  retryVersionOf,
+  stopAnswerOf,
+  streamGoneAnswerOf,
+  type AnswerConclusion,
+  type InFlightPhase,
+  type ProbeConclusion,
+  type ProtocolVersions,
+  type UnusableCause,
+  type WireAnswer,
+} from './decisions.ts'
+export {
+  cancelsByNotification,
+  checksListingHeaders,
+  isLegacyConnection,
+  type ConnectionView,
+} from './connection.ts'
+export {
+  callAnswerOf,
+  interpretAnswer,
+  legacyIdentityOf,
+  listingPageOf,
+  readerOf,
+  taskAnswerOf,
+  taskReportOf,
+} from './answer-readings.ts'
+export {
+  METHOD_NOT_FOUND,
+  OFFERED_LEGACY_VERSION,
+  callRequestOf,
+  cancelTaskRequest,
+  getTaskRequest,
+  getTaskResultRequest,
+  legacyInitializeParamsOf,
+  listActionsRequest,
+  notificationTextOf,
+  peerRequestAnswerOf,
+  requestMetaOf,
+  requestTextOf,
+  responseTextOf,
+  updateTaskRequest,
+  type ComposedRequest,
+  type NotificationMethod,
+  type RequestMethod,
+  type RequestValues,
+} from './composition.ts'
+export { discoverWith, withOneResend, type DiscoverPaths } from './discovery.ts'
 export { catalogKeyOf, connectionKeyOf, peerAccountOf } from './keys.ts'
 export { OUTPUT_CHECK_FAILED, STRUCTURED_CONTENT_MISSING } from './outcomes.ts'
 export type {

@@ -5,7 +5,16 @@
 import assert from 'node:assert/strict'
 import type { Outcome } from '@omne-harness/operation-result'
 import { isTaskId, type TaskId } from './brands.ts'
+import {
+  CLIENT_CAPABILITIES_KEY,
+  CLIENT_INFO_KEY,
+  LOG_LEVEL_KEY,
+  PROTOCOL_VERSION_KEY,
+  SERVER_INFO_KEY,
+  TASKS_EXTENSION,
+} from './envelope.ts'
 import { boundInstructions } from './instructions.ts'
+import type { PlainJson } from './plain.ts'
 import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
 import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
 import {
@@ -34,13 +43,7 @@ import type {
 } from './transport.ts'
 
 /** JSON as plain data, so that a script can travel to a fixture in another process. */
-export type PlainJson =
-  | string
-  | number
-  | boolean
-  | null
-  | readonly PlainJson[]
-  | Readonly<{ [key: string]: PlainJson }>
+export type { PlainJson } from './plain.ts'
 
 /**
  * A notification the peer sends before it answers a request. When `params` has no
@@ -188,12 +191,14 @@ export type TransportFixture = Readonly<{
   peer(script: ScriptSource, needs: PeerNeeds): Promise<ScriptedPeer>
 }>
 
-export const PROTOCOL_VERSION_KEY = 'io.modelcontextprotocol/protocolVersion'
-export const CLIENT_CAPABILITIES_KEY = 'io.modelcontextprotocol/clientCapabilities'
-export const CLIENT_INFO_KEY = 'io.modelcontextprotocol/clientInfo'
-export const SERVER_INFO_KEY = 'io.modelcontextprotocol/serverInfo'
-export const LOG_LEVEL_KEY = 'io.modelcontextprotocol/logLevel'
-export const TASKS_EXTENSION = 'io.modelcontextprotocol/tasks'
+export {
+  CLIENT_CAPABILITIES_KEY,
+  CLIENT_INFO_KEY,
+  LOG_LEVEL_KEY,
+  PROTOCOL_VERSION_KEY,
+  SERVER_INFO_KEY,
+  TASKS_EXTENSION,
+} from './envelope.ts'
 
 type Case = ConformanceCase<TransportFixture>
 type Body<T> = (peer: ScriptedPeer, transport: McpTransport) => Promise<T>
@@ -441,6 +446,24 @@ function countingCredential(
   }
 }
 
+/** A handle whose `authorize` never answers; `reached` resolves once it was asked. */
+function heldCredential(): HttpCredentialHandle & Readonly<{ reached: Promise<void> }> {
+  let asked = (): void => undefined
+  const reached = new Promise<void>(resolve => {
+    asked = resolve
+  })
+  return {
+    purpose: 'http-authorization',
+    authorize() {
+      asked()
+      return new Promise(() => undefined)
+    },
+    async reportRejection() {},
+    async release() {},
+    reached,
+  }
+}
+
 const bearer = (parameters: string) => `Bearer ${parameters}`
 const METADATA_PATH = '/.well-known/oauth-protected-resource'
 
@@ -472,11 +495,15 @@ function observedProcess(process: ProcessHandle, events: string[]): ProcessHandl
   return {
     stdin: new WritableStream<Uint8Array>({
       write: chunk => writer.write(chunk),
+      // Closing or aborting the write end both end the peer's input: either is "stdin closed".
       async close() {
         events.push('stdin-closed')
         await writer.close()
       },
-      abort: reason => writer.abort(reason),
+      async abort(reason) {
+        events.push('stdin-closed')
+        await writer.abort(reason)
+      },
     }),
     stdout: new ReadableStream<Uint8Array>({
       async pull(controller) {
@@ -1233,14 +1260,15 @@ function tableCases(): readonly Case[] {
         for (const cell of cells)
           for (const reply of repliesOf(cell, fixture))
             try {
-              assert.deepStrictEqual(
-                classifyWireEvent(eventOf(reply, cell), {
-                  id: 'x',
-                  request: cell.request,
-                  session: cell.answer === 'http:404+session',
-                  versions: fixture.protocolVersions,
-                }),
-                { kind: 'answer', answer: cell.answer },
+              const classified = classifyWireEvent(eventOf(reply, cell), {
+                id: 'x',
+                request: cell.request,
+                session: cell.answer === 'http:404+session',
+                versions: fixture.protocolVersions,
+              })
+              assert.strictEqual(
+                classified.kind === 'answer' ? classified.answer : classified.kind,
+                cell.answer,
                 'classifyWireEvent puts the sample into another class',
               )
               await checkCell(fixture, cell, reply, row.conclusion)
@@ -2220,22 +2248,41 @@ const t5Cases = (): readonly Case[] => [
   ),
   conformanceCase(
     'T5',
-    'a call still being authorized when close() ran is not-sent and never reaches the peer',
+    'a call still being authorized when close() ran is not-sent and never reaches the peer; close() does not wait for the handle',
     async fixture => {
-      let open = (): void => undefined
-      const credential = countingCredential(
-        new Promise<void>(resolve => {
-          open = resolve
-        }),
-      )
+      // The gate never opens: the handle hangs for ever, and the caller must not wait for it.
+      const handle = heldCredential()
       await withPeer(
         fixture,
         { calls: { echo: result(DONE) } },
-        { kind: 'streamable-http', credential },
+        { kind: 'streamable-http', credential: handle },
         async (peer, transport) => {
           const pending = transport.call(echo, never)
+          // A transport that does not ask the handle lets the call go on: the assertion catches it.
+          await Promise.race([handle.reached, pending])
           await transport.close()
-          open()
+          assert.deepStrictEqual(await pending, {
+            failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+          })
+          assert.deepStrictEqual(requests(await peer.received(), 'tools/call'), [])
+        },
+      )
+    },
+  ),
+  conformanceCase(
+    'T5',
+    'a call still being authorized when its signal fires is not-sent and never reaches the peer; call() does not wait for the handle',
+    async fixture => {
+      const handle = heldCredential()
+      await withPeer(
+        fixture,
+        { calls: { echo: result(DONE) } },
+        { kind: 'streamable-http', credential: handle },
+        async (peer, transport) => {
+          const controller = new AbortController()
+          const pending = transport.call(echo, controller.signal)
+          await Promise.race([handle.reached, pending])
+          controller.abort()
           assert.deepStrictEqual(await pending, {
             failure: { kind: 'not-sent', cause: 'connection-unavailable' },
           })

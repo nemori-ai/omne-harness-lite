@@ -277,6 +277,9 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     conclusion: BROKEN,
   },
   {
+    // The row first tries the legacy HTTP+SSE fallback once (T3). The peer of the suite offers no
+    // legacy stream, so the table holds the branch where the fallback does not hold; the branch
+    // where it holds is in the legacy HTTP+SSE cases of `mcp-host-local`.
     id: 'I07',
     kinds: HTTP,
     requests: ['initialize'],

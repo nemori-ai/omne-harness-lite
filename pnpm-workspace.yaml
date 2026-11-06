@@ -45,9 +45,13 @@ catalog:
   turbo: 2.11.7
   '@vitest/coverage-v8': 4.1.11
   zod: 4.6.5
-  # 官方 MCP TypeScript SDK：只给 mcp-host-local 用 Transport 层（client）与测试里的真实服务端夹具（server）。
+  # 官方 MCP TypeScript SDK：mcp-host-local 只复用它的常量与帧的写法（client），测试用它的真实服务端夹具（server）；
+  # node 把服务端挂到 node:http，只作测试依赖。哪些部分不复用及理由见 mcp-host-local 的 SPEC。
   '@modelcontextprotocol/client': 2.4.0
   '@modelcontextprotocol/server': 2.4.0
+  '@modelcontextprotocol/node': 2.1.2
+  # SSE 事件解析，与 SDK 用同一个实现：mcp-host-local 读 text/event-stream 的应答。
+  eventsource-parser: 3.1.1
   # 官方参考 MCP 服务端：只作 mcp-host-local 的测试依赖，做生态兼容与回归的真实对端。
   '@modelcontextprotocol/server-everything': 2.1.0
   '@modelcontextprotocol/server-filesystem': 2.1.0
