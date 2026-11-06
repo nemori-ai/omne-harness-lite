@@ -224,15 +224,12 @@ export function createProvider<P, B extends ContentBlock>(
   let retired = false
   const draining = () => quiescing !== null || checking > 0
 
-  /**
-   * The state that `observe` shows for a slot: only an execution that exists (S-14 of #558). A
-   * reservation, an unresolved `open` included, still shows idle.
-   */
   function stateOf(held: Slot): AgentState {
     switch (held.kind) {
       case 'free':
-      case 'reserved':
         return { kind: 'idle', instance }
+      case 'reserved':
+        return { kind: 'reserved', instance }
       case 'running':
       // A failed run is not ended: the execution still exists and holds the slot.
       case 'failed':

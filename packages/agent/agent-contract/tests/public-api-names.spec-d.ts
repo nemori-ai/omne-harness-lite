@@ -1169,7 +1169,7 @@ describe('the discriminants of the coordination chapter', () => {
   it('the pages, observations and states keep their literals', () => {
     expectTypeOf<KindOf<EventPage>>().toEqualTypeOf<'page' | 'gap'>()
     expectTypeOf<KindOf<AgentState>>().toEqualTypeOf<
-      'idle' | 'occupied' | 'draining' | 'disposed'
+      'idle' | 'reserved' | 'occupied' | 'draining' | 'disposed'
     >()
     expectTypeOf<KindOf<AgentObservation>>().toEqualTypeOf<'state' | 'ended'>()
     expectTypeOf<Extract<AgentObservation, { kind: 'ended' }>['reason']>().toEqualTypeOf<

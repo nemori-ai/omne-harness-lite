@@ -106,6 +106,7 @@ const ENDED_EVENTS = [
   ['5', 'ended'],
 ]
 const idle: AgentState = { kind: 'idle', instance: instance() }
+const reserved = { kind: 'reserved', instance: instance() }
 
 describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1, Q2 and Q4', () => {
   it('NA-U0-1: Journal.inputs returns the content that invoke handed over', async () => {
@@ -238,6 +239,7 @@ describe('NA-E0-1: invoke reserves the slot, then open saves the input and the i
     })
     const first = invoke(assembly)
     await eventually(async () => seen.length === 1)
+    expect(await shown(assembly)).toEqual(reserved)
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
     opening.open()
     ok(await first)
@@ -607,6 +609,7 @@ describe('NA-E0-3: a slot held by another operation answers busy, never a queue'
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
     expect(failure(await invoke(assembly))).toMatchObject({ kind: 'commit-unknown' })
+    expect(await shown(assembly)).toEqual(reserved)
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
     expect(assembly.record.log.filter(entry => entry.startsWith('prepare'))).toHaveLength(1)
   })
@@ -734,7 +737,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
     expect(await invoke(assembly)).toBe(refused)
-    expect(await shown(assembly)).toEqual(idle)
+    expect(await shown(assembly)).toEqual(reserved)
     expect(failure(await invoke(assembly))).toEqual(unresolved)
     expect(queries).toBe(2)
   })
@@ -760,7 +763,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     try {
       expect(failure(await invoke(assembly))).toEqual({ kind: 'busy' })
       expect(queries).toBe(1)
-      expect(await shown(assembly)).toEqual(idle)
+      expect(await shown(assembly)).toEqual(reserved)
     } finally {
       querying.open()
     }
@@ -771,7 +774,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
-    expect(await shown(assembly)).toEqual(idle)
+    expect(await shown(assembly)).toEqual(reserved)
     expect(failure(await invoke(assembly))).toEqual(unresolved)
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
     expect(

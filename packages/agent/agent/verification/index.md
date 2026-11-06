@@ -15,3 +15,5 @@
 - [model-reception/](model-reception/README.md)：Model 结果接收、共同提交与账目重放的有限模型
 - [cancellation/](cancellation/README.md)：Run 取消与单调用中断的有限模型
 - [run-lifecycle/](run-lifecycle/README.md)：Run 驱动生命周期的有限模型、[运行记录](run-lifecycle/formal-runs.md)、[手写证明](run-lifecycle/proofs.md)与[机读守卫](run-lifecycle/guards/run-lifecycle.spec.ts)
+
+- [reservation/](reservation/README.md)：执行槽预占与本地宿主空闲回收的有限模型及运行守护

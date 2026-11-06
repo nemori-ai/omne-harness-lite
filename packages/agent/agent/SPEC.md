@@ -76,3 +76,9 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 Model 接收遵守公共 SPEC 的 [J02](../agent-contract/SPEC.md#结果接收)。同一内存 Journal 提供四个视图，joint commit 在单一发布点写入材料、条目、操作结果与 saved。原消费绑定独立于当前 checkpoint 与 attachment 保留。独立接收工厂在当前资格和原 Model 权威核验后才认回或提交；unknown 只查询原 operation，excluded 不换号。账目在共同提交后出站，重试与 blocked 状态跨组件重装配保留。Model 的公开 testing pusher 自行执行其 ACK；Agent loop 不调用 Model consumption。
 
 I3 只准入完整普通结果。completed/limit 的合法全 sealed 内容可形成回复，原 settlement、parts 与真实 trims 保留在 received 材料中，不合成提醒或 trim。含 partial 的结果不升级为完整消息。interrupted 按部分结果回 I8，原控制身份随材料保留，不改成上游故障。该消费出口不表示控制请求、阶段记录或公开恢复已交付。
+
+## 执行槽预占
+
+受理期间的预占按 [Agent 契约](../agent-contract/SPEC.md#受理与单执行槽) 发布 reserved。占槽与本地宿主 report 在同一同步片段，宿主据此撤销空闲计时器。资格检查之前未占槽，检查返回后仍须核对 draining。原 open 未知时不释放槽。该保证依赖本地登记句柄正常同步报告，不推导外部自定义报告失败后的回收安全。
+
+持续证明与运行守护见 [预占验证](verification/reservation/README.md)。

@@ -1051,6 +1051,8 @@ runtime 可顺序承接多个 execution，同一时刻至多一个有效执行�
 
 #### 受理与单执行槽
 
+`AgentState.reserved` 表示执行槽已预占，但不证明 execution 已受理，因而只携带 instance。idle 只表示槽空闲。invoke 完成资格检查后重新核对 draining；成功预占时，必须在受理流程的第一个 await 前同步发布 reserved。明确未受理并释放槽后回 idle，原 open 结果未知时保持 reserved，继续按原 operation 认回。可靠受理并取得挂接后才发布 occupied。宿主的空闲回收只接受 idle，不把 reserved 当作空闲或已结束。
+
 invoke 先预约 runtime 的单执行槽，再由 Journal.open 幂等受理；resume 先预约，再由 Journal.attach 认回原记录。预约与槽共同防止重入：结果未知时保留预约，不释放槽再接另一项工作，open 明确未提交才释放。submit 不预约槽：它沿原 execution 的耐久视图受理，不要求活体 runtime、advance、grant、槽、resume 或 attach，规则见“[输入内容与水位线](#输入内容与水位线)”。首次 invoke 没有 execution 可供 P 或 Rh 写入，准入提供者先保存完整 InputEntry 作为受理前记录；它不占执行槽、不产生输入水位线、不授 advance、不触发开始扩展，也不使 invoke 成功。真正的新 open 才检查真实 runtime 的槽、绑定与适用 grant，并与协调参加者共同建立初始 execution、挂接与原完整结果；原实例与后继实例并发由当前资格与 Journal 排序决定唯一受理，晚到的旧请求不能再分配或重激活旧挂接。原 open 已成功的认回永久返回原 Authority，它只表达旧结果；后继实例的新推进权另走 resume 与 attach。Journal 在存储受理边界核对当前围栏和 execution 修订号。并发的新 invoke 返回 busy，不进入隐藏队列，排队属于调用方治理。runtime 处于 draining 或 disposed 时，新的 invoke 与 resume 返回 unavailable，不预约执行槽。撤权与新效果的准入必须有确定的顺序：先读取资格、再发送的做法不成立。撤权先成立时，后续准入被拒绝，已经合法发出的调用沿原身份查询和控制。单机协程或 Cordis disposer 不替代围栏证明。
 
 open 与 attach 由 Journal 提供者授予执行挂接：挂接身份、围栏代次和授予依据由提供者保存，并以 Authority 返回给 runtime。Journal 在写入之前核对绑定的协调模式与所需支持，在原子提交点核对当前资格、围栏与 execution 修订号。调用方提供的推进资格依据 grant 可以为空。grant 为空时，Journal 提供者单独授予挂接，这是独立调用路径。grant 非空时，它是外部协调者的推进资格依据，必须走“[提交参加者协议](#提交参加者协议)”所要求的共同核对：coordinated 绑定在同一次 open 或 attach 提交中核对它，核对失败返回 denied；standalone 绑定收到非空 grant 时在写前返回 unsupported，不把这次请求当作独立路径保存。coordinated 绑定在其授予规则要求 grant 时收到空 grant 返回 denied。某个 execution 首次建立时固定它的模式与不透明的外部关联，后续 attach 核对该关联，不允许经另一个 standalone 绑定降级。
