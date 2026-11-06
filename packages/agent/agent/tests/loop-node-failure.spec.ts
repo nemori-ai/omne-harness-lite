@@ -54,7 +54,74 @@ function coordinator(
 
 const unavailable: Failure = { kind: 'unavailable', owner: 'agentJournal', diagnostic: 'temporary' }
 
+function nonEnumerable(failure: Failure): Failure {
+  for (const key of Object.keys(failure)) Object.defineProperty(failure, key, { enumerable: false })
+  return Object.freeze(failure)
+}
+
+class ProviderDenial {
+  readonly #action = 'access'
+
+  get kind(): 'denied' {
+    return 'denied'
+  }
+
+  get action(): string {
+    return this.#action
+  }
+}
+
 describe('an accepted node failure', () => {
+  it.each<Failure>([
+    { kind: 'denied', action: 'access' },
+    { kind: 'invalid', field: 'route', reason: 'not available' },
+    { kind: 'unavailable', owner: 'provider', diagnostic: 'not available' },
+    { kind: 'stale-advance' },
+    { kind: 'not-ready' },
+    { kind: 'terminal' },
+    { kind: 'busy' },
+    { kind: 'changed' },
+    { kind: 'unsupported' },
+    { kind: 'commit-unknown', operation: operation('unknown') },
+    { kind: 'conflict', operation: operation('conflict') },
+  ])('preserves non-enumerable contract fields for $kind', failure => {
+    const expected = { ...failure }
+    const original = nonEnumerable(failure)
+    const local = localFailure('exception', original)
+    expect(local).not.toBe(original)
+    expect(local).toEqual(expected)
+    expect(nodeFailureCategory(original)).not.toBe('exception')
+    expect(nodeFailureCategory(local)).toBe('exception')
+  })
+
+  it.each(['non-enumerable', 'private-getter'])(
+    'keeps the structured failure kind from a %s provider value',
+    async representation => {
+      const denied =
+        representation === 'non-enumerable'
+          ? nonEnumerable({ kind: 'denied', action: 'access' })
+          : Object.freeze(new ProviderDenial())
+      const assembly = await loopAssembly([execution()], dependencies => ({
+        ...dependencies,
+        selection: { ...dependencies.selection, select: async () => fail(denied) },
+      }))
+      const c = coordinator(assembly)
+      ok(await c.accept())
+      ok(await c.runExecution())
+      const kept = ok(
+        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+      )
+      expect(kept.state.kind).toBe('ended')
+      expect(kept.settlement.candidate?.failure).toMatchObject({
+        kind: 'node-failed',
+        category: 'rejected',
+        failureKind: 'denied',
+      })
+      expect(localFailure('rejected', denied)).toEqual({ kind: 'denied', action: 'access' })
+      expect(nodeFailureCategory(denied)).toBeNull()
+    },
+  )
+
   it('keeps separate local classifications without marking a reused provider failure', () => {
     const shared = Object.freeze({ kind: 'denied', action: 'access' } satisfies Failure)
     const first = localFailure('rejected', shared)

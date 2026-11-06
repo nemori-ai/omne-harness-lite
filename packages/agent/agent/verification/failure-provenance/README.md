@@ -8,6 +8,10 @@
 
 构造、标记和返回在同一 JavaScript isolate 的同步调用内完成，没有 await，不共享跨线程内存。WeakMap 允许无引用的局部结果释放。此论证不假设外部提供者每次返回新 Failure，也不假设 Object.freeze 能阻止外部元数据。它不覆盖提供者自行改变 failure.kind 或重新取得内部标记结果。
 
+另设 V(e) 为 kind 及该 Failure 变体的全部必需字段。snapshotFailure 的每一分支直接读取这些字段，构造新值 n，所以 V(n)=V(e)。字段可以是不可枚举的自有数据属性，也可以通过原对象的继承访问器读取。该论证要求提供者返回结构合法且在同步读取期间稳定的值，不承诺复制契约外的成员或带副作用的访问器行为。
+
+TypeScript 的穷尽分支检查阻止新增 Failure 变体后遗漏投影。运行守护覆盖所有现行变体的不可枚举字段，以及具有私有字段访问器的 denied 值。真实 coordinator 必须保存 failureKind=denied。将投影改回 spread 的源码负控必须击穿这个断言。下述 TLC 模型只表达身份隔离，不包含内容保持。
+
 ## 模型及源码映射
 
 模型交错两个执行的 capability 分类与 Journal denied 读取。共享端口对象用 shared 表示。每个执行的局部副本用 A 或 B 表示。TagCapability 对应 capabilityResult 调用 localFailure；ReadJournalDenial 对应 failedNode 对 Agent 访问拒绝的处理。

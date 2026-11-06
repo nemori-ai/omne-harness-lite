@@ -49,6 +49,8 @@ open 尚未认回时，reserved 保存原 coordinator 和 invoke 输入指纹。
 
 本地来源归本次调用返回值所有。端口可以复用同一个 Failure 对象，本地分类不得改变其他端口或 execution 对该原对象的解释。
 
+本地值按 Failure 联合读取并保留该变体的全部必需字段。不要求端口返回值的字段可枚举或位于自身对象上，也不承诺复制契约外的运行时成员。
+
 协调者固定第一故障的 node、category、failureKind、step 和来源。节点尚未取得历史时，来源明确保留空的故障历史；F1 的 origin 则必须来自后来真实读取的 execution history。时间由 AgentClock 首次成功读取后固定。node-failed 不保存 Error、stack、任意 diagnostic 或请求正文。
 
 有原未定写时先查询原 operation。随后依次认回已保存 ended、有效取消与原故障收尾。F1 读取真实 history 和 conditions，F2 保存终态前经过，F3 发行真实责任清单并调用 tryFinish。F1/F3 的暂时 unavailable 只进入内存等待。再次推进时继续收尾，不回 I0、请求准备或新的 Model/Tool 调用。已形成候选的内容、原因与时刻保持。窄内部 continueExecution 可从已保存 node-failed 的 settling 快照恢复相同候选。

@@ -5,10 +5,35 @@ export type NodeFailureCategory = Extract<FailureCandidate, { kind: 'node-failed
 const origins = new WeakMap<Failure, NodeFailureCategory>()
 
 /** Keep local provenance private. Neither diagnostic text nor a port's owner grants it. */
-export function localFailure<T extends Failure>(category: NodeFailureCategory, failure: T): T {
-  const local = { ...failure }
+export function localFailure(category: NodeFailureCategory, failure: Failure): Failure {
+  const local = snapshotFailure(failure)
   origins.set(local, category)
   return local
+}
+
+function snapshotFailure(failure: Failure): Failure {
+  switch (failure.kind) {
+    case 'denied':
+      return { kind: failure.kind, action: failure.action }
+    case 'invalid':
+      return { kind: failure.kind, field: failure.field, reason: failure.reason }
+    case 'unavailable':
+      return { kind: failure.kind, owner: failure.owner, diagnostic: failure.diagnostic }
+    case 'commit-unknown':
+    case 'conflict':
+      return { kind: failure.kind, operation: failure.operation }
+    case 'stale-advance':
+    case 'not-ready':
+    case 'terminal':
+    case 'busy':
+    case 'changed':
+    case 'unsupported':
+      return { kind: failure.kind }
+    default: {
+      const exhaustive: never = failure
+      return exhaustive
+    }
+  }
 }
 
 export function nodeFailureCategory(failure: Failure): NodeFailureCategory | null {
