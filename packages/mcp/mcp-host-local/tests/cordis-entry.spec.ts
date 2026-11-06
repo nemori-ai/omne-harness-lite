@@ -219,6 +219,10 @@ async function loadUntyped(ctx: Context, config: unknown) {
 }
 
 describe('the MCP plugin on a Cordis context, without a process', () => {
+  it('is named mcp', () => {
+    expect(plugin.name).toBe('mcp')
+  })
+
   it('provides the three services on load with a complete lawful configuration and removes them when the plugin unloads', async () => {
     const { ctx, fiber } = await assembled({ args: ARGS })
     expect(ctx.get(mcpActionDiscoveryKey)).toBeDefined()
@@ -437,6 +441,18 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
         'yes: TypeError, the transport factory reads clientInfo of a text',
       ],
       [
+        'that is null',
+        null,
+        'configuration must be an object',
+        'yes: TypeError, the transport factory reads clientInfo of null',
+      ],
+      [
+        'that is undefined',
+        undefined,
+        'configuration must be an object',
+        'yes: TypeError, the transport factory reads clientInfo of undefined',
+      ],
+      [
         'that is a Date',
         new Date(0),
         'configuration must be an object',
@@ -470,6 +486,18 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
         'whose bound is not a number',
         { ...CONFIG, maxListingPages: '5' },
         'maxListingPages must be a number',
+        'yes: RangeError of createMcp',
+      ],
+      [
+        'whose maxActions is not a number',
+        { ...CONFIG, maxActions: '100' },
+        'maxActions must be a number',
+        'yes: RangeError of createMcp',
+      ],
+      [
+        'whose instructionsByteLimit is not a number',
+        { ...CONFIG, instructionsByteLimit: '4096' },
+        'instructionsByteLimit must be a number',
         'yes: RangeError of createMcp',
       ],
       [
