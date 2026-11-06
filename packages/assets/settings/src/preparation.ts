@@ -21,6 +21,24 @@ export const SettingsCancelChangeSchema = z.strictObject({
   requestId: SettingsIdSchema,
   operation: SettingsOperationRefSchema,
 })
+export const SettingsAttemptObservationSchema = z.discriminatedUnion('state', [
+  z.strictObject({ state: z.literal('preparing'), attemptId: SettingsIdSchema }),
+  z.strictObject({ state: z.literal('prepared'), preparation: SettingsPreparationRefSchema }),
+  z.strictObject({ state: z.literal('submitted'), preparation: SettingsPreparationRefSchema }),
+])
+export const SettingsPendingOperationSchema = z
+  .strictObject({
+    kind: z.literal('pending'),
+    operation: SettingsOperationRefSchema,
+    attempt: SettingsAttemptObservationSchema.nullable(),
+  })
+  .refine(
+    result =>
+      !result.attempt ||
+      result.attempt.state === 'preparing' ||
+      JSON.stringify(result.operation) === JSON.stringify(result.attempt.preparation.operation),
+    { message: 'The observed attempt must belong to the queried operation' },
+  )
 export const SettingsAbortedOperationSchema = z.strictObject({
   kind: z.literal('aborted'),
   operation: SettingsOperationRefSchema,
@@ -36,6 +54,8 @@ export const SettingsAbortedOperationSchema = z.strictObject({
 })
 export type SettingsOperationRef = z.infer<typeof SettingsOperationRefSchema>
 export type SettingsPreparationRef = z.infer<typeof SettingsPreparationRefSchema>
+export type SettingsAttemptObservation = z.infer<typeof SettingsAttemptObservationSchema>
+export type SettingsPendingOperation = z.infer<typeof SettingsPendingOperationSchema>
 export type SettingsPreparedCommit = z.infer<typeof SettingsPreparedCommitSchema>
 export type SettingsCancelChange = z.infer<typeof SettingsCancelChangeSchema>
 export type SettingsAbortedOperation = z.infer<typeof SettingsAbortedOperationSchema>
@@ -52,11 +72,7 @@ export type SettingsPrepareResult =
 export type SettingsPreparedOperationResult =
   | SettingsPreparedCommitResult
   | Readonly<{ kind: 'not_found' }>
-  | Readonly<{
-      kind: 'pending'
-      operation: SettingsOperationRef
-      attempt: SettingsPreparationRef | null
-    }>
+  | SettingsPendingOperation
 export type SettingsCancelResult = SettingsPreparedCommitResult | Readonly<{ kind: 'not_found' }>
 
 /** A preparation reference identifies persisted work; it does not grant authority to commit it. */

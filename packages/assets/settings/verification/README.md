@@ -126,3 +126,24 @@ PendingProgress以数据库最终可用、重启恢复与相应步骤弱公平�
 只有Prepare可分配尝试，且要求根未终结、没有活跃尝试、命令不变和预算未耗尽。Commit要求当前attempt和当前basis，原子建立根与attempt的成功事实。Seal区分普通根与组织源修改根，Cancel终结尚未完成的根。Query保持持久状态不变。由这些转换可逐步推出终态不可复活、至多一个活跃尝试和至多一次业务效果。
 
 submitted表示持久进度，不表示调用者已取得结果。unknown是观察状态，不放进数据库；模型没有把unknown当成许可分配后继的转换。允许静止只用于有限安全性检查，不证明最终进展、无死锁、网络重试或任意规模。关系迁移由settings-local的intent-migration.ts拥有，约束测试为intent-migration.spec.ts。迁移安装与有限模型通过都不代表真实准备提交提供者已经完成，转换必须由后续持久写者和真实并发测试继续兑现。
+
+## 准备途中重启与外部保留
+
+`SettingsPreparationBootstrap.tla` 展开单个attempt取得外部保留的窗口。原操作模型中的Prepare抽象了整个准备过程，不能据它证明外部reserve与本地持久化之间没有缺口。本模型固定一个attempt、Identity和来源两个保留拥有者，以及至多一次进程崩溃。
+
+Allocate先保存恢复身份并进入preparing。StartReserve只能在该身份已保存后发起。FinishReserve独立于调用进程推进，因此可以在进程退出或attempt被封口后迟到。Publish只有在两个保留均held时才能原子保存basis并进入prepared。对外prepared答复只允许来自该状态；恢复查询不能冒充准备成功。
+
+Seal可以终结preparing、prepared或submitted。不可逆终态阻止迟到Publish或Commit。迟到的保留仍按原身份认回，只有终态成立后才能释放。Crash不修改持久身份或阶段，Restart后的恢复仍处理同一个attempt，不重新分配身份。
+
+| 不变量 | 具名负控 |
+| --- | --- |
+| DurableRouteBeforeReservation | reserve-before-save先请求外部保留，再保存恢复地址 |
+| AttemptSurvivesRestart | lose-attempt让崩溃删除持久尝试 |
+| PreparedHasAllHolds | publish-without-holds在保留未齐时标记prepared |
+| ReplyRequiresReadyAttempt | reply-before-ready把preparing回复为准备完成 |
+| TerminalBeforeRelease | early-release在目的终态前释放保留 |
+| TerminalCannotPublishAgain | late-publish允许已封口尝试重新变prepared |
+| OnlyReadyAttemptCommits | commit-before-ready允许未完成准备的尝试提交 |
+| OneBusinessEffect | 与不可逆终态共同检查，无单独负控 |
+
+本模型只检查有限安全性。外部拥有者的reserve/settle原子性、真实资格、来源绑定、SQL隔离和固定恢复地址是前提；它不证明这些提供者实现、完整跨模型精化、清理最终完成或任意规模。SourceRetention负责来源版本保持，IntentAttempts负责根命令、预算和后继身份。提供者还必须验证准备中取消、迟到保留回包、答复丢失和数据库重开。当前关系表和提供者尚未兑现preparing阶段，不能将模型通过报告为运行时完成。

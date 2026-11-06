@@ -92,3 +92,13 @@ attempt 封口必须在一次物理提交中组合 terminal、只读 intent-plan
 恢复引用的内部编解码现位于 recovery-reference.ts。它严格接受 settings-recovery/1 的 capture/attempt 形状，要求规范 JSON，并按 Identity 的16384 UTF-8字节上限拒绝超限输入。恢复键区分完整域、主体、种类及精确操作身份。当前 resolver 与 terminal 仍使用旧路径，新编码尚未接入完整准备提供者；解码成功不证明资格或持久尝试存在。
 
 目标投影现携带 enabled。Assets 的禁用目标保留管理读取及配值管理能力，运行捕获拒绝该目标。独立 Settings 目标在现行提供者中投影 enabled=true；retire、声明撤除和运行采用仍由各自状态决定，不能以该字段替代。snapshot 和 catalog 保留字段，公共条目以 targetEnabled 展示，避免与同名配置项混淆。
+
+### 准备阶段与终态写入顺序
+
+提供者必须先在目的事务保存根及preparing尝试，再向Identity或来源服务发起保留。该记录包含精确恢复地址、不可变命令及固定准备计划。活跃唯一性覆盖preparing、prepared和submitted。所有外部请求按原绑定认回；回执丢失不授予分配新attempt的权限。准备中的held检查点是保管事实，不是许可。最终ready事务须重新取得本域当前事实并核验完整保留绑定。
+
+ready只读检查业务terminal仍开放，不能复用consume写入committed。正常业务提交先由只读commit-plan消费当前事实和本域状态，决定apply、abort-root或abort-attempt，再由terminal、source-retention和persistence共同落实。已确认业务失败属于这次事务成功保存的aborted结果，不能返回SQL conflict回滚后声称根已经终结。原配值决定继续复用Settings纯函数。
+
+来源门的只读readiness投影先进入commit-plan，实际检查和清门由后续source-retention负责。同一事务内不允许它们之间插入另一写入。外部seal继续使用terminal、intent-plan、source-retention和persistence的既定组合。两种plan分开登记材料依赖，可共享纯读取/决定代码；不能用命令分支隐藏requiresFacts反向成环。数组排列不等于SqlStorage执行顺序。
+
+当前这部分是持久提供者的实现义务。intent-migration已安装基础关系，但尚未承载preparing、完整准备计划和保管记录；本节不表示迁移或生产接线已经完成。

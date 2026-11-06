@@ -68,7 +68,7 @@ prepareChange 先验证实际主体及合法目标，再持久保存不可变根
 
 commitChange 根据持久准备取得原命令。提供者核对调用主体、引用完整绑定和当前事实，在同一目的提交中建立业务结果与 attempt 终态。参数不能替换命令。旧 attempt 的 unknown 未认回前不能产生新 attempt。明确 aborted 的旧 attempt 只在根仍 pending 时允许重新准备，且 expectedRevision、定义、目标、来源、动作和根摘要均不改变。每根最多分配64个 attempt；耗尽返回 limit_exceeded，不自动取消根，合法调用者仍可取消。
 
-prepared 表示持久准备存在。committed 与 aborted 是不可改写的根终态。unknown 表示观察者未取得权威结果，不是第三种持久终态。它们携带完整原操作引用，使相同 operationId 在不同目标下仍可区分。pending 是已存在但未终结的根，其 attempt 为 null 表示当前无活跃准备，不表示允许调用方自行选择后继身份。
+prepared 表示持久准备存在。committed 与 aborted 是不可改写的根终态。unknown 表示观察者未取得权威结果，不是第三种持久终态。它们携带完整原操作引用，使相同 operationId 在不同目标下仍可区分。pending 是已存在但未终结的根。attempt 为 null 表示当前无活跃尝试；preparing 观察只携带 attemptId，不能被作为准备完成的引用。prepared 和 submitted 观察携带精确 preparation。任何观察都不允许调用方自行选择后继身份。
 
 rejected 仅拒绝本次请求，不能被解释为某个 pending 根已经终结。依据失效、依赖不可用、关闭中或绑定冲突不自动变为根 aborted。cancelChange 只取消尚未成功的根，已 committed 时返回原成功结果。根不存在时返回 not_found；这只是本次观察，不能阻止尚未受理的未来 prepare，也不能冒充取消成功。取消与提交竞争必须由同一目的排序边界决定。
 
@@ -109,3 +109,17 @@ authorityRevision表示来源资格及布局事实的修订，不是配值版本
 ### 目标启禁与配值分开
 
 SettingsTargetView.enabled 是目标拥有者的运行启禁事实，不是某个配置项的值。公开目录条目用 targetEnabled 表达它。禁用资产仍可在有权的管理视图读取和配置，配值与回执保留；运行视图拒绝禁用目标。重新启用需要重新取得当前事实，旧目录结果不授予执行权。独立目标的退役、贡献卸载和当前采用仍分别核验。
+
+### 准备中的持久阶段与当前依据
+
+preparing表示精确尝试身份已经持久保存，外部资格和来源保留可能尚未齐备。它属于活跃尝试，计入每根64次预算。并发重传必须认回它，不能另配身份。准备阶段先固定受信来源确定的计划，再按原绑定取得外部保留。来源集合变化时终结本次尝试，不在原reserve身份下改请求。
+
+只有保留齐备、当前事实与计划相符，并在目的事务保存完整依据后，prepareChange才能返回prepared。准备中的存储结果未知时保留原尝试与可能存在的保留。可信恢复可封口preparing；终态之后迟到的reserve回包只用于认回和释放，不得使尝试复活。getOperation仍是纯读，公开观察形状归SettingsAttemptObservationSchema。
+
+SettingsCurrentBasisSchema定义Settings自己的消费投影。它分别记录目标拥有者修订、启禁、目标配值修订、有序来源资格、声明、选择，以及各具名政策所使用的来源值和稳定约束。资格修订和值修订不能互相替代。来源明确无值仍带valueRevision；不可用不能写成absent。禁用目标仍可在合法管理路径配值，enabled不是允许提交的布尔凭据。
+
+每份basis至少包含一个具名政策，每个policyRef只有一个解释。独立目标可以使用明确的owner政策，不要求引入Permissions领域。政策、每项政策的来源输入和约束各有32项上限；目标来源沿用有序布局上限。所需政策集合由受信声明和固定关口映射决定，客户端不能删减它。management是否需要运行选择也由具名权威决定，不接受裸null作为免检依据。
+
+VersionWitness的ownerRef拥有subjectRef的规范解释及revision。subjectRef必须完整绑定该事实的作用域和对象。适配器将Governance或其他拥有者的事实映射到这个消费形状，不让Settings反向导入它们的私有模型。保持原字段的Schema校验只证明可传输形状，不证明权威、当前性或许可。提供者必须在目的事务从登记的事实生产者取得当前事实，并核对精确根和attempt绑定。Identity与跨库来源保留仍是独立的持久责任，不能折成basis里的authorized布尔值。
+
+当前源码已定义上述消费形状与公开准备观察。真实事实生产者、持久preparing及准备提交提供者仍在实现中。现有SettingsCommitPort尚未完成迁移，不能据类型存在宣称写入已经受完整动态治理保护。

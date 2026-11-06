@@ -4,6 +4,8 @@ import {
   SettingsCancelChangeSchema,
   SettingsPreparedCommitSchema,
   SettingsPreparationRefSchema,
+  SettingsAttemptObservationSchema,
+  SettingsPendingOperationSchema,
 } from '../src/index.ts'
 
 const operation = {
@@ -18,6 +20,44 @@ const preparation = {
 }
 
 describe('Settings preparation protocol', () => {
+  it('keeps unfinished preparation distinct from a ready or submitted attempt', () => {
+    const preparing = { state: 'preparing', attemptId: preparation.attemptId }
+    expect(
+      SettingsPendingOperationSchema.parse({ kind: 'pending', operation, attempt: preparing }),
+    ).toEqual({ kind: 'pending', operation, attempt: preparing })
+    expect(SettingsAttemptObservationSchema.safeParse({ ...preparing, preparation }).success).toBe(
+      false,
+    )
+    for (const state of ['prepared', 'submitted']) {
+      const attempt = { state, preparation }
+      expect(
+        SettingsPendingOperationSchema.parse({ kind: 'pending', operation, attempt }).attempt,
+      ).toEqual(attempt)
+      expect(SettingsAttemptObservationSchema.safeParse({ state, attemptId: 'a' }).success).toBe(
+        false,
+      )
+    }
+    expect(
+      SettingsPendingOperationSchema.parse({ kind: 'pending', operation, attempt: null }).attempt,
+    ).toBeNull()
+  })
+
+  it('rejects an observed ready attempt belonging to a different root or target', () => {
+    for (const other of [
+      { ...operation, operationId: 'other' },
+      { ...operation, target: { ...operation.target, targetRef: 'other' } },
+      { ...operation, target: { ...operation.target, scopeRef: 'other-tenant' } },
+    ]) {
+      expect(
+        SettingsPendingOperationSchema.safeParse({
+          kind: 'pending',
+          operation,
+          attempt: { state: 'prepared', preparation: { ...preparation, operation: other } },
+        }).success,
+      ).toBe(false)
+    }
+  })
+
   it('preserves the exact original operation and attempt across transport', () => {
     const command = { requestId: 'transport-2', preparation }
     expect(SettingsPreparedCommitSchema.parse(JSON.parse(JSON.stringify(command)))).toEqual(command)
