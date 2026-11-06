@@ -459,8 +459,6 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 | 与独立消费者内容交接类型的字段与行为映射页 | 集成方，即消费者一侧，依据层：架构[外域概念的进入方式](../../../docs/architecture/layers-and-dependencies.md#外域概念的进入方式)「集成方知道被集成方」。候选决定 | Skill 只维护自己的公开契约 |
 | 三个需求端口的真实实现，包括能交出旧版本的内容存储来源 | 端口的实现一侧，由谁实现见[领域交接设计](../../../docs/domains/skills/architecture.md) | 只交端口与符合性测试。替身通过不说成读取权、解析或耐久已验证。第一波的真实来源只有本机目录 |
 | `SkillResolution` 的实现让 `SkillRef` 带Skill 包快照的内容摘要。具名剩余义务，见[领域交接设计「剩余义务」](../../../docs/domains/skills/architecture.md#剩余义务) | 端口的实现一侧 | 带依据时，引用总带依据的内容摘要。不带依据且没有内容摘要时，`describe` 不带Skill 材料依据，`read` 与 `list` 返回 `unsupported` |
-| 摘要与检索（P1） | 本组 `SkillCatalog`，第一波之后 | 不阻塞已知精确引用的首条旅程 |
-| 导出（P1） | 本组 `SkillAccess.export`，第一波之后 | 第一波不交 |
 | 摘要怎样排序、怎样进入提示词，集合修订与常驻 | 不归本组，归集成方 | Skill 只交摘要数据 |
 | 合法更新、显式增量装载与版本变化观察（P1） | 不归本组。变化事件首版不做 | 调用方重新 `describe` 观察变化 |
 
