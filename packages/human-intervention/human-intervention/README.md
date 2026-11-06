@@ -1,30 +1,44 @@
-PACKAGE_TEMPLATE_DRAFT
+# @omne-harness/human-intervention
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
-
-# human-intervention/human-intervention
-
-本目录有workspace草稿与设计文档，尚无公开业务实现、公开类型、配置或运行入口。支持状态未核实，目标公开形状待技术采用。整体产品与技术接受不能从目录推出。
+本成员提供 HITL 的公共数据模型、命令与查询契约，以及卡片的纯决策函数。公开协议已按 HJ0 采用。当前已实现严格请求解析和卡片规则，持久应用服务、Identity 适配及原等待共同提交仍在 C2 实施中。
 
 ## 使用与消费边界
 
-独立消费者先读 [SPEC](SPEC.md) 核对责任、资格及依赖；公开入口尚未成立，不能给出可运行调用示例。Cordis 集成沿项目已采用 IC 另核对定义、依赖、装配及撤除，不改变领域合同，也不自动保证耐久、取消或隔离。
+`decodeHitlCommand` 先检查 JSON 的 UTF-8 字节预算，再按指定命令解析。有效输入返回 `decoded`，无效 JSON 或形状返回 `invalid-input`，超预算返回 `limited`。原话保留空格和换行。协议不接受超时自动答复、系统代答或额外赋权字段。
+
+```ts
+import { decodeHitlCommand } from '@omne-harness/human-intervention'
+
+const result = decodeHitlCommand('submitReply', JSON.stringify({
+  protocol: 'hitl/1',
+  operation: { tenantRef: 'tenant-a', actorRef: 'human-a', operationId: 'reply-a' },
+  cardRef: {
+    request: { tenantRef: 'tenant-a', requestId: 'request-a' },
+    cardId: 'card-a',
+  },
+  expectedRevision: '0',
+  reply: { kind: 'text', text: '请保留原来的安排。' },
+}))
+```
+
+解析不认证身份。网络适配器把真实凭证交给应用服务，不能把 `actorRef` 当作可信操作者。标识与修订由 Schema 解析为具名类型，数据中不含 Session 实例、Cordis Context 或 SQL 连接。
+
+`decideReply` 消费已解析的卡片、命令和原等待状态，产生待共同提交的计划或明确拒绝。`ready` 不表示答复已经保存。实际提供者必须在共同提交内重核资格、卡片修订及原等待。`invalidateCard` 只失效待答卡片，保留已答历史。修订按十进制任意精度值递增。
 
 ## 契约与内部设计
 
-[SPEC](SPEC.md)保存完整必要行为及验证义务。[内部设计](docs/internals.md)保存精确机制与[后续技术采用](docs/internals.md#后续技术采用)。组工程关系见[组入口](../README.md)。
+[SPEC](SPEC.md)拥有必要行为与验证义务。[公共协议](docs/protocol.md)拥有业务确认和恢复语义，源码拥有具体公开类型。[内部设计](docs/internals.md)和[关键流程](docs/key-flows.md)说明原等待、资格与交接。[权限组合](docs/permission-composition.md)明确授权和 Settings 的独立责任。
 
-[成员精确关键流程](docs/key-flows.md)承接本成员的动作、提交和恢复分支；跨领域角色仍见所属领域入口。
+`HumanInterventionCommands` 与 `HumanInterventionQueries` 分开定义消费接口。`DecisionCommitter` 表达具名共同提交，不接受任意数据库回调。这些接口暂未提供生产后端，不能据此声称已经支持可靠等待、重启恢复或统一池。
 
 ## 配置、运行与验证
 
-provider、公开形状、介质、部署条件和真实执行入口尚待采用。合法配置不能减弱业务不变式；验证沿 SPEC 的具名拥有者和反例落实。尚无实际执行或故障证据证明本候选已兑现。
+单命令最多 262144 UTF-8 字节。一个请求最多 64 张卡，每卡最多 64 个选项。标识、标题、说明和原话分别有独立边界，不静默截断。应用层的积压预算、池存储和配置由 local 提供者兑现，尚未完成。
+
+在成员目录执行 `pnpm exec vitest run --mode fast`、`pnpm run typecheck` 和 `pnpm run build`。当前测试覆盖公开入口、严格形状、独立来源、原话、一次决定和终局规则。它们不验证实际身份、数据库或外部效果。
+
+[形式说明](docs/formal-model.md)与[验证入口](verification/README.md)保留有界模型、独立关系及负控。纯决策只是后续共同提交中的一部分，不能替代 SQL 与消费者集成验收。
 
 ## 维护
 
-本成员维护行为、机制、必要验证和真实消费者，组维护工程协作。改变参数、版本、提交或恢复条件时核对原事实及相邻拥有者，未定部分只阻塞依赖路径。原未决 ID 保留在技术采用与产品第四章。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
-
-## 合同与形式验证
-
-[公共协议](docs/protocol.md)定义待采用的服务和交换数据，[数学说明](docs/formal-model.md)定义全化、状态、不变量与非干扰，[权限组合](docs/permission-composition.md)解释跨域依据，[验证入口](verification/README.md)运行有限正负控。源码入口仍为空；接口采用与模型证据不表示生产服务已交付。
+公共签名、领域行为和提供者的实际支持范围随源码更新。加入新的命令、失败分支或状态时，同步真实消费者和契约测试。运行时对象不进入数据协议，跨域事实仍由各自拥有者维护。

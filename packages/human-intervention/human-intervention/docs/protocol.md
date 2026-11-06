@@ -1,6 +1,6 @@
 # HITL 公共协议
 
-状态：HJ0 技术采用已于2026-11-06由用户验收。本文定义目标数据和应用服务，不表示公开源码入口或运行服务已实现。行为来源为[成员契约](../SPEC.md)，数学定义及模型映射见[形式模型](formal-model.md)。协议标识为 `hitl/1`；本波迁移消费者，不保留两套卡片协议。
+状态：HJ0 技术采用已于2026-11-06由用户验收。本文定义数据和应用服务的行为。源码已提供公共形状与纯卡片规则，持久服务和运行组合尚未完成。行为来源为[成员契约](../SPEC.md)，数学定义及模型映射见[形式模型](formal-model.md)。协议标识为 `hitl/1`；本波迁移消费者，不保留两套卡片协议。
 
 ## 事实、轴与拥有者
 
@@ -42,7 +42,7 @@ SOLID：请求状态的纯函数不执行存储或读外域；应用协调器消
 
 | 方法 | 输入 | 成功输出及语义 |
 | --- | --- | --- |
-| registerRequest | `origin, questions[], displayContext, actionBasis?, preparationRef` | `registered {requestRef,revision,cards[]}`；请求、卡片及原等待active关联已共同提交。相同操作及输入返回原结果；同键不同摘要为conflict。出卡确定失败不能留下有效无卡等待 |
+| registerRequest | `origin, questions[], displayContext:string, actionBasis?, preparationRef` | `registered {requestRef,revision,cards[]}`；请求、卡片及原等待active关联已共同提交。相同操作及输入返回原结果；同键不同摘要为conflict。出卡确定失败不能留下有效无卡等待 |
 | submitReply | `cardRef, expectedRevision, reply` | `decided {decisionRef,revision,delivery:pending|accepted}`；人的处理与原等待可恢复关联在共同业务单元中成立。此输出不证明权限或动作已生效 |
 | invalidateWait | `waitRef, terminalEvidenceRef, reason:cancelled|archived|origin-terminal|continuity-lost` | `invalidated {affected,revision}`；仅原拥有者或合法控制可调用。历史决定保留；尚未答的卡失效。runtime退出不是终局依据 |
 | acknowledgeDelivery | `consumerReceipt` | `acknowledged {decisionRef,outcome}`；只允许绑定的原等待适配器，幂等记可靠接手；不能凭UI已读或新代际伪造 |

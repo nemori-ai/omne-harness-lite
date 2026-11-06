@@ -1,6 +1,6 @@
-# 人在回路协作设计候选
+# 人在回路协作设计
 
-本页保存尚待技术采用的设计，不表示实现、产品接受或阶段承诺。完整必要行为见[human-intervention/human-intervention SPEC](../human-intervention/SPEC.md)，产品范围见[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)。
+HJ0公共协议和形式模型已由用户接受。本页维护组内责任与协作，具体实现状态见组入口，不以设计代替运行证据。完整必要行为见[human-intervention/human-intervention SPEC](../human-intervention/SPEC.md)，产品范围见[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)。
 
 ## 技术采用与验证分工
 
@@ -10,7 +10,7 @@ HITL 验证关联、一次有效处理和披露；原 Tool/Run 验证批次、�
 
 ## 本组工程分解与公开依赖
 
-原 Tool/Run 提供请求与等待位置，身份/授权与设置提供当前资格及合法授权事实；交付面只呈现有权内容，正式通知承接实际形成的提示。HITL 不依赖消费者内部存储，也不接管原执行。 本组只具名一个文档成员，不创建额外服务、统一 SPEC 或源码依赖。具体公开形状及提供者尚待采用。
+原 Tool/Run 提供请求与等待位置，身份/授权与设置提供当前资格及合法授权事实；交付面只呈现有权内容，正式通知承接实际形成的提示。HITL 不依赖消费者内部存储，也不接管原执行。 当前human-intervention成员拥有公开形状、纯卡片规则和命令/查询接口。它只依赖Schema库，不导入Session、Agent、Tool或Cordis。local持久提供者需要消费Storage与Identity公开接口，按C2计划另行登记实际成员及共同提交参与者。
 
 ## 机制与流程导航
 
