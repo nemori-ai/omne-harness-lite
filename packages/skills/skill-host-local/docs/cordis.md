@@ -2,7 +2,7 @@
 
 本包提供本组的 Cordis 插件：`./cordis` 入口的 `skillPlugin`。服务键与抽象类归 [skill-cordis-contract](../../skill-cordis-contract/docs/cordis.md)，本页写插件怎样装载、依赖什么、撤除时发生什么，以及它怎样符合 IC 约定。行为条款归 [SPEC 的 Cordis 插件](../SPEC.md#cordis-插件)。Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。本页是候选，尚未取得技术接受。
 
-本包的变体：根入口是纯函数工厂，没有 Cordis。`./cordis` 入口使它成为带 Cordis 插件的成员，原为 `module` 变体，现在没有「升为提供者」的命令。按[现有成员不自动迁移](../../../../docs/package-organization.md)的规则，`src/cordis.ts` 与 `tests/cordis-entry.spec.ts` 手工补入。`package-template scan` 仍把本成员读作 `module`，这条读数在交回里说明。
+本包的变体：根入口是纯函数工厂，没有 Cordis。`./cordis` 入口使它成为带 Cordis 插件的成员，原为 `module` 变体，现在没有「升为提供者」的命令。按[现有成员不自动迁移](../../../../docs/package-organization.md)的规则，`src/cordis.ts` 与 `tests/cordis-entry.spec.ts` 手工补入。`package-template scan` 现在把本成员读作 `service-provider` 变体。
 
 ## 集成入口
 
@@ -65,5 +65,5 @@
 - 撤除插件时在途操作的答复：未验证。在途操作持有它已经取到的服务实例的结果，本包不规定它的结局。
 - 撤除之后对装载时的 `ctx` 调用 `ctx.get` 的答复：未验证，也不需要回答。
 - 两个端口只用 `@omne-harness/skill-contract/testing` 的内存替身验证。真实的读判定与解析实现，要等它们的实现方装载后验证。
-- `docs/architecture/constraints.json` 没有映射新成员 skill-cordis-contract 的入口责任，`package-template scan` 为此报一条角色读数 `unknown`。该文件归集成线，本包不改。
-- `package-template scan` 把本成员读作 `module` 变体，且结构读数是 `fail`：W3 的 `examples/sample-skill/` 里有模板未声明的目录（`.omne/`、`scripts/`）。这是基线既有读数，本包不改。
+- `docs/architecture/constraints.json` 没有映射本包 `src/` 与新成员 skill-cordis-contract 的入口责任，`package-template scan` 为此报角色读数 `unknown`（本包五个源文件各一条，skill-cordis-contract 一条）。该文件归集成线，本包不改。
+- `package-template scan` 对本成员的结构读数是 `fail`：W3 的 `examples/sample-skill/` 里有模板未声明的目录（`.omne/`、`scripts/`）。这是基线既有读数，本包不改。
