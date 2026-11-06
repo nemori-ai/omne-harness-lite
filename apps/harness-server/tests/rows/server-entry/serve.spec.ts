@@ -1,5 +1,6 @@
 // The `server-entry` row in a `serve` tree: it listens on the loopback port only after every row is
 // ACTIVE, never while a row is PENDING, and a malformed configuration fails the row.
+import { request } from 'node:http'
 import { networkInterfaces } from 'node:os'
 import { describe, expect, it } from 'vitest'
 import { defineRow } from '../../../src/row.ts'
@@ -13,6 +14,19 @@ import {
   startTree,
   waitListening,
 } from './support.ts'
+
+// A local network proxy can accept TCP without reaching this HTTP listener.
+function answersHttp(host: string, port: number): Promise<boolean> {
+  return new Promise(resolve => {
+    const req = request({ host, port, path: '/', headers: { host: `127.0.0.1:${port}` } }, res => {
+      res.resume()
+      resolve(true)
+    })
+    req.setTimeout(1000, () => req.destroy())
+    req.on('error', () => resolve(false))
+    req.end()
+  })
+}
 
 function stderrOf(run: { stderr: readonly string[] }): string {
   return run.stderr.filter(line => !line.startsWith('serve: stop requested: test')).join('\n')
@@ -103,7 +117,7 @@ describe('server-entry row: listening', () => {
     expect(run.startup['startedRows']).not.toContain('server-entry')
   })
 
-  it('binds the loopback address only', async () => {
+  it('answers HTTP on the loopback address only', async () => {
     const port = await freePort()
     const tree = startTree({ config: { listenPort: port } })
     await waitListening(tree, port)
@@ -111,10 +125,11 @@ describe('server-entry row: listening', () => {
       .flatMap(list => list ?? [])
       .filter(entry => entry.family === 'IPv4' && !entry.internal)
       .map(entry => entry.address)
-    const reachable = await Promise.all(others.map(address => connectable(address, port)))
-    const ipv6 = await connectable('::1', port)
+    expect(await answersHttp('127.0.0.1', port)).toBe(true)
+    const reachable = await Promise.all(others.map(address => answersHttp(address, port)))
+    const ipv6 = await answersHttp('::1', port)
     await tree.stop()
-    // The positive control above is `waitListening`: 127.0.0.1 accepted. Every other address refuses.
+    // The positive control proves the real HTTP listener answers; a bare proxy handshake does not.
     expect(reachable.every(accepted => !accepted)).toBe(true)
     expect(ipv6).toBe(false)
   })
