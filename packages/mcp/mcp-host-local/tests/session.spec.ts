@@ -2335,6 +2335,7 @@ describe('a defect of the session goes to the defect outlet (DP-06): the request
     expect(aborts).toBe(1)
     await tick()
     expect(outlet.seen.map(describeDefect)).toContain('TypeError: text must be a string')
+    expect(outlet.seen.map(describeDefect)).toContain('Error: the exchange abort broke')
     await transport.close()
     await listing
   })
