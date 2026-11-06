@@ -246,7 +246,7 @@
 
 | 性质 | 探索器（真实 `Session`，有限范围） | TLA+ 模型（TLC，有限范围） | 真实组合 |
 | --- | --- | --- | --- |
-| V1 | 可观察形式：有限范围通过。负控：手工变异 `sendOut` 去掉授权返回之后的 `inFlight` 核对，`V1-line.send-after-settle` 找到反例；该变异未入 `mutants.ts`，见 [verification/README.md](verification/README.md#两种证据能变红) | 有限范围通过（`valid-*`）；负控 `bad-resettle` 找到反例；变异 `V1-close-resettles-done`、`V1-late-answer-resettles` 变红 | 真实组合未验证 |
+| V1 | 可观察形式：有限范围通过。负控 `mV1-sends-after-settled`（`sendOut` 去掉授权返回之后的 `inFlight` 核对）找到反例 `V1-line.send-after-settle`，见 [verification/README.md](verification/README.md#两种证据能变红) | 有限范围通过（`valid-*`）；负控 `bad-resettle` 找到反例；变异 `V1-close-resettles-done`、`V1-late-answer-resettles` 变红 | 真实组合未验证 |
 | V2 | 有限范围通过；负控 `mV2-forgets-close`（两处守卫）找到反例 | 有限范围通过（`valid-*`）；负控 `bad-cred-after-close` 找到反例；变异 `V2-begin-ignores-closed`、`V2-late-refusal-reports` 变红 | 真实组合未验证 |
 | V3 | 有限范围通过；负控 `mV3-report-twice` 找到反例 | 有限范围通过（`valid-*`）；负控 `bad-report-twice` 找到反例；变异 `V3-discovery-reports-again`、`V3-report-without-handle` 变红 | 真实组合未验证 |
 | V4 | 有限范围通过；负控 `mV4-signal-dead`、`mV4-close-settles-after-line`、`mV4-caller-follows-workflow` 找到反例 | 有限范围通过（`valid-*`）；负控 `bad-signal-dead`、`bad-close-settles-after-line`、`bad-caller-waits-workflow-close`、`bad-caller-waits-workflow-signal` 找到反例；变异 `V4-close-keeps-caller`、`V4-close-waits-discovery`、`V4-signal-leaves-discovery` 变红 | 真实组合未验证 |

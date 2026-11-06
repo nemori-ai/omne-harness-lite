@@ -8,7 +8,7 @@
 | ------------------------------------- | ------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
 | `@omne-harness/mcp-contract`          | [src/index.ts](../src/index.ts)       | 调用方与实现方   | 品牌守卫与纯函数，见 `tests/public-entry.spec.ts` 的列表                                     |
 | `@omne-harness/mcp-contract/provider` | [src/provider.ts](../src/provider.ts) | 端口的实现方     | 无，只有类型                                                                                 |
-| `@omne-harness/mcp-contract/testing`  | [src/testing.ts](../src/testing.ts)   | 端口实现方的测试 | 五个套件、五个内存替身、两张样本表、`runConformanceCase`、`isNotApplicable`、`NotApplicable` |
+| `@omne-harness/mcp-contract/testing`  | [src/testing.ts](../src/testing.ts)   | 端口实现方的测试 | 五个符合性套件与各自的内存替身（传输的是 `createScriptedTransportFactory`）、`classifyOutcomeCases`、`mergeListingCases`、样本构造器、传输决策表 `TRANSPORT_TABLE` 与它的输入域（`transportCells`、`rowsOf`、`cellsOf`）、`runConformanceCase`、`isNotApplicable`、`NotApplicable`、`CaseVerdict`；逐项见 SPEC [三个入口](../SPEC.md#entries) |
 
 ## 定义索引
 

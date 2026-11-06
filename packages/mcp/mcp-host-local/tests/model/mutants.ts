@@ -34,6 +34,23 @@ const LINES = 'tests/lines.spec.ts'
 
 export const MUTANTS: readonly Mutant[] = [
   {
+    name: 'mV1-sends-after-settled',
+    breaks: 'V1',
+    defect:
+      'a request stopped while it was authorized still goes out: `sendOut` does not check that the entry is in flight once `authorize` answered',
+    file: 'src/session.ts',
+    replacements: [
+      {
+        find: '    if (!(await this.authorize(headers))) return this.settle(entry, NOT_SENT)\n    if (!this.inFlight(entry)) return\n',
+        replace: '    if (!(await this.authorize(headers))) return this.settle(entry, NOT_SENT)\n',
+      },
+    ],
+    spec: EXPLORER,
+    mode: 'fast',
+    filter: 'minimal',
+    expect: 'V1-line.send-after-settle',
+  },
+  {
     name: 'mV2-forgets-close',
     breaks: 'V2',
     defect:
