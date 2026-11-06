@@ -123,15 +123,7 @@ export function lostOfOutcome(outcome: CallOutcome): Lost | undefined {
   switch (outcome.kind) {
     case 'unknown':
       return lostOfNoAnswer(outcome.cause)
-    case 'complete':
-    case 'toolError':
-    case 'inputRequired':
-    case 'task':
-    case 'protocolError':
+    default:
       return undefined
-    default: {
-      const exhaustive: never = outcome
-      return exhaustive
-    }
   }
 }

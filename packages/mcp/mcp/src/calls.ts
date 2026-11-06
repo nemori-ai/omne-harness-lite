@@ -306,7 +306,8 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
 
   /**
    * Steps 3–12 under the reservation: the steps before the send, the send, and the answer. A
-   * stop signal that fired before the send is `stopped`, whatever the step it fired in answered.
+   * stop signal read as fired before a wait or before the send is `stopped`; one that fired by
+   * the time a refusal is answered is read by `perform`.
    */
   async function sendOrder(
     send: Send,
