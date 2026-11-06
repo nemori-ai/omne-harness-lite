@@ -429,7 +429,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
         reason: 'unavailable',
       })
       await stoppedByAcquisition(f, f.own.permits[0] ?? '')
-      expect(await f.controls()).toEqual(['go'])
+      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go']))
     })
 
     it('answers unknown when the gate is not ready within the start bound, and keeps the resource for the release', async () => {
@@ -453,7 +453,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
         kind: 'unknown',
         requestId: 'start-1',
       })
-      expect(await f.controls()).toEqual(['go'])
+      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go']))
       expect(await f.kills()).toBe(0)
       expect(f.commands.unconfirmed()).toHaveLength(1)
     })
@@ -760,7 +760,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       // The commit took effect for a domain this acquisition had stopped: the index stops and records it.
       await vi.waitFor(() => expect(f.processes.stopped).toEqual([[key, 'confirmed']]))
       expect(f.own.stopped).toEqual([])
-      expect(await f.controls()).toEqual(['go'])
+      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go']))
       await vi.waitFor(async () => expect(await f.list()).toEqual([]))
     })
   })
@@ -770,7 +770,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       const f = await setup({ gate: { afterStarted: 'stay', onTerm: 'exit' } })
       const { handle, key } = await started(f)
       expect(await within(handle.stop('forced'), 'the stop')).toBe('confirmed')
-      expect(await f.controls()).toEqual(['go'])
+      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go']))
       await stoppedByAcquisition(f, key)
       expect(await within(handle.result, 'the outcome')).toMatchObject({
         kind: 'failed',
@@ -782,7 +782,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       const f = await setup({ gate: { afterStarted: 'stay', onTerm: 'exit' }, retention: 'none' })
       const { handle, key } = await started(f)
       expect(await within(handle.stop('graceful'), 'the stop')).toBe('confirmed')
-      expect(await f.controls()).toEqual(['go', 'term'])
+      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go', 'term']))
       expect(await residueOf(handle)).toEqual({ kind: 'stopping', reason: 'unbound' })
       await stoppedByAcquisition(f, key)
     })
@@ -791,7 +791,7 @@ describe('one-shot command disposition and custody', { skip: !onLinux }, () => {
       const f = await setup({ gate: { afterStarted: 'stay' }, settings: { graceMs: 100 } })
       const { handle, key } = await started(f)
       expect(await within(handle.stop('graceful'), 'the stop')).toBe('unconfirmed')
-      expect(await f.controls()).toEqual(['go', 'term'])
+      await vi.waitFor(async () => expect(await f.controls()).toEqual(['go', 'term']))
       expect(f.own.stopped).toEqual([[key, 'unconfirmed']])
       expect(await f.kills()).toBe(0)
       expect(f.commands.unconfirmed().map(resource => resource.key)).toEqual([key])
