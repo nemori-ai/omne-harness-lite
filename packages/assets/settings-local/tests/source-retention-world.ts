@@ -1,3 +1,6 @@
+import { sourceReadinessMaterials } from '../src/source-readiness-materials.ts'
+import { SOURCE_READINESS_FACT, SOURCE_READINESS_PARTICIPANT } from '../src/source-readiness.ts'
+import type { SettingsAttemptBinding } from '../src/attempt-binding.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -102,6 +105,18 @@ export async function openSourceWorld(existingRoot?: string) {
   const materials: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
     participants: [
+      ...sourceReadinessMaterials().participants,
+      {
+        participant: 'fixture.source-readiness-sink',
+        protocol: 'fixture-source-readiness/1',
+        ...moduleFile('./source-readiness-sink.mjs'),
+        ownedTables: [],
+        readTables: [],
+        requiresFacts: [SOURCE_READINESS_FACT],
+        providesFacts: [],
+        allowedFunctions: [],
+        grouping: 'groupable',
+      },
       {
         participant: SOURCE_RETENTION_OWNER,
         protocol: SOURCE_RETENTION_PROTOCOL,
@@ -136,7 +151,7 @@ export async function openSourceWorld(existingRoot?: string) {
     ],
     declaredCombinations: { tenant: null, system: null },
   }
-  const participants = [SOURCE_RETENTION_OWNER]
+  const participants = materials.participants.map(p => p.participant)
   const manifest = combinationManifest({ catalog: materials, participants })
   if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
   const combination = {
@@ -155,6 +170,25 @@ export async function openSourceWorld(existingRoot?: string) {
   if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
   return {
     root,
+    readiness(binding: SettingsAttemptBinding, expected = binding) {
+      return made.storage.commit({
+        identity: {
+          ...source.domain,
+          operation: 'fixture.source-readiness',
+          protocolVersion: '2',
+          operationKey: randomUUID(),
+        },
+        combinationVersion: combination.combinationVersion,
+        manifestDigest: combination.manifestDigest,
+        commands: [
+          { participant: 'fixture.source-readiness-sink', facts: { binding: json(expected) } },
+          {
+            participant: SOURCE_READINESS_PARTICIPANT,
+            facts: { binding: json(binding), gate: { pending: null, held: 0 } },
+          },
+        ],
+      })
+    },
     write(commands: Command[], rollback = false) {
       return made.storage.commit({
         identity: {

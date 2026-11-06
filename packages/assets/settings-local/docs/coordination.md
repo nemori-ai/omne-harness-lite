@@ -80,7 +80,7 @@ Identity 的去重身份不含 destination。因此单独注册两个 destinatio
 
 恢复入口只接受匹配固定装配的持久预留。合法 capture 进入独立捕获封口，合法 attempt 进入根操作终结组合。未知协议或种类、额外字段、非规范编码、不一致绑定及不可用存储均不能转入旧封口作为回退。入口返回 unavailable 时，Identity 继续保留 held。
 
-attempt 封口必须在一次物理提交中组合 terminal、只读 intent-plan、source-retention 和 persistence。持有组织源门的修改被封口时，其根和 attempt 共同终结，并清除精确属于该根的门。源修改身份来自持久根及目标拥有者事实，不能由客户端布尔参数决定。旧 attempt 或旧 resolver 不能释放后继根的门。普通根的旧 attempt 明确 aborted 且根仍 pending 后，可以沿原命令重新准备。unknown 不授予分配后继 attempt 的依据。
+attempt 封口必须在一次物理提交中先读取 terminal observation，再由独立只读 seal-plan 生成精确计划，随后组合 terminal、source-retention 和 persistence。持有组织源门的修改被封口时，其根和 attempt 共同终结，并清除精确属于该根的门。源修改身份来自持久根及目标拥有者事实，不能由客户端布尔参数决定。旧 attempt 或旧 resolver 不能释放后继根的门。普通根的旧 attempt 明确 aborted 且根仍 pending 后，可以沿原命令重新准备。unknown 不授予分配后继 attempt 的依据。
 
 组织目的域固定为 system.settings 时，StandingBinding.scopeRef 仍保持真实主体的 tenantCodec 编码。组织适配器核验当前 organization-settings-manage 资格及目标所属组织。resolver 按持久绑定核对组织关系，不要求已撤权成员重新取得资格才允许封口。它是可信恢复能力，不能交给普通客户端。
 
@@ -99,7 +99,7 @@ attempt 封口必须在一次物理提交中组合 terminal、只读 intent-plan
 
 ready只读检查业务terminal仍开放，不能复用consume写入committed。正常业务提交先由只读commit-plan消费当前事实和本域状态，决定apply、abort-root或abort-attempt，再由terminal、source-retention和persistence共同落实。已确认业务失败属于这次事务成功保存的aborted结果，不能返回SQL conflict回滚后声称根已经终结。原配值决定继续复用Settings纯函数。
 
-来源门的只读readiness投影先进入commit-plan，实际检查和清门由后续source-retention负责。同一事务内不允许它们之间插入另一写入。外部seal继续使用terminal、intent-plan、source-retention和persistence的既定组合。两种plan分开登记材料依赖，可共享纯读取/决定代码；不能用命令分支隐藏requiresFacts反向成环。数组排列不等于SqlStorage执行顺序。
+来源门的只读readiness投影先进入commit-plan，实际检查和清门由后续source-retention负责。同一事务内不允许它们之间插入另一写入。外部seal使用不依赖当前治理或来源就绪的独立seal-plan，再经同一终态、来源与持久写入链。ready、commit和seal组合分别选择一个plan生产者，不能把它们同时登记进一个组合。终态只读观察不依赖终态写入fact，因此不会与计划成环。各写者继续独占自己的表；不能拆成两个争用同一表的写者。数组排列不等于SqlStorage执行顺序。
 
 当前这部分是持久提供者的实现义务。intent-migration与preparing-migration已安装基础关系及preparing字段，intent-records提供私有分配/读取写者。standing-custody已提供Identity完整请求和回执的私有保管写者。真实协调调用、来源保留、ready/commit组合和生产接线尚未完成。
 
@@ -152,3 +152,26 @@ sequenceDiagram
 ```
 
 单条读回使用根、attempt和成员的三个点查。恢复页按attempt和source_key读取请求元数据，最多64条，不加载快照。完整来源集合最多1024项，另受字节预算约束。逐项持久保管已实现，准备完成条件、可信来源准入和生产恢复循环仍须接线。
+
+
+### 固定依赖下的计划与写入
+
+不同阶段使用固定登记的组合，分别选择ready-plan、commit-plan或seal-plan。每个组合只有一个最终计划fact生产者。正常提交读取当前事实和来源就绪；封口读取原持久绑定，不需要当前治理、当前来源或再次取得资格。所有计划和写入仍处于同一个物理事务。
+
+```mermaid
+flowchart LR
+  TerminalRead[只读终态观察] --> Plan[每组合选一个计划器]
+  Current[正常提交或ready的当前事实] --> Plan
+  Readiness[正常提交的来源就绪] --> Plan
+  Plan --> Terminal[唯一终态写者]
+  Plan --> SourceAction[来源动作投影]
+  Terminal --> SourceAction
+  SourceAction --> Source[唯一来源写者]
+  Plan --> Persistence[唯一意图与配值写者]
+  Terminal --> Persistence
+  Source --> Persistence
+```
+
+ready的终态动作仅观察，不写committed；来源动作为none，不清门。非终态观察不能满足成功提交，no-action不能授予write-open。实际写者必须核对动作种类及完整绑定。合成描述符已通过真实manifest校验，但真实组合和上述行为仍须在完整提供者中验证。
+
+`source-readiness`只读实际来源门和held数量，返回绑定完整根、命令及精确attempt的事实。它没有上游fact依赖，也不清门或释放保留。它要求组合登记来源表拥有者；登记不表示执行写者。真实SQL测试检查pending、held、零held重开、无关目标和错绑消费者，但源更新准入与完整提交尚未接通。

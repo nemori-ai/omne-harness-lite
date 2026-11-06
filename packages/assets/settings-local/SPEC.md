@@ -201,3 +201,12 @@ A matching source receipt can move requested to held or directly to settled. Hel
 Manifest recognition reads its primary key. An exact member read uses three indexed point queries for root, attempt and member, each limited to one row. Recovery lists request metadata for an exact attempt through the composite primary key, with source_key continuation and a maximum page of64. It does not list snapshots. Recognizing one member does not rehash or read the full manifest.
 
 The immutable manifest partitions custody by attempt and source. Each member follows SettingsReservationCustody's state machine independently. The all-members-ready condition remains a preparation coordinator obligation. These private operations do not publish a ready basis, release external reservations or supply the public preparation backend.
+
+
+## Source readiness observation
+
+The private source-readiness participant reads the source owner's gate and held count in the current transaction. It owns no tables, requires no upstream facts and does not mutate source state. Its descriptor declares read access to the two source relations; their sole writer must be registered in the combination.
+
+The fact binds the complete intent identity, exact attempt, command kind and command digest. It reports the full source, actual pending update and bounded held count. Caller-supplied counts or gate content are not read. The downstream planner must compare the complete binding and persistent root purpose. An absent gate with zero holds is an observation, not permission to write or a proof of source ownership.
+
+Ready, commit and seal use separate fixed combinations with exactly one finalization-plan producer. A read-only terminal observation precedes the planner. Shared terminal, source and persistence writers validate their respective actions in the same transaction. Seal does not depend on current governance or renewed qualification. Ready's nonterminal/no-action results cannot authorize business effects. The complete phase assemblies and public preparation backend remain implementation obligations.

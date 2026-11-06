@@ -95,3 +95,6 @@ pnpm --filter @omne-harness/assets-local run test:fast
 
 
 [source-custody.spec.ts](source-custody.spec.ts) 验证目的侧来源请求保管。它覆盖清单原子性与竞争、重排认回、来源集合和路由不可替换、精确回执、固定快照、终态不可回退、旧attempt及空清单。真实来源参与者场景在丢失回包后重开目的数据库，再认回同一保留。目的准入由具名夹具替代，终态和旧attempt场景使用明确的合成记录。65个来源的两页读取验证页长和无快照搬运；EXPLAIN确认复合主键且无需临时排序，不据此声称吞吐或延迟。
+
+
+[source-readiness.spec.ts](source-readiness.spec.ts) 使用实际只读参与者和无表消费者，核对来源门、held数量、零held的pending重开，以及完整根/attempt绑定。测试把消费命令放在前面，依赖顺序仍由真实SQL提供者决定。来源状态通过具名私有写者夹具建立；该测试不代表生产源更新准入或最终提交已经实现。
