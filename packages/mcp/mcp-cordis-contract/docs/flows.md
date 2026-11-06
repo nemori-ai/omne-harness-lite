@@ -39,14 +39,14 @@ sequenceDiagram
     R-->>A: 答复
   else 缺席
     C-->>A: undefined
-    A-->>A: 答该端口的 unknown
+    A-->>A: 按使用方的规则作答
   end
 ```
 
-使用方每次调用都现取，不缓存。端口换代后，下一次调用取到新的实例。本成员只规定键与类，现取与缺席答复由使用方兑现（[SPEC 性质 9](../SPEC.md#结果与不变量)）。
+使用方每次调用都现取，不缓存。端口换代后，下一次调用取到新的实例。本成员只规定键与类，现取由使用方兑现（[SPEC 性质 9](../SPEC.md#结果与不变量)）；缺席时答什么由使用方规定，mcp-host-local 的规则见其 [SPEC「Cordis 插件」](../../mcp-host-local/SPEC.md#port-absent)。
 
 ## 失败与生命周期
 
-- 端口缺席：使用方答该端口的 `unknown`，不放行，也不当作「没有」。
-- 端口换代：下一次调用取到新实例。已经开始的调用持有旧实例的答复，本成员不规定它的结局。
+- 端口缺席：答复由使用方规定，见 [mcp-host-local 的 SPEC](../../mcp-host-local/SPEC.md#port-absent)。
+- 端口换代：下一次调用取到新实例。换代时在途的端口调用怎样处置由使用方规定，见 [mcp-host-local 的 SPEC](../../mcp-host-local/SPEC.md#cordis-plugin)。
 - 提供者 fiber 卸载：键上没有服务。本成员没有取消参数或资源要释放。

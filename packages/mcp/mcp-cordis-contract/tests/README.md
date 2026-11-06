@@ -19,6 +19,6 @@
 当前测试包括：
 
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口没有运行导出；`src/index.ts` 不含 `@deepseek-ai/cordis`；构建产物 `dist/index.js` 没有导入。
-- [cordis-entry.spec.ts](cordis-entry.spec.ts)：七个键常量等于各类的 `provide`，值是约定的键名，七个键互不相同；`./cordis` 的导出集合恰为七个抽象类与七个键常量；两个端口服务（`mcpUseEligibility`、`mcpCredentialUse`）的子类作为插件装载后在键上提供服务，卸载后键上没有服务。
+- [cordis-entry.spec.ts](cordis-entry.spec.ts)：七个键常量等于各类的 `provide`，值是约定的键名，七个键互不相同；`./cordis` 的导出集合恰为七个抽象类与七个键常量；七个类各一个最小具体子类（方法不被调用），作为插件装载后在键上提供服务，卸载后键上没有服务。
 
 没有 `*.spec-d.ts` 类型测试。运行方式：在仓库根执行 `pnpm --filter @omne-harness/mcp-cordis-contract test`，或在本成员目录执行 `pnpm test` 与 `pnpm typecheck`。具名维护者由负责人指定。

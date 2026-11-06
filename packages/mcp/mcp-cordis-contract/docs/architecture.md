@@ -49,7 +49,7 @@ flowchart LR
 
 ### 端口服务不写 `inject`
 
-`inject` 没有可选形式（见[机制读数](cordis.md#机制读数与假设)）。写进 `inject` 等于端口缺席时插件停在 `PENDING`，任一端口换代都使插件重跑，连接表随之关停重建。MCP 要求端口缺席时依赖它的操作答 `unknown`，所以抽象类不写 `static inject`，使用方每次调用现取（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)）。
+`inject` 没有可选形式（见[机制读数](cordis.md#机制读数与假设)）。写进 `inject` 等于端口缺席时插件停在 `PENDING`，任一端口换代都使插件重跑，连接表随之关停重建。MCP 要求端口缺席时服务照常作答、不放行（答复由使用方规定，见 [mcp-host-local 的 SPEC](../../mcp-host-local/SPEC.md#port-absent)），所以抽象类不写 `static inject`，使用方每次调用现取（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)）。
 
 ## 验证与维护
 
