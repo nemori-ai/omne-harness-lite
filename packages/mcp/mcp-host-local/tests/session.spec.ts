@@ -2141,6 +2141,45 @@ describe('the metadata fetch of a refused authorization (R4, T9)', () => {
     expect(fetched).toEqual([path])
     await transport.close()
   })
+
+  it('a fetch that answers nothing after the signal is not followed by the next address: the loop ended with the signal', async () => {
+    const fetched: string[] = []
+    const started = deferred()
+    const ended = deferred()
+    const { transport } = open(
+      'streamable-http',
+      { 'tools/call': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
+      {
+        fetchMetadata: (url, signal) => {
+          fetched.push(url)
+          started.resolve()
+          // Nothing at this address, known only after the signal: the root path would be next.
+          return new Promise(resolve => {
+            signal.addEventListener(
+              'abort',
+              () =>
+                setTimeout(() => {
+                  resolve(undefined)
+                  ended.resolve()
+                }, 10),
+              { once: true },
+            )
+          })
+        },
+      },
+    )
+    const controller = new AbortController()
+    const calling = transport.call(echo, controller.signal)
+    await started.promise
+    controller.abort()
+    expect(await settledWithin(calling)).toMatchObject({
+      settled: { failure: { kind: 'not-sent', cause: 'authorization-required' } },
+    })
+    await ended.promise
+    await tick()
+    expect(fetched).toEqual([path])
+    await transport.close()
+  })
 })
 
 describe('a defect of the session goes to the defect outlet (DP-06): the request settles by its phase', () => {
