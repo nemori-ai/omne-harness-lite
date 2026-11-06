@@ -96,6 +96,9 @@ describe('the ./participants entry', () => {
 
 describe('the session command facts', () => {
   it.each([
+    0,
+    '2',
+    true,
     null,
     [],
     {},

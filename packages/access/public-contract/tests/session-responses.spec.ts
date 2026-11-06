@@ -629,3 +629,10 @@ it('does not allow a capacity outcome on a control response', () => {
     readWire('cancel-run', wireOf('limited', { resource: 'pending-inputs', limit: 2 })),
   ).toMatchObject({ kind: 'unreadable' })
 })
+
+it('rejects a capacity response that omits its limit without throwing', () => {
+  expect(readWire('send-input', wireOf('limited', { resource: 'pending-inputs' }))).toEqual({
+    kind: 'unreadable',
+    diagnostic: { code: 'field' },
+  })
+})
