@@ -647,7 +647,8 @@ export declare function inProcessPrincipalAuthority(): PrincipalAuthority;
 ```ts
 import { type Outcome } from '@omne-harness/operation-result';
 export declare const QUALIFICATIONS: readonly [
-    "organization-cost-ledger-read"
+    "organization-cost-ledger-read",
+    "organization-settings-manage"
 ];
 export type Qualification = (typeof QUALIFICATIONS)[number];
 export declare function isQualification(value: unknown): value is Qualification;

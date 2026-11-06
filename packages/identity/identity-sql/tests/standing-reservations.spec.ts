@@ -180,6 +180,86 @@ it('holds one stable operation, conflicts on changed content, and rejects forged
   ).toEqual({ kind: 'denied' })
 })
 
+it('keeps organization settings and cost qualifications distinct across reservation recovery', async () => {
+  const fixture = await setup()
+  expect(
+    await fixture.deployment.provider.reservations.reserve({
+      principal: fixture.principal,
+      binding: fixture.binding,
+      required: ['organization-settings-manage'],
+    }),
+  ).toEqual({ kind: 'denied' })
+  const system = fixture.authority.issuer.issueSystem({ component: 'settings-test' })
+  if (!('ok' in system)) throw new Error('system')
+  const issued = fixture.authority.issuer.issueActingForTenant({
+    actor: system.ok,
+    tenant: fixture.organization.tenant,
+    work: { owner: 'settings-test', work: 'admin-operation' },
+  })
+  const scope = tenantCodec.encode(fixture.organization.tenant)
+  if (!('ok' in issued) || !scope.ok) throw new Error('administrator principal')
+  const binding = {
+    ...fixture.binding,
+    principalRef: standingPrincipalRef(issued.ok),
+    scopeRef: scope.value,
+  }
+  const settingsRequest = {
+    principal: issued.ok,
+    binding: { ...binding, operationId: 'settings-original' },
+    required: ['organization-settings-manage'] as const,
+  }
+  const costRequest = {
+    principal: issued.ok,
+    binding: { ...binding, operationId: 'cost-original' },
+    required: ['organization-cost-ledger-read'] as const,
+  }
+  const settings = await fixture.deployment.provider.reservations.reserve(settingsRequest)
+  const costs = await fixture.deployment.provider.reservations.reserve(costRequest)
+  expect(settings.kind).toBe('held')
+  expect(costs.kind).toBe('held')
+  if (settings.kind !== 'held' || costs.kind !== 'held') throw new Error('held reservations')
+  expect(
+    await fixture.deployment.provider.reservations.reserve({
+      ...costRequest,
+      required: ['organization-settings-manage'],
+    }),
+  ).toEqual({ kind: 'operation-conflict' })
+  fixture.deployment.provider.stop()
+  await fixture.deployment.scrypt.module.close()
+  await fixture.deployment.storage.close({ remove: false })
+  opened.splice(opened.indexOf(fixture.deployment), 1)
+  const storage = await openSqliteStorage(fixture.deployment.storage.base)
+  const replacement = await openProvider({
+    storage,
+    principalVerifier: fixture.authority.verifier,
+    destinationResolver: {
+      async seal(reservation) {
+        return { kind: 'terminal', reservation, outcome: 'aborted' }
+      },
+    },
+  })
+  opened.push({
+    ...replacement,
+    async close() {
+      await replacement.close()
+      await storage.close({ remove: true })
+    },
+  })
+  expect(await replacement.provider.reservations.reserve(settingsRequest)).toEqual(settings)
+  expect(await replacement.provider.reservations.reserve(costRequest)).toEqual(costs)
+  for (const held of [settings, costs]) {
+    expect(await replacement.provider.reservations.settle(held.reservation.id)).toMatchObject({
+      kind: 'terminal',
+      reservation: held.reservation,
+      outcome: 'aborted',
+    })
+  }
+  expect(await replacement.provider.reservations.reserve(costRequest)).toMatchObject({
+    kind: 'terminal',
+    outcome: 'aborted',
+  })
+})
+
 it('keeps the membership and admission barrier until the injected destination seal succeeds', async () => {
   let available = false
   const calls: StandingReservation[] = []
