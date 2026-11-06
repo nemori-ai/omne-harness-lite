@@ -1964,6 +1964,24 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     await transport.close()
   })
 
+  it('the shared stream of the SSE mode breaking settles a request still being authorized with not-sent, and never sends it', async () => {
+    const held = holdAfter(5)
+    const { line, transport } = open('streamable-http', sseScripts, {
+      sse: { kind: 'entered' },
+      gate: held.gate,
+    })
+    ok(await transport.discover(), 'discover')
+    const calling = transport.call(echo, never)
+    await held.reached
+    line.queue.push({ kind: 'broken' })
+    await tick()
+    held.release()
+    expect(await settledWithin(calling)).toEqual({ settled: { failure: NOT_SENT } })
+    expect(line.requests('tools/call')).toEqual([])
+    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    await transport.close()
+  })
+
   it('a request in the authorization discovery is not settled by the shared stream breaking: it ends authorization-required when the discovery ends', async () => {
     const fetching = deferred<string>()
     const found = deferred<PlainJson | undefined>()
