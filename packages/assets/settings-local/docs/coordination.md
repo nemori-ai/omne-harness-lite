@@ -101,4 +101,4 @@ ready只读检查业务terminal仍开放，不能复用consume写入committed。
 
 来源门的只读readiness投影先进入commit-plan，实际检查和清门由后续source-retention负责。同一事务内不允许它们之间插入另一写入。外部seal继续使用terminal、intent-plan、source-retention和persistence的既定组合。两种plan分开登记材料依赖，可共享纯读取/决定代码；不能用命令分支隐藏requiresFacts反向成环。数组排列不等于SqlStorage执行顺序。
 
-当前这部分是持久提供者的实现义务。intent-migration已安装基础关系，但尚未承载preparing、完整准备计划和保管记录；本节不表示迁移或生产接线已经完成。
+当前这部分是持久提供者的实现义务。intent-migration与preparing-migration已安装基础关系及preparing字段，intent-records提供私有分配/读取写者。完整外部保留请求计划、保管记录、ready/commit组合和生产接线尚未完成。

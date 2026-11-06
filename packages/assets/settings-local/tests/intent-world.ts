@@ -1,0 +1,145 @@
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import {
+  combinationManifest,
+  manifestDigest,
+  type SqlMaterialCatalog,
+} from '@omne-harness/sql-contract'
+import { createSqliteStorage } from '@omne-harness/sqlite-provider'
+import { settingsSqlMaterials } from '../src/materials.ts'
+import { SETTINGS_PREPARING_MIGRATION } from '../src/preparing-migration.ts'
+import { json } from '../src/encoding.ts'
+import type { IntentAllocation, IntentIdentity } from '../src/intent-schema.ts'
+import { config } from './config.ts'
+import { command, definitionRef } from './world.ts'
+
+export function allocation(): IntentAllocation {
+  const value = command()
+  const witness = { ownerRef: 'owner', subjectRef: 'scope', revision: '1' }
+  return {
+    identity: {
+      domain: { scope: { kind: 'tenant', tenant: 'tenant-a' }, transactionDomain: 'intent-test' },
+      principalRef: 'alice',
+      operation: { target: value.target, operationId: value.operationId },
+    },
+    intent: { kind: 'change', command: value },
+    purpose: { kind: 'target-change' },
+    attemptId: 'attempt-1',
+    plan: {
+      protocol: 'settings-current-basis/1',
+      target: value.target,
+      definitionRef,
+      ownerRevision: 1,
+      enabled: true,
+      valueRevision: 0,
+      sources: [
+        {
+          sourceId: 'tenant',
+          ownerRef: 'owner',
+          scope: { kind: 'tenant', subjectRef: 'tenant-a' },
+          authorityRevision: '1',
+        },
+      ],
+      declaration: witness,
+      selection: { kind: 'not-required', authority: witness },
+      policies: [
+        {
+          policyRef: 'policy',
+          interpretationRef: 'owner-policy/1',
+          revision: '1',
+          inputs: [],
+          constraints: [],
+        },
+      ],
+    },
+  }
+}
+function moduleFile(name: string) {
+  const url = new URL(`./${name}.mjs`, import.meta.url)
+  return {
+    moduleUrl: url.href,
+    codeDigest: createHash('sha256').update(readFileSync(url)).digest('hex'),
+  }
+}
+export async function openIntentWorld(existingRoot?: string) {
+  const parent = fileURLToPath(
+    new URL('../../../../tmp/closures/settings-intent/databases/', import.meta.url),
+  )
+  mkdirSync(parent, { recursive: true })
+  const root = existingRoot ?? realpathSync(mkdtempSync(join(parent, 'case-')))
+  const own = settingsSqlMaterials()
+  const materials: SqlMaterialCatalog = {
+    catalogProtocol: 'sql-catalog/1',
+    participants: own.participants.map(item =>
+      item.participant === 'settings.persistence'
+        ? { ...item, ...moduleFile('intent-writer'), requiresFacts: [], providesFacts: [] }
+        : item,
+    ),
+    migrations: own.migrations,
+    readHandlers: [
+      ...own.readHandlers,
+      {
+        handler: 'fixture.settings.intent-read',
+        protocol: 'fixture-settings-intent/1',
+        ...moduleFile('intent-reader'),
+        ordering: 'snapshot',
+        readTables: ['st_governance_intent', 'st_governance_attempt'],
+        requiresMigrations: [SETTINGS_PREPARING_MIGRATION],
+        maxRowsRead: 2,
+        maxOutputBytes: 2 * 1024 * 1024,
+      },
+    ],
+    declaredCombinations: { tenant: null, system: null },
+  }
+  const domain = allocation().identity.domain
+  const participants = ['settings.persistence']
+  const manifest = combinationManifest({ catalog: materials, participants })
+  if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
+  const combination = {
+    ...domain,
+    combinationVersion: 'intent-test/1',
+    manifestDigest: manifestDigest(manifest.manifest),
+    participants,
+  }
+  const made = await createSqliteStorage({
+    config: config(root),
+    materials,
+    closeLeases: { admit: () => ({}), release() {} },
+  })
+  if (made.kind !== 'created') throw new Error(JSON.stringify(made))
+  const registered = await made.storage.registerCombination(combination)
+  if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
+  return {
+    root,
+    write(input: IntentAllocation, key = randomUUID(), rollback = false) {
+      return made.storage.commit({
+        identity: {
+          ...domain,
+          operation: 'fixture.intent.allocate',
+          protocolVersion: '2',
+          operationKey: key,
+        },
+        combinationVersion: combination.combinationVersion,
+        manifestDigest: combination.manifestDigest,
+        commands: [
+          { participant: 'settings.persistence', facts: { input: json(input), rollback } },
+        ],
+      })
+    },
+    read(identity: IntentIdentity) {
+      return made.storage.read({
+        domain,
+        handler: 'fixture.settings.intent-read',
+        protocol: 'fixture-settings-intent/1',
+        requestKey: randomUUID(),
+        input: json(identity),
+      })
+    },
+    async close() {
+      const result = await made.control.close({ initiator: 'disposal' })
+      if (result.kind !== 'closed') throw new Error(JSON.stringify(result))
+    },
+  }
+}

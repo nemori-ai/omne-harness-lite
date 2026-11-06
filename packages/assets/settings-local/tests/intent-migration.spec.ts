@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { expect, it } from 'vitest'
 import type { MigrationPort } from '@omne-harness/sql-contract/worker'
 import migration from '../src/intent-migration.ts'
+import preparingMigration from '../src/preparing-migration.ts'
 
 function open() {
   const db = new DatabaseSync(':memory:')
@@ -47,8 +48,69 @@ function open() {
       (operation_key, attempt, attempt_id, basis_digest, basis_json, sql_identity_json, state)
       VALUES (?, ?, ?, ?, ?, ?, 'prepared')`).run(key, sequence, id, 'b'.repeat(64), '{}', '{}')
   }
-  return { db, root, attempt }
+  return { db, port, root, attempt }
 }
+
+it('refuses nonempty unpublished intent relations without guessing a preparation plan', () => {
+  const { db, port, root, attempt } = open()
+  try {
+    root('existing')
+    attempt('existing', 1, 'existing-attempt')
+    expect(() => preparingMigration.up(port)).toThrow(/requires empty unpublished intent relations/)
+    expect(db.prepare('SELECT attempt_id, state FROM st_governance_attempt').all()).toEqual([
+      { attempt_id: 'existing-attempt', state: 'prepared' },
+    ])
+    expect(
+      db
+        .prepare('PRAGMA table_info(st_governance_attempt)')
+        .all()
+        .map(row => row.name),
+    ).not.toContain('plan_json')
+  } finally {
+    db.close()
+  }
+})
+
+it('keeps preparing active without inventing a ready basis', () => {
+  const { db, port, root } = open()
+  try {
+    preparingMigration.up(port)
+    expect(preparingMigration.verify(port)).toEqual({ kind: 'verified' })
+    root('root')
+    const insert = db.prepare(`INSERT INTO st_governance_attempt
+      (operation_key, attempt, attempt_id, plan_json, basis_digest, basis_json, sql_identity_json, state)
+      VALUES ('root', ?, ?, '{}', ?, ?, '{}', ?)`)
+    insert.run(1, 'first', null, null, 'preparing')
+    expect(() => insert.run(2, 'overlap', null, null, 'preparing')).toThrow(/UNIQUE constraint/)
+    expect(() => db.prepare("UPDATE st_governance_attempt SET state = 'prepared'").run()).toThrow(
+      /CHECK constraint/,
+    )
+    expect(() => db.prepare("UPDATE st_governance_attempt SET basis_json = '{}'").run()).toThrow(
+      /CHECK constraint/,
+    )
+    expect(() =>
+      db
+        .prepare("UPDATE st_governance_attempt SET basis_digest = 'digest', basis_json = '{}'")
+        .run(),
+    ).toThrow(/CHECK constraint/)
+    db.prepare("UPDATE st_governance_attempt SET state = 'aborted'").run()
+    insert.run(2, 'next', null, null, 'preparing')
+    db.prepare(
+      "UPDATE st_governance_attempt SET state = 'prepared', basis_digest = 'digest', basis_json = '{}' WHERE attempt_id = 'next'",
+    ).run()
+    expect(() => insert.run(3, 'overlap-ready', null, null, 'preparing')).toThrow(
+      /UNIQUE constraint/,
+    )
+    const plan = db
+      .prepare(
+        "EXPLAIN QUERY PLAN SELECT attempt_id FROM st_governance_attempt WHERE operation_key = ? AND state IN ('preparing', 'prepared', 'submitted') LIMIT 1",
+      )
+      .all('root')
+    expect(plan.map(row => row.detail).join('\n')).toContain('st_governance_one_live_attempt')
+  } finally {
+    db.close()
+  }
+})
 
 it('keeps root identity, exact attempt identity and one live attempt as independent constraints', () => {
   const { db, root, attempt } = open()

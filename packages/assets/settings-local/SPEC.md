@@ -117,3 +117,17 @@ A root key binds its principal, complete target and business operation within th
 Root state constrains result and abort-reason columns. Pending recovery has a partial index ordered by root key. Exact attempt lookup uses its unique ID index. Foreign keys remain within `settings.persistence`; other participants cannot read these private tables.
 
 These constraints do not by themselves preserve command immutability or prevent terminal revival. The sole persistent writer must enforce the [root and attempt model](../settings/verification/README.md#原操作与准备尝试). Existing values, receipts and old terminals remain unchanged by this migration. Switching providers still requires draining old held reservations and explicitly preserving historical results. The presence of these tables does not complete that upgrade or authorize a direct-commit fallback in the final assembly.
+
+### Preparing allocation
+
+`preparing-migration.ts` adds an explicit preparing phase and a stored comparison plan. Preparing has no ready basis. The live-attempt index includes preparing, prepared, and submitted. An aborted attempt can lack a basis when preparation never completed.
+
+The migration requires the unpublished intent relations to be empty. No previous production writer populated those relations. Unexpected records stop the upgrade before either relation changes. This check does not delete or reinterpret existing Settings values, changes, or operation receipts. The original migration remains unchanged.
+
+`intent-records.ts` provides the private persistence participant operations for allocating and reading an intent. The caller must run allocation inside an existing SqlStorage transaction after trusted admission. This module does not authenticate callers, acquire external holds, or authorize a business commit. It is not exported as a public backend.
+
+Allocation preserves the full original command. A different transport requestId can recognize that command, but a changed semantic command returns operation_conflict. An existing active attempt returns its original ID and comparison plan. A terminal root returns its original status. Only an open root without an active attempt can allocate a successor, within the 64-attempt budget. Root insertion, attempt insertion, and sequence advancement share the enclosing transaction.
+
+Reads use two indexed point queries, each with LIMIT 1. They validate the stored command binding, attempt sequence, plan target, ready-basis digest, and exact SQL destination identity. They do not write or settle anything. The plan stores a SettingsCurrentBasis comparison projection. External reservation requests and custody checkpoints remain separate obligations and are not implemented by allocation.
+
+Tests exercise this writer through the real SQLite Worker with a test participant replacing admission. They cover concurrent allocation, rollback, reopen, immutable commands, exact-ID collisions, terminal recognition, and budget boundaries. Seeded terminal/history records test recognition; they do not prove the production seal service. Current admission, custody, ready/commit plans, recovery routing, and the public preparation backend remain incomplete.

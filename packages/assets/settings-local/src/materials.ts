@@ -1,4 +1,5 @@
 import { SETTINGS_INTENT_MIGRATION, SETTINGS_INTENT_TABLES } from './intent-migration.ts'
+import { SETTINGS_PREPARING_MIGRATION } from './preparing-migration.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
@@ -36,6 +37,7 @@ export function settingsSqlMaterials(): Pick<
   const participant = file('participant')
   const migration = file('migration')
   const intentMigration = file('intent-migration')
+  const preparingMigration = file('preparing-migration')
   const sources = file('source-layout-migration')
   const reader = file('read')
   const terminal = file('terminal-participant')
@@ -69,6 +71,12 @@ export function settingsSqlMaterials(): Pick<
       },
     ],
     migrations: [
+      {
+        ...SETTINGS_PREPARING_MIGRATION,
+        moduleUrl: preparingMigration.moduleUrl,
+        checksum: preparingMigration.digest,
+        requires: [SETTINGS_INTENT_MIGRATION],
+      },
       {
         ...SETTINGS_INTENT_MIGRATION,
         moduleUrl: intentMigration.moduleUrl,

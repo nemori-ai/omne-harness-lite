@@ -146,4 +146,4 @@ Seal可以终结preparing、prepared或submitted。不可逆终态阻止迟到Pu
 | OnlyReadyAttemptCommits | commit-before-ready允许未完成准备的尝试提交 |
 | OneBusinessEffect | 与不可逆终态共同检查，无单独负控 |
 
-本模型只检查有限安全性。外部拥有者的reserve/settle原子性、真实资格、来源绑定、SQL隔离和固定恢复地址是前提；它不证明这些提供者实现、完整跨模型精化、清理最终完成或任意规模。SourceRetention负责来源版本保持，IntentAttempts负责根命令、预算和后继身份。提供者还必须验证准备中取消、迟到保留回包、答复丢失和数据库重开。当前关系表和提供者尚未兑现preparing阶段，不能将模型通过报告为运行时完成。
+本模型只检查有限安全性。外部拥有者的reserve/settle原子性、真实资格、来源绑定、SQL隔离和固定恢复地址是前提；它不证明这些提供者实现、完整跨模型精化、清理最终完成或任意规模。SourceRetention负责来源版本保持，IntentAttempts负责根命令、预算和后继身份。提供者还必须验证准备中取消、迟到保留回包、答复丢失和数据库重开。当前关系表与私有分配写者已经保存preparing身份，实际资格和来源保留、ready及恢复组合仍未完成。不能将模型或分配测试通过报告为完整运行时完成。
