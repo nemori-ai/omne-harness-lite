@@ -2,12 +2,15 @@ import type { OperationRef } from '@omne-harness/human-intervention'
 import type { ReadPort } from '@omne-harness/sql-contract/worker'
 import { operationKey } from './encoding.ts'
 import { terminalSchema } from './terminal-schema.ts'
-
 export function readTerminal(port: ReadPort, operation: OperationRef) {
-  const row = port.execute('SELECT record FROM hi_terminals WHERE operation_key = ? LIMIT 1', [
-    operationKey(operation),
-  ]).rows[0]
+  const row = port.execute(
+    'SELECT operation_key,input_digest,state FROM hi_terminals_v2 WHERE tenant_ref=? AND actor_ref=? AND operation_id=? LIMIT 1',
+    [operation.tenantRef, operation.actorRef, operation.operationId],
+  ).rows[0]
   if (!row) return undefined
-  if (typeof row[0] !== 'string') throw new TypeError('Invalid HITL terminal record')
-  return terminalSchema.parse(JSON.parse(row[0]))
+  if (row[0] !== operationKey(operation)) throw new TypeError('Terminal identity mismatch')
+  return terminalSchema.parse({
+    binding: { operationRef: operation, inputDigest: row[1] },
+    state: row[2],
+  })
 }

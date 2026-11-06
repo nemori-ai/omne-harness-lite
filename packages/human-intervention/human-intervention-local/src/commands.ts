@@ -1,3 +1,4 @@
+import { WAIT_PLANNER, WAIT_WRITER } from './wait-schema.ts'
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
 import type { WaitRef } from '@omne-harness/human-intervention'
 import { digest, json } from './encoding.ts'
@@ -8,12 +9,7 @@ import {
   SqlCommandSchema,
   type SqlCommand,
 } from './request-schema.ts'
-import {
-  IndependentCommandSchema,
-  WAIT_ACCEPT,
-  WAIT_CONTROL,
-  type IndependentCommand,
-} from './independent-schema.ts'
+import { IndependentCommandSchema, type IndependentCommand } from './independent-schema.ts'
 
 export function independentControlCommands(input: IndependentCommand): readonly FactCommandV2[] {
   const parsed = IndependentCommandSchema.parse(input)
@@ -22,7 +18,9 @@ export function independentControlCommands(input: IndependentCommand): readonly 
   const binding = { operationRef: operation, inputDigest: digest(parsed) }
   return [
     { participant: TERMINAL_PARTICIPANT, facts: { kind: 'consume', binding: json(binding) } },
-    { participant: WAIT_CONTROL, facts: { input: json(parsed) } },
+    { participant: WAIT_PLANNER, facts: { input: json(parsed) } },
+    { participant: REQUEST_PLANNER, facts: { binding: json(binding) } },
+    { participant: WAIT_WRITER, facts: { binding: json(binding) } },
   ]
 }
 export function independentRequestCommands(
@@ -34,11 +32,11 @@ export function independentRequestCommands(
   return [
     { participant: TERMINAL_PARTICIPANT, facts: { kind: 'consume', binding: json(binding) } },
     {
-      participant: WAIT_CONTROL,
+      participant: WAIT_PLANNER,
       facts: { input: json({ kind: 'request', input: parsed, waitRef }) },
     },
     { participant: REQUEST_PLANNER, facts: { input: json(parsed) } },
-    { participant: WAIT_ACCEPT, facts: { binding: json(binding) } },
+    { participant: WAIT_WRITER, facts: { binding: json(binding) } },
     { participant: REQUEST_WRITER, facts: { binding: json(binding) } },
   ]
 }

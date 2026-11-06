@@ -8,13 +8,24 @@ import {
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { json } from './encoding.ts'
 import { WAIT_HANDLER, WAIT_PROTOCOL } from './independent-schema.ts'
-import { readActive, readControl, readInboxEntries, waitKey } from './independent-records.ts'
+import {
+  readActiveHeader,
+  readInboxEntry,
+  readInboxKeys,
+  readReceipts,
+  readWait,
+  waitKey,
+} from './wait-record.ts'
+import { countSchema } from './relational-values.ts'
+import { pageBudget, readLimited, itemBytes, READ_BYTES } from './read-budget.ts'
 const querySchema = z.strictObject({
   tenantRef: TenantRefSchema,
   waitRef: WaitRefSchema,
   actorRef: HitlIdentifierSchema,
   kind: z.enum(['state', 'inbox', 'snapshot']),
   receiverGeneration: ReceiverGenerationSchema.optional(),
+  offset: z.number().int().min(0).max(64).default(0),
+  limit: z.number().int().min(1).max(100).default(64),
 })
 export default {
   handler: WAIT_HANDLER,
@@ -22,33 +33,49 @@ export default {
   read(input, port) {
     const parsed = querySchema.safeParse(input)
     if (!parsed.success) return { kind: 'failed', diagnostic: 'wait_query' }
-    const query = parsed.data
-    const key = waitKey(query.tenantRef, query.waitRef)
-    const state = readControl(port, key)
-    if (!state || !state.preparation.readers.includes(query.actorRef))
-      return { kind: 'read', output: { kind: 'denied' } }
-    if (query.kind === 'snapshot')
+    const q = parsed.data,
+      state = readWait(port, q.tenantRef, q.waitRef, q.actorRef)
+    if (!state) return { kind: 'read', output: { kind: 'denied' } }
+    if (q.kind !== 'inbox') {
+      const receipts = readReceipts(port, q.tenantRef, q.waitRef)
+      if (receipts.length !== state.receiptCount) throw new TypeError('Receipt count mismatch')
+      const active = readActiveHeader(port, q.tenantRef, q.waitRef) ?? null
+      const hasDecisions = readInboxKeys(port, q.tenantRef, q.waitRef, 0, 1).length !== 0
+      const snapshot = { kind: 'snapshot', state: { ...state, receipts }, active, hasDecisions }
       return {
         kind: 'read',
-        output: json({
-          kind: 'snapshot',
-          state,
-          active: readActive(port, key) ?? null,
-          decisions: readInboxEntries(port, key),
-        }),
+        output: json(itemBytes(snapshot) > READ_BYTES ? readLimited : snapshot),
       }
-    if (query.kind === 'state')
-      return {
-        kind: 'read',
-        output: json({ kind: 'found', state, active: readActive(port, key) ?? null }),
-      }
-    if (state.preparation.registration.operation.actorRef !== query.actorRef)
+    }
+    if (state.preparation.ownerActor !== q.actorRef)
       return { kind: 'read', output: { kind: 'denied' } }
-    if (state.receiver.kind !== 'bound' || query.receiverGeneration !== state.receiver.generation)
+    if (state.receiver.kind !== 'bound' || state.receiver.generation !== q.receiverGeneration)
       return { kind: 'read', output: { kind: 'stale-generation' } }
+    const count = countSchema.parse(
+      port.execute(
+        'SELECT count(*) FROM hi_wait_inbox_v2 WHERE tenant_ref=? AND wait_key=? LIMIT 1',
+        [q.tenantRef, waitKey(q.tenantRef, q.waitRef)],
+      ).rows[0]?.[0],
+    )
+    if (q.offset > count)
+      return { kind: 'read', output: { kind: 'conflict', reason: 'inbox-position' } }
+    const keys = readInboxKeys(port, q.tenantRef, q.waitRef, q.offset, Math.min(q.limit + 1, 64))
+    const decisions = [],
+      budget = pageBudget()
+    for (const key of keys.slice(0, q.limit)) {
+      const loaded = readInboxEntry(port, q.tenantRef, key.sequence)
+      if (loaded.key !== waitKey(q.tenantRef, q.waitRef) || loaded.ordinal !== key.ordinal)
+        throw new TypeError('Inbox key mismatch')
+      if (!budget.accept(loaded.entry)) {
+        if (!decisions.length) return { kind: 'read', output: json(readLimited) }
+        break
+      }
+      decisions.push(loaded.entry)
+    }
+    const after = q.offset + decisions.length
     return {
       kind: 'read',
-      output: json({ kind: 'page', decisions: readInboxEntries(port, key), next: null }),
+      output: json({ kind: 'page', decisions, next: after < count ? after : null }),
     }
   },
 } satisfies ReadHandlerModule

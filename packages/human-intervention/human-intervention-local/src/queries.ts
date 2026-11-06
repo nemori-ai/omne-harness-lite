@@ -8,6 +8,7 @@ import {
   type HumanInterventionQueries,
   type HitlReadFailure,
   type RequestRef,
+  type WaitRef,
 } from '@omne-harness/human-intervention'
 import {
   createIdentityQualifiedHitl,
@@ -29,10 +30,16 @@ export type IndependentHitlQueryOptions = IdentityHitlOptions &
     cursorKey: Uint8Array
   }>
 
-/** Queries independent requests through their original owner's audience and current Identity standing. */
-export function createIndependentHitlQueries(
+/** Reads the immutable original-owner audience projection and current Identity standing. */
+export function createIndependentHitlQueryRuntime(
   options: IndependentHitlQueryOptions,
-): QueryServices & { close(): Promise<void> } {
+): QueryServices & {
+  close(): Promise<void>
+  route(
+    principal: ActingForTenantPrincipal,
+    ref: RequestRef,
+  ): Promise<{ kind: 'routed'; wait: WaitRef } | HitlReadFailure>
+} {
   const location = HitlIdentifierSchema.parse(options.locationRef)
   const cursors = createPoolCursors(options.cursorKey)
   const identity = createIdentityQualifiedHitl(options)
@@ -64,15 +71,14 @@ export function createIndependentHitlQueries(
     void running.finally(() => active.delete(running))
     return running
   }
-  async function request(ref: RequestRef, qualified: Qualified) {
-    if (ref.tenantRef !== qualified.tenantRef) return undefined
-    const record = await reads.request(ref)
-    return record && (await reads.audience(record, qualified)) ? record : undefined
-  }
   const services: QueryServices = {
     getRequest(principal, input) {
       return query(principal, GetRequestSchema, input, async (value, qualified) => {
-        const record = await request(value.requestRef, qualified)
+        const record =
+          value.requestRef.tenantRef === qualified.tenantRef
+            ? await reads.request(value.requestRef, qualified.actorRef)
+            : null
+        if (record && 'kind' in record) return record
         if (!record) return { kind: 'denied', reason: 'request-access' }
         const { actionBasis, ...snapshot } = record
         return {
@@ -83,14 +89,12 @@ export function createIndependentHitlQueries(
     },
     getCard(principal, input) {
       return query(principal, GetCardSchema, input, async (value, qualified) => {
-        const record = await request(value.cardRef.request, qualified)
-        const card = record?.cards.find(item => item.ref.cardId === value.cardRef.cardId)
-        return record && card
-          ? {
-              kind: 'found',
-              item: { card, origin: record.origin, displayContext: record.displayContext },
-            }
-          : { kind: 'denied', reason: 'request-access' }
+        const item =
+          value.cardRef.request.tenantRef === qualified.tenantRef
+            ? await reads.card(value.cardRef, qualified.actorRef)
+            : null
+        if (item && 'kind' in item) return item
+        return item ? { kind: 'found', item } : { kind: 'denied', reason: 'request-access' }
       })
     },
     listPool(principal, input) {
@@ -103,9 +107,37 @@ export function createIndependentHitlQueries(
   }
   return {
     ...services,
+    route(principal, ref) {
+      return query(
+        principal,
+        GetRequestSchema,
+        { protocol: 'hitl/1', requestRef: ref },
+        async (value, qualified) => {
+          const wait =
+            value.requestRef.tenantRef === qualified.tenantRef
+              ? await reads.route(value.requestRef, qualified.actorRef)
+              : null
+          return wait
+            ? { kind: 'routed' as const, wait }
+            : { kind: 'denied' as const, reason: 'request-access' }
+        },
+      )
+    },
     close() {
       closing = true
       return (closed ??= Promise.allSettled(active).then(() => identity.close()))
     },
+  }
+}
+
+export function createIndependentHitlQueries(
+  options: IndependentHitlQueryOptions,
+): QueryServices & { close(): Promise<void> } {
+  const runtime = createIndependentHitlQueryRuntime(options)
+  return {
+    getRequest: runtime.getRequest,
+    getCard: runtime.getCard,
+    listPool: runtime.listPool,
+    close: runtime.close,
   }
 }

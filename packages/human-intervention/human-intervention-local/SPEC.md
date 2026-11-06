@@ -20,7 +20,7 @@ inspect 返回 absent 仅表示本次快照未找到记录，不能转换为 not
 
 createHitlSqlTerminals 是可信装配能力，不是面向用户的授权接口。工厂绑定一个 tenant SQL domain，并拒绝不匹配的操作租户。服务调用方必须先做当前资格校验，不能把可构造的 OperationRef 当凭据。SQL participant/read handler 仅供已登记可信组合执行，不自行接受网络访问。
 
-HITL 参与者拥有 hi_terminals、hi_requests 和 hi_request_versions。独立 WaitOwner 参与者分别拥有 hi_wait_controls 与 hi_wait_active/hi_wait_inbox。每张表只有一个写参与者。原等待、资格、配值和授权数据由各原拥有者提供事务事实，HITL 不读其私表。终态工厂不创建 worker，不关闭调用者提供的共享 SqlStorage。进程退出不会删除耐久终态。身份协调器拒绝关闭后的新操作，并排空已受理操作；完整应用服务的生命周期仍须在其装配边界验证。
+HITL 参与者拥有终态、请求、题目、卡片状态、决定及池投影关系；独立 WaitOwner 的唯一状态写者拥有准备、接收控制、active、inbox、receipt 与精确 pending。物理表与键见[对象模型](docs/object-model.md)。每张表只有一个写参与者。原等待、资格、配值和授权数据由各原拥有者提供事务事实，HITL 不读其私表。终态工厂不创建 worker，不关闭调用者提供的共享 SqlStorage。进程退出不会删除耐久终态。身份协调器拒绝关闭后的新操作，并排空已受理操作；完整应用服务的生命周期仍须在其装配边界验证。
 
 ## 组合与验证
 
@@ -32,7 +32,7 @@ HITL 参与者拥有 hi_terminals、hi_requests 和 hi_request_versions。独立
 
 准备材料固定原注册调用、读者、答复者及相容实现。prepared 不是有效人工等待。注册必须共同建立请求、卡片和 active 等待；任一参与者失败则全部回滚。卡片引用必须属于同一请求，cardId 在请求内唯一。
 
-请求提交的事实依赖为 terminal、原等待控制、请求计划、原等待 inbox、请求写入。规划者只读本域请求表。它消费原拥有者给出的等待依据，不读原等待私表。WaitOwner 先接纳注册或决定，HITL 写者才确认对应计划。组合漏掉必需参与者时必须在提交前拒绝。
+请求提交的依赖为 terminal、只读 wait-plan、本地 local-plan、唯一 independent-state 写者、requests 写者。local-plan 的请求分支只读 HITL 状态并消费原拥有者依据；恢复分支只转交原拥有者计划，不读取 HITL 表。WaitOwner 先接纳注册或决定，HITL 写者才确认对应摘要。静态图拒绝缺失的必需前驱，可信命令构造器保证本次操作的完整参与集合。
 
 独立等待保存原位置、采用引用及答复收件箱。换代须校验相容实现与 expectedGeneration，并原子增加 receiverGeneration。旧代消费返回 stale-generation。一个批次的所有卡片都有耐久消费回执后，checkpoint 才成为 resume-ready。答复本身不取得执行槽，执行槽准入由实际运行时负责。
 
@@ -61,11 +61,11 @@ close 先拒绝新工作，再等待已受理的读写结束。操作在调用�
 
 createIndependentHitlQueries 实现公共 getRequest、getCard 和 listPool。装配者注入原有 Identity/SQL 配置、固定 locationRef 及至少32字节的游标签名密钥。该工厂只支持独立 WaitOwner，不替代 Session、Agent 或 Tool 的原等待适配。它不实现 getOperation、listDeliveries 或写命令。
 
-每次查询先核验真实主体及当前成员资格。单项查询从 HITL 的请求记录取得原等待引用，再通过原拥有者读口核验受众及请求关联。不存在、无权或租户不匹配的请求统一返回 denied。服务返回投影前再次核验资格；跨领域写提交的保护仍由各自写服务负责，查询不声称跨服务可串行化快照。
+每次查询先核验真实主体及当前成员资格。单项查询在 HITL 快照内核验登记时由原拥有者提供的不可变读者投影及请求关联。不存在、无权或租户不匹配的请求统一返回 denied。服务返回投影前再次核验资格；跨领域写提交的保护仍由各自写服务负责，查询不声称跨服务可串行化快照。
 
 池按请求登记序号、请求内卡片顺序分页。序号以十进制字符串传递，避免 JavaScript number 的精度丢失。游标签名绑定当前 actor、租户、固定位置、规范过滤条件及快照修订，limit 可在续页时调整。密钥由装配者安全保管，同密钥重装配可续页，换钥后旧游标返回 invalid-input。游标不是读取资格。
 
-hi_request_versions 随请求变更递增。扫描过程中每次读取都同时取得该修订和下一请求，返回页前比较最后一次读取。修订不同返回 conflict，调用方从新快照重新开始；服务不保存历史快照，也不混合新旧内容。每页最多扫描64个请求。达到结果条数或数据末尾时 completeness 为 complete；扫描预算先耗尽时为 partial，返回有效续页游标。complete 表示这一页按其快照和限制完成，不表示全部结果都在这一页。原等待读口或存储失败返回 unavailable，不跳过故障后宣称完整。
+hi_request_versions 随请求变更递增。每页在一个SQL快照内读取修订、索引键及卡片正文；续页修订不符返回 conflict。服务不保存历史快照，不混合新旧内容。池按当前 actor 和实际非空状态桶索引查找，独立范围内不匹配的 origin/session 过滤直接得到空页。每桶最多 P+2 个请求键及 P+1 个卡片键，合并后水合至多 P 个完整 item。输出预算先耗尽时返回 partial 和有效续页；单项无法容纳时返回 limited。complete 表示本页按快照和容量完成，不表示所有结果都在这一页。存储失败返回 unavailable，不能跳过故障后宣称完整。
 
 close 拒绝新查询，并等待已接受查询完成全部受众读取及最后资格核验。它不关闭共享存储，不结束原人工等待。
 
@@ -84,7 +84,7 @@ getWait 在原 WaitOwner 的一个SQL快照内读取控制、active关联及收�
 
 readInbox 只向原消费者披露，当前接收代次必须匹配。其签名游标绑定 tenant、actor、完整 WaitRef 及 receiverGeneration。收件箱按耐久追加顺序分页，答复不会因读取删除，消费后的决定仍可认回。代次过期返回 stale-generation；把旧游标改配新代次返回 invalid-input。新答复可在后续查询出现，不把已返回页解释为未来完整集合。
 
-listDeliveries 只读取固定 destination 下当前消费者尚未接手的决定。独立 WaitOwner 读口在同一快照中核验原租户、原消费者及耐久消费回执；HITL 不跨读其私表。查询按收件箱序号前进，每次最多扫描64条，尚有未扫描记录时返回续页，即使本页过滤后为空。游标绑定租户、actor、目的地和查询种类，不能与池或readInbox互换。ack尚未完成但原消费者已经接手的决定不会再列为未接手。
+listDeliveries 只读取固定 destination 下当前消费者尚未接手的决定。独立 WaitOwner 读口在同一快照中核验原租户、原消费者及耐久消费回执；HITL 不跨读其私表。查询从精确 pending 的 tenant、owner、destination 索引按收件箱序号前进，取得至多 P+1 个键并水合 P 项；不扫描已接手历史或尚未答复的等待。游标绑定租户、actor、目的地和查询种类，不能与池或readInbox互换。ack尚未完成但原消费者已经接手的决定不会再列为未接手。
 
 应用工厂在调用注入端口前记录已接受调用。close 先拒绝新调用，再等待整次调用结束，最后关闭内部适配器。关闭后新命令返回 unavailable，不能冒充提交可能成立的 unknown。共享存储仍由装配者关闭。
 
@@ -92,3 +92,8 @@ listDeliveries 只读取固定 destination 下当前消费者尚未接手的决�
 ### 合法批次与存储预算
 
 内部计划通过事务事实交给参与者，SQL操作回执只保留原绑定与planDigest，不复制完整请求及全部历史答复。否则合法批次累积会在新的单次答复仍合法时触发回执上限。正式请求、池、等待和交付读材料上限均为8MiB；装配者须为SqlStorage配置至少该单次读取上限及相应全局读预算。参与者单响应无需因整批答复增大。64张卡各提交8192个四字节字符的真实回归验证该累积路径，不据此声称无限输入或无限存储。
+
+
+## 关系迁移
+
+旧四份迁移及校验和保留。新具名迁移在同一迁移事务中核验旧记录、创建关系状态、退休旧表，并保持原序号和操作身份。各拥有者只读取自己旧表；原等待通过版本化临时导出提供登记 OperationRef、readAudience、决定身份及完整规范摘要。HITL 重建 RegisterRequest 校验原摘要，双向比较决定集合和完整内容。缺失、重复或不符必须整笔失败；不补默认值，不丢弃坏行。临时导出完成采纳验证后删除。原 journal 结果继续解释，不重写存储私表。迁移失败和进程退出的实际验证范围见[持续验证](verification/README.md)。

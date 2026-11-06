@@ -14,6 +14,7 @@ import {
   hitlSqlMaterials,
   independentWaitSqlMaterials,
 } from '@omne-harness/human-intervention-local'
+import { WAIT_ACCEPTED_FACT } from '../src/request-schema.ts'
 import { config } from './config.ts'
 
 export async function openWorld(
@@ -24,7 +25,9 @@ export async function openWorld(
     wrap?: (storage: SqlStorage) => SqlStorage
   } = {},
 ) {
-  const parent = fileURLToPath(new URL('../../../../tmp/hitl-r1-c2/databases/', import.meta.url))
+  const parent = fileURLToPath(
+    new URL('../../../../tmp/hitl-r1-c2-relational/databases/', import.meta.url),
+  )
   mkdirSync(parent, { recursive: true })
   const root = options.root ?? realpathSync(mkdtempSync(join(parent, 'case-')))
   const hitl = hitlSqlMaterials()
@@ -35,6 +38,7 @@ export async function openWorld(
     readHandlers: [...hitl.readHandlers, ...wait.readHandlers],
   }
   const reject = new URL('./fixtures/reject.mjs', import.meta.url)
+  const lateReject = new URL('./fixtures/late-reject.mjs', import.meta.url)
   const materials: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
     ...own,
@@ -43,6 +47,18 @@ export async function openWorld(
     participants: [
       ...own.participants,
       ...(options.extraMaterials?.participants ?? []),
+      {
+        participant: 'fixture.hitl.late-reject',
+        protocol: 'fixture-hitl-reject/1',
+        moduleUrl: lateReject.href,
+        codeDigest: createHash('sha256').update(readFileSync(lateReject)).digest('hex'),
+        ownedTables: [],
+        readTables: [],
+        requiresFacts: [WAIT_ACCEPTED_FACT],
+        providesFacts: [],
+        allowedFunctions: [],
+        grouping: 'singleton',
+      },
       {
         participant: 'fixture.hitl.reject',
         protocol: 'fixture-hitl-reject/1',
@@ -58,7 +74,15 @@ export async function openWorld(
     ],
     declaredCombinations: { tenant: null, system: null },
   }
-  const participants = [...own.participants.map(item => item.participant), 'fixture.hitl.reject']
+  const participants = [
+    ...own.participants
+      .filter(
+        item => !['hitl.independent-control', 'hitl.independent-inbox'].includes(item.participant),
+      )
+      .map(item => item.participant),
+    'fixture.hitl.reject',
+    'fixture.hitl.late-reject',
+  ]
   const manifest = combinationManifest({ catalog: materials, participants })
   if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
   const domain = {
@@ -67,7 +91,7 @@ export async function openWorld(
   } as const
   const combination = {
     ...domain,
-    combinationVersion: 'hitl-test/1',
+    combinationVersion: 'independent-hitl/2',
     manifestDigest: manifestDigest(manifest.manifest),
     participants,
   }

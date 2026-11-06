@@ -84,6 +84,7 @@ it('reads original requests and cards and pages each card exactly once with a re
   const w = await open(),
     key = randomBytes(32),
     first = queries(w, w.world.storage, key)
+  expect(Object.keys(first).sort()).toEqual(['close', 'getCard', 'getRequest', 'listPool'])
   expect(await first.getRequest(w.principal, get(w))).toMatchObject({
     kind: 'found',
     request: {
@@ -227,33 +228,37 @@ it('checks current membership on every page and after a slow request read', asyn
   })
 })
 
-it('rejects a mixed snapshot when a write lands during pool projection', async () => {
+it('keeps one read snapshot coherent and rejects its continuation after a later write', async () => {
   const w = await open()
   let changed = false
   const service = queries(w, {
     ...w.world.storage,
     async read(input) {
       const result = await w.world.storage.read(input)
-      if (input.handler === 'hitl.independent-read' && !changed) {
+      if (input.handler === 'hitl.pool-read' && !changed) {
         changed = true
         await reply(w)
       }
       return result
     },
   })
-  expect(await service.listPool(w.principal, pool(w))).toEqual({
+  const page = await service.listPool(w.principal, pool(w))
+  expect(page).toMatchObject({ kind: 'page', items: [{ card: { kind: 'pending' } }] })
+  if (page.kind !== 'page' || !page.next) throw new Error('Expected snapshot continuation')
+  expect(changed).toBe(true)
+  expect(await service.listPool(w.principal, pool(w, { cursor: page.next }))).toEqual({
     kind: 'conflict',
     reason: 'pool-snapshot-changed',
   })
 })
 
-it('reports unavailable original owners and read faults rather than returning an empty complete pool', async () => {
+it('reports failed HITL audience projection reads instead of an empty complete pool', async () => {
   const w = await open()
   const service = queries(w, {
     ...w.world.storage,
     read(input) {
-      if (input.handler === 'hitl.independent-read')
-        return Promise.reject(new Error('owner offline'))
+      if (input.handler === 'hitl.pool-read' || input.handler === 'hitl.request-read')
+        return Promise.reject(new Error('HITL projection offline'))
       return w.world.storage.read(input)
     },
   })
@@ -302,7 +307,7 @@ it('drains complete query projections on close while leaving the shared storage 
   expect(await w.backend.inspect(w.principal, w.binding)).toMatchObject({ kind: 'committed' })
 })
 
-it('returns a bounded partial scan with continuation when filters exclude more than one scan budget', async () => {
+it('completes an impossible independent-scope filter without scanning historical requests', async () => {
   const w = await open(),
     service = queries(w)
   for (let index = 1; index <= 64; index++) {
@@ -343,15 +348,5 @@ it('returns a bounded partial scan with continuation when filters exclude more t
   }
   const filter = { states: ['pending'], originKind: 'tool' }
   const first = await service.listPool(w.principal, pool(w, { filter }))
-  expect(first).toMatchObject({ kind: 'page', items: [], completeness: 'partial' })
-  if (first.kind !== 'page' || !first.next) throw new Error('Expected bounded continuation')
-  expect(
-    await service.listPool(w.principal, pool(w, { filter, cursor: first.next })),
-  ).toMatchObject({
-    kind: 'page',
-    items: [],
-    next: null,
-    completeness: 'complete',
-    snapshotRef: first.snapshotRef,
-  })
+  expect(first).toMatchObject({ kind: 'page', items: [], next: null, completeness: 'complete' })
 })
