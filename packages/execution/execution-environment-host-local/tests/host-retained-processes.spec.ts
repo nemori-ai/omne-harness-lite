@@ -26,7 +26,7 @@ import {
   type RetainedSupervision,
 } from '../src/host-retained-processes.ts'
 import type { MembersReading, ScopeCoordinate, StopReading } from '../src/host-scope.ts'
-import { scopeDigest } from '../src/host-scope.ts'
+import { scopeDigest, scopeReference } from '../src/host-scope.ts'
 
 function tenantOf(account: string): TenantId {
   const parsed = tenantCodec.parse(
@@ -1563,6 +1563,207 @@ it('records the time of the handover from the wall clock, and a new generation f
     handedOverAtMs: 1_700_000_005_000,
     generation: second.handed.process.generation,
   })
+})
+
+it('retires the last generation of an index that holds nothing without trouble, and polls once it holds something again', async () => {
+  vi.useFakeTimers()
+  const f = await indexWith(await stateDirectory(), supervisor(), { pollMs })
+  expect(() => f.index.retire('generation-1')).not.toThrow()
+  expect(vi.getTimerCount()).toBe(0)
+  f.index.join('generation-2')
+  await handOver(f, scopeA)
+  expect(vi.getTimerCount()).toBe(1)
+})
+
+// ---------------------------------------------------------------------------------------------
+// What a marker carries, what a loaded entry knows before it is read again, and the reading itself
+
+it('writes a null gate for a handover that had none, and reads every member of such a unit after a restart', async () => {
+  const state = await stateDirectory()
+  const f = await indexWith(state)
+  const key = randomUUID()
+  const reservation = reserveOrThrow(f, scopeA, key)
+  f.stub.members(unitOf(key), [11, 12])
+  await f.index.commit(reservation, {
+    ...handoverOf(key, ledgerStub().ledger),
+    gatePid: undefined,
+    members: 2,
+  })
+  expect(
+    JSON.parse(await readFile(join(state, 'retained-processes', `${key}.json`), 'utf8')),
+  ).toMatchObject({
+    gatePid: null,
+  })
+  const stub = supervisor()
+  stub.members(unitOf(key), [11, 12])
+  const second = await indexWith(state, stub)
+  expect(await second.index.list(scopeA, tenant)).toMatchObject([{ processes: 2 }])
+})
+
+it('reads the marker text as UTF-8, and lists the handover time the marker records', async () => {
+  const state = await stateDirectory()
+  await writeMarkerFile(
+    state,
+    'k1.json',
+    markerOf('k1', { origin: 'appel-é-世界', handedOverAtMs: 1_234 }),
+  )
+  const stub = supervisor()
+  stub.members(unitOf('k1'), [gatePid, 1])
+  const f = await indexWith(state, stub)
+  expect(await f.index.list(scopeA, tenant)).toEqual([
+    {
+      process: { id: 'k1', generation: 'generation-0' },
+      origin: 'appel-é-世界',
+      handedOverAtMs: 1_234,
+      state: 'running',
+      processes: 1,
+    },
+  ])
+})
+
+it('does not write a loaded marker again: what the file says is the truth the index was started from', async () => {
+  const state = await stateDirectory()
+  const directory = await writeMarkerFile(state, 'k1.json', markerOf('k1'))
+  const stub = supervisor()
+  stub.members(unitOf('k1'), [gatePid, 1])
+  const f = await indexWith(state, stub)
+  await rm(join(directory, 'k1.json'))
+  await f.index.maintain()
+  expect(await readdir(directory)).toEqual([])
+  expect(f.facts).toEqual([])
+})
+
+it('does not read a marker of a unit the supervisor could not answer for: the index stays unread, and reads again when it can', async () => {
+  const state = await stateDirectory()
+  const directory = await writeMarkerFile(state, 'k1.json', markerOf('k1'))
+  const stub = supervisor()
+  const f = createRetainedProcessIndex({
+    stateDirectory: state,
+    provider: 'host-files',
+    capacityPerScope: 1,
+    pollMs: 60_000,
+    supervision: async () => stub.supervision,
+  })
+  // The tool itself failed: not a gone unit, not an empty one.
+  expect(await f.ready()).toBe(false)
+  expect(await f.list(scopeA, tenant)).toBe('unavailable')
+  expect(f.reserve(scopeA, tenant, 'k2')).toBe('unavailable')
+  expect(await readdir(directory)).toEqual(['k1.json'])
+  expect(stub.stops).toEqual([])
+  stub.members(unitOf('k1'), [gatePid])
+  expect(await f.ready()).toBe(true)
+  // A unit that holds only its gate is read as it is: settled by the next reading, not dropped here.
+  expect(f.reserve(scopeA, tenant, 'k2')).toBe('capacity')
+})
+
+it('keeps what the load read about a unit while the supervisor cannot be had', async () => {
+  const state = await stateDirectory()
+  await writeMarkerFile(state, 'k1.json', markerOf('k1'))
+  const stub = supervisor()
+  stub.members(unitOf('k1'), [gatePid, 1, 2])
+  let current: RetainedSupervision | undefined = stub.supervision
+  const f = await indexWith(state, stub, { supervision: async () => current })
+  current = undefined
+  expect(await f.index.list(scopeA, tenant)).toMatchObject([
+    { process: { id: 'k1' }, processes: 2 },
+  ])
+  expect(stub.reads).toHaveLength(1)
+})
+
+it('lists a unit the supervisor reports gone as stopping, with no members, while its stop is not confirmed', async () => {
+  const f = await indexWith(await stateDirectory())
+  const { key, ledger } = await handOver(f, scopeA)
+  f.stub.gone(unitOf(key))
+  f.stub.answerStops({ status: 'unconfirmed' })
+  expect(await f.index.list(scopeA, tenant)).toMatchObject([{ state: 'stopping', processes: 0 }])
+  expect(ledger.stopped).toEqual([[key, 'unconfirmed']])
+})
+
+it('shares one reading among maintenance calls that arrive together', async () => {
+  const stub = supervisor()
+  const gate = deferred<MembersReading>()
+  const reads: string[] = []
+  const slow: RetainedSupervision = {
+    ...stub.supervision,
+    members: input => {
+      reads.push(input.unit)
+      return gate.promise
+    },
+  }
+  const f = await indexWith(await stateDirectory(), stub, { supervision: async () => slow })
+  await handOver(f, scopeA)
+  const first = f.index.maintain()
+  const again = f.index.maintain()
+  await vi.waitFor(() => expect(reads).toHaveLength(1))
+  gate.resolve({ kind: 'members', pids: [gatePid, 1], directory: '/cgroup/x' })
+  expect(await Promise.all([first, again])).toEqual([0, 0])
+  expect(reads).toHaveLength(1)
+  // Once the reading finished, the next call reads again.
+  await f.index.maintain()
+  expect(reads).toHaveLength(2)
+})
+
+it('reads the units it holds, and not a place that is only reserved', async () => {
+  const f = await indexWith(await stateDirectory())
+  const reservation = reserveOrThrow(f, scopeA, 'reserved-only')
+  expect(await f.index.maintain()).toBe(0)
+  expect(f.stub.reads).toEqual([])
+  const held = await handOver(f, scopeA)
+  await f.index.maintain()
+  expect(f.stub.reads.map(read => read.unit)).toEqual([unitOf(held.key)])
+  reservation.abort()
+})
+
+it('does not read a unit whose stop is in flight', async () => {
+  const stub = supervisor()
+  const stopGate = deferred<StopReading>()
+  const slowStop: RetainedSupervision = { ...stub.supervision, stop: async () => stopGate.promise }
+  const f = await indexWith(await stateDirectory(), stub, { supervision: async () => slowStop })
+  const { key } = await handOver(f, scopeA)
+  const stopping = f.index.stop(key)
+  expect(await f.index.maintain()).toBe(1)
+  expect(stub.reads).toEqual([])
+  stopGate.resolve({ status: 'confirmed' })
+  expect(await stopping).toBe('confirmed')
+})
+
+it('does not settle again a unit whose stop finished while its members were being read', async () => {
+  const stub = supervisor()
+  const gate = deferred<MembersReading>()
+  let asked = false
+  const slow: RetainedSupervision = {
+    ...stub.supervision,
+    members: () => {
+      asked = true
+      return gate.promise
+    },
+  }
+  const f = await indexWith(await stateDirectory(), stub, { supervision: async () => slow })
+  const { key, ledger } = await handOver(f, scopeA)
+  const reading = f.index.maintain()
+  await vi.waitFor(() => expect(asked).toBe(true))
+  expect(await f.index.stop(key)).toBe('confirmed')
+  gate.resolve({ kind: 'members', pids: [gatePid], directory: '/cgroup/x' })
+  await reading
+  expect(stub.stops).toHaveLength(1)
+  expect(ledger.stopped).toEqual([[key, 'confirmed']])
+})
+
+it('does not recover a place that is only reserved, even by the resource it would have', async () => {
+  const f = await indexWith(await stateDirectory())
+  const reservation = reserveOrThrow(f, scopeA, 'k1')
+  const placeholder: ManagedResource = {
+    key: 'k1',
+    provider: 'host-files',
+    reference: scopeReference({ unit: '', bootId: '' }),
+  }
+  expect(await f.index.recover(placeholder)).toBeUndefined()
+  expect(f.stub.stops).toEqual([])
+  // It is still the reservation: it commits.
+  f.stub.members(unitOf('k1'), [gatePid, 1])
+  expect(
+    (await f.index.commit(reservation, handoverOf('k1', ledgerStub().ledger))).process.id,
+  ).toBe('k1')
 })
 
 // ---------------------------------------------------------------------------------------------
