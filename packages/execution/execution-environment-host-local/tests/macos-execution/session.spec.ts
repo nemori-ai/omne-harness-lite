@@ -24,10 +24,17 @@ const swap = vi.hoisted(() => new Map<string, string>())
 
 vi.mock('node:child_process', async importOriginal => {
   const actual = await importOriginal<typeof import('node:child_process')>()
+  const { promisify } = await import('node:util')
+  const execFile = (file: string, ...rest: unknown[]) =>
+    Reflect.apply(actual.execFile, undefined, [swap.get(file) ?? file, ...rest])
+  // Keep the promisified form `{ stdout, stderr }` for any module that promisifies execFile.
+  Object.defineProperty(execFile, promisify.custom, {
+    value: (file: string, ...rest: unknown[]) =>
+      Reflect.apply(promisify(actual.execFile), undefined, [swap.get(file) ?? file, ...rest]),
+  })
   return {
     ...actual,
-    execFile: (file: string, ...rest: unknown[]) =>
-      Reflect.apply(actual.execFile, undefined, [swap.get(file) ?? file, ...rest]),
+    execFile,
     execFileSync: (file: string, ...rest: unknown[]): unknown =>
       Reflect.apply(actual.execFileSync, undefined, [swap.get(file) ?? file, ...rest]),
   }

@@ -36,16 +36,20 @@ const seam = vi.hoisted(() => ({
 
 vi.mock('node:child_process', async importOriginal => {
   const actual = await importOriginal<typeof import('node:child_process')>()
+  const { promisify } = await import('node:util')
+  const execFile = (file: string, args: readonly string[], options: object, done: unknown) => {
+    seam.read.push({ file, options })
+    return Reflect.apply(actual.execFile, undefined, [file, args, options, done])
+  }
+  // Keep the promisified form `{ stdout, stderr }` for any module that promisifies execFile.
+  Object.defineProperty(execFile, promisify.custom, { value: promisify(actual.execFile) })
   return {
     ...actual,
     spawn: (file: string, args: readonly string[], options: object) => {
       seam.spawned.push({ file, options })
       return actual.spawn(file, args, options)
     },
-    execFile: (file: string, args: readonly string[], options: object, done: unknown) => {
-      seam.read.push({ file, options })
-      return Reflect.apply(actual.execFile, undefined, [file, args, options, done])
-    },
+    execFile,
   }
 })
 vi.mock('node:fs/promises', async importOriginal => {
