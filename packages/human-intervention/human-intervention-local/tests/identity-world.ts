@@ -38,6 +38,7 @@ function duration(text: string) {
 }
 export async function openIdentityWorld(
   options: {
+    cards?: number
     wrapHitl?: (storage: SqlStorage) => SqlStorage
   } = {},
 ) {
@@ -208,15 +209,13 @@ export async function openIdentityWorld(
       positionRef: 'step-a',
       adoptionRef: 'v1',
     },
-    questions: [
-      {
-        kind: 'question',
-        cardId: 'answer',
-        title: 'Continue?',
-        description: 'Keep the original work',
-        options: [{ id: 'yes', label: 'Yes', description: 'Continue' }],
-      },
-    ],
+    questions: Array.from({ length: options.cards ?? 1 }, (_, index) => ({
+      kind: 'question',
+      cardId: index === 0 ? 'answer' : `answer-${index}`,
+      title: 'Continue?',
+      description: 'Keep the original work',
+      options: [{ id: 'yes', label: 'Yes', description: 'Continue' }],
+    })),
     displayContext: 'Independent human question',
   })
   const preparation = IndependentCommandSchema.parse({

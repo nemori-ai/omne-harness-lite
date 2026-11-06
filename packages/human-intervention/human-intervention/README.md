@@ -29,7 +29,7 @@ const result = decodeHitlCommand('submitReply', JSON.stringify({
 
 [SPEC](SPEC.md)拥有必要行为与验证义务。[公共协议](docs/protocol.md)拥有业务确认和恢复语义，源码拥有具体公开类型。[内部设计](docs/internals.md)和[关键流程](docs/key-flows.md)说明原等待、资格与交接。[权限组合](docs/permission-composition.md)明确授权和 Settings 的独立责任。
 
-`HumanInterventionCommands` 与 `HumanInterventionQueries` 分开定义消费接口。`DecisionCommitter` 表达具名共同提交，不接受任意数据库回调。这些接口暂未提供生产后端，不能据此声称已经支持可靠等待、重启恢复或统一池。
+`HumanInterventionCommands` 与 `HumanInterventionQueries` 分开定义消费接口。`DecisionCommitter` 表达具名共同提交，不接受任意数据库回调。[local 提供者](../human-intervention-local/README_ZH.md)已实现独立等待的持久事务、恢复机制和请求/卡片/池查询子集。完整命令、恢复交接应用入口及其他原等待适配仍在实施，不能据此声称全系统 HITL 已可用。
 
 ## 配置、运行与验证
 

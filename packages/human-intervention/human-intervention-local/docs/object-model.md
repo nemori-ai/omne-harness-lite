@@ -52,3 +52,33 @@ IndependentControl 保存逻辑等待与接收权。receiverGeneration 表示谁
 prepared 只是耐久调用材料。注册共同建立 active 等待与请求。决定进入收件箱后，当前接收者逐项消费，完整批次才能转成 resume-ready。业务终局把 checkpoint 固定为 terminal，保留决定历史。
 
 工厂丢弃不删除数据，不关闭调用者提供的 SqlStorage。runtime 卸载不构成业务终局。原操作查不到仍可能在途，必须通过封口排除迟到提交才能认定 not-committed。
+
+
+## 池游标与投影
+
+```mermaid
+classDiagram
+  class IndependentHitlQueries {
+    getRequest()
+    getCard()
+    listPool()
+    close()
+  }
+  class PoolCursor {
+    string snapshot
+    string after
+    number offset
+  }
+  class PoolPage {
+    items
+    next
+    snapshotRef
+    completeness
+  }
+  IndependentHitlQueries --> RequestRecord : 获准投影
+  IndependentHitlQueries --> IndependentControl : 原拥有者读口
+  IndependentHitlQueries --> PoolCursor : 签名续页
+  PoolPage o-- RequestRecord : 卡片投影
+```
+
+PoolCursor 的 after 表示已完整扫描的最后请求，offset 表示下一请求内已扫描的卡片数。它不是业务实体，也没有独立持久生命周期。PoolPage 中的卡片仍以 RequestRecord 为权威；读取不会确认决定接手。

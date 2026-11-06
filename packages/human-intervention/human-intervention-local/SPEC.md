@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-本成员是[HITL 公共协议](../human-intervention/docs/protocol.md)的单机 SQL 提供者。依据为用户已接受的 HJ0 与 C2 实施范围。公开模型和应用服务合同归 human-intervention，SQL 原子性与耐久提交归 sql-contract。当前实现操作终态、请求/卡片事务、独立 WaitOwner 及完整原结果读回。Identity 成员资格协调已实现，统一池和公开应用服务尚在实施，不能据此宣称完整 HITL 服务可用。
+本成员是[HITL 公共协议](../human-intervention/docs/protocol.md)的单机 SQL 提供者。依据为用户已接受的 HJ0 与 C2 实施范围。公开模型和应用服务合同归 human-intervention，SQL 原子性与耐久提交归 sql-contract。当前实现操作终态、请求/卡片事务、独立 WaitOwner 及完整原结果读回。Identity 成员资格协调已实现，独立等待的当前资格查询与统一池已实现，其余公开应用服务尚在实施，不能据此宣称完整 HITL 服务可用。
 
 ## 结果与不变量
 
@@ -55,3 +55,16 @@ createHitlStandingDestination 仅装入 Identity 的可信目的端 resolver。�
 该协调器只兑现 ID-19 的成员关系与具名资格。它不签发主体，不验证人类登录凭据，也不授予卡片、会话、资产或许可权限。原等待控制继续核验来源与受众。其他适用 guard 必须由后续完整应用装配提供，不可用本协调器代替保护向量。
 
 close 先拒绝新工作，再等待已受理的读写结束。操作在调用注入端口前加入排空集合，重入关闭也不能漏掉该操作。关闭不删除请求、不终结业务等待、不关闭共享 SqlStorage；Identity 的恢复 resolver 有独立装配生命周期。
+
+
+## 独立等待的查询与分页
+
+createIndependentHitlQueries 实现公共 getRequest、getCard 和 listPool。装配者注入原有 Identity/SQL 配置、固定 locationRef 及至少32字节的游标签名密钥。该工厂只支持独立 WaitOwner，不替代 Session、Agent 或 Tool 的原等待适配。它不实现 getOperation、listDeliveries 或写命令。
+
+每次查询先核验真实主体及当前成员资格。单项查询从 HITL 的请求记录取得原等待引用，再通过原拥有者读口核验受众及请求关联。不存在、无权或租户不匹配的请求统一返回 denied。服务返回投影前再次核验资格；跨领域写提交的保护仍由各自写服务负责，查询不声称跨服务可串行化快照。
+
+池按请求登记序号、请求内卡片顺序分页。序号以十进制字符串传递，避免 JavaScript number 的精度丢失。游标签名绑定当前 actor、租户、固定位置、规范过滤条件及快照修订，limit 可在续页时调整。密钥由装配者安全保管，同密钥重装配可续页，换钥后旧游标返回 invalid-input。游标不是读取资格。
+
+hi_request_versions 随请求变更递增。扫描过程中每次读取都同时取得该修订和下一请求，返回页前比较最后一次读取。修订不同返回 conflict，调用方从新快照重新开始；服务不保存历史快照，也不混合新旧内容。每页最多扫描64个请求。达到结果条数或数据末尾时 completeness 为 complete；扫描预算先耗尽时为 partial，返回有效续页游标。complete 表示这一页按其快照和限制完成，不表示全部结果都在这一页。原等待读口或存储失败返回 unavailable，不跳过故障后宣称完整。
+
+close 拒绝新查询，并等待已接受查询完成全部受众读取及最后资格核验。它不关闭共享存储，不结束原人工等待。

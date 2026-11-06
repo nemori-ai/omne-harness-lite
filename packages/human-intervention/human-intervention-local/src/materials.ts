@@ -8,6 +8,7 @@ import {
   WAIT_BASIS_FACT,
   WAIT_ACCEPTED_FACT,
 } from './request-schema.ts'
+import { POOL_HANDLER } from './pool-schema.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
@@ -39,6 +40,7 @@ export function hitlSqlMaterials(): Pick<
   const writer = material('request-write')
   const requestMigration = material('request-migration')
   const requestReader = material('request-read')
+  const poolReader = material('pool-read')
   return {
     participants: [
       {
@@ -93,6 +95,17 @@ export function hitlSqlMaterials(): Pick<
       },
     ],
     readHandlers: [
+      {
+        handler: POOL_HANDLER,
+        protocol: REQUEST_PROTOCOL,
+        moduleUrl: poolReader.moduleUrl,
+        codeDigest: poolReader.digest,
+        ordering: 'snapshot',
+        readTables: ['hi_requests', 'hi_request_versions'],
+        requiresMigrations: [REQUEST_MIGRATION],
+        maxRowsRead: 2,
+        maxOutputBytes: 1048576,
+      },
       {
         handler: REQUEST_HANDLER,
         protocol: REQUEST_PROTOCOL,

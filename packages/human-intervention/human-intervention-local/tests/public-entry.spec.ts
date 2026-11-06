@@ -8,6 +8,7 @@ it('exposes registered SQL materials without a global service instance', () => {
     'hitl.terminal',
   ])
   expect(materials.readHandlers.map(item => item.handler)).toEqual([
+    'hitl.pool-read',
     'hitl.request-read',
     'hitl.terminal-read',
   ])

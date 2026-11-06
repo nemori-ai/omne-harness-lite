@@ -6,6 +6,7 @@
 
 ## 定义索引
 
+- [createIndependentHitlQueries](../src/queries.ts)：独立等待的当前资格请求/卡片查询与签名池分页。完整支持范围见[SPEC](../SPEC.md#独立等待的查询与分页)。
 - [createIdentityQualifiedHitl](../src/identity.ts)：核验当前成员资格，协调具名写入、结果披露与关闭排空；不是完整用户应用服务。
 - [createHitlStandingDestination](../src/identity-destination.ts)：供 Identity 可信装配封口目的操作。
 - [hitlSqlMaterials](../src/materials.ts)：返回 SQL participant、migration 与 snapshot reader 的具名材料。
