@@ -4,6 +4,8 @@
 
 纯入口导出 Schema、值类型、命令口和查询口。它复用 Legal Identity 编码、Settings 定义和目标、Permissions 声明。`./cordis` 导出抽象 Service；根入口不加载 Cordis。
 
+纯入口还提供 `GovernanceDefinitionSource`。原功能发布模块或应用的资产适配器实现这个只读端口，治理提供者消费它。原发布者不需要导入本地数据库提供者。该端口不建立中央定义库，也不把租户配值库提升为发布权威。
+
 ```mermaid
 flowchart LR
   App[应用适配器] --> G[governance-contract]
@@ -12,6 +14,9 @@ flowchart LR
   G --> S[Settings 公共定义]
   G --> P[Permissions 公共定义]
   App --> Domain[领域自己的消费端口]
+  Publisher[原功能或资产发布适配器] --> Source[GovernanceDefinitionSource]
+  Provider --> Source
+  Source --> G
 ```
 
 ## 关键机制与理由

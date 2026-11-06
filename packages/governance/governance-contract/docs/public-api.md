@@ -11,6 +11,7 @@
 | Scope、声明、引用、命令与查询 Schema | [schema.ts](../src/schema.ts) | 有限结构、规范身份文本与序列化值 |
 | GovernanceCommands | [ports.ts](../src/ports.ts) | contribute、adopt、withdraw |
 | GovernanceQueries | [ports.ts](../src/ports.ts) | readCatalog、queryOperation |
+| GovernanceDefinitionSource、来源身份与结果 Schema | [source.ts](../src/source.ts) | 按完整发布身份读取规范声明；不接受请求摘要选择来源 |
 | 互斥结果类型 | [ports.ts](../src/ports.ts) | 成功、拒绝、待决与未知结果 |
 | GovernanceContributionsService | [cordis.ts](../src/cordis.ts) | Cordis 唯一键及抽象方法 |
 

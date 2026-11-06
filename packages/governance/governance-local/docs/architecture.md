@@ -23,6 +23,23 @@ flowchart LR
 
 来源权威拥有不可变声明，`gc_definition` 是核验后的本地副本。它不是一个新的全局定义发行中心。
 
+`definition-source.ts` 只消费 `GovernanceDefinitionSource`，在异步等待前固定请求，之后比较原发布的完整身份及内容。`definition.ts` 继续拥有纯定义语义检查。来源选择、主体准入、当前采用是不同责任；来源比较不代替 Identity 保留或当前性围栏。
+
+```mermaid
+sequenceDiagram
+  participant C as 待接线的应用协调器
+  participant V as resolveDefinition
+  participant S as 原发布来源
+  C->>V: 有限声明
+  V->>V: 复制并固定完整正文
+  V->>S: ownerId / definitionId / version
+  S-->>V: 完整规范声明或 unavailable
+  V->>V: 核对身份、语义和完整正文
+  V-->>C: verified / conflict / unavailable
+```
+
+此图表示已实现的比较机制；原发布 producer 与公共协调器尚未接通。不同租户可以消费同一权威，不能各自用当地可编辑的定义副本冒充该权威。
+
 ## 验证与维护
 
 Schema 测试运行真实 SQLite；材料测试运行真实 Worker。角色资格、动态生命周期及业务 current 来源尚无生产符合性证据。关系变化须同步 [对象模型](object-model.md)、[规格](../SPEC.md) 和实际迁移，不以更新旧迁移来兼容已发布数据。
