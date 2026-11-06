@@ -10,7 +10,7 @@ MCP 组的本机宿主成员：契约 `McpTransportFactory` 与 `McpTransport` �
 
 | 范围                                                                                         | 状态                                                                                          |
 | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| stdio 传输：按行读写、读不懂的行丢弃、行字节上界、退出窗口、stderr 读出丢弃、T5 的关闭次序   | 已实现，在脚本化对端、SDK 对端与 `server-everything` 上验证                                   |
+| stdio 传输：按行读写、解析不了的行丢弃、行字节上界、退出窗口、stderr 读出丢弃、T5 的关闭次序 | 已实现，在脚本化对端、SDK 对端与 `server-everything` 上验证                                   |
 | Streamable HTTP 传输：JSON 与 SSE 应答、不跟随重定向、再发规则、授权发现、旧修订的会话与 S07 | 已实现，在脚本化对端、SDK bearer 网关、SDK 2025 会话与 `server-everything` 上验证             |
 | 旧 HTTP+SSE 回退：GET 流 + endpoint，作为 HTTP 线路的一种模式                                | 已实现，在脚本化对端与 `server-everything sse` 上验证                                         |
 | 契约传输套件 `mcpTransportConformance()`                                                     | 两种材料各跑一遍；通过、不适用与失败分开计数，不适用的用例与理由在 [SPEC](SPEC.md#组合与验证) |
@@ -62,7 +62,7 @@ pnpm exec vitest run --mode slow --typecheck.enabled=false         # conformance
 
 ## 维护
 
-T8 的结论来自契约的决策层；契约 T3、T5 或 T9 改变请求的发出、取消或关闭方式时，`src/session.ts` 随之变。`TRANSPORT_TABLE` 加行时 `tests/session.spec.ts` 自动覆盖。线路端口 `src/line.ts` 是内部类型，改它要同步两条线路与内存线路替身。SDK 升级时重跑 `tests/probes/` 的探针，重核 SPEC「与 SDK 的复用关系」的 `文件:行`，并核对 B 层夹具的 API。消费者：`@omne-harness/mcp`（经契约端口）、组设计。
+T8 的结论，以及两个传输共用的规则（请求的组成、读类再发一次、取消的方式、流断开与授权拒绝的结算、退出窗口、线上上限），来自契约的根导出。这些规则改变时，`src/session.ts` 随之调用新的导出。`TRANSPORT_TABLE` 加行时 `tests/session.spec.ts` 自动覆盖。线路端口 `src/line.ts` 是内部类型，改它要同步两条线路与内存线路替身。SDK 升级时重跑 `tests/probes/` 的探针，重核 SPEC「与 SDK 的复用关系」的 `文件:行`，并核对 B 层夹具的 API。消费者：`@omne-harness/mcp`（经契约端口）、组设计。
 
 ## 目录结构与文档职责
 

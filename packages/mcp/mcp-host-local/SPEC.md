@@ -43,7 +43,7 @@
 1. 会话与线路分开。线路只报告线上发生的事实，会话用契约的函数归类并得出结论。旧 HTTP+SSE 回退的 GET 也如此：线路交出 `GetOpened`，会话判定回退是否成立。见 H1、H2、H9。
 2. 会话对外的效果只经四个注入点：线路、材料里的凭据句柄、`SessionOptions.fetchMetadata` 与计时端口 `SessionOptions.schedule`。见 H14。
 3. stdio 线路读出并丢弃标准错误。见 H6。
-4. stdio 上一次写在完成前被 `signal` 中止时，线路不再可写，传输按流断开不再可用。见 H6。
+4. stdio 上一次写在完成前被 `signal` 中止时，线路用中止写端兑现契约 [T5](../mcp-contract/SPEC.md#port-transport) 的流断开：中止写端的做法与计数见 H6。
 5. HTTP 线路自写，直接用 `fetch`，不用 SDK 的传输类。契约要求的不跟随重定向与不设超时由它兑现，见 H10、H11 与[复用表](#sdk-reuse)。
 6. 请求离开之前的失败按 `fetch` 失败的 `cause.code` 集合判定。见 H10。
 7. HTTP 正文也按契约 T2 的 16 MiB 上界读：只有 2xx 正文越界是流断开，错误状态的正文越界读成空正文。见 H8。
@@ -94,7 +94,7 @@
 
 <a id="h9"></a>
 
-- **H9 旧 HTTP+SSE 模式**（契约 T3、T8 I07、S07 与 SSE 模式）：旧一路的 `initialize` 的结论是「4xx+纯」时，会话试回退一次（`enterSse`）。会话先经句柄授权 GET 的头，写入 `MCP-Protocol-Version`（等于提出的旧版本），再调用线路的 `openGet`。线路交出事实（H2）。会话的 `heldEndpoint` 判定回退是否成立：状态 200、`content-type` 是 `text/event-stream`、第一个事件是 `endpoint`，且 `data` 相对连接目标解析后同源。成立时会话调用 `enter(endpoint)`，进入 SSE 模式；不成立时调用 `discard()`。GET 的非 2xx 状态按 `initialize` 归类：S05 的两种状态走授权发现，其余答 I07 的 `not-sent`（`connection-unavailable`）。SSE 模式下：每个请求与通知 POST 到 endpoint，不带 `Mcp-Session-Id`；`WireContext.mode` 是 `sse`；`initialize` 之后的请求按带着会话归类（S07）；共用的流结束或断开时，在途请求答 `stream-broken`，传输不再可用；`cancelRequest` 发 `notifications/cancelled`。`initialize` 的 401、403、5xx、「4xx+码」与离开前的失败都不触发回退。反例：跨源的 endpoint 被接受。变异：`heldEndpoint` 去掉同源核对 → `http.spec.ts`「the fallback that does not hold reports connection-unavailable: no stream, a cross-origin endpoint」变红。
+- **H9 旧 HTTP+SSE 模式**（契约 T3、T8 I07、S07 与 SSE 模式）：旧一路的 `initialize` 答 I07 的「4xx+纯」时，`legacyPath` 调用 `enterSse` 试回退。`enterSse` 在会话关闭之下等待：先经句柄授权 GET 的头（H4），写入 `MCP-Protocol-Version`（等于提出的旧版本），再调用线路的 `openGet`。线路交出 `GetOpened` 的事实（H2）。会话的 `heldEndpoint` 按 T3 的判据判定回退是否成立：成立时调用 `enter(endpoint)`，并把连接模式改为 `legacy-sse`；不成立时调用 `discard()`。GET 的非 2xx 状态经 `refusedGet` 按 `initialize` 归类：S05 走授权发现（H4），其余答 I07 的 `not-sent`（`connection-unavailable`）。SSE 模式下，请求与通知 POST 到 endpoint，`WireContext.mode` 是 `sse`，归类与结论按 T8；共用流结束或断开时，`die` 结算在途请求。其余 `initialize` 失败不触发回退（T3）。反例：跨源的 endpoint 被接受。变异：`heldEndpoint` 去掉同源核对 → `http.spec.ts`「the fallback that does not hold reports connection-unavailable: no stream, a cross-origin endpoint」变红。
 
 <a id="h10"></a>
 
@@ -106,7 +106,7 @@
 
 <a id="h12"></a>
 
-- **H12 退出窗口**（契约 T8 进程退出）：stdout 先结束时，线路最多等 `PROCESS_EXIT_WINDOW_MS` 的退出再报告 `ended`，之后的退出不改变已归类的结论。进程先退出时，线路最多再读 `PROCESS_EXIT_WINDOW_MS` 的 stdout（期内读到的行照常投递），然后报告并取消读取。两个时刻取同一时钟。退出的观察直接挂在句柄的 `exited` 上，先于任何在它之后 `await` 这个 promise 的调用方。反例：观察挂在派生 promise 的第二跳上，先等过 `exited` 的调用方还能写出一个请求。变异：`onExited` 挂在派生 promise 的第二跳上 → `stdio.spec.ts`「a process that answers and exits」变红。变异（进程先退出的一半）：`onExited` 不等窗口，立即报告并取消读取 → `lines.spec.ts`「delivers the line that stdout still carries within the window, then reports the end with the exit alone」变红。
+- **H12 退出窗口**（契约 T8 进程退出）：`StdioLine` 按 `PROCESS_EXIT_WINDOW_MS` 兑现契约的窗口：两个时刻（stdout 结束、进程退出）取同一时钟；进程先退出时，窗口内读到的 stdout 行照常投递，然后线路报告并取消读取。退出的观察直接挂在句柄的 `exited` 上，先于任何在它之后 `await` 这个 promise 的调用方。反例：观察挂在派生 promise 的第二跳上，先等过 `exited` 的调用方还能写出一个请求。变异：`onExited` 挂在派生 promise 的第二跳上 → `stdio.spec.ts`「a process that answers and exits」变红。变异（进程先退出的一半）：`onExited` 不等窗口，立即报告并取消读取 → `lines.spec.ts`「delivers the line that stdout still carries within the window, then reports the end with the exit alone」变红。
 
 <a id="h13"></a>
 
@@ -213,7 +213,7 @@
 - 真实远程对端、TLS、代理与 DNS 失败只按 `cause.code` 的集合分类（H10），没有在真实网络上验证；远程目标归 `w3-mcp-e2e`。
 - `x-mcp-header` 的剔除只在 A 层验证：SDK 的 `McpServer` 不能登记带非法声明的工具。
 - 不发 `DELETE`（H7）没有用例核对，因为契约不核它。
-- MC3-10「`open` 之前进程已退出」的结局（首个请求答 `not-sent`）由四层各自保证：会话的不可用判断、`StdioLine.send` 的退出守卫、工厂的 `ready()`、写入失败答 `unsent`。只去掉一层时 `stdio.spec.ts` 的这条用例不变红，四层同时去掉才变红；这是防御纵深，不是等价变异。线路一层另由 `lines.spec.ts`「a stdio process that is gone before the first request」单独核对。
+- `open` 之前进程已退出的结局（首个请求答 `not-sent`）由四层各自保证：会话的不可用判断、`StdioLine.send` 的退出守卫、工厂的 `ready()`、写入失败答 `unsent`。只去掉一层时 `stdio.spec.ts` 的这条用例不变红，四层同时去掉才变红；这是防御纵深，不是等价变异。线路一层另由 `lines.spec.ts`「a stdio process that is gone before the first request」单独核对。
 - bad ports 的偏离（[与契约的已知偏离](#contract-deviations)）没有用例。
 - 调用方（`@omne-harness/mcp`）与本包的真实组合没有在本包验证；组合归组设计与集成任务。
 
@@ -230,7 +230,7 @@
 - 会话的注入端口：线路（`send`、`openGet`、应答流、`close`）、凭据句柄（`authorize`、`reportRejection`）、元数据取回 `SessionOptions.fetchMetadata`、计时端口 `SessionOptions.schedule`。会话不读全局时钟、不直接起全局计时器，所以探索器排定每一个端口调用、每一次计时触发、`signal` 与 `close()` 的次序。
 - 一个在途请求的三相（`Pending.phase`）：已登记、尚未交给线路 `authorizing`，已交给线路 `sent`，授权发现中 `discovery`。
 
-端口失败模型：每次端口调用可以按契约答复、答复它的失败、reject、或永不答复（挂起）。线路的 `send`、`openGet` 与应答流受它们收到的 `signal` 管辖：`signal` 中止时按契约当即收场（契约 [T5](../mcp-contract/SPEC.md#t8)、线路端口 [`line.ts`](src/line.ts)）。凭据句柄的 `authorize`、`reportRejection` 与元数据取回不收 `signal`，可以一直挂着。承诺：调用方能看到的每一个等待（操作的结果、`call` 的结果与 `answer`、`close()`）在 `signal` 触发或 `close()` 之后结算，凭据句柄、元数据取回、线路或对端挂起都不改变这一点。没有 `signal` 的操作（`discover`、`listActions`、任务操作）只由 `close()` 放开；没有 `close()` 时，挂起的句柄由它的持有者负责。挂起的端口调用留在后台，由会话拥有，它之后的答复作废。
+端口失败模型：每次端口调用可以按契约答复、答复它的失败、reject、或永不答复（挂起）。线路的 `send`、`openGet` 与应答流受它们收到的 `signal` 管辖：`signal` 中止时按契约当即收场（契约 [T5](../mcp-contract/SPEC.md#port-transport)、线路端口 [`line.ts`](src/line.ts)）。凭据句柄的 `authorize`、`reportRejection` 与元数据取回不收 `signal`，可以一直挂着。承诺：调用方能看到的每一个等待（操作的结果、`call` 的结果与 `answer`、`close()`）在 `signal` 触发或 `close()` 之后结算，凭据句柄、元数据取回、线路或对端挂起都不改变这一点。没有 `signal` 的操作（`discover`、`listActions`、任务操作）只由 `close()` 放开；没有 `close()` 时，挂起的句柄由它的持有者负责。挂起的端口调用留在后台，由会话拥有，它之后的答复作废。
 
 证据分两种，范围见 [verification/README.md](verification/README.md#两种证据与各自范围)：有界穷举探索器驱动真实的 `Session`，核对下列性质的可观察形式；TLA+ 模型 `TransportSession.tla` 在有限配置内核对同一组性质的抽象形式。两者都只在各自上限与抽象之内成立，不是证明。
 
@@ -238,10 +238,10 @@
 
 - **V1 恰好结算一次**：每个请求的答复恰好兑现一次；结算之后到达的线上事件、迟到的端口答复都不改变它。可观察的形式：没有为一个已结算的请求再发请求、再调用凭据句柄（应答流在后台读到结束不算，见[资源释放](#所有权失败与生命周期)）。
 - **V2 关闭之后不碰凭据**：`close()` 返回之后，不再调用凭据句柄的 `authorize` 与 `reportRejection`。
-- **V3 拒绝至多一次**：带 401、或带 `insufficient_scope` 的 403 的应答，至多调用一次 `reportRejection`，且只对曾用这个句柄授权过的请求；其他 403 与没有句柄的材料不调用（契约 [T4](../mcp-contract/SPEC.md#t8)）。
+- **V3 拒绝至多一次**：带 401、或带 `insufficient_scope` 的 403 的应答，至多调用一次 `reportRejection`，且只对曾用这个句柄授权过的请求；其他 403 与没有句柄的材料不调用（契约 [T4](../mcp-contract/SPEC.md#port-transport)）。
 - **V4 有界**：请求的 `signal` 触发，或 `close()` 被调用之后，在探索器的静止点，调用方能看到的等待都已结算：该请求的结果、`call` 的 `answer`，以及 `close()` 结算的每个在途请求。结算当场发生，不等线路、凭据句柄或元数据取回；这些端口可以一直挂着，挂起的调用由会话留在后台。没有 `signal` 的操作只由 `close()` 放开。`close()` 在线路的 `close` 答复之后返回，不在它之前。
 - **V5 不代调用方重发**：写类请求（`tools/call`、`tasks/update`、`tasks/cancel`）在流断开或「2xx 而没有应答」后不再发；读类（`server/discover`、`tools/list`、`tasks/get`）至多再发一次，用新的请求号并重新授权；旧 HTTP+SSE 模式下都不再发（契约 [T8 D15、O05、O06、C04](../mcp-contract/SPEC.md#t8)）。
-- **V6 三相的去向**：`signal` 触发或 `close()` 时，按请求所处的相当场结算，两者规则相同：已登记、尚未交给线路的答 `not-sent`（`connection-unavailable`）；已交给线路的答 `no-answer`（`abandoned`）；授权发现中的答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出，没取到的地址按 R4 是 `unavailable`，`close()` 不等发现结束。`close()` 之后或 `signal` 已触发时开始的请求答 `not-sent`（`connection-unavailable`）（契约 [T5](../mcp-contract/SPEC.md#t8)）。
+- **V6 三相的去向**：`signal` 触发或 `close()` 时，按请求所处的相当场结算，两者规则相同：已登记、尚未交给线路的答 `not-sent`（`connection-unavailable`）；已交给线路的答 `no-answer`（`abandoned`）；授权发现中的答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出，没取到的地址按 R4 是 `unavailable`，`close()` 不等发现结束。`close()` 之后或 `signal` 已触发时开始的请求答 `not-sent`（`connection-unavailable`）（契约 [T5](../mcp-contract/SPEC.md#port-transport)）。
 
 每条性质的证据状态（用词沿 [docs/verification.md](../../../docs/verification.md#分别表述这六种状态)「分别表述这六种状态」）。TLA+ 一列的负控分两类：缺陷注入 `bad-*`，与有效动作的变异（见 [verification/models/README.md](verification/models/README.md#有效动作的变异)）：
 
