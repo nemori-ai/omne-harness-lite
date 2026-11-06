@@ -355,8 +355,15 @@ function failureOf(
   unusable?: UnusableCause,
 ): TransportFailure | undefined {
   if (expected.kind === 'not-sent' && expected.cause === 'authorization-required') return undefined
-  if (expected.kind === 'not-sent' || expected.kind === 'no-answer')
+  if (expected.kind === 'no-answer')
     return unusable === undefined ? expected : { ...expected, unusable }
+  if (expected.kind === 'not-sent') {
+    if (unusable === undefined) return expected
+    // A `not-sent` (`session-ended`) carries no other mark (T1).
+    return expected.cause === 'session-ended'
+      ? { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }
+      : { kind: 'not-sent', cause: expected.cause, unusable }
+  }
   if (expected.kind !== 'error-answer') return expected
   const object = errorObjectOf(reply)
   if (!isRecord(object)) throw new TypeError('the sample is no error')
@@ -1679,6 +1686,28 @@ describe('a session that cannot be used any more sends nothing and asks no crede
     expect(line.sse).toBe(false)
   })
 
+  it('the events of the line rejecting while the fallback GET is open: discover is not-sent with the mark stream-broken (T1)', async () => {
+    const seen: unknown[] = []
+    let release = (): void => undefined
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const { line, transport } = open(
+      'streamable-http',
+      { 'server/discover': [METHOD_NOT_FOUND], initialize: [status(404, 'gone'), LEGACY] },
+      { sse: { kind: 'entered', gate }, reportDefect: defect => seen.push(defect) },
+    )
+    const discovering = transport.discover()
+    for (let round = 0; round < 200 && line.sseAttempts.length === 0; round += 1) await tick()
+    expect(line.sseAttempts).toHaveLength(1)
+    line.queue.fail(new Error('the events of the line broke'))
+    await tick()
+    release()
+    expect(await discovering).toStrictEqual({ failure: notSentAfter('stream-broken') })
+    expect(seen.map(describeDefect)).toEqual(['Error: the events of the line broke'])
+    await transport.close()
+  })
+
   it('leaves another request of the session in flight when one is told the session ended (S07); after close() no answer carries the mark (T1)', async () => {
     const { line, transport } = open(
       'streamable-http',
@@ -1713,6 +1742,26 @@ describe('a session that cannot be used any more sends nothing and asks no crede
     expect(await other.answer).toStrictEqual({
       kind: 'no-answer',
       cause: 'abandoned',
+      unusable: 'session-ended',
+    })
+    await transport.close()
+  })
+
+  it('a second break: a request in flight after the session ended settles for the shared stream breaking, with its own cause and the mark the transport recorded first (T1, T8)', async () => {
+    const { line, transport } = open(
+      'streamable-http',
+      { ...scripts, 'tools/list': [status(404, 'gone')] },
+      { sse: { kind: 'entered' }, reportDefect: () => undefined },
+    )
+    ok(await transport.discover(), 'discover')
+    const other = ok(await transport.call(echo, never), 'call')
+    expect(await transport.listActions()).toStrictEqual({
+      failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+    })
+    line.queue.push({ kind: 'broken' })
+    expect(await other.answer).toStrictEqual({
+      kind: 'no-answer',
+      cause: 'stream-broken',
       unusable: 'session-ended',
     })
     await transport.close()

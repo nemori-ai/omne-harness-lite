@@ -137,18 +137,38 @@ export function notSentFailureOf(unusable: UnusableCause | undefined): NotSent {
 
 /**
  * T1, T8 "every later request": `wire` as a transport that is not usable any more hands it over,
- * for `cause`. A `no-answer` and a `not-sent` other than `authorization-required` carry the mark;
- * one that carries it already keeps its own. A refused authorization, an answer of the peer and
- * the two legacy readings are as they are: no gone line gives them.
+ * for `cause`, the cause the transport recorded. The mark is the transport's state, not the
+ * line's: a `no-answer` and a `not-sent` other than `authorization-required` carry `cause`, in
+ * place of a mark they carried already; the cause of the request's own failure stays.
+ *
+ * A `not-sent` (`session-ended`) carries `session-ended` whatever `cause` is. Only T8 S07 gives
+ * it, and S07 ends the transport for `session-ended`; a transport that died for another cause
+ * first has settled every request on the line by then, so no transport hands one over for another
+ * cause. The cell still needs a value: whether the mark is present decides whether a ready
+ * connection is lost (S7), so the answer carries one, and the answer itself says the session
+ * ended.
+ *
+ * A refused authorization, an answer of the peer and the two legacy readings are as they are: no
+ * gone line gives them.
  */
 export function unusableAnswerOf(wire: WireAnswer, cause: UnusableCause): WireAnswer {
   switch (wire.kind) {
     case 'no-answer':
-      return wire.unusable === undefined ? { ...wire, unusable: cause } : wire
+      return { ...wire, unusable: cause }
     case 'not-sent': {
       const failure = wire.failure
-      if (failure.cause === 'authorization-required' || failure.unusable !== undefined) return wire
-      return { kind: 'not-sent', failure: { ...failure, unusable: cause } }
+      switch (failure.cause) {
+        case 'authorization-required':
+          return wire
+        case 'session-ended':
+          return { kind: 'not-sent', failure: { ...failure, unusable: 'session-ended' } }
+        case 'connection-unavailable':
+          return { kind: 'not-sent', failure: { ...failure, unusable: cause } }
+        default: {
+          const exhaustive: never = failure
+          return exhaustive
+        }
+      }
     }
     case 'result':
     case 'error':

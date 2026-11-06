@@ -310,8 +310,9 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       answer,
       classificationOf(on.ensured.generation, outputSchema, ports.checkOutput),
     )
-    // The transport's answer to a stop signal that fired (T5) carries no mark, so it leaves the
-    // connection as it is.
+    // The transport's answer to a stop signal that fired (T5) carries no mark while the transport
+    // is still usable, so it leaves the connection as it is; once the transport is not usable any
+    // more it carries the mark (T1), and the connection is lost by rule 1 of `lostOf`.
     loseIfLost(table, on.ensured, answer)
     if (outcome.kind === 'task')
       tasks.record(

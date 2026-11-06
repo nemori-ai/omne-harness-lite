@@ -30,7 +30,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 export type TransportFailure =
   | Readonly<{ kind: 'not-sent'; cause: 'connection-unavailable'; unusable?: UnusableCause }>
   /** Streamable HTTP, legacy revision: the peer answered 404 to the session of the connection. */
-  | Readonly<{ kind: 'not-sent'; cause: 'session-ended'; unusable?: UnusableCause }>
+  | Readonly<{ kind: 'not-sent'; cause: 'session-ended'; unusable?: 'session-ended' }>
   | Readonly<{
       kind: 'not-sent'
       cause: 'authorization-required'

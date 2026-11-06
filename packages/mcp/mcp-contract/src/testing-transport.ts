@@ -870,8 +870,15 @@ function failureOf(
   reply: PeerReply,
   unusable?: UnusableCause,
 ): TransportFailure {
-  if (expected.kind === 'not-sent' || expected.kind === 'no-answer')
+  if (expected.kind === 'no-answer')
     return unusable === undefined ? expected : { ...expected, unusable }
+  if (expected.kind === 'not-sent') {
+    if (unusable === undefined) return expected
+    // A `not-sent` (`session-ended`) carries no other mark (T1).
+    return expected.cause === 'session-ended'
+      ? { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }
+      : { kind: 'not-sent', cause: expected.cause, unusable }
+  }
   if (expected.kind !== 'error-answer') return expected
   const object = errorObjectOf(reply)
   const code = at(object, 'code')
@@ -1390,6 +1397,54 @@ const t1Cases = (): readonly Case[] => [
         })
         assert.deepStrictEqual(requests(await peer.received(), 'tools/call'), [])
       }),
+  ),
+  conformanceCase(
+    'T1',
+    'Streamable HTTP: close() after the session ended (S07): the call still in flight and a later request carry no unusable',
+    async fixture =>
+      withPeer(
+        fixture,
+        {
+          ...SESSION_SCRIPT,
+          calls: { echo: SILENT },
+          listing: { '': { kind: 'http', status: 404 } },
+        },
+        { kind: 'streamable-http' },
+        async (peer, transport) => {
+          ok(await transport.discover(), 'discover')
+          // S07 ends the transport and leaves the call that was sent in flight (T8).
+          const sent = ok(await transport.call(echo, never), 'call')
+          await untilSent(peer, 'tools/call')
+          assert.deepStrictEqual(await transport.listActions(), {
+            failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+          })
+          await transport.close()
+          assert.deepStrictEqual(await sent.answer, { kind: 'no-answer', cause: 'abandoned' })
+          assert.deepStrictEqual(await transport.getTask(taskId('t')), {
+            failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+          })
+        },
+      ),
+  ),
+  conformanceCase(
+    'T1',
+    'stdio: close() after the process exited (S02): a later request carries no unusable',
+    async fixture =>
+      withPeer(
+        fixture,
+        { listing: { '': { kind: 'process-exits' } } },
+        { kind: 'stdio' },
+        async (_peer, transport) => {
+          ok(await transport.discover(), 'discover')
+          assert.deepStrictEqual(await transport.listActions(), {
+            failure: { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' },
+          })
+          await transport.close()
+          assert.deepStrictEqual(await transport.getTask(taskId('t')), {
+            failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+          })
+        },
+      ),
   ),
 ]
 

@@ -393,8 +393,31 @@ describe('concludeAnswer holds every cell of T8', () => {
       ...ABANDONED,
       unusable: 'process-exited',
     })
+    // The mark is the transport's state, not the line's: one already on the answer gives way to
+    // the cause the transport recorded.
     const marked = unusableAnswerOf(ABANDONED, 'stream-broken')
-    expect(unusableAnswerOf(marked, 'session-ended')).toBe(marked)
+    expect(unusableAnswerOf(marked, 'session-ended')).toEqual({
+      ...ABANDONED,
+      unusable: 'session-ended',
+    })
+    const markedNotSent: WireAnswer = {
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' },
+    }
+    expect(unusableAnswerOf(markedNotSent, 'process-exited')).toEqual({
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'process-exited' },
+    })
+    // A `not-sent` (`session-ended`) can carry only `session-ended`: it is marked with it whatever
+    // the transport recorded (a cell no transport reaches, see `unusableAnswerOf`).
+    const sessionEnded: WireAnswer = {
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'session-ended' },
+    }
+    expect(unusableAnswerOf(sessionEnded, 'stream-broken')).toEqual({
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+    })
     const refused = authorizationRequiredAnswerOf({
       resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
       metadata: 'unavailable',

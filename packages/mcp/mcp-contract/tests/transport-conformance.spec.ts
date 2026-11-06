@@ -261,8 +261,10 @@ describe('the suite fails a transport that breaks the contract', () => {
   function remarkNotSent(failure: NotSent, remark: Remark): NotSent {
     if (failure.cause === 'authorization-required') return failure
     const unusable = remark(failure)
-    return unusable === undefined
-      ? { kind: 'not-sent', cause: failure.cause }
+    if (unusable === undefined) return { kind: 'not-sent', cause: failure.cause }
+    // A `not-sent` (`session-ended`) can carry no other mark (T1): only its presence is the remark's.
+    return failure.cause === 'session-ended'
+      ? { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }
       : { kind: 'not-sent', cause: failure.cause, unusable }
   }
 
@@ -357,6 +359,8 @@ describe('the suite fails a transport that breaks the contract', () => {
       '[S04] tools/call × process-exited → sent, answer process-exited, unusable',
       '[S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable',
       '[X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable',
+      'Streamable HTTP: close() after the session ended (S07): the call still in flight and a later request carry no unusable',
+      'stdio: close() after the process exited (S02): a later request carries no unusable',
     ])
   })
 
