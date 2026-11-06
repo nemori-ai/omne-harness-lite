@@ -104,6 +104,7 @@ describe('original Journal writes after a lost response', () => {
 
   it('preserves non-enumerable Journal methods and their receiver during public control', async () => {
     let reads = 0
+    let installations = 0
     const assembly = await controlAssembly({}, d => {
       const journal = d.journal
       const load = journal.load.bind(journal)
@@ -113,6 +114,16 @@ describe('original Journal writes after a lost response', () => {
           expect(this).toBe(journal)
           reads += 1
           return load(input)
+        },
+      })
+      const readInstallation = journal.readCancellationInstallation
+      if (readInstallation === undefined) throw new Error('expected cancellation installation')
+      Object.defineProperty(journal, 'readCancellationInstallation', {
+        enumerable: false,
+        value(this: AgentJournal<Principal>, input: Parameters<typeof readInstallation>[0]) {
+          expect(this).toBe(journal)
+          installations += 1
+          return readInstallation.call(journal, input)
         },
       })
       return d
@@ -129,6 +140,7 @@ describe('original Journal writes after a lost response', () => {
       async () => ok(await assembly.dependencies.journal.load(input)).state.kind === 'ended',
     )
     expect(reads).toBeGreaterThan(0)
+    expect(installations).toBeGreaterThan(0)
   })
 
   it('retains the original open and admission through public invoke retries', async () => {

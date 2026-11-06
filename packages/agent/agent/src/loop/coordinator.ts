@@ -3052,7 +3052,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         owner: 'agentJournal',
         diagnostic: 'cancellation installation read is unavailable',
       })
-    const installation = await readInstallation({ ...access, execution })
+    const installation = await readInstallation.call(ports.journal, { ...access, execution })
     if ('failure' in installation) return installation
     const current = latest.settlement.candidate
     const route = latest.settlement.route
