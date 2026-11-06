@@ -1682,6 +1682,9 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@omne-harness/kernel-basis':
+        specifier: workspace:*
+        version: link:../../assembly/kernel-basis
       '@omne-harness/mcp':
         specifier: workspace:*
         version: link:../mcp
@@ -2431,6 +2434,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/kernel-basis':
+        specifier: workspace:*
+        version: link:../../assembly/kernel-basis
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
