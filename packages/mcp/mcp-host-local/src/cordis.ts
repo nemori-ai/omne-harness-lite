@@ -9,9 +9,8 @@ import type {
   ActionDiscovery,
   ActionInvoker,
   EndpointStatus,
-  McpClock,
+  McpConfig,
   McpPorts,
-  OutputValidator,
 } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
@@ -42,65 +41,99 @@ import {
 } from '@omne-harness/kernel-basis/cordis'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import { createLocalTransportFactory } from './factory.ts'
+import type { LocalTransportOptions } from './options.ts'
 
 /**
- * The functions and local objects of the plugin. They are not configuration: a plugin tree row
- * holds only serializable data. An absent optional part takes the default of `createMcp` or of
+ * The functions and local objects of the plugin, taken from the types that own them:
+ * `principalKey` from `McpConfig`, `checkOutput` and `clock` from `McpPorts`, `fetch` from
+ * `LocalTransportOptions`. They are not configuration: a plugin tree row holds only serializable
+ * data. An absent optional part takes the default of `createMcp` or of
  * `createLocalTransportFactory`.
  */
-export type McpPluginParts = Readonly<{
-  /** A stable text for a principal (`McpConfig.principalKey`). */
-  principalKey: (principal: unknown) => string
-  /** The output validator of the call outcomes (`McpPorts.checkOutput`). */
-  checkOutput: OutputValidator
-  /** The clock that stamps catalog freshness (`McpPorts.clock`). */
-  clock?: McpClock
-  /** The `fetch` of the Streamable HTTP line (`LocalTransportOptions.fetch`). */
-  fetch?: typeof fetch
-}>
+export type McpPluginParts = Readonly<
+  Pick<McpConfig<unknown>, 'principalKey'> &
+    Pick<McpPorts<unknown, unknown>, 'checkOutput' | 'clock'> &
+    Pick<LocalTransportOptions, 'fetch'>
+>
 
 /**
- * The configuration of the plugin. Every field is required and has no default. The ranges are
- * checked by `createMcp` and `createLocalTransportFactory`, not by the schema.
+ * The configuration of the plugin: the three bounds of `McpConfig`, and `clientInfo` and
+ * `probeTimeoutMs` of `LocalTransportOptions`. Every field is required and has no default. The
+ * ranges are checked by `createMcp` and `createLocalTransportFactory`, not by the schema.
  */
-export type McpPluginConfig = Readonly<{
-  maxListingPages: number
-  maxActions: number
-  instructionsByteLimit: number
-  probeTimeoutMs: number
-  clientInfo: Readonly<{ name: string; version: string }>
-}>
+export type McpPluginConfig = Readonly<
+  Omit<McpConfig<unknown>, 'principalKey'> & Omit<LocalTransportOptions, 'fetch'>
+>
 
+type ClientInfo = McpPluginConfig['clientInfo']
+type Bounds = Omit<McpPluginConfig, 'clientInfo'>
 type ConfigResult = SchemaSuccess<McpPluginConfig> | SchemaFailure
 
-const BOUNDS = ['maxListingPages', 'maxActions', 'instructionsByteLimit', 'probeTimeoutMs'] as const
-const FIELDS: readonly string[] = [...BOUNDS, 'clientInfo']
-const CLIENT_INFO_FIELDS: readonly string[] = ['name', 'version']
+// The field lists are the keys of these records, so a field added to or removed from the
+// configuration type does not compile until the schema knows it.
+const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
+  maxListingPages: true,
+  maxActions: true,
+  instructionsByteLimit: true,
+  probeTimeoutMs: true,
+  clientInfo: true,
+}
+const CLIENT_INFO_FIELDS: Readonly<Record<keyof ClientInfo, true>> = { name: true, version: true }
 
-function isPlainRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+/** True for an object whose prototype is `Object.prototype` or `null`. */
+function isPlainRecord(value: unknown): value is Readonly<Record<PropertyKey, unknown>> {
+  if (typeof value !== 'object' || value === null) return false
+  const prototype: unknown = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+/**
+ * The issue of a record that has an own key outside `fields` (a symbol key is outside too) or
+ * lacks an own field of `fields`.
+ */
+function fieldsIssue(
+  record: Readonly<Record<PropertyKey, unknown>>,
+  fields: Readonly<Record<string, true>>,
+  what: string,
+): string | undefined {
+  const extra = Reflect.ownKeys(record).find(
+    key => typeof key !== 'string' || !Object.hasOwn(fields, key),
+  )
+  if (extra !== undefined) return `${what} has no field ${String(extra)}`
+  const missing = Object.keys(fields).find(field => !Object.hasOwn(record, field))
+  if (missing !== undefined) return `${what} needs the field ${missing}`
+  return undefined
+}
+
+/** The four bounds read by name, or the name of the first one that is not a number. */
+function boundsOf(record: Readonly<Record<PropertyKey, unknown>>): Bounds | keyof Bounds {
+  const { maxListingPages, maxActions, instructionsByteLimit, probeTimeoutMs } = record
+  if (typeof maxListingPages !== 'number') return 'maxListingPages'
+  if (typeof maxActions !== 'number') return 'maxActions'
+  if (typeof instructionsByteLimit !== 'number') return 'instructionsByteLimit'
+  if (typeof probeTimeoutMs !== 'number') return 'probeTimeoutMs'
+  return { maxListingPages, maxActions, instructionsByteLimit, probeTimeoutMs }
+}
+
+/** A new `clientInfo` of two texts, or the issue of the value. */
+function clientInfoOf(value: unknown): ClientInfo | string {
+  if (!isPlainRecord(value)) return 'clientInfo must be an object'
+  const fields = fieldsIssue(value, CLIENT_INFO_FIELDS, 'clientInfo')
+  if (fields !== undefined) return fields
+  const { name, version } = value
+  if (typeof name !== 'string') return 'clientInfo.name must be a text'
+  if (typeof version !== 'string') return 'clientInfo.version must be a text'
+  return { name, version }
 }
 
 function issue(message: string): ConfigResult {
   return { issues: [{ message }] }
 }
 
-/** The issue of a record that has a field outside `fields` or lacks one of them. */
-function fieldsIssue(
-  record: Readonly<Record<string, unknown>>,
-  fields: readonly string[],
-  what: string,
-): string | undefined {
-  const extra = Object.keys(record).find(key => !fields.includes(key))
-  if (extra !== undefined) return `${what} has no field ${extra}`
-  const missing = fields.find(field => !(field in record))
-  if (missing !== undefined) return `${what} needs the field ${missing}`
-  return undefined
-}
-
 /**
- * Checks the shape only: the five fields, each of its type, the two texts of `clientInfo`, and no
- * other field. It answers a new object, so a later change to the input does not reach the plugin.
+ * Checks the shape only: a plain object with exactly the five own fields, the four bounds
+ * numbers, and `clientInfo` a plain object with exactly two own texts. It answers a new object,
+ * so a later change to the input does not reach the plugin.
  */
 const mcpPluginConfig: StandardSchema<McpPluginConfig> = {
   '~standard': {
@@ -108,34 +141,13 @@ const mcpPluginConfig: StandardSchema<McpPluginConfig> = {
     vendor: 'omne-harness',
     validate(value: unknown): ConfigResult {
       if (!isPlainRecord(value)) return issue('configuration must be an object')
-      const fields = fieldsIssue(value, FIELDS, 'configuration')
+      const fields = fieldsIssue(value, CONFIG_FIELDS, 'configuration')
       if (fields !== undefined) return issue(fields)
-      const [maxListingPages, maxActions, instructionsByteLimit, probeTimeoutMs] = BOUNDS.map(
-        name => value[name],
-      )
-      if (
-        typeof maxListingPages !== 'number' ||
-        typeof maxActions !== 'number' ||
-        typeof instructionsByteLimit !== 'number' ||
-        typeof probeTimeoutMs !== 'number'
-      )
-        return issue(`${BOUNDS.join(', ')} must be numbers`)
-      const clientInfo = value['clientInfo']
-      if (!isPlainRecord(clientInfo)) return issue('clientInfo must be an object')
-      const clientFields = fieldsIssue(clientInfo, CLIENT_INFO_FIELDS, 'clientInfo')
-      if (clientFields !== undefined) return issue(clientFields)
-      const { name, version } = clientInfo
-      if (typeof name !== 'string' || typeof version !== 'string')
-        return issue('clientInfo.name and clientInfo.version must be texts')
-      return {
-        value: {
-          maxListingPages,
-          maxActions,
-          instructionsByteLimit,
-          probeTimeoutMs,
-          clientInfo: { name, version },
-        },
-      }
+      const bounds = boundsOf(value)
+      if (typeof bounds === 'string') return issue(`${bounds} must be a number`)
+      const clientInfo = clientInfoOf(value['clientInfo'])
+      if (typeof clientInfo === 'string') return issue(clientInfo)
+      return { value: { ...bounds, clientInfo } }
     },
   },
 }
