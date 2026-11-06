@@ -159,12 +159,13 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 
 「前奏」是每次运行开始前走完的固定调度（`Scenario.prelude`），不参与分支。耗时在本机另有会话运行时量得，别的工作树的负载不在本任务的掌握之内。`continue-shutdown` 是 `w3-mcp-call-fix3` 新加的场景：续调用等存储时 `closeAll` 落下，旧实现答 `unknown`（`nA1 answered not-sent unknown after closeAll`，日志 `tmp/closures/w3-mcp-call/fix3/model/baseline-continue-shutdown.log`，`baab993db2c24d7d`）。P13 在同一轮加了答复一侧：`closeAll` 之后才答复、没有发出的操作答 `connection-unavailable`（调用）或 `no-connection`（任务操作），签名 `P13-answer-after-closeAll`（性质的写法见 SPEC P13）；旧实现的任务场景报 `tA1 answered fail connection-unavailable`（`baseline-task.log`，`53c82e6925191117`）。`task-collision` 在基线 `5204d3799` 的源码副本上报 P12 `P12-task-on-foreign-connection` 与 P5 `P5-crossing`（碰撞规则加入之前）。生命周期场景的读数（上表前一张）取自 2026-11-05 的生命周期代码，运行时的 head 未记录，状态数未在 `035ac8fee` 上重测。之后 `table.lose` 与 `markLost` 的签名改成同步前缀（`w3-mcp-call-fix2`）；生命周期的 9 个用例在 `0b84a0bec` 与 `deb5a977e` 上通过，但生命周期场景不打印读数。
 
-读数的 head：各种证据运行在不同的 head 上，PR 的最终 head 是 `035ac8fee`。
+读数的 head：各种证据运行在不同的 head 上。PR 的最终 head 是本页所在的提交。`035ac8fee` 之后 `src/` 改过两次：`44a218fec` 让调用方给的值树先过 `judgeJsonValue`（`calls.ts` 的 `checkedSend`、`tasks.ts` 的 `provideTaskInput`、新文件 `internal/caller-values.ts`）；`a556e3374` 让 `checkedSend` 对请求的每个字段只读一次。两次都只改调用入口的前提判定，不改发出之后的次序。
 
-- 生命周期探索器的状态数：head 未记录（2026-11-05，早于 `0b84a0bec`），未在 `035ac8fee` 上重测。有限范围的「通过」另由 `0b84a0bec` 与 `deb5a977e` 上的用例运行支持。
-- 调用口探索器的状态数：`deb5a977e`。之后 `src/` 只改了 `discovery.ts` 的 `refresh` 出口，探索器不驱动 `refresh`。
+- 生命周期探索器的状态数：head 未记录（2026-11-05，早于 `0b84a0bec`），未在 `035ac8fee` 及之后重测。有限范围的「通过」另由 `0b84a0bec`、`deb5a977e` 与 `2b895ea2a` 上的用例运行支持。
+- 调用口探索器的状态数：`deb5a977e`，之后没有重测。之后的 `src/` 改动是 `refresh` 的出口与上面两次入口判定，探索器不驱动 `refresh`，入口判定在探索器的合法输入上不改变行为。
 - 探索器的负控 N1–N10：`035ac8fee`。
-- 手工变异的 F 序列（F1–F19）与 C79、C80：`035ac8fee`。F8 例外，见「关停与停止的判定点」。
+- 手工变异的 F 序列（F1–F19）与 C79、C80：`035ac8fee`。例外：F8 见「关停与停止的判定点」；F16、F17 在 `d966e05c1` 上重跑。之后两次入口判定的改动行由下面的差分变异覆盖。
+- 差分变异：`2b895ea2a` 上运行 `pnpm run mutation --base b2ba7dc89 --since 5204d3799`，范围是 `5204d3799` 之后全部改动行（含 C 序列碰过、之后又改过的行）。338 个变异体被杀 304 个，存活 30 个，没跑测试 4 个；运行器因「没跑测试」把这次测量判为无效，不给分数。存活按类处置：两个缺口各补一条用例（`a556e3374`），其余是等价、文本或运行器问题。处置表在卡 #1119 的证据评论里，账本在主检出 `tmp/mutation-ledger/2b895ea2a/20261106-075411/`。`a556e3374` 的入口改动在这次运行之后，由「reads each field of the request once…」与 R2 的三条用例守住。
 - 手工变异的 C01–C78：`0b84a0bec`。`0b84a0bec` 到 `035ac8fee` 之间 `calls.ts`、`tasks.ts`、`discovery.ts`、`in-flight.ts`、`task-table.ts`、`build.ts` 与 `lost.ts` 都改过（`w3-mcp-call-fix3` 与 `035ac8fee`），所以这些行没有在最终 head 上重跑，见本页末「调用口闭包的变异记录」。
 - TLC 的 29 个配置：模型与配置的 SHA-256 绑定，不绑定提交；最近一次运行在 `035ac8fee` 的树加 `Calls.tla` 的一行注释修改上（[models/README.md](models/README.md#运行记录)）。
 
@@ -254,7 +255,7 @@ TLC 负控与变异的对应：`bad-no-absorb-close` 与 M1，`bad-forget-open`�
 | `refresh`：`discovery.ts` 的 `answerAtExit`（MC-7）                         | 已发布的结果不改；调用方 `signal` 已中止，答 `kept`（`cancelled`）；否则关停已开始，答 `connection-unavailable`；其余原样                                               |
 | 任务操作：`tasks.ts` 的 `outcomeOf`（MC-17）                                | 没有调用方信号。已发出的结局不改；没有发出而关停已开始，答 `effect-unknown`（`no-connection`）；其余原样                                                                |
 
-每个点的证据如下。用例标题取自 `035ac8fee`，截断；变异的内容、变红的用例与日志哈希在本页末的 F 序列，运行的 head 都是 `035ac8fee`（F8 除外）。
+每个点的证据如下。用例标题取自 `035ac8fee`，截断；变异的内容、变红的用例与日志哈希在本页末的 F 序列，运行的 head 都是 `035ac8fee`（F8 除外；F16、F17 在 `d966e05c1` 上重跑）。
 
 | 点                                       | 它负责什么                                                            | 守住它的用例（`tests/`）                                                                                                                                                                                                                                                                                                                                                                        | 变异                                                |
 | ---------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
@@ -288,7 +289,7 @@ TLC 负控与变异的对应：`bad-no-absorb-close` 与 M1，`bad-forget-open`�
 - 上限之外的调度：例如一个键 3 次 `ensure`，或两种偏离同时出现；调用口的场景每个主体一个关联键、一个任务。
 - 调用口：HTTP 端点、输出 schema 与 `checkOutput`、`inputRequired` 结局与真实的继续、任务表与在途表跨重启、授权发现的 `not-sent`：两种证据都不覆盖，由既有用例承担。「新建连接的账户变了」只在模型里。
 - `closeAll` 把放弃落点与关闭条目时的本包错误收进 `AggregateError` 的一路：端口经 `ask` 不会让这两步拒绝，只有本包自己的缺陷会走到这里，所以没有不往本包注入缺陷就能触发的用例。任务作用域记下的本包错误一路有用例（P7）。
-- S8 的关停先判（途中各点只守「之后不开始下一步、不问端口」，答复在出口一处决定，见「关停与停止的判定点」）：探索器不区分「关停之后问没问端口」。P13 禁传输的 `call`，并断言答复一侧；关停之后 `ensure` 本来就拒绝，所以去掉等待前的那一判在探索器上没有新签名。守住各点的是服务层的 F 序列与它们的用例。P13 的探索器变异是 N5（不问端口一侧）、N9 与 N10（答复一侧）。读 `basedOn` 之前与发布边界之前的两处核对没有用例守住（F16、F17 存活）。
+- S8 的关停先判（途中各点只守「之后不开始下一步、不问端口」，答复在出口一处决定，见「关停与停止的判定点」）：探索器不区分「关停之后问没问端口」。P13 禁传输的 `call`，并断言答复一侧；关停之后 `ensure` 本来就拒绝，所以去掉等待前的那一判在探索器上没有新签名。守住各点的是服务层的 F 序列与它们的用例。P13 的探索器变异是 N5（不问端口一侧）、N9 与 N10（答复一侧）。读 `basedOn` 之前与发布边界之前的两处核对，在 `035ac8fee` 上没有用例守住（F16、F17 存活），`d966e05c1` 的刷新口扫描用例补上了。
 - 任务键碰撞（P12 的一句）：模型未覆盖，探索器的 `task-collision` 场景与 N8 承担；服务层的变异是 C69。
 - 模型与实现之间没有精化证明。
 
@@ -394,7 +395,7 @@ TLC 负控与变异的对应：`bad-no-absorb-close` 与 M1，`bad-forget-open`�
 
 81 条（C30、C32 各两条，C50 没有代码）里 80 条变红，1 条存活：C37（等价变异）。C79、C80 在 `035ac8fee` 上运行，其余在 `0b84a0bec` 上运行。第 1 轮的 M17（`markSent` 不看取消标记）在新结构下不存在：占位项没有取消标记，取消落在发出与登记之间时由停止信号在第 11 步处理（C15、C18 覆盖那条路）。MC-12 里「`reserve` 查重与占位是一个同步步骤」没有对应的「查后经 await 再占」变异：`reserve` 是同步函数，类型不允许在两步之间 `await`；去掉查重的变异是 C01，`in-flight.spec.ts`「gives exactly one of two concurrent callers the reservation」在 C01 里变红。
 
-F 序列（关停与停止的判定点，与「发现」里的发现 F1、F2 无关）。`w3-mcp-call-fix3` 建立 F1–F14，闭包 `w3-mcp-call-docs3` 加 F15–F19，并把全部在 `035ac8fee` 上重跑（F8 除外）。副本是 `git archive 035ac8fee` 的展开，在工作树之外（`/tmp/w3-call-docs3-mut`），`node_modules` 以符号链接回指工作树；每次改后只跑所列用例文件（快层，`--typecheck.enabled=false`，`VITEST_MAX_WORKERS=4`），再按字节还原并核对。副本不改动时，这几个用例文件全绿（193 条，日志 `tmp/closures/w3-mcp-call/docs3/mutations/unmutated-copy.log`，`5da4797fbe997f41`）。驱动是 `tmp/closures/w3-mcp-call/docs3/mutations/mutate.py`（sha256 前 16 位 `943e39e568a9494a`），每条的日志在同目录 `logs/<编号>.log`，汇总在 `logs/table.json`（`0ee2b3a46f76e240`，F1–F15、C79、C80）、`logs/table-F16-F17-F18.json`（`cc7191750371ea01`）与 `logs/table-F19.json`（`4fb0d6804de38233`）。F16–F19 在首次运行之后加入，目的是给「判定点」每一处读取一个变异。F16、F17 首次运行时存活，补了扫描用例之后重跑：在工作树里删掉那一行读取，只跑 `tests/refresh.spec.ts`，再还原 `src/`；日志在 `tmp/closures/w3-mcp-call/owner-scan/`，不改动时的同一运行是 `unmutated.log`（`88491d85cfe8c145`）。「日志哈希」是该条日志文件的 sha256 前 16 位。
+F 序列（关停与停止的判定点，与「发现」里的发现 F1、F2 无关）。`w3-mcp-call-fix3` 建立 F1–F14，闭包 `w3-mcp-call-docs3` 加 F15–F19，并把全部在 `035ac8fee` 上重跑（F8 除外；F16、F17 之后在 `d966e05c1` 上重跑，见本段末）。副本是 `git archive 035ac8fee` 的展开，在工作树之外（`/tmp/w3-call-docs3-mut`），`node_modules` 以符号链接回指工作树；每次改后只跑所列用例文件（快层，`--typecheck.enabled=false`，`VITEST_MAX_WORKERS=4`），再按字节还原并核对。副本不改动时，这几个用例文件全绿（193 条，日志 `tmp/closures/w3-mcp-call/docs3/mutations/unmutated-copy.log`，`5da4797fbe997f41`）。驱动是 `tmp/closures/w3-mcp-call/docs3/mutations/mutate.py`（sha256 前 16 位 `943e39e568a9494a`），每条的日志在同目录 `logs/<编号>.log`，汇总在 `logs/table.json`（`0ee2b3a46f76e240`，F1–F15、C79、C80）、`logs/table-F16-F17-F18.json`（`cc7191750371ea01`）与 `logs/table-F19.json`（`4fb0d6804de38233`）。F16–F19 在首次运行之后加入，目的是给「判定点」每一处读取一个变异。F16、F17 首次运行时存活，补了扫描用例之后重跑：在工作树里删掉那一行读取，只跑 `tests/refresh.spec.ts`，再还原 `src/`；日志在 `tmp/closures/w3-mcp-call/owner-scan/`，不改动时的同一运行是 `unmutated.log`（`88491d85cfe8c145`）。「日志哈希」是该条日志文件的 sha256 前 16 位。
 
 | 编号 | 改了什么（文件与位置）                                                                        | 哪条用例变红                                                                                                                                                                                                                                                                                                                                                           | 退出码 | 运行时的 head | 日志哈希           |
 | ---- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------- | ------------------ |

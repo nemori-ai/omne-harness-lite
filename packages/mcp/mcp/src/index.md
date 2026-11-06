@@ -22,6 +22,7 @@
 - [internal/connection.ts](internal/connection.ts)：`Connection` 聚合
 - [internal/in-flight.ts](internal/in-flight.ts)：`InFlightCalls` 聚合：占位与停止信号、发出、收口
 - [internal/task-table.ts](internal/task-table.ts)：本次运行的任务表
+- [internal/caller-values.ts](internal/caller-values.ts)：调用方给的值树的判定（契约 R2），交出判定得到的副本
 - [internal/lost.ts](internal/lost.ts)：传输答复对连接状态的含义：`lost` 原因与清单标记；对调用与任务请求按原因判断，比契约 S7 宽，是登记的偏离
 - [internal/gate.ts](internal/gate.ts)：S1 唯一的裁决、`AdoptedOnly` 与 `AdmittedEndpoint`
 - [internal/guard.ts](internal/guard.ts)：使用边界与发布边界上的关口，不变式 6 的关闭

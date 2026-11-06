@@ -84,13 +84,14 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### 调用口闭包的裁定
 
-调用口的实现与它的两轮修复在 2026-11-05 带出下列契约改动，延续上面的编号。第 26 条给 `McpPorts` 加必填字段，对构造 `McpPorts` 的宿主不是可加的改动；第 27、29 条放宽一个字段或一个原因的定义；第 28 条把 O1 加强为全函数并加两个契约值；第 30 条改变关停之后 `refresh` 对未采用接入点的答复，是行为改动。每条只指向条款，条款是唯一的规则。
+调用口的实现与它的两轮修复在 2026-11-05 带出下列契约改动，延续上面的编号。第 26 条给 `McpPorts` 加必填字段，对构造 `McpPorts` 的宿主不是可加的改动；第 27、29 条放宽一个字段或一个原因的定义；第 28 条把 O1 加强为全函数并加两个契约值；第 30 条改变关停之后 `refresh` 对未采用接入点的答复，第 31 条改变调用方已中止时 `refresh` 对被拒绝的接入点的答复，都是行为改动。每条只指向条款，条款是唯一的规则。
 
 26. `McpPorts.checkOutput` 必填：服务实现把它交给 `classifyOutcome`。出处：闭包规格 `w3-mcp-call`「reduce 已定的事」第 7 条（任务材料，2026-11-05）。见 S3、O1。
 27. `ContinueRequest.inputResponses` 可选，与 S2 的「各自可选」一致；两个字段都缺是前提违反。出处：闭包规格 `w3-mcp-call`「reduce 已定的事」第 4 条，及修复轮（`w3-mcp-call-fix1`）自裁第 3 条的采纳。见 S2。
 28. `classifyOutcome` 吸收校验函数的抛出：O1 是全函数、不抛出，校验函数抛出时 O3 的结论是 `violates`，原因是新的契约值 `output-check-failed`。两个原因常量 `OUTPUT_CHECK_FAILED` 与 `STRUCTURED_CONTENT_MISSING` 从根入口导出。出处：调用口第 1 轮评审裁定 6，及修复轮（`w3-mcp-call-fix1`）已定的事第 6 条。性质：加强 O1 为全函数，不再有「校验函数抛出时 `classifyOutcome` 也抛出」的路径；新增两个导出常量与一个 `reason` 取值，既有取值不变。见 O1、O3。
 29. R2 的 `cancelled` 放宽为「占位后、发出前，这次调用的停止信号已触发」，不论触发的是 `cancel` 还是调用方的 `signal`，也不论那一步本来会以什么原因拒绝。出处：修复轮（`w3-mcp-call-fix1`）自裁第 2 条的采纳。见 R2。
-30. `closeAll` 之后的次序：要连接的操作先判关停、不问端口，先于 S1 的采用核对；在途的操作（发出之前：等关口、读存储、建连的等待）不再开始下一步，答同样的结果，已发出的请求的结局不改；任务操作仍先按 S2 判发起者。出处：调用口第 2 轮评审裁定（关停是本实例生命周期的事实，之后不再问宿主端口）与修复轮 `w3-mcp-call-fix2`；「在途」限于发出之前、「下一步」的粒度与已发出不改出自调用口第 3 轮评审的处置与修复轮 `w3-mcp-call-fix3`。性质：行为改动。`closeAll` 之后对未采用的接入点，`refresh` 由 `not-available-to-you` 变为 `connection-unavailable`；调用与任务操作在关停之后只答关停的答复（见 S8）。读 `refresh` 在关停之后的答复的消费者要按它适配。见 S8。
+30. `closeAll` 之后的次序：要连接的操作先判关停、不问端口，先于 S1 的采用核对；在途的操作（调用与任务操作在发出之前，`refresh` 在发布之前）不再开始下一步，答同样的结果，已发出的请求的结局不改，已发布的清单不改；任务操作仍先按 S2 判发起者。出处：调用口第 2 轮评审裁定（关停是本实例生命周期的事实，之后不再问宿主端口）与修复轮 `w3-mcp-call-fix2`；「在途」限于发出之前、「下一步」的粒度与已发出不改出自调用口第 3 轮评审的处置与修复轮 `w3-mcp-call-fix3`。性质：行为改动。`closeAll` 之后对未采用的接入点，`refresh` 由 `not-available-to-you` 变为 `connection-unavailable`；调用与任务操作在关停之后只答关停的答复（见 S8）。读 `refresh` 在关停之后的答复的消费者要按它适配。见 S8。
+31. `refresh` 的出口与调用口同一次序：已发布的清单不改；没有发布时，调用方的 `signal` 已中止就答 `kept`（`cancelled`），不论哪一步本来会以什么原因拒绝；其次是关停的答复；其余照那一步的答复。这与第 29 条对调用口的放宽是同一条规则。出处：调用口第 3 轮评审的处置与派发者对修复轮 `w3-mcp-call-fix3` 自裁第 3 条的改正，第 4 轮评审 A 面指出契约没有写它，卡拥有者 2026-11-06 裁定写入。性质：行为改动。调用方的 `signal` 在答复之前已中止时，被关口拒绝的 `refresh` 由 `not-available-to-you` 变为 `kept`（`cancelled`）；`signal` 没有中止时不变。见 S5、S8。
 
 <a id="entries"></a>
 
@@ -347,7 +348,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 - **S5** 某页或 `discover` 的 T8 结论带「传输不再可用」时，连接按 S7 转为 `lost`，`refresh` 答 `connection-unavailable`。其余结论下，`refresh` 答下列之一：
   - `published`：清单已整份发布，带新的修订。
   - `kept`，原因是 `superseded`：`CatalogStore` 写入时答修订冲突，`mergeListing` 答 `stale-revision`，或产出清单的那一代连接在发布前已不是当前连接。原采用不变。
-  - `kept`，原因是 `cancelled`：本次刷新已被取消。请求的 `signal` 只属于这一次刷新。实现在等待建连、取每一页与发布边界各自核对它；它已触发时答 `cancelled`，不发布。原采用不变。`signal` 触发只结束本次刷新对建连的等待，不中止同一连接键上共享的建连：那次建连照常完成或失败，结果留给其他等待者。
+  - `kept`，原因是 `cancelled`：本次刷新已被取消。请求的 `signal` 只属于这一次刷新。实现在等待建连、取每一页与发布边界各自核对它；它已触发时答 `cancelled`，不发布。答复在出口决定：没有发布时，`signal` 已触发就答 `cancelled`，不论哪一步本来会以什么原因拒绝（裁定第 31 条）。原采用不变。`signal` 触发只结束本次刷新对建连的等待，不中止同一连接键上共享的建连：那次建连照常完成或失败，结果留给其他等待者。
   - `kept`，原因是 `listing-incomplete`：`completeListing` 答了缺陷，带这个缺陷。某页的传输答 `no-answer`、`error-answer` 或 `answer-malformed` 时，这一页算失败，缺陷是 `page-failed`，连接转为 `degraded`（`list-failed`）。原采用不变。
   - 失败：某页或 `discover` 的传输答 `not-sent`（`authorization-required` 或 `connection-unavailable`）时，答对应的 `ConnectionFailure`，连接按 S7 转为 `lost`，并用对应原因调用 `markUnavailable`。写入这份记录时 `CatalogStore` 答修订冲突，`refresh` 答 `kept`（`superseded`）；答不可用时答 `unknown`。`discover` 答 `no-answer` 时答 `effect-unknown`，连接转为 `degraded`（`discover-failed`）；答 `error-answer` 或 `answer-malformed` 时答 `connection-unavailable`，连接转为 `lost`（`discover-failed`）。发布边界核对当前授权失败时，答对应的 `Refusal`，不发布。`CatalogStore` 读取或写入不可用时答 `unknown`，不报告新修订。
 - **S6** 进度与日志通知经调用方给出的观察函数交出，标为不可信，不代替结局。观察函数抛出不影响调用的结局。本组不把通知写进自己的日志：对端日志不经过 `ProcessLanding`，MCP 无法按值遮盖其中的秘密。
@@ -359,7 +360,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
   「确认停止」指 `stop()` 答 `tree-confirmed`。准备失败或关闭后留下的进程与它确认的停止范围只记在 `lost` 状态的 `residual` 上，视图原样反映状态。关闭时确认停止，状态回到 `none`；否则状态是 `lost`（`close-unconfirmed`）并带 `residual`。重建成功或之后确认停止时，`residual` 清除。凭据在视图里报告为：`not-required`，`auth` 是 `none`；`absent`，配值缺失；`invalid`，配值被守卫拒绝；`present`，配值存在。视图不报告凭据值。
 
-- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「不建连接」相同。`closeAll` 之后，要连接的操作先判关停、不问端口，先于 S1 的采用核对。在途的操作（发出之前：等关口、读存储、建连的等待）不再开始下一步，答同样的结果；已发出的请求的结局不改。「下一步」指操作次序里的一步（关口，采用与资格两问算一步；读存储；建连；取页；发出）：已开始的一步内部的本地端口调用照常走完，关停之后不开始新的一步。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
+- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「不建连接」相同。`closeAll` 之后，要连接的操作先判关停、不问端口，先于 S1 的采用核对。在途的操作（调用与任务操作在发出之前：等关口、读存储、建连的等待；`refresh` 在发布之前：读存储、取页、发布边界）不再开始下一步，答同样的结果；已发出的请求的结局不改，已发布的清单不改。「下一步」指操作次序里的一步（关口，采用与资格两问算一步；读存储；建连；取页；发布边界；发出）：已开始的一步照常走完，包括这一步内部的端口调用，以及建连这一步里向对端的协商；关停之后不开始新的一步。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
 - **S9** 凭据句柄的取得与释放：每条连接按凭据配值调用一次 `CredentialUse.acquire`，所有 `credential` 来源变量共用这一个进程凭据句柄。进程凭据句柄在进程的 `stop()` 返回之后释放，不论它答哪种范围；准备失败时立即释放。HTTP 凭据句柄随连接关闭释放。关停例外：`closeAll` 时落点仍在途的连接，进程凭据句柄立即释放。之后迟到的进程照样停止一次，句柄不再释放第二次。
 
 ## 所有权、失败与生命周期

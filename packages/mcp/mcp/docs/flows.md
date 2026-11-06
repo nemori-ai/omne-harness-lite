@@ -91,7 +91,7 @@ sequenceDiagram
     I-->>C: not-sent（原因）或 sent（结局）
 ```
 
-每步失败的原因、建连失败与 `not-sent` 的映射表、取消的接线见 SPEC [MC-16](../SPEC.md#mc-16)；任务操作的次序（发起者 → 关停 → 复用或新建连接 → 一个请求）见 [MC-17](../SPEC.md#mc-17)。
+每步失败的原因、建连失败与 `not-sent` 的映射表、取消的接线见 SPEC [MC-16](../SPEC.md#mc-16)；任务操作的次序（`provideTaskInput` 先按 R2 判值树 → 发起者 → 关停 → 复用或新建连接 → 一个请求）见 [MC-17](../SPEC.md#mc-17)。
 
 ## 失败与生命周期
 
