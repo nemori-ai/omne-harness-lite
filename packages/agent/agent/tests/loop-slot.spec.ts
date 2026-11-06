@@ -67,7 +67,7 @@ describe('P1 stops when the re-selection differs (#502 1.2 stand-in for the P1 s
 })
 
 describe('observe wakes on a change of the slot', () => {
-  it('an observation open before invoke shows idle, then occupied', async () => {
+  it('an observation open before invoke shows idle, reserved, then occupied', async () => {
     const assembly = await loopAssembly([execution()])
     const controller = new AbortController()
     const sequence = assembly.provider.observation
@@ -80,6 +80,10 @@ describe('observe wakes on a change of the slot', () => {
     const next = sequence.next()
     ok(await invoke(assembly))
     expect((await next).value).toMatchObject({
+      kind: 'state',
+      value: { kind: 'reserved', instance: instance() },
+    })
+    expect((await sequence.next()).value).toMatchObject({
       kind: 'state',
       value: { kind: 'occupied', execution: execution() },
     })
@@ -173,7 +177,7 @@ describe('the registration handle only receives a projection', () => {
     ok(await invoke(assembly))
     assembly.release.open()
     await eventually(async () => (await shown(assembly)).kind === 'idle')
-    expect(reported).toEqual(['occupied', 'idle'])
+    expect(reported).toEqual(['reserved', 'occupied', 'idle'])
     ok(await invoke(assembly, 'exec-2'))
   })
 })
