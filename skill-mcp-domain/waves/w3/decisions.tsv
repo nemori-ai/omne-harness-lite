@@ -179,3 +179,4 @@ ts	phase	decision	why	evidence	result
 2026-11-06T21:38:21Z	w4-end	贴 W4 波末报告与 D-01、D-02 接受请求；卡正文 W3、W4 行改已收波，当前进展与成果交回重写，读回只差 gh 加的末尾换行	范式要求证据上卡评论，接受由负责人做	#1119 评论 6696174914 6696179052 6696183666; tmp/closures/w4-wave-end/card-body-after.md	已贴，等负责人
 2026-11-06T21:38:21Z	w4-end	进展页数据补 W3、W4 闭包与判据，build.py 在没有在途波时显示最近一个已放行的波；实现架构页重新生成；两页重发布被拒，本会话没有 claude.ai 登录	Artifact 工具要求 claude.ai 登录，不绕过	tmp/skill-mcp-domain/progress/progress.html, techdoc/index.html	本地已生成，发布待登录
 2026-11-06T21:38:21Z	w4-end	派发台账补 5 行只读评审（#1156 三轮、MCP 写回两轮），派发时没传 effort，记 inherit	台账只记有独立验收的轮次；不编造档位	tmp/skill-mcp-domain/delegate/flow.jsonl; ledger.py check ok 188 行	check 通过
+2026-11-06T21:40:53Z	w4-end	两个闭包工作树的 tmp 存档到 waves/w4/closure-tmp 并推记录分支，再用 worktree-cli remove --force 删除 w4-mcp-unusable、w4-mcp-cordis；父工作树 tmp 不删（被引用的证据与测试库）	卡评论引用的原件在闭包工作树 tmp 里，先存档再删；--force 只丢可重建的构建产物	记录分支 cd6115587；closures 文件清单逐一相同	两棵已删除
