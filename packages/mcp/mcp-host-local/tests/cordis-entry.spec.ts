@@ -356,6 +356,36 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
     expect(provided.launches.map(launch => launch.args)).toEqual([ARGS, ['replacement']])
   })
 
+  it('uses the replacement credential use at the next port call after a swap', async () => {
+    const { ctx, provided } = await assembled({ args: ARGS, credential: true }, 'credentials')
+    const first = await load(ctx, provided.credentials, undefined)
+    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
+    expect(provided.launches).toHaveLength(1)
+
+    await first.dispose()
+    const empty = createMemoryCredentialUse<unknown>()
+    await load(ctx, credentialService(empty), undefined)
+    expect(await refreshed(ctx)).toEqual({
+      failure: { kind: 'credential-unavailable', cause: 'missing' },
+    })
+    expect(provided.launches).toHaveLength(1)
+  })
+
+  it('uses the replacement process landing at the next port call after a swap', async () => {
+    const { ctx } = await assembled({ args: ARGS }, 'landing')
+    const first = recordingLanding()
+    const firstFiber = await load(ctx, landingService(first.port), undefined)
+    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
+    expect(first.launches).toHaveLength(1)
+
+    await firstFiber.dispose()
+    const replacement = recordingLanding()
+    await load(ctx, landingService(replacement.port), undefined)
+    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
+    expect(first.launches).toHaveLength(1)
+    expect(replacement.launches).toHaveLength(1)
+  })
+
   it('Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes', async () => {
     const ctx = new Context()
     const errors = recordErrors(ctx)
