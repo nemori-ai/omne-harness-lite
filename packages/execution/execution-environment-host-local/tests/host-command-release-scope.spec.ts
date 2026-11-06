@@ -272,9 +272,16 @@ describe(
       // No waiting: the registry answered only after the stop was confirmed.
       const after = await unitState(handle.process.id)
       expect(after.loadState === 'not-found' || after.activeState === 'inactive').toBe(true)
+      // The registry sends the closure signal before it enumerates. The index may confirm the stop
+      // on that signal before the enumeration reaches the provider; the process is then gone and
+      // not in `stopped`, and the retained-process ledger below is the record of its stop.
+      if (released.kind !== 'recovered')
+        throw new Error(`expected recovered: ${JSON.stringify(released)}`)
+      expect([[], [{ key, provider: 'host-files' }]]).toContainEqual(
+        released.stopped.map(item => ({ key: item.key, provider: item.provider })),
+      )
       expect(released).toMatchObject({
         kind: 'recovered',
-        stopped: [{ key, provider: 'host-files' }],
         pending: [],
         unsupported: [],
         unavailable: [],
