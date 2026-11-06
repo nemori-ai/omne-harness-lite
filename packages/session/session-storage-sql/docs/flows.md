@@ -19,10 +19,10 @@ sequenceDiagram
     participant D as 表与索引
     S->>T: commit(command, guards)
     loop 代次 k = 1, 2, …
-        T->>P: query(<SessionOperationId>#k)
+        T->>P: query(JSON.stringify([SessionId, SessionOperationId, k]))
         Note over T,P: rolled_back 继续；not_committed 选用 k；committed 认回；unknown 返回 commit-unknown
     end
-    T->>T: 访问裁定；取租户事务域；构造身份 scope、transactionDomain、operation、operationKey = <SessionOperationId>#k、protocolVersion 2；规范化 { command, guards } 为 JSON
+    T->>T: 访问裁定；取租户事务域；构造身份 scope、transactionDomain、operation、operationKey = JSON.stringify([SessionId, SessionOperationId, k])、protocolVersion 2；规范化 { command, guards, intakeLimits } 为 JSON
     T->>P: commit(identity, combinationVersion, [{ participant: session, facts }])
     P->>P: 受理前核对；BEGIN IMMEDIATE；按身份读回执
     P->>M: execute(facts, port)

@@ -57,6 +57,7 @@ export async function app(
     now?: () => number
     /** The bounds of the work cache of the storage (SPEC RT-04); the member's defaults when absent. */
     workCache?: SessionStorageOptions<string>['workCache']
+    intakeLimits?: SessionStorageOptions<string>['intakeLimits']
   } = {},
 ) {
   const provider: SqliteStorage = createSqliteStorage()
@@ -110,6 +111,7 @@ export async function app(
     storage: provider.storage,
     domains,
     accessCheck,
+    ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
     cursorSigning: signing,
     combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
     now: options.now ?? (() => clock),

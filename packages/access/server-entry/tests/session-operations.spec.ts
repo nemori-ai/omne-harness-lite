@@ -219,6 +219,39 @@ describe('create-session and query-create-session', () => {
 })
 
 describe('send-input and query-send-input', () => {
+  it.each(['pending-inputs', 'input-bytes'] as const)(
+    'preserves the %s limit returned by Session',
+    async resource => {
+      fixture = await startFixture()
+      const who = await login(fixture, 'alice')
+      const session = await createSession(fixture, who)
+      const committed = fixture.session.controls.committed().size
+      fixture.session.controls.failWith({ kind: 'limited', resource, limit: 1 })
+      const reply = await send(fixture.port, SESSION_PATH, {
+        body: sessionMessage(
+          'send-input',
+          {
+            tenant: who.tenantText,
+            session,
+            acceptId: 'limited-accept',
+            inputId: 'limited-input',
+            message: userMessageWire('queued'),
+          },
+          { loginProof: who.loginProof },
+        ),
+      })
+      expect(reply.status).toBe(429)
+      expect(reply.json).toEqual({
+        protocolVersion: 'session-public/1',
+        messageId: 'm-1',
+        outcome: 'limited',
+        body: { resource, limit: 1 },
+      })
+      expect(fixture.session.controls.calls().at(-1)?.method).toBe('accept')
+      expect(fixture.session.controls.committed().size).toBe(committed)
+    },
+  )
+
   it('derives the accept operation, the input identity and the login-entry origin, and decodes the message', async () => {
     fixture = await startFixture()
     const who = await login(fixture, 'alice')
@@ -421,6 +454,62 @@ describe('read-history', () => {
 })
 
 describe('cancel-run and stop-call', () => {
+  it('preserves a Session refusal after entry access permits cancellation', async () => {
+    fixture = await startFixture()
+    const who = await login(fixture, 'alice')
+    const session = await createSession(fixture, who)
+    const committed = fixture.session.controls.committed().size
+    fixture.session.controls.failWith({ kind: 'denied', action: 'cancelRun' })
+    const reply = await send(fixture.port, SESSION_PATH, {
+      body: sessionMessage(
+        'cancel-run',
+        {
+          tenant: who.tenantText,
+          session,
+          controlId: 'denied-control',
+          run: 'run-1',
+          urgency: 'graceful',
+        },
+        { loginProof: who.loginProof },
+      ),
+    })
+    expect(reply.status).toBe(403)
+    expect(reply.json).toEqual({
+      protocolVersion: 'session-public/1',
+      messageId: 'm-1',
+      outcome: 'denied',
+      body: {},
+    })
+    expect(fixture.session.controls.calls().at(-1)?.method).toBe('cancelRun')
+    expect(fixture.session.controls.committed().size).toBe(committed)
+  })
+
+  it('returns the saved non-Tool stop answer without treating it as a Session failure', async () => {
+    fixture = await startFixture()
+    const who = await login(fixture, 'alice')
+    const session = await createSession(fixture, who)
+    const reply = await send(fixture.port, SESSION_PATH, {
+      body: sessionMessage(
+        'stop-call',
+        {
+          tenant: who.tenantText,
+          session,
+          controlId: 'model-control',
+          producer: { kind: 'model', call: 'missing-model-call' },
+        },
+        { loginProof: who.loginProof },
+      ),
+    })
+    expect(reply.status).toBe(404)
+    expect(reply.json).toEqual({
+      protocolVersion: 'session-public/1',
+      messageId: 'm-1',
+      outcome: 'not-found',
+      body: {},
+    })
+    expect(fixture.session.controls.calls().at(-1)?.method).toBe('stopCall')
+  })
+
   it('reaches cancelRun with the control operation derived from the login and answers the saved answer', async () => {
     fixture = await startFixture()
     const who = await login(fixture, 'alice')

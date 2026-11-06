@@ -17,6 +17,7 @@ export type LeafKind =
   | 'instant'
   | 'session'
   | 'page-bytes'
+  | 'positive-integer'
   | 'parameters'
   | 'json'
   | 'user-message'

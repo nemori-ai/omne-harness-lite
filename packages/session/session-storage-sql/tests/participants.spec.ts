@@ -85,16 +85,37 @@ describe('the ./participants entry', () => {
     expect(entry['SESSION_LOG_PARTICIPANTS']).toEqual(['execution-record', 'session'])
   })
 
-  it('imports only the codec, the work cache and type-only shapes: no port, context or commit module', () => {
+  it('imports pure intake rules, the codec and the work cache: no port, context or commit module', () => {
     const text = readFileSync(join(root, 'src', 'participants.ts'), 'utf8')
     const values = [...text.matchAll(/^import (?!type )[^\n]*from '([^']+)'/gm)].map(
       match => match[1],
     )
-    expect(values).toEqual(['./codec.ts', './work-cache.ts'])
+    expect(values).toEqual(['@omne-harness/session-contract', './codec.ts', './work-cache.ts'])
   })
 })
 
 describe('the session command facts', () => {
+  it.each([
+    0,
+    '2',
+    true,
+    null,
+    [],
+    {},
+    { maxPendingInputs: '2', maxInputBytes: 1024 },
+    { maxPendingInputs: 0, maxInputBytes: 1024 },
+  ])('rejects malformed trusted intake configuration before committing: %j', async intakeLimits => {
+    const { sessionCommandFacts } = await import('../src/participants.ts')
+    const { command, guards } = createCommand()
+    const { port } = migratedPort()
+    const facts = sessionCommandFacts(command, guards)
+    expect(participant.execute({ ...facts.facts, intakeLimits }, port)).toMatchObject({
+      kind: 'unsupported',
+      basis: { reason: 'invalid intake limits' },
+    })
+    expect(participant.execute(facts.facts, port)).toMatchObject({ kind: 'participated' })
+  })
+
   it('the session module executes them and the decoder reads its answer and digest', async () => {
     const { sessionCommandFacts, decodeSessionReply } = await import('../src/participants.ts')
     const { command, guards } = createCommand()

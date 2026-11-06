@@ -181,14 +181,10 @@ export async function commitFacts<P>(
   command: FactCommandV2,
   mark: Recall = markRecovered,
 ): Promise<Outcome<unknown, SessionFailure>> {
-  // Known limitation: the storage identity is `<SessionOperationId>#<generation>` in the tenant
-  // domain, so one identity is one operation per tenant, not per session. An identity reused in
-  // another session answers `conflict` and writes nothing (the safe side); the SL07 domain
-  // (tenant, session, identity) relies on OP-00 never reusing an identity across sessions.
   const { operation } = expected
   const { storage } = context.options
   for (let attempt = 1; attempt <= context.attemptLimit; attempt += 1) {
-    const identity = identityOf(domain, operation, `${operation}#${attempt}`)
+    const identity = identityOf(domain, operation, JSON.stringify([session, operation, attempt]))
     const found = await storage.query(identity)
     if (found.kind === 'rolled_back') continue
     if (found.kind === 'committed') return fromCommitted(found, expected, true, mark)
@@ -246,7 +242,7 @@ export async function commit<P, K extends MutationName>(
   try {
     // The allowed decision goes into the facts, so the participant writes it with the operation
     // record in the same transaction (session-contract SPEC「当前操作的访问裁定」).
-    const base = sessionCommandFacts(command, input.guards)
+    const base = sessionCommandFacts(command, input.guards, context.intakeLimits)
     facts = { ...base, facts: { ...base.facts, evidence: encodeValue(decided.ok) } }
   } catch (error) {
     return failure({
@@ -313,6 +309,7 @@ async function exclusion<P>(
   context: Context<P>,
   domain: TenantDomainRef,
   operation: SessionOperationId,
+  session: string,
 ): Promise<
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'attempt-rejected' }>
@@ -322,7 +319,7 @@ async function exclusion<P>(
   let rolledBack = false
   for (let attempt = 1; attempt <= context.attemptLimit; attempt += 1) {
     const found = await context.options.storage.query(
-      identityOf(domain, operation, `${operation}#${attempt}`),
+      identityOf(domain, operation, JSON.stringify([session, operation, attempt])),
     )
     if (found.kind === 'rolled_back') rolledBack ||= !leftNoRecord(found)
     else if (found.kind === 'unknown') return { kind: 'unknown' }
@@ -358,7 +355,10 @@ async function resolve<P>(
   const found = await lookup(context, domain.ok, access.session, operation, name)
   if ('failure' in found) return found
   if (found.ok !== null) return succeed({ found: found.ok, rest: null })
-  return succeed({ found: null, rest: await exclusion(context, domain.ok, operation) })
+  return succeed({
+    found: null,
+    rest: await exclusion(context, domain.ok, operation, access.session),
+  })
 }
 
 type Unfound = ControlOperationResolution & OperationResolution

@@ -1,3 +1,9 @@
+import {
+  DEFAULT_SESSION_INTAKE_LIMITS,
+  judgeSessionIntake,
+  pendingIntakeCount,
+  type SessionIntakeLimits,
+} from './intake.ts'
 import { requiredWorkEntries } from './work-entry-state.ts'
 import { decodeEntries } from './entries.ts'
 import { validateFrontierBatch } from './frontier-state.ts'
@@ -150,6 +156,7 @@ function decideCreate(
   previous: WorkSnapshot | null,
   command: Extract<SessionCommand, { kind: 'create' }>,
   guards: readonly GuardCommand[],
+  limits: SessionIntakeLimits,
 ): Decision {
   if (previous !== null) return invalid('session', 'the session already exists')
   const { creation } = command.input
@@ -177,6 +184,8 @@ function decideCreate(
   if (creation.initial !== null) {
     if (creation.initial.input.length === 0 || creation.initial.message.blocks.length === 0)
       return invalid('creation.initial', 'the initial input has no identity or no content')
+    const limited = judgeSessionIntake(0, creation.initial, limits)
+    if (limited !== null) return rejected(limited)
     out.push(...acceptedOrdinary(creation.initial, 'next-run', null))
   }
   return entries(out)
@@ -209,6 +218,7 @@ function acceptedOrdinary(
 function decideAccept(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'accept' }>,
+  limits: SessionIntakeLimits,
 ): Decision {
   const { value } = command.input
   const route = routeInput(snapshot, value)
@@ -251,6 +261,8 @@ function decideAccept(
       if (value.kind !== 'ordinary') return invalid('value', 'not an ordinary input')
       if (snapshot.pending.includes(value.input))
         return invalid('value.input', 'an input of that identity was already accepted')
+      const limited = judgeSessionIntake(pendingIntakeCount(snapshot), value, limits)
+      if (limited !== null) return rejected(limited)
       const run = snapshot.run.kind === 'active' ? snapshot.run.run : null
       return entries(acceptedOrdinary(value, route.destination, run))
     }
@@ -804,7 +816,8 @@ function decideCommand(
     return { kind: 'recovered', receipt: recall.receipt }
   }
   if (recall.kind === 'conflict') return rejected({ kind: 'conflict', operation: recall.operation })
-  if (command.kind === 'create') return decideCreate(previous, command, guards)
+  const limits = reads.intakeLimits ?? DEFAULT_SESSION_INTAKE_LIMITS
+  if (command.kind === 'create') return decideCreate(previous, command, guards, limits)
   if (previous === null) return rejected({ kind: 'denied', action: command.kind })
   if (
     previous.session !== command.input.session ||
@@ -815,7 +828,7 @@ function decideCommand(
     case 'completeInitialization':
       return decideInitializationComplete(previous, command, guards, reads)
     case 'accept':
-      return decideAccept(previous, command)
+      return decideAccept(previous, command, limits)
     case 'startRun':
       return decideStartRun(previous, command, reads)
     case 'recordMessage':
@@ -843,6 +856,8 @@ function decideCommand(
         previous.pending.includes(command.input.urgent.input)
       )
         return invalid('urgent', 'empty or duplicate input')
+      const limited = judgeSessionIntake(pendingIntakeCount(previous), command.input.urgent, limits)
+      if (limited !== null) return rejected(limited)
       const control = decideControl(
         previous,
         {

@@ -22,6 +22,10 @@
 
 初始化守卫中的 inputSnapshot/capabilities 复用 ContextMaterial，residentBindings/newResidents 复用 ResidentAdoption 的 keys/residents。decision.commit 为字符串，具体边界见 [初始化材料的嵌套字段](../SPEC.md#初始化材料的嵌套字段)。这些材料由 Session 的初始化守卫解析器校验，不新增外域 API。
 
+## 普通输入预算
+
+`SessionIntakeLimits`、`DEFAULT_SESSION_INTAKE_LIMITS`、`sessionIntakeLimits`、`sessionInputBytes` 与 `judgeSessionIntake` 定义于 [intake.ts](../src/intake.ts)。预算属于装配配置，行为与事务前提见 [普通输入准入预算](../SPEC.md#普通输入准入预算)。`judgeSessionIntake` 是纯判断，不替调用方建立原子提交边界。
+
 ## 操作身份的派生
 
 [OP-00](../SPEC.md#op-00)。

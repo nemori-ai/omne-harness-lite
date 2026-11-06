@@ -4,6 +4,8 @@
 
 ## 内容
 
+- [intake-limits.spec.ts](intake-limits.spec.ts)：并发容量、UTF-8 边界、配置快照、交接释放、控制与撤权
+
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [public-entry.spec.ts](public-entry.spec.ts)：两个入口的导出集合
 - [decide-reduce.spec.ts](decide-reduce.spec.ts)：首条路径的判定与归约

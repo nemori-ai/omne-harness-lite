@@ -1,3 +1,4 @@
+import { sessionIntakeLimits, type SessionIntakeLimits } from './intake.ts'
 import {
   createMemorySessionHistorySource,
   entryEvidence,
@@ -504,6 +505,7 @@ function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
 }
 
 export type MemorySessionTransactionOptions<P> = Readonly<{
+  intakeLimits?: SessionIntakeLimits
   initialization?: MemoryInitializationSource
   history?: MemorySessionHistorySource
   /**
@@ -565,6 +567,7 @@ function boundAccessCheck<P>(checked: SessionCheckedAccess<P>): SessionAccessChe
 export function createMemorySessionTransactionPair<P>(
   options: MemorySessionTransactionOptions<P>,
 ): MemorySessionTransactionPair<P> {
+  const intakeLimits = sessionIntakeLimits(options.intakeLimits)
   const stores = new Map<string, Store>()
   let directoryAvailable = true
   let failInitialization = false
@@ -741,6 +744,7 @@ export function createMemorySessionTransactionPair<P>(
               ...(material === undefined ? {} : { historyIndex: material.index }),
             }
       const decision = decide(prepared, command, input.guards, held?.record ?? null, {
+        intakeLimits,
         ...(material === undefined ? {} : { history: material.reads }),
         compaction:
           command.kind === 'commitDerived' &&

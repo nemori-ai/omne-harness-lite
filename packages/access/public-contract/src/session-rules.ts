@@ -168,9 +168,18 @@ const successes = {
 } satisfies Readonly<Record<SessionOperation, Rule>>
 
 const outcomes = {
-  'create-session': ['succeeded', 'denied', 'invalid', 'conflict', 'basis-unavailable', 'unknown'],
+  'create-session': [
+    'limited',
+    'succeeded',
+    'denied',
+    'invalid',
+    'conflict',
+    'basis-unavailable',
+    'unknown',
+  ],
   'query-create-session': ['succeeded', 'denied', 'basis-unavailable', 'unknown'],
   'send-input': [
+    'limited',
     'succeeded',
     'denied',
     'invalid',
@@ -227,6 +236,14 @@ export const sessionFamily: Family<'session-public/1', SessionOperation, never> 
   responseRule: (operation, outcome) => {
     const allowed: readonly string[] = outcomes[operation]
     if (!allowed.includes(outcome)) return undefined
+    if (outcome === 'limited')
+      return {
+        kind: 'object',
+        fields: {
+          resource: { rule: { kind: 'literal', values: ['pending-inputs', 'input-bytes'] } },
+          limit: { rule: { kind: 'positive-integer' } },
+        },
+      }
     return outcome === 'succeeded' ? successes[operation] : empty
   },
 }

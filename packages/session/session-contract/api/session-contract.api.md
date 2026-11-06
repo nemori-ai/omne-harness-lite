@@ -37,6 +37,7 @@
 - `ControlScope` · `judgments.d.ts`
 - `ControlTarget` · `values.d.ts`
 - `CustodyEvidenceCommand` · `ports.d.ts`
+- `DEFAULT_SESSION_INTAKE_LIMITS` · `intake.d.ts`
 - `DecideReads` · `judgments.d.ts`
 - `Decision` · `judgments.d.ts`
 - `DeclarationChange` · `values.d.ts`
@@ -180,6 +181,7 @@
 - `SessionIdleInput` · `ports.d.ts`
 - `SessionInputAdmission` · `history-values.d.ts`
 - `SessionInputScope` · `history-values.d.ts`
+- `SessionIntakeLimits` · `intake.d.ts`
 - `SessionInternalPrincipals` · `ports.d.ts`
 - `SessionLogCommitObservation` · `interpretation-values.d.ts`
 - `SessionLogConsequence` · `projection.d.ts`
@@ -229,6 +231,7 @@
 - `judgeCompletion` · `judgments.d.ts`
 - `judgeIdle` · `judgments.d.ts`
 - `judgeRunStart` · `judgments.d.ts`
+- `judgeSessionIntake` · `intake.d.ts`
 - `mutationAccessRequest` · `access.d.ts`
 - `openWork` · `judgments.d.ts`
 - `projectSessionEntries` · `entries-interpretation.d.ts`
@@ -239,6 +242,8 @@
 - `resolveControlScope` · `judgments.d.ts`
 - `resolveOperation` · `judgments.d.ts`
 - `routeInput` · `judgments.d.ts`
+- `sessionInputBytes` · `intake.d.ts`
+- `sessionIntakeLimits` · `intake.d.ts`
 - `sessionModesBlock` · `block.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
@@ -1046,6 +1051,10 @@ import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvid
 import type { ControlOperationResolution, SessionCallTerminal, SessionControlReceipt, SessionModelSelection } from './control-values.ts';
 import type { AutoArchivePolicy, BoundedClose, CallBinding, Control, ControlProgress, DeclarationChange, DerivedMessage, FreezeVerdict, IdleObservation, InitializationResult, Participation, ProducedResult, ProducerRef, Relation, ResidentAdoption, RoutedInput, RunTerminal, ScopeReleaseDisposition, SessionCreation, WorkSnapshot } from './values.ts';
 export type SessionFailure = Readonly<{
+    kind: 'limited';
+    resource: 'pending-inputs' | 'input-bytes';
+    limit: number;
+}> | Readonly<{
     kind: 'denied';
     action: string;
 }> | Readonly<{
@@ -1673,6 +1682,8 @@ export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, Input
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
 export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
 export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
+export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, } from './intake.ts';
+export type { SessionIntakeLimits } from './intake.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -1783,6 +1794,28 @@ export declare function initializationGuard(previous: WorkSnapshot | null, comma
 export declare function validateResult(value: InitializationGuardResult, plan: InitializationPlanItem): void;
 ```
 
+## 声明文件 `intake.d.ts`
+
+```ts
+import type { SessionFailure } from './faces.ts';
+import type { RoutedInput, WorkSnapshot } from './values.ts';
+export type SessionIntakeLimits = Readonly<{
+    maxPendingInputs: number;
+    maxInputBytes: number;
+}>;
+export declare const DEFAULT_SESSION_INTAKE_LIMITS: SessionIntakeLimits;
+export declare function sessionIntakeLimits(value?: SessionIntakeLimits): SessionIntakeLimits;
+export declare function sessionInputBytes(value: Extract<RoutedInput, {
+    kind: 'ordinary';
+}>): number;
+export declare function judgeSessionIntake(pending: number, value: Extract<RoutedInput, {
+    kind: 'ordinary';
+}>, limits: SessionIntakeLimits): Extract<SessionFailure, {
+    kind: 'limited';
+}> | null;
+export declare function pendingIntakeCount(snapshot: Pick<WorkSnapshot, 'pending' | 'handed'>): number;
+```
+
 ## 声明文件 `interpretation-values.d.ts`
 
 ```ts
@@ -1852,6 +1885,7 @@ export type SessionLogReceipt = Readonly<{
 ## 声明文件 `judgments.d.ts`
 
 ```ts
+import type { SessionIntakeLimits } from './intake.ts';
 import type { CompactionContext } from '@omne-harness/message';
 import type { AdvanceRef, InputId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 import type { AutoArchivePolicy, BoundedClose, ControlIntent, IdleCoverage, IdleObservation, Participation, ProducerRef, RecoveryTask, RoutedInput, RunTerminal, Waiting, WorkSnapshot } from './values.ts';
@@ -2009,6 +2043,7 @@ export type Decision = Readonly<{
     failure: SessionFailure;
 }>;
 export type DecideReads = Readonly<{
+    intakeLimits?: SessionIntakeLimits;
     history?: SessionHistoryReads;
     compaction: CompactionContext | null;
     children?: readonly SessionId[];
@@ -2623,8 +2658,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f62f8582c50e215cad383441b870afd4e153e2de57c1e1d0901da29cbefddf41";
-export declare const SESSION_RELEASE_DIGEST = "sha256:f62f8582c50e215cad383441b870afd4e153e2de57c1e1d0901da29cbefddf41";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:b142519eb2ff3eb8e63ec634422276460ca07585f19caf03412d836b1a31eecc";
+export declare const SESSION_RELEASE_DIGEST = "sha256:b142519eb2ff3eb8e63ec634422276460ca07585f19caf03412d836b1a31eecc";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2930,6 +2965,7 @@ export declare function createMemoryAgentDrive(): MemoryAgentDrive;
 ## 声明文件 `testing-transactions.d.ts`
 
 ```ts
+import { type SessionIntakeLimits } from './intake.ts';
 import { type MemorySessionHistorySource } from './testing-history-source.ts';
 import { type Outcome } from '@omne-harness/operation-result';
 import { type TenantId } from '@omne-harness/legal-identity';
@@ -2965,6 +3001,7 @@ export interface MemoryInitializationTransactions<P> extends MemorySessionLogTra
 }
 export declare function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[];
 export type MemorySessionTransactionOptions<P> = Readonly<{
+    intakeLimits?: SessionIntakeLimits;
     initialization?: MemoryInitializationSource;
     history?: MemorySessionHistorySource;
     accessCheck: SessionAccessCheck<P>;

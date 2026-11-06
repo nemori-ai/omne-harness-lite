@@ -50,6 +50,7 @@ import type {
 } from './values.ts'
 
 export type SessionFailure =
+  | Readonly<{ kind: 'limited'; resource: 'pending-inputs' | 'input-bytes'; limit: number }>
   | Readonly<{ kind: 'denied'; action: string }>
   | Readonly<{ kind: 'invalid'; field: string; reason: string }>
   | Readonly<{ kind: 'conflict'; operation: SessionOperationId }>
