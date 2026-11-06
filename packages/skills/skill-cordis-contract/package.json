@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft skill-cordis-contract package; complete the accepted public contract before delivery",
+  "description": "Cordis service definitions of Skill: abstract Services and keys for the three services and the two demand ports",
   "engines": {
     "node": ">=24"
   },
