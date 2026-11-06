@@ -98,7 +98,7 @@ sequenceDiagram
 - 关口拒绝或配值缺陷时没有连接、没有外部效果。调用「未发出」时没有对端效果。键怎样收口见 SPEC [MC-16](../SPEC.md#mc-16) 第 13 步：停止信号已触发的未发出调用转为已结束，其余未发出的调用撤销占位；发出后无应答时效果未知，不重发。
 - 建立连接的任一步失败、超时或端口违约：连接转 `lost`、传输关闭、已起的进程 `stop()`、凭据句柄释放、清单 `markUnavailable`；时限到期时建连立即答复，这些收场在任务作用域里继续，答复的 `catalog` 是 `pending`；迟到交来的句柄与传输同样收口，迟到交来的进程停止一次、未确认的范围记为 `residual`，它的凭据句柄在这次 `stop()` 之后释放。答复与原因表见 SPEC MC-5。
 - 调用方中止：等建连时答 `kept(cancelled)`（建连留给其他调用方），取页时答 `kept(cancelled)`，发布边界上答 `kept(cancelled)`；都不标记清单。
-- 页取得失败：`not-sent` 使连接 `lost` 并标记清单；其他失败与取页超时使连接 `degraded`，刷新答 `kept(listing-incomplete)`，原采用不变。旧代际迟到的页不改变重建后的连接，刷新答 `kept(superseded)`。
+- 页取得失败：带 `unusable` 标记的答复与 `not-sent`（`authorization-required`）使连接 `lost` 并标记清单（契约 S7）；其他失败与取页超时使连接 `degraded`，刷新答 `kept(listing-incomplete)`，原采用不变。旧代际迟到的页不改变重建后的连接，刷新答 `kept(superseded)`。
 - 发布边界不成立时不写入：迟到的连接 `kept(superseded)`，取消 `kept(cancelled)`，资格不再 `granted` 答对应 `Refusal`。
 - 关闭只报告 `stop()` 确认的范围。未确认的进程留在条目里作为 `residual`，下一次关闭或重建前再次请求停止。`stop()` 违约记为 `unconfirmed`。
 - 宿主退出时调用 `closeAll()`。本包的后台工作只有时限之后继续的收场与迟到结果的收口，归连接表的任务作用域；本包不重连。

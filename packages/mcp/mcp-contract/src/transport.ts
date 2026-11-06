@@ -10,6 +10,7 @@ import type {
   NoAnswerCause,
   PeerAnswer,
   TaskReport,
+  UnusableCause,
 } from './outcomes.ts'
 import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
 import type { PeerIdentity, Untrusted } from './values.ts'
@@ -21,17 +22,24 @@ import type { Outcome } from '@omne-harness/operation-result'
  * `no-answer`: the request left and no answer came, so its effect is unknown. `error-answer`: the request left and the peer
  * answered with a JSON-RPC error. `answer-malformed`: the request left and the answer is not in
  * the shape named for that request.
+ *
+ * `unusable` (T1) is present when the transport was not usable any more as it handed over this
+ * answer and this side had not closed it; the value is the first cause the transport recorded.
+ * Only a `not-sent` (`connection-unavailable`, `session-ended`) and a `no-answer` have the field,
+ * and an ended session carries only `session-ended`; on them, an absent field says the transport
+ * is still usable or this side closed it. A refused authorization, a JSON-RPC error and an
+ * unreadable answer have no field: they are answers of the peer and say nothing of the transport.
  */
 export type TransportFailure =
-  | Readonly<{ kind: 'not-sent'; cause: 'connection-unavailable' }>
+  | Readonly<{ kind: 'not-sent'; cause: 'connection-unavailable'; unusable?: UnusableCause }>
   /** Streamable HTTP, legacy revision: the peer answered 404 to the session of the connection. */
-  | Readonly<{ kind: 'not-sent'; cause: 'session-ended' }>
+  | Readonly<{ kind: 'not-sent'; cause: 'session-ended'; unusable?: 'session-ended' }>
   | Readonly<{
       kind: 'not-sent'
       cause: 'authorization-required'
       discovery: AuthorizationDiscovery
     }>
-  | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause }>
+  | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause; unusable?: UnusableCause }>
   | ErrorAnswer
   | AnswerMalformed
 

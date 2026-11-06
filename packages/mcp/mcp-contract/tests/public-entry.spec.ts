@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
+import type { TransportFailure } from '@omne-harness/mcp-contract/provider'
 
 const BRAND_GUARDS = [
   'isActionName',
@@ -53,6 +54,7 @@ const DECISIONS = [
   'lineGoneAnswerOf',
   'listActionsRequest',
   'listingPageOf',
+  'notSentFailureOf',
   'notificationTextOf',
   'peerRequestAnswerOf',
   'readPeerMessage',
@@ -67,6 +69,7 @@ const DECISIONS = [
   'streamGoneAnswerOf',
   'taskAnswerOf',
   'taskReportOf',
+  'unusableAnswerOf',
   'updateTaskRequest',
   'withOneResend',
 ]
@@ -290,6 +293,21 @@ it('reads star exports and inline type names as exports', () => {
 
 it('the provider entry exports exactly the port type names', () => {
   expect(exportedNames(sourceOf('provider.ts'))).toEqual(PROVIDER_TYPES)
+})
+
+it('a not-sent (session-ended) of the provider entry carries no mark but session-ended (T1)', () => {
+  const ended: TransportFailure = {
+    kind: 'not-sent',
+    cause: 'session-ended',
+    unusable: 'session-ended',
+  }
+  const wrong: TransportFailure = {
+    kind: 'not-sent',
+    cause: 'session-ended',
+    // @ts-expect-error only T8 S07 gives an ended session, and it ends the transport for session-ended
+    unusable: 'process-exited',
+  }
+  expect([ended.kind, wrong.kind]).toEqual(['not-sent', 'not-sent'])
 })
 
 it('the provider entry uses only the export type { … } from form', () => {

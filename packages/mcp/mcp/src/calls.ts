@@ -40,9 +40,7 @@ import type { InFlightCalls, InFlightKey, Reservation } from './internal/in-flig
 import {
   connectionFailureOf,
   connectionFailureOfBuild,
-  loseInScope,
-  lostOfNotSent,
-  lostOfOutcome,
+  loseIfLost,
   type NotSent,
 } from './internal/lost.ts'
 import { ask, waitAtMost, within } from './internal/port.ts'
@@ -302,18 +300,9 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
   }
 
   /**
-   * Step 9: a call the transport did not send takes the connection down (S7), with the teardown
-   * in the table's scope, unless the answer is the transport's to a stop signal that fired: a
-   * cancel before the send, not a lost connection (T5).
-   */
-  function loseUnlessStopReply(ensured: Ensured, failure: NotSent, stop: AbortSignal): void {
-    if (failure.cause === 'connection-unavailable' && stop.aborted) return
-    loseInScope(table, ensured, lostOfNotSent(failure))
-  }
-
-  /**
    * Step 12: the answer applied to the tables: classified (O1–O6), a lost connection reported to
-   * the connection table, a task recorded for its initiator (MC-17).
+   * the connection table (judged on the transport's answer, which carries the mark), a task
+   * recorded for its initiator (MC-17).
    */
   function applyAnswer(on: Sent, answer: PeerAnswer): CallOutcome {
     const { outputSchema } = on.known.lastLawful
@@ -321,8 +310,10 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       answer,
       classificationOf(on.ensured.generation, outputSchema, ports.checkOutput),
     )
-    const lost = lostOfOutcome(outcome)
-    if (lost !== undefined) loseInScope(table, on.ensured, lost)
+    // The transport's answer to a stop signal that fired (T5) carries no mark while the transport
+    // is still usable, so it leaves the connection as it is; once the transport is not usable any
+    // more it carries the mark (T1), and the connection is lost by rule 1 of `lostOf`.
+    loseIfLost(table, on.ensured, answer)
     if (outcome.kind === 'task')
       tasks.record(
         {
@@ -393,7 +384,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       return sent(UNKNOWN_ABANDONED)
     }
     if ('failure' in called) {
-      loseUnlessStopReply(ensured, called.failure, stop)
+      loseIfLost(table, ensured, called.failure)
       return notSent(connectionFailureOf(called.failure))
     }
     place.recordSent(ensured.connection, ensured.generation)

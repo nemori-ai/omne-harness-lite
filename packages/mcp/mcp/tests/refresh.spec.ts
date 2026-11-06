@@ -208,10 +208,12 @@ describe('refresh keeps the earlier adoption', () => {
 
   it.each([
     { kind: 'no-answer', cause: 'stream-broken' },
+    { kind: 'not-sent', cause: 'connection-unavailable' },
+    { kind: 'not-sent', cause: 'session-ended' },
     { kind: 'error-answer', code: -32603, message: 'internal' },
     { kind: 'answer-malformed', what: 'tools-missing' },
   ] as const)(
-    'listing-incomplete (page-failed) on %o: the connection is degraded, the record kept',
+    'listing-incomplete (page-failed) on %o without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1)',
     async failure => {
       const { w, discovery, status } = core(
         world({
@@ -243,38 +245,45 @@ describe('refresh keeps the earlier adoption', () => {
 })
 
 describe('refresh fails', () => {
-  it('a page not sent: connection-unavailable, the connection lost and the record marked', async () => {
-    const { w, discovery, status } = core(
-      world({
-        script: [
-          { discover: peer },
-          { listActions: { kind: 'not-sent', cause: 'connection-unavailable' } },
-        ],
-      }),
-    )
-    adoptStdio(w, files)
-    const before = await storedRecord(w, anonymousKey, ['old'])
-    expect(await discovery.refresh(alice, { ref: files })).toEqual({
-      failure: { kind: 'connection-unavailable' },
-    })
-    expect(await status.inspect(alice, files)).toMatchObject({
-      ok: { connection: { kind: 'lost', reason: 'stream-broken' } },
-    })
-    const after = await record(w)
-    if (after === 'absent') throw new Error('record missing')
-    expect(after.revision).toBe(before.revision + 1)
-    expect(after.actions[0]?.availability).toEqual({
-      kind: 'unavailable',
-      reason: 'connection-unavailable',
-    })
-    expect(w.transports.calls.map(call => call.kind)).toEqual([
-      'open',
-      'discover',
-      'listActions',
-      'close',
-    ])
-    expect(w.landing.processes()).toEqual([{ stops: 1 }])
-  })
+  it.each([
+    [
+      { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' },
+      'stream-broken',
+    ],
+    [{ kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }, 'session-ended'],
+    [{ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, 'process-exited'],
+  ] as const)(
+    'a page answered %o, with the mark: connection-unavailable, the connection lost for %s and the record marked (S5, S7, T1)',
+    async (failure, reason) => {
+      const { w, discovery, status } = core(
+        world({
+          script: [{ discover: peer }, { listActions: failure }],
+        }),
+      )
+      adoptStdio(w, files)
+      const before = await storedRecord(w, anonymousKey, ['old'])
+      expect(await discovery.refresh(alice, { ref: files })).toEqual({
+        failure: { kind: 'connection-unavailable' },
+      })
+      expect(await status.inspect(alice, files)).toMatchObject({
+        ok: { connection: { kind: 'lost', reason } },
+      })
+      const after = await record(w)
+      if (after === 'absent') throw new Error('record missing')
+      expect(after.revision).toBe(before.revision + 1)
+      expect(after.actions[0]?.availability).toEqual({
+        kind: 'unavailable',
+        reason: 'connection-unavailable',
+      })
+      expect(w.transports.calls.map(call => call.kind)).toEqual([
+        'open',
+        'discover',
+        'listActions',
+        'close',
+      ])
+      expect(w.landing.processes()).toEqual([{ stops: 1 }])
+    },
+  )
 
   it('a page refused with authorization-required: the discovery is carried', async () => {
     const { w, discovery, status } = core(
@@ -305,7 +314,13 @@ describe('refresh fails', () => {
       world({
         script: [
           { discover: peer },
-          { listActions: { kind: 'not-sent', cause: 'connection-unavailable' } },
+          {
+            listActions: {
+              kind: 'not-sent',
+              cause: 'connection-unavailable',
+              unusable: 'stream-broken',
+            },
+          },
         ],
       }),
     )
@@ -333,7 +348,13 @@ describe('refresh fails', () => {
       world({
         script: [
           { discover: peer },
-          { listActions: { kind: 'not-sent', cause: 'connection-unavailable' } },
+          {
+            listActions: {
+              kind: 'not-sent',
+              cause: 'connection-unavailable',
+              unusable: 'stream-broken',
+            },
+          },
         ],
       }),
     )
@@ -345,7 +366,7 @@ describe('refresh fails', () => {
 
   it.each([
     [
-      { kind: 'no-answer', cause: 'process-exited' },
+      { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' },
       { kind: 'effect-unknown', cause: 'process-exited' },
     ],
     [{ kind: 'error-answer', code: -32600, message: 'bad' }, { kind: 'connection-unavailable' }],
@@ -360,6 +381,40 @@ describe('refresh fails', () => {
     expect(await discovery.refresh(alice, { ref: files })).toEqual({ failure: expected })
     expect(await record(w, credentialKey)).toBe('absent')
   })
+
+  it.each([
+    [
+      { kind: 'not-sent', cause: 'connection-unavailable' },
+      { kind: 'connection-unavailable' },
+      'preparation-failed',
+    ],
+    [
+      { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' },
+      { kind: 'connection-unavailable' },
+      'stream-broken',
+    ],
+    [
+      { kind: 'no-answer', cause: 'stream-broken' },
+      { kind: 'effect-unknown', cause: 'stream-broken' },
+      'preparation-failed',
+    ],
+    [
+      { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' },
+      { kind: 'effect-unknown', cause: 'stream-broken' },
+      'stream-broken',
+    ],
+  ] as const)(
+    'a discover that fails during the build with %o fails the build, with or without the mark: refresh answers %o, the connection is lost for the mark, else by the build rule (%s) (S5, S7, MC-5)',
+    async (failure, expected, reason) => {
+      const { w, discovery, status } = core(world({ script: [{ discover: failure }] }))
+      adoptStdio(w, files)
+      expect(await discovery.refresh(alice, { ref: files })).toEqual({ failure: expected })
+      expect(await status.inspect(alice, files)).toMatchObject({
+        ok: { connection: { kind: 'lost', reason } },
+      })
+      expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(0)
+    },
+  )
 
   it('the store cannot be read: unknown, and no page is asked for', async () => {
     const { w, discovery } = core(world({ script: usualScript() }))

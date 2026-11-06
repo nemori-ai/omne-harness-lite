@@ -11,6 +11,7 @@ import {
   type PlainJson,
   type PlainRecord,
   type RequestClass,
+  type UnusableCause,
 } from '@omne-harness/mcp-contract'
 import type {
   HttpCredentialHandle,
@@ -62,6 +63,12 @@ const target = (() => {
 const never = new AbortController().signal
 const echo = { action: actionNameOf('echo'), args: jsonOf({}) }
 const NOT_SENT: TransportFailure = { kind: 'not-sent', cause: 'connection-unavailable' }
+/** The `not-sent` (`connection-unavailable`) of a transport that is not usable any more, for `cause`. */
+const notSentAfter = (unusable: UnusableCause): TransportFailure => ({
+  kind: 'not-sent',
+  cause: 'connection-unavailable',
+  unusable,
+})
 const STREAM_BROKEN: TransportFailure = { kind: 'no-answer', cause: 'stream-broken' }
 
 function idleProcess(): ProcessHandle {
@@ -313,8 +320,50 @@ function errorObjectOf(reply: Reply): PlainJson | undefined {
   return isPlain(error) ? error : undefined
 }
 
-function failureOf(expected: ExpectedFailure, reply: Reply): TransportFailure | undefined {
+/**
+ * The cause an answer of the row is marked with (T1): a `no-answer` its own cause, an ended
+ * session `session-ended`, a request that could not be written (X02) `stream-broken`. Undefined
+ * on a row that leaves the transport usable. A request after the row carries the same cause.
+ */
+function unusableCauseOf(conclusion: TableConclusion): UnusableCause | undefined {
+  if (conclusion.unusable !== true) return undefined
+  const ended =
+    conclusion.kind === 'answer'
+      ? conclusion.answer
+      : conclusion.kind === 'failure'
+        ? conclusion.failure.kind === 'no-answer'
+          ? conclusion.failure.cause
+          : conclusion.failure.kind === 'not-sent'
+            ? conclusion.failure.cause
+            : undefined
+        : undefined
+  if (ended === 'stream-broken' || ended === 'process-exited' || ended === 'session-ended')
+    return ended
+  if (ended === 'connection-unavailable') return 'stream-broken'
+  throw new TypeError(`a row that ends the transport concludes ${JSON.stringify(conclusion)}`)
+}
+
+/** The `not-sent` (`connection-unavailable`) of a request after the row, marked as the row says. */
+function refusedAfter(conclusion: TableConclusion): TransportFailure {
+  const unusable = unusableCauseOf(conclusion)
+  return unusable === undefined ? NOT_SENT : notSentAfter(unusable)
+}
+
+function failureOf(
+  expected: ExpectedFailure,
+  reply: Reply,
+  unusable?: UnusableCause,
+): TransportFailure | undefined {
   if (expected.kind === 'not-sent' && expected.cause === 'authorization-required') return undefined
+  if (expected.kind === 'no-answer')
+    return unusable === undefined ? expected : { ...expected, unusable }
+  if (expected.kind === 'not-sent') {
+    if (unusable === undefined) return expected
+    // A `not-sent` (`session-ended`) carries no other mark (T1).
+    return expected.cause === 'session-ended'
+      ? { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }
+      : { kind: 'not-sent', cause: expected.cause, unusable }
+  }
   if (expected.kind !== 'error-answer') return expected
   const object = errorObjectOf(reply)
   if (!isRecord(object)) throw new TypeError('the sample is no error')
@@ -335,10 +384,11 @@ function assertFailure(
   actual: Outcome<unknown, TransportFailure>,
   expected: ExpectedFailure,
   reply: Reply,
+  unusable?: UnusableCause,
 ): void {
   expect('failure' in actual, JSON.stringify(actual)).toBe(true)
   if (!('failure' in actual)) return
-  const wanted = failureOf(expected, reply)
+  const wanted = failureOf(expected, reply, unusable)
   if (wanted === undefined) {
     expect(
       actual.failure.kind === 'not-sent' && actual.failure.cause === 'authorization-required',
@@ -346,7 +396,7 @@ function assertFailure(
     ).toBe(true)
     return
   }
-  expect(actual.failure).toEqual(wanted)
+  expect(actual.failure).toStrictEqual(wanted)
 }
 
 function ok<T>(outcome: Outcome<T, TransportFailure>, what: string): T {
@@ -446,7 +496,9 @@ async function run(
 
 async function afterwards(opened: Opened, conclusion: TableConclusion): Promise<void> {
   if (conclusion.unusable === true)
-    expect(await opened.transport.listActions()).toEqual({ failure: NOT_SENT })
+    expect(await opened.transport.listActions()).toStrictEqual({
+      failure: refusedAfter(conclusion),
+    })
 }
 
 async function checkProbe(
@@ -542,7 +594,7 @@ async function checkProbe(
             await untilSent(line, 'server/discover')
             await transport.close()
           }
-          assertFailure(await pending, conclusion.failure, reply)
+          assertFailure(await pending, conclusion.failure, reply, unusableCauseOf(conclusion))
           expect(discovers(line)).toHaveLength(sent)
           expect(line.requests('initialize')).toEqual([])
           await afterwards(opened, conclusion)
@@ -578,7 +630,7 @@ async function checkInitialize(
       }
       expect(conclusion.kind).toBe('failure')
       if (conclusion.kind !== 'failure') return
-      assertFailure(outcome, conclusion.failure, reply)
+      assertFailure(outcome, conclusion.failure, reply, unusableCauseOf(conclusion))
       expect(initialized).toEqual([])
       await afterwards(opened, conclusion)
     },
@@ -599,7 +651,8 @@ async function checkCall(
       const { line, transport } = opened
       if (session) ok(await transport.discover(), 'discover')
       const outcome = await transport.call(echo, never)
-      if (conclusion.kind === 'failure') assertFailure(outcome, conclusion.failure, reply)
+      if (conclusion.kind === 'failure')
+        assertFailure(outcome, conclusion.failure, reply, unusableCauseOf(conclusion))
       else {
         expect(conclusion.kind).toBe('answer')
         if (conclusion.kind !== 'answer') return
@@ -616,7 +669,14 @@ async function checkCall(
           })
         else if (conclusion.answer === 'error')
           expect(answer).toEqual({ kind: 'error', error: jsonOf(errorObjectOf(reply)) })
-        else expect(answer).toEqual({ kind: 'no-answer', cause: conclusion.answer })
+        else {
+          const unusable = unusableCauseOf(conclusion)
+          expect(answer).toStrictEqual(
+            unusable === undefined
+              ? { kind: 'no-answer', cause: conclusion.answer }
+              : { kind: 'no-answer', cause: conclusion.answer, unusable },
+          )
+        }
       }
       expect(line.requests('tools/call')).toHaveLength(reply.kind === 'unsent' ? 0 : 1)
       if (session) expect(line.requests('tools/call')[0]?.headers['mcp-session-id']).toBe(SESSION)
@@ -691,7 +751,7 @@ async function checkOperation(
           await untilSent(line, drive.method)
           await transport.close()
         }
-        assertFailure(await pending, conclusion.failure, reply)
+        assertFailure(await pending, conclusion.failure, reply, unusableCauseOf(conclusion))
         expect(line.requests(drive.method)).toHaveLength(reply.kind === 'unsent' ? 0 : 1)
         if (session) expect(line.requests(drive.method)[0]?.headers['mcp-session-id']).toBe(SESSION)
         await afterwards(all, conclusion)
@@ -894,9 +954,13 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
     await untilSent(line, 'tools/list')
     await tick()
     line.queue.push({ kind: 'broken' })
-    expect(await listing).toEqual({ failure: STREAM_BROKEN })
+    expect(await listing).toStrictEqual({
+      failure: { ...STREAM_BROKEN, unusable: 'stream-broken' },
+    })
     expect(line.requests('tools/list')).toHaveLength(1)
-    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    expect(await transport.listActions()).toStrictEqual({
+      failure: notSentAfter('stream-broken'),
+    })
     await transport.close()
   })
 
@@ -908,9 +972,11 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
     )
     ok(await transport.discover(), 'discover')
     expect(await transport.listActions()).toEqual({
-      failure: { kind: 'not-sent', cause: 'session-ended' },
+      failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
     })
-    expect(await transport.getTask(taskIdOf('t1'))).toEqual({ failure: NOT_SENT })
+    expect(await transport.getTask(taskIdOf('t1'))).toStrictEqual({
+      failure: notSentAfter('session-ended'),
+    })
     expect(line.requests('tools/list')).toHaveLength(1)
     await transport.close()
   })
@@ -1529,7 +1595,11 @@ describe('a session that cannot be used any more sends nothing and asks no crede
     ok(await transport.discover(), 'discover')
     const sent = ok(await transport.call(echo, never), 'call')
     line.queue.push({ kind: 'broken' })
-    expect(await sent.answer).toEqual({ kind: 'no-answer', cause: 'stream-broken' })
+    expect(await sent.answer).toStrictEqual({
+      kind: 'no-answer',
+      cause: 'stream-broken',
+      unusable: 'stream-broken',
+    })
     const sentBefore = line.sent.length
     const authorizedBefore = credential.authorizations()
     line.push({ jsonrpc: '2.0', id: 9, method: 'ping' })
@@ -1574,7 +1644,7 @@ describe('a session that cannot be used any more sends nothing and asks no crede
     line.queue.push({ kind: 'broken' })
     await tick()
     held.release()
-    expect(await calling).toEqual({ failure: NOT_SENT })
+    expect(await calling).toStrictEqual({ failure: notSentAfter('stream-broken') })
     expect(line.requests('tools/call')).toEqual([])
     await transport.close()
   })
@@ -1616,7 +1686,29 @@ describe('a session that cannot be used any more sends nothing and asks no crede
     expect(line.sse).toBe(false)
   })
 
-  it('leaves another request of the session in flight when one is told the session ended (S07)', async () => {
+  it('the events of the line rejecting while the fallback GET is open: discover is not-sent with the mark stream-broken (T1)', async () => {
+    const seen: unknown[] = []
+    let release = (): void => undefined
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const { line, transport } = open(
+      'streamable-http',
+      { 'server/discover': [METHOD_NOT_FOUND], initialize: [status(404, 'gone'), LEGACY] },
+      { sse: { kind: 'entered', gate }, reportDefect: defect => seen.push(defect) },
+    )
+    const discovering = transport.discover()
+    for (let round = 0; round < 200 && line.sseAttempts.length === 0; round += 1) await tick()
+    expect(line.sseAttempts).toHaveLength(1)
+    line.queue.fail(new Error('the events of the line broke'))
+    await tick()
+    release()
+    expect(await discovering).toStrictEqual({ failure: notSentAfter('stream-broken') })
+    expect(seen.map(describeDefect)).toEqual(['Error: the events of the line broke'])
+    await transport.close()
+  })
+
+  it('leaves another request of the session in flight when one is told the session ended (S07); after close() no answer carries the mark (T1)', async () => {
     const { line, transport } = open(
       'streamable-http',
       { ...scripts, 'tools/list': [status(404, 'gone')] },
@@ -1625,12 +1717,54 @@ describe('a session that cannot be used any more sends nothing and asks no crede
     ok(await transport.discover(), 'discover')
     const other = ok(await transport.call(echo, never), 'call')
     expect(await transport.listActions()).toEqual({
-      failure: { kind: 'not-sent', cause: 'session-ended' },
+      failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
     })
     expect(await settledWithin(other.answer, 30)).toBe('pending')
     await transport.close()
-    expect(await other.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
+    expect(await other.answer).toStrictEqual({ kind: 'no-answer', cause: 'abandoned' })
+    expect(await transport.listActions()).toStrictEqual({ failure: NOT_SENT })
     expect(line.requests('tools/list')).toHaveLength(1)
+  })
+
+  it('a request in flight that settles after the session ended carries the mark, whatever settles it (T1, S07)', async () => {
+    const { transport } = open(
+      'streamable-http',
+      { ...scripts, 'tools/list': [status(404, 'gone')] },
+      { sse: { kind: 'entered' } },
+    )
+    ok(await transport.discover(), 'discover')
+    const controller = new AbortController()
+    const other = ok(await transport.call(echo, controller.signal), 'call')
+    expect(await transport.listActions()).toStrictEqual({
+      failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+    })
+    controller.abort()
+    expect(await other.answer).toStrictEqual({
+      kind: 'no-answer',
+      cause: 'abandoned',
+      unusable: 'session-ended',
+    })
+    await transport.close()
+  })
+
+  it('a second break: a request in flight after the session ended settles for the shared stream breaking, with its own cause and the mark the transport recorded first (T1, T8)', async () => {
+    const { line, transport } = open(
+      'streamable-http',
+      { ...scripts, 'tools/list': [status(404, 'gone')] },
+      { sse: { kind: 'entered' }, reportDefect: () => undefined },
+    )
+    ok(await transport.discover(), 'discover')
+    const other = ok(await transport.call(echo, never), 'call')
+    expect(await transport.listActions()).toStrictEqual({
+      failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+    })
+    line.queue.push({ kind: 'broken' })
+    expect(await other.answer).toStrictEqual({
+      kind: 'no-answer',
+      cause: 'stream-broken',
+      unusable: 'session-ended',
+    })
+    await transport.close()
   })
 })
 
@@ -1937,11 +2071,17 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     const listing = transport.listActions()
     const calling = transport.call(echo, never)
     await held.reached
-    expect(await listing).toEqual({ failure: { kind: 'not-sent', cause: 'session-ended' } })
+    expect(await listing).toStrictEqual({
+      failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+    })
     held.release()
-    expect(await settledWithin(calling)).toEqual({ settled: { failure: NOT_SENT } })
+    expect(await settledWithin(calling)).toEqual({
+      settled: { failure: notSentAfter('session-ended') },
+    })
     expect(line.requests('tools/call')).toEqual([])
-    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    expect(await transport.listActions()).toStrictEqual({
+      failure: notSentAfter('session-ended'),
+    })
     await transport.close()
   })
 
@@ -1958,9 +2098,13 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     line.queue.push({ kind: 'ended', stdoutEndedAt: 0, exitedAt: 0 })
     await tick()
     held.release()
-    expect(await settledWithin(calling)).toEqual({ settled: { failure: NOT_SENT } })
+    expect(await settledWithin(calling)).toEqual({
+      settled: { failure: notSentAfter('process-exited') },
+    })
     expect(line.requests('tools/call')).toEqual([])
-    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    expect(await transport.listActions()).toStrictEqual({
+      failure: notSentAfter('process-exited'),
+    })
     await transport.close()
   })
 
@@ -1976,9 +2120,13 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     line.queue.push({ kind: 'broken' })
     await tick()
     held.release()
-    expect(await settledWithin(calling)).toEqual({ settled: { failure: NOT_SENT } })
+    expect(await settledWithin(calling)).toEqual({
+      settled: { failure: notSentAfter('stream-broken') },
+    })
     expect(line.requests('tools/call')).toEqual([])
-    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    expect(await transport.listActions()).toStrictEqual({
+      failure: notSentAfter('stream-broken'),
+    })
     await transport.close()
   })
 
@@ -1998,11 +2146,17 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     line.queue.fail(new Error('the events of the line broke'))
     await tick()
     held.release()
-    expect(await settledWithin(sent.answer)).toEqual({ settled: STREAM_BROKEN })
-    expect(await settledWithin(calling)).toEqual({ settled: { failure: NOT_SENT } })
+    expect(await settledWithin(sent.answer)).toEqual({
+      settled: { ...STREAM_BROKEN, unusable: 'stream-broken' },
+    })
+    expect(await settledWithin(calling)).toEqual({
+      settled: { failure: notSentAfter('stream-broken') },
+    })
     expect(line.requests('tools/call')).toHaveLength(1)
     expect(seen.map(describeDefect)).toEqual(['Error: the events of the line broke'])
-    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    expect(await transport.listActions()).toStrictEqual({
+      failure: notSentAfter('stream-broken'),
+    })
     await transport.close()
   })
 
@@ -2040,7 +2194,9 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
       },
     })
     expect(credential.rejections()).toBe(1)
-    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    expect(await transport.listActions()).toStrictEqual({
+      failure: notSentAfter('stream-broken'),
+    })
     expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
   })
 })

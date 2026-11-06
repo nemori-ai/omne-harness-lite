@@ -1,4 +1,5 @@
-// P9–P14 of SPEC「性质与证据」(the call port, MC-16 and MC-17), with P1–P8 still checked, by the
+// P9–P14 of SPEC「性质与证据」(the call port, MC-16 and MC-17), with P1–P8 still checked, and
+// P15 (contract S7: a failure without the `unusable` mark does not lose the connection), by the
 // bounded exhaustive explorer on the real `createCalls` and `createTasks` over the real
 // connection table, at the bounds of `scenarios.ts`: no scenario reaches a violation. A
 // violation fails its case with the shortest schedule that showed it. The two-invoke,
@@ -17,6 +18,7 @@ import {
   CONTINUE_SHUTDOWN,
   FOREIGN_CANCEL,
   FOREIGN_TASK,
+  MARKS,
   TASK,
   TASK_ACCOUNT,
   TASK_COLLISION,
@@ -53,6 +55,27 @@ describe("abort: one key, invoke and the caller's abort", () => {
 
 describe('call-faults: invoke and cancel, one port failing, rejecting or throwing', () => {
   it('P1–P14 hold', () => holds(CALL_FAULTS), EXPLORE_MS)
+})
+
+describe('marks: invoke and getTask, one request failing with or without the unusable mark', () => {
+  it(
+    'P1–P15 hold: a failure without the mark leaves the ready connection ready (P15, S7, T1); a marked one loses it',
+    async () => {
+      const result = await explore(MARKS)
+      console.info(readings(result))
+      expect(violations(result)).toEqual([])
+      // Each request port reaches both endings on a ready connection: the property is not vacuous.
+      expect(result.failureEndings).toEqual([
+        'transport.answer fail lost',
+        'transport.answer fail-usable ready',
+        'transport.call fail lost',
+        'transport.call fail-usable ready',
+        'transport.getTask fail lost',
+        'transport.getTask fail-usable ready',
+      ])
+    },
+    EXPLORE_MS,
+  )
 })
 
 describe('continue: invoke, then continueWithInput at the generation of that moment, drop', () => {

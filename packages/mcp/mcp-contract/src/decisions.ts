@@ -8,7 +8,12 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { RequestMethod } from './composition.ts'
 import { isObject, member, type JsonObject } from './json.ts'
-import type { AnswerMalformed, AuthorizationDiscovery, NoAnswerCause } from './outcomes.ts'
+import type {
+  AnswerMalformed,
+  AuthorizationDiscovery,
+  NoAnswerCause,
+  UnusableCause,
+} from './outcomes.ts'
 import { errorAnswerOf, peerIdentityOf, readDiscoverResult, type IdentityBound } from './readers.ts'
 import type { TransportFailure, TransportMaterial } from './transport.ts'
 import type { PeerIdentity } from './values.ts'
@@ -44,6 +49,8 @@ export const RESENT_REQUESTS: readonly RequestClass[] = [
   'tasks/get',
 ]
 
+export type { UnusableCause } from './outcomes.ts'
+
 type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
 
 /**
@@ -53,27 +60,25 @@ type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
  *   object, or the whole message when the envelope is not one of T2 (C02).
  * - `no-answer`: nothing readable came; `resend` says whether the row sends the request once more.
  * - `not-sent`: the request had no effect at the peer.
+ * A `no-answer` and a `not-sent` other than `authorization-required` carry `unusable` (on the
+ * `not-sent`, in its failure) when the transport is not usable any more as it hands the answer
+ * over and this side has not closed it (T1); only this layer writes it (`concludeAnswer`,
+ * `lineGoneAnswerOf`, `streamGoneAnswerOf`, `unusableAnswerOf`, `notSentFailureOf`).
  * - `legacy-peer`: a `server/discover` answer that says the peer speaks a legacy revision only.
  * - `legacy-http`: `initialize` answered 4xx+plain: the legacy HTTP+SSE fallback may follow (I07).
  */
 export type WireAnswer =
   | Readonly<{ kind: 'result'; result: JsonValue }>
   | Readonly<{ kind: 'error'; error: JsonValue; errorClass: ErrorClass }>
-  | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause; resend: boolean }>
+  | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause; resend: boolean; unusable?: UnusableCause }>
   | Readonly<{ kind: 'not-sent'; failure: NotSent }>
   | Readonly<{ kind: 'legacy-peer' }>
   | Readonly<{ kind: 'legacy-http' }>
 
 /**
- * Why a transport is not usable any more (T1): the shared stream is gone (`stream-broken`), the
- * process exited (`process-exited`), or the peer ended the legacy session (`session-ended`, S07).
- */
-export type UnusableCause = NoAnswerCause | 'session-ended'
-
-/**
  * The conclusion of a T8 row for one classification.
  * - `settle`: the request settles with `wire`; `unusable` names the cause every later request
- *   answers with when the row ends the transport.
+ *   answers with when the row ends the transport, and `wire` carries it already.
  * - `authorization-required`: T4: the transport calls `reportRejection()` on the handle that
  *   authorized the request, discovers the authorization, and settles with `not-sent`.
  * - `wait`: the event was no answer to the request (`other`, `waiting`).
@@ -116,7 +121,66 @@ export const malformed = (what: AnswerMalformed['what']): TransportFailure => ({
 })
 
 function settle(wire: WireAnswer, unusable?: UnusableCause): AnswerConclusion {
-  return unusable === undefined ? { kind: 'settle', wire } : { kind: 'settle', wire, unusable }
+  return unusable === undefined
+    ? { kind: 'settle', wire }
+    : { kind: 'settle', wire: unusableAnswerOf(wire, unusable), unusable }
+}
+
+/**
+ * The `not-sent` (`connection-unavailable`) of a request the transport did not take: with the
+ * cause as the mark when the transport is not usable any more (T1, T8 "every later request").
+ */
+export function notSentFailureOf(unusable: UnusableCause | undefined): NotSent {
+  return unusable === undefined
+    ? NOT_SENT_FAILURE
+    : { kind: 'not-sent', cause: 'connection-unavailable', unusable }
+}
+
+/**
+ * T1, T8 "every later request": `wire` as a transport that is not usable any more hands it over,
+ * for `cause`, the cause the transport recorded. The mark is the transport's state, not the
+ * line's: a `no-answer` and a `not-sent` other than `authorization-required` carry `cause`, in
+ * place of a mark they carried already; the cause of the request's own failure stays.
+ *
+ * A `not-sent` (`session-ended`) carries `session-ended` whatever `cause` is. Only T8 S07 gives
+ * it, and S07 ends the transport for `session-ended`; a transport that died for another cause
+ * first has settled every request on the line by then, so no transport hands one over for another
+ * cause. The cell still needs a value: whether the mark is present decides whether a ready
+ * connection is lost (S7), so the answer carries one, and the answer itself says the session
+ * ended.
+ *
+ * A refused authorization, an answer of the peer and the two legacy readings are as they are: no
+ * gone line gives them.
+ */
+export function unusableAnswerOf(wire: WireAnswer, cause: UnusableCause): WireAnswer {
+  switch (wire.kind) {
+    case 'no-answer':
+      return { ...wire, unusable: cause }
+    case 'not-sent': {
+      const failure = wire.failure
+      switch (failure.cause) {
+        case 'authorization-required':
+          return wire
+        case 'session-ended':
+          return { kind: 'not-sent', failure: { ...failure, unusable: 'session-ended' } }
+        case 'connection-unavailable':
+          return { kind: 'not-sent', failure: { ...failure, unusable: cause } }
+        default: {
+          const exhaustive: never = failure
+          return exhaustive
+        }
+      }
+    }
+    case 'result':
+    case 'error':
+    case 'legacy-peer':
+    case 'legacy-http':
+      return wire
+    default: {
+      const exhaustive: never = wire
+      return exhaustive
+    }
+  }
 }
 
 function brokenStream(resend: boolean): WireAnswer {
@@ -352,6 +416,16 @@ function probeErrorConclusionOf(
   }
 }
 
+/** The failure of a `no-answer`, with its cause and, when it carries one, its mark (T1). */
+export function noAnswerFailureOf(
+  wire: Extract<WireAnswer, { kind: 'no-answer' }>,
+): Extract<TransportFailure, { kind: 'no-answer' }> {
+  const { cause, unusable } = wire
+  return unusable === undefined
+    ? { kind: 'no-answer', cause }
+    : { kind: 'no-answer', cause, unusable }
+}
+
 /** What one answer to `server/discover` means for the modern path (T3, T8 D01–D16). */
 export function concludeProbe(
   wire: WireAnswer,
@@ -369,7 +443,7 @@ export function concludeProbe(
     case 'error':
       return probeErrorConclusionOf(wire, request, versions)
     case 'no-answer':
-      return { kind: 'final', failure: { kind: 'no-answer', cause: wire.cause } }
+      return { kind: 'final', failure: noAnswerFailureOf(wire) }
     case 'not-sent':
       return { kind: 'final', failure: wire.failure }
     case 'legacy-http':
@@ -387,10 +461,11 @@ export function concludeProbe(
 
 /**
  * T8 S01–S04 and the SSE mode: what every request handed to a shared stream settles with when the
- * stream is gone (`stream-broken`, `process-exited`): `no-answer` with the cause, never sent again.
+ * stream is gone (`stream-broken`, `process-exited`): `no-answer` with the cause, never sent again,
+ * and the transport not usable any more for the same cause (T1).
  */
-export function streamGoneAnswerOf(cause: NoAnswerCause): WireAnswer {
-  return { kind: 'no-answer', cause, resend: false }
+export function streamGoneAnswerOf(cause: Exclude<UnusableCause, 'session-ended'>): WireAnswer {
+  return { kind: 'no-answer', cause, resend: false, unusable: cause }
 }
 
 /** T4: what a request refused with 401 or a scoped 403 settles with, given its discovery (R4). */
@@ -440,9 +515,10 @@ export function stopAnswerOf(phase: InFlightPhase): WireAnswer {
  * by its phase. Only the two phases that depend on the line settle: one still authorizing never
  * reached the wire and is `not-sent` (`connection-unavailable`); one sent answers `no-answer` with
  * the cause, except when the peer ended the session (S07): the request that was told so settled
- * by its row, every other sent request is left to its own answer. A request discovering its
- * authorization goes on: its conclusion came first (T4), and the discovery does not use the line.
- * Undefined when the request goes on.
+ * by its row, every other sent request is left to its own answer. Both carry the cause as the mark
+ * that the transport is not usable any more (T1). A request discovering its authorization goes on:
+ * its conclusion came first (T4), and the discovery does not use the line. Undefined when the
+ * request goes on.
  */
 export function lineGoneAnswerOf(
   phase: InFlightPhase,
@@ -450,7 +526,7 @@ export function lineGoneAnswerOf(
 ): WireAnswer | undefined {
   switch (phase.kind) {
     case 'authorizing':
-      return NOT_SENT
+      return unusableAnswerOf(NOT_SENT, cause)
     case 'sent':
       return cause === 'session-ended' ? undefined : streamGoneAnswerOf(cause)
     case 'discovery':

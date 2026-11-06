@@ -44,6 +44,7 @@ import {
   lineGoneAnswerOf,
   listActionsRequest,
   mcpRequestHeadersOf,
+  notSentFailureOf,
   notificationTextOf,
   peerRequestAnswerOf,
   readPeerMessage,
@@ -53,6 +54,7 @@ import {
   responseTextOf,
   startAuthorizationDiscovery,
   stopAnswerOf,
+  unusableAnswerOf,
   updateTaskRequest,
   withOneResend,
   type AnswerConclusion,
@@ -315,11 +317,27 @@ export class Session implements McpTransport {
     })
   }
 
+  /**
+   * Once the transport is not usable any more, every `no-answer` and every `not-sent` other than
+   * `authorization-required` it hands over carries the cause it recorded (T1, T8 "every later
+   * request"), by the contract's `unusableAnswerOf`; after `close()` none does: closing is this
+   * side's decision, not a fact about the line.
+   */
+  private handedOver(answered: Answered): Answered {
+    if (this.closed || this.dead === undefined) return answered
+    return { ...answered, wire: unusableAnswerOf(answered.wire, this.dead) }
+  }
+
+  /** The `not-sent` of a request the transport did not take: closed, not usable, or stopped first. */
+  private get refused(): Extract<TransportFailure, { kind: 'not-sent' }> {
+    return notSentFailureOf(this.closed ? undefined : this.dead)
+  }
+
   private settle(entry: Pending, answered: Answered): void {
     if (!this.pending.delete(entry.id)) return
     const phase = entry.phase
     if (phase.kind === 'sent' && phase.exchange.kind === 'probe') phase.exchange.cancel()
-    entry.settle(answered)
+    entry.settle(this.handedOver(answered))
   }
 
   /**
@@ -778,7 +796,9 @@ export class Session implements McpTransport {
     sending: Sending,
   ): Promise<Answered> {
     const entry = this.begin(method, params, sending)
-    return entry === undefined ? NOT_SENT : entry.answered
+    return entry === undefined
+      ? { wire: { kind: 'not-sent', failure: this.refused } }
+      : entry.answered
   }
 
   /** Sends the request an operation composed and reads its answer the way the operation does. */
@@ -839,7 +859,10 @@ export class Session implements McpTransport {
     if (answered.wire.kind === 'legacy-http') {
       // T8 I07: the peer may speak the legacy HTTP+SSE transport (T3).
       const entered = await this.enterSse()
-      answered = entered ?? (await this.request('initialize', params, sending))
+      answered =
+        entered === undefined
+          ? await this.request('initialize', params, sending)
+          : this.handedOver(entered)
     }
     const read = legacyIdentityOf(answered.wire, this.bound)
     if ('failure' in read) return read
@@ -954,7 +977,7 @@ export class Session implements McpTransport {
     signal: AbortSignal,
     observe?: (notification: PeerNotification) => void,
   ): Promise<Outcome<SentCall, Extract<TransportFailure, { kind: 'not-sent' }>>> {
-    if (signal.aborted) return { failure: NOT_SENT_FAILURE }
+    if (signal.aborted) return { failure: this.refused }
     const composed = callRequestOf(request)
     const entry = this.begin(composed.method, composed.params, {
       kind: 'call',
@@ -962,7 +985,7 @@ export class Session implements McpTransport {
       signal,
       ...(observe === undefined ? {} : { observe }),
     })
-    if (entry === undefined) return { failure: NOT_SENT_FAILURE }
+    if (entry === undefined) return { failure: this.refused }
     const first = await Promise.race([entry.departed.then(() => undefined), entry.answered])
     if (first?.wire.kind === 'not-sent') return { failure: first.wire.failure }
     return { ok: { requestId: entry.id, answer: entry.answered.then(answerOf) } }

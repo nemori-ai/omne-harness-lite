@@ -62,11 +62,21 @@ export type OutputValidator = (structured: JsonValue, outputSchema: JsonValue) =
 /** Why a sent call has no answer. */
 export type NoAnswerCause = 'stream-broken' | 'process-exited' | 'abandoned'
 
-/** What the peer answered to a sent request, or that no answer came. */
+/**
+ * Why a transport is not usable any more (T1): the shared stream is gone (`stream-broken`), the
+ * process exited (`process-exited`), or the peer ended the legacy session (`session-ended`, S07).
+ */
+export type UnusableCause = 'stream-broken' | 'process-exited' | 'session-ended'
+
+/**
+ * What the peer answered to a sent request, or that no answer came. A `no-answer` carries
+ * `unusable` when the transport was not usable any more as it handed the answer over and this
+ * side had not closed it (T1).
+ */
 export type PeerAnswer =
   | Readonly<{ kind: 'result'; result: JsonValue }>
   | Readonly<{ kind: 'error'; error: JsonValue }>
-  | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause }>
+  | Readonly<{ kind: 'no-answer'; cause: NoAnswerCause; unusable?: UnusableCause }>
 
 /** A protocol error. It does not prove that the call had no effect. */
 export type ProtocolFault =

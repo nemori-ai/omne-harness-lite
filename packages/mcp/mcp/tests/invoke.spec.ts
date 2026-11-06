@@ -590,6 +590,41 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     )
   })
 
+  it('step 9 (S7, T1): a call not sent with the mark loses the connection; one not sent without it (HTTP, before it left) leaves the connection ready', async () => {
+    const marked = arrange({ calls: { read: { kind: 'unsent' } } })
+    const markedDigest = await published(marked)
+    expect(await marked.invoker.invoke(alice, request(markedDigest))).toEqual(
+      CONNECTION_UNAVAILABLE,
+    )
+    expect(await state(marked)).toMatchObject({ kind: 'lost', reason: 'stream-broken' })
+
+    const unmarked = arrange({ calls: { read: { kind: 'unsent' } } }, { adopt: 'http' })
+    const digest = await published(unmarked)
+    expect(await unmarked.invoker.invoke(alice, request(digest))).toEqual(CONNECTION_UNAVAILABLE)
+    expect(await state(unmarked)).toEqual({ kind: 'ready' })
+  })
+
+  it.each([
+    ['a 5xx', { kind: 'http', status: 503, body: 'down' }],
+    ['a broken answer stream', { kind: 'stream-breaks' }],
+  ] as const)(
+    'step 12 (S7, T1): %s on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call',
+    async (_what, reply) => {
+      const c = arrange({ calls: { read: [reply, HI] } }, { adopt: 'http' })
+      const digest = await published(c)
+      expect(await c.invoker.invoke(alice, request(digest))).toEqual({
+        kind: 'sent',
+        outcome: { kind: 'unknown', cause: 'stream-broken' },
+      })
+      expect(await state(c)).toEqual({ kind: 'ready' })
+      expect(await c.invoker.invoke(alice, request(digest, { correlationKey: c2 }))).toMatchObject({
+        kind: 'sent',
+        outcome: { kind: 'complete' },
+      })
+      expect(c.p.requests('tools/call')).toHaveLength(2)
+    },
+  )
+
   it('step 9: an ended legacy session is connection-unavailable and the connection is lost (session-ended)', async () => {
     const c = arrange(
       {
@@ -810,7 +845,7 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
     ['stream-breaks', 'stream-broken'],
     ['process-exits', 'process-exited'],
   ] as const)(
-    'unknown (%s): the answer never came, the outcome is unknown with the cause, the connection is lost with it (S7)',
+    'unknown (%s): the answer never came on stdio, it carries the mark, the outcome is unknown with the cause, the connection is lost with it (S7, T1)',
     async (reply, cause) => {
       const c = arrange({ calls: { read: { kind: reply } satisfies PeerReply } })
       const digest = await published(c)

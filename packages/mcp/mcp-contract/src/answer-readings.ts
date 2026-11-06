@@ -2,7 +2,13 @@
 // `WireAnswer` a request settled with reads for each request, with the reader of that request.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
-import { NOT_SENT_FAILURE, errorFailureOf, malformed, type WireAnswer } from './decisions.ts'
+import {
+  NOT_SENT_FAILURE,
+  errorFailureOf,
+  malformed,
+  noAnswerFailureOf,
+  type WireAnswer,
+} from './decisions.ts'
 import type { AnswerMalformed, PeerAnswer, TaskReport } from './outcomes.ts'
 import {
   peerIdentityOf,
@@ -14,6 +20,8 @@ import {
 } from './readers.ts'
 import type { ListingPage, TaskAnswer, TransportFailure } from './transport.ts'
 import type { PeerIdentity } from './values.ts'
+
+const ABANDONED_ANSWER: PeerAnswer = { kind: 'no-answer', cause: 'abandoned' }
 
 /** A reader of the contract as a reader of the transport: its defect is the `what` of T7. */
 export function readerOf<T, W extends AnswerMalformed['what']>(
@@ -36,7 +44,7 @@ export function interpretAnswer<T>(
     case 'error':
       return { failure: errorFailureOf(wire) }
     case 'no-answer':
-      return { failure: { kind: 'no-answer', cause: wire.cause } }
+      return { failure: noAnswerFailureOf(wire) }
     case 'not-sent':
       return { failure: wire.failure }
     case 'legacy-http':
@@ -50,7 +58,10 @@ export function interpretAnswer<T>(
   }
 }
 
-/** The answer of a sent call (T8 C01–C05, S03, S04). */
+/**
+ * The answer of a sent call (T8 C01–C05, S03, S04). A `no-answer` keeps the mark that the
+ * transport is not usable any more (T1); so does a `not-sent` that settles a call after it left.
+ */
 export function callAnswerOf(wire: WireAnswer): PeerAnswer {
   switch (wire.kind) {
     case 'result':
@@ -58,11 +69,16 @@ export function callAnswerOf(wire: WireAnswer): PeerAnswer {
     case 'error':
       return { kind: 'error', error: wire.error }
     case 'no-answer':
-      return { kind: 'no-answer', cause: wire.cause }
-    case 'not-sent':
+      return noAnswerFailureOf(wire)
+    case 'not-sent': {
+      const failure = wire.failure
+      return failure.cause === 'authorization-required' || failure.unusable === undefined
+        ? ABANDONED_ANSWER
+        : { kind: 'no-answer', cause: 'abandoned', unusable: failure.unusable }
+    }
     case 'legacy-peer':
     case 'legacy-http':
-      return { kind: 'no-answer', cause: 'abandoned' }
+      return ABANDONED_ANSWER
     default: {
       const exhaustive: never = wire
       return exhaustive

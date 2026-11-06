@@ -79,7 +79,7 @@ const closed = await mcp.connections.closeAll()
 
 ## 配置与运行
 
-`McpConfig` 四个字段必填，没有缺省值，规则见契约 SPEC 的 [S3](../mcp-contract/SPEC.md#services) 与 S4。`McpPorts.clock` 可选，`McpPorts.checkOutput` 必填。与契约的偏离及其退出条件在 [SPEC.md](SPEC.md#deviations)。其余都来自端口。本包不保存耐久状态；内存存储、在途表与任务表只活一次运行。
+`McpConfig` 四个字段必填，没有缺省值，规则见契约 SPEC 的 [S3](../mcp-contract/SPEC.md#services) 与 S4。`McpPorts.clock` 可选，`McpPorts.checkOutput` 必填。本包与契约没有偏离，见 [SPEC.md](SPEC.md#deviations)。其余都来自端口。本包不保存耐久状态；内存存储、在途表与任务表只活一次运行。
 
 ## 验证
 

@@ -14,6 +14,7 @@ import {
   type CatalogRevision,
   type CatalogState,
   type CatalogView,
+  type ConnectionFailure,
   type EndpointRef,
   type Generation,
   type McpClock,
@@ -28,7 +29,7 @@ import {
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
 import { CONNECTION_UNAVAILABLE } from './internal/entry.ts'
 import { admitForUse, stillAdmitted, type UseGate } from './internal/guard.ts'
-import { connectionFailureOf, loseOn, lostOfNotSent, type NotSent } from './internal/lost.ts'
+import { connectionFailureOf, loseOn, lostOf, type Lost } from './internal/lost.ts'
 import { ask, within } from './internal/port.ts'
 import { readAccountOf } from './internal/settings.ts'
 import {
@@ -91,6 +92,23 @@ function stateOf(record: ActionCatalogRecord | 'absent'): CatalogState {
 
 type Pages = readonly Outcome<ListingPage, TransportFailure>[]
 
+/** A page whose failure says the connection is lost, and the failure `refresh` answers for it. */
+type LostPage = Readonly<{ lost: Lost; reason: ConnectionFailure }>
+
+/**
+ * The page failure that takes the connection down (S5, S7): one that `lostOf` reads as lost. A
+ * refused authorization answers its `ConnectionFailure`; a transport that is not usable any more
+ * answers `connection-unavailable`. Any other page failure fails the page only (`page-failed`).
+ */
+function lostPageOf(page: Outcome<ListingPage, TransportFailure>): readonly LostPage[] {
+  if (!('failure' in page)) return []
+  const { failure } = page
+  const lost = lostOf(failure)
+  if (lost === undefined) return []
+  const reason = failure.kind === 'not-sent' ? connectionFailureOf(failure) : CONNECTION_UNAVAILABLE
+  return [{ lost, reason }]
+}
+
 export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): ActionDiscovery<P> {
   const { ports, config, table } = deps
   const { scope, startBound } = table.runtime
@@ -128,13 +146,13 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return pages
   }
 
-  /** A page the transport could not send: the connection is gone (S5, S7). */
-  async function pageNotSent(
+  /** A page whose answer says the connection is lost: the connection is gone (S5, S7). */
+  async function pageLost(
     ensured: Ensured,
-    failure: NotSent,
+    page: LostPage,
   ): Promise<Outcome<RefreshResult, OperationFailure>> {
-    const catalog = await loseOn(table, ensured, lostOfNotSent(failure))
-    return afterMarking(connectionFailureOf(failure), catalog)
+    const catalog = await loseOn(table, ensured, page.lost)
+    return afterMarking(page.reason, catalog)
   }
 
   /**
@@ -173,10 +191,8 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     pages: Pages,
   ): Promise<Refreshed | Shut> {
     const { generation, connection, peer } = ensured
-    const [notSent] = pages.flatMap(page =>
-      'failure' in page && page.failure.kind === 'not-sent' ? [page.failure] : [],
-    )
-    if (notSent !== undefined) return pageNotSent(ensured, notSent)
+    const [lost] = pages.flatMap(lostPageOf)
+    if (lost !== undefined) return pageLost(ensured, lost)
     const basedOn = stored === 'absent' ? 'absent' : stored.revision
     const listing = completeListing({
       pages,

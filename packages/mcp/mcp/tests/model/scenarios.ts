@@ -118,6 +118,23 @@ export const CALL_FAULTS: Scenario = {
 }
 
 /**
+ * The mark decides the loss (P15, contract S7): one key; `invoke` (the peer answers a task), then
+ * the initiator's `getTask`. One port call fails: with the mark (`fail`), or, for `transport.call`,
+ * the peer's answer and the task method, without it (`fail-usable`). The same scenario reaches
+ * both endings on a ready connection: a marked failure loses it, an unmarked one leaves it ready.
+ */
+export const MARKS: Scenario = {
+  name: 'marks',
+  keys: ['A'],
+  ...NO_LIFECYCLE,
+  ops: { A: { invokes: 1, tasks: 1 } },
+  peer: 'task',
+  taskMethods: ['get'],
+  deviations: ['fail', 'fail-usable'],
+  budget: 1,
+}
+
+/**
  * One key; two `invoke` on the same correlation key and `cancel`: the second `invoke` finds the
  * place taken, or reserves it again after the first answered.
  */

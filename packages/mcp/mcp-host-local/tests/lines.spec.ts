@@ -16,8 +16,10 @@ import { StdioLine } from '../src/stdio-line.ts'
 import { settledWithin } from './fixtures/settle.ts'
 
 const BYTE_LIMIT = 16_777_216
-const NOT_SENT = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
-const STREAM_BROKEN = { failure: { kind: 'no-answer', cause: 'stream-broken' } }
+/** What a transport that is not usable any more answers, marked with the cause it recorded (T1). */
+const notSentAfter = (unusable: string) => ({
+  failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable },
+})
 
 /**
  * A process whose stdout answers the first write with one chunk: a short line, a line above the
@@ -54,7 +56,7 @@ function chunkingProcess(): ProcessHandle {
 }
 
 describe('the stdio line and the byte bound (T2)', () => {
-  it('a line above 16 MiB that is not the first of its chunk breaks the stream: stream-broken, then not-sent', async () => {
+  it('a line above 16 MiB that is not the first of its chunk breaks the stream: stream-broken, then not-sent, both marked unusable (T1)', async () => {
     const factory = createLocalTransportFactory({
       clientInfo: { name: 'host', version: '1' },
       probeTimeoutMs: 5_000,
@@ -67,8 +69,10 @@ describe('the stdio line and the byte bound (T2)', () => {
     }
     const opened = await factory.open(material, new AbortController().signal)
     if (!('ok' in opened)) throw new Error('open failed')
-    expect(await opened.ok.discover()).toEqual(STREAM_BROKEN)
-    expect(await opened.ok.listActions()).toEqual(NOT_SENT)
+    expect(await opened.ok.discover()).toStrictEqual({
+      failure: { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' },
+    })
+    expect(await opened.ok.listActions()).toStrictEqual(notSentAfter('stream-broken'))
     await opened.ok.close()
   })
 })
@@ -102,7 +106,7 @@ describe('a stdio process that is gone before the first request (T8 X02)', () =>
     await line.close()
   })
 
-  it('the transport opened on it answers not-sent and nothing reaches the process', async () => {
+  it('the transport opened on it answers not-sent marked unusable, the same mark after, and nothing reaches the process (T1)', async () => {
     const written: Uint8Array[] = []
     const factory = createLocalTransportFactory({
       clientInfo: { name: 'host', version: '1' },
@@ -118,8 +122,15 @@ describe('a stdio process that is gone before the first request (T8 X02)', () =>
       new AbortController().signal,
     )
     if (!('ok' in opened)) throw new Error('open failed')
-    expect(await opened.ok.discover()).toEqual(NOT_SENT)
-    expect(await opened.ok.listActions()).toEqual(NOT_SENT)
+    // The write that finds no reader (X02) and the end of the process race: either is the cause.
+    const discovered = await opened.ok.discover()
+    const cause =
+      'failure' in discovered && 'unusable' in discovered.failure
+        ? discovered.failure.unusable
+        : undefined
+    expect(['stream-broken', 'process-exited']).toContain(cause)
+    expect(discovered).toStrictEqual(notSentAfter(String(cause)))
+    expect(await opened.ok.listActions()).toStrictEqual(notSentAfter(String(cause)))
     expect(written).toEqual([])
     await opened.ok.close()
   })

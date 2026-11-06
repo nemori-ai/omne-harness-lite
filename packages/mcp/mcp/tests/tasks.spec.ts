@@ -284,6 +284,42 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     expect(c.p.requests('tasks/get')).toHaveLength(1)
   })
 
+  it.each([
+    [
+      { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' },
+      { kind: 'effect-unknown', cause: 'stream-broken' },
+      { kind: 'lost', reason: 'stream-broken' },
+    ],
+    [
+      { kind: 'no-answer', cause: 'stream-broken' },
+      { kind: 'effect-unknown', cause: 'stream-broken' },
+      { kind: 'ready' },
+    ],
+    [
+      { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+      { kind: 'connection-unavailable' },
+      { kind: 'lost', reason: 'session-ended' },
+    ],
+    [
+      { kind: 'not-sent', cause: 'connection-unavailable' },
+      { kind: 'connection-unavailable' },
+      { kind: 'ready' },
+    ],
+  ] as const)(
+    'a task request answered %o answers %o; the connection follows the mark only: %o (S2, S7, T1)',
+    async (answer, failure, connection) => {
+      const c = await started(undefined, {}, undefined, p => ({
+        ports: {
+          transports: reshapedTransports(p.ports.transports, () => ({
+            getTask: async () => ({ failure: answer }),
+          })),
+        },
+      }))
+      expect(await c.invoker.queryTask(alice, task)).toEqual({ failure })
+      expect(await c.status.inspect(alice, files)).toMatchObject({ ok: { connection } })
+    },
+  )
+
   it('a request the connection bound cuts off has no answer: effect-unknown (abandoned); the connection stays', async () => {
     const p = peer({
       listing: { '': listing([{ name: 'read' }]) },
@@ -483,7 +519,11 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
       ports: {
         transports: reshapedTransports(p.ports.transports, (_transport, opened) =>
           opened === 2
-            ? { discover: async () => ({ failure: { kind: 'no-answer', cause: 'stream-broken' } }) }
+            ? {
+                discover: async () => ({
+                  failure: { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' },
+                }),
+              }
             : {},
         ),
       },
