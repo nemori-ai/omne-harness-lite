@@ -194,7 +194,9 @@ export function macosTerminalPlatform(input: {
         const reading = await input.reader()
         if (reading.kind === 'ready') {
           // A shell started after GO but not yet recorded is found through the gate that started it.
-          if (known.sessions.length === 1 && gate.pid !== undefined && gate.exitCode === null) {
+          // A gate that exited, on its own or by a signal, may have its pid reused: it is not asked.
+          const gateLives = gate.exitCode === null && gate.signalCode === null
+          if (known.sessions.length === 1 && gate.pid !== undefined && gateLives) {
             const shell = await shellSession(reading.path, gate.pid, input.stopBoundMs)
             if (shell !== undefined) known = { ...known, sessions: [...known.sessions, shell] }
           }

@@ -425,6 +425,23 @@ onPosix('stop', () => {
     expect(alive(shell.pid ?? 0)).toBe(true)
   })
 
+  it('does not look for a late shell under a gate a signal killed', async () => {
+    const { platform, allocate } = platformOf()
+    await platform.admit()
+    const { coordinate, resource } = allocate()
+    const { child: gate, exited } = leader()
+    const shell = leader().child
+    expect(await platform.ready(coordinate, resource, gate)).toBe(true)
+    gate.kill('SIGKILL')
+    await exited
+    expect(gate.exitCode).toBe(null)
+    expect(gate.signalCode).toBe('SIGKILL')
+    await fake.set('children', `${shell.pid}\n`)
+    expect(await platform.stop(coordinate, resource, gate, exited)).toBe('confirmed')
+    expect((await fake.calls()).some(call => call[0] === 'children')).toBe(false)
+    expect(alive(shell.pid ?? 0)).toBe(true)
+  })
+
   it('answers unconfirmed for a failed stop or a missing reader, and keeps the marker and FIFOs', async () => {
     let reading: SessionReader = { kind: 'ready', path: fake.path }
     const { platform, allocate } = platformOf({ reading: () => reading })
