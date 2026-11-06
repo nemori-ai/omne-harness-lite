@@ -1,6 +1,12 @@
 import { createHash } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
-import { createCalendarQueries, type CalendarDispositionCommand } from '@omne-harness/calendar'
+import {
+  createCalendarQueries,
+  type CalendarDispositionCommand,
+  type CalendarEnvironmentReader,
+} from '@omne-harness/calendar'
+import type { ScheduleCallContext } from '@omne-harness/schedule-contract'
+import { createScheduleCalendarEnvironment } from '@omne-harness/schedule-local'
 import { calendarSeedPackSchema } from '@omne-harness/calendar-contract'
 import {
   createShippedCalendarSeedRegistry,
@@ -15,10 +21,17 @@ import {
 import { StorageService } from '@omne-harness/sql-contract/cordis'
 import { openWorld as openCalendar } from '../../../../calendar/calendar-local/tests/world.ts'
 import { openWorld as openSchedule } from '../storage/world.ts'
-import { context } from '../storage/data.ts'
+import { context as defaultContext } from '../storage/data.ts'
 import { localOptions } from './fixture.ts'
 
-export async function seededWorld(calendarId = 'cn-legal-holidays') {
+export async function seededWorld(
+  calendarId = 'cn-legal-holidays',
+  input: {
+    context?: ScheduleCallContext
+    environment?: CalendarEnvironmentReader
+  } = {},
+) {
+  const context = input.context ?? defaultContext
   const source = createShippedCalendarSeedRegistry().get(shippedCalendarSeedRelease.packRef)
   if (source?.kind !== 'bytes') throw new Error('Shipped seed reader missing')
   const pack = calendarSeedPackSchema.parse(
@@ -41,7 +54,13 @@ export async function seededWorld(calendarId = 'cn-legal-holidays') {
     if (failures.length) throw new AggregateError(failures, 'Acceptance cleanup failed')
   }
   try {
-    const schedule = await openSchedule()
+    const schedule = await openSchedule({
+      context,
+      scope:
+        context.owner.kind === 'tenant'
+          ? { kind: 'tenant', tenant: context.owner.tenantId }
+          : { kind: 'system' },
+    })
     cleanup.push(schedule.close)
     const { publicationGeneration: _generation, ...snapshot } = entry.snapshot
     const publication: CalendarDispositionCommand = {
@@ -76,20 +95,21 @@ export async function seededWorld(calendarId = 'cn-legal-holidays') {
     }
     const committed = await calendar.persistence.commitDisposition(publication)
     if (committed.kind !== 'recorded') throw new Error(JSON.stringify(committed))
+    const environment: CalendarEnvironmentReader = input.environment ?? {
+      read: async () => ({
+        kind: 'found',
+        value: {
+          owner: context.owner,
+          revision: 'fixture-environment:1',
+          timezone: snapshot.timezone,
+          calendarId: snapshot.calendarId,
+        },
+      }),
+    }
     const queries = createCalendarQueries({
       repository: calendar.repository,
       authority: { check: async () => ({ kind: 'allowed' }) },
-      environment: {
-        read: async () => ({
-          kind: 'found',
-          value: {
-            owner: context.owner,
-            revision: 'fixture-environment:1',
-            timezone: snapshot.timezone,
-            calendarId: snapshot.calendarId,
-          },
-        }),
-      },
+      environment,
       clock: { now: () => Date.parse('2026-11-04T00:00:00Z') },
       catalog: [],
     })
@@ -103,13 +123,12 @@ export async function seededWorld(calendarId = 'cn-legal-holidays') {
       readonly read = schedule.storage.read
     }
     await root.plugin(AcceptanceStorage).await()
-    await root
-      .plugin(CalendarLocalQueryProvider, {
-        binding: { kind: 'borrowed', queries },
-        drainTimeoutMs: 10000,
-        observer: { name: 'acceptance', observe() {} },
-      })
-      .await()
+    const calendarProvider = root.plugin(CalendarLocalQueryProvider, {
+      binding: { kind: 'borrowed', queries },
+      drainTimeoutMs: 10000,
+      observer: { name: 'acceptance', observe() {} },
+    })
+    await calendarProvider.await()
     const { storage: _storage, ...sql } = options.sql
     const { calendar: _calendar, ...prediction } = options.prediction
     await root
@@ -118,17 +137,7 @@ export async function seededWorld(calendarId = 'cn-legal-holidays') {
         sql,
         prediction: {
           ...prediction,
-          environment: {
-            observe: async () => ({
-              kind: 'ok',
-              value: {
-                owner: context.owner,
-                revision: 'fixture-environment:1',
-                timezone: snapshot.timezone,
-                calendar: { calendarId: snapshot.calendarId, version: { kind: 'latest' } },
-              },
-            }),
-          },
+          environment: createScheduleCalendarEnvironment(environment),
         },
       })
       .await()
@@ -137,6 +146,8 @@ export async function seededWorld(calendarId = 'cn-legal-holidays') {
     if (!commands || !scheduleQueries) throw new Error('Schedule Cordis services unavailable')
     const app = { commands, queries: scheduleQueries }
     return {
+      root,
+      calendarProvider,
       app,
       queries,
       context,
@@ -157,7 +168,7 @@ export async function seededWorld(calendarId = 'cn-legal-holidays') {
         ],
         fixtures: [
           'identity and authorization',
-          'settings environment',
+          ...(input.environment ? [] : ['settings environment']),
           'consent/quota/basis SQL guard',
           'empty execution history',
         ],

@@ -33,8 +33,8 @@ export function localOptions(world: World): ScheduleLocalOptions {
     },
     query: {
       authorizer: {
-        observe: async () => ({ kind: 'ok', value: readAccess() }),
-        confirm: async () => ({ kind: 'ok', value: readAccess() }),
+        observe: async () => ({ kind: 'ok', value: readAccess(world.context) }),
+        confirm: async () => ({ kind: 'ok', value: readAccess(world.context) }),
       },
       history: {
         observe: async () => ({ kind: 'ok', value: { observationRevision: 'history:empty' } }),

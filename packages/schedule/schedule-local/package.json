@@ -47,6 +47,14 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness/calendar-contract": "workspace:*",
-    "@omne-harness/calendar-local": "workspace:*"
+    "@omne-harness/calendar-local": "workspace:*",
+    "@omne-harness/calendar-tools": "workspace:*",
+    "@omne-harness/schedule-tools": "workspace:*",
+    "@omne-harness/tool": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/tool-cordis-contract": "workspace:*",
+    "@omne-harness/tool-host-local": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*"
   }
 }

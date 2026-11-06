@@ -34,7 +34,34 @@
 
 ## 持续证明义务
 
-S1 的预测符合性沿现有公开入口补齐。S2 的有限接受投影和 S3 的时间资格检查已有模型入口，但源码并未获得精化证明。S4 双 scanner 与同提交、S5 取消/启动/旧执行者、S6 可靠恢复与进展，在对应实现切片开工前必须补状态模型、负控及实现映射。缺少义务不得用基础模型的绿色结果放行。
+### S1 预测符合性与源码映射
+
+S1 的固定输入包括定义、定义修订、已消耗次数、查询时间与数量、激活边界、采用依据和政策。依据还固定时区规则版本、规则引擎版本、环境修订和实际日历版本。仅固定日历名称或请求中的 `latest` 不满足此前提。
+
+令 `P(x, b)` 表示这些输入 `x` 在固定依据 `b` 下的预测。确定性要求比较两个完整成功的结果。提供者失败或期限耗尽可以使其中一次返回错误或有限未完成，不能据此声称所有运行都返回相同结果。`complete` 表示所请求的候选前缀已确定，或规则/次数边界已完整耗尽；不表示已经枚举无限规则的所有日期。
+
+| 性质 | 保护它的源码 | 可重跑反例与组合入口 |
+| --- | --- | --- |
+| follow 只采用一份同 owner 的环境；explicit 不读取环境；实际日历版本固定 | [basis.ts](../src/prediction/basis.ts)、[calendar.ts](../src/prediction/calendar.ts) | [dependencies.spec.ts](../tests/prediction/dependencies.spec.ts)、[calendar-identity.spec.ts](../tests/prediction/calendar-identity.spec.ts) 检查错 owner、错时区、错版本、覆盖及见证；缺失 pinned 不能退回 latest |
+| 来源按固定规则展开，依次检查原始边界、日历条件/移动、移动后边界和 DST | [sources.ts](../src/prediction/sources.ts)、[pipeline.ts](../src/prediction/pipeline.ts) 的 `process` | [prediction.spec.ts](../tests/prediction/prediction.spec.ts) 覆盖补班、假日、移动后排除、DST gap/fold 及次数 |
+| 同一执行时刻合并来源，只有不会再被未来来源改变的候选才能输出 | `PredictionPipeline.pending`、`frontier`、`seal` | [budgets.spec.ts](../tests/prediction/budgets.spec.ts) 检查预算耗尽不暴露未封闭碰撞，且保留已封闭时间前缀 |
+| 非法输入、错误提供者和预算不足不成为完整空结果 | [index.ts](../src/prediction/index.ts)、[budget.ts](../src/prediction/budget.ts) | [input-boundary.spec.ts](../tests/prediction/input-boundary.spec.ts)、预算和响应身份用例；错误保留请求关联 |
+| 真实日历回应与纯预测的约定一致；预测不写日程事实 | [Schedule local 组合](../../schedule-local/tests/assembly/seeded-calendar.spec.ts)、[nth 组合](../../schedule-local/tests/assembly/real-calendar.spec.ts) | 实际 SQLite Calendar、发布种子、Schedule worker 与 Cordis；重复成功结果相同，日程、修订和 outbox 不变 |
+
+源码论证的关键不变量是：`pending` 中的候选尚可被后续来源补充；已输出候选严格早于未来来源的保守下界。`process` 不发布或修改已封闭候选；它维护待定候选、排除说明和预算。`seal` 按时刻排序后移动满足下界的候选。有限规则耗尽时才可用无上界的封闭操作。该论证依赖枚举器的来源顺序、分页推进以及 `frontier` 下界正确；目前以具名用例和真实组合守护，尚无机器检查的源码归纳证明。
+
+上述组合中的身份、环境及提交 guard 仍有标明的测试替身，不能证明真实授权或 Schedule 写入当前性。真实 Settings 读取另由 [Calendar 组合](../../../calendar/calendar-local/tests/settings-composition.spec.ts) 守护，返回观察值，不预留后续写入资格。两组测试不能拼称一个已经接通的生产纵切。
+
+分别运行核心及本地符合性入口：
+
+```sh
+./scripts/with-test-slot.sh pnpm --filter @omne-harness/schedule exec vitest run --mode fast tests/prediction
+./scripts/with-test-slot.sh pnpm --filter @omne-harness/schedule-local exec vitest run tests/assembly/seeded-calendar.spec.ts tests/assembly/real-calendar.spec.ts
+```
+
+### 后续接受与执行义务
+
+S2 的有限接受投影和 S3 的时间资格检查已有模型入口，但源码并未获得精化证明。S4 双 scanner 与同提交、S5 取消/启动/旧执行者、S6 可靠恢复与进展，在对应实现切片开工前必须补状态模型、负控及实现映射。缺少义务不得用基础模型的绿色结果放行。
 
 真实测试还应覆盖民用时钟回拨/前跳、同代际单调时间异常、重启重建 deadline、迟到回调、两个进程同时接受、提交前后 kill、未知回执与原键恢复。硬截止、背压与资源稳定性需要宿主和故障实测，不能由 TLA 中的有限整数推得。
 

@@ -8,7 +8,7 @@ import {
   type ManagementAccess,
   type ScheduleManagementDependencies,
 } from '@omne-harness/schedule'
-import { ScheduleIdSchema } from '@omne-harness/schedule-contract'
+import { ScheduleIdSchema, type ScheduleCallContext } from '@omne-harness/schedule-contract'
 import {
   createScheduleManagementSqlBackend,
   scheduleManagementSqlMaterials,
@@ -25,7 +25,7 @@ import {
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { config } from './config.ts'
-import { access, context, now, observation, recovery } from './data.ts'
+import { access, context as defaultContext, now, observation, recovery } from './data.ts'
 const GUARD = 'fixture.schedule.guards'
 function material(name: string) {
   const url = new URL(`./${name}.mjs`, import.meta.url)
@@ -91,8 +91,10 @@ export async function openWorld(
     scope?: StorageScope
     wrap?: (storage: SqlStorage) => SqlStorage
     configure?: boolean
+    context?: ScheduleCallContext
   } = {},
 ) {
+  const context = options.context ?? defaultContext
   const root = options.root ?? temporaryRoot()
   const scope: StorageScope = options.scope ?? { kind: 'tenant', tenant: 't1' }
   const materials = catalog()
@@ -137,7 +139,7 @@ export async function openWorld(
     manifestDigest: combination.manifestDigest,
     guards,
   })
-  let authorized = access()
+  let authorized = access(context)
   const dependencies: ScheduleManagementDependencies = {
     ...backend,
     authorizer: {

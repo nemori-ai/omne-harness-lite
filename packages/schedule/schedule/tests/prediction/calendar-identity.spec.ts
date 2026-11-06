@@ -71,16 +71,22 @@ test.each(faults)('rejects inconsistent $name on the first Calendar response', a
 test('rejects a different query kind on the initial basis capture', async () => {
   const fixture = calendarFixture()
   const resolve = fixture.queries.resolve
+  let replies = 0
   fixture.queries.resolve = async (ctx, request) => {
     const response = await resolve(ctx, request)
     if (response.kind !== 'ok') return response
-    return calendarResolveResultSchema.parse({
+    const changed = calendarResolveResultSchema.parse({
       ...response,
       value: {
         ...response.value,
-        result: { kind: 'nth', value: { date: null, basis: response.value.result.value.basis } },
+        result: {
+          kind: 'nth',
+          value: { kind: 'ok', date: null, basis: response.value.result.value.basis },
+        },
       },
     })
+    replies++
+    return changed
   }
   const { service, enumerations } = harness({ calendar: fixture.queries })
   expect(
@@ -90,6 +96,7 @@ test('rejects a different query kind on the initial basis capture', async () => 
     error: { code: 'provider_failure' },
   })
   expect(enumerations).toEqual([])
+  expect(replies).toBe(1)
 })
 
 test.each([

@@ -2,6 +2,7 @@ import { expect, test, vi } from 'vitest'
 import { createCalendarSettingsEnvironment } from '@omne-harness/calendar-local'
 import { calendarCallContextSchema } from '@omne-harness/calendar-contract'
 import type { SettingsBasis, SettingItem } from '@omne-harness/settings'
+import { SettingDefinitionsSchema } from '@omne-harness/settings'
 
 const context = calendarCallContextSchema.parse({
   principalRef: 'alice',
@@ -119,6 +120,59 @@ test('a declared null calendar is preserved', async () => {
   })
 })
 
+test('maps settings by item identity regardless of declaration order', async () => {
+  const { environment, read, basis } = fixture()
+  const view = basis.views[0]!
+  read.mockResolvedValue({
+    ...basis,
+    views: [
+      { ...view, definition: { ...view.definition, items: [...view.definition.items].reverse() } },
+    ],
+  })
+  expect(await environment.read(context)).toMatchObject({
+    kind: 'found',
+    value: { timezone: 'Asia/Shanghai', calendarId: 'cn' },
+  })
+})
+
+test.each(['timezone', 'calendar'])('an undeclared %s item remains missing', async missing => {
+  const { environment, read, basis } = fixture()
+  const view = basis.views[0]!
+  read.mockResolvedValue({
+    ...basis,
+    views: [
+      {
+        ...view,
+        definition: {
+          ...view.definition,
+          items: view.definition.items.filter(item => item.id !== missing),
+        },
+      },
+    ],
+  })
+  expect(await environment.read(context)).toEqual({ kind: 'missing' })
+})
+
+test('invalid original context does not reach the trusted resolver', async () => {
+  const { environment, resolve, read } = fixture()
+  const { requestId: _requestId, ...invalid } = context
+  expect(await Reflect.apply(environment.read, environment, [invalid])).toEqual({
+    kind: 'unavailable',
+  })
+  expect(resolve).not.toHaveBeenCalled()
+  expect(read).not.toHaveBeenCalled()
+})
+
+test('missing trusted binding never reads settings', async () => {
+  const read = vi.fn()
+  const environment = createCalendarSettingsEnvironment({
+    settings: { read },
+    resolve: async () => null,
+  })
+  expect(await environment.read(context)).toEqual({ kind: 'unavailable' })
+  expect(read).not.toHaveBeenCalled()
+})
+
 test.each([
   'partial',
   'provider',
@@ -164,25 +218,27 @@ test.each([
   expect(await environment.read(context)).toEqual({ kind: 'unavailable' })
 })
 
-test('absent required value stays missing rather than becoming a default', async () => {
-  const { environment, read, basis } = fixture()
-  read.mockResolvedValue({
-    ...basis,
-    views: [
-      {
-        ...basis.views[0]!,
-        definition: {
-          ...basis.views[0]!.definition,
-          items: [
-            { ...item('timezone', null), default: { kind: 'absent' } },
-            item('calendar', 'cn'),
-          ],
+test.each(['timezone', 'calendar'])(
+  'absent %s value stays missing rather than becoming a default',
+  async missing => {
+    const { environment, read, basis } = fixture()
+    read.mockResolvedValue({
+      ...basis,
+      views: [
+        {
+          ...basis.views[0]!,
+          definition: {
+            ...basis.views[0]!.definition,
+            items: [item('timezone', 'Asia/Shanghai'), item('calendar', 'cn')].map(entry =>
+              entry.id === missing ? { ...entry, default: { kind: 'absent' as const } } : entry,
+            ),
+          },
         },
-      },
-    ],
-  })
-  expect(await environment.read(context)).toEqual({ kind: 'missing' })
-})
+      ],
+    })
+    expect(await environment.read(context)).toEqual({ kind: 'missing' })
+  },
+)
 
 test('rejects a different owner before reading any settings', async () => {
   const { environment, read } = fixture()
@@ -216,6 +272,17 @@ test.each(['providerId', 'definitionId', 'version'] as const)(
     expect(await environment.read(context)).toEqual({ kind: 'unavailable' })
   },
 )
+
+test('semantic evaluation failure does not expose an invalid environment result', async () => {
+  const { environment, read, basis } = fixture()
+  const view = basis.views[0]!
+  const definition = SettingDefinitionsSchema.parse({
+    ...view.definition,
+    items: view.definition.items.map(item => ({ ...item, groupId: 'undeclared-group' })),
+  })
+  read.mockResolvedValue({ ...basis, views: [{ ...view, definition }] })
+  expect(await environment.read(context)).toEqual({ kind: 'unavailable' })
+})
 
 test.each(['targets', 'target', 'items'])(
   'rejects incoherent host %s before reading settings',

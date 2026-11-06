@@ -12,3 +12,6 @@
 - [assembly/real-calendar.spec.ts](assembly/real-calendar.spec.ts)：真实 CalendarQueries、SQL 与 Cordis 的位置查询及扫描见证
 - [assembly/seeded-calendar.spec.ts](assembly/seeded-calendar.spec.ts)：已发布节假日种子的顺延、前移、碰撞与覆盖不足
 - [assembly/seeded-world.ts](assembly/seeded-world.ts)：真实组合装配及明确列出的外域夹具
+
+- [assembly/settings-management.spec.ts](assembly/settings-management.spec.ts)：真实 Identity/Settings 环境进入日程管理，覆盖成员撤回和时区错配。
+- [assembly/tool-host.spec.ts](assembly/tool-host.spec.ts)：真实 Tool host、bindings、loader 与两域插件的调用、恢复和卸载。

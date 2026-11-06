@@ -47,6 +47,11 @@ test('preserves missing versus unavailable and catches dependency rejection', as
   for (let i = 0; i < 2; i++)
     expect(await environment.observe(context)).toMatchObject({
       kind: 'unavailable',
-      error: { code: 'authority_unavailable', requestId: 'r1' },
+      error: {
+        code: 'authority_unavailable',
+        requestId: 'r1',
+        retryable: true,
+        message: expect.stringMatching(/\S/),
+      },
     })
 })
