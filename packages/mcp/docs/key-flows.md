@@ -1,6 +1,6 @@
 # MCP组内逻辑责任流程
 
-状态：工程设计草案。`@omne-harness/mcp-contract` 已有实现（候选，尚未取得技术接受）。`@omne-harness/mcp` 已实现核心（候选，第二波，尚未取得技术接受），调用口在第三波，行为正文是它的 [SPEC](../mcp/SPEC.md)。其余成员只有模板草稿或尚未建立；流程中的服务和端口都是候选，见[工程设计](architecture.md#模型)。完整公开行为仍在原任务的候选契约中，流程落位不表示已采用。跨领域交接见[领域流程](../../../docs/domains/mcp/key-flows.md)。本页只写本组承担的步骤。图中组外的一方合并为「调用方」，需求端口按端口名出现。
+状态：工程设计草案。`@omne-harness/mcp-contract` 已有实现（候选，尚未取得技术接受）。`@omne-harness/mcp` 已实现（候选，尚未取得技术接受），含调用口，行为正文是它的 [SPEC](../mcp/SPEC.md)。`@omne-harness/mcp-host-local` 已实现两种传输（候选，尚未取得技术接受），行为正文是它的 [SPEC](../mcp-host-local/SPEC.md)。mcp-cordis-contract 尚未建立；流程中的服务和端口都是候选，见[工程设计](architecture.md#模型)。完整公开行为仍在原任务的候选契约中，流程落位不表示已采用。跨领域交接见[领域流程](../../../docs/domains/mcp/key-flows.md)。本页只写本组承担的步骤。图中组外的一方合并为「调用方」，需求端口按端口名出现。
 
 ## F-MC01 接入点采用、凭据和 MCP 连接
 
@@ -16,7 +16,7 @@
 8. `McpTransport.discover` 判定对端时代并协商。成功后 MCP 连接进入 `ready`，不等 MCP 动作清单。Streamable HTTP 在这时代际加一。首次发现由调用方经 `ActionDiscovery.refresh` 触发，见 F-MC02。
 9. Streamable HTTP 上对端答需要授权时，MCP 读取受保护资源元数据，交出签发者与 scope，结局是 `authorization-required`。MCP 不发起授权流程。
 
-连接时限从取凭据开始计时（认证方式为 `none` 时从第 7 步开始），覆盖到第 8 步。端口不理会中止信号时，`Connections` 自己停止等待，并收口迟到交来的结果，见[工程设计的 MCP 连接](architecture.md#mcp-连接)不变式 5。部分创建或取消后，依原准备身份查询及清理。资源关闭失败时保留下一处置者。首次失败不造合法清单。代际何时加一与状态转移见[工程设计](architecture.md#mcp-连接)。
+建连时限从这次建连的 `attempt()` 之后起计时，覆盖其后对这个键上一条连接遗留进程的再停、第 6 步到第 8 步，以及建连失败之后的收场。每次 `ensure` 另有一个从入口起计时的临界区时限，加入在途建连的调用另有一个从加入起计时的时限。端口不理会中止信号时，`Connections` 自己停止等待，并收口迟到交来的结果，见[工程设计的 MCP 连接](architecture.md#mcp-连接)不变式 5。部分创建或取消后，依原准备身份查询及清理。资源关闭失败时保留下一处置者。首次失败不造合法清单。代际何时加一与状态转移见[工程设计](architecture.md#mcp-连接)。
 
 ```mermaid
 flowchart TD
@@ -142,13 +142,13 @@ sequenceDiagram
     end
 ```
 
-`continueWithInput` 由调用方带回 `endpointRef`、`actionName`、原参数、`requestState`、`inputResponses`、发出代际、`correlationKey` 与 `signal`，按上面同样的步骤核对与登记，再发原请求。`cancel(access, correlationKey)` 按（租户、主体、关联键）在在途表里定位请求号，不核采用，也不核当前使用资格，再按传输发出取消信号：Streamable HTTP 关闭该请求的响应流，stdio 发送 `notifications/cancelled`。之后原调用的结局是 `unknown`，子因是本地放弃。取消信号不证明对端已停止。依据层：官方规格 [Cancellation「Transport-Specific Cancellation」](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#transport-specific-cancellation)。
+`continueWithInput` 由调用方带回 `endpointRef`、`actionName`、原参数、`requestState`（如有）、`inputResponses`（如有；两项至少有一项）、发出代际、`correlationKey` 与 `signal`，按上面同样的步骤核对与登记，再发原请求。`cancel(access, correlationKey)` 按（租户、主体、关联键）在在途表里定位请求号，不核采用，也不核当前使用资格，再按传输与修订发出取消信号：现代修订的 Streamable HTTP 中止该请求的应答流，stdio 与旧修订发送 `notifications/cancelled`，见契约 [T5](../mcp-contract/SPEC.md#port-transport)。之后原调用的结局是 `unknown`，子因是本地放弃。取消信号不证明对端已停止。依据层：官方规格 [Cancellation「Transport-Specific Cancellation」](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#transport-specific-cancellation)。
 
 任务用状态口的 `queryTask`、`taskResult`、`provideTaskInput` 与 `cancelTask`，由调用方带回 `taskId` 与发出代际。规则如下，见[工程设计的状态口](architecture.md#状态口)与[资格与换代](architecture.md#资格与换代)：
 
 - 四个操作都带 `access`，只对发起者开放。非发起者、重启之后和本次运行的任务表里没有的任务一律答 `unknown`。
-- `queryTask`、`taskResult` 与 `provideTaskInput` 先经 `AdoptionView` 核采用，再经 `UseEligibility.check` 核资格。`cancelTask` 是例外，不核采用，也不核当前使用资格。
-- 任务操作要发协议请求，需要 MCP 连接。复用现有连接时不核资格。要新建连接时，`UseEligibility` 必须答 `granted`，否则不建连接，答 `effect-unknown`（`no-connection`）。既没有现有连接、也没有可以重建连接的采用材料时，同样答 `effect-unknown`（`no-connection`）。`cancelTask` 不为取消启动新进程。
+- 四个任务操作的采用与资格按下一条的建连规则核，`cancelTask` 也一样。
+- 任务操作要发协议请求，需要 MCP 连接。复用现有连接时不核采用与资格。要新建连接时，先核采用，`UseEligibility` 必须答 `granted`，否则不建连接，答 `effect-unknown`（`no-connection`）。既没有现有连接、也没有可以重建连接的采用材料时，同样答 `effect-unknown`（`no-connection`）。
 - 任务处于 `input_required` 时，调用方从 `queryTask` 取得输入请求，再经 `provideTaskInput` 交回答复。
 - MCP 连接已换代时，处置按传输分开。
 
