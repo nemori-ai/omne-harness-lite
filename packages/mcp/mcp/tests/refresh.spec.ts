@@ -441,6 +441,77 @@ describe('refresh fails', () => {
     expect(await record(w)).toBe('absent')
   })
 
+  it('at whichever microtask closeAll lands, the refresh starts no step after it: no gate or store port and no page, and it answers connection-unavailable unless it published (S8, MC-7)', async () => {
+    const LIMIT = 2_000
+    let publishedBefore = false
+    for (let k = 0; k < LIMIT && !publishedBefore; k += 1) {
+      const base = world({ script: usualScript() })
+      adoptStdio(base, files)
+      const late: string[] = []
+      let shut = (): boolean => false
+      // The steps of MC-7 and the port that begins each: the gate (1st adoption, then
+      // eligibility), the build (2nd adoption, its re-read), the stored record, each page, the
+      // publish boundary (3rd adoption, then eligibility and a 4th adoption), the write. A step
+      // begun before closeAll finishes; no step begins after it.
+      const begins = new Set(['adoption.endpoint#1', 'adoption.endpoint#2', 'adoption.endpoint#3'])
+      const seen = new Map<string, number>()
+      const note = (port: string): void => {
+        const nth = (seen.get(port) ?? 0) + 1
+        seen.set(port, nth)
+        const beginsStep = port.startsWith('store.') || begins.has(`${port}#${nth}`)
+        if (beginsStep && shut()) late.push(`${port}#${nth}`)
+      }
+      const { adoption, eligibility, store } = base.ports
+      const { discovery, connections, table } = core({
+        ...base,
+        ports: {
+          ...base.ports,
+          adoption: {
+            endpoints(...args: Parameters<typeof adoption.endpoints>) {
+              note('adoption.endpoints')
+              return adoption.endpoints(...args)
+            },
+            endpoint(...args: Parameters<typeof adoption.endpoint>) {
+              note('adoption.endpoint')
+              return adoption.endpoint(...args)
+            },
+          },
+          eligibility: {
+            check(...args: Parameters<typeof eligibility.check>) {
+              note('eligibility.check')
+              return eligibility.check(...args)
+            },
+          },
+          store: {
+            read(...args: Parameters<typeof store.read>) {
+              note('store.read')
+              return store.read(...args)
+            },
+            write(...args: Parameters<typeof store.write>) {
+              note('store.write')
+              return store.write(...args)
+            },
+          },
+        },
+      })
+      shut = () => table.isShut()
+      const pages = (): number =>
+        base.transports.calls.filter(call => call.kind === 'listActions').length
+      const pending = discovery.refresh(alice, { ref: files })
+      for (let i = 0; i < k; i += 1) await Promise.resolve()
+      const closing = connections.closeAll()
+      const pagesAtShut = pages()
+      const answer = await pending
+      await closing
+      expect(late, `k=${k}: ports asked after closeAll`).toEqual([])
+      expect(pages(), `k=${k}: pages asked after closeAll`).toBe(pagesAtShut)
+      publishedBefore = 'ok' in answer && answer.ok.kind === 'published'
+      if (!publishedBefore)
+        expect(answer, `k=${k}`).toEqual({ failure: { kind: 'connection-unavailable' } })
+    }
+    expect(publishedBefore).toBe(true)
+  })
+
   it('the caller aborts and closeAll begins while a page is asked: kept (cancelled), the stop ranks before the shutdown as at the exit of a call (S8, MC-7, MC-16)', async () => {
     const listing = deferred<ListingPage | TransportFailure>()
     const { w, discovery, connections } = core(
