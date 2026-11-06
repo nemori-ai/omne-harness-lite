@@ -1,6 +1,6 @@
 # HITL 公共协议
 
-状态：HJ0 技术采用已于2026-11-06由用户验收。本文定义数据和应用服务的行为。源码已提供公共形状与纯卡片规则，持久服务和运行组合尚未完成。行为来源为[成员契约](../SPEC.md)，数学定义及模型映射见[形式模型](formal-model.md)。协议标识为 `hitl/1`；本波迁移消费者，不保留两套卡片协议。
+状态：HJ0 技术采用已于2026-11-06由用户验收。本文定义数据和应用服务的行为。源码提供公共形状与纯卡片规则，local 提供独立等待的持久应用服务。实际 Agent/Tool 原等待适配、继续执行及完整组合验证仍由运行时交付负责。行为来源为[成员契约](../SPEC.md)，数学定义及模型映射见[形式模型](formal-model.md)。协议标识为 `hitl/1`；本波迁移消费者，不保留两套卡片协议。
 
 ## 事实、轴与拥有者
 
@@ -136,7 +136,7 @@ guard 清单按实际阶段登记，不能把许可消费的运行在线条件�
 
 WaitRef.waitId、原RequestRef/CardRef/DecisionRef和逻辑incarnation持久保存。另有`receiverGeneration`标识当前接收者实例，只用来fence旧实例，不进入请求去重身份。AgentDefinition/扩展/Tool采用依据与可兼容恢复实现由原执行拥有者保管，不能用最新不兼容实现偷换原位置。
 
-恢复过程必须先重建原等待状态，再按稳定destination+waitId注册新接收者代次。pending恢复为pending；decided且未接手恢复为待交接；已接手按原consumeOperationId认回。运行时退出不触发invalidateWait。新代次就绪后从耐久inbox拉取未接手决定，不能只依赖停机期间可能丢失的事件订阅。
+恢复过程先重建原等待状态。仍为live的等待按稳定destination+waitId注册新接收者代次。pending恢复为pending；decided且未接手恢复为待交接；已接手按原consumeOperationId认回。运行时退出不触发invalidateWait。新代次就绪后从耐久inbox拉取未接手决定，不能只依赖停机期间可能丢失的事件订阅。已终局的等待不再bindReceiver；即使从未绑定接收者，也可在当前代次、原owner及精确决定匹配时结算superseded，清理pending并保存消费回执。该路径不恢复运行资格。
 
 人的答复可在runtime离线时经HITL与耐久原等待参与者提交。接收者重新装配后继续交接。重复答复/重传/旧代际回调都不能改变原关联或二次推进；旧接收者不能以原登记句柄覆盖新路由。接收确认必须携带receiverGeneration并在原消费者提交点核验当前代次。
 
@@ -182,7 +182,7 @@ AuthorityComposition模型中的七个来源代表原七类保护轴，adoption�
 
 原等待、答复交接和可运行调度是三条状态轴。原执行者可靠保存检查点并进入业务等待后释放active执行名额；未完成调用仍计入独立的有界outstanding/parked保管额度。仅返回Promise或后台化不构成可靠park，也不自动释放仍在运行的物理资源名额。
 
-答复可靠接手后，原调用进入resume-ready并保留原答复和继续位置。resume-ready不持active名额；当前执行容量不足时排队，不能重新出卡、恢复成pending-human或提前运行。原调度拥有者按已采用队列公平策略原子取得名额后才能继续。取得名额与实际继续前重核原终局、接收代际、当前权限和批次屏障；不满足时按原控制结算并释放本次持有。每个物理资源池的真实持有独立核算，不能用逻辑park声称无法停止的外部执行已经释放。
+live等待的本批全部答复可靠接手后，原调用进入resume-ready并保留原答复和继续位置。terminal等待只结算superseded，不能进入resume-ready。resume-ready不持active名额；当前执行容量不足时排队，不能重新出卡、恢复成pending-human或提前运行。原调度拥有者按已采用队列公平策略原子取得名额后才能继续。取得名额与实际继续前重核原终局、接收代际、当前权限和批次屏障；不满足时按原控制结算并释放本次持有。每个物理资源池的真实持有独立核算，不能用逻辑park声称无法停止的外部执行已经释放。
 
 ExecutionSlots模型以三调用、一个active名额验证park释放、答复就绪、重新取得、继续与释放。在弱公平、每段实际运行有限且提供者持续可用的前提下，独立兄弟最终推进，已答调用最终重新取得名额并完成该段；不假设人一定会答。用户界面分别显示“等人”和“等待执行名额”。
 
@@ -194,3 +194,8 @@ ExecutionSlots模型以三调用、一个active名额验证park释放、答复�
 工具等待的通用性属于Tool原契约。ask/resource及具名provider可以消费人的答复或其他外部输入；HITL的人工卡片不因此允许系统代答。普通I/O沿既有异步机制，不登记HITL请求；事件订阅/数据传输需要耐久业务接续时由原服务适配到Tool的具名等待协议，HITL不成为事件或传输平台。
 
 恢复命令沿用 hitl/1 信封与 UTF-8 预算。consumeOperationId 必须等于本次 OperationRef.operationId，决定与提交租户必须一致；原操作重传认回同一消费。receiverGeneration 使用独立于卡片 revision 的名义类型和规范十进制字符串，不经 JavaScript number 舍入。读取等待和收件箱时，租户由可信 Access 确定，WaitRef 本身不是跨租户访问资格。
+
+
+## 字符输入与持久表示
+
+协议中的文本和标识必须是有效Unicode序列。孤立UTF-16 surrogate在边界答invalid-input；合法代理对、U+0000、其他控制字符、空格和换行按原值保留。UTF-8预算按原输入计量，存储转义后的字节数不能被误当成原文字数。提供者选择关系列或JSON表示时，必须保证合法输入往返单射，不能截断原话、合并不同标识或把形状错误变成提交结果未知。

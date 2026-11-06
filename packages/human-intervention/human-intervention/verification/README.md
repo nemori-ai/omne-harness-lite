@@ -23,7 +23,7 @@ python3 packages/human-intervention/human-intervention/verification/check-contra
 uv run --locked --no-sync python packages/human-intervention/human-intervention/verification/check-semantics.py
 ```
 
-形状检查使用成熟jsonschema工具，验证环境版本固定于requirements.txt，不进入产品运行依赖。reply.schema.json仅守护答复提交wire形状；其余服务形状当前由protocol.md规定，完整生产边界校验在C2实现。输入形状通过不证明操作者可信或具有资格。
+形状检查使用成熟jsonschema工具，验证环境版本固定于requirements.txt，不进入产品运行依赖。reply.schema.json仅守护答复提交wire形状。生产边界另由 [commands.ts](../src/commands.ts)、[queries.ts](../src/queries.ts) 和 [recovery.ts](../src/recovery.ts) 的严格 Schema 及 decoder 解析；方法行为归 [protocol.md](../docs/protocol.md)。输入形状通过不证明操作者可信或具有资格。
 
 ## 检查范围
 
@@ -66,13 +66,13 @@ ConcurrentIntake抽象原子持久提交，不建模HTTP调度、SQL锁或archiv
 
 command-algebra.json列出4个HITL命令、5查询、5原等待恢复端口及4提交协调端口。check-semantics.py对权限的数学关系与独立参考求值做有限分区枚举，并对每个方法检查结果闭包、可信读取先于回执、提交unknown与原结果认回。纯读失败不制造提交unknown；查询原操作可以返回原写操作的unknown。负控必须被对应关系或约束拒绝。
 
-这份表不替代每个服务完整wire Schema。reply.schema.json目前是唯一可执行完整请求Schema；其他方法形状仍由protocol.md定义，生产解析与实际状态转换验收在后续闭包。有限观察分区检查不等于任意输入字节的全化实现证明。
+这份表不替代每个服务完整wire Schema。本验证目录只有reply.schema.json这一份独立JSON Schema文件；公共生产源码的命令、查询和恢复解析器见上文。解析器的存在不代替状态转换、持久提供者及组合验收。有限观察分区检查不等于任意输入字节的全化实现证明。
 
 单推进者是IntakeControl采用的一个active结构，模型检查错误开始和晚到完成不能绕过身份/代次。真实分布式租约或多进程互斥不在本次提供者范围。ContinuationComposition记录“已完成并持久的判断”不重复；模型不能解决外部调用已发生但结果尚未保存的未知窗口，该窗口沿原调用协议认回。
 
 ## C2 源码映射的当前边界
 
-公共源码开始落实后，以下证据与纯模型分别保留。
+公共源码的边界验证与纯模型分别保留。下表的后端义务由 [local验证入口](../../human-intervention-local/verification/README.md) 提供实现映射及相应证据，不能由本表的纯函数用例代替。
 
 | 源码与测试 | 已兑现部分 | 仍需后端兑现 |
 | --- | --- | --- |
