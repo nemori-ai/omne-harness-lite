@@ -31,8 +31,26 @@ export async function attemptWrite<P, T>(
 }
 
 export function originalJournal<P>(journal: AgentJournal<P>, attempt: Attempt<P>): AgentJournal<P> {
+  const readCancellationInstallation = journal.readCancellationInstallation?.bind(journal)
   return {
-    ...journal,
+    get capabilities() {
+      return journal.capabilities
+    },
+    get output() {
+      return journal.output
+    },
+    attach: input => journal.attach(input),
+    detach: input => journal.detach(input),
+    submit: input => journal.submit(input),
+    acknowledge: input => journal.acknowledge(input),
+    recordResult: input => journal.recordResult(input),
+    recordHandoff: input => journal.recordHandoff(input),
+    recordTerminalObservation: input => journal.recordTerminalObservation(input),
+    load: input => journal.load(input),
+    inputs: input => journal.inputs(input),
+    readReplyAdmissions: input => journal.readReplyAdmissions(input),
+    query: input => journal.query(input),
+    ...(readCancellationInstallation === undefined ? {} : { readCancellationInstallation }),
     open: input => attempt({ method: 'open', input }, () => journal.open(input)),
     commit: input => attempt({ method: 'commit', input }, () => journal.commit(input)),
     control: input => attempt({ method: 'control', input }, () => journal.control(input)),

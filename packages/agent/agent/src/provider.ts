@@ -29,6 +29,7 @@ import type {
   AgentObservation,
   AgentOperationId,
   AgentState,
+  CommandReceipt,
   DurableEvidence,
   EventPage,
   ExecutionAttachmentId,
@@ -118,8 +119,7 @@ function woken(signal: AbortSignal, listeners: Set<() => void>): Promise<void> {
 
 /**
  * The one execution slot (SPEC "受理与单执行槽"). `reserved`: an invoke holds it until `open` has
- * answered. Its acceptance retains the original coordinator and invoke input while the open
- * outcome is unknown. A retry queries that operation before reusing the coordinator.
+ * answered.
  * `running`: the Loop runs until E9 frees the slot. A run that stopped still holds it.
  * `failed`: the drive stopped on a failure at `node`. The execution is not ended and holds the slot
  * (the next invoke answers busy). No drive works on it, but its responsibility is not handed over,
@@ -463,13 +463,14 @@ export function createProvider<P, B extends ContentBlock>(
     input: InvokeInput<P>,
     back: Slot,
     coordinator: ExecutionCoordinator,
+    confirmedOpen?: CommandReceipt,
   ): Promise<Outcome<AgentExecutionHandle<P>, Failure>> {
     const { execution, operation } = input
     const giveBack = () => occupy(back)
     const opened = await measurer.segment(
       'accept',
       execution,
-      () => coordinator.accept(),
+      () => coordinator.accept(confirmedOpen),
       answer => 'failure' in answer,
     )
     if ('failure' in opened) {
@@ -543,11 +544,6 @@ export function createProvider<P, B extends ContentBlock>(
     }
   }
 
-  /**
-   * The retry of the R0 item: `query` the original operation first. Committed: the same `open`
-   * gives the original authority back and the run goes on at E1. Excluded refuses the original
-   * operation. The reservation stays because query does not prove the execution is absent.
-   */
   async function retryUnresolved(
     input: InvokeInput<P>,
     held: Extract<Slot, { kind: 'reserved' }>,
@@ -580,7 +576,7 @@ export function createProvider<P, B extends ContentBlock>(
         occupy(held)
         return fail({ kind: 'conflict', operation: input.operation })
       case 'committed':
-        return acceptOriginal(input, held, original.coordinator)
+        return acceptOriginal(input, held, original.coordinator, found.ok.receipt)
     }
   }
 

@@ -552,8 +552,7 @@ export async function advanceControl<P>(
   )
 }
 
-/** Public control writes are independent of the execution driver's pending write. */
-export function createControlWriter<P>(ports: ControlPorts<P>) {
+export function createControlWriter<P>(ports: ControlPorts<P>): AgentJournal<P>['control'] {
   return (input: Parameters<AgentJournal<P>['control']>[0]) =>
     withControlWrites(
       ports,

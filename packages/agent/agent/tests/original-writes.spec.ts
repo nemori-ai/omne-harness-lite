@@ -17,6 +17,84 @@ import { alice, eventsOf, eventually, invoke, loopAssembly, shown } from './loop
 import { controlAssembly } from './fixtures/control-assembly.ts'
 
 describe('original Journal writes after a lost response', () => {
+  it('does not replay an unknown open without its committed receipt', async () => {
+    let opens = 0
+    const assembly = await controlAssembly({}, d => ({
+      ...d,
+      journal: {
+        ...d.journal,
+        open: async input => {
+          opens += 1
+          const result = await d.journal.open(input)
+          if (opens === 1 && 'ok' in result) throw new Error('lost open receipt')
+          return result
+        },
+      },
+    }))
+    const c = createExecutionCoordinator({
+      ports: assembly.dependencies,
+      binding: options().binding,
+      evaluator: agentEvaluator,
+      access: alice,
+      execution: execution(),
+      operation: operation('proof-open'),
+      initial: acceptedInput('proof-input'),
+      grant: null,
+      idle() {},
+    })
+    const first = c.accept()
+    expect(failure(await c.accept()).failure.kind).toBe('busy')
+    expect(failure(await first).failure.kind).toBe('commit-unknown')
+    expect(failure(await c.accept()).failure.kind).toBe('commit-unknown')
+    expect(opens).toBe(1)
+    const found = ok(
+      await assembly.dependencies.journal.query({
+        ...alice,
+        execution: execution(),
+        operation: operation('proof-open'),
+      }),
+    )
+    if (found.kind !== 'committed') throw new Error('expected committed original open')
+    for (const receipt of [
+      { ...found.receipt, operation: operation('different-open') },
+      { ...found.receipt, execution: execution('different-execution') },
+    ]) {
+      expect(failure(await c.accept(receipt)).failure.kind).toBe('conflict')
+      expect(opens).toBe(1)
+    }
+    ok(await c.accept(found.receipt))
+    expect(opens).toBe(2)
+  })
+
+  it('preserves non-enumerable Journal methods and their receiver during public control', async () => {
+    let reads = 0
+    const assembly = await controlAssembly({}, d => {
+      const journal = d.journal
+      const load = journal.load.bind(journal)
+      Object.defineProperty(journal, 'load', {
+        enumerable: false,
+        value(this: AgentJournal<Principal>, input: Parameters<typeof load>[0]) {
+          expect(this).toBe(journal)
+          reads += 1
+          return load(input)
+        },
+      })
+      return d
+    })
+    const handle = ok(await invoke(assembly))
+    const input = {
+      ...alice,
+      execution: handle.execution,
+      operation: operation('non-enumerable-cancel'),
+      command: { kind: 'cancel' as const, reason: evidence('non-enumerable-cancel') },
+    }
+    ok(await handle.control.control(input))
+    await eventually(
+      async () => ok(await assembly.dependencies.journal.load(input)).state.kind === 'ended',
+    )
+    expect(reads).toBeGreaterThan(0)
+  })
+
   it('retains the original open and admission through public invoke retries', async () => {
     const opens: Parameters<AgentJournal<Principal>['open']>[0][] = []
     const queried: string[] = []

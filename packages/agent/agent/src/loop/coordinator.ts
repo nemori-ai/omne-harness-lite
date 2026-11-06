@@ -43,6 +43,7 @@ import type {
   AgentOperationId,
   Authority,
   CallerCommit,
+  CommandReceipt,
   ControlRecord,
   ExecutionControl,
   ConsumerRef,
@@ -219,7 +220,7 @@ export type Halted = Readonly<{ node: LoopNode; failure: Failure }>
 
 export interface ExecutionCoordinator {
   /** U0 to E0: the input is admitted and `open` accepts the execution. Resolves at E1. */
-  accept(): Promise<Outcome<Authority, Halted>>
+  accept(confirmedOpen?: CommandReceipt): Promise<Outcome<Authority, Halted>>
   /**
    * After a legally accepted operation: run from E1 until idle, a saved wait or a failure.
    */
@@ -3320,13 +3321,30 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   return {
-    async accept() {
-      // The provider queries a retained open before invoking accept again.
-      const start = originalOpen === null ? 'U0' : 'E0'
-      if (start === 'E0') pendingCommit = null
-      const ran = await drive(start, 'E1')
-      if ('failure' in ran) return ran
-      return succeed(required(authority, 'authority'))
+    async accept(confirmedOpen) {
+      return exclusive('E0', async () => {
+        const start = originalOpen === null ? 'U0' : 'E0'
+        if (originalOpen !== null) {
+          if (confirmedOpen === undefined)
+            return fail({
+              node: 'E0',
+              failure: { kind: 'commit-unknown', operation: originalOpen.operation },
+            })
+          if (
+            confirmedOpen.operation !== originalOpen.operation ||
+            confirmedOpen.execution !== originalOpen.execution ||
+            pendingCommit?.original.method !== 'open'
+          )
+            return fail({
+              node: 'E0',
+              failure: { kind: 'conflict', operation: originalOpen.operation },
+            })
+          pendingCommit = null
+        }
+        const ran = await drive(start, 'E1')
+        if ('failure' in ran) return ran
+        return succeed(required(authority, 'authority'))
+      })
     },
     async continueExecution(original) {
       return exclusive('E1', async () => {
