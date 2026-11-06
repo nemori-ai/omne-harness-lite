@@ -158,6 +158,14 @@ function summaryOf(outcome: CommandOutcome) {
   return output
 }
 
+/**
+ * A frame that follows the leg's `started` frame by long enough to be read in another chunk. The
+ * reader answers a fault with a fault for its whole chunk, frames read before it included; so a
+ * fault that shares a chunk with `started` would make `execute` answer `unknown` and not hand out
+ * a handle. These tests are about the segment's outcome, not about chunking.
+ */
+const later = (frame: object): object => ({ delayMs: 150, ...frame })
+
 /** A leg's frames as the gate sends them: started, between bytes, the begin frame, data, finished. */
 const leg = (parts: {
   between?: readonly string[]
@@ -259,7 +267,10 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
     })
 
     it('treats a gate that sends more than the bound as a fault', async () => {
-      const f = await open({ executes: [leg({ between: ['abcde'] })] }, { betweenSegmentBytes: 4 })
+      const f = await open(
+        { executes: [[{ t: 'started' }, later({ t: 'between', text: 'abcde' })]] },
+        { betweenSegmentBytes: 4 },
+      )
       const outcome = await f.done(await f.execute()).result
       expect(outcome).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
       expect(summaryOf(outcome).between).toBeUndefined()
@@ -290,7 +301,9 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
 
     it('puts output in the segment only after it', async () => {
       const f = await open({
-        executes: [[{ t: 'started' }, { t: 'data', text: 'early' }, { t: 'begun', discarded: 0 }]],
+        executes: [
+          [{ t: 'started' }, later({ t: 'data', text: 'early' }), { t: 'begun', discarded: 0 }],
+        ],
       })
       const outcome = await f.done(await f.execute()).result
       expect(outcome).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
@@ -300,7 +313,9 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
 
     it('is not repeated within a segment', async () => {
       const f = await open({
-        executes: [[{ t: 'started' }, { t: 'begun', discarded: 0 }, { t: 'begun', discarded: 5 }]],
+        executes: [
+          [{ t: 'started' }, { t: 'begun', discarded: 0 }, later({ t: 'begun', discarded: 5 })],
+        ],
       })
       const outcome = await f.done(await f.execute()).result
       expect(outcome).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
@@ -309,7 +324,7 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
 
     it('has to come before the segment ends', async () => {
       const f = await open({
-        executes: [[{ t: 'started' }, { t: 'finished', code: 0, cwd: '/tmp' }]],
+        executes: [[{ t: 'started' }, later({ t: 'finished', code: 0, cwd: '/tmp' })]],
       })
       const outcome = await f.done(await f.execute()).result
       expect(outcome).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
@@ -320,7 +335,7 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
   describe('a segment that ends without the begin frame', () => {
     it('has no between section, and says the effect is unknown', async () => {
       const f = await open({
-        executes: [[{ t: 'started' }, { t: 'fault' }]],
+        executes: [[{ t: 'started' }, later({ t: 'fault' })]],
       })
       const outcome = await f.done(await f.execute()).result
       expect(outcome).toEqual({
@@ -334,7 +349,7 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
 
     it('has no between section even when between bytes were read before the fault', async () => {
       const f = await open({
-        executes: [[{ t: 'started' }, { t: 'between', text: 'kept?' }, { t: 'fault' }]],
+        executes: [[{ t: 'started' }, { t: 'between', text: 'kept?' }, later({ t: 'fault' })]],
       })
       const outcome = await f.done(await f.execute()).result
       expect(outcome.kind).toBe('failed')
@@ -403,14 +418,16 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
       ['bytes that are not base64', { t: 'data', b: '***' }],
       ['an exit code over 255', { t: 'finished', code: 256, cwd: '/tmp' }],
     ])('is a fault: %s', async (_name, frame) => {
-      const f = await open({ executes: [[{ t: 'started' }, { t: 'begun', discarded: 0 }, frame]] })
+      const f = await open({
+        executes: [[{ t: 'started' }, { t: 'begun', discarded: 0 }, later(frame)]],
+      })
       const outcome = await f.done(await f.execute()).result
       expect(outcome).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
       expect(f.state()).toBe('invalid')
     })
 
     it('refuses a later segment of a terminal that faulted', async () => {
-      const f = await open({ executes: [[{ t: 'started' }, { t: 'fault' }]] })
+      const f = await open({ executes: [[{ t: 'started' }, later({ t: 'fault' })]] })
       await f.done(await f.execute()).result
       expect(await f.execute()).toMatchObject({ kind: 'rejected', reason: 'closed' })
     })
