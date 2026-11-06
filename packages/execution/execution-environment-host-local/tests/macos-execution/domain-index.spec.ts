@@ -110,13 +110,17 @@ describe('markers', () => {
     expect(await index.coordinate('../escape')).toBe('absent')
   })
 
-  it('answers false or unavailable when the directory cannot be written or read', async () => {
-    const index = createDomainIndex(state)
-    await index.record(resource(keyA), scope, coordinate)
-    await chmod(join(state, 'macos-domains'), 0o000)
-    expect(await index.list(scope)).toBe('unavailable')
-    expect(await index.record(resource(keyB), scope, coordinate)).toBe(false)
-  })
+  // Root reads and writes a directory whatever its mode, so the refusal cannot be staged there.
+  it.skipIf(process.getuid?.() === 0)(
+    'answers false or unavailable when the directory cannot be written or read',
+    async () => {
+      const index = createDomainIndex(state)
+      await index.record(resource(keyA), scope, coordinate)
+      await chmod(join(state, 'macos-domains'), 0o000)
+      expect(await index.list(scope)).toBe('unavailable')
+      expect(await index.record(resource(keyB), scope, coordinate)).toBe(false)
+    },
+  )
 })
 
 describe('marker content', () => {

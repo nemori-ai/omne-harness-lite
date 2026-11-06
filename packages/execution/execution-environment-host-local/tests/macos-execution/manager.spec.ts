@@ -55,16 +55,13 @@ const managers: HostCommands[] = []
 /**
  * The reader in front of the stand-in. With `identity.other` in the stand-in's directory, an
  * identity asked by anyone but the process itself names another session; the gate's own check
- * still passes. A stop kills each session's process group itself: the stand-in's
- * `kill -KILL -- -sid` fails in dash, the `/bin/sh` of Debian and Ubuntu.
+ * still passes.
  */
 const frontScript = (directory: string, reader: string) => `#!/bin/sh
 if [ "$1" = identity ] && [ -f '${directory}/identity.other' ] && [ "$PPID" != "$2" ]; then
   echo '999999 1 1'
   exit 0
 fi
-kill_groups() { shift 3; for sid in "$@"; do kill -KILL "-$sid" 2>/dev/null; done; }
-if [ "$1" = stop ] && [ "$3" = 0 ]; then kill_groups "$@"; fi
 exec '${reader}' "$@"
 `
 

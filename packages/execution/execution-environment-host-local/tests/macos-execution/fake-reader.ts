@@ -40,7 +40,7 @@ case "$1" in
   stop)
     except="$3"
     shift 3
-    if [ "$except" = 0 ]; then for sid in "$@"; do kill -KILL -- "-$sid" 2>/dev/null; done; fi
+    if [ "$except" = 0 ]; then for sid in "$@"; do kill -KILL "-$sid" 2>/dev/null; done; fi
     [ -f "$D/stop.fail" ] && exit 1
     if [ -f "$D/stop" ]; then cat "$D/stop"; else echo confirmed; fi
     ;;

@@ -43,8 +43,6 @@ beforeEach(async () => {
   await writeFile(
     front,
     `#!/bin/sh
-kill_groups() { shift 3; for sid in "$@"; do kill -KILL "-$sid" 2>/dev/null; done; }
-if [ "$1" = stop ] && [ "$3" = 0 ]; then kill_groups "$@"; fi
 exec '${fake.path}' "$@"
 `,
   )
