@@ -8,6 +8,7 @@ import {
   readSessionRequest,
   readSessionResponse,
   type GovernanceRequest,
+  type SessionDiagnosticsPage,
   type SessionHistoryPage,
   type SessionOperation,
   type SessionOutcomes,
@@ -40,7 +41,14 @@ test('the operation set and the session-only outcomes are closed', () => {
     | 'read-history'
     | 'cancel-run'
     | 'stop-call'
+    | 'read-session-diagnostics'
   >()
+  expectTypeOf<SessionOutcomes['read-session-diagnostics']>().toEqualTypeOf<
+    'succeeded' | 'denied' | 'invalid' | 'basis-unavailable'
+  >()
+  expectTypeOf<
+    SessionSuccessBodies['read-session-diagnostics']
+  >().toEqualTypeOf<SessionDiagnosticsPage>()
   expectTypeOf<SessionOutcomes['create-session']>().toEqualTypeOf<
     'succeeded' | 'denied' | 'invalid' | 'conflict' | 'basis-unavailable' | 'unknown'
   >()
@@ -125,6 +133,32 @@ test('read-history has exactly two body shapes chosen by cursor', () => {
     cursor: 'c',
     // @ts-expect-error A string cursor cannot carry direction.
     direction: 'forward',
+  }
+  void mixed
+})
+
+test('read-session-diagnostics has exactly two body shapes chosen by cursor', () => {
+  const first: SessionRequest<'read-session-diagnostics'>['body'] = {
+    tenant,
+    session,
+    cursor: null,
+    run: null,
+    pageBytes: '1024',
+  }
+  const one: SessionRequest<'read-session-diagnostics'>['body'] = { ...first, run: 'run-1' }
+  const next: SessionRequest<'read-session-diagnostics'>['body'] = { tenant, session, cursor: 'c' }
+  void first
+  void one
+  void next
+  // @ts-expect-error A null cursor needs run and pageBytes.
+  const bare: SessionRequest<'read-session-diagnostics'>['body'] = { tenant, session, cursor: null }
+  void bare
+  const mixed: SessionRequest<'read-session-diagnostics'>['body'] = {
+    tenant,
+    session,
+    cursor: 'c',
+    // @ts-expect-error A string cursor cannot carry run.
+    run: null,
   }
   void mixed
 })

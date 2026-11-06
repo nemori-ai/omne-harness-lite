@@ -2301,6 +2301,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       inputs: input => run(input, 'inputs', core => core.port.inputs(input)),
       readReplyAdmissions: input =>
         run(input, 'readReplyAdmissions', core => core.port.readReplyAdmissions(input)),
+      readFinish: input =>
+        run(
+          input,
+          'readFinish',
+          async core =>
+            (await core.port.readFinish?.(input)) ??
+            fail(unavailable('the Journal core holds no finish read')),
+        ),
       query: async input => {
         const answer = await run(input, 'query', core => core.port.query(input))
         return book === null ? answer : queryCold(book, input, answer)

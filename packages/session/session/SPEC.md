@@ -431,22 +431,39 @@
 
 | 事件 | 何时发出 | 字段 |
 | --- | --- | --- |
-| `segment`，`phase: 'start'` | 一次面操作（变更与读，含公开端口上的目录读）开始做它的工作，即核权之前 | `span`（进程内唯一，起止成对）、`operation`（命令种类或读操作名）、`session`（目录读为 `null`） |
+| `segment`，`phase: 'start'` | 一次面操作（变更与读，含公开端口上的目录读）开始做它的工作，即核权之前 | `span`（进程内唯一，起止成对）、`operation`（命令种类或读操作名）、`session`（目录读为 `null`）、`tenant`（访问的租户；目录读不带） |
 | `segment`，`phase: 'end'` | 同一面操作要交回答复时，含抛出 | 上列字段加 `outcome`：`ok`，或带 `failure` 的答复与抛出为 `failure` |
-| `round-complete` | 本实例的一次提交写下 `run.terminal` 条目之后、答复交回之前。认回（`recovered`）的提交与别的进程的提交不发 | `session`、`run`、`outcome`（终态结局）、`revision`、`entry`、`operation` |
+| `round-complete` | 本实例的一次提交写下 `run.terminal` 条目之后、答复交回之前。认回（`recovered`）的提交与别的进程的提交不发 | `session`、`tenant`、`run`、`outcome`（终态结局）、`revision`、`entry`、`operation` |
 
 - **时间**：事件不带时间。观察者在被同步调用的那一刻读自己的单调时钟，那一刻就是边界时刻，所以同一进程、同一时钟代次由观察者的拥有者保证。本成员不读 `Date.now`、`performance.now`，也不用注入的 `SessionClock`：它读 UTC 时刻、异步作答、测试会给它计次，不是单调时钟。
+- **租户**：`tenant` 是本次访问的租户（`SessionAccess.tenant`），类型与 `WorkSnapshot['tenant']` 相同。变更与单会话读都带它。目录读（`pending`、`references`、`releasedScopes`）的测量点看不到访问，不带它。字段是可选的：它是兼容的加法，没有它的旧事件形状仍然成立。采集者据它给记录定作用域；拿不到租户的记录不能标成系统自身的事实（telemetry-contract SPEC TC-4）。
 - **一轮就是一次 Run**：`round-complete` 是明确的轮完成事实，不由输入受理推断。Session 不持有累计条目数，所以事件不带它；`revision` 是不透明的提交身份。要累计条目数的采集者自己读历史。
 - **段是包含式的**：Session 段包含它等待存储、身份桥与证据桥的时间，也包含嵌套的面操作。段之间不能相加成端到端耗时，扣除外部等待由采集者做。
 - **观察者抛出**不改变任何答复，也不留痕。观察者不得回调本实例。
 - **不在这里**：Agent 段与 Context 段由各自成员发出。跨成员的时钟与关联由采集者负责。
+
+### 遥测投影
+
+<a id="遥测投影"></a>本段是候选，待 RFC-0013 接受。设计依据是 [RFC-0013「计时记录与离线聚合」](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)。根入口的 `createSessionTelemetry(port, { instance, maxOpenSegments })` 把[测量事件](#测量事件)与[诊断出口](#诊断出口)投影为 `@omne-harness/telemetry-contract` 的记录，返回 `{ measure, diagnose, dropped }`。装配者把 `measure` 与 `diagnose` 交给工厂的第三个参数。facade 只依赖 telemetry-contract 的根入口，不依赖提供者，不依赖 Cordis。源码在 [telemetry.ts](src/telemetry.ts)。
+
+| 事件 | 记录 | 定义（owner `session`） | 关联 |
+| --- | --- | --- | --- |
+| `segment` 起止 | 一个遥测段：start 开段，end 以 `outcome` 结束 | `omne.session.<operation>`，按操作名各一个定义 | `work` 是会话（owner `@omne-harness/session`，ref 为会话 id）；目录读没有 `work` |
+| `round-complete` | 事件 | `omne.session.round-complete`：`outcome` 枚举 `completed`、`failed`、`cancelled`、`unknown`；`operation` 引用 | `work` 是会话，`attempt` 是 Run（`run` 为 `null` 时没有 `attempt`） |
+| `SessionDiagnostic` | 事件 | `omne.session.diagnostic`（级别 `warn`）：`owner`、`step` 枚举；`reason` 枚举取诊断出口列出的四个本成员原因加 `other`。不输出 `detail` | `work` 是会话，`attempt` 是 Run |
+
+- **作用域**：每条记录的 `scope` 是 `tenantScope(tenant)`，`component` 是 `session`，`instance` 由装配者给出。事件没有 `tenant` 时 facade 不发记录，计入 `dropped().invalid`；不改标为 `system`（telemetry-contract TC-4）。每条记录各自 `port.bind`，不缓存 emitter，因为绑定的 `scope` 不能经 `Emitter.bind` 改写（TC-15）。
+- **有界**：同时打开的段最多 `maxOpenSegments` 个，超过的 start 丢弃并计入 `dropped().capacity`；end 结束段后删除配对表条目。段定义按操作名缓存，最多 64 个（`SESSION_SEGMENT_DEFINITION_LIMIT`），超过的操作名计入 `capacity`；操作名不满足契约字符集或长度时计入 `invalid`。没有 start 的 end 什么也不做，不计数。
+- **计时**：facade 不读时钟。段的时长由提供者在 `startSegment` 与 `end` 之间计算。
+- **不抛错**：`maxOpenSegments` 不是正整数时构造抛 `TypeError`；此外 facade 不抛错。被 `startSegment` 丢弃的段由提供者计数，facade 不再计一次。
 
 ### 已有测试
 
 成员测试在 `tests/`，逐项对应见 [tests/README.md](tests/README.md)。
 
 - session-contract 的事务套件经四个面运行：对内存替身对 21 例全部通过；对真实 sqlite-provider 上的 SQL 提供者对，21 例全部通过。
-- [测量事件](#测量事件)：起止成对、并发时的 `span`、读与目录读、失败结局、`run.terminal` 提交的轮完成事件（认回不重发、无通知器时仍发）、无观察者时不读条目、观察者抛出不改答复。
+- [测量事件](#测量事件)：起止成对、并发时的 `span`、读与目录读、失败结局、`run.terminal` 提交的轮完成事件（认回不重发、无通知器时仍发）、无观察者时不读条目、观察者抛出不改答复、变更与读的事件带租户。
+- [遥测投影](#遥测投影)（`tests/telemetry.spec.ts`，用 telemetry-contract 的捕获替身）：段的名字、作用域、`work` 与结局；目录读没有 `work`；缺租户与非法操作名不发记录并计入 `invalid`；配对表与定义缓存的上限；round-complete 与诊断事件的字段、`attempt` 与枚举收口；诊断不带 `detail`；经真实实例的一次 accept 与读。
 - [VM-13](#vm-机制的持续验证义务) 的计次与失败分支、跨租户拒绝、[VM-01](#vm-机制的持续验证义务) 的重做与上限、SS-02 的确定性计数（两个规模下各面操作的计数相同），各有用例。
 - 没有测试的义务：VM-02 至 VM-12 中本节「未实现」一表涉及的部分，以及崩溃矩阵。
 

@@ -79,6 +79,26 @@ const requests = {
       producer: { rule: producer },
     },
   },
+  // `cursor` must be present. `run` and `pageBytes` occur exactly when it is null.
+  'read-session-diagnostics': {
+    kind: 'one-of',
+    rules: [
+      {
+        kind: 'object',
+        fields: {
+          tenant: { rule: tenant },
+          session: { rule: session },
+          cursor: { rule: { kind: 'null' } },
+          run: { rule: { kind: 'one-of', rules: [text, { kind: 'null' }] } },
+          pageBytes: { rule: { kind: 'page-bytes' } },
+        },
+      },
+      {
+        kind: 'object',
+        fields: { tenant: { rule: tenant }, session: { rule: session }, cursor: { rule: text } },
+      },
+    ],
+  },
 } satisfies Readonly<Record<SessionOperation, Rule>>
 
 const anyText: Rule = { kind: 'string' }
@@ -124,6 +144,190 @@ const controlAnswer = (target: Record<string, { rule: Rule }>, terminal: Rule): 
   ],
 })
 
+// The diagnostics page (SPEC「会话诊断页」). The union members are told apart by a literal `kind`.
+const nullable = (rule: Rule): Rule => ({ kind: 'one-of', rules: [rule, { kind: 'null' }] })
+const fieldsOf = (fields: Record<string, Rule>): Rule => ({
+  kind: 'object',
+  fields: Object.fromEntries(Object.entries(fields).map(([key, rule]) => [key, { rule }])),
+})
+const gapReason = literal(
+  'unsupported',
+  'unavailable',
+  'denied',
+  'not-disclosed',
+  'not-accepted',
+  'not-found',
+  'not-recorded',
+  'retention-expired',
+  'truncated',
+)
+const unknownValue = fieldsOf({
+  kind: literal('unknown'),
+  reason: literal(
+    'unsupported',
+    'unavailable',
+    'denied',
+    'not-accepted',
+    'not-found',
+    'not-recorded',
+    'retention-expired',
+  ),
+})
+const known = (field: string): Rule => ({
+  kind: 'one-of',
+  rules: [
+    fieldsOf({ kind: literal('known'), [field]: text }),
+    fieldsOf({ kind: literal('unknown') }),
+  ],
+})
+const adoptionRef = fieldsOf({ owner: text, name: text, revision: text, digest: text })
+const runCause: Rule = {
+  kind: 'one-of',
+  rules: [
+    unknownValue,
+    fieldsOf({ kind: literal('none') }),
+    fieldsOf({ kind: literal('no-failure'), conclusion: literal('complete', 'fail', 'cancelled') }),
+    fieldsOf({
+      kind: literal('model-refused'),
+      failure: literal('denied', 'invalid', 'unsupported', 'capacity'),
+    }),
+    fieldsOf({ kind: literal('no-reply'), cause: nullable(text), upstreamStatus: nullable(text) }),
+    fieldsOf({ kind: literal('request-rejected') }),
+    fieldsOf({ kind: literal('cannot-fit'), reason: literal('fixed', 'after-compaction') }),
+    fieldsOf({ kind: literal('compaction-invalid') }),
+    fieldsOf({ kind: literal('message-rejected') }),
+    fieldsOf({ kind: literal('extension-stop') }),
+    fieldsOf({ kind: literal('guard') }),
+  ],
+}
+const runControl = fieldsOf({
+  position: text,
+  kind: literal('requested', 'progress'),
+  target: nullable(literal('run', 'producer', 'session')),
+  intent: nullable(literal('control', 'interrupt', 'auto-archive')),
+  state: nullable(literal('committed', 'propagating', 'reconciled')),
+})
+const attempt = fieldsOf({
+  dispatch: text,
+  revision: text,
+  adapter: adoptionRef,
+  send: literal('not-sent', 'sent', 'unknown'),
+  firstContent: literal('none-proven', 'observed', 'uncertain'),
+  outcome: {
+    kind: 'one-of',
+    rules: [
+      fieldsOf({ kind: literal('pending') }),
+      fieldsOf({
+        kind: literal('completed'),
+        reason: literal('stop', 'limit', 'tool-suggestions'),
+      }),
+      fieldsOf({ kind: literal('interrupted') }),
+      fieldsOf({ kind: literal('failed'), cause: text, upstreamStatus: nullable(text) }),
+    ],
+  },
+  timing: fieldsOf({
+    materialize: known('milliseconds'),
+    sendToFirstContent: known('milliseconds'),
+    execution: known('milliseconds'),
+  }),
+})
+const amountState = literal('unknown', 'known', 'provisional')
+const accountView = fieldsOf({
+  kind: literal('account'),
+  usage: {
+    kind: 'array',
+    item: fieldsOf({ name: text, unit: anyText, state: amountState, lexeme: nullable(text) }),
+  },
+  cost: {
+    kind: 'array',
+    item: fieldsOf({ source: text, unit: anyText, state: amountState, lexeme: nullable(text) }),
+  },
+  duration: known('value'),
+  receipt: literal('received', 'late'),
+})
+const modelCall = fieldsOf({
+  reference: text,
+  purpose: text,
+  call: {
+    kind: 'one-of',
+    rules: [
+      fieldsOf({
+        kind: literal('found'),
+        call: text,
+        phase: literal('accepted', 'running', 'retry-decision', 'settled'),
+      }),
+      unknownValue,
+    ],
+  },
+  dispatches: { kind: 'array', item: attempt },
+  coverage: literal('complete-through-snapshot', 'expired-prefix', 'unknown'),
+  usage: { kind: 'one-of', rules: [accountView, unknownValue] },
+})
+const toolCall = fieldsOf({
+  reference: text,
+  state: {
+    kind: 'one-of',
+    rules: [
+      fieldsOf({
+        kind: literal('found'),
+        call: text,
+        phase: literal(
+          'accepted',
+          'preparing',
+          'queued',
+          'starting',
+          'running',
+          'suspended',
+          'settled',
+        ),
+        relation: literal('foreground', 'background'),
+        terminal: nullable(
+          fieldsOf({
+            kind: literal('completed', 'failed', 'unavailable', 'interrupted', 'no-response'),
+            cause: nullable(text),
+          }),
+        ),
+      }),
+      unknownValue,
+    ],
+  },
+  account: { kind: 'one-of', rules: [accountView, unknownValue] },
+  diagnostics: literal('unsupported'),
+})
+const runDiagnostic = fieldsOf({
+  run: text,
+  entry: literal('interactive', 'dispatch'),
+  execution: text,
+  started: fieldsOf({ position: text, at: known('instant') }),
+  attempts: text,
+  controls: { kind: 'array', item: runControl },
+  terminal: nullable(
+    fieldsOf({
+      outcome: literal('completed', 'failed', 'cancelled'),
+      cause: fieldsOf({ record: nullable(text), structured: runCause }),
+    }),
+  ),
+  calls: fieldsOf({ registered: text, projected: text }),
+  modelCalls: { kind: 'array', item: modelCall },
+  toolCalls: { kind: 'array', item: toolCall },
+  messages: { kind: 'array', item: fieldsOf({ kind: text, count: text }) },
+})
+const diagnosticsPage = fieldsOf({
+  runs: { kind: 'array', item: runDiagnostic },
+  next: nullable(text),
+  exhausted: { kind: 'boolean' },
+  scannedThrough: anyText,
+  basis: fieldsOf({ upper: anyText }),
+  gaps: {
+    kind: 'array',
+    item: fieldsOf({
+      source: literal('session', 'agent', 'model', 'tool'),
+      subject: text,
+      reason: gapReason,
+    }),
+  },
+})
+
 const successes = {
   'create-session': {
     kind: 'object',
@@ -165,6 +369,7 @@ const successes = {
       },
     },
   ),
+  'read-session-diagnostics': diagnosticsPage,
 } satisfies Readonly<Record<SessionOperation, Rule>>
 
 const outcomes = {
@@ -201,6 +406,7 @@ const outcomes = {
     'unknown',
     'unsupported',
   ],
+  'read-session-diagnostics': ['succeeded', 'denied', 'invalid', 'basis-unavailable'],
 } as const satisfies { readonly [O in SessionOperation]: readonly SessionOutcomes[O][] }
 
 /** Fails to compile when an outcome of `SessionOutcomes` is missing from the table above. */

@@ -11,7 +11,7 @@
 
 | 行 | 成员工厂 | 行给的对象 | 配置（只放数据，全部由运维者层给，发行层不写数值） |
 | --- | --- | --- | --- |
-| `model-records` | `createSqlModelRecordsPlugin`；行体以子 fiber 装 `createModelSendStagePlugin`，`coordinator` 只经闭包交给它 | `authority`、`evidence`、`send.sources`、`initialRun`、`manifestDigest`（本页下文） | 成员部分 `owners`（`work` 取 `exempt`）、`limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion`、`send`；应用部分 `initial`（首次执行记录的三项上限）与 `sendStage`（`maxRetainedAttempts`、`materialization.maxRecords`、`factoryQueryId`、`profiles`、`preparation`、`network`、`routes`、`transportLimits`） |
+| `model-records` | `createSqlModelRecordsPlugin`；行体以子 fiber 装 `createModelSendStagePlugin`，`coordinator` 只经闭包交给它；同一插件体再装 `createSqlModelDiagnosticsPlugin`，提供 `modelDiagnostics` | `authority`、`evidence`、`send.sources`、`initialRun`、`manifestDigest`（本页下文）；诊断插件取同一个 `storage`、`domains` 与 `authority` | 成员部分 `owners`（`work` 取 `exempt`）、`limits`、`maxCallBytes`、`maxCommandBytes`、`combinationVersion`、`send`；应用部分 `initial`（首次执行记录的三项上限）与 `sendStage`（`maxRetainedAttempts`、`materialization.maxRecords`、`factoryQueryId`、`profiles`、`preparation`、`network`、`routes`、`transportLimits`）；诊断部分 `diagnostics`（`diagnosticsRead` 只取 `tenant-self`，`retention` 是保留采用，缺席时 `list` 答 `unavailable`） |
 | `model-host` | `createModelRuntimeLocalPlugin` 加 `createModelRuntime` | `executionChannel`、`releaseExecution`、`qualifyObservation`、`send`（按调用现取 `modelSendBoundary`）、`retry`（恒 `unavailable`）、推送账本 | `host` 四项、`runtime` 八项、`results` 五项，行体自校验 |
 | `model-request-preparation` | `createModelRequestPreparationPlugin` | OpenAI 家族 | `maxCitedCalls`、`openai.limits`、`openai.margin` |
 
@@ -28,6 +28,10 @@
 只有两行都是真件时才核；缺项由各行自己的 schema 报。
 
 `compactionTriggerPercent` 对全部官方档案生效，`coding` 等单个定义不能另设。运维者层的推荐值是 `"80"`（R2-D124：出厂 coding agent 的压缩阈值 80%）；r9 与 serve 的测试运维层用这个值。发行层仍不写它。
+
+## 诊断读面 `modelDiagnostics`
+
+`model-records` 行在同一插件体里装 model-storage-sql 的 `createSqlModelDiagnosticsPlugin`（候选，待 [RFC-0013](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md) 接受，A 线）。它读同一个租户域里的同一份调用与派发记录，所以三个键 `modelCommands`、`modelSendBoundary`、`modelDiagnostics` 属同提供者组 `model-records`。资格判定用记录插件的同一个 `authority`，即本页的资格登记表。`diagnosticsRead` 为 `tenant-self` 时，读取还要通过资格表的 `facts` 动作，而这个动作只放行会话工作主体 W 与宿主主体 M（见[同步资格桥](#同步资格桥)）。所以登录得到的代租户主体读不到本租户的调用：`inspect` 与 `list` 答 `denied`。是否放行归 RFC-0013 DA2 的裁定者，见[已知限制](#已知限制)。配置的 `retention` 是保留采用。缺席时每次 `list` 答 `unavailable`。在 Model 记录阶段时长之前（RFC-0013 DA6），`timing` 三项恒为 `unknown`。唯一的消费者是 `server-entry` 行的会话诊断投影。
 
 ## 两类主体与 ActorRef
 
@@ -111,6 +115,7 @@
 - **官方档案采用摘要规则是 model-host-local 私有规则的复制**，由 `tests/model/sources.spec.ts` 对真实 `ModelProfilesLocalPlugin` 守护。
 - **数值没有测量依据**：r9 与 serve 测试的运维者层是测试值，E9 首测后按曲线改运维者层配置。
 - **宿主接管记录只在进程内**：重启后答 `unavailable`（R2-D33 自查收窄）。
+- **`modelDiagnostics` 对登录主体答 `denied`**：资格表的 `facts` 动作只放行 W 与 M，`diagnosticsRead: 'tenant-self'` 在这张表下对登录得到的代租户主体不生效。会话诊断投影把这类调用写成 `unknown`（原因 `denied`），派发为空。待 RFC-0013 DA2 的裁定者决定是否放行。
 
 ## 持续验证
 
@@ -122,5 +127,6 @@
 - [凭据管理的准入与保管](../../tests/rows/model/credential-custody.spec.ts)：真实参考准入与真实文件保管库上，只有代同一租户行事的登录主体能绑定、查看、解绑；他租户、会话工作主体与伪造主体在触到保管库之前答 `denied`；非成员租户答 `denied`，成员资格未知答 `basis-unavailable`；保管库读不出时答 `basis-unavailable` 且字节不变；插件卸载后写入答 `basis-unavailable`；宿主时钟读不出时不写。
 - [凭据保管的答复映射](../../tests/rows/model/credential-mapping.spec.ts)：保管端口对存储的每种答复（写入未确认、未存时间的绑定、时间无法解析、凭据端口抛出或拒绝）各有一个映射；供应商补全在任何情况下都不退回工厂引用。
 - `tests/serve.spec.ts` 的发行树：25 个真实行装载、接受、停止，退出 0。
+- [会话诊断的两个冒烟](../../tests/rows/session-diagnostics/flow.spec.ts)：真实 `serve` 进程里，上游 504 时 Agent 的 `no-reply` 原因带 `cause` 与 `upstreamStatus` 到达 CLI 的投影。同一调用的 Model 分支按现状断言：登录主体读 `modelDiagnostics` 答 `denied`，投影写 `unknown`（原因 `denied`），派发为空。
 
 这些用例证明接线与失败关闭，不证明一次真实的 OpenRouter 发送（S2-3，联调 B）。

@@ -17,6 +17,12 @@
 // opened there), then the member creates the send child; the child captures its fiber into the
 // composition so the host can release it before the channel. A missing credential leaves the child
 // `PENDING` and the commands `ACTIVE`.
+//
+// The row also provides `modelDiagnostics` (#1140 A5, RFC-0013 A line): model-storage-sql's
+// `createSqlModelDiagnosticsPlugin` over the same storage, the same tenant domains and the same
+// `authority` as the records plugin, in the same plugin body, so the three keys are one provider
+// group (`model-records`). The read eligibility and the retention adoption come from the row
+// configuration (`diagnostics`).
 import type { Context, Fiber, Plugin } from '@deepseek-ai/cordis'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
@@ -28,6 +34,7 @@ import {
 import {
   modelClockKey,
   modelCommandsKey,
+  modelDiagnosticsKey,
   modelSendBoundaryKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import {
@@ -35,7 +42,10 @@ import {
   type ModelSendStageSettings,
 } from '@omne-harness/model-host-local/cordis'
 import type { ModelMaterializationEvidenceReader } from '@omne-harness/model-host-local'
-import { createSqlModelRecordsPlugin } from '@omne-harness/model-storage-sql/cordis'
+import {
+  createSqlModelDiagnosticsPlugin,
+  createSqlModelRecordsPlugin,
+} from '@omne-harness/model-storage-sql/cordis'
 import {
   createModelInitialRun,
   type ModelCommandsEvidence,
@@ -218,6 +228,16 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
     },
   })
   new Records(ctx, config.member)
+  // The read face over the same records: the same storage, domains and authority as the commands.
+  const Diagnostics = createSqlModelDiagnosticsPlugin<unknown>({
+    inject: [...INJECT],
+    resolve: () => ({
+      storage: given.storage,
+      domains: given.tenantDomainLookup,
+      authority: qualification.authority,
+    }),
+  })
+  new Diagnostics(ctx, config.diagnostics)
 }
 
 const recordsPlugin: Plugin.Object = {
@@ -233,9 +253,9 @@ export const modelRecordsRow = defineRow({
   row: 'model-records',
   implementation: 'real',
   manifest: {
-    provides: [modelCommandsKey, modelSendBoundaryKey],
+    provides: [modelCommandsKey, modelSendBoundaryKey, modelDiagnosticsKey],
     injects: [...INJECT],
-    sameProviderGroup: null,
+    sameProviderGroup: 'model-records',
   },
   lifecycle: { kind: 'none' },
   plugin: recordsPlugin,

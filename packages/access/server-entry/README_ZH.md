@@ -17,7 +17,8 @@
 - 治理位置的 18 个治理操作：组织、成员邀请、成员资格、当前租户与账号的登录。它们交给 identity 的治理端口。
 - 治理位置的 3 个模型凭据操作：绑定、解绑与查看行事租户的模型凭据。它们交给 `modelCredentials` 端口。没有这个端口时答 `stage-not-provided`。
 - 成功业务访问的报告，以及登录失效时结束观察。
-- 会话位置的七个会话操作与两个观察操作。观察流只有确认、心跳与 `ended` 帧。
+- 会话位置的八个会话操作与两个观察操作。观察流只有确认、心跳与 `ended` 帧。
+- `read-session-diagnostics` 背后的会话诊断投影：Session 给 Run 时间线，Agent 给结束原因，Model 给派发诊断，Tool 给调用状态与账目；来源没有答的每一次读取都是一条缺口（规格「会话诊断投影」）。
 - 会话操作身份 `SessionOperationId` 的确定性派生。
 
 不在本阶段：
@@ -58,7 +59,7 @@ await entry.stop()
 
 `start()` 只在 `127.0.0.1` 上监听明文 HTTP/1.1。地址是其他值时以 `ServerEntryConfigError` 拒绝，不改写地址。端口 0 由宿主分配，实际端口在返回值里。`stop()` 停止接受新连接，给每个活动观察发 `ended(unavailable)`，等在途请求写完答复，再关闭全部连接。两个位置的路径固定：`/governance-public/1` 与 `/session-public/1`。
 
-依赖有三类：identity 的操作、治理端口与签发者，Session 的面，以及定义名到创建字段的解析函数。治理端口是必需的，必须与 identity 的操作用同一份记录。装配按调用现取治理服务时，服务缺席由端口答 `basis-unavailable`。可选的 `modelCredentials` 端口承接 3 个模型凭据操作，省略时这 3 个操作答 `stage-not-provided`。可选的诊断汇在省略时不影响运行。完整的依赖表与配置字段表在 [README.md](README.md#dependencies)。
+依赖有三类：identity 的操作、治理端口与签发者，Session 的面，以及定义名到创建字段的解析函数。治理端口是必需的，必须与 identity 的操作用同一份记录。装配按调用现取治理服务时，服务缺席由端口答 `basis-unavailable`。可选的 `modelCredentials` 端口承接 3 个模型凭据操作，省略时这 3 个操作答 `stage-not-provided`。可选的诊断汇在省略时不影响运行。会话诊断投影另有四个可选的读端口：`agentJournal`（Agent 的 `readFinish`）、`modelCalls`（Model 的 `inspect`）、`modelDiagnostics`（Model 的派发诊断）与 `toolQueries`（Tool 的 `lookup` 与 `account`）；缺席的端口让对应的值成为 `unknown`，原因 `unsupported`。完整的依赖表与配置字段表在 [README.md](README.md#dependencies)。
 
 ## 契约
 
@@ -88,7 +89,8 @@ await entry.stop()
 - 监听地址只能是 `127.0.0.1`，端口 0 表示由宿主分配。
 - 两个路径各有请求体上限，它同时是该路径 json-text 读取的 `maxBytes`。
 - 观察有每登录与本实例的并发上界，以及观察结束后记录的保留期。
-- `read-history` 的页大小受 `maxPageBytes` 约束，披露的条目种类由 `historyKinds` 给出。
+- `read-history` 与 `read-session-diagnostics` 的页大小受 `maxPageBytes` 约束，`read-history` 披露的条目种类由 `historyKinds` 给出。
+- 会话诊断投影读取的种类、每页 Run 数上限与每个 Run 进入扇出的调用数上限由 `diagnosticsKinds`、`maxRuns`、`maxCallsPerRun` 给出。三项一起给或一起省略；省略时 `read-session-diagnostics` 答 `basis-unavailable`。
 
 要求 Node 24 或更高版本。本成员不读环境变量，也不读真实机密。传输保护由调用者完成。
 
@@ -101,6 +103,8 @@ await entry.stop()
 - 观察记录只在本实例内存里，多实例的粘性路由归部署。
 - Tool 目标的 `stop-call` 先到达 Session 的 `stopCall`，接入再把对外答案定为 `unsupported`。不写记录由 Session 的契约承诺，接入挡不住一个不按契约写入的 Session。
 - `send-input` 交给 Session 的输入来源带登录状态文本，真实 Session 若把它写进历史条目的 `payload`，`read-history` 会原样透传。来源是否入 `payload` 归 Session 与 identity。
+- `read-session-diagnostics` 的游标用只活在本实例里的密钥封印。另一实例或重启后的实例签发的游标答 `invalid`，调用者从首页重读。
+- `read-session-diagnostics` 不报告 Run 开始的时刻与模型调用的用量：Session 的载荷不带时间，Model 的诊断不带账目。两项在拥有者加字段之前都是 `unknown`（RFC-0013 的 DA7 与「实质备选」）。
 
 ## 验证
 

@@ -9,6 +9,8 @@ import { z } from 'zod'
 import { resolveLocations } from '../../src/local/locations.ts'
 import { captureShellEnvironment, isSecretName } from '../../src/local/settings.ts'
 import {
+  LOCAL_DIAGNOSTICS_KINDS,
+  LOCAL_DIAGNOSTICS_LIMITS,
   LOCAL_HISTORY_KINDS,
   WINDOWS_POWERSHELL_PRELUDE,
   LocalProfileError,
@@ -113,6 +115,8 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(configOf(layer, 'server-entry')).toEqual({
       listenPort: 8965,
       historyKinds: [...LOCAL_HISTORY_KINDS],
+      diagnosticsKinds: [...LOCAL_DIAGNOSTICS_KINDS],
+      ...LOCAL_DIAGNOSTICS_LIMITS,
     })
     expect(LOCAL_HISTORY_KINDS).toEqual(
       expect.arrayContaining([
@@ -136,6 +140,24 @@ describe('localOperatorLayer over the bundled distribution', () => {
       filesRoot: '/work',
       stateDirectory: '/h/state/host-files',
     })
+  })
+
+  it('gives the telemetry row its six budgets and leaves the implementation and the outlet to the release', () => {
+    const telemetry = configOf(layer, 'telemetry')
+    expect(telemetry).toMatchObject({ implementation: 'node', outlet: { kind: 'stdout' } })
+    const budgets = z
+      .object({
+        maxRecordBytes: z.number().int().positive(),
+        maxQueueItems: z.number().int().positive(),
+        maxQueueBytes: z.number().int().positive(),
+        maxOpenSegments: z.number().int().positive(),
+        maxLogTextLength: z.number().int().positive(),
+        summaryIntervalMs: z.number().int().positive(),
+      })
+      .strict()
+      .safeParse(telemetry?.['budgets'])
+    expect(budgets.success, JSON.stringify(budgets)).toBe(true)
+    expect(Object.keys(telemetry ?? {}).sort()).toEqual(['budgets', 'implementation', 'outlet'])
   })
 
   const toolHost = z.object({

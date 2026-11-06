@@ -18,12 +18,14 @@ Implemented:
 - The shutdown coordinator and the process entry `dist/bin.js`.
 - The `./cordis` export, which holds the S0 stub plugin. Row closures add their real exports to it.
 - The `serve` subcommand, the row declaration `defineRow`, the entry object registry, and the checks before loading in the real mode. See [docs/real-mode.md](docs/real-mode.md).
+- The `telemetry` row (the Node provider of engineering telemetry, candidate, first version), the three-state Cordis log bridge and the telemetry close step of the ordered shutdown. The entry diagnostics leave as `omne.entry.diagnostic` events. See [docs/rows/telemetry.md](docs/rows/telemetry.md).
+- The session diagnostics projection in the application (candidate, RFC-0013 A line): the `model-records` row provides `modelDiagnostics`, and the `server-entry` row injects `agentJournal`, `modelDiagnostics` and `modelRuntime` and reads `toolRuntime` per call. The local profile discloses every projected kind. See [docs/rows/server-entry.md](docs/rows/server-entry.md) and [docs/rows/model-release.md](docs/rows/model-release.md#诊断读面-modeldiagnostics).
 
 The ordered shutdown rules in SPEC.md (the start order, no new `start` after the stopping state, and the handling of a `start` that throws) are implemented. `tests/shutdown.spec.ts` and `tests/s0-process.spec.ts` cover them.
 
 The S0 mode does not open HTTP, create a tenant, open a business state root, or read a real secret. A passing S0 run does not show that a tenant can be created or used.
 
-The `serve` mode loads the same rows under formal service keys. In the sample distribution, the storage, identity, authorization, session storage and provider, agent adoption, adoption source, tool bindings, tool host, tool residency, and server entry rows are real, and the remaining rows are still stubs. A passing `serve` run checks the assembly, not a full tenant path.
+The `serve` mode loads the same rows under formal service keys. In the sample distribution, the storage, identity, authorization, session storage and provider, agent adoption, adoption source, tool bindings, tool host, tool residency, server entry, and telemetry rows are real, and the remaining rows are still stubs. A passing `serve` run checks the assembly, not a full tenant path.
 
 ## Usage
 
@@ -60,6 +62,8 @@ node apps/harness-server/dist/bin.js serve [--distribution <abs json>] [--operat
 For each argument that `serve` does not get, it takes the value of the local single-user profile. The distribution is the bundled `config/serve.distribution.json`. The timeouts are 30000 and 10000 ms. The operator layer and the state root come from the `setup` configuration.
 
 `s0` stops by itself after it writes the startup result. `serve` waits for a stop request: a closed stdin (with `--stop-on-stdin-close`), SIGINT, or SIGTERM. On Windows, a closed stdin is the only way another process can stop it.
+
+Under `serve`, every Cordis message up to WARN and every entry diagnostic reaches stdout as one `telemetry` record (`kind: 'telemetry'`, one JSON object per line). The former `log` record (`{ kind: 'log', level, name, text }`) is gone. This is a breaking change of the output of this app, based on line B of RFC-0013 (candidate). stdout has one writer, so `shutdown-result` is the last line. The record shape and the shutdown report field `telemetry` are in [SPEC.md](SPEC.md#进程输出与退出码) and [docs/rows/telemetry.md](docs/rows/telemetry.md).
 
 A usage error prints `<subcommand>: <reason>` and then the usage line of that subcommand on standard error. The exit code is 2:
 

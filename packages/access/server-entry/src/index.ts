@@ -6,6 +6,13 @@ export type { Listening, ServerEntry, ServerEntryDependencies } from './http.ts'
 export type { JsonBudgets, ServerEntryConfig } from './config.ts'
 export { ServerEntryConfigError } from './config.ts'
 export type { DefinitionResolver, ResolvedDefinition, SessionIngressFaces } from './faces.ts'
+export type {
+  AgentFinishReader,
+  DiagnosticPorts,
+  ModelAttemptReader,
+  ModelCallInspector,
+  ToolCallReader,
+} from './session-view/index.ts'
 export type { DiagnosticSink, ServerEntryDiagnostic } from './diagnostics.ts'
 export type {
   ModelCredentialAccess,

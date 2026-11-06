@@ -14,6 +14,7 @@ Implemented:
 - `createHttpTransport`, a `fetch` based adapter bound to one location and one `http:` origin on `127.0.0.1` or `localhost`.
 - `parseTenantText`, `tenantText`, the identity text functions for organization, account, and login, and `userTextMessage`.
 - Automatic resend, once, only when the transport proves that no request byte was sent.
+- The types of the `read-session-diagnostics` page (`SessionDiagnosticsPage`, `SessionRunDiagnostic`, `SessionDiagnosticGap` and their parts), passed through from the public contract. The session client sends the operation with `submit`, as it sends the other seven. A caller reads the `body` of a success in these types.
 
 Not implemented:
 
@@ -57,14 +58,14 @@ const result = await client.submit({
 
 The exports are:
 
-| Export | Purpose |
-| --- | --- |
-| `createSessionClient`, `createGovernanceClient` | A client built from one transport adapter. `submit` encodes, sends, reads the response, and returns only the one with the same `messageId`. |
-| `createHttpTransport` | A `fetch` based adapter bound to one location and one `http:` origin on `127.0.0.1` or `localhost`. |
-| `RequestInvalidError` | The local request model breaks the public contract. No byte was sent. |
-| `parseTenantText`, `tenantText` | Convert between tenant text and tenant identity. They call the identity text functions of the public contract. |
+| Export                                                                                                                                             | Purpose                                                                                                                                                                                                                                                                                               |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createSessionClient`, `createGovernanceClient`                                                                                                    | A client built from one transport adapter. `submit` encodes, sends, reads the response, and returns only the one with the same `messageId`.                                                                                                                                                           |
+| `createHttpTransport`                                                                                                                              | A `fetch` based adapter bound to one location and one `http:` origin on `127.0.0.1` or `localhost`.                                                                                                                                                                                                   |
+| `RequestInvalidError`                                                                                                                              | The local request model breaks the public contract. No byte was sent.                                                                                                                                                                                                                                 |
+| `parseTenantText`, `tenantText`                                                                                                                    | Convert between tenant text and tenant identity. They call the identity text functions of the public contract.                                                                                                                                                                                        |
 | `readOrganizationIdText`, `encodeOrganizationIdText`, `readAccountIdText`, `encodeAccountIdText`, `readLoginStateIdText`, `encodeLoginStateIdText` | The identity text functions of the public contract, passed through. A caller reads a text into an identity value, for example to build `targetLoginId`, and writes it back. A text that is not valid reads as `undefined`. Writing a value that the identity package did not mint throws `TypeError`. |
-| `userTextMessage` | Build the user message for `send-input`. The message identity derives from `inputId`, so a retry with the same `inputId` and text sends the same content. |
+| `userTextMessage`                                                                                                                                  | Build the user message for `send-input`. The message identity derives from `inputId`, so a retry with the same `inputId` and text sends the same content.                                                                                                                                             |
 
 The caller generates `createCallId`, `acceptId`, `inputId`, and `controlId` before the first send, and keeps them unchanged when it retries the same intent. The SDK never swaps them. A `messageId` correlates one send only, so the caller may generate a new one on each call.
 
@@ -115,7 +116,7 @@ The install closure holds the public contract only. It holds no server entry and
 The tests import the built `dist` through the package name, so run `pnpm run build` in this directory first, then `pnpm run test`. `pnpm run typecheck` checks the types.
 
 - `tests/http-transport.spec.ts` checks address limits, paths, status codes and response bodies, redirects, a refused connection, a mid-response disconnect, and cancellation against a real HTTP server on `127.0.0.1`.
-- `tests/session-client.spec.ts` covers the round trip of the seven session operations and one governance operation, the declared-unprovided answer (`stage-not-provided`) of governance operations, the optional `loginId` of an `issue-login` success, `messageId` correlation including crossed replies, one zero-byte resend, no resend after bytes were sent, and error text without the login proof.
+- `tests/session-client.spec.ts` covers the round trip of the eight session operations and one governance operation, the declared-unprovided answer (`stage-not-provided`) of governance operations, the optional `loginId` of an `issue-login` success, `messageId` correlation including crossed replies, one zero-byte resend, no resend after bytes were sent, and error text without the login proof.
 - `tests/public-entry.spec.ts` checks the runtime export list.
 
 Not covered:

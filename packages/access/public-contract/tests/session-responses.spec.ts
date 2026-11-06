@@ -46,6 +46,14 @@ const successes = {
     controlId: 'control-1',
     producer: { kind: 'tool', call: 'call-1' },
   },
+  'read-session-diagnostics': {
+    runs: [],
+    next: null,
+    exhausted: true,
+    scannedThrough: '8',
+    basis: { upper: '8' },
+    gaps: [],
+  },
 } satisfies Record<SessionOperation, object>
 const outcomes = {
   'create-session': ['succeeded', 'denied', 'invalid', 'conflict', 'basis-unavailable', 'unknown'],
@@ -81,6 +89,7 @@ const outcomes = {
     'unknown',
     'unsupported',
   ],
+  'read-session-diagnostics': ['succeeded', 'denied', 'invalid', 'basis-unavailable'],
 } satisfies Record<SessionOperation, readonly string[]>
 const allOutcomes = [
   'succeeded',

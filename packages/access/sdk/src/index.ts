@@ -33,3 +33,23 @@ export type {
   SessionOperation,
   SessionRequest,
 } from '@omne-harness/public-contract'
+// The diagnostics page of `read-session-diagnostics`, passed through. The SDK hands the body over
+// only after the contract read it, so a caller reads it in these shapes.
+export type {
+  SessionAdoptionRef,
+  SessionCallAccountView,
+  SessionDiagnosticGap,
+  SessionDiagnosticGapReason,
+  SessionDiagnosticGapSource,
+  SessionDiagnosticInstant,
+  SessionDiagnosticMilliseconds,
+  SessionDiagnosticsPage,
+  SessionDiagnosticUnknown,
+  SessionModelAttemptDiagnostic,
+  SessionModelCallDiagnostic,
+  SessionRunCause,
+  SessionRunControl,
+  SessionRunDiagnostic,
+  SessionRunTerminal,
+  SessionToolCallDiagnostic,
+} from '@omne-harness/public-contract'

@@ -68,6 +68,7 @@ describe('the Session segment', () => {
         span: expect.any(Number),
         operation: 'accept',
         session: h.access().session,
+        tenant: h.access().tenant,
       },
       {
         kind: 'segment',
@@ -76,6 +77,7 @@ describe('the Session segment', () => {
         span: expect.any(Number),
         operation: 'accept',
         session: h.access().session,
+        tenant: h.access().tenant,
         outcome: 'ok',
       },
     ])
@@ -152,6 +154,7 @@ describe('the round-complete event', () => {
     expect(events[1]).toEqual({
       kind: 'round-complete',
       session: h.access().session,
+      tenant: h.access().tenant,
       run: started.advance.run,
       outcome: 'failed',
       revision: receipt.revision,
@@ -227,5 +230,39 @@ describe('no observer, or an observer that fails', () => {
     expect(receipt.recovered).toBe(false)
     const started = await startRun(h)
     expect(await finishRun(h, started)).toHaveProperty('ok')
+  })
+})
+
+describe('the tenant of the events', () => {
+  it('a mutation segment carries the tenant of the access at start and at end', async () => {
+    const { h, events } = await service()
+    await h.create()
+    events.length = 0
+    await h.accept('input-1')
+    expect(events.map(event => (event.kind === 'segment' ? event.tenant : null))).toEqual([
+      h.access().tenant,
+      h.access().tenant,
+    ])
+  })
+
+  it('a single-session read carries the tenant of the access', async () => {
+    const { h, events } = await service()
+    await h.create()
+    events.length = 0
+    succeeded(await h.faces('coordinator').work.readWork(h.access()), 'readWork')
+    expect(events).toHaveLength(2)
+    for (const event of events) expect(event.tenant).toEqual(h.access().tenant)
+  })
+
+  it('the round-complete event carries the tenant of the finishing access', async () => {
+    const { h, events } = await service()
+    await h.create()
+    await h.accept('input-1')
+    const started = await startRun(h)
+    events.length = 0
+    succeeded(await finishRun(h, started), 'finishRun')
+    const rounds = events.filter(event => event.kind === 'round-complete')
+    expect(rounds).toHaveLength(1)
+    expect(rounds[0]?.tenant).toEqual(h.access().tenant)
   })
 })

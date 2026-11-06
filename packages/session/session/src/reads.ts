@@ -59,6 +59,7 @@ export function createReads<P>(
             return guarded(OWNERS.delegated, operation, () => read(view.ok))
           },
           answer => 'failure' in answer,
+          access.tenant,
         ),
       )
     },

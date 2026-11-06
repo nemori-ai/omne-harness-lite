@@ -12,7 +12,7 @@
 
 ### 现有导出
 
-根入口 [src/index.ts](../src/index.ts) 有下列导出。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言运行时导出只有 `createSessionInstance` 与 `defaultSchedulingPolicy`。精确签名以源码为准，本页不保留第二套手写签名。导出的形状仍是候选，尚未技术接受。
+根入口 [src/index.ts](../src/index.ts) 有下列导出。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言运行时导出只有 `createSessionInstance`、`defaultSchedulingPolicy`、`createSessionTelemetry` 与两个事件定义。精确签名以源码为准，本页不保留第二套手写签名。导出的形状仍是候选，尚未技术接受。
 
 | 导出 | 种类 | 源码 |
 | --- | --- | --- |
@@ -21,8 +21,11 @@
 | `SessionDependencies`、`Current`、`BeforeAdmitSlot` | 类型 | [dependencies.ts](../src/dependencies.ts) |
 | `SchedulingPolicy`、`SessionConfiguration` | 类型 | [policy.ts](../src/policy.ts) |
 | `SessionInstanceOptions` | 类型 | [instance.ts](../src/instance.ts)。可选的 `measure` 与 `diagnose` 观察者，见 SPEC 的[测量事件](../SPEC.md#测量事件)与[诊断出口](../SPEC.md#诊断出口) |
-| `SessionMeasure` 及其事件类型、`SessionDiagnose`、`SessionDiagnostic` | 类型 | [measure.ts](../src/measure.ts)、[diagnostics.ts](../src/diagnostics.ts) |
+| `SessionMeasure` 及其事件类型、`TenantId`、`SessionDiagnose`、`SessionDiagnostic` | 类型 | [measure.ts](../src/measure.ts)、[diagnostics.ts](../src/diagnostics.ts) |
 | `defaultSchedulingPolicy` | 常量 | [policy.ts](../src/policy.ts) |
+| `createSessionTelemetry` | 函数 | [telemetry.ts](../src/telemetry.ts)。把测量事件与具名诊断投影为 telemetry-contract 的记录，见 SPEC 的[遥测投影](../SPEC.md#遥测投影) |
+| `sessionRoundCompleteEvent`、`sessionDiagnosticEvent` | 常量 | [telemetry.ts](../src/telemetry.ts)。两个事件定义，供采集者按 `(owner, name)` 识别 |
+| `SessionTelemetry`、`SessionTelemetryBase`、`TelemetryDropped` | 类型 | [telemetry.ts](../src/telemetry.ts) |
 
 ### 随实现进入的导出
 

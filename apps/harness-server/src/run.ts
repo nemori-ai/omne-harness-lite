@@ -8,8 +8,12 @@ import { stubPlugin } from './cordis.ts'
 import * as releasePlugins from './cordis.ts'
 import { createHostFilesRuntime, type HostFilesRuntime } from './host-files.ts'
 import { createExecutionHostBinding, hostFactoryBindings } from './rows/execution-host/index.ts'
+import {
+  createTelemetryBinding,
+  telemetryFactoryBindings,
+  type TelemetryBinding,
+} from './rows/telemetry/index.ts'
 import { checkModelRowConsistency } from './model/consistency.ts'
-import { exportReleaseLogs } from './log-exporter.ts'
 import { entryObjects as releaseEntryObjects } from './entry/index.ts'
 import {
   LifecycleRegistry,
@@ -25,6 +29,7 @@ import {
   type EntryObject,
   type PreflightDiagnostic,
   type RowSpec,
+  type StartResult,
 } from './loader.ts'
 import { loadTree, type ResolvedTree } from './plugin-tree.ts'
 import { STUB_EXPORT, s0Profile, serveProfile, type Profile } from './profile.ts'
@@ -42,8 +47,11 @@ import type {
   RowManifest,
   ServiceName,
   StopResult,
+  TreeRow,
   Visibility,
 } from './types.ts'
+
+type ExecutionHostBinding = ReturnType<typeof createExecutionHostBinding>
 
 /** One stdout record. `kind` names it; the other fields are the record's own. */
 export type S0Record = { readonly kind: string } & Readonly<Record<string, unknown>>
@@ -194,6 +202,8 @@ function treeRecords(
   tree: ResolvedTree,
   visible: (row: RowId) => readonly ServiceName[],
   implementationOf: (row: RowId) => Implementation,
+  /** Members a factory row adds to its own record (`telemetry`: implementation and outlet). */
+  describe: (row: TreeRow) => Readonly<Record<string, unknown>> = () => ({}),
 ): S0Record[] {
   return [
     ...tree.rows.map((row): S0Record => ({
@@ -205,6 +215,7 @@ function treeRecords(
       visible: visible(row.id),
       visibleSource: 'release-code',
       implementation: implementationOf(row.id),
+      ...describe(row),
     })),
     ...tree.disabled.map((row): S0Record => ({
       kind: 'tree',
@@ -470,20 +481,213 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
   }
 }
 
+/** The spec of one enabled row: a stub row from the table, or a declared export of the profile. */
+function rowSpecOf(
+  row: TreeRow,
+  profile: Profile,
+  manifests: ReadonlyMap<RowId, RowManifest>,
+  probes: Probes,
+): RowSpec {
+  if (row.plugin === STUB_EXPORT) {
+    const manifest = manifests.get(row.id) ?? NO_MANIFEST
+    return {
+      row,
+      manifest,
+      plugin: stubRowPlugin(row.id, manifest, probes),
+      implementation: 's0-double',
+    }
+  }
+  const declared = profile.declarations.get(row.plugin)
+  if (declared === undefined)
+    throw new ConfigError('unknown-plugin', `plugin "${row.plugin}" carries no row declaration`)
+  const { declaration, plugin } = declared
+  const { lifecycle } = declaration
+  return {
+    row,
+    manifest: declaration.manifest,
+    plugin: declaredRowPlugin(row.id, plugin, probes),
+    implementation: declaration.implementation,
+    declared: {
+      row: declaration.row,
+      via: lifecycle.kind === 'entry-object' ? lifecycle.via : null,
+    },
+  }
+}
+
+/** The `entry-object` records: the lifecycle, the registry modules, then the placeholders. */
+function entryObjectRecords(
+  modules: readonly EntryObjectModule[],
+  placeholders: readonly ServiceName[],
+  trust: Trust,
+): S0Record[] {
+  return [
+    {
+      kind: 'entry-object',
+      name: S0_ASSEMBLY_LIFECYCLE_KEY,
+      implementation: 'real',
+      trusted: false,
+    },
+    ...modules.map((module): S0Record => ({
+      kind: 'entry-object',
+      name: module.name,
+      implementation: module.implementation,
+      trusted: trust.isTrusted(module.name),
+    })),
+    ...placeholders.map((name): S0Record => ({
+      kind: 'entry-object',
+      name,
+      implementation: 's0-double',
+      trusted: trust.isTrusted(name),
+    })),
+  ]
+}
+
+/** The entry objects the tree starts with: the registry modules over `env`, then the placeholders. */
+function entryObjectsOf(
+  modules: readonly EntryObjectModule[],
+  placeholders: readonly ServiceName[],
+  env: EntryEnv,
+): EntryObject[] {
+  return [
+    ...modules.map((module): EntryObject => ({
+      name: module.name,
+      implementation: module.implementation,
+      registersFor: module.registersFor ?? [],
+      install: scope => module.install(scope, env),
+    })),
+    ...placeholders.map((name): EntryObject => ({
+      name,
+      implementation: 's0-double',
+      value: Object.freeze({ standIn: name }),
+    })),
+  ]
+}
+
+const implementationOfSpec = (spec: RowSpec): Implementation => spec.implementation ?? 's0-double'
+
+/** How many rows each implementation kind has, and the kind of each row. */
+function implementationCounts(rows: readonly RowSpec[]): Readonly<{
+  counts: Record<Implementation, number>
+  of: ReadonlyMap<RowId, Implementation>
+}> {
+  const counts: Record<Implementation, number> = { real: 0, 'contract-double': 0, 's0-double': 0 }
+  for (const spec of rows) counts[implementationOfSpec(spec)] += 1
+  return { counts, of: new Map(rows.map(spec => [spec.row.id, implementationOfSpec(spec)])) }
+}
+
+/** The factory rows' configuration is parsed before any row can run (`ConfigError` on rejection). */
+function parseFactoryConfigs(
+  rows: readonly TreeRow[],
+  factories: Readonly<{ executionHost: ExecutionHostBinding; telemetry: TelemetryBinding }>,
+): void {
+  for (const row of rows) {
+    if (row.plugin === 'executionHost') factories.executionHost.parseConfig(row.config)
+    if (row.plugin === 'telemetry') factories.telemetry.parseConfig(row.config)
+  }
+}
+
+type Started = Extract<StartResult, { kind: 'started' }>
+type StartFailure = Exclude<StartResult, { kind: 'started' }>
+
+/**
+ * Runs the registered `start`s (only when the barrier was reached), writes the row states and the
+ * `startup-result`, and gives the startup code: 0 accepts, 3 when a `start` threw, else the loader's.
+ */
+async function startAndReport(
+  input: Readonly<{
+    registry: LifecycleRegistry
+    started: Started
+    barrierCalls: number
+    enabledRows: number
+    implementations: Record<Implementation, number>
+    probes: Probes
+    write: RunServeOptions['write']
+  }>,
+): Promise<0 | 3 | 4> {
+  const { registry, started, barrierCalls, probes, write } = input
+  const startFailure = barrierCalls > 0 ? await registry.startAll() : undefined
+  const startCode = startFailure === undefined ? started.report.exitCode : 3
+  for (const state of started.report.rows) write({ kind: 'row-state', ...state })
+  write({
+    kind: 'startup-result',
+    profile: 'real',
+    scope: 'serving',
+    accepting: startCode === 0,
+    enabledRows: input.enabledRows,
+    outcome: startFailure === undefined ? started.report.outcome : 'start-failed',
+    ...(startFailure === undefined ? {} : { startFailure }),
+    implementations: input.implementations,
+    barrierCalls,
+    startedRows: probes.started,
+    appliedRows: probes.applied,
+  })
+  return startCode
+}
+
+/** Waits for the planned stop, or for a stop the registry asked for (then the registry already said why). */
+async function awaitStop(
+  signal: AbortSignal,
+  registryStop: Promise<void>,
+  stderr: RunServeOptions['stderr'],
+): Promise<void> {
+  const request = stopRequest(signal)
+  const reason = await Promise.race([request.promise, registryStop.then(() => null)])
+  request.cancel()
+  if (reason !== null) stderr(`${SERVE_PREFIX}: stop requested: ${reason}`)
+}
+
+/** A start that loaded no row: the diagnostics for a person, the disposal or the shutdown, and the exit code. */
+async function settleStartFailure(
+  started: StartFailure,
+  io: Readonly<{
+    write: RunServeOptions['write']
+    stderr: RunServeOptions['stderr']
+    root: Context
+    shutdown: () => ReturnType<typeof runShutdown>
+  }>,
+): Promise<ServeResult['exitCode']> {
+  switch (started.kind) {
+    case 'rejected':
+      for (const diagnostic of started.diagnostics)
+        io.stderr(`${SERVE_PREFIX}: ${describeDiagnostic(diagnostic)}`)
+      await io.root.fiber.dispose()
+      return started.exitCode
+    case 'entry-failed': {
+      io.stderr(`${SERVE_PREFIX}: entry-object ${started.name}: install failed`)
+      const report = await io.shutdown()
+      io.write({ kind: 'shutdown-result', ...report })
+      return started.exitCode
+    }
+    case 'preparation-failed':
+      io.stderr(`${SERVE_PREFIX}: tenant directory preparation failed`)
+      await io.root.fiber.dispose()
+      return started.exitCode
+  }
+}
+
 async function runServeWithHostFiles(
   options: RunServeOptions,
   hostFiles: HostFilesRuntime,
 ): Promise<ServeResult> {
   const { write, stderr } = options
   const executionHost = createExecutionHostBinding(hostFiles)
+  // One stdout writer: the telemetry `stdout` outlet and the log bridge write through `write` too.
+  // The `stderr` outlet gets the bare writer (one JSON record per line); only the summary line for
+  // a person carries the serve prefix.
+  const telemetry = createTelemetryBinding({
+    write,
+    stderr,
+    summary: line => stderr(`${SERVE_PREFIX}: ${line}`),
+  })
   const profile = serveProfile({
     ...(options.plugins ?? releasePlugins),
     executionHost: executionHost.plugin,
+    telemetry: telemetry.plugin,
   })
   const probes: Probes = { started: [], applied: [] }
   let barrierCalls = 0
   let accepting = false
-  const implementations: Record<Implementation, number> = {
+  let implementations: Record<Implementation, number> = {
     real: 0,
     'contract-double': 0,
     's0-double': 0,
@@ -505,51 +709,26 @@ async function runServeWithHostFiles(
       distribution: options.distribution,
       operator: options.operator,
       allowlist: profile.allowlist,
-      bindings: hostFactoryBindings,
+      bindings: { ...hostFactoryBindings, ...telemetryFactoryBindings },
     })
     tree = loadTree(options.distribution, options.operator, profile.allowlist)
     checkModelRowConsistency(tree.rows)
-    rows = tree.rows.map((row): RowSpec => {
-      if (row.plugin === 'executionHost') executionHost.parseConfig(row.config)
-      if (row.plugin === STUB_EXPORT) {
-        const manifest = manifests.get(row.id) ?? NO_MANIFEST
-        return {
-          row,
-          manifest,
-          plugin: stubRowPlugin(row.id, manifest, probes),
-          implementation: 's0-double',
-        }
-      }
-      const declared = profile.declarations.get(row.plugin)
-      if (declared === undefined)
-        throw new ConfigError('unknown-plugin', `plugin "${row.plugin}" carries no row declaration`)
-      const { declaration, plugin } = declared
-      const { lifecycle } = declaration
-      return {
-        row,
-        manifest: declaration.manifest,
-        plugin: declaredRowPlugin(row.id, plugin, probes),
-        implementation: declaration.implementation,
-        declared: {
-          row: declaration.row,
-          via: lifecycle.kind === 'entry-object' ? lifecycle.via : null,
-        },
-      }
-    })
+    parseFactoryConfigs(tree.rows, { executionHost, telemetry })
+    rows = tree.rows.map(row => rowSpecOf(row, profile, manifests, probes))
   } catch (error) {
     if (!(error instanceof ConfigError)) throw error
     stderr(`${SERVE_PREFIX}: ${error.code}: ${error.message}`)
     return result(2)
   }
-  for (const spec of rows) implementations[spec.implementation ?? 's0-double'] += 1
+  const kinds = implementationCounts(rows)
+  implementations = kinds.counts
 
-  const visibility = options.visibility ?? profile.visibility
-  const trust = trustFor(visibility)
-  const implementationOf = new Map(rows.map(r => [r.row.id, r.implementation ?? 's0-double']))
+  const trust = trustFor(options.visibility ?? profile.visibility)
   for (const record of treeRecords(
     tree,
     row => trust.describe(row).names,
-    row => implementationOf.get(row) ?? 's0-double',
+    row => kinds.of.get(row) ?? 's0-double',
+    telemetry.describe,
   ))
     write(record)
 
@@ -560,32 +739,13 @@ async function runServeWithHostFiles(
     manifests,
     new Set(modules.map(module => module.name)),
   )
-  const entryRecords: S0Record[] = [
-    {
-      kind: 'entry-object',
-      name: S0_ASSEMBLY_LIFECYCLE_KEY,
-      implementation: 'real',
-      trusted: false,
-    },
-    ...modules.map((module): S0Record => ({
-      kind: 'entry-object',
-      name: module.name,
-      implementation: module.implementation,
-      trusted: trust.isTrusted(module.name),
-    })),
-    ...placeholders.map((name): S0Record => ({
-      kind: 'entry-object',
-      name,
-      implementation: 's0-double',
-      trusted: trust.isTrusted(name),
-    })),
-  ]
-  for (const record of entryRecords) write(record)
+  for (const record of entryObjectRecords(modules, placeholders, trust)) write(record)
 
   const expected = expectedPhases(rows)
   const root = new Context()
-  // Messages up to WARN reach stdout as `log` records; without it Cordis exports up to INFO only (R2-D253).
-  exportReleaseLogs(root, write)
+  // Messages up to WARN become `log` records before any row loads; without it Cordis exports up to
+  // INFO only (R2-D253). The bridge hands them to the telemetry runtime once that row is active.
+  root.logger.exporter(telemetry.bridge.exporter)
   let loaded: readonly LoadedRow[] = []
   let shutdownReport: ReturnType<typeof runShutdown> | undefined
   const shutdown = () => {
@@ -597,21 +757,25 @@ async function runServeWithHostFiles(
       monotonicClock,
       {
         log: write,
-        ...(hasHostFiles ? { afterBusiness: finishHostFiles } : {}),
+        ...(finishHostFiles === undefined ? {} : { afterBusiness: finishHostFiles }),
+        // After storage, before the report is fixed: the tree writes no diagnostic any more.
+        afterStorage: deadline => telemetry.close(Math.max(0, deadline - monotonicClock.now())),
         disposeRoot: async () => {
-          if (hasHostFiles) await finishHostFiles()
+          await finishHostFiles?.()
           await hostFiles.close()
           await disposeTree(root, loaded)
         },
       },
     ))
   }
-  const hasHostFiles = rows.some(spec => spec.row.plugin === 'executionHost')
-  const finishHostFiles = () =>
-    hostFiles.finish(async () => {
-      const row = loaded.find(candidate => candidate.id === 'execution-host')
-      if (row !== undefined) await disposeRow(row, () => hostFiles.request())
-    })
+  /** The host-files settlement after the business phase, only with the factory row enabled. */
+  const finishHostFiles = rows.some(spec => spec.row.plugin === 'executionHost')
+    ? () =>
+        hostFiles.finish(async () => {
+          const row = loaded.find(candidate => candidate.id === 'execution-host')
+          if (row !== undefined) await disposeRow(row, () => hostFiles.request())
+        })
+    : undefined
   let stoppedByRegistry = () => {}
   const registryStop = new Promise<void>(resolve => {
     stoppedByRegistry = resolve
@@ -635,25 +799,11 @@ async function runServeWithHostFiles(
     readTrusted: name => trust.contextForName(root, name),
     once: createOnce(),
   }
-  const entryObjects: EntryObject[] = [
-    ...modules.map((module): EntryObject => ({
-      name: module.name,
-      implementation: module.implementation,
-      registersFor: module.registersFor ?? [],
-      install: scope => module.install(scope, env),
-    })),
-    ...placeholders.map((name): EntryObject => ({
-      name,
-      implementation: 's0-double',
-      value: Object.freeze({ standIn: name }),
-    })),
-  ]
-
   const started = await startTree({
     root,
     trust,
     rows,
-    entryObjects,
+    entryObjects: entryObjectsOf(modules, placeholders, env),
     prepare: () => prepareStartupDirectory(rows),
     readinessTimeoutMs: options.readinessTimeoutMs,
     barrier: () => {
@@ -661,49 +811,21 @@ async function runServeWithHostFiles(
     },
   })
 
-  if (started.kind === 'rejected') {
-    for (const diagnostic of started.diagnostics)
-      stderr(`${SERVE_PREFIX}: ${describeDiagnostic(diagnostic)}`)
-    await root.fiber.dispose()
-    return result(started.exitCode)
-  }
-  if (started.kind === 'entry-failed') {
-    stderr(`${SERVE_PREFIX}: entry-object ${started.name}: install failed`)
-    const report = await shutdown()
-    write({ kind: 'shutdown-result', ...report })
-    return result(started.exitCode)
-  }
-  if (started.kind === 'preparation-failed') {
-    stderr(`${SERVE_PREFIX}: tenant directory preparation failed`)
-    await root.fiber.dispose()
-    return result(started.exitCode)
-  }
+  if (started.kind !== 'started')
+    return result(await settleStartFailure(started, { write, stderr, root, shutdown }))
 
   loaded = started.rows
-  const startFailure = barrierCalls > 0 ? await registry.startAll() : undefined
-  const startCode = startFailure === undefined ? started.report.exitCode : 3
-  accepting = startCode === 0
-  for (const state of started.report.rows) write({ kind: 'row-state', ...state })
-  write({
-    kind: 'startup-result',
-    profile: 'real',
-    scope: 'serving',
-    accepting,
-    enabledRows: tree.rows.length,
-    outcome: startFailure === undefined ? started.report.outcome : 'start-failed',
-    ...(startFailure === undefined ? {} : { startFailure }),
-    implementations,
+  const startCode = await startAndReport({
+    registry,
+    started,
     barrierCalls,
-    startedRows: probes.started,
-    appliedRows: probes.applied,
+    enabledRows: tree.rows.length,
+    implementations,
+    probes,
+    write,
   })
-
-  if (accepting) {
-    const request = stopRequest(options.stop)
-    const reason = await Promise.race([request.promise, registryStop.then(() => null)])
-    request.cancel()
-    if (reason !== null) stderr(`${SERVE_PREFIX}: stop requested: ${reason}`)
-  }
+  accepting = startCode === 0
+  if (accepting) await awaitStop(options.stop, registryStop, stderr)
   const report = await shutdown()
   write({ kind: 'shutdown-result', ...report })
   return result(finalExitCode(startCode, report.overall))

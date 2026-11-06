@@ -485,6 +485,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | `read-history` | 必填 | 禁止 | `tenant`、`session`、`cursor`；`cursor` 为 null 时另有 `direction`、`pageBytes` |
 | `cancel-run` | 必填 | 禁止 | `tenant`、`session`、`controlId`、`run`、`urgency` |
 | `stop-call` | 必填 | 禁止 | `tenant`、`session`、`controlId`、`producer` |
+| `read-session-diagnostics` | 必填 | 禁止 | `tenant`、`session`、`cursor`；`cursor` 为 null 时另有 `run`、`pageBytes` |
 
 [会话观察](#会话观察)另有 `observe-session` 与 `cancel-observation` 两个请求操作名。除本表与这两个操作外，任何其他操作名在会话位置都是 `protocol-rejected`，`observation-frame` 也是。
 
@@ -500,11 +501,11 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | `acceptId` | 非空字符串，调用者在首次发送前生成的受理标识。唯一范围是同一会话。重试保持同值。 |
 | `inputId` | 非空字符串，调用者在首次发送前生成的输入标识。唯一范围是同一会话。重试保持同值。 |
 | `message` | 一条 `role` 为 `user` 的消息，形状归 [message 包](../../common/message/SPEC.md)。本成员的读取范围见[会话编解码函数](#会话编解码函数)。 |
-| `cursor` | 键必须出现。null 表示读首页；否则是非空字符串，即上一页回复里 `next` 的原文。 |
-| `direction` | `forward` 或 `backward`。只在 `cursor` 为 null 时出现。 |
+| `cursor` | 键必须出现。null 表示读首页；否则是非空字符串，即上一页回复里 `next` 的原文。`read-history` 与 `read-session-diagnostics` 的游标各自独立，不能互换。 |
+| `direction` | `forward` 或 `backward`。只在 `read-history` 的 `cursor` 为 null 时出现。 |
 | `pageBytes` | 匹配 `^[1-9][0-9]*$` 的文本，一页的字节上界。只在 `cursor` 为 null 时出现。 |
 | `controlId` | 非空字符串，调用者在首次发送前生成的控制标识。唯一范围见[会话中断操作](#会话中断操作)。 |
-| `run` | 非空字符串，要取消的 Run 的标识文本。 |
+| `run` | `cancel-run`：非空字符串，要取消的 Run 的标识文本。`read-session-diagnostics`：null 表示全部 Run，从最新开始；否则是一个 Run 的标识文本，非空字符串。只在 `cursor` 为 null 时出现。 |
 | `urgency` | `graceful` 或 `force`。 |
 | `producer` | 恰含 `kind` 与 `call` 两个字段的对象。`kind` 为 `model` 或 `tool`，`call` 为非空字符串，即要停止的那次调用。 |
 
@@ -512,12 +513,12 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 服务端接入按下面的次序处理一份已经完成传输保护的会话消息。前一步给出终端结果时，不做后面的步骤。
 
-1. 协议读取：严格 JSON、版本、操作名、信封与 body 的封闭字段和类型；`tenant` 的内层读取；`session` 的文本格式；`message` 按 message 包解码且 `role` 为 `user`；`pageBytes` 的文本格式；`cursor` 与 `direction`、`pageBytes` 的出现规则；`controlId`、`run`、`producer.call` 为非空文本，`urgency` 与 `producer.kind` 属于各自的封闭取值，`producer` 恰含 `kind` 与 `call`。任一不合规是 `protocol-rejected`，Session 不被调用。必填 `loginProof` 缺失或为空字符串不在这一步拒绝。
+1. 协议读取：严格 JSON、版本、操作名、信封与 body 的封闭字段和类型；`tenant` 的内层读取；`session` 的文本格式；`message` 按 message 包解码且 `role` 为 `user`；`pageBytes` 的文本格式；`cursor` 与 `direction`、`pageBytes` 的出现规则，以及 `read-session-diagnostics` 的 `cursor` 与 `run`、`pageBytes` 的出现规则；`controlId`、`run`、`producer.call` 为非空文本，`urgency` 与 `producer.kind` 属于各自的封闭取值，`producer` 恰含 `kind` 与 `call`。任一不合规是 `protocol-rejected`，Session 不被调用。必填 `loginProof` 缺失或为空字符串不在这一步拒绝。
 2. 登录识别：`loginProof` 交给 identity。缺失、空字符串、无效或不是本部署签发的证明，对外同一份 `denied`；依据不可得是 `basis-unavailable`。
 3. 行事租户：`create-session` 的 `actingTenant` 不等于该登录的当前选择时是 `denied`，响应不包含实际选择。
 4. 目标租户与主体：目标租户（`create-session` 为 `actingTenant`，其他操作为 body 的 `tenant`）的账号不等于识别出的账号时是 `denied`。签发主体不可用（签发者未安装或签发失败）时是 `basis-unavailable`。
-5. 部署范围：`create-session` 的定义名不在部署集合内，或 `read-history` 的 `pageBytes` 超出部署上界时，是 `invalid`。
-6. Session 判断：资格、会话存在与业务规则由 Session 判断，结果按下表映射。主体在该租户下没有当前资格与会话不存在对外都是 `denied`，不能区分。例外：`stop-call` 的目标是 Tool 调用时，在访问裁定之后、会话存在核对之前答 `unsupported`（见[会话中断操作](#会话中断操作)），所以这时不论会话是否存在都得 `unsupported`，不泄露存在性。
+5. 部署范围：`create-session` 的定义名不在部署集合内，或 `read-history`、`read-session-diagnostics` 的 `pageBytes` 超出部署上界时，是 `invalid`。`read-session-diagnostics` 的游标错域、失效或被篡改也在这一步是 `invalid`。
+6. Session 判断：资格、会话存在与业务规则由 Session 判断，结果按下表映射。主体在该租户下没有当前资格与会话不存在对外都是 `denied`，不能区分。例外：`stop-call` 的目标是 Tool 调用时，在访问裁定之后、会话存在核对之前答 `unsupported`（见[会话中断操作](#会话中断操作)），所以这时不论会话是否存在都得 `unsupported`，不泄露存在性。`read-session-diagnostics` 在 Session 判断之后再读 Agent、Model 与 Tool，这三个来源各自核资格；它们的拒绝不改变 `outcome`，只成为[会话诊断页](#会话诊断页)的缺口。
 
 `cancel-run` 与 `stop-call` 没有行事租户，第 3 步不适用。两者的第 6 步先做 Session 的访问裁定，`denied` 与不可用先于一切。仅 `stop-call`：`producer.kind` 为 `tool` 时返回 `unsupported`。这一判定在访问裁定之后，在会话存在核对、操作认回与目标查找之前，只看 `producer.kind`，与会话状态、目标是否存在、该控制标识是否已用无关，所以不披露这些事实，也不写任何记录。
 
@@ -545,6 +546,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | `read-history` | `succeeded`、`denied`、`invalid`、`basis-unavailable` | `cursor` 为 null 时以 `from` 为 null 调 `begin`，否则调 `next`：`invalid` 含游标错域、失效或被篡改；不返回空页代替 `basis-unavailable` |
 | `cancel-run` | `succeeded`、`denied`、`invalid`、`conflict`、`not-found`、`basis-unavailable`、`unknown` | `cancelRun`，映射见[会话中断操作](#会话中断操作) |
 | `stop-call` | 同 `cancel-run`，另有 `unsupported` | `stopCall`，映射见[会话中断操作](#会话中断操作) |
+| `read-session-diagnostics` | `succeeded`、`denied`、`invalid`、`basis-unavailable` | `history.begin`，反向，种类取部署披露清单；`cursor` 非 null 时从游标固定的位置之前继续。`invalid` 含游标错域、失效或被篡改。Session 之后的来源读取不改变 `outcome`，见[会话诊断页](#会话诊断页) |
 
 表中没有另写的 Session 结果按同一规则映射：`denied` 为 `denied`，`invalid` 为 `invalid`，`archived` 为 `archived`，`frozen` 为 `frozen`，`unavailable` 为 `basis-unavailable`，`commit-unknown` 为 `unknown`。每个操作另有第 1 步的 `protocol-rejected`。
 
@@ -557,6 +559,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | `query-send-input` 的 `succeeded` | 空对象。它表示原受理已提交；前提见[尚未提供](../../../docs/architecture/runtime/runtime-contract-handoff.md#尚未提供) |
 | `read-history` 的 `succeeded` | `entries`、`next`、`exhausted`、`scannedThrough`，见[历史页](#历史页) |
 | `cancel-run` 与 `stop-call` 的 `succeeded` | `kind` 为 `requested` 或 `ended` 的联合，见[会话中断操作](#会话中断操作) |
+| `read-session-diagnostics` 的 `succeeded` | `runs`、`next`、`exhausted`、`scannedThrough`、`basis`、`gaps`，见[会话诊断页](#会话诊断页) |
 | 其他结果 | 空对象 |
 
 ### 会话中断操作
@@ -618,11 +621,30 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 `next` 是字符串或 null，原样作为下一次的 `cursor`。`exhausted` 为真表示当前上界之内已读完。空页不表示读完；`scannedThrough` 是实际扫描到的位置文本。
 
+### 会话诊断页
+
+`read-session-diagnostics` 的 `succeeded` body 是一个会话的只读组合视图：Session 历史给出 Run 的骨架与调用登记，Agent 给出 Run 怎样结束，Model 与 Tool 给出每次调用实际发生了什么。本节是候选，待 RFC-0013 接受；设计依据是 [RFC-0013 的 A 线](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。本节只拥有线上形状与它的闭合规则；来源怎样组合、每个来源读什么归[服务端接入](../server-entry/SPEC.md#会话诊断投影)。精确类型在 [src/session-messages.ts](src/session-messages.ts) 的 `SessionDiagnosticsPage`。
+
+| 成员 | 内容 |
+| --- | --- |
+| `runs` | `SessionRunDiagnostic` 的数组，按日志位置从新到旧。 |
+| `next`、`exhausted`、`scannedThrough` | 规则同[历史页](#历史页)：`next` 原样作为下一次的 `cursor`；空页不表示读完。 |
+| `basis` | `upper`：本页依据的 Session 修订文本。 |
+| `gaps` | `SessionDiagnosticGap` 的数组：`source` 取 `session`、`agent`、`model`、`tool`；`subject` 是被问的对象（Run、调用引用、执行或条目种类）；`reason` 取 `unsupported`、`unavailable`、`denied`、`not-disclosed`、`not-accepted`、`not-found`、`not-recorded`、`retention-expired`、`truncated`。 |
+
+每个 Run 有：`run`、`entry`（`interactive` 或 `dispatch`）、`execution`、`started`（`position` 是 `run.started` 的条目标识；`at` 是 `known` 加时刻文本，或 `unknown`）、`attempts`（计数文本）、`controls`（`control.requested` 与 `control.progress` 的闭合字段：`position`、`kind`、`target`、`intent`、`state`，条目不带的字段为 null）、`terminal`、`calls`（`registered` 计全部 `call.bound`，`projected` 计进入扇出的那些）、`modelCalls`、`toolCalls`、`messages`（按种类计数）。
+
+`terminal` 为 null 表示 Run 未终结。否则它带 `outcome`（`completed`、`failed`、`cancelled`）与 `cause`：`record` 是 Session 记录的原因文本或 null；`structured` 是 Agent 结束候选的闭合字段。`structured` 的 `kind` 取：`unknown`（带 `reason`，取缺口原因中除 `not-disclosed`、`truncated` 之外的值）；`none`（`completed` 的 Run，接入不读它的结束候选）；`no-failure`（读到结束候选而没有失败，带 `conclusion`）；`model-refused`（带 `failure`：`denied`、`invalid`、`unsupported`、`capacity`）；`no-reply`（带 `cause` 与 `upstreamStatus`，各为文本或 null）；`cannot-fit`（带 `reason`：`fixed`、`after-compaction`）；`request-rejected`、`compaction-invalid`、`message-rejected`、`extension-stop`、`guard`。它不带任何自由文本：供应商错误原文、诊断文本、消息正文与工具参数都不进本页。
+
+每次模型调用有：`reference`、`purpose`、`call`（`found` 带 `call` 与 `phase`，或 `unknown` 带 `reason`）、`dispatches`（每次派发的 `dispatch`、`revision`、`adapter`、`send`、`firstContent`、`outcome`、`timing`；`outcome` 为 `failed` 时带 `cause` 与 `upstreamStatus`；`timing` 的三项各为 `known` 加毫秒文本或 `unknown`）、`coverage`（`complete-through-snapshot`、`expired-prefix`、`unknown`）、`usage`（账目视图或 `unknown`）。每次工具调用有：`reference`、`state`（`found` 带 `call`、`phase`、`relation`、`terminal`，或 `unknown`）、`account`（账目视图或 `unknown`）、`diagnostics`（恒为 `unsupported`）。账目视图的 `kind` 是 `account`，带 `usage` 与 `cost` 的各项（名字或来源、单位、数值状态与词素）、`duration` 与 `receipt`；它不折算金额。
+
+读者按这些规则理解本页：缺记录时值是 `unknown` 并带原因，不是「没有发生」；`exhausted` 为假的空页不表示没有 Run；一个来源的缺口不改变其他来源的结果；`gaps` 里的每一条都对应一次没有得到答案的读取或一处部署不披露的种类。
+
 ### 未知与再送
 
 连接断开、超时与响应丢失使调用者本地保持未知，不是未提交。调用者可以用同一组标识原样再送，同内容得到原回执，`recovered` 为真；也可以用 `query-create-session` 或 `query-send-input` 认回。`query-create-session` 得到 `denied` 时，创建可能从未提交，调用者用同一 `createCallId` 原样再送 `create-session`。存储不能产生排除证明时，`query-send-input` 得到 `unknown` 而不是 `not-committed`。确认 `not-committed` 之前，不换新标识重做同一意图。SDK 的零字节再送规则同[未知、重复、重试、缓存和列表](#未知重复重试缓存和列表)。
 
-`cancel-run` 与 `stop-call` 得到 `unknown` 或没有收到响应时，调用者以同一 `controlId` 原样再送，服务先查询原尝试。不存在第三个线上查询操作。
+`cancel-run` 与 `stop-call` 得到 `unknown` 或没有收到响应时，调用者以同一 `controlId` 原样再送，服务先查询原尝试。不存在第三个线上查询操作。`read-history` 与 `read-session-diagnostics` 只读，没有 `unknown`；调用者原样再送即可。
 
 会话操作不刷新登录的空闲计时，直到 identity 定义成功业务访问报告的形状。
 

@@ -48,14 +48,26 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 
 | 事件 | 何时发出 | 字段 |
 | --- | --- | --- |
-| `segment`，`phase: 'start'`，`segment: 'agent'` | 一次工作通过开始：`accept`（`invoke` 等待的可靠受理，U0 到 E0，含 `coordinator.accept()`）或 `run`（一次 `runExecution` 驱动，从 E1 或 R0 起，到它结束、停在已保存的等待或终结为止） | `span`（进程内唯一，起止成对）、`pass`、`execution` |
+| `segment`，`phase: 'start'`，`segment: 'agent'` | 一次工作通过开始：`accept`（`invoke` 等待的可靠受理，U0 到 E0，含 `coordinator.accept()`）或 `run`（一次 `runExecution` 驱动，从 E1 或 R0 起，到它结束、停在已保存的等待或终结为止） | `span`（进程内唯一，起止成对）、`pass`、`execution`、`tenant` |
 | `segment`，`phase: 'end'` | 同一通过交回时，含抛出 | 上列字段加 `outcome`：带 `failure` 的答复与抛出为 `failure`，其余为 `ok` |
 
 - **时间**：事件不带时间。观察者在被同步调用的那一刻读自己的单调时钟，那一刻就是边界时刻。本成员不读 `Date.now`、`performance.now`，也不用注入的 `AgentClock`：它读 UTC 时刻、异步作答、测试会给它计次，不是单调时钟。
+- **租户**：`tenant` 是工厂绑定（`AgentRuntimeBinding.tenant`）的租户，类型是 legal-identity 的 `TenantId`。工厂总知道它，所以每个事件都带它。字段是可选的：它是兼容的加法，没有它的旧事件形状仍然成立。采集者据它给记录定作用域；拿不到租户的记录不能标成系统自身的事实（telemetry-contract SPEC TC-4）。
 - **段是包含式的**：一次 `run` 通过包含它等待 Journal、Model、Tool 与其他端口的时间。两次通过之间的等待（`waitForWake`）不在任何段内。采集者按已知的外部等待区间扣除，段之间不能相加。
 - **没有 Agent 的轮完成事件**：一轮的完成事实归 Session 的 `run.terminal` 提交（Session SPEC「测量事件」）。Agent 的执行终结能从 `run` 通过的最后一次 `end` 与 Journal 的 `ended` 事件读出，本成员不另发，免得出现两个相互可以不一致的“轮完成”。
 - **观察者抛出**不改变任何答复，也不留痕。观察者不得回调本 runtime。
 - **不覆盖**：`./testing` 的内存装配与独立接收入口（Model 与 Tool 接收工厂）不发事件；`resume` 与恢复面本阶段未实现，也不发；`quiesce` 不发事件。`invoke` 认回一次较早的受理时（`findAccepted`）重新受理的那一次，同样算一次 `accept` 通过。
+
+### 遥测投影
+
+<a id="遥测投影"></a>本段是候选，待 RFC-0013 接受。设计依据是 [RFC-0013「计时记录与离线聚合」](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#计时记录与离线聚合)。根入口的 `createAgentTelemetry(port, { instance, maxOpenSegments })` 把测量事件投影为 `@omne-harness/telemetry-contract` 的记录，返回 `{ measure, dropped }`。装配者把 `measure` 交给工厂的第三个参数。facade 只依赖 telemetry-contract 的根入口，不依赖提供者，不依赖 Cordis。源码在 [telemetry.ts](src/telemetry.ts)。
+
+- 一次通过是一个遥测段：`accept` 是 `omne.agent.pass.accept`，`run` 是 `omne.agent.pass.run`（owner `agent`，定义在 `agentPassSegments`）。start 开段，end 以 `outcome` 结束。
+- 关联：`component` 是 `agent`，`instance` 由装配者给出，`attempt` 是执行（owner `@omne-harness/agent`，ref 为 execution id）。没有 `work`：Agent 不认识 Session。
+- 作用域：`scope` 是 `tenantScope(tenant)`。事件没有 `tenant` 时 facade 不发记录，计入 `dropped().invalid`；不改标为 `system`（telemetry-contract TC-4）。每条记录各自 `port.bind`，不缓存 emitter（TC-15）。
+- 有界：同时打开的段最多 `maxOpenSegments` 个，超过的 start 丢弃并计入 `dropped().capacity`；end 结束段后删除配对表条目。没有 start 的 end 什么也不做。
+- 计时：facade 不读时钟。段的时长由提供者在 `startSegment` 与 `end` 之间计算。
+- 不抛错：`maxOpenSegments` 不是正整数时构造抛 `TypeError`；此外 facade 不抛错。
 
 ## 资源与替换
 
@@ -63,7 +75,7 @@ F4 从非空终态台账认回已登记观察，并把未登记项保留给长�
 
 ## 验证
 
-测量事件的测试在 `tests/measure.spec.ts`：受理与驱动两类通过的起止成对、观察者缺省与抛出时执行的结果不变。
+测量事件的测试在 `tests/measure.spec.ts`：受理与驱动两类通过的起止成对、观察者缺省与抛出时执行的结果不变。`tests/telemetry.spec.ts` 核对每个事件带绑定的租户，并用 telemetry-contract 的捕获替身核对[遥测投影](#遥测投影)：段的名字、作用域、`attempt` 与结局，缺租户不发记录并计入 `invalid`，配对表上限，以及经真实 runtime 的一次 invoke。
 
 以失败终结的测试在 `tests/run-ended-failed.spec.ts`：主调用以 connect-timeout 失败收场时，终态结论原因为 `<execution>/step-1/model-failed/upstream-unavailable/connect-timeout`，接收者恰好收到一次报告；诊断中的 `/` 被编码；负控为正常完成而没有内容时原因仍是 `no-reply`；正常完成不报告；接收者抛出时执行照样终结。只覆盖内存 Journal 与脚本化 Model。
 

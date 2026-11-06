@@ -12,6 +12,7 @@
 
 - 已实现：四张表与迁移 `001-model-records`；行与调用文档之间的解析；`createSqlModelStorage`，即 `ModelCommandStorage` 的 SQL 实现；参加者 `model`；读 handler `model.call` 与 `model.pending` 及各自的模块文件；静态材料 `modelStorageMaterials()` 及其 `codeDigest`；构造期核对；`createSqlModelCommands`，即共享核心的 22 个方法装在这份存储上；`createSendMirror`，即发送协调器。
 - 已实现：`./cordis` 的 `createSqlModelRecordsPlugin`，在记录插件上发布 `modelCommands`，并拥有独立的发送子插件。应用接线由应用装配承担。
+- 已实现（候选，待 RFC-0013 接受）：诊断读面 `createSqlModelDiagnostics`，即 `ModelDiagnostics.list` 在同一份记录上的实现；读 handler `model.diagnostics` 及其模块文件；`./cordis` 的 `createSqlModelDiagnosticsPlugin`，发布 `modelDiagnostics`。行为见[诊断读面](#诊断读面)。应用行的接线归应用装配。
 
 ### 耐久的 ModelCommands
 
@@ -43,6 +44,48 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 - 父 fiber 撤除会关闭本次观察源、撤除命令贡献并等待子 fiber 清理。`storage`、`domains`、运行级 initialRun 及其他注入对象仍归其提供者所有，记录插件不关闭它们。清理不撤销已提交 SQL 事实，也不声明已发出的外部请求可回滚。宿主、发送子 fiber 与 channel 的正常关闭次序由入口组合者承担，见 [model-host-local](../model-host-local/SPEC.md#首次执行与公共观察接线)。
 
 [cordis.spec.ts](tests/cordis.spec.ts) 用真实 Cordis、现有 `node:sqlite` 存储夹具与具名发送替身核对上述生命周期、配置拒绝与内存对拍。它不证明真实发送、Worker 耐久性或发行应用接线。
+
+### 诊断读面
+
+本节是候选，待 RFC-0013 接受，不在上文波 1 设计的采用范围内。本节拥有 `ModelDiagnostics.list`（[model-contract 诊断查询与保留](../model-contract/SPEC.md#诊断查询与保留)）在本成员上的实现。设计依据是 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) A 线「`ModelDiagnostics` 怎样实现」与裁定 DA2。公开类型与校验归 [diagnostics.ts](src/diagnostics.ts)、[cordis.ts](src/cordis.ts)。本节不重写契约的披露、分页与保留协议。
+
+**数据来源。**读 handler `model.diagnostics` 按 `(tenant, call)` 读 `md_call.row_version`，再按 `seq` 升序读 `md_dispatch` 的 `tenant`、`call`、`seq`、`dispatch`、`record`、`logical_terminal` 列。它接受 `after`（上一页最后一行的 `seq`，首页为 null）与 `limit`，多读一行以判断有没有下一页。每条语句都带 `tenant = ?`。主线程再核对每行的租户与调用。
+
+**字段映射。**每行 `md_dispatch` 投影为一条 `ModelAttemptDiagnostic`。只复制下表列出的字段。
+
+| 字段                                                    | 来源                                                                                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `id`                                                    | `mdiag_` 加 SHA-256(`call`、`dispatch`) 的十六进制。确定编码，不另存                                                     |
+| `call`、`dispatch`、`revision`                          | 请求的调用、`md_dispatch.dispatch`、`md_call.row_version` 的十进制文本                                                   |
+| `adapter`                                               | `record.supplier.adoption`                                                                                               |
+| `send`                                                  | `record.send`：`started` 为 `sent`，`prepared` 与 `not-sent` 为 `not-sent`，`unknown` 为 `unknown`。本地意图不证明已发送 |
+| `firstContent`                                          | `record.firstContent`，同值                                                                                              |
+| `outcome`                                               | `logical_terminal`，缺席时 `record.terminal`，都缺席时 `pending`。`failed` 只带 `fault.cause` 与 `fault.upstreamStatus`  |
+| `timing.materialize`、`sendToFirstContent`、`execution` | 存储没有阶段时间，三项都是 `unknown`（DA6 未采用）                                                                       |
+
+`fault.diagnostic`、`fault.reported`、`record.supplier.recipient`、`record.supplier.model`、`record.messages`、`account`、`materialization`、`windows`、`events`、`md_dispatch.diagnostics` 与分片都不进页。
+
+**页。**`snapshot` 是本成员签发的 `DurableEvidence`：`owner` 为 `model-records`，`record` 为调用，`revision` 为 `row_version`，`digest` 为 SHA-256(租户文本、调用、`row_version`)。`retention` 是部署配置的保留采用。`coverage` 恒为 `complete-through-snapshot`，因为本成员还没有清理。清理实现后改为按实际前缀。
+
+**资格映射。**配置字段 `diagnosticsRead` 选择映射，现在只有 `tenant-self`：代租户行事的主体对自己租户的调用持有诊断读取资格。实现向记录的资格端口 `ModelCommandsAuthority.authorize` 提一个租户级问题（`action: 'facts'`，`resource: { kind: 'tenant' }`），不提调用。端口拒绝时整次 `denied`，`action` 为 `diagnostics`。端口 `unavailable` 时原样返回。这是部署的显式采用，不是普通调用读取资格的自动延伸。映射暂按 RFC-0013 DA2 的建议推进，等 model 线拥有者与数据保护拥有者确认。
+
+本成员只把租户级问题交给资格端口，不自己判断主体。所以 `tenant-self` 对哪些主体生效，由装配交来的资格端口决定。在 harness-server 的发行资格表下，`facts` 动作只放行会话工作主体与宿主主体，`tenant-self` 对登录得到的代租户主体不生效：这个主体读本租户的调用答 `denied`。见 harness-server 的 [Model 生产接线](../../../apps/harness-server/docs/rows/model-release.md#已知限制)。
+
+**检查次序。**保留采用、租户文本、资格、`limit`、游标、事务域、读取。被拒绝的主体得不到调用是否存在、游标是否有效与 `limit` 是否合法的任何信息。
+
+**`limit`。**正安全整数，上限 `DIAGNOSTICS_PAGE_MAX`（100）。超出时 `invalid`，`field` 为 `limit`。
+
+**游标。**`mdcur_` 加 base64url(`[row_version, seq]`) 加 base64url(HMAC-SHA256)。HMAC 的输入是租户文本、调用、保留采用的 `digest` 与载荷。密钥默认每个实例随机 32 字节，也可经选项 `cursorKey` 给出。续页先重新核资格，再核对 HMAC 与载荷，再读取。下列情形返回 `invalid`，`field` 为 `after`：HMAC 不符、另一调用或另一租户的游标、载荷不是两个非负安全整数、读到的 `row_version` 与游标不同（`reason` 为 `snapshot-superseded`）。所以游标不携带权限，也不换成新快照。游标只在签发它的实例内有效，这是本成员采用的分页快照期限。
+
+**缺席。**租户没有事务域，或调用不存在：返回空页，`next` 为 null，`snapshot.revision` 为 `0`，`coverage` 为 `complete-through-snapshot`。两种情形的回答相同。带游标时回答 `invalid`，因为游标的 `row_version` 至少为 1。
+
+**保留采用。**配置 `retention` 是一条 `Adoption`。缺席时插件照常装载，`list` 对每个输入都返回 `unavailable`，依赖名 `model-records`，不先核资格。本成员不默认永久保留。
+
+**失败。**本成员自己产生的种类：`denied`（资格或租户文本）、`invalid`（`limit`、`after`）、`unavailable`（保留未采用、事务域、读取、行不能解析）。
+
+**插件。**`./cordis` 的 `createSqlModelDiagnosticsPlugin({ inject, resolve })` 返回继承 `ModelDiagnosticsService` 的插件类。数据配置是 `{ diagnosticsRead: 'tenant-self', retention?: Adoption }`。`resolve(ctx, config)` 在每次激活时给出 `storage`、`domains` 与 `authority`。`inject` 不能包含 `modelDiagnostics`。应用把它与记录插件放在同一提供者组，因为它读同一个租户域的同一份文档。
+
+用例在 [diagnostics.spec.ts](tests/diagnostics.spec.ts)。它经真实参加者写入调用文档，经加载的 `model.diagnostics` 读取，并用真实 Cordis 装载插件。它不证明 Worker、耐久性或发行应用接线。
 
 ### 存储端口
 
@@ -130,7 +173,7 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 
 ### 租户条件
 
-参加者与两个读 handler 的每条语句都带 `tenant = ?`。值来自本次请求的租户文本。行解析再核对一次每行的租户、调用与 operation，不一致时读取返回 `unavailable`。未登记租户的读取按空域处理，结果与「调用不存在」相同。
+参加者与三个读 handler 的每条语句都带 `tenant = ?`。值来自本次请求的租户文本。行解析再核对一次每行的租户、调用与 operation，不一致时读取返回 `unavailable`。未登记租户的读取按空域处理，结果与「调用不存在」相同。
 
 经 `ModelCommands`，另一租户的调用与不存在的调用得到相同的回答：核心先核资格，再查文档，查无调用时返回 `invalid('call', 'not-found')`。用例让两个租户共用一个事务域，所以任何一条语句丢掉租户条件，回答就不同（`tests/tenant.spec.ts`）。
 
@@ -214,20 +257,21 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 
 ### 所有权
 
-本成员拥有四张表、迁移、参加者 `model` 与两个读 handler。它不拥有存储提交协议、回执、事务域目录与组合登记。会话存储组合在 `create` 时登记包含 `session` 与 `model` 的组合。本成员不登记、不迁移。待恢复的判定 `hasRecoveryWork` 归共享核心，本成员调用它写 `pending` 列。
+本成员拥有四张表、迁移、参加者 `model` 与三个读 handler。它不拥有存储提交协议、回执、事务域目录与组合登记。会话存储组合在 `create` 时登记包含 `session` 与 `model` 的组合。本成员不登记、不迁移。待恢复的判定 `hasRecoveryWork` 归共享核心，本成员调用它写 `pending` 列。
 
 ### 静态材料
 
 `modelStorageMaterials()` 每次调用读一遍模块文件，返回 sql-contract §4 的三类描述。每个模块以构建产物的文件 URL 与文件字节的 SHA-256 描述，提供者按该文件的默认导出加载：
 
-| 材料                           | 模块文件             | 描述                                                                       |
-| ------------------------------ | -------------------- | -------------------------------------------------------------------------- |
-| 参加者 `model`                 | `commit.ts`          | 协议 `1`，拥有四张 `md_` 表，不读别的参加者的表，`grouping` 为 `singleton` |
-| 迁移 `model/001-model-records` | `schema.ts`          | 无前置迁移                                                                 |
-| 读 handler `model.call`        | `handler-call.ts`    | `snapshot`；读四张表；`maxRowsRead` 20000；`maxOutputBytes` 4 MiB          |
-| 读 handler `model.pending`     | `handler-pending.ts` | `snapshot`；只读 `md_call`；`maxRowsRead` 1001；`maxOutputBytes` 1 MiB     |
+| 材料                           | 模块文件                 | 描述                                                                                 |
+| ------------------------------ | ------------------------ | ------------------------------------------------------------------------------------ |
+| 参加者 `model`                 | `commit.ts`              | 协议 `1`，拥有四张 `md_` 表，不读别的参加者的表，`grouping` 为 `singleton`           |
+| 迁移 `model/001-model-records` | `schema.ts`              | 无前置迁移                                                                           |
+| 读 handler `model.call`        | `handler-call.ts`        | `snapshot`；读四张表；`maxRowsRead` 20000；`maxOutputBytes` 4 MiB                    |
+| 读 handler `model.pending`     | `handler-pending.ts`     | `snapshot`；只读 `md_call`；`maxRowsRead` 1001；`maxOutputBytes` 1 MiB               |
+| 读 handler `model.diagnostics` | `handler-diagnostics.ts` | `snapshot`；读 `md_call` 与 `md_dispatch`；`maxRowsRead` 102；`maxOutputBytes` 4 MiB |
 
-两个读都是 `snapshot`：`run` 读一个调用后按行版本比较写入，读不到更新的提交只会造成冲突与重读，不会丢写。handler 的模块文件只默认导出 `reads.ts` 里的 handler，所以摘要只覆盖该文件本身的字节；`reads.ts` 等被导入文件的变化不改变它，这与参加者、迁移模块的摘要相同。本成员不建目录、不声明组合：应用把这份材料与别的拥有者的材料合成一个目录。
+三个读都是 `snapshot`：`run` 读一个调用后按行版本比较写入，读不到更新的提交只会造成冲突与重读，不会丢写。诊断读把行版本钉在游标里，更新的提交使续页 `invalid`。handler 的模块文件只默认导出 `reads.ts` 或 `diagnostics.ts` 里的 handler，所以摘要只覆盖该文件本身的字节；被导入文件的变化不改变它，这与参加者、迁移模块的摘要相同。本成员不建目录、不声明组合：应用把这份材料与别的拥有者的材料合成一个目录。
 
 ### 生命周期
 
@@ -244,17 +288,18 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 
 ### 自有义务的验证
 
-| 义务                                                                                                                                                  | 用例                        |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| 迁移建出四张 STRICT 表，主键以 tenant 开头                                                                                                            | `tests/schema.spec.ts`      |
-| 解析穷尽每一列，拒绝缺列、多列、他租户行，分片折叠回块                                                                                                | `tests/documents.spec.ts`   |
-| run 的 CAS 冲突重读、参加者拒绝超前版本、认回、未定登记、份额、租户条件、N1、N2、读关系进度                                                           | `tests/commit.spec.ts`      |
-| M4-2：`checkCommandsAccounts` 对内存实现与本实现各跑一次，逐项相同                                                                                    | `tests/accounts.spec.ts`    |
-| M4-3：资格结果、守卫声明、调用与容量由一次提交写入；提交失败时都不存在；N1 在提交处拒绝                                                               | `tests/admission.spec.ts`   |
-| M4-4：经 commands 的他租户调用与不存在相同；写路径不碰他租户的同名调用；参加者拒绝他租户行                                                            | `tests/tenant.spec.ts`      |
-| M4-5：保存成功但回包丢失时，同 operation 重试认回原结果、不重复写；未定 operation 进入待恢复扫描；按租户的登记上限；commit 须在 scope 的 operation 内 | `tests/unknown.spec.ts`     |
-| M4-6（早期守卫）：与 `sessionStorageMaterials(options)` 组成有效组合，构造期核对两方的 `codeDigest`；handler 文件变了而摘要未更新时构造失败                  | `tests/combination.spec.ts` |
-| 静态材料：四个模块各有文件 URL 与匹配的 SHA-256；按默认导出加载出描述所指的参加者、迁移与 handler，并经它们服务 commands 的读取                       | `tests/materials.spec.ts`   |
+| 义务                                                                                                                                                                                                               | 用例                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- |
+| 迁移建出四张 STRICT 表，主键以 tenant 开头                                                                                                                                                                         | `tests/schema.spec.ts`      |
+| 解析穷尽每一列，拒绝缺列、多列、他租户行，分片折叠回块                                                                                                                                                             | `tests/documents.spec.ts`   |
+| run 的 CAS 冲突重读、参加者拒绝超前版本、认回、未定登记、份额、租户条件、N1、N2、读关系进度                                                                                                                        | `tests/commit.spec.ts`      |
+| M4-2：`checkCommandsAccounts` 对内存实现与本实现各跑一次，逐项相同                                                                                                                                                 | `tests/accounts.spec.ts`    |
+| M4-3：资格结果、守卫声明、调用与容量由一次提交写入；提交失败时都不存在；N1 在提交处拒绝                                                                                                                            | `tests/admission.spec.ts`   |
+| M4-4：经 commands 的他租户调用与不存在相同；写路径不碰他租户的同名调用；参加者拒绝他租户行                                                                                                                         | `tests/tenant.spec.ts`      |
+| M4-5：保存成功但回包丢失时，同 operation 重试认回原结果、不重复写；未定 operation 进入待恢复扫描；按租户的登记上限；commit 须在 scope 的 operation 内                                                              | `tests/unknown.spec.ts`     |
+| M4-6（早期守卫）：与 `sessionStorageMaterials(options)` 组成有效组合，构造期核对两方的 `codeDigest`；handler 文件变了而摘要未更新时构造失败                                                                        | `tests/combination.spec.ts` |
+| 静态材料：五个模块各有文件 URL 与匹配的 SHA-256；按默认导出加载出描述所指的参加者、迁移与 handler，并经它们服务 commands 的读取                                                                                    | `tests/materials.spec.ts`   |
+| 诊断读面：白名单字段与存储一致，故障原文不进页，`timing` 为 `unknown`；他租户与无资格主体整次 `denied`；游标续页、重核资格、篡改与快照淘汰为 `invalid`；缺席为空页；保留未采用为 `unavailable`；插件装载与配置拒绝 | `tests/diagnostics.spec.ts` |
 
 用例在 `node:sqlite` 上运行真实的参加者、迁移与 handler 模块，夹具按 `modelStorageMaterials()` 的模块文件以默认导出加载它们；后五个经共享核心运行 `ModelCommands`。它们不覆盖提供者的 Worker、耐久性、队列与关闭（联调 A）。组合保证归 L-APP 的会话存储组合行，`combination.spec.ts` 只是早期守卫。
 

@@ -17,7 +17,8 @@ Implemented:
 - The eighteen governed operations of the governance location: organizations, member invitations, memberships, the current tenant, and the logins of an account. They go to identity's governance port.
 - The three model credential operations of the governance location: bind, unbind and describe the model credential of the acting tenant. They go to the `modelCredentials` port. Without the port they answer `stage-not-provided`.
 - The report of a successful business access, and the end of an observation when its login is no longer valid.
-- The seven session operations and the two observation operations of the session location. An observation stream carries the confirmation, heartbeats, and the `ended` frame only.
+- The eight session operations and the two observation operations of the session location. An observation stream carries the confirmation, heartbeats, and the `ended` frame only.
+- The session diagnostics projection behind `read-session-diagnostics`: the Run timeline from Session, the finish cause from Agent, the dispatch diagnostics from Model and the call state and account from Tool, with a gap for every read a source did not serve (SPEC「会话诊断投影」).
 - The deterministic derivation of the session operation identity `SessionOperationId`.
 
 Not implemented at this stage:
@@ -69,8 +70,12 @@ The two locations have fixed paths: `/governance-public/1` and `/session-public/
 | `identity` | identity's `IdentityOperations` | Registration and login issuance in the governance location. Login recognition in both locations and at each observation round |
 | `governance` | identity's `IdentityGovernance` | The eighteen governed operations, and the report of a successful business access. It must work over the same records as `identity`, so a revocation or a switch is what login recognition reads. An assembly that reads the provider per call answers `basis-unavailable` from the port while the provider is absent |
 | `issuer` | identity's `PrincipalIssuer` | Issues the system principal of this package (`component` is `server-entry`), and the acting principal of each session request |
-| `session` | `SessionIngressFaces`, the Session faces this package declares | The seven session operations and the read eligibility check when an observation opens. A real `SessionService` satisfies it structurally |
+| `session` | `SessionIngressFaces`, the Session faces this package declares | The eight session operations and the read eligibility check when an observation opens. A real `SessionService` satisfies it structurally |
 | `modelCredentials` | `ModelCredentialCustody`, the port this package declares, optional | The three model credential operations. The entry gives it the acting principal of the login and the acting tenant. Without it the three operations answer `stage-not-provided` |
+| `agentJournal` | `AgentFinishReader`, the `readFinish` of Agent's Journal reading, optional | The finish cause of a failed or cancelled Run in `read-session-diagnostics`. Without the port, or without `readFinish` on it, the cause is `unknown` with reason `unsupported` |
+| `modelCalls` | `ModelCallInspector`, the `inspect` of Model's calls, optional | Resolves the Model references of `call.bound` in `read-session-diagnostics`. Without it every Model call is `unknown` with reason `unsupported` |
+| `modelDiagnostics` | `ModelAttemptReader`, Model's `ModelDiagnostics`, optional | The dispatch diagnostics of a resolved Model call. Without it `dispatches` stay empty with a gap |
+| `toolQueries` | `ToolCallReader`, the `lookup` and `account` of Tool's invocation queries, optional | The state and account of the Tool references of `call.bound`. Without it every Tool call is `unknown` with reason `unsupported` |
 | `resolveDefinition` | `DefinitionResolver` | `create-session` resolves a definition name into the fields the creation adopts. A returned `undefined` answers `invalid` |
 | `diagnostics` | `DiagnosticSink`, optional | Structured diagnostic events. An event holds no body, login proof, credential, principal, or dependency error text |
 
@@ -109,8 +114,9 @@ The public contract does not depend on this package, and neither does the SDK. T
 | `maxBodyBytes.small`, `maxBodyBytes.input` | The body limits of the governance and session paths. Each limit is also the `maxBytes` of that path's json-text read |
 | `heartbeatIntervalMs` | The SSE heartbeat interval. At this stage it is also the length of one observation round, after which the entry checks the login of the observation again |
 | `jsonBudgets` | The other five json-text read budgets |
-| `maxPageBytes` | The upper bound of `pageBytes` in `read-history` |
+| `maxPageBytes` | The upper bound of `pageBytes` in `read-history` and `read-session-diagnostics` |
 | `historyKinds` | The entry kinds `read-history` discloses |
+| `diagnosticsKinds`, `maxRuns`, `maxCallsPerRun` | The session diagnostics projection: the entry kinds it reads from Session, the most Runs of one page, and the most calls of one Run that enter the fan-out. The three are given together or left out together; without them `read-session-diagnostics` answers `basis-unavailable` |
 | `observation.perLogin`, `observation.perInstance`, `observation.cancelRetentionMs` | The observation concurrency bounds per login and per instance, and the retention of an ended record |
 
 Node 24 or later is required. The package reads no environment variable and no real secret. The caller completes transport protection: the entry accepts bytes that already have it, and a transport protection failure is `unknown` to the caller.
@@ -124,6 +130,8 @@ Known limits:
 - An observation record lives in the memory of this instance, and the sticky routing of a multi-instance deployment belongs to the deployment.
 - A `stop-call` on a `tool` target reaches `stopCall` of Session first, and the entry then fixes the outward answer as `unsupported`. The "no record" promise is Session's contract; the entry only guards the outward answer, and it cannot stop a Session that writes outside its contract.
 - The input source that `send-input` gives to Session carries login state text. If a real Session writes the source into the `payload` of a history entry, `read-history` passes it through. Whether the source enters the payload, and whether the login state text is secret, belong to Session and identity, and this package does not decide for them.
+- The cursor of `read-session-diagnostics` is sealed with a key that lives as long as the entry instance. A cursor of another instance, or of an instance that restarted, answers `invalid`, and the caller starts the read again.
+- `read-session-diagnostics` reports no time of a Run start and no usage of a Model call: Session's payloads carry no time, and Model's diagnostics carry no account. Both stay `unknown` until their owners add the field (RFC-0013 DA7 and「实质备选」).
 
 ## Verification
 

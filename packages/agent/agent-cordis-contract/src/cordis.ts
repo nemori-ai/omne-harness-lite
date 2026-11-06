@@ -88,6 +88,8 @@ export abstract class AgentJournalService<P> extends Service implements AgentJou
   abstract readonly inputs: AgentJournal<P>['inputs']
   abstract readonly readReplyAdmissions: AgentJournal<P>['readReplyAdmissions']
   abstract readonly query: AgentJournal<P>['query']
+  /** Optional, as on the contract: a provider that does not implement the finish read leaves it out. */
+  abstract readonly readFinish?: NonNullable<AgentJournal<P>['readFinish']>
   abstract readonly output: AgentJournal<P>['output']
   abstract readonly capabilities: AgentJournal<P>['capabilities']
 }

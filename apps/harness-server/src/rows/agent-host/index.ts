@@ -2,9 +2,10 @@
 // `@omne-harness/agent-host-local/cordis` makes from the two construction inputs of the row; the row
 // body runs it in the row fiber, so its five faces (`agentInstanceHost` as well as the four the page
 // lists) appear and end with the row. The row declares the sixteen injects of the plugin's own
-// `inject` array: the fourteen of the assembly page and the two faces of the Model result receiver
+// `inject` array, the fourteen of the assembly page and the two faces of the Model result receiver
 // that the `agent-journal` row provides, `agentReceivedCommits` and `agentModelReceptionTargets`
-// (R2-D237). The plugin body builds the receiver from them and registers it with `modelRuntime`
+// (R2-D237), and one of its own, `telemetry` (D04: required, so a tree without the row does not
+// serve). The plugin body builds the receiver from them and registers it with `modelRuntime`
 // under the Agent consumer owner; the registration ends with the row fiber, and the ordered stop
 // below removes it first. The plugin body also mounts its Tool reception child (R2-D273): it injects
 // `toolRuntime` and `agentToolReceptionTargets` (the `agent-journal` row provides the latter) and
@@ -17,7 +18,9 @@
 //   source and every Tool action answers `unavailable` (owner `agentToolRequests`). The production
 //   composition is the Tool B segment's.
 // - `measure`: the observer of the Agent measurement events (R2-D49), handed to every runtime.
-//   Absent: no event is built.
+//   Absent: the row's own facade over the injected `telemetry`, which turns each pass of an
+//   execution into a segment `omne.agent.pass.<pass>` scoped to the tenant of the execution; the
+//   member does not know the telemetry key.
 //
 // Phase `business`, carried by the row body. The handle's stop calls the member's ordered stop,
 // `quiesceAll` of the plugin object (agent-host-local SPEC "有序停止"): the registrations of the
@@ -37,7 +40,7 @@
 // tool message would be committed as `none` and miss the history without an error (Agent
 // public-api, the `jointCommits` row). A refused value fails the load.
 import type { Context } from '@deepseek-ai/cordis'
-import type { AgentMeasure } from '@omne-harness/agent'
+import { createAgentTelemetry, type AgentMeasure } from '@omne-harness/agent'
 import {
   agentHostPlugin,
   createAgentHostLocalPlugin,
@@ -66,8 +69,11 @@ import {
   agentAccountOutletKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
+import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { defineRow, type RowBody, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
+import { FACADE_MAX_OPEN_SEGMENTS } from '../telemetry/config.ts'
+import { processInstance } from '../telemetry/instance.ts'
 
 /** The host maintenance principal: a root object of the assembly entry with no service definition. */
 const AGENT_HOST_PRINCIPAL = 'agentHostPrincipal'
@@ -79,9 +85,17 @@ export type AgentToolRequests = NonNullable<AgentHostLocalPluginInput['toolReque
 export type AgentHostRowInput = Readonly<{
   /** Builds the Tool request source from the row context. Absent: Tool actions answer unavailable. */
   toolRequestsOf?: (ctx: Context) => AgentToolRequests
-  /** The observer of the Agent measurement events. Absent: no event is built. */
+  /** The observer of the Agent measurement events. Absent: the row's facade over `telemetry`. */
   measure?: AgentMeasure
 }>
+
+/** The row's own observer: the Agent telemetry facade over the injected `telemetry`. */
+function agentMeasureOf(ctx: Context): AgentMeasure {
+  return createAgentTelemetry(ctx.telemetry, {
+    instance: processInstance,
+    maxOpenSegments: FACADE_MAX_OPEN_SEGMENTS,
+  }).measure
+}
 
 /** The joint commit the session-log Journal needs to put Agent messages into the history. */
 const REQUIRED_JOINT_COMMIT = 'message'
@@ -177,6 +191,7 @@ export function createAgentHostRowOver(pluginOf: (ctx: Context) => AgentHostPlug
         modelRuntimeKey,
         agentClockKey,
         AGENT_HOST_PRINCIPAL,
+        telemetryKey,
       ],
       sameProviderGroup: null,
     },
@@ -191,10 +206,10 @@ export function createAgentHostRow(input: AgentHostRowInput = {}) {
   return createAgentHostRowOver(ctx =>
     createAgentHostLocalPlugin({
       ...(input.toolRequestsOf === undefined ? {} : { toolRequests: input.toolRequestsOf(ctx) }),
-      ...(input.measure === undefined ? {} : { measure: input.measure }),
+      measure: input.measure ?? agentMeasureOf(ctx),
     }),
   )
 }
 
-/** The row without construction inputs: no Tool request source and no measurement observer. */
+/** The row without construction inputs: no Tool request source; the telemetry facade measures. */
 export const agentHostRow = createAgentHostRow()
