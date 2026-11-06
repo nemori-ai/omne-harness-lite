@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-本成员是[HITL 公共协议](../human-intervention/docs/protocol.md)的单机 SQL 提供者。依据为用户已接受的 HJ0 与 C2 实施范围。公开模型和应用服务合同归 human-intervention，SQL 原子性与耐久提交归 sql-contract。当前实现操作终态、请求/卡片事务、独立 WaitOwner 及完整原结果读回。Identity 组合、统一池和公开应用服务尚在实施，不能据此宣称完整 HITL 服务可用。
+本成员是[HITL 公共协议](../human-intervention/docs/protocol.md)的单机 SQL 提供者。依据为用户已接受的 HJ0 与 C2 实施范围。公开模型和应用服务合同归 human-intervention，SQL 原子性与耐久提交归 sql-contract。当前实现操作终态、请求/卡片事务、独立 WaitOwner 及完整原结果读回。Identity 成员资格协调已实现，统一池和公开应用服务尚在实施，不能据此宣称完整 HITL 服务可用。
 
 ## 结果与不变量
 
@@ -20,13 +20,13 @@ inspect 返回 absent 仅表示本次快照未找到记录，不能转换为 not
 
 createHitlSqlTerminals 是可信装配能力，不是面向用户的授权接口。工厂绑定一个 tenant SQL domain，并拒绝不匹配的操作租户。服务调用方必须先做当前资格校验，不能把可构造的 OperationRef 当凭据。SQL participant/read handler 仅供已登记可信组合执行，不自行接受网络访问。
 
-HITL 参与者拥有 hi_terminals、hi_requests 和 hi_request_versions。独立 WaitOwner 参与者分别拥有 hi_wait_controls 与 hi_wait_active/hi_wait_inbox。每张表只有一个写参与者。原等待、资格、配值和授权数据由各原拥有者提供事务事实，HITL 不读其私表。终态工厂不创建 worker，不关闭调用者提供的共享 SqlStorage。进程退出不会删除耐久终态。当前尚未提供完整应用服务的 close/drain 实现。
+HITL 参与者拥有 hi_terminals、hi_requests 和 hi_request_versions。独立 WaitOwner 参与者分别拥有 hi_wait_controls 与 hi_wait_active/hi_wait_inbox。每张表只有一个写参与者。原等待、资格、配值和授权数据由各原拥有者提供事务事实，HITL 不读其私表。终态工厂不创建 worker，不关闭调用者提供的共享 SqlStorage。进程退出不会删除耐久终态。身份协调器拒绝关闭后的新操作，并排空已受理操作；完整应用服务的生命周期仍须在其装配边界验证。
 
 ## 组合与验证
 
 材料登记消费 sql-contract/worker 的 participant、migration 与 snapshot read 合同。组合必须包含真实业务参与者；直接提交单个 consume 只关闭操作身份，不能伪造一张已答卡片。
 
-[终态测试](tests/terminals.spec.ts)使用真实 SQLite worker，覆盖封口阻止迟到写、共同回滚、重启、actor 隔离、租户匹配与丢失回执认回。[公共入口测试](tests/public-entry.spec.ts)检查真实材料登记。[请求与恢复测试](tests/requests.spec.ts)覆盖共同注册/答卡、竞争答复、批次屏障、换代、业务终局、持久拒绝及重启回查。当前未验证公开应用服务、Identity 撤权协调、物理断电或分布式提供者。
+[终态测试](tests/terminals.spec.ts)使用真实 SQLite worker，覆盖封口阻止迟到写、共同回滚、重启、actor 隔离、租户匹配与丢失回执认回。[公共入口测试](tests/public-entry.spec.ts)检查真实材料登记。[请求与恢复测试](tests/requests.spec.ts)覆盖共同注册/答卡、竞争答复、批次屏障、换代、业务终局、持久拒绝及重启回查。[身份协调测试](tests/identity.spec.ts)通过真实 IdentitySql 和 SQLite 验证成员撤回竞争、结果披露及关闭排空。当前未验证完整公开应用服务、物理断电或分布式提供者。
 
 ## 请求与独立等待
 
@@ -43,3 +43,15 @@ HITL 参与者拥有 hi_terminals、hi_requests 和 hi_request_versions。独立
 createHitlSqlOperations 的 inspect 从终态和 SQL 原操作日志认回方法、输入摘要、原业务结果及提交凭据。方法必须与结果类型匹配，结果内 OperationRef 必须与外层相同。接收代次过期、绑定 CAS 冲突等已确定的恢复拒绝也保存为原结果。committed 表示该结果已保管，不表示拟动作获准。
 
 终态为 committed 而原日志缺少合法业务结果时，不得伪造成功。日志暂不能确认时返回 unknown，结果损坏时返回 unavailable。该工厂也不认证身份，公开调用者仍须先校验当前资格与披露权限。seal 只有认回 durable aborted 后才能返回 not-committed。
+
+## Identity 成员资格协调
+
+createIdentityQualifiedHitl 只消费 Identity 的 PrincipalVerifier、TenantStandingSource 与 StandingReservations。每次具名写入和原操作查询都先验证已签发主体、当前成员资格、所需具名资格与租户。OperationRef.actorRef 必须等于该主体的 standingPrincipalRef，不接受外部自报 actor。
+
+新写入通过 ID-19 保留短暂 reservation，绑定固定租户、主体、原操作与输入摘要。提交完成或异常后请求 settle；无法确认终态时保留原操作并返回 unknown。等人期间不持有 reservation。已提交结果的重放也必须重新核验当前资格。
+
+createHitlStandingDestination 仅装入 Identity 的可信目的端 resolver。它严格匹配 owner、destination、scope、principal、operationId 和规范 targetRef，再调用同一业务目的端的原子 seal。撤权先封口时，晚到原提交不能成立；提交先成立时，撤权保留历史结果，后续披露仍重查资格。目标端不可用时不得谎报封口成功，撤权由 Identity 的既有恢复协议继续处理。
+
+该协调器只兑现 ID-19 的成员关系与具名资格。它不签发主体，不验证人类登录凭据，也不授予卡片、会话、资产或许可权限。原等待控制继续核验来源与受众。其他适用 guard 必须由后续完整应用装配提供，不可用本协调器代替保护向量。
+
+close 先拒绝新工作，再等待已受理的读写结束。操作在调用注入端口前加入排空集合，重入关闭也不能漏掉该操作。关闭不删除请求、不终结业务等待、不关闭共享 SqlStorage；Identity 的恢复 resolver 有独立装配生命周期。

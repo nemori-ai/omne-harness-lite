@@ -16,3 +16,7 @@ export type { SqlCommand, RequestRecord } from './request-schema.ts'
 
 export { createHitlSqlOperations } from './operations.ts'
 export type { HitlSqlOperationInspection } from './operations.ts'
+
+export { createIdentityQualifiedHitl } from './identity.ts'
+export type { IdentityHitlOptions, IdentityHitlCommand, HitlQualification } from './identity.ts'
+export { createHitlStandingDestination } from './identity-destination.ts'

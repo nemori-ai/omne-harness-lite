@@ -17,7 +17,12 @@ import {
 import { config } from './config.ts'
 
 export async function openWorld(
-  options: { root?: string; wrap?: (storage: SqlStorage) => SqlStorage } = {},
+  options: {
+    root?: string
+    tenantRef?: string
+    extraMaterials?: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
+    wrap?: (storage: SqlStorage) => SqlStorage
+  } = {},
 ) {
   const parent = fileURLToPath(new URL('../../../../tmp/hitl-r1-c2/databases/', import.meta.url))
   mkdirSync(parent, { recursive: true })
@@ -33,8 +38,11 @@ export async function openWorld(
   const materials: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
     ...own,
+    migrations: [...own.migrations, ...(options.extraMaterials?.migrations ?? [])],
+    readHandlers: [...own.readHandlers, ...(options.extraMaterials?.readHandlers ?? [])],
     participants: [
       ...own.participants,
+      ...(options.extraMaterials?.participants ?? []),
       {
         participant: 'fixture.hitl.reject',
         protocol: 'fixture-hitl-reject/1',
@@ -50,11 +58,11 @@ export async function openWorld(
     ],
     declaredCombinations: { tenant: null, system: null },
   }
-  const participants = materials.participants.map(item => item.participant)
+  const participants = [...own.participants.map(item => item.participant), 'fixture.hitl.reject']
   const manifest = combinationManifest({ catalog: materials, participants })
   if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
   const domain = {
-    scope: { kind: 'tenant', tenant: 'tenant-a' },
+    scope: { kind: 'tenant', tenant: options.tenantRef ?? 'tenant-a' },
     transactionDomain: 'hitl.test',
   } as const
   const combination = {

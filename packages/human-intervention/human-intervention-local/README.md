@@ -4,7 +4,7 @@
 
 ## Responsibility and status
 
-Node local SQL provider for the accepted HITL protocol. The package implements durable operation terminals, request/card transactions, independent wait recovery and original operation readback. Identity coordination and the public application services remain in development. This is not a complete HITL application service.
+Node local SQL provider for the accepted HITL protocol. The package implements durable operation terminals, request/card transactions, independent wait recovery and original operation readback. Identity membership coordination also protects named writes and result disclosure. The public application services remain in development. This is not a complete HITL application service.
 
 ## Usage
 
@@ -24,7 +24,7 @@ The caller supplies registered SQL materials and a tenant domain. This factory d
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/human-intervention-local build`, `typecheck` and `test:fast`. Real SQLite tests cover registration, competing replies, batch recovery, receiver generations, original results, seals and rollback. They do not prove current Identity qualification or the complete public application services.
+Run `pnpm --filter @omne-harness/human-intervention-local build`, `typecheck` and `test:fast`. Real SQLite tests cover registration, competing replies, batch recovery, receiver generations, original results, seals and rollback. IdentitySql tests also cover membership revocation, unavailable destinations and drain on close. Complete public application services remain unverified.
 
 ## Maintenance
 

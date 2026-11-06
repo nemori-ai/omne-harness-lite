@@ -6,6 +6,8 @@
 
 ## 定义索引
 
+- [createIdentityQualifiedHitl](../src/identity.ts)：核验当前成员资格，协调具名写入、结果披露与关闭排空；不是完整用户应用服务。
+- [createHitlStandingDestination](../src/identity-destination.ts)：供 Identity 可信装配封口目的操作。
 - [hitlSqlMaterials](../src/materials.ts)：返回 SQL participant、migration 与 snapshot reader 的具名材料。
 - [independentWaitSqlMaterials](../src/independent-materials.ts)：登记独立等待控制、收件箱与读口。
 - [independentControlCommands 与 independentRequestCommands](../src/commands.ts)：生成具名参与者命令，所有事实依赖均进入同一事务。

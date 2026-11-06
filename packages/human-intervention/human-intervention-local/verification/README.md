@@ -22,4 +22,4 @@
 | 旧代不能消费，全批完成前不能恢复 | [requests.spec.ts](../tests/requests.spec.ts) 的重启、换代及批次屏障场景 |
 | 原方法和完整结果可以认回，确定拒绝不变成成功 | [requests.spec.ts](../tests/requests.spec.ts) 的结果读回、CAS 失败及损坏记录场景 |
 
-Identity 撤权协调、池分页、运行时名额和完整应用服务尚未实现或验证，不纳入以上通过范围。
+[identity.spec.ts](../tests/identity.spec.ts)使用真实 IdentitySql 与 SQLite 验证撤权先赢、提交先赢、目标离线与恢复、回执丢失、主体伪造以及关闭排空。ID-19 只覆盖成员关系及具名资格。池分页、运行时名额、更广的权限保护向量和完整应用服务不纳入以上通过范围。

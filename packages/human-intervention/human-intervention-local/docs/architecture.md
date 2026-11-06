@@ -19,7 +19,10 @@ flowchart LR
   SQL --> T
   O[operations inspect / seal] --> SQL
   O --> Q[原操作完整日志]
-  G[当前 Identity 资格与 reservation] -. 待接应用服务 .-> C
+  G[Identity 资格协调器] --> C
+  G --> ID[Identity verifier standing reservations]
+  ID --> SEAL[可信 HITL destination seal]
+  SEAL --> T[terminal 同目的端封口]
 ```
 
 ## 关键机制与理由
@@ -32,4 +35,11 @@ control 拥有准备材料、接收代次、业务终局和消费 checkpoint。i
 
 ## 验证与维护
 
-[终态测试](../tests/terminals.spec.ts)与[请求恢复测试](../tests/requests.spec.ts)运行真实 SQLite worker。测试覆盖晚失败共同回滚、竞争答复、重启、代次隔离和批次屏障。当前还没有公开应用服务的 Identity 资格协调与池分页。该实现不能替代完整 C2 独立验收。行为承诺归[规格](../SPEC.md)。
+[终态测试](../tests/terminals.spec.ts)与[请求恢复测试](../tests/requests.spec.ts)运行真实 SQLite worker。测试覆盖晚失败共同回滚、竞争答复、重启、代次隔离和批次屏障。Identity 成员资格协调已通过真实 IdentitySql 验证。统一池及完整应用服务仍未完成。该实现不能替代完整 C2 独立验收。行为承诺归[规格](../SPEC.md)。
+
+
+## 当前资格与关闭
+
+identity.ts 将成员资格判断与目的端事务接在一起，identity-destination.ts 供 Identity 撤权和恢复调用。两个模块只消费 Identity 公共合同，未导入 Settings，也不读取 Identity 私表。授权、原工作、资产及采用的保护仍由各自拥有者负责。
+
+原操作结果查询先核验当前主体。短 reservation 只保留到目的操作取得终态，不覆盖人工等待时长。close 在调用外部端口前记录已受理操作，避免端口回调重入关闭时提前结束。
