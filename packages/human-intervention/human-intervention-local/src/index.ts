@@ -23,3 +23,6 @@ export { createHitlStandingDestination } from './identity-destination.ts'
 
 export { createIndependentHitlQueries } from './queries.ts'
 export type { IndependentHitlQueryOptions } from './queries.ts'
+
+export { createIndependentHitlApplication } from './application.ts'
+export { hitlCommandBinding, recoveryCommandBinding } from './command-binding.ts'

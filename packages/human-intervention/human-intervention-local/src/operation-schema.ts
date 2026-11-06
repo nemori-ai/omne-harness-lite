@@ -9,6 +9,10 @@ import {
   RequestRefSchema,
   RevisionSchema,
   WaitRefSchema,
+  type CommandResult,
+  type HitlMethod,
+  type RecoveryMethod,
+  type RecoveryCommandResult,
   type CommittedOperation,
   type CommittedRecoveryOperation,
 } from '@omne-harness/human-intervention'
@@ -128,3 +132,17 @@ export const StoredOperationSchema: z.ZodType<CommittedOperation | CommittedReco
     message: 'Receipt must belong to the original operation',
   })
   .readonly()
+
+const unknown = z.strictObject({ ...operation, kind: z.literal('unknown') })
+export const CommandResultSchemas: { readonly [M in HitlMethod]: z.ZodType<CommandResult<M>> } = {
+  registerRequest: z.union([registered, failure, unknown]),
+  submitReply: z.union([replied, failure, unknown]),
+  invalidateWait: z.union([invalidated, failure, unknown]),
+  acknowledgeDelivery: z.union([acknowledged, failure, unknown]),
+}
+export const RecoveryResultSchemas: {
+  readonly [M in RecoveryMethod]: z.ZodType<RecoveryCommandResult<M>>
+} = {
+  bindReceiver: z.union([bound, unknown]),
+  consumeDecision: z.union([consumed, unknown]),
+}

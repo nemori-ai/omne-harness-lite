@@ -13,7 +13,7 @@ const querySchema = z.strictObject({
   tenantRef: TenantRefSchema,
   waitRef: WaitRefSchema,
   actorRef: HitlIdentifierSchema,
-  kind: z.enum(['state', 'inbox']),
+  kind: z.enum(['state', 'inbox', 'snapshot']),
   receiverGeneration: ReceiverGenerationSchema.optional(),
 })
 export default {
@@ -27,6 +27,16 @@ export default {
     const state = readControl(port, key)
     if (!state || !state.preparation.readers.includes(query.actorRef))
       return { kind: 'read', output: { kind: 'denied' } }
+    if (query.kind === 'snapshot')
+      return {
+        kind: 'read',
+        output: json({
+          kind: 'snapshot',
+          state,
+          active: readActive(port, key) ?? null,
+          decisions: readInboxEntries(port, key),
+        }),
+      }
     if (query.kind === 'state')
       return {
         kind: 'read',

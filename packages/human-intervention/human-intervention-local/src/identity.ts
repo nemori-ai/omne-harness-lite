@@ -12,6 +12,7 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   HITL_COMMAND_MAX_BYTES,
   HitlIdentifierSchema,
+  TenantRefSchema,
   type HitlReadFailure,
   type OperationRef,
 } from '@omne-harness/human-intervention'
@@ -38,7 +39,7 @@ export type HitlQualification =
       kind: 'qualified'
       principal: ActingForTenantPrincipal
       actorRef: string
-      tenantRef: string
+      tenantRef: OperationRef['tenantRef']
     }>
   | HitlReadFailure
 
@@ -88,7 +89,7 @@ function qualification(options: IdentityHitlOptions) {
       return {
         kind: 'qualified',
         principal: verified.principal,
-        tenantRef,
+        tenantRef: TenantRefSchema.parse(tenantRef),
         actorRef: standingPrincipalRef(verified.principal),
       }
     } catch {
@@ -209,7 +210,8 @@ export function createIdentityQualifiedHitl(input: IdentityHitlOptions) {
       if (closing) return Promise.resolve({ kind: 'unavailable', reason: 'closing' })
       let parsed
       try {
-        if (Buffer.byteLength(canonical(input), 'utf8') > HITL_COMMAND_MAX_BYTES)
+        const payload = input.kind === 'request' ? input.input.command : input.command
+        if (Buffer.byteLength(canonical(payload), 'utf8') > HITL_COMMAND_MAX_BYTES)
           return Promise.resolve({
             kind: 'limited',
             resource: 'command-bytes',

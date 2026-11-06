@@ -88,3 +88,22 @@ export type IndependentControl = z.infer<typeof IndependentControlSchema>
 export type ActiveWait = z.infer<typeof ActiveWaitSchema>
 export type InboxEntry = z.infer<typeof InboxEntrySchema>
 export type IndependentCommand = z.infer<typeof IndependentCommandSchema>
+
+export const IndependentSnapshotSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('denied') }),
+  z.strictObject({
+    kind: z.literal('snapshot'),
+    state: IndependentControlSchema,
+    active: ActiveWaitSchema.nullable(),
+    decisions: z.array(InboxEntrySchema).max(64).readonly(),
+  }),
+])
+export const IndependentInboxSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('denied') }),
+  z.strictObject({ kind: z.literal('stale-generation') }),
+  z.strictObject({
+    kind: z.literal('page'),
+    decisions: z.array(InboxEntrySchema).max(64).readonly(),
+    next: z.null(),
+  }),
+])

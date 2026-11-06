@@ -3,10 +3,7 @@ import { TenantRefSchema, RevisionSchema } from '@omne-harness/human-interventio
 import { RequestRecordSchema } from './request-schema.ts'
 
 export const POOL_HANDLER = 'hitl.pool-read'
-const sequence = z
-  .string()
-  .regex(/^(0|[1-9][0-9]{0,18})$/)
-  .refine(value => BigInt(value) <= 9223372036854775807n)
+import { SqlSequenceSchema as sequence } from './sql-sequence.ts'
 export const PoolPositionSchema = z.strictObject({
   after: sequence,
   offset: z.number().int().min(0).max(63),

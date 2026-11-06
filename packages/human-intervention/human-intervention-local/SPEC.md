@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-本成员是[HITL 公共协议](../human-intervention/docs/protocol.md)的单机 SQL 提供者。依据为用户已接受的 HJ0 与 C2 实施范围。公开模型和应用服务合同归 human-intervention，SQL 原子性与耐久提交归 sql-contract。当前实现操作终态、请求/卡片事务、独立 WaitOwner 及完整原结果读回。Identity 成员资格协调已实现，独立等待的当前资格查询与统一池已实现，其余公开应用服务尚在实施，不能据此宣称完整 HITL 服务可用。
+本成员是[HITL 公共协议](../human-intervention/docs/protocol.md)的单机 SQL 提供者。依据为用户已接受的 HJ0 与 C2 实施范围。公开模型和应用服务合同归 human-intervention，SQL 原子性与耐久提交归 sql-contract。当前实现操作终态、请求/卡片事务、独立 WaitOwner 及完整原结果读回。Identity 成员资格协调已实现，独立等待的公共命令、查询与恢复应用服务已实现。人类登录、其他原等待适配、交互验证及独立验收不在此实现事实内。
 
 ## 结果与不变量
 
@@ -68,3 +68,27 @@ createIndependentHitlQueries 实现公共 getRequest、getCard 和 listPool。�
 hi_request_versions 随请求变更递增。扫描过程中每次读取都同时取得该修订和下一请求，返回页前比较最后一次读取。修订不同返回 conflict，调用方从新快照重新开始；服务不保存历史快照，也不混合新旧内容。每页最多扫描64个请求。达到结果条数或数据末尾时 completeness 为 complete；扫描预算先耗尽时为 partial，返回有效续页游标。complete 表示这一页按其快照和限制完成，不表示全部结果都在这一页。原等待读口或存储失败返回 unavailable，不跳过故障后宣称完整。
 
 close 拒绝新查询，并等待已接受查询完成全部受众读取及最后资格核验。它不关闭共享存储，不结束原人工等待。
+
+
+## 独立等待应用入口
+
+createIndependentHitlApplication 同时实现 HumanInterventionCommands、HumanInterventionQueries、RecoveryCommands 和 RecoveryQueries。它消费上述查询与 Identity 协调机制，仍由可信原工作拥有者准备独立等待材料。接口接受公共 decoder 已验证的命令。没有合法 OperationRef 的网络输入在 decodeHitlCommand/decodeRecoveryCommand 阶段拒绝，不伪造回执关联。
+
+submitReply 只接受 CardRef。服务从已获准的持久请求取得原 WaitRef，不能由客户端提供另一个等待地址。其余命令带各自定义的原引用；最终的所有权、响应资格及代次仍在原等待参与者事务内重核。已解析命令的262144 UTF-8字节预算只计算公共命令，不包含local路由封套。写入成功、拒绝及 unknown 都保留原操作身份。
+
+hitlCommandBinding 和 recoveryCommandBinding 用于保存原操作查询依据。前者对 canonicalize 编码的 `{method,command}` 求 SHA-256，后者对 `{kind,command}` 求 SHA-256，其中 bindReceiver 对应 kind=bind，consumeDecision 对应 kind=consume。输入先通过对应公共schema；输出以十六进制摘要与原 OperationRef 绑定。getOperation 只认回 HITL 命令，getRecoveryOperation 只认回恢复命令，查询错误方法家族返回 conflict。unknown 不触发新操作身份或自动再次执行动作。
+
+### 原等待与交付查询
+
+getWait 在原 WaitOwner 的一个SQL快照内读取控制、active关联及收件箱。准备材料尚未成为active等待时返回 not-found；无读取资格时返回 denied。terminal 状态保留终局依据，完整批次已接手时为 accepted，存在答复但批次未接手时为 replied，否则为 waiting。deliveryCursor 当前为 null，消费者从 readInbox 的第一页开始；读取不会确认接手。
+
+readInbox 只向原消费者披露，当前接收代次必须匹配。其签名游标绑定 tenant、actor、完整 WaitRef 及 receiverGeneration。收件箱按耐久追加顺序分页，答复不会因读取删除，消费后的决定仍可认回。代次过期返回 stale-generation；把旧游标改配新代次返回 invalid-input。新答复可在后续查询出现，不把已返回页解释为未来完整集合。
+
+listDeliveries 只读取固定 destination 下当前消费者尚未接手的决定。独立 WaitOwner 读口在同一快照中核验原租户、原消费者及耐久消费回执；HITL 不跨读其私表。查询按收件箱序号前进，每次最多扫描64条，尚有未扫描记录时返回续页，即使本页过滤后为空。游标绑定租户、actor、目的地和查询种类，不能与池或readInbox互换。ack尚未完成但原消费者已经接手的决定不会再列为未接手。
+
+应用工厂在调用注入端口前记录已接受调用。close 先拒绝新调用，再等待整次调用结束，最后关闭内部适配器。关闭后新命令返回 unavailable，不能冒充提交可能成立的 unknown。共享存储仍由装配者关闭。
+
+
+### 合法批次与存储预算
+
+内部计划通过事务事实交给参与者，SQL操作回执只保留原绑定与planDigest，不复制完整请求及全部历史答复。否则合法批次累积会在新的单次答复仍合法时触发回执上限。正式请求、池、等待和交付读材料上限均为8MiB；装配者须为SqlStorage配置至少该单次读取上限及相应全局读预算。参与者单响应无需因整批答复增大。64张卡各提交8192个四字节字符的真实回归验证该累积路径，不据此声称无限输入或无限存储。

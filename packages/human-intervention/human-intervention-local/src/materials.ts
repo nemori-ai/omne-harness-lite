@@ -104,7 +104,7 @@ export function hitlSqlMaterials(): Pick<
         readTables: ['hi_requests', 'hi_request_versions'],
         requiresMigrations: [REQUEST_MIGRATION],
         maxRowsRead: 2,
-        maxOutputBytes: 1048576,
+        maxOutputBytes: 8388608,
       },
       {
         handler: REQUEST_HANDLER,
@@ -115,7 +115,7 @@ export function hitlSqlMaterials(): Pick<
         readTables: ['hi_requests'],
         requiresMigrations: [REQUEST_MIGRATION],
         maxRowsRead: 1,
-        maxOutputBytes: 1048576,
+        maxOutputBytes: 8388608,
       },
       {
         handler: TERMINAL_HANDLER,

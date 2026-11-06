@@ -241,6 +241,6 @@ export default {
       return { kind: 'failed', diagnostic: 'hitl_command_binding' }
     const planned = RequestPlanSchema.parse(plan(input, basis, port))
     port.provideFact(PLAN_FACT, json(planned))
-    return { kind: 'participated', response: json(planned) }
+    return { kind: 'participated', response: json({ binding, planDigest: digest(planned) }) }
   },
 } satisfies ParticipantModule

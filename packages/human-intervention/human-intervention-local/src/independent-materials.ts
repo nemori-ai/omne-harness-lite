@@ -1,3 +1,4 @@
+import { DELIVERY_HANDLER } from './delivery-schema.ts'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import { material } from './materials.ts'
 import { TERMINAL_FACT } from './terminal-schema.ts'
@@ -20,6 +21,7 @@ export function independentWaitSqlMaterials(): Pick<
   const controlMigration = material('independent-control-migration')
   const inboxMigration = material('independent-inbox-migration')
   const reader = material('independent-read')
+  const deliveryReader = material('delivery-read')
   return {
     participants: [
       {
@@ -63,6 +65,17 @@ export function independentWaitSqlMaterials(): Pick<
     ],
     readHandlers: [
       {
+        handler: DELIVERY_HANDLER,
+        protocol: WAIT_PROTOCOL,
+        moduleUrl: deliveryReader.moduleUrl,
+        codeDigest: deliveryReader.digest,
+        ordering: 'snapshot',
+        readTables: ['hi_wait_controls', 'hi_wait_inbox'],
+        requiresMigrations: [CONTROL_MIGRATION, INBOX_MIGRATION],
+        maxRowsRead: 65,
+        maxOutputBytes: 8388608,
+      },
+      {
         handler: WAIT_HANDLER,
         protocol: WAIT_PROTOCOL,
         moduleUrl: reader.moduleUrl,
@@ -71,7 +84,7 @@ export function independentWaitSqlMaterials(): Pick<
         readTables: ['hi_wait_controls', 'hi_wait_active', 'hi_wait_inbox'],
         requiresMigrations: [CONTROL_MIGRATION, INBOX_MIGRATION],
         maxRowsRead: 66,
-        maxOutputBytes: 2097152,
+        maxOutputBytes: 8388608,
       },
     ],
   }
