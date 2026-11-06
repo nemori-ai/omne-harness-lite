@@ -91,7 +91,7 @@ afterEach(async () => {
   await Promise.all((['stop', 'stop.fail', 'members', 'members.fail'] as const).map(fake.clear))
   await Promise.all(managers.splice(0).map(manager => manager.stopAll()))
   const pids = [...(await gatePids()), ...(await commandPids())]
-  const stopped = await eventually(() => noneRunning(pids), 5_000).then(
+  const stopped = await eventually(() => noneRunning(pids), 2_500).then(
     () => true,
     () => false,
   )
@@ -129,7 +129,14 @@ function manager(setup: Setup = {}) {
       ...(setup.retention === 'unbound' ? {} : { processes: processes.ledger }),
       released: released.signal,
     },
-    settings: commandSettings({ stopBoundMs: 3_000, ...setup.options }),
+    // Bounds short enough that a broken manager fails a case in seconds, wide enough for a gate
+    // to start on a loaded host: the stand-in reader answers at once.
+    settings: commandSettings({
+      startBoundMs: 3_000,
+      stopBoundMs: 1_500,
+      graceMs: 2_000,
+      ...setup.options,
+    }),
     provider: 'host-local',
     scope,
     tenant,
@@ -158,7 +165,7 @@ function manager(setup: Setup = {}) {
 const runs = (name = 'pid') => request(cwd, `echo $$ > ${name}; exec /bin/sleep 30`)
 
 async function runningPid(name = 'pid'): Promise<number> {
-  await eventually(async () => (await pidsIn(join(cwd, name))).length === 1, 5_000)
+  await eventually(async () => (await pidsIn(join(cwd, name))).length === 1, 2_500)
   const [pid] = await pidsIn(join(cwd, name))
   if (pid === undefined) throw new Error('no command pid')
   return pid
@@ -321,7 +328,7 @@ describe('a start past its bound', posixOnly, () => {
     expect(await command.start(request(cwd, 'touch ran'))).toMatchObject({ kind: 'unknown' })
     expect(commands.unconfirmed()).toEqual([resource()])
     expect(own.stopped).toEqual([])
-    await eventually(async () => (await gatePids()).length === 1, 5_000)
+    await eventually(async () => (await gatePids()).length === 1, 2_500)
     await allGone()
     expect(await readdir(cwd)).not.toContain('ran')
   })
@@ -364,9 +371,10 @@ describe('the residue after the exit', posixOnly, () => {
       exit: { kind: 'code', code: 0 },
       residue: { kind: 'none' },
     })
-    await eventually(() => own.stopped.length === 1, 5_000)
+    await eventually(() => own.stopped.length === 1, 2_500)
     expect(own.stopped).toEqual([[resource().key, 'confirmed']])
-    expect(await marker()).toBe('absent')
+    // The marker goes after the stop was recorded, not in the same step.
+    await eventually(async () => (await marker()) === 'absent', 2_500)
     await allGone()
   })
 
@@ -384,9 +392,10 @@ describe('the residue after the exit', posixOnly, () => {
       if (release) released.abort()
       const { outcome } = await finished(await started(command, request(cwd, 'exit 0')))
       expect(outcome).toMatchObject({ kind: 'completed', residue: { kind: 'stopping', reason } })
-      await eventually(() => own.stopped.length === 1, 5_000)
+      await eventually(() => own.stopped.length === 1, 2_500)
       expect(own.stopped).toEqual([[resource().key, 'confirmed']])
-      expect(await marker()).toBe('absent')
+      // The marker goes after the stop was recorded, not in the same step.
+      await eventually(async () => (await marker()) === 'absent', 2_500)
       await allGone()
     },
   )
@@ -405,7 +414,7 @@ describe('the residue after the exit', posixOnly, () => {
     const { command, own } = manager()
     const { outcome } = await finished(await started(command, request(cwd, 'exit 0')))
     expect(outcome).toMatchObject({ kind: 'completed', residue: { kind: 'stopping' } })
-    await eventually(() => own.stopped.length === 1, 5_000)
+    await eventually(() => own.stopped.length === 1, 2_500)
     await allGone()
   })
 })

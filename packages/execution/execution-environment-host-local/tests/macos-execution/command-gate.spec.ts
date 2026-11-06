@@ -115,7 +115,7 @@ function output(gate: Gate, stream: 'stdout' | 'stderr'): Buffer {
   )
 }
 
-async function exited(gate: Gate, timeout = 4_000): Promise<CommandFrame> {
+async function exited(gate: Gate, timeout = 2_000): Promise<CommandFrame> {
   return vi.waitFor(
     () => {
       const frame = gate.parsed().find(entry => entry.t === 'exit')
@@ -290,7 +290,7 @@ describe('the macOS command gate in this process', () => {
       frames.destroy(new Error('the manager went away'))
       await vi.waitFor(
         async () => expect((await reader.calls()).map(call => call[0])).toContain('members'),
-        { timeout: 4_000, interval: 20 },
+        { timeout: 2_000, interval: 20 },
       )
       expect(isAlive(pid)).toBe(false)
     })
