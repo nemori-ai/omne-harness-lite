@@ -323,6 +323,7 @@ describe('bounded request admission', () => {
       const result = await new Promise<{
         status: number | undefined
         reason: string | string[] | undefined
+        connection: string | undefined
       }>((resolve, reject) => {
         const req = request(
           {
@@ -330,12 +331,20 @@ describe('bounded request admission', () => {
             port,
             path: SESSION_PATH,
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Content-Length': '100' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': '100',
+              Connection: 'keep-alive',
+            },
           },
           res => {
             clearTimeout(timer)
             res.resume()
-            resolve({ status: res.statusCode, reason: res.headers['x-omne-limit'] })
+            resolve({
+              status: res.statusCode,
+              reason: res.headers['x-omne-limit'],
+              connection: res.headers.connection,
+            })
           },
         )
         req.on('error', reject)
@@ -345,7 +354,7 @@ describe('bounded request admission', () => {
         )
         req.flushHeaders()
       })
-      expect(result).toEqual({ status: 429, reason: 'in-flight-requests' })
+      expect(result).toEqual({ status: 429, reason: 'in-flight-requests', connection: 'close' })
       expect(fixture.session.controls.calls()).toEqual([])
     } finally {
       for (const req of blockers) req.destroy()
