@@ -212,7 +212,7 @@ export const MUTANTS: readonly Mutant[] = [
   },
   {
     name: 'mB1-session-ended-skips-authorizing',
-    breaks: 'T8 S07, T1',
+    breaks: 'V6',
     defect:
       'the session ending (S07) does not settle the requests still authorizing: one of them goes out on a transport that is not usable any more (the defect B1 of the third review)',
     file: 'src/session.ts',

@@ -11,7 +11,7 @@
 | [组工程设计](../docs/architecture.md)                                                                                                                                                      | `21175c9f9`                                | 边界、协议基线、模型、值对象、MCP 连接、动作清单、设置声明、端口、应用服务、调用结果、内容交付、失败种类                                                                                              |
 | 领域设计裁定（2026-11-03）                                                                                                                                                                 | 见[领域设计裁定](#decisions)               | 本页每一条与组页不同或组页未定的决定                                                                                                                                                                  |
 | 2026-07-28 核对后的决定（2026-11-04）                                                                                                                                                      | 见[2026-07-28 核对后的裁定](#decisions-w3) | 对照 2026-07-28 修订核对后的可加调整：新字段、新导出、新条款与措辞                                                                                                                                    |
-| 真实传输兑现时的决定（2026-11-05）                                                                                                                                                         | 见[真实传输兑现时的裁定](#decisions-host)  | 线上事件归类的边界、旧 HTTP+SSE 回退、`Mcp-Name` 编码、根导出的协议函数、`open` 与凭据句柄                                                                                                            |
+| 真实传输兑现时的决定（2026-11-05 至 2026-11-06）                                                                                                                                           | 见[真实传输兑现时的裁定](#decisions-host)  | 线上事件归类的边界、旧 HTTP+SSE 回退、`Mcp-Name` 编码、根导出的协议函数、`open` 与凭据句柄                                                                                                            |
 | [资产成员 SPEC](../../assets/assets/SPEC.md#accepted-public-types)                                                                                                                         | `21175c9f9`                                | `BodyContract` 的字段与判断规则                                                                                                                                                                       |
 | [MCP 协议修订 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28)                                                                                                        | 2026-07-28                                 | 结果形状、`resultType`、多轮输入、内容类型、JSON-RPC 错误码、授权                                                                                                                                     |
 | [MCP 任务扩展](https://modelcontextprotocol.github.io/ext-tasks/specification/2026-07-28/tasks.html)（[SEP-2663](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2663)） | 2026-07-28                                 | 任务句柄、`tasks/get`、`tasks/update`、`tasks/cancel`；[Streamable HTTP 路由头](https://modelcontextprotocol.github.io/ext-tasks/specification/2026-07-28/tasks.html#streamable-http-routing-headers) |
@@ -84,7 +84,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
 ### 真实传输兑现时的裁定
 
-`@omne-harness/mcp-host-local` 在 2026-11-05 兑现真实传输时，本页按它的设计（闭包 `w3-mcp-host` 第一段，reduce 裁定）作出下列决定。1–9 条随传输的设计作出，10–15 条在兑现之后补充；每条写明它加了什么或改了什么。
+`@omne-harness/mcp-host-local` 兑现真实传输时，本页按它的设计作出下列决定。1–9 条随传输的设计作出（2026-11-05），10–15 条在兑现之后补充（2026-11-05 至 2026-11-06）；每条写明它加了什么或改了什么。
 
 1. stdio 上解析不了的一行丢弃，流继续；由行内容引起的断流只有一种：一行超过行缓冲上界。见 T2。
 2. stdio 上探测在途时 `close()` 按 T5 答 `no-answer`（`abandoned`），不走旧一路。见 T5。
@@ -100,7 +100,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 12. T5 的结局按相：请求已登记、还没有交给线路时，`signal` 与 `close()` 都答 `not-sent`（`connection-unavailable`）；已交给线路之后，`call` 交出 `SentCall`，`answer` 以 `no-answer`（`abandoned`）兑现；授权发现中答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出。`call` 在 `signal` 触发后结算，不等凭据句柄或对端；`close()` 不等发现结束。调用口的端口前提 WF5 依据这一句。见 T5。
 13. 元数据取回不经凭据句柄、不带凭据写入的头。见 T9、R4。
 14. 两个传输共用的规则各一处实现，由根导出：各操作的请求组成（`requestMetaOf`、`callRequestOf`、`listActionsRequest`、`getTaskRequest`、`getTaskResultRequest`、`updateTaskRequest`、`cancelTaskRequest`）、按连接的规则（`isLegacyConnection`、`checksListingHeaders`、`cancelsByNotification`）、读类再发一次（`withOneResend`）、流断开与授权拒绝的结算（`streamGoneAnswerOf`、`authorizationRequiredAnswerOf`）、取回进度（`startAuthorizationDiscovery`）、退出窗口（`endedCauseOf`）与线上上限（`WIRE_LIMITS`）。见 T2、T5、T8、[公开接口导航](docs/public-api.md)。
-15. 相 → 结局的规则归契约：在途请求的三相 `InFlightPhase`（授权中、已交出、授权发现中），`signal` 与 `close()` 的结局 `stopAnswerOf`（T5），线路断开的结局 `lineGoneAnswerOf`（T8 S01–S04、SSE 模式、S07），以及回退 GET 的状态按 `initialize` 归类 `fallbackGetConclusionOf`（T3），都由根导出，会话与脚本化传输共用；脚本化传输先登记再授权、按相结算。`ConnectionView` 改为判别联合：`stdio`，或 `streamable-http` 带 `mode`（`streamable` 或 `sse`）。这一条改变传输行为：线路断开只结算依赖线路的两相。见 T5、T8。
+15. 相 → 结局的规则归契约：在途请求的三相 `InFlightPhase`（授权中、已交出、授权发现中），`signal` 与 `close()` 的结局 `stopAnswerOf`（T5），线路断开的结局 `lineGoneAnswerOf`（T8 S01–S04、X02、SSE 模式、S07），以及回退 GET 的状态按 `initialize` 归类 `fallbackGetConclusionOf`（T3），都由根导出，会话与脚本化传输共用；脚本化传输先登记再授权、按相结算。`ConnectionView` 改为判别联合：`stdio`，或 `streamable-http` 带 `mode`（`streamable` 或 `sse`）。这一条改变传输行为：线路断开只结算依赖线路的两相。见 T5、T8。
 
 这些裁定关闭了线上事件归类的边界：解析不了的行与行缓冲上界（T2）、探测在途时的 `close()`（T5）、`stdio-ended` 的组成、HTTP 上请求离开之前的失败与 2xx 正文的中断（T8）、1xx（T2）；以及取消与关闭对每一相的结局（T5）。
 
@@ -473,7 +473,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - 「走旧一路」指发 `initialize`。T8 的结论写明旧一路也失败时 `discover` 报哪一个失败。S5、S7 的「`discover` 失败 → `lost`（`discover-failed`）」按 `discover` 最终报出的失败成立。
   - 对端发来的请求：`ping` 答空结果，其余请求一律答 JSON-RPC 错误 `-32601`。不分修订，也不分 `notifications/initialized` 之前或之后。
   - `call` 的 `_meta` 另带 `progressToken`，每请求唯一。对端的 `notifications/progress` 带着在途调用的 `progressToken` 时，传输把这条通知的 `params` 原样放进 `untrusted`，经该调用的 `observe` 交出（S6）；`progressToken` 对不上在途调用的通知丢弃。其他通知丢弃。
-  - 调用方写的值按原词形写出：`call` 的 `arguments` 与 `continuation.inputResponses`、`updateTask` 的 `inputResponses`。传输答复对端请求时回显的请求 id 同样按原词形写出。规则见 [RFC-0010](../../../docs/rfcs/RFC-0010-json-text-lossless-writer.md)；根导出的 `requestTextOf` 与 `responseTextOf` 这样写出。
+  - 调用方写的值按原词形写出：`call` 的 `arguments` 与 `continuation.inputResponses`、`updateTask` 的 `inputResponses`。传输答复对端请求时回显的请求 id 同样按原词形写出。规则见 [RFC-0010](../../../docs/rfcs/RFC-0010-json-text-lossless-writer.md)；根导出的 `requestTextOf` 与 `responseTextOf` 这样写出。`McpTransport.call` 的前提：参数（`arguments`）与输入答复（`continuation.inputResponses`）的值树已经判定（[`@omne-harness/json-text`](../../common/json-text/README.md) 的 `judgeJsonValue`），违反是调用方的缺陷。
 - **T4** T8 S05 的授权失败：失败是 `not-sent`（`authorization-required`），带授权发现（R4）。这个请求曾用凭据句柄授权时，传输先调用该句柄的 `reportRejection()` 恰好一次，再报这个失败。T8 S06 的 403 不调用 `reportRejection()`。
 - **T5** 取消与关闭。这些事件与 T8 的应答事件落在同一个请求上时，先发生的那个决定结论，后来的丢弃：
   - `cancelRequest` 不证明对端已停止。stdio 上，以及 Streamable HTTP 旧修订上，它发 `notifications/cancelled`，带 `requestId` 与每请求 `_meta`，`answer` 继续等应答。Streamable HTTP 现代修订上，它中止该请求的应答流，不另发通知，`answer` 以 `no-answer`（`abandoned`）兑现。
@@ -482,7 +482,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
     - 现代修订的 Streamable HTTP：释放就是中止应答流，对端可能把它读成取消。
     - 旧修订的 Streamable HTTP：释放同样中止应答流，对端看到流断开。按旧修订的协议，断开不表示取消。
     - SSE 模式：请求没有自己的应答流，对端看不到释放。
-    - stdio：请求已经写出时，对端看不到释放。写还没有完成时，传输中止 stdin 写端，这是流断开（S01、S03）：其他在途请求答 `no-answer`（`stream-broken`），传输不再可用。
+    - stdio：请求已经写出时，对端看不到释放。写还没有完成时，传输中止 stdin 写端，这是流断开（S01、S03），传输不再可用。其他在途请求按相结算（`lineGoneAnswerOf`，见 T8 前言）：已交给线路的答 `no-answer`（`stream-broken`），授权中的答 `not-sent`（`connection-unavailable`），授权发现中的不动。
   - `close()` 只关闭传输，不停止进程。进程由进程句柄的持有者停止。stdio 的关闭次序：先关 stdin 写端，再取消 stdout 读取。关闭时在途的请求按所处的相结算，与 `signal` 同形：已登记、还没有交给线路的答 `not-sent`（`connection-unavailable`）；已交给线路的答 `no-answer`（`abandoned`），调用的 `answer` 同样兑现；授权发现中的答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出。`close()` 不等凭据句柄、元数据取回或对端：它们挂起时也在线路关闭后返回。stdio 上探测在途时同样答 `abandoned`，不走旧一路（D13 只对探测时限到成立）。关闭后的请求答 `not-sent`（`connection-unavailable`）。`close()` 可以重复调用，每次调用都在同一次关闭完成后返回。`close()` 不要求旧修订的 Streamable HTTP 会话发 DELETE：契约只说关闭传输，DELETE 是对端效果；发不发由实现登记。
 - **T6** 任务操作：
   - `getTask` 与 `getTaskResult` 都发 `tasks/get`。结果读得懂：是对象，`taskId` 是非空文本，`status` 是 `TaskStatus` 的五个值之一；`input_required` 带 `inputRequests` 对象；`completed` 带 `result`；`failed` 带 `error` 对象（形状不核，原样交出）。任务形状按 SEP-2663 2026-07-28：结果在顶层带 `taskId`、`status`；`tasks/update` 的参数是 `taskId` 与 `inputResponses`；`tasks/cancel` 的参数是 `taskId`；没有 `tasks/list`。
@@ -511,7 +511,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
     - 通知没有 JSON-RPC 应答。
   - 记号：「直接」指 T2 的对本请求的应答；`E(码)` 指该码的 JSON-RPC 错误；「4xx」指 400、404、405、406、415、429 与其余 3xx、4xx，不含 401、403 与带旧会话的 404；「5xx」指 500 及以上；「4xx+码」「5xx+码」指正文是该码的 JSON-RPC 错误；「+纯」指正文按 T2 是「纯」。「旧一路，报旧」指走旧一路，旧一路也失败时报旧一路的失败；「旧一路，报本行」指旧一路也失败时报本行写的失败。
   - 走旧一路时，`initialize` 按 I 行与 S、X 行得出结论；那一行写的 `reportRejection()` 与「传输不再可用」照样生效，以那一行为准。
-  - 写「传输不再可用」的行（S01–S04、S07、X02）同时结算其他在途请求，按 T5 的相，规则是根导出的 `lineGoneAnswerOf`：授权中的答 `not-sent`（`connection-unavailable`），对端没有见过它；已交给线路的在流断开与进程退出下答该原因的 `no-answer`、不再发，在会话结束（S07）下由各自的应答决定；授权发现中的不动，它的结论已由先到的 401 定下，发现不经线路，做完照常以 `authorization-required` 结束。
+  - 写「传输不再可用」的行（S01–S04、S07、X02）同时结算其他在途请求，按 T5 的相，规则是根导出的 `lineGoneAnswerOf`：授权中的答 `not-sent`（`connection-unavailable`），对端没有见过它；已交给线路的在流断开与 X02 下答 `no-answer`（`stream-broken`），在进程退出下答 `no-answer`（`process-exited`），都不再发，在会话结束（S07）下由各自的应答决定；授权发现中的不动，它的结论已由先到的 401 定下，发现不经线路，做完照常以 `authorization-required` 结束。
   - D15、O05 再发的请求保持原来的请求类别，它的应答重新归类；再发的请求不再适用 D15、O05，再断开时是 `no-answer`（`stream-broken`）。SSE 模式下不再发（见下）。
   - SSE 模式（T3 的回退成立之后，`WireContext.mode` 是 `sse`）：POST 答 2xx 而正文没有应答是常态，`classifyWireEvent` 答 `waiting`，不是「2xx 而没有应答」；应答在共用的流上到达，归类照常。共用的流结束或断开是每个已交给线路的请求的流断开：读类与写类都 `no-answer`（`stream-broken`），不再发（D15、O05 不适用），传输不再可用，与 stdio 的 S01、S03 相同；授权中的请求答 `not-sent`（`connection-unavailable`），授权发现中的不动（`lineGoneAnswerOf`）。`initialize` 之后的请求与通知带着 endpoint 的会话：它们的 404 是「404，请求带着旧会话」，按 S07。endpoint 上的 `initialize` 自己不带会话，它的 404 按「4xx」归类。SSE 模式下不发探测，D 行不出现。POST 的其他应答只落在下列行：401 与带 `insufficient_scope` 的 403 按 S05，其他 403 按 S06；4xx、5xx 正文里的 JSON-RPC 错误与读不懂的错误对象按 I03、I04、O01、O02、O03、G06、C02；4xx+纯按 O08、C05，`initialize` 的 4xx+纯答 `not-sent`（`connection-unavailable`），不再试回退；5xx+纯与 POST 的流断开答 `no-answer`（`stream-broken`），读类也不再发（I06、O06、O07、C04 的结论）；请求离开之前失败按 X01。`cancelRequest` 发 `notifications/cancelled`（T5 的旧修订）。
 
@@ -571,7 +571,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 | S06 | HTTP  | 除通知外的各类                               | 其他 403                                                                         | `not-sent`（`connection-unavailable`）；不调用 `reportRejection()`                                                                                                                                                            |
 | S07 | HTTP  | `tools/list`、`tools/call`、三个任务请求     | 404，请求带着旧会话：`Mcp-Session-Id`，或 SSE 模式下 endpoint 的会话（任何正文） | `not-sent`（`session-ended`）；传输不再可用：之后的请求答 `not-sent`（`connection-unavailable`），其他在途请求按相结算（`lineGoneAnswerOf`）：授权中的答 `not-sent`（`connection-unavailable`），已交给线路的由各自的应答决定 |
 | X01 | HTTP  | 除通知外的各类                               | 请求离开之前失败                                                                 | `not-sent`（`connection-unavailable`）                                                                                                                                                                                        |
-| X02 | stdio | 除通知外的各类                               | 请求离开之前失败                                                                 | `not-sent`（`connection-unavailable`）；传输不再可用                                                                                                                                                                          |
+| X02 | stdio | 除通知外的各类                               | 请求离开之前失败                                                                 | `not-sent`（`connection-unavailable`）；传输不再可用，其他在途请求按相结算（`lineGoneAnswerOf`，原因 `stream-broken`）                                                                                                        |
 | N01 | 两者  | 通知                                         | 任何应答                                                                         | 没有结局；发出通知的操作照常继续                                                                                                                                                                                              |
 
 <a id="t8-end"></a>
@@ -707,6 +707,7 @@ T3 与 T8 引用的 SDK 行为，按仓库采用的 `@modelcontextprotocol/clien
     - T3 的旧 HTTP+SSE 回退成立的一支，与 T8 的 SSE 模式。套件的对端不提供旧一路，所以套件只核 I07 不成立的一支。`@omne-harness/mcp-host-local` 另有用例核对成立的一支与 SSE 模式。
     - T5 的 `signal` 在调用前已触发时答 `not-sent`。
     - T5 授权发现中的结局：`signal` 或 `close()` 答 `authorization-required`，带已取到的部分；`close()` 不等挂起的 `reportRejection` 与元数据取回。套件的脚本化传输与对端不产生授权发现。`@omne-harness/mcp-host-local` 另有用例（`tests/session.spec.ts` 与 `tests/http.spec.ts` 里按授权发现命名的用例）。
+    - T8 前言的按相结算其他在途请求（S01–S04、S07、X02 与 SSE 模式的共用流）。生成的 T8 用例每格只跑一个请求。`@omne-harness/mcp-host-local` 另有用例：`tests/session.spec.ts` 里「the line going away settles a request by its phase」一组，与「leaves another request of the session in flight when one is told the session ended (S07)」。
     - T9 中元数据取回不带凭据写入的头。`@omne-harness/mcp-host-local` 的 `tests/lines.spec.ts`「the fetch of protected resource metadata」核对取回只带 `accept`。
     - T5 不要求 DELETE，套件不核 `close()` 是否发 DELETE。
     - T9 中传输调用凭据句柄的时机：`open` 不调用句柄，答复对端请求的 POST 经 `authorize`。`@omne-harness/mcp-host-local` 另有用例。第二个传输实现出现时，套件要补这条用例。

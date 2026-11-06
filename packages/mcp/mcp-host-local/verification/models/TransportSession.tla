@@ -422,7 +422,8 @@ V1_SettleOnce ==
     /\ Settled(r) => out[r] = firstOut[r]
     /\ ~Settled(r) => out[r] = "none"
 
-\* V2 关闭之后不碰凭据: from close() on, the handle is not called again.
+\* V2 关闭、断开之后不碰凭据与线路 (close side): from close() on, the handle
+\* is not called again.
 V2_NoCredentialAfterClose == closed => cred = credAtClose
 
 \* V2 (disconnect side): once the session is dead, no request goes out any more
