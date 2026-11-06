@@ -34,8 +34,10 @@ import {
   authorizationRequiredAnswerOf,
   concludeAnswer,
   lineGoneAnswerOf,
+  notSentFailureOf,
   requestClassOf,
   stopAnswerOf,
+  unusableAnswerOf,
   type AnswerConclusion,
   type ProtocolVersions,
   type UnusableCause,
@@ -381,10 +383,25 @@ class ScriptedTransport implements McpTransport {
 
   // ---- The requests in flight: registration, the phases, and what settles them ----
 
+  /**
+   * Once the transport is not usable any more, every answer it hands over carries the cause it
+   * recorded (T1, T8 "every later request"); after `close()` none does: closing is this side's
+   * decision, not a fact about the line.
+   */
+  private handedOver(answered: Answered): Answered {
+    if (this.closed || this.dead === undefined) return answered
+    return { ...answered, wire: unusableAnswerOf(answered.wire, this.dead) }
+  }
+
+  /** The `not-sent` of a request the transport did not take: closed, not usable, or stopped first. */
+  private get refused(): Extract<TransportFailure, { kind: 'not-sent' }> {
+    return notSentFailureOf(this.closed ? undefined : this.dead)
+  }
+
   private settle(entry: Pending, answered: Answered): void {
     if (!this.pending.delete(entry.id)) return
     if (entry.phase.kind === 'sent') entry.phase.cancelProbe()
-    entry.resolve(answered)
+    entry.resolve(this.handedOver(answered))
   }
 
   /** Stops a request where it stands (T5): the caller's signal fired, `cancelRequest` or `close()` ran. */
@@ -679,7 +696,9 @@ class ScriptedTransport implements McpTransport {
       ...how,
       ...(probe ? { probeTimeoutMs: this.options.probeTimeoutMs ?? 0 } : {}),
     })
-    return entry === undefined ? Promise.resolve(NOT_SENT) : entry.answered
+    return entry === undefined
+      ? Promise.resolve({ wire: { kind: 'not-sent', failure: this.refused } })
+      : entry.answered
   }
 
   /** Sends a notification. Whatever the peer answers to it does not change any outcome (T8 N01). */
@@ -766,7 +785,7 @@ class ScriptedTransport implements McpTransport {
     signal: AbortSignal,
     observe?: (notification: PeerNotification) => void,
   ): Promise<Outcome<SentCall, Extract<TransportFailure, { kind: 'not-sent' }>>> {
-    if (signal.aborted) return { failure: NOT_SENT_FAILURE }
+    if (signal.aborted) return { failure: this.refused }
     const composed = callRequestOf(request)
     const entry = this.begin(
       composed.method,
@@ -774,7 +793,7 @@ class ScriptedTransport implements McpTransport {
       { values: composed.values, ...(observe === undefined ? {} : { observe }) },
       signal,
     )
-    if (entry === undefined) return { failure: NOT_SENT_FAILURE }
+    if (entry === undefined) return { failure: this.refused }
     const first = await Promise.race([entry.departed.then(() => undefined), entry.answered])
     if (first?.wire.kind === 'not-sent') return { failure: first.wire.failure }
     return {
