@@ -31,7 +31,7 @@
 | 缓存、懒加载、预热 | 数据拥有者维护按租户/版本/权限范围的缓存，LRU基线lru-cache11.5.3，Schema按需加载并在首次需要校验时编译；未变更的纯Schema与编译产物在同一执行域全局复用。必需就绪先准备，可选能力懒加载 | 小而固定纯值Map可用；仅TTL无容量界。付费prompt-cache预热没有默认授权 | 计项及大小、单次在途加载、失败移除/有界退避、淘汰及在途租约见[数据与读取](data-and-state.md#缓存懒加载与预热) |
 | 日志与遥测 | Node提供者选Pino10.4.0及OTel官方API1.9.1；sdk-node/exporter0.223.0与稳定SDK2.12.0按同发布组锁定 | 不把Node SDK导入所有纯能力，不默认全量auto instrumentation。普通日志/采样不能代替审计、账目及恢复事实 | trace/租户/工作/attempt/实例/代际跨异步边界显式传递；脱敏、有界导出、丢弃可见、关闭与故障责任见[观测约定](cross-cutting-concepts.md#观测与遥测) |
 | SDK与接入传输 | SDK用Web标准fetch/ReadableStream/AbortController。技术路线为HTTP JSON控制/查询与fetch SSE单向观察；SSE解析用eventsource-parser4.1.1 | 真正双向需求成立后再采用WebSocket。原生EventSource不能配置任意认证头，stdio不作通用浏览器远程接口 | 公开操作/认证/订阅语义仍归public-contract，本文不造端点。parser的maxBufferSize是字符，原始字节及事件队列另限。取消观察不取消原工作 |
-| MCP连接与动作桥接 | 官方@modelcontextprotocol/client与server各2.3.1，固定协议线2026-07-28；客户端显式pin该协议，现代stdio服务使用官方serveStdio。仅实际服务端接入需要node适配2.1.1 | 旧sdk1.32.1属于v1维护线，不作为新设计默认。默认传统stdio接缝不能假定进入现代协议；配套包不要求同版本，其Hono依赖不决定OMNE主服务器选择 | 协商、旧协议兼容与认证由MCP接缝验证。连接/发现/实际调用分责；重连不重放有副作用动作，stdio进程及状态会话由连接拥有者监督。不同协议/发现责任不按启动耗时排名 |
+| MCP连接与动作桥接 | 官方@modelcontextprotocol/client与server各2.4.0，固定协议线2026-07-28；客户端显式pin该协议，现代stdio服务使用官方serveStdio。仅实际服务端接入需要node适配2.1.2。版本按PanQiWei 2026-11-04的决定用最新版本，RFC-0001的2.3.1行由其开头的更正标注说明 | 旧sdk1.32.1属于v1维护线，不作为新设计默认。默认传统stdio接缝不能假定进入现代协议；配套包不要求同版本，其Hono依赖不决定OMNE主服务器选择 | 协商、旧协议兼容与认证由MCP接缝验证。连接/发现/实际调用分责；重连不重放有副作用动作，stdio进程及状态会话由连接拥有者监督。不同协议/发现责任不按启动耗时排名 |
 | 时间与TUI | 展示使用Intl，需日历/时区算术时显式import @js-temporal/polyfill0.5.1。TUI采用pi-tui1.1.0，仅应用表现层 | Luxon3.7.2为时间对照，Date不作隐式时区规则。Ink8.0.0为React呈现对照，不以Claude Code采用证明本项目性能 | Clock来源/业务期限/DST歧义由原拥有者规定。TUI验证真TTY、非TTY、宽字符、resize、输入优先及退出恢复，旧1.0.0补丁须按行为复核 |
 
 ## 设施机制的拥有者

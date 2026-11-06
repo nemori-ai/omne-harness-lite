@@ -10,6 +10,8 @@ owner: PanQiWei
 
 规则与维护责任见[RFC入口](README.md)。PanQiWei于2026-10-13接受本提案revision4，精确范围见[技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/197#issuecomment-6135131457)。方案和接受范围固定，当前规范从下方写回表定位实际拥有者；规范写回定位于工作分支，main运输另行办理。技术采用、规范切换、Git运输、实现及任务接受分别判断。
 
+> **更正标注（2026-11-06）**：原文与 status 不变。「共同选择与替代」表的「MCP连接与动作桥接」一行写官方 `@modelcontextprotocol/client` 与 `server` 各 2.3.1，node 适配 2.1.1。PanQiWei 于 2026-11-04 定 MCP SDK 用最新版本（提交 `9bfc876e3`）。仓库 catalog 现钉 client 与 server 2.4.0，node 适配 2.1.2。W2 在 2.3.1 上得出的探路结论，已在 2.4.0 上由 `mcp-host-local` 的测试与官方 SDK 客户端对照重新确认，见[成员规格](../../packages/mcp/mcp-host-local/SPEC.md#范围与依据)与[SDK 对照记录](../../packages/mcp/mcp-host-local/verification/proofs/sdk/README.md)。现行值以[技术基础](../architecture/technical-foundations.md)为准。依据是 [#1155](https://github.com/nemori-ai/omne-harness-lite/issues/1155) 的决定 D-01。
+
 ## 问题与有效输入
 
 系统需要明确公共设施的技术路线、异步执行、事务与结果保管、可靠队列、容量和真实关闭机制。依赖清单须配合可实施机制，才能让提供者保全长期运行、租户隔离和已确认事实。
