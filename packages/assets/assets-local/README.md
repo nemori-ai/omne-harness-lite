@@ -24,7 +24,7 @@ For a combination with a separate guard router, use `assetsSqlMaterials({ settin
 The owner supports these operations:
 
 - `publish` takes an `operationId`, `assetRef`, `pinned` body and `expectedRevision`. Use revision `0` for the first version.
-- `hold` takes a fresh `holdingRef`, tenant `scopeRef`, `assetRef`, version selection, ordered `sourceIds` and grants. A successful new holding has revision `1`.
+- `hold` takes a fresh `holdingRef`, tenant `scopeRef`, `assetRef`, version selection, ordered source identities and grants. A successful new holding has revision `1`.
 - `changeHolding` takes the holding identity, `expectedRevision` and one change: `remove`, `setEnabled`, `selectVersion`, `updateSources` or `updateGrants`. `setEnabled` carries an `enabled` boolean.
 - `readHolding` returns the holding and its selected version. Removed holdings return `selected: null`.
 - `readVersion` returns an immutable published version.

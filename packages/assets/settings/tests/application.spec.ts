@@ -81,6 +81,14 @@ function fixture() {
       {
         target,
         enabled: true,
+        sources: [
+          {
+            sourceId: 'tenant',
+            ownerRef: 'fixture-owner',
+            scope: { kind: 'owner', subjectRef: 'fixture-settings' },
+            authorityRevision: '1',
+          },
+        ],
         definitionRef,
         definition,
         state: { revision: 0, sources: [{ id: 'tenant', values: [] }] },

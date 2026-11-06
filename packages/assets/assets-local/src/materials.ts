@@ -6,6 +6,7 @@ import {
   HANDLER,
   MIGRATION,
   ENABLEMENT_MIGRATION,
+  SOURCE_LAYOUT_MIGRATION,
   PARTICIPANT,
   PROTOCOL,
   TABLES,
@@ -24,6 +25,7 @@ export function assetsSqlMaterials(
   const participant = file('participant'),
     migration = file('migration'),
     enablement = file('enablement-migration'),
+    sources = file('source-layout-migration'),
     reader = file('read')
   return {
     participants: [
@@ -44,6 +46,12 @@ export function assetsSqlMaterials(
       },
     ],
     migrations: [
+      {
+        ...SOURCE_LAYOUT_MIGRATION,
+        moduleUrl: sources.moduleUrl,
+        checksum: sources.digest,
+        requires: [ENABLEMENT_MIGRATION],
+      },
       { ...MIGRATION, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
       {
         ...ENABLEMENT_MIGRATION,
@@ -60,7 +68,7 @@ export function assetsSqlMaterials(
         codeDigest: reader.digest,
         ordering: 'snapshot',
         readTables: TABLES,
-        requiresMigrations: [MIGRATION, ENABLEMENT_MIGRATION],
+        requiresMigrations: [MIGRATION, ENABLEMENT_MIGRATION, SOURCE_LAYOUT_MIGRATION],
         maxRowsRead: 4,
         maxOutputBytes: 2 * 1024 * 1024,
       },

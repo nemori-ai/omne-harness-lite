@@ -1,4 +1,5 @@
 import {
+  projectSettingsSources,
   SettingsOwnerProjectionSchema,
   SettingsTargetProjectionSchema,
   settingsAssetsProjectionFact,
@@ -19,7 +20,7 @@ function targetView(
 ) {
   if (target.policyId !== 'asset' || target.scopeRef !== scopeRef(binding.domain)) return null
   const holding = readHolding(port, binding.domain, target.targetRef)
-  if (!holding || holding.state !== 'held') return null
+  if (!holding || holding.state !== 'held' || holding.sourceLayout.kind !== 'bound') return null
   const selected = selectedVersion(port, holding)
   if (!selected) return null
   if (selected.version.declaration.kind === 'none') return 'undeclared' as const
@@ -29,7 +30,7 @@ function targetView(
     enabled: holding.enabled,
     definition,
     definitionRef,
-    sourceIds: holding.sourceIds,
+    sources: projectSettingsSources(holding.sourceLayout.sources, selected.ownerRevision),
     grants: holding.grants,
     ownerRevision: selected.ownerRevision,
   })
@@ -53,7 +54,7 @@ export function guard(port: ParticipantPort, binding: SettingsSqlGuardBinding) {
       binding,
       definition: view.definition,
       definitionRef: view.definitionRef,
-      sourceIds: view.sourceIds,
+      sources: view.sources,
       grants: view.grants,
     }),
   )

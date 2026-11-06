@@ -68,7 +68,7 @@ classDiagram
     digest
   }
   class SettingsTargetProjection {
-    sourceIds
+    sourceLayout
     grants
     ownerRevision
   }

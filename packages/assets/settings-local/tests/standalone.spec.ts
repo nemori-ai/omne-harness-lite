@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import { afterEach, expect, it } from 'vitest'
 import {
   createStandaloneSettingsOwner,
@@ -19,7 +20,7 @@ async function open() {
   const record = {
     target: w.change.target,
     definition,
-    sourceIds: ['tenant'],
+    sources: ownerSources('tenant'),
     grants: [
       {
         sourceId: 'tenant',

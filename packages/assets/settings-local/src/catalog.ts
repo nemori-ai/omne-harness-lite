@@ -85,6 +85,7 @@ const BasisSchema = z.strictObject({
         definition: SettingDefinitionsSchema,
         definitionRef: SettingsDefinitionRefSchema,
         state: SettingsStateSchema,
+        sources: SettingsTargetProjectionSchema.shape.sources,
         grants: SettingsTargetProjectionSchema.shape.grants,
       }),
     )

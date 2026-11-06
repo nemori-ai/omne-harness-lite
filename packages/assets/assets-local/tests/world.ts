@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtempSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -198,7 +199,7 @@ export async function openWorld(
       scopeRef: target.scopeRef,
       assetRef: 'asset-a',
       selection: { kind: 'follow' },
-      sourceIds: ['tenant'],
+      sources: ownerSources('tenant'),
       grants,
     })
     if (published.kind !== 'committed' || held.kind !== 'committed')

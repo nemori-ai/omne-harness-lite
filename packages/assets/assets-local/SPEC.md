@@ -16,13 +16,13 @@ A holding selects either the latest published version or one existing pinned ver
 
 A holding has its own revision. Changes require the exact current revision. A changed selection, source layout, grant list or state increments that revision. Removing a holding retains its identity as a tombstone. It cannot be held again or selected again. A fresh holding uses a new identity and cannot inherit settings stored under the removed identity. Removal does not delete Settings values or operation results.
 
-Source IDs are ordered, unique and limited to 32. Grants refer only to those sources. Each source grant and each action occurs at most once. Actions are `set`, `clear`, `lock` and `unlock`.
+Sources carry explicit stable owner and scope identities. Their IDs are ordered, unique and limited to 32. Grants refer only to those sources. Each source grant and each action occurs at most once. Actions are `set`, `clear`, `lock` and `unlock`.
 
 ## Transaction facts
 
 The `assets.settings` participant owns asset tables. It reads the current holding, selected published version, declaration and source layout in the same transaction as the Settings participant. It reads no Settings or Identity private tables.
 
-The guard only accepts `policyId: 'asset'`, with `targetRef` equal to the held identity. It refuses removed holdings, missing definitions, foreign scopes and stale definition references. Its public fact contains the exact command binding, current declaration, definition reference, source IDs and grants. Settings still validates revisions, item compatibility, grants and locks.
+The guard only accepts `policyId: 'asset'`, with `targetRef` equal to the held identity. It refuses removed holdings, missing definitions, foreign scopes and stale definition references. Its public fact contains the exact command binding, current declaration, definition reference, full source descriptors and grants. Settings still validates revisions, item compatibility, grants and locks.
 
 Capture uses the public `SettingsProjectionBinding` and provides `settings.assets-projection`. Management capture with an empty target list enumerates held targets in the domain. An explicit list restricts output to matching asset targets. Other policies contribute no asset views. Runtime capture uses only explicit targets and never chooses a target itself. The composition owner verifies the genuine runtime selection and caller qualification.
 
@@ -55,3 +55,12 @@ The SQL provider owns commit durability and receipts. Asset mutation, owner sequ
 ## Verification responsibility
 
 [Package tests](tests/README.md) exercise public operations with real SQLite Workers, including both holding-removal/setting-write orders. Reopen and lost-reply tests verify ordinary durable recovery. The separate settings-governance suite exercises real Identity, independent targets and Assets through one Settings application. These tests do not certify power-loss behavior, hardware durability or complete product adoption. The composition owner provides those applicable independent acceptance results.
+
+
+## Source provenance
+
+New holdings and `updateSources` require complete stable source identities. The holding stores this layout. Projection adds the selected owner revision as the current local authority revision. An owner command cannot choose that token. Changing the stable layout advances holding and owner revisions. The Settings participant separately checks the identity binding of stored values. Changing an owner or subject under the same source ID cannot transfer those values.
+
+The source-layout migration runs after enablement migration. It preserves legacy IDs as an explicit `unmapped` layout without guessing owners or scopes. It reads at most 64 holdings per primary-key page, preserves grants and removed holdings, and rejects malformed explicit provenance. An unmapped holding emits no current Settings projection. A trusted `updateSources` can establish its complete layout. Settings still requires explicit rebase of its own unmapped assignments. Removing a holding does not delete either owner's historical records.
+
+Historical operation lookup decodes the original `sourceIds` form of stored hold and source-update receipts. This private decoder preserves the original binding and result. It does not construct source identities or admit the old command shape. Current commands still require complete sources. Reusing a historical operation ID for a different current command returns `operation_conflict`. Malformed historical bindings remain `unknown`.

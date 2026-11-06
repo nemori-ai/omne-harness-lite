@@ -1,3 +1,4 @@
+import { matchesSettingsSources } from './source-layout.ts'
 import { defineSettings, evaluateSettings } from '@omne-harness/settings'
 import type { SettingsBasis, SettingsTargetView, SettingsFailure } from '@omne-harness/settings'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
@@ -16,28 +17,22 @@ function projectedState(
   input: ReturnType<typeof SnapshotInputSchema.parse>,
   projection: ReturnType<typeof targetViews>[number],
 ): SettingsTargetView | SettingsFailure {
-  const { target, enabled, definition, definitionRef, grants, sourceIds } = projection
+  const { target, enabled, definition, definitionRef, grants, sources } = projection
   const fail = (reason: SettingsFailure['reason']): SettingsFailure => ({
     kind: 'rejected',
     reason,
   })
   const current = readStateRecord(port, input.binding.domain.scope, target)
-  if (
-    current &&
-    (!equal(current.definitionRef, definitionRef) ||
-      !equal(
-        current.state.sources.map(source => source.id),
-        sourceIds,
-      ))
-  )
-    return fail('definition_changed')
+  if (current && !equal(current.definitionRef, definitionRef)) return fail('definition_changed')
+  if (current && !matchesSettingsSources(current.sourceLayout, sources))
+    return fail('basis_changed')
   const state = current?.state ?? {
     revision: 0,
-    sources: sourceIds.map(id => ({ id, values: [] })),
+    sources: sources.map(({ sourceId: id }) => ({ id, values: [] })),
   }
   if (evaluateSettings({ definition, sources: state.sources }).kind !== 'complete')
     return fail('incompatible')
-  return { target, enabled, definition, definitionRef, grants, state }
+  return { target, enabled, definition, definitionRef, grants, state, sources }
 }
 function captureValues(
   port: ParticipantPort,

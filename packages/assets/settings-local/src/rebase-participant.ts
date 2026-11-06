@@ -1,4 +1,5 @@
-import { decideSettingsRebase, defineSettings } from '@omne-harness/settings'
+import { decideStoredSettingsRebase } from './rebase-decision.ts'
+import { defineSettings, settingsSourceIdentities } from '@omne-harness/settings'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { canonical, digest, equal, json, operationKey, stateKey } from './encoding.ts'
 import { readStateRecord } from './records.ts'
@@ -28,20 +29,15 @@ export function rebaseAssignments(raw: unknown, port: ParticipantPort) {
   const command = binding.command
   const current = readStateRecord(port, binding.domain.scope, command.target)
   if (!current) return fail('basis_changed')
-  const decision = decideSettingsRebase({
-    command,
-    state: current.state,
-    previousDefinition: current.definitionRef,
-    nextDefinition: fact.definitionRef,
-    definition: fact.definition,
-    sourceIds: fact.sourceIds,
-  })
+  const decision = decideStoredSettingsRebase(command, current, fact)
   if (decision.kind === 'rejected') return fail(decision.reason)
+  const changed = decision.kind === 'changed'
+  const state = decision.state
   const result = {
     kind: 'committed',
     operationId: command.operationId,
-    revision: decision.state.revision,
-    changed: decision.kind === 'changed',
+    revision: state.revision,
+    changed,
   }
   const key = stateKey(binding.domain.scope, command.target)
   port.execute('UPDATE st_states SET record = ? WHERE target_key = ?', [
@@ -49,7 +45,8 @@ export function rebaseAssignments(raw: unknown, port: ParticipantPort) {
       scope: binding.domain.scope,
       target: command.target,
       definitionRef: fact.definitionRef,
-      state: decision.state,
+      state,
+      sourceLayout: { kind: 'bound', sources: settingsSourceIdentities(fact.sources) },
     }),
     key,
   ])
@@ -57,10 +54,10 @@ export function rebaseAssignments(raw: unknown, port: ParticipantPort) {
     operationKey(binding.principalRef, command.target, command.operationId),
     canonical({ binding: operation, result }),
   ])
-  if (decision.kind === 'changed')
+  if (changed)
     port.execute(
       'INSERT INTO st_changes (target_key, revision, operation_id, kind, item_id, source_id) VALUES (?, ?, ?, ?, ?, ?)',
-      [key, decision.state.revision, command.operationId, 'rebase', null, null],
+      [key, state.revision, command.operationId, 'rebase', null, null],
     )
   const response = json({ binding: operation, result })
   port.provideFact(RESULT_FACT, response)

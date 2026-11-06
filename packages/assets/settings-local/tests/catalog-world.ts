@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import type { SqlMaterialCatalog, SqlStorage } from '@omne-harness/sql-contract'
 import type { SettingsProjectionBinding } from '../src/index.ts'
 import {
@@ -97,7 +98,7 @@ export async function openCatalogWorld(
   const record = {
     target: w.change.target,
     definition,
-    sourceIds: ['tenant'],
+    sources: ownerSources('tenant'),
     grants: [
       {
         sourceId: 'tenant',

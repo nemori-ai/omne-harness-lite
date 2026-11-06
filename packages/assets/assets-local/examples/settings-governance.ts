@@ -46,7 +46,13 @@ try {
     scopeRef: target.scopeRef,
     assetRef: 'manual-asset',
     selection: { kind: 'follow' },
-    sourceIds: ['tenant'],
+    sources: [
+      {
+        sourceId: 'tenant',
+        ownerRef: 'deployment',
+        scope: { kind: 'tenant', subjectRef: 'tenant-a' },
+      },
+    ],
     grants: [{ sourceId: 'tenant', actions: ['set', 'clear', 'lock', 'unlock'] }],
   })
   assert.equal(held.kind, 'committed')

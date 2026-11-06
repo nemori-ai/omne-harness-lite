@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtempSync, mkdirSync, readFileSync, realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -263,7 +264,10 @@ export async function openWorld(
               JSON.stringify(mode === 'secret' ? secretDefinition : definition),
             ),
             definitionRef: mode === 'secret' ? secretDefinitionRef : definitionRef,
-            sourceIds: ['organization', 'tenant'],
+            sources: ownerSources('organization', 'tenant').map(source => ({
+              ...source,
+              authorityRevision: '1',
+            })),
             grants: ['organization', 'tenant'].map(sourceId => ({
               sourceId,
               actions: ['set', 'clear', 'lock', 'unlock'],

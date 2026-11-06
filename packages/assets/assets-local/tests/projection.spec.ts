@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import { afterEach, expect, it } from 'vitest'
 import { SettingsOwnerProjectionSchema } from '@omne-harness/settings-local'
 import { assetsSettingsProjectionCommand, assetsSqlMaterials } from '../src/index.ts'
@@ -23,7 +24,7 @@ it('captures actual declared asset targets and never invents a runtime selection
     target,
     definition: { items: [{ id: 'enabled', default: { kind: 'value', value: false } }] },
     grants,
-    sourceIds: ['tenant'],
+    sources: ownerSources('tenant'),
   })
   for (const request of [
     { mode: 'runtime' as const, targets: [] },
@@ -122,7 +123,7 @@ it('refuses management overflow instead of truncating 129 real holdings into suc
         holdingRef,
         scopeRef: 'tenant-a',
         selection: { kind: 'follow' },
-        sourceIds: ['tenant'],
+        sources: ownerSources('tenant'),
         grants,
       }),
     ).toMatchObject({ kind: 'committed' })

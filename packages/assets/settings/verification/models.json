@@ -1,6 +1,6 @@
 {
   "model": "models/SettingsComposition.tla",
-  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof; SettingsSourceRetention: two destinations, two source updates, one crash; safety and conditional progress under eventual storage availability and weakly fair recovery; fixed identity bindings, abstract atomic source transactions, no production refinement proof; source write conditions abstract confirmed final business validity as a monotone boolean, not a schema or original binding proof",
+  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof; SettingsSourceRetention: two destinations, two source updates, one crash; safety and conditional progress under eventual storage availability and weakly fair recovery; fixed identity bindings, abstract atomic source transactions, no production refinement proof; source write conditions abstract confirmed final business validity as a monotone boolean, not a schema or original binding proof; SettingsSourceIdentity: two ordered sources, four identity/layout replacements, one authority refresh, one prepare/write/rebase; finite safety only, authenticated ownership and SQL isolation are assumptions",
   "cases": [
     {
       "name": "positive",
@@ -132,6 +132,54 @@
       "model": "models/SettingsSourceRetention.tla",
       "config": "models/source-ignore-write-conditions.cfg",
       "expected": "CurrentWriteConditions"
+    },
+    {
+      "name": "source-identity-positive",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "source-identity-read",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-read.cfg",
+      "expected": "ReadUsesSameIdentity"
+    },
+    {
+      "name": "source-identity-write",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-write.cfg",
+      "expected": "WriteUsesSameIdentity"
+    },
+    {
+      "name": "source-identity-retain",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-retain.cfg",
+      "expected": "RetainUsesSameIdentity"
+    },
+    {
+      "name": "source-identity-legacy",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-legacy.cfg",
+      "expected": "UnknownIdentityIsNotAuthority"
+    },
+    {
+      "name": "source-identity-authority",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-authority.cfg",
+      "expected": "CommitUsesCurrentBasis"
+    },
+    {
+      "name": "source-identity-value",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-value.cfg",
+      "expected": "CommitUsesCurrentBasis"
+    },
+    {
+      "name": "source-identity-revision",
+      "model": "models/SettingsSourceIdentity.tla",
+      "config": "models/source-identity-revision.cfg",
+      "expected": "RebindingChangesRevision"
     }
   ]
 }

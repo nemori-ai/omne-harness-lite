@@ -13,6 +13,7 @@ import {
   GUARD_FACT,
   HANDLER,
   MIGRATION,
+  SOURCE_LAYOUT_MIGRATION,
   PARTICIPANT,
   PROTOCOL,
   RESULT_FACT,
@@ -33,6 +34,7 @@ export function settingsSqlMaterials(): Pick<
 > {
   const participant = file('participant')
   const migration = file('migration')
+  const sources = file('source-layout-migration')
   const reader = file('read')
   const terminal = file('terminal-participant')
   const terminalMigration = file('terminal-migration')
@@ -72,6 +74,12 @@ export function settingsSqlMaterials(): Pick<
         requires: [],
       },
       { ...MIGRATION, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
+      {
+        ...SOURCE_LAYOUT_MIGRATION,
+        moduleUrl: sources.moduleUrl,
+        checksum: sources.digest,
+        requires: [MIGRATION],
+      },
     ],
     readHandlers: [
       {
@@ -92,7 +100,7 @@ export function settingsSqlMaterials(): Pick<
         codeDigest: reader.digest,
         ordering: 'snapshot',
         readTables: TABLES,
-        requiresMigrations: [MIGRATION],
+        requiresMigrations: [MIGRATION, SOURCE_LAYOUT_MIGRATION],
         maxRowsRead: 102,
         maxOutputBytes: 2 * 1024 * 1024,
       },

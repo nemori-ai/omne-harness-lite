@@ -7,7 +7,10 @@ import {
   SettingsReferenceSchema,
   SettingsStateSchema,
   SettingsTargetSchema,
+  SettingsSourceLayoutSchema,
 } from '@omne-harness/settings'
+
+import { StoredSettingsSourceLayoutSchema } from './source-layout.ts'
 
 export const PARTICIPANT = 'settings.persistence'
 export const PROTOCOL = 'settings-sql/1'
@@ -16,6 +19,7 @@ export const GUARD_FACT = { key: 'settings.current', protocol: PROTOCOL }
 export const RESULT_FACT = { key: 'settings.result', protocol: PROTOCOL }
 export const TABLES = ['st_states', 'st_operations', 'st_changes']
 export const MIGRATION = { owner: PARTICIPANT, id: 'settings-1' }
+export const SOURCE_LAYOUT_MIGRATION = { owner: PARTICIPANT, id: 'settings-source-layout-1' }
 export const scopeSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('system') }),
   z.strictObject({ kind: z.literal('tenant'), tenant: SettingsReferenceSchema }),
@@ -49,11 +53,7 @@ export const guardFactSchema = z.strictObject({
       }),
     )
     .max(32),
-  sourceIds: z
-    .array(SettingsIdSchema)
-    .min(1)
-    .max(32)
-    .refine(ids => new Set(ids).size === ids.length),
+  sources: SettingsSourceLayoutSchema,
 })
 export const failureSchema = z.strictObject({
   kind: z.literal('rejected'),
@@ -86,15 +86,25 @@ export const rejectionSchema = z.strictObject({
   binding: operationBindingSchema,
   failure: failureSchema,
 })
-export const stateRecordSchema = z.strictObject({
-  scope: scopeSchema,
-  target: SettingsTargetSchema,
-  definitionRef: SettingsDefinitionRefSchema,
-  state: SettingsStateSchema,
-})
+export const stateRecordSchema = z
+  .strictObject({
+    scope: scopeSchema,
+    target: SettingsTargetSchema,
+    definitionRef: SettingsDefinitionRefSchema,
+    state: SettingsStateSchema,
+    sourceLayout: StoredSettingsSourceLayoutSchema,
+  })
+  .refine(record => {
+    const ids =
+      record.sourceLayout.kind === 'bound'
+        ? record.sourceLayout.sources.map(source => source.sourceId)
+        : record.sourceLayout.sourceIds
+    return JSON.stringify(ids) === JSON.stringify(record.state.sources.map(source => source.id))
+  })
 export const stateResultSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('state'),
+    sourceLayout: StoredSettingsSourceLayoutSchema,
     definitionRef: SettingsDefinitionRefSchema,
     state: SettingsStateSchema,
   }),

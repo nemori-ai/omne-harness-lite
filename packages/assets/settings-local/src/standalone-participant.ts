@@ -1,3 +1,4 @@
+import { projectSettingsSources } from './source-layout.ts'
 import { z } from 'zod'
 import { defineSettings, type SettingsTarget } from '@omne-harness/settings'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
@@ -35,7 +36,8 @@ function adoptDefinition(
 ) {
   const defined = defineSettings(record.definition)
   if (defined.kind !== 'defined') return fail('invalid_input')
-  if (record.grants.some(g => !record.sourceIds.includes(g.sourceId))) return fail('invalid_input')
+  if (record.grants.some(g => !record.sources.some(source => source.sourceId === g.sourceId)))
+    return fail('invalid_input')
   const definition = defined.definition
   const definitionRef = {
     providerId: definition.providerId,
@@ -99,7 +101,7 @@ function mutate(facts: Readonly<Record<string, unknown>>, port: ParticipantPort)
         enabled: true,
         definition,
         definitionRef,
-        sourceIds: record.sourceIds,
+        sourceLayout: { kind: 'bound', sources: record.sources },
         grants: record.grants,
         ownerRevision: revision,
       },
@@ -110,6 +112,12 @@ function mutate(facts: Readonly<Record<string, unknown>>, port: ParticipantPort)
     [key, target.scopeRef, next.retired ? 1 : 0, canonical(next)],
   )
   return { kind: 'participated' as const, response: { kind: 'changed', revision } }
+}
+function projection(record: ReturnType<typeof StandaloneRecordSchema.parse>) {
+  const { sourceLayout, ...view } = record.projection
+  return sourceLayout.kind === 'bound'
+    ? { ...view, sources: projectSettingsSources(sourceLayout.sources, view.ownerRevision) }
+    : null
 }
 function capture(facts: Readonly<Record<string, unknown>>, port: ParticipantPort) {
   const binding = SettingsProjectionBindingSchema.parse(facts['binding'])
@@ -127,7 +135,13 @@ function capture(facts: Readonly<Record<string, unknown>>, port: ParticipantPort
     : binding.request.targets
         .filter(t => t.policyId === 'independent')
         .map(t => row(port, stateKey(binding.domain.scope, t)))
-  const views = records.flatMap(r => (r !== null && !r.retired ? [r.projection] : []))
+  const active = records.filter(r => r !== null).filter(r => !r.retired)
+  const views = []
+  for (const record of active) {
+    const view = projection(record)
+    if (!view) return fail('unavailable')
+    views.push(view)
+  }
   if (views.length > 128) return fail('limit_exceeded')
   port.provideFact(settingsStandaloneProjectionFact, json({ binding, views }))
   return { kind: 'participated' as const, response: null }
@@ -145,8 +159,10 @@ function guard(facts: Readonly<Record<string, unknown>>, port: ParticipantPort) 
   if (!isIndependentTargetInDomain(binding.domain, target)) return reject('forbidden')
   const current = row(port, stateKey(binding.domain.scope, target))
   if (!current || current.retired) return reject('forbidden')
-  const { definition, definitionRef, grants, sourceIds } = current.projection
-  port.provideFact(GUARD_FACT, json({ binding, definition, definitionRef, grants, sourceIds }))
+  const view = projection(current)
+  if (!view) return reject('unavailable')
+  const { definition, definitionRef, grants, sources } = view
+  port.provideFact(GUARD_FACT, json({ binding, definition, definitionRef, grants, sources }))
   return { kind: 'participated' as const, response: null }
 }
 export default {

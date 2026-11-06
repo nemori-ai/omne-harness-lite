@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import { afterEach, expect, it } from 'vitest'
 import { openWorld, pinned, grants, target, type World } from './world.ts'
 const worlds: World[] = []
@@ -38,7 +39,7 @@ it('persists immutable body, selected holding and original operation across prov
       scopeRef: target.scopeRef,
       assetRef: 'asset-a',
       selection: { kind: 'follow' },
-      sourceIds: ['tenant'],
+      sources: ownerSources('tenant'),
       grants,
     }),
   ).toEqual({ kind: 'committed', operationId: 'hold-1', revision: 1, changed: true })

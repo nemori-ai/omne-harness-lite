@@ -388,7 +388,13 @@ export async function openSettingsComposition(
       record: {
         target,
         definition,
-        sourceIds: ['tenant'],
+        sources: [
+          {
+            sourceId: 'tenant',
+            ownerRef: 'deployment',
+            scope: { kind: 'tenant', subjectRef: 'tenant-a' },
+          },
+        ],
         grants: [{ sourceId: 'tenant', actions: ['set', 'clear'] }],
       },
     })

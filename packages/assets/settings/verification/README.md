@@ -89,3 +89,20 @@ FreshPublication 的最终消费者采用仍由消费者负责。目录返回有
 PendingProgress以数据库最终可用、重启恢复与相应步骤弱公平为前提；不要求永久失联时仍可更新组织规则。身份绑定在模型中固定，单次源SQL提交抽象为原子动作。模型不证明真实参与者组合、任意规模、网络认证、Cordis收尾或物理断电。实现必须将settings.terminal、intent-plan、source-retention和persistence映射到同一次真实提交，并验证登记途中卸载、SQL依赖消失与旧引用调用。模型和负控通过不代表这些生产义务已完成。
 
 来源模型的conditions位抽象已确认的最终业务条件。InvalidateConditions可在等待期间使其失效；Apply要求其成立，Reject与清门共同提交。它不代表来源暂时不可读，也不证明定义、修订、锁或动作资格的实际SQL判断。具体失败分类归[准备协议](../docs/protocol.md#失败对请求attempt及根的后果)，提供者须逐项验证，并保留unknown与rejected的观察边界。
+
+## 来源身份与历史配值
+
+`SettingsSourceIdentity.tla` 对应 [本地来源绑定](../../settings-local/SPEC.md#source-identity-and-persisted-provenance)。它枚举两个来源的重排、同ID换拥有者、换作用域种类、换主体，以及未知历史、资格刷新、准备、写入和重整。稳定身份不含资格修订。模型将完整来源布局和值都纳入准备依据。
+
+| 性质 | 负控 |
+| --- | --- |
+| ReadUsesSameIdentity | read-by-id允许来源身份变化后读旧值 |
+| WriteUsesSameIdentity | write-by-id允许沿用旧绑定写值 |
+| RetainUsesSameIdentity | retain-by-id允许异源保留 |
+| UnknownIdentityIsNotAuthority | legacy-reuse把未知历史视作已知 |
+| CommitUsesCurrentBasis | ignore-authority与ignore-value-revision分别跳过一个依据轴 |
+| RebindingChangesRevision | no-revision-bump让绑定变化不推进修订 |
+
+每个布局修改推进资格修订，每次重整采用变化的绑定推进配值修订。在这两个前提下，单独移除准备布局比较可能仍受其他比较保护。因此不把它登记为一个必然失败的负控。`UNCHANGED x`允许有限动作耗尽后静止。此模型只检查安全性，不声称无死锁或业务最终完成。
+
+来源只能由真实拥有者提供，事务在模型中是原子的。模型不证明拥有者诚实、外部资格核验、远程认证或任意规模。`source-layout.ts`、`participant.ts`、`snapshot-participant.ts`和`rebase-participant.ts`兑现稳定身份与值归属检查。`source-provenance.spec.ts`验证真实独立目标、Identity和SQLite组合，Assets的`settings-governance.spec.ts`验证资产拥有者组合。准备依据的完整实现仍须由准备提交提供者兑现，不能由这些读写测试推定完成。

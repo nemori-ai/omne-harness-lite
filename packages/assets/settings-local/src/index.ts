@@ -1,3 +1,4 @@
+export { StoredSettingsSourceLayoutSchema, projectSettingsSources } from './source-layout.ts'
 export { createSettingsSqlBackend } from './provider.ts'
 export { settingsSqlMaterials } from './materials.ts'
 export { settingsSqlOperationBinding } from './encoding.ts'

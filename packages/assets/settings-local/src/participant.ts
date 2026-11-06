@@ -1,3 +1,5 @@
+import { matchesSettingsSources } from './source-layout.ts'
+import { settingsSourceIdentities } from '@omne-harness/settings'
 import { rebaseAssignments } from './rebase-participant.ts'
 import { decideSettingsChange, defineSettings } from '@omne-harness/settings'
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
@@ -48,7 +50,7 @@ function currentFacts(binding: Binding, port: ParticipantPort) {
     fact.definition.items.find(item => item.id === binding.command.itemId)?.sensitivity === 'secret'
   )
     return reject('unsupported')
-  if (fact.grants.some(grant => !fact.sourceIds.includes(grant.sourceId)))
+  if (fact.grants.some(grant => !fact.sources.some(source => source.sourceId === grant.sourceId)))
     return reject('forbidden')
   return fact
 }
@@ -66,17 +68,11 @@ function execute(binding: Binding, port: ParticipantPort) {
   const current = readStateRecord(port, binding.domain.scope, binding.command.target)
   if (current && !equal(current.definitionRef, fact.definitionRef))
     return fail('definition_changed')
-  if (
-    current &&
-    !equal(
-      current.state.sources.map(source => source.id),
-      fact.sourceIds,
-    )
-  )
+  if (current && !matchesSettingsSources(current.sourceLayout, fact.sources))
     return fail('basis_changed')
   const state = current?.state ?? {
     revision: 0,
-    sources: fact.sourceIds.map(id => ({ id, values: [] })),
+    sources: fact.sources.map(({ sourceId: id }) => ({ id, values: [] })),
   }
   const decision = decideSettingsChange({
     command: binding.command,
@@ -103,6 +99,7 @@ function execute(binding: Binding, port: ParticipantPort) {
         target: command.target,
         definitionRef: fact.definitionRef,
         state: decision.state,
+        sourceLayout: { kind: 'bound', sources: settingsSourceIdentities(fact.sources) },
       }),
     ],
   )
