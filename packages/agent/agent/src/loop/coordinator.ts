@@ -604,6 +604,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }> | null = null
   let originalOpen: Parameters<typeof ports.journal.open>[0] | null = null
   let excludedNode: LoopNode | null = null
+  let finishAttemptRevision: ExecutionRevision | null = null
   let finishRefused = false
   // The unavailable answer of the last tryFinish: R0 waits on it as a dependency (loop-algorithm
   // F3 row: unavailable goes to R0; R0 waits while the facts are undetermined).
@@ -1772,6 +1773,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       facts = current.ok
       const evaluated = await evaluate('I8', current.ok)
       if ('failure' in evaluated) return evaluated
+      if (
+        read.ok.state.kind === 'settling' &&
+        read.ok.revision === finishAttemptRevision &&
+        read.ok.settlement.candidate?.conclusion.kind === 'complete' &&
+        decided?.kind === 'try-finish' &&
+        decided.conclusion.kind === 'complete' &&
+        decided.failure === null
+      )
+        return finishDependencyWait('F3')
       // W0 saves the wait while retaining I8 as the continuation. It does not claim a wakeup.
       return evaluated.ok.on === 'wait'
         ? step('wait', null)
@@ -3437,6 +3447,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return step('reconcile', null)
       }
       revision = read.ok.revision
+      finishAttemptRevision = revision
       const finished = await journalAt('F3').tryFinish({
         ...access,
         execution,

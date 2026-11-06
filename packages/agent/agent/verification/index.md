@@ -18,3 +18,4 @@
 
 - [reservation/](reservation/README.md)：执行槽预占与本地宿主空闲回收的有限模型及运行守护
 - [failure-provenance/](failure-provenance/README.md)：共享 Failure 的来源隔离证明、有限正负控及真实 coordinator 回归
+- [finish-refusal/](finish-refusal/README.md)：相同完成意图被拒绝后保留候选、等待并重试的局部模型与实现守护

@@ -59,6 +59,10 @@ node-failed 的原未取入输入按公共 Journal 契约保持可读并记为 h
 
 F3 只有取得 Journal ended 才经 F4/E9 释放槽。有效取消可在终态前转 F0；已经提交的 ended 不被后来的取消覆盖。Session 的终态解释仍归 AD-02。实现守护与有限模型边界见[节点故障验证映射](verification/node-failure.md)。
 
+## 终结被拒绝后的等待
+
+条件终结被拒绝后，R0 重读事实，I8 重新求值。若已保存状态仍为 settling、原候选为 complete，重读的 Journal 修订等于刚才 tryFinish 的 expected，且求值仍为无失败的 complete，则保留原候选并进入 F3 内存等待。不得仅因相同完成意图再次创建候选、路线或持久 waiting。Journal 变化或检查时刻允许重试，只有 Journal 的 ended 答案确认结束。新输入、新失败和有效取消仍走各自既有路径。局部证明、有限模型及运行守护见[终结拒绝验证](verification/finish-refusal/README.md)。
+
 ## 以失败终结
 
 <a id="以失败终结"></a>执行以 `fail` 结论终结时，结论原因写明为什么失败，宿主据此记一条日志。以前主调用以失败收场时，原因只留在 Model 的账目里，结论原因只写 `no-reply`，会话历史与服务日志都看不到真实原因。
