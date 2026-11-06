@@ -32,6 +32,8 @@ export class StdioLine implements Line {
   /** Fires on `close()`: a `send` still waiting on the pipe reports `aborted` then. */
   private readonly closing = new AbortController()
   private closed = false
+  /** The one close in progress, once `close()` ran: every caller of `close()` gets it. */
+  private closeDone: Promise<void> | undefined
 
   constructor(process: ProcessHandle) {
     this.events = this.queue
@@ -202,13 +204,20 @@ export class StdioLine implements Line {
   /**
    * T5: the stdin write end first, then the stdout read; the process is left alone. Closing is
    * giving up: the session settled every request before it closes the line, so no byte still
-   * needs to reach the peer. The write end is aborted, which ends the peer's input as closing it
-   * would, and never drained: a web write completes when the lower layer took the bytes, not when
-   * the peer read them, so draining would wait on a peer that does not read stdin (SPEC H6). The
-   * read loops of stdout and standard error have ended when this returns.
+   * needs to reach the peer. The write end is aborted and never drained: a web write completes
+   * when the lower layer took the bytes, not when the peer read them, so draining would wait on a
+   * peer that does not read stdin (SPEC H6). `close()` does not wait for the buffer to drain, but
+   * the bytes already handed to Node may still reach the peer: with a write in flight the abort
+   * takes effect only once that write ended, so the peer sees the end of its input after it. The
+   * read loops of stdout and standard error have ended when this returns. Every call gets the one
+   * close: a second call completes when the first does.
    */
-  async close(): Promise<void> {
-    if (this.closed) return
+  close(): Promise<void> {
+    this.closeDone ??= this.shutdown()
+    return this.closeDone
+  }
+
+  private async shutdown(): Promise<void> {
     this.closed = true
     clearTimeout(this.window)
     this.writable = false

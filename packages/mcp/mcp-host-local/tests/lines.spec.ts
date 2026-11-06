@@ -237,6 +237,33 @@ describe('the stdio line and close() with writes in flight (T5, SPEC H6)', () =>
   })
 })
 
+describe('the stdio line closes once (T5, SPEC H6)', () => {
+  it('a second close() is the first one: it does not complete before the read loops ended and the events ended', async () => {
+    // The cancel of standard error is held, so the first close is still waiting on a read loop.
+    let release = (): void => undefined
+    const held = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const line = new StdioLine({
+      stdin: new WritableStream<Uint8Array>(),
+      stdout: new ReadableStream<Uint8Array>(),
+      stderr: new ReadableStream<string>({ cancel: () => held }),
+      exited: new Promise<void>(() => undefined),
+      stop: async () => 'root-only',
+    })
+    const events = line.events[Symbol.asyncIterator]()
+    const first = line.close()
+    const second = line.close()
+    expect(await settledWithin(second, 30)).toBe('pending')
+    release()
+    expect(await settledWithin(second)).toEqual({ settled: undefined })
+    expect(await settledWithin(first)).toEqual({ settled: undefined })
+    expect(await settledWithin(events.next(), 30)).toEqual({
+      settled: { value: undefined, done: true },
+    })
+  })
+})
+
 /** A process whose stdout is fed by the test, chunk by chunk, and records whether it was cancelled. */
 function fedProcess(): Readonly<{
   handle: ProcessHandle

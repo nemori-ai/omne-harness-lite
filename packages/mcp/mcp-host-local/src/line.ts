@@ -87,6 +87,10 @@ export interface Line {
   readonly events: AsyncIterable<LineEvent>
   /** HTTP only: GETs the target with `headers` and reports what came back (contract T3). */
   readonly openGet?: ((headers: Headers, signal: AbortSignal) => Promise<GetOpened>) | undefined
-  /** Closes the line. It is idempotent. It does not stop a process. */
+  /**
+   * Closes the line. It is idempotent: a second call completes no earlier than the first. It does
+   * not stop a process. Its completion depends on local resources only and never waits for the
+   * peer: the session's `close()` waits for it alone, so this is the premise of SPEC V4.
+   */
   close(): Promise<void>
 }
