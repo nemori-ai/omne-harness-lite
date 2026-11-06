@@ -8,14 +8,15 @@ MCP 组的本机宿主成员：契约 `McpTransportFactory` 与 `McpTransport` �
 
 本包把 [`@omne-harness/mcp-contract`](../mcp-contract/README_ZH.md) 的传输端口兑现在真实的进程管道与 HTTP 连接上。调用方是 [`@omne-harness/mcp`](../mcp/README_ZH.md)：它经 `McpTransportFactory.open(material, signal)` 取得传输，再调用 `discover`、`listActions`、`call`、任务操作、`cancelRequest` 与 `close`。本包不起进程、不停进程、不读设置、不取凭据：进程由落点交来，凭据句柄由调用方放在材料里。
 
-| 范围                                                                                         | 状态                                                                                          |
-| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| stdio 传输：按行读写、解析不了的行丢弃、行字节上界、退出窗口、stderr 读出丢弃、T5 的关闭次序 | 已实现，在脚本化对端、SDK 对端与 `server-everything` 上验证                                   |
-| Streamable HTTP 传输：JSON 与 SSE 应答、不跟随重定向、再发规则、授权发现、旧修订的会话与 S07 | 已实现，在脚本化对端、SDK bearer 网关、SDK 2025 会话与 `server-everything` 上验证             |
-| 旧 HTTP+SSE 回退：GET 流 + endpoint，作为 HTTP 线路的一种模式                                | 已实现，在脚本化对端与 `server-everything sse` 上验证                                         |
-| 契约传输套件 `mcpTransportConformance()`                                                     | 两种材料各跑一遍；通过、不适用与失败分开计数，不适用的用例与理由在 [SPEC](SPEC.md#组合与验证) |
-| 远程对端、TLS、代理、真实网络失败；与 `@omne-harness/mcp` 的真实组合                         | 未验证；归 `w3-mcp-e2e` 与集成任务                                                            |
-| 技术接受                                                                                     | 尚未取得；本包是候选实现                                                                      |
+| 范围                                                                                         | 状态                                                                                                                                                      |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| stdio 传输：按行读写、解析不了的行丢弃、行字节上界、退出窗口、stderr 读出丢弃、T5 的关闭次序 | 已实现，在脚本化对端、SDK 对端与 `server-everything` 上验证                                                                                               |
+| Streamable HTTP 传输：JSON 与 SSE 应答、不跟随重定向、再发规则、授权发现、旧修订的会话与 S07 | 已实现，在脚本化对端、SDK bearer 网关、SDK 2025 会话与 `server-everything` 上验证                                                                         |
+| 旧 HTTP+SSE 回退：GET 流 + endpoint，作为 HTTP 线路的一种模式                                | 已实现，在脚本化对端与 `server-everything sse` 上验证                                                                                                     |
+| 契约传输套件 `mcpTransportConformance()`                                                     | 两种材料各跑一遍；通过、不适用与失败分开计数，不适用的用例与理由在 [SPEC](SPEC.md#组合与验证)                                                             |
+| 远程对端、TLS、代理、真实网络失败                                                            | 未验证                                                                                                                                                    |
+| 与 `@omne-harness/mcp` 的真实组合                                                            | `tests/e2e/` 在本机五个目标（`server-everything` 的三种传输、`server-filesystem`、`mcp-server-fetch`）上验证；范围与未覆盖项见 [SPEC](SPEC.md#组合与验证) |
+| 技术接受                                                                                     | 尚未取得；本包是候选实现                                                                                                                                  |
 
 ## 使用
 

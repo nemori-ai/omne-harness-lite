@@ -1685,6 +1685,9 @@ importers:
       '@modelcontextprotocol/server-filesystem':
         specifier: 'catalog:'
         version: 2.1.0
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
       '@omne-harness/mcp':
         specifier: workspace:*
         version: link:../mcp
