@@ -367,22 +367,27 @@ describe('the scripted peer fixture: received() waits until the peer confirms it
     await peer.close()
   })
 
-  it('returns the record of a line that waited behind a line the pipe could not take at once', async () => {
+  it('returns the record of a line that waited behind lines the pipe could not take at once', async () => {
     const peer = await stdioPeer({}, { kind: 'stdio' }, VERSIONS)
     if (peer.material.kind !== 'stdio') throw new Error('a stdio peer has stdio material')
     const writer = peer.material.process.stdin.getWriter()
     const encoder = new TextEncoder()
-    // A JSON value that is not a message: the peer reads it and records nothing. It is far larger
-    // than the pipe holds, so the next line waits in the web stream until the pipe drains.
-    const large = writer.write(encoder.encode(`${JSON.stringify('x'.repeat(1 << 20))}\n`))
-    const small = writer.write(
-      encoder.encode(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/small' })}\n`),
-    )
+    // JSON values that are not messages: the peer reads them and records nothing. Each is far
+    // larger than the pipe holds, so the web stream hands over the second only after the pipe
+    // drains once, and the small line only after it drains again.
+    const large = encoder.encode(`${JSON.stringify('x'.repeat(1 << 20))}\n`)
+    const writes = [
+      writer.write(large),
+      writer.write(large),
+      writer.write(
+        encoder.encode(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/small' })}\n`),
+      ),
+    ]
     const methods = (await peer.received()).flatMap(entry =>
       entry.kind === 'notification' ? [entry.method] : [],
     )
     expect(methods).toEqual(['notifications/small'])
-    await Promise.all([large, small])
+    await Promise.all(writes)
     writer.releaseLock()
     await peer.close()
   })
@@ -392,9 +397,13 @@ describe('the scripted peer fixture: received() waits until the peer confirms it
       recordDelayMs: 1_000,
       confirmWithinMs: 100,
     })
+    // The peer answers at once; only its reports are late, so the line it read is not confirmed.
+    const transport = await open(peer.material)
+    ok(await transport.discover(), 'discover')
     await expect(peer.received()).rejects.toThrow(
       'the stdio peer did not confirm its records within 100 ms',
     )
+    await transport.close()
     await peer.close()
   })
 })

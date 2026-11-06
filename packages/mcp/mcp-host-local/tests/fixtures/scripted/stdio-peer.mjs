@@ -1,19 +1,20 @@
 // A scripted MCP peer on real stdio, for the transport conformance suite. It reads one JSON-RPC
 // message per line on stdin, answers as the `PeerScript` (argv[2]) says, and reports what it
 // received on stderr as lines that start with `@omne `. It picks replies as the contract's
-// in-memory scripted peer does: in order per method, the last one repeating. A line
-// `{"@omne":"sync","n":<n>}` from the fixture is not a message: the peer answers it with the
-// record `{"kind":"synced","n":<n>}`.
+// in-memory scripted peer does: in order per method, the last one repeating. After the lines of
+// each chunk it reads from stdin, it reports how many bytes of stdin it has read so far:
+// `{"kind":"consumed","bytes":<n>}`. argv[4] makes it a slow peer for the fixture's own cases:
+// every record goes out that many milliseconds late.
 import { writeSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 
 const script = JSON.parse(process.argv[2] ?? '{}')
 const versions = JSON.parse(process.argv[3] ?? '["2026-07-28"]')
+const recordDelay = Number(process.argv[4] ?? '0')
 const consumed = new Map()
 let peerRequestCount = 0
-// A slow peer for the fixture's own cases: every record goes out this many milliseconds late.
-const recordDelay = Number(process.env.OMNE_PEER_RECORD_DELAY_MS ?? '0')
 
+/** Every report goes out here, the byte counts too: with a delay they keep their order. */
 function record(entry) {
   const line = `@omne ${JSON.stringify(entry)}\n`
   if (recordDelay > 0) setTimeout(() => writeSync(2, line), recordDelay)
@@ -126,11 +127,6 @@ lines.on('line', line => {
     return
   }
   if (message === null || typeof message !== 'object') return
-  if (message['@omne'] === 'sync') {
-    // stdin is read in order: every line written before this one is recorded already.
-    record({ kind: 'synced', n: message.n })
-    return
-  }
   if (message.method === undefined) {
     record({
       kind: 'response',
@@ -163,6 +159,13 @@ lines.on('line', line => {
   if (message.method === 'initialize') sendPeerRequests('initialize')
   const token = message.params?._meta?.progressToken
   realize(reply(message.method, message.params ?? {}), message.id, token)
+})
+// Added after `createInterface`, which listens for 'data' first and emits every complete line of
+// the chunk at once: when this runs, the records of those lines are out.
+let read = 0
+process.stdin.on('data', chunk => {
+  read += chunk.length
+  record({ kind: 'consumed', bytes: read })
 })
 lines.on('close', () => {
   // The client closed stdin: a stdio server exits then. Keep the process alive only when the

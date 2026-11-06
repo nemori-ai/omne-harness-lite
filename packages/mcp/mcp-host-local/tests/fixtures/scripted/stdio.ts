@@ -1,5 +1,6 @@
 // The stdio half of the A-layer fixture: a scripted peer in a child process on real pipes, the
 // process handle double of a landing, and the records the peer reports back on stderr.
+import { Socket } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import type { ProcessHandle, TransportMaterial } from '@omne-harness/mcp-contract/provider'
 import {
@@ -62,29 +63,33 @@ type Spawned = Readonly<{
   handle: ProcessHandle
   log: PeerReceived[]
   ready: Promise<void>
-  /** Settles once every record the peer wrote for the lines sent so far is in `log`. */
+  /** Settles once every record of the lines written to the peer's stdin so far is in `log`. */
   recorded(): Promise<void>
 }>
 
-function spawnPeer(args: readonly string[], env?: Readonly<{ [name: string]: string }>): Spawned {
+type Waiter = Readonly<{ bytes: number; resolve: () => void }>
+
+function spawnPeer(args: readonly string[]): Spawned {
   const log: PeerReceived[] = []
-  const synced = new Map<number, () => void>()
-  let syncs = 0
+  // The bytes of stdin the peer reported as read. The records of the lines in them are in `log`.
+  let consumed = 0
+  const waiting = new Set<Waiter>()
   let markReady = (): void => undefined
   const ready = new Promise<void>(resolve => {
     markReady = resolve
   })
   const { child, handle } = spawnHandle(args, {
-    ...(env === undefined ? {} : { env }),
     onStderrLine: line => {
       if (!line.startsWith(RECORD)) return false
       const entry: unknown = JSON.parse(line.slice(RECORD.length))
       if (typeof entry !== 'object' || entry === null || !('kind' in entry)) return true
       if (entry.kind === 'ready') markReady()
-      else if (entry.kind === 'synced') {
-        if ('n' in entry && typeof entry.n === 'number') {
-          synced.get(entry.n)?.()
-          synced.delete(entry.n)
+      else if (entry.kind === 'consumed') {
+        if ('bytes' in entry && typeof entry.bytes === 'number') consumed = entry.bytes
+        for (const waiter of waiting) {
+          if (consumed < waiter.bytes) continue
+          waiting.delete(waiter)
+          waiter.resolve()
         }
       } else log.push(entry as PeerReceived)
       return true
@@ -93,26 +98,32 @@ function spawnPeer(args: readonly string[], env?: Readonly<{ [name: string]: str
   const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
   async function recorded(): Promise<void> {
     const stdin = child.stdin
-    // The sync line goes into the pipe directly. The caller's lines go through the web stream of
-    // `handle.stdin` first, and that stream holds back every line after one the pipe could not take
-    // at once, until 'drain'. So the sync line waits until the stream has handed over every line.
-    // A write the caller started without waiting for it (a notification, `cancelRequest`) reaches
-    // the stream within this turn of the event loop. The stream hands over its queue in the turn
-    // where the pipe takes more. So after a turn, the queue is empty unless the pipe waits for 'drain'.
+    if (!(stdin instanceof Socket)) return closed
+    // Only the caller writes the peer's stdin, through the web stream of `handle.stdin`. That
+    // stream holds back every line after one the pipe could not take at once, until 'drain'. A
+    // write the caller started without waiting for it (a notification, `cancelRequest`) reaches
+    // the stream within this turn of the event loop, and the stream hands its queue over in the
+    // turn where the pipe takes more. So after a turn the queue is empty, unless the pipe waits
+    // for 'drain' again.
     for (;;) {
       await new Promise(resolve => setImmediate(resolve))
       // A peer that exited, or whose stdin is closed, reads no more lines: its last records are in
       // once its pipes close.
-      if (child.exitCode !== null || child.signalCode !== null || stdin === null || !stdin.writable)
-        return closed
+      if (child.exitCode !== null || child.signalCode !== null || !stdin.writable) return closed
       if (!stdin.writableNeedDrain) break
-      await Promise.race([new Promise(resolve => stdin.once('drain', resolve)), closed])
+      let onDrain = (): void => undefined
+      const drained = new Promise<void>(resolve => {
+        onDrain = resolve
+        stdin.once('drain', onDrain)
+      })
+      await Promise.race([drained, closed])
+      stdin.off('drain', onDrain)
     }
-    syncs += 1
-    const n = syncs
-    const confirmed = new Promise<void>(resolve => synced.set(n, resolve))
-    stdin.write(`${JSON.stringify({ '@omne': 'sync', n })}\n`)
-    return Promise.race([confirmed, closed])
+    // Every line the caller wrote is in the socket now, sent or buffered, and counted here.
+    const written = stdin.bytesWritten
+    if (consumed >= written) return
+    const caughtUp = new Promise<void>(resolve => waiting.add({ bytes: written, resolve }))
+    return Promise.race([caughtUp, closed])
   }
   return { handle, log, ready, recorded }
 }
@@ -141,12 +152,15 @@ export async function stdioPeer(
   options: StdioPeerOptions = {},
 ): Promise<StdioPeer> {
   const plan = unsentPlan(script)
-  // Always set, so that a value in the environment of the test run does not reach the peer.
-  const env = { OMNE_PEER_RECORD_DELAY_MS: String(options.recordDelayMs ?? 0) }
   const spawned =
     plan === 'unreachable'
       ? spawnPeer(['-e', CLOSED_STDIN])
-      : spawnPeer([PEER, JSON.stringify(script), JSON.stringify(versions)], env)
+      : spawnPeer([
+          PEER,
+          JSON.stringify(script),
+          JSON.stringify(versions),
+          String(options.recordDelayMs ?? 0),
+        ])
   await spawned.ready
   const material: TransportMaterial = {
     kind: 'stdio',
