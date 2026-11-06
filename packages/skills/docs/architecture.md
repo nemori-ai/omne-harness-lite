@@ -587,5 +587,5 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 | `content-adoption-and-evolution.md` | 不归本组成员。由承接内容的各方维护，见 [Q-SK03](#q-sk03-两条内容采用路径与可靠交接协议) | 各拥有者的契约 | 尚未承接 |
 | `script-execution-bridge.md` | 不归本组成员。本组只承接脚本声明、包导出与脚本身份，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议)。执行与控制归 Tool 与执行环境 | 各拥有者的契约 | 尚未承接 |
 | 总览、完整不变式及持续验证范围 | 组维护者。各成员规格承接本成员的不变式。`@omne-harness/skill-contract/testing` 的符合性套件承接来源与读取的共同验证，以及 `SkillReadCheck` 与 `SkillResolution` 的不披露要求 | 实施时 | 尚未承接 |
-| Cordis 服务键与抽象 Service | `skill-cordis-contract`，暂不进应用插件树 | Cordis 服务键波，见[成员规格](../skill-cordis-contract/SPEC.md) | 候选，已有实现，尚未取得技术接受 |
+| Cordis 服务键与抽象 Service | `skill-cordis-contract`，定义成员，没有插件树行 | Cordis 服务键波，见[成员规格](../skill-cordis-contract/SPEC.md) | 候选，已有实现，尚未取得技术接受 |
 | Cordis 插件 | `skill-host-local` 的 Cordis 插件部分（`./cordis` 的 `skillPlugin`），依赖 `skill-cordis-contract` | Cordis 服务键波，见[成员规格「Cordis 插件」](../skill-host-local/SPEC.md#cordis-插件) | 候选，已有实现，尚未取得技术接受。应用插件树中的装配没有执行 |

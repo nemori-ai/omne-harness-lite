@@ -45,7 +45,7 @@ The data shapes are the public types of `@omne-harness/skill-contract`. The beha
 
 ## Design
 
-Three stages, each a function over the ports: `gate` (steps 1 to 3), `pin` (steps 5 and 7), `verifiedBytes` (steps 9 and 10). `describe` ends after `gate`, `list` after `pin`, `read` and `export` go through all three. One table, `mapping.ts`, turns a source answer into a service failure. The modules `port-answer.ts`, `answer-values.ts` and `source-answer.ts` parse every port answer with its payload and give new values. `catalog.ts` is the catalog: the lawful set, one entry per identity, the filter or the pure matcher `match.ts`, then the read check on what is left. `range.ts` is the pure byte range function. See [docs/architecture.md](docs/architecture.md).
+Four stage functions: `gate` (steps 1 to 3, over the ports), `materialOf` (step 5), `pin` (step 7, over the source) and `verifiedBytes` (step 10, over the source). The other steps, the entry lookup of step 9 among them, are in the operations in `service.ts`. `describe` ends after `gate`, `list` after `pin`, `read` and `export` go through all four. The table is in the [SPEC](SPEC.md). One table, `mapping.ts`, turns a source answer into a service failure. The modules `port-answer.ts`, `answer-values.ts` and `source-answer.ts` parse every port answer with its payload and give new values. `catalog.ts` is the catalog: the lawful set, one entry per identity, the filter or the pure matcher `match.ts`, then the read check on what is left. `range.ts` is the pure byte range function. See [docs/architecture.md](docs/architecture.md).
 
 ## Configuration and operation
 

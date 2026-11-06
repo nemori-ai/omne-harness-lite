@@ -14,7 +14,7 @@ Skill 能力组的纯契约成员。它提供 Skill 的值、失败、服务接�
 
 本成员有三个入口：
 
-- `@omne-harness/skill-contract`：给调用方。值、守卫（含 `isSkillDescription`）、失败、服务接口、纯函数、`skillBodyContract`、常量 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DECLARATION_LIMITS` 与 `sameCapability`。
+- `@omne-harness/skill-contract`：给调用方。值、守卫（含 `isSkillDescription`）、失败、服务接口、纯函数、`skillBodyContract`、常量 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DESCRIPTION_LIMIT`、`DECLARATION_LIMITS` 与 `sameCapability`。
 - `@omne-harness/skill-contract/provider`：给端口实现方。端口、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot`，以及不抛出的守卫 `isSealedSnapshot`（给核对来源答复的服务）。
 - `@omne-harness/skill-contract/testing`：给端口实现方的测试，以及 `SkillAccess` 与 `SkillCatalog` 实现方的测试。套件是用例列表，用例经 `node:assert` 失败，消费者在自己的测试框架里登记它们。
 

@@ -20,7 +20,7 @@ Skill 三个应用服务的通用实现：`createPackageInspection` 经来源检
 
 ## 设计
 
-三段，每段是一个只依赖端口的函数：`gate`（第 1–3 步）、`pin`（第 5、7 步）、`verifiedBytes`（第 9、10 步）。`describe` 在 `gate` 后结束，`list` 在 `pin` 后结束，`read` 与 `export` 走完三段。一张表 `mapping.ts` 把来源答复变成服务失败；`port-answer.ts`、`answer-values.ts` 与 `source-answer.ts` 解析每个端口答复（含载荷），交出重新构造的值。`catalog.ts` 是目录：合法集合、每个身份一条、过滤或纯匹配函数 `match.ts`，再对留下的身份做读取判定。`range.ts` 是字节范围的纯函数。见 [docs/architecture.md](docs/architecture.md)。
+四个阶段函数：`gate`（第 1–3 步，问端口）、`materialOf`（第 5 步）、`pin`（第 7 步，问来源）与 `verifiedBytes`（第 10 步，问来源）。其余各步，包括第 9 步的条目查找，在 `service.ts` 的操作里。`describe` 在 `gate` 后结束，`list` 在 `pin` 后结束，`read` 与 `export` 走完四个。阶段表见 [SPEC](SPEC.md)。一张表 `mapping.ts` 把来源答复变成服务失败；`port-answer.ts`、`answer-values.ts` 与 `source-answer.ts` 解析每个端口答复（含载荷），交出重新构造的值。`catalog.ts` 是目录：合法集合、每个身份一条、过滤或纯匹配函数 `match.ts`，再对留下的身份做读取判定。`range.ts` 是字节范围的纯函数。见 [docs/architecture.md](docs/architecture.md)。
 
 ## 配置与运行
 
