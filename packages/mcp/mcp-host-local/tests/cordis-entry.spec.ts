@@ -10,12 +10,19 @@ import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/l
 import { digestDefinition, type StdioLaunch } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
+  CredentialFailure,
+  CredentialPurpose,
   CredentialUse,
+  HttpCredentialHandle,
+  HttpPurpose,
+  ProcessCredentialHandle,
   ProcessLanding,
+  ProcessPurpose,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 import {
   actionNameOf,
+  connectionTargetOf,
   correlationKeyOf,
   createMemoryAdoptionView,
   createMemoryCredentialUse,
@@ -38,7 +45,7 @@ import {
   mcpEndpointStatusKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
 import { createMcpPlugin, type McpPluginConfig } from '@omne-harness/mcp-host-local/cordis'
-import { fail } from '@omne-harness/operation-result'
+import { fail, type Outcome } from '@omne-harness/operation-result'
 
 const organization = organizationCodec.parse('org_0123456789abcdefghjkmnpqrs')
 const account = accountCodec.parse('acc_0123456789abcdefghjkmnpqrs')
@@ -120,6 +127,51 @@ function recordingLanding() {
     },
   }
   return { port, launches }
+}
+
+/** The memory credential use, with the purpose of each `acquire` recorded. */
+function recordingPurposes(inner: CredentialUse<unknown>) {
+  const purposes: CredentialPurpose[] = []
+  type Access = Parameters<CredentialUse<unknown>['acquire']>[0]
+  type Holding = Parameters<CredentialUse<unknown>['acquire']>[1]
+  type Binding = Parameters<CredentialUse<unknown>['acquire']>[3]
+  function acquire(
+    access: Access,
+    holding: Holding,
+    purpose: ProcessPurpose,
+    binding: Binding,
+  ): Promise<Outcome<ProcessCredentialHandle, CredentialFailure>>
+  function acquire(
+    access: Access,
+    holding: Holding,
+    purpose: HttpPurpose,
+    binding: Binding,
+  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
+  async function acquire(
+    access: Access,
+    holding: Holding,
+    purpose: CredentialPurpose,
+    binding: Binding,
+  ): Promise<Outcome<ProcessCredentialHandle | HttpCredentialHandle, CredentialFailure>> {
+    purposes.push(purpose)
+    if (purpose.kind === 'process-env') return inner.acquire(access, holding, purpose, binding)
+    return inner.acquire(access, holding, purpose, binding)
+  }
+  const port: CredentialUse<unknown> = { acquire }
+  return { port, purposes }
+}
+
+/** A `fetch` that records each request and fails before the connection is made. */
+function refusingFetch() {
+  const requests: { url: string; authorization: string | null }[] = []
+  const refused: typeof fetch = async (input, init) => {
+    const url = input instanceof Request ? input.url : String(input)
+    requests.push({ url, authorization: new Headers(init?.headers).get('authorization') })
+    throw new TypeError('fetch failed', {
+      cause: Object.assign(new Error('refused'), { code: 'ECONNREFUSED' }),
+    })
+  }
+  return { refused, requests }
 }
 
 type Endpoint = Readonly<{ args: readonly string[]; credential?: boolean }>
@@ -221,6 +273,46 @@ async function loadUntyped(ctx: Context, config: unknown) {
 describe('the MCP plugin on a Cordis context, without a process', () => {
   it('is named mcp', () => {
     expect(plugin.name).toBe('mcp')
+  })
+
+  it('opens a Streamable HTTP endpoint through the fetch of the plugin parts, asking the credential for an http-authorization', async () => {
+    const target = connectionTargetOf('https://mcp.example.test/mcp')
+    const adoption = createMemoryAdoptionView<unknown, unknown>({ scopeKey: String })
+    adoption.adopt({
+      tenant: ALICE.tenant,
+      scope: SCOPE,
+      ref: FILES,
+      body: jsonOf({ name: FILES.name, transport: 'streamable-http', auth: 'static' }),
+      settings: {
+        target: { kind: 'value', value: target },
+        credential: { kind: 'value', value: MAIN },
+        connectTimeout: { kind: 'value', value: millisOf(10_000) },
+      },
+    })
+    const eligibility = createMemoryUseEligibility<unknown>({ principalKey })
+    eligibility.grant(ALICE, FILES)
+    const memory = createMemoryCredentialUse<unknown>()
+    memory.store({ tenant: ALICE.tenant, holding: FILES.holding, binding: MAIN, secret: 's' })
+    const credentials = recordingPurposes(memory)
+    const landing = recordingLanding()
+    const { refused, requests } = refusingFetch()
+
+    const ctx = new Context()
+    await load(ctx, adoptionService(adoption), undefined)
+    await load(ctx, eligibilityService(eligibility), undefined)
+    await load(ctx, credentialService(credentials.port), undefined)
+    await load(ctx, landingService(landing.port), undefined)
+    await load(
+      ctx,
+      createMcpPlugin({ principalKey, checkOutput: () => ({ kind: 'conforms' }), fetch: refused }),
+      CONFIG,
+    )
+
+    // The request left no connection (contract T8 X01), so refresh answers the connection failure of R6 and S5.
+    expect(await refreshed(ctx)).toEqual({ failure: { kind: 'connection-unavailable' } })
+    expect(credentials.purposes).toEqual([{ kind: 'http-authorization', target }])
+    expect(requests).toEqual([{ url: target, authorization: 'Bearer s' }])
+    expect(landing.launches).toHaveLength(0)
   })
 
   it('provides the three services on load with a complete lawful configuration and removes them when the plugin unloads', async () => {
