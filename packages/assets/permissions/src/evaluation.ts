@@ -33,10 +33,10 @@ export type PermissionEvaluationResult =
   | ({ kind: 'unavailable'; missingBasis: string[] } & PermissionEvidence)
   | PermissionInputFailure
 
-function same(left: unknown, right: unknown): boolean {
+function same<T>(left: T, right: T): boolean {
   return JSON.stringify(left) === JSON.stringify(right)
 }
-function validBindings(input: PermissionEvaluation): boolean {
+function validSourceBindings(input: PermissionEvaluation): boolean {
   for (const layer of layers) {
     const source = input.sources[layer]
     if (source.kind !== 'available') continue
@@ -44,6 +44,10 @@ function validBindings(input: PermissionEvaluation): boolean {
     if (layer === 'organization' && input.scope.organizationId === null) return false
     if (layer === 'session' && input.scope.sessionId === null) return false
   }
+  return true
+}
+function validBindings(input: PermissionEvaluation): boolean {
+  if (!validSourceBindings(input)) return false
   return input.constraints.every(
     constraint =>
       constraint.kind !== 'available' ||
@@ -51,6 +55,23 @@ function validBindings(input: PermissionEvaluation): boolean {
         constraint.capabilityId === input.capabilityId &&
         constraint.enforcementKey === input.enforcementKey),
   )
+}
+function validRules(input: PermissionEvaluation, definition: PermissionDefinition): boolean {
+  const ids = definition.values.map(value => value.id)
+  const sourcesValid = layers.every(layer => {
+    const source = input.sources[layer]
+    return (
+      source.kind !== 'available' ||
+      (definition.assignmentLayers.includes(layer) && validRule(source.rule, ids))
+    )
+  })
+  const boundsValid = input.constraints.every(
+    constraint =>
+      constraint.kind !== 'available' ||
+      constraint.effect.kind !== 'bound' ||
+      validRule({ pick: null, allowedSet: constraint.effect.allowedSet }, ids),
+  )
+  return sourcesValid && boundsValid
 }
 function validate(input: PermissionEvaluation): PermissionInputFailure | undefined {
   if (!validBindings(input)) return { kind: 'invalid-input', reason: 'binding' }
@@ -68,21 +89,7 @@ function validate(input: PermissionEvaluation): PermissionInputFailure | undefin
     definition.enforcementKey !== input.enforcementKey
   )
     return { kind: 'invalid-input', reason: 'binding' }
-  const ids = definition.values.map(value => value.id)
-  const sourcesValid = layers.every(layer => {
-    const source = input.sources[layer]
-    return (
-      source.kind !== 'available' ||
-      (definition.assignmentLayers.includes(layer) && validRule(source.rule, ids))
-    )
-  })
-  const boundsValid = input.constraints.every(
-    constraint =>
-      constraint.kind !== 'available' ||
-      constraint.effect.kind !== 'bound' ||
-      validRule({ pick: null, allowedSet: constraint.effect.allowedSet }, ids),
-  )
-  return sourcesValid && boundsValid ? undefined : { kind: 'invalid-input', reason: 'rule' }
+  return validRules(input, definition) ? undefined : { kind: 'invalid-input', reason: 'rule' }
 }
 function evidence(input: PermissionEvaluation): PermissionEvidence {
   const revisionVector = [
