@@ -327,14 +327,19 @@ describe('a start past its bound', posixOnly, () => {
   })
 
   it('answers unknown when GO went out but the gate did not report started in time', async () => {
-    // The gate is held stopped while GO waits in its channel, so the bound passes first.
+    // The bound covers the gate's own start, so it is wide enough for a loaded host. The permit
+    // holds the gate stopped and answers only after the bound passed: GO goes out with no time
+    // left, and the stopped gate cannot report started meanwhile.
     let held = 0
+    const startBoundMs = 2_000
     const { command, commands, own, resource } = manager({
-      options: { startBoundMs: 500 },
+      options: { startBoundMs },
       ledger: () => ({
         permit: async () => {
           held = (await gatePids())[0] ?? 0
+          if (held <= 1) throw new Error('no gate to hold')
           process.kill(held, 'SIGSTOP')
+          await sleep(startBoundMs + 100)
           return 'confirmed'
         },
       }),
