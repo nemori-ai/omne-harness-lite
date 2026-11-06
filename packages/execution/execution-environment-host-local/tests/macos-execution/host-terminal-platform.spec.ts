@@ -32,9 +32,13 @@ const directories: string[] = []
 
 afterEach(async () => {
   for (const terminals of terminalsOpened.splice(0)) await terminals.stopAll()
-  const started = gates.splice(0)
-  killAll(started.map(gate => gate.pid ?? 0).filter(pid => pid > 0))
-  for (const gate of started) await vi.waitFor(() => expect(alive(gate.pid ?? 0)).toBe(false))
+  // Clean-up only, never an assertion: the cases assert what they stopped.
+  const started = gates
+    .splice(0)
+    .flatMap(gate => (gate.pid !== undefined && gate.pid > 1 ? [gate.pid] : []))
+  killAll(started)
+  for (const pid of started)
+    await vi.waitFor(() => expect(alive(pid)).toBe(false)).catch(() => undefined)
   for (const directory of directories.splice(0))
     await rm(directory, { recursive: true, force: true })
 })

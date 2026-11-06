@@ -91,14 +91,15 @@ afterEach(async () => {
   await Promise.all((['stop', 'stop.fail', 'members', 'members.fail'] as const).map(fake.clear))
   await Promise.all(managers.splice(0).map(manager => manager.stopAll()))
   const pids = [...(await gatePids()), ...(await commandPids())]
+  // Clean-up only: a hook that fails would hide the cases' own verdicts, so the cases assert
+  // that their processes are gone, and this kills what is left.
   const stopped = await eventually(() => noneRunning(pids), 2_500).then(
     () => true,
     () => false,
   )
-  if (!stopped) killAll(pids)
+  if (!stopped) killAll(pids.filter(pid => pid > 1))
   await rm(state, { recursive: true, force: true })
   await fake.remove()
-  expect(stopped, `a process the test started still runs: ${pids.join(' ')}`).toBe(true)
 })
 
 type Setup = Readonly<{

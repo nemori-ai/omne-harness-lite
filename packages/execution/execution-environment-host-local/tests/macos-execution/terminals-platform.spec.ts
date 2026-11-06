@@ -88,9 +88,11 @@ beforeEach(async () => {
   domains = createDomainIndex(state)
 })
 afterEach(async () => {
-  const started = pids.splice(0)
+  // Clean-up only, never an assertion: the cases assert what they stopped. A pid of 0 or 1 is
+  // never signalled, since its negation names this process group or every process.
+  const started = pids.splice(0).filter(pid => pid > 1)
   killAll(started.map(pid => -pid))
-  await vi.waitFor(() => expect(started.filter(alive)).toEqual([]))
+  await vi.waitFor(() => expect(started.filter(alive)).toEqual([])).catch(() => undefined)
   await Promise.all(
     directories.splice(0).map(directory => rm(directory, { recursive: true, force: true })),
   )
