@@ -29,6 +29,7 @@ import {
   type PeerNotification,
 } from '@omne-harness/mcp-contract'
 import type { CallRequest, SentCall } from '@omne-harness/mcp-contract/provider'
+import { judgedTree } from './internal/caller-values.ts'
 import { classificationOf } from './internal/classification.ts'
 import { CONNECTION_UNAVAILABLE, type Ensured, type EnsureFailure } from './internal/entry.ts'
 import type { AdmittedEndpoint } from './internal/gate.ts'
@@ -118,17 +119,30 @@ function notSentOfEnsure(failure: EnsureFailure): NotSentReason {
 
 /**
  * The preconditions of a send (R2, MC-16 step 1), checked before any place is taken: a caller
- * defect is a `TypeError`, not a "not sent" reason. The arguments are a JSON object. A
- * continuation carries its request state or its input responses, each optional (S2): one with
- * neither continues nothing.
+ * defect is a `TypeError`, not a "not sent" reason. Each value tree the caller gives passes
+ * `judgeJsonValue`, the precondition of `McpTransport.call`, and the arguments are a JSON object.
+ * A continuation carries its request state or its input responses, each optional (S2): one with
+ * neither continues nothing. The send that comes back carries the judged copies, so the
+ * transport writes the trees that were judged.
  */
-function checkRequest(send: Send): void {
-  if (!isActionArgs(send.request.args))
+function checkedSend(send: Send): Send {
+  const args = judgedTree(send.request.args, 'the arguments of an MCP action')
+  if (!isActionArgs(args))
     throw new TypeError('the arguments of an MCP action are a JSON object (isActionArgs)')
-  if (send.kind !== 'continue') return
+  if (send.kind === 'invoke') return { kind: 'invoke', request: { ...send.request, args } }
   const { requestState, inputResponses } = send.request
   if (requestState === undefined && inputResponses === undefined)
     throw new TypeError('a continuation carries the request state or the input responses')
+  return {
+    kind: 'continue',
+    request: {
+      ...send.request,
+      args,
+      ...(inputResponses === undefined
+        ? {}
+        : { inputResponses: judgedTree(inputResponses, 'the input responses of an MCP action') }),
+    },
+  }
 }
 
 function continuationOf(request: ContinueRequest): Continuation {
@@ -375,8 +389,8 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
    * conclusion, so a `cancel` that answered `signalled` makes the call answer `cancelled`, and a
    * `closeAll` that lands at any microtask before it gives the call S8's answer.
    */
-  async function perform(send: Send, access: Access<P>): Promise<InvokeResult> {
-    checkRequest(send)
+  async function perform(given: Send, access: Access<P>): Promise<InvokeResult> {
+    const send = checkedSend(given)
     const key = keyOf(access, send.request.correlationKey)
     const place = inFlight.reserve(key, send.request.signal)
     if (place === 'in-use') return notSent(CORRELATION_KEY_IN_USE)

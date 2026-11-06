@@ -3,6 +3,7 @@
 // one needs the gate's `granted` and the same peer account; the transport's answers are reported
 // as S2 says; after `closeAll` the initiator check comes first.
 import { describe, expect, it } from 'vitest'
+import type { JsonValue } from '@omne-harness/json-text'
 import type { DefinitionDigest, McpPorts, TaskRef } from '@omne-harness/mcp-contract'
 import {
   actionNameOf,
@@ -377,6 +378,18 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     })
     expect(await c.invoker.cancelTask(alice, task)).toEqual({ ok: 'requested' })
     expect(c.p.requests('tasks/cancel')[0]?.params).toMatchObject({ taskId: 't1' })
+  })
+
+  it('provideTaskInput rejects responses whose value tree fails judgeJsonValue with TypeError and sends nothing (R2)', async () => {
+    const c = await started({ get: WORKING, update: { kind: 'result', result: {} } })
+    const asked = portCalls(c.p)
+    const inputResponses: JsonValue = {
+      kind: 'object',
+      entries: [{ key: 'q', value: { kind: 'number', lexeme: 'NaN' } }],
+    }
+    await expect(c.invoker.provideTaskInput(alice, task, inputResponses)).rejects.toThrow(TypeError)
+    expect(c.p.requests('tasks/update')).toHaveLength(0)
+    expect(portCalls(c.p)).toEqual(asked)
   })
 
   it('after closeAll: the initiator check first, then effect-unknown (no-connection), with no port asked (S8)', async () => {

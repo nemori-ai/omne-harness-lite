@@ -145,7 +145,10 @@ export interface TaskControl<P> {
     access: Access<P>,
     task: TaskRef,
   ): Promise<Outcome<CallOutcome | 'not-finished' | 'expired' | 'cancelled', OperationFailure>>
-  /** Hands the answers to the input requests of an `input_required` task to the peer. */
+  /**
+   * Hands the answers to the input requests of an `input_required` task to the peer. Answers whose
+   * value tree fails `judgeJsonValue` reject with `TypeError` (SPEC R2).
+   */
   provideTaskInput(
     access: Access<P>,
     task: TaskRef,

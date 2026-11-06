@@ -279,7 +279,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
   - `definition-changed`：调用方预期的定义摘要与当前摘要不同。
   - `action-unavailable`：已知动作不可用，或不在清单里。
 
-  `args` 必须是 JSON 对象，`isActionArgs` 判定。`invoke` 与 `continueWithInput` 收到非对象 `args` 时，返回的 Promise 以 `TypeError` reject，方法不同步抛出：这是调用方缺陷（前提违反），不是「未发出」的原因，不进入 `NotSentReason`。
+  `args` 必须是 JSON 对象，`isActionArgs` 判定。`invoke` 与 `continueWithInput` 收到非对象 `args` 时，返回的 Promise 以 `TypeError` reject，方法不同步抛出：这是调用方缺陷（前提违反），不是「未发出」的原因，不进入 `NotSentReason`。调用方给的值树（`args`、`ContinueRequest.inputResponses`、`provideTaskInput` 的 `inputResponses`）还必须通过 [`@omne-harness/json-text`](../../common/json-text/README.md) 的 `judgeJsonValue`：传输按原词形写出它们，以已判定为前提（T3）。不通过时同样以 `TypeError` reject，不发请求。
 
 - **R3** `UnavailableReason` 写进已知动作的可用性：`no-longer-offered` 由 `mergeListing` 给出；`connection-unavailable`、`authorization-required`、`credential-unavailable`、`landing-unavailable` 由 `markUnavailable` 按连接条件给出。
 - **R4** 授权发现有四个字段：

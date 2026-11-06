@@ -2,6 +2,7 @@
 // given back, every "not sent" reason of R2, the mapping of the connection table's answers, the
 // caller's abort after the send, and the outcomes through `classifyOutcome` and `toContentBlocks`.
 import { describe, expect, it } from 'vitest'
+import type { JsonValue } from '@omne-harness/json-text'
 import {
   LEGACY_PROTOCOL_VERSIONS,
   digestDefinition,
@@ -686,6 +687,19 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     await expect(c.invoker.invoke(alice, request(digest, { args: jsonOf('x') }))).rejects.toThrow(
       TypeError,
     )
+    expect(await c.invoker.cancel(alice, c1)).toBe('unknown')
+    expect(await c.invoker.invoke(alice, request(digest))).toMatchObject({ kind: 'sent' })
+  })
+
+  it('arguments whose value tree fails judgeJsonValue reject with TypeError before any place is taken, not as a connection failure (R2)', async () => {
+    const c = arrange()
+    const digest = await published(c)
+    const args: JsonValue = {
+      kind: 'object',
+      entries: [{ key: 'n', value: { kind: 'number', lexeme: 'NaN' } }],
+    }
+    await expect(c.invoker.invoke(alice, request(digest, { args }))).rejects.toThrow(TypeError)
+    expect(c.p.requests('tools/call')).toHaveLength(0)
     expect(await c.invoker.cancel(alice, c1)).toBe('unknown')
     expect(await c.invoker.invoke(alice, request(digest))).toMatchObject({ kind: 'sent' })
   })

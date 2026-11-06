@@ -28,6 +28,7 @@ import {
   lostOfNoAnswer,
   lostOfNotSent,
 } from './internal/lost.ts'
+import { judgedTree } from './internal/caller-values.ts'
 import { ask, within } from './internal/port.ts'
 import { prepareSettings } from './internal/settings.ts'
 import { ensureOptionsOf, type ConnectionTable } from './internal/table.ts'
@@ -243,13 +244,15 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
       request(access, task, on => on.ensured.transport.getTask(task.taskId), asIs),
     taskResult: (access, task) =>
       request(access, task, on => on.ensured.transport.getTaskResult(task.taskId), resultOf),
-    provideTaskInput: (access, task, inputResponses: JsonValue) =>
-      request(
+    provideTaskInput: async (access, task, inputResponses: JsonValue) => {
+      const responses = judgedTree(inputResponses, 'the input responses of an MCP task')
+      return request(
         access,
         task,
-        on => on.ensured.transport.updateTask(task.taskId, inputResponses),
+        on => on.ensured.transport.updateTask(task.taskId, responses),
         asIs,
-      ),
+      )
+    },
     cancelTask: (access, task) =>
       request(access, task, on => on.ensured.transport.cancelTask(task.taskId), asIs),
   }

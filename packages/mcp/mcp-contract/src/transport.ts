@@ -51,7 +51,8 @@ export type ListingPage = Readonly<{
 }>
 
 /**
- * A request to call one peer action. `args` is a JSON object (`isActionArgs`). A continuation
+ * A request to call one peer action. `args` is a JSON object (`isActionArgs`). `args` and
+ * `continuation.inputResponses` are value trees that passed `judgeJsonValue`. A continuation
  * carries the request state, the answers to an input request, or both. Whether the peer answers
  * with a task is the peer's decision for each request.
  */
@@ -93,7 +94,10 @@ export interface McpTransport {
   cancelRequest(requestId: string): Promise<void>
   /** `tasks/get`: the task status, with the input requests of an `input_required` task. */
   getTask(taskId: TaskId): Promise<Outcome<TaskReport | 'expired', TransportFailure>>
-  /** `tasks/update`: hands the answers to the input requests of a task to the peer. */
+  /**
+   * `tasks/update`: hands the answers to the input requests of a task to the peer. The answers
+   * are a value tree that passed `judgeJsonValue`.
+   */
   updateTask(
     taskId: TaskId,
     inputResponses: JsonValue,

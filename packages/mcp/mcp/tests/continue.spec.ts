@@ -3,6 +3,7 @@
 // sent, and nothing is sent on the new generation; the request state alone is a lawful
 // continuation.
 import { describe, expect, it } from 'vitest'
+import type { JsonValue } from '@omne-harness/json-text'
 import type {
   DefinitionDigest,
   Generation,
@@ -269,5 +270,19 @@ describe('continueWithInput (SPEC S2)', () => {
       c.invoker.continueWithInput(alice, { ...continuation(issuedAt), args: jsonOf([]) }),
     ).rejects.toThrow(TypeError)
     expect(c.p.requests('tools/call')).toHaveLength(1)
+  })
+
+  it('rejects input responses whose value tree fails judgeJsonValue with TypeError before any place is taken (R2)', async () => {
+    const c = await arranged()
+    const issuedAt = await asked(c, c.digest)
+    const inputResponses: JsonValue = {
+      kind: 'array',
+      items: [{ kind: 'number', lexeme: 'NaN' }],
+    }
+    await expect(
+      c.invoker.continueWithInput(alice, { ...continuation(issuedAt), inputResponses }),
+    ).rejects.toThrow(TypeError)
+    expect(c.p.requests('tools/call')).toHaveLength(1)
+    expect(await c.invoker.cancel(alice, c2)).toBe('unknown')
   })
 })
