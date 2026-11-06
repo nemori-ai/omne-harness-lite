@@ -45,8 +45,18 @@ const UNKNOWN: Refusal = { kind: 'unknown' }
 const NO_CONNECTION: OperationFailure = { kind: 'effect-unknown', cause: 'no-connection' }
 const ABANDONED = fail<TransportFailure>({ kind: 'no-answer', cause: 'abandoned' })
 
-/** A request of the task's initiator: the connection to send it on, or why there is none. */
+/** The shutdown began before the request was sent: the exit of `request` answers it (S8). */
+const SHUT = 'shut'
+type Shut = typeof SHUT
+
+/** A request of the task's initiator: the connection it goes on, and the task as it was recorded. */
 type OnConnection = Readonly<{ ensured: Ensured; record: TaskRecord }>
+
+/** A request that did not leave: why, as the operation would answer it without a shutdown. */
+type Unsent = Readonly<{ unsent: OperationFailure }>
+
+/** A request on the wire: the transport's answer, a `not-sent` one excluded. */
+type Answered<T> = Readonly<{ on: OnConnection; answer: Outcome<T, TransportFailure> }>
 
 /** The transport's answer as the operation's: `queryTask`, `provideTaskInput`, `cancelTask`. */
 const asIs = <T>(answer: T): T => answer
@@ -54,9 +64,10 @@ const asIs = <T>(answer: T): T => answer
 /**
  * What a failed build means for a task request, which was not sent (S2, R7, MC-17 step 3). No
  * material to build on (a setting defect, a missing credential, a withdrawn adoption) is
- * `no-connection`; an unreadable adoption is `unknown`; a bound that fired first or the shutdown
- * under way is the `connection-unavailable` the build answered. A build that gave no connection
- * is the connection failure, as the call port reports it.
+ * `no-connection`; an unreadable adoption is `unknown`; a bound that fired first is the
+ * `connection-unavailable` the build answered. A build that gave no connection is the connection
+ * failure, as the call port reports it. A shutdown under way is not read here: the exit of
+ * `request` answers every request not sent once it began (S8).
  */
 function failureOfEnsure(failure: EnsureFailure): OperationFailure {
   if (failure.stage === 'connect') return connectionFailureOfBuild(failure)
@@ -91,12 +102,12 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
     access: Access<P>,
     task: TaskRef,
     record: TaskRecord,
-  ): Promise<Outcome<Ensured, OperationFailure>> {
+  ): Promise<Outcome<Ensured, OperationFailure> | Shut> {
     const decision = await decideForUse(gate, access, task.ref)
     if (decision.kind !== 'admitted')
       return fail(decision.kind === 'adoption-unknown' ? UNKNOWN : NO_CONNECTION)
     // S8 once more after the gate's wait: a shutdown that landed meanwhile builds nothing.
-    if (table.isShut()) return fail(NO_CONNECTION)
+    if (table.isShut()) return SHUT
     const prepared = prepareSettings(decision.endpoint, task.connectBound)
     if ('failure' in prepared) return fail(NO_CONNECTION)
     if (accountTextOf(prepared.ok.account) !== accountTextOf(record.account))
@@ -110,20 +121,24 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
   }
 
   /**
-   * Steps 2–3 of MC-17: nothing after the shutdown (S8); then the usable connection of the
-   * tenant's holding on the task's peer account, reused with no port asked; else one built.
+   * Step 3 of MC-17, without a wait: the usable connection of the tenant's holding on the task's
+   * peer account, reused with no port asked.
    */
-  function connectionOf(
-    access: Access<P>,
-    task: TaskRef,
-    record: TaskRecord,
-  ): Promise<Outcome<Ensured, OperationFailure>> {
-    if (table.isShut()) return Promise.resolve(fail(NO_CONNECTION))
+  function reusedOf(access: Access<P>, task: TaskRef, record: TaskRecord): Ensured | undefined {
     const account = accountTextOf(record.account)
-    const reused = table
+    return table
       .currentOf(access.tenant, task.ref.holding)
       .find(ensured => accountTextOf(ensured.key.account) === account)
-    return reused === undefined ? built(access, task, record) : Promise.resolve(succeed(reused))
+  }
+
+  /** The request under the connection bound (MC-17 step 4); it is asked before this yields. */
+  async function answerOf<T>(
+    on: OnConnection,
+    send: (on: OnConnection) => Promise<Outcome<T, TransportFailure>>,
+  ): Promise<Outcome<T, TransportFailure>> {
+    const asked = ask(() => send(on), ABANDONED)
+    const answered = await within(asked, startBound(on.ensured.bound, 'task'), scope)
+    return answered.kind === 'answered' ? answered.value : ABANDONED
   }
 
   /**
@@ -153,11 +168,54 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
   }
 
   /**
+   * Steps 2–4 of MC-17, up to the transport's answer: nothing after the shutdown (S8); the
+   * connection, reused or built; then the shutdown once more, in the same synchronous run as the
+   * request (as MC-16 step 8), and the request. A reused connection goes from the first look at
+   * the shutdown to the request without a wait. A request the bound cuts off has no answer; a
+   * transport that breaches its contract gave none either (T9).
+   */
+  async function exchange<T>(
+    access: Access<P>,
+    task: TaskRef,
+    record: TaskRecord,
+    send: (on: OnConnection) => Promise<Outcome<T, TransportFailure>>,
+  ): Promise<Answered<T> | Unsent | Shut> {
+    if (table.isShut()) return SHUT
+    const reused = reusedOf(access, task, record)
+    const connection = reused === undefined ? await built(access, task, record) : succeed(reused)
+    if (connection === SHUT) return SHUT
+    if ('failure' in connection) return { unsent: connection.failure }
+    if (table.isShut()) return SHUT
+    const on: OnConnection = { ensured: connection.ok, record }
+    const answer = await answerOf(on, send)
+    if ('failure' in answer && answer.failure.kind === 'not-sent')
+      return { unsent: failureOf(on.ensured, answer.failure) }
+    return { on, answer }
+  }
+
+  /**
+   * The answer of a task request (MC-17), read from the state of the moment it comes back. A
+   * request not sent once the shutdown began is S8's `effect-unknown` (`no-connection`), whatever
+   * step or transport refused it, so an operation in flight at `closeAll` answers as one that
+   * started after it. A request on the wire answers what the transport answered; `read` turns
+   * that into the operation's answer outside `ask` (MC-15).
+   */
+  function outcomeOf<T, R>(
+    exchanged: Answered<T> | Unsent | Shut,
+    read: (answer: T, on: OnConnection) => R,
+  ): Outcome<R, OperationFailure> {
+    if (exchanged === SHUT || ('unsent' in exchanged && table.isShut())) return fail(NO_CONNECTION)
+    if ('unsent' in exchanged) return fail(exchanged.unsent)
+    const { on, answer } = exchanged
+    if ('failure' in answer) return fail(failureOf(on.ensured, answer.failure))
+    return succeed(read(answer.ok, on))
+  }
+
+  /**
    * One task request of the initiator (S2, S8, MC-17): the initiator and the task as it was
    * issued first (a reference with another generation is not this task; a key two accounts
-   * answered on names none), then the connection, then the request under the connection bound. A request the bound cuts off has no answer; a
-   * transport that breaches its contract gave none either (T9). `send` is the port call alone;
-   * `read` turns the transport's answer into the operation's outside `ask` (MC-15).
+   * answered on names none), then the exchange, then the one answer. `send` is the port call
+   * alone.
    */
   async function request<T, R>(
     access: Access<P>,
@@ -168,15 +226,7 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
     const record = tasks.get(keyOf(access, task))
     if (record === undefined || record === 'ambiguous' || record.issuedAt !== task.issuedAt)
       return fail(UNKNOWN)
-    const connection = await connectionOf(access, task, record)
-    if ('failure' in connection) return connection
-    const ensured = connection.ok
-    const on: OnConnection = { ensured, record }
-    const asked = ask(() => send(on), ABANDONED)
-    const answered = await within(asked, startBound(ensured.bound, 'task'), scope)
-    const answer = answered.kind === 'answered' ? answered.value : ABANDONED
-    if ('failure' in answer) return fail(failureOf(ensured, answer.failure))
-    return succeed(read(answer.ok, on))
+    return outcomeOf(await exchange(access, task, record, send), read)
   }
 
   /** The result of a finished task, classified like the answer to a call (O1), on the task's schema. */

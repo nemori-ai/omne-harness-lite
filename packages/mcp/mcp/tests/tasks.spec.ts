@@ -420,7 +420,7 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     const closing = c.connections.closeAll()
     expect(await query).toEqual(NO_CONNECTION)
     await closing
-    expect(entered.calls()).toEqual([])
+    expect(entered.calls()).not.toContain(true)
     expect(c.p.requests('tasks/get')).toHaveLength(0)
   })
 

@@ -67,6 +67,13 @@ const UNKNOWN_ABANDONED: CallOutcome = { kind: 'unknown', cause: 'abandoned' }
 const STOPPED = 'stopped'
 type Stopped = typeof STOPPED
 
+/** The shutdown began before the send: `perform` answers it as S8's refusal. */
+const SHUT = 'shut'
+type Shut = typeof SHUT
+
+/** Why the send order went no further before the send: the stop signal or the shutdown. */
+type Halted = Stopped | Shut
+
 /** A `call` that breached its contract (T9): no answer and no request to cancel. */
 const CALL_BREACHED = 'call-breached'
 type CallBreached = typeof CALL_BREACHED
@@ -91,6 +98,10 @@ type Sent = Readonly<{
   known: KnownAction
   call: SentCall
 }>
+
+function isHalted<T>(value: T | Halted): value is Halted {
+  return value === STOPPED || value === SHUT
+}
 
 function notSent(reason: NotSentReason): InvokeResult {
   return { kind: 'not-sent', reason }
@@ -164,17 +175,15 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
    * A wait of the send order under the call's stop signal and the table's shutdown (MC-16 steps
    * 2 and 3), both read before the wait: a stop that fired starts nothing, and one that fires
    * first ends the wait (the work goes on in the table's scope), both `stopped`; a shutdown that
-   * began is S8's refusal, `connection-unavailable`, and asks no port after it, so a call in
-   * flight at `closeAll` answers as one that started after it. An answer that arrived together
-   * with a stop or a shutdown is read by the next decision: the next wait, the send (step 8), or
-   * the answer of `perform`.
+   * began starts nothing either, `shut`, so no port is asked after it. Neither is an answer:
+   * `perform` decides the answer when the call concludes, from the state of that moment.
    */
   async function under<T>(
     stop: AbortSignal,
     work: () => Promise<Outcome<T, NotSentReason>>,
-  ): Promise<Outcome<T, NotSentReason> | Stopped> {
+  ): Promise<Outcome<T, NotSentReason> | Halted> {
     if (stop.aborted) return STOPPED
-    if (table.isShut()) return fail(CONNECTION_UNAVAILABLE)
+    if (table.isShut()) return SHUT
     const waited = await within(work(), stop, scope)
     return waited.kind === 'expired' ? STOPPED : waited.value
   }
@@ -224,11 +233,11 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     send: Send,
     access: Access<P>,
     stop: AbortSignal,
-  ): Promise<Outcome<Prepared, NotSentReason> | Stopped> {
+  ): Promise<Outcome<Prepared, NotSentReason> | Halted> {
     const { request } = send
     // Step 3: the shutdown first, read by `under` before the gate is asked (S8), then the gate.
     const admitted = await under(stop, () => admitForUse(gate, access, request.ref))
-    if (admitted === STOPPED || 'failure' in admitted) return admitted
+    if (isHalted(admitted) || 'failure' in admitted) return admitted
     const endpoint = admitted.ok
     const prepared = prepareSettings(endpoint, request.connectBound)
     if ('failure' in prepared) return prepared
@@ -236,12 +245,12 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     const known = await under(stop, () =>
       knownActionOf(send, catalogKeyOf(access.tenant, endpoint, account)),
     )
-    if (known === STOPPED || 'failure' in known) return known
+    if (isHalted(known) || 'failure' in known) return known
     const current = table.current(connectionKeyOf(access.tenant, endpoint, account))
     if (!issuedOn(send, current?.generation)) return fail(UNKNOWN)
     // The stop ends only this call's wait for the build.
     const ensured = await under(stop, () => connectionOf(send, access, endpoint))
-    if (ensured === STOPPED || 'failure' in ensured) return ensured
+    if (isHalted(ensured) || 'failure' in ensured) return ensured
     if (!issuedOn(send, ensured.ok.generation)) return fail(UNKNOWN)
     return succeed({ ensured: ensured.ok, known: known.ok })
   }
@@ -287,9 +296,11 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
 
   /**
    * Steps 11–12 on a call that is on the wire: the wait for the answer under the stop signal.
-   * A stop that fires first tells the peer once, in the table's scope, and does not wait for it:
-   * the outcome is `unknown` (`abandoned`) (T5, O6). The answer is always read through `ask`, so
-   * one that rejects (T9) is no answer, and one that arrives after the stop is dropped.
+   * A stop that fires first ends the wait: the outcome is `unknown` (`abandoned`) (T5, O6), and
+   * the peer is told once, in the table's scope, without a wait for it; after the shutdown began
+   * it is not told (S8): the transport is closing and settles its own requests (T5). The answer
+   * is always read through `ask`, so one that rejects (T9) is no answer, and one that arrives
+   * after the stop is dropped.
    */
   async function answerOf(on: Sent): Promise<InvokeResult> {
     const { requestId, answer } = on.call
@@ -298,7 +309,8 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       on.stop,
     )
     if (waited.kind === 'expired') {
-      scope.spawn(ask(() => on.ensured.transport.cancelRequest(requestId), undefined))
+      if (!table.isShut())
+        scope.spawn(ask(() => on.ensured.transport.cancelRequest(requestId), undefined))
       return sent(UNKNOWN_ABANDONED)
     }
     return sent(applyAnswer(on, waited.value))
@@ -306,25 +318,25 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
 
   /**
    * Steps 3–12 under the reservation: the steps before the send, the send, and the answer. A
-   * stop signal read as fired before a wait or before the send is `stopped`; one that fired by
-   * the time a refusal is answered is read by `perform`.
+   * stop signal or a shutdown read before a wait or before the send halts the order; `perform`
+   * answers it, and reads both once more for a refusal.
    */
   async function sendOrder(
     send: Send,
     access: Access<P>,
     key: InFlightKey,
     place: Reservation,
-  ): Promise<InvokeResult | Stopped> {
+  ): Promise<InvokeResult | Halted> {
     const { stop } = place
     const prepared = await prepare(send, access, stop)
-    if (prepared === STOPPED) return STOPPED
+    if (isHalted(prepared)) return prepared
     if ('failure' in prepared) return notSent(prepared.failure)
     const { ensured, known } = prepared.ok
     // Step 8: the last look at the stop signal and the shutdown, in the same synchronous run as
     // the send: a stop that fired by now keeps the call off the transport, and so does a
     // shutdown that began since the last wait answered (P13).
     if (stop.aborted) return STOPPED
-    if (table.isShut()) return notSent(CONNECTION_UNAVAILABLE)
+    if (table.isShut()) return SHUT
     const called = await ask<Outcome<SentCall, NotSent> | CallBreached>(
       () => ensured.transport.call(callRequestOf(send), stop, observerOf(send.request.observe)),
       CALL_BREACHED,
@@ -343,12 +355,25 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
   }
 
   /**
+   * The answer of a call (MC-16 steps 2 and 3), read from the state of the moment it concludes.
+   * A call not sent whose stop signal fired by then is `cancelled`, whatever the step it fired in
+   * refused (S2). Else a call not sent once the shutdown began is S8's `connection-unavailable`,
+   * whatever step or transport refused it, so a call in flight at `closeAll` answers as one that
+   * started after it. A sent call answers its outcome.
+   */
+  function answerAtExit(result: InvokeResult | Halted, stop: AbortSignal): InvokeResult {
+    if (result === STOPPED) return notSent(CANCELLED)
+    if (result !== SHUT && result.kind === 'sent') return result
+    if (stop.aborted) return notSent(CANCELLED)
+    return result === SHUT || table.isShut() ? notSent(CONNECTION_UNAVAILABLE) : result
+  }
+
+  /**
    * The one owner of a call (MC-16): the reservation hands out the stop signal; the send order
    * runs under it; and the place is concluded once, in one `finally`, by the phase the table
-   * recorded. A call not sent whose stop signal fired by the time it answers is `cancelled`,
-   * whatever the step it fired in refused (S2): decided here and nowhere else, in the same
-   * synchronous run as the conclusion, so a `cancel` that answered `signalled` makes the call
-   * answer `cancelled`.
+   * recorded. The answer is decided here and nowhere else, in the same synchronous run as the
+   * conclusion, so a `cancel` that answered `signalled` makes the call answer `cancelled`, and a
+   * `closeAll` that lands at any microtask before it gives the call S8's answer.
    */
   async function perform(send: Send, access: Access<P>): Promise<InvokeResult> {
     checkRequest(send)
@@ -356,9 +381,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
     const place = inFlight.reserve(key, send.request.signal)
     if (place === 'in-use') return notSent(CORRELATION_KEY_IN_USE)
     try {
-      const result = await sendOrder(send, access, key, place)
-      const stopped = result === STOPPED || (result.kind === 'not-sent' && place.stop.aborted)
-      return stopped ? notSent(CANCELLED) : result
+      return answerAtExit(await sendOrder(send, access, key, place), place.stop)
     } finally {
       place.conclude()
     }

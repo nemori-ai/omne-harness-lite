@@ -11,6 +11,7 @@ import {
   sameJson,
   type ActionCatalogRecord,
   type ActionDiscovery,
+  type CatalogRevision,
   type CatalogState,
   type CatalogView,
   type EndpointRef,
@@ -53,6 +54,12 @@ const CANCELLED: RefreshResult = { kind: 'kept', reason: { kind: 'cancelled' } }
 const UNKNOWN: Refusal = { kind: 'unknown' }
 const ABANDONED: TransportFailure = { kind: 'no-answer', cause: 'abandoned' }
 
+/** The shutdown began before a step of `refresh`: its exit answers it (S8). */
+const SHUT = 'shut'
+type Shut = typeof SHUT
+
+type Refreshed = Outcome<RefreshResult, OperationFailure>
+
 /**
  * What a connection failure's catalog marking means for `refresh` (SPEC S5). A mark still
  * `pending` at the build's bound leaves the failure itself as the answer.
@@ -93,16 +100,19 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
    * Reads pages until the last one, a failed one, or the page bound, under the listing bound of
    * invariant 5. A page the bound cuts off is a page without an answer, and so is a `listActions`
    * that breaches its contract (contract T9); an abort of the caller ends the listing as cancelled.
+   * Each page is asked only if the shutdown has not begun, read in the same synchronous run as
+   * the request (S8).
    */
   async function listPages(
     ensured: Ensured,
     signal: AbortSignal | undefined,
-  ): Promise<Pages | 'cancelled'> {
+  ): Promise<Pages | 'cancelled' | Shut> {
     const bound = startBound(ensured.bound, 'listing')
     const limit = signal === undefined ? bound : AbortSignal.any([signal, bound])
     const pages: Outcome<ListingPage, TransportFailure>[] = []
     let cursor: string | undefined
     for (let count = 0; count < config.maxListingPages; count += 1) {
+      if (table.isShut()) return SHUT
       const page = ask(() => ensured.transport.listActions(cursor), fail(ABANDONED))
       const asked = await within(page, limit, scope)
       if (asked.kind === 'expired') {
@@ -127,23 +137,47 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return afterMarking(connectionFailureOf(failure), catalog)
   }
 
-  async function publish(
+  /**
+   * The publish boundary and the write. The asynchronous check (eligibility and adoption
+   * revision) comes first; the synchronous checks (producing connection still current, not
+   * cancelled) sit right before the write, so nothing can slip between them and it.
+   */
+  async function written(
     access: Access<P>,
     request: RefreshRequest,
     ensured: Ensured,
-  ): Promise<Outcome<RefreshResult, OperationFailure>> {
-    const { generation, connection, peer, catalogKey } = ensured
-    // A store that breaches is unavailable (SPEC MC-15): `unknown`.
-    const read = await ask(() => ports.store.read(catalogKey), fail('unavailable'))
-    if ('failure' in read) return fail(UNKNOWN)
-    const current = stateOf(read.ok)
-    const basedOn = read.ok === 'absent' ? 'absent' : read.ok.revision
-    const pages = await listPages(ensured, request.signal)
-    if (pages === 'cancelled') return succeed(CANCELLED)
+    merged: ActionCatalogRecord,
+    basedOn: CatalogRevision | 'absent',
+  ): Promise<Refreshed> {
+    const { generation, connection, catalogKey } = ensured
+    const admitted = await stillAdmitted(gate, access, request.ref, ensured.adoptionRevision)
+    if ('failure' in admitted) return admitted
+    if (admitted.ok === 'superseded') return succeed(SUPERSEDED)
+    if (!connection.isCurrent(generation)) return succeed(SUPERSEDED)
+    if (request.signal?.aborted === true) return succeed(CANCELLED)
+    const write = await ask(
+      () => ports.store.write(catalogKey, merged, basedOn),
+      fail('unavailable'),
+    )
+    if ('failure' in write)
+      return write.failure === 'revision-conflict' ? succeed(SUPERSEDED) : fail(UNKNOWN)
+    return succeed({ kind: 'published', revision: merged.revision })
+  }
+
+  /** The pages as a listing, merged with the stored record, then published unless the shutdown began. */
+  async function published(
+    access: Access<P>,
+    request: RefreshRequest,
+    ensured: Ensured,
+    stored: ActionCatalogRecord | 'absent',
+    pages: Pages,
+  ): Promise<Refreshed | Shut> {
+    const { generation, connection, peer } = ensured
     const [notSent] = pages.flatMap(page =>
       'failure' in page && page.failure.kind === 'not-sent' ? [page.failure] : [],
     )
     if (notSent !== undefined) return pageNotSent(ensured, notSent)
+    const basedOn = stored === 'absent' ? 'absent' : stored.revision
     const listing = completeListing({
       pages,
       basis: { generation, protocolVersion: peer.protocolVersion, capabilities: peer.capabilities },
@@ -158,31 +192,54 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
         kind: 'kept',
         reason: { kind: 'listing-incomplete', defect: listing.failure },
       })
-    const merged = mergeListing(current, listing.ok)
+    const merged = mergeListing(stateOf(stored), listing.ok)
     if ('failure' in merged) return succeed(SUPERSEDED)
-    // The publish boundary. The asynchronous check (eligibility and adoption revision) comes
-    // first; the synchronous checks (producing connection still current, not cancelled) sit
-    // right before the write, so nothing can slip between them and it.
-    const admitted = await stillAdmitted(gate, access, request.ref, ensured.adoptionRevision)
-    if ('failure' in admitted) return admitted
-    if (admitted.ok === 'superseded') return succeed(SUPERSEDED)
-    if (!connection.isCurrent(generation)) return succeed(SUPERSEDED)
-    if (request.signal?.aborted === true) return succeed(CANCELLED)
-    const written = await ask(
-      () => ports.store.write(catalogKey, merged.ok, basedOn),
-      fail('unavailable'),
-    )
-    if ('failure' in written)
-      return written.failure === 'revision-conflict' ? succeed(SUPERSEDED) : fail(UNKNOWN)
-    return succeed({ kind: 'published', revision: merged.ok.revision })
+    // S8: the publish boundary is a step of its own; it does not start after the shutdown began.
+    if (table.isShut()) return SHUT
+    return written(access, request, ensured, merged.ok, basedOn)
+  }
+
+  /** The stored record, then the pages, then the publish (MC-7); no step starts after the shutdown began. */
+  async function publish(
+    access: Access<P>,
+    request: RefreshRequest,
+    ensured: Ensured,
+  ): Promise<Refreshed | Shut> {
+    if (table.isShut()) return SHUT
+    // A store that breaches is unavailable (SPEC MC-15): `unknown`.
+    const read = await ask(() => ports.store.read(ensured.catalogKey), fail('unavailable'))
+    if ('failure' in read) return fail(UNKNOWN)
+    const pages = await listPages(ensured, request.signal)
+    if (pages === 'cancelled') return succeed(CANCELLED)
+    if (pages === SHUT) return SHUT
+    return published(access, request, ensured, read.ok, pages)
+  }
+
+  /**
+   * The answer of a refresh (MC-7), read from the state of the moment it comes back: a refresh
+   * that published nothing once the shutdown began is S8's `connection-unavailable`, whatever step
+   * refused or kept it, so a refresh in flight at `closeAll` answers as one that started after
+   * it. A published listing stays published.
+   */
+  function answerAtExit(result: Refreshed | Shut): Refreshed {
+    if (result !== SHUT && 'ok' in result && result.ok.kind === 'published') return result
+    return result === SHUT || table.isShut() ? fail(CONNECTION_UNAVAILABLE) : result
   }
 
   async function refresh(
     access: Access<P>,
     request: RefreshRequest,
   ): Promise<Outcome<RefreshResult, OperationFailure>> {
+    return answerAtExit(await refreshOrder(access, request))
+  }
+
+  /** The order of MC-7: the shutdown, the gate, the build, then the publish. */
+  async function refreshOrder(
+    access: Access<P>,
+    request: RefreshRequest,
+  ): Promise<Refreshed | Shut> {
     // S8: after `closeAll` nothing connects; no port is asked, the gate included (MC-7).
-    if (table.isShut()) return fail(CONNECTION_UNAVAILABLE)
+    if (table.isShut()) return SHUT
     const admitted = await admitForUse(gate, access, request.ref)
     if ('failure' in admitted) return admitted
     // The build is shared by every caller of the key and bounded by the connection bound; the
