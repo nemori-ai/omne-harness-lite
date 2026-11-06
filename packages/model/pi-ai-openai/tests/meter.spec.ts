@@ -21,8 +21,8 @@ import {
   thinkingBlock,
   type RequestParts,
 } from './support/openai.ts'
-import { openAiTokenizerResources, type OpenAiRecord } from '@omne-harness/pi-ai-openai'
-import { createTiktokenTokenizer } from '@omne-harness/tokenizer-tiktoken'
+import type { OpenAiRecord } from '@omne-harness/pi-ai-openai'
+import { TOKENIZER } from './support/openai.ts'
 
 const tokens = (
   rule: keyof typeof IMAGE_RULES,
@@ -94,20 +94,18 @@ describe('image rules (sealed openai-images.ts goldens)', () => {
 })
 
 // Sealed openai-input-meter.spec.ts:83-93: vectors of the OpenAI tiktoken 0.12.0 o200k_base.
-it('the family tokenizer resources count the independent o200k_base vectors', () => {
-  const created = createTiktokenTokenizer(openAiTokenizerResources())
-  if (!('ok' in created)) throw new Error(JSON.stringify(created.failure))
-  const count = (text: string) => created.ok.count([{ kind: 'text', text }])
-  expect(count('Hello, 世界!')).toEqual({ ok: { tokens: '4' } })
-  expect(count('{"role":"developer","content":"Remember the policy."}')).toEqual({
+it('the family tokenizer resources count the independent o200k_base vectors', async () => {
+  const count = async (text: string) => await TOKENIZER.count([{ kind: 'text', text }])
+  expect(await count('Hello, 世界!')).toEqual({ ok: { tokens: '4' } })
+  expect(await count('{"role":"developer","content":"Remember the policy."}')).toEqual({
     ok: { tokens: '12' },
   })
-  expect(count('{"role":"tool","tool_call_id":"call_1","content":"sunny"}')).toEqual({
+  expect(await count('{"role":"tool","tool_call_id":"call_1","content":"sunny"}')).toEqual({
     ok: { tokens: '18' },
   })
 })
 
-type Measured = ReturnType<ModelInputMeter['measure']>
+type Measured = Awaited<ReturnType<ModelInputMeter['measure']>>
 
 /** Plans the request on the record binding and measures the planned representation. */
 async function planAndMeasure(
@@ -125,7 +123,7 @@ async function planAndMeasure(
   })
   if (!('ok' in planned)) throw new Error(`plan: ${JSON.stringify(planned.failure)}`)
   const representation = change(planned.ok.representation)
-  const measured = binding.meter.measure({
+  const measured = await binding.meter.measure({
     profile: profile.adoption,
     supplier: profile.definition.suppliers[0],
     context: profile.definition.context,

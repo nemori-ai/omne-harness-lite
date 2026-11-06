@@ -36,7 +36,7 @@ const BASIS: ModelCountingBasis = {
 }
 const METER: ModelInputMeter = {
   basis: BASIS,
-  measure: () => ({
+  measure: async () => ({
     ok: { kind: 'complete', inputDigest: 'stub', checks: [], counting: [BASIS] },
   }),
 }

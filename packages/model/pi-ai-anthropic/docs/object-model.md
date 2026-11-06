@@ -37,7 +37,7 @@ classDiagram
   AnthropicRecord --> RuleTables : 按名字指名
   PiFamily --> AnthropicRecord : 冻结副本
   PiFamily --> TiktokenResources : 配置
-  PiFamily --> ModelTextTokenizer : 闭包持有，初始化一次
+  PiFamily --> ModelTextTokenizer : 绑定持有私有租约
   FamilyMeter --> AnthropicRecord
   FamilyMeter --> ModelTextTokenizer
   VendorHooks --> RuleTables : hooksOf 选取
@@ -52,5 +52,5 @@ classDiagram
 
 - 记录：模块常量，不变。家族表保存冻结副本。
 - 词表资源：装配方调用 `anthropicTokenizerResources` 时读出，作为家族配置的值，归装配方。
-- tokenizer：家族第一次取得时创建，之后复用，没有需要释放的资源。
-- 绑定：每次取得新建。`release` 不释放任何东西，重复调用返回同一结果。
+- tokenizer：每个绑定从共享 executor 取得私有租约。
+- 绑定：每次取得新建。release 等待 tokenizer 租约清理，失败时拒绝，重复调用返回同一结果。

@@ -17,7 +17,7 @@ const definition: TokenizerDefinition = {
 it('a tokenizer counts segments and returns tokens or a named failure', () => {
   const tokenizer: ModelTextTokenizer = {
     definition,
-    count: segments => ({ ok: { tokens: String(segments.length) } }),
+    count: async segments => ({ ok: { tokens: String(segments.length) } }),
   }
   const failures: TokenizationFailure[] = [
     { kind: 'invalid', reason: 'r' },

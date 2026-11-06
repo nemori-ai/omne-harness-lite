@@ -29,7 +29,7 @@ export const basis: ModelCountingBasis = {
 
 export type CountingMeter = ModelInputMeter & Readonly<{ measured(): number }>
 
-type MeterAnswer = (input: MeterInput) => ReturnType<ModelInputMeter['measure']>
+type MeterAnswer = (input: MeterInput) => Awaited<ReturnType<ModelInputMeter['measure']>>
 
 /** A meter that answers as told and counts how often it was asked. */
 export function createMeterWith(answer: MeterAnswer): CountingMeter {
@@ -37,7 +37,7 @@ export function createMeterWith(answer: MeterAnswer): CountingMeter {
   return {
     basis,
     measured: () => measured,
-    measure(input) {
+    async measure(input) {
       measured += 1
       return answer(input)
     },

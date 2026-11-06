@@ -86,7 +86,7 @@ function sameRoute(supplier: Supplier, declared: ProfileSupplier): boolean {
 
 /** Releases every binding once; a rejected release becomes the `unavailable` of the contract. */
 async function releaseAll(acquired: readonly PreparationBinding[]): Promise<Released> {
-  const results = await Promise.allSettled(acquired.map(binding => binding.release()))
+  const results = await Promise.allSettled(acquired.map(async binding => binding.release()))
   const failed = results.findIndex(result => result.status === 'rejected')
   if (failed < 0) return {}
   return {
@@ -98,25 +98,13 @@ async function releaseAll(acquired: readonly PreparationBinding[]): Promise<Rele
   }
 }
 
-type Measured = ReturnType<ModelInputMeter['measure']>
+type Measured = Awaited<ReturnType<ModelInputMeter['measure']>>
 
 /** What every meter of a released lease answers, with or without a lineage. */
 function releasedAnswer(): Measured {
   return {
     failure: { kind: 'unavailable', dependency: LEASE, diagnostic: 'preparation-lease-released' },
   }
-}
-
-/**
- * The meter of one binding without a lineage: until release it answers exactly what the family
- * meter answers; after release it answers `preparation-lease-released`.
- */
-function plainMeter(binding: PreparationBinding, isReleased: () => boolean): ModelInputMeter {
-  const meter: ModelInputMeter = {
-    basis: binding.meter.basis,
-    measure: input => (isReleased() ? releasedAnswer() : binding.meter.measure(input)),
-  }
-  return Object.freeze(meter)
 }
 
 /** `owner/name@revision` of the supplier adoption of a binding, for a defect message. */
@@ -126,7 +114,7 @@ function supplierName(binding: PreparationBinding): string {
 }
 
 /**
- * The meter of one binding under a lineage: synchronous, reads nothing, judges, delegates.
+ * The meter of one binding under a lineage judges cached facts and awaits the family meter.
  * `factsOf` gives the view of the facts until release and `null` after it.
  */
 function lineageMeter(
@@ -136,7 +124,7 @@ function lineageMeter(
 ): ModelInputMeter {
   const meter: ModelInputMeter = {
     basis: binding.meter.basis,
-    measure(input) {
+    async measure(input) {
       const facts = factsOf()
       if (facts === null) return releasedAnswer()
       const supplier = binding.supplier.adoption
@@ -153,11 +141,12 @@ function lineageMeter(
         supplier,
         messages: input.assembled.messages,
       })
-      const measured = binding.meter.measureCalibrated(input, {
+      const measured = await binding.meter.measureCalibrated(input, {
         anchor:
           anchor.kind === 'hit' ? { covered: anchor.covered, inputTotal: anchor.inputTotal } : null,
         outputs,
       })
+      if (factsOf() === null) return releasedAnswer()
       if (!('ok' in measured)) return measured
       if (anchor.kind === 'miss') return { ok: { ...measured.ok, calibration: { anchor } } }
       // A meter handed an anchor reports its verdict: `hit`, or the `continuation-shrank` that only
@@ -177,6 +166,7 @@ function leaseOf(
   acquired: readonly PreparationBinding[],
   lineage: Lineage | null,
   facts: CallFactsView,
+  controller: AbortController,
 ): ModelPreparationLease {
   const [first, ...rest] = acquired
   if (first === undefined) throw new TypeError('a profile names at least one supplier')
@@ -184,21 +174,39 @@ function leaseOf(
   // The view of the facts until release; release drops it, so no meter keeps it alive.
   let view: CallFactsView | null = facts
   const factsOf = (): CallFactsView | null => view
-  const isReleased = (): boolean => released !== undefined
+  const pending = new Set<Promise<void>>()
+  const guarded = (meter: ModelInputMeter): ModelInputMeter =>
+    Object.freeze({
+      basis: meter.basis,
+      async measure(input: Parameters<ModelInputMeter['measure']>[0]) {
+        if (released !== undefined) return releasedAnswer()
+        const completion = Promise.withResolvers<void>()
+        pending.add(completion.promise)
+        try {
+          const result = await meter.measure(input)
+          return released !== undefined ? releasedAnswer() : result
+        } finally {
+          pending.delete(completion.promise)
+          completion.resolve()
+        }
+      },
+    })
   const bindingOf = (binding: PreparationBinding): Binding =>
     Object.freeze({
       supplier: binding.supplier,
       rules: binding.rules,
-      meter:
-        lineage === null
-          ? plainMeter(binding, isReleased)
-          : lineageMeter(binding, lineage, factsOf),
+      meter: guarded(lineage === null ? binding.meter : lineageMeter(binding, lineage, factsOf)),
     })
   const lease: ModelPreparationLease = {
     bindings: [bindingOf(first), ...rest.map(bindingOf)],
     release: () => {
+      if (released !== undefined) return released
+      released = Promise.resolve().then(async () => {
+        await Promise.allSettled(pending)
+        return releaseAll(acquired)
+      })
+      controller.abort()
       view = null
-      released ??= releaseAll(acquired)
       return released
     },
   }
@@ -217,10 +225,10 @@ async function bindThenRead<P>(
     profile: ModelProfile
     lineage: Lineage | null
     acquired: PreparationBinding[]
+    signal: AbortSignal
   }>,
 ): Promise<Outcome<CallFactsView, ModelFailure>> {
-  const { options, access, profile, lineage, acquired } = input
-  const signal = new AbortController().signal
+  const { options, access, profile, lineage, acquired, signal } = input
   for (const declared of profile.definition.suppliers) {
     const supplier = options.supplierOf({ ...access, profile, supplier: declared })
     if (!('ok' in supplier)) return supplier
@@ -252,6 +260,7 @@ export function createModelPreparationResources<P>(
       if (!('ok' in lineage)) return lineage
       const access: Access<P> = { principal: input.principal, tenant: input.tenant }
       const acquired: PreparationBinding[] = []
+      const controller = new AbortController()
       let facts: Outcome<CallFactsView, ModelFailure>
       try {
         facts = await bindThenRead({
@@ -260,10 +269,12 @@ export function createModelPreparationResources<P>(
           profile: input.profile,
           lineage: lineage.ok,
           acquired,
+          signal: controller.signal,
         })
       } catch (error) {
         // A throwing supplier port, binding source or store is a program defect. The bindings
         // acquired so far are given back before it surfaces.
+        controller.abort()
         await releaseAll(acquired)
         throw error
       }
@@ -271,10 +282,11 @@ export function createModelPreparationResources<P>(
         // The failure that stopped the acquire is the answer. A failed release on this path is
         // dropped: the original failure says why there is no lease, which the caller needs more
         // than the state of a binding it never received.
+        controller.abort()
         await releaseAll(acquired)
         return facts
       }
-      return { ok: leaseOf(acquired, lineage.ok, facts.ok) }
+      return { ok: leaseOf(acquired, lineage.ok, facts.ok, controller) }
     },
   }
   return Object.freeze(resources)

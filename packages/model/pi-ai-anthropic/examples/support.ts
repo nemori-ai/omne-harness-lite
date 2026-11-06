@@ -1,3 +1,4 @@
+import { createTiktokenExecutor, type TiktokenResources } from '@omne-harness/tokenizer-tiktoken'
 // The steps that the two Anthropic examples share. Each round of a request goes through them:
 //
 // 1. `proxyFromEnvironment` maps HTTPS_PROXY to the proxy of the network resources. The proxy adds
@@ -379,4 +380,28 @@ export function assembleReply(
   if (assembly.phase !== 'ended' || assembly.terminal.kind !== 'complete')
     throw new Error('the assembly did not complete')
   return assembly.terminal.message
+}
+
+export async function openTokenizerExecutor(resources: readonly TiktokenResources[]) {
+  const created = await createTiktokenExecutor({
+    resources,
+    limits: {
+      workers: 1,
+      maxLeases: 256,
+      maxQueuedJobs: 32,
+      maxQueuedBytes: 32 * 1024 * 1024,
+      maxInputBytes: 8 * 1024 * 1024,
+      maxLeaseQueuedJobs: 4,
+      maxCacheBytes: 2 * 1024 * 1024,
+      maxCacheEntries: 8192,
+      maxLeaseCacheBytes: 256 * 1024,
+      maxLeaseCacheEntries: 2048,
+      maxPieceBytes: 4096,
+      jobTimeoutMs: 10000,
+      maxWorkerOldSpaceMb: 128,
+      maxReplacementsPerMinute: 2,
+    },
+  })
+  if ('failure' in created) throw new Error(JSON.stringify(created.failure))
+  return created.ok
 }

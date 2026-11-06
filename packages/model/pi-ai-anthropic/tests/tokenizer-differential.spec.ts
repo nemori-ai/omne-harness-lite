@@ -1,10 +1,32 @@
 import { createHash } from 'node:crypto'
 import { Tiktoken } from 'js-tiktoken/lite'
-import { expect, it } from 'vitest'
-import { createTiktokenTokenizer } from '@omne-harness/tokenizer-tiktoken'
+import { afterAll, expect, it } from 'vitest'
+import { testExecutor } from './support/executor.ts'
 import { anthropicTokenizerResources } from '../src/tokenizer.ts'
 
-it('counts the family vocabulary like the oracle across Unicode and segment boundaries', () => {
+const resources = anthropicTokenizerResources()
+const specialTokens = { '<|endoftext|>': 0 }
+const configured = {
+  ...resources,
+  specialTokens,
+  definition: {
+    ...resources.definition,
+    configuration: {
+      ...resources.definition.configuration,
+      digest: createHash('sha256').update(JSON.stringify(specialTokens)).digest('hex'),
+    },
+  },
+}
+const executor = await testExecutor([configured])
+const initialized = executor.acquire(configured.definition, new AbortController().signal)
+if ('failure' in initialized) throw new Error(JSON.stringify(initialized.failure))
+const tokenizer = initialized.ok.tokenizer
+afterAll(async () => {
+  const released = await initialized.ok.release()
+  if ('failure' in released) throw new Error(JSON.stringify(released.failure))
+})
+
+it('counts the family vocabulary like the oracle across Unicode and segment boundaries', async () => {
   let state = 0xc1a0de
   const random = () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0)
   const alphabet = [
@@ -29,21 +51,6 @@ it('counts the family vocabulary like the oracle across Unicode and segment boun
       Array.from({ length: 48 }, () => alphabet[random() % alphabet.length]).join(''),
     ),
   ]
-  const resources = anthropicTokenizerResources()
-  const specialTokens = { '<|endoftext|>': 0 }
-  const initialized = createTiktokenTokenizer({
-    ...resources,
-    specialTokens,
-    definition: {
-      ...resources.definition,
-      configuration: {
-        ...resources.definition.configuration,
-        digest: createHash('sha256').update(JSON.stringify(specialTokens)).digest('hex'),
-      },
-    },
-  })
-  if ('failure' in initialized) throw new Error(JSON.stringify(initialized.failure))
-  const tokenizer = initialized.ok
   const oracle = new Tiktoken({
     pat_str: resources.ranks.patStr,
     bpe_ranks: resources.ranks.bpeRanks,
@@ -55,13 +62,13 @@ it('counts the family vocabulary like the oracle across Unicode and segment boun
     const left = characters.slice(0, middle).join('')
     const right = characters.slice(middle).join('')
     expect(
-      tokenizer.count([
+      await tokenizer.count([
         { kind: 'text', text: left },
         { kind: 'text', text: right },
       ]),
     ).toEqual({ ok: { tokens: String(oracle.encode(text, [], []).length) } })
     expect(
-      tokenizer.count([
+      await tokenizer.count([
         { kind: 'text', text: left },
         { kind: 'special-token', name: '<|endoftext|>' },
         { kind: 'text', text: right },
@@ -75,7 +82,7 @@ it('counts the family vocabulary like the oracle across Unicode and segment boun
     })
   }
   expect(
-    tokenizer.count([
+    await tokenizer.count([
       { kind: 'text', text: '\uD83D' },
       { kind: 'text', text: '\uDE00' },
     ]),

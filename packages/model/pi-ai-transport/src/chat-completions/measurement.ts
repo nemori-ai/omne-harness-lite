@@ -4,6 +4,7 @@
 // input digest and the per-unit extra tokens. Pure. A family gives only its own values: its
 // adoptions, how to read the units of its token input, its image rules, its tokenizer, the name of
 // its output-group method and the diagnostic of an uncountable reasoning unit.
+import { fitsSerializedBytes } from './serialization.ts'
 import { createHash } from 'node:crypto'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type {
@@ -118,6 +119,8 @@ export type CalibratedMeterRules<U extends MeteredUnit> = Readonly<{
   adoptions: Readonly<{ meter: Adoption; representation: Adoption; media: Adoption }>
   basis: ModelCountingBasis
   margin: MeterMargin
+  /** Maximum UTF-8 bytes of the serialized token input, checked before writing JSON. */
+  maxSerializedBytes: number
   /** The method name suffix of a measurement that counted a unit as the output of its source. */
   outputGroup: string
   /** The diagnostic of a reasoning unit that no output count stands for. */
@@ -229,13 +232,22 @@ function exactChecks(measure: MeasureInput, method: Adoption): readonly BudgetCh
 }
 
 /** Counts the JSON text of a token input, in the form the family counts. */
-function countWith(
+async function countWith(
   tokens: CalibratedMeterRules<MeteredUnit>['tokens'],
   tokenInput: JsonValue,
-): Outcome<bigint, TransportFailure> {
+  maxSerializedBytes: number,
+): Promise<Outcome<bigint, TransportFailure>> {
+  if (!fitsSerializedBytes(tokenInput, maxSerializedBytes))
+    return {
+      failure: {
+        kind: 'unavailable',
+        dependency: 'tokenizer',
+        diagnostic: 'serialized-input-too-large',
+      },
+    }
   const written = writeJsonText(tokenInput)
   const text = tokens.form === 'nfkc' ? written.normalize('NFKC') : written
-  const counted = tokens.tokenizer.count([{ kind: 'text', text }])
+  const counted = await tokens.tokenizer.count([{ kind: 'text', text }])
   if (!('ok' in counted))
     return {
       failure: { kind: 'unavailable', dependency: 'tokenizer', diagnostic: counted.failure.kind },
@@ -243,13 +255,13 @@ function countWith(
   return { ok: BigInt(counted.ok.tokens) }
 }
 
-function measureCalibrated<U extends MeteredUnit>(
+async function measureCalibrated<U extends MeteredUnit>(
   input: Readonly<{
     rules: CalibratedMeterRules<U>
     measure: MeasureInput
     calibration: MeterCalibration
   }>,
-): Outcome<RequestBudget, TransportFailure> {
+): Promise<Outcome<RequestBudget, TransportFailure>> {
   const { rules, measure, calibration } = input
   const adapter = rules.adoptions.meter
   if (!sameAdoption(measure.supplier.adoption, rules.supplier))
@@ -260,14 +272,22 @@ function measureCalibrated<U extends MeteredUnit>(
   // Media that is not read yet has no pixels here; the media path is not part of this meter.
   if (representation.kind === 'pending-media')
     return { failure: { kind: 'unsupported', field: 'representation.kind', adapter } }
+  if (!fitsSerializedBytes(representation.tokenInput, rules.maxSerializedBytes))
+    return {
+      failure: {
+        kind: 'unavailable',
+        dependency: 'tokenizer',
+        diagnostic: 'serialized-input-too-large',
+      },
+    }
   const units = rules.contentOf(representation.tokenInput)
   if (units === null) return { failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' } }
-  const amount = calibratedAmount({
+  const amount = await calibratedAmount({
     tokenInput: representation.tokenInput,
     units: representation.units,
     reasoning: units.map(unit => unit.reasoning),
     calibration,
-    count: body => countWith(rules.tokens, body),
+    count: body => countWith(rules.tokens, body, rules.maxSerializedBytes),
     extra: unitExtras(() => rules.imageTokens({ units, media: representation.media })),
     uncountable: rules.uncountable,
     dependency: rules.owner,
@@ -300,6 +320,8 @@ function measureCalibrated<U extends MeteredUnit>(
 export function createCalibratedMeter<U extends MeteredUnit>(
   rules: CalibratedMeterRules<U>,
 ): CalibratedInputMeter {
+  if (!Number.isSafeInteger(rules.maxSerializedBytes) || rules.maxSerializedBytes <= 0)
+    throw new RangeError('maxSerializedBytes must be a positive safe integer')
   return Object.freeze({
     basis: rules.basis,
     measure: (measure: MeasureInput) =>
