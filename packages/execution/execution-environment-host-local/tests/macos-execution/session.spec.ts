@@ -1,19 +1,37 @@
 // Fast: the session reader's answers as the macOS backend reads them, with a stand-in reader
 // script. A reader that fails, times out or prints something else is never read as an empty
-// session or as a confirmed stop. Runs on every platform; the real reader is in primitives.spec.ts.
+// session or as a confirmed stop. The boot identity is read from a stand-in `sysctl`, swapped in
+// by path. Runs on every platform; the real reader is in primitives.spec.ts.
 import { chmod, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   ownSessions,
   parseIdentity,
   parseMembers,
   parseStop,
+  positive,
+  readBootId,
+  readBootIdNow,
   readMembers,
   stopRecordedDomain,
   stopSessions,
 } from '../../src/macos-execution/session.ts'
+
+/** Host tools the module under test runs, swapped by path for the test's stand-ins. */
+const swap = vi.hoisted(() => new Map<string, string>())
+
+vi.mock('node:child_process', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  return {
+    ...actual,
+    execFile: (file: string, ...rest: unknown[]) =>
+      Reflect.apply(actual.execFile, undefined, [swap.get(file) ?? file, ...rest]),
+    execFileSync: (file: string, ...rest: unknown[]): unknown =>
+      Reflect.apply(actual.execFileSync, undefined, [swap.get(file) ?? file, ...rest]),
+  }
+})
 
 let directory = ''
 const reader = async (name: string, body: string) => {
@@ -29,8 +47,18 @@ beforeAll(async () => {
 afterAll(async () => {
   await rm(directory, { recursive: true, force: true })
 })
+afterEach(() => {
+  swap.clear()
+})
 
 describe('reader answers', () => {
+  it('reads a positive decimal and nothing that only converts to one', () => {
+    expect(positive('12')).toBe(12)
+    for (const text of [undefined, '', '0', '1e3', '+12', '12 ', ' 12', '0x10', '1.5'])
+      expect(positive(text), JSON.stringify(text)).toBeUndefined()
+    expect(positive('9007199254740993')).toBeUndefined()
+  })
+
   it('reads members line by line and an empty answer as no member', () => {
     expect(parseMembers('12 12 12\n13 12 12\n20 20 12\n')).toEqual([
       { pid: 12, pgid: 12, sid: 12 },
@@ -40,7 +68,7 @@ describe('reader answers', () => {
     expect(parseMembers('')).toEqual([])
   })
 
-  it.each(['12 12', '12 12 12 12', 'a 12 12', '12 -1 12', '12 0 12', '12  12 12'])(
+  it.each(['12 12', '12 12 12 12', 'a 12 12', '12 -1 12', '12 0 12', '12 12 0', '12  12 12'])(
     'refuses the members line %j',
     line => {
       expect(parseMembers(`${line}\n`)).toBeUndefined()
@@ -56,18 +84,28 @@ describe('reader answers', () => {
     expect(parseIdentity('gone\n')).toEqual({ kind: 'gone' })
   })
 
-  it.each(['', '400 1', '400 1 2 3', 'x 1 2', '400 -1 2', '400 1 x'])(
-    'refuses the identity %j',
-    text => {
-      expect(parseIdentity(text)).toBeUndefined()
-    },
-  )
+  it.each([
+    '',
+    '400 1',
+    '400 1 2 3',
+    'x 1 2',
+    '400 -1 2',
+    '400 1 x',
+    '400 1x 2',
+    '400 1 x2',
+    '400 1 2x',
+  ])('refuses the identity %j', text => {
+    expect(parseIdentity(text)).toBeUndefined()
+  })
 
   it('reads a stop answer and nothing else', () => {
     expect(parseStop('confirmed\n')).toBe('confirmed')
     expect(parseStop('unconfirmed 3\n')).toBe('unconfirmed')
     expect(parseStop('unconfirmed\n')).toBeUndefined()
     expect(parseStop('confirmed 0\n')).toBeUndefined()
+    expect(parseStop('unconfirmed 12\n')).toBe('unconfirmed')
+    expect(parseStop('xunconfirmed 3\n')).toBeUndefined()
+    expect(parseStop('unconfirmed 3x\n')).toBeUndefined()
     expect(parseStop('')).toBeUndefined()
   })
 })
@@ -167,6 +205,29 @@ describe('recorded domains', () => {
     ).toBe('unconfirmed')
   })
 
+  it('answers unconfirmed for an unknown boot even when the reader would confirm', async () => {
+    const confirming = await reader(
+      'boot-unknown',
+      'case "$1" in identity) echo gone;; stop) echo confirmed;; esac',
+    )
+    expect(
+      await stopRecordedDomain({
+        reader: confirming,
+        coordinate,
+        bootId: coordinate.bootId,
+        boundMs: 5_000,
+      }),
+    ).toBe('confirmed')
+    expect(
+      await stopRecordedDomain({
+        reader: confirming,
+        coordinate,
+        bootId: undefined,
+        boundMs: 5_000,
+      }),
+    ).toBe('unconfirmed')
+  })
+
   it('stops only the sessions that are still the domain own', async () => {
     const both = await reader(
       'identity-and-stop',
@@ -180,5 +241,47 @@ describe('recorded domains', () => {
         boundMs: 5_000,
       }),
     ).toBe('confirmed')
+  })
+})
+
+describe('boot identity', () => {
+  const boot = 'B6C8C544-54F8-4C43-967D-A47FD7BEBA7D'
+
+  /** A stand-in `sysctl` that answers only `-n kern.bootsessionuuid`, and only in an empty environment. */
+  async function sysctl(answer: string, status = 0): Promise<void> {
+    const path = await reader(
+      'sysctl',
+      [
+        '[ "$*" = "-n kern.bootsessionuuid" ] || exit 3',
+        '[ -z "$HOME" ] || exit 4',
+        `printf '%s' '${answer}'`,
+        `exit ${status}`,
+      ].join('\n'),
+    )
+    swap.set('/usr/sbin/sysctl', path)
+  }
+
+  const both = async () => [await readBootId(), readBootIdNow()]
+
+  it('reads the boot session uuid', async () => {
+    await sysctl(`${boot}\n`)
+    expect(await both()).toEqual([boot, boot])
+    await sysctl(`${boot.toLowerCase()}\n`)
+    expect(await both()).toEqual([boot.toLowerCase(), boot.toLowerCase()])
+  })
+
+  it.each([`${boot}X\n`, `X${boot}\n`, `${boot.slice(1)}\n`, 'kern.bootsessionuuid: 1\n', '\n'])(
+    'refuses the answer %j',
+    async answer => {
+      await sysctl(answer)
+      expect(await both()).toEqual([undefined, undefined])
+    },
+  )
+
+  it('refuses an answer of a sysctl that failed or is missing', async () => {
+    await sysctl(`${boot}\n`, 1)
+    expect(await both()).toEqual([undefined, undefined])
+    swap.set('/usr/sbin/sysctl', join(directory, 'no-sysctl'))
+    expect(await both()).toEqual([undefined, undefined])
   })
 })
