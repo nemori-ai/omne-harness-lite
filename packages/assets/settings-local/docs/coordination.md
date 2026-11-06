@@ -175,3 +175,14 @@ flowchart LR
 ready的终态动作仅观察，不写committed；来源动作为none，不清门。非终态观察不能满足成功提交，no-action不能授予write-open。实际写者必须核对动作种类及完整绑定。合成描述符已通过真实manifest校验，但真实组合和上述行为仍须在完整提供者中验证。
 
 `source-readiness`只读实际来源门和held数量，返回绑定完整根、命令及精确attempt的事实。它没有上游fact依赖，也不清门或释放保留。它要求组合登记来源表拥有者；登记不表示执行写者。真实SQL测试检查pending、held、零held重开、无关目标和错绑消费者，但源更新准入与完整提交尚未接通。
+
+
+### 根与尝试的终结写入
+
+私有 `intent-settlement.ts` 在持久写者内落实已决定的 commit、最终业务拒绝、精确 attempt seal 和根取消。它只消费可信事务计划及来源写者的结果，不做准入、当前依据检查或配值计算。生产参与者尚未调用该模块。
+
+每个 attempt 事件核对持久根的命令种类、语义摘要和精确 attempt 身份。preparing 不能成功提交。普通 seal 只将该 attempt 标为 aborted，根继续开放；已 aborted 的旧 attempt 不触碰后继。取消也可结束没有活跃 attempt 的开放根。已终结根保留原结果，不能再次分配。最终业务拒绝保存为 aborted，不能把它当成 SQL 冲突回滚。
+
+源修改根还要求来源写者的 finished 结果。结果必须匹配完整来源、原主体、根操作、命令摘要及终态，且根保存的 sourceKey 必须一致。这个形状检查不证明清门已经发生。生产持久参与者必须通过声明的事务 fact 取得结果，不能从客户端输入构造它；terminal、精确清门及本写者必须在同一 SQL 提交内完成。
+
+当前关系测试通过真实 Worker 调用该私有写者，覆盖竞争顺序、旧 attempt、回滚及重开。prepared 状态和来源 finished 结果仍由具名夹具构造。因此这些测试只证明根与 attempt 的关系变迁，不证明真实 ready、来源清门、业务写入或恢复路由已经接通。

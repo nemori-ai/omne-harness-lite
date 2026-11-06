@@ -210,3 +210,6 @@ The private source-readiness participant reads the source owner's gate and held 
 The fact binds the complete intent identity, exact attempt, command kind and command digest. It reports the full source, actual pending update and bounded held count. Caller-supplied counts or gate content are not read. The downstream planner must compare the complete binding and persistent root purpose. An absent gate with zero holds is an observation, not permission to write or a proof of source ownership.
 
 Ready, commit and seal use separate fixed combinations with exactly one finalization-plan producer. A read-only terminal observation precedes the planner. Shared terminal, source and persistence writers validate their respective actions in the same transaction. Seal does not depend on current governance or renewed qualification. Ready's nonterminal/no-action results cannot authorize business effects. The complete phase assemblies and public preparation backend remain implementation obligations.
+
+
+私有根终结写者必须核对精确 attempt 与原命令绑定。成功不能从 preparing 直接发生。普通 seal 保持根开放，源修改 seal 终结根，取消可作用于没有活跃 attempt 的开放根。旧 aborted attempt 不得修改后继，已终结根不得复活。源修改的根终结须消费同事务来源写者的精确 finished 结果；形状相符不构成来源权威。所有 SQL 异常向事务拥有者传播，根和 attempt 不得部分提交。该私有模块尚不构成公开准备提供者。

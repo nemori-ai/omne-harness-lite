@@ -98,3 +98,6 @@ pnpm --filter @omne-harness/assets-local run test:fast
 
 
 [source-readiness.spec.ts](source-readiness.spec.ts) 使用实际只读参与者和无表消费者，核对来源门、held数量、零held的pending重开，以及完整根/attempt绑定。测试把消费命令放在前面，依赖顺序仍由真实SQL提供者决定。来源状态通过具名私有写者夹具建立；该测试不代表生产源更新准入或最终提交已经实现。
+
+
+`intent-settlement.spec.ts` 经真实 SQLite Worker 验证私有根终结写者。场景包含旧 attempt 与后继隔离、preparing 禁止成功、原绑定核对、提交与取消双顺序和并发、无活跃 attempt 的根取消、业务拒绝、精确来源结果、事务回滚和重开。prepared 状态及来源 finished 结果使用夹具；这些场景不替代最终参与者组合与公开准备接口验收。

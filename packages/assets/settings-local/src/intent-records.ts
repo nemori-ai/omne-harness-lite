@@ -42,6 +42,9 @@ function semanticCommand(intent: IntentCommand) {
   const { requestId: _requestId, ...command } = intent.command
   return { kind: intent.kind, command }
 }
+export function intentCommandDigest(intent: IntentCommand): string {
+  return digest(semanticCommand(intent).command)
+}
 export function intentKey(identity: IntentIdentity): string {
   return digest([identity.domain, identity.principalRef, identity.operation])
 }
@@ -107,7 +110,7 @@ function readRoot(port: ReadPort, identity: IntentIdentity) {
     principal !== identity.principalRef ||
     operation !== identity.operation.operationId ||
     target !== stateKey(identity.domain.scope, identity.operation.target) ||
-    commandDigest !== digest(semanticCommand(intent).command)
+    commandDigest !== intentCommandDigest(intent)
   )
     throw new Error('Invalid persisted Settings intent identity')
   const purpose = intentPurposeSchema.parse(
@@ -191,7 +194,7 @@ function insertRoot(port: ParticipantPort, input: IntentAllocation) {
       identity.principalRef,
       stateKey(identity.domain.scope, identity.operation.target),
       identity.operation.operationId,
-      digest(semanticCommand(intent).command),
+      intentCommandDigest(intent),
       canonical(intent.command),
       intent.kind,
       purpose.kind,

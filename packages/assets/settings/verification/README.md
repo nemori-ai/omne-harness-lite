@@ -175,3 +175,6 @@ source-snapshot的真实读取增量验证了模型中源快照的部分精化�
 `source-custody.ts` 将同一保管状态机用于目的侧的每个来源请求。先在一个事务中固定完整集合，再按 `(attempt_id, source_key)` 分区推进。清单不可追加或替换，各成员只写自己的键，因此交错推进不改变其他成员的请求或终态。OneReservationIdentity按单一来源请求解释，不限制整个attempt只能有一个来源。
 
 来源清单原子性、完整绑定和SQL键分区由实际数据库测试守护；现有单请求TLA模型没有枚举1024项清单或证明哈希无碰撞。进入prepared仍须核对全部必需成员，属于bootstrap模型及后续真实协调器的责任。丢包/重开测试使用实际来源快照和保留参与者；终态回执及旧attempt仍有夹具边界。不能把这些局部结论写成完整恢复服务已交付。
+
+
+`SettingsIntentAttempts` 的普通 seal、根取消、终态不复活与旧 attempt 隔离，现由 settings-local 私有 `intent-settlement.ts` 落实关系写入，测试入口为 `intent-settlement.spec.ts`。`SettingsPreparationBootstrap` 的 preparing 禁止成功也有对应反例。最终当前依据检查、terminal 原子组合及源门同提交仍由未完成的生产协调负责；模型通过和私有关系测试通过不能替代这些义务。

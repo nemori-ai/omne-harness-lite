@@ -1,3 +1,4 @@
+import { settleSettingsIntent } from '../dist/intent-settlement.js'
 import {
   planSourceCustody,
   requestSourceCustody,
@@ -40,11 +41,13 @@ export default {
   participant: 'settings.persistence',
   protocol: 'settings-sql/1',
   execute(facts, port) {
-    const response = facts.source
-      ? source(facts.source, port)
-      : facts.standing
-        ? standing(facts.standing, port)
-        : allocateSettingsIntent(port, facts.input)
+    const response = facts.settlement
+      ? settleSettingsIntent(port, facts.settlement)
+      : facts.source
+        ? source(facts.source, port)
+        : facts.standing
+          ? standing(facts.standing, port)
+          : allocateSettingsIntent(port, facts.input)
     if (facts.rollback) return { kind: 'conflict', basis: { reason: 'fixture-rollback' } }
     return { kind: 'participated', response }
   },

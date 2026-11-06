@@ -1,3 +1,4 @@
+import type { IntentSettlement } from '../src/intent-settlement.ts'
 import {
   SETTINGS_SOURCE_CUSTODY_MIGRATION,
   SETTINGS_SOURCE_CUSTODY_TABLES,
@@ -146,6 +147,21 @@ export async function openIntentWorld(
   if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
   return {
     root,
+    settle(input: IntentSettlement, rollback = false) {
+      return made.storage.commit({
+        identity: {
+          ...domain,
+          operation: 'fixture.intent.settle',
+          protocolVersion: '2',
+          operationKey: randomUUID(),
+        },
+        combinationVersion: combination.combinationVersion,
+        manifestDigest: combination.manifestDigest,
+        commands: [
+          { participant: 'settings.persistence', facts: { settlement: json(input), rollback } },
+        ],
+      })
+    },
     source(
       command:
         | { kind: 'plan'; input: SourceCustodyPlan }
