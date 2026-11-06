@@ -7,9 +7,10 @@ export type MeasureContext<P> = Readonly<{
   access: Access<P>
   preparation: M.ModelPreparationResources<P>
 }>
-type Failure = AssemblyFailure | AssemblyUnknown
+export type MeasurementFailure = AssemblyFailure | AssemblyUnknown
+type Failure = MeasurementFailure
 
-function leaseFailure(failure: M.ModelFailure): Failure {
+export function leaseFailure(failure: M.ModelFailure): Failure {
   switch (failure.kind) {
     case 'denied':
       return {
@@ -60,7 +61,7 @@ export async function measureCandidate<P>(
   const lease = acquired.ok
   let outcome: M.RequestBudget | Failure | undefined
   try {
-    outcome = measureWithLease(lease, profile, assembled)
+    outcome = await measureWithLease(lease, profile, assembled)
   } finally {
     const released = await lease.release()
     if (released.failure !== undefined && outcome !== undefined && !isFailure(outcome))
@@ -75,11 +76,11 @@ export async function measureCandidate<P>(
 function isFailure(value: M.RequestBudget | Failure): value is Failure {
   return value.kind !== 'complete' && value.kind !== 'deferred-media'
 }
-function measureWithLease(
+export async function measureWithLease(
   lease: M.ModelPreparationLease,
   profile: M.ModelProfile,
   assembled: M.AssembledModelInput,
-): M.RequestBudget | Failure {
+): Promise<M.RequestBudget | Failure> {
   const definition = profile.definition
   const reports: M.RequestBudget[] = []
   for (const binding of lease.bindings) {
@@ -93,7 +94,7 @@ function measureWithLease(
     const plan = binding.rules.plan({ profile, supplier: binding.supplier, assembled })
     if ('failure' in plan)
       return { kind: 'unavailable', owner: 'preparation', diagnostic: canonical(plan.failure) }
-    const result = binding.meter.measure({
+    const result = await binding.meter.measure({
       profile: profile.adoption,
       supplier,
       context: definition.context,
