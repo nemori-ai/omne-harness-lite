@@ -266,6 +266,14 @@ export function createServerEntry(input: {
       return
     }
     activeRequests += 1
+    let slotHeld = true
+    const releaseSlot = (): void => {
+      if (!slotHeld) return
+      slotHeld = false
+      activeRequests -= 1
+      res.off('close', releaseSlot)
+    }
+    res.once('close', releaseSlot)
     try {
       const body = await readBody(req, location.maxBytes)
       if (body.kind === 'aborted') {
@@ -278,7 +286,7 @@ export function createServerEntry(input: {
       }
       write(res, await answerOf(location, body.bytes))
     } finally {
-      activeRequests -= 1
+      releaseSlot()
     }
   }
 

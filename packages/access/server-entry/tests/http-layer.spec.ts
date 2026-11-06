@@ -296,6 +296,77 @@ describe('stop', () => {
 })
 
 describe('bounded request admission', () => {
+  it('releases a disconnected request slot without cancelling or double-releasing its pending work', async () => {
+    const gates = [Promise.withResolvers<void>(), Promise.withResolvers<void>()] as const
+    const entered = [Promise.withResolvers<void>(), Promise.withResolvers<void>()] as const
+    let held = false
+    let index = 0
+    fixture = await startFixture({
+      config: { maxInFlightRequests: 1 },
+      identity: base => ({
+        ...base,
+        async recognizeLogin(input) {
+          if (held) {
+            const turn = index++
+            const gate = gates[turn]
+            const arrival = entered[turn]
+            if (!gate || !arrival) throw new Error('Unexpected identity call')
+            arrival.resolve()
+            await gate.promise
+          }
+          return base.recognizeLogin(input)
+        },
+      }),
+    })
+    const current = fixture
+    const who = await login(current, 'disconnect')
+    const probe = () =>
+      send(current.port, GOVERNANCE_PATH, { body: governance('public-health', {}) })
+    expect((await probe()).status).toBe(501)
+    held = true
+    const clients: ClientRequest[] = []
+    const start = (createCallId: string) => {
+      const body = sessionMessage(
+        'create-session',
+        { createCallId, definition: 'assistant', purpose: 'continue accepted work' },
+        { loginProof: who.loginProof, actingTenant: who.tenantText },
+      )
+      const client = request({
+        hostname: '127.0.0.1',
+        port: current.port,
+        path: SESSION_PATH,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      })
+      client.on('error', error => {
+        if (!('code' in error) || error.code !== 'ECONNRESET') throw error
+      })
+      clients.push(client)
+      client.end(body)
+      return client
+    }
+    try {
+      const first = start('disconnected')
+      await entered[0].promise
+      expect((await probe()).status).toBe(429)
+      first.destroy()
+      await expect.poll(async () => (await probe()).status).toBe(501)
+      start('still-connected')
+      await entered[1].promise
+      gates[0].resolve()
+      await expect
+        .poll(
+          () => current.session.controls.calls().filter(call => call.method === 'create').length,
+        )
+        .toBe(1)
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect((await probe()).status).toBe(429)
+    } finally {
+      for (const client of clients) client.destroy()
+      for (const gate of gates) gate.resolve()
+    }
+  })
+
   it('rejects an unread body when all request slots are occupied without invoking Session', async () => {
     fixture = await startFixture({ config: { maxInFlightRequests: 2 } })
     const port = fixture.port
