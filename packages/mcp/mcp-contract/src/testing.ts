@@ -42,9 +42,16 @@ export {
 } from './testing-catalog-store.ts'
 export {
   actionNameOf,
+  adoptionRevisionOf,
+  connectionTargetOf,
+  correlationKeyOf,
+  credentialBindingOf,
+  endpointRefOf,
   generationOf,
   jsonOf,
   jsonTextOf,
+  millisOf,
+  peerIdentityOf,
   protocolVersionOf,
   requestStateOf,
   revisionOf,

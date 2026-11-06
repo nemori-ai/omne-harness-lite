@@ -18,7 +18,8 @@ import {
   stallingEligibility,
   stallingLanding,
 } from './doubles/stalls.ts'
-import { alice, millis, peerIdentity, ref } from './doubles/values.ts'
+import { millisOf, peerIdentityOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { alice } from './doubles/identities.ts'
 import {
   VALUE,
   adoptHttp,
@@ -29,8 +30,8 @@ import {
   type World,
 } from './doubles/world.ts'
 
-const files = ref('files')
-const peer = peerIdentity()
+const files = endpointRefOf('files')
+const peer = peerIdentityOf()
 const anonymousKey = {
   tenant: alice.tenant,
   account: { kind: 'anonymous' as const },
@@ -155,7 +156,7 @@ describe('listing bound (B3): reading pages is bounded like the build', () => {
   it('a page that never comes: listing-incomplete (page-failed) at the bound, connection degraded', async () => {
     const never = deferred<ListingPage>()
     const w = world({ script: [{ discover: peer }, { listActions: never }] })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
     const c = core(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defect: 'page-failed' } },
@@ -222,7 +223,7 @@ describe('close against ensure (B4): both connections keep an owner', () => {
 describe('build bound (B5): credentials and the landing are bounded too', () => {
   it('a landing that never answers: connection-unavailable at the bound; release returns', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
     const stalled = stallingLanding(w.landing)
     const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
@@ -300,7 +301,7 @@ describe('the gate the services walk through (D1)', () => {
     const w = world()
     adoptStdio(w, files)
     const c = core(w)
-    const nowhere = ref('nowhere')
+    const nowhere = endpointRefOf('nowhere')
     await c.discovery.refresh(alice, { ref: nowhere })
     await c.discovery.current(alice, nowhere)
     await c.status.inspect(alice, nowhere)
@@ -399,7 +400,7 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
 
   it('is stopped on arrival; a stop that is not tree-confirmed is a residual that release and closeAll report', async () => {
     const w = world({ script: usualScript(), stop: 'unconfirmed' })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
     const { gate, c } = stalledLanding(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'connection-unavailable' },
@@ -445,7 +446,7 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
     adoptStdio(w, files, {
       auth: 'static',
       env: [{ name: 'TOKEN', source: 'credential' }],
-      settings: { connectTimeout: VALUE(millis(50)) },
+      settings: { connectTimeout: VALUE(millisOf(50)) },
     })
     const { gate, c } = stalledLanding(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
@@ -466,7 +467,7 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
       auth: 'static',
       env: [{ name: 'TOKEN', source: 'credential' }],
       facilities: ['gpu'],
-      settings: { connectTimeout: VALUE(millis(50)) },
+      settings: { connectTimeout: VALUE(millisOf(50)) },
     })
     const { gate, c } = stalledLanding(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
@@ -484,7 +485,7 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
     adoptStdio(w, files, {
       auth: 'static',
       env: [{ name: 'TOKEN', source: 'credential' }],
-      settings: { connectTimeout: VALUE(millis(50)) },
+      settings: { connectTimeout: VALUE(millisOf(50)) },
     })
     const stalled = stallingLanding({ start: () => Promise.reject(new Error('landing bug')) })
     const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
@@ -502,7 +503,7 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
 
   it('a credential handle that arrives after the bound is released; a release that rejects is dropped, not unhandled', async () => {
     const w = world({ script: usualScript() })
-    adoptHttp(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    adoptHttp(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
     const stalled = stallingCredentials(w.ports.credentials, handle => ({
       ...handle,
       release: () => Promise.reject(new Error('release failed')),
@@ -531,7 +532,7 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
 describe('the adoption read again in the critical section is bounded (decision 22)', () => {
   it('a re-read that never answers: connection-unavailable at the bound, and the next ensure of the holding answers within its own bound', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
     // Calls 1 and 2 are the gates of the two refreshes; calls 3 and 4, the re-reads of the
     // critical section, never answer.
     const silent = silentAdoption(w.ports.adoption, between(3, 4))
@@ -557,7 +558,7 @@ describe('a teardown that does not answer holds no ensure past its bound (decisi
   it('the close of an earlier revision hangs: two refreshes of the new revision answer connection-unavailable, then the close ends on its own', async () => {
     const closing = deferred<'closed'>()
     const w = world({ script: [...usualScript(), { close: closing }, ...usualScript()] })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
     const c = core(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
       ok: { kind: 'published' },
@@ -581,7 +582,7 @@ describe('a teardown that does not answer holds no ensure past its bound (decisi
   it('a release of the same key still closing the transport: a refresh answers connection-unavailable within its bound', async () => {
     const closing = deferred<'closed'>()
     const w = world({ script: [...usualScript(), { close: closing }, ...usualScript()] })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millis(50)) } })
+    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
     const c = core(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
       ok: { kind: 'published' },
@@ -714,7 +715,7 @@ describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
 
   it('a refresh stops reading pages at its listing bound: the cut-off page has no answer', async () => {
     const w = world({
-      script: [{ discover: peerIdentity() }, { listActions: deferred<ListingPage>() }],
+      script: [{ discover: peerIdentityOf() }, { listActions: deferred<ListingPage>() }],
     })
     adoptStdio(w, files)
     const bounds = manualBounds()

@@ -7,11 +7,12 @@ import { describe, expect, it } from 'vitest'
 import type { AdoptionView, UseEligibility } from '@omne-harness/mcp-contract/provider'
 import { only, picker, type Which } from './doubles/calls.ts'
 import { core } from './doubles/core.ts'
-import type { Principal } from './doubles/values.ts'
-import { alice, ref } from './doubles/values.ts'
+import type { Principal } from './doubles/identities.ts'
+import { endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { alice } from './doubles/identities.ts'
 import { adoptStdio, usualScript, world, type World } from './doubles/world.ts'
 
-const files = ref('files')
+const files = endpointRefOf('files')
 
 function down(port: string): Promise<never> {
   return Promise.reject(new Error(`${port} port down`))

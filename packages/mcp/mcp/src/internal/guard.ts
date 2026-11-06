@@ -10,6 +10,7 @@ import {
   adopted,
   refusalOf,
   type AdmittedEndpoint,
+  type GateDecision,
   type GatePorts,
   type GateRefusal,
   type GateRefused,
@@ -19,8 +20,18 @@ import type { ConnectionTable } from './table.ts'
 export type UseGate<P, S> = Readonly<{ ports: GatePorts<P, S>; table: ConnectionTable<P> }>
 
 /** True when the decision means the tenant's connection must not stay open (invariant 6). */
-export function withdraws(decision: GateRefused): boolean {
+export function withdraws(decision: GateDecision): boolean {
   return decision.kind === 'not-adopted' || decision.kind === 'blocked'
+}
+
+/** The close of invariant 6: a withdrawn or blocked endpoint does not keep its connection. */
+async function closeIfWithdrawn<P, S>(
+  gate: UseGate<P, S>,
+  access: Access<P>,
+  ref: EndpointRef,
+  decision: GateDecision,
+): Promise<void> {
+  if (withdraws(decision)) await gate.table.close(access.tenant, ref.holding)
 }
 
 async function refused<P, S>(
@@ -29,19 +40,32 @@ async function refused<P, S>(
   ref: EndpointRef,
   decision: GateRefused,
 ): Promise<GateRefusal> {
-  if (withdraws(decision)) await gate.table.close(access.tenant, ref.holding)
+  await closeIfWithdrawn(gate, access, ref, decision)
   return refusalOf(decision)
 }
 
-/** The gate at a use: adoption, eligibility, and the close of invariant 6 on the way. */
+/**
+ * The decision of the gate at a use (S1), with the close of invariant 6 on the way: the caller
+ * reads the decision itself. For the task operations, whose refusals are not R1's (SPEC S2).
+ */
+export async function decideForUse<P, S>(
+  gate: UseGate<P, S>,
+  access: Access<P>,
+  ref: EndpointRef,
+): Promise<GateDecision> {
+  const decision = await admit(gate.ports, access, ref)
+  await closeIfWithdrawn(gate, access, ref, decision)
+  return decision
+}
+
+/** The gate at a use: adoption, eligibility, the close of invariant 6, and the refusal of R1. */
 export async function admitForUse<P, S>(
   gate: UseGate<P, S>,
   access: Access<P>,
   ref: EndpointRef,
 ): Promise<Outcome<AdmittedEndpoint, GateRefusal>> {
-  const decision = await admit(gate.ports, access, ref)
-  if (decision.kind === 'admitted') return succeed(decision.endpoint)
-  return fail(await refused(gate, access, ref, decision))
+  const decision = await decideForUse(gate, access, ref)
+  return decision.kind === 'admitted' ? succeed(decision.endpoint) : fail(refusalOf(decision))
 }
 
 /**

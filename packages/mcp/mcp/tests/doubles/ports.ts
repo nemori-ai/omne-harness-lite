@@ -2,11 +2,12 @@
 // a scripted stop range. Tests assert on these counts; the doubles keep their contract behavior.
 import type {
   AdoptionView,
+  CatalogStore,
   ProcessHandle,
   ProcessLanding,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
-import type { StopScope } from '@omne-harness/mcp-contract'
+import type { OutputCheck, OutputValidator, StopScope } from '@omne-harness/mcp-contract'
 import {
   createMemoryAdoptionView,
   createMemoryCredentialUse,
@@ -18,7 +19,7 @@ import {
   type MemoryUseEligibility,
 } from '@omne-harness/mcp-contract/testing'
 import { releasing, reshapedCredentials } from './handles.ts'
-import { principalKey, type Principal } from './values.ts'
+import { principalKey, type Principal } from './identities.ts'
 
 export type Counted<T> = T & Readonly<{ calls: () => number }>
 
@@ -48,6 +49,21 @@ export function countedEligibility(): Counted<MemoryUseEligibility<Principal>> {
     },
   }
   return { ...memory, ...port, calls: () => count }
+}
+
+/** The catalog store with its reads counted: a case asserts that a step did not read it. */
+export function countedReads<T extends CatalogStore>(
+  store: T,
+): T & Readonly<{ reads: () => number }> {
+  let count = 0
+  return {
+    ...store,
+    read: key => {
+      count += 1
+      return store.read(key)
+    },
+    reads: () => count,
+  }
 }
 
 /** One credential handle the test can count: how often it was acquired and released. */
@@ -120,4 +136,24 @@ export function scriptedLanding(
     },
   }
   return { ...memory, ...port, processes: () => processes.map(record => ({ ...record })) }
+}
+
+/** The output validator the tests inject, with its calls recorded: the pairs it was given. */
+export type CountedOutputCheck = Readonly<{
+  check: OutputValidator
+  calls: () => number
+}>
+
+/** An output validator that answers `verdict` to every pair and counts its calls. */
+export function countedOutputCheck(
+  verdict: OutputCheck = { kind: 'conforms' },
+): CountedOutputCheck {
+  let count = 0
+  return {
+    check: () => {
+      count += 1
+      return verdict
+    },
+    calls: () => count,
+  }
 }

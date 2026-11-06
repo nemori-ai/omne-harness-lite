@@ -1,8 +1,15 @@
-// The in-flight table of calls (SPEC S2): keyed by tenant, principal and correlation key. The
-// reservation is the duplicate check and the placeholder in one step. Entries stay for the run;
-// an ended key is not deleted. This wave builds the table; the call port of the next wave uses it.
+// The in-flight table of calls (SPEC S2, MC-12): keyed by tenant, principal and correlation key.
+// The reservation is the duplicate check and the placeholder in one step, and it hands out the
+// one stop signal of the call: the caller's signal and this table's `cancel`, as one. The call
+// port holds the place through the handle `reserve` answers, waits under its stop signal from
+// the reservation to the answer, and concludes the place once, by the phase the table recorded:
+// a sent call has ended; a call not sent has ended when its stop signal fired, else it gives its
+// place back. The phase lives in the table only. Entries stay for the run; an ended key is not
+// deleted. The call port keeps the request identifier itself; the table only answers whether a
+// sent call is still current.
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { CancelAnswer, CorrelationKey, Generation } from '@omne-harness/mcp-contract'
+import type { ConnectionView } from './entry.ts'
 import { tenantTextOf } from './text.ts'
 
 export type InFlightKey = Readonly<{
@@ -12,82 +19,99 @@ export type InFlightKey = Readonly<{
   correlationKey: CorrelationKey
 }>
 
-type Entry =
-  | Readonly<{ phase: 'reserved'; cancelled: boolean }>
-  | Readonly<{ phase: 'sent'; requestId: string; generation: Generation }>
+/**
+ * The place of one call, held from `reserve` to `conclude`: its stop signal, the record of its
+ * send, and its one conclusion.
+ */
+export type Reservation = Readonly<{
+  /** The stop signal of the call: the caller's `signal` and this table's `cancel`, as one. */
+  stop: AbortSignal
+  /**
+   * The call left on `connection` at `generation`: the generation the request was sent on
+   * (MC-16 step 10). A `call` that breached its contract counts as sent (T9). Only a place still
+   * reserved records it; after the conclusion it changes nothing.
+   */
+  recordSent(connection: ConnectionView, generation: Generation): void
+  /**
+   * The one conclusion of the call (MC-16 step 13). A sent call has ended. A call not sent has
+   * ended when its stop signal fired: the call existed and was cancelled, so a later `cancel`
+   * answers `no-call-in-flight`. A call not sent otherwise gives its place back: a later
+   * `cancel` answers `unknown`. Either way the handle's place is ended from then on.
+   */
+  conclude(): void
+}>
+
+/** The stop signal of a call, and the controller `cancel` fires into it. */
+type Stopping = Readonly<{ stop: AbortSignal; cancel: AbortController }>
+
+type Place =
+  | (Readonly<{ phase: 'reserved' }> & Stopping)
+  | (Readonly<{ phase: 'sent'; generation: Generation; connection: ConnectionView }> & Stopping)
   | Readonly<{ phase: 'ended' }>
+
+/** The place of a key as the table and the reservation that holds it both see it. */
+type Cell = { place: Place }
+
+const ENDED: Place = { phase: 'ended' }
 
 function textOf(key: InFlightKey): string {
   return JSON.stringify([tenantTextOf(key.tenant), key.principalKey, key.correlationKey])
 }
 
 export class InFlightCalls {
-  readonly #entries = new Map<string, Entry>()
-
-  /** Checks for a duplicate and takes the place in one step. An ended key is free again. */
-  reserve(key: InFlightKey): 'reserved' | 'in-use' {
-    const text = textOf(key)
-    const existing = this.#entries.get(text)
-    if (existing !== undefined && existing.phase !== 'ended') return 'in-use'
-    this.#entries.set(text, { phase: 'reserved', cancelled: false })
-    return 'reserved'
-  }
+  readonly #cells = new Map<string, Cell>()
 
   /**
-   * The call left on `generation` as `requestId`. A cancel that came while the key was only
-   * reserved makes the answer `cancelled`: the caller answers "not sent" and the key ends.
+   * Checks for a duplicate and takes the place in one step; an ended key is free again. Answers
+   * the reservation, with the stop signal of the call.
    */
-  markSent(key: InFlightKey, requestId: string, generation: Generation): 'sent' | 'cancelled' {
+  reserve(key: InFlightKey, signal: AbortSignal): Reservation | 'in-use' {
     const text = textOf(key)
-    const entry = this.#entries.get(text)
-    if (entry?.phase !== 'reserved')
-      throw new TypeError('markSent needs a reserved key; reserve it first')
-    if (entry.cancelled) {
-      this.#entries.set(text, { phase: 'ended' })
-      return 'cancelled'
+    const existing = this.#cells.get(text)
+    if (existing !== undefined && existing.place.phase !== 'ended') return 'in-use'
+    const cancel = new AbortController()
+    const stop = AbortSignal.any([signal, cancel.signal])
+    const cell: Cell = { place: { phase: 'reserved', stop, cancel } }
+    this.#cells.set(text, cell)
+    return {
+      stop,
+      recordSent: (connection, generation) => {
+        if (cell.place.phase !== 'reserved') return
+        cell.place = { phase: 'sent', generation, connection, stop, cancel }
+      },
+      conclude: () => {
+        // A cell not ended is the one its key holds: `reserve` replaces ended cells only.
+        if (cell.place.phase === 'ended') return
+        if (cell.place.phase === 'reserved' && !stop.aborted) this.#cells.delete(text)
+        cell.place = ENDED
+      },
     }
-    this.#entries.set(text, { phase: 'sent', requestId, generation })
-    return 'sent'
-  }
-
-  /** The call has its outcome. The key stays, as ended, for the rest of the run. */
-  markEnded(key: InFlightKey): void {
-    this.#entries.set(textOf(key), { phase: 'ended' })
-  }
-
-  /** Withdraws a reservation that a check before the send refused. A sent entry stays. */
-  release(key: InFlightKey): void {
-    const text = textOf(key)
-    if (this.#entries.get(text)?.phase === 'reserved') this.#entries.delete(text)
   }
 
   /**
    * Finds the call by its key only; no adoption or eligibility is asked. A key not in the table is
    * `unknown`: the table cannot tell "never sent" from "sent before a restart". A sent call whose
-   * generation is not `currentGeneration` is `unknown` too.
+   * connection generation is not current any more is `unknown` too. A signalled call's stop
+   * signal fires: a reserved call is not sent, a sent call stops waiting for the peer.
    */
-  cancel(key: InFlightKey, currentGeneration: Generation): CancelAnswer {
-    const text = textOf(key)
-    const entry = this.#entries.get(text)
-    if (entry === undefined) return 'unknown'
-    switch (entry.phase) {
+  cancel(key: InFlightKey): CancelAnswer {
+    const cell = this.#cells.get(textOf(key))
+    if (cell === undefined) return 'unknown'
+    const { place } = cell
+    switch (place.phase) {
       case 'ended':
         return 'no-call-in-flight'
       case 'reserved':
-        this.#entries.set(text, { phase: 'reserved', cancelled: true })
+        place.cancel.abort()
         return 'signalled'
       case 'sent':
-        return entry.generation === currentGeneration ? 'signalled' : 'unknown'
+        if (!place.connection.isCurrent(place.generation)) return 'unknown'
+        place.cancel.abort()
+        return 'signalled'
       default: {
-        const exhaustive: never = entry
+        const exhaustive: never = place
         return exhaustive
       }
     }
-  }
-
-  /** The request identifier of a sent call, for the cancel notification. */
-  requestIdOf(key: InFlightKey): string | undefined {
-    const entry = this.#entries.get(textOf(key))
-    return entry?.phase === 'sent' ? entry.requestId : undefined
   }
 }

@@ -8,7 +8,8 @@ export function tenantTextOf(tenant: TenantId): string {
   return encoded.value
 }
 
-function accountTextOf(account: PeerAccount): string {
+/** The text of a peer account: `anonymous`, or the credential binding. */
+export function accountTextOf(account: PeerAccount): string {
   return account.kind === 'anonymous' ? 'anonymous' : `credential:${account.binding}`
 }
 

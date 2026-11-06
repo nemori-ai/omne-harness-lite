@@ -6,10 +6,12 @@ import type { Access } from '@omne-harness/legal-identity'
 import type {
   ActionDiscovery,
   CallOutcome,
+  ContinueRequest,
   EndpointRef,
   McpClock,
   McpPorts,
   Millis,
+  OutputValidator,
   RequestState,
   TaskReport,
   Untrusted,
@@ -56,4 +58,16 @@ test('a task report and a task outcome carry the three optional task hints (item
   expectTypeOf<Task['pollIntervalMs']>().toEqualTypeOf<number | undefined>()
   expectTypeOf<Task['ttlMs']>().toEqualTypeOf<number | undefined>()
   expectTypeOf<Task['statusMessage']>().toEqualTypeOf<Untrusted<string> | undefined>()
+})
+
+test('a continue request may carry the request state alone (S2)', () => {
+  expectTypeOf<ContinueRequest['inputResponses']>().toEqualTypeOf<JsonValue | undefined>()
+  expectTypeOf<ContinueRequest['requestState']>().toEqualTypeOf<RequestState | undefined>()
+})
+
+test('the ports take the output validator that classifyOutcome is given (S3, O1)', () => {
+  expectTypeOf<McpPorts<Principal, string>['checkOutput']>().toEqualTypeOf<OutputValidator>()
+  // @ts-expect-error the output validator is required: without it no output check is honest
+  const ports: Pick<McpPorts<Principal, string>, 'checkOutput'> = {}
+  void ports
 })

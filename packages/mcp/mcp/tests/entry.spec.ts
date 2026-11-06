@@ -4,10 +4,11 @@ import { describe, expect, it } from 'vitest'
 import type { ConnectionKey } from '@omne-harness/mcp-contract'
 import { Connection } from '../src/internal/connection.ts'
 import { forgettable, holdsNothing, type Resources } from '../src/internal/entry.ts'
-import { adoptionRevision, alice, generation, home, ref } from './doubles/values.ts'
+import { adoptionRevisionOf, generationOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { alice, home } from './doubles/identities.ts'
 import { MAIN, TARGET, world } from './doubles/world.ts'
 
-const files = ref('files')
+const files = endpointRefOf('files')
 
 /** Real resources from the doubles: a transport, a process and a handle the table could hold. */
 async function samples() {
@@ -16,7 +17,7 @@ async function samples() {
     {
       kind: 'streamable-http',
       target: TARGET,
-      generation: generation(1),
+      generation: generationOf(1),
       instructionsByteLimit: 1,
     },
     new AbortController().signal,
@@ -81,7 +82,7 @@ describe('forgettable: closed, and holding nothing', () => {
   const key: ConnectionKey = {
     tenant: home,
     holding: files.holding,
-    adoptionRevision: adoptionRevision('r1'),
+    adoptionRevision: adoptionRevisionOf('r1'),
     account: { kind: 'anonymous' },
   }
 

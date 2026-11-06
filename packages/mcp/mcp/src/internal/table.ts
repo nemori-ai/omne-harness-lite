@@ -24,7 +24,7 @@ import {
   type Millis,
   type ReleaseReport,
 } from '@omne-harness/mcp-contract'
-import { createBuilder } from './build.ts'
+import { createBuilder, type Losing } from './build.ts'
 import { Connection, type GenerationPolicy } from './connection.ts'
 import {
   CONNECTION_UNAVAILABLE,
@@ -35,7 +35,6 @@ import {
   isUsable,
   residualOf,
   viewOf,
-  type CatalogMark,
   type ConnectionView,
   type Ensured,
   type EnsureFailure,
@@ -45,8 +44,8 @@ import {
   type UnavailableMark,
 } from './entry.ts'
 import { admitWithoutEligibility, assertAdmitted, type AdmittedEndpoint } from './gate.ts'
-import { startTimeout, within, type StartBound } from './port.ts'
-import { createTaskScope, type TaskScope } from './scope.ts'
+import { startTimeout, waitAtMost, within, type StartBound } from './port.ts'
+import { createTaskScope, type Spawn } from './scope.ts'
 import { prepareSettings, type PreparedSettings } from './settings.ts'
 import { abandonLandings, narrowest, teardown } from './teardown.ts'
 import { connectionKeyTextOf, tenantTextOf } from './text.ts'
@@ -63,11 +62,25 @@ export type {
 
 export type EnsureOptions = Readonly<{ connectBound?: Millis }>
 
+/** The options of an `ensure` from a request's `connectBound`: absent when the request gives none. */
+export function ensureOptionsOf(connectBound: Millis | undefined): EnsureOptions {
+  return connectBound === undefined ? {} : { connectBound }
+}
+
 /**
- * What the table runs on besides its ports: the scope of its background work and its source of
- * bounds. The services that wait on the table's connections use the same ones.
+ * What the table runs on besides its ports: its source of bounds, and the outlet for an error of
+ * this package that its background work raises after `closeAll` exited the scope (SPEC P7).
  */
-export type TableRuntime = Readonly<{ scope: TaskScope; startBound: StartBound }>
+export type TableRuntime = Readonly<{
+  startBound: StartBound
+  afterExit?: (error: unknown) => void
+}>
+
+/**
+ * What the services that wait on the table's connections share with it: the scope its
+ * background work goes on in, as a view that can only take work, and its source of bounds.
+ */
+export type SharedRuntime = Readonly<{ scope: Spawn; startBound: StartBound }>
 
 export type ClosedEndpoint = Readonly<{ ref: EndpointRef; process: StopRange }>
 
@@ -85,17 +98,20 @@ export interface ConnectionTable<P> {
     outcome: 'page-failed' | 'listed',
   ): void
   /**
-   * A request on `generation` found the connection gone: close what is left, mark the catalog.
-   * A generation that is not current any more is a late result and changes nothing.
+   * A request on `generation` found the connection gone: the connection refuses requests before
+   * this returns; what is left is closed and the catalog marked in `done`. A generation that is
+   * not current any more is a late result and changes nothing.
    */
   lose(
     connection: ConnectionView,
     generation: Generation,
     reason: LostReason,
     mark: UnavailableMark,
-  ): Promise<CatalogMark | 'not-current'>
+  ): Losing | 'not-current'
   /** The usable connection of a key, without building one. */
   current(key: ConnectionKey): Ensured | undefined
+  /** The usable connections of a tenant's holding, without building one. */
+  currentOf(tenant: TenantId, holding: EndpointHolding): readonly Ensured[]
   /** The reported state of the endpoint's connection (SPEC S7). */
   stateOf(tenant: TenantId, holding: EndpointHolding): ConnectionState
   /** The close order: refuse requests, close the transport, stop the process, release the handle. */
@@ -105,8 +121,10 @@ export interface ConnectionTable<P> {
    * background work of the table raised errors of this package, after every entry is closed.
    */
   closeAll(): Promise<readonly ClosedEndpoint[]>
-  /** The scope and the source of bounds the table runs on. */
-  readonly runtime: TableRuntime
+  /** True once `closeAll` began: from then on nothing connects (SPEC S8). */
+  isShut(): boolean
+  /** The scope view and the source of bounds the table runs on. */
+  readonly runtime: SharedRuntime
 }
 
 /**
@@ -144,9 +162,11 @@ function later(left: Generation, right: Generation | undefined): Generation {
 export function createConnectionTable<P, S>(
   ports: McpPorts<P, S>,
   config: McpConfig<P>,
-  runtime: TableRuntime = { scope: createTaskScope(), startBound: startTimeout },
+  runtime: TableRuntime = { startBound: startTimeout },
 ): ConnectionTable<P> {
-  const { scope, startBound } = runtime
+  const { startBound } = runtime
+  // The table's own scope: it alone exits it, at `closeAll`; the services get the spawn view.
+  const scope = createTaskScope(runtime.afterExit)
   const entries = new Map<string, Entry>()
   const byView = new WeakMap<ConnectionView, Entry>()
   // The generation a forgotten connection of each key reached: a new connection of the key
@@ -267,21 +287,24 @@ export function createConnectionTable<P, S>(
   }
 
   /**
-   * What the critical section waits for before it decides: the close of a connection of the
-   * holding's other revisions (invariant 6), else the close or teardown in flight on the key.
+   * What the critical section waits for before it decides, and whose it is: the close of a
+   * connection of the holding's other revisions (invariant 6), which this call starts and owns,
+   * else the close or teardown already in flight on the key, which belongs to the call that
+   * started it.
    */
   function blockingOf(
     tenantText: string,
     holding: EndpointHolding,
     keyText: string,
     ofOtherRevision: (entry: Entry) => boolean,
-  ): Promise<StopRange> | undefined {
+  ): Readonly<{ work: Promise<StopRange>; owned: boolean }> | undefined {
     const other = entriesOf(tenantText, holding).find(
       entry => ofOtherRevision(entry) && !isSettled(entry),
     )
-    if (other !== undefined) return closeEntry(other)
+    if (other !== undefined) return { work: closeEntry(other), owned: true }
     const existing = entries.get(keyText)
-    return existing?.closing ?? existing?.tearing
+    const work = existing?.closing ?? existing?.tearing
+    return work === undefined ? undefined : { work, owned: false }
   }
 
   /**
@@ -313,8 +336,10 @@ export function createConnectionTable<P, S>(
       const blocking = blockingOf(tenantText, holding, keyText, ofOtherRevision)
       if (blocking !== undefined) {
         // At most to this call's bound (decision 22): a close or teardown that does not end
-        // within it goes on by itself, and this call answers.
-        const waited = await within(blocking, bound, scope)
+        // within it goes on, in the scope when this call started it, else for the call that did.
+        const waited = blocking.owned
+          ? await within(blocking.work, bound, scope)
+          : await waitAtMost(blocking.work, bound)
         if (waited.kind === 'expired') return refused(CONNECTION_UNAVAILABLE)
         continue
       }
@@ -346,16 +371,10 @@ export function createConnectionTable<P, S>(
     build: Promise<Outcome<Ensured, EnsureFailure>>,
     connectBound: number,
   ): Promise<Outcome<Ensured, EnsureFailure>> {
-    const read = build.then(
-      outcome => () => outcome,
-      (error: unknown) => (): never => {
-        throw error
-      },
-    )
-    const waited = await within(read, startBound(connectBound, 'join'), scope)
+    const waited = await waitAtMost(build, startBound(connectBound, 'join'))
     if (waited.kind === 'expired')
       return fail({ stage: 'connect', reason: CONNECTION_UNAVAILABLE, catalog: 'pending' })
-    return waited.value()
+    return waited.value
   }
 
   async function ensure(
@@ -397,12 +416,12 @@ export function createConnectionTable<P, S>(
       entry.connection.ready(peer)
   }
 
-  async function lose(
+  function lose(
     connection: ConnectionView,
     generation: Generation,
     reason: LostReason,
     mark: UnavailableMark,
-  ): Promise<CatalogMark | 'not-current'> {
+  ): Losing | 'not-current' {
     const entry = byView.get(connection)
     if (entry === undefined || !entry.connection.isCurrent(generation)) return 'not-current'
     return builder.markLost(entry, reason, mark)
@@ -411,6 +430,13 @@ export function createConnectionTable<P, S>(
   function current(key: ConnectionKey): Ensured | undefined {
     const entry = entries.get(connectionKeyTextOf(key))
     return entry !== undefined && isUsable(entry) ? ensuredOf(entry) : undefined
+  }
+
+  function currentOf(tenant: TenantId, holding: EndpointHolding): readonly Ensured[] {
+    return entriesOf(tenantTextOf(tenant), holding).flatMap(entry => {
+      const usable = isUsable(entry) ? ensuredOf(entry) : undefined
+      return usable === undefined ? [] : [usable]
+    })
   }
 
   function stateOf(tenant: TenantId, holding: EndpointHolding): ConnectionState {
@@ -464,5 +490,16 @@ export function createConnectionTable<P, S>(
     return closing.flatMap(item => (item.status === 'fulfilled' ? [item.value] : []))
   }
 
-  return { ensure, settle, lose, current, stateOf, close, closeAll, runtime }
+  return {
+    ensure,
+    settle,
+    lose,
+    current,
+    currentOf,
+    stateOf,
+    close,
+    closeAll,
+    isShut: () => shut,
+    runtime: { scope: { spawn: task => scope.spawn(task) }, startBound },
+  }
 }

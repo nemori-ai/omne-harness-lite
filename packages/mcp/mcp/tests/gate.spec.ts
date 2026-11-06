@@ -16,12 +16,13 @@ import {
 import { admitForUse, stillAdmitted } from '../src/internal/guard.ts'
 import { createConnectionTable } from '../src/internal/table.ts'
 import { countedAdoption, countedEligibility } from './doubles/ports.ts'
-import { alice, bob, home, json, mallory, peerIdentity, ref } from './doubles/values.ts'
+import { jsonOf, peerIdentityOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { alice, bob, home, mallory } from './doubles/identities.ts'
 import { TIMEOUT, VALUE, adoptStdio, settingsOf, world } from './doubles/world.ts'
 
-const files = ref('files')
-const nowhere = ref('nowhere')
-const body = json({ name: 'files', transport: 'streamable-http', auth: 'none' })
+const files = endpointRefOf('files')
+const nowhere = endpointRefOf('nowhere')
+const body = jsonOf({ name: 'files', transport: 'streamable-http', auth: 'none' })
 
 function ports() {
   const adoption = countedAdoption()
@@ -31,7 +32,7 @@ function ports() {
 }
 
 /** The use gate on a world whose transport script connects once. */
-function gateOf(w = world({ script: [{ discover: peerIdentity() }] })) {
+function gateOf(w = world({ script: [{ discover: peerIdentityOf() }] })) {
   const table = createConnectionTable(w.ports, w.config)
   return { w, table, gate: { ports: w.ports, table } }
 }
@@ -67,7 +68,7 @@ describe('admitForUse: the six answers of SPEC S1', () => {
 
   it('answers unknown for an adopted body it cannot read', async () => {
     const { w, gate } = gateOf()
-    w.adoption.adopt({ tenant: home, scope: 'ws', ref: files, body: json({ nonsense: 1 }) })
+    w.adoption.adopt({ tenant: home, scope: 'ws', ref: files, body: jsonOf({ nonsense: 1 }) })
     w.eligibility.grant(alice, files)
     expect(await admitForUse(gate, alice, files)).toEqual({ failure: { kind: 'unknown' } })
   })
@@ -242,14 +243,14 @@ describe('AdmittedEndpoint', () => {
 
 describe('judge: only a token this gate handed out', () => {
   it('throws TypeError for a copy of an adopted-only token with another definition, and starts nothing', async () => {
-    const w = world({ script: [{ discover: peerIdentity() }] })
+    const w = world({ script: [{ discover: peerIdentityOf() }] })
     adoptStdio(w, files)
-    const shell = ref('shell')
+    const shell = endpointRefOf('shell')
     w.adoption.adopt({
       tenant: home,
       scope: 'ws',
       ref: shell,
-      body: json({
+      body: jsonOf({
         name: 'shell',
         transport: 'stdio',
         auth: 'none',

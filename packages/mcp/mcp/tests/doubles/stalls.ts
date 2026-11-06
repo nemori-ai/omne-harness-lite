@@ -5,6 +5,7 @@ import type { Access } from '@omne-harness/legal-identity'
 import type { EndpointRef } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
+  CatalogStore,
   CredentialUse,
   ProcessLanding,
   UseEligibility,
@@ -12,7 +13,7 @@ import type {
 import { from, only, picker, type Which } from './calls.ts'
 import { deferred, type Deferred } from './deferred.ts'
 import { releasing, reshapedCredentials, type AnyHandle } from './handles.ts'
-import type { Principal } from './values.ts'
+import type { Principal } from './identities.ts'
 
 /** The eligibility port whose `which`-th call waits on `gate` before it answers. */
 export function stallingEligibility(
@@ -28,6 +29,66 @@ export function stallingEligibility(
       async check(access: Access<Principal>, endpoint: EndpointRef) {
         if (asked.next()) await gate.promise
         return port.check(access, endpoint)
+      },
+    },
+  }
+}
+
+/**
+ * The eligibility port whose next `check` after `arm()` waits on the gate armed then, and tells
+ * the case when that check was reached: the case orders a `closeAll` or a `cancel` against an
+ * operation that is waiting on the gate, by what has happened.
+ */
+export function armedEligibility(port: UseEligibility<Principal>): Readonly<{
+  port: UseEligibility<Principal>
+  arm(): Readonly<{ reached: Promise<void>; release: () => void }>
+}> {
+  let armed: Readonly<{ reached: Deferred<void>; held: Deferred<void> }> | undefined
+  return {
+    arm() {
+      const next = { reached: deferred<void>(), held: deferred<void>() }
+      armed = next
+      return { reached: next.reached.promise, release: () => next.held.resolve() }
+    },
+    port: {
+      async check(access: Access<Principal>, endpoint: EndpointRef) {
+        const hold = armed
+        if (hold !== undefined) {
+          armed = undefined
+          hold.reached.resolve()
+          await hold.held.promise
+        }
+        return port.check(access, endpoint)
+      },
+    },
+  }
+}
+
+/**
+ * The catalog store whose next `read` after `arm()` waits on the gate armed then, and tells the
+ * case when that read was reached: the case orders a `closeAll` against an operation that is
+ * waiting on the store, by what has happened.
+ */
+export function armedStore<T extends CatalogStore>(
+  store: T,
+): Readonly<{ port: T; arm(): Readonly<{ reached: Promise<void>; release: () => void }> }> {
+  let armed: Readonly<{ reached: Deferred<void>; held: Deferred<void> }> | undefined
+  return {
+    arm() {
+      const next = { reached: deferred<void>(), held: deferred<void>() }
+      armed = next
+      return { reached: next.reached.promise, release: () => next.held.resolve() }
+    },
+    port: {
+      ...store,
+      async read(key) {
+        const hold = armed
+        if (hold !== undefined) {
+          armed = undefined
+          hold.reached.resolve()
+          await hold.held.promise
+        }
+        return store.read(key)
       },
     },
   }
@@ -152,6 +213,26 @@ export function silentAdoption(
       endpoints: (access, scope) => port.endpoints(access, scope),
       endpoint: (access, ref) =>
         asked.next() ? new Promise(() => undefined) : port.endpoint(access, ref),
+    },
+  }
+}
+
+/**
+ * The adoption view whose `endpoint` reads run `before(call)` first (the first read is 1): a case
+ * changes the adoption, or throws so the read breaches, between two reads of one operation, such
+ * as the gate's read and the critical section's read again.
+ */
+export function adoptionBefore(
+  port: AdoptionView<Principal, string>,
+  before: (call: number) => void,
+): AdoptionView<Principal, string> {
+  let count = 0
+  return {
+    endpoints: (access, scope) => port.endpoints(access, scope),
+    async endpoint(access, ref) {
+      count += 1
+      before(count)
+      return port.endpoint(access, ref)
     },
   }
 }

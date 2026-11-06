@@ -8,17 +8,18 @@ import {
   type CatalogStoreFixture,
 } from '@omne-harness/mcp-contract/testing'
 import { createInMemoryCatalogStore } from '../src/store/memory.ts'
-import { away, binding, home, ref } from './doubles/values.ts'
+import { credentialBindingOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { away, home } from './doubles/identities.ts'
 import { storedRecord, world } from './doubles/world.ts'
 
-const files = ref('files')
+const files = endpointRefOf('files')
 const key: CatalogKey = { tenant: home, account: { kind: 'anonymous' }, holding: files.holding }
 const otherTenant: CatalogKey = { ...key, tenant: away }
 const otherAccount: CatalogKey = {
   ...key,
-  account: { kind: 'credential', binding: binding('main') },
+  account: { kind: 'credential', binding: credentialBindingOf('main') },
 }
-const otherHolding: CatalogKey = { ...key, holding: ref('files', 'org/files').holding }
+const otherHolding: CatalogKey = { ...key, holding: endpointRefOf('files', 'org/files').holding }
 
 function fixture(): CatalogStoreFixture {
   return {

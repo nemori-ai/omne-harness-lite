@@ -3,15 +3,22 @@
 import { describe, expect, it } from 'vitest'
 import type { ConnectionKey } from '@omne-harness/mcp-contract'
 import { Connection, type GenerationPolicy } from '../src/internal/connection.ts'
-import { adoptionRevision, binding, generation, home, peerIdentity, ref } from './doubles/values.ts'
+import {
+  adoptionRevisionOf,
+  credentialBindingOf,
+  generationOf,
+  peerIdentityOf,
+  endpointRefOf,
+} from '@omne-harness/mcp-contract/testing'
+import { home } from './doubles/identities.ts'
 
 const key: ConnectionKey = {
   tenant: home,
-  holding: ref('files').holding,
-  adoptionRevision: adoptionRevision('r1'),
-  account: { kind: 'credential', binding: binding('main') },
+  holding: endpointRefOf('files').holding,
+  adoptionRevision: adoptionRevisionOf('r1'),
+  account: { kind: 'credential', binding: credentialBindingOf('main') },
 }
-const peer = peerIdentity()
+const peer = peerIdentityOf()
 
 type StateKind = 'none' | 'preparing' | 'ready' | 'degraded' | 'lost' | 'closed'
 type Event = 'attempt' | 'ready' | 'degrade' | 'lose' | 'close'
@@ -125,7 +132,7 @@ describe.each<GenerationPolicy>(['on-attempt', 'on-negotiation'])('Connection (%
     expect(connection.peer).toBe(peer)
     connection.degrade('list-failed')
     expect(connection.peer).toBe(peer)
-    const other = peerIdentity('2025-11-25')
+    const other = peerIdentityOf('2025-11-25')
     connection.ready(other)
     expect(connection.peer).toBe(other)
   })
@@ -134,7 +141,7 @@ describe.each<GenerationPolicy>(['on-attempt', 'on-negotiation'])('Connection (%
     const connection = inState(policy, 'ready')
     const current = connection.generation
     expect(connection.isCurrent(current)).toBe(true)
-    expect(connection.isCurrent(generation(current + 1))).toBe(false)
+    expect(connection.isCurrent(generationOf(current + 1))).toBe(false)
     connection.degrade('list-failed')
     expect(connection.isCurrent(current)).toBe(true)
     connection.lose('stream-broken')
@@ -149,7 +156,7 @@ describe.each<GenerationPolicy>(['on-attempt', 'on-negotiation'])('Connection (%
   })
 
   it('continues the generation it is given', () => {
-    const connection = new Connection(key, policy, generation(7))
+    const connection = new Connection(key, policy, generationOf(7))
     expect(connection.generation).toBe(7)
     const attempt = connection.attempt()
     expect(attempt).toBe(8)

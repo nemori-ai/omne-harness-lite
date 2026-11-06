@@ -2,10 +2,11 @@
 // confirmed range only, the HTTP handle released with the close, and `closeAll` for the host.
 import { describe, expect, it } from 'vitest'
 import { core } from './doubles/core.ts'
-import { alice, bob, mallory, ref } from './doubles/values.ts'
+import { endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { alice, bob, mallory } from './doubles/identities.ts'
 import { adoptHttp, adoptStdio, usualScript, world } from './doubles/world.ts'
 
-const files = ref('files')
+const files = endpointRefOf('files')
 
 describe('connections.release', () => {
   it('closes the transport before it stops the process, and reports the confirmed range', async () => {
@@ -116,7 +117,7 @@ describe('connections.closeAll', () => {
     const { w, discovery, connections, status } = core(
       world({ script: [...usualScript(), ...usualScript()] }),
     )
-    const shell = ref('shell')
+    const shell = endpointRefOf('shell')
     adoptStdio(w, files)
     adoptHttp(w, shell)
     await discovery.refresh(alice, { ref: files })

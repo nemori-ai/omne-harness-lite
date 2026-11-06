@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run TLC on ConnectionTable.tla serially, judge every case and keep the evidence.
+"""Run TLC on ConnectionTable.tla and Calls.tla serially, judge every case and keep the evidence.
 
 Usage, from the repository root, through the test slot:
 
@@ -24,8 +24,16 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parent
-MODEL = ROOT / 'ConnectionTable.tla'
 REPOSITORY = ROOT.parents[4]
+
+# The module of a case; the connection table unless named here.
+DEFAULT_MODULE = 'ConnectionTable'
+MODULES = {case: 'Calls' for case in (
+    'calls-valid', 'calls-valid-twice', 'calls-valid-continue', 'calls-valid-task',
+    'calls-valid-isolation', 'calls-live', 'calls-bad-send-despite-stop',
+    'calls-bad-gate-unstopped', 'calls-bad-cancel-twice', 'calls-bad-no-release',
+    'calls-bad-task-any-account', 'calls-bad-key-blind', 'calls-bad-task-blind',
+    'calls-bad-send-after-shut', 'calls-bad-wait-answer')}
 
 # None: a positive control. A name: the invariant the case must violate. TEMPORAL: the case must
 # violate its only PROPERTY; TLC's temporal report does not name the property.
@@ -45,6 +53,21 @@ CASES = {
     'bad-unbounded-wrap': 'P8_BoundedEnsure',
     'probe-a1': 'P8_BoundedClose',
     'probe-live-hang': TEMPORAL,
+    'calls-valid': None,
+    'calls-valid-twice': None,
+    'calls-valid-continue': None,
+    'calls-valid-task': None,
+    'calls-valid-isolation': None,
+    'calls-live': None,
+    'calls-bad-send-despite-stop': 'P9_NotSentNotSent',
+    'calls-bad-gate-unstopped': 'P14_BoundedAfterStop',
+    'calls-bad-cancel-twice': 'P10_CancelOnce',
+    'calls-bad-no-release': 'P11_ReservationEnded',
+    'calls-bad-task-any-account': 'P12_Isolation',
+    'calls-bad-key-blind': 'P12_Isolation',
+    'calls-bad-task-blind': 'P12_Isolation',
+    'calls-bad-send-after-shut': 'P13_NoSendAfterShut',
+    'calls-bad-wait-answer': TEMPORAL,
 }
 
 COMPLETED = 'Model checking completed. No error has been found.'
@@ -61,7 +84,8 @@ def sha256(path):
 
 
 # The labels TLC gives the external actions: one per explorer step (`External` is `Answer`).
-EXTERNAL = {'EnsureCall', 'Release', 'CloseAll', 'Lose', 'Fire', 'External'}
+EXTERNAL = {'EnsureCall', 'Release', 'CloseAll', 'Lose', 'Fire', 'External',
+            'Invoke', 'Continue', 'Cancel', 'TaskOp', 'Drop', 'Abort'}
 
 
 def trace_of(output):
@@ -91,12 +115,14 @@ def judge(expected, code, output):
 
 def run(case, jar, java, workers, evidence):
     config = ROOT / f'{case}.cfg'
-    model = sha256(MODEL)
+    module = MODULES.get(case, DEFAULT_MODULE)
+    model_path = ROOT / f'{module}.tla'
+    model = sha256(model_path)
     states = evidence / f'{case}.states'
     started = time.monotonic()
     completed = subprocess.run(
         [java, '-XX:+UseParallelGC', '-cp', jar, 'tlc2.TLC', '-workers', str(workers),
-         '-config', str(config), '-metadir', str(states), str(MODEL)],
+         '-config', str(config), '-metadir', str(states), str(model_path)],
         capture_output=True, text=True, check=False)
     seconds = round(time.monotonic() - started, 1)
     shutil.rmtree(states, ignore_errors=True)
@@ -107,6 +133,7 @@ def run(case, jar, java, workers, evidence):
     expected = CASES[case]
     return {
         'case': case,
+        'module': module,
         'tlc': VERSION.findall(output)[:1],
         'model_sha256': model,
         'config_sha256': sha256(config),

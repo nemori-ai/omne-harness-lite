@@ -42,7 +42,7 @@ import {
 } from './entry.ts'
 import { closeArrived, landArrived, releaseArrived, type LandingFailure } from './late.ts'
 import { ask, within, type Settle, type StartBound } from './port.ts'
-import type { TaskScope } from './scope.ts'
+import type { Spawn } from './scope.ts'
 import type { PreparedSettings } from './settings.ts'
 import { teardown } from './teardown.ts'
 
@@ -53,9 +53,21 @@ export type Builder<P> = Readonly<{
     access: Access<P>,
     prepared: PreparedSettings,
   ): Promise<Outcome<Ensured, EnsureFailure>>
-  /** The connection is lost: requests refused, the entry torn down, the catalog marked. */
-  markLost(entry: Entry, reason: LostReason, mark: UnavailableMark): Promise<CatalogMark>
+  /**
+   * The connection is lost: requests are refused before this returns; the teardown and the
+   * catalog mark go on in `done`.
+   */
+  markLost(entry: Entry, reason: LostReason, mark: UnavailableMark): Losing
 }>
+
+/**
+ * A loss under way: the connection refuses requests already; `done` ends when the entry is
+ * torn down and the catalog marked. The shape holds the synchronous part at the level of the
+ * signature only: an `async` function, or one that awaits first, cannot answer it, but a
+ * synchronous one could still defer the marking into `done`. `markLost` marks first, on its first
+ * line; a case that reads the state in the call's own continuation guards it.
+ */
+export type Losing = Readonly<{ done: Promise<CatalogMark> }>
 
 export type BuilderDependencies = Readonly<{
   /** A landing that was still pending after its bound has answered: the table looks again. */
@@ -63,7 +75,7 @@ export type BuilderDependencies = Readonly<{
   /** True once `closeAll` began: a build goes no further than the step it is in (decision 5). */
   shut(): boolean
   /** Where the work a build stops waiting for goes on. */
-  scope: TaskScope
+  scope: Spawn
   /** The source of the connection bound. */
   startBound: StartBound
 }>
@@ -152,15 +164,10 @@ export function createBuilder<P, S>(
     return 'marked'
   }
 
-  async function markLost(
-    entry: Entry,
-    reason: LostReason,
-    mark: UnavailableMark,
-  ): Promise<CatalogMark> {
+  function markLost(entry: Entry, reason: LostReason, mark: UnavailableMark): Losing {
     // Requests are refused at once; the teardown is the entry's one teardown.
     entry.connection.lose(reason)
-    await teardown(entry)
-    return markCatalog(entry.catalogKey, mark)
+    return { done: teardown(entry).then(() => markCatalog(entry.catalogKey, mark)) }
   }
 
   /**
@@ -175,7 +182,7 @@ export function createBuilder<P, S>(
     bound: AbortSignal,
   ): Promise<Outcome<never, EnsureFailure>> {
     if (deps.shut()) return shutDown(entry, bound)
-    const marked = await within(markLost(entry, how.lost, how.mark), bound, scope)
+    const marked = await within(markLost(entry, how.lost, how.mark).done, bound, scope)
     const catalog = marked.kind === 'answered' ? marked.value : 'pending'
     return fail({ stage: 'connect', reason: how.reason, catalog })
   }
@@ -333,6 +340,7 @@ export function createBuilder<P, S>(
       const { transport, peer } = negotiated.ok
       entry.connection.ready(peer)
       return succeed({
+        key: entry.connection.key,
         transport,
         generation: entry.connection.generation,
         connection: entry.view,

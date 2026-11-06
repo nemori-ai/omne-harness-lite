@@ -2,11 +2,17 @@
 // invariant 2; `current` and `peer` answer from what is stored and connected, and never connect.
 import { describe, expect, it } from 'vitest'
 import type { AuthorizationDiscovery, CatalogKey } from '@omne-harness/mcp-contract'
-import type { ListingPage } from '@omne-harness/mcp-contract/provider'
+import type {
+  CatalogStore,
+  ListingPage,
+  TransportFailure,
+} from '@omne-harness/mcp-contract/provider'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import type { Step } from './doubles/scripted-transport.ts'
-import { alice, bob, json, mallory, peerIdentity, ref } from './doubles/values.ts'
+import { jsonOf, peerIdentityOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { alice, bob, mallory } from './doubles/identities.ts'
+import { armedStore } from './doubles/stalls.ts'
 import {
   MAIN,
   adoptHttp,
@@ -18,8 +24,8 @@ import {
   type World,
 } from './doubles/world.ts'
 
-const files = ref('files')
-const peer = peerIdentity()
+const files = endpointRefOf('files')
+const peer = peerIdentityOf()
 const anonymousKey: CatalogKey = {
   tenant: alice.tenant,
   account: { kind: 'anonymous' },
@@ -181,7 +187,7 @@ describe('refresh keeps the earlier adoption', () => {
       ],
     ],
     ['duplicate-action-name', [{ listActions: page(['a', 'a']) }]],
-    ['action-invalid', [{ listActions: { tools: [json({ inputSchema: {} })] } }]],
+    ['action-invalid', [{ listActions: { tools: [jsonOf({ inputSchema: {} })] } }]],
     ['action-limit-exceeded', [{ listActions: page(['a', 'b', 'c']) }]],
   ] as const)(
     'listing-incomplete (%s): the listing is not adopted',
@@ -374,6 +380,17 @@ describe('refresh fails', () => {
     expect(await pending).toEqual({ failure: { kind: 'unknown' } })
   })
 
+  it('a caller that stopped before the refresh answered is told cancelled, whatever a step refused, as the exit of a call (MC-7, contract decision 31)', async () => {
+    const { w, discovery } = core(world({ script: usualScript() }))
+    adoptStdio(w, files)
+    const controller = new AbortController()
+    controller.abort()
+    expect(await discovery.refresh(bob, { ref: files, signal: controller.signal })).toEqual({
+      ok: { kind: 'kept', reason: { kind: 'cancelled' } },
+    })
+    expect(w.transports.calls).toHaveLength(0)
+  })
+
   it('the refusals of the gate and of the settings come first, without a transport', async () => {
     const { w, discovery } = core(world({ script: usualScript() }))
     adoptStdio(w, files)
@@ -388,6 +405,159 @@ describe('refresh fails', () => {
       failure: { kind: 'blocked', reason: 'disabled' },
     })
     expect(w.transports.calls).toHaveLength(0)
+  })
+
+  it('after closeAll: connection-unavailable before the gate, for an endpoint not adopted too; no port is asked (S8)', async () => {
+    const { w, discovery, connections } = core(world({ script: usualScript() }))
+    expect(await connections.closeAll()).toEqual([])
+    const asked = { adoption: w.adoption.calls(), eligibility: w.eligibility.calls() }
+    expect(await discovery.refresh(alice, { ref: files })).toEqual({
+      failure: { kind: 'connection-unavailable' },
+    })
+    expect({ adoption: w.adoption.calls(), eligibility: w.eligibility.calls() }).toEqual(asked)
+    expect(w.transports.calls).toHaveLength(0)
+  })
+
+  it('closeAll while the refresh waits on the store before the listing: connection-unavailable, as a refresh that starts after closeAll; no page is asked after it, nothing is published (S8, MC-7)', async () => {
+    const base = world({ script: usualScript() })
+    adoptStdio(base, files)
+    const store = armedStore(base.store)
+    const { w, discovery, connections } = core({
+      ...base,
+      ports: { ...base.ports, store: store.port },
+    })
+    const read = store.arm()
+    const pending = discovery.refresh(alice, { ref: files })
+    await read.reached
+    await connections.closeAll()
+    const listed = w.transports.calls.filter(call => call.kind === 'listActions').length
+    read.release()
+    expect(await pending).toEqual({ failure: { kind: 'connection-unavailable' } })
+    expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(listed)
+    expect(await record(w)).toBe('absent')
+  })
+
+  it('closeAll while a page is asked: connection-unavailable, not the listing-incomplete the page failure would give, and nothing is published (S8, MC-7)', async () => {
+    const listing = deferred<ListingPage | TransportFailure>()
+    const { w, discovery, connections } = core(
+      world({ script: [{ discover: peer }, { listActions: listing }] }),
+    )
+    adoptStdio(w, files)
+    const pending = discovery.refresh(alice, { ref: files })
+    await settled()
+    expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(1)
+    await connections.closeAll()
+    listing.resolve({ kind: 'no-answer', cause: 'stream-broken' })
+    expect(await pending).toEqual({ failure: { kind: 'connection-unavailable' } })
+    expect(await record(w)).toBe('absent')
+  })
+
+  it('at whichever microtask closeAll lands, the refresh starts no step after it: no gate or store port and no page, and it answers connection-unavailable unless it published (S8, MC-7)', async () => {
+    const LIMIT = 2_000
+    let publishedBefore = false
+    for (let k = 0; k < LIMIT && !publishedBefore; k += 1) {
+      const base = world({ script: usualScript() })
+      adoptStdio(base, files)
+      const late: string[] = []
+      let shut = (): boolean => false
+      // The steps of MC-7 and the port that begins each: the gate (1st adoption, then
+      // eligibility), the build (2nd adoption, its re-read), the stored record, each page, the
+      // publish boundary (3rd adoption, then eligibility and a 4th adoption), the write. A step
+      // begun before closeAll finishes; no step begins after it.
+      const begins = new Set(['adoption.endpoint#1', 'adoption.endpoint#2', 'adoption.endpoint#3'])
+      const seen = new Map<string, number>()
+      const note = (port: string): void => {
+        const nth = (seen.get(port) ?? 0) + 1
+        seen.set(port, nth)
+        const beginsStep = port.startsWith('store.') || begins.has(`${port}#${nth}`)
+        if (beginsStep && shut()) late.push(`${port}#${nth}`)
+      }
+      const { adoption, eligibility, store } = base.ports
+      const { discovery, connections, table } = core({
+        ...base,
+        ports: {
+          ...base.ports,
+          adoption: {
+            endpoints(...args: Parameters<typeof adoption.endpoints>) {
+              note('adoption.endpoints')
+              return adoption.endpoints(...args)
+            },
+            endpoint(...args: Parameters<typeof adoption.endpoint>) {
+              note('adoption.endpoint')
+              return adoption.endpoint(...args)
+            },
+          },
+          eligibility: {
+            check(...args: Parameters<typeof eligibility.check>) {
+              note('eligibility.check')
+              return eligibility.check(...args)
+            },
+          },
+          store: {
+            read(...args: Parameters<typeof store.read>) {
+              note('store.read')
+              return store.read(...args)
+            },
+            write(...args: Parameters<typeof store.write>) {
+              note('store.write')
+              return store.write(...args)
+            },
+          },
+        },
+      })
+      shut = () => table.isShut()
+      const pages = (): number =>
+        base.transports.calls.filter(call => call.kind === 'listActions').length
+      const pending = discovery.refresh(alice, { ref: files })
+      for (let i = 0; i < k; i += 1) await Promise.resolve()
+      const closing = connections.closeAll()
+      const pagesAtShut = pages()
+      const answer = await pending
+      await closing
+      expect(late, `k=${k}: ports asked after closeAll`).toEqual([])
+      expect(pages(), `k=${k}: pages asked after closeAll`).toBe(pagesAtShut)
+      publishedBefore = 'ok' in answer && answer.ok.kind === 'published'
+      if (!publishedBefore)
+        expect(answer, `k=${k}`).toEqual({ failure: { kind: 'connection-unavailable' } })
+    }
+    expect(publishedBefore).toBe(true)
+  })
+
+  it('the caller aborts and closeAll begins while a page is asked: kept (cancelled), the stop ranks before the shutdown as at the exit of a call (S8, MC-7, MC-16)', async () => {
+    const listing = deferred<ListingPage | TransportFailure>()
+    const { w, discovery, connections } = core(
+      world({ script: [{ discover: peer }, { listActions: listing }] }),
+    )
+    adoptStdio(w, files)
+    const stop = new AbortController()
+    const pending = discovery.refresh(alice, { ref: files, signal: stop.signal })
+    await settled()
+    expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(1)
+    await connections.closeAll()
+    stop.abort()
+    expect(await pending).toEqual({ ok: { kind: 'kept', reason: { kind: 'cancelled' } } })
+    expect(await record(w)).toBe('absent')
+  })
+
+  it('closeAll while the store writes the listing: the refresh that published stays published (S8)', async () => {
+    const base = world({ script: usualScript() })
+    adoptStdio(base, files)
+    const reached = deferred<void>()
+    const held = deferred<void>()
+    const store: CatalogStore = {
+      read: key => base.store.read(key),
+      async write(key, record, basedOn) {
+        reached.resolve()
+        await held.promise
+        return base.store.write(key, record, basedOn)
+      },
+    }
+    const { discovery, connections } = core({ ...base, ports: { ...base.ports, store } })
+    const pending = discovery.refresh(alice, { ref: files })
+    await reached.promise
+    await connections.closeAll()
+    held.resolve()
+    expect(await pending).toEqual({ ok: { kind: 'published', revision: 1 } })
   })
 })
 
@@ -493,7 +663,7 @@ describe('current and peer do not connect', () => {
     if (stored === 'absent') throw new Error('nothing stored')
     const rebased = {
       ...stored,
-      basis: { ...stored.basis, capabilities: json({ tools: { listChanged: true } }) },
+      basis: { ...stored.basis, capabilities: jsonOf({ tools: { listChanged: true } }) },
     }
     expect(await w.store.write(anonymousKey, rebased, stored.revision)).toEqual({ ok: true })
     expect(await discovery.current(alice, files)).toMatchObject({
@@ -502,7 +672,7 @@ describe('current and peer do not connect', () => {
     // Member order of the capabilities does not make the basis differ.
     const reordered = {
       ...stored,
-      basis: { ...stored.basis, capabilities: json({ tools: {} }) },
+      basis: { ...stored.basis, capabilities: jsonOf({ tools: {} }) },
     }
     expect(await w.store.write(anonymousKey, reordered, stored.revision)).toEqual({ ok: true })
     expect(await discovery.current(alice, files)).toMatchObject({
