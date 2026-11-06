@@ -23,7 +23,7 @@ import { settled } from './doubles/deferred.ts'
 import { alice, aliceAway, bob, mallory, type Principal } from './doubles/identities.ts'
 import { listing, peer, services, taskHandle, taskStatus, text, type Peer } from './doubles/peer.ts'
 import { adoptionBefore, armedEligibility, stallingLanding } from './doubles/stalls.ts'
-import { reshapedTransports } from './doubles/transports.ts'
+import { never, reshapedTransports } from './doubles/transports.ts'
 import { MAIN, adoptHttp, adoptStdio, storedRecord } from './doubles/world.ts'
 
 /** What a case replaces in the peer's ports, and the table runtime it runs on. */
@@ -486,6 +486,34 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
     expect(await query).toEqual(CONNECTION_UNAVAILABLE)
     stalled.gate.resolve()
     await settled()
+    expect(c.p.requests('tasks/get')).toHaveLength(0)
+  })
+
+  it('a critical section bound that fires first, with no shutdown, is connection-unavailable: the build answered it, and nothing is sent', async () => {
+    const bounds = manualBounds()
+    let armed = false
+    let readsSinceArmed = 0
+    const c = await started(undefined, {}, undefined, p => ({
+      ports: {
+        adoption: {
+          endpoints: (access, scope) => p.adoption.endpoints(access, scope),
+          endpoint(access, ref) {
+            if (armed) readsSinceArmed += 1
+            // The gate's read answers; the read again of the critical section does not.
+            return readsSinceArmed === 2 ? never() : p.adoption.endpoint(access, ref)
+          },
+        },
+      },
+      runtime: bounds.runtime,
+    }))
+    await c.connections.release(alice, files)
+    armed = true
+    const query = c.invoker.queryTask(alice, task)
+    await settled()
+    expect(readsSinceArmed).toBe(2)
+    const sections = bounds.started().filter(kind => kind === 'section').length
+    bounds.fire('section', sections - 1)
+    expect(await query).toEqual(CONNECTION_UNAVAILABLE)
     expect(c.p.requests('tasks/get')).toHaveLength(0)
   })
 

@@ -2,7 +2,11 @@
 // invariant 2; `current` and `peer` answer from what is stored and connected, and never connect.
 import { describe, expect, it } from 'vitest'
 import type { AuthorizationDiscovery, CatalogKey } from '@omne-harness/mcp-contract'
-import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
+import type {
+  CatalogStore,
+  ListingPage,
+  TransportFailure,
+} from '@omne-harness/mcp-contract/provider'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
 import type { Step } from './doubles/scripted-transport.ts'
@@ -435,6 +439,27 @@ describe('refresh fails', () => {
     listing.resolve({ kind: 'no-answer', cause: 'stream-broken' })
     expect(await pending).toEqual({ failure: { kind: 'connection-unavailable' } })
     expect(await record(w)).toBe('absent')
+  })
+
+  it('closeAll while the store writes the listing: the refresh that published stays published (S8)', async () => {
+    const base = world({ script: usualScript() })
+    adoptStdio(base, files)
+    const reached = deferred<void>()
+    const held = deferred<void>()
+    const store: CatalogStore = {
+      read: key => base.store.read(key),
+      async write(key, record, basedOn) {
+        reached.resolve()
+        await held.promise
+        return base.store.write(key, record, basedOn)
+      },
+    }
+    const { discovery, connections } = core({ ...base, ports: { ...base.ports, store } })
+    const pending = discovery.refresh(alice, { ref: files })
+    await reached.promise
+    await connections.closeAll()
+    held.resolve()
+    expect(await pending).toEqual({ ok: { kind: 'published', revision: 1 } })
   })
 })
 

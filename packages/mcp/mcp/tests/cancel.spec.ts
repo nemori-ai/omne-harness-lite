@@ -203,6 +203,21 @@ describe('a cancel after the send (SPEC S2, MC-16 step 11)', () => {
     })
   })
 
+  it('that races the send, followed by closeAll, which the transport then refuses: cancelled, not connection-unavailable; the stop signal is read before the shutdown (S2, S8)', async () => {
+    const hold = holdingAt('before')
+    const { p, digest } = await arranged(completed([text('hi')]), { callGate: hold.callGate })
+    const { services: s } = services(p)
+    const call = s.invoker.invoke(alice, request(digest))
+    await hold.reached
+    expect(await s.invoker.cancel(alice, c1)).toBe('signalled')
+    const closing = s.connections.closeAll()
+    hold.release()
+    expect(await call).toEqual({ kind: 'not-sent', reason: { kind: 'cancelled' } })
+    await closing
+    expect(p.requests('tools/call')).toHaveLength(0)
+    expect(p.cancels()).toBe(0)
+  })
+
   it('that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: only connection-unavailable is the reply to a fired signal (T5)', async () => {
     const hold = holdingAt('before')
     const base = await arranged(completed([text('hi')]), { callGate: hold.callGate })
