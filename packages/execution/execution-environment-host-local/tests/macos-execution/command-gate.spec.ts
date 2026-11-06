@@ -7,6 +7,7 @@ import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import { spawn } from 'node:child_process'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import type { CommandFrame } from '../../src/command-gate-core.ts'
 import { runCommandGate } from '../../src/macos-execution/command-gate-run.ts'
@@ -24,6 +25,7 @@ type Gate = Readonly<{
 
 let reader: FakeReader
 let cwd = ''
+let gatePid = 0
 let intervals: MockInstance<typeof setInterval>
 
 beforeEach(async context => {
@@ -31,11 +33,22 @@ beforeEach(async context => {
   if (process.platform === 'win32') return context.skip()
   reader = await fakeReader()
   cwd = await realpath(await mkdtemp(join(tmpdir(), 'omne-macos-gate-')))
+  // The gate's pid is a sleeper that leads its own process group, never this test process: a
+  // broken gate that stops its session with no pid excepted kills that group only.
+  const sleeper = spawn('/bin/sleep', ['60'], { detached: true, stdio: 'ignore' })
+  sleeper.unref()
+  gatePid = sleeper.pid ?? 0
+  if (gatePid <= 1) throw new Error('no sleeper pid')
   intervals = vi.spyOn(globalThis, 'setInterval')
 })
 
 afterEach(async () => {
   if (process.platform === 'win32') return
+  try {
+    if (gatePid > 1) process.kill(-gatePid, 'SIGKILL')
+  } catch {
+    /* Already gone. */
+  }
   // A command that may outlive its test writes its pid to `pid` in its working directory.
   const pid = Number(await readFile(join(cwd, 'pid'), 'utf8').catch(() => ''))
   if (Number.isSafeInteger(pid) && pid > 0)
@@ -75,7 +88,7 @@ function startGate(
     frames,
     unit: options.unit ?? 'omne-command-1',
     reader: reader.path,
-    pid: process.pid,
+    pid: gatePid,
     exit: code => void exits.push(code),
   })
   return {
@@ -208,11 +221,7 @@ describe('the macOS command gate in this process', () => {
         `{"t":"data","s":"stdout","b":"${Buffer.from('ij').toString('base64')}"}`,
         '{"t":"exit","code":3,"signal":null,"members":2}',
       ])
-      expect(await reader.calls()).toContainEqual([
-        'members',
-        String(process.pid),
-        String(process.pid),
-      ])
+      expect(await reader.calls()).toContainEqual(['members', String(gatePid), String(gatePid)])
     })
 
     it('reports members as null when the session reader fails', async () => {
@@ -325,8 +334,8 @@ describe('the macOS command gate in this process', () => {
       expect(await reader.calls()).toContainEqual([
         'stop',
         '10000',
-        String(process.pid),
-        String(process.pid),
+        String(gatePid),
+        String(gatePid),
       ])
     })
   })
