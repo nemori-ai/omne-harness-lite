@@ -67,7 +67,7 @@ await fiber.dispose() // 经 closeAll 关闭每条连接，并请落点停止进
 
 ## 配置与运行
 
-配置只有 `LocalTransportOptions`：`clientInfo`（两项非空文本）、`probeTimeoutMs`（正整数，没有缺省）、可选 `fetch`。本包不读环境变量、不写日志、不设自己的网络超时。调用方负责：交来的 `ProcessHandle` 的进程生命周期、凭据句柄的取得与释放、每个传输的 `close()`。本包负责：传输关闭时释放它持有的读写端、计时与在途的 `fetch`。
+根入口的配置只有 `LocalTransportOptions`：`clientInfo`（两项非空文本）、`probeTimeoutMs`（正整数，没有缺省）、可选 `fetch`。`./cordis` 入口的插件另有自己的配置 `McpPluginConfig`：四个上界与 `clientInfo`，全部必填（见 [SPEC](SPEC.md#cordis-plugin)）。本包不读环境变量、不设自己的网络超时。根入口的传输不写日志；插件在撤除时，对停止范围为 `root-only` 或 `unconfirmed` 的每个端点写一条警告，只带端点引用与范围，凭据值不进任何日志。经根入口使用时，调用方负责：交来的 `ProcessHandle` 的进程生命周期、凭据句柄的取得与释放、每个传输的 `close()`。经插件使用时，`createMcp` 经端口取得凭据句柄并请落点起进程，撤除时 `closeAll` 释放它们（MC-10）。本包负责：传输关闭时释放它持有的读写端、计时与在途的 `fetch`。
 
 ## 验证
 

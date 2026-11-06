@@ -114,7 +114,7 @@
 
 <a id="h13"></a>
 
-- **H13 凭据不外泄**：凭据句柄写进的头只进出站请求（`fetch` 的 `headers`）：POST 与回退的 GET。`Exchange`、`GetOpened`、`WireEvent`、答复、失败、授权发现与本包抛出的错误都不含请求头。本包不写日志。反例：`not-sent` 的失败带着请求头。变异：会话把请求的 `authorization` 头值写进应答头的挑战参数（授权发现的 `scopes` 带着令牌）→ `http.spec.ts`「the credential value appears in no answer, failure or discovery」变红。该用例先断言 `discover` 成功、`authorization-required` 带着发现，再断言所有结局的 JSON 都不含令牌。
+- **H13 凭据不外泄**：凭据句柄写进的头只进出站请求（`fetch` 的 `headers`）：POST 与回退的 GET。`Exchange`、`GetOpened`、`WireEvent`、答复、失败、授权发现与本包抛出的错误都不含请求头。根入口的传输不写日志。`./cordis` 插件只在撤除时写警告，参数是固定的消息、端点引用与停止范围（`src/cordis.ts` 里 `logger.warn` 的三个参数：固定消息、`closed.ref`、`closed.process`），凭据值不进任何日志。反例：`not-sent` 的失败带着请求头。变异：会话把请求的 `authorization` 头值写进应答头的挑战参数（授权发现的 `scopes` 带着令牌）→ `http.spec.ts`「the credential value appears in no answer, failure or discovery」变红。该用例先断言 `discover` 成功、`authorization-required` 带着发现，再断言所有结局的 JSON 都不含令牌。
 
 <a id="h14"></a>
 
