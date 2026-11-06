@@ -84,7 +84,7 @@ organization、tenant、session表示系统已知治理作用域。owner表示�
 
 authorityRevision表示来源资格及布局事实的修订，不是配值版本。配值变化仍由Settings状态revision及外部具名来源自己的值修订表示。提供者准备和提交都应核对二者；只保持来源布局不变不能证明值未变化。来源不适用、明确无配值和提供者不可用必须保留不同事实，不能因没有描述符就合成absent。
 
-当前只落下共享描述符。后续提供者将SettingsTargetProjection的sourceIds替换为sources布局，并在拥有者输入、持久记录、中央guard、snapshot及公开目录视图中贯通。配值算法仍消费有序id及values，不接管来源资格。目标guard必须核对投影布局与实际状态一致，旧的sourceIds旁路在同批迁移中退出。该投影切换尚未完成。
+当前本地目标投影、拥有者输入、持久来源绑定、中央guard、snapshot和公开目录已经采用完整sources布局。配值算法仍消费核验后派生的有序id及values，不接管来源资格。旧记录缺少身份时进入明确的unmapped状态，不按名称猜来源或自动继承值。普通读写拒绝不匹配的历史绑定，显式重整逐项保留或丢弃。具体条件归[本地来源规则](../../settings-local/SPEC.md#source-identity-and-persisted-provenance)。完整准备提交及外部来源保留提供者仍未交付。
 
 ### 失败对请求、attempt及根的后果
 

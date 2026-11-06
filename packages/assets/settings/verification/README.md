@@ -106,3 +106,23 @@ PendingProgress以数据库最终可用、重启恢复与相应步骤弱公平�
 每个布局修改推进资格修订，每次重整采用变化的绑定推进配值修订。在这两个前提下，单独移除准备布局比较可能仍受其他比较保护。因此不把它登记为一个必然失败的负控。`UNCHANGED x`允许有限动作耗尽后静止。此模型只检查安全性，不声称无死锁或业务最终完成。
 
 来源只能由真实拥有者提供，事务在模型中是原子的。模型不证明拥有者诚实、外部资格核验、远程认证或任意规模。`source-layout.ts`、`participant.ts`、`snapshot-participant.ts`和`rebase-participant.ts`兑现稳定身份与值归属检查。`source-provenance.spec.ts`验证真实独立目标、Identity和SQLite组合，Assets的`settings-governance.spec.ts`验证资产拥有者组合。准备依据的完整实现仍须由准备提交提供者兑现，不能由这些读写测试推定完成。
+
+## 原操作与准备尝试
+
+`SettingsIntentAttempts.tla` 对应[准备与根结果协议](../docs/protocol.md#准备提交与根操作结果)。一个根保持原命令和唯一业务结果，attempt承载一次当前依据。模型分别枚举普通根与组织源修改根，最多分配两次合法尝试，并为越界负控保留第三个候选身份。源码预算仍为64。模型把来源资格与原调用者认证作为前提，不验证它们的取得过程。
+
+| 不变量 | 具名负控 |
+| --- | --- |
+| ImmutableCommand | change-command允许重新准备改命令 |
+| TerminalRootCannotRevive | revive-root重开已有根终态 |
+| AtMostOneActiveAttempt | replace-live在旧尝试尚未终结时分配后继 |
+| OnlyCurrentAttemptCommits | late-attempt使用已封口尝试，ignore-basis跳过当前依据 |
+| QueryIsReadOnly | query-cancels让查询终结根 |
+| OrdinarySealKeepsPendingRoot | abort-ordinary-root把普通尝试封口当成业务取消 |
+| SourceSealTerminatesRoot | keep-source-root保留已被封口的组织源修改根 |
+| AttemptBudgetIsBounded | ignore-limit实际分配第三次尝试 |
+| OneBusinessEffect | 与根不可复活、精确尝试共同检查，无单独负控 |
+
+只有Prepare可分配尝试，且要求根未终结、没有活跃尝试、命令不变和预算未耗尽。Commit要求当前attempt和当前basis，原子建立根与attempt的成功事实。Seal区分普通根与组织源修改根，Cancel终结尚未完成的根。Query保持持久状态不变。由这些转换可逐步推出终态不可复活、至多一个活跃尝试和至多一次业务效果。
+
+submitted表示持久进度，不表示调用者已取得结果。unknown是观察状态，不放进数据库；模型没有把unknown当成许可分配后继的转换。允许静止只用于有限安全性检查，不证明最终进展、无死锁、网络重试或任意规模。关系迁移由settings-local的intent-migration.ts拥有，约束测试为intent-migration.spec.ts。迁移安装与有限模型通过都不代表真实准备提交提供者已经完成，转换必须由后续持久写者和真实并发测试继续兑现。

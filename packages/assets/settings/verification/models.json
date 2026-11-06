@@ -1,6 +1,6 @@
 {
   "model": "models/SettingsComposition.tla",
-  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof; SettingsSourceRetention: two destinations, two source updates, one crash; safety and conditional progress under eventual storage availability and weakly fair recovery; fixed identity bindings, abstract atomic source transactions, no production refinement proof; source write conditions abstract confirmed final business validity as a monotone boolean, not a schema or original binding proof; SettingsSourceIdentity: two ordered sources, four identity/layout replacements, one authority refresh, one prepare/write/rebase; finite safety only, authenticated ownership and SQL isolation are assumptions",
+  "scope": "finite protocol model: 2 target/authority changes plus 1 assignment change, 2 readers, 1 write; no implementation, liveness, isolation, catalog paging or physical durability proof; StandingCommit: two operations, one membership and one invalidation; abstract atomic stores; safety only, no remote authentication or physical durability proof; SettingsSourceRetention: two destinations, two source updates, one crash; safety and conditional progress under eventual storage availability and weakly fair recovery; fixed identity bindings, abstract atomic source transactions, no production refinement proof; source write conditions abstract confirmed final business validity as a monotone boolean, not a schema or original binding proof; SettingsSourceIdentity: two ordered sources, four identity/layout replacements, one authority refresh, one prepare/write/rebase; finite safety only, authenticated ownership and SQL isolation are assumptions SettingsIntentAttempts checks finite root/attempt safety with two allowed attempts, immutable commands, exact current attempt, read-only queries and distinct ordinary/source sealing. No liveness or real provider guarantee.",
   "cases": [
     {
       "name": "positive",
@@ -180,6 +180,66 @@
       "model": "models/SettingsSourceIdentity.tla",
       "config": "models/source-identity-revision.cfg",
       "expected": "RebindingChangesRevision"
+    },
+    {
+      "name": "intent-attempt-positive",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "intent-attempt-command",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-command.cfg",
+      "expected": "ImmutableCommand"
+    },
+    {
+      "name": "intent-attempt-revive",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-revive.cfg",
+      "expected": "TerminalRootCannotRevive"
+    },
+    {
+      "name": "intent-attempt-overlap",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-overlap.cfg",
+      "expected": "AtMostOneActiveAttempt"
+    },
+    {
+      "name": "intent-attempt-late",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-late.cfg",
+      "expected": "OnlyCurrentAttemptCommits"
+    },
+    {
+      "name": "intent-attempt-basis",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-basis.cfg",
+      "expected": "OnlyCurrentAttemptCommits"
+    },
+    {
+      "name": "intent-attempt-query",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-query.cfg",
+      "expected": "QueryIsReadOnly"
+    },
+    {
+      "name": "intent-attempt-ordinary",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-ordinary.cfg",
+      "expected": "OrdinarySealKeepsPendingRoot"
+    },
+    {
+      "name": "intent-attempt-source",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-source.cfg",
+      "expected": "SourceSealTerminatesRoot"
+    },
+    {
+      "name": "intent-attempt-budget",
+      "model": "models/SettingsIntentAttempts.tla",
+      "config": "models/intent-attempt-budget.cfg",
+      "expected": "AttemptBudgetIsBounded"
     }
   ]
 }
