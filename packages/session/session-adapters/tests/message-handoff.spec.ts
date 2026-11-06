@@ -14,6 +14,7 @@ import {
   decodeActionId,
   type AgentAccessCheck,
   type ExecutionSnapshot,
+  type HandoffOutcome,
   type MessageHandoff,
   type PendingHandoff,
 } from '@omne-harness/agent-contract'
@@ -31,6 +32,7 @@ import {
 } from '@omne-harness/session-storage-sql/participants'
 import { sessionScopeEvidence } from '../src/cordis/agent-drive.ts'
 import { createSessionMessageHandoffPlugin } from '../src/cordis/message-handoff.ts'
+import { encodeState } from '../src/cordis/durable-codec.ts'
 import {
   evidence,
   instance,
@@ -62,6 +64,14 @@ afterEach(async () => {
 async function provided(name: string, decision: 'allowed' | 'denied' = 'allowed') {
   const s = await sqlScene(name)
   scenes.push(s)
+  const commitReplies: unknown[] = []
+  const commit = s.storage.commit.bind(s.storage)
+  s.storage.commit = async request => {
+    const result = await commit(request)
+    if (request.commands.length === 1 && request.commands[0]?.participant === 'execution-record')
+      commitReplies.push(result)
+    return result
+  }
   const c = await cordisScene(s)
   disposers.push(() => c.dispose())
   const checked: string[] = []
@@ -89,8 +99,37 @@ async function provided(name: string, decision: 'allowed' | 'denied' = 'allowed'
     if (found === undefined) throw new Error('agentMessageHandoff is not provided')
     return found as MessageHandoff<string>
   }
-  return { s, c, handoff, checked, fiber }
+  return { s, c, handoff, checked, fiber, commitReplies }
 }
+
+function largeText(): string {
+  let text = ''
+  for (let index = 0; ; index += 1) {
+    const line = `candidate-${String(index).padStart(4, '0')} 中文 🚀 ${index * 7919} "quoted" \\slash\n\t`
+    if (Buffer.byteLength(text + line) > 65536) break
+    text += line
+  }
+  return text + 'x'.repeat(65536 - Buffer.byteLength(text))
+}
+
+const jsonBytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value))
+
+function rewriteOutcome(f: Awaited<ReturnType<typeof provided>>, outcome: unknown) {
+  f.s.rewriteReads.current = (request, answer) => {
+    if (request.handler !== EXECUTION_RECORD_HANDLERS.preadmission || answer.kind !== 'read')
+      return answer
+    const record = decodePreadmissionRecord(answer.output)
+    if (record === null || record === 'malformed') throw new Error('no record to rewrite')
+    return { ...answer, output: { ...record, outcome: encodeState(outcome) } }
+  }
+}
+
+const lookupInput = (s: SqlScene, input: ReturnType<typeof submit>) => ({
+  ...agentAccess(s),
+  kind: 'input-entry' as const,
+  execution: s.execution,
+  operation: input.request.reference.entry,
+})
 
 /** The invoke-branch prepare of the scene's initial input, with the session slot scope. */
 function invoke(
@@ -138,6 +177,198 @@ const writes = (s: SqlScene) =>
   s.commits.filter(item => item.length === 1 && item[0] === 'execution-record').length
 
 describe('the invoke and submit branches', () => {
+  it('stores one 64 KiB candidate and restores the complete outcome after provider replacement', async () => {
+    const f = await provided('handoff-large')
+    const original = submit(f.s)
+    if (original.request.entry.kind !== 'submit') throw new Error('a submit entry is expected')
+    const message = assistantMessage(largeText())
+    const input = {
+      ...original,
+      request: {
+        ...original.request,
+        entry: {
+          ...original.request.entry,
+          value: { ...original.request.entry.value, content: message },
+        },
+      },
+    }
+    const first = ok(await f.handoff().prepare(input))
+    const record = await recordOf(
+      f.s,
+      JSON.stringify([f.s.execution, input.request.reference.entry]),
+    )
+    if (record === null || record === 'malformed') throw new Error('no record')
+    console.info(
+      'handoff-storage-bytes',
+      JSON.stringify({
+        candidateText: Buffer.byteLength(largeText()),
+        intent: jsonBytes(record.intent),
+        outcome: jsonBytes(record.outcome),
+        commitReply: jsonBytes(f.commitReplies.at(-1)),
+        publicOutcome: jsonBytes(first),
+      }),
+    )
+    expect(first.request).toEqual(input.request)
+    expect(first.decision).toEqual({
+      kind: 'prepared',
+      message,
+      admission: evidence('agent-access/submit'),
+    })
+    expect(JSON.stringify([record.intent, record.outcome]).match(/candidate-0000/g)).toHaveLength(1)
+    expect(record.outcome).toMatchObject({ format: 'intent-relative-v1' })
+    expect(jsonBytes(record.outcome)).toBeLessThan(1024)
+    await f.fiber.dispose()
+    await f.c.mount(
+      createSessionMessageHandoffPlugin<string>({
+        coordinator: async () => succeed(f.s.access.principal),
+        principalIdentity: principal => `principal:${principal}`,
+        provider: { ...PROVIDER, revision: '2', digest: 'replacement' },
+      }),
+      f.s.combination,
+    )
+    const before = writes(f.s)
+    expect(ok(await f.handoff().lookup(lookupInput(f.s, input)))).toEqual({
+      kind: 'recorded',
+      outcome: first,
+    })
+    expect(ok(await f.handoff().prepare(input))).toEqual(first)
+    expect(writes(f.s)).toBe(before)
+  })
+
+  it('a repeated entry with changed content conflicts without a new write', async () => {
+    const f = await provided('handoff-conflict')
+    const input = submit(f.s)
+    ok(await f.handoff().prepare(input))
+    if (input.request.entry.kind !== 'submit') throw new Error('a submit entry is expected')
+    const before = writes(f.s)
+    expect(
+      await f.handoff().prepare({
+        ...input,
+        request: {
+          ...input.request,
+          entry: {
+            ...input.request.entry,
+            value: {
+              ...input.request.entry.value,
+              content: assistantMessage('changed'),
+            },
+          },
+        },
+      }),
+    ).toMatchObject({ failure: { kind: 'conflict' } })
+    expect(writes(f.s)).toBe(before)
+  })
+
+  it('records the provider that fixes the outcome after an earlier provider saved the intent', async () => {
+    const f = await provided('handoff-intent-provider')
+    const input = submit(f.s)
+    if (f.s.controls === null) throw new Error('the storage double is expected')
+    f.s.controls.loseNextReply()
+    expect(await f.handoff().prepare(input)).toMatchObject({ failure: { kind: 'unavailable' } })
+    const record = await recordOf(
+      f.s,
+      JSON.stringify([f.s.execution, input.request.reference.entry]),
+    )
+    if (record === null || record === 'malformed') throw new Error('the intent was not saved')
+    expect(record.outcome).toBeNull()
+    await f.fiber.dispose()
+    const provider = { ...PROVIDER, revision: '2', digest: 'fixed-after-restart' }
+    await f.c.mount(
+      createSessionMessageHandoffPlugin<string>({
+        coordinator: async () => succeed(f.s.access.principal),
+        principalIdentity: principal => `principal:${principal}`,
+        provider,
+      }),
+      f.s.combination,
+    )
+    const fixed = ok(await f.handoff().prepare(input))
+    expect(fixed.provider).toEqual(provider)
+    expect(fixed.qualification).toEqual(evidence('agent-access/submit'))
+  })
+
+  it('reads a legacy complete outcome without rewriting it', async () => {
+    const f = await provided('handoff-legacy')
+    const input = submit(f.s)
+    const first = ok(await f.handoff().prepare(input))
+    rewriteOutcome(f, { kind: first.decision.kind, outcome: first })
+    const before = writes(f.s)
+    expect(ok(await f.handoff().lookup(lookupInput(f.s, input)))).toEqual({
+      kind: 'recorded',
+      outcome: first,
+    })
+    expect(ok(await f.handoff().prepare(input))).toEqual(first)
+    expect(writes(f.s)).toBe(before)
+  })
+
+  it('does not interpret an explicit unknown format as a legacy outcome', async () => {
+    const f = await provided('handoff-future-format')
+    const input = submit(f.s)
+    const first = ok(await f.handoff().prepare(input))
+    rewriteOutcome(f, { format: 'future-v2', kind: first.decision.kind, outcome: first })
+    const before = writes(f.s)
+    expect(await f.handoff().lookup(lookupInput(f.s, input))).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    expect(await f.handoff().prepare(input)).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    expect(writes(f.s)).toBe(before)
+  })
+
+  for (const format of ['legacy', 'intent-relative-v1'] as const)
+    it(`restores a fixed ${format} rejection with its original reason and evidence`, async () => {
+      const f = await provided(`handoff-fixed-rejection-${format}`)
+      const input = submit(f.s)
+      const first = ok(await f.handoff().prepare(input))
+      const decision: HandoffOutcome['decision'] = {
+        kind: 'rejected',
+        reason: 'the original rejection 中文 🚫',
+        evidence: evidence('original-rejection'),
+      }
+      rewriteOutcome(
+        f,
+        format === 'legacy'
+          ? { kind: 'rejected', outcome: { ...first, decision } }
+          : { kind: decision.kind, format, provider: first.provider, decision },
+      )
+      const before = writes(f.s)
+      expect(ok(await f.handoff().lookup(lookupInput(f.s, input)))).toEqual({
+        kind: 'recorded',
+        outcome: { ...first, decision },
+      })
+      expect(ok(await f.handoff().prepare(input))).toEqual({ ...first, decision })
+      expect(writes(f.s)).toBe(before)
+    })
+
+  for (const outcome of [
+    { format: 'future-v2', outcome: {} },
+    {
+      kind: 'prepared',
+      format: 'intent-relative-v1',
+      provider: PROVIDER,
+      decision: { kind: 'prepared' },
+    },
+    {
+      kind: 'rejected',
+      format: 'intent-relative-v1',
+      provider: {},
+      decision: { kind: 'rejected', reason: 'bad', evidence: evidence('bad') },
+    },
+    { kind: 'prepared', outcome: false },
+  ])
+    it(`refuses an unknown or malformed outcome ${JSON.stringify(outcome)}`, async () => {
+      const f = await provided('handoff-malformed')
+      const input = submit(f.s)
+      ok(await f.handoff().prepare(input))
+      rewriteOutcome(f, outcome)
+      const before = writes(f.s)
+      expect(await f.handoff().lookup(lookupInput(f.s, input))).toMatchObject({
+        failure: { kind: 'unavailable' },
+      })
+      expect(await f.handoff().prepare(input)).toMatchObject({ failure: { kind: 'unavailable' } })
+      expect(writes(f.s)).toBe(before)
+    })
+
   it('invoke: the intent is saved with the request, origin, principal, basis and adoption, then the prepared outcome', async () => {
     const f = await provided('handoff-invoke')
     const input = invoke(f.s)
