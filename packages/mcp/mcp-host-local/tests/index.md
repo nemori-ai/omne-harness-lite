@@ -15,4 +15,5 @@
 - [stdio.spec.ts](stdio.spec.ts)（慢层）：契约 T2、T3、T5 与 T8 的 S、X 行在真实管道上：不是 JSON 的行、16 MiB 行上界、进程退出的时序、SDK 旧对端、探测时限、不读 stdin 的对端（含缓冲里还有已出发的小写时 `close()` 在界内返回）、取消通知、`server-everything stdio`
 - [http.spec.ts](http.spec.ts)（慢层）：契约 T2–T5、R4 与 T8 的 HTTP 行在本机端口上：SDK bearer 网关与授权发现、凭据不泄漏、`signal` 与 `close()` 管辖的等待、再发规则、离开前失败与头前重置、重定向、`x-mcp-header`、2025 会话与 `DELETE`、现代取消、旧 HTTP+SSE 回退（含 GET 的 401）、应答流里先到的非 `message` 事件只当噪声、`server-everything sse`/`streamableHttp`
 - [fixtures/](fixtures/index.md)：A 层脚本化对端与 B 层 SDK 对端
+- [e2e/](e2e/index.md)（慢层）：`createMcp` 加本地传输对五个真实服务端走七步旅程，两个现代传输的结局序列逐步相等（MC3-12）
 - `probes/`：SPEC 复用表依据的三个 SDK 与 `fetch` 探针，不是测试用例，手工运行；回答的问题、命令与输出摘录见 [verification/proofs/sdk](../verification/proofs/sdk/README.md)
