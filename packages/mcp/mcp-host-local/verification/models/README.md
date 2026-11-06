@@ -89,6 +89,7 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 | `V4-gone-leaves-discovery` | 线路断开时不结算授权发现中的请求 | `valid-close` | `V4_DeadBounded` |
 | `V4-dead-keeps-caller` | 断开结算了在途项，但不放开调用方的等待 | `valid-close` | `V4_DeadBounded` |
 | `V6-gone-auth-broken` | 线路断开把授权中的请求答成 `broken`（`no-answer`） | `valid-close` | `V6_ByPhase` |
+| `V6-gone-sent-abandoned` | 线路断开把已交给线路的请求答成 `abandoned`，不是按原因的 `no-answer` | `valid-close` | `V6_ByPhase` |
 | `V6-ended-abandons-sent` | 会话结束把其余已交给线路的请求答成 `abandoned` | `valid-close` | `V6_ByPhase` |
 
 ## 运行与判读
@@ -114,28 +115,28 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp-host-local/verification
 
 | 配置 | 结论 | 不同状态数 | 生成状态数 | 深度 | 耗时 | 判读 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `valid-close` | 完成，没有错误 | 9262 | 29306 | 16 | 1.7 s | 符合判读 |
-| `valid-signal` | 完成，没有错误 | 305 | 676 | 11 | 1.2 s | 符合判读 |
-| `valid-no-handle` | 完成，没有错误 | 305 | 676 | 11 | 1.2 s | 符合判读 |
-| `bad-resettle` | `V1_SettleOnce` 被违反 | 82 | 108 | 6 | 1.1 s | 符合判读 |
-| `bad-cred-after-close` | `V2_NoCredentialAfterClose` 被违反 | 71 | 86 | 4 | 1.1 s | 符合判读 |
-| `bad-report-twice` | `V3_RejectAtMostOnce` 被违反 | 57 | 89 | 7 | 1.1 s | 符合判读 |
-| `bad-signal-dead` | `V4_SignalBounded` 被违反 | 31 | 36 | 5 | 1.1 s | 符合判读 |
-| `bad-close-settles-after-line` | `V4_CloseBounded` 被违反 | 32 | 33 | 5 | 1.1 s | 符合判读 |
-| `bad-caller-waits-workflow-close` | `V4_CloseBounded` 被违反 | 30 | 31 | 5 | 1.1 s | 符合判读 |
-| `bad-caller-waits-workflow-signal` | `V4_SignalBounded` 被违反 | 32 | 43 | 5 | 1.1 s | 符合判读 |
-| `bad-resend` | `V5_NoResendForCaller` 被违反 | 66 | 90 | 6 | 1.1 s | 符合判读 |
-| `bad-close-not-sent` | `V6_ByPhase` 被违反 | 92 | 122 | 6 | 1.1 s | 符合判读 |
-| `bad-ended-sends-authorizing` | `V2_NoWireAfterDead` 被违反 | 479 | 826 | 7 | 1.2 s | 符合判读 |
+| `valid-close` | 完成，没有错误 | 9262 | 29306 | 16 | 1.6 s | 符合判读 |
+| `valid-signal` | 完成，没有错误 | 305 | 676 | 11 | 1.1 s | 符合判读 |
+| `valid-no-handle` | 完成，没有错误 | 305 | 676 | 11 | 1.1 s | 符合判读 |
+| `bad-resettle` | `V1_SettleOnce` 被违反 | 82 | 109 | 6 | 1.0 s | 符合判读 |
+| `bad-cred-after-close` | `V2_NoCredentialAfterClose` 被违反 | 96 | 116 | 5 | 1.1 s | 符合判读 |
+| `bad-report-twice` | `V3_RejectAtMostOnce` 被违反 | 52 | 81 | 6 | 1.0 s | 符合判读 |
+| `bad-signal-dead` | `V4_SignalBounded` 被违反 | 32 | 44 | 5 | 1.0 s | 符合判读 |
+| `bad-close-settles-after-line` | `V4_CloseBounded` 被违反 | 40 | 49 | 5 | 1.1 s | 符合判读 |
+| `bad-caller-waits-workflow-close` | `V4_CloseBounded` 被违反 | 31 | 34 | 5 | 1.0 s | 符合判读 |
+| `bad-caller-waits-workflow-signal` | `V4_SignalBounded` 被违反 | 26 | 27 | 5 | 1.0 s | 符合判读 |
+| `bad-resend` | `V5_NoResendForCaller` 被违反 | 91 | 135 | 6 | 1.0 s | 符合判读 |
+| `bad-close-not-sent` | `V6_ByPhase` 被违反 | 76 | 106 | 6 | 1.1 s | 符合判读 |
+| `bad-ended-sends-authorizing` | `V2_NoWireAfterDead` 被违反 | 447 | 770 | 6 | 1.1 s | 符合判读 |
 
-运行于 2026-11-06（UTC 03:10），`run.py` 退出码 0，13 个配置用时约 15 秒。深度是 TLC 状态图的深度，含内部步。正控的状态数是完整穷举，两次运行相同。加入两种断开之后，`valid-close` 从 2230 个不同状态增加到 9262 个，`valid-signal` 与 `valid-no-handle` 从 107 个增加到 305 个。负控与变异的状态数是 TLC 找到第一条反例时的计数，随工作线程的调度在两次运行之间略有不同。
+运行于 2026-11-06（UTC 03:16），`run.py` 退出码 0，13 个配置用时约 14 秒。深度是 TLC 状态图的深度，含内部步。正控的状态数是完整穷举，两次运行相同。加入两种断开之后，`valid-close` 从 2230 个不同状态增加到 9262 个，`valid-signal` 与 `valid-no-handle` 从 107 个增加到 305 个。负控与变异的状态数是 TLC 找到第一条反例时的计数，随工作线程的调度在两次运行之间略有不同。
 
 `bad-ended-sends-authorizing` 的反例有 6 个状态：`r1`（读类）开始并交给线路，`r2`（写类，`tools/call`）开始并在授权中，`r1` 收到旧会话的 404（`SessionEnded(r1)`），会话转为不可用而 `r2` 没有被结算。随后句柄放行，`AuthDone(r2)` 把 `r2` 交给线路。
 
-变异（同一环境，同一模型）：21 个变异各自只违反目标不变式，`run.py --mutations` 退出码 0，用时约 24 秒。每个变异的不同状态数在 47 到 1161 之间，深度 4 到 8。
+变异（同一环境，同一模型）：22 个变异各自只违反目标不变式，`run.py --mutations` 退出码 0，用时约 23 秒。每个变异的不同状态数在 39 到 1295 之间，深度 4 到 8。
 
 ## 本包事实
 
-- 当前内容：会话请求生命周期的模型、13 份配置、21 个有效动作的变异与运行脚本。
+- 当前内容：会话请求生命周期的模型、13 份配置、22 个有效动作的变异与运行脚本。
 - 状态：见上面的运行记录与 [SPEC.md「性质与证据」](../../SPEC.md#properties)。这不是证明，也不表示实现符合模型。
 - 负责人：本包的维护者。会话的结算次序或等待点变化时，先改模型的对应动作，再重跑全部配置与变异。

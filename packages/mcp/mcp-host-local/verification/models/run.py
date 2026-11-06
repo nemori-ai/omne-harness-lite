@@ -138,6 +138,10 @@ MUTATIONS = {
         'valid-close', 'V6_ByPhase',
         'ELSE IF st[r] = "auth" THEN "notSent"',
         'ELSE IF st[r] = "auth" THEN sentAnswer'),
+    'V6-gone-sent-abandoned': (
+        'valid-close', 'V6_ByPhase',
+        '"gone", "broken")',
+        '"gone", "abandoned")'),
     'V6-ended-abandons-sent': (
         'valid-close', 'V6_ByPhase',
         '"ended", "none")',
