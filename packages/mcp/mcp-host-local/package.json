@@ -27,6 +27,7 @@
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/kernel-basis": "workspace:*",
     "@omne-harness/mcp": "workspace:*",
     "@omne-harness/mcp-contract": "workspace:*",
     "@omne-harness/mcp-cordis-contract": "workspace:*",
