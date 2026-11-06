@@ -143,3 +143,21 @@ New plans and request admission require an open root and a preparing attempt. Re
 These functions accept receipts only from the trusted owning participant. Shape validation and a deterministic reservation ID do not authenticate a caller or prove an external hold. The future coordinator must obtain actual results from Identity's public reservation service. Identity and the destination terminal enforce release ordering. Recording a settlement receipt does not itself release a reservation, seal an attempt, or publish a ready basis.
 
 Custody readback uses indexed root, exact-attempt and custody lookups, each with LIMIT 1. It reads at most three rows and performs no writes. Private allocation/custody helpers are not exported through the package entry. Current production tenant commands do not use this new preparation path yet.
+
+## Source retention relations
+
+`source-retention-schema.ts`, `source-retention-migration.ts` and `source-retention-records.ts` define the private source retention mechanism. Its owner is settings.source-retention. It owns only st_source_gate and st_source_reservation. The migration currently runs in the test assembly; ordinary settingsSqlMaterials does not install a source provider. The production snapshot, admission, invalidation writers and destination resolver remain unconnected.
+
+A retained source identifies a complete Settings target in a fixed storage domain. A gate protects its definition, layout, values and locks together. An inheritance sourceId or an item name is not this gate's identity. Each gate stores one pending root update, with the full immutable identity and command digest. Another root is blocked. The same root with changed content conflicts.
+
+A reservation binds the complete source and destination. Its identity includes the destination root and exact attempt. The fixed route and command digest are stored and checked in full. An existing reservation is recognized before checking a pending gate. It returns the original snapshot or terminal outcome. A changed binding under that identity conflicts. A new reservation cannot enter a pending gate. Each source permits at most128 held reservations.
+
+The snapshot includes the current target projection and Settings state, including locks. It distinguishes absent assignments from present state. An absent state has revision zero and no assigned values. A trusted source-snapshot participant must obtain this data in the source transaction. The private record writer does not authenticate a caller or turn user-provided JSON into a current fact.
+
+Successful update completion requires zero held reservations. Aborting an update may clear its exact gate while retaining existing holds. Neither action releases those holds. Gate completion must share the root and attempt terminal transaction. The helper does not write these other owners' tables. The caller must validate the root lifecycle before beginning an update; a cleared gate is not permission to revive an old root.
+
+Settlement consumes a confirmed, matching destination terminal from the trusted resolver. It cannot be called by an ordinary client. A settled record keeps its original outcome. Retrying reserve cannot revive it, and a contradictory outcome conflicts. Neither elapsed time nor an absent destination row establishes a terminal.
+
+Recovery reads held reservations and pending gates through separate partial indexes. It returns bounded keyset pages of at most100 records. Hold recovery returns binding and route metadata, without copying snapshot values into each page. Pending recovery includes gates with zero holds. Per-source held counts use a partial source index. Exact lookup, identity validation and SQL row budgets apply on readback.
+
+Tests use real SqlStorage and SQLite with a named fixture replacing trusted admission, snapshot production and terminal resolution. They exercise persistence, isolation between source targets, competing updates, exact cleanup, capacity, rollback and indexed recovery. They do not establish production invalidation coverage or cross-domain release ordering.

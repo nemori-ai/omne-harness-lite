@@ -232,3 +232,40 @@ stateDiagram-v2
 ```
 
 requested表达不确定的调用进度，不能推断外部没有held。settled是已确认结果的保管事实，不能据此绕过Identity的释放前提。迟到回执按原attempt归档，不改变后继attempt。测试中的终态夹具不授予生产恢复已完成的结论。
+
+## 来源保留的关系边界
+
+一个来源门保护完整Settings目标。配值、锁、声明和布局都影响消费者如何解释规则，因此它们共享这把门。保留记录存储读取时的不可变快照，业务写入仍只有st_states一份事实源。
+
+```mermaid
+erDiagram
+  st_source_gate ||--o{ st_source_reservation : retains
+  st_source_gate {
+    TEXT source_key PK
+    TEXT source_json
+    TEXT pending_key
+    TEXT pending_json
+  }
+  st_source_reservation {
+    TEXT reservation_key PK
+    TEXT source_key FK
+    TEXT request_json
+    TEXT snapshot_json
+    TEXT state
+    TEXT outcome
+  }
+```
+
+两张表归settings.source-retention。根意图和attempt属于settings.persistence，二者通过受信事实协调，不能跨拥有者写表。来源门的完成与根终结必须同提交。取消更新可开放新保留，但仍保管旧held；后继更新继续排空它们。
+
+```mermaid
+flowchart LR
+  Snapshot[待接线：真实Settings源快照] -.-> Holds[已有私有保留记录写者]
+  Gate[已有私有待决门写者] --> Holds
+  Gate -.-> Writers[待接线：配值、声明与布局失效写者]
+  Resolver[待接线：可信目的终态resolver] -.-> Holds
+  Holds --> Recovery[已有有界held枚举]
+  Gate --> Pending[已有独立pending枚举]
+```
+
+实线仅表示已实现的私有关系操作。测试装配提供快照和终态夹具。图中的生产适配及当前来源保证尚未交付。恢复索引只枚举元数据，实际保留快照在按需精确认回时读取。

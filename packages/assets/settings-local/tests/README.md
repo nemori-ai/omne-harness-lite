@@ -72,3 +72,11 @@ pnpm --filter @omne-harness/assets-local run test:fast
 [intent-allocation.spec.ts](intent-allocation.spec.ts)通过真实SQLite Worker调用私有分配写者。测试覆盖并发认回、命令不变、事务回滚、数据库重开、终态识别和尝试预算。准入由测试参与者替代，终态及历史记录由夹具设置。
 
 [standing-custody.spec.ts](standing-custody.spec.ts)验证完整请求先保存、请求不被替换、错绑定回执拒绝，以及settled不被迟到held覆盖。真实Identity场景先取得held，丢弃本地回执检查点，再重开Settings数据库并用原请求认回。旧attempt回包场景直接设置历史终态，验证它不能修改新attempt。它不证明生产seal写者或真实settlement恢复组合。
+
+## 来源保留关系
+
+[source-retention.spec.ts](source-retention.spec.ts)使用真实SqlStorage与SQLite Worker安装来源门和保留关系。具名测试参与者替代受信快照、准入和目的终态。用例覆盖请求/快照重开认回、同身份换绑定拒绝、单根排空、精确清门、取消保留旧held、提交要求零held、事务回滚、128个held边界和分源隔离。
+
+恢复测试检查100与28行键集页不重不漏，且返回形状没有快照值。另检查零held待决门仍可枚举。关闭存储后检查实际SQLite约束及查询计划。源与目的的真实服务组合、所有失效写者围栏和生产恢复路由仍须单独验收。
+
+运行显式typecheck检查全部测试辅助文件。Vitest界面的Type Errors行不替代该命令。

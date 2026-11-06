@@ -164,3 +164,6 @@ Seal可以终结preparing、prepared或submitted。不可逆终态阻止迟到Pu
 `standing-custody.ts`及其具名迁移保存完整请求、requested检查点及回执。实际reserve和settle仍由Identity服务负责，调用顺序由后续准备协调器兑现。`standing-custody.spec.ts`包含真实Identity认回与SQLite重开，也包含合成终态回执。两类证据不能互换。
 
 模型把外部回包真实性、Identity幂等性、目的终态和持久存储原子性作为前提。它只检查有限安全性，不证明任意规模、活性、生产调用顺序或完整恢复提供者。保管关系的存在不表示当前公共准备服务已经接线。
+
+
+来源保留模型的关系实现入口现为settings-local的source-retention-schema、source-retention-migration与source-retention-records。门和held通过真实SQL测试装配持久化，具名夹具提供快照及目的终态。持有上限、精确清门和独立pending枚举已有关系测试，模型中的真实来源快照、全部失效写者、目的封口和根终结原子性仍须生产组合兑现。该增量不把完整SourceHoldsProtectRevision视为已接受的运行保证。
