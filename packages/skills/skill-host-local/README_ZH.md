@@ -28,7 +28,7 @@ if ('ok' in snapshot)
 
 示例 [examples/inspect-directory.ts](examples/inspect-directory.ts) 对 [examples/sample-skill/](examples/sample-skill/) 取快照，读两个控制文件，再交给 `parseSkillPackage`。示例 [examples/directory-journey.ts](examples/directory-journey.ts) 检查一个目录下的每个包，再经 `@omne-harness/skill` 列出、检索、描述与读取。读取判定与对应端口由调用方交给它，测试交的是 `@omne-harness/skill-contract/testing` 的内存替身。它作为测试 `tests/examples.spec.ts` 运行，不是产品装配。测试可以给出自己的文件系统接缝：`createDirectorySource({ fs })`。需要 Node.js 24 或更高版本。
 
-`./cordis` 入口（`@omne-harness/skill-host-local/cordis`）导出插件 `skillPlugin`。插件不收配置，使用目录来源。它在装载它的 fiber 上提供 `skillPackageInspection`、`skillCatalog` 与 `skillAccess`，并在每次调用时从自己的上下文现取两个端口 `skillReadCheck` 与 `skillResolution`。实际调用了缺席端口的那一步得到 `unknown`，操作按 `skill` SPEC 的规则答复（[目录](../skill/SPEC.md#catalog)与[门禁](../skill/SPEC.md#stages)），不放行，也不交出受该端口保护的内容。见 [docs/cordis.md](docs/cordis.md) 与 [SPEC.md](SPEC.md#cordis-插件)。
+`./cordis` 入口（`@omne-harness/skill-host-local/cordis`）导出插件 `skillPlugin`。插件的配置没有字段（类型化的调用方给 `{}`），使用目录来源。它在装载它的 fiber 上提供 `skillPackageInspection`、`skillCatalog` 与 `skillAccess`，并在每次调用时从自己的上下文现取两个端口 `skillReadCheck` 与 `skillResolution`。实际调用了缺席端口的那一步得到 `unknown`，操作按 `skill` SPEC 的规则答复（[目录](../skill/SPEC.md#catalog)与[门禁](../skill/SPEC.md#stages)），不放行，也不交出受该端口保护的内容。见 [docs/cordis.md](docs/cordis.md) 与 [SPEC.md](SPEC.md#cordis-插件)。
 
 ```ts
 import { Context } from '@deepseek-ai/cordis'
