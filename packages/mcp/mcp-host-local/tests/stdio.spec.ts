@@ -394,10 +394,11 @@ describe('the scripted peer fixture: received() waits until the peer confirms it
 
   it('fails with the bound in its message when the peer does not confirm within it', async () => {
     const peer = await stdioPeer({}, { kind: 'stdio' }, VERSIONS, {
-      recordDelayMs: 1_000,
+      recordDelayMs: 60_000,
       confirmWithinMs: 100,
     })
     // The peer answers at once; only its reports are late, so the line it read is not confirmed.
+    // The delay is far above any stall of a loaded machine, so the bound is what ends the wait.
     const transport = await open(peer.material)
     ok(await transport.discover(), 'discover')
     await expect(peer.received()).rejects.toThrow(
