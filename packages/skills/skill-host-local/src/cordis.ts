@@ -3,6 +3,7 @@
 // belong to other domains. The plugin reads each of them from its own load context on every call,
 // and without one the answer is `unknown`, never a pass.
 import type { Context } from '@deepseek-ai/cordis'
+import { definePlugin, type StandardSchema } from '@omne-harness/kernel-basis/cordis'
 import { fail } from '@omne-harness/operation-result'
 import { createPackageInspection, createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
 import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
@@ -20,25 +21,22 @@ import {
 } from '@omne-harness/skill-cordis-contract/cordis'
 import { createDirectorySource } from './directory-source.ts'
 
-/** A Standard Schema that accepts only an absent or empty configuration. */
-type EmptyConfig = {
-  readonly '~standard': {
-    readonly version: 1
-    readonly vendor: string
-    validate(
-      value: unknown,
-    ): { readonly value: object } | { readonly issues: readonly { readonly message: string }[] }
-  }
+/** True for `undefined`, `null`, and a plain object that has no own key. */
+function isEmptyConfiguration(value: unknown): boolean {
+  if (value === undefined || value === null) return true
+  if (typeof value !== 'object') return false
+  const prototype: unknown = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) return false
+  return Reflect.ownKeys(value).length === 0
 }
 
-const emptyConfig: EmptyConfig = {
+/** The configuration of the plugin: an absent value, or a plain object without fields. */
+const emptyConfig: StandardSchema<object> = {
   '~standard': {
     version: 1,
     vendor: 'omne-harness',
     validate(value: unknown) {
-      if (value == null) return { value: {} }
-      if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0)
-        return { value: {} }
+      if (isEmptyConfiguration(value)) return { value: {} }
       return { issues: [{ message: 'configuration accepts no fields' }] }
     },
   },
@@ -121,7 +119,7 @@ function resolutionOf(ctx: Context): SkillResolution<unknown, unknown> {
  * the loading fiber. It takes no configuration. It registers no removal: the three services go
  * away when the fiber unloads.
  */
-export const skillPlugin = {
+export const skillPlugin = definePlugin({
   name: 'skill',
   Config: emptyConfig,
   apply(ctx: Context) {
@@ -131,4 +129,4 @@ export const skillPlugin = {
     new HostSkillCatalog(ctx, createSkillCatalog(ports))
     new HostSkillAccess(ctx, createSkillAccess({ ...ports, source }))
   },
-}
+})

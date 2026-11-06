@@ -7,7 +7,11 @@ import { describe, expect, it } from 'vitest'
 import { capabilityId, type CapabilityId } from '@omne-harness/assets'
 import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { createPackageInspection } from '@omne-harness/skill'
-import type { DeclaredProjection, SkillDefinition } from '@omne-harness/skill-contract'
+import type {
+  DeclaredProjection,
+  SkillDefinition,
+  SkillMaterialBasis,
+} from '@omne-harness/skill-contract'
 import type {
   PackageLocator,
   SkillReadCheck,
@@ -77,7 +81,11 @@ function resolutionService(port: SkillResolution<unknown, unknown>) {
 async function prepared() {
   const root = join(await scratch(), 'review')
   await writeTree(root, {
-    files: { 'SKILL.md': MANIFEST, '.omne/skill.json': '{"formatVersion":1}\n' },
+    files: {
+      'SKILL.md': MANIFEST,
+      '.omne/skill.json': '{"formatVersion":1}\n',
+      'references/guide.md': 'A guide.\n',
+    },
   })
   const locator: PackageLocator = { kind: 'directory', root }
   const inspected = await createPackageInspection(createDirectorySource()).inspect(locator)
@@ -98,21 +106,25 @@ async function prepared() {
       state: { kind: 'adopted', current: { ref, declared } },
     },
   ])
-  return { readCheck, resolution }
+  const basisOf: SkillMaterialBasis = {
+    capability: review,
+    layer: 'workspace',
+    digest: inspected.ok.snapshot.digest,
+  }
+  return { readCheck, resolution, basisOf }
 }
 
 /** The plugin is loaded on a fresh context that has no port yet. */
 async function loaded() {
   const ctx = new Context()
-  const fiber = await ctx.plugin(skillPlugin)
+  const fiber = await ctx.plugin(skillPlugin, {})
   return { ctx, fiber, ...(await prepared()) }
 }
 
 /** The service of `key`, or a failed test when the context has none. */
-function service<K extends 'skillPackageInspection' | 'skillCatalog' | 'skillAccess'>(
-  ctx: Context,
-  key: K,
-) {
+function service<
+  K extends typeof skillPackageInspectionKey | typeof skillCatalogKey | typeof skillAccessKey,
+>(ctx: Context, key: K) {
   const found = ctx.get(key)
   if (found === undefined) throw new Error(`${key} is not provided`)
   return found
@@ -121,7 +133,7 @@ function service<K extends 'skillPackageInspection' | 'skillCatalog' | 'skillAcc
 const bodyOfReview = { capability: review, part: { kind: 'body' } } as const
 
 describe('the Skill plugin on a Cordis context', () => {
-  it('provides the three services and walks describe then read on a directory package', async () => {
+  it('provides the three services and walks describe, read, list, export, summaries and search', async () => {
     const { ctx, readCheck, resolution } = await loaded()
     await ctx.plugin(readCheckService(readCheck(true)))
     await ctx.plugin(resolutionService(resolution))
@@ -139,10 +151,27 @@ describe('the Skill plugin on a Cordis context', () => {
     })
     const listed = await service(ctx, skillCatalogKey).summaries(reader, scope)
     expect(listed).toMatchObject({ ok: [{ kind: 'adopted', capability: review }] })
+
+    const resources = await service(ctx, skillAccessKey).list(reader, scope, review, { basis })
+    expect(resources).toMatchObject({ ok: { basis, resources: [{ path: 'references/guide.md' }] } })
+
+    const exported = await service(ctx, skillAccessKey).export(reader, scope, review, basis)
+    if (!('ok' in exported)) throw new Error('export did not answer a package')
+    expect(exported.ok.basis).toEqual(basis)
+    expect(exported.ok.digest).toBe(basis.digest)
+    expect(exported.ok.entries.map(entry => entry.path)).toEqual(
+      expect.arrayContaining(['SKILL.md', 'references/guide.md']),
+    )
+    for (const entry of exported.ok.entries) expect(entry.digest).toBeDefined()
+
+    const hit = await service(ctx, skillCatalogKey).search(reader, scope, { text: 'findings' })
+    expect(hit).toMatchObject({ ok: [{ kind: 'adopted', capability: review }] })
+    const miss = await service(ctx, skillCatalogKey).search(reader, scope, { text: 'zzz-nothing' })
+    expect(miss).toEqual({ ok: [] })
   })
 
   it('answers unknown, and gives no content, while the read check is absent', async () => {
-    const { ctx, resolution } = await loaded()
+    const { ctx, resolution, basisOf } = await loaded()
     await ctx.plugin(resolutionService(resolution))
 
     expect(await service(ctx, skillAccessKey).describe(reader, scope, review)).toEqual({
@@ -151,19 +180,31 @@ describe('the Skill plugin on a Cordis context', () => {
     expect(await service(ctx, skillAccessKey).read(reader, scope, bodyOfReview)).toEqual({
       failure: { kind: 'unknown' },
     })
+    expect(await service(ctx, skillAccessKey).list(reader, scope, review)).toEqual({
+      failure: { kind: 'unknown' },
+    })
+    expect(await service(ctx, skillAccessKey).export(reader, scope, review, basisOf)).toEqual({
+      failure: { kind: 'unknown' },
+    })
     expect(await service(ctx, skillCatalogKey).summaries(reader, scope)).toEqual({
       failure: 'unknown',
     })
   })
 
   it('answers unknown, and gives no content, while the resolution is absent', async () => {
-    const { ctx, readCheck } = await loaded()
+    const { ctx, readCheck, basisOf } = await loaded()
     await ctx.plugin(readCheckService(readCheck(true)))
 
     expect(await service(ctx, skillAccessKey).describe(reader, scope, review)).toEqual({
       failure: { kind: 'unknown' },
     })
     expect(await service(ctx, skillAccessKey).read(reader, scope, bodyOfReview)).toEqual({
+      failure: { kind: 'unknown' },
+    })
+    expect(await service(ctx, skillAccessKey).list(reader, scope, review)).toEqual({
+      failure: { kind: 'unknown' },
+    })
+    expect(await service(ctx, skillAccessKey).export(reader, scope, review, basisOf)).toEqual({
       failure: { kind: 'unknown' },
     })
     expect(await service(ctx, skillCatalogKey).search(reader, scope, { text: 'x' })).toEqual({
@@ -208,12 +249,25 @@ describe('the Skill plugin on a Cordis context', () => {
     expect(second).toEqual({ failure: { kind: 'not-available-to-you' } })
   })
 
+  it('lists from the replacement resolution when it is swapped between two catalog calls', async () => {
+    const { ctx, readCheck, resolution } = await loaded()
+    await ctx.plugin(readCheckService(readCheck(true)))
+    const adopting = await ctx.plugin(resolutionService(resolution))
+    const first = await service(ctx, skillCatalogKey).summaries(reader, scope)
+    expect(first).toMatchObject({ ok: [{ kind: 'adopted', capability: review }] })
+
+    await adopting.dispose()
+    await ctx.plugin(resolutionService(createMemoryResolution<unknown, unknown>([])))
+    const second = await service(ctx, skillCatalogKey).summaries(reader, scope)
+    expect(second).toEqual({ ok: [] })
+  })
+
   it('uses a read check that was provided before the plugin loaded, and its replacement', async () => {
     const { readCheck, resolution } = await prepared()
     const ctx = new Context()
     await ctx.plugin(resolutionService(resolution))
     const granting = await ctx.plugin(readCheckService(readCheck(true)))
-    await ctx.plugin(skillPlugin)
+    await ctx.plugin(skillPlugin, {})
     const first = await service(ctx, skillAccessKey).describe(reader, scope, review)
     expect(first).toHaveProperty('ok')
 
@@ -228,7 +282,7 @@ describe('the Skill plugin on a Cordis context', () => {
     const ctx = new Context()
     await ctx.plugin(readCheckService(readCheck(true)))
     const adopting = await ctx.plugin(resolutionService(resolution))
-    await ctx.plugin(skillPlugin)
+    await ctx.plugin(skillPlugin, {})
     const first = await service(ctx, skillAccessKey).describe(reader, scope, review)
     expect(first).toHaveProperty('ok')
 
@@ -247,11 +301,38 @@ describe('the Skill plugin on a Cordis context', () => {
     expect(ctx.get(skillAccessKey)).toBeUndefined()
   })
 
-  it('refuses to load with a non-empty configuration', async () => {
+  it('refuses to load with a non-empty configuration and provides nothing', async () => {
     const ctx = new Context()
     // The typed overload forbids the bad configuration; an assembly reading a plugin tree does not.
     const loading: unknown = Reflect.apply(ctx.plugin, ctx, [skillPlugin, { extra: true }])
     await expect(Promise.resolve(loading)).rejects.toBeDefined()
     expect(ctx.get(skillAccessKey)).toBeUndefined()
+  })
+
+  it('loads with an empty configuration object and provides the services', async () => {
+    const ctx = new Context()
+    await ctx.plugin(skillPlugin, {})
+    expect(service(ctx, skillAccessKey)).toBeDefined()
+    expect(service(ctx, skillCatalogKey)).toBeDefined()
+  })
+})
+
+describe('the configuration of the Skill plugin', () => {
+  const accepted = { value: {} }
+  const refused = { issues: [{ message: 'configuration accepts no fields' }] }
+  const empty: object = Object.create(null)
+  const cases: readonly [string, unknown, unknown][] = [
+    ['undefined', undefined, accepted],
+    ['null', null, accepted],
+    ['an empty object', {}, accepted],
+    ['an object without a prototype', empty, accepted],
+    ['an object with a field', { extra: true }, refused],
+    ['an array', [], refused],
+    ['a string', 'x', refused],
+    ['a number', 0, refused],
+    ['a date', new Date(), refused],
+  ]
+  it.each(cases)('answers exactly for %s', async (_label, value, expected) => {
+    expect(await skillPlugin.Config['~standard'].validate(value)).toEqual(expected)
   })
 })

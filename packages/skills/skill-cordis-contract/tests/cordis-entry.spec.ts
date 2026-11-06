@@ -42,27 +42,64 @@ it('exports exactly the five abstract Service classes and the five key constants
   ])
 })
 
-it('provides a loaded subclass under its key and removes it when the fiber unloads', async () => {
-  class Check extends SkillReadCheckService<unknown, unknown> {
-    async check() {
-      return { kind: 'refused' } as const
-    }
+const unknownFailure = { failure: { kind: 'unknown' } } as const
+
+class Inspection extends PackageInspectionService {
+  async inspect() {
+    return { failure: { kind: 'source-unavailable' } } as const
   }
-  class Resolution extends SkillResolutionService<unknown, unknown> {
-    async resolve() {
-      return { kind: 'none' } as const
-    }
-    async adopted() {
-      return { ok: [] }
-    }
+}
+class Catalog extends SkillCatalogService<unknown, unknown> {
+  async summaries() {
+    return { ok: [] }
   }
-  const ctx = new Context()
-  const checkFiber = await ctx.plugin(Check)
-  const resolutionFiber = await ctx.plugin(Resolution)
-  expect(ctx.get(skillReadCheckKey)).toBeInstanceOf(Check)
-  expect(ctx.get(skillResolutionKey)).toBeInstanceOf(Resolution)
-  await checkFiber.dispose()
-  await resolutionFiber.dispose()
-  expect(ctx.get(skillReadCheckKey)).toBeUndefined()
-  expect(ctx.get(skillResolutionKey)).toBeUndefined()
-})
+  async search() {
+    return { ok: [] }
+  }
+}
+class Access extends SkillAccessService<unknown, unknown> {
+  async describe() {
+    return unknownFailure
+  }
+  async read() {
+    return unknownFailure
+  }
+  async list() {
+    return unknownFailure
+  }
+  async export() {
+    return unknownFailure
+  }
+}
+class Check extends SkillReadCheckService<unknown, unknown> {
+  async check() {
+    return { kind: 'unknown' } as const
+  }
+}
+class Resolution extends SkillResolutionService<unknown, unknown> {
+  async resolve() {
+    return { kind: 'unknown' } as const
+  }
+  async adopted() {
+    return { failure: 'unknown' } as const
+  }
+}
+
+const loadable = [
+  ['PackageInspectionService', Inspection, skillPackageInspectionKey],
+  ['SkillCatalogService', Catalog, skillCatalogKey],
+  ['SkillAccessService', Access, skillAccessKey],
+  ['SkillReadCheckService', Check, skillReadCheckKey],
+  ['SkillResolutionService', Resolution, skillResolutionKey],
+] as const
+
+it.each(loadable)(
+  'provides a loaded subclass of %s under its key and removes it when the fiber unloads',
+  async (_name, Sub, key) => {
+    const ctx = new Context()
+    const fiber = await ctx.plugin(Sub)
+    expect(ctx.get(key)).toBeInstanceOf(Sub)
+    await fiber.dispose()
+    expect(ctx.get(key)).toBeUndefined()
+  },
+)
