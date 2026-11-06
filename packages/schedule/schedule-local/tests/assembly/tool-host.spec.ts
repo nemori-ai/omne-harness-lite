@@ -173,6 +173,13 @@ it.each(['denied', 'missing', 'call', 'tenant', 'admission'] as const)(
     const world = await openToolHostWorld()
     try {
       world.setContextFault(fault)
+      if (fault === 'denied' || fault === 'missing') {
+        const calendar = await world.invoke('Calendar', { action: 'effective' })
+        expect(calendar.returned).toMatchObject({
+          kind: 'error',
+          error: { code: fault === 'missing' ? 'missing_environment' : 'forbidden' },
+        })
+      }
       const result = await world.invoke('Schedule', create)
       expect(result.returned).toMatchObject({
         kind: 'adapterFailure',
