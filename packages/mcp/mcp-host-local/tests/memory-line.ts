@@ -2,16 +2,24 @@
 // of replies by method, records what went out, and lets a test push events of the shared stream.
 // It is not a wire; the real lines are tested on real wires in `conformance.spec.ts`.
 import type { PlainJson, PlainRecord } from '@omne-harness/mcp-contract'
-import type { Exchange, GetOpened, Line, LineEvent, Outbound } from '../src/line.ts'
+import type { Exchange, FirstEvent, GetOpened, Line, LineEvent, Outbound } from '../src/line.ts'
 import { AsyncQueue } from '../src/queue.ts'
 
 /**
  * What the fallback GET gives back in a unit test. `entered` is a held fallback: a 200
- * `text/event-stream` whose first event is a same-origin `endpoint`. The others are the GET that
- * does not hold: a non-2xx status, a connection that was not made, or a stream without the endpoint.
+ * `text/event-stream` whose first event is a same-origin `endpoint`. `stream` is a 2xx answer
+ * stream as the test writes it (status, headers, first event), for the fallbacks that do not hold
+ * on the stream itself. The others are the GET that does not hold: a non-2xx status, a connection
+ * that was not made, or a stream without the endpoint.
  */
 export type SseConfig =
   | Readonly<{ kind: 'entered'; gate?: Promise<void> }>
+  | Readonly<{
+      kind: 'stream'
+      status: number
+      headers: Readonly<{ [name: string]: string }>
+      first: FirstEvent | undefined
+    }>
   | Readonly<{
       kind: 'status'
       status: number
@@ -115,6 +123,19 @@ export class MemoryLine implements Line {
           status: 200,
           headers: { 'content-type': 'text/event-stream' },
           first: { event: 'endpoint', data: '/message?sessionId=1' },
+          enter: () => {
+            this.sse = true
+          },
+          discard: () => {
+            this.discarded += 1
+          },
+        }
+      case 'stream':
+        return {
+          kind: 'stream',
+          status: config.status,
+          headers: config.headers,
+          first: config.first,
           enter: () => {
             this.sse = true
           },

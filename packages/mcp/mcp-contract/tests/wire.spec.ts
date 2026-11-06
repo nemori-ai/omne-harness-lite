@@ -2,6 +2,7 @@
 // and every classification is a class of the table's domain for that request and material.
 import { describe, expect, it } from 'vitest'
 import {
+  LEGACY_PROTOCOL_VERSIONS,
   PROCESS_EXIT_WINDOW_MS,
   classifyWireEvent,
   type AnswerClass,
@@ -239,6 +240,48 @@ function classify(event: WireEvent, ctx: WireContext): WireClassification {
   const classified = classifyWireEvent(event, ctx)
   return classified.kind === 'answer' ? { kind: 'answer', answer: classified.answer } : classified
 }
+
+describe('the result class of each request class (T2, T6)', () => {
+  const context = (request: RequestClass): WireContext => ({
+    id: 'r1',
+    request,
+    session: false,
+    versions: VERSIONS,
+  })
+  const classOf = (request: RequestClass, result: unknown): string => {
+    const text = JSON.stringify({ jsonrpc: '2.0', id: 'r1', result })
+    const classified = classifyWireEvent({ kind: 'line', text }, context(request))
+    return classified.kind === 'answer' ? classified.answer : classified.kind
+  }
+
+  it('reads the result by what the request asked for, and anything for the requests that take any result', () => {
+    expect(classOf('discover', { supportedVersions: VERSIONS, capabilities: {} })).toBe('result')
+    expect(classOf('discover', { supportedVersions: ['2099-01-01'], capabilities: {} })).toBe(
+      'result:no-common',
+    )
+    expect(classOf('discover-retry', { hello: 1 })).toBe('result:unreadable')
+    expect(
+      classOf('initialize', { protocolVersion: LEGACY_PROTOCOL_VERSIONS[0], capabilities: {} }),
+    ).toBe('result')
+    expect(classOf('initialize', { protocolVersion: VERSIONS[0], capabilities: {} })).toBe(
+      'result:unreadable',
+    )
+    expect(classOf('tools/list', { tools: [] })).toBe('result')
+    expect(classOf('tools/list', { tools: 'none' })).toBe('result:tools-missing')
+    expect(classOf('tools/list', { tools: [], nextCursor: 7 })).toBe('result:cursor-invalid')
+    expect(classOf('tasks/get', { taskId: 't1', status: 'working' })).toBe('result')
+    expect(classOf('tasks/get', { taskId: 't1', status: 'paused' })).toBe('result:status-unknown')
+    expect(classOf('tasks/get', { taskId: 't1', status: 'input_required' })).toBe(
+      'result:input-requests-missing',
+    )
+    expect(classOf('tasks/get', { taskId: 't1', status: 'completed' })).toBe(
+      'result:result-missing',
+    )
+    expect(classOf('tasks/get', { taskId: 't1', status: 'failed' })).toBe('result:error-missing')
+    for (const request of ['tools/call', 'tasks/update', 'tasks/cancel', 'notification'] as const)
+      expect(classOf(request, 'anything'), request).toBe('result')
+  })
+})
 
 describe('the envelope of an answer (T2)', () => {
   const discover = context('discover')

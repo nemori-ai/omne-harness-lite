@@ -495,6 +495,9 @@ describe('the probe and the paths of discover (T3, T8 D rows)', () => {
     expect(retryVersionOf(error([HIGHEST]), ['2027-01-01', HIGHEST])).toBe(HIGHEST)
     expect(retryVersionOf(error(['2099-01-01']), VERSIONS)).toBeUndefined()
     expect(retryVersionOf(error([]), VERSIONS)).toBeUndefined()
+    // A legacy revision in `supported`, alone or first, is never in common: this side speaks modern ones only.
+    expect(retryVersionOf(error([LEGACY_PROTOCOL_VERSIONS[0]]), VERSIONS)).toBeUndefined()
+    expect(retryVersionOf(error([LEGACY_PROTOCOL_VERSIONS[0], HIGHEST]), VERSIONS)).toBe(HIGHEST)
     expect(retryVersionOf(jsonOf({ code: -32022, message: 'x' }), VERSIONS)).toBeUndefined()
     expect(retryVersionOf(jsonOf('x'), VERSIONS)).toBeUndefined()
   })
@@ -523,6 +526,35 @@ describe('the probe and the paths of discover (T3, T8 D rows)', () => {
     expect(concludeProbe(wire('-32022+legacy', []), 'discover', VERSIONS, BOUND)).toEqual({
       kind: 'legacy-peer',
     })
+  })
+
+  it('every error class of a probe answer has its conclusion, on the first probe and on the retry (D07–D11)', () => {
+    const wire = (errorClass: ErrorClass): WireAnswer => ({
+      kind: 'error',
+      error: jsonOf(
+        errorClass === 'unreadable' ? { message: 'no code' } : { code: -1, message: 'x' },
+      ),
+      errorClass,
+    })
+    for (const request of ['discover', 'discover-retry'] as const) {
+      for (const errorClass of ['-32020', '-32021'] as const)
+        expect(concludeProbe(wire(errorClass), request, VERSIONS, BOUND), errorClass).toEqual({
+          kind: 'final',
+          failure: { kind: 'error-answer', code: -1, message: 'x' },
+        })
+      expect(concludeProbe(wire('-32601'), request, VERSIONS, BOUND)).toEqual({
+        kind: 'legacy-peer',
+      })
+      for (const errorClass of ['-32602', 'other'] as const)
+        expect(concludeProbe(wire(errorClass), request, VERSIONS, BOUND), errorClass).toEqual({
+          kind: 'fallback',
+          failure: { kind: 'error-answer', code: -1, message: 'x' },
+        })
+      expect(concludeProbe(wire('unreadable'), request, VERSIONS, BOUND)).toEqual({
+        kind: 'fallback',
+        failure: { kind: 'answer-malformed', what: 'error-shape' },
+      })
+    }
   })
 
   it('discoverWith: identity on the modern path; the retry; the legacy path and which failure it reports', async () => {

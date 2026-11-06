@@ -10,7 +10,6 @@ import type { RequestMethod } from './composition.ts'
 import { isObject, member, type JsonObject } from './json.ts'
 import type { AnswerMalformed, AuthorizationDiscovery, NoAnswerCause } from './outcomes.ts'
 import { errorAnswerOf, peerIdentityOf, readDiscoverResult, type IdentityBound } from './readers.ts'
-import { isModernProtocolVersion } from './revisions.ts'
 import type { TransportFailure, TransportMaterial } from './transport.ts'
 import type { PeerIdentity } from './values.ts'
 import {
@@ -294,11 +293,15 @@ export function errorFailureOf(wire: Extract<WireAnswer, { kind: 'error' }>): Tr
 
 // ---- The probe and the two paths of discover (T3, T8 D rows, I rows) ----
 
-/** The highest version in common with the `supported` of a `-32022`, when there is one (T3). */
+/**
+ * The highest version in common with the `supported` of a `-32022`, when there is one (T3).
+ * `versions` are the modern versions this side speaks, so a legacy version in `supported` is
+ * never in common; the modern-ness is judged once, in `errorClassOf` (T2).
+ */
 export function retryVersionOf(error: JsonValue, versions: readonly string[]): string | undefined {
   const data = isObject(error) ? member(error, 'data') : undefined
-  const modern = (supportedOf(data) ?? []).filter(isModernProtocolVersion)
-  return versions.find(version => modern.includes(version))
+  const supported = supportedOf(data) ?? []
+  return versions.find(version => supported.includes(version))
 }
 
 /** D04–D07: what a `-32022` means, by its class and by which probe it answered. */

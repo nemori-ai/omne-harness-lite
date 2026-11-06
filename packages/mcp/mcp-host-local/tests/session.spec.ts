@@ -972,6 +972,44 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
     }
   })
 
+  it('a GET stream that does not hold the fallback is let go and reports I07: a status other than 200, another content type, a first event that is not the endpoint', async () => {
+    const endpoint = { event: 'endpoint', data: '/message?sessionId=1' }
+    const streams: readonly Extract<SseConfig, { kind: 'stream' }>[] = [
+      {
+        kind: 'stream',
+        status: 204,
+        headers: { 'content-type': 'text/event-stream' },
+        first: endpoint,
+      },
+      {
+        kind: 'stream',
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        first: endpoint,
+      },
+      {
+        kind: 'stream',
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+        first: { event: 'message', data: '{}' },
+      },
+      {
+        kind: 'stream',
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+        first: undefined,
+      },
+    ]
+    for (const entry of streams) {
+      const { line, transport } = open('streamable-http', sseScript, { sse: entry })
+      expect(await transport.discover(), JSON.stringify(entry)).toEqual({ failure: NOT_SENT })
+      expect(line.discarded, JSON.stringify(entry)).toBe(1)
+      expect(line.sse, JSON.stringify(entry)).toBe(false)
+      expect(line.requests('initialize'), JSON.stringify(entry)).toHaveLength(1)
+      await transport.close()
+    }
+  })
+
   it('initialize answered 401, 5xx or 4xx with a JSON-RPC error does not try the fallback', async () => {
     for (const reply of [
       status(401, '', { 'www-authenticate': 'Bearer' }),

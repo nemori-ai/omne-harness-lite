@@ -76,7 +76,7 @@
 
 <a id="h6"></a>
 
-- **H6 进程归落点与 stdin 写端**（契约 T5、PL）：`StdioLine`（`src/stdio-line.ts`）跑在材料的 `ProcessHandle.stdin`/`stdout` 上。它从 `open` 起读出并丢弃 `stderr`，不写日志，让进程不因 stderr 管道满而阻塞。`close()` 的次序：结束 stdin 写端，再取消 stdout 读取，再取消 stderr 读取，然后等两个读循环结束；它不调用 `stop()`。线路把未完成的写记为计数；`close()` 时计数不为零就中止写端，不等对端读 stdin，仍在等管道的 `send` 答 `aborted`。会话在关闭线路之前先结算在途请求，见所有权一节。一次写在完成前被它的 `signal` 中止时，线路中止写端，不再可写，并报告 `broken`：在途的已发出请求答 `no-answer`（`stream-broken`），传输不再可用。反例：`close()` 调 `stop()`；`close()` 等一个不读 stdin 的对端。变异：`StdioLine.close` 颠倒前两步 → `conformance.spec.ts` T5「stdio: close() closes stdin, then cancels stdout」变红；在途写的计数改回布尔（`tests/model/mutants.ts` 的 `mStdio-writes-boolean`）→ `lines.spec.ts`「two overlapping writes, the first completes, then close()」变红。不读 stdin 的对端由 `stdio.spec.ts`「the pipe is full: the call's signal settles the answer, the transport is unusable, and close() returns, each within the bound」核对。
+- **H6 进程归落点与 stdin 写端**（契约 T5、PL）：`StdioLine`（`src/stdio-line.ts`）跑在材料的 `ProcessHandle.stdin`/`stdout` 上。它从 `open` 起读出并丢弃 `stderr`，不写日志，让进程不因 stderr 管道满而阻塞。`close()` 的次序：中止 stdin 写端（对端看到输入结束），再取消 stdout 读取，再取消 stderr 读取，然后等两个读循环结束；它不调用 `stop()`。关闭是放弃：会话在关闭线路之前已按相结算全部在途请求（见所有权一节），之后没有任何字节需要送达，所以线路的关闭没有优雅一支，从不等缓冲排空：web 写的完成只表示下层收下了字节，不表示对端读了，等排空就是等对端。线路的 `close()` 只依赖本地资源（写端、两个 reader、两个读循环），这是线路对会话的义务，也是 V4 对 `close()` 的前提。仍在等满管道的 `send` 答 `aborted`。一次写在完成前被它的 `signal` 中止时，线路中止写端，不再可写，并报告 `broken`：在途的已发出请求答 `no-answer`（`stream-broken`），传输不再可用。反例：`close()` 调 `stop()`；`close()` 等一个不读 stdin 的对端（无在途写就关闭写端：已出发的小写还在 Node 的缓冲里，关闭写端要等它冲进没人读的管道）。变异：`StdioLine.close` 颠倒前两步 → `conformance.spec.ts` T5「stdio: close() closes stdin, then cancels stdout」变红（「closes」指结束写端，中止也算）；关闭时改回关闭写端（`tests/model/mutants.ts` 的 `mStdio-close-flushes`）→ `stdio.spec.ts`「small calls that departed sit in the buffer to a peer that does not read stdin」变红。不读 stdin 的对端另由 `stdio.spec.ts`「the pipe is full」核对（一个未完成的大写被 `signal` 中止）；两个重叠写后 `close()` 当即返回由 `lines.spec.ts`「two overlapping writes, the first completes, then close()」核对。
 
 <a id="h7"></a>
 
@@ -170,25 +170,27 @@
 
 ## 所有权、失败与生命周期
 
-- **身份与状态。** 一个 `Session` 是一个 `McpTransport`，带材料的代际。它拥有：在途请求表、连接模式（一个判别联合：现代一路，带协商出的版本；旧修订，带版本与旧 Streamable HTTP 的可选会话号；旧 HTTP+SSE 模式）、`closed` 与那一次关闭的结果、`dead`（流断开、进程退出、会话结束，传输不再可用）。在途表的每一项有请求号、`WireContext`、自己的 `AbortController`、授权标记、自己的结算与出发点（两者都只兑现一次；在途表里还有它才算在途）、相（已登记尚未交给线路 `authorizing`、已交给线路 `sent`、授权发现中 `discovery`，后者带发现的进度）、探测计时的取消函数与应答流的 `abort`。线路拥有：stdio 的 writer、stdout 与 stderr 的 reader、两个时刻与退出窗口的计时；HTTP 的在途 `AbortController` 集合、endpoint 与共用流的 reader。
+- **身份与状态。** 一个 `Session` 是一个 `McpTransport`，带材料的代际。它拥有：在途请求表、连接模式（一个判别联合：现代一路，带协商出的版本；旧修订，带版本与旧 Streamable HTTP 的可选会话号；旧 HTTP+SSE 模式）、`closed` 与那一次关闭的结果、`dead`（流断开、进程退出、会话结束，传输不再可用）。在途表的每一项有请求号、`WireContext`、自己的 `AbortController`、自己的结算与出发点（两者都只兑现一次；在途表里还有它才算在途）与相：契约的 `InFlightPhase`（T5），已登记尚未交给线路 `authorizing`、已交给线路 `sent`（带它的交换：尚无、应答流的 `abort`、或探测计时的取消）、授权发现中 `discovery`（带拒绝应答的头与发现的进度）。线路拥有：stdio 的 writer、stdout 与 stderr 的 reader、两个时刻与退出窗口的计时；HTTP 的在途 `AbortController` 集合、endpoint 与共用流的 reader。
 - **一个请求只结算一次。** 先到者定（T5）：应答、流断开、进程退出、探测时限、`cancelRequest`、`signal`、`close()` 中最先发生的那个给出结论，之后的事件对已结算的请求没有作用。一个请求在授权与写出之前登记进在途表，`call` 的 `signal` 在登记时接到它。
-- **调用方只等结算。** 读写类操作与 `discover` 的探测等在途项的结算；`call` 等「出发点」与结算的先到者：线路收下请求（stdio 写完、HTTP 2xx 应答流开始）就交出 `SentCall`，先结算为 `not-sent` 就交失败，先结算为其他就交 `SentCall` 与那个答复。授权、组成与写出、拒绝报告与元数据取回、答复对端请求、通知，都是会话拥有的后台工作，经一个入口启动：调用凭据句柄之前同步核传输是否已关闭；在途项结算之后的结果丢弃；工作流意外 reject 时，它的在途项按所处的相结算（下一条的表），没有在途项的工作没有结局。于是凭据句柄、元数据取回、线路或对端挂起都不让调用方等：没有 `signal` 的操作（`discover`、`listActions`、任务操作）只由 `close()` 放开；没有 `close()` 时，挂起的句柄由它的持有者负责。`discover` 另有两处在关闭之下等待、到期即收场的交换：旧一路回退 GET 的授权与 GET 本身，以及 `notifications/initialized` 的写出。
-- **取消。** stdio 与旧修订（含 SSE 模式）上，`cancelRequest` 把 `notifications/cancelled` 交给后台工作后当即返回（它不证明对端已停止），`answer` 继续等。现代 Streamable HTTP 上，它中止这个请求的 `fetch` 与应答流，答 `abandoned`。`call` 的 `signal` 在调用前已触发时答 `not-sent`。登记之后任何时刻触发，传输都不再等待：在途项当场按所处的相结算（下一条的表），`call` 在触发后结算，不等凭据句柄或对端；交换随之释放（契约 [T5](../mcp-contract/SPEC.md#port-transport)）：
+- **调用方只等结算。** 读写类操作与 `discover` 的探测等在途项的结算；`call` 等「出发点」与结算的先到者：线路收下请求（stdio 写完、HTTP 2xx 应答流开始）就交出 `SentCall`，先结算为 `not-sent` 就交失败，先结算为其他就交 `SentCall` 与那个答复。授权、组成与写出、拒绝报告与元数据取回、答复对端请求、通知，都是会话拥有的后台工作，经一个入口启动：调用凭据句柄之前同步核传输是否已关闭；在途表是每个工作流唯一的再核点：在途项结算之后的结果丢弃，没有在途项的写出（答复对端、通知、回退 GET）在句柄答复之后再核传输是否可用；工作流意外 reject 时，它的在途项按所处的相结算（下一条的表），没有在途项的工作没有结局，原因都交给 `SessionOptions.reportDefect`（缺陷出口；工厂的缺省在 Promise 之外抛出，让宿主的未捕获处理看到）。读线路事件或应答正文时的缺陷同样走缺陷出口，不归入流断开，读循环继续。于是凭据句柄、元数据取回、线路或对端挂起都不让调用方等：没有 `signal` 的操作（`discover`、`listActions`、任务操作）只由 `close()` 放开；没有 `close()` 时，挂起的句柄由它的持有者负责。`discover` 另有两处在关闭之下等待、到期即收场的交换：旧一路回退 GET 的授权与 GET 本身，以及 `notifications/initialized` 的写出。
+- **取消。** stdio 与旧修订（含 SSE 模式）上，`cancelRequest` 把 `notifications/cancelled` 交给后台工作后当即返回（它不证明对端已停止），`answer` 继续等。现代 Streamable HTTP 上，它中止这个请求的 `fetch` 与应答流，答 `abandoned`。`call` 的 `signal` 在调用前已触发时答 `not-sent`。登记之后任何时刻触发，传输都不再等待：在途项当场按所处的相结算（契约的 `stopAnswerOf`，下一条的表只写本包怎样兑现），`call` 在触发后结算，不等凭据句柄或对端；交换随之释放（契约 [T5](../mcp-contract/SPEC.md#port-transport)）。「已交给线路」是 T5 的「已交出」：对端可能收到请求的任何部分之后；本包里就是授权返回、请求交给线路的 `send` 之后，不论写是否已完成：
   - 已登记、尚未交给线路（授权中）：`call` 答 `not-sent`（`connection-unavailable`），不交出 `SentCall`；授权若稍后返回，请求不发出。
   - 已交给线路，现代 Streamable HTTP：中止这次 `fetch` 与应答流，包括应答头还没到的时候；`answer` 答 `abandoned`。
   - 已交给线路，旧修订的 Streamable HTTP 与 SSE 模式：同样中止这次 POST 的交换；旧修订不把断开读成取消。SSE 模式下，应答若稍后经共用的流到达，按无关的消息丢弃。
   - 已交给线路，stdio：写已完成时，对端看不到释放。写未完成时，线路中止写端，传输按流断开不再可用（H6）。
-  - 授权发现中：`signal` 结束元数据的取回，请求当场答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出，没取到的地址按 R4 是 `unavailable`；拒绝报告与取回在后台继续到结束，结果丢弃。
-- **关闭。** `close()` 标记关闭，当场按在途请求所处的相结算，与 `signal` 同形：
+  - 授权发现中：`signal` 结束元数据的取回，请求当场答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出，没取到的地址按 R4 是 `unavailable`；信号之后不再发起新的取回（R4 的第二个候选地址不再取），已发起的那次与拒绝报告在后台继续到结束，结果丢弃；会话不依赖取回遵守信号。
+- **关闭。** `close()` 标记关闭，当场按在途请求所处的相结算，与 `signal` 同形（同一条 `stopAnswerOf`）：
   - 授权中：答 `not-sent`（`connection-unavailable`），不再调用句柄。
   - 已交给线路：答 `no-answer`（`abandoned`）。
   - 授权发现中：答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出。`close()` 不等发现结束。
 
-  然后会话中止一切 `fetch`、回退的 GET 与元数据取回，关闭线路，只等线路的 `close()`；stdio 线路按 H6 的次序关闭。之后的请求答 `not-sent`（`connection-unavailable`）。关闭之后会话不再调用凭据句柄，不再答复对端的请求。`close()` 可以重复调用：每次调用拿到同一次关闭的结果，都在线路的 `close()` 答复之后返回。
+  然后会话中止一切 `fetch`、回退的 GET 与元数据取回，关闭线路，只等线路的 `close()`；线路的 `close()` 只依赖本地资源，不等对端（stdio 按 H6 中止写端，HTTP 中止全部交换），这是线路对会话的义务，也是 V4 对 `close()` 的前提。之后的请求答 `not-sent`（`connection-unavailable`）。关闭之后会话不再调用凭据句柄，不再答复对端的请求。`close()` 可以重复调用：每次调用拿到同一次关闭的结果，都在线路的 `close()` 答复之后返回。
+
+- **线路断开。** 流断开、进程退出（线路的 `ended`、`broken` 事件）与会话结束（T8 S07）都让传输不再可用，并按契约的 `lineGoneAnswerOf` 结算在途请求：授权中的答 `not-sent`（`connection-unavailable`），授权返回后不发出；已交给线路的按原因答 `no-answer`（`stream-broken`、`process-exited`），会话结束时只有被告知的那次请求答 `not-sent`（`session-ended`），其余已交给线路的由各自的应答决定；授权发现中的不动，发现做完照常以 `authorization-required` 结束。之后的请求答 `not-sent`（`connection-unavailable`）：不登记，不调用句柄；读类的再发经同一处登记被拒，答 `not-sent`。迟到的应答（含迟到的 404）落在已结算的请求上没有作用，也不让传输不可用。
 
 - **对端的请求与通知。** 任何线路上带 `method` 与 `id` 的消息由契约的 `readPeerMessage` 读出：`ping` 答空结果，其余答 `-32601`（`peerRequestAnswerOf`）。答复经线路写出，回显的 id 按原词形写出；HTTP 上答复是一次 POST，它先经 `authorize`（H4），它的状态没有结局。`notifications/progress` 的 `progressToken` 对上在途调用时交给它的 `observe`（抛出不改变结局）。其他通知丢弃。
 - **资源释放。** 探测计时在结算或关闭时取消。应答到达之后，应答流在后台读到结束，释放连接；读的过程中到达的对端请求与通知照常处理。没有人等待的交换（通知、答复对端请求的 POST）同样在后台读完。关闭时这些读取随交换的中止结束。没有 disposer 让外部效果可撤回：已经写出的请求与通知就是写出了。
-- **失败的处置。** 线路 reject 是线路的缺陷：会话把发送请求时的 reject 当作 `aborted`，把写出通知与答复时的 reject 忽略。凭据句柄 reject 或抛出按 T9。工作流里任何没有预期的 reject 都有去向：它的在途项按所处的相结算（授权中 `not-sent`，已交给线路 `abandoned`，发现中 `authorization-required`）。`observe` 抛出按契约 S6。本包不把错误变成成功：读不懂的应答按 T7 的 `what` 报出，没有应答按 `no-answer` 的原因报出。
+- **失败的处置。** 线路 reject 是线路的缺陷：会话把发送请求时的 reject 当作 `aborted`，把写出通知与答复时的 reject 忽略。凭据句柄 reject 或抛出按 T9。工作流里任何没有预期的 reject 都有去向：它的在途项按所处的相结算（`stopAnswerOf`），原因交给缺陷出口 `SessionOptions.reportDefect`。`observe` 抛出按契约 S6。本包不把错误变成成功：读不懂的应答按 T7 的 `what` 报出，没有应答按 `no-answer` 的原因报出。
 - **并发。** 一条线路上可以有多个请求同时在途。stdio 上按行投递，每行对每个在途请求各归类一次。HTTP 上每个请求各自一次 `fetch`。SSE 模式下共用一条流。会话不排队，不限流。
 
 ## 组合与验证
@@ -229,7 +231,7 @@
 - 会话的注入端口：线路（`send`、`openGet`、应答流、`close`）、凭据句柄（`authorize`、`reportRejection`）、元数据取回 `SessionOptions.fetchMetadata`、计时端口 `SessionOptions.schedule`。会话不读全局时钟、不直接起全局计时器，所以探索器排定每一个端口调用、每一次计时触发、`signal` 与 `close()` 的次序。
 - 一个在途请求的三相（`Pending.phase`）：已登记、尚未交给线路 `authorizing`，已交给线路 `sent`，授权发现中 `discovery`。
 
-端口失败模型：每次端口调用可以按契约答复、答复它的失败、reject、或永不答复（挂起）。线路的 `send`、`openGet` 与应答流受它们收到的 `signal` 管辖：`signal` 中止时按契约当即收场（契约 [T5](../mcp-contract/SPEC.md#port-transport)、线路端口 [`line.ts`](src/line.ts)）。凭据句柄的 `authorize`、`reportRejection` 与元数据取回不收 `signal`，可以一直挂着。承诺：调用方能看到的每一个等待（操作的结果、`call` 的结果与 `answer`、`close()`）在 `signal` 触发或 `close()` 之后结算，凭据句柄、元数据取回、线路或对端挂起都不改变这一点。没有 `signal` 的操作（`discover`、`listActions`、任务操作）只由 `close()` 放开；没有 `close()` 时，挂起的句柄由它的持有者负责。挂起的端口调用留在后台，由会话拥有，它之后的答复作废。
+端口失败模型：每次端口调用可以按契约答复、答复它的失败、reject、或永不答复（挂起）。线路的 `send`、`openGet` 与应答流受它们收到的 `signal` 管辖：`signal` 中止时按契约当即收场（契约 [T5](../mcp-contract/SPEC.md#port-transport)、线路端口 [`line.ts`](src/line.ts)）。凭据句柄的 `authorize`、`reportRejection` 不收 `signal`，可以一直挂着；元数据取回收到 `signal`，会话不依赖它遵守，也可以一直挂着。承诺：调用方能看到的每一个等待（操作的结果、`call` 的结果与 `answer`、`close()`）在 `signal` 触发或 `close()` 之后结算，凭据句柄、元数据取回、线路或对端挂起都不改变这一点。没有 `signal` 的操作（`discover`、`listActions`、任务操作）只由 `close()` 放开；没有 `close()` 时，挂起的句柄由它的持有者负责。挂起的端口调用留在后台，由会话拥有，它之后的答复作废。
 
 证据分两种，范围见 [verification/README.md](verification/README.md#两种证据与各自范围)：有界穷举探索器驱动真实的 `Session`，核对下列性质的可观察形式；TLA+ 模型 `TransportSession.tla` 在有限配置内核对同一组性质的抽象形式。两者都只在各自上限与抽象之内成立，不是证明。
 
