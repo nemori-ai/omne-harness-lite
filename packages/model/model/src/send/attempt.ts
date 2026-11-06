@@ -13,6 +13,7 @@ import {
   type ModelCommands,
   type SendDemand,
   type SendResult,
+  type ModelTransport,
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { SendLifetime, ownedFacts } from './lifetime.ts'
@@ -38,13 +39,19 @@ type MaterializationResult = Extract<
 type Window = Parameters<Commands['openReceiveWindow']>[0]
 type RecordSend = Parameters<Commands['recordSend']>[0]
 type Preserve = Parameters<Commands['preserve']>[0]
+type Refusal = Extract<SendStart, { kind: 'refused' }>
+type TransportFailure = Extract<
+  Awaited<ReturnType<ModelTransport['prepare']>>,
+  { failure: unknown }
+>['failure']
 type Stage =
   | { kind: 'acquire' }
+  | { kind: 'refusal'; result: Refusal }
   | {
       kind: 'materialization'
       write: Write<Materialization, MaterializationResult>
     }
-  | { kind: 'window'; write: Write<Window, Window['expected']> }
+  | { kind: 'window'; write: Write<Window, Window['expected']>; next: { kind: 'start' } | Refusal }
   | { kind: 'start'; revision: Window['expected'] }
   | { kind: 'record'; write: Write<RecordSend, RecordSend['expected']>; result: SendStart }
   | { kind: 'terminal'; write: Write<Preserve, unknown>; failure: ModelFailure }
@@ -73,7 +80,19 @@ export const refused = (failure: ModelFailure): SendResult => ({ kind: 'not-star
 function credentialFault(diagnostic: 'credential-missing' | 'credential-unreadable'): ModelFault {
   return { cause: 'credential', diagnostic, upstreamStatus: null }
 }
-type CredentialRefusal = Readonly<{ failure: ModelFailure; fault?: ModelFault }>
+type RefusalReason = Readonly<{ failure: ModelFailure; fault?: ModelFault }>
+function transportRefusal(failure: TransportFailure): RefusalReason {
+  if (failure.kind === 'unavailable') return { failure }
+  const causes = { denied: 'excluded', invalid: 'input-rejected', unsupported: 'modality' } as const
+  return {
+    failure,
+    fault: {
+      cause: causes[failure.kind],
+      diagnostic: `transport-${failure.kind}`,
+      upstreamStatus: null,
+    },
+  }
+}
 function operation(): ModelOperationId {
   const decoded = decodeModelOperationId(`mop_${randomBytes(16).toString('hex')}`)
   if ('ok' in decoded) return decoded.ok
@@ -157,7 +176,7 @@ export function createAttemptRunner<P>(
   function resolveCredential(
     attempt: SendAttempt<P>,
     selection: CredentialSelection,
-  ): Readonly<{ ok: string }> | CredentialRefusal {
+  ): Readonly<{ ok: string }> | RefusalReason {
     if (!credentials.resolveFor || typeof selection.official !== 'boolean')
       return { failure: unavailable('model-credential', 'qualified-path-missing') }
     const resolved = credentials.resolveFor({
@@ -208,7 +227,7 @@ export function createAttemptRunner<P>(
   }
   async function acquireResources(
     attempt: SendAttempt<P>,
-  ): Promise<Outcome<MaterializedTransport, ModelFailure>> {
+  ): Promise<{ ok: MaterializedTransport } | RefusalReason> {
     const input = attempt.input
     const acquired = await resources.acquire(input)
     if ('failure' in acquired) return acquired
@@ -217,10 +236,10 @@ export function createAttemptRunner<P>(
     const prepared = await acquired.ok.transport.prepare(input.request, input.supplier, {
       resent: [],
     })
-    if ('failure' in prepared) return prepared
+    if ('failure' in prepared) return transportRefusal(prepared.failure)
     attempt.lifetime.prepared = prepared.ok
     const materialized = await prepared.ok.materialize(attempt.signal)
-    if ('failure' in materialized) return materialized
+    if ('failure' in materialized) return transportRefusal(materialized.failure)
     attempt.lifetime.materialized = materialized.ok
     return materialized
   }
@@ -255,8 +274,13 @@ export function createAttemptRunner<P>(
         result: stop(id, attempt, unavailable('model-send', 'cancelled-before-prepare')),
       }
     const materialized = await acquireResources(attempt)
-    if ('failure' in materialized)
+    if ('failure' in materialized) {
+      if (materialized.fault !== undefined) {
+        attempt.stage = { kind: 'refusal', result: { kind: 'refused', ...materialized } }
+        return { kind: 'continue' }
+      }
       return { kind: 'complete', result: stop(id, attempt, materialized.failure) }
+    }
     const receipt = structuredClone(materialized.ok.receipt)
     if (!receiptMatches(receipt, materialized.ok.receipt, input))
       return {
@@ -283,6 +307,30 @@ export function createAttemptRunner<P>(
     }
     return { kind: 'continue' }
   }
+  async function prepareRefusalWindow(
+    attempt: SendAttempt<P>,
+    entry: Extract<Stage, { kind: 'refusal' }>,
+  ): Promise<Progress> {
+    const current = await commands.loadRecovery(attempt.input)
+    if ('failure' in current)
+      return { kind: 'complete', result: unknown(attempt, 'refusal-revision-unconfirmed') }
+    attempt.stage = {
+      kind: 'window',
+      next: entry.result,
+      write: {
+        input: {
+          ...attempt.input.execution,
+          operation: operation(),
+          expected: current.ok.state.revision,
+          dispatch: attempt.input.dispatch,
+          window: attempt.window,
+        },
+        confirmation: 'new',
+        run: input => commands.openReceiveWindow(input),
+      },
+    }
+    return { kind: 'continue' }
+  }
   async function recordMaterialization(
     id: string,
     attempt: SendAttempt<P>,
@@ -296,6 +344,7 @@ export function createAttemptRunner<P>(
       return { kind: 'complete', result: stop(id, attempt, result.failure) }
     attempt.stage = {
       kind: 'window',
+      next: { kind: 'start' },
       write: {
         input: {
           ...input.execution,
@@ -320,6 +369,8 @@ export function createAttemptRunner<P>(
       return { kind: 'complete', result: unknown(attempt, 'receive-window-commit-unknown') }
     if (result.kind === 'rejected')
       return { kind: 'complete', result: stop(id, attempt, result.failure) }
+    if (entry.next.kind === 'refused')
+      return recordStarted(id, attempt, buildRecord(attempt, result.value, operation(), entry.next))
     const starting: Extract<Stage, { kind: 'start' }> = { kind: 'start', revision: result.value }
     attempt.stage = starting
     const recording = startAndBuildRecord(attempt, starting)
@@ -350,10 +401,18 @@ export function createAttemptRunner<P>(
     attempt: SendAttempt<P>,
     entry: Extract<Stage, { kind: 'start' }>,
   ): Extract<Stage, { kind: 'record' }> {
-    const input = attempt.input
     if (!attempt.receipt) throw new Error('missing receipt')
     const sendOperation = operation()
     const decision = startQualified(attempt, attempt.receipt)
+    return buildRecord(attempt, entry.revision, sendOperation, decision)
+  }
+  function buildRecord(
+    attempt: SendAttempt<P>,
+    revision: Window['expected'],
+    sendOperation: ModelOperationId,
+    decision: SendStart,
+  ): Extract<Stage, { kind: 'record' }> {
+    const input = attempt.input
     const recording: Extract<Stage, { kind: 'record' }> = {
       kind: 'record',
       result: decision,
@@ -361,7 +420,7 @@ export function createAttemptRunner<P>(
         input: {
           ...input.execution,
           operation: sendOperation,
-          expected: entry.revision,
+          expected: revision,
           dispatch: input.dispatch,
           state:
             decision.kind === 'refused'
@@ -492,6 +551,8 @@ export function createAttemptRunner<P>(
     }
     if (attempt.stage.kind === 'record')
       return { kind: 'complete', result: unknown(attempt, 'send-record-unconfirmed') }
+    if (attempt.stage.kind === 'refusal')
+      return { kind: 'complete', result: unknown(attempt, 'refusal-revision-unconfirmed') }
     return {
       kind: 'complete',
       result: stop(id, attempt, unavailable('model-send', 'transport-prepare-failed')),
@@ -501,6 +562,10 @@ export function createAttemptRunner<P>(
     try {
       if (attempt.stage.kind === 'acquire') {
         const result = await acquire(id, attempt)
+        if (result.kind !== 'continue') return result.result
+      }
+      if (attempt.stage.kind === 'refusal') {
+        const result = await prepareRefusalWindow(attempt, attempt.stage)
         if (result.kind !== 'continue') return result.result
       }
       if (attempt.stage.kind === 'materialization') {
