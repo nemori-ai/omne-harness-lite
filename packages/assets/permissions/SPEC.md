@@ -1,5 +1,7 @@
 # permissions长期行为规格
 
+HJ0 的[动态治理贡献候选](../docs/governance-contributions.md)定义功能声明真实权限项、scope、Settings 配值投影及卸载/重装配协议。登记不是授权，权限项及范围不能由公共层预置成封闭的业务枚举。当前入口仍未实现该组合。
+
 状态：候选、待用户确认。目标位置为`packages/assets/permissions/SPEC.md`，不表示公开API、包或实现存在。本文维护结构化权限配值与求值；[产品正文](../../../.meta_harness/design/product/assets-and-rules/design.md#settings-and-permissions)维护产品含义，[领域架构](../docs/architecture.md)维护责任关系。
 
 ## 阶段与长期范围

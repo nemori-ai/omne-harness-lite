@@ -1,6 +1,6 @@
 # 人在回路能力组
 
-本组只建立文档目标，没有真实 workspace 成员、源码或运行实例。候选分解已有评审输入；技术采用、公开形状及实现支持尚未核实。正式目录不是接受依据。
+本组已有workspace草稿成员，公开入口为空导出，没有运行服务。领域行为与协议候选不等于实现。正式目录不是接受依据。
 
 ## 责任与范围
 
@@ -10,7 +10,7 @@
 
 | 文档目标 | 责任及状态 |
 | --- | --- |
-| [human-intervention](human-intervention/README.md) | 原候选具名成员；只有文档，没有真实 workspace 包；[SPEC](human-intervention/SPEC.md)及[内部设计](human-intervention/docs/internals.md)尚待技术采用 |
+| [human-intervention](human-intervention/README.md) | 原候选具名成员；已有workspace草稿，尚无公开运行服务；[SPEC](human-intervention/SPEC.md)及[内部设计](human-intervention/docs/internals.md)尚待技术采用 |
 
 本组为单成员目标组，成员拆分或新增适配不得仅从目录推定。独立消费从成员行为及未来公开定义开始；Cordis 消费另核对已采用集成约定，不以 runtime 对象充当数据契约。
 
@@ -25,3 +25,7 @@
 ## 维护
 
 组维护者负责工程分解、成员导航、允许依赖与组合验证。具名人员及 provider 采用尚待确认。成员维护者负责行为、内部机制与消费者；变更须同步产品条件、相关事实拥有者及登记。新建真实包仍须遵循[成员文档规范](../../docs/member-documentation.md)，不能把文档迁移当作实施授权。
+
+## 公共协议与验证入口
+
+[公共协议](human-intervention/docs/protocol.md)、[函数与并发模型](human-intervention/docs/formal-model.md)、[权限组合](human-intervention/docs/permission-composition.md)及[可执行守护](human-intervention/verification/README.md)形成已于2026-11-06由用户验收的HJ0技术采用。模型通过不证明运行时已实现。

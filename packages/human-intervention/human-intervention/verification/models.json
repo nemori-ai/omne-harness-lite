@@ -1,0 +1,528 @@
+{
+  "model": "models/HumanDecision.tla",
+  "scope": "HJ0 finite behavioral models only; two cards/two competing replies, three calls/two sessions, three inputs/two sessions. Includes weak-fairness conditional progress. No runtime, SQL, power-loss, real scheduling fairness or distributed protocol proof. RecoveryRouting: one runtime replacement, durable answer/inbox and generation-fenced receiver with weak-fairness conditional delivery. AuthorityComposition: seven independent withdrawal sources and one protected commit; abstract atomic owner guards, not an implemented coordinator. RegistrationProtocol: one original operation and bounded duplicate IDs, durable registration/seal and volatile receipts. ContinuationComposition: two rounds with two cards, one runtime replacement, current authority/terminal fencing and recorded judgments; abstract atomic recording, no arbitrary external effect proof. IntakeControl: one session, three inputs, pending capacity two, two driver generations and archive/run cancellation; logical scheduling only. ExecutionSlots: three calls, one active slot, one human wait; human release, ready queue, reacquire and conditional progress under weak fairness. Continuation includes mixed allow/ask/deny judgments in the second round and ready-to-advance conditional progress.",
+  "cases": [
+    {
+      "name": "intakecontrol-none",
+      "model": "models/IntakeControl.tla",
+      "config": "models/intakecontrol-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "intakecontrol-capacity",
+      "model": "models/IntakeControl.tla",
+      "config": "models/intakecontrol-capacity.cfg",
+      "expected": "BoundedPending"
+    },
+    {
+      "name": "intakecontrol-archive",
+      "model": "models/IntakeControl.tla",
+      "config": "models/intakecontrol-archive.cfg",
+      "expected": "NoAcceptAfterArchive"
+    },
+    {
+      "name": "intakecontrol-lost",
+      "model": "models/IntakeControl.tla",
+      "config": "models/intakecontrol-lost.cfg",
+      "expected": "AcceptedAccounted"
+    },
+    {
+      "name": "intakecontrol-cancel",
+      "model": "models/IntakeControl.tla",
+      "config": "models/intakecontrol-cancel.cfg",
+      "expected": "AcceptedAccounted"
+    },
+    {
+      "name": "intakecontrol-stale",
+      "model": "models/IntakeControl.tla",
+      "config": "models/intakecontrol-stale.cfg",
+      "expected": "NoStaleDriver"
+    },
+    {
+      "name": "intakecontrol-completion",
+      "model": "models/IntakeControl.tla",
+      "config": "models/intakecontrol-completion.cfg",
+      "expected": "NoStaleCompletion"
+    },
+    {
+      "name": "intakecontrol-terminal",
+      "model": "models/IntakeControl.tla",
+      "config": "models/intakecontrol-terminal.cfg",
+      "expected": "NoStartAfterTerminal"
+    },
+    {
+      "name": "intakecontrol-duplicate",
+      "model": "models/IntakeControl.tla",
+      "config": "models/intakecontrol-duplicate.cfg",
+      "expected": "OnceStart"
+    },
+    {
+      "name": "continuationcomposition-none",
+      "model": "models/ContinuationComposition.tla",
+      "config": "models/continuationcomposition-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "continuationcomposition-judgments",
+      "model": "models/ContinuationComposition.tla",
+      "config": "models/continuationcomposition-judgments.cfg",
+      "expected": "SafeAdvance"
+    },
+    {
+      "name": "continuationcomposition-answers",
+      "model": "models/ContinuationComposition.tla",
+      "config": "models/continuationcomposition-answers.cfg",
+      "expected": "SafeAdvance"
+    },
+    {
+      "name": "continuationcomposition-terminal",
+      "model": "models/ContinuationComposition.tla",
+      "config": "models/continuationcomposition-terminal.cfg",
+      "expected": "SafeAdvance"
+    },
+    {
+      "name": "continuationcomposition-authority",
+      "model": "models/ContinuationComposition.tla",
+      "config": "models/continuationcomposition-authority.cfg",
+      "expected": "SafeAdvance"
+    },
+    {
+      "name": "continuationcomposition-stale",
+      "model": "models/ContinuationComposition.tla",
+      "config": "models/continuationcomposition-stale.cfg",
+      "expected": "SafeAdvance"
+    },
+    {
+      "name": "continuationcomposition-duplicate",
+      "model": "models/ContinuationComposition.tla",
+      "config": "models/continuationcomposition-duplicate.cfg",
+      "expected": "OnceAdvance"
+    },
+    {
+      "name": "continuationcomposition-replay",
+      "model": "models/ContinuationComposition.tla",
+      "config": "models/continuationcomposition-replay.cfg",
+      "expected": "RecordedJudgmentNotRepeated"
+    },
+    {
+      "name": "continuationcomposition-stall",
+      "model": "models/ContinuationComposition.tla",
+      "config": "models/continuationcomposition-stall.cfg",
+      "expected": "temporal:ReadyProgress"
+    },
+    {
+      "name": "executionslots-none",
+      "model": "models/ExecutionSlots.tla",
+      "config": "models/executionslots-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "executionslots-hold",
+      "model": "models/ExecutionSlots.tla",
+      "config": "models/executionslots-hold.cfg",
+      "expected": "OnlyRunningHolds"
+    },
+    {
+      "name": "executionslots-bypass",
+      "model": "models/ExecutionSlots.tla",
+      "config": "models/executionslots-bypass.cfg",
+      "expected": "OnlyRunningHolds"
+    },
+    {
+      "name": "executionslots-capacity",
+      "model": "models/ExecutionSlots.tla",
+      "config": "models/executionslots-capacity.cfg",
+      "expected": "CapacityBound"
+    },
+    {
+      "name": "executionslots-stall",
+      "model": "models/ExecutionSlots.tla",
+      "config": "models/executionslots-stall.cfg",
+      "expected": "temporal:ResumeProgress"
+    },
+    {
+      "name": "humandecision-none",
+      "model": "models/HumanDecision.tla",
+      "config": "models/humandecision-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "humandecision-unique",
+      "model": "models/HumanDecision.tla",
+      "config": "models/humandecision-unique.cfg",
+      "expected": "UniqueDecision"
+    },
+    {
+      "name": "humandecision-custody",
+      "model": "models/HumanDecision.tla",
+      "config": "models/humandecision-custody.cfg",
+      "expected": "Custody"
+    },
+    {
+      "name": "humandecision-revival",
+      "model": "models/HumanDecision.tla",
+      "config": "models/humandecision-revival.cfg",
+      "expected": "NoRevival"
+    },
+    {
+      "name": "humandecision-qualification",
+      "model": "models/HumanDecision.tla",
+      "config": "models/humandecision-qualification.cfg",
+      "expected": "QualifiedDecision"
+    },
+    {
+      "name": "humandecision-tenant",
+      "model": "models/HumanDecision.tla",
+      "config": "models/humandecision-tenant.cfg",
+      "expected": "TenantIsolation"
+    },
+    {
+      "name": "humandecision-consume",
+      "model": "models/HumanDecision.tla",
+      "config": "models/humandecision-consume.cfg",
+      "expected": "OnceConsumption"
+    },
+    {
+      "name": "waitisolation-none",
+      "model": "models/WaitIsolation.tla",
+      "config": "models/waitisolation-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "waitisolation-slot",
+      "model": "models/WaitIsolation.tla",
+      "config": "models/waitisolation-slot.cfg",
+      "expected": "NoWaitSlot"
+    },
+    {
+      "name": "waitisolation-tool",
+      "model": "models/WaitIsolation.tla",
+      "config": "models/waitisolation-tool.cfg",
+      "expected": "ToolIndependence"
+    },
+    {
+      "name": "waitisolation-global",
+      "model": "models/WaitIsolation.tla",
+      "config": "models/waitisolation-global.cfg",
+      "expected": "SessionIndependence"
+    },
+    {
+      "name": "concurrentintake-none",
+      "model": "models/ConcurrentIntake.tla",
+      "config": "models/concurrentintake-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "concurrentintake-duplicate",
+      "model": "models/ConcurrentIntake.tla",
+      "config": "models/concurrentintake-duplicate.cfg",
+      "expected": "UniqueInput"
+    },
+    {
+      "name": "concurrentintake-lost",
+      "model": "models/ConcurrentIntake.tla",
+      "config": "models/concurrentintake-lost.cfg",
+      "expected": "NoLostAccepted"
+    },
+    {
+      "name": "concurrentintake-scope",
+      "model": "models/ConcurrentIntake.tla",
+      "config": "models/concurrentintake-scope.cfg",
+      "expected": "NoCrossSessionConflict"
+    },
+    {
+      "name": "permissionscope-none",
+      "model": "models/PermissionScope.tla",
+      "config": "models/permissionscope-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "permissionscope-deny",
+      "model": "models/PermissionScope.tla",
+      "config": "models/permissionscope-deny.cfg",
+      "expected": "NoBypassDeny"
+    },
+    {
+      "name": "permissionscope-scope",
+      "model": "models/PermissionScope.tla",
+      "config": "models/permissionscope-scope.cfg",
+      "expected": "ScopeBound"
+    },
+    {
+      "name": "permissionscope-binding",
+      "model": "models/PermissionScope.tla",
+      "config": "models/permissionscope-binding.cfg",
+      "expected": "OriginalBinding"
+    },
+    {
+      "name": "permissionscope-stale",
+      "model": "models/PermissionScope.tla",
+      "config": "models/permissionscope-stale.cfg",
+      "expected": "CurrentAuthority"
+    },
+    {
+      "name": "permissionscope-once",
+      "model": "models/PermissionScope.tla",
+      "config": "models/permissionscope-once.cfg",
+      "expected": "OnceOnly"
+    },
+    {
+      "name": "recoveryrouting-none",
+      "model": "models/RecoveryRouting.tla",
+      "config": "models/recoveryrouting-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "recoveryrouting-forget",
+      "model": "models/RecoveryRouting.tla",
+      "config": "models/recoveryrouting-forget.cfg",
+      "expected": "WaitingPreserved"
+    },
+    {
+      "name": "recoveryrouting-inbox",
+      "model": "models/RecoveryRouting.tla",
+      "config": "models/recoveryrouting-inbox.cfg",
+      "expected": "ReplyCustody"
+    },
+    {
+      "name": "recoveryrouting-route",
+      "model": "models/RecoveryRouting.tla",
+      "config": "models/recoveryrouting-route.cfg",
+      "expected": "StableDestination"
+    },
+    {
+      "name": "recoveryrouting-stale",
+      "model": "models/RecoveryRouting.tla",
+      "config": "models/recoveryrouting-stale.cfg",
+      "expected": "NoStaleReceiver"
+    },
+    {
+      "name": "recoveryrouting-duplicate",
+      "model": "models/RecoveryRouting.tla",
+      "config": "models/recoveryrouting-duplicate.cfg",
+      "expected": "OnceDelivery"
+    },
+    {
+      "name": "authoritycomposition-none",
+      "model": "models/AuthorityComposition.tla",
+      "config": "models/authoritycomposition-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "authoritycomposition-identity",
+      "model": "models/AuthorityComposition.tla",
+      "config": "models/authoritycomposition-identity.cfg",
+      "expected": "CurrentComposition"
+    },
+    {
+      "name": "authoritycomposition-holding",
+      "model": "models/AuthorityComposition.tla",
+      "config": "models/authoritycomposition-holding.cfg",
+      "expected": "CurrentComposition"
+    },
+    {
+      "name": "authoritycomposition-permissions",
+      "model": "models/AuthorityComposition.tla",
+      "config": "models/authoritycomposition-permissions.cfg",
+      "expected": "CurrentComposition"
+    },
+    {
+      "name": "authoritycomposition-settings",
+      "model": "models/AuthorityComposition.tla",
+      "config": "models/authoritycomposition-settings.cfg",
+      "expected": "CurrentComposition"
+    },
+    {
+      "name": "authoritycomposition-session",
+      "model": "models/AuthorityComposition.tla",
+      "config": "models/authoritycomposition-session.cfg",
+      "expected": "CurrentComposition"
+    },
+    {
+      "name": "authoritycomposition-card",
+      "model": "models/AuthorityComposition.tla",
+      "config": "models/authoritycomposition-card.cfg",
+      "expected": "CurrentComposition"
+    },
+    {
+      "name": "authoritycomposition-permit",
+      "model": "models/AuthorityComposition.tla",
+      "config": "models/authoritycomposition-permit.cfg",
+      "expected": "CurrentComposition"
+    },
+    {
+      "name": "concurrentintake-source",
+      "model": "models/ConcurrentIntake.tla",
+      "config": "models/concurrentintake-source.cfg",
+      "expected": "NoClientSourceConflict"
+    },
+    {
+      "name": "registrationprotocol-none",
+      "model": "models/RegistrationProtocol.tla",
+      "config": "models/registrationprotocol-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "registrationprotocol-partial",
+      "model": "models/RegistrationProtocol.tla",
+      "config": "models/registrationprotocol-partial.cfg",
+      "expected": "JointRegistration"
+    },
+    {
+      "name": "registrationprotocol-retry",
+      "model": "models/RegistrationProtocol.tla",
+      "config": "models/registrationprotocol-retry.cfg",
+      "expected": "OneOriginalRequest"
+    },
+    {
+      "name": "registrationprotocol-late",
+      "model": "models/RegistrationProtocol.tla",
+      "config": "models/registrationprotocol-late.cfg",
+      "expected": "SealedCannotCommit"
+    },
+    {
+      "name": "registrationprotocol-notfound",
+      "model": "models/RegistrationProtocol.tla",
+      "config": "models/registrationprotocol-notfound.cfg",
+      "expected": "NoFalseNotCommitted"
+    },
+    {
+      "name": "registrationprotocol-receipt",
+      "model": "models/RegistrationProtocol.tla",
+      "config": "models/registrationprotocol-receipt.cfg",
+      "expected": "RecoverableResult"
+    },
+    {
+      "name": "governancelifecycle-none",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancelifecycle-ghost",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-ghost.cfg",
+      "expected": "CatalogCurrent"
+    },
+    {
+      "name": "governancelifecycle-siblings",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-siblings.cfg",
+      "expected": "OtherContributionsPreserved"
+    },
+    {
+      "name": "governancelifecycle-old-token",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-old-token.cfg",
+      "expected": "OldTokenFenced"
+    },
+    {
+      "name": "governancelifecycle-erase",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-erase.cfg",
+      "expected": "DurableCustody"
+    },
+    {
+      "name": "governancelifecycle-revive",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-revive.cfg",
+      "expected": "NoRevival"
+    },
+    {
+      "name": "governancelifecycle-reset-use",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-reset-use.cfg",
+      "expected": "ConsumptionPreserved"
+    },
+    {
+      "name": "governancelifecycle-revive-session",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-revive-session.cfg",
+      "expected": "SessionTerminal"
+    },
+    {
+      "name": "governancelifecycle-scope",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-scope.cfg",
+      "expected": "ScopeBound"
+    },
+    {
+      "name": "governancelifecycle-stale-commit",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-stale-commit.cfg",
+      "expected": "CurrentCommit"
+    },
+    {
+      "name": "governancelifecycle-transfer",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-transfer.cfg",
+      "expected": "NoTransfer"
+    },
+    {
+      "name": "governancelifecycle-incompatible",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-incompatible.cfg",
+      "expected": "DefinitionCompatible"
+    },
+    {
+      "name": "governancelifecycle-collision",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-collision.cfg",
+      "expected": "ImmutableDefinition"
+    },
+    {
+      "name": "governancelifecycle-once",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-once.cfg",
+      "expected": "OnceOnly"
+    },
+    {
+      "name": "governancelifecycle-stall",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-stall.cfg",
+      "expected": "temporal:RecoveryProgress"
+    },
+    {
+      "name": "governancelifecycle-stall-setting",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-stall-setting.cfg",
+      "expected": "temporal:SettingRecoveryProgress"
+    },
+    {
+      "name": "governancepublication-none",
+      "model": "models/GovernancePublication.tla",
+      "config": "models/governancepublication-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancepublication-partial",
+      "model": "models/GovernancePublication.tla",
+      "config": "models/governancepublication-partial.cfg",
+      "expected": "AtomicPublication"
+    },
+    {
+      "name": "governancepublication-conflict",
+      "model": "models/GovernancePublication.tla",
+      "config": "models/governancepublication-conflict.cfg",
+      "expected": "ConflictRejected"
+    },
+    {
+      "name": "governancepublication-forget",
+      "model": "models/GovernancePublication.tla",
+      "config": "models/governancepublication-forget.cfg",
+      "expected": "ProhibitionPreserved"
+    },
+    {
+      "name": "governancepublication-bypass",
+      "model": "models/GovernancePublication.tla",
+      "config": "models/governancepublication-bypass.cfg",
+      "expected": "AbsentItemCannotBypass"
+    },
+    {
+      "name": "governancelifecycle-erase-receipt",
+      "model": "models/GovernanceLifecycle.tla",
+      "config": "models/governancelifecycle-erase-receipt.cfg",
+      "expected": "ReceiptPreserved"
+    }
+  ]
+}

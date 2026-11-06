@@ -1,5 +1,7 @@
 # authorization：长期行为规格
 
+HJ0 的[动态治理贡献候选](../../assets/docs/governance-contributions.md)补充许可与动态声明、Settings、装配采用的协调。许可记录和消费回执由本成员保管，插件卸载不删除它们或重置使用次数。当前并未实现全部新增协调。
+
 状态：[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖 AU-01 至 AU-07、披露与后续治理操作的业务规则。AU-08、AU-10 是后续验证义务。AU-09 继续登记阶段与公开形状的承接责任。AU-11 定义首批公开形状，AU-12 定义系统动作授权，类型在本成员 `src/index.ts`。表达解释、人工决定、持久台账与跨进程依据的提供者机制尚需设计，本文不作为那些部分已实现或已验证的证明。
 
 产品规则归[身份与授权产品](../../../.meta_harness/design/product/identity-and-authorization/design.md)，协作与依赖归[领域架构](../../../docs/domains/identity-and-authorization/architecture.md)。本文拥有授权建模、表达解释、范围、决定绑定、当前准入、撤回与消费。资源业务、权限配值、人工交互和运行控制由各自拥有者负责。
