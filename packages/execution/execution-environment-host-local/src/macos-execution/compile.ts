@@ -13,6 +13,15 @@ export type SessionReader =
   | Readonly<{ kind: 'ready'; path: string }>
   | Readonly<{ kind: 'missing'; missing: 'commandLineTools' | 'compile' }>
 
+/** Where the reader is compiled and with which tools; the tests point these elsewhere. */
+export type CompileTools = Readonly<{ cacheRoot: string; xcodeSelect: string; cc: string }>
+
+const hostTools = (): CompileTools => ({
+  cacheRoot: join(tmpdir(), 'omne-macos-execution'),
+  xcodeSelect: '/usr/bin/xcode-select',
+  cc: '/usr/bin/cc',
+})
+
 let compilation: Promise<SessionReader> | undefined
 
 /**
@@ -22,7 +31,7 @@ let compilation: Promise<SessionReader> | undefined
  * so a later start finds tools installed meanwhile.
  */
 export function sessionReader(): Promise<SessionReader> {
-  const running = (compilation ??= compile().catch((): SessionReader => ({
+  const running = (compilation ??= compileSessionReader(hostTools()).catch((): SessionReader => ({
     kind: 'missing',
     missing: 'compile',
   })))
@@ -32,9 +41,10 @@ export function sessionReader(): Promise<SessionReader> {
   return running
 }
 
-async function compile(): Promise<SessionReader> {
+/** Compiles the reader into a content-addressed directory under `tools.cacheRoot`. */
+export async function compileSessionReader(tools: CompileTools): Promise<SessionReader> {
   const digest = createHash('sha256').update(sessionReaderSource).digest('hex')
-  const cache = join(tmpdir(), 'omne-macos-execution', digest)
+  const cache = join(tools.cacheRoot, digest)
   const executable = join(cache, 'omne-session')
   try {
     await access(executable)
@@ -43,7 +53,7 @@ async function compile(): Promise<SessionReader> {
     /* Compile the missing content-addressed artifact. */
   }
   try {
-    await run('/usr/bin/xcode-select', ['-p'], { timeout: 10_000 })
+    await run(tools.xcodeSelect, ['-p'], { timeout: 10_000 })
   } catch {
     return { kind: 'missing', missing: 'commandLineTools' }
   }
@@ -54,7 +64,7 @@ async function compile(): Promise<SessionReader> {
     const result = join(stage, 'omne-session')
     await writeFile(source, sessionReaderSource)
     try {
-      await run('/usr/bin/cc', ['-O2', '-Wall', '-o', result, source], {
+      await run(tools.cc, ['-O2', '-Wall', '-o', result, source], {
         timeout: 60_000,
         maxBuffer: 256 * 1024,
       })

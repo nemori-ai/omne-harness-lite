@@ -8,6 +8,8 @@ export type MacosRecovery = Readonly<{
   domains: DomainIndex | undefined
   reader(): Promise<SessionReader>
   stopBoundMs: number
+  /** This boot's identity; `kern.bootsessionuuid` when absent. */
+  bootId?: () => Promise<string | undefined>
 }>
 
 /**
@@ -38,7 +40,7 @@ export async function recoverMacosResource(
   if (recovery.domains === undefined) return 'pending'
   const forget = async () =>
     (await recovery.domains?.forget(named.key)) === true ? 'confirmedStopped' : 'pending'
-  const bootId = await readBootId()
+  const bootId = await (recovery.bootId ?? readBootId)()
   if (bootId === undefined) return 'pending'
   if (bootId !== named.bootId) return forget()
   const coordinate = await recovery.domains.coordinate(named.key)

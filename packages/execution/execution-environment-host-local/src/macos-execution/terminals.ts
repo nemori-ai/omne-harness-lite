@@ -114,8 +114,13 @@ export function macosTerminalPlatform(input: {
   startBoundMs: number
   reader(): Promise<SessionReader>
   domains: DomainIndex | undefined
+  /** This boot's identity; `kern.bootsessionuuid` when absent. */
+  bootId?: () => Promise<string | undefined>
+  /** The terminal prerequisites; `macosTerminalAdmission` of the reader when absent. */
+  admission?: () => Promise<TerminalTools | readonly MacosPrerequisite[]>
 }): TerminalPlatform {
   let tools: TerminalTools | undefined
+  const bootIdOf = input.bootId ?? readBootId
   const coordinates = new Map<string, SessionCoordinate>()
   const directoryOf = (unit: string) => join(tmpdir(), `${unit}.terminal`)
 
@@ -128,12 +133,12 @@ export function macosTerminalPlatform(input: {
 
   return {
     async admit() {
-      const admitted = await macosTerminalAdmission(input.reader)
+      const admitted = await (input.admission ?? (() => macosTerminalAdmission(input.reader)))()
       if (!('reader' in admitted)) return admitted
       tools = admitted
       return 'ready'
     },
-    bootId: readBootId,
+    bootId: bootIdOf,
     allocate(bootId) {
       const key = randomUUID()
       return {
@@ -196,7 +201,7 @@ export function macosTerminalPlatform(input: {
           status = await stopRecordedDomain({
             reader: reading.path,
             coordinate: known,
-            bootId: await readBootId(),
+            bootId: await bootIdOf(),
             boundMs: input.stopBoundMs,
           })
         }

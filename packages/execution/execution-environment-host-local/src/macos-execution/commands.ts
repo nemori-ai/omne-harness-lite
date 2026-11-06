@@ -49,6 +49,8 @@ export type MacosCommandsInput = Omit<
     /** The cold index of the state directory; absent when there is none. */
     domains: DomainIndex | undefined
     unavailable(missing: readonly MacosPrerequisite[]): void
+    /** This boot's identity; `kern.bootsessionuuid` when absent. */
+    bootId?: () => Promise<string | undefined>
   }>
 
 type StartRequest = Parameters<CommandFacility<unknown>['start']>[0]
@@ -147,6 +149,7 @@ function nextEvent(entry: Entry, deadline: number): Promise<Event> {
  */
 export function createMacosHostCommands(input: MacosCommandsInput): HostCommands {
   const { settings, ledger, retention } = input
+  const bootIdOf = input.bootId ?? readBootId
   const live = new Set<Entry>()
   const inFlight = new Set<Promise<unknown>>()
   let sealed = false
@@ -175,7 +178,7 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
         status = await stopRecordedDomain({
           reader: reading.path,
           coordinate,
-          bootId: await readBootId(),
+          bootId: await bootIdOf(),
           boundMs: settings.stopBoundMs,
         })
       // The session went first, the gate with it; only then the channel, as on Linux, so a stopped
@@ -386,7 +389,7 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
       return rejected('unavailable')
     }
     if (sealed) return rejected('closed')
-    const bootId = await readBootId()
+    const bootId = await bootIdOf()
     if (bootId === undefined) return rejected('unavailable')
     const key = randomUUID()
     const resource: ManagedResource = {
