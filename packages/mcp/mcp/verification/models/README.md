@@ -22,7 +22,7 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 - `Deviations`：`fail`（关口拒绝、传输 `not-sent`、对端 `no-answer`、任务请求 `not-sent`）、`reject`、`throw`。`ensure` 的 `fail` 不占预算：它是建连失败或时限到期，不是端口偏离。挂起不占预算。
 - `Bugs`：负控的缺陷，见配置表。
 
-`Calls.tla` 的端口：`gate`（采用读取、资格核对、配值与清单读取合为一次）、`ensure`（连接表：`ok` 使键的连接可用，建连给下一个代际，复用保持代际；关停之后只答 `fail`）、`call`、`answer`（对端对已发出请求的应答）、`cancelReq`（在作用域里发出，无人等）、`task`（四个任务方法之一，受任务时限）。`gate`、`ensure` 与 `answer` 的等待受调用的停止信号：信号先到则调用答复，端口调用留着无人等。`closeAll` 之后开始的调用在占位之后、问关口之前就拒绝（S8，MC-16 第 3 步）；`gate` 与任务操作的 `task`（`gateW`、`tgateW`）在关口答 `ok` 之后读 `shut`，`closeAll` 落在等关口途中的调用与任务操作于是不再问 `ensure`。代码读 `shut` 的位置是每次等待之前与第 8 步（发出之前），两者对「关停之后不问端口」的可观察结果相同；第 8 步的读取模型按构造不覆盖（见 [../README.md](../README.md#状态映射)「`Calls.tla` 的抽象与范围上限」）。`lose` 在模型里立即生效，实现里拆除交作用域。传输的 `call` 在停止信号触发之后最终答复是前提（WF5）：`P14_BoundedAfterStop` 不把等在 `callW` 的调用算作卡住。
+`Calls.tla` 的端口：`gate`（采用读取、资格核对、配值与清单读取合为一次）、`ensure`（连接表：`ok` 使键的连接可用，建连给下一个代际，复用保持代际；关停之后只答 `fail`）、`call`、`answer`（对端对已发出请求的应答）、`cancelReq`（在作用域里发出，无人等）、`task`（四个任务方法之一，受任务时限）。`gate`、`ensure` 与 `answer` 的等待受调用的停止信号：信号先到则调用答复，端口调用留着无人等。`closeAll` 之后开始的调用在占位之后、问关口之前就拒绝（S8，MC-16 第 3 步）；`gate` 与任务操作的 `task`（`gateW`、`tgateW`）在关口答 `ok` 之后读 `shut`，`closeAll` 落在等关口途中的调用与任务操作于是不再问 `ensure`。代码读 `shut` 的位置是每次等待之前（`under`）、第 8 步（发出之前）、任务操作的入口与发请求之前、`refresh` 的入口、读存储之前、取每一页之前与发布边界之前，并在三个出口各读一次决定答复（[../README.md](../README.md#关停与停止的判定点)）。两边对「关停之后不问端口」的可观察结果相同，对答复不相同：模型的 `Refused` 不带原因，答复一侧由探索器（P13 的答复断言，负控 N9、N10）与服务层用例守住。第 8 步的读取模型按构造不覆盖（见 [../README.md](../README.md#状态映射)「`Calls.tla` 的抽象与范围上限」）。`lose` 在模型里立即生效，实现里拆除交作用域。传输的 `call` 在停止信号触发之后最终答复是前提（WF5）：`P14_BoundedAfterStop` 不把等在 `callW` 的调用算作卡住。
 
 ## 配置
 
@@ -65,7 +65,7 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 | `calls-bad-send-after-shut`   | 负控         | A       | `invoke` 1                                                | 1          | 0      | 无                           | 关停之后调用不先拒绝、`ensure` 仍交出连接。`P13_NoSendAfterShut` 须违反  |
 | `calls-bad-wait-answer`       | 负控（活性） | A       | `invoke` 1、`cancel` 1                                    | 0          | 0      | 无                           | 等应答不看停止信号。`LiveSpec` 下的 `P14_EveryCallAnswers` 须有时序反例  |
 
-`LiveSpec` 的公平性是 WF1、WF2 与 WF4（SPEC P14 T1）：每个时限到期，每次端口调用最终按契约答复，停止信号已触发的请求的对端应答除外。所以负控 `calls-bad-wait-answer` 里对端不答那个应答，等它的调用永不答复；正控里调用不等它。 「答复与停止信号或关停落在同一轮」的交错（第 8 步与答复时的核对，服务层的变异 C63、C65、C68）在模型里没有负控：外部动作只在静止时到达，它们不会落在同一轮。
+`LiveSpec` 的公平性是 WF1、WF2 与 WF4（SPEC P14 T1）：每个时限到期，每次端口调用最终按契约答复，停止信号已触发的请求的对端应答除外。所以负控 `calls-bad-wait-answer` 里对端不答那个应答，等它的调用永不答复；正控里调用不等它。 「答复与停止信号或关停落在同一轮」的交错（出口与途中各点的核对，服务层的变异 F1–F19，见 [../README.md](../README.md#关停与停止的判定点)）在模型里没有负控：外部动作只在静止时到达，它们不会落在同一轮。
 
 ## 运行与判读
 
@@ -104,9 +104,11 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 | `bad-abandon-landed`   | `P1_ReleasedAfterStop` 被违反             | 631        | 870        | 33   | 1.4 s   | 符合判读 |
 | `bad-unbounded-wrap`   | `P8_BoundedEnsure` 被违反                 | 66         | 70         | 25   | 1.1 s   | 符合判读 |
 
-运行于 2026-11-05（UTC 19:41 起），早于提交 `f34077cec`（2026-11-06 01:17 UTC）。两个 `.tla` 与 29 个 `.cfg` 的 SHA-256 与 `0b84a0bec` 上的文件逐个相同（运行的汇总记了每个配置的 SHA-256，本闭包在 `0b84a0bec` 的树上逐个核对过），所以读数对应 `0b84a0bec` 上的模型与配置。模型不读源码，实现与模型之间没有精化证明。`run.py` 退出码 0，29 个配置都符合判读，证据目录 `tmp/closures/w3-mcp-call/fix2/model/tlc/20261105T194113Z`，汇总 `tmp/closures/w3-mcp-call/fix2/model/tlc-all.log`（sha256 前 16 位 `e61f1a2f61787715`）。同一时段本机另有会话在运行，耗时偏长。深度是 TLC 状态图的深度，含内部步，所以比探索器调度的步数大。活性配置不报告深度。负控与探针的不同状态数随 TLC 的并行调度而略有不同，不是模型变化。
+运行于 2026-11-05（UTC 19:41 起），早于提交 `f34077cec`（2026-11-06 01:17 UTC）。两个 `.tla` 与 29 个 `.cfg` 的 SHA-256 与 `0b84a0bec` 上的文件逐个相同（运行的汇总记了每个配置的 SHA-256，闭包 `w3-mcp-call-docs2` 在 `0b84a0bec` 的树上逐个核对过），所以读数对应 `0b84a0bec` 上的模型与配置。模型不读源码，实现与模型之间没有精化证明。`run.py` 退出码 0，29 个配置都符合判读，证据目录 `tmp/closures/w3-mcp-call/fix2/model/tlc/20261105T194113Z`，汇总 `tmp/closures/w3-mcp-call/fix2/model/tlc-all.log`（sha256 前 16 位 `e61f1a2f61787715`）。同一时段本机另有会话在运行，耗时偏长。深度是 TLC 状态图的深度，含内部步，所以比探索器调度的步数大。活性配置不报告深度。负控与探针的不同状态数随 TLC 的并行调度而略有不同，不是模型变化。
 
 之后只改了 `Calls.tla` 文件头讲四个键差别的注释，模型的 SHA-256 变为 `720a4d7a22ce6dcf…`。同一套 29 个配置在 2026-11-06 UTC 03:44 起重跑，`run.py` 退出码 0，全部符合判读：正控（含活性配置）的不同状态数、生成状态数与深度与本节两张表逐项相同；负控与探针的不同状态数随并行调度略有不同。证据目录 `tmp/closures/w3-mcp-call/owner-docs2/tlc/20261106T034439Z`，汇总 `tmp/closures/w3-mcp-call/owner-docs2/tlc-all.log`（sha256 前 16 位 `8ac2d3ac5401be7c`）。
+
+之后闭包 `w3-mcp-call-docs3` 只改了 `Calls.tla` 里讲任务操作内部步骤的一行注释：把已不存在的函数名 `connectionOf` 改成现行的 `exchange`。模型的 SHA-256 变为 `a7c03505f42412cd…`，`ConnectionTable.tla`（`b14f3711fe731cc4…`）与 29 个 `.cfg` 不变。同一套 29 个配置在 2026-11-06 UTC 06:39 起重跑（`035ac8fee` 的树加这一行注释修改，`FORMAL_WORKERS=4`，经 `scripts/with-test-slot.mjs`），`run.py` 退出码 0，全部符合判读：正控（含活性配置）的不同状态数、生成状态数与深度与本节两张表逐项相同；负控与探针的不同状态数随并行调度略有不同。证据目录 `tmp/closures/w3-mcp-call/docs3/tlc/20261106T063959Z`，汇总 `summary.json`（sha256 前 16 位 `0ad4ccd39d25004c`），运行输出 `tmp/closures/w3-mcp-call/docs3/tlc-all.log`（`3a27d5bf96ab5f3c`）。修复轮 `w3-mcp-call-fix3` 没有改模型：`Refused` 不带原因，模型只覆盖「不问端口」，答复一侧由探索器与用例守住。
 
 `Calls.tla` 的运行记录（同一次运行，模型 SHA-256 `096a2c50ced5b2e2…`，含 S8 的关停先判与关口之后读 `shut`）：
 

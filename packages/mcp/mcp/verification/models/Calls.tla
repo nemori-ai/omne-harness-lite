@@ -302,7 +302,7 @@ CallStep(i) ==
              ELSE s' = Ended(s, i, "abandoned")
 
 -----------------------------------------------------------------------------
-(* Internal steps: the task operations (tasks.ts `request`, `connectionOf`). *)
+(* Internal steps: the task operations (tasks.ts `request`, `exchange`). *)
 
 (* The usable connection of the tenant's holding on the task's account:   *)
 (* reused with no port asked.                                              *)
