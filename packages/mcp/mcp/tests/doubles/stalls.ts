@@ -5,6 +5,7 @@ import type { Access } from '@omne-harness/legal-identity'
 import type { EndpointRef } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
+  CatalogStore,
   CredentialUse,
   ProcessLanding,
   UseEligibility,
@@ -58,6 +59,36 @@ export function armedEligibility(port: UseEligibility<Principal>): Readonly<{
           await hold.held.promise
         }
         return port.check(access, endpoint)
+      },
+    },
+  }
+}
+
+/**
+ * The catalog store whose next `read` after `arm()` waits on the gate armed then, and tells the
+ * case when that read was reached: the case orders a `closeAll` against an operation that is
+ * waiting on the store, by what has happened.
+ */
+export function armedStore<T extends CatalogStore>(
+  store: T,
+): Readonly<{ port: T; arm(): Readonly<{ reached: Promise<void>; release: () => void }> }> {
+  let armed: Readonly<{ reached: Deferred<void>; held: Deferred<void> }> | undefined
+  return {
+    arm() {
+      const next = { reached: deferred<void>(), held: deferred<void>() }
+      armed = next
+      return { reached: next.reached.promise, release: () => next.held.resolve() }
+    },
+    port: {
+      ...store,
+      async read(key) {
+        const hold = armed
+        if (hold !== undefined) {
+          armed = undefined
+          hold.reached.resolve()
+          await hold.held.promise
+        }
+        return store.read(key)
       },
     },
   }

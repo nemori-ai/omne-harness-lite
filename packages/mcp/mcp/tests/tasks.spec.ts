@@ -16,7 +16,7 @@ import {
   type PlainJson,
   type TaskScript,
 } from '@omne-harness/mcp-contract/testing'
-import type { TableRuntime } from '../src/internal/table.ts'
+import type { ConnectionTable, TableRuntime } from '../src/internal/table.ts'
 import { manualBounds } from './doubles/bounds.ts'
 import { only } from './doubles/calls.ts'
 import { settled } from './doubles/deferred.ts'
@@ -102,6 +102,31 @@ const task: TaskRef = { ref: files, taskId: T1, issuedAt: generationOf(1) }
 
 function portCalls(p: Peer) {
   return { adoption: p.adoption.calls(), eligibility: p.eligibility.calls() }
+}
+
+/**
+ * Transports whose `getTask` records, for each call, whether the table was shut when it was
+ * entered: `shape` goes to `started`, `watch` gets the table once the services exist.
+ */
+function enteredAfterShut() {
+  const entered: boolean[] = []
+  let table: Pick<ConnectionTable<Principal>, 'isShut'> | undefined
+  return {
+    shape: (p: Peer): Shape => ({
+      ports: {
+        transports: reshapedTransports(p.ports.transports, transport => ({
+          getTask(taskId) {
+            entered.push(table?.isShut() ?? false)
+            return transport.getTask(taskId)
+          },
+        })),
+      },
+    }),
+    watch: (shared: Pick<ConnectionTable<Principal>, 'isShut'>) => {
+      table = shared
+    },
+    calls: (): readonly boolean[] => entered,
+  }
 }
 
 describe('the task table opens the operations to the initiator only (SPEC S2)', () => {
@@ -386,6 +411,44 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     expect(c.p.opens()).toBe(1)
     expect(c.p.requests('tasks/get')).toHaveLength(0)
   })
+
+  it('closeAll in the same synchronous run as a task operation on a reused connection: effect-unknown (no-connection), and the transport is not asked after closeAll (S8)', async () => {
+    const entered = enteredAfterShut()
+    const c = await started(undefined, {}, undefined, entered.shape)
+    entered.watch(c.table)
+    const query = c.invoker.queryTask(alice, task)
+    const closing = c.connections.closeAll()
+    expect(await query).toEqual(NO_CONNECTION)
+    await closing
+    expect(entered.calls()).toEqual([])
+    expect(c.p.requests('tasks/get')).toHaveLength(0)
+  })
+
+  it.each([
+    ['reused', false],
+    ['built through the gate', true],
+  ] as const)(
+    'at whichever microtask closeAll lands, a task operation on a connection %s answers effect-unknown (no-connection) and does not ask the transport after it (S8, MC-17 step 4)',
+    async (_how, rebuilt) => {
+      const LIMIT = 2_000
+      let sentBefore = false
+      for (let k = 0; k < LIMIT && !sentBefore; k += 1) {
+        const entered = enteredAfterShut()
+        const c = await started(undefined, {}, undefined, entered.shape)
+        entered.watch(c.table)
+        if (rebuilt) await c.connections.release(alice, files)
+        const query = c.invoker.queryTask(alice, task)
+        for (let i = 0; i < k; i += 1) await Promise.resolve()
+        const closing = c.connections.closeAll()
+        const answer = await query
+        await closing
+        expect(entered.calls(), `k=${k}: getTask entered after closeAll`).not.toContain(true)
+        sentBefore = entered.calls().includes(false)
+        if (!sentBefore) expect(answer, `k=${k}`).toEqual(NO_CONNECTION)
+      }
+      expect(sentBefore).toBe(true)
+    },
+  )
 })
 
 describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step 3)', () => {
@@ -426,7 +489,7 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
     expect(c.p.requests('tasks/get')).toHaveLength(0)
   })
 
-  it('a shutdown under way while the connection is built is connection-unavailable', async () => {
+  it('a shutdown under way while the connection is built is effect-unknown (no-connection), the same as after closeAll (S8)', async () => {
     let stalled: ReturnType<typeof stallingLanding> | undefined
     const c = await started(undefined, {}, undefined, p => {
       stalled = stallingLanding(p.landing, only(2))
@@ -440,7 +503,7 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
     const closing = c.connections.closeAll()
     await settled()
     stalled.gate.resolve()
-    expect(await query).toEqual(CONNECTION_UNAVAILABLE)
+    expect(await query).toEqual(NO_CONNECTION)
     await closing
     expect(c.p.requests('tasks/get')).toHaveLength(0)
   })

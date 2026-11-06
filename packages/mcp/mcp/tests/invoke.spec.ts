@@ -22,6 +22,7 @@ import {
   generationOf,
   jsonOf,
   millisOf,
+  requestStateOf,
   taskIdOf,
   type PeerReply,
   type PeerScript,
@@ -37,6 +38,7 @@ import { completed, listing, peer, services, taskHandle, text, type Peer } from 
 import { countedReads } from './doubles/ports.ts'
 import { armedEligibility, silentAdoption, stallingLanding } from './doubles/stalls.ts'
 import { never, reshapedTransports } from './doubles/transports.ts'
+import { watchedCalls, type Watched } from './doubles/watched.ts'
 import { INVALID, MAIN, adoptHttp, adoptStdio, storedRecord } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
@@ -135,6 +137,49 @@ const CONNECTION_UNAVAILABLE = NOT_SENT({ kind: 'connection-unavailable' })
 async function state(c: Arranged) {
   const view = await c.status.inspect(alice, files)
   return 'ok' in view ? view.ok.connection : view.failure
+}
+
+/** One call to scan: the call port it runs on, and how to start it. */
+type Scanned = Readonly<{ watched: Watched; start: () => Promise<InvokeResult> }>
+
+/**
+ * The scan of S8 over the microtasks of one call: `closeAll` lands k microtasks after the call
+ * starts, for k = 0, 1, … until the call had answered by then or was on the wire. At every k the
+ * transport's `call` is not entered after the shutdown began, and a call that answers after it
+ * began, not sent, answers connection-unavailable, whatever step it was at. `prepare` builds a
+ * fresh world each time on the transports it is given. Answers the first k the call was done at.
+ */
+async function scanShutdown(
+  prepare: (transports: (p: Peer) => McpPorts<Principal, string>['transports']) => Promise<Scanned>,
+): Promise<number> {
+  const LIMIT = 400
+  for (let k = 0; k < LIMIT; k += 1) {
+    let shut = false
+    const afterShut: boolean[] = []
+    const { watched, start } = await prepare(p =>
+      reshapedTransports(p.ports.transports, transport => ({
+        call(request, signal, observe) {
+          afterShut.push(shut)
+          return transport.call(request, signal, observe)
+        },
+      })),
+    )
+    // What `prepare` sent itself (a first call before a continuation) is not this call's.
+    afterShut.length = 0
+    const before = watched.concluded()
+    const call = start()
+    for (let i = 0; i < k; i += 1) await Promise.resolve()
+    const answered = watched.concluded() > before
+    shut = true
+    const closing = watched.table.closeAll()
+    const result = await call
+    await closing
+    expect(afterShut, `k=${k}: transport.call entered after closeAll`).not.toContain(true)
+    if (answered || afterShut.includes(false)) return k
+    if (result.kind === 'not-sent')
+      expect(result.reason, `k=${k}`).toEqual({ kind: 'connection-unavailable' })
+  }
+  throw new Error(`the call was still under way ${LIMIT} microtasks after it started`)
 }
 
 describe('the send order: each step refuses with the place given back (SPEC MC-16)', () => {
@@ -242,6 +287,70 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
       sentBefore = afterShut.includes(false)
     }
     expect(sentBefore).toBe(true)
+  })
+
+  it('step 3: at whichever microtask closeAll lands, a call that step 4 would refuse for a setting defect answers connection-unavailable, not the defect', async () => {
+    const answeredAt = await scanShutdown(async transports => {
+      const p = peer({ listing: { '': TOOLS }, calls: { read: HI } })
+      adoptStdio(p, files, { settings: { connectTimeout: ABSENT } })
+      const digest = digestOf(await storedRecord(p, anonymousKey, ['read']))
+      const watched = watchedCalls({ ...p, ports: { ...p.ports, transports: transports(p) } })
+      return { watched, start: () => watched.calls.invoke(alice, request(digest)) }
+    })
+    expect(answeredAt).toBeGreaterThan(0)
+  })
+
+  it('step 3: at whichever microtask closeAll lands, a continuation that is not sent answers connection-unavailable, as a first call, not the unknown of step 6', async () => {
+    const asks: PeerReply = {
+      kind: 'result',
+      result: { resultType: 'input_required', requestState: 's1', inputRequests: { q: 1 } },
+    }
+    const answeredAt = await scanShutdown(async transports => {
+      const p = peer({ listing: { '': TOOLS }, calls: { read: [asks, HI] } })
+      adoptStdio(p, files)
+      const digest = digestOf(await storedRecord(p, anonymousKey, ['read']))
+      const watched = watchedCalls({ ...p, ports: { ...p.ports, transports: transports(p) } })
+      const first = await watched.calls.invoke(alice, request(digest))
+      if (first.kind !== 'sent' || first.outcome.kind !== 'inputRequired')
+        throw new Error('the first call was not asked for input')
+      const { issuedAt } = first.outcome
+      const start = () =>
+        watched.calls.continueWithInput(alice, {
+          ref: files,
+          action: READ,
+          args: jsonOf({}),
+          issuedAt,
+          correlationKey: c2,
+          signal: new AbortController().signal,
+          requestState: requestStateOf('s1'),
+        })
+      return { watched, start }
+    })
+    expect(answeredAt).toBeGreaterThan(0)
+  })
+
+  it('step 3: closeAll while the call waits on the gate, where step 4 then finds no connect-timeout: connection-unavailable, as a call that starts after closeAll, not config-missing', async () => {
+    let armed: ReturnType<typeof armedEligibility> | undefined
+    const c = arrange(
+      {},
+      {
+        adopt: 'none',
+        shape: p => ({ eligibility: (armed = armedEligibility(p.eligibility)).port }),
+      },
+    )
+    if (armed === undefined) throw new Error('not shaped')
+    adoptStdio(c.p, files, { settings: { connectTimeout: ABSENT } })
+    const digest = digestOf(await storedRecord(c.p, anonymousKey, ['read']))
+    const gate = armed.arm()
+    const call = c.invoker.invoke(alice, request(digest))
+    await gate.reached
+    await c.connections.closeAll()
+    gate.release()
+    expect(await call).toEqual(CONNECTION_UNAVAILABLE)
+    expect(await c.invoker.invoke(alice, request(digest, { correlationKey: c2 }))).toEqual(
+      CONNECTION_UNAVAILABLE,
+    )
+    expect(c.p.opens()).toBe(0)
   })
 
   it('step 4 and 7: the request connectBound stands in for a missing connect-timeout, and bounds the build: without it the call is not sent (config-missing), with 1 ms a landing that does not answer is connection-unavailable at that bound', async () => {
@@ -526,6 +635,39 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(await state(c)).toEqual({ kind: 'ready' })
   })
 
+  it('step 11: the signal after the send, once closeAll began: unknown (abandoned), and the peer is not told; the transport closing settles its own requests (S8, T5)', async () => {
+    let cancelRequests = 0
+    const c = arrange(
+      {},
+      {
+        shape: p => ({
+          transports: reshapedTransports(p.ports.transports, transport => ({
+            async call(request, signal, observe) {
+              const called = await transport.call(request, signal, observe)
+              return 'ok' in called ? { ok: { ...called.ok, answer: never() } } : called
+            },
+            cancelRequest(requestId) {
+              cancelRequests += 1
+              return transport.cancelRequest(requestId)
+            },
+          })),
+        }),
+      },
+    )
+    const digest = await published(c)
+    const controller = new AbortController()
+    const call = c.invoker.invoke(alice, request(digest, { signal: controller.signal }))
+    await settled()
+    expect(c.p.requests('tools/call')).toHaveLength(1)
+    const closing = c.connections.closeAll()
+    controller.abort()
+    expect(await call).toEqual({ kind: 'sent', outcome: { kind: 'unknown', cause: 'abandoned' } })
+    await closing
+    await settled()
+    expect(cancelRequests).toBe(0)
+    expect(c.p.cancels()).toBe(0)
+  })
+
   it('step 2: a signal that fired before the call is a cancel before the send: not sent, cancelled, no call on the wire', async () => {
     const c = arrange()
     const digest = await published(c)
@@ -695,6 +837,73 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
       expect(await state(c)).toMatchObject({ kind: 'lost' })
     },
   )
+
+  it.each([
+    ['unsent', CONNECTION_UNAVAILABLE],
+    ['stream-breaks', { kind: 'sent', outcome: { kind: 'unknown', cause: 'stream-broken' } }],
+  ] as const)(
+    'a call (%s) whose answer loses the connection: in the run that hands over the answer the table already reports the connection lost (the synchronous part of lose, P14)',
+    async (reply, expected) => {
+      const c = arrange({ calls: { read: { kind: reply } } })
+      const digest = await published(c)
+      const seen = await c.invoker.invoke(alice, request(digest)).then(result => ({
+        result,
+        state: c.table.stateOf(alice.tenant, files.holding).kind,
+      }))
+      expect(seen).toEqual({ result: expected, state: 'lost' })
+    },
+  )
+
+  it('closeAll joins the teardown that a call started on the connection it lost: it answers after that teardown, which closes the transport once; the catalog mark of the loss may come after closeAll (MC-10, MC-14)', async () => {
+    const closeHeld = deferred<void>()
+    const writeHeld = deferred<void>()
+    let closes = 0
+    let writes = 0
+    let holding = false
+    const c = arrange(
+      { calls: { read: { kind: 'unsent' } } },
+      {
+        shape: p => ({
+          transports: reshapedTransports(p.ports.transports, transport => ({
+            async close() {
+              if (holding) {
+                closes += 1
+                await closeHeld.promise
+              }
+              return transport.close()
+            },
+          })),
+          store: {
+            ...p.store,
+            async write(key, record, basedOn) {
+              if (holding) {
+                writes += 1
+                await writeHeld.promise
+              }
+              return p.store.write(key, record, basedOn)
+            },
+          },
+        }),
+      },
+    )
+    const digest = await published(c)
+    holding = true
+    expect(await c.invoker.invoke(alice, request(digest))).toEqual(CONNECTION_UNAVAILABLE)
+    let closedAll = false
+    const closing = c.connections.closeAll().then(closed => {
+      closedAll = true
+      return closed
+    })
+    await settled()
+    expect(closes).toBe(1)
+    expect(closedAll).toBe(false)
+    closeHeld.resolve()
+    await closing
+    expect(closes).toBe(1)
+    await settled()
+    expect(writes).toBe(1)
+    writeHeld.resolve()
+  })
 
   it('progress notifications reach the observer as untrusted values; an observer that throws changes nothing (S6)', async () => {
     // The scripted transport catches an observer's error itself; the gate hands one notification

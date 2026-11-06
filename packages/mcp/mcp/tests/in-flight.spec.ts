@@ -210,4 +210,18 @@ describe('Reservation.conclude', () => {
     expect(later.stop.aborted).toBe(true)
     expect(earlier.stop.aborted).toBe(false)
   })
+
+  it('records a send only on a place still reserved: after the conclusion an ended key stays ended and free, and a place given back stays out of the table', () => {
+    const calls = new InFlightCalls()
+    const { place: ended, controller } = reserved(calls, aliceCall)
+    controller.abort()
+    ended.conclude()
+    ended.sent(connectionAt(generationOf(1)), generationOf(1))
+    expect(calls.cancel(aliceCall)).toBe('no-call-in-flight')
+    expect(calls.reserve(aliceCall, new AbortController().signal)).not.toBe('in-use')
+    const { place: givenBack } = reserved(calls, bobCall)
+    givenBack.conclude()
+    givenBack.sent(connectionAt(generationOf(1)), generationOf(1))
+    expect(calls.cancel(bobCall)).toBe('unknown')
+  })
 })

@@ -8,6 +8,7 @@ import { deferred, settled } from './doubles/deferred.ts'
 import type { Step } from './doubles/scripted-transport.ts'
 import { jsonOf, peerIdentityOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
 import { alice, bob, mallory } from './doubles/identities.ts'
+import { armedStore } from './doubles/stalls.ts'
 import {
   MAIN,
   adoptHttp,
@@ -400,6 +401,25 @@ describe('refresh fails', () => {
     })
     expect({ adoption: w.adoption.calls(), eligibility: w.eligibility.calls() }).toEqual(asked)
     expect(w.transports.calls).toHaveLength(0)
+  })
+
+  it('closeAll while the refresh waits on the store before the listing: connection-unavailable, as a refresh that starts after closeAll; no page is asked after it, nothing is published (S8, MC-7)', async () => {
+    const base = world({ script: usualScript() })
+    adoptStdio(base, files)
+    const store = armedStore(base.store)
+    const { w, discovery, connections } = core({
+      ...base,
+      ports: { ...base.ports, store: store.port },
+    })
+    const read = store.arm()
+    const pending = discovery.refresh(alice, { ref: files })
+    await read.reached
+    await connections.closeAll()
+    const listed = w.transports.calls.filter(call => call.kind === 'listActions').length
+    read.release()
+    expect(await pending).toEqual({ failure: { kind: 'connection-unavailable' } })
+    expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(listed)
+    expect(await record(w)).toBe('absent')
   })
 })
 

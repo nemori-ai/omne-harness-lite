@@ -23,7 +23,7 @@ import { settled } from './doubles/deferred.ts'
 import { alice, type Principal } from './doubles/identities.ts'
 import { completed, listing, peer, services, text, type Peer } from './doubles/peer.ts'
 import { countedReads } from './doubles/ports.ts'
-import { armedEligibility, stallingAdoption } from './doubles/stalls.ts'
+import { armedEligibility, armedStore, stallingAdoption } from './doubles/stalls.ts'
 import { adoptStdio, storedRecord } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
@@ -158,6 +158,24 @@ describe('continueWithInput (SPEC S2)', () => {
     gate.release()
     expect(await call).toEqual({ kind: 'not-sent', reason: { kind: 'connection-unavailable' } })
     expect(store.reads()).toBe(reads)
+    expect(c.p.requests('tools/call')).toHaveLength(1)
+    expect(c.p.opens()).toBe(1)
+  })
+
+  it('closeAll while the continuation waits on the store: the same not sent, connection-unavailable, as a first call, not the unknown of step 6; nothing is built or sent after it (S8)', async () => {
+    let store: ReturnType<typeof armedStore> | undefined
+    const c = await arranged(p => ({ store: (store = armedStore(p.store)).port }))
+    if (store === undefined) throw new Error('not shaped')
+    const issuedAt = await asked(c, c.digest)
+    const read = store.arm()
+    const call = c.invoker.continueWithInput(
+      alice,
+      continuation(issuedAt, { requestState: requestStateOf('s1') }),
+    )
+    await read.reached
+    await c.connections.closeAll()
+    read.release()
+    expect(await call).toEqual({ kind: 'not-sent', reason: { kind: 'connection-unavailable' } })
     expect(c.p.requests('tools/call')).toHaveLength(1)
     expect(c.p.opens()).toBe(1)
   })
