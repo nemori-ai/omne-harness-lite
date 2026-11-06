@@ -69,7 +69,7 @@ Outcome为带标签的不交并：成功/已处理/已失效/冲突/拒绝/非�
 | H-C2 | Session1等人不关闭Session2可运行性 | Session分键lane与Agent分scope推进，无全局wait锁 | WaitIsolation.SessionIndependence |
 | H-C3 | 等人不持有共享可运行槽或写事务 | park前可靠保存继续状态，释放active permit | WaitIsolation.NoWaitSlot |
 | H-C4 | 公平调度下独立可运行工作最终前进 | 工作有限、依赖可用、容量至少1、弱公平调度 | WaitIsolation.IndependentProgress |
-| H-Q1 | 同一输入操作只对应一个受理身份 | Session在可信调用来源作用域内原子去重 | ConcurrentIntake.UniqueInput |
+| H-Q1 | 同一输入操作只对应一个受理身份 | Session按入口族的租户/会话/acceptId原子去重，来源变化不得改绑 | ConcurrentIntake.UniqueInput |
 | H-Q2 | 已确认受理的输入不因并发覆盖而丢失 | Session journal/队列序号与输入共同提交 | ConcurrentIntake.NoLostAccepted |
 | H-Q3 | 同一会话消费遵循受理顺序且至多一次 | 会话单推进者、fencing与expectedRevision | ConcurrentIntake.OrderedConsumption |
 

@@ -144,7 +144,9 @@ packages/
 │   ├── request-context/                  不含 Cordis 的派生计算：索引、缓存、默认压缩与表示策略
 │   ├── request-context-cordis/           Service 实现：贡献登记表、作用域遮蔽、策略装配
 │   └── agent-context/                    Context 一侧的 Agent 适配集成：请求准备、Runtime Context 读取与账目出站；只有骨架，成员名待 #859 采用确认
-├── human-intervention/human-intervention/
+├── human-intervention/
+│   ├── human-intervention/       公共请求、卡片与恢复协议
+│   └── human-intervention-local/ 单机 SQL 提供者，当前操作终态已实现
 ├── execution/
 │   ├── execution-environment-contract/         Execution Environment 纯契约：已有身份、设施、八参数与六结果 schema、契约套件
 │   ├── execution-environment-cordis-contract/  Execution Environment 的唯一 Cordis 服务定义：已有模板方法、钩子与机制测试

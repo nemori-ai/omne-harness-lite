@@ -3,7 +3,6 @@ import {
   ActionBasisSchema,
   CardRefSchema,
   ConsumerReceiptSchema,
-  HITL_COMMAND_MAX_BYTES,
   HitlIdentifierSchema,
   HitlTextSchema,
   InvalidationReasonSchema,
@@ -14,6 +13,8 @@ import {
   RevisionSchema,
   WaitRefSchema,
 } from './values.ts'
+import { decodeCommand, type CommandDecodeFailure } from './decode-command.ts'
+export type { CommandDecodeFailure } from './decode-command.ts'
 
 const envelope = { protocol: z.literal('hitl/1'), operation: OperationRefSchema }
 export const RegisterRequestSchema = z
@@ -72,24 +73,9 @@ export type HitlCommands = {
   acknowledgeDelivery: AcknowledgeDelivery
 }
 export type HitlMethod = keyof HitlCommands
-export type CommandDecodeFailure =
-  | Readonly<{ kind: 'invalid-input'; reason: 'json' | 'shape' }>
-  | Readonly<{ kind: 'limited'; resource: 'command-bytes'; limit: number }>
-
 export function decodeHitlCommand<Method extends HitlMethod>(
   method: Method,
   json: string,
 ): Readonly<{ kind: 'decoded'; command: HitlCommands[Method] }> | CommandDecodeFailure {
-  if (new TextEncoder().encode(json).byteLength > HITL_COMMAND_MAX_BYTES) {
-    return { kind: 'limited', resource: 'command-bytes', limit: HITL_COMMAND_MAX_BYTES }
-  }
-  let input: unknown
-  try {
-    input = JSON.parse(json)
-  } catch {
-    return { kind: 'invalid-input', reason: 'json' }
-  }
-  const result = HitlCommandSchemas[method].safeParse(input)
-  if (!result.success) return { kind: 'invalid-input', reason: 'shape' }
-  return { kind: 'decoded', command: result.data }
+  return decodeCommand(HitlCommandSchemas[method], json)
 }

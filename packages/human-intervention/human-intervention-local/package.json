@@ -1,0 +1,39 @@
+{
+  "name": "@omne-harness/human-intervention-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local SQL persistence for human intervention and durable wait recovery",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/human-intervention": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*",
+    "canonicalize": "5.1.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@omne-harness/sqlite-provider": "workspace:*"
+  }
+}

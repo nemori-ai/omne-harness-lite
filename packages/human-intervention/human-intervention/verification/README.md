@@ -35,7 +35,7 @@ uv run --locked --no-sync python packages/human-intervention/human-intervention/
 | ExecutionSlots | 三调用、一active名额、一次人工等待 | park释放、ready排队、重新取得、不超容量、兄弟及已答调用条件进展 |
 | HumanDecision | 两卡、两竞争答复、成员撤权、短期reservation、失效、消费、服务退出/恢复 | 唯一决定、共同保管、无终局复活、当前资格、租户、一次接手 |
 | WaitIsolation | A已准入后park；同会话独立工具B、另一会话C；不依赖人回答 | 工具独立、会话独立、不持执行槽；弱公平下B/C最终推进 |
-| ConcurrentIntake | 两会话三个请求，含同会话不同客户端和跨会话相同局部key；入列、消费、重试 | 唯一输入、已受理不丢、受理序消费、跨会话幂等作用域、可信来源派生 |
+| ConcurrentIntake | 两会话四个请求，含不同 acceptId、跨会话相同 acceptId，以及换登录重用同一 acceptId；入列、消费、重试 | 唯一输入、已受理不丢、受理序消费、跨会话幂等作用域、同键不得改绑 |
 | RecoveryRouting | 一个逻辑等待、两代接收者、一次退出/重装配、离线答复 | 未答保持、答复保管、稳定目的地、旧代围栏、一次接手；弱公平下最终交接 |
 | AuthorityComposition | 七类独立资格来源各一次失效、准备与目的提交 | 当前保护组合；分别移除每一来源guard的七个负控 |
 | PermissionScope | 单动作、三个授权范围、一次修订/撤回、会话终局、两次消费 | 主动禁止不可绕过、范围、参数绑定、当前依据、单次消费 |
@@ -82,3 +82,5 @@ command-algebra.json列出4个HITL命令、5查询、5原等待恢复端口及4�
 | src/services.ts 与 tests/contracts.spec-d.ts | 命令、查询及提交端口隔离，按方法关联命令结果 | 真实应用服务、SQL、Identity与原等待适配 |
 
 源码通过纯函数用例不关闭C2，也不建立跨进程或断电保证。完整事务与恢复映射仍由上表之前列出的闭包负责。
+
+ConcurrentIntake 的操作身份是固定租户内的 `(session, acceptId)`，登录来源属于原输入绑定内容，不参与 accept 族操作键。不同客户端须为不同请求提供不同 acceptId；换登录重发同一 acceptId 不是独立请求，依公开入口合同冲突，查询仍受当前资格检查。模型中两个输入可竞争同键，但至多一个被受理；`NoOperationRebinding` 及 rebind 负控守住这一点。`NoClientSourceConflict` 只承诺尚未绑定的独立操作不因客户端来源被错误合并。该模型不证明 HTTP 错误形状或身份鉴别，真实映射由 C1 用例证明。

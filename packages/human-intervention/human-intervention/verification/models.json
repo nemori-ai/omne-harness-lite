@@ -523,6 +523,12 @@
       "model": "models/GovernanceLifecycle.tla",
       "config": "models/governancelifecycle-erase-receipt.cfg",
       "expected": "ReceiptPreserved"
+    },
+    {
+      "name": "concurrentintake-rebind",
+      "model": "models/ConcurrentIntake.tla",
+      "config": "models/concurrentintake-rebind.cfg",
+      "expected": "NoOperationRebinding"
     }
   ]
 }

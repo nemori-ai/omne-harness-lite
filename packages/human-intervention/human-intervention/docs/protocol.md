@@ -163,7 +163,7 @@ AuthorityComposition模型中的七个来源代表原七类保护轴，adoption�
 
 ### 恢复接收端口
 
-原等待拥有者提供以下候选RecoveryCommands/Queries。HITL只消费其稳定目的地和回执，不拥有运行实例注册表。端口使用可信Access与OperationRef，数据仍为JSON；Cordis提供适配，不把Context或闭包放入契约。
+原等待拥有者提供以下RecoveryCommands/Queries。HITL只消费其稳定目的地和回执，不拥有运行实例注册表。公开定义见 [recovery.ts](../src/recovery.ts) 与 [recovery-services.ts](../src/recovery-services.ts)。端口使用可信Access与OperationRef，数据仍为JSON；Cordis提供适配，不把Context或闭包放入契约。
 
 | 方法 | 输入 | 结果与竞争规则 |
 | --- | --- | --- |
@@ -192,3 +192,5 @@ ExecutionSlots模型以三调用、一个active名额验证park释放、答复�
 对工具作者的可观察规则：存活协程的wait Promise只有在答复已可靠保管、原继续资格有效且重新取得active名额后才resolve，避免工具代码在名额之外自动执行下一行。等待名额时答复已确认，人不需重答。重建的可恢复executor同样只在取得名额后调用恢复入口。HITL的delivery accepted只表示原拥有者耐久接手，不能等同于该Promise已resolve或工具已经运行。
 
 工具等待的通用性属于Tool原契约。ask/resource及具名provider可以消费人的答复或其他外部输入；HITL的人工卡片不因此允许系统代答。普通I/O沿既有异步机制，不登记HITL请求；事件订阅/数据传输需要耐久业务接续时由原服务适配到Tool的具名等待协议，HITL不成为事件或传输平台。
+
+恢复命令沿用 hitl/1 信封与 UTF-8 预算。consumeOperationId 必须等于本次 OperationRef.operationId，决定与提交租户必须一致；原操作重传认回同一消费。receiverGeneration 使用独立于卡片 revision 的名义类型和规范十进制字符串，不经 JavaScript number 舍入。读取等待和收件箱时，租户由可信 Access 确定，WaitRef 本身不是跨租户访问资格。

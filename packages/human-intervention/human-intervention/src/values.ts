@@ -15,10 +15,9 @@ function text(maxCodePoints: number) {
 
 export const HitlIdentifierSchema = text(256)
 export const HitlTextSchema = text(8192)
-export const RevisionSchema = z
-  .string()
-  .regex(/^(0|[1-9][0-9]*)$/)
-  .brand<'HitlRevision'>()
+const counter = z.string().regex(/^(0|[1-9][0-9]*)$/)
+export const RevisionSchema = counter.brand<'HitlRevision'>()
+export const ReceiverGenerationSchema = counter.brand<'HitlReceiverGeneration'>()
 export const TenantRefSchema = HitlIdentifierSchema.brand<'HitlTenantRef'>()
 export const RequestRefSchema = z
   .strictObject({
@@ -145,7 +144,7 @@ export const ConsumerReceiptSchema = z
     decision: DecisionRefSchema,
     wait: WaitRefSchema,
     consumeOperationId: HitlIdentifierSchema,
-    receiverGeneration: RevisionSchema,
+    receiverGeneration: ReceiverGenerationSchema,
     outcome: z.enum(['accepted', 'superseded']),
     evidenceRef: HitlIdentifierSchema,
   })
@@ -162,6 +161,7 @@ export type Origin = z.infer<typeof OriginSchema>
 export type ActionBasis = z.infer<typeof ActionBasisSchema>
 export type ConsumerReceipt = z.infer<typeof ConsumerReceiptSchema>
 export type Revision = z.infer<typeof RevisionSchema>
+export type ReceiverGeneration = z.infer<typeof ReceiverGenerationSchema>
 export type InvalidationReason = z.infer<typeof InvalidationReasonSchema>
 
 export function sameCard(left: CardRef, right: CardRef): boolean {
