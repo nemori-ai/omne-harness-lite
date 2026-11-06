@@ -313,3 +313,56 @@ it('rolls back a verify failure after relational adoption and retries without du
     upgraded.close()
   }
 })
+
+it('migrates legal NUL reply cells from both legacy custody records without truncation', async () => {
+  const { root } = legacyCopy(),
+    db = database(root),
+    text = '\0'.repeat(8192)
+  const requestRow = db
+    .prepare(
+      "SELECT request_id,record FROM hi_requests WHERE record LIKE '%partial-answer%' LIMIT 1",
+    )
+    .get()
+  const inboxRow = db
+    .prepare(
+      "SELECT sequence,record FROM hi_wait_inbox WHERE record LIKE '%partial-answer%' LIMIT 1",
+    )
+    .get()
+  if (!requestRow || !inboxRow) throw new Error('Missing legacy custody')
+  const original = RequestRecordSchema.parse(parseJson(requestRow.record))
+  const updated = RequestRecordSchema.parse({
+    ...original,
+    cards: original.cards.map(card =>
+      card.kind === 'decided'
+        ? { ...card, decision: { ...card.decision, reply: { kind: 'text', text } } }
+        : card,
+    ),
+  })
+  const inbox = InboxEntrySchema.parse(parseJson(inboxRow.record))
+  db.prepare('UPDATE hi_requests SET record=? WHERE request_id=?').run(
+    canonical(updated),
+    String(requestRow.request_id),
+  )
+  db.prepare('UPDATE hi_wait_inbox SET record=? WHERE sequence=?').run(
+    canonical({ ...inbox, decision: { ...inbox.decision, reply: { kind: 'text', text } } }),
+    Number(inboxRow.sequence),
+  )
+  db.close()
+  const world = await open(root)
+  const read = await world.storage.read({
+    domain: world.combination,
+    handler: 'hitl.request-read',
+    protocol: 'hitl-sql/2',
+    requestKey: 'migrated-nul',
+    input: { kind: 'request', ref: original.ref, actorRef: 'owner' },
+  })
+  if (read.kind !== 'read') throw new Error(JSON.stringify(read))
+  expect(RequestRecordSchema.parse(read.output)).toEqual(updated)
+  await world.close()
+  const after = database(root)
+  try {
+    expect(inspectRelations(after)).toEqual([])
+  } finally {
+    after.close()
+  }
+})

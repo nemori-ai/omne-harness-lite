@@ -1,3 +1,4 @@
+import { stringCell } from './string-cell.ts'
 import { RevisionSchema } from '@omne-harness/human-intervention'
 import type { ReadHandlerModule, ReadPort } from '@omne-harness/sql-contract/worker'
 import { digest, json } from './encoding.ts'
@@ -37,7 +38,13 @@ function keys(port: ReadPort, query: PoolScan, start: CardKey, bucket: string): 
   const requests = port.execute(
     `SELECT CAST(request_sequence AS TEXT) FROM hi_pool_request_buckets_v2 INDEXED BY hi_pool_actor_bucket_v2
  WHERE tenant_ref=? AND actor_ref=? AND bucket=? AND request_sequence>=? ORDER BY request_sequence LIMIT ?`,
-    [query.tenantRef, query.actorRef, bucket, BigInt(start.sequence), query.limit + 2],
+    [
+      stringCell(query.tenantRef),
+      stringCell(query.actorRef),
+      bucket,
+      BigInt(start.sequence),
+      query.limit + 2,
+    ],
   ).rows
   const result: CardKey[] = []
   for (const row of requests) {
@@ -46,7 +53,7 @@ function keys(port: ReadPort, query: PoolScan, start: CardKey, bucket: string): 
       `SELECT card_ordinal FROM hi_card_states_v2 INDEXED BY hi_card_bucket_order_v2
  WHERE tenant_ref=? AND request_sequence=? AND bucket=? AND card_ordinal>? ORDER BY card_ordinal LIMIT ?`,
       [
-        query.tenantRef,
+        stringCell(query.tenantRef),
         BigInt(sequence),
         bucket,
         sequence === start.sequence ? start.ordinal - 1 : -1,
@@ -67,7 +74,7 @@ function startPosition(port: ReadPort, query: PoolScan): CardKey | undefined {
       : { sequence: (BigInt(after) + 1n).toString(), ordinal: 0 }
   const row = port.execute(
     'SELECT CAST(sequence AS TEXT),card_count FROM hi_requests_v2 WHERE tenant_ref=? AND sequence>? ORDER BY sequence LIMIT 1',
-    [query.tenantRef, BigInt(after)],
+    [stringCell(query.tenantRef), BigInt(after)],
   ).rows[0]
   return row && offset < countSchema.parse(row[1])
     ? { sequence: SqlSequenceSchema.parse(row[0]), ordinal: offset }
@@ -81,8 +88,8 @@ export default {
     if (!parsed.success) return { kind: 'failed', diagnostic: 'hitl_pool_query' }
     const query = parsed.data
     const version = port.execute(
-      'SELECT revision FROM hi_request_versions WHERE tenant_ref=? LIMIT 1',
-      [query.tenantRef],
+      'SELECT revision FROM hi_request_versions_v2 WHERE tenant_ref=? LIMIT 1',
+      [stringCell(query.tenantRef)],
     ).rows[0]
     const revision = RevisionSchema.parse(version ? version[0] : '0')
     if (query.snapshot !== undefined && query.snapshot !== digest([query.tenantRef, revision]))

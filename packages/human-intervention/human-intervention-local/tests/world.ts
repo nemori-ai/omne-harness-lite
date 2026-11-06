@@ -26,7 +26,7 @@ export async function openWorld(
   } = {},
 ) {
   const parent = fileURLToPath(
-    new URL('../../../../tmp/hitl-r1-c2-relational/databases/', import.meta.url),
+    new URL('../../../../tmp/hitl-r1-c2-relational/repair/databases/', import.meta.url),
   )
   mkdirSync(parent, { recursive: true })
   const root = options.root ?? realpathSync(mkdtempSync(join(parent, 'case-')))
@@ -113,8 +113,15 @@ export async function openWorld(
   if (created.kind !== 'created') throw new Error(JSON.stringify(created))
   const registered = await created.storage.registerCombination(combination)
   if (registered.kind !== 'registered') {
+    const diagnostic = await created.storage.read({
+      domain,
+      handler: 'hitl.request-read',
+      protocol: 'hitl-sql/2',
+      requestKey: 'failed-registration',
+      input: {},
+    })
     await created.control.close({ initiator: 'disposal' })
-    throw new Error(JSON.stringify(registered))
+    throw new Error(JSON.stringify({ registered, diagnostic }))
   }
   const terminals = createHitlSqlTerminals({
     storage: options.wrap?.(created.storage) ?? created.storage,

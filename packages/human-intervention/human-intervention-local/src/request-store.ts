@@ -1,3 +1,4 @@
+import { stringCell } from './string-cell.ts'
 import { nextRevision } from '@omne-harness/human-intervention'
 import type { MigrationPort } from '@omne-harness/sql-contract/worker'
 import { canonical } from './encoding.ts'
@@ -17,17 +18,17 @@ export function insertRequest(
  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       preservedSequence === undefined ? null : BigInt(preservedSequence),
-      ref.tenantRef,
-      ref.requestId,
+      stringCell(ref.tenantRef),
+      stringCell(ref.requestId),
       origin.kind,
-      origin.originRef,
-      origin.wait.owner,
-      origin.wait.waitId,
-      origin.wait.incarnation,
-      origin.wait.destination,
-      origin.positionRef,
-      origin.adoptionRef,
-      record.displayContext,
+      stringCell(origin.originRef),
+      stringCell(origin.wait.owner),
+      stringCell(origin.wait.waitId),
+      stringCell(origin.wait.incarnation),
+      stringCell(origin.wait.destination),
+      stringCell(origin.positionRef),
+      stringCell(origin.adoptionRef),
+      stringCell(record.displayContext),
       record.actionBasis ? canonical(record.actionBasis) : null,
       audience.audienceDigest,
       record.cards.length,
@@ -36,14 +37,14 @@ export function insertRequest(
   const sequence = insertedSequence(inserted)
   port.execute(
     'INSERT INTO hi_request_states_v2(tenant_ref,request_sequence,revision) VALUES (?,?,?)',
-    [ref.tenantRef, BigInt(sequence), record.revision],
+    [stringCell(ref.tenantRef), BigInt(sequence), record.revision],
   )
   const buckets = new Set<string>()
   for (const [ordinal, card] of record.cards.entries()) {
-    const key = [ref.tenantRef, BigInt(sequence), ordinal] as const
+    const key = [stringCell(ref.tenantRef), BigInt(sequence), ordinal] as const
     port.execute(
       'INSERT INTO hi_questions_v2(tenant_ref,request_sequence,card_ordinal,card_id,question_json) VALUES (?,?,?,?,?)',
-      [...key, card.ref.cardId, canonical(card.question)],
+      [...key, stringCell(card.ref.cardId), canonical(card.question)],
     )
     port.execute(
       `INSERT INTO hi_card_states_v2(tenant_ref,request_sequence,card_ordinal,revision,state,delivery,delivery_receipt_ref,invalidation_reason,terminal_evidence_ref)
@@ -54,10 +55,10 @@ export function insertRequest(
         card.kind,
         card.kind === 'decided' ? card.delivery.kind : null,
         card.kind === 'decided' && card.delivery.kind !== 'pending'
-          ? card.delivery.receiptRef
+          ? stringCell(card.delivery.receiptRef)
           : null,
         card.kind === 'invalidated' ? card.reason : null,
-        card.kind === 'invalidated' ? card.terminalEvidenceRef : null,
+        card.kind === 'invalidated' ? stringCell(card.terminalEvidenceRef) : null,
       ],
     )
     if (card.kind === 'decided') insertDecision(port, key, card.decision)
@@ -66,12 +67,12 @@ export function insertRequest(
   for (const actor of audience.readers) {
     port.execute(
       'INSERT INTO hi_request_readers_v2(tenant_ref,request_sequence,actor_ref) VALUES (?,?,?)',
-      [ref.tenantRef, BigInt(sequence), actor],
+      [stringCell(ref.tenantRef), BigInt(sequence), stringCell(actor)],
     )
     for (const bucket of buckets)
       port.execute(
         'INSERT INTO hi_pool_request_buckets_v2(tenant_ref,request_sequence,bucket,actor_ref) VALUES (?,?,?,?)',
-        [ref.tenantRef, BigInt(sequence), bucket, actor],
+        [stringCell(ref.tenantRef), BigInt(sequence), bucket, stringCell(actor)],
       )
   }
   return sequence
@@ -123,7 +124,7 @@ export function applyRequestPlan(port: MigrationPort, plan: RequestPlan) {
     insertRequest(port, update.record, update.audience)
     return
   }
-  const tenant = update.ref.tenantRef,
+  const tenant = stringCell(update.ref.tenantRef),
     sequence = BigInt(update.sequence)
   if (update.kind === 'decide') {
     if (plan.effect.kind !== 'deliver') throw new TypeError('Decision without custody effect')
@@ -144,7 +145,7 @@ export function applyRequestPlan(port: MigrationPort, plan: RequestPlan) {
         [
           nextRevision(update.expectedCardRevision),
           update.outcome,
-          update.receiptRef,
+          stringCell(update.receiptRef),
           tenant,
           sequence,
           update.ordinal,
@@ -162,7 +163,7 @@ export function applyRequestPlan(port: MigrationPort, plan: RequestPlan) {
           [
             nextRevision(card.revision),
             update.reason,
-            update.evidenceRef,
+            stringCell(update.evidenceRef),
             tenant,
             sequence,
             card.ordinal,

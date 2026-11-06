@@ -18,21 +18,24 @@ erDiagram
   WAIT_CARD ||--o| INBOX_DECISION : custody
   INBOX_DECISION ||--o| CONSUMER_RECEIPT : consumed
   INBOX_DECISION ||--o| PENDING_DELIVERY : unconsumed
+  DECISION ||--|| INBOX_DECISION : same_decision_identity
 ```
+
+图中的 DECISION 与 INBOX_DECISION 关系表示完整稳定身份的逻辑匹配，不是跨拥有者外键。HITL 不读取 WaitOwner 私表。
 
 关系键均包含租户。请求与 inbox 的顺序是 SQLite int64，边界以十进制字符串传递；revision、receiverGeneration 是任意长度规范非负十进制文本。请求内 cardId 与 ordinal 分别唯一，ordinal 连续且最多64项。每卡最多一个 Decision、inbox 项及 receipt。外键和联合 CHECK 约束非法状态组合；跨行精确集合由唯一写者维护，独立 SQL 守护反向计算。
 
-RequestRecord 是读回的一致快照形状，不是持久聚合 JSON。不可变请求头保管 origin、题序、displayContext 和 actionBasis；单独状态行保管修订。题目 JSON 仅表示不可变题目值；Decision 的 Reply 联合拆为列，原文本逐字保留。
+RequestRecord 是读回的一致快照形状，不是持久聚合 JSON。不可变请求头保管 origin、题序、displayContext 和 actionBasis；单独状态行保管修订。题目 JSON 仅表示不可变题目值；Decision 的 Reply 联合拆为列，原文本逐字保留。自由文本与标识在各自单列内采用 JSON 字符串表示，外键及查询绑定使用相同表示。
 
 WaitControl 保管接收权和业务终局。receiverGeneration 决定谁可消费，卡片 revision 决定答复竞争，两者不能互换。准备摘要用于认回同一准备；登记摘要用于核验原登记；迁移导出证明只在迁移合同内出现，不扩充运行时受众协议。
 
 ## 转换及派生关系
 
-prepared 尚未成为有效人工等待。共同注册建立 active、完整卡片关联与 HITL 请求。答复在同一提交生成卡片决定、原位置 inbox 和 pending。消费在同一提交生成 receipt、删除 pending 并增加 receipt_count。仅全批卡片已消费才成为 resume-ready；终局永久固定 terminal，已有决定仍可按 superseded 接手。
+prepared 尚未成为有效人工等待。共同注册建立 active、完整卡片关联与 HITL 请求。答复在同一提交生成卡片决定、原位置 inbox 和 pending。消费在同一提交生成 receipt、删除 pending 并增加 receipt_count。live 等待仅全批卡片已消费才成为 resume-ready；终局永久固定 terminal，已有决定仍可按 superseded 接手。从未绑定的终局等待允许原 owner 按当前代次结算，不创建接收者，也不进入 resume-ready。
 
 PoolExact 要求每个获准读者、请求与实际非空 bucket 恰好对应一行。五个 bucket 是 pending、invalidated、decided-pending、decided-accepted、decided-superseded。卡片转换时只添加第一个新桶或删除最后一个旧桶，不改写其他卡片和读者。
 
-PendingExact 要求每个无 receipt 的 inbox 恰好对应一行，并保留原 owner、destination、sequence。receipt_count 必须等于 receipt 实数，checkpoint 从该数和终局推导。独立检查见 [relations.ts](../verification/relations.ts)。
+PendingExact 要求每个无 receipt 的 inbox 恰好对应一行，并保留原 owner、destination、sequence。receipt_count 必须等于 receipt 实数，checkpoint 从该数和终局推导。独立检查见 [relations.ts](../verification/relations.ts)。发现不一致后的停用、维护和恢复读取按[投影失效与受管恢复](../SPEC.md#投影失效与受管恢复)执行。
 
 ## 操作和游标
 

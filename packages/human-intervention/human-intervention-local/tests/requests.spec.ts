@@ -944,3 +944,109 @@ it(
     expect(pages).toBe(2)
   },
 )
+
+it('atomically settles an unbound terminal after reopening and recovers the original receipt', async () => {
+  const world = await open(),
+    ref = await register(world)
+  const input = submit(ref, 'before-terminal')
+  const decided = resultValue(
+    await commit(world, input.command.operation, independentRequestCommands(input, waitRef)),
+  )
+  if (decided.kind !== 'decided') throw new Error(JSON.stringify(decided))
+  const cancel = SqlCommandSchema.parse({
+    method: 'invalidateWait',
+    command: {
+      protocol: 'hitl/1',
+      operation: operation('cancel-unbound'),
+      waitRef,
+      terminalEvidenceRef: 'cancelled\0original',
+      reason: 'cancelled',
+    },
+  })
+  expect(
+    resultValue(
+      await commit(world, cancel.command.operation, independentRequestCommands(cancel, waitRef)),
+    ),
+  ).toMatchObject({ kind: 'invalidated' })
+  await world.close()
+  const reopened = await open({ root: world.root })
+  expect(await state(reopened)).toMatchObject({
+    state: {
+      receiver: { kind: 'unbound', generation: '0' },
+      checkpoint: 'terminal',
+      receipts: [],
+    },
+  })
+  const consumption = IndependentCommandSchema.parse({
+    kind: 'consume',
+    command: {
+      protocol: 'hitl/1',
+      operation: operation('consume-unbound'),
+      consumeOperationId: 'consume-unbound',
+      waitRef,
+      receiverGeneration: '0',
+      decisionRef: decided.decisionRef,
+    },
+  })
+  if (consumption.kind !== 'consume') throw new Error('Expected consumption')
+  expect(
+    (
+      await commit(reopened, consumption.command.operation, [
+        ...independentControlCommands(consumption),
+        { participant: 'fixture.hitl.late-reject', facts: {} },
+      ])
+    ).kind,
+  ).toBe('rolled_back')
+  expect(await state(reopened)).toMatchObject({
+    state: { checkpoint: 'terminal', receipts: [], receiptCount: 0 },
+  })
+  const pending = () =>
+    reopened.storage.read({
+      domain: reopened.combination,
+      handler: 'hitl.independent-deliveries',
+      protocol: 'independent-wait/2',
+      requestKey: randomUUID(),
+      input: {
+        tenantRef: 'tenant-a',
+        actorRef: 'owner',
+        destination: waitRef.destination,
+        after: '0',
+        limit: 10,
+      },
+    })
+  expect(await pending()).toMatchObject({
+    kind: 'read',
+    output: { kind: 'page', items: [{ decision: { ref: decided.decisionRef } }] },
+  })
+  const retry = {
+    ...consumption.command,
+    operation: operation('retry-consume-unbound'),
+    consumeOperationId: 'retry-consume-unbound',
+  }
+  const result = await recovery(reopened, 'consume', retry)
+  expect(result).toMatchObject({ kind: 'superseded', receipt: { receiverGeneration: '0' } })
+  expect(await pending()).toMatchObject({
+    kind: 'read',
+    output: { kind: 'page', items: [], next: null },
+  })
+  expect(await state(reopened)).toMatchObject({
+    state: { checkpoint: 'terminal', receiptCount: 1, receipts: [{ outcome: 'superseded' }] },
+  })
+  await reopened.close()
+  const again = await open({ root: reopened.root })
+  expect(await recovery(again, 'consume', retry)).toEqual(result)
+  expect(await state(again)).toMatchObject({
+    state: { checkpoint: 'terminal', receiptCount: 1, receipts: [{ outcome: 'superseded' }] },
+  })
+  await again.close()
+  const { database } = await import('./legacy-fixture.ts')
+  const { inspectRelations } = await import('../verification/relations.ts')
+  const db = database(again.root)
+  try {
+    expect(inspectRelations(db)).toEqual([])
+    db.exec("UPDATE hi_wait_receipts_v2 SET outcome='accepted'")
+    expect(inspectRelations(db)).toContain('ReceiverFence')
+  } finally {
+    db.close()
+  }
+})

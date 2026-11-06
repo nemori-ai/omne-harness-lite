@@ -126,7 +126,7 @@ export function hitlSqlMaterials(): Pick<
         moduleUrl: poolReader.moduleUrl,
         codeDigest: poolReader.digest,
         ordering: 'snapshot',
-        readTables: [...requestTables, 'hi_request_versions'],
+        readTables: [...requestTables],
         requiresMigrations: [REQUEST_RELATIONAL_MIGRATION],
         maxRowsRead: 1117,
         maxOutputBytes: 8388608,

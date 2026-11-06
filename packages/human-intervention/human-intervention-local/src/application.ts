@@ -81,15 +81,15 @@ export function createIndependentHitlApplication(
     const operationRef = input.operation
     return run(
       async (): Promise<CommandResult<M>> => {
-        if (Buffer.byteLength(canonical(input), 'utf8') > HITL_COMMAND_MAX_BYTES)
+        const parsed = HitlCommandSchemas[method].safeParse(input)
+        if (!parsed.success) return { kind: 'invalid-input', reason: 'command', operationRef }
+        if (Buffer.byteLength(canonical(parsed.data), 'utf8') > HITL_COMMAND_MAX_BYTES)
           return {
             kind: 'limited',
             resource: 'command-bytes',
             limit: HITL_COMMAND_MAX_BYTES,
             operationRef,
           }
-        const parsed = HitlCommandSchemas[method].safeParse(input)
-        if (!parsed.success) return { kind: 'invalid-input', reason: 'command', operationRef }
         const command = SqlCommandSchema.parse({ method, command: parsed.data })
         const routed = await route(access, command)
         if (routed.kind !== 'routed') return { ...routed, operationRef }

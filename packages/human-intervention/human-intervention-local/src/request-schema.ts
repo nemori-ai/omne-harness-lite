@@ -6,6 +6,7 @@ import {
   ConsumerReceiptSchema,
   DecisionSchema,
   HitlIdentifierSchema,
+  HitlTextSchema,
   InvalidateWaitSchema,
   OriginSchema,
   RegisterRequestSchema,
@@ -43,7 +44,7 @@ export const RequestRecordSchema = z
     ref: RequestRefSchema,
     revision: RevisionSchema,
     origin: OriginSchema,
-    displayContext: z.string(),
+    displayContext: HitlTextSchema,
     actionBasis: ActionBasisSchema.optional(),
     cards: z.array(CardSchema).min(1).max(64).readonly(),
   })

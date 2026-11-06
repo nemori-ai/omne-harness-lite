@@ -39,6 +39,10 @@ function duration(text: string) {
 export async function openIdentityWorld(
   options: {
     cards?: number
+    destination?: string
+    transformRegistration?: (
+      request: ReturnType<typeof RegisterRequestSchema.parse>,
+    ) => ReturnType<typeof RegisterRequestSchema.parse>
     wrapHitl?: (storage: SqlStorage) => SqlStorage
   } = {},
 ) {
@@ -91,7 +95,7 @@ export async function openIdentityWorld(
     defaultDuration: duration('PT3600S'),
     maxDuration: duration('PT86400S'),
   })
-  const destination = 'hitl.independent'
+  const destination = options.destination ?? 'hitl.independent'
   const terminalOptions = {
     storage: world.storage,
     domain: world.combination,
@@ -198,7 +202,7 @@ export async function openIdentityWorld(
   })
   const operation = (id: string) =>
     OperationRefSchema.parse({ tenantRef: scopeRef, actorRef: principalRef, operationId: id })
-  const request = RegisterRequestSchema.parse({
+  const baseRequest = RegisterRequestSchema.parse({
     protocol: 'hitl/1',
     operation: operation('register'),
     preparationRef: 'prepared',
@@ -218,6 +222,7 @@ export async function openIdentityWorld(
     })),
     displayContext: 'Independent human question',
   })
+  const request = options.transformRegistration?.(baseRequest) ?? baseRequest
   const preparation = IndependentCommandSchema.parse({
     kind: 'prepare',
     operation: operation('prepare'),

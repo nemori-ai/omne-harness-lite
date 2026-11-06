@@ -1,3 +1,4 @@
+import { stringCell } from './string-cell.ts'
 import { z } from 'zod'
 import type { MigrationModule } from '@omne-harness/sql-contract/worker'
 import { terminalDdl } from './relational-ddl.ts'
@@ -23,7 +24,14 @@ export default {
       if (operationKey(op) !== after) throw new TypeError('Legacy terminal identity mismatch')
       port.execute(
         'INSERT INTO hi_terminals_v2(tenant_ref,actor_ref,operation_id,operation_key,input_digest,state) VALUES (?,?,?,?,?,?)',
-        [op.tenantRef, op.actorRef, op.operationId, after, binding.inputDigest, value.state],
+        [
+          stringCell(op.tenantRef),
+          stringCell(op.actorRef),
+          stringCell(op.operationId),
+          after,
+          binding.inputDigest,
+          value.state,
+        ],
       )
     }
     const mismatch = port.execute(

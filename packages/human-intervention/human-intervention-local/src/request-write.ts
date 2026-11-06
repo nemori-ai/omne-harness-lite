@@ -1,3 +1,4 @@
+import { stringCell } from './string-cell.ts'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import { RevisionSchema, nextRevision } from '@omne-harness/human-intervention'
 import { equal, json, digest, operationKey } from './encoding.ts'
@@ -32,13 +33,13 @@ export default {
     if (plan.update.kind !== 'none') {
       applyRequestPlan(port, plan)
       const row = port.execute(
-        'SELECT revision FROM hi_request_versions WHERE tenant_ref = ? LIMIT 1',
-        [binding.operationRef.tenantRef],
+        'SELECT revision FROM hi_request_versions_v2 WHERE tenant_ref = ? LIMIT 1',
+        [stringCell(binding.operationRef.tenantRef)],
       ).rows[0]
       const revision = RevisionSchema.parse(row ? row[0] : '0')
       port.execute(
-        'INSERT INTO hi_request_versions (tenant_ref, revision) VALUES (?, ?) ON CONFLICT (tenant_ref) DO UPDATE SET revision = excluded.revision',
-        [binding.operationRef.tenantRef, nextRevision(revision)],
+        'INSERT INTO hi_request_versions_v2 (tenant_ref, revision) VALUES (?, ?) ON CONFLICT (tenant_ref) DO UPDATE SET revision = excluded.revision',
+        [stringCell(binding.operationRef.tenantRef), nextRevision(revision)],
       )
     }
     return {

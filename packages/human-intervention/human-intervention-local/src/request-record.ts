@@ -1,6 +1,8 @@
+import { stringCell, readStringCell } from './string-cell.ts'
 import { z } from 'zod'
 import {
   ActionBasisSchema,
+  HitlTextSchema,
   CardSchema,
   DecisionRefSchema,
   OriginSchema,
@@ -21,14 +23,22 @@ const requestJoin = `FROM hi_requests_v2 r JOIN hi_request_states_v2 s
 function identity(row: readonly SqlCell[]) {
   return {
     sequence: SqlSequenceSchema.parse(row[0]),
-    ref: RequestRefSchema.parse({ tenantRef: row[1], requestId: row[2] }),
+    ref: RequestRefSchema.parse({
+      tenantRef: readStringCell(row[1]),
+      requestId: readStringCell(row[2]),
+    }),
     revision: RevisionSchema.parse(row[3]),
     origin: OriginSchema.parse({
       kind: row[4],
-      originRef: row[5],
-      wait: { owner: row[6], waitId: row[7], incarnation: row[8], destination: row[9] },
-      positionRef: row[10],
-      adoptionRef: row[11],
+      originRef: readStringCell(row[5]),
+      wait: {
+        owner: readStringCell(row[6]),
+        waitId: readStringCell(row[7]),
+        incarnation: readStringCell(row[8]),
+        destination: readStringCell(row[9]),
+      },
+      positionRef: readStringCell(row[10]),
+      adoptionRef: readStringCell(row[11]),
     }),
     cardCount: countSchema.parse(row[12]),
   }
@@ -36,7 +46,7 @@ function identity(row: readonly SqlCell[]) {
 function header(row: readonly SqlCell[]) {
   return {
     ...identity(row),
-    displayContext: z.string().parse(row[13]),
+    displayContext: HitlTextSchema.parse(readStringCell(row[13])),
     ...(row[14] === null ? {} : { actionBasis: ActionBasisSchema.parse(parseJson(row[14])) }),
   }
 }
@@ -44,7 +54,7 @@ export function readRequestIdentity(port: ReadPort, ref: RequestRef) {
   const row = port.execute(
     `SELECT ${identityColumns} ${requestJoin}
  WHERE r.tenant_ref=? AND r.request_id=? LIMIT 1`,
-    [ref.tenantRef, ref.requestId],
+    [stringCell(ref.tenantRef), stringCell(ref.requestId)],
   ).rows[0]
   return row ? identity(row) : undefined
 }
@@ -53,13 +63,13 @@ export function readRequestHeader(port: ReadPort, ref: RequestRef, actor?: strin
     actor === undefined
       ? port.execute(
           `SELECT ${headerColumns} ${requestJoin} WHERE r.tenant_ref=? AND r.request_id=? LIMIT 1`,
-          [ref.tenantRef, ref.requestId],
+          [stringCell(ref.tenantRef), stringCell(ref.requestId)],
         ).rows[0]
       : port.execute(
           `SELECT ${headerColumns} ${requestJoin}
  JOIN hi_request_readers_v2 a ON a.tenant_ref=r.tenant_ref AND a.request_sequence=r.sequence
  WHERE r.tenant_ref=? AND r.request_id=? AND a.actor_ref=? LIMIT 1`,
-          [ref.tenantRef, ref.requestId, actor],
+          [stringCell(ref.tenantRef), stringCell(ref.requestId), stringCell(actor)],
         ).rows[0]
   return row ? header(row) : undefined
 }
@@ -68,7 +78,7 @@ export function readRequestRoute(port: ReadPort, ref: RequestRef, actor: string)
     `SELECT ${identityColumns} ${requestJoin}
  JOIN hi_request_readers_v2 a ON a.tenant_ref=r.tenant_ref AND a.request_sequence=r.sequence
  WHERE r.tenant_ref=? AND r.request_id=? AND a.actor_ref=? LIMIT 1`,
-    [ref.tenantRef, ref.requestId, actor],
+    [stringCell(ref.tenantRef), stringCell(ref.requestId), stringCell(actor)],
   ).rows[0]
   return row ? identity(row).origin.wait : undefined
 }
@@ -79,7 +89,7 @@ const cardColumns = `q.card_id,q.card_ordinal,q.question_json,c.revision,c.state
 const cardJoin = `FROM hi_questions_v2 q JOIN hi_card_states_v2 c USING(tenant_ref,request_sequence,card_ordinal)
  LEFT JOIN hi_decisions_v2 d USING(tenant_ref,request_sequence,card_ordinal)`
 function card(ref: RequestRef, row: readonly SqlCell[]) {
-  const cardId = z.string().parse(row[0])
+  const cardId = readStringCell(row[0])
   const base = {
     ref: { request: ref, cardId },
     question: parseJson(row[2]),
@@ -96,10 +106,12 @@ function card(ref: RequestRef, row: readonly SqlCell[]) {
             ...base,
             decision: decodeDecision(ref, cardId, row.slice(9)),
             delivery:
-              row[5] === 'pending' ? { kind: 'pending' } : { kind: row[5], receiptRef: row[6] },
+              row[5] === 'pending'
+                ? { kind: 'pending' }
+                : { kind: row[5], receiptRef: readStringCell(row[6]) },
           }
         : state === 'invalidated'
-          ? { ...base, reason: row[7], terminalEvidenceRef: row[8] }
+          ? { ...base, reason: row[7], terminalEvidenceRef: readStringCell(row[8]) }
           : base,
     ),
   }
@@ -108,7 +120,7 @@ export function readCard(port: ReadPort, request: RequestIdentity, cardId: strin
   const row = port.execute(
     `SELECT ${cardColumns} ${cardJoin}
  WHERE q.tenant_ref=? AND q.request_sequence=? AND q.card_id=? LIMIT 1`,
-    [request.ref.tenantRef, BigInt(request.sequence), cardId],
+    [stringCell(request.ref.tenantRef), BigInt(request.sequence), stringCell(cardId)],
   ).rows[0]
   return row ? card(request.ref, row) : undefined
 }
@@ -117,7 +129,7 @@ export function readCardIdentity(port: ReadPort, request: RequestIdentity, cardI
     `SELECT q.card_ordinal,c.revision,c.state,c.delivery,c.delivery_receipt_ref,
  d.decision_id,d.submission_actor,d.submission_operation_id ${cardJoin}
  WHERE q.tenant_ref=? AND q.request_sequence=? AND q.card_id=? LIMIT 1`,
-    [request.ref.tenantRef, BigInt(request.sequence), cardId],
+    [stringCell(request.ref.tenantRef), BigInt(request.sequence), stringCell(cardId)],
   ).rows[0]
   if (!row) return undefined
   return {
@@ -130,8 +142,12 @@ export function readCardIdentity(port: ReadPort, request: RequestIdentity, cardI
         ? null
         : DecisionRefSchema.parse({
             card: { request: request.ref, cardId },
-            decisionId: row[5],
-            submission: { tenantRef: request.ref.tenantRef, actorRef: row[6], operationId: row[7] },
+            decisionId: readStringCell(row[5]),
+            submission: {
+              tenantRef: request.ref.tenantRef,
+              actorRef: readStringCell(row[6]),
+              operationId: readStringCell(row[7]),
+            },
           }),
   }
 }
@@ -140,7 +156,7 @@ export function readPendingCards(port: ReadPort, request: RequestIdentity) {
     .execute(
       `SELECT card_ordinal,revision FROM hi_card_states_v2 INDEXED BY hi_card_bucket_order_v2
  WHERE tenant_ref=? AND request_sequence=? AND bucket='pending' ORDER BY card_ordinal LIMIT 64`,
-      [request.ref.tenantRef, BigInt(request.sequence)],
+      [stringCell(request.ref.tenantRef), BigInt(request.sequence)],
     )
     .rows.map(row => ({
       ordinal: countSchema.parse(row[0]),
@@ -154,7 +170,7 @@ export function readRequest(port: ReadPort, ref: RequestRef, actor?: string) {
     .execute(
       `SELECT ${cardColumns} ${cardJoin}
  WHERE q.tenant_ref=? AND q.request_sequence=? ORDER BY q.card_ordinal LIMIT 64`,
-      [ref.tenantRef, BigInt(current.sequence)],
+      [stringCell(ref.tenantRef), BigInt(current.sequence)],
     )
     .rows.map((row, ordinal) => {
       const item = card(ref, row)
@@ -172,7 +188,7 @@ export function readPoolItem(port: ReadPort, tenant: string, sequence: string, o
  JOIN hi_card_states_v2 c ON c.tenant_ref=q.tenant_ref AND c.request_sequence=q.request_sequence AND c.card_ordinal=q.card_ordinal
  LEFT JOIN hi_decisions_v2 d ON d.tenant_ref=q.tenant_ref AND d.request_sequence=q.request_sequence AND d.card_ordinal=q.card_ordinal
  WHERE r.tenant_ref=? AND r.sequence=? AND q.card_ordinal=? LIMIT 1`,
-    [tenant, BigInt(sequence), ordinal],
+    [stringCell(tenant), BigInt(sequence), ordinal],
   ).rows[0]
   if (!row) throw new TypeError('Pool directory has no card')
   const request = header(row)

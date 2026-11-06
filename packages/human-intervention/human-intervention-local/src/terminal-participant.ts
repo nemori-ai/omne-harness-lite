@@ -1,3 +1,4 @@
+import { stringCell } from './string-cell.ts'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import { equal, json, operationKey } from './encoding.ts'
 import { readTerminal } from './terminal-record.ts'
@@ -28,9 +29,9 @@ export default {
       port.execute(
         'INSERT INTO hi_terminals_v2(tenant_ref,actor_ref,operation_id,operation_key,input_digest,state) VALUES (?,?,?,?,?,?)',
         [
-          binding.operationRef.tenantRef,
-          binding.operationRef.actorRef,
-          binding.operationRef.operationId,
+          stringCell(binding.operationRef.tenantRef),
+          stringCell(binding.operationRef.actorRef),
+          stringCell(binding.operationRef.operationId),
           operationKey(binding.operationRef),
           binding.inputDigest,
           terminal.state,

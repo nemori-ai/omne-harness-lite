@@ -218,7 +218,10 @@ function consume(
     operationRef = command.operation,
     tenant = operationRef.tenantRef,
     wait = command.waitRef
-  if (state.receiver.kind !== 'bound' || state.receiver.generation !== command.receiverGeneration)
+  if (
+    (state.receiver.kind === 'unbound' && state.lifecycle.kind === 'live') ||
+    state.receiver.generation !== command.receiverGeneration
+  )
     return planOperation(input, { kind: 'stale-generation', operationRef })
   const original = readReceipt(port, tenant, wait, command.decisionRef.card.cardId)
   if (original && equal(original.decision, command.decisionRef))

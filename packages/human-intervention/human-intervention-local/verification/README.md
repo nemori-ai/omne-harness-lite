@@ -10,18 +10,18 @@
 
 ## 行为和关系守护
 
-| 性质 | 实现保护 | 可重复反例 |
-| --- | --- | --- |
+| 性质                                  | 实现保护                                            | 可重复反例                                                                                                                                 |
+| ------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | JointRegistration、OneOriginalRequest | T/W/J/F/H共同提交；稳定OperationRef及唯一RequestRef | [requests.spec.ts](../tests/requests.spec.ts) 缺前驱、F之后失败、unknown原结果；[migration.spec.ts](../tests/migration.spec.ts) 原登记认回 |
-| UniqueDecision | 卡片CAS、公开decideReply、每卡决定主键 | requests 双人答复；[relations.spec.ts](../tests/relations.spec.ts) 同卡第二决定 |
-| Custody、ReplyCustody | H决定与F inbox/pending同提交 | requests 答复晚失败；relations 双向DecisionInboxExact、原话改写 |
-| NoRevival | W终局权威、只使pending卡失效、terminal checkpoint | requests 终局竞争及superseded；relations terminal改ready负控 |
-| QualifiedDecision、CurrentComposition | 原ID-19协调及WaitOwner responder | [identity.spec.ts](../tests/identity.spec.ts) 两种撤权顺序及原结果披露；requests reader/responder区别 |
-| TenantIsolation | 验证主体、复合键、事实绑定、签名查询上下文 | identity 主体伪造；[queries.spec.ts](../tests/queries.spec.ts) actor/租户/游标绑定；relations 跨租户FK |
-| OnceConsumption、OnceDelivery | F原子写receipt/count/pending；先核代次再认回 | requests 消费晚失败、重复消费、ack前退出交付；relations PendingExact和ReceiptCountExact负控 |
-| BatchBarrier、generation fence | 活跃批次card_count及任意精度代次 | requests 部分批次、重启换代；relations 提前ready、代次倒退 |
-| Recovery ownership | J恢复分支零SQL，唯一F写者 | [relational.spec.ts](../tests/relational.spec.ts) SQL禁止端口、唯一拥有者及完整构造器 |
-| PoolExact | reader×实际非空bucket增量目录 | relations 漏桶、空桶、错actor；[pool-filters.spec.ts](../tests/pool-filters.spec.ts) 全状态子集及delivery的独立参考求值 |
+| UniqueDecision                        | 卡片CAS、公开decideReply、每卡决定主键              | requests 双人答复；[relations.spec.ts](../tests/relations.spec.ts) 同卡第二决定                                                            |
+| Custody、ReplyCustody                 | H决定与F inbox/pending同提交                        | requests 答复晚失败；relations 双向DecisionInboxExact、原话改写                                                                            |
+| NoRevival                             | W终局权威、只使pending卡失效、terminal checkpoint   | requests 终局竞争及superseded；relations terminal改ready负控                                                                               |
+| QualifiedDecision、CurrentComposition | 原ID-19协调及WaitOwner responder                    | [identity.spec.ts](../tests/identity.spec.ts) 两种撤权顺序及原结果披露；requests reader/responder区别                                      |
+| TenantIsolation                       | 验证主体、复合键、事实绑定、签名查询上下文          | identity 主体伪造；[queries.spec.ts](../tests/queries.spec.ts) actor/租户/游标绑定；relations 跨租户FK                                     |
+| OnceConsumption、OnceDelivery         | F原子写receipt/count/pending；先核代次再认回        | requests 消费晚失败、重复消费、ack前退出交付；relations PendingExact和ReceiptCountExact负控                                                |
+| BatchBarrier、generation fence        | 活跃批次card_count及任意精度代次                    | requests 部分批次、重启换代；relations 提前ready、代次倒退                                                                                 |
+| Recovery ownership                    | J恢复分支零SQL，唯一F写者                           | [relational.spec.ts](../tests/relational.spec.ts) SQL禁止端口、唯一拥有者及完整构造器                                                      |
+| PoolExact                             | reader×实际非空bucket增量目录                       | relations 漏桶、空桶、错actor；[pool-filters.spec.ts](../tests/pool-filters.spec.ts) 全状态子集及delivery的独立参考求值                    |
 
 [relations.ts](relations.ts)从业务关系独立计算期望集合，用双向EXCEPT核对PoolExact、PendingExact、DecisionInboxExact和JointRegistration。它不调用产品目录维护函数。count/checkpoint与实际receipt行数比较；还核对连续题序、决定状态、接收代次和FK。逐提交的 immutableDecisions 快照可检测两份保管同时被改写，单一静态集合检查无法发现这种历史篡改。所有具名关系负控须触发对应守护；DDL负控单独声明数据库约束，不能用不相关SQL异常冒充关系守护成功。
 
@@ -44,3 +44,11 @@ inbox按耐久序号追加；receipt不删除或重排inbox。pending仅退出�
 [application.spec.ts](../tests/application.spec.ts)从公开工厂运行登记、答复、查询原结果、bind、inbox、delivery、consume、ack、取消及close，保留64张卡每张8192个四字节字符原话的回归。requests慢层另覆盖64卡×64读者的每次桶转换与共同关系守护，单场景上限30秒。
 
 规模证据应分别记录真实handler/participant的SQL、返回行、绑定和正文bytes，实际SQLite的VM_STEP/FULLSCAN_STEP/SORT及query plan，以及关闭探针后的真实应用延迟。返回行上限不是扫描量；B树高度不意味着严格常数耗时。大历史、未答等待、深交付游标、正文极限和长期资源分别测量。未取得的锁时长、页缓存或Worker消息指标明确保留空缺，不能从SQL行数推算。
+
+## 字符与终局边界
+
+application 用例通过真实 IdentitySql 和 SQLite 验证 NUL 首、中、尾、8192 个 NUL、引号/反斜线、控制字符及四字节原话读回，并验证含 NUL 标识的登记、选择答复、消费、ack 和查询。公共 commands 用例验证孤立代理项拒绝及合法代理对保留；应用对已解析的非法文本返回 invalid-input。
+
+终局未首次绑定的消费用例保留 live 未绑定、错误代次、错误决定及外人拒绝。requests 用例在新存储实例重开后执行，注入 F 后失败，核对 receipt/count/checkpoint/pending 共同回滚，再消费和重开认回。它只验证独立 WaitOwner 的 superseded 结算。
+
+query-cost 从旧 fixture 的业务快照独立计算目标页，断言内容、身份和顺序后再检查 SQL/返回行/查询计划。零 SQL 空输出必须在页面解析或内容比较处失败，不能因成本为零通过。正式 fixture 和旧四迁移保持原字节。投影维护义务及未提供的在线自动修复能力归[规格](../SPEC.md#投影失效与受管恢复)。

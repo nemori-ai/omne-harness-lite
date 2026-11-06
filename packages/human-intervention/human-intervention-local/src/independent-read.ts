@@ -1,3 +1,4 @@
+import { stringCell } from './string-cell.ts'
 import { z } from 'zod'
 import {
   HitlIdentifierSchema,
@@ -54,7 +55,7 @@ export default {
     const count = countSchema.parse(
       port.execute(
         'SELECT count(*) FROM hi_wait_inbox_v2 WHERE tenant_ref=? AND wait_key=? LIMIT 1',
-        [q.tenantRef, waitKey(q.tenantRef, q.waitRef)],
+        [stringCell(q.tenantRef), waitKey(q.tenantRef, q.waitRef)],
       ).rows[0]?.[0],
     )
     if (q.offset > count)

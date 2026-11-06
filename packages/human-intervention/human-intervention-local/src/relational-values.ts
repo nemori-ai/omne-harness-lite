@@ -1,3 +1,4 @@
+import { stringCell, readStringCell } from './string-cell.ts'
 import { z } from 'zod'
 import {
   DecisionSchema,
@@ -26,18 +27,18 @@ export function insertedSequence(result: QueryRows): string {
 export function replyColumns(reply: Reply) {
   return [
     reply.kind,
-    reply.kind === 'selection' ? reply.optionId : null,
-    reply.kind === 'text' ? reply.text : null,
+    reply.kind === 'selection' ? stringCell(reply.optionId) : null,
+    reply.kind === 'text' ? stringCell(reply.text) : null,
   ] as const
 }
 export function decisionColumns(decision: Decision) {
   return [
-    decision.ref.decisionId,
-    decision.ref.submission.actorRef,
-    decision.ref.submission.operationId,
+    stringCell(decision.ref.decisionId),
+    stringCell(decision.ref.submission.actorRef),
+    stringCell(decision.ref.submission.operationId),
     ...replyColumns(decision.reply),
-    decision.basisRef,
-    decision.commitReceipt,
+    stringCell(decision.basisRef),
+    stringCell(decision.commitReceipt),
   ] as const
 }
 export function decodeReply(cells: readonly SqlCell[]) {
@@ -45,10 +46,10 @@ export function decodeReply(cells: readonly SqlCell[]) {
   switch (kind) {
     case 'selection':
       if (text !== null) throw new TypeError('Selection with reply text')
-      return ReplySchema.parse({ kind, optionId })
+      return ReplySchema.parse({ kind, optionId: readStringCell(optionId) })
     case 'text':
       if (optionId !== null) throw new TypeError('Text with option')
-      return ReplySchema.parse({ kind, text })
+      return ReplySchema.parse({ kind, text: readStringCell(text) })
     case 'decline':
       if (optionId !== null || text !== null) throw new TypeError('Decline with payload')
       return ReplySchema.parse({ kind })
@@ -60,15 +61,15 @@ export function decodeDecision(request: RequestRef, cardId: string, cells: reado
   return DecisionSchema.parse({
     ref: {
       card: { request, cardId },
-      decisionId: cells[0],
+      decisionId: readStringCell(cells[0]),
       submission: {
         tenantRef: request.tenantRef,
-        actorRef: cells[1],
-        operationId: cells[2],
+        actorRef: readStringCell(cells[1]),
+        operationId: readStringCell(cells[2]),
       },
     },
     reply: decodeReply(cells.slice(3, 6)),
-    basisRef: cells[6],
-    commitReceipt: cells[7],
+    basisRef: readStringCell(cells[6]),
+    commitReceipt: readStringCell(cells[7]),
   })
 }

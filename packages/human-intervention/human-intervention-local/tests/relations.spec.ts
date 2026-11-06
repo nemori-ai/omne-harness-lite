@@ -29,7 +29,7 @@ const corruptions = [
   {
     name: 'wrong actor bucket',
     invariant: 'PoolExact',
-    sql: "INSERT INTO hi_request_readers_v2 SELECT tenant_ref,sequence,'wrong-actor' FROM hi_requests_v2 LIMIT 1; INSERT INTO hi_pool_request_buckets_v2 SELECT tenant_ref,request_sequence,'invalidated',actor_ref FROM hi_request_readers_v2 WHERE actor_ref='wrong-actor'",
+    sql: "INSERT INTO hi_request_readers_v2 SELECT tenant_ref,sequence,'\"wrong-actor\"' FROM hi_requests_v2 LIMIT 1; INSERT INTO hi_pool_request_buckets_v2 SELECT tenant_ref,request_sequence,'invalidated',actor_ref FROM hi_request_readers_v2 WHERE actor_ref='\"wrong-actor\"'",
   },
   {
     name: 'missing pending decision',
@@ -44,7 +44,7 @@ const corruptions = [
   {
     name: 'wrong pending destination',
     invariant: 'PendingExact',
-    sql: "UPDATE hi_wait_pending_v2 SET destination='wrong-destination'",
+    sql: 'UPDATE hi_wait_pending_v2 SET destination=\'"wrong-destination"\'',
   },
   {
     name: 'wrong pending inbox sequence',
@@ -69,12 +69,12 @@ const corruptions = [
   {
     name: 'changed original answer',
     invariant: 'DecisionInboxExact',
-    sql: "UPDATE hi_decisions_v2 SET reply_text='altered answer' WHERE reply_kind='text'",
+    sql: "UPDATE hi_decisions_v2 SET reply_text='\"altered answer\"' WHERE reply_kind='text'",
   },
   {
     name: 'different active card identity',
     invariant: 'JointRegistration',
-    sql: "UPDATE hi_wait_cards_v2 SET card_id='different-card' WHERE card_ordinal=0",
+    sql: 'UPDATE hi_wait_cards_v2 SET card_id=\'"different-card"\' WHERE card_ordinal=0',
   },
   {
     name: 'missing decided state',
@@ -97,7 +97,7 @@ it('detects rewriting both copies of an immutable decision across commit boundar
   db.exec('SAVEPOINT negative_control')
   try {
     db.exec(
-      "UPDATE hi_decisions_v2 SET reply_text='changed' WHERE reply_kind='text'; UPDATE hi_wait_inbox_v2 SET reply_text='changed' WHERE reply_kind='text'",
+      "UPDATE hi_decisions_v2 SET reply_text='\"changed\"' WHERE reply_kind='text'; UPDATE hi_wait_inbox_v2 SET reply_text='\"changed\"' WHERE reply_kind='text'",
     )
     expect(inspectRelations(db)).toEqual([])
     expect(immutableDecisions(db)).not.toEqual(before)
@@ -112,7 +112,7 @@ const constraintFailures = [
   },
   {
     name: 'duplicate question identity',
-    sql: "UPDATE hi_questions_v2 SET card_id='first' WHERE card_ordinal=1",
+    sql: 'UPDATE hi_questions_v2 SET card_id=\'"first"\' WHERE card_ordinal=1',
   },
   {
     name: 'second decision for a card',
@@ -128,7 +128,7 @@ const constraintFailures = [
   },
   {
     name: 'cross tenant question parent',
-    sql: "UPDATE hi_questions_v2 SET tenant_ref='other-tenant'",
+    sql: 'UPDATE hi_questions_v2 SET tenant_ref=\'"other-tenant"\'',
   },
   {
     name: 'pending card with delivery',
@@ -137,7 +137,7 @@ const constraintFailures = [
   { name: 'noncanonical revision', sql: "UPDATE hi_card_states_v2 SET revision='01'" },
   {
     name: 'text reply with option',
-    sql: "UPDATE hi_decisions_v2 SET option_id='yes' WHERE reply_kind='text'",
+    sql: "UPDATE hi_decisions_v2 SET option_id='\"yes\"' WHERE reply_kind='text'",
   },
   { name: 'out of range ordinal', sql: 'UPDATE hi_questions_v2 SET card_ordinal=64' },
   {

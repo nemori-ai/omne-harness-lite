@@ -7,6 +7,10 @@ import delivery from '../src/delivery-read.ts'
 import { insertRequest } from '../src/request-store.ts'
 import { readAudience } from '../src/read-audience.ts'
 import { RequestRecordSchema } from '../src/request-schema.ts'
+import { IndependentControlSchema, InboxEntrySchema } from '../src/independent-schema.ts'
+import { PoolScanResultSchema } from '../src/pool-schema.ts'
+import { DeliveryScanResultSchema } from '../src/delivery-schema.ts'
+import { equal } from '../src/encoding.ts'
 import { parseJson } from '../src/relational-values.ts'
 import { legacyCopy, database } from './legacy-fixture.ts'
 import { openWorld } from './world.ts'
@@ -24,6 +28,26 @@ it(
           .get()?.record,
       ),
     )
+    const expectedPool = old
+      .prepare('SELECT record FROM hi_requests ORDER BY sequence')
+      .all()
+      .flatMap(row => {
+        const request = RequestRecordSchema.parse(parseJson(row.record))
+        return request.cards
+          .filter(card => card.kind === 'pending')
+          .map(card => ({ card, origin: request.origin, displayContext: request.displayContext }))
+      })
+    const receipts = old
+      .prepare('SELECT record FROM hi_wait_controls')
+      .all()
+      .flatMap(row => IndependentControlSchema.parse(parseJson(row.record)).receipts)
+    const expectedDeliveries = old
+      .prepare('SELECT record FROM hi_wait_inbox ORDER BY sequence')
+      .all()
+      .map(row => InboxEntrySchema.parse(parseJson(row.record)))
+      .filter(entry => !receipts.some(receipt => equal(receipt.decision, entry.decision.ref)))
+    expect(expectedPool.length).toBeGreaterThan(0)
+    expect(expectedDeliveries.length).toBeGreaterThan(0)
     old.close()
     const world = await openWorld({ root })
     await world.close()
@@ -102,25 +126,35 @@ it(
           },
           port,
         )
-        expect(page.kind).toBe('read')
+        if (page.kind !== 'read') throw new Error('Expected pool read')
+        expect(PoolScanResultSchema.parse(page.output)).toMatchObject({
+          kind: 'page',
+          items: expectedPool,
+          next: null,
+          completeness: 'complete',
+        })
         expect(statements).toBeLessThanOrEqual(43)
         expect(returnedRows).toBeLessThanOrEqual(64)
         expect(plans.some(plan => /\bSCAN\b/.test(plan))).toBe(false)
         statements = 0
         returnedRows = 0
         plans = []
-        expect(
-          delivery.read(
-            {
-              tenantRef: original.ref.tenantRef,
-              actorRef: 'owner',
-              destination: 'inbox',
-              after: '0',
-              limit: 20,
-            },
-            port,
-          ).kind,
-        ).toBe('read')
+        const pending = delivery.read(
+          {
+            tenantRef: original.ref.tenantRef,
+            actorRef: 'owner',
+            destination: 'inbox',
+            after: '0',
+            limit: 20,
+          },
+          port,
+        )
+        if (pending.kind !== 'read') throw new Error('Expected delivery read')
+        expect(DeliveryScanResultSchema.parse(pending.output)).toEqual({
+          kind: 'page',
+          items: expectedDeliveries,
+          next: null,
+        })
         expect(statements).toBeLessThanOrEqual(21)
         expect(returnedRows).toBeLessThanOrEqual(41)
         expect(plans.some(plan => /\bSCAN\b/.test(plan))).toBe(false)

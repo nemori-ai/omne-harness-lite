@@ -120,3 +120,21 @@ describe('request source and question contracts', () => {
     ).toBe(false)
   })
 })
+
+it.each(['\ud800', '\udfff', 'before\ud800after'])(
+  'rejects malformed Unicode at the public schema and decoder: %j',
+  text => {
+    expect(HitlIdentifierSchema.safeParse(text).success).toBe(false)
+    expect(
+      decodeHitlCommand('submitReply', JSON.stringify({ ...reply, reply: { kind: 'text', text } })),
+    ).toEqual({ kind: 'invalid-input', reason: 'shape' })
+  },
+)
+
+it('keeps NUL, controls, spaces and valid surrogate pairs in the public text domain', () => {
+  const text = '\0\u0001\t\n \ud83d\ude00'
+  expect(HitlIdentifierSchema.parse(text)).toBe(text)
+  expect(
+    decodeHitlCommand('submitReply', JSON.stringify({ ...reply, reply: { kind: 'text', text } })),
+  ).toMatchObject({ kind: 'decoded', command: { reply: { kind: 'text', text } } })
+})

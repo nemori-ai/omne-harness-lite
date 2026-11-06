@@ -24,7 +24,7 @@ const assertions = {
   ActiveCardsExact: `SELECT 1 FROM hi_wait_active_v2 a WHERE a.card_count!=(SELECT count(*) FROM hi_wait_cards_v2 c WHERE c.tenant_ref=a.tenant_ref AND c.wait_key=a.wait_key)
  OR a.card_count-1!=(SELECT max(card_ordinal) FROM hi_wait_cards_v2 c WHERE c.tenant_ref=a.tenant_ref AND c.wait_key=a.wait_key) LIMIT 1`,
   ReceiverFence: `SELECT 1 FROM hi_wait_receipts_v2 r JOIN hi_wait_controls_v2 c USING(tenant_ref,wait_key)
- WHERE r.receiver_generation='0' OR length(r.receiver_generation)>length(c.receiver_generation)
+ WHERE (r.receiver_generation='0' AND NOT(c.lifecycle='terminal' AND c.receiver_kind='unbound' AND c.receiver_generation='0' AND r.outcome='superseded')) OR length(r.receiver_generation)>length(c.receiver_generation)
  OR (length(r.receiver_generation)=length(c.receiver_generation) AND r.receiver_generation>c.receiver_generation) LIMIT 1`,
   ReceiptIdentity: `SELECT 1 FROM hi_wait_receipts_v2 r JOIN hi_wait_inbox_v2 i USING(tenant_ref,wait_key,card_ordinal) WHERE r.decision_id!=i.decision_id LIMIT 1`,
 }

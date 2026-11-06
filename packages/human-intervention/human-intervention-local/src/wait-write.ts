@@ -1,3 +1,4 @@
+import { stringCell, readStringCell } from './string-cell.ts'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import { digest, equal, json } from './encoding.ts'
 import { JointPlanSchema } from './joint-schema.ts'
@@ -53,11 +54,11 @@ export default {
       const row = port.execute(
         `SELECT c.card_ordinal,a.request_id FROM hi_wait_cards_v2 c JOIN hi_wait_active_v2 a USING(tenant_ref,wait_key)
  WHERE c.tenant_ref=? AND c.wait_key=? AND c.card_id=? LIMIT 1`,
-        [tenant, waitKey(tenant, plan.waitRef), decision.ref.card.cardId],
+        [stringCell(tenant), waitKey(tenant, plan.waitRef), stringCell(decision.ref.card.cardId)],
       ).rows[0]
       if (
         !row ||
-        row[1] !== decision.ref.card.request.requestId ||
+        readStringCell(row[1]) !== decision.ref.card.request.requestId ||
         decision.ref.card.request.tenantRef !== tenant ||
         countSchema.parse(row[0]) !== plan.update.ordinal
       )

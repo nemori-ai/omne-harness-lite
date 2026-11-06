@@ -29,14 +29,15 @@ export const PreparationRecordSchema = z
     origin: OriginSchema,
   })
   .readonly()
+const BoundReceiverSchema = z.strictObject({
+  kind: z.literal('bound'),
+  generation: ReceiverGenerationSchema,
+  instanceId: HitlIdentifierSchema,
+  implementationRef: HitlIdentifierSchema,
+})
 export const ReceiverSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('unbound'), generation: ReceiverGenerationSchema }),
-  z.strictObject({
-    kind: z.literal('bound'),
-    generation: ReceiverGenerationSchema,
-    instanceId: HitlIdentifierSchema,
-    implementationRef: HitlIdentifierSchema,
-  }),
+  BoundReceiverSchema,
 ])
 export const LifecycleSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('live') }),
@@ -67,7 +68,7 @@ export const WaitDeltaSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('bind'),
     expectedGeneration: ReceiverGenerationSchema,
-    receiver: ReceiverSchema,
+    receiver: BoundReceiverSchema,
   }),
   z.strictObject({
     kind: z.literal('consume'),

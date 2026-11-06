@@ -1,3 +1,4 @@
+import { stringCell } from './string-cell.ts'
 import { z } from 'zod'
 import type { MigrationModule, MigrationPort } from '@omne-harness/sql-contract/worker'
 import {
@@ -95,21 +96,21 @@ function migrateWait(port: MigrationPort, key: string, state: IndependentControl
     })
     port.execute(
       'INSERT INTO hi_wait_hitl_export_v2(tenant_ref,request_id,export_json) VALUES (?,?,?)',
-      [tenant, active.requestRef.requestId, canonical(exported)],
+      [stringCell(tenant), stringCell(active.requestRef.requestId), canonical(exported)],
     )
   }
   port.execute(
     `UPDATE hi_wait_controls_v2 SET lifecycle=?,terminal_evidence_ref=?,receiver_kind=?,receiver_generation=?,instance_id=?,implementation_ref=?,receipt_count=?,checkpoint=? WHERE tenant_ref=? AND wait_key=?`,
     [
       state.lifecycle.kind,
-      state.lifecycle.kind === 'terminal' ? state.lifecycle.evidenceRef : null,
+      state.lifecycle.kind === 'terminal' ? stringCell(state.lifecycle.evidenceRef) : null,
       state.receiver.kind,
       state.receiver.generation,
-      state.receiver.kind === 'bound' ? state.receiver.instanceId : null,
-      state.receiver.kind === 'bound' ? state.receiver.implementationRef : null,
+      state.receiver.kind === 'bound' ? stringCell(state.receiver.instanceId) : null,
+      state.receiver.kind === 'bound' ? stringCell(state.receiver.implementationRef) : null,
       state.receipts.length,
       state.checkpoint,
-      tenant,
+      stringCell(tenant),
       key,
     ],
   )

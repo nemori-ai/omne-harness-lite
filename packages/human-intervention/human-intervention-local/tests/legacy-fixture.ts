@@ -29,7 +29,7 @@ export const legacyFixture = fixtureSchema.parse(
 )
 export function legacyCopy() {
   const parent = fileURLToPath(
-    new URL('../../../../tmp/hitl-r1-c2-relational/databases/', import.meta.url),
+    new URL('../../../../tmp/hitl-r1-c2-relational/repair/databases/', import.meta.url),
   )
   mkdirSync(parent, { recursive: true })
   const root = mkdtempSync(join(parent, 'upgrade-'))

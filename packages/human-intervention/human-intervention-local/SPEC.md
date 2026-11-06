@@ -34,7 +34,7 @@ HITL 参与者拥有终态、请求、题目、卡片状态、决定及池投影
 
 请求提交的依赖为 terminal、只读 wait-plan、本地 local-plan、唯一 independent-state 写者、requests 写者。local-plan 的请求分支只读 HITL 状态并消费原拥有者依据；恢复分支只转交原拥有者计划，不读取 HITL 表。WaitOwner 先接纳注册或决定，HITL 写者才确认对应摘要。静态图拒绝缺失的必需前驱，可信命令构造器保证本次操作的完整参与集合。
 
-独立等待保存原位置、采用引用及答复收件箱。换代须校验相容实现与 expectedGeneration，并原子增加 receiverGeneration。旧代消费返回 stale-generation。一个批次的所有卡片都有耐久消费回执后，checkpoint 才成为 resume-ready。答复本身不取得执行槽，执行槽准入由实际运行时负责。
+独立等待保存原位置、采用引用及答复收件箱。换代须校验相容实现与 expectedGeneration，并原子增加 receiverGeneration。旧代消费返回 stale-generation。live 等待的整个批次都有耐久消费回执后，checkpoint 才成为 resume-ready。答复本身不取得执行槽，执行槽准入由实际运行时负责。
 
 业务终局只使未答卡失效，保留已有决定。此后接收已有决定生成 superseded 回执，不能恢复执行。acknowledgeDelivery 必须匹配原拥有者保管的完整消费回执。相同决定的后续消费认回原回执，不重复推进 checkpoint。
 
@@ -56,7 +56,6 @@ createHitlStandingDestination 仅装入 Identity 的可信目的端 resolver。�
 
 close 先拒绝新工作，再等待已受理的读写结束。操作在调用注入端口前加入排空集合，重入关闭也不能漏掉该操作。关闭不删除请求、不终结业务等待、不关闭共享 SqlStorage；Identity 的恢复 resolver 有独立装配生命周期。
 
-
 ## 独立等待的查询与分页
 
 createIndependentHitlQueries 实现公共 getRequest、getCard 和 listPool。装配者注入原有 Identity/SQL 配置、固定 locationRef 及至少32字节的游标签名密钥。该工厂只支持独立 WaitOwner，不替代 Session、Agent 或 Tool 的原等待适配。它不实现 getOperation、listDeliveries 或写命令。
@@ -65,10 +64,9 @@ createIndependentHitlQueries 实现公共 getRequest、getCard 和 listPool。�
 
 池按请求登记序号、请求内卡片顺序分页。序号以十进制字符串传递，避免 JavaScript number 的精度丢失。游标签名绑定当前 actor、租户、固定位置、规范过滤条件及快照修订，limit 可在续页时调整。密钥由装配者安全保管，同密钥重装配可续页，换钥后旧游标返回 invalid-input。游标不是读取资格。
 
-hi_request_versions 随请求变更递增。每页在一个SQL快照内读取修订、索引键及卡片正文；续页修订不符返回 conflict。服务不保存历史快照，不混合新旧内容。池按当前 actor 和实际非空状态桶索引查找，独立范围内不匹配的 origin/session 过滤直接得到空页。每桶最多 P+2 个请求键及 P+1 个卡片键，合并后水合至多 P 个完整 item。输出预算先耗尽时返回 partial 和有效续页；单项无法容纳时返回 limited。complete 表示本页按快照和容量完成，不表示所有结果都在这一页。存储失败返回 unavailable，不能跳过故障后宣称完整。
+hi_request_versions_v2 随请求变更递增。每页在一个SQL快照内读取修订、索引键及卡片正文；续页修订不符返回 conflict。服务不保存历史快照，不混合新旧内容。池按当前 actor 和实际非空状态桶索引查找，独立范围内不匹配的 origin/session 过滤直接得到空页。每桶最多 P+2 个请求键及 P+1 个卡片键，合并后水合至多 P 个完整 item。输出预算先耗尽时返回 partial 和有效续页；单项无法容纳时返回 limited。complete 表示本页按快照和容量完成，不表示所有结果都在这一页。存储失败返回 unavailable，不能跳过故障后宣称完整。
 
 close 拒绝新查询，并等待已接受查询完成全部受众读取及最后资格核验。它不关闭共享存储，不结束原人工等待。
-
 
 ## 独立等待应用入口
 
@@ -88,12 +86,28 @@ listDeliveries 只读取固定 destination 下当前消费者尚未接手的决�
 
 应用工厂在调用注入端口前记录已接受调用。close 先拒绝新调用，再等待整次调用结束，最后关闭内部适配器。关闭后新命令返回 unavailable，不能冒充提交可能成立的 unknown。共享存储仍由装配者关闭。
 
-
 ### 合法批次与存储预算
 
 内部计划通过事务事实交给参与者，SQL操作回执只保留原绑定与planDigest，不复制完整请求及全部历史答复。否则合法批次累积会在新的单次答复仍合法时触发回执上限。正式请求、池、等待和交付读材料上限均为8MiB；装配者须为SqlStorage配置至少该单次读取上限及相应全局读预算。参与者单响应无需因整批答复增大。64张卡各提交8192个四字节字符的真实回归验证该累积路径，不据此声称无限输入或无限存储。
 
-
 ## 关系迁移
 
 旧四份迁移及校验和保留。新具名迁移在同一迁移事务中核验旧记录、创建关系状态、退休旧表，并保持原序号和操作身份。各拥有者只读取自己旧表；原等待通过版本化临时导出提供登记 OperationRef、readAudience、决定身份及完整规范摘要。HITL 重建 RegisterRequest 校验原摘要，双向比较决定集合和完整内容。缺失、重复或不符必须整笔失败；不补默认值，不丢弃坏行。临时导出完成采纳验证后删除。原 journal 结果继续解释，不重写存储私表。迁移失败和进程退出的实际验证范围见[持续验证](verification/README.md)。
+
+## 字符表示与终局接手
+
+公共文本边界拒绝孤立代理项，保留合法 NUL、控制字符、空格、换行与四字节 Unicode。关系表中的公共自由文本和标识逐字段保存为规范 JSON 字符串，包括 WHERE 绑定、外键和读者目录。读取先解析字符串单元格，再按原公共 Schema 验证。枚举、摘要、十进制修订及排序序号保持原类型。此表示不改变原操作摘要或公开 DTO，也不将请求重新保存为聚合 JSON。
+
+SQL CHECK 验证 JSON 字符串表示及编码字节上限。256 码点标识最多占1538字节，8192码点原话最多占49154字节，包含引号和最长控制字符转义。非空、码点数和原 UTF-8 预算由公共 Schema 验证。不能将编码后的 SQL length 当作原话长度。旧关系迁移通过 BLOB 读取旧 TEXT 标识并严格解码 UTF-8，避免 Node SQLite 在 NUL 处截断。
+
+live 等待消费前必须绑定接收者。terminal 等待不建立新接收者；若它从未绑定，原 owner 可以用 getWait 读回的当前代次消费已有原决定。消费仍校验身份、代次、原决定和 consumeOperationId，只共同写 superseded receipt、receipt_count、terminal checkpoint 并删除 pending。bindReceiver 继续返回 terminal。该结算不产生 resume-ready 或 Continue，重启后沿原操作认回。
+
+## 投影失效与受管恢复
+
+读者投影、池桶目录和 pending 分别来自原准备受众、请求卡片状态、inbox 与 receipt。正常更新由各自唯一写者在原共同事务内完成。关系守护发现缺行、多行、错误关联或计数不一致时，不能继续把相应实例的查询结果解释为“没有工作”。检测本身不自动修复实例。
+
+本成员不提供在线自动重建。装配或运维者获知损坏后，必须停止路由到该实例，调用 close 拒绝新调用并排空已受理工作。关闭后的调用返回 unavailable。维护期间不提供池、请求或恢复查询，也不从缓存返回空页。共享存储的关闭仍归其装配者。
+
+恢复负责人保存原库与诊断证据，再按经批准的维护方案恢复可信备份或重建投影。重建只能消费原拥有者的可信事实，不能跨写其他拥有者私表，不能重新执行登记、答复、消费或外部动作。当前没有通用投影修复命令；若不能证明权威事实完整，实例保持不可用并交事实拥有者处理。
+
+恢复读取前，负责人必须验证 PoolExact、PendingExact、ReceiptCountExact、DecisionInboxExact、JointRegistration 和外键，核对原决定、原操作身份和消费回执未改变，再重新装配并验证原结果认回。通过关系检查只证明当前集合，不代替决定历史和原操作结果的核对。验证入口见[持续验证](verification/README.md)。

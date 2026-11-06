@@ -1,3 +1,4 @@
+import { stringCell } from './string-cell.ts'
 import { z } from 'zod'
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { DELIVERY_HANDLER, DeliveryScanSchema } from './delivery-schema.ts'
@@ -17,7 +18,13 @@ export default {
     const keys = port.execute(
       `SELECT CAST(inbox_sequence AS TEXT),wait_key,card_ordinal FROM hi_wait_pending_v2 INDEXED BY hi_wait_pending_delivery_v2
  WHERE tenant_ref=? AND owner_actor=? AND destination=? AND inbox_sequence>? ORDER BY inbox_sequence LIMIT ?`,
-      [q.tenantRef, q.actorRef, q.destination, BigInt(q.after), q.limit + 1],
+      [
+        stringCell(q.tenantRef),
+        stringCell(q.actorRef),
+        stringCell(q.destination),
+        BigInt(q.after),
+        q.limit + 1,
+      ],
     ).rows
     const items = [],
       budget = pageBudget()
