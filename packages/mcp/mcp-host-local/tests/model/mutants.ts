@@ -226,7 +226,8 @@ export const MUTANTS: readonly Mutant[] = [
     spec: SESSION,
     mode: 'fast',
     filter: 'still being authorized when the session ended',
-    expect: 'expected [ { message: { …(4) }, …(2) } ] to deeply equal []',
+    expect:
+      'expected { settled: { ok: { …(2) } } } to deeply equal { settled: { failure: { …(2) } } }',
   },
   {
     name: 'mV6-lineend-keeps-authorizing',
@@ -382,7 +383,7 @@ export const MUTANTS: readonly Mutant[] = [
     spec: HTTP,
     mode: 'slow',
     filter: 'first event is not a message event',
-    expect: 'decoy',
+    expect: '"what": "tools-missing"',
   },
   {
     name: 'mHttp-get-status-as-stream',
@@ -399,7 +400,7 @@ export const MUTANTS: readonly Mutant[] = [
     spec: HTTP,
     mode: 'slow',
     filter: 'the fallback GET refused with 401',
-    expect: "cause: 'connection-unavailable'",
+    expect: '"cause": "connection-unavailable"',
   },
   {
     name: 'mHttp-get-without-events',
@@ -409,8 +410,8 @@ export const MUTANTS: readonly Mutant[] = [
     file: 'src/http-line.ts',
     replacements: [
       {
-        find: '        ? eventsOf(response.body).getReader()\n        : undefined\n',
-        replace: '        ? undefined\n        : undefined\n',
+        find: "      mediaTypeOf(response) === 'text/event-stream' && response.body !== null\n",
+        replace: "      mediaTypeOf(response) !== 'text/event-stream' && response.body !== null\n",
       },
     ],
     spec: HTTP,

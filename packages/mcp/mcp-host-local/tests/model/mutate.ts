@@ -13,8 +13,8 @@
 // touches must be clean in Git before the run starts; an interrupt (SIGINT, SIGTERM) restores
 // the files before the process ends; and at the end every file is compared byte for byte with
 // what it was. Exit code 0 when every mutant ran red for its expected reason; 1 otherwise. A
-// mutant whose text is not found exactly as listed is a defect of the table and is reported
-// without running anything.
+// mutant whose text is not found exactly as listed, or whose text the compiler rejects, is a
+// defect of the table and is reported without running its case.
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -22,7 +22,7 @@ import { MUTANTS, type Mutant } from './mutants.ts'
 
 type Result = Readonly<{
   mutant: Mutant
-  status: 'red' | 'green' | 'red-for-another-reason' | 'not-applicable'
+  status: 'red' | 'green' | 'red-for-another-reason' | 'not-applicable' | 'does-not-build'
   exitCode: number | null
   output: string
 }>
@@ -71,10 +71,9 @@ function restored(originals: Originals): boolean {
   return [...originals].every(([path, bytes]) => readFileSync(path).equals(bytes))
 }
 
-function build(root: string): string {
+function build(root: string): Readonly<{ built: boolean; output: string }> {
   const result = spawnSync('pnpm', ['run', 'build'], { cwd: root, encoding: 'utf8' })
-  if (result.status !== 0) throw new Error(`build failed:\n${result.stdout}\n${result.stderr}`)
-  return `${result.stdout}\n${result.stderr}`
+  return { built: result.status === 0, output: `${result.stdout}\n${result.stderr}` }
 }
 
 function runCase(
@@ -112,10 +111,13 @@ function run(mutant: Mutant, root: string, originals: Originals): Result {
     return { mutant, status: 'not-applicable', exitCode: null, output: 'text not found as listed' }
   writeFileSync(path, mutated)
   try {
-    // The slow tier imports the package through `dist`: the mutant has to be built to be seen.
-    const built = mutant.mode === 'slow' ? build(root) : ''
+    // The slow tier imports the package through `dist`: the mutant has to be built to be seen. A
+    // mutant the compiler rejects is a defect of the table: the case is not run.
+    const built = mutant.mode === 'slow' ? build(root) : { built: true, output: '' }
+    if (!built.built)
+      return { mutant, status: 'does-not-build', exitCode: null, output: built.output }
     const result = runCase(mutant, root)
-    const output = `${built}\n${result.output}`
+    const output = `${built.output}\n${result.output}`
     const status =
       result.status === 0
         ? 'green'
@@ -172,13 +174,13 @@ function main(): number {
     restore(originals)
     process.off('SIGINT', onSignal)
     process.off('SIGTERM', onSignal)
+    // The last slow mutant left a mutated build, or no build, behind: build the restored source.
+    if (builtSlow && !build(root).built) console.error('the restored source did not build')
   }
   if (!restored(originals)) {
     console.error('a source file does not hold the bytes it held before the run')
     return 1
   }
-  // The last slow mutant left a mutated build behind: build the restored source once more.
-  if (builtSlow) build(root)
   return failed === 0 ? 0 : 1
 }
 
