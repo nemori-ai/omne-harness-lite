@@ -1,2 +1,8 @@
-// PACKAGE_TEMPLATE_DRAFT: Export the accepted public functions/types here.
-export {}
+export * from './schema.ts'
+export { definePermission, type PermissionDefinitionResult } from './definition.ts'
+export { projectPermissionSettings, type PermissionSettingsProjection } from './settings.ts'
+export {
+  evaluatePermission,
+  type PermissionEvaluationResult,
+  type PermissionEvidence,
+} from './evaluation.ts'

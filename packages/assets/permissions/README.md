@@ -1,26 +1,37 @@
-PACKAGE_TEMPLATE_DRAFT
-
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
-
 # permissions
 
 ## 职责与状态
 
-本目录维护目标成员的行为与机制文档，尚无实现成员、公开导出或运行入口。支持未核实，目标公开形状及技术采用仍待确认。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/assets-and-rules/design.md)判断，不以文档存在证明兑现。
+`@omne-harness/permissions` 提供权限声明校验、Settings 投影和固定材料的纯规则求值。采用依据是用户于 2026-11-06 验收的 [HJ0 治理贡献协议](../docs/governance-contributions.md)与[权限组合协议](../../human-intervention/human-intervention/docs/permission-composition.md)。[SPEC](SPEC.md)维护业务规则，[公开源码](src/index.ts)维护精确类型。
+
+当前实现是 C3a。动态注册、持有资格、Settings 受保护提交、采用围栏和 Runtime Context 接线属于后续组合交付。纯函数通过不表示整个 C3 已完成，也不表示动作已获准或执行成功。
 
 ## 使用与集成
 
-独立消费从 [SPEC](SPEC.md)读取明确输入、结果、资格和生命周期责任；目前不能提供可运行示例或命令。Cordis 消费须在公开契约明确后沿[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)设计装配，不能将活体 Context 当作业务数据。
+从包入口调用 `definePermission(input)`、`projectPermissionSettings(input)` 和 `evaluatePermission(input)`。三个函数都接收 `unknown`，拒绝多余字段和无效绑定。声明支持资产来源和独立服务来源，普通 key 不授予能力。
+
+`definePermission` 返回已复制并深度冻结的声明。`projectPermissionSettings` 返回既有 `SettingDefinitions` 形状，以及含值标签、scope 说明和批准后果的权限声明。无持久配值的声明返回 `not-configurable`。
+
+`evaluatePermission` 消费已由调用方核验的材料。结果为 `effective`、`denied`、`unavailable` 或 `invalid-input`。`effective.permitsOperation` 仍可能为 false；`effective` 只表示有效值已求出。结果中的 scope、具体定义引用、能力关口和 revisionVector 供集成方固定依据及后续重核。
+
+可运行的完整用例在 [public-entry.spec.ts](tests/public-entry.spec.ts)，输入在 [fixtures.ts](tests/fixtures.ts)。[公开协议](docs/public-api.md)说明来源绑定、比较矩阵、Settings 配值表示和后续接线责任。
 
 ## 契约与设计
 
-[SPEC](SPEC.md)完整维护非类型行为，[内部设计](docs/internals.md)维护本成员机制、精确流程与后续设计义务。[组入口](../README.md)维护依赖及协作。公开类型尚待形成，不复制旧签名。
+默认、组织、租户、会话是四个配值层。锁界取交集，未锁值仅作挑选。额外约束是具名外域上界或禁止，不是第五层。组织、租户、会话主动选择不允许操作时，内层挑选无法覆盖。作者默认不允许仍只是默认挑选。
+
+同 key 的具体来源配值不迁移。独立的能力约束在替换或声明缺失时继续生效；不能可靠匹配时返回不可用或无效输入。不存在工作区配值槽。工作区具名类别的保守限制由可信约束提供者交入。
+
+[内部设计](docs/internals.md)包含长期组合流程与当前纯规则实现的区别。权限包不持有 Cordis fiber，不保存配值，不建立第二个 Settings 注册表。
 
 ## 配置与运行
 
-配置、环境、资源限制及提供者采用沿 SPEC 和内部设计的适用条件判断。尚无已核实运行装配，不提供默认机制。
+运行环境为 Node.js 24 及以上。依赖现有 `@omne-harness/settings` 和锁定版本的 zod。调用方须提供当前合法材料，纯函数不读取数据库、文件、时钟或服务。结构校验不能证明调用方身份、真实关口、租户资格或来源当前性。
 
 ## 验证与维护
 
-SPEC 的不变量与验证场景是持续义务，尚无本次运行证据。成员维护者改变行为时同步公开形状、机制、消费者及验证，组维护者同步跨成员协作与导航。关键未知只暂停依赖路径。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+在本成员目录运行 `pnpm run build`、`pnpm run typecheck` 和 `pnpm exec vitest run --mode fast`。测试通过公开包入口消费 dist，因此修改源码后先构建。
+
+独立关系检查在仓库根运行 `node packages/assets/permissions/verification/check-oracle.mjs`。它直接使用 HJ0 Python 关系 oracle，对生产 dist 检查 425,985 个有限案例；需要 Python 3.10 及以上，默认命令为 `python3.12`，可用 `PYTHON` 指定解释器。映射和证据边界见[验证说明](verification/README.md)。
+
+单元与关系检查不覆盖 SQL 提交、声明注册权、撤除并发、进程恢复或真实执行关口。独立 review、QA 与最终接受由交付负责人组织。
