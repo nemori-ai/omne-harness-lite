@@ -6,4 +6,4 @@
 
 - [README.md](README.md)：源码目录的职责
 - [index.ts](index.ts)：根入口，空导出
-- [cordis.ts](cordis.ts)：五个抽象 Service 与 `Context` 增补
+- [cordis.ts](cordis.ts)：五个抽象 Service、五个键常量与 `Context` 增补

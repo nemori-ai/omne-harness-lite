@@ -6,13 +6,13 @@ The Cordis definition member of Skill. Variant: `service-contract`.
 
 ## Responsibility and status
 
-This package owns only the Cordis definition of the Skill seams. It has five abstract `Service` classes and their keys: `PackageInspectionService` (`skillPackageInspection`), `SkillCatalogService<P, S>` (`skillCatalog`), `SkillAccessService<P, S>` (`skillAccess`), `SkillReadCheckService<P, S>` (`skillReadCheck`) and `SkillResolutionService<P, S>` (`skillResolution`). It also has the `Context` augmentation for the five keys.
+This package owns only the Cordis definition of the Skill seams. It has five abstract `Service` classes and their keys: `PackageInspectionService` (`skillPackageInspection`), `SkillCatalogService<P, S>` (`skillCatalog`), `SkillAccessService<P, S>` (`skillAccess`), `SkillReadCheckService<P, S>` (`skillReadCheck`) and `SkillResolutionService<P, S>` (`skillResolution`). It exports one key constant for each class (`skillPackageInspectionKey`, `skillCatalogKey`, `skillAccessKey`, `skillReadCheckKey`, `skillResolutionKey`). It also has the `Context` augmentation for the five keys.
 
 The package owns no behavior. [skill-contract](../skill-contract/README.md) owns the five interfaces. [skill](../skill/README.md) owns the three services. [skill-host-local](../skill-host-local/README.md) owns the plugin that provides the three services. The two port services (`skillReadCheck`, `skillResolution`) are provided by other domains. The package knows only generic roles: the consumer of a service and the provider of a port.
 
 Status: Cordis definition member. The behavior is a candidate and has no technical acceptance yet. The adoption basis is the member split on the [group page](../README.md#成员与依赖) and the [IC conventions](../../../docs/architecture/cordis-integration-conventions.md).
 
-- Implemented: `./cordis` exports the five abstract classes and declares the `Context` augmentation. The root entry exports nothing.
+- Implemented: `./cordis` exports the five abstract classes and five key constants (each taken from the `provide` of its class), and declares the `Context` augmentation. The root entry exports nothing.
 - Tested: the five keys, the export set, loading and unloading of a subclass on a real Cordis 4.0.4 `Context`, and the root entry import boundary.
 - Not implemented: events (none are declared) and a `./testing` entry (none is planned).
 
@@ -27,7 +27,10 @@ A port provider extends the abstract class and loads it as a plugin. Cordis remo
 
 ```ts
 import { Context } from '@deepseek-ai/cordis'
-import { SkillReadCheckService } from '@omne-harness/skill-cordis-contract/cordis'
+import {
+  SkillReadCheckService,
+  skillReadCheckKey,
+} from '@omne-harness/skill-cordis-contract/cordis'
 
 class Check extends SkillReadCheckService<unknown, unknown> {
   async check() {
@@ -37,10 +40,10 @@ class Check extends SkillReadCheckService<unknown, unknown> {
 
 const ctx = new Context()
 await ctx.plugin(Check)
-const check = ctx.get(SkillReadCheckService.provide) // the instance, or undefined
+const check = ctx.get(skillReadCheckKey) // the instance, or undefined
 ```
 
-A consumer reads a service with `ctx.get(<class>.provide)` and accepts `undefined`. See the [usage page](docs/context.md#使用方式) for each kind of dependent.
+A consumer reads a service with `ctx.get(<key constant>)` and accepts `undefined`. See the [usage page](docs/context.md#使用方式) for each kind of dependent.
 
 Independent use does not need this package. A caller without Cordis uses the root entries of skill-contract and skill.
 

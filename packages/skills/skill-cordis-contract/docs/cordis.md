@@ -6,7 +6,7 @@
 
 ## 集成入口
 
-`./cordis` 导出五个抽象类，并声明五个键的 `Context` 增补。它没有插件，也没有事件。
+`./cordis` 导出五个抽象类与五个键常量，并声明五个键的 `Context` 增补。它没有插件，也没有事件。
 
 | 键                       | 抽象 Service                   | `implements`            | 提供者                                                                     | 对使用方                         |
 | ------------------------ | ------------------------------ | ----------------------- | -------------------------------------------------------------------------- | -------------------------------- |
@@ -29,7 +29,7 @@
 | 提供三个服务的插件   | `extends` 三个抽象类，在 `apply` 里 `new`，共一条 fiber（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)）               | 插件卸载，三个键同时撤除                                     |
 | 使用三个服务的插件   | 只把需要服务的那段工作放进子 fiber：`ctx.inject(['skillAccess'], cb)`（[IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)） | 服务换代，只有子 fiber 重跑                                  |
 | 两个端口的实现方     | `extends` 端口抽象类，作为插件装载，不另写键                                                                                                          | 卸载或换代后，下一次调用现取到新实例，或取不到而答 `unknown` |
-| 读取两个端口的使用方 | 不 `inject`，每次调用 `ctx.get(<类>.provide)`（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)）                         | 不持有旧引用                                                 |
+| 读取两个端口的使用方 | 不 `inject`，每次调用 `ctx.get(<键常量>)`（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)）                             | 不持有旧引用                                                 |
 | 只需要类型增补的一方 | 不 `inject`。`import type {} from '@omne-harness/skill-cordis-contract/cordis'`                                                                       | 不适用                                                       |
 | 只需要接口类型的包   | 从 [skill-contract](../../skill-contract/README_ZH.md) 导入，不需要本成员                                                                             | 不适用                                                       |
 
@@ -37,19 +37,19 @@
 
 ## IC 符合性映射
 
-| 规则                                                                                                     | 本成员怎样符合                                                                                                  | 现在的证据                                                                                          |
-| -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [IC-1](../../../../docs/architecture/cordis-integration-conventions.md#ic-1) 一个接缝一个服务定义        | 五个接缝各只有本成员这一份定义。skill-host-local 与调用方都引用它                                               | skill-host-local 没有另写键                                                                         |
-| [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 服务键只写一次              | 键只在各类的 `provide`；插件体里逐个 `new` 子类。偏离：不导出键常量，见[内部架构](architecture.md#不导出键常量) | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 逐个断言 `provide`                            |
-| [IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) 抽象 Service 与 `@owner`    | 抽象类 `implements` 五个接口，JSDoc 写 `@owner`                                                                 | 类型检查；源码                                                                                      |
-| [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关        | 根入口没有导出，定义只在 `./cordis`                                                                             | [public-entry.spec.ts](../tests/public-entry.spec.ts)                                               |
-| [IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5) 消费者不依赖提供者          | `./cordis` 只导入 skill-contract 类型与 Cordis                                                                  | `package.json` 的依赖；`lint:deps`                                                                  |
-| [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者 | 本成员只定义键。重复装载的处置归提供者                                                                          | 归 skill-host-local                                                                                 |
-| [IC-7](../../../../docs/architecture/cordis-integration-conventions.md#ic-7) 成员名与键名                | 键用 camelCase 名词，不写成实现名                                                                               | 源码                                                                                                |
-| [IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8) 必需依赖写 `inject`         | 五个类不写 `static inject`；使用方按[依赖分类](#依赖分类)                                                       | 源码                                                                                                |
-| [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 可选依赖现取                | 两个端口按调用现取，接受 `undefined`                                                                            | skill-host-local 的 [tests/cordis-entry.spec.ts](../../skill-host-local/tests/cordis-entry.spec.ts) |
-| [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) 插件配置校验              | 不适用。本成员没有插件与配置                                                                                    | 不适用                                                                                              |
-| [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 运行时对象不进插件树      | 两个端口是运行时对象，由装配以服务提供，使用方现取；本成员没有插件树行                                          | 不适用于本成员                                                                                      |
+| 规则                                                                                                     | 本成员怎样符合                                                         | 现在的证据                                                                                          |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [IC-1](../../../../docs/architecture/cordis-integration-conventions.md#ic-1) 一个接缝一个服务定义        | 五个接缝各只有本成员这一份定义。skill-host-local 与调用方都引用它      | skill-host-local 没有另写键                                                                         |
+| [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 服务键只写一次              | 键只在各类的 `provide`，键常量取自它；插件体里逐个 `new` 子类          | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 逐个断言 `provide` 与键常量等于 `provide`     |
+| [IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) 抽象 Service 与 `@owner`    | 抽象类 `implements` 五个接口，JSDoc 写 `@owner`                        | 类型检查；源码                                                                                      |
+| [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关        | 根入口没有导出，定义只在 `./cordis`                                    | [public-entry.spec.ts](../tests/public-entry.spec.ts)                                               |
+| [IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5) 消费者不依赖提供者          | `./cordis` 只导入 skill-contract 类型与 Cordis                         | `package.json` 的依赖；`lint:deps`                                                                  |
+| [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者 | 本成员只定义键。重复装载的处置归提供者                                 | 归 skill-host-local                                                                                 |
+| [IC-7](../../../../docs/architecture/cordis-integration-conventions.md#ic-7) 成员名与键名                | 键用 camelCase 名词，不写成实现名                                      | 源码                                                                                                |
+| [IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8) 必需依赖写 `inject`         | 五个类不写 `static inject`；使用方按[依赖分类](#依赖分类)              | 源码                                                                                                |
+| [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 可选依赖现取                | 两个端口按调用现取，接受 `undefined`                                   | skill-host-local 的 [tests/cordis-entry.spec.ts](../../skill-host-local/tests/cordis-entry.spec.ts) |
+| [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) 插件配置校验              | 不适用。本成员没有插件与配置                                           | 不适用                                                                                              |
+| [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 运行时对象不进插件树      | 两个端口是运行时对象，由装配以服务提供，使用方现取；本成员没有插件树行 | 不适用于本成员                                                                                      |
 
 ## 机制读数与假设
 
@@ -68,8 +68,8 @@
 本成员自己验证：
 
 - 根入口没有运行导出，源码与构建产物不加载 Cordis。
-- `./cordis` 的导出集合恰为五个抽象类。
-- 五个键等于各类的 `provide`。
+- `./cordis` 的导出集合恰为五个抽象类与五个键常量。
+- 五个键常量等于各类的 `provide`，值如上表。
 - 子类作为插件装载后在键上提供服务，卸载后键上没有服务。
 
 这些在 [tests/](../tests/README.md) 里有测试。端口缺席、换代与撤除后的行为归使用方，见 [skill-host-local](../../skill-host-local/docs/cordis.md#验证义务)。

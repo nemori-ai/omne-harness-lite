@@ -88,7 +88,7 @@
 - `skillPlugin` 是对象，有 `name` 与 `apply(ctx)`，不收配置，也不是工厂。配置 Schema 只接受缺席、`null` 或空对象；其他值使加载失败，不提供任何服务。
 - 目录来源是 `createDirectorySource()` 的默认值。文件系统接缝只给测试用，插件不暴露它。
 - `apply` 用 `@omne-harness/skill` 的三个工厂构造 `PackageInspection`、`SkillCatalog`、`SkillAccess`，再逐个 `new` 三个服务子类，登记在同一个 `ctx` 上，共一条 fiber。子类把调用原样转给构造好的服务。
-- 两个端口 `SkillReadCheck` 与 `SkillResolution` 的适配器每次调用时从 `apply` 收到的 `ctx` 用 `ctx.get(<类>.provide)` 取服务，取到就把调用与参数原样转过去、答复原样交回。不缓存取到的引用，也不用服务方法里调用方的上下文。
+- 两个端口 `SkillReadCheck` 与 `SkillResolution` 的适配器每次调用时从 `apply` 收到的 `ctx` 用 `ctx.get(<键常量>)` 取服务，取到就把调用与参数原样转过去、答复原样交回。不缓存取到的引用，也不用服务方法里调用方的上下文。
 - 端口缺席时，适配器答 `unknown`，不答「拒绝」或「没有」：`check` 与 `resolve` 答 `{ kind: 'unknown' }`，`adopted` 答 `{ failure: 'unknown' }`。所以依赖端口的操作（目录、描述、读、列出、导出）都答 `unknown`，不交内容。
 - `skillPackageInspection` 不依赖端口：端口缺席时，它照常检查包。
 - 端口换代后，下一次操作用新的实例。已经开始的操作持有它取到的那个实例的答复。

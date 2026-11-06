@@ -17,6 +17,8 @@ import {
   SkillCatalogService,
   SkillReadCheckService,
   SkillResolutionService,
+  skillReadCheckKey,
+  skillResolutionKey,
 } from '@omne-harness/skill-cordis-contract/cordis'
 import { createDirectorySource } from './directory-source.ts'
 
@@ -93,7 +95,7 @@ class HostSkillAccess extends SkillAccessService<unknown, unknown> {
 function readCheckOf(ctx: Context): SkillReadCheck<unknown, unknown> {
   return {
     async check(...args) {
-      const port = ctx.get(SkillReadCheckService.provide)
+      const port = ctx.get(skillReadCheckKey)
       if (port === undefined) return { kind: 'unknown' }
       return port.check(...args)
     },
@@ -104,12 +106,12 @@ function readCheckOf(ctx: Context): SkillReadCheck<unknown, unknown> {
 function resolutionOf(ctx: Context): SkillResolution<unknown, unknown> {
   return {
     async resolve(...args) {
-      const port = ctx.get(SkillResolutionService.provide)
+      const port = ctx.get(skillResolutionKey)
       if (port === undefined) return { kind: 'unknown' }
       return port.resolve(...args)
     },
     async adopted(...args) {
-      const port = ctx.get(SkillResolutionService.provide)
+      const port = ctx.get(skillResolutionKey)
       if (port === undefined) return fail('unknown')
       return port.adopted(...args)
     },

@@ -22,7 +22,7 @@
 
 ## 端口的现取
 
-两个端口适配器每次被调用时，从 `apply` 收到的 `ctx` 用 `ctx.get(SkillReadCheckService.provide)` 或 `ctx.get(SkillResolutionService.provide)` 取服务：
+两个端口适配器每次被调用时，从 `apply` 收到的 `ctx` 用 `ctx.get(skillReadCheckKey)` 或 `ctx.get(skillResolutionKey)` 取服务：
 
 | 情形                   | 答复                                                                      |
 | ---------------------- | ------------------------------------------------------------------------- |

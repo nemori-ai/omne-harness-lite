@@ -32,7 +32,7 @@ sequenceDiagram
   participant A as 使用方（Skill 服务）
   participant C as Cordis Context
   participant R as 端口服务
-  A->>C: ctx.get(SkillReadCheckService.provide)
+  A->>C: ctx.get(skillReadCheckKey)
   alt 在场
     C-->>A: 端口实例
     A->>R: 原样转发调用

@@ -16,4 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 本包事实
 
-`index.ts` 是空导出。`cordis.ts` 导出五个抽象类：`PackageInspectionService`、`SkillCatalogService`、`SkillAccessService`、`SkillReadCheckService`、`SkillResolutionService`，并声明五个键的 `Context` 增补。没有键常量，键只写在各类的 `provide`。具名维护者由负责人指定。
+`index.ts` 是空导出。`cordis.ts` 导出五个抽象类，`PackageInspectionService`、`SkillCatalogService`、`SkillAccessService`、`SkillReadCheckService`、`SkillResolutionService`，另导出五个键常量（`skillPackageInspectionKey`、`skillCatalogKey`、`skillAccessKey`、`skillReadCheckKey`、`skillResolutionKey`），并声明五个键的 `Context` 增补。键只写在各类的 `provide`，常量取自它。具名维护者由负责人指定。

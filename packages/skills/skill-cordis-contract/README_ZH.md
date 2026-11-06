@@ -6,13 +6,13 @@ Skill 的 Cordis 定义成员，`service-contract` 变体。
 
 ## 职责与状态
 
-本成员只拥有 Skill 各接缝的 Cordis 定义：五个抽象 `Service` 与它们的键，即 `PackageInspectionService`（`skillPackageInspection`）、`SkillCatalogService<P, S>`（`skillCatalog`）、`SkillAccessService<P, S>`（`skillAccess`）、`SkillReadCheckService<P, S>`（`skillReadCheck`）与 `SkillResolutionService<P, S>`（`skillResolution`），以及这五个键的 `Context` 增补。
+本成员只拥有 Skill 各接缝的 Cordis 定义：五个抽象 `Service` 与它们的键，即 `PackageInspectionService`（`skillPackageInspection`）、`SkillCatalogService<P, S>`（`skillCatalog`）、`SkillAccessService<P, S>`（`skillAccess`）、`SkillReadCheckService<P, S>`（`skillReadCheck`）与 `SkillResolutionService<P, S>`（`skillResolution`），每个类对应一个导出的键常量（`skillPackageInspectionKey`、`skillCatalogKey`、`skillAccessKey`、`skillReadCheckKey`、`skillResolutionKey`），以及这五个键的 `Context` 增补。
 
 本成员不拥有任何行为。五个接口归 [skill-contract](../skill-contract/README_ZH.md)，三个服务的实现归 [skill](../skill/README_ZH.md)，提供三个服务的插件归 [skill-host-local](../skill-host-local/README_ZH.md)。两个端口服务（`skillReadCheck`、`skillResolution`）由别的领域提供。本成员只认通用角色：服务的消费者与端口的提供者。
 
 状态：Cordis 定义成员，行为是候选，尚未取得技术接受。采用依据是[组页](../README.md#成员与依赖)的成员分工与 [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。现在的实现情况如下：
 
-- 已实现：`./cordis` 导出五个抽象类并声明 `Context` 增补。根入口没有导出。
+- 已实现：`./cordis` 导出五个抽象类与五个键常量（各取自对应类的 `provide`），并声明 `Context` 增补。根入口没有导出。
 - 已测试：五个键、导出集合、子类在真实 Cordis 4.0.4 `Context` 上的装载与卸载，以及根入口的导入边界。
 - 未实现：事件（没有声明）与 `./testing` 入口（没有计划）。
 
@@ -27,7 +27,10 @@ Skill 的 Cordis 定义成员，`service-contract` 变体。
 
 ```ts
 import { Context } from '@deepseek-ai/cordis'
-import { SkillReadCheckService } from '@omne-harness/skill-cordis-contract/cordis'
+import {
+  SkillReadCheckService,
+  skillReadCheckKey,
+} from '@omne-harness/skill-cordis-contract/cordis'
 
 class Check extends SkillReadCheckService<unknown, unknown> {
   async check() {
@@ -37,10 +40,10 @@ class Check extends SkillReadCheckService<unknown, unknown> {
 
 const ctx = new Context()
 await ctx.plugin(Check)
-const check = ctx.get(SkillReadCheckService.provide) // 实例，或 undefined
+const check = ctx.get(skillReadCheckKey) // 实例，或 undefined
 ```
 
-消费方用 `ctx.get(<类>.provide)` 读取服务，并接受 `undefined`。各类依赖方的用法见[使用与定位](docs/context.md#使用方式)。
+消费方用 `ctx.get(<键常量>)` 读取服务，并接受 `undefined`。各类依赖方的用法见[使用与定位](docs/context.md#使用方式)。
 
 独立使用不需要本成员。不用 Cordis 的调用方使用 skill-contract 与 skill 的根入口。
 

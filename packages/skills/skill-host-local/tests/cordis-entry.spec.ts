@@ -21,6 +21,9 @@ import {
   SkillCatalogService,
   SkillReadCheckService,
   SkillResolutionService,
+  skillAccessKey,
+  skillCatalogKey,
+  skillPackageInspectionKey,
 } from '@omne-harness/skill-cordis-contract/cordis'
 import { createDirectorySource } from '@omne-harness/skill-host-local'
 import { skillPlugin } from '@omne-harness/skill-host-local/cordis'
@@ -125,18 +128,18 @@ describe('the Skill plugin on a Cordis context', () => {
     await ctx.plugin(readCheckService(readCheck(true)))
     await ctx.plugin(resolutionService(resolution))
 
-    expect(service(ctx, SkillCatalogService.provide)).toBeInstanceOf(SkillCatalogService)
-    const described = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    expect(service(ctx, skillCatalogKey)).toBeInstanceOf(SkillCatalogService)
+    const described = await service(ctx, skillAccessKey).describe(reader, scope, review)
     if (!('ok' in described) || described.ok.material.kind !== 'pinned')
       throw new Error('describe did not pin the package')
     const { basis } = described.ok.material
-    const page = await service(ctx, SkillAccessService.provide).read(reader, scope, bodyOfReview, {
+    const page = await service(ctx, skillAccessKey).read(reader, scope, bodyOfReview, {
       basis,
     })
     expect(page).toMatchObject({
       ok: { content: { kind: 'text', text: BODY }, complete: true, basis },
     })
-    const listed = await service(ctx, SkillCatalogService.provide).summaries(reader, scope)
+    const listed = await service(ctx, skillCatalogKey).summaries(reader, scope)
     expect(listed).toMatchObject({ ok: [{ kind: 'adopted', capability: review }] })
   })
 
@@ -144,13 +147,13 @@ describe('the Skill plugin on a Cordis context', () => {
     const { ctx, resolution } = await loaded()
     await ctx.plugin(resolutionService(resolution))
 
-    expect(await service(ctx, SkillAccessService.provide).describe(reader, scope, review)).toEqual({
+    expect(await service(ctx, skillAccessKey).describe(reader, scope, review)).toEqual({
       failure: { kind: 'unknown' },
     })
-    expect(
-      await service(ctx, SkillAccessService.provide).read(reader, scope, bodyOfReview),
-    ).toEqual({ failure: { kind: 'unknown' } })
-    expect(await service(ctx, SkillCatalogService.provide).summaries(reader, scope)).toEqual({
+    expect(await service(ctx, skillAccessKey).read(reader, scope, bodyOfReview)).toEqual({
+      failure: { kind: 'unknown' },
+    })
+    expect(await service(ctx, skillCatalogKey).summaries(reader, scope)).toEqual({
       failure: 'unknown',
     })
   })
@@ -159,15 +162,13 @@ describe('the Skill plugin on a Cordis context', () => {
     const { ctx, readCheck } = await loaded()
     await ctx.plugin(readCheckService(readCheck(true)))
 
-    expect(await service(ctx, SkillAccessService.provide).describe(reader, scope, review)).toEqual({
+    expect(await service(ctx, skillAccessKey).describe(reader, scope, review)).toEqual({
       failure: { kind: 'unknown' },
     })
-    expect(
-      await service(ctx, SkillAccessService.provide).read(reader, scope, bodyOfReview),
-    ).toEqual({ failure: { kind: 'unknown' } })
-    expect(
-      await service(ctx, SkillCatalogService.provide).search(reader, scope, { text: 'x' }),
-    ).toEqual({
+    expect(await service(ctx, skillAccessKey).read(reader, scope, bodyOfReview)).toEqual({
+      failure: { kind: 'unknown' },
+    })
+    expect(await service(ctx, skillCatalogKey).search(reader, scope, { text: 'x' })).toEqual({
       failure: 'unknown',
     })
   })
@@ -176,7 +177,7 @@ describe('the Skill plugin on a Cordis context', () => {
     const { ctx } = await loaded()
     const root = join(await scratch(), 'other')
     await writeTree(root, { files: { 'SKILL.md': MANIFEST.replace('review', 'other') } })
-    const inspected = await service(ctx, PackageInspectionService.provide).inspect({
+    const inspected = await service(ctx, skillPackageInspectionKey).inspect({
       kind: 'directory',
       root,
     })
@@ -187,12 +188,12 @@ describe('the Skill plugin on a Cordis context', () => {
     const { ctx, readCheck, resolution } = await loaded()
     await ctx.plugin(resolutionService(resolution))
     const granting = await ctx.plugin(readCheckService(readCheck(true)))
-    const first = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    const first = await service(ctx, skillAccessKey).describe(reader, scope, review)
     expect(first).toHaveProperty('ok')
 
     await granting.dispose()
     await ctx.plugin(readCheckService(readCheck(false)))
-    const second = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    const second = await service(ctx, skillAccessKey).describe(reader, scope, review)
     expect(second).toEqual({ failure: { kind: 'not-available-to-you' } })
   })
 
@@ -200,12 +201,12 @@ describe('the Skill plugin on a Cordis context', () => {
     const { ctx, readCheck, resolution } = await loaded()
     await ctx.plugin(readCheckService(readCheck(true)))
     const adopting = await ctx.plugin(resolutionService(resolution))
-    const first = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    const first = await service(ctx, skillAccessKey).describe(reader, scope, review)
     expect(first).toHaveProperty('ok')
 
     await adopting.dispose()
     await ctx.plugin(resolutionService(createMemoryResolution<unknown, unknown>([])))
-    const second = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    const second = await service(ctx, skillAccessKey).describe(reader, scope, review)
     expect(second).toEqual({ failure: { kind: 'not-available-to-you' } })
   })
 
@@ -215,12 +216,12 @@ describe('the Skill plugin on a Cordis context', () => {
     await ctx.plugin(resolutionService(resolution))
     const granting = await ctx.plugin(readCheckService(readCheck(true)))
     await ctx.plugin(skillPlugin)
-    const first = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    const first = await service(ctx, skillAccessKey).describe(reader, scope, review)
     expect(first).toHaveProperty('ok')
 
     await granting.dispose()
     await ctx.plugin(readCheckService(readCheck(false)))
-    const second = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    const second = await service(ctx, skillAccessKey).describe(reader, scope, review)
     expect(second).toEqual({ failure: { kind: 'not-available-to-you' } })
   })
 
@@ -230,22 +231,22 @@ describe('the Skill plugin on a Cordis context', () => {
     await ctx.plugin(readCheckService(readCheck(true)))
     const adopting = await ctx.plugin(resolutionService(resolution))
     await ctx.plugin(skillPlugin)
-    const first = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    const first = await service(ctx, skillAccessKey).describe(reader, scope, review)
     expect(first).toHaveProperty('ok')
 
     await adopting.dispose()
     await ctx.plugin(resolutionService(createMemoryResolution<unknown, unknown>([])))
-    const second = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    const second = await service(ctx, skillAccessKey).describe(reader, scope, review)
     expect(second).toEqual({ failure: { kind: 'not-available-to-you' } })
   })
 
   it('removes the three services when the plugin unloads', async () => {
     const { ctx, fiber } = await loaded()
-    expect(ctx.get(PackageInspectionService.provide)).toBeDefined()
+    expect(ctx.get(skillPackageInspectionKey)).toBeDefined()
     await fiber.dispose()
-    expect(ctx.get(PackageInspectionService.provide)).toBeUndefined()
-    expect(ctx.get(SkillCatalogService.provide)).toBeUndefined()
-    expect(ctx.get(SkillAccessService.provide)).toBeUndefined()
+    expect(ctx.get(skillPackageInspectionKey)).toBeUndefined()
+    expect(ctx.get(skillCatalogKey)).toBeUndefined()
+    expect(ctx.get(skillAccessKey)).toBeUndefined()
   })
 
   it('refuses to load with a non-empty configuration', async () => {
@@ -253,6 +254,6 @@ describe('the Skill plugin on a Cordis context', () => {
     // The typed overload forbids the bad configuration; an assembly reading a plugin tree does not.
     const loading: unknown = Reflect.apply(ctx.plugin, ctx, [skillPlugin, { extra: true }])
     await expect(Promise.resolve(loading)).rejects.toBeDefined()
-    expect(ctx.get(SkillAccessService.provide)).toBeUndefined()
+    expect(ctx.get(skillAccessKey)).toBeUndefined()
   })
 })

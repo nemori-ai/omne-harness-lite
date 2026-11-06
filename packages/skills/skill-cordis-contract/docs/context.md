@@ -6,9 +6,9 @@
 
 最小用法见 [README](../README_ZH.md#使用)。各类依赖方的做法如下，规则见 [Cordis 说明](cordis.md#依赖分类)。
 
-- 提供三个服务的插件：继承 `PackageInspectionService`、`SkillCatalogService`、`SkillAccessService`，在 `apply` 里逐个 `new`。不另写键，不自己 `ctx.provide`。
+- 提供三个服务的插件：继承 `PackageInspectionService`、`SkillCatalogService`、`SkillAccessService`，在 `apply` 里逐个 `new`。不另写键，不自己 `ctx.provide`；引用键常量。
 - 端口的实现方：继承 `SkillReadCheckService` 或 `SkillResolutionService`，作为插件装载。
-- 使用服务的插件：把需要它的那段工作写成 `ctx.inject(['skillAccess'], cb)`，或在调用时 `ctx.get(SkillAccessService.provide)` 并接受 `undefined`。
+- 使用服务的插件：把需要它的那段工作写成 `ctx.inject(['skillAccess'], cb)`，或在调用时 `ctx.get(skillAccessKey)` 并接受 `undefined`。
 - 只需要类型的一方：`import type {} from '@omne-harness/skill-cordis-contract/cordis'`。
 
 初始化与释放：本成员没有初始化与释放。服务的寿命归装载它的插件的 fiber。

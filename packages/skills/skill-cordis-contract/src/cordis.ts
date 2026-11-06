@@ -1,6 +1,6 @@
 // The Cordis service definitions of Skill: the abstract Service of each of the three Skill services
 // and of the two demand ports that other domains implement. Each Service writes its key once, in
-// `provide`. A Service declares no `inject`: the plugin that uses a port reads it from its own
+// `provide`; the exported key constants are taken from it. A Service declares no `inject`: the plugin that uses a port reads it from its own
 // context on each call and treats its absence as an unknown answer.
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
@@ -26,6 +26,8 @@ export abstract class PackageInspectionService extends Service implements Packag
   ): ReturnType<PackageInspection['inspect']>
 }
 
+export const skillPackageInspectionKey = PackageInspectionService.provide
+
 /**
  * The Skill catalog as a service. It lists and searches the current lawful set that the caller may
  * read.
@@ -44,6 +46,8 @@ export abstract class SkillCatalogService<P, S> extends Service implements Skill
     ...args: Parameters<SkillCatalog<P, S>['search']>
   ): ReturnType<SkillCatalog<P, S>['search']>
 }
+
+export const skillCatalogKey = SkillCatalogService.provide
 
 /**
  * The Skill access as a service: describe, read, list and export of one Skill, each checked on the
@@ -70,6 +74,8 @@ export abstract class SkillAccessService<P, S> extends Service implements SkillA
   ): ReturnType<SkillAccess<P, S>['export']>
 }
 
+export const skillAccessKey = SkillAccessService.provide
+
 /**
  * The read check port of Skill as a service. Another domain provides it by loading a subclass; the
  * Skill plugin reads it on each call and treats its absence as `unknown`. It is an optional
@@ -86,6 +92,8 @@ export abstract class SkillReadCheckService<P, S> extends Service implements Ski
     ...args: Parameters<SkillReadCheck<P, S>['check']>
   ): ReturnType<SkillReadCheck<P, S>['check']>
 }
+
+export const skillReadCheckKey = SkillReadCheckService.provide
 
 /**
  * The resolution port of Skill as a service, with the same rules as the read check port.
@@ -107,6 +115,8 @@ export abstract class SkillResolutionService<P, S>
     ...args: Parameters<SkillResolution<P, S>['adopted']>
   ): ReturnType<SkillResolution<P, S>['adopted']>
 }
+
+export const skillResolutionKey = SkillResolutionService.provide
 
 declare module '@deepseek-ai/cordis' {
   // The principal and scope types stay `unknown` here; an implementation checks every input at run

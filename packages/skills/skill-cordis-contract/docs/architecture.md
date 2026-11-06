@@ -41,9 +41,9 @@ flowchart LR
 
 三个服务与两个端口各有一个键。三个服务的消费者按键取用，不依赖提供者。两个端口是别的领域提供的需求端口，它们是 Skill 声明的，由别的领域实现；本成员按需求方的词汇定义它们，不点名实现方（[外域概念的进入方式](../../../../docs/architecture/layers-and-dependencies.md#领域语义依赖与模型边界)）。
 
-### 不导出键常量
+### 键常量取自 `provide`
 
-[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 写「定义包导出的键常量取自 `provide`」。本成员不导出键常量，只导出五个类。键仍只写一次，在各类的 `static readonly provide`；消费者写 `ctx.get(<类>.provide)`，字面量类型使 `ctx.get` 有类型。理由：键常量与类各自成为导出，会多出五个运行导出而没有新的信息。代价：消费者要导入整个类，才能取得键。这个选择来自 #1119 W4 的 Skill 规格，不是 IC-2 的字面写法；IC 约定的拥有者可以改判。
+[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 要求定义包导出键常量，消费者引用它。本成员在每个类之后导出一个常量，取自该类的 `provide`，例如 `export const skillReadCheckKey = SkillReadCheckService.provide`。键仍只写一次，在各类的 `static readonly provide`。消费者写 `ctx.get(skillReadCheckKey)`，不必为取得键而引用类；常量的字面量类型使 `ctx.get` 有类型。代价：`./cordis` 多五个运行导出。
 
 ### 端口服务不写 `inject`
 
