@@ -37,7 +37,7 @@ Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。
 5. 根入口没有运行导出，不导入 `@deepseek-ai/cordis`（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。`./cordis` 的运行导出恰为五个抽象类与五个键常量。本成员没有 `./testing` 入口。
 6. `./cordis` 只导入 `@omne-harness/skill-contract` 的类型与 `@deepseek-ai/cordis`，不导入任何提供者（[IC-5](../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 7. 本成员不声明事件，不增补 `Events`。
-8. 两个端口服务 `skillReadCheck` 与 `skillResolution` 对使用它们的插件是可选依赖：没有人把它们写进 `inject`。使用方每次调用时用 `ctx.get(<键常量>)` 现取，接受 `undefined`，不缓存取到的引用（[IC-9](../../../docs/architecture/cordis-integration-conventions.md#ic-9)）。缺席时的答复由提供者兑现，`skill-host-local` 的规则见其 [SPEC](../skill-host-local/SPEC.md#port-absent)。
+8. 两个端口服务 `skillReadCheck` 与 `skillResolution` 对使用它们的插件是可选依赖：没有人把它们写进 `inject`。使用方每次调用时用 `ctx.get(<键常量>)` 现取，接受 `undefined`，不缓存取到的引用（[IC-9](../../../docs/architecture/cordis-integration-conventions.md#ic-9)）。缺席时的答复由使用这两个端口的插件兑现，`skill-host-local` 的规则见其 [SPEC](../skill-host-local/SPEC.md#port-absent)。
 
 ## 所有权、失败与生命周期
 
@@ -45,7 +45,7 @@ Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。
 | -------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------- |
 | 五个服务键与抽象类                                             | 本成员                                     | 随包                                                     |
 | `skillPackageInspection`、`skillCatalog`、`skillAccess` 的实例 | 装载提供者的插件的 fiber                   | 该 fiber 卸载。之后 `ctx.get` 答 `undefined`             |
-| `skillReadCheck`、`skillResolution` 的实例                     | 装载它们的插件的 fiber，由端口的实现方装配 | 该 fiber 卸载。之后使用方现取不到，按性质 8 答 `unknown` |
+| `skillReadCheck`、`skillResolution` 的实例                     | 装载它们的插件的 fiber，由端口的实现方装配 | 该 fiber 卸载。之后使用方现取不到，按性质 8 由使用方答复 |
 
 本成员没有状态、资源与外部效果，没有需要撤除的东西，也没有本成员自己的失败。服务换代时，使用方下一次调用现取到新的实例，旧引用不被持有。使用方在途操作持有的是它已经取到的那个实例的结果，本成员不规定在途操作的结局。
 

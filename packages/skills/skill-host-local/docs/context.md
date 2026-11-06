@@ -11,4 +11,4 @@
 
 ## 消费者与定位
 
-本包是 Skill 能力组的本地宿主成员，组内位置见[组入口「成员与依赖」](../../README.md#成员与依赖)。它实现 `@omne-harness/skill-contract` 声明的需求端口 `SkillPackageSource`。消费者是 `@omne-harness/skill`，经端口使用本来源，不认识本包。`./cordis` 入口的 `skillPlugin` 把 `@omne-harness/skill` 的三个服务提供为 Cordis 服务，键与抽象类归 [skill-cordis-contract](../../skill-cordis-contract/docs/cordis.md)，见 [Cordis 说明](cordis.md)。根入口不依赖 Cordis，本包不认识任何调用方。
+本包是 Skill 能力组的本地宿主成员，组内位置见[组入口「成员与依赖」](../../README.md#成员与依赖)。它实现 `@omne-harness/skill-contract` 声明的需求端口 `SkillPackageSource`。消费者是 `@omne-harness/skill`，经端口使用本来源，不认识本包。`./cordis` 入口的 `skillPlugin` 把 `@omne-harness/skill` 的三个服务提供为 Cordis 服务，键与抽象类归 [skill-cordis-contract](../../skill-cordis-contract/docs/cordis.md)，见 [Cordis 说明](cordis.md)。根入口不依赖 Cordis，也不认识任何调用方。

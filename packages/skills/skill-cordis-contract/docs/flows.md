@@ -29,7 +29,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant A as 使用方（Skill 服务）
+  participant A as 使用方（提供者插件的端口适配器）
   participant C as Cordis Context
   participant R as 端口服务
   A->>C: ctx.get(skillReadCheckKey)
@@ -39,14 +39,14 @@ sequenceDiagram
     R-->>A: 答复
   else 缺席
     C-->>A: undefined
-    A-->>A: 答 unknown
+    A-->>A: 按使用方的规则答复
   end
 ```
 
-使用方每次调用都现取，不缓存。端口换代后，下一次调用取到新的实例。本成员只规定键与类，现取与缺席答复由使用方兑现（[SPEC 性质 8](../SPEC.md#结果与不变量)）。
+使用方每次调用都现取，不缓存。端口换代后，下一次调用取到新的实例。本成员只规定键与类，现取与缺席时的答复由使用方兑现（[SPEC 性质 8](../SPEC.md#结果与不变量)），`skill-host-local` 的规则见其 [SPEC](../../skill-host-local/SPEC.md#port-absent)。
 
 ## 失败与生命周期
 
-- 端口缺席：使用方答 `unknown`，不放行，也不当作「没有」。
+- 端口缺席：本成员不规定答复。`skill-host-local` 的规则见其 [SPEC](../../skill-host-local/SPEC.md#port-absent)。
 - 端口换代：下一次调用取到新实例。已经开始的调用持有旧实例的答复，本成员不规定它的结局。
 - 提供者 fiber 卸载：键上没有服务。本成员没有取消参数或资源要释放。
