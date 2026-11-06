@@ -12,7 +12,12 @@ import {
   createPrerequisiteProbe,
   probeTerminalPrerequisites,
   resolveSupervisor,
+  type HostCommandPrerequisite,
 } from './host-probe.ts'
+import { createMacosHostCommands, type MacosPrerequisite } from './macos-execution/commands.ts'
+import { sessionReader } from './macos-execution/compile.ts'
+import { createDomainIndex } from './macos-execution/domain-index.ts'
+import type { MacosRecovery } from './macos-execution/recovery.ts'
 import { windowsBridgeExecutable, windowsTerminalExecutable } from './windows-execution/compile.ts'
 import { createWindowsHostCommands } from './windows-execution/index.ts'
 import {
@@ -22,7 +27,10 @@ import {
 } from './windows-execution/terminal.ts'
 
 type Prerequisite = ProviderFacts['prerequisites']
-type CommandInput = Omit<HostCommandsInput, 'prerequisites'>
+/** A prerequisite a command start found missing, on any platform. */
+export type CommandPrerequisite = HostCommandPrerequisite | MacosPrerequisite
+type CommandInput = Omit<HostCommandsInput, 'prerequisites' | 'unavailable'> &
+  Readonly<{ unavailable(missing: readonly CommandPrerequisite[]): void }>
 type TerminalInput = Omit<Parameters<typeof createHostTerminals>[0], 'prerequisites'>
 
 /** Installation facts only; a successful compile does not prove a command or terminal run. */
@@ -63,7 +71,37 @@ export function createHostPlatform(input: {
   settings: CommandSettings
   terminal: TerminalSettings
   windowsCapacity(): WindowsTerminalCapacity
+  stateDirectory?: string | undefined
 }) {
+  if (process.platform === 'darwin') {
+    const macos: MacosRecovery = {
+      domains:
+        input.stateDirectory === undefined ? undefined : createDomainIndex(input.stateDirectory),
+      reader: sessionReader,
+      stopBoundMs: input.settings.stopBoundMs,
+    }
+    const terminalProbe = createPrerequisiteProbe({
+      retryMs: input.terminal.probeRetryMs,
+      boundMs: input.terminal.stopBoundMs,
+    })
+    return {
+      macos,
+      async prerequisites(): Promise<readonly Prerequisite[]> {
+        const reading = await sessionReader()
+        return [reading.kind === 'ready' ? 'satisfied' : 'unsatisfied', 'unsatisfied']
+      },
+      commands: (options: CommandInput) =>
+        createMacosHostCommands({ ...options, reader: sessionReader, domains: macos.domains }),
+      terminals(options: TerminalInput) {
+        const shared = { ...options, prerequisites: terminalProbe }
+        return {
+          ordinary: createHostTerminals(shared),
+          reserve: retainedHostTerminalFactory(shared),
+        }
+      },
+      supervisor: async () => undefined,
+    }
+  }
   if (process.platform === 'win32') {
     return {
       prerequisites: async (): Promise<readonly Prerequisite[]> => [await probeWindowsExecution()],
@@ -76,6 +114,7 @@ export function createHostPlatform(input: {
         }
       },
       supervisor: async () => undefined,
+      macos: undefined,
     }
   }
   const probe = createPrerequisiteProbe({
@@ -112,5 +151,6 @@ export function createHostPlatform(input: {
         ? reading.tools
         : resolveSupervisor(input.settings.stopBoundMs)
     },
+    macos: undefined,
   }
 }
