@@ -15,8 +15,6 @@ import {
   PackageInspectionService,
   SkillAccessService,
   SkillCatalogService,
-  SkillReadCheckService,
-  SkillResolutionService,
   skillReadCheckKey,
   skillResolutionKey,
 } from '@omne-harness/skill-cordis-contract/cordis'

@@ -16,8 +16,6 @@ import type {
 } from '@omne-harness/skill-contract/provider'
 import { createMemoryReadCheck, createMemoryResolution } from '@omne-harness/skill-contract/testing'
 import {
-  PackageInspectionService,
-  SkillAccessService,
   SkillCatalogService,
   SkillReadCheckService,
   SkillResolutionService,
