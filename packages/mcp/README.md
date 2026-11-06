@@ -1,6 +1,6 @@
 # MCP能力组
 
-状态：工程设计草案。本组有三个 workspace 成员。mcp-contract 已有实现（候选，第一波，尚未取得技术接受）。mcp 已实现核心（候选，第二波，尚未取得技术接受），调用口与 `createMcp` 在第三波。mcp-host-local 仍是模板草稿，没有公开导出、实现或运行支持。mcp-cordis-contract 尚未建立。下文的成员、模型和决定都是候选，落位不授予技术接受。
+状态：工程设计草案。本组有三个 workspace 成员。mcp-contract、mcp 与 mcp-host-local 都已有实现（候选，尚未取得技术接受）。mcp-cordis-contract 尚未建立。mcp 与 mcp-host-local 的真实组合没有验证。下文的成员、模型和决定都是候选，落位不授予技术接受。
 
 ## 责任与范围
 
@@ -10,14 +10,14 @@
 
 ## 成员与依赖
 
-下表列出本组的三个成员与一个具名文档目标。mcp-contract、mcp 与 mcp-host-local 是第一波的 workspace 成员。mcp-contract 已有公开导出、实现、测试与候选 [SPEC](mcp-contract/SPEC.md)，尚未取得技术接受。mcp 已有核心的公开导出、实现、测试与候选 [SPEC](mcp/SPEC.md)，尚未取得技术接受。mcp-host-local 只是模板草稿：它只有 `typescript-package@3.0.0` 的 `module` 骨架，没有公开导出、实现、成员 SPEC 或采用标识，也不声明生产依赖。mcp-host-local 的 Cordis 插件部分在 Cordis 服务键波补 `src/cordis.ts`。mcp-cordis-contract 仍是具名文档目标，尚非 workspace 成员，在 Cordis 服务键波建立。模型、端口和服务见[工程设计](docs/architecture.md#模型)，依据见 [Q-MC02](docs/architecture.md#q-mc02-成员与公开身份操作形状的技术归属)。
+下表列出本组的三个成员与一个具名文档目标。mcp-contract、mcp 与 mcp-host-local 是 workspace 成员。三者都已有公开导出、实现、测试与候选 SPEC（[mcp-contract](mcp-contract/SPEC.md)、[mcp](mcp/SPEC.md)、[mcp-host-local](mcp-host-local/SPEC.md)），都尚未取得技术接受。mcp-host-local 的 Cordis 插件部分在 Cordis 服务键波补 `src/cordis.ts`。mcp-cordis-contract 仍是具名文档目标，尚非 workspace 成员，在 Cordis 服务键波建立。模型、端口和服务见[工程设计](docs/architecture.md#模型)，依据见 [Q-MC02](docs/architecture.md#q-mc02-成员与公开身份操作形状的技术归属)。
 
-| 成员或文档目标 | 职责 | 允许依赖 | 状态 |
-| --- | --- | --- | --- |
-| [mcp-contract](mcp-contract/README.md) | 纯契约：值对象、类别端口、纯函数、端口与应用服务接口。三个入口：公开根 `.` 给调用方与实现方，导出值、结局、失败、五个服务接口、纯函数与类别端口；`./provider` 给端口的实现方，只导出五个需求端口、`McpTransport` 与 `McpTransportFactory` 的类型；`./testing` 给端口的实现方在测试里自测，导出五个需求端口的符合性套件、各自的内存替身，以及 `classifyOutcome` 与 `mergeListing` 的穷举用例。见[三个入口](mcp-contract/SPEC.md#entries)。传输契约测试与本地真实服务端夹具还不在本成员。不依赖 Cordis 与任何实现 | assets（类别端口）、operation-result、legal-identity、content-block、json-text | 已实现（候选），尚未取得技术接受 |
-| [mcp](mcp/README.md) | 通用实现。`createMcpCore` 交出四个应用服务：类别端口 `EndpointInspection`、读口 `ActionDiscovery`、状态口 `EndpointStatus` 与 `Connections`，四者共用一张连接表。`createInMemoryCatalogStore` 是 `CatalogStore` 的内存实现，不耐久。调用口 `ActionInvoker` 与 `createMcp` 在第三波。不含 Cordis，不含官方 SDK | 只依赖 mcp-contract 及其公共值包 | 已实现核心（候选），尚未取得技术接受 |
-| mcp-cordis-contract | Cordis 服务定义与服务键，不含实现。建立后暂不进应用插件树 | mcp-contract、Cordis | 候选，尚非 workspace 成员 |
-| [mcp-host-local](mcp-host-local/README.md) | 本地宿主：stdio 与 Streamable HTTP 两种 `McpTransport` 实现与授权发现，使用官方 SDK | mcp、mcp-contract、mcp-cordis-contract、官方 `@modelcontextprotocol/client` 2.3.1。测试用的本地真实服务端另用官方 `@modelcontextprotocol/server` 2.3.1 | 候选，workspace 模板草稿成员 |
+| 成员或文档目标                             | 职责                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | 允许依赖                                                                                                                                                                                                                                                                                                                   | 状态                             |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| [mcp-contract](mcp-contract/README.md)     | 纯契约：值对象、类别端口、纯函数、端口与应用服务接口。三个入口：公开根 `.` 给调用方与实现方，导出值、结局、失败、五个服务接口、纯函数与类别端口；`./provider` 给端口的实现方，只导出五个需求端口、`McpTransport` 与 `McpTransportFactory` 的类型；`./testing` 给端口的实现方在测试里自测，导出六个符合性套件（五个需求端口各一个，另有传输的一个）、各自的内存替身，以及 `classifyOutcome` 与 `mergeListing` 的穷举用例。见[三个入口](mcp-contract/SPEC.md#entries)。本地真实服务端夹具不在本成员，在 mcp-host-local。不依赖 Cordis 与任何实现 | assets（类别端口）、operation-result、legal-identity、content-block、json-text                                                                                                                                                                                                                                             | 已实现（候选），尚未取得技术接受 |
+| [mcp](mcp/README.md)                       | 通用实现。`createMcp` 交出五个应用服务：类别端口 `EndpointInspection`、读口 `ActionDiscovery`、调用口 `ActionInvoker`（含任务的四个操作）、状态口 `EndpointStatus` 与 `Connections`，五者共用一张连接表。`createInMemoryCatalogStore` 是 `CatalogStore` 的内存实现，不耐久。不含 Cordis，不含官方 SDK                                                                                                                                                                                                                                          | 只依赖 mcp-contract 及其公共值包                                                                                                                                                                                                                                                                                           | 已实现（候选），尚未取得技术接受 |
+| mcp-cordis-contract                        | Cordis 服务定义与服务键，不含实现。建立后暂不进应用插件树                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | mcp-contract、Cordis                                                                                                                                                                                                                                                                                                       | 候选，尚非 workspace 成员        |
+| [mcp-host-local](mcp-host-local/README.md) | 本地宿主：stdio 与 Streamable HTTP 两种 `McpTransport` 实现（含旧 HTTP+SSE 的回退）与授权发现。协议层优先复用官方 SDK。复用会违反硬承诺，或契约根已有同一条规则时，不复用，逐块决定见成员 SPEC。现行产品源码不导入 SDK                                                                                                                                                                                                                                                                                                                         | mcp、mcp-contract、mcp-cordis-contract、官方 `@modelcontextprotocol/client`。测试用的本地真实服务端另用官方 `@modelcontextprotocol/server`。RFC 该行写 2.3.1，仓库实际采用 2.4.0，见 [mcp-host-local 的 SPEC](mcp-host-local/SPEC.md)，该行的同步归 [RFC-0001](../../docs/rfcs/RFC-0001-technical-foundations.md) 的拥有者 | 已实现（候选），尚未取得技术接受 |
 
 依赖方向是 mcp-host-local → {mcp, mcp-cordis-contract} → mcp-contract。mcp 与 mcp-cordis-contract 互不依赖。这一方向沿 [Tool 组](../tool/README.md#包与依赖)的先例。SDK 版本与协议线沿架构[技术基础](../../docs/architecture/technical-foundations.md#共同技术选择)「MCP连接与动作桥接」一行，精确锁定以 lockfile 为准，见[协议基线与兼容](docs/architecture.md#协议基线与兼容)。
 
@@ -26,7 +26,7 @@ flowchart LR
     hostLocal[mcp-host-local] --> mcp[mcp]
     hostLocal --> cordisContract[mcp-cordis-contract]
     hostLocal --> contract[mcp-contract]
-    hostLocal --> sdk[官方 MCP client 2.3.1]
+    hostLocal --> sdk["官方 MCP client（只在测试与探针里，RFC 行 2.3.1，实际采用 2.4.0）"]
     mcp --> contract
     cordisContract --> contract
     cordisContract --> cordis[Cordis]
@@ -48,11 +48,11 @@ flowchart LR
 组合验证须覆盖：MCP 连接不跨租户与对端账号；在途调用按租户、主体与关联键分开；清单采用的竞争与迟到；断流后效果未知且不重发；换代后迟到响应不改变新状态；撤采用或禁用后连接与进程在下一次使用边界之前关闭；资源释放只报告实际确认的范围。
 
 - 两种传输共用一份传输契约测试，五个需求端口各有一份符合性套件，都由 mcp-contract 导出，见 [Q-MC06](docs/architecture.md#q-mc06-持续验证与真实部署前提)。
-- 传输与连接用本地起的真实 MCP 服务端夹具验证，覆盖现代与旧对端、断流、清单变化通知、需要输入与任务。替身通过不说成真实组合通过。
+- 传输与连接用本地起的真实 MCP 服务端夹具验证，覆盖现代与旧对端、断流、需要输入与任务。替身通过不说成真实组合通过。
 - 证据须绑定成员、需求端口提供者及调用方的精确版本与故障前提。
 - `CatalogStore` 的内存实现只覆盖一次运行。MCP 已知动作跨进程重启保留，须等耐久实现交付后另行验证。
 
-mcp-contract 的纯函数，以及五个符合性套件对内存替身的运行有测试，范围与未覆盖项见它的 [SPEC](mcp-contract/SPEC.md)。mcp 的核心在契约的内存替身与脚本化传输上有测试，范围与未覆盖项见它的 [SPEC](mcp/SPEC.md#组合与验证)。组合行为、攻击、资源与耐久都没有证据。替身通过与文档结构检查都不代替真实组合验证。
+mcp-contract 的纯函数，以及五个符合性套件对内存替身的运行有测试，范围与未覆盖项见它的 [SPEC](mcp-contract/SPEC.md)。mcp 的核心在契约的内存替身与脚本化传输上有测试，范围与未覆盖项见它的 [SPEC](mcp/SPEC.md#组合与验证)。mcp-host-local 的 `tests/e2e/` 在本机真实服务端上验证它与 `@omne-harness/mcp` 的组合行为（PR #1149）。攻击、资源与耐久没有证据。替身通过与文档结构检查都不代替真实组合验证。
 
 ## 维护
 
