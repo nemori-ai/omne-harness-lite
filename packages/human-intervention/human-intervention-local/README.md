@@ -4,11 +4,11 @@
 
 ## Responsibility and status
 
-Node local SQL provider for the accepted HITL protocol. The package implements durable operation terminals. Request/card storage, Identity coordination and independent WaitOwner recovery remain in development. This is not a complete HITL application service.
+Node local SQL provider for the accepted HITL protocol. The package implements durable operation terminals, request/card transactions, independent wait recovery and original operation readback. Identity coordination and the public application services remain in development. This is not a complete HITL application service.
 
 ## Usage
 
-Import `hitlSqlMaterials` and `createHitlSqlTerminals` from the package root. Register the materials and a combination with an existing SqlStorage, then pass that storage, tenant domain, combination version and digest to the factory. A real assembly example is in [tests/world.ts](tests/world.ts).
+Import `hitlSqlMaterials`, `independentWaitSqlMaterials` and the operation factories from the package root. Register the materials and a combination with an existing SqlStorage, then pass that storage, tenant domain, combination version and digest to the factory. A real assembly example is in [tests/world.ts](tests/world.ts).
 
 ## Contracts
 
@@ -24,7 +24,7 @@ The caller supplies registered SQL materials and a tenant domain. This factory d
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/human-intervention-local build`, `typecheck` and `test:fast`. Real SQLite tests cover seals, rollback, restart and response loss. They do not prove full request processing or current Identity qualification.
+Run `pnpm --filter @omne-harness/human-intervention-local build`, `typecheck` and `test:fast`. Real SQLite tests cover registration, competing replies, batch recovery, receiver generations, original results, seals and rollback. They do not prove current Identity qualification or the complete public application services.
 
 ## Maintenance
 

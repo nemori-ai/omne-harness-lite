@@ -8,20 +8,47 @@ classDiagram
     OperationRef operationRef
     string inputDigest
   }
-  class HitlSqlTerminal {
-    committed_or_aborted state
+  class StoredOperation {
+    method
+    result
+    commitReceipt
   }
-  class TerminalFactory {
-    inspect(binding)
-    seal(binding)
+  class RequestRecord {
+    ref
+    revision
+    origin
+    cards
   }
-  class SqlStorage
-  HitlSqlTerminal *-- HitlSqlBinding
-  TerminalFactory --> SqlStorage : 调用者注入
+  class IndependentControl {
+    preparation
+    receiver
+    lifecycle
+    receipts
+    checkpoint
+  }
+  class ActiveWait {
+    requestRef
+    cardIds
+  }
+  class InboxEntry {
+    decision
+    wait
+    positionRef
+    adoptionRef
+  }
+  StoredOperation *-- HitlSqlBinding
+  IndependentControl --> ActiveWait : 原等待
+  ActiveWait --> RequestRecord : 注册同提交
+  InboxEntry --> RequestRecord : 原决定
+  IndependentControl --> InboxEntry : 代次核验后消费
 ```
 
-Binding 是原操作值，不是权限凭据。Terminal 是耐久结果。工厂对象仅保管装配配置，不建立第二份内存权威。
+Binding 是原操作值，不是权限凭据。StoredOperation 保存可重放的业务结果，方法与结果以联合类型关联。RequestRecord 的全部卡片属于该请求，卡片身份不能重复。
+
+IndependentControl 保存逻辑等待与接收权。receiverGeneration 表示谁可以继续消费，卡片 revision 表示答复竞争条件，两者不能互换。InboxEntry 保存答复要回到的原位置和采用引用，不能因进程重启改投其他工作。
 
 ## 生命周期
 
-操作无终态时，consume 或 seal 可在事务中创建终态。已有终态不可反转。终态由 SQL 持久保管，工厂对象丢弃不删除记录，也不关闭外部提供的存储。查询不可将缺记录推断为撤销。
+prepared 只是耐久调用材料。注册共同建立 active 等待与请求。决定进入收件箱后，当前接收者逐项消费，完整批次才能转成 resume-ready。业务终局把 checkpoint 固定为 terminal，保留决定历史。
+
+工厂丢弃不删除数据，不关闭调用者提供的 SqlStorage。runtime 卸载不构成业务终局。原操作查不到仍可能在途，必须通过封口排除迟到提交才能认定 not-committed。

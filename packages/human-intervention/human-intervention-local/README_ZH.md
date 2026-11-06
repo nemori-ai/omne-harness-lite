@@ -4,11 +4,11 @@
 
 ## 职责与状态
 
-HITL 的 Node 单机 SQL 提供者，依据已接受的 HJ0。当前已有耐久操作终态；请求/卡片、Identity 协调及独立 WaitOwner 恢复仍在实施，不代表完整 C2 可用。
+HITL 的 Node 单机 SQL 提供者，依据已接受的 HJ0。当前已实现操作终态、请求/卡片共同提交、独立 WaitOwner 恢复与原操作结果回查。Identity 协调、公开应用服务和统一池仍在实施，不代表完整 C2 可用。
 
 ## 使用
 
-从根入口导入 hitlSqlMaterials 和 createHitlSqlTerminals。装配者向现有 SqlStorage 登记材料及组合，再传入该存储、tenant domain、组合版本和摘要。真实装配样例见[测试 world](tests/world.ts)。
+从根入口导入 hitlSqlMaterials、independentWaitSqlMaterials 和操作工厂。装配者向现有 SqlStorage 登记材料及组合，再传入该存储、tenant domain、组合版本和摘要。真实装配样例见[测试 world](tests/world.ts)。
 
 ## 契约
 
@@ -24,7 +24,7 @@ HITL 的 Node 单机 SQL 提供者，依据已接受的 HJ0。当前已有耐久
 
 ## 验证
 
-依次运行本成员 build、typecheck、test:fast。真实 SQLite 验证封口、回滚、重启和回执丢失。完整请求处理、当前身份资格和独立验收仍未覆盖。
+依次运行本成员 build、typecheck、test:fast。真实 SQLite 验证出卡、竞争答复、批次恢复、接收代次、原结果回查、封口和回滚。公开应用服务、当前身份资格和独立验收仍未覆盖。
 
 ## 维护
 

@@ -7,6 +7,9 @@
 ## 定义索引
 
 - [hitlSqlMaterials](../src/materials.ts)：返回 SQL participant、migration 与 snapshot reader 的具名材料。
+- [independentWaitSqlMaterials](../src/independent-materials.ts)：登记独立等待控制、收件箱与读口。
+- [independentControlCommands 与 independentRequestCommands](../src/commands.ts)：生成具名参与者命令，所有事实依赖均进入同一事务。
+- [createHitlSqlOperations](../src/operations.ts)：认回原方法与完整结果，封口后排除迟到提交。
 - [createHitlSqlTerminals](../src/terminals.ts)：固定 tenant domain，提供原操作 inspect 与 seal；不管理 SqlStorage 生命周期。
 - [HitlSqlBindingSchema](../src/terminal-schema.ts)：原操作与输入摘要的严格 JSON 绑定；同文件拥有终态类型和 operation-open 事实定义。
 

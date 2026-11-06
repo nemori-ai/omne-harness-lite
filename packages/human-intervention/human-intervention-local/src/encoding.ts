@@ -20,3 +20,7 @@ export function operationKey(operation: OperationRef): string {
 export function equal(left: unknown, right: unknown): boolean {
   return canonical(left) === canonical(right)
 }
+
+export function digest(value: unknown): string {
+  return createHash('sha256').update(canonical(value)).digest('hex')
+}

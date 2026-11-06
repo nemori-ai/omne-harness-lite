@@ -1,29 +1,25 @@
-# verification
-
-<!-- documentation:placeholder -->
-
-本目录承载本包的持续验证资源：模型、论证或证明。
+# 持续验证
 
 ## 允许的内容
 
-<!-- documentation:placeholder -->
-
-`models/` 下的形式模型，`proofs/` 下的论证或证明，以及说明文件。
+本包承载单机事务与恢复实现的验证映射。跨提供者的状态模型仍由[公共 HITL 验证](../../human-intervention/verification/README.md)拥有，不在此复制模型。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
-每份资源说明所验证的性质、前提、运行命令、覆盖与限制。单次运行的原始输出留任务 tmp，不进本目录。
+真实 SQLite 测试证明被执行场景中的事务和恢复行为，不证明物理断电耐久、任意规模或完整运行时接入。独立验收和逐次日志留任务 tmp。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-被验证的承诺变化时，同步模型、证明与本目录 `index.md`。
+运行本成员 build、typecheck 与 test:fast。更改事实依赖、操作结果或等待状态时，同步下列映射与反例。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
+| 不变量 | 持续检查 |
+| --- | --- |
+| 封口排除迟到提交，缺记录不等于失败 | [terminals.spec.ts](../tests/terminals.spec.ts)、[requests.spec.ts](../tests/requests.spec.ts) |
+| 请求、等待与收件箱同提交或同回滚 | [requests.spec.ts](../tests/requests.spec.ts) 的缺参与者和晚失败场景 |
+| 竞争答复至多一个决定，已答历史不被终局擦除 | [requests.spec.ts](../tests/requests.spec.ts) 的并发及终局场景 |
+| 旧代不能消费，全批完成前不能恢复 | [requests.spec.ts](../tests/requests.spec.ts) 的重启、换代及批次屏障场景 |
+| 原方法和完整结果可以认回，确定拒绝不变成成功 | [requests.spec.ts](../tests/requests.spec.ts) 的结果读回、CAS 失败及损坏记录场景 |
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+Identity 撤权协调、池分页、运行时名额和完整应用服务尚未实现或验证，不纳入以上通过范围。

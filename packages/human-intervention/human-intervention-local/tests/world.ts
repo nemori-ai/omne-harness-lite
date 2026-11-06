@@ -9,7 +9,11 @@ import {
   type SqlStorage,
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
-import { createHitlSqlTerminals, hitlSqlMaterials } from '@omne-harness/human-intervention-local'
+import {
+  createHitlSqlTerminals,
+  hitlSqlMaterials,
+  independentWaitSqlMaterials,
+} from '@omne-harness/human-intervention-local'
 import { config } from './config.ts'
 
 export async function openWorld(
@@ -18,7 +22,13 @@ export async function openWorld(
   const parent = fileURLToPath(new URL('../../../../tmp/hitl-r1-c2/databases/', import.meta.url))
   mkdirSync(parent, { recursive: true })
   const root = options.root ?? realpathSync(mkdtempSync(join(parent, 'case-')))
-  const own = hitlSqlMaterials()
+  const hitl = hitlSqlMaterials()
+  const wait = independentWaitSqlMaterials()
+  const own = {
+    participants: [...hitl.participants, ...wait.participants],
+    migrations: [...hitl.migrations, ...wait.migrations],
+    readHandlers: [...hitl.readHandlers, ...wait.readHandlers],
+  }
   const reject = new URL('./fixtures/reject.mjs', import.meta.url)
   const materials: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
