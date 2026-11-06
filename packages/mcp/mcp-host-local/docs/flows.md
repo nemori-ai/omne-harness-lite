@@ -1,6 +1,6 @@
 # 关键流程
 
-本文件用可维护的文本图源描述本包的关键业务流程与数据流：参与者、调用时序、数据来源与去向、状态变化、失败分支与生命周期。图旁写前提与边界，不编造流程。条款归 [SPEC.md](../SPEC.md) 与契约 SPEC；本页只画顺序。失败表的每一行在最后一列指向它的条款。
+本文件用可维护的文本图源描述根入口的传输的关键业务流程与数据流，并在最后一节画 `./cordis` 插件的装载、一次调用与撤除：参与者、调用时序、数据来源与去向、状态变化、失败分支与生命周期。图旁写前提与边界，不编造流程。条款归 [SPEC.md](../SPEC.md) 与契约 SPEC；本页只画顺序。失败表的每一行在最后一列指向它的条款。
 
 ## 流程
 
@@ -51,6 +51,27 @@ POST endpoint ──► 202（空流结束）──► classify(mode='sse') = wa
 GET 流的每个 message 事件 ──► 'line' 事件 ──► 归类 ──► 应答命中在途请求 ／ 对端请求与通知路由
 GET 流结束或断开 ──► 'broken' ──► dead；在途请求按相：授权中 not-sent (connection-unavailable)，已交给线路 no-answer (stream-broken)，授权发现中不动
 ```
+
+### Cordis 插件：装载、一次调用与撤除
+
+```text
+ctx.plugin(createMcpPlugin(parts), config)
+  Schema 查形状 ──不合形状──► ValidationError，不装载
+  apply: 造四个端口适配器、内存目录、传输工厂（选项越界抛 RangeError）、createMcp（配置越界抛 RangeError）
+         登记撤除函数 mcp.closeAll；逐个 new 三个服务子类，共一条 fiber
+
+consumer ──ctx.get(<服务键常量>).refresh(...)──► 服务子类 ──► createMcp 的服务
+  createMcp ──端口调用──► 适配器 ──ctx.get(<端口键常量>)──► 端口服务   ／ 缺席 ──► 该端口的 unknown
+  createMcp ──open(material, signal)──► 本包的传输工厂 ──► Session（上文）
+
+fiber.dispose()
+  Cordis 等撤除函数：closeAll ──► 关闭连接、请落点停止进程、释放凭据句柄（MC-10）
+  closeAll 的报告为 root-only 或 unconfirmed ──► ctx.logger('mcp').warn（端点引用、范围）
+  closeAll 以 AggregateError 拒绝 ──► 不捕获，Cordis 写入 ctx.logger.error
+  Cordis 撤回三个服务键
+```
+
+前提与边界：缺席时的答复、换代的粒度与撤除之后的答复归 SPEC [Cordis 插件](../SPEC.md#cordis-plugin)与契约 SPEC 的 S1、S2、S8、R6，本图只画顺序。
 
 ## 失败与生命周期
 

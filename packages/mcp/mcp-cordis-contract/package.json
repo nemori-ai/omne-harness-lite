@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft mcp-cordis-contract package; complete the accepted public contract before delivery",
+  "description": "Cordis service definitions of MCP: abstract Services and keys for the three services and the four demand ports",
   "engines": {
     "node": ">=24"
   },

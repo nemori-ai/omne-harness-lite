@@ -6,6 +6,7 @@
 
 - [README.md](README.md)：源码目录的职责
 - [index.ts](index.ts)：公开根：`createLocalTransportFactory`、`LocalTransportOptions`
+- [cordis.ts](cordis.ts)：`./cordis` 入口：插件工厂 `createMcpPlugin`、`McpPluginParts`、`McpPluginConfig` 与配置的 Standard Schema；四个端口适配器（每次调用现取，缺席答该端口的 `unknown`）、三个服务子类与撤除函数（行为见 [SPEC「Cordis 插件」](../SPEC.md#cordis-plugin)）
 - [options.ts](options.ts)：选项的形状与 `RangeError` 的核对
 - [factory.ts](factory.ts)：按材料建线路、包成会话，给缺省的计时端口与缺陷出口；`open` 不发请求并再核 `signal`（SPEC H3）
 - [session.ts](session.ts)：协议会话：在途请求表（每项带自己的结算与出发点，按相结算）、调用方只等结算而工作流是后台工作（`work`）、连接模式的判别联合、`classifyWireEvent` 归类后取契约决策层的结论、契约的组成与按连接的规则、再发、探测时限、取消与关闭（单飞）、凭据句柄的一处入口、授权发现的进度、对端请求与进度路由、旧 HTTP+SSE 回退的判定与模式；计时端口 `Scheduler`、缺陷出口与 `SessionOptions`（SPEC H1、H4、H5、H9、H11、H14、所有权一节）
@@ -17,4 +18,4 @@
 - [limits.ts](limits.ts)：字节上界 `BYTE_LIMIT`，取契约的 `WIRE_LIMITS.maxBytes`（16 MiB）
 - [queue.ts](queue.ts)：线路事件的异步队列
 
-阅读次序：`index.ts` → `factory.ts` → `session.ts` → `line.ts` → 两条线路。
+阅读次序：`index.ts` → `factory.ts` → `session.ts` → `line.ts` → 两条线路。Cordis 插件另从 `cordis.ts` 读起。
