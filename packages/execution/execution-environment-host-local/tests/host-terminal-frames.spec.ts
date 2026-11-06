@@ -439,8 +439,11 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
   })
 
   describe('frames that share one chunk with a fault', () => {
-    // The stand-in gate writes them in one write, so the host reads them in one chunk. The outcome
-    // must be the one the same frames give when they arrive one by one.
+    // The stand-in gate writes them in one write, so the host reads them in one chunk: a write this
+    // small is atomic on a Linux pipe. That is what makes these cases fail on a reader that drops
+    // the frames before a fault; every other way to cut the bytes is covered without a pipe by the
+    // reader's own cut test in terminal-control.spec.ts. The outcome must be the one the same frames
+    // give when they arrive one by one.
     const joined = (frames: readonly object[]): object[] =>
       frames.map((frame, at) => (at === 0 ? frame : { ...frame, joined: true }))
 
