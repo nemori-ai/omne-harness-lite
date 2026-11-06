@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { Context, type Fiber, type Message } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
-import type { EndpointRef } from '@omne-harness/mcp-contract'
+import type { CorrelationKey, InvokeResult } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
   CredentialUse,
@@ -23,6 +23,9 @@ import {
   endpointRefOf,
   jsonOf,
   millisOf,
+  taskIdOf,
+  type MemoryAdoptionView,
+  type PeerReply,
   type PeerScript,
 } from '@omne-harness/mcp-contract/testing'
 import {
@@ -61,17 +64,47 @@ const CONFIG: McpPluginConfig = {
 
 const plugin = createMcpPlugin({ principalKey, checkOutput: () => ({ kind: 'conforms' }) })
 
-const ECHO_LISTING: PeerScript['listing'] = {
-  '': {
-    kind: 'result',
-    result: { tools: [{ name: 'echo', inputSchema: { type: 'object' } }] },
+function text(value: string): PeerReply {
+  return { kind: 'result', result: { content: [{ type: 'text', text: value }] } }
+}
+
+function listingOf(...names: readonly string[]): NonNullable<PeerScript['listing']> {
+  return {
+    '': {
+      kind: 'result',
+      result: { tools: names.map(name => ({ name, inputSchema: { type: 'object' } })) },
+    },
+  }
+}
+
+const ANSWERING: PeerScript = { listing: listingOf('echo'), calls: { echo: text('hello') } }
+const SILENT: PeerScript = { listing: listingOf('echo'), calls: { echo: { kind: 'silent' } } }
+/** `ask` asks for input first; `work` starts the task `t1`, which the peer reports twice. */
+const OPERATIONS: PeerScript = {
+  listing: listingOf('ask', 'work'),
+  calls: {
+    ask: [
+      { kind: 'result', result: { resultType: 'input_required', requestState: 's1' } },
+      text('answered'),
+    ],
+    work: { kind: 'result', result: { resultType: 'task', taskId: 't1', status: 'working' } },
+  },
+  tasks: {
+    t1: {
+      get: [
+        { kind: 'result', result: { taskId: 't1', status: 'working' } },
+        {
+          kind: 'result',
+          result: {
+            taskId: 't1',
+            status: 'completed',
+            result: { content: [{ type: 'text', text: 'done' }] },
+          },
+        },
+      ],
+    },
   },
 }
-const ANSWERING: PeerScript = {
-  listing: ECHO_LISTING,
-  calls: { echo: { kind: 'result', result: { content: [{ type: 'text', text: 'hello' }] } } },
-}
-const SILENT: PeerScript = { listing: ECHO_LISTING, calls: { echo: { kind: 'silent' } } }
 
 const fibers: Fiber[] = []
 
@@ -80,7 +113,7 @@ afterEach(async () => {
   expect(await leftover()).toEqual([])
 })
 
-/** Loads `plugin` on `ctx` with `config`; the fiber is disposed after the case. */
+/** Loads `loaded` on `ctx` with `config`; the fiber is disposed after the case. */
 async function load<C>(
   ctx: Context,
   loaded: { apply(ctx: Context, config: C): unknown },
@@ -167,12 +200,8 @@ function scriptedLanding() {
 
 type Endpoint = Readonly<{ script: PeerScript; credential?: boolean }>
 
-/** The four ports, with `FILES` adopted for alice in `SCOPE` and alice granted its use. */
-function ports(endpoint: Endpoint) {
-  const adoption = createMemoryAdoptionView<unknown, unknown>({ scopeKey: String })
-  const eligibility = createMemoryUseEligibility<unknown>({ principalKey })
-  const credentials = createMemoryCredentialUse<unknown>()
-  const landing = scriptedLanding()
+/** Adopts `FILES` for alice in `SCOPE`: a stdio endpoint that runs the scripted peer. */
+function adoptFiles(adoption: MemoryAdoptionView<unknown, unknown>, endpoint: Endpoint): void {
   const credential = endpoint.credential === true
   adoption.adopt({
     tenant: ALICE.tenant,
@@ -195,8 +224,17 @@ function ports(endpoint: Endpoint) {
       connectTimeout: { kind: 'value', value: millisOf(10_000) },
     },
   })
+}
+
+/** The four ports as Service classes, with `FILES` adopted and alice granted its use. */
+function ports(endpoint: Endpoint) {
+  const adoption = createMemoryAdoptionView<unknown, unknown>({ scopeKey: String })
+  const eligibility = createMemoryUseEligibility<unknown>({ principalKey })
+  const credentials = createMemoryCredentialUse<unknown>()
+  const landing = scriptedLanding()
+  adoptFiles(adoption, endpoint)
   eligibility.grant(ALICE, FILES)
-  if (credential)
+  if (endpoint.credential === true)
     credentials.store({ tenant: ALICE.tenant, holding: FILES.holding, binding: MAIN, secret: 's' })
   return {
     adoption: adoptionService(adoption),
@@ -219,34 +257,50 @@ async function assembled(endpoint: Endpoint, absent?: PortName) {
   return { ctx, fiber, provided }
 }
 
-function service<K extends 'mcpActionDiscovery' | 'mcpActionInvoker' | 'mcpEndpointStatus'>(
-  ctx: Context,
-  key: K,
-) {
+type ServiceKey =
+  | typeof mcpActionDiscoveryKey
+  | typeof mcpActionInvokerKey
+  | typeof mcpEndpointStatusKey
+
+function service<K extends ServiceKey>(ctx: Context, key: K) {
   const found = ctx.get(key)
   if (found === undefined) throw new Error(`${key} is not provided`)
   return found
 }
 
-async function refreshed(ctx: Context, ref: EndpointRef = FILES) {
-  return service(ctx, mcpActionDiscoveryKey).refresh(ALICE, { ref })
+async function refreshed(ctx: Context) {
+  return service(ctx, mcpActionDiscoveryKey).refresh(ALICE, { ref: FILES })
 }
 
-/** Refreshes, then invokes `echo` with the digest the catalog holds. */
-async function invokeEcho(ctx: Context) {
-  expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
+/** The names of the known actions in the stored catalog. */
+async function actionNames(ctx: Context): Promise<readonly string[]> {
   const view = await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)
   if (!('ok' in view) || view.ok.kind !== 'acquired') throw new Error('no catalog was acquired')
-  const echo = view.ok.actions.find(action => action.name === 'echo')
-  if (echo === undefined) throw new Error('the catalog has no echo action')
+  return view.ok.actions.map(action => action.name)
+}
+
+/** Invokes `tool` with the digest the stored catalog holds. */
+async function invoke(ctx: Context, tool: string, key: CorrelationKey): Promise<InvokeResult> {
+  const view = await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)
+  if (!('ok' in view) || view.ok.kind !== 'acquired') throw new Error('no catalog was acquired')
+  const known = view.ok.actions.find(action => action.name === tool)
+  if (known === undefined) throw new Error(`the catalog has no action ${tool}`)
   return service(ctx, mcpActionInvokerKey).invoke(ALICE, {
     ref: FILES,
-    action: actionNameOf('echo'),
+    action: actionNameOf(tool),
     args: jsonOf({}),
-    expectedDefinition: echo.definitionDigest,
-    correlationKey: correlationKeyOf('call-1'),
+    expectedDefinition: known.definitionDigest,
+    correlationKey: key,
     signal: new AbortController().signal,
   })
+}
+
+const CALL_1 = correlationKeyOf('call-1')
+
+/** Refreshes, then invokes `echo`. */
+async function invokeEcho(ctx: Context) {
+  expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
+  return invoke(ctx, 'echo', CALL_1)
 }
 
 function recordErrors(ctx: Context): unknown[] {
@@ -266,8 +320,17 @@ async function loadUntyped(ctx: Context, config: unknown) {
   return Promise.resolve(loading)
 }
 
+/** The landed processes once there is at least one. */
+async function firstLanded(landed: readonly Landed[]): Promise<Landed> {
+  for (;;) {
+    const [first] = landed
+    if (first !== undefined) return first
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+}
+
 describe('the MCP plugin on a Cordis context', () => {
-  it('provides the three services and walks refresh then invoke on a scripted stdio peer', async () => {
+  it('loads with a complete lawful configuration and walks refresh then invoke on a scripted stdio peer', async () => {
     const { ctx, provided } = await assembled({ script: ANSWERING })
     const invoked = await invokeEcho(ctx)
     expect(invoked).toMatchObject({
@@ -278,6 +341,71 @@ describe('the MCP plugin on a Cordis context', () => {
       },
     })
     expect(provided.landed).toHaveLength(1)
+  })
+
+  it('answers each operation of the three services through the plugin', async () => {
+    const { ctx } = await assembled({ script: OPERATIONS })
+    const discovery = service(ctx, mcpActionDiscoveryKey)
+    const invoker = service(ctx, mcpActionInvokerKey)
+    const status = service(ctx, mcpEndpointStatusKey)
+    expect(await discovery.refresh(ALICE, { ref: FILES })).toMatchObject({
+      ok: { kind: 'published' },
+    })
+    expect(await actionNames(ctx)).toEqual(['ask', 'work'])
+    const peer = await discovery.peer(ALICE, FILES)
+    if (!('ok' in peer)) throw new Error(`peer failed: ${JSON.stringify(peer)}`)
+    expect(peer.ok.peer).toMatchObject({ protocolVersion: '2026-07-28' })
+
+    const asked = await invoke(ctx, 'ask', CALL_1)
+    if (asked.kind !== 'sent' || asked.outcome.kind !== 'inputRequired')
+      throw new Error(`ask did not ask for input: ${JSON.stringify(asked)}`)
+    const { requestState, issuedAt } = asked.outcome
+    const continued = await invoker.continueWithInput(ALICE, {
+      ref: FILES,
+      action: actionNameOf('ask'),
+      args: jsonOf({}),
+      ...(requestState === undefined ? {} : { requestState }),
+      inputResponses: jsonOf({}),
+      issuedAt,
+      correlationKey: correlationKeyOf('call-2'),
+      signal: new AbortController().signal,
+    })
+    expect(continued).toMatchObject({
+      kind: 'sent',
+      outcome: { kind: 'complete', content: [{ block: { kind: 'text', text: 'answered' } }] },
+    })
+
+    const worked = await invoke(ctx, 'work', correlationKeyOf('call-3'))
+    if (worked.kind !== 'sent' || worked.outcome.kind !== 'task')
+      throw new Error(`work did not start a task: ${JSON.stringify(worked)}`)
+    const task = { ref: FILES, taskId: taskIdOf('t1'), issuedAt: worked.outcome.issuedAt }
+    expect(await invoker.queryTask(ALICE, task)).toMatchObject({ ok: { status: 'working' } })
+    expect(await invoker.taskResult(ALICE, task)).toMatchObject({
+      ok: { kind: 'complete', content: [{ block: { kind: 'text', text: 'done' } }] },
+    })
+    expect(await invoker.provideTaskInput(ALICE, task, jsonOf({}))).toEqual({ ok: 'accepted' })
+    expect(await invoker.cancelTask(ALICE, task)).toEqual({ ok: 'requested' })
+
+    expect(await status.inspect(ALICE, FILES)).toMatchObject({
+      ok: { ref: FILES, connection: { kind: 'ready' }, use: { kind: 'usable' } },
+    })
+    expect(await status.list(ALICE, SCOPE)).toMatchObject({
+      ok: [{ ref: FILES, connection: { kind: 'ready' } }],
+    })
+  })
+
+  it('signals a call in flight that cancel names', async () => {
+    const { ctx, provided } = await assembled({ script: SILENT })
+    const invoking = invokeEcho(ctx)
+    const peer = await firstLanded(provided.landed)
+    await peer.called
+    const invoker = service(ctx, mcpActionInvokerKey)
+    expect(await invoker.cancel(ALICE, CALL_1)).toBe('signalled')
+    expect(await invoking).toEqual({
+      kind: 'sent',
+      outcome: { kind: 'unknown', cause: 'abandoned' },
+    })
+    expect(await invoker.cancel(ALICE, CALL_1)).toBe('no-call-in-flight')
   })
 
   it('answers unknown, and connects to nothing, while the adoption view is absent', async () => {
@@ -348,6 +476,24 @@ describe('the MCP plugin on a Cordis context', () => {
     })
   })
 
+  it('reads the replacement adoption view at the next refresh after a swap', async () => {
+    const { ctx, provided } = await assembled({ script: ANSWERING }, 'adoption')
+    const first = await load(ctx, provided.adoption, undefined)
+    expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
+    expect(await actionNames(ctx)).toEqual(['echo'])
+
+    await first.dispose()
+    const replacement = createMemoryAdoptionView<unknown, unknown>({ scopeKey: String })
+    const other: PeerScript = { listing: listingOf('other') }
+    // Adopted twice, so that its revision differs from the first view's only revision.
+    adoptFiles(replacement, { script: other })
+    adoptFiles(replacement, { script: other })
+    await load(ctx, adoptionService(replacement), undefined)
+    expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
+    expect(await actionNames(ctx)).toContain('other')
+    expect(provided.landed).toHaveLength(2)
+  })
+
   it('removes the three services and stops the peer process when the plugin unloads', async () => {
     const { ctx, fiber, provided } = await assembled({ script: ANSWERING })
     expect(await invokeEcho(ctx)).toMatchObject({ kind: 'sent' })
@@ -365,7 +511,7 @@ describe('the MCP plugin on a Cordis context', () => {
   it('settles a call in flight with an unknown effect when the plugin unloads', async () => {
     const { ctx, fiber, provided } = await assembled({ script: SILENT })
     const invoking = invokeEcho(ctx)
-    const [peer] = await waitForLanding(provided.landed)
+    const peer = await firstLanded(provided.landed)
     await peer.called
 
     await fiber.dispose()
@@ -398,39 +544,59 @@ describe('the MCP plugin on a Cordis context', () => {
     expect(errors).toEqual(defects)
   })
 
-  describe('refuses to load with a configuration', () => {
+  describe('checks the shape of the configuration', () => {
     const { maxActions: _dropped, ...withoutMaxActions } = CONFIG
-    const cases: readonly (readonly [string, unknown])[] = [
-      ['that lacks a field', withoutMaxActions],
-      ['that has an extra field', { ...CONFIG, retries: 3 }],
-      ['whose clientInfo.name is not a text', { ...CONFIG, clientInfo: { name: 1, version: '0' } }],
+    const validate = (value: unknown) => plugin.Config['~standard'].validate(value)
+
+    it('accepts a complete lawful configuration as a copy', () => {
+      const checked = validate(CONFIG)
+      expect(checked).toEqual({ value: CONFIG })
+      if (!('value' in checked)) throw new Error('the lawful configuration was refused')
+      expect(checked.value).not.toBe(CONFIG)
+      expect(checked.value.clientInfo).not.toBe(CONFIG.clientInfo)
+    })
+
+    const refused: readonly (readonly [string, unknown, string])[] = [
+      ['that is not an object', 'config', 'configuration must be an object'],
+      ['that lacks a field', withoutMaxActions, 'configuration needs the field maxActions'],
+      ['that has an extra field', { ...CONFIG, retries: 3 }, 'configuration has no field retries'],
+      [
+        'whose bound is not a number',
+        { ...CONFIG, maxListingPages: '5' },
+        'maxListingPages, maxActions, instructionsByteLimit, probeTimeoutMs must be numbers',
+      ],
+      [
+        'whose clientInfo lacks a field',
+        { ...CONFIG, clientInfo: { name: 'n' } },
+        'clientInfo needs the field version',
+      ],
+      [
+        'whose clientInfo.name is not a text',
+        { ...CONFIG, clientInfo: { name: 1, version: '0' } },
+        'clientInfo.name and clientInfo.version must be texts',
+      ],
     ]
-    for (const [what, config] of cases)
-      it(what, async () => {
+    for (const [what, config, message] of refused) {
+      it(`refuses a configuration ${what}`, () => {
+        expect(validate(config)).toEqual({ issues: [{ message }] })
+      })
+      it(`fails to load with a configuration ${what}`, async () => {
         const ctx = new Context()
         await expect(loadUntyped(ctx, config)).rejects.toBeDefined()
         expect(ctx.get(mcpActionDiscoveryKey)).toBeUndefined()
       })
+    }
 
-    it('whose maxActions is 0, with the RangeError of createMcp', async () => {
+    it('fails to load when maxActions is 0, with the RangeError of createMcp', async () => {
       const ctx = new Context()
       await expect(ctx.plugin(plugin, { ...CONFIG, maxActions: 0 })).rejects.toThrow(RangeError)
       expect(ctx.get(mcpActionDiscoveryKey)).toBeUndefined()
     })
 
-    it('whose probeTimeoutMs is 0, with the RangeError of the transport factory', async () => {
+    it('fails to load when probeTimeoutMs is 0, with the RangeError of the transport factory', async () => {
       const ctx = new Context()
       await expect(ctx.plugin(plugin, { ...CONFIG, probeTimeoutMs: 0 })).rejects.toThrow(RangeError)
       expect(ctx.get(mcpActionDiscoveryKey)).toBeUndefined()
     })
   })
 })
-
-/** The landed processes once there is at least one. */
-async function waitForLanding(landed: readonly Landed[]): Promise<readonly [Landed]> {
-  for (;;) {
-    const [first] = landed
-    if (first !== undefined) return [first]
-    await new Promise(resolve => setTimeout(resolve, 10))
-  }
-}

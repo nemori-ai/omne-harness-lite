@@ -34,6 +34,12 @@ import {
   mcpProcessLandingKey,
   mcpUseEligibilityKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
+import {
+  definePlugin,
+  type SchemaFailure,
+  type SchemaSuccess,
+  type StandardSchema,
+} from '@omne-harness/kernel-basis/cordis'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import { createLocalTransportFactory } from './factory.ts'
 
@@ -65,18 +71,7 @@ export type McpPluginConfig = Readonly<{
   clientInfo: Readonly<{ name: string; version: string }>
 }>
 
-type ConfigResult =
-  | { readonly value: McpPluginConfig }
-  | { readonly issues: readonly { readonly message: string }[] }
-
-/** A Standard Schema of `McpPluginConfig`. */
-type McpPluginConfigSchema = {
-  readonly '~standard': {
-    readonly version: 1
-    readonly vendor: string
-    validate(value: unknown): ConfigResult
-  }
-}
+type ConfigResult = SchemaSuccess<McpPluginConfig> | SchemaFailure
 
 const BOUNDS = ['maxListingPages', 'maxActions', 'instructionsByteLimit', 'probeTimeoutMs'] as const
 const FIELDS: readonly string[] = [...BOUNDS, 'clientInfo']
@@ -107,7 +102,7 @@ function fieldsIssue(
  * Checks the shape only: the five fields, each of its type, the two texts of `clientInfo`, and no
  * other field. It answers a new object, so a later change to the input does not reach the plugin.
  */
-const mcpPluginConfig: McpPluginConfigSchema = {
+const mcpPluginConfig: StandardSchema<McpPluginConfig> = {
   '~standard': {
     version: 1,
     vendor: 'omne-harness',
@@ -285,10 +280,10 @@ class HostEndpointStatus extends EndpointStatusService<unknown, unknown> {
  * `ctx.logger`.
  */
 export function createMcpPlugin(parts: McpPluginParts) {
-  return {
+  return definePlugin<McpPluginConfig>({
     name: 'mcp',
     Config: mcpPluginConfig,
-    apply(ctx: Context, config: McpPluginConfig) {
+    apply(ctx, config) {
       const ports: McpPorts<unknown, unknown> = {
         adoption: adoptionOf(ctx),
         eligibility: eligibilityOf(ctx),
@@ -319,5 +314,5 @@ export function createMcpPlugin(parts: McpPluginParts) {
       new HostActionInvoker(ctx, services.invoker)
       new HostEndpointStatus(ctx, services.status)
     },
-  }
+  })
 }
