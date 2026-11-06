@@ -150,7 +150,7 @@ sequenceDiagram
   A-->>C: 内容、Skill 材料依据、包内路径、媒体类型、实际字节范围、总长与 complete
 ```
 
-图中每个 `alt` 分支都在返回后结束本次操作。端口失败按[工程设计「端口」](architecture.md#端口)的映射表转换：`package-not-found` 带Skill 材料依据时为 `basis-unavailable`，不带时为 `source-unavailable`。`open` 的 `entry-not-found` 为 `resource-missing`。`open` 的 `bytes-mismatch` 为 `version-changed`。`outside-package` 照原样。`unavailable` 为 `source-unavailable`。`snapshot` 的 `entry-unreadable` 为 `source-unavailable`，`open` 的 `entry-unreadable` 也是（防御性的映射）。`snapshot` 不对单个条目作答，它答 `entry-not-found` 或 `bytes-mismatch` 时来源不守端口契约，也为 `source-unavailable`。`read`、`list` 与 `export` 在每次调用端口之前与每次端口返回之后各检查一次 `signal`，四个端口 `check`、`resolve`、`snapshot`、`open` 都在内。调用方中止时，操作答 `aborted`，不再调用端口，也不交部分内容。中止的响应时间受端口时间限制：每次端口调用都会结束时，操作才答复。`read` 的字节范围起点或长度为负数或非整数时，`read` 在调用任何端口之前抛出 `TypeError`，图中省略。
+图中每个 `alt` 分支都在返回后结束本次操作。端口失败按[工程设计「端口」](architecture.md#端口)的映射表转换：`package-not-found` 带Skill 材料依据时为 `basis-unavailable`，不带时为 `source-unavailable`。`open` 的 `entry-not-found` 为 `resource-missing`。`open` 的 `bytes-mismatch` 为 `version-changed`。`outside-package` 照原样。`unavailable` 为 `source-unavailable`。`snapshot` 的 `entry-unreadable` 为 `source-unavailable`，`open` 的 `entry-unreadable` 也是（防御性的映射）。`snapshot` 不对单个条目作答，它答 `entry-not-found` 或 `bytes-mismatch` 时来源不守端口契约，也为 `source-unavailable`。`read`、`list` 与 `export` 在每次调用端口之前与每次端口返回之后各检查一次 `signal`，四个端口 `check`、`resolve`、`snapshot`、`open` 都在内。调用方中止时，操作答 `aborted`，不再调用端口，也不交部分内容。中止的响应时间受端口时间限制：每次端口调用都会结束时，操作才答复。`read` 的字节范围起点或长度为负数或非整数时，`read` 在调用任何端口之前抛出 `TypeError`，图中省略。读正文时，所钉材料的 `SKILL.md` 没有合法的头部定界，则正文起点不明，`read` 答 `source-unavailable`，不交内容，图中省略，见[工程设计「读取」](architecture.md#读取)第 11 步。
 
 1. 调用方可以不带Skill 材料依据，这时 `SkillAccess` 读当时的合法版本。调用方也可以带上此前结果给出的Skill 材料依据，这时读取固定该版本。Skill 材料依据含能力标识、来源层、资产版本与内容摘要，不含包定位。工作区来源的Skill 材料依据可以不带资产版本。
 2. 带Skill 材料依据时，`SkillAccess` 先核对依据的能力标识等于目标能力标识。不等时对外返回 `not-available-to-you`，不披露差异原因。
@@ -186,7 +186,7 @@ sequenceDiagram
   V-->>A: known-unavailable，或 adopted(SkillRef)，或 basis-not-lawful，或 none，或 unknown
   A->>A: 所钉材料是依据本身，内容摘要取依据的
   A->>S: snapshot(SkillRef 的 locator)
-  S-->>A: Skill 包快照，或 来源失败（来源在引用的定位处没有包时 basis-unavailable）
+  S-->>A: Skill 包快照，或 package-not-found 等来源失败
   alt 快照的内容摘要不等于依据中的内容摘要
     A-->>C: basis-unavailable
   end

@@ -9,7 +9,7 @@
 | 依据 | 修订 | 本规格采用的范围 |
 | --- | --- | --- |
 | [组工程设计](../docs/architecture.md) | `773d9f04c` | 模型、资产正文与 Skill 包、端口、应用服务、检查与发现、包格式规则、读取、失败种类、验证 |
-| 领域设计裁定 | 2026-11-03 | 入口与各入口的内容；内容摘要算法；`SafeReason` 的形状；读取内容是文本或字节；正文起点；每页 65536 字节；中止为 `aborted`；`.omne/skill.json` 的形状与格式版本；四个设置类别；声明项编码；声明的 JSON 预算；YAML 头部的解析；`skillBodyContract` 只做可加扩展；`SkillResolution.adopted` 只交两种答复；快照只能经 `sealSnapshot` 构造。评审之后的裁定已写回组页，组页没有写的条款见[组页没有写的条款](#group-differences) |
+| 领域设计裁定 | 2026-11-03 | 入口与各入口的内容；内容摘要算法；`SafeReason` 的形状；读取内容是文本或字节；正文起点；每页 65536 字节；中止为 `aborted`；`.omne/skill.json` 的形状与格式版本；四个设置类别；声明项编码；声明的 JSON 预算；YAML 头部的解析；`skillBodyContract` 只做可加扩展；`SkillResolution.adopted` 只交两种答复；快照只能经 `sealSnapshot` 构造。组页没有写的条款见[组页没有写的条款](#group-differences) |
 | 资产公开类型 `@omne-harness/assets` | `3289bee2f` | `BodyContract`、`CapabilityId`、`Declarations` |
 | [官方 Agent Skills 规格](https://agentskills.io/specification) | 2026-11-03 读取 | `SKILL.md` 的头部字段与目录结构 |
 | W3 Skill 线实施规格（reduce 裁定）、第 2 轮裁定 R1–R9 与第 3 轮裁定 S1–S3 | 2026-11-04 | 可加改动：公开根导出 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DECLARATION_LIMITS`、`sameCapability` 与 `isSkillDescription`；`./provider` 导出 `isSealedSnapshot`；[目录的匹配规则](#catalog-search)；[端口答复的统一处置](#port-answer-closed)；`open` 答 `entry-unreadable` 的映射；`skillCatalogConformance` |
@@ -58,7 +58,7 @@
 
 ### 组页没有写的条款
 
-组页已写成现行版本，见[组工程设计](../docs/architecture.md)。下列条款组页没有写，也不与组页冲突。本页是它们的唯一源。
+下列条款[组工程设计](../docs/architecture.md)没有写，也不与组页冲突。本页是它们的唯一源。
 
 | 条款 | 本页条款 | 依据 |
 | --- | --- | --- |
