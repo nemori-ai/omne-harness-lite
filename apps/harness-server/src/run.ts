@@ -291,8 +291,7 @@ function trustFor(visibility: Visibility): Trust {
 }
 
 export async function runS0(options: RunS0Options): Promise<S0Result> {
-  const { stderr } = options
-  const write = sealedAfterShutdownResult(options.write, stderr)
+  const { write, stderr } = options
   const probes: Probes = { started: [], applied: [] }
   let barrierCalls = 0
   const result = (exitCode: S0Result['exitCode']): S0Result => ({

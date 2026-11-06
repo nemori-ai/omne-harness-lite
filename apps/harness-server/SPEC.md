@@ -295,7 +295,7 @@ stdout 每行一条 JSON 记录：
 
 S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前拒绝的诊断写 stderr，stdout 只有 `tree` 记录。
 
-**stdout 只有一个写者。**`bin.ts` 交给 `runS0` 与 `runServe` 的记录写函数是唯一向 stdout 写记录的函数。装配记录、日志桥与 `telemetry` 行的 `stdout` 出口都经它写出，每条记录一行完整 JSON，次序就是调用次序。遥测在 `storage` 阶段之后关闭，`shutdown-result` 在它之后写出。写出 `shutdown-result` 之后 stdout 封口：之后到达写函数的记录（例如期限之后才结束的句柄的 `late-result`）改写到 stderr，每条一行完整 JSON，不带前缀。所以 `shutdown-result` 一定是 stdout 的最后一行。
+**stdout 只有一个写者。**`bin.ts` 交给 `runS0` 与 `runServe` 的记录写函数是唯一向 stdout 写记录的函数。装配记录、日志桥与 `telemetry` 行的 `stdout` 出口都经它写出，每条记录一行完整 JSON，次序就是调用次序。遥测在 `storage` 阶段之后关闭，`shutdown-result` 在它之后写出。`serve` 写出 `shutdown-result` 之后 stdout 封口（S0 路径在这之后没有记录要写，不封口）：之后到达写函数的记录（例如期限之后才结束的句柄的 `late-result`）改写到 stderr，每条一行完整 JSON，不带前缀。所以 `shutdown-result` 一定是 stdout 的最后一行。
 
 `serve` 沿用这五种记录，差别如下（DP1-C3）：
 
