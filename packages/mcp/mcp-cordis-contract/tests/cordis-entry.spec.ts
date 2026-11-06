@@ -58,24 +58,92 @@ it('exports exactly the seven abstract Service classes and the seven key constan
   ])
 })
 
-it('provides a loaded subclass under its key and removes it when the fiber unloads', async () => {
-  class Eligibility extends UseEligibilityService<unknown> {
-    async check() {
-      return { kind: 'unknown' } as const
-    }
+/** The body of every method of the subclasses below: the table only loads them. */
+function notCalled(): never {
+  throw new Error('the table loads the subclass and calls none of its methods')
+}
+
+class Discovery extends ActionDiscoveryService<unknown> {
+  current() {
+    return notCalled()
   }
-  class Credentials extends CredentialUseService<unknown> {
-    readonly acquire: CredentialUseService<unknown>['acquire'] = async () => ({
-      failure: 'missing',
-    })
+  refresh() {
+    return notCalled()
   }
-  const ctx = new Context()
-  const eligibility = await ctx.plugin(Eligibility)
-  const credentials = await ctx.plugin(Credentials)
-  expect(ctx.get(mcpUseEligibilityKey)).toBeInstanceOf(Eligibility)
-  expect(ctx.get(mcpCredentialUseKey)).toBeInstanceOf(Credentials)
-  await eligibility.dispose()
-  await credentials.dispose()
-  expect(ctx.get(mcpUseEligibilityKey)).toBeUndefined()
-  expect(ctx.get(mcpCredentialUseKey)).toBeUndefined()
-})
+  peer() {
+    return notCalled()
+  }
+}
+class Invoker extends ActionInvokerService<unknown> {
+  invoke() {
+    return notCalled()
+  }
+  continueWithInput() {
+    return notCalled()
+  }
+  cancel() {
+    return notCalled()
+  }
+  queryTask() {
+    return notCalled()
+  }
+  taskResult() {
+    return notCalled()
+  }
+  provideTaskInput() {
+    return notCalled()
+  }
+  cancelTask() {
+    return notCalled()
+  }
+}
+class Status extends EndpointStatusService<unknown, unknown> {
+  inspect() {
+    return notCalled()
+  }
+  list() {
+    return notCalled()
+  }
+}
+class Adoption extends AdoptionViewService<unknown, unknown> {
+  endpoints() {
+    return notCalled()
+  }
+  endpoint() {
+    return notCalled()
+  }
+}
+class Eligibility extends UseEligibilityService<unknown> {
+  check() {
+    return notCalled()
+  }
+}
+class Credentials extends CredentialUseService<unknown> {
+  readonly acquire: CredentialUseService<unknown>['acquire'] = notCalled
+}
+class Landing extends ProcessLandingService<unknown> {
+  start() {
+    return notCalled()
+  }
+}
+
+const LOADABLE = [
+  ['ActionDiscoveryService', Discovery, mcpActionDiscoveryKey],
+  ['ActionInvokerService', Invoker, mcpActionInvokerKey],
+  ['EndpointStatusService', Status, mcpEndpointStatusKey],
+  ['AdoptionViewService', Adoption, mcpAdoptionViewKey],
+  ['UseEligibilityService', Eligibility, mcpUseEligibilityKey],
+  ['CredentialUseService', Credentials, mcpCredentialUseKey],
+  ['ProcessLandingService', Landing, mcpProcessLandingKey],
+] as const
+
+it.each(LOADABLE)(
+  'provides a loaded subclass of %s under its key and removes it when the fiber unloads',
+  async (_name, Sub, key) => {
+    const ctx = new Context()
+    const fiber = await ctx.plugin(Sub)
+    expect(ctx.get(key)).toBeInstanceOf(Sub)
+    await fiber.dispose()
+    expect(ctx.get(key)).toBeUndefined()
+  },
+)
