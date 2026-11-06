@@ -40,8 +40,7 @@ import type { InFlightCalls, InFlightKey, Reservation } from './internal/in-flig
 import {
   connectionFailureOf,
   connectionFailureOfBuild,
-  loseInScope,
-  lostOf,
+  loseIfLost,
   type NotSent,
 } from './internal/lost.ts'
 import { ask, waitAtMost, within } from './internal/port.ts'
@@ -301,17 +300,6 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
   }
 
   /**
-   * Steps 9 and 12: an answer of the transport that says the connection is lost (`lostOf`: the
-   * transport is not usable any more, or the authorization was refused) is reported to the table,
-   * with the teardown in the table's scope; any other answer leaves the connection as it is. The
-   * transport's answer to a stop signal that fired (T5) carries no mark, so it leaves it too.
-   */
-  function loseIfLost(ensured: Ensured, answer: NotSent | PeerAnswer): void {
-    const lost = lostOf(answer)
-    if (lost !== undefined) loseInScope(table, ensured, lost)
-  }
-
-  /**
    * Step 12: the answer applied to the tables: classified (O1–O6), a lost connection reported to
    * the connection table (judged on the transport's answer, which carries the mark), a task
    * recorded for its initiator (MC-17).
@@ -322,7 +310,9 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       answer,
       classificationOf(on.ensured.generation, outputSchema, ports.checkOutput),
     )
-    loseIfLost(on.ensured, answer)
+    // The transport's answer to a stop signal that fired (T5) carries no mark, so it leaves the
+    // connection as it is.
+    loseIfLost(table, on.ensured, answer)
     if (outcome.kind === 'task')
       tasks.record(
         {
@@ -393,7 +383,7 @@ export function createCalls<P, S>(deps: CallsDependencies<P, S>): ActionCalls<P>
       return sent(UNKNOWN_ABANDONED)
     }
     if ('failure' in called) {
-      loseIfLost(ensured, called.failure)
+      loseIfLost(table, ensured, called.failure)
       return notSent(connectionFailureOf(called.failure))
     }
     place.recordSent(ensured.connection, ensured.generation)

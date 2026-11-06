@@ -21,12 +21,7 @@ import type { TaskAnswer, TransportFailure } from '@omne-harness/mcp-contract/pr
 import { classificationOf } from './internal/classification.ts'
 import type { Ensured, EnsureFailure } from './internal/entry.ts'
 import { decideForUse, type UseGate } from './internal/guard.ts'
-import {
-  connectionFailureOf,
-  connectionFailureOfBuild,
-  loseInScope,
-  lostOf,
-} from './internal/lost.ts'
+import { connectionFailureOf, connectionFailureOfBuild, loseIfLost } from './internal/lost.ts'
 import { judgedTree } from './internal/caller-values.ts'
 import { ask, within } from './internal/port.ts'
 import { prepareSettings } from './internal/settings.ts'
@@ -143,13 +138,12 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
   /**
    * The failure of a task request (S2, R7): `not-sent` is the connection failure, `no-answer` is
    * `effect-unknown` with the same cause, a JSON-RPC error and an unreadable answer are passed on.
-   * A failure that says the connection is lost (`lostOf`: the transport is not usable any more, or
+   * A failure that says the connection is lost (`loseIfLost`: the transport is not usable any more, or
    * the authorization was refused) goes to the table first; its teardown goes on in the table's
    * scope. Any other failure leaves the connection as it is.
    */
   function failureOf(ensured: Ensured, failure: TransportFailure): OperationFailure {
-    const lost = lostOf(failure)
-    if (lost !== undefined) loseInScope(table, ensured, lost)
+    loseIfLost(table, ensured, failure)
     switch (failure.kind) {
       case 'not-sent':
         return connectionFailureOf(failure)

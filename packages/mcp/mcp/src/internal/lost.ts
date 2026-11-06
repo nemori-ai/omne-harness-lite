@@ -56,6 +56,21 @@ export function loseInScope(
 }
 
 /**
+ * What a request on a ready connection does with one answer of the transport (S7; member SPEC
+ * MC-16 steps 9 and 12, MC-17 step 4): when `lostOf` says the connection is lost, the loss goes to
+ * the table, its teardown in the table's scope (`loseInScope`); any other answer leaves the
+ * connection as it is.
+ */
+export function loseIfLost(
+  table: Pick<ConnectionTable<unknown>, 'lose' | 'runtime'>,
+  ensured: Ensured,
+  answer: TransportFailure | PeerAnswer,
+): void {
+  const lost = lostOf(answer)
+  if (lost !== undefined) loseInScope(table, ensured, lost)
+}
+
+/**
  * The connection failure a request that was not sent is reported as (R6): the authorization
  * discovery as the transport found it; an ended legacy session or an unusable transport is
  * `connection-unavailable`.

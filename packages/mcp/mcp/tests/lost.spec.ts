@@ -3,8 +3,14 @@
 import { describe, expect, it } from 'vitest'
 import type { PeerAnswer } from '@omne-harness/mcp-contract'
 import type { TransportFailure } from '@omne-harness/mcp-contract/provider'
-import { jsonOf } from '@omne-harness/mcp-contract/testing'
-import { lostOf } from '../src/internal/lost.ts'
+import { endpointRefOf, jsonOf, peerIdentityOf } from '@omne-harness/mcp-contract/testing'
+import { admit } from '../src/internal/gate.ts'
+import { loseIfLost, lostOf } from '../src/internal/lost.ts'
+import { createConnectionTable } from '../src/internal/table.ts'
+import { alice } from './doubles/identities.ts'
+import { adoptStdio, world } from './doubles/world.ts'
+
+const files = endpointRefOf('files')
 
 const DISCOVERY = {
   resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
@@ -47,5 +53,40 @@ describe('lostOf: what one answer of the transport means for a ready connection'
     { kind: 'error', error: jsonOf({ code: -32603, message: 'internal' }) },
   ])('rule 3: %o without the mark leaves the connection as it is', answer => {
     expect(lostOf(answer)).toBeUndefined()
+  })
+})
+
+describe('loseIfLost: the one place a request hands what lostOf found to the table', () => {
+  async function readyTable() {
+    const w = world({ script: [{ discover: peerIdentityOf() }] })
+    adoptStdio(w, files)
+    const table = createConnectionTable(w.ports, w.config)
+    const decision = await admit(w.ports, alice, files)
+    if (decision.kind !== 'admitted') throw new Error(`not admitted: ${decision.kind}`)
+    const ensured = await table.ensure(decision.endpoint, alice)
+    if (!('ok' in ensured)) throw new Error('ensure failed')
+    return { table, ensured: ensured.ok, holding: decision.endpoint.ref.holding }
+  }
+
+  it.each<[TransportFailure | PeerAnswer, string]>([
+    [{ kind: 'no-answer', cause: 'abandoned', unusable: 'process-exited' }, 'process-exited'],
+    [
+      { kind: 'not-sent', cause: 'authorization-required', discovery: DISCOVERY },
+      'authorization-required',
+    ],
+  ])('%o loses the ready connection for %s', async (answer, reason) => {
+    const { table, ensured, holding } = await readyTable()
+    loseIfLost(table, ensured, answer)
+    expect(table.stateOf(alice.tenant, holding)).toMatchObject({ kind: 'lost', reason })
+  })
+
+  it.each<TransportFailure | PeerAnswer>([
+    { kind: 'no-answer', cause: 'stream-broken' },
+    { kind: 'not-sent', cause: 'connection-unavailable' },
+    { kind: 'error', error: jsonOf({ code: -32603, message: 'internal' }) },
+  ])('%o leaves the ready connection ready', async answer => {
+    const { table, ensured, holding } = await readyTable()
+    loseIfLost(table, ensured, answer)
+    expect(table.stateOf(alice.tenant, holding)).toMatchObject({ kind: 'ready' })
   })
 })
