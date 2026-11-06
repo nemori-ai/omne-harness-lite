@@ -266,7 +266,7 @@ ModelDriver 是提供者给执行宿主的能力，不属于普通 ModelRuntime�
 
 普通消费者继续使用 ModelProfiles、ModelRequestPreparation 和 ModelMessageConversion。写入档案的权威提供者直接实现 ModelProfileMaintenance，不增加只转发 change 的工厂层。
 
-来源提供者核当前可见范围和设置快照，只返回该租户可读取的档案。precedence 来自当前合法层序，不能由普通调用者传入。读取失败不返回空目录。资源提供者核固定档案、供应商顺序与原采用，取得规则和 meter；凭据只返回合法引用，不读取秘密。一次取得失败整体释放，release 不撤销准备结果。`acquire` 的输入可以带 `PreparationLineage`：`continues` 是被延续的调用，`sources` 以消息为键给出来源调用。请求组装方为 `continues` 作保的前置条件、超限拒绝与空 lineage 见 [lineage 的声明与前置条件](../SPEC.md#lineage-的声明与前置条件)。没有 lineage 时，租约的计量器在释放前给出与家族计量器相同的结果。有 lineage 时，租约按访问依据读取被引用调用的发出记录，`measure` 保持同步并在 `RequestBudget.calibration` 报告判决，见 [可选校准](../SPEC.md#可选校准及不可解释的历史)。租约释放后，它交出的每个计量器都返回 `unavailable`（`preparation-lease-released`）。租约的 `release` 返回结果；释放钩子失败时结果带 `failure`（`unavailable`），不抛出，异常只表示程序缺陷。实际发出重新取得相同采用，不能以准备成功永久持有发送资格。
+来源提供者核当前可见范围和设置快照，只返回该租户可读取的档案。precedence 来自当前合法层序，不能由普通调用者传入。读取失败不返回空目录。资源提供者核固定档案、供应商顺序与原采用，取得规则和 meter；凭据只返回合法引用，不读取秘密。一次取得失败整体释放，release 不撤销准备结果。`acquire` 的输入可以带 `PreparationLineage`：`continues` 是被延续的调用，`sources` 以消息为键给出来源调用。请求组装方为 `continues` 作保的前置条件、超限拒绝与空 lineage 见 [lineage 的声明与前置条件](../SPEC.md#lineage-的声明与前置条件)。没有 lineage 时，租约的计量器在释放前给出与家族计量器相同的结果。有 lineage 时，租约按访问依据读取被引用调用的发出记录，`measure` 异步完成，不新增事实读取，并在 `RequestBudget.calibration` 报告判决，见 [可选校准](../SPEC.md#可选校准及不可解释的历史)。释放立即阻止新的计量，并等待已开始的计量及底层资源清理。释放期间完成的计量不能返回成功。租约释放后，它交出的每个计量器都返回 `unavailable`（`preparation-lease-released`）。租约的 `release` 返回结果；释放钩子失败时结果带 `failure`（`unavailable`），不抛出，异常只表示程序缺陷。实际发出重新取得相同采用，不能以准备成功永久持有发送资格。
 
 ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒体字节，不联网。ModelContentAuthority 同时核原来源、实际块和当前权限，origin 字段本身不授予转换或绕过资格。
 

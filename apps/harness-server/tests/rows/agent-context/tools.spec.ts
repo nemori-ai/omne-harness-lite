@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Adoption, RuntimeConditions } from '@omne-harness/agent-contract'
 import { toolsSourceOf } from '@omne-harness/agent-context'
-import { fail } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import { declareTools } from '@omne-harness/request-context-contract'
 import { commandCallSchema, commandMenu, type ToolDefinition } from '@omne-harness/tool-contract'
 import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
@@ -22,7 +22,15 @@ import { sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
 import { governanceOf } from '../../../src/entry/tool-release-manifest.ts'
 import { agentContextPluginInput, agentContextRow } from '../../../src/rows/agent-context/index.ts'
 import { catalogToolLookup } from '../../../src/rows/agent-context/tools.ts'
-import { toolBindingsRow } from '../../../src/rows/tool-bindings/index.ts'
+import {
+  bundleScope,
+  bundleSettle,
+  startAuthorityProxy,
+} from '../../../src/rows/tool-bindings/index.ts'
+import { createReleaseAvailability } from '../../../src/rows/tool-bindings/availability.ts'
+import { createReleaseCatalogView } from '../../../src/rows/tool-bindings/catalog-view.ts'
+import { releaseOf } from '../../../src/entry/tool-release.ts'
+import { createLocalToolBindingsPlugin } from '@omne-harness/tool-host-local/cordis'
 import { createToolHostPlugin } from '../../../src/rows/tool-host/index.ts'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import { fixtureTenant, got, okOf } from '../../entry/support.ts'
@@ -40,7 +48,44 @@ const SYSTEM = { scope: 'system' } as const
 /** The release fixture with the Catalog and the release authors of Files and Shell loaded. */
 async function loaded(): Promise<ReleaseFixture> {
   const fixture = await releaseFixture()
-  await fixture.root.plugin(toolBindingsRow)
+  // This lookup test supplies a scoped Session/adoption double; the view and catalog are real.
+  await fixture.root.plugin({
+    name: 'context-tools-bindings-fixture',
+    apply(ctx: Context) {
+      const Bindings = createLocalToolBindingsPlugin({
+        availability: createReleaseAvailability(ctx),
+        view: createReleaseCatalogView({
+          verifier: () => ctx.get('principalVerifier'),
+          release: () => releaseOf(ctx),
+          readWork: async input =>
+            succeed({
+              session: input.session,
+              tenant: input.tenant,
+              lifecycle: 'active',
+              frozen: null,
+              residents: [],
+              definition: { name: 'coding', adopted: binding('coding') },
+            }),
+          resolve: async () =>
+            succeed({
+              definition: {
+                category: 'AgentDefinition',
+                name: 'coding',
+                attributes: [],
+                references: ['Files', 'Shell'].map(name => ({
+                  capability: { category: 'Tool', name },
+                })),
+              },
+            }),
+        }),
+        search: { k1: 1.2, b: 0.75, maxCachedCorpora: 16 },
+        authority: startAuthorityProxy(ctx),
+        scope: bundleScope(ctx),
+        settle: bundleSettle(ctx),
+      })
+      new Bindings(ctx)
+    },
+  })
   await fixture.root.plugin(createToolHostPlugin(), { construction: TEST_CONSTRUCTION })
   const generations = got(
     fixture.root.get(toolGenerationsKey),
@@ -206,9 +251,6 @@ describe('agent-context row: the sixth group over the release Catalog', () => {
       access: other,
       conditions: conditionsWith([binding('Files')]),
     })
-    expect(read).toMatchObject({
-      kind: 'unavailable',
-      diagnostic: expect.stringContaining('not a session work principal of this tenant'),
-    })
+    expect(read).toEqual({ kind: 'denied' })
   })
 })

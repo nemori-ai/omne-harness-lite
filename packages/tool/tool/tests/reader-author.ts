@@ -1,3 +1,4 @@
+// Test-only wrapper. The shipped Tools author belongs to tool-definitions.
 import { type Access } from '@omne-harness/tool-contract'
 import {
   defineCommandTool,
@@ -5,7 +6,7 @@ import {
   type ToolOperation,
 } from '@omne-harness/tool-contract/provider'
 import { formatCommandList, formatSuccess, formatUsage } from '@omne-harness/unix-format'
-import type { Tools, ToolsOptions } from './tools.ts'
+import type { ReaderFixture, ToolsOptions } from './reader-fixture.ts'
 import {
   commandDescriptions,
   parameterCodecs,
@@ -13,7 +14,7 @@ import {
   toolsAdoption,
   type ReadArguments,
   type HelpArguments,
-} from './tools-protocol.ts'
+} from './reader-protocol.ts'
 import {
   bounded,
   checkMessage,
@@ -22,13 +23,13 @@ import {
   outputCodec,
   section,
   type MessageResult,
-} from './tools-results.ts'
+} from '../src/tools-results.ts'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 
-export function createToolsAuthor<P>(
+export function createReaderAuthor<P>(
   options: ToolsOptions,
   read: (argumentsValue: ReadArguments, access: Access<P>) => Promise<MessageResult>,
-): Tools<P>['implementation'] {
+): ReaderFixture<P>['implementation'] {
   const codecs = parameterCodecs(options.arguments)
   const finish = (value: MessageResult) => bounded(value, options)
   const error = (failure: Parameters<typeof failureResult>[0]) => finish(failureResult(failure))
@@ -103,9 +104,6 @@ export function createToolsAuthor<P>(
     if ('failure' in operation) throw new TypeError('Invalid Tools operation')
     commands[descriptor.name] = { summary: descriptor.summary, operation: operation.ok }
   }
-  // Stage one implements only help and read_result, not the complete Tools meta-tool.
-  // The complete implementation must live in a separate source package.
-  // Migrate this definition and its supporting implementation there when that version is delivered.
   const registration = defineCommandTool({
     implementation: {
       description: 'Read fixed tool results and attachment bytes. Use help for parameters.',

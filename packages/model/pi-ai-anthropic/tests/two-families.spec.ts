@@ -1,3 +1,4 @@
+import { testExecutor } from './support/executor.ts'
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and sends the
 // record fixtures of two families through the real shared transport.
 //
@@ -46,7 +47,10 @@ const OPENAI_FIXTURES = fileURLToPath(
 )
 const ANTHROPIC_FIXTURES = join(fileURLToPath(FIXTURES_ROOT), RECORDS_DIRECTORY)
 
+const executor = await testExecutor([openAiTokenizerResources()])
 const OPENAI_FAMILY = createOpenAiFamily({
+  executor,
+  maxSerializedBytes: CONFIG.maxSerializedBytes,
   tokenizer: openAiTokenizerResources(),
   limits: CONFIG.limits,
   margin: { percent: '10', source: MARGIN_SOURCE },

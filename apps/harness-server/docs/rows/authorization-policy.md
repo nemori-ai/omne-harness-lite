@@ -176,6 +176,11 @@
 | `references`                  | 拒绝                                               | 拒绝                                | 放行（矩阵 resident-references）                               |
 | `releasedScopes`              | 拒绝                                               | 拒绝                                | 放行（矩阵 released-scopes）                                   |
 
+| `addTodo` | 拒绝 | 放行（成员） | 拒绝 |
+| `removeTodo` | 拒绝 | 放行（成员） | 拒绝 |
+| `markTodoComplete` | 拒绝 | 放行（成员） | 拒绝 |
+| `listTodos` | 拒绝 | 放行（成员） | 拒绝 |
+
 <!-- /policy:session-table -->
 
 放行格的出处和拒绝格的依据如下。
@@ -338,6 +343,23 @@
   - L：拒绝依据：DA4 §4.7 第 1 步只接受系统主体
   - W：拒绝依据：DA4 §4.7 第 1 步只接受系统主体
   - S：出处：AU:264，DA4 §4.5，SS:1872
+
+- `addTodo`
+  - L：拒绝依据：Todo 由当前会话工作主体调用，不开放登录面。
+  - W：出处：Session Todo work access, session-contract SPEC；本次 TodoItems 发行采用；当前成员资格、原会话及原操作每次核验。
+  - S：拒绝依据：不新增 Todo 系统维护授予。
+- `removeTodo`
+  - L：拒绝依据：Todo 由当前会话工作主体调用，不开放登录面。
+  - W：出处：Session Todo work access, session-contract SPEC；本次 TodoItems 发行采用；当前成员资格、原会话及原操作每次核验。
+  - S：拒绝依据：不新增 Todo 系统维护授予。
+- `markTodoComplete`
+  - L：拒绝依据：Todo 由当前会话工作主体调用，不开放登录面。
+  - W：出处：Session Todo work access, session-contract SPEC；本次 TodoItems 发行采用；当前成员资格、原会话及原操作每次核验。
+  - S：拒绝依据：不新增 Todo 系统维护授予。
+- `listTodos`
+  - L：拒绝依据：Todo 由当前会话工作主体调用，不开放登录面。
+  - W：出处：Session Todo work access, session-contract SPEC；本次 TodoItems 发行采用；当前成员资格、原会话及原操作每次核验。
+  - S：拒绝依据：不新增 Todo 系统维护授予。
 
 <!-- /policy:session-notes -->
 

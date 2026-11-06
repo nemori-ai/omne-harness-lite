@@ -151,8 +151,8 @@ function stubFamily() {
   const faults = { releaseRejects: false, planThrows: false }
   const meter: CalibratedInputMeter = {
     basis: BASIS,
-    measure: input => meter.measureCalibrated(input, { anchor: null, outputs: [] }),
-    measureCalibrated: (_input, calibration) => {
+    measure: async input => await meter.measureCalibrated(input, { anchor: null, outputs: [] }),
+    measureCalibrated: async (_input, calibration) => {
       const budget: RequestBudget = {
         kind: 'complete',
         inputDigest: 'stub',
@@ -397,12 +397,12 @@ async function loaded(commands: ModelCommands<unknown> = memoryCommands()) {
 
 const access = { principal: PRINCIPAL, tenant: TENANT }
 
-function measure(lease: ModelPreparationLease, request: FixedModelRequest) {
+async function measure(lease: ModelPreparationLease, request: FixedModelRequest) {
   const [binding] = lease.bindings
   const assembled = assembledOf(request)
   const planned = binding.rules.plan({ profile: PROFILE, supplier: binding.supplier, assembled })
   if (!('ok' in planned)) throw new Error('plan')
-  return binding.meter.measure({
+  return await binding.meter.measure({
     profile: ADOPTION,
     supplier: PROFILE.definition.suppliers[0],
     context: PROFILE.definition.context,
@@ -413,7 +413,7 @@ function measure(lease: ModelPreparationLease, request: FixedModelRequest) {
   })
 }
 
-function anchorOf(measured: ReturnType<typeof measure>) {
+function anchorOf(measured: Awaited<ReturnType<typeof measure>>) {
   if (!('ok' in measured)) throw new Error('measure')
   return measured.ok.calibration?.anchor
 }
@@ -520,7 +520,7 @@ it('a second-round lease on the same commands reads the first round, and one on 
       lineage: { continues: callOf('x') },
     }),
   )
-  expect(anchorOf(measure(sharedLease, requestWith(THREE)))).toEqual({ kind: 'hit' })
+  expect(anchorOf(await measure(sharedLease, requestWith(THREE)))).toEqual({ kind: 'hit' })
   await sharedLease.release()
 
   // The same plugin over another store: the first round is not in it.
@@ -532,7 +532,7 @@ it('a second-round lease on the same commands reads the first round, and one on 
       lineage: { continues: callOf('x') },
     }),
   )
-  expect(anchorOf(measure(otherLease, requestWith(THREE)))).toEqual({
+  expect(anchorOf(await measure(otherLease, requestWith(THREE)))).toEqual({
     kind: 'miss',
     reason: 'call-unreadable',
   })
@@ -555,13 +555,13 @@ it('refuses a new lease once the plugin is unloaded, while a lease taken before 
       diagnostic: 'preparation-plugin-unloaded',
     },
   })
-  expect(anchorOf(measure(lease, requestWith(THREE)))).toEqual({ kind: 'hit' })
+  expect(anchorOf(await measure(lease, requestWith(THREE)))).toEqual({ kind: 'hit' })
   expect(family.released.count).toBe(0)
 
   expect(await lease.release()).toEqual({})
   expect(await lease.release()).toEqual({})
   expect(family.released.count).toBe(1)
-  const after = measure(lease, requestWith(THREE))
+  const after = await measure(lease, requestWith(THREE))
   expect(after).toMatchObject({
     failure: { kind: 'unavailable', diagnostic: 'preparation-lease-released' },
   })
@@ -594,11 +594,11 @@ it('a lease taken before the commands were replaced keeps the facts it read, and
   await ctx.plugin(commandsServiceOver(memoryCommands()))
   await new Promise(resolve => setTimeout(resolve, 20))
 
-  expect(anchorOf(measure(old, requestWith(THREE)))).toEqual({ kind: 'hit' })
+  expect(anchorOf(await measure(old, requestWith(THREE)))).toEqual({ kind: 'hit' })
   const fresh = unbox(
     await resources.acquire({ ...access, profile: PROFILE, lineage: { continues: callOf('x') } }),
   )
-  expect(anchorOf(measure(fresh, requestWith(THREE)))).toEqual({
+  expect(anchorOf(await measure(fresh, requestWith(THREE)))).toEqual({
     kind: 'miss',
     reason: 'call-unreadable',
   })
@@ -682,7 +682,7 @@ it('provides modelPreparationResources on the same fiber, and its lease reads th
     }),
   )
   // A hit needs call x, which only the commands that the plugin injects hold.
-  expect(anchorOf(measure(lease, requestWith(THREE)))).toEqual({ kind: 'hit' })
+  expect(anchorOf(await measure(lease, requestWith(THREE)))).toEqual({ kind: 'hit' })
   expect(await lease.release()).toEqual({})
 })
 
@@ -705,7 +705,7 @@ it('removes modelPreparationResources with the plugin, and a kept reference refu
     },
   })
   // The lease taken before the unload keeps its bindings until it is released.
-  expect(anchorOf(measure(lease, requestWith(THREE)))).toEqual({ kind: 'hit' })
+  expect(anchorOf(await measure(lease, requestWith(THREE)))).toEqual({ kind: 'hit' })
   expect(await lease.release()).toEqual({})
   expect(family.released.count).toBe(1)
 

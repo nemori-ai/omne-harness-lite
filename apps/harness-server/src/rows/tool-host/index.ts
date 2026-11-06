@@ -21,7 +21,7 @@ import { releaseAuthorInput, type ReleaseAuthorOptions } from './release-author.
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 
-/** 两个作者的构造字段（L-TOOL 事实清单 §1）。值只来自运维者层，形状在边界上严格校验。 */
+/** 发行作者的构造字段（L-TOOL 事实清单 §1）。值只来自运维者层，形状在边界上严格校验。 */
 export const toolHostConfig = z
   .strictObject({
     construction: z
@@ -33,6 +33,13 @@ export const toolHostConfig = z
             argsPrefix: z.array(z.string()),
             cwd: z.string().min(1),
             env: z.record(z.string(), z.string()),
+          })
+          .optional(),
+        TodoItems: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Tools: z
+          .strictObject({
+            resultMaxBytes: positive,
+            outputModalities: z.tuple([z.literal('text')]),
           })
           .optional(),
         // `cwd` is the workspace root that relative Files paths resolve against (R2-D290). Optional:
@@ -51,7 +58,7 @@ type Preloaded = readonly Readonly<{ name: string; outcome: string }>[]
 type PreloadHost = Pick<ToolGenerations<unknown, unknown, ToolMessageContentBlock>, 'ensureLoaded'>
 
 /**
- * 按发行清单预装两个作者；失败只记 warn，原因是固定短语加失败种类，不含正文。读快照、登记者或记录器时抛出
+ * 按发行清单预装发行作者；失败只记 warn，原因是固定短语加失败种类，不含正文。读快照、登记者或记录器时抛出
  * 也在这里收住（行体用 `void` 调它，抛出不能成为未处理的 rejection），记一条 warn，答空。
  */
 export async function preloadRelease(ctx: Context, host: PreloadHost): Promise<Preloaded> {

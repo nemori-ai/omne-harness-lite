@@ -20,6 +20,7 @@ export type {
   SessionIdentity,
   SessionOperationId,
   SessionRevision,
+  TodoItemId,
 } from './identity.ts'
 export type {
   AutoArchivePolicy,
@@ -258,3 +259,12 @@ export {
   type SessionDelegatedTransactions,
   type SessionReadAccessOperation,
 } from './access.ts'
+
+export type {
+  TodoItem,
+  VisibleTodoItem,
+  TodoMutationReceipt,
+  TodoPageCursor,
+  TodoPage,
+  SessionTodos,
+} from './todos.ts'

@@ -9,11 +9,10 @@
 // is in SQLite: a tree started again over the same storage reads it back. A creation that the mapping
 // does not hold is `invalid` and creates nothing.
 //
-// The `coding` definition names Files and Shell as resident tools (G-RESIDENTS, R2-D159). Its cases
+// The `coding` definition names Files, Shell, Tools and TodoItems as resident tools. Its cases
 // add the real Tool rows `tool-bindings`, `tool-host` (with the operator construction of the tests)
-// and `tool-residency` on the release entry objects. The release registrant loads the two authors
-// before the creation, because nothing in the release tree loads them yet (row page of
-// `adoption-sources`). Without the Tool rows the creation fails closed and creates nothing.
+// and `tool-residency` on the release entry objects, with the local operator's storage configuration.
+// Without the Tool rows the creation fails closed and creates nothing.
 // Slow: a real SQLite tree per case.
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -44,6 +43,7 @@ import {
   type ToolReleaseRegistrant,
 } from '../../../src/entry/tool-release.ts'
 import { toolResidencyPrincipal } from '../../../src/entry/tool-residency-principal.ts'
+import { localOperatorLayer } from '../../../src/local/operator-defaults.ts'
 import { sessionClock } from '../../../src/entry/session-clock.ts'
 import {
   sessionCustodySource,
@@ -59,6 +59,7 @@ import { runtimeContextRow } from '../../../src/rows/runtime-context/index.ts'
 import { sessionAd10Row } from '../../../src/rows/session-ad10/index.ts'
 import { sessionAd12Row } from '../../../src/rows/session-ad12/index.ts'
 import { sessionProviderRealRow } from '../../../src/rows/session-provider/real.ts'
+import { storageRow } from '../../../src/rows/storage/index.ts'
 import { toolBindingsRow } from '../../../src/rows/tool-bindings/index.ts'
 import { toolHostRow } from '../../../src/rows/tool-host/index.ts'
 import { toolResidencyRow } from '../../../src/rows/tool-residency/index.ts'
@@ -77,13 +78,14 @@ import { TENANT_A } from '../storage/fixtures/tree.ts'
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
 type Distribution = Readonly<{ rows: readonly Readonly<{ id: string; config: unknown }>[] }>
+const residentNames = ['Files', 'Shell', 'Tools', 'TodoItems']
+const releaseDistribution = JSON.parse(
+  readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
+) as Distribution
 
 /** The `agent-adoptions` configuration of the release distribution. */
 const releaseMapping = (() => {
-  const distribution = JSON.parse(
-    readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
-  ) as Distribution
-  const row = distribution.rows.find(item => item.id === 'agent-adoptions')
+  const row = releaseDistribution.rows.find(item => item.id === 'agent-adoptions')
   if (row === undefined) throw new Error('the release distribution has no agent-adoptions row')
   return row.config
 })()
@@ -119,11 +121,32 @@ afterEach(async () => {
 /** `tools: 'release'` adds the real Tool rows and the release entry objects of the tool path. */
 async function start(base: Base, tools: 'none' | 'release' = 'none'): Promise<LoadedTree> {
   const release = tools === 'release'
+  const local = localOperatorLayer({
+    distribution: releaseDistribution,
+    locations: {
+      storageRoot: base.storageRoot,
+      vaultFile: `${base.stateRoot}/vault`,
+      hostFilesDir: base.stateRoot,
+    },
+    settings: {
+      version: 1,
+      port: 8965,
+      workspace: base.stateRoot,
+      shell: '/bin/bash',
+      shellEnvironment: {},
+    },
+    platform: 'linux',
+    shutdownDeadlineMs: 10_000,
+  })
+  const storage = local.ops.find(operation => operation.id === 'storage')
+  if (storage === undefined) throw new Error('the local operator has no storage configuration')
   const tree = await loadTree({
     base,
     rows: [
       disabledTelemetryRow(),
-      ...storageRows(base).specs,
+      ...storageRows(base).specs.map(spec =>
+        spec.row.id === 'storage' ? declared(storageRow, storage.config) : spec,
+      ),
       identityDouble(),
       declared(agentAdoptionsRow, releaseMapping),
       declared(adoptionSourcesRow),
@@ -187,14 +210,13 @@ async function releaseCreation(
   }
 }
 
-/** What the release tree does not do yet: the registrant loads the two release authors. */
 async function loadReleaseAuthors(tree: LoadedTree): Promise<void> {
   const generations = tree.service<ToolGenerations<unknown, unknown, never>>(toolGenerationsKey)
   const registrant = tree.root.get(TOOL_RELEASE_REGISTRANT_KEY) as ToolReleaseRegistrant | undefined
   if (generations === undefined || registrant === undefined)
     throw new Error('the tree has no tool generations or no release registrant')
   const manifest = formalManifest()
-  for (const name of ['Files', 'Shell']) {
+  for (const name of residentNames) {
     const loaded = await generations.ensureLoaded({
       authority: authorityOf(manifest, name),
       access: registrant,
@@ -280,7 +302,7 @@ describe('the first create of a tenant over the release rows of the Session path
   )
 
   it(
-    '`create` of coding commits Files and Shell as residents; the bindings J06 projects from them are the release asset adoptions',
+    '`create` of coding commits all four residents; J06 projects their release asset adoptions',
     { timeout: 90_000 },
     async () => {
       const base = makeBase()
@@ -301,7 +323,7 @@ describe('the first create of a tenant over the release rows of the Session path
         if (entry === undefined) throw new Error(`no release entry ${name}`)
         return entry.asset.adoption
       }
-      expect(read.ok.residents.map(resident => resident.capability)).toEqual(['Files', 'Shell'])
+      expect(read.ok.residents.map(resident => resident.capability)).toEqual(residentNames)
       // J06's projection (session-adapters `conditions.ts`): owner and digest of `admitted`,
       // the capability as the name, the version as the revision.
       const bindings = read.ok.residents.map(resident => ({
@@ -310,7 +332,7 @@ describe('the first create of a tenant over the release rows of the Session path
         revision: resident.version,
         digest: resident.admitted.digest,
       }))
-      expect(bindings).toEqual([adoptionOf('Files'), adoptionOf('Shell')])
+      expect(bindings).toEqual(residentNames.map(adoptionOf))
     },
   )
 

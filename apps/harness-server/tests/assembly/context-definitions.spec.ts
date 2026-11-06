@@ -170,6 +170,8 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
       references: [
         { capability: { category: 'Tool', name: 'Files' }, resident: true },
         { capability: { category: 'Tool', name: 'Shell' }, resident: true },
+        { capability: { category: 'Tool', name: 'Tools' }, resident: true },
+        { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
       ],
       attributes: [{ item: 'model' }],
     })

@@ -67,6 +67,7 @@ export interface ToolAccessGuard<P> {
 
 export type SourceVerdict =
   | Readonly<{ kind: 'trusted' }>
+  | Readonly<{ kind: 'denied'; reason: string }>
   | Readonly<{ kind: 'forged'; reason: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
@@ -75,7 +76,8 @@ export type SourceVerdict =
  * whole admission input: the principal, the tenant, the call, the admission operation, and the
  * fixed request with its target, consumer and scope (342 values: a script cannot claim a direct
  * call). The guard reads the binding the trusted issuer persisted; a source it cannot find, or
- * one whose binding disagrees with the admission input, is forged.
+ * one whose binding disagrees with the admission input, is forged. A truthful source whose
+ * current request policy denies this call is denied, separately from forged provenance.
  */
 export interface ToolSourceGuard<P> {
   verify(input: Mutation<P> & Readonly<{ request: FixedToolRequest }>): Promise<SourceVerdict>

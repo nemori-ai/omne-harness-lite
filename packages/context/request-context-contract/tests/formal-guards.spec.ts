@@ -119,7 +119,7 @@ function caseOf(
     },
     meter: {
       basis,
-      measure(measured) {
+      async measure(measured) {
         const report = budget(
           typeof meter.amount === 'string' ? meter.amount : meter.amount(measured),
         )

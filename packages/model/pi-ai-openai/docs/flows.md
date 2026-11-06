@@ -17,8 +17,8 @@ sequenceDiagram
   C->>C: 按四项采用查记录，核对路由
   C->>F: acquire(record, supplier, signal)
   F->>F: 核对 tokenizer 定义与记录相同
-  F->>K: createTiktokenTokenizer（每个家族一次）
-  K-->>F: tokenizer 或 unavailable
+  F->>K: executor.acquire(definition, signal)（每绑定一份租约）
+  K-->>F: tokenizer lease 或 unavailable
   F->>E: record、hooksOf(record)、计量器、limits
   E-->>F: PiFamilyBinding
   F-->>C: ok 绑定
@@ -37,7 +37,7 @@ sequenceDiagram
 
 ## 失败与生命周期
 
-- 取得：tokenizer 定义不符、tokenizer 初始化失败与取消都返回 `unavailable`，不交出绑定。
+- 取得：tokenizer 定义不符、tokenizer 租约取得失败与取消都返回 `unavailable`，不交出绑定。
 - 规划与编码：不受支持的参数、工具 schema 或回放载荷返回闭合失败，不删值。
 - 计量：加密推理、缺少图片事实与规则不适用都返回具名失败，不给估算。
-- 生命周期：家族与记录是普通值。tokenizer 归家族，随家族被丢弃。绑定的 `release` 不释放任何东西。
+- 生命周期：家族与记录是普通值。共享 executor 归宿主。每个绑定拥有私有 tokenizer 租约，release 等待清理并报告失败。

@@ -1,3 +1,4 @@
+import { testExecutor } from './support/executor.ts'
 // The credential seam of the production send resources. A transport factory that observes the
 // credential slot stands in for the pi transport where a send would leave the process; the
 // foreign-materialization check also runs against the real pi transport, which encodes without I/O.
@@ -38,6 +39,8 @@ import {
 // The observing factory reaches the module itself; its defect class is the module's own.
 import { SendResourceDefect as ModuleDefect, sendResourcesOver } from '../src/send-resources.ts'
 import { readRecordFixture } from './support/records.ts'
+
+const executor = await testExecutor([openAiTokenizerResources()])
 
 const LIMITS = {
   connectTimeoutMs: 5_000,
@@ -363,6 +366,8 @@ describe('the ownership of a materialized transport', () => {
     network = createNetworkResources({ maxConnections: 2, idleConnectionTimeoutMs: 1_000 })
     const family = createOpenAiFamily({
       tokenizer: openAiTokenizerResources(),
+      executor,
+      maxSerializedBytes: 4 * 1024 * 1024,
       limits: {
         toolArguments: LIMITS.json,
         maxReasoningText: 65_536,

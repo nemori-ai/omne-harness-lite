@@ -55,3 +55,5 @@ export { sessionConditionsRow } from './rows/session-conditions/index.ts'
 // 发行的 `agent-host` 行交入 Tool 请求来源的生产组合（Tool B 段，R2-D36 第 3 点、R2-D185）。`measure` 不在这里交入：
 // 行自己在注入的 `telemetry` 上构造 Agent 遥测 facade（#1140 C8）。导出名仍是 `agentHostRow`。
 export const agentHostRow = createAgentHostRow({ toolRequestsOf: releaseToolRequestsOf })
+
+export { modelTokenizersRow } from './rows/model-tokenizers/index.ts'

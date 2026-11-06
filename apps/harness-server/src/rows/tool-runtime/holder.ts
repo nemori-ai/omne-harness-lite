@@ -20,7 +20,7 @@ import type {
   ToolMessageContentBlock,
   ToolOutputCustody,
 } from '@omne-harness/tool-contract/provider'
-import { createLocalToolClock } from '@omne-harness/tool-host-local'
+import { createLocalToolClock, type LocalToolForwarding } from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
 type EnvironmentGuardedHostCommit = LocalToolRuntimeInput['environment']['guarded']
@@ -41,6 +41,8 @@ export type ToolSqlPorts = Readonly<{
 type Witnessed = { execution: string; sources: Set<string> }
 
 export type ToolRuntimeHolder = {
+  /** Late forwarding work is drained by the business shutdown before the runtime closes. */
+  toolsForwarding: LocalToolForwarding<unknown> | null
   readonly clock: ToolClock
   /** 当前 SQL 端口；`tool-records` 行不在时为 null。 */
   sql: ToolSqlPorts | null
@@ -93,6 +95,7 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
     resolve = done
   })
   const created: ToolRuntimeHolder = {
+    toolsForwarding: null,
     clock: createLocalToolClock(),
     sql: null,
     schemaProvider: null,

@@ -235,7 +235,7 @@ export function fixture() {
     },
     meter: {
       basis,
-      measure() {
+      async measure() {
         meters++
         return { ok: budget() }
       },

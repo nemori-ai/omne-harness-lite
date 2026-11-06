@@ -545,3 +545,11 @@
 - 规模：超长会话的恢复快照读取、同日志解释吞吐与分页读取的实际尺度，按验证计划实测后写进存储提供者的声明边界。
 - 断电耐久：已确认提交在操作系统崩溃与断电下的耐久依赖存储提供者声明的部署与介质条件（[已确认保存的耐久边界](../../../docs/architecture/data-and-state.md#已确认保存的耐久边界)）。
 - 并发：两个进程对同一会话的协调器并发、每租户多扫描者，都要在租约协议定义之后实测。第一版靠装配单实例。
+
+## Session Todo 机制
+
+Todo 的状态、身份和失败语义归 [Session Todo 契约](../session-contract/SPEC.md#session-todo-状态与操作)。work face 的 addTodo、removeTodo、markTodoComplete 和 listTodos 只允许 coordinator caller。caller 选择面，每次仍须当前 SessionAccessCheck 准入。
+
+三个 mutation 复用 CP-01，先原 operation 认回，再做新写入的状态判断。listTodos 经 reads.session 绑定一次授权 delegated view，再读完整快照。没有页面缓存或第二份清单权威。分页拒绝非法 cursor、旧修订和越界 limit，返回值与其 item 副本均冻结。unknown、缺 Session 和不可用不转成空列表。
+
+Todo 日志不加入推进触发集合。tests/todos.spec.ts 验证分页、每页核权、移除隐藏、归档后认回与空工作状态。tests/todos-real.spec.ts 在真实 SQLite provider 上读取 20/200 项并记录本地暖缓存延迟样本。这些样本不是性能阈值，完整快照读取仍受 SN-1 限制。Context 自动投影未开通。

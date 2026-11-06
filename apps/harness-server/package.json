@@ -90,7 +90,8 @@
     "@omne-harness/tool-host-local": "workspace:*",
     "@omne-harness/tool-storage-sql": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness/tokenizer-tiktoken": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

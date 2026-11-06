@@ -5,12 +5,14 @@
 // parts of other owners; they enter as parameters of the factories, never from here.
 import {
   createToolFactAcknowledgementGuard,
+  type AccessVerdict,
   type ToolAccessGuard,
   type ToolGrantVerifier,
   type ToolLedgerBudgets,
   type ToolLedgerGuards,
 } from '@omne-harness/tool'
-import type { ToolBindings } from '@omne-harness/tool-contract/provider'
+import type { FixedToolRequest } from '@omne-harness/tool-contract'
+import type { CallAccess, ToolBindings } from '@omne-harness/tool-contract/provider'
 import {
   defaultResultPolicy,
   type ToolMessageContentBlock,
@@ -33,14 +35,19 @@ export const localArgumentLimits: ToolLedgerBudgets['arguments'] = Object.freeze
   maxNumberLength: 32,
 })
 
+/** The current policy for a complete fixed target, separate from call identity qualification. */
+export interface ToolRequestAccess<P> {
+  qualify(input: CallAccess<P> & Readonly<{ request: FixedToolRequest }>): Promise<AccessVerdict>
+}
+
 /**
- * The qualification of one adapter in the two views that its two consumers need: the ledger asks
- * it for the actions of a call, the start coordinator and the start guard for the start. The
- * assembly passes the same adapter object in both, so qualification has one source.
+ * The ledger asks for call actions; the coordinator and start guard ask for starts. The optional
+ * complete-request policy has the same provider in both start consumers.
  */
 export type ToolHostAccess<P> = Readonly<{
   guard: ToolAccessGuard<P>
   start: StartCoordinatorAccess<P>
+  request?: ToolRequestAccess<P>
 }>
 
 export type LocalToolLedgerGuardsInput<P, E = unknown> = Readonly<{
@@ -99,7 +106,10 @@ export function createLocalToolLedgerGuards<P, E = unknown>(
       bindings,
     ),
     grants,
-    starts: createLocalStartGuard<P>({ access: access.start }),
+    starts: createLocalStartGuard<P>({
+      access: access.start,
+      ...(access.request === undefined ? {} : { requestAccess: access.request }),
+    }),
     results: createLocalTextResults(),
     policy: defaultResultPolicy,
     budgets,

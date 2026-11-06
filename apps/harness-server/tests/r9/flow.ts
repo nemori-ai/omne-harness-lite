@@ -227,7 +227,7 @@ export async function runR9Flow(): Promise<FlowRecord> {
     checks.push(
       check(
         1,
-        'the real tree is accepting with 46 real and 2 s0-double rows',
+        'the real tree is accepting with 47 real and 2 s0-double rows',
         first?.startup?.['accepting'] === true &&
           first.startup['outcome'] === 'ready' &&
           JSON.stringify(first.startup['implementations']) ===

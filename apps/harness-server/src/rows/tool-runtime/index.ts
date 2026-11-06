@@ -134,9 +134,14 @@ async function executorBody(ctx: Context): Promise<RowHandle> {
   const child = ctx.plugin(bundle.executor)
   await child
   let closing: Promise<void> | undefined
+  let forwardingUnknown = 0
   return {
     stop: async deadline => {
-      closing ??= bundle.close()
+      closing ??= (async () => {
+        const forwarding = toolRuntimeHolder(ctx).toolsForwarding
+        if (forwarding !== null) forwardingUnknown = (await forwarding.close()).unknown
+        await bundle.close()
+      })()
       const timer = monotonicClock.after(deadline - monotonicClock.now())
       const settled = await Promise.race([
         closing.then(
@@ -148,7 +153,12 @@ async function executorBody(ctx: Context): Promise<RowHandle> {
       timer.cancel()
       switch (settled) {
         case 'settled':
-          return { kind: 'settled' }
+          return forwardingUnknown === 0
+            ? { kind: 'settled' }
+            : {
+                kind: 'incomplete',
+                detail: `${forwardingUnknown} Tools forwarding associations remain unknown`,
+              }
         case 'failed':
           return { kind: 'failed', detail: 'the tool runtime did not close cleanly' }
         case 'deadline':

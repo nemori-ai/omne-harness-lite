@@ -1,13 +1,11 @@
 # Cordis 集成
 
-本包是 `module` 变体，没有 `src/cordis.ts`，不依赖 `@deepseek-ai/cordis`。本文件存在不导致生成 Cordis 绑定或引入 Cordis 依赖。
+根入口可独立使用，不导入 Cordis。`@omne-harness/tokenizer-tiktoken/cordis` 单独拥有服务定义，源码在 `src/cordis/service.ts`。
 
 ## 适用性
 
-不适用。理由如下：
+本包提供 `ModelTokenizersService`、服务键 `modelTokenizersKey` 和类型 `ModelTokenizers`。服务键值是 `modelTokenizers`。服务只借出 executor 的 acquire 与 snapshot，不暴露 close。
 
-- 本包只提供一个普通工厂函数与两个类型，没有 Service、插件、事件或需要 Cordis 管理的 fiber。
-- tokenizer 没有需要释放的资源，不挂在 Cordis 的生命周期上。
-- 组架构规定不为 tokenizer 增加全局服务键，见[组架构“包依赖与装配”](../../docs/architecture.md#包依赖与装配)。
+宿主 owner 创建真实 executor，将借用方法提供给消费者，并在其生命周期结束时等待 executor.close。卸载一个家族或一条 row 不关闭其他消费者共用的池。每个家族 binding 释放它自己的 lease。
 
-`documentation.json` 把本文件记为 `not-applicable`。以后本包需要 Cordis 绑定时，改用绑定变体的规则另行设计。
+服务定义消费本包公开 executor 类型，不复制计数形状，不建立模块全局单例。应用中的 provider、注册键和完整宿主卸载验证归实际宿主拥有者。本包 worker 测试只证明独立执行器的生命周期。

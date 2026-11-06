@@ -4,6 +4,7 @@
 // the meter are real. Expected amounts are computed here with the legacy Claude BPE over the NFKC
 // form of the token input, as the meter counts.
 import { describe, expect, it } from 'vitest'
+import { sortedJsonText } from './support/sorted-json.ts'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { createModelPreparationResources } from '@omne-harness/model'
 import {
@@ -22,8 +23,8 @@ import {
 import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
 import type { Outcome } from '@omne-harness/operation-result'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
-import { anthropicTokenizerResources, type AnthropicRecord } from '@omne-harness/pi-ai-anthropic'
-import { createTiktokenTokenizer } from '@omne-harness/tokenizer-tiktoken'
+import type { AnthropicRecord } from '@omne-harness/pi-ai-anthropic'
+import { TOKENIZER } from './support/anthropic.ts'
 import { componentAdoption } from '../src/adoptions.ts'
 import { ANCHORED_METHOD } from '../src/meter.ts'
 import {
@@ -44,13 +45,11 @@ import {
 
 const SONNET = recordNamed('anthropic/claude-sonnet-5')
 const OPUS = recordNamed('anthropic/claude-opus-5')
-const claude = (() => {
-  const created = createTiktokenTokenizer(anthropicTokenizerResources())
-  if (!('ok' in created)) throw new Error(JSON.stringify(created.failure))
-  return created.ok
-})()
-const count = (json: JsonValue): bigint => {
-  const counted = claude.count([{ kind: 'text', text: writeJsonText(json).normalize('NFKC') }])
+const claude = TOKENIZER
+const count = async (json: JsonValue): Promise<bigint> => {
+  const counted = await claude.count([
+    { kind: 'text', text: sortedJsonText(json).normalize('NFKC') },
+  ])
   if (!('ok' in counted)) throw new Error(JSON.stringify(counted.failure))
   return BigInt(counted.ok.tokens)
 }
@@ -183,12 +182,12 @@ async function leaseOf(
   )
 }
 
-type Measured = ReturnType<ModelInputMeter['measure']>
+type Measured = Awaited<ReturnType<ModelInputMeter['measure']>>
 
-function measureOn(
+async function measureOn(
   lease: ModelPreparationLease,
   parts: RequestParts,
-): Readonly<{ measured: Measured; representation: MeterRepresentation }> {
+): Promise<Readonly<{ measured: Measured; representation: MeterRepresentation }>> {
   const [binding] = lease.bindings
   const profile = officialProfile(SONNET)
   const request = fixedRequest(SONNET, parts)
@@ -196,7 +195,7 @@ function measureOn(
     binding.rules.plan({ profile, supplier: binding.supplier, assembled: assembledOf(request) }),
   )
   return {
-    measured: binding.meter.measure({
+    measured: await binding.meter.measure({
       profile: profile.adoption,
       supplier: profile.definition.suppliers[0],
       context: profile.definition.context,
@@ -254,10 +253,10 @@ describe('the continuation anchor', () => {
   it('without a lineage the lease hands out the family meter and the budget is byte for byte the plain one', async () => {
     const lease = await leaseOf(new Map())
     const binding = await bindingOf(SONNET)
-    const { measured, representation } = measureOn(lease, current)
+    const { measured, representation } = await measureOn(lease, current)
     const profile = officialProfile(SONNET)
     const request = fixedRequest(SONNET, current)
-    const plain = binding.meter.measure({
+    const plain = await binding.meter.measure({
       profile: profile.adoption,
       supplier: profile.definition.suppliers[0],
       context: profile.definition.context,
@@ -283,12 +282,12 @@ describe('the continuation anchor', () => {
       new Map([[X, { ok: [recordOf(SONNET, { messages: ids(SONNET, previous) })] }]]),
       { continues: X },
     )
-    const { measured, representation } = measureOn(lease, current)
+    const { measured, representation } = await measureOn(lease, current)
     const budget = budgetOf(measured)
     const items = unitsOf(representation.tokenInput)
     const delta =
-      count(envelope(representation.tokenInput, [items[3]!])) -
-      count(envelope(representation.tokenInput, []))
+      (await count(envelope(representation.tokenInput, [items[3]!]))) -
+      (await count(envelope(representation.tokenInput, [])))
     expect(delta).toBeGreaterThan(0n)
     expect(budget.calibration).toEqual({ anchor: { kind: 'hit' } })
     expect(inputCheckOf(budget)).toEqual({
@@ -314,11 +313,11 @@ describe('the continuation anchor', () => {
     ] as const
     for (const [reason, record] of cases) {
       const lease = await leaseOf(new Map([[X, { ok: [record] }]]), { continues: X })
-      const { measured, representation } = measureOn(lease, current)
+      const { measured, representation } = await measureOn(lease, current)
       const budget = budgetOf(measured)
       expect(budget.calibration).toEqual({ anchor: { kind: 'miss', reason } })
       expect(inputCheckOf(budget)).toMatchObject({
-        amount: String(count(representation.tokenInput)),
+        amount: String(await count(representation.tokenInput)),
         method: componentAdoption(SONNET, 'meter'),
       })
       await lease.release()
@@ -336,9 +335,9 @@ describe('a carried signed group as the output count of its source (M5)', () => 
         sources: sources(),
       },
     )
-    const { measured, representation } = measureOn(lease, currentSigned)
+    const { measured, representation } = await measureOn(lease, currentSigned)
     const budget = budgetOf(measured)
-    const estimated = count(withoutUnit(representation.tokenInput, 2)) + 31n
+    const estimated = (await count(withoutUnit(representation.tokenInput, 2))) + 31n
     expect(inputCheckOf(budget)).toEqual({
       kind: 'estimate',
       amount: String(estimated),
@@ -413,7 +412,7 @@ describe('a carried signed group as the output count of its source (M5)', () => 
     ],
   ] as const)('%s is a named unavailability, never zero', async (reason, lease) => {
     const acquired = await lease()
-    expect(measureOn(acquired, currentSigned).measured).toEqual({
+    expect((await measureOn(acquired, currentSigned)).measured).toEqual({
       failure: {
         kind: 'unavailable',
         dependency: '@omne-harness/pi-ai-anthropic',
@@ -425,7 +424,7 @@ describe('a carried signed group as the output count of its source (M5)', () => 
 
   it('without any lineage the family keeps its own name for the missing source', async () => {
     const lease = await leaseOf(new Map())
-    expect(measureOn(lease, currentSigned).measured).toEqual({
+    expect((await measureOn(lease, currentSigned)).measured).toEqual({
       failure: {
         kind: 'unavailable',
         dependency: '@omne-harness/pi-ai-anthropic',

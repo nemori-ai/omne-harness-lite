@@ -14,6 +14,9 @@
 
 [formal-mapping.md](formal-mapping.md) 记录固定请求恢复与压缩结局的性质、两个 TLA+ 模型、源码对应和机读守卫。它也记录 R2-D306 的结论：固定请求不可重放，恢复靠内容摘要比较与作废换身份。运行记录见 [formal-runs.md](formal-runs.md)，手写证明见 [proofs](proofs/README.md)。
 
+
+[measurement-session-mapping.md](measurement-session-mapping.md)与[人工归纳证明](proofs/measurement-session.md)覆盖一次规划内的输入快照、精确key、有限租约复用和关闭。单次执行结果留任务tmp，没有TypeScript精化证明。
+
 ## 执行
 
 在仓库根运行 `pnpm turbo run typecheck test --filter=@omne-harness/request-context-contract`。先构建依赖，再运行本包测试；共享导出清单工具读取构建声明。

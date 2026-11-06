@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
+import { LOCAL_TOKENIZERS } from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
 
 export const memberDir = fileURLToPath(new URL('../..', import.meta.url))
@@ -112,6 +113,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
   const preparation = {
     maxCitedCalls: 8,
     openai: {
+      maxSerializedBytes: 4 * 1024 * 1024,
       limits: {
         toolArguments: {
           maxBytes: 65_536,
@@ -165,7 +167,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     // `maxCommandBytes` is the storage provider's (`providerConfig`); `maxCallBytes` leaves the reserve.
     maxCallBytes: 524_288,
     maxCommandBytes: 1_048_576,
-    combinationVersion: 'session-composite/4',
+    combinationVersion: 'session-composite/5',
     send: { mirrorBytes: 4_194_304, maxClaims: 8 },
     // The read face `modelDiagnostics` (A12: the operator layer gives what the release does not).
     diagnostics: {
@@ -203,6 +205,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     },
   }
   return {
+    tokenizers: LOCAL_TOKENIZERS,
     profiles,
     preparation,
     host,
@@ -271,10 +274,12 @@ export function toolRowsOperatorConfig(options: { storageRoot: string }) {
     construction: {
       Shell: { resultMaxBytes: 32768, ...shell, cwd: filesRoot, env },
       Files: { resultMaxBytes: 32768 },
+      Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
+      TodoItems: { resultMaxBytes: 1_048_576 },
     },
     records: {
       filesRoot,
-      combinationVersion: 'session-composite/4',
+      combinationVersion: 'session-composite/5',
       maxCommandBytes: 1048576,
       maxChunkBytes: 16384,
       configuration: {
@@ -321,6 +326,7 @@ export function operatorLayer(options: {
         // A `replace` swaps the whole row, so it copies the release `maxJsonDepth` (R2-D270).
         config: providerConfig(options.storageRoot, {
           closeDeadlineMs: deadline - 1000,
+          maxResponseBytes: 131_072,
           maxJsonDepth: options.maxJsonDepth ?? releaseMaxJsonDepth(),
         }),
       },
@@ -328,7 +334,7 @@ export function operatorLayer(options: {
         kind: 'replace',
         id: 'session-storage',
         config: {
-          combinationVersion: 'session-composite/4',
+          combinationVersion: 'session-composite/5',
           directoryFile: join(options.storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },
@@ -336,6 +342,7 @@ export function operatorLayer(options: {
       // 模型侧五行的配置是机器级参数与运维者的数值：保管库路径、官方档案快照、宿主与记录仓的上限、准备行的家族配置。
       // 写进运维层，不写进发行配置（R2-D6：发行层不写数值默认值）。
       { kind: 'replace', id: 'model-credential', config: model.credential },
+      { kind: 'replace', id: 'model-tokenizers', config: model.tokenizers },
       { kind: 'replace', id: 'model-profiles', config: model.profiles },
       { kind: 'replace', id: 'model-request-preparation', config: model.preparation },
       { kind: 'replace', id: 'model-host', config: model.host },

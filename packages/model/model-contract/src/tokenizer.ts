@@ -20,7 +20,7 @@ export interface ModelTextTokenizer {
   readonly definition: TokenizerDefinition
   count(
     input: readonly TokenizationSegment[],
-  ): Outcome<Readonly<{ tokens: string }>, TokenizationFailure>
+  ): Promise<Outcome<Readonly<{ tokens: string }>, TokenizationFailure>>
 }
 export type ModelCountingBasis = Readonly<{
   supplier: ProfileSupplier

@@ -150,8 +150,8 @@ function binding(supplier: Supplier, probe: FamilyProbe): PiFamilyBinding {
     rules: { plan: () => ({ failure: refused }) },
     meter: {
       basis: counting,
-      measure: () => ({ failure: refused }),
-      measureCalibrated: () => ({ failure: refused }),
+      measure: async () => ({ failure: refused }),
+      measureCalibrated: async () => ({ failure: refused }),
     },
     replayFormat: probe.replayFormat,
     tools: { convertToModelPayload: () => ({ failure: refused }) },

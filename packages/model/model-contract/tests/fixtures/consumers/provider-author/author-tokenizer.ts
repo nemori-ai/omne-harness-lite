@@ -18,7 +18,7 @@ export function createWordTokenizer(): ModelTextTokenizer {
       vocabulary: adoption('words'),
       configuration: adoption('default'),
     },
-    count(segments: readonly TokenizationSegment[]) {
+    async count(segments: readonly TokenizationSegment[]) {
       let tokens = 0
       for (const segment of segments) {
         if (segment.kind === 'text') {

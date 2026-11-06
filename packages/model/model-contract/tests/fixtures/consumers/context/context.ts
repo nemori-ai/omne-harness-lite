@@ -153,7 +153,7 @@ export async function prepareRequest(
     if (!('ok' in converted)) return { kind: 'rejected', failure: converted.failure, dropped }
     const kept = converted.ok
     const assembled = assemble(kept, input.tools, chosen)
-    const measured = services.meter.measure(meterInput(chosen, assembled))
+    const measured = await services.meter.measure(meterInput(chosen, assembled))
     if ('failure' in measured) return { kind: 'rejected', failure: measured.failure, dropped }
     const check = inputCheck(measured.ok)
     if (check === null) return { kind: 'unmeasured', dropped }

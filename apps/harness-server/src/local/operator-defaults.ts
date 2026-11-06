@@ -77,9 +77,28 @@ const PROFILES = {
   updatedAt: '2026-11-02T00:00:00Z',
 } as const
 
+export const LOCAL_TOKENIZERS = {
+  workers: 2,
+  maxLeases: 256,
+  maxQueuedJobs: 256,
+  maxQueuedBytes: 32 * 1024 * 1024,
+  maxInputBytes: 8 * 1024 * 1024,
+  maxLeaseQueuedJobs: 4,
+  maxCacheBytes: 16 * 1024 * 1024,
+  maxCacheEntries: 65_536,
+  maxLeaseCacheBytes: 256 * 1024,
+  maxLeaseCacheEntries: 8_192,
+  maxPieceBytes: 4_096,
+  jobTimeoutMs: 10_000,
+  maxWorkerOldSpaceMb: 768,
+  maxReplacementsPerMinute: 2,
+  cancellationGraceMs: 25,
+} as const
+
 const PREPARATION = {
   maxCitedCalls: 8,
   openai: {
+    maxSerializedBytes: 4 * 1024 * 1024,
     limits: {
       toolArguments: {
         maxBytes: 65_536,
@@ -193,7 +212,7 @@ function storage(storageRoot: string, shutdownDeadlineMs: number) {
     maxRequestBytes: 4_194_304,
     globalInFlightWriteBytes: 67_108_864,
     maxJsonMembers: 65_536,
-    maxResponseBytes: 65_536,
+    maxResponseBytes: 262_144,
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,
     maxDiagnosticBytes: 4096,
@@ -445,6 +464,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       },
     ],
     ['model-credential', { path: locations.vaultFile }],
+    ['model-tokenizers', LOCAL_TOKENIZERS],
     ['model-profiles', PROFILES],
     ['model-request-preparation', PREPARATION],
     ['model-host', MODEL_HOST],
@@ -462,10 +482,23 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           },
           // Files resolves a relative path against its own working directory (R2-D295).
           Files: { resultMaxBytes: TOOL_RESULT_BYTES, cwd: settings.workspace },
+          Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
+          TodoItems: { resultMaxBytes: 1_048_576 },
         },
       },
     ],
     ['tool-records', toolRecords(settings.workspace, combinationVersion)],
+    [
+      'tool-bindings',
+      {
+        tools: {
+          attemptMs: 250,
+          resultPageBytes: 65_536,
+          replyMaxBytes: 65_536,
+          contentPageBytes: 4096,
+        },
+      },
+    ],
     ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
     [
       'request-context',

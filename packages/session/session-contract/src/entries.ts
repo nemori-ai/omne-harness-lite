@@ -21,6 +21,7 @@ import type {
   RunId,
   SessionId,
   SessionOperationId,
+  TodoItemId,
 } from './identity.ts'
 import type {
   BoundedClose,
@@ -77,6 +78,8 @@ export type InitializationItem = Omit<
 >
 
 export type SessionEntry =
+  | Readonly<{ kind: 'session.todo-added'; item: TodoItemId; text: string }>
+  | Readonly<{ kind: 'session.todo-completed' | 'session.todo-removed'; item: TodoItemId }>
   | Readonly<{
       kind: 'session.created'
       tenant: TenantId
@@ -512,6 +515,9 @@ export type DecodedEntry =
   | Readonly<{ malformed: string }>
 
 const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
+  'session.todo-added',
+  'session.todo-completed',
+  'session.todo-removed',
   'session.created',
   'session.initialization-item',
   'session.adoption',
