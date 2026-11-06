@@ -109,7 +109,8 @@ type Entry = {
   stopRequested: boolean
   released: boolean
   stopping: Promise<StopStatus> | undefined
-  signal: ((event: Exclude<Event, 'late'>) => void) | undefined
+  /** Settles the start that waits for the gate's next event; nothing while no start waits. */
+  signal: (event: Exclude<Event, 'late'>) => void
   readonly exited: Promise<void>
   sendControl(message: Readonly<Record<string, unknown>>): void
   closeControl(): void
@@ -123,19 +124,21 @@ function deferred<T>(): Readonly<{ promise: Promise<T>; settle(value: T): void }
   return { promise, settle }
 }
 
+const idle = (): void => undefined
+
 function nextEvent(entry: Entry, deadline: number): Promise<Event> {
   return new Promise(resolve => {
     if (entry.ended) return resolve('ended')
     const timer = setTimeout(
       () => {
-        entry.signal = undefined
+        entry.signal = idle
         resolve('late')
       },
       Math.max(0, deadline - monotonicMs()),
     )
     entry.signal = event => {
       clearTimeout(timer)
-      entry.signal = undefined
+      entry.signal = idle
       resolve(event)
     }
   })
@@ -266,7 +269,7 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
       stopRequested: false,
       released: false,
       stopping: undefined,
-      signal: undefined,
+      signal: idle,
       exited: exited.promise,
       closeControl: () => writable?.end(),
       sendControl: message => {
@@ -281,7 +284,7 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
       entry.ended = true
       buffer.close()
       exited.settle()
-      entry.signal?.('ended')
+      entry.signal('ended')
     }
     const onExit = (exit: NonNullable<Entry['exit']>) => {
       const durationMs = elapsed()
@@ -304,14 +307,14 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
     const apply = (frame: GateFrame) => {
       switch (frame.kind) {
         case 'ready':
-          entry.signal?.('ready')
+          entry.signal('ready')
           break
         case 'started':
           entry.startedAt = monotonicMs()
-          entry.signal?.('started')
+          entry.signal('started')
           break
         case 'spawnFailed':
-          entry.signal?.('spawnFailed')
+          entry.signal('spawnFailed')
           break
         case 'data':
           buffer.push(frame.stream, frame.bytes)
