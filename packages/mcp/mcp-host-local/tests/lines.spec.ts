@@ -201,6 +201,7 @@ describe('the stdio line and the signals it is given', () => {
  * peer that stopped reading. (The sink's `abort` is not observable here: a `WritableStream`
  * calls it only once the write in flight settled, which this one never does.)
  */
+/** A process whose stdin takes the first write and never completes the second. */
 function stuckOnSecondWrite(): ProcessHandle {
   let writes = 0
   return {
@@ -221,12 +222,15 @@ function stuckOnSecondWrite(): ProcessHandle {
 }
 
 describe('the stdio line and close() with writes in flight (T5, SPEC H6)', () => {
-  it('two overlapping writes, the first completes, then close(): close() returns at once, the write still in flight is aborted', async () => {
+  it('two overlapping writes, the first completes, then close(): close() returns at once and the write still in flight reports aborted', async () => {
+    // The write end is aborted on close(); with a write still in flight the sink sees nothing until
+    // that write settles (the streams standard), so what is observable is the line: it returns.
     const line = new StdioLine(stuckOnSecondWrite())
     const never = new AbortController().signal
     const first = line.send({ text: '{"small":1}', headers: new Headers() }, never)
     const second = line.send({ text: '{"big":2}', headers: new Headers() }, never)
     expect(await first).toEqual({ kind: 'sent' })
+    // A negative wait: no event marks "the write did not complete"; the bound is far above a turn.
     expect(await settledWithin(second, 30)).toBe('pending')
     expect(await settledWithin(line.close())).toEqual({ settled: undefined })
     expect(await settledWithin(second)).toEqual({ settled: { kind: 'aborted' } })

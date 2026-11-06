@@ -135,12 +135,17 @@ export {
   authorizationRequiredAnswerOf,
   concludeAnswer,
   concludeProbe,
+  fallbackGetConclusionOf,
+  lineGoneAnswerOf,
   requestClassOf,
   retryVersionOf,
+  stopAnswerOf,
   streamGoneAnswerOf,
   type AnswerConclusion,
+  type InFlightPhase,
   type ProbeConclusion,
   type ProtocolVersions,
+  type UnusableCause,
   type WireAnswer,
 } from './decisions.ts'
 export {

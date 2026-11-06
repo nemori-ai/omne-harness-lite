@@ -16,6 +16,7 @@ import type { PeerIdentity } from './values.ts'
 import {
   ERROR_CLASSES,
   HTTP_STATUS_CLASSES,
+  classifyWireEvent,
   envelopeOf,
   supportedOf,
   type AnswerClass,
@@ -65,6 +66,12 @@ export type WireAnswer =
   | Readonly<{ kind: 'legacy-http' }>
 
 /**
+ * Why a transport is not usable any more (T1): the shared stream is gone (`stream-broken`), the
+ * process exited (`process-exited`), or the peer ended the legacy session (`session-ended`, S07).
+ */
+export type UnusableCause = NoAnswerCause | 'session-ended'
+
+/**
  * The conclusion of a T8 row for one classification.
  * - `settle`: the request settles with `wire`; `unusable` names the cause every later request
  *   answers with when the row ends the transport.
@@ -73,7 +80,7 @@ export type WireAnswer =
  * - `wait`: the event was no answer to the request (`other`, `waiting`).
  */
 export type AnswerConclusion =
-  | Readonly<{ kind: 'settle'; wire: WireAnswer; unusable?: NoAnswerCause | 'session-ended' }>
+  | Readonly<{ kind: 'settle'; wire: WireAnswer; unusable?: UnusableCause }>
   | Readonly<{ kind: 'authorization-required' }>
   | Readonly<{ kind: 'wait' }>
 
@@ -109,7 +116,7 @@ export const malformed = (what: AnswerMalformed['what']): TransportFailure => ({
   what,
 })
 
-function settle(wire: WireAnswer, unusable?: NoAnswerCause | 'session-ended'): AnswerConclusion {
+function settle(wire: WireAnswer, unusable?: UnusableCause): AnswerConclusion {
   return unusable === undefined ? { kind: 'settle', wire } : { kind: 'settle', wire, unusable }
 }
 
@@ -389,4 +396,86 @@ export function authorizationRequiredAnswerOf(discovery: AuthorizationDiscovery)
     kind: 'not-sent',
     failure: { kind: 'not-sent', cause: 'authorization-required', discovery },
   }
+}
+
+// ---- The phase of a request in flight, and what a stop or a gone line settles it with (T5, T8) ----
+
+/**
+ * The phase of a request in flight (T5). The boundary is what the peer may have received:
+ * - `authorizing`: registered, not handed out yet: the peer may not have received any part of it.
+ * - `sent`: handed out: the peer may have received it, even when it has not left this process.
+ * - `discovery`: refused with 401 or a scoped 403 (T4) and discovering the authorization; `soFar()`
+ *   is the discovery from what was fetched by now (R4).
+ */
+export type InFlightPhase =
+  | Readonly<{ kind: 'authorizing' }>
+  | Readonly<{ kind: 'sent' }>
+  | Readonly<{ kind: 'discovery'; soFar(): AuthorizationDiscovery }>
+
+/**
+ * T5: what the caller's signal or `close()` settles a request in flight with, by its phase, there
+ * and then: `not-sent` (`connection-unavailable`) while authorizing, `no-answer` (`abandoned`)
+ * once sent, `not-sent` (`authorization-required`) with what was fetched by now while discovering.
+ */
+export function stopAnswerOf(phase: InFlightPhase): WireAnswer {
+  switch (phase.kind) {
+    case 'authorizing':
+      return NOT_SENT
+    case 'sent':
+      return ABANDONED
+    case 'discovery':
+      return authorizationRequiredAnswerOf(phase.soFar())
+    default: {
+      const exhaustive: never = phase
+      return exhaustive
+    }
+  }
+}
+
+/**
+ * T8 S01–S04, the SSE mode and S07: what a request in flight settles with when the line is gone,
+ * by its phase. Only the two phases that depend on the line settle: one still authorizing never
+ * reached the wire and is `not-sent` (`connection-unavailable`); one sent answers `no-answer` with
+ * the cause, except when the peer ended the session (S07): the request that was told so settled
+ * by its row, every other sent request is left to its own answer. A request discovering its
+ * authorization goes on: its conclusion came first (T4), and the discovery does not use the line.
+ * Undefined when the request goes on.
+ */
+export function lineGoneAnswerOf(
+  phase: InFlightPhase,
+  cause: UnusableCause,
+): WireAnswer | undefined {
+  switch (phase.kind) {
+    case 'authorizing':
+      return NOT_SENT
+    case 'sent':
+      return cause === 'session-ended' ? undefined : streamGoneAnswerOf(cause)
+    case 'discovery':
+      return undefined
+    default: {
+      const exhaustive: never = phase
+      return exhaustive
+    }
+  }
+}
+
+/**
+ * T3: the status of the legacy HTTP+SSE fallback GET is classified as an answer to `initialize`
+ * outside the SSE mode: 401 and a scoped 403 are S05 (`authorization-required`, the refusal flow of
+ * T4); every other status is I07's `not-sent` (`connection-unavailable`).
+ */
+export function fallbackGetConclusionOf(
+  answer: Readonly<{ status: number; headers: Readonly<{ [name: string]: string }>; body: string }>,
+  versions: ProtocolVersions,
+): Extract<AnswerConclusion, { kind: 'settle' | 'authorization-required' }> {
+  const context: WireContext = { id: '', request: 'initialize', session: false, versions }
+  const { status, headers, body } = answer
+  const conclusion = concludeAnswer(
+    classifyWireEvent({ kind: 'http-status', status, headers, body }, context),
+    context,
+    'streamable-http',
+  )
+  return conclusion.kind === 'authorization-required'
+    ? conclusion
+    : { kind: 'settle', wire: NOT_SENT }
 }

@@ -1,7 +1,7 @@
 // The fetch of protected resource metadata (contract R4, T4): one GET per address, the JSON
 // document when the answer is 200 and parses within the byte bound, else nothing. The session
-// runs the contract's `discoverAuthorization` with it. The credential handle is not involved:
-// the metadata is public.
+// runs the contract's `startAuthorizationDiscovery` with it. The credential handle is not
+// involved: the metadata is public.
 import { readJsonText } from '@omne-harness/json-text'
 import { WIRE_LIMITS, type MetadataFetch } from '@omne-harness/mcp-contract'
 import { bodyOf } from './body.ts'

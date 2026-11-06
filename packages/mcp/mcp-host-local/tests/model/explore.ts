@@ -41,6 +41,7 @@ import {
   unhandledRejection,
   unsettledAfterStop,
   type Found,
+  type LineEndCause,
   type OpKind,
   type OpView,
   type Phase,
@@ -258,6 +259,7 @@ class Run implements RunView, CallDesk {
   lineCloseAnswered = false
   phasesAtClose: Map<string, Phase> | undefined
   readonly phasesAtSignal = new Map<string, Phase>()
+  lineEnd: Readonly<{ cause: LineEndCause; phases: Map<string, Phase> }> | undefined
   /** Set when the run is driven to rest: no breaches, no wire faults from then on. */
   private resting = false
   private readonly scenario: Scenario
@@ -316,6 +318,8 @@ class Run implements RunView, CallDesk {
       probeTimeoutMs: PROBE_TIMEOUT_MS,
       fetchMetadata: explorerMetadataFetch(this),
       schedule: explorerScheduler(this.timerList),
+      // A defect of the session is a violation: it is reported like a rejection nobody handled.
+      reportDefect: defect => this.rejectedUnhandled(defect),
     })
   }
 
@@ -372,6 +376,8 @@ class Run implements RunView, CallDesk {
       flags: [this.closeCalled, this.closeReturned, this.lineCloseAnswered, this.refusals],
       atClose: this.phasesAtClose === undefined ? undefined : [...this.phasesAtClose],
       atSignal: [...this.phasesAtSignal],
+      atLineEnd:
+        this.lineEnd === undefined ? undefined : [this.lineEnd.cause, [...this.lineEnd.phases]],
       delivered: [...this.delivered],
       left: this.left,
     })
@@ -764,15 +770,39 @@ class Run implements RunView, CallDesk {
     )
   }
 
+  /**
+   * The phase of the operation's request when the shared stream goes away, for V6: `none` when
+   * the operation is settled, waits on no request, or still waits on the line's `send` (then the
+   * explorer's own settlement of that send decides, see `settleGoneLineIo`); `sent` when the line
+   * took its request and the answer is still to come on the shared stream.
+   */
+  private phaseAtLineEnd(op: Op): Phase {
+    if (op.status !== 'waiting' && op.status !== 'sent') return 'none'
+    const phase = phaseOf(this.pending, op.name)
+    if (phase === 'authorizing') return this.initialized(op) ? 'none' : 'authorizing'
+    if (phase !== 'none') return phase === 'sent' ? 'none' : phase
+    const last = op.requests.at(-1)
+    return last !== undefined && !this.delivered.has(last) ? 'sent' : 'none'
+  }
+
   private event(end: string): void {
+    const phases = new Map<string, Phase>()
+    for (const op of this.ops) {
+      if (op.kind === 'close' || op.kind === 'cancel') continue
+      const phase = this.phaseAtLineEnd(op)
+      if (phase !== 'none') phases.set(op.name, phase)
+    }
     switch (end) {
       case 'ended':
+        this.lineEnd = { cause: 'stream-broken', phases }
         this.line.push({ kind: 'ended', stdoutEndedAt: 0 })
         break
       case 'exited':
+        this.lineEnd = { cause: 'process-exited', phases }
         this.line.push({ kind: 'ended', stdoutEndedAt: 0, exitedAt: 0 })
         break
       case 'broken':
+        this.lineEnd = { cause: 'stream-broken', phases }
         this.line.push({ kind: 'broken' })
         break
       default:

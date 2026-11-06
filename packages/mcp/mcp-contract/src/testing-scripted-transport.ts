@@ -1,13 +1,14 @@
 // An in-memory transport that answers from a `PeerScript`. It composes the JSON-RPC requests that
 // SPEC T3 names (request ids, the `_meta` envelope, the progress token) with the contract's one
 // implementation, turns each scripted reply into the wire event a real line would report,
-// classifies it with `classifyWireEvent` and takes the conclusion of the decision layer. It keeps
-// only the in-memory wire and its in-flight table, and records what the peer received. It does
-// not speak a protocol and is not a product transport.
+// classifies it with `classifyWireEvent` and takes the conclusion of the decision layer. A request
+// is registered before it is authorized; the caller's signal and `close()` settle it by its phase
+// with the contract's one rule (T5). It keeps only the in-memory wire and its in-flight table, and
+// records what the peer received. It does not speak a protocol and is not a product transport.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import { callAnswerOf, legacyIdentityOf } from './answer-readings.ts'
-import { authorizationChallengeOf, discoverAuthorization } from './authorization.ts'
+import { authorizationChallengeOf, startAuthorizationDiscovery } from './authorization.ts'
 import type { Generation, TaskId } from './brands.ts'
 import {
   OFFERED_LEGACY_VERSION,
@@ -33,15 +34,17 @@ import {
   NOT_SENT_FAILURE,
   authorizationRequiredAnswerOf,
   concludeAnswer,
+  lineGoneAnswerOf,
   requestClassOf,
-  streamGoneAnswerOf,
+  stopAnswerOf,
   type AnswerConclusion,
   type ProtocolVersions,
+  type UnusableCause,
   type WireAnswer,
 } from './decisions.ts'
 import { discoverWith, withOneResend } from './discovery.ts'
 import { clientEnvelopeOf, mcpRequestHeadersOf, type ClientInfo } from './envelope.ts'
-import type { AuthorizationDiscovery, NoAnswerCause, TaskReport } from './outcomes.ts'
+import type { AuthorizationDiscovery, TaskReport } from './outcomes.ts'
 import { isPlainJson, isPlainRecord, type PlainJson, type PlainRecord } from './plain.ts'
 import type { HttpCredentialHandle } from './ports.ts'
 import type { IdentityBound } from './readers.ts'
@@ -190,13 +193,40 @@ class ScriptedPeer {
 /** What one request settled with: the wire answer, and the headers of an HTTP answer. */
 type Answered = Readonly<{ wire: WireAnswer; headers?: Headers }>
 
+const NOT_SENT: Answered = { wire: { kind: 'not-sent', failure: NOT_SENT_FAILURE } }
+
+/**
+ * The phase of a request in flight (T5), with what each phase holds: the stdio probe time once
+ * sent, and the headers of the refusal with the abort of its discovery once discovering.
+ */
+type Phase =
+  | Readonly<{ kind: 'authorizing' }>
+  | Readonly<{ kind: 'sent'; cancelProbe(): void }>
+  | Readonly<{
+      kind: 'discovery'
+      headers: Headers
+      soFar(): AuthorizationDiscovery
+      abort(): void
+    }>
+
+const AUTHORIZING: Phase = { kind: 'authorizing' }
+
+/**
+ * One request in flight: registered before anything is awaited, with its own settlement (what a
+ * caller waits on) and its departure (when the peer took it: what `call` waits on, with the
+ * settlement, whichever comes first). A defect of the script fails the settlement.
+ */
 type Pending = {
+  readonly id: string
   readonly context: WireContext
-  settle(answered: Answered): void
-  /** Starts the stdio probe time of `server/discover`; an answer before it ends clears it. */
-  startProbe(milliseconds: number): void
-  observe?: (notification: PeerNotification) => void
-  progressToken: string
+  readonly answered: Promise<Answered>
+  readonly resolve: (answered: Answered) => void
+  readonly fail: (defect: unknown) => void
+  readonly departed: Promise<void>
+  readonly depart: () => void
+  readonly observe?: (notification: PeerNotification) => void
+  readonly progressToken: string
+  phase: Phase
 }
 
 /** How one request is sent: the observer of a call, the `_meta` version, the probe time. */
@@ -261,9 +291,20 @@ function httpEventOf(reply: Extract<PeerReply, { kind: 'http' }>): WireEvent {
   }
 }
 
+/**
+ * Whether the peer may have received a request answered with `reply`: everything but a request
+ * that fails before it leaves, and an HTTP error status, which settles the request before any
+ * answer stream began (T5: the boundary of `sent`).
+ */
+function departs(reply: PeerReply): boolean {
+  if (reply.kind === 'unsent') return false
+  return reply.kind !== 'http' || reply.status < 300
+}
+
 /** One transport opened on one material, against the scripted peer. */
 class ScriptedTransport implements McpTransport {
   readonly generation: Generation
+  /** The requests in flight: an entry leaves the table when it settles, and only then. */
   private readonly pending = new Map<string, Pending>()
   /** The ids of the requests that the credential handle authorized. */
   private readonly authorized = new Set<string>()
@@ -271,7 +312,7 @@ class ScriptedTransport implements McpTransport {
   private peerRequestCount = 0
   private version: string | undefined
   private closed = false
-  private dead: NoAnswerCause | 'session-ended' | undefined
+  private dead: UnusableCause | undefined
   /** The `Mcp-Session-Id` of a legacy Streamable HTTP connection. */
   private session: string | undefined
   private readonly peer: ScriptedPeer
@@ -317,16 +358,15 @@ class ScriptedTransport implements McpTransport {
     return !this.closed && this.dead === undefined
   }
 
-  /** The transport is unusable from now on; a gone stdio stream settles every request in flight. */
-  private unusable(cause: NoAnswerCause | 'session-ended'): void {
-    this.dead = cause
-    if (cause === 'session-ended') return
-    for (const entry of this.pending.values()) entry.settle({ wire: streamGoneAnswerOf(cause) })
+  private get credential(): HttpCredentialHandle | undefined {
+    return this.material.kind === 'streamable-http' ? this.material.credential : undefined
   }
 
   /** The connection as the T2 and T5 rules see it. */
   private get connection(): ConnectionView {
-    return { kind: this.material.kind, version: this.version }
+    return this.material.kind === 'stdio'
+      ? { kind: 'stdio', version: this.version }
+      : { kind: 'streamable-http', version: this.version, mode: 'streamable' }
   }
 
   private reserveId(): string {
@@ -340,13 +380,111 @@ class ScriptedTransport implements McpTransport {
       : {}
   }
 
-  /** Composes the request, records it, and lets the peer answer after the pace hook. */
-  private dispatch(
-    id: string,
+  // ---- The requests in flight: registration, the phases, and what settles them ----
+
+  private settle(entry: Pending, answered: Answered): void {
+    if (!this.pending.delete(entry.id)) return
+    if (entry.phase.kind === 'sent') entry.phase.cancelProbe()
+    entry.resolve(answered)
+  }
+
+  /** Stops a request where it stands (T5): the caller's signal fired, or `close()` ran. */
+  private stop(entry: Pending): void {
+    if (!this.pending.has(entry.id)) return
+    const phase = entry.phase
+    if (phase.kind === 'discovery') phase.abort()
+    this.settle(
+      entry,
+      phase.kind === 'discovery'
+        ? { wire: stopAnswerOf(phase), headers: phase.headers }
+        : { wire: stopAnswerOf(phase) },
+    )
+  }
+
+  /** The transport is unusable from now on; every request in flight settles by its phase (T8). */
+  private unusable(cause: UnusableCause): void {
+    this.dead ??= cause
+    for (const entry of this.pending.values()) {
+      const wire = lineGoneAnswerOf(entry.phase, cause)
+      if (wire !== undefined) this.settle(entry, { wire })
+    }
+  }
+
+  /**
+   * Registers one request and starts its sending in the background; the caller waits on the
+   * settlement. Undefined when the transport cannot be used: nothing is registered.
+   */
+  private begin(
     method: RequestMethod,
     params: PlainRecord,
-    how: Dispatch = {},
-  ): Readonly<{ reply: PeerReply | undefined; answered: Promise<Answered> }> {
+    how: Dispatch,
+    signal?: AbortSignal,
+  ): Pending | undefined {
+    if (!this.usable) return undefined
+    const id = this.reserveId()
+    const context: WireContext = {
+      id,
+      request: how.request ?? requestClassOf(method, false),
+      session: this.session !== undefined && method !== 'initialize',
+      versions: this.versions,
+    }
+    const answered = Promise.withResolvers<Answered>()
+    const departed = Promise.withResolvers<void>()
+    const entry: Pending = {
+      id,
+      context,
+      answered: answered.promise,
+      resolve: answered.resolve,
+      fail: answered.reject,
+      departed: departed.promise,
+      depart: departed.resolve,
+      ...(how.observe === undefined ? {} : { observe: how.observe }),
+      progressToken: id,
+      phase: AUTHORIZING,
+    }
+    this.pending.set(id, entry)
+    if (signal !== undefined) this.wireSignal(entry, signal)
+    void this.send(entry, method, params, how)
+    return entry
+  }
+
+  /** Wires the call's signal to the entry: once it fires, the entry is stopped where it stands (T5). */
+  private wireSignal(entry: Pending, signal: AbortSignal): void {
+    const onAbort = () => this.stop(entry)
+    if (signal.aborted) return onAbort()
+    signal.addEventListener('abort', onAbort, { once: true })
+    const unwire = () => signal.removeEventListener('abort', onAbort)
+    void entry.answered.then(unwire, unwire)
+  }
+
+  /**
+   * The sending of one request: authorizes it, then hands it to the peer. An entry stopped
+   * meanwhile is left as it settled. A defect of the script fails the settlement.
+   */
+  private async send(
+    entry: Pending,
+    method: RequestMethod,
+    params: PlainRecord,
+    how: Dispatch,
+  ): Promise<void> {
+    try {
+      if (!(await this.authorize(entry.id))) return this.settle(entry, NOT_SENT)
+      if (!this.pending.has(entry.id)) return
+      this.dispatch(entry, method, params, how)
+    } catch (defect) {
+      this.pending.delete(entry.id)
+      entry.fail(defect)
+    }
+  }
+
+  /** Composes the request, records it, and lets the peer answer after the pace hook. */
+  private dispatch(
+    entry: Pending,
+    method: RequestMethod,
+    params: PlainRecord,
+    how: Dispatch,
+  ): void {
+    const id = entry.id
     const version = how.version ?? this.version ?? this.versions[0]
     const meta = requestMetaOf(method, id, version, this.clientInfo)
     const written = plainRecordOf(
@@ -360,54 +498,24 @@ class ScriptedTransport implements McpTransport {
       params: sent,
       ...this.headersOf(method, params, version),
     }
-    const context: WireContext = {
-      id,
-      request: how.request ?? requestClassOf(method, false),
-      session: this.session !== undefined && method !== 'initialize',
-      versions: this.versions,
-    }
-    const { promise, resolve } = Promise.withResolvers<Answered>()
-    let probe: ReturnType<typeof setTimeout> | undefined
-    const entry: Pending = {
-      context,
-      settle: answered => {
-        clearTimeout(probe)
-        this.pending.delete(id)
-        resolve(answered)
-      },
-      startProbe: milliseconds => {
-        // D13: nothing came by the time the probe stopped waiting.
-        probe = setTimeout(() => {
-          const conclusion = concludeAnswer(
-            classifyWireEvent({ kind: 'nothing' }, context),
-            context,
-            this.material.kind,
-          )
-          void this.apply(entry, conclusion, {})
-        }, milliseconds)
-      },
-      ...(how.observe === undefined ? {} : { observe: how.observe }),
-      progressToken: id,
-    }
-    if (!this.usable) {
-      entry.settle({ wire: { kind: 'not-sent', failure: NOT_SENT_FAILURE } })
-      return { reply: undefined, answered: promise }
-    }
     const reply = this.peer.reply(method, sent)
     this.validate(reply, method)
-    this.pending.set(id, entry)
+    entry.phase = { kind: 'sent', cancelProbe: () => undefined }
     if (reply.kind === 'unsent') {
       // The request fails before it leaves; the peer does not see it (T8 X01, X02).
-      this.apply(
+      return this.apply(
         entry,
-        concludeAnswer(classifyWireEvent({ kind: 'unsent' }, context), context, this.material.kind),
+        concludeAnswer(
+          classifyWireEvent({ kind: 'unsent' }, entry.context),
+          entry.context,
+          this.material.kind,
+        ),
         {},
       )
-      return { reply, answered: promise }
     }
     this.peer.log.push(request)
+    if (departs(reply)) entry.depart()
     void this.deliver(request, reply, entry, how.probeTimeoutMs)
-    return { reply, answered: promise }
   }
 
   /** A reply the material cannot carry is a defect of the script, reported at once. */
@@ -418,9 +526,22 @@ class ScriptedTransport implements McpTransport {
       throw new TypeError(`script: a process-exits reply to ${method} on streamable-http material`)
   }
 
+  /** D13: starts the stdio probe time of `server/discover`; an answer before it ends clears it. */
+  private startProbe(entry: Pending, milliseconds: number): void {
+    const probe = setTimeout(() => {
+      const conclusion = concludeAnswer(
+        classifyWireEvent({ kind: 'nothing' }, entry.context),
+        entry.context,
+        this.material.kind,
+      )
+      this.apply(entry, conclusion, {})
+    }, milliseconds)
+    entry.phase = { kind: 'sent', cancelProbe: () => clearTimeout(probe) }
+  }
+
   /**
    * Answers after the pace hook. The probe time starts only then, so a test that holds the answer
-   * does not turn a modern peer into a legacy one.
+   * does not turn a modern peer into a legacy one. A defect of the script fails the settlement.
    */
   private async deliver(
     request: Request,
@@ -428,42 +549,40 @@ class ScriptedTransport implements McpTransport {
     entry: Pending,
     probeTimeoutMs: number | undefined,
   ): Promise<void> {
-    await this.options.pace?.(request)
-    if (!this.pending.has(request.id)) return
-    if (probeTimeoutMs !== undefined) entry.startProbe(probeTimeoutMs)
-    if (reply.kind === 'result')
-      for (const notification of reply.notifications ?? []) this.notify(notification, entry)
-    const event = eventOf(reply, request.id, this.stdio)
-    if (event === undefined) return
-    const headers = lowerCased(
-      reply.kind === 'http' || reply.kind === 'result' ? reply.headers : undefined,
-    )
-    const conclusion = concludeAnswer(
-      classifyWireEvent(event, entry.context),
-      entry.context,
-      this.material.kind,
-    )
-    await this.apply(entry, conclusion, headers)
+    try {
+      await this.options.pace?.(request)
+      if (!this.pending.has(request.id)) return
+      if (probeTimeoutMs !== undefined) this.startProbe(entry, probeTimeoutMs)
+      if (reply.kind === 'result')
+        for (const notification of reply.notifications ?? []) this.notify(notification, entry)
+      const event = eventOf(reply, request.id, this.stdio)
+      if (event === undefined) return
+      const headers = lowerCased(
+        reply.kind === 'http' || reply.kind === 'result' ? reply.headers : undefined,
+      )
+      const conclusion = concludeAnswer(
+        classifyWireEvent(event, entry.context),
+        entry.context,
+        this.material.kind,
+      )
+      this.apply(entry, conclusion, headers)
+    } catch (defect) {
+      this.pending.delete(entry.id)
+      entry.fail(defect)
+    }
   }
 
   /** Settles the request as the T8 row says, and what the row says of the transport. */
-  private async apply(
-    entry: Pending,
-    conclusion: AnswerConclusion,
-    headers: Headers,
-  ): Promise<void> {
+  private apply(entry: Pending, conclusion: AnswerConclusion, headers: Headers): void {
     switch (conclusion.kind) {
       case 'wait':
         return
       case 'settle':
-        entry.settle({ wire: conclusion.wire, headers })
+        this.settle(entry, { wire: conclusion.wire, headers })
         if (conclusion.unusable !== undefined) this.unusable(conclusion.unusable)
         return
       case 'authorization-required':
-        return entry.settle({
-          wire: await this.authorizationRequired(entry.context.id, headers),
-          headers,
-        })
+        return this.enterDiscovery(entry, headers)
       default: {
         const exhaustive: never = conclusion
         return exhaustive
@@ -492,35 +611,36 @@ class ScriptedTransport implements McpTransport {
     }
   }
 
-  /** T4: reports the rejection to the handle that authorized the request, then discovers. */
-  private async authorizationRequired(id: string | number, headers: Headers): Promise<WireAnswer> {
-    if (this.credential !== undefined && this.authorized.has(String(id)))
-      // A handle whose reportRejection rejects or throws is ignored (T9).
-      await Promise.resolve()
-        .then(() => this.credential?.reportRejection())
-        .catch(() => undefined)
-    const challenge = authorizationChallengeOf(headers['www-authenticate'])
-    return authorizationRequiredAnswerOf(await this.discoverAuthorization(challenge))
-  }
-
-  private get credential(): HttpCredentialHandle | undefined {
-    return this.material.kind === 'streamable-http' ? this.material.credential : undefined
-  }
-
-  private discoverAuthorization(
-    challenge: ReadonlyMap<string, string>,
-  ): Promise<AuthorizationDiscovery> {
+  /**
+   * T4: the request was refused. `reportRejection` once on the handle that authorized it, and the
+   * discovery of R4, run in the background; the request settles when both ended, or by its phase
+   * when it is stopped first (T5).
+   */
+  private enterDiscovery(entry: Pending, headers: Headers): void {
     const target = this.material.kind === 'streamable-http' ? this.material.target : undefined
     if (target === undefined)
       throw new TypeError('script: a refused authorization on stdio material')
-    return discoverAuthorization(
+    const credential = this.credential
+    // A handle whose reportRejection rejects or throws is ignored (T9).
+    const reported =
+      credential !== undefined && this.authorized.has(entry.id)
+        ? Promise.resolve()
+            .then(() => credential.reportRejection())
+            .catch(() => undefined)
+        : Promise.resolve()
+    const controller = new AbortController()
+    const run = startAuthorizationDiscovery(
       target,
-      challenge,
+      authorizationChallengeOf(headers['www-authenticate']),
       async url => {
         const metadata = this.peer.wellKnown(url)
         return metadata === undefined ? undefined : jsonOf(metadata)
       },
-      new AbortController().signal,
+      controller.signal,
+    )
+    entry.phase = { kind: 'discovery', headers, soFar: run.soFar, abort: () => controller.abort() }
+    void Promise.all([reported, run.done]).then(([, discovery]) =>
+      this.settle(entry, { wire: authorizationRequiredAnswerOf(discovery), headers }),
     )
   }
 
@@ -553,16 +673,14 @@ class ScriptedTransport implements McpTransport {
     return composed.read((await this.request(composed.method, composed.params, how)).wire)
   }
 
-  private async once(method: RequestMethod, params: PlainRecord, how: Dispatch): Promise<Answered> {
-    if (!this.usable) return { wire: { kind: 'not-sent', failure: NOT_SENT_FAILURE } }
-    const id = this.reserveId()
-    if (!(await this.authorize(id)))
-      return { wire: { kind: 'not-sent', failure: NOT_SENT_FAILURE } }
+  /** Registers one request and waits on its settlement only: never on its sending. */
+  private once(method: RequestMethod, params: PlainRecord, how: Dispatch): Promise<Answered> {
     const probe = method === 'server/discover' && this.stdio
-    return this.dispatch(id, method, params, {
+    const entry = this.begin(method, params, {
       ...how,
       ...(probe ? { probeTimeoutMs: this.options.probeTimeoutMs ?? 0 } : {}),
-    }).answered
+    })
+    return entry === undefined ? Promise.resolve(NOT_SENT) : entry.answered
   }
 
   /** Sends a notification. Whatever the peer answers to it does not change any outcome (T8 N01). */
@@ -639,32 +757,32 @@ class ScriptedTransport implements McpTransport {
     return this.perform(listActionsRequest(cursor, this.connection))
   }
 
+  /**
+   * `call` waits for the request to reach the peer or to settle, whichever comes first (T5): a
+   * `SentCall` once the peer may have received it, `not-sent` as the call's own failure when it
+   * settled so before.
+   */
   async call(
     request: CallRequest,
     signal: AbortSignal,
     observe?: (notification: PeerNotification) => void,
   ): Promise<Outcome<SentCall, Extract<TransportFailure, { kind: 'not-sent' }>>> {
-    if (!this.usable || signal.aborted) return { failure: NOT_SENT_FAILURE }
-    const id = this.reserveId()
-    if (!(await this.authorize(id))) return { failure: NOT_SENT_FAILURE }
+    if (signal.aborted) return { failure: NOT_SENT_FAILURE }
     const composed = callRequestOf(request)
-    const sent = this.dispatch(id, composed.method, composed.params, {
-      values: composed.values,
-      ...(observe === undefined ? {} : { observe }),
-    })
-    // An HTTP-level answer settles before the call returns: a refusal is a failure of the call
-    // itself (T4), a 400 with a JSON-RPC error is the answer of the peer.
-    if (sent.reply === undefined || sent.reply.kind === 'http' || sent.reply.kind === 'unsent') {
-      const { wire } = await sent.answered
-      if (wire.kind === 'not-sent') return { failure: wire.failure }
-      return { ok: { requestId: id, answer: Promise.resolve(callAnswerOf(wire)) } }
-    }
-    const entry = this.pending.get(id)
-    const abandon = () => entry?.settle({ wire: ABANDONED })
-    if (signal.aborted) abandon()
-    else signal.addEventListener('abort', abandon, { once: true })
+    const entry = this.begin(
+      composed.method,
+      composed.params,
+      { values: composed.values, ...(observe === undefined ? {} : { observe }) },
+      signal,
+    )
+    if (entry === undefined) return { failure: NOT_SENT_FAILURE }
+    const first = await Promise.race([entry.departed.then(() => undefined), entry.answered])
+    if (first?.wire.kind === 'not-sent') return { failure: first.wire.failure }
     return {
-      ok: { requestId: id, answer: sent.answered.then(answered => callAnswerOf(answered.wire)) },
+      ok: {
+        requestId: entry.id,
+        answer: entry.answered.then(answered => callAnswerOf(answered.wire)),
+      },
     }
   }
 
@@ -675,9 +793,9 @@ class ScriptedTransport implements McpTransport {
       return
     }
     const entry = this.pending.get(requestId)
-    if (entry === undefined) return
+    if (entry === undefined || entry.phase.kind !== 'sent') return
     this.peer.log.push({ kind: 'stream-aborted', id: requestId })
-    entry.settle({ wire: ABANDONED })
+    this.settle(entry, { wire: ABANDONED })
   }
 
   getTask(taskId: TaskId): Promise<Outcome<TaskReport | 'expired', TransportFailure>> {
@@ -699,10 +817,11 @@ class ScriptedTransport implements McpTransport {
     return this.perform(cancelTaskRequest(taskId))
   }
 
+  /** Closes the transport (T5): every request in flight settles by its phase there and then. */
   async close(): Promise<void> {
     if (this.closed) return
     this.closed = true
-    for (const entry of this.pending.values()) entry.settle({ wire: ABANDONED })
+    for (const entry of this.pending.values()) this.stop(entry)
     if (this.material.kind !== 'stdio') return
     const { stdin, stdout } = this.material.process
     await stdin.close().catch(() => undefined)

@@ -31,7 +31,11 @@ function idleProcess(): ProcessHandle & Readonly<{ events: readonly string[] }> 
       write: () => {
         events.push('write')
       },
+      // Closing or aborting the write end both end the peer's input: either is "stdin closed".
       close: () => {
+        events.push('stdin-closed')
+      },
+      abort: () => {
         events.push('stdin-closed')
       },
     }),

@@ -31,6 +31,9 @@ export type OpView = Readonly<{
 /** The phase of a request in flight, as inferred from the pending port calls (SPEC V6). */
 export type Phase = 'authorizing' | 'sent' | 'discovery' | 'none'
 
+/** Why the shared stream went away: what the session reads from the line's `ended` or `broken` event. */
+export type LineEndCause = 'stream-broken' | 'process-exited'
+
 /** What the properties read from a run. */
 export interface RunView {
   readonly ledger: Ledger
@@ -48,6 +51,10 @@ export interface RunView {
   readonly phasesAtClose: ReadonlyMap<string, Phase> | undefined
   /** The phase of each call's current request when its signal fired. */
   readonly phasesAtSignal: ReadonlyMap<string, Phase>
+  /** The phase of each operation's current request when the shared stream went away, and why. */
+  readonly lineEnd:
+    | Readonly<{ cause: LineEndCause; phases: ReadonlyMap<string, Phase> }>
+    | undefined
 }
 
 const DISCOVERY_PORTS: ReadonlySet<PortName> = new Set<PortName>([
@@ -260,28 +267,63 @@ function stopAnswerOf(phase: Exclude<Phase, 'none'>): string {
 }
 
 /**
- * V6: what the signal or `close()` answers a request in flight, by the phase it was in when the
- * stop came: `not-sent` (`connection-unavailable`) while authorizing, `abandoned` once handed to
- * the line, `authorization-required` with what was fetched by then while discovering (contract
- * T5). A call's signal and `close()` answer alike; the first of the two decides.
+ * What the line going away answers a request in each phase (contract T8 S01–S04, the SSE mode):
+ * only the phases that depend on the line settle by the cause; a discovery goes on to its own
+ * conclusion.
+ */
+function lineGoneAnswerOf(phase: Exclude<Phase, 'none'>, cause: LineEndCause): string {
+  switch (phase) {
+    case 'authorizing':
+      return 'not-sent/connection-unavailable'
+    case 'sent':
+      return `no-answer/${cause}`
+    case 'discovery':
+      return 'not-sent/authorization-required'
+    default: {
+      const exhaustive: never = phase
+      return exhaustive
+    }
+  }
+}
+
+type Stop = Readonly<{
+  name: string
+  tag: string
+  phases: ReadonlyMap<string, Phase> | undefined
+  expected: (phase: Exclude<Phase, 'none'>) => string
+}>
+
+/**
+ * V6: what the signal, `close()` or the line going away answers a request in flight, by the phase
+ * it was in when that came: the signal and `close()` answer alike (`not-sent` while authorizing,
+ * `abandoned` once handed to the line, `authorization-required` with what was fetched by then
+ * while discovering; contract T5), the first of the two decides. The line going away answers
+ * `not-sent` while authorizing and the cause once handed to the line; a discovery goes on to
+ * `authorization-required` (contract T8).
  */
 export function stopAnswers(view: RunView): Found[] {
   const found: Found[] = []
-  const stops: readonly (readonly [string, ReadonlyMap<string, Phase> | undefined])[] = [
-    ['its signal', view.phasesAtSignal],
-    ['close()', view.phasesAtClose],
+  const stops: readonly Stop[] = [
+    { name: 'its signal', tag: '', phases: view.phasesAtSignal, expected: stopAnswerOf },
+    { name: 'close()', tag: '', phases: view.phasesAtClose, expected: stopAnswerOf },
+    {
+      name: `the line end (${view.lineEnd?.cause ?? ''})`,
+      tag: 'lineend-',
+      phases: view.lineEnd?.phases,
+      expected: phase => lineGoneAnswerOf(phase, view.lineEnd?.cause ?? 'stream-broken'),
+    },
   ]
-  for (const [stop, phases] of stops) {
-    if (phases === undefined) continue
+  for (const stop of stops) {
+    if (stop.phases === undefined) continue
     for (const op of view.ops) {
-      const phase = phases.get(op.name)
+      const phase = stop.phases.get(op.name)
       if (phase === undefined || phase === 'none' || op.status !== 'answered') continue
-      const expected = stopAnswerOf(phase)
+      const expected = stop.expected(phase)
       if (!op.result.includes(expected))
         found.push({
           property: 'V6',
-          signature: `V6-${phase}`,
-          detail: `${op.name} was ${phase} at ${stop} and answered ${op.result}, not ${expected}`,
+          signature: `V6-${stop.tag}${phase}`,
+          detail: `${op.name} was ${phase} at ${stop.name} and answered ${op.result}, not ${expected}`,
         })
     }
   }

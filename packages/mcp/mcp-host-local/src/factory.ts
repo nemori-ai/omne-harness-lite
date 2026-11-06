@@ -21,6 +21,16 @@ const schedule: Scheduler = (delayMs, fire) => {
   return () => clearTimeout(timer)
 }
 
+/**
+ * The default defect outlet: the defect is thrown outside any promise, so the host's
+ * uncaught-exception handling sees it instead of a rejection nobody hears.
+ */
+const reportDefect = (defect: unknown): void => {
+  queueMicrotask(() => {
+    throw defect
+  })
+}
+
 export function createLocalTransportFactory(options: LocalTransportOptions): McpTransportFactory {
   checkOptions(options)
   const fetchFn = options.fetch ?? globalThis.fetch
@@ -30,6 +40,7 @@ export function createLocalTransportFactory(options: LocalTransportOptions): Mcp
     probeTimeoutMs: options.probeTimeoutMs,
     fetchMetadata: metadataFetcher(fetchFn),
     schedule,
+    reportDefect,
   }
   return {
     async open(material, signal) {

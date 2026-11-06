@@ -92,9 +92,10 @@ export type AuthorizationDiscoveryRun = Readonly<{
 
 /**
  * Starts the discovery of T4 after a refused authorization (R4): the candidate addresses are
- * fetched in order until one gives a JSON object; a fetch that rejects counts as nothing fetched.
- * The signal ends the loop: what was not fetched by then is unavailable. The loop runs in the
- * background from the call on; the run reports its progress.
+ * fetched in order until one gives a JSON object; a fetch that rejects or throws counts as
+ * nothing fetched at that address, and the next address is tried. The signal ends the loop: no
+ * fetch starts after it fired, and what was not fetched by then is unavailable. The loop runs in
+ * the background from the call on; the run reports its progress.
  */
 export function startAuthorizationDiscovery(
   target: string,
@@ -108,13 +109,29 @@ export function startAuthorizationDiscovery(
   const done = (async () => {
     for (const url of candidates) {
       if (signal.aborted) break
-      const metadata = await fetchMetadata(url, signal).catch(() => undefined)
+      const metadata = await fetchOrNothing(fetchMetadata, url, signal)
       fetched.push(metadata)
       if (isObject(metadata)) break
     }
     return soFar()
   })()
   return { soFar, done }
+}
+
+/**
+ * One fetch of the loop, started at once: a fetch that throws on the call, or rejects, is nothing
+ * fetched at that address.
+ */
+async function fetchOrNothing(
+  fetchMetadata: MetadataFetch,
+  url: string,
+  signal: AbortSignal,
+): Promise<JsonValue | undefined> {
+  try {
+    return await fetchMetadata(url, signal)
+  } catch {
+    return undefined
+  }
 }
 
 /** The discovery of T4 after a refused authorization (R4), when its fetch loop ended. */

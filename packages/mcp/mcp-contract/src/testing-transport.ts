@@ -495,11 +495,15 @@ function observedProcess(process: ProcessHandle, events: string[]): ProcessHandl
   return {
     stdin: new WritableStream<Uint8Array>({
       write: chunk => writer.write(chunk),
+      // Closing or aborting the write end both end the peer's input: either is "stdin closed".
       async close() {
         events.push('stdin-closed')
         await writer.close()
       },
-      abort: reason => writer.abort(reason),
+      async abort(reason) {
+        events.push('stdin-closed')
+        await writer.abort(reason)
+      },
     }),
     stdout: new ReadableStream<Uint8Array>({
       async pull(controller) {
@@ -2254,7 +2258,8 @@ const t5Cases = (): readonly Case[] => [
         { kind: 'streamable-http', credential: handle },
         async (peer, transport) => {
           const pending = transport.call(echo, never)
-          await handle.reached
+          // A transport that does not ask the handle lets the call go on: the assertion catches it.
+          await Promise.race([handle.reached, pending])
           await transport.close()
           assert.deepStrictEqual(await pending, {
             failure: { kind: 'not-sent', cause: 'connection-unavailable' },
@@ -2276,7 +2281,7 @@ const t5Cases = (): readonly Case[] => [
         async (peer, transport) => {
           const controller = new AbortController()
           const pending = transport.call(echo, controller.signal)
-          await handle.reached
+          await Promise.race([handle.reached, pending])
           controller.abort()
           assert.deepStrictEqual(await pending, {
             failure: { kind: 'not-sent', cause: 'connection-unavailable' },

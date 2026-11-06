@@ -663,10 +663,14 @@ describe('the authorization discovery (T4, R4)', () => {
 })
 
 describe('the rules a transport applies by its connection (T2, T5) and the requests its operations send (T3, T6)', () => {
-  const http = (version: string | undefined, mode?: 'sse'): ConnectionView =>
-    mode === undefined
-      ? { kind: 'streamable-http', version }
-      : { kind: 'streamable-http', version, mode }
+  const http = (
+    version: string | undefined,
+    mode: 'streamable' | 'sse' = 'streamable',
+  ): ConnectionView => ({
+    kind: 'streamable-http',
+    version,
+    mode,
+  })
 
   it('a connection is legacy once it negotiated a legacy revision, not before', () => {
     expect(isLegacyConnection(http(undefined))).toBe(false)

@@ -1,8 +1,10 @@
-// The negative controls of the explorer and of the line cases: one defect each, put into `src/`
-// as a text replacement, that the named case must catch. `mutate.ts` applies one, runs the case,
-// and restores the source byte for byte. Each entry names the property it proves can go red and
-// the signature (explorer) or case (vitest) expected to show it. A defect listed here with more
-// than one replacement needs every one of them: the property is held at more than one place.
+// The negative controls of the explorer, of the line cases and of the cases on real wires: one
+// defect each, put into `src/` as a text replacement, that the named case must catch. `mutate.ts`
+// applies one, runs the case, and restores the source byte for byte. Each entry names the
+// property or clause it proves can go red and the signature (explorer) or case (vitest) expected
+// to show it. A defect listed here with more than one replacement needs every one of them: the
+// property is held at more than one place. A slow-tier case imports the package through `dist`:
+// `mutate.ts` builds the package for it.
 
 export type Replacement = Readonly<{
   /** The exact text to replace; it must occur `occurrences` times (default 1) in the file. */
@@ -17,7 +19,7 @@ export type Mutant = Readonly<{
   breaks: string
   /** What the defect is, in one sentence. */
   defect: string
-  file: 'src/session.ts' | 'src/stdio-line.ts'
+  file: 'src/session.ts' | 'src/stdio-line.ts' | 'src/http-line.ts'
   replacements: readonly Replacement[]
   /** The spec file to run, relative to the package root. */
   spec: string
@@ -30,7 +32,10 @@ export type Mutant = Readonly<{
 }>
 
 const EXPLORER = 'tests/model/session-model.spec.ts'
+const SESSION = 'tests/session.spec.ts'
 const LINES = 'tests/lines.spec.ts'
+const STDIO = 'tests/stdio.spec.ts'
+const HTTP = 'tests/http.spec.ts'
 
 export const MUTANTS: readonly Mutant[] = [
   {
@@ -78,9 +83,9 @@ export const MUTANTS: readonly Mutant[] = [
     file: 'src/session.ts',
     replacements: [
       {
-        find: '        ? this.callHandle(() => credential.reportRejection())\n',
+        find: '        : this.callHandle(() => credential.reportRejection())\n',
         replace:
-          '        ? this.callHandle(() => credential.reportRejection().then(() => credential.reportRejection()))\n',
+          '        : this.callHandle(() => credential.reportRejection().then(() => credential.reportRejection()))\n',
       },
     ],
     spec: EXPLORER,
@@ -173,12 +178,13 @@ export const MUTANTS: readonly Mutant[] = [
     name: 'mV6-close-not-sent',
     breaks: 'V6',
     defect:
-      'a request handed to the line is answered `not-sent` by close() or the signal, not `abandoned`',
+      "a request handed to the line is answered `not-sent` by close() or the signal, not `abandoned`: the session does not use the contract's rule for the `sent` phase",
     file: 'src/session.ts',
     replacements: [
       {
-        find: "      case 'sent':\n        return { wire: ABANDONED }\n",
-        replace: "      case 'sent':\n        return NOT_SENT\n",
+        find: '        : { wire: stopAnswerOf(phase) },\n',
+        replace:
+          "        : { wire: phase.kind === 'sent' ? NOT_SENT.wire : stopAnswerOf(phase) },\n",
       },
     ],
     spec: EXPLORER,
@@ -194,8 +200,9 @@ export const MUTANTS: readonly Mutant[] = [
     file: 'src/session.ts',
     replacements: [
       {
-        find: "      case 'authorizing':\n        return NOT_SENT\n",
-        replace: "      case 'authorizing':\n        return { wire: ABANDONED }\n",
+        find: '        : { wire: stopAnswerOf(phase) },\n',
+        replace:
+          "        : { wire: phase.kind === 'authorizing' ? { kind: 'no-answer', cause: 'abandoned', resend: false } : stopAnswerOf(phase) },\n",
       },
     ],
     spec: EXPLORER,
@@ -204,18 +211,56 @@ export const MUTANTS: readonly Mutant[] = [
     expect: 'V6-authorizing',
   },
   {
-    name: 'mStdio-writes-boolean',
+    name: 'mB1-session-ended-skips-authorizing',
+    breaks: 'T8 S07, T1',
+    defect:
+      'the session ending (S07) does not settle the requests still authorizing: one of them goes out on a transport that is not usable any more (the defect B1 of the third review)',
+    file: 'src/session.ts',
+    replacements: [
+      {
+        find: '      const wire = lineGoneAnswerOf(entry.phase, cause)\n',
+        replace:
+          "      const wire = cause === 'session-ended' ? undefined : lineGoneAnswerOf(entry.phase, cause)\n",
+      },
+    ],
+    spec: SESSION,
+    mode: 'fast',
+    filter: 'still being authorized when the session ended',
+    expect: 'expected [ { message: { …(4) }, …(2) } ] to deeply equal []',
+  },
+  {
+    name: 'mV6-lineend-keeps-authorizing',
+    breaks: 'V6',
+    defect:
+      'the line going away does not settle a request still authorizing: it goes out later on a line that is gone',
+    file: 'src/session.ts',
+    replacements: [
+      {
+        find: '      const wire = lineGoneAnswerOf(entry.phase, cause)\n',
+        replace:
+          "      const wire = entry.phase.kind === 'authorizing' ? undefined : lineGoneAnswerOf(entry.phase, cause)\n",
+      },
+    ],
+    spec: EXPLORER,
+    mode: 'slow',
+    filter: 'sse-fallback',
+    expect: 'V6-lineend-authorizing',
+  },
+  {
+    name: 'mStdio-close-flushes',
     breaks: 'SPEC H6',
     defect:
-      'the writes in flight are a boolean again: the first write to complete hides the one still in flight',
+      'close() closes the write end instead of aborting it: the bytes a peer never reads have to drain first, so close() waits for the peer',
     file: 'src/stdio-line.ts',
     replacements: [
-      { find: '    this.writes += 1\n', replace: '    this.writes = 1\n' },
-      { find: '        this.writes -= 1\n', replace: '        this.writes = 0\n', occurrences: 2 },
+      {
+        find: "    void this.writer.abort(new Error('the line closed')).catch(() => undefined)\n",
+        replace: '    await this.writer.close().catch(() => undefined)\n',
+      },
     ],
-    spec: LINES,
-    mode: 'fast',
-    filter: 'two overlapping writes',
+    spec: STDIO,
+    mode: 'slow',
+    filter: 'small calls that departed',
     expect: "expected 'pending' to deeply equal { settled: undefined }",
   },
   {
@@ -266,5 +311,111 @@ export const MUTANTS: readonly Mutant[] = [
     mode: 'fast',
     filter: 'the last line of stdout is delivered',
     expect: '-       "text": "{\\"last\\":2}",\n+       "kind": "ended",',
+  },
+  {
+    name: 'mHttp-reset-is-unsent',
+    breaks: 'SPEC H10, T8 X01',
+    defect: 'a reset before the answer head is read as a request that never left',
+    file: 'src/http-line.ts',
+    replacements: [
+      {
+        find: "  'UND_ERR_CONNECT_TIMEOUT',\n",
+        replace: "  'UND_ERR_CONNECT_TIMEOUT',\n  'UND_ERR_SOCKET',\n",
+      },
+    ],
+    spec: HTTP,
+    mode: 'slow',
+    filter: 'a connection refused is not-sent',
+    expect: "expected { failure: { kind: 'not-sent', …(1) } } to deeply equal",
+  },
+  {
+    name: 'mHttp-refused-is-broken',
+    breaks: 'SPEC H10, T8 X01',
+    defect: 'a connection refused is read as a broken stream: a request that never left is re-sent',
+    file: 'src/http-line.ts',
+    replacements: [{ find: "  'ECONNREFUSED',\n", replace: '' }],
+    spec: HTTP,
+    mode: 'slow',
+    filter: 'a connection refused is not-sent',
+    expect: "to deeply equal { failure: { kind: 'not-sent', …(1) } }",
+  },
+  {
+    name: 'mHttp-follows-redirect',
+    breaks: 'SPEC H11, contract「不跟随重定向」',
+    defect: 'the line follows a redirect: a request reaches a target the caller did not name',
+    file: 'src/http-line.ts',
+    replacements: [
+      {
+        find: "        redirect: 'manual',\n",
+        replace: "        redirect: 'follow',\n",
+        occurrences: 2,
+      },
+    ],
+    spec: HTTP,
+    mode: 'slow',
+    filter: 'a redirect is not followed',
+    expect: "to deeply equal { failure: { kind: 'not-sent', …(1) } }",
+  },
+  {
+    name: 'mHttp-sse-endpoint-forgotten',
+    breaks: 'SPEC H9, T3',
+    defect:
+      'entering the SSE mode does not keep the endpoint: the requests keep posting to the target',
+    file: 'src/http-line.ts',
+    replacements: [{ find: '        this.endpoint = endpoint\n', replace: '' }],
+    spec: HTTP,
+    mode: 'slow',
+    filter: 'the reference server in its sse mode',
+    expect: 'discover failed:',
+  },
+  {
+    name: 'mHttp-reads-every-sse-event',
+    breaks: 'T2',
+    defect: 'every event of a 2xx SSE body is read as a message, whatever its event type',
+    file: 'src/http-line.ts',
+    replacements: [
+      {
+        find: "    if (event.event === undefined || event.event === 'message') yield event.data\n",
+        replace: '    yield event.data\n',
+      },
+    ],
+    spec: HTTP,
+    mode: 'slow',
+    filter: 'first event is not a message event',
+    expect: 'decoy',
+  },
+  {
+    name: 'mHttp-get-status-as-stream',
+    breaks: 'SPEC H9, T3, T8 S05',
+    defect:
+      'a fallback GET answered with an error status is reported as a stream: the refusal is never seen',
+    file: 'src/http-line.ts',
+    replacements: [
+      {
+        find: '    if (response.status < 200 || response.status >= 300) {\n',
+        replace: '    if (response.status < 0) {\n',
+      },
+    ],
+    spec: HTTP,
+    mode: 'slow',
+    filter: 'the fallback GET refused with 401',
+    expect: "cause: 'connection-unavailable'",
+  },
+  {
+    name: 'mHttp-get-without-events',
+    breaks: 'SPEC H9, T3',
+    defect:
+      'the events of a 2xx fallback GET are never read: the endpoint never comes, the fallback never holds',
+    file: 'src/http-line.ts',
+    replacements: [
+      {
+        find: '        ? eventsOf(response.body).getReader()\n        : undefined\n',
+        replace: '        ? undefined\n        : undefined\n',
+      },
+    ],
+    spec: HTTP,
+    mode: 'slow',
+    filter: 'after initialize is refused with a plain 4xx, the GET stream and its endpoint carry',
+    expect: 'discover failed:',
   },
 ]

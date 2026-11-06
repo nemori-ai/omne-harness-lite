@@ -2,17 +2,15 @@
 // connection as those rules see it, whether it speaks a legacy revision, whether the listing
 // headers are checked, and how a request is cancelled.
 import { isModernProtocolVersion } from './revisions.ts'
-import type { TransportMaterial } from './transport.ts'
 
 /**
  * The connection as the T2 and T5 rules see it: the material, the revision the connection
- * negotiated (undefined before `discover` read an answer), and the legacy HTTP+SSE mode (T3).
+ * negotiated (undefined before `discover` read an answer), and on Streamable HTTP the mode: each
+ * request on its own exchange (`streamable`), or the legacy HTTP+SSE mode (`sse`, T3).
  */
-export type ConnectionView = Readonly<{
-  kind: TransportMaterial['kind']
-  version: string | undefined
-  mode?: 'sse'
-}>
+export type ConnectionView =
+  | Readonly<{ kind: 'stdio'; version: string | undefined }>
+  | Readonly<{ kind: 'streamable-http'; version: string | undefined; mode: 'streamable' | 'sse' }>
 
 /** A connection speaks a legacy revision once it negotiated one that is not modern (T3). */
 export function isLegacyConnection(connection: ConnectionView): boolean {

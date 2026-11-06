@@ -258,6 +258,8 @@ describe('the suite fails a transport that breaks the contract', () => {
       '401 with no metadata anywhere: metadata unavailable, issuers empty, scopes from the header; reportRejection once (item 11)',
       '401 on discover: authorization-required with no legacy fallback; reportRejection once (item 11)',
       '403 insufficient_scope: authorization-required with the scope of the header; reportRejection once (item 11)',
+      'a call still being authorized when close() ran is not-sent and never reaches the peer; close() does not wait for the handle',
+      'a call still being authorized when its signal fires is not-sent and never reaches the peer; call() does not wait for the handle',
       'a credential handle whose authorize rejects or throws: not-sent (connection-unavailable), nothing reaches the peer',
     ])
   })

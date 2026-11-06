@@ -412,13 +412,17 @@ class Peer {
         const answer = { jsonrpc: '2.0', id, result: chosen.result }
         const headers = { ...chosen.headers }
         finish()
-        if (events.length === 0) {
+        if (events.length === 0 && this.options.sseNoise !== true) {
           response
             .writeHead(200, { ...headers, 'content-type': 'application/json' })
             .end(JSON.stringify(answer))
           return
         }
         response.writeHead(200, { ...headers, 'content-type': 'text/event-stream' })
+        if (this.options.sseNoise === true) {
+          const decoy = { jsonrpc: '2.0', id, result: { decoy: true } }
+          response.write(`event: ping\ndata: ${JSON.stringify(decoy)}\n\n`)
+        }
         for (const event of [...events, answer])
           response.write(`event: message\ndata: ${JSON.stringify(event)}\n\n`)
         response.end()
@@ -538,6 +542,11 @@ export type HttpPeerOptions = Readonly<{
   }>
   /** Called when the peer sees the GET of the legacy fallback. */
   onSseRequest?: () => void
+  /**
+   * Every 2xx answer goes out as an SSE body whose first event is not a `message` event: a `ping`
+   * event carrying a decoy answer with the request's id. A transport reads message events only.
+   */
+  sseNoise?: boolean
 }>
 
 export async function httpPeer(

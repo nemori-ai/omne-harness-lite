@@ -2,7 +2,9 @@
 // and reads one per line, holding every line to the byte bound; it reports when stdout ended and
 // when the process exited, with the two instants on one clock, so that the contract's exit window
 // (T8, `PROCESS_EXIT_WINDOW_MS`) can tell a crash from a closed pipe. It reads standard error and
-// discards it. It never stops the process: the holder of the handle does.
+// discards it. It never stops the process: the holder of the handle does. Its `close()` depends
+// on local resources only: the write end is aborted, never drained, so a peer that does not read
+// stdin cannot hold it (SPEC H6).
 import { PROCESS_EXIT_WINDOW_MS } from '@omne-harness/mcp-contract'
 import type { ProcessHandle } from '@omne-harness/mcp-contract/provider'
 import { BYTE_LIMIT } from './limits.ts'
@@ -27,8 +29,6 @@ export class StdioLine implements Line {
   private announced = false
   private window: ReturnType<typeof setTimeout> | undefined
   private writable = true
-  /** The writes that have not completed: `close()` aborts the write end while there is one. */
-  private writes = 0
   /** Fires on `close()`: a `send` still waiting on the pipe reports `aborted` then. */
   private readonly closing = new AbortController()
   private closed = false
@@ -176,18 +176,9 @@ export class StdioLine implements Line {
       onAbort = () => resolve('aborted')
       ended.addEventListener('abort', onAbort, { once: true })
     })
-    // The write counts until it settles itself: an aborted write to a full pipe is still
-    // outstanding, so `close()` aborts the write end rather than waiting for the peer to read it.
-    this.writes += 1
     const written = this.writer.write(encoder.encode(`${outbound.text}\n`)).then(
-      () => {
-        this.writes -= 1
-        return 'written' as const
-      },
-      () => {
-        this.writes -= 1
-        return 'failed' as const
-      },
+      () => 'written' as const,
+      () => 'failed' as const,
     )
     try {
       switch (await Promise.race([written, aborted])) {
@@ -209,9 +200,12 @@ export class StdioLine implements Line {
   }
 
   /**
-   * T5: the stdin write end first, then the stdout read; the process is left alone. While any
-   * write has not completed the write end is aborted, not waited for: the peer may never read it.
-   * The read loops of stdout and standard error have ended when this returns.
+   * T5: the stdin write end first, then the stdout read; the process is left alone. Closing is
+   * giving up: the session settled every request before it closes the line, so no byte still
+   * needs to reach the peer. The write end is aborted, which ends the peer's input as closing it
+   * would, and never drained: a web write completes when the lower layer took the bytes, not when
+   * the peer read them, so draining would wait on a peer that does not read stdin (SPEC H6). The
+   * read loops of stdout and standard error have ended when this returns.
    */
   async close(): Promise<void> {
     if (this.closed) return
@@ -219,8 +213,7 @@ export class StdioLine implements Line {
     clearTimeout(this.window)
     this.writable = false
     this.closing.abort()
-    if (this.writes > 0) void this.writer.abort(new Error('the line closed')).catch(() => undefined)
-    else await this.writer.close().catch(() => undefined)
+    void this.writer.abort(new Error('the line closed')).catch(() => undefined)
     await this.stdout.cancel().catch(() => undefined)
     await this.stderr.cancel().catch(() => undefined)
     await Promise.all([this.reading, this.draining])

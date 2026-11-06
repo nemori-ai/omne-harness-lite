@@ -509,6 +509,16 @@ describe('broken streams and re-sending (T8 D15, O05, O06, C04, O07)', () => {
   })
 })
 
+describe('the events of a 2xx answer body (T2)', () => {
+  it('an SSE body whose first event is not a message event: only message events are read as answers', async () => {
+    const peer = await scripted({ listing: { '': result({ tools: [] }) } }, { sseNoise: true })
+    const transport = await open(materialOf(targetOf(peer)))
+    expect(await transport.listActions()).toEqual({ ok: { tools: [] } })
+    await transport.close()
+    await peer.close()
+  })
+})
+
 describe('the page and the headers (T2, T3)', () => {
   const bad = {
     name: 'bad',
@@ -690,6 +700,47 @@ describe('the legacy HTTP+SSE fallback (T3, T8 I07)', () => {
     expect(requestsOf(await crossOrigin.received(), 'initialize')).toHaveLength(1)
     await second.close()
     await crossOrigin.close()
+  })
+
+  it('the fallback GET refused with 401: discover is authorization-required with the metadata the peer serves, reportRejection once', async () => {
+    const plain = (status: number, body: string): PeerReply => ({
+      kind: 'http',
+      status,
+      headers: { 'content-type': 'text/plain' },
+      body,
+    })
+    const peer = await scripted(
+      {
+        discover: plain(404, 'nope'),
+        initialize: plain(400, 'bad'),
+        wellKnown: {
+          '/.well-known/oauth-protected-resource/mcp': {
+            authorization_servers: ['https://issuer.test'],
+          },
+        },
+      },
+      {
+        sseRefusal: {
+          status: 401,
+          headers: { 'www-authenticate': 'Bearer realm="x"', 'content-type': 'text/plain' },
+          bodyDelayMs: 0,
+        },
+      },
+    )
+    const handle = credential()
+    const transport = await open(materialOf(targetOf(peer), handle))
+    expect(await settledWithin(transport.discover())).toMatchObject({
+      settled: {
+        failure: {
+          kind: 'not-sent',
+          cause: 'authorization-required',
+          discovery: { metadata: 'fetched', issuers: ['https://issuer.test'] },
+        },
+      },
+    })
+    expect(handle.rejections()).toBe(1)
+    await transport.close()
+    await peer.close()
   })
 
   it('the reference server in its sse mode: the tools are listed and echo answers on the stream', async () => {

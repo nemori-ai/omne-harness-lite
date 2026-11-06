@@ -31,6 +31,8 @@ import {
   type TableCell,
   type TableConclusion,
 } from '@omne-harness/mcp-contract/testing'
+import type { Line, LineEvent } from '../src/line.ts'
+import { AsyncQueue } from '../src/queue.ts'
 import { Session, type SessionOptions } from '../src/session.ts'
 import { settledWithin } from './fixtures/settle.ts'
 import { MemoryLine, type Reply, type Script, type SseConfig } from './memory-line.ts'
@@ -39,6 +41,13 @@ import { MemoryLine, type Reply, type Script, type SseConfig } from './memory-li
 const schedule: SessionOptions['schedule'] = (delayMs, fire) => {
   const timer = setTimeout(fire, delayMs)
   return () => clearTimeout(timer)
+}
+
+/** The default defect outlet for the unit tests: thrown outside any promise, the guard of `unhandled.ts` fails the case. */
+const reportDefect: SessionOptions['reportDefect'] = defect => {
+  queueMicrotask(() => {
+    throw defect
+  })
 }
 
 const HIGHEST = '2026-07-28'
@@ -130,6 +139,7 @@ function open(
       return document === undefined ? undefined : jsonOf(document)
     },
     schedule,
+    reportDefect,
     ...options,
   })
   return { line, transport, credential }
@@ -1181,6 +1191,7 @@ describe('closing and the credential handle (T5, T9)', () => {
         probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
         schedule,
+        reportDefect,
       },
     )
     const pending = transport.call(echo, never)
@@ -1215,6 +1226,7 @@ describe('closing and the credential handle (T5, T9)', () => {
         probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
         schedule,
+        reportDefect,
       },
     )
     expect(await transport.discover()).toEqual({ failure: NOT_SENT })
@@ -1405,18 +1417,22 @@ describe('what the signal of a call and close() end (T5)', () => {
 
   it('close() settles a request in the authorization discovery there and then, closes the line, and does not wait for the metadata fetch it ended', async () => {
     const order: string[] = []
+    const fetching = deferred()
+    const metadataEnded = deferred()
     const { line, transport } = open(
       'streamable-http',
       { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
         fetchMetadata: (_url, signal) =>
           new Promise(resolve => {
+            fetching.resolve()
             signal.addEventListener(
               'abort',
               () =>
                 setTimeout(() => {
                   order.push('metadata-ended')
                   resolve(undefined)
+                  metadataEnded.resolve()
                 }, 30),
               { once: true },
             )
@@ -1429,9 +1445,7 @@ describe('what the signal of a call and close() end (T5)', () => {
       await closeLine()
     }
     const listing = transport.listActions()
-    await untilSent(line, 'tools/list')
-    await tick()
-    await tick()
+    await fetching.promise
     await transport.close()
     expect(order).toEqual(['line-closed'])
     expect(await settledWithin(listing)).toMatchObject({
@@ -1440,7 +1454,7 @@ describe('what the signal of a call and close() end (T5)', () => {
       },
     })
     // The fetch the signal ended comes back later; its result has nowhere to go.
-    await new Promise<void>(resolve => setTimeout(resolve, 60))
+    await metadataEnded.promise
     expect(order).toEqual(['line-closed', 'metadata-ended'])
   })
 })
@@ -1637,11 +1651,11 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
         probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
         schedule,
+        reportDefect,
       },
     )
     const listing = transport.listActions()
-    await untilSent(line, 'tools/list')
-    for (let round = 0; round < 50 && credential.rejections() === 0; round += 1) await tick()
+    await credential.rejected
     expect(credential.rejections()).toBe(1)
     expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
     expect(await settledWithin(listing)).toEqual({
@@ -1687,12 +1701,12 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
         probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
         schedule,
+        reportDefect,
       },
     )
     const controller = new AbortController()
     const calling = transport.call(echo, controller.signal)
-    await untilSent(line, 'tools/call')
-    for (let round = 0; round < 50 && credential.rejections() === 0; round += 1) await tick()
+    await credential.rejected
     controller.abort()
     expect(await settledWithin(calling)).toMatchObject({
       settled: { failure: { kind: 'not-sent', cause: 'authorization-required' } },
@@ -1736,15 +1750,14 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
       { sse: { kind: 'entered' }, gate: held.gate },
     )
     const discovering = transport.discover()
-    await untilSent(line, 'initialize')
-    for (let round = 0; round < 20; round += 1) await tick()
+    await held.reached
     expect(line.sseAttempts).toEqual([])
     expect(await settledWithin(transport.close())).toEqual({ settled: undefined })
     expect(await settledWithin(discovering)).toEqual({ settled: { failure: NOT_SENT } })
     expect(line.sseAttempts).toEqual([])
   })
 
-  it('a workflow that fails unexpectedly settles its request by its phase: a metadata fetch that throws leaves the request authorization-required with what was fetched', async () => {
+  it('a metadata fetch that throws at every address counts as nothing fetched (R4): authorization-required with the metadata unavailable, reportRejection once', async () => {
     const { transport, credential } = open(
       'streamable-http',
       { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
@@ -2092,3 +2105,98 @@ describe('the metadata fetch of a refused authorization (R4, T9)', () => {
     await transport.close()
   })
 })
+
+describe('a defect of the session goes to the defect outlet (DP-06): the request settles by its phase', () => {
+  type Defects = Readonly<{ seen: unknown[]; reportDefect: SessionOptions['reportDefect'] }>
+  const defects = (): Defects => {
+    const seen: unknown[] = []
+    return { seen, reportDefect: defect => seen.push(defect) }
+  }
+
+  it('a scheduler that throws: the probe it was armed for is abandoned, discover reports no-answer, and the throw is reported once', async () => {
+    const outlet = defects()
+    const { line, transport } = open(
+      'stdio',
+      { 'server/discover': [{ kind: 'silent' }] },
+      {
+        reportDefect: outlet.reportDefect,
+        schedule: () => {
+          throw new Error('the timer port broke')
+        },
+      },
+    )
+    expect(await settledWithin(transport.discover())).toEqual({
+      settled: { failure: { kind: 'no-answer', cause: 'abandoned' } },
+    })
+    expect(line.requests('server/discover')).toHaveLength(1)
+    expect(outlet.seen.map(describeDefect)).toEqual(['Error: the timer port broke'])
+    await transport.close()
+  })
+
+  it('a 2xx body that yields something that is not a message: the request is abandoned, not re-sent as a broken stream, and the throw is reported', async () => {
+    const outlet = defects()
+    const sent: string[] = []
+    const line: Line = {
+      kind: 'streamable-http',
+      events: new AsyncQueue<LineEvent>(),
+      async send(outbound) {
+        sent.push(outbound.text)
+        const messages = new AsyncQueue<string>()
+        // The line breaks its own port: the body yields a number where a message text is due.
+        messages.push(notAText())
+        return { kind: 'stream', headers: {}, messages, abort: () => undefined }
+      },
+      async close() {},
+    }
+    const transport = new Session(
+      line,
+      {
+        kind: 'stdio',
+        process: idleProcess(),
+        generation: generationOf(1),
+        instructionsByteLimit: 4096,
+      },
+      {
+        clientInfo: { name: 'host', version: '1' },
+        versions: VERSIONS,
+        probeTimeoutMs: 50,
+        fetchMetadata: async () => undefined,
+        schedule,
+        reportDefect: outlet.reportDefect,
+      },
+    )
+    expect(await settledWithin(transport.listActions())).toEqual({
+      settled: { failure: { kind: 'no-answer', cause: 'abandoned' } },
+    })
+    expect(sent).toHaveLength(1)
+    expect(outlet.seen.map(describeDefect)).toEqual(['TypeError: text must be a string'])
+    await transport.close()
+  })
+
+  it('an event of the shared stream that is not a text: the throw is reported, the reading goes on, and the next line still answers', async () => {
+    const outlet = defects()
+    const { line, transport } = open(
+      'stdio',
+      { 'tools/list': [{ kind: 'silent' }] },
+      { reportDefect: outlet.reportDefect },
+    )
+    const listing = transport.listActions()
+    await untilSent(line, 'tools/list')
+    line.queue.push({ kind: 'line', text: notAText() })
+    const id = line.requests('tools/list')[0]?.message['id']
+    line.push({ jsonrpc: '2.0', id: id ?? null, result: { tools: [] } })
+    expect(await settledWithin(listing)).toEqual({ settled: { ok: { tools: [] } } })
+    expect(outlet.seen.map(describeDefect)).toEqual(['TypeError: text must be a string'])
+    await transport.close()
+  })
+})
+
+/** A value the type calls text and is not one: what a line that breaks its port would hand over. */
+function notAText(): string {
+  const value: unknown = 42
+  return value as string
+}
+
+function describeDefect(defect: unknown): string {
+  return defect instanceof Error ? `${defect.name}: ${defect.message}` : String(defect)
+}
