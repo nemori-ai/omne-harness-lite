@@ -1,6 +1,6 @@
 # Skill领域交接设计
 
-状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)，本页只维护事实拥有者和跨领域交接。端口、服务与成员都是候选。`@omne-harness/skill-contract`、`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 三个成员都已有实现（候选，尚未技术接受）。`SkillCatalog` 也已实现。工程细化见[组工程设计](../../../packages/skills/docs/architecture.md)。成员状态见[组入口](../../../packages/skills/README.md#成员与依赖)：具名文档目标尚非 workspace 成员。
+状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)，本页只维护事实拥有者和跨领域交接。端口、服务与成员都是候选。`@omne-harness/skill-contract`、`@omne-harness/skill`、`@omne-harness/skill-host-local` 与 `skill-cordis-contract` 四个成员都已有实现（候选，尚未技术接受）。`SkillCatalog` 与 Cordis 插件也已实现。工程细化见[组工程设计](../../../packages/skills/docs/architecture.md)。成员状态见[组入口](../../../packages/skills/README.md#成员与依赖)。
 
 ## 责任与消费者
 
@@ -29,6 +29,8 @@ Skill 作为需求方声明下列端口，用自己的词说明需要什么。�
 | `SkillPackageSource`（[Skill 包来源](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-package-source--skill-包来源--skill-package-source)） | 按包定位与内容摘要交出 Skill 包的字节 | 本机目录：`skill-host-local` 的 `DirectorySource`，目录位置与参与条件由[工作区](../workspaces/README.md)给出。它的实际失败映射以成员入口[「Behavior」](../../../packages/skills/skill-host-local/README.md#behavior)为准。云端内容存储：存储能力组，存储契约尚不存在 | 只交字节与Skill 包快照，不判定用哪一份、谁能读。Skill 包快照带包根目录名，Skill 检查时用它核对 name。来源不可达与「没有候选」分开。来源分开报告六种失败：按包定位找不到包、包里没有该条目、交出的字节与条目内容摘要不符、条目落在包根之外、来源此刻不可达、条目不可读。取快照时，来源遇到设备、管道、套接字，或无法解析、成环的链接，答条目不可读（`entry-unreadable`）。遇到解析后落在包根之外的包内链接，答落在包根之外（`outside-package`），有这种链接的包整包不可读。Skill 先取快照，比较Skill 包快照的内容摘要与所钉材料的内容摘要。不符时，带Skill 材料依据报旧材料已不在，不带Skill 材料依据报已采用材料已变。Skill 再读条目字节，按条目内容摘要核对，不符时报版本已变，不交新内容 |
 | `SkillResolution` | 这个能力标识此刻对这个主体合法对应哪一份材料 | 会话路径：[装配与交接](../assembly-and-handoff/README.md)，按采用依据实现，掌握已知集合。独立路径：[资产与规则](../assets-and-rules/README.md)的求值 | Skill 不重做层级求值。实现方按下列次序答复：先判身份是否合法已知但此刻不可用，是就交原因与最后合法的 name、说明，带不带Skill 材料依据都一样。再判身份是否合法对应一份材料，是就交 `SkillRef` 与资产正文的声明投影。Skill 交来调用方的Skill 材料依据时，实现方只在身份合法对应之后核对依据所指的版本是不是该主体在此作用域可读的该能力的合法版本。依据不带资产版本（工作区来源）时，实现方按能力标识与来源层核对，字节由内容摘要钉住。合法就给出指向该材料的 `SkillRef`，不合法就答依据不合法。身份没有对应时答确定没有。无法判定时答无法判定。包定位总是由实现方当场给出，不取自调用方。资产版本不合 Skill 的资产版本词法时，Skill 无法表示这份材料，实现方答「合法已知但不可用」（`known-unavailable`），原因是资产版本不可表示。没有已知集合的实现方不答「合法已知但不可用」，所以独立路径通常不出现替换件。当前合法集合为空时答空集合，这不是失败。集合修订号留在实现方一侧，不进入 Skill 的契约。对无权主体，答复不得随该身份是否存在而变，由 Skill 的 `./testing` 符合性套件核对。会话路径要求采用依据记下 Skill 包快照的内容摘要，这是具名剩余义务，见[剩余义务](#剩余义务) |
 | `SkillReadCheck` | 这个主体此刻能不能读这个能力标识 | [身份与授权](../identity-and-authorization/README.md)，结合资产的持有与选入 | 只按能力标识判定，不需要 `SkillRef`。答复是准许、拒绝或无法判定。对无权主体，答复不得随该身份是否存在而变，由 Skill 的 `./testing` 符合性套件核对。每次操作现场核验，不缓存。摘要与检索先按请求过滤或按查询匹配，只对留下的身份问它。撤权在下一次操作生效 |
+
+在 Cordis 装配里，`SkillResolution` 与 `SkillReadCheck` 的实现方把实现包成 `skill-cordis-contract` 的抽象 Service 的子类，在键 `skillResolution`、`skillReadCheck` 上提供。Skill 的插件每次调用都从键现取，不写 `inject`；键缺席时的答复见 [skill-host-local 成员规格](../../../packages/skills/skill-host-local/SPEC.md#port-absent)。M2 之前这两个端口还没有他域的提供者。
 
 资产保存的 Skill 正文带Skill 包快照的内容摘要，由 Skill 的 `projectAssetBody` 写入。包字节由Skill 包来源交出。旧正文没有这一内容摘要时，Skill 只交描述，不交Skill 材料依据，读取与导出返回不支持。正文形状见[组工程设计「资产正文与 Skill 包」](../../../packages/skills/docs/architecture.md#资产正文与-skill-包)。
 

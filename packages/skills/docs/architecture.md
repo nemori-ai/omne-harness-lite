@@ -2,7 +2,7 @@
 
 状态：工程设计草案。本页的成员、模型、端口、应用服务、失败种类与技术处置都是候选决定，尚未取得技术接受。`@omne-harness/skill-contract`、`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 都已有实现（候选，尚未取得技术接受）。各成员的行为以成员规格为准：[skill-contract](../skill-contract/SPEC.md)、[skill](../skill/SPEC.md)、[skill-host-local](../skill-host-local/SPEC.md)。`@omne-harness/skill` 实现 `PackageInspection`、`SkillCatalog` 与 `SkillAccess`。三个服务只对内存替身与 `SkillAccess`、`SkillCatalog` 的符合性套件验证过。另有有限范围的模型与探索器结果，见[性质账本](../skill/verification/README.md#ledger)。`DirectorySource` 在真实临时目录上通过来源的符合性套件。真实的读取判定与对应都还没有验证过。新公开承诺在实施交付时走技术接受。
 
-本页只写组内的分解、模型、端口形状、应用服务、失败种类与技术处置。跨领域交接见[领域交接设计](../../../docs/domains/skills/architecture.md)。成员、具名文档目标与允许依赖见[组入口](../README.md#成员与依赖)。
+本页只写组内的分解、模型、端口形状、应用服务、失败种类与技术处置。跨领域交接见[领域交接设计](../../../docs/domains/skills/architecture.md)。成员与允许依赖见[组入口](../README.md#成员与依赖)。
 
 ## 设计守则
 
@@ -62,6 +62,7 @@
 - 值：见[模型](#模型)。
 - 纯函数：见[应用服务](#应用服务)末尾。
 - 服务：`PackageInspection`、`SkillCatalog` 与 `SkillAccess`，见[应用服务](#应用服务)。
+- Cordis 服务键：`skill-cordis-contract` 的 `./cordis` 为三个服务给出键 `skillPackageInspection`、`skillCatalog`、`skillAccess`，为两个他域端口给出键 `skillReadCheck`、`skillResolution`，每个键一个抽象 Service 与一个键常量（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。`skill-host-local` 的 `./cordis` 插件 `skillPlugin` 在三个服务键上提供服务，每次端口调用从两个端口键现取。见各自的成员规格。
 - 实现方入口：`@omne-harness/skill-contract/provider` 导出三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot` 与 `SnapshotDefect`。公开根不导出这些。调用方用公开根，拿不到 `SkillRef` 与包定位。这沿 `tool-contract` 的先例。各入口的内容见成员规格[入口](../skill-contract/SPEC.md#entries)。
 - 符合性设施：`@omne-harness/skill-contract/testing` 导出 `SkillPackageSource`、`SkillReadCheck` 与 `SkillResolution` 的符合性套件，以及这三个端口的内存替身。`SkillReadCheck` 与 `SkillResolution` 的套件核对：对无权主体，答复不随该身份是否存在而变。`./testing` 另有 `SkillAccess` 与 `SkillCatalog` 的符合性套件。每个套件是不依赖测试框架的用例列表，实现方在自己的测试框架里逐个登记并运行。夹具缺少用例需要的东西时，用例抛出 `NotApplicable`，这不算通过也不算失败，实现方单独计数。套件见成员规格[符合性套件](../skill-contract/SPEC.md#conformance)。
 
@@ -578,7 +579,7 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 
 ## 完整行为候选的正式承接缺口
 
-原任务的完整行为候选尚未采用。下表写明每份候选由哪个成员或拥有者承接。波次只有三种：第一波、第一波之后、Cordis 服务键波。`@omne-harness/skill-contract` 是已实现的 workspace 成员。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 是 workspace 成员，已有实现（候选），包括 `SkillCatalog`。Cordis 插件部分还没有实现。`skill-cordis-contract` 是具名文档目标，尚非 workspace 成员。逐条不变式与验证义务在实施时随成员规格分配。过程稿不作为正式导航依赖。
+原任务的完整行为候选尚未采用。下表写明每份候选由哪个成员或拥有者承接。波次只有三种：第一波、第一波之后、Cordis 服务键波。`@omne-harness/skill-contract` 是已实现的 workspace 成员。`@omne-harness/skill`、`@omne-harness/skill-host-local` 与 `skill-cordis-contract` 是 workspace 成员，已有实现（候选），包括 `SkillCatalog` 与 `skill-host-local` 的 Cordis 插件部分。逐条不变式与验证义务在实施时随成员规格分配。过程稿不作为正式导航依赖。
 
 | 原候选 | 承接者 | 承接方式 | 状态 |
 | --- | --- | --- | --- |
@@ -586,5 +587,5 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 | `content-adoption-and-evolution.md` | 不归本组成员。由承接内容的各方维护，见 [Q-SK03](#q-sk03-两条内容采用路径与可靠交接协议) | 各拥有者的契约 | 尚未承接 |
 | `script-execution-bridge.md` | 不归本组成员。本组只承接脚本声明、包导出与脚本身份，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议)。执行与控制归 Tool 与执行环境 | 各拥有者的契约 | 尚未承接 |
 | 总览、完整不变式及持续验证范围 | 组维护者。各成员规格承接本成员的不变式。`@omne-harness/skill-contract/testing` 的符合性套件承接来源与读取的共同验证，以及 `SkillReadCheck` 与 `SkillResolution` 的不披露要求 | 实施时 | 尚未承接 |
-| Cordis 服务键与抽象 Service | `skill-cordis-contract`，暂不进应用插件树 | Cordis 服务键波 | 尚未承接 |
-| Cordis 插件 | `skill-host-local` 的 Cordis 插件部分，依赖 `skill-cordis-contract` | Cordis 服务键波 | 尚未承接 |
+| Cordis 服务键与抽象 Service | `skill-cordis-contract`，暂不进应用插件树 | Cordis 服务键波，见[成员规格](../skill-cordis-contract/SPEC.md) | 候选，已有实现，尚未取得技术接受 |
+| Cordis 插件 | `skill-host-local` 的 Cordis 插件部分（`./cordis` 的 `skillPlugin`），依赖 `skill-cordis-contract` | Cordis 服务键波，见[成员规格「Cordis 插件」](../skill-host-local/SPEC.md#cordis-插件) | 候选，已有实现，尚未取得技术接受。应用插件树中的装配没有执行 |
