@@ -20,7 +20,9 @@
 - [host-containment.spec.ts](host-containment.spec.ts)：真实 systemd 用户 scope 里的封闭收纳：命令或终端里经 `setsid` 与双重 fork 脱离会话与父进程的进程仍在执行域里，被计数、被保留，并在保留范围封闭、没有保留绑定（`unbound`）与终端关闭时随执行域停止；只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1`（终端部分另要 `OMNE_HOST_TERMINAL_LINUX=1`）时运行，归慢层
 - [command-retention-conformance.spec.ts](command-retention-conformance.spec.ts)：契约套件 `commandRetentionConformance` 在真实宿主提供者上的六条 `V-EE28.` 用例：处置形状、`list` 隔离、移交之后句柄的停止、范围封闭后单元已停、没有账本视图时的停止原因。慢层，只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行。
 - [host-command-custody.spec.ts](host-command-custody.spec.ts)：一次性命令留下的执行域的归属，用假 `systemd-run`（充当门）与假 `systemctl` 驱动真实的 `createHostCommands` 与保留进程索引：移交确认后第 k 个微任务到来的释放（B1）、未读移交的再问只有一个（B2）、移交之后句柄的停止不作用于执行域（N1）、确认而被打断的移交归保留范围并作为停止中的项占名额（N2）、索引加载不结束时处置仍在期限内结束（N4）、`HostTerminalOptions` 不带留下的进程的选项；快层，只在 Linux
-- [host-command-frames.spec.ts](host-command-frames.spec.ts)：门的帧读取、输出缓冲与单一读者、停止确认的判断、恢复引用的读取、监督工具的运行；不起 scope，两个平台都运行
+- [host-command-frames.spec.ts](host-command-frames.spec.ts)：门的帧读取与退出帧解码、输出缓冲与单一读者、停止确认的判断、恢复引用的读取、监督工具的运行；不起 scope，两个平台都运行
+- [host-command-options.spec.ts](host-command-options.spec.ts)：命令配置的校验：每个字段的接受与拒绝边界、逐字报错文本、多项非法时的检查次序、默认值参与的块与缓冲比较，`commandSettings` 的初值与 RangeError；不起进程
+- [host-command-disposition.spec.ts](host-command-disposition.spec.ts)：一次性命令的启动拒绝、门没有退出帧就结束、处置的停止原因及次序、移交与未知提交的再问、句柄的两种停止、释放与保留进程的列出；真实命令设施与保留进程索引运行在假监督工具上，每次等待都有上界；快层，只在 Linux
 - [host-probe.spec.ts](host-probe.spec.ts)：`command` 的平台前提探测：改变真实环境后答 `unavailable` 与诊断，前提恢复后再启动；探测程序的退出与停止结果对应的前提项
 - [scope-cgroup.spec.ts](scope-cgroup.spec.ts)：统一、混合与 v1 布局下单元目录的解析，进程是否在自己的单元里，以及探测程序不在自己单元里时不以 0 退出
 - [host-scope.spec.ts](host-scope.spec.ts)：单元成员读数的每个结果（已知目录直读、监督工具读失败为不可读、单元已停为 `gone`、没有控制组为不可读、映射到可读目录为成员），用假 `systemctl` 驱动；快层，只在 Linux
