@@ -92,14 +92,22 @@ function spawnPeer(args: readonly string[], env?: Readonly<{ [name: string]: str
   })
   const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
   async function recorded(): Promise<void> {
-    // A write the caller started without waiting for it (a notification, `cancelRequest`) reaches
-    // the pipe within this turn of the event loop: let it go first, so the sync line follows it.
-    await new Promise(resolve => setImmediate(resolve))
     const stdin = child.stdin
-    // A peer that exited, or whose stdin is closed, reads no more lines: its last records are in
-    // once its pipes close.
-    if (child.exitCode !== null || child.signalCode !== null || stdin === null || !stdin.writable)
-      return closed
+    // The sync line goes into the pipe directly. The caller's lines go through the web stream of
+    // `handle.stdin` first, and that stream holds back every line after one the pipe could not take
+    // at once, until 'drain'. So the sync line waits until the stream has handed over every line.
+    // A write the caller started without waiting for it (a notification, `cancelRequest`) reaches
+    // the stream within this turn of the event loop. The stream hands over its queue in the turn
+    // where the pipe takes more. So after a turn, the queue is empty unless the pipe waits for 'drain'.
+    for (;;) {
+      await new Promise(resolve => setImmediate(resolve))
+      // A peer that exited, or whose stdin is closed, reads no more lines: its last records are in
+      // once its pipes close.
+      if (child.exitCode !== null || child.signalCode !== null || stdin === null || !stdin.writable)
+        return closed
+      if (!stdin.writableNeedDrain) break
+      await Promise.race([new Promise(resolve => stdin.once('drain', resolve)), closed])
+    }
     syncs += 1
     const n = syncs
     const confirmed = new Promise<void>(resolve => synced.set(n, resolve))
@@ -133,10 +141,8 @@ export async function stdioPeer(
   options: StdioPeerOptions = {},
 ): Promise<StdioPeer> {
   const plan = unsentPlan(script)
-  const env =
-    options.recordDelayMs === undefined
-      ? undefined
-      : { OMNE_PEER_RECORD_DELAY_MS: String(options.recordDelayMs) }
+  // Always set, so that a value in the environment of the test run does not reach the peer.
+  const env = { OMNE_PEER_RECORD_DELAY_MS: String(options.recordDelayMs ?? 0) }
   const spawned =
     plan === 'unreachable'
       ? spawnPeer(['-e', CLOSED_STDIN])

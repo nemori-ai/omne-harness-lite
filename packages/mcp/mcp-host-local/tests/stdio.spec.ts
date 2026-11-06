@@ -367,6 +367,26 @@ describe('the scripted peer fixture: received() waits until the peer confirms it
     await peer.close()
   })
 
+  it('returns the record of a line that waited behind a line the pipe could not take at once', async () => {
+    const peer = await stdioPeer({}, { kind: 'stdio' }, VERSIONS)
+    if (peer.material.kind !== 'stdio') throw new Error('a stdio peer has stdio material')
+    const writer = peer.material.process.stdin.getWriter()
+    const encoder = new TextEncoder()
+    // A JSON value that is not a message: the peer reads it and records nothing. It is far larger
+    // than the pipe holds, so the next line waits in the web stream until the pipe drains.
+    const large = writer.write(encoder.encode(`${JSON.stringify('x'.repeat(1 << 20))}\n`))
+    const small = writer.write(
+      encoder.encode(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/small' })}\n`),
+    )
+    const methods = (await peer.received()).flatMap(entry =>
+      entry.kind === 'notification' ? [entry.method] : [],
+    )
+    expect(methods).toEqual(['notifications/small'])
+    await Promise.all([large, small])
+    writer.releaseLock()
+    await peer.close()
+  })
+
   it('fails with the bound in its message when the peer does not confirm within it', async () => {
     const peer = await stdioPeer({}, { kind: 'stdio' }, VERSIONS, {
       recordDelayMs: 1_000,
