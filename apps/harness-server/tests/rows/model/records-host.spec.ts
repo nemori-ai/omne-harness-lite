@@ -1,3 +1,5 @@
+import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
+import { LOCAL_TOKENIZERS } from '../../../src/local/operator-defaults.ts'
 // The `model-records` and `model-host` rows on the real storage rows (B3-M, `tmp/wire-model/design.md`):
 // real SQLite storage, the real `session-storage`, `authorization`, `model-profiles`,
 // `model-request-preparation` and `model-credential` rows, the release entry objects, and the
@@ -129,11 +131,12 @@ function rowsOf(storageRoot: string, options: { credential: boolean }) {
       id: 'session-storage',
       plugin: 'sessionStorageRow',
       config: {
-        combinationVersion: 'session-composite/4',
+        combinationVersion: 'session-composite/5',
         directoryFile: join(storageRoot, 'tenant-domains.json'),
         domainRule: 'organization-account/1',
       },
     },
+    { id: 'model-tokenizers', plugin: 'modelTokenizersRow', config: LOCAL_TOKENIZERS },
     { id: 'model-profiles', plugin: 'modelProfilesRow', config: model.profiles },
     {
       id: 'model-request-preparation',
@@ -149,6 +152,7 @@ function rowsOf(storageRoot: string, options: { credential: boolean }) {
 }
 
 const plugins = {
+  modelTokenizersRow,
   stubPlugin,
   storageRow,
   identityStandIn,
@@ -312,6 +316,29 @@ describe('the model-records and model-host rows', () => {
           diagnostic: 'send boundary is not provided',
         },
       })
+    },
+  )
+
+  it(
+    'keeps durable commands available when the shared tokenizer provider is absent',
+    { timeout: 60_000 },
+    async () => {
+      const { storageRoot } = workspace()
+      const { value, run } = await withLiveRows(
+        {
+          rows: rowsOf(storageRoot, { credential: true }).filter(
+            row => row.id !== 'model-tokenizers' && row.id !== 'model-request-preparation',
+          ),
+          plugins,
+          entryObjects,
+          probe: [modelCommandsKey, modelRuntimeKey],
+        },
+        ctx => ({ commands: ctx.get(modelCommandsKey), boundary: ctx.get(modelSendBoundaryKey) }),
+      )
+      expect(run.result.exitCode).toBe(0)
+      expect(run.state('model-records')).toMatchObject({ state: 'ACTIVE' })
+      expect(value.commands).toBeDefined()
+      expect(value.boundary).toBeUndefined()
     },
   )
 

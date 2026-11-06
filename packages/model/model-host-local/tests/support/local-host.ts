@@ -1,3 +1,4 @@
+import { testExecutor } from './executor.ts'
 // Test support of the slow layer: one local host over a vault, the two real families and the
 // in-memory ModelCommands of model, assembled with `assembleLocalModel` and driven by the real
 // Model runtime. The vault holds a placeholder. The gateway is a local HTTPS server that the spec
@@ -52,15 +53,24 @@ const FAMILY_LIMITS = {
 /** The margin of both families: 10 percent of the estimated part. A test parameter. */
 export const MARGIN_PERCENT = 10n
 const MARGIN = { percent: String(MARGIN_PERCENT), source: TEST_ADOPTION }
+export const EXECUTOR = await testExecutor([
+  openAiTokenizerResources(),
+  anthropicTokenizerResources(),
+])
+
 /** The two real families with their tokenizers, the test limits and the test margin. */
 export const FAMILIES = composeFamilies([
   createOpenAiFamily({
     tokenizer: openAiTokenizerResources(),
+    executor: EXECUTOR,
+    maxSerializedBytes: 4 * 1024 * 1024,
     limits: FAMILY_LIMITS,
     margin: MARGIN,
   }),
   createAnthropicFamily({
     tokenizer: anthropicTokenizerResources(),
+    executor: EXECUTOR,
+    maxSerializedBytes: 4 * 1024 * 1024,
     limits: FAMILY_LIMITS,
     margin: MARGIN,
   }),

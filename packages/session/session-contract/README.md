@@ -107,3 +107,7 @@ acceptance/               Template placeholder, fixtures/ too
 ```
 
 Each directory has README.md for its role and index.md for navigation. The `src/`, `tests/`, and `verification/` pages describe the current package and its verification resources. The directories marked as placeholders above retain their template status. See [index.md](index.md) for reading paths.
+
+## Session todos
+
+SessionWork includes addTodo, removeTodo, markTodoComplete and listTodos. SessionTodos is their narrow type projection. The [Todo contract](SPEC.md#session-todo-状态与操作) defines identities, tombstones, original-operation recovery and revision-bound pages. Todo facts do not schedule Agent work. Automatic Runtime Context projection remains blocked.

@@ -40,13 +40,13 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 
 `serve` 的参数都可以省略。省略的参数取下面的值：
 
-| 参数                     | 省略时                                                                     |
-| ------------------------ | -------------------------------------------------------------------------- |
-| `--distribution`         | 随应用发行的 `config/serve.distribution.json`                              |
+| 参数                     | 省略时                                                                                  |
+| ------------------------ | --------------------------------------------------------------------------------------- |
+| `--distribution`         | 随应用发行的 `config/serve.distribution.json`                                           |
 | `--operator`             | 本机单用户档的运维者层，由配置文件与发行层在启动时生成，见[本机单用户档](#本机单用户档) |
-| `--readiness-timeout-ms` | 30000                                                                      |
-| `--shutdown-deadline-ms` | 10000                                                                      |
-| `--state-root`           | 本机单用户档的状态目录                                                     |
+| `--readiness-timeout-ms` | 30000                                                                                   |
+| `--shutdown-deadline-ms` | 10000                                                                                   |
+| `--state-root`           | 本机单用户档的状态目录                                                                  |
 
 只有省略 `--operator` 或 `--state-root` 时，入口才读本机的配置与状态目录。两个都给出时，行为与加入默认值之前相同。
 
@@ -136,10 +136,10 @@ Next:
   then, in another terminal: omne register --login-identifier <name>
 ```
 
-| 退出码 | 含义                                                                                     |
-| ------ | ---------------------------------------------------------------------------------------- |
-| 0      | 完成，或 `--help`                                                                        |
-| 1      | 一步失败：凭据读不到或不合格、保管库读不出或写不成、保管库路径上是目录或链接、目录或配置文件写不成 |
+| 退出码 | 含义                                                                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------ |
+| 0      | 完成，或 `--help`                                                                                      |
+| 1      | 一步失败：凭据读不到或不合格、保管库读不出或写不成、保管库路径上是目录或链接、目录或配置文件写不成     |
 | 2      | 参数不对、位置变量不合格、已有设置不合格而没有 `--reset`、设置不同而没有 `--reconfigure`、Shell 不存在 |
 
 凭据步骤失败时，标准错误写 `setup: model credential not stored: <原因>`。原因来自保管库操作的原因代码，不含凭据。例外是替换后收窄权限失败（`written-not-private`）：这时新凭据已经写进文件，旧凭据已不在，所以标准错误写 `setup: the new model credential was written to <路径>, but the file could not be made private to this user (mode 0600)`，再写一行 `Set the mode yourself (chmod 600 <路径>), then run setup again to check it.`，退出 1。
@@ -157,16 +157,16 @@ Next:
 
 `src/local/operator-defaults.ts` 的 `localOperatorLayer` 生成本档的运维者层。发行层不写数值默认值（R2-D6），所以本档的数值在这里。每一行都是 `replace`。配置从发行层该行的配置开始，再叠加本档的键。因此本档不重抄发行层拥有的值：`storage` 的 `maxJsonDepth`、`agent-host` 的 `jointCommits` 与 `coordination`。`session-storage`、`model-records`、`tool-records` 的 `combinationVersion` 取发行层 `session-handoff` 行的值。发行层没有这个值时，入口以退出码 2 拒绝。本档的键与发行层同一行的键不重叠。
 
-| 行                                                                              | 本档给出                                                                                                                                       |
-| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storage`                                                                       | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半                                                    |
-| `session-storage`                                                               | 目录文件 `<存储根>/tenant-domains.json`，规则 `organization-account/1`                                                                         |
-| `model-credential`                                                              | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密                                                                                         |
-| `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由是 OpenRouter                                                                                              |
-| `tool-host`                                                                     | Shell：可执行文件取配置，参数见下，`cwd` 是工作区，结果上限 32768 字节。Files：`cwd` 是工作区，结果上限 32768 字节                             |
-| `tool-records`、`execution-host`                                                | 文件根是工作区，宿主状态目录是 `host-files/`                                                                                                  |
-| `request-context`、`agent-context`、`agent-host`、`session-ad03`、`session-ad04` | 各自的上限与工厂数值                                                                                                                           |
-| `server-entry`                                                                  | 端口取配置。`historyKinds` 是 `message.user`、`message.assistant`、`message.tool`、`message.system_reminder`、`run.started`、`run.terminal` |
+| 行                                                                               | 本档给出                                                                                                                                    |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`                                                                        | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半                                                 |
+| `session-storage`                                                                | 目录文件 `<存储根>/tenant-domains.json`，规则 `organization-account/1`                                                                      |
+| `model-credential`                                                               | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密                                                                                      |
+| `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由是 OpenRouter                                                                                           |
+| `tool-host`                                                                      | Shell：可执行文件取配置，参数见下，`cwd` 是工作区，结果上限 32768 字节。Files：`cwd` 是工作区，结果上限 32768 字节                          |
+| `tool-records`、`execution-host`                                                 | 文件根是工作区，宿主状态目录是 `host-files/`                                                                                                |
+| `request-context`、`agent-context`、`agent-host`、`session-ad03`、`session-ad04` | 各自的上限与工厂数值                                                                                                                        |
+| `server-entry`                                                                   | 端口取配置。`historyKinds` 是 `message.user`、`message.assistant`、`message.tool`、`message.system_reminder`、`run.started`、`run.terminal` |
 
 Shell 的参数按可执行文件名定：`powershell` 或 `pwsh` 在 Windows 上取 `-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command` 再加一段 UTF-8 前导（见下），在其他平台取 `-NoLogo -NoProfile -NonInteractive -Command`。其他可执行文件取 `-c`。Windows PowerShell 的默认执行策略不让运行本地脚本。`-ExecutionPolicy Bypass` 只作用于这一个 Shell 进程，不改宿主的策略。
 
@@ -178,10 +178,10 @@ Shell 进程不继承服务进程的环境。它的环境是 `server.json` 的 `
 
 `setup` 按下面的白名单从自己的环境取 `shellEnvironment`。Windows 上按名字比较时不分大小写，例如 `Path` 记为 `PATH`。值为空的变量不取。
 
-| 平台     | 白名单                                                                                                                                       |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 平台     | 白名单                                                                                                                                                            |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Windows  | `PATH`、`PATHEXT`、`SystemRoot`、`SystemDrive`、`WINDIR`、`ComSpec`、`USERPROFILE`、`APPDATA`、`LOCALAPPDATA`、`ProgramData`、`ProgramFiles`、`ProgramFiles(x86)` |
-| 其他平台 | `PATH`、`HOME`、`USER`、`LANG`、`LC_ALL`                                                                                                     |
+| 其他平台 | `PATH`、`HOME`、`USER`、`LANG`、`LC_ALL`                                                                                                                          |
 
 所以 Shell 里的 `PATH` 是运行 `setup` 时的 `PATH`，agent 能找到 `git`、`node`、`python` 这些工具。宿主上装了新工具、`PATH` 变了时，运行 `setup --reconfigure` 重新取。
 
@@ -190,6 +190,20 @@ Shell 进程不继承服务进程的环境。它的环境是 `server.json` 的 `
 用户可以改 `shellEnvironment` 来增减变量，也可以用 `--operator` 给出整份运维者层，在 `tool-host` 行写自己的 `construction.Shell.env`。经 `--operator` 配置的文件根必须是真实路径。Windows 上联接或符号链接作根不受支持：路径守卫放行时文件后端仍拒绝，以拒绝为准。
 
 数值来自联调 B 的运维者层与 coding agent 教程的运维者层。两者不同时取教程的值，因为教程在 WIRE 头 `1a34bcba6` 上用真实模型跑通了 15 次工具调用。`tools/joint-b/operator.mjs` 经构建产物消费同一份默认值，只换路径与测试工厂秘密。
+
+本地档的 SQL 单参加者响应上限为 256 KiB。四个驻留工具的 coding 定义创建 Session 时已超过原 64 KiB。Tools 读取约 50 KiB 结果时，消息准入回执同时保留原意图、结果请求与准入消息，超过中间的 128 KiB 配置并触发 `response_limit` 回滚。当前预算为既有 64 KiB 结果页及其回执封套留出空间；真实 SQLite 回归验证完整保存、原身份和同键认回。总操作响应仍为 1 MiB，全局及组预留不变。该预算服务当前发行档，不承诺任意大小的定义或消息均可接纳；超限仍明确失败并回滚，不扩大消息恢复权限。
+
+### Tools 与会话待办的发行采用
+
+当前正式发行采用 Shell、Files、Tools 和 TodoItems，coding 定义将四项声明为常驻候选。实际常驻集合由 Session 的 WorkSnapshot.residents 提供。Tools 的当前目录由受信会话工作身份、活动 Session、其 adopted AgentDefinition 引用与正式发行资产求交，并保留已经实际持有的常驻项。references.resident 不替代实际持有事实。当前适配只支持官方发行，不声称组织、租户、工作区资产解析或自动继承已经实现。
+
+search 只返回合法非常驻，四项均已实际常驻时成功返回空页；inspect 可查看两类工具。Tools.execute 经原 Tool runtime 启动非常驻目标，准备与实际启动分别核当前纳入、常驻状态及目标授权规则。目标继承父调用的租户、主体和资源上限，不采用父 Tools 获准作为目标授权。已受理调用的结果保管与当前新启动资格分别处理。发现和执行不把目标加入模型直接 tool call 列表。Agent 的直接调用在运行时准入与首次启动处要求目标属于当前实际常驻集合，即使模型直接返回合法但非常驻的工具名也拒绝。该检查依据当前 Session 事实，不声称绑定原模型请求发送时的声明快照。
+
+发行提供者按当前 generation 保留成功校验的普通 ToolDefinition 副本，最多保留该清单的定义数量，不保留 executor、作者对象或运行句柄。live contribution 卸载不删除这份定义；当前会话合法 view 可据此返回 known-unavailable。当前资格仍逐次核验，元数据不是执行授权。提供者不保存跨旧发行的耐久历史。重新启动只重新取得当前发行可合法装载的定义，旧发行历史能力记忆须由采用拥有者另行承接。
+
+TodoItems 作者只得到本次执行绑定的清单能力。应用从可信 Session 工作主体和原 ToolCallId 取得 Session 范围及稳定操作身份，并固定命令与参数；模型不提供 Session、租户或主体标识。每次访问经 Session 当前授权，状态、原操作回执与访问证据同事务提交。add/remove/mark_complete 逐项生效，list 保留完成项并隐藏已移除项，跨 Run 沿同一 Session 延续。提交未知须认回原操作，不能用新模型调用代替。执行作用域关闭后撤销绑定能力。
+
+清单结果通过既有 Tool→Agent 结果链进入历史，同 Session 接续按使用指导主动 list。本次发行未采用自动 Runtime Context 待办投影，不承诺自动注入或每次模型请求必见最新待办；这些保证不能从逐项持久清单推导。
 
 ## 插件树与运维层
 
@@ -297,22 +311,22 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 
 `serve` 沿用这五种记录，差别如下（DP1-C3）：
 
-| 记录             | 与 S0 的差别                                                                                                                                                                                                                                                |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tree`           | `implementation` 按行取 `real`、`contract-double` 或 `s0-double`                                                                                                                                                                                            |
-| `entry-object`   | 新增，只在 `serve`。每个入口对象一条：`name`、`implementation`、`trusted`。不含对象的值。`s0.assemblyLifecycle` 记 `real`，占位对象记 `s0-double`。与 `tree` 一样在装载前完整输出                                                                           |
+| 记录             | 与 S0 的差别                                                                                                                                                                                                                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tree`           | `implementation` 按行取 `real`、`contract-double` 或 `s0-double`                                                                                                                                                                                                                                              |
+| `entry-object`   | 新增，只在 `serve`。每个入口对象一条：`name`、`implementation`、`trusted`。不含对象的值。`s0.assemblyLifecycle` 记 `real`，占位对象记 `s0-double`。与 `tree` 一样在装载前完整输出                                                                                                                             |
 | `log`            | 新增，只在 `serve`。`level`（`error`、`info` 或 `warn`）、`name`（记录器名）、`text`（格式化后的消息）。根上登记的导出器把级别不高于 WARN 的 Cordis 日志各写成一条，DEBUG 不输出（R2-D253）。消息带什么由各行负责，导出器不另裁剪。格式化失败时 `text` 是固定文字，写出失败时这条丢弃，都不抛给记日志的调用方 |
-| `startup-result` | `profile: 'real'`、`scope: 'serving'`。`accepting` 见「就绪与诊断」。新增 `implementations`：三种实现各自的行数                                                                                                                                             |
-| 之后             | `accepting` 为 true 时进程等停止请求：`--stop-on-stdin-close`、SIGINT、SIGTERM 或运行期换代。收到后 stderr 写 `serve: stop requested: <原因>`，再走有序关闭。启动码非零时与 S0 一样立即发起计划停止。装载前拒绝时 stdout 只有 `tree` 与 `entry-object` 记录 |
+| `startup-result` | `profile: 'real'`、`scope: 'serving'`。`accepting` 见「就绪与诊断」。新增 `implementations`：三种实现各自的行数                                                                                                                                                                                               |
+| 之后             | `accepting` 为 true 时进程等停止请求：`--stop-on-stdin-close`、SIGINT、SIGTERM 或运行期换代。收到后 stderr 写 `serve: stop requested: <原因>`，再走有序关闭。启动码非零时与 S0 一样立即发起计划停止。装载前拒绝时 stdout 只有 `tree` 与 `entry-object` 记录                                                   |
 
-| 退出码 | 含义                                                                                                      |
-| ------ | --------------------------------------------------------------------------------------------------------- |
-| 0      | 启动全部 ACTIVE 且关闭 settled。`serve` 还要求停止来自请求                                                |
-| 1      | 未预期的内部错误，stderr 写 `<子命令>: internal error: ...`                                               |
+| 退出码 | 含义                                                                                                                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0      | 启动全部 ACTIVE 且关闭 settled。`serve` 还要求停止来自请求                                                                                             |
+| 1      | 未预期的内部错误，stderr 写 `<子命令>: internal error: ...`                                                                                            |
 | 2      | 配置、解析或装载前检查失败，也含用法错误：参数缺失、路径不是绝对路径、JSON 读不出、状态根不是已存在的目录。也含 `serve` 省略参数而本机没有完成 `setup` |
-| 3      | 至少一行 FAILED，或启动期 `start` 抛出，或（`serve`）目录准备失败、一个入口对象的 `install` 抛出           |
-| 4      | 仍有 PENDING 或未完成 LOADING                                                                             |
-| 5      | 启动码为 0 但关闭 incomplete                                                                              |
+| 3      | 至少一行 FAILED，或启动期 `start` 抛出，或（`serve`）目录准备失败、一个入口对象的 `install` 抛出                                                       |
+| 4      | 仍有 PENDING 或未完成 LOADING                                                                                                                          |
+| 5      | 启动码为 0 但关闭 incomplete                                                                                                                           |
 
 启动码非零时取启动码。启动期 `start` 抛出时，`outcome` 为 `start-failed`，退出码为 3，见「有序关闭」节「启动与停止状态」第 3 条。`serve` 里一个入口对象的 `install` 抛出时，入口不装载任何行，stderr 写 `serve: entry-object <名>: install failed`，错误消息不写进 stdout，然后发起计划停止，退出 3。这时没有行登记过句柄，关闭报告把预期登记者记为 `not-registered`。
 

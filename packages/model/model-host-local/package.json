@@ -53,7 +53,8 @@
     "@types/node": "catalog:",
     "@types/proper-lockfile": "^4.1.4",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness/tokenizer-tiktoken": "workspace:*"
   },
   "omneHarness": {
     "packageTemplate": {

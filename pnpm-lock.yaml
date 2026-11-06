@@ -287,6 +287,9 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../packages/storage/sqlite-provider
+      '@omne-harness/tokenizer-tiktoken':
+        specifier: workspace:*
+        version: link:../../packages/model/tokenizer-tiktoken
       '@omne-harness/tool':
         specifier: workspace:*
         version: link:../../packages/tool/tool
@@ -1121,6 +1124,9 @@ importers:
       '@omne-harness/runtime-context-contract':
         specifier: workspace:*
         version: link:../runtime-context-contract
+      '@omne-harness/tokenizer-tiktoken':
+        specifier: workspace:*
+        version: link:../../model/tokenizer-tiktoken
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1740,6 +1746,9 @@ importers:
       '@omne-harness/pi-ai-anthropic':
         specifier: workspace:*
         version: link:../pi-ai-anthropic
+      '@omne-harness/tokenizer-tiktoken':
+        specifier: workspace:*
+        version: link:../tokenizer-tiktoken
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1894,6 +1903,9 @@ importers:
 
   packages/model/tokenizer-tiktoken:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../model-contract
@@ -2412,12 +2424,18 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@omne-harness/modality':
+        specifier: workspace:*
+        version: link:../../common/modality
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../schema/schema-provider
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../tool
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../tool-contract
@@ -2425,9 +2443,6 @@ importers:
         specifier: workspace:*
         version: link:../../util/unix-format
     devDependencies:
-      '@omne-harness/tool':
-        specifier: workspace:*
-        version: link:../tool
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

@@ -1,11 +1,8 @@
 # verification 索引
 
-本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
-
-## 内容
-
-- [README.md](README.md)：验证资源的范围与运行方式
-- [models/](models/index.md)：形式模型
-- [proofs/](proofs/index.md)：论证与证明
-
-本目录没有其他文件，原因见 [README.md](README.md)。
+- [README.md](README.md)：责任与证据边界。
+- [formal-mapping.md](formal-mapping.md)：模型、源码、运行守护和命令。
+- [models](models/index.md)：行为模型与具名正负控。
+- [proofs](proofs/index.md)：完整人工归纳证明。
+- [run_tlc.py](run_tlc.py)：有限资源TLC执行与证据记录。
+- [test_run_tlc.py](test_run_tlc.py)：拒绝零执行与错误结果判读。

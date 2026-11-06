@@ -429,6 +429,7 @@ export async function openW2World(options: W2Options) {
   // the scenario, when there is one, with the clock read at the call.
   /** How many Runs Session has ended in this process: the `round-complete` events it gave. */
   let roundsComplete = 0
+  const answeredTerminals = new Set<string>()
   /**
    * The receivers write through their own Journal copy, so the plugin's event stream does not wake the
    * Agent; it picks a saved result up at its reconciliation check (CP3). The doubles move the manual
@@ -532,6 +533,11 @@ export async function openW2World(options: W2Options) {
         if (commit === undefined) throw new Error('the Session transactions offer no commitLog')
         const answer = await commit.call(port, value)
         counters.ad02Commit('ok' in answer)
+        if (
+          'ok' in answer &&
+          value.observation.consequences.some(consequence => consequence.kind === 'ended')
+        )
+          answeredTerminals.add(String(value.observation.run))
         return answer
       },
     }),
@@ -917,7 +923,7 @@ export async function openW2World(options: W2Options) {
       // the wait are not counted.
       await until(async () => {
         const ended = await lastTerminal()
-        return ended !== null && ended !== before
+        return ended !== null && ended !== before && answeredTerminals.has(ended)
       }, ms)
     } finally {
       // A round that did not end still closes its counters, so the failure names the counts.

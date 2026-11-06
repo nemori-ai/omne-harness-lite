@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, tenantEquals, type Access, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { canonicalDigest } from '@omne-harness/tool'
+import type { ToolDefinition } from '@omne-harness/tool-contract'
 import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
 import {
   ToolContributionAuthorityService,
@@ -288,3 +290,35 @@ export function createToolReleaseEntries(
 const release = createToolReleaseEntries()
 export const toolReleaseRegistrant: EntryObjectModule = release.registrant
 export const toolContributionAuthority: EntryObjectModule = release.authority
+
+const knownDefinitions = new WeakMap<
+  Context,
+  { generation: string; entries: Map<string, ToolDefinition> }
+>()
+
+/** Plain metadata retained for this verified release generation, independent of live contributors. */
+export function rememberReleaseDefinition(
+  ctx: Context,
+  generation: string,
+  definition: ToolDefinition,
+): boolean {
+  const release = releaseOf(ctx)
+  if (release.kind !== 'trusted' || release.generation !== generation) return false
+  const entry = release.manifest.entries.find(item => item.asset.name === definition.name)
+  if (entry === undefined || entry.definition !== canonicalDigest(definition)) return false
+  let known = knownDefinitions.get(ctx.root)
+  if (known?.generation !== generation) {
+    known = { generation, entries: new Map() }
+    knownDefinitions.set(ctx.root, known)
+  }
+  known.entries.set(definition.name, structuredClone(definition))
+  return true
+}
+
+export function releaseDefinitionOf(ctx: Context, name: string): ToolDefinition | undefined {
+  const release = releaseOf(ctx)
+  const known = knownDefinitions.get(ctx.root)
+  if (release.kind !== 'trusted' || known?.generation !== release.generation) return undefined
+  const definition = known.entries.get(name)
+  return definition === undefined ? undefined : structuredClone(definition)
+}

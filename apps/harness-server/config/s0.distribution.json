@@ -136,6 +136,11 @@
       "config": {}
     },
     {
+      "id": "model-tokenizers",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "model-profiles",
       "plugin": "stubPlugin",
       "config": {}

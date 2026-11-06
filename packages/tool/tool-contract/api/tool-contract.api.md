@@ -30,6 +30,7 @@
 - `FixedToolRequest` · `definitions.d.ts`
 - `ForegroundReturn` · `operations.d.ts`
 - `Handoff` · `operations.d.ts`
+- `InspectArguments` · `tools-protocol.d.ts`
 - `InterruptionCause` · `results.d.ts`
 - `InvocationAccess` · `operations.d.ts`
 - `OperationResolution` · `results.d.ts`
@@ -49,12 +50,15 @@
 - `ResponseProgress` · `records.d.ts`
 - `ResponseRecord` · `records.d.ts`
 - `ResultPage` · `results.d.ts`
+- `SearchArguments` · `tools-protocol.d.ts`
+- `SearchPage` · `tools-protocol.d.ts`
 - `SourceLayer` · `definitions.d.ts`
 - `ToolArguments` · `definitions.d.ts`
 - `ToolAvailability` · `definitions.d.ts`
 - `ToolBackgroundCallsValue` · `background-calls.d.ts`
 - `ToolCallId` · `identity.d.ts`
 - `ToolCatalog` · `authoring.d.ts`
+- `ToolCatalogSearchEntry` · `authoring.d.ts`
 - `ToolCommandDeclaration` · `definitions.d.ts`
 - `ToolCommandOutcome` · `operations.d.ts`
 - `ToolConsumerProfile` · `authoring.d.ts`
@@ -72,6 +76,8 @@
 - `ToolEnvironmentDeclaration` · `definitions.d.ts`
 - `ToolExecutionRef` · `execution.d.ts`
 - `ToolFailure` · `results.d.ts`
+- `ToolFixedReadArguments` · `tools-protocol.d.ts`
+- `ToolForwardIntent` · `forwarding.d.ts`
 - `ToolIdentity` · `identity.d.ts`
 - `ToolIdentityRejection` · `identity.d.ts`
 - `ToolImplementationShape` · `definitions.d.ts`
@@ -117,8 +123,12 @@
 - `ToolTerminal` · `results.d.ts`
 - `ToolTiming` · `records.d.ts`
 - `ToolUsage` · `authoring.d.ts`
+- `ToolUsageView` · `tools-protocol.d.ts`
 - `ToolWaitId` · `identity.d.ts`
 - `ToolWaitSchemaSnapshot` · `author-context.d.ts`
+- `ToolsCapability` · `tools-capability.d.ts`
+- `ToolsExecuteAnswer` · `tools-capability.d.ts`
+- `ToolsReadArguments` · `tools-protocol.d.ts`
 - `WaitIntent` · `records.d.ts`
 - `WaitRecord` · `records.d.ts`
 - `WaitState` · `results.d.ts`
@@ -140,6 +150,7 @@
 - `resolveToolInvocationRef` · `reference.d.ts`
 - `resolveToolOperationRef` · `reference.d.ts`
 - `selectCommandText` · `command-call.d.ts`
+- `toolsCapabilityOf` · `tools-capability.d.ts`
 
 ## 入口 `./binding` · `binding.d.ts`
 
@@ -236,6 +247,11 @@
 - `ToolExecutionScope` · `author-context.d.ts`
 - `ToolExecutor` · `execution.d.ts`
 - `ToolExecutorBinding` · `ports.d.ts`
+- `ToolForwardBinding` · `forwarding.d.ts`
+- `ToolForwardParent` · `forwarding.d.ts`
+- `ToolForwardRuntime` · `forwarding.d.ts`
+- `ToolForwardSource` · `forwarding.d.ts`
+- `ToolForwardSourceOutcome` · `forwarding.d.ts`
 - `ToolGovernance` · `definitions.d.ts`
 - `ToolHandle` · `operations.d.ts`
 - `ToolImplementation` · `authoring.d.ts`
@@ -289,6 +305,7 @@
 - `ToolWaitValidation` · `author-context.d.ts`
 - `ToolWaiter` · `author-context.d.ts`
 - `WriteContext` · `execution.d.ts`
+- `attachToolsCapability` · `tools-capability.d.ts`
 - `commandArguments` · `command-call.d.ts`
 - `commandExample` · `command-call.d.ts`
 - `commandGuide` · `command-call.d.ts`
@@ -644,6 +661,9 @@ export type ToolPresentation = Readonly<{
         summary: string;
     }>[];
 }>;
+export type ToolCatalogSearchEntry = ToolAvailability & Readonly<{
+    resident: boolean;
+}>;
 export interface ToolCatalog<P> {
     inspect(input: ToolInspection<P>): Reply<ToolAvailability>;
     usage(input: ToolInspection<P> & Readonly<{
@@ -656,7 +676,7 @@ export interface ToolCatalog<P> {
         after: string | null;
         limit: number;
     }>): Reply<Readonly<{
-        entries: readonly ToolAvailability[];
+        entries: readonly ToolCatalogSearchEntry[];
         next: string | null;
     }>>;
 }
@@ -1688,6 +1708,65 @@ export interface ToolCommands<P, B extends ContentBlock> {
 }
 ```
 
+## 声明文件 `forwarding.d.ts`
+
+```ts
+import type { JsonValue } from '@omne-harness/json-text';
+import type { FixedToolRequest } from './definitions.ts';
+import type { CallAccess, ToolCallId, ToolOperationId } from './identity.ts';
+import type { InvocationAccess, ToolInvokeRequest, ToolDefiniteFailure, ToolInvokeOutcome } from './operations.ts';
+import type { ToolStartRecord } from './ports.ts';
+import type { Reply } from './results.ts';
+export type ToolForwardParent<P> = CallAccess<P> & Readonly<{
+    start: Extract<ToolStartRecord, {
+        kind: 'start';
+    }>;
+    request: FixedToolRequest;
+}>;
+export type ToolForwardIntent = Readonly<{
+    name: string;
+    command: string | null;
+    arguments: JsonValue;
+}>;
+export type ToolForwardBinding = Readonly<{
+    call: ToolCallId;
+    admission: ToolOperationId;
+    request: FixedToolRequest;
+    recovered: boolean;
+}>;
+export type ToolForwardSourceOutcome = (Readonly<{
+    kind: 'bound';
+}> & ToolForwardBinding) | Readonly<{
+    kind: 'issuance-unknown';
+    call: ToolCallId;
+    admission: ToolOperationId;
+}> | Readonly<{
+    kind: 'association-unknown';
+}> | Readonly<{
+    kind: 'rejected';
+    failure: ToolDefiniteFailure;
+}>;
+export interface ToolForwardSource<P> {
+    resolve(input: ToolForwardParent<P> & Readonly<{
+        intent: ToolForwardIntent;
+        target: ToolInvokeRequest;
+    }>): Promise<ToolForwardSourceOutcome>;
+    lookup(input: InvocationAccess<P>): Reply<Readonly<{
+        kind: 'bound';
+        binding: ToolForwardBinding;
+    }> | Readonly<{
+        kind: 'unresolved';
+    }>>;
+}
+export interface ToolForwardRuntime<P> {
+    invoke(input: ToolForwardParent<P> & Readonly<{
+        intent: ToolForwardIntent;
+        target: ToolInvokeRequest;
+    }>): Promise<ToolInvokeOutcome>;
+    resume(input: InvocationAccess<P>): Promise<ToolInvokeOutcome>;
+}
+```
+
 ## 声明文件 `identity.d.ts`
 
 ```ts
@@ -1741,7 +1820,7 @@ export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, Invoc
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';
 export type { ToolExecutionRef } from './execution.ts';
 export type { DecisionValue, ToolStartRecord } from './ports.ts';
-export type { ToolCatalog, ToolConsumerProfile, ToolDeclarations, ToolInspection, ToolSettingsDeclaration, ToolUsage, } from './authoring.ts';
+export type { ToolCatalog, ToolCatalogSearchEntry, ToolConsumerProfile, ToolDeclarations, ToolInspection, ToolSettingsDeclaration, ToolUsage, } from './authoring.ts';
 export type { ClockSegment, ControlProgress, ControlRecord, ExternalResponse, PhysicalExecution, ProtocolIdentity, QueuePosition, ResponseProgress, ResponseRecord, ToolTiming, WaitIntent, WaitRecord, } from './records.ts';
 export type { ContentPage, DiagnosticPage, ProcessSnapshot, RawOutput } from './custody.ts';
 export { judgeToolDelivery } from './result-delivery.ts';
@@ -1752,6 +1831,10 @@ export { encodeResidentKey, projectResidentReferences, residentToolFacts } from 
 export type { ResidentHolderPage, ResidentKeyFailure, ResidentReferencesPage, } from './resident-key.ts';
 export { commandCallSchema, commandMenu, decodeCommandCallText, describeCommandCallRejection, selectCommandText, } from './command-call.ts';
 export type { CommandCall, CommandCallEncoding, CommandCallRejection, CommandTable, } from './command-call.ts';
+export { toolsCapabilityOf } from './tools-capability.ts';
+export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts';
+export type { ToolForwardIntent } from './forwarding.ts';
+export type { SearchArguments, SearchPage, InspectArguments, ToolUsageView, ToolFixedReadArguments, ToolsReadArguments, } from './tools-protocol.ts';
 ```
 
 ## 声明文件 `json-tree.d.ts`
@@ -2507,6 +2590,8 @@ export type { ChildPosition, ChildReservation, ChildState, ProgramClosure, Progr
 export { projectToolBackgroundCalls } from './background-calls-projection.ts';
 export type { ToolBackgroundCallSource, ToolBackgroundCallsSource, } from './background-calls-projection.ts';
 export { COMMAND_CALL_ENCODINGS, commandArguments, commandExample, commandGuide, commandSignature, decodeCommandCall, describeCommandArgumentsRejection, encodeCommandCall, } from './command-call.ts';
+export { attachToolsCapability } from './tools-capability.ts';
+export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, ToolForwardSource, ToolForwardRuntime, } from './forwarding.ts';
 ```
 
 ## 声明文件 `records.d.ts`
@@ -4399,6 +4484,83 @@ export { createMemoryToolDecisionBridge, decisionBridgeAnswers, memoryToolDecisi
 export { createMemoryToolResourceResponses, resourceResponsesAnswers, memoryToolResourceResponsesFixture, toolResourceResponsesConformance, type MemoryToolResourceResponses, type ToolResourceResponsesFixture, } from './testing-resource-responses.ts';
 export { testingTenant, testingTenantText, testingWorkspace } from './testing-values.ts';
 export { toolEnvironmentAllocationConformance, type ToolEnvironmentAllocationFixture, } from './testing-environment-allocation.ts';
+```
+
+## 声明文件 `tools-capability.d.ts`
+
+```ts
+import type { ToolExecutionContext, ToolExecutionScope } from './author-context.ts';
+import type { ToolForwardIntent } from './forwarding.ts';
+import type { ToolResultVersion } from './identity.ts';
+import type { ToolDefiniteFailure } from './operations.ts';
+import type { ToolInvocationRef } from './reference.ts';
+import type { Reply, ToolMessageContentBlock, ToolResult } from './results.ts';
+import type { InspectArguments, SearchArguments, SearchPage, ToolsReadArguments, ToolUsageView } from './tools-protocol.ts';
+export type ToolsExecuteAnswer = Readonly<{
+    kind: 'completed';
+    reference: ToolInvocationRef;
+    result: ToolResultVersion;
+    value: ToolResult<ToolMessageContentBlock>;
+}> | Readonly<{
+    kind: 'pending';
+    reference: ToolInvocationRef;
+    parent: ToolInvocationRef;
+    reason: 'waiting' | 'background' | 'commit-unknown';
+}> | Readonly<{
+    kind: 'association-unknown';
+    parent: ToolInvocationRef;
+}> | Readonly<{
+    kind: 'rejected';
+    failure: ToolDefiniteFailure;
+}>;
+export interface ToolsCapability {
+    search(input: SearchArguments): Reply<SearchPage>;
+    inspect(input: InspectArguments): Reply<ToolUsageView>;
+    execute(input: ToolForwardIntent): Promise<ToolsExecuteAnswer>;
+    readResult(input: ToolsReadArguments): Promise<ToolResult<ToolMessageContentBlock>>;
+}
+export declare function toolsCapabilityOf(context: ToolExecutionContext): ToolsCapability | undefined;
+export declare function attachToolsCapability(scope: ToolExecutionScope, capability: Readonly<{
+    value: ToolsCapability;
+    close(): Promise<void>;
+}>): ToolExecutionScope;
+```
+
+## 声明文件 `tools-protocol.d.ts`
+
+```ts
+import type { ToolCatalog, ToolCatalogSearchEntry, ToolInspection, ToolUsage } from './authoring.ts';
+import type { ToolAvailability } from './definitions.ts';
+import type { ToolInvocationRef } from './reference.ts';
+export type SearchArguments = Pick<Parameters<ToolCatalog<unknown>['search']>[0], 'query' | 'after' | 'limit'>;
+export type SearchPage = Readonly<{
+    entries: readonly ToolCatalogSearchEntry[];
+    next: string | null;
+}>;
+export type InspectArguments = Pick<ToolInspection<unknown>, 'name' | 'command'>;
+export type ToolUsageView = (Extract<ToolAvailability, {
+    kind: 'available';
+}> & Readonly<{
+    usage: ToolUsage | null;
+}>) | (Extract<ToolAvailability, {
+    kind: 'known-unavailable';
+}> & Readonly<{
+    usage: null;
+}>);
+export type ToolFixedReadArguments = Readonly<{
+    kind: 'result' | 'attachment';
+    reference: string;
+    after: string | null;
+}>;
+export type ToolsReadArguments = ToolFixedReadArguments | Readonly<{
+    kind: 'invocation';
+    reference: ToolInvocationRef;
+    after: null;
+}> | Readonly<{
+    kind: 'forwarding';
+    reference: ToolInvocationRef;
+    after: null;
+}>;
 ```
 
 ## 声明文件 `value-shapes.d.ts`

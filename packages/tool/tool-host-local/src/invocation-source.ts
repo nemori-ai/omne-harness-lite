@@ -7,6 +7,20 @@
 // The identities of a binding are a function of the tenant and the consumer. A retry after an
 // issuance whose answer is unknown therefore finds the same identities, whether the first commit
 // took effect or not, and `issuance-unknown` names identities that the retry will use.
+import {
+  createInvocationForwarding,
+  TOOL_FORWARDING_OWNER,
+  isPrincipalJson,
+  parseForward,
+} from './invocation-forwarding.ts'
+import { createForwardingReceiver } from './forwarding-receiver.ts'
+import { fail } from '@omne-harness/operation-result'
+import type { Reply, ToolResultReceiver } from '@omne-harness/tool-contract'
+import type {
+  CallAccess,
+  ToolStartAuthority,
+  ToolForwardSource,
+} from '@omne-harness/tool-contract/provider'
 import { randomUUID } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
@@ -34,6 +48,7 @@ import {
 import {
   decodeToolRevision,
   judgeToolInvokeRequest,
+  judgeHandoff,
   type ToolInvocationSourceIssuer,
   type ToolInvocationSourceOutcome,
   type ToolOperationIdentities,
@@ -74,13 +89,24 @@ export type LocalInvocationSourceInput<P, B extends ContentBlock = ContentBlock>
   principalCodec: PrincipalCodec<P>
   /** How many times a revision conflict is re-read and decided again. */
   commitAttempts: number
+  forwarding?: Readonly<{
+    authority(): ToolStartAuthority<P> | undefined
+    isParent(request: FixedToolRequest): boolean
+  }>
 }>
 
-export type LocalInvocationSource<P> = Readonly<{
+export type LocalInvocationSource<P, B extends ContentBlock = ContentBlock> = Readonly<{
   /** Goes to the runtime as its `sourceIssuer`. */
   issuer: ToolInvocationSourceIssuer<P>
   /** Goes to the ledger as `guards.sources`. */
   guard: ToolSourceGuard<P>
+  forwarding: ToolForwardSource<P>
+  receiver: ToolResultReceiver<P, B>
+  /** Reads only the persisted subject projection; the caller must reissue and run guard.verify. */
+  recoverBinding(
+    input: Omit<CallAccess<P>, 'principal'> &
+      Readonly<{ admission: ToolOperationId; request: FixedToolRequest }>,
+  ): Reply<{ principal: PrincipalJson }>
 }>
 
 /** What the source keeps for one tenant and consumer. */
@@ -132,7 +158,10 @@ function tenantText(tenant: TenantId): readonly [string, string] {
 }
 
 /** The identities of the binding of one tenant and consumer. */
-function identitiesOf(tenant: TenantId, consumer: FixedToolRequest['consumer']) {
+export function invocationSourceIdentities(
+  tenant: TenantId,
+  consumer: FixedToolRequest['consumer'],
+) {
   const hash = canonicalDigest({ tenant: tenantText(tenant), consumer }).slice('sha256:'.length)
   return {
     call: identity(decodeToolCallId(`call-${hash}`), 'call'),
@@ -150,15 +179,35 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
  */
 function parseBinding(value: unknown): Binding | null {
   if (!isRecord(value) || value.kind !== 'invocation-source') return null
-  const texts = ['call', 'admission', 'requestDigest', 'fixedDigest']
-  if (!texts.every(key => typeof value[key] === 'string')) return null
-  if (!isDirectInvocation(value.invocation) || !('principal' in value)) return null
-  // The fields that matter to a decision were checked above; the rest is the source's own.
-  return value as unknown as Binding
-}
-
-function isDirectInvocation(invocation: unknown): boolean {
-  return isRecord(invocation) && invocation.kind === 'direct' && isRecord(invocation.source)
+  if (
+    typeof value.call !== 'string' ||
+    typeof value.admission !== 'string' ||
+    typeof value.requestDigest !== 'string' ||
+    typeof value.fixedDigest !== 'string' ||
+    !isPrincipalJson(value.principal) ||
+    !isRecord(value.invocation) ||
+    value.invocation.kind !== 'direct'
+  )
+    return null
+  const call = decodeToolCallId(value.call),
+    admission = decodeToolOperationId(value.admission)
+  const source = judgeHandoff({ kind: 'retained', custody: value.invocation.source })
+  if (
+    'failure' in call ||
+    'failure' in admission ||
+    'failure' in source ||
+    source.ok.kind !== 'retained'
+  )
+    return null
+  return {
+    kind: 'invocation-source',
+    call: call.ok,
+    admission: admission.ok,
+    requestDigest: value.requestDigest,
+    fixedDigest: value.fixedDigest,
+    invocation: { kind: 'direct', source: source.ok.custody },
+    principal: value.principal,
+  }
 }
 
 /** What one issuance needs once the consumer is qualified. */
@@ -208,7 +257,7 @@ function nextRevision(revision: string) {
  */
 export function createLocalInvocationSource<P, B extends ContentBlock = ContentBlock>(
   input: LocalInvocationSourceInput<P, B>,
-): LocalInvocationSource<P> {
+): LocalInvocationSource<P, B> {
   const { store, authority, principalCodec, commitAttempts } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
@@ -355,13 +404,14 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
       const judged = judgeToolInvokeRequest(input.request)
       if ('failure' in judged) return rejected({ kind: 'invalid', ...judged.failure })
       const request = judged.ok
+      if (request.consumer.owner === TOOL_FORWARDING_OWNER) return rejected(denied)
       const { principal, tenant } = input
       const refused = await admit(principal, tenant, request.consumer)
       if (refused !== null) return refused
       const kept = encodePrincipal(principal)
       if (!('encoded' in kept)) return kept
       const key = consumerKey(request.consumer)
-      const { call, admission } = identitiesOf(tenant, request.consumer)
+      const { call, admission } = invocationSourceIdentities(tenant, request.consumer)
       const requestDigest = canonicalDigest(request)
       const plan = { tenant, key, request, requestDigest, call, admission, encoded: kept.encoded }
 
@@ -378,7 +428,7 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
     },
   }
 
-  const guard: ToolSourceGuard<P> = {
+  const directGuard: ToolSourceGuard<P> = {
     verify: async ({ principal, tenant, call, operation, request }) => {
       const digests = digestsOf(request)
       if (digests === null) return { kind: 'forged', reason: 'request-not-canonical' }
@@ -396,7 +446,86 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
     },
   }
 
-  return Object.freeze({ issuer, guard })
+  const forwards = createInvocationForwarding(input, directGuard, invocationSourceIdentities)
+  const receiver = createForwardingReceiver(input, forwards)
+  const guard: ToolSourceGuard<P> = {
+    async verify(access) {
+      if (access.request.consumer.owner !== TOOL_FORWARDING_OWNER) return directGuard.verify(access)
+      try {
+        const answer = await forwards.recoverBinding({ ...access, admission: access.operation })
+        return 'ok' in answer
+          ? { kind: 'trusted' }
+          : answer.failure.kind === 'denied'
+            ? { kind: 'forged', reason: 'forwarding-binding-mismatch' }
+            : { kind: 'unavailable', diagnostic: 'The forwarding source cannot be verified.' }
+      } catch {
+        return { kind: 'unavailable', diagnostic: 'The forwarding source cannot be verified.' }
+      }
+    },
+  }
+  const recoverBinding: LocalInvocationSource<P, B>['recoverBinding'] = async access => {
+    const unavailable = () =>
+      fail({
+        kind: 'unavailable' as const,
+        dependency: 'invocation-source',
+        diagnostic: 'The original source binding cannot be verified.',
+      })
+    try {
+      if (!isTenantShape(access.tenant)) return unavailable()
+      const read = await readDomain(access.tenant)
+      if (typeof read === 'string') return unavailable()
+      const row = read.records.find(
+        row => row.kind === 'host' && row.host.key === consumerKey(access.request.consumer),
+      )
+      if (
+        row?.kind !== 'host' ||
+        !isRecord(row.host.value) ||
+        !isPrincipalJson(row.host.value.principal)
+      )
+        return unavailable()
+      const encoded = row.host.value.principal
+      if (decodePrincipal(encoded) === null) return unavailable()
+      if (access.request.consumer.owner === TOOL_FORWARDING_OWNER) {
+        const stored = parseForward(row.host.value)
+        if (
+          stored === null ||
+          stored.call !== access.call ||
+          stored.admission !== access.admission ||
+          canonicalDigest(stored.request) !== canonicalDigest(access.request)
+        )
+          return unavailable()
+        return succeed({ principal: encoded })
+      }
+      const stored = parseBinding(row.host.value)
+      if (
+        stored === null ||
+        !bindsTo(stored, access.call, access.admission, canonicalDigest(access.request))
+      )
+        return unavailable()
+      const { invocation, ...request } = access.request
+      const source = {
+        owner: INVOCATION_SOURCE_OWNER,
+        record: `invocation-source:${access.call}`,
+        revision: '1',
+        digest: canonicalDigest({
+          tenant: tenantText(access.tenant),
+          call: access.call,
+          admission: access.admission,
+          requestDigest: canonicalDigest(request),
+        }),
+      }
+      if (
+        invocation.kind !== 'direct' ||
+        stored.requestDigest !== canonicalDigest(request) ||
+        canonicalDigest(source) !== canonicalDigest(invocation.source)
+      )
+        return unavailable()
+      return succeed({ principal: encoded })
+    } catch {
+      return unavailable()
+    }
+  }
+  return Object.freeze({ issuer, guard, forwarding: forwards.source, receiver, recoverBinding })
 }
 
 /**

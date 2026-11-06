@@ -55,3 +55,13 @@ acceptance/               独立验收；fixtures/ 存放验收输入
 ```
 
 每个目录的 README.md 说明职责，index.md 负责导航。阅读路径见 [index.md](index.md)。docs 专题可以升级为同名目录，目录内须有 README.md 与 index.md；专题移动时同步本结构图。
+
+## TodoItems
+
+`createTodoItemsAuthor` 与 `todoItemsToolModule` 提供 help、add、remove、mark_complete、list，采用 wrapped 单声明。构造值只有正安全整数 `resultMaxBytes`，environment 为 null。
+
+宿主在 `attachToolsCapability` 之后调用 `attachTodoItems`，两种附着使用最终的同一个 context。finish 在清理前撤除访问，重复调用返回同一 Promise。[窄口](src/todo-items-port.ts)只接收绑定后的业务参数。
+
+结果 JSON 完整保留 Session 回执、页面、游标和失败。提交未知时保留原操作。输出超预算明确答 unavailable，并提示减小页长。1 MiB 是部署初始预算，控制字符的 JSON 转义可能扩大字节数，因此不保证容纳所有合法页面。过小预算会明确触发输出校验失败。
+
+[作者测试](tests/todo-items.spec.ts)使用绑定替身，通过真实 Tool 解码、执行与输出验证。它不证明 SQL 持久化、完整应用交付或自动 Context 投影。行为见 [SPEC](SPEC.md#todoitems-作者)。

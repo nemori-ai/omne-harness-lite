@@ -180,9 +180,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'model-instances': { provides: ['modelInstances'], injects: ['modelPublicationAuthority'] },
   'model-converters': { provides: ['modelConverters'], injects: ['modelConverterAuthority'] },
   'model-profiles': { provides: ['modelProfiles'] },
+  'model-tokenizers': { provides: ['modelTokenizers'], phase: 'composition' },
   'model-request-preparation': {
     provides: ['modelRequestPreparation'],
-    injects: ['modelCommands'],
+    injects: ['modelCommands', 'modelTokenizers'],
   },
   'model-credential': { provides: ['modelCredential', 'modelCredentialCustody'] },
   'model-records': {

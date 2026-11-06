@@ -5,6 +5,7 @@ import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './i
 import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts'
 
 export type SessionReadAccessOperation =
+  | 'listTodos'
   | 'readWork'
   | 'readInput'
   | 'queryOperation'

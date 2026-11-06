@@ -18,12 +18,15 @@
 
 | 目录 | 模型 | 检查什么 |
 | --- | --- | --- |
+| [measurement-session/](measurement-session/MeasurementSession.tla) | `MeasurementSession.tla` | 一次规划内的probe快照、完整key、容量、租约复用与关闭（RQ-05） |
 | [replay/](replay/FixedReplay.tla) | `FixedReplay.tla` | 固定请求能否重放（不能），以及摘要比较与作废换身份的恢复协议（RQ-01、RQ-14；R2-D306） |
 | [compaction/](compaction/CompactionFit.tla) | `CompactionFit.tla` | 压缩只追加、保留与未结工作可见、视图有界、结局封闭、至多一次计划、表示取档案（RQ-02、RQ-05、RQ-06、RQ-07） |
 
 每个目录的 `expect.txt` 写明每个配置的预期：`pass` 或应被违反的性质名。性质表与源码对应见 [formal-mapping.md](../formal-mapping.md)，运行记录见 [formal-runs.md](../formal-runs.md)。
 
-运行入口是 [run-tlc.sh](run-tlc.sh)。它在 WSL 里运行，先把一个模型目录复制到 WSL 的文件系统，按 `expect.txt` 逐个跑配置，再把日志复制回输出目录。负控只在日志点名该性质时算命中；退出码本身不算。
+measurement-session的跨平台入口与严格判读见 [计量会话映射](../measurement-session-mapping.md)。以下旧入口仅供replay和compaction使用。
+
+旧模型运行入口是 [run-tlc.sh](run-tlc.sh)。它在 WSL 里运行，先把一个模型目录复制到 WSL 的文件系统，按 `expect.txt` 逐个跑配置，再把日志复制回输出目录。负控只在日志点名该性质时算命中；退出码本身不算。
 
 ```sh
 MSYS_NO_PATHCONV=1 wsl.exe -d Ubuntu-24.04 --exec bash -l   <WSL 视角的本目录>/run-tlc.sh <WSL 视角的本目录>/replay <WSL 视角的输出目录>

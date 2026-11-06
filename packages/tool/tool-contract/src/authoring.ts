@@ -66,6 +66,7 @@ export type ToolPresentation = Readonly<{
   programmable: boolean
   commands: readonly Readonly<{ name: string; summary: string }>[]
 }>
+export type ToolCatalogSearchEntry = ToolAvailability & Readonly<{ resident: boolean }>
 export interface ToolCatalog<P> {
   inspect(input: ToolInspection<P>): Reply<ToolAvailability>
   usage(input: ToolInspection<P> & Readonly<{ adoption: Adoption }>): Reply<ToolUsage>
@@ -78,7 +79,7 @@ export interface ToolCatalog<P> {
         after: string | null
         limit: number
       }>,
-  ): Reply<Readonly<{ entries: readonly ToolAvailability[]; next: string | null }>>
+  ): Reply<Readonly<{ entries: readonly ToolCatalogSearchEntry[]; next: string | null }>>
 }
 export interface ParameterCodec<A> {
   readonly adoption: Adoption

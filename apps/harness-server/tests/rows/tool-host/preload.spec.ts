@@ -42,12 +42,12 @@ async function until(ready: () => boolean) {
 
 describe('tool-host: the release authors are loaded by the registrant at start', () => {
   it(
-    'loads Shell and Files live into toolBindings after the row starts',
+    'loads Shell, Files and Tools live into toolBindings after the row starts',
     { timeout: 20_000 },
     async () => {
       const { names } = await loaded(true, TEST_CONSTRUCTION)
-      await until(() => names().length === 2)
-      expect(names()).toEqual(['Files', 'Shell'])
+      await until(() => names().length === 4)
+      expect(names()).toEqual(['Files', 'Shell', 'TodoItems', 'Tools'])
     },
   )
 
@@ -71,7 +71,7 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         fixture.logs
           .filter(message => message.name === 'tool-host' && message.type === 'warn')
           .map(message => message.args.map(String).join(' '))
-      expect(await until(() => warnings().length >= 2)).toBe(true)
+      expect(await until(() => warnings().length >= 4)).toBe(true)
       expect(names()).toEqual([])
       expect(warnings().some(text => text.includes('Shell') && text.includes('unavailable'))).toBe(
         true,
@@ -93,9 +93,14 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         return { failure: { kind: 'unavailable', diagnostic: 'test' } }
       },
     })
-    expect(seen).toHaveLength(2)
+    expect(seen).toHaveLength(4)
     for (const access of seen) expect(access).toBe(registrant)
-    expect(results.map(result => result.outcome)).toEqual(['unavailable', 'unavailable'])
+    expect(results.map(result => result.outcome)).toEqual([
+      'unavailable',
+      'unavailable',
+      'unavailable',
+      'unavailable',
+    ])
   })
 
   it('a throw while reading the release is kept in the start load: a warning, no rejection', async () => {

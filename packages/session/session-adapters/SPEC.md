@@ -509,7 +509,8 @@ Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 s
 - 意图（第 4 步）：首次调用以 `preadmission` 意图阶段同次保存 Ki、H、完整 request、origin、主体稳定身份、资格依据与实现采用，存储提交确认之后才继续。
 - 结果（第 6 步）：当前没有表示转换，prepared 的 message 取原 candidate，准入依据取原资格依据；候选不通过 `judgeMessage` 时为 rejected。以结果阶段固定一次，然后答复。
 - `lookup` 以 `read-message-handoff` 问 `agentAccessCheck`，只读记录：有结果答 `recorded`，只有意图答 `unknown` 并带原记录，没有记录答 `unknown`。`exclude` 尚未交付，答 `unsupported`。
-- 验证：`tests/message-handoff.spec.ts`（node:sqlite 替身）覆盖三个分支、同 Ki 认回且不写、伪造与他租户作用域、无 Run 的 execution、资格拒绝、P 不符、`stale-advance` 与结果先于 advance 认回、lookup 不写、他租户读不到。`tests/message-handoff-real.spec.ts`（真实 sqlite-provider，慢层）在子进程保存后杀进程，新进程按原 Ki 读回完整记录，同一 prepare 认回且不写。
+- 私有记录：新 outcome 使用 `intent-relative-v1` 格式，保留 participant 要求的顶层 kind，私有字段只保存固定结果时的 provider 与决定。prepared 保存 kind、admission，从同条不可变 intent 的 candidate 复原 message；rejected 保存原 reason、evidence。公开结果的 request、origin、qualification 来自该 intent，record 指向其租户、H 与 intentDigest。lookup 不重算裁定，也不采用后来装载的 provider。旧的无格式完整 outcome 只读入，已固定记录不重写；未知显式格式或损坏结果答 `unavailable`。将来增加表示转换时须升级私有格式，不能继续假定结果等于 candidate。去重只覆盖本提供者的私有记录，公开结果仍返回完整 request 和 prepared message。
+- 验证：`tests/message-handoff.spec.ts`（node:sqlite 替身）覆盖三个分支、同 Ki 认回且不写、伪造与他租户作用域、无 Run 的 execution、资格拒绝、P 不符、`stale-advance` 与结果先于 advance 认回、lookup 不写、他租户读不到。它还覆盖 64 KiB 异构候选正文只存一份、重装后原结果与 provider 不变、旧格式读入、原拒绝原因与未知格式失败关闭。`tests/message-handoff-real.spec.ts`（真实 sqlite-provider，慢层）在既有 64 KiB 响应预算下，子进程保存 24 KiB 异构候选的 intent 或 outcome 后杀进程，新 provider 按原 Ki 读回；只有 intent 时仍为 unknown，固定 outcome 时同一 prepare 认回且不写。
 
 #### J06 当前条件的生产插件
 

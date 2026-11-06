@@ -1,3 +1,4 @@
+import { catalogSearch, catalogView } from './catalog-view-fixture.ts'
 // The production parts of this package under the real Tool runtime factory: the host clock, a
 // binding registry with the Catalog over it, the three absent ports and the default result policy.
 // `createToolRuntime` checks that every dependency is present and throws a TypeError when one is
@@ -52,6 +53,8 @@ function composition() {
   })
   const catalog = createLocalToolCatalog<string>({
     registry,
+    view: catalogView(registry),
+    search: catalogSearch,
     availability: {
       judge: () =>
         Promise.resolve(
