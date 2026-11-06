@@ -85,7 +85,11 @@ const definitions = {
   }
 >
 
-export function todoCommand(name: TodoCommandName) {
+export function todoCommand(name: TodoCommandName): {
+  name: TodoCommandName
+  summary: string
+  parameters: ParameterContract
+} {
   const definition = definitions[name]
   const parameters: ParameterContract = {
     vocabulary: todoAdoption,
