@@ -3,6 +3,7 @@ import {
   decodeAgentOperationId,
   type Access,
   type AgentExecutionId,
+  type AgentJournal,
   type AgentOperationId,
   type ControlRecord,
   type ControlStage,
@@ -25,6 +26,8 @@ import type {
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentDependencies } from './construction.ts'
 import { json } from './receiving-values.ts'
+import { canonical } from './canonical.ts'
+import { attemptWrite, originalJournal, type OriginalWrite } from './loop/original-write.ts'
 
 type ModelControl = Pick<ControlRecord, 'operation' | 'stages'> &
   Readonly<{
@@ -441,7 +444,7 @@ type ControlPorts<P> = Pick<
  * recognizes what is already saved and repeats nothing. A failure is returned unchanged; the
  * caller retries with the same control operation.
  */
-export async function advanceControl<P>(
+export async function advanceAcceptedControl<P>(
   ports: ControlPorts<P>,
   access: Access<P>,
   execution: AgentExecutionId,
@@ -456,4 +459,118 @@ export async function advanceControl<P>(
   const tool = toolControlOf(control)
   if (tool !== undefined) return advanceToolControl(ports, access, execution, tool)
   return establishCancellation(ports.journal, access, execution, control)
+}
+
+type ControlAttempt = {
+  readonly request: string | null
+  readonly pending: Map<AgentOperationId, () => Promise<Outcome<void, Failure>>>
+  active: boolean
+}
+
+const controlAttempts = new WeakMap<object, Map<string, ControlAttempt>>()
+
+async function withControlWrites<P, T>(
+  ports: ControlPorts<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  operation: AgentOperationId,
+  request: string | null,
+  run: (journal: AgentJournal<P>) => Promise<Outcome<T, Failure>>,
+): Promise<Outcome<T, Failure>> {
+  const attempts = controlAttempts.get(ports.journal) ?? new Map<string, ControlAttempt>()
+  controlAttempts.set(ports.journal, attempts)
+  const key = canonical([access.tenant, execution, operation])
+  const attempt = attempts.get(key) ?? {
+    request,
+    pending: new Map<AgentOperationId, () => Promise<Outcome<void, Failure>>>(),
+    active: false,
+  }
+  if (request !== null && attempt.request !== null && request !== attempt.request)
+    return fail({ kind: 'conflict', operation })
+  if (attempt.active) return fail({ kind: 'busy' })
+  attempts.set(key, attempt)
+  attempt.active = true
+  const journal = controlJournal(ports.journal, attempt.pending)
+  try {
+    for (const [operation, recover] of attempt.pending) {
+      const found = await recover()
+      if ('failure' in found) return found
+      attempt.pending.delete(operation)
+    }
+    return await run(journal)
+  } finally {
+    attempt.active = false
+    if (attempt.pending.size === 0) attempts.delete(key)
+  }
+}
+
+function controlJournal<P>(
+  journal: AgentJournal<P>,
+  pending: ControlAttempt['pending'],
+): AgentJournal<P> {
+  return originalJournal(journal, async (original, invoke) => {
+    if (original.method !== 'control' && original.method !== 'recordControl') return invoke()
+    const operation = original.input.operation
+    pending.set(operation, () => recognizeControlWrite(journal, original))
+    const result = await attemptWrite(original, invoke)
+    if ('ok' in result || result.failure.kind !== 'commit-unknown') pending.delete(operation)
+    return result
+  })
+}
+
+async function recognizeControlWrite<P>(
+  journal: AgentJournal<P>,
+  original: Extract<OriginalWrite<P>, { method: 'control' | 'recordControl' }>,
+): Promise<Outcome<void, Failure>> {
+  const { operation } = original.input
+  try {
+    const found = await journal.query(original.input)
+    if ('failure' in found) return found
+    switch (found.ok.kind) {
+      case 'unknown':
+        return fail({ kind: 'commit-unknown', operation })
+      case 'excluded':
+        return fail({ kind: 'conflict', operation })
+      case 'rejected':
+        return fail(found.ok.failure)
+      case 'committed':
+        return succeed(undefined)
+    }
+  } catch {
+    return fail({ kind: 'commit-unknown', operation })
+  }
+}
+
+export async function advanceControl<P>(
+  ports: ControlPorts<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  operation: AgentOperationId,
+): Promise<Outcome<void, Failure>> {
+  return withControlWrites(ports, access, execution, operation, null, journal =>
+    advanceAcceptedControl({ ...ports, journal }, access, execution, operation),
+  )
+}
+
+/** Public control writes are independent of the execution driver's pending write. */
+export function createControlWriter<P>(ports: ControlPorts<P>) {
+  return (input: Parameters<AgentJournal<P>['control']>[0]) =>
+    withControlWrites(
+      ports,
+      input,
+      input.execution,
+      input.operation,
+      canonical(input.command),
+      async journal => {
+        const accepted = await journal.control(input)
+        if ('failure' in accepted) return accepted
+        const advanced = await advanceAcceptedControl(
+          { ...ports, journal },
+          input,
+          input.execution,
+          input.operation,
+        )
+        return 'failure' in advanced ? advanced : accepted
+      },
+    )
 }

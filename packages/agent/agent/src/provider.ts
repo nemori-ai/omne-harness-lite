@@ -47,9 +47,13 @@ import type {
 } from './construction.ts'
 import { canonical } from './canonical.ts'
 import { maxRunStepsOf } from './configuration.ts'
-import { createExecutionCoordinator, type Halted } from './loop/coordinator.ts'
+import {
+  createExecutionCoordinator,
+  type ExecutionCoordinator,
+  type Halted,
+} from './loop/coordinator.ts'
 import { agentEvidence } from './loop/identities.ts'
-import { advanceControl } from './control.ts'
+import { createControlWriter } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 import type { AgentRunEndedFailedReceiver, AgentRunFailedReceiver } from './run-failure.ts'
 
@@ -114,9 +118,9 @@ function woken(signal: AbortSignal, listeners: Set<() => void>): Promise<void> {
 
 /**
  * The one execution slot (SPEC "受理与单执行槽"). `reserved`: an invoke holds it until `open` has
- * answered. When `open` answered commit-unknown, `unresolved` is the R0 item: the operation whose
- * `open` nobody knows yet, and the reservation stays until a retry of that operation finds it with
- * `query`. `running`: the Loop runs until E9 frees the slot. A run that stopped still holds it.
+ * answered. Its acceptance retains the original coordinator and invoke input while the open
+ * outcome is unknown. A retry queries that operation before reusing the coordinator.
+ * `running`: the Loop runs until E9 frees the slot. A run that stopped still holds it.
  * `failed`: the drive stopped on a failure at `node`. The execution is not ended and holds the slot
  * (the next invoke answers busy). No drive works on it, but its responsibility is not handed over,
  * so a quiesce leaves it as remaining.
@@ -126,7 +130,11 @@ type Slot =
   | Readonly<{
       kind: 'reserved'
       execution: AgentExecutionId
-      unresolved: AgentOperationId | null
+      acceptance: Readonly<{
+        operation: AgentOperationId
+        input: string
+        coordinator: ExecutionCoordinator
+      }> | null
     }>
   | Readonly<{
       kind: 'running'
@@ -210,6 +218,7 @@ export function createProvider<P, B extends ContentBlock>(
     execution,
   })
 
+  const writeControl = createControlWriter(dependencies)
   let slot: Slot = { kind: 'free' }
   let current: AgentState = { kind: 'idle', instance }
   const listeners = new Set<() => void>()
@@ -317,11 +326,7 @@ export function createProvider<P, B extends ContentBlock>(
           if ('failure' in passed) return passed
           if (input.execution !== execution) return fail(foreign)
           if (input.command.kind === 'suspend') return fail(notImplemented('suspend', 'stage 5'))
-          const accepted = await dependencies.journal.control(input)
-          if ('failure' in accepted) return accepted
-          const access = { principal: input.principal, tenant: input.tenant }
-          const advanced = await advanceControl(dependencies, access, execution, input.operation)
-          return 'failure' in advanced ? advanced : accepted
+          return writeControl(input)
         },
       },
       output: {
@@ -451,6 +456,16 @@ export function createProvider<P, B extends ContentBlock>(
       toolConcurrency: entry.configuration.toolConcurrency,
       maxRunSteps: maxRunStepsOf(entry.configuration),
     })
+    return acceptOriginal(input, back, coordinator)
+  }
+
+  async function acceptOriginal(
+    input: InvokeInput<P>,
+    back: Slot,
+    coordinator: ExecutionCoordinator,
+  ): Promise<Outcome<AgentExecutionHandle<P>, Failure>> {
+    const { execution, operation } = input
+    const giveBack = () => occupy(back)
     const opened = await measurer.segment(
       'accept',
       execution,
@@ -466,7 +481,12 @@ export function createProvider<P, B extends ContentBlock>(
         giveBack()
         return fail(failure)
       }
-      if (node === 'E0') occupy({ kind: 'reserved', execution, unresolved: operation })
+      if (node === 'E0')
+        occupy({
+          kind: 'reserved',
+          execution,
+          acceptance: { operation, input: inputText(input), coordinator },
+        })
       else giveBack()
       return fail({ kind: 'commit-unknown', operation })
     }
@@ -525,20 +545,26 @@ export function createProvider<P, B extends ContentBlock>(
 
   /**
    * The retry of the R0 item: `query` the original operation first. Committed: the same `open`
-   * gives the original receipt back and the run goes on at E1. Excluded: the operation is admitted
-   * anew under the same identity. Unknown or a failed query: the reservation stays.
+   * gives the original authority back and the run goes on at E1. Excluded refuses the original
+   * operation. The reservation stays because query does not prove the execution is absent.
    */
   async function retryUnresolved(
     input: InvokeInput<P>,
     held: Extract<Slot, { kind: 'reserved' }>,
   ): Promise<Outcome<AgentExecutionHandle<P>, Failure>> {
-    occupy({ ...held, unresolved: null })
-    const found = await dependencies.journal.query({
-      principal: input.principal,
-      tenant: input.tenant,
-      execution: held.execution,
-      operation: input.operation,
-    })
+    const original = held.acceptance
+    if (original === null) return fail({ kind: 'busy' })
+    if (original.input !== inputText(input))
+      return fail({ kind: 'conflict', operation: input.operation })
+    occupy({ ...held, acceptance: null })
+    const found = await dependencies.journal
+      .query({
+        principal: input.principal,
+        tenant: input.tenant,
+        execution: held.execution,
+        operation: input.operation,
+      })
+      .catch(() => fail({ kind: 'commit-unknown' as const, operation: input.operation }))
     if ('failure' in found) {
       occupy(held)
       return found
@@ -551,9 +577,10 @@ export function createProvider<P, B extends ContentBlock>(
         occupy(held)
         return fail(rejectedOpen(input.operation))
       case 'excluded':
-        return admit(input, { kind: 'free' })
+        occupy(held)
+        return fail({ kind: 'conflict', operation: input.operation })
       case 'committed':
-        return admit(input, held)
+        return acceptOriginal(input, held, original.coordinator)
     }
   }
 
@@ -636,14 +663,14 @@ export function createProvider<P, B extends ContentBlock>(
     if (draining()) return fail(drainingRefusal('invoke'))
     if (
       slot.kind === 'reserved' &&
-      slot.unresolved === input.operation &&
+      slot.acceptance?.operation === input.operation &&
       slot.execution === input.execution
     )
       return retryUnresolved(input, slot)
     // SPEC 646: a new invoke while the slot is held answers busy; it is never queued.
     if (slot.kind !== 'free')
       return slot.execution === input.execution ? fail({ kind: 'busy' }) : findAccepted(input)
-    occupy({ kind: 'reserved', execution: input.execution, unresolved: null })
+    occupy({ kind: 'reserved', execution: input.execution, acceptance: null })
     return admit(input, { kind: 'free' })
   }
 

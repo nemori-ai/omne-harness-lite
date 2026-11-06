@@ -799,43 +799,60 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     expect(opens(assembly.record)).toBe(2)
   })
 
-  it('NA-E0-4: dropped: the query finds it excluded, and the same operation opens anew', async () => {
+  it('NA-E0-4: dropped: the original open conflicts and keeps its reservation', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'dropped' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
     expect(
       failure(await assembly.dependencies.journal.load({ ...alice, execution: execution() })).kind,
     ).toBe('denied')
-    assembly.release.open()
-    expect(await sequences(ok(await invoke(assembly)))).toEqual(ENDED_EVENTS)
-    expect(opens(assembly.record)).toBe(2)
+    expect(failure(await invoke(assembly))).toEqual({
+      kind: 'conflict',
+      operation: operation('invoke-exec-1'),
+    })
+    expect(failure(await invoke(assembly))).toEqual({
+      kind: 'conflict',
+      operation: operation('invoke-exec-1'),
+    })
+    expect(opens(assembly.record)).toBe(1)
+    expect(
+      failure(
+        await assembly.provider.runtime.invoke({
+          ...alice,
+          execution: execution(),
+          operation: operation('new-invoke'),
+          initial: acceptedInput('input-exec-1', 'hello exec-1'),
+          grant: null,
+        }),
+      ),
+    ).toEqual({ kind: 'busy' })
+    expect(await shown(assembly)).toEqual(reserved)
   })
-  it('NA-E0-4: a failure of the retry before open keeps the R0 item, because the open may have committed', async () => {
+  it('NA-E0-4: a retry of committed open skips admission even when adoption resolution is now unavailable', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'applied' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
     const refused = { kind: 'unavailable', owner: 'test-handoff', diagnostic: 'injected' } as const
-    assembly.controls.handoff.prepare.once(() => fail(refused))
-    expect(failure(await invoke(assembly))).toEqual(refused)
+    assembly.dependencies.adoptions.resolve = async () => fail(refused)
+    const handle = ok(await invoke(assembly))
+    expect(assembly.record.prepares).toHaveLength(1)
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
     assembly.release.open()
-    expect(await sequences(ok(await invoke(assembly)))).toEqual(ENDED_EVENTS)
+    expect(await sequences(handle)).toEqual(ENDED_EVENTS)
   })
 
-  it('NA-E0-4: an excluded open followed by a failure before open frees the slot', async () => {
+  it('NA-E0-4: excluded open without absence proof keeps the reservation', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'dropped' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
-    const refused = { kind: 'unavailable', owner: 'test-handoff', diagnostic: 'injected' } as const
-    assembly.controls.handoff.prepare.once(() => fail(refused))
-    expect(failure(await invoke(assembly))).toEqual(refused)
-    expect(opens(assembly.record)).toBe(1)
-    ok(await invoke(assembly, 'exec-2'))
-    expect(await shown(assembly)).toMatchObject({
-      kind: 'occupied',
-      execution: execution('exec-2'),
+    expect(failure(await invoke(assembly))).toEqual({
+      kind: 'conflict',
+      operation: operation('invoke-exec-1'),
     })
-    assembly.release.open()
+    expect(assembly.record.prepares).toHaveLength(1)
+    expect(opens(assembly.record)).toBe(1)
+    expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
+    expect(await shown(assembly)).toEqual(reserved)
   })
 })
 

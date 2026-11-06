@@ -557,6 +557,8 @@ SPEC 拥有行为，本页拥有执行位置。每条不变量列出执行它的
 
 本节只写 R0、W0、E4 的入口条件与回归节点。恢复切点表由[内部机制](mechanisms.md)拥有。
 
+当前协调者在端口调用前保存原 Journal 请求与恢复节点。串行驱动只有一个未定写槽，公开控制按各自 operation 独立保存。写后抛错仍先 query 原 operation。committed 后从权威快照继续，不能因丢回执产生业务故障。open 的 reserved 保存原 coordinator，认回 authority 时只重入原 open。excluded 不授予同号重新受理，规则见 [SPEC](../../SPEC.md#原-journal-写的认回)。
+
 | 入口 | 入口条件 | 回归节点 |
 | --- | --- | --- |
 | R0 | 任一提交回执未知，E4 读到已有续点，F3 返回 changed、blocked、unavailable 或 commit-unknown，Q2 返回 commit-unknown | 查原操作槽：已提交则采用原结果并回原节点的后继，未定则等待，可靠排除才重新求值。经 E4 回原节点 |

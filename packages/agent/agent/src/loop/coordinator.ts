@@ -108,10 +108,11 @@ import {
   sentPosition,
 } from './admission-read.ts'
 import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
+import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
 import { consumeModelResult, noReplyReason, type ModelOutcome } from './model-result.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
 import {
-  advanceControl,
+  advanceAcceptedControl,
   cancellationOf,
   controlOperation,
   establishCancellation,
@@ -590,9 +591,12 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // The acceptance of the external input that U0 admitted, which E0 hands to `open`.
   let acceptance: OriginalInputAcceptance | null = null
   let iteration: Iteration | null = null
-  // Only the identity and original node of this coordinator's uncertain conditional commit.
-  // Journal query remains the authority over whether that operation actually committed.
-  let pendingCommit: Readonly<{ operation: AgentOperationId; node: LoopNode }> | null = null
+  let pendingCommit: Readonly<{
+    operation: AgentOperationId
+    node: LoopNode
+    original: OriginalWrite<P>
+  }> | null = null
+  let originalOpen: Parameters<typeof ports.journal.open>[0] | null = null
   let excludedNode: LoopNode | null = null
   let finishRefused = false
   // The unavailable answer of the last tryFinish: R0 waits on it as a dependency (loop-algorithm
@@ -646,6 +650,17 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     }
   }
 
+  function journalAt(node: LoopNode) {
+    return originalJournal(ports.journal, async (original, invoke) => {
+      if (pendingCommit !== null)
+        return fail({ kind: 'commit-unknown', operation: pendingCommit.operation })
+      pendingCommit = { operation: original.input.operation, node, original }
+      const result = await attemptWrite(original, invoke)
+      if ('ok' in result || result.failure.kind !== 'commit-unknown') pendingCommit = null
+      return result
+    })
+  }
+
   async function commit(node: LoopNode, to: string, write: Write): Promise<Outcome<void, Failure>> {
     const base = required(checkpoint, 'checkpoint')
     const after = required(revision, 'revision')
@@ -664,7 +679,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       position: to,
     }
     const nextState = write.state ?? state
-    const committed = await ports.journal.commit({
+    const committed = await journalAt(node).commit({
       ...access,
       execution,
       operation,
@@ -691,8 +706,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           return commit(node, to, write)
         }
       }
-      if (committed.failure.kind === 'commit-unknown')
-        pendingCommit = { operation: committed.failure.operation, node }
       return committed
     }
     held = heldAfter(held, after, committed.ok.revision, write.events?.length ?? 0)
@@ -1249,8 +1262,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       // A waiting commit must not change the expected revision of the original operation.
       if (queried.ok.kind === 'unknown') return fail({ kind: 'commit-unknown', operation })
       if (own === null) continue
-      // Settled for another writer's operation; only recordControl can be refused durably, so
-      // for this coordinator's own commit it is a violation by the Journal provider.
+      if (queried.ok.kind === 'rejected' && own.original.method === 'recordControl') {
+        pendingCommit = null
+        return fail(queried.ok.failure)
+      }
       if (queried.ok.kind === 'rejected')
         return fail({
           kind: 'unavailable',
@@ -1363,23 +1378,23 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   const runExecutionNodes = {
     /** E0: `open` saves the original acceptance with the runtime context and grants the attachment. */
     async E0() {
-      const original = required(acceptance, 'acceptance')
-      // R2-D292: the initial checkpoint is the pure evaluator's value for the bound definition and
-      // the first step; the entry holds no copy of it.
-      const initial = evaluator.initial({ definition: binding.definition, step: stepOf(0) })
-      if ('failure' in initial) return initial
-      const opened = await ports.journal.open({
-        ...access,
-        execution,
-        operation: entry.operation,
-        original,
-        runtime: runtimeContext,
-        checkpoint: initial.ok,
-      })
+      if (originalOpen === null) {
+        const initial = evaluator.initial({ definition: binding.definition, step: stepOf(0) })
+        if ('failure' in initial) return initial
+        originalOpen = {
+          ...access,
+          execution,
+          operation: entry.operation,
+          original: required(acceptance, 'acceptance'),
+          runtime: runtimeContext,
+          checkpoint: initial.ok,
+        }
+      }
+      const opened = await journalAt('E0').open(originalOpen)
       if ('failure' in opened) return opened
       authority = opened.ok.authority
       revision = opened.ok.receipt.revision
-      checkpoint = initial.ok
+      checkpoint = originalOpen.checkpoint
       return step('authority', null)
     },
     /**
@@ -2998,20 +3013,24 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     const interrupt = cancelInterrupt(control, pending)
     if (interrupt === null) return succeed(undefined)
     const operation = controlOperation(execution, control.operation, interrupt.stage)
-    const accepted = await ports.journal.control({
+    const accepted = await journalAt('F0').control({
       ...access,
       execution,
       operation,
       command: interrupt.command,
     })
     if ('failure' in accepted) return accepted
-    return advanceControl(ports, access, execution, operation)
+    return advanceAcceptedControl(
+      { ...ports, journal: journalAt('F0') },
+      access,
+      execution,
+      operation,
+    )
   }
 
   /** A refused settlement commit: a changed or unknown answer is reconciled at R0. */
-  function refusedSettlement(node: 'F1' | 'F2', failure: Failure): Outcome<Step, Failure> {
+  function refusedSettlement(failure: Failure): Outcome<Step, Failure> {
     if (failure.kind === 'changed') cancellationChanged = true
-    if (failure.kind === 'commit-unknown') pendingCommit = { operation: failure.operation, node }
     return failure.kind === 'changed' || failure.kind === 'commit-unknown'
       ? step('reconcile', null)
       : fail(failure)
@@ -3050,7 +3069,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       expected: latest.revision,
       installation: installation.ok,
     }
-    const settled = await ports.journal.commitSettlement(
+    const settled = await journalAt('F1').commitSettlement(
       current?.conclusion.kind === 'cancelled' && route?.kind === 'author'
         ? {
             ...common,
@@ -3067,7 +3086,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
             predecessor: current?.candidate ?? null,
           },
     )
-    return 'failure' in settled ? refusedSettlement('F1', settled.failure) : step('fixed', null)
+    return 'failure' in settled ? refusedSettlement(settled.failure) : step('fixed', null)
   }
 
   /** The authorization of the terminal: the effective cancellation, or the current advance. */
@@ -3087,7 +3106,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     candidate: Parameters<typeof ports.journal.prepareFinish>[0]['candidate'],
     authorization: FinishAuthorization,
   ): Promise<Outcome<Outcome<Step, Failure> | null, Failure>> {
-    const prepared = await ports.journal.prepareFinish({
+    const prepared = await journalAt('F3').prepareFinish({
       ...access,
       execution,
       operation: journalOperation('F3', 'prepare', before.revision),
@@ -3104,7 +3123,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return succeed(step('reconcile', null))
     }
     if (prepared.failure.kind !== 'commit-unknown') return prepared
-    pendingCommit = { operation: prepared.failure.operation, node: 'F3' }
     return succeed(step('reconcile', null))
   }
 
@@ -3121,7 +3139,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return step('reconcile', null)
       }
       if (finished.failure.kind !== 'commit-unknown') return finished
-      pendingCommit = { operation: finished.failure.operation, node: 'F3' }
       return step('reconcile', null)
     }
     if (finished.ok.kind !== 'ended') {
@@ -3141,7 +3158,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if (read.ok.state.kind === 'ended') return step('terminal', null)
       const control = cancellationOf(read.ok)
       if (control === undefined) return fail(defect('F0 without effective cancellation'))
-      const revoked = await establishCancellation(ports.journal, access, execution, control)
+      const revoked = await establishCancellation(journalAt('F0'), access, execution, control)
       if ('failure' in revoked) return revoked
       for (const pending of read.ok.checkpoint.calls) {
         const interrupted = await interruptForCancel(control, pending)
@@ -3206,7 +3223,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const candidate = read.ok.settlement.candidate
       const route = read.ok.settlement.route
       if (control !== undefined && candidate !== null && route?.kind === 'cancellation') {
-        const judged = await ports.journal.commitSettlement({
+        const judged = await journalAt('F2').commitSettlement({
           ...access,
           execution,
           operation: journalOperation('F2', 'cancel-judge', read.ok.revision),
@@ -3221,7 +3238,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           candidate: candidate.candidate,
           route: route.record,
         })
-        return 'failure' in judged ? refusedSettlement('F2', judged.failure) : step('proceed', null)
+        return 'failure' in judged ? refusedSettlement(judged.failure) : step('proceed', null)
       }
       return step('proceed', { state: { kind: 'settling' } })
     },
@@ -3251,7 +3268,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return step('reconcile', null)
       }
       revision = read.ok.revision
-      const finished = await ports.journal.tryFinish({
+      const finished = await journalAt('F3').tryFinish({
         ...access,
         execution,
         operation: journalOperation('F3', 'finish', revision),
@@ -3304,7 +3321,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
 
   return {
     async accept() {
-      const ran = await drive('U0', 'E1')
+      // The provider queries a retained open before invoking accept again.
+      const start = originalOpen === null ? 'U0' : 'E0'
+      if (start === 'E0') pendingCommit = null
+      const ran = await drive(start, 'E1')
       if ('failure' in ran) return ran
       return succeed(required(authority, 'authority'))
     },
