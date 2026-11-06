@@ -32,7 +32,7 @@ MCP 是需求方。它用自己的词声明下面四个跨领域端口，由集�
 
 `AdoptionView` 只回答采用，`UseEligibility` 只回答接入点这一级的使用资格，两者各自交出结论。逐动作的权限项由 MCP 声明，判定不在 MCP。
 
-在 Cordis 装配里，这四个端口的实现方把实现包成 `@omne-harness/mcp-cordis-contract` 的抽象 Service 的子类，在键 `mcpAdoptionView`、`mcpUseEligibility`、`mcpCredentialUse`、`mcpProcessLanding` 上提供。插件每次调用都从键现取。键缺席时的答复见 [mcp-host-local 成员规格](../../../packages/mcp/mcp-host-local/SPEC.md#port-absent)。目前这四个端口在 Cordis 装配里都没有他域的提供者，实现方见上表「实现方」列。
+在 Cordis 装配里，这四个端口的实现方把实现包成 `@omne-harness/mcp-cordis-contract` 的抽象 Service 的子类，在键 `mcpAdoptionView`、`mcpUseEligibility`、`mcpCredentialUse`、`mcpProcessLanding` 上提供。`@omne-harness/mcp-host-local` 的插件每次调用都从键现取。键缺席时的答复见 [mcp-host-local 成员规格](../../../packages/mcp/mcp-host-local/SPEC.md#port-absent)。目前这四个端口在 Cordis 装配里都没有他域的提供者，实现方见上表「实现方」列。
 
 本组自己的 `McpTransport` 由组内的本地宿主成员实现，不是跨领域端口。
 
