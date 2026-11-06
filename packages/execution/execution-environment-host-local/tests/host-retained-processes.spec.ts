@@ -231,7 +231,9 @@ it.skipIf(!existsSync('/dev/fd'))('leaves no descriptor open after writing marke
   const descriptors = () => readdirSync('/dev/fd').length
   const before = descriptors()
   for (let n = 0; n < 4; n++) expect((await handOver(f, scope)).handed.marker).toBe('written')
-  expect(descriptors()).toBeLessThan(before + 4)
+  // The count is the whole process's: in a run that shares the process, another file's child may
+  // hold a pipe for a moment. A leaked marker descriptor never closes, so the count must settle.
+  await vi.waitFor(() => expect(descriptors()).toBeLessThan(before + 4), { timeout: 2_000 })
 })
 
 it('writes the marker on commit with the fields a restart needs, and lists by scope and tenant only', async () => {
