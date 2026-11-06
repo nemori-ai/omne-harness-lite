@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Local MCP host: the stdio and Streamable HTTP McpTransport implementations and authorization discovery",
+  "description": "Local MCP host: the stdio and Streamable HTTP McpTransport implementations with authorization discovery, and the MCP Cordis plugin that provides the three MCP services",
   "engines": {
     "node": ">=24"
   },

@@ -2,11 +2,11 @@
 
 [English](README.md)
 
-MCP 组的本机宿主成员：契约 `McpTransportFactory` 与 `McpTransport` 的两个真实实现（stdio、Streamable HTTP 含旧 HTTP+SSE 回退）与授权发现的取回。
+MCP 组的本机宿主成员：契约 `McpTransportFactory` 与 `McpTransport` 的两个真实实现（stdio、Streamable HTTP 含旧 HTTP+SSE 回退）与授权发现的取回；以及 `./cordis` 入口的 MCP Cordis 插件，它在一条 fiber 上提供 MCP 的三个服务。
 
 ## 职责与状态
 
-本包把 [`@omne-harness/mcp-contract`](../mcp-contract/README_ZH.md) 的传输端口兑现在真实的进程管道与 HTTP 连接上。调用方是 [`@omne-harness/mcp`](../mcp/README_ZH.md)：它经 `McpTransportFactory.open(material, signal)` 取得传输，再调用 `discover`、`listActions`、`call`、任务操作、`cancelRequest` 与 `close`。本包不起进程、不停进程、不读设置、不取凭据：进程由落点交来，凭据句柄由调用方放在材料里。
+本包把 [`@omne-harness/mcp-contract`](../mcp-contract/README_ZH.md) 的传输端口兑现在真实的进程管道与 HTTP 连接上。调用方是 [`@omne-harness/mcp`](../mcp/README_ZH.md)：它经 `McpTransportFactory.open(material, signal)` 取得传输，再调用 `discover`、`listActions`、`call`、任务操作、`cancelRequest` 与 `close`。根入口的传输不起进程、不停进程、不读设置、不取凭据：进程由落点交来，凭据句柄由调用方放在材料里。`./cordis` 插件装载的 `createMcp` 经四个端口取采用、资格、凭据与进程，见 [SPEC「Cordis 插件」](SPEC.md#cordis-plugin)。
 
 | 范围                                                                                         | 状态                                                                                                                                                      |
 | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -16,6 +16,7 @@ MCP 组的本机宿主成员：契约 `McpTransportFactory` 与 `McpTransport` �
 | 契约传输套件 `mcpTransportConformance()`                                                     | 两种材料各跑一遍；通过、不适用与失败分开计数，不适用的用例与理由在 [SPEC](SPEC.md#组合与验证)                                                             |
 | 远程对端、TLS、代理、真实网络失败                                                            | 未验证                                                                                                                                                    |
 | 与 `@omne-harness/mcp` 的真实组合                                                            | `tests/e2e/` 在本机五个目标（`server-everything` 的三种传输、`server-filesystem`、`mcp-server-fetch`）上验证；范围与未覆盖项见 [SPEC](SPEC.md#组合与验证) |
+| `./cordis` 的 Cordis 插件：三个服务、四个端口的现取与缺席、撤除时经 `closeAll` 收口          | 已实现；只在脚本化 stdio 对端上验证；HTTP 上的插件旅程未执行；未接受，见 [SPEC](SPEC.md#cordis-plugin-verification)                                       |
 | 技术接受                                                                                     | 尚未取得；本包是候选实现                                                                                                                                  |
 
 ## 使用
@@ -39,7 +40,7 @@ await transport.close() // 关闭传输；进程由它的持有者停止
 
 依赖：`@omne-harness/mcp-contract`（端口与协议函数）、`@omne-harness/json-text`、`@omne-harness/operation-result`、`eventsource-parser`。运行环境：Node ≥ 24，全局 `fetch`（可经 `options.fetch` 注入）。初始化只是建工厂；释放是每个传输的 `close()`，没有全局状态。
 
-`./cordis` 入口是给 Cordis 宿主的 MCP 插件。`createMcpPlugin(parts)` 收函数与本地对象（`principalKey`、`checkOutput`，可选的 `clock` 与 `fetch`）；插件配置收五项可序列化的上界，全部必填。插件装载时提供 `mcpActionDiscovery`、`mcpActionInvoker` 与 `mcpEndpointStatus`；它每次调用时从上下文现取四个需求端口，端口缺席答 `unknown`。插件撤除时等 `connections.closeAll()` 结算。这个入口另依赖 `@omne-harness/mcp`、`@omne-harness/mcp-cordis-contract`、`@omne-harness/kernel-basis` 与 `@deepseek-ai/cordis`。见 [docs/cordis.md](docs/cordis.md)。
+`./cordis` 入口是给 Cordis 宿主的 MCP 插件。`createMcpPlugin(parts)` 收函数与本地对象（`principalKey`、`checkOutput`，可选的 `clock` 与 `fetch`）；插件配置收四个上界与 `clientInfo`，都可序列化，全部必填。插件装载时提供 `mcpActionDiscovery`、`mcpActionInvoker` 与 `mcpEndpointStatus`；它每次端口调用时从上下文现取四个需求端口，端口缺席时的答复见 [SPEC「端口缺席」](SPEC.md#port-absent)。插件撤除时等 `connections.closeAll()` 结算。这个入口另依赖 `@omne-harness/mcp`、`@omne-harness/mcp-cordis-contract`、`@omne-harness/kernel-basis` 与 `@deepseek-ai/cordis`。见 [docs/cordis.md](docs/cordis.md)。
 
 ```ts
 import { createMcpPlugin } from '@omne-harness/mcp-host-local/cordis'
@@ -53,7 +54,7 @@ const fiber = await ctx.plugin(createMcpPlugin({ principalKey, checkOutput }), {
   clientInfo: { name: 'my-host', version: '1.0.0' },
 })
 const discovery = ctx.get(mcpActionDiscoveryKey) // 服务，或 undefined
-await fiber.dispose() // 关闭每条连接并停止进程
+await fiber.dispose() // 经 closeAll 关闭每条连接，并请落点停止进程（MC-10）
 ```
 
 ## 契约

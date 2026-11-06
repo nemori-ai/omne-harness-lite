@@ -9,7 +9,7 @@
 | `@omne-harness/mcp-host-local`        | [src/index.ts](../src/index.ts)   | `McpTransportFactory` 的持有者（`@omne-harness/mcp`、装配） | `createLocalTransportFactory` |
 | `@omne-harness/mcp-host-local/cordis` | [src/cordis.ts](../src/cordis.ts) | Cordis 宿主的装配                                           | `createMcpPlugin`             |
 
-`./cordis` 另导出类型 `McpPluginParts`（工厂参数）与 `McpPluginConfig`（插件配置）。插件、配置的检查、端口的现取与撤除见 [cordis.md](cordis.md)。没有 `./provider` 或 `./testing` 入口。端口类型来自 `@omne-harness/mcp-contract/provider`；本包不导出 SDK 的类型。
+`./cordis` 另导出类型 `McpPluginParts`（工厂参数）与 `McpPluginConfig`（插件配置）。插件的行为（配置的检查、端口的现取与缺席、换代、撤除）见 SPEC [Cordis 插件](../SPEC.md#cordis-plugin)，装配的用法见 [cordis.md](cordis.md)。没有 `./provider` 或 `./testing` 入口。端口类型来自 `@omne-harness/mcp-contract/provider`；本包不导出 SDK 的类型。
 
 ## 定义索引
 

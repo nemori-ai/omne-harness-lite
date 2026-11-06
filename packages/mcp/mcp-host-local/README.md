@@ -2,11 +2,11 @@
 
 [中文](README_ZH.md)
 
-The local host member of the MCP group: the two real implementations of the contract's `McpTransportFactory` and `McpTransport` (stdio, and Streamable HTTP with the legacy HTTP+SSE fallback), and the fetch of the authorization discovery.
+The local host member of the MCP group: the two real implementations of the contract's `McpTransportFactory` and `McpTransport` (stdio, and Streamable HTTP with the legacy HTTP+SSE fallback), and the fetch of the authorization discovery; and, at the `./cordis` entry, the MCP Cordis plugin, which provides the three MCP services on one fiber.
 
 ## Responsibility and status
 
-This package realizes the transport port of [`@omne-harness/mcp-contract`](../mcp-contract/README.md) on real process pipes and HTTP connections. Its consumer is [`@omne-harness/mcp`](../mcp/README.md): it opens a transport with `McpTransportFactory.open(material, signal)` and then calls `discover`, `listActions`, `call`, the task operations, `cancelRequest` and `close`. This package starts no process, stops no process, reads no settings and acquires no credential: the process comes from the landing, the credential handle comes with the material.
+This package realizes the transport port of [`@omne-harness/mcp-contract`](../mcp-contract/README.md) on real process pipes and HTTP connections. Its consumer is [`@omne-harness/mcp`](../mcp/README.md): it opens a transport with `McpTransportFactory.open(material, signal)` and then calls `discover`, `listActions`, `call`, the task operations, `cancelRequest` and `close`. The transports of the root entry start no process, stop no process, read no settings and acquire no credential: the process comes from the landing, the credential handle comes with the material. The `./cordis` plugin loads `createMcp`, which reads adoption, eligibility, credentials and processes through the four ports; see [SPEC "Cordis 插件"](SPEC.md#cordis-plugin).
 
 | Scope                                                                                                                                    | Status                                                                                                                                                                                          |
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -16,6 +16,7 @@ This package realizes the transport port of [`@omne-harness/mcp-contract`](../mc
 | The contract's `mcpTransportConformance()`                                                                                               | Run on both materials; passed, not applicable and failed are counted apart, and the not-applicable cases with their reasons are in the [SPEC](SPEC.md#组合与验证)                               |
 | Remote peers, TLS, proxies, real network failures                                                                                        | Not verified                                                                                                                                                                                    |
 | The real composition with `@omne-harness/mcp`                                                                                            | `tests/e2e/` verifies it on five local targets (`server-everything` on three transports, `server-filesystem`, `mcp-server-fetch`). The [SPEC](SPEC.md#组合与验证) lists the scope and the gaps. |
+| The `./cordis` Cordis plugin: the three services, the four ports read on each call or absent, the removal through `closeAll`             | Implemented; verified only on a scripted stdio peer; the plugin journey over HTTP is not run; not accepted. See the [SPEC](SPEC.md#cordis-plugin-verification)                                  |
 | Technical acceptance                                                                                                                     | Not yet; this is a candidate implementation                                                                                                                                                     |
 
 ## Usage
@@ -40,7 +41,7 @@ await transport.close() // closes the transport; the holder of the process stops
 
 Dependencies: `@omne-harness/mcp-contract` (the ports and the protocol functions), `@omne-harness/json-text`, `@omne-harness/operation-result`, `eventsource-parser`. Runtime: Node >= 24 with a global `fetch` (an own one goes in through `options.fetch`). Initialization is building the factory; disposal is each transport's `close()`; there is no global state.
 
-The `./cordis` entry has the MCP plugin for a Cordis host. `createMcpPlugin(parts)` takes the functions and local objects (`principalKey`, `checkOutput`, and optional `clock` and `fetch`); the plugin configuration holds the five serializable bounds, all required. On load the plugin provides `mcpActionDiscovery`, `mcpActionInvoker` and `mcpEndpointStatus`; it reads the four demand ports from the context on each call, and an absent port answers `unknown`. On unload it awaits `connections.closeAll()`. It also depends on `@omne-harness/mcp`, `@omne-harness/mcp-cordis-contract`, `@omne-harness/kernel-basis` and `@deepseek-ai/cordis`. See [docs/cordis.md](docs/cordis.md).
+The `./cordis` entry has the MCP plugin for a Cordis host. `createMcpPlugin(parts)` takes the functions and local objects (`principalKey`, `checkOutput`, and optional `clock` and `fetch`); the plugin configuration holds the four bounds and `clientInfo`, all serializable and required. On load the plugin provides `mcpActionDiscovery`, `mcpActionInvoker` and `mcpEndpointStatus`; it reads the four demand ports from the context on each port call, and what it answers when a port is absent is in [SPEC "端口缺席"](SPEC.md#port-absent). On unload it awaits `connections.closeAll()`. It also depends on `@omne-harness/mcp`, `@omne-harness/mcp-cordis-contract`, `@omne-harness/kernel-basis` and `@deepseek-ai/cordis`. See [docs/cordis.md](docs/cordis.md).
 
 ```ts
 import { createMcpPlugin } from '@omne-harness/mcp-host-local/cordis'
@@ -54,7 +55,7 @@ const fiber = await ctx.plugin(createMcpPlugin({ principalKey, checkOutput }), {
   clientInfo: { name: 'my-host', version: '1.0.0' },
 })
 const discovery = ctx.get(mcpActionDiscoveryKey) // the service, or undefined
-await fiber.dispose() // closes every connection and stops the processes
+await fiber.dispose() // closeAll closes every connection and asks the landing to stop the processes (MC-10)
 ```
 
 ## Contracts
