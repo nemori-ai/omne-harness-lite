@@ -36,6 +36,7 @@
     "@modelcontextprotocol/server": "catalog:",
     "@modelcontextprotocol/server-everything": "catalog:",
     "@modelcontextprotocol/server-filesystem": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/mcp": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
