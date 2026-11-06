@@ -1,4 +1,3 @@
-// Fixed relation layout adopted by the C2 migration chain.
 export const terminalDdl = [
   `CREATE TABLE hi_terminals_v2 (
   tenant_ref TEXT NOT NULL CHECK(length(tenant_ref)>0),

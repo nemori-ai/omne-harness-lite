@@ -1,5 +1,4 @@
 // @module-tag slow
-// Builds synthetic unrelated relational history, then runs the actual read modules over SQLite.
 import { expect, it } from 'vitest'
 import { z } from 'zod'
 import type { ReadPort } from '@omne-harness/sql-contract/worker'

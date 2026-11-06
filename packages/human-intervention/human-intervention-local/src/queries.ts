@@ -30,7 +30,6 @@ export type IndependentHitlQueryOptions = IdentityHitlOptions &
     cursorKey: Uint8Array
   }>
 
-/** Reads the immutable original-owner audience projection and current Identity standing. */
 export function createIndependentHitlQueryRuntime(
   options: IndependentHitlQueryOptions,
 ): QueryServices & {

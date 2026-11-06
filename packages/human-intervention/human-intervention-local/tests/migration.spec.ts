@@ -131,7 +131,6 @@ const corruptions: ReadonlyArray<{ name: string; corrupt: (db: Database) => void
         .get()
       if (!row) throw new Error('missing control')
       const state = IndependentControlSchema.parse(parseJson(row.record))
-      // Use an active registration to force the original-owner/request digest comparison.
       const active = db
         .prepare(
           "SELECT wait_key,record FROM hi_wait_controls WHERE record LIKE '%active-register%' LIMIT 1",

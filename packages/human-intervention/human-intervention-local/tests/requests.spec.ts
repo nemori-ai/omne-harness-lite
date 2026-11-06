@@ -749,7 +749,6 @@ it('rolls receipt, count and exact pending back together after the WaitOwner wri
   })
 })
 
-// The real SQLite transaction chain writes 64 cards for 64 readers, then exercises bucket transitions.
 it(
   'keeps directory size proportional to nonempty buckets at 64 cards and 64 readers',
   { tags: ['slow'], timeout: 30000 },
@@ -856,7 +855,6 @@ it(
   },
 )
 
-// Large legal questions make a 100-item page exceed 8MiB; the provider must return whole-item pages.
 it(
   'paginates escaped large questions without exceeding the output budget or losing raw text',
   { tags: ['slow'], timeout: 30000 },
