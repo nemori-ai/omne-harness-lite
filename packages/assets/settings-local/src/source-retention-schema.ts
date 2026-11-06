@@ -10,6 +10,12 @@ import { intentIdentitySchema } from './intent-schema.ts'
 import { SettingsTargetProjectionSchema } from './projection.ts'
 import { equal } from './encoding.ts'
 
+export const SOURCE_SNAPSHOT_PARTICIPANT = 'settings.source-snapshot'
+export const SOURCE_SNAPSHOT_PROTOCOL = 'settings-source-snapshot/1'
+export const SOURCE_SNAPSHOT_FACT = {
+  key: SOURCE_SNAPSHOT_PARTICIPANT,
+  protocol: SOURCE_SNAPSHOT_PROTOCOL,
+}
 export const SOURCE_RETENTION_OWNER = 'settings.source-retention'
 export const SOURCE_RETENTION_PROTOCOL = 'settings-source-retention/1'
 export const SOURCE_RETENTION_TABLES = ['st_source_gate', 'st_source_reservation']

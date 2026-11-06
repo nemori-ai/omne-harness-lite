@@ -55,3 +55,5 @@ export const StandaloneRecordSchema = z.strictObject({
   retired: z.boolean(),
 })
 export type StandaloneMutation = z.infer<typeof StandaloneMutationSchema>
+
+export const STANDALONE_PROJECTION = 'settings.target-projection'

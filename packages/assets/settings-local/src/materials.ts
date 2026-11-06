@@ -1,3 +1,6 @@
+import { sourceSnapshotMaterials } from './source-snapshot-materials.ts'
+import { sourceRetentionMaterials } from './source-retention-materials.ts'
+import { SOURCE_WRITE_FACT } from './source-write.ts'
 import { SETTINGS_INTENT_MIGRATION, SETTINGS_INTENT_TABLES } from './intent-migration.ts'
 import { SETTINGS_PREPARING_MIGRATION } from './preparing-migration.ts'
 import {
@@ -34,10 +37,11 @@ function file(name: string) {
     digest: createHash('sha256').update(readFileSync(url)).digest('hex'),
   }
 }
-export function settingsSqlMaterials(): Pick<
-  SqlMaterialCatalog,
-  'participants' | 'migrations' | 'readHandlers'
-> {
+export function settingsSqlMaterials(
+  options: { sourceCapture?: boolean } = {},
+): Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'> {
+  const snapshot = sourceSnapshotMaterials({ capture: options.sourceCapture ?? false })
+  const retention = sourceRetentionMaterials()
   const participant = file('participant')
   const migration = file('migration')
   const intentMigration = file('intent-migration')
@@ -50,6 +54,8 @@ export function settingsSqlMaterials(): Pick<
   const terminalReader = file('terminal-read')
   return {
     participants: [
+      ...snapshot.participants,
+      ...retention.participants,
       {
         participant: TERMINAL_PARTICIPANT,
         protocol: TERMINAL_PROTOCOL,
@@ -69,13 +75,14 @@ export function settingsSqlMaterials(): Pick<
         codeDigest: participant.digest,
         ownedTables: [...TABLES, ...SETTINGS_INTENT_TABLES, SETTINGS_STANDING_CUSTODY_TABLE],
         readTables: [],
-        requiresFacts: [GUARD_FACT, TERMINAL_FACT],
+        requiresFacts: [GUARD_FACT, TERMINAL_FACT, SOURCE_WRITE_FACT],
         providesFacts: [RESULT_FACT],
         allowedFunctions: [],
         grouping: 'groupable',
       },
     ],
     migrations: [
+      ...retention.migrations,
       {
         ...SETTINGS_STANDING_CUSTODY_MIGRATION,
         moduleUrl: standingCustody.moduleUrl,

@@ -1,3 +1,4 @@
+import { sourceWriteCommands, sourceTargetWriteBinding } from './source-write.ts'
 import { z } from 'zod'
 import type { CommitResultV2, QueryResultV2, FactCommandV2 } from '@omne-harness/sql-contract'
 import { digest, json, equal, withinBudget } from './encoding.ts'
@@ -5,6 +6,7 @@ import { domainSchema, failureSchema } from './schema.ts'
 import {
   StandaloneMutationSchema,
   STANDALONE_PARTICIPANT,
+  STANDALONE_PROJECTION,
   type StandaloneMutation,
 } from './standalone-schema.ts'
 import type { SettingsSqlGuards } from './types.ts'
@@ -16,16 +18,16 @@ import type {
   SettingsFailure,
 } from '@omne-harness/settings'
 export const standaloneSettingsGuards: SettingsSqlGuards = {
-  participant: STANDALONE_PARTICIPANT,
+  participant: STANDALONE_PROJECTION,
   command: binding => ({
-    participant: STANDALONE_PARTICIPANT,
+    participant: STANDALONE_PROJECTION,
     facts: { kind: 'guard', binding: json(binding) },
   }),
 }
 export function standaloneSettingsProjectionCommand(
   binding: SettingsProjectionBinding,
 ): FactCommandV2 {
-  return { participant: STANDALONE_PARTICIPANT, facts: { kind: 'capture', binding: json(binding) } }
+  return { participant: STANDALONE_PROJECTION, facts: { kind: 'capture', binding: json(binding) } }
 }
 export function createStandaloneSettingsOwner(input: SettingsSqlTerminalOptions) {
   const options = { ...input, domain: domainSchema.parse(input.domain) }
@@ -80,6 +82,7 @@ export function createStandaloneSettingsOwner(input: SettingsSqlTerminalOptions)
           combinationVersion: options.combinationVersion,
           manifestDigest: options.manifestDigest,
           commands: [
+            ...sourceWriteCommands(sourceTargetWriteBinding(options.domain, command)),
             {
               participant: STANDALONE_PARTICIPANT,
               facts: { kind: 'mutate', domain: json(options.domain), command: json(command) },

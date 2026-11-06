@@ -14,12 +14,17 @@ import { readProjectedSettingsState } from './projected-state.ts'
 import type { SettingsTargetProjection } from './projection.ts'
 import { digest, equal, json, stateKey, withinBudget } from './encoding.ts'
 
-export const SOURCE_SNAPSHOT_PARTICIPANT = 'settings.source-snapshot'
-export const SOURCE_SNAPSHOT_PROTOCOL = 'settings-source-snapshot/1'
-export const SOURCE_SNAPSHOT_FACT = {
-  key: SOURCE_SNAPSHOT_PARTICIPANT,
-  protocol: SOURCE_SNAPSHOT_PROTOCOL,
-}
+import {
+  SOURCE_SNAPSHOT_PARTICIPANT,
+  SOURCE_SNAPSHOT_PROTOCOL,
+  SOURCE_SNAPSHOT_FACT,
+} from './source-retention-schema.ts'
+import { projectSourceWrite } from './source-write-projection.ts'
+export {
+  SOURCE_SNAPSHOT_PARTICIPANT,
+  SOURCE_SNAPSHOT_PROTOCOL,
+  SOURCE_SNAPSHOT_FACT,
+} from './source-retention-schema.ts'
 export const sourceSnapshotFactSchema = z.strictObject({
   request: sourceRequestSchema,
   observation: z.discriminatedUnion('kind', [
@@ -77,6 +82,7 @@ export default {
   participant: SOURCE_SNAPSHOT_PARTICIPANT,
   protocol: SOURCE_SNAPSHOT_PROTOCOL,
   execute(facts, port) {
+    if (facts['kind'] === 'write') return projectSourceWrite(facts, port)
     if (!withinBudget(facts))
       return { kind: 'failed', diagnostic: 'settings_source_snapshot_limit' }
     const parsed = sourceRequestSchema.safeParse(facts['request'])

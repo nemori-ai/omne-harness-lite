@@ -146,7 +146,7 @@ Custody readback uses indexed root, exact-attempt and custody lookups, each with
 
 ## Source retention relations
 
-`source-retention-schema.ts`, `source-retention-migration.ts` and `source-retention-records.ts` define the private source retention mechanism. Its owner is settings.source-retention. It owns only st_source_gate and st_source_reservation. The migration currently runs in the test assembly; ordinary settingsSqlMaterials does not install a source provider. The production snapshot, admission, invalidation writers and destination resolver remain unconnected.
+`source-retention-schema.ts`, `source-retention-migration.ts` and `source-retention-records.ts` define the private source retention mechanism. Its owner is settings.source-retention. It owns only st_source_gate and st_source_reservation. settingsSqlMaterials installs the source relations and retention participant. Direct assignment, rebase and independent-target writers consume its same-transaction write permission. Authenticated source admission, prepared source-update completion and destination resolution remain incomplete.
 
 A retained source identifies a complete Settings target in a fixed storage domain. A gate protects its definition, layout, values and locks together. An inheritance sourceId or an item name is not this gate's identity. Each gate stores one pending root update, with the full immutable identity and command digest. Another root is blocked. The same root with changed content conflicts.
 
@@ -160,7 +160,7 @@ Settlement consumes a confirmed, matching destination terminal from the trusted 
 
 Recovery reads held reservations and pending gates through separate partial indexes. It returns bounded keyset pages of at most100 records. Hold recovery returns binding and route metadata, without copying snapshot values into each page. Pending recovery includes gates with zero holds. Per-source held counts use a partial source index. Exact lookup, identity validation and SQL row budgets apply on readback.
 
-Tests use real SqlStorage and SQLite with a named fixture replacing trusted admission, snapshot production and terminal resolution. They exercise persistence, isolation between source targets, competing updates, exact cleanup, capacity, rollback and indexed recovery. They do not establish production invalidation coverage or cross-domain release ordering.
+Tests use real SqlStorage and SQLite with a named fixture replacing trusted admission, snapshot production and terminal resolution. They exercise persistence, isolation between source targets, competing updates, exact cleanup, capacity, rollback and indexed recovery. These relation tests do not establish cross-domain release ordering. The writer coverage below uses the actual retention participant and command services.
 
 ## Transactional source snapshot
 
@@ -170,4 +170,19 @@ The fact binds the complete source request, including its destination owner and 
 
 The participant reuses standalone-records and projected-state with the ordinary owner and catalog paths. It validates the full definition reference against the normalized declaration. It preserves actual values, locks, source descriptors and revisions. Caller-supplied snapshot content is never read. Snapshot production does not authenticate the principal or keep the source stable after the transaction.
 
-Source-snapshot tests combine the real target owner, assignment writer and snapshot participant with a named fact-consumer fixture. They verify absence, real values and locks, retirement, definition drift, complete destination binding, dependency ordering and snapshot retention across reopen. These tests do not complete the organization source adapter or invalidation gates. Recovery and settlement must remain independent of obtaining a fresh source snapshot.
+Source-snapshot tests combine the real target owner, assignment writer and snapshot participant with a named fact-consumer fixture. They verify absence, real values and locks, retirement, definition drift, complete destination binding, dependency ordering and snapshot retention across reopen. These tests do not complete the organization source adapter or preparation coordinator. Recovery and settlement must remain independent of obtaining a fresh source snapshot.
+
+
+## Source protection on actual writes
+
+Direct assignment commands, maintenance rebase and independent-target mutations require a source-write-open fact in their transaction. The fact binds the operation kind, domain, principal or owner capability, complete target, operation ID and command digest. The writer compares that binding against its own parsed command. A fact for another target or another command cannot permit the write.
+
+The source-retention participant reads the exact target gate and its held count. Any pending update or held reservation rejects a direct write with basis_changed. It does not clear the gate, settle reservations or write another owner's records. The SQL transaction orders this check before the writer and prevents an intervening source reservation. A rolled-back check or writer leaves business state unchanged. Already committed operation receipts remain recognizable without fresh write permission.
+
+settings.targets remains the sole owner of st_targets and st_definitions. settings.target-projection supplies read-only target projections and optional direct guards. It reads st_targets and requires no source-write fact. This split keeps catalog capture available while a write is blocked. Use the public command factories to obtain the correct participant identity.
+
+Ordinary settingsSqlMaterials installs a write-only source observation participant with no source table read permissions. settingsSqlMaterials({ sourceCapture: true }) selects the full snapshot producer under the same participant identity. That assembly must include the real independent-target owner. Register one variant only. This option supplies transaction materials, not a public authenticated source reservation service.
+
+A write observation describes the requested operation. It does not attest to source state or authorization. Reserve requires a captured snapshot fact bound to its complete destination request. The retention participant recognizes an existing reservation before attempting a new hold. Source settlement, root-owned update completion and recovery must later consume their own trusted evidence without requiring a fresh source snapshot.
+
+Tests use real Identity, Settings services, independent ownership, source capture and retention to exercise held-source rejection, unrelated writes, original receipts and competing writes. A separately seeded pending gate verifies restart behavior when its held count is zero. That seed does not establish the production update admission or recovery coordinator. Asset holding invalidation and organization-source admission require their own owning-domain integration.

@@ -23,6 +23,7 @@ import { openIdentityWorld } from './identity-world.ts'
 import { definition } from './world.ts'
 export async function openCatalogWorld(
   options: {
+    sourceCapture?: boolean
     assets?: {
       materials: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
       command: (
@@ -43,6 +44,7 @@ export async function openCatalogWorld(
   ]
   const guards = createSettingsTargetGuards(project)
   const w = await openIdentityWorld({
+    sourceCapture: options.sourceCapture ?? false,
     authority: {
       guards,
       materials: {

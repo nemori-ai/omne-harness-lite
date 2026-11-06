@@ -262,7 +262,7 @@ erDiagram
 flowchart LR
   Snapshot[已有：只读Settings源快照] -.-> Holds[已有私有保留记录写者]
   Gate[已有私有待决门写者] --> Holds
-  Gate -.-> Writers[待接线：配值、声明与布局失效写者]
+  Gate --> Writers[已有：配值、rebase、独立目标写者]
   Resolver[待接线：可信目的终态resolver] -.-> Holds
   Holds --> Recovery[已有有界held枚举]
   Gate --> Pending[已有独立pending枚举]
@@ -285,4 +285,26 @@ flowchart TB
   Fact -.-> Reserve[尚待生产接线的保留协调]
 ```
 
-source-snapshot不拥有表，也不依赖写者产生的fact。登记组合必须包含实际表拥有者。该结构允许先读取，再由来源门和写者推进事务，避免读者等待写者、写者又等待来源门。当前测试通过具名消费者使用该事实，真实资格和全部写者围栏仍未交付。
+source-snapshot不拥有表，也不依赖写者产生的fact。登记组合必须包含实际表拥有者。该结构允许先读取，再由来源门和写者推进事务，避免读者等待写者、写者又等待来源门。当前保留参与者消费真实快照；只读观察仍使用具名夹具。真实组织来源准入、资产持有失效接线与准备提交恢复尚未交付。
+
+
+## 来源保护与只读投影
+
+来源门以完整目标为单位保护定义、来源布局、值和锁。赋值、维护重映射和独立目标修改在同一 SQL 事务中消费绑定命令的许可。存在 pending 更新或 held 保留时，直接写入返回 basis_changed。已提交的原回执仍可认回。
+
+```mermaid
+flowchart LR
+  Command[命令服务] --> Observation[写入请求观察]
+  Observation --> Retention[来源保留参与者]
+  Retention --> Gate[(来源门与保留记录)]
+  Retention --> Fact[精确命令的 write-open fact]
+  Fact --> Assignment[赋值或 rebase 写者]
+  Fact --> Target[独立目标写者]
+  Query[目录查询] --> Projection[只读目标投影]
+  Projection --> Targets[(st_targets)]
+  Target --> Targets
+```
+
+settings.targets 独占目标表写入。settings.target-projection 只读目标表，不依赖来源写入许可，因此来源被保留时查询仍可继续。Settings 不读取其他领域的私有表。
+
+普通装配只安装写入观察。显式启用 sourceCapture 后，同一观察参与者还可从真实目标和配值表产生来源快照，装配必须登记这些表的拥有者。这仍是事务材料，尚不是公开的组织来源服务。生产更新排空、根终态同提交以及恢复协调继续由完整准备提交路径承担。

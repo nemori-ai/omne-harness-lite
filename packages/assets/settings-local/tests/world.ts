@@ -103,6 +103,7 @@ function material(name: string) {
 }
 export async function openWorld(
   options: {
+    sourceCapture?: boolean
     root?: string
     scopeRef?: string
     target?: SettingsTarget
@@ -122,7 +123,7 @@ export async function openWorld(
   )
   mkdirSync(parent, { recursive: true })
   const root = options.root ?? realpathSync(mkdtempSync(join(parent, 'case-')))
-  const own = settingsSqlMaterials()
+  const own = settingsSqlMaterials({ sourceCapture: options.sourceCapture ?? false })
   const migration = material('guard-migration')
   const fixture: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',

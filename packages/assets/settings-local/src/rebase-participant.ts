@@ -1,3 +1,4 @@
+import { sourceWriteIsOpen } from './source-write.ts'
 import { decideStoredSettingsRebase } from './rebase-decision.ts'
 import { defineSettings, settingsSourceIdentities } from '@omne-harness/settings'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
@@ -18,6 +19,7 @@ export function rebaseAssignments(raw: unknown, port: ParticipantPort) {
     kind: 'conflict' as const,
     basis: json({ binding: operation, failure: { kind: 'rejected', reason } }),
   })
+  if (!sourceWriteIsOpen(port, { kind: 'rebase', operation })) return fail('forbidden')
   if (!equal(port.requireFact(TERMINAL_FACT), { kind: 'consume', binding: operation }))
     return fail('forbidden')
   if (binding.commandDigest !== rebaseDigest(binding.command)) return fail('operation_conflict')

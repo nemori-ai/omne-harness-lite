@@ -1,3 +1,5 @@
+import type { SettingsTarget } from '@omne-harness/settings'
+import type { DomainRef } from '@omne-harness/sql-contract'
 import { z } from 'zod'
 import type { ReadPort } from '@omne-harness/sql-contract/worker'
 import { StandaloneRecordSchema } from './standalone-schema.ts'
@@ -15,4 +17,12 @@ export function projectStandaloneSettingsRecord(
   return sourceLayout.kind === 'bound'
     ? { ...view, sources: projectSettingsSources(sourceLayout.sources, view.ownerRevision) }
     : null
+}
+
+export function isIndependentTargetInDomain(domain: DomainRef, target: SettingsTarget) {
+  return (
+    domain.scope.kind === 'tenant' &&
+    target.scopeRef === domain.scope.tenant &&
+    target.policyId === 'independent'
+  )
 }

@@ -1,3 +1,5 @@
+import { DatabaseSync } from 'node:sqlite'
+import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -13,15 +15,11 @@ import {
   settingsSqlMaterials,
   standaloneSettingsGuards,
 } from '../src/index.ts'
-import { sourceSnapshotMaterials } from '../src/source-snapshot-materials.ts'
 import { SOURCE_SNAPSHOT_FACT, SOURCE_SNAPSHOT_PARTICIPANT } from '../src/source-snapshot.ts'
-import {
-  SOURCE_RETENTION_MIGRATION,
-  SOURCE_RETENTION_OWNER,
-  SOURCE_RETENTION_PROTOCOL,
-  SOURCE_RETENTION_TABLES,
-} from '../src/source-retention-schema.ts'
-import { json } from '../src/encoding.ts'
+import { SOURCE_RETENTION_OWNER } from '../src/source-retention-schema.ts'
+import { sourceKey } from '../src/source-retention-records.ts'
+import { sourceUpdate } from './source-retention-world.ts'
+import { canonical, digest, json } from '../src/encoding.ts'
 import { command, context, definition, openWorld } from './world.ts'
 import { sourceRequest } from './source-retention-world.ts'
 import { ownerSources } from './sources.ts'
@@ -37,16 +35,13 @@ function file(relative: string) {
   }
 }
 async function open(root?: string) {
-  const snapshot = sourceSnapshotMaterials()
-  const migration = file('../dist/source-retention-migration.js')
   const extras: Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'> = {
     participants: [
-      ...snapshot.participants,
       {
-        participant: SOURCE_RETENTION_OWNER,
-        protocol: SOURCE_RETENTION_PROTOCOL,
+        participant: 'fixture.source-snapshot-sink',
+        protocol: 'fixture-source-snapshot/1',
         ...file('./source-snapshot-sink.mjs'),
-        ownedTables: SOURCE_RETENTION_TABLES,
+        ownedTables: [],
         readTables: [],
         requiresFacts: [SOURCE_SNAPSHOT_FACT],
         providesFacts: [],
@@ -54,17 +49,11 @@ async function open(root?: string) {
         grouping: 'groupable',
       },
     ],
-    migrations: [
-      {
-        ...SOURCE_RETENTION_MIGRATION,
-        moduleUrl: migration.moduleUrl,
-        checksum: migration.codeDigest,
-        requires: [],
-      },
-    ],
+    migrations: [],
     readHandlers: [],
   }
   const w = await openWorld({
+    sourceCapture: true,
     ...(root ? { root } : {}),
     authority: { materials: settingsStandaloneMaterials(), guards: standaloneSettingsGuards },
     extraMaterials: extras,
@@ -88,7 +77,7 @@ async function open(root?: string) {
       },
     ],
   }
-  const persistence = settingsSqlMaterials()
+  const persistence = settingsSqlMaterials({ sourceCapture: true })
   const targets = settingsStandaloneMaterials()
   const catalog: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
@@ -134,7 +123,10 @@ async function open(root?: string) {
         combinationVersion: combo.combinationVersion,
         manifestDigest: combo.manifestDigest,
         commands: [
-          { participant: SOURCE_RETENTION_OWNER, facts: { request: json(sinkRequest), hold } },
+          {
+            participant: hold ? SOURCE_RETENTION_OWNER : 'fixture.source-snapshot-sink',
+            facts: { kind: 'reserve', request: json(sinkRequest) },
+          },
           {
             participant: SOURCE_SNAPSHOT_PARTICIPANT,
             facts: { request: json(request), forgedSnapshot: { value: 'ignored-client-value' } },
@@ -146,8 +138,9 @@ async function open(root?: string) {
 }
 function response(result: CommitResultV2) {
   if (result.kind !== 'committed') throw new Error(JSON.stringify(result))
-  return result.responses.find(reply => reply.participant === SOURCE_RETENTION_OWNER)?.reply
-    .response
+  return result.responses.find(reply =>
+    [SOURCE_RETENTION_OWNER, 'fixture.source-snapshot-sink'].includes(reply.participant),
+  )?.reply.response
 }
 it('reads the real owner and assignment state in transaction order, including absence and locks', async () => {
   const w = await open()
@@ -232,4 +225,54 @@ it('binds the produced fact to the complete destination request', async () => {
   }
   expect((await w.capture(true, other)).kind).toBe('rolled_back')
   expect(response(await w.capture(true))).toMatchObject({ kind: 'held', request: w.request })
+})
+it('blocks direct writers after reopening a pending gate even when no reservations remain', async () => {
+  const w = await open()
+  await w.provision()
+  await w.close()
+  const update = sourceUpdate()
+  update.source = w.request.source
+  update.identity = {
+    domain: w.domain,
+    principalRef: 'admin',
+    operation: { target: w.record.target, operationId: 'pending-update' },
+  }
+  const database = new DatabaseSync(
+    join(w.root, 'domains', `${Buffer.from(w.domain.transactionDomain).toString('hex')}.sqlite`),
+  )
+  try {
+    database
+      .prepare(
+        'INSERT INTO st_source_gate (source_key, source_json, pending_key, pending_json) VALUES (?, ?, ?, ?)',
+      )
+      .run(
+        sourceKey(update.source),
+        canonical(update.source),
+        digest(update.identity),
+        canonical(update),
+      )
+    expect(
+      database.prepare('SELECT count(*) AS count FROM st_source_reservation').get()?.['count'],
+    ).toBe(0)
+  } finally {
+    database.close()
+  }
+  const reopened = await open(w.root)
+  expect(await reopened.backend.commit(context, command())).toEqual({
+    kind: 'rejected',
+    reason: 'basis_changed',
+  })
+  expect(
+    await reopened.owner.mutate({
+      kind: 'retire',
+      operationId: 'retire-pending',
+      expectedRevision: 1,
+      target: w.record.target,
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'basis_changed' })
+  expect(response(await reopened.capture())).toMatchObject({
+    kind: 'captured',
+    snapshot: { presence: 'absent', projection: { ownerRevision: 1 } },
+  })
+  expect(response(await reopened.capture(true))).toEqual({ kind: 'blocked' })
 })

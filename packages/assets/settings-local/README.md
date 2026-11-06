@@ -12,7 +12,7 @@ The caller supplies a public `SqlStorage`, a fixed tenant transaction domain, a 
 
 For the catalog composition, combine these materials in one tenant domain:
 
-- `settingsSqlMaterials()` supplies assignment persistence and operation terminals.
+- `settingsSqlMaterials()` supplies assignment persistence, operation terminals and source write protection.
 - `settingsStandaloneMaterials({ settingsGuard: false })` supplies independent targets and their projection fact.
 - `settingsCatalogMaterials()` supplies the central target guard and snapshot participant.
 - The Asset owner's materials supply `settings.assets-projection`. An assembly without Assets uses `settingsWithoutAssetsMaterials()` instead.
@@ -27,7 +27,7 @@ const project = (binding: SettingsProjectionBinding) => [
 const guards = createSettingsTargetGuards(project)
 ```
 
-`SettingsProjectionBinding` and these factories come from this package's root entry. With Assets installed, replace the empty contribution with the Asset owner's public projection command. Each owner fact has exactly one producer. The central guard rejects mismatched bindings or duplicate complete targets. Settings never reads Asset or Identity private tables.
+`SettingsProjectionBinding` and these factories come from this package's root entry. With Assets installed, replace the empty contribution with the Asset owner's public projection command. The independent owner has separate mutation and read-only projection participants. Use the command factories rather than hard-coding their IDs. Each owner fact has exactly one producer. The central guard rejects mismatched bindings or duplicate complete targets. Settings never reads Asset or Identity private tables.
 
 For persistence without a catalog, `createSettingsSqlBackend` accepts a trusted `access` adapter and a same-transaction `guards` participant. `standaloneSettingsGuards` with default `settingsStandaloneMaterials()` supports the independent owner directly. Do not combine that direct guard producer with the central guard producer. Custom owner guards must implement the [fact protocol](SPEC.md#target-qualification).
 
@@ -49,7 +49,7 @@ Releasing a registry contribution preserves assignments and changes read availab
 
 `createSettingsMaintenance` is a trusted deployment-owner capability. Keep it outside ordinary tenant, tool, HTTP, and SDK handlers. It deliberately uses the fixed `maintenance/<ownerRef>` identity without tenant qualification reservations. Possession and routing of this capability are the deployment owner's responsibility.
 
-Its `rebase` requires exact old and new definition references, the expected assignment revision, and a retain/discard choice for every stored assignment. It consumes current facts from the same target owner and commits state, operation recovery, changes, and terminal together. It does not migrate values by matching display names. Retained values must validate against the new declaration and sources. Mismatched old state stays unavailable to catalog evaluation until an explicit compatible rebase succeeds. This is not a tenant authorization extension.
+Its `rebase` requires exact old and new definition references, the expected assignment revision, and a retain/discard choice for every stored assignment. It consumes current facts from the same target owner and commits state, operation recovery, changes, and terminal together. It does not migrate values by matching display names. Retained values must validate against the new declaration and sources. Mismatched old state stays unavailable to catalog evaluation until an explicit compatible rebase succeeds. A held source reservation or pending source update blocks direct rebase with `basis_changed`. The same protection applies to assignments and independent-target mutations. Catalog reads and original committed receipts remain available. This is not a tenant authorization extension.
 
 ## Recover and close
 

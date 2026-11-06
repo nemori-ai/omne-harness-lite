@@ -33,6 +33,7 @@ function duration(text: string) {
 }
 export async function openIdentityWorld(
   options: {
+    sourceCapture?: boolean
     wrapSettings?: (storage: SqlStorage) => SqlStorage
     authority?: NonNullable<Parameters<typeof openWorld>[0]>['authority']
   } = {},
@@ -60,6 +61,7 @@ export async function openIdentityWorld(
     principalRef = standingPrincipalRef(principal)
   const target = { policyId: 'independent', targetRef: 'preferences', scopeRef }
   const world = await openWorld({
+    sourceCapture: options.sourceCapture ?? false,
     ...(options.authority ? { authority: options.authority } : {}),
     scopeRef,
     target,

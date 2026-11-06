@@ -1,3 +1,4 @@
+import { sourceWriteCommands } from './source-write.ts'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
@@ -54,6 +55,31 @@ async function authorize<Context>(
     return rejected('forbidden')
   return grant.data
 }
+async function originalChange<Context>(options: SettingsSqlOptions<Context>, binding: Binding) {
+  const operation = settingsSqlOperationBinding(binding)
+  const unknown = { kind: 'unknown' as const, operationId: operation.operationId }
+  const sqlIdentity = identity(
+    operation.domain,
+    operation.principalRef,
+    operation.target,
+    operation.operationId,
+  )
+  const lookup = operation
+  const terminal = await createSettingsSqlTerminals(options).inspect(
+    settingsSqlOperationBinding(binding),
+  )
+  if (terminal.kind === 'conflict') return rejected('operation_conflict')
+  if (terminal.kind === 'unavailable') return unknown
+  const original = receiptResult(
+    await options.storage.query(sqlIdentity),
+    lookup,
+    options.guards.participant,
+  )
+  if (original.kind !== 'not_found') return original
+  if (terminal.kind === 'terminal')
+    return terminal.terminal.state === 'aborted' ? rejected('basis_changed') : unknown
+  return { kind: 'not_found' as const }
+}
 async function commit<Context>(
   options: SettingsSqlOptions<Context>,
   context: Context,
@@ -80,19 +106,8 @@ async function commit<Context>(
   )
   const unknown = { kind: 'unknown' as const, operationId: command.operationId }
   try {
-    const terminal = await createSettingsSqlTerminals(options).inspect(
-      settingsSqlOperationBinding(binding),
-    )
-    if (terminal.kind === 'conflict') return rejected('operation_conflict')
-    if (terminal.kind === 'unavailable') return unknown
-    const original = receiptResult(
-      await options.storage.query(sqlIdentity),
-      lookup,
-      options.guards.participant,
-    )
+    const original = await originalChange(options, binding)
     if (original.kind !== 'not_found') return original
-    if (terminal.kind === 'terminal')
-      return terminal.terminal.state === 'aborted' ? rejected('basis_changed') : unknown
     const guard = options.guards.command(binding)
     const commands = 'participant' in guard ? [guard] : guard
     if (!commands.some(command => command.participant === options.guards.participant))
@@ -102,6 +117,7 @@ async function commit<Context>(
       combinationVersion: options.combinationVersion,
       manifestDigest: options.manifestDigest,
       commands: [
+        ...sourceWriteCommands({ kind: 'change', operation: settingsSqlOperationBinding(binding) }),
         {
           participant: TERMINAL_PARTICIPANT,
           facts: { kind: 'consume', binding: json(settingsSqlOperationBinding(binding)) },

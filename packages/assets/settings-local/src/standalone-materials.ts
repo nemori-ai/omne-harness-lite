@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
+import { SOURCE_WRITE_FACT } from './source-write.ts'
 import { GUARD_FACT } from './schema.ts'
 import { settingsStandaloneProjectionFact } from './projection.ts'
 import {
@@ -8,6 +9,7 @@ import {
   STANDALONE_SOURCE_LAYOUT_MIGRATION,
   STANDALONE_ENABLEMENT_MIGRATION,
   STANDALONE_PARTICIPANT,
+  STANDALONE_PROJECTION,
   STANDALONE_PROTOCOL,
   STANDALONE_TABLES,
 } from './standalone-schema.ts'
@@ -36,6 +38,17 @@ export function settingsStandaloneMaterials(
         ...participant,
         ownedTables: STANDALONE_TABLES,
         readTables: [],
+        requiresFacts: [SOURCE_WRITE_FACT],
+        providesFacts: [],
+        allowedFunctions: [],
+        grouping: 'groupable',
+      },
+      {
+        participant: STANDALONE_PROJECTION,
+        protocol: STANDALONE_PROTOCOL,
+        ...file('standalone-projection'),
+        ownedTables: [],
+        readTables: ['st_targets'],
         requiresFacts: [],
         providesFacts: [
           settingsStandaloneProjectionFact,
