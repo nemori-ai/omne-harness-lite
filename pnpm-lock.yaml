@@ -1670,9 +1670,24 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/governance-contract':
+        specifier: workspace:*
+        version: link:../governance-contract
+      '@omne-harness/permissions':
+        specifier: workspace:*
+        version: link:../../assets/permissions
+      '@omne-harness/settings':
+        specifier: workspace:*
+        version: link:../../assets/settings
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract
+      canonicalize:
+        specifier: 5.1.0
+        version: 5.1.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*

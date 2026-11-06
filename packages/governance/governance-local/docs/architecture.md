@@ -26,3 +26,22 @@ flowchart LR
 ## 验证与维护
 
 Schema 测试运行真实 SQLite；材料测试运行真实 Worker。角色资格、动态生命周期及业务 current 来源尚无生产符合性证据。关系变化须同步 [对象模型](object-model.md)、[规格](../SPEC.md) 和实际迁移，不以更新旧迁移来兼容已发布数据。
+
+## 原操作与业务写者
+
+`operation-schema.ts` 定义本包私有命令、身份和保管记录。`operation.ts` 负责受理、固定执行内容、终态和原结果读取；`scope.ts` 负责精确 scope 绑定和 epoch 切换。`definition.ts` 消费 Settings/Permissions 的公共纯验证，不重复规则算法，也不认证发行来源。`contribution.ts` 负责登记和精确撤除；`apply-operation.ts` 将当前 epoch 判断、业务写入与原结果写入放进同一次事务。
+
+```mermaid
+flowchart LR
+  Admission[待接线：Identity与发布来源协调器] -.-> Accept[acceptOperation]
+  Accept --> Saved[持久原请求与SQL身份]
+  Saved --> Submit[submitOperation固定执行内容]
+  Submit --> Apply[applyOperation核对终态与epoch]
+  Apply --> Register[registerContribution]
+  Apply --> Withdraw[releaseContribution]
+  Register --> Finish[finishOperation原结果]
+  Withdraw --> Finish
+  Seal[sealOperation] --> Finish
+```
+
+恢复读索引排除历史终态。当前贡献扫描限129行，实际允许128；在线项统计按当前去重声明计算。重复租约共享声明的预算，不把同一声明的每个租约再算一遍项数。权威来源和作用域资格仍是应用协调器的实施缺口，不能用上述私有执行材料绕过。

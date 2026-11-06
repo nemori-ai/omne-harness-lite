@@ -553,6 +553,36 @@
       "model": "models/GovernanceTargetSupport.tla",
       "config": "models/governancetargetsupport-stale.cfg",
       "expected": "PublicationCurrent"
+    },
+    {
+      "name": "governanceoperation-positive",
+      "model": "models/GovernanceOperation.tla",
+      "config": "models/governanceoperation-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governanceoperation-rebind",
+      "model": "models/GovernanceOperation.tla",
+      "config": "models/governanceoperation-rebind.cfg",
+      "expected": "RequestImmutable"
+    },
+    {
+      "name": "governanceoperation-replace",
+      "model": "models/GovernanceOperation.tla",
+      "config": "models/governanceoperation-replace.cfg",
+      "expected": "EnvelopeImmutable"
+    },
+    {
+      "name": "governanceoperation-revive",
+      "model": "models/GovernanceOperation.tla",
+      "config": "models/governanceoperation-revive.cfg",
+      "expected": "NoRevival"
+    },
+    {
+      "name": "governanceoperation-partial",
+      "model": "models/GovernanceOperation.tla",
+      "config": "models/governanceoperation-partial.cfg",
+      "expected": "EffectHasReceipt"
     }
   ]
 }

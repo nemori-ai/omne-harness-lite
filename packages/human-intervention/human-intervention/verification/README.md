@@ -99,3 +99,16 @@ ConcurrentIntake 的操作身份是固定租户内的 `(session, acceptId)`，�
 | PublicationCurrent | 忽略修订，发布撤除前准备的旧候选 |
 
 该模型不新增资格、来源权威或 epoch 保证。它把一个声明内的目标支持单独建模，原有 GovernanceLifecycle / GovernancePublication 继续承担各自性质。有限检查不证明真实事务、查询索引或多租户隔离。提供者的 `gc_member_target` 与选中目标关系必须用真实 SQL 反例建立符合性。
+
+## 治理原操作保管
+
+`GovernanceOperation` 枚举一个原操作、两种请求内容、两种执行信封和提交/封口交错。accepted 表示输入已保管；submitted 表示固定执行内容已保管；committed 与业务效果、原结果共同成立；aborted 阻止迟到效果。
+
+| 不变量 | 实现映射 | 负控 |
+| --- | --- | --- |
+| RequestImmutable | governance-local 的 acceptOperation 比较原身份和完整请求摘要 | 重试替换原请求 |
+| EnvelopeImmutable | submitOperation 不允许替换已经保存的执行内容 | 重传替换原信封 |
+| NoRevival | sealOperation / applyOperation 先认回精确终态 | 被封口后仍执行效果 |
+| EffectHasReceipt | applyOperation 的业务效果和 finishOperation 在同一物理事务 | 只保存效果不保存结果 |
+
+模型将存储事务视作原子动作，不证明 SQLite 实现，也不认证 principal、发布来源或 execution 中的 authority。它不检查活性、公平性、物理断电和多个原操作之间的作用域隔离。真实 Worker 的回滚、重开、封口和重试反例见 governance-local 的 [操作测试](../../../governance/governance-local/tests/operations.spec.ts)。该测试的资格及来源仍是具名夹具，生产来源适配不能由模型或此测试代替。

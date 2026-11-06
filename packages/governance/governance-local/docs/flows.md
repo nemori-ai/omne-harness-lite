@@ -21,3 +21,24 @@ sequenceDiagram
 ## 失败与生命周期
 
 材料文件缺失不能静默变成空迁移。数据库约束失败使所在事务失败。重开读取同一数据库不重新创建已有关系；迁移的版本与摘要由 SqlStorage 认回。业务 unknown、seal、reserve 和 fiber 卸载的完整流程由后续 Provider 补齐，不由本迁移测试证明。
+
+## 登记、撤除与恢复事务
+
+实际私有业务写者已接入 Worker 测试。测试协调器的主体、来源和资格材料是夹具，尚未成为生产入口。
+
+```mermaid
+sequenceDiagram
+  participant C as 受信协调器
+  participant O as 原操作写者
+  participant B as 业务写者
+  C->>O: 受理原命令
+  O-->>C: 保存的原身份
+  C->>O: 固定执行内容
+  C->>B: 按原内容执行
+  B->>B: 核对终态、epoch和业务约束
+  B->>O: 同事务保存效果及原结果
+  Note over O,B: 下游失败时全部回滚
+  C->>O: 重启后按原身份认回
+```
+
+封口在业务之前成立时，迟到执行只返回 aborted。业务先成立时，封口认回 committed。换 epoch 隔离新业务，不删除旧操作结果。真正的 Identity reserve、settle 和可信目的地恢复尚待协调器接线。

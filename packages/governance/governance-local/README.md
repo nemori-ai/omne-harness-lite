@@ -2,7 +2,7 @@
 
 ## Responsibility and status
 
-Local governance persistence. Relational migrations are implemented. Business services, current facts and Cordis assembly remain incomplete.
+Local governance persistence. Relational migrations and private operation, registration and withdrawal writers are implemented. Business services, current facts and Cordis assembly remain incomplete.
 
 ## Usage
 

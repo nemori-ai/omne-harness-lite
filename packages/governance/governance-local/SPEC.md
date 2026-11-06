@@ -39,3 +39,17 @@ accepted 保存原输入、受理 epoch 和原 SQL 身份，execution 为空。s
 [关系测试](tests/schema.spec.ts) 检查约束、支持边、磁盘重开及历史数据下的查询计划。[材料测试](tests/materials.spec.ts) 将实际迁移交给真实 SQLite Worker，并重开同一域。该测试的 mutation participant 是具名夹具，只用于证明安装和保管，不证明业务服务。
 
 [目标支持模型](../../human-intervention/human-intervention/verification/models/GovernanceTargetSupport.tla) 及其 [证明范围](../../human-intervention/human-intervention/verification/README.md#按租约保留目标支持) 定义集合不变量。完整公开入口、原操作恢复、当前事实、Identity 协调、Cordis 生命周期和独立验收仍须后续交付。
+
+### GL-06 原操作和租约事务
+
+私有操作写者接受已核验主体的原命令，不承担主体认证。accepted 记录保存固定 SQL 身份和请求摘要；同原键不同业务内容或事务域拒绝。submitted 后固定执行内容不可替换。封口只终止已受理原操作，缺记录保持 absent，不能据此发出未提交证明。
+
+实际业务写入必须核对 submitted、原执行内容和当前开放 epoch。原终态先于当前 epoch 认回，重装不改写历史成功。已失效 epoch 的在途业务变成 aborted，不产生新租约。普通封口和迟到执行竞争同一原操作记录。
+
+协调器命令和执行材料各自规范编码最多1 MiB。此处私有输入已是 SqlStorage 接受的 JSON；公开入口仍须在解析前核对原传输字节和嵌套预算。
+
+贡献登记同时保存定义副本、项、租约、声明修订和原结果。每份声明合计最多128项，规范编码最多256 KiB；每 scope 最多128个当前租约和1024个不同在线声明项。在途 accepted/submitted 最多32个，已有原操作认回不再消耗容量。发布者的摘要保持原值，本包只用自己的规范摘要作内部绑定。
+
+精确撤除同时删除该租约的目标支持、退出成员、清理无支持的采用投影、推进声明与采用修订并保存原结果。重复释放不重复推进修订。不同 registrar 或 generation 不可撤除。原注册结果保留，不被后续退出改写；未来公开 contribute 的当前观察还须单独读取租约状态。
+
+当前根入口仍只导出迁移材料。上述私有写者尚未由真实 Identity、发布权威与公开应用协调器调用；execution.authority 只保管协调器材料，其 JSON 形状本身不授予权限。adopt 的执行路径、目录与 Cordis 生命周期尚未实现。
