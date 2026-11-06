@@ -55,6 +55,7 @@ function setup() {
   let missing = false
   let broken = false
   let denied = ''
+  let unavailable = ''
   let reads = 0
   const catalog = createLocalToolCatalog({
     registry: { listings: () => succeed(rows) },
@@ -71,6 +72,12 @@ function setup() {
     availability: {
       judge: async ({ definition }) => {
         await gate?.()
+        if (definition.name === unavailable)
+          return fail({
+            kind: 'unavailable',
+            dependency: 'availability',
+            diagnostic: 'retired tool',
+          })
         return succeed({
           ...allowed,
           qualification: definition.name === denied ? 'denied' : 'allowed',
@@ -104,6 +111,9 @@ function setup() {
     set denied(value: string) {
       denied = value
     },
+    set unavailable(value: string) {
+      unavailable = value
+    },
     get reads() {
       return reads
     },
@@ -130,6 +140,66 @@ async function names(catalog: ToolCatalog<string>, options: Parameters<typeof pa
 }
 
 describe('legal catalog view and BM25', () => {
+  it('matches the complete binding including the source layer', async () => {
+    const w = setup()
+    w.view = {
+      ...w.view,
+      entries: w.view.entries.map(entry => ({
+        ...entry,
+        key: { ...entry.key, layer: { kind: 'tenant', tenant: tenantA } },
+      })),
+    }
+    expect(await names(w.catalog)).toEqual([])
+    expect(
+      await w.catalog.inspect({ ...access, consumer, name: 'alpha', command: null }),
+    ).toMatchObject({
+      failure: { kind: 'invalid', field: 'name', reason: 'unknown-tool' },
+    })
+  })
+
+  it('selects a retained definition after a same-name entry without metadata', async () => {
+    const w = setup()
+    const first = row('alpha', 'without metadata')
+    const retained = row('alpha', 'retained pear', '2')
+    w.rows = []
+    w.view = {
+      ...w.view,
+      entries: [
+        { key: first.entry.key, resident: false },
+        { key: retained.entry.key, resident: false, knownDefinition: retained.definition },
+      ],
+    }
+    expect(
+      await w.catalog.inspect({ ...access, consumer, name: 'alpha', command: null }),
+    ).toMatchObject({
+      ok: { kind: 'known-unavailable', definition: retained.definition },
+    })
+  })
+
+  it('excludes retained definitions before judging programmatic availability', async () => {
+    const w = setup()
+    const retained = row('retired', 'apple pear')
+    w.view = {
+      ...w.view,
+      entries: [
+        ...w.view.entries,
+        {
+          key: retained.entry.key,
+          resident: false,
+          knownDefinition: retained.definition,
+        },
+      ],
+    }
+    w.unavailable = 'retired'
+    expect(await names(w.catalog, { invocation: 'programmatic' })).toEqual([
+      'charlie',
+      'bravo',
+      'alpha',
+    ])
+    expect(await page(w.catalog)).toMatchObject({
+      failure: { kind: 'unavailable', dependency: 'availability', diagnostic: 'retired tool' },
+    })
+  })
   it('ranks the complete legal corpus with BM25, no substring fallback or search history', async () => {
     const w = setup()
     expect(await names(w.catalog)).toEqual(['charlie', 'bravo', 'alpha'])
@@ -530,7 +600,12 @@ describe('currently disclosed known definitions after contribution retirement', 
               }),
         })),
       }
-      expect(await page(w.catalog)).toMatchObject({ failure: { kind: 'invalid' } })
+      expect(await page(w.catalog)).toEqual({
+        failure:
+          mismatch === 'shape'
+            ? { kind: 'invalid', field: 'description', reason: 'blank' }
+            : { kind: 'invalid', field: 'knownDefinition', reason: 'definition-key-mismatch' },
+      })
     }
     const w = knownWorld()
     const original = w.tools[0]?.loaded.definition

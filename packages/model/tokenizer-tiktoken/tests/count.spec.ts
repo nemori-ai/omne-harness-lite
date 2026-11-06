@@ -1,7 +1,7 @@
 import { getEncoding } from 'js-tiktoken'
 import type { ModelTextTokenizer, TokenizationSegment } from '@omne-harness/model-contract/provider'
 import { createTiktokenTokenizer, type TiktokenResources } from '@omne-harness/tokenizer-tiktoken'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { DIGESTS, o200kResources, syntheticResources } from './support/resources.ts'
 
 function tokenizerOf(resources: TiktokenResources): ModelTextTokenizer {
@@ -15,7 +15,10 @@ const text = (value: string): TokenizationSegment => ({ kind: 'text', text: valu
 const special = (name: string): TokenizationSegment => ({ kind: 'special-token', name })
 
 describe('o200k ranks supplied by the caller', () => {
-  const tokenizer = tokenizerOf(o200kResources())
+  let tokenizer: ModelTextTokenizer
+  beforeEach(() => {
+    tokenizer = tokenizerOf(o200kResources())
+  })
 
   it('counts ordinary text as a decimal string', () => {
     expect(tokenizer.count([text('hello world')])).toEqual({ ok: { tokens: '2' } })
@@ -85,7 +88,10 @@ describe('o200k ranks supplied by the caller', () => {
 })
 
 describe('a second, synthetic vocabulary', () => {
-  const tokenizer = tokenizerOf(syntheticResources())
+  let tokenizer: ModelTextTokenizer
+  beforeEach(() => {
+    tokenizer = tokenizerOf(syntheticResources())
+  })
 
   it('counts with the merges of that vocabulary', () => {
     expect(tokenizer.count([text('abcd')])).toEqual({ ok: { tokens: '1' } })

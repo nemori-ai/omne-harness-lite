@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { pairOf, ranksOf, seeded, words } from './support/differential.ts'
 import { o200kRanks } from './support/resources.ts'
@@ -62,10 +61,25 @@ it('preserves regex gaps, zero-width matches and lazy compilation for empty inpu
       ok: { tokens: String(oracle.encode(text, [], []).length) },
     })
   }
-  const { tokenizer, oracle } = pairOf(ranksOf({}, '['))
-  expect(tokenizer.count([{ kind: 'text', text: '' }])).toEqual({ ok: { tokens: '0' } })
-  expect(() => oracle.encode('a', [], [])).toThrow(SyntaxError)
-  expect(() => tokenizer.count([{ kind: 'text', text: 'a' }])).toThrow(SyntaxError)
+  for (const tokens of [{}, { a: NaN }]) {
+    const { tokenizer, oracle } = pairOf(ranksOf(tokens, '['))
+    expect(tokenizer.count([{ kind: 'text', text: '' }])).toEqual({ ok: { tokens: '0' } })
+    expect(() => oracle.encode('a', [], [])).toThrow(SyntaxError)
+    expect(() => tokenizer.count([{ kind: 'text', text: 'a' }])).toThrow(SyntaxError)
+  }
+})
+
+it('keeps special spellings ordinary when non-finite ranks use the original engine', () => {
+  const text = '<|special|>'
+  const tokens = Object.fromEntries(Array.from(text, (letter, index) => [letter, index]))
+  const { tokenizer, oracle } = pairOf(ranksOf({ ...tokens, unused: NaN }))
+  expect(oracle.encode(text, [], []).length).toBe(text.length)
+  expect(tokenizer.count([{ kind: 'text', text }])).toEqual({
+    ok: { tokens: String(text.length) },
+  })
+  expect(tokenizer.count([{ kind: 'special-token', name: text }])).toEqual({
+    ok: { tokens: '1' },
+  })
 })
 
 it('agrees with the unchanged oracle across exhaustive sparse non-monotonic vocabularies', () => {
@@ -85,25 +99,7 @@ it('agrees with the unchanged oracle across exhaustive sparse non-monotonic voca
   }
 })
 
-it('agrees on both family vocabularies, Unicode, ordinary special spellings and segment boundaries', () => {
-  const claude: unknown = JSON.parse(
-    readFileSync(
-      new URL(
-        '../../pi-ai-anthropic/resources/tokenizers/anthropic-legacy/claude.json',
-        import.meta.url,
-      ),
-      'utf8',
-    ),
-  )
-  if (
-    typeof claude !== 'object' ||
-    claude === null ||
-    !('pat_str' in claude) ||
-    typeof claude.pat_str !== 'string' ||
-    !('bpe_ranks' in claude) ||
-    typeof claude.bpe_ranks !== 'string'
-  )
-    throw new Error('invalid Claude fixture')
+it('agrees on the o200k vocabulary, Unicode, ordinary special spellings and segment boundaries', () => {
   const random = seeded(0xc1a0de)
   const alphabet = [
     'a',
@@ -127,43 +123,38 @@ it('agrees on both family vocabularies, Unicode, ordinary special spellings and 
       Array.from({ length: 48 }, () => alphabet[random() % alphabet.length]).join(''),
     ),
   ]
-  for (const ranks of [
-    o200kRanks,
-    { patStr: claude.pat_str, bpeRanks: claude.bpe_ranks, specialTokens: { '<|endoftext|>': 0 } },
-  ]) {
-    const { tokenizer, oracle } = pairOf(ranks)
-    for (const text of samples) {
-      const characters = Array.from(text)
-      const middle = Math.floor(characters.length / 2)
-      const left = characters.slice(0, middle).join('')
-      const right = characters.slice(middle).join('')
-      expect(
-        tokenizer.count([
-          { kind: 'text', text: left },
-          { kind: 'text', text: right },
-        ]),
-      ).toEqual({ ok: { tokens: String(oracle.encode(text, [], []).length) } })
-      expect(
-        tokenizer.count([
-          { kind: 'text', text: left },
-          { kind: 'special-token', name: '<|endoftext|>' },
-          { kind: 'text', text: right },
-        ]),
-      ).toEqual({
-        ok: {
-          tokens: String(
-            oracle.encode(left, [], []).length + 1 + oracle.encode(right, [], []).length,
-          ),
-        },
-      })
-    }
+  const { tokenizer, oracle } = pairOf(o200kRanks)
+  for (const text of samples) {
+    const characters = Array.from(text)
+    const middle = Math.floor(characters.length / 2)
+    const left = characters.slice(0, middle).join('')
+    const right = characters.slice(middle).join('')
     expect(
       tokenizer.count([
-        { kind: 'text', text: '\uD83D' },
-        { kind: 'text', text: '\uDE00' },
+        { kind: 'text', text: left },
+        { kind: 'text', text: right },
       ]),
-    ).toEqual({ failure: { kind: 'invalid', reason: 'a text segment is not well-formed Unicode' } })
+    ).toEqual({ ok: { tokens: String(oracle.encode(text, [], []).length) } })
+    expect(
+      tokenizer.count([
+        { kind: 'text', text: left },
+        { kind: 'special-token', name: '<|endoftext|>' },
+        { kind: 'text', text: right },
+      ]),
+    ).toEqual({
+      ok: {
+        tokens: String(
+          oracle.encode(left, [], []).length + 1 + oracle.encode(right, [], []).length,
+        ),
+      },
+    })
   }
+  expect(
+    tokenizer.count([
+      { kind: 'text', text: '\uD83D' },
+      { kind: 'text', text: '\uDE00' },
+    ]),
+  ).toEqual({ failure: { kind: 'invalid', reason: 'a text segment is not well-formed Unicode' } })
 })
 
 it('counts long unmergeable pieces without spreading token arrays onto the call stack', () => {

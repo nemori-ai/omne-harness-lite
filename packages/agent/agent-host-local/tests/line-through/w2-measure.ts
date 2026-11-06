@@ -2,8 +2,7 @@
 //
 // Counts are taken where the product calls out, never from what a test expects: the storage the
 // plugins share, the history source the request context reads, the two receivers and the doubles of
-// the Model and the Tool. A counter belongs to the round that is open when the call happens; a call
-// outside a round is counted into no round. The measurement events (R2-D17) are what the
+// the Model and the Tool. The measurement events (R2-D17) are what the
 // `measure?` observers of Session, Context and Agent give; this file only records them with one
 // monotonic clock and does not judge them.
 import type { Outcome } from '@omne-harness/operation-result'

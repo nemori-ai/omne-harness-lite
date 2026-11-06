@@ -59,3 +59,5 @@ OMNE_J6_ROUNDS=200 ./scripts/with-test-slot.sh pnpm --filter @omne-harness/agent
 ```
 
 短轮版本的命令相同，只是不设 `OMNE_J6_ROUNDS`。增长判定的纯函数与它的负控在 `line-through/growth.spec.ts`，快层运行，不依赖轮数。
+
+`session.work-version` 与 `execution-record.events` 也按定时计数处理。前者随 work-cache 调用探测版本；后者随 Journal 消费读取当前可见的事件页。publication 与消费者的交错会改变每轮调用数和返回行数，不能要求两窗口逐项相等。200 轮入口仍对两者的调用数和行数做增长判定，并加入逐轮递增的负控。存储计数归属是答复到达时的开放轮次；轮次之外到达的答复不归入下一轮。短轮通过不能替代增长判定。
