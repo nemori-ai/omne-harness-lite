@@ -26,7 +26,7 @@ HITL 参与者拥有 hi_terminals、hi_requests 和 hi_request_versions。独立
 
 材料登记消费 sql-contract/worker 的 participant、migration 与 snapshot read 合同。组合必须包含真实业务参与者；直接提交单个 consume 只关闭操作身份，不能伪造一张已答卡片。
 
-[终态测试](tests/terminals.spec.ts)使用真实 SQLite worker，覆盖封口阻止迟到写、共同回滚、重启、actor 隔离、租户匹配与丢失回执认回。[公共入口测试](tests/public-entry.spec.ts)检查真实材料登记。[请求与恢复测试](tests/requests.spec.ts)覆盖共同注册/答卡、竞争答复、批次屏障、换代、业务终局、持久拒绝及重启回查。[身份协调测试](tests/identity.spec.ts)通过真实 IdentitySql 和 SQLite 验证成员撤回竞争、结果披露及关闭排空。当前未验证完整公开应用服务、物理断电或分布式提供者。
+[终态测试](tests/terminals.spec.ts)使用真实 SQLite worker，覆盖封口阻止迟到写、共同回滚、重启、actor 隔离、租户匹配与丢失回执认回。[公共入口测试](tests/public-entry.spec.ts)检查真实材料登记。[请求与恢复测试](tests/requests.spec.ts)覆盖共同注册/答卡、竞争答复、批次屏障、换代、业务终局、持久拒绝及重启回查。[身份协调测试](tests/identity.spec.ts)通过真实 IdentitySql 和 SQLite 验证成员撤回竞争、结果披露及关闭排空。[应用入口测试](tests/application.spec.ts)覆盖独立等待公共方法及合法批次。当前未验证物理断电、分布式提供者或完整运行时集成。
 
 ## 请求与独立等待
 

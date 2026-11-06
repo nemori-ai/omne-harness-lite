@@ -35,7 +35,7 @@ control 拥有准备材料、接收代次、业务终局和消费 checkpoint。i
 
 ## 验证与维护
 
-[终态测试](../tests/terminals.spec.ts)与[请求恢复测试](../tests/requests.spec.ts)运行真实 SQLite worker。测试覆盖晚失败共同回滚、竞争答复、重启、代次隔离和批次屏障。Identity 成员资格协调已通过真实 IdentitySql 验证。独立等待公共命令、查询与恢复应用服务已实现，交互验证和独立验收仍未完成。该实现不能替代完整 C2 独立验收。行为承诺归[规格](../SPEC.md)。
+[终态测试](../tests/terminals.spec.ts)与[请求恢复测试](../tests/requests.spec.ts)运行真实 SQLite worker。测试覆盖晚失败共同回滚、竞争答复、重启、代次隔离和批次屏障。Identity 成员资格协调已通过真实 IdentitySql 验证。独立等待公共命令、查询与恢复应用服务已实现。[本机交互验证台](../verification/workbench/README.md)调用实际应用服务，供作者和验收者检查答复、接手与应用重装。独立验收仍未完成。该实现不能替代完整 C2 独立验收。行为承诺归[规格](../SPEC.md)。
 
 
 ## 当前资格与关闭
