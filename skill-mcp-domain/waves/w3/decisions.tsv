@@ -180,3 +180,6 @@ ts	phase	decision	why	evidence	result
 2026-11-06T21:38:21Z	w4-end	进展页数据补 W3、W4 闭包与判据，build.py 在没有在途波时显示最近一个已放行的波；实现架构页重新生成；两页重发布被拒，本会话没有 claude.ai 登录	Artifact 工具要求 claude.ai 登录，不绕过	tmp/skill-mcp-domain/progress/progress.html, techdoc/index.html	本地已生成，发布待登录
 2026-11-06T21:38:21Z	w4-end	派发台账补 5 行只读评审（#1156 三轮、MCP 写回两轮），派发时没传 effort，记 inherit	台账只记有独立验收的轮次；不编造档位	tmp/skill-mcp-domain/delegate/flow.jsonl; ledger.py check ok 188 行	check 通过
 2026-11-06T21:40:53Z	w4-end	两个闭包工作树的 tmp 存档到 waves/w4/closure-tmp 并推记录分支，再用 worktree-cli remove --force 删除 w4-mcp-unusable、w4-mcp-cordis；父工作树 tmp 不删（被引用的证据与测试库）	卡评论引用的原件在闭包工作树 tmp 里，先存档再删；--force 只丢可重建的构建产物	记录分支 cd6115587；closures 文件清单逐一相同	两棵已删除
+2026-11-06T21:44:40Z	w4-end	更正 12:36:38 模板格式那一行：format-check.log 是改格式之后的复跑（全部正确），首次退出 1 的输出没有存下	跨模型复核指出证据与所述不符	tmp/closures/w4-shared/format-check.log 第 7 行	证据只证明修后通过
+2026-11-06T21:44:40Z	w4-end	更正 21:38:21 终头读数那一行的证据路径：acceptance-2.log、loop-status-2.log 都在 tmp/closures/w4-wave-end/final/ 下	原证据格把三个文件写成一串，后两个看不出目录	tmp/closures/w4-wave-end/final/acceptance-2.log, final/loop-status-2.log	路径补全
+2026-11-06T21:44:40Z	w4-end	复核 MC-10 那一行的处置：卡的范围原则写明 SPEC 已承诺的不变式按结构修法与形式守护处理，只登记已知限制不满足这条；改列为 D-02 之前建议先做的结构修复，交负责人选	跨模型复核指出与卡规则冲突，我同意；探针只证明两条路径没发请求，不证明次序	packages/mcp/mcp/SPEC.md:176; tmp/skill-mcp-domain/waves/w4/plan.md:45	待负责人选
