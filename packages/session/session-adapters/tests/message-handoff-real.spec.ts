@@ -1,7 +1,3 @@
-// J06 on the real sqlite-provider: the message admission provider saves the intent and the outcome
-// of an invoke admission in a child process killed with SIGKILL after either phase. A new provider
-// on the same files reads the original Ki: an intent stays unknown, and a fixed outcome is recalled
-// by the same prepare without a new write. The 24 KiB body fits the unchanged response budget once.
 // @module-tag slow
 // Why slow: real Workers, real files and a killed child process.
 import { spawn } from 'node:child_process'
