@@ -87,6 +87,164 @@ describe('the session slot reference (XC-AGINST 第 2.1 节, AD-14 rule)', () =>
 })
 
 describe('S1 and C2: a commit that leaves a startable input opens the Run', () => {
+  it.each(['local', 'external'] as const)(
+    '%s cancellation releases backoff so the next Run starts without advancing the clock',
+    async source => {
+      const h = await service({ policy: { advance: { retryDelaysMs: [30000] } } })
+      await h.create()
+      const original = h.drive.invoke.bind(h.drive)
+      let oldExecution: Parameters<AgentDrivePort['invoke']>[0]['execution'] | undefined
+      const invoke = vi.fn<AgentDrivePort['invoke']>(async input => {
+        oldExecution ??= input.execution
+        return input.execution === oldExecution ? fail({ kind: 'busy' }) : original(input)
+      })
+      h.drive.invoke = invoke
+      await h.accept('input-1')
+      await vi.waitFor(() => expect(invoke).toHaveBeenCalledTimes(1))
+      await turn()
+      await h.accept('input-2')
+      const snapshot = await read(h)
+      if (snapshot.run.kind !== 'active') throw new Error('no active Run')
+      const oldRun = snapshot.run.run
+      const cancellation = {
+        ...h.access(),
+        operation: operationId('cancel-wait'),
+        run: oldRun,
+        urgency: 'graceful' as const,
+      }
+      if (source === 'local')
+        succeeded(await h.faces('intake').work.cancelRun(cancellation), 'cancel waiting Run')
+      else {
+        succeeded(
+          await h.backend.transactions.commit({
+            access: h.access(),
+            command: { kind: 'cancelRun', input: cancellation },
+            guards: [],
+          }),
+          'external cancellation',
+        )
+        const changed = await read(h)
+        h.instance.committed({
+          tenant: changed.tenant,
+          session: h.access().session,
+          revision: changed.revision,
+          source: changed.source,
+          kinds: ['control.requested'],
+        })
+      }
+      await vi.waitFor(async () => {
+        const next = await read(h)
+        expect(next.run.kind).toBe('active')
+        if (next.run.kind === 'active') expect(next.run.run).not.toBe(oldRun)
+        expect(next.handed).toContain('input-1')
+        expect(next.pending).toContain('input-2')
+      })
+      expect(invoke.mock.calls.filter(([input]) => input.execution === oldExecution)).toHaveLength(
+        1,
+      )
+      expect(h.diagnostics()).toContainEqual(
+        expect.objectContaining({ run: oldRun, reason: 'wait-cancelled' }),
+      )
+      h.clock.controls.advance(30000)
+      await turn()
+      expect(invoke.mock.calls.filter(([input]) => input.execution === oldExecution)).toHaveLength(
+        1,
+      )
+      expect(invoke).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it('bounded close waits after changed, then retries the original operation with a fresh read', async () => {
+    const h = await service({ policy: { advance: { retryDelaysMs: [100] } } })
+    await h.create()
+    h.drive.invoke = async () =>
+      fail({ kind: 'invalid', reason: 'refused', rejection: evidence('agent/refused') })
+    const operations: string[] = []
+    h.view.onCommit(async (input, next) => {
+      if (input.command.kind === 'finishRun') {
+        operations.push(input.command.input.operation)
+        if (operations.length === 1)
+          return fail({ kind: 'changed', revision: expectedRevision(await read(h), 'finishRun') })
+      }
+      return next()
+    })
+    await h.accept('input-1')
+    await vi.waitFor(() => expect(operations.length).toBeGreaterThan(0))
+    await turn()
+    expect(operations).toHaveLength(1)
+    expect((await read(h)).run.kind).toBe('active')
+    h.clock.controls.advance(99)
+    await turn()
+    expect(operations).toHaveLength(1)
+    h.clock.controls.advance(1)
+    await vi.waitFor(async () => expect((await read(h)).run.kind).toBe('terminal'))
+    expect(operations).toEqual([operations[0], operations[0]])
+  })
+
+  it('repeated changed is bounded and reuses the last configured delay', async () => {
+    const h = await service({
+      policy: { command: { retriesOnChanged: 2 }, advance: { retryDelaysMs: [100] } },
+    })
+    await h.create()
+    h.drive.invoke = async () =>
+      fail({ kind: 'invalid', reason: 'refused', rejection: evidence('agent/refused') })
+    let attempts = 0
+    h.view.onCommit(async (input, next) => {
+      if (input.command.kind !== 'finishRun') return next()
+      attempts += 1
+      return fail({ kind: 'changed', revision: expectedRevision(await read(h), 'finishRun') })
+    })
+    await h.accept('input-1')
+    for (const expected of [1, 2]) {
+      await vi.waitFor(() => expect(attempts).toBe(expected))
+      await turn()
+      h.clock.controls.advance(99)
+      await turn()
+      expect(attempts).toBe(expected)
+      h.clock.controls.advance(1)
+    }
+    await vi.waitFor(() =>
+      expect(h.diagnostics()).toContainEqual(
+        expect.objectContaining({ step: 'finishRun', reason: 'retries-exhausted' }),
+      ),
+    )
+    expect(attempts).toBe(3)
+    h.clock.controls.advance(1000)
+    await turn()
+    expect(attempts).toBe(3)
+    expect((await read(h)).run.kind).toBe('active')
+  })
+
+  it('an uncertain bounded close is replayed with its original request after a successor starts', async () => {
+    const h = await service({
+      policy: { pendingResolution: { retryIntervalMs: 100, maxAttempts: 3 } },
+    })
+    await h.create()
+    const original = h.drive.invoke.bind(h.drive)
+    h.drive.invoke = async input =>
+      input.first === 'input-1'
+        ? fail({ kind: 'invalid', reason: 'refused', rejection: evidence('agent/refused') })
+        : original(input)
+    const requests: unknown[] = []
+    h.view.onCommit(async (input, next) => {
+      if (input.command.kind !== 'finishRun') return next()
+      requests.push(input.command.input)
+      const answer = await next()
+      return requests.length === 1
+        ? fail({ kind: 'commit-unknown', operation: input.command.input.operation })
+        : answer
+    })
+    await h.accept('input-1')
+    await vi.waitFor(async () => expect((await read(h)).run.kind).toBe('terminal'))
+    await turn()
+    await h.accept('input-2')
+    await vi.waitFor(async () => expect((await read(h)).handed).toContain('input-2'))
+    h.clock.controls.advance(100)
+    await vi.waitFor(() => expect(requests).toHaveLength(2))
+    expect(requests[1]).toEqual(requests[0])
+    expect((await read(h)).handed).toContain('input-2')
+  })
+
   for (const withdrawal of [
     'released',
     'replaced',

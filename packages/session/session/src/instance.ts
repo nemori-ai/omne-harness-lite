@@ -95,6 +95,8 @@ export function createSessionInstance<P>(
     lifecycle,
     measurer,
     committed: command => {
+      if (['cancelRun', 'control', 'interrupt', 'finishRun'].includes(command.kind))
+        advance?.interrupt({ tenant: command.input.tenant, session: command.input.session })
       if (['cancelRun', 'stopCall', 'control', 'interrupt'].includes(command.kind))
         controls?.trigger({ tenant: command.input.tenant, session: command.input.session })
       if (WAKES_ADVANCE.has(command.kind))
@@ -139,9 +141,14 @@ export function createSessionInstance<P>(
     facesFor,
     committed: notice => {
       if (lifecycle.closed) return
-      if (notice.kinds.some(kind => kind === 'control.requested' || kind === 'control.progress'))
-        controlPropagation.trigger({ tenant: notice.tenant, session: notice.session })
-      if (notice.kinds.some(kind => ADVANCE_KINDS.has(kind)))
+      const control = notice.kinds.some(
+        kind => kind === 'control.requested' || kind === 'control.progress',
+      )
+      const interrupted =
+        (control || notice.kinds.includes('run.terminal')) &&
+        wired.interrupt({ tenant: notice.tenant, session: notice.session })
+      if (control) controlPropagation.trigger({ tenant: notice.tenant, session: notice.session })
+      if (interrupted || notice.kinds.some(kind => ADVANCE_KINDS.has(kind)))
         wired.trigger({ tenant: notice.tenant, session: notice.session })
     },
     // S7 is not in this member yet (SPEC「实现现状」): the notice wakes nothing.

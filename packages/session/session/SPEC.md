@@ -132,7 +132,7 @@
 | 输入 | 快照；`readInput` 取得的输入内容（在 `session-adapters` 侧）；出站回执；Agent 事件页 |
 | 产出 | `startRun`、`claim`、`reload`、`release`、`finishRun`（PM-02 的准入拒绝）、`freeze`、`receive` 命令；`invoke`、`submit`、`resume`、`detach`、`query`、`inspect` 出站调用 |
 | 单写 | 每 Run 一个协调实例。跨进程由 attempt 序号、`expected` 与执行记录提供者的条件提交围栏保护，不用锁 |
-| 失败分支 | `startRun`：`run-active` 表示另一方已开，无害结束；`changed` 重新裁定；`frozen` 按上面的冻结行；`no-input`、`not-ready`、`login-required`、`archived`、`denied`、`invalid` 停止并记诊断，待处理输入保留。`invoke`：`denied` 有两种来源，协调器以一次新的读面操作（`readWork`，主体按 [cp-access](#cp-access) 取得）重读快照区分：快照里的推进资格已不指向本 attempt 时，本 attempt 已被取代，停止并交 C5；仍指向本 attempt 时，是访问裁定拒绝，停止，记录诊断，待处理输入与任务保留，不因此发起 `claim`；`busy` 等该 runtime 的终态事件后重试，退避按 `advance.retryDelaysMs`；`unavailable` 退避；`invalid` 按 [PM-02](../session-contract/SPEC.md#pm-02) 提交有界收束的 `finishRun`，同批写首条输入的 SE35 为拒收；该 `finishRun` 带协调器刚读到的 `revision`，答 `changed` 时重读快照再提交，次数不超过 `command.retriesOnChanged`；`commit-unknown` 以同一出站身份 `query`。`submit`：`terminal` 按 [PA-03](../session-contract/SPEC.md#pa-03) 不重试、不改去处；`invalid` 按 [PA-09](../session-contract/SPEC.md#pa-09) 写 SE35 为拒收；`commit-unknown` 先 `query`。`claim`、`reload`、`resume`、`detach` 的失败按 [PM-05](../session-contract/SPEC.md#pm-05)、[PM-06](../session-contract/SPEC.md#pm-06)、[PM-09](../session-contract/SPEC.md#pm-09) 至 [PM-12](../session-contract/SPEC.md#pm-12)。`freeze`：`commit-unknown` 以同一身份 `queryOperation`，认回前不再触发开 Run。Agent 端口缺席：出站调用不发出，任务保留，由 S1 或 S3 重放 |
+| 失败分支 | `startRun`：`run-active` 表示另一方已开，无害结束；`changed` 重新裁定；`frozen` 按上面的冻结行；`no-input`、`not-ready`、`login-required`、`archived`、`denied`、`invalid` 停止并记诊断，待处理输入保留。`invoke`：`denied` 有两种来源，协调器以一次新的读面操作（`readWork`，主体按 [cp-access](#cp-access) 取得）重读快照区分：快照里的推进资格已不指向本 attempt 时，本 attempt 已被取代，停止并交 C5；仍指向本 attempt 时，是访问裁定拒绝，停止，记录诊断，待处理输入与任务保留，不因此发起 `claim`；`busy` 等该 runtime 的终态事件后重试，退避按 `advance.retryDelaysMs`；`unavailable` 退避；`invalid` 按 [PM-02](../session-contract/SPEC.md#pm-02) 提交有界收束的 `finishRun`，同批写首条输入的 SE35 为拒收；该 `finishRun` 带协调器刚读到的 `revision`，答 `changed` 时先按 `advance.retryDelaysMs` 退避，再重读原 attempt 与快照后提交，次数不超过 `command.retriesOnChanged`。退避序列不足时沿用末项；原 attempt 已失效则停止。原提交 `commit-unknown` 时由 S4 查询，认回前不改原操作与请求；`commit-unknown` 以同一出站身份 `query`。`submit`：`terminal` 按 [PA-03](../session-contract/SPEC.md#pa-03) 不重试、不改去处；`invalid` 按 [PA-09](../session-contract/SPEC.md#pa-09) 写 SE35 为拒收；`commit-unknown` 先 `query`。`claim`、`reload`、`resume`、`detach` 的失败按 [PM-05](../session-contract/SPEC.md#pm-05)、[PM-06](../session-contract/SPEC.md#pm-06)、[PM-09](../session-contract/SPEC.md#pm-09) 至 [PM-12](../session-contract/SPEC.md#pm-12)。`freeze`：`commit-unknown` 以同一身份 `queryOperation`，认回前不再触发开 Run。Agent 端口缺席：出站调用不发出，任务保留，由 S1 或 S3 重放 |
 
 <a id="c3"></a>
 
@@ -177,6 +177,10 @@
 | 失败分支 | 任一拥有者 `unavailable`：保留该项，不把未知当失败，退避归 S3。`queryOperation` 为 `unknown`：保留在 `unresolved`。`inspect` 为 `missing` 且 `ExecutionRef.revision` 为空：按「已授予、尚未受理」重放 `invoke`；`revision` 非空：视为记录已按保留政策删除，保管改由 Session 单方提交（[AgentDrivePort](../session-contract/SPEC.md#agentdriveport)）。现行 Agent 适配不产生 `missing`，因为 Agent 的 `load` 不区分记录不存在与读取失败（[NP-05](../session-adapters/SPEC.md#np-05)）；这两个分支在该缺项闭合之前不会触发，「尚未受理」改由 `query` 的 `excluded` 判断。Tool 原确认不可读则 release 保持 pending；Model ACK 未决时只报告，不执行动作 |
 
 ### 调度器
+
+内部等待明确返回 elapsed、cancelled 或 refused。取消信号在时钟采样前登记；关闭和调用者取消均可结束本地等待，不依赖时钟端口最终答复。晚到采样不再建立计时器，晚到 elapsed 不恢复已结束的等待。取消本地等待不证明端口工作已物理停止。
+
+C2 在退避前登记本会话的等待句柄，再读取原 attempt。控制或终态提交唤醒这个句柄，协调器退出原等待后按最新快照重查。外部普通控制通知没有正在等待的 C2 时不额外触发开 Run。每次 invoke 前仍重新核推进权；通知只决定重查时机，不授予推进权。通知丢失时，原等待到期后的重读仍守住旧 attempt 不重发，但不保证即时唤醒。未应答的 Agent invoke、存储读取和其他外部 RPC 不在本地时钟等待取消保证内。
 
 调度器只决定什么时候再检查、检查哪个会话，检查结果交给协调器。每个调度器写触发源、看什么、交给谁、幂等、并发、停机与接续、可配置策略。策略字段见 [SchedulingPolicy](#schedulingpolicy)。
 
@@ -296,10 +300,12 @@
 
 `SchedulingPolicy` 是本成员工厂配置的一部分，形状归本成员的[构造入口](docs/public-api.md)。下表的初值是配置初值，不是契约承诺；实际值由装配决定，验证计划实测后可以改。
 
+`advance.retryDelaysMs` 必须非空。公开配置类型用非空元组表达这一条件，工厂仍校验运行时输入；因此沿用末项总有定义。
+
 | 字段 | 覆盖 | 含义 | 配置初值 |
 | --- | --- | --- | --- |
 | `command.retriesOnChanged` | CP-01 | 存储层返回 `changed` 时流水线重做的次数上限。只重做不带调用方 `expected` 的命令；带 `expected` 的命令把 `changed` 交给调用方 | 3 |
-| `advance.retryDelaysMs` | S1、C2 | Agent 返回 `busy` 或 `unavailable` 时的退避序列，用尽后交 S3 | `[1000, 5000, 30000]` |
+| `advance.retryDelaysMs` | S1、C2 | Agent 返回 `busy`、`unavailable` 或未定提交时的退避序列，用尽后交 S3。C2 有界收束遇到 `changed` 时也使用该序列，序列不足沿用末项，次数仍受 `command.retriesOnChanged` 限制 | `[1000, 5000, 30000]` |
 | `idle.checkIntervalMs` | S2 | 没有时钟等待能力时的轮询间隔 | 60000 |
 | `idle.clockToleranceMs` | S2 | 时钟采样允许的偏差 | 5000 |
 | `recoveryScan.periodMs` | S3 | 周期扫描间隔 | 30000 |
@@ -379,7 +385,7 @@
 - [CP-03](#cp-03) 的读路径。调用方类按契约的四面操作表核对，不在其中返回 `denied`，不调用 `check`。
 - [S1](#s1)，以及 [C2](#c2) 的开 Run 顺序：`judgeRunStart`、`startRun`、`invoke`、`receive(input-handover)`。`invoke` 答 `invalid` 时提交有界收束的 `finishRun`，它的 `expected` 是 Run 层修订，无关提交不使它答 `changed`（契约[推进命令的 expected](../session-contract/SPEC.md#run-layer-expected)，R2-D327）。`startRun` 带回冻结判定时提交 `freeze`。`startRun`、`claim`、`reload` 的 `instance` 按 XC-AGINST 第 2.1 节的会话槽引用规则计算。
 - 已授予而未受理的 Run（契约 [PA-06](../session-contract/SPEC.md#pa-06) 第 2 项、[PM-14](../session-contract/SPEC.md#pm-14) 第 2 行，R2-D327）：S1 读到 Run 为 active、`advance` 非空、首条输入仍待处理而没有 SE35 时，不调用 `judgeRunStart`，把会话交 C2 重放。C2 在会话串行队列里重读快照，以该 Run 的 OP-00 身份（首条输入与前继 Run）认回原 `startRun`，取得原回执，再以同一出站身份 `invoke`。触发来自提交通知、本地唤醒或 S3 按 `inputs` 找到的会话，所以重试序列用尽、进程崩溃或 Agent 端口缺席之后，Run 不会永远停在 active 而没有执行。`advance` 已转到后来的 attempt 时，重放需要那个 attempt 的授予依据，属于 C5 的接管，本成员记 `attempt-replaced` 诊断后停止。
-- C2 与 S1 的失败分支都记具名诊断（R2-D327）：`invoke` 的不可重试失败、重试序列用尽（`retries-exhausted`）、Agent 端口缺席（`agent-absent`）、退避等待不成立（`clock-refused`）、读快照失败，`receive`、`finishRun`、`freeze`、`startRun` 的失败（`commit-unknown` 交 S4，不算停止），以及 S1 读快照失败。`invoke` 答 `denied` 时按 C2 行重读快照：本 attempt 已被取代则停止，不记诊断；仍持有推进资格则记 `denied`。`startRun` 答 `run-active`、`frozen` 时按 C2 行无害结束，不记诊断。诊断带会话、租户、Run、步骤、原因与失败原文，不带正文，见[诊断出口](#诊断出口)。
+- C2 与 S1 的失败分支都记具名诊断（R2-D327）：`invoke` 的不可重试失败、重试序列用尽（`retries-exhausted`）、Agent 端口缺席（`agent-absent`）、时钟拒绝退避（`clock-refused`）、本地等待被控制或终态通知打断（`wait-cancelled`）、原 attempt 已失效（`advance-withdrawn`）、读快照失败，`receive`、`finishRun`、`freeze`、`startRun` 的失败（`commit-unknown` 交 S4，不算停止），以及 S1 读快照失败。`invoke` 答 `denied` 时按 C2 行重读快照：本 attempt 已被取代则记 `advance-withdrawn` 后停止；仍持有推进资格则记 `denied`。`startRun` 答 `run-active`、`frozen` 时按 C2 行无害结束，不记诊断。诊断带会话、租户、Run、步骤、原因与失败原文，不带正文，见[诊断出口](#诊断出口)。
 - [S4](#s4)：按同一操作身份查询，结局已知后交回原发起者，以同一身份重做。
 - [S3](#s3)：启动扫描读原因的并集，周期扫描读 `inputs`、`unresolved` 与 `controls`。有待处理输入的会话交 S1，每个未知操作交 S4，有 `propagating` 控制的会话交 C3。
 - [C3](#c3) 与 [S5](#s5) 的控制重放：控制提交、通知中的控制条目与扫描唤醒 C3，按 `controlReplay.intervalMs` 与 `controlReplay.maxReplays` 经 `AgentDrivePort.control` 送达原执行（`control.ts`）。
