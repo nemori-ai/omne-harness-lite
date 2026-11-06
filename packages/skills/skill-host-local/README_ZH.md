@@ -8,7 +8,7 @@
 
 本成员拥有 Skill 包字节的一种来源：目录来源。它读目录的当前内容，不建索引，也不缓存。它把每种文件系统拒绝答成 `@omne-harness/skill-contract` 来源失败集合中的一种。它不检查包、不判定访问，也不比较字节与快照。这些工作归 `@omne-harness/skill`。
 
-状态：行为是候选，尚未取得技术接受。本来源在真实临时目录上通过契约套件 `skillPackageSourceConformance()`（PS7 不适用）。本成员的 Cordis 插件部分不在本版本。
+状态：行为是候选，尚未取得技术接受。本来源在真实临时目录上通过契约套件 `skillPackageSourceConformance()`（PS7 不适用）。Cordis 插件部分是 `./cordis` 入口，提供插件 `skillPlugin`。
 
 ## 使用
 
@@ -26,7 +26,18 @@ if ('ok' in snapshot)
   }
 ```
 
-示例 [examples/inspect-directory.ts](examples/inspect-directory.ts) 对 [examples/sample-skill/](examples/sample-skill/) 取快照，读两个控制文件，再交给 `parseSkillPackage`。示例 [examples/directory-journey.ts](examples/directory-journey.ts) 检查一个目录下的每个包，再经 `@omne-harness/skill` 列出、检索、描述与读取。读取判定与对应端口由调用方交给它，测试交的是 `@omne-harness/skill-contract/testing` 的内存替身。它作为测试 `tests/examples.spec.ts` 运行，不是产品装配。测试可以给出自己的文件系统接缝：`createDirectorySource({ fs })`。本成员没有 Cordis 入口，需要 Node.js 24 或更高版本。
+示例 [examples/inspect-directory.ts](examples/inspect-directory.ts) 对 [examples/sample-skill/](examples/sample-skill/) 取快照，读两个控制文件，再交给 `parseSkillPackage`。示例 [examples/directory-journey.ts](examples/directory-journey.ts) 检查一个目录下的每个包，再经 `@omne-harness/skill` 列出、检索、描述与读取。读取判定与对应端口由调用方交给它，测试交的是 `@omne-harness/skill-contract/testing` 的内存替身。它作为测试 `tests/examples.spec.ts` 运行，不是产品装配。测试可以给出自己的文件系统接缝：`createDirectorySource({ fs })`。需要 Node.js 24 或更高版本。
+
+`./cordis` 入口（`@omne-harness/skill-host-local/cordis`）导出插件 `skillPlugin`。插件不收配置，使用目录来源。它在装载它的 fiber 上提供 `skillPackageInspection`、`skillCatalog` 与 `skillAccess`，并在每次调用时从自己的上下文现取两个端口 `skillReadCheck` 与 `skillResolution`；端口缺席时答 `unknown`。见 [docs/cordis.md](docs/cordis.md) 与 [SPEC.md](SPEC.md#cordis-插件)。
+
+```ts
+import { Context } from '@deepseek-ai/cordis'
+import { skillPlugin } from '@omne-harness/skill-host-local/cordis'
+
+const ctx = new Context()
+await ctx.plugin(skillPlugin)
+const access = ctx.get('skillAccess') // 服务；插件卸载后为 undefined
+```
 
 ## 行为
 

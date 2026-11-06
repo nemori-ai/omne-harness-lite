@@ -16,4 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-四个源文件：`index.ts` 是公开根，`directory-source.ts` 是来源工厂，`walk.ts` 是遍历、链接解析、根内判定与错误分类，`fs.ts` 是文件系统接缝及其默认实现。模块职责与依赖方向见 [docs/architecture.md](../docs/architecture.md)。源码中没有类、`any` 与类型断言（`as const` 除外）。
+五个源文件：`index.ts` 是公开根，`cordis.ts` 是 `./cordis` 入口（插件 `skillPlugin`、三个服务子类与两个端口适配器，不导入 `directory-source.ts` 以外的内部模块），`directory-source.ts` 是来源工厂，`walk.ts` 是遍历、链接解析、根内判定与错误分类，`fs.ts` 是文件系统接缝及其默认实现。模块职责与依赖方向见 [docs/architecture.md](../docs/architecture.md)。除 `cordis.ts` 的三个服务子类外，源码中没有类；也没有 `any` 与类型断言（`as const` 除外）。

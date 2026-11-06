@@ -9,3 +9,4 @@
 - [directory-source.ts](directory-source.ts)：`createDirectorySource`
 - [walk.ts](walk.ts)：遍历、链接解析、根内判定与错误分类
 - [fs.ts](fs.ts)：文件系统接缝 `DirectoryFs` 与默认实现
+- [cordis.ts](cordis.ts)：`./cordis` 入口，插件 `skillPlugin` 与三个服务子类

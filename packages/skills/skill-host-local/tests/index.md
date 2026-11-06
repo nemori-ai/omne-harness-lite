@@ -17,6 +17,7 @@
 - [types.spec-d.ts](types.spec-d.ts)：失败类型封闭与运行时导出
 - [public-entry.spec.ts](public-entry.spec.ts)：公开入口的运行时导出
 - [examples.spec.ts](examples.spec.ts)：真实目录示例 `examples/directory-journey.ts` 作为测试运行
+- [cordis-entry.spec.ts](cordis-entry.spec.ts)：`skillPlugin` 在真实 Cordis `Context` 上的装载、端口缺席与换代、撤除与配置
 - [scratch.ts](scratch.ts)：临时目录与目录树的测试辅助
 - [fs-double.ts](fs-double.ts)：包装默认接缝、可注入拒绝的文件系统接缝
 - [fixtures/](fixtures/index.md)：测试固定输入（不适用）

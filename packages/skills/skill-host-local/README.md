@@ -8,7 +8,7 @@ The local Skill host. It gives `createDirectorySource`, a `SkillPackageSource` t
 
 This member owns one source of Skill package bytes: the directory source. It reads the current contents of a directory and keeps no index and no cache. It answers each file system refusal with one failure of the closed source failure set of `@omne-harness/skill-contract`. It does not parse packages, decide access, or compare bytes with a snapshot. `@omne-harness/skill` does that work.
 
-Status: the behavior is a candidate. It does not have technical acceptance. The source passes the contract suite `skillPackageSourceConformance()` on real temporary directories (PS7 is not applicable). The Cordis plugin part of this member is not in this version.
+Status: the behavior is a candidate. It does not have technical acceptance. The source passes the contract suite `skillPackageSourceConformance()` on real temporary directories (PS7 is not applicable). The Cordis plugin part is the `./cordis` entry and provides the plugin `skillPlugin`.
 
 ## Usage
 
@@ -26,7 +26,18 @@ if ('ok' in snapshot)
   }
 ```
 
-The example [examples/inspect-directory.ts](examples/inspect-directory.ts) takes a snapshot of [examples/sample-skill/](examples/sample-skill/), reads the two control files, and gives them to `parseSkillPackage`. The example [examples/directory-journey.ts](examples/directory-journey.ts) inspects every package of a directory, then lists, searches, describes and reads through `@omne-harness/skill`. The caller gives it the read check and the resolution, and the test gives the memory doubles of `@omne-harness/skill-contract/testing`. It runs as the test `tests/examples.spec.ts` and is not a product assembly. A test can give its own file system seam: `createDirectorySource({ fs })`. The member has no Cordis entry and needs Node.js 24 or later.
+The example [examples/inspect-directory.ts](examples/inspect-directory.ts) takes a snapshot of [examples/sample-skill/](examples/sample-skill/), reads the two control files, and gives them to `parseSkillPackage`. The example [examples/directory-journey.ts](examples/directory-journey.ts) inspects every package of a directory, then lists, searches, describes and reads through `@omne-harness/skill`. The caller gives it the read check and the resolution, and the test gives the memory doubles of `@omne-harness/skill-contract/testing`. It runs as the test `tests/examples.spec.ts` and is not a product assembly. A test can give its own file system seam: `createDirectorySource({ fs })`. The member needs Node.js 24 or later.
+
+The `./cordis` entry (`@omne-harness/skill-host-local/cordis`) exports the plugin `skillPlugin`. The plugin takes no configuration and uses the directory source. It provides `skillPackageInspection`, `skillCatalog` and `skillAccess` on the loading fiber. It reads the two ports `skillReadCheck` and `skillResolution` from its own context on each call. Without a port, the answer is `unknown`. See [docs/cordis.md](docs/cordis.md) and [SPEC.md](SPEC.md#cordis-插件).
+
+```ts
+import { Context } from '@deepseek-ai/cordis'
+import { skillPlugin } from '@omne-harness/skill-host-local/cordis'
+
+const ctx = new Context()
+await ctx.plugin(skillPlugin)
+const access = ctx.get('skillAccess') // the service, or undefined after the plugin unloads
+```
 
 ## Behavior
 

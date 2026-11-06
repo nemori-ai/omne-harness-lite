@@ -81,6 +81,19 @@
 - 接缝以带字符串 `code` 字段的错误表示文件系统拒绝。来源只按 `code` 分类，不解析错误消息。全部分类表在 `src/walk.ts` 一处，映射见 [README「Behavior」](README.md#behavior)。表中没有列出的 `code` 答 `unavailable`。
 - 不带字符串 `code` 的错误不是文件系统的答复。来源不把它收束成来源失败，而是让 `snapshot` 或 `open` 以这个错误拒绝。
 
+### Cordis 插件
+
+`./cordis` 入口导出插件 `skillPlugin`，它在一条 fiber 上提供 Skill 的三个服务。键与抽象类归 [skill-cordis-contract](../skill-cordis-contract/SPEC.md#结果与不变量)，本节只写插件自己承担的部分。
+
+- `skillPlugin` 是对象，有 `name` 与 `apply(ctx)`，不收配置，也不是工厂。配置 Schema 只接受缺席、`null` 或空对象；其他值使加载失败，不提供任何服务。
+- 目录来源是 `createDirectorySource()` 的默认值。文件系统接缝只给测试用，插件不暴露它。
+- `apply` 用 `@omne-harness/skill` 的三个工厂构造 `PackageInspection`、`SkillCatalog`、`SkillAccess`，再逐个 `new` 三个服务子类，登记在同一个 `ctx` 上，共一条 fiber。子类把调用原样转给构造好的服务。
+- 两个端口 `SkillReadCheck` 与 `SkillResolution` 的适配器每次调用时从 `apply` 收到的 `ctx` 用 `ctx.get(<类>.provide)` 取服务，取到就把调用与参数原样转过去、答复原样交回。不缓存取到的引用，也不用服务方法里调用方的上下文。
+- 端口缺席时，适配器答 `unknown`，不答「拒绝」或「没有」：`check` 与 `resolve` 答 `{ kind: 'unknown' }`，`adopted` 答 `{ failure: 'unknown' }`。所以依赖端口的操作（目录、描述、读、列出、导出）都答 `unknown`，不交内容。
+- `skillPackageInspection` 不依赖端口：端口缺席时，它照常检查包。
+- 端口换代后，下一次操作用新的实例。已经开始的操作持有它取到的那个实例的答复。
+- 插件不登记撤除函数。fiber 卸载时三个服务随之撤除，之后三个键上 `ctx.get` 答 `undefined`。
+
 ## 所有权、失败与生命周期
 
 - 来源没有状态：没有索引、没有缓存，两次调用之间不保留任何内容。所以进程重启不改变判定，同一实例两次快照之间的修改在第二次快照中可见。
@@ -124,3 +137,19 @@
 - 并发写者。只有注入接缝在确定步骤上替换条目的用例，没有并发修改同一目录的压力测试。[残余窗口](#residual-window)没有用例。
 - 单个文件的大小与字节总量没有上限。
 - Windows 路径。`O_NOFOLLOW` 在 Windows 上不存在。
+
+### Cordis 插件的验证
+
+[tests/cordis-entry.spec.ts](tests/cordis-entry.spec.ts) 在真实 Cordis 4.0.4 的 `Context` 上装载 `skillPlugin`。两个端口用 `@omne-harness/skill-contract/testing` 的内存替身包成 Service 子类提供；包是临时目录里的合法 Skill 包。
+
+| 判据                               | 反例：使用例变红的缺陷                                           | 用例                                                                    |
+| ---------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 三个键取得到服务，描述后读得到正文 | 不提供 `skillAccess`：走通、两个缺席与换代各例变红               | `provides the three services and walks describe then read…`             |
+| 读判定缺席答 `unknown`，不交内容   | 缺席时答 `refused`：缺席用例变红                                 | `answers unknown, and gives no content, while the read check is absent` |
+| 解析缺席答 `unknown`，不交内容     | `resolve` 缺席答 `none`，或 `adopted` 缺席答空列表：缺席用例变红 | `…while the resolution is absent`                                       |
+| 端口缺席时检查照常                 | 检查服务不可用：该用例变红                                       | `keeps inspecting packages while both ports are absent`                 |
+| 端口换代后用新的实例               | 适配器缓存首次取到的读判定或解析：两个换代用例分别变红           | `uses the replacement…`                                                 |
+| 撤除后三个键取不到                 | 把服务登记在根 fiber 上：撤除用例变红                            | `removes the three services when the plugin unloads`                    |
+| 非空配置使加载失败                 | 配置 Schema 接受任意值：该用例变红                               | `refuses to load with a non-empty configuration`                        |
+
+没有覆盖：撤除插件时在途操作的答复；撤除之后对装载时的 `ctx` 调用 `ctx.get` 的答复；真实的读判定与解析实现（只用了内存替身）。
