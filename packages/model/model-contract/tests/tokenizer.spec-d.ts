@@ -53,3 +53,7 @@ it('a counting basis fixes the supplier, the template and the replay rules', () 
   }
   void [local, declared, noEvidence, credential]
 })
+
+it('count returns an asynchronous result', () => {
+  expectTypeOf<ReturnType<ModelTextTokenizer['count']>>().toMatchTypeOf<Promise<unknown>>()
+})

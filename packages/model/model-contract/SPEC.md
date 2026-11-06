@@ -1176,6 +1176,8 @@ recordMaterialization 的幂等、参数冲突和提交未知沿 ModelCommands �
 
 本节规则约束 Model 对外提供、由请求组装方在请求前调用的计量能力。压缩方用它判断输入大小并压缩。Model 的准备与发送路径不调用它，也不以它的结论作为发出条件。ModelTextTokenizer 只计所给编码序列，ModelInputMeter 负责完整请求计量依据与报告，压缩方负责覆盖、阈值和是否压缩。Tokenizer 不读档案、不取得凭据、不处理费用，也不裁定请求可否发出。计量提供者以组合取得 tokenizer、模板渲染和媒体算法，不要求它们继承同一模型基类。
 
+count 与 measure 返回 Promise，调用者须等待完整结果后才能消费计数或交还租约。异步不改变原来的成功和具名失败含义。执行提供者应将 CPU 密集计数交给有界执行资源，不得在过载时退回主线程同步计数。提供者明确拥有队列、线程、临时文本及缓存的容量与清理。
+
 count 的 text 段始终按普通内容处理，即使包含形似控制 token 的文字。只有具名模板渲染器生成 special-token 段；调用者文字不得据字符串形状提升为控制符。相邻普通文本段先按固定编码规则组成同一段计量，不能假定分段 token 数可相加。特殊 token 只能来自固定 configuration 的声明表，未知项返回 unsupported-token。空序列计数为零，计数结果为非负十进制整数。规范化与 Unicode 非法输入处理由 configuration 精确声明，不能静默增加 trim、大小写转换或编码替换。
 
 TokenizerDefinition 同时固定代码、词表及配置。相同显示名不代表同一 tokenizer，同一 tokenizer 也不代表同一聊天模板。提供者在发布计量能力前完成资源加载、完整性检查与必要初始化；count 不执行网络请求或临时下载词表。资源缺失或摘要不符时明确 unavailable，不能换另一套编码或使用任意字符倍率。普通消费者没有加载本地任意路径的入口。
@@ -1299,7 +1301,7 @@ ModelProfileSource 的快照由合法身份、设置及档案来源组成。prec
 
 createModelProfiles 对固定快照按既有层序求同名胜出，计算 required 模态相容和 locked 原因。selected 只解释传入选择，不写调用方的选择记录。凭据状态来自来源元数据，missing 与 unreadable 保持区别，不暴露秘密。ModelProfileMaintenance 的权威提供者在同一提交核当前维护资格、expected 修订、身份占用、定义校验及 `updatedAt` 不倒退，inspect 认回原 operation。查询算法的事前检查不替代该提交检查。
 
-ModelPreparationResources 按固定 profile 一次取得全部供应商的精确 rules 和 meter。返回顺序及采用必须与档案相同，credential 只带引用。部分失败释放已取得资源，不能删掉失败供应商后形成更窄档案。`acquire` 的输入可以带可选的 `lineage`。声明方式、前置条件、超限拒绝与空 lineage 见[lineage 的声明与前置条件](#lineage-的声明与前置条件)。没有它时，租约的 meter 在释放前给出与家族计量器相同的结果。有它时，租约在取得时按访问依据读取被引用调用的事实，`measure` 保持同步。租约释放后，它交出的每个 meter 都返回 `unavailable`，诊断为 `preparation-lease-released`，有无 lineage 相同。规则计划输出的参数采用和表示均绑定原输入；每个 meter 对应同一供应商及档案定义的 `context` 与限额。meter 供请求组装方在请求前使用，prepare 不调用它。请求组装方合并逐供应商检查和 counting 时，任何适用检查缺项都算未完成计量。
+ModelPreparationResources 按固定 profile 一次取得全部供应商的精确 rules 和 meter。返回顺序及采用必须与档案相同，credential 只带引用。部分失败释放已取得资源，不能删掉失败供应商后形成更窄档案。`acquire` 的输入可以带可选的 `lineage`。声明方式、前置条件、超限拒绝与空 lineage 见[lineage 的声明与前置条件](#lineage-的声明与前置条件)。没有它时，租约的 meter 在释放前给出与家族计量器相同的结果。有它时，租约在取得时按访问依据读取被引用调用的事实，`measure` 异步完成，但不新增事实读取。释放立即阻止新的计量，取消并等待已开始的计量及其底层资源清理。释放期间完成的计量不得返回成功。租约释放后，它交出的每个 meter 都返回 `unavailable`，诊断为 `preparation-lease-released`，有无 lineage 相同。规则计划输出的参数采用和表示均绑定原输入；每个 meter 对应同一供应商及档案定义的 `context` 与限额。meter 供请求组装方在请求前使用，prepare 不调用它。请求组装方合并逐供应商检查和 counting 时，任何适用检查缺项都算未完成计量。
 
 prepare 对每个供应商执行 rules.plan，形成参数采用。它不调用 meter.measure，不读取二进制，不发送请求。请求组装方在请求前另经 ModelPreparationResources.acquire 取得自己的租约，用其中的 rules 形成表示、用 meter 计量，用完释放；两份租约按同一档案采用解析到同一实现。存在未读取的媒体 ref 时，请求组装方按媒体元数据计量，结果保留 deferred-media；最终是否超限以上游响应为准。成功形成 FixedModelRequest 后释放算法租约，固定采用描述继续保留。实际发送无法重新取得该采用时明确不可用，不能改用最新实现。租约的 `release` 返回结果而不是只能抛出：释放钩子失败时结果带 `failure`（kind 为 `unavailable`，`dependency` 指明释放失败的资源提供者，诊断安全，不含提供者私有内容），提供者仍欠这次释放，不把未完成的资源清理当作成功结束。重复 `release` 返回同一结果。异常只表示程序缺陷。
 
