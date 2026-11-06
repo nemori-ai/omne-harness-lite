@@ -14,6 +14,7 @@ import {
   TASKS_EXTENSION,
 } from './envelope.ts'
 import { boundInstructions } from './instructions.ts'
+import type { UnusableCause } from './outcomes.ts'
 import type { PlainJson } from './plain.ts'
 import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
 import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
@@ -799,27 +800,78 @@ function isPlainValue(value: unknown): value is PlainJson {
 }
 
 /**
+ * The cause an answer of the row is marked with (T1): the row ends the transport, and the cause
+ * follows from its conclusion: a `no-answer` its own cause, an ended session `session-ended`, a
+ * request that could not be written (X02) `stream-broken`. Undefined on a row that leaves the
+ * transport usable: its answers carry no mark. A request after the row carries the same cause.
+ */
+function unusableCauseOf(conclusion: TableConclusion): UnusableCause | undefined {
+  if (conclusion.unusable !== true) return undefined
+  const cause = lineEndOf(conclusion)
+  if (cause === undefined)
+    throw new TypeError(`a row that ends the transport concludes ${JSON.stringify(conclusion)}`)
+  return cause
+}
+
+/** The cause of a line end a conclusion names, if it names one. */
+function lineEndOf(conclusion: TableConclusion): UnusableCause | undefined {
+  switch (conclusion.kind) {
+    case 'answer':
+      return gone(conclusion.answer)
+    case 'failure': {
+      const failure = conclusion.failure
+      if (failure.kind === 'no-answer') return gone(failure.cause)
+      if (failure.kind !== 'not-sent') return undefined
+      if (failure.cause === 'session-ended') return 'session-ended'
+      return failure.cause === 'connection-unavailable' ? 'stream-broken' : undefined
+    }
+    default:
+      return undefined
+  }
+}
+
+/** A `no-answer` cause that is a line end: a broken stream or an exited process. */
+function gone(cause: string): UnusableCause | undefined {
+  return cause === 'stream-broken' || cause === 'process-exited' ? cause : undefined
+}
+
+/** The `not-sent` (`connection-unavailable`) of a request after the row, marked as the row says. */
+function refusedAfter(conclusion: TableConclusion): TransportFailure {
+  const unusable = unusableCauseOf(conclusion)
+  return unusable === undefined
+    ? NOT_SENT_FAILURE
+    : { kind: 'not-sent', cause: 'connection-unavailable', unusable }
+}
+
+/**
  * Holds a failure to the row. `error-answer` is filled in from the reply; a refused authorization
- * is held to its kind and cause, its discovery is T4's.
+ * is held to its kind and cause, its discovery is T4's. `unusable` is the mark the row gives.
  */
 function assertFailure(
   actual: TransportFailure,
   expected: ExpectedFailure,
   reply: PeerReply,
+  unusable?: UnusableCause,
 ): void {
   if (expected.kind === 'not-sent' && expected.cause === 'authorization-required')
     assert.ok(
       actual.kind === 'not-sent' && actual.cause === 'authorization-required',
       `not authorization-required: ${JSON.stringify(actual)}`,
     )
-  else assert.deepStrictEqual(actual, failureOf(expected, reply))
+  else assert.deepStrictEqual(actual, failureOf(expected, reply, unusable))
 }
 
-/** The failure an operation must answer, filled in from the reply where the row says so. */
+/**
+ * The failure an operation must answer, filled in from the reply where the row says so, with the
+ * mark when the row ends the transport; without the field otherwise.
+ */
 function failureOf(
   expected: Exclude<ExpectedFailure, Readonly<{ cause: 'authorization-required' }>>,
   reply: PeerReply,
+  unusable?: UnusableCause,
 ): TransportFailure {
+  if (expected.kind === 'not-sent' || expected.kind === 'no-answer')
+    return unusable === undefined ? expected : { ...expected, unusable }
   if (expected.kind !== 'error-answer') return expected
   const object = errorObjectOf(reply)
   const code = at(object, 'code')
@@ -947,7 +999,7 @@ async function checkCell(
   }
   const afterwards = async (transport: McpTransport) => {
     if (conclusion.unusable === true)
-      assert.deepStrictEqual(await transport.listActions(), { failure: NOT_SENT_FAILURE })
+      assert.deepStrictEqual(await transport.listActions(), { failure: refusedAfter(conclusion) })
   }
   switch (cell.request) {
     case 'discover':
@@ -1059,7 +1111,12 @@ async function checkProbe(
           await untilSent(peer, 'server/discover')
           await transport.close()
         }
-        assertFailure(failure(await pending, 'discover'), conclusion.failure, reply)
+        assertFailure(
+          failure(await pending, 'discover'),
+          conclusion.failure,
+          reply,
+          unusableCauseOf(conclusion),
+        )
         assert.strictEqual((await discovers(peer)).length, sent)
         assert.deepStrictEqual(await initializes(peer), [])
         await afterwards(transport)
@@ -1094,7 +1151,12 @@ async function checkInitialize(
       return
     }
     assert.ok(conclusion.kind === 'failure', `row conclusion ${conclusion.kind} on initialize`)
-    assertFailure(failure(outcome, 'discover'), conclusion.failure, reply)
+    assertFailure(
+      failure(outcome, 'discover'),
+      conclusion.failure,
+      reply,
+      unusableCauseOf(conclusion),
+    )
     assert.deepStrictEqual(initialized, [])
     assert.ok(cell.kind === 'stdio' || conclusion.unusable !== true)
     await afterwards(transport)
@@ -1115,7 +1177,12 @@ async function checkCall(
       if (session) ok(await transport.discover(), 'discover')
       const outcome = await transport.call(echo, never)
       if (conclusion.kind === 'failure') {
-        assertFailure(failure(outcome, 'call'), conclusion.failure, reply)
+        assertFailure(
+          failure(outcome, 'call'),
+          conclusion.failure,
+          reply,
+          unusableCauseOf(conclusion),
+        )
       } else {
         assert.ok(conclusion.kind === 'answer', `row conclusion ${conclusion.kind} on tools/call`)
         const sent = ok(outcome, 'call')
@@ -1129,7 +1196,15 @@ async function checkCall(
           assert.deepStrictEqual(answer, { kind: 'result', result: jsonOf(reply.result) })
         } else if (conclusion.answer === 'error')
           assert.deepStrictEqual(answer, { kind: 'error', error: jsonOf(errorObjectOf(reply)) })
-        else assert.deepStrictEqual(answer, { kind: 'no-answer', cause: conclusion.answer })
+        else {
+          const unusable = unusableCauseOf(conclusion)
+          assert.deepStrictEqual(
+            answer,
+            unusable === undefined
+              ? { kind: 'no-answer', cause: conclusion.answer }
+              : { kind: 'no-answer', cause: conclusion.answer, unusable },
+          )
+        }
       }
       const received = await peer.received()
       const left = reply.kind === 'unsent' ? 0 : 1
@@ -1200,7 +1275,12 @@ async function checkOperation(
           await untilSent(peer, drive.method)
           await transport.close()
         }
-        assertFailure(failure(await pending, drive.method), conclusion.failure, reply)
+        assertFailure(
+          failure(await pending, drive.method),
+          conclusion.failure,
+          reply,
+          unusableCauseOf(conclusion),
+        )
         const left = reply.kind === 'unsent' ? 0 : 1
         assert.strictEqual(await count(peer), left, `${drive.method} was sent again`)
         const again =

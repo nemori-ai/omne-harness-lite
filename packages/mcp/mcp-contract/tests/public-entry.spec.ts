@@ -53,6 +53,7 @@ const DECISIONS = [
   'lineGoneAnswerOf',
   'listActionsRequest',
   'listingPageOf',
+  'notSentFailureOf',
   'notificationTextOf',
   'peerRequestAnswerOf',
   'readPeerMessage',
@@ -67,6 +68,7 @@ const DECISIONS = [
   'streamGoneAnswerOf',
   'taskAnswerOf',
   'taskReportOf',
+  'unusableAnswerOf',
   'updateTaskRequest',
   'withOneResend',
 ]

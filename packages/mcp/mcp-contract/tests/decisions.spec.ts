@@ -32,6 +32,7 @@ import {
   lineGoneAnswerOf,
   listActionsRequest,
   listingPageOf,
+  notSentFailureOf,
   notificationTextOf,
   peerRequestAnswerOf,
   readPeerMessage,
@@ -46,6 +47,7 @@ import {
   streamGoneAnswerOf,
   taskAnswerOf,
   taskReportOf,
+  unusableAnswerOf,
   updateTaskRequest,
   withOneResend,
   type AnswerClass,
@@ -337,6 +339,108 @@ describe('concludeAnswer holds every cell of T8', () => {
     expect(
       unusableOf({ kind: 'streamable-http', request: 'tools/call', answer: 'http:404+session' }),
     ).toBe('session-ended')
+  })
+
+  it('the answer of a row that ends the transport carries its cause as the mark; the answer of any other row carries no mark (T1, X02, S03, S04, S07)', () => {
+    const wireOf = (cell: TableCell): WireAnswer => {
+      const conclusion = conclusionOf(cell)
+      if (conclusion.kind !== 'settle') throw new TypeError(`${cell.answer} does not settle`)
+      return conclusion.wire
+    }
+    expect(wireOf({ kind: 'stdio', request: 'tools/list', answer: 'unsent' })).toEqual({
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' },
+    })
+    expect(wireOf({ kind: 'stdio', request: 'tools/call', answer: 'process-exited' })).toEqual({
+      kind: 'no-answer',
+      cause: 'process-exited',
+      resend: false,
+      unusable: 'process-exited',
+    })
+    expect(
+      wireOf({ kind: 'streamable-http', request: 'tools/list', answer: 'http:404+session' }),
+    ).toEqual({
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+    })
+    const unsentHttp = wireOf({ kind: 'streamable-http', request: 'tools/list', answer: 'unsent' })
+    expect(unsentHttp.kind === 'not-sent' && 'unusable' in unsentHttp.failure).toBe(false)
+    const brokenHttp = wireOf({
+      kind: 'streamable-http',
+      request: 'tools/call',
+      answer: 'stream-broken',
+    })
+    expect(brokenHttp).toEqual({ kind: 'no-answer', cause: 'stream-broken', resend: false })
+    expect('unusable' in brokenHttp).toBe(false)
+    const status5xx = wireOf({
+      kind: 'streamable-http',
+      request: 'tools/call',
+      answer: 'http:5xx+plain',
+    })
+    expect('unusable' in status5xx).toBe(false)
+  })
+
+  it('a transport that is not usable any more marks what it hands over with the cause it recorded; a refusal and an answer of the peer stay as they are (T1)', () => {
+    const notSent: WireAnswer = {
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'connection-unavailable' },
+    }
+    expect(unusableAnswerOf(notSent, 'session-ended')).toEqual({
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'session-ended' },
+    })
+    expect(unusableAnswerOf(ABANDONED, 'process-exited')).toEqual({
+      ...ABANDONED,
+      unusable: 'process-exited',
+    })
+    const marked = unusableAnswerOf(ABANDONED, 'stream-broken')
+    expect(unusableAnswerOf(marked, 'session-ended')).toBe(marked)
+    const refused = authorizationRequiredAnswerOf({
+      resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
+      metadata: 'unavailable',
+      issuers: [],
+      scopes: [],
+    })
+    expect(unusableAnswerOf(refused, 'stream-broken')).toBe(refused)
+    const result: WireAnswer = { kind: 'result', result: { kind: 'null' } }
+    expect(unusableAnswerOf(result, 'stream-broken')).toBe(result)
+    expect(notSentFailureOf(undefined)).toEqual({
+      kind: 'not-sent',
+      cause: 'connection-unavailable',
+    })
+    expect('unusable' in notSentFailureOf(undefined)).toBe(false)
+    expect(notSentFailureOf('process-exited')).toEqual({
+      kind: 'not-sent',
+      cause: 'connection-unavailable',
+      unusable: 'process-exited',
+    })
+  })
+
+  it('a reading of a marked answer keeps the mark: the failure of an operation and the answer of a call (T1)', () => {
+    const broken: WireAnswer = {
+      kind: 'no-answer',
+      cause: 'stream-broken',
+      resend: false,
+      unusable: 'stream-broken',
+    }
+    expect(interpretAnswer(broken, () => ({ ok: 1 }))).toEqual({
+      failure: { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' },
+    })
+    expect(callAnswerOf(broken)).toEqual({
+      kind: 'no-answer',
+      cause: 'stream-broken',
+      unusable: 'stream-broken',
+    })
+    const ended: WireAnswer = {
+      kind: 'not-sent',
+      failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
+    }
+    expect(callAnswerOf(ended)).toEqual({
+      kind: 'no-answer',
+      cause: 'abandoned',
+      unusable: 'session-ended',
+    })
+    expect('unusable' in callAnswerOf(ABANDONED)).toBe(false)
   })
 
   it('re-sends a read request on Streamable HTTP after a broken stream, not a write, not on stdio, not in the SSE mode', () => {
@@ -727,11 +831,12 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
     expect(cancelsByNotification({ kind: 'stdio', version: undefined })).toBe(true)
   })
 
-  it('a gone stream settles every request with no-answer and no re-send; a refusal settles with its discovery', () => {
+  it('a gone stream settles every request with no-answer, no re-send and the cause as the mark; a refusal settles with its discovery', () => {
     expect(streamGoneAnswerOf('process-exited')).toEqual({
       kind: 'no-answer',
       cause: 'process-exited',
       resend: false,
+      unusable: 'process-exited',
     })
     const discovery = {
       resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
@@ -762,11 +867,11 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
     )
   })
 
-  it('the line going away settles only the phases that depend on it: authorizing is not-sent for every cause, sent answers the cause except session-ended, discovery goes on (T8 S01–S04, S07)', () => {
-    const notSent = {
+  it('the line going away settles only the phases that depend on it, marked with the cause: authorizing is not-sent for every cause, sent answers the cause except session-ended, discovery goes on (T8 S01–S04, S07)', () => {
+    const notSent = (cause: string) => ({
       kind: 'not-sent',
-      failure: { kind: 'not-sent', cause: 'connection-unavailable' },
-    }
+      failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: cause },
+    })
     const soFar = {
       resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
       metadata: 'unavailable',
@@ -775,7 +880,7 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
     } as const
     const discovery = { kind: 'discovery', soFar: () => soFar } as const
     for (const cause of ['stream-broken', 'process-exited', 'session-ended'] as const) {
-      expect(lineGoneAnswerOf({ kind: 'authorizing' }, cause), cause).toEqual(notSent)
+      expect(lineGoneAnswerOf({ kind: 'authorizing' }, cause), cause).toEqual(notSent(cause))
       expect(lineGoneAnswerOf(discovery, cause), cause).toBeUndefined()
     }
     expect(lineGoneAnswerOf({ kind: 'sent' }, 'stream-broken')).toEqual(
