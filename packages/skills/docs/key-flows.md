@@ -1,6 +1,6 @@
 # Skill组内逻辑责任流程
 
-状态：工程设计草案。流程中的服务与端口都是候选。`PackageInspection`、`SkillAccess` 与目录来源 `DirectorySource` 已有成员实现（候选，第二波，尚未取得技术接受），`SkillCatalog` 还没有实现。成员状态见[组入口](../README.md#成员与依赖)。流程只说明本组服务与端口怎样协作，不能因流程落位认为已采用。服务含义与失败种类见[工程设计](architecture.md)。图中只有本组的步骤，本组以外的参与者都合并成「调用方」。
+状态：工程设计草案。流程中的服务与端口都是候选。`PackageInspection`、`SkillCatalog`、`SkillAccess` 与目录来源 `DirectorySource` 都已有成员实现（候选，尚未取得技术接受）。成员状态见[组入口](../README.md#成员与依赖)。流程只说明本组服务与端口怎样协作，不能因流程落位认为已采用。服务含义与失败种类见[工程设计](architecture.md)。图中只有本组的步骤，本组以外的参与者都合并成「调用方」。
 
 ## 组内检查
 
@@ -14,10 +14,8 @@ sequenceDiagram
   C->>I: inspect(locator, { expectedName? })
   I->>S: snapshot(locator)
   S-->>I: Skill 包快照（含包根目录名），或 来源失败
-  alt package-not-found、entry-not-found 或 unavailable
+  alt package-not-found、entry-not-found、bytes-mismatch 或 unavailable（快照不对单个条目作答，答 entry-not-found 或 bytes-mismatch 的来源不守端口契约）
     I-->>C: source-unavailable
-  else bytes-mismatch
-    I-->>C: version-changed
   else entry-unreadable（非常规文件，或无法解析、成环的链接）
     I-->>C: 拒绝 malformed，检查到此结束
   else outside-package（包内链接解析后落在包根之外）
@@ -33,17 +31,17 @@ sequenceDiagram
   else bytes-mismatch，或核对不符
     I-->>C: version-changed
   end
-  I->>I: 解析与校验。头部能读出 name 时，name 须等于包根目录名，带 expectedName 时也须等于它
+  I->>I: 解析与校验。带 expectedName 时，头部能读出的 name 须等于它。name 与包根目录名不同时不拒绝，带兼容提示
   alt 不合格
     I-->>C: 拒绝原因，按包格式规则的次序
   end
-  I-->>C: SkillDefinition：清单、声明与Skill 包快照，不含正文
+  I-->>C: SkillDefinition：清单、声明与Skill 包快照，有软偏离时另带兼容提示，不含正文
 ```
 
 1. `inspect` 的结果集合封闭：`SkillDefinition`、一个拒绝原因、`source-unavailable` 或 `version-changed`。规则见[工程设计「检查与发现」](architecture.md#检查与发现)。
-2. 头部能读出 name、且 name 与包根目录名不一致时，一律拒绝为 `name-mismatch`，不论带不带 `expectedName`。头部的 YAML 读不出 name 时，不判 `name-mismatch`，头部的问题判为 `malformed`。
+2. 只有调用方给出 `expectedName`、头部能读出 name、且 name 不等于它时，才拒绝为 `name-mismatch`。name 与包根目录名不同时不拒绝，带兼容提示 `name-differs-from-root`。头部的 YAML 与逐行读取都读不出 name 时，不判 `name-mismatch`，头部的问题判为 `malformed`。另外三种软偏离（逐行读出头部、说明超过 1024 个字符、`metadata` 不是文本映射）也接受并带兼容提示，见[工程设计「包格式规则」](architecture.md#包格式规则)。
 3. `inspect` 不交正文。正文只经 `SkillAccess.read` 取得，`read` 现场核验读取权。
-4. `snapshot` 或 `open` 答 `outside-package` 时，`inspect` 拒绝为 `outside-package`。`snapshot` 答 `entry-unreadable` 时，`inspect` 拒绝为 `malformed`。`snapshot` 答这两种时没有快照可判，检查以对应的原因结束，不按拒绝次序判其余原因。图中省略 `open` 的 `outside-package` 一支。
+4. `snapshot` 或 `open` 答 `outside-package` 时，`inspect` 拒绝为 `outside-package`。`snapshot` 或 `open` 答 `entry-unreadable` 时，`inspect` 拒绝为 `malformed`。`snapshot` 答这两种时没有快照可判，检查以对应的原因结束，不按拒绝次序判其余原因。图中省略 `open` 的 `outside-package` 与 `entry-unreadable` 两支。快照阶段的 `bytes-mismatch` 是 `source-unavailable`。读控制文件时 `open` 答 `bytes-mismatch`，或核对不符，是 `version-changed`。
 
 ## F-SK02 分层发现与不可用解释
 
@@ -56,26 +54,30 @@ sequenceDiagram
   participant V as SkillResolution
   participant E as SkillReadCheck
   C->>K: summaries(access, scope, capabilities?) 或 search(access, scope, query)
+  alt capabilities 为空
+    K-->>C: 空列表，不调用任何端口
+  end
   K->>V: adopted(access, scope)
   V-->>K: 当前合法集合中每个身份的 adopted 或 known-unavailable（可以为空），或 无法判定
   alt 无法判定
     K-->>C: unknown，不返回空集合
   end
-  loop 集合中的每个身份
+  K->>K: 按 capabilities 过滤，或按查询匹配 name 与说明，只留下匹配的身份
+  loop 留下的每个身份
     K->>E: check(access, scope, 能力标识)
     E-->>K: granted，或 refused，或 unknown
   end
-  alt 任一身份 unknown
+  alt 留下的身份中任一个 unknown
     K-->>C: unknown，不返回空集合
   end
   K->>K: 去掉 refused 的身份，不披露它存在
   K-->>C: 摘要条目：能力标识、name、说明。adopted 的身份带依赖声明，known-unavailable 的身份带替换件原因
 ```
 
-1. `SkillCatalog` 只在 `SkillResolution.adopted` 给出的当前合法集合里取身份。集合为空时返回空列表，这不是失败。调用方给出 `capabilities` 时，只交其中属于当前合法集合的身份。其余不交，也不说明原因。
-2. 每个身份先经 `SkillReadCheck` 核验。答 `refused` 的身份不进入结果，不披露它存在。任一身份答 `unknown` 时，整次操作返回 `unknown`，不把未知压成空。
+1. `SkillCatalog` 只在 `SkillResolution.adopted` 给出的当前合法集合里取身份。集合为空时返回空列表，这不是失败。调用方给出 `capabilities` 时，只交其中属于当前合法集合的身份。其余不交，也不说明原因。给出空的 `capabilities` 时，直接返回空列表，不调用任何端口。
+2. 先过滤与匹配，再对留下的每个身份经 `SkillReadCheck` 核验。答 `refused` 的身份不进入结果，不披露它存在。留下的身份中任一个答 `unknown` 时，整次操作返回 `unknown`，不把未知压成空。请求之外或查询不匹配的身份不核验，它们的 `unknown` 不使整次操作返回 `unknown`。
 3. 答 `adopted` 的身份带依赖声明。答 `known-unavailable` 的身份保留，并带替换件原因。从未取得的身份不出现。依赖在不在场、一份 Skill 此刻能不能用，由调用方判定。
-4. `search` 按 name 与说明找当前合法集合中该主体可读的身份，返回同样的摘要条目。
+4. `search` 按 name 与说明匹配当前合法集合中的身份，只对匹配的身份核验读取权，返回该主体可读的身份的同样摘要条目。匹配规则见成员规格[目录的匹配规则](../skill-contract/SPEC.md#catalog-search)。
 5. 本组不按常驻筛选，条目顺序不承载含义。排序、集合修订与呈现归调用方。
 6. 端口无法给出现行判断时，返回 `unknown`，不能以空集合表示「无方法」。
 
@@ -114,7 +116,10 @@ sequenceDiagram
   else unknown
     A-->>C: unknown
   end
-  alt SkillRef 没有内容摘要（资产正文缺 package.digest）
+  alt 引用不指向所请求的身份，或带依据时与依据的来源层、资产版本、内容摘要不一致
+    A-->>C: unknown，当作端口没有作答，不调用来源
+  end
+  alt 不带依据，SkillRef 没有内容摘要（资产正文缺 package.digest）
     A-->>C: unsupported
   end
   A->>A: 所钉内容摘要：有 basis 取 basis，否则取 SkillRef
@@ -145,7 +150,7 @@ sequenceDiagram
   A-->>C: 内容、Skill 材料依据、包内路径、媒体类型、实际字节范围、总长与 complete
 ```
 
-图中每个 `alt` 分支都在返回后结束本次操作。端口失败按[工程设计「端口」](architecture.md#端口)的映射表转换：`package-not-found` 带Skill 材料依据时为 `basis-unavailable`，不带时为 `source-unavailable`。`open` 的 `entry-not-found` 为 `resource-missing`。`open` 的 `bytes-mismatch` 为 `version-changed`。`outside-package` 照原样。`unavailable` 为 `source-unavailable`。`snapshot` 的 `entry-unreadable` 为 `source-unavailable`。`snapshot` 不对单个条目作答，它答 `entry-not-found` 或 `bytes-mismatch` 时来源不守端口契约，也为 `source-unavailable`。`read`、`list` 与 `export` 在每次调用端口之前与每次端口返回之后各检查一次 `signal`，四个端口 `check`、`resolve`、`snapshot`、`open` 都在内。调用方中止时，操作答 `aborted`，不再调用端口，也不交部分内容。
+图中每个 `alt` 分支都在返回后结束本次操作。端口失败按[工程设计「端口」](architecture.md#端口)的映射表转换：`package-not-found` 带Skill 材料依据时为 `basis-unavailable`，不带时为 `source-unavailable`。`open` 的 `entry-not-found` 为 `resource-missing`。`open` 的 `bytes-mismatch` 为 `version-changed`。`outside-package` 照原样。`unavailable` 为 `source-unavailable`。`snapshot` 的 `entry-unreadable` 为 `source-unavailable`，`open` 的 `entry-unreadable` 也是（防御性的映射）。`snapshot` 不对单个条目作答，它答 `entry-not-found` 或 `bytes-mismatch` 时来源不守端口契约，也为 `source-unavailable`。`read`、`list` 与 `export` 在每次调用端口之前与每次端口返回之后各检查一次 `signal`，四个端口 `check`、`resolve`、`snapshot`、`open` 都在内。调用方中止时，操作答 `aborted`，不再调用端口，也不交部分内容。中止的响应时间受端口时间限制：每次端口调用都会结束时，操作才答复。`read` 的字节范围起点或长度为负数或非整数时，`read` 在调用任何端口之前抛出 `TypeError`，图中省略。读正文时，所钉材料的 `SKILL.md` 没有合法的头部定界，则正文起点不明，`read` 答 `source-unavailable`，不交内容，图中省略，见[工程设计「读取」](architecture.md#读取)第 11 步。
 
 1. 调用方可以不带Skill 材料依据，这时 `SkillAccess` 读当时的合法版本。调用方也可以带上此前结果给出的Skill 材料依据，这时读取固定该版本。Skill 材料依据含能力标识、来源层、资产版本与内容摘要，不含包定位。工作区来源的Skill 材料依据可以不带资产版本。
 2. 带Skill 材料依据时，`SkillAccess` 先核对依据的能力标识等于目标能力标识。不等时对外返回 `not-available-to-you`，不披露差异原因。
@@ -153,12 +158,12 @@ sequenceDiagram
 4. 先核验读取，再解析对应。对无权主体，「无权」与「身份不存在」都返回 `not-available-to-you`。
 5. 只有 `SkillResolution` 答 `known-unavailable` 时，才返回 `unavailable-stand-in`。`resolve` 先判 `known-unavailable`，再判 `adopted`，所以带不带Skill 材料依据，替换件都相同。替换件由 Skill 用 `resolve` 交来的最后合法 name、说明与原因组装。
 6. 带Skill 材料依据时，`SkillResolution` 核对依据所指的材料是否合法，并当场给出包定位。只有身份 `adopted` 且依据的版本不合法时，`resolve` 才答 `basis-not-lawful`，`SkillAccess` 返回 `basis-unavailable`。
-7. 资产正文缺 `package.digest` 时，`SkillRef` 没有内容摘要。`read`、`list` 与 `export` 返回 `unsupported`，带不带Skill 材料依据都一样。
+7. 资产正文缺 `package.digest` 时，不带依据的 `SkillRef` 没有内容摘要，`read` 与 `list` 返回 `unsupported`。带依据时，端口带回依据的内容摘要，这一步总是通过，来源在引用的定位处没有包时返回 `basis-unavailable`。
 8. 先取快照并比较Skill 包快照的内容摘要，再查条目，再读字节并按条目内容摘要核对。所以一次读取只对应一份Skill 包快照。快照不符时，带Skill 材料依据报 `basis-unavailable`，不带Skill 材料依据报 `adopted-material-changed`。
 9. 读取不判定依赖在不在场，也不判定脚本有没有所需的设施。正文与资源走同一条路径。
 10. 成功结果交出后归调用方。`SkillAccess` 不保留副本，不记「已加载」状态，也不把 `SkillRef` 或包定位交给调用方。
 
-`list` 走同一条核验与解析路径，再取快照并比较Skill 包快照的内容摘要。只有内容摘要相符后，`list` 才返回快照中的资源条目。`describe` 只走核验与解析，再交出 `resolve` 交来的声明投影中的依赖、脚本与设置声明。`describe` 带Skill 材料依据、`resolve` 答 `adopted` 时，结果的Skill 材料依据就是调用方交来的依据，也就是依据所指的材料，见[工程设计「读取」](architecture.md#读取)第 5 步。它不读包字节，也不交设置值。资产正文缺 `package.digest` 时，`describe` 照常交出声明，结果不带Skill 材料依据，并标明「没有可读的包」。
+`list` 走同一条核验与解析路径，再取快照并比较Skill 包快照的内容摘要。只有内容摘要相符后，`list` 才返回快照中的资源条目。`describe` 只走核验与解析，再交出 `resolve` 交来的声明投影中的依赖、脚本与设置声明。`describe` 带Skill 材料依据、`resolve` 答 `adopted` 时，结果的Skill 材料依据就是调用方交来的依据，也就是依据所指的材料，见[工程设计「读取」](architecture.md#读取)第 5 步。它不读包字节，也不交设置值。不带依据且资产正文缺 `package.digest` 时，`describe` 照常交出声明，结果不带Skill 材料依据，并标明「没有可读的包」。带依据时，`describe` 交出依据所指的材料，不标「没有可读的包」。
 
 ## 组内导出
 
@@ -179,11 +184,9 @@ sequenceDiagram
   E-->>A: granted，或 refused，或 unknown
   A->>V: resolve(access, scope, 能力标识, { basis })
   V-->>A: known-unavailable，或 adopted(SkillRef)，或 basis-not-lawful，或 none，或 unknown
-  alt SkillRef 没有内容摘要
-    A-->>C: unsupported
-  end
+  A->>A: 所钉材料是依据本身，内容摘要取依据的
   A->>S: snapshot(SkillRef 的 locator)
-  S-->>A: Skill 包快照，或 来源失败
+  S-->>A: Skill 包快照，或 package-not-found 等来源失败
   alt 快照的内容摘要不等于依据中的内容摘要
     A-->>C: basis-unavailable
   end
@@ -199,6 +202,6 @@ sequenceDiagram
 ```
 
 1. `export` 必须带Skill 材料依据。调用方先从 `describe` 取得它。
-2. 核验、解析与端口失败的映射同[组内读取](#组内读取)。`SkillReadCheck` 与 `SkillResolution` 的拒绝分支与读取相同，图中省略。资产正文缺 `package.digest` 时，`describe` 不交Skill 材料依据，`export` 返回 `unsupported`。
+2. 核验、解析与端口失败的映射同[组内读取](#组内读取)。`SkillReadCheck` 与 `SkillResolution` 的拒绝分支与读取相同，图中省略。`export` 总带依据，所以不答 `unsupported`：端口对带依据的引用总带回依据的内容摘要。
 3. 每个条目都按快照中的条目内容摘要核对。任一条目不符时不交部分包。
 4. 物化的落点、之后的使用与脚本执行都不归本组。脚本身份是能力标识加入口的包内路径，见[工程设计「Q-SK04」](architecture.md#q-sk04-脚本桥接的发起控制和原结果协议)。

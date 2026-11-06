@@ -8,9 +8,9 @@
 
 | 依据 | 修订 | 本规格采用的范围 |
 | --- | --- | --- |
-| [组工程设计](../docs/architecture.md) | `21175c9f9` | 模型、资产正文与 Skill 包、端口、应用服务、检查与发现、包格式规则、读取、失败种类、验证 |
-| 领域设计裁定 | 2026-11-03 | 入口与各入口的内容；内容摘要算法；`SafeReason` 的形状；读取内容是文本或字节；正文起点；每页 65536 字节；中止为 `aborted`；`.omne/skill.json` 的形状与格式版本；四个设置类别；声明项编码；声明的 JSON 预算；YAML 头部的解析；`skillBodyContract` 只做可加扩展；`SkillResolution.adopted` 只交两种答复；快照只能经 `sealSnapshot` 构造。评审之后的裁定见[与组页的差异](#group-differences) |
-| 资产公开类型 `@omne-harness/assets` | `21175c9f9` | `BodyContract`、`CapabilityId`、`Declarations` |
+| [组工程设计](../docs/architecture.md) | `773d9f04c` | 模型、资产正文与 Skill 包、端口、应用服务、检查与发现、包格式规则、读取、失败种类、验证 |
+| 领域设计裁定 | 2026-11-03 | 入口与各入口的内容；内容摘要算法；`SafeReason` 的形状；读取内容是文本或字节；正文起点；每页 65536 字节；中止为 `aborted`；`.omne/skill.json` 的形状与格式版本；四个设置类别；声明项编码；声明的 JSON 预算；YAML 头部的解析；`skillBodyContract` 只做可加扩展；`SkillResolution.adopted` 只交两种答复；快照只能经 `sealSnapshot` 构造。组页没有写的条款见[组页没有写的条款](#group-differences) |
+| 资产公开类型 `@omne-harness/assets` | `3289bee2f` | `BodyContract`、`CapabilityId`、`Declarations` |
 | [官方 Agent Skills 规格](https://agentskills.io/specification) | 2026-11-03 读取 | `SKILL.md` 的头部字段与目录结构 |
 | W3 Skill 线实施规格（reduce 裁定）、第 2 轮裁定 R1–R9 与第 3 轮裁定 S1–S3 | 2026-11-04 | 可加改动：公开根导出 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DECLARATION_LIMITS`、`sameCapability` 与 `isSkillDescription`；`./provider` 导出 `isSealedSnapshot`；[目录的匹配规则](#catalog-search)；[端口答复的统一处置](#port-answer-closed)；`open` 答 `entry-unreadable` 的映射；`skillCatalogConformance` |
 | W3 闭包 w3-skill-fix 的 reduce 裁定（卡 #1119 r1） | 2026-11-04 | 引用身份一致（GS-06，性质 S7）：统一处置核对表的 `resolve` 一行与 PR3 的内容摘要；`inspect` 的映射按调用点分格（GS-02）；中止活性的前提（GS-05）；生态兼容的放宽与兼容提示（见[兼容提示](#compatibility-hints)） |
@@ -38,6 +38,8 @@
 
 ### 本页封闭的组页未定项
 
+下表「组页位置」的行号指组页在 `21175c9f9` 的版本。
+
 | 组页位置 | 未定项 | 本页条款 |
 | --- | --- | --- |
 | 第 71 行 | 值的精确类型 | `src/values.ts`；[值与守卫](#values) |
@@ -54,39 +56,15 @@
 
 <a id="group-differences"></a>
 
-### 与组页的差异
+### 组页没有写的条款
 
-下列条款与组页现文不同。组页拥有者写回组页之前，以本页为准。
+下列条款[组工程设计](../docs/architecture.md)没有写，也不与组页冲突。本页是它们的唯一源。
 
-| 差异 | 本页条款 | 依据 |
+| 条款 | 本页条款 | 依据 |
 | --- | --- | --- |
-| `PackageInspection` 的接口在 `./provider`，不在公开根。它的调用方是来源与资产登记一侧，不是读者 | [入口](#entries) | 领域设计裁定 G3（2026-11-03） |
-| `SkillReadCheck.check` 答带 `kind` 的判别联合，不答文本联合 | [需求端口](#ports) | 领域设计裁定 C19（2026-11-03） |
-| `SourceFailure` 多一种 `entry-unreadable`，组页「链接与非常规文件拒绝为 `malformed`」经它进入 | [需求端口](#ports) | 领域设计裁定 E10（2026-11-03） |
-| `sealSnapshot` 收文件字节，不收来源算好的条目事实。代价：来源须整包读入内存才能交出快照 | [快照](#snapshot) | 领域设计裁定，第 1 轮偏离 8（2026-11-03） |
-| `sealSnapshot` 拒绝空的或含 `/` 的包根目录名 | [快照](#snapshot) | 领域设计裁定 E12（2026-11-03） |
-| 头部 YAML 读不出时不判 `name-mismatch`，判 `malformed` | [拒绝次序](#rejection-order) | 领域设计裁定 C22′（2026-11-03） |
-| 含 `..` 段的脚本入口判 `malformed`，不判 `outside-package` | [`.omne/skill.json`](#declaration) | 领域设计裁定 C2（2026-11-03） |
 | 控制字节与快照不对应时 `parseSkillPackage` 答 `version-changed` | [前提与版本](#parse-preconditions) | 领域设计裁定 C1（2026-11-03） |
 | 只做检查的值公开守卫 `isX`，`toPackagePath` 仍规范化并答 `Outcome` | [值与守卫](#values) | 领域设计裁定，品牌授予规则（2026-11-03） |
 | `./testing` 的套件是无框架的用例列表 | [符合性套件](#conformance) | 领域设计裁定 C18（2026-11-03） |
-| `./testing` 有 `SkillAccess` 的符合性套件 `skillAccessConformance`，随 `@omne-harness/skill` 的实现以可加改动加入 | [符合性套件](#conformance) | 领域设计裁定 C18（2026-11-03）；W2 Skill 线交付 |
-| `description`、`scripts`、`settings` 与 `package` 是 `skill` 资产正文的保留字段 | [`skill` 类别端口](#category-port) | 领域设计裁定 C3（2026-11-03） |
-| `list` 与 `export` 也收 `signal`，也可以答 `aborted`；组页只给 `read` 写了 `signal` | [读取的形状规则](#read-shape) | 领域设计裁定 S3-16（2026-11-03） |
-| `SkillPackageSource.snapshot` 可以答 `outside-package`（包内链接解析后落在根外）。有这种链接的包整包不可读 | [需求端口](#ports) | 领域设计裁定 S3-6（2026-11-03） |
-| 来源在快照阶段答 `entry-unreadable` 或 `outside-package` 时，检查以对应原因结束，不按拒绝次序判其余原因 | [拒绝次序](#rejection-order) | 领域设计裁定 S3-4（2026-11-03） |
-| 类别端口要求 `name` 合 `SkillName` 的词法，否则拒绝 `name-invalid`。这收紧了资产规格中 `skill` 一段 | [`skill` 类别端口](#category-port) | 领域设计裁定 S3-17（2026-11-03） |
-| 本成员不依赖 `@omne-harness/content-block`：读取交出文本或字节 | [读取的形状规则](#read-shape) | 领域设计裁定，读取内容（2026-11-03） |
-| `unsupported` 本版本只有 `no-readable-package` 一种：文本与字节都能表示，检查没有方言 | [读取的形状规则](#read-shape) | 领域设计裁定 S2-6（2026-11-03） |
-| `SkillCatalog` 先按 `capabilities` 过滤、按 `search` 的查询匹配，只对留下的身份调用读取判定。组页写的是对集合中的每个身份先核验。所以请求外或不匹配的身份的读取判定答 `unknown` 时，本页的答复不是 `unknown`。空的 `capabilities` 不调用任何端口，合法集合此刻无法判定时也答空列表 | [目录的匹配规则](#catalog-search) | W3 Skill 线实施规格已定事项 5、6；第 2 轮裁定 R2（2026-11-04） |
-| `open` 答 `entry-unreadable` 时，本页给出防御性映射。端口的要求只为 `snapshot` 定义这一种，组页也只写了 `snapshot` | [需求端口](#ports) | W3 Skill 线实施规格已定事项 9（2026-11-04） |
-| `resolve` 答 `adopted` 时，引用必须指向所请求的身份；带依据时，引用的来源层、资产版本（依据带资产版本时）与内容摘要必须等于依据的。`known-unavailable` 的能力标识必须是所请求的身份。不合即没有作答。组页只写了「包定位只取自 `SkillRef`」 | [端口答复的统一处置](#port-answer-closed) | w3-skill-fix 裁定 1（GS-06） |
-| 来源在快照阶段答 `bytes-mismatch` 时，检查也答 `source-unavailable`。组页的映射表让检查答 `version-changed`，检查不分调用点 | [需求端口](#ports) | w3-skill-fix 裁定 2（GS-02） |
-| 所钉材料的 `SKILL.md` 没有合法的头部定界时，`read` 的正文答 `source-unavailable`，不交内容。组页第 11 步把整个条目当作正文 | [读取的形状规则](#read-shape) | w3-skill-fix 裁定 3（GS-04） |
-| 带依据时，`read`、`list` 与 `export` 不答 `unsupported`：端口带回依据的内容摘要（PR3），没有可读包的材料也一样，第 5 步总是通过；结果由第 6 步的路径校验、第 7 步的快照与内容摘要的核对决定，来源在引用的定位处没有包时答 `basis-unavailable`。组页第 5 步写不带内容摘要答 `unsupported`，带不带依据都一样 | [读取的形状规则](#read-shape)、[需求端口](#ports) | w3-skill-fix 第 2 轮裁定 B1 |
-| 带依据的 `describe` 对资产正文缺 `package.digest` 的材料交出依据所指的材料，不标「没有可读的包」：PR3 让带依据的引用总带内容摘要。组页「描述」各处写这种材料的 `describe` 不带材料依据、标明「没有可读的包」，没有分带不带依据；只在不带依据时与本页相同 | [值与守卫](#values)、[需求端口](#ports) | w3-skill-fix 第 2 轮裁定 B1 |
-| 头部 YAML 读不出、但能逐行读出 name 与说明时接受；说明超过 1024 个字符时接受；`metadata` 不是文本映射时接受；name 与包根目录名不同时接受。四种都带兼容提示。组页的包格式规则拒绝这四种 | [`SKILL.md`](#manifest)、[兼容提示](#compatibility-hints) | w3-skill-fix 裁定 5（生态兼容）与第 2 轮裁定 N1 |
-| 说明的上限是 16384 个字符，在检查、资产正文、声明投影、替换件与读取的边界解析中都一样。组页与 Agent Skills 规格写 1024 | [值与守卫](#values) | w3-skill-fix 第 2 轮裁定 N2 |
 
 ## 结果与不变量
 
@@ -402,7 +380,7 @@ no-readable-package
 
 ### 目录的匹配规则
 
-`SkillCatalog` 由 `@omne-harness/skill` 实现。组工程设计[「检查与发现」](../docs/architecture.md#检查与发现)规定：目录只在当前合法集合里取，只列读取判定答 `granted` 的身份，任一身份答 `unknown` 时整次答 `unknown`。本节封闭组设计留给本成员的规则。核验只对过滤与匹配之后留下的身份发出，这一点与组页不同，见[与组页的差异](#group-differences)。
+`SkillCatalog` 由 `@omne-harness/skill` 实现。组工程设计[「检查与发现」](../docs/architecture.md#检查与发现)规定：目录只在当前合法集合里取，先过滤与匹配，再只对留下的身份核验，只列读取判定答 `granted` 的身份，留下的身份中任一个答 `unknown` 时整次答 `unknown`。本节封闭组设计留给本成员的规则。
 
 本节的用语：
 

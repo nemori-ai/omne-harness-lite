@@ -8,7 +8,7 @@
 
 | 依据                                        | 修订        | 本规格采用的范围                                                                                                                                                                                              |
 | ------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [组工程设计](../docs/architecture.md)       | `b0f2ec7fb` | 「端口」中的 `DirectorySource` 段与映射表                                                                                                                                                                     |
+| [组工程设计](../docs/architecture.md)       | `773d9f04c` | 「端口」中的 `DirectorySource` 段与映射表                                                                                                                                                                     |
 | [Skill 契约规格](../skill-contract/SPEC.md) | `bf1544e91` | [需求端口](../skill-contract/SPEC.md#ports)、[快照](../skill-contract/SPEC.md#snapshot)、[来源失败的集合](../skill-contract/SPEC.md#set-source-failures)、[符合性套件](../skill-contract/SPEC.md#conformance) |
 | W2 领域设计裁定                             | 2026-11-03  | 工厂与文件系统接缝的形状；定位的种类；失败映射；快照的条目集合；取快照后改文件时 `open` 交出新字节；无类、无类型断言                                                                                          |
 | W3 Skill 线实施规格已定事项 12 与第 2 轮裁定 R6 | 2026-11-04 | 真实目录示例 `examples/directory-journey.ts` 与它的测试；示例不是产品装配 |

@@ -9,7 +9,7 @@
 | 依据 | 修订 | 本规格采用的范围 |
 | --- | --- | --- |
 | [契约 SPEC](../skill-contract/SPEC.md) | 与本文件同一提交 | 「检查 Skill 包」全节；「读取的形状规则」全节（含 `bodyOffsetOf` 与请求终点）；「需求端口」的映射补充与「端口答复的统一处置」；「目录的匹配规则」；「符合性套件」的 `skillAccessConformance` 与 `skillCatalogConformance` |
-| [组工程设计](../docs/architecture.md) | `b0f2ec7fb` | 「端口」的映射表；「检查与发现」；「读取」的 11 步与版本语义；「失败种类」 |
+| [组工程设计](../docs/architecture.md) | `773d9f04c` | 「端口」的映射表；「检查与发现」；「读取」的 11 步与版本语义；「失败种类」 |
 | W2 Skill 线实施规格与第 1 轮评审裁定 | 2026-11-03 | 已定事项 1–10、15、16，其中 3（`gate` 收 `signal`）与 8（`describe` 带依据时依据所指材料）按第 1 轮裁定修正；映射三列；请求终点；读取判定答复在集合外答 `unknown` |
 | W3 Skill 线实施规格（reduce 裁定）、第 2 轮裁定 R1–R3、R5、R7 与第 3 轮裁定 S1、S3 | 2026-11-04 | 已定事项 1–5、7、8（实现部分）、10（删除重复定义）、13；端口答复在边界上完整解析（R1）；空的 `capabilities`（R2）；重复身份保留第一条（R3）。端口 reject 与畸形答复的统一处置取代 W2 的「端口抛出的错误原样抛出」 |
 | W3 闭包 w3-skill-fix 的 reduce 裁定（卡 #1119 r1） | 2026-11-04 | 裁定 1（引用身份一致，S7）、2（`inspect` 的映射按调用点分格）、3（没有合法头部的正文）、4（中止的前提）、6（成员导航） |
@@ -29,7 +29,7 @@
 | `pin(ports, gated, material, moved, signal?)` | 7 | 快照映射的三种、`aborted`，以及调用方交来的 `moved`（`adopted-material-changed` 或 `basis-unavailable`） | `list` |
 | `verifiedBytes(ports, pinned, entry, signal?)` | 10 | `open` 映射的五种、`version-changed`、`aborted` | `read`、`export` |
 
-- 第 4 步（`describe` 的结果）、第 6 步（`read` 的路径校验）、第 8 步（`list` 的结果）、第 9 步（条目查找）与第 11 步（字节范围）在 `service.ts` 的操作里。`read` 的次序是：范围校验（抛 `TypeError`）→ 第 1–3 步 → 第 5 步 → 第 6 步 → 第 7 步 → 第 9 步 → 第 10 步 → 第 11 步，与组页一致：不带依据时，没有可读的包加坏路径答 `unsupported`。带依据时第 5 步总是通过（端口带回依据的内容摘要，PR3），所以没有可读包的材料加坏路径答 `bad-path`；这一处取代组页第 5 步「带不带依据都答 `unsupported`」，见契约[与组页的差异](../skill-contract/SPEC.md#group-differences)。无权主体加坏路径答 `not-available-to-you`，坏路径加材料已变答 `bad-path`。
+- 第 4 步（`describe` 的结果）、第 6 步（`read` 的路径校验）、第 8 步（`list` 的结果）、第 9 步（条目查找）与第 11 步（字节范围）在 `service.ts` 的操作里。`read` 的次序是：范围校验（抛 `TypeError`）→ 第 1–3 步 → 第 5 步 → 第 6 步 → 第 7 步 → 第 9 步 → 第 10 步 → 第 11 步，与组页一致：不带依据时，没有可读的包加坏路径答 `unsupported`。带依据时第 5 步总是通过（端口带回依据的内容摘要，PR3），所以没有可读包的材料加坏路径答 `bad-path`，组页第 5 步写同一规则。无权主体加坏路径答 `not-available-to-you`，坏路径加材料已变答 `bad-path`。
 - 「材料已变」的失败值由操作交给 `pin`：`read`、`list` 不带依据时是 `adopted-material-changed`，带依据时是 `basis-unavailable`；`export` 总是 `basis-unavailable`。编译器据此证明 `export` 不会答 `adopted-material-changed`。
 - 每次操作新调用各阶段，调用之间不保留任何判定结果。
 
