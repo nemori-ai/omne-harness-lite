@@ -34,9 +34,6 @@ import {
 import { Session, type SessionOptions } from '../src/session.ts'
 import { settledWithin } from './fixtures/settle.ts'
 import { MemoryLine, type Reply, type Script, type SseConfig } from './memory-line.ts'
-import { failOnUnhandledErrors } from './unhandled.ts'
-
-failOnUnhandledErrors()
 
 /** The default scheduler for the unit tests: one real timer per probe. */
 const schedule: SessionOptions['schedule'] = (delayMs, fire) => {

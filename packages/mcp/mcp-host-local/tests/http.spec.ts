@@ -35,9 +35,6 @@ import { bearerServer } from './fixtures/sdk/bearer-http.ts'
 import { everythingHttp } from './fixtures/sdk/everything.ts'
 import { legacyHttpServer } from './fixtures/sdk/legacy-http.ts'
 import { settledWithin } from './fixtures/settle.ts'
-import { failOnUnhandledErrors } from './unhandled.ts'
-
-failOnUnhandledErrors()
 
 const VERSIONS = ['2026-07-28']
 const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS

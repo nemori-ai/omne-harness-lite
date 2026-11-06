@@ -6,6 +6,8 @@ export default defineConfig(({ mode }) => {
   return {
     test: {
       ...tiers,
+      // Every case file fails on a rejection nobody handled or an uncaught exception.
+      setupFiles: ['./tests/unhandled.ts'],
       include: ['tests/**/*.spec.ts'],
       typecheck: {
         ...tiers.typecheck,

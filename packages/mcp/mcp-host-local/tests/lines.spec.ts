@@ -14,9 +14,6 @@ import { HttpLine } from '../src/http-line.ts'
 import type { LineEvent } from '../src/line.ts'
 import { StdioLine } from '../src/stdio-line.ts'
 import { settledWithin } from './fixtures/settle.ts'
-import { failOnUnhandledErrors } from './unhandled.ts'
-
-failOnUnhandledErrors()
 
 const BYTE_LIMIT = 16_777_216
 const NOT_SENT = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }

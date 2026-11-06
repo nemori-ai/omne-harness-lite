@@ -31,7 +31,7 @@
 | [T8](../mcp-contract/SPEC.md#t8) D15、O05、C04、O06 的再发与不再发                      | H5                 |
 | [T8](../mcp-contract/SPEC.md#t8) X01、X02 与 D14、I05、O04、C03                         | H10、H11           |
 | [T8](../mcp-contract/SPEC.md#t8) 的进程退出与 `PROCESS_EXIT_WINDOW_MS`                  | H12                |
-| [T9](../mcp-contract/SPEC.md#t8-end) 的凭据句柄与 `open`                                | H3、H4             |
+| [T9](../mcp-contract/SPEC.md#t8-end) 的凭据句柄、`open` 与元数据取回不经句柄            | H3、H4、H11        |
 | [真实传输兑现时的裁定](../mcp-contract/SPEC.md#decisions-host) 1–9                      | 同上各条           |
 
 <a id="decisions"></a>
@@ -48,8 +48,8 @@
 6. 请求离开之前的失败按 `fetch` 失败的 `cause.code` 集合判定。见 H10。
 7. HTTP 正文也按契约 T2 的 16 MiB 上界读：只有 2xx 正文越界是流断开，错误状态的正文越界读成空正文。见 H8。
 8. 应答到达之后，应答流在后台读到结束。没有人等待的交换（通知、答复对端请求的 POST）同样在后台读完。见[所有权一节](#所有权失败与生命周期)的「资源释放」。
-9. 授权元数据的取回受请求的 `signal`、关闭与正文上界约束，不经凭据句柄。见 H4、H11。
-10. 凭据的值只进出站请求的头。见 H13。
+9. 凭据的值只进出站请求的头。见 H13。
+10. 会话的调用方只等在途项的结算，不等工作流：授权、组成与写出、拒绝报告与元数据取回、答复对端、通知都是会话拥有的后台工作。见[所有权一节](#所有权失败与生命周期)。
 
 ## 结果与不变量
 
@@ -69,7 +69,7 @@
 
 <a id="h4"></a>
 
-- **H4 凭据只在发请求与处理应答时用**（契约 T4、T9）：每个出站 HTTP 请求在写出之前经 `credential.authorize(headers)`：请求、通知、答复对端请求的 POST 与旧 HTTP+SSE 回退的 GET。句柄 reject、抛出或答失败时，这个请求不发出，答 `not-sent`（`connection-unavailable`）。每个等待点返回之后，会话先核这个请求是否已结算、传输是否已关闭；已关闭就不再调用句柄，请求不发出。对端答 401 或带 `insufficient_scope` 的 403 时，只对曾用这个句柄授权的请求调用 `reportRejection()` 恰好一次，然后取回授权发现；其他 403 不调用。`close()` 等进行中的授权发现结束后才返回，所以 `reportRejection()` 在 `close()` 返回之前调用。授权元数据的 well-known 取回不经句柄：元数据是公开的。反例：回退的 GET 先到 401 头、正文未到时 `close()`，`close()` 返回之后仍调用 `reportRejection()`。变异：`enterSse` 去掉 `openGet` 返回之后的关闭核对 → `http.spec.ts`「the fallback GET answered 401 with its body still to come when close() runs」变红。
+- **H4 凭据只在发请求与处理应答时用**（契约 T4、T9）：每个出站 HTTP 请求在写出之前经 `credential.authorize(headers)`：请求、通知、答复对端请求的 POST 与旧 HTTP+SSE 回退的 GET。句柄 reject、抛出或答失败时，这个请求不发出，答 `not-sent`（`connection-unavailable`）。句柄的每次调用经会话的一处入口，它在调用之前同步核传输是否已关闭：已关闭就不调用，请求不发出；每个等待点返回之后，工作流再核这个请求是否已结算、传输是否可用。对端答 401 或带 `insufficient_scope` 的 403 时，只对曾用这个句柄授权的请求调用 `reportRejection()` 恰好一次，并取回授权发现；两者是请求的后台工作，`close()` 与 `signal` 不等它们（见所有权一节）。其他 403 不调用。授权元数据的取回不经句柄、不带凭据写入的头（契约 T9）。反例：回退的 GET 先到 401 头、正文未到时 `close()`，`close()` 返回之后仍调用 `reportRejection()`。变异：`enterSse` 去掉 `openGet` 返回之后的关闭核对 → `http.spec.ts`「the fallback GET answered 401 with its body still to come when close() runs」变红。
 
 <a id="h5"></a>
 
@@ -77,20 +77,20 @@
 
 <a id="h6"></a>
 
-- **H6 进程归落点与 stdin 写端**（契约 T5、PL）：`StdioLine`（`src/stdio-line.ts`）跑在材料的 `ProcessHandle.stdin`/`stdout` 上。它从 `open` 起读出并丢弃 `stderr`，不写日志，让进程不因 stderr 管道满而阻塞。`close()` 的次序：结束 stdin 写端，再取消 stdout 读取，再取消 stderr 读取，然后等两个读循环结束；它不调用 `stop()`。stdin 有未完成的写时，`close()` 中止写端，不等对端读 stdin。会话在关闭线路之前先结算在途请求，见所有权一节。一次写在完成前被它的 `signal` 中止时，线路中止写端，不再可写，并报告 `broken`：在途的已发出请求答 `no-answer`（`stream-broken`），传输不再可用。反例：`close()` 调 `stop()`；`close()` 等一个不读 stdin 的对端。变异：`StdioLine.close` 颠倒前两步 → `conformance.spec.ts` T5「stdio: close() closes stdin, then cancels stdout」变红。不读 stdin 的对端由 `stdio.spec.ts`「the pipe is full: the call's signal settles the answer, the transport is unusable, and close() returns, each within the bound」核对。
+- **H6 进程归落点与 stdin 写端**（契约 T5、PL）：`StdioLine`（`src/stdio-line.ts`）跑在材料的 `ProcessHandle.stdin`/`stdout` 上。它从 `open` 起读出并丢弃 `stderr`，不写日志，让进程不因 stderr 管道满而阻塞。`close()` 的次序：结束 stdin 写端，再取消 stdout 读取，再取消 stderr 读取，然后等两个读循环结束；它不调用 `stop()`。线路把未完成的写记为计数；`close()` 时计数不为零就中止写端，不等对端读 stdin，仍在等管道的 `send` 答 `aborted`。会话在关闭线路之前先结算在途请求，见所有权一节。一次写在完成前被它的 `signal` 中止时，线路中止写端，不再可写，并报告 `broken`：在途的已发出请求答 `no-answer`（`stream-broken`），传输不再可用。反例：`close()` 调 `stop()`；`close()` 等一个不读 stdin 的对端。变异：`StdioLine.close` 颠倒前两步 → `conformance.spec.ts` T5「stdio: close() closes stdin, then cancels stdout」变红；在途写的计数改回布尔（`tests/model/mutants.ts` 的 `mStdio-writes-boolean`）→ `lines.spec.ts`「two overlapping writes, the first completes, then close()」变红。不读 stdin 的对端由 `stdio.spec.ts`「the pipe is full: the call's signal settles the answer, the transport is unusable, and close() returns, each within the bound」核对。
 
 <a id="h7"></a>
 
-- **H7 不发 DELETE**：兑现契约 [T5](../mcp-contract/SPEC.md#port-transport)：`close()` 不向对端发 DELETE。契约不要求 DELETE，套件不核它，本包没有用例。与协议 SHOULD 的偏离见[与协议的偏离](#protocol-deviations)。
+- **H7 不发 DELETE**：契约 [T5](../mcp-contract/SPEC.md#port-transport) 不要求 `close()` 发 DELETE；本包不发。套件不核它，本包没有用例。这是对协议 SHOULD 的偏离，登记在[与协议的偏离](#protocol-deviations)。
 
 <a id="h8"></a>
 
-- **H8 字节上界**（契约 T2）：`src/limits.ts` 的 `BYTE_LIMIT` 是 16 MiB，与契约 `classifyWireEvent` 的 JSON 上界同值。
+- **H8 字节上界**（契约 T2）：`src/limits.ts` 的 `BYTE_LIMIT` 取契约根导出 `WIRE_LIMITS.maxBytes`（16 MiB）；元数据文档也按 `WIRE_LIMITS` 解析。
   - stdio：每一行按字节量，不论它从块里的哪个位置开始，也不论它跨几个块。一行超过上界是流断开：线路取消 stdout，立即报告 `ended`，不等退出窗口。在途请求答 `stream-broken`，之后的请求答 `not-sent`。
-  - HTTP：只有 2xx 的正文按上界读。JSON 正文或一个 SSE 事件超过上界，是这个请求的流断开。错误状态的正文超过上界时，线路交出空正文，契约把它归为「纯」，状态照常归类。
+  - HTTP：只有 2xx 正文越界是流断开：JSON 正文或一个 SSE 事件超过上界，是这个请求的流断开。错误状态的正文超过上界时，线路交出空正文，契约把它归为「纯」，状态照常归类。
   - 授权元数据与旧 HTTP+SSE 回退的非 2xx 正文用同一个有界读法（`src/body.ts`）。元数据超过上界按没取到算。
 
-  反例：只量块里第一行的字节，块里后面的长行漏过。变异：`readStdout` 只量块里的第一行 → `lines.spec.ts`「a line above 16 MiB that is not the first of its chunk」变红。
+  反例：只量块里第一行的字节，块里后面的长行漏过；一行跨块、还没有换行就超过上界时读缓冲无界增长。变异：`readStdout` 只量块里的第一行 → `lines.spec.ts`「a line above 16 MiB that is not the first of its chunk」变红；去掉未换行部分的上界核对（`mStdio-no-cross-chunk-bound`）→ `lines.spec.ts`「a line that spans many chunks and passes the byte bound before any newline」变红。EOF 处没有换行的尾行照样投递（`mStdio-drops-tail`）、写被拒绝答 `unsent`（`mStdio-failed-write-sent`）各有一条用例与负控，见 `tests/model/mutants.ts`。
 
 <a id="h9"></a>
 
@@ -154,54 +154,57 @@
 
 ### 与协议的偏离
 
-| 协议要求                                                                           | 本包的做法                    | 依据                                                                                                            |
-| ---------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 客户端不再需要旧修订的会话时 SHOULD 发 `DELETE`（2025-03-26 起的 Streamable HTTP） | `close()` 不发 `DELETE`（H7） | 契约 [T5](../mcp-contract/SPEC.md#port-transport) 与[契约的偏离表](../mcp-contract/SPEC.md#protocol-deviations) |
-| Streamable HTTP 应答流断开时用新的请求号重发（2026-07-28 changelog 第 9 项）       | 只对读类请求重发一次（H5）    | 契约[与协议的偏离](../mcp-contract/SPEC.md#protocol-deviations)                                                 |
+| 协议要求                                                                           | 本包的做法                    | 依据                                                                                                                  |
+| ---------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 客户端不再需要旧修订的会话时 SHOULD 发 `DELETE`（2025-03-26 起的 Streamable HTTP） | `close()` 不发 `DELETE`（H7） | 契约 [T5](../mcp-contract/SPEC.md#port-transport) 不要求；[契约的偏离表](../mcp-contract/SPEC.md#protocol-deviations) |
+| Streamable HTTP 应答流断开时用新的请求号重发（2026-07-28 changelog 第 9 项）       | 只对读类请求重发一次（H5）    | 契约[与协议的偏离](../mcp-contract/SPEC.md#protocol-deviations)                                                       |
 
 <a id="contract-deviations"></a>
 
 ### 与契约的已知偏离
 
-| 契约条款                                                          | 本包的做法                                                                                                                                                                                                                                                                                           | 偏离的方向                                                                                                                       | 拥有者         |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| T8 X01：请求离开之前失败答 `not-sent`（`connection-unavailable`） | 连接目标的端口是 WHATWG 的「bad ports」（1719、4045、6665–6669、10080 等）时，`fetch` 在连接之前拒绝，`cause` 没有码。本包按 H10 把它归为流断开。受影响的行：X01 读成 D15、O05（读类再发一次后答 `no-answer`（`stream-broken`）），C04（`tools/call` 的 `answer` 是 `no-answer`（`stream-broken`）） | 保守一侧：请求没有离开，本包却答「效果未知」；读类多发一次请求，这一次同样不会离开。没有一个结局把「可能有效果」读成「没有效果」 | 本成员的维护者 |
+| 契约条款                                                          | 本包的做法                                                                                                                                                                                                                                                                                                                                                                                                                                           | 偏离的方向                                                                                                                       | 拥有者         |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| T8 X01：请求离开之前失败答 `not-sent`（`connection-unavailable`） | 连接目标的端口是 WHATWG 的「bad ports」（1719、4045、6665–6669、10080 等）时，`fetch` 在连接之前拒绝，`cause` 没有码。本包按 H10 把它归为流断开。受影响的行：X01 读成 D15、O05（读类再发一次后答 `no-answer`（`stream-broken`）），C04（`tools/call` 的 `answer` 是 `no-answer`（`stream-broken`）），I06（`initialize` 答 `no-answer`（`stream-broken`），不再发），O06（`tasks/update`、`tasks/cancel` 答 `no-answer`（`stream-broken`），不再发） | 保守一侧：请求没有离开，本包却答「效果未知」；读类多发一次请求，这一次同样不会离开。没有一个结局把「可能有效果」读成「没有效果」 | 本成员的维护者 |
 
 本包不在发送之前另判端口：那是 `fetch` 的规则，再写一份就是第二份实现。本包的测试夹具只用 20000 以上的端口。
 
 ## 所有权、失败与生命周期
 
-- **身份与状态。** 一个 `Session` 是一个 `McpTransport`，带材料的代际。它拥有：在途请求表、协商出的版本、是否旧一路、旧 Streamable HTTP 的会话号、是否在 SSE 模式、`closed` 与 `dead`（流断开、进程退出、会话结束，传输不再可用）。在途表的每一项有请求号、`WireContext`、自己的 `AbortController`、授权标记、阶段（`authorizing`、`sent`、`discovery`）、探测计时的取消函数与应答流的 `abort`。线路拥有：stdio 的 writer、stdout 与 stderr 的 reader、两个时刻与退出窗口的计时；HTTP 的在途 `AbortController` 集合、endpoint 与共用流的 reader。
+- **身份与状态。** 一个 `Session` 是一个 `McpTransport`，带材料的代际。它拥有：在途请求表、连接模式（一个判别联合：现代一路，带协商出的版本；旧修订，带版本与旧 Streamable HTTP 的可选会话号；旧 HTTP+SSE 模式）、`closed` 与那一次关闭的结果、`dead`（流断开、进程退出、会话结束，传输不再可用）。在途表的每一项有请求号、`WireContext`、自己的 `AbortController`、授权标记、自己的结算与出发点（两者都只兑现一次；在途表里还有它才算在途）、相（已登记尚未交给线路 `authorizing`、已交给线路 `sent`、授权发现中 `discovery`，后者带发现的进度）、探测计时的取消函数与应答流的 `abort`。线路拥有：stdio 的 writer、stdout 与 stderr 的 reader、两个时刻与退出窗口的计时；HTTP 的在途 `AbortController` 集合、endpoint 与共用流的 reader。
 - **一个请求只结算一次。** 先到者定（T5）：应答、流断开、进程退出、探测时限、`cancelRequest`、`signal`、`close()` 中最先发生的那个给出结论，之后的事件对已结算的请求没有作用。一个请求在授权与写出之前登记进在途表，`call` 的 `signal` 在登记时接到它。
-- **取消。** stdio 与旧修订（含 SSE 模式）上，`cancelRequest` 发 `notifications/cancelled`，`answer` 继续等。现代 Streamable HTTP 上，它中止这个请求的 `fetch` 与应答流，答 `abandoned`。`call` 的 `signal` 在调用前已触发时答 `not-sent`。登记之后任何时刻触发，传输都不再等待，`answer` 答 `abandoned`，交换随之释放（契约 [T5](../mcp-contract/SPEC.md#port-transport)）：
-  - 现代 Streamable HTTP：中止这次 `fetch` 与应答流，包括应答头还没到的时候。
-  - 旧修订的 Streamable HTTP 与 SSE 模式：同样中止这次 POST 的交换；旧修订不把断开读成取消。SSE 模式下，应答若稍后经共用的流到达，按无关的消息丢弃。
-  - stdio：写已完成时，对端看不到释放。写未完成时，线路中止写端，传输按流断开不再可用（H6）。
-  - 请求处在授权发现中时，`signal` 结束元数据的取回，请求结束发现后答 `not-sent`（`authorization-required`），见下一条。
-- **关闭。** `close()` 按在途请求所处的阶段结算：
-  - 授权中（还没有写出）：答 `not-sent`（`connection-unavailable`），不再调用句柄。
-  - 已发出：答 `no-answer`（`abandoned`）。
-  - 授权发现中：结束元数据的取回，然后答 `not-sent`（`authorization-required`）；没取到的地址按 R4 是 `unavailable`。`close()` 等这些发现结束后才返回。
+- **调用方只等结算。** 读写类操作与 `discover` 的探测等在途项的结算；`call` 等「出发点」与结算的先到者：线路收下请求（stdio 写完、HTTP 2xx 应答流开始）就交出 `SentCall`，先结算为 `not-sent` 就交失败，先结算为其他就交 `SentCall` 与那个答复。授权、组成与写出、拒绝报告与元数据取回、答复对端请求、通知，都是会话拥有的后台工作，经一个入口启动：调用凭据句柄之前同步核传输是否已关闭；在途项结算之后的结果丢弃；工作流意外 reject 时，它的在途项按所处的相结算（下一条的表），没有在途项的工作没有结局。于是凭据句柄、元数据取回、线路或对端挂起都不让调用方等：没有 `signal` 的操作（`discover`、`listActions`、任务操作）只由 `close()` 放开；没有 `close()` 时，挂起的句柄由它的持有者负责。`discover` 另有两处在关闭之下等待、到期即收场的交换：旧一路回退 GET 的授权与 GET 本身，以及 `notifications/initialized` 的写出。
+- **取消。** stdio 与旧修订（含 SSE 模式）上，`cancelRequest` 把 `notifications/cancelled` 交给后台工作后当即返回（它不证明对端已停止），`answer` 继续等。现代 Streamable HTTP 上，它中止这个请求的 `fetch` 与应答流，答 `abandoned`。`call` 的 `signal` 在调用前已触发时答 `not-sent`。登记之后任何时刻触发，传输都不再等待：在途项当场按所处的相结算（下一条的表），`call` 在触发后结算，不等凭据句柄或对端；交换随之释放（契约 [T5](../mcp-contract/SPEC.md#port-transport)）：
+  - 已登记、尚未交给线路（授权中）：`call` 答 `not-sent`（`connection-unavailable`），不交出 `SentCall`；授权若稍后返回，请求不发出。
+  - 已交给线路，现代 Streamable HTTP：中止这次 `fetch` 与应答流，包括应答头还没到的时候；`answer` 答 `abandoned`。
+  - 已交给线路，旧修订的 Streamable HTTP 与 SSE 模式：同样中止这次 POST 的交换；旧修订不把断开读成取消。SSE 模式下，应答若稍后经共用的流到达，按无关的消息丢弃。
+  - 已交给线路，stdio：写已完成时，对端看不到释放。写未完成时，线路中止写端，传输按流断开不再可用（H6）。
+  - 授权发现中：`signal` 结束元数据的取回，请求当场答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出，没取到的地址按 R4 是 `unavailable`；拒绝报告与取回在后台继续到结束，结果丢弃。
+- **关闭。** `close()` 标记关闭，当场按在途请求所处的相结算，与 `signal` 同形：
+  - 授权中：答 `not-sent`（`connection-unavailable`），不再调用句柄。
+  - 已交给线路：答 `no-answer`（`abandoned`）。
+  - 授权发现中：答 `not-sent`（`authorization-required`），发现按当时已取到的内容交出。`close()` 不等发现结束。
 
-  然后会话中止一切 `fetch` 与回退的 GET，关闭线路；stdio 线路按 H6 的次序关闭。之后的请求答 `not-sent`（`connection-unavailable`）。关闭之后会话不再调用凭据句柄，不再答复对端的请求。`close()` 可以重复调用。
+  然后会话中止一切 `fetch`、回退的 GET 与元数据取回，关闭线路，只等线路的 `close()`；stdio 线路按 H6 的次序关闭。之后的请求答 `not-sent`（`connection-unavailable`）。关闭之后会话不再调用凭据句柄，不再答复对端的请求。`close()` 可以重复调用：每次调用拿到同一次关闭的结果，都在线路的 `close()` 答复之后返回。
 
 - **对端的请求与通知。** 任何线路上带 `method` 与 `id` 的消息由契约的 `readPeerMessage` 读出：`ping` 答空结果，其余答 `-32601`（`peerRequestAnswerOf`）。答复经线路写出，回显的 id 按原词形写出；HTTP 上答复是一次 POST，它先经 `authorize`（H4），它的状态没有结局。`notifications/progress` 的 `progressToken` 对上在途调用时交给它的 `observe`（抛出不改变结局）。其他通知丢弃。
 - **资源释放。** 探测计时在结算或关闭时取消。应答到达之后，应答流在后台读到结束，释放连接；读的过程中到达的对端请求与通知照常处理。没有人等待的交换（通知、答复对端请求的 POST）同样在后台读完。关闭时这些读取随交换的中止结束。没有 disposer 让外部效果可撤回：已经写出的请求与通知就是写出了。
-- **失败的处置。** 线路 reject 是线路的缺陷：会话把发送请求时的 reject 当作 `aborted`，把写出通知与答复时的 reject 忽略。凭据句柄 reject 或抛出按 T9。`observe` 抛出按契约 S6。本包不把错误变成成功：读不懂的应答按 T7 的 `what` 报出，没有应答按 `no-answer` 的原因报出。
+- **失败的处置。** 线路 reject 是线路的缺陷：会话把发送请求时的 reject 当作 `aborted`，把写出通知与答复时的 reject 忽略。凭据句柄 reject 或抛出按 T9。工作流里任何没有预期的 reject 都有去向：它的在途项按所处的相结算（授权中 `not-sent`，已交给线路 `abandoned`，发现中 `authorization-required`）。`observe` 抛出按契约 S6。本包不把错误变成成功：读不懂的应答按 T7 的 `what` 报出，没有应答按 `no-answer` 的原因报出。
 - **并发。** 一条线路上可以有多个请求同时在途。stdio 上按行投递，每行对每个在途请求各归类一次。HTTP 上每个请求各自一次 `fetch`。SSE 模式下共用一条流。会话不排队，不限流。
 
 ## 组合与验证
 
-| 条款                                                           | 验证                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 命令                                                                                   |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 公开入口、`RangeError`、H3                                     | `tests/public-entry.spec.ts`（快层）：导出集合 `['createLocalTransportFactory']`；不合法的选项；`signal` 在 `open` 之前与期间中止：不交出传输、`authorize` 0 次、线路按次序关闭；旧修订列表与 SDK 相同                                                                                                                                                                                                                                                           | `pnpm turbo run build typecheck test --filter=@omne-harness/mcp-host-local`            |
-| H1、H4、H5、H11、H14，T8 全表，T3 的探测与对端请求，T5、T9，H9 | `tests/session.spec.ts`（快层）：`TRANSPORT_TABLE` 每行每格在内存线路上驱动会话；中断路径（`signal`、`close()` 与 `cancelRequest` 各结束什么）、不可用之后不再发、探测计时只经 `schedule`（H14），核对结论、传输是否可用与 `reportRejection` 计数；探测时限与探测在途时的 `close()`（契约裁定 2）；对端请求与进度路由；SSE 模式的进入、流断开、endpoint 404、GET 的 401/403 与不成立的回退；契约的类别决定结论（D05、D11、O03、C02）；出站文本的词形；关闭与凭据句柄                                                                                                              | 同上；单独：`pnpm exec vitest run --mode fast tests/session.spec.ts`                   |
-| H6、H8、H10、H12，两条线路的 `signal` 监听，元数据取回         | `tests/lines.spec.ts`（快层）：内存进程句柄上不在块首的超长行；两条线路在交换结束后移除 `signal` 上的监听；HTTP 线路逐码的失败分类（H10）；元数据取回的状态、字节上界与失败；已停止的进程不被写入；退出窗口内的 stdout（H12）                                                                                                                                                                                                                                                                                                                                                        | `pnpm exec vitest run --mode fast tests/lines.spec.ts`                                 |
-| 契约套件在两种真实线路上                                       | `tests/conformance.spec.ts`（慢层）：`mcpTransportConformance()` 在 A 层对端上跑两遍。「stdio 优先」一遍的夹具声明两种材料且 stdio 在前，没有指定材料的用例跑在 stdio 上；「Streamable HTTP 优先」一遍相反。通过、不适用、失败分开计数，不适用的集合钉死在 `NOT_APPLICABLE`：stdio 的 X02 两格（`discover-retry`、`initialize` × `unsent`：只有进程在 `open` 之前已退出，才能让请求在离开之前失败）；HTTP 上对端在 `initialized` 之后的请求（本传输不开 GET 流） | `pnpm exec vitest run --mode slow --typecheck.enabled=false tests/conformance.spec.ts` |
-| H6、H8、H12，T2 的解析不了的行，T3 的旧对端与探测时限，T5      | `tests/stdio.spec.ts`（慢层）：丢弃不是 JSON 的行、16 MiB 行上界、进程先退出、stdout 先结束、`open` 之前退出、答后退出、SDK 工具里退出、SDK 旧对端回退、探测时限回退与迟到应答、不读 stdin 的对端、取消通知的 `_meta`、SDK 慢工具的取消与关闭、`server-everything stdio` 的清单与 `echo`                                                                                                                                                                         | `pnpm exec vitest run --mode slow --typecheck.enabled=false tests/stdio.spec.ts`       |
-| H4、H5、H9、H10、H11、H13，T2 的页，T3 的会话，S07             | `tests/http.spec.ts`（慢层）：SDK bearer 网关的 401 与元数据、两种 403、两段地址、凭据不泄漏、`signal` 与 `close()` 管辖的等待（应答头不来、元数据取回挂住、元数据正文不结束、回退 GET 的 401 正文未到）、再发与不再发、连接被拒与头前重置、不跟随重定向、`x-mcp-header` 剔除与旧修订不核、`server-everything streamableHttp` 的版本一致、SDK 2025 会话的 `DELETE` → `session-ended`、现代取消中止流、旧 HTTP+SSE 回退、`server-everything sse`                  | `pnpm exec vitest run --mode slow --typecheck.enabled=false tests/http.spec.ts`        |
-| 复用表的证据                                                   | `tests/probes/` 的探针 `p3`–`p5`；输出摘录在 [verification/proofs/sdk](verification/proofs/sdk/README.md)                                                                                                                                                                                                                                                                                                                                                                         | 在包根运行 `node verification/proofs/sdk/<探针>.mjs`                                   |
-| 产品源码的边界                                                 | `pnpm run lint:rules`（无 `./testing` 导入、取时标注）；`pnpm exec oxlint`；`src/` 没有 `as`（`as const` 除外）、`any` 与非空断言，用 `grep` 核对                                                                                                                                                                                                                                                                                                                | `pnpm run lint:rules`、`pnpm run lint:oxlint`                                          |
+| 条款                                                           | 验证                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 命令                                                                                   |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 公开入口、`RangeError`、H3                                     | `tests/public-entry.spec.ts`（快层）：导出集合 `['createLocalTransportFactory']`；不合法的选项；`signal` 在 `open` 之前与期间中止：不交出传输、`authorize` 0 次、线路按次序关闭；旧修订列表与 SDK 相同                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | `pnpm turbo run build typecheck test --filter=@omne-harness/mcp-host-local`            |
+| H1、H4、H5、H11、H14，T8 全表，T3 的探测与对端请求，T5、T9，H9 | `tests/session.spec.ts`（快层）：`TRANSPORT_TABLE` 每行每格在内存线路上驱动会话；中断路径（`signal`、`close()` 与 `cancelRequest` 各结束什么）、凭据句柄或元数据取回挂起时调用方仍由 `signal` 与 `close()` 放开（授权中 `not-sent`、发现中 `authorization-required`、`cancelRequest` 当即返回、回退 GET 授权中的 `close()`）、两个调用方同时 `close()`、不可用之后不再发、探测计时只经 `schedule`（H14），核对结论、传输是否可用与 `reportRejection` 计数；探测时限与探测在途时的 `close()`（契约[真实传输兑现时的裁定](../mcp-contract/SPEC.md#decisions-host)第 2 条）；对端请求与进度路由；SSE 模式的进入、流断开、endpoint 404、GET 的 401/403 与不成立的回退；契约的类别决定结论（D05、D11、O03、C02）；出站文本的词形；关闭与凭据句柄 | 同上；单独：`pnpm exec vitest run --mode fast tests/session.spec.ts`                   |
+| H6、H8、H10、H12，两条线路的 `signal` 监听，元数据取回         | `tests/lines.spec.ts`（快层）：内存进程句柄上不在块首的超长行、跨块未换行就越界的行、EOF 处的尾行、写被拒绝、两个重叠写后 `close()` 当即返回；两条线路在交换结束后移除 `signal` 上的监听；HTTP 线路逐码的失败分类（H10）；元数据取回的状态、字节上界与失败；已停止的进程不被写入；退出窗口内的 stdout（H12）                                                                                                                                                                                                                                                                                                                                                                                                                                | `pnpm exec vitest run --mode fast tests/lines.spec.ts`                                 |
+| 契约套件在两种真实线路上                                       | `tests/conformance.spec.ts`（慢层）：`mcpTransportConformance()` 在 A 层对端上跑两遍。「stdio 优先」一遍的夹具声明两种材料且 stdio 在前，没有指定材料的用例跑在 stdio 上；「Streamable HTTP 优先」一遍相反。通过、不适用、失败分开计数，不适用的集合钉死在 `NOT_APPLICABLE`：stdio 的 X02 两格（`discover-retry`、`initialize` × `unsent`：只有进程在 `open` 之前已退出，才能让请求在离开之前失败）；HTTP 上对端在 `initialized` 之后的请求（本传输不开 GET 流）                                                                                                                                                                                                                                                                            | `pnpm exec vitest run --mode slow --typecheck.enabled=false tests/conformance.spec.ts` |
+| H6、H8、H12，T2 的解析不了的行，T3 的旧对端与探测时限，T5      | `tests/stdio.spec.ts`（慢层）：丢弃不是 JSON 的行、16 MiB 行上界、进程先退出、stdout 先结束、`open` 之前退出、答后退出、SDK 工具里退出、SDK 旧对端回退、探测时限回退与迟到应答、不读 stdin 的对端、取消通知的 `_meta`、SDK 慢工具的取消与关闭、`server-everything stdio` 的清单与 `echo`                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `pnpm exec vitest run --mode slow --typecheck.enabled=false tests/stdio.spec.ts`       |
+| H4、H5、H9、H10、H11、H13，T2 的页，T3 的会话，S07             | `tests/http.spec.ts`（慢层）：SDK bearer 网关的 401 与元数据、两种 403、两段地址、凭据不泄漏、`signal` 与 `close()` 管辖的等待（应答头不来、元数据取回挂住、元数据正文不结束、回退 GET 的 401 正文未到）、再发与不再发、连接被拒与头前重置、不跟随重定向、`x-mcp-header` 剔除与旧修订不核、`server-everything streamableHttp` 的版本一致、SDK 2025 会话的 `DELETE` → `session-ended`、现代取消中止流、旧 HTTP+SSE 回退、`server-everything sse`                                                                                                                                                                                                                                                                                             | `pnpm exec vitest run --mode slow --typecheck.enabled=false tests/http.spec.ts`        |
+| H6、H8 与性质 V2–V6 的负控                                     | `tests/model/mutants.ts` 列每个负控的缺陷、用例与预期的变红原因；`tests/model/mutate.ts` 逐个放进 `src/`、跑用例、按字节还原并报告                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 在包根运行 `node tests/model/mutate.ts`（可带名字与 `--out <目录>`）                   |
+| 复用表的证据                                                   | `tests/probes/` 的探针 `p3`–`p5`；输出摘录在 [verification/proofs/sdk](verification/proofs/sdk/README.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 在包根运行 `node tests/probes/<探针>.mjs`                                              |
+| 产品源码的边界                                                 | `pnpm run lint:rules`（无 `./testing` 导入、取时标注）；`pnpm exec oxlint`；`src/` 没有 `as`（`as const` 除外）、`any` 与非空断言，用 `grep` 核对                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `pnpm run lint:rules`、`pnpm run lint:oxlint`                                          |
 
 夹具分两层。A 层（`tests/fixtures/scripted/`）是真实线路上的脚本化对端：stdio 的子进程脚本按契约 `PeerScript` 答复，并经 stderr 回报收到的内容；HTTP 的 `node:http` 服务端答 JSON、SSE、任意状态与头、well-known 元数据、旧 HTTP+SSE 的流与 endpoint，并按脚本的 `unsent` 预判让自己不可达；`special-stdio.mjs` 做脚本说不出的事（写不是 JSON 的行、写超长行、关 stdout 而存活、按时机退出、不读 stdin）。B 层（`tests/fixtures/sdk/`）是 SDK 的真实对端：`serveStdio` 的现代对端、`StdioServerTransport` 的旧对端、`createMcpHandler` 加 `requireBearerAuth` 的网关、`NodeStreamableHTTPServerTransport` 的 2025 会话，以及 `server-everything` 的 `stdio`、`sse`、`streamableHttp` 三种模式。每个慢层用例结束时核对没有遗留的子进程与监听端口。
 
@@ -242,14 +245,14 @@
 
 每条性质的证据状态（用词沿 [docs/verification.md](../../../docs/verification.md#分别表述这六种状态)「分别表述这六种状态」）：
 
-| 性质 | 探索器（真实 `Session`，有限范围） | TLA+ 模型（TLC，有限范围） | 真实组合 |
-| --- | --- | --- | --- |
-| V1 | 可观察形式：有限范围通过。负控：结构上由 `Deferred` 与 `settle` 的删除双重保证，单点源码变异不足以变红，见 [verification/README.md](verification/README.md#两种证据能变红) | 有限范围内找到反例（`bad-resettle`） | 真实组合未验证 |
-| V2 | 有限范围通过；负控 `mV2-send-after-close` 找到反例 | 有限范围内找到反例（`bad-cred-after-close`） | 真实组合未验证 |
-| V3 | 有限范围通过；负控 `mV3-report-twice` 找到反例 | 有限范围内找到反例（`bad-report-twice`） | 真实组合未验证 |
-| V4 | 有限范围通过；负控 `mV4-signal-dead`、`mV4-close-after-line` 找到反例 | 有限范围内找到反例（`bad-signal-dead`、`bad-close-after-line`） | 真实组合未验证 |
-| V5 | 有限范围通过；负控 `mV5-resend-any` 找到反例 | 有限范围内找到反例（`bad-resend`） | 真实组合未验证 |
-| V6 | 有限范围通过；负控 `mV6-close-not-sent` 找到反例 | 有限范围内找到反例（`bad-close-not-sent`） | 真实组合未验证 |
+| 性质 | 探索器（真实 `Session`，有限范围）                                                                                                                                         | TLA+ 模型（TLC，有限范围）                                      | 真实组合       |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------- |
+| V1   | 可观察形式：有限范围通过。负控：结构上由 `Deferred` 与 `settle` 的删除双重保证，单点源码变异不足以变红，见 [verification/README.md](verification/README.md#两种证据能变红) | 有限范围内找到反例（`bad-resettle`）                            | 真实组合未验证 |
+| V2   | 有限范围通过；负控 `mV2-send-after-close` 找到反例                                                                                                                         | 有限范围内找到反例（`bad-cred-after-close`）                    | 真实组合未验证 |
+| V3   | 有限范围通过；负控 `mV3-report-twice` 找到反例                                                                                                                             | 有限范围内找到反例（`bad-report-twice`）                        | 真实组合未验证 |
+| V4   | 有限范围通过；负控 `mV4-signal-dead`、`mV4-close-after-line` 找到反例                                                                                                      | 有限范围内找到反例（`bad-signal-dead`、`bad-close-after-line`） | 真实组合未验证 |
+| V5   | 有限范围通过；负控 `mV5-resend-any` 找到反例                                                                                                                               | 有限范围内找到反例（`bad-resend`）                              | 真实组合未验证 |
+| V6   | 有限范围通过；负控 `mV6-close-not-sent` 找到反例                                                                                                                           | 有限范围内找到反例（`bad-close-not-sent`）                      | 真实组合未验证 |
 
 未覆盖（探索器与模型都不覆盖，由既有用例或后续任务承担）：
 

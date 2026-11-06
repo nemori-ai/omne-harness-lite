@@ -16,9 +16,6 @@ import {
 import { leftover } from './fixtures/scripted/children.ts'
 import { httpPeer, leftoverServers } from './fixtures/scripted/http.ts'
 import { stdioPeer } from './fixtures/scripted/stdio.ts'
-import { failOnUnhandledErrors } from './unhandled.ts'
-
-failOnUnhandledErrors()
 
 const VERSIONS = ['2026-07-28']
 

@@ -11,9 +11,6 @@ import {
   createLocalTransportFactory,
   type LocalTransportOptions,
 } from '@omne-harness/mcp-host-local'
-import { failOnUnhandledErrors } from './unhandled.ts'
-
-failOnUnhandledErrors()
 
 const OPTIONS: LocalTransportOptions = {
   clientInfo: { name: 'host', version: '1' },
