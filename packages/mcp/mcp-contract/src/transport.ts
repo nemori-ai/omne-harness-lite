@@ -24,8 +24,11 @@ import type { Outcome } from '@omne-harness/operation-result'
  * the shape named for that request.
  *
  * `unusable` (T1) is present when the transport was not usable any more as it handed over this
- * answer, with the cause; absent, the transport is still usable. Only the failures a gone line
- * gives carry it: a refused authorization, a JSON-RPC error and an unreadable answer do not.
+ * answer and this side had not closed it; the value is the first cause the transport recorded.
+ * Only a `not-sent` (`connection-unavailable`, `session-ended`) and a `no-answer` have the field,
+ * and an ended session carries only `session-ended`; on them, an absent field says the transport
+ * is still usable or this side closed it. A refused authorization, a JSON-RPC error and an
+ * unreadable answer have no field: they are answers of the peer and say nothing of the transport.
  */
 export type TransportFailure =
   | Readonly<{ kind: 'not-sent'; cause: 'connection-unavailable'; unusable?: UnusableCause }>

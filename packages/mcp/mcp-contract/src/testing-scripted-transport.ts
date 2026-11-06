@@ -384,9 +384,10 @@ class ScriptedTransport implements McpTransport {
   // ---- The requests in flight: registration, the phases, and what settles them ----
 
   /**
-   * Once the transport is not usable any more, every answer it hands over carries the cause it
-   * recorded (T1, T8 "every later request"); after `close()` none does: closing is this side's
-   * decision, not a fact about the line.
+   * Once the transport is not usable any more, every `no-answer` and every `not-sent` other than
+   * `authorization-required` it hands over carries the cause it recorded (T1, T8 "every later
+   * request"); after `close()` none does: closing is this side's decision, not a fact about the
+   * line.
    */
   private handedOver(answered: Answered): Answered {
     if (this.closed || this.dead === undefined) return answered

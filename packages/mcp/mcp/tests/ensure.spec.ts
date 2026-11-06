@@ -438,6 +438,27 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     })
   })
 
+  it('discover answered unreadably: connection-unavailable, lost (discover-failed)', async () => {
+    const w = world({
+      script: [{ discover: { kind: 'answer-malformed', what: 'discover-shape' } }],
+    })
+    adoptStdio(w, files)
+    const table = tableOf(w)
+    const token = await admitted(w, files)
+    const answer = await table.ensure(token, alice)
+    expect(answer).toEqual({
+      failure: {
+        stage: 'connect',
+        reason: { kind: 'connection-unavailable' },
+        catalog: 'not-acquired',
+      },
+    })
+    expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
+      kind: 'lost',
+      reason: 'discover-failed',
+    })
+  })
+
   it.each([
     [{ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, 'process-exited'],
     [{ kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' }, 'stream-broken'],

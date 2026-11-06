@@ -607,7 +607,8 @@ describe('the readings of a settled answer (T2, T6, T7)', () => {
       kind: 'no-answer',
       cause: 'process-exited',
     })
-    expect(callAnswerOf({ kind: 'not-sent', failure: NOT_SENT })).toEqual(ABANDONED_ANSWER)
+    // Strict: a `not-sent` without the mark reads as `abandoned` without the field, not with it undefined.
+    expect(callAnswerOf({ kind: 'not-sent', failure: NOT_SENT })).toStrictEqual(ABANDONED_ANSWER)
     expect(callAnswerOf({ kind: 'legacy-peer' })).toEqual(ABANDONED_ANSWER)
     expect(callAnswerOf({ kind: 'legacy-http' })).toEqual(ABANDONED_ANSWER)
     expect(ABANDONED).toEqual({ kind: 'no-answer', cause: 'abandoned', resend: false })

@@ -70,7 +70,8 @@ export type UnusableCause = 'stream-broken' | 'process-exited' | 'session-ended'
 
 /**
  * What the peer answered to a sent request, or that no answer came. A `no-answer` carries
- * `unusable` when the transport was not usable any more as it handed the answer over (T1).
+ * `unusable` when the transport was not usable any more as it handed the answer over and this
+ * side had not closed it (T1).
  */
 export type PeerAnswer =
   | Readonly<{ kind: 'result'; result: JsonValue }>

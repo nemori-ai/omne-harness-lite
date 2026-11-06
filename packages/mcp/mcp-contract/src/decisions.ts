@@ -62,7 +62,8 @@ type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
  * - `not-sent`: the request had no effect at the peer.
  * A `no-answer` and a `not-sent` other than `authorization-required` carry `unusable` (on the
  * `not-sent`, in its failure) when the transport is not usable any more as it hands the answer
- * over (T1); only this layer writes it (`settle`, `lineGoneAnswerOf`, `unusableAnswerOf`).
+ * over and this side has not closed it (T1); only this layer writes it (`concludeAnswer`,
+ * `lineGoneAnswerOf`, `streamGoneAnswerOf`, `unusableAnswerOf`, `notSentFailureOf`).
  * - `legacy-peer`: a `server/discover` answer that says the peer speaks a legacy revision only.
  * - `legacy-http`: `initialize` answered 4xx+plain: the legacy HTTP+SSE fallback may follow (I07).
  */
