@@ -331,7 +331,17 @@ it('does not turn missing in-lieu data or delegated text into a passed blocker',
   const contribution = success(
     parseLanceliaoCalendar({ ...material, content: bytes('holiday_api_capture_20260821.json') }),
   )
-  const built = synthesizeCalendarCandidate({ policy: cn, contributions: [contribution] })
+  const official = {
+    ...contribution,
+    sourceId: 'gov-cn-annual-notice',
+    lineageRef:
+      cn.sources.find(source => source.sourceId === 'gov-cn-annual-notice')?.lineage ?? '',
+    days: contribution.days.map(day => ({
+      ...day,
+      provenance: day.provenance.map(ref => ({ ...ref, sourceId: 'gov-cn-annual-notice' })),
+    })),
+  }
+  const built = synthesizeCalendarCandidate({ policy: cn, contributions: [contribution, official] })
   if (built.kind !== 'success') throw new Error('CN synthesis failed')
   const report = validateCalendarCandidate({
     policy: cn,

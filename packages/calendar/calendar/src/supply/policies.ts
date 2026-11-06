@@ -21,6 +21,22 @@ export const shippedCalendarSupplyPolicies: readonly CalendarSupplyPolicy[] = [
     ],
     sources: [
       {
+        sourceId: 'gov-cn-annual-notice',
+        role: 'truth',
+        adapterKind: 'gov_cn_annual_notice_json',
+        provenanceClass: 'firstPartyAuthority',
+        lineage:
+          'State Council annual notice from gov.cn; retained original and deterministic transcription, independent of the cg-zhou transcription pipeline',
+        transport: { artifact: 'explicitly adopted annual notice archive' },
+        decoding: { format: 'json', encoding: 'utf-8' },
+        parsing: {
+          format: 'gov_cn_annual_notice/v1',
+          coverage: 'complete declared annual notices; no inferred future year',
+        },
+        probeCadence: { defaultInterval: { days: 1 }, segments: [] },
+        licenseNote: 'Official public notice; retained as authority evidence',
+      },
+      {
         sourceId: 'lanceliao-china-holiday-calender',
         role: 'truth',
         adapterKind: 'lanceliao_holiday_api_json',

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { instantSchema, localDateSchema } from '@omne-harness/calendar-contract'
 import {
   parseLanceliaoCalendar,
+  parseGovCnCalendar,
   parseCgZhouCalendar,
   parseCgZhouHorizon,
   parseCabinetOfficeCsv,
@@ -47,6 +48,8 @@ export function parseStoredMaterial(stored: CalendarStoredMaterial): SourceParse
   const { material } = stored
   const input = { ...material, reference: material.authorityRef }
   switch (material.sourceId) {
+    case 'gov-cn-annual-notice':
+      return parseGovCnCalendar(input)
     case 'lanceliao-china-holiday-calender':
       return parseLanceliaoCalendar(input)
     case 'cg-zhou-holiday-calendar':

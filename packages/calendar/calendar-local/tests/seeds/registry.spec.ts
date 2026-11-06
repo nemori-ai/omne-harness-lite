@@ -14,7 +14,7 @@ describe('fixed offline seed registry', () => {
     if (source?.kind !== 'bytes') throw new Error('Expected fixed byte reader')
     const raw = await source.read()
     const original = await readFile(
-      new URL('../../data/seeds/calendar-2026-11-03.json', import.meta.url),
+      new URL('../../data/seeds/calendar-2026-11-06.json', import.meta.url),
     )
     expect(Buffer.from(raw)).toEqual(original)
     expect(createHash('sha256').update(raw).digest('hex')).toBe(shippedCalendarSeedRelease.packHash)
@@ -39,7 +39,7 @@ it('fails for changed or missing installed bytes, even when a caller supplies a 
     new URL('../../dist/seeds/index.js', import.meta.url),
     `${root}/dist/seeds/index.mjs`,
   )
-  await writeFile(`${root}/data/seeds/calendar-2026-11-03.json`, '{}')
+  await writeFile(`${root}/data/seeds/calendar-2026-11-06.json`, '{}')
   const output = execFileSync(
     process.execPath,
     [
@@ -51,7 +51,7 @@ it('fails for changed or missing installed bytes, even when a caller supplies a 
     const module = await import(process.env.SEED_TEST_MODULE_URL);
     const source = module.createShippedCalendarSeedRegistry().get(module.shippedCalendarSeedRelease.packRef);
     await assert.rejects(source.read(), /digest mismatch/);
-    await unlink(new URL('../../data/seeds/calendar-2026-11-03.json', process.env.SEED_TEST_MODULE_URL));
+    await unlink(new URL('../../data/seeds/calendar-2026-11-06.json', process.env.SEED_TEST_MODULE_URL));
     await assert.rejects(source.read(), /ENOENT/);
     console.log('damaged and missing artifacts rejected');
   `,

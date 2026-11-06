@@ -1,6 +1,11 @@
 export type * from './types.ts'
 export { shippedCalendarSupplyPolicies, supplyPolicySource } from './policies.ts'
-export { parseLanceliaoCalendar, parseCgZhouCalendar, parseCgZhouHorizon } from './china.ts'
+export {
+  parseLanceliaoCalendar,
+  parseGovCnCalendar,
+  parseCgZhouCalendar,
+  parseCgZhouHorizon,
+} from './china.ts'
 export { parseCabinetOfficeCsv, parseVacanzaCalendar } from './japan.ts'
 export {
   computeUsFederalCalendar,

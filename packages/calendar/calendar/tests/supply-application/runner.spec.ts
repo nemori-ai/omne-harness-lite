@@ -10,7 +10,7 @@ describe('explicit supply runner', () => {
     const result = await w.app().initialize(context, { operationKey: 'bootstrap-1' })
     expect(result.kind).toBe('ok')
     if (result.kind !== 'ok') throw new Error('Initialization failed')
-    expect(result.value).toHaveLength(8)
+    expect(result.value).toHaveLength(9)
     expect(
       result.value.every(
         item =>

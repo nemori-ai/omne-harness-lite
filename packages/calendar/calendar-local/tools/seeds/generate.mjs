@@ -90,7 +90,7 @@ try {
     calendars,
   })
   const bytes = Buffer.from(JSON.stringify(pack) + '\n')
-  await writeFile(new URL('calendar-2026-11-03.json', root), bytes)
+  await writeFile(new URL(`${input.releaseRef}.json`, root), bytes)
   console.log(
     JSON.stringify({
       packHash: hash(bytes),

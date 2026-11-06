@@ -21,7 +21,7 @@ import {
   acquireSingle,
   type SourcePayload,
 } from './network.ts'
-import { computedMaterial, vacanzaMaterial } from './offline.ts'
+import { computedMaterial, vacanzaMaterial, officialNoticeMaterial } from './offline.ts'
 import type { CalendarSourceAdapterOptions } from './types.ts'
 
 export { calendarSourceUrls } from './network.ts'
@@ -33,6 +33,7 @@ export type {
   CalendarSourceKnowledge,
   CalendarSourceResponseEvidence,
   CalendarVacanzaArtifact,
+  CalendarOfficialNoticeArtifact,
 } from './types.ts'
 
 function transportString(policy: SupplySourcePolicy, key: string): string {
@@ -100,13 +101,16 @@ function createAdapter(
   }> {
     signal.throwIfAborted()
     if (
+      policy.adapterKind === 'gov_cn_annual_notice_json' ||
       policy.adapterKind === 'us_federal_rules_computed' ||
       policy.adapterKind === 'vacanza_holidays_library'
     ) {
       const material =
-        policy.adapterKind === 'us_federal_rules_computed'
-          ? computedMaterial(options, acquiredAt, limits)
-          : await vacanzaMaterial(options, acquiredAt, limits, signal)
+        policy.adapterKind === 'gov_cn_annual_notice_json'
+          ? await officialNoticeMaterial(options, acquiredAt, limits, signal)
+          : policy.adapterKind === 'us_federal_rules_computed'
+            ? computedMaterial(options, acquiredAt, limits)
+            : await vacanzaMaterial(options, acquiredAt, limits, signal)
       signal.throwIfAborted()
       return {
         material: {

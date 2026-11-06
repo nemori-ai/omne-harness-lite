@@ -39,9 +39,11 @@ const provenanceSchema = z.object({
 export const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 
 export async function releaseInputs(root) {
-  const input = schema.parse(JSON.parse(await readFile(new URL('inputs.json', root), 'utf8')))
+  const input = schema.parse(
+    JSON.parse(await readFile(new URL('inputs-2026-11-06.json', root), 'utf8')),
+  )
   const provenance = provenanceSchema.parse(
-    JSON.parse(await readFile(new URL('provenance.json', root), 'utf8')),
+    JSON.parse(await readFile(new URL('provenance-2026-11-06.json', root), 'utf8')),
   )
   for (const evidence of provenance.evidence) {
     if (hash(await readFile(new URL(evidence.file, root))) !== evidence.sha256)

@@ -46,6 +46,7 @@ export {
   type CalendarSourceKnowledge,
   type CalendarSourceResponseEvidence,
   type CalendarVacanzaArtifact,
+  type CalendarOfficialNoticeArtifact,
 } from './sources/index.ts'
 export { createShippedCalendarSeedRegistry, shippedCalendarSeedRelease } from './seeds/index.ts'
 export { createCalendarSupplyRunner } from './runner/index.ts'

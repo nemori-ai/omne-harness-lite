@@ -16,7 +16,7 @@ import { releaseInputs } from '../../tools/seeds/inputs.mjs'
 
 const hash = b => createHash('sha256').update(b).digest('hex')
 const original = await readFile(
-  new URL('../../data/seeds/calendar-2026-11-03.json', import.meta.url),
+  new URL('../../data/seeds/calendar-2026-11-06.json', import.meta.url),
 )
 const pack = JSON.parse(original)
 const registry = new Map(createShippedCalendarSeedRegistry())
@@ -51,7 +51,7 @@ const app = createCalendarSupplyApplication({
       return { kind: 'allowed', authorityGuardRefs: ['same-transaction-seed-fixture'] }
     },
   },
-  clock: { now: () => instantSchema.parse('2026-11-03T14:00:00.000Z') },
+  clock: { now: () => instantSchema.parse('2026-11-06T14:00:00.000Z') },
 })
 function dispositions(result) {
   assert.equal(result.kind, 'ok', JSON.stringify(result))
@@ -87,6 +87,28 @@ try {
     const classification = classifyDay({ snapshot, date: localDateSchema.parse('2026-01-01') })
     assert.equal(classification.kind, 'ok', JSON.stringify(classification))
   }
+  const cn = initial.find(snapshot => snapshot.calendarId === 'cn-legal-holidays')
+  assert.equal(cn.coverageEnd, '2027-12-31')
+  const cg = JSON.parse(
+    await readFile(new URL('../../data/seeds/raw/cg-bundle-2027.json', import.meta.url), 'utf8'),
+  )
+  const expected = new Map(
+    JSON.parse(cg.years['data/CN/2027.json']).dates.map(row => [
+      row.date,
+      row.type === 'public_holiday' ? 'holiday' : 'workingDay',
+    ]),
+  )
+  for (let ordinal = 0; ordinal < 365; ordinal++) {
+    const at = new Date(Date.UTC(2027, 0, 1 + ordinal))
+    const day = at.toISOString().slice(0, 10)
+    const result = classifyDay({ snapshot: cn, date: localDateSchema.parse(day) })
+    assert.equal(result.kind, 'ok')
+    assert.equal(
+      result.classification,
+      expected.get(day) ?? ([0, 6].includes(at.getUTCDay()) ? 'nonWorkingDay' : 'workingDay'),
+      day,
+    )
+  }
   const replay = await app.importSeed(world.context, intent)
   assert.ok(
     replay.kind === 'ok' &&
@@ -117,7 +139,7 @@ try {
     dispositions(await app.importSeed(world.context, futureIntent)),
     pack.calendars.map(() => 'rejected'),
   )
-  const { materials } = await releaseInputs(new URL('../../data/seeds/', import.meta.url))
+  const { input, materials } = await releaseInputs(new URL('../../data/seeds/', import.meta.url))
   const refresher = createCalendarSupplyApplication({
     ...world,
     authority: {
@@ -125,9 +147,7 @@ try {
         return { kind: 'allowed', authorityGuardRefs: ['same-transaction-seed-fixture'] }
       },
     },
-    independenceRegistry: JSON.parse(
-      await readFile(new URL('../../data/seeds/inputs.json', import.meta.url), 'utf8'),
-    ).independenceRegistry,
+    independenceRegistry: input.independenceRegistry,
     sourceAdapters: materials.map(material => ({
       sourceId: material.sourceId,
       async acquire() {
@@ -137,7 +157,7 @@ try {
         throw new Error('No network probe during offline verification')
       },
     })),
-    clock: { now: () => instantSchema.parse('2026-11-03T14:00:00.000Z') },
+    clock: { now: () => instantSchema.parse('2026-11-06T14:00:00.000Z') },
   })
   try {
     for (const entry of pack.calendars) {

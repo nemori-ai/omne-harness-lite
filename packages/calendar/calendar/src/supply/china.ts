@@ -40,6 +40,7 @@ function lanceliaoYear(
   entries: z.infer<typeof lanceliaoDocument>['Years'][string],
   years: z.infer<typeof lanceliaoDocument>['Years'],
   material: SupplyMaterial,
+  sourceId: string,
 ): { days: SupplyDay[]; interval: SupplyInterval } {
   const days: SupplyDay[] = []
   const yearDays: string[] = []
@@ -50,27 +51,9 @@ function lanceliaoYear(
     )
       throw new Error('Duration must equal the inclusive holiday interval')
     for (const day of dates({ start: entry.StartDate, end: entry.EndDate }))
-      days.push(
-        sourceDay(
-          'lanceliao-china-holiday-calender',
-          material,
-          day,
-          'holiday',
-          entry.URL,
-          entry.Memo,
-        ),
-      )
+      days.push(sourceDay(sourceId, material, day, 'holiday', entry.URL, entry.Memo))
     for (const day of entry.CompDays)
-      days.push(
-        sourceDay(
-          'lanceliao-china-holiday-calender',
-          material,
-          day,
-          'workingDay',
-          entry.URL,
-          entry.Memo,
-        ),
-      )
+      days.push(sourceDay(sourceId, material, day, 'workingDay', entry.URL, entry.Memo))
     yearDays.push(entry.StartDate, entry.EndDate, ...entry.CompDays)
   }
   yearDays.sort()
@@ -85,18 +68,23 @@ function lanceliaoYear(
     },
   }
 }
-export function parseLanceliaoCalendar(input: SourceParseInput): SourceParseResult {
-  const sourceId = 'lanceliao-china-holiday-calender'
+function parseNoticeCalendar(input: SourceParseInput, sourceId: string): SourceParseResult {
   return sourceParser(sourceId, input, material => {
     const decoded = decodeJson(input)
-    const bundle = lanceliaoEvidenceBundleSchema.safeParse(decoded)
+    const bundle = (
+      sourceId === 'gov-cn-annual-notice'
+        ? lanceliaoEvidenceBundleSchema.extend({ format: z.literal('gov_cn_annual_notice/v1') })
+        : lanceliaoEvidenceBundleSchema
+    ).safeParse(decoded)
+    if (sourceId === 'gov-cn-annual-notice' && !bundle.success)
+      throw new Error('Official notice requires a provenance and validation envelope')
     const document = lanceliaoDocument.parse(
       bundle.success ? parseSupplyJson(bundle.data.primary) : decoded,
     )
     const days: SupplyDay[] = []
     const intervals: SupplyInterval[] = []
     for (const entries of Object.values(document.Years)) {
-      const year = lanceliaoYear(entries, document.Years, material)
+      const year = lanceliaoYear(entries, document.Years, material, sourceId)
       days.push(...year.days)
       intervals.push(year.interval)
     }
@@ -118,6 +106,12 @@ export function parseLanceliaoCalendar(input: SourceParseInput): SourceParseResu
       ],
     }
   })
+}
+export function parseLanceliaoCalendar(input: SourceParseInput): SourceParseResult {
+  return parseNoticeCalendar(input, 'lanceliao-china-holiday-calender')
+}
+export function parseGovCnCalendar(input: SourceParseInput): SourceParseResult {
+  return parseNoticeCalendar(input, 'gov-cn-annual-notice')
 }
 const cgIndex = z.object({
   regions: z.array(

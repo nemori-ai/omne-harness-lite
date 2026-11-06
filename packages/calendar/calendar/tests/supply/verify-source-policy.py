@@ -124,10 +124,17 @@ def main():
         "process.stdout.write(JSON.stringify(shippedCalendarSupplyPolicies));"
     )
     actual = json.loads(subprocess.check_output([arguments.node, "--input-type=module", "-e", script]))
+    sources = actual[0]['sources']
+    official = [source for source in sources if source['sourceId'] == 'gov-cn-annual-notice']
+    assert len(official) == 1
+    assert official[0]['role'] == 'truth'
+    assert official[0]['provenanceClass'] == 'firstPartyAuthority'
+    assert official[0]['adapterKind'] == 'gov_cn_annual_notice_json'
+    actual[0]['sources'] = [source for source in sources if source['sourceId'] != 'gov-cn-annual-notice']
     assert actual == expected, "Fixed-source field mapping differs"
     print(
         "PASS: complete fixed-source AST policy values equal shipped values; "
-        "A1-D3 exclusive CN critical comparison is the sole target addition"
+        "A1-D3 CN critical comparison and 2026-11-06 official-notice source are explicit target additions"
     )
 
 

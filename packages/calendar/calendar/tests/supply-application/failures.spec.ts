@@ -137,12 +137,13 @@ describe('supply failure and interleaving boundaries', () => {
     const policy = shippedCalendarSupplyPolicies.find(
       item => item.calendarId === 'cn-legal-holidays',
     )
-    const source = policy?.sources.find(item => item.role === 'truth')
-    if (!source) throw new Error('missing CN policy')
+    if (!policy) throw new Error('missing CN policy')
+    w.setTime('2026-11-06T12:00:00.000Z')
     const app = createCalendarSupplyApplication({
       ...w.deps,
-      sourceAdapters: [
-        {
+      sourceAdapters: policy.sources
+        .filter(source => source.role === 'truth')
+        .map(source => ({
           sourceId: source.sourceId,
           async probe() {
             throw new Error('not used')
@@ -153,9 +154,14 @@ describe('supply failure and interleaving boundaries', () => {
               material: {
                 sourceId: source.sourceId,
                 acquiredAt,
-                knowledgeAsOf: instantSchema.parse('2025-12-01T00:00:00.000Z'),
+                knowledgeAsOf: instantSchema.parse('2026-11-05T09:00:00.000Z'),
                 content: readFileSync(
-                  new URL('../supply/fixtures/holiday_api_capture_20260821.json', import.meta.url),
+                  new URL(
+                    source.sourceId === 'gov-cn-annual-notice'
+                      ? '../../../calendar-local/data/seeds/raw/gov-cn-2027-bundle.json'
+                      : '../supply/fixtures/holiday_api_capture_20260821.json',
+                    import.meta.url,
+                  ),
                 ),
                 mediaType: 'application/json',
                 lineageRef: source.lineage,
@@ -163,8 +169,7 @@ describe('supply failure and interleaving boundaries', () => {
               },
             }
           },
-        },
-      ],
+        })),
     })
     const result = await app.refresh(context, {
       ...intent,
@@ -175,7 +180,7 @@ describe('supply failure and interleaving boundaries', () => {
       value: { kind: 'recorded', receipt: { disposition: 'withheld' } },
     })
     expect(w.current()).toBeNull()
-    expect(w.raw.size).toBe(1)
+    expect(w.raw.size).toBe(2)
     const command = [...w.runs.values()][0]?.command
     expect(
       command?.candidate.reasons.some(reason =>

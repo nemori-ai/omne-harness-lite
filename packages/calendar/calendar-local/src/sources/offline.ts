@@ -1,4 +1,4 @@
-import { parseVacanzaCalendar } from '@omne-harness/calendar'
+import { parseVacanzaCalendar, parseGovCnCalendar } from '@omne-harness/calendar'
 import { instantSchema, localDateSchema, type Instant } from '@omne-harness/calendar-contract'
 import { z } from 'zod'
 import { decodeJson, digest, encode } from './http.ts'
@@ -69,5 +69,34 @@ export async function vacanzaMaterial(
   })
   if (parsed.kind !== 'success')
     throw new Error('Vacanza artifact has unsupported or empty year coverage')
+  return { content, knowledgeAsOf, authorityRef: artifact.reference }
+}
+
+export async function officialNoticeMaterial(
+  options: CalendarSourceAdapterOptions,
+  acquiredAt: Instant,
+  limits: CalendarSourceLimits,
+  signal: AbortSignal,
+) {
+  const artifact = options.cnOfficialNoticeArtifact
+  if (!artifact) throw new Error('Adopted official CN notice is not configured')
+  const content = await artifact.read(signal)
+  signal.throwIfAborted()
+  if (
+    !content.byteLength ||
+    content.byteLength > limits.maxBodyBytes ||
+    digest(content) !== artifact.sha256
+  )
+    throw new Error('Official CN notice artifact size or hash mismatch')
+  const knowledgeAsOf = instantSchema.parse(artifact.knowledgeAsOf)
+  if (knowledgeAsOf > acquiredAt || !artifact.reference.trim())
+    throw new Error('Invalid official CN notice knowledge evidence')
+  const parsed = parseGovCnCalendar({
+    content,
+    acquiredAt,
+    knowledgeAsOf,
+    reference: artifact.reference,
+  })
+  if (parsed.kind !== 'success') throw new Error('Official CN notice cannot be parsed')
   return { content, knowledgeAsOf, authorityRef: artifact.reference }
 }

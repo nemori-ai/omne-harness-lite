@@ -33,7 +33,12 @@ export interface CalendarVacanzaArtifact {
   readonly startYear: number
   readonly endYear: number
 }
+export type CalendarOfficialNoticeArtifact = Pick<
+  CalendarVacanzaArtifact,
+  'read' | 'sha256' | 'knowledgeAsOf' | 'reference'
+>
 export interface CalendarSourceAdapterOptions {
+  readonly cnOfficialNoticeArtifact?: CalendarOfficialNoticeArtifact
   readonly cnValidationEvidence?: CnValidationEvidence
   readonly httpClient?: CalendarHttpClient
   readonly limits?: Partial<CalendarSourceLimits>

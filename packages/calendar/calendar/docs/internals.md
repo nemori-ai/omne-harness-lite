@@ -20,7 +20,7 @@ missing_environment、unknown_calendar_version、coverage_insufficient、合法 
 
 | 首批日历 | 时区与语义 | 来源与节奏 | 余量政策 |
 |---|---|---|---|
-| cn-legal-holidays | Asia/Shanghai，中国法定节假日与补班 | lanceliao holidayAPI 的 gov.cn 回链/CompDays 为 truth；cg-zhou 为 oracle/horizon；10–12 月每日，其余每周 | 12-20 warning，1-1 critical；沿源完整政策解释年份 |
+| cn-legal-holidays | Asia/Shanghai，中国法定节假日与补班 | lanceliao 历史 truth 与 gov.cn 年度公告 truth 合并；cg-zhou 为 oracle/horizon；10–12 月每日，其余每周 | 12-20 warning，1-1 critical；沿源完整政策解释年份 |
 | jp-legal-holidays | Asia/Tokyo，日本国民祝日 | 内阁府 CP932 CSV truth；Vacanza 独立 oracle；每日 HEAD，1/20–2/20 加密，变化 GET/hash | warning 300 天，critical 270 天 |
 | us-federal-holidays | America/New_York，美国联邦范围 | 法律规则计算 truth；OPM ICS oracle；Federal Register EO 例外；规则季度、OPM 月度、FR 每日 | warning 365 天，critical 180 天 |
 
@@ -28,7 +28,9 @@ missing_environment、unknown_calendar_version、coverage_insufficient、合法 
 
 CN 覆盖余量按 coverageEnd 与 asOf 的 civil date 差解释，critical 为 `<0`，warning 为 `<=11`，对应 1-1 和 12-20。JP/US 保持各自 floor 的 inclusive 比较，不增加已知覆盖。
 
-CN 的 chinese-days@1.5.9 MIT 静态材料仅补充 inLieu 的 subset 与 near-zero-sum 校验，不是新的独立 oracle，不替代 gov.cn 回链。lanceliao 原文与补充原文同封套保留，校验版本、覆盖、hash 和逐日一致性。缺材料、超出补充覆盖或与 truth 冲突仍未知或失败。
+2026-11-06 采用新增 `gov-cn-annual-notice`，作为源系统固定政策之外的具名适配。公告由保留的 gov.cn 原文确定性提取，独立 sourceId 和 provenance 不归到 lanceliao。连续 truth 覆盖并集沿既有合成规则，cg-zhou 必须覆盖并逐日核对全部候选；新增 truth/oracle 配对独立登记。每个 truth 执行原有来源检查，unknown 或缺材料不降低门槛。
+
+CN 历史 truth 使用 chinese-days@1.5.9，2027 官方公告使用 chinese-days@1.5.10。两份 MIT 静态材料仅补充 inLieu 的 subset 与 near-zero-sum 校验，不是新的独立 oracle，不替代 gov.cn 回链。truth 与补充原文同封套保留，校验版本、覆盖、hash 和逐日一致性。缺材料、超出补充覆盖或与 truth 冲突仍未知或失败。
 
 US 分开解释 OPM 制品修订、固定法条版本和有界 Federal Register 公布语料。OPM 只在无 METHOD 且完整 DTSTAMP 合法时采用组件修订时点。FR 截止依赖完成的有界扫描，不能用 HTTP Date、下载或安装时间填知识截至。具体窗口和摘要由种子发行元数据唯一保存，见[本地资源](../../calendar-local/resources/README.md)。
 
