@@ -79,7 +79,7 @@ export function checkSteps(inputs: StepInputs): CheckStep[] {
     step('test', ['build']),
     // 结构规则、验收的覆盖声明与提交署名；它导入的成员已在构建里。
     { name: 'lint:rules', command: run('lint:rules'), after: ['build', 'typecheck'], heavy: false },
-    { name: 'lint:oxlint', command: run('lint:oxlint'), after: [], heavy: false },
+    { name: 'lint:oxlint', command: run('lint:oxlint'), after: ['build'], heavy: false },
     // dependency-cruiser 解析验收夹具对 dist 的导入。
     { name: 'lint:deps', command: run('lint:deps'), after: ['build', 'typecheck'], heavy: false },
     // 可执行验收驱动构建出来的 dist。

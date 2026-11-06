@@ -11,6 +11,7 @@ import {
   type CheckStep,
   type StepResult,
 } from '../src/testing/check-graph.ts'
+import { checkSteps } from '../src/testing/check-steps.ts'
 import { criticalPath, lightConcurrency, stepsTable } from '../src/testing/check.ts'
 
 let dir: string
@@ -55,6 +56,30 @@ describe('步骤图核对', () => {
 })
 
 describe('运行', () => {
+  it('lint waits for generated imports to exist after the build', async () => {
+    const steps = checkSteps({
+      baseline: 'HEAD',
+      runnerCli: 'runner.ts',
+      devFlowDeliveryCli: 'delivery.ts',
+      devFlowIntegrationCli: 'integration.ts',
+    }).filter(entry => entry.name === 'build' || entry.name === 'lint:oxlint')
+    const commands: Record<string, string> = {
+      build: `const fs = require('node:fs'); setTimeout(() => fs.writeFileSync('built.js', 'ready'), 200)`,
+      'lint:oxlint': `require('node:fs').readFileSync('built.js')`,
+    }
+    const run = await runGraph(
+      steps.map(entry => ({
+        ...entry,
+        command: [process.execPath, '-e', commands[entry.name]!] as const,
+      })),
+      options(),
+    )
+    expect(run.results.map(result => [result.name, result.exitCode])).toEqual([
+      ['build', 0],
+      ['lint:oxlint', 0],
+    ])
+  })
+
   it('没有依赖的同时跑，有依赖的等依赖结束；每步的输出落自己的日志', async () => {
     const run = await runGraph([step('a', 200), step('b', 50, 0, ['a']), step('c', 50)], options())
     const by = new Map(run.results.map(result => [result.name, result]))
