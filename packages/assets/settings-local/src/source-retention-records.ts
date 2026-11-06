@@ -19,7 +19,12 @@ import {
 const conflict = () => ({ kind: 'conflict' as const })
 export const sourceKey = (source: SourceReference) => digest(source)
 export const sourceReservationKey = (request: SourceRequest) =>
-  digest([request.source, request.destination.identity, request.destination.attemptId])
+  digest([
+    request.source,
+    request.destination.ownerRef,
+    request.destination.identity,
+    request.destination.attemptId,
+  ])
 const updateKey = (update: SourceUpdate) => digest(update.identity)
 
 const gateRow = z.tuple([z.string(), z.string().nullable(), z.string().nullable()])

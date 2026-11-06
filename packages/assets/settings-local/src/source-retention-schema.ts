@@ -23,6 +23,7 @@ export const sourceReferenceSchema = z.strictObject({
   target: SettingsTargetSchema,
 })
 export const sourceDestinationSchema = z.strictObject({
+  ownerRef: SettingsReferenceSchema,
   identity: intentIdentitySchema,
   attemptId: SettingsIdSchema,
   commandDigest: digestSchema,

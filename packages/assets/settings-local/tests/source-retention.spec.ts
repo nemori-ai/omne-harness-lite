@@ -227,3 +227,19 @@ it('a draining target does not block another source target in the same storage d
     held: 1,
   })
 })
+
+it('keeps equal attempt IDs from different destination owners in distinct reservations', async () => {
+  const world = await open()
+  const other = reserve()
+  other.request.destination.ownerRef = 'action-admission'
+  const first = responses(await world.write([reserve(), other]))
+  const records = z
+    .array(z.object({ kind: z.literal('held'), reservationId: z.string() }))
+    .parse(first)
+  expect(new Set(records.map(record => record.reservationId)).size).toBe(2)
+  await world.write([{ kind: 'settle', input: { request: sourceRequest(), outcome: 'aborted' } }])
+  expect(output(await world.read({ kind: 'reservation', request: other.request }))).toMatchObject({
+    kind: 'held',
+  })
+  expect(output(await world.read({ kind: 'gate', source }))).toMatchObject({ held: 1 })
+})

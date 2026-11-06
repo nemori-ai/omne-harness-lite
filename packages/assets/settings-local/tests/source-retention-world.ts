@@ -33,6 +33,7 @@ export function sourceRequest(attemptId = 'destination-attempt'): SourceRequest 
   return {
     source,
     destination: {
+      ownerRef: 'settings',
       identity: allocation().identity,
       attemptId,
       route: 'settings.destination',
