@@ -6,7 +6,7 @@ The local Skill host. It gives `createDirectorySource`, a `SkillPackageSource` t
 
 ## Responsibility and status
 
-This member owns one source of Skill package bytes: the directory source. It reads the current contents of a directory and keeps no index and no cache. It answers each file system refusal with one failure of the closed source failure set of `@omne-harness/skill-contract`. It does not parse packages, decide access, or compare bytes with a snapshot. `@omne-harness/skill` does that work.
+This member owns one source of Skill package bytes: the directory source. It reads the current contents of a directory and keeps no index and no cache. It answers each file system refusal with one failure of the closed source failure set of `@omne-harness/skill-contract`. It does not parse packages, decide access, or compare bytes with a snapshot. `@omne-harness/skill` does that work. The member also owns the Cordis plugin `skillPlugin` (the `./cordis` entry). The plugin builds the three Skill services of `@omne-harness/skill` over the directory source and provides them on the loading fiber.
 
 Status: the behavior is a candidate. It does not have technical acceptance. The source passes the contract suite `skillPackageSourceConformance()` on real temporary directories (PS7 is not applicable). The Cordis plugin part is the `./cordis` entry and provides the plugin `skillPlugin`.
 
@@ -28,15 +28,16 @@ if ('ok' in snapshot)
 
 The example [examples/inspect-directory.ts](examples/inspect-directory.ts) takes a snapshot of [examples/sample-skill/](examples/sample-skill/), reads the two control files, and gives them to `parseSkillPackage`. The example [examples/directory-journey.ts](examples/directory-journey.ts) inspects every package of a directory, then lists, searches, describes and reads through `@omne-harness/skill`. The caller gives it the read check and the resolution, and the test gives the memory doubles of `@omne-harness/skill-contract/testing`. It runs as the test `tests/examples.spec.ts` and is not a product assembly. A test can give its own file system seam: `createDirectorySource({ fs })`. The member needs Node.js 24 or later.
 
-The `./cordis` entry (`@omne-harness/skill-host-local/cordis`) exports the plugin `skillPlugin`. The plugin takes no configuration and uses the directory source. It provides `skillPackageInspection`, `skillCatalog` and `skillAccess` on the loading fiber. It reads the two ports `skillReadCheck` and `skillResolution` from its own context on each call. Without a port, the answer is `unknown`. See [docs/cordis.md](docs/cordis.md) and [SPEC.md](SPEC.md#cordis-插件).
+The `./cordis` entry (`@omne-harness/skill-host-local/cordis`) exports the plugin `skillPlugin`. The plugin takes no configuration and uses the directory source. It provides `skillPackageInspection`, `skillCatalog` and `skillAccess` on the loading fiber. It reads the two ports `skillReadCheck` and `skillResolution` from its own context on each call. The step that calls an absent port gets `unknown`. The operation then answers by the rules of the `skill` SPEC ([catalog](../skill/SPEC.md#catalog) and [stages](../skill/SPEC.md#stages)), does not let the request pass, and gives no content that the absent port guards. See [docs/cordis.md](docs/cordis.md) and [SPEC.md](SPEC.md#cordis-插件).
 
 ```ts
 import { Context } from '@deepseek-ai/cordis'
+import { skillAccessKey } from '@omne-harness/skill-cordis-contract/cordis'
 import { skillPlugin } from '@omne-harness/skill-host-local/cordis'
 
 const ctx = new Context()
-await ctx.plugin(skillPlugin)
-const access = ctx.get('skillAccess') // the service, or undefined after the plugin unloads
+await ctx.plugin(skillPlugin, {})
+const access = ctx.get(skillAccessKey) // the service, or undefined after the plugin unloads
 ```
 
 ## Behavior
@@ -88,7 +89,7 @@ The public types in `src/` own the data shapes. The port requirements belong to 
 
 ## Design
 
-Three modules do the work. `fs.ts` gives the file system seam and its default over `node:fs/promises`. The seam only reads: it gives names and paths as bytes and reports the kind of each opened object. `walk.ts` reads the root, walks the directories, resolves every entry, makes the inside-the-root decision, counts the visits, and classifies every answer and refusal. `directory-source.ts` connects the walk to `sealSnapshot` and to the two port operations. See [docs/architecture.md](docs/architecture.md).
+Four modules do the work. `fs.ts` gives the file system seam and its default over `node:fs/promises`. The seam only reads: it gives names and paths as bytes and reports the kind of each opened object. `walk.ts` reads the root, walks the directories, resolves every entry, makes the inside-the-root decision, counts the visits, and classifies every answer and refusal. `directory-source.ts` connects the walk to `sealSnapshot` and to the two port operations. `cordis.ts` is the `./cordis` entry: it builds the three Skill services over the directory source and provides them as Cordis services. See [docs/architecture.md](docs/architecture.md).
 
 ## Configuration and operation
 

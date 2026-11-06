@@ -4,14 +4,15 @@
 
 ## 模块与依赖
 
-| 模块                                                  | 职责                                                                                                          | 依赖                                                                             |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [src/index.ts](../src/index.ts)                       | 公开根：`createDirectorySource` 与 `DirectoryFs` 类型                                                         | 下面两个模块                                                                     |
-| [src/directory-source.ts](../src/directory-source.ts) | 把定位分派到遍历或读条目；把遍历结果交给 `sealSnapshot`；把快照缺陷映射为来源失败                             | `walk.ts`、`fs.ts`、`@omne-harness/skill-contract/provider`                      |
-| [src/walk.ts](../src/walk.ts)                         | 解析根、递归遍历、解析每个条目、根内判定、访问预算、严格 UTF-8 解码，以及全部分类表；`collect` 与 `readEntry` | `fs.ts` 的类型、`@omne-harness/skill-contract`、`@omne-harness/operation-result` |
-| [src/fs.ts](../src/fs.ts)                             | `DirectoryFs` 接缝与默认接缝 `nodeFs`。只做读取，不分类                                                       | `node:fs/promises`                                                               |
+| 模块                                                  | 职责                                                                                                          | 依赖                                                                                  |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [src/index.ts](../src/index.ts)                       | 公开根：`createDirectorySource` 与 `DirectoryFs` 类型                                                         | 下面两个模块                                                                          |
+| [src/directory-source.ts](../src/directory-source.ts) | 把定位分派到遍历或读条目；把遍历结果交给 `sealSnapshot`；把快照缺陷映射为来源失败                             | `walk.ts`、`fs.ts`、`@omne-harness/skill-contract/provider`                           |
+| [src/walk.ts](../src/walk.ts)                         | 解析根、递归遍历、解析每个条目、根内判定、访问预算、严格 UTF-8 解码，以及全部分类表；`collect` 与 `readEntry` | `fs.ts` 的类型、`@omne-harness/skill-contract`、`@omne-harness/operation-result`      |
+| [src/fs.ts](../src/fs.ts)                             | `DirectoryFs` 接缝与默认接缝 `nodeFs`。只做读取，不分类                                                       | `node:fs/promises`                                                                    |
+| [src/cordis.ts](../src/cordis.ts)                     | `./cordis` 入口：插件 `skillPlugin`。造两个端口适配器与三个服务，把三个服务子类挂在装载它的 fiber 上          | `directory-source.ts`、`@omne-harness/skill`、`skill-cordis-contract`、`kernel-basis` |
 
-依赖只向下：`directory-source.ts` → `walk.ts` → `fs.ts`。本包只依赖 Skill 契约与 `operation-result`，不认识 `@omne-harness/skill` 或任何调用方。
+依赖只向下：`directory-source.ts` → `walk.ts` → `fs.ts`。根入口只依赖 Skill 契约与 `operation-result`，不认识 `@omne-harness/skill`、Cordis 或任何调用方。`cordis.ts` 在 `directory-source.ts` 之上：它是唯一认识 `@omne-harness/skill`、`skill-cordis-contract`、`@omne-harness/kernel-basis` 与 Cordis 的模块，由 `./cordis` 入口发布，根入口不导入它。它的依据是[Cordis 集成约定](../../../../docs/architecture/cordis-integration-conventions.md)与 W4 波包决定 1–4；条款见 [Cordis 集成](cordis.md)。
 
 本包没有长期状态。一次 `collect` 调用持有一份遍历状态 `Walk`：已读文件列表与访问计数。只有 `collect` 建它，调用返回之前外面看不到它。默认接缝每读一个文件就打开并关闭一个文件句柄。
 
@@ -28,7 +29,7 @@
 - **访问预算。**不成环的链接仍能使访问次数指数增长。一次遍历最多访问 65536 个名字，超出答 `entry-unreadable`。这个数由领域设计裁定。
 - **确定的第一个失败。**遍历深度优先，每个目录按名字的码元序。文件系统列出名字的次序不固定，排序使多处缺陷的包总是得到同一个答复。
 - **非阻塞读。**默认接缝以 `O_NONBLOCK` 打开文件并读打开对象的种类。列出之后被换成管道的文件不会使读取等待写者。
-- **没有类与类型断言。**接缝、来源与遍历位置都是对象字面量与函数。品牌值只经契约的守卫取得：包内路径经 `isPackagePath`，快照经 `sealSnapshot`。
+- **根入口没有类与类型断言。**接缝、来源与遍历位置都是对象字面量与函数。品牌值只经契约的守卫取得：包内路径经 `isPackagePath`，快照经 `sealSnapshot`。类只在 `./cordis` 入口：三个服务子类继承 skill-cordis-contract 的抽象 Service，Cordis 要求服务是类。它们只把调用转给构造好的服务，没有自己的状态。
 
 ## 验证与维护
 

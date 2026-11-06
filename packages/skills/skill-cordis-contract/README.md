@@ -53,7 +53,7 @@ Independent use does not need this package. A caller without Cordis uses the roo
 - The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 8.
 - The [Cordis page](docs/cordis.md) owns the dependency classes and the IC conformance map.
 - The [API page](docs/public-api.md) indexes the exports.
-- The [skill-contract SPEC](../skill-contract/SPEC.md) owns the inputs, results and failures of the five interfaces.
+- The inputs, results and failures of the five interfaces belong to their own specs: `PackageInspection` to the [skill-contract SPEC](../skill-contract/SPEC.md#parse), `SkillCatalog` and `SkillAccess` to the [skill SPEC](../skill/SPEC.md#catalog), and the two ports to the [demand ports of the skill-contract SPEC](../skill-contract/SPEC.md#ports).
 
 The package holds no resources. The fiber of the plugin that loads a subclass owns the life of the service.
 

@@ -12,7 +12,7 @@
 ## 目录
 
 - [docs/](docs/index.md)：内部设计、公开使用与集成说明
-- [src/](src/index.md)：公开定义、运行时校验与内部实现
+- [src/](src/index.md)：公开定义
 - [tests/](tests/index.md)：持续测试与固定输入
 - [schema/](schema/index.md)：对外 Schema
 - [verification/](verification/index.md)：模型、论证与证明

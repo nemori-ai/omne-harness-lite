@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Local Skill host: the DirectorySource local directory source",
+  "description": "Local Skill host: the DirectorySource local directory source and the Skill Cordis plugin",
   "engines": {
     "node": ">=24"
   },

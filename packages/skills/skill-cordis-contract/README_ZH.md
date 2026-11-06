@@ -53,7 +53,7 @@ const check = ctx.get(skillReadCheckKey) // 实例，或 undefined
 - [SPEC](SPEC.md) 拥有类型以外的行为，见性质 1 至 8。
 - [Cordis 说明](docs/cordis.md)拥有依赖分类与 IC 符合性映射。
 - [公开接口页](docs/public-api.md)索引导出。
-- 五个接口的输入、结果与失败归 [skill-contract 的 SPEC](../skill-contract/SPEC.md)。
+- 五个接口的输入、结果与失败归各自的规格：`PackageInspection` 见 [skill-contract SPEC](../skill-contract/SPEC.md#parse)，`SkillCatalog` 与 `SkillAccess` 见 [skill SPEC](../skill/SPEC.md#catalog)，两个端口见 [skill-contract SPEC 的需求端口](../skill-contract/SPEC.md#ports)。
 
 本成员不持有资源。服务的寿命归装载子类的那个插件的 fiber。
 
