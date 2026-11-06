@@ -4,8 +4,8 @@
 // to the table. The transport marks an answer it hands over once it is not usable any more
 // (contract T1, `unusable`); `lostOf` reads that mark and the refused authorization, never the
 // cause of a failure. The services hand the loss to `table.lose` through `loseOn` (discovery,
-// which reports the mark) or `loseInScope` (calls and task operations, which do not wait for the
-// teardown). Both act only on the current generation.
+// which reports the mark) or `loseIfLost` (calls and task operations: `lostOf`, then `loseInScope`,
+// which does not wait for the teardown). Both act only on the current generation.
 import type {
   ConnectionFailure,
   LostReason,

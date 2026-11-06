@@ -124,15 +124,15 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 
 状态的词按 `docs/verification.md`「分别表述这六种状态」。每种状态对每条性质的结论在 [SPEC.md「性质与证据」](../SPEC.md#properties)。本节记录范围与运行。
 
-探索器（Node v26.12.0，2026-11-05，单线程；同一时段本机另有变异运行，耗时偏长；运行时的 head 未记录，状态数未在 `035ac8fee` 上重测，见本节「读数的 head」）：
+探索器（Node v26.12.0，单线程）。快层四行（`rebuild`、`faults` 与 `throws` 两行）在 `0961b30e9` 上量得：2026-11-06 17:52 UTC，node 直跑 `explore`，负载均值 0.2 以下。`wide` 一行见表下。`bounds`、`two-keys`、`two-accounts` 三行是 2026-11-05 的读数，运行时的 head 未记录，同一时段本机另有变异运行，耗时偏长，没有重测，见本节「读数的 head」：
 
 | 场景             | 上限                                                         | 偏离与预算                           | 状态数 | 重放数 | 最深调度 | 耗时    | 层  |
 | ---------------- | ------------------------------------------------------------ | ------------------------------------ | ------ | ------ | -------- | ------- | --- |
-| `rebuild`        | 1 个键；2 次 `ensure`；`closeAll`                            | 无（端口可挂起、迟到）               | 6128   | 18708  | 23       | 15.0 s  | 快  |
+| `rebuild`        | 1 个键；2 次 `ensure`；`closeAll`                            | 无（端口可挂起、迟到）               | 5714   | 17466  | 23       | 14.0 s  | 快  |
 | `bounds`         | 同 `rebuild`；时限以任意次序到期                             | 无（端口可挂起、迟到）               | 17735  | 71810  | 23       | 50.8 s  | 慢  |
-| `faults`         | 1 个键；`ensure`、`release`、`lose`、`closeAll` 各 1 次      | 失败、reject、`unconfirmed`，共 1 次 | 3146   | 8388   | 15       | 3.9 s   | 快  |
-| `throws`         | 1 个键；`ensure`、`closeAll` 各 1 次                         | 同步抛出，共 1 次                    | 360    | 754    | 12       | 0.3 s   | 快  |
-| `throws`，不去重 | 同上                                                         | 同上                                 | 6401   | 6401   | 13       | 3.4 s   | 快  |
+| `faults`         | 1 个键；`ensure`、`release`、`lose`、`closeAll` 各 1 次      | 失败、reject、`unconfirmed`，共 1 次 | 2829   | 7567   | 15       | 4.4 s   | 快  |
+| `throws`         | 1 个键；`ensure`、`closeAll` 各 1 次                         | 同步抛出，共 1 次                    | 335    | 701    | 12       | 0.4 s   | 快  |
+| `throws`，不去重 | 同上                                                         | 同上                                 | 6401   | 6401   | 13       | 3.8 s   | 快  |
 | `wide`           | 1 个键；2 次 `ensure`；`release`、`lose`、`closeAll` 各 1 次 | 无                                   | 55392  | 177108 | 26       | 153.8 s | 慢  |
 | `two-keys`       | 2 个只差租户的键；各 1 次 `ensure`                           | 无                                   | 13501  | 36739  | 22       | 34.8 s  | 慢  |
 | `two-accounts`   | 2 个只差对端账号的键；各 1 次 `ensure`                       | 无                                   | 11027  | 29847  | 23       | 27.8 s  | 慢  |
@@ -164,8 +164,8 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 
 读数的 head：各种证据运行在不同的 head 上。PR 的最终 head 是本页所在的提交。`035ac8fee` 之后 `src/` 改过两次：`44a218fec` 让调用方给的值树先过 `judgeJsonValue`（`calls.ts` 的 `checkedSend`、`tasks.ts` 的 `provideTaskInput`、新文件 `internal/caller-values.ts`）；`a556e3374` 让 `checkedSend` 对请求的每个字段只读一次。两次都只改调用入口的前提判定，不改发出之后的次序。
 
-- 生命周期探索器的状态数：head 未记录（2026-11-05，早于 `0b84a0bec`），未在 `035ac8fee` 及之后重测。有限范围的「通过」另由 `0b84a0bec`、`deb5a977e` 与 `2b895ea2a` 上的用例运行支持。
-- 调用口探索器的状态数：上表在 `deb5a977e` 上量得。`deb5a977e` 之后的 `src/` 改动到 `035ac8fee` 为止是 `refresh` 的出口与上面两次入口判定，探索器不驱动 `refresh`，入口判定在探索器的合法输入上不改变行为。`marks` 在 `06773cbcb` 上量得。快层场景另由闭包 `w4-mcp-unusable-fix` 重测，读数见上表下的说明。慢层场景除 `wide` 外没有重测。
+- 生命周期探索器的状态数：快层四行在 `0961b30e9` 上量得，与 `559be1514` 上的读数相同。`wide` 在 `eb6dfad90` 上量得。`bounds`、`two-keys`、`two-accounts` 的 head 未记录（2026-11-05，早于 `0b84a0bec`），没有重测；有限范围的「通过」另由 `0b84a0bec`、`deb5a977e` 与 `2b895ea2a` 上的用例运行支持。
+- 调用口探索器的状态数：上表在 `deb5a977e` 上量得，`marks` 在 `06773cbcb` 上量得。`deb5a977e` 之后的 `src/` 改动到 `035ac8fee` 为止是 `refresh` 的出口与上面两次入口判定，探索器不驱动 `refresh`，入口判定在探索器的合法输入上不改变行为。快层各场景另在 `eb6dfad90` 上重测：`call-faults` 是 932 个状态、2306 次重放（见上表下的说明），其余与上表相同。慢层场景没有重测。
 - 探索器的负控 N1–N10：`035ac8fee`。N11：`06773cbcb`。
 - 手工变异的 F 序列（F1–F19）与 C79、C80：`035ac8fee`。例外：F8 见「关停与停止的判定点」；F16、F17 在 `d966e05c1` 上重跑。之后两次入口判定的改动行由下面的差分变异覆盖。
 - 差分变异：`2b895ea2a` 上运行 `pnpm run mutation --base b2ba7dc89 --since 5204d3799`，范围是 `5204d3799` 之后全部改动行（含 C 序列碰过、之后又改过的行）。338 个变异体被杀 304 个，存活 30 个，没跑测试 4 个；运行器因「没跑测试」把这次测量判为无效，不给分数。存活按类处置：两个缺口各补一条用例（`a556e3374`），其余是等价、文本或运行器问题。处置表在卡 #1119 的证据评论里，账本在主检出 `tmp/mutation-ledger/2b895ea2a/20261106-075411/`。`a556e3374` 的入口改动在这次运行之后，由「reads each field of the request once…」与 R2 的三条用例守住。

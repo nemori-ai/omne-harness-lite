@@ -138,9 +138,9 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
   /**
    * The failure of a task request (S2, R7): `not-sent` is the connection failure, `no-answer` is
    * `effect-unknown` with the same cause, a JSON-RPC error and an unreadable answer are passed on.
-   * A failure that says the connection is lost (`loseIfLost`: the transport is not usable any more, or
-   * the authorization was refused) goes to the table first; its teardown goes on in the table's
-   * scope. Any other failure leaves the connection as it is.
+   * A failure that says the connection is lost (`lostOf`: the transport is not usable any more, or
+   * the authorization was refused) goes to the table first (`loseIfLost`); its teardown goes on in
+   * the table's scope. Any other failure leaves the connection as it is.
    */
   function failureOf(ensured: Ensured, failure: TransportFailure): OperationFailure {
     loseIfLost(table, ensured, failure)
