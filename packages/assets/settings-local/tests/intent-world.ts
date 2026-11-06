@@ -1,3 +1,13 @@
+import {
+  SETTINGS_SOURCE_CUSTODY_MIGRATION,
+  SETTINGS_SOURCE_CUSTODY_TABLES,
+} from '../src/source-custody-migration.ts'
+import type {
+  SourceCustodyPlan,
+  SourceCustodyMember,
+  SourceCustodyRecord,
+  SourceCustodyPage,
+} from '../src/source-custody-schema.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
@@ -100,9 +110,18 @@ export async function openIntentWorld(
         protocol: 'fixture-settings-intent/1',
         ...moduleFile('intent-reader'),
         ordering: 'snapshot',
-        readTables: ['st_governance_intent', 'st_governance_attempt', 'st_intent_standing'],
-        requiresMigrations: [SETTINGS_PREPARING_MIGRATION, SETTINGS_STANDING_CUSTODY_MIGRATION],
-        maxRowsRead: 3,
+        readTables: [
+          'st_governance_intent',
+          'st_governance_attempt',
+          'st_intent_standing',
+          ...SETTINGS_SOURCE_CUSTODY_TABLES,
+        ],
+        requiresMigrations: [
+          SETTINGS_PREPARING_MIGRATION,
+          SETTINGS_STANDING_CUSTODY_MIGRATION,
+          SETTINGS_SOURCE_CUSTODY_MIGRATION,
+        ],
+        maxRowsRead: 67,
         maxOutputBytes: 2 * 1024 * 1024,
       },
     ],
@@ -127,6 +146,45 @@ export async function openIntentWorld(
   if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
   return {
     root,
+    source(
+      command:
+        | { kind: 'plan'; input: SourceCustodyPlan }
+        | { kind: 'request'; input: SourceCustodyMember }
+        | { kind: 'record'; input: SourceCustodyRecord },
+      rollback = false,
+    ) {
+      return made.storage.commit({
+        identity: {
+          ...domain,
+          operation: 'fixture.intent.source',
+          protocolVersion: '2',
+          operationKey: randomUUID(),
+        },
+        combinationVersion: combination.combinationVersion,
+        manifestDigest: combination.manifestDigest,
+        commands: [
+          { participant: 'settings.persistence', facts: { source: json(command), rollback } },
+        ],
+      })
+    },
+    readSource(input: SourceCustodyMember) {
+      return made.storage.read({
+        domain,
+        handler: 'fixture.settings.intent-read',
+        protocol: 'fixture-settings-intent/1',
+        requestKey: randomUUID(),
+        input: json({ kind: 'source', input }),
+      })
+    },
+    readSources(input: SourceCustodyPage) {
+      return made.storage.read({
+        domain,
+        handler: 'fixture.settings.intent-read',
+        protocol: 'fixture-settings-intent/1',
+        requestKey: randomUUID(),
+        input: json({ kind: 'sources', input }),
+      })
+    },
     standing(command: StandingCommand) {
       return made.storage.commit({
         identity: {

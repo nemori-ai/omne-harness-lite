@@ -92,3 +92,6 @@ pnpm --filter @omne-harness/assets-local run test:fast
 [source-invalidation.spec.ts](source-invalidation.spec.ts) 使用真实 Identity、命令服务、独立目标和来源保留。它检查 set、clear、lock、unlock、rebase、定义、来源布局、grants 和退役均受保护。无关目标仍能写入，查询和原回执仍可读取。缺少来源事实或使用其他目标的许可不能绕过写者。竞争场景要求保留快照与实际提交顺序一致。
 
 这些测试不替代组织来源准入、目的终态 resolver、完整 prepare/commit/recovery 的验收。
+
+
+[source-custody.spec.ts](source-custody.spec.ts) 验证目的侧来源请求保管。它覆盖清单原子性与竞争、重排认回、来源集合和路由不可替换、精确回执、固定快照、终态不可回退、旧attempt及空清单。真实来源参与者场景在丢失回包后重开目的数据库，再认回同一保留。目的准入由具名夹具替代，终态和旧attempt场景使用明确的合成记录。65个来源的两页读取验证页长和无快照搬运；EXPLAIN确认复合主键且无需临时排序，不据此声称吞吐或延迟。

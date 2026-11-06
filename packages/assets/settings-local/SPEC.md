@@ -186,3 +186,18 @@ Ordinary settingsSqlMaterials installs a write-only source observation participa
 A write observation describes the requested operation. It does not attest to source state or authorization. Reserve requires a captured snapshot fact bound to its complete destination request. The retention participant recognizes an existing reservation before attempting a new hold. Source settlement, root-owned update completion and recovery must later consume their own trusted evidence without requiring a fresh source snapshot.
 
 Tests use real Identity, Settings services, independent ownership, source capture and retention to exercise held-source rejection, unrelated writes, original receipts and competing writes. A separately seeded pending gate verifies restart behavior when its held count is zero. That seed does not establish the production update admission or recovery coordinator. Asset holding invalidation and organization-source admission require their own owning-domain integration.
+
+
+## Destination custody of source requests
+
+`source-custody.ts` persists the complete source request set for one exact attempt before any external call. settings.persistence owns the manifest header and member rows. Both relations use same-owner foreign keys. They do not write source-owner tables.
+
+The manifest binds a canonical set of full source requests. Planning inserts the header and all members in one transaction. The digest includes every source and complete destination binding. Input order does not affect it. A different request set or a changed request route conflicts with the saved plan. No append operation exists. An explicit empty manifest is distinct from an absent plan. The provider permits at most1024 unique sources, matching the maximum policy input witnesses in CurrentBasis; byte limits also apply.
+
+The destination identity comes from the persisted root and exact attempt, not from a supplied receipt. Each member fixes its source domain/target, destination owner, principal, root operation, exact attempt, command digest and route. Planned members become requested only while the root is open and the exact attempt is preparing. The coordinator must commit requested before calling the source service.
+
+A matching source receipt can move requested to held or directly to settled. Held snapshots are immutable. Changed snapshots or contradictory terminal outcomes conflict. Late held replies cannot revive settled custody. Reply recording can address a terminal historical attempt without changing its successor. A receipt shape or deterministic key does not authenticate the source. The trusted coordinator must obtain the response from the actual source service.
+
+Manifest recognition reads its primary key. An exact member read uses three indexed point queries for root, attempt and member, each limited to one row. Recovery lists request metadata for an exact attempt through the composite primary key, with source_key continuation and a maximum page of64. It does not list snapshots. Recognizing one member does not rehash or read the full manifest.
+
+The immutable manifest partitions custody by attempt and source. Each member follows SettingsReservationCustody's state machine independently. The all-members-ready condition remains a preparation coordinator obligation. These private operations do not publish a ready basis, release external reservations or supply the public preparation backend.

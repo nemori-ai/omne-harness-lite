@@ -1,3 +1,7 @@
+import {
+  SETTINGS_SOURCE_CUSTODY_MIGRATION,
+  SETTINGS_SOURCE_CUSTODY_TABLES,
+} from './source-custody-migration.ts'
 import { sourceSnapshotMaterials } from './source-snapshot-materials.ts'
 import { sourceRetentionMaterials } from './source-retention-materials.ts'
 import { SOURCE_WRITE_FACT } from './source-write.ts'
@@ -47,6 +51,7 @@ export function settingsSqlMaterials(
   const intentMigration = file('intent-migration')
   const preparingMigration = file('preparing-migration')
   const standingCustody = file('standing-custody-migration')
+  const sourceCustody = file('source-custody-migration')
   const sources = file('source-layout-migration')
   const reader = file('read')
   const terminal = file('terminal-participant')
@@ -73,7 +78,12 @@ export function settingsSqlMaterials(
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: [...TABLES, ...SETTINGS_INTENT_TABLES, SETTINGS_STANDING_CUSTODY_TABLE],
+        ownedTables: [
+          ...TABLES,
+          ...SETTINGS_INTENT_TABLES,
+          SETTINGS_STANDING_CUSTODY_TABLE,
+          ...SETTINGS_SOURCE_CUSTODY_TABLES,
+        ],
         readTables: [],
         requiresFacts: [GUARD_FACT, TERMINAL_FACT, SOURCE_WRITE_FACT],
         providesFacts: [RESULT_FACT],
@@ -82,6 +92,12 @@ export function settingsSqlMaterials(
       },
     ],
     migrations: [
+      {
+        ...SETTINGS_SOURCE_CUSTODY_MIGRATION,
+        moduleUrl: sourceCustody.moduleUrl,
+        checksum: sourceCustody.digest,
+        requires: [SETTINGS_PREPARING_MIGRATION],
+      },
       ...retention.migrations,
       {
         ...SETTINGS_STANDING_CUSTODY_MIGRATION,

@@ -169,4 +169,9 @@ Seal可以终结preparing、prepared或submitted。不可逆终态阻止迟到Pu
 来源保留模型的关系实现入口现为settings-local的source-retention-schema、source-retention-migration与source-retention-records。门和held通过真实SQL测试装配持久化，具名夹具提供快照及目的终态。持有上限、精确清门和独立pending枚举已有关系测试，模型中的真实来源快照、全部失效写者、目的封口和根终结原子性仍须生产组合兑现。该增量不把完整SourceHoldsProtectRevision视为已接受的运行保证。
 
 
-source-snapshot的真实读取增量验证了模型中源快照的部分精化。实际拥有者、配值及锁来自同一SQL事务，事实绑定完整目的请求。消费协调仍由测试夹具提供，全部失效写者、目的终态和完整根提交组合尚未完成，不能由该读取测试推出保留期间来源始终稳定。
+source-snapshot的真实读取增量验证了模型中源快照的部分精化。实际拥有者、配值及锁来自同一SQL事务，事实绑定完整目的请求。真实来源保留与直接Settings失效写者已接通，组织来源准入、目的终态和完整根提交组合尚未完成，不能由该读取测试推出保留期间来源始终稳定。
+
+
+`source-custody.ts` 将同一保管状态机用于目的侧的每个来源请求。先在一个事务中固定完整集合，再按 `(attempt_id, source_key)` 分区推进。清单不可追加或替换，各成员只写自己的键，因此交错推进不改变其他成员的请求或终态。OneReservationIdentity按单一来源请求解释，不限制整个attempt只能有一个来源。
+
+来源清单原子性、完整绑定和SQL键分区由实际数据库测试守护；现有单请求TLA模型没有枚举1024项清单或证明哈希无碰撞。进入prepared仍须核对全部必需成员，属于bootstrap模型及后续真实协调器的责任。丢包/重开测试使用实际来源快照和保留参与者；终态回执及旧attempt仍有夹具边界。不能把这些局部结论写成完整恢复服务已交付。
