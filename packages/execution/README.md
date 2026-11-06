@@ -24,6 +24,12 @@ Execution Environment 按纯契约、Cordis 服务定义、机制实现、Servic
 
 集成方（工具宿主、独立调用者）经契约的 `ExecutionEnvironment` 操作取落点、租约与设施；提供者经 `ProviderRegistrations` 登记并撤除；维护者经同一服务的恢复入口结算作用域资源，用恢复查询读原获取的状态；观察者经 Runtime Context 读 `execution.placement` 与 `execution.host-facts`。跨成员流程与按读者的阅读路径归[组协作入口](docs/key-flows.md)。单成员流程归各成员 `docs/flows.md`。许可、终局与采用记录的耐久提交由集成方的账本兑现，本组成员只给材料。
 
+### 依赖外部领域的缺口
+
+- **会话归档不封闭保留范围。**保留终端与一次性命令留下的保留进程只在三种情况下结束：进程自己退出、保留范围封闭、被显式停止（显式停止尚未实现）。保留范围封闭要由维护者调用本组的 `releaseScope`。会话归档应当触发这次调用，但会话归档归 Session 与应用装配，不归本组；应用现在没有接这条线（[应用 SPEC](../../apps/harness-server/SPEC.md#releasescope-wiring)）。
+- **后果。**会话结束之后，它的保留进程与保留终端继续运行，直到进程自己退出或宿主重启。每个保留范围的保留进程数有上限（`retainedPerScope`，初值 8），但保留范围随会话增多，没有总上限。
+- **收敛条件。**Session 定下归档时的作用域释放（上层候选设计见[作用域释放](../../docs/architecture/runtime/control-and-recovery.md#作用域释放)：由 Session 的作用域释放插件担任维护者），应用在归档的同一流程里调用 `releaseScope`。本组的入口与登记表层用例已经就绪，不需要改本组。接线之后，用一条端到端场景核对：会话归档后，它的保留进程被停止，并经监督者确认。
+
 ## 组合验证
 
 契约成员的验证覆盖纯函数、导出面与 schema。宿主 `files` 四项操作的授权核对、关闭失败处置、结果四态与登记匹配在 `-host-local` 与 `execution-environment` 的包测试里有回归，运行记录见各成员 `SPEC.md`。跨成员性质（许可先于首个外部效果、释放 `pending` 的认回、作用域释放后的恢复）由集成方与本组成员联合验证，当前没有真实集成方，没有运行证据。图像成员的预算、拒绝、编码和关闭由该成员自己的 SPEC 验证，命令是 `pnpm --filter @omne-harness/image test`。mock、图与结构通过不证明真实组合保证。
