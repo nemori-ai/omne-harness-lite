@@ -77,5 +77,5 @@
 
 ## 未覆盖
 
-- `docs/architecture/constraints.json` 没有映射本包 `src/` 与 mcp-cordis-contract 的入口责任，`package-template scan` 为此报 `integration` 为 `unknown`，IC-5 与 LAYER-DIP、LAYER-ENTRY 的条目都是 `unknown`。该文件归集成线，本包不改。上表的人工核对栏写出了核对的内容。
+- `docs/architecture/constraints.json` 没有映射本包 `src/` 与 mcp-cordis-contract 的入口责任，`package-template scan` 为此报 `integration` 为 `unknown`，IC-5、LAYER-DIP、LAYER-ENTRY 与角色（ROLE）的条目都是 `unknown`；IC-2 的条目是 `converged`。该文件归集成线，本包不改。上表的人工核对栏写出了核对的内容。
 - 其余见 [SPEC「Cordis 插件的验证」](../SPEC.md#cordis-plugin-verification)的「没有覆盖」。
