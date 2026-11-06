@@ -36,6 +36,7 @@
 | `accessCheck`   | 每个公开读与写的当前访问裁定，没有默认权限                      | 无，必填   |
 | `cursorSigning` | 游标签名能力，由应用注入                                        | 无，必填   |
 | `combination`   | 应用为租户作用域登记的 `combinationVersion` 与 `manifestDigest` | 无，必填   |
+| `intakeLimits` | 构造时校验并复制的普通输入预算，公开命令不能覆盖 | Session 统一初值：64 个、1048576 字节 |
 | `attemptLimit`  | 一个 Session 操作最多开的尝试代次数                             | 8          |
 | `cursorTtlMs`   | 游标有效期（毫秒）                                              | 15 分钟    |
 | `now`           | 时钟，用于游标过期                                              | `Date.now` |
@@ -52,3 +53,5 @@ SPEC 设计的内联阈值、大对象去向、`pageBytes` 上限、`maxScanPerP
 | 本成员返回的失败与处置方                                                            | [失败分类](../SPEC.md#失败分类)                              |
 | 游标的绑定与验证                                                                    | [R2](../SPEC.md#r2)、[C-03](../SPEC.md#c-03)                 |
 | 品牌字符串与 64 位位置的编码                                                        | [TB-03](../SPEC.md#tb-03)                                    |
+
+`sessionCommandFacts` 的可选预算参数只供可信集成使用，约束见 [可信传递](../SPEC.md#普通输入预算的可信传递)。

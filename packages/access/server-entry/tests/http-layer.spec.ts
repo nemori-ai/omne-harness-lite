@@ -1,5 +1,6 @@
 // The HTTP layer before the public judgment order: loopback only, path, method, Host,
 // Content-Type, the body limit per path, the entry's own fault, and stop.
+import { request, type ClientRequest } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createServerEntry } from '../src/index.ts'
 import {
@@ -291,5 +292,63 @@ describe('stop', () => {
     await fixture.stop()
     await expect(send(port, GOVERNANCE_PATH, { body: '{}' })).rejects.toThrow()
     fixture = undefined
+  })
+})
+
+describe('bounded request admission', () => {
+  it('rejects an unread body when all request slots are occupied without invoking Session', async () => {
+    fixture = await startFixture({ config: { maxInFlightRequests: 2 } })
+    const port = fixture.port
+    const blockers: ClientRequest[] = []
+    try {
+      for (let index = 0; index < 2; index += 1) {
+        await new Promise<void>((resolve, reject) => {
+          const req = request({
+            hostname: '127.0.0.1',
+            port,
+            path: SESSION_PATH,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': '100',
+              Expect: '100-continue',
+            },
+          })
+          blockers.push(req)
+          req.once('continue', resolve)
+          req.once('error', reject)
+          req.flushHeaders()
+        })
+      }
+      const result = await new Promise<{
+        status: number | undefined
+        reason: string | string[] | undefined
+      }>((resolve, reject) => {
+        const req = request(
+          {
+            hostname: '127.0.0.1',
+            port,
+            path: SESSION_PATH,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': '100' },
+          },
+          res => {
+            clearTimeout(timer)
+            res.resume()
+            resolve({ status: res.statusCode, reason: res.headers['x-omne-limit'] })
+          },
+        )
+        req.on('error', reject)
+        const timer = setTimeout(
+          () => req.destroy(new Error('did not reject the unread body')),
+          1000,
+        )
+        req.flushHeaders()
+      })
+      expect(result).toEqual({ status: 429, reason: 'in-flight-requests' })
+      expect(fixture.session.controls.calls()).toEqual([])
+    } finally {
+      for (const req of blockers) req.destroy()
+    }
   })
 })

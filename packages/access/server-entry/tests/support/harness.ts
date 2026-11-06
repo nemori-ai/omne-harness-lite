@@ -65,6 +65,7 @@ export function baseConfig(overrides: Partial<ServerEntryConfig> = {}): ServerEn
   return {
     listenAddress: '127.0.0.1',
     listenPort: 0,
+    maxInFlightRequests: 64,
     maxBodyBytes: { small: 2048, input: 65536 },
     heartbeatIntervalMs: 40,
     jsonBudgets: {

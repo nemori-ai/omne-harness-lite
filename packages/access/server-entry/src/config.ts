@@ -12,6 +12,8 @@ export type ServerEntryConfig = Readonly<{
   listenAddress: string
   /** 0 asks the host for a free port. */
   listenPort: number
+  /** Requests reading a body or executing a command; established SSE streams have their own budget. */
+  maxInFlightRequests: number
   /** The request body limits of the two paths, in bytes. */
   maxBodyBytes: Readonly<{ small: number; input: number }>
   /** The SSE heartbeat interval. */
@@ -47,6 +49,7 @@ export function checkConfig(config: ServerEntryConfig): ServerEntryConfig {
   if (typeof config.listenAddress !== 'string')
     throw new ServerEntryConfigError('server-entry: listenAddress must be a string')
   nonNegativeInteger(config.listenPort, 'listenPort')
+  positiveInteger(config.maxInFlightRequests, 'maxInFlightRequests')
   positiveInteger(config.maxBodyBytes.small, 'maxBodyBytes.small')
   positiveInteger(config.maxBodyBytes.input, 'maxBodyBytes.input')
   positiveInteger(config.heartbeatIntervalMs, 'heartbeatIntervalMs')

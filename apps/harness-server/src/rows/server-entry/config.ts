@@ -33,6 +33,7 @@ export const serverEntryConfig = z.strictObject({
   /** The operator has to know the port, so `0` (a host-chosen port) is not accepted. */
   listenPort: z.number().int().min(1).max(65535).default(8787),
   maxBodyBytes: maxBodyBytes.prefault({}),
+  maxInFlightRequests: positive.default(64),
   heartbeatIntervalMs: positive.default(15000),
   jsonBudgets: jsonBudgets.prefault({}),
   maxPageBytes: positive.default(1048576),

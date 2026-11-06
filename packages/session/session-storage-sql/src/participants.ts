@@ -1,3 +1,4 @@
+import { sessionIntakeLimits, type SessionIntakeLimits } from '@omne-harness/session-contract'
 // The participant vocabulary of the Session log combination: the participant names, their facts
 // protocols, the builders of the facts a committer sends and the decoders of the replies and read
 // outputs it gets back. The functions are pure functions over the data formats. This entry imports
@@ -70,14 +71,20 @@ export const EXECUTION_RECORD_HANDLERS = {
 // ---------------------------------------------------------------------------------------------
 // The `session` participant
 
-/** The facts of one Session command with its guards, as `createSessionStorage` sends them. */
+/** Trusted integration facts, never caller-controlled budgets. Production storage fixes limits at construction. */
 export function sessionCommandFacts(
   command: SessionCommand,
   guards: readonly GuardCommand[],
+  intakeLimits?: SessionIntakeLimits,
 ): FactCommandV2 {
   return {
     participant: SESSION_PARTICIPANT,
-    facts: { intent: 'command', command: encodeValue(command), guards: encodeValue(guards) },
+    facts: {
+      intent: 'command',
+      command: encodeValue(command),
+      guards: encodeValue(guards),
+      intakeLimits: encodeValue(sessionIntakeLimits(intakeLimits)),
+    },
   }
 }
 

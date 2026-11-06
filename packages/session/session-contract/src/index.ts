@@ -258,3 +258,11 @@ export {
   type SessionDelegatedTransactions,
   type SessionReadAccessOperation,
 } from './access.ts'
+
+export {
+  DEFAULT_SESSION_INTAKE_LIMITS,
+  sessionIntakeLimits,
+  sessionInputBytes,
+  judgeSessionIntake,
+} from './intake.ts'
+export type { SessionIntakeLimits } from './intake.ts'

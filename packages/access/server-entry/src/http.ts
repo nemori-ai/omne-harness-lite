@@ -190,6 +190,7 @@ export function createServerEntry(input: {
   let listening: Listening | undefined
   let stopping = false
   let inFlight = 0
+  let activeRequests = 0
   const drained: (() => void)[] = []
 
   const settle = (): void => {
@@ -260,16 +261,25 @@ export function createServerEntry(input: {
       writeJson(res, { ...location.protocolRejected(), status: 415 }, false)
       return
     }
-    const body = await readBody(req, location.maxBytes)
-    if (body.kind === 'aborted') {
-      res.destroy()
+    if (activeRequests >= config.maxInFlightRequests) {
+      writeEmpty(res, 429, { connection: 'close', 'x-omne-limit': 'in-flight-requests' })
       return
     }
-    if (body.kind === 'over') {
-      writeJson(res, { ...location.protocolRejected(), status: 413 }, true)
-      return
+    activeRequests += 1
+    try {
+      const body = await readBody(req, location.maxBytes)
+      if (body.kind === 'aborted') {
+        res.destroy()
+        return
+      }
+      if (body.kind === 'over') {
+        writeJson(res, { ...location.protocolRejected(), status: 413 }, true)
+        return
+      }
+      write(res, await answerOf(location, body.bytes))
+    } finally {
+      activeRequests -= 1
     }
-    write(res, await answerOf(location, body.bytes))
   }
 
   const onRequest = (req: IncomingMessage, res: ServerResponse): void => {

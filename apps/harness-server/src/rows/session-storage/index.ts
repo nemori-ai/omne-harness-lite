@@ -353,6 +353,7 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
     register: registerWith(storage, combination),
   })
   const base: SessionStorageOptions<unknown> = {
+    intakeLimits: config.intakeLimits,
     storage,
     domains: directory.access,
     accessCheck,

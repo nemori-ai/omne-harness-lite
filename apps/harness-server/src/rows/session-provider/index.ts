@@ -10,7 +10,7 @@
 // `sessionPrincipals` or `sessionWorkPrincipals`: a double needs no storage and runs no work, but
 // the injects keep the visibility and the start order of the row what the real provider needs.
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionFaces } from '@omne-harness/session-contract'
+import type { SessionFaces, SessionIntakeLimits } from '@omne-harness/session-contract'
 import {
   SessionService,
   sessionAccessCheckKey,
@@ -29,6 +29,7 @@ export { sessionProviderRealRow as sessionProviderRow } from './real.ts'
 export type CreateSessionProviderRowOptions = Readonly<{
   /** Receives one arrival per call that reaches the double: classes and verdicts, no credentials. */
   observe?: ArrivalObserver
+  intakeLimits?: SessionIntakeLimits
 }>
 
 // The faces are fields, set once from one memory. The class has no `#` field: a call through the
@@ -71,6 +72,7 @@ export function createSessionProviderRow(options: CreateSessionProviderRowOption
           createSessionProviderFaces({
             accessCheck: ctx.sessionAccessCheck,
             observe: options.observe,
+            ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
           }),
         )
       },

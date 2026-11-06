@@ -72,6 +72,8 @@
 - 服务端在第 6 步之前不知道消息是不是 `observe-session`。所以第 1 步到第 5 步的失败都不是 SSE 响应。
 - 状态 500 且响应体为空，表示服务端接入没有可信答复。何时给出它归[服务端接入规格](../../server-entry/SPEC.md#服务端的-http-层责任)。
 
+服务端可以在读取 body 前按在途请求预算拒绝新请求。此时返回空正文的 429、`x-omne-limit: in-flight-requests` 并关闭连接。这次请求未调用业务端口。它不同于带公开响应正文的 Session `limited`，具体预算归 [服务端 HTTP 责任](../../server-entry/SPEC.md#服务端的-http-层责任)。
+
 ### 头的比较
 
 - `Host`：请求恰有一个 `Host` 头。去掉端口部分后，主机名按 ASCII 不区分大小写，等于 `127.0.0.1` 或 `localhost`。端口不比较。`Host` 头缺失、重复，或主机名不符，都是第 3 步的失败。
@@ -99,6 +101,7 @@
 | `conflict` | 409 |
 | `archived` | 409 |
 | `frozen` | 409 |
+| `limited` | 429 |
 | `unsupported` | 501 |
 | `stage-not-provided` | 501 |
 | `basis-unavailable` | 503 |

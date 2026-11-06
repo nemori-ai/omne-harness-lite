@@ -4,6 +4,8 @@
 // never begins, commits or rolls back, and it writes no rule of its own.
 import {
   commandDigest,
+  sessionIntakeLimits,
+  type SessionIntakeLimits,
   decide,
   judgeIdle,
   reduce,
@@ -1128,6 +1130,7 @@ function runCommand(
   guards: readonly GuardCommand[],
   evidence: string | null,
   port: ParticipantPort,
+  intakeLimits: SessionIntakeLimits,
 ): ParticipantReply {
   const start = commandStart(command, port)
   if (!isStart(start)) return start
@@ -1141,6 +1144,7 @@ function runCommand(
     history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
   const decision: Decision = decide(prepared, command, guards, recordOf(command, start), {
     ...reads,
+    intakeLimits,
     ...(history === null ? {} : { history: history.reads }),
   })
   return settleDecision(port, { command, guards, evidence }, start, decision, { prepared, history })
@@ -1328,6 +1332,19 @@ function storeEvidence(
 }
 
 /** The command intent: the command with its guards and evidence, answered with its digest. */
+function intakeLimitsOf(value: JsonValue | undefined): SessionIntakeLimits | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  if (!('maxPendingInputs' in value) || !('maxInputBytes' in value)) return null
+  const { maxPendingInputs, maxInputBytes } = value
+  if (typeof maxPendingInputs !== 'number' || typeof maxInputBytes !== 'number') return null
+  try {
+    return sessionIntakeLimits({ maxPendingInputs, maxInputBytes })
+  } catch (error) {
+    if (error instanceof TypeError) return null
+    throw error
+  }
+}
+
 function runCommandFacts(
   facts: Readonly<Record<string, JsonValue>>,
   port: ParticipantPort,
@@ -1356,7 +1373,10 @@ function runCommandFacts(
       kind: 'unsupported',
       basis: { reason: 'the access evidence of the command is not a durable evidence' },
     }
-  const reply = runCommand(command, guards, evidence, port)
+  const intakeLimits = intakeLimitsOf(facts['intakeLimits'])
+  if (intakeLimits === null)
+    return { kind: 'unsupported', basis: { reason: 'invalid intake limits' } }
+  const reply = runCommand(command, guards, evidence, port, intakeLimits)
   // The digest of the command travels with the answer, so a later caller can tell a recall of the
   // same command from the same identity used for another command (SL07).
   return reply.kind === 'participated'

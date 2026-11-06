@@ -50,11 +50,19 @@
 | 静态材料                              | 两个参加者 `execution-record` 与 `session`（`grouping` 都为 `singleton`）；十一个迁移 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`、`session/004-state-items`、`session/005-attempt-grant`、`execution-record/001-execution-record`、`execution-record/002-preadmission`、`execution-record/003-admission-attempt`、`execution-record/004-state-parts`、`execution-record/005-fact-body` 与 `execution-record/006-fact-blob`；二十个 `snapshot` 读 handler：`session.work`、`session.work-version`、`session.binding`、`session.work-index`、`session.work-reads`、`session.input`、`session.model-selection`、`session.history`、`session.model-view`、`session.pending`、`session.references`、`session.released-scopes`、`session.history-root`、`session.execution`、`execution-record.facts`、`execution-record.open-executions`、`execution-record.events`、`execution-record.operation`、`execution-record.blob`、`execution-record.preadmission`。`session.work` 另读 `sl_state_item`、`sl_entry` 与 `er_` 同根索引表；`session.work-version` 只读 `sl_journal` 与 `er_root` 两次主键点查（[RT-04](#rt-04)）；`session.binding` 只读 `sl_journal` 的主键点查与 `sl_entry` 里第一批（修订 1）的条目，不读 `sl_state`（[BD-01](#bd-01)）。每个模块带文件摘要。参加者与迁移的材料变化改变组合的清单摘要，读 handler 不进清单，见第 17 条   |
 | 当前表                                | `sl_journal`、`sl_entry`、`sl_operation`、`sl_state`、`sl_state_item`、`sl_input`、`sl_model_view`、`sl_annotation_idx`、`sl_pending_idx`、`sl_resident_idx`、`sl_released_scope_idx`，另有 `sl_kind_idx` 与 `sl_operation_revision_idx` 两个二级索引。执行索引 `sl_execution_idx` 也归 `session`，见[执行索引](#执行索引)。操作的访问证据 `sl_operation_evidence` 也归 `session`，见[操作记录的访问证据](#操作记录的访问证据)。attempt 的授予 `sl_attempt_grant`（二级索引 `sl_attempt_grant_position_idx`）也归 `session`，见[attempt 的授予](#attempt-的授予)。`execution-record` 拥有 `er_root`、`er_operation`、`er_execution`、`er_fact`、`sl_blob`、`er_admission_idx`、`er_admission_attempt_idx`、`er_preadmission`，二级索引 `er_execution_session_idx`、`er_fact_execution`，唯一索引 `er_preadmission_entry_idx`、`er_fact_event`、`er_fact_operation`。迁移 006 删除了 `er_state`、`er_state_part`、`er_fact_idx`、`er_fact_body` 与 `er_batch_idx`，见[已知限制](#已知限制)第 18 条。列见[对象模型](docs/object-model.md)   |
 | 尚未实现的设计                        | `sl_batch`、`sl_ref_idx`、`sl_rebuild`；TB-04 在条目一侧的内联阈值与 `payload_ref`（`sl_blob` 已落地，只由 `execution-record` 写入）；R9 的追赶与重建、`fold_version`、解释版本记录与隔离；R4 的按关联定位；PostgreSQL；`maxScanPerPage` 与读路径的逐条披露核对；配置项「内联阈值」「大对象去向」「快照重建方式」。`sl_state` 落后时 handler 返回 `behind`，端口映射为 `unavailable`，没有自动追赶                                                                                                                                                                               |
-| 与设计的差异                          | 提交身份的 `protocolVersion` 为 `2`，`scope` 为租户域，`operationKey` 为 `<SessionOperationId>#<代次>`。待办原因有八个，含 `initialization`（与 `PendingReason` 一致，下文 W3 与 R8 写「七个」处按八个读）。`sl_operation.form` 有 `batch`、`control`、`answer`、`entries`、`log` 五种，`answer` 行没有 `revision`。尝试代次上限初值为 8，游标有效期初值为 15 分钟。`commit` 先对各代次调用存储 `query`，不先点查 `sl_operation`；参加者模块不另核对材料集合，交给 `decide`；提交结果从回执的响应证据取出，不读回 `sl_operation` |
+| 与设计的差异                          | 提交身份的 `protocolVersion` 为 `2`，`scope` 为租户域，`operationKey` 为 `JSON.stringify([SessionId, SessionOperationId, attempt])`。待办原因有八个，含 `initialization`（与 `PendingReason` 一致，下文 W3 与 R8 写「七个」处按八个读）。`sl_operation.form` 有 `batch`、`control`、`answer`、`entries`、`log` 五种，`answer` 行没有 `revision`。尝试代次上限初值为 8，游标有效期初值为 15 分钟。`commit` 先对各代次调用存储 `query`，不先点查 `sl_operation`；参加者模块不另核对材料集合，交给 `decide`；提交结果从回执的响应证据取出，不读回 `sl_operation` |
 | R7 的现状（Reduce R1-D23 按源码改写） | 未命中 `sl_operation` 的操作，在代次 1 得到存储 `not_committed` 时，`queryOperation` 与 `queryControlOperation` 对外答 `unknown`，与上文 R7 正文一致。源码里 `exclusion()` 仍构造 `not-committed` 与排除证据，但 `unfound()` 把它映射为 `unknown`，这份证据不到达调用方，见[已知限制](#已知限制)。真实 sqlite-provider 对从未使用的身份答带五项证明的 `not_committed`，`queryOperation` 仍答 `unknown`（`tests/real-provider.spec.ts`）                                                                                   |
 | R10、R11 系统读游标的现状 | R10 的续读游标绑定种类、目录修订与 `key`（载荷的可选字段 `key`，ResidentKey 文本）。验证时 `key` 缺省按 null 比较，不等时答 `invalid`，`field` 为 `cursor`，reason 为 `issued for another key`。R11 的游标不带 `key`，也不带目录修订。`key` 不放进租户或会话字段，因为系统读的这两个字段按协议为空。实现升级前签发、没有 `key` 的 R10 游标按新规则答 `invalid`；游标有效期 15 分钟且 M2 没有发行，按可接受的协议收紧处理。真实 sqlite-provider 上的系统读用例见 `tests/real-system-reads.spec.ts`；索引行直接写入域文件，只验证读取路径，不验证 W3 对索引的维护 |
 
-### 已知限制
+#### 普通输入预算的可信传递
+
+`SessionStorageOptions.intakeLimits` 在构造提供者时校验并复制。默认值引用 Session 的 `DEFAULT_SESSION_INTAKE_LIMITS`。生产提供者每次提交使用这份固定配置，公开 Session 命令不能传入或覆盖预算。
+
+`sessionCommandFacts` 是可信集成入口，可显式接收预算；它不是外部用户输入。其事实把预算送给 SQL 参加者，参加者在同一事务读取快照、调用 `decide`、写条目并推进修订。并发调用不能通过事前读取剩余容量绕开此提交边界。具体计量和 `limited` 结果归 [普通输入准入预算](../session-contract/SPEC.md#普通输入准入预算)。
+
+租户由存储作用域隔离，存储操作键再以 JSON 数组编码会话、原操作和技术重试代次。分隔符出现在字段内不会引入碰撞。不同会话的同名操作分别提交和查询，技术重试不改变业务操作身份。
+
+## 已知限制
 
 <a id="已知限制"></a>
 
@@ -361,7 +369,7 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 
 **W1 Session 为提交方的提交。**`SessionTransactionPort.commit` 按下列步骤执行。`session` 的流水线（[CP-01](../session/SPEC.md#cp-01)）在事务外完成它的第 1 至第 4 步，本成员从 CP-01 的第 5 步接手。时序见[写路径](docs/flows.md#写路径session-为提交方)。
 
-1. 选尝试代次并构造存储操作身份。代次的规则见下文的[尝试代次](#w1-attempts)。身份的 `scope` 与 `transactionDomain` 取自应用目录里该租户的事务域，`operation` 为 `SessionOperationId`，`operationKey` 为 `<SessionOperationId>#<代次>`，`protocolVersion` 为 `2`。规范化 `{ command, guards }` 为 JSON 值：位置、序号与 epoch 都是十进制文本，租户与工作区经 legal-identity 的编码写成带标记的文本，没有 BigInt、`undefined`、`Date` 或函数。Session 操作的输入摘要由 `commandDigest` 给出，写进 `sl_operation.input_digest`。调用前先向访问裁定取一次当前决定，访问不指名该命令的租户与会话时直接 `denied`。经委派视图提交时不取决定，改为核对视图绑定的请求与本次命令（租户、Session、命令摘要），不一致答 `denied`，证据取自绑定。两条路径取得的证据（公开端口的当次裁定，或视图的绑定证据）都随命令事实交给参加者，参加者在同一事务里写入 `sl_operation_evidence`，见[操作记录的访问证据](#操作记录的访问证据)。
+1. 选尝试代次并构造存储操作身份。代次的规则见下文的[尝试代次](#w1-attempts)。身份的 `scope` 与 `transactionDomain` 取自应用目录里该租户的事务域，`operation` 为 `SessionOperationId`，`operationKey` 为 `JSON.stringify([SessionId, SessionOperationId, attempt])`，`protocolVersion` 为 `2`。规范化 `{ command, guards, intakeLimits }` 为 JSON 值：位置、序号与 epoch 都是十进制文本，租户与工作区经 legal-identity 的编码写成带标记的文本，没有 BigInt、`undefined`、`Date` 或函数。Session 操作的输入摘要由 `commandDigest` 给出，写进 `sl_operation.input_digest`。调用前先向访问裁定取一次当前决定，访问不指名该命令的租户与会话时直接 `denied`。经委派视图提交时不取决定，改为核对视图绑定的请求与本次命令（租户、Session、命令摘要），不一致答 `denied`，证据取自绑定。两条路径取得的证据（公开端口的当次裁定，或视图的绑定证据）都随命令事实交给参加者，参加者在同一事务里写入 `sl_operation_evidence`，见[操作记录的访问证据](#操作记录的访问证据)。
 2. 调用存储契约的 `commit`，命令数组只有一条 `participant` 为 `session` 的命令。`rejected_before_accept` 映射为 `unavailable`，不改写为业务拒绝；其中 `writer_not_current` 映射为 `commit-unknown`。`unknown` 映射为 `commit-unknown`。`identity_conflict` 说明同一 Session 操作的另一次尝试已经用了这个代次：已有回执为 `committed` 时，端口从该回执的响应证据取出原结果，摘要相同则返回，`recovered` 为真，摘要不同则返回 `conflict`；已有回执为 `rolled_back` 时，回到第 1 步选下一个代次。
 3. Worker 内，`session` 模块收到 `facts` 与语句端口。先核对材料：每个 `GuardCommand` 的 `owner`、`participant`、`protocol` 与该命令种类要求的材料集合一致。集合按[共同提交表](../session-contract/SPEC.md#共同提交与共享事务域)的「参加者」列固定在本成员的材料表里。缺一项或多一项，响应「不支持」，不写任何行。
 4. 点查 `sl_operation`，得到该操作的 `OperationRecord`，没有时为 null。认回由第 6 步的 `decide` 判定，本步只读行。
@@ -384,7 +392,7 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 
 <a id="w1-attempts"></a>
 
-**尝试代次。**一个 Session 操作可以有多次存储提交尝试，每次尝试用一个新的存储操作身份 `<SessionOperationId>#<代次>`，代次是从 1 起的十进制文本。存储契约规定同身份同摘要返回已保存的回执，`rolled_back` 回执也持久保存，所以一个存储身份只能承载一次尝试。本成员不为代次另存状态，代次由存储回执推出。第 1 步之前按下列顺序选代次：
+**尝试代次。**一个 Session 操作可以有多次存储提交尝试，每次尝试用一个新的存储操作身份 `JSON.stringify([SessionId, SessionOperationId, attempt])`，代次是从 1 起的安全整数。存储契约规定同身份同摘要返回已保存的回执，`rolled_back` 回执也持久保存，所以一个存储身份只能承载一次尝试。本成员不为代次另存状态，代次由存储回执推出。第 1 步之前按下列顺序选代次：
 
 1. 点查 `sl_operation`。命中时返回原回执，`recovered` 为真，不提交。
 2. 未命中时，按代次 1、2、… 逐个调用存储契约的 `query`，读法与 [R7](#r7) 相同：
@@ -607,11 +615,11 @@ queryOperation(access, operation):
 
 本成员不自己构造「明确未提交」。旧写代际未排除、队列里仍有该操作、恢复未完成时，提供者只给 `unknown`，本成员照传。
 
-参加操作是执行记录提供者发起的共同提交里 Session 一侧的操作，它的 `SessionOperationId` 从 execution、提交方操作身份与提交种类派生（[OP-00](../session-contract/SPEC.md#op-00)）。这类提交的存储操作身份归 Agent，不是 `<SessionOperationId>#<代次>`。用 Session 身份查存储只会查到从未用过的身份，可能得到带证明的 `not_committed`，而携带 Session 事实的 Agent 提交之后仍可能成立。所以 R7 对未命中的参加操作只返回 `unknown`，它的认回走 Agent 的原操作查询（[PA-05](../session-contract/SPEC.md#pa-05)）。
+参加操作是执行记录提供者发起的共同提交里 Session 一侧的操作，它的 `SessionOperationId` 从 execution、提交方操作身份与提交种类派生（[OP-00](../session-contract/SPEC.md#op-00)）。这类提交的存储操作身份归 Agent，不是 `JSON.stringify([SessionId, SessionOperationId, attempt])`。用 Session 身份查存储只会查到从未用过的身份，可能得到带证明的 `not_committed`，而携带 Session 事实的 Agent 提交之后仍可能成立。所以 R7 对未命中的参加操作只返回 `unknown`，它的认回走 Agent 的原操作查询（[PA-05](../session-contract/SPEC.md#pa-05)）。
 
 辨认参加操作要从 `SessionOperationId` 看出派生种类。契约的 `SessionOperationId` 是不透明的品牌字符串，本成员不解析它（[TB-03](#tb-03) 同理）。辨认入口是一条[明确缺项](#明确缺项)。补上之前，R7 对 `sl_operation` 未命中的操作一律按 Session 提交的操作探查代次，只改一处：代次 1 为 `not_committed` 时返回 `unknown`，不返回 `not-committed`。理由如下：
 
-- 参加操作从不使用 `<SessionOperationId>#<代次>` 这个存储身份，所以探查它只会在代次 1 得到 `not_committed`，现在返回 `unknown`，不会误判为未提交。
+- 参加操作从不使用 `JSON.stringify([SessionId, SessionOperationId, attempt])` 这个存储身份，所以探查它只会在代次 1 得到 `not_committed`，现在返回 `unknown`，不会误判为未提交。
 - 探查到 `committed`、`rolled_back` 或 `unknown` 的身份一定是 Session 提交过的操作，`attempt-rejected` 与 `unknown` 照常给出。
 - 代价是 Session 提交的操作在代次 1 从未受理时也只得到 `unknown`。原发起者仍可用同一身份重做命令，[W1 的尝试代次](#w1-attempts)按回执选代次，不依赖 R7 的辨认。
 
@@ -783,7 +791,7 @@ releasedScopes(principal, scope = system, after, limit):
 | `sl_released_scope_idx`                                | 只取当前已归档的会话：从它最近一次归档之后的 SE25 释放读回逐条重新生成。撤销归档的会话没有行                                                                                                                                                                          |
 | `sl_state`、`sl_state_item`                            | 从创建批次起 `reduce` 全部批次，再按[快照的存储形态](#快照的存储形态)拆分；比较拼出的快照，不比较分块边界与令牌                                                                                                                                                       |
 | `sl_journal.tail`、`commit_seq`、`epoch`、`epoch_base` | 分别等于最后一条条目的位置、`sl_batch` 的行数、`sl_model_view` 的最大 epoch 与该 epoch 首个压缩记录行的位置                                                                                                                                                           |
-| `sl_operation` 的每一行                                | 与提供者的已提交回执对应：Session 提交的操作，每行至少有一个代次的已提交回执，身份为 `<operation>#<代次>`。`decide` 认回时响应「参加」不写行，这样的代次也有已提交回执；参加操作的行对应执行记录提供者那次提交的回执。反过来，每个已提交回执去掉代次后都有 Session 行 |
+| `sl_operation` 的每一行                                | 与提供者的已提交回执对应：Session 提交的操作，每行至少有一个代次的已提交回执，身份为 `JSON.stringify([session, operation, attempt])`。`decide` 认回时响应「参加」不写行，这样的代次也有已提交回执；参加操作的行对应执行记录提供者那次提交的回执。反过来，每个已提交回执去掉代次后都有 Session 行 |
 
 检查方式：符合性套件把重算结果写入同形的影子表，再按主键做集合差。差为空才通过。全量检查在验证计划里按会话抽样执行，每次提交后的增量检查只比对本批触及的键。
 

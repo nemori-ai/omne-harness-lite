@@ -42,7 +42,7 @@ test('the operation set and the session-only outcomes are closed', () => {
     | 'stop-call'
   >()
   expectTypeOf<SessionOutcomes['create-session']>().toEqualTypeOf<
-    'succeeded' | 'denied' | 'invalid' | 'conflict' | 'basis-unavailable' | 'unknown'
+    'limited' | 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'basis-unavailable' | 'unknown'
   >()
   expectTypeOf<SessionOutcomes['query-create-session']>().toEqualTypeOf<
     'succeeded' | 'denied' | 'basis-unavailable' | 'unknown'
@@ -51,6 +51,7 @@ test('the operation set and the session-only outcomes are closed', () => {
     'succeeded' | 'denied' | 'invalid' | 'basis-unavailable'
   >()
   expectTypeOf<SessionOutcomes['send-input']>().toEqualTypeOf<
+    | 'limited'
     | 'succeeded'
     | 'denied'
     | 'invalid'

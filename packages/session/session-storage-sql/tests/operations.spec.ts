@@ -67,7 +67,7 @@ const identityOf = (operation: string, attempt: number) =>
     transactionDomain: 'dom_0',
     operation: operationId(operation),
     protocolVersion: '2',
-    operationKey: `${operationId(operation)}#${attempt}`,
+    operationKey: JSON.stringify(['session-1', operationId(operation), attempt]),
   }) as const
 
 async function started() {
@@ -153,22 +153,42 @@ describe('SL07: an operation identity belongs to one operation, whatever its for
     expect(failureOf(asControl)).toEqual({ kind: 'conflict', operation: operationId('accept-one') })
   })
 
-  // Known limitation: the storage identity is `<SessionOperationId>#<generation>` inside the tenant
-  // domain (session-storage-sql SPEC W1), so one identity is one operation per tenant, not per
-  // session. An identity of another session answers `conflict` and writes nothing, which is the
-  // safe side; the conflict domain (tenant, session, identity) of session-contract SL07 relies on
-  // OP-00 never reusing an identity across sessions.
-  it('an identity already used in another session of the tenant is a conflict, and writes nothing there', async () => {
+  it('the same local operation in two sessions commits independently and each receipt is queryable', async () => {
     const a = await app()
     ok(await a.create(TENANT_A, 'session-1'))
     ok(await a.create(TENANT_A, 'session-2'))
-    ok(await a.accept(TENANT_A, 'session-1', 'same'))
-    const before = ok(await a.port.readWork(a.access(TENANT_A, 'session-2')))
-    expect(failureOf(await a.accept(TENANT_A, 'session-2', 'same'))).toEqual({
-      kind: 'conflict',
-      operation: operationId('accept-same'),
-    })
-    expect(ok(await a.port.readWork(a.access(TENANT_A, 'session-2')))).toEqual(before)
+    const receipts = await Promise.all([
+      a.accept(TENANT_A, 'session-1', 'same'),
+      a.accept(TENANT_A, 'session-2', 'same'),
+    ])
+    for (const [index, result] of receipts.entries()) {
+      const receipt = ok(result)
+      expect(
+        ok(
+          await a.port.queryOperation({
+            ...a.access(TENANT_A, `session-${index + 1}`),
+            operation: operationId('accept-same'),
+          }),
+        ),
+      ).toEqual({ kind: 'committed', receipt })
+    }
+  })
+
+  it('bounds pending inputs atomically and recalls an accepted input even when full', async () => {
+    const a = await started()
+    const accepted = await Promise.all(
+      Array.from({ length: 65 }, (_, index) => a.accept(TENANT_A, 'session-1', `input-${index}`)),
+    )
+    expect(accepted.filter(result => 'ok' in result)).toHaveLength(64)
+    expect(accepted.filter(result => 'failure' in result)).toEqual([
+      { failure: { kind: 'limited', resource: 'pending-inputs', limit: 64 } },
+    ])
+    expect(
+      ok<{ pending: readonly string[] }>(await a.port.readWork(a.access(TENANT_A))).pending,
+    ).toHaveLength(64)
+    expect(
+      ok<{ recovered: boolean }>(await a.accept(TENANT_A, 'session-1', 'input-0')).recovered,
+    ).toBe(true)
   })
 })
 
@@ -248,6 +268,14 @@ describe('commit response evidence', () => {
       kind: 'commit-unknown',
       operation: operationId('accept-lost'),
     })
+    expect(
+      ok(
+        await a.port.queryOperation({
+          ...a.access(TENANT_A),
+          operation: operationId('accept-lost'),
+        }),
+      ),
+    ).toMatchObject({ kind: 'committed', receipt: { revision: '2' } })
     const recalled = ok<{ recovered: boolean; revision: string }>(
       await a.accept(TENANT_A, 'session-1', 'lost'),
     )

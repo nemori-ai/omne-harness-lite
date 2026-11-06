@@ -164,12 +164,13 @@ export const identityOf = (
   domain: string,
   operation: string,
   attempt = 1,
+  session = 'session-1',
 ): SqlIdentity => ({
   scope: { kind: 'tenant', tenant: textOf(tenant) },
   transactionDomain: domain,
   operation,
   protocolVersion: '2',
-  operationKey: `${operation}#${String(attempt)}`,
+  operationKey: JSON.stringify([session, operation, attempt]),
 })
 
 export type WalSample = Readonly<{ commits: number; generation: string }>
@@ -204,6 +205,7 @@ export type RealAppOptions = Readonly<{
   config?: Partial<SqliteStorageConfig>
   tenants?: readonly TenantId[]
   /** The read output limit given to the materials; 20 MiB without it. */
+  intakeLimits?: import('@omne-harness/session-contract').SessionIntakeLimits
   readOutputLimitBytes?: number
 }>
 
@@ -285,6 +287,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
     evidence: evidence(`access/${request.operation}`),
   }))
   const storageOptions = {
+    ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
     storage,
     domains,
     accessCheck,
