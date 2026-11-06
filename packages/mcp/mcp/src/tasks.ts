@@ -96,18 +96,17 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
   /**
    * A connection built for the task through the gate (S2): eligibility `granted`, the material of
    * S4, and the same peer account the task was started on, so another account's credentials do
-   * not act on it.
+   * not act on it. A shutdown that landed while the gate was asked needs no look here: `ensure`
+   * refuses after it without asking a port (MC-5), and the exit of `request` answers (S8).
    */
   async function built(
     access: Access<P>,
     task: TaskRef,
     record: TaskRecord,
-  ): Promise<Outcome<Ensured, OperationFailure> | Shut> {
+  ): Promise<Outcome<Ensured, OperationFailure>> {
     const decision = await decideForUse(gate, access, task.ref)
     if (decision.kind !== 'admitted')
       return fail(decision.kind === 'adoption-unknown' ? UNKNOWN : NO_CONNECTION)
-    // S8 once more after the gate's wait: a shutdown that landed meanwhile builds nothing.
-    if (table.isShut()) return SHUT
     const prepared = prepareSettings(decision.endpoint, task.connectBound)
     if ('failure' in prepared) return fail(NO_CONNECTION)
     if (accountTextOf(prepared.ok.account) !== accountTextOf(record.account))
@@ -183,7 +182,6 @@ export function createTasks<P, S>(deps: TasksDependencies<P, S>): TaskControl<P>
     if (table.isShut()) return SHUT
     const reused = reusedOf(access, task, record)
     const connection = reused === undefined ? await built(access, task, record) : succeed(reused)
-    if (connection === SHUT) return SHUT
     if ('failure' in connection) return { unsent: connection.failure }
     if (table.isShut()) return SHUT
     const on: OnConnection = { ensured: connection.ok, record }
