@@ -1,6 +1,6 @@
 # Skill领域交接设计
 
-状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)，本页只维护事实拥有者和跨领域交接。端口、服务与成员都是候选。`@omne-harness/skill-contract`、`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 三个成员都已有实现（候选，第二波，尚未技术接受）。`SkillCatalog` 只有接口，还没有实现。工程细化见[组工程设计](../../../packages/skills/docs/architecture.md)。成员状态见[组入口](../../../packages/skills/README.md#成员与依赖)：具名文档目标尚非 workspace 成员。
+状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)，本页只维护事实拥有者和跨领域交接。端口、服务与成员都是候选。`@omne-harness/skill-contract`、`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 三个成员都已有实现（候选，第二波，尚未技术接受）。`SkillCatalog` 也已实现。工程细化见[组工程设计](../../../packages/skills/docs/architecture.md)。成员状态见[组入口](../../../packages/skills/README.md#成员与依赖)：具名文档目标尚非 workspace 成员。
 
 ## 责任与消费者
 
@@ -40,7 +40,7 @@ Skill 作为需求方声明下列端口，用自己的词说明需要什么。�
 |---|---|---|
 | `PackageInspection` | 资产的候选校验、工作区扫描 | 一份解析后的定义（清单、声明与Skill 包快照的条目和内容摘要，不含正文），或可辨的拒绝原因，或来源不可达、版本已变。正文只经 `SkillAccess` 读取 |
 | `SkillCatalog` | [Runtime Context](../runtime-context/README.md)、[工具执行](../tool-execution/README.md)，都经各自的集成方 | 当前合法集合内、该主体可读的身份的摘要：能力标识、name、说明，合法对应材料的身份另带依赖声明，合法已知但不可用的身份另带替换件原因。不可读的身份不出现。读取权无法判定时返回 `unknown`。排序、集合修订与呈现归消费方 |
-| `SkillAccess` | [工具执行](../tool-execution/README.md)、[Slash Command](../slash-commands/README.md)、独立程序，都经各自的集成方 | 描述（含依赖、脚本与设置声明）、内容、资源条目、按Skill 材料依据导出的全部条目，以及Skill 材料依据。Skill 材料依据含能力标识、来源层、资产版本与内容摘要，不含包定位，也不授予访问。工作区来源的Skill 材料依据可以不带资产版本。资产正文缺Skill 包快照的内容摘要时，描述不带Skill 材料依据，并标明「没有可读的包」。内容交出后归消费方 |
+| `SkillAccess` | [工具执行](../tool-execution/README.md)、[Slash Command](../slash-commands/README.md)、独立程序，都经各自的集成方 | 描述（含依赖、脚本与设置声明）、内容、资源条目、按Skill 材料依据导出的全部条目，以及Skill 材料依据。Skill 材料依据含能力标识、来源层、资产版本与内容摘要，不含包定位，也不授予访问。工作区来源的Skill 材料依据可以不带资产版本。不带依据且资产正文缺Skill 包快照的内容摘要时，描述不带Skill 材料依据，并标明「没有可读的包」。带依据时，描述交出依据所指的材料。内容交出后归消费方 |
 
 ### 组合保证由谁承担
 

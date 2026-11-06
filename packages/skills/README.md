@@ -1,6 +1,6 @@
 # Skill能力组
 
-状态：本组有三个 workspace 成员。`@omne-harness/skill-contract` 提供已接受的 `skill` 类别端口。它实现了值、纯函数、包检查、端口与服务接口、端口的符合性套件，以及 `skill` 类别端口的可加扩展（保留字段与 `name-invalid`）。这些是候选，尚未取得技术接受。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 在第二波有了实现（候选，尚未取得技术接受）：`@omne-harness/skill` 实现包检查与描述、读取、列出、导出，`@omne-harness/skill-host-local` 实现本机目录来源。组的分解、模型、端口与服务是工程设计草案，全部为候选决定，尚未取得技术接受。摘要与检索（`SkillCatalog`）和发布仍没有服务实现。脚本执行不归本组。
+状态：本组有三个 workspace 成员。`@omne-harness/skill-contract` 提供已接受的 `skill` 类别端口。它实现了值、纯函数、包检查、端口与服务接口、端口的符合性套件，以及 `skill` 类别端口的可加扩展（保留字段与 `name-invalid`）。这些是候选，尚未取得技术接受。`@omne-harness/skill` 与 `@omne-harness/skill-host-local` 在第二波有了实现（候选，尚未取得技术接受）：`@omne-harness/skill` 实现包检查、摘要与检索、描述、读取、列出与导出，`@omne-harness/skill-host-local` 实现本机目录来源。组的分解、模型、端口与服务是工程设计草案，全部为候选决定，尚未取得技术接受。发布仍没有服务实现。脚本执行不归本组。
 
 ## 责任与范围
 
@@ -13,7 +13,7 @@
 | 成员 | 当前状态 | 职责 | 允许的生产依赖 | 阅读入口 |
 | --- | --- | --- | --- | --- |
 | `@omne-harness/skill-contract`（`packages/skills/skill-contract`，纯契约） | 已实现已接受的 `skill` 类别端口 `skillBodyContract`。其余已实现（候选），包括类别端口的扩展（保留字段与 `name-invalid`）。行为以成员规格为准。不依赖 Tool。服务只有接口，不提供发现、读取、导出或发布 | 值、纯函数、包检查、端口与服务接口、`skill` 类别端口，以及 `./testing` 符合性设施，见下文 | 见下文 | [成员入口](skill-contract/README.md)与[规格](skill-contract/SPEC.md) |
-| `@omne-harness/skill`（`packages/skills/skill`，通用实现） | 已实现（候选）。公开根交出工厂 `createPackageInspection`、`createSkillAccess` 与类型 `SkillPorts`。`SkillCatalog` 还没有实现。本成员还没有独立的示例文件，可运行的示例要以 `@omne-harness/skill-host-local` 作真实来源，见[成员示例说明](skill/examples/README.md) | 三个应用服务：`PackageInspection`、`SkillCatalog`、`SkillAccess`。名字对应领域的「方法与资源取用」。只依赖本组纯契约与公共值成员，不依赖 Cordis，也不依赖任何调用方的成员 | `@omne-harness/skill-contract`，以及 `@omne-harness/skill-contract` 允许的公共值成员 | [成员入口](skill/README.md)与[规格](skill/SPEC.md) |
+| `@omne-harness/skill`（`packages/skills/skill`，通用实现） | 已实现（候选）。公开根交出工厂 `createPackageInspection`、`createSkillCatalog`、`createSkillAccess` 与类型 `SkillPorts`。本成员还没有独立的示例文件，可运行的示例要以 `@omne-harness/skill-host-local` 作真实来源，见[成员示例说明](skill/examples/README.md) | 三个应用服务：`PackageInspection`、`SkillCatalog`、`SkillAccess`。名字对应领域的「方法与资源取用」。只依赖本组纯契约与公共值成员，不依赖 Cordis，也不依赖任何调用方的成员 | `@omne-harness/skill-contract`，以及 `@omne-harness/skill-contract` 允许的公共值成员 | [成员入口](skill/README.md)与[规格](skill/SPEC.md) |
 | `@omne-harness/skill-host-local`（`packages/skills/skill-host-local`，本地宿主） | 已实现目录来源部分（候选）。公开根交出工厂 `createDirectorySource` 与接缝类型 `DirectoryFs`、`EntryKind`、`Opened`。失败映射见[成员入口「Behavior」](skill-host-local/README.md#behavior)。Cordis 插件部分在 Cordis 服务键波补 `src/cordis.ts` | 两部分。目录来源部分：本机目录来源 `DirectorySource`。Cordis 插件部分：本组的 Cordis 插件，在 Cordis 服务键波。内容存储来源等存储契约就绪后再加 | 目录来源部分：`@omne-harness/skill-contract` 与宿主依赖。Cordis 插件部分另加 `@omne-harness/skill` 与 `skill-cordis-contract` | [成员入口](skill-host-local/README.md)与[规格](skill-host-local/SPEC.md) |
 
 `@omne-harness/skill-contract` 有三个入口，各入口的内容见成员规格[入口](skill-contract/SPEC.md#entries)：
@@ -53,7 +53,7 @@ flowchart TD
 
 ## 组合验证
 
-组技术拥有者协调方法定义、取用与导出，以及需求端口的真实实现，验证授权、版本一致、未知与取消。证据须绑定成员与端口实现的精确版本与故障前提。第一波的验证候选见[工程设计「验证」](docs/architecture.md#验证)。目前没有核实行为、攻击、资源或耐久。替身与结构检查不代替真实组合验证。
+组技术拥有者协调方法定义、取用与导出，以及需求端口的真实实现，验证授权、版本一致、未知与取消。证据须绑定成员与端口实现的精确版本与故障前提。第一波的验证候选见[工程设计「验证」](docs/architecture.md#验证)。`@omne-harness/skill` 的读取与目录有有限范围的 TLA+ 模型与探索器结果，见[性质账本](skill/verification/README.md#ledger)，它们不是无条件证明。真实端口与该成员的组合没有验证。攻击、资源与耐久没有核实。替身与结构检查不代替真实组合验证。
 
 ## 维护
 
