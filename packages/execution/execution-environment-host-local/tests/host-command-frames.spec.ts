@@ -137,6 +137,53 @@ it.each([
   expect(reader.push(line({ t: 'ready' })).kind).toBe('fault')
 })
 
+/** The exit frame a running reader yields for `fields`, or the fault it reports. */
+function exitOf(fields: object): GateFrame | string {
+  const reader = createGateReader({ maxChunkBytes: 64 })
+  framesOf(reader.push(joined(line({ t: 'ready' }), line({ t: 'started' }))))
+  const step = reader.push(line({ t: 'exit', ...fields }))
+  return step.kind === 'fault' ? step.fault : (step.frames.at(-1) ?? 'no frame')
+}
+
+it.each([
+  ['absent', {}, null],
+  ['null', { members: null }, null],
+  ['zero', { members: 0 }, 0],
+  ['three', { members: 3 }, 3],
+])(
+  'reads a member count that is %s as the gate wrote it; absent and null are unread',
+  (_, fields, members) => {
+    expect(exitOf({ code: 0, signal: null, ...fields })).toEqual({
+      kind: 'exit',
+      exit: { kind: 'code', code: 0 },
+      members,
+    })
+  },
+)
+
+it.each([-1, 1.5, '2', true, 2 ** 53])(
+  'faults on a member count of %s, which is not a whole number',
+  members => {
+    expect(exitOf({ code: 0, signal: null, members })).toBe(
+      'an exit frame has a member count that is not a whole number',
+    )
+  },
+)
+
+it.each([
+  ['a whole code over a signal', { code: 2, signal: 'SIGTERM' }, { kind: 'code', code: 2 }],
+  [
+    'a signal when the code is not whole',
+    { code: 1.5, signal: 'SIGKILL' },
+    { kind: 'signal', signal: 'SIGKILL' },
+  ],
+  ['an unknown exit when neither is there', { code: null, signal: null }, { kind: 'unknown' }],
+  ['an unknown exit for a code that is text', { code: '3' }, { kind: 'unknown' }],
+  ['an unknown exit for a signal that is not text', { code: null, signal: 9 }, { kind: 'unknown' }],
+])('reads %s', (_, fields, exit) => {
+  expect(exitOf({ ...fields, members: 1 })).toEqual({ kind: 'exit', exit, members: 1 })
+})
+
 async function drain(iterable: AsyncIterable<OutputChunk>): Promise<OutputChunk[]> {
   const chunks: OutputChunk[] = []
   for await (const chunk of iterable) chunks.push(chunk)
