@@ -6,6 +6,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { capabilityId, type CapabilityId } from '@omne-harness/assets'
 import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+import { createPackageInspection } from '@omne-harness/skill'
 import type { DeclaredProjection, SkillDefinition } from '@omne-harness/skill-contract'
 import type {
   PackageLocator,
@@ -21,6 +22,7 @@ import {
   SkillReadCheckService,
   SkillResolutionService,
 } from '@omne-harness/skill-cordis-contract/cordis'
+import { createDirectorySource } from '@omne-harness/skill-host-local'
 import { skillPlugin } from '@omne-harness/skill-host-local/cordis'
 import { scratch, writeTree } from './scratch.ts'
 
@@ -70,16 +72,14 @@ function resolutionService(port: SkillResolution<unknown, unknown>) {
   }
 }
 
-/** The plugin is loaded; the package is inspected through the loaded inspection Service. */
-async function loaded() {
+/** The test package, and the memory doubles that adopt and grant it. No Context is made here. */
+async function prepared() {
   const root = join(await scratch(), 'review')
   await writeTree(root, {
     files: { 'SKILL.md': MANIFEST, '.omne/skill.json': '{"formatVersion":1}\n' },
   })
   const locator: PackageLocator = { kind: 'directory', root }
-  const ctx = new Context()
-  const fiber = await ctx.plugin(skillPlugin)
-  const inspected = await service(ctx, PackageInspectionService.provide).inspect(locator)
+  const inspected = await createPackageInspection(createDirectorySource()).inspect(locator)
   if (!('ok' in inspected)) throw new Error('the test package is not legal')
   const ref: SkillRef = {
     capability: review,
@@ -97,7 +97,14 @@ async function loaded() {
       state: { kind: 'adopted', current: { ref, declared } },
     },
   ])
-  return { ctx, fiber, readCheck, resolution }
+  return { readCheck, resolution }
+}
+
+/** The plugin is loaded on a fresh context that has no port yet. */
+async function loaded() {
+  const ctx = new Context()
+  const fiber = await ctx.plugin(skillPlugin)
+  return { ctx, fiber, ...(await prepared()) }
 }
 
 /** The service of `key`, or a failed test when the context has none. */
@@ -193,6 +200,36 @@ describe('the Skill plugin on a Cordis context', () => {
     const { ctx, readCheck, resolution } = await loaded()
     await ctx.plugin(readCheckService(readCheck(true)))
     const adopting = await ctx.plugin(resolutionService(resolution))
+    const first = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    expect(first).toHaveProperty('ok')
+
+    await adopting.dispose()
+    await ctx.plugin(resolutionService(createMemoryResolution<unknown, unknown>([])))
+    const second = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    expect(second).toEqual({ failure: { kind: 'not-available-to-you' } })
+  })
+
+  it('uses a read check that was provided before the plugin loaded, and its replacement', async () => {
+    const { readCheck, resolution } = await prepared()
+    const ctx = new Context()
+    await ctx.plugin(resolutionService(resolution))
+    const granting = await ctx.plugin(readCheckService(readCheck(true)))
+    await ctx.plugin(skillPlugin)
+    const first = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    expect(first).toHaveProperty('ok')
+
+    await granting.dispose()
+    await ctx.plugin(readCheckService(readCheck(false)))
+    const second = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
+    expect(second).toEqual({ failure: { kind: 'not-available-to-you' } })
+  })
+
+  it('uses a resolution that was provided before the plugin loaded, and its replacement', async () => {
+    const { readCheck, resolution } = await prepared()
+    const ctx = new Context()
+    await ctx.plugin(readCheckService(readCheck(true)))
+    const adopting = await ctx.plugin(resolutionService(resolution))
+    await ctx.plugin(skillPlugin)
     const first = await service(ctx, SkillAccessService.provide).describe(reader, scope, review)
     expect(first).toHaveProperty('ok')
 

@@ -148,7 +148,7 @@
 | 读判定缺席答 `unknown`，不交内容   | 缺席时答 `refused`：缺席用例变红                                 | `answers unknown, and gives no content, while the read check is absent` |
 | 解析缺席答 `unknown`，不交内容     | `resolve` 缺席答 `none`，或 `adopted` 缺席答空列表：缺席用例变红 | `…while the resolution is absent`                                       |
 | 端口缺席时检查照常                 | 检查服务不可用：该用例变红                                       | `keeps inspecting packages while both ports are absent`                 |
-| 端口换代后用新的实例               | 适配器缓存首次取到的读判定或解析：两个换代用例分别变红           | `uses the replacement…`                                                 |
+| 端口换代后用新的实例，端口在插件装载前已在场也一样 | 适配器缓存取到的读判定或解析，无论是在 `apply` 时取、还是第一次调用时取：换代用例与「装载前已在场」用例变红 | `uses the replacement…`、`…provided before the plugin loaded…` |
 | 撤除后三个键取不到                 | 把服务登记在根 fiber 上：撤除用例变红                            | `removes the three services when the plugin unloads`                    |
 | 非空配置使加载失败                 | 配置 Schema 接受任意值：该用例变红                               | `refuses to load with a non-empty configuration`                        |
 
