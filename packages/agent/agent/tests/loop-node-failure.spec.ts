@@ -10,6 +10,7 @@ import {
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createExecutionCoordinator, type ExecutionEntry } from '../src/loop/coordinator.ts'
+import { localFailure, nodeFailureCategory } from '../src/loop/node-failure.ts'
 import {
   acceptedInput,
   afterTerminalPassage,
@@ -54,6 +55,67 @@ function coordinator(
 const unavailable: Failure = { kind: 'unavailable', owner: 'agentJournal', diagnostic: 'temporary' }
 
 describe('an accepted node failure', () => {
+  it('keeps separate local classifications without marking a reused provider failure', () => {
+    const shared = Object.freeze({ kind: 'denied', action: 'access' } satisfies Failure)
+    const first = localFailure('rejected', shared)
+    const second = localFailure('exception', shared)
+    expect(first).not.toBe(shared)
+    expect(second).not.toBe(first)
+    expect(first).toEqual(shared)
+    expect(second).toEqual(shared)
+    expect(nodeFailureCategory(shared)).toBeNull()
+    expect(nodeFailureCategory(first)).toBe('rejected')
+    expect(nodeFailureCategory(second)).toBe('exception')
+  })
+
+  it.each([false, true])(
+    'does not promote Journal denial using another execution failure, shared = %s',
+    async shared => {
+      const denied = Object.freeze({ kind: 'denied', action: 'access' } satisfies Failure)
+      const firstExecution = execution('provenance-source')
+      const secondExecution = execution('provenance-target')
+      const first = await loopAssembly([firstExecution], dependencies => ({
+        ...dependencies,
+        selection: {
+          ...dependencies.selection,
+          select: async () => fail(shared ? denied : { ...denied }),
+        },
+      }))
+      const a = coordinator(first, { execution: firstExecution })
+      ok(await a.accept())
+      ok(await a.runExecution())
+      expect(
+        ok(await first.controls.journal.port.load({ ...alice, execution: firstExecution })).state
+          .kind,
+      ).toBe('ended')
+
+      let refuse = true
+      const second = await loopAssembly([secondExecution], dependencies => ({
+        ...dependencies,
+        journal: {
+          ...dependencies.journal,
+          load(input) {
+            if (refuse) {
+              refuse = false
+              return Promise.resolve(fail(denied))
+            }
+            return dependencies.journal.load(input)
+          },
+        },
+      }))
+      const b = coordinator(second, { execution: secondExecution })
+      ok(await b.accept())
+      expect(await b.runExecution()).toMatchObject({
+        failure: { node: 'E1', failure: denied },
+      })
+      const kept = ok(
+        await second.controls.journal.port.load({ ...alice, execution: secondExecution }),
+      )
+      expect(kept.settlement.candidate).toBeNull()
+      expect(kept.state.kind).not.toBe('ended')
+    },
+  )
+
   it('retains an unapplied author passage as a named responsibility', async () => {
     const assembly = await loopAssembly([execution()])
     const passage = {

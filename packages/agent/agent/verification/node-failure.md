@@ -21,3 +21,5 @@ pnpm --dir packages/agent/agent exec vitest run --mode fast tests/loop-node-fail
 ```
 
 这些用例不证明 SQL 事务、Session AD-02、完整宿主装配、杀进程恢复或任意并发。有限模型的安全与活性结论只适用于其显式责任集合和公平性前提，不能替代这里的实现守护。无来源 Tool unknown、未应用 Passage/card、永久 unavailable、失权和接收者资格缺失不在最终 ended 的承诺内。
+
+[故障来源隔离验证](failure-provenance/README.md) 另行约束本地分类的所有权。一次能力拒绝的标记不得污染其他端口或 execution 返回的同一 Failure 对象。收场状态模型没有表达该身份关系，不能替代此项守护。

@@ -33,3 +33,5 @@
 [Run 取消与单调用中断模型](cancellation/README.md) 检查取消、单调用中断与模型请求、工具动作和结果接收之间的交错。它是有限模型，不证明产品实现符合模型，也不证明外部服务最终响应。
 
 [执行槽预占模型](reservation/README.md) 检查本地同步预占报告与空闲回收的交错。运行守护使用真实 runtime 与 host，外部 report 失败及无限系统活性不在模型范围。
+
+[故障来源隔离](failure-provenance/README.md) 说明共享 Failure 的来源隔离性质、归纳前提、有限正负控和真实 coordinator 配对守护。
