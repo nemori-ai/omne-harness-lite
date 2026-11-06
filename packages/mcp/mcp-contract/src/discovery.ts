@@ -1,5 +1,6 @@
 // The orchestration of `discover` (SPEC T3, T8 D rows, I rows), once for every transport: the
-// probes and the legacy path, as the transport sends them, with the conclusion of each probe.
+// probes and the legacy path, as the transport sends them, with the conclusion of each probe;
+// and the one re-send of a read request (T8 D15, O05).
 import type { Outcome } from '@omne-harness/operation-result'
 import { concludeProbe, malformed, type ProtocolVersions, type WireAnswer } from './decisions.ts'
 import type { IdentityBound } from './readers.ts'
@@ -50,4 +51,16 @@ export async function discoverWith(
       return exhaustive
     }
   }
+}
+
+/**
+ * T8 D15, O05: sends a request once, and once more when the conclusion of the first says so
+ * (`resend`); the conclusion of the second is final. The transport composes each sending anew:
+ * a new id, its own authorization.
+ */
+export async function withOneResend<A extends Readonly<{ wire: WireAnswer }>>(
+  send: () => Promise<A>,
+): Promise<A> {
+  const first = await send()
+  return first.wire.kind === 'no-answer' && first.wire.resend ? send() : first
 }

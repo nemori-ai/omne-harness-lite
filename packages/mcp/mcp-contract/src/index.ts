@@ -129,29 +129,26 @@ export {
 } from './wire.ts'
 export {
   ABANDONED,
-  METHOD_NOT_FOUND,
   NOT_SENT_FAILURE,
-  OFFERED_LEGACY_VERSION,
   PROBE_REQUESTS,
   RESENT_REQUESTS,
   authorizationRequiredAnswerOf,
-  cancelsByNotification,
-  checksListingHeaders,
   concludeAnswer,
   concludeProbe,
-  isLegacyConnection,
   requestClassOf,
   retryVersionOf,
   streamGoneAnswerOf,
-  withOneResend,
   type AnswerConclusion,
-  type ConnectionView,
-  type NotificationMethod,
   type ProbeConclusion,
   type ProtocolVersions,
-  type RequestMethod,
   type WireAnswer,
 } from './decisions.ts'
+export {
+  cancelsByNotification,
+  checksListingHeaders,
+  isLegacyConnection,
+  type ConnectionView,
+} from './connection.ts'
 export {
   callAnswerOf,
   interpretAnswer,
@@ -162,6 +159,8 @@ export {
   taskReportOf,
 } from './answer-readings.ts'
 export {
+  METHOD_NOT_FOUND,
+  OFFERED_LEGACY_VERSION,
   callRequestOf,
   cancelTaskRequest,
   getTaskRequest,
@@ -175,9 +174,11 @@ export {
   responseTextOf,
   updateTaskRequest,
   type ComposedRequest,
+  type NotificationMethod,
+  type RequestMethod,
   type RequestValues,
 } from './composition.ts'
-export { discoverWith, type DiscoverPaths } from './discovery.ts'
+export { discoverWith, withOneResend, type DiscoverPaths } from './discovery.ts'
 export { catalogKeyOf, connectionKeyOf, peerAccountOf } from './keys.ts'
 export type {
   AuthorizationDiscovery,

@@ -10,6 +10,7 @@ import { callAnswerOf, legacyIdentityOf } from './answer-readings.ts'
 import { authorizationChallengeOf, discoverAuthorization } from './authorization.ts'
 import type { Generation, TaskId } from './brands.ts'
 import {
+  OFFERED_LEGACY_VERSION,
   callRequestOf,
   cancelTaskRequest,
   getTaskRequest,
@@ -23,25 +24,22 @@ import {
   responseTextOf,
   updateTaskRequest,
   type ComposedRequest,
+  type NotificationMethod,
+  type RequestMethod,
 } from './composition.ts'
+import { cancelsByNotification, type ConnectionView } from './connection.ts'
 import {
   ABANDONED,
   NOT_SENT_FAILURE,
-  OFFERED_LEGACY_VERSION,
   authorizationRequiredAnswerOf,
-  cancelsByNotification,
   concludeAnswer,
   requestClassOf,
   streamGoneAnswerOf,
-  withOneResend,
   type AnswerConclusion,
-  type ConnectionView,
-  type NotificationMethod,
   type ProtocolVersions,
-  type RequestMethod,
   type WireAnswer,
 } from './decisions.ts'
-import { discoverWith } from './discovery.ts'
+import { discoverWith, withOneResend } from './discovery.ts'
 import { clientEnvelopeOf, mcpRequestHeadersOf, type ClientInfo } from './envelope.ts'
 import type { AuthorizationDiscovery, NoAnswerCause, TaskReport } from './outcomes.ts'
 import { isPlainJson, isPlainRecord, type PlainJson, type PlainRecord } from './plain.ts'

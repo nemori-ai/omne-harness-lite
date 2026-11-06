@@ -1,25 +1,38 @@
-// What a transport writes (SPEC T2, T3, T6, RFC-0010), once for every transport: the params of
-// the legacy path's `initialize`, the answer to a request of the peer, the text of each message
-// of this side with the caller's values written as they are, and the requests each operation of
-// the transport sends with the reading of their answers.
+// What a transport writes (SPEC T2, T3, T6, RFC-0010), once for every transport: the words of
+// what it sends, the params of the legacy path's `initialize`, the answer to a request of the
+// peer, the text of each message of this side with the caller's values written as they are, and
+// the requests each operation of the transport sends with the reading of their answers.
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import { interpretAnswer, listingPageOf, taskAnswerOf, taskReportOf } from './answer-readings.ts'
 import type { TaskId } from './brands.ts'
-import {
-  METHOD_NOT_FOUND,
-  OFFERED_LEGACY_VERSION,
-  checksListingHeaders,
-  type ConnectionView,
-  type NotificationMethod,
-  type RequestMethod,
-  type WireAnswer,
-} from './decisions.ts'
+import { checksListingHeaders, type ConnectionView } from './connection.ts'
+import type { WireAnswer } from './decisions.ts'
 import { clientEnvelopeOf, type ClientInfo } from './envelope.ts'
 import type { TaskReport } from './outcomes.ts'
 import type { PlainJson, PlainRecord } from './plain.ts'
+import { LEGACY_PROTOCOL_VERSIONS } from './revisions.ts'
 import type { CallRequest, ListingPage, TaskAnswer, TransportFailure } from './transport.ts'
 import type { PeerMessage } from './wire.ts'
+
+/** The requests a transport sends (T3). */
+export type RequestMethod =
+  | 'server/discover'
+  | 'initialize'
+  | 'tools/list'
+  | 'tools/call'
+  | 'tasks/get'
+  | 'tasks/update'
+  | 'tasks/cancel'
+
+/** The notifications a transport sends (T3, T5). */
+export type NotificationMethod = 'notifications/initialized' | 'notifications/cancelled'
+
+/** The legacy revision the legacy path offers on `initialize` (T3). */
+export const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
+
+/** The JSON-RPC error code a transport answers to a request of the peer other than `ping` (T3). */
+export const METHOD_NOT_FOUND = -32601
 
 /** The params of the legacy path's `initialize` (T3). */
 export function legacyInitializeParamsOf(clientInfo: ClientInfo): PlainRecord {
