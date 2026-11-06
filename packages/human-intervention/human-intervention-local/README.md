@@ -4,7 +4,7 @@
 
 ## Responsibility and status
 
-Node local SQL provider for the accepted HITL protocol. Durable operation terminals are implemented; request/card storage, Identity coordination and independent WaitOwner recovery remain in development. This is not a complete HITL application service.
+Node local SQL provider for the accepted HITL protocol. The package implements durable operation terminals. Request/card storage, Identity coordination and independent WaitOwner recovery remain in development. This is not a complete HITL application service.
 
 ## Usage
 
@@ -12,7 +12,7 @@ Import `hitlSqlMaterials` and `createHitlSqlTerminals` from the package root. Re
 
 ## Contracts
 
-[Public API](docs/public-api.md) indexes source definitions. [SPEC](SPEC.md) owns operation identity, seal ordering and uncertain-result handling. Only trusted assembly code may use the terminal factory; it does not authenticate users.
+[Public API](docs/public-api.md) indexes source definitions. [SPEC](SPEC.md) owns operation identity, seal ordering and uncertain-result handling. Only trusted assembly code may use the terminal factory. It does not authenticate users.
 
 ## Design
 
