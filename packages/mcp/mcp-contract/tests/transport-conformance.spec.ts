@@ -16,7 +16,6 @@ import type {
   McpTransport,
   McpTransportFactory,
   ProcessHandle,
-  TaskAnswer,
   TransportFailure,
   TransportMaterial,
 } from '@omne-harness/mcp-contract/provider'
@@ -292,16 +291,11 @@ describe('the suite fails a transport that breaks the contract', () => {
     return 'failure' in outcome ? { failure: remarkFailure(outcome.failure, remark) } : outcome
   }
 
-  function remarkTaskAnswer(answer: TaskAnswer, remark: Remark): TaskAnswer {
-    return answer.kind === 'finished'
-      ? { kind: 'finished', answer: remarkAnswer(answer.answer, remark) }
-      : answer
-  }
-
   /**
    * Hands over every answer of the transport with the mark `remark` gives: each failure of every
-   * method and of `open`, the failure of `call`, `SentCall.answer`, and the answer in a finished
-   * `getTaskResult`. Everything else passes through.
+   * method and of `open`, the failure of `call`, and `SentCall.answer`. Everything else passes
+   * through, a finished `getTaskResult` too: it holds the result or the error of the task (T6),
+   * never a failure, so it carries no mark.
    */
   const remarking =
     (remark: Remark): Wrap =>
@@ -320,9 +314,7 @@ describe('the suite fails a transport that breaks the contract', () => {
             remarkOutcome(await inner.updateTask(id, responses), remark),
           getTaskResult: async id => {
             const result = await inner.getTaskResult(id)
-            return 'failure' in result
-              ? { failure: remarkFailure(result.failure, remark) }
-              : { ok: remarkTaskAnswer(result.ok, remark) }
+            return 'failure' in result ? { failure: remarkFailure(result.failure, remark) } : result
           },
           cancelTask: async id => remarkOutcome(await inner.cancelTask(id), remark),
           close: () => inner.close(),
