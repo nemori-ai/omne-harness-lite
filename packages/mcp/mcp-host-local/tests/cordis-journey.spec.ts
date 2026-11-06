@@ -70,7 +70,9 @@ const CONFIG: McpPluginConfig = {
   clientInfo: { name: 'omne-harness-cordis-entry', version: '0' },
 }
 
-const plugin = createMcpPlugin({ principalKey, checkOutput: () => ({ kind: 'conforms' }) })
+type Plugin = ReturnType<typeof createMcpPlugin>
+const checkOutput = (): { kind: 'conforms' } => ({ kind: 'conforms' })
+const plugin = createMcpPlugin({ principalKey, checkOutput })
 
 function text(value: string): PeerReply {
   return { kind: 'result', result: { content: [{ type: 'text', text: value }] } }
@@ -326,11 +328,11 @@ type PortName = 'adoption' | 'eligibility' | 'credentials' | 'landing'
 const PORT_NAMES: readonly PortName[] = ['adoption', 'eligibility', 'credentials', 'landing']
 
 /** Loads the ports except `absent`, then the plugin. */
-async function assembled(endpoint: Endpoint, absent?: PortName) {
+async function assembled(endpoint: Endpoint, absent?: PortName, loaded: Plugin = plugin) {
   const ctx = new Context()
   const provided = ports(endpoint)
   for (const name of PORT_NAMES) if (name !== absent) await load(ctx, provided[name], undefined)
-  const fiber = await load(ctx, plugin, CONFIG)
+  const fiber = await load(ctx, loaded, CONFIG)
   return { ctx, fiber, provided }
 }
 
@@ -411,6 +413,16 @@ describe('the MCP plugin on a Cordis context, with a scripted peer process', () 
       },
     })
     expect(provided.landed).toHaveLength(1)
+  })
+
+  it('stamps the published catalog with the time of the clock in the plugin parts', async () => {
+    const acquiredAt = new Date('2026-01-02T03:04:05.000Z')
+    const clocked = createMcpPlugin({ principalKey, checkOutput, clock: { now: () => acquiredAt } })
+    const { ctx } = await assembled({ script: ANSWERING }, undefined, clocked)
+    expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
+    expect(await service(ctx, mcpActionDiscoveryKey).current(ALICE, FILES)).toMatchObject({
+      ok: { kind: 'acquired', freshness: { acquiredAt: acquiredAt.toISOString() } },
+    })
   })
 
   it('answers each operation of the three services through the plugin', async () => {
