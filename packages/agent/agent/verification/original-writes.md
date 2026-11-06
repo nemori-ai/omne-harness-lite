@@ -35,6 +35,6 @@ scripts/with-test-slot.sh pnpm --dir packages/agent/agent run typecheck
 
 ## 内部恢复资格与端口转发
 
-重复受理只有收到原 open 的 committed 回执，才允许再次调用原 open。协调者核对回执的 execution、operation 和当前未定写的方法。缺失回执保持 commit-unknown，错配回执返回 conflict。受理与执行共享互斥入口，不能在另一个驱动活动时清除待认回写。`original-writes.spec.ts` 验证无回执和错配回执均不重发，原回执可继续恢复。
+重复受理只有收到原 open 的 committed 回执，才允许再次调用原 open。协调者核对回执的 execution、operation，并确认原 authority 尚未取得。缺失回执保持 commit-unknown，错配回执返回 conflict。完整结果读回暂时 unavailable 或 denied 不抹去原成功，恢复资格后仍认回原请求。受理与执行共享互斥入口，不能在另一个驱动活动时清除待认回写。`original-writes.spec.ts` 验证无回执和错配回执均不重发，原回执在暂时读取失败后仍可继续恢复。
 
 Journal 包装器显式转发端口方法，保持原接收者。它不要求端口成员为可枚举自有属性。公开取消场景使用不可枚举且检查接收者的 load 方法，验证取消仍可完成。

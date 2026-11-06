@@ -3333,7 +3333,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           if (
             confirmedOpen.operation !== originalOpen.operation ||
             confirmedOpen.execution !== originalOpen.execution ||
-            pendingCommit?.original.method !== 'open'
+            authority !== null
           )
             return fail({
               node: 'E0',

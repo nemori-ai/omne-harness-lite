@@ -3,7 +3,7 @@ import { advanceControl, agentEvaluator } from '@omne-harness/agent'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import { options } from './factory-support.ts'
-import type { AgentJournal } from '@omne-harness/agent-contract'
+import type { AgentJournal, Failure } from '@omne-harness/agent-contract'
 import {
   acceptedInput,
   evidence,
@@ -17,6 +17,40 @@ import { alice, eventsOf, eventually, invoke, loopAssembly, shown } from './loop
 import { controlAssembly } from './fixtures/control-assembly.ts'
 
 describe('original Journal writes after a lost response', () => {
+  it.each(['unavailable', 'denied'] as const)(
+    'recovers the committed open after its complete result temporarily returns %s',
+    async kind => {
+      const requests: Parameters<AgentJournal<Principal>['open']>[0][] = []
+      const refusal: Failure =
+        kind === 'denied'
+          ? { kind, action: 'open' }
+          : { kind, owner: 'journal-readback', diagnostic: 'temporarily unavailable' }
+      const assembly = await loopAssembly([execution()], d => ({
+        ...d,
+        journal: {
+          ...d.journal,
+          open: async input => {
+            requests.push(input)
+            if (requests.length === 2) return fail(refusal)
+            const result = await d.journal.open(input)
+            if (requests.length === 1 && 'ok' in result) throw new Error('lost original open')
+            return result
+          },
+        },
+      }))
+      expect(failure(await invoke(assembly)).kind).toBe('commit-unknown')
+      expect(failure(await invoke(assembly))).toEqual(refusal)
+      expect((await shown(assembly)).kind).toBe('reserved')
+      const handle = ok(await invoke(assembly))
+      expect(requests).toHaveLength(3)
+      expect(requests[1]).toBe(requests[0])
+      expect(requests[2]).toBe(requests[0])
+      expect(assembly.controls.handoff.prepare.calls).toHaveLength(1)
+      assembly.release.open()
+      expect((await eventsOf(handle)).filter(event => event.body.kind === 'ended')).toHaveLength(1)
+    },
+  )
+
   it('does not replay an unknown open without its committed receipt', async () => {
     let opens = 0
     const assembly = await controlAssembly({}, d => ({
@@ -63,6 +97,8 @@ describe('original Journal writes after a lost response', () => {
       expect(opens).toBe(1)
     }
     ok(await c.accept(found.receipt))
+    expect(opens).toBe(2)
+    expect(failure(await c.accept(found.receipt)).failure.kind).toBe('conflict')
     expect(opens).toBe(2)
   })
 
