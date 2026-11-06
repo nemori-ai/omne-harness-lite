@@ -352,7 +352,7 @@ for (const target of TARGETS) {
   )
 }
 
-describe('the two modern transports (MC3-12)', () => {
+describe('the two modern transports', () => {
   it('E-stdio and E-http answer the same kind of outcome at every step S1 to S7', () => {
     const stdio = readings.get('E-stdio')
     const http = readings.get('E-http')
