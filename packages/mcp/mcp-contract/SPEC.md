@@ -90,7 +90,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 27. `ContinueRequest.inputResponses` 可选，与 S2 的「各自可选」一致；两个字段都缺是前提违反。出处：W3 调用口闭包已定事项 4，及修复轮（`w3-mcp-call-fix1`）自裁第 3 条的采纳。见 S2。
 28. `classifyOutcome` 吸收校验函数的抛出：O1 是全函数、不抛出，校验函数抛出时 O3 的结论是 `violates`，原因是新的契约值 `output-check-failed`。两个原因常量 `OUTPUT_CHECK_FAILED` 与 `STRUCTURED_CONTENT_MISSING` 从根入口导出。出处：调用口第 1 轮评审裁定 6，及修复轮（`w3-mcp-call-fix1`）已定的事第 6 条。见 O1、O3。
 29. R2 的 `cancelled` 放宽为「占位后、发出前，这次调用的停止信号已触发」，不论触发的是 `cancel` 还是调用方的 `signal`，也不论那一步本来会以什么原因拒绝。出处：修复轮（`w3-mcp-call-fix1`）自裁第 2 条的采纳。见 R2。
-30. `closeAll` 之后的次序：要连接的操作先判关停、不问端口，先于 S1 的采用核对；在途的操作在下一步之前判关停，答同样的结果；任务操作仍先按 S2 判发起者。出处：调用口第 2 轮评审裁定（关停是本实例生命周期的事实，之后不再问宿主端口）与修复轮 `w3-mcp-call-fix2`。见 S8。
+30. `closeAll` 之后的次序：要连接的操作先判关停、不问端口，先于 S1 的采用核对；在途的操作（发出之前：等关口、读存储、建连的等待）不再开始下一步，答同样的结果，已发出的请求的结局不改；任务操作仍先按 S2 判发起者。出处：调用口第 2 轮评审裁定（关停是本实例生命周期的事实，之后不再问宿主端口）与修复轮 `w3-mcp-call-fix2`。见 S8。
 
 <a id="entries"></a>
 
@@ -359,7 +359,7 @@ MCP 领域设计在 2026-11-03 作出下列裁定。本页的条款兑现它们�
 
   「确认停止」指 `stop()` 答 `tree-confirmed`。准备失败或关闭后留下的进程与它确认的停止范围只记在 `lost` 状态的 `residual` 上，视图原样反映状态。关闭时确认停止，状态回到 `none`；否则状态是 `lost`（`close-unconfirmed`）并带 `residual`。重建成功或之后确认停止时，`residual` 清除。凭据在视图里报告为：`not-required`，`auth` 是 `none`；`absent`，配值缺失；`invalid`，配值被守卫拒绝；`present`，配值存在。视图不报告凭据值。
 
-- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「不建连接」相同。`closeAll` 之后，要连接的操作先判关停、不问端口，先于 S1 的采用核对；在途的操作在下一步之前判关停，答同样的结果。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
+- **S8** `release` 与 `closeAll` 只报告实际确认的范围：有进程时带确认的停止范围；连接没有进程时报告 `no-process`；连接状态为 `none` 时报告 `no-connection`。落点在途（进程尚未交来）时，报告该连接的进程范围为 `unconfirmed`，不报 `no-process`。`closeAll` 之后本实例不再建立连接：`refresh` 答 `connection-unavailable`；`invoke` 与 `continueWithInput` 答「未发出：`connection-unavailable`」；四个任务操作答 `effect-unknown`（`no-connection`），与 S2「不建连接」相同。`closeAll` 之后，要连接的操作先判关停、不问端口，先于 S1 的采用核对。在途的操作（发出之前：等关口、读存储、建连的等待）不再开始下一步，答同样的结果；已发出的请求的结局不改。「下一步」指操作次序里的一步（关口，采用与资格两问算一步；读存储；建连；取页；发出）：已开始的一步内部的本地端口调用照常走完，关停之后不开始新的一步。任务操作先按 S2 判发起者：不是发起者或表里没有时答 `unknown`，然后才判 `closeAll`。`peer` 不为回答而建连接，本次运行没有连接时答 `not-connected`。`current` 的 `basisCurrent` 比较采用依据与当前连接的协议版本和能力（能力按规范化 JSON 比较相等），不比较连接代际；本次运行没有连接时答 `no-connection`。
 - **S9** 凭据句柄的取得与释放：每条连接按凭据配值调用一次 `CredentialUse.acquire`，所有 `credential` 来源变量共用这一个进程凭据句柄。进程凭据句柄在进程的 `stop()` 返回之后释放，不论它答哪种范围；准备失败时立即释放。HTTP 凭据句柄随连接关闭释放。关停例外：`closeAll` 时落点仍在途的连接，进程凭据句柄立即释放。之后迟到的进程照样停止一次，句柄不再释放第二次。
 
 ## 所有权、失败与生命周期

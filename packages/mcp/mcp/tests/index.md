@@ -32,5 +32,5 @@
 - [release.spec.ts](release.spec.ts)：关闭次序与 `closeAll`
 - [memory-store.spec.ts](memory-store.spec.ts)：内存存储的符合性套件与隔离
 - [model/](model/)：连接表的有界穷举探索器：驱动真实的 `createConnectionTable`，在每个可达状态核对性质 P1–P8，见 [verification/README.md](../verification/README.md)
-- [doubles/](doubles/)：`world.ts`（端口替身与采用样本）、`core.ts`（服务组装）、`scripted-transport.ts`、`ports.ts`（计数替身）、`stalls.ts`（挂起选中的调用或不再答复的端口）、`faults.ts`（关闭次序的三步做完再 reject 的端口；按进程序号答 `stop()` 的落点）、`handles.ts`（凭据替身共用的句柄包装）、`calls.ts`（按调用序号挑选）、`deferred.ts`、`peer.ts`（调用口的世界：契约的脚本化传输与对端收到的请求）、`identities.ts`（测试世界的租户与主体；契约值的样本用契约 `./testing` 的构造器）
+- [doubles/](doubles/)：`world.ts`（端口替身与采用样本）、`core.ts`（服务组装）、`scripted-transport.ts`、`ports.ts`（计数替身）、`stalls.ts`（挂起选中的调用或不再答复的端口）、`faults.ts`（关闭次序的三步做完再 reject 的端口；按进程序号答 `stop()` 的落点）、`handles.ts`（凭据替身共用的句柄包装）、`calls.ts`（按调用序号挑选）、`deferred.ts`、`peer.ts`（调用口的世界：契约的脚本化传输与对端收到的请求）、`identities.ts`（测试世界的租户与主体；契约值的样本用契约 `./testing` 的构造器）、`watched.ts`（经计数收口的在途表装配调用口：逐微任务扫描据此判断调用在关停落下之前是否已答复）
 - [fixtures/](fixtures/index.md)：测试固定输入（本包目前没有）
