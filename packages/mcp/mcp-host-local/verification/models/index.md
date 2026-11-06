@@ -4,8 +4,8 @@
 
 ## 内容
 
-- [README.md](README.md)：模型里的名字、配置表、有效动作的变异、运行命令与运行记录
-- [TransportSession.tla](TransportSession.tla)：会话请求生命周期的 TLA+ 模型
+- [README.md](README.md)：模型里的名字、两种断开的结算规则、配置表、有效动作的变异、运行命令与运行记录
+- [TransportSession.tla](TransportSession.tla)：会话请求生命周期的 TLA+ 模型，含 `signal`、`close()`、线路断开与会话结束
 - [run.py](run.py)：运行脚本，判读每个配置并写 `summary.json`；`--mutations` 在模块副本上做有效动作的变异并写 `mutations.json`
 - `*.cfg`：正控（`valid-*`）与负控（`bad-*`）的 TLC 配置
 
