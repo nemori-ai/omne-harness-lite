@@ -139,6 +139,17 @@ export const CONTINUE: Scenario = {
 }
 
 /**
+ * As `continue`, with `closeAll`: a continuation in flight at the shutdown answers as one that
+ * starts after it, whatever step it waited at (P13 at the answer); the step after the store read
+ * would refuse it with `unknown` once the shutdown closed its connection.
+ */
+export const CONTINUE_SHUTDOWN: Scenario = {
+  ...CONTINUE,
+  name: 'continue-shutdown',
+  closeAll: true,
+}
+
+/**
  * The peer answers with a task; the initiator queries it; the connection may be dropped first,
  * so the query builds one again; `closeAll`.
  */

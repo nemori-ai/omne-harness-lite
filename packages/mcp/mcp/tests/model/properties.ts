@@ -58,6 +58,9 @@ export type OpView = Readonly<{
   sentOk: number
   /** `cancelRequest` calls made under the operation. */
   cancelRequests: number
+  /** Task requests (a transport task method) made under the operation, and how many answered `not-sent`. */
+  taskRequests: number
+  taskUnsent: number
 }>
 
 /** One reservation of the in-flight table, as the counting view saw it (P11). */
@@ -395,6 +398,44 @@ export function sentAfterShutdown(op: OpView): Found[] {
       property: 'P13',
       signature: 'P13-sent-after-closeAll',
       detail: `${op.name}, started after closeAll, answered ${op.result}`,
+    },
+  ]
+}
+
+const CALL_AFTER_SHUT = ['not-sent connection-unavailable', 'not-sent cancelled']
+const TASK_AFTER_SHUT = ['fail effect-unknown no-connection']
+
+/**
+ * What an operation that did not send may answer once `closeAll` was called (S8, MC-16, MC-17),
+ * or `undefined` when it sent. One that started before `closeAll` answers as one that started
+ * after it: a call `connection-unavailable` (`cancelled` when its stop signal fired), a task
+ * operation `effect-unknown` (`no-connection`). One that started after it may also answer what
+ * comes before the shutdown in the order: a call `correlation-key-in-use` (step 2), a task
+ * operation the `unknown` of the initiator check (step 1).
+ */
+function answersAfterShutdown(op: OpView): readonly string[] | undefined {
+  if (CALL_OPS.has(op.kind)) {
+    if (!op.result.startsWith('not-sent')) return undefined
+    return op.afterShut ? [...CALL_AFTER_SHUT, 'not-sent correlation-key-in-use'] : CALL_AFTER_SHUT
+  }
+  if (op.kind !== 'task' || op.taskRequests > op.taskUnsent) return undefined
+  return op.afterShut ? [...TASK_AFTER_SHUT, 'fail unknown'] : TASK_AFTER_SHUT
+}
+
+/**
+ * P13, at the answer (the answer side of `P13_NoSendAfterShut`; `Calls.tla` has no reasons): an
+ * operation that answers after `closeAll` was called and did not send answers one way, whatever
+ * step it was at when the shutdown landed.
+ */
+export function answeredOtherwiseAfterShutdown(view: RunView, op: OpView): Found[] {
+  if (!view.shutAsked) return []
+  const allowed = answersAfterShutdown(op)
+  if (allowed === undefined || allowed.includes(op.result)) return []
+  return [
+    {
+      property: 'P13',
+      signature: 'P13-answer-after-closeAll',
+      detail: `${op.name} answered ${op.result} after closeAll; expected ${allowed.join(' or ')}`,
     },
   ]
 }

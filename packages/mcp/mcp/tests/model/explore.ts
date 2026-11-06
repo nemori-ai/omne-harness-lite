@@ -65,6 +65,7 @@ import {
 import { home, principalKey, tenantOf, type Principal } from '../doubles/identities.ts'
 import {
   CALL_OPS,
+  answeredOtherwiseAfterShutdown,
   answeredWithReservation,
   askedByIsolated,
   cancelledOtherwise,
@@ -389,6 +390,8 @@ type Op = {
   sends: number
   sentOk: number
   cancelRequests: number
+  taskRequests: number
+  taskUnsent: number
 }
 
 type ReservationRecord = {
@@ -607,6 +610,8 @@ class Run implements RunView, CallDesk, ReservationDesk {
           Math.min(op.sends, 2),
           op.sentOk,
           Math.min(op.cancelRequests, 2),
+          Math.min(op.taskRequests, 2),
+          Math.min(op.taskUnsent, 2),
         ].join(' '),
       ),
       calls: this.calls
@@ -824,6 +829,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
       this.report(askedByIsolated(this, call, op))
       if (call.port === 'transport.call') op.sends += 1
       if (call.port === 'transport.cancelRequest') op.cancelRequests += 1
+      if (TASK_PORTS.has(call.port)) op.taskRequests += 1
     }
     const index = this.stepCalls
     this.stepCalls += 1
@@ -845,6 +851,8 @@ class Run implements RunView, CallDesk, ReservationDesk {
         if (answer === 'reject') reject(new PortFault(call, 'rejected'))
         else {
           if (call.port === 'transport.call' && answer === 'ok' && op !== undefined) op.sentOk += 1
+          // A task method's `fail` is `not-sent` (`ports.ts`): the request did not leave.
+          if (TASK_PORTS.has(call.port) && answer === 'fail' && op !== undefined) op.taskUnsent += 1
           resolve(request.value(answer, call))
         }
       },
@@ -978,6 +986,8 @@ class Run implements RunView, CallDesk, ReservationDesk {
       sends: 0,
       sentOk: 0,
       cancelRequests: 0,
+      taskRequests: 0,
+      taskUnsent: 0,
     }
     this.ops.push(op)
     return op
@@ -1085,6 +1095,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
       ...cancelledOtherwise(op),
       ...answeredWithReservation(this, op),
       ...sentAfterShutdown(op),
+      ...answeredOtherwiseAfterShutdown(this, op),
     ])
     return summary
   }
@@ -1196,7 +1207,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
     }
     this.invoke(op, operation, result => {
       op.result = summarizeTask(result)
-      this.report(taskAnsweredForeign(this, op))
+      this.report([...taskAnsweredForeign(this, op), ...answeredOtherwiseAfterShutdown(this, op)])
       return op.result
     })
   }
