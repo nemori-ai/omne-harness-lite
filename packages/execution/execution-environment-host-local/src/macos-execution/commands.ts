@@ -233,7 +233,7 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
   }
 
   const launch = (resource: ManagedResource, request: StartRequest, reader: string): Entry => {
-    const gate = spawn(process.execPath, [gateScript, reader], {
+    const gate = spawn(process.execPath, [gateScript, resource.key, reader], {
       detached: true,
       cwd: '/',
       env: { ...gateEnvironment },
@@ -350,7 +350,6 @@ export function createMacosHostCommands(input: MacosCommandsInput): HostCommands
         env: request.env,
         stdin: request.stdin === undefined ? null : Buffer.from(request.stdin).toString('base64'),
         maxChunkBytes: settings.maxChunkBytes,
-        stopBoundMs: Math.max(1, Math.ceil(settings.stopBoundMs)),
       })}\n`,
     )
     live.add(entry)

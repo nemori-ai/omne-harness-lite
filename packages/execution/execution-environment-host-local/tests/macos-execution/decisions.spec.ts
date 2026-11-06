@@ -1,5 +1,5 @@
 // Fast: the decisions of the macOS command backend that need no process: the residue and its
-// reason in the contract's order, the gate's request, and the request checks. Runs everywhere.
+// reason in the contract's order, and the request checks. Runs everywhere.
 import { describe, expect, it } from 'vitest'
 import { originRef } from '@omne-harness/execution-environment-contract'
 import {
@@ -7,7 +7,6 @@ import {
   macosRequestIssue,
   readerMissing,
 } from '../../src/macos-execution/commands.ts'
-import { parseGateRequest } from '../../src/macos-execution/gate-request.ts'
 import { macosResidue, type MacosResidueInput } from '../../src/macos-execution/residue.ts'
 import { tenant, type StartRequest } from './fixture.ts'
 
@@ -46,46 +45,6 @@ describe('residue', () => {
     ['everything else holds', {}, 'uncontained'],
   ])('answers stopping with the first unmet reason when %s', (_, patch, reason) => {
     expect(macosResidue({ ...permitted, ...patch })).toEqual({ kind: 'stopping', reason })
-  })
-})
-
-describe('the gate request', () => {
-  const whole = {
-    executable: '/bin/sh',
-    args: ['-c', 'true'],
-    cwd: '/tmp',
-    env: { PATH: '/usr/bin' },
-    stdin: null,
-    maxChunkBytes: 65536,
-    stopBoundMs: 10000,
-  }
-
-  it('reads a whole request, with or without standard input', () => {
-    expect(parseGateRequest(whole)).toEqual(whole)
-    expect(parseGateRequest({ ...whole, stdin: 'aGk=' })).toEqual({ ...whole, stdin: 'aGk=' })
-  })
-
-  it.each<[string, Record<string, unknown>]>([
-    ['no executable', { executable: 1 }],
-    ['no cwd', { cwd: undefined }],
-    ['an argument of another kind', { args: ['a', 2] }],
-    ['arguments that are no list', { args: 'a' }],
-    ['a variable of another kind', { env: { A: 1 } }],
-    ['an environment that is a list', { env: [] }],
-    ['an environment that is null', { env: null }],
-    ['standard input of another kind', { stdin: 3 }],
-    ['standard input missing', { stdin: undefined }],
-    ['a chunk bound of zero', { maxChunkBytes: 0 }],
-    ['a fractional chunk bound', { maxChunkBytes: 1.5 }],
-    ['a stop bound of zero', { stopBoundMs: 0 }],
-    ['a stop bound as text', { stopBoundMs: '10' }],
-  ])('refuses a request with %s', (_, patch) => {
-    expect(parseGateRequest({ ...whole, ...patch })).toBeUndefined()
-  })
-
-  it('refuses anything that is no object', () => {
-    expect(parseGateRequest(null)).toBeUndefined()
-    expect(parseGateRequest('x')).toBeUndefined()
   })
 })
 
