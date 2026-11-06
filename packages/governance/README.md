@@ -8,7 +8,7 @@
 
 ## 成员与依赖
 
-[governance-contract](governance-contract/README_ZH.md) 已有输入 Schema、命令与查询类型，以及唯一 Cordis Service 定义。它依赖 Legal Identity、Settings 和 Permissions 的公开定义。`governance-local` 是本地持久提供者的目标成员，目前尚未建立。
+[governance-contract](governance-contract/README_ZH.md) 已有输入 Schema、命令与查询类型，以及唯一 Cordis Service 定义。它依赖 Legal Identity、Settings 和 Permissions 的公开定义。[governance-local](governance-local/README_ZH.md) 已建立本地关系迁移，业务服务及 Cordis 装配仍待完成。
 
 执行内容采用仍由 `adoption-contract` 的已采用设计约束，保持 prepare、validate、read。本组不增加该协调者的方法。
 

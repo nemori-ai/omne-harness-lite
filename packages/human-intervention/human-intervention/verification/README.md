@@ -84,3 +84,18 @@ command-algebra.json列出4个HITL命令、5查询、5原等待恢复端口及4�
 源码通过纯函数用例不关闭C2，也不建立跨进程或断电保证。完整事务与恢复映射仍由上表之前列出的闭包负责。
 
 ConcurrentIntake 的操作身份是固定租户内的 `(session, acceptId)`，登录来源属于原输入绑定内容，不参与 accept 族操作键。不同客户端须为不同请求提供不同 acceptId；换登录重发同一 acceptId 不是独立请求，依公开入口合同冲突，查询仍受当前资格检查。模型中两个输入可竞争同键，但至多一个被受理；`NoOperationRebinding` 及 rebind 负控守住这一点。`NoClientSourceConflict` 只承诺尚未绑定的独立操作不因客户端来源被错误合并。该模型不证明 HTTP 错误形状或身份鉴别，真实映射由 C1 用例证明。
+
+## 按租约保留目标支持
+
+`GovernanceTargetSupport` 补充同一声明下两个租约、两个目标的采用和撤除。采用准备可以与任一撤除交错。当前修订不相等时不能发布旧候选；撤除只删除该租约的支持边，再从剩余支持计算可见目标。
+
+令支持关系为 `S ⊆ Lease × Target`，可见目标为 `range(S)`。撤除租约 `l` 后令 `S' = { (r,t) ∈ S | r ≠ l }`，再取 `range(S')`。于是每个仍有支持的目标保留，无支持的目标消失，其他租约的支持不变。这是集合定义的推论，对任意有限关系成立。SQL 实现仍须在一个事务中兑现该关系更新，数据库外键本身不能证明投影与支持集合相等。
+
+| 不变量 | 负控 |
+| --- | --- |
+| NoUnsupportedTarget | 只要还有同声明的兄弟租约，就错误保留所有旧目标 |
+| AllSupportedTargetsVisible | 撤一个租约时错误删除所有可见目标 |
+| MembersCurrent | 支持只能来自仍有效的租约，由正模型检查 |
+| PublicationCurrent | 忽略修订，发布撤除前准备的旧候选 |
+
+该模型不新增资格、来源权威或 epoch 保证。它把一个声明内的目标支持单独建模，原有 GovernanceLifecycle / GovernancePublication 继续承担各自性质。有限检查不证明真实事务、查询索引或多租户隔离。提供者的 `gc_member_target` 与选中目标关系必须用真实 SQL 反例建立符合性。

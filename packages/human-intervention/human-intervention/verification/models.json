@@ -529,6 +529,30 @@
       "model": "models/ConcurrentIntake.tla",
       "config": "models/concurrentintake-rebind.cfg",
       "expected": "NoOperationRebinding"
+    },
+    {
+      "name": "governancetargetsupport-positive",
+      "model": "models/GovernanceTargetSupport.tla",
+      "config": "models/governancetargetsupport-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "governancetargetsupport-retain",
+      "model": "models/GovernanceTargetSupport.tla",
+      "config": "models/governancetargetsupport-retain.cfg",
+      "expected": "NoUnsupportedTarget"
+    },
+    {
+      "name": "governancetargetsupport-drop",
+      "model": "models/GovernanceTargetSupport.tla",
+      "config": "models/governancetargetsupport-drop.cfg",
+      "expected": "AllSupportedTargetsVisible"
+    },
+    {
+      "name": "governancetargetsupport-stale",
+      "model": "models/GovernanceTargetSupport.tla",
+      "config": "models/governancetargetsupport-stale.cfg",
+      "expected": "PublicationCurrent"
     }
   ]
 }
