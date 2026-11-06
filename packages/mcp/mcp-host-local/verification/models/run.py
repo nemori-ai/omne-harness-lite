@@ -50,6 +50,7 @@ CASES = {
     'bad-caller-waits-workflow-signal': 'V4_SignalBounded',
     'bad-resend': 'V5_NoResendForCaller',
     'bad-close-not-sent': 'V6_ByPhase',
+    'bad-ended-sends-authorizing': 'V2_NoWireAfterDead',
 }
 
 # Valid-action mutations: name -> (base case, invariant that must go red, old text, new text).
@@ -113,6 +114,38 @@ MUTATIONS = {
         'valid-close', 'V6_ByPhase',
         '[] st[r] = "sent" -> "abandoned"\n                           [] st[r] = "disc" -> "authReq")',
         '[] st[r] = "sent" -> "notSent"\n                           [] st[r] = "disc" -> "authReq")'),
+    'V2-begin-ignores-dead': (
+        'valid-close', 'V2_NoWireAfterDead',
+        'r \\in signalled \\/ Dead',
+        'r \\in signalled'),
+    'V2-dead-read-resends': (
+        'valid-close', 'V2_NoWireAfterDead',
+        'THEN IF CanResend(r) /\\ Dead',
+        'THEN IF FALSE'),
+    'V4-ended-leaves-authorizing': (
+        'valid-close', 'V4_DeadBounded',
+        'THEN {"sent", "disc"} ELSE InFlightPhases',
+        'THEN {"sent", "disc"} ELSE {"sent", "disc"}'),
+    'V4-dead-keeps-caller': (
+        'valid-close', 'V4_DeadBounded',
+        'IF r \\in own \\/ (r \\in stops /\\ ~CallerFollows)',
+        'IF r \\in own'),
+    'V6-dead-settles-discovery': (
+        'valid-close', 'V6_ByPhase',
+        'ELSE IF st[r] = "disc" THEN "none"',
+        'ELSE IF st[r] = "disc" THEN "authReq"'),
+    'V6-gone-auth-broken': (
+        'valid-close', 'V6_ByPhase',
+        'ELSE IF st[r] = "auth" THEN "notSent"',
+        'ELSE IF st[r] = "auth" THEN sentAnswer'),
+    'V6-gone-sent-abandoned': (
+        'valid-close', 'V6_ByPhase',
+        '"gone", "broken")',
+        '"gone", "abandoned")'),
+    'V6-ended-abandons-sent': (
+        'valid-close', 'V6_ByPhase',
+        '"ended", "none")',
+        '"ended", "abandoned")'),
 }
 
 COMPLETED = 'Model checking completed. No error has been found.'
