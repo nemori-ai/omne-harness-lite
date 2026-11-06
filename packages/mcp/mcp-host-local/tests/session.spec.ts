@@ -1721,6 +1721,34 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
     expect(line.sseAttempts).toEqual([])
   })
 
+  it('a workflow that fails unexpectedly settles its request by its phase: a metadata fetch that throws leaves the request authorization-required with what was fetched', async () => {
+    const { transport, credential } = open(
+      'streamable-http',
+      { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
+      {
+        fetchMetadata: () => {
+          throw new Error('the fetch port is broken')
+        },
+      },
+    )
+    expect(await settledWithin(transport.listActions())).toEqual({
+      settled: {
+        failure: {
+          kind: 'not-sent',
+          cause: 'authorization-required',
+          discovery: {
+            resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
+            metadata: 'unavailable',
+            issuers: [],
+            scopes: [],
+          },
+        },
+      },
+    })
+    expect(credential.rejections()).toBe(1)
+    await transport.close()
+  })
+
   it('two callers closing at once both return after the line closed, from the one close', async () => {
     const { line, transport } = open('stdio', {})
     let release = (): void => undefined
