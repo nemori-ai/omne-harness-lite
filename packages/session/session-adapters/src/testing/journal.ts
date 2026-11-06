@@ -2518,7 +2518,7 @@ export function createJournal<P>(
         revision: execution.revision,
         checkpoint: execution.checkpoint,
         inputs: execution.inputs,
-        inputBatch: input => takenInputs.get(input.id) ?? null,
+        committedInputBatchOf: input => takenInputs.get(input.id) ?? null,
         acceptanceOf: input => {
           for (const record of execution.handoffs)
             if (record.handoff.kind === 'input' && record.handoff.input === input.id)

@@ -545,10 +545,6 @@ export async function finishInput(journal: Journal, opened: Opened, name = 'fini
   } as const
 }
 
-/**
- * Takes every accepted input into one batch, as I0 would: reads the batch at the current watermark
- * and commits input-taken with its checkpoint. An ordinary end is blocked while inputs are untaken.
- */
 export async function takeInputs(journal: Journal, opened: Opened) {
   const snapshot = await load(journal, opened.execution)
   const taken = ok(
