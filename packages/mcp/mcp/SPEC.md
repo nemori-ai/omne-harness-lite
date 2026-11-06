@@ -228,7 +228,7 @@
 
 - 一个 `createConnectionTable` 实例（`createMcp` 的一张表），它的条目，以及条目持有的五项资源：传输、进程句柄、凭据句柄、未确认停止的进程、在途的落点。
 - 驱动它的调用：`ensure`、`close`（`release` 与自动关闭用它）、`closeAll`、`lose`。
-- 调用口（P9–P14）：同一张表上的 `createCalls` 与 `createTasks`，它们共享的在途表与任务表；驱动它们的调用：`invoke`、`continueWithInput`、`cancel`、调用方的 `signal`（中止）、四个任务操作。
+- 调用口（P9–P15）：同一张表上的 `createCalls` 与 `createTasks`，它们共享的在途表与任务表；驱动它们的调用：`invoke`、`continueWithInput`、`cancel`、调用方的 `signal`（中止）、四个任务操作。
 - 端口调用：重读采用、取凭据、落点启动、打开传输、`discover`、`close()`、`stop()`、句柄 `release()`、标记清单时的存储读取。调用口另有：关口的采用读取与资格核对、清单读取、标记清单时的存储写入、传输的 `call`、对端对已发出请求的应答（`SentCall.answer`）、`cancelRequest`、四个任务方法。
 - 范围是 stdio 端点带进程凭据。这时五项资源都会出现。
 
@@ -276,6 +276,7 @@
   - P14 T1（WF1、WF2 与 WF4 下）：每个调用与任务操作最终答复。探索器的形式：静止时每个调用与任务操作都已答复。
   - P14 T2（只要 WF1、WF2 与 WF5，其余端口可以挂起；P8 T2 的全局形式）：停止信号已触发的调用，在全部时限到期之后已答复，不再等传输的 `call` 以外的任何端口。调用在传输报告「没有发出」之前不能答「未发出」，所以对 `call` 的等待是传输的前提（WF5），不是调用口的时限。任务操作自己的时限（任务请求的时限，与它建连的时限）都到期之后已答复。
   - 在修复轮（`w3-mcp-call-fix1` 与 `1a143a4d4`）之前的实现对调用一句有反例，见 [verification/README.md「发现」](verification/README.md#发现)；本页修订的实现没有。
+- **P15 不带标记的失败不转 `lost`**（契约 [S7](../mcp-contract/SPEC.md#services)、[T1](../mcp-contract/SPEC.md#port-transport)；MC-16 第 9 步 `lostOf` 的第 3 条）：就绪连接上的一个请求（传输的 `call`、对端对已发出请求的应答、任务方法），传输答不带 `unusable` 的失败（`not-sent`（`connection-unavailable`）或 `no-answer`）时，交出这个答复的那一步之后，这个键的状态不是 `lost`，这一步也不做转 `lost` 时先做的端口调用：不调用拆除的端口，不为这个键标记清单。`lostOf` 的另一条例外 `not-sent`（`authorization-required`）转 `lost`，不属于本性质。
 
 证据与状态。每格只陈述它那种证据，用词沿 `docs/verification.md`「分别表述这六种状态」：
 
@@ -307,9 +308,10 @@
 | P13              | 不发：有限范围通过，含关停落在等关口途中的调用与任务操作（模型在关口之后再读关停，不问 `ensure`）。答复一侧：模型未覆盖（`Refused` 不带原因，模型只覆盖「不问端口」）        | 有限范围通过，含答复一侧（`call-shutdown`、`continue-shutdown`、`task` 场景，续调用等存储时关停的落点在 `continue-shutdown`）                                                                                   | 真实组合未验证 |
 | P14 T1           | 有限范围通过（`LiveSpec`，带 WF4）                                                                                                                                           | 静止状态的安全投影：有限范围通过                                                                                                                                                                                | 真实组合未验证 |
 | P14 T2           | 调用一句：有限范围通过（`gate`、`ensure`、`answer` 的等待受停止信号，`cancelReq` 与 `lose` 交作用域）。任务一句：模型里任务请求受时限，按构造成立                            | 调用一句：有限范围通过，含 `cancel` 与调用方中止在关口、建连、发出与等应答各步到达，以及 `not-sent`、`no-answer` 之后的 `lose`。任务一句：有限范围通过                                                          | 真实组合未验证 |
+| P15              | 模型未覆盖：`Calls.tla` 的 `call`、`answer`、`task` 只有一种 `fail`，它的每个转移都经 `Lose`，对应带标记的失败，见 [verification/README.md「未覆盖」](verification/README.md#未覆盖) | 有限范围通过（`marks` 场景，驱动 `call`、对端应答与 `getTask`）。另外三个任务方法与 `refresh` 的页请求不由探索器驱动：页请求由 `refresh.spec.ts` 承担 | 真实组合未验证 |
 | P7（调用口场景） | 模型把违约写成答复，模型未覆盖                                                                                                                                               | 有限范围通过，含同步抛出与对端应答的 reject：被放弃的调用的应答也经 `ask` 读取。修复轮之前有反例（发现 F2）                                                                                                     | 真实组合未验证 |
 
-负控是在模型里放进一处已知缺陷，TLC 须找到违反所列性质的轨迹。P1、P2、P4、P6 与 P8 T2 在模型上有负控。P3、P5 与 P7 在模型上没有负控：它们只由探索器一边的源码变异变红。P8 T1 只有反定理的探针（去掉 WF3 时找到时序反例）。P9、P10、P11、P12、P13、P14 T1 与 P14 T2 在 `Calls.tla` 上各有负控。P13 的答复一侧在模型上没有负控，在探索器上由修复轮 `w3-mcp-call-fix3` 的两个变异变红：N9（`perform` 的出口不读关停，`continue-shutdown` 场景报 `P13-answer-after-closeAll`）与 N10（任务操作的出口不读关停，`task` 场景报同一签名）。负控与探索器的变异见 [verification/README.md](verification/README.md#两种证据能变红)。
+负控是在模型里放进一处已知缺陷，TLC 须找到违反所列性质的轨迹。P1、P2、P4、P6 与 P8 T2 在模型上有负控。P3、P5 与 P7 在模型上没有负控：它们只由探索器一边的源码变异变红。P8 T1 只有反定理的探针（去掉 WF3 时找到时序反例）。P9、P10、P11、P12、P13、P14 T1 与 P14 T2 在 `Calls.tla` 上各有负控。P13 的答复一侧在模型上没有负控，在探索器上由修复轮 `w3-mcp-call-fix3` 的两个变异变红：N9（`perform` 的出口不读关停，`continue-shutdown` 场景报 `P13-answer-after-closeAll`）与 N10（任务操作的出口不读关停，`task` 场景报同一签名）。P15 在模型上没有负控，在探索器上由 N11 变红（`lostOf` 第 3 条对不带标记的失败也转 `lost`，`marks` 场景报 `P15-lost-on-usable-failure` 与 `P15-teardown-on-usable-failure`）。负控与探索器的变异见 [verification/README.md](verification/README.md#两种证据能变红)。
 
 两种证据都没有覆盖的承诺，由所列用例承担：
 
